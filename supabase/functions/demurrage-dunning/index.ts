@@ -45,10 +45,11 @@ function normalizeNested<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null
 }
 
-// Respostas à cobrança vão para a equipe de demurrage, não para a caixa dos
-// Comunicados; sem DEMURRAGE_REPLY_TO, mantém o reply-to do canal.
+// Respostas à cobrança vão para a equipe de demurrage, o mesmo endereço do
+// rodapé (decisão de 2026-10-20); sem DEMURRAGE_REPLY_TO o envio real é
+// recusado, em vez de cair na caixa dos Comunicados.
 function demurrageReplyTo(): string | undefined {
-  return Deno.env.get('DEMURRAGE_REPLY_TO')?.trim() || Deno.env.get('COMMUNICATIONS_REPLY_TO')
+  return Deno.env.get('DEMURRAGE_REPLY_TO')?.trim() || undefined
 }
 
 function portalBillingUrl(): string {

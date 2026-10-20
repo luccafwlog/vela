@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  assertRealSendConfigured,
   dunningIdempotencyKey,
+  MISSING_SENDER_MESSAGE,
   dunningResumeDispatchId,
   runDemurrageDunning,
   type DunningCandidate,
@@ -428,5 +430,19 @@ describe('rodada da Régua de Cobrança com banco e provedor falsos', () => {
     const result = await runDemurrageDunning({ store: fake.store, config, fetcher: providerResponses({ status: 200, body: { id: 'x' } }).fetcher, sleep: async () => {}, log: quietLog() })
     expect(result.status).toBe(500)
     expect(result.body.releaseFailures).toBe(1)
+  })
+})
+
+// Decisão de 2026-10-20: a cobrança mostra e recebe em DEMURRAGE_REPLY_TO; sem
+// ele o envio real é recusado, em vez de a resposta cair na caixa dos Comunicados.
+describe('envio real exige o reply-to da Demurrage', () => {
+  const config = { resendApiKey: 'key', from: 'Portal Fwlog <no-reply@portalfwlog.com.br>', portalUrl: 'https://portalfwlog.com.br/portal/billing' }
+  it('sem reply-to, recusa com a mensagem que nomeia DEMURRAGE_REPLY_TO', () => {
+    expect(() => assertRealSendConfigured(true, { ...config, replyTo: undefined })).toThrow(MISSING_SENDER_MESSAGE)
+    expect(MISSING_SENDER_MESSAGE).not.toContain('COMMUNICATIONS_REPLY_TO')
+  })
+  it('com reply-to, segue; em simulação, não exige nada', () => {
+    expect(() => assertRealSendConfigured(true, { ...config, replyTo: 'eqp@fwlog.com.br' })).not.toThrow()
+    expect(() => assertRealSendConfigured(false, { ...config, replyTo: undefined })).not.toThrow()
   })
 })

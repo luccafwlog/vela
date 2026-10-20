@@ -574,7 +574,7 @@ mesmos.
 | Resumo diário do Portal (interno, aos usuários de Administrativo e Documentação) | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
 | Avisos do Desbloqueio de CE ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
 | Comunicados | `PORTAL_FROM_EMAIL` | `COMMUNICATIONS_REPLY_TO` = `importacao@fwlog.com.br` |
-| Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` |
+| Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` (obrigatório: sem ele o envio real é recusado, desde 2026-10-20) |
 
 - **Conta:** organização `FWLOG` em `app.millionsend.com` (nuvem).
 - **Domínio:** `portalfwlog.com.br` (**Verificado**, região São Paulo,

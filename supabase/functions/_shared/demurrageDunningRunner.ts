@@ -137,7 +137,7 @@ export type DunningRunResult = {
 // começou no lote.
 export const CLAIM_BATCH_SIZE = 50
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
-export const MISSING_SENDER_MESSAGE = 'PORTAL_FROM_EMAIL e DEMURRAGE_REPLY_TO (ou COMMUNICATIONS_REPLY_TO) são obrigatórios para envio real'
+export const MISSING_SENDER_MESSAGE = 'PORTAL_FROM_EMAIL e DEMURRAGE_REPLY_TO são obrigatórios para envio real'
 const LOG_PREFIX = '[demurrage-dunning]'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
