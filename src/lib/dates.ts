@@ -38,3 +38,12 @@ export function saoPauloTodayIso(now = new Date()): string {
   const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
   return `${values.year}-${values.month}-${values.day}`
 }
+
+/**
+ * Início e fim de um dia de Brasília (aaaa-mm-dd) como instantes, para filtro
+ * de data não cortar o dia três horas antes, no horário UTC.
+ * ponytail: fuso fixo -03:00; o Brasil não tem horário de verão desde 2019.
+ */
+export function brasiliaDayBounds(day: string): { start: string; end: string } {
+  return { start: `${day}T00:00:00-03:00`, end: `${day}T23:59:59.999-03:00` }
+}

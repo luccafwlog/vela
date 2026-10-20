@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Ban, MoreVertical, RotateCcw, Trash2 } from 'lucide-react'
+import { Ban, MoreVertical, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { ActionMenu, type ActionMenuItem } from '../ui/ActionMenu'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { Block } from '../ui/Block'
 import { MetricCard } from '../ui/MetricCard'
 import { StatusText } from '../ui/StatusText'
@@ -235,21 +236,26 @@ export function ChargeOverridesTab({
 
   // Funções de render, não componentes: um componente declarado aqui seria
   // recriado a cada render e fecharia o menu ⋮ aberto.
-  function renderActions(row: LocalChargeOverrideItem) {
+  /** Na linha da tabela, só os ícones (`iconOnly`, regra 9); no cartão do celular, com texto. */
+  function renderActions(row: LocalChargeOverrideItem, iconOnly = false) {
     if (!canEdit) return null
     const menu = rowMenu(row)
     const name = `${row.customer?.name ?? 'Cliente'} · ${row.charge_item ? itemDisplayName(row.charge_item) : 'item'}`
     return (
       <div className="app-rates-item__actions">
-        <Button variant="secondary" className="app-btn--sm" onClick={() => setModal({ row })} aria-label={`Editar condição ${name}`}>
-          Editar
-        </Button>
+        {iconOnly ? (
+          <RowActionButton label={`Editar condição ${name}`} icon={Pencil} onClick={() => setModal({ row })} />
+        ) : (
+          <Button variant="secondary" className="app-btn--sm" onClick={() => setModal({ row })} aria-label={`Editar condição ${name}`}>
+            Editar
+          </Button>
+        )}
         {menu.length ? (
           <ActionMenu
             label={`Mais ações da condição ${name}`}
             menuId={`condition-menu-${row.id}`}
-            triggerClassName="app-table__icon-button"
-            trigger={<MoreVertical size={16} aria-hidden="true" />}
+            triggerClassName={iconOnly ? 'app-btn app-btn--ghost app-btn--icon' : 'app-table__icon-button'}
+            trigger={<MoreVertical size={iconOnly ? 15 : 16} aria-hidden="true" />}
             items={menu}
           />
         ) : null}
@@ -429,7 +435,7 @@ export function ChargeOverridesTab({
                         <td>{renderSituation(entry)}</td>
                         <td className="tabular-nums">{values.negotiated}</td>
                         <td className="tabular-nums">{values.table}</td>
-                        {canEdit ? <td>{renderActions(row)}</td> : null}
+                        {canEdit ? <td>{renderActions(row, true)}</td> : null}
                       </tr>
                     )
                   })}

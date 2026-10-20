@@ -58,6 +58,25 @@ export function armazenagemPorDepotCondicao(unidades: EmptyUnit[], depots: Stora
   return [...byKey.values()]
 }
 
+/**
+ * "Armazenagem a lançar" do Embarque: combinações (depot, condição) com dias
+ * cobráveis calculados pela lista de unidades e ainda sem linha de
+ * armazenagem. Zero dia quer dizer que as unidades daquele local ficaram
+ * dentro do free time e não há o que lançar (decisão de 2026-10-19).
+ */
+export function armazenagemALancar(
+  unidades: EmptyUnit[],
+  depots: StorageDepot[],
+  linhas: Array<Pick<CostServiceLine, 'natureza' | 'local_id' | 'condition'>>,
+): Array<{ depot_id: string; condition: string; quantidade: number }> {
+  const launched = new Set(
+    linhas.filter((line) => line.natureza === 'armazenagem').map((line) => `${line.local_id}:${line.condition}`),
+  )
+  return armazenagemPorDepotCondicao(unidades, depots).filter(
+    (item) => item.quantidade > 0 && !launched.has(`${item.depot_id}:${item.condition}`),
+  )
+}
+
 export function quantidadeEfetiva(linha: CostServiceLine, unidades: EmptyUnit[], depots: StorageDepot[] = []): number {
   if (linha.natureza !== 'armazenagem' || linha.quantidade_manual) return Number(linha.quantidade) || 0
   return armazenagemPorDepotCondicao(unidades, depots).find((row) => row.depot_id === linha.local_id && row.condition === linha.condition)?.quantidade ?? 0

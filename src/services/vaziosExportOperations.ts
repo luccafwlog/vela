@@ -5,8 +5,8 @@ import type {
   VaziosExportServiceLine,
 } from "../types/database";
 import { supabase } from "./supabase";
-import { normalizePortCode } from "./portCode";
-import { diasCobraveis } from "./vaziosCusto";
+import { normalizePortCode, storedPortAliases } from "./portCode";
+import { armazenagemALancar, diasCobraveis, totalEmbarque, type StorageDepot } from "./vaziosCusto";
 import { deleteOneById } from "./deleteRecords";
 
 const OPERATION_BOOKINGS_PAGE_SIZE = 1000;
@@ -281,4 +281,152 @@ export async function listVaziosExportEmbarkPorts(voyageId: number): Promise<str
     if (normalized) ports.add(normalized);
   }
   return Array.from(ports);
+}
+
+/**
+ * Abre o embarque da escala (Viagem + porto) ou o cria. `created` diz qual
+ * dos dois aconteceu, para a tela não anunciar "Embarque criado." quando ele
+ * já existia (achado V4 do lote 5b). Um embarque por escala e porto.
+ */
+export async function openOrCreateVaziosExportOperation(input: {
+  voyageId: number;
+  embarkPort: string;
+}): Promise<{ id: string; created: boolean }> {
+  const { data, error } = await supabase
+    .from("vazios_export_operations")
+    .select("id")
+    .eq("voyage_id", input.voyageId)
+    // Embarque legado pode ter o porto em outra grafia (BRVIT); o mesmo porto
+    // não ganha um segundo embarque. O mais antigo vence se houver dois.
+    .in("embark_port", storedPortAliases(input.embarkPort))
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (data) return { id: (data as { id: string }).id, created: false };
+  const created = await upsertVaziosExportOperation(input);
+  return { id: created.id, created: true };
+}
+
+export type VaziosOperationListRow = {
+  id: string;
+  voyage_id: number;
+  embark_port: string;
+  created_at: string;
+  updated_at: string;
+  voyage?: { vessel?: { name?: string | null } | null; voyage_number?: string | null } | null;
+  linhas?: Array<{
+    local_id: string;
+    condition: string | null;
+    quantidade: number | string;
+    valor_unitario: number | string;
+    quantidade_manual: boolean;
+    updated_at?: string | null;
+    service?: { natureza?: string | null } | null;
+  }> | null;
+};
+
+export type VaziosOperationBookingRow = Pick<
+  VaziosBooking,
+  "operation_id" | "local_id" | "condition" | "hand_in_date" | "hand_out_date" | "created_at"
+> & {
+  /** Migration 332; vazia nas unidades anteriores a ela (`database.ts` protegido ainda não a descreve). */
+  updated_at?: string | null;
+};
+
+/**
+ * Todos os embarques com as linhas de serviço e as unidades, para a lista de
+ * embarques (unidades, total dos serviços, armazenagem a lançar).
+ * ponytail: lê todas as unidades de todos os embarques e soma no navegador;
+ * com volume grande, o upgrade é uma RPC de resumo por embarque.
+ */
+export async function listVaziosExportOperationsWithUnits(): Promise<{
+  operations: VaziosOperationListRow[];
+  bookings: VaziosOperationBookingRow[];
+}> {
+  // O servidor corta cada leitura em max_rows (1.000): embarques e unidades vêm em páginas.
+  const operations: VaziosOperationListRow[] = [];
+  for (let from = 0; ; from += OPERATION_BOOKINGS_PAGE_SIZE) {
+    const { data: page, error } = await supabase
+      .from("vazios_export_operations")
+      .select(
+        "id, voyage_id, embark_port, created_at, updated_at, voyage:voyages(voyage_number, vessel:vessels(name)), linhas:vazios_export_service_lines(local_id, condition, quantidade, valor_unitario, quantidade_manual, updated_at, service:depot_services(natureza))",
+      )
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + OPERATION_BOOKINGS_PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = (page ?? []) as unknown as VaziosOperationListRow[];
+    operations.push(...rows);
+    if (rows.length < OPERATION_BOOKINGS_PAGE_SIZE) break;
+  }
+  const bookings: VaziosOperationBookingRow[] = [];
+  for (let from = 0; ; from += OPERATION_BOOKINGS_PAGE_SIZE) {
+    const { data: page, error: pageError } = await supabase
+      .from("vazios_bookings")
+      .select("operation_id, local_id, condition, hand_in_date, hand_out_date, created_at, updated_at")
+      .order("id")
+      .range(from, from + OPERATION_BOOKINGS_PAGE_SIZE - 1);
+    if (pageError) throw pageError;
+    const rows = (page ?? []) as unknown as VaziosOperationBookingRow[];
+    bookings.push(...rows);
+    if (rows.length < OPERATION_BOOKINGS_PAGE_SIZE) break;
+  }
+  return { operations, bookings };
+}
+
+export type VaziosOperationSummary = {
+  id: string;
+  voyage_id: number;
+  embark_port: string;
+  voyage: VaziosOperationListRow["voyage"];
+  unidades: number;
+  servicos: number;
+  /** Locais com armazenagem calculada e ainda sem linha (0 dia não conta). */
+  armazenagemLocais: number;
+  atualizadoEm: string;
+};
+
+/** Resumo de cada embarque para a lista, do mais recente para o mais antigo. */
+export function summarizeVaziosOperations(
+  operations: VaziosOperationListRow[],
+  bookings: VaziosOperationBookingRow[],
+  depots: StorageDepot[],
+): VaziosOperationSummary[] {
+  const byOperation = new Map<string, VaziosOperationBookingRow[]>();
+  for (const booking of bookings) {
+    const list = byOperation.get(booking.operation_id) ?? [];
+    list.push(booking);
+    byOperation.set(booking.operation_id, list);
+  }
+  return operations
+    .map((operation) => {
+      const unidades = byOperation.get(operation.id) ?? [];
+      const linhas = (operation.linhas ?? []).map((line) => ({
+        natureza: line.service?.natureza ?? "geral",
+        local_id: line.local_id,
+        condition: line.condition,
+        quantidade: Number(line.quantidade),
+        valor_unitario: Number(line.valor_unitario),
+        quantidade_manual: line.quantidade_manual,
+      }));
+      const pendentes = armazenagemALancar(unidades, depots, linhas);
+      const dates = [
+        ...(operation.linhas ?? []).map((line) => line.updated_at ?? null),
+        // ponytail: unidade excluída some sem deixar data; o "Atualizado em"
+        // só sobe com a inclusão ou a alteração (migration 332).
+        ...unidades.map((unit) => unit.updated_at ?? unit.created_at ?? null),
+      ].filter((value): value is string => Boolean(value));
+      return {
+        id: operation.id,
+        voyage_id: operation.voyage_id,
+        embark_port: operation.embark_port,
+        voyage: operation.voyage ?? null,
+        unidades: unidades.length,
+        servicos: totalEmbarque({ unidades, linhas, depots }),
+        armazenagemLocais: new Set(pendentes.map((item) => item.depot_id)).size,
+        atualizadoEm: dates.reduce((latest, value) => (Date.parse(value) > Date.parse(latest) ? value : latest), operation.updated_at),
+      };
+    })
+    .sort((a, b) => Date.parse(b.atualizadoEm) - Date.parse(a.atualizadoEm));
 }

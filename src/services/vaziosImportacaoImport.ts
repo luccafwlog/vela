@@ -4,8 +4,8 @@ import { supabase } from './supabase'
 import { escapeFilterTerm } from '../lib/utils'
 import { parseImportNumber } from '../lib/importNumber'
 import { IsoContainerSchema, LocodeSchema } from './importValidation'
-import { resolvePortCode } from './portCode'
-import type { VaziosImportacaoContainerListItem, VaziosImportacaoManifest } from '../types/database'
+import { normalizeStoredPortCode, resolvePortCode, storedPortAliases } from './portCode'
+import type { VaziosImportacaoContainerListItem } from '../types/database'
 
 const HEADER_MAP: Record<string, string> = {
   'container': 'container_number',
@@ -73,7 +73,7 @@ export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<
   const { missing } = matchHeaders(headers, VAZIOS_IMPORTACAO_HEADER_SPEC)
   if (missing.length) {
     const labels = missing.map((field) => VAZIOS_IMPORTACAO_HEADER_LABELS[field])
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${labels.join(', ')}.`)
+    throw new Error(`Planilha inválida. Colunas obrigatórias: ${labels.join(', ')}.`)
   }
   const mapRow = createHeaderMapper(rows[0], HEADER_MAP)
 
@@ -194,9 +194,10 @@ export type VaziosImportacaoRoute = { pol: string; pod: string }
 export const vaziosRouteKey = (route: VaziosImportacaoRoute) => `${route.pol}__${route.pod}`
 
 /**
- * Um Nº de manifesto Mercante para cada porto de origem dos vazios (decisão de
- * 2026-10-01). O manifesto pertence à rota POL/POD, então a planilha precisa de
- * POL e POD em todas as linhas; cada rota encontrada pede o seu número.
+ * Um Nº de manifesto Mercante para cada rota (POL → POD) dos vazios (decisão
+ * de 2026-10-01; achado V3 do lote 5b: o mesmo POL com dois POD pede dois
+ * números). A planilha precisa de POL e POD em todas as linhas; cada rota
+ * encontrada pede o seu número.
  */
 export function resolveVaziosManifestRoutes(
   manifest: Pick<ParsedVaziosImportacaoManifest, 'containers'>,
@@ -205,7 +206,7 @@ export function resolveVaziosManifestRoutes(
   if (manifest.containers.some((container) => !container.pol || !container.pod)) {
     return {
       routes: null,
-      error: 'POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence ao porto de origem.',
+      error: 'POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence à rota (POL → POD).',
     }
   }
   const routes = new Map<string, VaziosImportacaoRoute>()
@@ -236,7 +237,7 @@ export function resolveVaziosManifestNumbers(
   }
   const repeated = manifestos.find((m, index) => manifestos.findIndex((other) => other.numero === m.numero) !== index)
   if (repeated) {
-    return { manifestos: null, error: `O número ${repeated.numero} foi informado para mais de um porto de origem.` }
+    return { manifestos: null, error: `O número ${repeated.numero} foi informado para mais de uma rota.` }
   }
   return { manifestos, error: null }
 }
@@ -355,11 +356,66 @@ export async function getBaplieManifestForVoyage(voyageId: number): Promise<{
   return data as { id: string; total_containers: number; imported_at: string } | null
 }
 
-export async function listVaziosImportacaoContainers(filters: {
+export type VaziosImportacaoContainerFilters = {
   manifestId?: string
   voyageId?: string
+  /** Rota do manifesto Mercante escolhido no filtro (com o `pod`). */
+  pol?: string
   pod?: string
   search?: string
+}
+
+type VaziosImportacaoFilterableQuery<Q> = {
+  or(filters: string): Q
+  eq(column: string, value: string): Q
+  in(column: string, values: readonly string[]): Q
+}
+
+/** Aplica o recorte a uma consulta de `vazios_importacao_containers`. */
+export type VaziosImportacaoContainerFilterApplier = <Q extends VaziosImportacaoFilterableQuery<Q>>(query: Q) => Q
+
+/**
+ * Recorte da tela de Vazios de Importação, comum à página da lista e ao
+ * "Selecionar os N do filtro" (`fetchVaziosImportacaoContainerIds`): os dois
+ * precisam devolver o mesmo conjunto. Resolve antes a parte que consulta o
+ * banco (manifestos da Viagem) e devolve um aplicador síncrono: o builder do
+ * PostgREST é "thenable", então não pode sair de uma função `async` sem ser
+ * executado. `null` quando a Viagem não tem manifesto de vazios (recorte
+ * vazio sem consultar os containers).
+ */
+export async function resolveVaziosImportacaoContainerFilters(
+  filters: VaziosImportacaoContainerFilters,
+): Promise<VaziosImportacaoContainerFilterApplier | null> {
+  let manifestIds: string[] | null = null
+  if (filters.voyageId) {
+    const { data, error } = await supabase
+      .from('vazios_importacao_manifests')
+      .select('id')
+      .eq('voyage_id', Number(filters.voyageId))
+    // Falha da consulta não pode virar "Nenhum container neste recorte".
+    if (error) throw error
+    manifestIds = (data ?? []).map((m: { id: string }) => m.id)
+    if (!manifestIds.length) return null
+  }
+  // Neutraliza sintaxe do parser PostgREST e curingas do LIKE (% e _)
+  const safeSearch = filters.search ? escapeFilterTerm(filters.search) : ''
+  // A coluna guarda a grafia gravada; o filtro casa todas as que
+  // `public.normalize_port_code` leva ao mesmo porto (como `reports.ts`).
+  const polAliases = storedPortAliases(filters.pol)
+  const podAliases = storedPortAliases(filters.pod)
+
+  return (query) => {
+    let filtered = query
+    if (safeSearch) filtered = filtered.or(`container_number.ilike.%${safeSearch}%,container_type.ilike.%${safeSearch}%`)
+    if (filters.manifestId) filtered = filtered.eq('manifest_id', filters.manifestId)
+    if (manifestIds) filtered = filtered.in('manifest_id', manifestIds)
+    if (polAliases.length) filtered = filtered.in('pol', polAliases)
+    if (podAliases.length) filtered = filtered.in('pod', podAliases)
+    return filtered
+  }
+}
+
+export async function listVaziosImportacaoContainers(filters: VaziosImportacaoContainerFilters & {
   page?: number
   pageSize?: number
 }) {
@@ -370,57 +426,63 @@ export async function listVaziosImportacaoContainers(filters: {
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
-  let query = supabase
-    .from('vazios_importacao_containers')
-    .select(
-      `*, manifest:vazios_importacao_manifests(id, voyage_id, description, imported_at, voyage:voyages(voyage_number, vessel:vessels(name)))`,
-      { count: 'exact' },
-    )
-    .range(from, to)
+  const applyFilters = await resolveVaziosImportacaoContainerFilters(filters)
+  if (!applyFilters) return { rows: [], count: 0 }
+
+  const { data, error, count } = await applyFilters(
+    supabase
+      .from('vazios_importacao_containers')
+      .select(
+        `*, manifest:vazios_importacao_manifests(id, voyage_id, description, imported_at, voyage:voyages(voyage_number, vessel:vessels(name)))`,
+        { count: 'exact' },
+      ),
+  )
     .order('created_at', { ascending: false })
-
-  if (filters.search) {
-    // Neutraliza sintaxe do parser PostgREST e curingas do LIKE (% e _)
-    const safe = escapeFilterTerm(filters.search)
-    if (safe) {
-      query = query.or(
-        `container_number.ilike.%${safe}%,container_type.ilike.%${safe}%`,
-      )
-    }
-  }
-
-  if (filters.manifestId) {
-    query = query.eq('manifest_id', filters.manifestId)
-  }
-
-  if (filters.voyageId) {
-    const { data: manifestIds } = await supabase
-      .from('vazios_importacao_manifests')
-      .select('id')
-      .eq('voyage_id', Number(filters.voyageId))
-    const ids = (manifestIds ?? []).map((m: { id: string }) => m.id)
-    if (!ids.length) return { rows: [], count: 0 }
-    query = query.in('manifest_id', ids)
-  }
-
-  if (filters.pod) {
-    const safe = escapeFilterTerm(filters.pod)
-    if (safe) {
-      query = query.ilike('pod', safe)
-    }
-  }
-
-  const { data, error, count } = await query
+    .order('id')
+    .range(from, to)
   if (error) throw error
   return { rows: (data ?? []) as unknown as VaziosImportacaoContainerListItem[], count: count ?? 0 }
 }
 
-export async function listVaziosImportacaoManifests() {
+/** Manifesto Mercante de vazios de uma rota da Viagem (aba Rotas e Manifestos). */
+export type VaziosMercanteManifesto = {
+  id: string
+  voyage_id: number
+  pol: string
+  pod: string
+  numero: string
+}
+
+/** Manifestos Mercante de natureza `vazio` das Viagens pedidas. */
+export async function listVaziosMercanteManifestos(voyageIds: number[]): Promise<VaziosMercanteManifesto[]> {
+  const ids = Array.from(new Set(voyageIds.filter((id) => Number.isFinite(id))))
+  if (!ids.length) return []
   const { data, error } = await supabase
-    .from('vazios_importacao_manifests')
-    .select('id, description, total_containers, imported_at')
-    .order('imported_at', { ascending: false })
-    .limit(50)
+    .from('manifestos_mercante')
+    .select('id, voyage_id, pol, pod, numero')
+    .eq('natureza', 'vazio')
+    .in('voyage_id', ids)
+    .order('numero')
   if (error) throw error
-  return (data ?? []) as unknown as VaziosImportacaoManifest[]
+  return (data ?? []) as VaziosMercanteManifesto[]
+}
+
+/**
+ * Nº do manifesto Mercante da rota do container: o manifesto de vazios da
+ * mesma Viagem, POL e POD (comparados por `normalizeStoredPortCode`, a mesma
+ * régua de `public.normalize_port_code`). `null`
+ * quando a rota ainda não tem número (vazio do Baplie sem manifesto: a mesma
+ * pendência do alerta "CE Mercante pendente").
+ */
+export function vazioManifestoNumero(
+  container: { pol?: string | null; pod?: string | null; manifest?: { voyage_id?: number | null } | null },
+  manifestos: ReadonlyArray<Pick<VaziosMercanteManifesto, 'voyage_id' | 'pol' | 'pod' | 'numero'>>,
+): string | null {
+  const voyageId = container.manifest?.voyage_id
+  const pol = normalizeStoredPortCode(container.pol)
+  const pod = normalizeStoredPortCode(container.pod)
+  if (voyageId == null || !pol || !pod) return null
+  const found = manifestos.find((item) =>
+    item.voyage_id === voyageId && normalizeStoredPortCode(item.pol) === pol && normalizeStoredPortCode(item.pod) === pod)
+  return found?.numero ?? null
 }

@@ -70,13 +70,6 @@ export function getBillingBlock(row: {
   customer?: { id: number | null } | null
   totals: { total_brl: number; line_count: number; review_required_count: number }
 }): { code: BillingBlockCode; label: string; detail: string } {
-  if (row.cargo_mode === 'granito') {
-    return {
-      code: 'operacao_granito',
-      label: 'Apoio operacional',
-      detail: 'Granito fornece conferência de quantidades e não participa da emissão de invoices.',
-    }
-  }
   // Faturado, parcialmente pago ou pago: a fatura já saiu (antes só `invoiced`
   // contava, e B/L pago voltava à fila oferecendo Emitir; lote 1 da identidade).
   if (isBlFinanciallyLocked(row.financial_status)) return { code: 'faturado', label: 'Faturado', detail: 'Fatura já emitida.' }
@@ -110,7 +103,7 @@ export function getBillingBlock(row: {
     return { code: 'calculo_incompleto', label: 'Cálculo incompleto', detail: row.billing_hold_reason }
   }
   // CE Mercante é exigido em todo modo faturável (ADR 0042; `assert_bl_ce_mercante`
-  // no banco). Granito já saiu acima como apoio operacional.
+  // no banco).
   if (!row.ce_mercante?.trim()) {
     return { code: 'aguardando_ce', label: 'Aguardando CE Mercante', detail: 'Aguardando cadastro do CE Mercante para emitir a fatura.' }
   }
@@ -139,7 +132,6 @@ export function getLegacyBillingBlockReason(row: {
   customer?: { id: number | null } | null
   totals: { total_brl: number; line_count: number; review_required_count: number }
 }) {
-  if (row.cargo_mode === 'granito') return 'Granito e apoio operacional; nao participa da emissao de invoices.'
   if (isBlFinanciallyLocked(row.financial_status)) return 'Fatura ja emitida.'
   if (row.billing_hold_reason) return row.billing_hold_reason
   if (!row.customer?.id) return 'Cliente nao vinculado.'
@@ -174,7 +166,6 @@ export function isAwaitingCeMercante(row: {
   customer_reconciliation_status: string | null
 }) {
   return (
-    (row.cargo_mode ?? 'container') !== 'granito' &&
     (row.financial_status ?? 'pending') === 'pending' &&
     !row.ce_mercante?.trim() &&
     // Achado 9 da review da PR 501: sem isto o card "Aguardando CE" contava

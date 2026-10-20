@@ -198,23 +198,6 @@ export async function applyInlineBlReviewFix({
   return parseSaveBlReviewResult(data)
 }
 
-export async function saveGraniteBlReview({
-  graniteBlId,
-  clientId,
-  changedBy,
-}: {
-  graniteBlId: string
-  clientId: number
-  changedBy: string
-}): Promise<void> {
-  const { error } = await supabase.rpc('save_granite_bl_review', {
-    p_granite_bl_id: graniteBlId,
-    p_client_id: clientId,
-    p_changed_by: changedBy,
-  })
-  if (error) throw error
-}
-
 export class ConcurrentEditError extends Error {
   constructor(message: string) {
     super(message)

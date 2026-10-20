@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFichaOverview, type OverviewInput } from '../fichaOverview'
+import { RECOVERY_EMAIL_READER_ROLES, buildFichaOverview, type OverviewInput } from '../fichaOverview'
 
 const clean: OverviewInput = {
   customerId: 7,
@@ -95,5 +95,11 @@ describe('buildFichaOverview', () => {
   it('perfil sem leitura de Demurrage não conta como falha nem como pendência', () => {
     const result = buildFichaOverview({ ...clean, demurrage: false })
     expect(result).toEqual({ items: [], loading: [], failed: [] })
+  })
+})
+
+describe('RECOVERY_EMAIL_READER_ROLES', () => {
+  it('os cinco setores leem o Email de Recuperação, como o console do Portal no banco (P2, lote 5b)', () => {
+    expect([...RECOVERY_EMAIL_READER_ROLES].sort()).toEqual(['administrativo', 'documentacao', 'equipamentos', 'financeiro', 'operacoes'])
   })
 })

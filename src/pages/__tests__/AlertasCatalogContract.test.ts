@@ -7,7 +7,7 @@ describe('Contrato do catálogo de alertas e tipos de entidade', () => {
     const catalog = readSqlAlertCatalog()
 
     expect(catalog).toHaveLength(52)
-    expect(catalog.filter((entry) => entry.active)).toHaveLength(48)
+    expect(catalog.filter((entry) => entry.active)).toHaveLength(47)
 
     for (const entry of catalog) {
       expect(TYPE_LABELS[entry.type], `Tipo catalogado ${entry.type} não possui rótulo em TYPE_LABELS`).toBeDefined()
@@ -15,10 +15,10 @@ describe('Contrato do catálogo de alertas e tipos de entidade', () => {
     }
   })
 
-  it('mantém aposentados os tipos sem produtor (migrations 327, 347, 348 e 085)', () => {
+  it('mantém aposentados os tipos sem produtor (migrations 327, 347, 348, 085 e 325)', () => {
     const inactive = readSqlAlertCatalog().filter((entry) => !entry.active).map((entry) => entry.type)
 
-    expect(inactive.sort()).toEqual(['invoice_cancel_blocked', 'invoice_overdue', 'invoice_payment_invalid', 'review_customer_email_missing'])
+    expect(inactive.sort()).toEqual(['invoice_cancel_blocked', 'invoice_overdue', 'invoice_payment_invalid', 'review_customer_email_missing', 'review_granite_customer_unlinked'])
   })
 
   it('todos os entity_types da §4 e do domínio possuem rótulo em ENTITY_TYPE_LABELS', () => {

@@ -130,7 +130,7 @@ Cobranças em moeda estrangeira usam o ROE obtido da PTAX Venda do Banco Central
 
 ## Reconciliação de cliente
 
-O consignatário importado (B/L de container, carga solta e Granito) só se vincula sozinho ao Cliente pelo CNPJ exato; nome, nome canônico ou similaridade apenas sugerem, e a decisão é da Revisão. Regra completa em [Clientes § Reconciliação de cliente em B/L e Granito](../modules/clientes.md#reconciliação-de-cliente-em-bl-e-granito).
+O consignatário importado (B/L de container e carga solta) só se vincula sozinho ao Cliente pelo CNPJ exato; nome, nome canônico ou similaridade apenas sugerem, e a decisão é da Revisão. O Granito não tem Cliente (lote 5b, 2026-10-19). Regra completa em [Clientes § Reconciliação de cliente no B/L](../modules/clientes.md#reconciliação-de-cliente-no-bl).
 
 ## Ações sobre registros
 
@@ -534,7 +534,7 @@ Fontes executáveis para conferir as distinções mais sujeitas a regressão. N�
 | Contrato | Fonte executável |
 |---|---|
 | Peso e cubagem de B/L misto | [cargoMode.ts](../../src/lib/cargoMode.ts) |
-| Motivos exibidos na Validação, incluindo Granito | [validacaoPipeline.ts](../../src/components/billing/validacaoPipeline.ts) |
+| Motivos exibidos na Validação | [validacaoPipeline.ts](../../src/components/billing/validacaoPipeline.ts) |
 | CE obrigatório e fronteiras de emissão | [migration 047](../../supabase/migrations/047_bl_documental_gates.sql) |
 | Gate do Portal na emissão automática e Liberação de faturamento sem Portal | [migration 083](../../supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql); gate vigente em [084](../../supabase/migrations/084_liberacao_portal_email_e_teto.sql) (`customer_billing_access_ready`) e concessão em [085](../../supabase/migrations/085_email_fora_do_faturamento_taxas_do_ce.sql) |
 | Conceder ou revogar a Liberação reavalia a Revisão dos B/Ls do Cliente | [migration 167](../../supabase/migrations/167_liberacao_reavalia_revisao.sql) |

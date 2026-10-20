@@ -12,7 +12,6 @@ export function normalizeConsignee(value?: string | null) {
 // filtros e persistência.
 const reviewReasonLabels: Record<string, string> = {
   'Cliente nao vinculado': 'Sem cliente vinculado',
-  'Cliente nao vinculado (Granito)': 'Granito sem cliente vinculado',
   'Acesso ao portal nao provisionado': 'Portal não provisionado',
   'Peso BB ausente': 'Peso da carga solta ausente',
 }
@@ -44,7 +43,7 @@ export function getReviewItemDisplayName(item: ReviewQueueItem): string {
   return (
     normalizeConsignee(item.consignee) ||
     normalizeConsignee(item.shipper) ||
-    (item.source === 'granite' ? item.bl_number : item.id)
+    item.id
   )
 }
 
@@ -224,17 +223,17 @@ export function needsWeightFix(item: ReviewQueueItem) {
 /**
  * Causa de uma pendência na fila, na ordem em que o operador deve atacá-la:
  * primeiro o que se resolve aqui e trava a fatura (cliente, peso), depois o que
- * depende de outra tela (Portal) e por fim o Granito, que não gera fatura.
+ * depende de outra tela (Portal). O Granito saiu da Revisão no lote 5b
+ * (2026-10-19): não tem Cliente.
  */
-export type ReviewCause = 'cliente' | 'peso' | 'portal' | 'granito' | 'outros'
+export type ReviewCause = 'cliente' | 'peso' | 'portal' | 'outros'
 
-export const REVIEW_CAUSE_ORDER: readonly ReviewCause[] = ['cliente', 'peso', 'portal', 'granito', 'outros']
+export const REVIEW_CAUSE_ORDER: readonly ReviewCause[] = ['cliente', 'peso', 'portal', 'outros']
 
 export const REVIEW_CAUSE_LABELS: Record<ReviewCause, string> = {
   cliente: 'Sem cliente vinculado',
   peso: 'Peso da carga solta ausente',
   portal: 'Portal não provisionado',
-  granito: 'Granito sem cliente',
   outros: 'Outras pendências',
 }
 
@@ -245,7 +244,6 @@ export function isReviewCause(value: string | null | undefined): value is Review
 /** Causa de um motivo bruto do gate; `null` quando o texto é só informativo (sugestão). */
 export function reviewReasonCause(reason: string): ReviewCause | null {
   if (/^sugerido:/i.test(reason.trim())) return null
-  if (/\(granito\)/i.test(reason)) return 'granito'
   if (/cliente n[aã]o vinculado/i.test(reason)) return 'cliente'
   if (/acesso ao portal/i.test(reason)) return 'portal'
   if (/peso bb|weight ton/i.test(reason)) return 'peso'
@@ -262,8 +260,7 @@ export function getReviewItemCauses(item: ReviewQueueItem): ReviewCause[] {
   // Os mesmos predicados que liberam as ações da tela: o gate trava B/L sem
   // cliente e carga solta sem peso mesmo quando a nota técnica ainda não foi
   // regravada.
-  if (item.source === 'bl' && needsCustomerLink(item)) causes.add('cliente')
-  if (item.source === 'granite' && needsCustomerLink(item)) causes.add('granito')
+  if (needsCustomerLink(item)) causes.add('cliente')
   if (needsWeightFix(item)) causes.add('peso')
   if (!causes.size) causes.add('outros')
   return REVIEW_CAUSE_ORDER.filter((cause) => causes.has(cause))
@@ -271,7 +268,7 @@ export function getReviewItemCauses(item: ReviewQueueItem): ReviewCause[] {
 
 /** Contagem de registros por causa (um registro conta uma vez por causa). */
 export function countReviewCauses(items: ReviewQueueItem[]): Record<ReviewCause, number> {
-  const counts: Record<ReviewCause, number> = { cliente: 0, peso: 0, portal: 0, granito: 0, outros: 0 }
+  const counts: Record<ReviewCause, number> = { cliente: 0, peso: 0, portal: 0, outros: 0 }
   for (const item of items) for (const cause of getReviewItemCauses(item)) counts[cause] += 1
   return counts
 }
@@ -287,7 +284,7 @@ export function readReviewCauseParam(params: URLSearchParams): ReviewCause | nul
   return legacy ? reviewReasonCause(legacy) : null
 }
 
-export type ReviewNextActionKind = 'conflict' | 'customer' | 'customer-name' | 'email' | 'weight' | 'portal' | 'granite' | 'check'
+export type ReviewNextActionKind = 'conflict' | 'customer' | 'customer-name' | 'email' | 'weight' | 'portal' | 'check'
 
 export type ReviewNextAction = {
   kind: ReviewNextActionKind
@@ -298,15 +295,14 @@ export type ReviewNextAction = {
 export type ReviewGroupSummary = {
   causeCounts: Record<ReviewCause, number>
   blCount: number
-  graniteCount: number
   /** B/Ls do grupo: todo B/L em revisão está impedido de virar fatura. */
   blockedBlCount: number
   unlinkedBlCount: number
   weightCount: number
   linkedCustomer: ReviewCustomer | null
   nextAction: ReviewNextAction
-  /** 0 resolve aqui e trava fatura; 1 depende de outra tela; 2 não gera fatura. */
-  priority: 0 | 1 | 2
+  /** 0 resolve aqui e trava fatura; 1 depende de outra tela. */
+  priority: 0 | 1
 }
 
 function plural(count: number, singular: string, pluralForm: string) {
@@ -315,8 +311,7 @@ function plural(count: number, singular: string, pluralForm: string) {
 
 export function summarizeReviewGroup(group: ReviewGroup): ReviewGroupSummary {
   const causeCounts = countReviewCauses(group.items)
-  const blItems = group.items.filter((item) => item.source === 'bl')
-  const graniteCount = group.items.length - blItems.length
+  const blItems = group.items
   const unlinkedBlCount = blItems.filter(needsCustomerLink).length
   const weightCount = blItems.filter(needsWeightFix).length
   const linkedCustomer = getGroupLinkedItem(group)?.customer ?? null
@@ -362,12 +357,6 @@ export function summarizeReviewGroup(group: ReviewGroup): ReviewGroupSummary {
       // quando a Liberação é concedida ou revogada (migration 167).
       detail: 'A fatura só é emitida com o Portal ativo ou com a Liberação de faturamento sem Portal. Os B/Ls saem da fila sozinhos quando um dos dois acontecer.',
     }
-  } else if (blItems.length === 0) {
-    nextAction = {
-      kind: 'granite',
-      title: 'Vincular o cliente ao Granito',
-      detail: 'Granito não gera fatura: o vínculo libera o cálculo de apoio no módulo Granito.',
-    }
   } else {
     nextAction = {
       kind: 'check',
@@ -376,11 +365,10 @@ export function summarizeReviewGroup(group: ReviewGroup): ReviewGroupSummary {
     }
   }
 
-  const priority: 0 | 1 | 2 = nextAction.kind === 'granite' ? 2 : nextAction.kind === 'portal' ? 1 : 0
+  const priority: 0 | 1 = nextAction.kind === 'portal' ? 1 : 0
   return {
     causeCounts,
     blCount: blItems.length,
-    graniteCount,
     blockedBlCount: blItems.length,
     unlinkedBlCount,
     weightCount,
@@ -392,7 +380,7 @@ export function summarizeReviewGroup(group: ReviewGroup): ReviewGroupSummary {
 
 /**
  * Ordem de trabalho: primeiro o que se resolve nesta tela e trava fatura, com
- * mais B/Ls na frente; depois o que depende do Portal; por último o Granito.
+ * mais B/Ls na frente; depois o que depende do Portal.
  * Empate fica em ordem alfabética para a fila continuar previsível.
  */
 export function sortReviewGroupsByPriority(groups: ReviewGroup[]): ReviewGroup[] {

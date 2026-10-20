@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Ban, DollarSign, Printer, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Ban, Check, DollarSign, Printer, RotateCcw, Undo2, X } from 'lucide-react'
 import { StaleInvoiceResolutionPanel } from './StaleInvoiceResolutionPanel'
 import { FinancialRefundsPanel } from './FinancialRefundsPanel'
 import { InvoiceCorrectionPanel } from './InvoiceCorrectionPanel'
@@ -12,6 +12,7 @@ import { ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { SkeletonTable } from '../ui/Skeleton'
 import { Field, Input, Select, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
@@ -531,7 +532,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                             <td className="whitespace-nowrap tabular-nums">{formatBRL(payment.amount_brl)}</td>
                             {isAdmin ? (
                               <td className="app-invoice-detail__row-action">
-                                <Button variant="ghost" aria-label={`Cancelar baixa de ${formatBRL(payment.amount_brl)} em ${formatDate(payment.paid_at)}`} onClick={() => openReversal(payment.id)}>Cancelar baixa</Button>
+                                <RowActionButton variant="ghost" label={`Cancelar baixa de ${formatBRL(payment.amount_brl)} em ${formatDate(payment.paid_at)}`} icon={Undo2} onClick={() => openReversal(payment.id)} />
                               </td>
                             ) : null}
                           </tr>
@@ -641,8 +642,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                               <td className="app-invoice-detail__row-action">
                                 {refund.status === 'pending' && refundToConfirm !== refund.id && authorizationToCancel !== refund.id ? (
                                   <>
-                                    {canSettleRefund ? <Button variant="ghost" onClick={() => { setRefundToConfirm(refund.id); setAuthorizationToCancel(null); setRefundReference(''); setRefundBeneficiary(''); setRefundDate(''); setRefundError('') }}>Confirmar devolução</Button> : null}
-                                    {authorizationIds.has(refund.id) ? <Button variant="ghost" onClick={() => { setAuthorizationToCancel(refund.id); setRefundToConfirm(null); setAuthorizationReason(''); setRefundError('') }}>Cancelar autorização</Button> : null}
+                                    {canSettleRefund ? <RowActionButton variant="ghost" label="Confirmar devolução" icon={Check} onClick={() => { setRefundToConfirm(refund.id); setAuthorizationToCancel(null); setRefundReference(''); setRefundBeneficiary(''); setRefundDate(''); setRefundError('') }} /> : null}
+                                    {authorizationIds.has(refund.id) ? <RowActionButton variant="ghost" label="Cancelar autorização" icon={X} onClick={() => { setAuthorizationToCancel(refund.id); setRefundToConfirm(null); setAuthorizationReason(''); setRefundError('') }} /> : null}
                                   </>
                                 ) : null}
                               </td>

@@ -28,6 +28,7 @@ import {
   type ParseBreakbulkOptions,
 } from '../../services/breakbulkImport'
 import { describeGraniteImport, graniteRemovalConfirmOptions, importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
+import { graniteWeightKg } from '../../services/graniteCargo'
 import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers, vaziosImportacaoHiddenConfirmOptions } from '../../services/vaziosImportacaoImport'
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions } from '../../services/vehicleImport'
@@ -37,7 +38,6 @@ import { BaplieImportPartialNotice } from './BaplieImportPartialNotice'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
 import { inspectImportUpload } from '../../services/importText'
-import { queryKeys } from '../../services/queryKeys'
 import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { ImportReadProgress } from './ImportReadProgress'
 import { ImportContext, ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from './ImportParts'
@@ -45,14 +45,13 @@ import { plural } from './importPresentation'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { userFacingErrorMessage } from '../../lib/errors'
 
-type ImportType = 'bb' | 'granite' | 'ceMercanteGranite' | 'vaziosImp' | 'vaziosExp' | 'vehicles' | 'baplie' | 'blFreight' | 'blBreakbulk' | 'ceMercante'
+type ImportType = 'bb' | 'granite' | 'vaziosImp' | 'vaziosExp' | 'vehicles' | 'baplie' | 'blFreight' | 'blBreakbulk' | 'ceMercante'
 
 type ImportGroup = 'baplie' | 'bls' | 'importEquipment' | 'exportManifest' | 'exportVazios'
 
 const IMPORT_LABELS: Record<ImportType, string> = {
   bb: 'Manifesto BB',
   granite: 'Manifesto Granito',
-  ceMercanteGranite: 'CE Mercante (Granito)',
   vaziosImp: 'Vazios IMP',
   vaziosExp: 'Novo embarque de vazios',
   vehicles: 'Veículos',
@@ -62,7 +61,7 @@ const IMPORT_LABELS: Record<ImportType, string> = {
   ceMercante: 'CE Mercante',
 }
 
-const IMPORT_ORDER: ImportType[] = ['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'bb', 'vehicles', 'vaziosImp', 'granite', 'ceMercanteGranite', 'vaziosExp']
+const IMPORT_ORDER: ImportType[] = ['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'bb', 'vehicles', 'vaziosImp', 'granite', 'vaziosExp']
 
 const IMPORT_GROUP_BY_TYPE: Record<ImportType, ImportGroup> = {
   baplie: 'baplie',
@@ -73,7 +72,6 @@ const IMPORT_GROUP_BY_TYPE: Record<ImportType, ImportGroup> = {
   vehicles: 'importEquipment',
   vaziosImp: 'importEquipment',
   granite: 'exportManifest',
-  ceMercanteGranite: 'exportManifest',
   vaziosExp: 'exportVazios',
 }
 
@@ -86,7 +84,6 @@ const IMPORT_ICONS: Record<ImportType, LucideIcon> = {
   vehicles: Car,
   vaziosImp: PackageOpen,
   granite: Mountain,
-  ceMercanteGranite: ShieldCheck,
   vaziosExp: PackageOpen,
 }
 
@@ -242,19 +239,12 @@ export function VoyageImportActions({
               filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override),
               confirmRemoval: (missing) => confirmImport(graniteRemovalConfirmOptions(missing, preview.hidden)),
             })
-            await Promise.all([
-              invalidateAfterBLImport(),
-              queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-              queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
-              queryClient.invalidateQueries({ queryKey: ['granite-manifests'] }),
-              // P0-4: alimenta "Carga carregada" no ADR.
-              queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-            ])
+            // Inclui a lista do Granito, a Viagem e o ADR ("Carga carregada"; G6).
+            await invalidateAfterBLImport()
             showToast(`Manifesto Granito importado: ${describeGraniteImport(result)}.`, 'success')
             return result
           }}
           renderPreview={(preview) => {
-            const pending = preview.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length
             return (
               <div className="grid gap-3">
                 <ImportContext label="Declarado na planilha">
@@ -265,25 +255,16 @@ export function VoyageImportActions({
                   items={[
                     { label: preview.bls.length === 1 ? 'B/L' : 'B/Ls', value: preview.bls.length },
                     { label: 'blocos', value: preview.bls.reduce((sum, bl) => sum + Number(bl.blocks_qty ?? 0), 0).toLocaleString('pt-BR') },
-                    { label: 't', value: (preview.bls.reduce((sum, bl) => sum + Number(bl.real_weight_kg ?? 0), 0) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) },
+                    { label: 't', value: (preview.bls.reduce((sum, bl) => sum + (graniteWeightKg(bl) ?? 0), 0) / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
                     { label: preview.rowErrors.length === 1 ? 'erro' : 'erros', value: preview.rowErrors.length, tone: preview.rowErrors.length ? 'danger' : 'default' },
                   ]}
                 />
-                {pending ? (
-                  <ImportNotice tone="warning" title={`${plural(pending, 'B/L entra pendente', 'B/Ls entram pendentes')} de reconciliação`}>
-                    O consignatário ainda não casou com um Cliente; o vínculo é revisado depois, antes de faturar.
-                  </ImportNotice>
-                ) : null}
               </div>
             )
           }}
-          renderImportResult={(result) => result.pendingCount > 0 ? (
-            <ImportNotice tone="warning" role="status" title={`Manifesto gravado; ${plural(result.pendingCount, 'B/L ficou pendente', 'B/Ls ficaram pendentes')} de reconciliação`}>
-              Revise o vínculo do consignatário antes de faturar.
-            </ImportNotice>
-          ) : (
+          renderImportResult={(result) => (
             <ImportNotice tone="success" role="status" title="Manifesto gravado">
-              Nenhuma pendência de reconciliação.
+              {describeGraniteImport(result).replace(/^./, (first) => first.toUpperCase())}.
             </ImportNotice>
           )}
           onClose={() => setActiveType(null)}
@@ -308,18 +289,10 @@ export function VoyageImportActions({
           importer={async (preview, _file, override) => {
             await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, manifestNumbers: vaziosManifestNumbers, allowRowErrors: Boolean(override) })
             setVaziosManifestNumbers({})
-            await Promise.all([
-              queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-              queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
-              queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] }),
-              queryClient.invalidateQueries({ queryKey: ['vazios-importacao-manifests'] }),
-              queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(voyageId) }),
-              queryClient.invalidateQueries({ queryKey: ['vazios-importacao-containers'] }),
-              queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
-              queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
-              // P0-4: alimenta "Vazios descarregados" no ADR.
-              queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-            ])
+            // O efeito do dono cobre a Viagem, a lista e os números de manifesto
+            // de vazios (['manifestos-mercante', 'vazio', …]), a Line Up e o
+            // ADR ("Vazios descarregados", P0-4).
+            await afterManifestoImportado(queryClient, { voyageId })
             showToast(`Manifesto Vazios Imp. importado: ${preview.containers.length} container(s).`, 'success')
           }}
           renderPreview={(preview) => (
@@ -372,9 +345,6 @@ export function VoyageImportActions({
         <CeMercanteImportModal open initialVoyageId={voyageId} onClose={() => setActiveType(null)} />
       ) : null}
 
-      {activeType === 'ceMercanteGranite' ? (
-        <CeMercanteImportModal open target="granite" initialVoyageId={voyageId} onClose={() => setActiveType(null)} />
-      ) : null}
     </>
   )
 }

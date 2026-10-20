@@ -1,7 +1,7 @@
 // Agregado de SLA do Prazo de Conclusão do ADR (Task 5 do ADR 0039):
 // uma linha por (viagem, porto) de ADR fechado, com o ATD, a assinatura de
 // cada departamento, dias úteis até cada uma, cumpriu/não cumpriu, e o tempo
-// total decorrido até o Fechamento. Vive em /admin/usuarios (dado de
+// total decorrido até o Fechamento. Vive em /admin/prazo-do-adr (dado de
 // visibilidade de equipe, não financeiro/de cliente) porque o cumprimento é
 // atributo do DEPARTAMENTO, nunca da pessoa (ADR 0039: "O cumprimento é
 // atributo do departamento, nunca da pessoa" — ranking por usuário foi
@@ -22,6 +22,7 @@
 // batch que a projeção de escalas já usa), a fonte de verdade viva.
 
 import { supabase } from './supabase'
+import { brasiliaDayBounds } from '../lib/dates'
 import {
   hoursSinceAtd,
   deriveAgencyReportDeadlineState,
@@ -82,8 +83,9 @@ export async function listClosedAgencyReports(range?: AgencyReportSlaDateRange):
     .eq('status', 'closed')
     .order('closed_at', { ascending: false })
 
-  if (range?.from) query = query.gte('closed_at', range.from)
-  if (range?.to) query = query.lte('closed_at', `${range.to}T23:59:59.999`)
+  // Dias de Brasília, não de UTC (achado R4 do lote 5b).
+  if (range?.from) query = query.gte('closed_at', brasiliaDayBounds(range.from).start)
+  if (range?.to) query = query.lte('closed_at', brasiliaDayBounds(range.to).end)
 
   const { data, error } = await query
   if (error) throw error
@@ -97,6 +99,10 @@ export type AgencyReportSlaDepartmentRow = {
   /** Horas do ATD até a assinatura; null se ainda não assinado (não deveria ocorrer em ADR fechado — ver mapClosedReportToSlaRow). */
   hoursElapsed: number | null
   state: AgencyReportDeadlineState
+  /** Como a tela mostra: no prazo, atrasou (com as horas) ou não assinou (achado A6 do lote 5b). */
+  outcome: 'on-time' | 'late' | 'unsigned'
+  /** Horas depois do prazo, arredondadas para cima; só quando atrasou. */
+  hoursLate: number | null
 }
 
 export type AgencyReportSlaRow = {
@@ -109,6 +115,8 @@ export type AgencyReportSlaRow = {
   atd: string
   /** Data do prazo (YYYY-MM-DD), congelada no Fechamento. */
   deadlineDate: string
+  /** Instante do prazo (ATD + 72 h), só nos ADRs fechados desde 2026-10-15. */
+  deadlineAt: string | null
   closedAt: string
   closedBy: string | null
   /** Dias corridos (calendário) do ATD até o Fechamento — rótulo explícito porque a unidade dos departamentos acima é dias úteis. */
@@ -150,6 +158,7 @@ export function mapClosedReportToSlaRow(row: ClosedAgencyReportListItem): Agency
       frozenDeadlineDate: header?.deadlineAt ? null : deadlineDate,
     }) : 'no-deadline'
     const hoursElapsed = signedAt ? hoursSinceAtd(atd, signedAt) : null
+    const outcome = !signedAt ? 'unsigned' : state === 'overdue' ? 'late' : 'on-time'
 
     return {
       department,
@@ -157,6 +166,8 @@ export function mapClosedReportToSlaRow(row: ClosedAgencyReportListItem): Agency
       signedAt,
       hoursElapsed,
       state,
+      outcome,
+      hoursLate: outcome === 'late' && signedAt ? hoursAfterDeadline(header?.deadlineAt ?? null, deadlineDate, signedAt) : null,
     }
   })
 
@@ -168,11 +179,24 @@ export function mapClosedReportToSlaRow(row: ClosedAgencyReportListItem): Agency
     vesselName: row.voyage?.vessel?.name ?? null,
     atd,
     deadlineDate,
+    deadlineAt: header?.deadlineAt ?? null,
     closedAt: row.closed_at,
     closedBy: row.closed_by,
     elapsedCalendarDaysToClosure,
     departments,
   }
+}
+
+/**
+ * Horas entre o prazo e a assinatura atrasada, para cima ("Atrasou 6 h"). O
+ * ADR fechado antes da regra de 72 h guarda só a data: o prazo é o fim desse
+ * dia em Brasília. ponytail: fuso fixo -03:00, sem horário de verão desde 2019.
+ */
+function hoursAfterDeadline(deadlineAt: string | null, deadlineDate: string, signedAt: string): number | null {
+  const deadline = new Date(deadlineAt ?? `${deadlineDate}T23:59:59.999-03:00`).getTime()
+  const signed = new Date(signedAt).getTime()
+  if (Number.isNaN(deadline) || Number.isNaN(signed)) return null
+  return Math.max(1, Math.ceil((signed - deadline) / (60 * 60 * 1000)))
 }
 
 // Dias corridos entre duas datas YYYY-MM-DD — mesma parametrização de
@@ -241,6 +265,8 @@ export type AgencyReportSlaDepartmentSummary = {
   label: string
   onTime: number
   overdue: number
+  /** ADRs fechados sem a assinatura do departamento: contam no total, nunca no prazo. */
+  unsigned: number
   total: number
   /** Taxa de cumprimento no prazo, de 0 a 1 (ou null se total = 0). */
   rate: number | null
@@ -255,22 +281,22 @@ export function summarizeAgencyReportSlaByDepartment(rows: AgencyReportSlaRow[])
   return DEPARTMENT_ORDER.map((department) => {
     let onTime = 0
     let overdue = 0
+    let unsigned = 0
     for (const row of rows) {
       const departmentRow = row.departments.find((d) => d.department === department)
       if (!departmentRow) continue
-      if (departmentRow.state === 'on-time') onTime += 1
-      else if (departmentRow.state === 'overdue') overdue += 1
-      // 'no-deadline' não deveria ocorrer aqui (linhas sem ATD já são
-      // excluídas antes de mapClosedReportToSlaRow devolver a linha), mas se
-      // ocorrer (defensivo), fica fora da contagem — nem cumpriu nem não
-      // cumpriu, sem prazo pra medir.
+      if (departmentRow.outcome === 'on-time') onTime += 1
+      else if (departmentRow.outcome === 'late') overdue += 1
+      else unsigned += 1
     }
-    const total = onTime + overdue
+    // "x de y no prazo": y é o número de ADRs fechados; quem não assinou não cumpriu.
+    const total = onTime + overdue + unsigned
     return {
       department,
       label: AGENCY_REPORT_DEPARTMENT_LABELS[department],
       onTime,
       overdue,
+      unsigned,
       total,
       rate: total > 0 ? onTime / total : null,
     }

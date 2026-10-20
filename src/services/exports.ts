@@ -3,14 +3,16 @@ import { containerOwnershipLabel } from '../lib/containerOwnership'
 import type { BLListItem, ContainerListItem, CustomerListItem, VehicleListItem, VaziosImportacaoContainerListItem } from '../types/database'
 import type { BaplieContainer } from '../types/database'
 import type { LocalChargeOperationalRow } from './charges/chargeOperationsService'
-import type {
-  CustomerReportRow,
-  FinancialReportRow,
-  OperationalReportRow,
+import {
+  reportReviewLabel,
+  type CustomerReportRow,
+  type FinancialReportRow,
+  type OperationalReportRow,
 } from './reports'
+import { REPORT_LOCAL_CHARGES_STATE_LABELS, reportLocalChargesState } from '../lib/chargeStatus'
 import { getInvoiceBls, getInvoicePaymentDate, invoiceTypeLabel, type InvoiceListRow } from './billing'
 import { invoiceStatusLabel } from '../pages/faturamentoInvoiceStatus'
-import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
+import { DEMURRAGE_INVOICE_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
 import type { DemurrageInvoiceListItem } from './demurrage/demurrageInvoices'
 import { formatDate } from '../lib/utils'
 import { arrivalDisplay } from '../lib/escalaState'
@@ -223,7 +225,16 @@ export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
   XLSX.writeFile(workbook, `faturas-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportOperationalReportWorkbook(rows: OperationalReportRow[]) {
+/** Filtro aplicado no relatório, uma linha por filtro na aba "Filtros" da planilha. */
+export type ReportFilterLine = { Filtro: string; Valor: string }
+
+function appendFiltersSheet(XLSX: typeof import('@e965/xlsx'), workbook: import('@e965/xlsx').WorkBook, filters: ReportFilterLine[]) {
+  const rows = filters.length ? filters : [{ Filtro: 'Filtros', Valor: 'Nenhum' }]
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, rows), 'Filtros')
+}
+
+/** Colunas da planilha do relatório com os mesmos rótulos e datas da tela, sem código cru. */
+export async function exportOperationalReportWorkbook(rows: OperationalReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     BL: row.id,
@@ -238,34 +249,36 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
     Containers: (row.bl_containers ?? []).length,
     PesoKg: blTotalWeightKg(row),
     CBM: blTotalCbm(row),
-    Revisao: row.review_status ?? '',
-    Financeiro: row.financial_status ?? '',
-    CriadoEm: row.created_at ?? '',
+    Revisão: reportReviewLabel(row.review_status),
+    'Taxas locais': REPORT_LOCAL_CHARGES_STATE_LABELS[reportLocalChargesState(row.charge_status, row.financial_status, row.cancelled_at)],
+    'Criação do B/L': row.created_at ? formatDate(row.created_at) : '',
   }))
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Operacional')
+  appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-operacional-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportFinancialReportWorkbook(rows: FinancialReportRow[]) {
+export async function exportFinancialReportWorkbook(rows: FinancialReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Invoice: row.invoice_number ?? `INV-${row.id}`,
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
-    Emissao: row.issued_at ?? '',
+    Emissão: row.issued_at ? formatDate(row.issued_at) : '',
     TotalBRL: Number(row.total_brl ?? 0),
     SaldoBRL: Number(row.balance_brl ?? 0),
-    Status: row.status ?? '',
+    Situação: statusLabel(INVOICE_STATUS_LABELS, row.status, ''),
   }))
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Financeiro')
+  appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-financeiro-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportCustomerReportWorkbook(rows: CustomerReportRow[]) {
+export async function exportCustomerReportWorkbook(rows: CustomerReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Cliente: row.name,
@@ -280,10 +293,11 @@ export async function exportCustomerReportWorkbook(rows: CustomerReportRow[]) {
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Clientes')
+  appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-clientes-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListItem[]) {
+export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListItem[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Documento: row.doc_number ?? '',
@@ -299,6 +313,7 @@ export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListIt
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Demurrage')
+  appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-demurrage-${makeTimestamp()}.xlsx`)
 }
 
@@ -353,27 +368,27 @@ export async function exportCustomerBaseWorkbook(rows: CustomerListItem[]) {
   XLSX.writeFile(workbook, `base-clientes-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportVaziosImportacaoWorkbook(rows: VaziosImportacaoContainerListItem[]) {
-  const XLSX = await import('@e965/xlsx')
-  const exportRows = rows.map((row) => {
-    const manifestLabel = row.manifest?.description
-      ? row.manifest.description
-      : row.manifest?.imported_at
-        ? formatDate(row.manifest.imported_at)
-        : ''
+const VAZIO_NATUREZA_LABELS: Record<string, string> = { cama: 'Cama', cover_plate: 'Cover plate' }
 
-    return {
-      Container: row.container_number,
-      Tipo: row.container_type ?? '',
-      'Tara (kg)': row.tare_kg ?? '',
-      POL: row.pol ?? '',
-      POD: row.pod ?? '',
-      Navio: row.manifest?.voyage?.vessel?.name ?? '',
-      Viagem: row.manifest?.voyage?.voyage_number ?? '',
-      Manifesto: manifestLabel,
-      'Importado em': row.manifest?.imported_at ? formatDate(row.manifest.imported_at) : '',
-    }
-  })
+/**
+ * Planilha de Vazios de importação: as colunas da tela, com a Natureza (único
+ * dado editado na tela, achado V5 do lote 5b) e o Nº do manifesto Mercante da
+ * rota, que quem chama resolve (`vazioManifestoNumero`).
+ */
+export async function exportVaziosImportacaoWorkbook(rows: Array<VaziosImportacaoContainerListItem & { manifesto_numero?: string | null }>) {
+  const XLSX = await import('@e965/xlsx')
+  const exportRows = rows.map((row) => ({
+    Container: row.container_number,
+    Tipo: row.container_type ?? '',
+    'Tara (kg)': row.tare_kg ?? '',
+    POL: row.pol ?? '',
+    POD: row.pod ?? '',
+    Natureza: row.natureza ? VAZIO_NATUREZA_LABELS[row.natureza] ?? row.natureza : '',
+    Navio: row.manifest?.voyage?.vessel?.name ?? '',
+    Viagem: row.manifest?.voyage?.voyage_number ?? '',
+    'Manifesto Mercante': row.manifesto_numero ?? '',
+    'Importado em': row.manifest?.imported_at ? formatDate(row.manifest.imported_at) : '',
+  }))
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'VaziosImportacao')

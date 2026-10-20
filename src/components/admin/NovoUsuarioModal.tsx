@@ -2,7 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Field, Input, Select } from '../ui/Input'
-import { MANAGED_PROFILES, PROFILE_LABELS, PROFILE_SCOPES } from '../../services/adminUsers'
+import { MANAGED_PROFILES, PROFILE_LABELS } from '../../services/adminUsers'
+import { SectorCapabilities } from './SectorCapabilities'
+import type { Department } from '../../services/permissionMatrix'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../../lib/passwordPolicy'
 import type { UserProfileRole } from '../../types/database'
 
@@ -52,7 +54,7 @@ export function NovoUsuarioModal({
             ))}
           </Select>
         </Field>
-        {role ? <p className="text-xs text-[var(--app-muted)]">{PROFILE_SCOPES[role]}</p> : null}
+        {role ? <SectorCapabilities department={role as Department} personName={fullName} /> : null}
         <Field label="Senha" required>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>

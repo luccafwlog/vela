@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Pencil } from 'lucide-react'
 import { Block, Fact, FactList } from '../ui/Block'
-import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { CopyValue } from '../ui/CopyValue'
 import { Field, Input } from '../ui/Input'
 import { NoValue } from '../ui/NoValue'
@@ -138,9 +139,7 @@ export function BlCargaTab({
                     <td className="whitespace-nowrap"><DemurrageCell container={container} /></td>
                     {canCorrect ? (
                       <td>
-                        <Button variant="secondary" className="app-btn--sm" onClick={() => setCorrecting(container)} aria-label={`Corrigir container ${container.container_number}`}>
-                          Corrigir
-                        </Button>
+                        <RowActionButton label={`Corrigir container ${container.container_number}`} icon={Pencil} onClick={() => setCorrecting(container)} />
                       </td>
                     ) : null}
                   </tr>

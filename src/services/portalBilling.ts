@@ -81,7 +81,7 @@ export function portalInvoiceDocumentDetail(detail: PortalInvoiceDetail): Invoic
   const invoiceId = Number(detail.invoice?.id ?? 0)
   return {
     ...detail,
-    payments: (detail.payments ?? []).map((payment) => ({ ...payment, invoice_id: invoiceId, notes: null, registered_by: null })),
+    payments: (detail.payments ?? []).map((payment) => ({ ...payment, invoice_id: invoiceId, notes: null, registered_by: null, bank_reference: null })),
   }
 }
 

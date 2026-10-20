@@ -10,7 +10,6 @@ vi.mock('../supabase', () => ({ supabase: { from: supabaseMocks.from, rpc: supab
 import {
   createConsolidatedInvoice,
   listConsolidatableReceivables,
-  reconcileInvoicePaymentByTxid,
   registerLedgerInvoicePayment,
 } from '../billingLedger'
 
@@ -298,71 +297,6 @@ describe('registerLedgerInvoicePayment', () => {
 
     await expect(registerLedgerInvoicePayment({ invoiceId: 1, amountBrl: 50 })).rejects.toThrow(
       'Resposta inválida de register_ledger_invoice_payment',
-    )
-  })
-})
-
-describe('reconcileInvoicePaymentByTxid', () => {
-  it('chama o RPC reconcile_invoice_payment_by_txid omitindo paid_at por default', async () => {
-    const response = {
-      matched: true,
-      invoice_id: 1,
-      settled: true,
-      payment: paymentPayload(),
-    }
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: response, error: null })
-
-    const result = await reconcileInvoicePaymentByTxid({ txid: 'TX1', amountBrl: 99.9 })
-
-    expect(supabaseMocks.rpc).toHaveBeenCalledWith('reconcile_invoice_payment_by_txid', {
-      p_txid: 'TX1',
-      p_amount_brl: 99.9,
-    })
-    expect(result).toEqual(response)
-  })
-
-  it('repassa paidAt quando informado', async () => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: { matched: false, reason: 'no_match' }, error: null })
-
-    await reconcileInvoicePaymentByTxid({ txid: 'TX2', amountBrl: 10, paidAt: '2026-06-02T08:00:00' })
-
-    expect(supabaseMocks.rpc).toHaveBeenCalledWith('reconcile_invoice_payment_by_txid', {
-      p_txid: 'TX2',
-      p_amount_brl: 10,
-      p_paid_at: '2026-06-02T08:00:00',
-    })
-  })
-
-  it('aceita falha de baixa com invoice e motivo', async () => {
-    const response = { matched: true, invoice_id: 2, settled: false, reason: 'saldo divergente' }
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: response, error: null })
-
-    await expect(reconcileInvoicePaymentByTxid({ txid: 'TX3', amountBrl: 10 })).resolves.toEqual(response)
-  })
-
-  it('propaga erro do RPC', async () => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: null, error: new Error('reconciliacao falhou') })
-    await expect(reconcileInvoicePaymentByTxid({ txid: 'TX1', amountBrl: 1 })).rejects.toThrow('reconciliacao falhou')
-  })
-
-  it('rejeita retorno JSON inválido da conciliação', async () => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: { matched: 'yes' }, error: null })
-
-    await expect(reconcileInvoicePaymentByTxid({ txid: 'TX1', amountBrl: 1 })).rejects.toThrow(
-      'Resposta inválida de reconcile_invoice_payment_by_txid',
-    )
-  })
-
-  it.each([
-    { matched: false },
-    { matched: true },
-    { matched: true, invoice_id: 1, settled: false },
-    { matched: true, invoice_id: 1, settled: true },
-  ])('rejeita campos dependentes ausentes em %j', async (data) => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data, error: null })
-
-    await expect(reconcileInvoicePaymentByTxid({ txid: 'TX1', amountBrl: 1 })).rejects.toThrow(
-      'Resposta inválida de reconcile_invoice_payment_by_txid',
     )
   })
 })

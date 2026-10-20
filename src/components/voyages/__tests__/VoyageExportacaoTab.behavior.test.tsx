@@ -50,10 +50,7 @@ describe('VoyageExportacaoTab', () => {
           loading_port: 'BRSSZ',
           total_bls: 2,
           total_weight_kg: 213000,
-          granite_bls: [
-            { id: 'gbl-1', charge_status: 'ready_for_billing' },
-            { id: 'gbl-2', charge_status: 'invoiced' },
-          ],
+          granite_bls: [{ id: 'gbl-1' }, { id: 'gbl-2' }],
         },
       ] as never,
       vazios_manifests: [
@@ -80,6 +77,9 @@ describe('VoyageExportacaoTab', () => {
     expect(screen.getByText('Santos Brasil')).toBeTruthy()
     expect(screen.getByText('Depot Guarujá')).toBeTruthy()
     expect(screen.getByText('213')).toBeTruthy()
+    // Granito só totaliza a carga (lote 5b): o painel não mostra estados de cobrança.
+    expect(screen.queryByText('Prontos')).toBeNull()
+    expect(screen.queryByText('Faturados')).toBeNull()
   })
 
   it('trata terminal com apenas granito e zero vazios sem quebrar layout', () => {
@@ -90,9 +90,7 @@ describe('VoyageExportacaoTab', () => {
           loading_port: 'BRVIX',
           total_bls: 5,
           total_weight_kg: 120000,
-          granite_bls: [
-            { id: 'gbl-1', charge_status: 'ready_for_billing' },
-          ],
+          granite_bls: [{ id: 'gbl-1' }],
         },
       ] as never,
       vazios_manifests: [],
