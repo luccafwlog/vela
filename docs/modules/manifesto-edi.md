@@ -993,6 +993,16 @@ vigentes: ADR 0078, item 21; ADR 0079, decisões 5 e 6; migrations `182`,
 - **OOG e LQ.** OOG exige excesso de dimensão (DIM, qualificadores 5 a 9) maior
   que zero; carga perigosa em quantidade limitada (LQ) descarta só o DGS em
   LQ, e carga só LQ é carga normal, sem THD de IMO.
+- **Arquivo completo, peso e portos (2026-10-21).** Cada mensagem termina em UNT
+  com a contagem certa de segmentos e o arquivo termina em UNZ com a contagem de
+  mensagens; arquivo cortado ou com contagem errada é recusado inteiro
+  ([ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md)). O peso é o VGM;
+  sem VGM, o WT, em qualquer ordem. Os códigos de 3 letras do Baplie 1.5 (SSZ, ITJ, PNG,
+  RIG, SSA, PEC, SUA, NVT) valem como os de 5; BRNVT e BRITJ, BRREC e BRSUA são portos
+  distintos. Containers fora das escalas da viagem aparecem em destaque na prévia,
+  por porto, e não entram. Arquivo sem navio e viagem (TDT) só grava depois que o
+  operador confirma que é da viagem escolhida. Um 2º EQD do mesmo slot sem POL, POD
+  ou peso entra com aviso.
 - **Containers ignorados e arquivos bloqueados.** Containers de outro operador
   (NAD+CA), em transbordo (EQD 8249=6), com POD fora das escalas ou com porto
   de descarga desconhecido são ignorados com aviso (pelo porto desconhecido, o
