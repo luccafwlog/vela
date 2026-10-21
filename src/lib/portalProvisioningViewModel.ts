@@ -48,7 +48,7 @@ export function isPortalReadyForBilling(row: Pick<QueueRow, 'account_situation' 
 /**
  * A decisão como linha de apoio da situação. Conta ativa com a decisão em
  * Aguardando análise só acontece quando o Administrativo reabre a análise à
- * mão (a importação de B/L não regride conta ativa, migration 343): a tela diz
+ * mão (B/L novo não reabre a análise, migration 343): a tela diz
  * isso em vez de mostrar os dois status lado a lado sem explicação.
  */
 export function provisioningDecisionDetail(row: Pick<QueueRow, 'account_situation' | 'provisioning_decision'>): string {
