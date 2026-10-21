@@ -355,6 +355,11 @@ BEGIN
   DELETE FROM public.alerts
   WHERE entity_type = 'bl'
     AND entity_id = OLD.id;
+  -- O B/L excluído sai também da lista de "tabela de taxa faltando", como o
+  -- cancelado (208).
+  PERFORM set_config('alerts.foundation_trigger', 'on', true);
+  PERFORM public._drop_bls_from_charge_table_gaps(ARRAY[OLD.id], 'bl_deleted');
+  PERFORM set_config('alerts.foundation_trigger', 'off', true);
   RETURN NULL;
 END;
 $function$;
