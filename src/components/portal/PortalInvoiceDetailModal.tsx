@@ -8,6 +8,7 @@ import { ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { Modal } from '../ui/Modal'
 import { paymentMethodLabel } from '../billing/invoiceDetailPresentation'
 import { formatBRL, formatDate, splitIsoDateTime, stripBlPrefix } from '../../lib/utils'
+import { invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import { invoiceSituation } from '../../lib/invoiceSituation'
 import { formatPortalPaymentDate } from '../../lib/portalInvoiceStatus'
 import { invoiceTypeLabel } from '../../services/billing'
@@ -179,7 +180,7 @@ export function PortalInvoiceDetailModal({
                         {multipleBls ? <td className="whitespace-nowrap">{item.bl_id ?? <NoValue label="Sem B/L" />}</td> : null}
                         <td className="app-table__text app-table__text--wrap">{stripBlPrefix(item.description, item.bl_id)}</td>
                         <td className="tabular-nums">{String(Number(item.quantity ?? 1)).replace('.', ',')}</td>
-                        <td className="whitespace-nowrap tabular-nums">{item.unit_value_brl != null ? formatBRL(item.unit_value_brl) : <NoValue label="Sem valor unitário" />}</td>
+                        <td className="whitespace-nowrap tabular-nums">{invoiceItemUnit(item) ?? <NoValue label="Sem valor unitário" />}</td>
                         <td className="whitespace-nowrap tabular-nums">{formatBRL(item.total_value_brl)}</td>
                       </tr>
                     ))}

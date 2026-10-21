@@ -59,4 +59,32 @@ describeLocal('362 — fatura cancelada solta o B/L', () => {
     w.asOk('administrativo', `SELECT public.mark_bl_ready_and_create_invoice('${id}')`)
     expect(liveCount(id)).toBe(1)
   })
+
+  // ADR 0094, C1: vincular Cliente a B/L que já tem CE emite na hora; o B/L cuja
+  // fatura foi cancelada só sai pelo Emitir (caso acima, item 2b).
+  it('C1: vincular Cliente a B/L com CE emite a fatura na hora', () => {
+    const id = w.createBl('C1', { customerId: null })
+    w.calculate(id)
+    w.psql(`DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${id}', '936200000000011', '${w.actors.administrativo}'::uuid); END $$`)
+    expect(liveCount(id)).toBe(0)
+    w.asOk('operacoes', `UPDATE public.bls SET customer_id = ${w.customerId}, customer_reconciliation_status = 'reconciled' WHERE id = '${id}'`)
+    expect(liveCount(id)).toBe(1)
+  })
+
+  // ADR 0094, C2: reativar reabre os efeitos encerrados no cancelamento; o
+  // local_billing reaberto do B/L com fatura cancelada devolve skipped.
+  it('C2: reativar o B/L reabre o efeito local_billing, que não emite a fatura cancelada', () => {
+    const id = w.createBl('C2')
+    w.calculate(id)
+    const invoice = w.issueByCe(id, '936200000000012')
+    w.asOk('administrativo', `SELECT public.cancel_invoice(${invoice}, 'Cancelada no teste', NULL)`)
+    w.cancelBl(id)
+    const effect = w.psql(`INSERT INTO public.import_pending_effects (source_action_id, effect_kind, entity_id, status, result, created_by)
+      VALUES (gen_random_uuid(), 'local_billing', '${id}', 'superseded', '{"reason": "bl_cancelled"}'::jsonb, '${w.actors.administrativo}') RETURNING id`)
+    w.asOk('administrativo', `SELECT public.reactivate_bl('${id}', 'Cancelado por engano')`)
+    expect(w.psql(`SELECT status FROM public.import_pending_effects WHERE id = ${effect}`)).toBe('pending')
+    const run = JSON.parse(w.psql(`SELECT public._run_import_effect_local_charges('${id}', '${w.actors.administrativo}'::uuid)`)) as { results: Array<{ status: string; reason?: string }> }
+    expect(run.results[0]).toMatchObject({ status: 'skipped', reason: 'invoice_cancelled_awaiting_emitir' })
+    expect(liveCount(id)).toBe(0)
+  })
 })

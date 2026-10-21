@@ -148,3 +148,4 @@ src/integration/falhaDeCalculoRecusa.local-pg.test.ts
 src/integration/escritaDiretaFechada.local-pg.test.ts
 src/integration/cargaSoltaFaturada.local-pg.test.ts
 src/integration/demurrageRoeManual.local-pg.test.ts
+src/integration/avulsaLinhaEmDolar.local-pg.test.ts

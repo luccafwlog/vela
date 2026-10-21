@@ -38,6 +38,7 @@ import { buildInvoiceFileBaseName, describeUsdConversionNote } from '../shared/i
 import { formatValidationError, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { formatBRL, formatCnpjCpf, formatDate, stripBlPrefix } from '../../lib/utils'
+import { invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import { classifyDbError, userFacingErrorMessage } from '../../lib/errors'
 import { canRegisterInvoicePayment, isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
 import { printDocumentElement } from '../../lib/printDocument'
@@ -481,7 +482,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           <td className="app-table__text app-table__text--wrap">{stripBlPrefix(item.description, item.bl_id)}</td>
                           <td>{item.source === 'manual' ? 'Manual' : 'Calculado'}</td>
                           <td className="tabular-nums">{String(item.quantity ?? 1).replace('.', ',')}</td>
-                          <td className="whitespace-nowrap tabular-nums">{formatBRL(item.unit_value_brl)}</td>
+                          <td className="whitespace-nowrap tabular-nums">{invoiceItemUnit(item) ?? <NoValue label="Sem valor unitário" />}</td>
                           {showUsd ? <td className="whitespace-nowrap tabular-nums">{usdNotes[index] ?? <NoValue label={item.currency === 'USD' ? 'ROE não registrado' : 'Item em reais'} />}</td> : null}
                           <td className="whitespace-nowrap tabular-nums">{formatBRL(item.total_value_brl)}</td>
                         </tr>
