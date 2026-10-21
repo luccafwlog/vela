@@ -26,11 +26,17 @@
 --      sem Cliente numa escala já dentro do prazo. Falha no alerta não desfaz
 --      a gravação de origem (WARNING).
 --   4. A passagem do tempo (o ETA ficou a 5 dias sem nenhuma gravação) abre
---      pelo detector: `detect_bl_review_pendencies()` (rodada de 15 minutos)
---      reconcilia as viagens com B/L sem Cliente e as que têm o alerta aberto.
+--      pelo detector próprio `detect_bl_sem_cliente_perto_eta_alerts()`, nono
+--      da rodada de 15 minutos: reconcilia as viagens com B/L sem Cliente e
+--      as que têm o alerta aberto. A viagem que falha entra em `failed` e
+--      `failures` do retorno.
+--   5. `run_alert_detectors` (definição da 351) chama o detector novo e soma
+--      às suas as falhas que um detector devolve no próprio retorno.
+--   Viagem concluída não ganha escala nova no alerta (como na 346): só
+--   reavalia a que já está aberta.
 --
--- Só cria tipo, funções e gatilhos e redefine `detect_bl_review_pendencies`
--- (definição da migration 002 com o passo 5); não reescreve nem apaga linhas.
+-- Só cria tipo, funções e gatilhos e redefine `run_alert_detectors`
+-- (definição da migration 351); não reescreve nem apaga linhas.
 -- As escalas que já estão no prazo abrem na primeira rodada do detector.
 --
 -- ponytail: a reconciliação adiada guarda as viagens já feitas numa GUC da
@@ -44,7 +50,7 @@
 -- ON public.bls; DROP TRIGGER bl_sem_cliente_perto_eta_on_audit ON
 -- public.audit_logs; DROP TRIGGER bl_sem_cliente_perto_eta_on_voyage ON
 -- public.voyages; DROP das funções criadas aqui; reaplicar
--- `detect_bl_review_pendencies` da migration 002; `UPDATE
+-- `run_alert_detectors` da migration 351; `UPDATE
 -- public.alert_type_catalog SET active = false WHERE type =
 -- 'bl_sem_cliente_perto_eta'` (os itens referenciam o tipo por FK).
 
@@ -102,6 +108,12 @@ BEGIN
       ORDER BY sc.port
     LOOP
       v_entity := p_voyage_id::text || '::' || v_scale.port;
+      -- Viagem concluída: só reavalia a escala que já está no alerta (346).
+      CONTINUE WHEN v_status IS DISTINCT FROM 'active' AND NOT EXISTS (
+        SELECT 1 FROM public.alert_items i
+        JOIN public.alerts a ON a.id = i.alert_id
+        WHERE i.item_type = 'bl_sem_cliente_perto_eta' AND i.status = 'active'
+          AND a.entity_type = 'voyage_pod_schedule' AND a.entity_id = v_entity);
       v_open := array_append(v_open, v_entity);
       -- Até dez B/Ls na mensagem; a lista inteira fica no metadata.
       SELECT string_agg(x.bl_id || COALESCE(' (' || x.consignee || ')', ''), ', ' ORDER BY x.bl_id)
@@ -285,88 +297,28 @@ CREATE CONSTRAINT TRIGGER bl_sem_cliente_perto_eta_on_voyage
   EXECUTE FUNCTION public.reconcile_bl_sem_cliente_perto_eta_on_voyage();
 
 -- 4 -------------------------------------------------------------------------
--- Definição da migration 002 com o passo 5.
-CREATE OR REPLACE FUNCTION public.detect_bl_review_pendencies()
- RETURNS integer
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+-- Detector próprio, na rodada de 15 minutos (`run_alert_detectors`, 351): a
+-- virada do dia abre. Viagens com B/L vivo sem Cliente e viagens com o alerta
+-- aberto. Uma viagem que falha não derruba as outras: entra em `failed` e
+-- `failures` do retorno, que o runner soma aos dele (heartbeat e Sentry).
+CREATE OR REPLACE FUNCTION public.detect_bl_sem_cliente_perto_eta_alerts()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
-  v_cust RECORD;
-  v_cons RECORD;
-  v_old_alert RECORD;
-  v_count INTEGER := 0;
-  v_type TEXT;
-  v_voyage_id BIGINT;
+  v_voyage_id bigint;
+  v_count integer := 0;
+  v_sqlstate text;
+  v_message text;
+  v_failures jsonb := '[]'::jsonb;
 BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Executor server-only.' USING ERRCODE = '42501';
+  END IF;
+
   PERFORM set_config('alerts.foundation_trigger', 'on', true);
-
-  -- 1. Reconcilia clientes vinculados com B/Ls em pending_review
-  FOR v_cust IN
-    SELECT DISTINCT customer_id
-    FROM public.bls
-    WHERE review_status = 'pending_review'
-      AND customer_id IS NOT NULL
-  LOOP
-    PERFORM public.reconcile_customer_bl_review_alerts(v_cust.customer_id, NULL, 'detector_bl_review');
-    v_count := v_count + 1;
-  END LOOP;
-
-  -- 2. Reconcilia consignatários não vinculados com B/Ls em pending_review
-  FOR v_cons IN
-    SELECT DISTINCT COALESCE(NULLIF(btrim(consignee), ''), 'sem_cliente') AS consignee_key
-    FROM public.bls
-    WHERE review_status = 'pending_review'
-      AND customer_id IS NULL
-  LOOP
-    PERFORM public.reconcile_customer_bl_review_alerts(NULL, v_cons.consignee_key, 'detector_bl_review');
-    v_count := v_count + 1;
-  END LOOP;
-
-  -- 3. Resolve alertas ativos de clientes que não possuem mais pendências
-  FOR v_old_alert IN
-    SELECT DISTINCT a.entity_id, i.item_type
-    FROM public.alert_items i
-    JOIN public.alerts a ON a.id = i.alert_id
-    WHERE i.status = 'active'
-      AND a.entity_type = 'customer'
-      AND i.item_type IN (
-        'review_customer_unlinked',
-        'review_customer_email_missing',
-        'review_portal_not_ready',
-        'review_breakbulk_weight_missing'
-      )
-  LOOP
-    IF v_old_alert.entity_id ~ '^[0-9]+$' THEN
-      PERFORM public.reconcile_customer_bl_review_alerts(v_old_alert.entity_id::BIGINT, NULL, 'detector_bl_review_cleanup');
-    ELSE
-      PERFORM public.reconcile_customer_bl_review_alerts(NULL, v_old_alert.entity_id, 'detector_bl_review_cleanup');
-    END IF;
-  END LOOP;
-
-  -- 4. Limpa itens legados por B/L
-  FOREACH v_type IN ARRAY ARRAY[
-    'review_customer_unlinked',
-    'review_customer_email_missing',
-    'review_portal_not_ready',
-    'review_breakbulk_weight_missing'
-  ] LOOP
-    FOR v_old_alert IN
-      SELECT a.entity_id
-      FROM public.alert_items i
-      JOIN public.alerts a ON a.id = i.alert_id
-      WHERE i.status = 'active'
-        AND a.entity_type = 'bl'
-        AND i.item_type = v_type
-    LOOP
-      PERFORM public.resolve_alert_item(v_type, 'bl', v_old_alert.entity_id, 'detector_bl_review_cleanup', '{}'::jsonb);
-    END LOOP;
-  END LOOP;
-
-  -- 5. B/L sem Cliente perto do ETA (352): a passagem do tempo abre. Viagens
-  -- com B/L vivo sem Cliente e viagens com o alerta aberto. Uma viagem que
-  -- falha não derruba as outras nem os passos acima.
   FOR v_voyage_id IN
     SELECT b.voyage_id
     FROM public.bls b
@@ -384,11 +336,115 @@ BEGIN
       PERFORM public.reconcile_bl_sem_cliente_perto_eta_alerts(v_voyage_id, 'detector_bl_sem_cliente_eta');
       v_count := v_count + 1;
     EXCEPTION WHEN OTHERS THEN
-      RAISE WARNING 'Alerta de B/L sem Cliente perto do ETA da viagem % não atualizado: %', v_voyage_id, SQLERRM;
+      GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE, v_message = MESSAGE_TEXT;
+      RAISE WARNING 'Alerta de B/L sem Cliente perto do ETA da viagem % não atualizado: %', v_voyage_id, v_message;
+      v_failures := v_failures || jsonb_build_array(jsonb_build_object(
+        'detector', 'detect_bl_sem_cliente_perto_eta_alerts',
+        'sqlstate', v_sqlstate,
+        'message', format('Viagem %s: %s', v_voyage_id, v_message)
+      ));
+    END;
+  END LOOP;
+  PERFORM set_config('alerts.foundation_trigger', 'off', true);
+
+  RETURN jsonb_build_object(
+    'reconciled', v_count,
+    'failed', jsonb_array_length(v_failures),
+    'failures', v_failures
+  );
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.detect_bl_sem_cliente_perto_eta_alerts() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.detect_bl_sem_cliente_perto_eta_alerts() TO service_role;
+
+-- 5 -------------------------------------------------------------------------
+-- Definição da migration 351 com o detector acima (nono) e as falhas que um
+-- detector devolve no próprio retorno (`failed`/`failures`) somadas às do
+-- runner.
+CREATE OR REPLACE FUNCTION public.run_alert_detectors() RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_actor UUID;
+  v_detector RECORD;
+  v_value JSONB;
+  v_sqlstate TEXT;
+  v_message TEXT;
+  v_result JSONB := '{}'::jsonb;
+  v_failures JSONB := '[]'::jsonb;
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Executor server-only.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT id INTO v_actor
+  FROM public.user_profiles
+  WHERE active = true AND role <> 'equipamentos'
+  ORDER BY CASE WHEN role IN ('admin', 'administrativo') THEN 0 ELSE 1 END, created_at, id
+  LIMIT 1;
+
+  IF v_actor IS NULL THEN
+    RAISE EXCEPTION 'Não há usuário interno ativo para executar os detectores.' USING ERRCODE = 'P0002';
+  END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_actor::TEXT, true);
+  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
+  PERFORM set_config('alerts.detector_runner', 'on', true);
+
+  -- Faturas vencidas saíram do runner: taxa local não tem vencimento praticado
+  -- (issue #605). O Demurrage nunca teve (ADR 0014).
+
+  -- Ordem e chaves da 309. Cada detector roda numa subtransação: a falha de um
+  -- desfaz só o trabalho dele (351).
+  FOR v_detector IN
+    SELECT d.result_key, d.function_name
+    FROM (VALUES
+      -- ADR - Relatório de Saída da Agência (Bloco 5)
+      (1, 'agency_report_pending', 'detect_agency_report_pending'),
+      (2, 'agency_report_deadline_missed', 'detect_agency_report_deadline_missed'),
+      -- Revisão Manual de B/L e Granito (Bloco 1)
+      (3, 'bl_review_pendencies', 'detect_bl_review_pendencies'),
+      (4, 'granite_bl_review_pendencies', 'detect_granite_bl_review_pendencies'),
+      -- Operação e Viagens (Bloco 4)
+      (5, 'voyage_operation_alerts', 'detect_voyage_operation_alerts'),
+      -- Portal do Cliente e Disputas (Bloco 2)
+      (6, 'client_portal', 'reconcile_client_portal_alerts'),
+      -- Comunicados ao Cliente: NOA/NOR/NOB e falha de contato alternativo.
+      (7, 'customer_communications', 'detect_customer_communication_alerts'),
+      -- E-mails: provedor sem retorno e usuário interno com e-mail devolvido (309).
+      (8, 'email_monitoring', 'detect_email_monitoring_alerts'),
+      -- B/L sem Cliente perto do ETA (352).
+      (9, 'bl_sem_cliente_perto_eta', 'detect_bl_sem_cliente_perto_eta_alerts')
+    ) AS d(ord, result_key, function_name)
+    ORDER BY d.ord
+  LOOP
+    BEGIN
+      EXECUTE format('SELECT to_jsonb(public.%I())', v_detector.function_name) INTO v_value;
+      v_result := v_result || jsonb_build_object(v_detector.result_key, v_value);
+      -- Falha parcial devolvida pelo detector (352): o trabalho dele fica.
+      IF jsonb_typeof(v_value) = 'object' AND jsonb_typeof(v_value->'failures') = 'array' THEN
+        v_failures := v_failures || (v_value->'failures');
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE, v_message = MESSAGE_TEXT;
+      RAISE WARNING 'Detector de alertas % falhou (%): %', v_detector.function_name, v_sqlstate, v_message;
+      v_result := v_result || jsonb_build_object(v_detector.result_key, NULL);
+      v_failures := v_failures || jsonb_build_array(jsonb_build_object(
+        'detector', v_detector.function_name,
+        'sqlstate', v_sqlstate,
+        'message', v_message
+      ));
     END;
   END LOOP;
 
-  PERFORM set_config('alerts.foundation_trigger', 'off', true);
-  RETURN v_count;
+  RETURN v_result || jsonb_build_object(
+    'failed', jsonb_array_length(v_failures),
+    'failures', v_failures
+  );
 END;
-$function$;
+$$;
+
+REVOKE ALL ON FUNCTION public.run_alert_detectors() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.run_alert_detectors() TO service_role;

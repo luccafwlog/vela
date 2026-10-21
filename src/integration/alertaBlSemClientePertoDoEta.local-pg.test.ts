@@ -6,7 +6,7 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 // sugestão S7 e decisão P4): "B/L sem Cliente perto do ETA" abre quando a
 // escala do POD está a 5 dias ou menos do ETA e há B/L vivo sem Cliente; fecha
 // na hora do fato (vínculo, cancelamento, ETA adiado, viagem cancelada). A
-// passagem do tempo abre pelo detector.
+// passagem do tempo abre pelo detector próprio, nono da rodada (351).
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -58,7 +58,7 @@ function asAdmin(sql: string) {
 }
 
 function detector() {
-  psql(`BEGIN; SELECT set_config('request.jwt.claim.role', 'service_role', true); SELECT public.detect_bl_review_pendencies(); COMMIT;`)
+  psql(`BEGIN; SELECT set_config('request.jwt.claim.role', 'service_role', true); SELECT public.detect_bl_sem_cliente_perto_eta_alerts(); COMMIT;`)
 }
 
 function day(offset: number) {
@@ -185,6 +185,35 @@ describeLocal('352 — B/L sem Cliente perto do ETA', () => {
     expect(message).toContain('B352-E')
     // A outra escala, com ETA a 10 dias, continua fechada.
     expect(status(SSZ)).toBe('resolved')
+  })
+
+  it('viagem concluída não ganha escala nova; a aberta segue sendo reavaliada', () => {
+    asOwner(`UPDATE public.voyages SET status = 'completed' WHERE id = ${VOYAGE_ID};`)
+    expect(status(RIG)).toBe('active')
+    // Ativa, a escala de Santos a 2 dias abriria (B352-D segue sem Cliente).
+    setEta('BRSSZ', 2)
+    expect(status(SSZ)).toBe('resolved')
+    detector()
+    expect(status(SSZ)).toBe('resolved')
+    expect(status(RIG)).toBe('active')
+    asOwner(`UPDATE public.voyages SET status = 'active' WHERE id = ${VOYAGE_ID};`)
+    expect(status(SSZ)).toBe('active')
+  })
+
+  it('viagem que falha no detector entra em failed da rodada, sem desfazer as outras', () => {
+    const out = psql(`BEGIN;
+      SELECT set_config('request.jwt.claim.role', 'service_role', true);
+      CREATE OR REPLACE FUNCTION public.reconcile_bl_sem_cliente_perto_eta_alerts(p_voyage_id bigint, p_source text DEFAULT 'bl_sem_cliente_perto_eta')
+      RETURNS integer LANGUAGE plpgsql AS $f$
+      BEGIN
+        IF p_voyage_id = ${VOYAGE_ID} THEN RAISE EXCEPTION 'falha 352' USING ERRCODE = '22007'; END IF;
+        RETURN 0;
+      END $f$;
+      SELECT r->>'failed' || '|' || (r->'failures'->0->>'detector') || '|' || (r->'failures'->0->>'sqlstate')
+        || '|' || jsonb_typeof(r->'bl_review_pendencies')
+      FROM public.run_alert_detectors() r;
+      ROLLBACK;`)
+    expect(out.split('\n').pop()).toBe('1|detect_bl_sem_cliente_perto_eta_alerts|22007|number')
   })
 
   it('cancelar a viagem fecha', () => {
