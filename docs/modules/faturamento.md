@@ -77,8 +77,8 @@ para a decisão completa.
   não é falha — o CE calcula e **retém** a fatura (`billing_hold_reason =
   'Acesso ao portal nao provisionado'`, resultado `held`), sem acionar a fila;
   conceder a Liberação ou ativar o Portal reprocessa o Cliente e emite as
-  retidas pelo mesmo caminho, com o cálculo feito no registro do CE, sem
-  recalcular pela tabela vigente (o USD converte pelo ROE do dia da emissão;
+  retidas pelo mesmo caminho, com o preço e o câmbio fixados na importação e
+  a base atual ([Taxas Locais](taxas-locais.md#preço-fixo-na-importação-e-base-atual-adr-0094-a1-a-a4);
   ver [Taxa local em dólar](#taxa-local-em-dólar)). Quando o CE
   é gravado fora da planilha, `trg_auto_bill_bl_after_ce_mercante` calcula e
   emite na mesma transação; pela planilha, desde a migration `181`, o gatilho só
@@ -568,8 +568,11 @@ usam o ROE de `bl_price_freezes`; só o B/L sem câmbio fixado usa o de
 `exchange_rate_reference` no momento. O valor convertido fica congelado com o
 resto da fatura: o `snapshot_payload` do item guarda `roe` e
 `roe_effective_date`, e o documento impresso e o detalhe mostram a nota da
-conversão. Sem ROE configurado no primeiro cálculo de B/L com linha em dólar, a
-gravação que calcula é recusada (ADR 0094, B3; migration `379`).
+conversão. Sem ROE configurado no primeiro cálculo de B/L com Cliente e linha
+em dólar, a gravação que calcula é recusada (ADR 0094, B3; migration `379`). O
+B/L sem Cliente não converte nada na importação: o preço fica fixado sem
+câmbio, e o câmbio entra no primeiro cálculo seguinte que tem câmbio (vínculo
+do Cliente ou emissão).
 
 Na **Fatura Avulsa** de item da tabela em dólar, o total em R$ é o total em
 US$ convertido de uma vez, como na taxa local; a linha mostra o unitário só em
@@ -629,15 +632,15 @@ só campos lidos pelo motor, inclusive SOC/COC) e gatilhos de restrição
 adiados chamam `process_invoice_basis_changes` no commit; reimportação e Baplie
 chamam a mesma função antes de responder (`invoice_reissues` no retorno).
 `apply_invoice_basis_changes` compara o valor do B/L (`_quote_bl_local_charges`,
-com o ROE congelado no recebível, a tabela vinculada e o preço congelado no CE,
-que é o da fatura — [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
+com o câmbio e o preço fixados na importação, que são os da fatura, e a
+tabela vinculada — [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
 decisão 4; migrations `354`, `355` e, para as faturas emitidas antes, `367`) e o
 Cliente. Tabela reajustada não muda a cotação; só a base nova muda o valor:
 
 - sem mudança de valor nem de Cliente: nada acontece;
 - sem pagamento: cancela todas as consolidadas e individuais afetadas antes de
   emitir, reemite cada individual pelo núcleo da emissão automática do CE
-  (`_auto_bill_bl_core`, ROE do dia) e recria cada consolidada uma única vez,
+  (`_auto_bill_bl_core`, câmbio fixado) e recria cada consolidada uma única vez,
   só com os mesmos B/Ls (`_try_recreate_consolidated`); B/L cancelado, isento,
   quitado ou de outro Cliente encerra a consolidada sem reemissão
   (`reissue_closed_at`/`reissue_closed_reason`) e os demais B/Ls seguem
@@ -758,7 +761,8 @@ do COD (justificativa obrigatória, `set_bl_cod`) é regra de
   com a individual coberta, a consolidada pelo vínculo do recebível, e o pago
   inclui o liquidado no recebível — migration `368`), sem ajuste quando não há
   diferença (`368`),
-  o valor no destino novo (linhas em USD pelo ROE vigente), a diferença, o pago
+  o valor no destino novo (linhas em USD pelo câmbio fixado do B/L, migration
+  `385`), a diferença, o pago
   e o saldo em aberto. São três ramos:
   1. **sem pagamento:** a [correção após emissão](#correção-após-emissão-adr-0077)
      reemite a fatura sozinha; o ajuste registra o fato e se liquida com a
@@ -863,7 +867,10 @@ flowchart TD
   [Reconciliação PIX](reconciliacao-pix.md), restaura receivables e links e
   desfaz só o que aquele pagamento causou: a cobertura das individuais
   cobertas pela própria fatura e a consolidada obsoletada por ele, se não tem
-  sucessora nem B/L em outra consolidada aberta (migration `356`). Desde a
+  sucessora nem B/L em outra consolidada aberta (migration `356`). Consolidada
+  já substituída continua obsoleta depois do cancelamento da baixa (a
+  sucessora é que cobra, com o saldo que voltou), e os demais documentos vivos
+  dos mesmos recebíveis passam a mostrar esse saldo (migration `385`). Desde a
   `376`: excedente dessa baixa já devolvido impede o cancelamento; a
   restituição pendente é cancelada e fica no histórico (não é apagada com a
   baixa); baixa automática Itaú cancelada devolve o Pix à análise. A volta a
@@ -877,7 +884,10 @@ flowchart TD
   aberta e, por cima, nenhuma individual nova (gatilhos da `356` e da `365`).
   A consolidada interna pode incluir B/L ainda sem individual: conta como
   faturamento dele (o B/L fica "faturado") e passa pelas checagens do Emitir
-  (Revisão, CE, gate; ADR 0093, decisão 9).
+  (Revisão, CE, gate; ADR 0093, decisão 9). Cancelada (ou obsoleta sem
+  sucessora que o cubra), ela solta esse B/L, que volta a "não faturado" no
+  fim da transação; a nova cobrança dele sai só pelo Emitir (decisão 12;
+  migration `385`).
 - **Avulsa em cancelamento com devolução integral** (ADR 0093, decisão 19;
   migration `375`): ao autorizar, o Pix é cancelado e a avulsa não aceita
   baixa até a autorização ser cancelada; a avulsa é cancelada quando a
@@ -1032,7 +1042,7 @@ Evidência de **Runtime**:
   com o dono).
 - **Baixa do Financeiro e Restituição de todos (ADR 0085, D2 e D4; P5).** Desde a migration `247`, Financeiro e Administrativo registram a baixa manual, e qualquer Departamento autoriza ou cancela a restituição excepcional, com a justificativa que as RPCs exigem; os alertas Fatura desatualizada e Restituição pendente avisam também o Financeiro. Cancelar fatura e cancelar baixa seguem do Administrativo (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
 - **Emissão por qualquer Departamento (A9 e P4).** Desde a migration `246`, todo usuário interno ativo emite a Fatura Avulsa, a fatura fora do automático (ficha do B/L, Validação, consolidada) e a Invoice de Demurrage, e usa Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente e Resolver fatura desatualizada; os botões aparecem para todos os setores. A emissão é só em nome próprio (`p_actor` conferido, migration `241`) e grava o rastro de sempre. Preparar cancelamento financeiro, cancelar fatura e cancelar baixa seguem do Administrativo (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
-- **Caminho manual segue a vigência do automático (A10, migration `248`):** o Item da tabela da avulsa e o lançamento manual escolhem a tabela e a Condição de Cliente pela mesma regra do cálculo automático, pela ETA da escala do POD (`bl_local_charge_reference_date`; ADR 0040; [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10). Regra em [Taxas Locais](taxas-locais.md#notas-e-divergências). **Teste local-pg:** `caminhoManualVigencia.local-pg.test.ts`.
+- **Caminho manual segue a vigência do automático (A10, migration `248`):** o Item da tabela da avulsa e o lançamento manual seguem a regra do cálculo automático ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10); desde a [ADR 0094](../adr/0094-preco-fixo-na-importacao.md), a data de referência é a do preço fixado, não a ETA. Regra em [Taxas Locais](taxas-locais.md#preço-fixo-na-importação-e-base-atual-adr-0094-a1-a-a4). **Teste local-pg:** `caminhoManualVigencia.local-pg.test.ts`.
 - **COD segue a ADR 0077 (A11).** No COD de B/L faturado sem pagamento, a correção automática reemite a fatura e, desde a migration `249`, o Ajuste de COD se liquida com a sucessora; o painel deixou de pedir "Cancelar e reemitir" e o número da fatura (**Teste**, Postgres local, `invoicePostBillingSafety.local-pg.test.ts`).
 - **Restituição (A1):** a devolução ao Cliente se chama Restituição, como nas telas e na ADR 0077; "estorno" é sinônimo a evitar, e Cancelar baixa é outra ação ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1).
 

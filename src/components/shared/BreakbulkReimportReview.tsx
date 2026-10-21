@@ -125,8 +125,9 @@ export function BreakbulkReimportReview({
               <span className="app-import-override__title">Confirmo a mudança nos B/Ls faturados</span>
               <span className="app-import-override__hint">
                 A fatura emitida só é cancelada e reemitida se o valor mudar; mudar só o POL não reemite. Com
-                pagamento, a diferença segue para restituição ou avulsa. Se a reemissão não puder sair, a fatura não
-                é cancelada e um alerta avisa. Sem marcar, a rota e a carga gravadas ficam.
+                pagamento, a diferença segue para restituição ou avulsa. No B/L misto com terminais em conflito, a fatura
+                não é cancelada e um alerta avisa; se a nova fatura sair retida (Portal, valor a revisar), ela fica em
+                Reemissão pendente. Sem marcar, a rota e a carga gravadas ficam.
               </span>
             </span>
           </label>

@@ -506,6 +506,25 @@ describe('consulta de recebimentos', () => {
     expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
   })
 
+  it('recusa ao gravar Pix sem TXID segue a regra das falhas: para até a terceira vez e depois vai para análise', async () => {
+    const page = () => pixPage([{ endToEndId: e2e('202610061501'), valor: '0.00', horario: '2026-10-06T12:01:00Z' }])
+    const refuse = (verdict: 'review' | 'retry') => {
+      const s = sink('2026-10-06T12:00:00.000Z', undefined, verdict)
+      s.untracked.mockRejectedValue(new Error('Valor do Pix inválido.'))
+      return s
+    }
+    const retry = refuse('retry')
+    await expect(pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(page())),
+      retry.sink, new Date('2026-10-06T12:05:00Z'))).rejects.toThrow('Valor do Pix inválido.')
+    expect(retry.saved).toEqual([])
+    const review = refuse('review')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(page())),
+      review.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ untracked: 0, review: 1 })
+    expect(review.failed).toHaveBeenCalledWith(expect.objectContaining({ endToEndId: e2e('202610061501'), txid: '' }), 'Valor do Pix inválido.', false)
+    expect(review.saved).toEqual(['2026-10-06T12:05:00.000Z'])
+  })
+
   it('horário inesperado de Pix de terceiro não derruba a consulta', async () => {
     const s = sink('2026-10-06T12:00:00.000Z')
     const summary = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([

@@ -64,4 +64,14 @@ describeLocal('382 — ROE manual da Demurrage prevalece', () => {
     w.asOk('financeiro', `SELECT public.recalculate_demurrage_invoices_manual(5.6)`)
     expect(w.psql(`SELECT current_roe = (SELECT roe FROM public.exchange_rate_reference WHERE id = 1) FROM public.demurrage_invoices WHERE id = 99931881`)).toBe('t')
   })
+
+  it('Invoice vencida também volta à PTAX; o histórico leva a data da cotação usada', () => {
+    w.psql(`SET session_replication_role = replica;
+      UPDATE public.demurrage_invoices SET roe_manual = true, roe = current_roe, roe_source = 'manual', status = 'overdue' WHERE id = 99931882;
+      UPDATE public.exchange_rate_reference SET effective_date = CURRENT_DATE - 3, quote_date = CURRENT_DATE - 3 WHERE id = 1;
+      SET session_replication_role = origin;`)
+    w.asOk('financeiro', `SELECT public.release_demurrage_invoice_manual_roe(99931882, 'Cliente pediu PTAX vigente')`)
+    expect(w.psql(`SELECT roe_manual FROM public.demurrage_invoices WHERE id = 99931882`)).toBe('f')
+    expect(w.psql(`SELECT event_date = CURRENT_DATE - 3 FROM public.demurrage_invoice_history WHERE invoice_id = 99931882 ORDER BY id DESC LIMIT 1`)).toBe('t')
+  })
 })

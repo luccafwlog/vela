@@ -143,15 +143,16 @@ describeLocal('378 — preço fixo na importação', () => {
     w.psql(`UPDATE public.bls SET pod = pod, movement_to = movement_to WHERE id = '${id}'`)
     expect(w.calcTotal(id)).toBe(1000)
     // Com o aceite: tabela, Condição, câmbio e data do dia.
-    const result = JSON.parse(w.asOk('operacoes', `SELECT public.refix_bl_local_charge_prices(ARRAY['${id}'], 'Aceite da reimportação')`)) as { refixed: string[] }
+    // Pelo sistema (385: nenhum Departamento chama pela API até existir a tela do aceite).
+    const result = JSON.parse(w.psql(`SELECT public.refix_bl_local_charge_prices(ARRAY['${id}'], 'Aceite da reimportação')`)) as { refixed: string[] }
     expect(result.refixed).toEqual([id])
     expect(w.calcTotal(id)).toBe(1500)
     expect(freeze(id)).toContain('|refixado')
-    expect(w.as('operacoes', `SELECT public.refix_bl_local_charge_prices(ARRAY['${id}'], '')`).stderr).toMatch(/motivo/)
+    expect(() => w.psql(`SELECT public.refix_bl_local_charge_prices(ARRAY['${id}'], '')`)).toThrow(/motivo/)
     const billed = w.createBl('RFB')
     w.calculate(billed)
     w.issueByCe(billed, '931400000000003')
-    const skipped = JSON.parse(w.asOk('operacoes', `SELECT public.refix_bl_local_charge_prices(ARRAY['${billed}'], 'Aceite')`)) as { skipped: Array<{ reason: string }> }
+    const skipped = JSON.parse(w.psql(`SELECT public.refix_bl_local_charge_prices(ARRAY['${billed}'], 'Aceite')`)) as { skipped: Array<{ reason: string }> }
     expect(skipped.skipped[0].reason).toBe('billed')
     w.psql(`UPDATE public.charge_tables SET active = false WHERE pod = '${w.pod}' AND valid_from = CURRENT_DATE`)
   })

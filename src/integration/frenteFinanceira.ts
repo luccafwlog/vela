@@ -228,6 +228,10 @@ export function financeWorld(ns: number) {
       DELETE FROM public.bl_receivables WHERE bl_id LIKE '${prefix}%';
       DELETE FROM public.import_pending_effects WHERE entity_id LIKE '${prefix}%';
       DELETE FROM public.charge_calculations WHERE bl_id LIKE '${prefix}%';
+      DELETE FROM public.bl_price_freeze_items WHERE bl_id LIKE '${prefix}%';
+      DELETE FROM public.bl_price_freezes WHERE bl_id LIKE '${prefix}%';
+      DELETE FROM public.bl_charge_calculation_basis WHERE bl_id LIKE '${prefix}%';
+      DELETE FROM public.bl_breakbulk_items WHERE bl_id LIKE '${prefix}%';
       DELETE FROM public.bl_charge_table_links WHERE bl_id LIKE '${prefix}%';
       DELETE FROM public.pricing_rule_versions WHERE charge_table_id IN ${tables};
       DELETE FROM public.vehicles WHERE bl_id LIKE '${prefix}%';

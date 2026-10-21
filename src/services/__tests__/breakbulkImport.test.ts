@@ -768,6 +768,16 @@ describe('breakbulkImport', () => {
         .toContain('a fatura não será cancelada')
     })
 
+    it('o total de volumes mudado sozinho também pede a confirmação no B/L faturado', async () => {
+      mockExisting([
+        { id: 'TOTAL', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'invoiced', bb_packages_qty: 2, bb_packages_total: 2, customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
+      ])
+      const check = await checkBreakbulkReimport(10, {
+        layout: 'summary', rowErrors: [], bls: [line('TOTAL', { bb_packages_qty: 2, bb_packages_total: 5 })],
+      })
+      expect(check.billedRouteChanges[0]).toMatchObject({ blId: 'TOTAL', fields: ['volumes'], cargoChange: 'total de volumes 2 → 5' })
+    })
+
     it('aponta B/L de outra Viagem, troca de Cliente, rota de B/L faturado e POD em COD', async () => {
       mockExisting(
         [

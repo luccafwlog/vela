@@ -82,6 +82,9 @@ describeLocal('373 — desvincular o Cliente e container FCL entre Clientes', ()
     w.psql(`UPDATE public.bls SET customer_id = ${w.otherCustomerId} WHERE id = '${id}'`)
     expect(w.psql(`SELECT string_agg(customer_id || ':' || status || ':' || total_brl, ',' ORDER BY id) FROM public.invoices
       WHERE bl_id = '${id}' AND invoice_type = 'manual'`)).toBe(`${w.customerId}:cancelled:80.00,${w.otherCustomerId}:issued:80.00`)
+    // 385: a avulsa reemitida não herda data, autor e motivo do cancelamento da original.
+    expect(w.psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${id}' AND invoice_type = 'manual' AND status = 'issued'
+      AND (cancelled_at IS NOT NULL OR cancelled_by IS NOT NULL OR cancel_reason IS NOT NULL)`)).toBe('0')
     expect(w.psql(`SELECT string_agg(customer_id || ':' || status || ':' || current_total_brl, ',' ORDER BY id) FROM public.demurrage_invoices
       WHERE bl_id = '${id}'`)).toBe(`${w.customerId}:cancelled:550.00,${w.otherCustomerId}:issued:550.00`)
     w.psql(`SET session_replication_role = replica; DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM public.demurrage_invoices WHERE bl_id = '${id}');

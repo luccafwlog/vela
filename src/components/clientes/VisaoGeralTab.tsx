@@ -121,9 +121,15 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
       <div className="grid items-start gap-4 lg:grid-cols-3">
         <Block title="Saldo pendente">
           <LeadValue detail="Saldo pendente total">{money(balance.totalBrl)}</LeadValue>
+          {/* Dois recortes do mesmo total (ADR 0093, decisão 10): cada lista soma o total; as duas juntas, não. */}
+          {balance.invoicedOpenBrl != null || balance.toInvoiceBrl != null ? (
+            <FactList>
+              {balance.invoicedOpenBrl != null ? <Fact label="Faturado em aberto">{money(balance.invoicedOpenBrl)}</Fact> : null}
+              {balance.toInvoiceBrl != null ? <Fact label="A faturar">{money(balance.toInvoiceBrl)}</Fact> : null}
+            </FactList>
+          ) : null}
+          <p className="app-lead__detail">Por origem</p>
           <FactList>
-            {balance.invoicedOpenBrl != null ? <Fact label="Faturado em aberto">{money(balance.invoicedOpenBrl)}</Fact> : null}
-            {balance.toInvoiceBrl != null ? <Fact label="A faturar">{money(balance.toInvoiceBrl)}</Fact> : null}
             <Fact label="Taxas Locais">{money(balance.localBrl)}</Fact>
             <Fact label="Demurrage">{money(balance.demurrageBrl)}</Fact>
             {balance.manualBrl != null ? <Fact label="Fatura avulsa">{money(balance.manualBrl)}</Fact> : null}

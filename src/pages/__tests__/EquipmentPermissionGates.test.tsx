@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => ({
   profile: { id: 'user-1' } as { id: string } | null,
   setQueriesData: vi.fn(),
   invalidateQueries: vi.fn(() => Promise.resolve()),
-  updateVaziosBooking: vi.fn(() => Promise.resolve()),
   upsertVaziosExportOperation: vi.fn(() => Promise.resolve({ id: 'operation-1' })),
   upsertOperationServiceQty: vi.fn(() => Promise.resolve()),
   vaziosRows: [] as Array<Record<string, unknown>>,
@@ -120,7 +119,6 @@ vi.mock('../../services/vaziosExportOperations', () => ({
   summarizeVaziosOperations: () => [],
   getVaziosExportOperation: vi.fn(),
   listVaziosBookingsForOperation: vi.fn(),
-  updateVaziosBooking: mocks.updateVaziosBooking,
   upsertOperationServiceQty: mocks.upsertOperationServiceQty,
   upsertVaziosExportOperation: mocks.upsertVaziosExportOperation,
 }))

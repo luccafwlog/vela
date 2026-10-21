@@ -26,7 +26,7 @@ export function ManualRoeRelease({ invoiceId, docNumber }: { invoiceId: number; 
     setError('')
     if (!await confirm({
       title: 'Tirar o ROE manual?',
-      message: `A Invoice ${docNumber} passa a usar o câmbio de referência de hoje.`,
+      message: `A Invoice ${docNumber} passa a usar o câmbio de referência gravado no Vela (a última PTAX recebida).`,
       consequence: 'O valor em reais muda e a Invoice volta ao recálculo diário pela PTAX até o pagamento.',
       reversibility: 'O ROE manual não volta por esta tela; o motivo fica no histórico.',
       confirmLabel: 'Tirar ROE manual',

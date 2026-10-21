@@ -422,9 +422,15 @@ consolidada substituída quita a sucessora aberta e o excedente vira restituiç�
 pendente (migration `361`). Pix em duplicidade em fatura de Taxas Locais já
 paga, coberta ou cancelada vai para análise com a restituição pendente
 registrada (origem `pix_duplicate`, ADR 0093, decisão 18) e sai da análise
-quando a devolução é confirmada; Pix sem TXID na chave do Vela é gravado como
-**Pix recebido sem baixa** com o Alerta `pix_unreconciled`
-(`itau_pix_record_untracked`, decisão 16); o de TXID de outro padrão (sistema
+quando a devolução é confirmada; o mesmo Pix que a fatura já recebeu (extrato
+ou baixa manual com o endToEndId na referência) e volta pela consulta não é
+duplicidade: fica como baixado, sem restituição, e fecha a falha de consulta
+do mesmo endToEndId (migration `385`). Pix sem TXID nenhum na chave do Vela é
+gravado como **Pix recebido sem baixa** com o Alerta `pix_unreconciled`
+(`itau_pix_record_untracked`, decisão 16) e fecha quando a pessoa dá a baixa
+manual na fatura certa com o endToEndId na referência bancária (migration
+`385`; antes só fechava o Pix ligado a uma cobrança, e só quando a referência
+era alterada depois da baixa); o de TXID de outro padrão (sistema
 de terceiro na mesma chave) continua ignorado (migration `375`; confirmado pela [ADR 0094](../adr/0094-preco-fixo-na-importacao.md), B11). A baixa
 automática Itaú de fatura local tem origem própria em `ledger_settlements`
 (`itau_pix`), que as guardas do TXID tratam como a do extrato (migration

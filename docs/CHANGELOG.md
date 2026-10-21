@@ -31,6 +31,17 @@
   manual da Invoice de Demurrage prevalece sobre a PTAX até o Financeiro tirá-lo, com motivo. A
   avulsa com linha em dólar mostra o unitário só em US$
   ([plano arquivado](archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md)).
+- **Revisão final da frente financeira (2026-10-21, PR luccafwlog/vela#1019):** migrations `384` e
+  `385`, pelos achados da [revisão independente](archive/audits/2026-10-21-revisao-final-pr-1019.md).
+  O COD de B/L faturado converte o dólar pelo câmbio fixado; consolidada cancelada solta o B/L que ela
+  faturava sem individual, e a nova cobrança sai só pelo Emitir; cancelar a baixa de consolidada
+  substituída a mantém obsoleta; Pix já baixado pelo extrato não volta como duplicidade com restituição
+  falsa; Pix sem TXID fecha pela baixa manual com o endToEndId; Invoice de Demurrage com ROE manual não
+  dispara o alerta diário da PTAX e não fica sem QR; falha de cálculo recusa também o CE da ficha em
+  B/L com Cliente, a reativação e a aprovação da conciliação; o lançamento manual usa a tabela
+  vinculada e o preço fixado; corrigir uma Condição alcança só quem a usou; renomear item não
+  reprecifica; refixar o preço é só do sistema até existir o aceite; "Mover veículos" não tira chassi
+  de B/L cancelado; funções internas sem guarda saíram da API.
 
 - **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
   inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR

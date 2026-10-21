@@ -467,8 +467,15 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
     // não é baixável e fica de fora.
     if (!p.txid && endToEndTime(p.endToEndId ?? '') !== null && MONEY.test(p.valor ?? '')) {
       const horario = (() => { try { return itauTimeToUtc(p.horario) } catch { return new Date(endToEndTime(p.endToEndId)!).toISOString() } })()
-      await sink.untracked({ endToEndId: p.endToEndId, valor: p.valor, horario })
-      summary.untracked++
+      try {
+        await sink.untracked({ endToEndId: p.endToEndId, valor: p.valor, horario })
+        summary.untracked++
+      } catch (error) {
+        // Mesma regra do Pix com TXID: até a terceira vez para sem avançar; depois, análise.
+        const message = error instanceof Error ? error.message : 'Falha ao registrar Pix sem TXID.'
+        if (await sink.failed({ endToEndId: p.endToEndId, txid: '', raw: p }, message, false) === 'retry') throw error
+        summary.review++
+      }
       continue
     }
     // Pix do sistema de terceiro na mesma chave (TXID de outro padrão): ignorado e não persistido.

@@ -433,8 +433,8 @@ faturamento sem Portal para o Cliente (ADR 0070, migration 083). O gate vale
 também para a emissão automática pelo CE, que retém a fatura sem Portal. A
 ativação e a concessão da Liberação chamam o mesmo reprocessamento idempotente
 dos B/Ls com reconciliação matched_document ou reconciled, pelo caminho da
-transição do CE, reaproveitando o cálculo feito no registro do CE (migration
-085); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
+transição do CE, com o preço e o câmbio fixados na importação (migration 085;
+ADR 0094); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
 Liberação não depende de contato com e-mail: sem Portal, a fatura é entregue
 por um usuário interno. A Liberação aparece no painel do Cliente no Console do Portal.
 Desde a migration `375`: o gate vale só na emissão (a fatura que volta a

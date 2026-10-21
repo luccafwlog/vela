@@ -447,7 +447,7 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: Breakbu
     if (fields.length || cargo.length) {
       routeChanges.push({
         blId: bl.id,
-        fields: [...fields, ...cargo.map((change) => change.field)],
+        fields: [...fields, ...new Set(cargo.map((change) => change.field))],
         currentRoute: route(bl.pol, bl.pod),
         fileRoute: route(row.pol || bl.pol, podChanges && !cod.has(bl.id) ? row.pod : bl.pod),
         ...(cargo.length ? { cargoChange: cargo.map((change) => change.text).join('; ') } : {}),
@@ -478,6 +478,7 @@ const CARGO_FIELDS = [
   { key: 'bb_weight_ton', field: 'peso', label: 'peso (t)' },
   { key: 'bb_cbm', field: 'cbm', label: 'CBM' },
   { key: 'bb_packages_qty', field: 'volumes', label: 'volumes' },
+  { key: 'bb_packages_total', field: 'volumes', label: 'total de volumes' },
   { key: 'bb_machine_qty', field: 'maquinas', label: 'máquinas' },
 ] as const
 
@@ -492,7 +493,7 @@ export function describeBilledChange(billing: BilledChangeBilling) {
 
 /** Campos de carga solta que o arquivo muda (o vazio no arquivo mantém o gravado). */
 export function breakbulkCargoChanges(
-  current: Pick<ExistingBreakbulkBl, 'bb_weight_ton' | 'bb_cbm' | 'bb_packages_qty' | 'bb_machine_qty'>,
+  current: Pick<ExistingBreakbulkBl, 'bb_weight_ton' | 'bb_cbm' | 'bb_packages_qty' | 'bb_packages_total' | 'bb_machine_qty'>,
   file: Partial<Record<(typeof CARGO_FIELDS)[number]['key'], number | null | undefined>>,
 ) {
   const format = (value: number | null | undefined) => (value == null ? '—' : String(value).replace('.', ','))

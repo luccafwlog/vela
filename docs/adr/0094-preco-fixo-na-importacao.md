@@ -2,7 +2,8 @@
 
 Status: aceito — 2026-10-21 (decisões do responsável na revisão das
 importações e respostas às perguntas do plano de pendências). Implementada na
-PR luccafwlog/vela#1019, migrations `378` a `383`, pelo
+PR luccafwlog/vela#1019, migrations `378` a `383` e, da revisão final antes do
+merge, `384` e `385`, pelo
 [plano arquivado](../archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md).
 
 Supersede parcialmente a [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md)
@@ -58,8 +59,10 @@ status" do AGENTS.md.
 `bl_containers.unpacking_location`, `vazios_importacao_containers.natureza`,
 `voyages`/`vessels`/`carriers` e `vazios_export_*`.
 
-**B2.** As RPCs revogadas na `366` ficam revogadas: nenhum script externo as
-usa; aba antiga recarrega.
+**B2.** As RPCs revogadas na `366` ficam revogadas: nenhuma tela nem Edge
+Function as usa; aba antiga recarrega. Os scripts de QA parados em
+`scripts/qa-display-production/` gravavam direto nessas tabelas e RPCs e
+precisam de ajuste se voltarem a ser usados.
 
 **B3.** Falha de cálculo (câmbio ausente e afins) recusa a gravação inteira,
 com mensagem que aponta o B/L e o que falta, em todo caminho que calcula
@@ -112,8 +115,11 @@ fatura cancelada devolve `skipped`.
 - Falhas de cálculo deixam de ficar silenciosas: a gravação inteira é recusada
   e o operador corrige a causa antes de gravar de novo.
 - Exceção provisória em B4: o chassi do B/L cancelado ainda passa ao B/L
-  reemitido pelo arquivo de B/L, até a frente das importações deixar de ler a
-  aba VIN.
+  reemitido pelo arquivo de B/L (só dentro dele, pelo marcador
+  `vela.vin_reissue`, migration `385`), até a frente das importações deixar de
+  ler a aba VIN.
+- Até existir a tela do aceite, refixar o preço é só do sistema
+  (`service_role`, migration `385`).
 - Fica com a frente das importações (não desta decisão): tela do aceite de
   refixar, recusa de B/L em outra Viagem, portos, LCL, aba VIN e efeitos.
 

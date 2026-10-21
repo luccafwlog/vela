@@ -677,18 +677,23 @@ pagamento (`source='payment'` no histórico), quando o recálculo daquela fatura
 cessa. O câmbio do header é apenas informativo.
 
 - **Recálculo:** a RPC `recalculate_demurrage_invoices` (`service_role`;
-  definição vigente na migration `066`) reprecifica toda fatura `issued` e não
-  paga quando o ROE muda, inclusive com Disputa aberta, que não congela o fato
+  definição vigente na migration `382`) reprecifica toda fatura `issued` e não
+  paga, sem ROE manual (item seguinte), quando o ROE muda, inclusive com Disputa aberta, que não congela o fato
   cambial. Aplica o desconto em USD antes da conversão, grava
   `current_roe`/`current_total_brl`/`roe_source`, regenera o `pix_payload` e
   insere a foto em `demurrage_invoice_history`.
 - **ROE manual prevalece** (ADR 0094, B10; migration `382`): a Invoice emitida
   com o ROE manual do B/L (`roe_manual`) fica fora do recálculo pela PTAX, e o
   detalhe mostra "ROE manual, fora do recálculo pela PTAX". O Financeiro ou o
-  Administrativo usa **Tirar ROE manual…** no detalhe, com motivo de 10
-  caracteres ou mais (`release_demurrage_invoice_manual_roe`): a Invoice passa
-  ao câmbio de referência do dia, com foto no histórico e o motivo em
-  `audit_logs` (`roe_manual_removed`), e volta ao recálculo diário. É regra da
+  Administrativo usa **Tirar ROE manual…** no detalhe da Invoice emitida ou
+  vencida, com motivo de 10 caracteres ou mais
+  (`release_demurrage_invoice_manual_roe`): a Invoice passa ao câmbio de
+  referência gravado no Vela, com foto no histórico na data dessa cotação e o
+  motivo em `audit_logs` (`roe_manual_removed`), e volta ao recálculo diário.
+  Enquanto o ROE manual vale, a rotina da cobrança Itaú estende o QR dela até o
+  corte do dia sem esperar a PTAX, e o alerta das 14h não a conta como "sem a
+  PTAX de hoje"; a Invoice com Pix em análise também não entra nesse alerta e
+  ganha o QR de volta quando o Pix é tratado (migration `385`). É regra da
   Demurrage: o preço fixo na importação das Taxas Locais não se aplica a ela.
   **Teste local-pg:** `demurrageRoeManual.local-pg.test.ts`.
 - **Agenda:** a Edge Function agendada
