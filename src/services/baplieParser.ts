@@ -360,7 +360,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
       const podRaw = rawPort(ownItems, POD_QUALIFIERS)
       const ownFinal = lastPort(ownItems, FINAL_DEST_QUALIFIERS)
       const useDeliveryAsPod = !ownPod.code && ownFinal.recognized && Boolean(ownFinal.code)
-      const ownBl = lastValue(ownItems.filter((i) => i.tag === 'RFF' && (i.components[1]?.[0] ?? '') === 'BM').map((i) => i.components[1]?.[1]?.trim() || null))
+      const ownBl = lastValue(ownItems.filter((i) => i.tag === 'RFF' && (i.components[1]?.[0] ?? '') === 'BM').map((i) => citedBlRef(i.components[1]?.[1])))
       const weightValues = ownItems
         .filter((i) => i.tag === 'MEA' && WEIGHT_QUALIFIERS.has((i.components[1]?.[0] ?? '').trim()))
         .map((i) => parseWeight(i, delimiters))
@@ -569,6 +569,17 @@ function lastValue<T>(values: Array<T | null>): T | null {
     if (values[i] !== null && values[i] !== undefined) return values[i] as T
   }
   return null
+}
+
+/**
+ * O B/L citado no `RFF+BM`. Há armador que manda o próprio qualificador no
+ * lugar do número (`RFF+BM:BM`): na GREEN ITAJAI / 11 as 672 unidades vieram
+ * com "BM", que a tela mostrava como B/L. Sem número, não há B/L citado.
+ */
+export function citedBlRef(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed || trimmed.toUpperCase() === 'BM') return null
+  return trimmed
 }
 
 type ParsedPort = { code: string | null; recognized: boolean }

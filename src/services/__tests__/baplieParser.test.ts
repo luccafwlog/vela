@@ -328,6 +328,13 @@ describe('baplieParser — Obs. 1: SMDG 1.5 e 2.2 do mesmo navio dão o mesmo st
     expect(v15.pods).toEqual(v22.pods)
   })
 
+  it('RFF+BM com o próprio qualificador no lugar do número não vira B/L citado', () => {
+    const unit = (rff: string) => `UNB+UNOA:2+X+Y+261020:1500+1'TDT+20+11+++:::GREEN ITAJAI'LOC+147+0010282'MEA+VGM++KGM:20000'LOC+9+CNTAO'LOC+11+BRVIX'${rff}EQD+CN+UETU7016802+45G1+++5'`
+    expect(parseBaplieText(unit("RFF+BM:BM'")).containers[0].bl_ref).toBeNull()
+    expect(parseBaplieText(unit("RFF+BM:bm'")).containers[0].bl_ref).toBeNull()
+    expect(parseBaplieText(unit("RFF+BM:CSC4516000'")).containers[0].bl_ref).toBe('CSC4516000')
+  })
+
   it('arquivo com LOC+9 e LOC+6 (ou 11 e 12) fica com 9 e 11, em qualquer ordem', () => {
     const unit = (locs: string) => `UNB+UNOA:2+X+Y+261020:1500+1'TDT+20+11+++:::GREEN ITAJAI'LOC+147+0010282'MEA+VGM++KGM:20000'${locs}EQD+CN+UETU7016802+45G1+++5'`
     for (const locs of [

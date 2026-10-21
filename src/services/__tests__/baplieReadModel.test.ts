@@ -43,6 +43,18 @@ describe('baplieReadModel', () => {
     expect(firstPage.range).toHaveBeenCalledWith(0, 999)
   })
 
+  // Obs. 1 (sessão de testes de 2026-10-20): Baplie gravado com "BM" (o
+  // qualificador do RFF) no lugar do B/L citado não mostra "BM" como B/L.
+  it('lê "BM" gravado como B/L citado como ausência de B/L', async () => {
+    fromMock.mockReturnValue(createBuilder({
+      data: [{ id: 1, bl_ref: 'BM' }, { id: 2, bl_ref: 'CSC4516000' }, { id: 3, bl_ref: null }],
+      error: null,
+    }))
+    await expect(listBaplieStaging(7, 1000)).resolves.toEqual([
+      { id: 1, bl_ref: null }, { id: 2, bl_ref: 'CSC4516000' }, { id: 3, bl_ref: null },
+    ])
+  })
+
   it('continua a paginação quando a primeira página está cheia', async () => {
     const firstPage = createBuilder({
       data: [{ id: 1 }, { id: 2 }],
