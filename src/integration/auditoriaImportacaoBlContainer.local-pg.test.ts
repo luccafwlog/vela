@@ -238,6 +238,8 @@ class LocalQuery implements PromiseLike<BridgeResult> {
     return this
   }
   range(from: number, to: number) { this.window = `OFFSET ${from} LIMIT ${to - from + 1}`; return this }
+  // Só tipo no cliente real: o bridge devolve o próprio builder.
+  overrideTypes() { return this }
 
   maybeSingle(): Promise<BridgeResult> {
     const result = this.run()
