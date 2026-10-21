@@ -114,3 +114,37 @@ describeLocal('376 — Lote 4 da frente financeira', () => {
     expect(keys).toContain('review:thd_imo_oog_without_standard')
   })
 })
+
+const describe377 = describeWithProbe(() => {
+  if (process.env.LOCAL_PG_INTEGRATION !== '1') return false
+  try {
+    return w.psql(`SELECT count(*) FROM pg_proc WHERE proname = 'reopen_effects_blocked_by_missing_roe'`) === '1'
+  } catch {
+    return false
+  }
+}, 'migration 377 aplicada')
+
+describe377('377 — câmbio gravado reabre o cálculo provisório (item 2c)', () => {
+  // O gatilho de auditoria do câmbio grava o ator: precisa dos usuários do mundo.
+  beforeAll(() => w.setup())
+  afterAll(() => w.cleanup())
+
+  it('efeito bloqueado por falta de ROE volta para a fila; outro bloqueio fica', () => {
+    const ids = w.psql(`SET session_replication_role = replica;
+      INSERT INTO public.import_pending_effects (source_action_id, effect_kind, entity_id, status, attempts, last_error_code, last_error_message, created_by)
+      VALUES (gen_random_uuid(), 'provisional_charges', 'FF9313-ROE', 'blocked', 1, 'invalid_effect_payload', 'Cambio (ROE) nao configurado; nao e possivel calcular o saldo de linhas em USD.', '${w.actors.administrativo}'),
+             (gen_random_uuid(), 'provisional_charges', 'FF9313-OUT', 'blocked', 1, 'effect_domain_refused', 'Outro motivo', '${w.actors.administrativo}')
+      RETURNING id;
+      SET session_replication_role = origin;`).split('\n').filter(Boolean)
+    try {
+      // Na mesma transação, desfeita: o câmbio do banco de teste não muda.
+      expect(w.psql(`BEGIN;
+        INSERT INTO public.exchange_rate_reference (id, roe, effective_date) VALUES (1, 5.5, CURRENT_DATE)
+          ON CONFLICT (id) DO UPDATE SET roe = EXCLUDED.roe;
+        SELECT string_agg(status, ',' ORDER BY id) FROM public.import_pending_effects WHERE id IN (${ids.join(',')});
+        ROLLBACK;`)).toBe('retry_wait,blocked')
+    } finally {
+      w.psql(`DELETE FROM public.import_pending_effects WHERE id IN (${ids.join(',')})`)
+    }
+  })
+})

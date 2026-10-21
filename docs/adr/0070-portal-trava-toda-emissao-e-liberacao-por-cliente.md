@@ -1,6 +1,6 @@
 # 0070 — O Portal trava toda emissão; a saída é a Liberação por Cliente
 
-> **Situação atual (2026-10-21).** A decisão vale, exceto a nota "Taxas do dia do CE" (2026-09-24 b): pela [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md) (decisão 3), no dia do CE fica congelado só o preço (tabela, Condição de Cliente e data de referência), e a base do B/L é a atual na emissão da fatura retida. A nova fatura de B/L cuja fatura foi cancelada só sai pelo Emitir, nunca pelo reprocessamento da Liberação ou da ativação (decisão 12). Ainda não implementado ([plano](../plans/2026-10-21-correcoes-frente-financeira.md)).
+> **Situação atual (2026-10-21).** A decisão vale, exceto a nota "Taxas do dia do CE" (2026-09-24 b): pela [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md) (decisão 3), no dia do CE fica congelado só o preço (tabela, Condição de Cliente e data de referência), e a base do B/L é a atual na emissão da fatura retida. A nova fatura de B/L cuja fatura foi cancelada só sai pelo Emitir, nunca pelo reprocessamento da Liberação ou da ativação (decisão 12). Implementado na PR luccafwlog/vela#1019 ([plano arquivado](../archive/plans/2026-10-21-correcoes-frente-financeira.md)).
 > Regra vigente em [Regras de negócio](../operations/regras-de-negocio.md), seção Gate de faturamento.
 
 Status: supersedida parcialmente — 2026-09-23; nota "Taxas do dia do CE" alterada pela ADR 0093 em 2026-10-21

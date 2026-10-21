@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Correções da frente financeira (2026-10-21, PR luccafwlog/vela#1019):** decisões da
+  [ADR 0093](adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md), migrations `354` a `377`.
+  O B/L fica vinculado à tabela de taxas do primeiro cálculo, e editar item ou Condição é correção do
+  Administrativo; o preço do dia do CE fica congelado e a base da emissão é a atual; consolidada e
+  individuais ficam coerentes a cada baixa (parcial reprojeta a outra, a individual paga reemite a
+  consolidada, a substituída aparece no Portal); fatura cancelada solta o B/L e a nova só sai pelo
+  Emitir; Viagem com fatura viva não se cancela; a baixa automática Itaú não para em silêncio e o
+  Pix em análise só fecha pela própria baixa; Pix sem TXID e Pix em duplicidade ganham caminho; o
+  saldo do Vela separa Faturado em aberto, A faturar e avulsa; B/L cancelado, isento, reativado,
+  desvinculado ou com troca de CNPJ deixa de deixar recebível ou fatura para trás; número da fatura
+  no ano de Brasília e sem truncar. Itens à espera de decisão ficam nas
+  [pendências da frente financeira](plans/2026-10-21-pendencias-frente-financeira.md)
+  ([plano arquivado](archive/plans/2026-10-21-correcoes-frente-financeira.md)).
+
 - **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
   inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR
   impresso o cabeçalho (Armador, Porto, Navio / Viagem, Terminal) se repete em cada página, as

@@ -353,9 +353,12 @@ justificativa, na tela e no banco.
 
 - **Fatura local** (`reverse_invoice_payment`, definição vigente na migration
   `136`): remove o pagamento e restaura saldos, links e estados
-  `covered`/`obsolete`. O excedente automático ainda pendente que nasceu dessa
-  baixa é cancelado junto; restituição confirmada, de correção ou de COD fica
-  protegida. O banco recusa quando, sem essa baixa, as restituições não
+  `covered`/`obsolete`. A restituição pendente que nasceu dessa baixa é
+  cancelada e continua no histórico (migration `376`; antes era apagada junto
+  com a baixa); excedente dessa baixa já devolvido impede o cancelamento;
+  restituição de correção ou de COD fica protegida. Baixa automática Itaú
+  cancelada devolve o Pix a **Pix recebidos sem baixa**, com o Alerta
+  `pix_unreconciled` (migration `376`). O banco recusa quando, sem essa baixa, as restituições não
   canceladas passariam do valor recebido ("Esta baixa financia restituição…",
   `guard_payment_reversal_after_correction`, migration `130`). Na avulsa, saldo
   e status são recalculados pelo total emitido menos as baixas restantes.
@@ -416,7 +419,16 @@ consulta avança. Pix em formato inesperado vai para análise na primeira vez
 pelo extrato, vai para análise; o extrato que baixa avulsa cobrada pelo QR Itaú
 marca a cobrança como concluída (migration `357`). O Pix do QR de uma
 consolidada substituída quita a sucessora aberta e o excedente vira restituição
-pendente (migration `361`). Com Pix em análise ligado a Invoice de Demurrage,
+pendente (migration `361`). Pix em duplicidade em fatura de Taxas Locais já
+paga, coberta ou cancelada vai para análise com a restituição pendente
+registrada (origem `pix_duplicate`, ADR 0093, decisão 18) e sai da análise
+quando a devolução é confirmada; Pix sem TXID na chave do Vela é gravado como
+**Pix recebido sem baixa** com o Alerta `pix_unreconciled`
+(`itau_pix_record_untracked`, decisão 16); o de TXID de outro padrão (sistema
+de terceiro na mesma chave) continua ignorado (migration `375`). A baixa
+automática Itaú de fatura local tem origem própria em `ledger_settlements`
+(`itau_pix`), que as guardas do TXID tratam como a do extrato (migration
+`376`). Com Pix em análise ligado a Invoice de Demurrage,
 nenhuma cobrança nova é criada e a Régua pausa ("Pix em análise", migration
 `370`). Detalhes no
 [plano](../archive/plans/2026-10-06-integracao-itau-pix.md).

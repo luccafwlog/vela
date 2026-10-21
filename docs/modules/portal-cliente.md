@@ -437,6 +437,16 @@ transição do CE, reaproveitando o cálculo feito no registro do CE (migration
 085); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
 Liberação não depende de contato com e-mail: sem Portal, a fatura é entregue
 por um usuário interno. A Liberação aparece no painel do Cliente no Console do Portal.
+Desde a migration `375`: o gate vale só na emissão (a fatura que volta a
+emitida por estorno de baixa não é barrada); confirmar o e-mail de recuperação
+que abre o gate também reprocessa as retidas, como a ativação; e o
+reprocessamento automático emite em nome de `app_settings.system_billing_actor`
+(conta de sistema; sem ela configurada, o primeiro Administrativo ativo, como
+antes), com o registro `held_billing_reprocessed` em `audit_logs`. O alerta
+`portal_reprocessamento_falhou` do B/L fecha quando o B/L é faturado.
+A lista de faturas mostra navio, Viagem e POD da emissão (migration `376`), e
+o painel mostra a Demurrage em aberto em US$ líquido do desconto, o mesmo que
+gera o R$ ao lado.
 A regra que atravessa módulos está em
 [Regras de negócio](../operations/regras-de-negocio.md#gate-de-faturamento).
 

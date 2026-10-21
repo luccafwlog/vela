@@ -50,6 +50,12 @@ describeLocal('362 — fatura cancelada solta o B/L', () => {
     w.psql(`DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${id}', '936200000000003', '${w.actors.administrativo}'::uuid); END $$`)
     expect(liveCount(id)).toBe(0)
 
+    // Revisão das importações, item 2b: desvincular e vincular o Cliente de novo
+    // (gatilho do vínculo com CE) também não emite.
+    w.psql(`UPDATE public.bls SET customer_id = NULL, customer_reconciliation_status = 'missing_customer' WHERE id = '${id}'`)
+    w.psql(`UPDATE public.bls SET customer_id = ${w.customerId}, customer_reconciliation_status = 'matched_document' WHERE id = '${id}'`)
+    expect(liveCount(id)).toBe(0)
+
     w.asOk('administrativo', `SELECT public.mark_bl_ready_and_create_invoice('${id}')`)
     expect(liveCount(id)).toBe(1)
   })

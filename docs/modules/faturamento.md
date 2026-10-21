@@ -451,7 +451,7 @@ para achar o peso de carga solta do quadro do alto. **Código:**
 | Detalhe · registrar pagamento ledger | `canRegisterInvoicePayment`: fatura não avulsa com status `issued`/`partially_paid`/`overdue` e saldo positivo; fora disso o card mostra que a fatura não aceita pagamento | `InvoiceDetailModal.handleRegisterPayment` | `useRegisterLedgerInvoicePayment` → `registerLedgerInvoicePayment` | RPC `register_verified_invoice_payment` → `register_ledger_invoice_payment` → `payments`, `ledger_settlements`, receivables, invoice, B/Ls, eventos e possível refund | Invalidação ledger comum | Valor/data validados; RPC rejeita estado, ausência de links, TXID duplicado e regras de valor | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/services/__tests__/billingLedger.test.ts` |
 | Detalhe · registrar pagamento de avulsa | `canRegisterInvoicePayment`: fatura avulsa com status `issued`/`overdue`/`partially_paid`/`paid` (excedente vira restituição); cancelada ou rascunho não mostra o formulário (VELA-15) | Mesmo handler, ramo `else` | `useRegisterInvoicePayment` → `registerInvoicePayment` | RPC `register_verified_invoice_payment` (ramo `manual`) → `payments`, agregados de `invoices`, restituição do excedente | Invalida invoices, detalhe, B/Ls e clientes | Bloqueia valor não positivo, referência bancária ausente e avulsa fora dos status aceitos (22023) | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/hooks/useBilling.ts`, `supabase/migrations/136_controles_financeiros.sql` · **Teste:** `src/pages/__tests__/faturamentoLedgerPayment.test.ts`, `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
 | Taxas Locais · Reemissão pendente · Tentar reemitir | Consolidada cancelada pela correção do B/L; qualquer Departamento (migration `246`) | `PendingReissuesPanel` | `useRetryPendingConsolidatedReissue` → `retryPendingConsolidatedReissue` | RPC `retry_pending_consolidated_reissue` → `_try_recreate_consolidated` (128): recria com os mesmos B/Ls, encerra se já não são os mesmos ou aguarda a individual | Invalida invoices (inclui Reemissão pendente), detalhe, ledger e clientes | Trava (Portal não pronto) mantém a pendência com o motivo no alerta | **Teste:** `invoiceBasisCorrection.local-pg.test.ts` |
-| Detalhe · Resolver com justificativa | Fatura desatualizada tratada; qualquer Departamento (migration `246`); motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo vazio e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts` |
+| Detalhe · Resolver com justificativa | Fatura desatualizada tratada; qualquer Departamento (migration `246`); motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo com menos de 15 caracteres (migration `376`) e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts`, `lote4NumeroAvulsaEstornoItau.local-pg.test.ts` |
 | Detalhe · cancelar invoice | Admin; invoice sem pagamentos | `handleCancelInvoice` | `useCancelInvoice` → `cancelInvoice` | RPC protegida `cancel_invoice` (executa como `SECURITY DEFINER` após validar sessão ativa e papel admin) → invoice, batch, B/Ls e auditoria; implementação mais recente também preserva regras de Granito | Invalida invoices, detalhe, billing-ready, B/Ls e clientes | Pagamentos bloqueiam cancelamento; tabelas internas não são expostas diretamente; falha cria alerta/evento best-effort | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts`, `supabase/migrations_archive/064_fix_granite_invoice_cancel_reissue.sql`, `supabase/migrations_archive/142_secure_cancel_invoice_wrapper.sql` |
 | Detalhe · confirmar devolução | Refund pendente; Financeiro/Administrativo; comprovante, favorecido e data | `handleSettleRefund` com conferência | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `confirm_invoice_refund` (136), com evidência/auditoria | Invalidação financeira comum, inclusive Portal e Demurrage | Sem permissão, evidência ou lastro é rejeitado; repetição idêntica é idempotente | **Código:** `src/services/billingLedger.ts` · **Teste local:** `invoicePostBillingSafety.local-pg.test.ts` · **Migration 136:** [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md) |
 | Detalhe da avulsa ou de Demurrage · **Restituição excepcional** (autorizar) | Qualquer Departamento (migration `247`); avulsa paga ou parcialmente paga, ou Invoice de Demurrage paga; valor positivo até o recebido ainda não reservado (em Cancelamento com devolução integral, exatamente esse valor); finalidade (Devolução por ajuste ou Cancelamento com devolução integral) e justificativa de ao menos 10 caracteres | `FinancialRefundsPanel` (variante de autorização no detalhe da avulsa; completa no detalhe de Demurrage) | `requestFinancialRefund` (`src/services/financialRefunds.ts`), com chave de tentativa | RPC `request_financial_refund` (`136`) → `invoice_refunds` ou `demurrage_refunds` pendente com finalidade e `request_id` | Invalida restituições e dados financeiros relacionados | Usuário inativo ou do Portal recebe `42501`; valor acima do disponível ou justificativa curta, `22023`. A autorização não transfere dinheiro: a devolução é registrada pelo Financeiro ou pelo Administrativo | **Código:** `src/components/billing/FinancialRefundsPanel.tsx`, `supabase/migrations/136_controles_financeiros.sql` |
@@ -492,14 +492,14 @@ menores e específicas descritas no catálogo.
 | `bl_receivables` | `original_amount_brl`, `settled_amount_brl`, `balance_brl` e estado por B/L de taxas locais | Não é o documento apresentado ao cliente |
 | `ledger_settlements` | Alocação de um pagamento a um receivable, método, origem e TXID | Não substitui o evento de pagamento em `payments` |
 | `payments` | Evento de pagamento por invoice, valor, método, data, ator e observação | No ledger, não informa sozinho como o valor foi distribuído entre B/Ls |
-| `invoice_refunds` | Dinheiro a devolver ao Cliente: excedente de pagamento, crédito de COD, restituição da correção do B/L (`origin = 'correction'`, `correction_receivable_id`) e restituição excepcional (`request_id`, finalidade `correction`/`cancel`); estado `pending`/`settled`/`cancelled`, com comprovante (`bank_reference`), favorecido e quem confirmou | Não reabre saldo nem substitui o cancelamento da baixa |
-| `invoice_lifecycle_events` | Eventos `issued`, `paid`, `partially_paid`, `covered`, `obsolete`, `cancelled`, `reconciled_by_txid` e `backfilled` | Não é a fonte de saldo nem o log genérico de todas as alterações |
+| `invoice_refunds` | Dinheiro a devolver ao Cliente: excedente de pagamento, crédito de COD, restituição da correção do B/L (`origin = 'correction'`, `correction_receivable_id`) e restituição excepcional (`request_id`, finalidade `correction`/`cancel`) e Pix em duplicidade (`origin = 'pix_duplicate'`, `itau_end_to_end_id`, `375`); estado `pending`/`settled`/`cancelled`, com comprovante (`bank_reference`), favorecido e quem confirmou | Não reabre saldo nem substitui o cancelamento da baixa |
+| `invoice_lifecycle_events` | Eventos `issued`, `paid`, `partially_paid`, `covered`, `obsolete`, `cancelled`, `reconciled_by_txid` e `backfilled`; a avulsa registra `paid`, `partially_paid` e `cancelled` desde a `376` | Não é a fonte de saldo nem o log genérico de todas as alterações |
 
 ### Fronteiras atômicas
 
 | RPC | Transição atômica | Chamador atual |
 |---|---|---|
-| `create_invoice_from_bls_with_ledger` | `create_invoice_from_bls_core` + `link_invoice_to_ledger` | `createInvoiceFromBls` em `src/services/billing.ts` |
+| `create_invoice_from_bls_with_ledger` | `mark_bl_ready_for_billing` + `create_invoice_from_bls_core` + `link_invoice_to_ledger` (`366`) | Nenhuma tela: `createInvoiceFromBls` em `src/services/billing.ts` ficou sem chamador |
 | `mark_bl_ready_and_create_invoice` | trava B/L, promove para pronto e cria invoice ledger | `BlCobrancasTab` e `reviewBillingAutomation` |
 | `create_local_consolidated_invoice` | trava receivables, cria invoice, links, evento e auditoria | `createConsolidatedInvoice` |
 | `create_manual_invoice` | valida Cliente e contexto opcional, calcula total e cria invoice/item em transação | `createManualInvoice` em `src/services/billing.ts` |
@@ -544,8 +544,20 @@ Desde a migration `183`, a emissão (status diferente de rascunho) grava em
 endereço do Cliente, a Viagem, o navio e, por B/L, POL, POD, Viagem e navio. O
 detalhe (`list_invoice_details`) e o Portal (`_portal_invoice_details_core`)
 sobrepõem essa cópia aos dados vivos, e a impressão mostra o endereço
-congelado. Corrigir o Cliente ou o B/L depois não reescreve uma fatura já
+congelado. A lista de faturas do Portal também lê navio, Viagem e POD dessa
+cópia (migration `376`). Corrigir o Cliente ou o B/L depois não reescreve uma fatura já
 emitida; mudanças de valor seguem a ADR 0077.
+
+### Número da fatura
+
+`assign_invoice_number` numera `INV-<ano>-<sequência>` por `invoice_counters`.
+O ano segue o horário de Brasília (ADR 0093, decisão 21; migration `376`): a
+fatura emitida às 22h de 31/12 leva o ano que termina. A sequência tem quatro
+dígitos com zeros à esquerda e, a partir de 10.000 no ano, usa todos os
+dígitos, sem truncar. O contador fica travado até o fim da transação: emissões
+simultâneas podem colidir em deadlock (`40P01`); a emissão pela ficha e pela
+Validação tenta de novo uma vez (`src/services/billing.ts`) e a fila de
+efeitos trata o código como erro passageiro.
 
 ### Taxa local em dólar
 
@@ -824,12 +836,31 @@ flowchart TD
   [Reconciliação PIX](reconciliacao-pix.md), restaura receivables e links e
   desfaz só o que aquele pagamento causou: a cobertura das individuais
   cobertas pela própria fatura e a consolidada obsoletada por ele, se não tem
-  sucessora nem B/L em outra consolidada aberta (migration `356`).
+  sucessora nem B/L em outra consolidada aberta (migration `356`). Desde a
+  `376`: excedente dessa baixa já devolvido impede o cancelamento; a
+  restituição pendente é cancelada e fica no histórico (não é apagada com a
+  baixa); baixa automática Itaú cancelada devolve o Pix à análise. A volta a
+  "emitida" não passa pelo gate do Portal nem pela Revisão, que valem só na
+  emissão (migration `375`).
+- O recibo da individual **Coberta** soma o que foi pago direto nela antes da
+  cobertura e o que a consolidada atribuiu ao B/L (migration `375`).
+- Consolidada com baixa ou Pix recebido pelo Itaú não é marcada obsoleta no
+  Vela nem desfeita no Portal (migration `376`).
 - Um recebível fica em no máximo um documento local aberto: uma consolidada
   aberta e, por cima, nenhuma individual nova (gatilhos da `356` e da `365`).
   A consolidada interna pode incluir B/L ainda sem individual: conta como
   faturamento dele (o B/L fica "faturado") e passa pelas checagens do Emitir
   (Revisão, CE, gate; ADR 0093, decisão 9).
+- **Avulsa em cancelamento com devolução integral** (ADR 0093, decisão 19;
+  migration `375`): ao autorizar, o Pix é cancelado e a avulsa não aceita
+  baixa até a autorização ser cancelada; a avulsa é cancelada quando a
+  devolução é confirmada. Avulsa não é emitida para Cliente desativado, e
+  paga, paga em parte e cancelada geram evento em `invoice_lifecycle_events`
+  (migration `376`).
+- **Pix em duplicidade** em fatura de Taxas Locais já paga, coberta ou
+  cancelada (ADR 0093, decisão 18; migration `375`) vira restituição pendente
+  de origem `pix_duplicate`, ligada à fatura de origem e fora do recibo dela; o
+  Pix sai da análise quando a devolução é confirmada.
 - Cancelar a fatura **solta o B/L** (ADR 0093, decisão 12; migration `362`):
   o vínculo da fatura cancelada não trava o cancelamento do B/L, e a nova
   fatura só sai pelo **Emitir** — nunca sozinha pela Liberação, pela ativação

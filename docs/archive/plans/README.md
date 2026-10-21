@@ -1,5 +1,7 @@
 # Planos históricos (archive)
 
+- [2026-10-21 — Correções da frente financeira](2026-10-21-correcoes-frente-financeira.md) — executado e arquivado em 2026-10-21 na PR luccafwlog/vela#1019: lotes 0 a 4 (F-01 a F-56) e a revisão das importações incorporada, migrations `354` a `377`, cada achado com suíte local-pg; decisões na [ADR 0093](../../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md). Os itens retidos à espera de pergunta ao responsável seguem nas [pendências da frente financeira](../../plans/2026-10-21-pendencias-frente-financeira.md).
+
 - [2026-10-17 — Correção dos e-mails do sistema](2026-10-17-correcao-dos-emails.md) — arquivado em 2026-10-19 por decisão do responsável: Fases 0 a 5 em produção (PRs 971 e 973, migrations `297` e `302` a `319`); ligar a chave de envio real é decisão separada, e a lista da Fase 6 passou para [Serviços externos](../../operations/servicos-externos.md#antes-de-ligar-a-chave-de-envio-real). Regras vigentes em [Clientes](../../modules/clientes.md#régua-automática-de-comunicados) e [Demurrage](../../modules/demurrage.md#régua-de-cobrança).
 
 - [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — concluído em 2026-10-15 (PRs 954, 956 e 961): aceite na [ADR 0087](../../adr/0087-desbloqueio-ce-aceite-operacional.md), migrations `279` a `282` em produção e observação com o responsável; itens de observação restantes encerrados pelo responsável como não pertinentes. Regra vigente no [módulo](../../modules/desbloqueio-ce.md).

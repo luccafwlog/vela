@@ -10,9 +10,10 @@
 --     navegador (`src/services/billing.ts`).
 --   F-45. A lista de faturas do Portal lia navio, Viagem e POD de hoje: lê da
 --     foto da emissão (`invoice_document_snapshots`), com o atual de reserva.
---   F-46. Avulsa: Cliente desativado era aceito (ADR 0073, item 6); a linha
---     USD não fechava quantidade × unitário = total; paga, paga em parte e
---     cancelada não geravam evento do ciclo de vida.
+--   F-46. Avulsa: Cliente desativado era aceito (ADR 0073, item 6); paga,
+--     paga em parte e cancelada não geravam evento do ciclo de vida. A linha
+--     USD (quantidade × unitário ≠ total) ficou como está: corrigir mudaria o
+--     total convertido; está em pergunta nas pendências da frente financeira.
 --   F-47. Cancelar a baixa apagava em cascata a restituição do excedente e
 --     deixava o recibo Itaú como baixado. Agora: restituição já devolvida
 --     impede o cancelamento; a pendente é cancelada e fica no histórico (a
@@ -1330,68 +1331,6 @@ LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp';
 
--- F-46 (linha USD).
-CREATE OR REPLACE FUNCTION public.quote_manual_invoice_charge(p_bl_id text, p_charge_item_id bigint)
- RETURNS jsonb
- LANGUAGE plpgsql
- STABLE SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
-AS $function$
-DECLARE
-  v_item record;
-  v_basis text;
-  v_quantity numeric := 1;
-  v_unit numeric;
-  v_roe numeric;
-  v_roe_date date;
-  v_override bigint;
-BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_active_read_user() THEN
-    RAISE EXCEPTION 'Usuario sem permissao ativa.' USING ERRCODE = '42501';
-  END IF;
-  SELECT * INTO v_item FROM public.list_manual_charge_items_for_bl(p_bl_id)
-    WHERE charge_item_id = p_charge_item_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Item manual nao elegivel para este B/L.' USING ERRCODE = '22023';
-  END IF;
-  SELECT application_basis INTO v_basis FROM public.charge_table_items WHERE id = p_charge_item_id;
-  IF v_basis = 'teu' THEN
-    SELECT sum(CASE WHEN normalized ~ '^45' THEN 2.25 WHEN normalized ~ '^(40|42)' THEN 2
-      WHEN normalized ~ '^(20|22)' THEN 1 ELSE NULL END)
-    INTO v_quantity FROM (SELECT regexp_replace(upper(coalesce(type, '')), '[[:space:]-]', '', 'g') normalized
-      FROM public.bl_containers WHERE bl_id = upper(btrim(p_bl_id))) c;
-    IF EXISTS (SELECT 1 FROM public.bl_containers WHERE bl_id = upper(btrim(p_bl_id))
-      AND regexp_replace(upper(coalesce(type, '')), '[[:space:]-]', '', 'g') !~ '^(45|40|42|20|22)') THEN
-      RAISE EXCEPTION 'Tipo de container desconhecido; confira os TEUs do B/L.' USING ERRCODE = '22023';
-    END IF;
-  ELSIF v_basis IS DISTINCT FROM 'bl' THEN
-    RAISE EXCEPTION 'Base de cobranca nao suportada na avulsa: %.', v_basis USING ERRCODE = '22023';
-  END IF;
-  IF coalesce(v_quantity, 0) <= 0 THEN
-    RAISE EXCEPTION 'B/L sem quantidade faturavel.' USING ERRCODE = '22023';
-  END IF;
-  SELECT cro.id INTO v_override FROM public.customer_rate_overrides cro
-    JOIN public.bls b ON b.customer_id = cro.customer_id
-    WHERE b.id = upper(btrim(p_bl_id)) AND cro.charge_item_id = p_charge_item_id AND cro.active
-      AND (cro.valid_from IS NULL OR cro.valid_from <= public.bl_local_charge_reference_date(b.id))
-      AND (cro.valid_to IS NULL OR cro.valid_to >= public.bl_local_charge_reference_date(b.id))
-    ORDER BY cro.created_at DESC LIMIT 1;
-  IF v_item.currency = 'USD' THEN
-    SELECT roe, effective_date INTO v_roe, v_roe_date FROM public.exchange_rate_reference WHERE id = 1;
-    IF v_roe IS NULL OR v_roe <= 0 THEN
-      RAISE EXCEPTION 'Cambio (ROE) nao configurado.' USING ERRCODE = '22023';
-    END IF;
-    v_unit := round(v_item.effective_unit_value_usd * v_roe, 2);
-  ELSE
-    v_unit := v_item.effective_unit_value_brl;
-  END IF;
-  RETURN to_jsonb(v_item) || jsonb_build_object('quantity', v_quantity, 'application_basis', v_basis,
-    'unit_value_brl', v_unit, -- F-46 (376): a linha da avulsa fecha (quantidade × unitário = total) também em USD.
-    'total_brl', round(v_quantity * v_unit, 2),
-    'total_usd', CASE WHEN v_item.currency = 'USD' THEN round(v_quantity * v_item.effective_unit_value_usd, 2) END,
-    'roe', v_roe, 'roe_effective_date', v_roe_date, 'override_id', v_override);
-END;
-$function$;
 
 -- F-46: avulsa paga, paga em parte ou cancelada registra o evento do ciclo de vida.
 CREATE OR REPLACE FUNCTION public.record_manual_invoice_lifecycle()

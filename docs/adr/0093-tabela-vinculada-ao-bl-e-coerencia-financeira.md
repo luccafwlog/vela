@@ -1,10 +1,19 @@
 # 0093 — Tabela vinculada ao B/L e coerência financeira (revisão de 2026-10-21)
 
 Status: aceito — 2026-10-21 (decisões do dono, respondidas pergunta a pergunta).
-Implementação pendente: as tarefas estão no
-[plano de correções da frente financeira](../plans/2026-10-21-correcoes-frente-financeira.md).
-Até cada tarefa ser entregue, o comportamento descrito nos módulos continua
-sendo o do código atual.
+
+> **Situação atual (2026-10-21):** implementada na PR luccafwlog/vela#1019,
+> migrations `354` a `377`, pelo
+> [plano de correções da frente financeira](../archive/plans/2026-10-21-correcoes-frente-financeira.md)
+> (arquivado). As regras vigentes estão em [Taxas Locais](../modules/taxas-locais.md),
+> [Faturamento](../modules/faturamento.md),
+> [Reconciliação PIX](../modules/reconciliacao-pix.md),
+> [Portal do Cliente](../modules/portal-cliente.md) e
+> [Demurrage](../modules/demurrage.md). A decisão 16 foi aplicada ao Pix sem
+> TXID; o de TXID de outro sistema na mesma chave segue ignorado, e o número
+> da fatura (decisão 21) manteve quatro dígitos, sem truncar a partir de
+> 10.000: as duas leituras estão em pergunta nas
+> [pendências da frente financeira](../plans/2026-10-21-pendencias-frente-financeira.md).
 
 Supersede parcialmente as ADRs
 [0040](./0040-vigencia-da-tabela-de-taxas-e-informativa.md) (decisão 2),
@@ -26,7 +35,7 @@ motor de preço, a trava de emissão em dobro, a idempotência do Pix e o
 isolamento do Portal estão corretos. Os defeitos estão em quando o cálculo é
 reaproveitado, nas projeções que só a fatura paga atualiza e nos caminhos de
 exceção. A evidência de cada achado (F-01 a F-56) está no
-[plano](../plans/2026-10-21-correcoes-frente-financeira.md).
+[plano](../archive/plans/2026-10-21-correcoes-frente-financeira.md).
 
 Parte dos defeitos não tinha regra escrita que dissesse o certo. As perguntas
 foram respondidas pelo dono no mesmo dia; esta ADR registra as respostas.

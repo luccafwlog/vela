@@ -438,6 +438,9 @@ container IMO e OOG ao mesmo tempo pelo THD normal com 150% de majoração
 item standard da tabela ou da Condição do Cliente, com o mesmo rateio de
 container compartilhado e a mesma regra de SOC. Não pede revisão. Exemplo: THD
 normal de R$ 1.420 → R$ 3.550 (migration `129`, decisão de 2026-10-02).
+Sem item THD standard na tabela, o container IMO e OOG não fica sem cobrança
+em silêncio: o cálculo vai para revisão
+(`review:thd_imo_oog_without_standard`, migration `376`).
 
 ### Correção de B/L após faturamento
 

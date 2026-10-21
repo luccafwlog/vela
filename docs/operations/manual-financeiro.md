@@ -114,7 +114,7 @@ Papéis, condições e falhas de cada ação estão no [catálogo de ações do 
 
 | Situação | Procedimento | Resultado esperado |
 |---|---|---|
-| Baixa falsa gerou excedente automático ainda não devolvido | Administrativo confere que não houve recebimento nem devolução e cancela a baixa selecionada | Excedente pendente acompanha a reversão, com auditoria. Devolução já confirmada não pode ser retirada |
+| Baixa falsa gerou excedente automático ainda não devolvido | Administrativo confere que não houve recebimento nem devolução e cancela a baixa selecionada | Excedente pendente é cancelado e fica no histórico, com auditoria. Excedente já devolvido impede o cancelamento da baixa. Baixa automática Itaú cancelada volta para **Pix recebidos sem baixa** |
 | Cancelar fatura sem recebimento/ajuste | Administrativo confere dependências e cancela com motivo | Documento cancelado preservado; conferir cobrança ativa e Portal |
 | Individual pertence a consolidada aberta | Tratar primeiro a consolidada e conferir individuais | Banco impede cancelamento isolado inconsistente |
 | Cancelar cobrança local com recebimento verdadeiro, inclusive parcial | Administrativo seleciona o B/L em Ajustes pela correção do B/L, justifica e usa Preparar cancelamento financeiro. Financeiro devolve e confirma; Administrativo cancela o B/L na ficha | Abate saldo e restitui o recebido desse B/L; demais B/Ls preservados. Preparar cobrança não cancela operacionalmente o B/L |
@@ -125,9 +125,11 @@ Papéis, condições e falhas de cada ação estão no [catálogo de ações do 
 | Individual **Coberta** | Não cancelar: o B/L já foi pago por outro documento | O banco recusa; para baixa errada, cancelar a baixa no documento pago |
 | Cancelar Viagem | Resolver antes cada B/L com fatura viva ou baixa (cancelar fatura sem pagamento, restituir) | Recusado enquanto houver fatura viva ou baixa; ao cancelar, os recebíveis sem fatura saem do saldo |
 | Apagar CE para desfazer faturamento | Não usar; corrigir o documento pelo fluxo autorizado | Com fatura emitida, apagar CE é bloqueado |
+| Pix em duplicidade em fatura de Taxas Locais paga, coberta ou cancelada | Devolver o valor ao pagador e confirmar a restituição pendente que o Vela já registrou na fatura de origem | O Pix sai de **Pix recebidos sem baixa** quando a devolução é confirmada; o recibo da fatura não muda |
+| Pix sem TXID do Vela (chave digitada) | Em **Pix recebidos sem baixa**, dar a baixa manual na fatura certa ou, se não for do Vela, **Marcar como tratado** com o motivo | Alerta `pix_unreconciled` fecha com a decisão |
 | Restituição automática pendente | Financeiro confere origem/valor/Cliente original, devolve no banco e guarda comprovante. Em Confirmar devolução, informa referência, favorecido e data; confere e confirma | Devolução confirmada, auditada e refletida no líquido; botão não transfere dinheiro |
 | Exceção de avulsa/Demurrage | Qualquer Departamento autoriza a Restituição excepcional: valor, finalidade e motivo. Financeiro ou Administrativo devolve e confirma (ADR 0085, D2) | Valor limitado ao recebido ainda disponível, descontadas autorizações/devoluções anteriores |
-| Cancelamento integral de avulsa/Demurrage com pagamento | Autorizar finalidade Cancelamento com devolução integral e devolver todo recebido disponível | Fatura cancelada após confirmação integral; recebimento e valores históricos preservados |
+| Cancelamento integral de avulsa/Demurrage com pagamento | Autorizar finalidade Cancelamento com devolução integral e devolver todo recebido disponível | Na autorização, o Pix da avulsa é cancelado e ela não aceita baixa (cancele a autorização para voltar a cobrar). Fatura cancelada após confirmação integral; recebimento e valores históricos preservados |
 | Autorização excepcional errada, dinheiro ainda não devolvido | Qualquer Departamento usa Cancelar autorização e justifica (ADR 0085, D2); nova devolução exige nova autorização | Valor reservado liberado; histórico/motivo preservados. Ajuste automático de B/L segue sua origem e não é apagado por essa ação |
 | Devolução confirmada por engano ou para conta errada | Abrir atendimento com Administrativo/Financeiro e suporte; preservar os dois comprovantes | Confirmação não pode ser apagada/reescrita. Exige apuração e regularização assistida, sem fabricar baixa falsa |
 | Dinheiro já devolvido antes do registro | Administrativo autoriza o caso com motivo/evidências; Financeiro registra a devolução efetiva no fluxo aplicável | Valor/documento original e comprovante reconciliados; não cancelar baixa verdadeira |
@@ -150,7 +152,7 @@ Regras de Invoice de Demurrage, datas e Régua de Cobrança: [Demurrage](../modu
 | Datas do container mudam em Invoice com desconto ou disputa aberta | A Invoice não é reemitida sozinha (ADR 0079): sai da Régua e o mesmo alerta abre. Cancelar, gerar de novo pelo B/L e refazer o desconto ou responder a disputa. Se as datas voltarem às faturadas, a suspensão sai sozinha |
 | Baixa de Demurrage falsa | Administrativo cancela pelo histórico, com motivo. Restituição que depende da baixa impede a retirada do lastro |
 | Recibo local de fatura corrigida/restituída | Conferir bruto recebido, abatimento, devolvido, pendente e líquido. Pendência ainda não reduz o líquido recebido |
-| Recibo de individual Coberta | Usar data e valores atribuídos aos B/Ls do documento; referência identifica a consolidada que recebeu |
+| Recibo de individual Coberta | Usar data e valores atribuídos aos B/Ls do documento, somados ao que foi pago direto na individual; referência identifica a consolidada que recebeu |
 | Recibo de Demurrage | Aguardar consulta das restituições antes de imprimir; conferir bruto, pendente, devolvido e líquido |
 | Fatura já paga, cancelada ou coberta impressa de novo | O documento não traz QR Pix; para comprovar pagamento, envie o recibo. Invoice de Demurrage complementar diz de qual Invoice completa e que cobra só as caixas ainda não cobradas |
 | Documento cancelado após devolução | Recibo registra o histórico do recebimento/devolução; não apresenta dinheiro devolvido como valor líquido retido |

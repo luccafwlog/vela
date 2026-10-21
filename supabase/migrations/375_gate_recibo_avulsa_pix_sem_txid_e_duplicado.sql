@@ -153,11 +153,11 @@ BEGIN
   IF FOUND THEN RETURN v_existing; END IF;
   INSERT INTO public.itau_pix_receipts (end_to_end_id, txid, amount_brl, paid_at, status, reason)
   VALUES (p_end_to_end_id, '', round(p_amount_brl, 2), p_paid_at, 'review',
-    'Pix sem TXID do Vela: dê a baixa manual na fatura certa ou marque como "não é do Vela".');
+    'Pix sem TXID do Vela: dê a baixa manual na fatura certa ou, se não for do Vela, use "Marcar como tratado".');
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
   PERFORM public.upsert_alert_item('pix_unreconciled', 'itau_pix_receipt', p_end_to_end_id,
     'Pix de R$ ' || to_char(round(p_amount_brl, 2), 'FM999G999G990D00') || ' recebido pelo Itaú sem TXID do Vela: '
-      || 'dê a baixa manual na fatura certa ou marque como "não é do Vela".',
+      || 'dê a baixa manual na fatura certa ou, se não for do Vela, use "Marcar como tratado".',
     'itau_pix', 'administrativo', jsonb_build_object('end_to_end_id', p_end_to_end_id, 'amount_brl', round(p_amount_brl, 2)),
     '/reconciliacao');
   PERFORM set_config('request.jwt.claim.role', coalesce(v_previous_role, ''), true);

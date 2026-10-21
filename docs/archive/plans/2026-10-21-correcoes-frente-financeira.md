@@ -1,7 +1,10 @@
 # Plano — correções da frente financeira (revisão de 2026-10-21)
 
-Estado: vivo, nada executado. Decisões em
-[ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md)
+Estado: executado e arquivado em 2026-10-21 na PR luccafwlog/vela#1019
+(migrations `354` a `377`). Os itens retidos em "Execução", à espera das
+perguntas, seguem no plano vivo
+[pendências da frente financeira](../../plans/2026-10-21-pendencias-frente-financeira.md). Decisões em
+[ADR 0093](../../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md)
 (citadas aqui como "decisão N").
 
 ## Origem e evidência
@@ -19,7 +22,7 @@ nenhuma das funções citadas abaixo, salvo onde indicado.
 - **Linha de base:** 34 suítes financeiras local-pg (269 testes) e
   `financialBattery` isolada (3 testes) passaram. Os defeitos abaixo estão em
   cenários que nenhuma suíte monta.
-- **Labels** ([CONVENCOES](../CONVENCOES.md#labels-de-evidência)): **Código**
+- **Labels** ([CONVENCOES](../../CONVENCOES.md#labels-de-evidência)): **Código**
   (leitura da última definição); **Teste** (script SQL próprio no Postgres
   local, com o resultado observado; não é suíte do repositório salvo quando
   dito); **Suspeita** (não verificado).
@@ -38,12 +41,12 @@ flowchart LR
 O lote 0 vem primeiro porque F-01, F-02, F-17 e as decisões 2 a 5 dependem de o
 B/L guardar a sua tabela. Cada tarefa entrega migration, teste local-pg que
 reproduz o achado antes da correção e passa depois, e a atualização do módulo
-dono ([Taxas Locais](../modules/taxas-locais.md),
-[Faturamento](../modules/faturamento.md),
-[Reconciliação PIX](../modules/reconciliacao-pix.md),
-[Portal do Cliente](../modules/portal-cliente.md),
-[Demurrage](../modules/demurrage.md),
-[Manual financeiro](../operations/manual-financeiro.md)). Toda migration que
+dono ([Taxas Locais](../../modules/taxas-locais.md),
+[Faturamento](../../modules/faturamento.md),
+[Reconciliação PIX](../../modules/reconciliacao-pix.md),
+[Portal do Cliente](../../modules/portal-cliente.md),
+[Demurrage](../../modules/demurrage.md),
+[Manual financeiro](../../operations/manual-financeiro.md)). Toda migration que
 reescreve linhas declara a dependência do "Data status" do AGENTS.md.
 
 ## Já tratado na staging (não refazer)
@@ -302,6 +305,37 @@ plano. Os itens I-xx são dela; cada um entra no lote do achado com que cruza.
    novo? Hoje é o do primeiro (o congelamento não se refaz).
 9. **Reimportar arquivo idêntico** recalcula o B/L não faturado com o câmbio do
    dia e muda o provisório sem mudança nenhuma: deve ser no-op?
+10. **ROE manual do B/L (F-54):** o recálculo sobrescreve o ROE manual. Ele deve
+    prevalecer sobre o câmbio do dia até alguém tirá-lo? (não alterado)
+11. **Pix com TXID de outro sistema na mesma chave (decisão 16):** a decisão fala
+    em "Pix sem TXID do Vela". Hoje só o Pix sem TXID vira "Pix recebido sem
+    baixa"; o de TXID de terceiro continua ignorado, como antes. Deve entrar
+    também?
+12. **Número da fatura (F-43):** o plano diz "5 dígitos". Foi mantido
+    `INV-AAAA-0001` (quatro dígitos) e, a partir de 10.000, todos os dígitos,
+    sem truncar. Passar a `INV-AAAA-00001` para todas?
+
+## Execução
+
+| Lote | Achados | Migrations | Suítes local-pg |
+|---|---|---|---|
+| 0 | decisão 1, 1a, 1c | `354`, `359` | `tabelaVinculadaAoBl` |
+| 1 | F-01 a F-08, F-44 | `355` a `357` | `precoDoCeBaseAtual`, `consolidadaCruzada`, `excluirCancelarFaturado` |
+| 2 | F-09 a F-22, 1b, 2b | `358` a `370` | `itauPixCharges`, `faturaCanceladaSoltaBl`, `viagemCanceladaFinanceiro`, `faturamentoFechadoNaApi`, `correcaoCodDesbloqueioDemurrage` |
+| 3 | F-23 a F-31, F-34 a F-41, F-49, F-52, 2a, 2c, 2d | `371` a `375`, `377` | `saldoDoVela`, `calculoBlCanceladoIsentoEta`, `vinculoDoClienteNoBl`, `gateReciboAvulsaPix`, `lote4NumeroAvulsaEstornoItau` |
+| 4 | F-43, F-45 a F-48, F-50, F-51, F-53 a F-56 | `376` | `lote4NumeroAvulsaEstornoItau`; testes de serviço e de tela (`billingDeadlockRetry`, `itauPix`, `PortalDashboard`) |
+
+- **F-33:** fica como está (decisão 5), registrado em
+  [Faturamento](../../modules/faturamento.md).
+- **F-42:** lista dos testes que passam sobre SQL arquivado em
+  [relatório de 2026-10-21](../reports/2026-10-21-testes-financeiros-sobre-sql-arquivado.md).
+- **Retidos, à espera das perguntas:** F-32 e 2f (pergunta 5), 2e (pergunta 4),
+  o modo diferido da planilha de CE (pergunta 3), a parte do ROE manual de
+  F-54 (pergunta 10), a linha em dólar da avulsa de F-46 (pergunta 13, nas
+  pendências) e o restante das perguntas 1, 6 a 9, 11 e 12. Esses
+  itens não foram alterados.
+- **Medição pendente (2a):** desempenho da Base de Clientes com o gatilho de
+  `bls.customer_id`, medido só em Postgres local.
 
 ## O que não foi verificado
 
@@ -418,5 +452,5 @@ Colunas: **Fatura**, **Cons.** (consolidada), **Receb.** (recebível),
 ## Ao concluir
 
 Mover este plano para `docs/archive/plans/`, retirar a linha de
-[`README.md`](README.md), atualizar o índice de ADRs (implementação da 0093) e
-registrar a entrega no [CHANGELOG](../CHANGELOG.md).
+[`README.md`](../../plans/README.md), atualizar o índice de ADRs (implementação da 0093) e
+registrar a entrega no [CHANGELOG](../../CHANGELOG.md).

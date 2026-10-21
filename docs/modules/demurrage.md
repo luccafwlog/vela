@@ -758,6 +758,9 @@ positivo) e a Régua a recusava em loop. **Teste local-pg:**
   [Datas alteradas depois da emissão](#datas-alteradas-depois-da-emissão).
   `/demurrage` e `/reconciliacao` usam a mesma confirmação
   (`DemurragePaymentReversalModal`).
+- **Restituição pendente:** restituição de Demurrage pendente abre o alerta
+  `restituicao_pendente` (entidade `demurrage_invoice`), como a de Taxas
+  Locais, e ele fecha quando nada resta pendente (migration `375`).
 - **Restituição excepcional:** devolve dinheiro de Invoice paga. Qualquer
   Departamento autoriza no detalhe (`request_financial_refund`, até o valor
   recebido menos o já reservado), o Financeiro ou o Administrativo confirma a devolução com
