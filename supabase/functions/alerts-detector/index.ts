@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { alertDetectorFailureContexts } from '../_shared/alertDetectorFailures.ts'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
-import { instrumentEdgeHandler, telemetryFailureHeaders } from '../_shared/telemetry.ts'
+import { captureEdgeException, instrumentEdgeHandler, telemetryFailureHeaders } from '../_shared/telemetry.ts'
 
 function timingSafeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder()
@@ -58,6 +59,13 @@ if (typeof Deno !== 'undefined') {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...telemetryFailureHeaders('run_alert_detectors', error) },
       })
+    }
+    // Rodada parcial (351): os outros detectores valeram, então a resposta
+    // continua 2xx com `failed` no corpo, que manda o heartbeat para `/fail`.
+    // Cada detector que falhou vira um evento no Sentry com o nome dele.
+    for (const context of alertDetectorFailureContexts(data)) {
+      console.error('alert detector failed', context.status, context.errorCode ?? '')
+      await captureEdgeException(new Error('Alert detector failed'), context)
     }
     const orphanedDisputeAttachments = await removeOrphanedDisputeAttachments(admin as unknown as StorageAdmin)
     return new Response(JSON.stringify({ ...(data ?? {}), orphaned_dispute_attachments_removed: orphanedDisputeAttachments }), { status: 200, headers: { 'Content-Type': 'application/json' } })
