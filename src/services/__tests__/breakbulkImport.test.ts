@@ -405,7 +405,12 @@ describe('breakbulkImport', () => {
       ],
     ])
 
-    const manifest = await parseBreakbulkManifestBuffer(buffer)
+    // `614.313` e o unico numero com separador e o arquivo nao desempata: sem
+    // declaracao a linha bloqueia (F-30, as duas direcoes); declarado en-US, entra.
+    const undeclared = await parseBreakbulkManifestBuffer(buffer)
+    expect(hasBlockingRowErrors(undeclared.rowErrors)).toBe(true)
+
+    const manifest = await parseBreakbulkManifestBuffer(buffer, { numberFormat: 'en-US' })
     const bl = manifest.bls[0]
 
     expect(manifest.layout).toBe('carrier')

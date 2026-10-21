@@ -210,6 +210,62 @@ describe('separador decimal ambiguo no manifesto de carga solta', () => {
   })
 })
 
+// F-30: a leitura que ENCOLHE por mil também bloqueia quando ninguém declarou o
+// formato e o arquivo não desempata. Antes, só a que inflava bloqueava.
+describe('separador ambiguo na direcao que encolhe por mil', () => {
+  const LEGACY_HEADER = 'BL,CONSIGNATARIO,CNPJ,POL,POD,DESCRICAO,VOLUMES,PESO_KG,CBM'
+
+  function csv(...lines: string[]): ArrayBuffer {
+    return new TextEncoder().encode(lines.join('\n')).buffer as ArrayBuffer
+  }
+
+  it('legado en-US: "12,500" kg no padrao pt-BR bloqueia em vez de virar 12,5 kg', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(
+      csv(LEGACY_HEADER, 'BLL1,TIMBRO,12345678000195,CNNSA,BRVIT,MAQUINA,10,"12,500",30'),
+    )
+
+    expect(parsed.bls).toHaveLength(0)
+    const issue = parsed.rowErrors.find((error) => /PESO_KG/.test(error.message))
+    expect(issue?.severity ?? 'error').toBe('error')
+    expect(issue?.message).toContain('12.500 (13 mil)')
+    expect(issue?.message).toContain('12,5')
+    expect(hasBlockingRowErrors(parsed.rowErrors)).toBe(true)
+  })
+
+  it('legado: declarar en-US resolve "12,500" como 12 500 kg', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(
+      csv(LEGACY_HEADER, 'BLL1,TIMBRO,12345678000195,CNNSA,BRVIT,MAQUINA,10,"12,500",30'),
+      { numberFormat: 'en-US' },
+    )
+
+    expect(hasBlockingRowErrors(parsed.rowErrors)).toBe(false)
+    expect(parsed.bls[0]?.items[0]?.gross_weight_kg).toBe(12500)
+  })
+
+  it('carrier pt-BR: "12.500" kg no padrao en-US bloqueia em vez de virar 12,5 kg', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(csv(
+      'SHIPPER,MARKS,POL,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'B/L NO.,MARKS AND NUMBERS,POD,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'ABCD1234567,MARCA X,BRVIX,10 PACKAGES OF MACHINERY,10,12.500,30',
+    ))
+
+    const issue = parsed.rowErrors.find((error) => /GROSS WEIGHT|PESO_KG|peso/i.test(error.message))
+    expect(issue?.severity).toBe('error')
+    expect(parsed.bls[0]?.bb_weight_ton).toBeNull()
+  })
+
+  it('carrier: a leitura decimal passa quando outra celula do arquivo prova o ponto decimal', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(csv(
+      'SHIPPER,MARKS,POL,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'B/L NO.,MARKS AND NUMBERS,POD,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'ABCD1234567,MARCA X,BRVIX,10 PACKAGES OF MACHINERY,10,47740.00,52.000',
+    ))
+
+    expect(parsed.rowErrors.filter((error) => /CBM|MEASUREMENT|cubagem/i.test(error.message))).toEqual([])
+    expect(parsed.bls[0]?.bb_cbm).toBe(52)
+  })
+})
+
 describe('hasBlockingRowErrors', () => {
   it('só o erro impede a importação; o aviso de conferência viaja junto', async () => {
     // Com o formato declarado, a célula ambígua vira aviso: o operador afirmou
