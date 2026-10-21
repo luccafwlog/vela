@@ -107,6 +107,8 @@ function cleanup() {
     DELETE FROM public.invoice_document_snapshots WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.invoices WHERE customer_id = ${customerId};
     DELETE FROM public.bl_receivables WHERE bl_id IN (${blList});
+    -- 355/372: o recálculo automático (base nova, ETA) grava cálculo do B/L.
+    DELETE FROM public.charge_calculations WHERE bl_id IN (${blList});
     DELETE FROM public.bl_breakbulk_items WHERE bl_id IN (${blList});
     DELETE FROM public.bl_containers WHERE bl_id IN (${blList});
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (${blList});

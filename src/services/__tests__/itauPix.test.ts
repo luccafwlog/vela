@@ -118,7 +118,7 @@ describe('cliente Itaú Pix', () => {
     const saveCheckpoint = vi.fn()
     const settle = vi.fn()
     const result = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), {
-      checkpoint: async () => '2026-10-07T01:29:00.444Z', settle, saveCheckpoint, failed: vi.fn(),
+      checkpoint: async () => '2026-10-07T01:29:00.444Z', settle, saveCheckpoint, failed: vi.fn(), untracked: vi.fn(),
     }, new Date('2026-10-07T07:00:00Z'))
     expect(result).toMatchObject({ seen: 0, settled: 0, until: '2026-10-07T07:00:00.000Z' })
     expect(saveCheckpoint).toHaveBeenCalledWith('2026-10-07T07:00:00.000Z')
@@ -381,7 +381,8 @@ describe('consulta de recebimentos', () => {
   const sink = (last: string | null, settle = vi.fn(async () => 'settled' as const), verdict: 'review' | 'retry' = 'retry') => {
     const saved: string[] = []
     const failed = vi.fn(async (_pix: unknown, _error: string, permanent: boolean) => (permanent ? 'review' : verdict) as 'review' | 'retry')
-    return { saved, settle, failed, sink: { checkpoint: async () => last, settle, failed, saveCheckpoint: async (until: string) => { saved.push(until) } } }
+    const untracked = vi.fn(async () => 'review' as const)
+    return { saved, settle, failed, untracked, sink: { checkpoint: async () => last, settle, failed, untracked, saveCheckpoint: async (until: string) => { saved.push(until) } } }
   }
 
   it('consulta em Brasília e baixa o pagamento com o instante UTC correto', async () => {
@@ -491,6 +492,18 @@ describe('consulta de recebimentos', () => {
       expect(malformed.saved).toEqual(['2026-10-06T12:05:00.000Z'])
       expect(malformed.settle).not.toHaveBeenCalled()
     }
+  })
+
+  it('Pix sem TXID vira "Pix recebido sem baixa" e o de terceiro segue ignorado (decisão 16)', async () => {
+    const s = sink('2026-10-06T12:00:00.000Z')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610061501'), valor: '120.00', horario: '2026-10-06T12:01:00Z' },
+      { endToEndId: e2e('202610061502'), txid: '88ba8ec675e044178d434908d9b2a30a', valor: '50.00', horario: '2026-10-06T12:02:00Z' },
+    ]))), s.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ seen: 2, vela: 0, untracked: 1 })
+    expect(s.untracked).toHaveBeenCalledWith({ endToEndId: e2e('202610061501'), valor: '120.00', horario: '2026-10-06T15:01:00.000Z' })
+    expect(s.settle).not.toHaveBeenCalled()
+    expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
   })
 
   it('horário inesperado de Pix de terceiro não derruba a consulta', async () => {

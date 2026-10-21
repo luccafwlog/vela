@@ -425,6 +425,9 @@ export type ReceiptSink = {
   // Recebimento que não pôde ser baixado (F-09, migration 358): o banco conta as
   // tentativas; 'review' manda para análise e a consulta segue, 'retry' para sem avançar.
   failed(pix: { endToEndId?: string; txid: string; raw: unknown }, error: string, permanent: boolean): Promise<'review' | 'retry'>
+  // Pix sem TXID na chave do Vela (ADR 0093, decisão 16; migration 375): vira
+  // "Pix recebido sem baixa" com Alerta para o Financeiro.
+  untracked(pix: { endToEndId: string; valor: string; horario: string }): Promise<'review'>
   saveCheckpoint(until: string): Promise<void>
 }
 
@@ -457,9 +460,18 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
       end = start + Math.max(MIN_WINDOW_MS, Math.floor((end - start) / 2))
     }
   }
-  const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, until: new Date(end).toISOString() }
+  const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, untracked: 0, until: new Date(end).toISOString() }
   for (const p of pix) {
-    // Pix do sistema de terceiro na mesma chave: ignorado e não persistido.
+    // Pix sem TXID (cópia e cola sem cobrança, chave digitada): pode ser de
+    // fatura do Vela, então vai para análise. Registro sem horário/valor válido
+    // não é baixável e fica de fora.
+    if (!p.txid && endToEndTime(p.endToEndId ?? '') !== null && MONEY.test(p.valor ?? '')) {
+      const horario = (() => { try { return itauTimeToUtc(p.horario) } catch { return new Date(endToEndTime(p.endToEndId)!).toISOString() } })()
+      await sink.untracked({ endToEndId: p.endToEndId, valor: p.valor, horario })
+      summary.untracked++
+      continue
+    }
+    // Pix do sistema de terceiro na mesma chave (TXID de outro padrão): ignorado e não persistido.
     if (!isVelaTxid(p.txid)) continue
     // Cobrança de teste paga (Fase 1): não é fatura, então não vira baixa nem Alerta.
     if (isVelaTestTxid(p.txid)) { summary.test++; continue }

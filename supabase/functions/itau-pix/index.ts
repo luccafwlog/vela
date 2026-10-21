@@ -95,6 +95,13 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao registrar recebimento Itaú com erro.");
             return data;
           },
+          async untracked(pix) {
+            const { data, error } = await admin.rpc("itau_pix_record_untracked", {
+              p_end_to_end_id: pix.endToEndId, p_amount_brl: Number(pix.valor), p_paid_at: pix.horario,
+            });
+            if (error) throw new Error("Falha ao registrar Pix sem TXID.");
+            return data;
+          },
           async saveCheckpoint(until) {
             const { error } = await admin.rpc("itau_pix_checkpoint", { p_polled_until: until });
             if (error) throw new Error("Falha ao salvar o checkpoint Itaú.");
