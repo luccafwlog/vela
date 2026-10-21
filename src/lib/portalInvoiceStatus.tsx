@@ -11,6 +11,23 @@ export const STATUS_GROUPS = {
 
 export type PortalStatusFilter = '' | keyof typeof STATUS_GROUPS
 
+type OpenBalanceRow = { status?: string | null; invoice_type?: string | null; balance_brl?: number | null; bls?: readonly string[] | null }
+
+/**
+ * Faturas que contam no saldo em aberto do Portal: a consolidada aberta conta
+ * no lugar das individuais que ela agrupa (cada B/L uma vez). As individuais
+ * só viram "coberta" quando a consolidada é paga; até lá ficam emitidas e a
+ * soma simples cobrava em dobro. Mesma regra de `_portal_customer_pending_balance`
+ * (migration 344). A lista continua mostrando as duas.
+ */
+export function portalInvoicesInOpenBalance<T extends OpenBalanceRow>(invoices: readonly T[]): T[] {
+  const open = invoices.filter((invoice) => (OPEN_INVOICE_STATUSES as readonly string[]).includes(invoice.status ?? 'issued'))
+  const consolidatedBls = new Set(open.filter((invoice) => invoice.invoice_type === 'consolidated').flatMap((invoice) => invoice.bls ?? []))
+  // Só a individual é substituída; a avulsa (`manual`) é outra cobrança.
+  return open.filter((invoice) => invoice.invoice_type !== 'individual'
+    || !(invoice.bls?.length && invoice.bls.every((bl) => consolidatedBls.has(bl))))
+}
+
 /**
  * "Recebido em" de um pagamento da fatura no Portal (lote 4): dia e hora de
  * Brasília quando o pagamento guarda a hora (Pix conciliado); só o dia

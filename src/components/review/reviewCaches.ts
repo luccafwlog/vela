@@ -8,7 +8,7 @@ import { queryKeys } from '../../services/queryKeys'
 // Centralizamos aqui; cada chamador liga apenas os caches que de fato mexeu.
 export type ReviewCacheScope = {
   blId?: string
-  /** Inclui ['customers'] quando o vínculo/contatos do cliente mudaram. */
+  /** Inclui ['customers'] e o resumo quando o vínculo/contatos do cliente mudaram. */
   includeCustomers?: boolean
   /** Inclui ['audit-logs', 'bl', blId] quando houve escrita auditada no B/L. */
   includeAudit?: boolean
@@ -31,7 +31,9 @@ export async function invalidateReviewQueueCaches(
     ['customer-communications'], queryKeys.billingReady.all(), ['billing-ready-bl-diagnostics'],
   ]
   if (scope.includeAudit && scope.blId) keys.push(['audit-logs', 'bl', scope.blId])
-  if (scope.includeCustomers) keys.push(['customers'])
+  // O vínculo do cliente cria o recebível do B/L já calculado (migration
+  // 342): o saldo pendente da lista e do resumo de Clientes muda junto.
+  if (scope.includeCustomers) keys.push(['customers'], ['customers-summary'])
   if (scope.includeCharges) keys.push(queryKeys.charges.operations())
   if (scope.includeInvoices) keys.push(queryKeys.invoices.all())
   keys.push(['customer-lookup'])

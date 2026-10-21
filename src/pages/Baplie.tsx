@@ -15,6 +15,7 @@ import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
+import { PAGE_SIZES } from '../hooks/usePageFilters'
 import { useToast } from '../components/ui/Toast'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
@@ -65,6 +66,11 @@ export function Baplie() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [containerFilters, setContainerFilters] = useState<ContainerFilters>(EMPTY_CONTAINER_FILTERS)
+  // "No Baplie, sem B/L" abre a própria lista filtrada em vez de repetir a tabela.
+  const showMissingInList = () => {
+    setContainerFilters({ ...EMPTY_CONTAINER_FILTERS, coverage: 'missing' })
+    requestAnimationFrame(() => document.getElementById('baplie-containers')?.scrollIntoView?.({ block: 'start' }))
+  }
 
   // O rail reaproveita a projeção resumida de Viagens; a presença de Baplie vem
   // do agregado server-side. O "Divergente" do cartão roda a conciliação das
@@ -273,6 +279,7 @@ export function Baplie() {
             overview={overview}
             items={reconciliationData?.items ?? []}
             voyageId={voyageId}
+            onShowMissing={showMissingInList}
             onRetry={() => {
               if (blsQuery.isError) void blsQuery.refetch()
               else void reconciliationQuery.refetch()
@@ -412,11 +419,13 @@ function ReconciliacaoSection({
   overview,
   items,
   voyageId,
+  onShowMissing,
   onRetry,
 }: {
   overview: ReconciliationOverview
   items: BaplieReconciliationItem[]
   voyageId: string
+  onShowMissing: () => void
   onRetry: () => void
 }) {
   const missing = items.filter(
@@ -431,6 +440,9 @@ function ReconciliacaoSection({
   const profileMismatch = items.filter(
     (item): item is Extract<BaplieReconciliationItem, { kind: 'profile_mismatch' }> => item.kind === 'profile_mismatch',
   )
+  const missingInBaplieRows = usePagedRows(missingInBaplie)
+  const ownershipRows = usePagedRows(ownershipMismatch)
+  const profileRows = usePagedRows(profileMismatch)
   const headline = reconciliationHeadline(overview, items.length)
   const showCoverage = overview.state === 'divergent' || overview.state === 'clean'
 
@@ -464,37 +476,26 @@ function ReconciliacaoSection({
       </Block>
 
         {missing.length > 0 ? (
+          /* Os cheios sem B/L já estão na lista "Containers do Baplie", com
+             "Sem B/L" na conciliação: o grupo não repete a tabela (sessão de
+             testes de 2026-10-20, Obs. 1, "tabelas duplicadas"); filtra a lista. */
           <DivergenceGroup
             id="baplie-sem-bl"
             title={`No Baplie, sem B/L (${missing.length})`}
             meaning="Container cheio a bordo sem documento na viagem. Não conta como carga no ADR nem gera cobrança."
             action="Pedir ao armador o B/L ou a correção do manifesto; quando o B/L for importado, a divergência some."
+            table={false}
           >
-            <table className="app-table app-table--nested app-cargo-table">
-              <caption className="sr-only">Containers no Baplie sem B/L</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Container</th>
-                  <th scope="col">B/L citado no Baplie</th>
-                  <th scope="col">Slot</th>
-                </tr>
-              </thead>
-              <tbody>
-                {missing.map((item) => (
-                  <tr key={item.container_number}>
-                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
-                    <td className="app-cargo-code">{item.baplie_bl_ref ? <CopyValue value={item.baplie_bl_ref} label="número do B/L" /> : <NoValue label="B/L não citado" />}</td>
-                    <td className="app-cargo-code">{item.slot ?? <NoValue label="Sem slot" />}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Button variant="secondary" className="app-btn--sm" onClick={onShowMissing}>
+              {`Ver ${missing.length === 1 ? 'o container' : `os ${missing.length.toLocaleString('pt-BR')} containers`} na lista`}
+            </Button>
           </DivergenceGroup>
         ) : null}
 
         {missingInBaplie.length > 0 ? (
           <DivergenceGroup
             id="baplie-fora"
+            footer={missingInBaplieRows.footer}
             title={`Em B/L, fora do Baplie (${missingInBaplie.length})`}
             meaning="O B/L declara um container que o Baplie não mostra a bordo. A cobrança continua pelo B/L."
             action="Confirmar o embarque com o armador; se embarcou, reimportar o Baplie corrigido."
@@ -508,7 +509,7 @@ function ReconciliacaoSection({
                 </tr>
               </thead>
               <tbody>
-                {missingInBaplie.map((item) => (
+                {missingInBaplieRows.rows.map((item) => (
                   <tr key={item.container_number}>
                     <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
@@ -522,6 +523,7 @@ function ReconciliacaoSection({
         {ownershipMismatch.length > 0 ? (
           <DivergenceGroup
             id="baplie-soc-coc"
+            footer={ownershipRows.footer}
             title={`SOC/COC diverge (${ownershipMismatch.length})`}
             meaning="O B/L e o Baplie informam donos diferentes. Vale o B/L nas taxas e na Demurrage; nada é trocado sozinho."
             action="Confirmar com o armador; se o B/L estiver errado, corrigir na aba Carga do B/L, com justificativa."
@@ -538,7 +540,7 @@ function ReconciliacaoSection({
                 </tr>
               </thead>
               <tbody>
-                {ownershipMismatch.map((item) => (
+                {ownershipRows.rows.map((item) => (
                   <tr key={`${item.container_number}-${item.bl_container_id}`}>
                     <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
@@ -555,6 +557,7 @@ function ReconciliacaoSection({
         {profileMismatch.length > 0 ? (
           <DivergenceGroup
             id="baplie-perfil"
+            footer={profileRows.footer}
             title={`IMO/OOG manual diverge (${profileMismatch.length})`}
             meaning="O perfil IMO/OOG foi corrigido à mão (o armador confirmou fora do Baplie) e o Baplie diz outra coisa. A correção manual vale; o Baplie não a troca."
             action="Confirmar com o armador; se a correção manual estiver certa, Vale o B/L encerra a divergência."
@@ -571,7 +574,7 @@ function ReconciliacaoSection({
                 </tr>
               </thead>
               <tbody>
-                {profileMismatch.map((item) => (
+                {profileRows.rows.map((item) => (
                   <tr key={`${item.container_number}-${item.bl_container_id}`}>
                     <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
@@ -628,15 +631,41 @@ function CoverageFact({ label, count, anchor }: { label: string; count: number; 
 }
 
 /** Um grupo de divergência por bloco: o significado na faixa, "O que fazer" e a tabela de cabeçalho claro. */
-function DivergenceGroup({ id, title, meaning, action, children }: { id: string; title: string; meaning: string; action: string; children: ReactNode }) {
+function DivergenceGroup({ id, title, meaning, action, table = true, footer, children }: { id: string; title: string; meaning: string; action: string; table?: boolean; footer?: ReactNode; children: ReactNode }) {
   return (
     <div id={id} tabIndex={-1}>
       <Block title={title} aside={meaning} headingLevel={3}>
         <p className="app-cargo-divergence__text"><strong>O que fazer:</strong> {action}</p>
-        <div className="app-table-scroll">{children}</div>
+        {table ? <div className="app-table-scroll">{children}</div> : <div>{children}</div>}
+        {footer}
       </Block>
     </div>
   )
+}
+
+/**
+ * Paginação dos grupos de divergência, igual à da lista de containers (20,
+ * 50 ou 100 por página). Um Baplie grande listava centenas de linhas de uma
+ * vez (sessão de testes de 2026-10-21).
+ */
+function usePagedRows<T>(rows: readonly T[]) {
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  return {
+    rows: rows.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    footer: rows.length > PAGE_SIZES[0] ? (
+      <TableFooterPagination
+        page={currentPage}
+        pageSize={pageSize}
+        totalCount={rows.length}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+      />
+    ) : null,
+  }
 }
 
 function VaziosSection({
@@ -794,6 +823,7 @@ function ContainerList({
 
   return (
     <>
+      <div id="baplie-containers" tabIndex={-1}>
       <Block title="Containers do Baplie" aside={filtered.length === containers.length ? plural(containers.length, 'container', 'containers') : `${filtered.length.toLocaleString('pt-BR')} de ${plural(containers.length, 'container', 'containers')}`} flush>
       <FilterBar title="Filtros" activeCount={activeCount} onClear={() => onFiltersChange(EMPTY_CONTAINER_FILTERS)}>
         <div className="app-filter-grid">
@@ -888,6 +918,7 @@ function ContainerList({
           />
         ) : null}
       </Block>
+      </div>
     </>
   )
 }

@@ -51,9 +51,12 @@ export type ParsedBaplie = {
   encoding: ImportTextEncoding
 }
 
-const POL_QUALIFIERS = new Set(['6', '9'])
-const POD_QUALIFIERS = new Set(['11', '12'])
-const FINAL_DEST_QUALIFIERS = new Set(['83'])
+// Em ordem de preferência. O SMDG 1.5 costuma mandar LOC+6/LOC+12 e o 2.2
+// LOC+9/LOC+11; um arquivo que traga os dois fica com o porto de embarque (9)
+// e de descarga (11), seja qual for a ordem dos segmentos.
+const POL_QUALIFIERS = ['9', '6'] as const
+const POD_QUALIFIERS = ['11', '12'] as const
+const FINAL_DEST_QUALIFIERS = ['83'] as const
 const WEIGHT_QUALIFIERS = new Set(['WT', 'VGM'])
 const SLOT_QUALIFIER = '147'
 // C222 (identificação do transporte): indicativo de chamada (103) ou nº IMO
@@ -357,7 +360,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
       const podRaw = rawPort(ownItems, POD_QUALIFIERS)
       const ownFinal = lastPort(ownItems, FINAL_DEST_QUALIFIERS)
       const useDeliveryAsPod = !ownPod.code && ownFinal.recognized && Boolean(ownFinal.code)
-      const ownBl = lastValue(ownItems.filter((i) => i.tag === 'RFF' && (i.components[1]?.[0] ?? '') === 'BM').map((i) => i.components[1]?.[1]?.trim() || null))
+      const ownBl = lastValue(ownItems.filter((i) => i.tag === 'RFF' && (i.components[1]?.[0] ?? '') === 'BM').map((i) => citedBlRef(i.components[1]?.[1])))
       const weightValues = ownItems
         .filter((i) => i.tag === 'MEA' && WEIGHT_QUALIFIERS.has((i.components[1]?.[0] ?? '').trim()))
         .map((i) => parseWeight(i, delimiters))
@@ -568,15 +571,31 @@ function lastValue<T>(values: Array<T | null>): T | null {
   return null
 }
 
-type ParsedPort = { code: string | null; recognized: boolean }
-
-function rawPort(items: ParsedSegment[], qualifiers: ReadonlySet<string>): string | null {
-  return lastValue(items
-    .filter((item) => item.tag === 'LOC' && qualifiers.has(qualifierOf(item)))
-    .map(locCodeOf))
+/**
+ * O B/L citado no `RFF+BM`. Há armador que manda o próprio qualificador no
+ * lugar do número (`RFF+BM:BM`): na GREEN ITAJAI / 11 as 672 unidades vieram
+ * com "BM", que a tela mostrava como B/L. Sem número, não há B/L citado.
+ */
+export function citedBlRef(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed || trimmed.toUpperCase() === 'BM') return null
+  return trimmed
 }
 
-function lastPort(items: ParsedSegment[], qualifiers: ReadonlySet<string>): ParsedPort {
+type ParsedPort = { code: string | null; recognized: boolean }
+
+/** Último LOC do qualificador preferido; o seguinte só quando o anterior falta. */
+function rawPort(items: ParsedSegment[], qualifiers: readonly string[]): string | null {
+  for (const qualifier of qualifiers) {
+    const value = lastValue(items
+      .filter((item) => item.tag === 'LOC' && qualifierOf(item) === qualifier)
+      .map(locCodeOf))
+    if (value) return value
+  }
+  return null
+}
+
+function lastPort(items: ParsedSegment[], qualifiers: readonly string[]): ParsedPort {
   const raw = rawPort(items, qualifiers)
   if (!raw) return { code: null, recognized: false }
   const resolved = resolvePortCode(raw)

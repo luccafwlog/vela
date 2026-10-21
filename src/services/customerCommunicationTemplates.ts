@@ -148,6 +148,29 @@ export function formatCommunicationDateTime(value: string | null | undefined): s
   return `${byType.day}/${byType.month}/${byType.year} às ${byType.hour}:${byType.minute} (horário de Brasília)`
 }
 
+/**
+ * Só a data, no fuso oficial da operação. O NOA promete uma chegada prevista
+ * (ETA) e o horário estimado muda até a véspera: o e-mail mostra só o dia,
+ * sem "às HH:MM" nem "(horário de Brasília)". NOR e NOB continuam com a hora.
+ */
+export function formatCommunicationDate(value: string | null | undefined): string {
+  if (!value?.trim()) return '—'
+  const trimmed = value.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return formatDateOnly(trimmed)
+
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return trimmed
+
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: BRASILIA_TIME_ZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).formatToParts(parsed)
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${byType.day}/${byType.month}/${byType.year}`
+}
+
 // Alias curto para callers da Edge Function e para manter o nome próximo ao
 // helper legado de datas sem importar código específico do navegador.
 export const formatDateTimeBRForCommunication = formatCommunicationDateTime
@@ -494,8 +517,12 @@ export function renderDemurrageGroupTemplate(input: DemurrageGroupTemplateInput)
   }
 }
 
-/** Data e hora do marco: valor em destaque e "horário de Brasília" embaixo. */
-function milestoneParts(value: string): { value: string; detail: string } {
+/**
+ * Data e hora do marco: valor em destaque e "horário de Brasília" embaixo.
+ * `dateOnly` (NOA) mostra só a data, sem o detalhe de fuso.
+ */
+function milestoneParts(value: string, dateOnly = false): { value: string; detail: string } {
+  if (dateOnly) return { value: formatCommunicationDate(value), detail: '' }
   const formatted = formatCommunicationDateTime(value)
   const suffix = ' (horário de Brasília)'
   return formatted.endsWith(suffix)
@@ -511,11 +538,12 @@ function renderMilestoneContent(
   sentence: string,
   blockTitle: string,
   place: readonly [string, string],
+  dateOnly = false,
 ): RenderedCustomerCommunication {
   const blIds = input.bls.map((bl) => bl.id.trim())
   const customer = clean(input.customerName)
   const vesselVoyage = `${clean(input.vesselName)} / ${clean(input.voyageNumber)}`
-  const when = milestoneParts(input.milestoneAt)
+  const when = milestoneParts(input.milestoneAt, dateOnly)
   const greeting = hello(customer)
   const body: RenderedBody = {
     html: greeting.html
@@ -550,7 +578,7 @@ export function renderNoaTemplate(input: CustomerCommunicationTemplateInput): Re
   const port = clean(input.port)
   const title = 'Notice of Arrival / Chegada Próxima'
   const subject = `${title} — ${clean(input.vesselName)} / ${clean(input.voyageNumber)} — Porto de ${port}`
-  return renderMilestoneContent(input, 'aviso_chegada_noa', subject, title, 'A chegada do seu navio está prevista conforme abaixo.', 'Chegada prevista', ['Porto', port])
+  return renderMilestoneContent(input, 'aviso_chegada_noa', subject, title, 'A chegada do seu navio está prevista conforme abaixo.', 'Chegada prevista', ['Porto', port], true)
 }
 
 export function renderNorTemplate(input: CustomerCommunicationTemplateInput): RenderedCustomerCommunication {

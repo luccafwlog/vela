@@ -9,7 +9,7 @@ vi.mock('../supabase', () => ({
   supabase: { from: mockFrom, rpc: mockRpc },
 }))
 
-import { fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage } from '../customerCommunications'
+import { buildVoyageCommunicationCoverage, fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage } from '../customerCommunications'
 
 function queryResult(data: unknown, error: unknown = null) {
   const chain: Record<string, unknown> = {}
@@ -91,5 +91,53 @@ describe('fetchVoyageCommunicationCoverage', () => {
     await fetchCustomerCommunicationHistory({ vessel: ' N%_AVIO ' })
 
     expect(historyMock.ilike).toHaveBeenCalledWith('vessel_name', '%NAVIO%')
+  })
+})
+
+// Obs. 8 (sessão de testes de 2026-10-20): uma linha por viagem × porto, e o
+// CE e Taxas nunca mostra mais enviados que devidos.
+describe('buildVoyageCommunicationCoverage', () => {
+  const voyage = { id: 62, voyage_number: '11', vessel: { name: 'GREEN ITAJAI' } }
+  const bl = (id: string, customerId: number, pod = 'BRVIX', financial_status = 'invoiced') => ({ id, voyage_id: 62, customer_id: customerId, pod, ce_mercante: '1', financial_status })
+  const ce = (customerId: number, anchor_port: string | null = 'BRVIX') => ({ customer_id: customerId, kind: 'ce_mercante_taxas', status: 'enviado', anchor_voyage_id: 62, anchor_port, anchor_atracacao_id: null, created_at: '2026-10-20T19:04:00Z' })
+
+  it('cliente enviado que ganhou B/L novo sem fatura dá "4 de 5" com 1 reenvio pendente, nunca "5 de 4"', () => {
+    const customers = [3, 4, 5, 6, 7]
+    const readiness = new Map(customers.map((id) => [`62:${id}`, id !== 3] as const))
+    const [row] = buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [...customers.map((id) => bl(`BL${id}`, id)), bl('CSC45320B02G00', 3, 'BRVIX', 'pending')],
+      communications: customers.map((id) => ce(id)),
+      terminalStates: [],
+      readiness,
+    })
+    expect(row.finance).toMatchObject({ sent: 4, due: 5, resend: 1, ready: 4, pending: 1 })
+    expect(row.finance.sent).toBeLessThanOrEqual(row.finance.due)
+  })
+
+  it('viagem com dois PODs gera duas linhas, com NOA, NOR e NOB contados por porto', () => {
+    const rows = buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [bl('A', 1, 'BRVIX'), bl('B', 2, 'BRSSZ'), bl('C', 1, 'BRSSZ')],
+      communications: [
+        { customer_id: 1, kind: 'aviso_chegada_noa', status: 'enviado', anchor_voyage_id: 62, anchor_port: 'BRVIX', anchor_atracacao_id: null, created_at: '' },
+        { customer_id: 2, kind: 'aviso_chegada_noa', status: 'enviado', anchor_voyage_id: 62, anchor_port: 'BRSSZ', anchor_atracacao_id: null, created_at: '' },
+        { customer_id: 2, kind: 'aviso_atracacao_nob', status: 'enviado', anchor_voyage_id: 62, anchor_port: 'BRSSZ', anchor_atracacao_id: 'T-SSZ', created_at: '' },
+        // CE e Taxas é por Cliente × Viagem: vale para as duas escalas do
+        // Cliente 1, mesmo o envio antigo com porto gravado.
+        ce(1, 'BRVIX'),
+      ],
+      terminalStates: [{ id: 'T-SSZ', voyage_id: 62, port: 'BRSSZ', terminal_atb: '2026-10-25T10:00:00Z' }],
+      readiness: new Map([['62:1', true], ['62:2', true]]),
+    })
+    expect(rows.map((row) => row.port)).toEqual(['BRSSZ', 'BRVIX'])
+    const [ssz, vix] = rows
+    expect(ssz).toMatchObject({ customers: 2, noa: { sent: 1, total: 2 }, nob: { sent: 1, total: 2 }, finance: { sent: 1, due: 2, resend: 0 } })
+    expect(vix).toMatchObject({ customers: 1, noa: { sent: 1, total: 1 }, nob: { sent: 0, total: 0 }, finance: { sent: 1, due: 1 } })
+  })
+
+  it('viagem sem B/L com cliente fica numa linha sem porto e sem nada devido', () => {
+    const [row] = buildVoyageCommunicationCoverage({ voyages: [voyage], bls: [], communications: [], terminalStates: [], readiness: new Map() })
+    expect(row).toMatchObject({ port: null, customers: 0, finance: { sent: 0, due: 0 } })
   })
 })

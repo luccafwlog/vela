@@ -1,4 +1,5 @@
 import type { BaplieContainer } from '../types/database'
+import { citedBlRef } from './baplieParser'
 import { supabase } from './supabase'
 
 // A tela de Baplie precisa destas colunas para os cards, filtros, conciliação
@@ -27,7 +28,8 @@ export async function listBaplieStaging(voyageId: number, pageSize = 1000): Prom
       .range(from, from + pageSize - 1)
 
     if (error) throw error
-    rows.push(...((data ?? []) as unknown as BaplieContainer[]))
+    // Baplie gravado antes da normalização do leitor pode ter "BM" como B/L citado.
+    rows.push(...((data ?? []) as unknown as BaplieContainer[]).map((row) => (row.bl_ref == null ? row : { ...row, bl_ref: citedBlRef(row.bl_ref) })))
     if (!data || data.length < pageSize) break
     from += pageSize
   }
