@@ -196,6 +196,37 @@ describe('normalizeBlDocumentFields', () => {
     expect(document.gross_weight_kg).toBe(25500)
   })
 
+  // F-02: com unidade em toneladas, ponto ou vírgula + três dígitos é decimal.
+  // Antes, "25.350 TONS" virava 25 350 t (25 350 000 kg) e o aviso dizia 25350 kg.
+  it.each(['25.350 TONS', '25,350 TONS', '25.350 MT', '25,350 T'])('lê %s como 25,35 t = 25 350 kg', (grossWeight) => {
+    const document = normalizeBlDocumentFields({ ...baseFields, grossWeight }, 'pdf', 'labeled')
+
+    expect(document.gross_weight_kg).toBe(25350)
+    expect(blDocumentToManifest(document).bls[0]?.bb_weight_ton).toBe(25.35)
+    // O aviso mostra o valor que vai ser gravado, não a leitura intermediária.
+    expect(document.warnings).toContainEqual(expect.stringContaining('gravado como 25350 kg'))
+    expect(document.warnings).toContainEqual(expect.stringContaining('25,35 t'))
+  })
+
+  it('lê cubagem com vírgula como decimal', () => {
+    const document = normalizeBlDocumentFields({ ...baseFields, measurement: '55,244 CBM' }, 'pdf', 'labeled')
+
+    expect(document.total_cbm).toBe(55.244)
+  })
+
+  it('avisa quando o peso ou a cubagem presentes são descartados', () => {
+    const document = normalizeBlDocumentFields(
+      { ...baseFields, grossWeight: '1.2.3,4,5 KGS', measurement: '1,2.3.4 CBM' },
+      'pdf',
+      'labeled',
+    )
+
+    expect(document.gross_weight_kg).toBeNull()
+    expect(document.total_cbm).toBeNull()
+    expect(document.warnings).toContainEqual(expect.stringContaining('Peso bruto "1.2.3,4,5 KGS" não pôde ser lido'))
+    expect(document.warnings).toContainEqual(expect.stringContaining('Cubagem "1,2.3.4 CBM" não pôde ser lida'))
+  })
+
   it('avisa quando o porto não é reconhecido', () => {
     const document = normalizeBlDocumentFields({ ...baseFields, pod: 'PORTO INEXISTENTE' }, 'pdf', 'labeled')
 

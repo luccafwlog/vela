@@ -261,7 +261,7 @@ describe('readSheet — regras comuns (ADR 0078, item 22)', () => {
       .toEqual(['2 linhas ocultas ignoradas: o filtro da planilha indica importar só o visível.'])
   })
 
-  it('dado só em aba oculta: o erro diz onde ele está; com outra aba visível com dado, segue "Planilha vazia."', async () => {
+  it('dado só em aba oculta: o erro diz onde ele está; com outra aba visível com dado, pede os dados numa aba só', async () => {
     const onlyHidden = await workbookWith((XLSX) => {
       const book = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([]), 'Capa')
@@ -279,15 +279,17 @@ describe('readSheet — regras comuns (ADR 0078, item 22)', () => {
       book.Workbook = { Sheets: [{ name: 'Capa', Hidden: 0 }, { name: 'Rascunho', Hidden: 1 }, { name: 'Dados', Hidden: 0 }] }
       return book
     })
-    // O leitor de Veículos percorre as abas e pula a vazia pela mensagem.
-    await expect(readSheet(otherVisible)).rejects.toThrow('Planilha vazia.')
+    // Quem lê "a" aba recebe a recusa com o nome das abas; o leitor de
+    // Veículos percorre as abas (sheetIndex) e pula a vazia pela mensagem.
+    await expect(readSheet(otherVisible)).rejects.toThrow('O arquivo tem mais de uma aba ("Capa", "Dados") e a primeira está vazia (os dados estão em "Dados"): deixe os dados numa aba só e importe de novo.')
+    await expect(readSheet(otherVisible, { sheetIndex: 0 })).rejects.toThrow('Planilha vazia.')
     const { rows } = await readSheet(otherVisible, { sheetIndex: 1 })
     expect(rows.map((row) => row.Container)).toEqual(['VISI1234567'])
   })
 
   it('avisa as linhas ocultas de cada aba visível, com o nome da aba, não só da primeira', async () => {
     const buffer = await workbookWith((XLSX) => {
-      const capa = XLSX.utils.aoa_to_sheet([['Modelo do armador']])
+      const capa = XLSX.utils.aoa_to_sheet([])
       const veiculos = XLSX.utils.aoa_to_sheet([['Chassi'], ['VISI'], ['OCUL1'], ['OCUL2']])
       veiculos['!rows'] = [{}, {}, { hidden: true }, { hidden: true }]
       const book = XLSX.utils.book_new()
@@ -323,6 +325,52 @@ describe('readSheet — regras comuns (ADR 0078, item 22)', () => {
     const { rows, warnings } = await readSheet(bytes.buffer)
     expect(rows).toEqual([{ 'Descrição': 'Máquina', Peso: '12,5' }])
     expect(warnings).toEqual([expect.stringContaining('Windows-1252')])
+  })
+
+  // B19 / F-37: duas abas visíveis com dados recusam em toda importação de
+  // planilha, com o nome das abas; aba oculta e aba vazia não contam.
+  it('mais de uma aba visível com dados recusa o arquivo nomeando as abas', async () => {
+    const twoSheets = await workbookWith((XLSX) => {
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Container'], ['AAAA1234567']]), 'Janeiro')
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Container'], ['BBBB1234567']]), 'Fevereiro')
+      return book
+    })
+    const message = 'O arquivo tem mais de uma aba com dados ("Janeiro", "Fevereiro"): deixe os dados numa aba só e importe de novo.'
+    await expect(readSheet(twoSheets)).rejects.toThrow(message)
+    await expect(readSheet(twoSheets, { sheetIndex: 1 })).rejects.toThrow(message)
+
+    const withEmptyAndHidden = await workbookWith((XLSX) => {
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Container'], ['AAAA1234567']]), 'Dados')
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([]), 'Vazia')
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Container'], ['OCUL1234567']]), 'Rascunho')
+      book.Workbook = { Sheets: [{ name: 'Dados', Hidden: 0 }, { name: 'Vazia', Hidden: 0 }, { name: 'Rascunho', Hidden: 1 }] }
+      return book
+    })
+    const { rows } = await readSheet(withEmptyAndHidden)
+    expect(rows.map((row) => row.Container)).toEqual(['AAAA1234567'])
+  })
+
+  it('aba visível com dado só em linhas ocultas não conta como segunda aba com dados', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const notas = XLSX.utils.aoa_to_sheet([['Notas'], ['rascunho']])
+      notas['!rows'] = [{ hidden: true }, { hidden: true }]
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Container'], ['AAAA1234567']]), 'Dados')
+      XLSX.utils.book_append_sheet(book, notas, 'Notas')
+      return book
+    })
+    const { rows } = await readSheet(buffer)
+    expect(rows.map((row) => row.Container)).toEqual(['AAAA1234567'])
+  })
+
+  it('CSV com `;` e vírgulas no texto é lido pelo `;` detectado', async () => {
+    // Mais vírgulas que `;` no texto: o SheetJS sozinho escolheria a vírgula.
+    const csv = new TextEncoder().encode('BL;Descrição\nBL001;Aço, ferro, cobre, latão\nBL002;Vidro, areia\n').buffer as ArrayBuffer
+    const { headers, rows } = await readSheet(csv)
+    expect(headers).toEqual(['BL', 'Descrição'])
+    expect(rows).toEqual([{ BL: 'BL001', 'Descrição': 'Aço, ferro, cobre, latão' }, { BL: 'BL002', 'Descrição': 'Vidro, areia' }])
   })
 
   it('CSV chega como texto, sem o SheetJS converter número nem data', async () => {

@@ -101,7 +101,7 @@ describe('telemetryContext', () => {
       const err = { code: '23505', message: 'duplicate key value violates unique constraint' }
       const res = classifyErrorForTelemetry(err)
       expect(res.categoria).toBe('Banco de Dados / Conflito de Dados')
-      expect(res.diagnostico).toBe('Este registro ja existe.')
+      expect(res.diagnostico).toBe('Este registro já existe.')
     })
 
     it('classifica falhas de conexão de rede', () => {

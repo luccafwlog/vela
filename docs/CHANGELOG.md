@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Leitura dos arquivos de importação (2026-10-21):** B/L avulso com peso em toneladas
+  ("25.350 MT") deixa de entrar 1.000 vezes maior e cubagem com vírgula é decimal; número
+  ambíguo do Manifesto BB e do arquivo de B/L COSCO bloqueia a linha nas duas direções e número
+  descartado gera aviso; Baplie cortado (sem UNT/UNZ) é recusado, o peso usa o VGM antes do WT, os
+  portos de 3 letras do 1.5 são reconhecidos (BRNVT e BRITJ, BRREC e BRSUA continuam distintos), os
+  containers fora das escalas aparecem em destaque e arquivo sem navio e viagem pede confirmação;
+  planilha com mais de uma aba com dados é recusada em toda importação; CSV com `;` é lido certo;
+  as prévias de Datas e do arquivo de B/L leem além de 1.000 linhas; as recusas do banco aparecem
+  em português, sem código nem inglês (revisão das importações, achados F-02, F-09, F-30, F-31,
+  F-36, F-37 e F-44).
 - **Correções da frente financeira (2026-10-21, PR luccafwlog/vela#1019):** decisões da
   [ADR 0093](adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md), migrations `354` a `377`.
   O B/L fica vinculado à tabela de taxas do primeiro cálculo, e editar item ou Condição é correção do

@@ -441,8 +441,16 @@ módulo, por exemplo em [Manifestos & EDI § Propósito e escopo](../modules/man
   existe em linha ou aba oculta, o erro diz isso em vez de "Planilha vazia.". A
   importação que substitui dados pede confirmação antes de gravar quando há
   linhas ou abas ocultas (ver o módulo de cada uma).
+- **Uma aba só.** Arquivo com mais de uma aba visível com dados é recusado em
+  toda importação de planilha, com o nome das abas ("deixe os dados numa aba
+  só"); aba oculta, aba vazia e aba com dado só em linhas ocultas não contam.
+  Com a primeira aba vazia e os dados em outra, a recusa é a mesma, não
+  "Planilha vazia.". Só Veículos procura a aba dos dados: pula a aba vazia ou
+  com dado só em linhas ocultas.
 - **CSV** fora de UTF-8, em Windows-1252 (o "CSV" salvo pelo Excel), é aceito
-  com aviso, salvo quando o importador o proíbe.
+  com aviso, salvo quando o importador o proíbe. O separador (`,`, `;`, tab ou
+  `|`) é o detectado no arquivo: CSV com `;` e vírgulas no texto é lido pelo
+  `;`.
 - Linhas realmente vazias são descartadas sem renumerar os dados, e cada linha
   leva o número físico da planilha (a partir de 1).
 

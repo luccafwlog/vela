@@ -83,6 +83,17 @@ export function detectImportFormatFromDecoded(decoded: DecodedImportText): Impor
   throw new Error('Formato de importação não reconhecido pelo conteúdo do arquivo.')
 }
 
+/**
+ * Separador do CSV já decodificado (`,`, `;`, tab ou `|`), o mesmo que decidiu
+ * o formato em `detectImportFormatFromDecoded`; `null` quando não há um só
+ * (CSV de uma coluna). O leitor de planilhas o passa ao SheetJS, que, sem ele,
+ * adivinha pela primeira linha e lê `;` com vírgulas no texto como `,`.
+ */
+export function detectCsvDelimiter(text: string): string | null {
+  const candidates = findCsvDelimiters(text)
+  return candidates.length === 1 ? candidates[0]! : null
+}
+
 export function detectImportFormat(buffer: ArrayBuffer, options: DecodeImportBytesOptions = {}): ImportFileFormat {
   if (hasMagic(buffer, ZIP_MAGIC)) return 'xlsx'
   if (hasMagic(buffer, OLE_MAGIC)) return 'xls'

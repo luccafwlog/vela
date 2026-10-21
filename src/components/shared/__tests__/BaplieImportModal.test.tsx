@@ -35,7 +35,7 @@ vi.mock('../VoyageCombobox', () => ({
 vi.mock('../../../services/baplieImport', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../services/baplieImport')>()),
   // As regras da Viagem têm teste próprio; aqui a prévia é a do parser.
-  applyBaplieVoyageRules: (parsed: { containers: unknown[]; pods?: string[]; issues: unknown[] }) => ({ containers: parsed.containers, pods: parsed.pods ?? [], issues: parsed.issues }),
+  applyBaplieVoyageRules: (parsed: { containers: unknown[]; pods?: string[]; issues: unknown[]; podsOutside?: unknown[] }) => ({ containers: parsed.containers, pods: parsed.pods ?? [], issues: parsed.issues, podsOutside: parsed.podsOutside ?? [] }),
   reimportBaplie: mocks.reimport,
   retryBaplieVazios: mocks.retryVazios,
 }))
@@ -144,4 +144,47 @@ it('vazios pendentes: o Resultado oferece o recadastro, diz onde ele continua e 
   await waitFor(() => expect(concluir.disabled).toBe(false))
   fireEvent.click(concluir)
   expect(onClose).toHaveBeenCalledTimes(1)
+})
+
+// B12a: Baplie sem TDT é aceito, mas só grava com a confirmação do operador.
+it('arquivo sem navio e viagem: destaca e só libera Importar depois da confirmação', async () => {
+  mocks.parse.mockResolvedValue({ ...parsed(), vessel_name: null, voyage_number: null })
+  const view = render(<BaplieImportModal voyage={fixed} onClose={vi.fn()} />)
+  chooseFile(view)
+  expect(await screen.findByText('O arquivo não diz o navio nem a viagem')).toBeTruthy()
+  expect(screen.getByText('O arquivo não diz a viagem: confirme que ele é da viagem escolhida para importar.')).toBeTruthy()
+  expect((screen.getByRole('button', { name: 'Importar containers' }) as HTMLButtonElement).disabled).toBe(true)
+
+  fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo que este Baplie é da viagem GREEN SANTOS \/ 14N/ }))
+  await importNow()
+  await waitFor(() => expect(mocks.reimport).toHaveBeenCalledTimes(1))
+})
+
+it('arquivo com navio e viagem não pede a confirmação', async () => {
+  mocks.parse.mockResolvedValue(parsed())
+  const view = render(<BaplieImportModal voyage={fixed} onClose={vi.fn()} />)
+  chooseFile(view)
+  await screen.findByText('Navio/viagem no arquivo')
+  expect(screen.queryByRole('checkbox', { name: /Confirmo que este Baplie/ })).toBeNull()
+})
+
+// B11b / F-08: POD fora das escalas continua aviso, mas aparece no resumo e listado.
+it('containers fora das escalas aparecem no resumo e listados por porto, sem bloquear', async () => {
+  mocks.parse.mockResolvedValue({
+    ...parsed(),
+    podsOutside: [
+      { container_number: 'TEMU1234567', pod: 'BRNVT', reason: 'outside_calls' },
+      { container_number: 'TGHU7654325', pod: 'BRNVT', reason: 'outside_calls' },
+      { container_number: 'CSNU2049996', pod: 'UYMVD', reason: 'unrecognized' },
+    ],
+  })
+  const view = render(<BaplieImportModal voyage={fixed} onClose={vi.fn()} />)
+  chooseFile(view)
+  expect(await screen.findByText('3 containers fora das escalas da viagem não serão importados')).toBeTruthy()
+  const summary = screen.getByLabelText('Resumo do Baplie')
+  expect(summary.textContent).toContain('fora das escalas3')
+  expect(screen.getByText(/\(2\): TEMU1234567, TGHU7654325/)).toBeTruthy()
+  expect(screen.getByText(/\(1\): CSNU2049996/)).toBeTruthy()
+  await importNow()
+  await waitFor(() => expect(mocks.reimport).toHaveBeenCalledTimes(1))
 })

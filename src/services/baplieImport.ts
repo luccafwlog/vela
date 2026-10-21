@@ -138,6 +138,9 @@ function applyOperatorRule(
   return kept
 }
 
+/** Container deixado de fora por descarregar fora das escalas da Viagem ou em porto não reconhecido. */
+export type BaplieOutsidePod = { container_number: string; pod: string; reason: 'unrecognized' | 'outside_calls' }
+
 /**
  * Regras do Baplie que dependem da Viagem escolhida (ADR 0078, item 21): o
  * TDT de outro navio ou viagem bloqueia; container com POD fora das escalas
@@ -147,10 +150,11 @@ function applyOperatorRule(
  * ignorado pela referência dos B/Ls da Viagem (`applyOperatorRule`).
  */
 export function applyBaplieVoyageRules(
-  parsed: Pick<ParsedBaplie, 'containers' | 'issues' | 'voyage_number' | 'vessel_name' | 'vessel_name_source' | 'operator'>,
+  parsed: Pick<ParsedBaplie, 'containers' | 'issues' | 'voyage_number' | 'vessel_name' | 'vessel_name_source' | 'operator'> & Partial<Pick<ParsedBaplie, 'ignored_pods'>>,
   context: BaplieVoyageContext | null | undefined,
-): { containers: BaplieContainer[]; pods: string[]; issues: ImportIssue[] } {
+): { containers: BaplieContainer[]; pods: string[]; issues: ImportIssue[]; podsOutside: BaplieOutsidePod[] } {
   const issues: ImportIssue[] = [...parsed.issues]
+  const podsOutside: BaplieOutsidePod[] = (parsed.ignored_pods ?? []).map((item) => ({ ...item, reason: 'unrecognized' }))
   let containers = applyOperatorRule(parsed.containers, parsed.operator, context, issues)
   if (context) {
     if (parsed.voyage_number && context.voyageNumber && voyageKey(parsed.voyage_number) !== voyageKey(context.voyageNumber)) {
@@ -179,11 +183,12 @@ export function applyBaplieVoyageRules(
           message: `${outside.length} container(s) com descarga fora das escalas da Viagem (${ports}) ignorado(s).`,
         })
         containers = containers.filter((c) => !outside.includes(c))
+        podsOutside.push(...outside.map((c) => ({ container_number: c.container_number, pod: c.pod as string, reason: 'outside_calls' as const })))
       }
     }
   }
   const pods = Array.from(new Set(containers.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
-  return { containers, pods, issues }
+  return { containers, pods, issues, podsOutside }
 }
 
 /** Linhas do staging do Baplie (a Viagem vai à parte, em `p_voyage_id`). */

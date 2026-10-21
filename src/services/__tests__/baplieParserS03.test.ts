@@ -227,6 +227,7 @@ describe('baplie S03 vetores', () => {
   // das escalas — sai do staging com aviso, sem bloquear o arquivo.
   it('POD não reconhecido (UYMVD) ignora o container com aviso e não bloqueia o resto', () => {
     const parsed = parseBaplieText([
+      "UNH+1+BAPLIE:D:95B:UN:SMDG22'",
       "TDT+20+14+++:::GREEN SANTOS'",
       "LOC+147+010101'",
       "LOC+6+CNTAC'",
@@ -238,7 +239,8 @@ describe('baplie S03 vetores', () => {
       "LOC+12+BRVIX'",
       "MEA+WT++KGM:10000'",
       "EQD+CN+MSCU7654329+45G1+++5'",
-      "UNT+10+1'",
+      "UNT+13+1'",
+      "UNZ+1+1'",
     ].join('\n'))
 
     expect(parsed.containers.map((c) => c.container_number)).toEqual(['MSCU7654329'])

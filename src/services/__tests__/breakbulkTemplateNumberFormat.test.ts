@@ -146,6 +146,21 @@ function summaryCsv(...rows: string[]): ArrayBuffer {
 }
 
 describe('separador decimal ambiguo no manifesto de carga solta', () => {
+  // Padrão da planilha real (print do Lucca, 2026-10-21): vírgula decimal com
+  // três casas, sem nenhuma célula que "prove" o separador. 175,440 é 175,44 t.
+  it('resumido: "175,440" t e "794,761" m³ sem evidência entram como decimal, sem bloquear', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(summaryCsv(
+      'BLR1,1,1,1,"175,440","794,761",SANY,TIMBRO,NOTIFY,12345678000195,CNNSA,BRVIT',
+      'BLR2,1,1,1,"157,530","328,530",SANY,TIMBRO,NOTIFY,12345678000195,CNNSA,BRVIT',
+    ))
+
+    expect(hasBlockingRowErrors(parsed.rowErrors)).toBe(false)
+    const byBl = new Map(parsed.bls.map((bl) => [bl.bl_id, bl]))
+    expect(byBl.get('BLR1')?.bb_weight_ton).toBeCloseTo(175.44, 3)
+    expect(byBl.get('BLR1')?.bb_cbm).toBeCloseTo(794.761, 3)
+    expect(byBl.get('BLR2')?.bb_weight_ton).toBeCloseTo(157.53, 3)
+  })
+
   // O achado P0 da revisao da PR 703. `"259.312 TON"` tem a unidade colada:
   // nao casava a forma ambigua (testada no valor cru) e nao entrava na
   // evidencia do arquivo (descartada por conter letras), mas era parseado sem
@@ -207,6 +222,62 @@ describe('separador decimal ambiguo no manifesto de carga solta', () => {
 
     expect(parsed.bls).toHaveLength(0)
     expect(parsed.rowErrors.some((error) => /maximo plausivel/.test(error.message))).toBe(true)
+  })
+})
+
+// F-30: a leitura que ENCOLHE por mil também bloqueia quando ninguém declarou o
+// formato e o arquivo não desempata. Antes, só a que inflava bloqueava.
+describe('separador ambiguo na direcao que encolhe por mil', () => {
+  const LEGACY_HEADER = 'BL,CONSIGNATARIO,CNPJ,POL,POD,DESCRICAO,VOLUMES,PESO_KG,CBM'
+
+  function csv(...lines: string[]): ArrayBuffer {
+    return new TextEncoder().encode(lines.join('\n')).buffer as ArrayBuffer
+  }
+
+  it('legado en-US: "12,500" kg no padrao pt-BR bloqueia em vez de virar 12,5 kg', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(
+      csv(LEGACY_HEADER, 'BLL1,TIMBRO,12345678000195,CNNSA,BRVIT,MAQUINA,10,"12,500",30'),
+    )
+
+    expect(parsed.bls).toHaveLength(0)
+    const issue = parsed.rowErrors.find((error) => /PESO_KG/.test(error.message))
+    expect(issue?.severity ?? 'error').toBe('error')
+    expect(issue?.message).toContain('12.500 (13 mil)')
+    expect(issue?.message).toContain('12,5')
+    expect(hasBlockingRowErrors(parsed.rowErrors)).toBe(true)
+  })
+
+  it('legado: declarar en-US resolve "12,500" como 12 500 kg', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(
+      csv(LEGACY_HEADER, 'BLL1,TIMBRO,12345678000195,CNNSA,BRVIT,MAQUINA,10,"12,500",30'),
+      { numberFormat: 'en-US' },
+    )
+
+    expect(hasBlockingRowErrors(parsed.rowErrors)).toBe(false)
+    expect(parsed.bls[0]?.items[0]?.gross_weight_kg).toBe(12500)
+  })
+
+  it('carrier pt-BR: "12.500" kg no padrao en-US bloqueia em vez de virar 12,5 kg', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(csv(
+      'SHIPPER,MARKS,POL,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'B/L NO.,MARKS AND NUMBERS,POD,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'ABCD1234567,MARCA X,BRVIX,10 PACKAGES OF MACHINERY,10,12.500,30',
+    ))
+
+    const issue = parsed.rowErrors.find((error) => /GROSS WEIGHT|PESO_KG|peso/i.test(error.message))
+    expect(issue?.severity).toBe('error')
+    expect(parsed.bls[0]?.bb_weight_ton).toBeNull()
+  })
+
+  it('carrier: a leitura decimal passa quando outra celula do arquivo prova o ponto decimal', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(csv(
+      'SHIPPER,MARKS,POL,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'B/L NO.,MARKS AND NUMBERS,POD,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'ABCD1234567,MARCA X,BRVIX,10 PACKAGES OF MACHINERY,10,47740.00,52.000',
+    ))
+
+    expect(parsed.rowErrors.filter((error) => /CBM|MEASUREMENT|cubagem/i.test(error.message))).toEqual([])
+    expect(parsed.bls[0]?.bb_cbm).toBe(52)
   })
 })
 

@@ -222,6 +222,22 @@ describe('blFreightImport', () => {
     expect(buildBlFreightPayload(doc, 7).vehicles).toEqual([])
   })
 
+  it('bloqueia o B/L com numero ambiguo e avisa o numero descartado (F-30)', () => {
+    const doc = parsedBL()
+    doc.numberIssues = [
+      { severity: 'error', message: 'Container TCLU1234567: peso bruto "28.000" pode ser 28.000 kg ou 28 kg.' },
+      { severity: 'warning', message: 'Container TCLU1234567: cubagem "x" não pôde ser lido e fica vazio.' },
+    ]
+    const preview = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+    })
+    expect(preview.rows[0].status).toBe('blocked')
+    expect(preview.rows[0].payload).toBeNull()
+    expect(preview.rows[0].blockedReasons).toContain('Container TCLU1234567: peso bruto "28.000" pode ser 28.000 kg ou 28 kg.')
+    expect(preview.rows[0].warnings).toContain('Container TCLU1234567: cubagem "x" não pôde ser lido e fica vazio.')
+  })
+
   it('extracts consignee phone and leaves non-DG containers as non-IMO', () => {
     const doc = parsedBL()
     doc.parties.consigneeBlock = 'IMPORTADOR LTDA\nTEL:+55 27 2124-1654'
@@ -1559,7 +1575,7 @@ describe('blFreightImport', () => {
       mockFrom.mockImplementation(((table: string) => {
         const data = tables[table] ?? []
         const query: Record<string, unknown> = {}
-        for (const method of ['in', 'eq', 'is', 'order', 'range']) query[method] = vi.fn(() => query)
+        for (const method of ['in', 'eq', 'is', 'order', 'range', 'overrideTypes']) query[method] = vi.fn(() => query)
         query.select = vi.fn((columns: string) => {
           selects.push([table, columns])
           return query
@@ -1676,6 +1692,73 @@ describe('blFreightImport', () => {
       expect(manual.diffs.map((diff) => diff.field)).not.toContain('container_ownership')
       expect(manual.billingImpacts).not.toContain('SOC/COC dos containers muda')
       expect(previewWith('baplie').billingImpacts).toContain('SOC/COC dos containers muda')
+    })
+  })
+
+  // F-31: a prévia lia os vínculos container ↔ B/L de todas as Viagens numa
+  // consulta só, e o servidor entrega no máximo 1.000 linhas (`max_rows`): o
+  // B/L de outro Cliente além da primeira página sumia da conferência.
+  describe('vínculos de container acima de 1.000 linhas', () => {
+    const MAX_ROWS = 1000
+    const IMPORTING = 'CSC45250E02Y00'
+
+    function mockPagedPreview(other: { voyage_id: number; customer_id: number }) {
+      // 1.000 vínculos do próprio B/L (ignorados) e o do outro B/L na 1.001ª linha.
+      const links = [
+        ...Array.from({ length: MAX_ROWS }, (_, index) => ({ id: index + 1, container_number: 'TCLU1234567', bl_id: IMPORTING })),
+        { id: MAX_ROWS + 1, container_number: 'TCLU1234567', bl_id: 'OUTROBL' },
+      ]
+      const tables: Record<string, (columns: string) => unknown[]> = {
+        bl_containers: () => links,
+        bls: (columns) => (columns.includes('container_load_type')
+          ? [{ id: 'OUTROBL', voyage_id: other.voyage_id, customer_id: other.customer_id, container_load_type: null, cancelled_at: null }]
+          : [{ ...existingBl(), customer_id: 42, vehicles: [], bl_containers: [{ ...existingContainer(), id: 1 }] }]),
+        voyages: () => [{ id: 7, voyage_number: '14', vessel: { name: 'GREEN SANTOS' } }],
+        ports: () => [{ name: 'Santos', locode: 'BRSSZ' }, { name: 'Shanghai', locode: 'CNSHA' }],
+        customers: () => [{ id: other.customer_id, name: 'OUTRO CLIENTE', cnpj_cpf: null }],
+        charge_calculations: () => [{ bl_id: IMPORTING }],
+      }
+      mockFrom.mockImplementation(((table: string) => {
+        let columns = ''
+        // Sem `range`, a resposta para em `max_rows`, como no PostgREST.
+        let window: [number, number] = [0, MAX_ROWS - 1]
+        const query: Record<string, unknown> = {}
+        for (const method of ['in', 'eq', 'is', 'order', 'overrideTypes']) query[method] = vi.fn(() => query)
+        query.select = vi.fn((selected: string) => {
+          columns = selected
+          return query
+        })
+        query.range = vi.fn((from: number, to: number) => {
+          window = [from, Math.min(to, from + MAX_ROWS - 1)]
+          return query
+        })
+        const rows = () => (tables[table]?.(columns) ?? []).slice(window[0], window[1] + 1)
+        query.maybeSingle = vi.fn(() => Promise.resolve({ data: rows()[0] ?? null, error: null }))
+        query.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+          Promise.resolve({ data: rows(), error: null }).then(resolve, reject)
+        return query
+      }) as never)
+    }
+
+    it('container FCL de outro Cliente na mesma Viagem, além da 1.000ª linha, bloqueia a linha', async () => {
+      mockPagedPreview({ voyage_id: 7, customer_id: 99 })
+      const doc = parsedBL()
+      doc.vehicles = []
+
+      const preview = await previewBlFreightImport({ documents: [doc], voyageId: 7 })
+
+      expect(preview.rows[0]?.blockedReasons).toContain('Container TCLU1234567 já está no B/L OUTROBL (OUTRO CLIENTE): container FCL não é dividido entre Clientes diferentes.')
+    })
+
+    it('container compartilhado com outro B/L, além da 1.000ª linha, entra no impacto de faturamento', async () => {
+      mockPagedPreview({ voyage_id: 8, customer_id: 42 })
+      const doc = parsedBL()
+      doc.vehicles = []
+      doc.containers = [...doc.containers, { ...doc.containers[0]!, containerNumber: 'MSKU7654321' }]
+
+      const preview = await previewBlFreightImport({ documents: [doc], voyageId: 7 })
+
+      expect(preview.rows[0]?.billingImpacts).toContain('Container(s) compartilhados com outro B/L afetados: TCLU1234567')
     })
   })
 })
