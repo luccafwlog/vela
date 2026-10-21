@@ -9,6 +9,10 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
+const mocks = vi.hoisted(() => ({
+  reconcile: vi.fn(),
+}))
+
 const full = (id: number, container: string) => ({
   id, container_number: container, status: 'full', size_type: '45G0', pol: 'CNNGB', pod: 'BRVIX', final_dest: 'BRVIX',
   slot: `04010${id}4`, bl_ref: null, is_imo: false, is_oog: false, imo_class: null, un_number: null, ownership: null,
@@ -27,14 +31,7 @@ vi.mock('../../services/baplieImport', async (importOriginal) => ({
 }))
 vi.mock('../../services/baplieReconciliation', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/baplieReconciliation')>(),
-  reconcileBaplieWithManifest: vi.fn(() => Promise.resolve({
-    source: 'reconciled',
-    pendingRoutes: [],
-    items: [
-      { kind: 'missing_in_manifest', container_number: 'BEAU4381520', baplie_bl_ref: null, slot: '0401084' },
-      { kind: 'missing_in_manifest', container_number: 'BEAU4406130', baplie_bl_ref: null, slot: '0400584' },
-    ],
-  })),
+  reconcileBaplieWithManifest: mocks.reconcile,
   countPendingBapliePhysicalFlags: vi.fn(() => Promise.resolve(0)),
 }))
 vi.mock('../../services/baplieReadModel', () => ({
@@ -47,9 +44,15 @@ vi.mock('../../services/vaziosImportacaoImport', () => ({
 
 import { Baplie } from '../Baplie'
 
+const missing = [
+  { kind: 'missing_in_manifest', container_number: 'BEAU4381520', baplie_bl_ref: null, slot: '0401084' },
+  { kind: 'missing_in_manifest', container_number: 'BEAU4406130', baplie_bl_ref: null, slot: '0400584' },
+]
+
 let client: QueryClient
 beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  mocks.reconcile.mockResolvedValue({ source: 'reconciled', pendingRoutes: [], items: missing })
 })
 afterEach(() => client.clear())
 
@@ -68,4 +71,21 @@ it('"No Baplie, sem B/L" não repete a tabela: o botão filtra a lista de contai
   const rows = within(filtered).getAllByRole('row').slice(1)
   expect(rows.map((row) => within(row).getByText(/^[A-Z]{4}\d{7}$/).textContent)).toEqual(['BEAU4381520', 'BEAU4406130'])
   expect(screen.getByText('2 de 3 containers')).toBeTruthy()
+})
+
+// Sessão de testes de 2026-10-21: os grupos de divergência paginam como a
+// lista de containers (20 por página), em vez de listar tudo de uma vez.
+it('grupo de divergência longo pagina de 20 em 20', async () => {
+  const outside = Array.from({ length: 25 }, (_, index) => ({
+    kind: 'missing_in_baplie', container_number: `ZZZU${String(index).padStart(7, '0')}`, bl_container_id: index + 1, bl_id: `BL-${index}`,
+  }))
+  mocks.reconcile.mockResolvedValue({ source: 'reconciled', pendingRoutes: [], items: outside })
+  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Baplie /></MemoryRouter></QueryClientProvider>)
+
+  const table = await screen.findByRole('table', { name: 'Containers em B/L ausentes do Baplie' })
+  expect(within(table).getAllByRole('row')).toHaveLength(21)
+  const group = table.closest('[id="baplie-fora"]') as HTMLElement
+  expect(within(group).getByText('Página 1 de 2')).toBeTruthy()
+  fireEvent.click(within(group).getByRole('button', { name: /Próxima/ }))
+  expect(within(screen.getByRole('table', { name: 'Containers em B/L ausentes do Baplie' })).getAllByRole('row')).toHaveLength(6)
 })
