@@ -4,6 +4,8 @@ import {
   assertNoError,
   classifyDbError,
   extractErrorText,
+  atomicImportRefusalMessage,
+  importErrorMessage,
   isRetriableDbError,
   toError,
   userFacingErrorMessage,
@@ -160,6 +162,112 @@ describe('userFacingErrorMessage', () => {
     expect(userFacingErrorMessage(new Error('relation internal_table does not exist'), 'Não foi possível excluir.')).toBe(
       'Não foi possível excluir.',
     )
+  })
+})
+
+describe('recusas de negócio das importações (P000x)', () => {
+  // Mensagens reais das RPCs de importação (migrations 176, 194, 213).
+  it.each([
+    ['P0005', 'O B/L ABC1 ja esta na Viagem V1 e o arquivo foi importado na Viagem V2. Nenhum B/L do lote foi gravado: confira a Viagem de destino ou corrija a Viagem do B/L pela ficha.'],
+    ['P0006', 'O container MSCU1234565 do B/L ABC1 tem a Invoice de Demurrage DEM-1 e não sai por reimportação.'],
+    ['P0008', 'O container MSCU1234565 esta no B/L A (Cliente 1) e no B/L B (Cliente 2): container FCL nao e dividido entre Clientes diferentes. Corrija o Cliente ou o container do arquivo.'],
+    ['P0003', 'B/L ABC1 sem CE Mercante. Cadastre o CE antes de faturar.'],
+    ['P0001', 'Razão social diferente da cadastrada (A → B): confirme a troca.'],
+  ])('%s mostra a mensagem do banco, que já nomeia o B/L ou o container', (code, message) => {
+    expect(userFacingErrorMessage({ code, message }, 'Falha ao importar.')).toBe(message)
+  })
+
+  it.each(['P0001', 'P0003', 'P0005', 'P0006', 'P0008'])('%s sem mensagem usa um texto fixo em português, não o fallback', (code) => {
+    const message = userFacingErrorMessage({ code, message: '' }, 'Falha ao importar.')
+    expect(message).not.toBe('Falha ao importar.')
+    expect(message).not.toMatch(/P000|[a-z]+_[a-z]+/)
+  })
+
+  it('P0001 com texto interno (identificador, guarda de migration) não vaza', () => {
+    for (const message of [
+      'BL de item de carga solta precisa ter cargo_mode = carga_solta',
+      'effect_kind não suportado: x.',
+      'REVISAO_OBSOLETA: esperada 1, atual 2.',
+      '007: pg_net/net.http_post ausente',
+    ]) {
+      expect(userFacingErrorMessage({ code: 'P0001', message })).toBe('O sistema recusou a operação por uma regra de negócio.')
+    }
+  })
+
+  it('P0003 com tabela.coluna no texto cai no texto fixo', () => {
+    expect(userFacingErrorMessage({ code: 'P0003', message: 'Viagem 3 nao pode ser excluida: ha dados vinculados em public.bls.voyage_id.' }))
+      .toBe('Operação bloqueada por uma pendência do B/L ou da Viagem.')
+  })
+})
+
+describe('23505 com o valor repetido', () => {
+  it('nomeia o valor quando o banco o expõe em details, sem o nome da coluna', () => {
+    expect(userFacingErrorMessage({
+      code: '23505',
+      message: 'duplicate key value violates unique constraint "bls_pkey"',
+      details: 'Key (id)=(MEDU123) already exists.',
+    })).toBe('Já existe um registro com o valor "MEDU123".')
+  })
+
+  it('lê details de um DatabaseError', () => {
+    const error = toError({ code: '23505', message: 'duplicate key value violates unique constraint "x_key"', details: 'Key (lower(email))=(a@b.com) already exists.' })
+    expect(userFacingErrorMessage(error)).toBe('Já existe um registro com o valor "a@b.com".')
+  })
+
+  it('sem details, mensagem fixa com acento', () => {
+    expect(userFacingErrorMessage({ code: '23505', message: 'duplicate key value violates unique constraint "x_key"' })).toBe('Este registro já existe.')
+  })
+
+  it('RAISE de negócio com 23505 continua com a mensagem do banco', () => {
+    expect(userFacingErrorMessage({ code: '23505', message: 'Este CNPJ já está em outro Cliente.', details: 'Key (cnpj)=(1) already exists.' }))
+      .toBe('Este CNPJ já está em outro Cliente.')
+  })
+})
+
+describe('importErrorMessage', () => {
+  it('trava (40P01/55P03/40001): outra importação da mesma Viagem, nada gravado', () => {
+    for (const code of ['40P01', '55P03', '40001']) {
+      expect(importErrorMessage({ code, message: 'deadlock detected' }))
+        .toBe('Outra importação da mesma Viagem estava em andamento. Nada foi gravado: tente de novo.')
+    }
+  })
+
+  it('57014 na importação não manda reduzir período', () => {
+    const message = importErrorMessage({ code: '57014', message: 'canceling statement due to statement timeout' })
+    expect(message).toBe('A importação demorou demais e foi cancelada. Nada foi gravado: tente de novo ou divida o arquivo em partes menores.')
+    // Consulta continua com a orientação de período.
+    expect(userFacingErrorMessage({ code: '57014', message: 'canceling statement' })).toBe('A consulta demorou demais. Reduza o período e tente novamente.')
+  })
+
+  it('chave repetida numa tabela de preparo aponta a linha repetida no arquivo', () => {
+    expect(importErrorMessage({
+      code: '23505',
+      message: 'duplicate key value violates unique constraint "tmp_bl_freight_import_pkey"',
+      details: 'Key (id)=(MEDU123) already exists.',
+    })).toBe('O valor "MEDU123" aparece mais de uma vez no arquivo. Deixe uma linha só para ele e importe de novo.')
+    expect(importErrorMessage({ code: '23505', message: 'duplicate key value violates unique constraint "tmp_x_pkey"' }))
+      .toBe('Há uma linha repetida no arquivo. Deixe uma linha só para cada registro e importe de novo.')
+  })
+
+  it('erro desconhecido não vaza inglês nem código', () => {
+    expect(importErrorMessage({ code: 'XX000', message: 'internal error' })).toBe('Não foi possível importar o arquivo. Tente novamente.')
+  })
+})
+
+describe('atomicImportRefusalMessage', () => {
+  it('enquadra em "Nada foi gravado" sem código nem inglês', () => {
+    expect(atomicImportRefusalMessage({ code: 'P0008', message: 'O container X esta no B/L A (C1) e no B/L B (C2): container FCL nao e dividido entre Clientes diferentes.' }))
+      .toBe('Nada foi gravado: O container X esta no B/L A (C1) e no B/L B (C2): container FCL nao e dividido entre Clientes diferentes.')
+    expect(atomicImportRefusalMessage({ code: '23505', message: 'duplicate key value violates unique constraint "tmp_bl_freight_import_pkey"', details: 'Key (id)=(B1) already exists.' }))
+      .toBe('Nada foi gravado: O valor "B1" aparece mais de uma vez no arquivo. Deixe uma linha só para ele e importe de novo.')
+    expect(atomicImportRefusalMessage({ code: 'XX000', message: 'internal error' })).toBe('Nada foi gravado: O banco recusou o arquivo.')
+  })
+
+  it('não repete "Nada foi gravado" quando a mensagem já diz', () => {
+    expect(atomicImportRefusalMessage({ code: '40P01', message: 'deadlock detected' }))
+      .toBe('Outra importação da mesma Viagem estava em andamento. Nada foi gravado: tente de novo.')
+    expect(atomicImportRefusalMessage({ code: 'P0005', message: 'O B/L A ja esta na Viagem 1 e o arquivo foi importado na Viagem 2. Nenhum B/L do lote foi gravado.' }))
+      .toBe('O B/L A ja esta na Viagem 1 e o arquivo foi importado na Viagem 2. Nenhum B/L do lote foi gravado.')
   })
 })
 
