@@ -618,7 +618,8 @@ mesmos.
   4. Se o webhook parar de vez, o Alerta `email_retorno_provedor_silencioso`
      (Administrativo, migrations `309` e `314`) abre quando ao menos 3 e-mails
      foram aceitos pelo provedor há mais de 2 horas sem nenhum evento recebido
-     depois deles, e fecha na rodada seguinte ao primeiro evento novo.
+     depois deles, e fecha na hora em que chega o primeiro evento novo
+     (migration `353`).
 - **Recebimento** e **Caixas de entrada** da MillionSend não são usados: o
   recebimento é do ImprovMX.
 - **Virada conferida em 2026-10-14:** "Esqueci minha senha" no Portal chegou,
