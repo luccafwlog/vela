@@ -666,9 +666,10 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     `)
     expect(containerCalc()).toBe(`1.000|${containerFee.toFixed(2)}`)
 
-    // O irmão entra depois (outro lote da importação) e o N1 não é recalculado.
+    // O irmão entra depois (outro lote da importação): o fim da transação
+    // recalcula o N1 com o rateio novo (ADR 0093, decisão 3; migration 355).
     insertBls([{ id: 'A203-N2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030101' }])
-    expect(containerCalc()).toBe(`1.000|${containerFee.toFixed(2)}`)
+    expect(containerCalc()).toBe(`0.500|${(containerFee / 2).toFixed(2)}`)
 
     expect(importCeSheet('A203MAN000010', voyage.clientesDiferentes, [{ blId: 'A203-N1', ce: '203001000000101' }]))
       .toMatchObject({ ok: true })
