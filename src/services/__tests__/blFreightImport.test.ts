@@ -877,7 +877,7 @@ describe('blFreightImport', () => {
 
     // Regra do servidor (outra Viagem, migration 392): nada foi gravado, com o motivo.
     mockRpc.mockReset()
-    mockRpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'O B/L BL1 já está na Viagem NAVIO 1: cancele ou exclua o B/L lá e importe de novo.' } })
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'O B/L BL1 já está na Viagem NAVIO 1: exclua o B/L lá e importe de novo (cancelar não libera o número).' } })
     await expect(confirmBlFreightImport(preview, 'user-1')).rejects.toThrow(/^Nada foi gravado: .*já está na Viagem NAVIO 1/)
   })
 
@@ -1725,7 +1725,7 @@ describe('blFreightImport', () => {
         importStates: new Map([['CSC45250E02Y00', state({ voyageId: 3, voyageLabel: 'OUTRO NAVIO 9' })]]),
       })
       expect(preview.rows[0]?.status).toBe('blocked')
-      expect(preview.rows[0]?.blockedReasons).toContain('O B/L CSC45250E02Y00 já está na Viagem OUTRO NAVIO 9: cancele ou exclua o B/L lá e importe de novo.')
+      expect(preview.rows[0]?.blockedReasons).toContain('O B/L CSC45250E02Y00 já está na Viagem OUTRO NAVIO 9: exclua o B/L lá e importe de novo (cancelar não libera o número).')
     })
 
     it('decisão 8: B/L cancelado fica de fora com aviso e o resto do arquivo entra', async () => {

@@ -86,7 +86,7 @@ describeLocal('392 — arquivo de B/L com as regras no servidor', () => {
     const container = containersOf(id)
     const result = importFile([{ ...line(id, [container]), voyage_id: otherVoyageId }])
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain(`O B/L ${id} já está na Viagem Vessel FF9392 FF9392: cancele ou exclua o B/L lá e importe de novo.`)
+    expect(result.stderr).toContain(`O B/L ${id} já está na Viagem Vessel FF9392 FF9392: exclua o B/L lá e importe de novo (cancelar não libera o número).`)
     expect(blField(id, 'voyage_id')).toBe(String(w.voyageId))
 
     w.cancelBl(id)

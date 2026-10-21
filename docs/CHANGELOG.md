@@ -8,7 +8,7 @@
 
 - **Importações: arquivo de B/L com as regras no servidor (2026-10-21, Lote 2 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 5, 8, 9, 10, 26 e 27;
-  achados F-05, F-15, F-27 e F-50):** migration `392`. B/L que já está em outra Viagem recusa o
+  achados F-05, F-15, F-27 e F-50):** migrations `392` e `393`. Na rolagem, o B/L é excluído na Viagem antiga (cancelar não libera o número). B/L que já está em outra Viagem recusa o
   arquivo com a Viagem dele (a importação não move B/L entre Viagens); B/L cancelado no arquivo fica
   de fora com aviso para reativar pela ficha e importar de novo, e o resto entra. A confirmação de
   faturamento só aparece para B/L com fatura emitida, nunca vai ligada por padrão e é conferida no
