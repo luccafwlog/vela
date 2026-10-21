@@ -123,8 +123,9 @@ describe('buildVoyageCommunicationCoverage', () => {
         { customer_id: 1, kind: 'aviso_chegada_noa', status: 'enviado', anchor_voyage_id: 62, anchor_port: 'BRVIX', anchor_atracacao_id: null, created_at: '' },
         { customer_id: 2, kind: 'aviso_chegada_noa', status: 'enviado', anchor_voyage_id: 62, anchor_port: 'BRSSZ', anchor_atracacao_id: null, created_at: '' },
         { customer_id: 2, kind: 'aviso_atracacao_nob', status: 'enviado', anchor_voyage_id: 62, anchor_port: 'BRSSZ', anchor_atracacao_id: 'T-SSZ', created_at: '' },
-        // CE e Taxas sem porto vale para as duas escalas do Cliente 1.
-        ce(1, null),
+        // CE e Taxas é por Cliente × Viagem: vale para as duas escalas do
+        // Cliente 1, mesmo o envio antigo com porto gravado.
+        ce(1, 'BRVIX'),
       ],
       terminalStates: [{ id: 'T-SSZ', voyage_id: 62, port: 'BRSSZ', terminal_atb: '2026-10-25T10:00:00Z' }],
       readiness: new Map([['62:1', true], ['62:2', true]]),
