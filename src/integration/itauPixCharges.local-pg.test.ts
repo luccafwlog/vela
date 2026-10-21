@@ -234,6 +234,20 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(psql(`SELECT count(*) FROM public.local_pix_charge_versions WHERE txid = '${charge.txid}'`)).toBe('0')
   })
 
+  it('F-05: avulsa já baixada pela referência com o endToEndId (Plano B) vai para análise, sem segunda baixa nem restituição', () => {
+    setProvider('itau')
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
+    const id = manualInvoice('ITAU357-AV', 0.05)
+    const charge = activate(`invoice_id = ${id}`, '000201ITAU357AV')
+    psql(`SET request.jwt.claim.sub = '${userId}';
+      SELECT public.register_verified_invoice_payment(${id}, 0.05, 'pix', now(), 'Plano B', gen_random_uuid(), 'E357AVULSA')`)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('paid')
+    expect(settle('E357AVULSA', charge.txid, '0.05')).toBe('review')
+    expect(psql(`SELECT reason FROM public.itau_pix_receipts WHERE end_to_end_id = 'E357AVULSA'`)).toContain('ja baixado')
+    expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id = ${id}`)).toBe('1')
+    expect(psql(`SELECT count(*) FROM public.invoice_refunds WHERE invoice_id = ${id}`)).toBe('0')
+  })
+
   it('erro passageiro do banco não manda o Pix para análise: a próxima consulta baixa', () => {
     setProvider('itau')
     psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)

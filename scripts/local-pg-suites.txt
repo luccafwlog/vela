@@ -133,3 +133,4 @@ src/integration/comunicadoNaFila.local-pg.test.ts
 src/integration/tabelaVinculadaAoBl.local-pg.test.ts
 src/integration/precoDoCeBaseAtual.local-pg.test.ts
 src/integration/consolidadaCruzada.local-pg.test.ts
+src/integration/excluirCancelarFaturado.local-pg.test.ts

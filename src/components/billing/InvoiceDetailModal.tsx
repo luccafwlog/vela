@@ -687,7 +687,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
 
               {!enablePaymentReversal && !isCancelled && isAdmin ? (
                 <Block title="Cancelar fatura" headingLevel={3}>
-                  {payments.length > 0 ? (
+                  {detailInvoice.status === 'covered' ? (
+                    <p className="app-invoice-detail__note">Fatura coberta por outro documento pago não se cancela: o B/L já foi pago. Para recebimento lançado por engano, cancele a baixa no documento pago.</p>
+                  ) : payments.length > 0 ? (
                     <p className="app-invoice-detail__note">Fatura com pagamento não se cancela. Para recebimento lançado por engano, cancele a baixa; para devolver dinheiro, use a restituição.</p>
                   ) : (
                     <div className="app-invoice-detail__form">

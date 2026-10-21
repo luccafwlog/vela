@@ -152,7 +152,7 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public.guard_single_open_consolidated() FROM PUBLIC, anon, authenticated;
-CREATE TRIGGER guard_single_open_consolidated
+CREATE TRIGGER trg_single_open_consolidated
   BEFORE INSERT OR UPDATE OF status ON public.invoice_receivable_links
   FOR EACH ROW EXECUTE FUNCTION public.guard_single_open_consolidated();
 
