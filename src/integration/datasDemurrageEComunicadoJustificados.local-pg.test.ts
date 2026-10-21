@@ -333,6 +333,50 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     expect(reopened.claims).toBe(nobClaim)
   })
 
+  it('P2: claim justificada que sai e volta a ser devida sem falha nova não reabre', () => {
+    const round = () => asServer(`SELECT public.evaluate_and_dispatch_automatic_communications(now())`)
+    const opened = () => psql(`SELECT count(*) FROM public.alert_item_events AS e JOIN public.alert_items AS i ON i.id = e.alert_item_id
+      JOIN public.alerts AS a ON a.id = i.alert_id
+      WHERE i.item_type = 'comunicado_recusado' AND a.entity_type = 'customer' AND a.entity_id = '${commsCustomer}'
+        AND e.event_type = 'opened'`)
+    const setEta = (days: number) => psql(`SET session_replication_role = replica;
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_at) VALUES
+        ('voyage_pod_schedule', '${voyage.comms}::${port}', 'eta', NULL, to_char(now() + interval '${days} days', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), now());
+      SET session_replication_role = origin;`)
+    const noaMarks = () => psql(`SELECT (refusal_alerted_at IS NOT NULL)::text || '|' || (refusal_acknowledged_at IS NOT NULL)::text
+      FROM public.customer_communication_automation_claims WHERE claim_key = '${noaClaim}'`)
+
+    // NOB e NOA no alerta, justificado: os dois ficam reconhecidos.
+    asServer(`INSERT INTO public.customer_communication_automation_claims (claim_key) VALUES ('${noaClaim}') ON CONFLICT (claim_key) DO NOTHING;
+      SELECT public.reject_customer_communication_automation_claim('${noaClaim}', 'B/Ls inválidos.')`)
+    const open = refusalItem()
+    expect(open.status).toBe('active')
+    expect(open.claims).toBe([noaClaim, nobClaim].sort().join(','))
+    expect(justify(open.id, 'Cliente avisado por telefone (R349 volta)').stderr).toBe('')
+    expect(noaMarks()).toBe('true|true')
+    const openedBefore = opened()
+
+    // ETA adiado para daqui a 20 dias: o NOA deixa de ser devido e sai.
+    setEta(20)
+    round()
+    expect(noaMarks()).toBe('false|false')
+    expect(refusalItem().status).toBe('resolved')
+
+    // ETA de volta a 2 dias, sem adiamento, recusa nem envio: o NOA não reentra
+    // pela recusa antiga e o item continua resolvido, sem ocorrência nova.
+    setEta(2)
+    round()
+    expect(noaMarks()).toBe('false|false')
+    expect(refusalItem().status).toBe('resolved')
+    expect(opened()).toBe(openedBefore)
+
+    // A falha nova do NOA reabre, como episódio novo.
+    asServer(`SELECT public.reject_customer_communication_automation_claim('${noaClaim}', 'B/Ls inválidos.')`)
+    const reopened = refusalItem()
+    expect(reopened.status).toBe('active')
+    expect(reopened.claims).toBe(noaClaim)
+  })
+
   it('P2: a lista de tipos com justificativa tem os dois tipos', () => {
     expect(psql(`SELECT public._alert_item_resolved_with_justification('demurrage_invoice_dates_changed', 'demurrage_invoice')
       AND public._alert_item_resolved_with_justification('comunicado_recusado', 'customer')`)).toBe('t')

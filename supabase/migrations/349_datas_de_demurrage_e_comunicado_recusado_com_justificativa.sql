@@ -43,7 +43,10 @@
 --      depois da justificativa o item está resolvido, e a rodada só olhava
 --      Clientes com o item ativo (achado do revisor na #1013). O envio
 --      (`complete_customer_communication_automation_claim`, definição da 318)
---      zera também o reconhecimento.
+--      zera também o reconhecimento. Nessa conferência do Cliente com o item
+--      resolvido só há saída: a claim que volta a ser devida não reentra pela
+--      falha antiga (`alerts.comunicado_recusado_sem_entrada`); quem a põe de
+--      volta é o próximo desfecho dela.
 --   4. Acerto dos já abertos: itens `demurrage_invoice_dates_changed` ativos em
 --      Invoice cancelada pelo ramo automático (metadata sem pagamento nem
 --      negociação) sem caixa pendente, ou com todas já cobradas, são
@@ -420,13 +423,20 @@ BEGIN
 
     -- Entrada: recusa definitiva, 1ª recusa por dado ou 3ª falha seguida do
     -- provedor, com o alvo ainda devido. Episódio novo: sem reconhecimento.
-    UPDATE public.customer_communication_automation_claims cl
-       SET refusal_alerted_at = now(), refusal_acknowledged_at = NULL
-     WHERE split_part(cl.claim_key, ':', 2) = p_customer_id::text
-       AND cl.refusal_alerted_at IS NULL
-       AND cl.claim_key = ANY(v_due)
-       AND (cl.rejected_at IS NOT NULL
-         OR (cl.attempts > 0 AND (cl.provider_failures = 0 OR cl.provider_failures >= 3)));
+    -- 349: a rodada da produtora que confere o Cliente só pelo reconhecimento
+    -- (item resolvido) liga `alerts.comunicado_recusado_sem_entrada`: lá só há
+    -- saída e recálculo. Sem isso, a claim que saiu (alvo deixou de ser devido)
+    -- e voltou a ser devida reentrava pela falha antiga e reabria o item sem
+    -- falha nova; quem a põe de volta é o próximo desfecho (adiamento, recusa).
+    IF current_setting('alerts.comunicado_recusado_sem_entrada', true) IS DISTINCT FROM 'on' THEN
+      UPDATE public.customer_communication_automation_claims cl
+         SET refusal_alerted_at = now(), refusal_acknowledged_at = NULL
+       WHERE split_part(cl.claim_key, ':', 2) = p_customer_id::text
+         AND cl.refusal_alerted_at IS NULL
+         AND cl.claim_key = ANY(v_due)
+         AND (cl.rejected_at IS NOT NULL
+           OR (cl.attempts > 0 AND (cl.provider_failures = 0 OR cl.provider_failures >= 3)));
+    END IF;
 
     -- Saída sem envio: o alvo deixou de estar devido (envio por outro caminho,
     -- janela vencida, Cliente desativado). O envio da régua sai pelo complete.
@@ -534,6 +544,7 @@ DECLARE
   v_customer record;
   v_candidates jsonb := '[]'::jsonb;
   v_unreachable jsonb := '{}'::jsonb;
+  v_refusal_entry_previous text;
 BEGIN
   IF auth.role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Executor server-only.' USING ERRCODE = '42501';
@@ -623,23 +634,37 @@ BEGIN
   END LOOP;
 
   -- 1D: tira do alerta comunicado_recusado as claims cujo alvo deixou de existir.
-  -- 349: confere também o Cliente com claim reconhecida na justificativa. O
-  -- item dele está resolvido, e sem esta rodada a claim que deixa de ser devida
-  -- nunca perderia o reconhecimento.
   FOR v_customer IN
     SELECT a.entity_id
     FROM public.alert_items i
     JOIN public.alerts a ON a.id = i.alert_id
     WHERE i.item_type = 'comunicado_recusado' AND i.status = 'active'
       AND a.entity_type = 'customer' AND a.entity_id ~ '^[0-9]+$'
-    UNION
-    SELECT split_part(cl.claim_key, ':', 2)
-    FROM public.customer_communication_automation_claims cl
-    WHERE cl.refusal_acknowledged_at IS NOT NULL
-      AND split_part(cl.claim_key, ':', 2) ~ '^[0-9]+$'
   LOOP
     PERFORM public.refresh_customer_communication_refusal_alert(v_customer.entity_id::bigint);
   END LOOP;
+
+  -- 349: confere também o Cliente com claim reconhecida na justificativa e o
+  -- item resolvido; sem esta volta, a claim que deixa de ser devida nunca
+  -- perderia o reconhecimento. Aqui só há saída: a entrada fica com o próximo
+  -- desfecho da claim (ver refresh_customer_communication_refusal_alert).
+  v_refusal_entry_previous := current_setting('alerts.comunicado_recusado_sem_entrada', true);
+  PERFORM set_config('alerts.comunicado_recusado_sem_entrada', 'on', true);
+  FOR v_customer IN
+    SELECT DISTINCT split_part(cl.claim_key, ':', 2) AS entity_id
+    FROM public.customer_communication_automation_claims cl
+    WHERE cl.refusal_acknowledged_at IS NOT NULL
+      AND split_part(cl.claim_key, ':', 2) ~ '^[0-9]+$'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM public.alert_items i
+        JOIN public.alerts a ON a.id = i.alert_id
+        WHERE i.item_type = 'comunicado_recusado' AND i.status = 'active'
+          AND a.entity_type = 'customer' AND a.entity_id = split_part(cl.claim_key, ':', 2))
+  LOOP
+    PERFORM public.refresh_customer_communication_refusal_alert(v_customer.entity_id::bigint);
+  END LOOP;
+  PERFORM set_config('alerts.comunicado_recusado_sem_entrada', COALESCE(v_refusal_entry_previous, ''), true);
 
   RETURN v_candidates;
 END;
