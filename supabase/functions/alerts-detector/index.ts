@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
-import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { instrumentEdgeHandler, telemetryFailureHeaders } from '../_shared/telemetry.ts'
 
 function timingSafeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder()
@@ -54,7 +54,10 @@ if (typeof Deno !== 'undefined') {
     const { data, error } = await admin.rpc('run_alert_detectors')
     if (error) {
       console.error('alerts detector failed', error)
-      return new Response(JSON.stringify({ error: 'Detector execution failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ error: 'Detector execution failed' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...telemetryFailureHeaders('run_alert_detectors', error) },
+      })
     }
     const orphanedDisputeAttachments = await removeOrphanedDisputeAttachments(admin as unknown as StorageAdmin)
     return new Response(JSON.stringify({ ...(data ?? {}), orphaned_dispute_attachments_removed: orphanedDisputeAttachments }), { status: 200, headers: { 'Content-Type': 'application/json' } })

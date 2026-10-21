@@ -8,7 +8,9 @@ import {
   fetchCustomerCommunicationSavedTemplates,
   saveCustomerCommunicationSavedTemplate,
   type CustomerCommunicationFilters,
+  type VoyageCommunicationCoverageSummary,
 } from '../services/customerCommunications'
+import { nextAutoRunnerRun } from '../lib/communicationAutoRunner'
 import {
   dispatchCustomerCommunication,
   runCustomerCommunicationBatch,
@@ -43,13 +45,27 @@ export function useCustomerCommunicationHistory(filters?: number | CustomerCommu
   })
 }
 
-/** A Cobertura lê a prontidão de cada Cliente × Viagem: só carrega na aba dela (plano dos e-mails, 3.7). */
+/**
+ * A Cobertura lê a prontidão de cada Cliente × Viagem: só carrega na aba dela
+ * (plano dos e-mails, 3.7). Com Comunicado na fila ou em envio, relê logo
+ * depois da próxima rodada do robô, para o "na fila" virar "enviado" sem
+ * recarregar a página.
+ */
 export function useVoyageCommunicationCoverage(filters?: { vessel?: string; voyage?: string; month?: string }, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [...queryKeys.customerCommunications.all(), 'coverage', filters],
     enabled: options.enabled ?? true,
     queryFn: () => fetchVoyageCommunicationCoverage(filters),
+    refetchInterval: (query) => coverageRefetchDelay(query.state.data, new Date()),
   })
+}
+
+/** Espera até 90 s depois da próxima rodada quando há algo na fila ou em envio. */
+export function coverageRefetchDelay(rows: readonly VoyageCommunicationCoverageSummary[] | undefined, now: Date): number | false {
+  const waiting = (rows ?? []).some((row) => row.details.some((detail) => Object.values(detail.cells)
+    .some((cell) => cell.state === 'na_fila' || cell.state === 'em_envio')))
+  if (!waiting) return false
+  return nextAutoRunnerRun(now).getTime() - now.getTime() + 90_000
 }
 
 export function useCustomerCommunicationSavedTemplates() {

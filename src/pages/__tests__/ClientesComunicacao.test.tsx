@@ -44,11 +44,25 @@ const mockCoverage = [
     voyageId: 101,
     vesselName: 'COSCO SHIPPING XING WANG',
     voyageNumber: '2401E',
+    port: 'BRVIX',
     customers: 3,
     noa: { sent: 3, total: 3 },
     nor: { sent: 2, total: 3 },
     nob: { sent: 1, total: 2 },
-    finance: { sent: 2, ready: 3, total: 3, pending: 0 },
+    finance: { sent: 2, due: 3, resend: 1, ready: 2, total: 3, pending: 1 },
+    queued: { ce_mercante_taxas: 0, aviso_chegada_noa: 0, aviso_prontidao_nor: 1, aviso_atracacao_nob: 0 },
+    details: [
+      {
+        customerId: 1,
+        customerName: 'Cliente Alfa',
+        cells: {
+          ce_mercante_taxas: { state: 'bloqueado', sentAt: '2026-10-20T19:04:00Z', communicationId: 11, reason: 'reenvio pendente: falta faturar 4 B/Ls' },
+          aviso_chegada_noa: { state: 'enviado', sentAt: '2026-10-20T19:19:04Z', communicationId: 17, reason: null },
+          aviso_prontidao_nor: { state: 'na_fila', sentAt: null, communicationId: null, reason: null },
+          aviso_atracacao_nob: { state: 'nao_devido', sentAt: null, communicationId: null, reason: null },
+        },
+      },
+    ],
   },
 ]
 const blockedCustomerRow = {
@@ -244,7 +258,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
     expect(screen.queryByRole('radio', { name: /Disparo/ })).toBeNull()
     expect(screen.getByRole('radio', { name: /Histórico/ })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Cobertura por viagem' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Cobertura por viagem e porto' })).toBeTruthy()
   })
 
   it('exibe o banner permanente de simulação quando communications_enabled é false', () => {
@@ -346,16 +360,49 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'Cobertura por viagem' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Cobertura por viagem e porto' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'COSCO SHIPPING XING WANG / 2401E' })).toBeTruthy()
     expect(screen.getByText('3 de 3').classList.contains('app-status-text--default')).toBe(true) // NOA completo
     expect(screen.getAllByText('2 de 3').every((cell) => cell.classList.contains('app-status-text--warning'))).toBe(true) // NOR falta enviar
+    // Obs. 8: a linha é do porto, e o Cliente enviado com B/L novo aparece como reenvio.
+    expect(screen.getByText('BRVIX')).toBeTruthy()
+    expect(screen.getByText('1 reenvio pendente')).toBeTruthy()
 
     const table = screen.getByRole('table')
     const scroll = table.closest('.app-table-scroll')
     expect(table.classList.contains('app-table')).toBe(true)
     expect(scroll).not.toBeNull()
     expect(scroll?.classList.contains('overflow-hidden')).toBe(false)
+  })
+
+  // Melhorias 9 e 10 (sessão de testes de 2026-10-20).
+  it('abre os Clientes da linha pelo teclado, com a situação de cada Comunicado', () => {
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText(/^1 na fila · \d{2}:\d{2}$/)).toBeTruthy()
+    const toggle = screen.getByRole('button', { name: 'Abrir os Clientes de COSCO SHIPPING XING WANG / 2401E, BRVIX' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    toggle.focus()
+    expect(document.activeElement).toBe(toggle)
+    // Botão nativo: Enter e Espaço disparam o clique.
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+
+    const detail = screen.getByRole('table', { name: /Comunicados por Cliente — COSCO SHIPPING XING WANG \/ 2401E, BRVIX/ })
+    expect(toggle.getAttribute('aria-controls')).toBe(detail.closest('[id]')?.id)
+    const row = within(detail).getByRole('row', { name: /Cliente Alfa/ })
+    expect(within(row).getByText('Bloqueado')).toBeTruthy()
+    expect(within(row).getByText('reenvio pendente: falta faturar 4 B/Ls')).toBeTruthy()
+    expect(within(row).getByRole('link', { name: 'Enviado em 20/10/2026 às 16:19 (BRT)' }).getAttribute('href')).toBe('/clientes/comunicacao?tab=historico&communication=17')
+    expect(within(row).getByText(/^Na fila · próxima rodada às \d{2}:\d{2} \(BRT\)$/)).toBeTruthy()
+    expect(within(row).getByText('Sem atracação devida')).toBeTruthy()
+
+    fireEvent.click(toggle)
+    expect(screen.queryByRole('table', { name: /Comunicados por Cliente/ })).toBeNull()
   })
 
   it('mantém a matriz de cobertura na ordem operacional documentada', () => {
@@ -366,7 +413,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.trim())).toEqual([
-      'Navio / Viagem', 'Clientes', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
+      'Abrir', 'Navio / Viagem', 'Porto', 'Clientes', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
     ])
   })
 

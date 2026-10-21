@@ -1,6 +1,8 @@
 import { formatCnpjCpf, formatDateTime } from '../lib/utils'
 import { Fragment, useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { CoverageDrilldown } from '../components/customers/CoverageDrilldown'
+import { formatBrasiliaTime, nextAutoRunnerRun, queuedLabel } from '../lib/communicationAutoRunner'
 import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Eye, History, Info, Paperclip, Pencil, RotateCcw, Send, Ship, Users } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -154,9 +156,32 @@ function historyStatusTone(status: string) {
 }
 
 /** "0 de 3", âmbar enquanto falta enviar; "—" quando nada é devido (lote 5a). */
-function CoverageCount({ sent, total }: { sent: number; total: number }) {
+function CoverageCount({ sent, total, queued = 0, now }: { sent: number; total: number; queued?: number; now: Date }) {
   if (total === 0) return <NoValue label="Nada devido" />
-  return <StatusText tone={sent < total ? 'warning' : 'default'}>{sent} de {total}</StatusText>
+  return (
+    <span className="inline-flex flex-col">
+      <StatusText tone={sent < total ? 'warning' : 'default'}>{sent} de {total}</StatusText>
+      <QueuedNote queued={queued} now={now} />
+    </span>
+  )
+}
+
+/** "1 na fila · 16:19": a próxima rodada automática envia (migration 345). */
+function QueuedNote({ queued, now }: { queued: number; now: Date }) {
+  if (queued <= 0) return null
+  return <span className="text-xs text-[var(--app-muted)]" title={queuedLabel(now)}>{queued} na fila · {formatBrasiliaTime(nextAutoRunnerRun(now))}</span>
+}
+
+/** CE e Taxas: enviados em dia de devidos, e quem precisa de reenvio. */
+function FinanceCoverageCount({ sent, due, resend, queued, now }: { sent: number; due: number; resend: number; queued: number; now: Date }) {
+  if (due === 0) return <NoValue label="Nada devido" />
+  return (
+    <span className="inline-flex flex-col">
+      <StatusText tone={sent < due ? 'warning' : 'default'}>{sent} de {due}</StatusText>
+      {resend > 0 ? <span className="text-xs text-[var(--app-muted)]">{resend === 1 ? '1 reenvio pendente' : `${resend} reenvios pendentes`}</span> : null}
+      <QueuedNote queued={queued} now={now} />
+    </span>
+  )
 }
 
 function plural(count: number, singular: string, pluralWord: string) {
@@ -307,6 +332,10 @@ export function ClientesComunicacao() {
   )
   // A Cobertura consulta a prontidão de cada Cliente × Viagem: só na aba dela (3.7).
   const coverageQuery = useVoyageCommunicationCoverage(coverageFilters, { enabled: tab === 'cobertura' })
+  const [expandedCoverageRow, setExpandedCoverageRow] = useState<string | null>(null)
+  // A próxima rodada é calculada no momento da leitura; a releitura depois da
+  // rodada (useVoyageCommunicationCoverage) atualiza os dois juntos.
+  const coverageNow = useMemo(() => new Date(coverageQuery.dataUpdatedAt || Date.now()), [coverageQuery.dataUpdatedAt])
   const savedTemplatesQuery = useCustomerCommunicationSavedTemplates()
   const saveTemplateMutation = useSaveCustomerCommunicationSavedTemplate()
   const batchMutation = useDispatchCustomerCommunicationBatch()
@@ -816,17 +845,19 @@ export function ClientesComunicacao() {
           </div>
           {coverageQuery.isError ? <InlineError message="Não foi possível carregar a cobertura." /> : null}
           <Block
-            title="Cobertura por viagem"
-            aside={coverageQuery.data ? plural(coverageQuery.data.length, 'viagem', 'viagens') : null}
+            title="Cobertura por viagem e porto"
+            aside={coverageQuery.data ? plural(coverageQuery.data.length, 'linha', 'linhas') : null}
             flush
           >
             {coverageQuery.isLoading ? <p className="px-4 py-6 text-[var(--app-muted)]">Carregando cobertura...</p> : (
               <div className="app-table-scroll">
                 <table className="app-table">
-                  <caption className="sr-only">Cobertura de comunicados por viagem</caption>
+                  <caption className="sr-only">Cobertura de comunicados por viagem e porto</caption>
                   <thead>
                     <tr>
+                      <th scope="col"><span className="sr-only">Abrir</span></th>
                       <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+                      <th scope="col" className="app-table__text-head">Porto</th>
                       <th scope="col">Clientes</th>
                       <th scope="col">CE e Taxas enviados</th>
                       <th scope="col">Sem CE ou fatura</th>
@@ -836,24 +867,54 @@ export function ClientesComunicacao() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(coverageQuery.data ?? []).map((row) => (
-                      <tr key={row.voyageId}>
-                        <td className="app-table__text"><Link className="app-link" to={`/viagens/${row.voyageId}`}>{row.vesselName} / {row.voyageNumber}</Link></td>
-                        <td>{row.customers === 0 ? 'Nenhum' : row.customers}</td>
-                        <td><CoverageCount sent={row.finance.sent} total={row.finance.ready} /></td>
-                        <td>{row.customers === 0 ? <NoValue label="Nada devido" /> : row.finance.pending}</td>
-                        <td><CoverageCount sent={row.noa.sent} total={row.noa.total} /></td>
-                        <td><CoverageCount sent={row.nor.sent} total={row.nor.total} /></td>
-                        <td><CoverageCount sent={row.nob.sent} total={row.nob.total} /></td>
-                      </tr>
-                    ))}
-                    {!coverageQuery.data?.length ? <tr><td colSpan={7} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}
+                    {(coverageQuery.data ?? []).map((row) => {
+                      const rowKey = `${row.voyageId}:${row.port ?? ''}`
+                      const expanded = expandedCoverageRow === rowKey
+                      const detailId = `cobertura-${row.voyageId}-${row.port ?? 'sem-porto'}`
+                      const label = `${row.vesselName} / ${row.voyageNumber}${row.port ? `, ${row.port}` : ''}`
+                      return (
+                        <Fragment key={rowKey}>
+                          <tr>
+                            <td>
+                              {row.details.length ? (
+                                <button
+                                  type="button"
+                                  className="app-table__icon-button"
+                                  aria-expanded={expanded}
+                                  aria-controls={expanded ? detailId : undefined}
+                                  aria-label={`${expanded ? 'Recolher' : 'Abrir'} os Clientes de ${label}`}
+                                  onClick={() => setExpandedCoverageRow(expanded ? null : rowKey)}
+                                >
+                                  {expanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+                                </button>
+                              ) : null}
+                            </td>
+                            <td className="app-table__text"><Link className="app-link" to={`/viagens/${row.voyageId}`}>{row.vesselName} / {row.voyageNumber}</Link></td>
+                            <td className="app-table__text">{row.port ?? <NoValue label="Sem porto" />}</td>
+                            <td>{row.customers === 0 ? 'Nenhum' : row.customers}</td>
+                            <td><FinanceCoverageCount sent={row.finance.sent} due={row.finance.due} resend={row.finance.resend} queued={row.queued.ce_mercante_taxas} now={coverageNow} /></td>
+                            <td>{row.customers === 0 ? <NoValue label="Nada devido" /> : row.finance.pending}</td>
+                            <td><CoverageCount sent={row.noa.sent} total={row.noa.total} queued={row.queued.aviso_chegada_noa} now={coverageNow} /></td>
+                            <td><CoverageCount sent={row.nor.sent} total={row.nor.total} queued={row.queued.aviso_prontidao_nor} now={coverageNow} /></td>
+                            <td><CoverageCount sent={row.nob.sent} total={row.nob.total} queued={row.queued.aviso_atracacao_nob} now={coverageNow} /></td>
+                          </tr>
+                          {expanded ? (
+                            <tr data-row-detail>
+                              <td colSpan={9} className="p-0">
+                                <CoverageDrilldown row={row} now={coverageNow} id={detailId} />
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
+                      )
+                    })}
+                    {!coverageQuery.data?.length ? <tr><td colSpan={9} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}
                   </tbody>
                 </table>
               </div>
             )}
             <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
-              "0 de 2": enviados de devidos. Âmbar enquanto falta enviar. "Sem CE ou fatura": Clientes da viagem que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
+              Uma linha por navio/viagem e porto de descarga; a seta abre os Clientes da linha e a situação de cada Comunicado. "0 de 2": enviados de devidos. "N na fila · HH:MM": a próxima rodada automática (a cada 15 minutos, horário de Brasília) envia. Âmbar enquanto falta enviar. "Reenvio pendente": Cliente que já recebeu o CE e Taxas e ganhou B/L novo ainda não pronto; conta como devido, não como enviado. "Sem CE ou fatura": Clientes do porto que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
             </p>
           </Block>
         </>

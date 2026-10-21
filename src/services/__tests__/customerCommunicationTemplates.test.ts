@@ -38,7 +38,8 @@ describe('templates de Comunicados', () => {
     const rendered = renderNoaTemplate(input())
 
     expect(rendered.subject).toContain('Notice of Arrival / Chegada Próxima')
-    expect(rendered.text).toContain('01/09/2026 às 12:00 (horário de Brasília)')
+    expect(rendered.text).toContain('Chegada prevista: 01/09/2026')
+    expect(rendered.text).not.toContain('12:00')
     expect(rendered.html).toContain('Cliente &lt;Importador&gt;')
     expect(rendered.html).toContain('BL-10')
     expect(rendered.html).not.toContain('BL-11')
@@ -235,10 +236,28 @@ describe('avisos de navio (NOA / NOR / NOB) na base única', () => {
     expect(rendered.html).toContain('Olá, Granja &lt;Exemplo&gt;.')
     expect(rendered.html).toContain('A chegada do seu navio está prevista conforme abaixo.')
     expect(rendered.html).toContain('>Chegada prevista<')
-    expect(rendered.html).toContain('>22/10/2026 às 11:30</div><div style="margin-top:2px;font-size:13px;line-height:18px;color:#4f5868">horário de Brasília</div>')
-    expect(rendered.text).toContain('Chegada prevista: 22/10/2026 às 11:30 (horário de Brasília)')
+    expect(rendered.html).toContain('>22/10/2026</div>')
+    expect(rendered.html).not.toContain('horário de Brasília')
+    expect(rendered.text).toContain('Chegada prevista: 22/10/2026')
+    expect(rendered.text).not.toContain('11:30')
     expect(rendered.text).toContain('Navio / Viagem: MSC ARIANE / NX642R')
     expect(rendered.text).toContain('Porto: Vitória')
+  })
+
+  // Obs. 7 (sessão de 20/10/2026): o NOA mostra só a data; NOR continua com a hora.
+  it('NOA mostra só a data em Brasília, sem horário; NOR mantém a hora', () => {
+    const noa = renderNoaTemplate({ ...base, milestoneAt: '2026-10-24T19:10:00Z' })
+    for (const part of [noa.subject, noa.html, noa.text]) {
+      expect(part).not.toContain('16:10')
+      expect(part).not.toContain('horário de Brasília')
+    }
+    expect(noa.html).toContain('24/10/2026')
+    expect(noa.text).toContain('Chegada prevista: 24/10/2026')
+    // Às 23:30 em Brasília ainda é o dia 24, embora em UTC já seja 25.
+    expect(renderNoaTemplate({ ...base, milestoneAt: '2026-10-25T02:30:00Z' }).text).toContain('24/10/2026')
+
+    const nor = renderNorTemplate({ ...base, milestoneAt: '2026-10-24T19:10:00Z' })
+    expect(nor.text).toContain('24/10/2026 às 16:10 (horário de Brasília)')
   })
 
   it('NOB: bloco Atracação com Terminal e porto juntos', () => {

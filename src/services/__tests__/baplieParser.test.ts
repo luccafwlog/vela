@@ -231,3 +231,119 @@ describe('baplieParser — SOC/COC (EQD 8077, elemento 4)', () => {
     ])
   })
 })
+
+// Obs. 1 (sessão de testes de 2026-10-20): o mesmo navio importado em SMDG 1.5
+// ou em 2.2 precisa produzir o mesmo staging. Fixtures mínimas com as
+// diferenças reais entre as versões: LOC+6/12 com código curto × LOC+9/11 com
+// LOCODE e agência, EQD com código de tamanho antigo × novo e fornecedor, MEA
+// só WT × WT e VGM, e segmentos que só o 2.2 traz (GID, FTX, CNT).
+describe('baplieParser — Obs. 1: SMDG 1.5 e 2.2 do mesmo navio dão o mesmo staging', () => {
+  const smdg15 = [
+    "UNB+UNOA:2+COS+FWL+261020:1500+15'",
+    "UNH+1+BAPLIE:D:95B:UN:SMDG15'",
+    "BGM++15+9'",
+    "TDT+20+11+++:::GREEN ITAJAI'",
+    "LOC+5+CNTAO'",
+    "LOC+61+BRVIX'",
+    "LOC+147+0010282'",
+    "MEA+WT++KGM:22000'",
+    "LOC+6+TAO'",
+    "LOC+12+VIX'",
+    "LOC+83+VIX'",
+    "RFF+BM:1'",
+    "EQD+CN+UETU7016802+4510+++5'",
+    "NAD+CA+COS:172:20'",
+    "LOC+147+0030184'",
+    "MEA+WT++KGM:18000'",
+    "LOC+6+TAO'",
+    "LOC+12+SEP'",
+    "LOC+83+SEP'",
+    "RFF+BM:CSC4516000'",
+    "EQD+CN+SEGU7664016+2210+++5'",
+    "NAD+CA+COS:172:20'",
+    "LOC+147+0050086'",
+    "MEA+WT++KGM:3800'",
+    "LOC+6+CNTAG'",
+    "LOC+12+VIX'",
+    "EQD+CN+FCIU8751693+4510+++4'",
+    "NAD+CA+COS:172:20'",
+    "UNT+27+1'",
+    "UNZ+1+15'",
+  ].join('\n')
+
+  const smdg22 = [
+    "UNB+UNOA:2+COS+FWL+261020:1600+22'",
+    "UNH+1+BAPLIE:D:95B:UN:SMDG22'",
+    "BGM++22+9'",
+    "DTM+137:2610201600:201'",
+    "TDT+20+11+++:::GREEN ITAJAI'",
+    "LOC+5+CNTAO:139:6'",
+    "LOC+61+BRVIX:139:6'",
+    "LOC+147+0010282::5'",
+    "GID++1'",
+    "FTX+AAA+++GENERAL CARGO'",
+    "MEA+WT++KGM:22000'",
+    "MEA+VGM++KGM:22000'",
+    "LOC+9+CNTAO:139:6'",
+    "LOC+11+BRVIX:139:6'",
+    "LOC+83+BRVIX:139:6'",
+    "RFF+BM:1'",
+    "EQD+CN+UETU7016802:6346:5+45G1:6346:5+++5'",
+    "NAD+CA+COS:172:20'",
+    "LOC+147+0030184::5'",
+    "MEA+VGM++KGM:18000'",
+    "LOC+9+CNTAO:139:6'",
+    "LOC+11+BRSEP:139:6'",
+    "LOC+83+BRSEP:139:6'",
+    "RFF+BM:CSC4516000'",
+    "EQD+CN+SEGU7664016:6346:5+22G1:6346:5+++5'",
+    "NAD+CA+COS:172:20'",
+    "LOC+147+0050086::5'",
+    "MEA+VGM++KGM:3800'",
+    "LOC+9+CNTAC:139:6'",
+    "LOC+11+BRVIX:139:6'",
+    "EQD+CN+FCIU8751693:6346:5+45G1:6346:5+++4'",
+    "NAD+CA+COS:172:20'",
+    "CNT+8:3'",
+    "UNT+32+1'",
+    "UNZ+1+22'",
+  ].join('\n')
+
+  const comparable = (text: string) => parseBaplieText(text).containers.map((c) => ({
+    container_number: c.container_number, pol: c.pol, pod: c.pod, final_dest: c.final_dest,
+    status: c.status, slot: c.slot, bl_ref: c.bl_ref,
+  }))
+
+  it('unidades, POL/POD normalizados, destino final, status, slot e B/L iguais', () => {
+    const v15 = parseBaplieText(smdg15)
+    const v22 = parseBaplieText(smdg22)
+    expect(v15.issues.filter((i) => i.severity === 'error')).toEqual([])
+    expect(v22.issues.filter((i) => i.severity === 'error')).toEqual([])
+    expect(comparable(smdg15)).toEqual(comparable(smdg22))
+    expect(comparable(smdg22)).toEqual([
+      { container_number: 'UETU7016802', pol: 'CNTAO', pod: 'BRVIX', final_dest: 'BRVIX', status: 'full', slot: '0010282', bl_ref: '1' },
+      { container_number: 'SEGU7664016', pol: 'CNTAO', pod: 'BRSEP', final_dest: 'BRSEP', status: 'full', slot: '0030184', bl_ref: 'CSC4516000' },
+      { container_number: 'FCIU8751693', pol: 'CNTAC', pod: 'BRVIX', final_dest: null, status: 'empty', slot: '0050086', bl_ref: null },
+    ])
+    expect(v15.pods).toEqual(v22.pods)
+  })
+
+  it('RFF+BM com o próprio qualificador no lugar do número não vira B/L citado', () => {
+    const unit = (rff: string) => `UNB+UNOA:2+X+Y+261020:1500+1'TDT+20+11+++:::GREEN ITAJAI'LOC+147+0010282'MEA+VGM++KGM:20000'LOC+9+CNTAO'LOC+11+BRVIX'${rff}EQD+CN+UETU7016802+45G1+++5'`
+    expect(parseBaplieText(unit("RFF+BM:BM'")).containers[0].bl_ref).toBeNull()
+    expect(parseBaplieText(unit("RFF+BM:bm'")).containers[0].bl_ref).toBeNull()
+    expect(parseBaplieText(unit("RFF+BM:CSC4516000'")).containers[0].bl_ref).toBe('CSC4516000')
+  })
+
+  it('arquivo com LOC+9 e LOC+6 (ou 11 e 12) fica com 9 e 11, em qualquer ordem', () => {
+    const unit = (locs: string) => `UNB+UNOA:2+X+Y+261020:1500+1'TDT+20+11+++:::GREEN ITAJAI'LOC+147+0010282'MEA+VGM++KGM:20000'${locs}EQD+CN+UETU7016802+45G1+++5'`
+    for (const locs of [
+      "LOC+9+CNTAO'LOC+6+CNWUH'LOC+11+BRVIX'LOC+12+BRSSZ'",
+      "LOC+6+CNWUH'LOC+9+CNTAO'LOC+12+BRSSZ'LOC+11+BRVIX'",
+    ]) {
+      const parsed = parseBaplieText(unit(locs))
+      expect(parsed.containers[0]).toMatchObject({ pol: 'CNTAO', pod: 'BRVIX' })
+      expect(parsed.issues.filter((i) => i.severity === 'error')).toEqual([])
+    }
+  })
+})

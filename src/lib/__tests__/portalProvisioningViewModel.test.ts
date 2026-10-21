@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountSituationLabel, contactPurposeLabel, deliveryStatusLabel, getPortalNextAction, hasBrokenRecoveryEmail, portalEventActorLabel, portalEventDescription, provisioningDecisionLabel, recoveryEmailSourceLabel } from '../portalProvisioningViewModel'
+import { accountSituationLabel, contactPurposeLabel, deliveryStatusLabel, getPortalNextAction, hasBrokenRecoveryEmail, portalEventActorLabel, portalEventDescription, provisioningDecisionDetail, provisioningDecisionLabel, recoveryEmailSourceLabel } from '../portalProvisioningViewModel'
 import type { QueueRow } from '../../services/portalProvisioning'
 
 const row = (partial: Partial<QueueRow> = {}): QueueRow => ({
@@ -22,6 +22,15 @@ describe('portalProvisioningViewModel', () => {
     expect(deliveryStatusLabel('nao_confirmado')).toBe('Não confirmado')
     expect(deliveryStatusLabel('entregue')).toBe('Entregue')
     expect(accountSituationLabel('valor_inesperado')).toBe('Não informado')
+  })
+  // Obs. 5 (sessão de testes de 2026-10-20): "Aguardando análise" e "Ativa"
+  // não aparecem juntos sem explicar o motivo.
+  it('explica a análise reaberta de conta ativa em vez de mostrar dois status', () => {
+    const detail = provisioningDecisionDetail(row({ account_situation: 'ativo', provisioning_decision: 'aguardando_analise' }))
+    expect(detail).not.toBe('Aguardando análise')
+    expect(detail).toMatch(/reaberta.*continua ativa/)
+    expect(provisioningDecisionDetail(row({ account_situation: 'ativo', provisioning_decision: 'aprovado_para_provisionar' }))).toBe('Provisionamento autorizado')
+    expect(provisioningDecisionDetail(row({ account_situation: 'sem_conta', provisioning_decision: 'aguardando_analise' }))).toBe('Aguardando análise')
   })
   it('deriva a próxima ação sem expor enum', () => {
     expect(getPortalNextAction(row({ account_situation: 'convite_expirado' }))).toBe('Reenviar convite')
