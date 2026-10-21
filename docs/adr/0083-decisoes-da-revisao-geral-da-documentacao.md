@@ -1,5 +1,13 @@
 # 0083 — Decisões da revisão geral da documentação
 
+> **Situação atual (2026-10-21).** O item 23 foi estendido pelo dono na revisão
+> dos alertas de 2026-10-21 (decisões P1 e P2):
+> `demurrage_invoice_dates_changed` e `comunicado_recusado` também aceitam
+> "Resolver com justificativa", embora o segundo tenha fato de origem (o envio);
+> justificado, ele só reabre quando outro Comunicado do Cliente falha (migration
+> `349`). As regras ficam em [Demurrage](../modules/demurrage.md#datas-alteradas-depois-da-emissão)
+> e [Clientes](../modules/clientes.md).
+
 Status: aceito — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelo
 [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
 (migrations `230` a `266`; a tabela "Execução" do plano liga cada item à sua

@@ -104,6 +104,7 @@ src/integration/caminhoManualVigencia.local-pg.test.ts
 src/integration/omissaoRevertidaReomitir.local-pg.test.ts
 src/integration/correcaoDadosContainer.local-pg.test.ts
 src/integration/comunicadoRecusadoNaoCicla.local-pg.test.ts
+src/integration/datasDemurrageEComunicadoJustificados.local-pg.test.ts
 src/integration/comunicadoEmEnvio.local-pg.test.ts
 src/integration/comunicadoEscalaUnica.local-pg.test.ts
 src/integration/comunicadoAlvoPorDestinatario.local-pg.test.ts
