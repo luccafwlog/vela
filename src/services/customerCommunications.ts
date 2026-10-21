@@ -1242,7 +1242,7 @@ export function buildVoyageCommunicationCoverage(input: {
       const details: CoverageCustomerDetail[] = Array.from(customers).sort((a, b) => a - b).map((customerId) => {
         const cellFor = (kind: CoverageKind): CoverageCell => {
           const lastSent = (kind === 'ce_mercante_taxas'
-            ? voyageComms.filter((comm) => comm.kind === kind && comm.customer_id === customerId && (!comm.anchor_port || (communicationPortCode(comm.anchor_port) ?? '') === port))
+            ? voyageComms.filter((comm) => comm.kind === kind && comm.customer_id === customerId)
             : portComms.filter((comm) => comm.kind === kind && comm.customer_id === customerId)
               .filter((comm) => kind !== 'aviso_atracacao_nob' || nobTargetKeys.has(`${comm.customer_id}:${comm.anchor_atracacao_id}`)))
             .reduce<CoverageCommunicationRow | undefined>((latest, comm) => (!latest || comm.created_at > latest.created_at ? comm : latest), undefined)

@@ -198,6 +198,20 @@ describe('buildVoyageCommunicationCoverage — drill-down e fila', () => {
     expect(cell('Levon', 'aviso_chegada_noa')).toMatchObject({ state: 'bloqueado', reason: 'sem contato ativo na caixa do modelo' })
   })
 
+  it('o CE e Taxas enviado em outro porto vale para o Cliente na viagem toda', () => {
+    const rows = buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [bl('A', 4), { ...bl('B', 4), pod: 'BRSSZ' }],
+      communications: [{ ...sent(12, 4, 'ce_mercante_taxas', '2026-10-20T19:04:00Z'), anchor_port: 'BRVIX' }],
+      terminalStates: [],
+      readiness: new Map([['62:4', true]]),
+    })
+    expect(rows.map((row) => row.port)).toEqual(['BRSSZ', 'BRVIX'])
+    for (const row of rows) {
+      expect(row.details[0].cells.ce_mercante_taxas).toMatchObject({ state: 'enviado', communicationId: 12 })
+    }
+  })
+
   it('pronto e sem envio é devido; marco fora da janela e sem envio é não devido', () => {
     const [dueRow] = buildVoyageCommunicationCoverage({
       voyages: [voyage], bls: [bl('X1', 9)], communications: [], terminalStates: [],
