@@ -268,6 +268,97 @@ reescreve linhas declara a dependência do "Data status" do AGENTS.md.
 - Ramo "só sincroniza" da `342`; reimportação real de B/L cancelado; efeitos
   órfãos em `import_pending_effects` depois da exclusão.
 
+## Anexo — matrizes do comportamento observado
+
+Estado do código na `main` em `806d2b5`, antes de qualquer correção deste
+plano (Código e Teste, como nos achados). A coluna "Deveria?" da primeira
+matriz já aplica as decisões da ADR 0093; "?" virou decisão onde indicado.
+"Área 9" quer dizer o caminho da ADR 0077: reemite sem pagamento, abate e
+restitui com valor menor, ou abre Fatura desatualizada com valor maior.
+
+### Evento × recálculo
+
+| Evento | Recalcula hoje? | Onde | Deveria? | Efeito no recebível e na fatura |
+|---|---|---|---|---|
+| Importação de B/L novo | sim | loop de `import_bl_freight_with_metadata_legacy_189` (corpo `178`:541, linhas 643-680) | sim; vincula a tabela (decisão 1) | recebível nasce se há Cliente; falha vai a `audit_logs` e `provisional_charges` |
+| Reimportação, não faturado, sem override | sim: dados antigos, preço e rateio atuais | `178`:643; trava `213`:43 | sim, com a tabela vinculada | recebível muda; hoje preço novo entra |
+| Reimportação, não faturado, com override | sim | idem e `213`:1150 | sim | recebível muda |
+| Reimportação, faturado | não (pula); com override, área 9 | `process_invoice_basis_changes` (`130`:174) | sim | área 9 |
+| Irmão de container em importação posterior | **não** | `178`:667 só enfileira em falha | sim (ADR 0038, decisão 8) | provisório velho; faturado: área 9; retido sai errado (F-01) |
+| Efeito `local_charges` | parcial: irmãos sem CE e sem retenção | `178`:159 | incluir retidos e com CE (decisão 3) | — |
+| Edição na ficha, não faturado | **não**; `charge_status` não muda | `save_bl_review` (`177`:346, `271`:23) | sim, a base (decisão 3) | o reuso emite o valor velho (F-02) |
+| Edição na ficha, faturado | sim (área 9), salvo `bb_cbm` sozinho | `capture_invoice_basis` (`130`:414) | sim | área 9; `bb_cbm` não dispara (F-32) |
+| Container: lacre, tara, peso, tipo | não | `292`:19 | não (o motor não lê) | nada |
+| Perfil e SOC/COC | sim | `205`:27, `205`:163 | sim | faturado: área 9 |
+| Veículos | sim | `_vehicle_charges_follow` (`184`:22) | sim | anula o recebível se isento; faturado: área 9 |
+| Cliente NULL → Y | sim | gatilho `342`:47/84 | sim | recebível nasce com a Condição; falha só em `audit_logs` (F-29) |
+| Cliente X → Y, não faturado | sim, pela Condição de Y | `342`; `relink_bl_customer` (`136`:575) | sim | recebível passa a Y |
+| Cliente X → Y, faturado | área 9 | `136`:562; `_finish_invoice_customer_change` (`136`:103) | sim | reemite, ou devolve e reemite |
+| Cliente X → NULL | **não** | `342`:88 (WHEN) | anular (decisão 13) | recebível fica com X; faturado: fatura cancelada (F-27) |
+| CE cadastrado pela planilha | sim, no registro | `288` (ramo diferido) | sim | emissão em lote reaproveita |
+| CE cadastrado pelo servidor | sim | `_auto_bill_bl_core(reuse=false)` (`181`) | sim | emite com o valor atual |
+| CE alterado ou removido | não | WHEN da `288`; `remove_bl_ce_mercante` | não (ADR 0078, item 4) | fatura intacta |
+| Lote, Retomar, Liberação, ativação, `local_billing`, Emitir | **não** (reuse) | `212`:98-113; `085`:559-560; `178`:159; `241`:617 | base sim, preço do dia do CE (decisão 3) | valor e rateio do dia do CE (F-01, F-02) |
+| Planilha de datas de container | não | `333`:51 | não | só Demurrage |
+| Baplie | sim, nos não faturados | `194`:1451 e legacy_189 | sim | faturado: área 9 |
+| COD | sim, no não faturado | `apply_cod_financial_effect` (`249`:69) | sim | faturado: Ajuste de COD e área 9 |
+| Modo de carga | marca `not_calculated` | `_recalculate_bl_cargo_mode` (`064`:114) | sim; revincula a tabela do escopo novo (decisão 1) | recebível velho até o próximo cálculo |
+| Tabela nova ativada | **não** | sem gatilho | não: vale para B/L novo (decisão 1) | — |
+| Edição de item ou Condição | **não** | sem gatilho | sim: correção (decisão 2) | hoje provisório velho; faturado reprecifica no próximo evento (F-17) |
+| Câmbio | não | só auditoria | não | provisório com ROE velho; faturado congelado |
+| Viagem, escala ou ETA | **não** | `trg_voyage_schedule_snapshot` (`002`:21796) | provisório sim; faturado não (decisão 5) | Condição velha |
+| Cancelar B/L | anula o próprio; irmão faturado: área 9 | `cancel_bl` (`179`:1586) | sim, também irmão retido | irmão retido sai com 50% (F-01) |
+| Excluir B/L | anula o próprio; **vizinho não** | cascata (`130`:436) | sim (ADR 0078, item 11) | sub-cobrança (F-06) |
+| Reativar B/L | **não** | `reactivate_bl` (`089`:99) | sim | `calculated` com 0 linhas (F-30) |
+| Cancelar Viagem | não; sela | `cancel_voyage` (`178`:817) | recusar com fatura viva; anular sem fatura (decisão 14) | fatura e recebível congelados (F-13) |
+| Lançamento manual | sincroniza se há recebível | gatilho `061`:78 | sim | aceita B/L cancelado e isento (F-26, F-28) |
+
+### Evento × efeito financeiro
+
+Colunas: **Fatura**, **Cons.** (consolidada), **Receb.** (recebível),
+**Baixa**, **Vela** (saldo interno), **Portal** (saldo do Portal), **Pix**,
+**Rest.** (restituição), **Alerta**.
+
+| Evento | Fatura | Cons. | Receb. | Baixa | Vela | Portal | Pix | Rest. | Alerta |
+|---|---|---|---|---|---|---|---|---|---|
+| Importar ou calcular (sem fatura) | — | — | open | — | entra | não entra | — | — | falha: só `audit_logs` |
+| Emitir (manual, lote ou CE) | issued, snapshot | — | vínculo active | — | igual | entra (com CE) | cobrança criada | — | fecha `billing_auto_issue_failed` |
+| Gate fechado no CE | retida | — | open | — | entra | não | — | — | — |
+| Liberação ou Portal ativado | emite as retidas 1 vez, com o cálculo do CE | — | vínculo | — | igual | entra | criado | — | falha: `portal_reprocessamento_falhou` |
+| Corrigir e-mail de recuperação | não emite (F-35) | — | — | — | — | — | — | — | — |
+| Criar consolidada | issued | vínculos active | — | — | igual | substitui as individuais (`344`) | QR da consolidada; os das individuais continuam | — | — |
+| Pagar individual inteira dentro de consolidada | paid | obsolete, sem reemissão | settled | sim | cai | cai | cobrança da consolidada `pending_cancel` | — | — |
+| Pagar individual em parte dentro de consolidada | partially_paid | sem mudança: total e QR antigos | parcial | sim | cai | lista cai, detalhe não | QR antigo da consolidada | se o QR antigo for pago | — |
+| Pagar consolidada inteira | paid | — | settled | sim | 0 | 0 | individuais cancelados | se manual a maior | — |
+| Pagar consolidada em parte | partially_paid | — | parcial | sim | cai | cai | individuais com QR cheio | — | — |
+| Cancelar baixa da individual | issued | todas as obsoletas revivem | reabre | removida | sobe | dobra | novas cobranças com valor antigo | excedente apagado em cascata | — |
+| Pix Itaú exato | paid | conforme o caso | settled | sim | cai | cai | concluded | — | — |
+| Pix divergente ou de fatura cancelada | intacta | — | — | não | — | — | concluded | — | `pix_unreconciled` |
+| Pix em análise e baixa distinta | paid | — | — | 1 | — | — | — | não | fecha sozinho (F-10) |
+| Avulsa baixada pelo extrato e depois pelo Itaú | paid, pago 2× | — | — | 2 | não conta | 0 | concluded | falsa | Restituição pendente |
+| Cancelar fatura aberta | cancelled | — | open; vínculo segue active | — | conta | sai | `pending_cancel` | — | — |
+| Cancelar individual coberta | aceito | intacta | settled | — | igual | reemissão cobra de novo | — | — | — |
+| Cancelar consolidada aberta | cancelled | — | vínculos active | — | igual | individuais voltam | cancelado | — | — |
+| Cancelar B/L sem fatura | — | — | void | — | sai | — | — | — | — |
+| Cancelar B/L pago | paid, correção de 100% | — | settled | mantida | 0 | 0 | cancelado | integral | Restituição pendente |
+| Excluir irmão de container | vizinho intacto | — | void | — | — | — | — | — | nenhum |
+| Cancelar Viagem | issued | — | open, selado | recusada | conta | conta | ativo | — | nenhum |
+| Correção sem pagamento | cancela e sucessora | recriada 1 vez | novo valor | — | novo | novo | trocado | — | — |
+| Correção paga, valor menor | total mantido | só o B/L | correção | mantida | ajusta | ajusta | saldo novo | excedente | Restituição pendente |
+| Correção paga, valor maior | intacta | intacta | intacto | — | antigo | antigo | antigo | — | Fatura desatualizada; CE continua apto (F-20) |
+| Troca de Cliente paga | original paid | só o B/L | arquivado; novo depois da devolução | preservada | 0, depois B | 0, depois B | cancelado, depois novo | o recebido | Fatura desatualizada não fecha |
+| Solicitar restituição excepcional | intacta | — | — | — | — | — | ativo se parcial (F-37) | pending | abre |
+| Confirmar restituição | avulsa com cancelamento total: cancelled | — | — | — | — | — | — | settled | fecha ao zerar |
+| COD não faturado | — | — | recalcula | — | novo | — | — | — | — |
+| COD faturado sem pagamento | reemite | aberta: reemite | novo | — | novo | novo | novo | — | CE bloqueado para sempre se o valor subiu (F-19) |
+| COD em individual coberta | erro, nada gravado (F-18) | — | — | — | — | — | — | — | nenhum |
+| Emitir Demurrage | issued | — | — | — | entra | entra (com CE) | criado | — | falha: `import_effect_blocked` |
+| Recálculo PTAX | `current_*` em issued sem pagamento | — | — | — | atualiza | atualiza | `pending_update` | — | `demurrage_ptax_recalc_failed` |
+| Desconto e depois revogação | volta ao cheio | — | — | aceita o valor com desconto (F-07) | — | — | — | — | — |
+| Pix de Demurrage em análise | issued | — | — | — | conta | conta | nova cobrança | — | `pix_unreconciled`; Régua continua (F-21) |
+| Datas alteradas, sem pagamento | cancela e reemite | — | — | — | novo | novo | trocado | — | `demurrage_invoice_dates_changed` (fecha desde a `349`) |
+| Efeito de importação repetido | `existing` / `already_invoiced` | — | — | — | — | — | — | — | — |
+
 ## Ao concluir
 
 Mover este plano para `docs/archive/plans/`, retirar a linha de
