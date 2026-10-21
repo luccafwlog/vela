@@ -142,6 +142,15 @@ export async function cancelDemurrageInvoice(invoiceId: number, reason: string):
   if (error) throw error
 }
 
+// ADR 0094, B10 (migration 382): a Invoice com ROE manual fica fora do
+// recálculo pela PTAX; tirar o ROE manual volta ao câmbio do dia, com motivo.
+export async function releaseDemurrageManualRoe(invoiceId: number, reason: string): Promise<void> {
+  const text = reason.trim()
+  if (text.length < 10) throw new Error('Informe o motivo de tirar o ROE manual (mínimo de 10 caracteres).')
+  const { error } = await supabase.rpc('release_demurrage_invoice_manual_roe' as never, { p_invoice_id: invoiceId, p_reason: text } as never)
+  if (error) throw error
+}
+
 export async function listDemurrageInvoices(filters?: DemurrageInvoiceFilters): Promise<DemurrageInvoiceListItem[]> {
   let query = supabase
     .from('demurrage_invoices')
