@@ -262,10 +262,10 @@ const ALERT_RULES_BASE = [
     summary: 'A data de descarga ou devolução de um container mudou depois de a Invoice de Demurrage ser emitida.',
     trigger: 'Planilha de datas ou edição do container altera datas de um container de Invoice de Demurrage emitida.',
     timing: 'Na gravação das datas, um por Invoice.',
-    resolution: 'Sem pagamento, desconto nem disputa, a Invoice já foi cancelada e reemitida (ou só cancelada, se o valor novo for zero): conferir. Com desconto ou disputa aberta, a Régua suspendeu a cobrança: cancelar, gerar de novo, refazer o desconto e responder a disputa. Com pagamento, a Régua suspendeu a cobrança: tratar a diferença por restituição de Demurrage ou fatura avulsa.',
+    resolution: 'Sem pagamento, desconto nem disputa, a Invoice já foi cancelada e reemitida (ou só cancelada, se o valor novo for zero): o alerta só abre se algum container ficou sem cobrança, e diz qual; emita a Demurrage dele. Com desconto ou disputa aberta, a Régua suspendeu a cobrança: cancelar, gerar de novo, refazer o desconto e responder a disputa. Com pagamento, a Régua suspendeu a cobrança: tratar a diferença por restituição de Demurrage ou fatura avulsa.',
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
-    afterResolution: 'Fecha sozinho quando as datas voltam às faturadas e a Régua volta a cobrar; nos demais casos, registre a conferência ao resolver o alerta.',
+    afterResolution: 'Fecha sozinho quando os containers sem cobrança entram numa Invoice emitida, ou quando as datas voltam às faturadas e a Régua volta a cobrar; nos demais casos, registre a conferência em "Resolver com justificativa".',
     dismissal: temporaryDismissal,
   },
   {
@@ -712,7 +712,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Leia o motivo no alerta, corrija o dado indicado (Prontidão, contato, escala) ou acione o suporte quando o motivo apontar falha do sistema ou do provedor.',
     destination: '/clientes/comunicacao',
     destinationLabel: 'Abrir Comunicados',
-    afterResolution: 'Fecha sozinho quando o Comunicado sai ou quando deixa de ser devido; também pode ser encerrado com justificativa.',
+    afterResolution: 'Fecha sozinho quando o Comunicado sai ou quando deixa de ser devido; também pode ser encerrado com justificativa. Depois da justificativa, só reabre se outro Comunicado do Cliente falhar: as novas tentativas dos que já estavam no alerta não o reabrem.',
     dismissal: temporaryDismissal,
   },
   {
