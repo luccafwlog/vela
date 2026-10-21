@@ -22,10 +22,11 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   `supabase/functions/_shared/betterStackHeartbeat.ts` nos runners `alerts-detector`,
   `portal-daily-digest`, `demurrage-dunning`, `customer-communication-auto-runner`,
   `ce-unlock-notify-email` e `portal-email-events-runner`.
-  Eles emitem ping HTTP apenas em conclusões bem-sucedidas (status < 400) quando a URL
-  do heartbeat está configurada nos secrets do Supabase. Sem o secret, operam em no-op
-  sem falhar o job. Uma resposta 2xx com `failed`, `partial` ou `releaseFailures`
-  maior que zero também envia o ping de falha; o `customer-communication-auto-runner`
+  Com a URL do heartbeat nos secrets do Supabase, cada rodada autorizada envia um
+  ping: o de sucesso com resposta 2xx sem falha contada, e o de falha (`/fail`) com
+  resposta fora de 2xx, com exceção ou com `failed`, `partial` ou `releaseFailures`
+  maior que zero (`hasOperationalFailures`, `_shared/betterStackHeartbeat.ts`). Sem
+  o secret, operam em no-op sem falhar o job; o `customer-communication-auto-runner`
   conta em `failed` todo destinatário recusado ou com falha na rodada; o
   `portal-daily-digest` conta em `failed` cada destinatário que não recebeu e responde
   500 quando uma consulta falha; o `ce-unlock-notify-email` conta em `failed` cada aviso
@@ -72,9 +73,9 @@ ao bundle nem commitadas no Git:
 | `ce-unlock-notify-email` | `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` | 5 min |
 | `portal-email-events-runner` | `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` | a cada minuto |
 
-O ping de sucesso ocorre estritamente após a conclusão bem-sucedida do job. Se a
-URL não estiver configurada no Supabase, a função executa normalmente e ignora o
-ping. Só esses seis runners enviam heartbeat: `itau-pix` (job
+O ping de sucesso só sai depois da conclusão do job com resposta 2xx sem falha
+contada; o restante manda `/fail`. Se a URL não estiver configurada no Supabase, a
+função executa normalmente e ignora o ping. Só esses seis runners enviam heartbeat: `itau-pix` (job
 `itau-pix-queue`) e `import-effects-runner` não enviam; para a fila de efeitos,
 a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no
 painel do Better Stack deve alertar pela ausência de ping além
