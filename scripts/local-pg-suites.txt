@@ -143,3 +143,5 @@ src/integration/calculoBlCanceladoIsentoEta.local-pg.test.ts
 src/integration/vinculoDoClienteNoBl.local-pg.test.ts
 src/integration/gateReciboAvulsaPix.local-pg.test.ts
 src/integration/lote4NumeroAvulsaEstornoItau.local-pg.test.ts
+src/integration/precoFixoNaImportacao.local-pg.test.ts
+src/integration/falhaDeCalculoRecusa.local-pg.test.ts
