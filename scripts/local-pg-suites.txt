@@ -130,3 +130,6 @@ src/integration/alertasDeViagemEscala.local-pg.test.ts
 src/integration/recebivelNoVinculoDoCliente.local-pg.test.ts
 src/integration/portalContaAtivaNaoReabre.local-pg.test.ts
 src/integration/comunicadoNaFila.local-pg.test.ts
+src/integration/tabelaVinculadaAoBl.local-pg.test.ts
+src/integration/precoDoCeBaseAtual.local-pg.test.ts
+src/integration/consolidadaCruzada.local-pg.test.ts
