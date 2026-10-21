@@ -343,8 +343,13 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
   const parsedRows: BreakbulkImportRow[] = []
 
   const mappedRows = rows.map((row) => ({ row, mapped: mapRow(row, SUMMARY_SPEC) }))
+  // O resumido é o modelo do Vela, sempre pt-BR, com peso em toneladas e três
+  // casas: "175,440" é 175,44 t e "794,761" é 794,761 m³ (decisão do Lucca,
+  // 2026-10-21). Sem declaração e sem evidência, o padrão do layout vale como
+  // prova da vírgula decimal; ler como milhar continua bloqueando.
+  const inferredSummary = inferSheetFormat(mappedRows.map((entry) => entry.mapped), SUMMARY_NUMERIC_FIELDS)
   const format = resolveSheetFormat(
-    inferSheetFormat(mappedRows.map((entry) => entry.mapped), SUMMARY_NUMERIC_FIELDS),
+    inferredSummary === 'unknown' && !options.numberFormat ? 'pt-BR' : inferredSummary,
     options.numberFormat,
   )
   pushFormatConflict(rowErrors, format, rows[0]?.rowNumber ?? 1)

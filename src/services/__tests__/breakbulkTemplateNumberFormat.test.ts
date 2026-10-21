@@ -146,6 +146,21 @@ function summaryCsv(...rows: string[]): ArrayBuffer {
 }
 
 describe('separador decimal ambiguo no manifesto de carga solta', () => {
+  // Padrão da planilha real (print do Lucca, 2026-10-21): vírgula decimal com
+  // três casas, sem nenhuma célula que "prove" o separador. 175,440 é 175,44 t.
+  it('resumido: "175,440" t e "794,761" m³ sem evidência entram como decimal, sem bloquear', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(summaryCsv(
+      'BLR1,1,1,1,"175,440","794,761",SANY,TIMBRO,NOTIFY,12345678000195,CNNSA,BRVIT',
+      'BLR2,1,1,1,"157,530","328,530",SANY,TIMBRO,NOTIFY,12345678000195,CNNSA,BRVIT',
+    ))
+
+    expect(hasBlockingRowErrors(parsed.rowErrors)).toBe(false)
+    const byBl = new Map(parsed.bls.map((bl) => [bl.bl_id, bl]))
+    expect(byBl.get('BLR1')?.bb_weight_ton).toBeCloseTo(175.44, 3)
+    expect(byBl.get('BLR1')?.bb_cbm).toBeCloseTo(794.761, 3)
+    expect(byBl.get('BLR2')?.bb_weight_ton).toBeCloseTo(157.53, 3)
+  })
+
   // O achado P0 da revisao da PR 703. `"259.312 TON"` tem a unidade colada:
   // nao casava a forma ambigua (testada no valor cru) e nao entrava na
   // evidencia do arquivo (descartada por conter letras), mas era parseado sem
