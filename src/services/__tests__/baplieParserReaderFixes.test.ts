@@ -118,7 +118,7 @@ describe('F-44: caractere de liberação e EQD seguinte no mesmo slot', () => {
 describe('B11b / F-08: portos de 3 letras do SMDG 1.5', () => {
   it.each([
     ['SSZ', 'BRSSZ'], ['ITJ', 'BRITJ'], ['PNG', 'BRPNG'], ['RIG', 'BRRIG'],
-    ['SSA', 'BRSSA'], ['PEC', 'BRPEC'], ['SUA', 'BRSUA'], ['NVT', 'BRNVT'],
+    ['SSA', 'BRSSA'], ['PEC', 'BRPEC'], ['SUA', 'BRSUA'], ['REC', 'BRREC'], ['NVT', 'BRNVT'],
   ])('LOC+12+%s vira %s', (short, locode) => {
     const parsed = parseBaplieText(envelope(["LOC+147+010101'", "LOC+6+SSZ'", `LOC+12+${short}'`, "MEA+WT++KGM:10000'", "EQD+CN+TEMU1234567+45G1+++5'"]))
     expect(parsed.containers[0]).toMatchObject({ pol: 'BRSSZ', pod: locode })

@@ -1004,7 +1004,7 @@ vigentes: ADR 0078, item 21; ADR 0079, decisões 5 e 6; migrations `182`,
   mensagens; arquivo cortado ou com contagem errada é recusado inteiro
   ([ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md)). O peso é o VGM;
   sem VGM, o WT, em qualquer ordem. Os códigos de 3 letras do Baplie 1.5 (SSZ, ITJ, PNG,
-  RIG, SSA, PEC, SUA, NVT) valem como os de 5; BRNVT e BRITJ, BRREC e BRSUA são portos
+  RIG, SSA, PEC, SUA, REC, NVT) valem como os de 5; BRNVT e BRITJ, BRREC e BRSUA são portos
   distintos. Containers fora das escalas da viagem aparecem em destaque na prévia,
   por porto, e não entram. Arquivo sem navio e viagem (TDT) só grava depois que o
   operador confirma que é da viagem escolhida. Um 2º EQD do mesmo slot sem POL, POD

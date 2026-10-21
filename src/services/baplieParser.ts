@@ -74,7 +74,7 @@ const TRANSPORT_ID_QUALIFIERS = new Set(['103', '146'])
 const OOG_DIM_QUALIFIERS = new Set(['5', '6', '7', '8', '9'])
 // SMDG 1.5 manda o porto só com o código de 3 letras, sem o país. Só os portos
 // brasileiros das linhas em uso, e só o valor inteiro do LOC. Navegantes (NVT)
-// e Itajaí (ITJ), Recife e Suape (SUA) são portos distintos: o leitor nunca os
+// e Itajaí (ITJ), Recife (REC) e Suape (SUA) são portos distintos: o leitor nunca os
 // junta; quem decide se um container descarrega na Viagem são as escalas dela.
 // ponytail: lista fechada à mão; porto novo de 3 letras cai como não
 // reconhecido (aviso, fora da importação) até entrar aqui.
@@ -86,6 +86,7 @@ const SMDG15_PORT_CODES: Record<string, string> = {
   SSA: 'BRSSA',
   PEC: 'BRPEC',
   SUA: 'BRSUA',
+  REC: 'BRREC',
   NVT: 'BRNVT',
 }
 
