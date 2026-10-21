@@ -109,6 +109,11 @@ function cleanup() {
     DELETE FROM public.bl_receivables WHERE bl_id IN (${blList});
     -- 355/372: o recálculo automático (base nova, ETA) grava cálculo do B/L.
     DELETE FROM public.charge_calculations WHERE bl_id IN (${blList});
+    -- 378: o primeiro cálculo fixa o preço e registra a versão da regra.
+    DELETE FROM public.bl_price_freeze_items WHERE bl_id IN (${blList});
+    DELETE FROM public.bl_price_freezes WHERE bl_id IN (${blList});
+    DELETE FROM public.bl_charge_table_links WHERE bl_id IN (${blList});
+    DELETE FROM public.pricing_rule_versions WHERE customer_id = ${customerId};
     DELETE FROM public.bl_breakbulk_items WHERE bl_id IN (${blList});
     DELETE FROM public.bl_containers WHERE bl_id IN (${blList});
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (${blList});

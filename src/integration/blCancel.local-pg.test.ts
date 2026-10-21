@@ -62,6 +62,12 @@ function cleanup() {
     DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${CUSTOMER_ID}';
     DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${OPS_ID}');
     DELETE FROM public.invoices WHERE customer_id = ${CUSTOMER_ID};
+    -- 378: o B/L com CE é calculado e ganha preço fixo.
+    DELETE FROM public.charge_calculations WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED}));
+    DELETE FROM public.bl_price_freeze_items WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED}));
+    DELETE FROM public.bl_price_freezes WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED}));
+    DELETE FROM public.bl_charge_table_links WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED}));
+    DELETE FROM public.pricing_rule_versions WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED});
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
