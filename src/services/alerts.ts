@@ -141,6 +141,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   import_effect_queue: 'Fila de efeitos de importação',
   charge_table_gap: 'Tabela de cobrança',
   pix_transaction: 'Transação PIX',
+  itau_pix_receipt: 'Pix recebido',
+  business_holidays: 'Calendário de feriados',
   email_provider: 'Provedor de e-mail',
   user_profile: 'Usuário interno',
   cron_http: 'Rotinas agendadas',
@@ -148,17 +150,20 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
 }
 
 export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
-export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'demurrage_invoice' | 'exchange_rate_reference'
+export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'itau_pix_receipt' | 'demurrage_invoice' | 'exchange_rate_reference'
 
+// Entidades em que cada tipo financeiro abre. O Pix sem baixa tem duas: a
+// exceção do extrato (pix_transaction) e o Pix recebido pela cobrança Itaú
+// (itau_pix_receipt, migration 153).
 export const FINANCIAL_ALERT_EVENTS = {
-  fatura_desatualizada: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
-  restituicao_pendente: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
-  billing_calculation_blocked: { audience: ['documentacao'], unit: 'bl' },
-  billing_auto_issue_failed: { audience: ['documentacao'], unit: 'bl' },
-  demurrage_ptax_recalc_failed: { audience: ['documentacao'], unit: 'exchange_rate_reference' },
-  pix_unreconciled: { audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'], unit: 'pix_transaction' },
-  portal_dispute_opened: { audience: ['equipamentos'], unit: 'demurrage_invoice' },
-} as const satisfies Record<string, { audience: readonly AlertAudience[]; unit: AlertEventUnit }>
+  fatura_desatualizada: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+  restituicao_pendente: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+  billing_calculation_blocked: { audience: ['documentacao'], units: ['bl'] },
+  billing_auto_issue_failed: { audience: ['documentacao'], units: ['bl'] },
+  demurrage_ptax_recalc_failed: { audience: ['documentacao'], units: ['exchange_rate_reference'] },
+  pix_unreconciled: { audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'], units: ['pix_transaction', 'itau_pix_receipt'] },
+  portal_dispute_opened: { audience: ['equipamentos'], units: ['demurrage_invoice'] },
+} as const satisfies Record<string, { audience: readonly AlertAudience[]; units: readonly AlertEventUnit[] }>
 
 export const FINANCIAL_ALERT_TYPES = [
   'fatura_desatualizada',
@@ -391,7 +396,7 @@ function alertEntityLinkRaw(alert: {
     return `/clientes/comunicacao?tab=historico&kind=ce_mercante_taxas&bl=${encodeURIComponent(alert.entity_id)}`
   }
 
-  if (alert.entity_type === 'pix_transaction') return PIX_PENDING_HREF
+  if (alert.entity_type === 'pix_transaction' || alert.entity_type === 'itau_pix_receipt') return PIX_PENDING_HREF
   // Evento do provedor de e-mail que foi para investigação (migrations 109 e
   // 309): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
   // mostra o evento. O alerta fica na fila, com o motivo na mensagem.
@@ -670,7 +675,7 @@ export async function resolveAlertItem(input: {
 
 export async function listFinancialAlerts(): Promise<AlertQueueRow[]> {
   // Fatura desatualizada voltou a usar invoice; vencimento segue aposentado.
-  const financialEntityTypes = ['invoice', 'bl', 'pix_transaction', 'exchange_rate_reference'] as const
+  const financialEntityTypes = ['invoice', 'bl', 'pix_transaction', 'itau_pix_receipt', 'exchange_rate_reference'] as const
   const financialTypes = new Set<string>(FINANCIAL_ALERT_TYPES)
   const alertsByEntityType = await Promise.all(financialEntityTypes.map(async (entityType) => {
     const rows: AlertQueueRow[] = []
@@ -686,8 +691,8 @@ export async function listFinancialAlerts(): Promise<AlertQueueRow[]> {
   for (const alerts of alertsByEntityType) {
     for (const alert of alerts) {
       const effectiveType = getEffectiveAlertType(alert)
-      const expectedEntityType = FINANCIAL_ALERT_EVENTS[effectiveType as keyof typeof FINANCIAL_ALERT_EVENTS]?.unit
-      if (!financialTypes.has(effectiveType) || expectedEntityType !== alert.entity_type) continue
+      const expectedEntityTypes: readonly string[] = FINANCIAL_ALERT_EVENTS[effectiveType as keyof typeof FINANCIAL_ALERT_EVENTS]?.units ?? []
+      if (!financialTypes.has(effectiveType) || !expectedEntityTypes.includes(alert.entity_type ?? '')) continue
       const occurrenceKey = [
         alert.id,
         alert.item_id ?? 'legacy',

@@ -107,6 +107,17 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(link).toBe('/reconciliacao?tab=pendencias')
   })
 
+  it('roteia o Pix recebido pela cobrança Itaú para as pendências da reconciliação', () => {
+    const link = alertEntityLink({
+      type: 'aggregate',
+      item_type: 'pix_unreconciled',
+      entity_type: 'itau_pix_receipt',
+      entity_id: 'E1234',
+      destination: null,
+    })
+    expect(link).toBe('/reconciliacao?tab=pendencias')
+  })
+
   it('evento de e-mail em investigação abre os Alertas, não o Portal de um Cliente com o id do evento', () => {
     const alert = {
       type: 'portal_reprocessamento_falhou',

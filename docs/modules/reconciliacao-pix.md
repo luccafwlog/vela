@@ -400,7 +400,11 @@ Pagamentos do detalhe da fatura (migration `221`). Qualquer recusa
 (valor diferente, fatura não pagável, TXID do Vela sem cobrança, fatura de
 Taxas Locais ou avulsa sem usuário de baixa configurado) grava o Pix em análise e abre o Alerta
 `pix_unreconciled` para o Administrativo e o Financeiro, sem baixa; o Pix aparece em **Pix
-recebidos sem baixa**. Erro passageiro do banco não manda o Pix para análise: a
+recebidos sem baixa**. O Alerta tem a entidade `itau_pix_receipt` (o Pix
+recebido), não a `pix_transaction` das exceções do extrato; desde a revisão dos
+alertas de 2026-10-21, o painel de alertas financeiros de `/taxas-locais` lê as
+duas (`FINANCIAL_ALERT_EVENTS`, `listFinancialAlerts`), e a fila mostra o
+registro como **Pix recebido**. Antes, esse Alerta só aparecia em `/alertas`. Erro passageiro do banco não manda o Pix para análise: a
 consulta seguinte tenta de novo. Detalhes no
 [plano](../archive/plans/2026-10-06-integracao-itau-pix.md).
 
