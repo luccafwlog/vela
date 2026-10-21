@@ -578,8 +578,8 @@ export async function dismissAlertItem(
 /**
  * Tipos de conferência sem fato de origem: fecham com "Resolver com
  * justificativa" (ADR 0083, item 23). Espelha
- * `_alert_types_resolved_with_justification()` (migrations 238, 313 e 316); os
- * demais fecham sozinhos quando a origem é corrigida.
+ * `_alert_types_resolved_with_justification()` (migrations 238, 313, 316 e
+ * 349), na mesma ordem; os demais fecham sozinhos quando a origem é corrigida.
  */
 export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'portal_abuso_login',
@@ -589,6 +589,11 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'cobranca_demurrage_recusada',
   // Aviso que não sai de novo depois que a solicitação terminou (migration 316).
   'desbloqueio_ce_aviso_nao_enviado',
+  // Conferência da diferença de datas, paga ou negociada (migration 349).
+  'demurrage_invoice_dates_changed',
+  // Também fecha pelo envio; justificado, a próxima falha do mesmo Comunicado
+  // não reabre (migration 349).
+  'comunicado_recusado',
 ]
 
 /**

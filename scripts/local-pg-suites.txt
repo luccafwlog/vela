@@ -25,6 +25,7 @@ src/integration/escalaDocumentalStatus.local-pg.test.ts
 src/integration/exchangeRateIntegrity.local-pg.test.ts
 src/integration/importAtomicity.local-pg.test.ts
 src/integration/importEffects.local-pg.test.ts
+src/integration/efeitoImportacaoBloqueadoFecha.local-pg.test.ts
 src/integration/localBillingIntegrity.local-pg.test.ts
 src/integration/manualInvoice.local-pg.test.ts
 src/integration/operationalLists.local-pg.test.ts
@@ -53,6 +54,7 @@ src/integration/invoiceReissue.local-pg.test.ts
 src/integration/invoiceBasisCorrection.local-pg.test.ts
 src/integration/invoicePostBillingSafety.local-pg.test.ts
 src/integration/portalConsolidadaPaga.local-pg.test.ts
+src/integration/alertasDoBlCanceladoExcluido.local-pg.test.ts
 src/integration/itauPixCharges.local-pg.test.ts
 src/integration/thdImoOog.local-pg.test.ts
 src/integration/auditoriaImportacaoCargaSolta.local-pg.test.ts
@@ -105,6 +107,7 @@ src/integration/caminhoManualVigencia.local-pg.test.ts
 src/integration/omissaoRevertidaReomitir.local-pg.test.ts
 src/integration/correcaoDadosContainer.local-pg.test.ts
 src/integration/comunicadoRecusadoNaoCicla.local-pg.test.ts
+src/integration/datasDemurrageEComunicadoJustificados.local-pg.test.ts
 src/integration/comunicadoEmEnvio.local-pg.test.ts
 src/integration/comunicadoEscalaUnica.local-pg.test.ts
 src/integration/comunicadoAlvoPorDestinatario.local-pg.test.ts
@@ -113,6 +116,7 @@ src/integration/reguaCobrancaDemurrage.local-pg.test.ts
 src/integration/monitoramentoDosEmails.local-pg.test.ts
 src/integration/rotinasHttpComErro.local-pg.test.ts
 src/integration/pendenciaGeralPortalSemDuplicata.local-pg.test.ts
+src/integration/alertasDoPortalProcessoAtivo.local-pg.test.ts
 src/integration/alertasSemRepetirRegistro.local-pg.test.ts
 src/integration/alertasPapelOperator.local-pg.test.ts
 src/integration/granitoSemCliente.local-pg.test.ts
@@ -120,6 +124,7 @@ src/integration/importacaoLoteUnico.local-pg.test.ts
 src/integration/comunicadoBlSemCliente.local-pg.test.ts
 src/integration/grantsDoReplay.local-pg.test.ts
 src/integration/alertasDaViagem.local-pg.test.ts
+src/integration/alertasDeViagemEscala.local-pg.test.ts
 src/integration/recebivelNoVinculoDoCliente.local-pg.test.ts
 src/integration/portalContaAtivaNaoReabre.local-pg.test.ts
 src/integration/comunicadoNaFila.local-pg.test.ts
