@@ -372,7 +372,13 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   nova: vale para os B/Ls que surgirem depois. Só o servidor grava o vínculo.
   Excluir tabela vinculada é recusado como as demais tarifas usadas.
 - **Escolha da tabela no primeiro cálculo:** por escopo (modalidade + POD
-  normalizado) e tabela **ativa**, sem data. A vigência é informativa (ADR
+  normalizado por `normalize_port_code`) e tabela **ativa**, sem data. A
+  tabela de Suape não vale para B/L de Recife, nem a de Itajaí para B/L de
+  Navegantes (migration `391`; até ela o banco juntava os pares). O vínculo
+  gravado antes, de B/L de Recife ou Navegantes com a tabela de Suape ou
+  Itajaí, deixa de valer como na troca de POD (`_bl_charge_table_for_scope`
+  exige o mesmo porto): o próximo cálculo usa a tabela do porto do B/L; o
+  cálculo e a fatura já gravados não foram refeitos pela migration. A vigência é informativa (ADR
   0040): com mais de uma ativa no mesmo escopo, vence a de vigência inicial
   mais recente (`valid_from DESC, id DESC`) e a tela avisa que a outra não está
   sendo aplicada; período vencido ou futuro em tabela ativa vira aviso, nunca
@@ -633,8 +639,10 @@ Comando focado:
   local-pg:** `conditionUsd.local-pg.test.ts` (trava de moeda e recálculo).
 - **Escopo da tabela na tela segue `normalize_port_code` do banco.** A tela
   agrupa as tabelas pela mesma lista exata de aliases da função do banco
-  (SANTOS/SSZ → BRSSZ, BRVIT/VITORIA/VIX → BRVIX…), sem "contém"; o rótulo do
-  escopo mostra o código canônico do banco.
+  (`normalizeStoredPortCode`: SANTOS/SSZ → BRSSZ, BRVIT/VITORIA/VIX → BRVIX…),
+  sem "contém"; o rótulo do escopo mostra o código canônico do banco. Recife
+  (BRREC) e Suape (BRSUA), Navegantes (BRNVT) e Itajaí (BRITJ) são escopos
+  distintos desde a migration `391` (ADR 0095, decisão 12).
 - **Caminho manual com a regra do automático (A10).** Desde a migration `248`, o lançamento manual (`add_manual_bl_charge`, `list_manual_charge_items_for_bl`) e o Item da tabela da avulsa (`quote_manual_invoice_charge`) escolhem a tabela ativa sem filtrar a vigência e a Condição de Cliente pela Data de Referência (`bl_local_charge_reference_date`, a mesma função do cálculo automático). Antes excluíam tabela ativa com vigência vencida ou futura e usavam a data do upload do lote (**Teste**, Postgres local, `caminhoManualVigencia.local-pg.test.ts`).
 - `pricing_rule_versions` não participa deste caminho atual; cálculo e
   transições registram evidência principalmente em `audit_logs`.

@@ -19,10 +19,13 @@ describe('estado da lista /bls na URL', () => {
 
   it('converte a grafia legada do porto para a opção canônica do select', () => {
     expect(filtersFromBlsSearch(new URLSearchParams('pol=CNZJG&pod=BRVIT'))).toMatchObject({ pol: 'CNZJG', pod: 'BRVIX' })
-    expect(filtersFromBlsSearch(new URLSearchParams('pod=BRNVT')).pod).toBe('BRITJ')
+    expect(filtersFromBlsSearch(new URLSearchParams('pod=BRNVT')).pod).toBe('BRNVT')
+    expect(filtersFromBlsSearch(new URLSearchParams('pod=NAVEGANTES')).pod).toBe('BRNVT')
     expect(filtersFromBlsSearch(new URLSearchParams('pod=XXXXX')).pod).toBe('XXXXX')
-    // Sinônimo só do import: o banco não o conhece, então a URL não o reescreve.
-    expect(filtersFromBlsSearch(new URLSearchParams('pol=CNTCA')).pol).toBe('CNTCA')
+    // Apelido exato do Baplie: desde a 391 o banco também o conhece.
+    expect(filtersFromBlsSearch(new URLSearchParams('pol=CNTCA')).pol).toBe('CNTAC')
+    // Texto que só o import reconhece (nome dentro da frase) não é reescrito.
+    expect(filtersFromBlsSearch(new URLSearchParams('pol=PORT OF SANTOS')).pol).toBe('PORT OF SANTOS')
   })
 
   it('ignora modalidade, página e tamanho inválidos em vez de consultar com eles', () => {

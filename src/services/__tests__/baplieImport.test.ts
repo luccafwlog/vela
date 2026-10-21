@@ -42,6 +42,7 @@ import {
   applyBaplieVoyageRules,
   baplieImportToast,
   baplieReplacementConfirmOptions,
+  baplieRowsReplacedBy,
   baplieVoyageContextBlock,
   diffBaplieStaging,
   fetchBaplieVoyageContext,
@@ -90,6 +91,21 @@ describe('diffBaplieStaging', () => {
     const diff = diffBaplieStaging([box('AAAU1111111'), box('CCCU3333333', { status: 'full' })], [box('AAAU1111111'), box('CCCU3333333', { status: 'full', is_imo: true })])
     expect(diff.changed).toBe(1)
     expect(diff.vaziosChanged).toBe(false)
+  })
+})
+
+// Lote 3 (ADR 0095, decisão 12; migration 391): a diferença mostrada antes da
+// gravação usa a régua do servidor (`_baplie_port_key` = `normalize_port_code`).
+describe('baplieRowsReplacedBy — régua de porto do servidor', () => {
+  const rows = [box('AAAU1111111', { pod: 'BRNVT' }), box('BBBU2222222', { pod: 'BRITJ' }), box('CCCU3333333', { pod: 'BRRDJ' })]
+
+  it('marcar Itajaí não substitui Navegantes', () => {
+    expect(baplieRowsReplacedBy(rows, [], ['BRITJ']).map((row) => row.container_number)).toEqual(['BBBU2222222'])
+    expect(baplieRowsReplacedBy(rows, [], ['NVT']).map((row) => row.container_number)).toEqual(['AAAU1111111'])
+  })
+
+  it('apelido que o banco conhece casa como no servidor (BRRDJ é BRRIO)', () => {
+    expect(baplieRowsReplacedBy(rows, [], ['BRRIO']).map((row) => row.container_number)).toEqual(['CCCU3333333'])
   })
 })
 
@@ -246,6 +262,19 @@ describe('Baplie completo e regras da Viagem (etapa 9)', () => {
     expect(ruled.issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ severity: 'error', message: expect.stringMatching(/viagem 14; a viagem escolhida é 15/) }),
       expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/fora das escalas da Viagem \(BRSSZ\)/) }),
+    ]))
+  })
+
+  // Lote 3 (ADR 0095, decisão 12; migration 391): a prévia usa a régua do servidor.
+  it('POD de Navegantes fica fora de uma Viagem com escala só em Itajaí; apelido do banco casa', () => {
+    const ruled = applyBaplieVoyageRules(
+      { containers: [box('AAAU1111111', { pod: 'BRNVT' }), box('BBBU2222222', { pod: 'BRITJ' }), box('CCCU3333333', { pod: 'BRRDJ' })],
+        issues: [], voyage_number: '15', vessel_name: 'GREEN SANTOS' },
+      { voyageNumber: '15', vesselName: 'GREEN SANTOS', eligiblePods: ['ITJ', 'BRRIO'] },
+    )
+    expect(ruled.containers.map((c) => c.container_number)).toEqual(['BBBU2222222', 'CCCU3333333'])
+    expect(ruled.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/fora das escalas da Viagem \(BRNVT\)/) }),
     ]))
   })
 })

@@ -113,9 +113,10 @@ describe('portalOperation', () => {
     expect(rows[0].containers[0]).toMatchObject({ status: 'tarifa_indisponivel', free_time_days: null })
   })
 
+  // Navegantes e Recife são portos próprios (ADR 0095, decisão 12).
   it('mantém portos fora da lista de importação e aliases do banco', () => {
-    const rows = normalizePortalOperationRows(['BRNVT', 'BRREC', 'SSA', 'BRXYZ'].map((pod) => ({ bl_id: pod, pod })))
-    expect(rows.map((row) => row.pod)).toEqual(['BRITJ', 'BRSUA', 'BRSSA', 'BRXYZ'])
+    const rows = normalizePortalOperationRows(['BRNVT', 'NVT', 'BRREC', 'SSA', 'BRXYZ'].map((pod) => ({ bl_id: pod, pod })))
+    expect(rows.map((row) => row.pod)).toEqual(['BRNVT', 'BRNVT', 'BRREC', 'BRSSA', 'BRXYZ'])
   })
 
   it('normaliza B/Ls operacionais com dados de carga mista', () => {

@@ -47,7 +47,9 @@ Fontes principais: `src/pages/Viagens.tsx`, `src/services/voyageSummaries.ts`, `
   Lotes históricos sem B/Ls vinculados, inclusive após reimportação, não criam
   rotas nem entram no total de B/Ls ou nas pendências de manifesto. Os números
   de manifesto são associados pela rota normalizada: aliases como `CNTAG` e
-  `CNTAC`, ou `BRVIT` e `BRVIX`, representam o mesmo porto. Uma rota CNTR/BB
+  `CNTAC`, ou `BRVIT` e `BRVIX`, representam o mesmo porto; Navegantes
+  (`BRNVT`) e Itajaí (`BRITJ`), Recife (`BRREC`) e Suape (`BRSUA`) são portos
+  e escalas distintos (ADR 0095, decisão 12; migration `391`). Uma rota CNTR/BB
   exibe todos os manifestos de carga cadastrados nela; vazios ficam separados.
 - A linha do tempo é um bloco com tabela (Quando, Evento, Detalhe, com o autor embaixo do detalhe), mostra três eventos e expande; combina imports, agendas, dados da viagem, Nº de Manifesto Mercante, Baplie e resoluções de divergência. A justificativa digitada no `EscalaModal` é gravada em cada linha de auditoria da escala (`audit_logs.justification`, `voyage_pod_schedule`/`voyage_pol_schedule`) e aparece no detalhe do evento como `Justificativa: …`; os textos automáticos que o sistema grava sem justificativa do operador (`Atualizacao manual …`, `Reinclusao/Remocao de POD …`) não são exibidos. Nenhum texto técnico: a cópia interna `pod_schedule_snapshot` não vira evento, e campo da viagem sem rótulo em `TIMELINE_VOYAGE_FIELD_LABELS` (ou que guarda um id, como o navio) não mostra nome nem valor bruto.
 - Navegação contextual (faixa “Atalhos da viagem”, abaixo dos KPIs):

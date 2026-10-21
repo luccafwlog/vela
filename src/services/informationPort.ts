@@ -1,16 +1,14 @@
-import { normalizePortCode } from './portCode'
+import { normalizePortCode, normalizeStoredPortCode, STORED_PORT_ALIAS_VALUES } from './portCode'
 
-// Read filters use the same Brazilian aliases as public.normalize_port_code.
-// Preserve unknown codes: the import resolver's stricter allowlist is unsuitable
-// for displaying an already persisted operational destination.
-const aliases: Record<string, string> = {
-  SSA: 'BRSSA', PEC: 'BRPEC', SSZ: 'BRSSZ', PNG: 'BRPNG',
-  ITJ: 'BRITJ', NVT: 'BRITJ', BRNVT: 'BRITJ', RIG: 'BRRIG',
-  SUA: 'BRSUA', BRREC: 'BRSUA', BRRDJ: 'BRRIO',
-}
+// Read filters use the same aliases as public.normalize_port_code (BRNVT and
+// BRREC are their own ports, ADR 0095 decision 12). Preserve unknown codes: the
+// import resolver's stricter allowlist is unsuitable for displaying an already
+// persisted operational destination.
+const storedAliases = new Set(STORED_PORT_ALIAS_VALUES)
 export function normalizeInformationPort(value: string | null | undefined): string | null {
   const raw = value?.trim().toUpperCase() || null
-  return raw ? aliases[raw] ?? normalizePortCode(raw) ?? raw : null
+  if (!raw) return null
+  return storedAliases.has(raw) ? normalizeStoredPortCode(raw) : normalizePortCode(raw) ?? raw
 }
 
 /** Portos atendidos nas consultas de Taxas Locais e Devolução do Portal. */

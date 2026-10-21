@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Importações: Navegantes ≠ Itajaí e Recife ≠ Suape (2026-10-21, Lote 3 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 12; achado F-08):** migration
+  `391`. `normalize_port_code` deixa de juntar BRNVT/NVT/NAVEGANTES com BRITJ e BRREC/REC/RECIFE com
+  BRSUA e passa a conhecer os apelidos exatos do Baplie da COSCO (BRSPB/SPB/SEP, CNTCA/TCA, TAO,
+  CNCAN); `_baplie_port_key` passa a ser a mesma função. B/L, Baplie, Manifesto Mercante, alertas,
+  Comunicados e tabela de Taxas Locais de um porto não valem mais para o vizinho. No app, a régua do
+  banco (`normalizeStoredPortCode`) vale também para o escopo da tabela de Taxas Locais, a Central
+  de Informações do Portal e a diferença do Baplie antes de gravar; o import reconhece NAVEGANTES e
+  RECIFE como portos próprios. A `391` passou para o porto certo, sob o "Data status" do AGENTS.md,
+  só o que tinha prova no banco (Manifesto Mercante e espelho da rota, status "BLs e CEs"
+  automático com o resumo da escala e o estado documental, âncora de NOA/NOR/NOB); o resto gravado
+  com a forma juntada fica (portos de Depósitos e Agentes da Central de Informações, POL/POD vindos
+  do nome no arquivo, vínculo de B/L com a tabela de outro porto, que deixa de valer no próximo
+  cálculo). Suíte local-pg `portosSeparados`.
 - **Importações: trava por Viagem e Baplie no servidor (2026-10-21, PR luccafwlog/vela#1023, Lote 1 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 6, 11 e 13):** migrations
   `387` a `390`. Toda importação de Viagem (arquivo de B/L, Manifesto BB e B/L avulso, planilha de
@@ -915,7 +929,7 @@
   conferência deixa de usar o UUID do terminal como nome. Vale em produção após publicar a função
   (`supabase functions deploy send-customer-communication`).
 
-- **Uso no celular (2026-09-26):** Vela e Portal revisados em 390px com toque
+- **Uso no celular (2026-09-26):** Vela e Portal revisados em 391px com toque
   emulado. O botão Menu passou para o cabeçalho (sem a barra extra que só o
   carregava) e a lista abre com rolagem própria, rótulos alinhados e Escape; as
   abas viraram uma linha com rolagem lateral; modais viraram folha no rodapé,

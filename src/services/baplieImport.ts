@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import type { BaplieContainer, ParsedBaplie } from './baplieParser'
 import type { ImportIssue } from './importValidation'
-import { normalizePortCode } from './portCode'
+import { normalizeStoredPortCode } from './portCode'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -174,8 +174,9 @@ export function applyBaplieVoyageRules(
       })
     }
     if (context.eligiblePods.length) {
-      const eligible = new Set(context.eligiblePods.map((pod) => normalizePortCode(pod) ?? pod.toUpperCase()))
-      const outside = containers.filter((c) => c.pod && !eligible.has(normalizePortCode(c.pod) ?? c.pod.toUpperCase()))
+      // Régua do servidor (`_baplie_port_key`): BRNVT fora de uma escala BRITJ.
+      const eligible = new Set(context.eligiblePods.map((pod) => normalizeStoredPortCode(pod)))
+      const outside = containers.filter((c) => c.pod && !eligible.has(normalizeStoredPortCode(c.pod)))
       if (outside.length) {
         const ports = Array.from(new Set(outside.map((c) => c.pod))).join(', ')
         issues.push({
@@ -296,19 +297,16 @@ export function baplieReplacementMessage(existing: number, incoming: number, pod
 /**
  * Linhas do staging que a gravação substitui, com a mesma regra do servidor
  * (`_baplie_row_replaced`, migration 388): POD marcado, container sem POD ou
- * container que o arquivo traz em outro POD.
- *
- * ponytail: aqui o POD é comparado por `normalizePortCode` do front; o banco
- * usa `normalize_port_code`, que ainda junta BRNVT/BRITJ e BRREC/BRSUA. Com os
- * dois códigos no mesmo Baplie, a diferença mostrada pode não listar os do
- * outro código. O Lote 3 (decisão 12) dá uma régua só aos dois lados.
+ * container que o arquivo traz em outro POD. O POD é comparado pela régua do
+ * banco (`normalizeStoredPortCode`, cópia de `normalize_port_code`, que é a
+ * `_baplie_port_key` do servidor desde a migration 391).
  */
 export function baplieRowsReplacedBy<T extends Pick<BaplieContainer, 'container_number' | 'pod'>>(
   existing: T[],
   incoming: Array<Pick<BaplieContainer, 'container_number'>>,
   pods: string[],
 ): T[] {
-  const key = (pod: string) => normalizePortCode(pod) ?? pod.trim().toUpperCase()
+  const key = (pod: string) => normalizeStoredPortCode(pod) ?? ''
   const podKeys = new Set(pods.map(key))
   const incomingNumbers = new Set(incoming.map((c) => c.container_number.trim().toUpperCase()))
   return existing.filter((row) => !row.pod?.trim()
