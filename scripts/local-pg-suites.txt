@@ -96,6 +96,7 @@ src/integration/voyageHardDeleteGuard.local-pg.test.ts
 src/integration/paymentRegistrarNames.local-pg.test.ts
 src/integration/permissoesPorPerfil.local-pg.test.ts
 src/integration/alertasFechamPelaOrigem.local-pg.test.ts
+src/integration/detectorQueQuebraNaoParaOsOutros.local-pg.test.ts
 src/integration/comunicadoCeReenvioFechaAlerta.local-pg.test.ts
 src/integration/planoBExtratoPix.local-pg.test.ts
 src/integration/nobRegraUnica.local-pg.test.ts
