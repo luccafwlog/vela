@@ -46,6 +46,7 @@ const V_BL = 3460014
 const VOYAGES = [V_EXP, V_DONE, V_CANCEL, V_BL]
 const BL = 'BL346-VIT'
 const BL_DEFERRED = 'BL346-ADIADO'
+const BL_DONE = 'BL346-CONCL'
 
 // Gravações como o usuário na sessão (gatilhos com auth.uid() do Administrativo).
 function asAdmin(sql: string) {
@@ -88,10 +89,10 @@ function cleanup() {
     DELETE FROM public.granite_manifests WHERE voyage_id IN (${VOYAGES.join(', ')});
     DELETE FROM public.voyage_export_schedules WHERE voyage_id IN (${VOYAGES.join(', ')});
     DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id IN (${VOYAGES.join(', ')});
-    DELETE FROM public.charge_calculations WHERE bl_id IN ('${BL}', '${BL_DEFERRED}');
-    DELETE FROM public.bls WHERE id IN ('${BL}', '${BL_DEFERRED}');
+    DELETE FROM public.charge_calculations WHERE bl_id IN ('${BL}', '${BL_DEFERRED}', '${BL_DONE}');
+    DELETE FROM public.bls WHERE id IN ('${BL}', '${BL_DEFERRED}', '${BL_DONE}');
     DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${OPS_ID}')
-      OR ${VOYAGES.map((id) => `entity_id = '${id}' OR entity_id LIKE '${id}::%'`).join(' OR ')} OR entity_id IN ('${BL}', '${BL_DEFERRED}');
+      OR ${VOYAGES.map((id) => `entity_id = '${id}' OR entity_id LIKE '${id}::%'`).join(' OR ')} OR entity_id IN ('${BL}', '${BL_DEFERRED}', '${BL_DONE}');
     DELETE FROM public.voyages WHERE id IN (${VOYAGES.join(', ')});
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
     DELETE FROM public.carriers WHERE id = ${CARRIER_ID};
@@ -194,6 +195,22 @@ describeLocal('346 — alertas de viagem acompanham escala, B/L, manifestos e st
     asAdmin(`INSERT INTO public.granite_manifests (voyage_id, vessel_voyage, loading_port, discharge_port, total_bls, total_weight_kg)
       VALUES (${V_DONE}, 'V346D', 'BRSSZ', 'CNSHA', 1, 1000);`)
     expect(item('voyage_export_after_atd', 'voyage_pod_schedule', scale)).toBe('resolved')
+  })
+
+  it('viagem concluída: B/L incluído ou cancelado não abre tipo novo', () => {
+    // ETA vencido no POD sem gatilho: numa viagem ativa, o B/L de outro POD
+    // abriria "B/Ls esperados" e "CE pendente".
+    const eta = psql(`SELECT ((now() AT TIME ZONE 'America/Sao_Paulo')::date - 40)::text;`)
+    psql(`SET session_replication_role = replica;
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by)
+      VALUES ('voyage_pod_schedule', '${V_DONE}::BRVIX', 'eta', NULL, '${eta}', '${ADMIN_ID}'),
+             ('voyage_pod_schedule', '${V_DONE}::BRVIX', 'ata', NULL, '${eta}', '${ADMIN_ID}');
+      SET session_replication_role = origin;`)
+    asAdmin(`INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, review_status, consignee) VALUES ('${BL_DONE}', ${V_DONE}, 'CNSHA', 'BRRIG', 'container', 'ok', 'CONSIGNEE 346');`)
+    const run = asAdminRpc(`SELECT public.cancel_bl('${BL_DONE}', 'teste 346');`)
+    expect(run.stderr).toBe('')
+    expect(item('voyage_bl_expected', 'voyage', `${V_DONE}`)).toBe('sem item')
+    expect(item('voyage_ce_mercante_missing', 'voyage', `${V_DONE}`)).toBe('sem item')
   })
 
   it('viagem cancelada fecha os alertas dela', () => {

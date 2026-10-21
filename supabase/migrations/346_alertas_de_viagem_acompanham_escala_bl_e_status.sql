@@ -471,20 +471,34 @@ SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
-  v_voyage_id bigint;
+  v_voyage record;
 BEGIN
-  FOR v_voyage_id IN
-    SELECT DISTINCT v.id
+  FOR v_voyage IN
+    SELECT v.id, v.status
     FROM public.voyages v
     WHERE v.id = ANY (COALESCE(p_voyage_ids, ARRAY[]::bigint[]))
       AND v.status <> 'cancelled'
     ORDER BY v.id
   LOOP
     BEGIN
-      PERFORM public.reconcile_voyage_bl_expected_alerts(v_voyage_id, p_source);
-      PERFORM public.reconcile_voyage_ce_mercante_missing_alerts(v_voyage_id, p_source);
+      -- Viagem concluída: só reavalia o tipo que já está aberto, como a
+      -- varredura do detector (reconcile_inactive_voyage_alerts).
+      IF v_voyage.status = 'active' OR EXISTS (
+        SELECT 1 FROM public.voyage_alert_scope(v_voyage.id) s
+        JOIN public.alert_items i ON i.alert_id = s.alert_id
+        WHERE i.item_type = 'voyage_bl_expected' AND i.status = 'active'
+      ) THEN
+        PERFORM public.reconcile_voyage_bl_expected_alerts(v_voyage.id, p_source);
+      END IF;
+      IF v_voyage.status = 'active' OR EXISTS (
+        SELECT 1 FROM public.voyage_alert_scope(v_voyage.id) s
+        JOIN public.alert_items i ON i.alert_id = s.alert_id
+        WHERE i.item_type = 'voyage_ce_mercante_missing' AND i.status = 'active'
+      ) THEN
+        PERFORM public.reconcile_voyage_ce_mercante_missing_alerts(v_voyage.id, p_source);
+      END IF;
     EXCEPTION WHEN OTHERS THEN
-      RAISE WARNING 'Reconciliação de B/Ls esperados e CE pendente ignorada para a viagem %: %', v_voyage_id, SQLERRM;
+      RAISE WARNING 'Reconciliação de B/Ls esperados e CE pendente ignorada para a viagem %: %', v_voyage.id, SQLERRM;
     END;
   END LOOP;
 END;
