@@ -230,7 +230,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
     if (!await confirm({ title: 'Encerrar tentativa após conferir o histórico?',
       message: `${formatBRL(paymentAttempt.amountBrl)} · referência ${paymentAttempt.bankReference}.`,
       consequence: 'Confira primeiro se o banco e o histórico já mostram este recebimento. Encerrar a tentativa libera os campos; não cancela uma baixa nem devolve dinheiro.',
-      reversibility: 'Uma nova operação terá outra chave. A referência bancária continua protegida contra duplicação.', confirmLabel: 'Conferi; liberar campos' })) return
+      reversibility: 'Uma nova operação terá outra chave. O Vela não impede a mesma referência bancária em outra baixa: confira o histórico antes de registrar de novo.', confirmLabel: 'Conferi; liberar campos' })) return
     setPaymentAttempt(null)
     setLedgerPaymentRequestId(null)
     setPaymentError('')
