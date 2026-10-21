@@ -117,6 +117,7 @@ src/integration/alertasPapelOperator.local-pg.test.ts
 src/integration/granitoSemCliente.local-pg.test.ts
 src/integration/importacaoLoteUnico.local-pg.test.ts
 src/integration/comunicadoBlSemCliente.local-pg.test.ts
+src/integration/alertaBlSemClientePertoDoEta.local-pg.test.ts
 src/integration/grantsDoReplay.local-pg.test.ts
 src/integration/alertasDaViagem.local-pg.test.ts
 src/integration/recebivelNoVinculoDoCliente.local-pg.test.ts
