@@ -331,7 +331,9 @@ Administrativo. Operações não recebe pendências do Portal, e o Financeiro
 consulta no sistema sem estar na audiência.
 
 - **Pendência geral de prontidão:** Cliente com processo ativo (B/L não
-  cancelado) cujo Portal não está pronto — conta ativa com usuário técnico e
+  cancelado: `cancelled_at` vazio, desde a migration `347`; antes o
+  reconciliador e o console liam só `financial_status`, que o cancelamento não
+  muda) cujo Portal não está pronto — conta ativa com usuário técnico e
   Email de Recuperação válido, sem bounce/complaint e fora da lista de
   bloqueio. Independe do estado de qualquer fatura. O reconciliador
   (`reconcile_client_portal_alerts`, chamado também após a ativação) abre e

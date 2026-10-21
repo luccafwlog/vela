@@ -54,6 +54,7 @@ src/integration/invoiceReissue.local-pg.test.ts
 src/integration/invoiceBasisCorrection.local-pg.test.ts
 src/integration/invoicePostBillingSafety.local-pg.test.ts
 src/integration/portalConsolidadaPaga.local-pg.test.ts
+src/integration/alertasDoBlCanceladoExcluido.local-pg.test.ts
 src/integration/itauPixCharges.local-pg.test.ts
 src/integration/thdImoOog.local-pg.test.ts
 src/integration/auditoriaImportacaoCargaSolta.local-pg.test.ts
@@ -120,6 +121,7 @@ src/integration/importacaoLoteUnico.local-pg.test.ts
 src/integration/comunicadoBlSemCliente.local-pg.test.ts
 src/integration/grantsDoReplay.local-pg.test.ts
 src/integration/alertasDaViagem.local-pg.test.ts
+src/integration/alertasDeViagemEscala.local-pg.test.ts
 src/integration/recebivelNoVinculoDoCliente.local-pg.test.ts
 src/integration/portalContaAtivaNaoReabre.local-pg.test.ts
 src/integration/comunicadoNaFila.local-pg.test.ts

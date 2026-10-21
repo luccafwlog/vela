@@ -39,8 +39,38 @@ function activeMessage(itemType: string) {
     WHERE a.entity_type = 'customer' AND a.entity_id = '${ID}' AND i.item_type = '${itemType}' AND i.status = 'active';`)
 }
 
+// A 324 também redefine funções que migrations posteriores trocaram (341,
+// 346…). Reaplicá-la deixaria as definições antigas para as suítes seguintes
+// (e uma sobrecarga a mais quando a assinatura mudou): as definições vigentes
+// são guardadas antes e restauradas no fim.
+const redefinedFunctions = [...new Set(
+  [...readFileSync(migrationPath, 'utf8').matchAll(/CREATE OR REPLACE FUNCTION public\.([a-z0-9_]+)\(/g)].map((match) => match[1]),
+)]
+const redefinedFilter = `n.nspname = 'public' AND p.proname IN (${redefinedFunctions.map((name) => `'${name}'`).join(', ')})`
+let signaturesBefore: string[] = []
+let definitionsBefore = ''
+
+function currentSignatures() {
+  return psql(`SELECT p.oid::regprocedure::text FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE ${redefinedFilter} ORDER BY 1;`).split('\n').filter(Boolean)
+}
+
+// A reescrita da 324 junta `customer_portal_accounts` por
+// `a.entity_id ~ '^[0-9]+$' AND pa.customer_id = a.entity_id::bigint`. Num
+// hash ou merge join o planner calcula o cast para todo alerta antes do filtro,
+// e um alerta de outra suíte com chave em texto (o Pix Itaú `E151SEMATOR`)
+// derruba a reaplicação. Só o laço aninhado aplica o filtro antes do cast.
+function reapplyMigration324() {
+  execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl,
+    '-c', 'SET LOCAL enable_hashjoin = off; SET LOCAL enable_mergejoin = off;',
+    '-f', migrationPath], { encoding: 'utf8' })
+}
+
 describeLocal('migration 324 — mensagens dos alertas e "Crítico" do Provisionamento', () => {
   beforeAll(() => {
+    signaturesBefore = currentSignatures()
+    definitionsBefore = psql(`SELECT string_agg(pg_get_functiondef(p.oid), E';\n') || ';' FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace WHERE ${redefinedFilter};`)
     psql(`INSERT INTO public.carriers (id, name) VALUES (${ID}, 'Carrier A321') ON CONFLICT (id) DO NOTHING;`)
     psql(`INSERT INTO public.vessels (id, name, carrier_id) VALUES (${ID}, 'Vessel A321', ${ID}) ON CONFLICT (id) DO NOTHING;`)
     psql(`INSERT INTO public.voyages (id, vessel_id, voyage_number) VALUES (${ID}, ${ID}, 'A321') ON CONFLICT (id) DO NOTHING;`)
@@ -53,6 +83,10 @@ describeLocal('migration 324 — mensagens dos alertas e "Crítico" do Provision
   })
 
   afterAll(() => {
+    for (const signature of currentSignatures().filter((item) => !signaturesBefore.includes(item))) {
+      psql(`DROP FUNCTION ${signature};`)
+    }
+    psql(definitionsBefore)
     psql(`DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${ID}';`)
     psql(`UPDATE public.customer_portal_accounts SET account_situation = 'sem_conta', recovery_email = NULL WHERE customer_id = ${ID};`)
   })
@@ -80,7 +114,7 @@ describeLocal('migration 324 — mensagens dos alertas e "Crítico" do Provision
     psql(`UPDATE public.alert_items i SET message = 'Cliente Cliente A321: 3 B/Ls pendentes de vínculo com cliente'
       FROM public.alerts a WHERE a.id = i.alert_id AND a.entity_id = '${ID}' AND i.item_type = 'portal_pendencia_geral';`)
 
-    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
+    reapplyMigration324()
 
     expect(activeMessage('portal_pendencia_geral')).toBe('3 B/Ls aguardam vínculo com Cliente.')
     const sql = readFileSync(migrationPath, 'utf8')
@@ -93,7 +127,7 @@ describeLocal('migration 324 — mensagens dos alertas e "Crítico" do Provision
       SET message = 'CE Mercante pendente para 1 B/L(s) e 2 rota(s) de vazios sem Nº de manifesto Mercante da viagem 10 (D-5 atingido)'
       FROM public.alerts a WHERE a.id = i.alert_id AND a.entity_id = '${ID}' AND i.item_type = 'portal_pendencia_geral';`)
 
-    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
+    reapplyMigration324()
 
     expect(activeMessage('portal_pendencia_geral'))
       .toBe('Falta para 1 B/L e 2 rotas de vazios sem Nº de manifesto Mercante; prazo D-5 atingido.')
@@ -108,7 +142,7 @@ describeLocal('migration 324 — mensagens dos alertas e "Crítico" do Provision
     psql(`UPDATE public.alert_items i
       SET message = 'Cliente com processo ativo sem Portal ativo ou sem email de recuperação utilizável.'
       FROM public.alerts a WHERE a.id = i.alert_id AND a.entity_id = '${ID}' AND i.item_type = 'portal_pendencia_geral';`)
-    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
+    reapplyMigration324()
     expect(activeMessage('portal_pendencia_geral')).toBe('Conta do Portal suspensa.')
   })
 })
