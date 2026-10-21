@@ -22,15 +22,17 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   `supabase/functions/_shared/betterStackHeartbeat.ts` nos runners `alerts-detector`,
   `portal-daily-digest`, `demurrage-dunning`, `customer-communication-auto-runner`,
   `ce-unlock-notify-email` e `portal-email-events-runner`.
-  Eles emitem ping HTTP apenas em conclusões bem-sucedidas (status < 400) quando a URL
-  do heartbeat está configurada nos secrets do Supabase. Sem o secret, operam em no-op
-  sem falhar o job. Uma resposta 2xx com `failed`, `partial` ou `releaseFailures`
-  maior que zero também envia o ping de falha; o `customer-communication-auto-runner`
+  Com a URL do heartbeat nos secrets do Supabase, cada rodada autorizada envia um
+  ping: o de sucesso com resposta 2xx sem falha contada, e o de falha (`/fail`) com
+  resposta fora de 2xx, com exceção ou com `failed`, `partial` ou `releaseFailures`
+  maior que zero (`hasOperationalFailures`, `_shared/betterStackHeartbeat.ts`). Sem
+  o secret, operam em no-op sem falhar o job; o `customer-communication-auto-runner`
   conta em `failed` todo destinatário recusado ou com falha na rodada; o
   `portal-daily-digest` conta em `failed` cada destinatário que não recebeu e responde
   500 quando uma consulta falha; o `ce-unlock-notify-email` conta em `failed` cada aviso
   que esgotou as tentativas; o `portal-email-events-runner` conta em `failed` cada evento
-  que falhou e foi devolvido para nova tentativa. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
+  que falhou e foi devolvido para nova tentativa; o `alerts-detector` conta em `failed` cada
+  detector que falhou numa rodada parcial (migration `351`). Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
 
 Esta seção combina inspeção estática com verificações de runtime registradas no
 plano de migração. O DSN de produção e os alertas foram configurados em
@@ -72,9 +74,9 @@ ao bundle nem commitadas no Git:
 | `ce-unlock-notify-email` | `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` | 5 min |
 | `portal-email-events-runner` | `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` | a cada minuto |
 
-O ping de sucesso ocorre estritamente após a conclusão bem-sucedida do job. Se a
-URL não estiver configurada no Supabase, a função executa normalmente e ignora o
-ping. Só esses seis runners enviam heartbeat: `itau-pix` (job
+O ping de sucesso só sai depois da conclusão do job com resposta 2xx sem falha
+contada; o restante manda `/fail`. Se a URL não estiver configurada no Supabase, a
+função executa normalmente e ignora o ping. Só esses seis runners enviam heartbeat: `itau-pix` (job
 `itau-pix-queue`) e `import-effects-runner` não enviam; para a fila de efeitos,
 a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no
 painel do Better Stack deve alertar pela ausência de ping além
@@ -151,6 +153,13 @@ padrão; a inicialização desliga tudo em `dataCollection`, como no navegador. 
 (função, ambiente, status e duração); não envia mensagem original, usuário,
 headers, request body nem response body. O flush tem limite de um segundo e a
 falha do Sentry não muda o resultado da função.
+Na rodada parcial do `alerts-detector` (migration `351`: um detector falhou e os
+outros valeram), a resposta continua 2xx e a função envia um evento por detector
+que falhou, com status `detector_failed:<detector>` (um issue por detector),
+`codigo_erro` com o SQLSTATE e `rpc` `run_alert_detectors`
+(`_shared/alertDetectorFailures.ts`). A mensagem do banco não vai ao Sentry: fica
+no corpo da resposta (`failures`), gravado em `net._http_response`, e no `WARNING`
+do log do Postgres.
 As treze entradas em `supabase/config.toml` apontam para o manifesto Deno
 compartilhado em `supabase/functions/deno.json`; a configuração não altera
 `verify_jwt` nem os contratos HTTP.

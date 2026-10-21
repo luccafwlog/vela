@@ -140,6 +140,9 @@ const describeLocal = describeWithProbe(migrationApplied, 'migration 214 (_demur
 
 function cleanup() {
   psql(`
+    -- Alertas do Portal que os B/Ls do Cliente abrem na hora (350); com os
+    -- gatilhos ligados, o CASCADE leva itens e eventos antes de apagar o usuário.
+    DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${customerId}';
     SET session_replication_role = replica;
     CREATE TEMP TABLE r214_invoices AS SELECT id FROM public.demurrage_invoices WHERE bl_id IN (${blList});
     CREATE TEMP TABLE r214_effects AS SELECT id FROM public.import_pending_effects WHERE entity_id IN (${blList});

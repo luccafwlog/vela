@@ -82,14 +82,16 @@ describeLocal('migrations 338 — comportamento real no Postgres', () => {
     expect(psql(`SELECT count(*) FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id = '${scaleEntityId}') AND destination IS NULL;`)).toBe('1')
   })
 
-  it('remove execução authenticated dos sete reconciliadores do Bloco 4', () => {
+  it('remove execução authenticated dos reconciliadores do Bloco 4 (sete da 338, mais os dois da 346)', () => {
     const signatures = [
       'public.reconcile_voyage_bl_expected_alerts(bigint,text)',
       'public.reconcile_voyage_baplie_missing_alerts(bigint,text)',
       'public.reconcile_voyage_baplie_coverage_alerts(bigint,text)',
       'public.reconcile_voyage_ce_mercante_missing_alerts(bigint,text)',
       'public.reconcile_voyage_schedule_date_alerts(bigint,text,text)',
-      'public.reconcile_voyage_export_after_atd_alerts(bigint,text,text,text)',
+      'public.reconcile_voyage_export_after_atd_alerts(bigint,text,text)',
+      'public.reconcile_voyage_export_alerts(bigint,text)',
+      'public.reconcile_inactive_voyage_alerts(bigint,text)',
       'public.reconcile_voyage_operation_alerts(bigint,text)',
     ]
     for (const signature of signatures) {

@@ -41,6 +41,11 @@ it('busca cada entidade financeira, deduplica, ordena e exclui Granito/Portal/De
       { id: 30, type: 'pix_unreconciled', entity_type: 'pix_transaction', created_at: '2026-08-22T10:00:00Z' },
       { id: 31, type: 'demurrage', entity_type: 'pix_transaction', created_at: '2026-08-23T10:00:00Z' },
     ],
+    // Pix recebido pela cobrança Itaú sem baixa automática (itau_pix_settle):
+    // antes ficava fora do painel, que só lia a entidade do extrato.
+    itau_pix_receipt: [
+      { id: 40, type: 'aggregate', item_type: 'pix_unreconciled', entity_type: 'itau_pix_receipt', entity_id: 'E1234', created_at: '2026-08-24T10:00:00Z' },
+    ],
     exchange_rate_reference: [],
   }
   rpcMock.mockImplementation(async (_name: string, args: { p_entity_type?: keyof typeof rowsByEntityType; p_offset?: number; p_limit?: number }) => ({
@@ -50,13 +55,15 @@ it('busca cada entidade financeira, deduplica, ordena e exclui Granito/Portal/De
 
   // Fatura desatualizada devolve a entidade invoice à fila financeira.
   await expect(listFinancialAlerts()).resolves.toEqual([
+    rowsByEntityType.itau_pix_receipt[0],
     rowsByEntityType.pix_transaction[0],
     rowsByEntityType.bl[0],
   ])
-  expect(rpcMock).toHaveBeenCalledTimes(4)
+  expect(rpcMock).toHaveBeenCalledTimes(5)
   expect(rpcMock).toHaveBeenNthCalledWith(2, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'bl', p_offset: 0, p_limit: 100 })
   expect(rpcMock).toHaveBeenNthCalledWith(3, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'pix_transaction', p_offset: 0, p_limit: 100 })
-  expect(rpcMock).toHaveBeenNthCalledWith(4, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'exchange_rate_reference', p_offset: 0, p_limit: 100 })
+  expect(rpcMock).toHaveBeenNthCalledWith(4, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'itau_pix_receipt', p_offset: 0, p_limit: 100 })
+  expect(rpcMock).toHaveBeenNthCalledWith(5, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'exchange_rate_reference', p_offset: 0, p_limit: 100 })
 })
 
 it('combina as entidades financeiras antes de cortar a fila em 200 itens', async () => {
@@ -76,6 +83,7 @@ it('combina as entidades financeiras antes de cortar a fila em 200 itens', async
       entity_id: 'PIX-202',
       created_at: '2026-08-21T10:00:00Z',
     }],
+    itau_pix_receipt: [],
     exchange_rate_reference: [],
   }
   rpcMock.mockImplementation(async (_name: string, args: { p_entity_type?: keyof typeof rowsByEntityType; p_offset?: number; p_limit?: number }) => ({
@@ -102,27 +110,27 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
   ])
 
   expect(FINANCIAL_ALERT_EVENTS).toEqual({
-    fatura_desatualizada: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
-    restituicao_pendente: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
+    fatura_desatualizada: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+    restituicao_pendente: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
     billing_calculation_blocked: {
       audience: ['documentacao'],
-      unit: 'bl',
+      units: ['bl'],
     },
     billing_auto_issue_failed: {
       audience: ['documentacao'],
-      unit: 'bl',
+      units: ['bl'],
     },
     demurrage_ptax_recalc_failed: {
       audience: ['documentacao'],
-      unit: 'exchange_rate_reference',
+      units: ['exchange_rate_reference'],
     },
     pix_unreconciled: {
       audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'],
-      unit: 'pix_transaction',
+      units: ['pix_transaction', 'itau_pix_receipt'],
     },
     portal_dispute_opened: {
       audience: ['equipamentos'],
-      unit: 'demurrage_invoice',
+      units: ['demurrage_invoice'],
     },
   })
   expect(FINANCIAL_ALERT_TYPES).not.toContain('portal_dispute_opened')

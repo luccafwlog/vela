@@ -55,6 +55,7 @@ export type ActiveAlertType =
   | 'review_portal_not_ready'
   | 'review_breakbulk_weight_missing'
   | 'review_granite_customer_unlinked'
+  | 'bl_sem_cliente_perto_eta'
   | 'voyage_bl_expected'
   | 'voyage_baplie_missing'
   | 'voyage_baplie_documentary_coverage'
@@ -114,6 +115,7 @@ export const TYPE_LABELS: Record<string, string> = {
   review_portal_not_ready: 'Revisão de B/L — Portal não provisionado',
   review_breakbulk_weight_missing: 'Revisão de B/L — peso BB ausente',
   review_granite_customer_unlinked: 'Revisão de Granito — cliente não vinculado',
+  bl_sem_cliente_perto_eta: 'B/L sem Cliente perto do ETA',
   voyage_bl_expected: 'B/L esperado pendente',
   voyage_baplie_missing: 'Baplie ausente',
   voyage_baplie_documentary_coverage: 'Cobertura Baplie / B/L',
@@ -139,6 +141,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   import_effect_queue: 'Fila de efeitos de importação',
   charge_table_gap: 'Tabela de cobrança',
   pix_transaction: 'Transação PIX',
+  itau_pix_receipt: 'Pix recebido',
+  business_holidays: 'Calendário de feriados',
   email_provider: 'Provedor de e-mail',
   user_profile: 'Usuário interno',
   cron_http: 'Rotinas agendadas',
@@ -146,17 +150,20 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
 }
 
 export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
-export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'demurrage_invoice' | 'exchange_rate_reference'
+export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'itau_pix_receipt' | 'demurrage_invoice' | 'exchange_rate_reference'
 
+// Entidades em que cada tipo financeiro abre. O Pix sem baixa tem duas: a
+// exceção do extrato (pix_transaction) e o Pix recebido pela cobrança Itaú
+// (itau_pix_receipt, migration 153).
 export const FINANCIAL_ALERT_EVENTS = {
-  fatura_desatualizada: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
-  restituicao_pendente: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
-  billing_calculation_blocked: { audience: ['documentacao'], unit: 'bl' },
-  billing_auto_issue_failed: { audience: ['documentacao'], unit: 'bl' },
-  demurrage_ptax_recalc_failed: { audience: ['documentacao'], unit: 'exchange_rate_reference' },
-  pix_unreconciled: { audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'], unit: 'pix_transaction' },
-  portal_dispute_opened: { audience: ['equipamentos'], unit: 'demurrage_invoice' },
-} as const satisfies Record<string, { audience: readonly AlertAudience[]; unit: AlertEventUnit }>
+  fatura_desatualizada: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+  restituicao_pendente: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+  billing_calculation_blocked: { audience: ['documentacao'], units: ['bl'] },
+  billing_auto_issue_failed: { audience: ['documentacao'], units: ['bl'] },
+  demurrage_ptax_recalc_failed: { audience: ['documentacao'], units: ['exchange_rate_reference'] },
+  pix_unreconciled: { audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'], units: ['pix_transaction', 'itau_pix_receipt'] },
+  portal_dispute_opened: { audience: ['equipamentos'], units: ['demurrage_invoice'] },
+} as const satisfies Record<string, { audience: readonly AlertAudience[]; units: readonly AlertEventUnit[] }>
 
 export const FINANCIAL_ALERT_TYPES = [
   'fatura_desatualizada',
@@ -389,7 +396,7 @@ function alertEntityLinkRaw(alert: {
     return `/clientes/comunicacao?tab=historico&kind=ce_mercante_taxas&bl=${encodeURIComponent(alert.entity_id)}`
   }
 
-  if (alert.entity_type === 'pix_transaction') return PIX_PENDING_HREF
+  if (alert.entity_type === 'pix_transaction' || alert.entity_type === 'itau_pix_receipt') return PIX_PENDING_HREF
   // Evento do provedor de e-mail que foi para investigação (migrations 109 e
   // 309): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
   // mostra o evento. O alerta fica na fila, com o motivo na mensagem.
@@ -434,6 +441,9 @@ function alertEntityLinkRaw(alert: {
       ? `/revisao?cliente=${encodeURIComponent(alert.entity_id)}`
       : '/revisao'
   }
+  // B/L sem Cliente perto do ETA (migration 352): a chave é a escala, e o
+  // vínculo se faz na Revisão, no cartão dos B/Ls sem Cliente.
+  if (effectiveType === 'bl_sem_cliente_perto_eta') return '/revisao?causa=cliente'
   if (effectiveType.startsWith('portal_')) {
     if (alert.entity_type === 'invoice') return invoiceLink(alert)
     return `/clientes/portal?cliente=${encodeURIComponent(alert.entity_id)}`
@@ -497,7 +507,7 @@ export function alertEntityLinkLabel(alert: {
   }
   if (effectiveType === 'review_portal_not_ready') return 'Abrir Portal'
   if (effectiveType === 'review_granite_customer_unlinked') return 'Abrir Granito'
-  if (effectiveType.startsWith('review_')) return 'Revisar B/Ls'
+  if (effectiveType.startsWith('review_') || effectiveType === 'bl_sem_cliente_perto_eta') return 'Revisar B/Ls'
   if (alert.entity_type === 'pix_transaction') return 'Abrir Reconciliação'
   if (alert.entity_type === 'portal_email_event') return 'Abrir Alertas'
   if (alert.entity_type === 'customer') return 'Abrir Portal'
@@ -551,6 +561,34 @@ export type AlertQueueRow = Alert & {
 
 export type AlertStatusFilter = 'all' | 'active' | 'dismissed'
 
+// Mesma chave do consignatário na Revisão (`reconcile_customer_bl_review_alerts`):
+// nome aparado, ou `sem_cliente` quando vazio.
+function consigneeKey(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : 'sem_cliente'
+}
+
+/** Consignatários dos B/Ls em "B/L sem Cliente perto do ETA" ativos (migration 352). */
+export function consigneesNearEta(alerts: readonly AlertQueueRow[] | undefined): Set<string> {
+  const keys = new Set<string>()
+  for (const alert of alerts ?? []) {
+    if (getEffectiveAlertType(alert) !== 'bl_sem_cliente_perto_eta' || alert.item_status !== 'active') continue
+    const bls = alert.metadata?.bls
+    if (!Array.isArray(bls)) continue
+    for (const bl of bls) keys.add(consigneeKey((bl as { consignee?: unknown } | null)?.consignee))
+  }
+  return keys
+}
+
+/**
+ * Selo "ETA próximo" na Revisão de cliente não vinculado: o consignatário dela
+ * tem B/L no alerta crítico de B/L sem Cliente perto do ETA. Mostra a urgência
+ * sem abrir um segundo aviso para o mesmo B/L.
+ */
+export function hasNearEtaMark(alert: AlertQueueRow, nearEta: ReadonlySet<string>): boolean {
+  if (nearEta.size === 0 || getEffectiveAlertType(alert) !== 'review_customer_unlinked') return false
+  return nearEta.has(consigneeKey(alert.metadata?.consignee ?? alert.entity_id))
+}
+
 export type AlertDepartmentSummary = {
   department: string
   active_count: number
@@ -578,8 +616,8 @@ export async function dismissAlertItem(
 /**
  * Tipos de conferência sem fato de origem: fecham com "Resolver com
  * justificativa" (ADR 0083, item 23). Espelha
- * `_alert_types_resolved_with_justification()` (migrations 238, 313 e 316); os
- * demais fecham sozinhos quando a origem é corrigida.
+ * `_alert_types_resolved_with_justification()` (migrations 238, 313, 316 e
+ * 349), na mesma ordem; os demais fecham sozinhos quando a origem é corrigida.
  */
 export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'portal_abuso_login',
@@ -589,6 +627,11 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'cobranca_demurrage_recusada',
   // Aviso que não sai de novo depois que a solicitação terminou (migration 316).
   'desbloqueio_ce_aviso_nao_enviado',
+  // Conferência da diferença de datas, paga ou negociada (migration 349).
+  'demurrage_invoice_dates_changed',
+  // Também fecha pelo envio; justificado, a próxima falha do mesmo Comunicado
+  // não reabre (migration 349).
+  'comunicado_recusado',
 ]
 
 /**
@@ -660,7 +703,7 @@ export async function resolveAlertItem(input: {
 
 export async function listFinancialAlerts(): Promise<AlertQueueRow[]> {
   // Fatura desatualizada voltou a usar invoice; vencimento segue aposentado.
-  const financialEntityTypes = ['invoice', 'bl', 'pix_transaction', 'exchange_rate_reference'] as const
+  const financialEntityTypes = ['invoice', 'bl', 'pix_transaction', 'itau_pix_receipt', 'exchange_rate_reference'] as const
   const financialTypes = new Set<string>(FINANCIAL_ALERT_TYPES)
   const alertsByEntityType = await Promise.all(financialEntityTypes.map(async (entityType) => {
     const rows: AlertQueueRow[] = []
@@ -676,8 +719,8 @@ export async function listFinancialAlerts(): Promise<AlertQueueRow[]> {
   for (const alerts of alertsByEntityType) {
     for (const alert of alerts) {
       const effectiveType = getEffectiveAlertType(alert)
-      const expectedEntityType = FINANCIAL_ALERT_EVENTS[effectiveType as keyof typeof FINANCIAL_ALERT_EVENTS]?.unit
-      if (!financialTypes.has(effectiveType) || expectedEntityType !== alert.entity_type) continue
+      const expectedEntityTypes: readonly string[] = FINANCIAL_ALERT_EVENTS[effectiveType as keyof typeof FINANCIAL_ALERT_EVENTS]?.units ?? []
+      if (!financialTypes.has(effectiveType) || !expectedEntityTypes.includes(alert.entity_type ?? '')) continue
       const occurrenceKey = [
         alert.id,
         alert.item_id ?? 'legacy',

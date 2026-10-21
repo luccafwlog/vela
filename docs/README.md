@@ -97,7 +97,10 @@ Auditorias, relatórios e planos e specs concluídos ficam no
 regra vigente. Os mais recentes sobre importações e CE Mercante são a
 [revisão de 2026-10-09](archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md),
 a [revisão da PR 929](archive/audits/2026-10-11-revisao-pr-929-importacoes.md) e a
-[revisão final da PR 929](archive/audits/2026-10-12-revisao-final-pr-929.md).
+[revisão final da PR 929](archive/audits/2026-10-12-revisao-final-pr-929.md). A
+[revisão dos alertas de outubro de 2026](revisao-alertas-2026-10.md) (inventário,
+divergências de fonte de dados e consultas de consistência) ainda está fora do
+arquivo, no caminho pedido pelo dono.
 
 ## Convenções da documentação
 

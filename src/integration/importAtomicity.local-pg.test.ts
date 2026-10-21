@@ -32,6 +32,9 @@ function expectSqlFailure(sql: string, actor = actorId): void {
 describeLocal('S04 — datas de container como unidade atômica', () => {
   beforeAll(() => {
     localPsql(`
+      -- Alertas do Portal que o B/L do Cliente abre na hora (350); com os
+      -- gatilhos ligados, o CASCADE leva itens e eventos antes de apagar o usuário.
+      DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${customerId}';
       SET session_replication_role = replica;
       DELETE FROM public.import_pending_effects WHERE entity_id = '${blId}' OR entity_id = '${voyageId}';
       DELETE FROM public.audit_logs WHERE changed_by IN ('${actorId}', '${otherActorId}');
@@ -70,6 +73,7 @@ describeLocal('S04 — datas de container como unidade atômica', () => {
 
   afterAll(() => {
     localPsql(`
+      DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${customerId}';
       SET session_replication_role = replica;
       DELETE FROM public.import_pending_effects WHERE entity_id = '${blId}' OR entity_id = '${voyageId}';
       DELETE FROM public.audit_logs WHERE changed_by IN ('${actorId}', '${otherActorId}');
