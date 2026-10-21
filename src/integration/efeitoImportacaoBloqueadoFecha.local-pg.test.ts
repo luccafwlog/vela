@@ -4,10 +4,11 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
 // Migration 348 (revisão dos alertas de 2026-10-21, docs/revisao-alertas-2026-10.md;
-// L8 do estudo de 2026-10-20): o alerta "Efeito de importação bloqueado" fecha
-// quando o efeito sai de bloqueado (reabertura pelo operador, conclusão ou
-// descarte) e reabre com nova ocorrência se o efeito bloquear de novo; o
-// acerto da migration fecha os itens de efeitos que já tinham saído.
+// L8 do estudo de 2026-10-20), com a regra mudada pela 395: o alerta "Efeito de
+// importação bloqueado" NÃO fecha no Reprocessar; fica aberto "reprocessando"
+// e fecha só quando o efeito conclui ou é descartado. Se bloquear de novo, o
+// mesmo item continua aberto, sem nova ocorrência. O acerto da 348 fechava os
+// itens de efeitos que já tinham saído.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -79,7 +80,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('348 — efeito de importação bloqueado fecha quando o efeito sai de bloqueado', () => {
+describeLocal('348 — efeito de importação bloqueado fica aberto no Reprocessar e fecha quando o efeito conclui (395)', () => {
   beforeAll(() => {
     cleanup()
     psql(`
@@ -95,19 +96,21 @@ describeLocal('348 — efeito de importação bloqueado fecha quando o efeito sa
 
   afterAll(cleanup)
 
-  it('reabrir o efeito com justificativa fecha o alerta', () => {
+  it('reabrir o efeito com justificativa mantém o alerta aberto, reprocessando (395)', () => {
     block()
     expect(alertStatus()).toBe('active')
     const run = asAdmin(`SELECT public.retry_import_effect(${effectId}, 'conferido no teste 348');`)
     expect(run.stderr).toBe('')
-    // Antes: o efeito voltava para a fila e o alerta ficava aberto para sempre.
-    expect(alertStatus()).toBe('resolved')
+    // Regra da 348 (substituída): fechava aqui.
+    expect(alertStatus()).toBe('active')
+    expect(psql(`SELECT i.metadata->>'reprocessing' FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'import_effect_blocked' AND a.entity_id = '${effectId}'`)).toBe('true')
   })
 
-  it('bloquear de novo reabre com nova ocorrência; descartar fecha', () => {
+  it('bloquear de novo mantém a mesma ocorrência; descartar fecha', () => {
     block()
     expect(alertStatus()).toBe('active')
-    expect(openedEvents()).toBe('2')
+    expect(openedEvents()).toBe('1')
     psql(`UPDATE public.import_pending_effects SET status = 'superseded' WHERE id = ${effectId};`)
     expect(alertStatus()).toBe('resolved')
   })

@@ -34,6 +34,18 @@ antes e passa depois, e o módulo dono atualizado.
   luccafwlog/vela#1019: a Data de Referência da Tarifa não lê mais o POD nem a
   ETA e usa o dia de Brasília (ADR 0094). Prova:
   `portosSeparados.local-pg.test.ts`.
+- **Lote 4 — exclusão e efeitos** (migration `394`): decisões 7, 18 e 25;
+  F-13, F-14, F-33a, F-42 (em parte) e F-43; suíte de F-10. Excluir B/L ou
+  Viagem encerra os efeitos pendentes como "descartado: registro excluído", sem
+  Alerta; excluir a Viagem apaga os vazios de importação e o manifesto de
+  vazios, e o diálogo conta os vazios; B/L em Revisão ou sem tabela é espera
+  (`awaiting_review`, `awaiting_charge_table`), sem Alerta, que conclui
+  sozinha; Reprocessar no Alerta, com justificativa; iniciador desativado roda
+  como a conta de sistema; o produtor direto substitui o pendente (INF-14); a
+  saúde da fila conta a lease vencida. F-34 já estava resolvido pela B3
+  (`379`/`381`: excluir ou mover veículo com o recálculo falhando é recusado),
+  agora com teste. Prova: `exclusaoEEfeitosImportacao.local-pg.test.ts` e
+  `Alertas.reprocessar.test.tsx`.
 - **Pela PR luccafwlog/vela#1019** (ADR 0094), não refazer: escrita direta
   fechada (F-03), RPCs antigas revogadas (F-19), B/L cancelado somente leitura
   e datas só nos B/Ls ativos (F-12), carga solta faturada com confirmação no
@@ -49,7 +61,7 @@ antes e passa depois, e o módulo dono atualizado.
 | 1 Trava e Baplie no servidor (entregue, ver acima) | 6, 11, 13 | F-04, F-11, F-16, F-20, F-21, F-22, F-26 | trava `import_voyage:<id>` em toda RPC de Viagem; índice único no staging do Baplie; Baplie substitui só os PODs do pedido; Viagem, escalas e duplicatas no servidor; `expected` (contagem) na gravação; staging, marcas e vazios do Baplie numa transação só (ou o passo seguinte enfileirado como efeito); `_set_import_context` de volta nos vazios do Baplie | duas sessões concorrentes; filtro de POD preserva o resto; falha no meio não deixa staging com marca e B/L sem |
 | 2 Arquivo de B/L (entregue, ver acima) | 5, 8, 9, 10, 26, 27 | F-05, F-15, F-27, F-50 | B/L de outra Viagem recusado; aviso de B/L cancelado; aceite de refixar levado ao servidor; confirmação só com fatura emitida e conferida no servidor; totais não mudam sem containers; aba VIN ignorada e fim de `vela.vin_reissue`; `container_load_type` gravado (coluna a confirmar no arquivo real) | local-pg por regra |
 | 3 Portos (entregue, ver acima) | 12 | F-08, F-33b | `normalize_port_code` sem BRNVT→BRITJ e BRREC→BRSUA; aliases do front; dados gravados | B/L de Navegantes não casa escala de Itajaí |
-| 4 Exclusão e efeitos | 7, 18, 25 | F-10 (só a suíte), F-13, F-14, F-33a, F-34, F-42, F-43 | exclusão encerra efeitos e apaga vazios da Viagem; espera de negócio não é bloqueio; reprocessar no alerta; ator de sistema; excluir/mover veículo enfileira o efeito; `import_effects_queue_health` passa a contar `blocked` e `running` com lease vencida | efeito órfão some; alerta fecha; saúde da fila acusa bloqueado e lease vencida; excluir o irmão de container compartilhado faturado |
+| 4 Exclusão e efeitos (entregue, ver acima) | 7, 18, 25 | F-10 (só a suíte), F-13, F-14, F-33a, F-34, F-42, F-43 | exclusão encerra efeitos e apaga vazios da Viagem; espera de negócio não é bloqueio; reprocessar no alerta; ator de sistema; excluir/mover veículo enfileira o efeito; `import_effects_queue_health` passa a contar `blocked` e `running` com lease vencida | efeito órfão some; alerta fecha; saúde da fila acusa bloqueado e lease vencida; excluir o irmão de container compartilhado faturado |
 | 5 CE e Manifesto Mercante | 19, 20 | F-49, F-53 | remover CE e cancelar tiram do Manifesto; alerta "CE fora do Manifesto da rota"; planilha de CE com recusa de cálculo testada e mensagem no formato da ADR 0094 | local-pg |
 | 6 Vazios | 21, 22 | F-32 | unicidade por Viagem, planilha vence; ADR de Saída fechado trava | local-pg |
 | 7 ATD | 23 | F-48 | ATD manual marcado e preservado; só B/Ls ativos | local-pg |
@@ -58,6 +70,12 @@ antes e passa depois, e o módulo dono atualizado.
 | 10 Hash e desova | 3, 26 | F-50 | `import_batches` com hash e aviso de reenvio; desova por container físico | local-pg |
 
 ## Pendências
+
+- Do Lote 4 (F-42): o erro que escapa do `import-effects-runner` (57014, rede)
+  ainda chega ao efeito como `lease_expired` depois de cinco leases, sem a
+  causa; gravar a causa exige mudar a Edge Function (`drain.ts`) e uma RPC de
+  registro. `granite_billing` com consumidor no-op e `physical_flags` sem
+  produtor continuam como estão.
 
 - Nenhuma do Lote 2: a modalidade FCL/LCL é lida do Type of Movement
   ("LCL/LCL" e "CFS-CFS" no B/L LCL real da COSCO).

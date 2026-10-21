@@ -241,7 +241,10 @@ direto pela API nessas tabelas (ver a
   volta intacto com o motivo do bloqueio; a mesma RPC em modo prévia alimenta o
   diálogo. A viagem sai em cascata pela lista explícita do que é dela, e viagem
   cancelada fica retida ([Viagens § Catálogo de ações](../modules/viagens.md#catálogo-de-ações)).
-  Cliente com CNPJ não se exclui ([Cadastro usado](#cadastro-usado)). O DELETE
+  Cliente com CNPJ não se exclui ([Cadastro usado](#cadastro-usado)). Excluir
+  B/L ou viagem encerra os efeitos de importação pendentes deles como
+  "descartado: registro excluído", sem Alerta, e a viagem leva os vazios de
+  importação dela (migration `394`; [Manifestos & EDI, regra 20](../modules/manifesto-edi.md)). O DELETE
   direto em `bls`, `bl_containers` e `vehicles` saiu da API na migration `088`,
   e o de `voyages`, na `109`.
 - **Escala e atracação:** `delete_escala` (Administrativo, motivo e trava no
@@ -558,6 +561,16 @@ A chave global de envio (`app_settings.communications_enabled`, desligada por pa
 ## Permissões internas
 
 A leitura interna é global e a escrita operacional é liberada a todo Departamento ativo, com rastro; as exceções por Departamento ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md)) são aplicadas pelo banco e estão na matriz de [Segurança § Modelo de permissões por perfil](seguranca.md#modelo-de-permissões-por-perfil); restrição fora da matriz é defeito. Rota e botão escondido são navegação, não autorização.
+
+### Efeitos de importação
+
+Espera de negócio não é bloqueio: o efeito de faturamento do CE num B/L em
+Revisão ou sem tabela de cobrança aguarda sem Alerta e conclui sozinho; o
+Alerta crítico "Efeito de importação bloqueado" é só para falha técnica e se
+resolve com **Reprocessar** no próprio Alerta, com justificativa; efeito de
+usuário desativado roda como "Vela (automático)". A regra completa é a
+[regra 20 de Manifestos & EDI](../modules/manifesto-edi.md) ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md),
+decisões 7, 18 e 25).
 
 ## Escritas best-effort
 
