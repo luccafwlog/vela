@@ -26,6 +26,8 @@ import {
   formatAlertEntity,
   getAlertDepartmentSummary,
   getAlertTypeLabel,
+  consigneesNearEta,
+  hasNearEtaMark,
   getEffectiveAlertType,
   invalidateAllAlertQueries,
   listAlerts,
@@ -145,6 +147,10 @@ export function Alertas() {
   const activeCount = sumSummary(summary, departmentFilter, 'active_count')
   const dismissedCount = sumSummary(summary, departmentFilter, 'dismissed_count')
   const criticalCount = activePage ? activePage.filter((alert) => alert.severity === 'critical').length : null
+  // ponytail: o selo "ETA próximo" lê só a primeira página de ativos (100) do
+  // setor; com mais que isso, o alerta crítico pode ficar fora e o selo some.
+  // O caminho é a fila devolver o selo pronto.
+  const nearEta = useMemo(() => consigneesNearEta(activePage), [activePage])
 
   // A fila guarda a chave surrogate da entidade; o operador reconhece o
   // navio/viagem, o número da fatura ou o nome do cliente. A tradução é uma
@@ -384,7 +390,7 @@ export function Alertas() {
           <ul className="grid gap-3 p-3" aria-label={blockTitle}>
             {filteredAlerts.map((alert) => (
               <li key={`${alert.id}:${alert.item_id ?? getEffectiveAlertType(alert)}`}>
-                <AlertCard alert={alert} entityLabels={entityLabels} {...actions} />
+                <AlertCard alert={alert} entityLabels={entityLabels} nearEta={nearEta} {...actions} />
               </li>
             ))}
           </ul>
@@ -441,6 +447,7 @@ export function Alertas() {
                     key={`${alert.id}:${alert.item_id ?? getEffectiveAlertType(alert)}`}
                     alert={alert}
                     entityLabels={entityLabels}
+                    nearEta={nearEta}
                     {...actions}
                   />
                 ))}
@@ -578,11 +585,17 @@ function rowSubject(alert: AlertQueueRow, entityLabels?: AlertEntityLabels) {
   return [getAlertTypeLabel(getEffectiveAlertType(alert)), alertRecord(alert, entityLabels)?.label].filter(Boolean).join(' · ')
 }
 
-function AlertRow({ alert, entityLabels, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels }) {
+function AlertTypeLabel({ alert, nearEta }: { alert: AlertQueueRow; nearEta?: ReadonlySet<string> }) {
+  const label = getAlertTypeLabel(getEffectiveAlertType(alert))
+  if (!nearEta || !hasNearEtaMark(alert, nearEta)) return <>{label}</>
+  return <>{label} · <StatusText tone="warning">ETA próximo</StatusText></>
+}
+
+function AlertRow({ alert, entityLabels, nearEta, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels; nearEta?: ReadonlySet<string> }) {
   return (
     <tr>
       <td><Severity alert={alert} /></td>
-      <td className="app-table__text">{getAlertTypeLabel(getEffectiveAlertType(alert))}</td>
+      <td className="app-table__text"><AlertTypeLabel alert={alert} nearEta={nearEta} /></td>
       <td className="app-table__text"><RecordCell alert={alert} entityLabels={entityLabels} /></td>
       <td className="app-table__text app-table__text--wrap">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</td>
       <td><Department alert={alert} /></td>
@@ -623,10 +636,10 @@ function DismissedRow({ alert, entityLabels, expanded, onToggle, ...actions }: R
   )
 }
 
-function AlertCard({ alert, entityLabels, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels }) {
+function AlertCard({ alert, entityLabels, nearEta, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels; nearEta?: ReadonlySet<string> }) {
   const isDismissed = Boolean(alert.dismissed_until && new Date(alert.dismissed_until) > new Date())
   return (
-    <Block headingLevel={3} title={getAlertTypeLabel(getEffectiveAlertType(alert))} aside={<Severity alert={alert} />}>
+    <Block headingLevel={3} title={<AlertTypeLabel alert={alert} nearEta={nearEta} />} aside={<Severity alert={alert} />}>
       <FactList columns={2}>
         <Fact label="Registro"><RecordCell alert={alert} entityLabels={entityLabels} /></Fact>
         <Fact label="Setor"><Department alert={alert} /></Fact>

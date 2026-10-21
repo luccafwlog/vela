@@ -561,6 +561,34 @@ export type AlertQueueRow = Alert & {
 
 export type AlertStatusFilter = 'all' | 'active' | 'dismissed'
 
+// Mesma chave do consignatário na Revisão (`reconcile_customer_bl_review_alerts`):
+// nome aparado, ou `sem_cliente` quando vazio.
+function consigneeKey(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : 'sem_cliente'
+}
+
+/** Consignatários dos B/Ls em "B/L sem Cliente perto do ETA" ativos (migration 352). */
+export function consigneesNearEta(alerts: readonly AlertQueueRow[] | undefined): Set<string> {
+  const keys = new Set<string>()
+  for (const alert of alerts ?? []) {
+    if (getEffectiveAlertType(alert) !== 'bl_sem_cliente_perto_eta' || alert.item_status !== 'active') continue
+    const bls = alert.metadata?.bls
+    if (!Array.isArray(bls)) continue
+    for (const bl of bls) keys.add(consigneeKey((bl as { consignee?: unknown } | null)?.consignee))
+  }
+  return keys
+}
+
+/**
+ * Selo "ETA próximo" na Revisão de cliente não vinculado: o consignatário dela
+ * tem B/L no alerta crítico de B/L sem Cliente perto do ETA. Mostra a urgência
+ * sem abrir um segundo aviso para o mesmo B/L.
+ */
+export function hasNearEtaMark(alert: AlertQueueRow, nearEta: ReadonlySet<string>): boolean {
+  if (nearEta.size === 0 || getEffectiveAlertType(alert) !== 'review_customer_unlinked') return false
+  return nearEta.has(consigneeKey(alert.metadata?.consignee ?? alert.entity_id))
+}
+
 export type AlertDepartmentSummary = {
   department: string
   active_count: number
