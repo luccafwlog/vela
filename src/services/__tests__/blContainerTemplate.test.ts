@@ -35,9 +35,10 @@ describe('modelo de B/L de container', () => {
     const [row] = preview.rows
     expect(row?.status).toBe('new')
     expect(row?.blockedReasons).toEqual([])
-    expect(row?.warnings ?? []).toEqual([])
+    // ADR 0095, decisão 26: a aba VIN do modelo é ignorada, com aviso.
+    expect(row?.warnings ?? []).toEqual(['Aba VIN ignorada: veículos entram só pela planilha de Veículos; os veículos já gravados no B/L ficam.'])
     expect(row?.ladenOnBoard).toBe('2026-02-19')
     expect(row?.payload?.containers).toHaveLength(1)
-    expect(row?.payload?.vehicles).toHaveLength(2)
+    expect(row?.payload).not.toHaveProperty('vehicles')
   })
 })

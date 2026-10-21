@@ -491,6 +491,13 @@ componente só, aberto de todas as telas que a oferecem.
   `387`): toda importação de Viagem pega a mesma trava da Viagem antes de
   gravar, e a segunda espera a primeira terminar. Regra e lista das
   importações em [Manifestos & EDI](../modules/manifesto-edi.md#importação-do-bl-e-invariantes-gerais).
+- **Arquivo de B/L** (ADR 0095, decisões 5, 8, 9, 10, 26 e 27; migration
+  `392`): não move B/L entre Viagens (outra Viagem recusa o arquivo); B/L
+  cancelado é aviso e fica de fora; o Cliente sai do CNPJ; a confirmação de
+  faturamento só existe com fatura emitida e é conferida no servidor;
+  refixar o preço só com o aceite por B/L; a aba VIN é ignorada (veículos só
+  pela planilha de Veículos); FCL/LCL vem do Type of Movement. Regra completa
+  em [Manifestos & EDI](../modules/manifesto-edi.md).
 - Toda importação tem um modelo padrão para baixar (`public/templates/`); para
   arquivo que vem de sistema de fora (Baplie, ZPT), um exemplo no formato
   aceito.

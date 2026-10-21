@@ -344,8 +344,9 @@ o preço e o câmbio fixados.
   B/L não faturado é refeito no dia (tabela, Condição, câmbio e data). Sem o
   pedido, a reimportação mantém o preço e aplica só a mudança de base; arquivo
   idêntico não muda nada. B/L faturado segue a correção pelo preço da fatura
-  (ADR 0093, decisão 4). A tela do aceite é da frente das importações; até
-  ela existir, só o sistema (`service_role`) chama a função (migration `385`).
+  (ADR 0093, decisão 4). O aceite fica na prévia do arquivo de B/L, por B/L
+  (migration `392`); a função continua sem EXECUTE para a API e é chamada só
+  pela gravação do arquivo ([Manifestos & EDI](manifesto-edi.md)).
 - **Backfill** (A4, migrations `378` e `385`): o preço fixado dos B/Ls que já
   existiam foi refeito pela data da importação; o B/L não faturado recalcula
   na emissão (a base gravada deixa de bater).

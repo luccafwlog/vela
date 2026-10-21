@@ -16,6 +16,16 @@ antes e passa depois, e o módulo dono atualizado.
   efeito enfileirado); a gravação confere a versão do staging e o manifesto de
   vazios do Baplie lidos na prévia e recusa porto marcado sem container
   (`390`). Prova: `importacoesTravaEBaplie.local-pg.test.ts`.
+- **Lote 2 — arquivo de B/L** (migration `392`): decisões 5, 8, 9, 10, 26 e
+  27; F-05, F-15, F-27 e F-50 (aba VIN e `container_load_type`). B/L de outra
+  Viagem recusa o arquivo; B/L cancelado fica de fora com aviso; Cliente pelo
+  CNPJ no servidor; confirmação de faturamento só com fatura emitida,
+  conferida no servidor, e sem ela containers, peso, cubagem, POD e Place of
+  Delivery ficam; aceite de refixar o preço por B/L na prévia
+  (`bl_file_import_preview`) levado ao servidor; aba VIN ignorada e fim de
+  `vela.vin_reissue`; FCL/LCL do Type of Movement gravado e respeitado pelo
+  "FCL não se divide". Prova: `arquivoDeBlRegras.local-pg.test.ts` e
+  `blFreightImport.test.ts`.
 - **Lote 3 — portos** (migration `391`): decisão 12 (banco e tela); F-08.
   `normalize_port_code` e `_baplie_port_key` separam Navegantes de Itajaí e
   Recife de Suape e são uma régua só com `normalizeStoredPortCode`; dados
@@ -37,7 +47,7 @@ antes e passa depois, e o módulo dono atualizado.
 | Lote | Decisões | Achados | O que muda | Prova |
 |---|---|---|---|---|
 | 1 Trava e Baplie no servidor (entregue, ver acima) | 6, 11, 13 | F-04, F-11, F-16, F-20, F-21, F-22, F-26 | trava `import_voyage:<id>` em toda RPC de Viagem; índice único no staging do Baplie; Baplie substitui só os PODs do pedido; Viagem, escalas e duplicatas no servidor; `expected` (contagem) na gravação; staging, marcas e vazios do Baplie numa transação só (ou o passo seguinte enfileirado como efeito); `_set_import_context` de volta nos vazios do Baplie | duas sessões concorrentes; filtro de POD preserva o resto; falha no meio não deixa staging com marca e B/L sem |
-| 2 Arquivo de B/L | 5, 8, 9, 10, 26, 27 | F-05, F-15, F-27, F-50 | B/L de outra Viagem recusado; aviso de B/L cancelado; aceite de refixar levado ao servidor; confirmação só com fatura emitida e conferida no servidor; totais não mudam sem containers; aba VIN ignorada e fim de `vela.vin_reissue`; `container_load_type` gravado (coluna a confirmar no arquivo real) | local-pg por regra |
+| 2 Arquivo de B/L (entregue, ver acima) | 5, 8, 9, 10, 26, 27 | F-05, F-15, F-27, F-50 | B/L de outra Viagem recusado; aviso de B/L cancelado; aceite de refixar levado ao servidor; confirmação só com fatura emitida e conferida no servidor; totais não mudam sem containers; aba VIN ignorada e fim de `vela.vin_reissue`; `container_load_type` gravado (coluna a confirmar no arquivo real) | local-pg por regra |
 | 3 Portos (entregue, ver acima) | 12 | F-08, F-33b | `normalize_port_code` sem BRNVT→BRITJ e BRREC→BRSUA; aliases do front; dados gravados | B/L de Navegantes não casa escala de Itajaí |
 | 4 Exclusão e efeitos | 7, 18, 25 | F-10 (só a suíte), F-13, F-14, F-33a, F-34, F-42, F-43 | exclusão encerra efeitos e apaga vazios da Viagem; espera de negócio não é bloqueio; reprocessar no alerta; ator de sistema; excluir/mover veículo enfileira o efeito; `import_effects_queue_health` passa a contar `blocked` e `running` com lease vencida | efeito órfão some; alerta fecha; saúde da fila acusa bloqueado e lease vencida; excluir o irmão de container compartilhado faturado |
 | 5 CE e Manifesto Mercante | 19, 20 | F-49, F-53 | remover CE e cancelar tiram do Manifesto; alerta "CE fora do Manifesto da rota"; planilha de CE com recusa de cálculo testada e mensagem no formato da ADR 0094 | local-pg |
@@ -49,5 +59,5 @@ antes e passa depois, e o módulo dono atualizado.
 
 ## Pendências
 
-- Decisão 27: identificar a coluna da modalidade FCL/LCL no arquivo real da
-  COSCO (pedir ao responsável um arquivo com B/L LCL).
+- Nenhuma do Lote 2: a modalidade FCL/LCL é lida do Type of Movement
+  ("LCL/LCL" e "CFS-CFS" no B/L LCL real da COSCO).
