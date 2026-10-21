@@ -36,6 +36,10 @@ function asUser(sql: string): string {
 
 function cleanup() {
   asUser(`
+    -- Alertas do Portal que os B/Ls do Cliente abrem na hora (350); com os
+    -- gatilhos ligados, o CASCADE leva itens e eventos antes de apagar o usuário.
+    DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id IN (
+      SELECT id::text FROM public.customers WHERE cnpj_cpf IN (${baseCnpjs}) OR id = ${customerId});
     SET session_replication_role = replica;
     DELETE FROM public.import_pending_effects WHERE entity_id IN ('${blA}', '${blB}');
     DELETE FROM public.audit_logs WHERE changed_by = '${actorId}' OR entity_id IN ('${blA}', '${blB}');

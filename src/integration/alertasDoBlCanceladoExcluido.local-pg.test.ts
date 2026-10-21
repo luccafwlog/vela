@@ -132,7 +132,9 @@ describeLocal('347 — alertas acompanham o B/L cancelado, faturado ou excluído
     asServer('SELECT public.reconcile_client_portal_alerts()')
 
     // Antes: a pendência abria para o Cliente cujo único B/L foi cancelado.
-    expect(item('portal_pendencia_geral', 'customer', ONLY_CANCELLED)).toBe('sem item')
+    // Desde a 350 o B/L vivo abre a pendência na hora e o cancelamento a fecha:
+    // o que vale é não estar ativa.
+    expect(item('portal_pendencia_geral', 'customer', ONLY_CANCELLED)).not.toBe('active')
     expect(item('portal_pendencia_geral', 'customer', WITH_LIVE_BL)).toBe('active')
 
     const console = (customerId: number) => asAdmin(
