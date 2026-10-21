@@ -39,6 +39,8 @@ describe('formatPortDisplayName', () => {
   it('mapeia códigos conhecidos para nomes', () => {
     expect(formatPortDisplayName('CNNBO')).toBe('NINGBO')
     expect(formatPortDisplayName('vix')).toBe('VITORIA')
+    expect(formatPortDisplayName('BRNVT')).toBe('NAVEGANTES')
+    expect(formatPortDisplayName('BRREC')).toBe('RECIFE')
   })
 
   it('usa o valor original (trim) para códigos desconhecidos', () => {

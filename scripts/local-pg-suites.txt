@@ -67,6 +67,7 @@ src/integration/portalBillingRelease.local-pg.test.ts
 src/integration/ceImportacaoContrato.local-pg.test.ts
 src/integration/baplieMarcas.local-pg.test.ts
 src/integration/importacoesTravaEBaplie.local-pg.test.ts
+src/integration/portosSeparados.local-pg.test.ts
 src/integration/codDocumentoFatura.local-pg.test.ts
 src/integration/veiculosRegras.local-pg.test.ts
 src/integration/baseClientesVinculo.local-pg.test.ts

@@ -3,9 +3,10 @@
 // containers dela preservando a natureza; o recadastro pelo Baplie preserva a
 // natureza e não deixa manifestos vazios; o Embarque de Vazios atualiza por
 // container e preserva as unidades incluídas à mão.
-// Migration 192: a rota é comparada pela forma do cadastro (`normalize_port_code`,
-// BRNVT → BRITJ) e o Nº pela forma canônica; corrigir o Nº atualiza o espelho
-// `voyage_route_ce_master`.
+// Migration 192: a rota é comparada pela forma do cadastro (`normalize_port_code`)
+// e o Nº pela forma canônica; corrigir o Nº atualiza o espelho
+// `voyage_route_ce_master`. Migration 391: Navegantes (BRNVT) é porto próprio,
+// não mais gravado como BRITJ.
 //
 // Namespace exclusivo: ids 99234xxx, containers 'AZCU234xxxx', usuário ...0000002340NN.
 import { execPsql, spawnPsql } from './localPsql'
@@ -172,17 +173,18 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
   }
 
   const nvtMirror = `SELECT ce_master FROM public.voyage_route_ce_master
-    WHERE voyage_id = ${voyageId} AND cargo_mode = 'vazios' AND pol = 'CNSHA' AND pod = 'BRITJ';`
+    WHERE voyage_id = ${voyageId} AND cargo_mode = 'vazios' AND pol = 'CNSHA' AND pod = 'BRNVT';`
 
-  // Achado V2 da revisão da PR 929: o Manifesto é gravado com BRITJ e o prune
-  // comparava com o BRNVT do container, apagando o Manifesto recém-criado.
-  it('rota com POD BRNVT: o Manifesto (BRITJ no cadastro) fica, o id volta e o espelho aponta para ele', () => {
+  // Achado V2 da revisão da PR 929: o prune comparava o Manifesto com o POD
+  // cru do container e apagava o Manifesto recém-criado. Desde a 391 o
+  // Manifesto de Navegantes fica BRNVT (ADR 0095, decisão 12).
+  it('rota com POD BRNVT: o Manifesto (BRNVT no cadastro) fica, o id volta e o espelho aponta para ele', () => {
     const result = importRoute('AZCU2340021', 'BRNVT', '1226A23400021')
     expect(result.stderr).toBe('')
     const ids = (JSON.parse(result.stdout) as { mercante_manifest_ids: string[] | null }).mercante_manifest_ids
     expect(ids).toHaveLength(1)
     expect(psql(`SELECT id || ':' || pol || '>' || pod FROM public.manifestos_mercante WHERE numero = '1226A23400021';`))
-      .toBe(`${ids?.[0]}:CNSHA>BRITJ`)
+      .toBe(`${ids?.[0]}:CNSHA>BRNVT`)
     expect(psql(nvtMirror)).toBe('1226A23400021')
   })
 

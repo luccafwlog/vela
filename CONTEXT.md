@@ -169,7 +169,9 @@ YUN`; `CS` = `COSCO SHIPPING`).
 Passagem de uma viagem por um porto brasileiro, identificada por
 `(Viagem, porto)`. É dona da chegada ao porto — ETA e ATA —; as datas de berço
 pertencem às suas Atracações. Um porto, uma escala, com importação, exportação
-ou as duas.
+ou as duas. Grafias do mesmo porto (BRVIT e BRVIX) são uma escala; portos
+vizinhos com código próprio (Navegantes e Itajaí, Recife e Suape) são escalas
+distintas.
 - **Distinto de:** POL e POD, que são papéis do conhecimento de embarque e da
   rota (`ETD do POL`, POD do B/L, POD omitido), não linhas do planejamento da
   Viagem; portos estrangeiros da rota não são escalas.

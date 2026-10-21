@@ -1,6 +1,8 @@
 // Validação/normalização pura dos formulários de Taxas Locais. As mensagens de
 // erro são exibidas ao usuário, então devem permanecer estáveis.
 
+import { normalizeStoredPortCode } from '../services/portCode'
+
 // `field` aponta o campo do erro para o formulário mostrá-lo junto do campo.
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string; field?: string }
 
@@ -119,40 +121,13 @@ export type ChargeTableAlert = {
   hint: string
 }
 
-// Espelha `public.normalize_port_code` como está hoje no banco (baseline 002,
-// herdeira das migrations 353, 361 e 365): lista exata de aliases, sem
-// "contém". É o critério do banco que decide se duas tabelas caem no mesmo
-// escopo, então é ele que a tela reproduz; `normalizePortCode` de
-// `src/services/portCode.ts` é mais tolerante e agruparia diferente do motor.
-// Se a função do banco mudar, esta lista precisa acompanhar.
-const ENGINE_PORT_ALIASES: Array<[string, string[]]> = [
-  ['BRVIX', ['BRVIT', 'VITORIA', 'VITÓRIA', 'BRVIX', 'VIX']],
-  ['BRSSA', ['SALVADOR', 'BRSSA', 'SSA']],
-  ['BRPEC', ['PECEM', 'PECÉM', 'BRPEC', 'PEC']],
-  ['BRSSZ', ['SANTOS', 'BRSSZ', 'SSZ']],
-  ['BRPNG', ['PARANAGUA', 'PARANAGUÁ', 'BRPNG', 'PNG']],
-  ['BRITJ', ['ITAJAI', 'ITAJAÍ', 'BRITJ', 'ITJ', 'NAVEGANTES', 'BRNVT', 'NVT']],
-  ['BRRIG', ['RIO GRANDE', 'BRRIG', 'RIG']],
-  ['BRSUA', ['SUAPE', 'RECIFE', 'BRSUA', 'SUA', 'BRREC']],
-  ['BRRIO', ['RIO DE JANEIRO', 'BRRIO', 'BRRDJ']],
-  ['BRMAO', ['MANAUS', 'BRMAO']],
-  ['CNTAO', ['QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG']],
-  ['CNSHA', ['SHANGHAI', 'CNSHA', 'CNSHG', 'SHG']],
-  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG']],
-  ['CNNGB', ['NINGBO', 'CNNGB', 'CNNBO', 'NBO', 'ZHOUSHAN', 'CNZOS', 'ZOS']],
-  ['CNNSA', ['NANSHA', 'CNNSA', 'CNNAN', 'GUANGZHOU', 'CNGZU']],
-  ['CNZJG', ['ZHANGJIAGANG', 'CNZJG']],
-  ['CNXMN', ['XIAMEN', 'AMOY', 'CNXMN', 'XMN']],
-  ['CNSHK', ['SHEKOU', 'SHENZHEN', 'CNSHK', 'CNSZK', 'CNSHE']],
-  ['CNYTN', ['YANTIAN', 'CNYTN', 'YTN']],
-  ['HKHKG', ['HONG KONG', 'HONGKONG', 'HKHKG', 'HKG']],
-]
-const ENGINE_PORT_CODE = new Map(ENGINE_PORT_ALIASES.flatMap(([code, aliases]) => aliases.map((alias) => [alias, code] as const)))
-
+// O escopo da tabela segue `public.normalize_port_code`, lista exata de
+// apelidos sem "contém" (`normalizeStoredPortCode`, cópia conferida pela suíte
+// operationalLists). É o critério do banco que decide se duas tabelas caem no
+// mesmo escopo; `normalizePortCode` (import) agruparia diferente do motor.
+// Recife (BRREC) e Suape (BRSUA) são escopos distintos (migration 391).
 export function normalizeChargeTablePod(value: string | null | undefined) {
-  const normalized = String(value ?? '').trim().toUpperCase()
-  if (!normalized) return ''
-  return ENGINE_PORT_CODE.get(normalized) ?? normalized
+  return normalizeStoredPortCode(value) ?? ''
 }
 
 function scopeKey(table: ChargeTableValidityRow) {

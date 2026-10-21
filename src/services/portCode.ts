@@ -17,11 +17,14 @@ const PORT_NAME_TO_LOCODE: Array<[string, string]> = [
   ['paranaguá', 'BRPNG'],
   ['itajai', 'BRITJ'],
   ['itajaí', 'BRITJ'],
-  ['navegantes', 'BRITJ'],
+  // Navegantes e Itajaí, Recife e Suape são portos e escalas distintos (ADR
+  // 0095, decisão 12): nenhum dos quatro vira o outro.
+  ['navegantes', 'BRNVT'],
   ['rio grande', 'BRRIG'],
   ['suape', 'BRSUA'],
-  ['recife', 'BRSUA'],
+  ['recife', 'BRREC'],
   ['rio de janeiro', 'BRRIO'],
+  ['sepetiba', 'BRSEP'],
   ['manaus', 'BRMAO'],
   ['qingdao', 'CNTAO'],
   ['qindgao', 'CNTAO'],
@@ -63,8 +66,7 @@ const PORT_NAME_TO_LOCODE: Array<[string, string]> = [
 const KNOWN_PORT_CODES = new Set([
   ...PORT_NAME_TO_LOCODE.map(([, code]) => code),
   'BRVIX', 'BRVIT', 'BRBEL', 'BRFOR', 'BRIGI', 'BRIOS', 'BRMCZ', 'BRNAT',
-  'BRSEP',
-  'BRNVT', 'BRREC', 'BRSLZ', 'BRSFS', 'ITGOA', 'NLRTM',
+  'BRSEP', 'BRSLZ', 'BRSFS', 'ITGOA', 'NLRTM',
 ])
 
 // Códigos de 3 letras (sem prefixo de país) e LOCODEs alternativos que o Baplie
@@ -130,10 +132,13 @@ export function portCodeVariants(value: string | null | undefined): string[] {
   return [...variants]
 }
 
-// Cópia exata de `public.normalize_port_code` (migrations 002 e 113). Filtros
-// de leitura que mandam o porto ao banco precisam dela: `normalizePortCode`
-// é do import e conhece sinônimos (CNTCA, SEP) que o banco não conhece, então
-// reescrever a URL com ela faria o filtro deixar de casar com o valor gravado.
+// Cópia exata de `public.normalize_port_code` (migration 391). Filtros de
+// leitura que mandam o porto ao banco e comparações com o que o banco decide
+// (escopo da tabela de Taxas Locais, PODs do Baplie) usam esta régua:
+// `normalizePortCode` é a do import, que também reconhece nomes dentro de um
+// texto ("SALVADOR, BRAZIL") e por isso não serve para comparar valor gravado.
+// Os apelidos exatos de `EXACT_PORT_ALIASES` estão aqui também (o teste
+// `portCode.test.ts` confere).
 // ponytail: tabela duplicada; `operationalLists.local-pg.test.ts` compara as
 // duas e falha se divergirem. Upgrade: gerar esta tabela a partir do banco.
 const STORED_PORT_ALIASES: Array<[string, string[]]> = [
@@ -142,16 +147,19 @@ const STORED_PORT_ALIASES: Array<[string, string[]]> = [
   ['BRPEC', ['PECEM', 'PECÉM', 'BRPEC', 'PEC']],
   ['BRSSZ', ['SANTOS', 'BRSSZ', 'SSZ']],
   ['BRPNG', ['PARANAGUA', 'PARANAGUÁ', 'BRPNG', 'PNG']],
-  ['BRITJ', ['ITAJAI', 'ITAJAÍ', 'BRITJ', 'ITJ', 'NAVEGANTES', 'BRNVT', 'NVT']],
+  ['BRITJ', ['ITAJAI', 'ITAJAÍ', 'BRITJ', 'ITJ']],
+  ['BRNVT', ['NAVEGANTES', 'BRNVT', 'NVT']],
   ['BRRIG', ['RIO GRANDE', 'BRRIG', 'RIG']],
-  ['BRSUA', ['SUAPE', 'RECIFE', 'BRSUA', 'SUA', 'BRREC']],
+  ['BRSUA', ['SUAPE', 'BRSUA', 'SUA']],
+  ['BRREC', ['RECIFE', 'BRREC', 'REC']],
   ['BRRIO', ['RIO DE JANEIRO', 'BRRIO', 'BRRDJ']],
+  ['BRSEP', ['SEPETIBA', 'BRSEP', 'BRSPB', 'SPB', 'SEP']],
   ['BRMAO', ['MANAUS', 'BRMAO']],
-  ['CNTAO', ['QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG']],
+  ['CNTAO', ['QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG', 'TAO']],
   ['CNSHA', ['SHANGHAI', 'CNSHA', 'CNSHG', 'SHG']],
-  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG']],
+  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'TCA']],
   ['CNNGB', ['NINGBO', 'CNNGB', 'CNNBO', 'NBO', 'ZHOUSHAN', 'CNZOS', 'ZOS']],
-  ['CNNSA', ['NANSHA', 'CNNSA', 'CNNAN', 'GUANGZHOU', 'CNGZU']],
+  ['CNNSA', ['NANSHA', 'CNNSA', 'CNNAN', 'GUANGZHOU', 'CNGZU', 'CNCAN']],
   ['CNZJG', ['ZHANGJIAGANG', 'CNZJG']],
   ['CNXMN', ['XIAMEN', 'AMOY', 'CNXMN', 'XMN']],
   ['CNSHK', ['SHEKOU', 'SHENZHEN', 'CNSHK', 'CNSZK', 'CNSHE']],

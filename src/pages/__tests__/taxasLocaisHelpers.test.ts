@@ -264,4 +264,20 @@ describe('resolveChargeTableStates', () => {
     expect(states.get(9)).toEqual({ kind: 'applied' })
     expect(states.get(5)).toEqual({ kind: 'shadowed', winnerId: 9 })
   })
+
+  // ADR 0095, decisão 12 (migration 391): a tabela de Recife não é escopo de
+  // Suape, nem a de Navegantes de Itajaí. Antes as duas caíam no mesmo escopo
+  // e a mais nova escondia a outra.
+  it('Recife e Suape, Navegantes e Itajaí são escopos distintos', () => {
+    expect(normalizeChargeTablePod('BRREC')).toBe('BRREC')
+    expect(normalizeChargeTablePod('recife')).toBe('BRREC')
+    expect(normalizeChargeTablePod('BRNVT')).toBe('BRNVT')
+    const states = resolveChargeTableStates([
+      row(1, { pod: 'BRSUA', valid_from: '2026-01-01' }),
+      row(2, { pod: 'BRREC', valid_from: '2026-06-01' }),
+      row(3, { pod: 'BRITJ', valid_from: '2026-01-01' }),
+      row(4, { pod: 'NAVEGANTES', valid_from: '2026-06-01' }),
+    ])
+    for (const id of [1, 2, 3, 4]) expect(states.get(id)).toEqual({ kind: 'applied' })
+  })
 })

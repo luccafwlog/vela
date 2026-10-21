@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizePortCode, portCodeVariants, resolvePortCode } from '../portCode'
+import { normalizePortCode, normalizeStoredPortCode, portCodeVariants, resolvePortCode, storedPortAliases } from '../portCode'
 
 describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
   const cases: Array<[string, string]> = [
@@ -22,7 +22,9 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     ['SANTOS', 'BRSSZ'],
     ['PARANAGUÁ', 'BRPNG'],
     ['ITAJAÍ', 'BRITJ'],
-    ['NAVEGANTES', 'BRITJ'],
+    ['NAVEGANTES', 'BRNVT'],
+    ['RECIFE', 'BRREC'],
+    ['SUAPE', 'BRSUA'],
     ['VITÓRIA', 'BRVIX'],
     ['SINGAPORE', 'SGSIN'],
     ['NEW YORK', 'USNYC'],
@@ -77,4 +79,42 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(portCodeVariants('CNTAC')).toEqual(expect.arrayContaining(['CNTAC', 'TAICANG', 'CNTAG']))
     expect(portCodeVariants('CNNGB')).toEqual(expect.arrayContaining(['CNNGB', 'ZOS']))
   })
+})
+
+// ADR 0095, decisão 12 (Lote 3, migration 391): Navegantes ≠ Itajaí e Recife ≠
+// Suape, no import e na régua do banco. Antes, a régua do banco (cópia de
+// `normalize_port_code`) levava BRNVT a BRITJ e BRREC a BRSUA.
+describe('Navegantes, Itajaí, Recife e Suape são quatro portos', () => {
+  it.each([
+    ['BRNVT', 'BRNVT'], ['NVT', 'BRNVT'], ['NAVEGANTES', 'BRNVT'],
+    ['BRITJ', 'BRITJ'], ['ITJ', 'BRITJ'], ['ITAJAÍ', 'BRITJ'],
+    ['BRREC', 'BRREC'], ['REC', 'BRREC'], ['RECIFE', 'BRREC'],
+    ['BRSUA', 'BRSUA'], ['SUA', 'BRSUA'], ['SUAPE', 'BRSUA'],
+  ])('régua do banco: %s -> %s', (value, code) => {
+    expect(normalizeStoredPortCode(value)).toBe(code)
+  })
+
+  it('o import não junta os pares', () => {
+    expect(normalizePortCode('BRNVT')).toBe('BRNVT')
+    expect(normalizePortCode('BRREC')).toBe('BRREC')
+    expect(normalizePortCode('Navegantes, Brazil')).toBe('BRNVT')
+    expect(normalizePortCode('Recife')).toBe('BRREC')
+  })
+
+  it('filtro por porto não traz as grafias do outro porto do par', () => {
+    expect(storedPortAliases('BRITJ')).not.toContain('BRNVT')
+    expect(storedPortAliases('BRITJ')).not.toContain('NAVEGANTES')
+    expect(storedPortAliases('BRSUA')).not.toContain('BRREC')
+    expect(storedPortAliases('BRNVT')).toEqual(['NAVEGANTES', 'BRNVT', 'NVT'])
+    expect(storedPortAliases('BRREC')).toEqual(['RECIFE', 'BRREC', 'REC'])
+    expect(portCodeVariants('BRITJ')).not.toContain('NAVEGANTES')
+  })
+
+  // Uma régua só: os apelidos exatos do import valem igual na cópia do banco.
+  it.each(['CNCAN', 'TAO', 'VIX', 'VIT', 'BRVIT', 'SPB', 'BRSPB', 'SEP', 'CNTCA', 'TCA'])(
+    'apelido exato %s é o mesmo porto no import e no banco',
+    (alias) => {
+      expect(normalizeStoredPortCode(alias)).toBe(resolvePortCode(alias).code)
+    },
+  )
 })

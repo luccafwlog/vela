@@ -579,7 +579,12 @@ Operação segue exceção do B/L, acordo do cliente vigente na descarga e tarif
 geral. Sem referência oficial, exibe tarifa indisponível, sem número fixo.
 Não inclui tabelas de exportação nem Detention. Devolução e Taxas Locais
 exibem apenas BRVIX, BRSSA e BRSUA, incluindo a consulta sem filtro e os
-containers selecionáveis. Agentes por porto mantém os demais portos. Taxas
+containers selecionáveis. Agentes por porto mantém os demais portos. Os
+portos de Depósitos e Agentes são gravados pela régua do banco
+(`normalize_port_code`); desde a migration `391` (ADR 0095, decisão 12)
+Navegantes (BRNVT) e Recife (BRREC) aparecem como portos próprios na lista, e
+um cadastro gravado antes como BRITJ ou BRSUA continua assim: se era Navegantes
+ou Recife, quem cadastrou precisa escolher o porto de novo e gravar. Taxas
 Locais não exibe o badge “Aplicação manual” nem o texto “Inclui SOC”; as
 regras de cobrança permanecem nos cadastros oficiais.
 
