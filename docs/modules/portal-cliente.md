@@ -332,7 +332,9 @@ consulta no sistema sem estar na audiência.
 
 - **Processo ativo:** o Cliente tem processo ativo enquanto tiver B/L não
   cancelado e ainda não pago (a faturar ou faturado) ou Invoice de Demurrage
-  emitida ou vencida (`customer_has_active_portal_process`, migration `350`).
+  emitida ou vencida (`customer_has_active_portal_process`, migration `350`;
+  o B/L cancelado, que o cancelamento marca em `cancelled_at` sem mudar
+  `financial_status`, deixou de contar na migration `347`).
   Cliente só com B/Ls pagos e sem Demurrage em aberto não gera alerta do
   Portal; um B/L novo dele volta a gerar (decisão do Lucca, 2026-10-21). A
   coluna "Processo ativo" do console usa a mesma regra. Os quatro alertas
