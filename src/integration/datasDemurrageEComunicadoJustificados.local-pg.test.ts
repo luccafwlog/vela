@@ -333,7 +333,7 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     expect(reopened.claims).toBe(nobClaim)
   })
 
-  it('P2: claim justificada que sai e volta a ser devida sem falha nova não reabre', () => {
+  it('P2: claim justificada que sai e volta a ser devida só reabre com falha nova dela', () => {
     const round = () => asServer(`SELECT public.evaluate_and_dispatch_automatic_communications(now())`)
     const opened = () => psql(`SELECT count(*) FROM public.alert_item_events AS e JOIN public.alert_items AS i ON i.id = e.alert_item_id
       JOIN public.alerts AS a ON a.id = i.alert_id
@@ -366,6 +366,13 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     // pela recusa antiga e o item continua resolvido, sem ocorrência nova.
     setEta(2)
     round()
+    expect(noaMarks()).toBe('false|false')
+    expect(refusalItem().status).toBe('resolved')
+    expect(opened()).toBe(openedBefore)
+
+    // O desfecho de outra claim do Cliente (o NOB, reconhecido) também não
+    // põe o NOA de volta pela recusa antiga.
+    asServer(`SELECT public.defer_customer_communication_automation_claim('${nobClaim}', 'Prontidão financeira bloqueada', false)`)
     expect(noaMarks()).toBe('false|false')
     expect(refusalItem().status).toBe('resolved')
     expect(opened()).toBe(openedBefore)
