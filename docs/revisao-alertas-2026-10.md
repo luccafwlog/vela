@@ -508,7 +508,8 @@ aplicada depois dela; até o merge da #1008, o diff da #1015 mostra também a
 
 **Conferência da combinação.** As dez branches, mergeadas nessa ordem sobre a
 `staging` num worktree local, entram sem conflito, e as migrations `346` a `353`
-aplicam em sequência num banco limpo. A combinação já pegou uma
+aplicam em sequência num banco limpo. A bateria local-pg inteira passou nesse
+banco combinado (124 suítes, 1123 testes). A combinação pegou uma
 interação: com a `350`, o B/L vivo abre a pendência do Portal na hora, e a
 suíte da `347` esperava que ela nunca tivesse existido; a asserção passou a
 ser "não ativa" na #1015.
