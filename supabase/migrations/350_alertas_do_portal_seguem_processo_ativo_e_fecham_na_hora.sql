@@ -52,13 +52,18 @@
 --      ainda bloqueado) e rodava depois do gatilho novo, desfazendo o
 --      resultado dele até a rodada do detector. O gatilho novo cobre os
 --      mesmos casos com a regra completa. A função fica sem gatilho.
+--   6. Os produtores diretos (`block521_upsert_alert`, usado por
+--      `process_portal_email_event` no bounce; e a linha antiga gravada pela
+--      Edge `portal-invite-send` na falha do convite, via
+--      `route_catalog_alert_insert`) não abrem mais os quatro tipos por conta
+--      própria: chamam o reconciliador do Cliente, que segue o processo ativo.
 --
 -- Só troca funções e cria gatilhos; não reescreve nem apaga linhas. Os alertas
 -- abertos de Cliente que já não tem processo ativo fecham na próxima rodada do
 -- detector, ou no primeiro fato do Cliente.
 -- Rollback: reaplicar as definições da 347 (`reconcile_client_portal_alerts`,
--- `portal_list_provisioning_console`) e do dump 002
--- (`portal_mark_expired_invites`); DROP dos gatilhos
+-- `portal_list_provisioning_console`), da 052 (`block521_upsert_alert`) e do
+-- dump 002 (`portal_mark_expired_invites`, `route_catalog_alert_insert`); DROP dos gatilhos
 -- `reconcile_portal_alerts_on_account_insert_delete`,
 -- `reconcile_portal_alerts_on_account_update`,
 -- `reconcile_portal_alerts_on_suppressed_email`,
@@ -555,3 +560,168 @@ CREATE TRIGGER reconcile_portal_alerts_on_demurrage_invoice_update
   FOR EACH ROW
   WHEN (OLD.status IS DISTINCT FROM NEW.status OR OLD.customer_id IS DISTINCT FROM NEW.customer_id)
   EXECUTE FUNCTION public.reconcile_portal_alerts_on_demurrage_invoice();
+
+-- 6 -------------------------------------------------------------------------
+-- Produtores diretos dos quatro alertas do Portal passam pelo reconciliador
+-- (achado do revisor na #1015). A Edge `portal-invite-send` grava uma linha
+-- antiga de `portal_falha_envio` em `alerts` (convertida em item por
+-- `route_catalog_alert_insert`) e `process_portal_email_event` (109) chama
+-- `block521_upsert_alert` com `portal_email_suprimido`. Os dois abriam sem o
+-- processo ativo, até a rodada seguinte do detector. Agora o tipo do Portal
+-- com entidade Cliente não abre por eles: a gravação de origem (conta em
+-- `falha_no_envio`, endereço suprimido) já aconteceu, e o reconciliador decide
+-- pelo estado com a mesma regra dos gatilhos.
+CREATE OR REPLACE FUNCTION public._route_portal_alert_to_reconciler(
+  p_type text,
+  p_entity_type text,
+  p_entity_id text,
+  p_source text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_previous text := current_setting('alerts.foundation_trigger', true);
+BEGIN
+  IF p_type NOT IN ('portal_pendencia_geral', 'portal_convite_expirado', 'portal_falha_envio', 'portal_email_suprimido')
+     OR p_entity_type IS DISTINCT FROM 'customer'
+     OR p_entity_id IS NULL OR p_entity_id !~ '^[0-9]+$' THEN
+    RETURN false;
+  END IF;
+  PERFORM set_config('alerts.foundation_trigger', 'on', true);
+  PERFORM public.reconcile_client_portal_alerts_for_customer(p_entity_id::bigint, COALESCE(NULLIF(btrim(p_source), ''), 'portal_reconciliation'));
+  PERFORM set_config('alerts.foundation_trigger', COALESCE(v_previous, ''), true);
+  RETURN true;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public._route_portal_alert_to_reconciler(text, text, text, text) FROM PUBLIC, anon, authenticated;
+
+-- Definição da migration 052 com o desvio acima no começo.
+CREATE OR REPLACE FUNCTION public.block521_upsert_alert(
+  p_type text,
+  p_entity_type text,
+  p_entity_id text,
+  p_message text,
+  p_source text,
+  p_department text,
+  p_metadata jsonb DEFAULT '{}'::jsonb,
+  p_destination text DEFAULT NULL::text
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE
+  v_result jsonb;
+  v_portal_context boolean := false;
+  v_context_created boolean := false;
+  v_context_table text := format('vela_portal_dispute_alert_%s', replace(gen_random_uuid()::text, '-', ''));
+  v_previous_context_table text := current_setting('alerts.portal_dispute_context_table', true);
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role'
+     AND NOT public.is_active_user() THEN
+    IF auth.uid() IS NULL
+       OR p_type IS DISTINCT FROM 'portal_dispute_opened'
+       OR p_entity_type IS DISTINCT FROM 'demurrage_invoice'
+       OR p_entity_id IS NULL
+       OR p_entity_id !~ '^[0-9]+$'
+       OR p_source IS NULL
+       OR p_source NOT IN ('portal_dispute_message', 'portal_dispute_reopen_request')
+       OR p_department IS DISTINCT FROM 'equipamentos' THEN
+      RAISE EXCEPTION 'Portal nao pode criar este alerta.' USING ERRCODE = '42501';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM public.demurrage_invoices AS invoice
+      WHERE invoice.id = p_entity_id::bigint
+        AND invoice.customer_id = public.current_portal_customer_id()
+    ) THEN
+      RAISE EXCEPTION 'Portal nao pode criar este alerta.' USING ERRCODE = '42501';
+    END IF;
+    v_portal_context := true;
+  END IF;
+
+  -- 350: alerta do Portal por Cliente segue o processo ativo.
+  IF public._route_portal_alert_to_reconciler(p_type, p_entity_type, p_entity_id, p_source) THEN
+    RETURN jsonb_build_object('routed', 'reconcile_client_portal_alerts_for_customer');
+  END IF;
+
+  IF v_portal_context THEN
+    EXECUTE format(
+      'CREATE TEMP TABLE pg_temp.%I (marker boolean NOT NULL) ON COMMIT DROP',
+      v_context_table
+    );
+    v_context_created := true;
+    EXECUTE format('INSERT INTO pg_temp.%I(marker) VALUES (true)', v_context_table);
+    PERFORM set_config('alerts.portal_dispute_context_table', v_context_table, true);
+  END IF;
+
+  IF to_regprocedure('public.upsert_alert_item(text,text,text,text,text,text,jsonb,text)') IS NOT NULL THEN
+    EXECUTE 'SELECT public.upsert_alert_item($1,$2,$3,$4,$5,$6,$7,$8)'
+      INTO v_result
+      USING p_type, p_entity_type, p_entity_id, p_message, p_source,
+        p_department, COALESCE(p_metadata, '{}'::jsonb), p_destination;
+  ELSE
+    EXECUTE 'SELECT public.upsert_alert_item($1,$2,$3,$4,$5,$6,$7)'
+      INTO v_result
+      USING p_type, p_entity_type, p_entity_id, p_message, p_source,
+        COALESCE(p_metadata, '{}'::jsonb), p_destination;
+  END IF;
+
+  IF v_context_created THEN
+    EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+    v_context_created := false;
+    PERFORM set_config('alerts.portal_dispute_context_table', COALESCE(v_previous_context_table, ''), true);
+  END IF;
+  RETURN v_result;
+EXCEPTION
+  WHEN OTHERS THEN
+    IF v_context_created THEN
+      EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+      v_context_created := false;
+    END IF;
+    PERFORM set_config('alerts.portal_dispute_context_table', COALESCE(v_previous_context_table, ''), true);
+    RAISE;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.block521_upsert_alert(
+  text, text, text, text, text, text, jsonb, text
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.block521_upsert_alert(
+  text, text, text, text, text, text, jsonb, text
+) TO service_role;
+
+-- Definição do dump 002 com o desvio acima: a linha antiga fecha do mesmo jeito.
+CREATE OR REPLACE FUNCTION public.route_catalog_alert_insert() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  IF NEW.type <> 'aggregate'
+     AND NEW.entity_type IS NOT NULL
+     AND NEW.entity_id IS NOT NULL
+     AND EXISTS (SELECT 1 FROM public.alert_type_catalog WHERE type = NEW.type AND active)
+     AND current_setting('alerts.foundation_direct_insert', true) IS DISTINCT FROM 'on' THEN
+    PERFORM set_config('alerts.foundation_trigger', 'on', true);
+    IF NOT public._route_portal_alert_to_reconciler(NEW.type, NEW.entity_type, NEW.entity_id, 'legacy_insert') THEN
+      PERFORM public.upsert_alert_item(
+        NEW.type, NEW.entity_type, NEW.entity_id, NEW.message,
+        'legacy_insert', '{}'::jsonb, NULL
+      );
+    END IF;
+    UPDATE public.alerts
+    SET status = 'closed', closed_at = COALESCE(closed_at, now())
+    WHERE id = NEW.id;
+    PERFORM set_config('alerts.foundation_trigger', 'off', true);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.route_catalog_alert_insert() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.route_catalog_alert_insert() TO service_role;

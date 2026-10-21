@@ -341,7 +341,10 @@ consulta no sistema sem estar na audiência.
   abaixo (pendência geral, convite expirado, falha no envio, e-mail suprimido)
   abrem e fecham na hora em que a conta, o e-mail de recuperação, a lista de
   bloqueio, os B/Ls ou as Invoices de Demurrage do Cliente mudam; a rodada de
-  15 minutos do detector confere de novo.
+  15 minutos do detector confere de novo. Os produtores diretos (a falha do
+  convite gravada pela Edge `portal-invite-send` e o bounce processado por
+  `process_portal_email_event`) também passam pelo mesmo reconciliador, então
+  não abrem alerta para Cliente sem processo ativo.
 - **Pendência geral de prontidão:** Cliente com processo ativo cujo Portal não
   está pronto — conta ativa com usuário técnico e
   Email de Recuperação válido, sem bounce/complaint e fora da lista de

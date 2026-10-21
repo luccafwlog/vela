@@ -75,7 +75,7 @@ function cleanup() {
     DELETE FROM public.internal_notifications WHERE alert_id IN (SELECT id FROM a350_alerts);
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM a350_alerts);
     DELETE FROM public.alerts WHERE id IN (SELECT id FROM a350_alerts);
-    DELETE FROM public.alerts WHERE type = 'portal_convite_expirado' AND entity_id IN ('${ALFA}', '${BETA}', '${GAMA}');
+    DELETE FROM public.alerts WHERE type IN ('portal_convite_expirado', 'portal_falha_envio', 'portal_email_suprimido') AND entity_id IN ('${ALFA}', '${BETA}', '${GAMA}');
     DELETE FROM public.demurrage_invoices WHERE customer_id IN (${CUSTOMERS});
     DELETE FROM public.bls WHERE id LIKE 'BL350%';
     DELETE FROM public.portal_suppressed_emails WHERE email IN ('${EMAIL}', 'novo-${EMAIL}');
@@ -221,5 +221,27 @@ describeLocal('350 — alertas do Portal seguem o processo ativo e fecham na hor
     psql(`UPDATE public.bls SET financial_status = 'paid' WHERE id = 'BL350GAMA';`)
     expect(status(GAMA, 'portal_convite_expirado')).toBe('resolved')
     expect(status(GAMA, 'portal_pendencia_geral')).toBe('resolved')
+  })
+
+  it('produtores diretos (falha do convite pela Edge, bounce) seguem o processo ativo', () => {
+    // Alfa só tem B/L pago e cancelado. A Edge portal-invite-send grava a conta
+    // em falha_no_envio e depois uma linha antiga de portal_falha_envio; o
+    // bounce chama block521_upsert_alert com portal_email_suprimido.
+    psql(`UPDATE public.customer_portal_accounts SET account_situation = 'falha_no_envio' WHERE customer_id = ${ALFA};
+      INSERT INTO public.alerts (type, entity_type, entity_id, message, status)
+      VALUES ('portal_falha_envio', 'customer', '${ALFA}', 'Falha no envio do convite do Portal.', 'open');`)
+    expect(status(ALFA, 'portal_falha_envio')).toBe('nenhum')
+    psql(`BEGIN; SELECT set_config('request.jwt.claim.role', 'service_role', true);
+      SELECT public.block521_upsert_alert('portal_email_suprimido', 'customer', '${ALFA}',
+        'Email de Recuperação indisponível.', 'portal_email_events_runner', 'documentacao', '{}'::jsonb, NULL);
+      COMMIT;`)
+    expect(status(ALFA, 'portal_email_suprimido')).toBe('nenhum')
+
+    // Com processo ativo, a falha do convite abre (pelo reconciliador).
+    psql(`INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, financial_status)
+      VALUES ('BL350ALFA3', ${VOYAGE}, ${ALFA}, 'CNSHA', 'BRVIX', 'pending');
+      INSERT INTO public.alerts (type, entity_type, entity_id, message, status)
+      VALUES ('portal_falha_envio', 'customer', '${ALFA}', 'Falha no envio do convite do Portal.', 'open');`)
+    expect(status(ALFA, 'portal_falha_envio')).toBe('active')
   })
 })
