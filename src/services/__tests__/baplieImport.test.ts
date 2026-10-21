@@ -106,7 +106,7 @@ describe('reimportBaplie', () => {
     await expect(run([box('AAAU1111111')])).resolves.toMatchObject({ status: 'imported', staged: 1, vaziosReplaced: false, flagsError: null, vaziosError: null })
     expect(confirmReplacement).not.toHaveBeenCalled()
     expect(importCalls()).toEqual([['import_baplie_file_atomic', expect.objectContaining({
-      p_voyage_id: 22, p_pods: ['BRVIX'], p_expected: { count: 0, max_id: null },
+      p_voyage_id: 22, p_pods: ['BRVIX'], p_expected: { count: 0, max_id: null, vazios_manifest: { id: 'vazios-1', total: 2 } },
       p_file: { voyage_number: '12N', voyage_confirmed: true },
     })]])
     expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
@@ -189,6 +189,25 @@ describe('reimportBaplie', () => {
     await expect(retryBaplieVazios({ voyageId: 22, actorId: 'user-1' })).resolves.toBe(2)
     mocks.replaceVaziosFromBaplie.mockResolvedValue({ manifestId: null, total: 0 })
     await expect(retryBaplieVazios({ voyageId: 22, actorId: 'user-1' })).resolves.toBe(0)
+  })
+
+  // Migration 390: o manifesto de vazios que o diálogo mostrou vai junto; o
+  // servidor recusa se outra sessão o recadastrou, criou ou apagou depois.
+  it('o manifesto de vazios lido na prévia (id e total) vai em p_expected e é o mesmo do diálogo', async () => {
+    mocks.existing = staged(box('AAAU1111111'))
+    mocks.getBaplieManifestForVoyage.mockResolvedValue({ id: 'vazios-7', total_containers: 5, imported_at: '2026-10-21' })
+    confirmReplacement.mockResolvedValue(true)
+    await run([box('AAAU1111111'), box('BBBU2222222')])
+    expect(confirmReplacement).toHaveBeenCalledWith(expect.objectContaining({ hasVaziosManifest: true, vaziosManifestTotal: 5 }))
+    expect(importCalls()[0][1]).toMatchObject({ p_expected: { count: 1, max_id: 100, vazios_manifest: { id: 'vazios-7', total: 5 } } })
+    expect(mocks.getBaplieManifestForVoyage).toHaveBeenCalledTimes(1)
+  })
+
+  it('sem manifesto de vazios na prévia, p_expected diz nulo (não omite a chave)', async () => {
+    mocks.getBaplieManifestForVoyage.mockResolvedValue(null)
+    await run([box('AAAU1111111')])
+    expect(importCalls()[0][1]).toMatchObject({ p_expected: { count: 0, max_id: null, vazios_manifest: null } })
+    expect(Object.keys((importCalls()[0][1] as { p_expected: object }).p_expected)).toContain('vazios_manifest')
   })
 
   it('sem manifesto de vazios anterior o servidor não cria vazios na reimportação', async () => {

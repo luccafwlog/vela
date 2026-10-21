@@ -9,7 +9,11 @@
 // - Viagem do arquivo, escalas, PODs marcados e container repetido conferidos
 //   no servidor; prévia velha (`expected`) recusada;
 // - staging, marcas e vazios numa transação: falha nas marcas desfaz tudo;
-// - índice único no staging e rastro dos "Vazios pelo Baplie" de volta.
+// - índice único no staging e rastro dos "Vazios pelo Baplie" de volta;
+// - migration 390: porto marcado sem container no arquivo é recusado (antes
+//   apagava o Baplie, as marcas e os vazios desse porto) e o manifesto de
+//   vazios do Baplie que a prévia leu (id e total) é conferido depois da trava
+//   (antes, outro recadastro entre a prévia e a gravação passava sem aviso).
 //
 // Antes da 387/388: o par B/L × B/L desta suíte terminava em 40P01 ("deadlock
 // detected", import_bl_freight_with_metadata_legacy_189 linha 42) e a
@@ -78,8 +82,19 @@ function rows(list: Row[]) {
   }))
 }
 
+/**
+ * O que a prévia lê (`reimportBaplie`): versão do staging e o manifesto de
+ * vazios do Baplie (id e total, ou nulo), montado aqui como a tela monta.
+ */
 function version(): string {
-  return psql(`SELECT public._baplie_staging_version(${voyageId})::text`)
+  return psql(`SELECT (public._baplie_staging_version(${voyageId}) || jsonb_build_object('vazios_manifest',
+    (SELECT jsonb_build_object('id', m.id, 'total', m.total_containers) FROM public.vazios_importacao_manifests m
+      WHERE m.voyage_id = ${voyageId} AND m.source = 'baplie' ORDER BY m.imported_at DESC LIMIT 1)))::text`)
+}
+
+function vaziosManifest(): string {
+  return psql(`SELECT string_agg(id::text || ':' || total_containers, ',') FROM public.vazios_importacao_manifests
+    WHERE voyage_id = ${voyageId} AND source = 'baplie'`)
 }
 
 function importSql(list: Row[], pods: string[], options: { expected?: string; file?: object } = {}) {
@@ -177,7 +192,7 @@ function insertBl(id: string, pod: string, container: string) {
   `)
 }
 
-describeLocal('Lote 1 das importações — trava por Viagem e Baplie no servidor (387, 388)', () => {
+describeLocal('Lote 1 das importações — trava por Viagem e Baplie no servidor (387, 388, 390)', () => {
   beforeAll(() => {
     cleanup()
     const eta = psql(`SELECT ((now() AT TIME ZONE 'America/Sao_Paulo')::date + 60)::text`)
@@ -266,6 +281,58 @@ describeLocal('Lote 1 das importações — trava por Viagem e Baplie no servido
     const result = importBaplie([{ container_number: 'AQCU3870002', pod: 'BRRIG' }], ['BRRIG'], { expected: stale })
     expect(result.error).toMatch(/mudou depois da prévia/)
     expect(staging()).toBe(before)
+  })
+
+  it('390: porto marcado sem nenhum container no arquivo é recusado; o Baplie, as marcas e os vazios desse porto ficam', () => {
+    const before = { staging: staging(), vazios: vazios(), manifest: vaziosManifest(), mark: blContainer('A387-B1', 'AQCU3870001') }
+    // Santos marcado, mas o arquivo só traz Rio Grande: antes da 390 o escopo
+    // da exclusão apagava 0001 e 0011 (com a natureza) e a marca IMO do B/L.
+    const result = importBaplie([
+      { container_number: 'AQCU3870002', pod: 'BRRIG', is_oog: true },
+      { container_number: 'AQCU3870013', pod: 'BRRIG', status: 'empty' },
+    ], ['BRRIG', 'BRSSZ'])
+    expect(result.error).toMatch(/Porto\(s\) marcado\(s\) sem nenhum container no arquivo \(BRSSZ\).*Nada foi gravado/)
+    expect({ staging: staging(), vazios: vazios(), manifest: vaziosManifest(), mark: blContainer('A387-B1', 'AQCU3870001') }).toEqual(before)
+
+    // Mesma régua de porto da 388 dos dois lados: " brrig " marcado é o BRRIG do arquivo.
+    expect(importBaplie([
+      { container_number: 'AQCU3870002', pod: 'BRRIG', is_oog: true },
+      { container_number: 'AQCU3870013', pod: 'BRRIG', status: 'empty' },
+    ], [' brrig ']).error).toBeNull()
+    expect(staging()).toBe(before.staging)
+  })
+
+  it('390: o manifesto de vazios do Baplie mudou depois da prévia — recusado sem gravar', () => {
+    // Arquivo que troca os vazios de Rio Grande: gravado, recadastraria os vazios.
+    const list: Row[] = [
+      { container_number: 'AQCU3870002', pod: 'BRRIG', is_oog: true },
+      { container_number: 'AQCU3870014', pod: 'BRRIG', status: 'empty' },
+    ]
+    const seen = version()
+    expect(JSON.parse(seen).vazios_manifest).toMatchObject({ total: 2 })
+
+    // Outra sessão recadastra os vazios do Baplie entre a prévia e a gravação (manifesto novo).
+    expect(asUser(`SELECT public.replace_vazios_from_baplie_transactional(${voyageId}, NULL, '${actorId}'::uuid, true)`).error).toBeNull()
+    const before = { staging: staging(), vazios: vazios(), manifest: vaziosManifest() }
+    expect(before.manifest).not.toContain(JSON.parse(seen).vazios_manifest.id)
+    const current = JSON.parse(version()) as { count: number; max_id: number; vazios_manifest: { id: string; total: number } }
+    const stale: Array<[string, string]> = [
+      ['manifesto trocado', seen],
+      ['prévia sem manifesto, e agora há um', JSON.stringify({ ...current, vazios_manifest: null })],
+      ['total diferente do lido', JSON.stringify({ ...current, vazios_manifest: { ...current.vazios_manifest, total: 3 } })],
+      ['payload sem o manifesto lido', JSON.stringify({ count: current.count, max_id: current.max_id })],
+    ]
+    for (const [label, expected] of stale) {
+      expect(importBaplie(list, ['BRRIG'], { expected }).error, label).toMatch(/vazios de importação do Baplie desta viagem mudaram depois da prévia.*Nada foi gravado/)
+    }
+    expect({ staging: staging(), vazios: vazios(), manifest: vaziosManifest() }).toEqual(before)
+
+    // A prévia que leu o manifesto atual grava (o mesmo arquivo, sem mudar os vazios).
+    expect(importBaplie([
+      { container_number: 'AQCU3870002', pod: 'BRRIG', is_oog: true },
+      { container_number: 'AQCU3870013', pod: 'BRRIG', status: 'empty' },
+    ], ['BRRIG']).error).toBeNull()
+    expect({ staging: staging(), vazios: vazios() }).toEqual({ staging: before.staging, vazios: before.vazios })
   })
 
   it('F-20: falha nas marcas desfaz o staging e os vazios (uma transação)', () => {

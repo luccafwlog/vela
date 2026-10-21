@@ -214,6 +214,25 @@ export function baplieStagingVersion(rows: Array<{ id: number }>): BaplieStaging
   return { count: rows.length, max_id: rows.length ? Math.max(...rows.map((row) => Number(row.id))) : null }
 }
 
+/**
+ * O que a prévia leu e a gravação confere depois da trava da Viagem: a versão
+ * do staging (388) e o manifesto de vazios do Baplie que o diálogo usou para
+ * avisar da natureza e do Nº do manifesto Mercante (390; id e total, ou nulo).
+ */
+export type BaplieImportExpected = BaplieStagingVersion & {
+  vazios_manifest: { id: string; total: number | null } | null
+}
+
+export function baplieImportExpected(
+  rows: Array<{ id: number }>,
+  vaziosManifest: { id: string; total_containers: number | null } | null | undefined,
+): BaplieImportExpected {
+  return {
+    ...baplieStagingVersion(rows),
+    vazios_manifest: vaziosManifest ? { id: vaziosManifest.id, total: vaziosManifest.total_containers ?? null } : null,
+  }
+}
+
 /** Viagem do arquivo (TDT) que o servidor confere com a Viagem escolhida (ADR 0095, decisão 13). */
 export type BaplieFileIdentity = {
   voyageNumber: string | null
@@ -230,14 +249,15 @@ type BaplieFileImportResult = {
 
 /**
  * Grava o Baplie numa transação só (migration 388): confere Viagem, escalas,
- * PODs marcados e container repetido, substitui só os PODs marcados, aplica as
+ * PODs marcados (cada um com container no arquivo, 390), container repetido e o
+ * que a prévia leu (`expected`), substitui só os PODs marcados, aplica as
  * marcas aos B/Ls e recadastra os vazios do Baplie quando mudaram. Qualquer
  * recusa ou falha desfaz tudo.
  */
 export async function importBaplieFile(
   voyageId: number,
   containers: BaplieContainer[],
-  { pods, expected, file }: { pods: string[]; expected: BaplieStagingVersion; file: BaplieFileIdentity },
+  { pods, expected, file }: { pods: string[]; expected: BaplieImportExpected; file: BaplieFileIdentity },
 ): Promise<BaplieFileImportResult> {
   const { data, error } = await supabase.rpc('import_baplie_file_atomic' as never, {
     p_voyage_id: voyageId,
@@ -585,8 +605,9 @@ export async function retryBaplieVazios({ voyageId, actorId }: { voyageId: numbe
  * é uma transação só (migration 388): staging, marcas IMO/OOG e SOC/COC nos
  * B/Ls e, se os vazios mudaram e já havia manifesto de vazios do Baplie, o
  * recadastro deles; o Nº do manifesto Mercante das rotas que continuam com
- * container fica. A versão do staging lida aqui vai junto: outra importação
- * gravada depois desta prévia faz o servidor recusar (F-20).
+ * container fica. A versão do staging e o manifesto de vazios lidos aqui vão
+ * junto: outra importação ou outro recadastro dos vazios gravado depois desta
+ * prévia faz o servidor recusar (F-20; migrations 388 e 390).
  */
 export async function reimportBaplie({
   voyageId,
@@ -601,8 +622,10 @@ export async function reimportBaplie({
   file: BaplieFileIdentity
   confirmReplacement: (plan: BaplieReimportPlan) => Promise<boolean>
 }): Promise<BaplieReimportResult> {
-  const stagedRows = await listBaplieStagingForDiff(voyageId)
-  const expected = baplieStagingVersion(stagedRows)
+  // O manifesto de vazios lido aqui é o do diálogo e vai junto: recadastro,
+  // criação ou exclusão dele por outra sessão faz o servidor recusar (390).
+  const [stagedRows, vaziosManifest] = await Promise.all([listBaplieStagingForDiff(voyageId), getBaplieManifestForVoyage(voyageId)])
+  const expected = baplieImportExpected(stagedRows, vaziosManifest)
   const existingRows = baplieRowsReplacedBy(stagedRows, containers, pods)
   const write = async () => {
     const result = await importBaplieFile(voyageId, containers, { pods, expected, file })
@@ -618,7 +641,6 @@ export async function reimportBaplie({
   if (!existingRows.length) return { status: 'imported', ...(await write()) }
 
   const diff = diffBaplieStaging(existingRows, containers)
-  const vaziosManifest = await getBaplieManifestForVoyage(voyageId)
   const plan: BaplieReimportPlan = {
     existing: existingRows.length,
     pods,

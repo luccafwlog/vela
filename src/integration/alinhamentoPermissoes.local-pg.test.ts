@@ -46,7 +46,8 @@ const baplieRow = JSON.stringify([{
 }])
 
 function importBaplie(sub: string, rows: string) {
-  const expected = psql(`SELECT public._baplie_staging_version(${VOYAGE_ID})::text;`)
+  // 390: com o manifesto de vazios do Baplie lido na prévia.
+  const expected = psql(`SELECT (public._baplie_staging_version(${VOYAGE_ID}) || jsonb_build_object('vazios_manifest', public._baplie_vazios_manifest_version(${VOYAGE_ID})))::text;`)
   return runAs(sub, `SELECT public.import_baplie_file_atomic(${VOYAGE_ID}, '${rows}'::jsonb, ARRAY['BRSSA'], '${expected}'::jsonb, '{"voyage_number":"V077"}'::jsonb);`)
 }
 

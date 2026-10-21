@@ -97,7 +97,8 @@ const baplieRow = (container: string) => ({
 // Migration 388: o Baplie entra por `import_baplie_file_atomic`, com os PODs
 // marcados e a versão do staging lida na prévia.
 function importBaplie(rows: string) {
-  const expected = psql(`SELECT public._baplie_staging_version(${V_BAPLIE})::text;`)
+  // 390: com o manifesto de vazios do Baplie lido na prévia.
+  const expected = psql(`SELECT (public._baplie_staging_version(${V_BAPLIE}) || jsonb_build_object('vazios_manifest', public._baplie_vazios_manifest_version(${V_BAPLIE})))::text;`)
   return as(ADMIN_ID, `SELECT public.import_baplie_file_atomic(${V_BAPLIE}, '${rows}'::jsonb, ARRAY['BRVIX'], '${expected}'::jsonb, '{"voyage_number":"V341B"}'::jsonb);`)
 }
 
