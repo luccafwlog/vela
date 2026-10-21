@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
@@ -267,5 +268,63 @@ describeLocal('394 — exclusão e efeitos de importação', () => {
     const successor = w.successorOf(invoice)
     expect(w.invoice(invoice).status).toBe('cancelled')
     expect(w.invoice(successor!).total).toBe(500)
+  })
+
+  // Migration 395 (decisão do dono no Lote 4): o alerta não fecha no Reprocessar.
+  function blockedItem(effectId: number): { id: number; occurrence: string; status: string; reprocessing: string | null; error: string | null } {
+    return JSON.parse(w.psql(`SELECT jsonb_build_object('id', i.id, 'occurrence', i.occurrence_id, 'status', i.status,
+      'reprocessing', i.metadata->>'reprocessing', 'error', i.metadata->>'error_message')
+      FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'import_effect_blocked' AND a.entity_type = 'import_effect' AND a.entity_id = '${effectId}'`))
+  }
+
+  it('395: Reprocessar mantém o alerta aberto como reprocessando; bloquear de novo mantém o mesmo item; concluir fecha', () => {
+    const bl = w.createBl('RPR')
+    const effect = enqueue(bl, 'local_billing')
+    block(effect, bl)
+    const opened = blockedItem(effect)
+    expect(opened).toMatchObject({ status: 'active', reprocessing: null })
+
+    w.asOk('administrativo', `SELECT public.retry_import_effect(${effect}, 'causa corrigida no teste 395')`)
+    // Antes (348): o alerta fechava aqui.
+    expect(blockedItem(effect)).toMatchObject({ id: opened.id, occurrence: opened.occurrence, status: 'active', reprocessing: 'true' })
+
+    w.psql(`UPDATE public.import_pending_effects SET status = 'blocked', last_error_code = 'teste_395' WHERE id = ${effect};
+      SELECT public._record_import_effect_blocked_alert(${effect}, 'local_billing', '${bl}', 'teste_395', 'nova falha');`)
+    // Mesmo item, mesma ocorrência, de volta ao bloqueado com o novo motivo.
+    expect(blockedItem(effect)).toMatchObject({ id: opened.id, occurrence: opened.occurrence, status: 'active', reprocessing: null, error: 'nova falha' })
+
+    w.asOk('administrativo', `SELECT public.retry_import_effect(${effect}, 'de novo no teste 395')`)
+    w.psql(`UPDATE public.import_pending_effects SET status = 'succeeded' WHERE id = ${effect}`)
+    expect(blockedItem(effect)).toMatchObject({ id: opened.id, status: 'resolved' })
+  })
+
+  it('395: acerto descarta o efeito running de registro excluído e devolve a bloqueado a falha técnica que a 394 levou à espera', () => {
+    const gone = `${w.prefix}GONE395`
+    const running = Number(w.psql(`INSERT INTO public.import_pending_effects (source_action_id, effect_kind, entity_id, created_by, status, attempts, leased_by, lease_until)
+      VALUES (gen_random_uuid(), 'local_billing', '${gone}', '${w.actors.administrativo}', 'running', 1, 'w395', now() + interval '5 minutes') RETURNING id`))
+
+    const bl = w.createBl('B395')
+    const moved = (code: string, message: string) => {
+      const id = enqueue(bl, code === 'effect_failed' ? 'provisional_charges' : 'local_billing')
+      w.psql(`INSERT INTO public.import_effect_attempts(effect_id, attempt_no, event_kind, worker_id, status, error_code, error_message)
+          VALUES (${id}, 1, 'completed', 'w395', 'blocked', '${code}', '${message}');
+        INSERT INTO public.import_effect_attempts(effect_id, attempt_no, event_kind, worker_id, status, error_code, error_message)
+          VALUES (${id}, 1, 'completed', 'migration-394', 'retry_wait', 'awaiting_charge_table', 'espera');
+        UPDATE public.import_pending_effects SET status = 'retry_wait', attempts = 0, last_error_code = 'awaiting_charge_table' WHERE id = ${id};`)
+      return id
+    }
+    const technical = moved('effect_failed', 'falha técnica de teste')
+    const wait = moved('effect_domain_refused', 'Tabela de cobranca incompleta ou inativa para POD "X" (modo: container).')
+
+    const sql = readFileSync('supabase/migrations/395_alerta_de_efeito_fecha_ao_concluir.sql', 'utf8')
+    w.psql(sql.slice(sql.indexOf('-- Acertos A e B (dependem')))
+
+    const byId = new Map([...effects(gone), ...effects(bl)].map((e) => [e.id, e]))
+    expect(byId.get(running)).toMatchObject({ status: 'superseded', last_error_code: 'record_deleted' })
+    expect(w.psql(`SELECT lease_until IS NULL AND leased_by IS NULL FROM public.import_pending_effects WHERE id = ${running}`)).toBe('t')
+    expect(byId.get(technical)).toMatchObject({ status: 'blocked', last_error_code: 'effect_failed' })
+    expect(activeBlockedAlerts(technical)).toBe(1)
+    expect(byId.get(wait)).toMatchObject({ status: 'retry_wait', last_error_code: 'awaiting_charge_table' })
   })
 })

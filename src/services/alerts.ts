@@ -660,7 +660,7 @@ export function importEffectRetryTarget(alert: {
   entity_type: string | null
   entity_id: string | null
   metadata?: Record<string, unknown> | null
-}): { effectId: number; record: string | null; reason: string | null } | null {
+}): { effectId: number; record: string | null; reason: string | null; reprocessing: boolean } | null {
   if (getEffectiveAlertType(alert) !== 'import_effect_blocked') return null
   if (alert.entity_type !== 'import_effect' || !/^\d+$/.test(alert.entity_id ?? '')) return null
   const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null)
@@ -668,6 +668,8 @@ export function importEffectRetryTarget(alert: {
     effectId: Number(alert.entity_id),
     record: text(alert.metadata?.bl_id) ?? text(alert.metadata?.entity_id),
     reason: text(alert.metadata?.error_message) ?? text(alert.metadata?.error_code),
+    // Migration 395: depois do Reprocessar o alerta fica aberto até o efeito concluir.
+    reprocessing: alert.metadata?.reprocessing === true,
   }
 }
 

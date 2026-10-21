@@ -245,7 +245,7 @@ const ALERT_RULES_BASE = [
     severity: 'critical',
     summary: 'Um efeito pós-commit de importação foi bloqueado e precisa de investigação.',
     trigger: 'Falha técnica: o worker esgota as tentativas transitórias, a lease vence cinco vezes, uma dependência fica bloqueada ou o consumidor recusa o payload ou o domínio. B/L em Revisão ou sem tabela de cobrança é espera, não bloqueio: o efeito aguarda sem alerta e conclui sozinho (ADR 0095, decisão 18).',
-    timing: 'Aparece quando o efeito entra em blocked; fecha quando o efeito sai de bloqueado (Reprocessar, conclusão ou exclusão do B/L ou da Viagem) e reabre se ele bloquear de novo.',
+    timing: 'Aparece quando o efeito entra em blocked. Depois do Reprocessar fica aberto como "Reprocessando…"; fecha quando o efeito conclui ou é descartado pela exclusão do B/L ou da Viagem. Se bloquear de novo, o mesmo alerta volta com o novo motivo.',
     resolution: 'Corrija a causa (o alerta diz o B/L e o motivo) e use Reprocessar no próprio alerta, com justificativa.',
     destination: '/alertas',
     destinationLabel: 'Abrir Alertas',

@@ -271,12 +271,13 @@ export function Alertas() {
   }
 
   // Efeito de importação bloqueado (ADR 0095, decisão 25): o alerta reprocessa
-  // o efeito, com justificativa. O alerta fecha quando o efeito sai de
-  // bloqueado e reabre se ele bloquear de novo (migrations 348 e 394).
+  // o efeito, com justificativa. O alerta fica aberto como "Reprocessando…"
+  // e fecha só quando o efeito conclui; se bloquear de novo, o mesmo alerta
+  // volta ao bloqueado com o novo motivo (migrations 348, 394 e 395).
   const reprocessMutation = useMutation({
     mutationFn: ({ effectId, reason }: { effectId: number; reason: string }) => retryImportEffect(effectId, reason),
     onSuccess: async () => {
-      showToast('Efeito reenviado para a fila. Se falhar de novo, o alerta volta.', 'success')
+      showToast('Efeito reenviado para a fila. O alerta fecha quando o efeito concluir.', 'success')
       await Promise.all([
         invalidateAllAlertQueries(queryClient),
         queryClient.invalidateQueries({ queryKey: queryKeys.importEffects.all() }),
@@ -298,7 +299,7 @@ export function Alertas() {
         items: [target.reason ?? 'Motivo não informado'],
       },
       consequence: 'O efeito volta para a fila e roda de novo na próxima passada. Corrija a causa antes de reprocessar.',
-      reversibility: 'Se falhar de novo, o efeito volta a ficar bloqueado e o alerta reabre.',
+      reversibility: 'Se falhar de novo, o efeito volta a ficar bloqueado e o alerta mostra o novo motivo.',
       reasonLabel: 'Justificativa (o que foi corrigido)',
       confirmLabel: 'Reprocessar',
     })
@@ -582,7 +583,9 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onReprocess, on
   subject?: string
 }) {
   const effectiveType = getEffectiveAlertType(alert)
-  const reprocess = importEffectRetryTarget(alert) !== null
+  const retryTarget = importEffectRetryTarget(alert)
+  const reprocess = retryTarget !== null
+  const reprocessing = retryTarget?.reprocessing === true
   const byJustification = !reprocess && Boolean(alert.item_id) && canResolveWithJustification(effectiveType, alert.entity_type)
   const link = byJustification || reprocess ? null : alertEntityLink(alert)
   if (iconOnly) {
@@ -591,7 +594,7 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onReprocess, on
     return (
       <div className="flex items-center justify-center gap-2">
         {reprocess ? (
-          <RowActionButton label={`Reprocessar${of}`} icon={RotateCcw} title="Reprocessar o efeito com justificativa" onClick={() => onReprocess(alert)} disabled={isMutating} />
+          <RowActionButton label={reprocessing ? `Reprocessando…${of}` : `Reprocessar${of}`} icon={RotateCcw} title={reprocessing ? 'Reprocessando… o alerta fecha quando o efeito concluir' : 'Reprocessar o efeito com justificativa'} onClick={() => onReprocess(alert)} disabled={isMutating || reprocessing} />
         ) : byJustification ? (
           <RowActionButton label={`Resolver${of}`} icon={Wrench} title="Resolver com justificativa" onClick={() => onResolve(alert)} disabled={isMutating} />
         ) : link ? (
@@ -606,8 +609,8 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onReprocess, on
   return (
     <div className="flex items-center justify-center gap-2">
       {reprocess ? (
-        <Button variant="secondary" className="min-w-24" onClick={() => onReprocess(alert)} disabled={isMutating} title="Reprocessar o efeito com justificativa">
-          Reprocessar
+        <Button variant="secondary" className="min-w-24" onClick={() => onReprocess(alert)} disabled={isMutating || reprocessing} title={reprocessing ? 'Reprocessando… o alerta fecha quando o efeito concluir' : 'Reprocessar o efeito com justificativa'}>
+          {reprocessing ? 'Reprocessando…' : 'Reprocessar'}
         </Button>
       ) : byJustification ? (
         <Button variant="secondary" className="min-w-24" onClick={() => onResolve(alert)} disabled={isMutating} title="Resolver com justificativa">

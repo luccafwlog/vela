@@ -8,13 +8,17 @@
 
 - **Importações: exclusão e efeitos (2026-10-21, Lote 4 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 7, 18 e 25;
-  achados F-10, F-13, F-14, F-33a, F-34, F-42 e F-43):** migration `394`. Excluir B/L ou Viagem
+  achados F-10, F-13, F-14, F-33a, F-34, F-42 e F-43):** migrations `394` e `395`. Excluir B/L ou Viagem
   encerra os efeitos de importação pendentes como "descartado: registro excluído", sem Alerta (e
   fecha o Alerta do que estava bloqueado); excluir a Viagem apaga os vazios de importação dela e o
   manifesto de vazios, e o diálogo diz quantos vazios vão. CE em B/L em Revisão ou sem tabela de
   cobrança é espera, sem Alerta crítico, e fatura sozinho quando a Revisão é concluída ou a tabela é
   cadastrada. O Alerta "Efeito de importação bloqueado" diz o B/L e o motivo e tem **Reprocessar** em
-  `/alertas`, com justificativa. Efeito de usuário desativado roda como "Vela (automático)",
+  `/alertas`, com justificativa; depois do Reprocessar o Alerta fica aberto como "Reprocessando…"
+  e fecha só quando o efeito conclui (ou é descartado pela exclusão); se bloquear de novo, o mesmo
+  Alerta volta com o novo motivo (`395`, muda a regra da `348`). A `395` também descarta efeitos em
+  execução de registro já excluído e devolve a bloqueado a falha técnica que o acerto da `394`
+  tinha levado à espera. Efeito de usuário desativado roda como "Vela (automático)",
   guardando quem iniciou. O efeito novo substitui o pendente do mesmo tipo também quando o produtor
   grava direto na fila. A saúde da fila conta a lease vencida e os bloqueados. Excluir ou mover
   veículo com o recálculo falhando já era recusado (B3, `379`/`381`): ganhou teste. F-10 ganhou o
