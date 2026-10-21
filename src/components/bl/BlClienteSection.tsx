@@ -170,7 +170,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       changes: [{ field: 'Cliente', before: linked?.name ?? 'Sem cliente', after: target?.name ?? 'Sem cliente' }],
       consequence: target
         ? `${extra}O B/L passa a aparecer no Portal deste cliente e entra no faturamento dele.`
-        : 'O B/L sai do Portal do cliente e não pode ser faturado até receber outro cliente.',
+        : 'O B/L sai do Portal do cliente, o valor a faturar dele é anulado e volta com o próximo cliente vinculado.',
       reversibility: 'Pode ser trocado ou desfeito nesta mesma ficha. Fica no histórico.',
       confirmLabel: target ? 'Vincular' : 'Desvincular',
       tone: target ? 'primary' : 'danger',
@@ -276,7 +276,12 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
                 {!picking ? (
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setPicking(true)} disabled={saving}>Trocar</Button>
-                    <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => void link(null)} loading={saving}>Desvincular</Button>
+                    {/* ADR 0093, decisão 13: B/L faturado troca de Cliente, não desvincula. */}
+                    {['invoiced', 'partially_paid', 'paid'].includes(bl.financial_status ?? 'pending') ? (
+                      <span className="text-xs text-[var(--app-muted)]">B/L faturado: para mudar o Cliente, use Trocar.</span>
+                    ) : (
+                      <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => void link(null)} loading={saving}>Desvincular</Button>
+                    )}
                   </div>
                 ) : null}
               </div>

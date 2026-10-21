@@ -104,7 +104,7 @@ export function financeWorld(ns: number) {
     const customer = opts.customerId === undefined ? customerId : opts.customerId
     psql(`
       INSERT INTO public.bls (id, voyage_id, customer_id, pod, cargo_mode, financial_status, charge_status, customer_reconciliation_status, ce_mercante)
-      VALUES ('${id}', ${voyageId}, ${customer ?? 'NULL'}, '${pod}', 'container', 'pending', 'not_calculated', '${customer ? 'reconciled' : 'pending'}', NULL);
+      VALUES ('${id}', ${voyageId}, ${customer ?? 'NULL'}, '${pod}', 'container', 'pending', 'not_calculated', '${customer ? 'reconciled' : 'missing_customer'}', NULL);
       INSERT INTO public.bl_containers (bl_id, container_number, type)
       VALUES ('${id}', '${opts.container ?? container()}', '22G1');
     `)
