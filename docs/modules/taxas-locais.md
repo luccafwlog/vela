@@ -83,8 +83,9 @@ de grafias diferentes do mesmo POD (BRVIX × BRVIT):
   os itens numa tabela de cabeçalho claro (Item, Entra no cálculo, Perfil,
   Incide, Valor unitário, Aviso curto em âmbar com a frase inteira ao passar o
   mouse), item desativado em cinza e **+ Adicionar item** uma vez no pé. Cada
-  item tem **Editar** e, para o Administrativo, o menu ⋮ (Desativar/Reativar
-  item, Excluir item); abaixo de 640 px tabelas e itens viram cartões;
+  item tem, só para o Administrativo, **Editar** e o menu ⋮ (Desativar/Reativar
+  item, Excluir item) — editar item é correção de faturas (ADR 0093, decisão 2),
+  e o formulário diz a consequência; abaixo de 640 px tabelas e itens viram cartões;
 - `src/components/taxasLocais/chargePresentation.ts` traduz o cadastro no que
   o motor faz (`resolve_bl_local_charge_items`, migrations `129` e `171`): THD por
   container com perfil "Todos" vai para revisão; perfil em item que não é THD
@@ -130,7 +131,8 @@ aceita "1.420,50"; cada erro indica o campo).
   `useOverrideCustomers`), valor da tabela ao lado do negociado, regra de
   vigência e conflito de sobreposição mostrado no modal. Na edição, Cliente e
   item ficam fixos;
-- o botão **Editar** na linha; desativar, reativar e excluir pelo menu ⋮ do
+- o botão **Editar** na linha, só do Administrativo (editar Condição é
+  correção, ADR 0093, decisão 2); desativar, reativar e excluir pelo menu ⋮ do
   Administrativo, com confirmação; estados de carregamento, erro e vazio.
 
 ### Superfícies operacionais fora da rota
@@ -283,11 +285,14 @@ O cálculo tem duas fases:
   momento (migration `072`), inclusive sem Cliente vinculado. Serve para
   conferência (planilha **Conferência do escopo** na Validação); nada é emitido
   nem publicado. A importação recalcula também os B/Ls **irmãos** — os que
-  dividem container e ainda estão provisórios (sem fatura, sem CE e sem
-  retenção) —, para que o rateio provisório fique certo mesmo quando o segundo
-  B/L entra numa importação posterior (efeito `local_charges`, migration `178`;
-  no mesmo arquivo, `src/services/blFreightImport.ts` mantém os irmãos no mesmo
-  lote ou os recalcula ao fim).
+  dividem container e ainda não têm fatura, inclusive com CE ou retidos pelo
+  gate (efeito `local_charges`, migration `178`, ampliado pela `355`; no mesmo
+  arquivo, `src/services/blFreightImport.ts` mantém os irmãos no mesmo lote ou
+  os recalcula ao fim). Além disso, todo B/L não faturado cuja **base** mudou
+  (ficha, containers, veículos, irmão que chega, sai, é cancelado ou excluído)
+  é recalculado no fim da transação (gatilho `refresh_unbilled_calculations`,
+  migration `355`), e a base de cada cálculo fica em
+  `bl_charge_calculation_basis`.
 - **Confirmada** — cadastrar o CE Mercante recalcula, fecha e só então emite a
   fatura quando os demais requisitos forem satisfeitos
   ([Faturamento § Motivo de bloqueio](faturamento.md#motivo-de-bloqueio-de-faturamento)).
@@ -301,19 +306,54 @@ O cálculo tem duas fases:
   no rateio; a presença do CE, sozinha, não prova que essa conferência foi
   feita.
 
+### Preço do dia do CE e base atual (ADR 0093, decisão 3)
+
+No registro do CE fica congelado só o **preço**: a tabela vinculada, a
+Condição de Cliente e a Data de Referência daquele dia (`bl_price_freezes` e
+`bl_price_freeze_items`, gatilho `freeze_bl_prices_on_ce`, migration `355`). O
+motor usa o preço congelado em todo recálculo seguinte. A **base** (containers
+e rateio, Movement To, POD, peso, veículos) é sempre a atual: a emissão —
+inclusive da fatura retida pelo gate, no Retomar do lote, no efeito
+`local_billing` e no Emitir — só reaproveita o cálculo do CE se a base ainda é
+a mesma (`bl_calculation_is_current`); senão recalcula com o preço congelado
+(`_auto_bill_bl_core` e `mark_bl_ready_for_billing`). Condição nova depois do
+CE não entra; correção de item ou de Condição entra (abaixo). Vincular ou
+trocar o Cliente depois do CE refaz a Condição congelada para o novo Cliente,
+na data congelada. **Teste local-pg:** `precoDoCeBaseAtual.local-pg.test.ts`.
+
 ### Tabela aplicável, Item de Taxa e Condição de Cliente
 
 A **Tabela de Taxas Locais** define quais taxas existem e quanto custam, por POD
 e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
 
-- **Escolha da tabela:** por escopo (modalidade + POD normalizado) e tabela
-  **ativa**, sem data. A vigência é informativa (ADR 0040): com mais de uma
-  ativa no mesmo escopo, vence a de vigência inicial mais recente
-  (`valid_from DESC, id DESC`) e a tela avisa que a outra não está sendo
-  aplicada; período vencido ou futuro em tabela ativa vira aviso, nunca
-  exclusão. Desativar é a única forma de tirar uma tabela do cálculo. O
-  lançamento manual e o Item da tabela da avulsa seguem a mesma regra
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10; migration `248`).
+- **B/L vinculado à tabela** ([ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
+  decisão 1; migration `354`): no primeiro cálculo, o B/L fica vinculado à
+  tabela de cada escopo que usa (container e carga solta, em
+  `bl_charge_table_links`), e todo recálculo, cotação de correção, lançamento
+  manual e emissão usam a vinculada (`resolve_bl_local_charge_table_ids`).
+  Desativar a tabela só impede B/Ls novos de usá-la. Mudança de modo de carga
+  ou de POD vincula à tabela ativa do escopo novo. Reajuste de preço é tabela
+  nova: vale para os B/Ls que surgirem depois. Só o servidor grava o vínculo.
+  Excluir tabela vinculada é recusado como as demais tarifas usadas.
+- **Escolha da tabela no primeiro cálculo:** por escopo (modalidade + POD
+  normalizado) e tabela **ativa**, sem data. A vigência é informativa (ADR
+  0040): com mais de uma ativa no mesmo escopo, vence a de vigência inicial
+  mais recente (`valid_from DESC, id DESC`) e a tela avisa que a outra não está
+  sendo aplicada; período vencido ou futuro em tabela ativa vira aviso, nunca
+  exclusão. O lançamento manual e o Item da tabela da avulsa seguem a mesma
+  regra ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10; migration `248`).
+- **Editar é corrigir** (ADR 0093, decisão 2; migration `354`): editar,
+  incluir, ativar ou desativar item de tabela já usada (vinculada, calculada
+  ou faturada) e editar Condição de Cliente são só do Administrativo
+  (`guard_tariff_correction_admin`); criar tabela, incluir item em tabela ainda
+  não usada e criar Condição continuam com todos. A edição recalcula os B/Ls não
+  faturados vinculados, inclusive com CE (o preço congelado acompanha), e passa
+  os faturados pela correção automática (fonte `tariff_correction`): sem
+  pagamento, cancela e reemite com número novo, aviso no Portal e QR novo; com
+  pagamento, valor menor abate e restitui, valor maior abre Fatura
+  desatualizada. Criar, ativar ou desativar Condição recalcula só os B/Ls não
+  faturados e sem CE do Cliente. A tela avisa a consequência no formulário.
+  **Teste local-pg:** `tabelaVinculadaAoBl.local-pg.test.ts`.
 - **B/L misto** consome as tabelas container e carga solta por
   `resolve_bl_local_charge_table_ids` (`056`). A taxa com
   `application_basis = 'bl'` (documental) incide só do lado container; falta
@@ -347,7 +387,9 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
 
 A Data de Referência escolhe qual **Condição de Cliente** vale para um B/L, com
 esta precedência: **ETA da escala do POD** → ETA geral da Viagem → data de hoje
-(migration `171`). Ancorar na escala faz todos os B/Ls do mesmo navio no mesmo
+(migration `171`). A escala é achada pelo código normalizado do POD (BRVIT
+acha a escala BRVIX), e a ETA geral e o "hoje" são o dia de Brasília (migration
+`359`). Depois do CE a data fica congelada com o preço (decisão 3). Ancorar na escala faz todos os B/Ls do mesmo navio no mesmo
 porto caírem na mesma condição; os degraus seguintes existem para que a falta
 de uma data operacional nunca impeça o cálculo (ADR 0040). A data **não**
 escolhe a tabela (escopo e tabela ativa, sem data). Não é a ATA (o CE é

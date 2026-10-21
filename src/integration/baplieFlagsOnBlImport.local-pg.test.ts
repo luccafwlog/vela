@@ -1,6 +1,10 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 // Migration 118: Baplie importado ANTES do B/L. O import do B/L precisa aplicar
 // as flags IMO/OOG do Baplie na mesma transação, sem depender do
 // import-effects-runner (inerte em produção).
@@ -83,7 +87,7 @@ describeLocal('import_bl_freight_with_metadata — flags do Baplie em qualquer o
         { container_number: oogContainer, type: '40FR', is_imo: false, is_oog: false },
       ],
     }])
-    const result = asAuthenticated(`SELECT public.import_bl_freight_with_metadata('${payload}'::jsonb, '${actorId}',
+    const result = asAuthenticated(`RESET ROLE; SELECT public.import_bl_freight_with_metadata('${payload}'::jsonb, '${actorId}',
       '{"filename":"bl-118.xlsx","voyage_id":${voyageId},"cargo_mode":"container"}'::jsonb);`)
     expect(result.ok, result.output).toBe(true)
 
@@ -115,7 +119,7 @@ describeLocal('import_bl_freight_with_metadata — flags do Baplie em qualquer o
       pod: 'BRVIX',
       containers: [{ container_number: 'BPFU1500001', type: '40HC', is_imo: false, is_oog: false }],
     }])
-    const result = asAuthenticated(`SELECT public.import_bl_freight_with_metadata('${payload}'::jsonb, '${actorId}',
+    const result = asAuthenticated(`RESET ROLE; SELECT public.import_bl_freight_with_metadata('${payload}'::jsonb, '${actorId}',
       '{"filename":"bl-150.xlsx","voyage_id":${voyageId},"cargo_mode":"container"}'::jsonb);`)
     expect(result.ok, result.output).toBe(true)
     // O container do outro B/L fica como estava; a varredura da viagem inteira

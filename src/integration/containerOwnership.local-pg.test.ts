@@ -1,6 +1,10 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 // Migration 121: SOC/COC. O B/L é soberano, o Baplie preenche o que o B/L não
 // declarou, item com applies_to_soc = false não conta container SOC e
 // container SOC não entra em fatura de Demurrage.
@@ -118,7 +122,7 @@ describeLocal('SOC/COC — B/L soberano, taxas e Demurrage', () => {
         { container_number: unknown, type: '40HC' },
       ],
     }])
-    const result = asAuthenticated(`SELECT public.import_bl_freight_with_metadata('${payload}'::jsonb, '${actorId}',
+    const result = asAuthenticated(`RESET ROLE; SELECT public.import_bl_freight_with_metadata('${payload}'::jsonb, '${actorId}',
       '{"filename":"bl-120.xlsx","voyage_id":${voyageId},"cargo_mode":"container"}'::jsonb);`)
     expect(result.ok, result.output).toBe(true)
 

@@ -52,6 +52,10 @@ import {
 } from '../services/blFreightImport'
 import { syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 type BridgeError = { code: string | null; message: string; details: string; hint?: string | null }
 type BridgeResult = { data: unknown; error: BridgeError | null }
 
@@ -424,7 +428,7 @@ function importContainerDates(blId: string, rows: Array<{ container: string; dis
     expected_return_date: current.get(row.container)?.return_date ?? null,
   }))
   asOperator(`
-    SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${blId}', ${jsonLiteral(payload)}, '${actorId}'::uuid);
+    RESET ROLE; SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${blId}', ${jsonLiteral(payload)}, '${actorId}'::uuid);
   `)
 }
 
@@ -975,7 +979,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
 
     // O servidor recusa o mesmo estado mesmo sem a prévia.
     const direct = tryAsOperator(`
-      SELECT public.import_bl_freight_transactional(
+      RESET ROLE; SELECT public.import_bl_freight_transactional(
         ${jsonLiteral([{ ...buildBlFreightPayload(blDocument('A202-FCL2', { containers: ['AZCU2020101'], consignee: beta }), voyageId), customer_id: beta.id }])}, '${actorId}'::uuid
       );
     `)
@@ -1060,7 +1064,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
   type RawImportResult = { vehicles_discarded: Array<{ bl_id: string; chassis: string; reason: string }> }
 
   function rpcImport(bls: unknown[]): { output: RawImportResult | null; error: BridgeError | null } {
-    const result = tryAsOperator(`SELECT public.import_bl_freight_transactional(${jsonLiteral(bls)}, '${actorId}'::uuid);`)
+    const result = tryAsOperator(`RESET ROLE; SELECT public.import_bl_freight_transactional(${jsonLiteral(bls)}, '${actorId}'::uuid);`)
     return { output: result.output ? (JSON.parse(result.output) as RawImportResult) : null, error: result.error }
   }
 

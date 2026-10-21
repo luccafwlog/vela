@@ -2,6 +2,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 // Migration 089 (ADR 0071, itens 5, 8 e 9): B/L com CE que não segue é
 // cancelado, fica selado e não entra em fatura; volta por Reativar. Viagem
 // cancelada por engano volta por Reativar. O CE não se apaga com fatura
@@ -179,7 +183,7 @@ describeLocal('089 — B/L cancelado, Reativar e CE', () => {
     // Campo que a pessoa edita continua selado.
     expect(() => psql(`UPDATE public.bls SET pod = 'BRPNG' WHERE id = 'BL089SYS';`)).toThrow(/somente leitura/)
 
-    const base = as(ADMIN_ID, `SELECT public.apply_customer_base_row_atomic('${BASE_CNPJ}', 'Cliente base 089',
+    const base = as(ADMIN_ID, `RESET ROLE; SELECT public.apply_customer_base_row_atomic('${BASE_CNPJ}', 'Cliente base 089',
       NULL, NULL, NULL, NULL, NULL, '["base089@test.local"]'::jsonb, '${ADMIN_ID}');`)
     expect(base.stderr).toBe('')
     expect(psql(`SELECT customer_id IS NULL FROM public.bls WHERE id = 'BL089SYS';`)).toBe('t')

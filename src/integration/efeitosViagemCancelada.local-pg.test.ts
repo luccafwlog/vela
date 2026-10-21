@@ -11,6 +11,10 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -133,7 +137,7 @@ describeLocal('Viagem Cancelada sela a operação e a simulação não grava (mi
 
   it('datas de container são recusadas em Viagem Cancelada', () => {
     const attempt = asAdmin(`
-      SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${blId}',
+      RESET ROLE; SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${blId}',
         '[{"container_number":"${container}","discharge_date":"2026-10-01","return_date":null}]'::jsonb, '${adminId}'::uuid);
     `)
     expect(attempt.stderr).toMatch(/cancelada/)

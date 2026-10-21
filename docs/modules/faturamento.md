@@ -577,7 +577,13 @@ impede cobrar o container duas vezes (detalhe da guarda em
 Quando o conjunto de B/Ls de um container muda depois do faturamento (irmão que
 chega ou é cancelado), a importação ou o cancelamento é aceito e a fatura
 emitida segue a [correção após emissão](#correção-após-emissão-adr-0077): sem
-pagamento, é reemitida com o rateio novo. Container FCL não é dividido entre
+pagamento, é reemitida com o rateio novo. Antes do faturamento, o irmão que
+chega, sai, é cancelado ou excluído recalcula no fim da transação os B/Ls não
+faturados do container, inclusive com CE ou retidos pelo gate, com o preço do
+dia do CE; a emissão (inclusive a da retida) só reaproveita o cálculo com a
+base atual (migration `355`, [Taxas Locais](taxas-locais.md#preço-do-dia-do-ce-e-base-atual-adr-0093-decisão-3)).
+Excluir o irmão de um B/L faturado também corrige a fatura do vizinho (captura
+da base antes da exclusão, migration `357`; ADR 0078, item 11). Container FCL não é dividido entre
 Clientes diferentes: a importação de B/L recusa esse caso (regra em
 [Manifestos & EDI](manifesto-edi.md)).
 
@@ -604,7 +610,10 @@ só campos lidos pelo motor, inclusive SOC/COC) e gatilhos de restrição
 adiados chamam `process_invoice_basis_changes` no commit; reimportação e Baplie
 chamam a mesma função antes de responder (`invoice_reissues` no retorno).
 `apply_invoice_basis_changes` compara o valor do B/L (`_quote_bl_local_charges`,
-com o ROE congelado no recebível) e o Cliente:
+com o ROE congelado no recebível, a tabela vinculada e o preço congelado no CE,
+que é o da fatura — [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
+decisão 4; migrations `354`, `355` e, para as faturas emitidas antes, `367`) e o
+Cliente. Tabela reajustada não muda a cotação; só a base nova muda o valor:
 
 - sem mudança de valor nem de Cliente: nada acontece;
 - sem pagamento: cancela todas as consolidadas e individuais afetadas antes de
@@ -657,8 +666,13 @@ no snapshot. Outra mantém o item livre. Nada é cobrado automaticamente.
 Depois de um cancelamento, o recálculo desvincula os itens da fatura cancelada
 das linhas de cálculo antigas (`126`). Cancelar fatura individual coberta por
 consolidada aberta é recusado; o efeito de veículos cancela a consolidada do B/L
-isento e a encerra sem reemissão (`128`). Erro de preço (tabela ou Condição do
-Cliente) não reemite: vale para faturas futuras. O rateio de container
+isento e a encerra sem reemissão (`128`); a reemissão da consolidada também se
+encerra quando um B/L dela ficou isento (`365`). Erro de preço é corrigido pela
+edição do item ou da Condição, só do Administrativo, que passa as faturas pela
+correção com o preço novo (fonte `tariff_correction`; ADR 0093, decisão 2;
+[Taxas Locais](taxas-locais.md#tabela-aplicável-item-de-taxa-e-condição-de-cliente));
+reajuste é tabela nova e não mexe em fatura emitida. A ETA alterada depois da
+emissão não muda a fatura (decisão 5). O rateio de container
 compartilhado entra na base (`bl_invoice_basis_snapshot` lista os B/Ls que
 dividem cada container): irmão que chega ou é cancelado depois do faturamento
 reemite a fatura do B/L faturado com o rateio novo (migration `176`; a guarda de
@@ -701,7 +715,10 @@ do COD (justificativa obrigatória, `set_bl_cod`) é regra de
 - **B/L não faturado:** é recalculado pelo motor e não há ajuste. Exceção: se o
   B/L tem lançamento manual, abre um ajuste **Revisão manual de cobrança**.
 - **B/L faturado:** abre um **Ajuste de COD** append-only com o valor original
-  (lido do documento efetivamente emitido, nunca da tabela atual do POD antigo),
+  (lido do documento efetivamente emitido, nunca da tabela atual do POD antigo;
+  com a individual coberta, a consolidada pelo vínculo do recebível, e o pago
+  inclui o liquidado no recebível — migration `368`), sem ajuste quando não há
+  diferença (`368`),
   o valor no destino novo (linhas em USD pelo ROE vigente), a diferença, o pago
   e o saldo em aberto. São três ramos:
   1. **sem pagamento:** a [correção após emissão](#correção-após-emissão-adr-0077)
@@ -784,15 +801,45 @@ flowchart TD
 - A devolução é confirmada por `confirm_invoice_refund` (Financeiro ou
   Administrativo), com referência bancária, favorecido e data; o botão não
   transfere dinheiro. `settle_invoice_refund` recusa desde a `136`.
-- `covered` significa que uma invoice individual foi quitada por uma
-  consolidada ligada aos mesmos receivables. `covered_by_invoice_id` aponta para
-  o documento que liquidou.
+- Toda baixa e todo estorno **reprojetam** as demais faturas abertas ligadas
+  aos recebíveis alterados (`_reproject_invoices_for_receivables`, migration
+  `356`; ADR 0093, decisões 6 a 8): pagamento parcial da consolidada faz cada
+  individual mostrar o saldo restante do seu B/L, com QR novo; pagamento
+  parcial da individual faz a consolidada mostrar o saldo restante, com o mesmo
+  número e QR novo. Os QRs das individuais seguem pagáveis com a consolidada
+  aberta.
+- `covered` significa que o B/L de uma individual foi quitado por outro
+  documento (a consolidada, inteira ou em parte). `covered_by_invoice_id`
+  aponta para o documento que liquidou. Fatura coberta, ou individual cujo B/L
+  já tem baixa por outro documento, não se cancela (migration `357`); a tela
+  explica no lugar do botão.
 - `obsolete` significa que uma consolidada aberta perdeu validade porque uma
-  invoice individual liquidou receivables que ela cobria. Seus links passam a
-  `obsolete`.
+  invoice individual quitou um B/L dela. Ela é **substituída**: sai nova
+  consolidada com os B/Ls restantes (`replaces_invoice_id`), aviso no Portal
+  (sem e-mail), e a substituída continua visível no Portal no filtro
+  Cancelada como "Substituída pela INV-…", sem QR. O Pix do QR antigo pago
+  depois quita a sucessora e o excedente vira restituição pendente (migration
+  `361`).
 - O cancelamento da baixa local, documentado em
-  [Reconciliação PIX](reconciliacao-pix.md), restaura receivables, links e
-  estados `covered`/`obsolete` quando aplicável.
+  [Reconciliação PIX](reconciliacao-pix.md), restaura receivables e links e
+  desfaz só o que aquele pagamento causou: a cobertura das individuais
+  cobertas pela própria fatura e a consolidada obsoletada por ele, se não tem
+  sucessora nem B/L em outra consolidada aberta (migration `356`).
+- Um recebível fica em no máximo um documento local aberto: uma consolidada
+  aberta e, por cima, nenhuma individual nova (gatilhos da `356` e da `365`).
+  A consolidada interna pode incluir B/L ainda sem individual: conta como
+  faturamento dele (o B/L fica "faturado") e passa pelas checagens do Emitir
+  (Revisão, CE, gate; ADR 0093, decisão 9).
+- Cancelar a fatura **solta o B/L** (ADR 0093, decisão 12; migration `362`):
+  o vínculo da fatura cancelada não trava o cancelamento do B/L, e a nova
+  fatura só sai pelo **Emitir** — nunca sozinha pela Liberação, pela ativação
+  do Portal, pelo CE, pela planilha de CE, pelo vínculo de Cliente ou pelo
+  reprocessamento de efeito. No Vela o recebível continua no saldo; no Portal,
+  não entra.
+- A emissão pela RPC (`create_invoice_from_bls_with_ledger`) passa pelas
+  checagens do Emitir; `create_invoice_from_bls`, fora do ledger, saiu da API,
+  e a pessoa não grava `bls.charge_status` nem `bls.billing_hold_reason` direto
+  (migration `366`).
 - O breakdown de consolidada é derivado em leitura. O subtotal de
   `invoice_receivable_links` prevalece: se a soma atual de
   `charge_calculations` não reconciliar em `0,01`, a UI mostra uma linha

@@ -15,6 +15,8 @@
 --   2. Gatilho `trg_single_open_local_document`: o vínculo ativo novo de uma
 --      individual aberta é recusado quando o recebível já tem outra
 --      individual aberta ou está numa consolidada aberta.
+--   3. A reemissão automática da consolidada encerra quando um B/L ficou
+--      isento, em vez de esperar para sempre.
 --
 -- Não altera nem apaga linhas existentes.
 
@@ -244,5 +246,76 @@ BEGIN
     'receivable_count', ARRAY_LENGTH(v_ids, 1),
     'total_brl', v_total
   );
+END;
+$function$;
+
+-- A reemissão da consolidada pela correção não traz de volta o B/L que ficou
+-- isento (ele não passaria nas checagens do item 1): encerra a reemissão.
+CREATE OR REPLACE FUNCTION public._try_recreate_consolidated(p_invoice_id bigint, p_actor uuid)
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_inv record; v_ids bigint[]; v_mismatch text; v_waiting text;
+BEGIN
+  SELECT * INTO v_inv FROM public.invoices WHERE id = p_invoice_id FOR UPDATE;
+  IF NOT FOUND OR v_inv.invoice_type IS DISTINCT FROM 'consolidated' OR v_inv.status IS DISTINCT FROM 'cancelled'
+     OR v_inv.reissue_requested_at IS NULL OR v_inv.reissue_closed_at IS NOT NULL
+     OR EXISTS (SELECT 1 FROM public.invoices s WHERE s.replaces_invoice_id = p_invoice_id) THEN
+    RETURN 'not_pending';
+  END IF;
+
+  SELECT array_agg(l.receivable_id ORDER BY l.receivable_id) INTO v_ids
+  FROM public.invoice_receivable_links l WHERE l.invoice_id = p_invoice_id;
+
+  SELECT string_agg(x.bl_id || ': ' || x.reason, '; ' ORDER BY x.bl_id) INTO v_mismatch FROM (
+    SELECT br.bl_id, CASE
+      WHEN b.cancelled_at IS NOT NULL THEN 'B/L cancelado'
+      -- 365: B/L que ficou isento não volta para a consolidada.
+      WHEN b.charge_status = 'exempt' THEN 'B/L isento'
+      WHEN br.customer_id IS DISTINCT FROM v_inv.customer_id THEN 'B/L passou para outro Cliente'
+      WHEN br.status NOT IN ('open', 'partially_settled') OR br.balance_brl <= 0 THEN 'sem saldo a cobrar (quitado ou isento)'
+    END AS reason
+    FROM public.invoice_receivable_links l
+    JOIN public.bl_receivables br ON br.id = l.receivable_id
+    JOIN public.bls b ON b.id = br.bl_id
+    WHERE l.invoice_id = p_invoice_id) x
+  WHERE x.reason IS NOT NULL;
+  IF v_mismatch IS NOT NULL THEN
+    PERFORM public._close_pending_reissue(p_invoice_id, 'Consolidada nao reemitida: os B/Ls ja nao sao os mesmos (' || v_mismatch || ').');
+    RETURN 'closed';
+  END IF;
+
+  SELECT string_agg(DISTINCT ib.bl_id, ', ') INTO v_waiting
+  FROM public.invoice_receivable_links l
+  JOIN public.invoice_bls ib ON ib.bl_id = l.bl_id
+  JOIN public.invoices i ON i.id = ib.invoice_id
+  WHERE l.invoice_id = p_invoice_id AND i.invoice_type = 'individual' AND i.status = 'cancelled'
+    AND i.reissue_requested_at IS NOT NULL AND i.reissue_closed_at IS NULL
+    AND NOT EXISTS (SELECT 1 FROM public.invoices s WHERE s.replaces_invoice_id = i.id)
+    AND NOT EXISTS (SELECT 1 FROM public.invoice_bls ib2 JOIN public.invoices i2 ON i2.id = ib2.invoice_id
+      WHERE ib2.bl_id = ib.bl_id AND i2.invoice_type = 'individual'
+        AND coalesce(i2.status, 'issued') IN ('draft', 'issued', 'overdue', 'partially_paid', 'paid', 'covered'));
+  IF v_waiting IS NOT NULL THEN
+    PERFORM public.upsert_alert_item('fatura_desatualizada', 'invoice', p_invoice_id::text,
+      'Consolidada ' || v_inv.invoice_number || ' cancelada para correcao; volta sozinha quando sair a fatura individual do B/L ' || v_waiting || '.',
+      'invoice_reissue', 'administrativo', jsonb_build_object('invoice_id', p_invoice_id, 'bl_id', v_waiting, 'auto_reissue', 'waiting'),
+      '/taxas-locais?invoice=' || p_invoice_id);
+    RETURN 'waiting';
+  END IF;
+
+  IF p_actor IS NULL THEN RETURN 'pending'; END IF;
+  BEGIN
+    PERFORM public.create_local_consolidated_invoice_core(v_inv.customer_id, v_ids, p_actor, 'internal');
+    RETURN 'reissued';
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM public.upsert_alert_item('fatura_desatualizada', 'invoice', p_invoice_id::text,
+      'Consolidada ' || v_inv.invoice_number || ' cancelada para correcao, mas a nova emissao nao saiu (' || SQLERRM
+        || '). Resolva o motivo e use Tentar reemitir em Reemissao pendente.',
+      'invoice_reissue', 'administrativo', jsonb_build_object('invoice_id', p_invoice_id, 'auto_reissue', 'pending', 'reason', SQLERRM),
+      '/taxas-locais?invoice=' || p_invoice_id);
+    RETURN 'pending';
+  END;
 END;
 $function$;

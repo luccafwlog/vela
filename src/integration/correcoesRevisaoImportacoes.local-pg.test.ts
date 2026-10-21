@@ -23,6 +23,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
@@ -170,7 +174,12 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
       INSERT INTO public.bl_breakbulk_items (bl_id, item_description) VALUES ('${bl.breakbulk}', 'R190 MAQUINA');
       INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage) VALUES ('${graniteManifestId}', ${cancelledVoyageId}, 'R190 NAVIO R190C');
       INSERT INTO public.granite_bls (id, manifest_id, bl_number) VALUES ('${graniteBlId}', '${graniteManifestId}', 'R190-GRA-1');
-
+    `)
+    // Desde a 363 a Viagem com fatura viva não se cancela: o estado legado
+    // (fatura já emitida na Viagem Cancelada) é montado depois do cancelamento.
+    const cancelled = asAdmin(`SELECT public.cancel_voyage(${cancelledVoyageId}, 'Armador cancelou a escala (R190)', '${adminId}')`)
+    expect(cancelled.status, cancelled.stderr).toBe(0)
+    psql(`
       SET session_replication_role = replica;
       UPDATE public.bls SET financial_status = 'invoiced' WHERE id = '${bl.cancelledVoyage}';
       UPDATE public.granite_bls SET charge_status = 'invoiced' WHERE id = '${graniteBlId}';
@@ -184,8 +193,6 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
       UPDATE public.bls SET cancelled_at = now(), financial_status = 'paid' WHERE id = '${bl.cancelledBl}';
       SET session_replication_role = origin;
     `)
-    const cancelled = asAdmin(`SELECT public.cancel_voyage(${cancelledVoyageId}, 'Armador cancelou a escala (R190)', '${adminId}')`)
-    expect(cancelled.status, cancelled.stderr).toBe(0)
   })
 
   afterAll(cleanup)
@@ -227,10 +234,10 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
     const row = (blId: string) => `public.apply_container_dates_atomic(gen_random_uuid(), '${blId}',
       '[{"container_number":"${sharedContainer}","discharge_date":"2026-09-01","return_date":"2026-09-10",
          "expected_discharge_date":null,"expected_return_date":null}]'::jsonb, '${adminId}'::uuid)`
-    const first = asAdmin(`SELECT ${row(bl.shareA)}`)
+    const first = asAdmin(`RESET ROLE; SELECT ${row(bl.shareA)}`)
     expect(first.status, first.stderr).toBe(0)
     // O primeiro B/L propagou a data ao irmão; a linha do irmão não é prévia obsoleta.
-    const second = asAdmin(`SELECT ${row(bl.shareB)}`)
+    const second = asAdmin(`RESET ROLE; SELECT ${row(bl.shareB)}`)
     expect(second.status, second.stderr).toBe(0)
     expect(lastJson<{ unchanged_ids: number[] }>(second.stdout).unchanged_ids).toHaveLength(1)
     expect(psql(`SELECT string_agg(return_date::text, ',') FROM public.bl_containers WHERE bl_id IN ('${bl.shareA}', '${bl.shareB}')`))
@@ -241,7 +248,7 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
     psql(`INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('${bl.shareA}', 'RVCU2010001', '40HC')`)
     // Outra sessão grava a descarga depois da prévia, que a viu vazia.
     psql(`UPDATE public.bl_containers SET discharge_date = '2026-09-02' WHERE container_number = 'RVCU2010001'`)
-    const stale = asAdmin(`SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${bl.shareA}',
+    const stale = asAdmin(`RESET ROLE; SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${bl.shareA}',
       '[{"container_number":"RVCU2010001","discharge_date":"2026-09-05","return_date":null,
          "expected_discharge_date":null,"expected_return_date":null}]'::jsonb, '${adminId}'::uuid)`)
     expect(stale.stderr).toMatch(/Preview obsoleto para RVCU2010001/)

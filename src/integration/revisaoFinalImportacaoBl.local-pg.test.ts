@@ -27,6 +27,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -113,7 +117,7 @@ function containerLine(blId: string, overrides: Record<string, unknown> = {}) {
 /** Reimportação: mesmo contrato de `confirmBlFreightImport` (com Viagem, pelo wrapper de lote). */
 function importContainer(lines: unknown[], key = 'import') {
   return asOperator(`
-    SELECT '${key}|' || (public.import_bl_freight_with_metadata(
+    RESET ROLE; SELECT '${key}|' || (public.import_bl_freight_with_metadata(
       ${json(lines)}, '${actorId}'::uuid,
       '{"filename":"r213.xlsx","voyage_id":${voyageId},"cargo_mode":"container"}'::jsonb
     )->'result')::text;
@@ -123,7 +127,7 @@ function importContainer(lines: unknown[], key = 'import') {
 /** Sem o wrapper de lote: sem cálculo de taxas, o B/L fica sem financeiro. */
 function importContainerWithoutCharges(lines: unknown[], key = 'import') {
   return asOperator(`
-    SELECT '${key}|' || public.import_bl_freight_transactional(${json(lines)}, '${actorId}'::uuid)::text;
+    RESET ROLE; SELECT '${key}|' || public.import_bl_freight_transactional(${json(lines)}, '${actorId}'::uuid)::text;
     DISCARD TEMP;`)
 }
 
@@ -204,7 +208,7 @@ const breakbulkItem = (blId: string, overrides: Record<string, unknown> = {}) =>
 function importBreakbulk(lines: unknown[], items: unknown[], key = 'import') {
   return `${releaseRateLimit}
   ${asOperator(`
-    SELECT '${key}|' || (public.import_breakbulk_manifest_transactional(
+    RESET ROLE; SELECT '${key}|' || (public.import_breakbulk_manifest_transactional(
       'r213.pdf', ${voyageId}, '${actorId}'::uuid, ${lines.length}, ${json(lines)}, ${json(items)}, '[]'::jsonb
     ) - 'invoice_reissues')::text;
     DISCARD TEMP;`)}`

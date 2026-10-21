@@ -370,8 +370,10 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     // Gatilho guard_container_bl_without_containers (SECURITY DEFINER desde a 231).
     psql(`SET session_replication_role = replica; DELETE FROM public.bl_containers WHERE bl_id = '${BL}'; SET session_replication_role = origin;`)
     try {
-      psql(`UPDATE public.bls SET charge_status = 'not_calculated' WHERE id = '${BL}';`)
-      const result = runAs('documentacao', `UPDATE public.bls SET charge_status = 'calculated' WHERE id = '${BL}'`)
+      // `charge_status` saiu do UPDATE do usuário (migration 366): o dono grava o
+      // status, e a pessoa mexe numa coluna que também dispara o gatilho.
+      psql(`UPDATE public.bls SET charge_status = 'calculated' WHERE id = '${BL}';`)
+      const result = runAs('documentacao', `UPDATE public.bls SET cargo_mode = 'container' WHERE id = '${BL}'`)
       expect(result.error).toBe('')
       expect(psql(`SELECT status FROM public.charge_calculations WHERE bl_id = '${BL}' AND calculation_key = 'review:no_container';`))
         .toBe('review_required')

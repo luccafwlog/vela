@@ -2,6 +2,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { syntheticCnpj, describeWithProbe } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 // Migration 126 (ADR 0077, decisão de 2026-10-01): reimportação que altera a
 // base faturada de B/L com fatura sem pagamento cancela a individual e a
 // consolidada e reemite as duas com o valor novo.
@@ -87,7 +91,7 @@ function reimport(blId: string, extraContainers: string[]) {
     payload[0].containers.push({ ...payload[0].containers[0], id: undefined, container_number: number })
   }
   return adminJson<{ invoice_reissues: Array<{ status: string; reissued: Array<{ type: string; invoice_id: number }>; pending_reason: string | null }> }>(
-    `SELECT public.import_bl_freight_transactional('${JSON.stringify(payload)}'::jsonb, '${actorId}'::uuid)`,
+    `RESET ROLE; SELECT public.import_bl_freight_transactional('${JSON.stringify(payload)}'::jsonb, '${actorId}'::uuid)`,
   )
 }
 

@@ -128,6 +128,8 @@ export const TYPE_LABELS: Record<string, string> = {
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
+  itau_pix_checkpoint: 'Consulta Itaú',
+  itau_pix_receipt_failure: 'Recebimento Itaú',
   invoice: 'Fatura',
   container: 'Container',
   bl: 'B/L',
