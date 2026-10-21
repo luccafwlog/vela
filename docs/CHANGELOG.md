@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Leitura dos arquivos de importação (2026-10-21):** B/L avulso com peso em toneladas
+  ("25.350 MT") deixa de entrar 1.000 vezes maior e cubagem com vírgula é decimal; número
+  ambíguo do Manifesto BB e do arquivo de B/L COSCO bloqueia a linha nas duas direções e número
+  descartado gera aviso; Baplie cortado (sem UNT/UNZ) é recusado, o peso usa o VGM antes do WT, os
+  portos de 3 letras do 1.5 são reconhecidos (BRNVT e BRITJ, BRREC e BRSUA continuam distintos), os
+  containers fora das escalas aparecem em destaque e arquivo sem navio e viagem pede confirmação;
+  planilha com mais de uma aba com dados é recusada em toda importação; CSV com `;` é lido certo;
+  as prévias de Datas e do arquivo de B/L leem além de 1.000 linhas; as recusas do banco aparecem
+  em português, sem código nem inglês (revisão das importações, achados F-02, F-09, F-30, F-31,
+  F-36, F-37 e F-44).
 - **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
   inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR
   impresso o cabeçalho (Armador, Porto, Navio / Viagem, Terminal) se repete em cada página, as

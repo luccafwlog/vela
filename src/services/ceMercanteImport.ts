@@ -185,7 +185,7 @@ export async function parseCeMercanteFile(file: File): Promise<ParsedCeMercanteF
 }
 
 export async function parseCeMercanteBuffer(buffer: ArrayBuffer): Promise<ParsedCeMercanteFile> {
-  const { headers, rows } = await readSheet(buffer, { singleDataSheet: true })
+  const { headers, rows } = await readSheet(buffer)
   validateRequiredHeaders(headers)
   return parseRows(rows)
 }

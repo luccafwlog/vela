@@ -63,22 +63,27 @@ export function createHeaderMapper(
  *   sistema de datas da pasta (1900 ou 1904; `src/lib/importDate.ts`).
  *
  * Regras comuns: linhas e abas ocultas são ignoradas e contadas em
- * `warnings`; CSV Windows-1252 é aceito com aviso. O mesmo cabeçalho duas vezes
- * não bloqueia a leitura — a repetição ganha sufixo (`Unit`, `Unit_1`) — e
+ * `warnings`; mais de uma aba visível com dados recusa o arquivo; CSV
+ * Windows-1252 é aceito com aviso e o CSV é lido pelo separador detectado. O
+ * mesmo cabeçalho duas vezes não bloqueia a leitura — a repetição ganha sufixo
+ * (`Unit`, `Unit_1`) — e
  * quem bloqueia "duas colunas para o mesmo campo" é o casamento com os campos
  * do parser (`matchHeaders`, `createHeaderMapper`).
  */
 export type SheetReadOptions = {
   skipBlankRows?: boolean
-  /** Índice entre as abas VISÍVEIS (aba oculta é ignorada com aviso). */
+  /**
+   * Índice entre as abas VISÍVEIS (aba oculta é ignorada com aviso). Quem o
+   * passa percorre as abas (Veículos) e recebe "Planilha vazia." da aba vazia
+   * para pular; sem ele, a primeira aba vazia com dado em outra recusa o
+   * arquivo pedindo os dados numa aba só.
+   */
   sheetIndex?: number
   /** Aliases used to locate a header row after an optional title/preamble. */
   expectedHeaders?: readonly string[]
   headerWindow?: number
   /** `false` recusa CSV fora de UTF-8; o padrão aceita Windows-1252 com aviso. */
   allowWindows1252Fallback?: boolean
-  /** Recusa arquivo com mais de uma aba visível com dados (ADR 0078, item 9). */
-  singleDataSheet?: boolean
 }
 
 /** Valor de célula entregue pelo leitor comum. */
@@ -253,7 +258,7 @@ export const WINDOWS_1252_WARNING = 'Arquivo CSV em Windows-1252 (ANSI): os acen
 /** Pasta aberta pelo leitor comum, com o aviso de encoding do CSV. */
 async function openWorkbook(buffer: ArrayBuffer, allowWindows1252Fallback: boolean) {
   const XLSX = await import('@e965/xlsx')
-  const { decodeImportBytes, detectImportFormat } = await import('./importText')
+  const { decodeImportBytes, detectCsvDelimiter, detectImportFormat } = await import('./importText')
   const warnings: string[] = []
   // XLS/XLSX binário nunca passa pelo decoder textual. CSV é texto com BOM e
   // UTF-8; Windows-1252 (CSV salvo pelo Excel em "CSV (separado por vírgulas)")
@@ -266,9 +271,17 @@ async function openWorkbook(buffer: ArrayBuffer, allowWindows1252Fallback: boole
     const decoded = decodeImportBytes(buffer, { allowWindows1252Fallback })
     if (decoded.encoding === 'windows-1252') warnings.push(WINDOWS_1252_WARNING)
     // raw: o CSV chega ao parser como o texto do arquivo, sem conversão.
-    workbook = XLSX.read(decoded.text, { type: 'string', raw: true, dense: false })
+    // FS: o separador detectado (o SheetJS sozinho adivinha pela primeira
+    // linha e lê `;` com vírgulas no texto como `,`).
+    const separator = detectCsvDelimiter(decoded.text)
+    workbook = XLSX.read(decoded.text, { type: 'string', raw: true, dense: false, ...(separator ? { FS: separator } : {}) })
   } else {
-    workbook = XLSX.read(buffer, { type: 'array', cellNF: true, cellStyles: true, dense: false })
+    try {
+      workbook = XLSX.read(buffer, { type: 'array', cellNF: true, cellStyles: true, dense: false })
+    } catch {
+      // O SheetJS recusa XLSX truncado com "Unsupported ZIP file", em inglês.
+      throw new Error('O arquivo está corrompido ou incompleto e a planilha não abre. Salve de novo no Excel e escolha o arquivo outra vez.')
+    }
   }
   const sheetMeta = workbook.Workbook?.Sheets ?? []
   const visibleNames: string[] = []
@@ -279,10 +292,14 @@ async function openWorkbook(buffer: ArrayBuffer, allowWindows1252Fallback: boole
   })
   for (const name of hiddenNames) warnings.push(`Aba oculta "${name}" ignorada.`)
   const sheetOf = (name: string) => workbook.Sheets[name] as unknown as Record<string, unknown> | undefined
-  const hasData = (name: string) => {
+  /** `visibleRowsOnly`: só conta célula em linha visível (a linha oculta é ignorada). */
+  const hasData = (name: string, options: { visibleRowsOnly?: boolean } = {}) => {
     const sheet = sheetOf(name)
-    return Boolean(sheet) && Object.keys(sheet!).some((key) => !key.startsWith('!')
-      && String((sheet![key] as { v?: unknown }).v ?? '').trim() !== '')
+    if (!sheet) return false
+    const rowInfo = (sheet['!rows'] ?? []) as Array<{ hidden?: boolean } | undefined>
+    return Object.keys(sheet).some((key) => !key.startsWith('!')
+      && String((sheet[key] as { v?: unknown }).v ?? '').trim() !== ''
+      && !(options.visibleRowsOnly && rowInfo[XLSX.utils.decode_cell(key).r]?.hidden))
   }
   return { XLSX, workbook, isText, date1904: isDate1904Workbook(workbook), warnings, visibleNames, hiddenNames, sheetOf, hasData }
 }
@@ -292,6 +309,10 @@ function hiddenRowsWarning(hiddenRows: number, sheetName: string | null) {
   return `${count}${sheetName ? ` na aba "${sheetName}"` : ''}: o filtro da planilha indica importar só o visível.`
 }
 
+function quotedNames(names: readonly string[]) {
+  return names.map((name) => `"${name}"`).join(', ')
+}
+
 /** Os dados só existem em linhas ou abas ocultas: dizer onde estão, não "Planilha vazia.". */
 export const HIDDEN_DATA_MESSAGE = 'Os dados estão em linhas ou abas ocultas, que são ignoradas; reexiba-as ou copie para uma aba visível.'
 
@@ -299,16 +320,20 @@ export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions =
   const book = await openWorkbook(buffer, options.allowWindows1252Fallback ?? true)
   const { XLSX, visibleNames, hiddenNames, sheetOf, hasData } = book
   const warnings = [...book.warnings]
-  if (options.singleDataSheet) {
-    const withData = visibleNames.filter(hasData)
-    if (withData.length > 1) {
-      throw new Error(`O arquivo tem mais de uma aba com dados (${withData.join(', ')}): deixe só a aba do CE Mercante e importe de novo.`)
-    }
+  // Uma aba só (ADR 0078, item 7, estendido a toda importação de planilha):
+  // com duas abas visíveis com dados, o leitor não escolhe uma em silêncio.
+  // Aba oculta, aba vazia e aba com dado só em linhas ocultas não contam.
+  const withData = visibleNames.filter((name) => hasData(name, { visibleRowsOnly: true }))
+  if (withData.length > 1) {
+    throw new Error(`O arquivo tem mais de uma aba com dados (${quotedNames(withData)}): deixe os dados numa aba só e importe de novo.`)
   }
   const sheetIndex = options.sheetIndex ?? 0
   const sheetName = visibleNames[sheetIndex]
+  if (options.sheetIndex === undefined && sheetName && withData.length === 1 && withData[0] !== sheetName && !hasData(sheetName)) {
+    throw new Error(`O arquivo tem mais de uma aba (${quotedNames(visibleNames)}) e a primeira está vazia (os dados estão em "${withData[0]}"): deixe os dados numa aba só e importe de novo.`)
+  }
   const sheet = sheetName ? sheetOf(sheetName) : undefined
-  const dataInHiddenSheet = hiddenNames.some(hasData)
+  const dataInHiddenSheet = hiddenNames.some((name) => hasData(name))
   if (!sheet) {
     // Só a aba 0 diz que o dado está oculto: quem percorre as abas (Veículos)
     // para na primeira posição sem aba, em vez de receber a mesma mensagem sempre.

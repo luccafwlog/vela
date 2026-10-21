@@ -1,5 +1,5 @@
 import { canonicalizeDocument } from '../lib/cnpj'
-import { extractErrorText } from '../lib/errors'
+import { atomicImportRefusalMessage } from '../lib/errors'
 import { importDateOrNull } from '../lib/importDate'
 import { extractNcmCodes } from '../lib/ncm'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
@@ -9,6 +9,7 @@ import type { BL, BLContainer, BlFreightLine, Vehicle } from '../types/database'
 import { extractTaxId, type ParsedBLDocument } from './blParser'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, type CustomerMaps } from './customerReconciliation'
 import { normalizePortCode, resolvePortCode } from './portCode'
+import { fetchAllPages } from './reports'
 import { supabase } from './supabase'
 
 export type BlFreightImportDiff = {
@@ -460,6 +461,12 @@ export function buildBlFreightPreview({
       blockedReasons.push(`${incompleteVehicles.length} VIN(s) sem marca, modelo, peso e cubagem positivos; revise o veículo antes de importar.`)
     }
     if (portBlock) blockedReasons.push(portBlock)
+    // Números do arquivo (blParser): separador ambíguo bloqueia, número
+    // descartado avisa — nenhum dos dois entra calado (F-30).
+    for (const issue of doc.numberIssues ?? []) {
+      if (issue.severity === 'error') blockedReasons.push(issue.message)
+      else warnings.push(issue.message)
+    }
     const fclConflict = payload && containerSiblings ? describeFclConflict(payload, existing, containerSiblings) : null
     if (fclConflict) blockedReasons.push(fclConflict)
     const removedContainers = existing && payload ? missingContainers(existing, payload) : []
@@ -828,7 +835,7 @@ export async function confirmBlFreightImport(
         { cause: error },
       )
     }
-    throw new BlFreightImportRefused(`Nada foi gravado: ${extractErrorText(error) || 'erro desconhecido'}.`, [], { cause: error })
+    throw new BlFreightImportRefused(atomicImportRefusalMessage(error), [], { cause: error })
   }
   const wrapped = rawData as { result?: unknown; calculation_errors?: unknown } | null
   const data = wrapped && typeof wrapped === 'object' && 'result' in wrapped ? wrapped.result : rawData
@@ -1103,20 +1110,26 @@ async function fetchContainerSiblings(voyageId: number, blNumbers: string[], con
   const siblings = new Map<string, ContainerSibling[]>()
   const numbers = [...new Set(containerNumbers.map((number) => normalizeIsoContainerNumber(number)).filter((number): number is string => Boolean(number)))]
   if (!numbers.length) return siblings
-  const { data: links, error } = await supabase.from('bl_containers').select('container_number, bl_id').in('container_number', numbers)
-  if (error) throw error
+  // O container se repete em B/Ls de todas as Viagens: em páginas, porque o
+  // servidor entrega no máximo 1.000 linhas por consulta (`max_rows`).
+  const links = await fetchContainerLinks(numbers)
   const importing = new Set(blNumbers)
-  const linkRows = ((links ?? []) as Array<{ container_number: string | null; bl_id: string | null }>)
-    .filter((row) => row.container_number && row.bl_id && !importing.has(row.bl_id))
+  const linkRows = links.filter((row) => row.container_number && row.bl_id && !importing.has(row.bl_id))
   const blIds = [...new Set(linkRows.map((row) => row.bl_id as string))]
   if (!blIds.length) return siblings
-  const { data: bls, error: blError } = await supabase
+  type SiblingBl = { id: string; voyage_id: number | null; customer_id: number | null; container_load_type: string | null; cancelled_at: string | null }
+  // ponytail: `blIds` vai inteiro na URL do `in`; com milhares de B/Ls
+  // (container reutilizado em muitas Viagens) a URL cresce. Upgrade: filtrar
+  // pela Viagem num join `bl_containers` → `bls!inner` em vez da lista de ids.
+  const { rows: bls } = await fetchAllPages<SiblingBl>((from, to) => supabase
     .from('bls')
     .select('id, voyage_id, customer_id, container_load_type, cancelled_at')
     .in('id', blIds)
-  if (blError) throw blError
-  const blRows = ((bls ?? []) as unknown as Array<{ id: string; voyage_id: number | null; customer_id: number | null; container_load_type: string | null; cancelled_at: string | null }>)
-    .filter((bl) => bl.voyage_id === voyageId && !bl.cancelled_at)
+    .eq('voyage_id', voyageId)
+    .order('id')
+    .range(from, to)
+    .overrideTypes<SiblingBl[], { merge: false }>())
+  const blRows = bls.filter((bl) => bl.voyage_id === voyageId && !bl.cancelled_at)
   const customerIds = [...new Set(blRows.map((bl) => bl.customer_id).filter((id): id is number => id != null))]
   const names = customerIds.length ? await fetchCustomerSnapshots(customerIds) : new Map<number, BlCustomerSnapshot>()
   const byId = new Map(blRows.map((bl) => [bl.id, bl]))
@@ -1739,17 +1752,30 @@ async function fetchBillingLockedBlIds(blNumbers: string[]) {
 async function fetchSharedContainerNumbers(blNumbers: string[], containerNumbers: string[]) {
   const numbers = [...new Set(containerNumbers.filter(Boolean))]
   if (!numbers.length) return new Set<string>()
-  const { data, error } = await supabase
-    .from('bl_containers')
-    .select('container_number, bl_id')
-    .in('container_number', numbers)
-  if (error) throw error
   const importSet = new Set(blNumbers)
   return new Set(
-    ((data ?? []) as Array<{ container_number: string | null; bl_id: string | null }>)
+    (await fetchContainerLinks(numbers))
       .filter((row) => row.container_number && row.bl_id && !importSet.has(row.bl_id))
       .map((row) => row.container_number as string),
   )
+}
+
+type ContainerLink = { id: number; container_number: string | null; bl_id: string | null }
+
+/**
+ * Todos os vínculos B/L ↔ container dos números dados, de todas as Viagens, em
+ * páginas: o servidor entrega no máximo 1.000 linhas por consulta (`max_rows`)
+ * e o resto sumiria em silêncio.
+ */
+async function fetchContainerLinks(numbers: string[]): Promise<ContainerLink[]> {
+  const { rows } = await fetchAllPages<ContainerLink>((from, to) => supabase
+    .from('bl_containers')
+    .select('id, container_number, bl_id')
+    .in('container_number', numbers)
+    .order('id')
+    .range(from, to)
+    .overrideTypes<ContainerLink[], { merge: false }>())
+  return rows
 }
 
 async function fetchSelectedVoyage(voyageId: number): Promise<BlFreightSelectedVoyage | null> {
