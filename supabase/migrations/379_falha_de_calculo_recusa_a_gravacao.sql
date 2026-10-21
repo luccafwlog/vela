@@ -14,6 +14,11 @@
 -- falha: o cálculo termina em espera ("Aguardando tabela de cobrança") e a
 -- gravação segue. A 377 continua reabrindo os efeitos já bloqueados.
 --
+-- A troca para consignatário não cadastrado em B/L não faturado deixa de ser
+-- tratada como de B/L faturado só porque o B/L já tem recebível calculado
+-- (ADR 0093, decisão 13): com o cálculo agora na gravação do Manifesto BB,
+-- todo B/L novo nasce com recebível.
+--
 -- Não altera nem apaga linhas existentes.
 
 CREATE OR REPLACE FUNCTION public._raise_local_charge_failure(p_bl_id text, p_sqlstate text, p_message text)
@@ -77,7 +82,10 @@ BEGIN
   v_result := public.import_breakbulk_manifest_transactional_legacy_189(p_filename, p_voyage_id, p_uploaded_by, p_total_bls, p_bls, p_items, p_errors);
   FOR v_bl IN
     SELECT b.id FROM public.bls b
-    WHERE b.id IN (SELECT r->>'id' FROM jsonb_array_elements(coalesce(p_bls, '[]'::jsonb)) r)
+    -- B/L novo ou alterado; o idêntico só se nunca foi calculado.
+    WHERE (b.id IN (SELECT jsonb_array_elements_text(coalesce(v_result->'inserted_bl_ids', '[]'::jsonb) || coalesce(v_result->'updated_bl_ids', '[]'::jsonb)))
+           OR (b.id IN (SELECT r->>'id' FROM jsonb_array_elements(coalesce(p_bls, '[]'::jsonb)) r)
+               AND coalesce(b.charge_status, 'not_calculated') = 'not_calculated'))
       AND b.cancelled_at IS NULL AND coalesce(b.financial_status, 'pending') = 'pending'
       AND cardinality(public._live_local_invoice_ids_for_bl(b.id)) = 0
     ORDER BY b.id
@@ -678,3 +686,37 @@ BEGIN
   RETURN NULL;
 END;
 $function$;
+
+-- Troca de Cliente: só fatura, status faturado ou baixa contam como faturado.
+CREATE OR REPLACE FUNCTION public.relink_bl_customer(p_bl_id text, p_customer_id bigint, p_changed_by uuid, p_reason text DEFAULT 'Troca de consignatario na reimportacao do B/L'::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE b public.bls%ROWTYPE; blockers text[];
+BEGIN
+ IF auth.role() IS DISTINCT FROM 'service_role' AND (auth.uid() IS NULL OR NOT public.is_active_user() OR p_changed_by IS DISTINCT FROM auth.uid()) THEN
+   RAISE EXCEPTION 'Sem permissão para trocar o Cliente do B/L.' USING ERRCODE='42501'; END IF;
+ IF p_changed_by IS NULL OR NOT EXISTS(SELECT 1 FROM public.user_profiles WHERE id=p_changed_by AND active) THEN RAISE EXCEPTION 'Ator interno ativo obrigatório.' USING ERRCODE='42501'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('bl:'||p_bl_id,0));
+ SELECT * INTO b FROM public.bls WHERE id=p_bl_id FOR UPDATE;
+ IF NOT FOUND THEN RETURN jsonb_build_object('applied',false,'blockers',ARRAY['B/L não encontrado']); END IF;
+ IF b.customer_id IS NOT DISTINCT FROM p_customer_id THEN RETURN jsonb_build_object('applied',false,'unchanged',true,'blockers',ARRAY[]::text[]); END IF;
+ blockers:=public._bl_customer_change_cash_blockers(p_bl_id,p_customer_id);
+ IF cardinality(blockers)>0 THEN RETURN jsonb_build_object('bl_id',p_bl_id,'applied',false,'blockers',blockers); END IF;
+ -- 379 (ADR 0093, decisão 13): faturado é fatura viva, status faturado ou
+ -- recebível com baixa; o recebível em aberto de B/L não faturado não segura a
+ -- troca (é anulado e nasce de novo com o Cliente vinculado depois).
+ IF cardinality(public._live_local_invoice_ids_for_bl(p_bl_id))>0 OR coalesce(b.financial_status,'pending')<>'pending'
+    OR EXISTS(SELECT 1 FROM public.bl_receivables WHERE bl_id=p_bl_id AND source='local_charges' AND coalesce(settled_amount_brl,0)>0) THEN
+   IF p_customer_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.customers WHERE id=p_customer_id) THEN
+     RETURN jsonb_build_object('applied',false,'blockers',ARRAY['Cadastre o Cliente de destino antes de trocar B/L faturado']); END IF;
+   UPDATE public.bls SET customer_id=p_customer_id,customer_reconciliation_status='reconciled',
+     customer_reconciliation_notes='Cliente alterado por reimportação; financeiro preservado e regularizado pela base do B/L' WHERE id=p_bl_id;
+   INSERT INTO public.audit_logs(entity_type,entity_id,field_name,old_value,new_value,changed_by,justification)
+    VALUES('bl',p_bl_id,'customer_id',b.customer_id::text,p_customer_id::text,p_changed_by,p_reason);
+   RETURN jsonb_build_object('bl_id',p_bl_id,'applied',true,'blockers',ARRAY[]::text[],'financial_policy','refund_original_then_reissue');
+ END IF;
+ RETURN public.relink_bl_customer_legacy_134(p_bl_id,p_customer_id,p_changed_by,p_reason);
+END $function$;

@@ -49,9 +49,10 @@ describeLocal('373 — desvincular o Cliente e container FCL entre Clientes', ()
       .toThrow(/nao e dividido entre Clientes diferentes/)
   })
 
-  it('F-29: falha do cálculo no vínculo do Cliente abre billing_calculation_blocked', () => {
+  // ADR 0094, B3 (migration 379): a falha recusa o vínculo; não abre Alerta.
+  it('F-29: falha do cálculo no vínculo do Cliente recusa a gravação, sem Alerta', () => {
     const id = w.createBl('F29', { customerId: null })
-    w.psql(`SET session_replication_role = replica;
+    expect(() => w.psql(`SET session_replication_role = replica;
       UPDATE public.bls SET charge_status = 'calculated' WHERE id = '${id}';
       INSERT INTO public.charge_calculations (bl_id, source, status, calculation_key, quantity, total_value_brl)
         VALUES ('${id}', 'auto', 'calculated', 'auto:fixture', 1, 100);
@@ -59,10 +60,10 @@ describeLocal('373 — desvincular o Cliente e container FCL entre Clientes', ()
       CREATE FUNCTION pg_temp.ff9311_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Cambio (ROE) nao configurado'; END $$;
       CREATE TRIGGER ff9311_fail BEFORE DELETE ON public.charge_calculations FOR EACH ROW
         WHEN (OLD.bl_id = '${id}') EXECUTE FUNCTION pg_temp.ff9311_fail();
-      UPDATE public.bls SET customer_id = ${w.customerId}, customer_reconciliation_status = 'reconciled' WHERE id = '${id}';
-      DROP TRIGGER ff9311_fail ON public.charge_calculations;`)
-    expect(w.psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'billing_calculation_blocked' AND status = 'active'
-      AND metadata->>'bl_id' = '${id}'`)).toBe('1')
+      UPDATE public.bls SET customer_id = ${w.customerId}, customer_reconciliation_status = 'reconciled' WHERE id = '${id}';`))
+      .toThrow(/Taxas Locais do B\/L .* não calculadas: Cambio \(ROE\) nao configurado/)
+    expect(w.psql(`SELECT coalesce(customer_id::text, 'null') FROM public.bls WHERE id = '${id}'`)).toBe('null')
+    expect(w.psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'billing_calculation_blocked' AND metadata->>'bl_id' = '${id}'`)).toBe('0')
   })
 
   it('decisão 15 (migration 374): trocar o CNPJ reemite a avulsa e a Demurrage em aberto para o novo Cliente, com o mesmo valor', () => {

@@ -2,18 +2,19 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
 
-// F-25, F-26, F-28 e F-30 do plano da frente financeira (migration 372).
+// F-25, F-26, F-28 e F-30 do plano da frente financeira (migration 372). A
+// regra da ETA mudou na 378 (ADR 0094, A1): a ETA não muda o preço.
 
 const w = financeWorld(9310)
 
 const describeLocal = describeWithProbe(() => {
   if (process.env.LOCAL_PG_INTEGRATION !== '1') return false
   try {
-    return w.psql(`SELECT to_regproc('public.recalculate_provisional_bls_on_eta') IS NOT NULL`) === 't'
+    return w.psql(`SELECT count(*) FROM pg_proc WHERE proname = 'refix_bl_local_charge_prices'`) === '1'
   } catch {
     return false
   }
-}, 'migration 372 aplicada')
+}, 'migrations 372 e 378 aplicadas')
 
 describeLocal('372 — cálculo de B/L cancelado, isento, reativado e ETA', () => {
   let item = 0
@@ -51,14 +52,14 @@ describeLocal('372 — cálculo de B/L cancelado, isento, reativado e ETA', () =
     expect(w.calcTotal(id)).toBe(100)
   })
 
-  it('F-25: a ETA da Viagem recalcula o provisório, que troca de Condição pela data', () => {
-    w.psql(`UPDATE public.voyages SET eta = '2026-03-10T15:00:00Z' WHERE id = ${w.voyageId}`)
+  it('F-25 (regra da 378): a ETA da Viagem não troca a Condição nem recalcula o B/L', () => {
+    w.psql(`UPDATE public.voyages SET eta = now() + interval '30 days' WHERE id = ${w.voyageId}`)
     w.asOk('operacoes', `INSERT INTO public.customer_rate_overrides (customer_id, charge_item_id, override_value, valid_from, valid_to)
-      VALUES (${w.customerId}, ${item}, 70, '2026-03-01', '2026-03-31')`)
+      VALUES (${w.customerId}, ${item}, 70, CURRENT_DATE - 1, CURRENT_DATE + 1)`)
     const id = w.createBl('ETA')
     w.calculate(id)
     expect(w.calcTotal(id)).toBe(70)
-    w.psql(`UPDATE public.voyages SET eta = '2026-05-10T15:00:00Z' WHERE id = ${w.voyageId}`)
-    expect(w.calcTotal(id)).toBe(100)
+    w.psql(`UPDATE public.voyages SET eta = now() + interval '90 days' WHERE id = ${w.voyageId}`)
+    expect(w.calcTotal(id)).toBe(70)
   })
 })

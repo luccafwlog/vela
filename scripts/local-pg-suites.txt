@@ -145,3 +145,5 @@ src/integration/gateReciboAvulsaPix.local-pg.test.ts
 src/integration/lote4NumeroAvulsaEstornoItau.local-pg.test.ts
 src/integration/precoFixoNaImportacao.local-pg.test.ts
 src/integration/falhaDeCalculoRecusa.local-pg.test.ts
+src/integration/escritaDiretaFechada.local-pg.test.ts
+src/integration/cargaSoltaFaturada.local-pg.test.ts

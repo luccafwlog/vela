@@ -112,9 +112,9 @@ describeLocal('379 — falha de cálculo recusa a gravação', () => {
     const id = w.createBl('FICHA', { customerId: null })
     w.calculate(id)
     w.psql(`SET session_replication_role = replica; UPDATE public.bls SET customer_id = ${w.customerId} WHERE id = '${id}'; SET session_replication_role = origin;`)
-    const result = w.as('operacoes', `INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('${id}', '${w.container()}', '22G1')`)
+    const result = w.as('operacoes', `UPDATE public.bls SET movement_to = 'CY/CY' WHERE id = '${id}'`)
     expect(result.stderr).toMatch(REFUSED)
-    expect(w.psql(`SELECT count(*) FROM public.bl_containers WHERE bl_id = '${id}'`)).toBe('1')
+    expect(w.psql(`SELECT coalesce(movement_to, 'null') FROM public.bls WHERE id = '${id}'`)).toBe('null')
   })
 
   it('B/L sem tabela não é falha: o vínculo grava e o cálculo fica em espera', () => {

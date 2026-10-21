@@ -269,17 +269,18 @@ describeLocal('Importação de B/L: revisão final da PR 929 (migration 213)', (
       })
     })
 
-    it('com aceite e com financeiro, a troca é recusada e o consignatário gravado fica', () => {
+    // ADR 0093, decisão 13 (migration 379): recebível em aberto de B/L não
+    // faturado não segura a troca; ele é anulado e nasce com o Cliente vinculado.
+    it('com aceite e recebível em aberto (sem fatura), o B/L volta para a Reconciliação e o recebível é anulado', () => {
       const out = scenario(`
         ${importContainer([containerLine('R213-C8')], 'first')}
         ${importContainer([containerLine('R213-C8', { ...unregisteredFile, relink_customer: true })])}
-        ${blRow('R213-C8')}`)
+        ${blRow('R213-C8')}
+        SELECT 'receivables|' || coalesce(json_agg(status ORDER BY id), '[]')::text FROM public.bl_receivables WHERE bl_id = 'R213-C8';`)
 
-      expect(out.bl).toMatchObject(keptAlfa)
-      expect(out.import).toMatchObject({
-        customer_changes_ignored: [],
-        customer_relinks: [{ applied: false, blockers: ['Cadastre o Cliente de destino antes de trocar B/L faturado'] }],
-      })
+      expect(out.bl).toMatchObject({ customer_id: null, customer_reconciliation_status: 'missing_customer', manifest_customer_cnpj_cpf: unregistered.cnpj })
+      expect(out.import).toMatchObject({ customer_changes_ignored: [], customer_relinks: [{ applied: true }] })
+      expect((out.receivables as string[]).every((status) => status === 'void')).toBe(true)
     })
 
     it('com aceite e sem financeiro, o B/L volta para a Reconciliação de Cliente com o consignatário do arquivo', () => {

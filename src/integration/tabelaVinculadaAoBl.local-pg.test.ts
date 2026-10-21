@@ -105,28 +105,31 @@ describeLocal('354 — B/L vinculado à tabela de taxas', () => {
     expect(w.activeInvoiceAlerts('fatura_desatualizada', paidInvoice)).toBe(1)
   })
 
-  it('Condição nova recalcula o B/L sem fatura e sem CE do Cliente', () => {
+  // ADR 0094, A3 (migration 378): Condição nova não mexe em B/L existente; vale
+  // para o B/L que entra depois.
+  it('Condição nova não recalcula o B/L existente; vale para o B/L que entra depois', () => {
     w.psql(`UPDATE public.charge_tables SET active = true WHERE id = ${tableB}`)
-    const fresh = w.createBl('COND', { customerId: w.otherCustomerId })
+    const existing = w.createBl('COND', { customerId: w.otherCustomerId })
     w.psql(`UPDATE public.customer_rate_overrides SET active = false WHERE customer_id = ${w.otherCustomerId}`)
-    w.calculate(fresh)
-    const linked = w.boundTable(fresh)!
+    w.calculate(existing)
+    const linked = w.boundTable(existing)!
     const linkedItem = Number(w.psql(`SELECT id FROM public.charge_table_items WHERE charge_table_id = ${linked} ORDER BY id LIMIT 1`))
-    const before = w.calcTotal(fresh)
+    const before = w.calcTotal(existing)
     w.asOk('operacoes', `INSERT INTO public.customer_rate_overrides (customer_id, charge_item_id, override_value, valid_from)
       VALUES (${w.otherCustomerId}, ${linkedItem}, 123, CURRENT_DATE - 300)`)
     expect(before).not.toBe(123)
-    expect(w.calcTotal(fresh)).toBe(123)
+    expect(w.calcTotal(existing)).toBe(before)
+    const later = w.createBl('CONDN', { customerId: w.otherCustomerId })
+    w.calculate(later)
+    expect(w.calcTotal(later)).toBe(123)
   })
 
-  it('I-33b (migration 359): a data de referência acha a escala pelo POD normalizado e usa o dia de Brasília', () => {
+  it('I-33b (regra da 378): a data de referência é o dia da importação em Brasília; a ETA não entra', () => {
     const id = w.createBl('REF')
-    w.psql(`UPDATE public.bls SET pod = 'BRVIT' WHERE id = '${id}';
-      UPDATE public.voyages SET pod_schedule_snapshot = '{"BRVIX": {"eta": "2026-01-10"}}'::jsonb, eta = '2026-03-10T01:00:00Z' WHERE id = ${w.voyageId}`)
-    expect(w.psql(`SELECT public.bl_local_charge_reference_date('${id}')`)).toBe('2026-01-10')
-    // Sem a escala, a ETA geral: 01:00 UTC do dia 10 é 22:00 do dia 9 em Brasília.
-    w.psql(`UPDATE public.voyages SET pod_schedule_snapshot = '{}'::jsonb WHERE id = ${w.voyageId}`)
-    expect(w.psql(`SELECT public.bl_local_charge_reference_date('${id}')`)).toBe('2026-03-09')
-    w.psql(`UPDATE public.voyages SET eta = NULL WHERE id = ${w.voyageId}`)
+    w.calculate(id)
+    const today = w.psql(`SELECT (now() AT TIME ZONE 'America/Sao_Paulo')::date`)
+    w.psql(`UPDATE public.voyages SET pod_schedule_snapshot = '{"BRVIX": {"eta": "2026-01-10"}}'::jsonb, eta = '2026-03-10T01:00:00Z' WHERE id = ${w.voyageId}`)
+    expect(w.psql(`SELECT public.bl_local_charge_reference_date('${id}')`)).toBe(today)
+    w.psql(`UPDATE public.voyages SET pod_schedule_snapshot = '{}'::jsonb, eta = NULL WHERE id = ${w.voyageId}`)
   })
 })

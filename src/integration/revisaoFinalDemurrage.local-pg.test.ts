@@ -332,9 +332,10 @@ describeLocal('Revisão final de Demurrage, datas e Viagem Cancelada (migration 
     const id = containerId(bl.tz, containers.tz)
     const before = psql(`SELECT COALESCE(discharge_date::text, '-') || '|' || COALESCE(return_date::text, '-') FROM public.bl_containers WHERE id = ${id}`)
     const direct = asAdmin(`UPDATE public.bl_containers SET return_date = (now() AT TIME ZONE 'America/Sao_Paulo')::date WHERE id = ${id}`)
-    expect(direct.stderr).toMatch(/ficha do B\/L ou pela planilha de datas/)
+    // Migration 380: authenticated nem tem UPDATE nessas colunas.
+    expect(direct.stderr).toMatch(/permission denied|ficha do B\/L ou pela planilha de datas/)
     const discharge = asAdmin(`UPDATE public.bl_containers SET discharge_date = '2026-08-01' WHERE id = ${id}`)
-    expect(discharge.stderr).toMatch(/ficha do B\/L ou pela planilha de datas/)
+    expect(discharge.stderr).toMatch(/permission denied|ficha do B\/L ou pela planilha de datas/)
     expect(psql(`SELECT COALESCE(discharge_date::text, '-') || '|' || COALESCE(return_date::text, '-') FROM public.bl_containers WHERE id = ${id}`))
       .toBe(before)
 
