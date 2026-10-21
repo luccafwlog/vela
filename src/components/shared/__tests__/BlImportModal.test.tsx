@@ -260,7 +260,7 @@ it('confirma importacao, usa o efeito central de manifesto e fecha modal', async
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithDiff, 'user-1', new Set(), 'bl.xlsx', false, false))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithDiff, 'user-1', new Set(), 'bl.xlsx', false, new Set()))
 
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
   expect(mocks.invalidateQueries).not.toHaveBeenCalled()
@@ -327,7 +327,7 @@ it('exibe impacto de faturamento e envia override quando o operador marca', asyn
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithBillingImpact, 'user-1', new Set(['COSU777']), 'bl.xlsx', false, false))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithBillingImpact, 'user-1', new Set(['COSU777']), 'bl.xlsx', false, new Set()))
 })
 
 /** Preview com troca de consignatario, compartilhado pelos testes de confirmacao. */
@@ -383,7 +383,7 @@ it('alerta a troca de consignatario e so envia o revinculo quando o operador ace
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithCustomerChange, 'user-1', new Set(), 'bl.xlsx', true, false))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithCustomerChange, 'user-1', new Set(), 'bl.xlsx', true, new Set()))
 })
 
 it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () => {
@@ -528,9 +528,8 @@ it('mostra o resultado por B/L quando a gravação muda contêineres, mesmo sem 
     refusedCustomerRelinks: [],
     calculationErrors: [],
     containerChanges: [{ blNumber: 'COSU456', inserted: ['TCLU1234567'], updated: [], removed: [] }],
-    vehicleChanges: [],
-    vehiclesDiscarded: [],
-    vehicleChangesPending: [],
+    cancelledSkipped: [],
+    pricesRefixed: [],
   }
   mocks.confirmBlFreightImport.mockResolvedValue(result)
   const { container, onClose } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
@@ -549,37 +548,27 @@ it('mostra o resultado por B/L quando a gravação muda contêineres, mesmo sem 
   expect(onClose).not.toHaveBeenCalled()
 })
 
-// A1 (revisão da PR 929): container que sai levando os veículos só sai com a
-// lista de veículos confirmada; sem ela a gravação recusaria o lote inteiro.
-it('exige a confirmação de veículos quando um container sai do B/L levando os veículos', async () => {
-  const previewWithVehicleExit = {
-    rows: [{
-      ...previewWithDiff.rows[1],
-      removedContainers: ['MSKU7654321'],
-      vehicleChanges: { added: [], removed: [], changed: ['CHASSI0000000001'] },
-      requiresVehicleConfirmation: true,
-      vehicleConfirmationRequiredFor: ['MSKU7654321'],
-    }],
-    summary: { ...previewWithDiff.summary, total: 1, newCount: 0, vehicleConfirmationCount: 1 },
+// ADR 0095, decisão 9: o preço de hoje aparece por B/L e só refixa com o aceite.
+it('mostra preço do dia da importação → preço de hoje e envia o aceite por B/L', async () => {
+  const snapshot = (roe: number, tables: string[]) => ({ referenceDate: '2026-10-01', roe, tables, conditionItems: 0, totalBrl: 100, totalUsd: null })
+  const previewWithRefix = {
+    rows: [{ ...previewWithDiff.rows[1], priceRefix: { before: snapshot(5.1, ['TABELA ANTIGA']), after: snapshot(5.4, ['TABELA NOVA']) } }],
+    summary: { ...previewWithDiff.summary, total: 1, newCount: 0, priceRefixCount: 1 },
   }
   mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU456'))
-  mocks.previewBlFreightImport.mockResolvedValue(previewWithVehicleExit)
+  mocks.previewBlFreightImport.mockResolvedValue(previewWithRefix)
   const { container } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
 
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
     target: { files: [new File(['x'], 'bl.xlsx')] },
   })
 
-  await screen.findByText(/Obrigatória para importar: no B\/L COSU456, o container MSKU7654321 sai do B\/L levando os veículos/)
-  expect(screen.queryByText(/o restante do B\/L é aplicado/)).toBeNull()
+  await screen.findByText(/Preço do dia da importação \(2026-10-01\): TABELA ANTIGA; sem Condição; câmbio 5,1000, R\$ 100,00 → preço de hoje: TABELA NOVA/)
+  fireEvent.click(screen.getByLabelText(/Passar o B\/L COSU456 ao preço de hoje/))
   const confirm = screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement
-  expect(confirm.disabled).toBe(true)
-
-  fireEvent.click(screen.getByLabelText(/Confirmo a lista de veículos da aba VIN/))
-  await waitFor(() => expect(confirm.disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithVehicleExit, 'user-1', new Set(), 'bl.xlsx', false, true))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithRefix, 'user-1', new Set(), 'bl.xlsx', false, new Set(['COSU456'])))
 })
 
 // ADR 0092: B/L com erro recusa o arquivo inteiro; os liberados não gravam sozinhos.

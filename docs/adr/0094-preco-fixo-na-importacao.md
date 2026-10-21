@@ -6,6 +6,11 @@ PR luccafwlog/vela#1019, migrations `378` a `383` e, da revisão final antes do
 merge, `384` a `386`, pelo
 [plano arquivado](../archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md).
 
+> **Situação atual (2026-10-21, migration `392`):** a tela do aceite de
+> refixar existe na prévia do arquivo de B/L e a exceção provisória
+> `vela.vin_reissue` acabou, com a aba VIN deixando de ser lida
+> ([ADR 0095](./0095-importacoes-regras-da-revisao.md), decisões 9 e 26).
+
 Supersede parcialmente a [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md)
 (decisão 2, frase final; decisão 3; decisão 5, data de referência) e a
 [ADR 0040](./0040-vigencia-da-tabela-de-taxas-e-informativa.md) (a ETA

@@ -44,8 +44,10 @@ registra o resto.
 ### Viagem e concorrência
 
 5. **B/L que já está em outra Viagem é recusado sempre**, com mensagem clara.
-   Na rolagem, o operador cancela ou exclui o B/L na Viagem antiga e importa na
-   nova; a importação deixa de mover B/L entre Viagens. (A2)
+   Na rolagem, o operador exclui o B/L na Viagem antiga e importa na nova;
+   cancelar não basta, porque o B/L cancelado continua com o número (decisão
+   confirmada em 2026-10-21, migration `393`). A importação deixa de mover B/L
+   entre Viagens. (A2)
 6. **Trava por Viagem.** Toda importação de Viagem, inclusive Baplie × Baplie,
    pega a mesma trava no início; a segunda espera. (B4 — F-04, F-11)
 7. **Exclusão.** Excluir B/L ou Viagem encerra os efeitos pendentes como

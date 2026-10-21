@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Importações: arquivo de B/L com as regras no servidor (2026-10-21, Lote 2 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 5, 8, 9, 10, 26 e 27;
+  achados F-05, F-15, F-27 e F-50):** migrations `392` e `393`. Na rolagem, o B/L é excluído na Viagem antiga (cancelar não libera o número). B/L que já está em outra Viagem recusa o
+  arquivo com a Viagem dele (a importação não move B/L entre Viagens); B/L cancelado no arquivo fica
+  de fora com aviso para reativar pela ficha e importar de novo, e o resto entra. A confirmação de
+  faturamento só aparece para B/L com fatura emitida, nunca vai ligada por padrão e é conferida no
+  servidor; sem ela, nem containers nem peso, cubagem, POD e Place of Delivery mudam. B/L só
+  calculado recebe a base nova sem confirmação. O servidor tira o Cliente do CNPJ e recusa
+  `customer_id` que não bate. A prévia mostra "preço do dia da importação → preço de hoje" (tabela,
+  Condição, câmbio) com aceite por B/L, e só o marcado é refixado, dentro da gravação
+  (`bl_file_import_preview`). A aba VIN é ignorada (veículos só pela planilha de Veículos), acabou a
+  exceção `vela.vin_reissue` e o alerta `bl_vehicles_changed_on_reimport` não é mais aberto. A
+  modalidade FCL/LCL é lida do Type of Movement e gravada em `bls.container_load_type`; B/L LCL
+  divide container com outro Cliente. Suíte local-pg `arquivoDeBlRegras`.
 - **Importações: Navegantes ≠ Itajaí e Recife ≠ Suape (2026-10-21, Lote 3 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 12; achado F-08):** migration
   `391`. `normalize_port_code` deixa de juntar BRNVT/NVT/NAVEGANTES com BRITJ e BRREC/REC/RECIFE com
