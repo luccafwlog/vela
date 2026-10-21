@@ -13,7 +13,8 @@ Quatro revisores independentes, só leitura, um por área: preço e cálculo das
 Taxas Locais; faturamento; Pix, Demurrage, avulsa e Portal; segurança, grants e
 documentação. Cada achado foi conferido no código e no Postgres 16 local antes
 de entrar na correção. As correções estão na migration `385`, no front e nos
-documentos citados; cada uma tem caso em
+documentos citados; as cinco decisões que o responsável tomou depois estão na
+`386` (ADR 0094, seção D); cada uma tem caso em
 `src/integration/revisaoFinalFrenteFinanceira.local-pg.test.ts` (ou na suíte
 indicada), que falha sem a `385`.
 
@@ -46,9 +47,9 @@ indicada), que falha sem a `385`.
 | Escrita direta e RPCs revogadas ainda descritas como abertas em `RASTREABILIDADE.md`; textos de "preço do dia do CE" e "ROE do dia"; ADR 0038 sem faixa; 384 sem registro | corrigido | documentos citados no CHANGELOG |
 | `updateVaziosBooking` sem chamador gravava direto em `vazios_bookings` | corrigido | removida |
 | Prévia da carga solta não mostrava o total de volumes mudado sozinho; ficha do Cliente misturava os dois recortes do saldo | corrigido | `breakbulkImport.ts`, `VisaoGeralTab.tsx` |
-| Correção que não reemitiria (nova fatura retida pelo Portal ou com valor a revisar) cancela e deixa Reemissão pendente | decisão pendente | regra da migration `126` mantida; o texto da tela passou a dizer isso |
-| Manifesto BB que acrescenta carga solta a B/L de container faturado, sem a confirmação | decisão pendente | regra da PR 698 mantida (reabre a Revisão) |
-| Condição criada depois da importação, com vigência retroativa, no vínculo do Cliente | decisão pendente | segue valendo pela vigência (`freeze_follows_bl_customer`) |
-| B/L sem Cliente importado sem câmbio configurado | decisão pendente | aceito; o câmbio entra no primeiro cálculo que o tem (documentado) |
-| Pix do QR de consolidada substituída sem sucessora aberta; Pix do QR antigo de avulsa em cancelamento com devolução integral | decisão pendente | vão para análise |
+| Correção que não reemitiria (nova fatura retida pelo Portal ou com valor a revisar) cancela e deixa Reemissão pendente | decidido: não cancelar e avisar (ADR 0094, D1) | `386`; `invoiceAutoReissue` atualizada |
+| Manifesto BB que acrescenta carga solta a B/L de container faturado, sem a confirmação | decidido: exigir a confirmação (ADR 0094, D2) | `386`; `pr698ClaudeReview` atualizada |
+| Condição criada depois da importação, com vigência retroativa, no vínculo do Cliente | decidido: vale pela vigência, como já era (ADR 0094, D3) | documentado em Taxas Locais |
+| B/L sem Cliente importado sem nenhum câmbio gravado | decidido: aceito, como já era (ADR 0094, D4) | documentado em Faturamento e Taxas Locais |
+| Pix que chega na janela antes da remoção da cobrança no Itaú, para consolidada substituída sem sucessora aberta ou avulsa em cancelamento com devolução integral | decidido: como a decisão 18 (ADR 0094, D5) | `386` |
 | Confirmação da carga solta não amarrada ao valor da prévia; prévia não simula a Troca de Consignatário; deadlock entre baixas cruzadas; corrida entre refixar e cálculo | não corrigido (melhoria ou suspeita sem reprodução) | ver a resposta da revisão na PR |

@@ -330,7 +330,12 @@ o preço e o câmbio fixados.
   item não é correção: nada muda.
 - **B/L sem Cliente:** tabela, data e câmbio ficam fixos na importação; quando o
   Cliente é vinculado (ou trocado, sem fatura), vale a Condição dele vigente no
-  dia da importação (`freeze_follows_bl_customer`).
+  dia da importação (`freeze_follows_bl_customer`). Vale a Condição cuja
+  vigência cobre esse dia, mesmo que tenha sido cadastrada depois com
+  vigência retroativa (ADR 0094, D3); o B/L que já tinha Cliente na
+  importação não recebe a Condição criada depois (A3). Se nenhum câmbio
+  estava gravado no Vela na importação, o câmbio entra no primeiro cálculo
+  seguinte que encontrar um (D4).
 - **POD ou modo novo antes da emissão** (reimportação com aceite, COD, ficha):
   o B/L passa à tabela do escopo novo ativa naquele momento; Condição, câmbio
   e data continuam os da importação.

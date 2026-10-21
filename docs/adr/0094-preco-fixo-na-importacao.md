@@ -3,7 +3,7 @@
 Status: aceito — 2026-10-21 (decisões do responsável na revisão das
 importações e respostas às perguntas do plano de pendências). Implementada na
 PR luccafwlog/vela#1019, migrations `378` a `383` e, da revisão final antes do
-merge, `384` e `385`, pelo
+merge, `384` a `386`, pelo
 [plano arquivado](../archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md).
 
 Supersede parcialmente a [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md)
@@ -104,6 +104,36 @@ unitário em R$.
 cuja fatura foi cancelada (ADR 0093, decisão 12). **C2.** Reativar B/L reabre
 os efeitos encerrados no cancelamento; o `local_billing` reaberto de B/L com
 fatura cancelada devolve `skipped`.
+
+### D. Decisões da revisão final (2026-10-21)
+
+Respostas do responsável às pendências da
+[revisão final da PR](../archive/audits/2026-10-21-revisao-final-pr-1019.md),
+implementadas na migration `386`.
+
+**D1.** A correção que não consegue reemitir não cancela a fatura: além do
+B/L misto (B5), vale para o valor novo que não se calcula e para o Cliente
+cuja trava do Portal fechou depois da emissão (Liberação vencida ou revogada,
+Portal que deixou de estar pronto). A fatura continua valendo, abre Fatura
+desatualizada e a correção espera. Substitui, nesses casos, a regra da
+migration `126` (cancelar e deixar em Reemissão pendente).
+
+**D2.** O Manifesto BB só acrescenta carga solta a B/L de container faturado
+com a confirmação de faturamento, como na B5. Substitui a regra da PR 698
+(gravava e reabria a Revisão).
+
+**D3.** No vínculo do Cliente a B/L importado sem Cliente, vale a Condição cuja
+vigência cobre o dia da importação, mesmo cadastrada depois com vigência
+retroativa (como já era).
+
+**D4.** B/L sem Cliente importado quando o Vela não tem nenhum câmbio gravado
+é aceito; o câmbio entra no primeiro cálculo seguinte que encontrar um (como
+já era).
+
+**D5.** O Pix que chega na janela entre o cancelamento no Vela e a remoção da
+cobrança no Itaú, para consolidada substituída sem sucessora aberta ou avulsa
+em cancelamento com devolução integral, segue a decisão 18 da ADR 0093:
+restituição pendente ligada à fatura de origem.
 
 ## Consequências
 

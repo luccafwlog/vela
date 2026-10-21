@@ -644,7 +644,14 @@ Cliente. Tabela reajustada não muda a cotação; só a base nova muda o valor:
   só com os mesmos B/Ls (`_try_recreate_consolidated`); B/L cancelado, isento,
   quitado ou de outro Cliente encerra a consolidada sem reemissão
   (`reissue_closed_at`/`reissue_closed_reason`) e os demais B/Ls seguem
-  cobrados pelas individuais;
+  cobrados pelas individuais. Se a nova fatura não puder sair — B/L misto com
+  terminais em conflito, valor novo que não se calcula (sem tabela, câmbio ou
+  em revisão), ou Cliente cuja trava do Portal fechou depois da emissão
+  (Liberação vencida ou revogada, Portal que deixou de estar pronto) —, nada é
+  cancelado: a fatura continua valendo, abre **Fatura desatualizada** com o
+  motivo e a correção fica pendente para "Tentar aplicar correção" (ADR 0094,
+  B5 e D1; migrations `381` e `386`; antes, a `126` cancelava e deixava em
+  Reemissão pendente);
 - com pagamento e valor menor: `_register_invoice_correction_core` abate
   primeiro o saldo em aberto e só o que passar dele vira restituição, com o
   alerta **Restituição pendente**, que fecha quando o Financeiro (ou o
@@ -709,12 +716,16 @@ e máquinas. Sem ela, o B/L mantém os gravados e os campos voltam em
 `billing_locked`. A prévia (`preview_breakbulk_billing_changes`) mostra, por
 B/L, as faturas e o valor antes → depois, simulados numa subtransação
 desfeita. `bb_cbm`, volumes e máquinas mudados sozinhos (que trocam a
-modalidade, container → misto) entram na correção como os demais campos. Se a
-reemissão não puder sair — B/L misto com terminais em conflito
-(`review:mixed_bl_terminal_conflict`) —, a fatura **não é cancelada**: abre
-Fatura desatualizada com o motivo e a correção fica pendente para "Tentar
-aplicar correção" (`invoice_basis_pending_changes`). **Teste local-pg:**
-`cargaSoltaFaturada.local-pg.test.ts`.
+modalidade, container → misto) entram na correção como os demais campos. A
+carga solta que o arquivo acrescenta a B/L de container faturado (que viraria
+misto) também só entra com a confirmação; sem ela, os itens não entram e
+voltam em `billing_locked` como "itens" (ADR 0094, D2; migration `386`; antes,
+pela PR 698, entravam e reabriam a Revisão). Se a reemissão não puder sair
+(B/L misto com terminais em conflito, valor a revisar, trava do Portal
+fechada), a fatura **não é cancelada**: abre Fatura desatualizada com o motivo
+e a correção fica pendente para "Tentar aplicar correção"
+(`invoice_basis_pending_changes`). **Teste local-pg:**
+`cargaSoltaFaturada.local-pg.test.ts`, `revisaoFinalFrenteFinanceira.local-pg.test.ts`.
 
 ### Troca de Cliente após emissão (regra de CNPJ)
 

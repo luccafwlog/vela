@@ -425,7 +425,7 @@ registrada (origem `pix_duplicate`, ADR 0093, decisão 18) e sai da análise
 quando a devolução é confirmada; o mesmo Pix que a fatura já recebeu (extrato
 ou baixa manual com o endToEndId na referência) e volta pela consulta não é
 duplicidade: fica como baixado, sem restituição, e fecha a falha de consulta
-do mesmo endToEndId (migration `385`). Pix sem TXID nenhum na chave do Vela é
+do mesmo endToEndId (migration `385`). O Pix que chega na janela entre o cancelamento no Vela e a remoção da cobrança no Itaú (a fila pede a remoção a cada minuto) para consolidada substituída sem sucessora aberta ou avulsa em cancelamento com devolução integral segue a mesma regra: restituição pendente ligada à fatura de origem (ADR 0094, D5; migration `386`). Pix sem TXID nenhum na chave do Vela é
 gravado como **Pix recebido sem baixa** com o Alerta `pix_unreconciled`
 (`itau_pix_record_untracked`, decisão 16) e fecha quando a pessoa dá a baixa
 manual na fatura certa com o endToEndId na referência bancária (migration

@@ -239,4 +239,79 @@ describeLocal('385 — revisão final da frente financeira', () => {
     expect(result.stderr).toMatch(/cancelado é somente leitura/)
     expect(w.psql(`SELECT bl_id FROM public.vehicles WHERE id = ${vehicle}`)).toBe(origin)
   })
+
+  it('D1 (386): correção que não reemitiria (trava do Portal fechou, valor a revisar) não cancela; a fatura continua e o alerta avisa', () => {
+    const gate = issued('D1GATE')
+    w.closeGate()
+    try {
+      w.psql(`INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('${gate.id}', '${w.container()}', '22G1')`)
+      expect(w.invoice(gate.invoice).status).toBe('issued')
+      expect(w.successorOf(gate.invoice)).toBeNull()
+      expect(w.activeInvoiceAlerts('fatura_desatualizada', gate.invoice)).toBe(1)
+    } finally {
+      w.openGate()
+    }
+  })
+
+  it('D2 (386): Manifesto BB não acrescenta carga solta a B/L faturado sem a confirmação; com ela, o B/L vira misto', () => {
+    const b = issued('D2BB')
+    const row = (override: boolean) => ({
+      id: b.id, voyage_id: w.voyageId, bb_machine_qty: 1, bb_packages_qty: 2, bb_packages_total: 2, bb_weight_ton: 5, bb_cbm: 3,
+      shipper: 'S', consignee: 'C', notify_party: 'N', customer_id: w.customerId, suggested_customer_id: null,
+      manifest_customer_cnpj_cpf: null, manifest_customer_name: 'C', manifest_customer_email: null,
+      customer_reconciliation_status: 'matched_document', customer_reconciliation_notes: null, billing_hold_reason: null,
+      pol: 'CNSHA', pod: w.pod, cargo_description: 'MAQUINA', ncm_codes: [], review_status: 'ok', financial_status: 'invoiced', notes: null,
+      override_billing: override,
+    })
+    const item = { bl_id: b.id, item_description: 'MAQUINA', package_qty: 2, package_unit: 'PACKAGES', gross_weight_kg: 5000, cbm: 3, marks: null }
+    const importBb = (override: boolean) => {
+      w.psql(`SET session_replication_role = replica;
+        UPDATE public.import_batches SET uploaded_at = uploaded_at - interval '10 minutes' WHERE uploaded_by = '${w.actors.operacoes}';
+        SET session_replication_role = origin;`)
+      return w.json<{ billing_locked: Array<{ bl_id: string; fields: string[] }> }>('operacoes',
+        `SELECT public.import_breakbulk_manifest_transactional('ff9319.pdf', ${w.voyageId}, '${w.actors.operacoes}'::uuid, 1,
+          '${JSON.stringify([row(override)])}'::jsonb, '${JSON.stringify([item])}'::jsonb, '[]'::jsonb)`)
+    }
+    try {
+      expect(importBb(false).billing_locked.flatMap((entry) => entry.fields)).toContain('itens')
+      expect(w.psql(`SELECT cargo_mode FROM public.bls WHERE id = '${b.id}'`)).toBe('container')
+      expect(w.invoice(b.invoice).status).toBe('issued')
+      importBb(true)
+      expect(w.psql(`SELECT cargo_mode FROM public.bls WHERE id = '${b.id}'`)).toBe('misto')
+    } finally {
+      w.psql(`SET session_replication_role = replica; DELETE FROM public.import_batches WHERE voyage_id = ${w.voyageId}; SET session_replication_role = origin;`)
+    }
+  })
+
+  it('D5 (386): Pix da consolidada substituída sem sucessora aberta e da avulsa em cancelamento vira restituição pendente', () => {
+    const a = issued('D5A')
+    const b = issued('D5B')
+    w.psql(`UPDATE public.app_settings SET pix_provider = 'itau' WHERE id = 1`)
+    let consolidated: number
+    let manual: number
+    try {
+      consolidated = w.consolidate([a.id, b.id])
+      manual = w.json<{ invoice_id: number }>('administrativo', `SELECT public.create_manual_invoice(${w.customerId}, 'Serviço D5', 1, 500, NULL, NULL, NULL,
+        '${w.actors.administrativo}'::uuid, p_reason => 'Avulsa do teste')`).invoice_id
+    } finally {
+      w.psql(`UPDATE public.app_settings SET pix_provider = 'static' WHERE id = 1`)
+    }
+    const txidOf = (invoice: number) => w.psql(`SELECT txid FROM public.itau_pix_charges WHERE invoice_id = ${invoice} ORDER BY id LIMIT 1`)
+    const consolidatedTxid = txidOf(consolidated)
+    const manualTxid = txidOf(manual)
+    w.pay(a.invoice, w.invoice(a.invoice).balance)
+    w.pay(b.invoice, w.invoice(b.invoice).balance)
+    expect(w.invoice(consolidated).status).toBe('obsolete')
+    const settle = (n: number, txid: string, amount: number) =>
+      w.psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_settle('${e2e(n)}', '${txid}', ${amount}, now())`)
+    expect(settle(5, consolidatedTxid, 2000)).toBe('review')
+    expect(w.psql(`SELECT invoice_id || '|' || origin || '|' || amount_brl FROM public.invoice_refunds WHERE itau_end_to_end_id = '${e2e(5)}'`))
+      .toBe(`${consolidated}|pix_duplicate|2000.00`)
+
+    w.asOk('financeiro', `SELECT public.register_invoice_payment(${manual}, 200, 'ted', now(), 'Parcial da avulsa', NULL)`)
+    w.json('financeiro', `SELECT public.request_financial_refund('manual', ${manual}, 200, 'Cancelar a avulsa', 'cancel', gen_random_uuid())`)
+    expect(settle(6, manualTxid, 300)).toBe('review')
+    expect(w.psql(`SELECT invoice_id || '|' || origin || '|' || amount_brl FROM public.invoice_refunds WHERE itau_end_to_end_id = '${e2e(6)}'`))
+      .toBe(`${manual}|pix_duplicate|300.00`)
+  })
 })

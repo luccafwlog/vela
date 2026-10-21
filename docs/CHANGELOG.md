@@ -42,6 +42,12 @@
   vinculada e o preço fixado; corrigir uma Condição alcança só quem a usou; renomear item não
   reprecifica; refixar o preço é só do sistema até existir o aceite; "Mover veículos" não tira chassi
   de B/L cancelado; funções internas sem guarda saíram da API.
+- **Decisões da revisão final (2026-10-21, PR luccafwlog/vela#1019):** migration `386`
+  ([ADR 0094](adr/0094-preco-fixo-na-importacao.md), seção D). A correção que não consegue reemitir
+  (B/L misto, valor a revisar, Liberação vencida ou Portal que deixou de estar pronto) não cancela
+  mais a fatura: ela continua valendo com Fatura desatualizada; o Manifesto BB só acrescenta carga
+  solta a B/L de container faturado com a confirmação de faturamento; o Pix que chega antes de o Itaú
+  remover a cobrança de fatura sem nada aberto vira restituição pendente.
 
 - **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
   inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR

@@ -222,15 +222,14 @@ describeLocal('126 — reimportação com impacto reemite individual e consolida
     expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND status = 'active' AND metadata->>'invoice_id' = '${paid}'`)).toBe('1')
   })
 
-  it('sem condição de emitir, cancela, deixa Reemissão pendente e explica no alerta', () => {
+  it('sem condição de emitir (trava do Portal fechou depois da emissão), não cancela e avisa no alerta (ADR 0094, D1)', () => {
     const held = issueByCe(blHeld, '126000000000004')
-    // Sem a Liberação e sem Portal pronto, a emissão automática retém a fatura.
+    // A Liberação acabou depois da emissão: a nova fatura sairia retida.
     psql(`DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};`)
     const result = reimport(blHeld, ['RAAU1260097'])
-    expect(result.invoice_reissues[0]).toMatchObject({ status: 'pending', pending_reason: 'portal_not_provisioned' })
-    expect(psql(`SELECT status FROM public.invoices WHERE id = ${held}`)).toBe('cancelled')
-    const pending = asAdmin(`SELECT invoice_id FROM public.list_pending_reissues() WHERE customer_id = ${customerId}`)
-    expect(pending.stdout.split('\n')).toContain(String(held))
-    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND status = 'active' AND metadata->>'invoice_id' = '${held}'`)).toBe('1')
+    expect(result.invoice_reissues[0]).toMatchObject({ status: 'blocked_review' })
+    expect(result.invoice_reissues[0].pending_reason).toMatch(/Liberação/)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${held}`)).toBe('issued')
+    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND status = 'active' AND metadata->>'invoice_id' = '${held}' AND metadata->>'auto_reissue' = 'blocked'`)).toBe('1')
   })
 })
