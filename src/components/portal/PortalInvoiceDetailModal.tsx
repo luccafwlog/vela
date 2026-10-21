@@ -293,6 +293,16 @@ function PaymentSummary({ invoice, bls, multipleBls, payments, onOpenInvoice }: 
         <span className="text-xs text-[var(--app-muted)]">O pagamento e o recibo são os da consolidada.</span>
       </div>
     )
+  } else if (status === 'obsolete') {
+    // Consolidada substituída (ADR 0093, decisão 8): sem QR; a sucessora cobra o restante.
+    const replacedBy = invoice.replaced_by_invoice_number
+    amount = <>Substituída <span className="app-lead__unit">{replacedBy ? `pela ${replacedBy}` : 'por outra fatura'}</span></>
+    tone = 'muted'
+    leadAction = invoice.replaced_by_invoice_id && onOpenInvoice ? (
+      <Button className="app-btn--sm" onClick={() => onOpenInvoice(invoice.replaced_by_invoice_id!)}>
+        Abrir {replacedBy ?? 'a fatura nova'}
+      </Button>
+    ) : null
   } else if (cancelled) {
     amount = 'Cancelada'
     tone = 'muted'

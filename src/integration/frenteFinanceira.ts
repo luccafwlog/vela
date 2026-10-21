@@ -216,6 +216,9 @@ export function financeWorld(ns: number) {
       DELETE FROM public.invoice_customer_changes WHERE bl_id LIKE '${prefix}%';
       DELETE FROM public.billing_batches WHERE customer_id IN (${cust});
       DELETE FROM public.portal_notifications WHERE customer_id IN (${cust});
+      DELETE FROM public.itau_pix_receipts WHERE charge_id IN (SELECT id FROM public.itau_pix_charges WHERE invoice_id IN ${invoices});
+      DELETE FROM public.itau_pix_charges WHERE invoice_id IN ${invoices};
+      DELETE FROM public.local_pix_charge_versions WHERE invoice_id IN ${invoices};
       DELETE FROM public.invoices WHERE customer_id IN (${cust});
       DELETE FROM public.invoice_basis_pending_changes WHERE bl_id LIKE '${prefix}%';
       DELETE FROM public.bl_receivables WHERE bl_id LIKE '${prefix}%';

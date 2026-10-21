@@ -48,7 +48,8 @@ export function formatPortalPaymentDate(paidAt: string | null | undefined): stri
 export function portalInvoiceStatusLabel(status: string | null) {
   if (status === 'partially_paid') return 'Parcial'
   if (status === 'cancelled') return 'Cancelada'
-  if (status === 'obsolete') return 'Obsoleta'
+  // Consolidada substituída por outra sem o B/L já pago (ADR 0093, decisão 8).
+  if (status === 'obsolete') return 'Substituída'
   if (status === 'covered') return 'Coberta'
   if (status === 'paid') return 'Paga'
   if (status === 'draft') return 'Draft'
