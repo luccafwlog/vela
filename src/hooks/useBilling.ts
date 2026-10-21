@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { afterBlInvoiceBasisAlterada } from '../services/cacheEffects'
 import {
   cancelInvoice,
   createManualInvoice,
@@ -136,6 +137,8 @@ export function useCancelInvoice() {
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.ceUnlock.all() }),
+        // F-50: cancelar solta o B/L (362) e mexe em saldo, Portal e alertas.
+        afterBlInvoiceBasisAlterada(queryClient),
       ])
     },
   })

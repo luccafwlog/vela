@@ -139,6 +139,7 @@ export const queryKeys = {
     rateOverrides: (customerId: number) => ['customer-ficha', 'rate-overrides', customerId] as const,
     manualChargeBls: (customerId: number) => ['customer-ficha', 'manual-charge-bls', customerId] as const,
     pendingReconciliation: (customerId: number) => ['customer-ficha', 'pending-reconciliation', customerId] as const,
+    pendingBalance: (customerId: number) => ['customer-ficha', 'pending-balance', customerId] as const,
     runningDemurrage: (customerId: number) => ['customer-ficha', 'running-demurrage', customerId] as const,
     demurrageAgreements: (customerId: number) => ['customer-ficha', 'demurrage-agreements', customerId] as const,
     timeline: (customerId: number) => ['customer-ficha', 'timeline', customerId] as const,

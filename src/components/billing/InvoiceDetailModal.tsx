@@ -38,6 +38,7 @@ import { buildInvoiceFileBaseName, describeUsdConversionNote } from '../shared/i
 import { formatValidationError, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { formatBRL, formatCnpjCpf, formatDate, stripBlPrefix } from '../../lib/utils'
+import { invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import { classifyDbError, userFacingErrorMessage } from '../../lib/errors'
 import { canRegisterInvoicePayment, isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
 import { printDocumentElement } from '../../lib/printDocument'
@@ -230,7 +231,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
     if (!await confirm({ title: 'Encerrar tentativa após conferir o histórico?',
       message: `${formatBRL(paymentAttempt.amountBrl)} · referência ${paymentAttempt.bankReference}.`,
       consequence: 'Confira primeiro se o banco e o histórico já mostram este recebimento. Encerrar a tentativa libera os campos; não cancela uma baixa nem devolve dinheiro.',
-      reversibility: 'Uma nova operação terá outra chave. A referência bancária continua protegida contra duplicação.', confirmLabel: 'Conferi; liberar campos' })) return
+      reversibility: 'Uma nova operação terá outra chave. O Vela não impede a mesma referência bancária em outra baixa: confira o histórico antes de registrar de novo.', confirmLabel: 'Conferi; liberar campos' })) return
     setPaymentAttempt(null)
     setLedgerPaymentRequestId(null)
     setPaymentError('')
@@ -481,7 +482,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           <td className="app-table__text app-table__text--wrap">{stripBlPrefix(item.description, item.bl_id)}</td>
                           <td>{item.source === 'manual' ? 'Manual' : 'Calculado'}</td>
                           <td className="tabular-nums">{String(item.quantity ?? 1).replace('.', ',')}</td>
-                          <td className="whitespace-nowrap tabular-nums">{formatBRL(item.unit_value_brl)}</td>
+                          <td className="whitespace-nowrap tabular-nums">{invoiceItemUnit(item) ?? <NoValue label="Sem valor unitário" />}</td>
                           {showUsd ? <td className="whitespace-nowrap tabular-nums">{usdNotes[index] ?? <NoValue label={item.currency === 'USD' ? 'ROE não registrado' : 'Item em reais'} />}</td> : null}
                           <td className="whitespace-nowrap tabular-nums">{formatBRL(item.total_value_brl)}</td>
                         </tr>
@@ -687,7 +688,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
 
               {!enablePaymentReversal && !isCancelled && isAdmin ? (
                 <Block title="Cancelar fatura" headingLevel={3}>
-                  {payments.length > 0 ? (
+                  {detailInvoice.status === 'covered' ? (
+                    <p className="app-invoice-detail__note">Fatura coberta por outro documento pago não se cancela: o B/L já foi pago. Para recebimento lançado por engano, cancele a baixa no documento pago.</p>
+                  ) : payments.length > 0 ? (
                     <p className="app-invoice-detail__note">Fatura com pagamento não se cancela. Para recebimento lançado por engano, cancele a baixa; para devolver dinheiro, use a restituição.</p>
                   ) : (
                     <div className="app-invoice-detail__form">

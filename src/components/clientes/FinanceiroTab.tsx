@@ -150,10 +150,18 @@ export function FinanceiroTab({ data }: { data: Data }) {
   const currentPage = Math.min(page, totalPages)
   const pageSlice = <T,>(rows: T[]) => rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   // Resumo da faixa do título = o recorte filtrado (proposta: "total do recorte").
+  // Cada B/L uma vez, como no Portal (ADR 0093, decisão 10): a consolidada
+  // aberta conta no lugar das individuais que agrupa.
+  const isOpen = (status: string) => status === 'issued' || status === 'partially_paid' || status === 'overdue'
+  const openConsolidatedBls = new Set(localLines.flatMap((line) => line.kind !== 'no_invoice' && line.invoice.invoice_type === 'consolidated'
+    && isOpen(line.invoice.status ?? 'issued') ? invoiceBls.get(line.invoice.id) ?? [] : []))
   const openLocalBrl = localLines.reduce((sum, line) => {
     if (line.kind === 'no_invoice') return sum + Number(line.receivable.balance_brl ?? 0)
     const status = line.invoice.status ?? 'issued'
-    return status === 'issued' || status === 'partially_paid' || status === 'overdue' ? sum + Number(line.invoice.balance_brl ?? 0) : sum
+    if (!isOpen(status)) return sum
+    const bls = invoiceBls.get(line.invoice.id) ?? []
+    if (line.invoice.invoice_type === 'individual' && bls.length > 0 && bls.every((bl) => openConsolidatedBls.has(bl))) return sum
+    return sum + Number(line.invoice.balance_brl ?? 0)
   }, 0)
   const invoiceCount = (inv.data?.rows ?? []).length
   const openDemurrageUsd = demurrageRows.reduce((sum, row) => (row.status === 'issued' || row.status === 'overdue' ? sum + invoiceNetUsd(row).netUsd : sum), 0)

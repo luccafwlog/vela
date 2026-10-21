@@ -234,7 +234,7 @@ export function ChargeTableItemFormModal({
           <ChargeNoteList notes={notes} className="app-rates-form__wide" />
         </div>
 
-        {isEdit ? <ChargeChanges changes={changes} consequence="Vale para cálculos novos e recálculos de B/L ainda não faturado. Faturas emitidas não mudam." /> : null}
+        {isEdit ? <ChargeChanges changes={changes} consequence="Correção de erro: recalcula os B/Ls vinculados a esta tabela, inclusive com CE. Faturas sem pagamento são canceladas e reemitidas com número novo; nas pagas abre Fatura desatualizada. Para reajuste, crie uma tabela nova." /> : null}
         {saveError ? <InlineError message={saveError} /> : null}
 
         <div className="app-rates-form__footer">

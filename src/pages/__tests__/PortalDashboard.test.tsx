@@ -14,7 +14,7 @@ const localInvoices: PortalInvoiceSummary[] = [
 
 const demurrageInvoices: PortalDemurrageInvoice[] = [
   { id: 11, doc_number: 'DEM-2', doc_date: '2026-06-03', due_date: null, billed_at: '2026-06-03', paid_at: '2026-06-10', total_usd: 70, current_roe: 5, current_total_brl: 350, roe_source: 'bcb_live', updated_at: null, status: 'paid', pix_payload: null, dispute_open: false, discount_type: null, discount_value: null, discount_mode: null, bl_id: 'BL1', pol: null, pod: null, voyage_number: null, vessel_name: null },
-  { id: 10, doc_number: 'DEM-1', doc_date: '2026-06-03', due_date: '2026-06-30', billed_at: '2026-06-03', paid_at: null, total_usd: 50, current_roe: 5, current_total_brl: 250, roe_source: 'bcb_live', updated_at: '2026-06-03T12:00:00Z', status: 'issued', pix_payload: null, dispute_open: false, discount_type: null, discount_value: null, discount_mode: null, bl_id: 'BL1', pol: null, pod: null, voyage_number: null, vessel_name: null },
+  { id: 10, doc_number: 'DEM-1', doc_date: '2026-06-03', due_date: '2026-06-30', billed_at: '2026-06-03', paid_at: null, total_usd: 60, current_roe: 5, current_total_brl: 250, roe_source: 'bcb_live', updated_at: '2026-06-03T12:00:00Z', status: 'issued', pix_payload: null, dispute_open: false, discount_type: 'fixed', discount_value: 10, discount_mode: 'amount', bl_id: 'BL1', pol: null, pod: null, voyage_number: null, vessel_name: null },
 ]
 
 const operationBls: PortalOperationBL[] = [
@@ -107,7 +107,7 @@ describe('PortalDashboard (Painel)', () => {
     expect(local.textContent).not.toContain('fatura(s)')
     expect(local.className).toContain('app-metric-tile--warning')
 
-    // Demurrage em dólar, com o valor em reais de hoje; a paga não entra.
+    // Demurrage em dólar líquido do desconto (US$ 60 − 10), com o valor em reais de hoje; a paga não entra (F-54).
     const demurrage = screen.getByRole('button', { name: /Demurrage em aberto/ })
     expect(demurrage.textContent).toContain('US$ 50,00')
     expect(demurrage.textContent).toMatch(/1 fatura · R\$\s250,00 hoje/)

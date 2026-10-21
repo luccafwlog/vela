@@ -27,6 +27,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -113,7 +117,7 @@ function containerLine(blId: string, overrides: Record<string, unknown> = {}) {
 /** Reimportação: mesmo contrato de `confirmBlFreightImport` (com Viagem, pelo wrapper de lote). */
 function importContainer(lines: unknown[], key = 'import') {
   return asOperator(`
-    SELECT '${key}|' || (public.import_bl_freight_with_metadata(
+    RESET ROLE; SELECT '${key}|' || (public.import_bl_freight_with_metadata(
       ${json(lines)}, '${actorId}'::uuid,
       '{"filename":"r213.xlsx","voyage_id":${voyageId},"cargo_mode":"container"}'::jsonb
     )->'result')::text;
@@ -123,7 +127,7 @@ function importContainer(lines: unknown[], key = 'import') {
 /** Sem o wrapper de lote: sem cálculo de taxas, o B/L fica sem financeiro. */
 function importContainerWithoutCharges(lines: unknown[], key = 'import') {
   return asOperator(`
-    SELECT '${key}|' || public.import_bl_freight_transactional(${json(lines)}, '${actorId}'::uuid)::text;
+    RESET ROLE; SELECT '${key}|' || public.import_bl_freight_transactional(${json(lines)}, '${actorId}'::uuid)::text;
     DISCARD TEMP;`)
 }
 
@@ -204,7 +208,7 @@ const breakbulkItem = (blId: string, overrides: Record<string, unknown> = {}) =>
 function importBreakbulk(lines: unknown[], items: unknown[], key = 'import') {
   return `${releaseRateLimit}
   ${asOperator(`
-    SELECT '${key}|' || (public.import_breakbulk_manifest_transactional(
+    RESET ROLE; SELECT '${key}|' || (public.import_breakbulk_manifest_transactional(
       'r213.pdf', ${voyageId}, '${actorId}'::uuid, ${lines.length}, ${json(lines)}, ${json(items)}, '[]'::jsonb
     ) - 'invoice_reissues')::text;
     DISCARD TEMP;`)}`
@@ -265,17 +269,18 @@ describeLocal('Importação de B/L: revisão final da PR 929 (migration 213)', (
       })
     })
 
-    it('com aceite e com financeiro, a troca é recusada e o consignatário gravado fica', () => {
+    // ADR 0093, decisão 13 (migration 379): recebível em aberto de B/L não
+    // faturado não segura a troca; ele é anulado e nasce com o Cliente vinculado.
+    it('com aceite e recebível em aberto (sem fatura), o B/L volta para a Reconciliação e o recebível é anulado', () => {
       const out = scenario(`
         ${importContainer([containerLine('R213-C8')], 'first')}
         ${importContainer([containerLine('R213-C8', { ...unregisteredFile, relink_customer: true })])}
-        ${blRow('R213-C8')}`)
+        ${blRow('R213-C8')}
+        SELECT 'receivables|' || coalesce(json_agg(status ORDER BY id), '[]')::text FROM public.bl_receivables WHERE bl_id = 'R213-C8';`)
 
-      expect(out.bl).toMatchObject(keptAlfa)
-      expect(out.import).toMatchObject({
-        customer_changes_ignored: [],
-        customer_relinks: [{ applied: false, blockers: ['Cadastre o Cliente de destino antes de trocar B/L faturado'] }],
-      })
+      expect(out.bl).toMatchObject({ customer_id: null, customer_reconciliation_status: 'missing_customer', manifest_customer_cnpj_cpf: unregistered.cnpj })
+      expect(out.import).toMatchObject({ customer_changes_ignored: [], customer_relinks: [{ applied: true }] })
+      expect((out.receivables as string[]).every((status) => status === 'void')).toBe(true)
     })
 
     it('com aceite e sem financeiro, o B/L volta para a Reconciliação de Cliente com o consignatário do arquivo', () => {

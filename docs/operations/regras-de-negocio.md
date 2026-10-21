@@ -28,9 +28,9 @@ vigente. Para Cliente sem gate aberto, o CE calcula e **retém** a fatura no B/L
 (`billing_hold_reason = 'Acesso ao portal nao provisionado'`), sem tratar isso
 como falha; a Validação mostra *Conta do Portal não ativa*. A ativação do Portal e
 a concessão da Liberação reprocessam o Cliente e emitem as retidas pelo mesmo
-caminho da transição do CE, com o cálculo gravado no registro do CE, sem
-recalcular pela tabela vigente; o USD converte pelo ROE do dia da emissão
-([Faturamento § Propósito e escopo](../modules/faturamento.md#propósito-e-escopo)).
+caminho da transição do CE, com o preço e o câmbio fixados na importação e a
+base atual ([ADR 0094](../adr/0094-preco-fixo-na-importacao.md); [Faturamento §
+Propósito e escopo](../modules/faturamento.md#propósito-e-escopo)).
 
 A exceção da migration `051_ce_mercante_auto_billing.sql` (a automação do CE
 emitia sem depender do provisionamento, num contexto interno) foi revogada pela
@@ -69,7 +69,7 @@ Portal enquanto o Portal não fica pronto (ADR 0070; migrations `083` a `085`,
   `audit_logs`.
 - **Efeito.** Conceder abre o gate na hora: os B/Ls não faturados do Cliente
   saem da Revisão (gatilho da migration `167`) e as faturas retidas pelo CE são
-  emitidas, com as taxas do dia do CE. A tela informa quantas faturas saíram e
+  emitidas, com o preço fixado na importação ([ADR 0094](../adr/0094-preco-fixo-na-importacao.md), A1) e a base atual. A tela informa quantas faturas saíram e
   quantos B/Ls seguem com outro bloqueio. A Liberação **não ativa a conta do
   Portal nem dá acesso ao Cliente**: sem Portal, um usuário interno entrega a
   fatura. Fatura emitida com Liberação vigente não abre a exceção crítica de

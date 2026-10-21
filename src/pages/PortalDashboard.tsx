@@ -10,6 +10,7 @@ import { usePortalOperationBls } from '../hooks/usePortalOperation'
 import { countContainersInDemurrage, countContainersWithoutReturn } from '../lib/portalOperationViews'
 import { formatBRL, formatCountLabel } from '../lib/utils'
 import { formatUsd, portalInvoicesInOpenBalance } from '../lib/portalInvoiceStatus'
+import { invoiceNetUsd } from '../services/demurrage/demurragePresentation'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
 import { fetchAllPortalCeUnlockRequests } from '../services/ceUnlockService'
@@ -45,7 +46,8 @@ export function PortalDashboard() {
   const localTotal = openLocal.reduce((sum, i) => sum + (i.balance_brl ?? 0), 0)
 
   const openDemurrage = (demurrage ?? []).filter((i) => OPEN_DEMURRAGE_STATUSES.includes(i.status ?? 'issued'))
-  const demurrageUsd = openDemurrage.reduce((sum, i) => sum + Number(i.total_usd ?? 0), 0)
+  // F-54: US$ líquido do desconto, o mesmo que gera o R$ ao lado.
+  const demurrageUsd = openDemurrage.reduce((sum, i) => sum + invoiceNetUsd(i).netUsd, 0)
   const demurrageBrl = openDemurrage.reduce((sum, i) => sum + Number(i.current_total_brl ?? 0), 0)
 
   const containersNoReturn = countContainersWithoutReturn(operationBls ?? [])

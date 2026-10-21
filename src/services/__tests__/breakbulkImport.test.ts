@@ -3,6 +3,7 @@ import {
   approvesBilledRouteChanges,
   approvesCustomerChanges,
   checkBreakbulkReimport,
+  describeBilledChange,
   describeBreakbulkPending,
   hasBlockingRowErrors,
   importBreakbulkManifest,
@@ -32,6 +33,8 @@ describe('breakbulkImport', () => {
   beforeEach(() => {
     mockFrom.mockReset()
     mockRpc.mockReset()
+    // Prévia da cobrança do B/L faturado (migration 381): sem simulação no teste.
+    mockRpc.mockResolvedValue({ data: [], error: null })
   })
 
   // Regra de 2026-10-19 (ADR 0092): erro recusa o arquivo inteiro; não há override.
@@ -722,7 +725,9 @@ describe('breakbulkImport', () => {
 
     function mockExisting(existing: unknown[], cod: unknown[] = [], invoiceLinks: unknown[] = []) {
       mockFrom.mockImplementation((table: string) => {
-        if (table === 'bls') return { select: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data: existing, error: null })) })) }
+        // A carga gravada igual à do arquivo, salvo quando o caso a muda.
+        const rows = existing.map((row) => ({ bb_weight_ton: 1, bb_cbm: 1, bb_packages_qty: 1, bb_packages_total: 1, bb_machine_qty: 1, ...(row as object) }))
+        if (table === 'bls') return { select: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data: rows, error: null })) })) }
         if (table === 'invoice_bls') return { select: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data: invoiceLinks, error: null })) })) }
         if (table === 'voyages') {
           return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 10 }, error: null })) })) })) }
@@ -747,6 +752,36 @@ describe('breakbulkImport', () => {
     }
 
     const voyage = (number: string) => ({ voyage_number: number, vessel: { name: 'NAVIO' } })
+
+    it('peso, CBM, volumes e máquinas do B/L faturado pedem a confirmação, com a fatura e o valor antes → depois (ADR 0094, B5)', async () => {
+      mockExisting([
+        { id: 'PESO', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'invoiced', bb_weight_ton: 5, bb_cbm: 3, customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
+      ])
+      mockRpc.mockImplementation((name: string) => Promise.resolve(name === 'preview_breakbulk_billing_changes'
+        ? { data: [{ bl_id: 'PESO', invoices: ['INV-2026-0007'], before_brl: 1000, after_brl: 1400, status: 'ok', reason: null }], error: null }
+        : { data: [], error: null }))
+      const check = await checkBreakbulkReimport(10, {
+        layout: 'summary', rowErrors: [], bls: [line('PESO', { bb_weight_ton: 7, bb_cbm: 3 })],
+      })
+      expect(check.billedRouteChanges).toEqual([{
+        blId: 'PESO', fields: ['peso'], currentRoute: 'CNSHA → BRSSZ', fileRoute: 'CNSHA → BRSSZ',
+        cargoChange: 'peso (t) 5 → 7',
+        billing: { invoices: ['INV-2026-0007'], beforeBrl: 1000, afterBrl: 1400, status: 'ok', reason: null },
+      }])
+      expect(describeBilledChange(check.billedRouteChanges[0].billing!)).toMatch(/INV-2026-0007: R\$\s1\.000,00 → R\$\s1\.400,00/)
+      expect(describeBilledChange({ invoices: ['INV-2026-0008'], beforeBrl: 900, afterBrl: null, status: 'blocked', reason: 'review:mixed_bl_terminal_conflict' }))
+        .toContain('a fatura não será cancelada')
+    })
+
+    it('o total de volumes mudado sozinho também pede a confirmação no B/L faturado', async () => {
+      mockExisting([
+        { id: 'TOTAL', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'invoiced', bb_packages_qty: 2, bb_packages_total: 2, customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
+      ])
+      const check = await checkBreakbulkReimport(10, {
+        layout: 'summary', rowErrors: [], bls: [line('TOTAL', { bb_packages_qty: 2, bb_packages_total: 5 })],
+      })
+      expect(check.billedRouteChanges[0]).toMatchObject({ blId: 'TOTAL', fields: ['volumes'], cargoChange: 'total de volumes 2 → 5' })
+    })
 
     it('aponta B/L de outra Viagem, troca de Cliente, rota de B/L faturado e POD em COD', async () => {
       mockExisting(

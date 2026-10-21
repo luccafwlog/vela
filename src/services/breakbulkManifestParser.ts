@@ -127,9 +127,28 @@ export type BreakbulkReimportCheck = {
    * gravada e a que o arquivo deixa ("POL → POD") identificam a transição
    * confirmada, não só o campo.
    */
-  billedRouteChanges: Array<{ blId: string; fields: string[]; currentRoute: string; fileRoute: string }>
+  billedRouteChanges: Array<{
+    blId: string
+    fields: string[]
+    currentRoute: string
+    fileRoute: string
+    /** Peso, CBM, volumes e máquinas que mudam ("peso 5 → 7"), quando mudam (ADR 0094, B5). */
+    cargoChange?: string
+    /** Fatura e valor antes → depois, simulados no servidor (migration 381). */
+    billing?: BilledChangeBilling
+  }>
   /** B/L em COD: o POD do arquivo não será aplicado. */
   codPodKept: string[]
+}
+
+/** Simulação da cobrança do B/L faturado se a mudança for confirmada (migration 381). */
+export type BilledChangeBilling = {
+  invoices: string[]
+  beforeBrl: number | null
+  afterBrl: number | null
+  /** 'blocked': a reemissão não sairia; a fatura não é cancelada e um alerta avisa. */
+  status: 'ok' | 'review' | 'blocked' | 'error'
+  reason: string | null
 }
 
 export function hasBlockingRowErrors(rowErrors: ParsedBreakbulkManifest['rowErrors']) {

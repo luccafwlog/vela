@@ -284,9 +284,9 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
                       <>
                         <p className="app-manual-invoice__quote-line">
                           <span>{quote.charge_item_name}</span>
-                          <span className="app-manual-invoice__num">{String(quote.quantity).replace('.', ',')} × {formatBRL(quote.unit_value_brl)}</span>
+                          <span className="app-manual-invoice__num">{String(quote.quantity).replace('.', ',')} × {quote.currency === 'USD' && quote.effective_unit_value_usd != null ? formatUSD(quote.effective_unit_value_usd) : formatBRL(quote.unit_value_brl)}</span>
                         </p>
-                        {quote.currency === 'USD' ? <p>Item em US$, convertido pelo ROE {String(quote.roe ?? '—').replace('.', ',')}; o câmbio vigente é conferido na emissão.</p> : null}
+                        {quote.currency === 'USD' ? <p>Item em US$: o total ({formatBRL(quote.total_brl)}) é o total em US$ convertido de uma vez pelo ROE {String(quote.roe ?? '—').replace('.', ',')}; a fatura mostra o unitário só em US$. O câmbio vigente é conferido na emissão.</p> : null}
                       </>
                     ) : null}
             </div>

@@ -208,8 +208,11 @@ function rowFacts(row: CustomerListItem) {
 /** Saldo pendente; maior que zero abre o Financeiro do Cliente (no lugar de "Ver faturas" do menu). */
 function BalanceValue({ row }: { row: CustomerListItem }) {
   const balance = Number(row.pending_balance ?? 0)
-  if (balance <= 0) return <span className="app-customer-money">{formatBRL(balance)}</span>
-  return <Link className="app-link" to={buildCustomerBillingUrl(row)}><StatusText tone="warning">{formatBRL(balance)}</StatusText></Link>
+  // ADR 0093, decisão 10: a lista mostra o total; o detalhe vem ao passar o mouse.
+  const detail = (row as CustomerListItem & { pending_balance_detail?: { invoicedOpenBrl: number; toInvoiceBrl: number } }).pending_balance_detail
+  const title = detail ? `Faturado em aberto ${formatBRL(detail.invoicedOpenBrl)} · A faturar ${formatBRL(detail.toInvoiceBrl)}` : undefined
+  if (balance <= 0) return <span className="app-customer-money" title={title}>{formatBRL(balance)}</span>
+  return <Link className="app-link" to={buildCustomerBillingUrl(row)} title={title}><StatusText tone="warning">{formatBRL(balance)}</StatusText></Link>
 }
 
 function ChargesText({ facts }: { facts: ReturnType<typeof rowFacts> }) {

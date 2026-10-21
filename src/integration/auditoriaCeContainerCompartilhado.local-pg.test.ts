@@ -42,6 +42,10 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -516,7 +520,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
 
     // Payload de importContainerDates: uma unidade por B/L, com o estado visto na prévia.
     const result = tryAsOperator(`
-      SELECT public.apply_container_dates_atomic(
+      RESET ROLE; SELECT public.apply_container_dates_atomic(
         '${randomUUID()}'::uuid, 'A203-T2',
         ${jsonLiteral([{
           container_number: 'ADCU2030044',
@@ -666,9 +670,10 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     `)
     expect(containerCalc()).toBe(`1.000|${containerFee.toFixed(2)}`)
 
-    // O irmão entra depois (outro lote da importação) e o N1 não é recalculado.
+    // O irmão entra depois (outro lote da importação): o fim da transação
+    // recalcula o N1 com o rateio novo (ADR 0093, decisão 3; migration 355).
     insertBls([{ id: 'A203-N2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030101' }])
-    expect(containerCalc()).toBe(`1.000|${containerFee.toFixed(2)}`)
+    expect(containerCalc()).toBe(`0.500|${(containerFee / 2).toFixed(2)}`)
 
     expect(importCeSheet('A203MAN000010', voyage.clientesDiferentes, [{ blId: 'A203-N1', ce: '203001000000101' }]))
       .toMatchObject({ ok: true })

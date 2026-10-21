@@ -153,12 +153,39 @@ type CustomerPendingBalanceRow = {
   local_balance_brl: number | string | null
   demurrage_balance_brl: number | string | null
   total_balance_brl: number | string | null
+  invoiced_open_brl?: number | string | null
+  to_invoice_brl?: number | string | null
+  manual_balance_brl?: number | string | null
+}
+
+/** Saldo do Vela (ADR 0093, decisões 10 e 11; migration 371). */
+export type CustomerPendingBalance = {
+  /** Saldo pendente total: faturado em aberto + a faturar. */
+  totalBrl: number
+  /** Faturas emitidas e não quitadas, pelo saldo restante, cada B/L uma vez (a regra do Portal). */
+  invoicedOpenBrl: number
+  /** Recebíveis de B/L calculado e ainda sem fatura. */
+  toInvoiceBrl: number
+  localBrl: number
+  demurrageBrl: number
+  manualBrl: number
+}
+
+function toPendingBalance(row: CustomerPendingBalanceRow | undefined): CustomerPendingBalance {
+  return {
+    totalBrl: Number(row?.total_balance_brl ?? 0),
+    invoicedOpenBrl: Number(row?.invoiced_open_brl ?? 0),
+    toInvoiceBrl: Number(row?.to_invoice_brl ?? 0),
+    localBrl: Number(row?.local_balance_brl ?? 0),
+    demurrageBrl: Number(row?.demurrage_balance_brl ?? 0),
+    manualBrl: Number(row?.manual_balance_brl ?? 0),
+  }
 }
 
 export function mapPendingBalancesByCustomer(rows: CustomerPendingBalanceRow[]) {
-  const balances = new Map<number, number>()
+  const balances = new Map<number, CustomerPendingBalance>()
   for (const row of rows) {
-    balances.set(row.customer_id, Number(row.total_balance_brl ?? 0))
+    balances.set(row.customer_id, toPendingBalance(row))
   }
   return balances
 }
@@ -168,16 +195,11 @@ export async function fetchCustomerPendingBalance(customerId: number) {
     p_customer_ids: [customerId],
   } as never)
   if (error) throw error
-  const row = ((data ?? []) as unknown as CustomerPendingBalanceRow[])[0]
-  return {
-    localBrl: Number(row?.local_balance_brl ?? 0),
-    demurrageBrl: Number(row?.demurrage_balance_brl ?? 0),
-    totalBrl: Number(row?.total_balance_brl ?? 0),
-  }
+  return toPendingBalance(((data ?? []) as unknown as CustomerPendingBalanceRow[])[0])
 }
 
 export async function fetchIssuedInvoiceBalanceByCustomer(customerIds?: number[]) {
-  if (customerIds && customerIds.length === 0) return new Map<number, number>()
+  if (customerIds && customerIds.length === 0) return new Map<number, CustomerPendingBalance>()
   const { data, error } = await supabase.rpc('get_customer_pending_balances' as never, {
     p_customer_ids: customerIds ? Array.from(new Set(customerIds)) : null,
   } as never)

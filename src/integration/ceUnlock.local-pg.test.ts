@@ -696,6 +696,11 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('CE557-CONS1',998557,998557,'123456789018501'),('CE557-CONS2',998557,998557,'123456789018502');
       INSERT INTO public.bl_receivables(id,bl_id,customer_id,source,original_amount_brl,settled_amount_brl,balance_brl,status,voyage_id) VALUES
         (998861,'CE557-CONS1',998557,'local_charges',100,0,100,'open',998557),(998862,'CE557-CONS2',998557,'local_charges',100,0,100,'open',998557);
+      -- Individuais emitidas: a consolidada agrupa documentos já emitidos (ADR 0093, decisão 9).
+      INSERT INTO public.invoices(id,invoice_number,customer_id,bl_id,total_brl,total_paid_brl,balance_brl,status,invoice_type,issued_by) VALUES
+        (998861,'CE557-CONS1-IND',998557,'CE557-CONS1',100,0,100,'issued','individual','${admin}'),(998862,'CE557-CONS2-IND',998557,'CE557-CONS2',100,0,100,'issued','individual','${admin}');
+      INSERT INTO public.invoice_bls(invoice_id,bl_id,subtotal_brl) VALUES(998861,'CE557-CONS1',100),(998862,'CE557-CONS2',100);
+      INSERT INTO public.invoice_receivable_links(invoice_id,receivable_id,bl_id,subtotal_brl,status) VALUES(998861,998861,'CE557-CONS1',100,'active'),(998862,998862,'CE557-CONS2',100,'active');
       ${portalReady}
       SET LOCAL session_replication_role=origin;
       SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';

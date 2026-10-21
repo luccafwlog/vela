@@ -40,6 +40,7 @@ const CATALOG_MIGRATIONS = [
   '309_monitoramento_dos_emails.sql',
   '310_rotinas_http_com_erro.sql',
   '352_alerta_bl_sem_cliente_perto_do_eta.sql',
+  '358_baixa_itau_nao_para_em_silencio.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

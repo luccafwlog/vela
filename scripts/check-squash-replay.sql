@@ -141,7 +141,6 @@ BEGIN
   END LOOP;
 
   FOREACH v_table IN ARRAY ARRAY[
-    'baplie_containers',
     'customer_demurrage_agreements',
     'demurrage_rates', 'vazios_export_operations',
     'voyage_export_schedules', 'voyage_route_ce_master'
@@ -158,7 +157,9 @@ BEGIN
     'demurrage_invoice_items', 'charge_calculations', 'invoices', 'invoice_items',
     'payments', 'ledger_settlements', 'bl_receivables', 'invoice_counters',
     'invoice_bls', 'invoice_granite_bls', 'invoice_receivable_links',
-    'invoice_lifecycle_events', 'billing_batches'
+    'invoice_lifecycle_events', 'billing_batches',
+    -- ADR 0094, B1 (migration 380): tabelas de carga só pelas funções.
+    'bl_containers', 'baplie_containers', 'vehicles', 'granite_bls'
   ] LOOP
     IF has_table_privilege('authenticated', format('public.%I', v_table), 'INSERT,UPDATE') THEN
       RAISE EXCEPTION 'authenticated voltou a escrever direto em public.% (só pelas RPCs).', v_table;

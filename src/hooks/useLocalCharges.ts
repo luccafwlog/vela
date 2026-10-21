@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { afterReferenciaPortalAlterada } from '../services/cacheEffects'
+import { afterBlInvoiceBasisAlterada, afterReferenciaPortalAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import {
   quoteManualInvoiceCharge,
@@ -134,6 +134,8 @@ export function useCalculateBlLocalCharges(blId?: string) {
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
+        // F-50: o cálculo muda o "a faturar" do Cliente, a fila de faturamento e o Desbloqueio de CE.
+        afterBlInvoiceBasisAlterada(queryClient),
       ])
     },
   })
@@ -350,6 +352,8 @@ export function useBatchCalculateLocalCharges() {
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail('') }),
         queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
+        // F-50: o cálculo muda o "a faturar" do Cliente, a fila de faturamento e o Desbloqueio de CE.
+        afterBlInvoiceBasisAlterada(queryClient),
       ])
     },
   })

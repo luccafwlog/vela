@@ -21,6 +21,7 @@ import { StatusText } from '../components/ui/StatusText'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { useInvoices } from '../hooks/useBilling'
+import { portalInvoicesInOpenBalance } from '../lib/portalInvoiceStatus'
 import { resolveLegacyFaturamentoRedirect, toRouteTarget } from '../lib/routeRedirects'
 import { listInvoicesForExport } from '../services/billing'
 import { exportInvoicesWorkbook } from '../services/exports'
@@ -71,11 +72,19 @@ export function TaxasLocais() {
 
   // Só a página carregada é conhecida aqui; o rótulo diz isso em vez de
   // apresentar a soma da página como total da carteira.
+  // Cada B/L uma vez, como no Portal (ADR 0093, decisão 10): a consolidada
+  // aberta da página conta no lugar das individuais que agrupa.
   const pageSummary = useMemo(() => {
     const open = invoices.filter((row) => ['issued', 'partially_paid', 'draft'].includes(row.status ?? 'issued'))
+    const counted = portalInvoicesInOpenBalance(open.map((row) => ({
+      status: row.status,
+      invoice_type: row.invoice_type,
+      balance_brl: Number(row.balance_brl ?? 0),
+      bls: [...(row.invoice_bls ?? []), ...(row.invoice_receivable_links ?? [])].map((link) => link.bl_id).filter((bl): bl is string => Boolean(bl)),
+    })))
     return {
       openCount: open.length,
-      openBalance: open.reduce((sum, row) => sum + Number(row.balance_brl ?? 0), 0),
+      openBalance: counted.reduce((sum, row) => sum + Number(row.balance_brl ?? 0), 0),
     }
   }, [invoices])
 

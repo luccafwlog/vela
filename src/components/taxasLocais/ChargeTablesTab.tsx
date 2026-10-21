@@ -162,9 +162,9 @@ export function ChargeTablesTab({
       confirmLabel: nextActive ? 'Reativar tabela' : 'Desativar tabela',
       tone: nextActive ? ('primary' as const) : ('danger' as const),
       consequence: nextActive
-        ? `Volta a disputar o cálculo de ${scope}: vale se tiver a vigência inicial mais recente entre as ativas.`
+        ? `Volta a disputar o cálculo de ${scope} dos B/Ls novos: vale se tiver a vigência inicial mais recente entre as ativas.`
         : reading?.state.kind === 'applied'
-          ? `Sai do cálculo de ${scope}. Cálculos novos usam a próxima tabela ativa do escopo, ou ficam pendentes se não houver. Faturas emitidas não mudam.`
+          ? `Deixa de valer para B/Ls novos de ${scope}, que usam a próxima tabela ativa do escopo, ou ficam pendentes se não houver. Os B/Ls já vinculados continuam com ela.`
           : 'Sai da lista de tabelas ativas. Ela já não era a usada no cálculo, então o cálculo não muda.',
       reversibility: nextActive ? 'Pode ser desativada de novo.' : 'Pode ser reativada pelo Administrativo.',
     }
@@ -188,8 +188,8 @@ export function ChargeTablesTab({
       title: nextActive ? 'Reativar item de taxa' : 'Desativar item de taxa',
       message: `${nextActive ? 'Reativar' : 'Desativar'} o item "${item.name}"?`,
       consequence: nextActive
-        ? 'O item volta a entrar nos cálculos novos.'
-        : 'O item deixa de entrar em cálculos novos; cálculos e faturas antigos continuam mostrando de onde veio o valor.',
+        ? 'Correção: o item volta a entrar no cálculo dos B/Ls vinculados à tabela, e as faturas afetadas são reemitidas ou ficam desatualizadas.'
+        : 'Correção: o item sai do cálculo dos B/Ls vinculados à tabela; faturas sem pagamento são reemitidas e as pagas ficam desatualizadas.',
       reversibility: nextActive ? 'Pode ser desativado de novo.' : 'Pode ser reativado pelo Administrativo.',
       confirmLabel: nextActive ? 'Reativar item' : 'Desativar item',
       tone: nextActive ? ('primary' as const) : ('danger' as const),

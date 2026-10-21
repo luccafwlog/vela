@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePortalAuth } from './usePortalAuth'
 import { usePortalScope } from './usePortalScope'
@@ -75,17 +75,36 @@ export function refreshWhilePayable(status: string | null | undefined, payable: 
   return status && payable.includes(status) ? 20_000 : false
 }
 
+// F-50: a baixa (Itaú ou do Financeiro) chega pela releitura do detalhe; o
+// saldo da sessão e as listas só mudam se forem relidos também.
+function useRefreshWhenSettled(status: string | null | undefined, payable: string[], listKeys: string[]) {
+  const queryClient = useQueryClient()
+  const { refreshOverview } = usePortalAuth()
+  const previous = useRef(status)
+  useEffect(() => {
+    const was = previous.current
+    previous.current = status
+    if (!was || !status || was === status || !payable.includes(was)) return
+    void Promise.all(listKeys.map((key) => queryClient.invalidateQueries({ queryKey: [key] }))).then(() => refreshOverview())
+  }, [status, payable, listKeys, queryClient, refreshOverview])
+}
+
+const LOCAL_PAYABLE = ['issued', 'partially_paid', 'overdue']
+const LOCAL_LIST_KEYS = ['portal-invoices', 'portal-invoices-page', 'portal-consolidatable-receivables']
+
 export function usePortalInvoiceDetail(invoiceId?: number | null) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
   const readOnly = isPortalReadOnly(scope)
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['portal-invoice-detail', scope.mode, scope.customerId, invoiceId],
     enabled: Boolean((isAuthenticated || readOnly) && invoiceId),
     queryFn: () => portalInvoiceDetails(Number(invoiceId), scope),
-    refetchInterval: (query) => refreshWhilePayable(query.state.data?.invoice?.status, ['issued', 'partially_paid', 'overdue']),
+    refetchInterval: (query) => refreshWhilePayable(query.state.data?.invoice?.status, LOCAL_PAYABLE),
   })
+  useRefreshWhenSettled(query.data?.invoice?.status, LOCAL_PAYABLE, LOCAL_LIST_KEYS)
+  return query
 }
 
 export function usePortalDemurrageInvoices() {
@@ -147,13 +166,18 @@ export function usePortalDemurrageInvoiceDetail(invoiceId?: number | null) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
   const readOnly = isPortalReadOnly(scope)
-  return useQuery({
+  const query = useQuery({
     queryKey: ['portal-demurrage-invoice-detail', scope.mode, scope.customerId, invoiceId],
     enabled: Boolean((isAuthenticated || readOnly) && invoiceId),
     queryFn: () => portalGetDemurrageInvoiceDetail(Number(invoiceId), scope),
-    refetchInterval: (query) => refreshWhilePayable(query.state.data?.invoice?.status, ['issued', 'overdue']),
+    refetchInterval: (query) => refreshWhilePayable(query.state.data?.invoice?.status, DEMURRAGE_PAYABLE),
   })
+  useRefreshWhenSettled(query.data?.invoice?.status, DEMURRAGE_PAYABLE, DEMURRAGE_LIST_KEYS)
+  return query
 }
+
+const DEMURRAGE_PAYABLE = ['issued', 'overdue']
+const DEMURRAGE_LIST_KEYS = ['portal-demurrage-invoices', 'portal-demurrage-invoices-page']
 
 export function usePortalCreateConsolidation() {
   const queryClient = useQueryClient()

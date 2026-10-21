@@ -91,8 +91,16 @@ function invoiceTotal(blId: string): string {
   return psql(`SELECT total_brl FROM public.invoices WHERE bl_id = '${blId}';`)
 }
 
+// Reajuste de preço é tabela nova (ADR 0093, decisão 1): vale para B/L novo;
+// o B/L já vinculado continua com a sua.
+let priceVersion = 0
 function setPrice(value: number): void {
-  psql(`UPDATE public.charge_table_items SET value_brl = ${value}, unit_value_brl = ${value} WHERE id = ${chargeItemId};`)
+  priceVersion += 1
+  const tableId = chargeTableId * 10 + priceVersion
+  psql(`INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
+      VALUES (${tableId}, 'Tabela 083 v${priceVersion}', 'PTL083', CURRENT_DATE + ${priceVersion}, true, 'container');
+    INSERT INTO public.charge_table_items (charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency)
+      VALUES (${tableId}, 'Taxa 083', 'bl', ${value}, ${value}, 'bl', 'base', 'any', 'BRL');`)
 }
 
 function portalAlert(): string {
@@ -125,9 +133,9 @@ function cleanup(): void {
     DELETE FROM public.charge_calculations WHERE bl_id = ANY(${blList});
     DELETE FROM public.bl_containers WHERE bl_id = ANY(${blList});
     DELETE FROM public.bls WHERE id = ANY(${blList});
-    DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId} OR charge_item_id = ${chargeItemId};
-    DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
-    DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
+    DELETE FROM public.pricing_rule_versions WHERE charge_table_id IN (SELECT id FROM public.charge_tables WHERE pod = 'PTL083');
+    DELETE FROM public.charge_table_items WHERE charge_table_id IN (SELECT id FROM public.charge_tables WHERE pod = 'PTL083');
+    DELETE FROM public.charge_tables WHERE pod = 'PTL083';
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};

@@ -252,17 +252,6 @@ export async function updateServiceLineObservation(id: string, observation: stri
   if (error) throw error;
 }
 
-export async function updateVaziosBooking(
-  id: string,
-  patch: Partial<VaziosBooking> & Record<string, unknown>,
-) {
-  const { error } = await supabase
-    .from("vazios_bookings")
-    .update(patch as never)
-    .eq("id", id);
-  if (error) throw error;
-}
-
 /**
  * Portos brasileiros da viagem que já têm Embarque de Vazios registrado,
  * normalizados. É o que impede retirar a declaração de exportação de uma escala

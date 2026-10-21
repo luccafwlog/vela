@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import type { InvoiceDetail } from '../../services/billing'
 import type { InvoiceItem } from '../../types/database'
 import { formatDate, stripBlPrefix } from '../../lib/utils'
+import { invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import {
   cell,
   classifyInvoiceItem,
@@ -163,7 +164,7 @@ function renderItemRows(rowItems: InvoiceItem[], itemFlatIndex: Map<number | str
           {usdNote && <div style={{ fontSize: '12px', color: DOC_MUTED }}>{usdNote}</div>}
         </td>
         <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
-        <td style={{ padding: '8px 7px', textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtBRL(item.unit_value_brl)}</td>
+        <td style={{ padding: '8px 7px', textAlign: 'right', whiteSpace: 'nowrap' }}>{invoiceItemUnit(item) ?? '—'}</td>
         <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtBRL(item.total_value_brl)}</td>
       </tr>
     )

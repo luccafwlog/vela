@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }))
-vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [] }) }))
+vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [] }), useCustomerPendingBalance: () => ({ data: { totalBrl: 0 } }) }))
 vi.mock('../../../hooks/useReviewCustomerGroup', () => ({ useReviewCustomerGroup: () => ({ mutateAsync: mocks.onboard, isPending: false }) }))
 vi.mock('../../../services/reviewCustomerGroup', () => ({ sendReviewPortalInvite: mocks.invite }))
 vi.mock('../../../services/reviewBillingAutomation', () => ({ tryAutoIssueInvoice: mocks.autoInvoice }))
