@@ -35,15 +35,24 @@
 --      obrigatório, `delete_records('customer')` sempre recusa ("desative em
 --      vez de excluir").
 --
--- Só redefine funções e cria gatilhos; não reescreve nem apaga linhas. Os
--- alertas abertos hoje fecham na próxima rodada do detector (1) ou no próximo
--- faturamento ou cancelamento (2, 3); os órfãos já existentes ficam e aparecem
--- em supabase/scripts/consistencia_alertas.sql (verificações 02, 11 e 12).
+--   5. Acerto dos alertas já abertos: os de faturamento de B/L já faturado,
+--      pago ou cancelado são resolvidos, e os de B/L que não existe mais são
+--      apagados. Sem isso eles ficariam abertos para sempre, porque o fato que
+--      os fecharia já aconteceu. A pendência do Portal fecha sozinha na
+--      próxima rodada do detector.
+--
+-- Reescreve e apaga linhas existentes (item 5: `alert_items` resolvidos e
+-- `alerts` de B/L inexistente). Depende da afirmação "Data status" do
+-- AGENTS.md (seção Gotchas): o banco de produção só tem dados de teste.
+-- Conferência antes e depois: supabase/scripts/consistencia_alertas.sql
+-- (verificações 02, 11 e 12).
 -- Rollback: reaplicar as definições das migrations 324
 -- (reconcile_client_portal_alerts, portal_list_provisioning_console) e 208
 -- (resolve_auto_issue_alert_on_invoiced); DROP dos gatilhos
 -- resolve_billing_alerts_on_bl_cancel e delete_bl_alerts_on_delete e das
 -- funções resolve_billing_alerts_on_bl_cancel() e delete_bl_alerts_on_delete().
+-- O acerto do item 5 não tem volta automática; os eventos `resolved` com
+-- origem `migration_347` dizem o que foi fechado.
 
 -- 1 -------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.reconcile_client_portal_alerts()
@@ -356,3 +365,31 @@ DROP TRIGGER IF EXISTS delete_bl_alerts_on_delete ON public.bls;
 CREATE TRIGGER delete_bl_alerts_on_delete
   AFTER DELETE ON public.bls
   FOR EACH ROW EXECUTE FUNCTION public.delete_bl_alerts_on_delete();
+
+-- 6 -------------------------------------------------------------------------
+-- Acerto dos alertas já abertos (item 5; depende do "Data status").
+DO $$
+DECLARE
+  v_item record;
+BEGIN
+  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
+  FOR v_item IN
+    SELECT DISTINCT i.item_type, a.entity_id
+    FROM public.alert_items i
+    JOIN public.alerts a ON a.id = i.alert_id
+    JOIN public.bls b ON b.id = a.entity_id
+    WHERE a.entity_type = 'bl'
+      AND i.status = 'active'
+      AND i.item_type IN ('billing_calculation_blocked', 'billing_auto_issue_failed')
+      AND (b.cancelled_at IS NOT NULL OR b.financial_status IN ('invoiced', 'paid'))
+  LOOP
+    PERFORM public.resolve_alert_item(v_item.item_type, 'bl', v_item.entity_id, 'migration_347',
+      jsonb_build_object('resolution', 'bl_invoiced_or_cancelled_before_347'));
+  END LOOP;
+
+  DELETE FROM public.alerts a
+  WHERE a.entity_type = 'bl'
+    AND NOT EXISTS (SELECT 1 FROM public.bls b WHERE b.id = a.entity_id);
+  PERFORM set_config('request.jwt.claim.role', '', true);
+END
+$$;

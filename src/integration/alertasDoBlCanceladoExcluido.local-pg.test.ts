@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
@@ -7,7 +8,8 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 //   financial_status = 'cancelled', valor que nenhum gravador põe);
 // - B/L faturado no servidor fecha também o bloqueio de cálculo;
 // - B/L cancelado fecha os dois alertas de faturamento;
-// - excluir B/L leva os alertas dele.
+// - excluir B/L leva os alertas dele;
+// - o acerto da migration resolve ou apaga os alertas que já estavam errados.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -41,7 +43,9 @@ const BL_LIVE = 'BL347-VIVO'
 const BL_BILLED = 'BL347-FAT'
 const BL_CANCEL_BILLING = 'BL347-CANCFAT'
 const BL_DELETED = 'BL347-EXCL'
-const BLS = [BL_CANCELLED, BL_LIVE, BL_BILLED, BL_CANCEL_BILLING, BL_DELETED]
+const BL_STALE = 'BL347-LEGADO'
+const BL_GONE = 'BL347-SUMIU'
+const BLS = [BL_CANCELLED, BL_LIVE, BL_BILLED, BL_CANCEL_BILLING, BL_DELETED, BL_STALE, BL_GONE]
 const blList = BLS.map((id) => `'${id}'`).join(', ')
 
 function asAdmin(sql: string) {
@@ -108,7 +112,8 @@ describeLocal('347 — alertas acompanham o B/L cancelado, faturado ou excluído
         ('${BL_LIVE}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
         ('${BL_BILLED}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
         ('${BL_CANCEL_BILLING}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
-        ('${BL_DELETED}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok');
+        ('${BL_DELETED}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
+        ('${BL_STALE}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok');
       -- Liberação de faturamento sem Portal: o B/L pode ser faturado.
       INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
       VALUES (${WITH_LIVE_BL}, 'teste 347', '${ADMIN_ID}', now() + interval '10 days');
@@ -154,5 +159,20 @@ describeLocal('347 — alertas acompanham o B/L cancelado, faturado ou excluído
     expect(deleteBl.stderr).toBe('')
     expect(psql(`SELECT count(*) FROM public.bls WHERE id = '${BL_DELETED}';`)).toBe('0')
     expect(psql(`SELECT count(*) FROM public.alerts WHERE entity_type = 'bl' AND entity_id = '${BL_DELETED}';`)).toBe('0')
+  })
+  it('o acerto da migration fecha o alerta de B/L já faturado e apaga o de B/L que não existe', () => {
+    openBillingAlert('billing_calculation_blocked', BL_STALE)
+    asServer(`SELECT public.upsert_alert_item('billing_auto_issue_failed', 'bl', '${BL_GONE}',
+      'teste 347', 'teste_347', 'documentacao', '{}'::jsonb, NULL)`)
+    // Estado de antes da 347: o B/L foi faturado sem o gatilho que fecha.
+    psql(`SET session_replication_role = replica;
+      UPDATE public.bls SET financial_status = 'invoiced' WHERE id = '${BL_STALE}';
+      SET session_replication_role = origin;`)
+    expect(item('billing_calculation_blocked', 'bl', BL_STALE)).toBe('active')
+
+    const sql = readFileSync('supabase/migrations/347_alertas_acompanham_bl_cancelado_faturado_ou_excluido.sql', 'utf8')
+    psql(sql.slice(sql.indexOf('-- 6 ---')))
+    expect(item('billing_calculation_blocked', 'bl', BL_STALE)).toBe('resolved')
+    expect(psql(`SELECT count(*) FROM public.alerts WHERE entity_type = 'bl' AND entity_id = '${BL_GONE}';`)).toBe('0')
   })
 })
