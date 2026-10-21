@@ -139,3 +139,4 @@ src/integration/viagemCanceladaFinanceiro.local-pg.test.ts
 src/integration/faturamentoFechadoNaApi.local-pg.test.ts
 src/integration/correcaoCodDesbloqueioDemurrage.local-pg.test.ts
 src/integration/saldoDoVela.local-pg.test.ts
+src/integration/calculoBlCanceladoIsentoEta.local-pg.test.ts
