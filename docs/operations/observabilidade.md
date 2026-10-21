@@ -30,7 +30,8 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   `portal-daily-digest` conta em `failed` cada destinatário que não recebeu e responde
   500 quando uma consulta falha; o `ce-unlock-notify-email` conta em `failed` cada aviso
   que esgotou as tentativas; o `portal-email-events-runner` conta em `failed` cada evento
-  que falhou e foi devolvido para nova tentativa. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
+  que falhou e foi devolvido para nova tentativa; o `alerts-detector` conta em `failed` cada
+  detector que falhou numa rodada parcial (migration `351`). Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
 
 Esta seção combina inspeção estática com verificações de runtime registradas no
 plano de migração. O DSN de produção e os alertas foram configurados em
@@ -151,6 +152,13 @@ padrão; a inicialização desliga tudo em `dataCollection`, como no navegador. 
 (função, ambiente, status e duração); não envia mensagem original, usuário,
 headers, request body nem response body. O flush tem limite de um segundo e a
 falha do Sentry não muda o resultado da função.
+Na rodada parcial do `alerts-detector` (migration `351`: um detector falhou e os
+outros valeram), a resposta continua 2xx e a função envia um evento por detector
+que falhou, com status `detector_failed:<detector>` (um issue por detector),
+`codigo_erro` com o SQLSTATE e `rpc` `run_alert_detectors`
+(`_shared/alertDetectorFailures.ts`). A mensagem do banco não vai ao Sentry: fica
+no corpo da resposta (`failures`), gravado em `net._http_response`, e no `WARNING`
+do log do Postgres.
 As treze entradas em `supabase/config.toml` apontam para o manifesto Deno
 compartilhado em `supabase/functions/deno.json`; a configuração não altera
 `verify_jwt` nem os contratos HTTP.
