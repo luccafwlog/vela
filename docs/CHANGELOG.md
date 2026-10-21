@@ -8,7 +8,7 @@
 
 - **Importações: trava por Viagem e Baplie no servidor (2026-10-21, Lote 1 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 6, 11 e 13):** migrations
-  `387` e `388`. Toda importação de Viagem (arquivo de B/L, Manifesto BB e B/L avulso, planilha de
+  `387` a `389`. Toda importação de Viagem (arquivo de B/L, Manifesto BB e B/L avulso, planilha de
   CE, Baplie, datas, Vazios de importação, Embarque de vazios, Veículos e Granito) pega a mesma trava
   da Viagem: a segunda importação espera a primeira, em vez de cair em "deadlock detected" ou deixar
   duas listas do Baplie (F-04, F-11). O Baplie substitui só os portos de descarga marcados no modal;
