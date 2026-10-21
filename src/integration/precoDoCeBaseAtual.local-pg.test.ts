@@ -79,7 +79,7 @@ describeLocal('355 — preço do dia do CE, base atual', () => {
     expect(w.psql(`SELECT count(*) FROM public.invoice_bls WHERE bl_id = '${v}'`)).toBe('0')
   })
 
-  it('o preço do CE fica: Condição nova não entra; correção da base usa o preço congelado; correção do item entra', () => {
+  it('o preço fixo fica: Condição nova não entra; correção da base usa o preço congelado; correção do item entra', () => {
     w.closeGate()
     const f = w.createBl('FRZ')
     w.calculate(f)

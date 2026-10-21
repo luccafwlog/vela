@@ -69,7 +69,7 @@ Portal enquanto o Portal não fica pronto (ADR 0070; migrations `083` a `085`,
   `audit_logs`.
 - **Efeito.** Conceder abre o gate na hora: os B/Ls não faturados do Cliente
   saem da Revisão (gatilho da migration `167`) e as faturas retidas pelo CE são
-  emitidas, com as taxas do dia do CE. A tela informa quantas faturas saíram e
+  emitidas, com o preço fixado na importação ([ADR 0094](../adr/0094-preco-fixo-na-importacao.md), A1) e a base atual. A tela informa quantas faturas saíram e
   quantos B/Ls seguem com outro bloqueio. A Liberação **não ativa a conta do
   Portal nem dá acesso ao Cliente**: sem Portal, um usuário interno entrega a
   fatura. Fatura emitida com Liberação vigente não abre a exceção crítica de

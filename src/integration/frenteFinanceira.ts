@@ -4,7 +4,7 @@ import { syntheticCnpj } from './localTestData'
 
 /**
  * Fixtures das suítes da frente financeira (plano
- * docs/plans/2026-10-21-correcoes-frente-financeira.md). Cada suíte recebe um
+ * docs/archive/plans/2026-10-21-correcoes-frente-financeira.md). Cada suíte recebe um
  * namespace numérico próprio: IDs, CNPJs, B/Ls (`FF<ns>-...`) e o POD saem
  * dele, e `cleanup()` apaga só o que o namespace criou.
  */

@@ -121,7 +121,7 @@ aceita "1.420,50"; cada erro indica o campo).
   Vigência, Situação em texto ("Vigente", "Começa em …"; "Encerrada" e
   "Desativada" com a linha em cinza), Valor negociado com unidade e Valor da
   tabela com a diferença. "Vigente" é a leitura de hoje: o motor escolhe a
-  condição pela data de referência do B/L (ETA da escala do POD);
+  condição pela data de referência do B/L (dia da importação, ADR 0094);
 - "Sem efeito no cálculo" em âmbar na condição vigente que não muda a
   cobrança (tabela desativada ou ativa mas não usada, ou item desativado), com
   o motivo ao passar o mouse; a condição futura no mesmo caso mostra "Começa em
@@ -306,20 +306,40 @@ O cálculo tem duas fases:
   no rateio; a presença do CE, sozinha, não prova que essa conferência foi
   feita.
 
-### Preço do dia do CE e base atual (ADR 0093, decisão 3)
+### Preço fixo na importação e base atual (ADR 0094, A1 a A4)
 
-No registro do CE fica congelado só o **preço**: a tabela vinculada, a
-Condição de Cliente e a Data de Referência daquele dia (`bl_price_freezes` e
-`bl_price_freeze_items`, gatilho `freeze_bl_prices_on_ce`, migration `355`). O
-motor usa o preço congelado em todo recálculo seguinte. A **base** (containers
-e rateio, Movement To, POD, peso, veículos) é sempre a atual: a emissão —
-inclusive da fatura retida pelo gate, no Retomar do lote, no efeito
-`local_billing` e no Emitir — só reaproveita o cálculo do CE se a base ainda é
-a mesma (`bl_calculation_is_current`); senão recalcula com o preço congelado
-(`_auto_bill_bl_core` e `mark_bl_ready_for_billing`). Condição nova depois do
-CE não entra; correção de item ou de Condição entra (abaixo). Vincular ou
-trocar o Cliente depois do CE refaz a Condição congelada para o novo Cliente,
-na data congelada. **Teste local-pg:** `precoDoCeBaseAtual.local-pg.test.ts`.
+No primeiro cálculo do B/L (normalmente a importação) ficam fixos a **tabela**
+vinculada, a **Condição de Cliente**, a **Data de Referência** (dia de
+Brasília) e o **câmbio** dos itens em dólar (`bl_price_freezes` e
+`bl_price_freeze_items`, `freeze_bl_prices`, migration `378`). O CE não fixa
+nada. Todo recálculo seguinte, a emissão, o recebível, a correção e o COD usam
+o preço e o câmbio fixados.
+
+- **Base atual na emissão** (ADR 0093, decisão 3): containers e rateio,
+  Movement To, POD, peso e veículos são sempre os de agora. A emissão —
+  inclusive da fatura retida pelo gate, no Retomar do lote, no efeito
+  `local_billing` e no Emitir — só reaproveita o cálculo se a base ainda é a
+  mesma (`bl_calculation_is_current`); senão recalcula com o preço fixado
+  (`_auto_bill_bl_core`, `mark_bl_ready_for_billing`, `refresh_unbilled_calculations`).
+- **ETA e Condição nova não mexem no preço:** a ETA alterada não recalcula
+  nenhum B/L, e criar, ativar ou desativar Condição de Cliente vale para os
+  B/Ls que entrarem depois (ou na reimportação com aceite). Editar item ou
+  Condição continua sendo correção (abaixo).
+- **B/L sem Cliente:** tabela, data e câmbio ficam fixos na importação; quando o
+  Cliente é vinculado (ou trocado, sem fatura), vale a Condição dele vigente no
+  dia da importação (`freeze_follows_bl_customer`).
+- **POD ou modo novo antes da emissão** (reimportação com aceite, COD, ficha):
+  o B/L passa à tabela do escopo novo ativa naquele momento; Condição, câmbio
+  e data continuam os da importação.
+- **Refixar o preço** (`refix_bl_local_charge_prices`): só a pedido — o aceite
+  da reimportação ("preço de 01/11 → preço de hoje"), com motivo — o preço do
+  B/L não faturado é refeito no dia (tabela, Condição, câmbio e data). Sem o
+  pedido, a reimportação mantém o preço e aplica só a mudança de base; arquivo
+  idêntico não muda nada. B/L faturado segue a correção pelo preço da fatura
+  (ADR 0093, decisão 4). A tela do aceite é da frente das importações.
+
+**Teste local-pg:** `precoFixoNaImportacao.local-pg.test.ts`,
+`precoDoCeBaseAtual.local-pg.test.ts` (base atual).
 
 ### Tabela aplicável, Item de Taxa e Condição de Cliente
 
@@ -347,12 +367,13 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   ou faturada) e editar Condição de Cliente são só do Administrativo
   (`guard_tariff_correction_admin`); criar tabela, incluir item em tabela ainda
   não usada e criar Condição continuam com todos. A edição recalcula os B/Ls não
-  faturados vinculados, inclusive com CE (o preço congelado acompanha), e passa
+  faturados vinculados, inclusive com CE (o preço fixado acompanha), e passa
   os faturados pela correção automática (fonte `tariff_correction`): sem
   pagamento, cancela e reemite com número novo, aviso no Portal e QR novo; com
   pagamento, valor menor abate e restitui, valor maior abre Fatura
-  desatualizada. Criar, ativar ou desativar Condição recalcula só os B/Ls não
-  faturados e sem CE do Cliente. A tela avisa a consequência no formulário.
+  desatualizada. Criar, ativar ou desativar Condição não recalcula B/L
+  existente (ADR 0094, A3; migration `378`). A tela avisa a consequência no
+  formulário.
   **Teste local-pg:** `tabelaVinculadaAoBl.local-pg.test.ts`.
 - **B/L misto** consome as tabelas container e carga solta por
   `resolve_bl_local_charge_table_ids` (`056`). A taxa com
@@ -385,19 +406,14 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
 
 ### Data de Referência da Tarifa
 
-A Data de Referência escolhe qual **Condição de Cliente** vale para um B/L, com
-esta precedência: **ETA da escala do POD** → ETA geral da Viagem → data de hoje
-(migration `171`). A escala é achada pelo código normalizado do POD (BRVIT
-acha a escala BRVIX), e a ETA geral e o "hoje" são o dia de Brasília (migration
-`359`). Depois do CE a data fica congelada com o preço (decisão 3). Ancorar na escala faz todos os B/Ls do mesmo navio no mesmo
-porto caírem na mesma condição; os degraus seguintes existem para que a falta
-de uma data operacional nunca impeça o cálculo (ADR 0040). A data **não**
-escolhe a tabela (escopo e tabela ativa, sem data). Não é a ATA (o CE é
-cadastrado dias antes da atracação, então a fatura já existe quando a ATA
-chega) nem a data de importação do B/L, que é fato administrativo. O
-lançamento manual e o Item da tabela da avulsa seguem a mesma regra (ADR 0083,
-item 10): desde a migration `248` os três leem a data de uma função única,
-`bl_local_charge_reference_date`.
+A Data de Referência escolhe qual **Condição de Cliente** vale para um B/L. É o
+dia da importação, em Brasília, fixado no primeiro cálculo com o preço (ADR
+0094, A1; migration `378`); sem preço fixado, o dia de hoje
+(`bl_local_charge_reference_date`). A ETA deixou de ancorar a Condição: antes
+valia a ETA da escala do POD (migrations `171` e `359`), e a ETA alterada
+recalculava o provisório (`372`). A data **não** escolhe a tabela (escopo e
+tabela ativa, sem data). O lançamento manual e o Item da tabela da avulsa leem
+a mesma função (ADR 0083, item 10; migration `248`).
 
 ### Movimento e Isenção de Taxas Locais
 
@@ -505,7 +521,7 @@ flowchart LR
   grupo inteiro é que fecha, não cada linha isolada). A fatura impressa marca
   a quantidade como fração do container compartilhado para que `1/7` não seja
   lido como unidade inteira.
-- **Cálculo inicial e vinculação posterior de cliente (migration `072`):** `sync_local_charge_receivable` não aborta com erro quando `v_bl.customer_id IS NULL`. Retorna `NULL`, permitindo o cálculo e armazenamento imediato de linhas e subtotais tarifários na importação de B/Ls com base nas tabelas ativas. Assim que o cliente é vinculado ou alterado (`approve_customer_reconciliation` ou `relink_bl_customer`), o B/L pendente é recalculado automaticamente com as eventuais Condições de Cliente cadastradas e o recebível no ledger (`bl_receivables`) é gerado/sincronizado. Os demais caminhos de vínculo (revisão por grupo `complete_review_customer_group`, Base de Clientes, troca direta de `bls.customer_id`) não recalculavam; desde a migration `342`, o gatilho `trg_sync_receivable_on_bl_customer_link` (`AFTER UPDATE OF customer_id ON bls`) age na mesma transação sempre que o B/L passa a ter cliente (de nenhum ou de outro), tem linha de cálculo vigente e não tem fatura viva: B/L ainda não faturado é recalculado com as Condições de Cliente do novo cliente (`calculate_bl_local_charges`, que sincroniza o recebível no fim), como na aprovação da conciliação; os demais só sincronizam o recebível. O saldo pendente aparece sem recálculo manual (sessão de testes de 2026-10-20, observação 4). B/L com fatura viva segue a troca da ADR 0017; falha do recálculo (ex.: ROE ausente) não desfaz o vínculo e fica no Histórico do B/L (`local_charges_customer_link_calc_error`). **Teste:** `recebivelNoVinculoDoCliente.local-pg.test.ts`.
+- **Cálculo inicial e vinculação posterior de cliente (migration `072`):** `sync_local_charge_receivable` não aborta com erro quando `v_bl.customer_id IS NULL`. Retorna `NULL`, permitindo o cálculo e armazenamento imediato de linhas e subtotais tarifários na importação de B/Ls com base nas tabelas ativas. Assim que o cliente é vinculado ou alterado (`approve_customer_reconciliation` ou `relink_bl_customer`), o B/L pendente é recalculado automaticamente com as eventuais Condições de Cliente cadastradas e o recebível no ledger (`bl_receivables`) é gerado/sincronizado. Os demais caminhos de vínculo (revisão por grupo `complete_review_customer_group`, Base de Clientes, troca direta de `bls.customer_id`) não recalculavam; desde a migration `342`, o gatilho `trg_sync_receivable_on_bl_customer_link` (`AFTER UPDATE OF customer_id ON bls`) age na mesma transação sempre que o B/L passa a ter cliente (de nenhum ou de outro), tem linha de cálculo vigente e não tem fatura viva: B/L ainda não faturado é recalculado com as Condições de Cliente do novo cliente (`calculate_bl_local_charges`, que sincroniza o recebível no fim), como na aprovação da conciliação; os demais só sincronizam o recebível. O saldo pendente aparece sem recálculo manual (sessão de testes de 2026-10-20, observação 4). B/L com fatura viva segue a troca da ADR 0017; falha do recálculo (ex.: ROE ausente) recusa o vínculo inteiro, com o B/L e o que falta (ADR 0094, B3; migration `379`; antes ficava no Histórico e abria `billing_calculation_blocked`). **Teste:** `recebivelNoVinculoDoCliente.local-pg.test.ts`, `falhaDeCalculoRecusa.local-pg.test.ts`.
 - O estado aceito na migration atual é `matched_document` ou `reconciled`;
   `ValidacaoTab` usa o mesmo helper canônico e mantém `matched_name` como
   pendente até aprovação manual.

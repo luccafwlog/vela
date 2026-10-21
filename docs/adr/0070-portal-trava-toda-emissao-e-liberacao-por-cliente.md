@@ -1,9 +1,11 @@
 # 0070 — O Portal trava toda emissão; a saída é a Liberação por Cliente
 
-> **Situação atual (2026-10-21).** A decisão vale, exceto a nota "Taxas do dia do CE" (2026-09-24 b): pela [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md) (decisão 3), no dia do CE fica congelado só o preço (tabela, Condição de Cliente e data de referência), e a base do B/L é a atual na emissão da fatura retida. A nova fatura de B/L cuja fatura foi cancelada só sai pelo Emitir, nunca pelo reprocessamento da Liberação ou da ativação (decisão 12). Implementado na PR luccafwlog/vela#1019 ([plano arquivado](../archive/plans/2026-10-21-correcoes-frente-financeira.md)).
+> **Situação atual (2026-10-21).** Pela ADR 0094: O preço deixa de ser fixado no dia do CE: pela [ADR 0094](./0094-preco-fixo-na-importacao.md) (A1), tabela, Condição, data de referência e câmbio ficam fixos na importação, e a base continua a atual na emissão da fatura retida. Implementado na migration `378` ([plano arquivado](../archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md)).
+>
+> **Situação anterior (2026-10-21, ADR 0093).** A decisão vale, exceto a nota "Taxas do dia do CE" (2026-09-24 b): pela [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md) (decisão 3), no dia do CE fica congelado só o preço (tabela, Condição de Cliente e data de referência), e a base do B/L é a atual na emissão da fatura retida. A nova fatura de B/L cuja fatura foi cancelada só sai pelo Emitir, nunca pelo reprocessamento da Liberação ou da ativação (decisão 12). Implementado na PR luccafwlog/vela#1019 ([plano arquivado](../archive/plans/2026-10-21-correcoes-frente-financeira.md)).
 > Regra vigente em [Regras de negócio](../operations/regras-de-negocio.md), seção Gate de faturamento.
 
-Status: supersedida parcialmente — 2026-09-23; nota "Taxas do dia do CE" alterada pela ADR 0093 em 2026-10-21
+Status: supersedida parcialmente — 2026-09-23; nota "Taxas do dia do CE" alterada pela ADR 0093 e depois pela ADR 0094 em 2026-10-21
 
 Supersede a exceção interna da migration `051` descrita nas notas das
 [ADR 0054](./0054-portal-como-gate-de-faturamento.md),

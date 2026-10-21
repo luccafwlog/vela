@@ -2,10 +2,17 @@
 
 Estado: executado e arquivado em 2026-10-21 na PR luccafwlog/vela#1019
 (migrations `354` a `377`). Os itens retidos em "Execução", à espera das
-perguntas, seguem no plano vivo
-[pendências da frente financeira](../../plans/2026-10-21-pendencias-frente-financeira.md). Decisões em
+perguntas, seguiram no plano
+[preço na importação e pendências](2026-10-21-preco-na-importacao-e-pendencias.md)
+(também arquivado). Decisões em
 [ADR 0093](../../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md)
 (citadas aqui como "decisão N").
+
+> **Nota editorial (2026-10-21).** As perguntas 1 a 13 abaixo foram respondidas
+> na [ADR 0094](../../adr/0094-preco-fixo-na-importacao.md). Em especial, o
+> "5 dígitos" da F-43 não vale: o número fica com quatro dígitos
+> (`INV-AAAA-0001`) e, a partir de 10.000, o número inteiro, sem truncar (B12),
+> como já implementado. O preço deixou de ser fixado no CE (A1).
 
 ## Origem e evidência
 

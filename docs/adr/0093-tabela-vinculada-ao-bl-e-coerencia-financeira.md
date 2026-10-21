@@ -1,19 +1,25 @@
 # 0093 — Tabela vinculada ao B/L e coerência financeira (revisão de 2026-10-21)
 
-Status: aceito — 2026-10-21 (decisões do dono, respondidas pergunta a pergunta).
-
-> **Situação atual (2026-10-21):** implementada na PR luccafwlog/vela#1019,
+> **Situação atual (2026-10-21).** Implementada na PR luccafwlog/vela#1019,
 > migrations `354` a `377`, pelo
 > [plano de correções da frente financeira](../archive/plans/2026-10-21-correcoes-frente-financeira.md)
 > (arquivado). As regras vigentes estão em [Taxas Locais](../modules/taxas-locais.md),
 > [Faturamento](../modules/faturamento.md),
 > [Reconciliação PIX](../modules/reconciliacao-pix.md),
 > [Portal do Cliente](../modules/portal-cliente.md) e
-> [Demurrage](../modules/demurrage.md). A decisão 16 foi aplicada ao Pix sem
-> TXID; o de TXID de outro sistema na mesma chave segue ignorado, e o número
-> da fatura (decisão 21) manteve quatro dígitos, sem truncar a partir de
-> 10.000: as duas leituras estão em pergunta nas
-> [pendências da frente financeira](../plans/2026-10-21-pendencias-frente-financeira.md).
+> [Demurrage](../modules/demurrage.md).
+>
+> **Supersedida parcialmente pela [ADR 0094](./0094-preco-fixo-na-importacao.md)
+> (2026-10-21, migrations `378` a `383`).** O preço das Taxas Locais (tabela,
+> Condição, data de referência e câmbio) fica fixo no primeiro cálculo, na
+> importação, e não mais no CE: não valem a frase final da decisão 2 (Condição
+> nova recalculando B/L sem CE), a decisão 3 no que diz do "dia do CE" e a
+> decisão 5 no que diz da ETA como data de referência e do recálculo do
+> provisório pela ETA. A decisão 16 vale só para Pix sem TXID nenhum; o de
+> TXID de outro sistema na mesma chave segue ignorado. A decisão 21 mantém
+> quatro dígitos e o número inteiro a partir de 10.000.
+
+Status: supersedida parcialmente — 2026-10-21 (aceita no mesmo dia, decisões do dono respondidas pergunta a pergunta); preço fixo na importação pela ADR 0094
 
 Supersede parcialmente as ADRs
 [0040](./0040-vigencia-da-tabela-de-taxas-e-informativa.md) (decisão 2),

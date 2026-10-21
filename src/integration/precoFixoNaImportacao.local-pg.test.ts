@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
@@ -181,5 +183,32 @@ describeLocal('378 — preço fixo na importação', () => {
         DELETE FROM public.charge_tables WHERE id = 99931490;
         SET session_replication_role = origin;`)
     }
+  })
+
+  it('A4: o backfill da 378 refaz o preço fixo pela data da importação e pelo câmbio do recebível; o faturado ganha o câmbio da fatura', () => {
+    const source = readFileSync(resolve(process.cwd(), 'supabase/migrations/378_preco_fixo_na_importacao.sql'), 'utf8')
+    const backfill = source.match(/DO \$backfill_378\$[\s\S]*?\$backfill_378\$;/)?.[0]
+    expect(backfill).toBeTruthy()
+    const open = w.createBl('BF')
+    w.calculate(open)
+    const billed = w.createBl('BFF')
+    w.calculate(billed)
+    w.issueByCe(billed, '931400000000004')
+    // Estado anterior à 378 (preço congelado pela ETA, sem câmbio), o bloco da
+    // migration e a leitura numa transação que o psql desfaz ao sair.
+    const out = w.psql(`BEGIN;
+      SET session_replication_role = replica;
+      UPDATE public.bls SET created_at = '2026-10-01 15:00:00+00' WHERE id = '${open}';
+      UPDATE public.bl_price_freezes SET reference_date = '2026-12-15', roe = NULL, roe_effective_date = NULL, reason = 'primeiro_calculo'
+        WHERE bl_id IN ('${open}', '${billed}');
+      UPDATE public.bl_receivables SET roe_frozen = 4.5, roe_effective_date_frozen = '2026-10-01' WHERE bl_id = '${open}' AND source = 'local_charges';
+      UPDATE public.invoice_items SET snapshot_payload = snapshot_payload || '{"roe":"5.4321"}'::jsonb WHERE bl_id = '${billed}';
+      SET session_replication_role = origin;
+      ${backfill}
+      SELECT string_agg(CASE WHEN f.bl_id = '${open}' THEN 'aberto' ELSE 'faturado' END || '=' || f.reference_date || '|' || f.roe || '|' || f.reason
+          || '|' || (SELECT count(*) FROM public.bl_price_freeze_items i WHERE i.bl_id = f.bl_id), ';' ORDER BY f.bl_id = '${billed}')
+        FROM public.bl_price_freezes f WHERE f.bl_id IN ('${open}', '${billed}');`)
+    expect(out).toBe('aberto=2026-10-01|4.5000|importacao|1;faturado=2026-12-15|5.4321|faturado|1')
+    expect(freeze(open)).toBe(`${today()}|5.0000|primeiro_calculo`)
   })
 })

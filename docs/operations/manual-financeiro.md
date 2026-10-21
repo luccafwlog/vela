@@ -83,7 +83,9 @@ Regras: [correção após emissão](../modules/faturamento.md#correção-após-e
 
 | Situação | O que fazer | Como o sistema trata |
 |---|---|---|
-| B/L corrigido sem pagamento | Corrigir os dados reais pelo fluxo autorizado e conferir reemissão | Cancela/reemite quando valor ou Cliente muda; nova emissão usa câmbio vigente |
+| B/L corrigido sem pagamento | Corrigir os dados reais pelo fluxo autorizado e conferir reemissão | Cancela/reemite quando valor ou Cliente muda; a nova emissão usa a tabela, a Condição e o câmbio fixados quando o B/L entrou no Vela ([preço fixo na importação](../modules/taxas-locais.md#preço-fixo-na-importação-e-base-atual-adr-0094-a1-a-a4)) |
+| Reimportação de carga solta muda peso, CBM, volumes ou máquinas de B/L faturado | Ler na prévia a fatura e o valor antes → depois e só marcar **Confirmo a mudança nos B/Ls faturados** se a mudança for verdadeira | Sem a confirmação nada que afete a cobrança muda; com ela, a fatura sem pagamento é reemitida ([regra](../modules/faturamento.md#carga-solta-faturada-na-reimportação-adr-0094-b5)). Se a reemissão não puder sair (B/L misto), a fatura não é cancelada e abre **Fatura desatualizada** |
+| Avulsa com linha em dólar | Conferir o unitário em US$ e o total em R$ | O total da linha é convertido uma vez, como a taxa local; o documento não mostra unitário em R$ |
 | Edição não mudou preço nem Cliente | Conferir cálculo/documento | Não reemite por mudança sem efeito financeiro |
 | Redução após pagamento local | Corrigir a base do B/L e conferir os ajustes | Preserva fatura, abate primeiro saldo e prepara restituição do que ultrapassar o saldo |
 | Aumento após pagamento local | Conferir diferença aprovada e emitir avulsa para o complemento | Preserva recebimento/fatura original; não cria complemento automaticamente |
@@ -146,6 +148,7 @@ Regras de Invoice de Demurrage, datas e Régua de Cobrança: [Demurrage](../modu
 | Desconto antes de pagar | Aplicar pelo fluxo de desconto, com justificativa/aprovação; desconto em USD antes da conversão. Desconto integral elimina QR de valor positivo |
 | Ajuste/devolução depois de pagar | Usar Restituição excepcional no detalhe: qualquer Departamento autoriza, Financeiro ou Administrativo confirma (ADR 0085, D2); não desfazer recebimento verdadeiro |
 | Disputa aberta | Tratar a disputa. Régua de cobrança pausa; recálculo cambial pode continuar |
+| Invoice com ROE manual | O ROE manual prevalece: a Invoice fica fora do recálculo pela PTAX. Para voltar ao câmbio do dia, o Financeiro ou o Administrativo usa **Tirar ROE manual** no detalhe, com motivo; a ação fica no histórico e no rastro |
 | Pix de Demurrage em análise | Decidir o Pix em **Pix recebidos sem baixa** | Enquanto em análise, a Régua pausa ("Pix em análise") e não sai QR novo; o valor continua no saldo |
 | Desconto revogado antes do pagamento | Cobrar o valor cheio | O valor com desconto deixa de quitar a Invoice: a janela de fotos começa na última mudança de desconto |
 | Datas do container mudam depois de a Invoice ser paga | A data pode ser corrigida (edição do container com motivo ou planilha de datas). A Invoice paga não muda: sai da Régua e o alerta crítico **Datas mudaram em Invoice de Demurrage emitida** abre para o Administrativo. Conferir a diferença no detalhe. Valor menor: Restituição excepcional (qualquer Departamento autoriza; Financeiro ou Administrativo devolve e confirma). Valor maior: avulsa da diferença. Depois, registrar a conferência em **Resolver com justificativa** no alerta. Se a baixa for cancelada (**Cancelar baixa**) com as datas ainda diferentes, a Invoice é cancelada e reemitida pelo cálculo novo |

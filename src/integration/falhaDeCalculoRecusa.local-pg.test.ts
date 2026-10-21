@@ -117,6 +117,16 @@ describeLocal('379 — falha de cálculo recusa a gravação', () => {
     expect(w.psql(`SELECT coalesce(movement_to, 'null') FROM public.bls WHERE id = '${id}'`)).toBe('null')
   })
 
+  it('CE gravado pela ficha em B/L sem Cliente: a falha do cálculo recusa o CE', () => {
+    const id = w.createBl('CEFICHA', { customerId: null })
+    w.calculate(id)
+    expect(() => w.psql(`CREATE FUNCTION pg_temp.ff9315_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Cambio (ROE) nao configurado'; END $$;
+      CREATE TRIGGER ff9315_fail BEFORE DELETE ON public.charge_calculations FOR EACH ROW
+        WHEN (OLD.bl_id = '${id}') EXECUTE FUNCTION pg_temp.ff9315_fail();
+      UPDATE public.bls SET ce_mercante = '931500000000001' WHERE id = '${id}';`)).toThrow(REFUSED)
+    expect(w.psql(`SELECT coalesce(ce_mercante, 'null') FROM public.bls WHERE id = '${id}'`)).toBe('null')
+  })
+
   it('B/L sem tabela não é falha: o vínculo grava e o cálculo fica em espera', () => {
     const id = w.bl('SEMTAB')
     w.psql(`INSERT INTO public.bls (id, voyage_id, customer_id, pod, cargo_mode, financial_status, charge_status, customer_reconciliation_status)

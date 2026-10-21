@@ -425,7 +425,7 @@ registrada (origem `pix_duplicate`, ADR 0093, decisão 18) e sai da análise
 quando a devolução é confirmada; Pix sem TXID na chave do Vela é gravado como
 **Pix recebido sem baixa** com o Alerta `pix_unreconciled`
 (`itau_pix_record_untracked`, decisão 16); o de TXID de outro padrão (sistema
-de terceiro na mesma chave) continua ignorado (migration `375`). A baixa
+de terceiro na mesma chave) continua ignorado (migration `375`; confirmado pela [ADR 0094](../adr/0094-preco-fixo-na-importacao.md), B11). A baixa
 automática Itaú de fatura local tem origem própria em `ledger_settlements`
 (`itau_pix`), que as guardas do TXID tratam como a do extrato (migration
 `376`). Com Pix em análise ligado a Invoice de Demurrage,

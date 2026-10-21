@@ -554,7 +554,7 @@ emitida; mudanças de valor seguem a ADR 0077.
 O ano segue o horário de Brasília (ADR 0093, decisão 21; migration `376`): a
 fatura emitida às 22h de 31/12 leva o ano que termina. A sequência tem quatro
 dígitos com zeros à esquerda e, a partir de 10.000 no ano, usa todos os
-dígitos, sem truncar. O contador fica travado até o fim da transação: emissões
+dígitos, sem truncar (ADR 0094, B12). O contador fica travado até o fim da transação: emissões
 simultâneas podem colidir em deadlock (`40P01`); a emissão pela ficha e pela
 Validação tenta de novo uma vez (`src/services/billing.ts`) e a fila de
 efeitos trata o código como erro passageiro.
@@ -562,12 +562,19 @@ efeitos trata o código como erro passageiro.
 ### Taxa local em dólar
 
 Item de Taxa cadastrado em USD (como a Booking Cancelation Fee) é convertido em
-BRL **na emissão da fatura** (individual ou consolidada), pelo ROE vigente em
-`exchange_rate_reference` naquele momento, e o valor convertido fica congelado
-com o resto da fatura: o `snapshot_payload` do item guarda `roe` e
+BRL **pelo câmbio fixado no primeiro cálculo do B/L** (ADR 0094, A1; migration
+`378`): a emissão (individual ou consolidada), o recebível, a correção e o COD
+usam o ROE de `bl_price_freezes`; só o B/L sem câmbio fixado usa o de
+`exchange_rate_reference` no momento. O valor convertido fica congelado com o
+resto da fatura: o `snapshot_payload` do item guarda `roe` e
 `roe_effective_date`, e o documento impresso e o detalhe mostram a nota da
-conversão. Linha em USD não bloqueia a emissão; sem ROE configurado, a emissão
-falha com mensagem explícita em vez de congelar valor zerado.
+conversão. Sem ROE configurado no primeiro cálculo de B/L com linha em dólar, a
+gravação que calcula é recusada (ADR 0094, B3; migration `379`).
+
+Na **Fatura Avulsa** de item da tabela em dólar, o total em R$ é o total em
+US$ convertido de uma vez, como na taxa local; a linha mostra o unitário só em
+US$, sem unitário em R$ (ADR 0094, B13; migration `383`;
+`src/lib/invoiceItemUnit.ts` no detalhe, no impresso e no Portal).
 
 Não há Recálculo Diário, ao contrário do Demurrage: ali a dívida está correndo;
 aqui o valor é devido por inteiro desde o CE, e recalcular uma taxa local pela
@@ -591,9 +598,9 @@ chega ou é cancelado), a importação ou o cancelamento é aceito e a fatura
 emitida segue a [correção após emissão](#correção-após-emissão-adr-0077): sem
 pagamento, é reemitida com o rateio novo. Antes do faturamento, o irmão que
 chega, sai, é cancelado ou excluído recalcula no fim da transação os B/Ls não
-faturados do container, inclusive com CE ou retidos pelo gate, com o preço do
-dia do CE; a emissão (inclusive a da retida) só reaproveita o cálculo com a
-base atual (migration `355`, [Taxas Locais](taxas-locais.md#preço-do-dia-do-ce-e-base-atual-adr-0093-decisão-3)).
+faturados do container, inclusive com CE ou retidos pelo gate, com o preço
+fixado na importação; a emissão (inclusive a da retida) só reaproveita o cálculo com a
+base atual (migrations `355` e `378`, [Taxas Locais](taxas-locais.md#preço-fixo-na-importação-e-base-atual-adr-0094-a1-a-a4)).
 Excluir o irmão de um B/L faturado também corrige a fatura do vizinho (captura
 da base antes da exclusão, migration `357`; ADR 0078, item 11). Container FCL não é dividido entre
 Clientes diferentes: a importação de B/L recusa esse caso (regra em
@@ -690,12 +697,29 @@ dividem cada container): irmão que chega ou é cancelado depois do faturamento
 reemite a fatura do B/L faturado com o rateio novo (migration `176`; a guarda de
 mutação de container compartilhado saiu).
 
+### Carga solta faturada na reimportação (ADR 0094, B5)
+
+A reimportação do Manifesto BB (e do B/L avulso) só muda o que afeta a
+cobrança do B/L faturado com a **confirmação de faturamento**, conferida na
+gravação (`override_billing`, migration `381`): POL, POD, peso, CBM, volumes
+e máquinas. Sem ela, o B/L mantém os gravados e os campos voltam em
+`billing_locked`. A prévia (`preview_breakbulk_billing_changes`) mostra, por
+B/L, as faturas e o valor antes → depois, simulados numa subtransação
+desfeita. `bb_cbm`, volumes e máquinas mudados sozinhos (que trocam a
+modalidade, container → misto) entram na correção como os demais campos. Se a
+reemissão não puder sair — B/L misto com terminais em conflito
+(`review:mixed_bl_terminal_conflict`) —, a fatura **não é cancelada**: abre
+Fatura desatualizada com o motivo e a correção fica pendente para "Tentar
+aplicar correção" (`invoice_basis_pending_changes`). **Teste local-pg:**
+`cargaSoltaFaturada.local-pg.test.ts`.
+
 ### Troca de Cliente após emissão (regra de CNPJ)
 
 Quando a reimportação troca o consignatário (o Cliente) de um B/L com cobrança
 de Taxas Locais, a fatura emitida não muda de Cliente nem é transferida com o
 mesmo valor. **Sem pagamento**, ela é cancelada e reemitida para o novo
-Cliente, com o ROE do dia (ADR 0077, item 3). **Com pagamento**, o recebimento
+Cliente, com o câmbio fixado na importação (ADR 0094, A1; antes, o ROE do dia
+da ADR 0077, item 3). **Com pagamento**, o recebimento
 do B/L vira restituição ao Cliente original (o saldo é abatido e o recebido é
 separado para devolução), o alerta Fatura desatualizada abre e a nova cobrança
 só sai depois que a devolução é confirmada; se a emissão para o novo Cliente
@@ -707,7 +731,10 @@ restituído. O CE Mercante não muda.
 
 Fatura consolidada e fatura paga não impedem a troca. Impedem: Invoice de
 Demurrage ou Fatura Avulsa do B/L recebidas sem restituição confirmada ao
-Cliente original, e Cliente de destino não cadastrado quando há cobrança.
+Cliente original, e Cliente de destino não cadastrado quando o B/L está
+faturado (fatura viva, status faturado ou recebível com baixa). O recebível em
+aberto de B/L não faturado não segura a troca: é anulado e nasce de novo com o
+Cliente vinculado depois (ADR 0093, decisão 13; migration `379`).
 **Código:** `relink_bl_customer`, `_apply_paid_basis_change`,
 `_finish_invoice_customer_change` e `_bl_customer_change_cash_blockers`
 (definição vigente na `136`; ADR 0077, "Regra de CNPJ definida em 2026-10-04";

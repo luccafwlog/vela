@@ -16,9 +16,21 @@
   Pix em análise só fecha pela própria baixa; Pix sem TXID e Pix em duplicidade ganham caminho; o
   saldo do Vela separa Faturado em aberto, A faturar e avulsa; B/L cancelado, isento, reativado,
   desvinculado ou com troca de CNPJ deixa de deixar recebível ou fatura para trás; número da fatura
-  no ano de Brasília e sem truncar. Itens à espera de decisão ficam nas
-  [pendências da frente financeira](plans/2026-10-21-pendencias-frente-financeira.md)
-  ([plano arquivado](archive/plans/2026-10-21-correcoes-frente-financeira.md)).
+  no ano de Brasília e sem truncar. Os itens que esperavam decisão foram resolvidos na mesma PR
+  (entrada seguinte) ([plano arquivado](archive/plans/2026-10-21-correcoes-frente-financeira.md)).
+- **Preço fixo na importação e pendências da frente financeira (2026-10-21, PR luccafwlog/vela#1019):**
+  decisões da [ADR 0094](adr/0094-preco-fixo-na-importacao.md), migrations `378` a `383`. A tabela,
+  a Condição do Cliente, a data de referência e o câmbio das Taxas Locais ficam fixos quando o B/L
+  entra no Vela, não mais no CE; ETA alterada e Condição nova não mudam preço de B/L existente, e a
+  refixação só acontece com aceite e motivo. Falha de cálculo (câmbio ausente e afins) recusa a
+  gravação inteira, com o B/L e o que falta, em todos os caminhos, em vez de gravar e abrir Alerta.
+  Só as funções do sistema gravam nos containers, Baplie, veículos, Vazios e Granito (a tela grava
+  local de desova e natureza); B/L cancelado fica somente leitura também nos containers e veículos.
+  A reimportação de carga solta faturada mostra a fatura e o valor antes → depois e só muda peso,
+  CBM, volumes e máquinas com a confirmação; a reemissão impossível não cancela a fatura. O ROE
+  manual da Invoice de Demurrage prevalece sobre a PTAX até o Financeiro tirá-lo, com motivo. A
+  avulsa com linha em dólar mostra o unitário só em US$
+  ([plano arquivado](archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md)).
 
 - **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
   inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR

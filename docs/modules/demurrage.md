@@ -682,6 +682,15 @@ cessa. O câmbio do header é apenas informativo.
   cambial. Aplica o desconto em USD antes da conversão, grava
   `current_roe`/`current_total_brl`/`roe_source`, regenera o `pix_payload` e
   insere a foto em `demurrage_invoice_history`.
+- **ROE manual prevalece** (ADR 0094, B10; migration `382`): a Invoice emitida
+  com o ROE manual do B/L (`roe_manual`) fica fora do recálculo pela PTAX, e o
+  detalhe mostra "ROE manual, fora do recálculo pela PTAX". O Financeiro ou o
+  Administrativo usa **Tirar ROE manual…** no detalhe, com motivo de 10
+  caracteres ou mais (`release_demurrage_invoice_manual_roe`): a Invoice passa
+  ao câmbio de referência do dia, com foto no histórico e o motivo em
+  `audit_logs` (`roe_manual_removed`), e volta ao recálculo diário. É regra da
+  Demurrage: o preço fixo na importação das Taxas Locais não se aplica a ela.
+  **Teste local-pg:** `demurrageRoeManual.local-pg.test.ts`.
 - **Agenda:** a Edge Function agendada
   [`recalc-demurrage-ptax`](../../supabase/functions/recalc-demurrage-ptax/index.ts)
   busca a PTAX (política do `demurrage-manager`: `CotacaoDolarPeriodo`, ~10
