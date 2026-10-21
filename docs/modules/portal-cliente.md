@@ -330,11 +330,27 @@ investigação não tem B/L nem Cliente e abre os Alertas);
 Administrativo. Operações não recebe pendências do Portal, e o Financeiro
 consulta no sistema sem estar na audiência.
 
-- **Pendência geral de prontidão:** Cliente com processo ativo (B/L não
-  cancelado) cujo Portal não está pronto — conta ativa com usuário técnico e
+- **Processo ativo:** o Cliente tem processo ativo enquanto tiver B/L não
+  cancelado e ainda não pago (a faturar ou faturado) ou Invoice de Demurrage
+  emitida ou vencida (`customer_has_active_portal_process`, migration `350`;
+  o B/L cancelado, que o cancelamento marca em `cancelled_at` sem mudar
+  `financial_status`, deixou de contar na migration `347`).
+  Cliente só com B/Ls pagos e sem Demurrage em aberto não gera alerta do
+  Portal; um B/L novo dele volta a gerar (decisão do Lucca, 2026-10-21). A
+  coluna "Processo ativo" do console usa a mesma regra. Os quatro alertas
+  abaixo (pendência geral, convite expirado, falha no envio, e-mail suprimido)
+  abrem e fecham na hora em que a conta, o e-mail de recuperação, a lista de
+  bloqueio, os B/Ls ou as Invoices de Demurrage do Cliente mudam; a rodada de
+  15 minutos do detector confere de novo. Os produtores diretos (a falha do
+  convite gravada pela Edge `portal-invite-send` e o bounce processado por
+  `process_portal_email_event`) também passam pelo mesmo reconciliador, então
+  não abrem alerta para Cliente sem processo ativo.
+- **Pendência geral de prontidão:** Cliente com processo ativo cujo Portal não
+  está pronto — conta ativa com usuário técnico e
   Email de Recuperação válido, sem bounce/complaint e fora da lista de
   bloqueio. Independe do estado de qualquer fatura. O reconciliador
-  (`reconcile_client_portal_alerts`, chamado também após a ativação) abre e
+  (`reconcile_client_portal_alerts_for_customer`, por gatilho, e
+  `reconcile_client_portal_alerts`, no detector e após a ativação) abre e
   fecha a pendência; ela se encerra quando o Portal fica pronto ou o Cliente
   deixa de ter processo ativo. O job `portal-refresh-general-pendencies`, que
   abria em paralelo um alerta antigo sem item (Sem setor) para o mesmo Cliente,
@@ -344,7 +360,10 @@ consulta no sistema sem estar na audiência.
   Portal suspensa.", "Conta ativa sem usuário de acesso ao Portal." ou "Conta
   ativa sem e-mail de recuperação utilizável.".
 - **Convite expirado:** prazo de 48 horas vencido sem ativação; o alerta vai à
-  Documentação e o novo envio é manual (**Reenviar convite**).
+  Documentação, com processo ativo, e o novo envio é manual (**Reenviar
+  convite**). O job `portal-mark-expired-invites` só muda a situação da conta;
+  desde a migration `350` o alerta abre pelo gatilho da conta, sem a linha
+  antiga em `alerts`.
 - **Falha no envio:** após três tentativas transitórias sem sucesso, ou falha
   permanente, a situação vira Falha no envio, abre `portal_falha_envio` e exige
   **Revisar email e reenviar**.

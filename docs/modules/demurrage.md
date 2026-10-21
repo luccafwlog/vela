@@ -632,10 +632,17 @@ a caixa que saiu desse grupo, pelo âncora do B/L ativo que ainda a tem; a
 Invoice que cobra caixa do B/L alterado é achada mesmo ancorada fora do grupo
 de hoje. Caixa que fica sem cobrança sem ser por falta de sobreestadia ou de
 devolução (por exemplo, virou SOC) não passa por sucesso: o retorno traz
-`reissue_complete = false` e `unbilled_containers`, e o Alerta diz quais
-caixas conferir (migration `214`). Com pagamento, fica
+`reissue_complete = false` e `unbilled_containers`, e o Alerta
+`demurrage_invoice_dates_changed` da Invoice cancelada diz quais caixas
+conferir (migration `214`). Ele fecha sozinho quando todas essas caixas entram
+numa Invoice emitida da mesma Viagem e do mesmo Cliente (gatilho na emissão,
+migration `349`). Se a reemissão cobriu todas as caixas, ou não havia o que
+cobrar (B/L ou Viagem cancelados, sem sobreestadia, aguardando devolução), o
+alerta não fica aberto (decisão do dono de 2026-10-21; antes ficava aberto na
+Invoice cancelada sem nada que o fechasse). Com pagamento, fica
 `dunning_suspended_reason` (a Régua não a cobra) e a diferença é tratada à mão pela restituição de Demurrage ou por
-avulsa. Nos dois casos abre o Alerta `demurrage_invoice_dates_changed`. A
+avulsa, e o mesmo Alerta abre. A conferência se registra em "Resolver com
+justificativa", que o tipo aceita desde a migration `349`. A
 Invoice sem pagamento com desconto ou disputa aberta segue o caminho da paga
 (migration `203`; ADR 0079, decisão 1): não é reemitida, fica com
 `dunning_suspended_reason` e o alerta pede cancelar, gerar de novo e refazer o
