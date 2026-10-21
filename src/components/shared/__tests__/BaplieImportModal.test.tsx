@@ -88,7 +88,8 @@ it('caminho feliz: grava uma vez, avisa e fecha; a Viagem escolhida aparece na p
   await importNow()
   await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   expect(mocks.reimport).toHaveBeenCalledTimes(1)
-  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, actorId: 'user-1' }))
+  // Só os PODs marcados e a viagem do arquivo vão ao servidor (migration 388).
+  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, pods: ['BRSSZ'], file: { voyageNumber: '14N', voyageConfirmed: true } }))
 })
 
 it('pela aba da Viagem, a Viagem fica só no topo', async () => {

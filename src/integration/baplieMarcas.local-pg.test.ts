@@ -53,7 +53,17 @@ function stage(rows: Staged[]) {
     is_imo: row.is_imo ?? false, imo_class: row.imo_class ?? null, un_number: row.un_number ?? null,
     is_oog: row.is_oog ?? false, ownership: row.ownership ?? null,
   }))
-  expect(asAdmin(`SELECT public.import_baplie_staging_transactional(${voyageId}, $json$${JSON.stringify(payload)}$json$::jsonb);`).error).toBeNull()
+  // Migration 388: a importação aplica as marcas na mesma transação; esta
+  // suíte confere a aplicação sozinha, então grava o staging como fixture e
+  // chama `apply_baplie_physical_flags_atomic` em seguida.
+  psql(`DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
+    INSERT INTO public.baplie_containers (voyage_id, container_number, size_type, status, weight_kg, pol, pod, final_dest, bl_ref, slot,
+      is_imo, imo_class, un_number, is_oog, ownership, imported_by)
+    SELECT ${voyageId}, r.container_number, r.size_type, r.status, r.weight_kg, r.pol, r.pod, r.final_dest, r.bl_ref, r.slot,
+      r.is_imo, r.imo_class, r.un_number, r.is_oog, r.ownership, '${actorId}'::uuid
+    FROM jsonb_to_recordset($json$${JSON.stringify(payload)}$json$::jsonb) AS r(container_number text, size_type text, status text,
+      weight_kg numeric, pol text, pod text, final_dest text, bl_ref text, slot text, is_imo boolean, imo_class text, un_number text,
+      is_oog boolean, ownership text);`)
   return payload
 }
 

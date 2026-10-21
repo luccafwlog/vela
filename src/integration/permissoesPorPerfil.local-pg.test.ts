@@ -512,7 +512,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   // P13 — Baplie sem container recusado no banco (ADR 0085, D15).
   it.each(ALL_PROFILES)('P13: %s importa Baplie vazio pela API → recusado, Baplie anterior intacto', (profile) => {
     for (const rows of [`'[]'::jsonb`, 'NULL::jsonb', `'{}'::jsonb`]) {
-      const result = runAs(profile, `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, ${rows})`)
+      // Migration 388: o Baplie entra por `import_baplie_file_atomic`.
+      const result = runAs(profile, `SELECT public.import_baplie_file_atomic(${VOYAGE_ID}, ${rows}, ARRAY[]::text[], '{}'::jsonb, '{}'::jsonb)`)
       expect(result.ok).toBe(false)
       expect(result.error).toMatch(/O Baplie não tem nenhum container/)
     }
@@ -521,7 +522,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
 
   it('P13: quem não é usuário interno ativo é recusado por permissão antes da lista (268)', () => {
     // Usuário autenticado sem perfil interno (como o do Portal): 42501, não a mensagem do Baplie.
-    const result = runAsUser('85850000-0000-4000-8000-0000000000ff', `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, '[]'::jsonb)`)
+    const result = runAsUser('85850000-0000-4000-8000-0000000000ff', `SELECT public.import_baplie_file_atomic(${VOYAGE_ID}, '[]'::jsonb, ARRAY[]::text[], '{}'::jsonb, '{}'::jsonb)`)
     expect(result.ok).toBe(false)
     expect(result.error).toMatch(/sem permissao para importar Baplie/)
     expect(psql(`SELECT string_agg(container_number, ',') FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe('PCCU8500001')

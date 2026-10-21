@@ -129,7 +129,12 @@ export function BaplieImportModal({
       const result = await reimportBaplie({
         voyageId: Number(voyageId),
         containers: filteredContainers,
-        actorId,
+        // Só os portos marcados são substituídos; os outros da Viagem ficam (migration 388).
+        pods: pods.filter((pod) => !excludedPods.has(pod)),
+        // O servidor confere a viagem do TDT. Sem TDT, importar com a Viagem
+        // escolhida é a afirmação do operador (a confirmação explícita na
+        // prévia é da PR luccafwlog/vela#1020).
+        file: { voyageNumber: parsed?.voyage_number ?? null, voyageConfirmed: true },
         confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
       })
       if (result.status === 'cancelled') return

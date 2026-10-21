@@ -9,7 +9,8 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   getBaplieManifestForVoyage: vi.fn(),
   replaceVaziosFromBaplie: vi.fn(),
-  applyFlags: vi.fn(),
+  // Retorno de `import_baplie_file_atomic` (migration 388): staging, marcas e vazios numa transação.
+  imported: null as null | Record<string, unknown>,
 }))
 
 vi.mock('../supabase', () => ({
@@ -32,7 +33,6 @@ vi.mock('../supabase', () => ({
     rpc: mocks.rpc,
   },
 }))
-vi.mock('../baplieReconciliation', () => ({ applyBapliePhysicalFlagsDetailed: mocks.applyFlags }))
 vi.mock('../vaziosImportacaoImport', () => ({
   getBaplieManifestForVoyage: mocks.getBaplieManifestForVoyage,
   replaceVaziosFromBaplie: mocks.replaceVaziosFromBaplie,
@@ -54,15 +54,22 @@ const box = (container_number: string, over: Partial<BaplieContainer> = {}): Bap
   final_dest: null, bl_ref: null, slot: '010203', is_imo: false, imo_class: null, un_number: null, is_oog: false, ...over,
 })
 
+const noFlags = { applied: 0, applied_to: [], cleared: [], divergent_manual: [], invoice_reissues: [] }
+
+/** Linhas do staging gravado, com o id que dá a versão conferida na gravação. */
+const staged = (...rows: BaplieContainer[]) => rows.map((row, index) => ({ ...row, id: 100 + index }))
+
 beforeEach(() => {
   mocks.existing = []
   mocks.voyageContainers = []
   mocks.containerFilters = []
-  // Staging não devolve dados; a prévia das marcas (migration 182) vem vazia.
-  mocks.rpc.mockReset().mockResolvedValue({ data: { apply: [], clear: [], divergent_manual: [] }, error: null })
+  // A prévia das marcas (migration 182) vem vazia; a gravação devolve o resumo da 388.
+  mocks.imported = null
+  mocks.rpc.mockReset().mockImplementation(async (name: string, args: { p_rows: unknown[] }) => (name === 'import_baplie_file_atomic'
+    ? { data: mocks.imported ?? { staged: args.p_rows.length, flags: noFlags, vazios: null }, error: null }
+    : { data: { apply: [], clear: [], divergent_manual: [] }, error: null }))
   mocks.getBaplieManifestForVoyage.mockReset().mockResolvedValue({ id: 'vazios-1', total_containers: 2, imported_at: '2026-09-30' })
   mocks.replaceVaziosFromBaplie.mockReset().mockResolvedValue({ manifestId: 'vazios-2', total: 2 })
-  mocks.applyFlags.mockReset().mockResolvedValue({ applied: 0, applied_to: [], cleared: [], divergent_manual: [], invoice_reissues: [] })
 })
 
 describe('diffBaplieStaging', () => {
@@ -88,75 +95,86 @@ describe('diffBaplieStaging', () => {
 
 describe('reimportBaplie', () => {
   const confirmReplacement = vi.fn<(plan: unknown) => Promise<boolean>>()
-  const run = (containers: BaplieContainer[]) =>
-    reimportBaplie({ voyageId: 22, containers, actorId: 'user-1', confirmReplacement })
+  const file = { voyageNumber: '12N', voyageConfirmed: true }
+  const run = (containers: BaplieContainer[], pods = ['BRVIX']) =>
+    reimportBaplie({ voyageId: 22, containers, pods, file, confirmReplacement })
+  const importCalls = () => mocks.rpc.mock.calls.filter(([name]) => name === 'import_baplie_file_atomic')
 
   beforeEach(() => { confirmReplacement.mockReset() })
 
-  it('sem Baplie anterior importa sem perguntar', async () => {
+  it('sem Baplie anterior importa sem perguntar, numa chamada só, com PODs, versão e viagem do arquivo', async () => {
     await expect(run([box('AAAU1111111')])).resolves.toMatchObject({ status: 'imported', staged: 1, vaziosReplaced: false, flagsError: null, vaziosError: null })
-    expect(mocks.applyFlags).toHaveBeenCalledWith(22, 'user-1')
     expect(confirmReplacement).not.toHaveBeenCalled()
-  })
-
-  it('arquivo sem diferença é aceito sem perguntar e mantém os vazios', async () => {
-    mocks.existing = [box('AAAU1111111'), box('BBBU2222222')]
-    await expect(run([box('BBBU2222222'), box('AAAU1111111')])).resolves.toMatchObject({ status: 'unchanged', staged: 2, vaziosReplaced: false, flagsError: null, vaziosError: null })
-    expect(confirmReplacement).not.toHaveBeenCalled()
+    expect(importCalls()).toEqual([['import_baplie_file_atomic', expect.objectContaining({
+      p_voyage_id: 22, p_pods: ['BRVIX'], p_expected: { count: 0, max_id: null },
+      p_file: { voyage_number: '12N', voyage_confirmed: true },
+    })]])
     expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
   })
 
+  it('arquivo sem diferença é aceito sem perguntar; a versão lida vai junto', async () => {
+    mocks.existing = staged(box('AAAU1111111'), box('BBBU2222222'))
+    await expect(run([box('BBBU2222222'), box('AAAU1111111')])).resolves.toMatchObject({ status: 'unchanged', staged: 2, vaziosReplaced: false })
+    expect(confirmReplacement).not.toHaveBeenCalled()
+    expect(importCalls()[0][1]).toMatchObject({ p_expected: { count: 2, max_id: 101 } })
+  })
+
   it('com diferença pergunta; recusar não grava nada', async () => {
-    mocks.existing = [box('AAAU1111111')]
+    mocks.existing = staged(box('AAAU1111111'))
     confirmReplacement.mockResolvedValue(false)
     await expect(run([box('AAAU1111111'), box('BBBU2222222')])).resolves.toMatchObject({ status: 'cancelled' })
     expect(confirmReplacement).toHaveBeenCalledWith(expect.objectContaining({ existing: 1, hasVaziosManifest: true }))
     // Só a prévia das marcas (leitura) rodou; nada foi gravado.
-    expect(mocks.rpc).not.toHaveBeenCalledWith('import_baplie_staging_transactional', expect.anything())
-    expect(mocks.applyFlags).not.toHaveBeenCalled()
+    expect(importCalls()).toEqual([])
+  })
+
+  it('confirmar com vazios diferentes substitui o Baplie; o recadastro dos vazios vem da mesma gravação', async () => {
+    mocks.existing = staged(box('AAAU1111111'))
+    mocks.imported = { staged: 2, flags: noFlags, vazios: { manifest_id: 'vazios-2', total: 2 } }
+    confirmReplacement.mockResolvedValue(true)
+    await expect(run([box('AAAU1111111'), box('BBBU2222222')])).resolves.toMatchObject({ status: 'replaced', staged: 2, vaziosReplaced: true, vaziosRemoved: false, flagsError: null, vaziosError: null })
     expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
   })
 
-  it('confirmar com vazios diferentes substitui o Baplie e recadastra os vazios', async () => {
-    mocks.existing = [box('AAAU1111111')]
+  it('a recusa do servidor (prévia velha, regra da Viagem ou falha nas marcas) volta como erro: nada foi gravado', async () => {
+    mocks.rpc.mockImplementation(async (name: string) => (name === 'import_baplie_file_atomic'
+      ? { data: null, error: { code: '22023', message: 'O Baplie desta viagem mudou depois da prévia (outra importação foi gravada).' } }
+      : { data: { apply: [], clear: [], divergent_manual: [] }, error: null }))
+    await expect(run([box('AAAU1111111', { status: 'full', is_imo: true })])).rejects.toMatchObject({ code: '22023' })
+  })
+
+  // ADR 0095, decisão 11: só os PODs marcados são substituídos.
+  it('PODs desmarcados ficam fora da diferença, da prévia das marcas e da gravação', async () => {
+    mocks.existing = staged(box('AAAU1111111'), box('SSZU1111111', { pod: 'BRSSZ', status: 'full' }), box('SSZU2222222', { pod: 'BRSSZ' }))
     confirmReplacement.mockResolvedValue(true)
-    await expect(run([box('AAAU1111111'), box('BBBU2222222')])).resolves.toMatchObject({ status: 'replaced', staged: 2, vaziosReplaced: true, flagsError: null, vaziosError: null })
-    expect(mocks.rpc).toHaveBeenCalledWith('import_baplie_staging_transactional', expect.objectContaining({ p_voyage_id: 22 }))
-    expect(mocks.replaceVaziosFromBaplie).toHaveBeenCalledWith({ voyageId: 22, uploadedBy: 'user-1' })
+    await run([box('AAAU1111111'), box('BBBU2222222')])
+    const plan = confirmReplacement.mock.calls[0][0] as Parameters<typeof baplieReplacementConfirmOptions>[0]
+    expect(plan).toMatchObject({ existing: 1, pods: ['BRVIX'], diff: { added: 1, removed: 0, changed: 0 } })
+    // A Viagem continua com o vazio de Santos.
+    expect(plan.incomingEmpties).toBe(3)
+    expect(baplieReplacementConfirmOptions(plan, 2).message)
+      .toBe('Esta viagem já tem 1 container(s) do Baplie em BRVIX. O arquivo novo, com 2 container(s), substitui esses portos; os demais portos da viagem ficam como estão.')
+    expect(mocks.rpc).toHaveBeenCalledWith('preview_baplie_physical_flags', expect.objectContaining({ p_pods: ['BRVIX'] }))
+    expect(importCalls()[0][1]).toMatchObject({ p_pods: ['BRVIX'], p_expected: { count: 3, max_id: 102 } })
   })
 
-  it('falha ao aplicar IMO/OOG não desfaz o Baplie gravado e volta como flagsError', async () => {
-    mocks.applyFlags.mockRejectedValue({ message: 'statement timeout' })
-    await expect(run([box('AAAU1111111', { status: 'full', is_imo: true })])).resolves.toEqual({
-      status: 'imported', staged: 1, vaziosReplaced: false, flagsError: 'statement timeout', flags: null, vaziosError: null,
-    })
-    expect(mocks.rpc).toHaveBeenCalledWith('import_baplie_staging_transactional', expect.objectContaining({ p_voyage_id: 22 }))
-  })
-
-  it('IMO/OOG são aplicados antes dos vazios e as duas falhas voltam no resultado, sem desfazer o Baplie', async () => {
-    mocks.existing = [box('AAAU1111111')]
+  it('container que o arquivo traz em outro POD sai do POD antigo e aparece como alterado', async () => {
+    mocks.existing = staged(box('AAAU1111111', { pod: 'BRSSZ' }))
     confirmReplacement.mockResolvedValue(true)
-    mocks.applyFlags.mockRejectedValue(new Error('flags falharam'))
-    mocks.replaceVaziosFromBaplie.mockRejectedValue(new Error('vazios falharam'))
-    await expect(run([box('AAAU1111111'), box('BBBU2222222')])).resolves.toEqual({
-      status: 'replaced', staged: 2, vaziosReplaced: false, vaziosRemoved: false, flagsError: 'flags falharam', flags: null, vaziosError: 'vazios falharam',
-    })
-    expect(mocks.applyFlags.mock.invocationCallOrder[0]).toBeLessThan(mocks.replaceVaziosFromBaplie.mock.invocationCallOrder[0])
+    await run([box('AAAU1111111')])
+    const plan = confirmReplacement.mock.calls[0][0] as Parameters<typeof baplieReplacementConfirmOptions>[0]
+    expect(plan.diff.items).toEqual(['Alterado: AAAU1111111 (vazio, CNTAC → BRSSZ, 40HC ⇒ vazio, CNTAC → BRVIX, 40HC)'])
   })
 
-  it('a nova tentativa do mesmo arquivo não recadastra os vazios; retryBaplieVazios recadastra', async () => {
-    // Depois da falha, o staging já é o do arquivo: reimportar não vê diferença nos vazios.
-    mocks.existing = [box('AAAU1111111'), box('BBBU2222222')]
-    await expect(run([box('AAAU1111111'), box('BBBU2222222')])).resolves.toMatchObject({ status: 'unchanged', vaziosReplaced: false, vaziosError: null })
-    expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
+  it('retryBaplieVazios recadastra os vazios do Baplie gravado (pendência anterior à 388)', async () => {
     await retryBaplieVazios({ voyageId: 22, actorId: 'user-1' })
     expect(mocks.replaceVaziosFromBaplie).toHaveBeenCalledWith({ voyageId: 22, uploadedBy: 'user-1' })
   })
 
   // Migration 336: um Baplie sempre traz os vazios; sem nenhum, os do Baplie anterior saem.
   it('Baplie novo sem vazios avisa antes de confirmar e remove os vazios do Baplie anterior', async () => {
-    mocks.existing = [box('AAAU1111111'), box('BBBU2222222')]
-    mocks.replaceVaziosFromBaplie.mockResolvedValue({ manifestId: null, total: 0 })
+    mocks.existing = staged(box('AAAU1111111'), box('BBBU2222222'))
+    mocks.imported = { staged: 1, flags: noFlags, vazios: { manifest_id: null, total: 0 } }
     confirmReplacement.mockResolvedValue(true)
     const result = await run([box('AAAU1111111', { status: 'full' })])
     expect(confirmReplacement).toHaveBeenCalledWith(expect.objectContaining({ vaziosManifestTotal: 2, incomingEmpties: 0 }))
@@ -173,12 +191,11 @@ describe('reimportBaplie', () => {
     await expect(retryBaplieVazios({ voyageId: 22, actorId: 'user-1' })).resolves.toBe(0)
   })
 
-  it('sem manifesto de vazios anterior não cria vazios na reimportação', async () => {
-    mocks.existing = [box('AAAU1111111')]
+  it('sem manifesto de vazios anterior o servidor não cria vazios na reimportação', async () => {
+    mocks.existing = staged(box('AAAU1111111'))
     mocks.getBaplieManifestForVoyage.mockResolvedValue(null)
     confirmReplacement.mockResolvedValue(true)
-    await expect(run([box('BBBU2222222')])).resolves.toMatchObject({ status: 'replaced', vaziosReplaced: false })
-    expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
+    await expect(run([box('BBBU2222222')])).resolves.toMatchObject({ status: 'replaced', vaziosReplaced: false, vaziosRemoved: false })
   })
 })
 
@@ -308,7 +325,7 @@ describe('revisão da etapa 9 (E9)', () => {
 
   // E9-08: só `reissued` é fatura reemitida; pendências e falhas aparecem à parte.
   it('o resumo conta como reemitido só o status reissued e informa pendentes e falhas', async () => {
-    mocks.applyFlags.mockResolvedValue({
+    mocks.imported = { staged: 1, vazios: null, flags: {
       applied: 1,
       applied_to: [{ container: 'AAAU1111111', bl_id: 'BL-1' }],
       cleared: [],
@@ -320,8 +337,11 @@ describe('revisão da etapa 9 (E9)', () => {
         { bl_id: 'BL-4', status: 'corrected' },
         { status: 'error', bl_ids: ['BL-5', 'BL-6'], message: 'deadlock' },
       ],
+    } }
+    const result = await reimportBaplie({
+      voyageId: 22, containers: [box('AAAU1111111', { status: 'full' })], pods: ['BRVIX'],
+      file: { voyageNumber: '12N', voyageConfirmed: true }, confirmReplacement: vi.fn(),
     })
-    const result = await reimportBaplie({ voyageId: 22, containers: [box('AAAU1111111', { status: 'full' })], actorId: 'user-1', confirmReplacement: vi.fn() })
     expect(result).toMatchObject({ status: 'imported', flags: { reissues: 1, corrected: 1, reissuesPending: 2, reissueErrors: 2 } })
     const toast = baplieImportToast(result as Exclude<typeof result, { status: 'cancelled' }>)
     expect(toast).toContain('fatura reemitida pela mudança de base em 1 B/L(s)')

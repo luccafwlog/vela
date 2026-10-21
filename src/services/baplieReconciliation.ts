@@ -662,6 +662,11 @@ export async function applyBapliePhysicalFlagsDetailed(voyageId: number, actorId
     p_changed_by: actorId,
   })
   if (error) throw error
+  return toBaplieFlagsApplyResult(data)
+}
+
+/** Retorno de `apply_baplie_physical_flags_atomic`, também devolvido pela importação do Baplie (migration 388). */
+export function toBaplieFlagsApplyResult(data: unknown): BaplieFlagsApplyResult {
   const result = (data ?? {}) as Partial<BaplieFlagsApplyResult>
   return {
     applied: Number.isFinite(Number(result.applied)) ? Number(result.applied) : 0,
