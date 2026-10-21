@@ -54,17 +54,21 @@ CREATE TABLE public.bl_charge_calculation_basis (
 );
 COMMENT ON TABLE public.bl_price_freezes IS 'Preço do dia do CE (ADR 0093, decisão 3). Gravado só pelo servidor.';
 COMMENT ON TABLE public.bl_charge_calculation_basis IS 'Base do B/L no último cálculo de Taxas Locais; a emissão só reaproveita o cálculo com a base atual.';
-DO $$
-DECLARE t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY['bl_price_freezes', 'bl_price_freeze_items', 'bl_charge_calculation_basis'] LOOP
-    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
-    EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC, anon, authenticated', t);
-    EXECUTE format('GRANT SELECT ON public.%I TO authenticated', t);
-    EXECUTE format('GRANT ALL ON public.%I TO service_role', t);
-    EXECUTE format('CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING ((SELECT public.is_active_read_user()))', t || '_select_read', t);
-  END LOOP;
-END $$;
+ALTER TABLE public.bl_price_freezes ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.bl_price_freezes FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.bl_price_freezes TO authenticated;
+GRANT ALL ON public.bl_price_freezes TO service_role;
+CREATE POLICY bl_price_freezes_select_read ON public.bl_price_freezes FOR SELECT TO authenticated USING ((SELECT public.is_active_read_user()));
+ALTER TABLE public.bl_price_freeze_items ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.bl_price_freeze_items FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.bl_price_freeze_items TO authenticated;
+GRANT ALL ON public.bl_price_freeze_items TO service_role;
+CREATE POLICY bl_price_freeze_items_select_read ON public.bl_price_freeze_items FOR SELECT TO authenticated USING ((SELECT public.is_active_read_user()));
+ALTER TABLE public.bl_charge_calculation_basis ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.bl_charge_calculation_basis FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.bl_charge_calculation_basis TO authenticated;
+GRANT ALL ON public.bl_charge_calculation_basis TO service_role;
+CREATE POLICY bl_charge_calculation_basis_select_read ON public.bl_charge_calculation_basis FOR SELECT TO authenticated USING ((SELECT public.is_active_read_user()));
 
 -- Valor da Condição de Cliente do item na data.
 CREATE OR REPLACE FUNCTION public._customer_override_value(p_customer_id bigint, p_item_id bigint, p_date date)

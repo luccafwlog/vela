@@ -88,12 +88,22 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao registrar recebimento Itaú.");
             return data;
           },
+          async failed(pix, message, permanent) {
+            const { data, error } = await admin.rpc("itau_pix_receipt_failed", {
+              p_end_to_end_id: pix.endToEndId ?? null, p_txid: pix.txid, p_raw: pix.raw, p_error: message, p_permanent: permanent,
+            });
+            if (error) throw new Error("Falha ao registrar recebimento Itaú com erro.");
+            return data;
+          },
           async saveCheckpoint(until) {
             const { error } = await admin.rpc("itau_pix_checkpoint", { p_polled_until: until });
             if (error) throw new Error("Falha ao salvar o checkpoint Itaú.");
           },
         }).catch((error) => ({ error: error instanceof Error ? error.message : "Falha na consulta de recebimentos" }));
-        return Response.json({ maintenance, charges, receipts });
+        // Falha da fila ou da consulta responde fora de 2xx: o Alerta rotina_http_falhou
+        // (migration 310) só enxerga o status (F-09).
+        const failed = "error" in charges || "error" in receipts;
+        return Response.json({ maintenance, charges, receipts }, { status: failed ? 500 : 200 });
       }
       return Response.json(await runItauPixAction(client, input));
     } catch (error) {

@@ -22,6 +22,7 @@ export type ActiveAlertType =
   | 'billing_charge_table_missing'
   | 'import_effect_blocked'
   | 'import_effects_queue_stalled'
+  | 'itau_pix_consulta_parada'
   | 'demurrage_invoice_dates_changed'
   | 'cobranca_demurrage_recusada'
   | 'ce_trocado_com_desbloqueio'
@@ -82,6 +83,7 @@ export const TYPE_LABELS: Record<string, string> = {
   billing_charge_table_missing: 'Tabela de cobrança faltando',
   import_effect_blocked: 'Efeito de importação bloqueado',
   import_effects_queue_stalled: 'Fila de efeitos de importação parada',
+  itau_pix_consulta_parada: 'Consulta de Pix do Itaú parada',
   demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
   cobranca_demurrage_recusada: 'Cobrança de Demurrage recusada',
   ce_trocado_com_desbloqueio: 'CE trocado depois do Desbloqueio conferido',

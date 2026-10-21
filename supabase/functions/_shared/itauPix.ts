@@ -242,7 +242,18 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
         const body = await call('GET', `/pix?${query}`) as { pix?: ItauPix[]; parametros?: { paginacao?: { quantidadeDePaginas?: number; quantidadeTotalDeItens?: number } } }
         // Produção (07/10/2026): janela vazia retorna 100 páginas, mas total zero.
         if (body?.pix?.length === 0 && body.parametros?.paginacao?.quantidadeTotalDeItens === 0) return all
-        all.push(...(body?.pix ?? []).map(p => ({ ...p, horario: itauTimeToUtc(p.horario) })))
+        // Só o Pix do Vela tem o horário convertido: horário inesperado de terceiro não
+        // derruba a consulta, e o do Vela segue cru para a validação, que o manda à análise.
+        all.push(...(body?.pix ?? []).map(p => {
+          if (!isVelaTxid(p.txid)) return p
+          try {
+            return { ...p, horario: itauTimeToUtc(p.horario) }
+          } catch (error) {
+            // Horário no futuro é o banco que mudou o fuso: vale para todos, então para.
+            if (error instanceof ItauPixError && error.message.includes('no futuro')) throw error
+            return { ...p, horario: '' }
+          }
+        }))
         const pages = body?.parametros?.paginacao?.quantidadeDePaginas ?? 1
         if (page + 1 >= pages) return all
       }
@@ -411,6 +422,9 @@ export async function processItauPixQueue(
 export type ReceiptSink = {
   checkpoint(): Promise<string | null>
   settle(pix: { endToEndId: string; txid: string; valor: string; horario: string }): Promise<'settled' | 'review'>
+  // Recebimento que não pôde ser baixado (F-09, migration 358): o banco conta as
+  // tentativas; 'review' manda para análise e a consulta segue, 'retry' para sem avançar.
+  failed(pix: { endToEndId?: string; txid: string; raw: unknown }, error: string, permanent: boolean): Promise<'review' | 'retry'>
   saveCheckpoint(until: string): Promise<void>
 }
 
@@ -425,29 +439,53 @@ function endToEndTime(id: string): number | null {
 
 const OVERLAP_MS = 10 * 60 * 1000 // Pix disponibilizado com atraso entra na janela seguinte.
 const MAX_WINDOW_MS = 6 * 60 * 60 * 1000 // Atraso grande é recuperado em várias execuções.
+const MIN_WINDOW_MS = 5 * 60 * 1000 // Janela com páginas demais é dividida até 5 min.
 const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000
 
 export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSink, now = new Date()) {
   const last = await sink.checkpoint()
   const start = (last ? Date.parse(last) : now.getTime() - FIRST_LOOKBACK_MS) - OVERLAP_MS
-  const end = Math.min(now.getTime(), start + MAX_WINDOW_MS)
-  const pix = await client.listPix(new Date(start).toISOString(), new Date(end).toISOString())
+  let end = Math.min(now.getTime(), start + MAX_WINDOW_MS)
+  let pix: ItauPix[]
+  for (;;) {
+    try {
+      pix = await client.listPix(new Date(start).toISOString(), new Date(end).toISOString())
+      break
+    } catch (error) {
+      // Mais de 50 páginas: a janela encolhe em vez de travar o checkpoint.
+      if (!(error instanceof ItauPixError) || error.status !== 413 || end - start <= MIN_WINDOW_MS) throw error
+      end = start + Math.max(MIN_WINDOW_MS, Math.floor((end - start) / 2))
+    }
+  }
   const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, until: new Date(end).toISOString() }
   for (const p of pix) {
     // Pix do sistema de terceiro na mesma chave: ignorado e não persistido.
     if (!isVelaTxid(p.txid)) continue
     // Cobrança de teste paga (Fase 1): não é fatura, então não vira baixa nem Alerta.
     if (isVelaTestTxid(p.txid)) { summary.test++; continue }
+    summary.vela++
     const initiatedAt = endToEndTime(p.endToEndId ?? '')
     if (initiatedAt === null || !MONEY.test(p.valor ?? '') || !Number.isFinite(Date.parse(p.horario))) {
-      // Sem avançar o checkpoint: a próxima execução tenta de novo e o erro fica visível.
-      throw new ItauPixError('Recebimento do Itaú em formato inesperado.', 502, { txid: p.txid })
+      // Registro ruim vai para análise e a consulta avança.
+      await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw: p }, 'Recebimento do Itaú em formato inesperado.', true)
+      summary.review++
+      continue
     }
     if (Math.abs(Date.parse(p.horario) - initiatedAt) > END_TO_END_TOLERANCE_MS) {
+      // Desvio de fuso vale para todos os recebimentos: para sem avançar, e o
+      // Alerta de consulta parada (migration 358) avisa.
       throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502, { txid: p.txid })
     }
-    summary.vela++
-    summary[await sink.settle({ endToEndId: p.endToEndId, txid: p.txid, valor: p.valor, horario: p.horario })]++
+    let outcome: 'settled' | 'review'
+    try {
+      outcome = await sink.settle({ endToEndId: p.endToEndId, txid: p.txid, valor: p.valor, horario: p.horario })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao registrar recebimento Itaú.'
+      // Erro passageiro: até a terceira vez a consulta para sem avançar; depois, análise.
+      if (await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw: p }, message, false) === 'retry') throw error
+      outcome = 'review'
+    }
+    summary[outcome]++
   }
   await sink.saveCheckpoint(summary.until)
   return summary

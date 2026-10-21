@@ -248,6 +248,39 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(psql(`SELECT count(*) FROM public.invoice_refunds WHERE invoice_id = ${id}`)).toBe('0')
   })
 
+  it('F-09: falha passageira repetida vai para análise na terceira; formato inválido, na primeira', () => {
+    const failed = (e2e: string, permanent: boolean) =>
+      psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_receipt_failed('${e2e}', 'VELA358', '{}'::jsonb, 'lock simulado', ${permanent})`)
+    expect(failed('E358RETRY', false)).toBe('retry')
+    expect(failed('E358RETRY', false)).toBe('retry')
+    expect(failed('E358RETRY', false)).toBe('review')
+    expect(failed('E358RETRY', false)).toBe('review')
+    expect(failed('E358BAD', true)).toBe('review')
+    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
+      AND metadata->>'end_to_end_id' IN ('E358RETRY', 'E358BAD')`)).toBe('2')
+    psql(`SET session_replication_role = replica;
+      DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' IN ('E358RETRY', 'E358BAD');
+      DELETE FROM public.itau_pix_receipt_failures WHERE failure_key IN ('E358RETRY', 'E358BAD');
+      SET session_replication_role = origin;`)
+  })
+
+  it('F-09: checkpoint parado há mais de 15 minutos abre o Alerta; quando anda, fecha', () => {
+    const before = psql(`SELECT coalesce(itau_pix_polled_until::text, '') FROM public.app_settings WHERE id = 1`)
+    const active = () => psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'itau_pix_consulta_parada' AND status = 'active'`)
+    try {
+      setProvider('itau')
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = now() - interval '20 minutes' WHERE id = 1;
+        SELECT public.reconcile_itau_pix_checkpoint_alert()`)
+      expect(active()).toBe('1')
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = now() WHERE id = 1;
+        SELECT public.reconcile_itau_pix_checkpoint_alert()`)
+      expect(active()).toBe('0')
+    } finally {
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = ${before ? `'${before}'` : 'NULL'} WHERE id = 1`)
+      setProvider('static')
+    }
+  })
+
   it('erro passageiro do banco não manda o Pix para análise: a próxima consulta baixa', () => {
     setProvider('itau')
     psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
