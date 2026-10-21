@@ -1,11 +1,12 @@
 # 0040 — A vigência da Tabela de Taxas Locais é informativa, não trava do cálculo
 
-> **Situação atual (2026-10-13).** Decisão vigente e implementada: a tabela é resolvida por escopo e `active`, a vigência só desempata e avisa na tela, e a ETA só ancora a Condição de Cliente (definição atual de `resolve_local_charge_table_id` na migration `002`).
+> **Situação atual (2026-10-21).** Pela ADR 0094: A ETA não ancora mais nada: pela [ADR 0094](./0094-preco-fixo-na-importacao.md) (A1), a Condição de Cliente é a vigente no dia da importação (primeiro cálculo), e a ETA alterada não muda o preço. Implementado na migration `378` ([plano arquivado](../archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md)). Onde a faixa abaixo diz que "a ETA só ancora a Condição de Cliente", leia "o dia da importação".
+> **Situação atual (2026-10-21).** A [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md) (decisão 1) supersede a decisão 2 em parte: o B/L fica vinculado à tabela ativa no primeiro cálculo, e "a ativa de vigência mais recente vence" passa a valer só para essa escolha; desativar a tabela não desvincula os B/Ls. Implementado na PR luccafwlog/vela#1019 (migration `354`; [plano arquivado](../archive/plans/2026-10-21-correcoes-frente-financeira.md), lote 0). O restante desta faixa vale desde 2026-10-13: Decisão vigente e implementada: a tabela é resolvida por escopo e `active`, a vigência só desempata e avisa na tela, e a ETA só ancora a Condição de Cliente (definição atual de `resolve_local_charge_table_id` na migration `002`).
 > Estendida pela [ADR 0069](./0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md) (função única que devolve duas tabelas ao B/L misto); a [ADR 0073](./0073-cadastro-usado-so-se-desativa.md) acrescenta que tabela usada só se desativa, pelo Administrativo.
 > As migrations `019`, `092`, `123`, `266`, `267`, `270` e `275` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
 > Regra vigente: [Taxas Locais](../modules/taxas-locais.md).
 
-Status: estendida — 2026-08-07
+Status: supersedida parcialmente — 2026-08-07; decisão 2 restrita ao primeiro cálculo pela ADR 0093 em 2026-10-21; a ETA deixa de ancorar a Condição pela ADR 0094 em 2026-10-21
 
 ## Contexto
 

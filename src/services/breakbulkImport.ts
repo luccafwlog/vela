@@ -1,6 +1,7 @@
 import { isBlFinanciallyLocked } from '../lib/chargeStatus'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { extractNcmCodes } from '../lib/ncm'
+import { formatBRL } from '../lib/utils'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, type CustomerMaps } from './customerReconciliation'
 import { calculateLocalChargesBatch } from './charges/chargeOperationsService'
 import { supabase } from './supabase'
@@ -12,6 +13,7 @@ import {
   parseBreakbulkManifestFile,
   type BreakbulkNumberFormat,
   type ParseBreakbulkOptions,
+  type BilledChangeBilling,
   type BreakbulkReimportCheck as ParsedBreakbulkReimportCheck,
   type ParsedBreakbulkManifest,
 } from './breakbulkManifestParser'
@@ -50,7 +52,7 @@ type BilledRouteChange = BreakbulkReimportCheck['billedRouteChanges'][number]
 
 const customerChangeKey = (change: CustomerChange) => [change.blId, change.currentCustomer, change.fileCustomer].join('\u0000')
 const billedRouteChangeKey = (change: BilledRouteChange) =>
-  [change.blId, change.fields.join(','), change.currentRoute, change.fileRoute].join('\u0000')
+  [change.blId, change.fields.join(','), change.currentRoute, change.fileRoute, change.cargoChange ?? ''].join('\u0000')
 
 function covers<T>(approved: T[], shown: T[], key: (item: T) => string) {
   const keys = new Set(approved.map(key))
@@ -178,11 +180,10 @@ export async function importBreakbulkManifest({
     throw new Error('A importação BB não retornou um lote válido.')
   }
 
-  // A RPC BB nao calcula taxas locais (a de container calcula); sem isto o B/L
-  // ficava `not_calculated` para sempre. B/L novo calcula; B/L alterado
-  // recalcula, porque peso e rota mudam a base (a RPC de cálculo recusa B/L
-  // faturado, cuja fatura segue a ADR 0077 pela própria importação). Falha de
-  // calculo nao desfaz o import: o B/L segue para a fila de revisao.
+  // A RPC calcula o B/L novo e o alterado na própria gravação e recusa o
+  // arquivo quando o cálculo falha (ADR 0094, B3; migration 379). O lote abaixo
+  // repete o cálculo do lado da tela, como antes; o que falhar aqui aparece no
+  // resultado, sem desfazer a gravação já conferida.
   const inserted = raw.inserted_bl_ids ?? blRows.map((bl) => bl.id)
   const updated = raw.updated_bl_ids ?? []
   const calculationErrors: Array<{ blId: string; message: string }> = []
@@ -348,6 +349,11 @@ type ExistingBreakbulkBl = {
   financial_status: string | null
   cancelled_at: string | null
   manifest_customer_cnpj_cpf: string | null
+  bb_weight_ton: number | null
+  bb_cbm: number | null
+  bb_packages_qty: number | null
+  bb_packages_total: number | null
+  bb_machine_qty: number | null
   customer: { name: string | null; cnpj_cpf: string | null } | null
   voyage: { voyage_number: string | null; vessel: { name: string | null } | null } | null
 }
@@ -368,7 +374,7 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: Breakbu
   for (let i = 0; i < ids.length; i += CHECK_CHUNK) {
     const { data, error } = await supabase
       .from('bls')
-      .select('id, voyage_id, customer_id, pol, pod, financial_status, cancelled_at, manifest_customer_cnpj_cpf, customer:customers!bls_customer_id_fkey(name, cnpj_cpf), voyage:voyages(voyage_number, vessel:vessels(name))')
+      .select('id, voyage_id, customer_id, pol, pod, financial_status, cancelled_at, manifest_customer_cnpj_cpf, bb_weight_ton, bb_cbm, bb_packages_qty, bb_packages_total, bb_machine_qty, customer:customers!bls_customer_id_fkey(name, cnpj_cpf), voyage:voyages(voyage_number, vessel:vessels(name))')
       .in('id', ids.slice(i, i + CHECK_CHUNK))
     if (error) throw error
     found.push(...((data ?? []) as unknown as ExistingBreakbulkBl[]))
@@ -435,12 +441,16 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: Breakbu
       row.pol && row.pol !== bl.pol ? 'POL' : null,
       podChanges && !cod.has(bl.id) ? 'POD' : null,
     ].filter((field): field is string => Boolean(field))
-    if (fields.length) {
+    // ADR 0094, B5: peso, CBM, volumes e máquinas também pedem a confirmação
+    // no B/L faturado (a gravação mantém os gravados sem ela, migration 381).
+    const cargo = breakbulkCargoChanges(bl, row)
+    if (fields.length || cargo.length) {
       routeChanges.push({
         blId: bl.id,
-        fields,
+        fields: [...fields, ...new Set(cargo.map((change) => change.field))],
         currentRoute: route(bl.pol, bl.pod),
         fileRoute: route(row.pol || bl.pol, podChanges && !cod.has(bl.id) ? row.pod : bl.pod),
+        ...(cargo.length ? { cargoChange: cargo.map((change) => change.text).join('; ') } : {}),
         billedByStatus: isBlFinanciallyLocked(bl.financial_status),
       })
     }
@@ -450,10 +460,63 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: Breakbu
   const withLiveInvoice = await fetchBlsWithLiveInvoice(routeChanges.filter((change) => !change.billedByStatus).map((change) => change.blId))
   for (const change of routeChanges) {
     if (change.billedByStatus || withLiveInvoice.has(change.blId)) {
-      check.billedRouteChanges.push({ blId: change.blId, fields: change.fields, currentRoute: change.currentRoute, fileRoute: change.fileRoute })
+      check.billedRouteChanges.push({
+        blId: change.blId, fields: change.fields, currentRoute: change.currentRoute, fileRoute: change.fileRoute,
+        ...(change.cargoChange ? { cargoChange: change.cargoChange } : {}),
+      })
     }
   }
+  if (check.billedRouteChanges.length) {
+    const billing = await previewBreakbulkBilling(voyageId, check.billedRouteChanges.map((change) => rows.get(change.blId)!))
+    check.billedRouteChanges = check.billedRouteChanges.map((change) =>
+      billing.has(change.blId) ? { ...change, billing: billing.get(change.blId) } : change)
+  }
   return check
+}
+
+const CARGO_FIELDS = [
+  { key: 'bb_weight_ton', field: 'peso', label: 'peso (t)' },
+  { key: 'bb_cbm', field: 'cbm', label: 'CBM' },
+  { key: 'bb_packages_qty', field: 'volumes', label: 'volumes' },
+  { key: 'bb_packages_total', field: 'volumes', label: 'total de volumes' },
+  { key: 'bb_machine_qty', field: 'maquinas', label: 'máquinas' },
+] as const
+
+/** "INV-2026-0001: R$ 1.000,00 → R$ 1.200,00", com o bloqueio da reemissão quando houver. */
+export function describeBilledChange(billing: BilledChangeBilling) {
+  const invoices = billing.invoices.length ? `${billing.invoices.join(', ')}: ` : ''
+  const before = billing.beforeBrl == null ? '—' : formatBRL(billing.beforeBrl)
+  if (billing.status === 'blocked') return `${invoices}reemissão bloqueada (${billing.reason ?? 'pendência de revisão'}); a fatura não será cancelada`
+  if (billing.status !== 'ok' || billing.afterBrl == null) return `${invoices}${before} → valor a revisar${billing.reason ? ` (${billing.reason})` : ''}`
+  return billing.afterBrl === billing.beforeBrl ? `${invoices}${before}, sem mudança de valor` : `${invoices}${before} → ${formatBRL(billing.afterBrl)}`
+}
+
+/** Campos de carga solta que o arquivo muda (o vazio no arquivo mantém o gravado). */
+export function breakbulkCargoChanges(
+  current: Pick<ExistingBreakbulkBl, 'bb_weight_ton' | 'bb_cbm' | 'bb_packages_qty' | 'bb_packages_total' | 'bb_machine_qty'>,
+  file: Partial<Record<(typeof CARGO_FIELDS)[number]['key'], number | null | undefined>>,
+) {
+  const format = (value: number | null | undefined) => (value == null ? '—' : String(value).replace('.', ','))
+  return CARGO_FIELDS.flatMap(({ key, field, label }) => {
+    const next = file[key]
+    const before = current[key] == null ? null : Number(current[key])
+    if (next == null || Number(next) === before) return []
+    return [{ field, text: `${label} ${format(before)} → ${format(next)}` }]
+  })
+}
+
+/** Faturas e valor antes → depois do B/L faturado, simulados no servidor (migration 381). */
+async function previewBreakbulkBilling(voyageId: number, rows: unknown[]) {
+  const { data, error } = await supabase.rpc('preview_breakbulk_billing_changes' as never, { p_voyage_id: voyageId, p_bls: rows } as never)
+  if (error) throw error
+  const entries = (Array.isArray(data) ? data : []) as Array<{ bl_id: string; invoices: string[] | null; before_brl: number | null; after_brl: number | null; status: BilledChangeBilling['status']; reason: string | null }>
+  return new Map(entries.map((entry) => [entry.bl_id, {
+    invoices: entry.invoices ?? [],
+    beforeBrl: entry.before_brl == null ? null : Number(entry.before_brl),
+    afterBrl: entry.after_brl == null ? null : Number(entry.after_brl),
+    status: entry.status,
+    reason: entry.reason,
+  } satisfies BilledChangeBilling]))
 }
 
 /** Situação de taxas locais que a gravação trata como fatura viva (`_live_local_invoice_ids_for_bl`). */

@@ -2,6 +2,10 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -94,7 +98,7 @@ describeLocal('S04 — datas de container como unidade atômica', () => {
 
   it('desfaz todas as linhas quando a unidade contém container fora do B/L', () => {
     expectSqlFailure(`
-      SELECT public.apply_container_dates_atomic(
+      RESET ROLE; SELECT public.apply_container_dates_atomic(
         '${requestId}'::uuid, '${blId}',
         '[
           {"container_number":"${containerNumbers[0]}","discharge_date":"2026-01-10","return_date":"2026-01-12"},
@@ -111,7 +115,7 @@ describeLocal('S04 — datas de container como unidade atômica', () => {
 
   it('aplica a unidade válida, cria uma pendência e rejeita ator divergente', () => {
     const result = JSON.parse(localPsql(`
-      SELECT public.apply_container_dates_atomic(
+      RESET ROLE; SELECT public.apply_container_dates_atomic(
         '${requestId}'::uuid, '${blId}',
         '[
           {"container_number":"${containerNumbers[0]}","discharge_date":"2026-01-10","return_date":"2026-01-12"},
@@ -126,7 +130,7 @@ describeLocal('S04 — datas de container como unidade atômica', () => {
     expect(localPsql(`SELECT count(*) FROM public.bl_containers WHERE bl_id = '${blId}' AND return_date IS NOT NULL;`)).toBe('2')
 
     expectSqlFailure(`
-      SELECT public.apply_container_dates_atomic(
+      RESET ROLE; SELECT public.apply_container_dates_atomic(
         gen_random_uuid(), '${blId}',
         '[{"container_number":"${containerNumbers[0]}","discharge_date":"2026-01-11","return_date":"2026-01-14"}]'::jsonb,
         '${otherActorId}'::uuid

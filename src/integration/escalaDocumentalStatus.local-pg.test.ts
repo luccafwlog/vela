@@ -50,19 +50,26 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
         END; $$;
 
         INSERT INTO public.bls(id, voyage_id, pol, pod) VALUES ('DOC134A', 13400001, 'CNTAC', 'BRVIX');
+        -- Migration 380: a carga entra pelas funções do sistema (dono), não pelo usuário.
+        RESET ROLE;
         INSERT INTO public.bl_containers(bl_id, container_number) VALUES ('DOC134A', 'ABCD1234567');
+        SET LOCAL ROLE authenticated;
         SET CONSTRAINTS ALL IMMEDIATE;
         SELECT pg_temp.check_status('BRVIX', 'waiting');
         SET CONSTRAINTS ALL DEFERRED;
+        RESET ROLE;
         INSERT INTO public.baplie_containers(voyage_id, container_number, status, pol, pod) VALUES
           (13400001, 'ABCD1234567', 'full', 'CNTAI', 'BRVIT'),
           (13400001, 'ABCD1234568', 'full', 'CNTAI', 'BRVIT'),
           (13400001, 'ABCD1234569', 'empty', 'CNTAI', 'BRVIX'),
           (13400001, 'ABCD1234570', 'full', 'CNTAI', 'BRSSZ');
+        SET LOCAL ROLE authenticated;
         SET CONSTRAINTS ALL IMMEDIATE;
         SELECT pg_temp.check_status('BRVIX', 'waiting');
         SET CONSTRAINTS ALL DEFERRED;
+        RESET ROLE;
         INSERT INTO public.bl_containers(bl_id, container_number) VALUES ('DOC134A', 'ABCD1234568');
+        SET LOCAL ROLE authenticated;
         SET CONSTRAINTS ALL IMMEDIATE;
         SELECT pg_temp.check_status('BRVIX', 'received');
         SELECT pg_temp.check_status('BRSSZ', 'waiting');
@@ -128,10 +135,12 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
         SELECT set_config('vela.documental_justification', 'Recebimento manual inicial de Granito', true);
         INSERT INTO public.voyage_export_schedules(voyage_id, pol, has_granite, has_empty, ce_status)
         VALUES (13400001, 'BRSSA', true, true, 'received');
+        RESET ROLE;
         INSERT INTO public.granite_manifests(id, voyage_id, vessel_voyage, loading_port)
         VALUES ('13400000-0000-4000-8000-000000000001', 13400001, '134TEST', 'BRSSA');
         INSERT INTO public.granite_bls(manifest_id, bl_number, loading_port)
         VALUES ('13400000-0000-4000-8000-000000000001', 'GR134', 'BRSSA');
+        SET LOCAL ROLE authenticated;
         DO $$ BEGIN
           IF (SELECT ce_status FROM public.voyage_export_schedules WHERE voyage_id = 13400001 AND pol = 'BRSSA') <> 'received' THEN
             RAISE EXCEPTION 'Granito perdeu recebimento manual inicial';
@@ -139,13 +148,17 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
         END; $$;
         SELECT set_config('vela.documental_justification', 'BLs de Granito conferidos', true);
         UPDATE public.voyage_export_schedules SET ce_status = 'received' WHERE voyage_id = 13400001 AND pol = 'BRSSA';
+        RESET ROLE;
         UPDATE public.granite_bls SET bl_number = 'GR134-CONFERIDO' WHERE bl_number = 'GR134';
+        SET LOCAL ROLE authenticated;
         DO $$ BEGIN
           IF (SELECT ce_status FROM public.voyage_export_schedules WHERE voyage_id = 13400001 AND pol = 'BRSSA') <> 'received' THEN
             RAISE EXCEPTION 'Granito perdeu recebimento manual sem mudança documental';
           END IF;
         END; $$;
+        RESET ROLE;
         UPDATE public.granite_bls SET ce_mercante = '134003' WHERE bl_number = 'GR134-CONFERIDO';
+        SET LOCAL ROLE authenticated;
         DO $$ BEGIN
           IF (SELECT ce_status FROM public.voyage_export_schedules WHERE voyage_id = 13400001 AND pol = 'BRSSA') <> 'approved' THEN
             RAISE EXCEPTION 'Granito não aprovou com todos os CEs';
@@ -216,10 +229,12 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
         SET CONSTRAINTS ALL DEFERRED;
         INSERT INTO public.bls(id, voyage_id, pol, pod, ce_mercante)
         VALUES ('DOC134LOTE', 13400001, 'CNTAC', 'BRPNG', '134005');
+        RESET ROLE;
         INSERT INTO public.bl_containers(bl_id, container_number)
         SELECT 'DOC134LOTE', 'ABCD' || (9000000 + n)::text FROM generate_series(1, 1000) n;
         INSERT INTO public.baplie_containers(voyage_id, container_number, status, pol, pod)
         SELECT 13400001, 'ABCD' || (9000000 + n)::text, 'full', 'CNTAI', 'BRPNG' FROM generate_series(1, 1000) n;
+        SET LOCAL ROLE authenticated;
         RESET ROLE;
         DO $$ BEGIN
           IF (SELECT count(*) FROM public.voyage_documental_pending WHERE voyage_id = 13400001) <> 1 THEN

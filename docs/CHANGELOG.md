@@ -6,6 +6,49 @@
 
 ## 2026-10
 
+- **Correções da frente financeira (2026-10-21, PR luccafwlog/vela#1019):** decisões da
+  [ADR 0093](adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md), migrations `354` a `377`.
+  O B/L fica vinculado à tabela de taxas do primeiro cálculo, e editar item ou Condição é correção do
+  Administrativo; o preço do dia do CE fica congelado e a base da emissão é a atual; consolidada e
+  individuais ficam coerentes a cada baixa (parcial reprojeta a outra, a individual paga reemite a
+  consolidada, a substituída aparece no Portal); fatura cancelada solta o B/L e a nova só sai pelo
+  Emitir; Viagem com fatura viva não se cancela; a baixa automática Itaú não para em silêncio e o
+  Pix em análise só fecha pela própria baixa; Pix sem TXID e Pix em duplicidade ganham caminho; o
+  saldo do Vela separa Faturado em aberto, A faturar e avulsa; B/L cancelado, isento, reativado,
+  desvinculado ou com troca de CNPJ deixa de deixar recebível ou fatura para trás; número da fatura
+  no ano de Brasília e sem truncar. Os itens que esperavam decisão foram resolvidos na mesma PR
+  (entrada seguinte) ([plano arquivado](archive/plans/2026-10-21-correcoes-frente-financeira.md)).
+- **Preço fixo na importação e pendências da frente financeira (2026-10-21, PR luccafwlog/vela#1019):**
+  decisões da [ADR 0094](adr/0094-preco-fixo-na-importacao.md), migrations `378` a `383`. A tabela,
+  a Condição do Cliente, a data de referência e o câmbio das Taxas Locais ficam fixos quando o B/L
+  entra no Vela, não mais no CE; ETA alterada e Condição nova não mudam preço de B/L existente, e a
+  refixação só acontece com aceite e motivo. Falha de cálculo (câmbio ausente e afins) recusa a
+  gravação inteira, com o B/L e o que falta, em todos os caminhos, em vez de gravar e abrir Alerta.
+  Só as funções do sistema gravam nos containers, Baplie, veículos, Vazios e Granito (a tela grava
+  local de desova e natureza); B/L cancelado fica somente leitura também nos containers e veículos.
+  A reimportação de carga solta faturada mostra a fatura e o valor antes → depois e só muda peso,
+  CBM, volumes e máquinas com a confirmação; a reemissão impossível não cancela a fatura. O ROE
+  manual da Invoice de Demurrage prevalece sobre a PTAX até o Financeiro tirá-lo, com motivo. A
+  avulsa com linha em dólar mostra o unitário só em US$
+  ([plano arquivado](archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md)).
+- **Revisão final da frente financeira (2026-10-21, PR luccafwlog/vela#1019):** migrations `384` e
+  `385`, pelos achados da [revisão independente](archive/audits/2026-10-21-revisao-final-pr-1019.md).
+  O COD de B/L faturado converte o dólar pelo câmbio fixado; consolidada cancelada solta o B/L que ela
+  faturava sem individual, e a nova cobrança sai só pelo Emitir; cancelar a baixa de consolidada
+  substituída a mantém obsoleta; Pix já baixado pelo extrato não volta como duplicidade com restituição
+  falsa; Pix sem TXID fecha pela baixa manual com o endToEndId; Invoice de Demurrage com ROE manual não
+  dispara o alerta diário da PTAX e não fica sem QR; falha de cálculo recusa também o CE da ficha em
+  B/L com Cliente, a reativação e a aprovação da conciliação; o lançamento manual usa a tabela
+  vinculada e o preço fixado; corrigir uma Condição alcança só quem a usou; renomear item não
+  reprecifica; refixar o preço é só do sistema até existir o aceite; "Mover veículos" não tira chassi
+  de B/L cancelado; funções internas sem guarda saíram da API.
+- **Decisões da revisão final (2026-10-21, PR luccafwlog/vela#1019):** migration `386`
+  ([ADR 0094](adr/0094-preco-fixo-na-importacao.md), seção D). A correção que não consegue reemitir
+  (B/L misto, valor a revisar, Liberação vencida ou Portal que deixou de estar pronto) não cancela
+  mais a fatura: ela continua valendo com Fatura desatualizada; o Manifesto BB só acrescenta carga
+  solta a B/L de container faturado com a confirmação de faturamento; o Pix que chega antes de o Itaú
+  remover a cobrança de fatura sem nada aberto vira restituição pendente.
+
 - **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
   inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR
   impresso o cabeçalho (Armador, Porto, Navio / Viagem, Terminal) se repete em cada página, as

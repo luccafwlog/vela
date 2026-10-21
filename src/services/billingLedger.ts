@@ -92,7 +92,7 @@ export async function registerLedgerInvoicePayment(input: {
   method?: string
   paidAt?: string | null
   pixTxid?: string | null
-  source?: 'manual' | 'pix_extract'
+  source?: 'manual' | 'pix_extract' | 'itau_pix'
   notes?: string | null
   actorId?: string | null
   /** Stable key reused by the UI when a network retry follows a timeout. */

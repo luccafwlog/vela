@@ -197,6 +197,12 @@ migration `279`; **Teste:** `ceUnlock.local-pg.test.ts`). Correções para menor
 reduzem o valor exigível: a liquidação cobre o valor original menos a correção,
 com saldo zero e evidência real no ledger. Fatura consolidada parcialmente paga
 libera só o B/L cujo recebível foi liquidado, nunca pelo status da fatura.
+Correção a maior ainda não faturada — **Fatura desatualizada** ativa com
+cotação maior que o cobrado, ou COD a maior pendente — deixa o B/L sem
+liquidação com o motivo **Diferença de valor a faturar**; o COD a maior pago
+pela fatura sucessora volta a liberar (migration `369`;
+[ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
+decisão 20; **Teste local-pg:** `correcaoCodDesbloqueioDemurrage.local-pg.test.ts`).
 
 No Portal, B/L com Taxas Locais não pagas e sem fatura visível ao Cliente
 (emitida, não cancelada nem obsoleta, individual ou consolidada) aparece com

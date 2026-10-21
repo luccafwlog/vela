@@ -30,9 +30,9 @@ export function StaleInvoiceResolutionPanel({ invoiceId, hasPayment }: { invoice
       {hasPayment ? 'Diferença a tratar' : 'Aguardando reemissão'}
     </LeadValue>
     <div className="app-invoice-detail__form">
-      <div className="app-invoice-detail__form-wide"><Field label="Como a diferença foi tratada" required hint="Informe a avulsa emitida ou como a diferença foi tratada."><Textarea value={reason} onChange={(event) => setReason(event.target.value)} /></Field></div>
+      <div className="app-invoice-detail__form-wide"><Field label="Como a diferença foi tratada" required hint="Informe a avulsa emitida ou por que a diferença não é cobrada (mínimo de 15 caracteres)."><Textarea value={reason} onChange={(event) => setReason(event.target.value)} /></Field></div>
       {error ? <p role="alert" className="app-invoice-detail__alert app-invoice-detail__form-wide">{error}</p> : null}
-      <div className="app-invoice-detail__form-actions"><Button variant="secondary" disabled={reason.trim().length < 3} loading={mutation.isPending} onClick={() => void resolve()}>Resolver com justificativa</Button></div>
+      <div className="app-invoice-detail__form-actions"><Button variant="secondary" disabled={reason.trim().length < 15} loading={mutation.isPending} onClick={() => void resolve()}>Resolver com justificativa</Button></div>
     </div>
   </Block>
 }

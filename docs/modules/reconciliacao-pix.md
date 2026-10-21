@@ -88,9 +88,12 @@ Abaixo vêm três blocos com tabela limpa, cada um com a contagem e uma frase na
 faixa; a situação vai em texto, âmbar só no que pede ação:
 
 - **Pix recebidos sem baixa** (`itau_pix_receipts` em análise): Recebido em,
-  Valor, Identificador do Pix e Motivo. Quando a fatura da cobrança fica paga
-  (baixa pelo extrato ou pagamento verificado), o Pix sai da lista e o Alerta
-  fecha sozinho. Nos outros casos (fatura cancelada a restituir, identificador
+  Valor, Identificador do Pix e Motivo. O Pix sai da lista e o Alerta fecha
+  sozinho só quando a baixa é **daquele Pix**: a referência bancária da baixa é
+  o `endToEndId` dele, ou o extrato conciliou o TXID dele (migration `360`;
+  [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
+  decisão 17). Outra baixa que quite a fatura (TED distinta, por exemplo) deixa
+  o Pix em análise, para restituir ou decidir. Nos outros casos (fatura cancelada a restituir, identificador
   sem fatura), **Marcar como tratado** abre o motivo na linha de baixo (mínimo
   de 5 caracteres, como a `itau_pix_mark_receipt_handled`), com a recusa do
   banco junto do campo; Voltar devolve o foco ao botão.
@@ -350,9 +353,12 @@ justificativa, na tela e no banco.
 
 - **Fatura local** (`reverse_invoice_payment`, definição vigente na migration
   `136`): remove o pagamento e restaura saldos, links e estados
-  `covered`/`obsolete`. O excedente automático ainda pendente que nasceu dessa
-  baixa é cancelado junto; restituição confirmada, de correção ou de COD fica
-  protegida. O banco recusa quando, sem essa baixa, as restituições não
+  `covered`/`obsolete`. A restituição pendente que nasceu dessa baixa é
+  cancelada e continua no histórico (migration `376`; antes era apagada junto
+  com a baixa); excedente dessa baixa já devolvido impede o cancelamento;
+  restituição de correção ou de COD fica protegida. Baixa automática Itaú
+  cancelada devolve o Pix a **Pix recebidos sem baixa**, com o Alerta
+  `pix_unreconciled` (migration `376`). O banco recusa quando, sem essa baixa, as restituições não
   canceladas passariam do valor recebido ("Esta baixa financia restituição…",
   `guard_payment_reversal_after_correction`, migration `130`). Na avulsa, saldo
   e status são recalculados pelo total emitido menos as baixas restantes.
@@ -405,7 +411,32 @@ recebido), não a `pix_transaction` das exceções do extrato; desde a revisão 
 alertas de 2026-10-21, o painel de alertas financeiros de `/taxas-locais` lê as
 duas (`FINANCIAL_ALERT_EVENTS`, `listFinancialAlerts`), e a fila mostra o
 registro como **Pix recebido**. Antes, esse Alerta só aparecia em `/alertas`. Erro passageiro do banco não manda o Pix para análise: a
-consulta seguinte tenta de novo. Detalhes no
+consulta seguinte tenta de novo; na terceira falha seguida do mesmo Pix, ele
+vai para análise (`itau_pix_receipt_failures`, Alerta `pix_unreconciled`) e a
+consulta avança. Pix em formato inesperado vai para análise na primeira vez
+(migration `358`). O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
+`endToEndId` já é referência de uma baixa, ou cujo TXID já conciliou a avulsa
+pelo extrato, vai para análise; o extrato que baixa avulsa cobrada pelo QR Itaú
+marca a cobrança como concluída (migration `357`). O Pix do QR de uma
+consolidada substituída quita a sucessora aberta e o excedente vira restituição
+pendente (migration `361`). Pix em duplicidade em fatura de Taxas Locais já
+paga, coberta ou cancelada vai para análise com a restituição pendente
+registrada (origem `pix_duplicate`, ADR 0093, decisão 18) e sai da análise
+quando a devolução é confirmada; o mesmo Pix que a fatura já recebeu (extrato
+ou baixa manual com o endToEndId na referência) e volta pela consulta não é
+duplicidade: fica como baixado, sem restituição, e fecha a falha de consulta
+do mesmo endToEndId (migration `385`). O Pix que chega na janela entre o cancelamento no Vela e a remoção da cobrança no Itaú (a fila pede a remoção a cada minuto) para consolidada substituída sem sucessora aberta ou avulsa em cancelamento com devolução integral segue a mesma regra: restituição pendente ligada à fatura de origem (ADR 0094, D5; migration `386`). Pix sem TXID nenhum na chave do Vela é
+gravado como **Pix recebido sem baixa** com o Alerta `pix_unreconciled`
+(`itau_pix_record_untracked`, decisão 16) e fecha quando a pessoa dá a baixa
+manual na fatura certa com o endToEndId na referência bancária (migration
+`385`; antes só fechava o Pix ligado a uma cobrança, e só quando a referência
+era alterada depois da baixa); o de TXID de outro padrão (sistema
+de terceiro na mesma chave) continua ignorado (migration `375`; confirmado pela [ADR 0094](../adr/0094-preco-fixo-na-importacao.md), B11). A baixa
+automática Itaú de fatura local tem origem própria em `ledger_settlements`
+(`itau_pix`), que as guardas do TXID tratam como a do extrato (migration
+`376`). Com Pix em análise ligado a Invoice de Demurrage,
+nenhuma cobrança nova é criada e a Régua pausa ("Pix em análise", migration
+`370`). Detalhes no
 [plano](../archive/plans/2026-10-06-integracao-itau-pix.md).
 
 **Consulta e horários (Edge `itau-pix`).** O job `itau-pix-queue` chama a
@@ -417,7 +448,13 @@ Brasília com `Z` indevido; o cliente envia a janela em Brasília e grava tudo e
 UTC. Se o banco passar a mandar UTC verdadeiro, travas de horário param a
 consulta sem baixa nem avanço do checkpoint; na aba Pendências isso aparece,
 depois de 15 min, como o aviso **A consulta de recebimentos do Itaú não está
-avançando**. Sintomas, travas, correção, segredos e a versão publicada da
+avançando**, e o job SQL `itau-pix-checkpoint-health` (a cada 5 min) abre o
+Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro), que
+fecha quando a consulta anda (migration `358`). Período com mais de 50 páginas
+encolhe a janela até 5 min em vez de travar; horário inesperado de Pix de
+terceiro não derruba a consulta; a função responde fora de 2xx quando a fila ou
+a consulta falha, o que alimenta `rotina_http_falhou`. Os jobs `itau-pix-queue`
+e `recalc-demurrage-ptax` são criados pela migration `358`. Sintomas, travas, correção, segredos e a versão publicada da
 função estão no
 [manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos).
 Um merge não publica a função: o disparo `process_charges` da migration `219`

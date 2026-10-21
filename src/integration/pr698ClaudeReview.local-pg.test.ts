@@ -202,19 +202,19 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
     psql(`DELETE FROM public.bl_containers WHERE bl_id = '${blLoosePure}'; DELETE FROM public.bls WHERE id = '${blLoosePure}';`)
   })
 
-  it('permite adicionar BB a B/L pago, reabre revisão e bloqueia remoção posterior', () => {
+  it('BB em B/L pago só entra com a confirmação de faturamento; com ela reabre a revisão e bloqueia remoção posterior (ADR 0094, D2)', () => {
     psql(`
       INSERT INTO public.bls (id, voyage_id, pod, cargo_mode, financial_status, review_status)
       VALUES ('${blLocked}', ${voyageId}, 'BRSSZ', 'container', 'paid', 'reviewed');
       INSERT INTO public.bl_containers (bl_id, container_number)
       VALUES ('${blLocked}', 'MSCU6980602');
     `)
-    expect(() => asAuthenticated(`
+    const importBb = (override: boolean) => asAuthenticated(`
       SELECT public.import_breakbulk_manifest_transactional(
         'pr698-claude.xlsx', ${voyageId}, '${actorId}', 1,
         jsonb_build_array(jsonb_build_object(
           'id', '${blLocked}', 'financial_status', 'paid', 'review_status', 'reviewed',
-          'bb_weight_ton', '1', 'bb_packages_qty', '1'
+          'bb_weight_ton', '1', 'bb_packages_qty', '1', 'override_billing', ${override}
         )),
         jsonb_build_array(jsonb_build_object(
           'bl_id', '${blLocked}', 'item_description', 'BB importado',
@@ -222,7 +222,11 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
         )),
         '[]'::jsonb
       );
-    `)).not.toThrow()
+    `)
+    // Sem a confirmação, a carga solta não entra no B/L faturado.
+    expect(() => importBb(false)).not.toThrow()
+    expect(psql(`SELECT cargo_mode || '|' || (SELECT count(*) FROM public.bl_breakbulk_items WHERE bl_id = '${blLocked}') FROM public.bls WHERE id = '${blLocked}';`)).toBe('container|0')
+    expect(() => importBb(true)).not.toThrow()
     expect(psql(`SELECT cargo_mode || '|' || financial_status || '|' || review_status FROM public.bls WHERE id = '${blLocked}';`)).toBe('misto|paid|pending_review')
     psql(`UPDATE public.bls SET bb_weight_ton = NULL, bb_packages_qty = NULL WHERE id = '${blLocked}';`)
     expect(() => psql(`DELETE FROM public.bl_breakbulk_items WHERE bl_id = '${blLocked}';`)).toThrow(/ja foi faturado|P0003/i)

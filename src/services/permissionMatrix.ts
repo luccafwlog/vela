@@ -53,8 +53,8 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 15,
-  financeiro: 3,
+  administrativo: 16,
+  financeiro: 4,
   operacoes: 3,
   documentacao: 37,
   equipamentos: 2,
@@ -138,7 +138,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     id: 'alertas-do-setor', group: 'alertas', action: 'Recebe os alertas do próprio setor',
     can: {
       administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)}; também os críticos de setor sem ninguém ativo`,
-      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, Restituição, Fatura desatualizada)`,
+      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada)`,
       operacoes: alertTypes(ALERT_TYPE_COUNTS.operacoes),
       documentacao: alertTypes(ALERT_TYPE_COUNTS.documentacao),
       equipamentos: alertTypes(ALERT_TYPE_COUNTS.equipamentos),

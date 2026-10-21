@@ -301,9 +301,11 @@ describeLocal('128 — correção do B/L sempre automática', () => {
     const result = psql(`SELECT public._run_import_effect_vehicle_followup('${bl.vehicle}', '${actorId}'::uuid)`)
     // A mudança de base (veículo e desova) já reemitiu a consolidada no
     // commit (ADR 0077); o efeito encerra a viva, sem reemissão.
-    const [cancelledId] = JSON.parse(result).cancelled_invoice_ids as number[]
-    expect(cancelledId).toBeGreaterThanOrEqual(consolidated)
-    expect(psql(`SELECT invoice_type || '|' || status || '|' || (reissue_closed_at IS NOT NULL) FROM public.invoices WHERE id = ${cancelledId}`)).toBe('consolidated|cancelled|true')
+    // A mudança de base (veículo e desova) já cancelou a consolidada para
+    // reemitir no commit (ADR 0077); como o B/L ficou isento, a reemissão é
+    // encerrada ali (migration 365) e o efeito não tem fatura viva a cancelar.
+    expect(JSON.parse(result).cancelled_invoice_ids).toEqual([])
+    expect(psql(`SELECT invoice_type || '|' || status || '|' || (reissue_closed_at IS NOT NULL) FROM public.invoices WHERE id = ${consolidated}`)).toBe('consolidated|cancelled|true')
     expect(psql(`SELECT count(*) FROM public.invoices WHERE invoice_type = 'consolidated' AND id >= ${consolidated} AND status NOT IN ('cancelled', 'obsolete')`)).toBe('0')
   })
 

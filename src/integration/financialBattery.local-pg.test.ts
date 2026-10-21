@@ -269,7 +269,7 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
         current_total_brl, roe_source, pix_payload, dispute_open, status, paid_at
       ) VALUES
         (${demurrageInvoiceIds[0]}, 'S15-DEM-OPEN', '${demurrageBlIds[0]}', ${customerId}, '2026-09-01', '2026-09-10', '2026-09-01',
-          '2026-09-01', '2026-09-01', 100, 5.5, true, 5.5, 550, 'manual', public.build_transshipping_pix_payload(550, 'S15-DEM-OPEN'), false, 'issued', NULL),
+          '2026-09-01', '2026-09-01', 100, NULL, false, 5.5, 550, 'bcb_live', public.build_transshipping_pix_payload(550, 'S15-DEM-OPEN'), false, 'issued', NULL),
         (${demurrageInvoiceIds[1]}, 'S15-DEM-PAID', '${demurrageBlIds[1]}', ${customerId}, '2026-09-01', '2026-09-10', '2026-09-01',
           '2026-09-01', '2026-09-01', 100, 5.5, true, 5.5, 550, 'manual', public.build_transshipping_pix_payload(550, 'S15-DEM-PAID'), false, 'paid', '2026-09-05');
       INSERT INTO public.demurrage_invoice_items (

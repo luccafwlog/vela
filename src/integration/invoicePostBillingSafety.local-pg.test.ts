@@ -135,6 +135,15 @@ function activeAlerts(type: string, invoiceId: number) {
     WHERE ai.item_type = '${type}' AND ai.status = 'active' AND a.entity_type = 'invoice' AND a.entity_id = '${invoiceId}'`)
 }
 
+// Tabela do destino do COD: o B/L muda de POD e se vincula à tabela ativa do
+// escopo novo (ADR 0093, decisão 1). R$ 500 por container, sem Drop Off.
+const destinationTableId = chargeTableId + 50
+const destinationTableSql = `INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
+    VALUES (${destinationTableId}, 'Tabela destino 839', 'R839DST', CURRENT_DATE - 30, true, 'container') ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.charge_table_items (id, charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency, applies_to_soc)
+    VALUES (${destinationTableId + 1}, ${destinationTableId}, 'Taxa por container 839 destino', 'container', 500, 500, 'container_distinct_voyage', 'base', 'any', 'BRL', true)
+    ON CONFLICT (id) DO NOTHING`
+
 function cleanup() {
   const bls = `ARRAY['${allBls.join("','")}']::text[]`
   const invoices = `(SELECT id FROM public.invoices WHERE customer_id IN (${customerId}, ${otherCustomerId}))`
@@ -170,13 +179,13 @@ function cleanup() {
     DELETE FROM public.bl_receivables WHERE bl_id = ANY(${bls});
     DELETE FROM public.import_pending_effects WHERE entity_id = ANY(${bls});
     DELETE FROM public.charge_calculations WHERE bl_id = ANY(${bls});
-    DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId};
+    DELETE FROM public.pricing_rule_versions WHERE charge_table_id IN (${chargeTableId}, ${chargeTableId + 50});
     DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
     DELETE FROM public.vehicles WHERE bl_id = ANY(${bls});
     DELETE FROM public.bl_containers WHERE bl_id = ANY(${bls});
     DELETE FROM public.bls WHERE id = ANY(${bls});
-    DELETE FROM public.charge_table_items WHERE charge_table_id = ${chargeTableId};
-    DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
+    DELETE FROM public.charge_table_items WHERE charge_table_id IN (${chargeTableId}, ${chargeTableId + 50});
+    DELETE FROM public.charge_tables WHERE id IN (${chargeTableId}, ${chargeTableId + 50});
     DELETE FROM public.voyages WHERE id IN (${voyageId}, ${voyageId + 100});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
@@ -507,9 +516,9 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     adminJson(`SELECT public.register_ledger_invoice_payment(${inv},${paid})`);
     psql(`INSERT INTO public.voyage_omissions(id,voyage_id,omitted_pod,discharge_pod,omitted_by) VALUES (99283988,${voyageId},'R839POD','R839DST','${actorId}')`);
     psql(`INSERT INTO public.bl_transshipments(bl_id,omission_id,disposition) VALUES ('${bl.vehicleB}',99283988,'transshipment')`);
-    // A mesma tabela passa a resolver o destino novo por R$ 500.
+    // A tabela do destino novo cobra R$ 500 (sem Drop Off); o COD vincula o B/L a ela.
     if (failFirst) psql(`ALTER TABLE public.invoice_refunds ADD CONSTRAINT r839_fail_cod CHECK (amount_brl <> 100) NOT VALID`);
-    const result=asAdmin(`UPDATE public.charge_tables SET pod='R839DST' WHERE id=${chargeTableId}; UPDATE public.charge_table_items SET value_brl=0,unit_value_brl=0 WHERE id=${dropOffItem}; SELECT public.set_bl_cod('${bl.vehicleB}',99283988,'Destino corrigido por COD','${actorId}'::uuid)`);
+    const result=asAdmin(`${destinationTableSql}; SELECT public.set_bl_cod('${bl.vehicleB}',99283988,'Destino corrigido por COD','${actorId}'::uuid)`);
     expect(result.status,result.stderr).toBe(0);
 
     const cod=Number(psql(`SELECT id FROM public.cod_adjustments WHERE bl_id='${bl.vehicleB}'`));
@@ -533,7 +542,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     const inv=issueByCe(bl.vehicleB,'839000000000008');
     psql(`INSERT INTO public.voyage_omissions(id,voyage_id,omitted_pod,discharge_pod,omitted_by) VALUES (99283988,${voyageId},'R839POD','R839DST','${actorId}')`);
     psql(`INSERT INTO public.bl_transshipments(bl_id,omission_id,disposition) VALUES ('${bl.vehicleB}',99283988,'transshipment')`);
-    const result=asAdmin(`UPDATE public.charge_tables SET pod='R839DST' WHERE id=${chargeTableId}; UPDATE public.charge_table_items SET value_brl=0,unit_value_brl=0 WHERE id=${dropOffItem}; SELECT public.set_bl_cod('${bl.vehicleB}',99283988,'Destino corrigido por COD','${actorId}'::uuid)`);
+    const result=asAdmin(`${destinationTableSql}; SELECT public.set_bl_cod('${bl.vehicleB}',99283988,'Destino corrigido por COD','${actorId}'::uuid)`);
     expect(result.status,result.stderr).toBe(0);
     expect(psql(`SELECT status FROM public.invoices WHERE id=${inv}`)).toBe('cancelled');
     const successor=psql(`SELECT ib.invoice_id FROM public.invoice_bls ib JOIN public.invoices i ON i.id=ib.invoice_id
@@ -589,11 +598,16 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   it('sem correção pendente, "Tentar aplicar correção" não toca na fatura emitida (275)', () => {
     const invoice = issueByCe(bl.full, '839000000000031')
     expect(psql(`SELECT count(*) FROM public.invoice_basis_pending_changes WHERE bl_id='${bl.full}'`)).toBe('0')
-    // A tabela muda depois da emissão; sem pendência registrada, a RPC não reprecifica.
-    psql(`UPDATE public.charge_table_items SET value_brl = value_brl + 50, unit_value_brl = unit_value_brl + 50 WHERE charge_table_id=${chargeTableId}`)
+    // Tabela nova (reajuste) depois da emissão: vale para B/L novo; sem
+    // pendência registrada, a RPC não reprecifica (ADR 0093, decisão 1).
+    psql(`INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
+        VALUES (${chargeTableId + 60}, 'Tabela 839 reajuste', 'R839POD', CURRENT_DATE, true, 'container');
+      INSERT INTO public.charge_table_items (charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency, applies_to_soc)
+        VALUES (${chargeTableId + 60}, 'Taxa reajustada', 'container', 550, 550, 'container_distinct_voyage', 'base', 'any', 'BRL', true)`)
     expect(adminJson(`SELECT public.retry_invoice_basis_changes('${bl.full}')`)).toMatchObject({ status: 'nothing_pending' })
     expect(psql(`SELECT status FROM public.invoices WHERE id=${invoice}`)).toBe('issued')
     expect(psql(`SELECT count(*) FROM public.invoices WHERE id <> ${invoice} AND customer_id=${customerId} AND status <> 'cancelled'`)).toBe('0')
+    psql(`DELETE FROM public.charge_table_items WHERE charge_table_id = ${chargeTableId + 60}; DELETE FROM public.charge_tables WHERE id = ${chargeTableId + 60}`)
   })
 
   it('mesma referência bancária financia duas baixas; replay de baixa cancelada é recusado', () => {

@@ -31,6 +31,7 @@ export type PortalInvoiceSummary = {
   bls: string[]
   pods: string[]
   covered_by_invoice_number?: string | null
+  replaced_by_invoice_number?: string | null
 }
 
 export type PortalInvoicePage = {
@@ -68,6 +69,8 @@ export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice' | 'payments'> & 
     pix_payload: string | null
     covered_by_invoice_id?: number | null
     covered_by_invoice_number?: string | null
+    replaced_by_invoice_id?: number | null
+    replaced_by_invoice_number?: string | null
   }) | null
   containers: PortalInvoiceContainer[]
   payments: PortalInvoicePayment[]

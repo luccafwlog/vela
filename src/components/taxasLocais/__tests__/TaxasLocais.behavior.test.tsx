@@ -339,7 +339,7 @@ describe('Tabelas de Taxas Locais', () => {
     expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Desativar tabela de taxas',
       tone: 'danger',
-      consequence: expect.stringContaining('Sai do cálculo de Container · BRVIX'),
+      consequence: expect.stringContaining('Deixa de valer para B/Ls novos de Container · BRVIX'),
     }))
     expect(mocks.toggleTable).toHaveBeenCalledWith({ id: 1, active: false, reason: '' })
   })
@@ -543,9 +543,10 @@ describe('Condições de Cliente', () => {
     expect(mocks.deleteOverride).toHaveBeenCalledWith({ id: 20, reason: 'motivo' })
   })
 
-  it('quem edita mas não é Administrativo não vê o menu; sem escrita, nenhuma ação', () => {
+  it('quem edita mas não é Administrativo cria condição, mas não edita nem vê o menu; sem escrita, nenhuma ação', () => {
+    // Editar Condição é correção de faturas: só o Administrativo (ADR 0093, decisão 2).
     const { unmount } = renderConditions({ canDelete: false })
-    expect(screen.getByRole('button', { name: 'Editar condição Cliente A · THD' }).textContent).toBe('')
+    expect(screen.queryByRole('button', { name: 'Editar condição Cliente A · THD' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Mais ações da condição/ })).toBeNull()
     unmount()
 

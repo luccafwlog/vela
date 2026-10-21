@@ -102,8 +102,8 @@ describe('cliente Itaú Pix', () => {
   it('percorre todas as páginas do GET /pix', async () => {
     const page = (n: number, pix: unknown[]) => Response.json({ parametros: { paginacao: { paginaAtual: n, quantidadeDePaginas: 2 } }, pix })
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse())
-      .mockResolvedValueOnce(page(0, [{ endToEndId: 'E1', valor: '0.01', horario: '2026-10-06T12:00:00-03:00' }]))
-      .mockResolvedValueOnce(page(1, [{ endToEndId: 'E2', valor: '0.02', horario: '2026-10-06T12:00:00-03:00' }]))
+      .mockResolvedValueOnce(page(0, [{ endToEndId: 'E1', txid: newVelaTxid(), valor: '0.01', horario: '2026-10-06T12:00:00-03:00' }]))
+      .mockResolvedValueOnce(page(1, [{ endToEndId: 'E2', txid: newVelaTxid(), valor: '0.02', horario: '2026-10-06T12:00:00-03:00' }]))
     const pix = await createItauPixClient(config, fetchMtls).listPix('2026-10-06T00:00:00Z', '2026-10-07T00:00:00Z')
     expect(pix.map((p) => p.endToEndId)).toEqual(['E1', 'E2'])
     expect(pix.map((p) => p.horario)).toEqual(['2026-10-06T15:00:00.000Z', '2026-10-06T15:00:00.000Z'])
@@ -118,7 +118,7 @@ describe('cliente Itaú Pix', () => {
     const saveCheckpoint = vi.fn()
     const settle = vi.fn()
     const result = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), {
-      checkpoint: async () => '2026-10-07T01:29:00.444Z', settle, saveCheckpoint,
+      checkpoint: async () => '2026-10-07T01:29:00.444Z', settle, saveCheckpoint, failed: vi.fn(), untracked: vi.fn(),
     }, new Date('2026-10-07T07:00:00Z'))
     expect(result).toMatchObject({ seen: 0, settled: 0, until: '2026-10-07T07:00:00.000Z' })
     expect(saveCheckpoint).toHaveBeenCalledWith('2026-10-07T07:00:00.000Z')
@@ -378,9 +378,11 @@ describe('processador da fila de cobranças', () => {
 describe('consulta de recebimentos', () => {
   const pixPage = (pix: unknown[]) => Response.json({ parametros: { paginacao: { quantidadeDePaginas: 1 } }, pix })
   const vela = newVelaTxid()
-  const sink = (last: string | null, settle = vi.fn(async () => 'settled' as const)) => {
+  const sink = (last: string | null, settle = vi.fn(async () => 'settled' as const), verdict: 'review' | 'retry' = 'retry') => {
     const saved: string[] = []
-    return { saved, settle, sink: { checkpoint: async () => last, settle, saveCheckpoint: async (until: string) => { saved.push(until) } } }
+    const failed = vi.fn(async (_pix: unknown, _error: string, permanent: boolean) => (permanent ? 'review' : verdict) as 'review' | 'retry')
+    const untracked = vi.fn(async () => 'review' as const)
+    return { saved, settle, failed, untracked, sink: { checkpoint: async () => last, settle, failed, untracked, saveCheckpoint: async (until: string) => { saved.push(until) } } }
   }
 
   it('consulta em Brasília e baixa o pagamento com o instante UTC correto', async () => {
@@ -468,18 +470,82 @@ describe('consulta de recebimentos', () => {
     expect(s.saved).toEqual(['2026-10-01T05:50:00.000Z'])
   })
 
-  it('falha ao baixar ou Pix malformado não avança o checkpoint', async () => {
+  it('falha passageira ao baixar não avança até a terceira; Pix malformado vai para análise e a consulta avança (F-09)', async () => {
     const ok = { endToEndId: e2e('202610061500'), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' }
     const failing = sink('2026-10-06T12:00:00.000Z', vi.fn(async () => { throw new Error('db') }))
     await expect(pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([ok]))),
       failing.sink, new Date('2026-10-06T12:05:00Z'))).rejects.toThrow('db')
+    expect(failing.failed).toHaveBeenCalledWith(expect.objectContaining({ txid: vela }), 'db', false)
     expect(failing.saved).toEqual([])
+    // O banco devolve 'review' na terceira falha: a consulta segue.
+    const exhausted = sink('2026-10-06T12:00:00.000Z', vi.fn(async () => { throw new Error('db') }), 'review')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([ok]))),
+      exhausted.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ vela: 1, review: 1 })
+    expect(exhausted.saved).toEqual(['2026-10-06T12:05:00.000Z'])
     for (const bad of [{ ...ok, valor: '1' }, { ...ok, endToEndId: 'E1' }, { ...ok, horario: 'inválidoZ' }, { ...ok, horario: '2026-10-06T12:00:00' }]) {
       const malformed = sink('2026-10-06T12:00:00.000Z')
-      await expect(pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([bad]))),
-        malformed.sink, new Date('2026-10-06T12:05:00Z'))).rejects.toThrow('formato inesperado')
-      expect(malformed.saved).toEqual([])
+      const result = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([bad]))),
+        malformed.sink, new Date('2026-10-06T12:05:00Z'))
+      expect(result).toMatchObject({ review: 1 })
+      expect(malformed.failed).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('formato inesperado'), true)
+      expect(malformed.saved).toEqual(['2026-10-06T12:05:00.000Z'])
       expect(malformed.settle).not.toHaveBeenCalled()
     }
+  })
+
+  it('Pix sem TXID vira "Pix recebido sem baixa" e o de terceiro segue ignorado (decisão 16)', async () => {
+    const s = sink('2026-10-06T12:00:00.000Z')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610061501'), valor: '120.00', horario: '2026-10-06T12:01:00Z' },
+      { endToEndId: e2e('202610061502'), txid: '88ba8ec675e044178d434908d9b2a30a', valor: '50.00', horario: '2026-10-06T12:02:00Z' },
+    ]))), s.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ seen: 2, vela: 0, untracked: 1 })
+    expect(s.untracked).toHaveBeenCalledWith({ endToEndId: e2e('202610061501'), valor: '120.00', horario: '2026-10-06T15:01:00.000Z' })
+    expect(s.settle).not.toHaveBeenCalled()
+    expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
+  })
+
+  it('recusa ao gravar Pix sem TXID segue a regra das falhas: para até a terceira vez e depois vai para análise', async () => {
+    const page = () => pixPage([{ endToEndId: e2e('202610061501'), valor: '0.00', horario: '2026-10-06T12:01:00Z' }])
+    const refuse = (verdict: 'review' | 'retry') => {
+      const s = sink('2026-10-06T12:00:00.000Z', undefined, verdict)
+      s.untracked.mockRejectedValue(new Error('Valor do Pix inválido.'))
+      return s
+    }
+    const retry = refuse('retry')
+    await expect(pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(page())),
+      retry.sink, new Date('2026-10-06T12:05:00Z'))).rejects.toThrow('Valor do Pix inválido.')
+    expect(retry.saved).toEqual([])
+    const review = refuse('review')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(page())),
+      review.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ untracked: 0, review: 1 })
+    expect(review.failed).toHaveBeenCalledWith(expect.objectContaining({ endToEndId: e2e('202610061501'), txid: '' }), 'Valor do Pix inválido.', false)
+    expect(review.saved).toEqual(['2026-10-06T12:05:00.000Z'])
+  })
+
+  it('horário inesperado de Pix de terceiro não derruba a consulta', async () => {
+    const s = sink('2026-10-06T12:00:00.000Z')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: 'E2', txid: '88ba8ec675e044178d434908d9b2a30a', valor: '50.00', horario: 'sem fuso' },
+    ]))), s.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ seen: 1, vela: 0 })
+    expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
+  })
+
+  it('mais de 50 páginas: a janela encolhe em vez de travar o checkpoint', async () => {
+    const many = Response.json({ parametros: { paginacao: { quantidadeDePaginas: 99, quantidadeTotalDeItens: 9999 } }, pix: [{ endToEndId: 'E9', txid: '88ba8ec675e044178d434908d9b2a30a', valor: '1.00', horario: '2026-10-06T12:00:00Z' }] })
+    let calls = 0
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockImplementation(async (input: string) => {
+      const url = new URL(input)
+      // A janela inicial (6 h) tem páginas demais; a de 3 h, uma só.
+      if (url.searchParams.get('fim') === '2026-10-01T02:50:00-03:00') { calls++; return many.clone() }
+      return pixPage([])
+    })
+    const s = sink('2026-10-01T00:00:00.000Z')
+    await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:00:00Z'))
+    expect(calls).toBe(50)
+    expect(s.saved).toEqual(['2026-10-01T02:50:00.000Z'])
   })
 })

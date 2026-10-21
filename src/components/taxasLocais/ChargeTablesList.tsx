@@ -352,7 +352,9 @@ function itemMenu(item: ChargeItem, { canDelete, onToggleItemActive, onDeleteIte
  * regra 9). No cartão do celular, com texto.
  */
 function ItemActions({ item, iconOnly = false, ...props }: ItemsProps & { item: ChargeItem; iconOnly?: boolean }) {
-  if (!props.canEdit) return null
+  // Editar item é correção de erro e reemite faturas: só o Administrativo
+  // (ADR 0093, decisão 2). Reajuste se faz com tabela nova.
+  if (!props.canEdit || !props.canDelete) return null
   const menu = itemMenu(item, props)
   return (
     <div className="app-rates-item__actions">

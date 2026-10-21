@@ -1018,18 +1018,26 @@ export async function createManualInvoice(input: ManualInvoiceInput): Promise<Ma
   return manualInvoiceResultSchema.parse(data)
 }
 
+// Deadlock no contador de faturas com outra emissão (lote × Emitir, F-43): o
+// banco desfaz a transação inteira, então uma nova tentativa é segura.
+async function retryOnDeadlock<T extends { error: unknown }>(call: () => PromiseLike<T>): Promise<T> {
+  const first = await call()
+  if ((first.error as { code?: string } | null)?.code !== '40P01') return first
+  return call()
+}
+
 export async function markBlReadyAndCreateInvoice(input: {
   blId: string
   customerId?: number | null
   notes?: string | null
   actorId?: string | null
 }) {
-  const { data, error } = await supabase.rpc('mark_bl_ready_and_create_invoice', {
+  const { data, error } = await retryOnDeadlock(() => supabase.rpc('mark_bl_ready_and_create_invoice', {
     p_bl_id: input.blId,
     ...(input.customerId == null ? {} : { p_customer_id: input.customerId }),
     ...(input.notes == null ? {} : { p_notes: input.notes }),
     ...(input.actorId == null ? {} : { p_actor: input.actorId }),
-  })
+  }))
 
   if (error) throw error
 
@@ -1043,12 +1051,12 @@ export async function markBlsReadyAndCreateInvoice(input: {
   notes?: string | null
   actorId?: string | null
 }) {
-  const { data, error } = await supabase.rpc('mark_bls_ready_and_create_invoice', {
+  const { data, error } = await retryOnDeadlock(() => supabase.rpc('mark_bls_ready_and_create_invoice', {
     p_bl_ids: input.blIds,
     p_customer_id: input.customerId,
     ...(input.notes == null ? {} : { p_notes: input.notes }),
     ...(input.actorId == null ? {} : { p_actor: input.actorId }),
-  })
+  }))
 
   if (error) throw error
 

@@ -5,7 +5,8 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 // Item A10 do plano docs/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md
 // (migration 248; ADR 0083, item 10; ADR 0040): o lançamento manual e o Item da
 // tabela da avulsa escolhem a tabela (ativa, sem data) e a Condição de Cliente
-// (Data de Referência: ETA da escala do POD) como o cálculo automático.
+// como o cálculo automático. Desde a migration 378 (ADR 0094, A1), a Data de
+// Referência é o dia da importação, fixado no primeiro cálculo, e não a ETA.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
@@ -74,9 +75,10 @@ describeLocal('248 — lançamento manual e avulsa seguem a regra do automático
       SET session_replication_role = replica;
       INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador A248');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio A248', ${CARRIER_ID});
-      -- ETA da escala do POD em março; o lote foi enviado em junho.
+      -- B/L importado em março; a ETA da escala do POD é de junho e o lote foi
+      -- reenviado em junho: nenhuma das duas escolhe a Condição.
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status, eta, pod_schedule_snapshot)
-      VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'A248V', 'active', '2026-05-20', '{"${POD}": {"eta": "2026-03-10"}}'::jsonb);
+      VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'A248V', 'active', '2026-06-20', '{"${POD}": {"eta": "2026-06-20"}}'::jsonb);
       INSERT INTO public.import_batches (id, voyage_id, filename, uploaded_at) VALUES (${BATCH_ID}, ${VOYAGE_ID}, 'a248.xlsx', '2026-06-15');
       INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${CUSTOMER_ID}, 'CLIENTE A248 LTDA', '${syntheticCnpj(248011)}');
       -- Tabela ativa com vigência vencida: a vigência é informativa (ADR 0040).
@@ -89,16 +91,17 @@ describeLocal('248 — lançamento manual e avulsa seguem a regra do automático
         (${CUSTOMER_ID}, ${ITEM_ID}, 90, '2026-06-01', NULL);
       INSERT INTO public.bls (id, voyage_id, batch_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status, review_status)
       VALUES ('${BL}', ${VOYAGE_ID}, ${BATCH_ID}, ${CUSTOMER_ID}, 'CNSHA', '${POD}', 'container', 'pending', 'calculated', 'ok');
+      INSERT INTO public.bl_price_freezes (bl_id, reference_date, reason) VALUES ('${BL}', '2026-03-10', 'importacao');
       SET session_replication_role = origin;
     `)
   })
   afterAll(cleanup)
 
-  it('a Data de Referência é a ETA da escala do POD, não a data do upload', () => {
+  it('a Data de Referência é o dia da importação, não a ETA nem a data do upload', () => {
     expect(psql(`SELECT public.bl_local_charge_reference_date('${BL}');`)).toBe('2026-03-10')
   })
 
-  it('o catálogo do lançamento manual lista a tabela ativa vencida com a Condição da ETA', () => {
+  it('o catálogo do lançamento manual lista a tabela ativa vencida com a Condição do dia da importação', () => {
     const result = asUser(`SELECT charge_table_id || ':' || effective_unit_value_brl FROM public.list_manual_charge_items_for_bl('${BL}')`)
     expect(result.error).toBe('')
     expect(result.output).toBe(`${TABLE_ID}:70.00`)
@@ -110,7 +113,7 @@ describeLocal('248 — lançamento manual e avulsa seguem a regra do automático
     expect(JSON.parse(result.output)).toMatchObject({ unit_value_brl: 70, total_brl: 70 })
   })
 
-  it('o lançamento manual grava o valor da Condição da ETA', () => {
+  it('o lançamento manual grava o valor da Condição do dia da importação', () => {
     const result = asUser(`SELECT public.add_manual_bl_charge('${BL}', ${ITEM_ID}, 1, 'Teste A248', '${USER_ID}')`)
     expect(result.error).toBe('')
     expect(psql(`SELECT unit_value_brl || ':' || override_applied FROM public.charge_calculations WHERE bl_id = '${BL}' AND source = 'manual';`))
