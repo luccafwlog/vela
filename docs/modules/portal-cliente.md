@@ -194,15 +194,16 @@ Convite expirado ou Falha no envio coexistem com Provisionamento autorizado, e
 da conta. Um Cliente tem no máximo um registro de Portal e, portanto, no máximo
 uma conta ativa.
 
-**B/L novo não reabre conta ativa** (decisão do dono de 2026-10-20, migration
-`343`). O gatilho `trg_portal_reopen_on_new_process` devolve a decisão a
-Aguardando análise quando um B/L entra para o Cliente ou passa a ser dele,
-mas só se a conta ainda não estiver Ativa; no UPDATE, só quando o cliente do
-B/L de fato mudou. Conta Ativa só volta a Aguardando análise pelo
-**Reabrir análise** do Administrativo, e nesse caso a ficha diz "Análise
-reaberta; a conta continua ativa até nova decisão" em vez de mostrar os dois
-status sem explicação (`provisioningDecisionDetail`). A `343` também devolveu a
-Provisionamento autorizado as contas ativas reabertas pelo gatilho antigo.
+**B/L novo não reabre a análise** (decisões do dono de 2026-10-20 e
+2026-10-21, migration `343`). A entrada de um B/L para o Cliente, novo ou por
+troca de cliente, não é fato novo para o que trava o provisionamento: a
+decisão e a situação da conta ficam como estão, Ativa ou não. O gatilho
+`trg_portal_reopen_on_new_process`, que devolvia a decisão a Aguardando
+análise a cada B/L, saiu. A análise só volta a Aguardando análise pelo
+**Reabrir análise** do Administrativo; com a conta Ativa, a ficha diz
+"Análise reaberta; a conta continua ativa até nova decisão" em vez de mostrar
+os dois status sem explicação (`provisioningDecisionDetail`). A `343` também
+desfez as reaberturas que o gatilho antigo tinha feito.
 
 A decisão tem só esses dois valores. A exceção "Provisionamento não necessário
 no momento" foi retirada pelo Bloco #521 (agosto de 2026, migration arquivada

@@ -3,9 +3,9 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 343 (sessão de testes de 2026-10-20, Obs. 5; decisão do Lucca):
-// conta do Portal já ativa não volta para "Aguardando análise" por B/L novo,
-// nem do mesmo cliente nem por troca; conta ainda não ativa continua reabrindo.
+// Migration 343 (sessão de testes de 2026-10-20, Obs. 5; decisões do Lucca de
+// 2026-10-20 e 2026-10-21): B/L que entra para o Cliente, novo ou por troca,
+// não muda a decisão do Portal, com a conta ativa ou não.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -19,7 +19,8 @@ function psql(sql: string) {
 function functionUpdated() {
   if (!enabled) return false
   try {
-    return psql(`SELECT pg_get_functiondef('public.portal_reopen_on_new_process()'::regprocedure) LIKE '%account_situation <> ''ativo''%';`) === 't'
+    return psql(`SELECT to_regprocedure('public.portal_reopen_on_new_process()') IS NULL
+      AND to_regprocedure('public._portal_log_event(bigint,bigint,bigint,text,text,text,text,text,text,text)') IS NOT NULL;`) === 't'
   } catch {
     return false
   }
@@ -51,7 +52,7 @@ function cleanup() {
 
 const account = (customerId: number) => psql(`SELECT provisioning_decision || ':' || account_situation FROM public.customer_portal_accounts WHERE customer_id = ${customerId};`)
 
-describeLocal('343 — conta ativa do Portal não reabre a análise por B/L novo', () => {
+describeLocal('343 — B/L novo não reabre a análise do Portal', () => {
   beforeAll(() => {
     cleanup()
     psql(`
@@ -85,23 +86,32 @@ describeLocal('343 — conta ativa do Portal não reabre a análise por B/L novo
     expect(psql(`SELECT count(*) FROM public.portal_provisioning_events WHERE customer_id = ${ACTIVE};`)).toBe('0')
   })
 
-  it('conta ainda não ativa continua reabrindo com B/L novo', () => {
+  it('conta ainda não ativa também fica como está com B/L novo ou trocado', () => {
     psql(`INSERT INTO public.bls (id, voyage_id, pol, pod, customer_id) VALUES ('BL343PEND', ${VOYAGE_ID}, 'CNTAO', 'BRVIX', ${PENDING});`)
-    expect(account(PENDING)).toBe('aguardando_analise:convite_pendente')
+    expect(account(PENDING)).toBe('aprovado_para_provisionar:convite_pendente')
+    psql(`UPDATE public.bls SET customer_id = ${PENDING} WHERE id = 'BL343NEW';`)
+    expect(account(PENDING)).toBe('aprovado_para_provisionar:convite_pendente')
+    expect(psql(`SELECT count(*) FROM public.portal_provisioning_events WHERE customer_id = ${PENDING};`)).toBe('0')
   })
 
-  it('a correção de dados devolve a decisão da conta ativa reaberta pelo trigger, e só dela', () => {
-    psql(`
-      UPDATE public.customer_portal_accounts SET provisioning_decision = 'aguardando_analise' WHERE customer_id = ${ACTIVE};
+  it('a correção de dados desfaz a reabertura do trigger, ativa ou não, e não a reabertura à mão', () => {
+    const reopen = (customerId: number, situation: string, reason: string) => `
+      UPDATE public.customer_portal_accounts SET provisioning_decision = 'aguardando_analise' WHERE customer_id = ${customerId};
       INSERT INTO public.portal_provisioning_events (customer_id, account_id, previous_decision, new_decision, previous_situation, new_situation, actor_type, reason)
-      SELECT ${ACTIVE}, id, 'aprovado_para_provisionar', 'aguardando_analise', 'ativo', 'ativo', 'sistema', 'Novo processo ativo reabriu a análise do Portal.'
-      FROM public.customer_portal_accounts WHERE customer_id = ${ACTIVE};
+      SELECT ${customerId}, id, 'aprovado_para_provisionar', 'aguardando_analise', '${situation}', '${situation}', 'sistema', '${reason}'
+      FROM public.customer_portal_accounts WHERE customer_id = ${customerId};`
+    // Contas ativa e não ativa reabertas pelo trigger antigo; a do Outro, à mão.
+    psql(`
+      INSERT INTO public.customer_portal_accounts (customer_id) VALUES (${OTHER}) ON CONFLICT (customer_id) DO NOTHING;
+      UPDATE public.customer_portal_accounts SET provisioning_decision = 'aprovado_para_provisionar' WHERE customer_id = ${OTHER};
+      ${reopen(ACTIVE, 'ativo', 'Novo processo ativo reabriu a análise do Portal.')}
+      ${reopen(PENDING, 'convite_pendente', 'Novo processo ativo reabriu a análise do Portal.')}
+      ${reopen(OTHER, 'sem_conta', 'Reabertura pelo Administrativo.')}
     `)
     const migration = readFileSync('supabase/migrations/343_conta_ativa_do_portal_nao_reabre_por_bl.sql', 'utf8')
-    const dataFix = migration.slice(migration.indexOf('DO $$'))
-    psql(dataFix)
+    psql(migration.slice(migration.indexOf('DO $$')))
     expect(account(ACTIVE)).toBe('aprovado_para_provisionar:ativo')
-    // A conta não ativa, reaberta legitimamente, fica como está.
-    expect(account(PENDING)).toBe('aguardando_analise:convite_pendente')
+    expect(account(PENDING)).toBe('aprovado_para_provisionar:convite_pendente')
+    expect(account(OTHER)).toBe('aguardando_analise:sem_conta')
   })
 })
