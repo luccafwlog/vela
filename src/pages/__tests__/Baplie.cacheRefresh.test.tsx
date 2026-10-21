@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   applyFlags: vi.fn((): Promise<unknown> => Promise.resolve({
     applied: 1, applied_to: [{ container: 'AAAU0000001', bl_id: 'BL-1' }], cleared: [], divergent_manual: [], invoice_reissues: [],
   })),
-  parse: vi.fn(() => Promise.resolve({ containers: [{ container_number: 'CXRU1234567', status: 'full', pod: 'BRSSZ' }], pods: [], issues: [] })),
+  parse: vi.fn(() => Promise.resolve({ vessel_name: 'GREEN SANTOS', voyage_number: '14N', containers: [{ container_number: 'CXRU1234567', status: 'full', pod: 'BRSSZ' }], pods: [], issues: [] })),
   showToast: vi.fn(),
   confirmWithReason: vi.fn(() => Promise.resolve('Armador confirmou o B/L' as string | null)),
   resolveDivergence: vi.fn(() => Promise.resolve()),

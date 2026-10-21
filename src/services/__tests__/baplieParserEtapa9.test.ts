@@ -9,7 +9,14 @@ function unit(lines: string[]): string[] {
 }
 
 function parse(lines: string[]) {
-  return parseBaplieText(["TDT+20+14+++COS:172:20:GREEN SANTOS'", ...lines, "UNT+10+1'"].join('\n'))
+  return parseBaplieText([
+    "UNB+UNOA:2+X+Y+260101:0000+1'",
+    "UNH+1+BAPLIE:D:95B:UN:SMDG22'",
+    "TDT+20+14+++COS:172:20:GREEN SANTOS'",
+    ...lines,
+    `UNT+${lines.length + 3}+1'`,
+    "UNZ+1+1'",
+  ].join('\n'))
 }
 
 describe('Baplie — regras da etapa 9', () => {
