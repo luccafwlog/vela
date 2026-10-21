@@ -165,7 +165,7 @@ export function ChargeTableFormModal({
           </div>
         </div>
 
-        {isEdit ? <ChargeChanges changes={changes} consequence="Vale para cálculos novos e recálculos de B/L ainda não faturado. Faturas emitidas não mudam." /> : null}
+        {isEdit ? <ChargeChanges changes={changes} consequence="A tabela vale para os B/Ls que forem calculados nela; os B/Ls já vinculados continuam com ela mesmo desativada." /> : null}
         {saveError ? <InlineError message={saveError} /> : null}
 
         <div className="app-rates-form__footer">

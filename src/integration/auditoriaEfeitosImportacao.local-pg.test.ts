@@ -160,8 +160,19 @@ function grantRelease(customerId: number) {
   `)) as { reprocess: { issued: number; blocked: number; failed: number; gate_open: boolean } }
 }
 
+// Reajuste é tabela nova (ADR 0093, decisão 1): vale para B/L novo; o B/L já
+// vinculado continua com a sua tabela.
+let priceVersion = 0
 function setPrice(itemId: number, value: number): void {
-  localPsql(`UPDATE public.charge_table_items SET value_brl = ${value}, unit_value_brl = ${value} WHERE id = ${itemId};`)
+  priceVersion += 1
+  const tableId = itemId * 10 + priceVersion
+  localPsql(`
+    INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
+    SELECT ${tableId}, ct.name || ' v${priceVersion}', ct.pod, CURRENT_DATE + ${priceVersion}, true, ct.cargo_mode
+    FROM public.charge_tables ct JOIN public.charge_table_items cti ON cti.charge_table_id = ct.id WHERE cti.id = ${itemId};
+    INSERT INTO public.charge_table_items (charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency)
+    SELECT ${tableId}, name, applies_to, ${value}, ${value}, application_basis, category, cargo_profile, currency
+    FROM public.charge_table_items WHERE id = ${itemId};`)
 }
 
 // B/L de container já importado, com rota (a planilha de CE exige POL/POD) e Cliente por CNPJ.
@@ -335,8 +346,10 @@ const cleanupSql = `
   WHERE charge_table_id IN (${tableIds.join(', ')})
      OR charge_item_id IN (${itemIds.join(', ')})
      OR customer_id IN (SELECT id FROM a204_customers);
-  DELETE FROM public.charge_table_items WHERE id IN (${itemIds.join(', ')});
-  DELETE FROM public.charge_tables WHERE id IN (${tableIds.join(', ')});
+  DELETE FROM public.charge_table_items WHERE id IN (${itemIds.join(', ')})
+     OR charge_table_id IN (${itemIds.map((id) => `${id * 10 + 1}, ${id * 10 + 2}, ${id * 10 + 3}`).join(', ')});
+  DELETE FROM public.charge_tables WHERE id IN (${tableIds.join(', ')})
+     OR id IN (${itemIds.map((id) => `${id * 10 + 1}, ${id * 10 + 2}, ${id * 10 + 3}`).join(', ')});
   DELETE FROM public.voyages WHERE id IN (SELECT id FROM a204_voyages);
   DELETE FROM public.vessels WHERE id = ${vesselId};
   DELETE FROM public.carriers WHERE id = ${carrierId};
