@@ -64,4 +64,27 @@ describeLocal('373 — desvincular o Cliente e container FCL entre Clientes', ()
     expect(w.psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'billing_calculation_blocked' AND status = 'active'
       AND metadata->>'bl_id' = '${id}'`)).toBe('1')
   })
+
+  it('decisão 15 (migration 374): trocar o CNPJ reemite a avulsa e a Demurrage em aberto para o novo Cliente, com o mesmo valor', () => {
+    const id = w.createBl('CNPJ')
+    w.calculate(id)
+    w.asOk('administrativo', `SELECT public.create_manual_invoice(${w.customerId}, 'Serviço do B/L', 1, 80, NULL, '${id}', NULL, '${w.actors.administrativo}'::uuid, p_reason => 'Motivo interno de teste')`)
+    w.psql(`SET session_replication_role = replica;
+      UPDATE public.bl_containers SET discharge_date = '2026-09-01', return_date = '2026-09-20' WHERE bl_id = '${id}';
+      INSERT INTO public.demurrage_invoices (doc_number, bl_id, customer_id, total_usd, current_roe, current_total_brl, roe_source, status)
+        VALUES ('FF9311-DEM', '${id}', ${w.customerId}, 100, 5.5, 550, 'manual', 'issued');
+      INSERT INTO public.demurrage_invoice_items (invoice_id, container_id, container_number, container_type, discharge_date, return_date,
+          total_days, free_days, days_p1, rate_p1_usd, subtotal_usd)
+        SELECT d.id, c.id, c.container_number, '22G1', '2026-09-01', '2026-09-20', 19, 14, 5, 20, 100
+        FROM public.demurrage_invoices d JOIN public.bl_containers c ON c.bl_id = d.bl_id WHERE d.doc_number = 'FF9311-DEM';
+      SET session_replication_role = origin;`)
+    w.psql(`UPDATE public.bls SET customer_id = ${w.otherCustomerId} WHERE id = '${id}'`)
+    expect(w.psql(`SELECT string_agg(customer_id || ':' || status || ':' || total_brl, ',' ORDER BY id) FROM public.invoices
+      WHERE bl_id = '${id}' AND invoice_type = 'manual'`)).toBe(`${w.customerId}:cancelled:80.00,${w.otherCustomerId}:issued:80.00`)
+    expect(w.psql(`SELECT string_agg(customer_id || ':' || status || ':' || current_total_brl, ',' ORDER BY id) FROM public.demurrage_invoices
+      WHERE bl_id = '${id}'`)).toBe(`${w.customerId}:cancelled:550.00,${w.otherCustomerId}:issued:550.00`)
+    w.psql(`SET session_replication_role = replica; DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM public.demurrage_invoices WHERE bl_id = '${id}');
+      DELETE FROM public.itau_pix_charges WHERE demurrage_invoice_id IN (SELECT id FROM public.demurrage_invoices WHERE bl_id = '${id}');
+      DELETE FROM public.demurrage_invoices WHERE bl_id = '${id}'; SET session_replication_role = origin;`)
+  })
 })

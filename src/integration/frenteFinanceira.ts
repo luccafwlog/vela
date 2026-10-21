@@ -219,6 +219,10 @@ export function financeWorld(ns: number) {
       DELETE FROM public.itau_pix_receipts WHERE charge_id IN (SELECT id FROM public.itau_pix_charges WHERE invoice_id IN ${invoices});
       DELETE FROM public.itau_pix_charges WHERE invoice_id IN ${invoices};
       DELETE FROM public.local_pix_charge_versions WHERE invoice_id IN ${invoices};
+      DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM public.demurrage_invoices WHERE customer_id IN (${cust}));
+      DELETE FROM public.itau_pix_charges WHERE demurrage_invoice_id IN (SELECT id FROM public.demurrage_invoices WHERE customer_id IN (${cust}));
+      DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (SELECT id FROM public.demurrage_invoices WHERE customer_id IN (${cust}));
+      DELETE FROM public.demurrage_invoices WHERE customer_id IN (${cust});
       DELETE FROM public.invoices WHERE customer_id IN (${cust});
       DELETE FROM public.invoice_basis_pending_changes WHERE bl_id LIKE '${prefix}%';
       DELETE FROM public.bl_receivables WHERE bl_id LIKE '${prefix}%';
