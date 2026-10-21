@@ -255,6 +255,54 @@ reescreve linhas declara a dependência do "Data status" do AGENTS.md.
 | F-55 | IMO+OOG sem item THD standard não é cobrado nem sinalizado (só Código, `248`) | Sinalizar como revisão |
 | F-56 | Documentação divergente: `manual-financeiro.md` §6 e §7 contra ADR 0085 D2; `taxas-locais.md` (irmãos na fase provisória); `faturamento.md` cita `createInvoiceFromBls` como chamador e migrations antigas no catálogo | Corrigir junto da tarefa de cada módulo |
 
+## Revisão das importações (2026-10-21) incorporada
+
+A revisão somente leitura das importações (Baplie, B/L COSCO, carga solta, CE,
+datas, vazios, veículos, Base de Clientes, fila de efeitos), feita sobre a
+`main` em `806d2b5` e conferida contra a `staging` em `99e783c`, cruza com este
+plano. Os itens I-xx são dela; cada um entra no lote do achado com que cruza.
+
+| Item | O que entra | Onde |
+|---|---|---|
+| 1a | O vínculo do lote 0 não é coluna de `bls`: fica em `bl_charge_table_links`, `bl_price_freezes` e `bl_charge_calculation_basis`, só leitura para `authenticated` (migrations `354` e `355`). O teste da F-16 confere a recusa da escrita direta | F-16 |
+| 1b (I-01) | Revogar de `authenticated` `import_manifest_transactional`, `import_bl_freight_with_metadata`, `import_bl_freight_transactional`, `apply_container_dates_atomic`, `apply_customer_base_row_atomic`, `approve_customer_reconciliation` e `reject_customer_reconciliation`, sem chamador no front; ajustar as suítes que as chamam como `authenticated` | F-16 |
+| 1c (I-33b) | Data de referência com POD normalizado e dia de Brasília (migration `359`) | lote 0 |
+| 2a (I-07) | Regra da decisão 13 num gatilho em `bls.customer_id` (cobre `relink_bl_customer` sem Cliente, a RPC antiga e o UPDATE direto), com `assert_no_fcl_shared_between_customers` (P0008) também no vínculo posterior; medir a Base de Clientes depois | F-27 |
+| 2b | O teste da F-12 monta os três caminhos que emitem sozinhos: efeito `local_billing` da planilha de CE, vínculo de Cliente a B/L com CE (`trg_auto_bill_bl_after_ce_mercante`) e `retry_import_effect` | F-12 |
+| 2c | Câmbio ausente na importação de B/L vira `provisional_charges` bloqueado de primeira (22023 permanente, `178`:338) e não volta ao gravar o câmbio | F-29 |
+| 2d | `reactivate_bl` reabre os efeitos encerrados no cancelamento, como `reactivate_voyage` (`211`:561) | F-30 |
+| 2e | Somente leitura do B/L cancelado também em `bl_containers` e `vehicles` | F-28 |
+| 2f | A reimportação de carga solta que muda B/L faturado reemite na mesma transação sem confirmação (ADR 0077, item 2); container que vira misto falha por `mixed_bl_terminal_conflict` | F-32 |
+
+### Perguntas ao Lucca (não decididas)
+
+1. **Fechar toda a escrita direta (I-03)?** `bl_containers`, `baplie_containers`,
+   `vehicles`, `vazios_*` e `granite_*` aceitam escrita direta de usuário ativo;
+   o front só grava direto em `bl_containers.unpacking_location`,
+   `vazios_importacao_containers.natureza`, `voyages`/`vessels`/`carriers` e
+   `vazios_export_*`. As tabelas novas do lote 0 já nascem fechadas.
+2. **Revogar as RPCs da 1b:** quem estiver com aba aberta de antes do deploy
+   precisa recarregar; algum script externo usa essas RPCs? (antes do merge)
+3. **Planilha de CE sem câmbio ou sem tabela (F-29):** hoje o modo diferido
+   recusa o arquivo inteiro quando o cálculo falha (`288`:42-44); a ADR 0092,
+   item 5, sugere gravar o CE e deixar o Alerta. Confirmar que o CE é gravado.
+4. **B/L cancelado no arquivo de B/L e na planilha de datas (F-28):** aviso,
+   erro ou grava a data da caixa?
+5. **Carga solta faturada (F-32):** a reimportação deve pedir confirmação,
+   conferida no servidor, antes de capturar `bb_cbm`, volumes e máquinas?
+6. **POD mudado depois do CE e antes da emissão** (reimportação com aceite,
+   COD ou ficha): a decisão 1 vincula à tabela do POD novo; a decisão 3 diz que
+   depois do CE tabela e data ficam fixas. Qual vale, e a data de referência
+   (ETA do POD) muda? **Hoje (migrations `354`/`355`):** a tabela segue a
+   decisão 1 (revincula ao POD novo); a data e o preço congelados no CE ficam.
+7. **B/L que muda de Viagem pela reimportação com aceite:** mantém tabela e
+   data de referência? Hoje mantém a tabela se o POD e o modo não mudam, e o
+   preço congelado no CE fica.
+8. **CE trocado por planilha nova:** o "dia do CE" é o do primeiro CE ou o do
+   novo? Hoje é o do primeiro (o congelamento não se refaz).
+9. **Reimportar arquivo idêntico** recalcula o B/L não faturado com o câmbio do
+   dia e muda o provisório sem mudança nenhuma: deve ser no-op?
+
 ## O que não foi verificado
 
 - Produção: INV-2026-0016 a 0035, dados da Vettore, jobs 25 e 26 do `pg_cron`,
@@ -265,8 +313,16 @@ reescreve linhas declara a dependência do "Data status" do AGENTS.md.
   `SET ROLE`; totais de tela pelas funções TS aplicadas às linhas das RPCs).
 - Mesmo TXID entre Taxas Locais e Demurrage; pagamento e correção simultâneos;
   queda de rede no commit; volume grande.
-- Ramo "só sincroniza" da `342`; reimportação real de B/L cancelado; efeitos
-  órfãos em `import_pending_effects` depois da exclusão.
+- Ramo "só sincroniza" da `342`.
+- Reimportação de B/L cancelado (reproduzida na revisão das importações): pela
+  tela, a gravação recusa o envio inteiro depois da prévia "Sem mudança"; pela
+  RPC antiga, os containers do cancelado mudam; a planilha de datas grava no
+  cancelado.
+- Efeitos órfãos depois da exclusão (reproduzido na `staging` `99e783c`): B/L
+  excluído com efeito pendente vira efeito bloqueado (`effect_domain_missing`)
+  com Alerta crítico; a `347` só apaga Alertas de entidade `bl`; com a `348`,
+  cada reprocessamento fecha e reabre o Alerta, com nova Notificação Interna,
+  e não há ação de descartar.
 
 ## Anexo — matrizes do comportamento observado
 

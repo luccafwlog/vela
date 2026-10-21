@@ -118,4 +118,15 @@ describeLocal('354 — B/L vinculado à tabela de taxas', () => {
     expect(before).not.toBe(123)
     expect(w.calcTotal(fresh)).toBe(123)
   })
+
+  it('I-33b (migration 359): a data de referência acha a escala pelo POD normalizado e usa o dia de Brasília', () => {
+    const id = w.createBl('REF')
+    w.psql(`UPDATE public.bls SET pod = 'BRVIT' WHERE id = '${id}';
+      UPDATE public.voyages SET pod_schedule_snapshot = '{"BRVIX": {"eta": "2026-01-10"}}'::jsonb, eta = '2026-03-10T01:00:00Z' WHERE id = ${w.voyageId}`)
+    expect(w.psql(`SELECT public.bl_local_charge_reference_date('${id}')`)).toBe('2026-01-10')
+    // Sem a escala, a ETA geral: 01:00 UTC do dia 10 é 22:00 do dia 9 em Brasília.
+    w.psql(`UPDATE public.voyages SET pod_schedule_snapshot = '{}'::jsonb WHERE id = ${w.voyageId}`)
+    expect(w.psql(`SELECT public.bl_local_charge_reference_date('${id}')`)).toBe('2026-03-09')
+    w.psql(`UPDATE public.voyages SET eta = NULL WHERE id = ${w.voyageId}`)
+  })
 })
