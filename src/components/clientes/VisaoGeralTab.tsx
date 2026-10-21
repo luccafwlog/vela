@@ -40,11 +40,23 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
   const timelineQuery = useCustomerTimeline(data.id, data.customer_contacts ?? [], data.bls ?? [])
 
   const financialDenied = data.invoices_access_denied || (demurrageQuery.data?.denied ?? false)
-  const canonicalData = data as Data & { pending_balance_local?: number; pending_balance_demurrage?: number; pending_balance?: number }
+  const canonicalData = data as Data & {
+    pending_balance_local?: number; pending_balance_demurrage?: number; pending_balance?: number
+    pending_balance_manual?: number; pending_balance_invoiced_open?: number; pending_balance_to_invoice?: number
+  }
   const legacyBalance = buildConsolidatedBalance(data.invoices ?? [], demurrageQuery.data?.rows ?? [])
+  // Saldo do Vela (ADR 0093, decisões 10 e 11; migration 371): faturado em
+  // aberto + a faturar; a avulsa aberta numa linha própria.
   const balance = canonicalData.pending_balance_local == null
-    ? legacyBalance
-    : { localBrl: canonicalData.pending_balance_local, demurrageBrl: canonicalData.pending_balance_demurrage ?? 0, totalBrl: canonicalData.pending_balance ?? 0 }
+    ? { ...legacyBalance, manualBrl: null, invoicedOpenBrl: null, toInvoiceBrl: null }
+    : {
+        localBrl: canonicalData.pending_balance_local,
+        demurrageBrl: canonicalData.pending_balance_demurrage ?? 0,
+        manualBrl: canonicalData.pending_balance_manual ?? 0,
+        invoicedOpenBrl: canonicalData.pending_balance_invoiced_open ?? 0,
+        toInvoiceBrl: canonicalData.pending_balance_to_invoice ?? 0,
+        totalBrl: canonicalData.pending_balance ?? 0,
+      }
   const primaryContact = data.customer_contacts?.find(
     (contact) => contact.is_primary && !contact.deactivated_at && Boolean(contact.email?.trim()),
   )
@@ -108,10 +120,13 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
 
       <div className="grid items-start gap-4 lg:grid-cols-3">
         <Block title="Saldo pendente">
-          <LeadValue>{money(balance.totalBrl)}</LeadValue>
+          <LeadValue detail="Saldo pendente total">{money(balance.totalBrl)}</LeadValue>
           <FactList>
+            {balance.invoicedOpenBrl != null ? <Fact label="Faturado em aberto">{money(balance.invoicedOpenBrl)}</Fact> : null}
+            {balance.toInvoiceBrl != null ? <Fact label="A faturar">{money(balance.toInvoiceBrl)}</Fact> : null}
             <Fact label="Taxas Locais">{money(balance.localBrl)}</Fact>
             <Fact label="Demurrage">{money(balance.demurrageBrl)}</Fact>
+            {balance.manualBrl != null ? <Fact label="Fatura avulsa">{money(balance.manualBrl)}</Fact> : null}
           </FactList>
           <Pendencies items={itemsOf('saldo')} onNavigateTab={onNavigateTab} />
           <div>

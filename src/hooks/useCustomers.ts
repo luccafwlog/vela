@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { supabase } from '../services/supabase'
+import { queryKeys } from '../services/queryKeys'
 import { fetchCustomerPendingBalance, fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
 import { escapeFilterTerm } from '../lib/utils'
 import { classifyDbError } from '../lib/errors'
@@ -176,7 +177,8 @@ export async function fetchCustomerRows(filters: CustomerFilters, paginate: bool
 
   let rows = rawRows as CustomerListItem[]
   const balances = await fetchIssuedInvoiceBalanceByCustomer(rows.map((row) => row.id))
-  rows = rows.map((row) => ({ ...row, pending_balance: balances.get(row.id) ?? 0 }))
+  // Total na coluna; o detalhe (faturado em aberto e a faturar) vai no title (ADR 0093, decisão 10).
+  rows = rows.map((row) => ({ ...row, pending_balance: balances.get(row.id)?.totalBrl ?? 0, pending_balance_detail: balances.get(row.id) }))
   rows = filterCustomerRowsByClientSideFilters(rows, filters)
   rows = sortCustomerRows(rows, filters.sortKey, filters.sortDirection)
 
@@ -265,6 +267,9 @@ export function useCustomerDetail(cnpj?: string) {
         pending_balance: canonicalBalance.totalBrl,
         pending_balance_local: canonicalBalance.localBrl,
         pending_balance_demurrage: canonicalBalance.demurrageBrl,
+        pending_balance_manual: canonicalBalance.manualBrl,
+        pending_balance_invoiced_open: canonicalBalance.invoicedOpenBrl,
+        pending_balance_to_invoice: canonicalBalance.toInvoiceBrl,
         invoices: (invoices ?? []) as CustomerDetail['invoices'],
         invoices_access_denied: false,
       } as CustomerDetail
@@ -312,4 +317,16 @@ export async function fetchCustomerLookup(search: string) {
 
   if (error) throw error
   return (data ?? []) as (Pick<Customer, 'id' | 'cnpj_cpf' | 'name' | 'city' | 'state'> & { customer_contacts?: { email: string | null }[] | null })[]
+}
+
+/**
+ * Saldo pendente canônico do Cliente (`get_customer_pending_balances`, migration
+ * 371). `customers.pending_balance` não é atualizado por ninguém (F-49).
+ */
+export function useCustomerPendingBalance(customerId: number | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.customerFicha.pendingBalance(customerId ?? 0),
+    enabled: Boolean(customerId),
+    queryFn: () => fetchCustomerPendingBalance(customerId as number),
+  })
 }

@@ -13,7 +13,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import { useOverrideCustomers } from '../../hooks/useLocalCharges'
-import { useCustomerLookup } from '../../hooks/useCustomers'
+import { useCustomerLookup, useCustomerPendingBalance } from '../../hooks/useCustomers'
 import { useReviewCustomerGroup } from '../../hooks/useReviewCustomerGroup'
 import type { ReviewQueueItem } from '../../hooks/useReview'
 import { groupReviewItems } from '../../pages/revisaoHelpers'
@@ -72,6 +72,8 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
   const { data: options, isFetching } = useOverrideCustomers(searching ? search : '')
 
   const linked = bl.customer ?? null
+  // Saldo canônico (F-49): `customers.pending_balance` não é atualizado.
+  const linkedBalance = useCustomerPendingBalance(linked?.id)
   const manifestName = bl.manifest_customer_name?.trim() || null
   const manifestDocument = bl.manifest_customer_cnpj_cpf?.trim() || null
   const manifestDiverges = Boolean(linked && manifestDocument && linked.cnpj_cpf
@@ -269,7 +271,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
               </LeadValue>
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <FactList columns={1}>
-                  <Fact label="Saldo em aberto do Cliente"><span className="tabular-nums">{formatBRL(linked.pending_balance ?? 0)}</span></Fact>
+                  <Fact label="Saldo pendente do Cliente"><span className="tabular-nums">{linkedBalance.data ? formatBRL(linkedBalance.data.totalBrl) : '—'}</span></Fact>
                 </FactList>
                 {!picking ? (
                   <div className="flex flex-wrap gap-2">
