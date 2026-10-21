@@ -304,6 +304,9 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     // O envio do NOB não muda nada; o do NOA fecha.
     asServer(`SELECT public.complete_customer_communication_automation_claim('${nobClaim}')`)
     expect(refusalItem().status).toBe('active')
+    // O envio zera as duas marcas: a rodada não confere mais esse Cliente por ele.
+    expect(psql(`SELECT (refusal_alerted_at IS NOT NULL)::text || '|' || (refusal_acknowledged_at IS NOT NULL)::text
+      FROM public.customer_communication_automation_claims WHERE claim_key = '${nobClaim}'`)).toBe('false|false')
     asServer(`SELECT public.complete_customer_communication_automation_claim('${noaClaim}')`)
     expect(refusalItem().status).toBe('resolved')
   })

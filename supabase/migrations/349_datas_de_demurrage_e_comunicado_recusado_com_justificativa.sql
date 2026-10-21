@@ -41,7 +41,9 @@
 --      Para isso a rodada da produtora (`evaluate_and_dispatch_automatic_communications`,
 --      definição da 314) confere também os Clientes com claim reconhecida:
 --      depois da justificativa o item está resolvido, e a rodada só olhava
---      Clientes com o item ativo (achado do revisor na #1013).
+--      Clientes com o item ativo (achado do revisor na #1013). O envio
+--      (`complete_customer_communication_automation_claim`, definição da 318)
+--      zera também o reconhecimento.
 --   4. Acerto dos já abertos: itens `demurrage_invoice_dates_changed` ativos em
 --      Invoice cancelada pelo ramo automático (metadata sem pagamento nem
 --      negociação) sem caixa pendente, ou com todas já cobradas, são
@@ -53,7 +55,8 @@
 -- tipo em Invoice cancelada antes e depois.
 -- Rollback: reaplicar as definições das migrations 317
 -- (_reconcile_demurrage_after_dates), 316 (_alert_types_resolved_with_justification)
--- 318 (refresh_customer_communication_refusal_alert) e 314
+-- 318 (refresh_customer_communication_refusal_alert e
+-- complete_customer_communication_automation_claim) e 314
 -- (evaluate_and_dispatch_automatic_communications); DROP TRIGGER
 -- resolve_demurrage_dates_changed_on_billing ON public.demurrage_invoices e
 -- acknowledge_communication_refusal_on_alert_resolved ON public.alert_items;
@@ -641,6 +644,41 @@ BEGIN
   RETURN v_candidates;
 END;
 $function$;
+
+-- 3c ------------------------------------------------------------------------
+-- Definição da migration 318 com refusal_acknowledged_at zerada junto: a claim
+-- que sai pelo envio perde o reconhecimento, e a rodada 1D deixa de conferir
+-- o Cliente dela (achado do revisor na #1013).
+CREATE OR REPLACE FUNCTION public.complete_customer_communication_automation_claim(p_claim_key text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Executor server-only.' USING ERRCODE = '42501';
+  END IF;
+  IF p_claim_key IS NULL OR btrim(p_claim_key) = '' THEN
+    RAISE EXCEPTION 'Chave da claim e obrigatoria.' USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.customer_communication_automation_claims
+  SET attempts = 0, provider_failures = 0, last_error = NULL, next_attempt_at = NULL,
+      rejected_at = NULL, rejection_reason = NULL, refusal_alerted_at = NULL,
+      refusal_acknowledged_at = NULL
+  WHERE claim_key = p_claim_key;
+  IF NOT FOUND THEN
+    RETURN false;
+  END IF;
+
+  PERFORM public.refresh_customer_communication_refusal_alert(public.customer_communication_claim_customer_id(p_claim_key));
+  RETURN true;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.complete_customer_communication_automation_claim(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_customer_communication_automation_claim(text) TO service_role;
 
 -- 4 -------------------------------------------------------------------------
 -- Acerto dos itens já abertos em Invoice cancelada pelo ramo automático.
