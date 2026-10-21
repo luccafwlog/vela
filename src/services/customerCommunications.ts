@@ -1228,10 +1228,10 @@ export function buildVoyageCommunicationCoverage(input: {
         .map((comm) => `${comm.customer_id}:${comm.anchor_atracacao_id ?? ''}`)).size
 
       const ready = new Set(Array.from(customers).filter((customerId) => input.readiness.get(`${voyage.id}:${customerId}`) === true))
-      // CE e Taxas sem porto gravado vale para todas as escalas do Cliente na viagem.
+      // CE e Taxas é por Cliente × Viagem (decisão D3): vale para todas as
+      // escalas do Cliente, mesmo o envio antigo que gravou `anchor_port`.
       const financeSent = new Set(voyageComms
         .filter((comm) => comm.kind === 'ce_mercante_taxas' && customers.has(comm.customer_id!))
-        .filter((comm) => !comm.anchor_port || (communicationPortCode(comm.anchor_port) ?? '') === port)
         .map((comm) => comm.customer_id!))
       const upToDate = Array.from(financeSent).filter((customerId) => ready.has(customerId)).length
       const resend = financeSent.size - upToDate

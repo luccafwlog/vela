@@ -12,9 +12,18 @@
 -- até o recálculo manual, 14 minutos depois do vínculo.
 --
 -- Mudança: trigger `AFTER UPDATE OF customer_id ON bls` que, quando o B/L
--- passa a ter cliente (de nenhum ou de outro) e tem linha de cálculo vigente,
--- chama `sync_local_charge_receivable`, que cria o recebível ou leva o
--- existente para o novo cliente. Vale para qualquer caminho de vínculo.
+-- passa a ter cliente (de nenhum ou de outro) e tem linha de cálculo vigente:
+--   - B/L ainda não faturado (`financial_status` pendente): recalcula as taxas
+--     com as condições do novo cliente (`calculate_bl_local_charges`, que
+--     sincroniza o recebível no fim), como a aprovação da conciliação de
+--     cliente já faz (`approve_customer_reconciliation`). O cálculo feito
+--     sem cliente usou as tabelas gerais; copiar esse total para o recebível
+--     cobraria o cliente com Condição de Cliente pelo valor errado.
+--   - demais (sem fatura viva): `sync_local_charge_receivable` leva o
+--     recebível para o novo cliente.
+-- Vale para qualquer caminho de vínculo.
+-- ponytail: a aprovação da conciliação recalcula de novo depois deste
+-- gatilho; o segundo cálculo é idempotente e custa uma passada a mais.
 --
 -- B/L já faturado (fatura viva, `_live_local_invoice_ids_for_bl`) fica de
 -- fora: a troca de cliente dele segue a ADR 0017 (`capture_invoice_basis` e
@@ -23,9 +32,10 @@
 -- B/L que perde o cliente (X → NULL) também fica como está: o recebível
 -- continua com o cliente anterior até o próximo cálculo.
 --
--- Uma falha da sincronização (ex.: ROE ausente com taxa em USD) não desfaz o
--- vínculo do cliente: vira aviso no log e o recebível nasce no próximo
--- cálculo, como antes.
+-- Uma falha do recálculo ou da sincronização (ex.: ROE ausente com taxa em
+-- USD) não desfaz o vínculo do cliente: fica no Histórico do B/L
+-- (`local_charges_customer_link_calc_error`, como a conciliação grava a sua)
+-- e o recebível nasce no próximo cálculo, como antes.
 --
 -- Só cria função e trigger; não reescreve nem apaga linhas existentes. Os 7
 -- B/Ls do lote 203 da viagem 62 sem cliente ganham recebível quando o
@@ -41,6 +51,9 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $function$
 BEGIN
+  IF COALESCE(NEW.financial_status, 'pending') = 'cancelled' OR NEW.cancelled_at IS NOT NULL THEN
+    RETURN NULL;
+  END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.charge_calculations cc
     WHERE cc.bl_id = NEW.id
@@ -52,9 +65,15 @@ BEGIN
     RETURN NULL;
   END IF;
   BEGIN
-    PERFORM public.sync_local_charge_receivable(NEW.id);
+    IF COALESCE(NEW.financial_status, 'pending') = 'pending' THEN
+      PERFORM public.calculate_bl_local_charges(NEW.id, auth.uid(), true);
+    ELSE
+      PERFORM public.sync_local_charge_receivable(NEW.id);
+    END IF;
   EXCEPTION WHEN OTHERS THEN
-    RAISE WARNING 'Recebível do B/L % não sincronizado no vínculo do cliente: %', NEW.id, SQLERRM;
+    INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification)
+    VALUES ('bl', NEW.id, 'local_charges_customer_link_calc_error', NULL, SQLERRM, auth.uid(), now(),
+      'Falha no recálculo das taxas locais ao vincular o cliente; o recebível nasce no próximo cálculo.');
   END;
   RETURN NULL;
 END;
