@@ -65,6 +65,11 @@ export function Baplie() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [containerFilters, setContainerFilters] = useState<ContainerFilters>(EMPTY_CONTAINER_FILTERS)
+  // "No Baplie, sem B/L" abre a própria lista filtrada em vez de repetir a tabela.
+  const showMissingInList = () => {
+    setContainerFilters({ ...EMPTY_CONTAINER_FILTERS, coverage: 'missing' })
+    requestAnimationFrame(() => document.getElementById('baplie-containers')?.scrollIntoView?.({ block: 'start' }))
+  }
 
   // O rail reaproveita a projeção resumida de Viagens; a presença de Baplie vem
   // do agregado server-side. O "Divergente" do cartão roda a conciliação das
@@ -273,6 +278,7 @@ export function Baplie() {
             overview={overview}
             items={reconciliationData?.items ?? []}
             voyageId={voyageId}
+            onShowMissing={showMissingInList}
             onRetry={() => {
               if (blsQuery.isError) void blsQuery.refetch()
               else void reconciliationQuery.refetch()
@@ -412,11 +418,13 @@ function ReconciliacaoSection({
   overview,
   items,
   voyageId,
+  onShowMissing,
   onRetry,
 }: {
   overview: ReconciliationOverview
   items: BaplieReconciliationItem[]
   voyageId: string
+  onShowMissing: () => void
   onRetry: () => void
 }) {
   const missing = items.filter(
@@ -464,31 +472,19 @@ function ReconciliacaoSection({
       </Block>
 
         {missing.length > 0 ? (
+          /* Os cheios sem B/L já estão na lista "Containers do Baplie", com
+             "Sem B/L" na conciliação: o grupo não repete a tabela (sessão de
+             testes de 2026-10-20, Obs. 1, "tabelas duplicadas"); filtra a lista. */
           <DivergenceGroup
             id="baplie-sem-bl"
             title={`No Baplie, sem B/L (${missing.length})`}
             meaning="Container cheio a bordo sem documento na viagem. Não conta como carga no ADR nem gera cobrança."
             action="Pedir ao armador o B/L ou a correção do manifesto; quando o B/L for importado, a divergência some."
+            table={false}
           >
-            <table className="app-table app-table--nested app-cargo-table">
-              <caption className="sr-only">Containers no Baplie sem B/L</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Container</th>
-                  <th scope="col">B/L citado no Baplie</th>
-                  <th scope="col">Slot</th>
-                </tr>
-              </thead>
-              <tbody>
-                {missing.map((item) => (
-                  <tr key={item.container_number}>
-                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
-                    <td className="app-cargo-code">{item.baplie_bl_ref ? <CopyValue value={item.baplie_bl_ref} label="número do B/L" /> : <NoValue label="B/L não citado" />}</td>
-                    <td className="app-cargo-code">{item.slot ?? <NoValue label="Sem slot" />}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Button variant="secondary" className="app-btn--sm" onClick={onShowMissing}>
+              {`Ver ${missing.length === 1 ? 'o container' : `os ${missing.length.toLocaleString('pt-BR')} containers`} na lista`}
+            </Button>
           </DivergenceGroup>
         ) : null}
 
@@ -628,12 +624,12 @@ function CoverageFact({ label, count, anchor }: { label: string; count: number; 
 }
 
 /** Um grupo de divergência por bloco: o significado na faixa, "O que fazer" e a tabela de cabeçalho claro. */
-function DivergenceGroup({ id, title, meaning, action, children }: { id: string; title: string; meaning: string; action: string; children: ReactNode }) {
+function DivergenceGroup({ id, title, meaning, action, table = true, children }: { id: string; title: string; meaning: string; action: string; table?: boolean; children: ReactNode }) {
   return (
     <div id={id} tabIndex={-1}>
       <Block title={title} aside={meaning} headingLevel={3}>
         <p className="app-cargo-divergence__text"><strong>O que fazer:</strong> {action}</p>
-        <div className="app-table-scroll">{children}</div>
+        {table ? <div className="app-table-scroll">{children}</div> : <div>{children}</div>}
       </Block>
     </div>
   )
@@ -794,6 +790,7 @@ function ContainerList({
 
   return (
     <>
+      <div id="baplie-containers" tabIndex={-1}>
       <Block title="Containers do Baplie" aside={filtered.length === containers.length ? plural(containers.length, 'container', 'containers') : `${filtered.length.toLocaleString('pt-BR')} de ${plural(containers.length, 'container', 'containers')}`} flush>
       <FilterBar title="Filtros" activeCount={activeCount} onClear={() => onFiltersChange(EMPTY_CONTAINER_FILTERS)}>
         <div className="app-filter-grid">
@@ -888,6 +885,7 @@ function ContainerList({
           />
         ) : null}
       </Block>
+      </div>
     </>
   )
 }
