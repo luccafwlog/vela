@@ -45,7 +45,9 @@ const BL_CANCEL_BILLING = 'BL347-CANCFAT'
 const BL_DELETED = 'BL347-EXCL'
 const BL_STALE = 'BL347-LEGADO'
 const BL_GONE = 'BL347-SUMIU'
-const BLS = [BL_CANCELLED, BL_LIVE, BL_BILLED, BL_CANCEL_BILLING, BL_DELETED, BL_STALE, BL_GONE]
+const BL_GAP = 'BL347-GAP'
+const BL_GAP_KEEP = 'BL347-GAP2'
+const BLS = [BL_CANCELLED, BL_LIVE, BL_BILLED, BL_CANCEL_BILLING, BL_DELETED, BL_STALE, BL_GONE, BL_GAP, BL_GAP_KEEP]
 const blList = BLS.map((id) => `'${id}'`).join(', ')
 
 function asAdmin(sql: string) {
@@ -77,6 +79,7 @@ function openBillingAlert(type: string, blId: string) {
 
 function cleanup() {
   psql(`DELETE FROM public.alerts WHERE (entity_type = 'bl' AND entity_id IN (${blList}))
+    OR (entity_type = 'charge_table_gap' AND entity_id = 'BR347:container')
     OR (entity_type = 'customer' AND entity_id IN (${CUSTOMERS.map((id) => `'${id}'`).join(', ')}));`)
   psql(`
     SET session_replication_role = replica;
@@ -113,7 +116,9 @@ describeLocal('347 — alertas acompanham o B/L cancelado, faturado ou excluído
         ('${BL_BILLED}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
         ('${BL_CANCEL_BILLING}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
         ('${BL_DELETED}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
-        ('${BL_STALE}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok');
+        ('${BL_STALE}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
+        ('${BL_GAP}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok'),
+        ('${BL_GAP_KEEP}', ${VOYAGE_ID}, ${WITH_LIVE_BL}, 'ok');
       -- Liberação de faturamento sem Portal: o B/L pode ser faturado.
       INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
       VALUES (${WITH_LIVE_BL}, 'teste 347', '${ADMIN_ID}', now() + interval '10 days');
@@ -161,6 +166,16 @@ describeLocal('347 — alertas acompanham o B/L cancelado, faturado ou excluído
     expect(deleteBl.stderr).toBe('')
     expect(psql(`SELECT count(*) FROM public.bls WHERE id = '${BL_DELETED}';`)).toBe('0')
     expect(psql(`SELECT count(*) FROM public.alerts WHERE entity_type = 'bl' AND entity_id = '${BL_DELETED}';`)).toBe('0')
+  })
+
+  it('excluir B/L tira ele da lista de tabela de taxa faltando', () => {
+    asServer(`SELECT set_config('alerts.foundation_trigger', 'on', true);
+      SELECT public._write_charge_table_gap('BR347', 'container', ARRAY['${BL_GAP}', '${BL_GAP_KEEP}'], 'teste_347')`)
+    const deleteBl = asAdmin(`SELECT public.delete_records('bl', ARRAY['${BL_GAP}'], false, 'teste 347');`)
+    expect(deleteBl.stderr).toBe('')
+    expect(psql(`SELECT i.status || '|' || (i.metadata->'bl_ids')::text FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'billing_charge_table_missing' AND a.entity_type = 'charge_table_gap' AND a.entity_id = 'BR347:container';`))
+      .toBe(`active|["${BL_GAP_KEEP}"]`)
   })
   it('o acerto da migration fecha o alerta de B/L já faturado e apaga o de B/L que não existe', () => {
     openBillingAlert('billing_calculation_blocked', BL_STALE)
