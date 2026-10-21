@@ -119,6 +119,7 @@ src/integration/importacaoLoteUnico.local-pg.test.ts
 src/integration/comunicadoBlSemCliente.local-pg.test.ts
 src/integration/grantsDoReplay.local-pg.test.ts
 src/integration/alertasDaViagem.local-pg.test.ts
+src/integration/alertasDeViagemEscala.local-pg.test.ts
 src/integration/recebivelNoVinculoDoCliente.local-pg.test.ts
 src/integration/portalContaAtivaNaoReabre.local-pg.test.ts
 src/integration/comunicadoNaFila.local-pg.test.ts
