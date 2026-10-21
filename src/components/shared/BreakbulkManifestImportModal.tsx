@@ -124,7 +124,7 @@ export function BreakbulkManifestImportModal({
           <Field
             label="Formato numérico do arquivo"
             hint={numberFormat === 'auto'
-              ? 'Valores como "259.312" (259 mil ou 259,312) são recusados até você declarar o formato.'
+              ? 'Valores como "259.312" ou "12,500" (milhar ou decimal) são recusados quando o arquivo não desempata: declare o formato.'
               : 'Se o arquivo contradisser o formato declarado, a importação é recusada.'}
           >
             <Select value={numberFormat} disabled={locked} onChange={(event) => setNumberFormat(event.target.value as typeof numberFormat)}>

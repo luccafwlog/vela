@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   inferSeparatorFormat,
+  isAmbiguousSeparatorShape,
   isThousandsGroupShape,
   normalizeNumericText,
   parseImportNumber,
@@ -137,5 +138,24 @@ describe('normalizeNumericText e isThousandsGroupShape', () => {
     // Dois separadores ja se explicam; quatro casas tambem.
     expect(isThousandsGroupShape('1.234,56', 'pt-BR')).toBe(false)
     expect(isThousandsGroupShape('12.3456', 'pt-BR')).toBe(false)
+  })
+})
+
+describe('isAmbiguousSeparatorShape', () => {
+  it('marca as duas direcoes: o que infla e o que encolhe por mil', () => {
+    expect(isAmbiguousSeparatorShape('12.500')).toBe(true)
+    expect(isAmbiguousSeparatorShape('12,500')).toBe(true)
+    expect(isAmbiguousSeparatorShape('259.312 TON')).toBe(true)
+    expect(isAmbiguousSeparatorShape('-3,800')).toBe(true)
+  })
+
+  it('nao marca o que so tem uma leitura', () => {
+    expect(isAmbiguousSeparatorShape('0,500')).toBe(false)
+    expect(isAmbiguousSeparatorShape('1234.567')).toBe(false)
+    expect(isAmbiguousSeparatorShape('12,5')).toBe(false)
+    expect(isAmbiguousSeparatorShape('1.234,56')).toBe(false)
+    expect(isAmbiguousSeparatorShape('1.234.567')).toBe(false)
+    expect(isAmbiguousSeparatorShape(12.5)).toBe(false)
+    expect(isAmbiguousSeparatorShape(null)).toBe(false)
   })
 })

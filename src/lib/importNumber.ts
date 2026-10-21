@@ -198,6 +198,29 @@ export function isThousandsGroupShape(value: unknown, format: 'pt-BR' | 'en-US')
 }
 
 /**
+ * `true` quando a célula tem UM separador só — ponto OU vírgula — com um a três
+ * dígitos antes (sem zero à esquerda) e exatamente três depois: `12.500`,
+ * `12,500`, `259.312 TON`.
+ *
+ * Diferente de `isThousandsGroupShape`, não depende do formato em uso: olha as
+ * DUAS direções do erro. Lida como milhar, a célula pode inflar o número por
+ * mil; lida como decimal, pode encolhê-lo por mil (`12,500` kg de um arquivo
+ * en-US lido em pt-BR vira 12,5 kg). Só o formato declarado pelo operador — ou
+ * uma regra de domínio de quem chama, como cubagem de container nunca chegar a
+ * mil m³ — desempata.
+ *
+ * `0,500` e `1234.567` não entram: nenhum dos dois é um grupo de milhar válido,
+ * então só têm uma leitura (decimal).
+ */
+export function isAmbiguousSeparatorShape(value: unknown): boolean {
+  // Célula numérica tipada (leitor comum) já é o número exato: não há separador.
+  if (typeof value === 'number') return false
+  const text = normalizeNumericText(value)
+  if (!text) return false
+  return /^[+-]?[1-9]\d{0,2}[.,]\d{3}$/.test(text)
+}
+
+/**
  * Descobre, olhando a coluna inteira, qual separador decimal a planilha usa.
  *
  * Existe porque fixar um formato é o pior dos mundos: com `pt-BR` fixo, um
@@ -244,9 +267,11 @@ function separatorEvidence(text: string): ImportNumberFormat | null {
   if (separatorIndex < 0) return null
 
   const fraction = text.slice(separatorIndex + 1)
-  // Três dígitos depois do separador é exatamente o caso ambíguo: pode ser
-  // milhar (1.234) ou decimal (259.312). Não é evidência de nada.
-  if (!/^\d+$/.test(fraction) || fraction.length === 3) return null
+  if (!/^\d+$/.test(fraction)) return null
+  // Três dígitos depois do separador é o caso ambíguo: pode ser milhar (1.234)
+  // ou decimal (259.312). Só é evidência quando o que vem antes não cabe num
+  // grupo de milhar (`1217,109`, `47740.000`): aí o separador só pode ser decimal.
+  if (fraction.length === 3 && !/^[+-]?\d{4,}$/.test(text.slice(0, separatorIndex))) return null
 
   return lastDot >= 0 ? 'en-US' : 'pt-BR'
 }

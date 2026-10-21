@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { annotateContainerDates, importContainerDates, MAX_CONTAINER_DATES_BLS, parseContainerDatesFile } from '../containerDatesImport'
+import { annotateContainerDates, fetchContainerDatesCurrent, importContainerDates, MAX_CONTAINER_DATES_BLS, parseContainerDatesFile } from '../containerDatesImport'
 import { classifyDbError } from '../../lib/errors'
 import { jsonToBuffer } from './testWorkbook'
 
@@ -25,11 +25,28 @@ function setContainers(rows: FakeContainer[]) {
   state.containers = rows
 }
 
+/** Teto do servidor por consulta (`max_rows` do PostgREST): sem `range`, a resposta para aqui. */
+const MAX_ROWS = 1000
+
+/** Leitura de `bl_containers` como o PostgREST: no máximo `MAX_ROWS` por consulta, `range` pagina. */
+function containersQuery() {
+  let window: [number, number] = [0, MAX_ROWS - 1]
+  const query: Record<string, unknown> = {}
+  for (const method of ['in', 'order', 'overrideTypes']) query[method] = () => query
+  query.range = (from: number, to: number) => {
+    window = [from, Math.min(to, from + MAX_ROWS - 1)]
+    return query
+  }
+  query.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+    Promise.resolve({ data: state.containers.slice(window[0], window[1] + 1), error: null }).then(resolve, reject)
+  return query
+}
+
 // Cada `from(...)` do import devolve so o encadeamento que aquela tabela usa.
 mockFrom.mockImplementation((table: string) => {
   if (table === 'bl_containers') {
     return {
-      select: () => ({ in: () => Promise.resolve({ data: state.containers, error: null }) }),
+      select: () => containersQuery(),
       update: () => ({ eq: vi.fn() }),
     }
   }
@@ -248,6 +265,33 @@ describe('importContainerDates (arquivo inteiro numa chamada)', () => {
     expect(classifyDbError(failure).message).toBe(
       'a planilha é grande demais para gravar de uma vez. Divida os B/Ls em planilhas menores e importe cada uma.',
     )
+  })
+
+  // F-31: o servidor entrega no máximo 1.000 linhas por consulta. Acima disso,
+  // os containers além da primeira página viravam "não encontrado" e o arquivo
+  // inteiro era recusado.
+  it('mais de 1.000 containers: lê todas as páginas na prévia e na gravação', async () => {
+    const many = Array.from({ length: 1500 }, (_, index) => ({
+      id: index + 1,
+      bl_id: `BL${String(Math.floor(index / 10)).padStart(3, '0')}`,
+      container_number: `TCLU${String(index).padStart(7, '0')}`,
+      discharge_date: null,
+      return_date: null,
+      demurrage_status: null,
+    }))
+    setContainers(many)
+    const rows = many.map((container) => ({
+      bl_id: container.bl_id, container_number: container.container_number, discharge_date: '2026-01-10', return_date: null,
+    }))
+
+    const current = await fetchContainerDatesCurrent(rows)
+    expect(current).toHaveLength(1500)
+    expect(annotateContainerDates(rows, current).rows.every((row) => row.found)).toBe(true)
+
+    mockRpc.mockResolvedValue({ data: { ok: true, updated: 1500, unchanged: 0 }, error: null })
+    const result = await importContainerDates(rows)
+    expect(result).toEqual({ ok: true, updated: 1500, unchanged: 0, errors: [] })
+    expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 
   it('planilha acima do teto de B/Ls é recusada antes de ler ou gravar', async () => {

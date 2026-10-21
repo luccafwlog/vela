@@ -13,6 +13,16 @@ ancorava a Condição de Cliente). Completa a ADR 0093 nas decisões 16 e 21 e
 a regra de B/L cancelado (F-28). Altera a nota "Taxas do dia do CE" da
 [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md).
 
+> **Nota editorial — 2026-10-21 (confirmações depois do merge).** Na
+> conferência da PR luccafwlog/vela#1019 o responsável confirmou dois pontos
+> do código como estão: (1) o câmbio fica fixo no primeiro cálculo mesmo
+> quando o B/L ainda não tem item em dólar; só quando o Vela não tem câmbio
+> nenhum gravado nesse dia ele entra depois, no primeiro cálculo que
+> encontrar um (a D4, que vale para qualquer B/L); (2) trocar o Cliente de B/L
+> faturado também passa a Condição fixada para a do Cliente novo, vigente no
+> dia da importação: o valor da fatura não muda (decisão 4 da ADR 0093), e uma
+> emissão posterior pelo Emitir segue o Cliente que paga.
+
 ## Contexto
 
 A ADR 0093 congelava o preço das Taxas Locais no registro do CE. Até lá o B/L

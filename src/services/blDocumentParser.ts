@@ -5,7 +5,7 @@
 // caminho do manifesto BB e vive em blDocumentImport.ts.
 import { extractCnpjFromText } from '../lib/cnpj'
 import { assertUploadFile } from '../lib/fileGuard'
-import { parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
+import { isAmbiguousSeparatorShape, parseImportNumber } from '../lib/importNumber'
 import { extractNcmCodes } from '../lib/ncm'
 import {
   extractCarrierMachineQty,
@@ -67,6 +67,8 @@ const PACKAGE_LINE_PATTERN =
   /^(\d+)\s+(PACKAGES?|PKGS?|CASES?|CARTONS?|CRATES?|BOXES|BUNDLES?|PALLETS?|PIECES?|PCS|UNITS?|BAGS?|DRUMS?|ROLLS?|COILS?|SKIDS?|CTNS?)\b/i
 const FREIGHT_TERMS_PATTERN = /\bFREIGHT\s+(PREPAID|COLLECT)\b/i
 const TON_PATTERN = /\b(?:TONS?|TONNES?|MTS?|M\/?T)\b/i
+// "T" sozinho só conta colado ao número ("25,350 T"), para não pegar uma letra solta.
+const BARE_TON_PATTERN = /\d\s*T\b/i
 
 /** Lê um B/L avulso enviado pelo operador (.pdf ou .docx). */
 export async function parseBlDocumentFile(file: File): Promise<ParsedBlDocument> {
@@ -120,9 +122,10 @@ export function normalizeBlDocumentFields(
   const description = fields.description ?? ''
   const packages = readPackages(description, fields.sayTotal, warnings)
   const weight = readWeight(fields.grossWeight, warnings)
-  const cbm = readMeasurement(fields.measurement)
-  if (weight === null) warnings.push('Peso bruto não encontrado no documento.')
-  if (cbm === null) warnings.push('Cubagem (CBM) não encontrada no documento.')
+  const cbm = readMeasurement(fields.measurement, warnings)
+  // Campo presente e ilegível já deixou o aviso de descarte; este é o ausente.
+  if (weight === null && !fields.grossWeight) warnings.push('Peso bruto não encontrado no documento.')
+  if (cbm === null && !fields.measurement) warnings.push('Cubagem (CBM) não encontrada no documento.')
 
   return {
     format,
@@ -305,48 +308,87 @@ function parseNumberWords(value: string) {
   return matched ? total : null
 }
 
+/**
+ * Peso bruto em kg, com a regra de separador decidida para o B/L avulso (F-02):
+ *
+ * - unidade em toneladas (MT/TONS/T): ponto ou vírgula seguido de três dígitos
+ *   é DECIMAL — 25.350 t = 25,350 t = 25 350 kg. Ninguém escreve 25 mil
+ *   toneladas num B/L de carga solta; a leitura de milhar inflava por mil.
+ * - sem unidade em toneladas (KGS ou nada): o mesmo desenho é MILHAR —
+ *   11.652 KGS = 11,652 KGS = 11 652 kg.
+ *
+ * Nos dois casos o aviso diz o valor que vai ser gravado, em kg. Valor presente
+ * que não vira número nunca some calado: vira aviso de descarte.
+ *
+ * ponytail: a regra é por unidade, não por evidência do documento. Upgrade
+ * path = conferir com o peso do manifesto da viagem para o mesmo B/L.
+ */
 function readWeight(value: string | null, warnings: string[]) {
   if (!value) return null
-  const match = value.match(/(\d[\d.,]*)\s*([A-Z/]*)/i)
-  if (!match) return null
+  const shown = value.trim()
+  const text = value.match(/\d[\d.,]*/)?.[0] ?? null
+  const inTons = TON_PATTERN.test(value) || BARE_TON_PATTERN.test(value)
 
-  const amount = parseAmount(match[1], { thousandsAware: true, format: 'unknown' })
-  if (amount === null) return null
-  if (amount.usedThousandsSeparator) {
-    warnings.push(`Peso "${match[1]}" lido como ${amount.value} kg (ponto tratado como separador de milhar).`)
+  if (text && isAmbiguousSeparatorShape(text)) {
+    if (inTons) {
+      const tons = Number(text.replace(',', '.'))
+      const kg = tonsToKg(tons)
+      warnings.push(`Peso "${shown}" gravado como ${formatKg(kg)} kg: ${formatDecimal(tons)} t (com a unidade em toneladas, o separador é decimal).`)
+      return kg
+    }
+    const kg = Number(text.replace(/[.,]/, ''))
+    warnings.push(`Peso "${shown}" gravado como ${formatKg(kg)} kg (separador de milhar; não ${formatDecimal(Number(text.replace(',', '.')))} kg).`)
+    return kg
   }
-  return TON_PATTERN.test(value) ? amount.value * 1000 : amount.value
-}
 
-function readMeasurement(value: string | null) {
-  if (!value) return null
-  const match = value.match(/(\d[\d.,]*)/)
-  // CBM é escrito com decimais no B/L ("55.244"), então aqui o ponto é sempre
-  // separador decimal — o contrário do peso.
-  return match ? parseAmount(match[1], { thousandsAware: false, format: 'en-US' })?.value ?? null : null
+  const amount = text === null ? null : readDecimal(text)
+  if (amount === null) {
+    warnings.push(`Peso bruto "${shown}" não pôde ser lido: o B/L entra sem peso. Confira o documento antes de importar.`)
+    return null
+  }
+  return inTons ? tonsToKg(amount) : amount
 }
 
 /**
- * ponytail: "11.652" é 11652 kg e "55.244" é 55,244 CBM — o mesmo desenho
- * significa coisas diferentes conforme a grandeza, e o B/L não diz qual usou.
- * A regra aqui é a única desambiguação possível sem adivinhar: grupos de
- * exatamente três dígitos são milhar quando a grandeza é peso, e o operador é
- * avisado sempre que essa leitura for aplicada. Upgrade path = ler a unidade
- * declarada no manifesto da viagem quando ele existir para o mesmo B/L.
+ * Cubagem em m³. Separador único é sempre decimal, ponto ou vírgula (F-02):
+ * "55.244" e "55,244" são 55,244 m³ — o B/L avulso declara a cubagem com
+ * casas decimais, e a leitura de milhar a inflaria por mil.
  */
-function parseAmount(value: string, options: { thousandsAware: boolean; format: ImportNumberFormat }) {
-  const text = value.trim()
-  if (options.thousandsAware && /^\d{1,3}(\.\d{3})+$/.test(text)) {
-    const parsed = parseImportNumber(text.replace(/\./g, ''), 'unknown')
-    return parsed.kind === 'value'
-      ? { value: Number(parsed.decimal), usedThousandsSeparator: true }
-      : null
+function readMeasurement(value: string | null, warnings: string[]) {
+  if (!value) return null
+  const text = value.match(/\d[\d.,]*/)?.[0] ?? null
+  const amount = text === null ? null : readDecimal(text)
+  if (amount === null) {
+    warnings.push(`Cubagem "${value.trim()}" não pôde ser lida: o B/L entra sem cubagem. Confira o documento antes de importar.`)
   }
+  return amount
+}
 
-  const parsed = parseImportNumber(text, options.format)
-  return parsed.kind === 'value'
-    ? { value: Number(parsed.decimal), usedThousandsSeparator: false }
-    : null
+/**
+ * Um separador só (ponto ou vírgula) é decimal; dois tipos de separador seguem
+ * o leitor comum (o da direita é o decimal); o resto é ilegível (null).
+ */
+function readDecimal(text: string) {
+  const separators = text.match(/[.,]/g) ?? []
+  if (separators.length === 1) {
+    const value = Number(text.replace(',', '.'))
+    return Number.isFinite(value) ? value : null
+  }
+  const parsed = parseImportNumber(text, 'unknown')
+  return parsed.kind === 'value' ? Number(parsed.decimal) : null
+}
+
+/** Toneladas para kg sem o resíduo de ponto flutuante (25.35 * 1000 = 25350.000000000004). */
+function tonsToKg(tons: number) {
+  return Math.round(tons * 1_000_000) / 1000
+}
+
+function formatKg(value: number) {
+  return value.toLocaleString('pt-BR', { useGrouping: false, maximumFractionDigits: 3 })
+}
+
+function formatDecimal(value: number) {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
 }
 
 function readFreightTerms(freight: string | null, description: string) {

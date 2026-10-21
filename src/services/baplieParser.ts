@@ -47,6 +47,11 @@ export type ParsedBaplie = {
   operator?: string | null
   containers: BaplieContainer[]
   pods: string[]
+  /**
+   * Containers deixados de fora porque o porto de descarga do arquivo não é
+   * reconhecido. A prévia os lista em destaque (aviso, não bloqueio).
+   */
+  ignored_pods?: Array<{ container_number: string; pod: string }>
   issues: ImportIssue[]
   encoding: ImportTextEncoding
 }
@@ -57,7 +62,9 @@ export type ParsedBaplie = {
 const POL_QUALIFIERS = ['9', '6'] as const
 const POD_QUALIFIERS = ['11', '12'] as const
 const FINAL_DEST_QUALIFIERS = ['83'] as const
-const WEIGHT_QUALIFIERS = new Set(['WT', 'VGM'])
+// Peso do container: o VGM (peso bruto verificado, SOLAS) vale sobre o WT,
+// seja qual for a ordem dos MEA; sem VGM, vale o WT.
+const WEIGHT_QUALIFIERS_BY_PREFERENCE = ['VGM', 'WT'] as const
 const SLOT_QUALIFIER = '147'
 // C222 (identificação do transporte): indicativo de chamada (103) ou nº IMO
 // (146), agência e o NOME do navio no 4º componente.
@@ -65,6 +72,23 @@ const TRANSPORT_ID_QUALIFIERS = new Set(['103', '146'])
 // DIM de excesso (5 = frente, 6 = trás, 7 = direita, 8 = esquerda, 9 = altura).
 // DIM+1 (dimensões brutas) e demais medidas não são excesso.
 const OOG_DIM_QUALIFIERS = new Set(['5', '6', '7', '8', '9'])
+// SMDG 1.5 manda o porto só com o código de 3 letras, sem o país. Só os portos
+// brasileiros das linhas em uso, e só o valor inteiro do LOC. Navegantes (NVT)
+// e Itajaí (ITJ), Recife (REC) e Suape (SUA) são portos distintos: o leitor nunca os
+// junta; quem decide se um container descarrega na Viagem são as escalas dela.
+// ponytail: lista fechada à mão; porto novo de 3 letras cai como não
+// reconhecido (aviso, fora da importação) até entrar aqui.
+const SMDG15_PORT_CODES: Record<string, string> = {
+  SSZ: 'BRSSZ',
+  ITJ: 'BRITJ',
+  PNG: 'BRPNG',
+  RIG: 'BRRIG',
+  SSA: 'BRSSA',
+  PEC: 'BRPEC',
+  SUA: 'BRSUA',
+  REC: 'BRREC',
+  NVT: 'BRNVT',
+}
 
 type Delimiters = { component: string; element: string; release: string; terminator: string }
 
@@ -85,13 +109,20 @@ function parseDelimiters(text: string): { delimiters: Delimiters; body: string }
   return { delimiters: { component: ':', element: '+', release: '?', terminator: "'" }, body: bodyText }
 }
 
-function splitRespectingRelease(input: string, delimiter: string, release: string): string[] {
+/**
+ * Divide `input` no delimitador, respeitando o caractere de liberação. Com
+ * `keepRelease`, a sequência `?x` fica intacta no pedaço: o elemento ainda vai
+ * ser dividido em componentes, e só essa última divisão pode tirar o `?`. Tirar
+ * nas duas transformava `AB?+12?:34` em `AB+12` (o `:` liberado virava
+ * separador de componente na segunda passada).
+ */
+function splitRespectingRelease(input: string, delimiter: string, release: string, keepRelease = false): string[] {
   const parts: string[] = []
   let current = ''
   for (let i = 0; i < input.length; i += 1) {
     const char = input[i]
     if (char === release && i + 1 < input.length) {
-      current += input[i + 1]
+      current += keepRelease ? char + input[i + 1] : input[i + 1]
       i += 1
       continue
     }
@@ -130,7 +161,7 @@ function splitSegments(body: string, delimiters: Delimiters): string[] {
 type ParsedSegment = { tag: string; rawElements: string[]; components: string[][] }
 
 function parseSegment(seg: string, delimiters: Delimiters): ParsedSegment {
-  const rawElements = splitRespectingRelease(seg, delimiters.element, delimiters.release)
+  const rawElements = splitRespectingRelease(seg, delimiters.element, delimiters.release, true)
   const components = rawElements.map((el) => splitRespectingRelease(el, delimiters.component, delimiters.release))
   return { tag: (components[0]?.[0] ?? '').trim().toUpperCase(), rawElements, components }
 }
@@ -226,6 +257,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
   const trailingSegments = terminalIndex >= 0
     ? segments.slice(terminalIndex + 1).filter(({ tag }) => tag !== 'UNT' && tag !== 'UNZ' && tag !== 'UNE')
     : []
+  const trailerIssues = validateTrailers(segments)
 
   let vessel_name: string | null = null
   let vessel_name_source: ParsedBaplie['vessel_name_source'] = null
@@ -305,6 +337,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
       message: `Segmento ${segment.tag || 'desconhecido'} encontrado após o trailer do EDI.`,
     })
   }
+  issues.push(...trailerIssues)
   const seen = new Map<string, number>()
 
   const upsert = (next: BaplieContainer) => {
@@ -361,10 +394,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
       const ownFinal = lastPort(ownItems, FINAL_DEST_QUALIFIERS)
       const useDeliveryAsPod = !ownPod.code && ownFinal.recognized && Boolean(ownFinal.code)
       const ownBl = lastValue(ownItems.filter((i) => i.tag === 'RFF' && (i.components[1]?.[0] ?? '') === 'BM').map((i) => citedBlRef(i.components[1]?.[1])))
-      const weightValues = ownItems
-        .filter((i) => i.tag === 'MEA' && WEIGHT_QUALIFIERS.has((i.components[1]?.[0] ?? '').trim()))
-        .map((i) => parseWeight(i, delimiters))
-      const ownWeightResult = lastValue(weightValues)
+      const ownWeightResult = preferredWeight(ownItems, delimiters)
       const ownWeight = ownWeightResult?.value ?? null
       const ownOog = ownItems.some((i) => i.tag === 'DIM' && hasOogDims(i, delimiters))
       // Carga LQ (quantidade limitada) é carga normal: só o DGS em LQ deixa de
@@ -501,6 +531,24 @@ export function parseBaplieText(text: string): ParsedBaplie {
           message: `Container ${container_number}: POD ${podRaw ? `não reconhecido (${podRaw})` : 'ausente'} no conjunto ${group.order}.${useDeliveryAsPod ? ` Utilizado o local de entrega ${ownFinal.code} (LOC+83) como porto de descarga; confira a descarga real.` : ''}`,
         })
       }
+      // EQD seguinte no mesmo LOC+147 sem POL/POD/peso próprios: entra sem
+      // esses campos (não herda os da unidade anterior); avisa para conferir.
+      if (eqdPos > 0) {
+        const missing = [
+          !ownPol.code ? 'POL' : null,
+          !next.pod ? 'POD' : null,
+          next.status === 'full' && next.weight_kg == null && !ownWeightResult?.issue ? 'peso' : null,
+        ].filter(Boolean)
+        if (missing.length) {
+          issues.push({
+            row: group.order,
+            field: 'container_number',
+            code: 'invalid_group',
+            severity: 'warning',
+            message: `Container ${container_number}: ${eqdPos + 1}º EQD do slot ${group.slot ?? 'sem slot'} (conjunto ${group.order}) sem ${joinPt(missing as string[])}; entra sem ${missing.length === 1 ? 'esse campo' : 'esses campos'}. Confira com o armador.`,
+          })
+        }
+      }
       if (eqdPos === 0 && ownWeightResult?.issue) {
         issues.push({
           row: group.order,
@@ -561,7 +609,10 @@ export function parseBaplieText(text: string): ParsedBaplie {
   }
 
   const pods = Array.from(new Set(containers.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
-  return { vessel_name, vessel_name_source, voyage_number, operator, containers, pods, issues, encoding: 'utf-8' }
+  const ignored_pods = ignored
+    .filter((item) => item.reason === 'unknown_pod' && item.pod)
+    .map((item) => ({ container_number: item.container_number, pod: item.pod as string }))
+  return { vessel_name, vessel_name_source, voyage_number, operator, containers, pods, ignored_pods, issues, encoding: 'utf-8' }
 }
 
 function lastValue<T>(values: Array<T | null>): T | null {
@@ -598,6 +649,8 @@ function rawPort(items: ParsedSegment[], qualifiers: readonly string[]): string 
 function lastPort(items: ParsedSegment[], qualifiers: readonly string[]): ParsedPort {
   const raw = rawPort(items, qualifiers)
   if (!raw) return { code: null, recognized: false }
+  const smdg15 = SMDG15_PORT_CODES[raw.trim().toUpperCase()]
+  if (smdg15) return { code: smdg15, recognized: true }
   const resolved = resolvePortCode(raw)
   return { code: resolved.code, recognized: resolved.recognized }
 }
@@ -659,4 +712,82 @@ function parseDgs(segment: ParsedSegment): { imo_class: string | null; un_number
     imo_class: classPart.trim() || null,
     un_number: (segment.components[3]?.[0] ?? '').trim() || null,
   }
+}
+
+function joinPt(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? ''
+  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`
+}
+
+/** VGM quando houver; senão WT. MEA sem valor não conta; o último de cada qualificador vale. */
+function preferredWeight(items: ParsedSegment[], delimiters: Delimiters): ParsedWeight | null {
+  for (const qualifier of WEIGHT_QUALIFIERS_BY_PREFERENCE) {
+    const result = lastValue(items
+      .filter((i) => i.tag === 'MEA' && (i.components[1]?.[0] ?? '').trim() === qualifier)
+      .map((i) => parseWeight(i, delimiters))
+      .map((w) => (w.value == null && !w.issue ? null : w)))
+    if (result) return result
+  }
+  return null
+}
+
+/**
+ * Arquivo truncado é erro no arquivo (ADR 0092): sem UNT e UNZ, ou com as
+ * contagens deles diferentes do que chegou, a importação inteira é recusada.
+ * UNT 0074 = segmentos da mensagem, do UNH ao UNT inclusive; UNZ 0036 = nº de
+ * mensagens (ou de grupos UNG, quando o intercâmbio usa grupos).
+ */
+function validateTrailers(segments: Array<ParsedSegment & { index: number }>): ImportIssue[] {
+  const issues: ImportIssue[] = []
+  const fileError = (row: number, message: string) => issues.push({
+    row, field: 'eof', code: 'invalid_group', severity: 'error',
+    message: `${message} O arquivo parece cortado ou incompleto; peça o Baplie de novo ao armador.`,
+  })
+  const countOf = (segment: ParsedSegment) => {
+    const raw = (segment.components[1]?.[0] ?? '').trim()
+    return /^\d+$/.test(raw) ? Number(raw) : null
+  }
+
+  let messageStart: number | null = null
+  let messages = 0
+  let groups = 0
+  let sawUnt = false
+  let sawUnz = false
+  for (const segment of segments) {
+    if (segment.tag === 'UNG') groups += 1
+    if (segment.tag === 'UNH') {
+      if (messageStart !== null) fileError(segment.index + 1, `Mensagem iniciada no segmento ${messageStart + 1} sem trailer UNT antes da seguinte.`)
+      messageStart = segment.index
+      continue
+    }
+    if (segment.tag === 'UNT') {
+      sawUnt = true
+      messages += 1
+      const declared = countOf(segment)
+      // Sem UNH, a mensagem começa logo depois do UNB (ou no primeiro segmento).
+      const start = messageStart ?? (segments[0]?.tag === 'UNB' ? 1 : 0)
+      const actual = segment.index - start + 1
+      if (declared === null) {
+        fileError(segment.index + 1, 'Trailer UNT sem a contagem de segmentos.')
+      } else if (declared !== actual) {
+        fileError(segment.index + 1, `O trailer UNT declara ${declared} segmentos, mas a mensagem tem ${actual}.`)
+      }
+      messageStart = null
+      continue
+    }
+    if (segment.tag === 'UNZ') {
+      sawUnz = true
+      const declared = countOf(segment)
+      const expected = groups > 0 ? groups : messages
+      if (declared === null) {
+        fileError(segment.index + 1, 'Trailer UNZ sem a contagem de mensagens.')
+      } else if (declared !== expected) {
+        fileError(segment.index + 1, `O trailer UNZ declara ${declared} ${declared === 1 ? 'mensagem' : 'mensagens'}, mas o arquivo tem ${expected}.`)
+      }
+    }
+  }
+  const lastRow = (segments[segments.length - 1]?.index ?? 0) + 1
+  if (!sawUnt || messageStart !== null) fileError(lastRow, 'Falta o trailer UNT (fim da mensagem).')
+  if (!sawUnz) fileError(lastRow, 'Falta o trailer UNZ (fim do intercâmbio).')
+  return issues
 }

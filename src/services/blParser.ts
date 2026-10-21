@@ -1,7 +1,7 @@
 import { isDate1904Workbook, positionalSheetNames, typedSheetMatrix } from './importCore'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeValidCnpj } from '../lib/cnpj'
-import { parseImportNumber } from '../lib/importNumber'
+import { isAmbiguousSeparatorShape, parseImportNumber } from '../lib/importNumber'
 import { asString } from '../lib/utils'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { normalizeContainerOwnership, type ContainerOwnership } from '../lib/containerOwnership'
@@ -78,7 +78,15 @@ export type ParsedBLDocument = {
    */
   vinSheet?: boolean
   freightCharges: BLFreightCharge[]
+  /**
+   * Números que a leitura não resolveu sozinha. `error` bloqueia o B/L na
+   * prévia (separador ambíguo: o operador corrige o formato no arquivo);
+   * `warning` é o número descartado (gravado como vazio), que nunca some calado.
+   */
+  numberIssues?: BLNumberIssue[]
 }
+
+export type BLNumberIssue = { severity: 'error' | 'warning'; message: string }
 
 type RawSheetRow = unknown[]
 
@@ -106,7 +114,8 @@ export async function parseBLBuffer(buffer: ArrayBuffer): Promise<ParsedBLDocume
   }).matrix
   const vesselVoyage = parseVesselVoyage(cell(rows, 18, 'A'))
   const cargoDescription = parseCargoDescription(rows)
-  const packages = parseTotalPackages(rows)
+  const numberIssues: BLNumberIssue[] = []
+  const packages = parseTotalPackages(rows, numberIssues)
 
   return {
     blNumber: cell(rows, 6, 'AC'),
@@ -144,10 +153,11 @@ export async function parseBLBuffer(buffer: ArrayBuffer): Promise<ParsedBLDocume
       dgClass: extractDgClass(cargoDescription),
       unNumber: extractUnNumber(cargoDescription),
     },
-    containers: parseContainers(rows),
+    containers: parseContainers(rows, numberIssues),
     vehicles: parseVehicles(workbook, XLSX.utils),
     vinSheet: hasVinSheet(workbook),
-    freightCharges: parseFreightCharges(rows),
+    freightCharges: parseFreightCharges(rows, numberIssues),
+    numberIssues,
   }
 }
 
@@ -163,7 +173,7 @@ function parseCargoDescription(rows: RawSheetRow[]) {
   return cell(rows, 44, 'J')
 }
 
-function parseTotalPackages(rows: RawSheetRow[]) {
+function parseTotalPackages(rows: RawSheetRow[], issues: BLNumberIssue[]) {
   for (let rowNumber = 44; rowNumber <= 60; rowNumber += 1) {
     if (cell(rows, rowNumber, 'A').trim() !== 'TOTAL:') continue
     // ponytail: reconhece apenas unidade de palavra unica (UNITS, PACKAGES) e
@@ -171,8 +181,12 @@ function parseTotalPackages(rows: RawSheetRow[]) {
     // para null. Campo comercial/exibicao, sem impacto em faturamento; estender
     // a classe para [A-Z ]+ e normalizar milhar se surgir B/L multi-palavra.
     const match = cell(rows, rowNumber, 'C').match(/^\s*(\d[\d.,]*)\s+([A-Z]+)\s*$/i)
+    const totalPackages = match ? parseNumber(match[1]) : null
+    if (match && totalPackages === null) {
+      issues.push({ severity: 'warning', message: `Total de volumes "${match[1]}" não pôde ser lido: o B/L entra sem o total.` })
+    }
     return {
-      totalPackages: match ? parseNumber(match[1]) : null,
+      totalPackages,
       packagesUnit: match ? match[2].toUpperCase() : null,
     }
   }
@@ -234,7 +248,7 @@ function isInvalidFreightRow(row: RawSheetRow | undefined): boolean {
   return isFreightHeaderRow(row) || isInvalidFreightDescription(cellValue(row, 0))
 }
 
-function parseFreightCharges(rows: RawSheetRow[]): BLFreightCharge[] {
+function parseFreightCharges(rows: RawSheetRow[], issues: BLNumberIssue[]): BLFreightCharge[] {
   const charges: BLFreightCharge[] = []
 
   for (let rowIndex = 25; rowIndex < 46; rowIndex += 1) {
@@ -254,6 +268,11 @@ function parseFreightCharges(rows: RawSheetRow[]): BLFreightCharge[] {
     const rate = parseMoney(rateText)
     const amountText = amount || prepaid || collect || rateText
     const money = parseMoney(amountText)
+    for (const [label, text, parsed] of [['tarifa', rateText, rate.amount], ['valor', amountText, money.amount]] as const) {
+      if (parsed === null && /\d/.test(text)) {
+        issues.push({ severity: 'warning', message: `Frete "${description}": ${label} "${text}" não pôde ser lido e fica vazio.` })
+      }
+    }
 
     charges.push({
       description,
@@ -269,7 +288,7 @@ function parseFreightCharges(rows: RawSheetRow[]): BLFreightCharge[] {
   return charges
 }
 
-function parseContainers(rows: RawSheetRow[]): ParsedBLContainer[] {
+function parseContainers(rows: RawSheetRow[], issues: BLNumberIssue[]): ParsedBLContainer[] {
   const containers: ParsedBLContainer[] = []
   const seen = new Set<string>()
 
@@ -285,16 +304,72 @@ function parseContainers(rows: RawSheetRow[]): ParsedBLContainer[] {
     containers.push({
       containerNumber,
       sealNumber: parts[1] || null,
-      tareKg: parseNumber(parts[2], 'pt-BR'),
+      tareKg: readContainerKg(parts[2], `Container ${containerNumber}: tara`, issues),
       ownership: normalizeContainerOwnership(parts[3]),
       packages: parts[4] || null,
       type: parts[5] || null,
-      grossWeightKg: parseNumber(parts[6], 'pt-BR'),
-      cbm: parseNumber(parts[7], 'en-US'),
+      grossWeightKg: readContainerKg(parts[6], `Container ${containerNumber}: peso bruto`, issues),
+      cbm: readContainerCbm(parts[7], `Container ${containerNumber}: cubagem`, issues),
     })
   }
 
   return containers
+}
+
+/**
+ * Peso do container em kg. Um separador só seguido de três dígitos ("3,800",
+ * "28.000") pode ser milhar ou decimal e o B/L não diz qual: bloqueia (F-30),
+ * nas duas direções. Os dois separadores ("12,345.678") seguem o leitor comum,
+ * o da direita é o decimal. Antes o formato era pt-BR fixo: "3,800" virava
+ * 3,8 kg e "12,345.678" sumia sem aviso.
+ */
+function readContainerKg(value: string | undefined, label: string, issues: BLNumberIssue[]) {
+  const text = numericToken(value)
+  if (text === null) return null
+  if (isAmbiguousSeparatorShape(text)) {
+    const thousands = Number(text.replace(/[.,]/, ''))
+    const decimal = Number(text.replace(',', '.'))
+    issues.push({
+      severity: 'error',
+      message: `${label} "${text}" pode ser ${formatPtBr(thousands)} kg (separador de milhar) ou ${formatPtBr(decimal)} kg (separador decimal). `
+        + 'Corrija o número no arquivo sem separador de milhar (ex.: 3800 ou 3800.5) e importe de novo.',
+    })
+    return null
+  }
+  return readDecimalOrWarn(text, label, issues)
+}
+
+/**
+ * Cubagem do container em m³. Um separador só é sempre decimal, ponto ou
+ * vírgula: um container não chega a mil m³ (um 40HC tem ~76 m³), então
+ * "30,000" é 30 m³ e nunca 30 mil. Antes era en-US fixo e "30,000" virava
+ * 30000 m³.
+ */
+function readContainerCbm(value: string | undefined, label: string, issues: BLNumberIssue[]) {
+  const text = numericToken(value)
+  if (text === null) return null
+  return readDecimalOrWarn(text, label, issues)
+}
+
+function readDecimalOrWarn(text: string, label: string, issues: BLNumberIssue[]) {
+  const separators = text.match(/[.,]/g) ?? []
+  const parsed = separators.length === 1
+    ? parseImportNumber(text.replace(',', '.'), 'en-US')
+    : parseImportNumber(text, 'unknown')
+  if (parsed.kind === 'value') return Number(parsed.decimal)
+  issues.push({ severity: 'warning', message: `${label} "${text}" não pôde ser lido e fica vazio.` })
+  return null
+}
+
+/** O número no começo do trecho ("28000 KGS" -> "28000"); o trecho vazio é ausência, não descarte. */
+function numericToken(value: string | undefined) {
+  const text = (value ?? '').trim()
+  if (!text) return null
+  return text.match(/^[+-]?\d[\d.,]*/)?.[0] ?? text
+}
+
+function formatPtBr(value: number) {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
 }
 
 function findVinSheetName(workbook: { SheetNames: string[] }) {

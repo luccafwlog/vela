@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { parseBaplieFile, parseBaplieText } from '../baplieParser'
 
+/** Intercâmbio completo (UNB/UNH … UNT/UNZ com as contagens certas) em volta dos segmentos. */
+function envelope(lines: string[]) {
+  return ["UNB+UNOA:2+X+Y+260701:1200+1'", "UNH+1+BAPLIE:D:95B:UN:SMDG22'", ...lines, `UNT+${lines.length + 2}+1'`, "UNZ+1+1'"].join('\n')
+}
+
 function baplieFile(text: string) {
   return new File([text], 'baplie.edi', { type: 'text/plain' })
 }
@@ -14,14 +19,14 @@ describe('baplieParser', () => {
     ['11', 'BRVIX', 'BRSEP', 'BRVIX', null],
     ['12', null, null, null, 'error'],
   ])('resolve POD de LOC+%s (%s) com Delivery %s', (qualifier, pod, delivery, expectedPod, severity) => {
-    const parsed = parseBaplieText([
+    const parsed = parseBaplieText(envelope([
       "LOC+147+010101'",
       "LOC+6+TAO'",
       ...(pod === null ? [] : [`LOC+${qualifier}+${pod}'`]),
       ...(delivery === null ? [] : [`LOC+83+${delivery}'`]),
       "MEA+VGM++KGM:12000'",
       "EQD+CN+CAAU2184518+45G1+++5'",
-    ].join('\n'))
+    ]))
 
     expect(parsed.containers[0]).toMatchObject({ pod: expectedPod, final_dest: delivery === 'BRSEP' ? 'BRSEP' : null })
     expect(parsed.pods).toEqual(expectedPod ? [expectedPod] : [])
@@ -33,14 +38,14 @@ describe('baplieParser', () => {
   // substitua, é porto fora das escalas: o container sai com aviso. Aqui é o
   // único container, então o arquivo bloqueia por não sobrar nenhum.
   it.each([['XXXXX'], [null]])('POD não reconhecido (N) com Delivery %s tira o container com aviso', (delivery) => {
-    const parsed = parseBaplieText([
+    const parsed = parseBaplieText(envelope([
       "LOC+147+010101'",
       "LOC+6+TAO'",
       "LOC+12+N'",
       ...(delivery === null ? [] : [`LOC+83+${delivery}'`]),
       "MEA+VGM++KGM:12000'",
       "EQD+CN+CAAU2184518+45G1+++5'",
-    ].join('\n'))
+    ]))
 
     expect(parsed.containers).toEqual([])
     expect(parsed.issues).toEqual([
@@ -139,7 +144,7 @@ describe('baplieParser', () => {
       "LOC+6+CNTAC'",
       "LOC+12+BRVIX'",
       "EQD+CN+UETU7016802+45G1+++5'",
-      "UNT+7+1'",
+      "UNT+8+1'",
       "UNH+2+BAPLIE:D:95B:UN:SMDG22'",
       "LOC+147+010102'",
       "MEA+VGM++KGM:14000'",
@@ -267,7 +272,7 @@ describe('baplieParser — Obs. 1: SMDG 1.5 e 2.2 do mesmo navio dão o mesmo st
     "LOC+12+VIX'",
     "EQD+CN+FCIU8751693+4510+++4'",
     "NAD+CA+COS:172:20'",
-    "UNT+27+1'",
+    "UNT+28+1'",
     "UNZ+1+15'",
   ].join('\n')
 
@@ -305,7 +310,7 @@ describe('baplieParser — Obs. 1: SMDG 1.5 e 2.2 do mesmo navio dão o mesmo st
     "EQD+CN+FCIU8751693:6346:5+45G1:6346:5+++4'",
     "NAD+CA+COS:172:20'",
     "CNT+8:3'",
-    "UNT+32+1'",
+    "UNT+33+1'",
     "UNZ+1+22'",
   ].join('\n')
 
@@ -336,7 +341,7 @@ describe('baplieParser — Obs. 1: SMDG 1.5 e 2.2 do mesmo navio dão o mesmo st
   })
 
   it('arquivo com LOC+9 e LOC+6 (ou 11 e 12) fica com 9 e 11, em qualquer ordem', () => {
-    const unit = (locs: string) => `UNB+UNOA:2+X+Y+261020:1500+1'TDT+20+11+++:::GREEN ITAJAI'LOC+147+0010282'MEA+VGM++KGM:20000'${locs}EQD+CN+UETU7016802+45G1+++5'`
+    const unit = (locs: string) => `UNB+UNOA:2+X+Y+261020:1500+1'UNH+1+BAPLIE:D:95B:UN:SMDG22'TDT+20+11+++:::GREEN ITAJAI'LOC+147+0010282'MEA+VGM++KGM:20000'${locs}EQD+CN+UETU7016802+45G1+++5'UNT+10+1'UNZ+1+1'`
     for (const locs of [
       "LOC+9+CNTAO'LOC+6+CNWUH'LOC+11+BRVIX'LOC+12+BRSSZ'",
       "LOC+6+CNWUH'LOC+9+CNTAO'LOC+12+BRSSZ'LOC+11+BRVIX'",

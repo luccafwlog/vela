@@ -59,12 +59,14 @@ describe('vehicleImport', () => {
     expect(parsed.rows[0]?.unpacking_location).toBe('Terminal Rio')
   })
 
-	it('mapeia o modelo do armador (COSCO Daily Report) escolhendo a aba de veiculos', async () => {
+	it('mapeia o modelo do armador (COSCO Daily Report) na aba de veiculos; com o resumo junto, recusa', async () => {
     // 1a aba: resumo (pivot) sem colunas de veiculo. 2a aba: dados reais.
-    const buffer = sheetsToBuffer([
+    // Uma aba só com dados (B19 / F-37): o resumo junto recusa o arquivo; com a
+    // 1a aba vazia, a procura chega à aba dos veículos.
+    const withSummary = (summary: Array<Record<string, string | number>>) => sheetsToBuffer([
       {
         name: 'Planilha1',
-        rows: [{ Brand: 'BYD', 'QTY VIN': 2136 }],
+        rows: summary,
       },
       {
         name: 'Sheet1',
@@ -87,7 +89,10 @@ describe('vehicleImport', () => {
       },
     ])
 
-    const parsed = await parseVehicleImportBuffer(buffer)
+    await expect(parseVehicleImportBuffer(withSummary([{ Brand: 'BYD', 'QTY VIN': 2136 }]))).rejects.toThrow(
+      'O arquivo tem mais de uma aba com dados ("Planilha1", "Sheet1"): deixe os dados numa aba só e importe de novo.',
+    )
+    const parsed = await parseVehicleImportBuffer(withSummary([]))
 
     expect(parsed.rowErrors).toHaveLength(0)
     expect(parsed.rows).toHaveLength(1)
@@ -827,19 +832,19 @@ describe('vehicleImport — procura da aba de veículos', () => {
     return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
   }
 
-  it('aba anterior com duas colunas para um campo (e sem os demais) não aborta: lê a aba dos veículos', async () => {
+  // B19 / F-37: uma aba só com dados também nos Veículos; a procura continua
+  // pulando a aba vazia e a aba com dado só em linhas ocultas.
+  it('aba anterior com dados (mesmo sem os campos) recusa o arquivo nomeando as abas', async () => {
     const buffer = await book([
       { name: 'Resumo', rows: [['Tipo', 'Tipo do container'], ['40FM', '40FM']] },
       { name: 'Veiculos', rows: [HEADER, VEHICLE] },
     ])
-    const parsed = await parseVehicleImportBuffer(buffer)
-    expect(parsed.rowErrors).toEqual([])
-    expect(parsed.rows.map((row) => row.chassis)).toEqual(['9BWZZZ377VT004251'])
+    await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow('O arquivo tem mais de uma aba com dados ("Resumo", "Veiculos"): deixe os dados numa aba só e importe de novo.')
   })
 
   it('aba anterior com os dados só em linhas ocultas é pulada', async () => {
     const buffer = await book([
-      { name: 'Rascunho', rows: [['Notas'], ['oculta 1'], ['oculta 2']], hiddenRows: [1, 2] },
+      { name: 'Rascunho', rows: [['Notas'], ['oculta 1'], ['oculta 2']], hiddenRows: [0, 1, 2] },
       { name: 'Veiculos', rows: [HEADER, VEHICLE] },
     ])
     const parsed = await parseVehicleImportBuffer(buffer)
@@ -862,8 +867,8 @@ describe('vehicleImport — procura da aba de veículos', () => {
 
   it('sem aba qualificada: aba sem os campos e outra com dados ocultos dizem as duas coisas', async () => {
     const buffer = await book([
+      { name: 'Veiculos', rows: [HEADER, VEHICLE], hiddenRows: [0, 1] },
       { name: 'Resumo', rows: [['Brand', 'QTY'], ['BYD', '2']] },
-      { name: 'Veiculos', rows: [HEADER, VEHICLE], hiddenRows: [1] },
     ])
     await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow(/Colunas obrigatórias: .*Há também dados em linhas ou abas ocultas/)
   })

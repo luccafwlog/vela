@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { importCeMercanteRows, parseCeMercanteBuffer, partitionRowsByVoyage, type CeMercanteRow } from '../ceMercanteImport'
-import { jsonToBuffer } from './testWorkbook'
+import { jsonToBuffer, sheetsToBuffer } from './testWorkbook'
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -32,6 +32,28 @@ describe('ceMercanteImport', () => {
     expect(parsed.rows[0]?.ce_mercante).toBe('122605051526081')
     expect(parsed.rowErrors).toHaveLength(1)
     expect(parsed.rowErrors[0]?.message).toContain('BL BL001 repetido')
+  })
+
+  // B19 / F-37: a primeira aba vazia com o CE na segunda não é "Planilha vazia.":
+  // a recusa nomeia as abas e pede os dados numa aba só.
+  it('primeira aba vazia com os dados na segunda recusa pedindo os dados numa aba só', async () => {
+    const buffer = sheetsToBuffer([
+      { name: 'Plan1', rows: [] },
+      { name: 'CE', rows: [{ BL: 'BL001', 'CE MERCANTE': '122605051526081' }] },
+    ])
+    await expect(parseCeMercanteBuffer(buffer)).rejects.toThrow(
+      'O arquivo tem mais de uma aba ("Plan1", "CE") e a primeira está vazia (os dados estão em "CE"): deixe os dados numa aba só e importe de novo.',
+    )
+  })
+
+  it('duas abas com dados recusam o arquivo nomeando as abas', async () => {
+    const buffer = sheetsToBuffer([
+      { name: 'Lote 1', rows: [{ BL: 'BL001', 'CE MERCANTE': '122605051526081' }] },
+      { name: 'Lote 2', rows: [{ BL: 'BL002', 'CE MERCANTE': '122605051526082' }] },
+    ])
+    await expect(parseCeMercanteBuffer(buffer)).rejects.toThrow(
+      'O arquivo tem mais de uma aba com dados ("Lote 1", "Lote 2"): deixe os dados numa aba só e importe de novo.',
+    )
   })
 
   it('rejeita CE Mercante com numero de digitos incorreto', async () => {
