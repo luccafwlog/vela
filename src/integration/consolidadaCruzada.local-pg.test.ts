@@ -128,4 +128,30 @@ describeLocal('356 — consolidada e individuais coerentes', () => {
         UPDATE public.app_settings SET pix_provider = '${provider}', itau_pix_settlement_actor = ${actor ? `'${actor}'` : 'NULL'} WHERE id = 1`)
     }
   })
+
+  it('aba Operação do Portal conta o B/L uma vez com consolidada aberta (F-14, migration 364)', () => {
+    const [r, t] = issued(['R7', 'T7'])
+    w.consolidate([r.id, t.id])
+    const charges = JSON.parse(w.psql(`SELECT public._portal_bl_local_charges(${w.customerId}, '${r.id}',
+      (SELECT jsonb_agg(to_jsonb(x)) FROM public._portal_list_invoices_core(${w.customerId}) x))`)) as { total_brl: number }
+    expect(Number(charges.total_brl)).toBe(100)
+  })
+
+  it('B/L sem individual entra na consolidada como faturado; nenhuma individual sai por cima (F-15, migration 365)', () => {
+    const u = w.createBl('U8')
+    w.calculate(u)
+    // CE gravado sem a emissão do gatilho: o B/L fica sem individual.
+    w.psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = '936500000000001' WHERE id = '${u}'; SET session_replication_role = origin;`)
+    w.consolidate([u])
+    expect(w.psql(`SELECT financial_status FROM public.bls WHERE id = '${u}'`)).toBe('invoiced')
+    const emit = w.as('administrativo', `SELECT public.mark_bl_ready_and_create_invoice('${u}')`)
+    expect(emit.status).not.toBe(0)
+    expect(w.psql(`SELECT count(*) FROM public.invoice_bls ib JOIN public.invoices i ON i.id = ib.invoice_id WHERE ib.bl_id = '${u}' AND i.invoice_type = 'individual'`)).toBe('0')
+
+    // Sem CE, a consolidada é recusada como o Emitir.
+    const v = w.createBl('V8')
+    w.calculate(v)
+    const refused = w.as('administrativo', `SELECT public.create_local_consolidated_invoice(${w.customerId}, ARRAY[${w.receivableId(v)}]::bigint[], NULL, '${w.actors.administrativo}'::uuid)`)
+    expect(refused.status).not.toBe(0)
+  })
 })

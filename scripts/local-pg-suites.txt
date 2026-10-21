@@ -135,3 +135,4 @@ src/integration/precoDoCeBaseAtual.local-pg.test.ts
 src/integration/consolidadaCruzada.local-pg.test.ts
 src/integration/excluirCancelarFaturado.local-pg.test.ts
 src/integration/faturaCanceladaSoltaBl.local-pg.test.ts
+src/integration/viagemCanceladaFinanceiro.local-pg.test.ts
