@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { BellOff, ChevronDown, ChevronRight, Wrench } from 'lucide-react'
+import { BellOff, ChevronDown, ChevronRight, RotateCcw, Wrench } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { RowActionButton } from '../components/ui/RowActionButton'
@@ -29,6 +29,7 @@ import {
   consigneesNearEta,
   hasNearEtaMark,
   getEffectiveAlertType,
+  importEffectRetryTarget,
   invalidateAllAlertQueries,
   listAlerts,
   resolveAlertItemWithJustification,
@@ -37,6 +38,7 @@ import {
   type AlertQueueRow,
 } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
+import { retryImportEffect } from '../services/importEffects'
 
 function getTomorrowDateString(): string {
   const d = new Date()
@@ -268,6 +270,42 @@ export function Alertas() {
     resolveMutation.mutate({ itemId: alert.item_id, reason })
   }
 
+  // Efeito de importação bloqueado (ADR 0095, decisão 25): o alerta reprocessa
+  // o efeito, com justificativa. O alerta fecha quando o efeito sai de
+  // bloqueado e reabre se ele bloquear de novo (migrations 348 e 394).
+  const reprocessMutation = useMutation({
+    mutationFn: ({ effectId, reason }: { effectId: number; reason: string }) => retryImportEffect(effectId, reason),
+    onSuccess: async () => {
+      showToast('Efeito reenviado para a fila. Se falhar de novo, o alerta volta.', 'success')
+      await Promise.all([
+        invalidateAllAlertQueries(queryClient),
+        queryClient.invalidateQueries({ queryKey: queryKeys.importEffects.all() }),
+      ])
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Falha ao reprocessar o efeito.', 'error')
+    },
+  })
+
+  async function requestReprocess(alert: AlertQueueRow) {
+    const target = importEffectRetryTarget(alert)
+    if (!target) return
+    const reason = await confirmWithReason({
+      title: 'Reprocessar efeito de importação',
+      message: `Reprocessar o efeito bloqueado${target.record ? ` de ${target.record}` : ''}?`,
+      affected: {
+        summary: 'Motivo do bloqueio:',
+        items: [target.reason ?? 'Motivo não informado'],
+      },
+      consequence: 'O efeito volta para a fila e roda de novo na próxima passada. Corrija a causa antes de reprocessar.',
+      reversibility: 'Se falhar de novo, o efeito volta a ficar bloqueado e o alerta reabre.',
+      reasonLabel: 'Justificativa (o que foi corrigido)',
+      confirmLabel: 'Reprocessar',
+    })
+    if (reason === null) return
+    reprocessMutation.mutate({ effectId: target.effectId, reason })
+  }
+
   function handleDepartmentChange(newDept: string) {
     setPage(0)
     const newParams = new URLSearchParams(searchParams)
@@ -295,11 +333,12 @@ export function Alertas() {
     handleDepartmentChange('all')
   }
 
-  const isMutating = dismissMutation.isPending || resolveMutation.isPending
+  const isMutating = dismissMutation.isPending || resolveMutation.isPending || reprocessMutation.isPending
   const actions = {
     isMutating,
     onDismiss: requestDismissal,
     onResolve: (alert: AlertQueueRow) => void requestResolution(alert),
+    onReprocess: (alert: AlertQueueRow) => void requestReprocess(alert),
     onNavigate: (to: string) => navigate(to),
   }
   const isDismissedLens = lens === 'dispensados'
@@ -510,6 +549,7 @@ type RowActions = {
   isMutating: boolean
   onDismiss: (alert: AlertQueueRow) => void
   onResolve: (alert: AlertQueueRow) => void
+  onReprocess: (alert: AlertQueueRow) => void
   onNavigate: (to: string) => void
 }
 
@@ -534,7 +574,7 @@ function Department({ alert }: { alert: AlertQueueRow }) {
  * abre a justificativa. Dispensar só existe para o alerta por item. Na linha
  * da tabela, só os ícones (`iconOnly`, regra 9); no cartão, com texto.
  */
-function AlertActions({ alert, isMutating, onDismiss, onResolve, onNavigate, dismissible = true, iconOnly = false, subject }: RowActions & {
+function AlertActions({ alert, isMutating, onDismiss, onResolve, onReprocess, onNavigate, dismissible = true, iconOnly = false, subject }: RowActions & {
   alert: AlertQueueRow
   dismissible?: boolean
   iconOnly?: boolean
@@ -542,14 +582,17 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onNavigate, dis
   subject?: string
 }) {
   const effectiveType = getEffectiveAlertType(alert)
-  const byJustification = Boolean(alert.item_id) && canResolveWithJustification(effectiveType, alert.entity_type)
-  const link = byJustification ? null : alertEntityLink(alert)
+  const reprocess = importEffectRetryTarget(alert) !== null
+  const byJustification = !reprocess && Boolean(alert.item_id) && canResolveWithJustification(effectiveType, alert.entity_type)
+  const link = byJustification || reprocess ? null : alertEntityLink(alert)
   if (iconOnly) {
     const of = subject ? ` ${subject}` : ''
     const slot = <span className="app-btn--icon inline-block" aria-hidden="true" />
     return (
       <div className="flex items-center justify-center gap-2">
-        {byJustification ? (
+        {reprocess ? (
+          <RowActionButton label={`Reprocessar${of}`} icon={RotateCcw} title="Reprocessar o efeito com justificativa" onClick={() => onReprocess(alert)} disabled={isMutating} />
+        ) : byJustification ? (
           <RowActionButton label={`Resolver${of}`} icon={Wrench} title="Resolver com justificativa" onClick={() => onResolve(alert)} disabled={isMutating} />
         ) : link ? (
           <RowActionButton label={`Resolver${of}`} icon={Wrench} title={alertEntityLinkLabel(alert)} onClick={() => onNavigate(link)} />
@@ -562,7 +605,11 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onNavigate, dis
   }
   return (
     <div className="flex items-center justify-center gap-2">
-      {byJustification ? (
+      {reprocess ? (
+        <Button variant="secondary" className="min-w-24" onClick={() => onReprocess(alert)} disabled={isMutating} title="Reprocessar o efeito com justificativa">
+          Reprocessar
+        </Button>
+      ) : byJustification ? (
         <Button variant="secondary" className="min-w-24" onClick={() => onResolve(alert)} disabled={isMutating} title="Resolver com justificativa">
           Resolver
         </Button>

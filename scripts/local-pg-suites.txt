@@ -153,3 +153,4 @@ src/integration/cargaSoltaFaturada.local-pg.test.ts
 src/integration/demurrageRoeManual.local-pg.test.ts
 src/integration/avulsaLinhaEmDolar.local-pg.test.ts
 src/integration/revisaoFinalFrenteFinanceira.local-pg.test.ts
+src/integration/exclusaoEEfeitosImportacao.local-pg.test.ts
