@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
@@ -5,7 +6,8 @@ import { describeWithProbe } from './localTestData'
 // Migration 348 (revisão dos alertas de 2026-10-21, docs/revisao-alertas-2026-10.md;
 // L8 do estudo de 2026-10-20): o alerta "Efeito de importação bloqueado" fecha
 // quando o efeito sai de bloqueado (reabertura pelo operador, conclusão ou
-// descarte) e reabre com nova ocorrência se o efeito bloquear de novo.
+// descarte) e reabre com nova ocorrência se o efeito bloquear de novo; o
+// acerto da migration fecha os itens de efeitos que já tinham saído.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -107,6 +109,17 @@ describeLocal('348 — efeito de importação bloqueado fecha quando o efeito sa
     expect(alertStatus()).toBe('active')
     expect(openedEvents()).toBe('2')
     psql(`UPDATE public.import_pending_effects SET status = 'superseded' WHERE id = ${effectId};`)
+    expect(alertStatus()).toBe('resolved')
+  })
+  it('o acerto da migration fecha o item de efeito que já tinha saído de bloqueado', () => {
+    block()
+    // Estado de antes da 348: o efeito foi reaberto sem o gatilho que fecha.
+    psql(`SET session_replication_role = replica;
+      UPDATE public.import_pending_effects SET status = 'retry_wait' WHERE id = ${effectId};
+      SET session_replication_role = origin;`)
+    expect(alertStatus()).toBe('active')
+    const sql = readFileSync('supabase/migrations/348_efeito_de_importacao_bloqueado_fecha_ao_sair_de_bloqueado.sql', 'utf8')
+    psql(sql.slice(sql.indexOf('-- Acerto dos alertas já abertos (depende')))
     expect(alertStatus()).toBe('resolved')
   })
 })

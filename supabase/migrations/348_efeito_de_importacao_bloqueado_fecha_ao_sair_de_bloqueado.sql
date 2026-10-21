@@ -16,12 +16,17 @@
 -- reabre o item com nova ocorrência (e nova Notificação Interna). Falha ao
 -- resolver não desfaz a reabertura do efeito: vira WARNING, como no produtor.
 --
--- Só cria função e gatilho; não reescreve nem apaga linhas. Itens abertos de
--- efeitos que já saíram de bloqueado ficam como estão e aparecem em
--- supabase/scripts/consistencia_alertas.sql (verificação 14).
+-- Acerto dos alertas já abertos: os itens de efeitos que já saíram de
+-- bloqueado (ou que não existem mais) são resolvidos; sem isso ficariam
+-- abertos para sempre. Reescreve linhas existentes (`alert_items`). Depende
+-- da afirmação "Data status" do AGENTS.md (seção Gotchas): o banco de produção
+-- só tem dados de teste. Conferência: supabase/scripts/consistencia_alertas.sql
+-- (verificação 14).
 -- Rollback: DROP TRIGGER resolve_import_effect_blocked_alert_on_exit ON
 -- public.import_pending_effects; DROP FUNCTION
--- public.resolve_import_effect_blocked_alert_on_exit().
+-- public.resolve_import_effect_blocked_alert_on_exit(). O acerto não tem volta
+-- automática; os eventos `resolved` com origem `migration_348` dizem o que foi
+-- fechado.
 
 CREATE OR REPLACE FUNCTION public.resolve_import_effect_blocked_alert_on_exit()
 RETURNS trigger
@@ -53,3 +58,27 @@ CREATE TRIGGER resolve_import_effect_blocked_alert_on_exit
   FOR EACH ROW
   WHEN (OLD.status = 'blocked' AND NEW.status IS DISTINCT FROM 'blocked')
   EXECUTE FUNCTION public.resolve_import_effect_blocked_alert_on_exit();
+
+-- Acerto dos alertas já abertos (depende do "Data status").
+DO $$
+DECLARE
+  v_item record;
+BEGIN
+  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
+  FOR v_item IN
+    SELECT DISTINCT a.entity_id
+    FROM public.alert_items i
+    JOIN public.alerts a ON a.id = i.alert_id
+    WHERE i.item_type = 'import_effect_blocked'
+      AND i.status = 'active'
+      AND a.entity_type = 'import_effect'
+      AND NOT EXISTS (
+        SELECT 1 FROM public.import_pending_effects e
+        WHERE e.id::text = a.entity_id AND e.status = 'blocked')
+  LOOP
+    PERFORM public.resolve_alert_item('import_effect_blocked', 'import_effect', v_item.entity_id, 'migration_348',
+      jsonb_build_object('resolution', 'effect_left_blocked_before_348'));
+  END LOOP;
+  PERFORM set_config('request.jwt.claim.role', '', true);
+END
+$$;
