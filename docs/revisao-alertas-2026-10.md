@@ -10,8 +10,9 @@ que ficou para decisão. A regra viva do ciclo de vida dos alertas continua em
 [Operação e Suporte § Alertas e Notificações Internas](modules/operacao-suporte.md#alertas-e-notificações-internas).
 Fica em `docs/` porque foi o caminho pedido; pela [convenção](CONVENCOES.md),
 uma revisão datada vai para `docs/archive/audits/` e pode ser movida depois do
-merge das PRs. As referências às migrations `346`, `347` e `348` apontam para
-as PRs abertas, ainda sem merge.
+merge das PRs. As referências às migrations `346` a `353` apontam para as PRs
+abertas, ainda sem merge. As migrations `349` a `353` vieram das decisões do
+Lucca sobre as perguntas desta revisão (mesmo dia; ver [Decisões](#decisões)).
 
 ## Resumo
 
@@ -45,17 +46,21 @@ deixava os alertas dele.
 | [#1008](https://github.com/luccafwlog/vela/pull/1008) Alertas do B/L cancelado, faturado ou excluído | `347` | D2; L5; B/L excluído leva os alertas; acerto dos alertas já abertos |
 | [#1009](https://github.com/luccafwlog/vela/pull/1009) Efeito de importação bloqueado | `348` | L8; acerto dos itens já abertos |
 | [#1010](https://github.com/luccafwlog/vela/pull/1010) Pix Itaú no painel financeiro | — (frontend) | D3; rótulos das entidades `itau_pix_receipt` e `business_holidays` |
-| PR deste relatório | — | Relatório, `supabase/scripts/consistencia_alertas.sql` e correção de `observabilidade.md` |
+| [#1011](https://github.com/luccafwlog/vela/pull/1011) Este relatório | — | Relatório, `supabase/scripts/consistencia_alertas.sql` e correção de `observabilidade.md` |
+| [#1013](https://github.com/luccafwlog/vela/pull/1013) Datas da Demurrage e Comunicado recusado | `349` | P1 e P2 (L9, L11) |
+| [#1015](https://github.com/luccafwlog/vela/pull/1015) Portal segue o processo ativo e fecha na hora | `350` | P3; alertas do Portal abrem e fecham no fato |
+| [#1012](https://github.com/luccafwlog/vela/pull/1012) Detector que quebra não para os outros | `351` | P5 (A1, S12) |
+| [#1014](https://github.com/luccafwlog/vela/pull/1014) B/L sem Cliente perto do ETA | `352` | P4 (S7), 5 dias |
+| [#1016](https://github.com/luccafwlog/vela/pull/1016) Alertas fecham na hora do fato | `353` | Comunicados pendentes, e-mail devolvido, provedor silencioso |
 
-As migrações precisam ir para a `main` na ordem numérica (346, 347, 348); se
-outra ordem for preferida, renumere antes do merge. As migrações `347` e `348`
-acertam os alertas que já estavam errados e, por isso, declaram a dependência
-do "Data status" do `AGENTS.md`.
+As migrações precisam ir para a `main` na ordem numérica (346 a 353; ver
+[PRs e ordem de merge](#prs-e-ordem-de-merge)); se outra ordem for preferida,
+renumere antes do merge. As migrações `347`, `348` e `349` acertam os alertas
+que já estavam errados e, por isso, declaram a dependência do "Data status" do
+`AGENTS.md`.
 
-**Depende de decisão do Lucca:** ver [Decisões pendentes](#decisões-pendentes)
-(Demurrage com datas alteradas, justificativa prometida e não aceita, "processo
-ativo" com B/L pago, alerta "BL sem cliente perto do ETA", isolamento dos
-detectores).
+**Decisões do Lucca (2026-10-21):** as cinco perguntas da revisão foram
+respondidas e implementadas nas PRs `349` a `353`; ver [Decisões](#decisões).
 
 **Não verificado:** produção e staging não foram consultados (nem
 `cron.job_run_details`, `net._http_response` ou alertas abertos). O Sentry foi
@@ -96,9 +101,9 @@ nenhuma regressão foi encontrada.
 | L6 — exportação com entidade trocada | Corrigida na `346` (D5) |
 | L7 — Granito/Vazios não fecham a exportação | Corrigida na `346` |
 | L8 — efeito bloqueado sem fechamento | Corrigida na `348` |
-| L9 — Demurrage com datas alteradas, ramo cancelada e reemitida | Decisão pendente (P1) |
+| L9 — Demurrage com datas alteradas, ramo cancelada e reemitida | Corrigida na `349` (decisão P1) |
 | L10 — viagem concluída ou cancelada congela | Corrigida na `346` |
-| L11 — justificativa prometida e recusada | Decisão pendente (P2) |
+| L11 — justificativa prometida e recusada | Corrigida na `349` (decisão P2) |
 | Suspeita "dois terminais" (L6) | Confirmada e corrigida (D1) |
 
 ## 1. Inventário
@@ -288,7 +293,7 @@ monitor de cron nem regra de métrica no Sentry.
 
 | # | Severidade | Achado | Evidência |
 |---|---|---|---|
-| A1 | Média | **Uma falha derruba todos os detectores.** `run_alert_detectors` roda os oito detectores numa transação sem isolamento: qualquer `RAISE` devolve 500 e nenhum alerta abre ou fecha naquela rodada. Foi o que aconteceu em VELA-24/25 (`339` tirou a causa, não o acoplamento). Um ETA fora do formato ISO no audit (`get_voyage_first_brazilian_eta` faz `::date`) faria o mesmo com o detector de viagem | `309`:177; `get_voyage_first_brazilian_eta` (`002`:7587) × `customer_communication_safe_timestamptz`, que devolve NULL. Decisão P5 |
+| A1 | Média | **Uma falha derruba todos os detectores.** `run_alert_detectors` roda os oito detectores numa transação sem isolamento: qualquer `RAISE` devolve 500 e nenhum alerta abre ou fecha naquela rodada. Foi o que aconteceu em VELA-24/25 (`339` tirou a causa, não o acoplamento). Um ETA fora do formato ISO no audit (`get_voyage_first_brazilian_eta` faz `::date`) faria o mesmo com o detector de viagem | `309`:177; `get_voyage_first_brazilian_eta` (`002`:7587) × `customer_communication_safe_timestamptz`, que devolve NULL. Corrigido na `351` (decisão P5), exceto tempo esgotado (`query_canceled`) |
 | A2 | Média | **Reconciliação que falha some.** Os gatilhos de reconciliação terminam em `EXCEPTION WHEN OTHERS THEN RAISE WARNING`. Ex.: o audit de CE do B/L gravado sem usuário interno (papel de serviço sem `sub`) chama `get_voyage_first_brazilian_eta`, que exige `is_active_read_user()` e dá 42501; o aviso fica só no log do Postgres. Observado no replay | `341` (`reconcile_voyage_operation_alerts_on_audit`); repro: `WARNING: Reconciliação de alertas de viagem ignorada ... permission denied` |
 | A3 | Baixa | **Gatilho sem `alerts.foundation_trigger` quebraria a escrita do Portal.** `portal_invoice_exception_on_close`, `resolve_stale_invoice_on_cancel` e `resolve_stale_invoice_on_reissue` chamam o resolvedor sem ligar o contexto de gatilho; uma escrita do usuário do Portal que os dispare dá 42501 e desfaz a ação. Hoje nenhum caminho do Portal chega lá (a consolidada liga B/Ls por `invoice_receivable_links`, não `invoice_bls`); fica como armadilha | `002`:12316; repro com `invoice_bls` artificial na consolidada: `portal_obsolete_consolidation` → 42501 |
 | A4 | Baixa | `trg_reconcile_bl_review_alerts` liga `alerts.foundation_trigger` e retorna antes de desligar: a linha que desliga é inalcançável, e o contexto fica ligado até o fim da transação | `170`:39–72 |
@@ -320,7 +325,7 @@ O singular `voyage` no audit do Baplie (`121`:133) e do Manifesto Mercante
 
 ## 4. Matriz evento × alerta
 
-"Hoje" é a `staging` antes desta revisão; "Depois" é com as PRs `346`–`348` e
+"Hoje" é a `staging` antes desta revisão; "Depois" é com as PRs `346`–`353` e
 a do frontend. As três decisões do Lucca estão nas linhas marcadas.
 
 | Evento | Alertas afetados | Hoje | Deveria | Depois |
@@ -331,14 +336,15 @@ a do frontend. As três decisões do Lucca estão nas linhas marcadas.
 | Editar B/L (Cliente, consignatário, modalidade, peso) | Revisão | Na hora | Na hora | Igual |
 | Excluir B/L | Revisão, Cobertura, B/Ls esperados, alertas do B/L | Alertas do B/L ficam órfãos | Saem junto | Saem junto; B/Ls esperados reconcilia |
 | Cancelar B/L | Revisão, B/Ls esperados, CE, faturamento, Portal | Revisão fecha; faturamento e Portal ficam; B/Ls esperados conta o cancelado | Fecham | Fecham |
-| Vincular Cliente | Revisão, `portal_pendencia_geral`, recebível | Revisão na hora; recebível na hora (`342`); pendência do Portal no detector (até 15 min) | Igual | Igual |
+| Vincular Cliente | Revisão, `portal_pendencia_geral`, recebível, B/L sem Cliente perto do ETA | Revisão na hora; recebível na hora (`342`); pendência do Portal no detector (até 15 min) | Na hora | Revisão e recebível iguais; pendência do Portal na hora (`350`); B/L sem Cliente perto do ETA fecha na hora (`352`) |
 | Desvincular Cliente | Revisão | Na hora | Na hora | Igual |
 | Criar viagem | — | Nada até o ETA | — | Igual |
 | Editar viagem (primeiro ETA indicado) | Prazos D-7/D-5 | Audit `voyages` reconcilia tudo | Igual | Igual |
 | Cancelar viagem | Todos da viagem | Uma reconciliação sem olhar o status; depois congelados | Fecham | Fecham na hora; detector varre |
 | Excluir viagem | Todos da viagem | Apagados (`341`) | Apagados | Igual |
 | Criar escala, mudar ETA | Prazos, data da escala | Na hora (`341`) | Na hora | Igual |
-| Mudar ETD do POL | B/Ls esperados | Só detector | Na hora | Igual (detector) — baixa prioridade |
+| ETA da escala a 5 dias com B/L sem Cliente | B/L sem Cliente perto do ETA (novo) | Não existia (`review_customer_unlinked` não olha o prazo) | Decisão P4: 5 dias | Abre no detector quando o prazo chega e na hora se o B/L entra já no prazo; fecha no vínculo, cancelamento, exclusão ou ETA adiado (`352`) |
+| Mudar ETD do POL | B/Ls esperados | Na hora pela cadeia da `341` (a leitura inicial desta revisão dizia "só detector"; a frente da `353` conferiu) | Na hora | Igual; caso de teste na `353` |
 | Excluir ou omitir escala | Data da escala, terminal, exportação | Exportação ficava | Fecham | Fecham |
 | ETB/ATB/ETD/ATD do terminal | Data do terminal, exportação, ADR | Exportação piscava com dois terminais | Estável | Estável; dia de Brasília |
 | Última ATD (viagem concluída) | Exportação, CE pendente | Congelados | Reavaliados | Detector reavalia os abertos |
@@ -347,17 +353,18 @@ a do frontend. As três decisões do Lucca estão nas linhas marcadas.
 | Faturar (tela ou CE) | Bloqueio de cálculo, falha de emissão, tabela faltando, exceção do Portal | Falha de emissão e tabela fecham; bloqueio de cálculo fica quando a emissão é pelo CE | Fecham | Fecham |
 | Consolidada do Portal (criar, pagar, desfazer) | Exceção crítica de fatura | Nenhum alerta; fatura coberta não fecha exceção (D7) | — | Igual |
 | Cancelar ou corrigir fatura | Fatura desatualizada, restituição, exceção do Portal | Fecham pela origem | Fecham | Igual |
+| Pagar o B/L (baixa) | Pendências do Portal | Nada muda: B/L pago contava como processo ativo | Decisão P3: B/L pago sem Demurrage em aberto não conta | Fecham na hora; B/L novo reabre (`350`) |
 | **Decisão 2:** B/L não faturado no saldo | — | `344` (estudo) | Fora do saldo | Igual; sugestão S5 |
 | Pix Itaú: pagamento sem baixa | `pix_unreconciled` (`itau_pix_receipt`) | Abre; fora do painel financeiro | Visível no painel | Visível |
 | Pix Itaú: expiração e renovação | PTAX das 14h, calendário | `itau_pix_maintain` | Igual | Igual |
 | Extrato Pix | `pix_unreconciled` (`pix_transaction`) | Abre e fecha | Igual | Igual |
-| Comunicado CE e Taxas | Reenvio pendente, recusado | Fecham pela origem | Igual | Igual |
-| NOA (`aviso_chegada_noa`) e ETA alterado | NOA pendente | Detector recalcula a cada 15 min; NOA já enviado não é reavaliado com o ETA novo | A definir | Sugestão S6 |
+| Comunicado CE e Taxas | Reenvio pendente, recusado | Fecham pela origem; a justificativa prometida era recusada | Igual | Igual; `comunicado_recusado` aceita justificativa e, justificado, só reabre quando outro Comunicado falha (`349`, decisão P2) |
+| NOA (`aviso_chegada_noa`) e ETA alterado | NOA, NOR e NOB pendentes | Detector recalcula a cada 15 min; NOA já enviado não é reavaliado com o ETA novo | Fecha no fato | Fecham na entrega a todos os destinatários e na mudança da escala (`353`); a janela que vence sem gravação continua no detector; S6 continua sugestão |
 | Desbloqueio de CE | CE trocado com desbloqueio, aviso não enviado | Fecham pela origem ou justificativa | Igual | Igual |
-| Portal: cadastro, convite, ativação | Pendências do Portal, Revisão do Portal | Gatilho da conta e detector | Igual | Igual (B/L cancelado fora) |
+| Portal: cadastro, convite, ativação | Pendências do Portal, Revisão do Portal | Gatilho da conta e detector | Na hora | Na hora, por Cliente (`350`); B/L cancelado (`347`) e B/L pago sem Demurrage em aberto (`350`, decisão P3) não contam |
 | **Decisão 1:** conta ativa nunca volta para análise | Revisão do Portal | `343` (estudo); `review_portal_not_ready` usa `customer_billing_access_ready` | Igual | Igual; `portal_pendencia_geral` ainda abre para conta ativa com e-mail de recuperação suprimido, que é outro fato |
 | Portal: pedidos (Desbloqueio de CE pelo Portal) | Aviso não enviado | Pela fila de avisos | Igual | Igual |
-| Demurrage: datas alteradas | Datas alteradas | Ramo "cancelada e reemitida" não fecha | Decisão P1 | Igual |
+| Demurrage: datas alteradas | Datas alteradas | Ramo "cancelada e reemitida" não fecha | Decisão P1: fecha se a reemissão cobriu tudo | Não fica aberto quando a reemissão cobre todas as caixas; com caixa sem cobrança, fecha quando ela é cobrada; justificativa aceita (`349`) |
 | Demurrage: régua e disputa | Cobrança recusada, disputa | Fecham pela origem | Igual | Igual |
 | Efeito de importação bloqueado e reaberto | Efeito bloqueado | Nunca fechava | Fecha ao reabrir | Fecha |
 
@@ -430,7 +437,8 @@ bateria mostra órfãos que não vêm da aplicação.
 
 ## 7. Sugestões de alertas novos
 
-Nenhuma foi implementada.
+Depois das decisões do Lucca, S7 virou a migration `352` (5 dias) e S12 a `351`;
+as demais continuam sugestões.
 
 | # | Alerta | Abre | Fecha | Fonte | Severidade | Canal |
 |---|---|---|---|---|---|---|
@@ -440,22 +448,37 @@ Nenhuma foi implementada.
 | S4 | Comunicado elegível que não saiu | Alvo de `customer_communication_automation_targets` sem tentativa `aceito` depois de N rodadas do runner | Envio ou alvo some | Alvos + `customer_communication_attempts` | Normal | Alerta interno (Documentação) |
 | S5 | Fatura emitida sem recebível | `invoices.status` emitida sem `invoice_receivable_links` ativo (consolidada) ou sem `bl_receivables` vivo do B/L | Vínculo criado | `invoices`, `bl_receivables`, `invoice_receivable_links` | Crítico | Alerta interno (Administrativo) |
 | S6 | ETA mudou depois do NOA | NOA enviado com ETA diferente do ETA atual da escala além de X horas | Novo NOA ou confirmação | `customer_communications` (marco gravado) × `customer_communication_scale_schedules` | Normal | Alerta interno (Documentação) |
-| S7 | B/L sem Cliente perto do ETA | B/L vivo sem Cliente há mais de X horas e ETA em menos de Y dias (o `review_customer_unlinked` não olha o prazo) | Vínculo | `bls`, ETA do audit | Crítico | Alerta interno (Documentação). Decisão P4 |
+| S7 | B/L sem Cliente perto do ETA | B/L vivo sem Cliente há mais de X horas e ETA em menos de Y dias (o `review_customer_unlinked` não olha o prazo) | Vínculo | `bls`, ETA do audit | Crítico | Alerta interno (Documentação). Feito na `352`: 5 dias, sem prazo em horas, um alerta por escala |
 | S8 | Conta do Portal inconsistente | `account_situation = 'ativo'` sem `auth_user_id`, ou `active = false` com situação ativa, ou convite pendente vencido sem marca | Conta corrigida | `customer_portal_accounts`, `portal_invites` | Normal | Alerta interno |
 | S9 | Pix pago e não conciliado há mais de 1 dia | `itau_pix_receipts` ou exceção do extrato ativos há mais de 24 h | Baixa ou tratamento | `itau_pix_receipts`, `pix_reconciliation_exceptions` | Crítico | Alerta interno + Sentry (mensagem) |
 | S10 | Fila de e-mail parada | `portal_email_events` em `pending`/`retry_wait` com `next_attempt_at` vencido há mais de 30 min, ou tentativas `aceito` sem evento (já coberto em parte por `email_retorno_provedor_silencioso`) | Fila anda | `portal_email_events` | Crítico | Alerta interno + Better Stack (o heartbeat do runner já existe) |
 | S11 | Alerta órfão | Verificações 01–04 do script | Registro volta ou alerta sai | Script de consistência | Normal | Alerta interno (Administrativo), rodada diária |
-| S12 | Detector parcial | Isolar cada detector em `run_alert_detectors` e devolver `failed > 0` quando um quebrar; o heartbeat já manda `/fail` | Rodada limpa | `run_alert_detectors` | Alta | Better Stack + Sentry (mensagem com o detector) |
+| S12 | Detector parcial | Isolar cada detector em `run_alert_detectors` e devolver `failed > 0` quando um quebrar; o heartbeat já manda `/fail` | Rodada limpa | `run_alert_detectors` | Alta | Better Stack + Sentry (mensagem com o detector). Feito na `351` |
 
-## Decisões pendentes
+## Decisões
 
-| # | Pergunta | Caso | Opções | Recomendação |
-|---|---|---|---|---|
-| P1 | Como fecha "Datas mudaram em Invoice de Demurrage" no ramo sem pagamento, em que a Invoice é cancelada e reemitida? | O alerta fica na Invoice cancelada; nada o fecha, e a justificativa não aceita o tipo (L9) | (a) incluir o tipo em `_alert_types_resolved_with_justification()`; (b) fechar quando a Invoice de origem é cancelada e outra viva cobre os containers | (b), com (a) para os ramos com pagamento |
-| P2 | `comunicado_recusado` e `demurrage_invoice_dates_changed` devem aceitar "Resolver com justificativa", como o manual promete? | `alertRulesCatalog.ts` promete; a RPC recusa (L11) | Alinhar o código ou o texto | Alinhar o texto para `comunicado_recusado` (tem fato de origem) e decidir o outro em P1 |
-| P3 | B/L pago é "processo ativo" do Portal? | A `347` tirou só o cancelado. Cliente com todos os B/Ls pagos ainda tem pendência do Portal | (a) manter; (b) só B/L não pago ou com Demurrage aberta | Decisão de produto; (b) parece o pretendido |
-| P4 | Quanto tempo e quão perto do ETA para avisar B/L sem Cliente (S7)? | — | X horas, Y dias | — |
-| P5 | Isolar os detectores (A1, S12)? | VELA-24/25 derrubaram todos os alertas por causa de um | (a) manter a transação única; (b) savepoint por detector e `failed` no retorno | (b) |
+As perguntas abaixo ficaram abertas na primeira entrega e foram respondidas
+pelo Lucca no mesmo dia (2026-10-21). A coluna "Decisão" registra a resposta e
+onde ela foi implementada.
+
+| # | Pergunta | Caso | Opções | Recomendação | Decisão |
+|---|---|---|---|---|---|
+| P1 | Como fecha "Datas mudaram em Invoice de Demurrage" no ramo sem pagamento, em que a Invoice é cancelada e reemitida? | O alerta fica na Invoice cancelada; nada o fecha, e a justificativa não aceita o tipo (L9) | (a) incluir o tipo em `_alert_types_resolved_with_justification()`; (b) fechar quando a Invoice de origem é cancelada e outra viva cobre os containers | (b), com (a) para os ramos com pagamento | Fecha quando a reemissão cobriu todas as caixas; com caixa sem cobrança, fica até ela ser cobrada ou até a justificativa. B/L ou viagem cancelados (só cancela, nada a cobrar) contam como "cobriu tudo" — ponto para conferir. `349`, [#1013](https://github.com/luccafwlog/vela/pull/1013) |
+| P2 | `comunicado_recusado` e `demurrage_invoice_dates_changed` devem aceitar "Resolver com justificativa", como o manual promete? | `alertRulesCatalog.ts` promete; a RPC recusa (L11) | Alinhar o código ou o texto | Alinhar o texto para `comunicado_recusado` (tem fato de origem) e decidir o outro em P1 | Aceitar a justificativa nos dois tipos; `comunicado_recusado` justificado só reabre quando outro Comunicado falha. `349`, [#1013](https://github.com/luccafwlog/vela/pull/1013) |
+| P3 | B/L pago é "processo ativo" do Portal? | A `347` tirou só o cancelado. Cliente com todos os B/Ls pagos ainda tem pendência do Portal | (a) manter; (b) só B/L não pago ou com Demurrage aberta | Decisão de produto; (b) parece o pretendido | (b): B/L pago deixa de contar, salvo com Invoice de Demurrage emitida ou vencida; B/L novo reabre. `350`, [#1015](https://github.com/luccafwlog/vela/pull/1015) |
+| P4 | Quanto tempo e quão perto do ETA para avisar B/L sem Cliente (S7)? | — | X horas, Y dias | — | 5 dias antes do ETA, sem prazo em horas; crítico, Documentação, um alerta por escala. `352`, [#1014](https://github.com/luccafwlog/vela/pull/1014) |
+| P5 | Isolar os detectores (A1, S12)? | VELA-24/25 derrubaram todos os alertas por causa de um | (a) manter a transação única; (b) savepoint por detector e `failed` no retorno | (b) | (b). `351`, [#1012](https://github.com/luccafwlog/vela/pull/1012) |
+
+**Fechar junto com o fato.** Na resposta à P5 o Lucca pediu que o alerta feche
+no momento em que o fato que o resolve acontece. A rodada de 15 minutos continua
+para abrir alertas de prazo (nenhum evento acontece quando o tempo passa) e como
+rede de segurança. Passaram a fechar na hora: os quatro alertas do Portal
+(`350`); NOA, NOR e NOB pendentes, `usuario_email_devolvido` e
+`email_retorno_provedor_silencioso` (`353`). "B/Ls esperados" no ETD do porto de
+origem já fechava na hora pela cadeia da `341`. Ficam no detector: a janela do
+Comunicado que vence sem gravação, B/L cancelado ou sem Cliente e Cliente
+desativado nos Comunicados, e o e-mail de usuário trocado fora da Edge
+`admin-users` (o repositório não tem gatilho no schema `auth`).
 
 ## PRs e ordem de merge
 
@@ -468,11 +491,27 @@ das migrations.
 | 2 | [#1008](https://github.com/luccafwlog/vela/pull/1008) Alertas do B/L cancelado, faturado ou excluído | `claude/alertas-bl-cancelado-excluido` | `347` |
 | 3 | [#1009](https://github.com/luccafwlog/vela/pull/1009) Efeito de importação bloqueado | `claude/alertas-efeito-importacao` | `348` |
 | 4 | [#1010](https://github.com/luccafwlog/vela/pull/1010) Pix Itaú no painel financeiro | `claude/alertas-pix-itau-painel` | — |
-| 5 | PR deste relatório | `claude/stoic-shannon-zosm6m` | — |
+| 5 | [#1011](https://github.com/luccafwlog/vela/pull/1011) Este relatório | `claude/stoic-shannon-zosm6m` | — |
+| 6 | [#1013](https://github.com/luccafwlog/vela/pull/1013) Datas da Demurrage e Comunicado recusado | `claude/alertas-demurrage-e-justificativa` | `349` |
+| 7 | [#1015](https://github.com/luccafwlog/vela/pull/1015) Portal segue o processo ativo e fecha na hora | `claude/alertas-portal-processo-ativo` | `350` |
+| 8 | [#1012](https://github.com/luccafwlog/vela/pull/1012) Detector que quebra não para os outros | `claude/alertas-detectores-isolados` | `351` |
+| 9 | [#1014](https://github.com/luccafwlog/vela/pull/1014) B/L sem Cliente perto do ETA | `claude/alertas-bl-sem-cliente-eta` | `352` |
+| 10 | [#1016](https://github.com/luccafwlog/vela/pull/1016) Alertas fecham na hora do fato | `claude/alertas-fecham-na-hora` | `353` |
 
-As PRs 1 e 2 trazem a mesma correção em
-`src/integration/alertasSemRepetirRegistro.local-pg.test.ts` (linhas idênticas):
-o segundo merge não deve conflitar.
+A #1010 e este relatório podem entrar em qualquer ponto; as demais seguem a
+numeração das migrations. As PRs 1, 2 e 7 trazem a mesma correção em
+`src/integration/alertasSemRepetirRegistro.local-pg.test.ts` (linhas idênticas)
+e não conflitam entre si. A #1015 (`350`) inclui a branch da #1008 (`347`):
+reescreve o mesmo trecho de `docs/modules/portal-cliente.md` e só pode ser
+aplicada depois dela; até o merge da #1008, o diff da #1015 mostra também a
+`347`.
+
+**Conferência da combinação.** As dez branches, mergeadas nessa ordem sobre a
+`staging` num worktree local, entram sem conflito, e as migrations `346` a `353`
+aplicam em sequência num banco limpo. A combinação já pegou uma
+interação: com a `350`, o B/L vivo abre a pendência do Portal na hora, e a
+suíte da `347` esperava que ela nunca tivesse existido; a asserção passou a
+ser "não ativa" na #1015.
 
 ## O que não foi verificado
 
@@ -487,5 +526,12 @@ o segundo merge não deve conflitar.
   "B/Ls esperados" e "CE pendente" está provado por texto da função
   (`pg_get_functiondef`) e pelo adiamento dos gatilhos; a importação completa
   não foi exercitada no teste da `346`.
-- **Desempenho.** Os gatilhos novos em `bls` reconciliam a viagem a cada
-  instrução fora da importação; não foi medido em volume.
+- **Desempenho.** Os gatilhos novos em `bls` (`346`, `347`, `350` e `352`)
+  reconciliam viagem, Cliente ou escala a cada instrução fora da importação;
+  não foi medido em volume. O passo novo do detector (`352`) também não.
+- **Rodada parcial do detector (`351`).** A Edge `alerts-detector` não foi
+  executada contra o Better Stack e o Sentry reais; o `deno check` dela não
+  terminou localmente e o CI não checa essa função.
+- **Primeira rodada da `352`.** Como ETA já passado conta, escalas antigas
+  que ainda tenham B/L sem Cliente abrem o alerta na primeira rodada depois do
+  deploy. O número não foi visto (produção não consultada).
