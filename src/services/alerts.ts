@@ -55,6 +55,7 @@ export type ActiveAlertType =
   | 'review_portal_not_ready'
   | 'review_breakbulk_weight_missing'
   | 'review_granite_customer_unlinked'
+  | 'bl_sem_cliente_perto_eta'
   | 'voyage_bl_expected'
   | 'voyage_baplie_missing'
   | 'voyage_baplie_documentary_coverage'
@@ -114,6 +115,7 @@ export const TYPE_LABELS: Record<string, string> = {
   review_portal_not_ready: 'Revisão de B/L — Portal não provisionado',
   review_breakbulk_weight_missing: 'Revisão de B/L — peso BB ausente',
   review_granite_customer_unlinked: 'Revisão de Granito — cliente não vinculado',
+  bl_sem_cliente_perto_eta: 'B/L sem Cliente perto do ETA',
   voyage_bl_expected: 'B/L esperado pendente',
   voyage_baplie_missing: 'Baplie ausente',
   voyage_baplie_documentary_coverage: 'Cobertura Baplie / B/L',
@@ -434,6 +436,9 @@ function alertEntityLinkRaw(alert: {
       ? `/revisao?cliente=${encodeURIComponent(alert.entity_id)}`
       : '/revisao'
   }
+  // B/L sem Cliente perto do ETA (migration 352): a chave é a escala, e o
+  // vínculo se faz na Revisão, no cartão dos B/Ls sem Cliente.
+  if (effectiveType === 'bl_sem_cliente_perto_eta') return '/revisao?causa=cliente'
   if (effectiveType.startsWith('portal_')) {
     if (alert.entity_type === 'invoice') return invoiceLink(alert)
     return `/clientes/portal?cliente=${encodeURIComponent(alert.entity_id)}`
@@ -497,7 +502,7 @@ export function alertEntityLinkLabel(alert: {
   }
   if (effectiveType === 'review_portal_not_ready') return 'Abrir Portal'
   if (effectiveType === 'review_granite_customer_unlinked') return 'Abrir Granito'
-  if (effectiveType.startsWith('review_')) return 'Revisar B/Ls'
+  if (effectiveType.startsWith('review_') || effectiveType === 'bl_sem_cliente_perto_eta') return 'Revisar B/Ls'
   if (alert.entity_type === 'pix_transaction') return 'Abrir Reconciliação'
   if (alert.entity_type === 'portal_email_event') return 'Abrir Alertas'
   if (alert.entity_type === 'customer') return 'Abrir Portal'
@@ -578,8 +583,8 @@ export async function dismissAlertItem(
 /**
  * Tipos de conferência sem fato de origem: fecham com "Resolver com
  * justificativa" (ADR 0083, item 23). Espelha
- * `_alert_types_resolved_with_justification()` (migrations 238, 313 e 316); os
- * demais fecham sozinhos quando a origem é corrigida.
+ * `_alert_types_resolved_with_justification()` (migrations 238, 313, 316 e
+ * 349), na mesma ordem; os demais fecham sozinhos quando a origem é corrigida.
  */
 export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'portal_abuso_login',
@@ -589,6 +594,11 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'cobranca_demurrage_recusada',
   // Aviso que não sai de novo depois que a solicitação terminou (migration 316).
   'desbloqueio_ce_aviso_nao_enviado',
+  // Conferência da diferença de datas, paga ou negociada (migration 349).
+  'demurrage_invoice_dates_changed',
+  // Também fecha pelo envio; justificado, a próxima falha do mesmo Comunicado
+  // não reabre (migration 349).
+  'comunicado_recusado',
 ]
 
 /**
