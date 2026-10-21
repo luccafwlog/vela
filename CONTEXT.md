@@ -599,7 +599,8 @@ containers, da posição a bordo e das marcas operacionais.
 
 **Staging Baplie**
 Estado intermediário dos containers importados do Baplie, por Viagem, antes da
-conciliação com os B/Ls; cada importação substitui o staging anterior.
+conciliação com os B/Ls; cada importação substitui o staging anterior dos
+portos de descarga marcados, e os outros portos da Viagem ficam.
 → Regra: [Manifestos & EDI § `/baplie`](docs/modules/manifesto-edi.md#baplie)
 
 **Conciliação Baplie × B/L**

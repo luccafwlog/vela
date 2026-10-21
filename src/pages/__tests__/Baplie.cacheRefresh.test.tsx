@@ -73,7 +73,7 @@ describe('upload na página Baplie', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Importar 1 container' }))
       await waitFor(() => expect(client.getQueryState(['baplie-staging', '24'])?.isInvalidated).toBe(true))
       expect(client.getQueryState(['voyages'])?.isInvalidated).toBe(true)
-      expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 24, actorId: 'user-1' }))
+      expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 24, pods: [] }))
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     } finally { client.clear() }
   })

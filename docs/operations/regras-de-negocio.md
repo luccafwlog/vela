@@ -481,9 +481,16 @@ componente só, aberto de todas as telas que a oferecem.
   numa transação só. B/L cancelado dentro do arquivo é aviso (não é tocado).
   Linhas sem conteúdo (planilha da ZPT sem CE ou situação; lançamento zerado
   ou negativo do extrato do Pix) são ignoradas com a contagem à vista; valor
-  ilegível é erro. Passo técnico depois da gravação (IMO/OOG e vazios do
-  Baplie, emissão das faturas do CE Mercante, cálculo das Taxas Locais) que
-  falhar não desfaz a importação: é retomado, e a tela diz o que falta.
+  ilegível é erro. Passo técnico depois da gravação (emissão das faturas do
+  CE Mercante, cálculo das Taxas Locais) que falhar não desfaz a importação:
+  é retomado, e a tela diz o que falta. As marcas IMO/OOG e SOC/COC e os
+  vazios do Baplie deixaram de ser passo posterior: desde a migration `388`
+  são gravados na mesma transação do Baplie, e a falha recusa o arquivo
+  (ADR 0095, F-20).
+- **Uma importação por Viagem de cada vez** (ADR 0095, decisão 6; migration
+  `387`): toda importação de Viagem pega a mesma trava da Viagem antes de
+  gravar, e a segunda espera a primeira terminar. Regra e lista das
+  importações em [Manifestos & EDI](../modules/manifesto-edi.md#importação-do-bl-e-invariantes-gerais).
 - Toda importação tem um modelo padrão para baixar (`public/templates/`); para
   arquivo que vem de sistema de fora (Baplie, ZPT), um exemplo no formato
   aceito.

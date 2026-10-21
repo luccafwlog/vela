@@ -146,7 +146,11 @@ export function BaplieImportModal({
       const result = await reimportBaplie({
         voyageId: Number(voyageId),
         containers: filteredContainers,
-        actorId,
+        // Só os portos marcados são substituídos; os outros da Viagem ficam (migration 388).
+        pods: pods.filter((pod) => !excludedPods.has(pod)),
+        // O servidor confere a viagem do TDT; sem TDT, exige a confirmação
+        // que o operador marcou na prévia (migration 388, decisão 13).
+        file: { voyageNumber: parsed?.voyage_number ?? null, voyageConfirmed },
         confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
       })
       if (result.status === 'cancelled') return
@@ -197,7 +201,7 @@ export function BaplieImportModal({
           <ImportGuide
             requiredLabel="Formato"
             required="Baplie EDIFACT do plano de estiva da viagem."
-            details={<p>Reimportar substitui o Baplie inteiro da viagem. Com diferença, a lista do que entra, sai ou muda aparece antes de confirmar; sem diferença, o arquivo é aceito direto e os vazios ficam como estão.</p>}
+            details={<p>Reimportar substitui só os portos marcados; os demais portos da viagem ficam como estão. Com diferença, a lista do que entra, sai ou muda aparece antes de confirmar; sem diferença, o arquivo é aceito direto e os vazios ficam como estão.</p>}
           />
           <ImportFilePicker accept=".edi,.txt,.edi2,.bpl" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing || Boolean(partial)} />
         </ImportFileBlock>

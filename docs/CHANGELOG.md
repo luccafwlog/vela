@@ -6,6 +6,22 @@
 
 ## 2026-10
 
+- **Importações: trava por Viagem e Baplie no servidor (2026-10-21, PR luccafwlog/vela#1023, Lote 1 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 6, 11 e 13):** migrations
+  `387` a `390`. Toda importação de Viagem (arquivo de B/L, Manifesto BB e B/L avulso, planilha de
+  CE, Baplie, datas, Vazios de importação, Embarque de vazios, Veículos e Granito) pega a mesma trava
+  da Viagem: a segunda importação espera a primeira, em vez de cair em "deadlock detected" ou deixar
+  duas listas do Baplie (F-04, F-11). O Baplie substitui só os portos de descarga marcados no modal;
+  containers, marcas, vazios com a natureza e o Nº do manifesto Mercante de vazios dos outros portos
+  ficam (F-21); porto marcado sem nenhum container no arquivo é recusado, em vez de apagar o Baplie,
+  as marcas e os vazios dele (`390`). O servidor confere a viagem do arquivo, as escalas, os portos
+  marcados e container repetido (F-16) e recusa a prévia velha, quando outra importação gravou depois
+  dela ou outra sessão trocou o manifesto de vazios do Baplie que o diálogo mostrou (F-20, `390`); staging,
+  marcas IMO/OOG e SOC/COC e recadastro dos vazios são uma transação só, e falha em qualquer parte não
+  grava nada (F-20). O staging ganhou índice único por Viagem e container, com a limpeza das linhas
+  repetidas (F-22, sob o "Data status" do AGENTS.md), e o recadastro "Vazios pelo Baplie" voltou a
+  gravar o contexto no Histórico (F-26). `import_baplie_staging_transactional` saiu; a importação usa
+  `import_baplie_file_atomic`.
 - **Leitura dos arquivos de importação (2026-10-21):** B/L avulso com peso em toneladas
   ("25.350 MT") deixa de entrar 1.000 vezes maior e cubagem com vírgula é decimal; número
   ambíguo do Manifesto BB e do arquivo de B/L COSCO bloqueia a linha nas duas direções e número

@@ -88,7 +88,9 @@ it('caminho feliz: grava uma vez, avisa e fecha; a Viagem escolhida aparece na p
   await importNow()
   await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   expect(mocks.reimport).toHaveBeenCalledTimes(1)
-  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, actorId: 'user-1' }))
+  // Só os PODs marcados e a viagem do arquivo vão ao servidor (migration 388);
+  // com TDT não há confirmação a marcar, e o servidor confere a viagem do arquivo.
+  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, pods: ['BRSSZ'], file: { voyageNumber: '14N', voyageConfirmed: false } }))
 })
 
 it('pela aba da Viagem, a Viagem fica só no topo', async () => {
@@ -158,6 +160,8 @@ it('arquivo sem navio e viagem: destaca e só libera Importar depois da confirma
   fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo que este Baplie é da viagem GREEN SANTOS \/ 14N/ }))
   await importNow()
   await waitFor(() => expect(mocks.reimport).toHaveBeenCalledTimes(1))
+  // A confirmação marcada é a que o servidor confere (migration 388, decisão 13).
+  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ file: { voyageNumber: null, voyageConfirmed: true } }))
 })
 
 it('arquivo com navio e viagem não pede a confirmação', async () => {
