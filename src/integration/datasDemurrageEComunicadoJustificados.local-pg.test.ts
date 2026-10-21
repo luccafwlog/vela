@@ -308,6 +308,28 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     expect(refusalItem().status).toBe('resolved')
   })
 
+  it('P2: claim justificada que deixa de ser devida perde o reconhecimento e, se voltar a falhar, reabre', () => {
+    const marks = () => psql(`SELECT (refusal_alerted_at IS NOT NULL)::text || '|' || (refusal_acknowledged_at IS NOT NULL)::text
+      FROM public.customer_communication_automation_claims WHERE claim_key = '${nobClaim}'`)
+    asServer(`SELECT public.defer_customer_communication_automation_claim('${nobClaim}', 'Prontidão financeira bloqueada', false)`)
+    expect(refusalItem().status).toBe('active')
+    expect(justify(refusalItem().id, 'Conferido por telefone (R349 saída)').stderr).toBe('')
+    expect(marks()).toBe('true|true')
+
+    // O Cliente é desativado: o NOB deixa de ser devido. Antes, a rodada da
+    // produtora só conferia Cliente com o item ativo e as marcas ficavam.
+    psql(`UPDATE public.customers SET deactivated_at = now() WHERE id = ${commsCustomer}`)
+    asServer(`SELECT public.evaluate_and_dispatch_automatic_communications(now())`)
+    expect(marks()).toBe('false|false')
+
+    // Reativado, o NOB volta a ser devido e recusa: episódio novo, o alerta reabre.
+    psql(`UPDATE public.customers SET deactivated_at = NULL WHERE id = ${commsCustomer}`)
+    asServer(`SELECT public.defer_customer_communication_automation_claim('${nobClaim}', 'Prontidão financeira bloqueada', false)`)
+    const reopened = refusalItem()
+    expect(reopened.status).toBe('active')
+    expect(reopened.claims).toBe(nobClaim)
+  })
+
   it('P2: a lista de tipos com justificativa tem os dois tipos', () => {
     expect(psql(`SELECT public._alert_item_resolved_with_justification('demurrage_invoice_dates_changed', 'demurrage_invoice')
       AND public._alert_item_resolved_with_justification('comunicado_recusado', 'customer')`)).toBe('t')

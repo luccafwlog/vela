@@ -38,6 +38,10 @@
 --      com nova ocorrência e só ele na mensagem. A claim que sai do alerta
 --      (envio, alvo que deixou de estar devido) perde o reconhecimento; se
 --      entrar de novo, é episódio novo.
+--      Para isso a rodada da produtora (`evaluate_and_dispatch_automatic_communications`,
+--      definição da 314) confere também os Clientes com claim reconhecida:
+--      depois da justificativa o item está resolvido, e a rodada só olhava
+--      Clientes com o item ativo (achado do revisor na #1013).
 --   4. Acerto dos já abertos: itens `demurrage_invoice_dates_changed` ativos em
 --      Invoice cancelada pelo ramo automático (metadata sem pagamento nem
 --      negociação) sem caixa pendente, ou com todas já cobradas, são
@@ -49,7 +53,8 @@
 -- tipo em Invoice cancelada antes e depois.
 -- Rollback: reaplicar as definições das migrations 317
 -- (_reconcile_demurrage_after_dates), 316 (_alert_types_resolved_with_justification)
--- e 318 (refresh_customer_communication_refusal_alert); DROP TRIGGER
+-- 318 (refresh_customer_communication_refusal_alert) e 314
+-- (evaluate_and_dispatch_automatic_communications); DROP TRIGGER
 -- resolve_demurrage_dates_changed_on_billing ON public.demurrage_invoices e
 -- acknowledge_communication_refusal_on_alert_resolved ON public.alert_items;
 -- DROP FUNCTION public.resolve_demurrage_dates_changed_on_billing(),
@@ -507,6 +512,135 @@ CREATE TRIGGER acknowledge_communication_refusal_on_alert_resolved
   FOR EACH ROW
   WHEN (NEW.item_type = 'comunicado_recusado' AND NEW.status = 'resolved' AND OLD.status = 'active')
   EXECUTE FUNCTION public.acknowledge_communication_refusal_on_alert_resolved();
+
+-- 3b ------------------------------------------------------------------------
+-- Definição da migration 314 com a rodada 1D cobrindo as claims reconhecidas.
+-- ponytail: a saída só é vista numa rodada (15 min). Se a claim deixa de ser
+-- devida e volta a ser entre duas rodadas, a falha seguinte conta como o mesmo
+-- episódio e não reabre. Caminho de melhoria: limpar o reconhecimento onde o
+-- alvo deixa de existir (desativação do Cliente, janela, escala).
+CREATE OR REPLACE FUNCTION public.evaluate_and_dispatch_automatic_communications(p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_as_of timestamptz := coalesce(p_as_of, now());
+  v_target record;
+  v_customer record;
+  v_candidates jsonb := '[]'::jsonb;
+  v_unreachable jsonb := '{}'::jsonb;
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Executor server-only.' USING ERRCODE = '42501';
+  END IF;
+
+  FOR v_target IN SELECT * FROM public.customer_communication_automation_targets(v_as_of) t ORDER BY t.claim_key
+  LOOP
+    IF COALESCE(cardinality(v_target.emails), 0) = 0 THEN
+      -- 2.7: Cliente sem destinatário vira alerta, não candidato.
+      v_unreachable := jsonb_set(v_unreachable, ARRAY[v_target.customer_id::text],
+        COALESCE(v_unreachable -> (v_target.customer_id::text), '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
+          'kind', v_target.kind, 'voyage_id', v_target.voyage_id, 'port', v_target.port,
+          'voyage_number', v_target.voyage_number, 'atracacao_id', v_target.anchor_atracacao_id,
+          'terminal_code', v_target.terminal_code, 'bl_ids', to_jsonb(v_target.bl_ids),
+          'customer_name', v_target.customer_name, 'customer_cnpj', v_target.customer_cnpj)));
+      CONTINUE;
+    END IF;
+
+    INSERT INTO public.customer_communication_automation_claims (claim_key)
+    VALUES (v_target.claim_key)
+    ON CONFLICT (claim_key) DO UPDATE
+      SET claimed_at = now(), released_at = NULL, rejected_at = NULL, rejection_reason = NULL
+      WHERE (customer_communication_automation_claims.released_at IS NOT NULL
+         OR customer_communication_automation_claims.claimed_at < v_as_of - interval '30 minutes')
+        AND (customer_communication_automation_claims.rejected_at IS NULL
+         OR customer_communication_automation_claims.rejected_at < v_as_of - interval '24 hours')
+        -- 1D: recusa não definitiva só volta depois do intervalo (migration 303).
+        AND (customer_communication_automation_claims.next_attempt_at IS NULL
+         OR customer_communication_automation_claims.next_attempt_at <= v_as_of);
+    IF FOUND THEN
+      v_candidates := v_candidates || jsonb_build_array(jsonb_strip_nulls(jsonb_build_object(
+        'claim_key', v_target.claim_key, 'kind', v_target.kind, 'nature', v_target.nature,
+        'customer_id', v_target.customer_id, 'customer_name', v_target.customer_name,
+        'customer_cnpj', v_target.customer_cnpj, 'voyage_id', v_target.voyage_id,
+        'vessel_name', v_target.vessel_name, 'voyage_number', v_target.voyage_number,
+        'port', v_target.port, 'milestone_at', v_target.milestone_text,
+        'anchor_atracacao_id', v_target.anchor_atracacao_id, 'terminal_id', v_target.terminal_id,
+        'terminal_name', v_target.terminal_code,
+        'bl_ids', to_jsonb(v_target.bl_ids), 'emails', to_jsonb(v_target.emails)
+      )));
+    END IF;
+  END LOOP;
+
+  -- 2.7: um alerta por Cliente sem destinatário, com todos os seus alvos. Falha
+  -- no alerta não aborta a rodada dos outros Clientes.
+  FOR v_customer IN SELECT key AS customer_id, value AS targets FROM jsonb_each(v_unreachable)
+  LOOP
+    BEGIN
+      PERFORM public.upsert_alert_item(
+        'nob_sem_destinatario',
+        'customer',
+        v_customer.customer_id,
+        'Cliente ' || (v_customer.targets -> 0 ->> 'customer_name') || ': sem contato ativo para receber '
+          || (SELECT string_agg(public.customer_communication_kind_short_label(t ->> 'kind')
+                || ' da viagem ' || COALESCE(t ->> 'voyage_number', t ->> 'voyage_id')
+                || CASE WHEN t ->> 'kind' = 'ce_mercante_taxas' THEN '' ELSE ' (' || COALESCE(t ->> 'port', '—')
+                  || COALESCE(' · ' || (t ->> 'terminal_code'), '') || ')' END,
+                '; ' ORDER BY t ->> 'kind', t ->> 'voyage_id')
+              FROM jsonb_array_elements(v_customer.targets) t)
+          || '. Cadastre um contato na caixa Documentação e Operação (ou Financeiro, para o CE e Taxas).',
+        'comunicado_automacao',
+        -- 314: customer_cnpj leva "Abrir Cliente" à ficha do Cliente, não à lista.
+        jsonb_build_object('customer_id', v_customer.customer_id::bigint,
+          'customer_cnpj', v_customer.targets -> 0 ->> 'customer_cnpj', 'targets', v_customer.targets),
+        '/clientes'
+      );
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Alerta nob_sem_destinatario do Cliente % nao gravado: %', v_customer.customer_id, SQLERRM;
+    END;
+  END LOOP;
+
+  -- Fecha o alerta de quem já tem destinatário ou não tem mais alvo (janela
+  -- vencida, Comunicado registrado, Cliente desativado).
+  FOR v_customer IN
+    SELECT DISTINCT a.entity_id
+    FROM public.alert_items i
+    JOIN public.alerts a ON a.id = i.alert_id
+    WHERE i.item_type = 'nob_sem_destinatario' AND i.status = 'active'
+      AND a.entity_type = 'customer'
+      AND NOT (v_unreachable ? a.entity_id)
+  LOOP
+    BEGIN
+      PERFORM public.resolve_alert_item('nob_sem_destinatario', 'customer', v_customer.entity_id, 'comunicado_automacao', '{}'::jsonb);
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Alerta nob_sem_destinatario do Cliente % nao resolvido: %', v_customer.entity_id, SQLERRM;
+    END;
+  END LOOP;
+
+  -- 1D: tira do alerta comunicado_recusado as claims cujo alvo deixou de existir.
+  -- 349: confere também o Cliente com claim reconhecida na justificativa. O
+  -- item dele está resolvido, e sem esta rodada a claim que deixa de ser devida
+  -- nunca perderia o reconhecimento.
+  FOR v_customer IN
+    SELECT a.entity_id
+    FROM public.alert_items i
+    JOIN public.alerts a ON a.id = i.alert_id
+    WHERE i.item_type = 'comunicado_recusado' AND i.status = 'active'
+      AND a.entity_type = 'customer' AND a.entity_id ~ '^[0-9]+$'
+    UNION
+    SELECT split_part(cl.claim_key, ':', 2)
+    FROM public.customer_communication_automation_claims cl
+    WHERE cl.refusal_acknowledged_at IS NOT NULL
+      AND split_part(cl.claim_key, ':', 2) ~ '^[0-9]+$'
+  LOOP
+    PERFORM public.refresh_customer_communication_refusal_alert(v_customer.entity_id::bigint);
+  END LOOP;
+
+  RETURN v_candidates;
+END;
+$function$;
 
 -- 4 -------------------------------------------------------------------------
 -- Acerto dos itens já abertos em Invoice cancelada pelo ramo automático.
