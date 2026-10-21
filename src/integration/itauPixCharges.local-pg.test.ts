@@ -469,18 +469,28 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     charges: { txid: string }[]; receipts: { end_to_end_id: string }[]
   }
 
-  it('Pix em análise fecha sozinho quando a fatura fica paga por baixa manual', () => {
+  it('Pix em análise fecha sozinho só pela baixa daquele Pix; outra baixa não o fecha (F-10)', () => {
     setProvider('itau')
     psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = NULL WHERE id = 1`)
+    const other = manualInvoice('ITAU360-TED', 0.08)
+    const otherCharge = activate(`invoice_id = ${other}`, '000201ITAU360T')
+    expect(settle('E360TED', otherCharge.txid, '0.08')).toBe('review')
+    // TED distinta quita a fatura: o Pix continua em análise (restituição a decidir).
+    psql(`SET request.jwt.claim.sub = '${userId}';
+      SELECT public.register_verified_invoice_payment(${other}, 0.08, 'ted', now(), 'TED', gen_random_uuid(), 'TED-360-OUTRA')`)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${other}`)).toBe('paid')
+    expect(psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = 'E360TED'`)).toBe('review')
+
     const id = manualInvoice('ITAU153-PAGA', 0.07)
     const charge = activate(`invoice_id = ${id}`, '000201ITAU153P')
     expect(settle('E153PAGA', charge.txid, '0.07')).toBe('review') // sem usuário de baixa
     expect(reviewAlertOpen('E153PAGA')).toBe('1')
     expect(monitorOf().receipts.map((r) => r.end_to_end_id)).toContain('E153PAGA')
-    // Baixa manual de exceção pelo Administrativo.
-    psql(`SET request.jwt.claim.sub = '${userId}'; UPDATE public.invoices SET status = 'paid', balance_brl = 0 WHERE id = ${id}`)
+    // Baixa manual com o endToEndId deste Pix na referência.
+    psql(`SET request.jwt.claim.sub = '${userId}';
+      SELECT public.register_verified_invoice_payment(${id}, 0.07, 'pix', now(), 'Baixa do Pix', gen_random_uuid(), 'E153PAGA')`)
     expect(psql(`SELECT status || '|' || handled_note FROM public.itau_pix_receipts WHERE end_to_end_id = 'E153PAGA'`))
-      .toBe('handled|Fatura paga por baixa manual.')
+      .toBe('handled|Fatura paga pela baixa deste Pix.')
     expect(reviewAlertOpen('E153PAGA')).toBe('0')
     expect(monitorOf().receipts.map((r) => r.end_to_end_id)).not.toContain('E153PAGA')
   })
