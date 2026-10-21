@@ -39,8 +39,27 @@ function activeMessage(itemType: string) {
     WHERE a.entity_type = 'customer' AND a.entity_id = '${ID}' AND i.item_type = '${itemType}' AND i.status = 'active';`)
 }
 
+// A 324 também redefine funções que migrations posteriores trocaram (341,
+// 346…). Reaplicá-la deixaria as definições antigas para as suítes seguintes
+// (e uma sobrecarga a mais quando a assinatura mudou): as definições vigentes
+// são guardadas antes e restauradas no fim.
+const redefinedFunctions = [...new Set(
+  [...readFileSync(migrationPath, 'utf8').matchAll(/CREATE OR REPLACE FUNCTION public\.([a-z0-9_]+)\(/g)].map((match) => match[1]),
+)]
+const redefinedFilter = `n.nspname = 'public' AND p.proname IN (${redefinedFunctions.map((name) => `'${name}'`).join(', ')})`
+let signaturesBefore: string[] = []
+let definitionsBefore = ''
+
+function currentSignatures() {
+  return psql(`SELECT p.oid::regprocedure::text FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE ${redefinedFilter} ORDER BY 1;`).split('\n').filter(Boolean)
+}
+
 describeLocal('migration 324 — mensagens dos alertas e "Crítico" do Provisionamento', () => {
   beforeAll(() => {
+    signaturesBefore = currentSignatures()
+    definitionsBefore = psql(`SELECT string_agg(pg_get_functiondef(p.oid), E';\n') || ';' FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace WHERE ${redefinedFilter};`)
     psql(`INSERT INTO public.carriers (id, name) VALUES (${ID}, 'Carrier A321') ON CONFLICT (id) DO NOTHING;`)
     psql(`INSERT INTO public.vessels (id, name, carrier_id) VALUES (${ID}, 'Vessel A321', ${ID}) ON CONFLICT (id) DO NOTHING;`)
     psql(`INSERT INTO public.voyages (id, vessel_id, voyage_number) VALUES (${ID}, ${ID}, 'A321') ON CONFLICT (id) DO NOTHING;`)
@@ -53,6 +72,10 @@ describeLocal('migration 324 — mensagens dos alertas e "Crítico" do Provision
   })
 
   afterAll(() => {
+    for (const signature of currentSignatures().filter((item) => !signaturesBefore.includes(item))) {
+      psql(`DROP FUNCTION ${signature};`)
+    }
+    psql(definitionsBefore)
     psql(`DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${ID}';`)
     psql(`UPDATE public.customer_portal_accounts SET account_situation = 'sem_conta', recovery_email = NULL WHERE customer_id = ${ID};`)
   })
