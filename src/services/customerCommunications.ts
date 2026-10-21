@@ -10,7 +10,7 @@ import { normalizePortCode } from './portCode'
 import { listVoyageEscalaSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
 import { supabase } from './supabase'
 import { toError } from '../lib/errors'
-import type { CustomerCommunicationKind, CustomerCommunicationTemplateInput } from './customerCommunicationTemplates'
+import { formatCommunicationDateTime, type CustomerCommunicationKind, type CustomerCommunicationTemplateInput } from './customerCommunicationTemplates'
 import {
   type CommunicationBoxCode,
   type CustomerCommunicationAudience,
@@ -1099,11 +1099,90 @@ export type VoyageCommunicationCoverageSummary = {
   nor: { sent: number; total: number }
   nob: { sent: number; total: number }
   finance: { sent: number; due: number; resend: number; ready: number; total: number; pending: number }
+  /** Quantos Clientes a próxima rodada automática vai enviar, por modelo (migration 345). */
+  queued: Record<CoverageKind, number>
+  /** Drill-down da linha: cada Cliente do porto e a situação de cada modelo. */
+  details: CoverageCustomerDetail[]
+}
+
+export type CoverageKind = 'ce_mercante_taxas' | 'aviso_chegada_noa' | 'aviso_prontidao_nor' | 'aviso_atracacao_nob'
+export const COVERAGE_KINDS: readonly CoverageKind[] = ['ce_mercante_taxas', 'aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob']
+
+/** Prontidão do CE e Taxas de um Cliente na viagem (`customer_local_charges_communication_readiness`). */
+export type CoverageReadiness = {
+  ready: boolean
+  bls: ReadonlyArray<{ blocked_reasons?: readonly string[] | null }>
+}
+
+/** Linha de `customer_communication_queue_preview` (migration 345). */
+export type CoverageQueueRow = {
+  kind: string
+  customer_id: number
+  voyage_id: number
+  port: string | null
+  anchor_atracacao_id: string | null
+  claim_state: 'na_fila' | 'em_envio' | 'recusado' | 'nova_tentativa' | 'sem_destinatario'
+  next_attempt_at: string | null
+}
+
+/**
+ * Situação de um modelo para um Cliente na linha da Cobertura:
+ * enviado (com data e o Comunicado), na fila da próxima rodada, em envio,
+ * devido e não enviado, bloqueado (com o motivo) ou não devido.
+ */
+export type CoverageCellState = 'enviado' | 'na_fila' | 'em_envio' | 'devido' | 'bloqueado' | 'nao_devido'
+
+export type CoverageCell = {
+  state: CoverageCellState
+  /** Último envio, mesmo quando a situação atual é reenvio pendente. */
+  sentAt: string | null
+  communicationId: number | null
+  reason: string | null
+}
+
+export type CoverageCustomerDetail = {
+  customerId: number
+  customerName: string
+  cells: Record<CoverageKind, CoverageCell>
+}
+
+const READINESS_REASON_TEXT: Record<string, (bls: string) => string> = {
+  faturamento_pendente: (bls) => `falta faturar ${bls}`,
+  ce_mercante_ausente: (bls) => `falta CE Mercante em ${bls}`,
+  revisao_pendente: (bls) => `${bls} em revisão`,
+}
+
+/** "falta faturar 4 B/Ls; falta CE Mercante em 1 B/L", a partir dos motivos por B/L. */
+export function readinessReasonText(readiness: CoverageReadiness | undefined): string {
+  if (!readiness) return 'prontidão não consultada'
+  if (!readiness.bls.length) return 'sem B/L na viagem'
+  const counts = new Map<string, number>()
+  for (const bl of readiness.bls) {
+    for (const reason of bl.blocked_reasons ?? []) counts.set(reason, (counts.get(reason) ?? 0) + 1)
+  }
+  const parts = Object.keys(READINESS_REASON_TEXT)
+    .filter((reason) => counts.has(reason))
+    .map((reason) => {
+      const count = counts.get(reason) ?? 0
+      return READINESS_REASON_TEXT[reason](count === 1 ? '1 B/L' : `${count} B/Ls`)
+    })
+  return parts.join('; ') || 'prontidão bloqueada'
+}
+
+function queueBlockReason(row: CoverageQueueRow): string {
+  if (row.claim_state === 'sem_destinatario') return 'sem contato ativo na caixa do modelo'
+  if (row.claim_state === 'recusado') return 'recusado na última rodada; volta em até 24 h'
+  const next = row.next_attempt_at ? formatCommunicationDateTime(row.next_attempt_at).replace(' (horário de Brasília)', '') : null
+  return next ? `falha no envio; nova tentativa a partir de ${next}` : 'falha no envio; nova tentativa na próxima rodada'
+}
+
+function coverageCell(state: CoverageCellState, sent: CoverageCommunicationRow | undefined, reason: string | null = null): CoverageCell {
+  return { state, sentAt: sent?.created_at ?? null, communicationId: sent?.id ?? null, reason }
 }
 
 export type CoverageVoyageRow = { id: number; voyage_number: string; vessel: { name: string } | null }
 export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null }
-export type CoverageCommunicationRow = { customer_id: number | null; kind: string; status: string; anchor_voyage_id: number | null; anchor_port: string | null; anchor_atracacao_id: string | null; created_at: string }
+export type CoverageCommunicationRow = { id?: number; customer_id: number | null; kind: string; status: string; anchor_voyage_id: number | null; anchor_port: string | null; anchor_atracacao_id: string | null; created_at: string }
 export type CoverageTerminalStateRow = { id: string; voyage_id: number; port: string; terminal_atb: string | null }
 
 /**
@@ -1118,7 +1197,13 @@ export function buildVoyageCommunicationCoverage(input: {
   communications: readonly CoverageCommunicationRow[]
   terminalStates: readonly CoverageTerminalStateRow[]
   readiness: ReadonlyMap<string, boolean>
+  /** Motivos da prontidão por `<viagem>:<cliente>`, para o drill-down. */
+  readinessDetails?: ReadonlyMap<string, CoverageReadiness>
+  /** O que a próxima rodada automática vai enviar (migration 345). */
+  queue?: readonly CoverageQueueRow[]
+  customerNames?: ReadonlyMap<number, string>
 }): VoyageCommunicationCoverageSummary[] {
+  const noQueue: Record<CoverageKind, number> = { ce_mercante_taxas: 0, aviso_chegada_noa: 0, aviso_prontidao_nor: 0, aviso_atracacao_nob: 0 }
   const result: VoyageCommunicationCoverageSummary[] = []
   for (const voyage of input.voyages) {
     const voyageBls = input.bls.filter((bl) => bl.voyage_id === voyage.id && bl.customer_id != null && bl.financial_status !== 'cancelled')
@@ -1126,7 +1211,7 @@ export function buildVoyageCommunicationCoverage(input: {
     const base = { voyageId: voyage.id, vesselName: voyage.vessel?.name ?? '—', voyageNumber: voyage.voyage_number }
     if (!ports.length) {
       const none = { sent: 0, total: 0 }
-      result.push({ ...base, port: null, customers: 0, noa: none, nor: none, nob: none, finance: { sent: 0, due: 0, resend: 0, ready: 0, total: 0, pending: 0 } })
+      result.push({ ...base, port: null, customers: 0, noa: none, nor: none, nob: none, finance: { sent: 0, due: 0, resend: 0, ready: 0, total: 0, pending: 0 }, queued: noQueue, details: [] })
       continue
     }
     const voyageComms = input.communications.filter((comm) => comm.anchor_voyage_id === voyage.id && comm.status === 'enviado' && comm.customer_id != null)
@@ -1150,6 +1235,40 @@ export function buildVoyageCommunicationCoverage(input: {
         .map((comm) => comm.customer_id!))
       const upToDate = Array.from(financeSent).filter((customerId) => ready.has(customerId)).length
       const resend = financeSent.size - upToDate
+
+      // Drill-down: o envio mais recente e a fila de cada Cliente × modelo.
+      const portQueue = (input.queue ?? []).filter((row) => row.voyage_id === voyage.id && customers.has(row.customer_id)
+        && (row.kind === 'ce_mercante_taxas' || (communicationPortCode(row.port) ?? '') === port))
+      const details: CoverageCustomerDetail[] = Array.from(customers).sort((a, b) => a - b).map((customerId) => {
+        const cellFor = (kind: CoverageKind): CoverageCell => {
+          const lastSent = (kind === 'ce_mercante_taxas'
+            ? voyageComms.filter((comm) => comm.kind === kind && comm.customer_id === customerId)
+            : portComms.filter((comm) => comm.kind === kind && comm.customer_id === customerId)
+              .filter((comm) => kind !== 'aviso_atracacao_nob' || nobTargetKeys.has(`${comm.customer_id}:${comm.anchor_atracacao_id}`)))
+            .reduce<CoverageCommunicationRow | undefined>((latest, comm) => (!latest || comm.created_at > latest.created_at ? comm : latest), undefined)
+          const queued = portQueue.filter((row) => row.kind === kind && row.customer_id === customerId)
+          if (queued.some((row) => row.claim_state === 'em_envio')) return coverageCell('em_envio', lastSent)
+          if (queued.some((row) => row.claim_state === 'na_fila')) return coverageCell('na_fila', lastSent)
+          if (queued.length) return coverageCell('bloqueado', lastSent, queueBlockReason(queued[0]))
+          if (kind !== 'ce_mercante_taxas') return coverageCell(lastSent ? 'enviado' : 'nao_devido', lastSent)
+          const key = `${voyage.id}:${customerId}`
+          if (ready.has(customerId)) return coverageCell(lastSent ? 'enviado' : 'devido', lastSent)
+          const reason = readinessReasonText(input.readinessDetails?.get(key))
+          return coverageCell('bloqueado', lastSent, lastSent ? `reenvio pendente: ${reason}` : reason)
+        }
+        return {
+          customerId,
+          customerName: input.customerNames?.get(customerId) ?? `Cliente ${customerId}`,
+          cells: {
+            ce_mercante_taxas: cellFor('ce_mercante_taxas'),
+            aviso_chegada_noa: cellFor('aviso_chegada_noa'),
+            aviso_prontidao_nor: cellFor('aviso_prontidao_nor'),
+            aviso_atracacao_nob: cellFor('aviso_atracacao_nob'),
+          },
+        }
+      }).sort((a, b) => a.customerName.localeCompare(b.customerName, 'pt-BR'))
+      const queuedCount = (kind: CoverageKind) => details.filter((detail) => detail.cells[kind].state === 'na_fila').length
+
       result.push({
         ...base,
         port: port || null,
@@ -1158,6 +1277,13 @@ export function buildVoyageCommunicationCoverage(input: {
         nor: { sent: count('aviso_prontidao_nor'), total: customers.size },
         nob: { sent: count('aviso_atracacao_nob'), total: nobTargetKeys.size },
         finance: { sent: upToDate, due: ready.size + resend, resend, ready: ready.size, total: customers.size, pending: customers.size - ready.size },
+        queued: {
+          ce_mercante_taxas: queuedCount('ce_mercante_taxas'),
+          aviso_chegada_noa: queuedCount('aviso_chegada_noa'),
+          aviso_prontidao_nor: queuedCount('aviso_prontidao_nor'),
+          aviso_atracacao_nob: queuedCount('aviso_atracacao_nob'),
+        },
+        details,
       })
     }
   }
@@ -1315,7 +1441,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
         .overrideTypes<CoverageTerminalStateRow[], { merge: false }>(),
     ),
   ])
-  const rowsByVoyageCustomer = new Map<string, Promise<boolean>>()
+  const rowsByVoyageCustomer = new Map<string, Promise<CoverageReadiness>>()
   for (const bl of bls) {
     if (bl.customer_id == null || bl.financial_status === 'cancelled') continue
     const key = `${bl.voyage_id}:${bl.customer_id}`
@@ -1326,14 +1452,37 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
           { p_voyage_id: bl.voyage_id, p_customer_id: bl.customer_id } as never,
         )
         if (error) throw toError(error)
-        return (data as { ready?: boolean } | null)?.ready === true
+        const result = data as { ready?: boolean; bls?: CoverageReadiness['bls'] } | null
+        return { ready: result?.ready === true, bls: result?.bls ?? [] }
       })())
     }
   }
-  const readiness = new Map<string, boolean>()
-  await Promise.all([...rowsByVoyageCustomer.entries()].map(async ([key, value]) => readiness.set(key, await value)))
+  const customerIds = Array.from(new Set(bls.map((bl) => bl.customer_id).filter((id): id is number => id != null)))
+  const [readinessEntries, queue, customerRows] = await Promise.all([
+    Promise.all([...rowsByVoyageCustomer.entries()].map(async ([key, value]) => [key, await value] as const)),
+    fetchCommunicationQueuePreview(voyageIds),
+    customerIds.length
+      ? fetchCoverageRows((from, to) => supabase.from('customers').select('id, name').in('id', customerIds).order('id').range(from, to)
+        .overrideTypes<Array<{ id: number; name: string }>, { merge: false }>())
+      : Promise.resolve([] as Array<{ id: number; name: string }>),
+  ])
+  const readinessDetails = new Map(readinessEntries)
+  const readiness = new Map(readinessEntries.map(([key, value]) => [key, value.ready] as const))
+  const customerNames = new Map(customerRows.map((row) => [row.id, row.name] as const))
 
-  return buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness })
+  return buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames })
+}
+
+/**
+ * O que a próxima rodada automática vai enviar nas viagens, lido sem efeito
+ * colateral (`customer_communication_queue_preview`, migration 345: os mesmos
+ * alvos e prontidão da rodada, sem gravar claim nem Comunicado).
+ */
+export async function fetchCommunicationQueuePreview(voyageIds: readonly number[]): Promise<CoverageQueueRow[]> {
+  if (!voyageIds.length) return []
+  const { data, error } = await supabase.rpc('customer_communication_queue_preview' as never, { p_voyage_ids: [...voyageIds] } as never)
+  if (error) throw toError(error)
+  return ((data ?? []) as unknown as CoverageQueueRow[]).map((row) => ({ ...row, anchor_atracacao_id: row.anchor_atracacao_id ?? null, next_attempt_at: row.next_attempt_at ?? null }))
 }
 
 export async function fetchBlCommunicationHistory(blId: string): Promise<CustomerCommunicationHistoryItem[]> {

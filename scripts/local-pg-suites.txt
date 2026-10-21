@@ -121,3 +121,4 @@ src/integration/grantsDoReplay.local-pg.test.ts
 src/integration/alertasDaViagem.local-pg.test.ts
 src/integration/recebivelNoVinculoDoCliente.local-pg.test.ts
 src/integration/portalContaAtivaNaoReabre.local-pg.test.ts
+src/integration/comunicadoNaFila.local-pg.test.ts
