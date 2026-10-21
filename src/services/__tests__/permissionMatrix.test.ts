@@ -88,7 +88,7 @@ describe('capabilitiesFor (lista da janela de usuário)', () => {
     expect(doc.can).toContain('Provisionar o Portal: convite (enviar e cancelar), conta, e-mail de recuperação, reabrir análise')
     expect(doc.can).toContain('Gerir pedidos, documentos, exportação para a ZPT e conciliação')
     expect(doc.can).toContain('Assinar e observar a seção do ADR de Saída: só a própria seção')
-    expect(doc.can).toContain('Recebe os alertas do próprio setor: 36 tipos')
+    expect(doc.can).toContain('Recebe os alertas do próprio setor: 37 tipos')
     expect(doc.cannot).toContain('Registrar pagamento (baixa manual) e confirmar Restituição')
     expect(doc.cannot).toContain('Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L')
   })

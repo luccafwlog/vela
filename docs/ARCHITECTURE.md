@@ -192,7 +192,9 @@ reconciliam a origem na hora. O detector periódico é a Edge Function
 `ops.dispatch_edge_job('alerts-detector', 'ALERTS_DETECTOR_SECRET')`, que lê a
 base da API e o segredo do Supabase Vault; o comando agendado cita nomes, nunca
 valores ([ADR 0063](adr/0063-configuracao-de-jobs-cron-no-vault.md)). Ela roda
-`run_alert_detectors` e remove anexos órfãos de Disputa. Sem o segredo no
+`run_alert_detectors` e remove anexos órfãos de Disputa. Cada detector roda numa
+subtransação: o que falha não desfaz os outros e volta contado em `failed`
+(migration `351`). Sem o segredo no
 Vault, o job continua visível e inerte, registrando `WARNING` a cada execução
 ([segredos e cron](operations/segredos-cron.md)).
 
