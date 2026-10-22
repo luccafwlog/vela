@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Portal: B/L que muda de Cliente (2026-10-22, auditoria de segurança run-3, achados C2, C3
+  e C4):** migration `408`. Depois da troca de Cliente do B/L, o Portal do Cliente anterior não
+  mostra mais contêineres e situação viva do B/L, saldo, correção e abatimento do recebível que
+  passou ao novo Cliente, nem o prazo do Desbloqueio de CE calculado com a baixa do novo.
+  Regra em [Portal do Cliente](modules/portal-cliente.md#bl-que-muda-de-cliente). Prova:
+  `portalAntigoDonoDoBl.local-pg.test.ts`.
 - **Segurança: token interno cortado na revogação (2026-10-22, auditoria de segurança run-3,
   achado C1; ADR 0096):** migration `407`. Editar acesso (troca de e-mail ou senha) e Desativar
   passam a cortar na hora o access token já emitido, como o Portal já fazia: o marco da revogação

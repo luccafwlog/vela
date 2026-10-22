@@ -792,6 +792,23 @@ quando o Portal fica pronto ou o Cliente deixa de ter processo ativo (ver
 
 A correção do B/L em fatura com pagamento mantém o total original e o dinheiro recebido, mas atualiza o saldo a pagar. O detalhe exibe Ajustes por correção com abatimento e restituição por B/L, por leitura escopada ao Cliente. Avulsas com item de tabela aparecem para o Cliente do B/L. Faturas canceladas permanecem acessíveis ao Cliente, mas a lista sem filtro mostra só as em vigor; as canceladas, desfeitas e substituídas aparecem pelo filtro **Cancelada** (migration `128`; a substituída, desde a `361`, com aviso no Portal sem e-mail). Pagamento parcial de uma individual faz a consolidada aberta mostrar o saldo restante com QR novo, e vice-versa (migration `356`). Na aba Operação, a coluna Taxas locais conta o B/L uma vez: com consolidada aberta, ela no lugar da individual (migration `364`). Ver [ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md).
 
+### B/L que muda de Cliente
+
+Depois da troca de Cliente do B/L, o Cliente anterior continua vendo as próprias
+faturas daquele B/L (valores, itens, pagamentos e o retrato da emissão), mas não
+o que o novo Cliente fez com ele (migration `408`, auditoria de segurança run-3):
+
+- o detalhe da fatura não traz contêineres nem a situação de cobrança e
+  financeira vivas do B/L; na avulsa, também não os `*_snapshot` montados do B/L
+  vivo;
+- a lista e o detalhe só somam saldo, correção e abatimento de recebível e de
+  correção do próprio Cliente, mesmo quando o recebível único do B/L passou ao
+  novo;
+- em Minhas solicitações do Desbloqueio de CE, a solicitação que ficou do
+  Cliente anterior perde o prazo, até a equipe cancelá-la.
+
+Prova: `src/integration/portalAntigoDonoDoBl.local-pg.test.ts`.
+
 ### Identidade, convite e recuperação
 
 - **Identificador de login:** somente o CNPJ da empresa, com ou sem máscara,
