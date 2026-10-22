@@ -7419,6 +7419,9 @@ a.app-step-rail__link:focus-visible {
 
 .app-import-table {
   max-height: 18rem;
+  /* Sem isto, `.app-table-scroll` (overflow-y: hidden) cortava as linhas além
+     da sexta, sem barra de rolagem (revisão de 2026-10-22). */
+  overflow-y: auto;
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius);
 }

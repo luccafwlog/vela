@@ -11,7 +11,6 @@ import {
   previewBlFreightImport,
   type BlCustomerChange,
   type BlFreightImportPreview,
-  type BlFreightImportResult,
   type BlFreightImportRow,
   type BlPriceSnapshot,
 } from '../../services/blFreightImport'
@@ -21,6 +20,7 @@ import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
 import { Modal } from '../ui/Modal'
 import { SummaryStrip } from '../ui/SummaryStrip'
+import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { useToast } from '../ui/Toast'
 import { VoyageCombobox } from './VoyageCombobox'
 import { ImportIssuesPanel } from './ImportIssuesPanel'
@@ -38,33 +38,24 @@ import {
   ImportTemplateLinks,
 } from './ImportParts'
 import { plural } from './importPresentation'
+import { BL_PREVIEW_PAGE_SIZE, countContainerChanges, describeConsignee, describeOutcomeTotals } from './blImportPresentation'
 
-/** O que a confirmação gravou, mostrado no próprio modal. */
+/**
+ * O que a confirmação gravou, mostrado no próprio modal (revisão de
+ * 2026-10-22: totais, sem toast nem lista por B/L). As listas que ficam são
+ * as que pedem ação do operador.
+ */
 type ConfirmOutcome = {
   imported: number
+  /** containers que entraram e que saíram, somados de todos os B/Ls */
+  containersIn: number
+  containersOut: number
   refusedRelinks: string[]
   /** Troca de Consignatário sem aceite: o consignatário gravado ficou (migration 213) */
   customerKept: string[]
   calculationErrors: string[]
-  /** containers que entraram, mudaram ou saíram, por B/L */
-  changes: string[]
   /** B/Ls cancelados que ficaram de fora (ADR 0095, decisão 8) */
   cancelledSkipped: string[]
-  /** B/Ls com o preço refixado pelo aceite */
-  pricesRefixed: string[]
-}
-
-/** Frases por B/L do que a importação fez com os containers. */
-function describeChanges(result: BlFreightImportResult) {
-  const line = (entry: { blNumber: string; inserted: string[]; updated: string[]; removed: string[] }) => {
-    const parts = [
-      entry.inserted.length ? plural(entry.inserted.length, 'container entrou', 'containers entraram') : null,
-      entry.updated.length ? plural(entry.updated.length, 'container atualizado', 'containers atualizados') : null,
-      entry.removed.length ? `${plural(entry.removed.length, 'container saiu', 'containers saíram')}: ${entry.removed.join(', ')}` : null,
-    ].filter(Boolean)
-    return parts.length ? `${entry.blNumber} — ${parts.join('; ')}` : null
-  }
-  return (result.containerChanges ?? []).map(line).filter((item): item is string => Boolean(item))
 }
 
 /** Preço fixado e preço de hoje, em texto: tabela, Condição e câmbio. */
@@ -254,37 +245,20 @@ export function BlImportModal({
         // A prévia pode ficar pronta antes do hash: calcula aqui se faltar.
         receipt.fileHash ?? await importFilesSha256(files).catch(() => null),
       )
-      const { refusedCustomerRelinks, calculationErrors } = result
       const customerKept = result.customerChangesIgnored ?? []
-      const changes = describeChanges(result)
-      const cancelledSkipped = (result.cancelledSkipped ?? []).map((entry) => entry.message)
-      const pricesRefixed = result.pricesRefixed ?? []
+      const containers = countContainerChanges(result)
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
-      const refused = refusedCustomerRelinks.map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
-      const failedCalculations = calculationErrors.map((failure) => `${failure.blNumber} (${failure.message})`)
-      if (refused.length || customerKept.length || failedCalculations.length || cancelledSkipped.length || changes.length || pricesRefixed.length) {
-        // Importou com containers ou veículos alterados, ou algo pedido não
-        // aconteceu: o modal fica aberto com o resultado por B/L. Fechar
-        // esconderia o que mudou e o que o operador precisa resolver.
-        const warnings: string[] = []
-        if (refused.length) warnings.push(`a troca de cliente foi recusada em ${plural(refused.length, 'B/L', 'B/Ls')}: ${refused.join(' | ')}`)
-        if (customerKept.length) warnings.push(`consignatário mantido em ${customerKept.join(', ')}: a troca não foi confirmada`)
-        if (failedCalculations.length) warnings.push(`${plural(failedCalculations.length, 'B/L ficou', 'B/Ls ficaram')} sem cálculo automático: ${failedCalculations.join(' | ')}`)
-        if (cancelledSkipped.length) warnings.push(`${plural(cancelledSkipped.length, 'B/L cancelado ficou', 'B/Ls cancelados ficaram')} de fora`)
-        showToast(warnings.length ? `Importação gravada, mas ${warnings.join(' | ')}` : 'Importação gravada; confira o resultado por B/L.', warnings.length ? 'error' : 'success')
-        setOutcome({
-          imported: importableCount,
-          refusedRelinks: refused,
-          customerKept,
-          calculationErrors: failedCalculations,
-          changes,
-          cancelledSkipped,
-          pricesRefixed,
-        })
-        return
-      }
-      showToast(`Importação de B/L concluída: ${plural(importableCount, 'B/L gravado', 'B/Ls gravados')}.`, 'success')
-      resetAndClose()
+      // A confirmação fica no próprio modal, com os totais e só as pendências
+      // que pedem ação; o toast cobria o botão Concluir (revisão de 2026-10-22).
+      setOutcome({
+        imported: importableCount,
+        containersIn: containers.in,
+        containersOut: containers.out,
+        refusedRelinks: result.refusedCustomerRelinks.map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`),
+        customerKept,
+        calculationErrors: result.calculationErrors.map((failure) => `${failure.blNumber} (${failure.message})`),
+        cancelledSkipped: (result.cancelledSkipped ?? []).map((entry) => entry.message),
+      })
     } catch (error) {
       // A gravação é uma transação só (migration 335): na falha, nada entrou.
       setConfirmError({
@@ -300,7 +274,7 @@ export function BlImportModal({
   let footnote: ReactNode = 'Nada é gravado antes de você conferir a prévia e confirmar.'
   let footnoteTone: 'default' | 'warning' | 'success' = 'default'
   if (outcome) {
-    footnote = outcomePending ? 'Importação gravada com pendências; veja acima.' : 'Importação gravada; veja acima o resultado por B/L.'
+    footnote = outcomePending ? 'Importação gravada com pendências; veja acima.' : 'Importação gravada.'
     footnoteTone = outcomePending ? 'warning' : 'success'
   } else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
   else if (hasErrors) {
@@ -449,11 +423,11 @@ export function BlImportModal({
         ) : null}
 
         {outcome ? (
-          <ImportSection title="Resultado" aside={plural(outcome.imported, 'B/L gravado', 'B/Ls gravados')}>
+          <ImportSection title="Resultado">
             <ImportNotice
               tone={outcomePending ? 'warning' : 'success'}
               role="status"
-              title={`${plural(outcome.imported, 'B/L gravado', 'B/Ls gravados')}${outcomePending ? ', com pendências' : ''}`}
+              title={`Importação concluída: ${describeOutcomeTotals(outcome)}${outcomePending ? ', com pendências' : ''}`}
             >
               {outcome.refusedRelinks.length ? (
                 <>
@@ -469,14 +443,6 @@ export function BlImportModal({
                   Cliente, o consignatário e o CNPJ gravados ficaram; os demais campos foram aplicados.
                 </p>
               ) : null}
-              {outcome.changes.length ? (
-                <>
-                  <p>Mudanças aplicadas por B/L:</p>
-                  <ul className="app-import-notice__list">
-                    {outcome.changes.map((item) => <li key={item}>{item}</li>)}
-                  </ul>
-                </>
-              ) : null}
               {outcome.cancelledSkipped.length ? (
                 <>
                   <p>B/Ls cancelados que ficaram como estavam:</p>
@@ -484,9 +450,6 @@ export function BlImportModal({
                     {outcome.cancelledSkipped.map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 </>
-              ) : null}
-              {outcome.pricesRefixed.length ? (
-                <p>Preço de hoje aplicado em {outcome.pricesRefixed.join(', ')}.</p>
               ) : null}
               {outcome.calculationErrors.length ? (
                 <>
@@ -566,6 +529,12 @@ function statusTone(row: BlFreightImportRow) {
 
 function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
   const { newCount, updatedCount, unchangedCount, blockedCount } = preview.summary
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(preview.rows.length / BL_PREVIEW_PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const offset = (currentPage - 1) * BL_PREVIEW_PAGE_SIZE
+  const pageRows = preview.rows.slice(offset, offset + BL_PREVIEW_PAGE_SIZE)
+  const unidentified = preview.rows.filter((row) => describeConsignee(row)?.identified === false).length
   return (
     <ImportSection
       title="Prévia"
@@ -577,12 +546,13 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
             { label: updatedCount === 1 ? 'atualizado' : 'atualizados', value: updatedCount },
             { label: 'sem mudança', value: unchangedCount },
             { label: 'com erro', value: blockedCount, tone: blockedCount ? 'danger' : 'default' },
+            ...(unidentified ? [{ label: 'CNPJ não identificado', value: unidentified, tone: 'warning' as const }] : []),
           ]}
         />
       }
     >
       <div className="app-table-scroll app-import-table">
-        <table className="app-table app-table--compact min-w-[760px]">
+        <table className="app-table app-table--compact min-w-[860px]">
           <caption className="sr-only">B/Ls do arquivo e o que a importação faz com cada um</caption>
           <thead>
             <tr>
@@ -592,26 +562,45 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
               <th scope="col">Viagem</th>
               <th scope="col">POL → POD</th>
               <th scope="col">Embarque</th>
+              <th scope="col">Consignatário</th>
               <th scope="col" className="app-table__text-head">Diferenças</th>
             </tr>
           </thead>
           <tbody>
-            {preview.rows.map((row, index) => (
-              <tr key={row.blNumber}>
-                <td className="app-import-num">{index + 1}</td>
-                <td className="app-import-code">{row.blNumber}</td>
-                <td className={statusTone(row)}>{STATUS_LABEL[row.status]}</td>
-                <td>{row.voyageNumber ?? <NoValue label="Sem viagem" />}</td>
-                <td>{row.pol || row.pod ? `${row.pol ?? '—'} → ${row.pod ?? '—'}` : <NoValue label="Sem trecho" />}</td>
-                <td className="tabular-nums">{row.ladenOnBoard ?? <NoValue label="Sem data de embarque" />}</td>
-                <td>
-                  <DiffList row={row} />
-                </td>
-              </tr>
-            ))}
+            {pageRows.map((row, index) => {
+              const consignee = describeConsignee(row)
+              return (
+                <tr key={row.blNumber}>
+                  <td className="app-import-num">{offset + index + 1}</td>
+                  <td className="app-import-code">{row.blNumber}</td>
+                  <td className={statusTone(row)}>{STATUS_LABEL[row.status]}</td>
+                  <td>{row.voyageNumber ?? <NoValue label="Sem viagem" />}</td>
+                  <td>{row.pol || row.pod ? `${row.pol ?? '—'} → ${row.pod ?? '—'}` : <NoValue label="Sem trecho" />}</td>
+                  <td className="tabular-nums">{row.ladenOnBoard ?? <NoValue label="Sem data de embarque" />}</td>
+                  <td>
+                    {consignee ? (
+                      <span className="app-table__cell-stack">
+                        {consignee.document ? <span className="tabular-nums">{consignee.document}</span> : null}
+                        <span className={consignee.identified ? undefined : 'app-import-tone--warning'}>{consignee.label}</span>
+                      </span>
+                    ) : <NoValue label="Não gravado" />}
+                  </td>
+                  <td>
+                    <DiffList row={row} />
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
+      <TableFooterPagination
+        page={currentPage}
+        pageSize={BL_PREVIEW_PAGE_SIZE}
+        totalCount={preview.rows.length}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
     </ImportSection>
   )
 }
