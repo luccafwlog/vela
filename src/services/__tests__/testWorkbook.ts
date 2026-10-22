@@ -20,7 +20,7 @@ export function jsonToBuffer(rows: Array<Record<string, string | number>>) {
  */
 export function withDeclaredDimension(buffer: ArrayBuffer, ref: string): ArrayBuffer {
   const zip = XLSX.CFB.read(new Uint8Array(buffer), { type: 'array' })
-  const index = zip.FullPaths.findIndex((path) => path.endsWith('xl/worksheets/sheet1.xml'))
+  const index = zip.FullPaths.findIndex((path: string) => path.endsWith('xl/worksheets/sheet1.xml'))
   const entry = zip.FileIndex[index]
   const xml = new TextDecoder().decode(entry.content as Uint8Array)
   entry.content = new TextEncoder().encode(xml.replace(/<dimension ref="[^"]*"\/>/, `<dimension ref="${ref}"/>`)) as never
