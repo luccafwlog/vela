@@ -23,7 +23,8 @@
 --      container físico inteiro.
 --   2. Gatilho `unpacking_location_inherits_container` (BEFORE INSERT): linha
 --      nova sem local herda o local do mesmo container na Viagem (B/L novo
---      que compartilha o container).
+--      que compartilha o container), só quando os B/Ls ativos concordam num
+--      local; com dois locais diferentes nasce vazia.
 --   3. Linhas já gravadas: container com um único local nas linhas ativas da
 --      Viagem (não cancelada) preenche as linhas sem local. Container com dois
 --      locais diferentes fica como está (não há como saber qual vale); a
@@ -32,6 +33,11 @@
 -- A confirmação de troca de um local já gravado é da tela (Veículos e
 -- planilha de Veículos); a RPC `import_vehicle_rows_transactional` já só
 -- troca o gravado com `unpacking_confirmed`.
+--
+-- ponytail: a propagação só roda com `pg_trigger_depth() = 1`; uma gravação
+-- de `unpacking_location` vinda de outro gatilho não propaga. Hoje todo caminho
+-- que grava o campo é RPC ou tela; se surgir gatilho que o grave, trocar a
+-- guarda por uma marca de sessão (`set_config`).
 --
 -- Rollback: DROP dos dois gatilhos e das funções; o item 3 não se desfaz.
 
@@ -58,6 +64,10 @@ BEGIN
   IF v_voyage_id IS NULL OR NULLIF(btrim(COALESCE(NEW.container_number, '')), '') IS NULL THEN
     RETURN NULL;
   END IF;
+  -- Duas gravações do mesmo container em B/Ls diferentes se enfileiram aqui em
+  -- vez de travar a linha uma da outra (deadlock).
+  PERFORM pg_advisory_xact_lock(hashtext('unpacking:' || v_voyage_id || ':'
+    || upper(btrim(NEW.container_number))));
 
   UPDATE public.bl_containers AS sibling
   SET unpacking_location = NEW.unpacking_location
@@ -89,14 +99,15 @@ BEGIN
      OR NULLIF(btrim(COALESCE(NEW.container_number, '')), '') IS NULL THEN
     RETURN NEW;
   END IF;
-  SELECT sibling.unpacking_location INTO NEW.unpacking_location
+  -- Herda só quando os B/Ls ativos do container concordam num local; com dois
+  -- locais diferentes a linha nasce vazia e a tela pede a escolha.
+  SELECT CASE WHEN count(DISTINCT sibling.unpacking_location) = 1 THEN min(sibling.unpacking_location) END
+    INTO NEW.unpacking_location
   FROM public.bl_containers sibling
   JOIN public.bls sb ON sb.id = sibling.bl_id AND sb.cancelled_at IS NULL
   JOIN public.bls nb ON nb.id = NEW.bl_id AND nb.voyage_id = sb.voyage_id
   WHERE upper(btrim(sibling.container_number)) = upper(btrim(NEW.container_number))
-    AND NULLIF(btrim(COALESCE(sibling.unpacking_location, '')), '') IS NOT NULL
-  ORDER BY sibling.id
-  LIMIT 1;
+    AND NULLIF(btrim(COALESCE(sibling.unpacking_location, '')), '') IS NOT NULL;
   RETURN NEW;
 END;
 $$;

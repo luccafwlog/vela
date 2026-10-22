@@ -173,6 +173,27 @@ describeLocal('405/406 — hash do arquivo importado e desova por container fís
     expect(location(late)).toBe('CFS')
   })
 
+  it('desova: container com dois locais não é herdado nem sobrescrito por B/L novo', () => {
+    const shared = w.container()
+    const a = w.createBl('DIV-A', { container: shared })
+    const b = w.createBl('DIV-B', { container: shared })
+    const location = (bl: string) => w.psql(`SELECT coalesce(unpacking_location, '') FROM public.bl_containers WHERE bl_id = '${bl}'`)
+    // Locais divergentes de antes da 406, gravados sem os gatilhos.
+    w.psql(`SET session_replication_role = replica;
+      UPDATE public.bl_containers SET unpacking_location = 'Z' WHERE bl_id = '${a}';
+      UPDATE public.bl_containers SET unpacking_location = 'Q' WHERE bl_id = '${b}';
+      SET session_replication_role = origin;`)
+    const late = w.createBl('DIV-C', { container: shared })
+    expect(location(late)).toBe('')
+    expect(location(a)).toBe('Z')
+    expect(location(b)).toBe('Q')
+
+    const idA = w.psql(`SELECT id FROM public.bl_containers WHERE bl_id = '${a}'`)
+    w.asOk('operacoes', `UPDATE public.bl_containers SET unpacking_location = 'TVV' WHERE id = ${idA}`)
+    expect(location(b)).toBe('TVV')
+    expect(location(late)).toBe('TVV')
+  })
+
   it('desova: a planilha de Veículos grava o local do container nos dois B/Ls', () => {
     const shared = w.container()
     const a = w.createBl('VEI-A', { container: shared })
