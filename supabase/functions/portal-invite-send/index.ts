@@ -56,7 +56,18 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   // confirmação pelo cliente já fazem; este era o terceiro escritor de
   // `recovery_email` e o único que não o fazia. O endereço chega aqui checado
   // contra a lista de bloqueio logo acima, então 'ok' é o que se sabe dele.
-  await admin.from('customer_portal_accounts').update({ recovery_email: email, recovery_email_source: body.recovery_email_source === 'informado_manualmente' ? 'informado_manualmente' : 'candidato', recovery_email_status: 'ok', provisioning_decision: 'aprovado_para_provisionar', account_situation: sent.ok ? 'convite_pendente' : 'falha_no_envio' }).eq('id', account.id)
+  // O update só vale se a conta ainda está na situação lida e sem usuário
+  // técnico (auditoria run-3): uma suspensão ou ativação no meio não é
+  // sobrescrita, e o convite recém-criado é cancelado.
+  const { data: updated, error: updateError } = await admin.from('customer_portal_accounts').update({ recovery_email: email, recovery_email_source: body.recovery_email_source === 'informado_manualmente' ? 'informado_manualmente' : 'candidato', recovery_email_status: 'ok', provisioning_decision: 'aprovado_para_provisionar', account_situation: sent.ok ? 'convite_pendente' : 'falha_no_envio' }).eq('id', account.id).eq('account_situation', account.account_situation).is('auth_user_id', null).select('id').maybeSingle()
+  if (updateError || !updated) {
+    await admin.from('portal_invites').update({ status: 'cancelado' }).eq('id', invite.id).eq('status', 'pendente')
+    if (updateError) {
+      console.error('portal invite account update failed', updateError)
+      return json(500, { error: 'Não foi possível atualizar a conta.' }, origin)
+    }
+    return json(409, { error: 'A conta mudou de situação. Atualize e tente novamente.' }, origin)
+  }
   const { error: auditError } = await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: invite.id, p_prev_decision: account.provisioning_decision, p_new_decision: 'aprovado_para_provisionar', p_prev_situation: account.account_situation, p_new_situation: sent.ok ? 'convite_pendente' : 'falha_no_envio', p_actor_type: String(role), p_reason: body.reason ?? (resend ? 'Reenvio de convite autorizado.' : 'Convite autorizado.'), p_request_id: null, p_actor_id: actorId })
   if (auditError) {
     console.error('portal invite audit failed', auditError)

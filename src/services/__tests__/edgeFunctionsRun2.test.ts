@@ -196,4 +196,13 @@ describe('autor dos eventos do Portal gravados pelas Edges (auditoria run-3, C6)
     expect(invite).toContain('created_by: actorId')
     expect(invite).toContain('p_actor_id: actorId')
   })
+
+  it('convite só grava a conta se ela ainda está na situação lida; senão cancela o convite e responde 409 (run-3)', () => {
+    const invite = fn('portal-invite-send')
+    expect(invite).toContain(".eq('id', account.id).eq('account_situation', account.account_situation).is('auth_user_id', null).select('id').maybeSingle()")
+    const guard = invite.slice(invite.indexOf('if (updateError || !updated) {'), invite.indexOf("admin.rpc('_portal_log_event'"))
+    expect(guard).toContain(".from('portal_invites').update({ status: 'cancelado' }).eq('id', invite.id).eq('status', 'pendente')")
+    expect(guard).toContain('return json(409,')
+    expect(guard).toContain('return json(500,')
+  })
 })
