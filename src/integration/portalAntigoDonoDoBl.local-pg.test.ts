@@ -71,5 +71,12 @@ describeLocal('408 — o antigo Cliente do B/L não lê o que o novo fez', () =>
     const after = row(out, 'S5_A_list_after_B_pays')
     expect(after[3]).toBe('')
     expect(row(out, 'S2_A_list_before_move')[3]).not.toBe('')
+    // Migration 415: o novo Cliente não vê os motivos dos documentos e da
+    // entrega da solicitação do anterior; só que o Cliente do B/L mudou.
+    const reasons = row(out, 'S6_B_bl_item').at(-1)
+    expect(reasons).toContain('Cliente do B/L alterado')
+    expect(reasons).not.toContain('Termo')
+    expect(reasons).not.toContain('Procuração')
+    expect(reasons).not.toContain('B/L físico')
   })
 })

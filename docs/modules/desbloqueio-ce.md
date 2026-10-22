@@ -350,6 +350,16 @@ cujo aviso no Portal pede `FOR KEY SHARE` no Cliente). Envio e exportação trav
 recebíveis do B/L e revalidam a liquidação depois de esperar uma baixa ou um cancelamento de baixa em
 curso: B/L que perdeu a liquidação é recusado.
 
+Desde a migration `415`: o rascunho do Portal confere que todo B/L é do Cliente
+da sessão e liberado antes de travar solicitações e B/Ls; a visão sem Cliente das
+funções privadas (`list`, `request_json`) exige perfil interno e `vip_json` exige
+Cliente; o item do B/L com solicitação de outro Cliente esconde também os motivos
+de documentos, entrega e CE daquela solicitação (fica só "Cliente do B/L
+alterado"); o `request_id` do contexto de upload só vale para `source = 'request'`;
+e o aviso por e-mail não sai para Cliente desativado. **Teste:**
+`src/integration/desbloqueioCeGuardasDeDono.local-pg.test.ts` e
+`portalAntigoDonoDoBl.local-pg.test.ts`.
+
 ### Documentos, upload e expurgo
 
 Upload pela Edge Function valida sessão, PDF/MIME/assinatura, 10 MiB, 20
