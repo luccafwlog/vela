@@ -73,5 +73,17 @@ describeLocal('382 — ROE manual da Demurrage prevalece', () => {
     w.asOk('financeiro', `SELECT public.release_demurrage_invoice_manual_roe(99931882, 'Cliente pediu PTAX vigente')`)
     expect(w.psql(`SELECT roe_manual FROM public.demurrage_invoices WHERE id = 99931882`)).toBe('f')
     expect(w.psql(`SELECT event_date = CURRENT_DATE - 3 FROM public.demurrage_invoice_history WHERE invoice_id = 99931882 ORDER BY id DESC LIMIT 1`)).toBe('t')
+    // 402: daqui em diante a vencida também segue o recálculo pela PTAX.
+    w.asOk('financeiro', `SELECT public.recalculate_demurrage_invoices_manual(5.9)`)
+    expect(w.psql(`SELECT status || '|' || (current_roe = (SELECT roe FROM public.exchange_rate_reference WHERE id = 1)) FROM public.demurrage_invoices WHERE id = 99931882`)).toBe('overdue|true')
+  })
+
+  it('a Invoice paga com ROE manual continua recusada e fora do recálculo', () => {
+    w.psql(`SET session_replication_role = replica;
+      UPDATE public.demurrage_invoices SET roe_manual = true, roe = 4.8, current_roe = 4.8, current_total_brl = 480, roe_source = 'manual', status = 'paid', paid_at = now() WHERE id = 99931881;
+      SET session_replication_role = origin;`)
+    expect(w.as('financeiro', `SELECT public.release_demurrage_invoice_manual_roe(99931881, 'Cliente pediu PTAX do dia')`).stderr).toMatch(/não paga/)
+    w.asOk('financeiro', `SELECT public.recalculate_demurrage_invoices_manual(6.1)`)
+    expect(state(99931881)).toBe('4.8000|480.00|true')
   })
 })
