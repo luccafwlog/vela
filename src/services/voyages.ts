@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { recordAuditEntries } from './auditEntries'
 import type { VoyageFormValues } from './voyageForm'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
 import { deleteRecords } from './deleteRecords'
@@ -319,8 +320,7 @@ async function insertVoyageAuditRows(rows: Array<ReturnType<typeof makeVoyageAud
   const payload = rows.filter((row): row is NonNullable<typeof row> => row !== null)
   if (!payload.length) return
 
-  const { error } = await supabase.from('audit_logs').insert(payload)
-  if (error) throw error
+  await recordAuditEntries(payload)
 }
 
 export async function fetchVoyagesWithUnpaidBls(voyageIds: number[]): Promise<Set<number>> {

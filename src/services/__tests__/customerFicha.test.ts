@@ -286,3 +286,25 @@ describe('differingConsignee', () => {
     expect(differingConsignee(null, 'Comércio Alfa Ltda')).toBeNull()
   })
 })
+
+describe('Histórico do Cliente: Base de Clientes (migration 402, F-24)', () => {
+  it('mostra a mudança da Base de Clientes com "Origem: Base de Clientes", quem e quando; e-mail incluído vai para Contatos', () => {
+    const events = buildCustomerTimeline({
+      auditLogs: [
+        { id: 7, field_name: 'address', old_value: 'Rua A', new_value: 'Rua Nova, 100', changed_at: '2026-10-22T10:00:00Z', justification: 'Importação de Base de Clientes', changed_by: 'user-1' },
+        { id: 8, field_name: 'contact_added', old_value: null, new_value: 'operacao@cliente.test', changed_at: '2026-10-22T10:00:00Z', justification: 'Importação de Base de Clientes', changed_by: 'user-1' },
+      ],
+      portalEvents: [],
+      contacts: [],
+      localInvoices: [],
+      payments: [],
+      demurrageInvoices: [],
+      bls: [],
+      actorNames: new Map([['user-1', 'Ana Ribeiro']]),
+    })
+    const address = events.find((event) => event.label === 'Cadastro alterado: Endereço')
+    expect(address).toMatchObject({ subject: 'Cadastro', actor: 'Ana Ribeiro', at: '2026-10-22T10:00:00Z', detail: 'Rua A → Rua Nova, 100 · Origem: Base de Clientes' })
+    const email = events.find((event) => event.label === 'E-mail incluído')
+    expect(email).toMatchObject({ subject: 'Contatos', actor: 'Ana Ribeiro', detail: 'operacao@cliente.test · Origem: Base de Clientes' })
+  })
+})

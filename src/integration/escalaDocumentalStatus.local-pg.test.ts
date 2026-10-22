@@ -75,23 +75,19 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
         SELECT pg_temp.check_status('BRSSZ', 'waiting');
         DO $$ BEGIN
           BEGIN
-            INSERT INTO public.audit_logs(entity_type, entity_id, field_name, old_value, new_value, changed_by)
-            VALUES ('voyage_pod_schedule', '13400001::BRVIX', 'ces', 'approved', 'approved', auth.uid());
+            PERFORM public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"approved","new_value":"approved"}]'::jsonb);
             RAISE EXCEPTION 'Aceitou alteração sem justificativa';
           EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
           BEGIN
-            INSERT INTO public.audit_logs(entity_type, entity_id, field_name, new_value, justification, changed_by)
-            VALUES ('voyage_pod_schedule', '13400001::BRVIX', 'ces', 'inexistente', 'Não deve aceitar status inválido', auth.uid());
+            PERFORM public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","new_value":"inexistente","justification":"Não deve aceitar status inválido"}]'::jsonb);
             RAISE EXCEPTION 'Aceitou status documental inválido';
           EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
         END; $$;
-        INSERT INTO public.audit_logs(entity_type, entity_id, field_name, old_value, new_value, justification, changed_by)
-        VALUES ('voyage_pod_schedule', '13400001::BRVIX', 'ces', 'received', 'partial', 'Estado legado', auth.uid());
-        INSERT INTO public.audit_logs(entity_type, entity_id, field_name, old_value, new_value, changed_by)
-        VALUES ('voyage_pod_schedule', '13400001::BRVIX', 'ces', 'partial', 'launching', auth.uid());
+        SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"received","new_value":"partial","justification":"Estado legado"}]'::jsonb);
+        SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"partial","new_value":"launching"}]'::jsonb);
         SELECT pg_temp.check_status('BRVIX', 'launching');
-        INSERT INTO public.audit_logs(entity_type, entity_id, field_name, old_value, new_value, justification, changed_at, changed_by)
-        VALUES ('voyage_pod_schedule', '13400001::BRVIX', 'ces', 'received', 'approving', 'Conferência manual', clock_timestamp(), auth.uid());
+        -- A RPC grava ces com clock_timestamp() (402), como o INSERT direto fazia.
+        SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"received","new_value":"approving","justification":"Conferência manual"}]'::jsonb);
         UPDATE public.bls SET notes = 'Sem alteração documental' WHERE id = 'DOC134A';
         SELECT pg_temp.check_status('BRVIX', 'approving');
         RESET ROLE;

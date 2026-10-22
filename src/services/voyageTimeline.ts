@@ -53,7 +53,9 @@ export async function fetchVoyageTimelineSources(
     supabase
       .from('audit_logs')
       .select('entity_type, entity_id, field_name, old_value, new_value, changed_by, actor_role, actor_department, justification, changed_at')
-      .in('entity_type', ['voyages', 'voyage', 'import_batches', 'import_batch', 'baplie_import'])
+      // `import_batches` é o gatilho do lote (id do lote): lido abaixo pelo id
+      // do lote, nunca pelo id da Viagem (migration 402, F-24).
+      .in('entity_type', ['voyages', 'voyage', 'import_batch', 'baplie_import'])
       .eq('entity_id', String(voyageId))
       .order('changed_at', { ascending: false })
       .range(0, 499),

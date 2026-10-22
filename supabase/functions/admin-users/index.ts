@@ -47,13 +47,16 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
 
   // Falha de auditoria é falha da operação (auditoria run-2, reforço de #9).
   const audit = async (entityId: string, field: string, oldValue: string | null, newValue: string | null) => {
-    const { error } = await caller.from('audit_logs').insert({
-      entity_type: 'user_profile',
-      entity_id: entityId,
-      field_name: field,
-      old_value: oldValue,
-      new_value: newValue,
-      changed_by: actorId,
+    // INSERT direto fechado (migration 402, F-46): grava pela RPC, que confere
+    // o Administrativo e toma o autor da sessão de quem chamou.
+    const { error } = await caller.rpc('record_audit_entries', {
+      p_entries: [{
+        entity_type: 'user_profile',
+        entity_id: entityId,
+        field_name: field,
+        old_value: oldValue,
+        new_value: newValue,
+      }],
     })
     if (error) throw new Error(`audit_logs: ${error.message}`)
   }

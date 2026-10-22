@@ -558,6 +558,22 @@ prevalece. Não se guarda lote, arquivo nem linha da planilha.
   motivo informado pela pessoa (troca de CE pela planilha), que é alteração
   deliberada e aparece como **Motivo**
   (`src/components/bl/blTimelinePresentation.ts`).
+- **O que aparece no Histórico do B/L** (ADR 0095, decisão 24; migration
+  `402`): tudo o que a importação muda no B/L — containers que entram e saem
+  (com a origem, e o histórico do container fica depois da remoção), lacre,
+  peso, perfil, SOC/COC (inclusive pelo Baplie), consignatário e Cliente (com
+  razão social e CNPJ, nunca o id), veículos e local de desova —, com rótulos
+  sem termos técnicos. Regra e campos em
+  [Manifestos e EDI](../modules/manifesto-edi.md#importação-do-bl-e-invariantes-gerais),
+  item 9.
+- **Base de Clientes na ficha do Cliente:** o que a base muda no cadastro e os
+  e-mails que ela inclui aparecem no Histórico do Cliente com **Origem: Base de
+  Clientes**, quem e quando ([Clientes](../modules/clientes.md#importação-da-base-de-clientes)).
+- **O Histórico não se escreve à mão:** `audit_logs` não aceita INSERT direto
+  de usuário; só gatilhos e funções do banco gravam, e a tela grava a agenda
+  de POL/POD, a Viagem e eventos operacionais pela RPC
+  `record_audit_entries`, com o autor da sessão ([Segurança](seguranca.md);
+  F-46).
 
 ## Conciliação Baplie ↔ B/L
 

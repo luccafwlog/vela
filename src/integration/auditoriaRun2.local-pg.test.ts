@@ -169,12 +169,17 @@ describeLocal('migration 106 — remediação da auditoria run-2', () => {
   })
 
   it('2.5 audit_logs grava departamento e data reais', () => {
+    // Desde a 402 (F-46) o INSERT direto é recusado; a porta da tela
+    // (`record_audit_entries`) grava autor, Departamento e hora da sessão,
+    // ignorando o que vier no pedido.
     expect(scenario(`
       ${as(FIN)}
-      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, changed_by, changed_at, actor_role, actor_department)
-      VALUES ('r2_105', '1', 'teste', '${FIN}', '2020-01-01', 'administrativo', 'Administrativo')
-      RETURNING concat_ws('|', (changed_at > now() - interval '1 minute')::text, actor_role, actor_department);
-    `)).toEqual(['true|financeiro|financeiro'])
+      ${try_(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, changed_by, changed_at, actor_role, actor_department)
+        VALUES ('r2_105', '1', 'teste', '${FIN}', '2020-01-01', 'administrativo', 'Administrativo')`)}
+      SELECT public.record_audit_entries('[{"entity_type":"system_event","entity_id":"r2_105","field_name":"invoice_create_conflict","new_value":"teste","changed_by":"${EQP}","changed_at":"2020-01-01","actor_role":"administrativo"}]'::jsonb);
+      SELECT concat_ws('|', (changed_at > now() - interval '1 minute')::text, (changed_by = '${FIN}')::text, actor_role, actor_department)
+      FROM public.audit_logs WHERE entity_id = 'r2_105' ORDER BY id DESC LIMIT 1;
+    `)).toEqual(['42501', '1', 'true|true|financeiro|financeiro'])
   })
 
   it('2.6 save_bl_review responde igual para B/L alheio e inexistente', () => {

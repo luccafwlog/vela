@@ -8,7 +8,7 @@ import { financeWorld } from './frenteFinanceira'
 // conta só B/Ls ativos; cancelar e reativar recalculam; apagar o ATD à mão
 // devolve o cálculo pelos B/Ls. Chama a RPC da tela
 // (`import_bl_freight_file_atomic`) e grava a correção manual como a tela
-// (`saveVoyagePolSchedule`, INSERT em `audit_logs` como o operador).
+// (`saveVoyagePolSchedule`, que grava pela RPC `record_audit_entries` como o operador desde a 402).
 
 const w = financeWorld(9401)
 
@@ -88,8 +88,9 @@ describeLocal('401 — ATD do POL: correção manual vence e só B/Ls ativos con
   }
   /** Correção manual pela tela (Rotas e Manifestos → Editar). */
   function manualAtd(pol: string, value: string | null) {
-    w.asOk('operacoes', `INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
-      VALUES ('voyage_pol_schedule', '${w.voyageId}::${pol}', 'atd', NULL, ${value ? `'${value}'` : 'NULL'}, '${w.actors.operacoes}', 'Atualizacao manual de ATD por POL')`)
+    w.asOk('operacoes', `SELECT public.record_audit_entries(jsonb_build_array(jsonb_build_object(
+      'entity_type', 'voyage_pol_schedule', 'entity_id', '${w.voyageId}::${pol}', 'field_name', 'atd',
+      'old_value', NULL, 'new_value', ${value ? `'${value}'` : 'NULL'}, 'justification', 'Atualizacao manual de ATD por POL')))`)
   }
 
   it('cancelar o B/L de menor Laden on Board recalcula o ATD; reativar volta; a importação ignora o cancelado', () => {
