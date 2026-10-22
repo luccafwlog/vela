@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Portal: anexo de Dispute com limite real de tamanho (2026-10-22, auditoria de segurança
+  run-3, pendência P6):** `portal-dispute-attachment` lê o corpo pela mesma leitora com limite do
+  Desbloqueio de CE (`_shared/boundedMultipart.ts`), que para em 10 MiB mesmo quando o envio não
+  declara Content-Length; antes o corpo inteiro era lido antes da conferência. Prova:
+  `ceUnlockDocuments.test.ts`, `edgeFunctionsRun2.test.ts`.
 - **Importações: a trava da Viagem confere quem chama (2026-10-22, auditoria de segurança run-3,
   pendência P5):** migration `409`. Sessão sem permissão (Portal ou usuário inativo) é recusada
   antes de entrar na fila da Viagem, em todas as importações que usam a trava; antes ela esperava

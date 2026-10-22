@@ -417,7 +417,9 @@ e Documentação gerenciam; todos leem, inclusive os documentos (migration
 `250`; [matriz](#desbloqueio-de-ce)). Inspeção
 consulta pelo cliente selecionado e recusa comandos de escrita.
 
-`portal-ce-unlock-document` limita o corpo multipart mesmo sem Content-Length,
+`portal-ce-unlock-document` limita o corpo multipart mesmo sem Content-Length
+(leitora compartilhada `_shared/boundedMultipart.ts`, que desde a auditoria run-3
+também lê o anexo de Dispute em `portal-dispute-attachment`, com 10 MiB mais a folga do envelope),
 aceita PDFs de até 10 MiB com extensão, MIME e assinatura `%PDF-`, e reserva
 caminho/quota no servidor (20 tentativas/24 h; 100 MiB ativos por cliente).
 Autentica com `getUser`, grava com cliente de serviço e finaliza com RPC do

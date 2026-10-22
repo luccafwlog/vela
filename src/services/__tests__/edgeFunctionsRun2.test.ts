@@ -139,7 +139,9 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
   it('Dispute confere sessão e cota antes de ler e gravar o arquivo', () => {
     const source = fn('portal-dispute-attachment')
     expect(source.indexOf("portal.rpc('portal_check_dispute_attachment_eligibility'")).toBeLessThan(source.indexOf('await file.arrayBuffer()'))
-    expect(source.indexOf("req.headers.get('Content-Length')")).toBeLessThan(source.indexOf('await req.formData()'))
+    // O corpo passa pela leitora com limite, que para mesmo sem Content-Length (run-3, P6).
+    expect(source).toContain('await readBoundedMultipart(req, MAX_FILE_SIZE + 64 * 1024)')
+    expect(source).not.toContain('req.formData()')
   })
 
   it('histórico do Comunicado grava navio e viagem derivados dos B/Ls', () => {
