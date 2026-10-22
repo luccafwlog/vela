@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Importações: a trava da Viagem confere quem chama (2026-10-22, auditoria de segurança run-3,
+  pendência P5):** migration `409`. Sessão sem permissão (Portal ou usuário inativo) é recusada
+  antes de entrar na fila da Viagem, em todas as importações que usam a trava; antes ela esperava
+  a vez e, com carga grande, segurava a Viagem por segundos à frente da equipe. Prova:
+  `travaDaViagemConfereQuemChama.local-pg.test.ts`.
 - **Portal: B/L que muda de Cliente (2026-10-22, auditoria de segurança run-3, achados C2, C3
   e C4):** migration `408`. Depois da troca de Cliente do B/L, o Portal do Cliente anterior não
   mostra mais contêineres e situação viva do B/L, saldo, correção e abatimento do recebível que
