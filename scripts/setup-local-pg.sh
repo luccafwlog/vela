@@ -101,7 +101,9 @@ CREATE TABLE IF NOT EXISTS auth.users (id UUID PRIMARY KEY DEFAULT gen_random_uu
 -- com request.jwt.claims (JSON) e gravam aud/role em auth.users rodam aqui.
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS aud VARCHAR(255), ADD COLUMN IF NOT EXISTS role VARCHAR(255);
 CREATE OR REPLACE FUNCTION auth.uid()  RETURNS UUID LANGUAGE sql STABLE AS $f$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claim.sub', true), ''), (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'))::uuid $f$;
-CREATE OR REPLACE FUNCTION auth.role() RETURNS TEXT LANGUAGE sql STABLE AS $f$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claim.role', true), ''), 'authenticated') $f$;
+-- Como no Supabase, o papel cai para o claim `role` do JSON quando o GUC
+-- request.jwt.claim.role está vazio (inclusive depois de uma função restaurar '').
+CREATE OR REPLACE FUNCTION auth.role() RETURNS TEXT LANGUAGE sql STABLE AS $f$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claim.role', true), ''), (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'), 'authenticated') $f$;
 CREATE OR REPLACE FUNCTION auth.jwt()  RETURNS JSONB LANGUAGE sql STABLE AS $f$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb) $f$;
 GRANT USAGE ON SCHEMA auth, extensions TO anon, authenticated, service_role;
 CREATE SCHEMA IF NOT EXISTS cron;

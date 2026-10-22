@@ -307,6 +307,20 @@ sozinha não protege contra um token roubado chamando o Auth direto: a proteçã
 no servidor depende de "Require current password when changing password"
 ligado no projeto ([serviços externos](servicos-externos.md#conferência-supabase-auth--2026-10-22)).
 
+### Rotinas reservadas ao sistema
+
+As funções que só o `service_role` e o pg_cron chamam e que elevam
+`request.jwt.claim.role` ou agem como ator do sistema (`itau_pix_settle`,
+`itau_pix_receipt_failed`, `itau_pix_record_untracked`,
+`reconcile_http_job_failures_alert`, `reconcile_import_effects_queue_alert`,
+`reconcile_itau_pix_checkpoint_alert`, `reevaluate_expired_billing_releases`)
+não dependem só do GRANT: um envelope com o mesmo nome chama
+`_assert_service_caller()`, que recusa com `42501` qualquer chamador com JWT
+que não seja `service_role` (migration `413`). Guardas de permissão vêm antes de
+travas: a baixa de 8 argumentos (`register_ledger_invoice_payment`) confere o
+Financeiro antes de travar os B/Ls. Prova:
+`src/integration/guardasAntesDoTrabalho.local-pg.test.ts`.
+
 ## Rate limiting
 
 - **Login, recuperação e ativação do Portal:** contados por hash do CNPJ em
