@@ -78,8 +78,8 @@ antes e passa depois, e o módulo dono atualizado.
   calculado (`_recompute_voyage_pol_atd`) conta só B/Ls ativos; cancelar e
   reativar recalculam. Correções manuais anteriores marcadas na migration.
   Prova: `atdDoPolManual.local-pg.test.ts` e `ws1FunctionalSmoke.test.ts`.
-- **Lote 9 — Baplie: armador e transbordo** (migration `410`, número
-  provisório até a renumeração): decisões 14 e 15 (B12b, B12c). O armador
+- **Lote 9 — Baplie: armador e transbordo** (migration `402`;
+  decisões 14 e 15 (B12b, B12c). O armador
   guarda os códigos com que aparece no Baplie (`carriers.baplie_codes`,
   campo "Códigos do armador no Baplie" em Nova Viagem/Editar; COSCO com COS e
   COSCO); container de outro código fica fora do staging, das marcas e da

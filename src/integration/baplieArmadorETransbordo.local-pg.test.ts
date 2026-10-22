@@ -118,7 +118,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Lote 9 das importações — Baplie: armador da Viagem e transbordo (410)', () => {
+describeLocal('Lote 9 das importações — Baplie: armador da Viagem e transbordo (402)', () => {
   beforeAll(() => {
     cleanup()
     psql(`
