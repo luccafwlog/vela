@@ -769,9 +769,12 @@ avisos e o status com o binário `psql`. Para outra sessão em paralelo (janela
 de concorrência, lock), continue usando `spawn('psql', ...)`.
 
 `npm run rpc:check` requer `psql` e banco já preparado. Configure explicitamente
-`LOCAL_DATABASE_URL` para o alvo descartável; o script também aceita
-`DATABASE_URL` e possui fallback local. Ele compara nomes chamados com
-`public.pg_proc`, não valida assinaturas, grants nem comportamento das RPCs.
+`LOCAL_DATABASE_URL` para o alvo descartável; sem ela, o script usa
+`postgresql://postgres:postgres@127.0.0.1:5432/vela_test` e ignora
+`DATABASE_URL`. A conexão chega ao `psql` por variáveis `PG*`, fora da linha
+de comando, e a mensagem de falha mostra a URL com a senha trocada por `***`.
+Ele compara nomes chamados com `public.pg_proc`, não valida assinaturas,
+grants nem comportamento das RPCs.
 
 Para Supabase completo, carregue no ambiente do processo as variáveis indicadas
 em `.env.example`, inclusive os IDs das fixtures, antes de habilitar a suíte:
