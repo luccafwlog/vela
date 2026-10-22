@@ -133,14 +133,45 @@ describe('fetchLineUpSnapshot', () => {
       voyages: [VOYAGE],
       bls: [{ id: 'BL1', voyage_id: 24, pod: 'BRVIX', cargo_mode: 'container', ce_mercante: 'CE1', bb_machine_qty: 0, bb_packages_qty: 0 }],
       vazios_importacao_containers: [
-        { manifest: { voyage_id: 24 } },
-        { manifest: { voyage_id: 24 } },
+        { pod: 'BRVIX', manifest: { voyage_id: 24 } },
+        { pod: 'BRVIT', manifest: { voyage_id: 24 } },
       ],
     }))
 
     const row = (await fetchLineUpSnapshot()).rows.find((candidate) => candidate.voyageId === 24)
     expect(row?.mty).toBe(2)
     expect(from.mock.calls.map(([table]) => table)).not.toContain('vazios_importacao_manifests')
+  })
+
+  // GREEN ITAJAI / 11: a escala BRSSA (ETA 15/10) entrou antes de BRVIX (17/10)
+  // e o total da viagem caía na primeira linha ordenada.
+  it('credita os vazios no porto do container, mesmo com escala de ETA anterior sem vazios', async () => {
+    const { fetchLineUpSnapshot } = await import('../lineup')
+    from.mockImplementation(byTable({
+      voyages: [VOYAGE],
+      bls: [{ id: 'BL1', voyage_id: 24, pod: 'BRVIX', cargo_mode: 'container', ce_mercante: null, bb_machine_qty: 0, bb_packages_qty: 0 }],
+      audit_logs: [
+        { entity_type: 'voyage_pod_schedule', entity_id: '24::BRSSA', field_name: 'eta', new_value: '2026-10-15', changed_at: '2026-10-01T00:00:00Z' },
+        { entity_type: 'voyage_pod_schedule', entity_id: '24::BRVIX', field_name: 'eta', new_value: '2026-10-17', changed_at: '2026-10-01T00:00:00Z' },
+      ],
+      vazios_importacao_containers: [
+        ...Array.from({ length: 190 }, () => ({ pod: 'BRVIX', manifest: { voyage_id: 24 } })),
+        { pod: 'BRSEP', manifest: { voyage_id: 24 } },
+        { pod: null, manifest: { voyage_id: 24 } },
+      ],
+    }))
+
+    const snapshot = await fetchLineUpSnapshot()
+    const salvador = snapshot.rows.find((row) => row.id === '24::BRSSA')
+    const vitoria = snapshot.rows.find((row) => row.id === '24::BRVIX')
+    expect(snapshot.rows.map((row) => row.id)).toEqual(['24::BRSSA', '24::BRVIX'])
+    expect(salvador?.mty).toBe(0)
+    expect(vitoria?.mty).toBe(190)
+    // Sem linha no Line Up: aparece como não atribuído, nunca em outro porto.
+    expect(snapshot.unassignedMty).toEqual([
+      { voyageId: 24, voyageNumber: '24W', vesselName: 'MV TESTE', pod: 'BRSEP', count: 1 },
+      { voyageId: 24, voyageNumber: '24W', vesselName: 'MV TESTE', pod: null, count: 1 },
+    ])
   })
 
   it('monta linha de exportacao com datas da escala unificada', async () => {
