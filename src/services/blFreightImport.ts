@@ -1,4 +1,5 @@
 import { canonicalizeDocument } from '../lib/cnpj'
+import { formatDate } from '../lib/utils'
 import { atomicImportRefusalMessage } from '../lib/errors'
 import { importDateOrNull } from '../lib/importDate'
 import { extractNcmCodes } from '../lib/ncm'
@@ -331,6 +332,12 @@ export type BuildBlFreightPreviewArgs = {
    * (migration 175, P0006) em vez de deixar o lote inteiro cair.
    */
   containerRemovalBlockers?: ContainerRemovalBlockers | null
+  /**
+   * ATD do POL corrigido à mão na Viagem escolhida, pelo POL: a importação não
+   * o recalcula, e a prévia avisa quando o Laden on Board do arquivo diverge
+   * (ADR 0095, decisão 23; migration 401).
+   */
+  manualPolAtds?: Map<string, string> | null
 }
 
 export type ContainerRemovalBlockers = {
@@ -364,12 +371,13 @@ export async function previewBlFreightImport(args: {
   // with a unique one (same count) still changes container_distinct_voyage billing.
   const existingContainerNumbers = existingBls.flatMap((bl) => (bl.bl_containers ?? []).map((container) => container.container_number))
   const sharedContainerNumbers = await fetchSharedContainerNumbers(blNumbers, [...containerNumbers, ...existingContainerNumbers])
-  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods] = await Promise.all([
+  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods, manualPolAtds] = await Promise.all([
     fetchSelectedVoyage(args.voyageId),
     fetchPortCatalog(),
     fetchContainerSiblings(args.voyageId, blNumbers, containerNumbers),
     fetchCodBlIds([...existingIds]),
     fetchOmittedPods(args.voyageId),
+    fetchManualPolAtds(args.voyageId),
   ])
   if (!selectedVoyage) throw new Error('Viagem selecionada não encontrada.')
 
@@ -418,6 +426,7 @@ export async function previewBlFreightImport(args: {
     codBlIds,
     omittedPods,
     containerRemovalBlockers,
+    manualPolAtds,
   })
 }
 
@@ -438,8 +447,19 @@ export function buildBlFreightPreview({
   codBlIds = null,
   omittedPods = null,
   containerRemovalBlockers = null,
+  manualPolAtds = null,
 }: BuildBlFreightPreviewArgs): BlFreightImportPreview {
   const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
+  const earliestLadenByPol = new Map<string, string>()
+  if (manualPolAtds?.size && selectedVoyage) {
+    for (const doc of documents) {
+      const pol = buildBlFreightPayload(doc, selectedVoyage.id).pol?.trim().toUpperCase()
+      const laden = normalizeDate(doc.dates.ladenOnBoard)
+      if (!pol || !laden) continue
+      const current = earliestLadenByPol.get(pol)
+      if (!current || laden < current) earliestLadenByPol.set(pol, laden)
+    }
+  }
   const rows = documents.map((doc) => {
     const existing = existingById.get(doc.blNumber) ?? null
     const voyageId = selectedVoyage?.id ?? null
@@ -521,6 +541,14 @@ export function buildBlFreightPreview({
         ? `Embarque ilegível ("${doc.dates.ladenOnBoard.trim()}"): a data gravada não muda.`
         : 'Embarque vazio no arquivo: a data gravada não muda.')
     }
+    const rowLaden = normalizeDate(doc.dates.ladenOnBoard)
+    const rowPol = payload?.pol?.trim().toUpperCase() ?? null
+    // Só a linha que traz o menor Laden on Board do POL no arquivo (a data que
+    // viraria o ATD) é comparada; B/L embarcado depois não diverge do ATD.
+    const manualAtdWarning = rowPol && rowLaden && rowLaden === earliestLadenByPol.get(rowPol)
+      ? describeManualPolAtdDivergence(rowPol, rowLaden, manualPolAtds)
+      : null
+    if (manualAtdWarning) warnings.push(manualAtdWarning)
 
     const consigneeDocumentMatches = payload && existing?.manifest_customer_cnpj_cpf
       ? canonicalizeDocument(existing.manifest_customer_cnpj_cpf) === canonicalizeDocument(payload.manifest_customer_cnpj_cpf)
@@ -1666,6 +1694,32 @@ async function fetchCodBlIds(blIds: string[]) {
       .filter((row) => !row.omission?.reverted_at)
       .map((row) => row.bl_id),
   )
+}
+
+/** ATD do POL corrigido à mão na Viagem (migration 401), pelo POL. */
+async function fetchManualPolAtds(voyageId: number) {
+  const { data, error } = await supabase
+    .from('voyage_pol_atd_manual' as never)
+    .select('pol, atd')
+    .eq('voyage_id', voyageId)
+  if (error) throw error
+  return new Map(((data ?? []) as Array<{ pol: string; atd: string }>).map((row) => [row.pol.trim().toUpperCase(), row.atd]))
+}
+
+/**
+ * ADR 0095, decisão 23: o ATD do POL corrigido à mão vence a importação. Quando
+ * o Laden on Board do arquivo diverge dele, a prévia avisa com as duas datas.
+ */
+export function describeManualPolAtdDivergence(
+  pol: string | null,
+  ladenOnBoard: string | null,
+  manualPolAtds: Map<string, string> | null,
+): string | null {
+  const key = pol?.trim().toUpperCase()
+  if (!key || !ladenOnBoard || !manualPolAtds) return null
+  const manual = manualPolAtds.get(key)
+  if (!manual || manual === ladenOnBoard) return null
+  return `ATD do POL ${key} corrigido à mão em ${formatDate(manual)}: o Laden on Board do arquivo é ${formatDate(ladenOnBoard)} e o ATD não muda.`
 }
 
 async function fetchOmittedPods(voyageId: number) {

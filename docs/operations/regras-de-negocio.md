@@ -521,6 +521,10 @@ componente só, aberto de todas as telas que a oferecem.
   refixar o preço só com o aceite por B/L; a aba VIN é ignorada (veículos só
   pela planilha de Veículos); FCL/LCL vem do Type of Movement. Regra completa
   em [Manifestos & EDI](../modules/manifesto-edi.md).
+- **ATD do POL** (ADR 0095, decisão 23; migration `401`): a importação de B/L
+  grava o menor Laden on Board dos B/Ls ativos; cancelar ou reativar o B/L
+  recalcula; o ATD corrigido à mão vence e a prévia só avisa a divergência.
+  Regra em [Viagens](../modules/viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota).
 - Toda importação tem um modelo padrão para baixar (`public/templates/`); para
   arquivo que vem de sistema de fora (Baplie, ZPT), um exemplo no formato
   aceito.

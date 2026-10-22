@@ -1,23 +1,8 @@
 import * as XLSX from '@e965/xlsx'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const scheduleMocks = vi.hoisted(() => ({
-  listVoyagePolSchedules: vi.fn(),
-  saveVoyagePolSchedule: vi.fn(),
-}))
-
-vi.mock('../voyageRouteSchedules', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../voyageRouteSchedules')>()
-  return {
-    ...actual,
-    listVoyagePolSchedules: scheduleMocks.listVoyagePolSchedules,
-    saveVoyagePolSchedule: scheduleMocks.saveVoyagePolSchedule,
-  }
-})
+import { describe, expect, it } from 'vitest'
 
 import { formatPolDeparture } from '../../components/voyages/voyageCardHelpers'
 import { buildBlFreightPayload, buildBlFreightPreview } from '../blFreightImport'
-import { applyLadenOnBoardAtd } from '../ladenOnBoardAtd'
 import { parseBLBuffer } from '../blParser'
 
 function buildCoscoBlBuffer(blNumber: string, ladenOnBoard: string, containerNumber: string) {
@@ -44,11 +29,6 @@ function buildCoscoBlBuffer(blNumber: string, ladenOnBoard: string, containerNum
 }
 
 describe('WS1 functional smoke', () => {
-  beforeEach(() => {
-    scheduleMocks.listVoyagePolSchedules.mockReset()
-    scheduleMocks.saveVoyagePolSchedule.mockReset()
-  })
-
   it('liga XLSX, payload documental, menor Laden on Board e exibicao do ATD sem acesso externo', async () => {
     const documents = await Promise.all([
       parseBLBuffer(buildCoscoBlBuffer('WS1-SMOKE-001', '2026-07-09', 'TCLU1234567')),
@@ -73,28 +53,25 @@ describe('WS1 functional smoke', () => {
     expect(preview.rows.map((row) => row.ladenOnBoard)).toEqual(['2026-07-09', '2026-07-08'])
     expect(preview.rows.map((row) => row.payload)).toEqual(payloads)
 
-    scheduleMocks.listVoyagePolSchedules.mockResolvedValue(new Map([
-      ['390::CNSHA', {
-        entityId: '390::CNSHA',
-        voyageId: 390,
-        pol: 'CNSHA',
-        etd: '2026-07-15',
-        atd: '2026-07-10',
-        escalaNumber: null,
-      }],
-    ]))
-
-    await applyLadenOnBoardAtd({ rows: preview.rows, changedBy: 'ws1-smoke' })
-
-    expect(scheduleMocks.saveVoyagePolSchedule).toHaveBeenCalledOnce()
-    expect(scheduleMocks.saveVoyagePolSchedule).toHaveBeenCalledWith({
-      voyageId: 390,
-      pol: 'CNSHA',
-      etd: '2026-07-15',
-      atd: '2026-07-08',
-      changedBy: 'ws1-smoke',
-      justification: 'ATD derivado do Laden on Board do B/L (ADR 0025)',
+    // ADR 0095, decisão 23 (migration 401): o servidor grava o menor Laden on
+    // Board dos B/Ls ativos como ATD do POL; com o ATD corrigido à mão, a
+    // prévia avisa na linha do menor Laden on Board do arquivo e o ATD não muda.
+    const withManual = buildBlFreightPreview({
+      documents,
+      selectedVoyage: { id: 390, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      manualPolAtds: new Map([['CNSHA', '2026-07-10']]),
     })
+    expect((withManual.rows[0]?.warnings ?? []).join(' ')).not.toContain('corrigido à mão')
+    expect(withManual.rows[1]?.warnings).toContain(
+      'ATD do POL CNSHA corrigido à mão em 10/07/2026: o Laden on Board do arquivo é 08/07/2026 e o ATD não muda.',
+    )
+    const sameDate = buildBlFreightPreview({
+      documents,
+      selectedVoyage: { id: 390, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      manualPolAtds: new Map([['CNSHA', '2026-07-08']]),
+    })
+    expect(sameDate.rows.flatMap((row) => row.warnings).join(' ')).not.toContain('corrigido à mão')
+
     expect(formatPolDeparture('2026-07-15', '2026-07-08')).toEqual({
       value: '2026-07-08',
       isActual: true,

@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Importações: ATD do POL (2026-10-22, Lote 7 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
+  migration `401`. O ATD do POL corrigido à mão (Rotas e Manifestos → **Editar**) fica marcado, com
+  quem e quando, e não é mais recalculado pela importação de B/L da Viagem e do POL nem pelo
+  cancelamento; a prévia do Importar B/L avisa quando o Laden on Board do arquivo diverge ("ATD do
+  POL … corrigido à mão em …: o Laden on Board do arquivo é … e o ATD não muda."). Apagar o ATD à mão
+  desfaz a marca e o ATD volta ao calculado. O ATD calculado conta só B/Ls ativos: cancelar o B/L
+  recalcula, reativar também, com Histórico. As correções manuais já gravadas ganharam a marca. Fim do
+  `ladenOnBoardAtd.ts`, cálculo antigo no navegador que nenhuma tela usava. Prova:
+  `atdDoPolManual.local-pg.test.ts`, `ws1FunctionalSmoke.test.ts`.
 - **Importações: Vazios (2026-10-22, Lote 6 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 21 e 22; achado F-32):**
   migrations `398` a `400`. O vazio de importação existe uma vez por Viagem, em qualquer rota e fonte: a
