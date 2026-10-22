@@ -5,7 +5,7 @@ import { normalizeStoredPortCode } from './portCode'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { userFacingErrorMessage } from '../lib/errors'
-import { getBaplieManifestForVoyage, replaceVaziosFromBaplie } from './vaziosImportacaoImport'
+import { getBaplieManifestForVoyage, listVoyageVaziosImportacao, replaceVaziosFromBaplie, vaziosContainerKey, type VoyageVazioImportacao } from './vaziosImportacaoImport'
 import { toBaplieFlagsApplyResult, type BaplieFlagsApplyResult } from './baplieReconciliation'
 
 export type BaplieVoyageContext = {
@@ -373,18 +373,71 @@ function baplieEmptyKeys(list: Iterable<BaplieDiffFields>) {
  * Baplie gravado. É o rastro persistido de um `vaziosError` — a falha em si não
  * fica gravada —, e /baplie oferece "Atualizar vazios do Baplie" com ele.
  *
- * ponytail: a comparação também acusa a diferença quando uma planilha de Vazios
- * de importação substituiu, de propósito, uma rota do manifesto do Baplie (a
- * migration 187 apaga as linhas da rota em todos os manifestos da Viagem). É o
- * mesmo limite da comparação por quantidade que a tela já fazia; separar os
- * dois casos pede gravar a falha do recadastro (uma coluna de pendência).
+ * ADR 0095, decisão 21 (migration 398): o container que uma planilha de Vazios
+ * de importação trouxe fica com a planilha e não entra no manifesto do Baplie,
+ * então sai da comparação (antes a planilha que substituiu uma rota do Baplie
+ * aparecia como pendência falsa).
  */
 export async function hasPendingBaplieVazios(voyageId: number, manifestId: string): Promise<boolean> {
-  const [staging, registered] = await Promise.all([
+  const [staging, registered, voyageVazios] = await Promise.all([
     listBaplieStagingForDiff(voyageId),
     listVaziosManifestKeys(manifestId),
+    listVoyageVaziosImportacao(voyageId),
   ])
-  return baplieEmptyKeys(staging) !== vaziosKeys(registered)
+  const planilha = planilhaKeys(voyageVazios)
+  return baplieEmptyKeys(staging.filter((c) => !planilha.has(vaziosContainerKey(c.container_number)))) !== vaziosKeys(registered)
+}
+
+function planilhaKeys(vazios: ReadonlyArray<VoyageVazioImportacao>) {
+  return new Set(vazios.filter((row) => row.source !== 'baplie').map((row) => vaziosContainerKey(row.container_number)))
+}
+
+export type BaplieVaziosNaPlanilha = {
+  /** Vazios do Baplie que ainda não estão em nenhuma planilha: os que o Baplie cadastra. */
+  aCadastrar: number
+  /** Vazios do Baplie que uma planilha já trouxe: ficam com a planilha. */
+  naPlanilha: number
+  /** "CONTAINER: Baplie A → B, planilha C → D", para os da planilha em outra rota. */
+  rotaDiferente: string[]
+}
+
+/**
+ * Diferença entre os vazios do Baplie e os da planilha de Vazios de
+ * importação da Viagem (ADR 0095, decisão 21): a planilha vale, e o Baplie só
+ * mostra a diferença.
+ */
+export function baplieVaziosNaPlanilha(
+  staging: ReadonlyArray<Pick<BaplieContainer, 'container_number' | 'status' | 'pol' | 'pod'>>,
+  vazios: ReadonlyArray<VoyageVazioImportacao>,
+): BaplieVaziosNaPlanilha {
+  const planilha = new Map(vazios.filter((row) => row.source !== 'baplie').map((row) => [vaziosContainerKey(row.container_number), row]))
+  const route = (pol: string | null | undefined, pod: string | null | undefined) =>
+    `${normalizeStoredPortCode(pol) ?? '?'} → ${normalizeStoredPortCode(pod) ?? '?'}`
+  const seen = new Set<string>()
+  let aCadastrar = 0
+  let naPlanilha = 0
+  const rotaDiferente: string[] = []
+  for (const container of staging) {
+    if (container.status !== 'empty') continue
+    const key = vaziosContainerKey(container.container_number)
+    if (seen.has(key)) continue
+    seen.add(key)
+    const found = planilha.get(key)
+    if (!found) {
+      aCadastrar += 1
+      continue
+    }
+    naPlanilha += 1
+    if (route(container.pol, container.pod) !== route(found.pol, found.pod)) {
+      rotaDiferente.push(`${container.container_number}: Baplie ${route(container.pol, container.pod)}, planilha ${route(found.pol, found.pod)}`)
+    }
+  }
+  return { aCadastrar, naPlanilha, rotaDiferente: rotaDiferente.sort() }
+}
+
+export async function loadBaplieVaziosNaPlanilha(voyageId: number): Promise<BaplieVaziosNaPlanilha> {
+  const [staging, vazios] = await Promise.all([listBaplieStagingForDiff(voyageId), listVoyageVaziosImportacao(voyageId)])
+  return baplieVaziosNaPlanilha(staging, vazios)
 }
 
 // Paginado como `listBaplieStagingForDiff`.

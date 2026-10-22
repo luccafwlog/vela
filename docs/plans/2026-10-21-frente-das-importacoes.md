@@ -55,6 +55,20 @@ antes e passa depois, e o módulo dono atualizado.
   falha de cálculo da planilha de CE no formato da B3; `statement_timeout` de
   60 s. Prova: `ceEManifestoMercante.local-pg.test.ts` e
   `ceForaDoManifestoAlerta.test.ts`.
+- **Lote 6 — Vazios** (migrations `398` a `400`): decisões 21 e 22; F-32. Um vazio de
+  importação por Viagem (índice único `voyage_id` + `container_key`, repetidos
+  reduzidos a uma linha); a planilha vale sobre o Baplie e o tira do container
+  que traz; o Baplie cadastra só o que nenhuma planilha trouxe e devolve
+  `planilha`; container de outra planilha em outra rota recusado com o
+  container e a rota; prévia da planilha e `/baplie` mostram a diferença. ADR
+  de Saída fechado: incluir e editar unidade recusados nas RPCs e o gatilho
+  `guard_vazios_export_adr_lock` recusa a escrita direta, inclusive criar o
+  Embarque (`399`), com o porto comparado pela régua de porto (`400`); a
+  planilha que substitui o vazio do Baplie fica com a natureza dele (`400`);
+  a tela tira as ações
+  (`vazios_export_adr_locked`). Prova: `vaziosUmaVezPorViagem.local-pg.test.ts`,
+  `vaziosImportacaoImport.test.ts`, `baplieVaziosPending.test.ts` e
+  `EmbarqueVazios.flow.test.tsx`.
 - **Pela PR luccafwlog/vela#1019** (ADR 0094), não refazer: escrita direta
   fechada (F-03), RPCs antigas revogadas (F-19), B/L cancelado somente leitura
   e datas só nos B/Ls ativos (F-12), carga solta faturada com confirmação no
@@ -72,7 +86,7 @@ antes e passa depois, e o módulo dono atualizado.
 | 3 Portos (entregue, ver acima) | 12 | F-08, F-33b | `normalize_port_code` sem BRNVT→BRITJ e BRREC→BRSUA; aliases do front; dados gravados | B/L de Navegantes não casa escala de Itajaí |
 | 4 Exclusão e efeitos (entregue, ver acima) | 7, 18, 25 | F-10 (só a suíte), F-13, F-14, F-33a, F-34, F-42, F-43 | exclusão encerra efeitos e apaga vazios da Viagem; espera de negócio não é bloqueio; reprocessar no alerta; ator de sistema; excluir/mover veículo enfileira o efeito; `import_effects_queue_health` passa a contar `blocked` e `running` com lease vencida | efeito órfão some; alerta fecha; saúde da fila acusa bloqueado e lease vencida; excluir o irmão de container compartilhado faturado |
 | 5 CE e Manifesto Mercante (entregue, ver acima) | 19, 20 | F-49, F-53 | remover CE e cancelar tiram do Manifesto; alerta "CE fora do Manifesto da rota"; planilha de CE com recusa de cálculo testada e mensagem no formato da ADR 0094 | local-pg |
-| 6 Vazios | 21, 22 | F-32 | unicidade por Viagem, planilha vence; ADR de Saída fechado trava | local-pg |
+| 6 Vazios (entregue, ver acima) | 21, 22 | F-32 | unicidade por Viagem, planilha vence; ADR de Saída fechado trava | local-pg |
 | 7 ATD | 23 | F-48 | ATD manual marcado e preservado; só B/Ls ativos | local-pg |
 | 8 Histórico | 24 | F-23, F-24, F-46 | `bl_timeline` lê `bls`, `vehicles` e `bl_containers`; origem Base de Clientes; `audit_logs` sem INSERT direto | local-pg + vitest |
 | 9 Baplie: armador e transbordo | 14, 15 | — | códigos do armador no cadastro; transbordo marcado | vitest + local-pg |

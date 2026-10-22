@@ -110,15 +110,22 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
       VALUES (${voyageId}, 'AZCU2340001', 'empty', '45G1', 3800, 'CNSHA', 'BRVIX');
       DELETE FROM public.vazios_importacao_containers WHERE container_number = 'AZCU2340003';
     `)
-    // A natureza (cama) foi digitada na linha da planilha; o Baplie recadastra a Viagem.
+    // 398 (ADR 0095, decisão 21): o container já veio da planilha, que vale
+    // sobre o Baplie; o recadastro não cria outra linha nem manifesto.
     const replaced = asUser(`SELECT public.replace_vazios_from_baplie_transactional(${voyageId}, NULL, '${userId}', true);`)
     expect(replaced.stderr).toBe('')
-    expect(psql(`SELECT natureza FROM public.vazios_importacao_containers c JOIN public.vazios_importacao_manifests m ON m.id = c.manifest_id
-      WHERE m.voyage_id = ${voyageId} AND m.source = 'baplie';`)).toBe('cama')
+    expect(JSON.parse(replaced.stdout)).toMatchObject({ manifest_id: null, total: 0, planilha: 1 })
+    expect(vazios()).toBe('AZCU2340001:cama')
 
+    // Sem a planilha, o Baplie cadastra; a natureza digitada na linha do
+    // Baplie sobrevive ao recadastro.
     psql(`DELETE FROM public.vazios_importacao_containers c USING public.vazios_importacao_manifests m
       WHERE m.id = c.manifest_id AND m.voyage_id = ${voyageId} AND m.source = 'manual';`)
     expect(asUser(`SELECT public.replace_vazios_from_baplie_transactional(${voyageId}, NULL, '${userId}', true);`).stderr).toBe('')
+    psql(`UPDATE public.vazios_importacao_containers SET natureza = 'cama' WHERE container_number = 'AZCU2340001';`)
+    expect(asUser(`SELECT public.replace_vazios_from_baplie_transactional(${voyageId}, NULL, '${userId}', true);`).stderr).toBe('')
+    expect(psql(`SELECT natureza FROM public.vazios_importacao_containers c JOIN public.vazios_importacao_manifests m ON m.id = c.manifest_id
+      WHERE m.voyage_id = ${voyageId} AND m.source = 'baplie';`)).toBe('cama')
     expect(psql(`SELECT string_agg(source, ',') FROM public.vazios_importacao_manifests WHERE voyage_id = ${voyageId};`)).toBe('baplie')
   })
 

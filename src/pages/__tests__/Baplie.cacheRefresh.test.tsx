@@ -53,7 +53,7 @@ vi.mock('../../services/baplieReconciliation', async (importOriginal) => ({
   resolveBaplieDivergence: mocks.resolveDivergence,
 }))
 vi.mock('../../services/baplieReadModel', () => ({ hasBlsForVoyage: vi.fn(() => Promise.resolve(false)), listBaplieStaging: vi.fn(() => Promise.resolve([])) }))
-vi.mock('../../services/vaziosImportacaoImport', () => ({ getBaplieManifestForVoyage: vi.fn(() => Promise.resolve(null)), importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn() }))
+vi.mock('../../services/vaziosImportacaoImport', () => ({ getBaplieManifestForVoyage: vi.fn(() => Promise.resolve(null)), importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn(), listVoyageVaziosImportacao: vi.fn(() => Promise.resolve([])), vaziosContainerKey: (value: string) => value.replace(/[^A-Za-z0-9]/g, '').toUpperCase() }))
 
 import { Baplie } from '../Baplie'
 import { hasBlsForVoyage, listBaplieStaging } from '../../services/baplieReadModel'

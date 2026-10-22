@@ -327,6 +327,22 @@ Embarque de Vazios; reabrir o ADR solta. **Excluir unidade** pede motivo,
 gravado no rastro. **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts`
 (B14).
 
+**ADR de Saída fechado trava tudo no Embarque de vazios** (ADR 0095, decisão
+22; migrations `274`, `398` e `399`): com o ADR fechado, nada muda nas unidades nem
+nas linhas de serviço — reimportar, incluir, editar e excluir unidade, lançar
+ou mudar linha, trocar o porto do embarque e criar o Embarque da escala são recusados com "ADR de Saída de
+<porto> fechado: … Reabra o ADR de Saída para mudar.", inclusive pela escrita
+direta na API (gatilho `guard_vazios_export_adr_lock`); a tela tira as ações.
+Regra e tela em [Manifestos & EDI](../modules/manifesto-edi.md#embarquevazios).
+**Teste local-pg:** `vaziosUmaVezPorViagem.local-pg.test.ts`.
+
+**Um vazio de importação por Viagem** (ADR 0095, decisão 21; F-32; migration
+`398`): o mesmo container entra uma vez nos Vazios de importação da Viagem,
+em qualquer rota e de qualquer fonte. A planilha vale sobre o Baplie: o Baplie
+não sobrescreve o vazio que veio da planilha e só mostra a diferença, e a
+planilha tira do Baplie o container que traz. Regra e telas em
+[Manifestos & EDI](../modules/manifesto-edi.md#vazios-importacao).
+
 ### Cadastro usado
 
 Um cadastro de referência — tarifa, Cliente, Local (terminal ou depot) e
