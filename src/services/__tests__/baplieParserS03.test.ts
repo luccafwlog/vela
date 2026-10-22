@@ -223,6 +223,24 @@ describe('baplie S03 vetores', () => {
     expect(hasBlockingIssues(parsed.issues)).toBe(true)
   })
 
+  it('POL de Zhuhai (CNZUH) é reconhecido e não bloqueia o arquivo', () => {
+    const parsed = parseBaplieText([
+      "UNH+1+BAPLIE:D:95B:UN:SMDG22'",
+      "TDT+20+14+++:::GREEN SANTOS'",
+      "LOC+147+010101'",
+      "LOC+6+CNZUH'",
+      "LOC+12+BRVIX'",
+      "MEA+WT++KGM:10000'",
+      "EQD+CN+MSCU7654329+45G1+++5'",
+      "UNT+8+1'",
+      "UNZ+1+1'",
+    ].join('\n'))
+
+    expect(parsed.containers[0]).toMatchObject({ container_number: 'MSCU7654329', pol: 'CNZUH', pod: 'BRVIX' })
+    expect(parsed.issues.filter((issue) => issue.field === 'pol')).toEqual([])
+    expect(hasBlockingIssues(parsed.issues)).toBe(false)
+  })
+
   // E9-02 (ADR 0078, item 21): POD fora dos portos conhecidos é container fora
   // das escalas — sai do staging com aviso, sem bloquear o arquivo.
   it('POD não reconhecido (UYMVD) ignora o container com aviso e não bloqueia o resto', () => {
