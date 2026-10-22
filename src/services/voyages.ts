@@ -6,10 +6,29 @@ import { deleteRecords } from './deleteRecords'
 import type { DeleteDependencyReport } from './deleteDependencies'
 import { toError } from '../lib/errors'
 
-export async function createVoyage(form: VoyageFormValues, changedBy: string | null) {
+/** De onde a Viagem foi cadastrada: vai para o "Viagem criada" da linha do tempo. */
+export type VoyageOrigin = 'viagens' | 'chegadas_saidas'
+
+const VOYAGE_ORIGIN_LABELS: Record<VoyageOrigin, string> = {
+  viagens: 'botão Nova viagem',
+  chegadas_saidas: 'Chegadas e Saídas',
+}
+
+/** Justificativa da linha `created`, lida por `buildVoyageCreation` (voyageSummaries.ts). */
+export function voyageCreationJustification(origin: VoyageOrigin) {
+  return `Origem: ${VOYAGE_ORIGIN_LABELS[origin]}`
+}
+
+export async function createVoyage(
+  form: VoyageFormValues,
+  changedBy: string | null,
+  { origin = 'viagens', showOnPortal = false }: { origin?: VoyageOrigin; showOnPortal?: boolean } = {},
+) {
   const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
   const vesselId = await getOrCreateVessel(form.vesselName, form.vesselImo, carrierId)
 
+  // A aparição em Chegadas e Saídas vai na própria inserção: um UPDATE depois
+  // virava um segundo evento na linha do tempo (revisão de 2026-10-22).
   const { data: created, error: createError } = await supabase
     .from('voyages')
     .insert({
@@ -18,6 +37,7 @@ export async function createVoyage(form: VoyageFormValues, changedBy: string | n
       pol_id: null,
       pod_id: null,
       status: form.status,
+      show_on_portal: showOnPortal,
     })
     .select('id')
     .single()
@@ -25,7 +45,7 @@ export async function createVoyage(form: VoyageFormValues, changedBy: string | n
   if (createError || !created) throw createError
 
   await insertVoyageAuditRows([
-    makeVoyageAuditRow(created.id, 'created', null, form.voyageNumber.trim(), changedBy),
+    makeVoyageAuditRow(created.id, 'created', null, form.voyageNumber.trim(), changedBy, voyageCreationJustification(origin)),
     makeVoyageAuditRow(created.id, 'indicated_first_brazilian_port', null, form.indicatedFirstBrazilianPort ?? null, changedBy),
     makeVoyageAuditRow(created.id, 'indicated_first_brazilian_eta', null, form.indicatedFirstBrazilianEta ?? null, changedBy),
   ])
@@ -225,6 +245,7 @@ function makeVoyageAuditRow(
   oldValue: string | null,
   newValue: string | null,
   changedBy: string | null,
+  justification = 'Atualizacao de dados da viagem',
 ) {
   if (!changedBy) return null
   if ((oldValue ?? '') === (newValue ?? '')) return null
@@ -235,7 +256,7 @@ function makeVoyageAuditRow(
     old_value: oldValue,
     new_value: newValue,
     changed_by: changedBy,
-    justification: 'Atualizacao de dados da viagem',
+    justification,
   }
 }
 

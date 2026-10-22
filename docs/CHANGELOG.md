@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Linha do tempo da Viagem mais limpa (2026-10-22):** o cadastro vira um único
+  "Viagem criada", com a origem (botão Nova viagem, Chegadas e Saídas ou a
+  planilha) e o autor; cada importação de B/L vira um evento só, com as rotas,
+  o ATD do POL e o status de BLs e CEs que ela mudou; campo interno da viagem
+  ("Dado interno da viagem atualizado") deixa de aparecer, e o que fica diz o
+  campo e o valor anterior → novo. A migration `412` faz o status automático
+  de BLs e CEs dizer o fato e a importação que o mudou (o "Aguardando →
+  Recebido" depois da importação de B/Ls era legítimo: os B/Ls completaram a
+  cobertura do Baplie). Prova: `voyageTimeline.test.ts`,
+  `escalaDocumentalStatus.local-pg.test.ts`.
 - **Baplie cria a escala do porto marcado; Sepetiba é Itaguaí (2026-10-22):**
   migrations `410` e `411`. BRSEP, BRSPB, SPB, SEP e SEPETIBA passam a ser
   apelidos de BRIGI (Itaguaí) no banco e no app; as chaves de escala, ADR,

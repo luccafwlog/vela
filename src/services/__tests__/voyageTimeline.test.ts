@@ -301,3 +301,94 @@ describe('fallback de importação de B/L', () => {
     expect(events.some((event) => event.detail.includes('por Ana Ribeiro (Financeiro)'))).toBe(true)
   })
 })
+
+// Revisão manual de 2026-10-22 (bloco F da linha do tempo).
+describe('linha do tempo da viagem — revisão de 2026-10-22', () => {
+  const actorNames = { 'u-1': 'Ana Lima' }
+
+  it('F1: o cadastro pelo botão Nova viagem é um único "Viagem criada", com origem e autor', () => {
+    const events = buildVoyageTimeline({
+      actorNames,
+      auditEvents: [
+        { entity_type: 'voyages', entity_id: '7', field_name: 'criado', new_value: '{"id":7,"show_on_portal":false,"voyage_number":"11"}', changed_by: 'u-1', changed_at: '2026-10-22T10:00:00Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'created', old_value: null, new_value: '11', changed_by: 'u-1', justification: 'Origem: botão Nova viagem', changed_at: '2026-10-22T10:00:01Z' },
+      ],
+    })
+    expect(events).toEqual([expect.objectContaining({
+      kind: 'voyage-data', title: 'Viagem criada', at: '2026-10-22T10:00:00Z',
+      detail: 'Origem: botão Nova viagem · Fora de Chegadas e Saídas · por Ana Lima',
+    })])
+  })
+
+  it('F1: a criação por Chegadas e Saídas junta a aparição ligada logo depois e esconde as cópias internas', () => {
+    const events = buildVoyageTimeline({
+      actorNames,
+      auditEvents: [
+        { entity_type: 'voyages', entity_id: '7', field_name: 'criado', new_value: '{"id":7,"show_on_portal":false}', changed_by: 'u-1', changed_at: '2026-10-22T10:00:00Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'created', new_value: '11', changed_by: 'u-1', justification: 'Origem: Chegadas e Saídas', changed_at: '2026-10-22T10:00:01Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'show_on_portal', old_value: 'false', new_value: 'true', changed_by: 'u-1', changed_at: '2026-10-22T10:00:02Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'pol_schedule_snapshot', old_value: '{}', new_value: '{"CNSHA":{"etd":"2026-10-01"}}', changed_by: 'u-1', changed_at: '2026-10-22T10:00:03Z' },
+      ],
+    })
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ title: 'Viagem criada', detail: 'Origem: Chegadas e Saídas · Aparece em Chegadas e Saídas · por Ana Lima' })
+  })
+
+  it('F1: a viagem da planilha de Chegadas e Saídas tira a origem do contexto da importação', () => {
+    const events = buildVoyageTimeline({
+      auditEvents: [
+        { entity_type: 'voyages', entity_id: '7', field_name: 'criado', new_value: '{"show_on_portal":false}', justification: 'Importação de Programação', changed_at: '2026-10-22T10:00:00Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'created', new_value: '11', justification: 'Atualizacao de dados da viagem', changed_at: '2026-10-22T10:00:00Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'show_on_portal', old_value: 'false', new_value: 'true', changed_at: '2026-10-22T10:00:00Z' },
+      ],
+    })
+    expect(events).toEqual([expect.objectContaining({ title: 'Viagem criada', detail: 'Origem: planilha de Chegadas e Saídas · Aparece em Chegadas e Saídas' })])
+  })
+
+  it('F3: mudança posterior da aparição diz o campo e o valor anterior → novo', () => {
+    const events = buildVoyageTimeline({
+      auditEvents: [
+        { entity_type: 'voyages', entity_id: '7', field_name: 'created', new_value: '11', justification: 'Origem: botão Nova viagem', changed_at: '2026-10-22T10:00:00Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'show_on_portal', old_value: 'false', new_value: 'true', changed_at: '2026-10-23T09:00:00Z' },
+      ],
+    })
+    expect(events.map((event) => [event.title, event.detail])).toEqual([
+      ['Dados da viagem alterados', 'Aparece em Chegadas e Saídas: Não → Sim'],
+      ['Viagem criada', 'Origem: botão Nova viagem'],
+    ])
+  })
+
+  it('F2: a importação de B/Ls é um evento só, com o ATD do POL e o status de BLs e CEs que ela mudou', () => {
+    const events = buildVoyageTimeline({
+      actorNames,
+      importBatches: [{
+        id: 30, filename: 'bls.xlsx', cargo_mode: 'container', uploaded_at: '2026-10-22T12:00:00Z', uploaded_by: 'u-1',
+        routes: [{ pol: 'CNSHA', pod: 'BRVIX', blCount: 40 }],
+      }],
+      scheduleEvents: [
+        { entity_id: '7::CNSHA', field_name: 'atd', old_value: null, new_value: '2026-10-01', changed_by: 'u-1', changed_at: '2026-10-22T12:00:00Z',
+          justification: 'ATD derivado do menor Laden on Board dos B/Ls ativos, na importação do B/L (ADR 0025; ADR 0095, decisão 23)' },
+        { entity_id: '7::BRVIX', field_name: 'ces', old_value: 'waiting', new_value: 'received', changed_by: 'u-1', changed_at: '2026-10-22T12:00:04Z',
+          justification: 'Atualização automática de BLs e CEs pela conciliação documental: os 672 containers cheios do Baplie em BRVIX têm B/L ativo (Importação de B/L · Viagem GREEN ITAJAI 11)' },
+      ],
+    })
+    expect(events).toEqual([expect.objectContaining({
+      kind: 'import',
+      title: '40 B/Ls importados · CNSHA → BRVIX',
+      detail: 'CNTR · ATD do POL CNSHA: 01/10/2026 · BLs e CEs BRVIX: Aguardando → Recebido · por Ana Lima',
+    })])
+  })
+
+  it('F4: status automático fora da importação de B/L mostra o fato e o que o disparou, não "justificativa"', () => {
+    const events = buildVoyageTimeline({
+      importBatches: [{ id: 31, filename: 'bls.xlsx', cargo_mode: 'container', uploaded_at: '2026-10-22T12:00:00Z', routes: [{ pol: 'CNSHA', pod: 'BRVIX', blCount: 1 }] }],
+      scheduleEvents: [
+        { entity_id: '7::BRVIX', field_name: 'ces', old_value: 'waiting', new_value: 'received', changed_at: '2026-10-22T12:01:00Z',
+          justification: 'Atualização automática de BLs e CEs pela conciliação documental: os 2 containers cheios do Baplie em BRVIX têm B/L ativo (Importação de Baplie · Viagem GREEN ITAJAI 11)' },
+      ],
+    })
+    const ce = events.find((event) => event.kind === 'ce-status')
+    expect(ce?.title).toBe('CE atualizado · BRVIX')
+    expect(ce?.detail).toBe('Aguardando → Recebido · Automático: os 2 containers cheios do Baplie em BRVIX têm B/L ativo (Importação de Baplie · Viagem GREEN ITAJAI 11)')
+  })
+})
