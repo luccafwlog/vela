@@ -34,7 +34,7 @@ const unit = (number: string, extra: string[] = [], slot = '010101') => [
 
 const trailerErrors = (text: string) => parseBaplieText(text).issues.filter((i) => i.field === 'eof' && i.severity === 'error')
 
-describe('F-09: UNT e UNZ obrigatórios, com as contagens conferidas', () => {
+describe('F-09: UNT e UNZ obrigatórios; contagem diferente só avisa (ADR 0096, decisão 1)', () => {
   it('o arquivo completo da fixture passa sem erro de trailer', () => {
     expect(trailerErrors(fixture)).toEqual([])
     expect(parseBaplieText(fixture).containers).toHaveLength(3)
@@ -52,17 +52,20 @@ describe('F-09: UNT e UNZ obrigatórios, com as contagens conferidas', () => {
     expect(hasBlockingIssues(parsed.issues)).toBe(true)
   })
 
-  it('UNT com contagem de segmentos diferente do que chegou bloqueia', () => {
-    const cut = fixture.replace("LOC+147+0020082:9711:5'\n", '')
-    expect(trailerErrors(cut)).toEqual([
-      expect.objectContaining({ message: expect.stringMatching(/UNT declara 26 segmentos, mas a mensagem tem 25/) }),
-    ])
+  it('UNT com contagem de segmentos diferente do que chegou avisa e não bloqueia', () => {
+    const parsed = parseBaplieText(fixture.replace("LOC+147+0020082:9711:5'\n", ''))
+    expect(trailerErrors(fixture.replace("LOC+147+0020082:9711:5'\n", ''))).toEqual([])
+    expect(parsed.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'eof', severity: 'warning', message: expect.stringMatching(/UNT declara 26 segmentos, mas a mensagem tem 25/) }),
+    ]))
+    expect(hasBlockingIssues(parsed.issues)).toBe(false)
   })
 
-  it('UNZ com contagem de mensagens diferente bloqueia; sem UNZ também', () => {
-    expect(trailerErrors(fixture.replace("UNZ+1+1'", "UNZ+2+1'"))).toEqual([
-      expect.objectContaining({ message: expect.stringMatching(/UNZ declara 2 mensagens, mas o arquivo tem 1/) }),
-    ])
+  it('UNZ com contagem de mensagens diferente avisa; sem UNZ bloqueia', () => {
+    expect(trailerErrors(fixture.replace("UNZ+1+1'", "UNZ+2+1'"))).toEqual([])
+    expect(parseBaplieText(fixture.replace("UNZ+1+1'", "UNZ+2+1'")).issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/UNZ declara 2 mensagens, mas o arquivo tem 1/) }),
+    ]))
     expect(trailerErrors(fixture.replace("UNZ+1+1'", ''))).toEqual([
       expect.objectContaining({ message: expect.stringMatching(/Falta o trailer UNZ/) }),
     ])

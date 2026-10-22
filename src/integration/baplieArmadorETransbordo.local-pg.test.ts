@@ -136,41 +136,24 @@ describeLocal('Lote 9 das importações — Baplie: armador da Viagem e transbor
 
   afterAll(cleanup)
 
-  it('decisão 14: container de outro armador fica fora do staging e das marcas, mesmo num B/L da Viagem, com contagem', () => {
+  // ADR 0096, decisão 3 (migration 409): a regra de outro armador saiu; os
+  // códigos que restam no cadastro não separam mais nada.
+  it('sem regra de outro armador: container de qualquer operador entra no staging e nas marcas', () => {
     psql(`UPDATE public.carriers SET baplie_codes = ARRAY['COS', 'COSCO'] WHERE id = ${carrierId}`)
     const list: Row[] = [
       { container_number: 'AQCU4100001', operator: 'COS', is_imo: true },
-      // Parceiro de slot: no B/L B2 por engano, mas é MSC; não leva a marca IMO nem o SOC.
-      { container_number: 'AQCU4100002', operator: 'msc', is_imo: true, ownership: 'SOC' },
-      // Sem operador no container: não se sabe de quem é; fica.
+      { container_number: 'AQCU4100002', operator: 'COT', is_imo: true, ownership: 'SOC' },
       { container_number: 'AQCU4100004' },
     ]
-    // A prévia das marcas também deixa o de outro armador de fora.
     const preview = asUser(`SELECT public.preview_baplie_physical_flags(${voyageId}, $r$${JSON.stringify(rows(list))}$r$::jsonb, ARRAY['BRSSZ'])`)
     expect(preview.error).toBeNull()
-    expect((JSON.parse(preview.output) as { apply: Array<{ container: string }> }).apply.map((item) => item.container)).toEqual(['AQCU4100001'])
+    expect((JSON.parse(preview.output) as { apply: Array<{ container: string }> }).apply.map((item) => item.container).sort()).toEqual(['AQCU4100001', 'AQCU4100002'])
 
     const result = importBaplie(list)
     expect(result.error).toBeNull()
-    expect(JSON.parse(result.output)).toMatchObject({ staged: 2, other_carrier: 1 })
-    expect(staging()).toBe('AQCU4100001:full,AQCU4100004:full')
-    expect(blContainer('A410-B1')).toBe('true/-/baplie')
-    expect(blContainer('A410-B2')).toBe('false/-/-')
-    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type = 'voyage' AND entity_id = '${voyageId}'
-      AND field_name = 'baplie_import' ORDER BY id DESC LIMIT 1`)).toBe('Baplie importado (portos BRSSZ); 1 container(s) de outro armador fora')
-  })
-
-  it('decisão 14: arquivo só de outro armador não apaga o Baplie gravado; armador sem códigos não separa nada', () => {
-    const before = staging()
-    const only = importBaplie([{ container_number: 'AQCU4100002', operator: 'MSC' }])
-    expect(only.error).toMatch(/de outro armador \(códigos do armador da Viagem: COS, COSCO\)/)
-    expect(staging()).toBe(before)
-
-    psql(`UPDATE public.carriers SET baplie_codes = '{}' WHERE id = ${carrierId}`)
-    const all = importBaplie([{ container_number: 'AQCU4100001', operator: 'COS' }, { container_number: 'AQCU4100002', operator: 'MSC' }])
-    expect(all.error).toBeNull()
-    expect(JSON.parse(all.output)).toMatchObject({ staged: 2, other_carrier: 0 })
-    psql(`UPDATE public.carriers SET baplie_codes = ARRAY['COS', 'COSCO'] WHERE id = ${carrierId}`)
+    expect(JSON.parse(result.output)).toMatchObject({ staged: 3, other_carrier: 0 })
+    expect(staging()).toBe('AQCU4100001:full,AQCU4100002:full,AQCU4100004:full')
+    expect(blContainer('A410-B2')).toMatch(/^true\//)
   })
 
   it('decisão 15: transbordo entra marcado no staging, não leva IMO nem SOC ao B/L e não vira vazio de importação', () => {

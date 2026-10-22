@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { afterViagemAlterada } from '../../services/cacheEffects'
 import { Button } from '../ui/Button'
 import { Field, Input, Select } from '../ui/Input'
@@ -15,8 +15,7 @@ import {
   type VoyageFormErrors,
   type VoyageFormValues,
 } from '../../services/voyageForm'
-import { createVoyage, fetchCarrierBaplieCodes, updateVoyage } from '../../services/voyages'
-import { queryKeys } from '../../services/queryKeys'
+import { createVoyage, updateVoyage } from '../../services/voyages'
 
 export function VoyageCreateModal({
   open,
@@ -47,15 +46,6 @@ export function VoyageCreateModal({
   })
   const [errors, setErrors] = useState<VoyageFormErrors>({})
   const [saving, setSaving] = useState(false)
-  // Códigos do armador no Baplie (migration 403): mostra os cadastrados até o
-  // operador editar; só o que ele digitar vai para a gravação.
-  const carrierCodes = useQuery({
-    queryKey: queryKeys.voyages.carrierBaplieCodes(form.carrierName.trim(), form.carrierScac.trim()),
-    queryFn: () => fetchCarrierBaplieCodes(form.carrierName, form.carrierScac),
-    enabled: open && Boolean(form.carrierName.trim() || form.carrierScac.trim()),
-    staleTime: 60_000,
-  })
-  const carrierCodesValue = form.carrierBaplieCodes ?? carrierCodes.data?.join(', ') ?? ''
 
   // Re-baseia o formulário quando o modal abre ou os valores iniciais mudam —
   // ajuste durante o render (sem useEffect), mantendo o gatilho original.
@@ -165,15 +155,6 @@ export function VoyageCreateModal({
             <Input
               value={form.carrierScac}
               onChange={(event) => setForm((current) => ({ ...current, carrierScac: event.target.value.toUpperCase() }))}
-            />
-          </Field>
-          <Field
-            label="Códigos do armador no Baplie"
-            hint="Separados por vírgula (ex.: COS, COSCO). Container de outro código fica fora das marcas e da conciliação do Baplie. Vale para todas as viagens do armador."
-          >
-            <Input
-              value={carrierCodesValue}
-              onChange={(event) => setForm((current) => ({ ...current, carrierBaplieCodes: event.target.value.toUpperCase() }))}
             />
           </Field>
           <Field label="Navio" error={errors.vesselName}>

@@ -749,6 +749,13 @@ function validateTrailers(segments: Array<ParsedSegment & { index: number }>): I
     row, field: 'eof', code: 'invalid_group', severity: 'error',
     message: `${message} O arquivo parece cortado ou incompleto; peça o Baplie de novo ao armador.`,
   })
+  // ADR 0096, decisão 1: contagem do trailer diferente do que chegou só avisa
+  // (o Baplie da COSCO 1.5 declara um segmento a menos); falta de trailer
+  // continua erro, porque aí o arquivo foi de fato cortado.
+  const countWarning = (row: number, message: string) => issues.push({
+    row, field: 'eof', code: 'invalid_group', severity: 'warning',
+    message: `${message} Os containers lidos entram; se faltar algum, peça o Baplie de novo ao armador.`,
+  })
   const countOf = (segment: ParsedSegment) => {
     const raw = (segment.components[1]?.[0] ?? '').trim()
     return /^\d+$/.test(raw) ? Number(raw) : null
@@ -776,7 +783,7 @@ function validateTrailers(segments: Array<ParsedSegment & { index: number }>): I
       if (declared === null) {
         fileError(segment.index + 1, 'Trailer UNT sem a contagem de segmentos.')
       } else if (declared !== actual) {
-        fileError(segment.index + 1, `O trailer UNT declara ${declared} segmentos, mas a mensagem tem ${actual}.`)
+        countWarning(segment.index + 1, `O trailer UNT declara ${declared} segmentos, mas a mensagem tem ${actual}.`)
       }
       messageStart = null
       continue
@@ -788,7 +795,7 @@ function validateTrailers(segments: Array<ParsedSegment & { index: number }>): I
       if (declared === null) {
         fileError(segment.index + 1, 'Trailer UNZ sem a contagem de mensagens.')
       } else if (declared !== expected) {
-        fileError(segment.index + 1, `O trailer UNZ declara ${declared} ${declared === 1 ? 'mensagem' : 'mensagens'}, mas o arquivo tem ${expected}.`)
+        countWarning(segment.index + 1, `O trailer UNZ declara ${declared} ${declared === 1 ? 'mensagem' : 'mensagens'}, mas o arquivo tem ${expected}.`)
       }
     }
   }

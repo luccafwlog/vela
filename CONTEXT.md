@@ -230,12 +230,11 @@ da Viagem marcado "Transbordo" e aparece na conciliação, sem levar marcas aos
 B/Ls. Não é o Transbordo da omissão de escala.
 → Regra: [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](docs/modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências)
 
-**Códigos do armador no Baplie / Outro armador**
-Códigos com que o armador da Viagem aparece no operador (NAD+CA) do Baplie
-(ex.: COS, COSCO), cadastrados em Nova Viagem/Editar e válidos para todas as
-Viagens do armador. Container cujo operador não está nesses códigos é **de
-outro armador** (navio compartilhado): fica fora do staging, das marcas e da
-conciliação, e a prévia conta e avisa.
+**Outro armador (Baplie) — retirado**
+Até a migration `409`, container cujo operador (NAD+CA) não estava nos
+"Códigos do armador no Baplie" ficava fora do Baplie. Desde a ADR 0096 não há
+essa regra: todo container do arquivo entra, e o campo saiu do cadastro da
+Viagem.
 → Regra: [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](docs/modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências)
 
 **COD (Change of Destination)**
