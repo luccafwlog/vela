@@ -26,6 +26,7 @@ export type ActiveAlertType =
   | 'demurrage_invoice_dates_changed'
   | 'cobranca_demurrage_recusada'
   | 'ce_trocado_com_desbloqueio'
+  | 'ce_fora_do_manifesto_da_rota'
   | 'bl_vehicles_changed_on_reimport'
   | 'comunicado_ce_reenvio_pendente'
   | 'demurrage_ptax_recalc_failed'
@@ -87,6 +88,7 @@ export const TYPE_LABELS: Record<string, string> = {
   demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
   cobranca_demurrage_recusada: 'Cobrança de Demurrage recusada',
   ce_trocado_com_desbloqueio: 'CE trocado depois do Desbloqueio conferido',
+  ce_fora_do_manifesto_da_rota: 'CE fora do Manifesto da rota',
   bl_vehicles_changed_on_reimport: 'Veículos alterados na reimportação do B/L',
   comunicado_ce_reenvio_pendente: 'Reenviar Comunicado de CE e Taxas',
   demurrage_ptax_recalc_failed: 'Falha na atualização da PTAX Demurrage',

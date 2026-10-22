@@ -836,7 +836,11 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   Trava a Viagem antes dos B/Ls (sem deadlock entre duas planilhas; a tela
   tenta de novo uma vez), valida rota, Viagem e Manifesto, grava os CEs pela
   porta única `_set_bl_ce_mercante`, cria o Manifesto de carga se ainda não
-  existir, vincula os B/Ls e calcula as Taxas Locais, na mesma transação. O Histórico
+  existir, vincula os B/Ls e calcula as Taxas Locais, na mesma transação, com
+  `statement_timeout` de 60 s (migration `396`, como as `333` a `335`). Falha
+  de cálculo (câmbio ausente com linha em dólar e afins) recusa a planilha
+  inteira com "Taxas Locais do B/L X não calculadas: …" em cada B/L
+  (ADR 0094, B3; migration `396` no modo diferido da tela). O Histórico
   recebe o CE, o Manifesto criado e o vínculo uma vez cada, com o contexto da
   importação (tipo, Viagem, Manifesto e rota) e o motivo.
 - **Emissão em lotes.** A fatura não sai na gravação: a tela emite logo depois,
@@ -878,7 +882,9 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   (`p_expected_ce`): se outra sessão o trocou com o diálogo aberto, recusam
   pedindo para recarregar (migrations `207` e `209`). `UPDATE` ou `INSERT` de
   CE fora das portas é recusado (`guard_bl_ce_mercante_port`), e
-  `save_bl_review` não grava o CE.
+  `save_bl_review` não grava o CE. Remover o CE também tira o B/L do Manifesto
+  Mercante, com Histórico (migration `396`; ver
+  [Manifesto Mercante](#manifesto-mercante)).
 - **Efeitos da troca.** A fatura já emitida não muda
   ([ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md)). Troca com
   Comunicado já enviado abre `comunicado_ce_reenvio_pendente` (pendência de
@@ -943,21 +949,37 @@ viagem da agência; o nome "CE Master" foi descontinuado na tela.
   inteira, e a tela recarrega a ficha e a lista (migration `209`). `UPDATE` ou
   `INSERT` direto de `bls.manifesto_mercante_id` por sessão de usuário é
   recusado (`guard_bl_manifesto_port`, 42501, migration `212`).
+- **Informar e planilha ao mesmo tempo.** **Informar** pega a mesma trava das
+  importações da Viagem (`import_voyage:<id>`, migration `387`) e espera a
+  planilha de CE da mesma Viagem; se ainda assim duas gravações cadastrarem o
+  mesmo Nº juntas, a segunda vê o Manifesto já cadastrado em vez de um erro
+  23505 cru (`_upsert_route_manifesto`, migration `396`). Só a assinatura de 6
+  argumentos de `set_voyage_route_ce_master` existe (a de 5, ambígua, saiu na
+  `396`).
 - **Mudança de rota.** Mudar o POL, o POD ou a Viagem do B/L desvincula o
   Manifesto, com registro no Histórico (`unlink_manifesto_on_route_change`; o
   POL desde a migration `207`), inclusive quando a mudança vem de
-  reimportação.
+  reimportação. Se o B/L ativo tem CE, abre o alerta "CE fora do Manifesto da
+  rota" (regra 21).
+- **CE removido e B/L cancelado.** O B/L sai do Manifesto quando o CE é
+  removido ou o B/L é cancelado, e volta quando é reativado (regra 21).
 - **COD.** O efeito do COD sobre o CE e o vínculo do Manifesto está em
   [Viagens § Omissão de Escala, Transbordo e COD](viagens.md#omissão-de-escala-transbordo-e-cod).
 - **Espelho legado.** `voyage_route_ce_master` (tabela da migration `001`;
   origem: migration arquivada `167`) é espelho por rota de
   `manifestos_mercante`, mantido pelos gatilhos da migration `181` e escrito só
   pelas RPCs (`set_voyage_route_ce_master`, importação de vazios); serve aos
-  leitores antigos (cards da Viagem e alertas de CE). `import_batches.ce_master`
-  guarda a cópia do número nos lotes importados.
+  leitores antigos (cards da Viagem e alertas de CE). Desde a migration `396`,
+  `authenticated` só lê o espelho: INSERT, UPDATE e DELETE diretos são
+  recusados. `import_batches.ce_master` guarda a cópia do número nos lotes
+  importados; `set_import_batch_ce_master` só grava um Nº cadastrado num
+  Manifesto da Viagem do lote, e só limpa quando a rota não tem mais o número
+  (`396`).
 18. **Uma importação por Viagem de cada vez (ADR 0095, decisão 6; migration `387`).** Toda RPC de importação de Viagem — arquivo de B/L, Manifesto BB e B/L avulso, planilha de CE, Baplie (staging, marcas e vazios), datas, Vazios de importação, Embarque de vazios, Veículos e Granito — pega primeiro a trava consultiva `import_voyage:<id>` de cada Viagem que toca (`_lock_import_voyages`, em ordem de id; para B/L, também a Viagem em que ele já está). A segunda importação da mesma Viagem espera a primeira terminar, em vez de cair em deadlock (40P01) ou cruzar com ela. A trava não vale para escritas que não são importação (fila de efeitos, edição na ficha), que ainda podem cruzar com uma importação; Programação e Base de Clientes não são de uma Viagem e ficam de fora.
 19. **Navegantes ≠ Itajaí e Recife ≠ Suape (ADR 0095, decisão 12; migration `391`).** `normalize_port_code` não junta mais BRNVT/NVT/NAVEGANTES com BRITJ nem BRREC/REC/RECIFE com BRSUA, e a régua do Baplie no servidor (`_baplie_port_key`) passou a ser a mesma função: o Baplie com POD de Navegantes numa Viagem com escala só em Itajaí é recusado como "fora das escalas"; B/L de Navegantes não cobre a escala de Itajaí nos B/Ls esperados, na cobertura do Baplie, no CE pendente nem trava a exclusão dela; o Manifesto Mercante da rota CNSHA→BRNVT fica com BRNVT. Na tela, a diferença do Baplie mostrada antes de gravar compara os PODs pela mesma régua (`normalizeStoredPortCode`). Dados gravados com a forma juntada: a `391` passou para o porto certo só o que tinha prova no banco — Manifesto Mercante e espelho da rota cujos B/Ls (ou vazios) eram todos do porto separado, status "BLs e CEs" automático e estado documental da escala quando todos os B/Ls e o Baplie da Viagem no par eram dele, e a âncora do Comunicado cujos B/Ls eram todos dele; Viagem cancelada e Viagem com os dois portos do par ficaram como estavam. POL/POD gravados como BRITJ/BRSUA a partir do nome NAVEGANTES/RECIFE no arquivo não têm prova e ficaram.
 20. **Efeitos de importação: espera, bloqueio, exclusão e quem roda (ADR 0095, decisões 7, 18 e 25; migrations `394` e `395`).** O efeito pós-commit (`import_pending_effects`, processado pelo `import-effects-runner`) distingue espera de negócio de falha. **Espera:** CE em B/L em Revisão (sem Cliente, reconciliação pendente, pendência do gate ou linhas a revisar) ou sem tabela de cobrança para o POD deixa o efeito `local_billing` em `retry_wait` com `awaiting_review` ou `awaiting_charge_table` e a frase "Aguardando a Revisão do B/L…" ou "Aguardando a tabela de cobrança do POD…", sem gastar tentativas e sem Alerta; ele roda de novo a cada hora e logo depois de a Revisão mudar o B/L ou de uma tabela de cobrança ser gravada, e conclui sozinho (fatura). A espera não segura os outros efeitos do mesmo B/L. **Bloqueio:** só falha técnica vira `blocked` com o Alerta crítico `import_effect_blocked`, cujo texto diz o efeito, o B/L e o motivo; o Alerta tem **Reprocessar** em `/alertas`, com justificativa (`retry_import_effect`), não fecha no Reprocessar: fica aberto como "Reprocessando…" (botão desativado) e fecha só quando o efeito conclui (`succeeded`) ou é descartado (`superseded`, inclusive pela exclusão, decisão 7); se o efeito bloquear de novo, o mesmo Alerta (mesma ocorrência, sem nova notificação) volta ao bloqueado com o novo motivo (migration `395`, que substitui a regra da `348`). **Quem roda:** efeito cujo iniciador foi desativado roda como a conta de sistema "Vela (automático)" (`app_settings.system_billing_actor`, a mesma da frente financeira; sem ela, o primeiro Administrativo ativo), e o resultado guarda quem iniciou (`initiator_id`) e como rodou (`executed_as`). **Exclusão:** excluir o B/L ou a Viagem encerra os efeitos pendentes, em espera, em execução ou bloqueados deles como `superseded` com "descartado: registro excluído", sem abrir Alerta (o bloqueado tem o Alerta fechado). **Substituição:** o efeito novo substitui o pendente do mesmo tipo e B/L também quando o produtor grava direto na fila (CE, Manifesto BB, veículos, datas, Granito). **Excluir e mover veículo** com o recálculo falhando é recusado inteiro desde a `379`/`381` (ADR 0094, B3), sem contagem antiga e sem efeito. A saúde da fila (`import_effects_queue_health`) conta também o efeito em execução com a lease vencida (`running_expired`, que entra no atraso do Alerta de fila parada) e os bloqueados. Fica de fora: o erro que escapa do runner (tempo esgotado, rede) ainda chega ao efeito como `lease_expired` depois de cinco leases, sem a causa. **Teste:** `src/integration/exclusaoEEfeitosImportacao.local-pg.test.ts`, `src/pages/__tests__/Alertas.reprocessar.test.tsx`.
+
+21. **CE e Manifesto Mercante andam juntos (ADR 0095, decisões 19 e 20; migration `396`).** O B/L fica no Manifesto Mercante só enquanto está ativo e tem CE. **Remover CE Mercante** na ficha tira o B/L do Manifesto, com o Histórico "Saiu do Manifesto Mercante: CE Mercante removido."; o CE só volta pela planilha de CE, que vincula o Manifesto informado nela. **Cancelar** o B/L o tira do Manifesto, com o Histórico "Saiu do Manifesto Mercante: B/L cancelado." e o motivo, e guarda o Manifesto (`bl_manifesto_mercante_parking`, só o gatilho escreve; índice da FK na `397`); **reativar** o recoloca, com o Histórico "Voltou ao Manifesto Mercante: B/L reativado.", se o Manifesto ainda existe, é da Viagem e da rota do B/L e o B/L tem CE (senão o B/L fica fora e a planilha o recoloca). B/L ativo com CE cujo POL, POD ou Viagem muda e que fica sem Manifesto abre o alerta **CE fora do Manifesto da rota** (`ce_fora_do_manifesto_da_rota`, normal, Documentação, link para a ficha do B/L), com o B/L, o CE, a rota nova e o Manifesto antigo; ele fecha sozinho quando o CE é trocado ou removido, quando o B/L entra num Manifesto (Mover ou planilha, sempre da rota do B/L) ou quando o B/L é cancelado, e excluir o B/L o apaga (`347`). A `396` tirou do Manifesto, com Histórico e guarda, os B/Ls já cancelados que ainda estavam vinculados (exceto os de Viagem cancelada, selada). **Teste:** `src/integration/ceEManifestoMercante.local-pg.test.ts`, `src/services/__tests__/ceForaDoManifestoAlerta.test.ts`.
 
 ### Baplie: marcas, SOC/COC e divergências
 

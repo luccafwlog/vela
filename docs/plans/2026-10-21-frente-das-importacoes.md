@@ -46,6 +46,15 @@ antes e passa depois, e o módulo dono atualizado.
   (`379`/`381`: excluir ou mover veículo com o recálculo falhando é recusado),
   agora com teste. Prova: `exclusaoEEfeitosImportacao.local-pg.test.ts` e
   `Alertas.reprocessar.test.tsx`.
+- **Lote 5 — CE e Manifesto Mercante** (migrations `396` e `397`): decisões 19 e 20;
+  F-49, F-53, F-17 (recusa da planilha de CE testada) e F-18 (tempo da planilha
+  de CE). Remover o CE ou cancelar o B/L tira do Manifesto, com Histórico;
+  reativar recoloca; mudar de rota com CE abre "CE fora do Manifesto da rota"
+  (normal, Documentação); espelho por rota só por RPC; lote não guarda Nº
+  recusado; Informar × planilha sem 23505; sobrecarga de 5 argumentos removida;
+  falha de cálculo da planilha de CE no formato da B3; `statement_timeout` de
+  60 s. Prova: `ceEManifestoMercante.local-pg.test.ts` e
+  `ceForaDoManifestoAlerta.test.ts`.
 - **Pela PR luccafwlog/vela#1019** (ADR 0094), não refazer: escrita direta
   fechada (F-03), RPCs antigas revogadas (F-19), B/L cancelado somente leitura
   e datas só nos B/Ls ativos (F-12), carga solta faturada com confirmação no
@@ -62,7 +71,7 @@ antes e passa depois, e o módulo dono atualizado.
 | 2 Arquivo de B/L (entregue, ver acima) | 5, 8, 9, 10, 26, 27 | F-05, F-15, F-27, F-50 | B/L de outra Viagem recusado; aviso de B/L cancelado; aceite de refixar levado ao servidor; confirmação só com fatura emitida e conferida no servidor; totais não mudam sem containers; aba VIN ignorada e fim de `vela.vin_reissue`; `container_load_type` gravado (coluna a confirmar no arquivo real) | local-pg por regra |
 | 3 Portos (entregue, ver acima) | 12 | F-08, F-33b | `normalize_port_code` sem BRNVT→BRITJ e BRREC→BRSUA; aliases do front; dados gravados | B/L de Navegantes não casa escala de Itajaí |
 | 4 Exclusão e efeitos (entregue, ver acima) | 7, 18, 25 | F-10 (só a suíte), F-13, F-14, F-33a, F-34, F-42, F-43 | exclusão encerra efeitos e apaga vazios da Viagem; espera de negócio não é bloqueio; reprocessar no alerta; ator de sistema; excluir/mover veículo enfileira o efeito; `import_effects_queue_health` passa a contar `blocked` e `running` com lease vencida | efeito órfão some; alerta fecha; saúde da fila acusa bloqueado e lease vencida; excluir o irmão de container compartilhado faturado |
-| 5 CE e Manifesto Mercante | 19, 20 | F-49, F-53 | remover CE e cancelar tiram do Manifesto; alerta "CE fora do Manifesto da rota"; planilha de CE com recusa de cálculo testada e mensagem no formato da ADR 0094 | local-pg |
+| 5 CE e Manifesto Mercante (entregue, ver acima) | 19, 20 | F-49, F-53 | remover CE e cancelar tiram do Manifesto; alerta "CE fora do Manifesto da rota"; planilha de CE com recusa de cálculo testada e mensagem no formato da ADR 0094 | local-pg |
 | 6 Vazios | 21, 22 | F-32 | unicidade por Viagem, planilha vence; ADR de Saída fechado trava | local-pg |
 | 7 ATD | 23 | F-48 | ATD manual marcado e preservado; só B/Ls ativos | local-pg |
 | 8 Histórico | 24 | F-23, F-24, F-46 | `bl_timeline` lê `bls`, `vehicles` e `bl_containers`; origem Base de Clientes; `audit_logs` sem INSERT direto | local-pg + vitest |
@@ -76,6 +85,12 @@ antes e passa depois, e o módulo dono atualizado.
   causa; gravar a causa exige mudar a Edge Function (`drain.ts`) e uma RPC de
   registro. `granite_billing` com consumidor no-op e `physical_flags` sem
   produtor continuam como estão.
+
+- Do Lote 5: a reconciliação do "CE Mercante pendente" continua rodando por B/L
+  dentro da planilha de CE (F-18, custo quadrático); o teto passou a 60 s
+  (`statement_timeout`), sem nova medição de volume, e a reconciliação uma vez
+  por Viagem e a mensagem própria de 57014 ficaram de fora. O 23505 de chassi (F-39) não é
+  deste lote.
 
 - Nenhuma do Lote 2: a modalidade FCL/LCL é lida do Type of Movement
   ("LCL/LCL" e "CFS-CFS" no B/L LCL real da COSCO).

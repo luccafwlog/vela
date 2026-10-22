@@ -309,7 +309,11 @@ Corrigir o CE mantém a trava. **Remover CE Mercante**, na ficha do B/L, solta a
 trava do CE: qualquer Departamento ativo, com motivo, e só sem fatura viva — com
 fatura emitida, o Administrativo cancela a fatura antes
 (`remove_bl_ce_mercante`, definição vigente na migration `209`; a ADR 0078
-substituiu o item 5 da ADR 0071).
+substituiu o item 5 da ADR 0071). Remover o CE ou cancelar o B/L também o tira
+do Manifesto Mercante, e reativar o recoloca; o B/L com CE que muda de rota abre
+o alerta "CE fora do Manifesto da rota" para a Documentação
+([regra 21 de Manifestos & EDI](../modules/manifesto-edi.md); ADR 0095,
+decisões 19 e 20; migration `396`).
 
 **Vazios**, que não têm CE, travam com o ADR de Saída fechado da escala e do
 terminal, e reabrir o ADR solta a trava (ADR 0071, item 4); antes dela,
@@ -571,6 +575,17 @@ resolve com **Reprocessar** no próprio Alerta, com justificativa; efeito de
 usuário desativado roda como "Vela (automático)". A regra completa é a
 [regra 20 de Manifestos & EDI](../modules/manifesto-edi.md) ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md),
 decisões 7, 18 e 25).
+
+### CE e Manifesto Mercante
+
+O B/L só fica num Manifesto Mercante enquanto está ativo e tem CE: remover o CE
+ou cancelar o B/L o tira do Manifesto, com Histórico; reativar o B/L o recoloca
+no Manifesto guardado (se ainda for da rota), e registrar o CE de novo, só pela
+planilha de CE, vincula o Manifesto da planilha. B/L com CE que muda de rota e
+fica sem Manifesto abre "CE fora do Manifesto da rota" (normal, Documentação),
+que fecha quando o CE muda ou o B/L entra num Manifesto. A regra completa é a
+[regra 21 de Manifestos & EDI](../modules/manifesto-edi.md) ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md),
+decisões 19 e 20).
 
 ## Escritas best-effort
 

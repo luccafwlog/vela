@@ -85,7 +85,12 @@ function importFile(bls: unknown[]) {
 }
 
 function reapplyMigration() {
+  // A 325 redefine o invólucro da planilha de CE; as migrations seguintes
+  // (387: trava da Viagem; 396: statement_timeout) ficariam desfeitas para as
+  // suítes que rodam depois. Guarda e devolve a definição vigente.
+  const wrapper = psql(`SELECT pg_get_functiondef('public.apply_ce_mercante_rows_atomic(jsonb,uuid,text,text,bigint,boolean,text,boolean)'::regprocedure);`)
   execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
+  execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl, '-c', wrapper], { encoding: 'utf8' })
 }
 
 describeLocal('Granito sem Cliente e sem cálculo de taxas (migration 325)', () => {

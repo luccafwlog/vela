@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Importações: CE e Manifesto Mercante (2026-10-22, Lote 5 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 19 e 20; achados F-49,
+  F-53, F-17 e F-18):** migrations `396` e `397` (índice da guarda). Remover o CE pela ficha ou cancelar o B/L tira o B/L do
+  Manifesto Mercante, com Histórico; reativar o B/L o recoloca no Manifesto de antes (se ainda é da
+  rota), e o CE removido volta pela planilha de CE, que vincula o Manifesto dela. B/L com CE que muda
+  de rota e fica sem Manifesto abre o alerta normal "CE fora do Manifesto da rota" para a
+  Documentação, que fecha quando o CE muda ou o B/L entra num Manifesto. O espelho
+  `voyage_route_ce_master` não aceita mais escrita direta; o lote importado não guarda Nº que a rota
+  recusou; **Informar** espera a planilha de CE da mesma Viagem (sem 23505); a sobrecarga ambígua de
+  5 argumentos de `set_voyage_route_ce_master` saiu. Na planilha de CE, a falha de cálculo chega como
+  "Taxas Locais do B/L X não calculadas: …" (ADR 0094, B3) e a gravação tem `statement_timeout` de
+  60 s. A `396` tirou do Manifesto os B/Ls já cancelados. A aba Rotas e Manifestos atualiza depois de
+  remover CE, cancelar ou reativar. Prova: `ceEManifestoMercante.local-pg.test.ts`,
+  `ceForaDoManifestoAlerta.test.ts`.
 - **Importações: exclusão e efeitos (2026-10-21, Lote 4 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 7, 18 e 25;
   achados F-10, F-13, F-14, F-33a, F-34, F-42 e F-43):** migrations `394` e `395`. Excluir B/L ou Viagem

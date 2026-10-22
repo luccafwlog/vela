@@ -143,7 +143,7 @@ BEGIN
   FOREACH v_table IN ARRAY ARRAY[
     'customer_demurrage_agreements',
     'demurrage_rates', 'vazios_export_operations',
-    'voyage_export_schedules', 'voyage_route_ce_master'
+    'voyage_export_schedules'
   ] LOOP
     IF NOT has_table_privilege('authenticated', format('public.%I', v_table), 'INSERT,UPDATE,DELETE') THEN
       RAISE EXCEPTION 'authenticated sem mutacao em public.%', v_table;
@@ -159,7 +159,10 @@ BEGIN
     'invoice_bls', 'invoice_granite_bls', 'invoice_receivable_links',
     'invoice_lifecycle_events', 'billing_batches',
     -- ADR 0094, B1 (migration 380): tabelas de carga só pelas funções.
-    'bl_containers', 'baplie_containers', 'vehicles', 'granite_bls'
+    'bl_containers', 'baplie_containers', 'vehicles', 'granite_bls',
+    -- ADR 0095, decisão 19 (migration 396): o espelho do Manifesto Mercante só
+    -- muda pelas RPCs (F-49).
+    'voyage_route_ce_master'
   ] LOOP
     IF has_table_privilege('authenticated', format('public.%I', v_table), 'INSERT,UPDATE') THEN
       RAISE EXCEPTION 'authenticated voltou a escrever direto em public.% (só pelas RPCs).', v_table;
