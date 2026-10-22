@@ -137,6 +137,12 @@ describeLocal('405/406 — hash do arquivo importado e desova por container fís
     expect(w.psql(`SELECT filename || '|' || file_hash FROM public.granite_manifests WHERE voyage_id = ${w.voyageId}`))
       .toBe(`granito.xlsx|${HASH_B}`)
     expect(previous('granito', HASH_B)).toBe('FF9410 operacoes|granito.xlsx')
+    // Reimportação do mesmo B/L atualiza o manifesto: o recibo passa a ser o da última.
+    w.asOk('operacoes', `SELECT public.import_granite_manifest_transactional(${w.voyageId}, 'FF9410', 'BRVIX', 'CNXMN', 1, 1200, '${actor}'::uuid,
+      '${JSON.stringify([{ bl_number: 'FF9410-GR1', client_id: null, sequence: 1, real_weight_kg: 1200, blocks_qty: 2, vessel_voyage: 'FF9410', loading_port: 'BRVIX', discharge_port: 'CNXMN' }])}'::jsonb, NULL, 'granito-2.xlsx', '${HASH_A}')`)
+    expect(w.psql(`SELECT string_agg(filename || '|' || file_hash, ',') FROM public.granite_manifests WHERE voyage_id = ${w.voyageId}`))
+      .toBe(`granito-2.xlsx|${HASH_A}`)
+    expect(previous('granito', HASH_A)).toBe('FF9410 operacoes|granito-2.xlsx')
 
     w.asOk('operacoes', `SELECT public.import_breakbulk_manifest_transactional('bb.xlsx', ${w.voyageId}, '${actor}'::uuid, 0, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '${HASH_B}')`)
     expect(w.psql(`SELECT filename || '|' || file_hash FROM public.import_batches WHERE voyage_id = ${w.voyageId} AND cargo_mode = 'carga_solta'`))

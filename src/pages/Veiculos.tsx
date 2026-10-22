@@ -231,10 +231,12 @@ export function Veiculos() {
         })
         if (!proceed) return
       }
-      await Promise.all(containerIds.map(async (containerId) => {
+      // Em sequência: o gatilho da 406 grava cada container nos B/Ls irmãos, e
+      // duas gravações paralelas do mesmo container físico travariam uma à outra.
+      for (const containerId of containerIds) {
         await setContainerUnpackingLocation(containerId, value)
         cacheUnpackingLocation(queryClient, [containerId], value)
-      }))
+      }
       await afterCargaAlterada(queryClient)
       showToast(`Local de desova aplicado a ${containerIds.length} container(s).`, 'success')
       // Os marcados podem ter saído do recorte (filtro "Sem local de desova").

@@ -204,6 +204,17 @@ BEGIN
   v_result := public.import_granite_manifest_transactional_core_405(
     p_voyage_id, p_vessel_voyage, p_loading_port, p_discharge_port,
     p_total_bls, p_total_weight_kg, p_uploaded_by, p_bls, p_remove_missing);
+  -- A reimportação atualiza o manifesto existente em vez de inserir (206): o
+  -- recibo desta gravação substitui o anterior, para o aviso de reenvio
+  -- apontar a última importação.
+  IF NULLIF(current_setting('vela.import_file_hash', true), '') IS NOT NULL THEN
+    UPDATE public.granite_manifests
+    SET filename = NULLIF(current_setting('vela.import_file_name', true), ''),
+        file_hash = current_setting('vela.import_file_hash', true),
+        imported_by = p_uploaded_by,
+        imported_at = now()
+    WHERE id = (v_result->>'manifest_id')::uuid;
+  END IF;
   PERFORM public._declare_import_file(NULL, NULL);
   RETURN v_result;
 END;
