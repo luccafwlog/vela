@@ -65,9 +65,9 @@ export function VoyageCreateModal({
   })
   const currentlyShown = voyageId != null && portalQuery.data === true
   const showOnPortal = portalChoice ?? currentlyShown
-  // ponytail: tirar da Programação pela edição aguarda decisão sobre a ADR
-  // 0071, item 12 (hoje só o último ATD, Excluir ou Cancelar tiram).
-  const portalLocked = voyageId != null && (currentlyShown || portalQuery.isLoading || portalQuery.isError)
+  // Desligar tira a viagem da Programação do Vela e do Portal (ADR 0097,
+  // que supersede a ADR 0071, item 12); fica no Histórico da viagem.
+  const portalLocked = voyageId != null && (portalQuery.isLoading || portalQuery.isError)
 
   // Re-baseia o formulário quando o modal abre ou os valores iniciais mudam —
   // ajuste durante o render (sem useEffect), mantendo o gatilho original.
@@ -154,7 +154,7 @@ export function VoyageCreateModal({
       const saved = voyageId
         ? await updateVoyage(voyageId, normalizedForm, user?.id ?? null)
         : await createVoyage(normalizedForm, user?.id ?? null, { origin: 'viagens', showOnPortal })
-      if (voyageId && showOnPortal && !currentlyShown) await setVoyageShowOnPortal(voyageId, true)
+      if (voyageId && showOnPortal !== currentlyShown) await setVoyageShowOnPortal(voyageId, showOnPortal)
 
       await afterViagemAlterada(queryClient, { voyageId: saved.id })
       void queryClient.invalidateQueries({ queryKey: ['voyage-show-on-portal'] })
@@ -243,8 +243,8 @@ export function VoyageCreateModal({
             {showOnPortal ? 'Aparece em Chegadas e Saídas' : 'Não aparece em Chegadas e Saídas'}
           </Switch>
           <div className="app-panel__meta">
-            {currentlyShown
-              ? 'A viagem está na programação de Chegadas e Saídas e do Portal. Ela sai sozinha com o último ATD, ou por Excluir ou Cancelar.'
+            {showOnPortal
+              ? 'A viagem fica na programação de Chegadas e Saídas e do Portal até o último ATD. Desligue para tirá-la antes.'
               : 'Ligada, a viagem entra na programação de Chegadas e Saídas e do Portal; as datas são as das escalas.'}
           </div>
         </div>

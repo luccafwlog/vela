@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Plus } from 'lucide-react'
+import { CircleCheck, Pencil, Plus } from 'lucide-react'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { RowActionButton } from '../components/ui/RowActionButton'
@@ -13,7 +13,6 @@ import { NoValue } from '../components/ui/NoValue'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { Block, Fact, FactList } from '../components/ui/Block'
 import { ScheduleLegend, ScheduleTable, ScheduleWidthPage } from '../components/portal/ShipScheduleWidget'
-import { scheduleLaneTitle } from '../components/portal/shipScheduleCells'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { assertUploadSize } from '../lib/fileGuard'
@@ -22,9 +21,12 @@ import { userFacingErrorMessage } from '../lib/errors'
 import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate, type PortalScheduleLane } from '../services/portalScheduleLanes'
 import { assertNoRepeatedScheduleColumns, parseScheduleRows, scheduleSheetIssues } from '../services/portalScheduleBulkImport'
-import { fetchInternalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
+import { confirmScheduleEffectiveDate, fetchInternalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
+import { scheduleCellState } from '../components/portal/shipScheduleCells'
+import { Field, Input } from '../components/ui/Input'
 import { applyScheduleSheetPlan, createOrAttachVoyageFromSchedule, isScheduleSheetWrite, planScheduleSheet, type ScheduleSheetPlanRow } from '../services/voyageFromSchedule'
-import { afterViagemAlterada } from '../services/cacheEffects'
+import { afterEscalaAlterada, afterViagemAlterada } from '../services/cacheEffects'
+import { scheduleLaneTitle } from '../components/portal/shipScheduleCells'
 import { readSheet } from '../services/importCore'
 import { hasBlockingIssues, type ImportIssue } from '../services/importValidation'
 
@@ -358,6 +360,74 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
   )
 }
 
+/** Célula vencida a confirmar: navio, porto e a previsão que passou. */
+type PendingConfirmation = { vessel: PortalScheduleVoyage; lane: PortalScheduleLane; forecast: string }
+
+/**
+ * Confirma a data efetiva de uma célula vencida (ADR 0097, migration 414): a
+ * saída do POL só com a data, provisória até o Laden on Board do B/L (que a
+ * substitui se for diferente); a chegada na escala com data e hora, como no
+ * modal da Escala. O Portal mostra só a data efetiva, sem o mecanismo.
+ */
+function ConfirmEffectiveDateDialog({ pending, onClose, onSaved }: {
+  pending: PendingConfirmation
+  onClose: () => void
+  onSaved: (voyageId: number) => void
+}) {
+  const isDeparture = pending.lane.kind === 'pol'
+  const [date, setDate] = useState(pending.forecast.slice(0, 10))
+  const [time, setTime] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const port = pending.vessel.portCodeByLabel?.[pending.lane.label] ?? pending.lane.label
+  const what = isDeparture ? 'saída' : 'chegada'
+
+  async function save() {
+    if (!date || (!isDeparture && !time)) {
+      setError(isDeparture ? 'Informe a data da saída.' : 'Informe a data e a hora da chegada.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      await confirmScheduleEffectiveDate({ voyageId: pending.vessel.voyageId, port, kind: pending.lane.kind, value: isDeparture ? date : `${date}T${time}` })
+      onSaved(pending.vessel.voyageId)
+    } catch (err) {
+      setError(userFacingErrorMessage(err, `Não foi possível confirmar a ${what}.`))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open onClose={saving ? () => {} : onClose} title={`Confirmar ${what} · ${pending.vessel.vesselName} / ${pending.vessel.voyage}`} size="sm">
+      <div className="grid gap-4">
+        <p className="text-sm">
+          {scheduleLaneTitle(pending.lane)}: previsão de {formatScheduleDate(pending.forecast)}.{' '}
+          {isDeparture
+            ? 'A data confirmada passa a ser a saída efetiva; se o B/L trouxer outro Laden on Board, a data dele substitui a confirmada.'
+            : 'A data confirmada passa a ser a chegada efetiva (ATA) da escala.'}
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={isDeparture ? 'Data da saída' : 'Data da chegada'}>
+            <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          </Field>
+          {isDeparture ? null : (
+            <Field label="Hora da chegada">
+              <Input type="time" value={time} onChange={(event) => setTime(event.target.value)} />
+            </Field>
+          )}
+        </div>
+        {error ? <p className="text-sm text-[var(--app-danger-fg)]" role="alert">{error}</p> : null}
+        <div className="app-modal__actions">
+          <Button variant="secondary" disabled={saving} onClick={onClose}>Voltar</Button>
+          <Button loading={saving} loadingLabel="Confirmando…" onClick={() => void save()}>Confirmar {what}</Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 export function ChegadasSaidas() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -369,6 +439,7 @@ export function ChegadasSaidas() {
   const { user, profile, isAdmin } = useAuth()
   const canWrite = Boolean(profile || user)
   const [saving, setSaving] = useState(false)
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null)
 
   const { data: vessels = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['portal-schedule-voyages'],
@@ -525,6 +596,18 @@ export function ChegadasSaidas() {
           <ScheduleTable
             vessels={vessels}
             audience="internal"
+            cellAction={canWrite ? (vessel, lane) => {
+              const cell = scheduleCellState(vessel, lane)
+              if (cell.state !== 'overdue' || !cell.value) return null
+              const forecast = cell.value
+              return (
+                <RowActionButton
+                  label={`Confirmar ${lane.kind === 'pol' ? 'saída' : 'chegada'} de ${vessel.vesselName} / ${vessel.voyage} em ${vessel.portCodeByLabel?.[lane.label] ?? lane.label}`}
+                  icon={CircleCheck}
+                  onClick={() => setPendingConfirmation({ vessel, lane, forecast })}
+                />
+              )
+            } : undefined}
             caption="Programação de chegadas e saídas"
             actions={canWrite ? (vessel) => (
               <RowActionButton
@@ -536,6 +619,18 @@ export function ChegadasSaidas() {
           />
         )}
         {vessels.length > 0 && !isError ? <ScheduleLegend audience="internal" /> : null}
+        {pendingConfirmation ? (
+          <ConfirmEffectiveDateDialog
+            pending={pendingConfirmation}
+            onClose={() => setPendingConfirmation(null)}
+            onSaved={(voyageId) => {
+              setPendingConfirmation(null)
+              showToast('Data efetiva confirmada.', 'success')
+              void afterEscalaAlterada(queryClient, { voyageId })
+              invalidateSchedules([voyageId])
+            }}
+          />
+        ) : null}
       </Block>
 
       <div className="mt-6">

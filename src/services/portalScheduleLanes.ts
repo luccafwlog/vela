@@ -27,9 +27,12 @@ export function portalLaneCode(lane: PortalScheduleLane): string {
   return normalizePortCode(lane.label) ?? lane.label.toUpperCase()
 }
 
-/** Exibe uma data ISO (YYYY-MM-DD) como DD/MM/AAAA sem instanciar Date. */
+/**
+ * Exibe uma data ISO (YYYY-MM-DD) como DD/MM/AAAA sem instanciar Date. A hora
+ * do ATA confirmado (YYYY-MM-DDTHH:MM) não aparece na Programação: só o dia.
+ */
 export function formatScheduleDate(value: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T ][\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$/.exec(value)
   if (!match) return value
   return `${match[3]}/${match[2]}/${match[1]}`
 }

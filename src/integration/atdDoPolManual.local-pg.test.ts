@@ -26,7 +26,10 @@ function cleanupExtra() {
   w.psql(`SET session_replication_role = replica;
     DO $$ BEGIN IF to_regclass('public.voyage_pol_atd_manual') IS NOT NULL THEN
       DELETE FROM public.voyage_pol_atd_manual WHERE voyage_id = ${w.voyageId}; END IF; END $$;
+    DO $$ BEGIN IF to_regclass('public.voyage_pol_atd_confirmed') IS NOT NULL THEN
+      DELETE FROM public.voyage_pol_atd_confirmed WHERE voyage_id = ${w.voyageId}; END IF; END $$;
     DELETE FROM public.audit_logs WHERE entity_type = 'voyage_pol_schedule' AND entity_id LIKE '${w.voyageId}::%';
+    DELETE FROM public.audit_logs WHERE entity_type = 'voyage_pod_schedule' AND entity_id = '${w.voyageId}::BRCNF';
     DELETE FROM public.import_batches WHERE voyage_id = ${w.voyageId};
     SET session_replication_role = origin;`)
 }
@@ -169,4 +172,67 @@ describeLocal('401 — ATD do POL: correção manual vence e só B/Ls ativos con
     expect(result.status).not.toBe(0)
     expect(result.stderr).toMatch(/permission denied|row-level security/)
   })
+
+  // Migration 414 (ADR 0097; revisão de 2026-10-22, B1/B2): a data efetiva
+  // confirmada em Chegadas e Saídas é provisória; o B/L com outra data a
+  // substitui, a correção manual em Viagens continua vencendo.
+  function confirm(port: string, kind: 'pol' | 'pod', value: string) {
+    return w.as('operacoes', `SELECT public.confirm_schedule_effective_date(${w.voyageId}, '${port}', '${kind}', '${value}')`)
+  }
+  function scheduleEtd(pol: string, etd: string) {
+    w.psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value, justification)
+      VALUES ('voyage_pol_schedule', '${w.voyageId}::${pol}', 'etd', '${etd}', 'fixture 414')`)
+  }
+  function confirmedMark(pol: string) {
+    return w.psql(`SELECT coalesce((SELECT atd::text FROM public.voyage_pol_atd_confirmed WHERE voyage_id = ${w.voyageId} AND pol = '${pol}'), 'none')`)
+  }
+
+  it('414: a saída confirmada vale até o B/L, cuja data diferente a substitui com as duas datas no Histórico', () => {
+    const pol = 'CNTXG'
+    scheduleEtd(pol, '2026-09-01')
+    expect(confirm(pol, 'pol', '2026-09-03').status).toBe(0)
+    expect(atd(pol)).toBe('2026-09-03')
+    expect(confirmedMark(pol)).toBe('2026-09-03')
+    expect(w.psql(`SELECT count(*) FROM public.voyage_pol_atd_manual WHERE voyage_id = ${w.voyageId} AND pol = '${pol}'`)).toBe('0')
+    // Já registrada: a correção é em Viagens.
+    expect(confirm(pol, 'pol', '2026-09-04').stderr).toMatch(/já está registrada/)
+
+    const a = blAt('C1', pol, '2026-09-05')
+    importOk([line(a, pol, '2026-09-05')])
+    expect(atd(pol)).toBe('2026-09-05')
+    expect(lastJustification(pol)).toBe('Data do B/L (Laden on Board 05/09/2026) substitui a saída confirmada em 03/09/2026 em Chegadas e Saídas (ADR 0097)')
+    expect(confirmedMark(pol)).toBe('none')
+  })
+
+  it('414: B/L com a mesma data só tira a marca; correção manual depois da confirmação vence o B/L', () => {
+    const same = 'CNDLC'
+    scheduleEtd(same, '2026-09-10')
+    expect(confirm(same, 'pol', '2026-09-11').status).toBe(0)
+    const a = blAt('C2', same, '2026-09-11')
+    importOk([line(a, same, '2026-09-11')])
+    expect(atd(same)).toBe('2026-09-11')
+    expect(confirmedMark(same)).toBe('none')
+
+    const manual = 'CNYTN'
+    scheduleEtd(manual, '2026-09-12')
+    expect(confirm(manual, 'pol', '2026-09-13').status).toBe(0)
+    manualAtd(manual, '2026-09-14')
+    expect(confirmedMark(manual)).toBe('none')
+    const b = blAt('C3', manual, '2026-09-20')
+    importOk([line(b, manual, '2026-09-20')])
+    expect(atd(manual)).toBe('2026-09-14')
+  })
+
+  it('414: a chegada confirmada grava o ATA com hora; recusa sem hora, futura ou porto sem programação', () => {
+    w.psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value, justification)
+      VALUES ('voyage_pod_schedule', '${w.voyageId}::BRCNF', 'eta', '2026-09-15', 'fixture 414')`)
+    expect(confirm('BRCNF', 'pod', '2026-09-16').stderr).toMatch(/Informe a hora da chegada/)
+    expect(confirm('BRCNF', 'pod', '2099-01-01T10:00').stderr).toMatch(/não pode ser futura/)
+    expect(confirm('BRXXX', 'pod', '2026-09-16T10:00').stderr).toMatch(/não tem chegada programada/)
+    expect(confirm('BRCNF', 'pod', '2026-09-16T14:30').status).toBe(0)
+    expect(w.psql(`SELECT new_value || '|' || justification FROM public.audit_logs
+      WHERE entity_type = 'voyage_pod_schedule' AND entity_id = '${w.voyageId}::BRCNF' AND field_name = 'ata'`))
+      .toBe('2026-09-16T14:30:00|Chegada confirmada em Chegadas e Saídas (ADR 0097)')
+  })
 })
+

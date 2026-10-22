@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Data efetiva confirmada em Chegadas e Saídas (2026-10-22;
+  [ADR 0097](adr/0097-data-efetiva-confirmada-e-aparicao-na-programacao.md)):**
+  migration `414`. A célula vencida (âmbar, agora só no Vela) tem **Confirmar**:
+  a chegada grava o ATA com hora; a saída grava o ATD do POL, provisório, que o
+  Laden on Board diferente do B/L substitui (a correção em Viagens continua
+  vencendo). No Portal só há previsão e data efetiva. A edição da viagem passa
+  a desligar a aparição em Chegadas e Saídas (supersede o item 12 da ADR 0071).
+  Prova: `atdDoPolManual.local-pg.test.ts`, `ChegadasSaidas.behavior.test.tsx`.
 - **"Selecionar todos" marca o filtro inteiro (2026-10-22):** em BLs,
   Containers, Vazios IMP, Veículos, Clientes e Desbloqueio de CE (interno e
   Portal), o checkbox do cabeçalho seleciona todo o resultado filtrado, em

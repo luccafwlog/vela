@@ -6,6 +6,8 @@
 > regra de "outro armador"; todo container entra) e a 16 na parte da contagem
 > (UNT/UNZ com contagem errada só avisa; sem UNT/UNZ continua erro). As demais
 > decisões continuam valendo.
+>
+> **Decisão 23 estendida (2026-10-22).** A [ADR 0097](./0097-data-efetiva-confirmada-e-aparicao-na-programacao.md) cria a saída confirmada em Chegadas e Saídas, provisória: o Laden on Board diferente do B/L a substitui. A correção manual em Viagens continua vencendo o B/L.
 
 Status: supersedida parcialmente (decisões 13, 14 e 16, pela ADR 0096) — aceita em 2026-10-21 (respostas do responsável às perguntas da
 [revisão das importações](../archive/audits/2026-10-21-revisao-importacoes.md)).

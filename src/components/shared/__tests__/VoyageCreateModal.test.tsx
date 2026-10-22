@@ -150,7 +150,7 @@ describe('VoyageCreateModal', () => {
     expect(await screen.findByText(/Reative-a em Viagens/)).toBeTruthy()
   })
 
-  it('na edição, publica a viagem oculta e não oferece tirar a que já aparece', async () => {
+  it('na edição, publica a viagem oculta e tira a que já aparece', async () => {
     const user = userEvent.setup()
     renderModal({ voyageId: 101, initialValues: { vesselName: 'GREEN ITAJAI', voyageNumber: '11' } })
     const toggle = await screen.findByRole('switch', { name: 'Não aparece em Chegadas e Saídas' })
@@ -165,8 +165,12 @@ describe('VoyageCreateModal', () => {
     showOnPortalMock.mockResolvedValue(true)
     renderModal({ voyageId: 101, initialValues: { vesselName: 'GREEN ITAJAI', voyageNumber: '11' } })
     const shown = await screen.findByRole('switch', { name: 'Aparece em Chegadas e Saídas' })
-    expect((shown as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText(/sai sozinha com o último ATD, ou por Excluir ou Cancelar/)).toBeTruthy()
+    await waitFor(() => expect((shown as HTMLButtonElement).disabled).toBe(false))
+    setShowMock.mockClear()
+    await user.click(shown)
+    await user.click(screen.getByRole('button', { name: 'Salvar viagem' }))
+    // ADR 0097: desligar tira a viagem da Programação do Vela e do Portal.
+    await waitFor(() => expect(setShowMock).toHaveBeenCalledWith(101, false))
   })
 
   it('pede confirmação antes de descartar alterações não salvas', async () => {
