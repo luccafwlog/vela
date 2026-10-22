@@ -3,7 +3,6 @@ import type { BaplieContainer, ParsedBaplie } from './baplieParser'
 import type { ImportIssue } from './importValidation'
 import { normalizeStoredPortCode } from './portCode'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
-import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { userFacingErrorMessage } from '../lib/errors'
 import { getBaplieManifestForVoyage, listVoyageVaziosImportacao, replaceVaziosFromBaplie, vaziosContainerKey, type VoyageVazioImportacao } from './vaziosImportacaoImport'
 import { toBaplieFlagsApplyResult, type BaplieFlagsApplyResult } from './baplieReconciliation'
@@ -13,50 +12,38 @@ export type BaplieVoyageContext = {
   vesselName: string | null
   /** Portos das escalas ativas da Viagem (`list_voyage_eligible_pods`, migration 190). */
   eligiblePods: string[]
+  /** Armador da Viagem (navio → armador). */
+  carrierName?: string | null
   /**
-   * Containers dos B/Ls ativos da Viagem: o operador deles é a referência de
-   * "outro operador" (ADR 0079, decisão 6). Ausente = não conferido.
+   * Códigos do armador no Baplie (`carriers.baplie_codes`, migration 410):
+   * container de outro operador fica fora (ADR 0095, decisão 14). Ausente =
+   * não conferido.
    */
-  blContainerNumbers?: string[]
+  carrierCodes?: string[]
 }
 
-// Paginado como `listBaplieStagingForDiff`: uma Viagem pode passar de 1000 containers.
-async function listVoyageBlContainerNumbers(voyageId: number): Promise<string[]> {
-  const PAGE = 1000
-  const numbers = new Set<string>()
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from('bl_containers')
-      .select('container_number, bl:bls!inner(voyage_id, cancelled_at)')
-      .eq('bl.voyage_id', voyageId)
-      .is('bl.cancelled_at', null)
-      .order('id')
-      .range(from, from + PAGE - 1)
-    if (error) throw error
-    for (const row of (data ?? []) as Array<{ container_number: string | null }>) {
-      const number = normalizeIsoContainerNumber(row.container_number)
-      if (number) numbers.add(number)
-    }
-    if (!data || data.length < PAGE) break
-  }
-  return [...numbers]
-}
+/** Código de armador como o servidor compara (`_baplie_other_carrier`). */
+export const carrierCodeKey = (value: string | null | undefined) => String(value ?? '').trim().toUpperCase()
 
 export async function fetchBaplieVoyageContext(voyageId: number): Promise<BaplieVoyageContext> {
   // `get_voyage_eligible_pods` não tem GRANT para authenticated: a chamada
   // falhava e as regras da Viagem não rodavam. A versão guardada (usuário
   // interno ativo) devolve o mesmo `TABLE(pod text)`. O cast fica até a
-  // regeneração dos tipos (database.ts protegido).
-  const [voyage, pods, blContainerNumbers] = await Promise.all([
-    supabase.from('voyages').select('voyage_number, vessel:vessels(name)').eq('id', voyageId).maybeSingle(),
+  // regeneração dos tipos (database.ts protegido; `baplie_codes` é da 410).
+  const [voyage, pods] = await Promise.all([
+    supabase.from('voyages').select('voyage_number, vessel:vessels(name, carrier:carriers(name, baplie_codes))' as 'voyage_number').eq('id', voyageId).maybeSingle(),
     supabase.rpc('list_voyage_eligible_pods' as never, { p_voyage_id: voyageId } as never),
-    listVoyageBlContainerNumbers(voyageId),
   ])
   if (voyage.error) throw voyage.error
   if (pods.error) throw pods.error
-  const row = voyage.data as unknown as { voyage_number?: string | null; vessel?: { name?: string | null } | null } | null
+  const row = voyage.data as unknown as {
+    voyage_number?: string | null
+    vessel?: { name?: string | null; carrier?: { name?: string | null; baplie_codes?: string[] | null } | null } | null
+  } | null
   const eligible = ((pods.data ?? []) as unknown as Array<{ pod: string }>).map((item) => item.pod).filter(Boolean)
-  return { voyageNumber: row?.voyage_number ?? null, vesselName: row?.vessel?.name ?? null, eligiblePods: eligible, blContainerNumbers }
+  const carrier = row?.vessel?.carrier ?? null
+  const carrierCodes = [...new Set((carrier?.baplie_codes ?? []).map(carrierCodeKey).filter(Boolean))]
+  return { voyageNumber: row?.voyage_number ?? null, vesselName: row?.vessel?.name ?? null, eligiblePods: eligible, carrierName: carrier?.name ?? null, carrierCodes }
 }
 
 /**
@@ -88,54 +75,58 @@ const voyageKey = (value: string | null | undefined) =>
 
 const OPERATOR_SAMPLE = 10
 
+/** Container de outro armador, fora do staging, das marcas e da conciliação. */
+export type BaplieOtherCarrier = { container_number: string; operator: string }
+
 /**
- * Container de outro operador (NAD+CA) é ignorado com aviso (ADR 0079,
- * decisão 6). A referência são os operadores dos containers do arquivo que
- * estão nos B/Ls da Viagem, e esses containers nunca são ignorados por
- * operador: o TDT de um navio compartilhado pode trazer o parceiro de slot.
- * Sem nenhum deles no arquivo (ou sem a lista da Viagem), vale o operador do
- * cabeçalho (TDT ou o NAD+CA mais frequente), com aviso para conferir.
+ * Navio compartilhado (ADR 0095, decisão 14; B12b): o container cujo operador
+ * (NAD+CA) não está nos códigos do armador da Viagem fica fora das marcas e da
+ * conciliação, com contagem na prévia. Não depende dos B/Ls importados nem do
+ * cabeçalho do arquivo e não recusa o arquivo. Container sem operador fica.
+ * Armador sem códigos não separa nada (aviso). O servidor aplica a mesma regra
+ * (`_baplie_other_carrier`, migration 410).
  */
-function applyOperatorRule(
+function applyCarrierRule(
   containers: BaplieContainer[],
-  headerOperator: string | null | undefined,
   context: BaplieVoyageContext | null | undefined,
   issues: ImportIssue[],
-): BaplieContainer[] {
-  const voyageNumbers = context?.blContainerNumbers ? new Set(context.blContainerNumbers) : null
-  const inVoyage = (c: BaplieContainer) => Boolean(voyageNumbers?.has(c.container_number))
-  const ours = new Set(containers.filter((c) => c.operator && inVoyage(c)).map((c) => c.operator as string))
-  const fallback = ours.size === 0
-  const reference = fallback ? new Set(headerOperator ? [headerOperator] : []) : ours
-  if (!reference.size) return containers
-
-  const ignored = containers.filter((c) => c.operator && !reference.has(c.operator) && !inVoyage(c))
-  if (!ignored.length) return containers
-  const byOperator = new Map<string, string[]>()
-  for (const c of ignored) byOperator.set(c.operator as string, [...(byOperator.get(c.operator as string) ?? []), c.container_number])
-  const referenceLabel = [...reference].sort().join(', ')
-  if (fallback && context) {
-    issues.push({
-      row: 0, field: 'container_number', code: 'invalid_group', severity: 'warning',
-      message: `Nenhum container do arquivo está nos B/Ls da Viagem: o operador de referência é o do cabeçalho do arquivo (${referenceLabel}). Confira a Viagem e o arquivo antes de importar.`,
-    })
+): { kept: BaplieContainer[]; otherCarrier: BaplieOtherCarrier[] } {
+  if (!context?.carrierCodes) return { kept: containers, otherCarrier: [] }
+  const codes = new Set(context.carrierCodes.map(carrierCodeKey).filter(Boolean))
+  if (!codes.size) {
+    if (containers.some((c) => carrierCodeKey(c.operator))) {
+      issues.push({
+        row: 0, field: 'container_number', code: 'invalid_group', severity: 'warning',
+        message: `O armador da Viagem${context.carrierName ? ` (${context.carrierName})` : ''} não tem códigos do Baplie cadastrados: containers de outro armador não são separados. Cadastre os códigos na edição da Viagem.`,
+      })
+    }
+    return { kept: containers, otherCarrier: [] }
   }
+  const otherCarrier: BaplieOtherCarrier[] = []
+  const kept: BaplieContainer[] = []
+  for (const c of containers) {
+    const operator = carrierCodeKey(c.operator)
+    if (operator && !codes.has(operator)) otherCarrier.push({ container_number: c.container_number, operator })
+    else kept.push(c)
+  }
+  const byOperator = new Map<string, string[]>()
+  for (const c of otherCarrier) byOperator.set(c.operator, [...(byOperator.get(c.operator) ?? []), c.container_number])
+  const codesLabel = [...codes].sort().join(', ')
   for (const [operator, numbers] of [...byOperator.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const sample = numbers.slice(0, OPERATOR_SAMPLE).join(', ')
     const more = numbers.length > OPERATOR_SAMPLE ? ` e mais ${numbers.length - OPERATOR_SAMPLE}` : ''
     issues.push({
       row: 0, field: 'container_number', code: 'invalid_group', severity: 'warning',
-      message: `${numbers.length} container(s) de outro operador (${operator}; referência ${referenceLabel}) ignorado(s): ${sample}${more}.`,
+      message: `${numbers.length} container(s) de outro armador (${operator}; códigos do armador da Viagem: ${codesLabel}) fora das marcas e da conciliação: ${sample}${more}.`,
     })
   }
-  const kept = containers.filter((c) => !ignored.includes(c))
-  if (!kept.length) {
+  if (!kept.length && otherCarrier.length) {
     issues.push({
       row: 0, field: 'container_number', code: 'invalid_group', severity: 'error',
-      message: 'Nenhum container a importar: todos são de outro operador (avisos acima).',
+      message: 'Nenhum container a importar: todos são de outro armador (avisos acima).',
     })
   }
-  return kept
+  return { kept, otherCarrier }
 }
 
 /** Container deixado de fora por descarregar fora das escalas da Viagem ou em porto não reconhecido. */
@@ -146,16 +137,17 @@ export type BaplieOutsidePod = { container_number: string; pod: string; reason: 
  * TDT de outro navio ou viagem bloqueia; container com POD fora das escalas
  * da Viagem é ignorado com aviso. Sem escalas cadastradas, nada é filtrado.
  * O navio só bloqueia quando o nome vem da identificação do transporte (C222);
- * nome deduzido por heurística só avisa. Container de outro operador é
- * ignorado pela referência dos B/Ls da Viagem (`applyOperatorRule`).
+ * nome deduzido por heurística só avisa. Container de outro armador fica
+ * fora pelos códigos do armador da Viagem (`applyCarrierRule`).
  */
 export function applyBaplieVoyageRules(
   parsed: Pick<ParsedBaplie, 'containers' | 'issues' | 'voyage_number' | 'vessel_name' | 'vessel_name_source' | 'operator'> & Partial<Pick<ParsedBaplie, 'ignored_pods'>>,
   context: BaplieVoyageContext | null | undefined,
-): { containers: BaplieContainer[]; pods: string[]; issues: ImportIssue[]; podsOutside: BaplieOutsidePod[] } {
+): { containers: BaplieContainer[]; pods: string[]; issues: ImportIssue[]; podsOutside: BaplieOutsidePod[]; otherCarrier: BaplieOtherCarrier[] } {
   const issues: ImportIssue[] = [...parsed.issues]
   const podsOutside: BaplieOutsidePod[] = (parsed.ignored_pods ?? []).map((item) => ({ ...item, reason: 'unrecognized' }))
-  let containers = applyOperatorRule(parsed.containers, parsed.operator, context, issues)
+  const carrier = applyCarrierRule(parsed.containers, context, issues)
+  let containers = carrier.kept
   if (context) {
     if (parsed.voyage_number && context.voyageNumber && voyageKey(parsed.voyage_number) !== voyageKey(context.voyageNumber)) {
       issues.push({
@@ -189,7 +181,7 @@ export function applyBaplieVoyageRules(
     }
   }
   const pods = Array.from(new Set(containers.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
-  return { containers, pods, issues, podsOutside }
+  return { containers, pods, issues, podsOutside, otherCarrier: carrier.otherCarrier }
 }
 
 /** Linhas do staging do Baplie (a Viagem vai à parte, em `p_voyage_id`). */
@@ -209,6 +201,10 @@ export function toBaplieStagingRows(containers: BaplieContainer[], actorId?: str
     un_number: c.un_number,
     is_oog: c.is_oog,
     ownership: c.ownership ?? null,
+    // Migration 410: o servidor confere o operador com os códigos do armador
+    // (não grava) e grava o transbordo marcado.
+    operator: c.operator ?? null,
+    is_transshipment: Boolean(c.transshipment),
     imported_by: actorId ?? null,
   }))
 }
@@ -315,6 +311,7 @@ export function baplieRowsReplacedBy<T extends Pick<BaplieContainer, 'container_
 }
 
 type BaplieDiffFields = Pick<BaplieContainer, 'container_number' | 'status' | 'size_type' | 'pol' | 'pod' | 'is_imo' | 'is_oog' | 'ownership'>
+  & { transshipment?: boolean; is_transshipment?: boolean | null }
 
 export type BaplieReplacementDiff = {
   /** Uma linha legível por container incluído, removido ou alterado. */
@@ -326,8 +323,12 @@ export type BaplieReplacementDiff = {
   vaziosChanged: boolean
 }
 
+/** Transbordo vindo do arquivo (`transshipment`) ou do staging (`is_transshipment`). */
+export const isBaplieTransshipment = (c: { transshipment?: boolean; is_transshipment?: boolean | null }) =>
+  Boolean(c.transshipment || c.is_transshipment)
+
 const describeContainer = (c: BaplieDiffFields) =>
-  `${c.status === 'empty' ? 'vazio' : 'cheio'}, ${c.pol ?? '?'} → ${c.pod ?? '?'}${c.size_type ? `, ${c.size_type}` : ''}${c.is_imo ? ', IMO' : ''}${c.is_oog ? ', OOG' : ''}${c.ownership ? `, ${c.ownership}` : ''}`
+  `${c.status === 'empty' ? 'vazio' : 'cheio'}, ${c.pol ?? '?'} → ${c.pod ?? '?'}${c.size_type ? `, ${c.size_type}` : ''}${c.is_imo ? ', IMO' : ''}${c.is_oog ? ', OOG' : ''}${c.ownership ? `, ${c.ownership}` : ''}${isBaplieTransshipment(c) ? ', transbordo' : ''}`
 
 /** Compara o Baplie atual da viagem com o arquivo novo. Slot, peso e B/L ref. não contam como diferença. */
 export function diffBaplieStaging(existing: BaplieDiffFields[], incoming: BaplieDiffFields[]): BaplieReplacementDiff {
@@ -363,8 +364,9 @@ function vaziosKeys(list: Iterable<VaziosKeyFields>) {
   return [...list].map((c) => `${c.container_number}|${c.pol}|${c.pod}`).sort().join(',')
 }
 
+// Vazio em transbordo não é vazio de importação (decisão 15; migration 410).
 function baplieEmptyKeys(list: Iterable<BaplieDiffFields>) {
-  return vaziosKeys([...list].filter((c) => c.status === 'empty'))
+  return vaziosKeys([...list].filter((c) => c.status === 'empty' && !isBaplieTransshipment(c)))
 }
 
 /**
@@ -407,7 +409,7 @@ export type BaplieVaziosNaPlanilha = {
  * mostra a diferença.
  */
 export function baplieVaziosNaPlanilha(
-  staging: ReadonlyArray<Pick<BaplieContainer, 'container_number' | 'status' | 'pol' | 'pod'>>,
+  staging: ReadonlyArray<Pick<BaplieContainer, 'container_number' | 'status' | 'pol' | 'pod'> & { is_transshipment?: boolean | null }>,
   vazios: ReadonlyArray<VoyageVazioImportacao>,
 ): BaplieVaziosNaPlanilha {
   const planilha = new Map(vazios.filter((row) => row.source !== 'baplie').map((row) => [vaziosContainerKey(row.container_number), row]))
@@ -418,7 +420,7 @@ export function baplieVaziosNaPlanilha(
   let naPlanilha = 0
   const rotaDiferente: string[] = []
   for (const container of staging) {
-    if (container.status !== 'empty') continue
+    if (container.status !== 'empty' || isBaplieTransshipment(container)) continue
     const key = vaziosContainerKey(container.container_number)
     if (seen.has(key)) continue
     seen.add(key)
@@ -469,7 +471,8 @@ export async function listBaplieStagingForDiff(voyageId: number): Promise<Baplie
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from('baplie_containers')
-      .select('id, container_number, status, size_type, pol, pod, is_imo, is_oog, ownership')
+      // `is_transshipment` é da migration 410 (tipos gerados protegidos).
+      .select('id, container_number, status, size_type, pol, pod, is_imo, is_oog, ownership, is_transshipment' as 'id, container_number, status, size_type, pol, pod, is_imo, is_oog, ownership')
       .eq('voyage_id', voyageId)
       .order('id')
       .range(from, from + PAGE - 1)
@@ -704,8 +707,8 @@ export async function reimportBaplie({
     hasVaziosManifest: Boolean(vaziosManifest),
     vaziosManifestTotal: vaziosManifest?.total_containers ?? 0,
     // Vazios que a Viagem terá: os dos PODs não marcados ficam.
-    incomingEmpties: containers.filter((container) => container.status === 'empty').length
-      + stagedRows.filter((row) => row.status === 'empty' && !existingRows.includes(row)).length,
+    incomingEmpties: containers.filter((container) => container.status === 'empty' && !isBaplieTransshipment(container)).length
+      + stagedRows.filter((row) => row.status === 'empty' && !isBaplieTransshipment(row) && !existingRows.includes(row)).length,
     // Baplie completo nos PODs marcados (ADR 0078, item 21): o que sai apaga
     // as marcas vindas do Baplie anterior, listadas antes de confirmar.
     flags: await previewBaplieFlags(voyageId, containers, pods),

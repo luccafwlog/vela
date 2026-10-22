@@ -91,6 +91,7 @@ export const queryKeys = {
     indicatedFirstPort: (voyageIds: number[]) => ['voyage-indicated-first-port', voyageIds] as const,
     exportSchedules: (voyageIds: number[]) => ['voyage-export-schedules', voyageIds] as const,
     vaziosExportPorts: (voyageId: number) => ['voyage-vazios-export-ports', voyageId] as const,
+    carrierBaplieCodes: (name: string, scac: string) => ['voyages', 'carrier-baplie-codes', name, scac] as const,
     escalaTerminal: (voyageId: number, port: string) => ['voyage-escala-terminal', voyageId, port] as const,
     escalaTerminalAll: () => ['voyage-escala-terminal'] as const,
     timeline: (voyageId: number) => ['voyage-timeline', String(voyageId)] as const,

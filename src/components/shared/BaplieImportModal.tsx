@@ -126,6 +126,9 @@ export function BaplieImportModal({
   // Containers fora das escalas ou com POD não reconhecido: aviso, não
   // bloqueio, mas à vista na prévia com quantidade e lista.
   const podsOutside = ruled?.podsOutside ?? []
+  // ADR 0095, decisões 14 e 15: outro armador fica fora (contado); transbordo entra marcado.
+  const otherCarrier = ruled?.otherCarrier ?? []
+  const transshipments = filteredContainers.filter((c) => c.transshipment).length
   const outsideByPod = Array.from(podsOutside.reduce((map, item) => {
     map.set(item.pod, [...(map.get(item.pod) ?? []), item.container_number])
     return map
@@ -232,6 +235,8 @@ export function BaplieImportModal({
                   { label: 'OOG', value: filteredContainers.filter((c) => c.is_oog).length },
                   { label: includedPods === 1 ? 'porto de descarga' : 'portos de descarga', value: includedPods },
                   ...(podsOutside.length ? [{ label: 'fora das escalas', value: podsOutside.length, tone: 'warning' as const }] : []),
+                  ...(otherCarrier.length ? [{ label: 'de outro armador', value: otherCarrier.length, tone: 'warning' as const }] : []),
+                  ...(transshipments ? [{ label: 'em transbordo', value: transshipments }] : []),
                 ]}
               />
             }
