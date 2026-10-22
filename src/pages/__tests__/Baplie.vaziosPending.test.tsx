@@ -10,6 +10,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   pending: vi.fn(() => Promise.resolve(true)),
   retry: vi.fn(() => Promise.resolve(1)),
+  naPlanilha: vi.fn(() => Promise.resolve({ aCadastrar: 1, naPlanilha: 0, rotaDiferente: [] as string[] })),
   manifest: vi.fn(() => Promise.resolve({ id: 'vm-1', total_containers: 1, imported_at: '2026-10-08T10:00:00Z' } as unknown)),
   showToast: vi.fn(),
   staging: vi.fn(() => Promise.resolve([
@@ -26,6 +27,7 @@ vi.mock('../../services/baplieImport', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/baplieImport')>()),
   hasPendingBaplieVazios: mocks.pending,
   retryBaplieVazios: mocks.retry,
+  loadBaplieVaziosNaPlanilha: mocks.naPlanilha,
 }))
 vi.mock('../../services/baplieReconciliation', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/baplieReconciliation')>(),
@@ -89,4 +91,40 @@ it('Baplie sem vazios e vazios do Baplie anterior cadastrados: atualizar os remo
   await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Vazios de importação do Baplie anterior removidos: este Baplie não traz vazios.', 'success'))
   // Sem vazios cadastrados nem no Baplie, o bloco some.
   await waitFor(() => expect(screen.queryByText('Vazios de importação')).toBeNull())
+})
+
+// Revisão 4344091139: sem a contagem da planilha, as ações de vazios não aparecem
+// (tratar a falta como zero mostraria estado e quantidade errados).
+const EMPTY_ROW = { id: 1, container_number: 'EMPU0000001', status: 'empty', size_type: '40HC', pol: 'CNSHA', pod: 'BRSSZ', slot: null, bl_ref: null, is_imo: false, is_oog: false, imo_class: null, un_number: null, ownership: null, imported_at: '2026-10-09T10:00:00Z' }
+
+it('contagem da planilha carregando: sem Atualizar nem Cadastrar', async () => {
+  mocks.staging.mockResolvedValue([EMPTY_ROW])
+  mocks.pending.mockResolvedValue(true)
+  mocks.manifest.mockResolvedValueOnce({ id: 'vm-1', total_containers: 1, imported_at: '2026-10-08T10:00:00Z' })
+  mocks.naPlanilha.mockReturnValueOnce(new Promise(() => {}))
+  const first = renderPage()
+  expect(await screen.findByText(/Conferindo os vazios na planilha/)).toBeTruthy()
+  await waitFor(() => expect(mocks.pending).toHaveBeenCalled())
+  expect(screen.queryByRole('button', { name: 'Atualizar vazios do Baplie' })).toBeNull()
+  first.unmount()
+
+  client.clear()
+  mocks.manifest.mockResolvedValueOnce(null)
+  mocks.naPlanilha.mockReturnValueOnce(new Promise(() => {}))
+  renderPage()
+  expect(await screen.findByText(/conferindo quais já estão na planilha/)).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /Cadastrar/ })).toBeNull()
+})
+
+it('contagem da planilha com erro: aviso com Tentar de novo, que libera a ação', async () => {
+  mocks.staging.mockResolvedValue([EMPTY_ROW])
+  mocks.manifest.mockResolvedValue(null)
+  mocks.naPlanilha.mockRejectedValueOnce(new Error('falhou'))
+  renderPage()
+  expect(await screen.findByText('Não foi possível conferir os vazios na planilha')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /Cadastrar/ })).toBeNull()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+  expect(await screen.findByRole('button', { name: 'Cadastrar 1 vazio' })).toBeTruthy()
+  expect(screen.queryByText('Não foi possível conferir os vazios na planilha')).toBeNull()
 })

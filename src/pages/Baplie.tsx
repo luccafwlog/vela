@@ -304,6 +304,8 @@ export function Baplie() {
               loadingExistingManifest={existingVaziosManifestLoading}
               pending={pendingVazios}
               naPlanilha={naPlanilhaQuery.data ?? null}
+              naPlanilhaStatus={emptyContainers.length === 0 ? 'ready' : naPlanilhaQuery.isError ? 'error' : naPlanilhaQuery.data ? 'ready' : 'loading'}
+              onRetryNaPlanilha={() => void naPlanilhaQuery.refetch()}
               voyageId={voyageId}
               canWrite={canImportVazios}
               onConfirmar={handleConfirmarVazios}
@@ -690,6 +692,8 @@ function VaziosSection({
   loadingExistingManifest,
   pending = false,
   naPlanilha = null,
+  naPlanilhaStatus = 'ready',
+  onRetryNaPlanilha,
   voyageId,
   canWrite,
   onConfirmar,
@@ -702,6 +706,9 @@ function VaziosSection({
   pending?: boolean
   /** Vazios deste Baplie que a planilha já trouxe (ADR 0095, decisão 21); nulo enquanto carrega. */
   naPlanilha?: BaplieVaziosNaPlanilha | null
+  /** Sem a contagem da planilha, as ações de vazios ficam fora: tratar a falta como zero inflaria o cadastro. */
+  naPlanilhaStatus?: 'loading' | 'error' | 'ready'
+  onRetryNaPlanilha?: () => void
   voyageId: string
   canWrite: boolean
   onConfirmar: () => Promise<void>
@@ -719,9 +726,10 @@ function VaziosSection({
   }
 
   // O Baplie só cadastra o que nenhuma planilha trouxe (migration 398).
+  const planilhaReady = naPlanilhaStatus === 'ready'
   const baplieCount = naPlanilha ? naPlanilha.aCadastrar : emptyCount
-  const isCountMismatch = Boolean(existingManifest && existingManifest.total_containers !== baplieCount)
-  const outOfDate = isCountMismatch || Boolean(existingManifest && pending)
+  const isCountMismatch = planilhaReady && Boolean(existingManifest && existingManifest.total_containers !== baplieCount)
+  const outOfDate = planilhaReady && (isCountMismatch || Boolean(existingManifest && pending))
   const vaziosLink = <Link className="app-cargo-link" to={`/vazios-importacao?voyage=${voyageId}`}>Abrir Vazios de importação →</Link>
 
   return (
@@ -747,7 +755,7 @@ function VaziosSection({
               </LeadValue>
               <span className="app-cargo-row__actions">
                 {vaziosLink}
-                {canWrite && outOfDate ? (
+                {canWrite && planilhaReady && outOfDate ? (
                   <Button variant="secondary" loading={loading} loadingLabel="Atualizando…" onClick={() => run(onSubstituir)}>
                     Atualizar vazios do Baplie
                   </Button>
@@ -756,12 +764,14 @@ function VaziosSection({
             </>
           ) : (
             <>
-              <LeadValue detail={baplieCount === 0
+              <LeadValue detail={!planilhaReady
+                ? 'conferindo quais já estão na planilha de Vazios de importação'
+                : baplieCount === 0
                 ? 'todos já estão na planilha de Vazios de importação, que vale sobre o Baplie'
                 : 'ainda não cadastrados; entram sem Nº de manifesto Mercante, informado depois em Rotas e Manifestos da viagem'}>
                 {plural(emptyCount, 'vazio', 'vazios')}
               </LeadValue>
-              {canWrite && baplieCount > 0 ? (
+              {canWrite && planilhaReady && baplieCount > 0 ? (
                 <div>
                   <Button disabled={loadingExistingManifest} loading={loading} loadingLabel="Cadastrando…" onClick={() => run(onConfirmar)}>
                     Cadastrar {plural(baplieCount, 'vazio', 'vazios')}
@@ -770,6 +780,14 @@ function VaziosSection({
               ) : null}
             </>
           )}
+          {naPlanilhaStatus === 'loading' ? (
+            <p className="app-cargo-state__text" role="status">Conferindo os vazios na planilha de Vazios de importação…</p>
+          ) : naPlanilhaStatus === 'error' ? (
+            <ImportNotice tone="danger" role="alert" title="Não foi possível conferir os vazios na planilha">
+              <p>Sem saber quais vazios a planilha já trouxe, o Baplie não cadastra nem atualiza os vazios.</p>
+              {onRetryNaPlanilha ? <Button variant="secondary" onClick={onRetryNaPlanilha}>Tentar de novo</Button> : null}
+            </ImportNotice>
+          ) : null}
           {naPlanilha && naPlanilha.naPlanilha > 0 ? (
             <ImportNotice tone="info" title={`${plural(naPlanilha.naPlanilha, 'vazio já está', 'vazios já estão')} na planilha de Vazios de importação`}>
               <p>A planilha vale sobre o Baplie: {naPlanilha.naPlanilha === 1 ? 'esse container fica' : 'esses containers ficam'} como a planilha gravou, e o Baplie não {naPlanilha.naPlanilha === 1 ? 'o' : 'os'} cadastra de novo.</p>
