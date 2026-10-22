@@ -403,6 +403,22 @@ sem decompor no navegador o fator comercial da cotação.
 - **`send-customer-communication`** — valida sessão interna, perfil ativo,
   natureza, contato, preferência e supressões antes de registrar a tentativa;
   a chave global desligada registra simulação e não chama o provedor de e-mail.
+  A automação (`customer-communication-auto-runner`) autentica só pelo
+  `X-Communication-Automation-Secret` e manda no `Authorization` a chave
+  pública (`SUPABASE_ANON_KEY`), nunca a de serviço; as duas funções têm
+  `verify_jwt = false`. Assunto do livre e do institucional e nome de anexo
+  saem sem CR/LF (`singleLine`).
+- **Corpo com teto** (auditoria run-3) — `_shared/boundedBody.ts` conta os
+  bytes do stream e para no limite, com ou sem Content-Length; acima dele a
+  função responde 413. `admin-users`, `portal-invite-send`,
+  `portal-account-suspend`, `portal-login`, `portal-password-recovery`,
+  `portal-password-reset` e `portal-invite-activate` leem até 16 KiB de JSON
+  (as três primeiras só depois do papel e da sessão de quem chama);
+  `portal-email-webhook` recusa sem `svix-id`, `svix-timestamp` ou
+  `svix-signature` antes de ler e lê até 256 KiB. A leitora multipart
+  (`boundedMultipart.ts`) usa a mesma contagem.
+- **`recalc-demurrage-ptax`** — só `POST` (o job chama por `net.http_post`);
+  outro método recebe 405 antes da conferência do segredo.
 - **`demurrage-dunning`** — aceita somente o bearer de
   `DEMURRAGE_DUNNING_SECRET` em comparação *timing-safe*, usa `service_role`
   apenas no servidor e reivindica cada cobrança antes de renderizar/enviar,
@@ -475,7 +491,10 @@ consultam somente TXIDs com prefixo `VELA` (a mesma chave Pix é usada por um
 sistema de terceiro) e só alteram ou cancelam cobranças de teste (`VELAT…`,
 até R$ 1,00); a cobrança de uma fatura só muda pela própria fatura. A
 listagem de Pix recebidos devolve apenas os do Vela, sem `infoPagador`, e só
-a contagem dos demais.
+a contagem dos demais. O motivo de erro gravado na cobrança leva no máximo 300
+caracteres do corpo de erro do Itaú, sem `devedor`, `pagador`, `infoPagador`,
+os identificadores dentro deles nem o valor recusado das violações
+(`redactPayerData`, auditoria run-3).
 
 A baixa automática (`itau_pix_settle`, só `service_role`) assume dentro da
 transação a identidade da conta Admin dedicada "API Itaú" configurada em

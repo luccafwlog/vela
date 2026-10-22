@@ -334,7 +334,7 @@ Quando uma tentativa de envio (Comunicado ou e-mail do Portal) volta com bounce 
 - se é do próprio principal, vai a um contato alternativo válido;
 - sem nenhum contato válido restante (ativo, com e-mail, sem bounce e fora da lista de bloqueio do Portal), abre o alerta crítico `cliente_contato_bounced_sem_alternativa` ("Cliente sem contato alternativo"), para Documentação e Administrativo, com destino `/clientes`. Sem contato válido nas caixas Financeiro ou Demurrage, a Régua de Cobrança pausa ([Demurrage](demurrage.md#régua-de-cobrança)).
 
-O aviso ao Cliente é um e-mail do mecanismo do Portal (tipo `contato_bounced_notificacao`), não uma Natureza de Comunicado, e só sai com a [chave de envio](#chave-de-envio-de-comunicados) ligada; desligada, nada é enviado nem registrado como simulado. Supressão, reparo e alerta não dependem da chave. O bounce do próprio aviso não reabre a cascata. **Código:** `supabase/functions/_shared/portalBounceCascade.ts`, `supabase/functions/_shared/portalEmailEventProcessor.ts`.
+O aviso ao Cliente é um e-mail do mecanismo do Portal (tipo `contato_bounced_notificacao`), não uma Natureza de Comunicado, e só sai com a [chave de envio](#chave-de-envio-de-comunicados) ligada; desligada, nada é enviado nem registrado como simulado. Cliente desativado não recebe o aviso, e a chave de idempotência da tentativa leva o hash do endereço devolvido, não o endereço (auditoria run-3). Supressão, reparo e alerta não dependem da chave. O bounce do próprio aviso não reabre a cascata. **Código:** `supabase/functions/_shared/portalBounceCascade.ts`, `supabase/functions/_shared/portalEmailEventProcessor.ts`.
 
 ### Cobrança de Demurrage por caixa
 
