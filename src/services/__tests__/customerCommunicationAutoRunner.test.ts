@@ -62,10 +62,10 @@ describe('rodada do runner com envio falso', () => {
       return Promise.resolve(new Response(JSON.stringify(next.body), { status: next.status }))
     }) as unknown as typeof fetch
     const run = () => runAutomaticCommunications({
-      rpc, fetcher, supabaseUrl: 'https://supabase.example.test', serviceKey: 'service', secret: 'secret',
+      rpc, fetcher, supabaseUrl: 'https://supabase.example.test', anonKey: 'anon', secret: 'secret',
     })
     const claimCalls = () => rpcCalls.filter(({ fn }) => fn !== 'evaluate_and_dispatch_automatic_communications')
-    return { run, claimCalls }
+    return { run, claimCalls, fetcher }
   }
 
   beforeEach(() => {
@@ -77,13 +77,25 @@ describe('rodada do runner com envio falso', () => {
   it('falha da produtora devolve 500 marcado com o SQLSTATE e a RPC para o Sentry', async () => {
     const rpc = vi.fn(() => Promise.resolve({ data: null, error: { code: '22023', message: 'Viagem e cliente são obrigatórios.' } }))
     const result = await runAutomaticCommunications({
-      rpc, fetcher: vi.fn() as unknown as typeof fetch, supabaseUrl: 'https://supabase.example.test', serviceKey: 'service', secret: 'secret',
+      rpc, fetcher: vi.fn() as unknown as typeof fetch, supabaseUrl: 'https://supabase.example.test', anonKey: 'anon', secret: 'secret',
     })
     expect(result.status).toBe(500)
     expect(result.headers).toEqual({
       'x-telemetry-error-code': '22023',
       'x-telemetry-failed-rpc': 'evaluate_and_dispatch_automatic_communications',
     })
+  })
+
+  it('chama a send-customer-communication com a chave pública e o segredo da automação, nunca a de serviço', async () => {
+    const { run, fetcher } = setup([{ status: 200, body: { status: 'enviado' } }, { status: 200, body: { status: 'enviado' } }])
+    await run()
+    const calls = (fetcher as unknown as { mock: { calls: Array<[string, RequestInit]> } }).mock.calls
+    expect(calls).toHaveLength(2)
+    for (const [, init] of calls) {
+      const headers = init.headers as Record<string, string>
+      expect(headers.Authorization).toBe('Bearer anon')
+      expect(headers['X-Communication-Automation-Secret']).toBe('secret')
+    }
   })
 
   it('422 permanente em todos os destinatários rejeita a claim e não a libera', async () => {
@@ -155,7 +167,7 @@ describe('rodada do runner com envio falso', () => {
     const rpc = vi.fn((fn: string) => Promise.resolve(fn === 'evaluate_and_dispatch_automatic_communications'
       ? { data: [broken], error: null }
       : fn === 'customer_local_charges_communication_payload' ? { data: null, error: new Error('payload indisponível') } : { data: true, error: null }))
-    await runAutomaticCommunications({ rpc, fetcher: vi.fn() as unknown as typeof fetch, supabaseUrl: 'https://x.test', serviceKey: 's', secret: 's' })
+    await runAutomaticCommunications({ rpc, fetcher: vi.fn() as unknown as typeof fetch, supabaseUrl: 'https://x.test', anonKey: 'a', secret: 's' })
     expect(rpc).toHaveBeenCalledWith('defer_customer_communication_automation_claim', {
       p_claim_key: candidate.claim_key, p_reason: 'payload indisponível', p_provider_failure: true,
     })

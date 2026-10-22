@@ -24,13 +24,14 @@ async function handler(req: Request): Promise<Response> {
   if (!secret || !timingSafeEqual(providedSecret, secret)) return json(401, { error: 'Não autorizado.' })
   const url = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (!url || !serviceKey) return json(500, { error: 'Configuração do Supabase ausente.' })
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  if (!url || !serviceKey || !anonKey) return json(500, { error: 'Configuração do Supabase ausente.' })
   const admin = createClient(url, serviceKey)
   const result = await runAutomaticCommunications({
     rpc: (fn, args) => admin.rpc(fn, args),
     fetcher: fetch,
     supabaseUrl: url,
-    serviceKey,
+    anonKey,
     secret,
     portalUrl: Deno.env.get('PORTAL_URL'),
   })
