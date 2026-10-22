@@ -741,6 +741,27 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
+  const renderedHtmlSha256 = await sha256Hex(effectiveHtml)
+  // Identidade reaproveitada (mesmo dispatch_id e discriminador) só segue para
+  // repetir o mesmo envio: outra pessoa, ou outro conteúdo, entregaria texto
+  // novo registrado com a autoria e a cópia de outro Comunicado (auditoria
+  // run-3, C5). Conteúdo do mesmo registro não varia por destinatário.
+  if (!isAutomation) {
+    const { data: stored, error: storedError } = await admin
+      .from('customer_communications')
+      .select('created_by, rendered_subject, rendered_text, rendered_html_sha256')
+      .eq('id', communicationId)
+      .single()
+    if (storedError || !stored) return json(500, { error: 'Não foi possível conferir o comunicado existente.' }, origin)
+    if (stored.created_by !== callerUser.user?.id) {
+      return permanentRejection('Este envio pertence a outro Comunicado. Confira de novo e envie como um Comunicado novo.', origin)
+    }
+    if (stored.rendered_subject !== null && (stored.rendered_subject !== effectiveSubject
+      || stored.rendered_text !== effectiveText || stored.rendered_html_sha256 !== renderedHtmlSha256)) {
+      return permanentRejection('O conteúdo mudou depois da conferência. Confira de novo para enviar como um Comunicado novo.', origin)
+    }
+  }
+
   // Cópia do que saiu: o registro do comunicado guarda assunto, texto e o
   // hash do HTML efetivamente enviados (auditoria run-2, #10).
   const { error: renderedError } = await admin
@@ -748,7 +769,7 @@ async function handler(req: Request): Promise<Response> {
     .update({
       rendered_subject: effectiveSubject,
       rendered_text: effectiveText,
-      rendered_html_sha256: await sha256Hex(effectiveHtml),
+      rendered_html_sha256: renderedHtmlSha256,
     })
     .eq('id', communicationId)
     .is('rendered_subject', null)

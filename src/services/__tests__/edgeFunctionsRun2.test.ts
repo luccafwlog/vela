@@ -59,7 +59,8 @@ describe('send-customer-communication: conteúdo renderizado no servidor (audito
 
   it('grava assunto, texto e hash do HTML enviados no registro do comunicado', () => {
     expect(source).toContain('rendered_subject: effectiveSubject')
-    expect(source).toContain('rendered_html_sha256: await sha256Hex(effectiveHtml)')
+    expect(source).toContain('const renderedHtmlSha256 = await sha256Hex(effectiveHtml)')
+    expect(source).toContain('rendered_html_sha256: renderedHtmlSha256')
     const migration = readFileSync('supabase/migrations/108_customer_communication_rendered_copy.sql', 'utf8')
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS rendered_subject text')
   })

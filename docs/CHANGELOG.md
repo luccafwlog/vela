@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Comunicados: identidade de envio não serve a outro remetente nem a outro texto (2026-10-22,
+  auditoria de segurança run-3, achado C5):** `send-customer-communication` recusa (422 definitivo)
+  a chamada manual que reaproveita o `dispatch_id` de um Comunicado de outra pessoa ou com outro
+  conteúdo; antes, o texto novo era entregue e o registro guardava a autoria e a cópia do Comunicado
+  original. Regra em [Clientes](modules/clientes.md). Prova: `sendCustomerCommunicationFunction.test.ts`.
 - **Portal: suspensão, reativação e convite com autor (2026-10-22, auditoria de segurança run-3,
   achado C6):** migration `411`. Os eventos que `portal-account-suspend` e `portal-invite-send`
   gravam com `service_role` passam a registrar quem agiu (o id que o `getUser` da sessão confirmou);
