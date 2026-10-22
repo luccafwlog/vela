@@ -11,6 +11,7 @@ import {
   recoveryTemplate,
   resendTemplate,
 } from '../../../supabase/functions/_shared/portalEmailTemplates.ts'
+import { renderEmailLayout } from '../emailLayout'
 
 const portalUrl = 'https://portal.transhippingdesk.com.br'
 const supportEmail = 'suporte@transhippingdesk.com.br'
@@ -164,5 +165,17 @@ describe('Identidade visual dos emails do Portal', () => {
     const source = readFileSync('supabase/functions/portal-daily-digest/index.ts', 'utf8')
     expect(source).toContain(".in('role', ['administrativo', 'documentacao'])")
     expect(source).not.toContain("'admin'")
+  })
+})
+
+describe('renderEmailLayout — origem da logo', () => {
+  it('escapa a origem no src da logo, nas duas marcas', () => {
+    const siteUrl = 'https://x.example/"><script>alert(1)</script>'
+    for (const brand of ['portal', 'vela'] as const) {
+      const html = renderEmailLayout({ brand, siteUrl, title: 'T', body: '', footer: '' })
+      expect(html).not.toContain('<script>')
+      expect(html).not.toContain('"><script')
+      expect(html).toContain('<img src="https://x.example/&quot;&gt;&lt;script&gt;')
+    }
   })
 })
