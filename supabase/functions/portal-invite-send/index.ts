@@ -21,7 +21,10 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   const { data: role } = await caller.rpc('portal_current_role')
   if (!['administrativo', 'documentacao'].includes(String(role))) return json(403, { error: 'permission denied' }, origin)
   const admin = createClient(url, service)
-  const { data: callerUser } = await caller.auth.getUser()
+  // Sessão viva no Auth e autor do convite e do evento (migration 411).
+  const { data: callerUser, error: callerError } = await caller.auth.getUser()
+  const actorId = callerUser?.user?.id
+  if (callerError || !actorId) return json(403, { error: 'permission denied' }, origin)
   const email = body.recovery_email.toLowerCase()
   const { data: suppressed } = await admin.from('portal_suppressed_emails').select('id').eq('email', email).maybeSingle()
   if (suppressed) return json(422, { error: 'Endereço suprimido por bounce/complaint. Informe outro.' }, origin)
@@ -32,7 +35,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   if (!resend && account.account_situation !== 'sem_conta') return json(409, { error: 'Conta ativa usa recuperação de senha.' }, origin)
   await admin.from('portal_invites').update({ status: 'invalidado_por_reenvio' }).eq('account_id', account.id).eq('status', 'pendente')
   const token = generateToken(); const tokenHash = await hashToken(token)
-  const { data: invite, error } = await admin.from('portal_invites').insert({ account_id: account.id, purpose: 'convite', token_hash: tokenHash, sent_to_email: email, expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), status: 'pendente', created_by: callerUser.user?.id ?? null }).select('id').single()
+  const { data: invite, error } = await admin.from('portal_invites').insert({ account_id: account.id, purpose: 'convite', token_hash: tokenHash, sent_to_email: email, expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), status: 'pendente', created_by: actorId }).select('id').single()
   if (error || !invite) return json(500, { error: 'Não foi possível criar o convite.' }, origin)
   const customer = account.customers as { name?: string; cnpj_cpf?: string } | null
   const activationUrl = canonicalPortalUrl(`ativar?token=${encodeURIComponent(token)}`)
@@ -50,7 +53,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   // `recovery_email` e o único que não o fazia. O endereço chega aqui checado
   // contra a lista de bloqueio logo acima, então 'ok' é o que se sabe dele.
   await admin.from('customer_portal_accounts').update({ recovery_email: email, recovery_email_source: body.recovery_email_source === 'informado_manualmente' ? 'informado_manualmente' : 'candidato', recovery_email_status: 'ok', provisioning_decision: 'aprovado_para_provisionar', account_situation: sent.ok ? 'convite_pendente' : 'falha_no_envio' }).eq('id', account.id)
-  const { error: auditError } = await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: invite.id, p_prev_decision: account.provisioning_decision, p_new_decision: 'aprovado_para_provisionar', p_prev_situation: account.account_situation, p_new_situation: sent.ok ? 'convite_pendente' : 'falha_no_envio', p_actor_type: String(role), p_reason: body.reason ?? (resend ? 'Reenvio de convite autorizado.' : 'Convite autorizado.'), p_request_id: null })
+  const { error: auditError } = await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: invite.id, p_prev_decision: account.provisioning_decision, p_new_decision: 'aprovado_para_provisionar', p_prev_situation: account.account_situation, p_new_situation: sent.ok ? 'convite_pendente' : 'falha_no_envio', p_actor_type: String(role), p_reason: body.reason ?? (resend ? 'Reenvio de convite autorizado.' : 'Convite autorizado.'), p_request_id: null, p_actor_id: actorId })
   if (auditError) {
     console.error('portal invite audit failed', auditError)
     return json(500, { error: 'Não foi possível registrar a auditoria do convite.' }, origin)

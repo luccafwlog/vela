@@ -179,3 +179,16 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
     expect(fn('alerts-detector')).toContain("admin.rpc('list_orphaned_dispute_attachments'")
   })
 })
+
+describe('autor dos eventos do Portal gravados pelas Edges (auditoria run-3, C6)', () => {
+  it('suspensão, reativação e convite exigem getUser válido e passam o autor', () => {
+    const suspend = fn('portal-account-suspend')
+    expect(suspend).toContain('if (callerError || !actorId)')
+    expect(suspend.match(/p_actor_id: actorId/g)).toHaveLength(2)
+    expect(suspend.indexOf('caller.auth.getUser()')).toBeLessThan(suspend.indexOf("createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)"))
+    const invite = fn('portal-invite-send')
+    expect(invite).toContain('if (callerError || !actorId)')
+    expect(invite).toContain('created_by: actorId')
+    expect(invite).toContain('p_actor_id: actorId')
+  })
+})
