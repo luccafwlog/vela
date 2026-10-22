@@ -460,6 +460,12 @@ gravando quem respondeu (`author_type` `equipamentos` ou `administrativo`). As r
 é mantida quando a próxima ação é de Equipamentos. **Código:** migration arquivada
 `325` (redefinições vigentes no dump `002` e nas migrations `081` e `109`) e
 os componentes PortalDisputeConversation e DemurrageDisputeConversation.
+Desde a migration `414`: o pedido de reabertura do Portal tem o mesmo teto da
+abertura (3 em 30 minutos, `check_portal_rate_limit`); a reabertura interna só
+vale para a Dispute resolvida; para a sessão do Portal, Dispute ou mensagem de
+outro Cliente recebe o mesmo erro de id inexistente (P0002); e a Invoice de
+Demurrage reemitida pela troca de Cliente do B/L nasce sem a Dispute do Cliente
+anterior. **Teste:** `src/integration/disputasReaberturaSemOraculo.local-pg.test.ts`.
 **Teste de contrato SQL histórico:** `src/services/__tests__/block521Migration.test.ts`
 lê a migration arquivada `325`.
 
