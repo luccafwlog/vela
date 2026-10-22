@@ -50,7 +50,7 @@ it('trocar o POD deixa as linhas do recorte anterior esmaecidas, sem seleção e
     await waitFor(() => expect(table.getAttribute('aria-busy')).toBe('true'))
     expect(table.className).toContain(STALE_PAGE_CLASS)
     expect((oldRow as HTMLInputElement).disabled).toBe(true)
-    expect((screen.getByRole('checkbox', { name: 'Selecionar todos os containers da página' }) as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByRole('checkbox', { name: /Selecionar todos os containers do filtro/ }) as HTMLInputElement).disabled).toBe(true)
     expect(within(screen.getByRole('group', { name: 'Totais do recorte' })).getByText('Containers').parentElement?.textContent).toContain('—')
 
     mocks.releaseBrssz?.(page('MSCU7654321', 44))

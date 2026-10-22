@@ -292,3 +292,17 @@ it("oferece o memorando de retirada a clientes comuns e VIP, apontando para um a
     cleanup();
   }
 });
+
+// Revisão de 2026-10-22 (G1): o cabeçalho marca os disponíveis do filtro
+// inteiro, não só os 25 da página.
+it("o cabeçalho seleciona os B/Ls disponíveis de todas as páginas do filtro", async () => {
+  fixtures.extraItems = [
+    ...Array.from({ length: 29 }, (_, index) => ({ bl_id: `BL-${index + 1}`, ce_mercante: `9${index}`, paid: true, can_submit: true, state: "no_request", reasons: [] })),
+    { bl_id: "BL-PENDENTE", ce_mercante: "999", paid: false, can_submit: false, state: "no_request", reasons: ["Taxas locais em aberto"] },
+  ];
+  mount();
+  await userEvent.click(screen.getByLabelText("Selecionar todos os B/Ls disponíveis do filtro (30)"));
+  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 30 B/Ls" }).hasAttribute("disabled")).toBe(false);
+  await userEvent.click(screen.getByLabelText("Desmarcar todos os B/Ls disponíveis do filtro (30)"));
+  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 0 B/Ls" })).toBeTruthy();
+});

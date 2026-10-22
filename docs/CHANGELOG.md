@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **"Selecionar todos" marca o filtro inteiro (2026-10-22):** em BLs,
+  Containers, Vazios IMP, Veículos, Clientes e Desbloqueio de CE (interno e
+  Portal), o checkbox do cabeçalho seleciona todo o resultado filtrado, em
+  todas as páginas, e a barra diz "N de M selecionados"; a seleção atravessa
+  páginas e zera quando o filtro muda. Componente e hook comuns
+  (`SelectAllFilteredCheckbox`, `useFilteredSelection`); o botão "Selecionar
+  os N do filtro" de Vazios IMP saiu. Prova: `useFilteredSelection.test.tsx`.
 - **Viagem duplicada recusada e aparição em Chegadas e Saídas no cadastro
   (2026-10-22):** migration `413`. Navio e número já cadastrados (inclusive
   numa Viagem Cancelada) são recusados na tela e no banco, por qualquer

@@ -50,8 +50,9 @@ it('excluir Container remove a linha e atualiza os cards abertos de Containers, 
     await screen.findByText('CXRU1234567')
     await waitFor(() => expect(screen.getByLabelText('Containers no resumo de B/Ls').textContent).toBe('1'))
     expect(screen.getByLabelText('Containers no card da Viagem').textContent).toBe('1')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar todos os containers da página' }))
-    fireEvent.click(screen.getByRole('button', { name: /Excluir/ }))
+    // O cabeçalho marca o filtro inteiro (G1): lê as páginas antes de liberar a exclusão.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar todos os containers do filtro (1)' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Excluir/ }))
     await waitFor(() => expect(screen.queryByText('CXRU1234567')).toBeNull())
     await waitFor(() => expect(screen.getByLabelText('Containers no resumo de B/Ls').textContent).toBe('0'))
     expect(screen.getByLabelText('Containers no card da Viagem').textContent).toBe('0')

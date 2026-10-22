@@ -196,12 +196,14 @@ describe('VaziosImportacao — Atribuição em Lote de Natureza', () => {
     expect(screen.getByText('Filtros ativos: Viagem COSCO SHIPPING ARIES / 088E, Manifesto Mercante 2626501234568, POD BRVIX')).toBeTruthy()
   })
 
-  it('permite selecionar todos os containers da página e definir natureza como Cama em lote', async () => {
+  // Revisão de 2026-10-22 (G1): o cabeçalho marca o filtro inteiro.
+  it('o cabeçalho seleciona todos os containers do filtro e define natureza como Cama em lote', async () => {
+    mocks.fetchVaziosImportacaoContainerIds.mockResolvedValue(['c-1', 'c-2'])
     renderPage()
 
-    fireEvent.click(screen.getByLabelText('Selecionar todos os containers da página'))
+    fireEvent.click(screen.getByLabelText('Selecionar todos os containers do filtro (2)'))
 
-    expect(screen.getByText('2 containers selecionados')).toBeTruthy()
+    expect(await screen.findByText('2 de 2 containers selecionados')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cama' }))
 
     await waitFor(() => {
@@ -215,7 +217,7 @@ describe('VaziosImportacao — Atribuição em Lote de Natureza', () => {
     renderPage()
 
     fireEvent.click(screen.getByLabelText('Selecionar container MSCU1234567'))
-    expect(screen.getByText('1 container selecionado')).toBeTruthy()
+    expect(screen.getByText('1 de 2 containers selecionado')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cover plate' }))
 
     await waitFor(() => {
@@ -248,7 +250,7 @@ describe('VaziosImportacao — Atribuição em Lote de Natureza', () => {
     ])
   })
 
-  it('exibe opção para selecionar todos os containers filtrados quando há múltiplas páginas', async () => {
+  it('com várias páginas, o cabeçalho seleciona os containers de todas elas', async () => {
     mocks.listVaziosImportacaoContainers.mockReturnValue({
       rows: [
         {
@@ -266,13 +268,15 @@ describe('VaziosImportacao — Atribuição em Lote de Natureza', () => {
 
     renderPage()
 
-    fireEvent.click(screen.getByLabelText('Selecionar todos os containers da página'))
-    fireEvent.click(screen.getByRole('button', { name: 'Selecionar os 3 do filtro' }))
+    fireEvent.click(screen.getByLabelText('Selecionar todos os containers do filtro (3)'))
 
     await waitFor(() => {
       expect(mocks.fetchVaziosImportacaoContainerIds).toHaveBeenCalled()
-      expect(screen.getByText('3 containers selecionados')).toBeTruthy()
+      expect(screen.getByText('3 de 3 containers selecionados')).toBeTruthy()
     })
+    // Marcado tudo, o cabeçalho desmarca o filtro inteiro.
+    fireEvent.click(screen.getByLabelText('Desmarcar todos os containers do filtro (3)'))
+    await waitFor(() => expect(screen.queryByText(/containers selecionados/)).toBeNull())
   })
 
   it('falha ao ler os manifestos aparece como falha, não como "Sem número" pendente', () => {
