@@ -158,4 +158,5 @@ src/integration/ceEManifestoMercante.local-pg.test.ts
 src/integration/vaziosUmaVezPorViagem.local-pg.test.ts
 src/integration/atdDoPolManual.local-pg.test.ts
 src/integration/historicoImportacao.local-pg.test.ts
+src/integration/hashEDesova.local-pg.test.ts
 src/integration/baplieArmadorETransbordo.local-pg.test.ts

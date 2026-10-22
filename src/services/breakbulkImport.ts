@@ -87,8 +87,11 @@ export async function importBreakbulkManifest({
   manifest,
   uploadedBy,
   approval = NO_BREAKBULK_APPROVAL,
+  fileHash = null,
 }: {
   filename: string
+  /** SHA-256 do arquivo (ADR 0095, decisão 3): gravado no lote; o reenvio só avisa na prévia. */
+  fileHash?: string | null
   voyageId: number
   manifest: BreakbulkImportManifest
   uploadedBy: string
@@ -172,7 +175,8 @@ export async function importBreakbulkManifest({
     p_bls: blRows,
     p_items: itemRows,
     p_errors: errorRows,
-  })
+    p_file_hash: fileHash,
+  } as never)
   if (error) throw error
   const raw = (data ?? {}) as RawBreakbulkImportResult
   const batchId = Number(raw.batch_id)

@@ -4,6 +4,7 @@ import {
   setContainerUnpackingLocation,
   setVazioImportacaoNatureza,
   setVaziosImportacaoNaturezaMany,
+  unpackingReplacements,
 } from '../vaziosNatureza'
 
 const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }))
@@ -113,5 +114,21 @@ describe('vaziosNatureza', () => {
 
       await expect(fetchVaziosImportacaoContainerIds({ voyageId: '7' })).rejects.toThrow('manifestos fora do ar')
     })
+  })
+})
+
+describe('um local de desova por container físico (ADR 0095, decisão 26)', () => {
+  it('aponta o local diferente já gravado no mesmo container de outro B/L da Viagem', () => {
+    const rows = [
+      { id: 1, bl_id: 'BL-1', container_number: 'CXRU1234567', unpacking_location: null, bl: { voyage_id: 7 } },
+      { id: 2, bl_id: 'BL-2', container_number: 'cxru 1234567', unpacking_location: 'Terminal Z', bl: { voyage_id: 7 } },
+      { id: 3, bl_id: 'BL-3', container_number: 'CXRU1234567', unpacking_location: 'Terminal Q', bl: { voyage_id: 8 } },
+      { id: 4, bl_id: 'BL-4', container_number: 'CXRU7654321', unpacking_location: 'Terminal Y', bl: { voyage_id: 7 } },
+    ]
+    expect(unpackingReplacements(rows, [1], 'Terminal A')).toEqual([{ containerNumber: 'CXRU1234567', blId: 'BL-2', current: 'Terminal Z' }])
+    // O mesmo local (sem diferenciar maiúsculas) não é troca.
+    expect(unpackingReplacements(rows, [1], 'terminal z')).toEqual([])
+    // Apagar o local gravado também pede confirmação.
+    expect(unpackingReplacements(rows, [1], null)).toHaveLength(1)
   })
 })

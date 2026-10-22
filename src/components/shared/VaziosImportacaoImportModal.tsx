@@ -23,7 +23,9 @@ import {
 } from '../../services/vaziosImportacaoImport'
 import type { FixedImportVoyage } from './BreakbulkManifestImportModal'
 import { ImportIssuesPanel } from './ImportIssuesPanel'
-import { ImportContext, ImportFileBlock, ImportFilePicker, ImportFootnote, ImportNotice, ImportSection, ImportSteps } from './ImportParts'
+import { ImportContext, ImportFileBlock, ImportFilePicker, ImportFootnote, ImportNotice, ImportSection, ImportSteps, PreviousImportNotice } from './ImportParts'
+import { useImportFileReceipt } from '../../hooks/useImportFileReceipt'
+import { importFilesSha256 } from '../../services/importFileReceipt'
 import { ImportReadProgress } from './ImportReadProgress'
 import { TruncationNote } from './TruncationNote'
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers, VaziosImportacaoTemplates } from './VaziosImportacaoImportParts'
@@ -63,6 +65,7 @@ export function VaziosImportacaoImportModal({
   const [description, setDescription] = useState('')
   const [manifestNumbers, setManifestNumbers] = useState<Record<string, string>>({})
   const { file, preview: manifest, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedVaziosImportacaoManifest>(parseVaziosImportacaoFile)
+  const receipt = useImportFileReceipt('vazios_importacao', voyageId ? Number(voyageId) : null, file ? [file] : [])
   const [readError, setReadError] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
@@ -125,6 +128,8 @@ export function VaziosImportacaoImportModal({
         voyageId: Number(voyageId),
         manifestNumbers,
         description: description.trim() || undefined,
+        filename: file?.name ?? null,
+        fileHash: receipt.fileHash ?? (file ? await importFilesSha256([file]) : null),
       })
       await afterManifestoImportado(queryClient, { voyageId })
       showToast(`Vazios de importação gravados: ${plural(containerCount, 'container', 'containers')}.`, 'success')
@@ -207,6 +212,7 @@ export function VaziosImportacaoImportModal({
               />
             }
           >
+            <PreviousImportNotice message={receipt.previousImportMessage} />
             {containerCount ? (
               <>
                 <div className="app-table-scroll max-h-64">

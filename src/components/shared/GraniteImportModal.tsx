@@ -32,7 +32,10 @@ import {
   ImportSection,
   ImportSteps,
   ImportTemplateLinks,
+  PreviousImportNotice,
 } from './ImportParts'
+import { useImportFileReceipt } from '../../hooks/useImportFileReceipt'
+import { importFilesSha256 } from '../../services/importFileReceipt'
 import { ImportReadProgress } from './ImportReadProgress'
 import { TruncationNote } from './TruncationNote'
 import { VoyageCombobox } from './VoyageCombobox'
@@ -69,6 +72,7 @@ export function GraniteImportModal({
   const [chosenVoyageId, setChosenVoyageId] = useState(defaultVoyageId ?? '')
   const voyageId = voyage ? String(voyage.id) : chosenVoyageId
   const { file, preview: manifest, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedGraniteManifest>(parseGraniteManifestFile)
+  const receipt = useImportFileReceipt('granito', voyageId ? Number(voyageId) : null, file ? [file] : [])
   const [readError, setReadError] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
@@ -112,6 +116,7 @@ export function GraniteImportModal({
         manifest,
         uploadedBy,
         confirmRemoval: (missing) => confirm(graniteRemovalConfirmOptions(missing, manifest.hidden)),
+        fileHash: receipt.fileHash ?? (file ? await importFilesSha256([file]) : null),
       })
       // Inclui a lista e os totais do Granito, a Viagem e o ADR (G6).
       await afterManifestoImportado(queryClient, { voyageId })
@@ -199,6 +204,7 @@ export function GraniteImportModal({
               />
             }
           >
+            <PreviousImportNotice message={receipt.previousImportMessage} />
             <ImportContext label="Navio/viagem na planilha">{manifest.vesselVoyage || 'Não informado'}</ImportContext>
             {blCount ? (
               <>

@@ -540,7 +540,23 @@ item 9; migration `189`). O contexto é gravado como justificativa da linha que
 não tem outra, no formato "Importação de <tipo> · Viagem <navio> <número> ·
 Manifesto <Nº>" — por exemplo, "Importação de Vazios de Importação · Viagem
 <navio> <número> · Manifesto <Nº>"; o motivo de uma exclusão, quando há,
-prevalece. Não se guarda lote, arquivo nem linha da planilha.
+prevalece. Não se guarda o arquivo nem a linha da planilha; do arquivo fica só
+o nome e o hash (abaixo).
+
+- **Arquivo importado:** toda importação por arquivo que grava lote — arquivo
+  de B/L e Manifesto BB (e B/L avulso de carga solta) em `import_batches`,
+  Granito em `granite_manifests`, Embarque de Vazios em `vazios_manifests` e
+  Vazios de Importação em `vazios_importacao_manifests` — guarda o nome do
+  arquivo, o SHA-256 do conteúdo (calculado no navegador; o servidor recusa o
+  que não tem 64 hexadecimais), quem e quando
+  ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md), decisão 3, que
+  muda em parte o item 9 da ADR 0078; migration `405`). Vários arquivos numa
+  importação só (B/L avulso) guardam o hash do conjunto. O mesmo arquivo de
+  novo para a mesma Viagem e o mesmo tipo de importação **só avisa** na
+  prévia: "Este arquivo já foi importado em <data> por <pessoa>." — nunca
+  bloqueia (`import_file_previous_upload`). Veículos, planilha de CE, datas de
+  container, Programação, Base de Clientes e Baplie não gravam lote e não têm
+  esse aviso.
 
 - **Importações com rastro:** B/L, Manifesto BB, CE Mercante, Baplie (e a
   aplicação das marcas do Baplie), Veículos, Granito, Vazios de Importação,

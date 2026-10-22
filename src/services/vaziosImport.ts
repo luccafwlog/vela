@@ -192,17 +192,21 @@ function formatRowErrors(rowErrors: readonly RowError[]): string {
   return lines.join('\n')
 }
 
-export type ImportVaziosArgs = { filename: string; voyageId: number; port: string; manifest: Pick<ParsedVaziosManifest, 'bookings' | 'rowErrors'>; uploadedBy: string; description?: string }
+export type ImportVaziosArgs = { filename: string; voyageId: number; port: string; manifest: Pick<ParsedVaziosManifest, 'bookings' | 'rowErrors'>; uploadedBy: string; description?: string; fileHash?: string | null }
 
 // Limite de linhas detalhadas na mensagem de erro; acima disso um resumo com a
 // contagem restante evita paredes de texto em planilhas com muitas divergências.
 const MAX_ROW_ERRORS_SHOWN = 20
 
-export async function importVaziosManifest({ voyageId, port, manifest, uploadedBy }: ImportVaziosArgs): Promise<{ manifestId: string }> {
+export async function importVaziosManifest({ filename, voyageId, port, manifest, uploadedBy, fileHash = null }: ImportVaziosArgs): Promise<{ manifestId: string }> {
   // Importação de unidades diverge do importCore: uma divergência aborta o lote inteiro.
   if (manifest.rowErrors.length) throw new Error(formatRowErrors(manifest.rowErrors))
   const p_bookings = manifest.bookings.map((booking) => Object.fromEntries(Object.entries(booking).filter(([key]) => key !== 'rowNumber')))
-  const { data, error } = await supabase.rpc('import_vazios_bookings_transactional', { p_voyage_id: voyageId, p_port: port, p_uploaded_by: uploadedBy, p_bookings })
+  const { data, error } = await supabase.rpc('import_vazios_bookings_transactional', {
+    p_voyage_id: voyageId, p_port: port, p_uploaded_by: uploadedBy, p_bookings,
+    // Nome e SHA-256 do arquivo no lote (ADR 0095, decisão 3; migration 405).
+    p_filename: filename, p_file_hash: fileHash,
+  } as never)
   if (error) throw error
   return { manifestId: (data as { manifest_id: string }).manifest_id }
 }

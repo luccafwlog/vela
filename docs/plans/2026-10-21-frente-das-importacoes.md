@@ -107,6 +107,18 @@ antes e passa depois, e o módulo dono atualizado.
   ([Viagens](../modules/viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota)).
   Prova: `historicoImportacao.local-pg.test.ts`, `blTimelinePresentation.test.ts`,
   `customerFicha.test.ts`, `customerCadastroChanges.test.ts`, `auditEntries.test.ts`.
+- **Lote 10 — hash e desova** (migrations `405` e `406`):
+  decisões 3 e 26; F-50 (desova). Toda importação por arquivo que grava lote
+  (arquivo de B/L, Manifesto BB e B/L avulso, Granito, Embarque de Vazios e
+  Vazios de Importação) guarda nome, SHA-256 do arquivo (calculado no
+  navegador, formato conferido no servidor), quem e quando; o índice único que
+  recusaria o reenvio virou índice comum e a prévia avisa "Este arquivo já foi
+  importado em <data> por <pessoa>" (`import_file_previous_upload`). Um local de
+  desova por container físico: gravar num B/L grava em todos os B/Ls ativos da
+  Viagem com o mesmo container (gatilho em `bl_containers`), B/L novo herda, e
+  `/veiculos` pede confirmação para trocar um local já gravado. Prova:
+  `hashEDesova.local-pg.test.ts`, `importFileReceipt.test.ts`,
+  `Veiculos.unpackingCache.test.tsx`, `vaziosNatureza.test.ts`.
 - **Pela PR luccafwlog/vela#1019** (ADR 0094), não refazer: escrita direta
   fechada (F-03), RPCs antigas revogadas (F-19), B/L cancelado somente leitura
   e datas só nos B/Ls ativos (F-12), carga solta faturada com confirmação no
@@ -128,7 +140,7 @@ antes e passa depois, e o módulo dono atualizado.
 | 7 ATD (entregue, ver acima) | 23 | F-48 | ATD manual marcado e preservado; só B/Ls ativos | local-pg |
 | 8 Histórico (entregue, ver acima) | 24 | F-23, F-24, F-46 | `bl_timeline` lê `bls`, `vehicles` e `bl_containers`; origem Base de Clientes; `audit_logs` sem INSERT direto | local-pg + vitest |
 | 9 Baplie: armador e transbordo (entregue, ver acima) | 14, 15 | — | códigos do armador no cadastro; transbordo marcado | vitest + local-pg |
-| 10 Hash e desova | 3, 26 | F-50 | `import_batches` com hash e aviso de reenvio; desova por container físico | local-pg |
+| 10 Hash e desova (entregue, ver acima) | 3, 26 | F-50 | `import_batches` com hash e aviso de reenvio; desova por container físico | local-pg |
 
 ## Pendências
 
@@ -149,6 +161,11 @@ antes e passa depois, e o módulo dono atualizado.
   de POD e `cancel_bl`; elas seguem no detector periódico. O "B/Ls esperados"
   já compara o porto normalizado (lote 3). A linha do tempo da Viagem lê
   `import_batch` (semântico) e o gatilho `import_batches` só pelo id do lote.
+- Do Lote 10: Veículos, planilha de CE, datas de container, Programação, Base
+  de Clientes e Baplie não gravam lote e ficaram sem hash nem aviso de
+  reenvio. A confirmação da troca de desova na planilha de Veículos continua
+  olhando o container do B/L da linha; container que já tinha dois locais
+  diferentes antes da `406` só se unifica na próxima gravação.
 
 - Nenhuma do Lote 2: a modalidade FCL/LCL é lida do Type of Movement
   ("LCL/LCL" e "CFS-CFS" no B/L LCL real da COSCO).

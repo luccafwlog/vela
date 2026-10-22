@@ -334,6 +334,10 @@ export type ImportVaziosImportacaoArgs = {
   /** Nº do manifesto Mercante por rota da planilha (chave `vaziosRouteKey`), obrigatório em todas. */
   manifestNumbers: Readonly<Record<string, string>>
   description?: string
+  /** Nome do arquivo gravado no lote (ADR 0095, decisão 3). */
+  filename?: string | null
+  /** SHA-256 do arquivo (ADR 0095, decisão 3): gravado no lote; o reenvio só avisa na prévia. */
+  fileHash?: string | null
 }
 
 export async function importVaziosImportacaoManifest({
@@ -342,6 +346,8 @@ export async function importVaziosImportacaoManifest({
   voyageId,
   manifestNumbers,
   description,
+  filename = null,
+  fileHash = null,
 }: ImportVaziosImportacaoArgs): Promise<{ manifestId: string; mercanteManifestIds: string[] }> {
   // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo inteiro.
   if (manifest.rowErrors.length) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
@@ -362,7 +368,9 @@ export async function importVaziosImportacaoManifest({
     p_uploaded_by: uploadedBy,
     p_containers: containers,
     p_manifestos: manifestos,
-  })
+    p_filename: filename,
+    p_file_hash: fileHash,
+  } as never)
   if (error) throw error
   const result = data as { manifest_id: string; mercante_manifest_ids: string[] | null }
   return { manifestId: result.manifest_id, mercanteManifestIds: result.mercante_manifest_ids ?? [] }
