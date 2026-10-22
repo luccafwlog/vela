@@ -4,6 +4,7 @@ const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
 vi.mock('../supabase', () => ({ supabase: { rpc } }))
 
 import { claimImportEffects, completeImportEffect, enqueueImportEffect, listImportEffects, retryImportEffect } from '../importEffects'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 const effect = {
   id: 17,
@@ -94,6 +95,14 @@ describe('importEffects service', () => {
   it('propaga falha do RPC em vez de declarar efeito aplicado', async () => {
     rpc.mockResolvedValue({ data: null, error: new Error('lease expirou') })
     await expect(completeImportEffect({ effectId: 17, workerId: 'worker-1', status: 'succeeded' })).rejects.toThrow('lease expirou')
+  })
+
+  it('recusa do Reprocessar chega à tela com a mensagem do banco, não com a genérica', async () => {
+    // Formato real do supabase-js em `{ data, error }`: objeto, não `Error`.
+    rpc.mockResolvedValue({ data: null, error: { code: '22023', message: 'Somente efeitos bloqueados podem ser reabertos.', details: null, hint: null } })
+    const failure = await retryImportEffect(17, 'corrigir payload e repetir lote').catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(Error)
+    expect(userFacingErrorMessage(failure, 'fallback')).toBe('Somente efeitos bloqueados podem ser reabertos.')
   })
 
   it('reabre bloqueio somente com justificativa encaminhada ao servidor', async () => {

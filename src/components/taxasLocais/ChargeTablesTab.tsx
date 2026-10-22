@@ -7,6 +7,7 @@ import { SkeletonTable } from '../ui/Skeleton'
 import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
+  useChargeTablesInUse,
   useDeleteChargeTableItem,
   useLocalChargeTables,
   useSaveChargeTable,
@@ -86,6 +87,9 @@ export function ChargeTablesTab({
   const [busyItemId, setBusyItemId] = useState<number | null>(null)
 
   const tables = useMemo(() => data ?? [], [data])
+  const tableIds = useMemo(() => tables.map((table) => table.id), [tables])
+  const inUse = useChargeTablesInUse(tableIds)
+  const tablesInUse = inUse.data ?? null
   const today = todayIso()
   const states = useMemo(() => resolveChargeTableStates(tables), [tables])
   const tablesById = useMemo(() => new Map(tables.map((table) => [table.id, table])), [tables])
@@ -295,6 +299,7 @@ export function ChargeTablesTab({
           onToggleExpanded={toggleExpanded}
           canEdit={canEdit}
           canDelete={canDelete}
+          tablesInUse={tablesInUse}
           onEditTable={(table) => setTableModal({ table })}
           onAddItem={(table) => setItemModal({ table, item: null })}
           onToggleTableActive={handleToggleTableActive}
@@ -322,6 +327,7 @@ export function ChargeTablesTab({
           open
           table={itemModal.table}
           item={itemModal.item}
+          tableInUse={tablesInUse === null || tablesInUse.has(itemModal.table.id)}
           onClose={() => setItemModal(null)}
           onSave={handleSaveItem}
         />

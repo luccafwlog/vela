@@ -372,6 +372,30 @@ merge, confira:
 2. Em Supabase → Edge Functions, `recalc-demurrage-ptax` e `send-customer-communication` com a data do merge.
 3. A execução seguinte do job da PTAX grava a referência do dia (sem alerta de falha da PTAX). Conferido em 2026-10-15 (ver acima).
 
+As frentes financeira e das importações (PR luccafwlog/vela#1021, staging →
+`main`, migrations `354` a `407`) vão a produção pelo mesmo caminho automático.
+Duas funções dependem de migration nova
+([revisão da PR 1021](../archive/audits/2026-10-22-revisao-pr-1021.md), R-02):
+
+| Função | Depende de | Se ficasse no ar sem a migration |
+|---|---|---|
+| `admin-users` | migration `404` (`record_audit_entries`; o INSERT direto em `audit_logs` saiu) | Criar usuário, trocar e-mail ou senha em `/admin/usuarios` altera a conta no Auth e falha na gravação do Histórico; a tela mostra erro com a conta já alterada |
+| `itau-pix` | migrations `358` (`itau_pix_receipt_failed`) e `375`/`385` (`itau_pix_record_untracked`) | Quando chega Pix sem TXID ou uma baixa falha, a consulta de recebimentos para sem avançar o checkpoint (falha fechada) e a baixa automática atrasa; sem a `358`, o Alerta de consulta parada também não existe |
+
+A ordem entre migrations e Functions na integração não foi conferida (ver
+acima). Se as Functions saírem antes, refaça a operação de usuário depois que a
+`404` entrar. A `404` também tira o INSERT direto em `audit_logs` do navegador:
+uma aba do Vela aberta antes da publicação do site recebe recusa de permissão
+ao salvar a agenda da escala (ETA, ATA, ETD) em **Chegadas e Saídas** ou
+**Rotas e Manifestos** e grava a Viagem sem o Histórico ao editá-la, até
+recarregar a página. Avise a equipe para recarregar o Vela quando o site for
+publicado. Depois do merge, confira:
+
+1. `SELECT proname FROM pg_proc WHERE proname IN ('record_audit_entries', 'itau_pix_receipt_failed', 'itau_pix_record_untracked', 'charge_tables_in_use');` devolve as quatro.
+2. Em Supabase → Edge Functions, `admin-users` e `itau-pix` com a data do merge; `admin-users` responde 204 ao preflight e 403 sem sessão.
+3. Um ETA salvo em **Chegadas e Saídas** aparece no Histórico da escala.
+4. A rodada seguinte do job `itau-pix-queue` responde 200 e o checkpoint da consulta anda.
+
 ### Secrets das Edge Functions
 
 | Grupo | Nomes | Serviço de origem |
@@ -445,7 +469,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `itau-pix-checkpoint-health` | a cada 5 min, em :01/:06/… (`1-59/5 * * * *`, migration `358`) | `reconcile_itau_pix_checkpoint_alert()`: com `pix_provider = 'itau'`, abre o Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro) quando o checkpoint da consulta Itaú está parado há mais de 15 minutos e o fecha quando anda; SQL puro, não depende da Edge | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação (inclui a exceção crítica de fatura) | `portal-daily-digest` |
-| `recalc-demurrage-ptax` | 17:00 de segunda a sexta (`0 17 * * 1-5`, 14:00 de Brasília; criado à mão em 07/10, jobid 26; recriado pela migration `358`) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
+| `recalc-demurrage-ptax` | 17:00 de segunda a sexta (`0 17 * * 1-5`, 14:00 de Brasília; criado à mão em 07/10, jobid 26; recriado pela migration `358`) | PTAX do BCB, referência cambial e recálculo em BRL das Invoices de Demurrage emitidas ou vencidas e não pagas, salvo as de ROE manual (migrations `382` e `402`) | — |
 
 O job `cleanup-portal-sessions` (03:00, sessões do token antigo do Portal) foi
 desagendado pela migration `234`, junto com a tabela que limpava (ADR 0083,

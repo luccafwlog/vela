@@ -6,6 +6,21 @@
 
 ## 2026-10
 
+- **Revisão da PR 1021, correções antes do merge (2026-10-22;
+  [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-01 a R-08):**
+  migration `407`. `admin-users` volta a responder 403 a quem não é
+  Administrativo (a renumeração da migration do lote 8 tinha trocado para 404,
+  junto com duas linhas de `seguranca.md`). Em Taxas Locais, corrigir item ou
+  Condição relê faturas, ficha do B/L, saldo e Alertas; a confirmação de
+  ativar/desativar Condição diz que só os B/Ls novos mudam (ADR 0094, A3); item
+  de tabela ainda sem uso é corrigido por todos os setores e o de tabela já
+  usada só pelo Administrativo (nota de 2026-10-22 na ADR 0093; a tela sabe o
+  uso por `charge_tables_in_use`). Reprocessar efeito mostra o motivo da recusa
+  do banco. Matriz de permissões, catálogo "O que cada setor pode", glossário,
+  roteiro de cron, Saldo pendente do Cliente, Granito e a ordem de deploy das
+  Edge Functions `admin-users` e `itau-pix` atualizados. Prova:
+  `tariffCorrectionCache.test.tsx`, `TaxasLocais.behavior.test.tsx`,
+  `importEffects.test.ts`, `permissoesPorPerfil.local-pg.test.ts`.
 - **Importações: hash do arquivo e desova (2026-10-22, Lote 10 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
   migrations `405` e `406`. Arquivo de B/L, Manifesto BB, B/L avulso de carga solta, Granito,

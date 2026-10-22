@@ -34,6 +34,7 @@ vi.mock('../../components/ui/ConfirmDialog', async () => {
 })
 
 vi.mock('../../hooks/useLocalCharges', () => ({
+  useChargeTablesInUse: () => ({ data: new Set<number>() }),
   useLocalChargeOperations: () => ({
     data: [
       {
