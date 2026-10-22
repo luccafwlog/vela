@@ -16,6 +16,11 @@
   com Histórico em cada um; B/L novo herda o local; em Veículos, trocar ou apagar um local já
   gravado pede confirmação. Prova: `hashEDesova.local-pg.test.ts`, `importFileReceipt.test.ts`,
   `Veiculos.unpackingCache.test.tsx`.
+- **Demurrage: Invoice vencida volta à PTAX (2026-10-22; ADR 0094, B10; revisão da PR #1021):**
+  migration `402`. O recálculo diário pela PTAX (`recalculate_demurrage_invoices`) passa a incluir a
+  Invoice vencida e não paga, como já fazia a RPC de **Tirar ROE manual…** (`385`): antes, a vencida
+  tirada do ROE manual ficava parada no câmbio do clique. A Invoice com ROE manual e a paga seguem
+  fora. Prova: `demurrageRoeManual.local-pg.test.ts`.
 - **Importações: ATD do POL (2026-10-22, Lote 7 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
   migration `401`. O ATD do POL corrigido à mão (Rotas e Manifestos → **Editar**) fica marcado, com
