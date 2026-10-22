@@ -136,3 +136,46 @@ Deno.test("duplicata já processada responde 200 sem inserir", async () => {
   assert(response.status === 200, `status ${response.status}`);
   assert(json.duplicate === true && inserted.length === 0, JSON.stringify(json));
 });
+
+Deno.test("sem cabeçalhos do svix responde antes de ler o corpo", async () => {
+  let pulled = false;
+  const stream = () => new ReadableStream<Uint8Array>({ pull(controller) { pulled = true; controller.enqueue(new Uint8Array(1024)); controller.close(); } }, { highWaterMark: 0 });
+  const withoutId = await handler(new Request("https://edge.example.test/portal-email-webhook", { method: "POST", body: stream(), duplex: "half" } as RequestInit));
+  assert(withoutId.status === 400, `status ${withoutId.status}`);
+  const withoutSignature = await handler(new Request("https://edge.example.test/portal-email-webhook", {
+    method: "POST",
+    headers: { "svix-id": "msg_sem_assinatura" },
+    body: stream(),
+    duplex: "half",
+  } as RequestInit));
+  assert(withoutSignature.status === 401, `status ${withoutSignature.status}`);
+  assert(!pulled, "body must not be read");
+});
+
+Deno.test("corpo acima de 256 KiB responde 413 sem tocar no banco, mesmo sem Content-Length", async () => {
+  const original = globalThis.fetch;
+  let called = false;
+  globalThis.fetch = async () => { called = true; return new Response("{}"); };
+  let pulled = 0;
+  const chunk = new Uint8Array(64 * 1024).fill(32);
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulled += chunk.length;
+      controller.enqueue(chunk);
+      if (pulled >= 4 * 1024 * 1024) controller.close();
+    },
+  });
+  try {
+    const response = await handler(new Request("https://edge.example.test/portal-email-webhook", {
+      method: "POST",
+      headers: { "svix-id": "msg_grande", "svix-timestamp": String(Math.floor(Date.now() / 1000)), "svix-signature": "v1,qualquer" },
+      body,
+      duplex: "half",
+    } as RequestInit));
+    assert(response.status === 413, `status ${response.status}`);
+    assert(pulled < 1024 * 1024, `pulled ${pulled}`);
+    assert(!called, "database must not be called");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
