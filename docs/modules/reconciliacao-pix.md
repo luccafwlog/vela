@@ -403,6 +403,10 @@ a exceção do extrato já resolvida não tem TXID, valor e data reescritos por 
 nova importação, e a baixa repetida com a mesma chave depois de cancelada é
 recusada ("Esta baixa foi cancelada…") em vez de devolver o sucesso guardado.
 **Teste:** `src/integration/consistenciaOperacaoFinanceiro.local-pg.test.ts`.
+Quando o runner para no meio do bloco reservado (429 do Itaú ou banco sem
+resposta), as cobranças do bloco que não foram chamadas voltam sem a tentativa e
+com a vez liberada (`itau_pix_release`, migration `419`); antes, ficavam com uma
+tentativa a mais e o atraso crescia.
 
 **Baixa automática (migration 152):** a função consulta `GET /pix` e chama
 `itau_pix_settle` para cada Pix com TXID `VELA…`, que baixa pelos mesmos

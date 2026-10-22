@@ -366,6 +366,19 @@ describe('processador da fila de cobranças', () => {
     expect(summary).toMatchObject({ active: 2, error: 1, throttled: true })
   })
 
+  it('parada no meio do bloco libera as reservadas e não chamadas (419)', async () => {
+    const released: number[][] = []
+    const q = queueOf(20, { failOn: 3 })
+    await processItauPixQueue(q.client, { ...q.queue, release: async (ids: number[]) => { released.push(ids) } }, { now: q.now })
+    // Bloco 1–5: 3 respondeu 429; 4 e 5 não foram chamadas.
+    expect(released).toEqual([[4, 5]])
+    const unreachable = queueOf(20, { failOn: 5, failStatus: 0 })
+    const none: number[][] = []
+    await processItauPixQueue(unreachable.client, { ...unreachable.queue, release: async (ids: number[]) => { none.push(ids) } }, { now: unreachable.now })
+    // A última do bloco ficou incerta: não há reservada sem chamada.
+    expect(none).toEqual([])
+  })
+
   it('Itaú sem resposta: registra a incerta e para, sem esperar o resto do bloco', async () => {
     const q = queueOf(20, { failOn: 2, failStatus: 0 })
     const summary = await processItauPixQueue(q.client, q.queue, { now: q.now })

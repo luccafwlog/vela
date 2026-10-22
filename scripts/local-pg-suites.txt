@@ -169,5 +169,6 @@ src/integration/desbloqueioCeGuardasDeDono.local-pg.test.ts
 src/integration/portalRegrasDocumentadas.local-pg.test.ts
 src/integration/consistenciaOperacaoFinanceiro.local-pg.test.ts
 src/integration/historicoTrocaDaPropriaSenha.local-pg.test.ts
+src/integration/itauPixLiberaReserva.local-pg.test.ts
 src/integration/baldeLoginReservaAtomica.local-pg.test.ts
 src/integration/autorDosEventosDoPortal.local-pg.test.ts

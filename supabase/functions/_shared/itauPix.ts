@@ -291,6 +291,9 @@ export type ChargeQueue = {
   // Renova a vez única do runner (migration 219) antes de cada bloco seguinte;
   // falso encerra a execução. Ausente: sem vez (testes, ações manuais).
   renew?(): Promise<boolean>
+  // Desfaz a reserva das cobranças do bloco que não foram chamadas (migration
+  // 419). Ausente: a reserva vence sozinha.
+  release?(ids: number[]): Promise<void>
 }
 
 function active(cob: ItauCob): ChargeOutcome {
@@ -420,18 +423,19 @@ export async function processItauPixQueue(
   for (let round = 0; now() - startedAt < budgetMs && processed < maxCharges; round += 1) {
     if (round > 0 && queue.renew && !(await queue.renew())) break
     const charges = await queue.claim(Math.min(chunk, maxCharges - processed))
-    for (const charge of charges) {
+    for (const [index, charge] of charges.entries()) {
       const outcome = await stepCharge(client, charge)
       await queue.record(charge.id, outcome, charge.change_version)
       summary[outcome.outcome]++
       processed++
-      // As cobranças já reservadas e não chamadas voltam pela própria reserva vencida.
-      if (outcome.outcome === 'error' && outcome.throttled) {
-        summary.throttled = true
-        return summary
-      }
-      if (outcome.outcome === 'uncertain') {
-        summary.unreachable = true
+      const stop = (outcome.outcome === 'error' && outcome.throttled) || outcome.outcome === 'uncertain'
+      if (stop) {
+        if (outcome.outcome === 'uncertain') summary.unreachable = true
+        else summary.throttled = true
+        // As reservadas e não chamadas voltam sem a tentativa (419); se a
+        // liberação falhar, a reserva vence sozinha.
+        const untouched = charges.slice(index + 1).map((c) => c.id)
+        if (untouched.length && queue.release) await queue.release(untouched).catch(() => undefined)
         return summary
       }
     }

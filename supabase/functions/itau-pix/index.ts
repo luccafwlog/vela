@@ -54,6 +54,10 @@ if (typeof Deno !== "undefined")
             });
             if (error) throw new Error("Falha ao registrar resultado Itaú.");
           },
+          async release(ids) {
+            const { error } = await admin.rpc("itau_pix_release", { p_ids: ids });
+            if (error) throw new Error("Falha ao liberar a reserva Itaú.");
+          },
         };
         const runCharges = async () => {
           // Outra execução tem a vez: as cobranças entram no bloco seguinte dela ou no próximo minuto.
