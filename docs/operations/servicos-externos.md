@@ -1194,4 +1194,6 @@ run-3.
   liga "Require current password when changing password" em produção e na
   `staging`. Ligar antes quebra a troca de senha da versão anterior.
 - **Migrations aplicadas:** produção estava na `353`; a branch `staging` estava
-  na `406`.
+  na `406`. Mais tarde, no mesmo dia, o merge da PR luccafwlog/vela#1021
+  (`staging` → `main`) levou a produção à `409` e republicou as Edge Functions
+  da `main` (conferido por leitura de `supabase_migrations` e da lista de funções).
