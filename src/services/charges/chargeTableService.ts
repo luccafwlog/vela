@@ -122,10 +122,14 @@ export async function listLocalChargeTables(filters?: {
  * todos os setores.
  */
 export async function listChargeTablesInUse(tableIds: readonly number[]): Promise<Set<number>> {
-  if (!tableIds.length) return new Set()
-  const { data, error } = await supabase.rpc('charge_tables_in_use' as never, { p_table_ids: [...tableIds] } as never)
-  if (error) throw toError(error)
-  return new Set(((data ?? []) as Array<number | string>).map(Number))
+  const inUse = new Set<number>()
+  // A RPC aceita até 500 tabelas por chamada (migration 407).
+  for (let index = 0; index < tableIds.length; index += 500) {
+    const { data, error } = await supabase.rpc('charge_tables_in_use' as never, { p_table_ids: tableIds.slice(index, index + 500) } as never)
+    if (error) throw toError(error)
+    for (const id of (data ?? []) as Array<number | string>) inUse.add(Number(id))
+  }
+  return inUse
 }
 
 export async function saveChargeTable(input: ChargeTableInput) {
