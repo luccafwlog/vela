@@ -20,6 +20,16 @@
   eventos operacionais pela RPC `record_audit_entries`, com o autor da sessão. Prova:
   `historicoImportacao.local-pg.test.ts`, `blTimelinePresentation.test.ts`, `customerFicha.test.ts`,
   `customerCadastroChanges.test.ts`, `auditEntries.test.ts`.
+- **Importações: Baplie, armador e transbordo (2026-10-22, Lote 9 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `403`.
+  Navio compartilhado: o armador guarda os códigos com que aparece no Baplie (campo "Códigos do
+  armador no Baplie" em **Nova Viagem**/**Editar**; a COSCO recebeu COS e COSCO); container de outro
+  código fica fora das marcas IMO/OOG e SOC/COC e da conciliação, contado na prévia ("de outro
+  armador") e recusado também no servidor, sem depender dos B/Ls importados nem recusar o arquivo.
+  Transbordo (EQD 8249 = 6), antes descartado, entra no Baplie da Viagem marcado ("Transbordo" na
+  lista do `/baplie`), aparece na conciliação e não leva marcas aos B/Ls nem vira vazio de importação.
+  Prova: `baplieArmadorETransbordo.local-pg.test.ts`, `baplieImport.test.ts`,
+  `baplieParserEtapa9.test.ts`, `baplieReconciliation.test.ts`.
 - **Demurrage: Invoice vencida volta à PTAX (2026-10-22; ADR 0094, B10; revisão da PR #1021):**
   migration `402`. O recálculo diário pela PTAX (`recalculate_demurrage_invoices`) passa a incluir a
   Invoice vencida e não paga, como já fazia a RPC de **Tirar ROE manual…** (`385`): antes, a vencida

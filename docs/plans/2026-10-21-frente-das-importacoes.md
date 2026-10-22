@@ -78,6 +78,18 @@ antes e passa depois, e o módulo dono atualizado.
   calculado (`_recompute_voyage_pol_atd`) conta só B/Ls ativos; cancelar e
   reativar recalculam. Correções manuais anteriores marcadas na migration.
   Prova: `atdDoPolManual.local-pg.test.ts` e `ws1FunctionalSmoke.test.ts`.
+- **Lote 9 — Baplie: armador e transbordo** (migration `403`;
+  decisões 14 e 15 (B12b, B12c). O armador
+  guarda os códigos com que aparece no Baplie (`carriers.baplie_codes`,
+  campo "Códigos do armador no Baplie" em Nova Viagem/Editar; COSCO com COS e
+  COSCO); container de outro código fica fora do staging, das marcas e da
+  conciliação, contado na prévia e em `other_carrier`, sem depender dos B/Ls
+  nem recusar o arquivo. Transbordo (EQD 8249 = 6) entra no staging marcado
+  (`is_transshipment`), aparece na conciliação, não leva IMO/OOG nem SOC/COC
+  aos B/Ls e não vira vazio de importação. Prova:
+  `baplieArmadorETransbordo.local-pg.test.ts`, `baplieImport.test.ts`,
+  `baplieParserEtapa9.test.ts`, `baplieReconciliation.test.ts`,
+  `voyageForm.test.ts`, `voyageMutations.test.ts`.
 - **Lote 8 — Histórico** (migration `404`): decisão 24; F-23, F-24 e F-46.
   O Histórico do B/L (`bl_timeline`) lê o gatilho de `bls`, `vehicles` e
   `bl_containers` pelo B/L gravado no rastro (`audit_logs.bl_id`): container e
@@ -115,7 +127,7 @@ antes e passa depois, e o módulo dono atualizado.
 | 6 Vazios (entregue, ver acima) | 21, 22 | F-32 | unicidade por Viagem, planilha vence; ADR de Saída fechado trava | local-pg |
 | 7 ATD (entregue, ver acima) | 23 | F-48 | ATD manual marcado e preservado; só B/Ls ativos | local-pg |
 | 8 Histórico (entregue, ver acima) | 24 | F-23, F-24, F-46 | `bl_timeline` lê `bls`, `vehicles` e `bl_containers`; origem Base de Clientes; `audit_logs` sem INSERT direto | local-pg + vitest |
-| 9 Baplie: armador e transbordo | 14, 15 | — | códigos do armador no cadastro; transbordo marcado | vitest + local-pg |
+| 9 Baplie: armador e transbordo (entregue, ver acima) | 14, 15 | — | códigos do armador no cadastro; transbordo marcado | vitest + local-pg |
 | 10 Hash e desova | 3, 26 | F-50 | `import_batches` com hash e aviso de reenvio; desova por container físico | local-pg |
 
 ## Pendências

@@ -1,13 +1,14 @@
 import { supabase } from './supabase'
 import { recordAuditEntries } from './auditEntries'
-import type { VoyageFormValues } from './voyageForm'
+import { parseCarrierBaplieCodes, type VoyageFormValues } from './voyageForm'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
 import { deleteRecords } from './deleteRecords'
 import type { DeleteDependencyReport } from './deleteDependencies'
 import { toError } from '../lib/errors'
 
 export async function createVoyage(form: VoyageFormValues, changedBy: string | null) {
-  const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
+  const carrier = await getOrCreateCarrier(form.carrierName, form.carrierScac)
+  const carrierId = carrier.id
   const vesselId = await getOrCreateVessel(form.vesselName, form.vesselImo, carrierId)
 
   const { data: created, error: createError } = await supabase
@@ -29,12 +30,14 @@ export async function createVoyage(form: VoyageFormValues, changedBy: string | n
     makeVoyageAuditRow(created.id, 'indicated_first_brazilian_port', null, form.indicatedFirstBrazilianPort ?? null, changedBy),
     makeVoyageAuditRow(created.id, 'indicated_first_brazilian_eta', null, form.indicatedFirstBrazilianEta ?? null, changedBy),
   ])
+  await saveCarrierBaplieCodes(carrier, form.carrierBaplieCodes)
 
   return created
 }
 
 export async function updateVoyage(voyageId: number, form: VoyageFormValues, changedBy: string | null) {
-  const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
+  const carrier = await getOrCreateCarrier(form.carrierName, form.carrierScac)
+  const carrierId = carrier.id
   const vesselId = await getOrCreateVessel(form.vesselName, form.vesselImo, carrierId)
   const [{ data: current, error: currentError }, currentIndicated] = await Promise.all([
     supabase
@@ -66,6 +69,7 @@ export async function updateVoyage(voyageId: number, form: VoyageFormValues, cha
     makeVoyageAuditRow(voyageId, 'indicated_first_brazilian_port', currentIndicated?.port ?? null, form.indicatedFirstBrazilianPort ?? null, changedBy),
     makeVoyageAuditRow(voyageId, 'indicated_first_brazilian_eta', currentIndicated?.eta ?? null, form.indicatedFirstBrazilianEta ?? null, changedBy),
   ])
+  await saveCarrierBaplieCodes(carrier, form.carrierBaplieCodes)
 
   return updated
 }
@@ -121,17 +125,32 @@ export function deleteVoyage(voyageId: number, reason: string): Promise<DeleteDe
   return deleteRecords('voyage', [voyageId], { reason })
 }
 
-async function getOrCreateCarrier(name: string, scac: string) {
-  let query = supabase.from('carriers').select('id').limit(1)
-  if (scac.trim()) {
-    query = query.eq('scac', scac.trim())
-  } else {
-    query = query.eq('name', name.trim())
-  }
+function carrierLookup(name: string, scac: string) {
+  const query = supabase.from('carriers').select('id, baplie_codes' as 'id').limit(1)
+  return scac.trim() ? query.eq('scac', scac.trim()) : query.eq('name', name.trim())
+}
+/**
+ * Códigos do Baplie do armador que o formulário da Viagem vai usar (mesma
+ * busca de `getOrCreateCarrier`: SCAC, ou o nome sem SCAC). `null` = armador
+ * ainda não cadastrado. `baplie_codes` é da migration 410 (tipos protegidos).
+ */
+export async function fetchCarrierBaplieCodes(name: string, scac: string): Promise<string[] | null> {
+  if (!scac.trim() && !name.trim()) return null
+  const query = supabase.from('carriers').select('baplie_codes' as 'id').limit(1)
+  const { data, error } = await (scac.trim() ? query.eq('scac', scac.trim()) : query.eq('name', name.trim()))
+  if (error) throw error
+  const row = (data?.[0] ?? null) as unknown as { baplie_codes?: string[] | null } | null
+  return row ? parseCarrierBaplieCodes((row.baplie_codes ?? []).join(',')) : null
+}
 
-  const { data: existing, error: existingError } = await query
+type CarrierRef = { id: number; baplieCodes: string[] }
+
+/** Armador da Viagem (SCAC, ou nome sem SCAC), com os códigos do Baplie atuais. */
+async function getOrCreateCarrier(name: string, scac: string): Promise<CarrierRef> {
+  const { data: existing, error: existingError } = await carrierLookup(name, scac)
   if (existingError) throw existingError
-  if (existing?.[0]) return existing[0].id
+  const row = (existing?.[0] ?? null) as unknown as { id: number; baplie_codes?: string[] | null } | null
+  if (row) return { id: row.id, baplieCodes: row.baplie_codes ?? [] }
 
   const { data: created, error: createError } = await supabase
     .from('carriers')
@@ -140,7 +159,23 @@ async function getOrCreateCarrier(name: string, scac: string) {
     .single()
 
   if (createError || !created) throw createError
-  return created.id
+  return { id: created.id, baplieCodes: [] }
+}
+
+/**
+ * Grava os códigos do armador no Baplie (ADR 0095, decisão 14), que valem para
+ * todas as Viagens desse armador. Roda só depois que a Viagem foi salva e só
+ * se os códigos mudaram: falha anterior não deixa o armador alterado.
+ * ponytail: não é atômico com a Viagem (não há RPC de gravação da Viagem);
+ * se esta última escrita falhar, a Viagem fica salva e o erro aparece no modal.
+ */
+async function saveCarrierBaplieCodes(carrier: CarrierRef, baplieCodes: string | undefined) {
+  if (baplieCodes === undefined) return
+  const codes = parseCarrierBaplieCodes(baplieCodes)
+  const same = codes.length === carrier.baplieCodes.length && codes.every((code, i) => code === carrier.baplieCodes[i])
+  if (same) return
+  const { error } = await supabase.from('carriers').update({ baplie_codes: codes } as never).eq('id', carrier.id)
+  if (error) throw error
 }
 
 async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
