@@ -14,6 +14,8 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { useToast } from '../components/ui/Toast'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { VoyageRail } from '../components/voyages/VoyageRail'
+import { toggleRailVoyage, useVoyageRailItems } from '../hooks/useVoyageRailItems'
 import { VaziosImportacaoImportModal } from '../components/shared/VaziosImportacaoImportModal'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { useAuth } from '../hooks/useAuth'
@@ -80,6 +82,7 @@ export function VaziosImportacao() {
     pageSize: 20,
   })
 
+  const voyageRail = useVoyageRailItems()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [bulkUpdating, setBulkUpdating] = useState(false)
@@ -253,6 +256,14 @@ export function VaziosImportacao() {
           </div>
         }
       />
+
+      {voyageRail.isLoading ? null : (
+        <VoyageRail
+          items={voyageRail.items}
+          selectedId={hasVoyage ? filterVoyageId : null}
+          onSelect={(id) => setFilters((current) => ({ ...current, voyageId: toggleRailVoyage(current.voyageId, id), mercanteId: '', page: 1 }))}
+        />
+      )}
 
       <div className="app-filter-grid">
         <Field label="Busca">

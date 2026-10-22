@@ -5,6 +5,12 @@ import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 
 const source = vi.hoisted(() => ({ exists: true }))
+const railItemsMock = vi.hoisted(() => vi.fn(() => ({ items: [] as unknown[], isLoading: false })))
+// Cards de navio/viagem: o teste próprio está em VoyageRail.behavior.test.tsx.
+vi.mock('../../hooks/useVoyageRailItems', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../hooks/useVoyageRailItems')>()),
+  useVoyageRailItems: () => railItemsMock(),
+}))
 vi.mock('../../services/operationalLists', () => ({
   listOperationalContainers: async () => ({
     rows: source.exists ? [{ id: 33, container_number: 'CXRU1234567', type: '40HC', bl: { id: 'BL1', voyage_id: 24 } }] : [],

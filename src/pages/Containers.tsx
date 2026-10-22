@@ -25,6 +25,8 @@ import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { ContainerDatesImportModal } from '../components/shared/ContainerDatesImportModal'
 import { CargoProfileBadge, ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { VoyageRail } from '../components/voyages/VoyageRail'
+import { toggleRailVoyage, useVoyageRailItems } from '../hooks/useVoyageRailItems'
 import { checkContainerDependencies, deleteContainers } from '../services/containers'
 import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { type ContainerFilters, fetchAllContainers, useContainers, usePortOptions, useContainerTypeOptions } from '../hooks/useBls'
@@ -141,6 +143,7 @@ export function Containers() {
   const selection = useRowSelection<number>()
   const [deleting, setDeleting] = useState(false)
   const { filters, setFilters, updateFilter } = usePageFilters<ContainerFilters>(filtersFromContainersSearch(searchParams))
+  const voyageRail = useVoyageRailItems()
   const [exporting, setExporting] = useState(false)
   const [datesImportOpen, setDatesImportOpen] = useState(false)
 
@@ -274,6 +277,14 @@ export function Containers() {
           </div>
         }
       />
+
+      {voyageRail.isLoading ? null : (
+        <VoyageRail
+          items={voyageRail.items}
+          selectedId={filters.voyageId ? Number(filters.voyageId) : null}
+          onSelect={(id) => updateFilter('voyageId', toggleRailVoyage(filters.voyageId, id))}
+        />
+      )}
 
       <div className="app-metric-row" role="group" aria-label="Totais do recorte">
         <MetricCard label="Containers" value={count(data?.distinctCount)} />

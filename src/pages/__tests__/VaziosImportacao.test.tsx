@@ -18,6 +18,12 @@ const mocks = vi.hoisted(() => ({
   containersEnabled: [] as unknown[],
 }))
 
+const railItemsMock = vi.hoisted(() => vi.fn(() => ({ items: [] as unknown[], isLoading: false })))
+// Cards de navio/viagem: o teste próprio está em VoyageRail.behavior.test.tsx.
+vi.mock('../../hooks/useVoyageRailItems', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../hooks/useVoyageRailItems')>()),
+  useVoyageRailItems: () => railItemsMock(),
+}))
 vi.mock('@tanstack/react-query', () => ({
   keepPreviousData: (value: unknown) => value,
   useQueryClient: () => ({

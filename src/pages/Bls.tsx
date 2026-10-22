@@ -17,6 +17,8 @@ import { BlDocumentImportModal } from '../components/shared/BlDocumentImportModa
 import { CargoProfileBadge } from '../components/shared/OperationalBadges'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { VoyageRail } from '../components/voyages/VoyageRail'
+import { toggleRailVoyage, useVoyageRailItems } from '../hooks/useVoyageRailItems'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
@@ -126,6 +128,7 @@ export function Bls() {
   // Filtros, lente e página vivem na URL: voltar da ficha, recarregar ou
   // compartilhar o endereço reabre a mesma lista.
   const { filters, setFilters, updateFilter } = usePageFilters<BlFilters>(filtersFromBlsSearch(searchParams))
+  const voyageRail = useVoyageRailItems()
 
   const [blFreightOpen, setBlFreightOpen] = useState(false)
   const [ceMercanteOpen, setCeMercanteOpen] = useState(false)
@@ -315,6 +318,14 @@ export function Bls() {
           <Button variant="secondary" onClick={() => setDeleteBlocked(null)}>Fechar aviso</Button>
         </div>
       ) : null}
+
+      {voyageRail.isLoading ? null : (
+        <VoyageRail
+          items={voyageRail.items}
+          selectedId={filters.voyageId ? Number(filters.voyageId) : null}
+          onSelect={(id) => updateFilter('voyageId', toggleRailVoyage(filters.voyageId, id))}
+        />
+      )}
 
       <div className="app-metric-row" role="group" aria-label="Totais do recorte">
         <MetricCard label="B/Ls" value={metric(summary?.totalBls)} />

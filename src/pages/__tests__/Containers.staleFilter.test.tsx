@@ -10,6 +10,12 @@ const page = (containerNumber: string, id: number): Page => ({
   count: 1, distinctCount: 1, blCount: 1, oogDistinctCount: 0, imoDistinctCount: 0, typeSummary: [],
 })
 const mocks = vi.hoisted(() => ({ releaseBrssz: null as ((value: Page) => void) | null }))
+const railItemsMock = vi.hoisted(() => vi.fn(() => ({ items: [] as unknown[], isLoading: false })))
+// Cards de navio/viagem: o teste próprio está em VoyageRail.behavior.test.tsx.
+vi.mock('../../hooks/useVoyageRailItems', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../hooks/useVoyageRailItems')>()),
+  useVoyageRailItems: () => railItemsMock(),
+}))
 vi.mock('../../services/operationalLists', () => ({
   listOperationalContainers: (filters: { pod?: string }) => filters.pod === 'BRSSZ'
     ? new Promise<Page>((resolve) => { mocks.releaseBrssz = resolve })

@@ -45,7 +45,7 @@ const FINANCIAL_READ_KEYS: readonly (readonly unknown[])[] = [
   ['customer-reconciliation-queue'], ['report-financial'], ['report-customers'],
 ]
 const CARD_SCHEDULE_KEYS: readonly (readonly unknown[])[] = [
-  ['baplie-voyage-card-schedules'], ['vehicles-voyage-card-schedules'],
+  ['baplie-voyage-card-schedules'], ['vehicles-voyage-card-schedules'], ['voyage-rail-card-schedules'],
 ]
 const EMPTY_IMPORT_KEYS: readonly (readonly unknown[])[] = [
   ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
