@@ -24,6 +24,12 @@ sua ação no Redis:
 - ativação: recusas de política de senha, em um balde próprio para não consumir
   as tentativas de login — Supabase bloqueia com 10 recusas em 5 minutos.
 
+O limite de taxa do próprio Supabase Auth não distingue Clientes: os logins do
+Portal chegam ao Auth pela Edge Function, e o Auth registra o IP de saída dela,
+não o do Cliente (conferido nos logs de produção em 2026-10-22: vários IPs
+AWS `sa-east-1` que se alternam). Recusa do Auth por limite ou falha (429, 5xx,
+rede) responde 503 e não conta como senha errada no balde do CNPJ.
+
 Com os limiares padrão, a camada Redis não bloqueia nada além do balde: no
 login e na recuperação, depois de 5 erros (ou pedidos) do mesmo CNPJ, a 6ª
 tentativa já recebe a resposta genérica/limitada vinda do Supabase, de qualquer
