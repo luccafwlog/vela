@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Importações: Baplie, armador e transbordo (2026-10-22, Lote 9 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `410`.
+  Navio compartilhado: o armador guarda os códigos com que aparece no Baplie (campo "Códigos do
+  armador no Baplie" em **Nova Viagem**/**Editar**; a COSCO recebeu COS e COSCO); container de outro
+  código fica fora das marcas IMO/OOG e SOC/COC e da conciliação, contado na prévia ("de outro
+  armador") e recusado também no servidor, sem depender dos B/Ls importados nem recusar o arquivo.
+  Transbordo (EQD 8249 = 6), antes descartado, entra no Baplie da Viagem marcado ("Transbordo" na
+  lista do `/baplie`), aparece na conciliação e não leva marcas aos B/Ls nem vira vazio de importação.
+  Prova: `baplieArmadorETransbordo.local-pg.test.ts`, `baplieImport.test.ts`,
+  `baplieParserEtapa9.test.ts`, `baplieReconciliation.test.ts`.
 - **Importações: ATD do POL (2026-10-22, Lote 7 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
   migration `401`. O ATD do POL corrigido à mão (Rotas e Manifestos → **Editar**) fica marcado, com
