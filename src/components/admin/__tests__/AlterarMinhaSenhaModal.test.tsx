@@ -33,7 +33,7 @@ it('revalida a senha atual antes de trocar', async () => {
   render(<AlterarMinhaSenhaModal open email="ana@fwlog.com.br" onClose={vi.fn()} />)
   preencher('Antiga123', 'Nova12345', 'Nova12345')
   await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: 'ana@fwlog.com.br', password: 'Antiga123' }))
-  expect(mocks.updateUser).toHaveBeenCalledWith({ password: 'Nova12345' })
+  expect(mocks.updateUser).toHaveBeenCalledWith({ password: 'Nova12345', current_password: 'Antiga123' })
 })
 
 it('nao troca a senha quando a senha atual esta errada', async () => {
@@ -49,4 +49,13 @@ it('recusa nova senha fora da regra', async () => {
   preencher('Antiga123', 'fraca', 'fraca')
   await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/no mínimo 8 caracteres/))
   expect(mocks.updateUser).not.toHaveBeenCalled()
+})
+
+it('quando o Auth recusa a senha atual na troca, mostra senha atual incorreta', async () => {
+  mocks.updateUser.mockResolvedValue({ error: { code: 'current_password_mismatch', message: 'mismatch' } })
+  const onClose = vi.fn()
+  render(<AlterarMinhaSenhaModal open email="ana@fwlog.com.br" onClose={onClose} />)
+  preencher('Antiga123', 'Nova12345', 'Nova12345')
+  await waitFor(() => expect(screen.getByText('Senha atual incorreta.')).toBeTruthy())
+  expect(onClose).not.toHaveBeenCalled()
 })

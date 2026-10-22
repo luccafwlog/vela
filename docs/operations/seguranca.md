@@ -301,6 +301,12 @@ encerra a sessão local. Quando o Administrativo troca a própria credencial, a
 login. A troca da própria senha em Meu perfil segue o contrato do Supabase Auth
 e não grava marco. Prova: `src/integration/corteTokenInterno.local-pg.test.ts`.
 
+A troca da própria senha em Meu perfil (`AlterarMinhaSenhaModal`) confere a
+senha atual na tela e também a envia ao Auth (`current_password`). A tela
+sozinha não protege contra um token roubado chamando o Auth direto: a proteção
+no servidor depende de "Require current password when changing password"
+ligado no projeto ([serviços externos](servicos-externos.md#conferência-supabase-auth--2026-10-22)).
+
 ## Rate limiting
 
 - **Login, recuperação e ativação do Portal:** contados por hash do CNPJ em

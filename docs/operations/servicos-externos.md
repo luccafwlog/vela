@@ -1165,6 +1165,9 @@ run-3.
   changing password", "Require current password when changing password" (ambas em
   Authentication → Sign In / Providers → Email) e os limites de login
   (Authentication → Rate Limits) só podem ser lidos no painel ou pela Management
-  API. Ainda não foram conferidas.
+  API. Ainda não foram conferidas. Desde a auditoria run-3 (P1), a troca de senha
+  em Meu perfil envia a senha atual: depois de essa versão estar publicada, o dono
+  liga "Require current password when changing password" em produção e na
+  `staging`. Ligar antes quebra a troca de senha da versão anterior.
 - **Migrations aplicadas:** produção estava na `353`; a branch `staging` estava
   na `406`.

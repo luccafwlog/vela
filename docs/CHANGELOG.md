@@ -6,6 +6,10 @@
 
 ## 2026-10
 
+- **Meu perfil: a troca de senha envia a senha atual ao Auth (2026-10-22, auditoria de segurança
+  run-3, pendência P1):** a conferência da senha atual era só da tela; um token roubado trocava a
+  senha direto no Auth. Agora `current_password` vai na troca; a proteção no servidor passa a valer
+  quando o dono ligar "Require current password when changing password" depois da publicação.
 - **Pix Itaú: um comprovante destoante não para a baixa automática (2026-10-22, auditoria de
   segurança run-3, pendência P4):** um único Pix do Vela com horário divergente do `endToEndId`
   parava a consulta inteira e segurava a baixa dos demais. Agora a parada por fuso só acontece

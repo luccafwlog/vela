@@ -7,6 +7,8 @@ import { useToast } from '../ui/Toast'
 import { supabase } from '../../services/supabase'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../../lib/passwordPolicy'
 
+const CURRENT_PASSWORD_CODES = new Set(['invalid_credentials', 'current_password_mismatch', 'current_password_required'])
+
 export function AlterarMinhaSenhaModal({
   open,
   email,
@@ -33,8 +35,13 @@ export function AlterarMinhaSenhaModal({
       // Revalidar a senha atual impede que uma estação destravada troque a senha.
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: current })
       if (signInError) { setError('Senha atual incorreta.'); return }
-      const { error: updateError } = await supabase.auth.updateUser({ password: next })
-      if (updateError) { setError('Não foi possível alterar a senha.'); return }
+      // A senha atual também vai na troca: com "Require current password" ligado
+      // no Auth, um token roubado não troca a senha sem ela (auditoria run-3, P1).
+      const { error: updateError } = await supabase.auth.updateUser({ password: next, current_password: current })
+      if (updateError) {
+        setError(CURRENT_PASSWORD_CODES.has(updateError.code ?? '') ? 'Senha atual incorreta.' : 'Não foi possível alterar a senha.')
+        return
+      }
       showToast('Senha alterada.', 'success')
       onClose()
     } finally {
