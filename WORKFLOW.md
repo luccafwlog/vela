@@ -830,7 +830,9 @@ e o de banco requer PostgreSQL 16:
    cobre só esses imports remotos (`--no-config` e `DENO_NO_PACKAGE_JSON=1`),
    então atualizações npm não o invalidam;
 2. `test` — suíte Vitest dividida em 2 shards (`--shard=N/2`);
-3. `db` — aplica as migrations do zero num PostgreSQL 16 descartável
+3. `db` — aplica as migrations do zero num PostgreSQL 16 descartável (a imagem
+   do runner traz outra versão; o passo instala o 16 pelo repositório oficial
+   PGDG e remove o cluster da outra versão para o 16 ficar na porta 5432)
    (`setup-local-pg.sh --reset`), trava invariantes em banco real
    (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), confere o
    catálogo de RPCs e aplica/verifica `supabase/seed.sql` em toda PR. As suítes
