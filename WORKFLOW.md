@@ -825,7 +825,9 @@ e o de banco requer PostgreSQL 16:
    das suítes local-pg (`npm run localpg:check`), contratos de staging e de
    provisionamento do Cloudflare Pages (`npm run cloudflare:stage:test` e
    `npm run cloudflare:provision:test`), autotestes do analisador e replay
-   estático de autorização (`verificar_guardas.py`), build (`tsc` + `vite`) com
+   estático de autorização (`verificar_guardas.py`: RLS, policies, guardas das
+   DEFINER, defaults de EXECUTE e trava tomada antes da guarda de perfil em
+   função de `authenticated`), build (`tsc` + `vite`) com
    staging dos dois sites Pages (`npm run cloudflare:build:sites`, que exige
    `VITE_SUPABASE_URL` para o `connect-src` da CSP) e orçamento de bundle;
    inclui os contratos de upload e de expurgo CE em Deno 2.9.6, com HTTP simulado e
