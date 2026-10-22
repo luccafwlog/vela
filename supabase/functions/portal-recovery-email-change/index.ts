@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createPasswordCheckClient } from '../_shared/passwordCheckClient.ts'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { emailChangeAlertTemplate, emailChangeAssistedAlertTemplate, emailChangeConfirmTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
@@ -63,16 +64,15 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
       await voidLoginAttempt(admin, attemptId)
       return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })
     }
-    const verifier = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!)
-    // Senha migrada (HMAC) primeiro; a pura só vale para conta ainda legada.
-    // Falha do Auth (429, 5xx, rede) em qualquer tentativa não é senha errada: não entra no balde.
+    // Com credencial de administrador, para o captcha do Auth não recusar a conferência.
+    const verifier = createPasswordCheckClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    // Só a senha derivada (HMAC); a pura legada saiu (auditoria run-3).
+    // Falha do Auth (429, 5xx, rede) não é senha errada: não entra no balde.
     const authUnavailable = async () => {
       await voidLoginAttempt(admin, attemptId)
       return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 503 })
     }
-    let verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: await derivePortalAuthPassword(body.current_password, portalPasswordPepper()) })
-    if (verified.error && !isInvalidCredentials(verified.error)) return await authUnavailable()
-    if (verified.error) verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: body.current_password })
+    const verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: await derivePortalAuthPassword(body.current_password, portalPasswordPepper()) })
     if (verified.error && !isInvalidCredentials(verified.error)) return await authUnavailable()
     if (verified.error) {
       await confirmLoginFailure(account.login_cnpj, rateLimitContext)

@@ -14,6 +14,11 @@ export function canAnswerDemurrageDispute(role: string | null | undefined) {
   return role === 'equipamentos' || role === 'administrativo'
 }
 
+/** ROE manual do B/L e da Invoice: Financeiro, Administrativo e Equipamentos põem e tiram, com motivo (migration 426). */
+export function canManageManualRoe(role: string | null | undefined) {
+  return role === 'financeiro' || role === 'administrativo' || role === 'equipamentos'
+}
+
 
 /** PTAX digitada: só dígitos com vírgula ou ponto decimal ("5,4321"); nada de "0x10" ou "1e1". */
 export function parsePtaxInput(value: string): number | null {

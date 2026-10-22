@@ -36,6 +36,8 @@ export type DemurrageDetailPermissions = {
   canAdmin: boolean
   /** Conversa de Disputas: Equipamentos e Administrativo. */
   canAnswerDispute: boolean
+  /** Tirar o ROE manual: Financeiro, Administrativo e Equipamentos (migration 426). */
+  canManageRoe: boolean
 }
 
 type Props = {
@@ -214,7 +216,7 @@ function DetailBody({
         {issued && permissions.canSettle ? (
           <Button onClick={() => onRegisterPayment(invoice)}><CircleDollarSign size={16} aria-hidden="true" />Registrar pagamento</Button>
         ) : null}
-        {issued && invoice.roe_manual && permissions.canSettle ? <ManualRoeRelease invoiceId={invoice.id} docNumber={invoice.doc_number} /> : null}
+        {issued && invoice.roe_manual && permissions.canManageRoe ? <ManualRoeRelease invoiceId={invoice.id} docNumber={invoice.doc_number} /> : null}
         {issued ? (
           <Button variant="secondary" onClick={() => onDiscount(invoice)}><Percent size={16} aria-hidden="true" />{Number(invoice.discount_value ?? 0) > 0 ? 'Alterar desconto' : 'Aplicar desconto'}</Button>
         ) : null}

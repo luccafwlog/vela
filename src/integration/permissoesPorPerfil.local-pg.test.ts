@@ -783,6 +783,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   // chamada gravar é desfeito (outcomeAs).
   const ADM: Profile[] = ['administrativo']
   const FIN: Profile[] = ['administrativo', 'financeiro']
+  const FIN_EQU: Profile[] = ['administrativo', 'financeiro', 'equipamentos']
   const ADM_DOC: Profile[] = ['administrativo', 'documentacao']
   const ADM_DOC_EQU: Profile[] = ['administrativo', 'documentacao', 'equipamentos']
   const MATRIX_EXCEPTIONS: Array<{ row: string; allowed: Profile[]; call: string }> = [
@@ -813,7 +814,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Registrar a Restituição (Demurrage)', allowed: FIN, call: `public.confirm_demurrage_refund(-1, 'comprovante', 'favorecido', now())` },
     { row: 'Liquidar Ajuste de COD', allowed: FIN, call: `public.settle_cod_adjustment(-1, '{actor}', NULL, 'motivo')` },
     { row: 'Baixa de Invoice de Demurrage', allowed: FIN, call: `public.register_demurrage_payment('{actor}', -1, current_date, 'motivo', 1, 1)` },
-    { row: 'Tirar o ROE manual da Invoice de Demurrage', allowed: FIN, call: `public.release_demurrage_invoice_manual_roe(-1, 'motivo do teste P14')` },
+    { row: 'Tirar o ROE manual da Invoice de Demurrage', allowed: FIN_EQU, call: `public.release_demurrage_invoice_manual_roe(-1, 'motivo do teste P14')` },
+    { row: 'Pôr e tirar o ROE manual do B/L', allowed: FIN_EQU, call: `public.set_bl_manual_roe('P14-INEXISTENTE', NULL, 'motivo do teste P14')` },
     { row: 'Informar PTAX', allowed: ['administrativo', 'financeiro', 'equipamentos'], call: `public.recalculate_demurrage_invoices_manual(0)` },
     { row: 'Responder Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.add_demurrage_dispute_message(-1, 'mensagem', 'invalido')` },
     { row: 'Reabrir Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.reopen_demurrage_dispute(-1, 'motivo')` },

@@ -17,7 +17,7 @@ import { DemurrageInvoiceDetailModal } from '../components/demurrage/DemurrageIn
 import { DemurragePaymentReversalModal } from '../components/demurrage/DemurragePaymentReversalModal'
 import { InvoiceDocument as DemurrageInvoiceDoc, type DemurrageInvoiceDocumentDetail } from '../components/demurrage/InvoiceDocument'
 import { useAuth } from '../hooks/useAuth'
-import { canAnswerDemurrageDispute } from '../components/demurrage/demurrageFormRules'
+import { canAnswerDemurrageDispute, canManageManualRoe } from '../components/demurrage/demurrageFormRules'
 import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
 import { useDemurrageComplementOf } from '../hooks/useDemurrageComplementOf'
 import { extractErrorText } from '../lib/errors'
@@ -165,7 +165,7 @@ function ReconciliacaoContent() {
 
       <DemurrageInvoiceDetailModal
         invoiceId={opened?.source === 'demurrage' ? opened.invoiceId : null}
-        permissions={{ canSettle: can('settle_financial_adjustments'), canAdmin: isAdmin, canAnswerDispute: canAnswerDemurrageDispute(effectiveRole) }}
+        permissions={{ canSettle: can('settle_financial_adjustments'), canAdmin: isAdmin, canAnswerDispute: canAnswerDemurrageDispute(effectiveRole), canManageRoe: canManageManualRoe(effectiveRole) }}
         cancelling={false}
         onClose={() => setOpened(null)}
         onOpenInvoice={(id) => openInvoice('demurrage', id)}

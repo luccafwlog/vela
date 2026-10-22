@@ -2,6 +2,8 @@
 
 > **Situação atual (2026-10-21).** A decisão vale, exceto o "como as Taxas Locais" de D6 (decisão R6 de 2026-09-23, "preços seguem editáveis por todos") para a Tabela de Taxas Locais e a Condição de Cliente: pela [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md) (decisão 2), só o Administrativo edita item de tabela e Condição, porque a edição corrige faturas emitidas. Implementado na PR luccafwlog/vela#1019 ([plano arquivado](../archive/plans/2026-10-21-correcoes-frente-financeira.md)).
 > Regra vigente em [Segurança](../operations/seguranca.md), seção Modelo de permissões por perfil.
+>
+> **Nota de 2026-10-22 (D4, auditoria de segurança run-3).** Desde a migration `306`, o desconto que zera o USD líquido quita a Invoice de Demurrage como isenta (`paid`), então o motivo de D4 ("só altera o valor e não registra baixa") não vale para o desconto integral. O dono decidiu manter o desconto, inclusive o de 100%, com qualquer Departamento, sempre com justificativa e no histórico.
 
 Status: supersedida parcialmente — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelos
 itens P1 a P15 do

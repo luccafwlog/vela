@@ -6,6 +6,7 @@ import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.
 import { AuthUpstreamError, sessionOrRefusal } from '../_shared/authRefusal.ts'
 import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
+import { createPasswordCheckClient } from '../_shared/passwordCheckClient.ts'
 import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
 
 const GENERIC_ERROR = 'CNPJ ou senha inválidos.'
@@ -43,9 +44,8 @@ if (typeof Deno !== 'undefined') {
 
       const url = Deno.env.get('SUPABASE_URL')
       const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-      const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
       const dummyUserId = Deno.env.get('PORTAL_LOGIN_DUMMY_AUTH_USER_ID')
-      if (!url || !serviceKey || !anonKey || !dummyUserId) return json(500, { error: 'Portal indisponível.' }, origin)
+      if (!url || !serviceKey || !dummyUserId) return json(500, { error: 'Portal indisponível.' }, origin)
 
       const pepper = portalPasswordPepper()
       const admin = createClient(url, serviceKey)
@@ -76,7 +76,8 @@ if (typeof Deno !== 'undefined') {
       }
 
       const { data: account } = await admin.from('customer_portal_accounts').select('auth_user_id, account_situation, active').eq('login_cnpj', normalized).maybeSingle()
-      const authClient = createClient(url, anonKey)
+      // Com credencial de administrador: o captcha do Auth não se aplica (o Turnstile já foi conferido acima).
+      const authClient = createPasswordCheckClient(url, serviceKey)
       const authentication = await authenticatePortalLoginIdentity(account, dummyUserId, body.password, {
         lookupEmail: async (userId) => {
           const { data: user } = await admin.auth.admin.getUserById(userId)
@@ -89,11 +90,6 @@ if (typeof Deno !== 'undefined') {
           return sessionOrRefusal(data, error)
         },
         derivePassword: (password) => derivePortalAuthPassword(password, pepper),
-        migrateLegacyPassword: async (userId, derivedPassword) => {
-          const { error } = await admin.auth.admin.updateUserById(userId, { password: derivedPassword })
-          // A sessão já foi emitida; a migração tenta de novo no próximo login.
-          if (error) console.error('[portal-login] falha ao migrar senha legada', error)
-        },
       }).catch(async (err) => {
         // A senha não chegou a ser conferida: a reserva sai do balde do CNPJ.
         await voidLoginAttempt(admin, attemptId)

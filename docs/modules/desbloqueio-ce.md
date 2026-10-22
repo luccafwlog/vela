@@ -153,7 +153,11 @@ confirmações externas antigas permanecem como histórico do desk.
 
 ### Armazenamento e funções
 
-Bucket privado `ce-unlock-documents`. Documentos são versionados. Funções:
+Bucket privado `ce-unlock-documents`, com limite próprio desde a migration `428`
+(decisão do dono de 2026-10-22): até 10 MB (10485760 bytes) e só `application/pdf`
+e o DOCX do modelo do termo, os mesmos que `portal-ce-unlock-document` aceita
+(`_shared/ceUnlockFile.ts`). O Storage recusa o resto mesmo fora da Edge.
+Documentos são versionados. Funções:
 `portal-ce-unlock-document`, `ce-unlock-document-download`,
 `ce-unlock-export`, `ce-unlock-cleanup`, `ce-unlock-notify-email`; config e
 operação no [manual externo](../operations/servicos-externos.md). Os jobs

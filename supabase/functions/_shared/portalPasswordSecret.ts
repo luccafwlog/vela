@@ -4,10 +4,10 @@
 // nos secrets das Edge Functions; o limite por CNPJ do portal-login deixa de
 // ser contornável.
 //
-// ponytail: contas ainda com a senha pura continuam entrando pelo portal-login
-// (fallback legado) e migram nesse login. Até lá o caminho direto no GoTrue
-// segue aberto para elas; remover o fallback quando nenhuma conta ativa tiver
-// senha legada (o Portal ainda não tem clientes reais).
+// Sem senha pura desde a auditoria run-3 (decisão do dono de 2026-10-22): o
+// login e a troca do Email de Recuperação só conferem a senha derivada. Conta
+// que ainda tivesse a senha pura no GoTrue redefine a senha pela recuperação
+// (o Portal não tinha clientes reais; AGENTS.md, "Data status").
 const PREFIX = 'p1.'
 
 export function portalPasswordPepper(): string {

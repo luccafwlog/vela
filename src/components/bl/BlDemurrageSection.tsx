@@ -24,6 +24,7 @@ import { queryKeys } from '../../services/queryKeys'
 import { formatDate, formatUSD } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { InvoiceStatusBadge } from '../demurrage/DemurrageBadges'
+import { BlManualRoe } from './BlManualRoe'
 import { demurrageInvoiceHref } from '../../pages/demurrageListState'
 import type { BLDetail } from '../../types/database'
 
@@ -414,6 +415,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
             </div>
           </div>
         ) : null}
+        <BlManualRoe blId={bl.id} roe={bl.demurrage_roe ?? null} manual={Boolean(bl.demurrage_roe_manual)} />
       </Block>
     </>
   )

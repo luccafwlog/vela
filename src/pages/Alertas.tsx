@@ -23,6 +23,7 @@ import {
   alertRecord,
   canResolveWithJustification,
   dismissAlertItem,
+  getMaxReviewDateString,
   fetchAlertEntityLabels,
   formatAlertEntity,
   getAlertDepartmentSummary,
@@ -220,6 +221,9 @@ export function Alertas() {
       const targetDate = new Date(`${reviewBy}T23:59:59Z`)
       if (Number.isNaN(targetDate.getTime()) || targetDate <= new Date()) {
         throw new Error('A data para voltar à fila deve ser futura.')
+      }
+      if (reviewBy > getMaxReviewDateString()) {
+        throw new Error('A dispensa vale por no máximo 30 dias.')
       }
       await dismissAlertItem(
         dismissTarget.item_id,
@@ -526,7 +530,7 @@ export function Alertas() {
               />
             </Field>
             <Field label="Volta para a fila em">
-              <Input type="date" min={getTomorrowDateString()} value={reviewBy} onChange={(e) => setReviewBy(e.target.value)} />
+              <Input type="date" min={getTomorrowDateString()} max={getMaxReviewDateString()} value={reviewBy} onChange={(e) => setReviewBy(e.target.value)} />
             </Field>
             <p className="text-[var(--app-muted)]">O alerta sai da fila até essa data e volta sozinho se a pendência continuar. A dispensa não resolve a pendência.</p>
             <div className="flex justify-end gap-2">

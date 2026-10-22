@@ -48,6 +48,7 @@ vi.mock('../../services/alerts', async (importOriginal) => {
 })
 
 import { Alertas } from '../Alertas'
+import { getMaxReviewDateString } from '../../services/alerts'
 
 function renderAlertas(initialEntries: string[] = ['/alertas']) {
   return render(
@@ -175,8 +176,13 @@ it('janela de dispensa: peça comum, data mínima futura, botão com a data e ca
 
   const dateInput = within(dialog).getByLabelText('Volta para a fila em') as HTMLInputElement
   expect(dateInput.min).toBeTruthy()
-  fireEvent.change(dateInput, { target: { value: '2026-12-26' } })
-  expect(within(dialog).getByRole('button', { name: 'Dispensar até 26/12' })).toBeTruthy()
+  // Até o 30º dia (migration 424): o calendário não oferece data além.
+  expect(dateInput.max).toBe(getMaxReviewDateString())
+  const inRange = new Date()
+  inRange.setUTCDate(inRange.getUTCDate() + 10)
+  const [, month, day] = inRange.toISOString().slice(0, 10).split('-')
+  fireEvent.change(dateInput, { target: { value: inRange.toISOString().slice(0, 10) } })
+  expect(within(dialog).getByRole('button', { name: `Dispensar até ${day}/${month}` })).toBeTruthy()
 
   const reasonInput = within(dialog).getByLabelText('Motivo') as HTMLTextAreaElement
   fireEvent.change(reasonInput, { target: { value: 'Aguardando armador' } })
@@ -185,6 +191,11 @@ it('janela de dispensa: peça comum, data mínima futura, botão com a data e ca
 
   fireEvent.click(within(rowOf('Container vencendo')).getByRole('button', { name: /^Dispensar / }))
   expect((screen.getByLabelText('Motivo') as HTMLTextAreaElement).value).toBe('')
+})
+
+it('limite da dispensa é o 30º dia a partir de hoje, em UTC como a data enviada ao banco', () => {
+  expect(getMaxReviewDateString(new Date('2026-10-22T10:00:00Z'))).toBe('2026-11-21')
+  expect(getMaxReviewDateString(new Date('2026-12-15T23:30:00Z'))).toBe('2027-01-14')
 })
 
 it('filtra por busca, gravidade e registro, e limpa os filtros', () => {

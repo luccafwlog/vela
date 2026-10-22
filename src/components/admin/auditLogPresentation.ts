@@ -95,6 +95,7 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
 /** Rótulos de campo comuns às tabelas sem rótulo próprio. */
 const GENERIC_FIELD_LABELS: Record<string, string> = {
   name: 'Nome',
+  cnpj_cpf: 'CNPJ',
   description: 'Descrição',
   notes: 'Observações',
   active: 'Situação',
@@ -117,6 +118,8 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   free_days: 'Free time',
   free_time_override: 'Free time do B/L',
   demurrage_rate_override_p1_usd: 'Diária do 1º período do B/L',
+  demurrage_roe: 'ROE manual do B/L',
+  demurrage_roe_manual: 'Usa ROE manual',
   demurrage_rate_override_p2_usd: 'Diária do 2º período do B/L',
   dispute_notes: 'Notas da disputa',
   dispute_subject: 'Assunto da disputa',

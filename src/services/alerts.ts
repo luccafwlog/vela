@@ -610,6 +610,17 @@ const alertsRpc = supabase as unknown as {
   rpc: (fn: string, params?: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }>
 }
 
+/**
+ * Último dia aceito para a dispensa voltar à fila: o 30º a partir de hoje, em
+ * UTC como a data que a tela envia (`T23:59:59Z`). `dismiss_alert_item`
+ * recusa depois dele (migration 424).
+ */
+export function getMaxReviewDateString(now: Date = new Date()): string {
+  const d = new Date(now)
+  d.setUTCDate(d.getUTCDate() + 30)
+  return d.toISOString().slice(0, 10)
+}
+
 export async function dismissAlertItem(
   itemId: number,
   reason: string,
