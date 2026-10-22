@@ -87,14 +87,27 @@ export async function confirmLoginFailure(loginCnpj: string, context?: PortalRat
   await registerDistributedFailure('login', loginCnpj, context)
 }
 
+// A reserva nasce como falha: se o acerto não for gravado, a senha certa conta
+// como erro no balde. O supabase-js devolve { error } em vez de lançar, então o
+// erro é conferido e a gravação é tentada de novo uma vez. Persistindo, o login
+// segue (a senha conferiu) e a falha fica no log.
+async function settleAttempt(db: PortalDb, attemptId: number, outcome: 'success' | 'void'): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { error } = await db.rpc('portal_login_settle_attempt', { p_attempt_id: attemptId, p_outcome: outcome })
+    if (!error) return true
+  }
+  console.error('portal login: não foi possível encerrar a reserva', { attemptId, outcome })
+  return false
+}
+
 export async function confirmLoginSuccess(db: PortalDb, attemptId: number, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  await db.rpc('portal_login_settle_attempt', { p_attempt_id: attemptId, p_outcome: 'success' })
+  await settleAttempt(db, attemptId, 'success')
   await registerDistributedSuccess('login', loginCnpj, context)
 }
 
 /** A senha não foi conferida (falha do Auth ou nossa): a reserva sai do balde. */
 export async function voidLoginAttempt(db: PortalDb, attemptId: number): Promise<void> {
-  await db.rpc('portal_login_settle_attempt', { p_attempt_id: attemptId, p_outcome: 'void' })
+  await settleAttempt(db, attemptId, 'void')
 }
 
 export async function isRecoveryRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {

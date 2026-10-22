@@ -67,6 +67,16 @@ describeLocal('417 — consistência na operação e no financeiro', () => {
     expect(scenario(`${asOwner} ${insert('sim')} ${insert('1')} ${insert('false')}`)).toEqual(['22023', '22023', 'ok'])
   })
 
+  it('a escala gravada pelo Financeiro assina como Financeiro (417 e 420)', () => {
+    expect(scenario(`
+      ${as(FIN)}
+      SELECT public.save_voyage_escala_terminal_state_v2(${VOYAGE}, 'BRSSZ', 0, '[]', '[]',
+        '{"tem_exportacao":false,"granito":false,"vazios":false,"has_empty":false,"discharge_ports":[],"linked":false,"schedule":{"eta":"2026-11-01T12:00:00Z","tem_importacao":true}}', NULL) IS NOT NULL;
+      ${asOwner}
+      SELECT string_agg(DISTINCT actor_department, ',') FROM public.audit_logs WHERE entity_id = '${VOYAGE}::BRSSZ' AND changed_by = '${FIN}';
+    `).at(-1)).toBe('financeiro')
+  })
+
   it('exceção PIX resolvida não tem TXID, valor e data reescritos', () => {
     const row = (txid: string, amount: number) => `'[{"line_number":1,"txid":"${txid}","cnpj":"","paid_at":"2026-10-22T12:00:00Z","amount_brl":${amount},"reason":"unmatched","candidate_count":0}]'::jsonb`
     expect(scenario(`

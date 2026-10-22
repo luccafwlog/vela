@@ -122,6 +122,9 @@ describeLocal('407 — corte do access token interno na revogação', () => {
 
   it('token emitido depois do marco segue valendo', () => {
     const cut = revoke(DOC)
+    // Migration 420: o `iat` tem segundos inteiros; o login no mesmo segundo do marco vale.
+    expect(staff(DOC, cut, HELPERS).output).toBe('t|t|f|f|documentacao|documentacao')
+    expect(staff(DOC, cut - 1, HELPERS).output).toBe('f|f|f|f|-|-')
     expect(staff(DOC, cut + 1, HELPERS).output).toBe('t|t|f|f|documentacao|documentacao')
     expect(staff(DOC, cut + 1, `SELECT public.check_internal_token_cutoff()`).status).toBe(0)
     expect(staff(DOC, cut + 1, `SELECT count(*) FROM public.app_settings`).output).toBe('1')

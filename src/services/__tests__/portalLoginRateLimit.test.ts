@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { confirmLoginFailure, confirmLoginSuccess, reserveLoginAttempt, voidLoginAttempt } from '../../../supabase/functions/_shared/portalLoginRateLimit.ts'
 import { createFakePortalDb } from './fakePortalDb'
 
@@ -30,5 +30,22 @@ describe('trava de tentativas do login do Portal (reserva atômica, migration 41
       { name: 'portal_login_settle_attempt', params: { p_attempt_id: 7, p_outcome: 'success' } },
       { name: 'portal_login_settle_attempt', params: { p_attempt_id: 8, p_outcome: 'void' } },
     ])
+  })
+
+  // O supabase-js devolve { error } sem lançar: o acerto não gravado deixaria a
+  // senha certa contando como erro no balde.
+  it('confere o erro ao gravar o acerto e tenta de novo uma vez', async () => {
+    let calls = 0
+    const { db, rpcCalls } = createFakePortalDb({ rpc: () => (calls++ === 0 ? { error: new Error('instável') } : { data: null }) })
+    await confirmLoginSuccess(db, 7, '12345678000195')
+    expect(rpcCalls.map((call) => call.params)).toEqual([
+      { p_attempt_id: 7, p_outcome: 'success' }, { p_attempt_id: 7, p_outcome: 'success' },
+    ])
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const failing = createFakePortalDb({ rpc: () => ({ error: new Error('fora') }) })
+    await confirmLoginSuccess(failing.db, 9, '12345678000195')
+    expect(failing.rpcCalls).toHaveLength(2)
+    expect(log).toHaveBeenCalled()
+    log.mockRestore()
   })
 })

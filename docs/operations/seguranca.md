@@ -283,7 +283,8 @@ token já emitido, como o Portal faz desde a `069`. `internal_revoke_sessions`
 apaga sessões e refresh tokens e grava o marco (`clock_timestamp()`, sob lock
 do perfil) em `internal_credential_revocations`, tabela sem grant para os
 clientes. Depois disso, o token do próprio usuário com `iat` ausente, não
-numérico ou anterior ao marco é recusado:
+numérico ou anterior ao segundo do marco é recusado (o `iat` tem segundos
+inteiros: o novo login no mesmo segundo da revogação vale, migration `420`):
 
 - os helpers de papel (`is_active_user`, `is_active_read_user`, `is_admin`,
   `is_financeiro_user`, `_portal_actor_role`, `current_actor_role`) e

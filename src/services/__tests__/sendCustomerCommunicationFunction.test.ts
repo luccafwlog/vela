@@ -80,6 +80,14 @@ describe('Edge Function send-customer-communication', () => {
     expect(source.indexOf('if (stored.created_by !== callerUser.user?.id)')).toBeLessThan(source.indexOf('persistCommunicationAttachments(admin'))
   })
 
+  it('envio simultâneo do mesmo registro: quem não gravou a cópia confere com a gravada antes de enviar', () => {
+    const claim = source.slice(source.indexOf('const { data: claimedCopy'), source.indexOf('persistCommunicationAttachments(admin'))
+    expect(claim).toContain(".is('rendered_subject', null)\n    .select('id')")
+    expect(claim).toContain('if (!isAutomation && (claimedCopy?.length ?? 0) === 0)')
+    expect(claim).toContain('winner.rendered_html_sha256 !== renderedHtmlSha256')
+    expect(claim).toContain('permanentRejection(')
+  })
+
   it('lê a sigla do terminal do NOB em depots e nunca manda o UUID ao cliente', () => {
     expect(source).not.toContain('terminals(code)')
     // A sigla vem de voyage_terminal_code (depots) pela validação única da

@@ -765,7 +765,7 @@ async function handler(req: Request): Promise<Response> {
 
   // Cópia do que saiu: o registro do comunicado guarda assunto, texto e o
   // hash do HTML efetivamente enviados (auditoria run-2, #10).
-  const { error: renderedError } = await admin
+  const { data: claimedCopy, error: renderedError } = await admin
     .from('customer_communications')
     .update({
       rendered_subject: effectiveSubject,
@@ -774,9 +774,25 @@ async function handler(req: Request): Promise<Response> {
     })
     .eq('id', communicationId)
     .is('rendered_subject', null)
+    .select('id')
   if (renderedError) {
     console.error('customer communication rendered copy persistence failed', renderedError)
     return json(500, { error: 'Não foi possível registrar o conteúdo do comunicado.' }, origin)
+  }
+  // A cópia é gravada uma vez só. Se outra chamada do mesmo registro gravou
+  // primeiro (envio simultâneo), confere com o que ela gravou: texto diferente
+  // não sai sob este registro.
+  if (!isAutomation && (claimedCopy?.length ?? 0) === 0) {
+    const { data: winner, error: winnerError } = await admin
+      .from('customer_communications')
+      .select('rendered_subject, rendered_text, rendered_html_sha256')
+      .eq('id', communicationId)
+      .single()
+    if (winnerError || !winner) return json(500, { error: 'Não foi possível conferir o comunicado existente.' }, origin)
+    if (winner.rendered_subject !== effectiveSubject || winner.rendered_text !== effectiveText
+      || winner.rendered_html_sha256 !== renderedHtmlSha256) {
+      return permanentRejection('O conteúdo mudou depois da conferência. Confira de novo para enviar como um Comunicado novo.', origin)
+    }
   }
 
   if (isAutomation && existingCommunicationId == null) {
