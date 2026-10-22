@@ -99,6 +99,7 @@ function cleanup() {
     DELETE FROM public.import_effect_attempts WHERE effect_id IN (SELECT id FROM public.import_pending_effects
       WHERE entity_id IN (SELECT id FROM a410_bls) OR entity_id = '${voyageId}' OR created_by = '${actorId}');
     DELETE FROM public.import_pending_effects WHERE entity_id IN (SELECT id FROM a410_bls) OR entity_id = '${voyageId}' OR created_by = '${actorId}';
+    DELETE FROM public.charge_calculations WHERE bl_id IN (SELECT id FROM a410_bls);
     DELETE FROM public.invoice_basis_pending_changes WHERE bl_id IN (SELECT id FROM a410_bls);
     DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM a410_bls);
     DELETE FROM public.bls WHERE id IN (SELECT id FROM a410_bls);
