@@ -106,7 +106,7 @@ lote 2 da identidade, 2026-10-16): uma linha de título, com Saída na origem
 (colunas "Porto ETD") antes de Chegada no Brasil ("Porto ETA"), na ordem em que
 acontecem; data efetiva (ATD no POL, ATA no POD) com o `✓` verde e a data em
 tinta normal; previsão sem marca; previsão já passada sem data efetiva, de saída
-ou de chegada, em âmbar, com o motivo ao passar o mouse; escala omitida como
+ou de chegada, em âmbar, com o motivo ao passar o mouse, **só no Vela** (`audience="internal"`, revisão de 2026-10-22): no Portal só existem previsão e data efetiva, e a previsão vencida aparece como previsão, sem âmbar nem legenda dele (`ScheduleTable`/`ScheduleLegend` com `audience`, padrão `portal`); escala omitida como
 "Omitida" em cinza e porto sem data como "—", cada estado também em texto para
 leitor de tela. Porto sem data em nenhum navio sai da tabela, com uma nota. A
 posição do navio no MarineTraffic (pelo IMO cadastrado) é o botão **Ver no

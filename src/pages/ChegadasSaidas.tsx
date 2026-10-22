@@ -524,6 +524,7 @@ export function ChegadasSaidas() {
         ) : (
           <ScheduleTable
             vessels={vessels}
+            audience="internal"
             caption="Programação de chegadas e saídas"
             actions={canWrite ? (vessel) => (
               <RowActionButton
@@ -534,7 +535,7 @@ export function ChegadasSaidas() {
             ) : undefined}
           />
         )}
-        {vessels.length > 0 && !isError ? <ScheduleLegend /> : null}
+        {vessels.length > 0 && !isError ? <ScheduleLegend audience="internal" /> : null}
       </Block>
 
       <div className="mt-6">
