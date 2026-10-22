@@ -70,6 +70,9 @@ export function BaplieImportModal({
   const { file, preview: parsed, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseBaplieFile>>>(parseBaplieFile)
   const [importing, setImporting] = useState(false)
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
+  // Porto brasileiro do arquivo que não é escala da Viagem: começa desmarcado;
+  // marcar cria a escala na gravação (migration 410).
+  const [includedNewEscalas, setIncludedNewEscalas] = useState<Set<string>>(new Set())
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const voyageContext = useBaplieVoyageContext(voyageId ? Number(voyageId) : null)
@@ -79,6 +82,7 @@ export function BaplieImportModal({
 
   async function handleFiles(files: File[]) {
     setExcludedPods(new Set())
+    setIncludedNewEscalas(new Set())
     setReadError(null)
     setImportError(null)
     try {
@@ -108,12 +112,31 @@ export function BaplieImportModal({
     })
   }
 
-  // Regras que dependem da Viagem (ADR 0078, item 21): TDT de outro navio ou
-  // viagem bloqueia; POD fora das escalas é ignorado com aviso.
+  function toggleNewEscala(pod: string) {
+    setIncludedNewEscalas((prev) => {
+      const next = new Set(prev)
+      if (next.has(pod)) next.delete(pod)
+      else next.add(pod)
+      return next
+    })
+  }
+
+  // Regras que dependem da Viagem (ADR 0078, item 21): TDT de outro navio
+  // bloqueia; POD fora das escalas é ignorado com aviso, salvo porto
+  // brasileiro, oferecido desmarcado como escala nova.
   const ruled = useMemo(() => (parsed ? applyBaplieVoyageRules(parsed, voyageContext.data) : null), [parsed, voyageContext.data])
   const pods = ruled?.pods ?? []
-  const filteredContainers = (ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
-  const includedPods = pods.filter((pod) => !excludedPods.has(pod)).length
+  const newEscalas = ruled?.newEscalas ?? []
+  const chosenNewEscalas = newEscalas.filter((escala) => includedNewEscalas.has(escala.pod))
+  const filteredContainers = [
+    ...(ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod)),
+    ...chosenNewEscalas.flatMap((escala) => escala.containers),
+  ]
+  const markedPods = [...pods.filter((pod) => !excludedPods.has(pod)), ...chosenNewEscalas.map((escala) => escala.pod)]
+  const includedPods = markedPods.length
+  const unmarkedNewEscalaContainers = newEscalas
+    .filter((escala) => !includedNewEscalas.has(escala.pod))
+    .reduce((sum, escala) => sum + escala.containers.length, 0)
   const issues = ruled?.issues ?? []
   const hasErrors = hasBlockingIssues(issues)
   // Sem a Viagem conferida (carregando ou com falha), as regras acima não
@@ -142,9 +165,10 @@ export function BaplieImportModal({
         voyageId: Number(voyageId),
         containers: filteredContainers,
         // Só os portos marcados são substituídos; os outros da Viagem ficam (migration 388).
-        pods: pods.filter((pod) => !excludedPods.has(pod)),
-        // Informativo: o servidor não confere o número de viagem (migration 409).
-        file: { voyageNumber: parsed?.voyage_number ?? null },
+        pods: markedPods,
+        // O número de viagem é informativo: o servidor não o confere (migration 409).
+        // As escalas novas marcadas são criadas na mesma gravação (migration 410).
+        file: { voyageNumber: parsed?.voyage_number ?? null, newEscalas: chosenNewEscalas.map((escala) => escala.pod) },
         confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
       })
       if (result.status === 'cancelled') return
@@ -225,6 +249,7 @@ export function BaplieImportModal({
                   { label: 'OOG', value: filteredContainers.filter((c) => c.is_oog).length },
                   { label: includedPods === 1 ? 'porto de descarga' : 'portos de descarga', value: includedPods },
                   ...(podsOutside.length ? [{ label: 'fora das escalas', value: podsOutside.length, tone: 'warning' as const }] : []),
+                  ...(unmarkedNewEscalaContainers ? [{ label: 'em porto sem escala', value: unmarkedNewEscalaContainers, tone: 'warning' as const }] : []),
                   ...(transshipments ? [{ label: 'em transbordo', value: transshipments }] : []),
                 ]}
               />
@@ -261,13 +286,19 @@ export function BaplieImportModal({
                 </ul>
               </ImportNotice>
             ) : null}
-            {pods.length > 0 ? (
+            {pods.length > 0 || newEscalas.length > 0 ? (
               <fieldset className="app-import-pods">
                 <legend>Portos de descarga a importar (desmarque os que não são desta operação)</legend>
                 {pods.map((pod) => (
                   <label key={pod}>
                     <input type="checkbox" checked={!excludedPods.has(pod)} onChange={() => togglePod(pod)} disabled={Boolean(partial)} />
                     {pod}
+                  </label>
+                ))}
+                {newEscalas.map((escala) => (
+                  <label key={escala.pod}>
+                    <input type="checkbox" checked={includedNewEscalas.has(escala.pod)} onChange={() => toggleNewEscala(escala.pod)} disabled={Boolean(partial)} />
+                    {`${escala.pod} — não é escala da viagem (${plural(escala.containers.length, 'container', 'containers')}); marcar cria a escala`}
                   </label>
                 ))}
               </fieldset>

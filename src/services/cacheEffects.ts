@@ -124,6 +124,9 @@ export async function afterBaplieImportado(queryClient: QueryInvalidator, option
   await invalidate(queryClient, [
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...EMPTY_IMPORT_KEYS,
     ['baplie-staging', String(options.voyageId)], ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, ...LINEUP_KEYS,
+    // O Baplie pode criar a escala do porto marcado (migration 410): as
+    // escalas da conferência, a linha do tempo e o rail mudam junto.
+    queryKeys.baplie.voyageContext(Number(options.voyageId)), voyageTimelineKey(options.voyageId), ['voyages'],
   ])
 }
 

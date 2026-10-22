@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Baplie cria a escala do porto marcado; Sepetiba é Itaguaí (2026-10-22):**
+  migrations `410` e `411`. BRSEP, BRSPB, SPB, SEP e SEPETIBA passam a ser
+  apelidos de BRIGI (Itaguaí) no banco e no app; as chaves de escala, ADR,
+  Manifesto Mercante, Comunicado e estado documental gravadas como BRSEP foram
+  passadas a BRIGI. No Baplie, o porto brasileiro que não é escala da Viagem é
+  oferecido desmarcado; marcado, a gravação cria a escala e importa os
+  containers na mesma transação (caso GREEN ITAJAI / 11, 242 containers de
+  Sepetiba). Prova: `baplieCriaEscala.local-pg.test.ts`.
+- **Line-Up credita os vazios no porto do container (2026-10-22):** o MTY
+  contava os vazios de importação só por viagem e os punha na primeira linha
+  ordenada pelo ETA (os 190 vazios de BRVIX da GREEN ITAJAI / 11 apareciam em
+  BRSSA). Agora a contagem é por viagem e porto, e o vazio de porto sem linha
+  aparece no Painel como "sem escala". Prova: `lineupSnapshot.test.ts`.
+
 - **Baplie da COSCO aceito (2026-10-22;
   [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)):**
   migration `409`. O número de viagem do Baplie não é mais conferido com o da

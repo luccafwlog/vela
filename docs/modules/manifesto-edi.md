@@ -1098,13 +1098,31 @@ vigentes: ADR 0078, item 21; ADR 0079, decisões 5 e 6; migrations `182`,
   menos). O peso é o VGM;
   sem VGM, o WT, em qualquer ordem. Os códigos de 3 letras do Baplie 1.5 (SSZ, ITJ, PNG,
   RIG, SSA, PEC, SUA, REC, NVT) valem como os de 5; BRNVT e BRITJ, BRREC e BRSUA são portos
-  distintos. Containers fora das escalas da viagem aparecem em destaque na prévia,
-  por porto, e não entram. Arquivo sem navio (TDT) só avisa ("O arquivo não diz
+  distintos; BRSEP, BRSPB, SPB, SEP e SEPETIBA são apelidos de BRIGI (Itaguaí,
+  migration `410`). Containers fora das escalas da viagem aparecem em destaque
+  na prévia, por porto, e não entram, salvo os de porto brasileiro (ver
+  **Porto brasileiro sem escala**, abaixo). Arquivo sem navio (TDT) só avisa ("O arquivo não diz
   o navio"); desde a migration `409` não há confirmação a marcar. Um 2º EQD do
   mesmo slot sem POL, POD ou peso entra com aviso.
-- **Containers ignorados e arquivos bloqueados.** Containers com POD fora das
-  escalas ou com porto de descarga desconhecido são ignorados com aviso (pelo
-  porto desconhecido, o parser só recusa o arquivo se não sobrar container).
+- **Containers ignorados e arquivos bloqueados.** Containers com POD
+  estrangeiro fora das escalas ou com porto de descarga desconhecido são
+  ignorados com aviso (pelo porto desconhecido, o parser só recusa o arquivo se
+  não sobrar container).
+- **Porto brasileiro sem escala** (revisão de 2026-10-22, GREEN ITAJAI / 11;
+  migration `411`). O porto brasileiro do arquivo que não é escala da Viagem
+  aparece em "Portos de descarga a importar", **desmarcado**, como "BRIGI — não
+  é escala da viagem (N containers); marcar cria a escala", e o resumo conta
+  "em porto sem escala". Desmarcado, os containers dele não entram. Marcado,
+  `import_baplie_file_atomic` recebe o porto em `p_file.new_escalas` e, na
+  mesma transação, cria a escala no Histórico da Viagem (`deleted=false` e
+  `tem_importacao=true`, justificativa "Escala criada pela importação do
+  Baplie"), sem datas, e importa os containers; qualquer recusa da gravação
+  desfaz a escala junto. O servidor recusa Viagem cancelada, porto estrangeiro,
+  porto não marcado e escala omitida (a omissão é revertida na Viagem); escala
+  removida volta ao planejamento e escala só de exportação passa a descarregar
+  importação. ETA, ATA e atracações são informados depois na Viagem. Prova:
+  `baplieImport.test.ts`, `BaplieImportModal.test.tsx` e
+  `baplieCriaEscala.local-pg.test.ts`.
 - **Navio compartilhado: sem regra de outro armador** ([ADR 0096](../adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md), decisão 3;
   migration `409`). Todo container do arquivo entra no staging, nas marcas e na
   conciliação, seja qual for o operador (NAD+CA); em navio compartilhado, o de

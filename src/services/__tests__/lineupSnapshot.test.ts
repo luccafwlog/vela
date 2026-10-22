@@ -169,7 +169,7 @@ describe('fetchLineUpSnapshot', () => {
     expect(vitoria?.mty).toBe(190)
     // Sem linha no Line Up: aparece como não atribuído, nunca em outro porto.
     expect(snapshot.unassignedMty).toEqual([
-      { voyageId: 24, voyageNumber: '24W', vesselName: 'MV TESTE', pod: 'BRSEP', count: 1 },
+      { voyageId: 24, voyageNumber: '24W', vesselName: 'MV TESTE', pod: 'BRIGI', count: 1 },
       { voyageId: 24, voyageNumber: '24W', vesselName: 'MV TESTE', pod: null, count: 1 },
     ])
   })

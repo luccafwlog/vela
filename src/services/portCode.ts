@@ -24,7 +24,10 @@ const PORT_NAME_TO_LOCODE: Array<[string, string]> = [
   ['suape', 'BRSUA'],
   ['recife', 'BRREC'],
   ['rio de janeiro', 'BRRIO'],
-  ['sepetiba', 'BRSEP'],
+  // Sepetiba é o porto de Itaguaí; o código correto é BRIGI (migration 410).
+  ['sepetiba', 'BRIGI'],
+  ['itaguai', 'BRIGI'],
+  ['itaguaí', 'BRIGI'],
   ['manaus', 'BRMAO'],
   ['qingdao', 'CNTAO'],
   ['qindgao', 'CNTAO'],
@@ -69,7 +72,7 @@ const PORT_NAME_TO_LOCODE: Array<[string, string]> = [
 const KNOWN_PORT_CODES = new Set([
   ...PORT_NAME_TO_LOCODE.map(([, code]) => code),
   'BRVIX', 'BRVIT', 'BRBEL', 'BRFOR', 'BRIGI', 'BRIOS', 'BRMCZ', 'BRNAT',
-  'BRSEP', 'BRSLZ', 'BRSFS', 'ITGOA', 'NLRTM',
+  'BRSLZ', 'BRSFS', 'ITGOA', 'NLRTM',
 ])
 
 // Códigos de 3 letras (sem prefixo de país) e LOCODEs alternativos que o Baplie
@@ -82,9 +85,12 @@ const EXACT_PORT_ALIASES: Record<string, string> = {
   VIT: 'BRVIX', // Vitória: VIX, VIT, BRVIT e BRVIX são o mesmo porto
   CNTCA: 'CNTAC', // Taicang (variante COSCO)
   TCA: 'CNTAC', // Taicang (LOC+6 do Baplie da COSCO)
-  BRSPB: 'BRSEP', // Sepetiba (variante COSCO de 5 letras)
-  SPB: 'BRSEP', // Sepetiba
-  SEP: 'BRSEP',
+  // Sepetiba é o porto de Itaguaí (BRIGI): BRSEP é apelido, como BRVIT de BRVIX (migration 410).
+  BRSEP: 'BRIGI',
+  BRSPB: 'BRIGI', // Sepetiba (variante COSCO de 5 letras)
+  SPB: 'BRIGI',
+  SEP: 'BRIGI',
+  IGI: 'BRIGI',
 }
 
 export function normalizePortCode(value: string | null | undefined) {
@@ -159,7 +165,7 @@ export function portCodeVariants(value: string | null | undefined): string[] {
   return [...variants]
 }
 
-// Cópia exata de `public.normalize_port_code` (migration 391). Filtros de
+// Cópia exata de `public.normalize_port_code` (migration 410). Filtros de
 // leitura que mandam o porto ao banco e comparações com o que o banco decide
 // (escopo da tabela de Taxas Locais, PODs do Baplie) usam esta régua:
 // `normalizePortCode` é a do import, que também reconhece nomes dentro de um
@@ -180,7 +186,7 @@ const STORED_PORT_ALIASES: Array<[string, string[]]> = [
   ['BRSUA', ['SUAPE', 'BRSUA', 'SUA']],
   ['BRREC', ['RECIFE', 'BRREC', 'REC']],
   ['BRRIO', ['RIO DE JANEIRO', 'BRRIO', 'BRRDJ']],
-  ['BRSEP', ['SEPETIBA', 'BRSEP', 'BRSPB', 'SPB', 'SEP']],
+  ['BRIGI', ['ITAGUAI', 'ITAGUAÍ', 'BRIGI', 'IGI', 'SEPETIBA', 'BRSEP', 'BRSPB', 'SPB', 'SEP']],
   ['BRMAO', ['MANAUS', 'BRMAO']],
   ['CNTAO', ['QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG', 'TAO']],
   ['CNSHA', ['SHANGHAI', 'CNSHA', 'CNSHG', 'SHG']],

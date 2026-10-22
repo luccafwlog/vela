@@ -115,7 +115,7 @@ describe('reimportBaplie', () => {
     expect(confirmReplacement).not.toHaveBeenCalled()
     expect(importCalls()).toEqual([['import_baplie_file_atomic', expect.objectContaining({
       p_voyage_id: 22, p_pods: ['BRVIX'], p_expected: { count: 0, max_id: null, vazios_manifest: { id: 'vazios-1', total: 2 } },
-      p_file: { voyage_number: '12N' },
+      p_file: { voyage_number: '12N', new_escalas: [] },
     })]])
     expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
   })
@@ -245,28 +245,46 @@ describe('Baplie completo e regras da Viagem (etapa 9)', () => {
     expect(options.affected.items).toContain('Marca que cai: AAAU1111111 no B/L BL-1 (IMO ⇒ sem marca)')
   })
 
-  it('TDT de outra viagem não bloqueia e POD fora das escalas é ignorado com aviso', () => {
+  it('TDT de outra viagem não bloqueia e POD estrangeiro fora das escalas é ignorado com aviso', () => {
     const ruled = applyBaplieVoyageRules(
-      { containers: [box('AAAU1111111', { pod: 'BRVIX' }), box('BBBU2222222', { pod: 'BRSSZ' })], issues: [], voyage_number: '14', vessel_name: 'GREEN SANTOS' },
+      { containers: [box('AAAU1111111', { pod: 'BRVIX' }), box('BBBU2222222', { pod: 'SGSIN' })], issues: [], voyage_number: '14', vessel_name: 'GREEN SANTOS' },
       { voyageNumber: '15', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX'] },
     )
     expect(ruled.containers.map((c) => c.container_number)).toEqual(['AAAU1111111'])
+    expect(ruled.newEscalas).toEqual([])
     expect(ruled.issues).toEqual([
-      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/fora das escalas da Viagem \(BRSSZ\)/) }),
+      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/fora das escalas da Viagem \(SGSIN\)/) }),
     ])
   })
 
   // Lote 3 (ADR 0095, decisão 12; migration 391): a prévia usa a régua do servidor.
-  it('POD de Navegantes fica fora de uma Viagem com escala só em Itajaí; apelido do banco casa', () => {
+  it('POD de Navegantes não casa a escala de Itajaí; apelido do banco casa', () => {
     const ruled = applyBaplieVoyageRules(
       { containers: [box('AAAU1111111', { pod: 'BRNVT' }), box('BBBU2222222', { pod: 'BRITJ' }), box('CCCU3333333', { pod: 'BRRDJ' })],
         issues: [], voyage_number: '15', vessel_name: 'GREEN SANTOS' },
       { voyageNumber: '15', vesselName: 'GREEN SANTOS', eligiblePods: ['ITJ', 'BRRIO'] },
     )
     expect(ruled.containers.map((c) => c.container_number)).toEqual(['BBBU2222222', 'CCCU3333333'])
-    expect(ruled.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/fora das escalas da Viagem \(BRNVT\)/) }),
-    ]))
+    expect(ruled.newEscalas).toEqual([{ pod: 'BRNVT', containers: [expect.objectContaining({ container_number: 'AAAU1111111' })] }])
+  })
+
+  // Revisão de 2026-10-22 (GREEN ITAJAI / 11): 242 containers em Sepetiba numa
+  // Viagem só com escala em Vitória. O porto vira escala nova a marcar, e o
+  // BRSEP do arquivo é BRIGI (migration 410).
+  it('porto brasileiro que não é escala vira escala nova a marcar, sem aviso de ignorado', () => {
+    const ruled = applyBaplieVoyageRules(
+      { containers: [box('AAAU1111111', { pod: 'BRVIX' }), box('BBBU2222222', { pod: 'BRIGI' }), box('CCCU3333333', { pod: 'BRSEP' })],
+        issues: [], voyage_number: '11', vessel_name: 'GREEN ITAJAI' },
+      { voyageNumber: '11', vesselName: 'GREEN ITAJAI', eligiblePods: ['BRVIX'] },
+    )
+    expect(ruled.containers.map((c) => c.container_number)).toEqual(['AAAU1111111'])
+    expect(ruled.pods).toEqual(['BRVIX'])
+    expect(ruled.newEscalas).toEqual([{
+      pod: 'BRIGI',
+      containers: [expect.objectContaining({ container_number: 'BBBU2222222' }), expect.objectContaining({ container_number: 'CCCU3333333' })],
+    }])
+    expect(ruled.podsOutside).toEqual([])
+    expect(ruled.issues).toEqual([])
   })
 })
 

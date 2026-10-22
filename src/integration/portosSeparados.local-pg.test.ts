@@ -153,7 +153,8 @@ describeLocal('Lote 3 das importações — Navegantes ≠ Itajaí e Recife ≠ 
     expect(result.split(',')).toEqual([
       'BRNVT/BRNVT', 'BRNVT/BRNVT', 'BRNVT/BRNVT', 'BRITJ/BRITJ', 'BRITJ/BRITJ', 'BRITJ/BRITJ',
       'BRREC/BRREC', 'BRREC/BRREC', 'BRREC/BRREC', 'BRSUA/BRSUA', 'BRSUA/BRSUA', 'BRSUA/BRSUA',
-      'BRSEP/BRSEP', 'BRSEP/BRSEP', 'CNTAC/CNTAC', 'CNTAC/CNTAC', 'CNTAO/CNTAO', 'CNNSA/CNNSA',
+      // 410: Sepetiba é apelido de Itaguaí (BRIGI).
+      'BRIGI/BRIGI', 'BRIGI/BRIGI', 'CNTAC/CNTAC', 'CNTAC/CNTAC', 'CNTAO/CNTAO', 'CNNSA/CNNSA',
     ])
   })
 

@@ -61,9 +61,19 @@ export function baplieVoyageContextBlock(context: {
 export type BaplieOutsidePod = { container_number: string; pod: string; reason: 'unrecognized' | 'outside_calls' }
 
 /**
+ * Porto brasileiro do arquivo que não é escala da Viagem: a prévia o oferece
+ * desmarcado e, se o operador marcar, a gravação cria a escala e importa os
+ * containers dele (revisão de 2026-10-22, GREEN ITAJAI / 11 em Itaguaí).
+ */
+export type BaplieNewEscala = { pod: string; containers: BaplieContainer[] }
+
+const isBrazilianPort = (pod: string | null) => Boolean(pod && /^BR[A-Z0-9]{3}$/.test(pod))
+
+/**
  * Regras do Baplie que dependem da Viagem escolhida (ADR 0078, item 21): o
  * TDT de outro navio bloqueia (o número de viagem não é conferido, ADR 0096); container com POD fora das escalas
- * da Viagem é ignorado com aviso. Sem escalas cadastradas, nada é filtrado.
+ * da Viagem fica de fora com aviso, salvo o de porto brasileiro, que vira
+ * escala nova a marcar (`newEscalas`). Sem escalas cadastradas, nada é filtrado.
  * O navio só bloqueia quando o nome vem da identificação do transporte (C222);
  * nome deduzido por heurística só avisa. Não há regra de outro armador: todo
  * container do arquivo entra (ADR 0096, decisão 3).
@@ -71,9 +81,10 @@ export type BaplieOutsidePod = { container_number: string; pod: string; reason: 
 export function applyBaplieVoyageRules(
   parsed: Pick<ParsedBaplie, 'containers' | 'issues' | 'voyage_number' | 'vessel_name' | 'vessel_name_source' | 'operator'> & Partial<Pick<ParsedBaplie, 'ignored_pods'>>,
   context: BaplieVoyageContext | null | undefined,
-): { containers: BaplieContainer[]; pods: string[]; issues: ImportIssue[]; podsOutside: BaplieOutsidePod[] } {
+): { containers: BaplieContainer[]; pods: string[]; issues: ImportIssue[]; podsOutside: BaplieOutsidePod[]; newEscalas: BaplieNewEscala[] } {
   const issues: ImportIssue[] = [...parsed.issues]
   const podsOutside: BaplieOutsidePod[] = (parsed.ignored_pods ?? []).map((item) => ({ ...item, reason: 'unrecognized' }))
+  const newEscalas: BaplieNewEscala[] = []
   let containers = parsed.containers
   if (context) {
     // O número de viagem do TDT não é conferido: o do armador não é o da
@@ -92,19 +103,27 @@ export function applyBaplieVoyageRules(
       // Régua do servidor (`_baplie_port_key`): BRNVT fora de uma escala BRITJ.
       const eligible = new Set(context.eligiblePods.map((pod) => normalizeStoredPortCode(pod)))
       const outside = containers.filter((c) => c.pod && !eligible.has(normalizeStoredPortCode(c.pod)))
-      if (outside.length) {
-        const ports = Array.from(new Set(outside.map((c) => c.pod))).join(', ')
+      const byNewEscala = new Map<string, BaplieContainer[]>()
+      const rest: BaplieContainer[] = []
+      for (const container of outside) {
+        const port = normalizeStoredPortCode(container.pod)
+        if (port && isBrazilianPort(port)) byNewEscala.set(port, [...(byNewEscala.get(port) ?? []), container])
+        else rest.push(container)
+      }
+      for (const [pod, list] of [...byNewEscala].sort(([a], [b]) => a.localeCompare(b))) newEscalas.push({ pod, containers: list })
+      if (rest.length) {
+        const ports = Array.from(new Set(rest.map((c) => c.pod))).join(', ')
         issues.push({
           row: 0, field: 'pod', code: 'unknown_port', severity: 'warning',
-          message: `${outside.length} container(s) com descarga fora das escalas da Viagem (${ports}) ignorado(s).`,
+          message: `${rest.length} container(s) com descarga fora das escalas da Viagem (${ports}) ignorado(s).`,
         })
-        containers = containers.filter((c) => !outside.includes(c))
-        podsOutside.push(...outside.map((c) => ({ container_number: c.container_number, pod: c.pod as string, reason: 'outside_calls' as const })))
+        podsOutside.push(...rest.map((c) => ({ container_number: c.container_number, pod: c.pod as string, reason: 'outside_calls' as const })))
       }
+      containers = containers.filter((c) => !outside.includes(c))
     }
   }
   const pods = Array.from(new Set(containers.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
-  return { containers, pods, issues, podsOutside }
+  return { containers, pods, issues, podsOutside, newEscalas }
 }
 
 /** Linhas do staging do Baplie (a Viagem vai à parte, em `p_voyage_id`). */
@@ -161,6 +180,8 @@ export function baplieImportExpected(
 /** Viagem do arquivo (TDT), só informativa: o servidor não a confere (ADR 0096, decisão 2). */
 export type BaplieFileIdentity = {
   voyageNumber: string | null
+  /** Portos marcados que ainda não são escala: a gravação cria a escala (migration 410). */
+  newEscalas?: string[]
 }
 
 type BaplieFileImportResult = {
@@ -171,7 +192,8 @@ type BaplieFileImportResult = {
 }
 
 /**
- * Grava o Baplie numa transação só (migration 388): confere Viagem, escalas,
+ * Grava o Baplie numa transação só (migration 388): confere Viagem, escalas
+ * (criando as marcadas em `file.newEscalas`, 410),
  * PODs marcados (cada um com container no arquivo, 390), container repetido e o
  * que a prévia leu (`expected`), substitui só os PODs marcados, aplica as
  * marcas aos B/Ls e recadastra os vazios do Baplie quando mudaram. Qualquer
@@ -187,7 +209,7 @@ export async function importBaplieFile(
     p_rows: toBaplieStagingRows(containers),
     p_pods: pods,
     p_expected: expected,
-    p_file: { voyage_number: file.voyageNumber },
+    p_file: { voyage_number: file.voyageNumber, new_escalas: file.newEscalas ?? [] },
   } as never)
   if (error) throw error
   const result = (data ?? {}) as { staged?: number; flags?: unknown; vazios?: BaplieFileImportResult['vazios'] }
