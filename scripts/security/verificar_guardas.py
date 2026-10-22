@@ -389,17 +389,13 @@ GUARDA_INLINE = re.compile(
 HELPER_DE_TRAVA = re.compile(r'\b(_lock_import_voyages\w*)\s*\(')
 
 # Casos já triados. Cada entrada diz por que a ordem é aceita ou quando sai.
-TRAVA_ANTES_DA_GUARDA_ACEITA = {
-    # Trava por B/L da fatura antes de delegar à _legacy_070, onde está a
-    # guarda de perfil; antes dela só _assert_actor_is_caller. Correção
-    # prevista numa migration seguinte (auditoria run-3): quando o check
-    # avisar que a exceção ficou obsoleta, apague esta linha.
+TRAVA_ANTES_DA_GUARDA_ACEITA: dict[str, str] = {
+    # A baixa de 8 argumentos (register_ledger_invoice_payment) travava os B/Ls
+    # antes da guarda de Financeiro; a migration 413 pôs a guarda antes.
     # Triados como não materiais pela run-3, sem exceção: o check já aprova
     # portal_add_dispute_message e portal_obsolete_consolidation (guarda antes
     # da trava); ce_unlock_prepare_upload e ce_unlock_finish_upload não
     # aparecem no replay como executáveis por authenticated.
-    'register_ledger_invoice_payment(int8,numeric,text,timestamptz,text,text,text,uuid)':
-        'run-3: guarda depois da trava; correção em andamento',
 }
 
 

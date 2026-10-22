@@ -138,12 +138,12 @@ class TravaAntesDaGuardaTest(unittest.TestCase):
         self.assertIsNone(self.trava(helper_guardado + chamador))
         self.assertEqual(self.trava(helper_aberto + chamador), '_lock_import_voyages(')
 
-    def test_arvore_atual_passa_com_a_excecao_documentada(self):
+    def test_arvore_atual_passa_sem_trava_antes_da_guarda(self):
         guardas._CONTEUDO.clear()
         *_, fns, grants = guardas.estado_final()
+        # A 413 pôs a guarda de Financeiro antes da trava na baixa de 8 argumentos.
         sig = 'register_ledger_invoice_payment(int8,numeric,text,timestamptz,text,text,text,uuid)'
-        if sig in fns and guardas.trava_antes_da_guarda(sig, fns):
-            self.assertIn(sig, guardas.TRAVA_ANTES_DA_GUARDA_ACEITA)
+        self.assertIsNone(guardas.trava_antes_da_guarda(sig, fns))
         expostas = [
             s for s, v in fns.items()
             if {'authenticated', 'public'} & grants.get(s, set()) and v['nome'] not in guardas.EXCECOES
