@@ -105,3 +105,37 @@ describe('conta inativa (auditoria run-2, reforço)', () => {
     expect(events[0]).toBe('lookup:dummy-user')
   })
 })
+
+describe('falha do Auth não é senha errada (auditoria run-3, P2)', () => {
+  it('só invalid_credentials é recusa; 429, 5xx e rede viram AuthUpstreamError', async () => {
+    const { AuthUpstreamError, isInvalidCredentials, sessionOrRefusal } = await import('../../../supabase/functions/_shared/authRefusal')
+    expect(isInvalidCredentials({ status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' })).toBe(true)
+    expect(isInvalidCredentials({ status: 400, message: 'Invalid login credentials' })).toBe(true)
+    expect(sessionOrRefusal({ session: null }, { status: 400, code: 'invalid_credentials' })).toBeNull()
+    expect(sessionOrRefusal({ session: { access_token: 'ok' } }, null)).toEqual({ access_token: 'ok' })
+    for (const error of [
+      { status: 429, code: 'over_request_rate_limit', message: 'Request rate limit reached' },
+      { status: 503, message: 'Service Unavailable' },
+      { status: 0, message: 'Failed to fetch' },
+    ]) {
+      expect(isInvalidCredentials(error)).toBe(false)
+      expect(() => sessionOrRefusal({ session: null }, error)).toThrow(AuthUpstreamError)
+    }
+  })
+
+  it('a falha do Auth atravessa o login sem virar recusa, nas duas tentativas', async () => {
+    const { AuthUpstreamError } = await import('../../../supabase/functions/_shared/authRefusal')
+    const events: string[] = []
+    const deps = { ...dependencies(events, 'H(Senha1)'), signIn: async () => { throw new AuthUpstreamError(429, 'over_request_rate_limit') } }
+    await expect(authenticatePortalLoginIdentity<Session>(real, 'dummy-user', 'Senha1', deps)).rejects.toBeInstanceOf(AuthUpstreamError)
+  })
+
+  it('portal-login e a troca do Email de Recuperação só cobram o balde por credencial recusada', async () => {
+    const { readFileSync } = await import('node:fs')
+    const login = readFileSync('supabase/functions/portal-login/index.ts', 'utf8')
+    expect(login).toContain('return sessionOrRefusal(data, error)')
+    expect(login).toContain('if (err instanceof AuthUpstreamError)')
+    const recovery = readFileSync('supabase/functions/portal-recovery-email-change/index.ts', 'utf8')
+    expect(recovery.indexOf('!isInvalidCredentials(verified.error)')).toBeLessThan(recovery.indexOf('await registerLoginFailure('))
+  })
+})

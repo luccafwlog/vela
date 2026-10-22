@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
 import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.ts'
+import { AuthUpstreamError, sessionOrRefusal } from '../_shared/authRefusal.ts'
 import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 
@@ -75,9 +76,11 @@ if (typeof Deno !== 'undefined') {
           const { data: user } = await admin.auth.admin.getUserById(userId)
           return user.user?.email ?? null
         },
+        // Senha errada volta null e conta no balde; falha do Auth (429, 5xx,
+        // rede) lança AuthUpstreamError e não é cobrada do CNPJ.
         signIn: async (email, password) => {
           const { data, error } = await authClient.auth.signInWithPassword({ email, password })
-          return error ? null : data.session
+          return sessionOrRefusal(data, error)
         },
         derivePassword: (password) => derivePortalAuthPassword(password, pepper),
         migrateLegacyPassword: async (userId, derivedPassword) => {
@@ -99,6 +102,11 @@ if (typeof Deno !== 'undefined') {
         expires_at: authentication.session.expires_at,
       }, origin)
     } catch (err) {
+      if (err instanceof AuthUpstreamError) {
+        // Falha do Auth não é senha errada: nada entra no balde do CNPJ.
+        console.error('[portal-login] Supabase Auth indisponível:', err.message)
+        return json(503, { error: 'Portal indisponível. Tente novamente em instantes.' }, origin)
+      }
       console.error('[portal-login] erro inesperado:', err)
       return json(500, { error: 'Portal indisponível.' }, origin)
     }

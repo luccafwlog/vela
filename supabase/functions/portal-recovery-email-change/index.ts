@@ -9,6 +9,7 @@ import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '.
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import type { PortalDb } from '../_shared/portalDb.ts'
+import { isInvalidCredentials } from '../_shared/authRefusal.ts'
 
 // Mensagem própria para o pedido que já não tem o que aplicar. Dizer "link
 // inválido" aqui seria mentira -- o link estava válido -- e mandaria o cliente
@@ -57,8 +58,12 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
     if (!technicalEmail) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })
     const verifier = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!)
     // Senha migrada (HMAC) primeiro; a pura só vale para conta ainda legada.
+    // Falha do Auth (429, 5xx, rede) em qualquer tentativa não é senha errada: não entra no balde.
+    const authUnavailable = () => new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 503 })
     let verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: await derivePortalAuthPassword(body.current_password, portalPasswordPepper()) })
+    if (verified.error && !isInvalidCredentials(verified.error)) return authUnavailable()
     if (verified.error) verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: body.current_password })
+    if (verified.error && !isInvalidCredentials(verified.error)) return authUnavailable()
     if (verified.error) {
       await registerLoginFailure(admin, account.login_cnpj, rateLimitContext)
       return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 422 })

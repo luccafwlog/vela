@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Portal: falha do Auth não tranca o Cliente (2026-10-22, auditoria de segurança run-3,
+  pendência P2):** `portal-login` e a verificação da senha atual em `portal-recovery-email-change`
+  só contam no balde do CNPJ a credencial recusada; limite de taxa, erro 5xx ou falha de rede do
+  Supabase Auth respondem `503` sem cobrar o Cliente, que antes ficava bloqueado por 15 minutos
+  mesmo digitando a senha certa. Prova: `portalLoginIdentity.test.ts`.
 - **Portal: anexo de Dispute com limite real de tamanho (2026-10-22, auditoria de segurança
   run-3, pendência P6):** `portal-dispute-attachment` lê o corpo pela mesma leitora com limite do
   Desbloqueio de CE (`_shared/boundedMultipart.ts`), que para em 10 MiB mesmo quando o envio não
