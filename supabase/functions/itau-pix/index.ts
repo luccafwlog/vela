@@ -43,13 +43,14 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao reservar a fila Itaú.");
             return data ?? [];
           },
-          async record(id, result) {
+          async record(id, result, claimedVersion) {
             const { error } = await admin.rpc("itau_pix_record", {
               p_id: id, p_outcome: result.outcome,
               p_revision: result.outcome === "active" ? result.revision : null,
               p_pix_copia_e_cola: result.outcome === "active" ? result.pixCopiaECola : null,
               p_error: result.outcome === "active" ? null : result.error ?? null,
               p_bank_created_at: result.outcome === "active" ? result.bankCreatedAt : null,
+              p_claimed_version: claimedVersion ?? null,
             });
             if (error) throw new Error("Falha ao registrar resultado Itaú.");
           },

@@ -276,6 +276,8 @@ export type QueuedCharge = {
   status: 'pending_create' | 'pending_update' | 'pending_expire_check' | 'pending_cancel'
   uncertain: boolean
   attempts: number
+  /** Versão de valor e validade reservada (migration 412); o resultado só ativa esta versão. */
+  change_version?: number
 }
 
 export type ChargeOutcome =
@@ -284,7 +286,8 @@ export type ChargeOutcome =
 
 export type ChargeQueue = {
   claim(limit: number): Promise<QueuedCharge[]>
-  record(id: number, outcome: ChargeOutcome): Promise<void>
+  // claimedVersion: change_version da linha reservada, a que foi enviada ao banco.
+  record(id: number, outcome: ChargeOutcome, claimedVersion?: number): Promise<void>
   // Renova a vez única do runner (migration 219) antes de cada bloco seguinte;
   // falso encerra a execução. Ausente: sem vez (testes, ações manuais).
   renew?(): Promise<boolean>
@@ -395,7 +398,7 @@ export async function processItauPixQueue(
     const charges = await queue.claim(Math.min(chunk, maxCharges - processed))
     for (const charge of charges) {
       const outcome = await stepCharge(client, charge)
-      await queue.record(charge.id, outcome)
+      await queue.record(charge.id, outcome, charge.change_version)
       summary[outcome.outcome]++
       processed++
       // As cobranças já reservadas e não chamadas voltam pela própria reserva vencida.

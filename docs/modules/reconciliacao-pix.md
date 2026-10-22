@@ -391,7 +391,12 @@ o copia e cola em `pix_payload`; até lá Vela e Portal mostram "QR em
 preparação". Faturas individual e consolidada com cobrança ativa também entram
 em `local_pix_charge_versions`, então a conciliação por extrato continua
 resolvendo o TXID delas. A avulsa não entra nessa tabela (`itau_pix_record`,
-migrations `152` e `153`).
+migrations `152` e `153`). Desde a migration `412` (auditoria de segurança run-3), cada mudança de valor
+ou validade soma `itau_pix_charges.change_version`, e o runner devolve a versão
+que reservou: se o valor mudou enquanto o Itaú respondia (desconto, PTAX), o
+resultado não ativa a cobrança, que fica em `pending_update` para a versão nova
+seguir na mesma execução. Sem isso, o QR cobrava o valor antigo enquanto a fatura
+e o Portal mostravam o novo.
 
 **Baixa automática (migration 152):** a função consulta `GET /pix` e chama
 `itau_pix_settle` para cada Pix com TXID `VELA…`, que baixa pelos mesmos

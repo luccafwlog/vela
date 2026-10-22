@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Pix Itaú: o resultado só ativa a versão enviada (2026-10-22, auditoria de segurança run-3,
+  achado C7):** migration `412`. Mudança de valor ou validade durante a chamada ao Itaú (desconto
+  de Demurrage, PTAX, renovação) deixava a cobrança `active` com o valor antigo no banco do Itaú;
+  agora a cobrança volta a `pending_update` e o valor novo segue na mesma execução. Publicar a
+  migration antes da `itau-pix`. Prova: `itauPixCharges.local-pg.test.ts`, `itauPix.test.ts`.
 - **Comunicados: identidade de envio não serve a outro remetente nem a outro texto (2026-10-22,
   auditoria de segurança run-3, achado C5):** `send-customer-communication` recusa (422 definitivo)
   a chamada manual que reaproveita o `dispatch_id` de um Comunicado de outra pessoa ou com outro

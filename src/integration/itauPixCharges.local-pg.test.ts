@@ -180,6 +180,17 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'concluded')`)).toBe('concluded')
   })
 
+  it('criação que responde depois de o valor mudar segue como alteração com o valor novo (C7)', () => {
+    setProvider('itau')
+    const id = manualInvoice('ITAU412-C', 5)
+    const [charge] = charges(`invoice_id = ${id}`)
+    const sent = psql(`SELECT change_version FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)
+    // Como _itau_pix_sync: a mesma linha muda de valor enquanto o Itaú cria a cobrança.
+    psql(`UPDATE public.itau_pix_charges SET amount_brl = amount_brl + 1 WHERE id = ${charge.id}`)
+    expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAUCOB-C', NULL, now(), ${sent})`)).toBe('pending_update')
+    expect(psql(`SELECT count(*) FROM public.itau_pix_claim(100) WHERE id = ${charge.id} AND status = 'pending_update'`)).toBe('1')
+  })
+
   it('Demurrage: substitui o QR estático das RPCs e acompanha a nova PTAX', () => {
     setProvider('itau')
     psql(`INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, total_usd, current_roe, current_total_brl, roe_source, status, pix_payload)
@@ -353,7 +364,18 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(psql(`SELECT pix_payload FROM public.demurrage_invoices WHERE id = ${demurrage2Id}`)).toBe('000201ITAU152')
     expect(psql(`SELECT bank_created_at + make_interval(secs => expiration_seconds) >= public.itau_pix_cutoff(now())
       FROM public.itau_pix_charges WHERE id = ${charge.id}`)).toBe('t')
-    psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${charge.id}, 'active', 1, '000201ITAU152')`)
+    // Desconto durante a chamada ao Itaú (auditoria run-3, C7; migration 412): o
+    // resultado da versão enviada não ativa a linha; a versão nova segue.
+    const sent = psql(`SELECT change_version FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)
+    psql(`UPDATE public.demurrage_invoices SET current_total_brl = 513 WHERE id = ${demurrage2Id}`)
+    expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 1, '000201ITAU152', NULL, NULL, ${sent})`)).toBe('pending_update')
+    expect(charges(`id = ${charge.id}`)[0]).toMatchObject({ amount: '513.00', status: 'pending_update' })
+    const resent = psql(`SELECT amount_brl || '|' || change_version FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`).split('|')
+    expect(resent[0]).toBe('513.00')
+    psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 2, '000201ITAU152', NULL, NULL, ${resent[1]})`)
+    expect(charges(`id = ${charge.id}`)[0].status).toBe('active')
+    psql(`UPDATE public.demurrage_invoices SET current_total_brl = 570 WHERE id = ${demurrage2Id}`)
+    psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${charge.id}, 'active', 3, '000201ITAU152')`)
     expect(charges(`id = ${charge.id}`)[0].status).toBe('active')
     // Cliente pagou a revisão anterior (560) durante a troca: quita pelo valor pago.
     psql(`INSERT INTO public.demurrage_invoice_history(invoice_id, event_date, ptax_used, roe_used, total_usd, total_brl, discount_usd, source)

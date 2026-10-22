@@ -279,16 +279,17 @@ describe('processador da fila de cobranças', () => {
   })
 
   it('processa o que foi reservado e registra cada resultado', async () => {
-    const a = charge({ id: 10 })
+    const a = charge({ id: 10, change_version: 3 })
     const b = charge({ id: 11, status: 'pending_cancel' })
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(a.txid))
       .mockResolvedValueOnce(ativa(b.txid, { status: 'REMOVIDA_PELO_USUARIO_RECEBEDOR' }))
-    const recorded: [number, string][] = []
+    const recorded: [number, string, number | undefined][] = []
     const summary = await processItauPixQueue(createItauPixClient(config, fetchMtls), {
       claim: vi.fn().mockResolvedValueOnce([a, b]).mockResolvedValue([]),
-      record: async (id, outcome) => { recorded.push([id, outcome.outcome]) },
+      record: async (id, outcome, claimedVersion) => { recorded.push([id, outcome.outcome, claimedVersion]) },
     })
-    expect(recorded).toEqual([[10, 'active'], [11, 'cancelled']])
+    // A versão reservada volta ao banco, que só ativa a versão enviada (migration 412).
+    expect(recorded).toEqual([[10, 'active', 3], [11, 'cancelled', undefined]])
     expect(summary).toMatchObject({ active: 1, cancelled: 1, error: 0 })
   })
 
