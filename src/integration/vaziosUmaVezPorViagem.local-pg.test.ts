@@ -238,4 +238,16 @@ describeLocal('398 — vazio de importação uma vez por Viagem; ADR de Saída f
     expect(updateLine().stderr).toBe('')
     expect(psql(`SELECT container_type || ':' || hand_out_date FROM public.vazios_bookings WHERE id = '${booking}';`)).toBe('20DV:2026-09-03')
   })
+  it('399: com o ADR de Saída fechado, criar o primeiro Embarque da Viagem e porto é recusado; a exclusão da Viagem passa', () => {
+    psql(`INSERT INTO public.agency_departure_reports (voyage_id, port, status) VALUES (${voyageId}, 'BRRIO', 'closed');`)
+    const message = /ADR de Saída de BRRIO fechado: o Embarque de vazios não muda/
+    const create = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `INSERT INTO public.vazios_export_operations (voyage_id, embark_port) VALUES (${voyageId}, 'brrio');`], { encoding: 'utf8' })
+    expect(create.stderr).toMatch(message)
+    expect(psql(`SELECT count(*) FROM public.vazios_export_operations WHERE voyage_id = ${voyageId} AND upper(embark_port) = 'BRRIO';`)).toBe('0')
+    // A exclusão pela RPC liga vela.deleting_records: o gatilho deixa apagar o Embarque com ADR fechado.
+    expect(psql(`BEGIN; SET LOCAL vela.deleting_records = 'on';
+      DELETE FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};
+      SELECT count(*) FROM public.vazios_export_operations WHERE voyage_id = ${voyageId}; ROLLBACK;`)).toBe('0')
+  })
 })

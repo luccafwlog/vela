@@ -205,6 +205,26 @@ describe("EmbarqueVazios", () => {
     expect(screen.queryByRole("button", { name: /Lançar linha/i })).toBeNull();
   });
 
+  it("trava do ADR carregando: as ações ficam fora até o banco dizer que não está travado", () => {
+    mocks.queryOverrides = { "agency-report": { isLoading: true } };
+    renderPage();
+    expect(screen.queryByRole("button", { name: /Adicionar unidade/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Importar planilha/i })).toBeNull();
+    openServicesTab();
+    expect(screen.queryByRole("button", { name: /Lançar linha/i })).toBeNull();
+  });
+
+  it("falha ao ler a trava do ADR: as ações ficam fora e a tela oferece Tentar de novo", () => {
+    mocks.queryOverrides = { "agency-report": { error: new Error("rede") } };
+    renderPage();
+    expect(screen.getByText("Não foi possível conferir o ADR de Saída")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Adicionar unidade/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(mocks.refetch).toHaveBeenCalled();
+    openServicesTab();
+    expect(screen.queryByRole("button", { name: /Lançar linha/i })).toBeNull();
+  });
+
   it("com embarque escolhido, mostra a faixa de identidade e as abas", () => {
     renderPage();
     expect(screen.getByRole("heading", { name: "NAVIO VERDE / 123N" })).toBeTruthy();

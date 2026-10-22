@@ -550,7 +550,9 @@ function EmbarqueDetalhe({
     queryFn: () => isVaziosExportLockedByAdr(ref.voyage_id, ref.embark_port),
   });
   const adrLocked = adrLock.data === true;
-  const canEdit = canEditProfile && !adrLocked;
+  // Enquanto a trava carrega ou se a leitura falhar, as ações ficam fora:
+  // só o "não travado" explícito do banco libera a edição.
+  const canEdit = canEditProfile && adrLock.data === false;
   const units = useQuery({
     queryKey: ["embarque-vazios-units", ref.id],
     queryFn: () => listVaziosBookingsForOperation(ref.id),
@@ -907,6 +909,11 @@ function EmbarqueDetalhe({
       {adrLocked ? (
         <ImportNotice tone="warning" role="status" title="ADR de Saída fechado">
           <p>O Embarque de vazios de {ref.embark_port} não muda com o ADR de Saída fechado: incluir, editar, excluir ou importar unidades e lançar serviços ficam travados. Reabra o ADR de Saída para mudar.</p>
+        </ImportNotice>
+      ) : adrLock.error && adrLock.data === undefined ? (
+        <ImportNotice tone="warning" role="alert" title="Não foi possível conferir o ADR de Saída">
+          <p>As ações do Embarque de vazios ficam travadas até conferir se o ADR de Saída de {ref.embark_port} está fechado.</p>
+          <Button variant="secondary" onClick={() => void adrLock.refetch()}>Tentar de novo</Button>
         </ImportNotice>
       ) : null}
 

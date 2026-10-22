@@ -55,14 +55,15 @@ antes e passa depois, e o módulo dono atualizado.
   falha de cálculo da planilha de CE no formato da B3; `statement_timeout` de
   60 s. Prova: `ceEManifestoMercante.local-pg.test.ts` e
   `ceForaDoManifestoAlerta.test.ts`.
-- **Lote 6 — Vazios** (migration `398`): decisões 21 e 22; F-32. Um vazio de
+- **Lote 6 — Vazios** (migrations `398` e `399`): decisões 21 e 22; F-32. Um vazio de
   importação por Viagem (índice único `voyage_id` + `container_key`, repetidos
   reduzidos a uma linha); a planilha vale sobre o Baplie e o tira do container
   que traz; o Baplie cadastra só o que nenhuma planilha trouxe e devolve
   `planilha`; container de outra planilha em outra rota recusado com o
   container e a rota; prévia da planilha e `/baplie` mostram a diferença. ADR
   de Saída fechado: incluir e editar unidade recusados nas RPCs e o gatilho
-  `guard_vazios_export_adr_lock` recusa a escrita direta; a tela tira as ações
+  `guard_vazios_export_adr_lock` recusa a escrita direta, inclusive criar o
+  Embarque (`399`); a tela tira as ações
   (`vazios_export_adr_locked`). Prova: `vaziosUmaVezPorViagem.local-pg.test.ts`,
   `vaziosImportacaoImport.test.ts`, `baplieVaziosPending.test.ts` e
   `EmbarqueVazios.flow.test.tsx`.

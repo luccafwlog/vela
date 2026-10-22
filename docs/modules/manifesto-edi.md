@@ -476,19 +476,23 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   de Linha de Serviço (`delete_catalog_row`) e a reimportação da planilha de
   Unidades Embarcadas (`import_vazios_bookings_transactional`, migration `274`)
   seguem a mesma trava.
-- **ADR de Saída fechado trava tudo** (ADR 0095, decisão 22; migration `398`):
+- **ADR de Saída fechado trava tudo** (ADR 0095, decisão 22; migrations `398` e `399`):
   com o ADR de Saída do porto de embarque fechado, nada muda no Embarque de
   vazios. Incluir e editar unidade (`create_manual_vazios_booking`,
   `update_manual_vazios_booking`) também são recusados, e o gatilho
   `guard_vazios_export_adr_lock` recusa a escrita direta permitida por coluna
   (lançar, mudar ou observar Linha de Serviço; trocar a Viagem ou o porto do
-  embarque) e qualquer mudança em `vazios_bookings`, com a mesma mensagem:
+  embarque; criar o Embarque da escala, `399`) e qualquer mudança em
+  `vazios_bookings`, com a mesma mensagem:
   "ADR de Saída de <porto> fechado: o Embarque de vazios não muda (…). Reabra o
   ADR de Saída para mudar." A exclusão da Viagem pela RPC de exclusão passa. A
   tela lê a trava (`vazios_export_adr_locked`, sob a família do ADR, que
   reabrir ou fechar o ADR invalida), mostra o aviso **ADR de Saída fechado** e
   tira **Importar planilha**, **Adicionar unidade**, **Editar**, **Excluir**,
-  **Lançar linha** e **Observação**. **Teste local-pg:**
+  **Lançar linha** e **Observação**. Enquanto a trava carrega ou se a leitura
+  falha, as ações também ficam fora (só o "não travado" do banco as libera); a
+  falha mostra "Não foi possível conferir o ADR de Saída" com **Tentar de
+  novo**. **Teste local-pg:**
   `vaziosUmaVezPorViagem.local-pg.test.ts`; **Teste:**
   `EmbarqueVazios.flow.test.tsx`.
 - **Linha de Serviço.** Declaração de um serviço efetivamente performado:

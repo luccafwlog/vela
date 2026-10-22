@@ -328,9 +328,9 @@ gravado no rastro. **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts`
 (B14).
 
 **ADR de Saída fechado trava tudo no Embarque de vazios** (ADR 0095, decisão
-22; migrations `274` e `398`): com o ADR fechado, nada muda nas unidades nem
+22; migrations `274`, `398` e `399`): com o ADR fechado, nada muda nas unidades nem
 nas linhas de serviço — reimportar, incluir, editar e excluir unidade, lançar
-ou mudar linha e trocar o porto do embarque são recusados com "ADR de Saída de
+ou mudar linha, trocar o porto do embarque e criar o Embarque da escala são recusados com "ADR de Saída de
 <porto> fechado: … Reabra o ADR de Saída para mudar.", inclusive pela escrita
 direta na API (gatilho `guard_vazios_export_adr_lock`); a tela tira as ações.
 Regra e tela em [Manifestos & EDI](../modules/manifesto-edi.md#embarquevazios).
