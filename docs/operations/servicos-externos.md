@@ -372,6 +372,30 @@ merge, confira:
 2. Em Supabase → Edge Functions, `recalc-demurrage-ptax` e `send-customer-communication` com a data do merge.
 3. A execução seguinte do job da PTAX grava a referência do dia (sem alerta de falha da PTAX). Conferido em 2026-10-15 (ver acima).
 
+As frentes financeira e das importações (PR luccafwlog/vela#1021, staging →
+`main`, migrations `354` a `407`) vão a produção pelo mesmo caminho automático.
+Duas funções dependem de migration nova
+([revisão da PR 1021](../archive/audits/2026-10-22-revisao-pr-1021.md), R-02):
+
+| Função | Depende de | Se ficasse no ar sem a migration |
+|---|---|---|
+| `admin-users` | migration `404` (`record_audit_entries`; o INSERT direto em `audit_logs` saiu) | Criar usuário, trocar e-mail ou senha em `/admin/usuarios` altera a conta no Auth e falha na gravação do Histórico; a tela mostra erro com a conta já alterada |
+| `itau-pix` | migrations `358` (`itau_pix_receipt_failed`) e `375`/`385` (`itau_pix_record_untracked`) | Quando chega Pix sem TXID ou uma baixa falha, a consulta de recebimentos para sem avançar o checkpoint (falha fechada) e a baixa automática atrasa; sem a `358`, o Alerta de consulta parada também não existe |
+
+A ordem entre migrations e Functions na integração não foi conferida (ver
+acima). Se as Functions saírem antes, refaça a operação de usuário depois que a
+`404` entrar. A `404` também tira o INSERT direto em `audit_logs` do navegador:
+uma aba do Vela aberta antes da publicação do site recebe recusa de permissão
+ao salvar a agenda da escala (ETA, ATA, ETD) em **Chegadas e Saídas** ou
+**Rotas e Manifestos** e grava a Viagem sem o Histórico ao editá-la, até
+recarregar a página. Avise a equipe para recarregar o Vela quando o site for
+publicado. Depois do merge, confira:
+
+1. `SELECT proname FROM pg_proc WHERE proname IN ('record_audit_entries', 'itau_pix_receipt_failed', 'itau_pix_record_untracked', 'charge_tables_in_use');` devolve as quatro.
+2. Em Supabase → Edge Functions, `admin-users` e `itau-pix` com a data do merge; `admin-users` responde 204 ao preflight e 403 sem sessão.
+3. Um ETA salvo em **Chegadas e Saídas** aparece no Histórico da escala.
+4. A rodada seguinte do job `itau-pix-queue` responde 200 e o checkpoint da consulta anda.
+
 ### Secrets das Edge Functions
 
 | Grupo | Nomes | Serviço de origem |
@@ -429,7 +453,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
 | `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
-| `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
+| `itau-pix-queue` | a cada minuto (criado à mão em 07/10, jobid 25; recriado pela migration `358`, `ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
@@ -442,9 +466,10 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
 | `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
 | `http-job-failures` | a cada 15 min, em :09/:24/:39/:54 (`9-59/15 * * * *`, migration `310`) | `reconcile_http_job_failures_alert()`: abre o Alerta crítico `rotina_http_falhou` (Administrativo) quando `net._http_response` tem, na última hora, resposta fora de 2xx ou falha sem resposta que não seja tempo esgotado, 10 ou mais tempos esgotados, ou quando há 30 ou mais chamadas paradas na fila do `pg_net` (migration `316`), e o fecha quando a hora fica limpa; SQL puro, sem Vault nem Edge Function | — |
+| `itau-pix-checkpoint-health` | a cada 5 min, em :01/:06/… (`1-59/5 * * * *`, migration `358`) | `reconcile_itau_pix_checkpoint_alert()`: com `pix_provider = 'itau'`, abre o Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro) quando o checkpoint da consulta Itaú está parado há mais de 15 minutos e o fecha quando anda; SQL puro, não depende da Edge | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação (inclui a exceção crítica de fatura) | `portal-daily-digest` |
-| `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
+| `recalc-demurrage-ptax` | 17:00 de segunda a sexta (`0 17 * * 1-5`, 14:00 de Brasília; criado à mão em 07/10, jobid 26; recriado pela migration `358`) | PTAX do BCB, referência cambial e recálculo em BRL das Invoices de Demurrage emitidas ou vencidas e não pagas, salvo as de ROE manual (migrations `382` e `402`) | — |
 
 O job `cleanup-portal-sessions` (03:00, sessões do token antigo do Portal) foi
 desagendado pela migration `234`, junto com a tabela que limpava (ADR 0083,
@@ -457,7 +482,7 @@ abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disp
 
 `billing-release-expiry-review` é SQL puro, sem Vault nem Edge Function; o retorno (`customers`, `bls` reavaliados) fica em `cron.job_run_details`. Parado por mais de 7 dias, rode a função à mão com janela maior, por exemplo `SELECT public.reevaluate_expired_billing_releases(interval '30 days');`.
 
-`import-effects-queue-health` é SQL puro (migration `178`) e não processa efeitos. Até a migration `190` ele não reconciliava de fato: o `pg_cron` roda sem JWT e a reconciliação de Alertas recusava ("Sem permissão."), então o Alerta nunca abria nem fechava. Desde a `190`, a função assume o papel de serviço só durante a própria execução, abre e fecha o Alerta crítico `import_effects_queue_stalled` e mede a idade pelo vencimento da tentativa (`next_attempt_at`), não pela criação: efeito em backoff legítimo não conta. Com o `import-effects-runner` ligado (desde 2026-10-12), o Alerta só abre se a fila parar: efeito vencido há mais de 60 minutos. Antes de ligar o runner, rode a simulação do acumulado (`simulate_import_effects`, server-only) e aprove ou descarte com `apply_import_effects_review` (Etapa 13 do plano de correção das importações).
+`import-effects-queue-health` é SQL puro (migration `178`) e não processa efeitos. Até a migration `190` ele não reconciliava de fato: o `pg_cron` roda sem JWT e a reconciliação de Alertas recusava ("Sem permissão."), então o Alerta nunca abria nem fechava. Desde a `190`, a função assume o papel de serviço só durante a própria execução, abre e fecha o Alerta crítico `import_effects_queue_stalled` e mede a idade pelo vencimento da tentativa (`next_attempt_at`), não pela criação: efeito em backoff legítimo não conta. Com o `import-effects-runner` ligado (desde 2026-10-12), o Alerta só abre se a fila parar: efeito vencido há mais de 60 minutos. Desde a migration `394`, o efeito em execução com a lease vencida (runner parado no meio) também entra no atraso e na contagem `running_expired`, o texto do Alerta diz quantos estão bloqueados, e o efeito em espera de negócio (`awaiting_review`, `awaiting_charge_table`) só conta quando a hora dele vence. O runner roda o efeito de iniciador desativado como a conta `app_settings.system_billing_actor` ("Vela (automático)"). Antes de ligar o runner, rode a simulação do acumulado (`simulate_import_effects`, server-only) e aprove ou descarte com `apply_import_effects_review` (Etapa 13 do plano de correção das importações).
 
 #### Roteiro para ligar o `import-effects-runner` (ADR 0078, item 18)
 

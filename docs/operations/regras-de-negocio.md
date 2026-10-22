@@ -28,9 +28,9 @@ vigente. Para Cliente sem gate aberto, o CE calcula e **retém** a fatura no B/L
 (`billing_hold_reason = 'Acesso ao portal nao provisionado'`), sem tratar isso
 como falha; a Validação mostra *Conta do Portal não ativa*. A ativação do Portal e
 a concessão da Liberação reprocessam o Cliente e emitem as retidas pelo mesmo
-caminho da transição do CE, com o cálculo gravado no registro do CE, sem
-recalcular pela tabela vigente; o USD converte pelo ROE do dia da emissão
-([Faturamento § Propósito e escopo](../modules/faturamento.md#propósito-e-escopo)).
+caminho da transição do CE, com o preço e o câmbio fixados na importação e a
+base atual ([ADR 0094](../adr/0094-preco-fixo-na-importacao.md); [Faturamento §
+Propósito e escopo](../modules/faturamento.md#propósito-e-escopo)).
 
 A exceção da migration `051_ce_mercante_auto_billing.sql` (a automação do CE
 emitia sem depender do provisionamento, num contexto interno) foi revogada pela
@@ -69,7 +69,7 @@ Portal enquanto o Portal não fica pronto (ADR 0070; migrations `083` a `085`,
   `audit_logs`.
 - **Efeito.** Conceder abre o gate na hora: os B/Ls não faturados do Cliente
   saem da Revisão (gatilho da migration `167`) e as faturas retidas pelo CE são
-  emitidas, com as taxas do dia do CE. A tela informa quantas faturas saíram e
+  emitidas, com o preço fixado na importação ([ADR 0094](../adr/0094-preco-fixo-na-importacao.md), A1) e a base atual. A tela informa quantas faturas saíram e
   quantos B/Ls seguem com outro bloqueio. A Liberação **não ativa a conta do
   Portal nem dá acesso ao Cliente**: sem Portal, um usuário interno entrega a
   fatura. Fatura emitida com Liberação vigente não abre a exceção crítica de
@@ -241,7 +241,10 @@ direto pela API nessas tabelas (ver a
   volta intacto com o motivo do bloqueio; a mesma RPC em modo prévia alimenta o
   diálogo. A viagem sai em cascata pela lista explícita do que é dela, e viagem
   cancelada fica retida ([Viagens § Catálogo de ações](../modules/viagens.md#catálogo-de-ações)).
-  Cliente com CNPJ não se exclui ([Cadastro usado](#cadastro-usado)). O DELETE
+  Cliente com CNPJ não se exclui ([Cadastro usado](#cadastro-usado)). Excluir
+  B/L ou viagem encerra os efeitos de importação pendentes deles como
+  "descartado: registro excluído", sem Alerta, e a viagem leva os vazios de
+  importação dela (migration `394`; [Manifestos & EDI, regra 20](../modules/manifesto-edi.md)). O DELETE
   direto em `bls`, `bl_containers` e `vehicles` saiu da API na migration `088`,
   e o de `voyages`, na `109`.
 - **Escala e atracação:** `delete_escala` (Administrativo, motivo e trava no
@@ -306,7 +309,11 @@ Corrigir o CE mantém a trava. **Remover CE Mercante**, na ficha do B/L, solta a
 trava do CE: qualquer Departamento ativo, com motivo, e só sem fatura viva — com
 fatura emitida, o Administrativo cancela a fatura antes
 (`remove_bl_ce_mercante`, definição vigente na migration `209`; a ADR 0078
-substituiu o item 5 da ADR 0071).
+substituiu o item 5 da ADR 0071). Remover o CE ou cancelar o B/L também o tira
+do Manifesto Mercante, e reativar o recoloca; o B/L com CE que muda de rota abre
+o alerta "CE fora do Manifesto da rota" para a Documentação
+([regra 21 de Manifestos & EDI](../modules/manifesto-edi.md); ADR 0095,
+decisões 19 e 20; migration `396`).
 
 **Vazios**, que não têm CE, travam com o ADR de Saída fechado da escala e do
 terminal, e reabrir o ADR solta a trava (ADR 0071, item 4); antes dela,
@@ -319,6 +326,17 @@ ADR legado por porto), o banco recusa excluir unidade manual
 Embarque de Vazios; reabrir o ADR solta. **Excluir unidade** pede motivo,
 gravado no rastro. **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts`
 (B14).
+
+**ADR de Saída fechado trava tudo no Embarque de vazios** (ADR 0095, decisão
+22): regra, mensagem, gatilho e tela em
+[Manifestos & EDI](../modules/manifesto-edi.md#embarquevazios).
+
+**Um vazio de importação por Viagem** (ADR 0095, decisão 21; F-32; migration
+`398`): o mesmo container entra uma vez nos Vazios de importação da Viagem,
+em qualquer rota e de qualquer fonte. A planilha vale sobre o Baplie: o Baplie
+não sobrescreve o vazio que veio da planilha e só mostra a diferença, e a
+planilha tira do Baplie o container que traz. Regra e telas em
+[Manifestos & EDI](../modules/manifesto-edi.md#vazios-importacao).
 
 ### Cadastro usado
 
@@ -441,8 +459,16 @@ módulo, por exemplo em [Manifestos & EDI § Propósito e escopo](../modules/man
   existe em linha ou aba oculta, o erro diz isso em vez de "Planilha vazia.". A
   importação que substitui dados pede confirmação antes de gravar quando há
   linhas ou abas ocultas (ver o módulo de cada uma).
+- **Uma aba só.** Arquivo com mais de uma aba visível com dados é recusado em
+  toda importação de planilha, com o nome das abas ("deixe os dados numa aba
+  só"); aba oculta, aba vazia e aba com dado só em linhas ocultas não contam.
+  Com a primeira aba vazia e os dados em outra, a recusa é a mesma, não
+  "Planilha vazia.". Só Veículos procura a aba dos dados: pula a aba vazia ou
+  com dado só em linhas ocultas.
 - **CSV** fora de UTF-8, em Windows-1252 (o "CSV" salvo pelo Excel), é aceito
-  com aviso, salvo quando o importador o proíbe.
+  com aviso, salvo quando o importador o proíbe. O separador (`,`, `;`, tab ou
+  `|`) é o detectado no arquivo: CSV com `;` e vírgulas no texto é lido pelo
+  `;`.
 - Linhas realmente vazias são descartadas sem renumerar os dados, e cada linha
   leva o número físico da planilha (a partir de 1).
 
@@ -473,9 +499,27 @@ componente só, aberto de todas as telas que a oferecem.
   numa transação só. B/L cancelado dentro do arquivo é aviso (não é tocado).
   Linhas sem conteúdo (planilha da ZPT sem CE ou situação; lançamento zerado
   ou negativo do extrato do Pix) são ignoradas com a contagem à vista; valor
-  ilegível é erro. Passo técnico depois da gravação (IMO/OOG e vazios do
-  Baplie, emissão das faturas do CE Mercante, cálculo das Taxas Locais) que
-  falhar não desfaz a importação: é retomado, e a tela diz o que falta.
+  ilegível é erro. Passo técnico depois da gravação (emissão das faturas do
+  CE Mercante, cálculo das Taxas Locais) que falhar não desfaz a importação:
+  é retomado, e a tela diz o que falta. As marcas IMO/OOG e SOC/COC e os
+  vazios do Baplie deixaram de ser passo posterior: desde a migration `388`
+  são gravados na mesma transação do Baplie, e a falha recusa o arquivo
+  (ADR 0095, F-20).
+- **Uma importação por Viagem de cada vez** (ADR 0095, decisão 6; migration
+  `387`): toda importação de Viagem pega a mesma trava da Viagem antes de
+  gravar, e a segunda espera a primeira terminar. Regra e lista das
+  importações em [Manifestos & EDI](../modules/manifesto-edi.md#importação-do-bl-e-invariantes-gerais).
+- **Arquivo de B/L** (ADR 0095, decisões 5, 8, 9, 10, 26 e 27; migration
+  `392`): não move B/L entre Viagens (outra Viagem recusa o arquivo); B/L
+  cancelado é aviso e fica de fora; o Cliente sai do CNPJ; a confirmação de
+  faturamento só existe com fatura emitida e é conferida no servidor;
+  refixar o preço só com o aceite por B/L; a aba VIN é ignorada (veículos só
+  pela planilha de Veículos); FCL/LCL vem do Type of Movement. Regra completa
+  em [Manifestos & EDI](../modules/manifesto-edi.md).
+- **ATD do POL** (ADR 0095, decisão 23; migration `401`): a importação de B/L
+  grava o menor Laden on Board dos B/Ls ativos; cancelar ou reativar o B/L
+  recalcula; o ATD corrigido à mão vence e a prévia só avisa a divergência.
+  Regra em [Viagens](../modules/viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota).
 - Toda importação tem um modelo padrão para baixar (`public/templates/`); para
   arquivo que vem de sistema de fora (Baplie, ZPT), um exemplo no formato
   aceito.
@@ -491,7 +535,27 @@ item 9; migration `189`). O contexto é gravado como justificativa da linha que
 não tem outra, no formato "Importação de <tipo> · Viagem <navio> <número> ·
 Manifesto <Nº>" — por exemplo, "Importação de Vazios de Importação · Viagem
 <navio> <número> · Manifesto <Nº>"; o motivo de uma exclusão, quando há,
-prevalece. Não se guarda lote, arquivo nem linha da planilha.
+prevalece. Não se guarda o arquivo nem a linha da planilha; do arquivo fica só
+o nome e o hash (abaixo).
+
+- **Arquivo importado:** toda importação por arquivo que grava lote — arquivo
+  de B/L e Manifesto BB (e B/L avulso de carga solta) em `import_batches`,
+  Granito em `granite_manifests`, Embarque de Vazios em `vazios_manifests` e
+  Vazios de Importação em `vazios_importacao_manifests` — guarda o nome do
+  arquivo, o SHA-256 do conteúdo (calculado no navegador; o servidor recusa o
+  que não tem 64 hexadecimais), quem e quando
+  ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md), decisão 3, que
+  muda em parte o item 9 da ADR 0078; migration `405`). Vários arquivos numa
+  importação só (B/L avulso) guardam o hash do conjunto. O mesmo arquivo de
+  novo para a mesma Viagem e o mesmo tipo de importação **só avisa** na
+  prévia: "Este arquivo já foi importado em <data> por <pessoa>." — nunca
+  bloqueia (`import_file_previous_upload`). A reimportação que só atualiza
+  unidades já gravadas (Embarque de Vazios, como o Granito) grava o recibo no
+  manifesto mais recente delas, para o aviso apontar a última importação
+  (migration `408`). Uma falha ao calcular o hash não impede a importação: o
+  lote fica sem hash e a prévia não avisa. Veículos, planilha de CE, datas de
+  container, Programação, Base de Clientes e Baplie não gravam lote e não têm
+  esse aviso.
 
 - **Importações com rastro:** B/L, Manifesto BB, CE Mercante, Baplie (e a
   aplicação das marcas do Baplie), Veículos, Granito, Vazios de Importação,
@@ -509,12 +573,29 @@ prevalece. Não se guarda lote, arquivo nem linha da planilha.
   motivo informado pela pessoa (troca de CE pela planilha), que é alteração
   deliberada e aparece como **Motivo**
   (`src/components/bl/blTimelinePresentation.ts`).
+- **O que aparece no Histórico do B/L** (ADR 0095, decisão 24; migration
+  `404`): tudo o que a importação muda no B/L — containers que entram e saem
+  (com a origem, e o histórico do container fica depois da remoção), lacre,
+  peso, perfil, SOC/COC (inclusive pelo Baplie), consignatário e Cliente (com
+  razão social e CNPJ, nunca o id), veículos e local de desova —, com rótulos
+  sem termos técnicos. Regra e campos em
+  [Manifestos e EDI](../modules/manifesto-edi.md#importação-do-bl-e-invariantes-gerais),
+  item 9.
+- **Base de Clientes na ficha do Cliente:** o que a base muda no cadastro e os
+  e-mails que ela inclui aparecem no Histórico do Cliente com **Origem: Base de
+  Clientes**, quem e quando ([Clientes](../modules/clientes.md#importação-da-base-de-clientes)).
+- **O Histórico não se escreve à mão:** `audit_logs` não aceita INSERT direto
+  de usuário; só gatilhos e funções do banco gravam, e a tela grava a agenda
+  de POL/POD, a Viagem e eventos operacionais pela RPC
+  `record_audit_entries`, com o autor da sessão ([Segurança](seguranca.md);
+  F-46).
 
 ## Conciliação Baplie ↔ B/L
 
 - Match key: `container_number` + `voyage_id`. `bl_ref` do Baplie é sinal secundário, não critério de bloqueio.
+- **Navio compartilhado e transbordo** ([ADR 0096](../adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md), decisão 3, e [ADR 0095](../adr/0095-importacoes-regras-da-revisao.md), decisão 15; migrations `409` e `403`): não há regra de outro armador, e todo container do Baplie entra na conciliação; container em transbordo (EQD 8249 = 6) aparece na conciliação, marcado, e não leva marcas aos B/Ls. Regra completa em [Manifestos & EDI § Baplie](../modules/manifesto-edi.md#baplie).
 - **Gate de cobertura por rota:** uma rota (POL→POD) de containers cheios prevista pelo Baplie só entra na conciliação quando tem pelo menos um B/L **com containers** naquela rota — B/L sem container não cobre rota. O gate é por rota: uma rota ainda sem B/L fica fora da conciliação, sem silenciar as demais rotas da viagem. Em D-7 do primeiro ETA brasileiro todas as rotas são conciliadas, inclusive as sem B/L.
-- Códigos de porto são normalizados antes da comparação (`public.normalize_port_code` no banco, `src/services/portCode.ts` no app). No app, `normalizePortCode` é a régua do import e conhece sinônimos que o banco não conhece (`CNTCA`, `SEP`); um valor que vai ao banco como filtro (POL/POD da URL de `/bls` e `/containers`) usa `normalizeStoredPortCode`, cópia exata da função do banco conferida pela suíte `operationalLists.local-pg`. Zhoushan (`CNZOS`/`ZOS`) e Ningbo (`CNNGB`) são o mesmo complexo portuário: o Baplie costuma codificar `CNZOS` onde o B/L declara Ningbo. Variações como `QINDGAO` e `TSINGTAO` resolvem canonicamente para Qingdao (`CNTAO`).
+- Códigos de porto são normalizados antes da comparação, por uma régua só: `public.normalize_port_code` no banco e `normalizeStoredPortCode` (`src/services/portCode.ts`), cópia exata conferida pela suíte `operationalLists.local-pg`, no app sempre que o valor é comparado com o que o banco decide (filtro POL/POD de `/bls` e `/containers`, escopo da tabela de Taxas Locais, PODs do Baplie). `normalizePortCode` é a régua do import: reconhece também o nome do porto dentro de um texto ("SALVADOR, BRAZIL"), e os apelidos exatos do Baplie da COSCO (`CNTCA`, `SEP`, `TAO`…) valem igual nas duas desde a migration `391`. **Navegantes (`BRNVT`) e Itajaí (`BRITJ`), Recife (`BRREC`) e Suape (`BRSUA`) são quatro portos e quatro escalas** (ADR 0095, decisão 12; migration `391`): B/L, Baplie, Manifesto Mercante, alertas, Comunicados e tabela de Taxas Locais de um não valem para o outro. Até a `391` o banco juntava cada par. Zhoushan (`CNZOS`/`ZOS`) e Ningbo (`CNNGB`) são o mesmo complexo portuário: o Baplie costuma codificar `CNZOS` onde o B/L declara Ningbo. Variações como `QINDGAO` e `TSINGTAO` resolvem canonicamente para Qingdao (`CNTAO`). Zhuhai (`CNZUH`) é porto próprio, reconhecido pelo código e pelo nome; não é apelido de Nansha nem de Shekou.
 - Divergências — de existência (container cheio no Baplie e em nenhum B/L, ou no B/L e ausente do Baplie), SOC/COC e perfil IMO/OOG corrigido à mão — são avisos, sem bloqueio. Os tipos, a única resolução (**Vale o B/L**, com motivo) e a aplicação das marcas físicas do Baplie estão em [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](../modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências). Dados documentais e financeiros vêm do B/L e permanecem protegidos.
 
 Definições em [CONTEXT.md](../../CONTEXT.md).
@@ -536,6 +617,24 @@ A chave global de envio (`app_settings.communications_enabled`, desligada por pa
 ## Permissões internas
 
 A leitura interna é global e a escrita operacional é liberada a todo Departamento ativo, com rastro; as exceções por Departamento ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md)) são aplicadas pelo banco e estão na matriz de [Segurança § Modelo de permissões por perfil](seguranca.md#modelo-de-permissões-por-perfil); restrição fora da matriz é defeito. Rota e botão escondido são navegação, não autorização.
+
+### Efeitos de importação
+
+Espera de negócio não é bloqueio: o efeito de faturamento do CE num B/L em
+Revisão ou sem tabela de cobrança aguarda sem Alerta e conclui sozinho; o
+Alerta crítico "Efeito de importação bloqueado" é só para falha técnica e se
+resolve com **Reprocessar** no próprio Alerta, com justificativa; efeito de
+usuário desativado roda como "Vela (automático)". A regra completa é a
+[regra 20 de Manifestos & EDI](../modules/manifesto-edi.md) ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md),
+decisões 7, 18 e 25).
+
+### CE e Manifesto Mercante
+
+O B/L só fica num Manifesto Mercante enquanto está ativo e tem CE, e o B/L
+com CE que muda de rota abre o alerta "CE fora do Manifesto da rota". A regra
+(saída, volta, alerta e fechamento) é a
+[regra 21 de Manifestos & EDI](../modules/manifesto-edi.md) ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md),
+decisões 19 e 20).
 
 ## Escritas best-effort
 

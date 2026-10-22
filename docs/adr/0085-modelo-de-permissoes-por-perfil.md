@@ -1,6 +1,9 @@
 # 0085 — Modelo de permissões por perfil
 
-Status: aceito — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelos
+> **Situação atual (2026-10-21).** A decisão vale, exceto o "como as Taxas Locais" de D6 (decisão R6 de 2026-09-23, "preços seguem editáveis por todos") para a Tabela de Taxas Locais e a Condição de Cliente: pela [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md) (decisão 2), só o Administrativo edita item de tabela e Condição, porque a edição corrige faturas emitidas. Implementado na PR luccafwlog/vela#1019 ([plano arquivado](../archive/plans/2026-10-21-correcoes-frente-financeira.md)).
+> Regra vigente em [Segurança](../operations/seguranca.md), seção Modelo de permissões por perfil.
+
+Status: supersedida parcialmente — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelos
 itens P1 a P15 do
 [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
 (migrations `231` a `266`), com a bateria por perfil em

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { importVaziosImportacaoManifest, listVaziosImportacaoContainers, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions, vazioManifestoNumero } from '../vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, listVaziosImportacaoContainers, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions, vazioManifestoNumero, vaziosPlanilhaConflicts } from '../vaziosImportacaoImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 const { rpcMock, fromMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), fromMock: vi.fn() }))
@@ -351,5 +351,37 @@ describe('listVaziosImportacaoContainers (filtros da lista)', () => {
       : { select: () => { throw new Error('não deveria consultar os containers') } })
 
     await expect(listVaziosImportacaoContainers({ voyageId: '7' })).rejects.toThrow('manifestos fora do ar')
+  })
+})
+
+// ADR 0095, decisão 21 (migration 398): um vazio de importação por Viagem.
+describe('um vazio de importação por Viagem (lote 6)', () => {
+  it('o mesmo container duas vezes no arquivo é erro de linha, mesmo escrito de outro jeito', async () => {
+    const buffer = jsonToBuffer([
+      { Container: 'MSCU1234567', POL: 'CNTAC', POD: 'BRVIX' },
+      { Container: 'mscu1234567', POL: 'CNTAC', POD: 'BRSSZ' },
+    ])
+    const manifest = await parseVaziosImportacaoBuffer(buffer)
+    expect(manifest.containers).toHaveLength(1)
+    expect(manifest.rowErrors.map((e) => `${e.row}: ${e.message}`)).toEqual([
+      '3: Container MSCU1234567 repetido (já está na linha 2): um vazio de importação existe uma vez por Viagem.',
+    ])
+  })
+
+  it('a planilha vale sobre o Baplie e recusa o container de outra planilha numa rota que ela não traz', () => {
+    const conflicts = vaziosPlanilhaConflicts(
+      [container('MSCU1234567'), container('TGHU7654321'), container('ABCU1111111', { pol: 'CNTAC', pod: 'BRSSZ' })],
+      [
+        { container_number: 'MSCU1234567', pol: 'CNTAC', pod: 'BRSSZ', source: 'baplie' },
+        { container_number: 'TGHU7654321', pol: 'CNTAC', pod: 'BRPNG', source: 'manual' },
+        // Mesma rota que a planilha traz: a planilha substitui a rota, sem conflito.
+        { container_number: 'ABCU1111111', pol: 'CNTAC', pod: 'BRSSZ', source: 'manual' },
+        { container_number: 'ZZZU0000000', pol: 'CNTAC', pod: 'BRPNG', source: 'manual' },
+      ],
+    )
+    expect(conflicts.fromBaplie).toEqual(['MSCU1234567 (Baplie CNTAC → BRSSZ, planilha CNTAC → BRVIX)'])
+    expect(conflicts.blocking).toEqual([
+      'O container TGHU7654321 já está nos Vazios de importação desta Viagem na rota CNTAC → BRPNG, de outra planilha. Tire o container desta planilha ou traga nela a rota CNTAC → BRPNG inteira, que a planilha substitui.',
+    ])
   })
 })

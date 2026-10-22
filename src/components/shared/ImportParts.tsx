@@ -327,3 +327,17 @@ export function ImportSection({ title, children, aside }: { title: string; child
     </Block>
   )
 }
+
+/**
+ * Reenvio do mesmo arquivo (ADR 0095, decisão 3): só avisa, nunca bloqueia.
+ * O texto vem de `describePreviousImport`.
+ */
+export function PreviousImportNotice({ message }: { message: string | null }) {
+  if (!message) return null
+  return (
+    <ImportNotice tone="warning" role="status" title="Arquivo já importado">
+      <p>{message}</p>
+      <p>A importação continua permitida; confira se é mesmo para gravar de novo.</p>
+    </ImportNotice>
+  )
+}

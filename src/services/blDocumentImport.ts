@@ -42,6 +42,7 @@ export async function importBlDocuments({
   uploadedBy,
   acceptWarnings = false,
   approval,
+  fileHash = null,
 }: {
   filename: string
   voyageId: number
@@ -54,6 +55,8 @@ export async function importBlDocuments({
   acceptWarnings?: boolean
   /** Trocas de Consignatário e rotas de B/L faturado confirmadas na prévia do lote. */
   approval?: BreakbulkApproval
+  /** SHA-256 do arquivo (ADR 0095, decisão 3): gravado no lote; o reenvio só avisa na prévia. */
+  fileHash?: string | null
 }): Promise<BreakbulkImportResult> {
   const invalidDocument = documents.find((document) => document.errors.length > 0)
   if (invalidDocument) {
@@ -86,7 +89,7 @@ export async function importBlDocuments({
   }
 
   return importBreakbulkManifest({
-    filename, voyageId, manifest, uploadedBy, approval,
+    filename, voyageId, manifest, uploadedBy, approval, fileHash,
   })
 }
 

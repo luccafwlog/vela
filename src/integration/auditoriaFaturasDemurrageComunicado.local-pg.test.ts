@@ -59,6 +59,10 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -201,7 +205,7 @@ function containerDatesSql(blId: string, rows: Array<{ number: string; discharge
     expected_discharge_date: current[row.number]?.discharge_date ?? null,
     expected_return_date: current[row.number]?.return_date ?? null,
   }))
-  return `SELECT public.apply_container_dates_atomic('${randomUUID()}'::uuid, '${blId}', ${jsonLiteral(payload)}, '${actorId}'::uuid);`
+  return `RESET ROLE; SELECT public.apply_container_dates_atomic('${randomUUID()}'::uuid, '${blId}', ${jsonLiteral(payload)}, '${actorId}'::uuid);`
 }
 
 function importContainerDates(blId: string, rows: Array<{ number: string; discharge: string; return: string | null }>) {

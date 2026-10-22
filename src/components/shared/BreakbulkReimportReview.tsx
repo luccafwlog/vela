@@ -2,6 +2,7 @@ import type { BreakbulkApproval, BreakbulkImportResult, BreakbulkReimportCheck }
 import {
   approvesBilledRouteChanges,
   approvesCustomerChanges,
+  describeBilledChange,
   describeBreakbulkPending,
   describeOtherVoyage,
 } from '../../services/breakbulkImport'
@@ -12,7 +13,8 @@ import { plural } from './importPresentation'
  * Prévia da reimportação de carga solta (Manifesto BB e B/L avulso), com as
  * mesmas regras da RPC (ADR 0078, item 14): B/L de outra Viagem recusa o lote,
  * CNPJ de outro Cliente só troca com aceite e a rota de B/L faturado pede a
- * confirmação de faturamento. Sem marcar, o resto do arquivo é aplicado. B/L
+ * confirmação de faturamento, com a fatura e o valor antes → depois e também
+ * para peso, CBM, volumes e máquinas (ADR 0094, B5). Sem marcar, o resto do arquivo é aplicado. B/L
  * cancelado é somente leitura: a linha é ignorada, com aviso no painel de
  * erros e avisos da prévia.
  *
@@ -101,11 +103,14 @@ export function BreakbulkReimportReview({
 
       {check.billedRouteChanges.length ? (
         <div className="grid gap-2">
-          <ImportNotice tone="warning" title={`Rota diferente em ${plural(check.billedRouteChanges.length, 'B/L faturado', 'B/Ls faturados')}`}>
+          <ImportNotice tone="warning" title={`Mudança que afeta a cobrança em ${plural(check.billedRouteChanges.length, 'B/L faturado', 'B/Ls faturados')}`}>
             <ul className="app-import-notice__list">
               {check.billedRouteChanges.map((change) => (
                 <li key={change.blId}>
-                  <span className="app-import-code">{change.blId}</span>: {change.fields.join(' e ')} ({change.currentRoute} ⇒ {change.fileRoute})
+                  <span className="app-import-code">{change.blId}</span>:{' '}
+                  {change.fields.some((field) => field === 'POL' || field === 'POD') ? <>rota {change.currentRoute} ⇒ {change.fileRoute}</> : null}
+                  {change.cargoChange ? <>{change.fields.some((field) => field === 'POL' || field === 'POD') ? '; ' : ''}{change.cargoChange}</> : null}
+                  {change.billing ? <> · {describeBilledChange(change.billing)}</> : null}
                 </li>
               ))}
             </ul>
@@ -117,11 +122,12 @@ export function BreakbulkReimportReview({
               onChange={(event) => onApprovalChange({ ...approval, billedRouteChanges: event.target.checked ? check.billedRouteChanges : [] })}
             />
             <span>
-              <span className="app-import-override__title">Corrigir também a rota dos B/Ls faturados</span>
+              <span className="app-import-override__title">Confirmo a mudança nos B/Ls faturados</span>
               <span className="app-import-override__hint">
-                A fatura emitida só é cancelada e reemitida se a base de cálculo mudar; mudar só o POL não muda o
-                valor nem reemite a fatura. Com pagamento, a diferença segue para restituição. Sem marcar, a rota
-                gravada fica.
+                A fatura emitida só é cancelada e reemitida se o valor mudar; mudar só o POL não reemite. Com
+                pagamento, a diferença segue para restituição ou avulsa. Se a nova fatura não puder sair (B/L misto com
+                terminais em conflito, Portal sem Liberação, valor a revisar), a fatura não é cancelada e um alerta
+                avisa. Sem marcar, a rota e a carga gravadas ficam, e a carga solta não entra em B/L de container.
               </span>
             </span>
           </label>

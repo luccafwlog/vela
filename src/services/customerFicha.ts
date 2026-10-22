@@ -235,14 +235,28 @@ function timelineTime(value: string) {
 }
 
 /** Linha de `audit_logs` do Cliente; desativar/reativar (migration `092`) grava `deactivated`. */
-function auditEventText(row: TimelineSources['auditLogs'][number]) {
-  const justification = row.justification ? ` · ${row.justification}` : ''
+// Rastro da Base de Clientes (`_set_import_context`): vira "Origem: Base de
+// Clientes", não justificativa.
+const IMPORT_CONTEXT_PREFIX = 'Importação de '
+
+function auditOrigin(justification: string | null) {
+  const text = justification?.trim() ?? ''
+  if (!text) return ''
+  if (text.startsWith(IMPORT_CONTEXT_PREFIX)) return ` · Origem: ${text.slice(IMPORT_CONTEXT_PREFIX.length).split(' · ')[0]}`
+  return ` · ${text}`
+}
+
+export function auditEventText(row: TimelineSources['auditLogs'][number]) {
+  const suffix = auditOrigin(row.justification)
   if (row.field_name === 'deactivated') {
     return { label: row.new_value === 'true' ? 'Cliente desativado' : 'Cliente reativado', detail: row.justification }
   }
+  if (row.field_name === 'contact_added') return { label: 'E-mail incluído', detail: `${row.new_value ?? '—'}${suffix}` }
+  if (row.field_name === 'contact_removed') return { label: 'E-mail retirado', detail: `${row.old_value ?? '—'}${suffix}` }
+  if (row.field_name === 'contact_email') return { label: 'E-mail alterado', detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${suffix}` }
   return {
     label: `Cadastro alterado: ${CUSTOMER_FIELD_LABELS[row.field_name] ?? 'dado cadastral'}`,
-    detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${justification}`,
+    detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${suffix}`,
   }
 }
 
@@ -316,7 +330,7 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
   // (lote 1 da identidade). O motivo de uma pessoa é justificativa e fica.
   const actorName = (id: string | null | undefined) => (id ? sources.actorNames?.get(id) ?? UNKNOWN_ACTOR : null)
   const events: Array<Omit<CustomerTimelineEvent, 'subject' | 'actor'> & { actor?: string | null }> = [
-    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: 'cadastro_audit' as const, sourceId: String(row.id), at: row.changed_at!, ...auditEventText(row), link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null, actor: actorName(row.changed_by) })),
+    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: row.field_name.startsWith('contact_') ? 'contact_configuration_changed' as const : 'cadastro_audit' as const, sourceId: row.field_name.startsWith('contact_') ? `audit:${row.id}` : String(row.id), at: row.changed_at!, ...auditEventText(row), link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null, actor: actorName(row.changed_by) })),
     ...sources.portalEvents.map((row) => ({ kind: 'portal_event' as const, sourceId: String(row.id), at: row.created_at, label: `Portal: ${row.new_decision ? provisioningDecisionLabel(row.new_decision) : row.new_situation ? accountSituationLabel(row.new_situation) : 'evento'}`, detail: row.actor_type === 'system' ? null : row.reason, link: null, actor: row.actor_type === 'system' ? 'Sistema' : actorName(row.actor_id) })),
     ...sources.contacts.filter((row) => row.created_at).map((row) => ({ kind: 'contact_created' as const, sourceId: String(row.id), at: row.created_at!, label: `Contato criado: ${row.name ?? '—'}`, detail: null, link: null })),
     ...contactEvents,
@@ -427,7 +441,9 @@ export async function fetchCustomerRunningDemurrage(customerId: number) {
 
 export async function fetchCustomerTimelineSources(customerId: number, contacts: Array<Pick<CustomerContact, 'id' | 'name' | 'created_at'>>, bls: Array<{ id: string; created_at: string | null }>) {
   const [auditLogs, portalEvents, localInvoices, payments, demurrage, communications, contactChanges] = await Promise.all([
-    supabase.from('audit_logs').select('id, field_name, old_value, new_value, changed_at, justification, changed_by').eq('entity_type', 'customer').eq('entity_id', String(customerId)).order('changed_at', { ascending: false }).range(0, 99),
+    // Cadastro e e-mails da Base de Clientes, com origem (migration 404, F-24).
+    supabase.rpc('customer_audit_timeline' as never, { p_customer_id: customerId, p_limit: 100 } as never)
+      .overrideTypes<TimelineSources['auditLogs'], { merge: false }>(),
     supabase.from('portal_provisioning_events').select('id, new_decision, new_situation, reason, created_at, actor_id, actor_type').eq('customer_id', customerId).order('created_at', { ascending: false }).range(0, 99),
     supabase.from('invoices').select('id, invoice_number, issued_at, status').eq('customer_id', customerId).order('issued_at', { ascending: false }).range(0, 99),
     supabase.from('payments').select('id, amount_brl, paid_at, invoice:invoices!inner(id, invoice_number, customer_id)').eq('invoice.customer_id', customerId).order('paid_at', { ascending: false }).range(0, 99),

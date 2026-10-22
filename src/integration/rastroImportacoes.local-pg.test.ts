@@ -7,6 +7,10 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -75,7 +79,7 @@ describeLocal('Rastro das importações no Histórico (migration 189)', () => {
   })
 
   it('Base de Clientes: o Cliente criado leva o tipo de importação; fora de importação não há contexto', () => {
-    expect(asUser(`SELECT public.apply_customer_base_row_atomic('${cnpj}', 'A236 CLIENTE', NULL, NULL, NULL, NULL, NULL,
+    expect(asUser(`RESET ROLE; SELECT public.apply_customer_base_row_atomic('${cnpj}', 'A236 CLIENTE', NULL, NULL, NULL, NULL, NULL,
       '["a236@example.test"]'::jsonb, '${userId}', false);`).stderr).toBe('')
     expect(psql(`SELECT justification FROM public.audit_logs WHERE changed_by = '${userId}' AND entity_type = 'customers' AND field_name = 'criado';`))
       .toBe('Importação de Base de Clientes')

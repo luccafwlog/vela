@@ -28,6 +28,8 @@ type ChargeTablesListProps = {
   canEdit: boolean
   /** Excluir, desativar e reativar são do Administrativo no banco. */
   canDelete: boolean
+  /** Tabelas já usadas (vínculo, cálculo ou fatura); `null` enquanto não se sabe. */
+  tablesInUse: ReadonlySet<number> | null
   onEditTable: (table: ChargeTable) => void
   onAddItem: (table: ChargeTable) => void
   onToggleTableActive: (table: ChargeTable) => void
@@ -39,6 +41,18 @@ type ChargeTablesListProps = {
 }
 
 type RowProps = ChargeTablesListProps & { table: ChargeTable; reading: TableReading }
+
+/**
+ * Incluir e corrigir item: em tabela já usada, só o Administrativo, porque a
+ * correção reemite as faturas (ADR 0093, decisão 2); em tabela ainda sem uso,
+ * todos os setores (decisão de 2026-10-22). Quem decide é o gatilho
+ * `guard_tariff_correction_admin`; sem saber o uso, a tela não oferece.
+ */
+function canCorrectItems({ canEdit, canDelete, tablesInUse }: ChargeTablesListProps, tableId: number): boolean {
+  if (!canEdit) return false
+  if (canDelete) return true
+  return tablesInUse !== null && !tablesInUse.has(tableId)
+}
 
 const TABLE_COLUMNS = 7
 
@@ -260,7 +274,7 @@ function ChargeTableRow(props: RowProps) {
 
 /** Linha aberta: notas da tabela, avisos de vigência e os itens. */
 function TableDetail(props: RowProps) {
-  const { table, reading, canEdit, onAddItem } = props
+  const { table, reading, onAddItem } = props
   return (
     <div className="app-rates-items" role="region" aria-label={`Itens da tabela ${table.name}`}>
       {table.notes ? <p className="app-rates-help">{table.notes}</p> : null}
@@ -276,7 +290,7 @@ function TableDetail(props: RowProps) {
       ) : (
         <ChargeItemsTable {...props} />
       )}
-      {canEdit ? (
+      {canCorrectItems(props, table.id) ? (
         <div className="app-rates-items__footer">
           <Button variant="secondary" className="app-btn--sm" onClick={() => onAddItem(table)}>
             <Plus size={14} aria-hidden="true" />
@@ -352,7 +366,9 @@ function itemMenu(item: ChargeItem, { canDelete, onToggleItemActive, onDeleteIte
  * regra 9). No cartão do celular, com texto.
  */
 function ItemActions({ item, iconOnly = false, ...props }: ItemsProps & { item: ChargeItem; iconOnly?: boolean }) {
-  if (!props.canEdit) return null
+  // Editar item de tabela já usada é correção de erro e reemite faturas: só o
+  // Administrativo. Reajuste se faz com tabela nova.
+  if (!canCorrectItems(props, props.table.id)) return null
   const menu = itemMenu(item, props)
   return (
     <div className="app-rates-item__actions">

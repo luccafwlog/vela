@@ -89,6 +89,8 @@ export async function afterViagemAlterada(queryClient: QueryInvalidator, options
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS,
     queryKeys.voyages.options(), ['vehicle-voyage-options'], ['voyage-indicated-first-port'],
     ...EMPTY_IMPORT_KEYS, ['baplie-staging'],
+    // Os códigos do armador no Baplie (migration 403) valem para toda Viagem dele.
+    ['baplie-voyage-context'],
     // A lista do Granito mostra Navio / Viagem de cada B/L (lote 5b).
     queryKeys.granite.all(),
   ])
@@ -138,6 +140,9 @@ export async function afterBlEstadoAlterado(
     queryKeys.bls.cockpit(options.blId),
     queryKeys.bls.all(),
     queryKeys.bls.summary(),
+    // Remover o CE, cancelar e reativar mudam o vínculo do Manifesto Mercante
+    // (migration 396): a aba Rotas e Manifestos da Viagem conta os B/Ls.
+    queryKeys.manifestosMercante.all(),
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...LINEUP_KEYS,
     ...(options.voyageId === null ? [] : [queryKeys.voyages.detail(Number(options.voyageId))]),
   ])

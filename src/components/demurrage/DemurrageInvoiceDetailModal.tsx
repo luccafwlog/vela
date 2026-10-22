@@ -10,6 +10,7 @@ import { FinancialRefundsPanel } from '../billing/FinancialRefundsPanel'
 import { ImportNotice } from '../shared/ImportParts'
 import { StatusText } from '../ui/StatusText'
 import { InvoiceStatusBadge } from './DemurrageBadges'
+import { ManualRoeRelease } from './ManualRoeRelease'
 import {
   demurrageInvoiceNotices,
   fmtBRL,
@@ -57,6 +58,8 @@ type Props = {
 function roeText(invoice: DemurrageDetailInvoice) {
   if (!invoice.current_roe) return <NoValue label="Sem câmbio calculado" />
   const roe = Number(invoice.current_roe).toFixed(4).replace('.', ',')
+  // ADR 0094, B10: o ROE manual do B/L prevalece; a PTAX diária não o troca.
+  if (invoice.roe_manual && (invoice.status === 'issued' || invoice.status === 'overdue')) return `${roe} (ROE manual, fora do recálculo pela PTAX)`
   const source = invoice.roe_source === 'cached' ? 'PTAX do cache' : invoice.roe_source === 'manual' ? 'PTAX informada' : 'PTAX do BCB'
   return `${roe} (${source})`
 }
@@ -211,6 +214,7 @@ function DetailBody({
         {issued && permissions.canSettle ? (
           <Button onClick={() => onRegisterPayment(invoice)}><CircleDollarSign size={16} aria-hidden="true" />Registrar pagamento</Button>
         ) : null}
+        {issued && invoice.roe_manual && permissions.canSettle ? <ManualRoeRelease invoiceId={invoice.id} docNumber={invoice.doc_number} /> : null}
         {issued ? (
           <Button variant="secondary" onClick={() => onDiscount(invoice)}><Percent size={16} aria-hidden="true" />{Number(invoice.discount_value ?? 0) > 0 ? 'Alterar desconto' : 'Aplicar desconto'}</Button>
         ) : null}

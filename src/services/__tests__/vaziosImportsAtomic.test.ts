@@ -87,12 +87,13 @@ describe('imports de vazios transacionais', () => {
   })
 
   it('substitui o manifesto Baplie em uma unica RPC', async () => {
-    rpcMock.mockResolvedValue({ data: { manifest_id: 'baplie-manifest', total: 2 }, error: null })
+    rpcMock.mockResolvedValue({ data: { manifest_id: 'baplie-manifest', total: 2, planilha: 1 }, error: null })
 
+    // Migration 398: `planilha` conta os vazios que ficaram com a planilha.
     await expect(replaceVaziosFromBaplie({
       voyageId: 9,
       uploadedBy: 'user-3',
-    })).resolves.toEqual({ manifestId: 'baplie-manifest', total: 2 })
+    })).resolves.toEqual({ manifestId: 'baplie-manifest', total: 2, planilha: 1 })
 
     expect(rpcMock).toHaveBeenCalledWith('replace_vazios_from_baplie_transactional', expect.objectContaining({
       p_voyage_id: 9,

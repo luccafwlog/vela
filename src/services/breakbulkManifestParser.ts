@@ -6,8 +6,8 @@
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument, extractCnpjFromText } from '../lib/cnpj'
 import {
-  groupingSeparator,
   inferSeparatorFormat,
+  isAmbiguousSeparatorShape,
   isThousandsGroupShape,
   normalizeNumericText,
   parseImportNumber,
@@ -127,9 +127,28 @@ export type BreakbulkReimportCheck = {
    * gravada e a que o arquivo deixa ("POL → POD") identificam a transição
    * confirmada, não só o campo.
    */
-  billedRouteChanges: Array<{ blId: string; fields: string[]; currentRoute: string; fileRoute: string }>
+  billedRouteChanges: Array<{
+    blId: string
+    fields: string[]
+    currentRoute: string
+    fileRoute: string
+    /** Peso, CBM, volumes e máquinas que mudam ("peso 5 → 7"), quando mudam (ADR 0094, B5). */
+    cargoChange?: string
+    /** Fatura e valor antes → depois, simulados no servidor (migration 381). */
+    billing?: BilledChangeBilling
+  }>
   /** B/L em COD: o POD do arquivo não será aplicado. */
   codPodKept: string[]
+}
+
+/** Simulação da cobrança do B/L faturado se a mudança for confirmada (migration 381). */
+export type BilledChangeBilling = {
+  invoices: string[]
+  beforeBrl: number | null
+  afterBrl: number | null
+  /** 'blocked': a reemissão não sairia; a fatura não é cancelada e um alerta avisa. */
+  status: 'ok' | 'review' | 'blocked' | 'error'
+  reason: string | null
 }
 
 export function hasBlockingRowErrors(rowErrors: ParsedBreakbulkManifest['rowErrors']) {
@@ -343,8 +362,13 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
   const parsedRows: BreakbulkImportRow[] = []
 
   const mappedRows = rows.map((row) => ({ row, mapped: mapRow(row, SUMMARY_SPEC) }))
+  // O resumido é o modelo do Vela, sempre pt-BR, com peso em toneladas e três
+  // casas: "175,440" é 175,44 t e "794,761" é 794,761 m³ (decisão do Lucca,
+  // 2026-10-21). Sem declaração e sem evidência, o padrão do layout vale como
+  // prova da vírgula decimal; ler como milhar continua bloqueando.
+  const inferredSummary = inferSheetFormat(mappedRows.map((entry) => entry.mapped), SUMMARY_NUMERIC_FIELDS)
   const format = resolveSheetFormat(
-    inferSheetFormat(mappedRows.map((entry) => entry.mapped), SUMMARY_NUMERIC_FIELDS),
+    inferredSummary === 'unknown' && !options.numberFormat ? 'pt-BR' : inferredSummary,
     options.numberFormat,
   )
   pushFormatConflict(rowErrors, format, rows[0]?.rowNumber ?? 1)
@@ -703,9 +727,9 @@ function describeCarrierNumber(
     return { message: `Coluna ${label}: peso bruto zerado para o BL ${blId}; a taxa por tonelada depende dele.`, severity: 'error' }
   }
 
-  if (isThousandsGroupShape(raw, resolved.format)) {
-    const message = `${describeAmbiguity(field, raw, parsed, resolved.format)} (BL ${blId})`
-    return resolved.declared ? { message, severity: 'warning' } : { message, severity: 'error' }
+  const ambiguity = separatorAmbiguity(raw, resolved)
+  if (ambiguity) {
+    return { message: `${describeAmbiguity(field, raw, parsed)} (BL ${blId})`, severity: ambiguity }
   }
   const ceiling = NUMERIC_CEILINGS[field]
   if (ceiling && parsed > ceiling.max) {
@@ -1051,28 +1075,17 @@ function readNumericCell(value: unknown, format: BreakbulkNumberFormat): Numeric
  * Lê as colunas numéricas de uma linha, separando o que impede a importação do
  * que só pede conferência.
  *
- * O caso que importa é a célula da forma `259.312` lida como grupo de milhar:
- * ela pode ser 259 mil ou 259 e trezentos e doze milésimos, e a diferença vira
- * uma taxa por tonelada mil vezes maior.
+ * O caso que importa é a célula com UM separador e três dígitos depois
+ * (`259.312`, `12,500`): ela pode ser 259 mil ou 259 e trezentos e doze
+ * milésimos, e a diferença vira uma taxa por tonelada mil vezes maior ou menor.
  *
- * A checagem é ASSIMÉTRICA de propósito, e só olha a direção do grupo de
- * milhar. `259,312` lido em pt-BR já está resolvido — a vírgula é o decimal
- * naquele formato, e é a notação que a tela documenta e que os modelos
- * distribuem. Tratar as duas direções como ambíguas rejeitaria o próprio modelo
- * da tela, que não tem nenhuma célula desempatadora. O erro que esta função
- * existe para impedir é o que INFLA o número por mil e vai para a fatura.
+ * A checagem olha as DUAS direções (F-30): a leitura como milhar infla o número
+ * por mil (`259.312` em pt-BR); a leitura como decimal o encolhe por mil
+ * (`12,500` kg de um legado en-US lido no padrão pt-BR vira 12,5 kg; `12.500`
+ * de um carrier pt-BR lido no padrão en-US, idem). Até 2026-10 só a primeira
+ * bloqueava. O modelo distribuído pela tela usa `12.5` e não cai aqui.
  *
- * A regra é:
- *
- * - formato DECLARADO pelo operador -> aviso, com as duas leituras na mensagem.
- *   Ele afirmou o separador daquele arquivo; o parser registra o que entrou.
- * - formato inferido ou default -> ERRO bloqueante. Ninguem declarou nada, e um
- *   palpite nosso nao pode virar faturamento. A saida do operador e um clique
- *   no seletor de formato do modal.
- *
- * A checagem vale mesmo quando a evidencia do arquivo apontou um formato: era
- * exatamente essa a fresta — um arquivo com `1.217,11` numa coluna e
- * `259.312` na outra "provava" pt-BR e entregava o peso multiplicado por mil.
+ * A regra está em `separatorAmbiguity`.
  */
 function readNumericColumns<TField extends DestinationField>(
   mapped: Partial<Record<DestinationField, unknown>>,
@@ -1095,14 +1108,12 @@ function readNumericColumns<TField extends DestinationField>(
     // a ambiguidade que EXPLICA o número absurdo, e a mensagem dela diz o que
     // fazer. Avisar "acima do máximo" sobre um número que só está mil vezes
     // maior por causa do separador manda o operador conferir a coisa errada.
-    if (isThousandsGroupShape(raw, resolved.format)) {
-      const message = describeAmbiguity(field, raw, cell.value, resolved.format)
-      if (!resolved.declared) {
-        problems.push(message)
-        continue
-      }
-      warnings.push(message)
+    const ambiguity = separatorAmbiguity(raw, resolved)
+    if (ambiguity === 'error') {
+      problems.push(describeAmbiguity(field, raw, cell.value))
+      continue
     }
+    if (ambiguity === 'warning') warnings.push(describeAmbiguity(field, raw, cell.value))
 
     const ceiling = NUMERIC_CEILINGS[field]
     if (ceiling && cell.value > ceiling.max) {
@@ -1117,6 +1128,31 @@ function readNumericColumns<TField extends DestinationField>(
 }
 
 /**
+ * O que fazer com uma célula da forma ambígua (`isAmbiguousSeparatorShape`):
+ *
+ * - formato DECLARADO pelo operador: a leitura decimal é o que ele afirmou e
+ *   passa limpa; a de milhar vira aviso, com as duas leituras na mensagem.
+ * - leitura como MILHAR sem declaração: ERRO, mesmo quando a evidência do
+ *   arquivo apontou o formato — era exatamente essa a fresta: um arquivo com
+ *   `1.217,11` numa coluna e `259.312` na outra "provava" pt-BR e entregava o
+ *   peso multiplicado por mil.
+ * - leitura como DECIMAL sem declaração: passa só quando outra célula do
+ *   próprio arquivo provou aquele separador decimal (`47740.00`, `1217,109`).
+ *   Quando o formato veio do padrão do layout (ninguém declarou e o arquivo não
+ *   desempata), é ERRO: `12,500` kg de um legado en-US lido no padrão pt-BR, ou
+ *   `12.500` de um carrier pt-BR lido no padrão en-US, encolheriam por mil.
+ *
+ * A saída do operador é um clique no seletor de formato do modal.
+ */
+function separatorAmbiguity(raw: unknown, resolved: ResolvedSheetFormat): 'error' | 'warning' | null {
+  if (!isAmbiguousSeparatorShape(raw)) return null
+  const readsAsThousands = isThousandsGroupShape(raw, resolved.format)
+  if (resolved.declared) return readsAsThousands ? 'warning' : null
+  if (readsAsThousands) return 'error'
+  return resolved.inferred === resolved.format ? null : 'error'
+}
+
+/**
  * Mostra as DUAS leituras possíveis, lado a lado e com unidade.
  *
  * A versão anterior escrevia `"177.120" foi lido como 177.120`: o
@@ -1124,17 +1160,14 @@ function readNumericColumns<TField extends DestinationField>(
  * operador lia o mesmo número duas vezes e concluía que estava certo. Um aviso
  * que não mostra diferença nenhuma não é um aviso.
  */
-function describeAmbiguity(
-  field: string,
-  raw: unknown,
-  readValue: number,
-  format: BreakbulkNumberFormat,
-) {
+function describeAmbiguity(field: string, raw: unknown, readValue: number) {
   const label = NUMERIC_COLUMN_LABELS[field] ?? field
   const shown = normalizeNumericText(raw) ?? String(raw ?? '').trim()
-  const separator = groupingSeparator(format)
-  const asDecimal = Number(shown.replace(separator, '.'))
-  return `Coluna ${label}: "${shown}" pode ser ${describeMagnitude(readValue)} (separador de milhar) `
+  // A forma ambígua tem um separador só: sem ele é a leitura de milhar; trocado
+  // por ponto é a leitura decimal. Vale nas duas direções.
+  const asThousands = Number(shown.replace(/[.,]/, ''))
+  const asDecimal = Number(shown.replace(',', '.'))
+  return `Coluna ${label}: "${shown}" pode ser ${describeMagnitude(asThousands)} (separador de milhar) `
     + `ou ${describeMagnitude(asDecimal)} (separador decimal), e a planilha nao desempata. `
     + `Declare o formato do arquivo no modal de importacao: a leitura atual e ${describeMagnitude(readValue)}.`
 }

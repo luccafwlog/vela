@@ -5,7 +5,10 @@ import { supabase } from './supabase'
 // A tela de Baplie precisa destas colunas para os cards, filtros, conciliação
 // visual e exportação. O limite é aplicado por viagem e a paginação continua
 // explícita para não depender do limite padrão do PostgREST.
-export const BAPLIE_STAGING_COLUMNS = 'id, voyage_id, container_number, bl_ref, pol, pod, final_dest, size_type, status, slot, weight_kg, is_imo, is_oog, imo_class, un_number, ownership, imported_at, imported_by'
+// `is_transshipment` (migration 403) falta nos tipos gerados (database.ts
+// protegido): a seleção é tipada pelas demais colunas até a regeneração.
+const TYPED_STAGING_COLUMNS = 'id, voyage_id, container_number, bl_ref, pol, pod, final_dest, size_type, status, slot, weight_kg, is_imo, is_oog, imo_class, un_number, ownership, imported_at, imported_by'
+export const BAPLIE_STAGING_COLUMNS = `${TYPED_STAGING_COLUMNS}, is_transshipment`
 
 export async function listBaplieStaging(voyageId: number, pageSize = 1000): Promise<BaplieContainer[]> {
   if (!Number.isInteger(voyageId) || voyageId < 1) {
@@ -21,7 +24,7 @@ export async function listBaplieStaging(voyageId: number, pageSize = 1000): Prom
   while (true) {
     const { data, error } = await supabase
       .from('baplie_containers')
-      .select(BAPLIE_STAGING_COLUMNS)
+      .select(BAPLIE_STAGING_COLUMNS as typeof TYPED_STAGING_COLUMNS)
       .eq('voyage_id', voyageId)
       .order('container_number')
       .order('id')

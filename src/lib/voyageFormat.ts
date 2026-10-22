@@ -23,9 +23,10 @@ export function formatPortDisplayName(port: string | null | undefined) {
     CNXMN: 'XIAMEN',
     CNSHK: 'SHEKOU',
     CNYTN: 'YANTIAN',
+    CNZUH: 'ZHUHAI',
     HKHKG: 'HONG KONG',
     // Lado brasileiro: os codigos canonicos sao os que `normalize_port_code`
-    // (migration 365) produz, e e por eles que a tabela de cobranca e escolhida.
+    // (migration 391) produz, e e por eles que a tabela de cobranca e escolhida.
     // Sem estes nomes a tela mostra o LOCODE cru justamente no porto de descarga,
     // que e o dado que explica qual tabela foi usada.
     BRVIX: 'VITORIA',
@@ -35,8 +36,11 @@ export function formatPortDisplayName(port: string | null | undefined) {
     BRSSZ: 'SANTOS',
     BRPNG: 'PARANAGUA',
     BRITJ: 'ITAJAI',
+    BRNVT: 'NAVEGANTES',
     BRRIG: 'RIO GRANDE',
     BRSUA: 'SUAPE',
+    BRREC: 'RECIFE',
+    BRSEP: 'SEPETIBA',
     BRRIO: 'RIO DE JANEIRO',
     BRPEC: 'PECEM',
     BRMAO: 'MANAUS',

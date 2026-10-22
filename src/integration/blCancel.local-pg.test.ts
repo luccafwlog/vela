@@ -2,6 +2,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 // Migration 089 (ADR 0071, itens 5, 8 e 9): B/L com CE que não segue é
 // cancelado, fica selado e não entra em fatura; volta por Reativar. Viagem
 // cancelada por engano volta por Reativar. O CE não se apaga com fatura
@@ -58,6 +62,12 @@ function cleanup() {
     DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${CUSTOMER_ID}';
     DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${OPS_ID}');
     DELETE FROM public.invoices WHERE customer_id = ${CUSTOMER_ID};
+    -- 378: o B/L com CE é calculado e ganha preço fixo.
+    DELETE FROM public.charge_calculations WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED}));
+    DELETE FROM public.bl_price_freeze_items WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED}));
+    DELETE FROM public.bl_price_freezes WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED}));
+    DELETE FROM public.bl_charge_table_links WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED}));
+    DELETE FROM public.pricing_rule_versions WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED});
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
@@ -179,7 +189,7 @@ describeLocal('089 — B/L cancelado, Reativar e CE', () => {
     // Campo que a pessoa edita continua selado.
     expect(() => psql(`UPDATE public.bls SET pod = 'BRPNG' WHERE id = 'BL089SYS';`)).toThrow(/somente leitura/)
 
-    const base = as(ADMIN_ID, `SELECT public.apply_customer_base_row_atomic('${BASE_CNPJ}', 'Cliente base 089',
+    const base = as(ADMIN_ID, `RESET ROLE; SELECT public.apply_customer_base_row_atomic('${BASE_CNPJ}', 'Cliente base 089',
       NULL, NULL, NULL, NULL, NULL, '["base089@test.local"]'::jsonb, '${ADMIN_ID}');`)
     expect(base.stderr).toBe('')
     expect(psql(`SELECT customer_id IS NULL FROM public.bls WHERE id = 'BL089SYS';`)).toBe('t')

@@ -11,7 +11,8 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(() => Promise.resolve(true)),
 }))
 
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }) }))
+// Vazios já gravados na Viagem (ADR 0095, decisão 21): nenhum.
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }), useQuery: () => ({ data: [], isError: false }) }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))

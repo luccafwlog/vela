@@ -51,6 +51,22 @@ igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
   (`audit_logs.actor_role`/`actor_department`); o Departamento é gravado com o
   evento, nunca derivado do cadastro atual. Ações automáticas assinam
   `sistema`.
+- **Histórico só pelo banco** (migration `404`; F-46 da
+  [revisão das importações](../archive/audits/2026-10-21-revisao-importacoes.md)):
+  `authenticated` e `anon` não têm `INSERT` em `audit_logs` e a tabela não tem
+  política de INSERT; só gatilhos e funções `SECURITY DEFINER` gravam. Até a
+  `404`, qualquer usuário ativo inseria uma linha no próprio nome e forjava,
+  por exemplo, um "CE Mercante … · Origem: Importação de CE Mercante" no
+  Histórico do B/L. A tela (agenda de POL/POD, Viagem, eventos operacionais) e
+  a Edge Function `admin-users` gravam pela RPC `record_audit_entries`, que
+  aceita só esses assuntos e campos (usuário só para o Administrativo), toma
+  autor, Departamento e hora da sessão e recusa o resto com `42501`. Da
+  Viagem, a RPC aceita só a criação e o primeiro porto brasileiro indicado
+  (porto e ETA); navio, número e status entram pelo gatilho `audit_voyages`,
+  com o valor que de fato mudou (migration `408`; antes a tela gravava as
+  três linhas mesmo sem mudança).
+  `update_customer_with_audit` passou a `SECURITY DEFINER` pela mesma razão.
+  `service_role` mantém `INSERT`/`SELECT` (`340`).
 
 ### Visualização global interna
 
@@ -155,6 +171,9 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Importar arquivos (B/L, CE, Baplie, veículos, Vazios, Granito, datas, Base de Clientes, programação) | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de importação com `is_active_user()` | ADR 0078, item 10; ADR 0085, D15 | vigente; Baplie sem container recusado no banco (migration `237`, **Teste** local) |
+| Gravar direto (API) nas tabelas de carga: `bl_containers`, `baplie_containers`, `vehicles`, `vazios_*` (salvo `vazios_export_*`) e `granite_*` | — | — | — | — | — | Só as funções do sistema (importações, correções, RPCs); por coluna, a tela grava `bl_containers.unpacking_location` e `vazios_importacao_containers.natureza` | ADR 0094, B1 | vigente desde a migration `380`, como a `366` fez em `bls` (**Teste** local: `escritaDiretaFechada.local-pg.test.ts`). Container e veículo de B/L cancelado são somente leitura (`guard_cancelled_bl_cargo`, B4), sem exceção desde a `392` (o arquivo de B/L deixou de ler a aba VIN e a `vela.vin_reissue` saiu); "Mover veículos" recusa B/L cancelado (`385`) |
+| Refixar o preço das Taxas Locais de B/L não faturado, pelo aceite na prévia do arquivo de B/L | ✔ | ✔ | ✔ | ✔ | ✔ | `import_bl_freight_file_atomic` chama `refix_bl_local_charge_prices` como dono só para B/L já gravado, não faturado e não cancelado; a função não tem EXECUTE para a API (`385`) | ADR 0094, A2; ADR 0095, decisão 9 | vigente desde a migration `392` (**Teste** local: `arquivoDeBlRegras.local-pg.test.ts`; `revisaoFinalFrenteFinanceira.local-pg.test.ts` para a função fechada) |
+| Chamar pela API as RPCs de importação e vínculo de Cliente antigas e as funções internas de cálculo | — | — | — | — | — | Só o servidor: a `366` revogou `import_bl_freight_transactional`, `import_bl_freight_with_metadata`, `apply_customer_base_row_atomic`, `apply_container_dates_atomic`, `approve_customer_reconciliation` e as de emissão por B/L; a `384` fechou `charge_table_in_use` e `bl_calculation_is_current` | ADR 0093; ADR 0094, B2 | vigente (**Teste** local: `faturamentoFechadoNaApi.local-pg.test.ts`; `scripts/security/verificar_guardas.py`) |
 | Reprocessar efeito de importação, com justificativa | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_import_effect` | ADR 0085, D10 | migration `252` |
 | Excluir ou mover veículo, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `delete_vehicles_with_reason` (migration `184`), `move_vehicles_to_bl` (migration `202`) | ADR 0078, item 23 | vigente |
 | Excluir unidade manual e linha de serviço de vazios antes do ADR de Saída fechado | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de Vazios e `delete_catalog_row` | ADR 0071, item 4 | migration `262` (B14): o banco recusa com o ADR de Saída fechado; Excluir unidade pede motivo |
@@ -169,7 +188,8 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Criar e editar tabela, item e Condição de Cliente; lançar taxa manual | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `add_manual_bl_charge` | ADR 0046; decisão R6 de 2026-09-23 | vigente |
+| Criar e editar tabela; incluir e corrigir item de tabela ainda sem uso; criar Condição de Cliente; lançar taxa manual | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `add_manual_bl_charge`; a tela sabe o uso da tabela por `charge_tables_in_use` (migration `407`) | ADR 0046; decisão R6 de 2026-09-23; ADR 0093, decisão 2, com a nota de 2026-10-22 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Catálogo: item de tabela ainda sem uso…") |
+| Corrigir item de tabela já usada (vínculo, cálculo ou fatura) e editar Condição de Cliente | ✔ | — | — | — | — | Gatilho `guard_tariff_correction_admin` (migration `354`), pela régua `charge_table_in_use`; a correção reprecifica os B/Ls e reemite ou deixa desatualizadas as faturas | ADR 0093, decisão 2 | vigente desde a migration `354` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Catálogo: item de tabela ainda sem uso…") |
 | Desativar, reativar e excluir tarifa | ✔ | — | — | — | — | Gatilho `guard_tariff_active_change` (migration `091`); reativar com motivo por `reactivate_catalog_row` (migration `261`); item e Condição de Cliente saem por `delete_catalog_row`, com motivo (migration `096`); a tabela (`charge_tables`) não tem exclusão desde a migration `235` | ADR 0073, item 4 | vigente |
 | Alterar valores do cálculo do B/L e a situação financeira do B/L | — | — | — | — | — | Só as RPCs de cálculo e faturamento | ADR 0077; ADR 0085 | vigente: `charge_calculations` sem escrita direta (migration `231`) e `bls.financial_status` recusado na escrita pela API pelo gatilho `guard_bl_financial_status_port` (migration `232`) (**Teste** local) |
 | Emitir fatura fora do automático: ficha do B/L, Validação, consolidada | ✔ | ✔ | ✔ | ✔ | ✔ | `mark_bl(s)_ready_and_create_invoice`, `create_invoice_from_bls*`, `create_local_consolidated_invoice` | ADR 0085, D3 | vigente desde a migration `246` (emissão por todos) e `272` (motivo interno obrigatório) (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4; `manualInvoice.local-pg.test.ts`) |
@@ -193,6 +213,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Gerar Invoice de Demurrage e complementar | ✔ | ✔ | ✔ | ✔ | ✔ | `issue_demurrage_invoice_for_bl` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
 | Editar a condição de Demurrage do B/L (free time e diárias do B/L) | ✔ | ✔ | ✔ | ✔ | ✔ | `save_bl_demurrage_config` (`is_active_user()`, autor igual ao da sessão) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, MATRIX_GLOBAL) |
 | Registrar pagamento de Invoice de Demurrage | ✔ | ✔ | — | — | — | `register_demurrage_payment` (`is_financeiro_user`) | ADR 0085, base e D4 | vigente |
+| Tirar o ROE manual da Invoice de Demurrage, com motivo | ✔ | ✔ | — | — | — | `release_demurrage_invoice_manual_roe` (`is_financeiro_user`; migrations `382` e `385`) | ADR 0094, B10 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14; `demurrageRoeManual.local-pg.test.ts`) |
 | Aplicar ou alterar desconto | ✔ | ✔ | ✔ | ✔ | ✔ | `apply_demurrage_discount` | ADR 0085, D4 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
 | Cancelar Invoice e cancelar baixa de Demurrage | ✔ | — | — | — | — | `cancel_demurrage_invoice`, `reverse_demurrage_payment` (`is_admin`) | ADR 0085, base; ADR 0071, item 13 | vigente |
 | Reabrir Invoice de Demurrage paga | — | — | — | — | — | `reopen_demurrage_invoice` não tinha tela e saiu do alcance de `authenticated` (migration `328`); a baixa se desfaz por `reverse_demurrage_payment` | Achado P5 do lote 5b | vigente desde a migration `328` |

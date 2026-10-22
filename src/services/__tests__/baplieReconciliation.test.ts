@@ -542,3 +542,24 @@ describe('countOpenBaplieDivergences (faixa de viagens)', () => {
     expect(mockFrom.mock.calls.filter(([table]) => table === 'baplie_containers')).toHaveLength(1)
   })
 })
+
+// ADR 0095, decisão 15 (B12c; migration 403): o transbordo aparece na
+// conciliação, marcado, mas não leva IMO/OOG nem SOC/COC aos B/Ls.
+describe('transbordo na conciliação', () => {
+  const transbordo = { container_number: 'ABCD1234567', status: 'full', is_transshipment: true, is_imo: true, imo_class: '3', un_number: '1203', is_oog: true, ownership: 'SOC' }
+
+  it('aparece marcado como transbordo e conta como presente no Baplie', () => {
+    expect(computeExistenceDivergences(staged([{ ...transbordo, bl_ref: null, slot: '01' }]), blcs([]))).toEqual([
+      { kind: 'missing_in_manifest', container_number: 'ABCD1234567', baplie_bl_ref: null, slot: '01', transshipment: true },
+    ])
+    expect(computeExistenceDivergences(staged([transbordo]), blcs([{ id: 10, bl_id: 'BL1', container_number: 'ABCD1234567' }]))).toEqual([])
+  })
+
+  it('não leva marcas: nada pendente, nada a atualizar e nenhuma divergência de SOC/COC ou IMO/OOG', () => {
+    const bl = blcs([{ id: 10, bl_id: 'BL1', container_number: 'ABCD1234567', is_imo: false, is_oog: false, ownership: 'COC', ownership_source: 'bl', profile_source: 'manual' }])
+    expect(computePendingBapliePhysicalFlags(staged([transbordo]), blcs([{ id: 10, bl_id: 'BL1', container_number: 'ABCD1234567', is_imo: false, is_oog: false }]))).toBe(0)
+    expect(computeBapliePhysicalUpdates(staged([transbordo]), bl)).toEqual([])
+    expect(computeOwnershipDivergences(staged([transbordo]), bl)).toEqual([])
+    expect(computeProfileDivergences(staged([transbordo]), bl)).toEqual([])
+  })
+})

@@ -112,7 +112,7 @@ tem outra tela de troca de senha.
 
 `src/pages/PortalBilling.tsx` orquestra as abas de Taxas Locais/Avulsas e Demurrage. As listas interativas usam `portal_list_invoices_page` e `portal_list_demurrage_invoices_page`, com filtros server-side de status, navio/viagem, B/L, POD e intervalo de emissão, contagem total, opções e páginas de 25 linhas. Os wrappers `portal_inspect_*_page` preservam o mesmo recorte no Modo Inspeção. As listas ficam em `PortalBillingTabs`; os detalhes ficam em `PortalInvoiceDetailModal` e `PortalDemurrageDetailModal`, com bloco PIX compartilhado. A aba local também exibe invoices `manual`, inclusive sem B/L, com item, descrição, contexto direto de viagem, PIX e impressão pelo navegador. **Só fatura emitida e liberada chega ao Portal** ([ADR 0088](../adr/0088-portal-so-mostra-fatura-emitida.md), migration `298`): rascunho não aparece na lista, no detalhe nem nas somas, e nenhuma tela do Portal mostra valor de Taxa Local ainda não faturada. O KPI de saldo pendente soma o saldo positivo das faturas visíveis em aberto (`issued`, `partially_paid` e o legado `overdue`, locais e `manual`), contando cada B/L uma vez: a consolidada aberta conta no lugar das individuais que ela agrupa, que continuam emitidas até a consolidada ser paga (decisão do dono de 2026-10-20, migration `344`; o Painel do Portal usa a mesma regra em `portalInvoicesInOpenBalance`), e as Invoices de Demurrage em aberto da lista do Portal (`issued` e o legado `overdue`, com a mesma trava de CE da lista); recebível sem fatura visível fica de fora. É diferente do Saldo pendente interno da ficha do Cliente ([Clientes § Saldo pendente](./clientes.md#saldo-pendente)). A descrição (`notes`) é pública somente para invoices `manual`; notas internas de faturas locais continuam fora da allowlist. A criação ou desfazimento de consolidadas permanece restrita às regras locais; desde a migration `298`, a consolidação do Portal só lista e só aceita B/L com fatura visível não cancelada, e a seleção com outro B/L é recusada ("Seleção contém B/L que não pode entrar na consolidada. Atualize a lista."). Paga a consolidada, ela continua na lista e no detalhe com B/Ls, pagamento e recibo; as individuais que ela quitou ficam no filtro "Pagas" como **Coberta**, com saldo zero, sem recibo próprio e com o número e o link da consolidada (decisão do dono de 2026-10-08, migration `162`). A aba demurrage mostra detalhe, PIX e disputas. **Tabela limpa (lote 1 da identidade, 2026-10-14):** Taxas Locais em Fatura, B/L, Emissão, Navio / Viagem, Total, Saldo (âmbar quando maior que zero) e Situação (Paga com ✓, consolidada com o ícone de pilha); Demurrage em Fatura, B/L, Emissão, Navio / Viagem, Total US$, Total R$ (âmbar enquanto há valor a pagar) e Situação (Em disputa em âmbar, Paga com ✓; o estado legado `overdue` aparece como Emitida, porque Demurrage não vence, B29). O número da fatura abre o detalhe; o POD fica no filtro e no detalhe; os filtros ficam abertos. No detalhe de Demurrage, cada período do contêiner é uma linha "dias × diária" e o valor fica na coluna US$.
 
-**Detalhe da fatura de Taxas Locais (lote 4, 2026-10-18).** O bloco Pagamento vem primeiro, com tipo, emissão e situação na faixa e o dado principal pela situação: "R$ X a pagar" em âmbar ("de R$ Y" na parcial), "✓ Paga" com "R$ X recebidos em dd/mm/aaaa", **Coberta** com "Abrir INV-…" da consolidada e **Cancelada** em cinza. O Pix fica numa faixa baixa ao lado do valor (`PortalPixPaymentBlock`: QR pequeno, "Pague com Pix", código numa linha e "Copiar código Pix"; na parcial, o QR cobra o saldo). Fatura de um B/L só mostra B/L, Navio / Viagem, Trecho e Recebido como fatos, sem tabela de B/Ls; a consolidada tem a tabela B/Ls, a coluna B/L em itens e contêineres e "Refazer consolidada" no topo; a avulsa leva a descrição como fato do Pagamento. "Pagamentos recebidos" (quando há pagamento) lista Recebido em (com a hora só quando o registro tem hora: 00:00 e 12:00:00 em Brasília contam como sem hora, porque a baixa manual grava meio-dia), Forma de pagamento e Valor, com o total pago na faixa; os itens têm "Total da fatura" no pé. "Imprimir fatura" e, na paga, "Imprimir recibo".
+**Detalhe da fatura de Taxas Locais (lote 4, 2026-10-18).** O bloco Pagamento vem primeiro, com tipo, emissão e situação na faixa e o dado principal pela situação: "R$ X a pagar" em âmbar ("de R$ Y" na parcial), "✓ Paga" com "R$ X recebidos em dd/mm/aaaa", **Coberta** com "Abrir INV-…" da consolidada, **Substituída** com "Abrir INV-…" da consolidada nova (consolidada que perdeu um B/L pago na individual; sem QR; migration `361`, [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md), decisão 8) e **Cancelada** em cinza. O Pix fica numa faixa baixa ao lado do valor (`PortalPixPaymentBlock`: QR pequeno, "Pague com Pix", código numa linha e "Copiar código Pix"; na parcial, o QR cobra o saldo). Fatura de um B/L só mostra B/L, Navio / Viagem, Trecho e Recebido como fatos, sem tabela de B/Ls; a consolidada tem a tabela B/Ls, a coluna B/L em itens e contêineres e "Refazer consolidada" no topo; a avulsa leva a descrição como fato do Pagamento. "Pagamentos recebidos" (quando há pagamento) lista Recebido em (com a hora só quando o registro tem hora: 00:00 e 12:00:00 em Brasília contam como sem hora, porque a baixa manual grava meio-dia), Forma de pagamento e Valor, com o total pago na faixa; os itens têm "Total da fatura" no pé. "Imprimir fatura" e, na paga, "Imprimir recibo".
 
 **Gerar fatura consolidada (lote 4).** Filtros B/L e Navio / Viagem (`Combobox` com as viagens das linhas); bloco "B/Ls que podem entrar" (seleção, marcar todos; B/L, Navio / Viagem, Fatura de hoje, Saldo) e bloco fechado "Com saldo, mas não podem entrar", com o motivo do banco; B/L pago não aparece. A seleção vale mesmo com a linha escondida pelo filtro, e o pé diz "N B/Ls · R$ X". Falha da consulta aparece como erro na janela.
 
@@ -433,10 +433,20 @@ faturamento sem Portal para o Cliente (ADR 0070, migration 083). O gate vale
 também para a emissão automática pelo CE, que retém a fatura sem Portal. A
 ativação e a concessão da Liberação chamam o mesmo reprocessamento idempotente
 dos B/Ls com reconciliação matched_document ou reconciled, pelo caminho da
-transição do CE, reaproveitando o cálculo feito no registro do CE (migration
-085); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
+transição do CE, com o preço e o câmbio fixados na importação (migration 085;
+ADR 0094); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
 Liberação não depende de contato com e-mail: sem Portal, a fatura é entregue
 por um usuário interno. A Liberação aparece no painel do Cliente no Console do Portal.
+Desde a migration `375`: o gate vale só na emissão (a fatura que volta a
+emitida por estorno de baixa não é barrada); confirmar o e-mail de recuperação
+que abre o gate também reprocessa as retidas, como a ativação; e o
+reprocessamento automático emite em nome de `app_settings.system_billing_actor`
+(conta de sistema; sem ela configurada, o primeiro Administrativo ativo, como
+antes), com o registro `held_billing_reprocessed` em `audit_logs`. O alerta
+`portal_reprocessamento_falhou` do B/L fecha quando o B/L é faturado.
+A lista de faturas mostra navio, Viagem e POD da emissão (migration `376`), e
+o painel mostra a Demurrage em aberto em US$ líquido do desconto, o mesmo que
+gera o R$ ao lado.
 A regra que atravessa módulos está em
 [Regras de negócio](../operations/regras-de-negocio.md#gate-de-faturamento).
 
@@ -569,7 +579,12 @@ Operação segue exceção do B/L, acordo do cliente vigente na descarga e tarif
 geral. Sem referência oficial, exibe tarifa indisponível, sem número fixo.
 Não inclui tabelas de exportação nem Detention. Devolução e Taxas Locais
 exibem apenas BRVIX, BRSSA e BRSUA, incluindo a consulta sem filtro e os
-containers selecionáveis. Agentes por porto mantém os demais portos. Taxas
+containers selecionáveis. Agentes por porto mantém os demais portos. Os
+portos de Depósitos e Agentes são gravados pela régua do banco
+(`normalize_port_code`); desde a migration `391` (ADR 0095, decisão 12)
+Navegantes (BRNVT) e Recife (BRREC) aparecem como portos próprios na lista, e
+um cadastro gravado antes como BRITJ ou BRSUA continua assim: se era Navegantes
+ou Recife, quem cadastrou precisa escolher o porto de novo e gravar. Taxas
 Locais não exibe o badge “Aplicação manual” nem o texto “Inclui SOC”; as
 regras de cobrança permanecem nos cadastros oficiais.
 
@@ -775,7 +790,7 @@ quando o Portal fica pronto ou o Cliente deixa de ter processo ativo (ver
 
 ### Correção de B/L após faturamento
 
-A correção do B/L em fatura com pagamento mantém o total original e o dinheiro recebido, mas atualiza o saldo a pagar. O detalhe exibe Ajustes por correção com abatimento e restituição por B/L, por leitura escopada ao Cliente. Avulsas com item de tabela aparecem para o Cliente do B/L. Faturas canceladas permanecem acessíveis ao Cliente, mas a lista sem filtro mostra só as em vigor; as canceladas e desfeitas aparecem pelo filtro **Cancelada** (migration `128`). Ver [ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md).
+A correção do B/L em fatura com pagamento mantém o total original e o dinheiro recebido, mas atualiza o saldo a pagar. O detalhe exibe Ajustes por correção com abatimento e restituição por B/L, por leitura escopada ao Cliente. Avulsas com item de tabela aparecem para o Cliente do B/L. Faturas canceladas permanecem acessíveis ao Cliente, mas a lista sem filtro mostra só as em vigor; as canceladas, desfeitas e substituídas aparecem pelo filtro **Cancelada** (migration `128`; a substituída, desde a `361`, com aviso no Portal sem e-mail). Pagamento parcial de uma individual faz a consolidada aberta mostrar o saldo restante com QR novo, e vice-versa (migration `356`). Na aba Operação, a coluna Taxas locais conta o B/L uma vez: com consolidada aberta, ela no lugar da individual (migration `364`). Ver [ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md).
 
 ### Identidade, convite e recuperação
 

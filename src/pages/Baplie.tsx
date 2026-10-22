@@ -25,7 +25,7 @@ import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
-import { describeBaplieFlags, hasPendingBaplieVazios, retryBaplieVazios, summarizeBaplieFlags } from '../services/baplieImport'
+import { describeBaplieFlags, hasPendingBaplieVazios, loadBaplieVaziosNaPlanilha, retryBaplieVazios, summarizeBaplieFlags, type BaplieVaziosNaPlanilha } from '../services/baplieImport'
 import { BaplieImportModal } from '../components/shared/BaplieImportModal'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -33,6 +33,7 @@ import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
   applyBapliePhysicalFlagsDetailed,
   countPendingBapliePhysicalFlags,
+  isTransshipmentRow,
   reconcileBaplieWithManifest,
   resolveBaplieDivergence,
   type BaplieReconciliationItem,
@@ -149,6 +150,13 @@ export function Baplie() {
 
   const containers = useMemo(() => stagingData ?? [], [stagingData])
   const emptyContainers = containers.filter((c) => c.status === 'empty')
+  // ADR 0095, decisão 21: a planilha de Vazios de importação vale sobre o
+  // Baplie; o bloco mostra quantos já estão nela e a rota que difere.
+  const naPlanilhaQuery = useQuery({
+    queryKey: ['baplie-vazios-manifest', voyageId, 'planilha'],
+    enabled: !!voyageId && emptyContainers.length > 0,
+    queryFn: () => loadBaplieVaziosNaPlanilha(Number(voyageId)),
+  })
   const hasStaging = containers.length > 0
   const importedAt = containers.reduce<string | null>((latest, row) => (!latest || (row.imported_at && row.imported_at > latest) ? row.imported_at : latest), null)
 
@@ -171,9 +179,9 @@ export function Baplie() {
   async function handleConfirmarVazios() {
     if (!user || !voyageId) return
     if (existingVaziosManifest) return
-    await importVaziosFromBaplie({ voyageId: Number(voyageId), uploadedBy: user.id })
+    const result = await importVaziosFromBaplie({ voyageId: Number(voyageId), uploadedBy: user.id })
     await afterBaplieImportado(queryClient, { voyageId })
-    showToast(`${plural(emptyContainers.length, 'vazio cadastrado', 'vazios cadastrados')} em Vazios de importação.`, 'success')
+    showToast(vaziosBaplieToast(result.total, result.planilha), 'success')
   }
 
   async function handleSubstituirVazios() {
@@ -181,9 +189,11 @@ export function Baplie() {
     const total = await retryBaplieVazios({ voyageId: Number(voyageId), actorId: user.id })
     await afterBaplieImportado(queryClient, { voyageId })
     showToast(
-      total === 0
+      total === 0 && emptyContainers.length === 0
         ? 'Vazios de importação do Baplie anterior removidos: este Baplie não traz vazios.'
-        : `Vazios de importação atualizados: ${plural(total, 'container', 'containers')}.`,
+        : total === 0
+          ? 'Os vazios deste Baplie já estão na planilha de Vazios de importação, que vale sobre o Baplie.'
+          : `Vazios de importação atualizados: ${plural(total, 'container', 'containers')}.`,
       'success',
     )
   }
@@ -294,6 +304,9 @@ export function Baplie() {
               existingManifest={existingVaziosManifestLoading ? null : (existingVaziosManifest ?? null)}
               loadingExistingManifest={existingVaziosManifestLoading}
               pending={pendingVazios}
+              naPlanilha={naPlanilhaQuery.data ?? null}
+              naPlanilhaStatus={emptyContainers.length === 0 ? 'ready' : naPlanilhaQuery.isError ? 'error' : naPlanilhaQuery.data ? 'ready' : 'loading'}
+              onRetryNaPlanilha={() => void naPlanilhaQuery.refetch()}
               voyageId={voyageId}
               canWrite={canImportVazios}
               onConfirmar={handleConfirmarVazios}
@@ -668,11 +681,20 @@ function usePagedRows<T>(rows: readonly T[]) {
   }
 }
 
+function vaziosBaplieToast(total: number, planilha: number): string {
+  if (total === 0) return 'Os vazios deste Baplie já estão na planilha de Vazios de importação, que vale sobre o Baplie.'
+  const base = `${plural(total, 'vazio cadastrado', 'vazios cadastrados')} em Vazios de importação`
+  return planilha > 0 ? `${base}; ${plural(planilha, 'ficou', 'ficaram')} com a planilha.` : `${base}.`
+}
+
 function VaziosSection({
   emptyCount,
   existingManifest,
   loadingExistingManifest,
   pending = false,
+  naPlanilha = null,
+  naPlanilhaStatus = 'ready',
+  onRetryNaPlanilha,
   voyageId,
   canWrite,
   onConfirmar,
@@ -683,6 +705,11 @@ function VaziosSection({
   loadingExistingManifest: boolean
   /** Os vazios cadastrados não são os deste Baplie (recadastro pendente, mesmo com a mesma quantidade). */
   pending?: boolean
+  /** Vazios deste Baplie que a planilha já trouxe (ADR 0095, decisão 21); nulo enquanto carrega. */
+  naPlanilha?: BaplieVaziosNaPlanilha | null
+  /** Sem a contagem da planilha, as ações de vazios ficam fora: tratar a falta como zero inflaria o cadastro. */
+  naPlanilhaStatus?: 'loading' | 'error' | 'ready'
+  onRetryNaPlanilha?: () => void
   voyageId: string
   canWrite: boolean
   onConfirmar: () => Promise<void>
@@ -699,8 +726,11 @@ function VaziosSection({
     } finally { setLoading(false) }
   }
 
-  const isCountMismatch = Boolean(existingManifest && existingManifest.total_containers !== emptyCount)
-  const outOfDate = isCountMismatch || Boolean(existingManifest && pending)
+  // O Baplie só cadastra o que nenhuma planilha trouxe (migration 398).
+  const planilhaReady = naPlanilhaStatus === 'ready'
+  const baplieCount = naPlanilha ? naPlanilha.aCadastrar : emptyCount
+  const isCountMismatch = planilhaReady && Boolean(existingManifest && existingManifest.total_containers !== baplieCount)
+  const outOfDate = planilhaReady && (isCountMismatch || Boolean(existingManifest && pending))
   const vaziosLink = <Link className="app-cargo-link" to={`/vazios-importacao?voyage=${voyageId}`}>Abrir Vazios de importação →</Link>
 
   return (
@@ -726,7 +756,7 @@ function VaziosSection({
               </LeadValue>
               <span className="app-cargo-row__actions">
                 {vaziosLink}
-                {canWrite && outOfDate ? (
+                {canWrite && planilhaReady && outOfDate ? (
                   <Button variant="secondary" loading={loading} loadingLabel="Atualizando…" onClick={() => run(onSubstituir)}>
                     Atualizar vazios do Baplie
                   </Button>
@@ -735,18 +765,38 @@ function VaziosSection({
             </>
           ) : (
             <>
-              <LeadValue detail="ainda não cadastrados; entram sem Nº de manifesto Mercante, informado depois em Rotas e Manifestos da viagem">
+              <LeadValue detail={!planilhaReady
+                ? 'conferindo quais já estão na planilha de Vazios de importação'
+                : baplieCount === 0
+                ? 'todos já estão na planilha de Vazios de importação, que vale sobre o Baplie'
+                : 'ainda não cadastrados; entram sem Nº de manifesto Mercante, informado depois em Rotas e Manifestos da viagem'}>
                 {plural(emptyCount, 'vazio', 'vazios')}
               </LeadValue>
-              {canWrite ? (
+              {canWrite && planilhaReady && baplieCount > 0 ? (
                 <div>
                   <Button disabled={loadingExistingManifest} loading={loading} loadingLabel="Cadastrando…" onClick={() => run(onConfirmar)}>
-                    Cadastrar {plural(emptyCount, 'vazio', 'vazios')}
+                    Cadastrar {plural(baplieCount, 'vazio', 'vazios')}
                   </Button>
                 </div>
               ) : null}
             </>
           )}
+          {naPlanilhaStatus === 'loading' ? (
+            <p className="app-cargo-state__text" role="status">Conferindo os vazios na planilha de Vazios de importação…</p>
+          ) : naPlanilhaStatus === 'error' ? (
+            <ImportNotice tone="danger" role="alert" title="Não foi possível conferir os vazios na planilha">
+              <p>Sem saber quais vazios a planilha já trouxe, o Baplie não cadastra nem atualiza os vazios.</p>
+              {onRetryNaPlanilha ? <Button variant="secondary" onClick={onRetryNaPlanilha}>Tentar de novo</Button> : null}
+            </ImportNotice>
+          ) : null}
+          {naPlanilha && naPlanilha.naPlanilha > 0 ? (
+            <ImportNotice tone="info" title={`${plural(naPlanilha.naPlanilha, 'vazio já está', 'vazios já estão')} na planilha de Vazios de importação`}>
+              <p>A planilha vale sobre o Baplie: {naPlanilha.naPlanilha === 1 ? 'esse container fica' : 'esses containers ficam'} como a planilha gravou, e o Baplie não {naPlanilha.naPlanilha === 1 ? 'o' : 'os'} cadastra de novo.</p>
+              {naPlanilha.rotaDiferente.length ? (
+                <p>Rota diferente: {naPlanilha.rotaDiferente.slice(0, 10).join('; ')}{naPlanilha.rotaDiferente.length > 10 ? ` e mais ${naPlanilha.rotaDiferente.length - 10}` : ''}.</p>
+              ) : null}
+            </ImportNotice>
+          ) : null}
           {error ? (
             <ImportNotice tone="danger" role="alert" title="Os vazios não foram gravados">
               <p>{error}</p>
@@ -861,7 +911,7 @@ function ContainerList({
                 <div className="app-cargo-card__head">
                   <div className="app-cargo-card__id">
                     <span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span>
-                    <span className="app-cargo-cell__sub">{[c.status === 'empty' ? 'Vazio' : 'Cheio', c.size_type, `${c.pol ?? '—'} → ${c.pod ?? '—'}`, c.slot ? `slot ${c.slot}` : null, c.bl_ref ? `B/L citado ${c.bl_ref}` : null].filter(Boolean).join(' · ')}</span>
+                    <span className="app-cargo-cell__sub">{[c.status === 'empty' ? 'Vazio' : 'Cheio', isTransshipmentRow(c) ? 'Transbordo' : null, c.size_type, `${c.pol ?? '—'} → ${c.pod ?? '—'}`, c.slot ? `slot ${c.slot}` : null, c.bl_ref ? `B/L citado ${c.bl_ref}` : null].filter(Boolean).join(' · ')}</span>
                   </div>
                 </div>
                 <span className="app-cargo-card__status">
@@ -894,7 +944,7 @@ function ContainerList({
                   <tr key={c.id} className={coverage?.keys.includes('empty') || coverage?.keys.includes('out_of_scope') ? 'app-table__row--muted' : undefined}>
                     <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span></td>
                     <td className="app-table__text"><CoverageTag coverage={coverage} /></td>
-                    <td>{c.status === 'empty' ? 'Vazio' : 'Cheio'}</td>
+                    <td>{c.status === 'empty' ? 'Vazio' : 'Cheio'}{isTransshipmentRow(c) ? ' · transbordo' : ''}</td>
                     <td>{c.size_type ?? <NoValue label="Sem tipo" />}</td>
                     <td className="whitespace-nowrap">{c.pol ?? <NoValue label="Sem POL" />} → {c.pod ?? <NoValue label="Sem POD" />}</td>
                     <td className="app-cargo-code">{c.slot ?? <NoValue label="Sem slot" />}</td>

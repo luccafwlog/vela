@@ -8,7 +8,7 @@ import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { ImportReadProgress } from './ImportReadProgress'
 import { ImportFileBlock, ImportFilePicker, ImportFootnote, ImportNotice, ImportSteps } from './ImportParts'
 import { plural } from './importPresentation'
-import { userFacingErrorMessage } from '../../lib/errors'
+import { DatabaseError, importErrorMessage } from '../../lib/errors'
 
 function yieldToBrowser() {
   return new Promise<void>((resolve) => setTimeout(resolve, 0))
@@ -241,7 +241,7 @@ export function FileImportModal<T, TResult = void>({
     } catch (err) {
       // A falha fica na tela, junto da prévia que a causou; o arquivo
       // continua escolhido para o operador ajustar e tentar de novo.
-      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar.'))
+      setImportError(err instanceof Error && !(err instanceof DatabaseError) ? err.message : importErrorMessage(err, 'Falha ao importar.'))
     } finally {
       setImporting(false)
       if (importControllerRef.current === controller) importControllerRef.current = null

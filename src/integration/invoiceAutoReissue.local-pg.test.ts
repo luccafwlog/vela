@@ -2,6 +2,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { syntheticCnpj, describeWithProbe } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 // Migration 126 (ADR 0077, decisão de 2026-10-01): reimportação que altera a
 // base faturada de B/L com fatura sem pagamento cancela a individual e a
 // consolidada e reemite as duas com o valor novo.
@@ -87,7 +91,7 @@ function reimport(blId: string, extraContainers: string[]) {
     payload[0].containers.push({ ...payload[0].containers[0], id: undefined, container_number: number })
   }
   return adminJson<{ invoice_reissues: Array<{ status: string; reissued: Array<{ type: string; invoice_id: number }>; pending_reason: string | null }> }>(
-    `SELECT public.import_bl_freight_transactional('${JSON.stringify(payload)}'::jsonb, '${actorId}'::uuid)`,
+    `RESET ROLE; SELECT public.import_bl_freight_transactional('${JSON.stringify(payload)}'::jsonb, '${actorId}'::uuid)`,
   )
 }
 
@@ -218,15 +222,14 @@ describeLocal('126 — reimportação com impacto reemite individual e consolida
     expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND status = 'active' AND metadata->>'invoice_id' = '${paid}'`)).toBe('1')
   })
 
-  it('sem condição de emitir, cancela, deixa Reemissão pendente e explica no alerta', () => {
+  it('sem condição de emitir (trava do Portal fechou depois da emissão), não cancela e avisa no alerta (ADR 0094, D1)', () => {
     const held = issueByCe(blHeld, '126000000000004')
-    // Sem a Liberação e sem Portal pronto, a emissão automática retém a fatura.
+    // A Liberação acabou depois da emissão: a nova fatura sairia retida.
     psql(`DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};`)
     const result = reimport(blHeld, ['RAAU1260097'])
-    expect(result.invoice_reissues[0]).toMatchObject({ status: 'pending', pending_reason: 'portal_not_provisioned' })
-    expect(psql(`SELECT status FROM public.invoices WHERE id = ${held}`)).toBe('cancelled')
-    const pending = asAdmin(`SELECT invoice_id FROM public.list_pending_reissues() WHERE customer_id = ${customerId}`)
-    expect(pending.stdout.split('\n')).toContain(String(held))
-    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND status = 'active' AND metadata->>'invoice_id' = '${held}'`)).toBe('1')
+    expect(result.invoice_reissues[0]).toMatchObject({ status: 'blocked_review' })
+    expect(result.invoice_reissues[0].pending_reason).toMatch(/Liberação/)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${held}`)).toBe('issued')
+    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND status = 'active' AND metadata->>'invoice_id' = '${held}' AND metadata->>'auto_reissue' = 'blocked'`)).toBe('1')
   })
 })

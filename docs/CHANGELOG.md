@@ -6,6 +6,244 @@
 
 ## 2026-10
 
+- **Baplie da COSCO aceito (2026-10-22;
+  [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)):**
+  migration `409`. O número de viagem do Baplie não é mais conferido com o da
+  Viagem e a confirmação da prévia saiu; UNT/UNZ com contagem errada só avisa;
+  a regra de "outro armador" e o campo "Códigos do armador no Baplie" saíram,
+  e todo container do arquivo entra. Os Baplies 1.5 e 2.2 do GREEN ITAPOA
+  (viagem `260911000000`, operadores COS e COT) passam a importar inteiros,
+  com BRVIX e BRSEP.
+- **Zhuhai (CNZUH) reconhecido nas importações (2026-10-22):** o Baplie com POL `CNZUH` era
+  recusado inteiro ("POL não reconhecido"), porque o porto não estava na lista do import
+  (`src/services/portCode.ts`). Zhuhai entra como porto próprio, pelo código e pelo nome, e aparece
+  como "ZHUHAI" nas telas; sem migration, porque `normalize_port_code` já devolve `CNZUH` como está.
+  Prova: `portCode.test.ts`, `baplieParserS03.test.ts`.
+- **Revisão da PR 1021, melhorias (2026-10-22;
+  [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-09 a R-19):**
+  migration `408`. Excluir um B/L recalcula o ATD do POL, como cancelar.
+  Reimportar o Embarque de Vazios grava o recibo no manifesto em que as
+  unidades estão, e o aviso de reenvio aponta a última importação. Planilha
+  de CE, Manifesto BB e Granito recusam usuário sem permissão antes de travar
+  a Viagem. O Histórico da Viagem recebe navio, número e status só pelo
+  gatilho, sem linha repetida quando nada mudou. A planilha de Veículos pede
+  confirmação para trocar o local de desova gravado noutro B/L do mesmo
+  container. Nas telas: as importações usam a mensagem de importação; uma
+  falha ao calcular o hash não impede a importação; editar Cliente relê a
+  ficha; o código `55000` mostra a mensagem do banco; o tipo do container no
+  Histórico aparece como "Tipo". Notas de R-12 e R-18 em Manifestos & EDI;
+  vigências, ADRs, pendências e glossário revistos (R-19). Prova:
+  `atdDoPolManual` e `hashEDesova` (PostgreSQL local),
+  `guardaAntesDaTravaMigration.test.ts`, `voyageMutations.test.ts`,
+  `vehicleImport.test.ts`, `portalErrorMessage.test.ts`.
+- **Revisão da PR 1021, correções antes do merge (2026-10-22;
+  [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-01 a R-08):**
+  migration `407`. `admin-users` volta a responder 403 a quem não é
+  Administrativo (a renumeração da migration do lote 8 tinha trocado para 404,
+  junto com duas linhas de `seguranca.md`). Em Taxas Locais, corrigir item ou
+  Condição relê faturas, ficha do B/L, saldo e Alertas; a confirmação de
+  ativar/desativar Condição diz que só os B/Ls novos mudam (ADR 0094, A3); item
+  de tabela ainda sem uso é corrigido por todos os setores e o de tabela já
+  usada só pelo Administrativo (nota de 2026-10-22 na ADR 0093; a tela sabe o
+  uso por `charge_tables_in_use`). Reprocessar efeito mostra o motivo da recusa
+  do banco. Matriz de permissões, catálogo "O que cada setor pode", glossário,
+  roteiro de cron, Saldo pendente do Cliente, Granito e a ordem de deploy das
+  Edge Functions `admin-users` e `itau-pix` atualizados. Prova:
+  `tariffCorrectionCache.test.tsx`, `TaxasLocais.behavior.test.tsx`,
+  `importEffects.test.ts`, `permissoesPorPerfil.local-pg.test.ts`.
+- **Importações: hash do arquivo e desova (2026-10-22, Lote 10 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
+  migrations `405` e `406`. Arquivo de B/L, Manifesto BB, B/L avulso de carga solta, Granito,
+  Embarque de Vazios e Vazios de Importação gravam no lote o nome e o SHA-256 do arquivo, com quem
+  e quando; importar o mesmo arquivo de novo na mesma Viagem só avisa na prévia ("Este arquivo já
+  foi importado em <data> por <pessoa>."), sem bloquear. O local de desova passa a ser um por
+  container físico: gravar num B/L grava em todos os B/Ls ativos da Viagem com o mesmo container,
+  com Histórico em cada um; B/L novo herda o local; em Veículos, trocar ou apagar um local já
+  gravado pede confirmação. Prova: `hashEDesova.local-pg.test.ts`, `importFileReceipt.test.ts`,
+  `Veiculos.unpackingCache.test.tsx`.
+- **Importações: Histórico (2026-10-22, Lote 8 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 24; achados F-23, F-24 e F-46):**
+  migration `404`. O Histórico do B/L mostra tudo o que a importação muda: container que entra e sai
+  (com a origem; o histórico do container removido fica), lacre, peso, perfil, SOC/COC (inclusive do
+  Baplie), local de desova, veículos que entram e saem, consignatário e troca de Cliente com razão
+  social e CNPJ — nunca o id —, POL/POD e os demais campos do B/L, com rótulos da operação no lugar de
+  códigos e JSON (assunto novo **Veículo**). A ficha do Cliente (Histórico e Alterações do cadastro)
+  mostra o que a Base de Clientes mudou e os e-mails que ela incluiu, com "Origem: Base de Clientes",
+  quem e quando. "Informar Nº" reconcilia os alertas da Viagem na hora, e o Nº de Manifesto do lote não
+  aparece mais na linha do tempo da Viagem de mesmo número. O Histórico deixou de aceitar gravação
+  direta de usuário (forjável): só o banco grava, e a tela grava a agenda de POL/POD, a Viagem e os
+  eventos operacionais pela RPC `record_audit_entries`, com o autor da sessão. Prova:
+  `historicoImportacao.local-pg.test.ts`, `blTimelinePresentation.test.ts`, `customerFicha.test.ts`,
+  `customerCadastroChanges.test.ts`, `auditEntries.test.ts`.
+- **Importações: Baplie, armador e transbordo (2026-10-22, Lote 9 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `403`.
+  Navio compartilhado: o armador guarda os códigos com que aparece no Baplie (campo "Códigos do
+  armador no Baplie" em **Nova Viagem**/**Editar**; a COSCO recebeu COS e COSCO); container de outro
+  código fica fora das marcas IMO/OOG e SOC/COC e da conciliação, contado na prévia ("de outro
+  armador") e recusado também no servidor, sem depender dos B/Ls importados nem recusar o arquivo.
+  Transbordo (EQD 8249 = 6), antes descartado, entra no Baplie da Viagem marcado ("Transbordo" na
+  lista do `/baplie`), aparece na conciliação e não leva marcas aos B/Ls nem vira vazio de importação.
+  Prova: `baplieArmadorETransbordo.local-pg.test.ts`, `baplieImport.test.ts`,
+  `baplieParserEtapa9.test.ts`, `baplieReconciliation.test.ts`.
+- **Demurrage: Invoice vencida volta à PTAX (2026-10-22; ADR 0094, B10; revisão da PR #1021):**
+  migration `402`. O recálculo diário pela PTAX (`recalculate_demurrage_invoices`) passa a incluir a
+  Invoice vencida e não paga, como já fazia a RPC de **Tirar ROE manual…** (`385`): antes, a vencida
+  tirada do ROE manual ficava parada no câmbio do clique. A Invoice com ROE manual e a paga seguem
+  fora. Prova: `demurrageRoeManual.local-pg.test.ts`.
+- **Importações: ATD do POL (2026-10-22, Lote 7 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
+  migration `401`. O ATD do POL corrigido à mão (Rotas e Manifestos → **Editar**) fica marcado, com
+  quem e quando, e não é mais recalculado pela importação de B/L da Viagem e do POL nem pelo
+  cancelamento; a prévia do Importar B/L avisa quando o Laden on Board do arquivo diverge ("ATD do
+  POL … corrigido à mão em …: o Laden on Board do arquivo é … e o ATD não muda."). Apagar o ATD à mão
+  desfaz a marca e o ATD volta ao calculado. O ATD calculado conta só B/Ls ativos: cancelar o B/L
+  recalcula, reativar também, com Histórico. As correções manuais já gravadas ganharam a marca. Fim do
+  `ladenOnBoardAtd.ts`, cálculo antigo no navegador que nenhuma tela usava. Prova:
+  `atdDoPolManual.local-pg.test.ts`, `ws1FunctionalSmoke.test.ts`.
+- **Importações: Vazios (2026-10-22, Lote 6 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 21 e 22; achado F-32):**
+  migrations `398` a `400`. O vazio de importação existe uma vez por Viagem, em qualquer rota e fonte: a
+  planilha vale sobre o Baplie (tira do Baplie o container que traz e fica com a natureza
+  cama/cover plate digitada nele quando não traz outra, `400`), o Baplie cadastra só os vazios
+  que nenhuma planilha trouxe e não desfaz a planilha em **Cadastrar** nem em **Atualizar vazios do
+  Baplie**, e o container que outra planilha gravou em outra rota é recusado com o container e a rota.
+  A prévia da planilha e o bloco Vazios de importação de `/baplie` mostram a diferença; um índice
+  único por Viagem e container segura o resto, e os repetidos que existiam ficaram numa linha só. Com
+  o ADR de Saída fechado, nada muda no Embarque de vazios: incluir e editar unidade, lançar ou mudar
+  linha de serviço, trocar o porto do embarque e criar o Embarque da escala (`399`) são recusados
+  também pela escrita direta, inclusive com o porto gravado por apelido (BRVIT diante do ADR em
+  BRVIX, `400`), e a tela tira as ações e diz para reabrir o ADR; enquanto não confirma
+  que o ADR está aberto (carregando ou falha, com **Tentar de novo**), as ações ficam fora. Prova: `vaziosUmaVezPorViagem.local-pg.test.ts`,
+  `vaziosImportacaoImport.test.ts`, `baplieVaziosPending.test.ts`, `EmbarqueVazios.flow.test.tsx`.
+- **Importações: CE e Manifesto Mercante (2026-10-22, Lote 5 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 19 e 20; achados F-49,
+  F-53, F-17 e F-18):** migrations `396` e `397` (índice da guarda). Remover o CE pela ficha ou cancelar o B/L tira o B/L do
+  Manifesto Mercante, com Histórico; reativar o B/L o recoloca no Manifesto de antes (se ainda é da
+  rota), e o CE removido volta pela planilha de CE, que vincula o Manifesto dela. B/L com CE que muda
+  de rota e fica sem Manifesto abre o alerta normal "CE fora do Manifesto da rota" para a
+  Documentação, que fecha quando o CE muda ou o B/L entra num Manifesto. O espelho
+  `voyage_route_ce_master` não aceita mais escrita direta; o lote importado não guarda Nº que a rota
+  recusou; **Informar** espera a planilha de CE da mesma Viagem (sem 23505); a sobrecarga ambígua de
+  5 argumentos de `set_voyage_route_ce_master` saiu. Na planilha de CE, a falha de cálculo chega como
+  "Taxas Locais do B/L X não calculadas: …" (ADR 0094, B3) e a gravação tem `statement_timeout` de
+  60 s. A `396` tirou do Manifesto os B/Ls já cancelados. A aba Rotas e Manifestos atualiza depois de
+  remover CE, cancelar ou reativar. Prova: `ceEManifestoMercante.local-pg.test.ts`,
+  `ceForaDoManifestoAlerta.test.ts`.
+- **Importações: exclusão e efeitos (2026-10-21, Lote 4 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 7, 18 e 25;
+  achados F-10, F-13, F-14, F-33a, F-34, F-42 e F-43):** migrations `394` e `395`. Excluir B/L ou Viagem
+  encerra os efeitos de importação pendentes como "descartado: registro excluído", sem Alerta (e
+  fecha o Alerta do que estava bloqueado); excluir a Viagem apaga os vazios de importação dela e o
+  manifesto de vazios, e o diálogo diz quantos vazios vão. CE em B/L em Revisão ou sem tabela de
+  cobrança é espera, sem Alerta crítico, e fatura sozinho quando a Revisão é concluída ou a tabela é
+  cadastrada. O Alerta "Efeito de importação bloqueado" diz o B/L e o motivo e tem **Reprocessar** em
+  `/alertas`, com justificativa; depois do Reprocessar o Alerta fica aberto como "Reprocessando…"
+  e fecha só quando o efeito conclui (ou é descartado pela exclusão); se bloquear de novo, o mesmo
+  Alerta volta com o novo motivo (`395`, muda a regra da `348`). A `395` também descarta efeitos em
+  execução de registro já excluído e devolve a bloqueado a falha técnica que o acerto da `394`
+  tinha levado à espera. Efeito de usuário desativado roda como "Vela (automático)",
+  guardando quem iniciou. O efeito novo substitui o pendente do mesmo tipo também quando o produtor
+  grava direto na fila. A saúde da fila conta a lease vencida e os bloqueados. Excluir ou mover
+  veículo com o recálculo falhando já era recusado (B3, `379`/`381`): ganhou teste. F-10 ganhou o
+  cenário da revisão. Prova: `exclusaoEEfeitosImportacao.local-pg.test.ts`,
+  `Alertas.reprocessar.test.tsx`.
+- **Importações: arquivo de B/L com as regras no servidor (2026-10-21, Lote 2 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 5, 8, 9, 10, 26 e 27;
+  achados F-05, F-15, F-27 e F-50):** migrations `392` e `393`. Na rolagem, o B/L é excluído na Viagem antiga (cancelar não libera o número). B/L que já está em outra Viagem recusa o
+  arquivo com a Viagem dele (a importação não move B/L entre Viagens); B/L cancelado no arquivo fica
+  de fora com aviso para reativar pela ficha e importar de novo, e o resto entra. A confirmação de
+  faturamento só aparece para B/L com fatura emitida, nunca vai ligada por padrão e é conferida no
+  servidor; sem ela, nem containers nem peso, cubagem, POD e Place of Delivery mudam. B/L só
+  calculado recebe a base nova sem confirmação. O servidor tira o Cliente do CNPJ e recusa
+  `customer_id` que não bate. A prévia mostra "preço do dia da importação → preço de hoje" (tabela,
+  Condição, câmbio) com aceite por B/L, e só o marcado é refixado, dentro da gravação
+  (`bl_file_import_preview`). A aba VIN é ignorada (veículos só pela planilha de Veículos), acabou a
+  exceção `vela.vin_reissue` e o alerta `bl_vehicles_changed_on_reimport` não é mais aberto. A
+  modalidade FCL/LCL é lida do Type of Movement e gravada em `bls.container_load_type`; B/L LCL
+  divide container com outro Cliente. Suíte local-pg `arquivoDeBlRegras`.
+- **Importações: Navegantes ≠ Itajaí e Recife ≠ Suape (2026-10-21, Lote 3 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 12; achado F-08):** migration
+  `391`. `normalize_port_code` deixa de juntar BRNVT/NVT/NAVEGANTES com BRITJ e BRREC/REC/RECIFE com
+  BRSUA e passa a conhecer os apelidos exatos do Baplie da COSCO (BRSPB/SPB/SEP, CNTCA/TCA, TAO,
+  CNCAN); `_baplie_port_key` passa a ser a mesma função. B/L, Baplie, Manifesto Mercante, alertas,
+  Comunicados e tabela de Taxas Locais de um porto não valem mais para o vizinho. No app, a régua do
+  banco (`normalizeStoredPortCode`) vale também para o escopo da tabela de Taxas Locais, a Central
+  de Informações do Portal e a diferença do Baplie antes de gravar; o import reconhece NAVEGANTES e
+  RECIFE como portos próprios. A `391` passou para o porto certo, sob o "Data status" do AGENTS.md,
+  só o que tinha prova no banco (Manifesto Mercante e espelho da rota, status "BLs e CEs"
+  automático com o resumo da escala e o estado documental, âncora de NOA/NOR/NOB); o resto gravado
+  com a forma juntada fica (portos de Depósitos e Agentes da Central de Informações, POL/POD vindos
+  do nome no arquivo, vínculo de B/L com a tabela de outro porto, que deixa de valer no próximo
+  cálculo). Suíte local-pg `portosSeparados`.
+- **Importações: trava por Viagem e Baplie no servidor (2026-10-21, PR luccafwlog/vela#1023, Lote 1 do plano
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 6, 11 e 13):** migrations
+  `387` a `390`. Toda importação de Viagem (arquivo de B/L, Manifesto BB e B/L avulso, planilha de
+  CE, Baplie, datas, Vazios de importação, Embarque de vazios, Veículos e Granito) pega a mesma trava
+  da Viagem: a segunda importação espera a primeira, em vez de cair em "deadlock detected" ou deixar
+  duas listas do Baplie (F-04, F-11). O Baplie substitui só os portos de descarga marcados no modal;
+  containers, marcas, vazios com a natureza e o Nº do manifesto Mercante de vazios dos outros portos
+  ficam (F-21); porto marcado sem nenhum container no arquivo é recusado, em vez de apagar o Baplie,
+  as marcas e os vazios dele (`390`). O servidor confere a viagem do arquivo, as escalas, os portos
+  marcados e container repetido (F-16) e recusa a prévia velha, quando outra importação gravou depois
+  dela ou outra sessão trocou o manifesto de vazios do Baplie que o diálogo mostrou (F-20, `390`); staging,
+  marcas IMO/OOG e SOC/COC e recadastro dos vazios são uma transação só, e falha em qualquer parte não
+  grava nada (F-20). O staging ganhou índice único por Viagem e container, com a limpeza das linhas
+  repetidas (F-22, sob o "Data status" do AGENTS.md), e o recadastro "Vazios pelo Baplie" voltou a
+  gravar o contexto no Histórico (F-26). `import_baplie_staging_transactional` saiu; a importação usa
+  `import_baplie_file_atomic`.
+- **Leitura dos arquivos de importação (2026-10-21):** B/L avulso com peso em toneladas
+  ("25.350 MT") deixa de entrar 1.000 vezes maior e cubagem com vírgula é decimal; número
+  ambíguo do Manifesto BB e do arquivo de B/L COSCO bloqueia a linha nas duas direções e número
+  descartado gera aviso; Baplie cortado (sem UNT/UNZ) é recusado, o peso usa o VGM antes do WT, os
+  portos de 3 letras do 1.5 são reconhecidos (BRNVT e BRITJ, BRREC e BRSUA continuam distintos), os
+  containers fora das escalas aparecem em destaque e arquivo sem navio e viagem pede confirmação;
+  planilha com mais de uma aba com dados é recusada em toda importação; CSV com `;` é lido certo;
+  as prévias de Datas e do arquivo de B/L leem além de 1.000 linhas; as recusas do banco aparecem
+  em português, sem código nem inglês (revisão das importações, achados F-02, F-09, F-30, F-31,
+  F-36, F-37 e F-44).
+- **Correções da frente financeira (2026-10-21, PR luccafwlog/vela#1019):** decisões da
+  [ADR 0093](adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md), migrations `354` a `377`.
+  O B/L fica vinculado à tabela de taxas do primeiro cálculo, e editar item ou Condição é correção do
+  Administrativo; o preço do dia do CE fica congelado e a base da emissão é a atual; consolidada e
+  individuais ficam coerentes a cada baixa (parcial reprojeta a outra, a individual paga reemite a
+  consolidada, a substituída aparece no Portal); fatura cancelada solta o B/L e a nova só sai pelo
+  Emitir; Viagem com fatura viva não se cancela; a baixa automática Itaú não para em silêncio e o
+  Pix em análise só fecha pela própria baixa; Pix sem TXID e Pix em duplicidade ganham caminho; o
+  saldo do Vela separa Faturado em aberto, A faturar e avulsa; B/L cancelado, isento, reativado,
+  desvinculado ou com troca de CNPJ deixa de deixar recebível ou fatura para trás; número da fatura
+  no ano de Brasília e sem truncar. Os itens que esperavam decisão foram resolvidos na mesma PR
+  (entrada seguinte) ([plano arquivado](archive/plans/2026-10-21-correcoes-frente-financeira.md)).
+- **Preço fixo na importação e pendências da frente financeira (2026-10-21, PR luccafwlog/vela#1019):**
+  decisões da [ADR 0094](adr/0094-preco-fixo-na-importacao.md), migrations `378` a `383`. A tabela,
+  a Condição do Cliente, a data de referência e o câmbio das Taxas Locais ficam fixos quando o B/L
+  entra no Vela, não mais no CE; ETA alterada e Condição nova não mudam preço de B/L existente, e a
+  refixação só acontece com aceite e motivo. Falha de cálculo (câmbio ausente e afins) recusa a
+  gravação inteira, com o B/L e o que falta, em todos os caminhos, em vez de gravar e abrir Alerta.
+  Só as funções do sistema gravam nos containers, Baplie, veículos, Vazios e Granito (a tela grava
+  local de desova e natureza); B/L cancelado fica somente leitura também nos containers e veículos.
+  A reimportação de carga solta faturada mostra a fatura e o valor antes → depois e só muda peso,
+  CBM, volumes e máquinas com a confirmação; a reemissão impossível não cancela a fatura. O ROE
+  manual da Invoice de Demurrage prevalece sobre a PTAX até o Financeiro tirá-lo, com motivo. A
+  avulsa com linha em dólar mostra o unitário só em US$
+  ([plano arquivado](archive/plans/2026-10-21-preco-na-importacao-e-pendencias.md)).
+- **Revisão final da frente financeira (2026-10-21, PR luccafwlog/vela#1019):** migrations `384` e
+  `385`, pelos achados da [revisão independente](archive/audits/2026-10-21-revisao-final-pr-1019.md).
+  O COD de B/L faturado converte o dólar pelo câmbio fixado; consolidada cancelada solta o B/L que ela
+  faturava sem individual, e a nova cobrança sai só pelo Emitir; cancelar a baixa de consolidada
+  substituída a mantém obsoleta; Pix já baixado pelo extrato não volta como duplicidade com restituição
+  falsa; Pix sem TXID fecha pela baixa manual com o endToEndId; Invoice de Demurrage com ROE manual não
+  dispara o alerta diário da PTAX e não fica sem QR; falha de cálculo recusa também o CE da ficha em
+  B/L com Cliente, a reativação e a aprovação da conciliação; o lançamento manual usa a tabela
+  vinculada e o preço fixado; corrigir uma Condição alcança só quem a usou; renomear item não
+  reprecifica; refixar o preço é só do sistema até existir o aceite; "Mover veículos" não tira chassi
+  de B/L cancelado; funções internas sem guarda saíram da API.
+- **Decisões da revisão final (2026-10-21, PR luccafwlog/vela#1019):** migration `386`
+  ([ADR 0094](adr/0094-preco-fixo-na-importacao.md), seção D). A correção que não consegue reemitir
+  (B/L misto, valor a revisar, Liberação vencida ou Portal que deixou de estar pronto) não cancela
+  mais a fatura: ela continua valendo com Fatura desatualizada; o Manifesto BB só acrescenta carga
+  solta a B/L de container faturado com a confirmação de faturamento; o Pix que chega antes de o Itaú
+  remover a cobrança de fatura sem nada aberto vira restituição pendente.
+
 - **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
   inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR
   impresso o cabeçalho (Armador, Porto, Navio / Viagem, Terminal) se repete em cada página, as
@@ -846,7 +1084,7 @@
   conferência deixa de usar o UUID do terminal como nome. Vale em produção após publicar a função
   (`supabase functions deploy send-customer-communication`).
 
-- **Uso no celular (2026-09-26):** Vela e Portal revisados em 390px com toque
+- **Uso no celular (2026-09-26):** Vela e Portal revisados em 391px com toque
   emulado. O botão Menu passou para o cabeçalho (sem a barra extra que só o
   carregava) e a lista abre com rolagem própria, rótulos alinhados e Escape; as
   abas viraram uma linha com rolagem lateral; modais viraram folha no rodapé,

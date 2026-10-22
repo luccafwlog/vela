@@ -234,6 +234,53 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(psql(`SELECT count(*) FROM public.local_pix_charge_versions WHERE txid = '${charge.txid}'`)).toBe('0')
   })
 
+  it('F-05: avulsa já baixada pela referência com o endToEndId (Plano B) vai para análise, sem segunda baixa nem restituição', () => {
+    setProvider('itau')
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
+    const id = manualInvoice('ITAU357-AV', 0.05)
+    const charge = activate(`invoice_id = ${id}`, '000201ITAU357AV')
+    psql(`SET request.jwt.claim.sub = '${userId}';
+      SELECT public.register_verified_invoice_payment(${id}, 0.05, 'pix', now(), 'Plano B', gen_random_uuid(), 'E357AVULSA')`)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('paid')
+    expect(settle('E357AVULSA', charge.txid, '0.05')).toBe('review')
+    expect(psql(`SELECT reason FROM public.itau_pix_receipts WHERE end_to_end_id = 'E357AVULSA'`)).toContain('ja baixado')
+    expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id = ${id}`)).toBe('1')
+    expect(psql(`SELECT count(*) FROM public.invoice_refunds WHERE invoice_id = ${id}`)).toBe('0')
+  })
+
+  it('F-09: falha passageira repetida vai para análise na terceira; formato inválido, na primeira', () => {
+    const failed = (e2e: string, permanent: boolean) =>
+      psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_receipt_failed('${e2e}', 'VELA358', '{}'::jsonb, 'lock simulado', ${permanent})`)
+    expect(failed('E358RETRY', false)).toBe('retry')
+    expect(failed('E358RETRY', false)).toBe('retry')
+    expect(failed('E358RETRY', false)).toBe('review')
+    expect(failed('E358RETRY', false)).toBe('review')
+    expect(failed('E358BAD', true)).toBe('review')
+    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
+      AND metadata->>'end_to_end_id' IN ('E358RETRY', 'E358BAD')`)).toBe('2')
+    psql(`SET session_replication_role = replica;
+      DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' IN ('E358RETRY', 'E358BAD');
+      DELETE FROM public.itau_pix_receipt_failures WHERE failure_key IN ('E358RETRY', 'E358BAD');
+      SET session_replication_role = origin;`)
+  })
+
+  it('F-09: checkpoint parado há mais de 15 minutos abre o Alerta; quando anda, fecha', () => {
+    const before = psql(`SELECT coalesce(itau_pix_polled_until::text, '') FROM public.app_settings WHERE id = 1`)
+    const active = () => psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'itau_pix_consulta_parada' AND status = 'active'`)
+    try {
+      setProvider('itau')
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = now() - interval '20 minutes' WHERE id = 1;
+        SELECT public.reconcile_itau_pix_checkpoint_alert()`)
+      expect(active()).toBe('1')
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = now() WHERE id = 1;
+        SELECT public.reconcile_itau_pix_checkpoint_alert()`)
+      expect(active()).toBe('0')
+    } finally {
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = ${before ? `'${before}'` : 'NULL'} WHERE id = 1`)
+      setProvider('static')
+    }
+  })
+
   it('erro passageiro do banco não manda o Pix para análise: a próxima consulta baixa', () => {
     setProvider('itau')
     psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
@@ -422,18 +469,28 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     charges: { txid: string }[]; receipts: { end_to_end_id: string }[]
   }
 
-  it('Pix em análise fecha sozinho quando a fatura fica paga por baixa manual', () => {
+  it('Pix em análise fecha sozinho só pela baixa daquele Pix; outra baixa não o fecha (F-10)', () => {
     setProvider('itau')
     psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = NULL WHERE id = 1`)
+    const other = manualInvoice('ITAU360-TED', 0.08)
+    const otherCharge = activate(`invoice_id = ${other}`, '000201ITAU360T')
+    expect(settle('E360TED', otherCharge.txid, '0.08')).toBe('review')
+    // TED distinta quita a fatura: o Pix continua em análise (restituição a decidir).
+    psql(`SET request.jwt.claim.sub = '${userId}';
+      SELECT public.register_verified_invoice_payment(${other}, 0.08, 'ted', now(), 'TED', gen_random_uuid(), 'TED-360-OUTRA')`)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${other}`)).toBe('paid')
+    expect(psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = 'E360TED'`)).toBe('review')
+
     const id = manualInvoice('ITAU153-PAGA', 0.07)
     const charge = activate(`invoice_id = ${id}`, '000201ITAU153P')
     expect(settle('E153PAGA', charge.txid, '0.07')).toBe('review') // sem usuário de baixa
     expect(reviewAlertOpen('E153PAGA')).toBe('1')
     expect(monitorOf().receipts.map((r) => r.end_to_end_id)).toContain('E153PAGA')
-    // Baixa manual de exceção pelo Administrativo.
-    psql(`SET request.jwt.claim.sub = '${userId}'; UPDATE public.invoices SET status = 'paid', balance_brl = 0 WHERE id = ${id}`)
+    // Baixa manual com o endToEndId deste Pix na referência.
+    psql(`SET request.jwt.claim.sub = '${userId}';
+      SELECT public.register_verified_invoice_payment(${id}, 0.07, 'pix', now(), 'Baixa do Pix', gen_random_uuid(), 'E153PAGA')`)
     expect(psql(`SELECT status || '|' || handled_note FROM public.itau_pix_receipts WHERE end_to_end_id = 'E153PAGA'`))
-      .toBe('handled|Fatura paga por baixa manual.')
+      .toBe('handled|Fatura paga pela baixa deste Pix.')
     expect(reviewAlertOpen('E153PAGA')).toBe('0')
     expect(monitorOf().receipts.map((r) => r.end_to_end_id)).not.toContain('E153PAGA')
   })

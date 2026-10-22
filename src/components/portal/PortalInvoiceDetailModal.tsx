@@ -8,6 +8,7 @@ import { ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { Modal } from '../ui/Modal'
 import { paymentMethodLabel } from '../billing/invoiceDetailPresentation'
 import { formatBRL, formatDate, splitIsoDateTime, stripBlPrefix } from '../../lib/utils'
+import { invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import { invoiceSituation } from '../../lib/invoiceSituation'
 import { formatPortalPaymentDate } from '../../lib/portalInvoiceStatus'
 import { invoiceTypeLabel } from '../../services/billing'
@@ -179,7 +180,7 @@ export function PortalInvoiceDetailModal({
                         {multipleBls ? <td className="whitespace-nowrap">{item.bl_id ?? <NoValue label="Sem B/L" />}</td> : null}
                         <td className="app-table__text app-table__text--wrap">{stripBlPrefix(item.description, item.bl_id)}</td>
                         <td className="tabular-nums">{String(Number(item.quantity ?? 1)).replace('.', ',')}</td>
-                        <td className="whitespace-nowrap tabular-nums">{item.unit_value_brl != null ? formatBRL(item.unit_value_brl) : <NoValue label="Sem valor unitário" />}</td>
+                        <td className="whitespace-nowrap tabular-nums">{invoiceItemUnit(item) ?? <NoValue label="Sem valor unitário" />}</td>
                         <td className="whitespace-nowrap tabular-nums">{formatBRL(item.total_value_brl)}</td>
                       </tr>
                     ))}
@@ -293,6 +294,16 @@ function PaymentSummary({ invoice, bls, multipleBls, payments, onOpenInvoice }: 
         <span className="text-xs text-[var(--app-muted)]">O pagamento e o recibo são os da consolidada.</span>
       </div>
     )
+  } else if (status === 'obsolete') {
+    // Consolidada substituída (ADR 0093, decisão 8): sem QR; a sucessora cobra o restante.
+    const replacedBy = invoice.replaced_by_invoice_number
+    amount = <>Substituída <span className="app-lead__unit">{replacedBy ? `pela ${replacedBy}` : 'por outra fatura'}</span></>
+    tone = 'muted'
+    leadAction = invoice.replaced_by_invoice_id && onOpenInvoice ? (
+      <Button className="app-btn--sm" onClick={() => onOpenInvoice(invoice.replaced_by_invoice_id!)}>
+        Abrir {replacedBy ?? 'a fatura nova'}
+      </Button>
+    ) : null
   } else if (cancelled) {
     amount = 'Cancelada'
     tone = 'muted'

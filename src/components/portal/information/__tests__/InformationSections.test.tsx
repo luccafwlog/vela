@@ -37,7 +37,7 @@ describe('Central de Informações', () => {
     expect(screen.getByRole('link', { name: 'Depósitos de devolução' }).getAttribute('href')).toBe('/portal/informacoes/devolucao?pod=BRVIX')
   })
 
-  it.each([['BRNVT', 'BRITJ'], ['BRREC', 'BRSUA'], ['SSA', 'BRSSA']])('normaliza o alias %s para %s nos atalhos', (alias, canonical) => {
+  it.each([['NVT', 'BRNVT'], ['BRNVT', 'BRNVT'], ['BRREC', 'BRREC'], ['SUA', 'BRSUA'], ['SSA', 'BRSSA']])('normaliza o alias %s para %s nos atalhos', (alias, canonical) => {
     render(<MemoryRouter><InformationLinks sections={['devolucao']} pod={alias} /></MemoryRouter>)
     expect(screen.getByRole('link', { name: 'Depósitos de devolução' }).getAttribute('href')).toBe(`/portal/informacoes/devolucao?pod=${canonical}`)
   })

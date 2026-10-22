@@ -52,6 +52,10 @@ import {
 } from '../services/blFreightImport'
 import { syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 type BridgeError = { code: string | null; message: string; details: string; hint?: string | null }
 type BridgeResult = { data: unknown; error: BridgeError | null }
 
@@ -142,6 +146,14 @@ function jsonLiteral(value: unknown): string {
 
 // --- Ponte: a mesma RPC que confirmBlFreightImport chama -----------------------
 bridge.rpc = (name, args) => {
+  if (name === 'bl_file_import_preview') {
+    // Prévia (migration 392): estado de cada B/L pela régua do servidor.
+    const preview = tryAsOperator(`
+      SELECT public.bl_file_import_preview(${sqlLiteral(args.p_voyage_id)}::bigint, ARRAY[${(args.p_bl_ids as string[]).map(sqlLiteral).join(', ') || 'NULL'}]::text[]);
+    `)
+    if (preview.error) return { data: null, error: preview.error }
+    return { data: JSON.parse(preview.output ?? '[]') as unknown, error: null }
+  }
   if (name !== 'import_bl_freight_file_atomic') throw new Error(`RPC não emulada nesta suíte: ${name}`)
   const result = tryAsOperator(`
     SELECT public.import_bl_freight_file_atomic(
@@ -234,6 +246,8 @@ class LocalQuery implements PromiseLike<BridgeResult> {
     return this
   }
   range(from: number, to: number) { this.window = `OFFSET ${from} LIMIT ${to - from + 1}`; return this }
+  // Só tipo no cliente real: o bridge devolve o próprio builder.
+  overrideTypes() { return this }
 
   maybeSingle(): Promise<BridgeResult> {
     const result = this.run()
@@ -332,7 +346,7 @@ type ImportOutcome = {
 async function importBls(
   documents: ParsedBLDocument[],
   filename: string,
-  options: { overrideBilling?: boolean; confirmCustomerChange?: boolean; confirmVehicleChanges?: boolean } = {},
+  options: { overrideBilling?: boolean; confirmCustomerChange?: boolean; refixPrices?: ReadonlySet<string> } = {},
 ): Promise<ImportOutcome> {
   const preview = await previewBlFreightImport({ documents, voyageId, onlyBlId: null })
   try {
@@ -342,7 +356,7 @@ async function importBls(
       options.overrideBilling ?? false,
       filename,
       options.confirmCustomerChange ?? false,
-      options.confirmVehicleChanges ?? false,
+      options.refixPrices ?? new Set(),
     )
     return { preview, result, error: null }
   } catch (error) {
@@ -424,7 +438,7 @@ function importContainerDates(blId: string, rows: Array<{ container: string; dis
     expected_return_date: current.get(row.container)?.return_date ?? null,
   }))
   asOperator(`
-    SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${blId}', ${jsonLiteral(payload)}, '${actorId}'::uuid);
+    RESET ROLE; SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${blId}', ${jsonLiteral(payload)}, '${actorId}'::uuid);
   `)
 }
 
@@ -666,8 +680,8 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     const row = previewRow(reimport, blId)
     expect(row.status).toBe('unchanged')
     expect(row.diffs).toEqual([])
-    // Sem impacto na prévia, a linha inalterada segue com override ligado e é enviada.
-    expect(row.payload?.override_billing).toBe(true)
+    // F-05 (migration 392): a confirmação de faturamento nunca vai ligada por padrão.
+    expect(row.payload?.override_billing).toBe(false)
     expect(reimport.error).toBeNull()
     expect(blState('A202-NOVO1')?.id).toBe('A202-NOVO1')
     identical = { before, after: containersOf(blId) }
@@ -867,6 +881,16 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     `)) as Array<{ chassis: string; model: string; container_id: number }>
   }
 
+  /** Veículo gravado como a planilha de Veículos grava (a aba VIN não grava mais). */
+  function seedVehicle(blId: string, container: string, chassis: string): void {
+    localPsql(`
+      INSERT INTO public.vehicles (voyage_id, container_id, bl_id, chassis, brand, model, weight_kg, cbm)
+      SELECT b.voyage_id, c.id, b.id, '${chassis}', 'A202 MARCA', 'A202 MODELO', 1500, 10
+      FROM public.bls b JOIN public.bl_containers c ON c.bl_id = b.id AND c.container_number = '${container}'
+      WHERE b.id = '${blId}';
+    `)
+  }
+
   function vehicleAlerts(blId: string): number {
     return Number(localPsql(`
       SELECT count(*) FROM public.alert_items AS i JOIN public.alerts AS a ON a.id = i.alert_id
@@ -874,80 +898,38 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     `))
   }
 
-  it('arquivo sem aba VIN preserva os veículos gravados', async () => {
+  // ADR 0095, decisão 26 (migration 392): a aba VIN não é fonte de veículos.
+  it('aba VIN não grava nem muda veículos; os gravados ficam e nenhum alerta abre', async () => {
     const blId = 'A202-VIN1'
     const withVin = blDocument(blId, {
       containers: ['AZCU2020061'],
       vehicles: [{ chassis: 'A202VIN0000000001', container: 'AZCU2020061' }, { chassis: 'A202VIN0000000002', container: 'AZCU2020061' }],
     })
-    expect((await importBls([withVin], 'a202-vin1.xlsx')).error).toBeNull()
+    const first = await importBls([withVin], 'a202-vin1.xlsx')
+    expect(first.error).toBeNull()
+    expect(previewRow(first, blId).warnings).toContain('Aba VIN ignorada: veículos entram só pela planilha de Veículos; os veículos já gravados no B/L ficam.')
+    expect(vehiclesOf(blId)).toEqual([])
+
+    seedVehicle(blId, 'AZCU2020061', 'A202VIN0000000009')
     const before = vehiclesOf(blId)
-    expect(before.map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000001', 'A202VIN0000000002'])
-
-    const withoutVin = await importBls([blDocument(blId, { containers: ['AZCU2020061'] })], 'a202-vin1-sem-aba.xlsx')
-    expect(withoutVin.error).toBeNull()
-    expect(previewRow(withoutVin, blId).requiresVehicleConfirmation).toBe(false)
-    expect(vehiclesOf(blId)).toEqual(before)
-  })
-
-  it('aba VIN com chassis diferentes exige confirmação e abre o alerta do B/L', async () => {
-    const blId = 'A202-VIN2'
-    const first = blDocument(blId, {
-      containers: ['AZCU2020071'],
-      vehicles: [{ chassis: 'A202VIN0000000011', container: 'AZCU2020071' }, { chassis: 'A202VIN0000000012', container: 'AZCU2020071' }],
-    })
-    expect((await importBls([first], 'a202-vin2.xlsx')).error).toBeNull()
-    const before = vehiclesOf(blId)
-    const changed = blDocument(blId, {
-      containers: ['AZCU2020071'],
-      vehicles: [
-        { chassis: 'A202VIN0000000011', container: 'AZCU2020071', model: 'A202 MODELO NOVO' },
-        { chassis: 'A202VIN0000000013', container: 'AZCU2020071' },
-      ],
-    })
-
-    // A lista de chassis é variável de faturamento: com taxas calculadas, a linha
-    // também pede a confirmação de faturamento; aqui ela vem marcada e só a dos
-    // veículos varia.
-    const unconfirmed = await importBls([changed], 'a202-vin2-sem-confirmacao.xlsx', { overrideBilling: true })
-    expect(unconfirmed.error).toBeNull()
-    expect(previewRow(unconfirmed, blId).vehicleChanges).toEqual({
-      added: ['A202VIN0000000013'], removed: ['A202VIN0000000012'], changed: ['A202VIN0000000011'],
-    })
-    expect(unconfirmed.result?.vehicleChangesPending).toEqual([blId])
+    const changed = await importBls([blDocument(blId, {
+      containers: ['AZCU2020061'],
+      vehicles: [{ chassis: 'A202VIN0000000003', container: 'AZCU2020061', model: 'A202 MODELO NOVO' }],
+    })], 'a202-vin1-outra-aba.xlsx')
+    expect(changed.error).toBeNull()
     expect(vehiclesOf(blId)).toEqual(before)
     expect(vehicleAlerts(blId)).toBe(0)
 
-    const confirmed = await importBls([changed], 'a202-vin2-confirmado.xlsx', { overrideBilling: true, confirmVehicleChanges: true })
-    expect(confirmed.error).toBeNull()
-    expect(confirmed.result?.vehicleChanges).toEqual([{
-      blNumber: blId, inserted: ['A202VIN0000000013'], updated: ['A202VIN0000000011'], removed: ['A202VIN0000000012'],
-    }])
-    expect(vehiclesOf(blId).map((vehicle) => [vehicle.chassis, vehicle.model])).toEqual([
-      ['A202VIN0000000011', 'A202 MODELO NOVO'],
-      ['A202VIN0000000013', 'A202 MODELO'],
-    ])
-    expect(vehicleAlerts(blId)).toBe(1)
+    // Mesmo pela API, o servidor descarta a aba VIN.
+    const payload = { ...buildBlFreightPayload(blDocument(blId, { containers: ['AZCU2020061'] }), voyageId), customer_id: alfa.id,
+      vehicles: [{ chassis: 'A202VIN0000000004', container_number: 'AZCU2020061', brand: 'X', model: 'Y', weight_kg: 1, cbm: 1 }],
+      confirm_vehicle_changes: true }
+    const direct = tryAsOperator(`SELECT public.import_bl_freight_file_atomic(${jsonLiteral([payload])}, '${actorId}'::uuid, NULL);`)
+    expect(direct.error).toBeNull()
+    expect(vehiclesOf(blId)).toEqual(before)
   })
 
-  // ADR 0092 (migration 335): a recusa que só o banco detecta desfaz o arquivo inteiro.
-  it('chassi que já está em outro B/L recusa o arquivo inteiro e nada é gravado', async () => {
-    const blId = 'A202-VIN3'
-    const preview = await previewBlFreightImport({
-      documents: [blDocument(blId, {
-        containers: ['AZCU2020081'],
-        vehicles: [{ chassis: 'A202VIN0000000001', container: 'AZCU2020081' }, { chassis: 'A202VIN0000000021', container: 'AZCU2020081' }],
-      })],
-      voyageId,
-      onlyBlId: null,
-    })
-    const refusal = await confirmBlFreightImport(preview, actorId, false, 'a202-vin3.xlsx').then(() => null, (error: unknown) => error)
-    expect(refusal).toBeInstanceOf(BlFreightImportRefused)
-    expect((refusal as BlFreightImportRefused).message).toMatch(/^Nada foi gravado: o banco recusou veículos da aba VIN/)
-    expect((refusal as BlFreightImportRefused).refused).toEqual([`${blId} — VIN A202VIN0000000001: Chassi ja esta no B/L A202-VIN1`])
-    expect(blState(blId)).toBeNull()
-    expect(vehiclesOf(blId)).toEqual([])
-  })
+
 
   it('container ausente do arquivo sai e é informado no resultado; o que continua mantém o id', async () => {
     const blId = 'A202-REM'
@@ -975,7 +957,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
 
     // O servidor recusa o mesmo estado mesmo sem a prévia.
     const direct = tryAsOperator(`
-      SELECT public.import_bl_freight_transactional(
+      RESET ROLE; SELECT public.import_bl_freight_transactional(
         ${jsonLiteral([{ ...buildBlFreightPayload(blDocument('A202-FCL2', { containers: ['AZCU2020101'], consignee: beta }), voyageId), customer_id: beta.id }])}, '${actorId}'::uuid
       );
     `)
@@ -1057,10 +1039,10 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     }
   }
 
-  type RawImportResult = { vehicles_discarded: Array<{ bl_id: string; chassis: string; reason: string }> }
+  type RawImportResult = Record<string, unknown>
 
   function rpcImport(bls: unknown[]): { output: RawImportResult | null; error: BridgeError | null } {
-    const result = tryAsOperator(`SELECT public.import_bl_freight_transactional(${jsonLiteral(bls)}, '${actorId}'::uuid);`)
+    const result = tryAsOperator(`RESET ROLE; SELECT public.import_bl_freight_transactional(${jsonLiteral(bls)}, '${actorId}'::uuid);`)
     return { output: result.output ? (JSON.parse(result.output) as RawImportResult) : null, error: result.error }
   }
 
@@ -1082,51 +1064,29 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(containersOf(blId).map((container) => container.container_number)).toEqual(['AZCU2020111', 'AZCU2020112'])
   })
 
-  it('A2: linha da aba VIN que aponta para container que sai é recusada sozinha, e o container sai', () => {
-    const blId = 'A202-VINR'
-    expect(rpcImport([rawBl(blId, {
-      containers: ['AZCU2020121', 'AZCU2020122'],
-      vehicles: [{ chassis: 'A202VIN0000000031', container: 'AZCU2020121' }],
-    })]).error).toBeNull()
 
-    const result = rpcImport([rawBl(blId, {
-      containers: ['AZCU2020121'],
-      removeContainers: ['AZCU2020122'],
-      confirmVehicles: true,
-      vehicles: [{ chassis: 'A202VIN0000000031', container: 'AZCU2020121' }, { chassis: 'A202VIN0000000032', container: 'AZCU2020122' }],
-    })])
-    expect(result.error).toBeNull()
-    expect(result.output?.vehicles_discarded).toEqual([{ bl_id: blId, chassis: 'A202VIN0000000032', reason: 'Container AZCU2020122 nao esta no B/L' }])
-    expect(containersOf(blId).map((container) => container.container_number)).toEqual(['AZCU2020121'])
-    expect(vehiclesOf(blId).map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000031'])
-  })
-
-  it('A2: veículo gravado no container que sai, com o arquivo trazendo a aba VIN: a recusa diz o que corrigir', () => {
+  it('veículo gravado no container que sai: a recusa manda mover os veículos (migration 392)', () => {
     const blId = 'A202-VINS'
-    expect(rpcImport([rawBl(blId, {
-      containers: ['AZCU2020131', 'AZCU2020132'],
-      vehicles: [{ chassis: 'A202VIN0000000041', container: 'AZCU2020132' }],
-    })]).error).toBeNull()
+    expect(rpcImport([rawBl(blId, { containers: ['AZCU2020131', 'AZCU2020132'] })]).error).toBeNull()
+    seedVehicle(blId, 'AZCU2020132', 'A202VIN0000000041')
 
     const result = rpcImport([rawBl(blId, {
       containers: ['AZCU2020131'],
       removeContainers: ['AZCU2020132'],
       confirmVehicles: true,
-      vehicles: [{ chassis: 'A202VIN0000000041', container: 'AZCU2020132' }],
+      vehicles: [{ chassis: 'A202VIN0000000041', container: 'AZCU2020131' }],
     })])
     expect(result.error?.code).toBe('P0006')
-    expect(result.error?.message).toContain('o veículo A202VIN0000000041 continua nele: a aba VIN não o põe em outro container do B/L')
-    expect(result.error?.message).not.toContain('Reimporte com a aba VIN')
+    expect(result.error?.message).toBe('O container AZCU2020132 do B/L A202-VINS sai pelo arquivo, mas tem o veículo A202VIN0000000041: mova ou exclua os veículos dele (planilha de Veículos ou ficha) antes de tirar o container.')
     expect(containersOf(blId).map((container) => container.container_number)).toEqual(['AZCU2020131', 'AZCU2020132'])
   })
 
-  it('A3: B/L reemitido na mesma Viagem recebe o chassi que estava no B/L cancelado, com Histórico', () => {
+  // ADR 0095, decisão 26: acaba a exceção `vela.vin_reissue` (385).
+  it('B/L reemitido na mesma Viagem não leva o chassi do B/L cancelado, nem com o marcador antigo', () => {
     const cancelled = 'A202-REEM-A'
     const reissued = 'A202-REEM-B'
-    expect(rpcImport([rawBl(cancelled, {
-      containers: ['AZCU2020141'],
-      vehicles: [{ chassis: 'A202VIN0000000051', container: 'AZCU2020141' }],
-    })]).error).toBeNull()
+    expect(rpcImport([rawBl(cancelled, { containers: ['AZCU2020141'] })]).error).toBeNull()
+    seedVehicle(cancelled, 'AZCU2020141', 'A202VIN0000000051')
     expect(JSON.parse(asOperator(`SELECT public.cancel_bl('${cancelled}', 'Armador reemitiu com outro número (A202)', false);`)))
       .toMatchObject({ cancelled: true })
 
@@ -1135,39 +1095,19 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
       vehicles: [{ chassis: 'A202VIN0000000051', container: 'AZCU2020141' }],
     })])
     expect(result.error).toBeNull()
-    expect(result.output?.vehicles_discarded).toEqual([])
-    expect(vehiclesOf(reissued).map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000051'])
-    expect(vehiclesOf(cancelled)).toEqual([])
-    expect(localPsql(`SELECT old_value || '>' || new_value FROM public.audit_logs
-      WHERE entity_type = 'bl' AND entity_id = '${reissued}' AND field_name = 'vehicle_from_cancelled_bl';`))
-      .toBe(`${cancelled}>A202VIN0000000051`)
-    expect(localPsql(`SELECT old_value || '>' || new_value FROM public.audit_logs
-      WHERE entity_type = 'bl' AND entity_id = '${cancelled}' AND field_name = 'vehicle_to_reissued_bl';`))
-      .toBe(`A202VIN0000000051>${reissued}`)
-    expect(localPsql(`SELECT count(*) FROM public.audit_logs
-      WHERE entity_type = 'vehicles' AND field_name = 'bl_id' AND old_value = '${cancelled}' AND new_value = '${reissued}';`)).toBe('1')
+    expect(vehiclesOf(reissued)).toEqual([])
+    expect(vehiclesOf(cancelled).map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000051'])
+
+    const bypass = tryAsOperator(`
+      RESET ROLE;
+      SELECT set_config('vela.vin_reissue', 'on', true);
+      UPDATE public.vehicles SET bl_id = '${reissued}', container_id = (SELECT id FROM public.bl_containers WHERE bl_id = '${reissued}' LIMIT 1)
+      WHERE bl_id = '${cancelled}';
+    `)
+    expect(bypass.error?.message).toContain('cancelado é somente leitura')
+    expect(vehiclesOf(cancelled).map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000051'])
   })
 
-  it('A3: chassi de B/L em Viagem cancelada não recusa a linha', () => {
-    localPsql(`
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${cancelledVoyageId}, ${vesselId}, 'A202C', 'active');
-      INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode) VALUES ('A202-VCANC', ${cancelledVoyageId}, 'SHANGHAI', '${pod}', 'container');
-      INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('A202-VCANC', 'AZCU2020151', '40HC');
-      INSERT INTO public.vehicles (voyage_id, container_id, bl_id, chassis, brand, model, weight_kg, cbm)
-      SELECT ${cancelledVoyageId}, id, 'A202-VCANC', 'A202VIN0000000061', 'A202 MARCA', 'A202 MODELO', 1500, 10
-      FROM public.bl_containers WHERE bl_id = 'A202-VCANC';
-      SET session_replication_role = replica;
-      UPDATE public.voyages SET status = 'cancelled' WHERE id = ${cancelledVoyageId};
-      SET session_replication_role = origin;
-    `)
-    const result = rpcImport([rawBl('A202-VNOVA', {
-      containers: ['AZCU2020152'],
-      vehicles: [{ chassis: 'A202VIN0000000061', container: 'AZCU2020152' }],
-    })])
-    expect(result.error).toBeNull()
-    expect(result.output?.vehicles_discarded).toEqual([])
-    expect(vehiclesOf('A202-VNOVA').map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000061'])
-  })
 
   it('A4: CNPJ alfanumérico de outro titular com os mesmos dígitos não leva o e-mail ao Cliente do B/L', () => {
     const blId = 'A202-ALNUM'

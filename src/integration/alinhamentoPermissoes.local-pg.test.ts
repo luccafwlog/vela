@@ -24,7 +24,8 @@ function runAs(sub: string, sql: string) {
 function migration077Applied() {
   if (!enabled) return false
   try {
-    return psql(`SELECT position('is_admin' IN prosrc) = 0 FROM pg_proc WHERE proname = 'import_baplie_staging_transactional';`) === 't'
+    // Migration 388: o Baplie entra por `import_baplie_file_atomic`.
+    return psql(`SELECT position('is_admin' IN prosrc) = 0 FROM pg_proc WHERE proname = 'import_baplie_file_atomic';`) === 't'
   } catch {
     return false
   }
@@ -43,6 +44,12 @@ const baplieRow = JSON.stringify([{
   final_dest: null, bl_ref: null, slot: '010101', is_imo: false, imo_class: null, un_number: null, is_oog: false,
   imported_by: DOCS_SUB,
 }])
+
+function importBaplie(sub: string, rows: string) {
+  // 390: com o manifesto de vazios do Baplie lido na prévia.
+  const expected = psql(`SELECT (public._baplie_staging_version(${VOYAGE_ID}) || jsonb_build_object('vazios_manifest', public._baplie_vazios_manifest_version(${VOYAGE_ID})))::text;`)
+  return runAs(sub, `SELECT public.import_baplie_file_atomic(${VOYAGE_ID}, '${rows}'::jsonb, ARRAY['BRSSA'], '${expected}'::jsonb, '{"voyage_number":"V077"}'::jsonb);`)
+}
 
 function cleanup() {
   psql(`
@@ -74,7 +81,7 @@ describeLocal('077 — Baplie importado por qualquer Departamento ativo', () => 
   afterAll(cleanup)
 
   it('Documentação importa o Baplie da viagem', () => {
-    const result = runAs(DOCS_SUB, `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, '${baplieRow}'::jsonb);`)
+    const result = importBaplie(DOCS_SUB, baplieRow)
     expect(result.stderr).toBe('')
     expect(psql(`SELECT count(*) FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe('1')
   })
@@ -83,16 +90,16 @@ describeLocal('077 — Baplie importado por qualquer Departamento ativo', () => 
     // A tela manda imported_by no corpo; com a importação aberta a todos, um
     // corpo com outro autor não pode forjar quem substituiu o Baplie.
     const forged = baplieRow.replace(DOCS_SUB, INACTIVE_SUB)
-    const result = runAs(DOCS_SUB, `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, '${forged}'::jsonb);`)
+    const result = importBaplie(DOCS_SUB, forged)
     expect(result.stderr).toBe('')
     expect(psql(`SELECT DISTINCT imported_by FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe(DOCS_SUB)
     expect(psql(`SELECT old_value || '>' || new_value || '|' || changed_by || '|' || justification FROM public.audit_logs
       WHERE entity_type = 'voyage' AND entity_id = '${VOYAGE_ID}' AND field_name = 'baplie_import' ORDER BY id DESC LIMIT 1;`))
-      .toBe(`1>1|${DOCS_SUB}|Baplie substituído`)
+      .toBe(`1>1|${DOCS_SUB}|Baplie substituído (portos BRSSA)`)
   })
 
   it('usuário inativo continua recusado', () => {
-    const result = runAs(INACTIVE_SUB, `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, '${baplieRow}'::jsonb);`)
+    const result = importBaplie(INACTIVE_SUB, baplieRow)
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('sem permissao para importar Baplie')
   })
@@ -199,7 +206,10 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
       COMMIT;
     `)
     expect(rows).toContain('bl_container return_date|TCLU0790001 2026-10-20')
-    expect(rows).not.toContain('cbm')
+    // Desde a 404 o CBM do container aparece (dado da carga); a situação de
+    // Demurrage recalculada pelo gatilho é campo técnico e fica fora.
+    expect(rows).toContain('bl_container cbm|TCLU0790001 67')
+    expect(rows).not.toContain('demurrage_status')
   })
 
   it('edição com justificativa aparece uma vez só, com o motivo', () => {

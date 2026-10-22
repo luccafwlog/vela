@@ -3,6 +3,7 @@ import { asString, chunkArray, normalizeHeader } from '../lib/utils'
 import { inferSeparatorFormat, parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
 import { IsoContainerSchema, VinSchema } from './importValidation'
 import { supabase } from './supabase'
+import { findUnpackingReplacements } from './vaziosNatureza'
 import { HIDDEN_DATA_MESSAGE, matchHeaders, missingHeaderFields, readSheet, type HeaderSpec, type SheetRow } from './importCore'
 
 // Aliases por campo. Cobrem tres formatos de origem:
@@ -475,6 +476,24 @@ export async function importVehicleRows({
     if (!next || !current || next.toUpperCase() === current.toUpperCase() || seenDivergent.has(row.container_id)) continue
     seenDivergent.add(row.container_id)
     divergences.push({ containerNumber: row.container_number, blId: row.bl_id, current, next })
+  }
+  // O local é do container físico (migration 406): o gravado em outro B/L do
+  // mesmo container também pede confirmação, como o servidor confere (408).
+  const idsByLocation = new Map<string, { next: string; ids: number[] }>()
+  for (const row of accepted) {
+    const next = row.unpacking_location?.trim()
+    if (!next || seenDivergent.has(row.container_id)) continue
+    const group = idsByLocation.get(next.toUpperCase()) ?? { next, ids: [] }
+    group.ids.push(row.container_id)
+    idsByLocation.set(next.toUpperCase(), group)
+  }
+  const divergentNumbers = new Set(divergences.map((item) => normalizeKey(item.containerNumber)))
+  for (const { next, ids } of idsByLocation.values()) {
+    for (const other of await findUnpackingReplacements(ids, next)) {
+      if (divergentNumbers.has(normalizeKey(other.containerNumber))) continue
+      divergentNumbers.add(normalizeKey(other.containerNumber))
+      divergences.push({ containerNumber: other.containerNumber, blId: other.blId, current: other.current, next })
+    }
   }
   const confirmed = divergences.length ? Boolean(await confirmUnpacking?.(divergences)) : false
 

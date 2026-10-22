@@ -94,6 +94,14 @@ const baplieRow = (container: string) => ({
   is_imo: false, imo_class: null, un_number: null, is_oog: false, ownership: null,
 })
 
+// Migration 388: o Baplie entra por `import_baplie_file_atomic`, com os PODs
+// marcados e a versão do staging lida na prévia.
+function importBaplie(rows: string) {
+  // 390: com o manifesto de vazios do Baplie lido na prévia.
+  const expected = psql(`SELECT (public._baplie_staging_version(${V_BAPLIE}) || jsonb_build_object('vazios_manifest', public._baplie_vazios_manifest_version(${V_BAPLIE})))::text;`)
+  return as(ADMIN_ID, `SELECT public.import_baplie_file_atomic(${V_BAPLIE}, '${rows}'::jsonb, ARRAY['BRVIX'], '${expected}'::jsonb, '{"voyage_number":"V341B"}'::jsonb);`)
+}
+
 describeLocal('341 — alertas acompanham a viagem e o Baplie', () => {
   beforeAll(() => {
     cleanup()
@@ -156,7 +164,7 @@ describeLocal('341 — alertas acompanham a viagem e o Baplie', () => {
     expect(status()).toBe('active')
 
     const rows = JSON.stringify([baplieRow('TEST3410001'), baplieRow('TEST3410002')])
-    const run = as(ADMIN_ID, `SELECT public.import_baplie_staging_transactional(${V_BAPLIE}, '${rows}'::jsonb);`)
+    const run = importBaplie(rows)
     expect(run.stderr).toBe('')
     expect(status()).toBe('resolved')
   })
@@ -164,8 +172,8 @@ describeLocal('341 — alertas acompanham a viagem e o Baplie', () => {
   it('Obs. 1: reimportar o Baplie substitui o anterior, uma linha por container', () => {
     const first = JSON.stringify([baplieRow('TEST3410001'), baplieRow('TEST3410002')])
     const second = JSON.stringify([{ ...baplieRow('TEST3410001'), size_type: '4510' }, baplieRow('TEST3410003')])
-    expect(as(ADMIN_ID, `SELECT public.import_baplie_staging_transactional(${V_BAPLIE}, '${first}'::jsonb);`).stderr).toBe('')
-    expect(as(ADMIN_ID, `SELECT public.import_baplie_staging_transactional(${V_BAPLIE}, '${second}'::jsonb);`).stderr).toBe('')
+    expect(importBaplie(first).stderr).toBe('')
+    expect(importBaplie(second).stderr).toBe('')
     expect(psql(`SELECT string_agg(container_number || ':' || size_type, ',' ORDER BY container_number)
       FROM public.baplie_containers WHERE voyage_id = ${V_BAPLIE};`)).toBe('TEST3410001:4510,TEST3410003:45G1')
   })

@@ -182,9 +182,12 @@ export function ChargeOverridesTab({
     const confirmOptions = {
       title: nextActive ? 'Reativar condição de Cliente' : 'Desativar condição de Cliente',
       message: `${nextActive ? 'Reativar' : 'Desativar'} a condição ${who}?`,
+      // ADR 0094, A3 (migration 378): ativar ou desativar não recalcula B/L
+      // existente; vale para os que entrarem depois e para a reimportação com
+      // o aceite de refixar.
       consequence: nextActive
-        ? 'Cálculos novos deste Cliente voltam a usar o valor negociado dentro da vigência. O banco recusa se outra condição ativa ocupar o mesmo período.'
-        : 'Cálculos novos deste Cliente passam a usar o valor da tabela; cálculos e faturas antigos continuam mostrando a condição aplicada.',
+        ? 'Vale para os B/Ls deste Cliente que entrarem depois e para a reimportação com o aceite de refixar o preço; B/Ls já gravados e faturas não mudam. O banco recusa se outra condição ativa ocupar o mesmo período.'
+        : 'Os B/Ls deste Cliente que entrarem depois voltam ao valor da tabela; B/Ls já gravados e faturas não mudam.',
       reversibility: nextActive ? 'Pode ser desativada de novo.' : 'Pode ser reativada pelo Administrativo.',
       confirmLabel: nextActive ? 'Reativar condição' : 'Desativar condição',
       tone: nextActive ? ('primary' as const) : ('danger' as const),
@@ -238,7 +241,8 @@ export function ChargeOverridesTab({
   // recriado a cada render e fecharia o menu ⋮ aberto.
   /** Na linha da tabela, só os ícones (`iconOnly`, regra 9); no cartão do celular, com texto. */
   function renderActions(row: LocalChargeOverrideItem, iconOnly = false) {
-    if (!canEdit) return null
+    // Editar Condição é correção e reemite faturas: só o Administrativo (ADR 0093, decisão 2).
+    if (!canEdit || !canDelete) return null
     const menu = rowMenu(row)
     const name = `${row.customer?.name ?? 'Cliente'} · ${row.charge_item ? itemDisplayName(row.charge_item) : 'item'}`
     return (

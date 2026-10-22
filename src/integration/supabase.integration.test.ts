@@ -50,8 +50,9 @@ describeIntegration('supabase integration - hardening gate', () => {
     await client.auth.signOut()
   })
 
-  it('import_manifest_transactional rejeita hash duplicado (23505)', async () => {
-    const hash = `it-dup-${Date.now()}`
+  // ADR 0095, decisão 3 (migration 405): o reenvio do mesmo arquivo só avisa.
+  it('import_manifest_transactional aceita o mesmo hash de novo (reenvio só avisa)', async () => {
+    const hash = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('')
 
     const first = await client.rpc('import_manifest_transactional', {
       p_filename: `${hash}.xlsx`,
@@ -82,15 +83,15 @@ describeIntegration('supabase integration - hardening gate', () => {
       p_errors: [],
     })
 
-    expect(second.data).toBeNull()
-    expect(second.error?.code).toBe('23505')
+    expect(second.error).toBeNull()
+    expect(typeof second.data).toBe('number')
   })
 
   it('import_manifest_transactional aciona rate limit (P0429)', async () => {
     let limited = false
 
     for (let index = 0; index < 8; index += 1) {
-      const hash = `it-rate-${Date.now()}-${index}-${Math.random().toString(16).slice(2, 8)}`
+      const hash = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('')
       const result = await client.rpc('import_manifest_transactional', {
         p_filename: `${hash}.xlsx`,
         p_voyage_id: env.voyageId,

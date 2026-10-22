@@ -126,6 +126,32 @@ describe('blParser', () => {
     ])
   })
 
+  // F-30: o formato era fixo (peso pt-BR, cubagem en-US). "3,800" virava 3,8 kg,
+  // "12,345.678" sumia sem aviso e "30,000" CBM virava 30 mil m³.
+  it('bloqueia peso de container com separador ambiguo, nas duas direcoes', async () => {
+    const parsed = await parseBLBuffer(coscoBuffer({
+      containerRows: ['TCLU1234567 / SEAL001 / 3,800 / COC / 1 PKG / 40HC / 28.000 KGS / 30,000 CBM'],
+    }))
+
+    expect(parsed.containers[0]).toMatchObject({ tareKg: null, grossWeightKg: null, cbm: 30 })
+    const errors = (parsed.numberIssues ?? []).filter((issue) => issue.severity === 'error')
+    expect(errors.map((issue) => issue.message)).toEqual([
+      expect.stringContaining('tara "3,800" pode ser 3.800 kg (separador de milhar) ou 3,8 kg (separador decimal)'),
+      expect.stringContaining('peso bruto "28.000" pode ser 28.000 kg (separador de milhar) ou 28 kg (separador decimal)'),
+    ])
+  })
+
+  it('le os dois separadores pelo da direita e avisa o numero descartado', async () => {
+    const parsed = await parseBLBuffer(coscoBuffer({
+      containerRows: ['TCLU1234567 / SEAL001 / 3900 / COC / 1 PKG / 40HC / 12,345.678 KGS / 1.2,3,4 CBM'],
+    }))
+
+    expect(parsed.containers[0]).toMatchObject({ tareKg: 3900, grossWeightKg: 12345.678, cbm: null })
+    expect(parsed.numberIssues).toEqual([
+      { severity: 'warning', message: 'Container TCLU1234567: cubagem "1.2,3,4" não pôde ser lido e fica vazio.' },
+    ])
+  })
+
   it('parseia multiplos containers a partir da linha A47', async () => {
     const parsed = await parseBLBuffer(coscoBuffer({
       containerRows: [

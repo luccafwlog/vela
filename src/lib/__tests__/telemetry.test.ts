@@ -330,7 +330,7 @@ describe('telemetryBeforeSend', () => {
     expect(result!.exception!.values![0].type).toBe('DatabaseError')
     // Título legível por humanos em vez do texto cru do banco.
     expect(result!.exception!.values![0].value).toBe('[Conflito de dados] 23505')
-    expect(result!.fingerprint).toEqual(['erro-banco', 'conflito', '23505', 'Este registro ja existe.'])
+    expect(result!.fingerprint).toEqual(['erro-banco', 'conflito', '23505', 'Este registro já existe.'])
     expect(result!.contexts!.database).toMatchObject({
       tipo: 'Conflito de dados',
       codigo: '23505',

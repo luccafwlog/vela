@@ -78,6 +78,13 @@ export type ClassifiedDbError = { kind: DbErrorKind; message: string }
 type ErrorTableEntry = ClassifiedDbError & {
   /** Usa `error.message` (a mensagem de negocio do RAISE) em vez do texto fixo. */
   preserveMessage?: boolean
+  /**
+   * O código também carrega textos internos (P0001 é o padrão de todo
+   * `RAISE EXCEPTION` sem ERRCODE: guardas de migration, `effect_kind`,
+   * `cargo_mode = carga_solta`). Mensagem com cara de identificador técnico
+   * cai no texto fixo.
+   */
+  screenTechnical?: boolean
 }
 
 // 22023/P0002 sao os codigos que as RPCs do Portal (supabase/migrations_archive/116_portal_fase2_notifications_disputes_profile.sql,
@@ -94,13 +101,32 @@ const ERROR_TABLE: Readonly<Record<string, ErrorTableEntry>> = {
   '42501': { kind: 'permissao', message: 'Sem permissao para esta acao. Solicite acesso administrativo.', preserveMessage: true },
   PGRST301: { kind: 'sessao_expirada', message: 'Sua sessao expirou. Entre novamente para continuar.' },
   '28000': { kind: 'sessao_expirada', message: 'Sua sessao expirou. Entre novamente para continuar.' },
-  '23505': { kind: 'conflito', message: 'Este registro ja existe.', preserveMessage: true },
+  '23505': { kind: 'conflito', message: 'Este registro já existe.', preserveMessage: true },
   '40001': { kind: 'conflito', message: 'Conflito de concorrencia. Tente novamente.' },
   // Duas gravações nos mesmos registros (ex.: duas planilhas da mesma Viagem).
   '40P01': { kind: 'conflito', message: 'Outra gravação estava usando os mesmos registros. Tente novamente.' },
   '55P03': { kind: 'conflito', message: 'Outra gravação estava usando os mesmos registros. Tente novamente.' },
   // Recusas de negócio das migrations 177 e 181 (CE em outro B/L, fatura viva,
   // Nº de Manifesto fora do formato): a mensagem do banco é a orientação.
+  // Recusas de negócio das RPCs de importação e faturamento. A mensagem do
+  // banco já nomeia o B/L, o container ou a Viagem em português; o texto fixo
+  // só aparece quando ela falta ou parece técnica.
+  // P0001: `RAISE EXCEPTION` sem ERRCODE (padrão do PL/pgSQL), usado pelas
+  // RPCs de Programação, Granito, Base de Clientes, Liberação de CE etc.
+  P0001: { kind: 'validacao', message: 'O sistema recusou a operação por uma regra de negócio.', preserveMessage: true, screenTechnical: true },
+  // P0003: trava de faturamento (B/L sem cliente ou sem CE, Portal bloqueado,
+  // Viagem com dados vinculados) — migrations 047, 051, 067, 083, 241.
+  P0003: { kind: 'validacao', message: 'Operação bloqueada por uma pendência do B/L ou da Viagem.', preserveMessage: true, screenTechnical: true },
+  // P0005: B/L do arquivo já está em outra Viagem (migration 213).
+  P0005: { kind: 'conflito', message: 'Um B/L do arquivo já está em outra Viagem. Nenhum B/L do lote foi gravado.', preserveMessage: true },
+  // P0006: container que sai pela reimportação ainda tem Invoice de
+  // Demurrage ou veículos (migrations 194, 213).
+  P0006: { kind: 'validacao', message: 'Um container que sai pelo arquivo ainda tem Invoice de Demurrage ou veículos.', preserveMessage: true },
+  // P0008: container FCL em B/Ls de Clientes diferentes (migration 176).
+  P0008: { kind: 'conflito', message: 'Um container FCL do arquivo está em B/Ls de Clientes diferentes. Corrija o Cliente ou o container do arquivo.', preserveMessage: true },
+  // 55000 (object_not_in_prerequisite_state): recusas de estado das RPCs
+  // ("Viagem cancelada", "fatura já emitida"); todas em português no banco.
+  '55000': { kind: 'validacao', message: 'A operação não é possível no estado atual do registro.', preserveMessage: true, screenTechnical: true },
   P0010: { kind: 'conflito', message: 'Este CE Mercante já está em outro B/L.', preserveMessage: true },
   P0011: { kind: 'validacao', message: 'Há fatura emitida para este B/L.', preserveMessage: true },
   P0012: { kind: 'validacao', message: 'Nº de Manifesto Mercante inválido.', preserveMessage: true },
@@ -110,7 +136,9 @@ const ERROR_TABLE: Readonly<Record<string, ErrorTableEntry>> = {
   '22023': { kind: 'validacao', message: 'Dados invalidos para esta operacao.', preserveMessage: true },
   P0002: { kind: 'nao_encontrado', message: 'Registro nao encontrado.', preserveMessage: true },
   P0429: { kind: 'limite', message: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' },
-  '57014': { kind: 'limite', message: 'A consulta demorou demais. Reduza o periodo e tente novamente.' },
+  // Texto das telas de consulta. Importação usa `importErrorMessage`, que
+  // troca a orientação (dividir o arquivo, não reduzir período).
+  '57014': { kind: 'limite', message: 'A consulta demorou demais. Reduza o período e tente novamente.' },
 }
 
 /**
@@ -148,6 +176,7 @@ export function classifyDbError(error: unknown): ClassifiedDbError {
     || /violates (?:check|not-null|foreign key|unique) constraint/i.test(fields.message)
   if (known) {
     const preserve = known.preserveMessage && fields.message && !raw
+      && !(known.screenTechnical && looksTechnical(fields.message))
     return { kind: known.kind, message: preserve ? fields.message : known.message }
   }
   if (/permission denied/i.test(fields.message)) {
@@ -155,6 +184,56 @@ export function classifyDbError(error: unknown): ClassifiedDbError {
     return { kind: permissao.kind, message: permissao.message }
   }
   return { kind: 'desconhecido', message: fields.message || 'Falha inesperada. Tente novamente.' }
+}
+
+function looksTechnical(message: string): boolean {
+  return /\b[a-z][a-z0-9]*_[a-z0-9_]+\b/.test(message) // snake_case: coluna, função, tabela
+    || /\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b/.test(message) // REVISAO_OBSOLETA
+    || /^(?:migration\b|\d{3}:)/i.test(message.trim()) // guardas de migration
+    || /\b(?:function|relation|column|does not exist|null value|syntax error|invalid input)\b/i.test(message)
+}
+
+function errorField(error: unknown, field: 'details' | 'message'): string {
+  let current: unknown = error
+  // DatabaseError guarda `details`; um Error de serviço pode trazer o erro do
+  // PostgREST em `cause`.
+  for (let depth = 0; current && typeof current === 'object' && depth < 3; depth += 1) {
+    const value = (current as Record<string, unknown>)[field]
+    if (typeof value === 'string' && value) return value
+    current = (current as { cause?: unknown }).cause
+  }
+  return ''
+}
+
+function errorCode(error: unknown): string {
+  let current: unknown = error
+  for (let depth = 0; current && typeof current === 'object' && depth < 3; depth += 1) {
+    const value = (current as { code?: unknown }).code
+    if (typeof value === 'string' && value) return value
+    current = (current as { cause?: unknown }).cause
+  }
+  return ''
+}
+
+/**
+ * Valor repetido de uma violação de unicidade, quando o Postgres o expõe em
+ * `details` ("Key (bl_number)=(ABC123) already exists."). Só o valor sai; o
+ * nome da coluna fica de fora.
+ */
+function duplicateKeyValue(error: unknown): string | null {
+  const match = /\)=\((.*)\) already exists/.exec(errorField(error, 'details'))
+  const value = match?.[1]?.trim()
+  return value ? value : null
+}
+
+/**
+ * 23505 cru (o texto do Postgres, não um RAISE de negócio) com o valor que já
+ * existe, quando o banco o informa.
+ */
+function duplicateKeyMessage(error: unknown, classified: ClassifiedDbError): string {
+  if (classified.message !== ERROR_TABLE['23505'].message) return classified.message
+  const value = duplicateKeyValue(error)
+  return value ? `Já existe um registro com o valor "${value}".` : classified.message
 }
 
 /**
@@ -167,5 +246,47 @@ export function userFacingErrorMessage(
   fallback = 'Não foi possível concluir a operação. Tente novamente.',
 ): string {
   const classified = classifyDbError(error)
-  return classified.kind === 'desconhecido' ? fallback : classified.message
+  if (classified.kind === 'desconhecido') return fallback
+  return errorCode(error) === '23505' ? duplicateKeyMessage(error, classified) : classified.message
+}
+
+// Texto próprio das importações: a gravação do arquivo inteiro é uma
+// transação, então uma trava ou um cancelamento desfaz tudo.
+const IMPORT_CONCURRENCY_MESSAGE = 'Outra importação da mesma Viagem estava em andamento. Nada foi gravado: tente de novo.'
+const IMPORT_OVERRIDES: Readonly<Record<string, string>> = {
+  '40001': IMPORT_CONCURRENCY_MESSAGE,
+  '40P01': IMPORT_CONCURRENCY_MESSAGE,
+  '55P03': IMPORT_CONCURRENCY_MESSAGE,
+  '57014': 'A importação demorou demais e foi cancelada. Nada foi gravado: tente de novo ou divida o arquivo em partes menores.',
+}
+
+/**
+ * `userFacingErrorMessage` para telas de importação de arquivo: trava e
+ * tempo esgotado ganham orientação de importação (não "reduza o período"), e
+ * a chave repetida numa tabela de preparo (`tmp_*`) aponta a linha repetida
+ * no próprio arquivo, não um registro já gravado.
+ */
+export function importErrorMessage(
+  error: unknown,
+  fallback = 'Não foi possível importar o arquivo. Tente novamente.',
+): string {
+  const code = errorCode(error)
+  const override = IMPORT_OVERRIDES[code]
+  if (override) return override
+  if (code === '23505' && /unique constraint "tmp_/.test(errorField(error, 'message'))) {
+    const value = duplicateKeyValue(error)
+    return value
+      ? `O valor "${value}" aparece mais de uma vez no arquivo. Deixe uma linha só para ele e importe de novo.`
+      : 'Há uma linha repetida no arquivo. Deixe uma linha só para cada registro e importe de novo.'
+  }
+  return userFacingErrorMessage(error, fallback)
+}
+
+/**
+ * Recusa de uma importação atômica (o arquivo inteiro numa transação): sempre
+ * diz que nada foi gravado, sem repetir quando a mensagem do banco já diz.
+ */
+export function atomicImportRefusalMessage(error: unknown): string {
+  const message = importErrorMessage(error, 'O banco recusou o arquivo.')
+  return /\bgravad[oa]\b/i.test(message) ? message : `Nada foi gravado: ${message}`
 }

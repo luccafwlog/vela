@@ -47,6 +47,8 @@ export const queryKeys = {
   charges: {
     tables: (filters?: unknown) =>
       (filters === undefined ? (['local-charge-tables'] as const) : (['local-charge-tables', filters] as const)),
+    // Debaixo de `local-charge-tables`: invalidar as tabelas relê o uso.
+    tablesInUse: (tableIds: readonly number[]) => ['local-charge-tables', 'in-use', [...tableIds].sort((a, b) => a - b)] as const,
     // Sem filtros => prefixo base, para que invalidateQueries({ operations() })
     // case com qualquer query ativa keyed por filtros (React Query v5 nao faz
     // prefix-match quando a chave passada tem `undefined` na posicao do filtro).
@@ -114,6 +116,8 @@ export const queryKeys = {
     ownByReportId: (reportId: string) => ['agency-report-own', 'report', reportId] as const,
     terminalState: (voyageId: number, port: string) => ['agency-report-terminal-state', voyageId, port] as const,
     byReportId: (reportId: string) => ['agency-report', 'report', reportId] as const,
+    /** ADR 0095, decisão 22: ADR de Saída fechado trava o Embarque de vazios; sob ['agency-report', voyageId]. */
+    vaziosExportLock: (voyageId: number, port: string) => ['agency-report', voyageId, port, 'vazios-lock'] as const,
     signoffEvents: (voyageId: number, port: string) => ['agency-report-signoff-events', voyageId, port] as const,
     departmentSignoffEvents: (voyageId: number, port: string) => ['agency-report-department-signoff-events', voyageId, port] as const,
     /** B8: sob ['agency-report', voyageId], coberta por invalidateAgencyReportForVoyage; o ATD na chave refaz a busca quando ele muda. */
@@ -139,6 +143,7 @@ export const queryKeys = {
     rateOverrides: (customerId: number) => ['customer-ficha', 'rate-overrides', customerId] as const,
     manualChargeBls: (customerId: number) => ['customer-ficha', 'manual-charge-bls', customerId] as const,
     pendingReconciliation: (customerId: number) => ['customer-ficha', 'pending-reconciliation', customerId] as const,
+    pendingBalance: (customerId: number) => ['customer-ficha', 'pending-balance', customerId] as const,
     runningDemurrage: (customerId: number) => ['customer-ficha', 'running-demurrage', customerId] as const,
     demurrageAgreements: (customerId: number) => ['customer-ficha', 'demurrage-agreements', customerId] as const,
     timeline: (customerId: number) => ['customer-ficha', 'timeline', customerId] as const,

@@ -13,7 +13,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import { useOverrideCustomers } from '../../hooks/useLocalCharges'
-import { useCustomerLookup } from '../../hooks/useCustomers'
+import { useCustomerLookup, useCustomerPendingBalance } from '../../hooks/useCustomers'
 import { useReviewCustomerGroup } from '../../hooks/useReviewCustomerGroup'
 import type { ReviewQueueItem } from '../../hooks/useReview'
 import { groupReviewItems } from '../../pages/revisaoHelpers'
@@ -72,6 +72,8 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
   const { data: options, isFetching } = useOverrideCustomers(searching ? search : '')
 
   const linked = bl.customer ?? null
+  // Saldo canônico (F-49): `customers.pending_balance` não é atualizado.
+  const linkedBalance = useCustomerPendingBalance(linked?.id)
   const manifestName = bl.manifest_customer_name?.trim() || null
   const manifestDocument = bl.manifest_customer_cnpj_cpf?.trim() || null
   const manifestDiverges = Boolean(linked && manifestDocument && linked.cnpj_cpf
@@ -168,7 +170,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       changes: [{ field: 'Cliente', before: linked?.name ?? 'Sem cliente', after: target?.name ?? 'Sem cliente' }],
       consequence: target
         ? `${extra}O B/L passa a aparecer no Portal deste cliente e entra no faturamento dele.`
-        : 'O B/L sai do Portal do cliente e não pode ser faturado até receber outro cliente.',
+        : 'O B/L sai do Portal do cliente, o valor a faturar dele é anulado e volta com o próximo cliente vinculado.',
       reversibility: 'Pode ser trocado ou desfeito nesta mesma ficha. Fica no histórico.',
       confirmLabel: target ? 'Vincular' : 'Desvincular',
       tone: target ? 'primary' : 'danger',
@@ -269,12 +271,17 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
               </LeadValue>
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <FactList columns={1}>
-                  <Fact label="Saldo em aberto do Cliente"><span className="tabular-nums">{formatBRL(linked.pending_balance ?? 0)}</span></Fact>
+                  <Fact label="Saldo pendente do Cliente"><span className="tabular-nums">{linkedBalance.data ? formatBRL(linkedBalance.data.totalBrl) : '—'}</span></Fact>
                 </FactList>
                 {!picking ? (
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setPicking(true)} disabled={saving}>Trocar</Button>
-                    <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => void link(null)} loading={saving}>Desvincular</Button>
+                    {/* ADR 0093, decisão 13: B/L faturado troca de Cliente, não desvincula. */}
+                    {['invoiced', 'partially_paid', 'paid'].includes(bl.financial_status ?? 'pending') ? (
+                      <span className="text-xs text-[var(--app-muted)]">B/L faturado: para mudar o Cliente, use Trocar.</span>
+                    ) : (
+                      <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => void link(null)} loading={saving}>Desvincular</Button>
+                    )}
                   </div>
                 ) : null}
               </div>

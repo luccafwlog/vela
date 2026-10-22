@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { afterReferenciaPortalAlterada } from '../services/cacheEffects'
+import { afterBlInvoiceBasisAlterada, afterReferenciaPortalAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import {
   quoteManualInvoiceCharge,
@@ -16,6 +16,7 @@ import {
 } from '../services/charges/chargeOperationsService'
 import {
   deleteChargeTableItem,
+  listChargeTablesInUse,
   listLocalChargeTables,
   saveChargeTable,
   saveChargeTableItem,
@@ -134,6 +135,8 @@ export function useCalculateBlLocalCharges(blId?: string) {
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
+        // F-50: o cálculo muda o "a faturar" do Cliente, a fila de faturamento e o Desbloqueio de CE.
+        afterBlInvoiceBasisAlterada(queryClient),
       ])
     },
   })
@@ -143,6 +146,15 @@ export function useLocalChargeTables(filters?: { cargoMode?: '' | 'container' | 
   return useQuery({
     queryKey: queryKeys.charges.tables(filters),
     queryFn: () => listLocalChargeTables(filters),
+  })
+}
+
+/** Tabelas já usadas, para a tela mostrar a correção de item só a quem o banco aceita. */
+export function useChargeTablesInUse(tableIds: readonly number[]) {
+  return useQuery({
+    queryKey: queryKeys.charges.tablesInUse(tableIds),
+    queryFn: () => listChargeTablesInUse(tableIds),
+    enabled: tableIds.length > 0,
   })
 }
 
@@ -183,6 +195,9 @@ export function useSetChargeTableItemActive() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
         afterReferenciaPortalAlterada(queryClient),
+        // Correção de item ou Condição reprecifica os B/Ls e reemite ou deixa
+        // desatualizadas as faturas (migration 354; ADR 0093, decisão 2).
+        afterBlInvoiceBasisAlterada(queryClient),
       ])
     },
   })
@@ -196,7 +211,7 @@ export function useSetCustomerRateOverrideActive() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrides() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines('') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines() }),
       ])
     },
   })
@@ -211,7 +226,10 @@ export function useSaveChargeTableItem() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
         afterReferenciaPortalAlterada(queryClient),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.manualChargeItems('') }),
+        // Correção de item ou Condição reprecifica os B/Ls e reemite ou deixa
+        // desatualizadas as faturas (migration 354; ADR 0093, decisão 2).
+        afterBlInvoiceBasisAlterada(queryClient),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.manualChargeItems() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrideItems() }),
       ])
     },
@@ -227,7 +245,7 @@ export function useDeleteChargeTableItem() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
         afterReferenciaPortalAlterada(queryClient),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.manualChargeItems('') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.manualChargeItems() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrideItems() }),
       ])
     },
@@ -314,7 +332,10 @@ export function useSaveCustomerRateOverride() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrides() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines('') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines() }),
+        // Correção de item ou Condição reprecifica os B/Ls e reemite ou deixa
+        // desatualizadas as faturas (migration 354; ADR 0093, decisão 2).
+        afterBlInvoiceBasisAlterada(queryClient),
       ])
     },
   })
@@ -328,7 +349,7 @@ export function useDeleteCustomerRateOverride() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrides() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines('') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines() }),
       ])
     },
   })
@@ -348,8 +369,10 @@ export function useBatchCalculateLocalCharges() {
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail('') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
+        // F-50: o cálculo muda o "a faturar" do Cliente, a fila de faturamento e o Desbloqueio de CE.
+        afterBlInvoiceBasisAlterada(queryClient),
       ])
     },
   })

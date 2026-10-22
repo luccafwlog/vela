@@ -3,6 +3,7 @@ import { assertUploadFile } from '../lib/fileGuard'
 import { classifyDbError } from '../lib/errors'
 import { asString } from '../lib/utils'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
+import { fetchAllPages } from './reports'
 import { supabase } from './supabase'
 
 const headerMap = {
@@ -128,16 +129,19 @@ export async function importContainerDates(rows: ImportableContainerDatesRow[]):
 
   const blIds = Array.from(new Set(rows.map((r) => r.bl_id)))
 
-  const { data: containers, error: fetchError } = await supabase
+  type ContainerRow = { id: number; bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; demurrage_status: string | null }
+  // Em páginas: o servidor entrega no máximo 1.000 linhas por consulta
+  // (`max_rows`), e 300 B/Ls passam disso; o resto viraria "não encontrado".
+  const { rows: containers } = await fetchAllPages<ContainerRow>((from, to) => supabase
     .from('bl_containers')
     .select('id, bl_id, container_number, discharge_date, return_date, demurrage_status')
     .in('bl_id', blIds)
+    .order('id')
+    .range(from, to)
+    .overrideTypes<ContainerRow[], { merge: false }>())
 
-  if (fetchError) throw fetchError
-
-  type ContainerRow = { id: number; bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; demurrage_status: string | null }
   const containersByKey = new Map<string, ContainerRow>()
-  for (const c of (containers as unknown as ContainerRow[]) ?? []) {
+  for (const c of containers) {
     containersByKey.set(makeKey(c.bl_id ?? '', c.container_number), c)
   }
 
@@ -237,13 +241,17 @@ export type ContainerDatesPreview = {
 export async function fetchContainerDatesCurrent(rows: ContainerDatesImportRow[]): Promise<ContainerDatesCurrent[]> {
   const blIds = Array.from(new Set(rows.map((row) => row.bl_id)))
   if (!blIds.length) return []
-  const { data, error } = await supabase
+  type Row = { id: number; bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; bl: { voyage_id: number | null } | null }
+  // Em páginas (`max_rows` = 1.000): sem isso, acima de 1.000 containers o
+  // resto aparecia como "não encontrado" e recusava o arquivo inteiro.
+  const { rows: saved } = await fetchAllPages<Row>((from, to) => supabase
     .from('bl_containers')
-    .select('bl_id, container_number, discharge_date, return_date, bl:bls(voyage_id)')
+    .select('id, bl_id, container_number, discharge_date, return_date, bl:bls(voyage_id)')
     .in('bl_id', blIds)
-  if (error) throw error
-  type Row = { bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; bl: { voyage_id: number | null } | null }
-  return ((data ?? []) as unknown as Row[]).map((row) => ({
+    .order('id')
+    .range(from, to)
+    .overrideTypes<Row[], { merge: false }>())
+  return saved.map((row) => ({
     bl_id: String(row.bl_id ?? '').toUpperCase(),
     container_number: String(row.container_number).toUpperCase(),
     voyage_id: row.bl?.voyage_id ?? null,

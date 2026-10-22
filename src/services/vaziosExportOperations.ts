@@ -98,6 +98,20 @@ export async function updateManualVaziosBooking(
   if (error) throw error;
 }
 
+/**
+ * ADR 0095, decisão 22 (migration 398): com o ADR de Saída do porto de
+ * embarque fechado, nada muda no Embarque de vazios; a tela desabilita as
+ * ações e o banco recusa do mesmo jeito.
+ */
+export async function isVaziosExportLockedByAdr(voyageId: number, port: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc(
+    "vazios_export_adr_locked" as never,
+    { p_voyage_id: voyageId, p_port: port } as never,
+  );
+  if (error) throw error;
+  return data === true;
+}
+
 /** B14 (migration 262): exclui com motivo; o banco recusa com o ADR de Saída fechado. */
 export async function deleteManualVaziosBooking(id: string, reason: string) {
   const { error } = await supabase.rpc(
@@ -248,17 +262,6 @@ export async function updateServiceLineObservation(id: string, observation: stri
   const { error } = await supabase
     .from("vazios_export_service_lines")
     .update({ observation: observation.trim() || null } as never)
-    .eq("id", id);
-  if (error) throw error;
-}
-
-export async function updateVaziosBooking(
-  id: string,
-  patch: Partial<VaziosBooking> & Record<string, unknown>,
-) {
-  const { error } = await supabase
-    .from("vazios_bookings")
-    .update(patch as never)
     .eq("id", id);
   if (error) throw error;
 }

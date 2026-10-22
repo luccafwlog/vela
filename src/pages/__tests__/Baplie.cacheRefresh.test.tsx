@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   applyFlags: vi.fn((): Promise<unknown> => Promise.resolve({
     applied: 1, applied_to: [{ container: 'AAAU0000001', bl_id: 'BL-1' }], cleared: [], divergent_manual: [], invoice_reissues: [],
   })),
-  parse: vi.fn(() => Promise.resolve({ containers: [{ container_number: 'CXRU1234567', status: 'full', pod: 'BRSSZ' }], pods: [], issues: [] })),
+  parse: vi.fn(() => Promise.resolve({ vessel_name: 'GREEN SANTOS', voyage_number: '14N', containers: [{ container_number: 'CXRU1234567', status: 'full', pod: 'BRSSZ' }], pods: [], issues: [] })),
   showToast: vi.fn(),
   confirmWithReason: vi.fn(() => Promise.resolve('Armador confirmou o B/L' as string | null)),
   resolveDivergence: vi.fn(() => Promise.resolve()),
@@ -53,7 +53,7 @@ vi.mock('../../services/baplieReconciliation', async (importOriginal) => ({
   resolveBaplieDivergence: mocks.resolveDivergence,
 }))
 vi.mock('../../services/baplieReadModel', () => ({ hasBlsForVoyage: vi.fn(() => Promise.resolve(false)), listBaplieStaging: vi.fn(() => Promise.resolve([])) }))
-vi.mock('../../services/vaziosImportacaoImport', () => ({ getBaplieManifestForVoyage: vi.fn(() => Promise.resolve(null)), importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn() }))
+vi.mock('../../services/vaziosImportacaoImport', () => ({ getBaplieManifestForVoyage: vi.fn(() => Promise.resolve(null)), importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn(), listVoyageVaziosImportacao: vi.fn(() => Promise.resolve([])), vaziosContainerKey: (value: string) => value.replace(/[^A-Za-z0-9]/g, '').toUpperCase() }))
 
 import { Baplie } from '../Baplie'
 import { hasBlsForVoyage, listBaplieStaging } from '../../services/baplieReadModel'
@@ -73,7 +73,7 @@ describe('upload na página Baplie', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Importar 1 container' }))
       await waitFor(() => expect(client.getQueryState(['baplie-staging', '24'])?.isInvalidated).toBe(true))
       expect(client.getQueryState(['voyages'])?.isInvalidated).toBe(true)
-      expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 24, actorId: 'user-1' }))
+      expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 24, pods: [] }))
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     } finally { client.clear() }
   })

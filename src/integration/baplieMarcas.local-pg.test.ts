@@ -11,6 +11,10 @@ import { spawn } from 'node:child_process'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -49,7 +53,17 @@ function stage(rows: Staged[]) {
     is_imo: row.is_imo ?? false, imo_class: row.imo_class ?? null, un_number: row.un_number ?? null,
     is_oog: row.is_oog ?? false, ownership: row.ownership ?? null,
   }))
-  expect(asAdmin(`SELECT public.import_baplie_staging_transactional(${voyageId}, $json$${JSON.stringify(payload)}$json$::jsonb);`).error).toBeNull()
+  // Migration 388: a importação aplica as marcas na mesma transação; esta
+  // suíte confere a aplicação sozinha, então grava o staging como fixture e
+  // chama `apply_baplie_physical_flags_atomic` em seguida.
+  psql(`DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
+    INSERT INTO public.baplie_containers (voyage_id, container_number, size_type, status, weight_kg, pol, pod, final_dest, bl_ref, slot,
+      is_imo, imo_class, un_number, is_oog, ownership, imported_by)
+    SELECT ${voyageId}, r.container_number, r.size_type, r.status, r.weight_kg, r.pol, r.pod, r.final_dest, r.bl_ref, r.slot,
+      r.is_imo, r.imo_class, r.un_number, r.is_oog, r.ownership, '${actorId}'::uuid
+    FROM jsonb_to_recordset($json$${JSON.stringify(payload)}$json$::jsonb) AS r(container_number text, size_type text, status text,
+      weight_kg numeric, pol text, pod text, final_dest text, bl_ref text, slot text, is_imo boolean, imo_class text, un_number text,
+      is_oog boolean, ownership text);`)
   return payload
 }
 
@@ -210,7 +224,7 @@ describeLocal('Etapa 9 — Baplie em todos os B/Ls do container, perfil manual, 
 
   it('E9-10: depois de "Vale o B/L", a reimportação do B/L ainda corrige o SOC/COC do armador', () => {
     const payload = [{ id: 'A229-O1', voyage_id: voyageId, containers: [{ container_number: 'ADCU2290004', type: '40HC', ownership: 'SOC' }] }]
-    expect(asAdmin(`SELECT public.import_bl_freight_transactional($json$${JSON.stringify(payload)}$json$::jsonb, '${actorId}'::uuid);`).error).toBeNull()
+    expect(asAdmin(`RESET ROLE; SELECT public.import_bl_freight_transactional($json$${JSON.stringify(payload)}$json$::jsonb, '${actorId}'::uuid);`).error).toBeNull()
     expect(container('A229-O1', 'ADCU2290004')).toMatchObject({ ownership: 'SOC', ownership_source: 'bl' })
   })
 
@@ -282,7 +296,7 @@ describeLocal('Etapa 9 — Baplie em todos os B/Ls do container, perfil manual, 
       id: 'A229-BL1', voyage_id: voyageId, cargo_mode: 'container',
       containers: [{ container_number: 'ADCU2290006', type: '40HC', is_imo: true, imo_class: '3', un_number: '1263' }],
     }]
-    expect(asAdmin(`SELECT public.import_bl_freight_transactional($json$${JSON.stringify(payload)}$json$::jsonb, '${actorId}'::uuid);`).error).toBeNull()
+    expect(asAdmin(`RESET ROLE; SELECT public.import_bl_freight_transactional($json$${JSON.stringify(payload)}$json$::jsonb, '${actorId}'::uuid);`).error).toBeNull()
     expect(container('A229-BL1', 'ADCU2290006')).toMatchObject({ is_imo: true, profile_source: 'bl' })
 
     // Baplie V1 confirma o IMO: a origem continua do B/L.

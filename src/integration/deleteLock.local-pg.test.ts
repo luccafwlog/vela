@@ -194,16 +194,14 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
   })
 
   it('"não escala" (marca de POD removido) segue a regra de Excluir escala (migration 090)', () => {
-    const mark = (userId: string, port: string) => as(userId, `INSERT INTO public.audit_logs
-      (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
-      VALUES ('voyage_pod_schedule', '${V_LOCKED}::${port}', 'deleted', 'false', 'true', '${userId}', 'não escala');`)
+    // A tela grava a marca pela RPC `record_audit_entries` (404; INSERT direto fechado).
+    const entry = (port: string, value: string) => `SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"${V_LOCKED}::${port}","field_name":"deleted","old_value":"false","new_value":"${value}","justification":"não escala"}]'::jsonb);`
+    const mark = (userId: string, port: string) => as(userId, entry(port, 'true'))
 
     expect(mark(OPS_ID, 'BRPNG').stderr).toMatch(/Somente o Administrativo retira escala/)
     expect(mark(ADMIN_ID, 'BRSSZ').stderr).toMatch(/Escala BRSSZ travada: B\/L com CE Mercante/)
     // A tela lê a marca normalizada; 'TRUE' não escapa da regra.
-    const upper = as(OPS_ID, `INSERT INTO public.audit_logs
-      (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
-      VALUES ('voyage_pod_schedule', '${V_LOCKED}::BRSSZ', 'deleted', 'false', ' TRUE', '${OPS_ID}', 'não escala');`)
+    const upper = as(OPS_ID, entry('BRSSZ', ' TRUE'))
     expect(upper.stderr).toMatch(/Somente o Administrativo retira escala/)
     expect(mark(ADMIN_ID, 'BRPNG').status).toBe(0)
   })

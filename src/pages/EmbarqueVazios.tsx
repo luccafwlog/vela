@@ -17,7 +17,9 @@ import { TabList } from "../components/ui/TabList";
 import { Field, Input, Select, Textarea } from "../components/ui/Input";
 import { QueryStateGate } from "../components/shared/QueryStateGate";
 import { VoyageCombobox } from "../components/shared/VoyageCombobox";
-import { ImportFilePicker } from "../components/shared/ImportParts";
+import { ImportFilePicker, ImportNotice } from "../components/shared/ImportParts";
+import { PreviousImportCheck } from "../components/shared/PreviousImportCheck";
+import { importFilesSha256 } from "../services/importFileReceipt";
 import { useAuth } from "../hooks/useAuth";
 import { useDepots } from "../hooks/useDepots";
 import { useToast } from "../components/ui/Toast";
@@ -34,8 +36,10 @@ import {
   createManualVaziosBooking,
   updateManualVaziosBooking,
   deleteManualVaziosBooking,
+  isVaziosExportLockedByAdr,
   type VaziosOperationSummary,
 } from "../services/vaziosExportOperations";
+import { queryKeys } from "../services/queryKeys";
 import {
   importVaziosManifest,
   parseVaziosManifestFile,
@@ -59,7 +63,7 @@ import {
 import type { DepotService, VaziosBooking, VaziosExportServiceLine } from "../types/database";
 import { formatBRL, formatDate, normalizeText, voyageLabel } from "../lib/utils";
 import { condicaoLabel, diasLabel, naturezaServicoLabel } from "../lib/vaziosLabels";
-import { classifyDbError } from "../lib/errors";
+import { classifyDbError, importErrorMessage } from "../lib/errors";
 import { invalidateAgencyReportForVoyage } from "../services/agencyReportInvalidation";
 
 type Tab = "unidades" | "servicos";
@@ -509,7 +513,7 @@ function EmbarquesLista({
 function EmbarqueDetalhe({
   operation: selectedOperation,
   depotRows,
-  canEdit,
+  canEdit: canEditProfile,
   tab,
   onTab,
   onBack,
@@ -541,6 +545,16 @@ function EmbarqueDetalhe({
   const [saving, setSaving] = useState(false);
 
   const ref: OperationRef = selectedOperation;
+  // ADR 0095, decisão 22: com o ADR de Saída fechado, nada muda no Embarque
+  // de vazios. O banco recusa (migration 398); a tela tira as ações.
+  const adrLock = useQuery({
+    queryKey: queryKeys.agencyReports.vaziosExportLock(ref.voyage_id, ref.embark_port),
+    queryFn: () => isVaziosExportLockedByAdr(ref.voyage_id, ref.embark_port),
+  });
+  const adrLocked = adrLock.data === true;
+  // Enquanto a trava carrega ou se a leitura falhar, as ações ficam fora:
+  // só o "não travado" explícito do banco libera a edição.
+  const canEdit = canEditProfile && adrLock.data === false;
   const units = useQuery({
     queryKey: ["embarque-vazios-units", ref.id],
     queryFn: () => listVaziosBookingsForOperation(ref.id),
@@ -595,14 +609,14 @@ function EmbarqueDetalhe({
     refreshes.push(onChanged());
     await Promise.all(refreshes);
   }
-  async function notify(action: () => Promise<void>, success: string) {
+  async function notify(action: () => Promise<void>, success: string, errorMessage = (error: unknown) => classifyDbError(error).message) {
     setSaving(true);
     try {
       await action();
       showToast(success, "success");
       return true;
     } catch (error) {
-      showToast(classifyDbError(error).message, "error");
+      showToast(errorMessage(error), "error");
       return false;
     } finally {
       setSaving(false);
@@ -640,11 +654,12 @@ function EmbarqueDetalhe({
         port: ref.embark_port,
         uploadedBy: user.id,
         manifest: parsed,
+        fileHash: await importFilesSha256([file]).catch(() => null),
       });
       setFile(null);
       await refreshOperationData();
       setImportOpen(false);
-    }, "Lista de unidades substituída.");
+    }, "Lista de unidades substituída.", (error) => importErrorMessage(error, "Não foi possível importar a lista de unidades."));
   }
   function openUnit(item?: VaziosBooking) {
     setUnit(item
@@ -893,6 +908,17 @@ function EmbarqueDetalhe({
         ]}
         actions={<Button variant="ghost" onClick={onBack}>Todos os embarques</Button>}
       />
+
+      {adrLocked ? (
+        <ImportNotice tone="warning" role="status" title="ADR de Saída fechado">
+          <p>O Embarque de vazios de {ref.embark_port} não muda com o ADR de Saída fechado: incluir, editar, excluir ou importar unidades e lançar serviços ficam travados. Reabra o ADR de Saída para mudar.</p>
+        </ImportNotice>
+      ) : adrLock.error && adrLock.data === undefined ? (
+        <ImportNotice tone="warning" role="alert" title="Não foi possível conferir o ADR de Saída">
+          <p>As ações do Embarque de vazios ficam travadas até conferir se o ADR de Saída de {ref.embark_port} está fechado.</p>
+          <Button variant="secondary" onClick={() => void adrLock.refetch()}>Tentar de novo</Button>
+        </ImportNotice>
+      ) : null}
 
       <TabList label="Embarque de vazios">
         <TabButton id="embarque-tab-unidades" controls="embarque-panel" active={tab === "unidades"} label={`Unidades embarcadas · ${unitCount.toLocaleString("pt-BR")}`} onClick={() => onTab("unidades")} />
@@ -1347,6 +1373,7 @@ function EmbarqueDetalhe({
           {/* O seletor comum mostra os avisos de leitura (linhas e abas
               ocultas, CSV Windows-1252) assim que o arquivo é escolhido. */}
           <ImportFilePicker accept=".xlsx,.xls,.csv" files={file ? [file] : []} onFiles={(files) => setFile(files[0] ?? null)} disabled={!canEdit} />
+          {file ? <PreviousImportCheck kind="vazios_exportacao" voyageId={ref.voyage_id} files={[file]} /> : null}
           <div className="app-modal__actions">
             <Button
               variant="secondary"

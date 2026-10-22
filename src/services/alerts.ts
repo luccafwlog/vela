@@ -22,9 +22,11 @@ export type ActiveAlertType =
   | 'billing_charge_table_missing'
   | 'import_effect_blocked'
   | 'import_effects_queue_stalled'
+  | 'itau_pix_consulta_parada'
   | 'demurrage_invoice_dates_changed'
   | 'cobranca_demurrage_recusada'
   | 'ce_trocado_com_desbloqueio'
+  | 'ce_fora_do_manifesto_da_rota'
   | 'bl_vehicles_changed_on_reimport'
   | 'comunicado_ce_reenvio_pendente'
   | 'demurrage_ptax_recalc_failed'
@@ -82,9 +84,11 @@ export const TYPE_LABELS: Record<string, string> = {
   billing_charge_table_missing: 'Tabela de cobrança faltando',
   import_effect_blocked: 'Efeito de importação bloqueado',
   import_effects_queue_stalled: 'Fila de efeitos de importação parada',
+  itau_pix_consulta_parada: 'Consulta de Pix do Itaú parada',
   demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
   cobranca_demurrage_recusada: 'Cobrança de Demurrage recusada',
   ce_trocado_com_desbloqueio: 'CE trocado depois do Desbloqueio conferido',
+  ce_fora_do_manifesto_da_rota: 'CE fora do Manifesto da rota',
   bl_vehicles_changed_on_reimport: 'Veículos alterados na reimportação do B/L',
   comunicado_ce_reenvio_pendente: 'Reenviar Comunicado de CE e Taxas',
   demurrage_ptax_recalc_failed: 'Falha na atualização da PTAX Demurrage',
@@ -126,6 +130,8 @@ export const TYPE_LABELS: Record<string, string> = {
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
+  itau_pix_checkpoint: 'Consulta Itaú',
+  itau_pix_receipt_failure: 'Recebimento Itaú',
   invoice: 'Fatura',
   container: 'Container',
   bl: 'B/L',
@@ -643,6 +649,30 @@ export function canResolveWithJustification(type: string | null | undefined, ent
   if (!type) return false
   if (type === 'portal_reprocessamento_falhou' && entityType === 'portal_email_event') return true
   return ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION.includes(type)
+}
+
+/**
+ * "Efeito de importação bloqueado" se resolve reprocessando o efeito, com
+ * justificativa (ADR 0095, decisão 25; `retry_import_effect`). Devolve o efeito,
+ * o B/L (ou a entidade) e o motivo gravados no alerta (migration 394).
+ */
+export function importEffectRetryTarget(alert: {
+  type: string
+  item_type?: string | null
+  entity_type: string | null
+  entity_id: string | null
+  metadata?: Record<string, unknown> | null
+}): { effectId: number; record: string | null; reason: string | null; reprocessing: boolean } | null {
+  if (getEffectiveAlertType(alert) !== 'import_effect_blocked') return null
+  if (alert.entity_type !== 'import_effect' || !/^\d+$/.test(alert.entity_id ?? '')) return null
+  const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null)
+  return {
+    effectId: Number(alert.entity_id),
+    record: text(alert.metadata?.bl_id) ?? text(alert.metadata?.entity_id),
+    reason: text(alert.metadata?.error_message) ?? text(alert.metadata?.error_code),
+    // Migration 395: depois do Reprocessar o alerta fica aberto até o efeito concluir.
+    reprocessing: alert.metadata?.reprocessing === true,
+  }
 }
 
 export async function resolveAlertItemWithJustification(itemId: number, reason: string): Promise<void> {

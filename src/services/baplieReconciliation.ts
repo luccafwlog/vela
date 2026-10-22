@@ -15,6 +15,8 @@ export type BaplieReconciliationItem =
       container_number: string
       baplie_bl_ref: string | null
       slot: string | null
+      /** Em transbordo (EQD 8249 = 6; ADR 0095, decisão 15): só presente quando verdadeiro. */
+      transshipment?: true
     }
   | {
       kind: 'missing_in_baplie'
@@ -58,6 +60,15 @@ export type BaplieReconciliationResult = {
 }
 
 import { normalizePortCode } from './portCode'
+
+/**
+ * Linha do staging em transbordo (migration 403; ADR 0095, decisão 15):
+ * aparece na conciliação, mas não leva IMO/OOG nem SOC/COC aos B/Ls.
+ * `is_transshipment` falta nos tipos gerados (database.ts protegido).
+ */
+export function isTransshipmentRow(row: object): boolean {
+  return Boolean((row as { is_transshipment?: boolean | null }).is_transshipment)
+}
 
 type RouteRow = { pol: string | null; pod: string | null }
 type BlRouteRow = RouteRow & { id: string }
@@ -175,6 +186,7 @@ export function computeExistenceDivergences(
         container_number: b.container_number,
         baplie_bl_ref: b.bl_ref,
         slot: b.slot,
+        ...(isTransshipmentRow(b) ? { transshipment: true as const } : {}),
       })
     }
   }
@@ -215,7 +227,7 @@ export function computeOwnershipDivergences(
   }
   const items: BaplieReconciliationItem[] = []
   for (const b of staged) {
-    if (b.status === 'empty' || !b.ownership) continue
+    if (b.status === 'empty' || !b.ownership || isTransshipmentRow(b)) continue
     // Todos os B/Ls ativos que dividem o container (migration 182).
     for (const mc of blByNumber.get(normalizeContainerNumber(b.container_number)) ?? []) {
       if (!mc.ownership || mc.ownership === b.ownership) continue
@@ -247,7 +259,7 @@ export function computeProfileDivergences(
 ): BaplieReconciliationItem[] {
   const desired = new Map<string, { isImo: boolean; isOog: boolean }>()
   for (const row of staged) {
-    if (row.status !== 'full') continue
+    if (row.status !== 'full' || isTransshipmentRow(row)) continue
     const key = normalizeContainerNumber(row.container_number)
     const current = desired.get(key) ?? { isImo: false, isOog: false }
     desired.set(key, { isImo: current.isImo || Boolean(row.is_imo), isOog: current.isOog || Boolean(row.is_oog) })
@@ -302,7 +314,7 @@ export function computeBapliePhysicalUpdates(
 
   const updates: BapliePhysicalUpdate[] = []
   for (const b of staged) {
-    if (b.status === 'empty') continue
+    if (b.status === 'empty' || isTransshipmentRow(b)) continue
     const matches = blByNumber.get(normalizeContainerNumber(b.container_number))
     if (!matches || matches.length !== 1) continue
     const mc = matches[0]
@@ -365,7 +377,7 @@ export function computePendingBapliePhysicalFlags(
   const desired = new Map<string, { isImo: boolean; imoClass: string | null; unNumber: string | null; isOog: boolean; ownership: string | null }>()
   for (const row of staged) {
     const key = textKey(row.container_number)
-    if (row.status !== 'full' || !/^[A-Z]{4}[0-9]{7}$/.test(key)) continue
+    if (row.status !== 'full' || isTransshipmentRow(row) || !/^[A-Z]{4}[0-9]{7}$/.test(key)) continue
     const current = desired.get(key) ?? { isImo: false, imoClass: null, unNumber: null, isOog: false, ownership: null }
     desired.set(key, {
       isImo: current.isImo || Boolean(row.is_imo),
@@ -662,6 +674,11 @@ export async function applyBapliePhysicalFlagsDetailed(voyageId: number, actorId
     p_changed_by: actorId,
   })
   if (error) throw error
+  return toBaplieFlagsApplyResult(data)
+}
+
+/** Retorno de `apply_baplie_physical_flags_atomic`, também devolvido pela importação do Baplie (migration 388). */
+export function toBaplieFlagsApplyResult(data: unknown): BaplieFlagsApplyResult {
   const result = (data ?? {}) as Partial<BaplieFlagsApplyResult>
   return {
     applied: Number.isFinite(Number(result.applied)) ? Number(result.applied) : 0,

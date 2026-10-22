@@ -11,8 +11,8 @@ const customerId = 99122601
 const carrierId = 99122602
 const vesselId = 99122603
 const voyageId = 99122604
-const blIds = ['S08-MONEY-BL-1', 'S08-MONEY-BL-2', 'S08-MONEY-BL-3', 'S08-MONEY-BL-4', 'S08-MONEY-BL-5']
-const invoiceIds = [99122605, 99122606, 99122607, 99122608, 99122609]
+const blIds = ['S08-MONEY-BL-1', 'S08-MONEY-BL-2', 'S08-MONEY-BL-3', 'S08-MONEY-BL-4', 'S08-MONEY-BL-5', 'S08-MONEY-BL-6']
+const invoiceIds = [99122605, 99122606, 99122607, 99122608, 99122609, 99122612]
 const paymentRequestId = '00000000-0000-0000-0000-000000012699'
 const customerCnpj = syntheticCnpj(82260)
 
@@ -159,6 +159,25 @@ describeLocal('S08-A — invariantes monetarios de Demurrage', () => {
     `)) as { status: string; total_brl: number }
     expect(accepted).toMatchObject({ status: 'paid' })
     expect(Number(accepted.total_brl)).toBe(530)
+  })
+
+  // F-07 (migration 357): revogado o desconto, o valor com desconto deixa de
+  // quitar; a janela começa na última mudança de desconto.
+  it('desconto revogado: o valor com desconto não quita mais a Invoice; o cheio quita', () => {
+    localPsql(`INSERT INTO public.demurrage_invoices
+        (id, doc_number, bl_id, customer_id, total_usd, current_roe, current_total_brl, roe_source, status)
+      VALUES (${invoiceIds[5]}, 'S08-DEM-6', '${blIds[5]}', ${customerId}, 100, 5.5, 550, 'manual', 'issued');
+      INSERT INTO public.demurrage_invoice_history (invoice_id, event_date, ptax_used, roe_used, total_usd, total_brl, discount_usd, source)
+      VALUES (${invoiceIds[5]}, (now() AT TIME ZONE 'America/Sao_Paulo')::date - 1, 5.1643, 5.5, 100, 550, 0, 'bcb_live');`)
+    localPsql(`SELECT public.apply_demurrage_discount(gen_random_uuid(), ${invoiceIds[5]}, 'percent', 50, 'comercial', 'desconto do teste', 'S08')`)
+    localPsql(`SELECT public.apply_demurrage_discount(gen_random_uuid(), ${invoiceIds[5]}, NULL, NULL, NULL, 'revogação do desconto', 'S08')`)
+    expect(localPsql(`SELECT current_total_brl FROM public.demurrage_invoices WHERE id = ${invoiceIds[5]}`)).toBe('550.00')
+    expectSqlFailure(`SELECT public.register_demurrage_payment(gen_random_uuid(), ${invoiceIds[5]},
+      (now() AT TIME ZONE 'America/Sao_Paulo')::date, 'S08-TXID-DESC', 275, NULL)`)
+    expect(localPsql(`SELECT status FROM public.demurrage_invoices WHERE id = ${invoiceIds[5]}`)).toBe('issued')
+    const paid = JSON.parse(localPsql(`SELECT public.register_demurrage_payment(gen_random_uuid(), ${invoiceIds[5]},
+      (now() AT TIME ZONE 'America/Sao_Paulo')::date, 'S08-TXID-CHEIO', 550, NULL)`)) as { status: string }
+    expect(paid.status).toBe('paid')
   })
 
   // #658 F9: sem foto persistida a PTAX e desconhecida. O historico registra

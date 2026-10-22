@@ -744,6 +744,8 @@ export type ManualInvoiceQuote = {
   currency: string
   quantity: number
   unit_value_brl: number
+  /** Unitário em US$ da linha em dólar: a fatura mostra só ele (ADR 0094, B13). */
+  effective_unit_value_usd?: number | null
   total_brl: number
   roe: number | null
 }

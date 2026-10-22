@@ -4,10 +4,13 @@ import { resolve } from 'node:path'
 import { importVehicleRows, parseVehicleImportBuffer, type VehicleImportRow } from '../vehicleImport'
 import { jsonToBuffer, sheetsToBuffer } from './testWorkbook'
 
-const { mockFrom, mockRpc } = vi.hoisted(() => ({
+const { mockFrom, mockRpc, mockReplacements } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
+  mockReplacements: vi.fn(),
 }))
+
+vi.mock('../vaziosNatureza', () => ({ findUnpackingReplacements: mockReplacements }))
 
 vi.mock('../supabase', () => ({
   supabase: {
@@ -20,6 +23,8 @@ describe('vehicleImport', () => {
   beforeEach(() => {
     mockFrom.mockReset()
     mockRpc.mockReset()
+    mockReplacements.mockReset()
+    mockReplacements.mockResolvedValue([])
     mockRpc.mockResolvedValue({ data: { status: 'exempt', exempt: true }, error: null })
   })
 
@@ -59,12 +64,14 @@ describe('vehicleImport', () => {
     expect(parsed.rows[0]?.unpacking_location).toBe('Terminal Rio')
   })
 
-	it('mapeia o modelo do armador (COSCO Daily Report) escolhendo a aba de veiculos', async () => {
+	it('mapeia o modelo do armador (COSCO Daily Report) na aba de veiculos; com o resumo junto, recusa', async () => {
     // 1a aba: resumo (pivot) sem colunas de veiculo. 2a aba: dados reais.
-    const buffer = sheetsToBuffer([
+    // Uma aba só com dados (B19 / F-37): o resumo junto recusa o arquivo; com a
+    // 1a aba vazia, a procura chega à aba dos veículos.
+    const withSummary = (summary: Array<Record<string, string | number>>) => sheetsToBuffer([
       {
         name: 'Planilha1',
-        rows: [{ Brand: 'BYD', 'QTY VIN': 2136 }],
+        rows: summary,
       },
       {
         name: 'Sheet1',
@@ -87,7 +94,10 @@ describe('vehicleImport', () => {
       },
     ])
 
-    const parsed = await parseVehicleImportBuffer(buffer)
+    await expect(parseVehicleImportBuffer(withSummary([{ Brand: 'BYD', 'QTY VIN': 2136 }]))).rejects.toThrow(
+      'O arquivo tem mais de uma aba com dados ("Planilha1", "Sheet1"): deixe os dados numa aba só e importe de novo.',
+    )
+    const parsed = await parseVehicleImportBuffer(withSummary([]))
 
     expect(parsed.rowErrors).toHaveLength(0)
     expect(parsed.rows).toHaveLength(1)
@@ -521,6 +531,27 @@ describe('vehicleImport', () => {
     expect(inserted).toEqual([expect.objectContaining({ chassis: 'V1', unpacking_location: 'CFS', unpacking_confirmed: false })])
   })
 
+  it('local de desova: o gravado em outro B/L do mesmo container também pede confirmação (migration 408)', async () => {
+    const inserted = regraMocks({
+      containers: [
+        { id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } },
+      ],
+    })
+    mockReplacements.mockResolvedValue([{ containerNumber: 'CAXU0000001', blId: 'BL009', current: 'TVV' }])
+    const confirmUnpacking = vi.fn().mockResolvedValue(true)
+    const result = await importVehicleRows({
+      voyageId: 7,
+      confirmUnpacking,
+      rows: [
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1', unpacking_location: 'CFS' },
+      ],
+    })
+    expect(mockReplacements).toHaveBeenCalledWith([1], 'CFS')
+    expect(confirmUnpacking).toHaveBeenCalledWith([{ containerNumber: 'CAXU0000001', blId: 'BL009', current: 'TVV', next: 'CFS' }])
+    expect(result.successCount).toBe(1)
+    expect(inserted).toEqual([expect.objectContaining({ unpacking_location: 'CFS', unpacking_confirmed: true })])
+  })
+
   it('B/L cancelado recusa a planilha antes de gravar, sem mandar o lote ao servidor', async () => {
     const inserted = regraMocks({
       bls: ['BL001', 'BL002'],
@@ -827,19 +858,19 @@ describe('vehicleImport — procura da aba de veículos', () => {
     return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
   }
 
-  it('aba anterior com duas colunas para um campo (e sem os demais) não aborta: lê a aba dos veículos', async () => {
+  // B19 / F-37: uma aba só com dados também nos Veículos; a procura continua
+  // pulando a aba vazia e a aba com dado só em linhas ocultas.
+  it('aba anterior com dados (mesmo sem os campos) recusa o arquivo nomeando as abas', async () => {
     const buffer = await book([
       { name: 'Resumo', rows: [['Tipo', 'Tipo do container'], ['40FM', '40FM']] },
       { name: 'Veiculos', rows: [HEADER, VEHICLE] },
     ])
-    const parsed = await parseVehicleImportBuffer(buffer)
-    expect(parsed.rowErrors).toEqual([])
-    expect(parsed.rows.map((row) => row.chassis)).toEqual(['9BWZZZ377VT004251'])
+    await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow('O arquivo tem mais de uma aba com dados ("Resumo", "Veiculos"): deixe os dados numa aba só e importe de novo.')
   })
 
   it('aba anterior com os dados só em linhas ocultas é pulada', async () => {
     const buffer = await book([
-      { name: 'Rascunho', rows: [['Notas'], ['oculta 1'], ['oculta 2']], hiddenRows: [1, 2] },
+      { name: 'Rascunho', rows: [['Notas'], ['oculta 1'], ['oculta 2']], hiddenRows: [0, 1, 2] },
       { name: 'Veiculos', rows: [HEADER, VEHICLE] },
     ])
     const parsed = await parseVehicleImportBuffer(buffer)
@@ -862,8 +893,8 @@ describe('vehicleImport — procura da aba de veículos', () => {
 
   it('sem aba qualificada: aba sem os campos e outra com dados ocultos dizem as duas coisas', async () => {
     const buffer = await book([
+      { name: 'Veiculos', rows: [HEADER, VEHICLE], hiddenRows: [0, 1] },
       { name: 'Resumo', rows: [['Brand', 'QTY'], ['BYD', '2']] },
-      { name: 'Veiculos', rows: [HEADER, VEHICLE], hiddenRows: [1] },
     ])
     await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow(/Colunas obrigatórias: .*Há também dados em linhas ou abas ocultas/)
   })

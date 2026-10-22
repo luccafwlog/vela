@@ -8,7 +8,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import { useBaplieVoyageContext } from '../../hooks/useBaplieVoyageContext'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
-import { userFacingErrorMessage } from '../../lib/errors'
+import { importErrorMessage } from '../../lib/errors'
 import { afterBaplieImportado } from '../../services/cacheEffects'
 import { parseBaplieFile } from '../../services/baplieParser'
 import {
@@ -119,6 +119,18 @@ export function BaplieImportModal({
   // Sem a Viagem conferida (carregando ou com falha), as regras acima não
   // rodaram: importar fica bloqueado.
   const contextBlock = voyageId ? baplieVoyageContextBlock(voyageContext) : null
+  // Containers fora das escalas ou com POD não reconhecido: aviso, não
+  // bloqueio, mas à vista na prévia com quantidade e lista.
+  const podsOutside = ruled?.podsOutside ?? []
+  // ADR 0095, decisão 15: transbordo entra marcado.
+  const transshipments = filteredContainers.filter((c) => c.transshipment).length
+  const outsideByPod = Array.from(podsOutside.reduce((map, item) => {
+    map.set(item.pod, [...(map.get(item.pod) ?? []), item.container_number])
+    return map
+  }, new Map<string, string[]>())).sort(([a], [b]) => a.localeCompare(b))
+  // Sem navio no arquivo (TDT ausente), só o operador confere a Viagem: a
+  // prévia avisa, sem bloquear. O número de viagem não é conferido (ADR 0096).
+  const fileLacksVessel = Boolean(parsed && !parsed.vessel_name)
   const canImport = Boolean(parsed && voyageId && actorId && !contextBlock && canImportPreview(filteredContainers.length > 0, issues))
 
   async function handleImport() {
@@ -129,7 +141,10 @@ export function BaplieImportModal({
       const result = await reimportBaplie({
         voyageId: Number(voyageId),
         containers: filteredContainers,
-        actorId,
+        // Só os portos marcados são substituídos; os outros da Viagem ficam (migration 388).
+        pods: pods.filter((pod) => !excludedPods.has(pod)),
+        // Informativo: o servidor não confere o número de viagem (migration 409).
+        file: { voyageNumber: parsed?.voyage_number ?? null },
         confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
       })
       if (result.status === 'cancelled') return
@@ -143,7 +158,7 @@ export function BaplieImportModal({
       onClose()
     } catch (err) {
       await afterBaplieImportado(queryClient, { voyageId })
-      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar o Baplie EDI.'))
+      setImportError(err instanceof Error ? err.message : importErrorMessage(err, 'Falha ao importar o Baplie EDI.'))
     } finally {
       setImporting(false)
     }
@@ -179,7 +194,7 @@ export function BaplieImportModal({
           <ImportGuide
             requiredLabel="Formato"
             required="Baplie EDIFACT do plano de estiva da viagem."
-            details={<p>Reimportar substitui o Baplie inteiro da viagem. Com diferença, a lista do que entra, sai ou muda aparece antes de confirmar; sem diferença, o arquivo é aceito direto e os vazios ficam como estão.</p>}
+            details={<p>Reimportar substitui só os portos marcados; os demais portos da viagem ficam como estão. Com diferença, a lista do que entra, sai ou muda aparece antes de confirmar; sem diferença, o arquivo é aceito direto e os vazios ficam como estão.</p>}
           />
           <ImportFilePicker accept=".edi,.txt,.edi2,.bpl" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing || Boolean(partial)} />
         </ImportFileBlock>
@@ -209,6 +224,8 @@ export function BaplieImportModal({
                   { label: 'IMO', value: filteredContainers.filter((c) => c.is_imo).length },
                   { label: 'OOG', value: filteredContainers.filter((c) => c.is_oog).length },
                   { label: includedPods === 1 ? 'porto de descarga' : 'portos de descarga', value: includedPods },
+                  ...(podsOutside.length ? [{ label: 'fora das escalas', value: podsOutside.length, tone: 'warning' as const }] : []),
+                  ...(transshipments ? [{ label: 'em transbordo', value: transshipments }] : []),
                 ]}
               />
             }
@@ -223,6 +240,27 @@ export function BaplieImportModal({
             <ImportContext label="Navio/viagem no arquivo">
               {parsed.vessel_name || parsed.voyage_number ? `${parsed.vessel_name ?? '—'} / ${parsed.voyage_number ?? '—'}` : 'Não informados'}
             </ImportContext>
+            {fileLacksVessel ? (
+              <ImportNotice tone="warning" role="status" title="O arquivo não diz o navio">
+                <p>Este Baplie não traz o navio (segmento TDT), então o sistema não confere se ele é da viagem escolhida. Confira antes de importar.</p>
+              </ImportNotice>
+            ) : null}
+            {podsOutside.length > 0 ? (
+              <ImportNotice
+                tone="warning"
+                role="status"
+                title={plural(podsOutside.length, 'container fora das escalas da viagem não será importado', 'containers fora das escalas da viagem não serão importados')}
+              >
+                <p>O porto de descarga deles não é uma escala desta viagem ou não foi reconhecido. Confira com o armador se algum deveria descarregar aqui.</p>
+                <ul>
+                  {outsideByPod.map(([pod, numbers]) => (
+                    <li key={pod}>
+                      <strong>{pod}</strong>{` (${numbers.length}): ${numbers.join(', ')}`}
+                    </li>
+                  ))}
+                </ul>
+              </ImportNotice>
+            ) : null}
             {pods.length > 0 ? (
               <fieldset className="app-import-pods">
                 <legend>Portos de descarga a importar (desmarque os que não são desta operação)</legend>

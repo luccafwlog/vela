@@ -77,8 +77,8 @@ para a decisão completa.
   não é falha — o CE calcula e **retém** a fatura (`billing_hold_reason =
   'Acesso ao portal nao provisionado'`, resultado `held`), sem acionar a fila;
   conceder a Liberação ou ativar o Portal reprocessa o Cliente e emite as
-  retidas pelo mesmo caminho, com o cálculo feito no registro do CE, sem
-  recalcular pela tabela vigente (o USD converte pelo ROE do dia da emissão;
+  retidas pelo mesmo caminho, com o preço e o câmbio fixados na importação e
+  a base atual ([Taxas Locais](taxas-locais.md#preço-fixo-na-importação-e-base-atual-adr-0094-a1-a-a4);
   ver [Taxa local em dólar](#taxa-local-em-dólar)). Quando o CE
   é gravado fora da planilha, `trg_auto_bill_bl_after_ce_mercante` calcula e
   emite na mesma transação; pela planilha, desde a migration `181`, o gatilho só
@@ -451,7 +451,7 @@ para achar o peso de carga solta do quadro do alto. **Código:**
 | Detalhe · registrar pagamento ledger | `canRegisterInvoicePayment`: fatura não avulsa com status `issued`/`partially_paid`/`overdue` e saldo positivo; fora disso o card mostra que a fatura não aceita pagamento | `InvoiceDetailModal.handleRegisterPayment` | `useRegisterLedgerInvoicePayment` → `registerLedgerInvoicePayment` | RPC `register_verified_invoice_payment` → `register_ledger_invoice_payment` → `payments`, `ledger_settlements`, receivables, invoice, B/Ls, eventos e possível refund | Invalidação ledger comum | Valor/data validados; RPC rejeita estado, ausência de links, TXID duplicado e regras de valor | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/services/__tests__/billingLedger.test.ts` |
 | Detalhe · registrar pagamento de avulsa | `canRegisterInvoicePayment`: fatura avulsa com status `issued`/`overdue`/`partially_paid`/`paid` (excedente vira restituição); cancelada ou rascunho não mostra o formulário (VELA-15) | Mesmo handler, ramo `else` | `useRegisterInvoicePayment` → `registerInvoicePayment` | RPC `register_verified_invoice_payment` (ramo `manual`) → `payments`, agregados de `invoices`, restituição do excedente | Invalida invoices, detalhe, B/Ls e clientes | Bloqueia valor não positivo, referência bancária ausente e avulsa fora dos status aceitos (22023) | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/hooks/useBilling.ts`, `supabase/migrations/136_controles_financeiros.sql` · **Teste:** `src/pages/__tests__/faturamentoLedgerPayment.test.ts`, `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
 | Taxas Locais · Reemissão pendente · Tentar reemitir | Consolidada cancelada pela correção do B/L; qualquer Departamento (migration `246`) | `PendingReissuesPanel` | `useRetryPendingConsolidatedReissue` → `retryPendingConsolidatedReissue` | RPC `retry_pending_consolidated_reissue` → `_try_recreate_consolidated` (128): recria com os mesmos B/Ls, encerra se já não são os mesmos ou aguarda a individual | Invalida invoices (inclui Reemissão pendente), detalhe, ledger e clientes | Trava (Portal não pronto) mantém a pendência com o motivo no alerta | **Teste:** `invoiceBasisCorrection.local-pg.test.ts` |
-| Detalhe · Resolver com justificativa | Fatura desatualizada tratada; qualquer Departamento (migration `246`); motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo vazio e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts` |
+| Detalhe · Resolver com justificativa | Fatura desatualizada tratada; qualquer Departamento (migration `246`); motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo com menos de 15 caracteres (migration `376`) e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts`, `lote4NumeroAvulsaEstornoItau.local-pg.test.ts` |
 | Detalhe · cancelar invoice | Admin; invoice sem pagamentos | `handleCancelInvoice` | `useCancelInvoice` → `cancelInvoice` | RPC protegida `cancel_invoice` (executa como `SECURITY DEFINER` após validar sessão ativa e papel admin) → invoice, batch, B/Ls e auditoria; implementação mais recente também preserva regras de Granito | Invalida invoices, detalhe, billing-ready, B/Ls e clientes | Pagamentos bloqueiam cancelamento; tabelas internas não são expostas diretamente; falha cria alerta/evento best-effort | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts`, `supabase/migrations_archive/064_fix_granite_invoice_cancel_reissue.sql`, `supabase/migrations_archive/142_secure_cancel_invoice_wrapper.sql` |
 | Detalhe · confirmar devolução | Refund pendente; Financeiro/Administrativo; comprovante, favorecido e data | `handleSettleRefund` com conferência | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `confirm_invoice_refund` (136), com evidência/auditoria | Invalidação financeira comum, inclusive Portal e Demurrage | Sem permissão, evidência ou lastro é rejeitado; repetição idêntica é idempotente | **Código:** `src/services/billingLedger.ts` · **Teste local:** `invoicePostBillingSafety.local-pg.test.ts` · **Migration 136:** [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md) |
 | Detalhe da avulsa ou de Demurrage · **Restituição excepcional** (autorizar) | Qualquer Departamento (migration `247`); avulsa paga ou parcialmente paga, ou Invoice de Demurrage paga; valor positivo até o recebido ainda não reservado (em Cancelamento com devolução integral, exatamente esse valor); finalidade (Devolução por ajuste ou Cancelamento com devolução integral) e justificativa de ao menos 10 caracteres | `FinancialRefundsPanel` (variante de autorização no detalhe da avulsa; completa no detalhe de Demurrage) | `requestFinancialRefund` (`src/services/financialRefunds.ts`), com chave de tentativa | RPC `request_financial_refund` (`136`) → `invoice_refunds` ou `demurrage_refunds` pendente com finalidade e `request_id` | Invalida restituições e dados financeiros relacionados | Usuário inativo ou do Portal recebe `42501`; valor acima do disponível ou justificativa curta, `22023`. A autorização não transfere dinheiro: a devolução é registrada pelo Financeiro ou pelo Administrativo | **Código:** `src/components/billing/FinancialRefundsPanel.tsx`, `supabase/migrations/136_controles_financeiros.sql` |
@@ -492,14 +492,14 @@ menores e específicas descritas no catálogo.
 | `bl_receivables` | `original_amount_brl`, `settled_amount_brl`, `balance_brl` e estado por B/L de taxas locais | Não é o documento apresentado ao cliente |
 | `ledger_settlements` | Alocação de um pagamento a um receivable, método, origem e TXID | Não substitui o evento de pagamento em `payments` |
 | `payments` | Evento de pagamento por invoice, valor, método, data, ator e observação | No ledger, não informa sozinho como o valor foi distribuído entre B/Ls |
-| `invoice_refunds` | Dinheiro a devolver ao Cliente: excedente de pagamento, crédito de COD, restituição da correção do B/L (`origin = 'correction'`, `correction_receivable_id`) e restituição excepcional (`request_id`, finalidade `correction`/`cancel`); estado `pending`/`settled`/`cancelled`, com comprovante (`bank_reference`), favorecido e quem confirmou | Não reabre saldo nem substitui o cancelamento da baixa |
-| `invoice_lifecycle_events` | Eventos `issued`, `paid`, `partially_paid`, `covered`, `obsolete`, `cancelled`, `reconciled_by_txid` e `backfilled` | Não é a fonte de saldo nem o log genérico de todas as alterações |
+| `invoice_refunds` | Dinheiro a devolver ao Cliente: excedente de pagamento, crédito de COD, restituição da correção do B/L (`origin = 'correction'`, `correction_receivable_id`) e restituição excepcional (`request_id`, finalidade `correction`/`cancel`) e Pix em duplicidade (`origin = 'pix_duplicate'`, `itau_end_to_end_id`, `375`); estado `pending`/`settled`/`cancelled`, com comprovante (`bank_reference`), favorecido e quem confirmou | Não reabre saldo nem substitui o cancelamento da baixa |
+| `invoice_lifecycle_events` | Eventos `issued`, `paid`, `partially_paid`, `covered`, `obsolete`, `cancelled`, `reconciled_by_txid` e `backfilled`; a avulsa registra `paid`, `partially_paid` e `cancelled` desde a `376` | Não é a fonte de saldo nem o log genérico de todas as alterações |
 
 ### Fronteiras atômicas
 
 | RPC | Transição atômica | Chamador atual |
 |---|---|---|
-| `create_invoice_from_bls_with_ledger` | `create_invoice_from_bls_core` + `link_invoice_to_ledger` | `createInvoiceFromBls` em `src/services/billing.ts` |
+| `create_invoice_from_bls_with_ledger` | `mark_bl_ready_for_billing` + `create_invoice_from_bls_core` + `link_invoice_to_ledger` (`366`) | Nenhuma tela: `createInvoiceFromBls` em `src/services/billing.ts` ficou sem chamador |
 | `mark_bl_ready_and_create_invoice` | trava B/L, promove para pronto e cria invoice ledger | `BlCobrancasTab` e `reviewBillingAutomation` |
 | `create_local_consolidated_invoice` | trava receivables, cria invoice, links, evento e auditoria | `createConsolidatedInvoice` |
 | `create_manual_invoice` | valida Cliente e contexto opcional, calcula total e cria invoice/item em transação | `createManualInvoice` em `src/services/billing.ts` |
@@ -544,18 +544,40 @@ Desde a migration `183`, a emissão (status diferente de rascunho) grava em
 endereço do Cliente, a Viagem, o navio e, por B/L, POL, POD, Viagem e navio. O
 detalhe (`list_invoice_details`) e o Portal (`_portal_invoice_details_core`)
 sobrepõem essa cópia aos dados vivos, e a impressão mostra o endereço
-congelado. Corrigir o Cliente ou o B/L depois não reescreve uma fatura já
+congelado. A lista de faturas do Portal também lê navio, Viagem e POD dessa
+cópia (migration `376`). Corrigir o Cliente ou o B/L depois não reescreve uma fatura já
 emitida; mudanças de valor seguem a ADR 0077.
+
+### Número da fatura
+
+`assign_invoice_number` numera `INV-<ano>-<sequência>` por `invoice_counters`.
+O ano segue o horário de Brasília (ADR 0093, decisão 21; migration `376`): a
+fatura emitida às 22h de 31/12 leva o ano que termina. A sequência tem quatro
+dígitos com zeros à esquerda e, a partir de 10.000 no ano, usa todos os
+dígitos, sem truncar (ADR 0094, B12). O contador fica travado até o fim da transação: emissões
+simultâneas podem colidir em deadlock (`40P01`); a emissão pela ficha e pela
+Validação tenta de novo uma vez (`src/services/billing.ts`) e a fila de
+efeitos trata o código como erro passageiro.
 
 ### Taxa local em dólar
 
 Item de Taxa cadastrado em USD (como a Booking Cancelation Fee) é convertido em
-BRL **na emissão da fatura** (individual ou consolidada), pelo ROE vigente em
-`exchange_rate_reference` naquele momento, e o valor convertido fica congelado
-com o resto da fatura: o `snapshot_payload` do item guarda `roe` e
+BRL **pelo câmbio fixado no primeiro cálculo do B/L** (ADR 0094, A1; migration
+`378`): a emissão (individual ou consolidada), o recebível, a correção e o COD
+usam o ROE de `bl_price_freezes`; só o B/L sem câmbio fixado usa o de
+`exchange_rate_reference` no momento. O valor convertido fica congelado com o
+resto da fatura: o `snapshot_payload` do item guarda `roe` e
 `roe_effective_date`, e o documento impresso e o detalhe mostram a nota da
-conversão. Linha em USD não bloqueia a emissão; sem ROE configurado, a emissão
-falha com mensagem explícita em vez de congelar valor zerado.
+conversão. Sem ROE configurado no primeiro cálculo de B/L com Cliente e linha
+em dólar, a gravação que calcula é recusada (ADR 0094, B3; migration `379`). O
+B/L sem Cliente não converte nada na importação: o preço fica fixado sem
+câmbio, e o câmbio entra no primeiro cálculo seguinte que tem câmbio (vínculo
+do Cliente ou emissão).
+
+Na **Fatura Avulsa** de item da tabela em dólar, o total em R$ é o total em
+US$ convertido de uma vez, como na taxa local; a linha mostra o unitário só em
+US$, sem unitário em R$ (ADR 0094, B13; migration `383`;
+`src/lib/invoiceItemUnit.ts` no detalhe, no impresso e no Portal).
 
 Não há Recálculo Diário, ao contrário do Demurrage: ali a dívida está correndo;
 aqui o valor é devido por inteiro desde o CE, e recalcular uma taxa local pela
@@ -577,7 +599,13 @@ impede cobrar o container duas vezes (detalhe da guarda em
 Quando o conjunto de B/Ls de um container muda depois do faturamento (irmão que
 chega ou é cancelado), a importação ou o cancelamento é aceito e a fatura
 emitida segue a [correção após emissão](#correção-após-emissão-adr-0077): sem
-pagamento, é reemitida com o rateio novo. Container FCL não é dividido entre
+pagamento, é reemitida com o rateio novo. Antes do faturamento, o irmão que
+chega, sai, é cancelado ou excluído recalcula no fim da transação os B/Ls não
+faturados do container, inclusive com CE ou retidos pelo gate, com o preço
+fixado na importação; a emissão (inclusive a da retida) só reaproveita o cálculo com a
+base atual (migrations `355` e `378`, [Taxas Locais](taxas-locais.md#preço-fixo-na-importação-e-base-atual-adr-0094-a1-a-a4)).
+Excluir o irmão de um B/L faturado também corrige a fatura do vizinho (captura
+da base antes da exclusão, migration `357`; ADR 0078, item 11). Container FCL não é dividido entre
 Clientes diferentes: a importação de B/L recusa esse caso (regra em
 [Manifestos & EDI](manifesto-edi.md)).
 
@@ -604,16 +632,26 @@ só campos lidos pelo motor, inclusive SOC/COC) e gatilhos de restrição
 adiados chamam `process_invoice_basis_changes` no commit; reimportação e Baplie
 chamam a mesma função antes de responder (`invoice_reissues` no retorno).
 `apply_invoice_basis_changes` compara o valor do B/L (`_quote_bl_local_charges`,
-com o ROE congelado no recebível) e o Cliente:
+com o câmbio e o preço fixados na importação, que são os da fatura, e a
+tabela vinculada — [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
+decisão 4; migrations `354`, `355` e, para as faturas emitidas antes, `367`) e o
+Cliente. Tabela reajustada não muda a cotação; só a base nova muda o valor:
 
 - sem mudança de valor nem de Cliente: nada acontece;
 - sem pagamento: cancela todas as consolidadas e individuais afetadas antes de
   emitir, reemite cada individual pelo núcleo da emissão automática do CE
-  (`_auto_bill_bl_core`, ROE do dia) e recria cada consolidada uma única vez,
+  (`_auto_bill_bl_core`, câmbio fixado) e recria cada consolidada uma única vez,
   só com os mesmos B/Ls (`_try_recreate_consolidated`); B/L cancelado, isento,
   quitado ou de outro Cliente encerra a consolidada sem reemissão
   (`reissue_closed_at`/`reissue_closed_reason`) e os demais B/Ls seguem
-  cobrados pelas individuais;
+  cobrados pelas individuais. Se a nova fatura não puder sair — B/L misto com
+  terminais em conflito, valor novo que não se calcula (sem tabela, câmbio ou
+  em revisão), ou Cliente cuja trava do Portal fechou depois da emissão
+  (Liberação vencida ou revogada, Portal que deixou de estar pronto) —, nada é
+  cancelado: a fatura continua valendo, abre **Fatura desatualizada** com o
+  motivo e a correção fica pendente para "Tentar aplicar correção" (ADR 0094,
+  B5 e D1; migrations `381` e `386`; antes, a `126` cancelava e deixava em
+  Reemissão pendente);
 - com pagamento e valor menor: `_register_invoice_correction_core` abate
   primeiro o saldo em aberto e só o que passar dele vira restituição, com o
   alerta **Restituição pendente**, que fecha quando o Financeiro (ou o
@@ -657,19 +695,45 @@ no snapshot. Outra mantém o item livre. Nada é cobrado automaticamente.
 Depois de um cancelamento, o recálculo desvincula os itens da fatura cancelada
 das linhas de cálculo antigas (`126`). Cancelar fatura individual coberta por
 consolidada aberta é recusado; o efeito de veículos cancela a consolidada do B/L
-isento e a encerra sem reemissão (`128`). Erro de preço (tabela ou Condição do
-Cliente) não reemite: vale para faturas futuras. O rateio de container
+isento e a encerra sem reemissão (`128`); a reemissão da consolidada também se
+encerra quando um B/L dela ficou isento (`365`). Erro de preço é corrigido pela
+edição do item ou da Condição, só do Administrativo, que passa as faturas pela
+correção com o preço novo (fonte `tariff_correction`; ADR 0093, decisão 2;
+[Taxas Locais](taxas-locais.md#tabela-aplicável-item-de-taxa-e-condição-de-cliente));
+reajuste é tabela nova e não mexe em fatura emitida. A ETA alterada depois da
+emissão não muda a fatura (decisão 5). O rateio de container
 compartilhado entra na base (`bl_invoice_basis_snapshot` lista os B/Ls que
 dividem cada container): irmão que chega ou é cancelado depois do faturamento
 reemite a fatura do B/L faturado com o rateio novo (migration `176`; a guarda de
 mutação de container compartilhado saiu).
+
+### Carga solta faturada na reimportação (ADR 0094, B5)
+
+A reimportação do Manifesto BB (e do B/L avulso) só muda o que afeta a
+cobrança do B/L faturado com a **confirmação de faturamento**, conferida na
+gravação (`override_billing`, migration `381`): POL, POD, peso, CBM, volumes
+e máquinas. Sem ela, o B/L mantém os gravados e os campos voltam em
+`billing_locked`. A prévia (`preview_breakbulk_billing_changes`) mostra, por
+B/L, as faturas e o valor antes → depois, simulados numa subtransação
+desfeita. `bb_cbm`, volumes e máquinas mudados sozinhos (que trocam a
+modalidade, container → misto) entram na correção como os demais campos. A
+carga solta que o arquivo acrescenta a B/L de container faturado (que viraria
+misto) também só entra com a confirmação; sem ela, os itens não entram e
+voltam em `billing_locked` como "itens" (ADR 0094, D2; migration `386`; antes,
+pela PR 698, entravam e reabriam a Revisão). Se a reemissão não puder sair
+(B/L misto com terminais em conflito, valor a revisar, trava do Portal
+fechada), a fatura **não é cancelada**: abre Fatura desatualizada com o motivo
+e a correção fica pendente para "Tentar aplicar correção"
+(`invoice_basis_pending_changes`). **Teste local-pg:**
+`cargaSoltaFaturada.local-pg.test.ts`, `revisaoFinalFrenteFinanceira.local-pg.test.ts`.
 
 ### Troca de Cliente após emissão (regra de CNPJ)
 
 Quando a reimportação troca o consignatário (o Cliente) de um B/L com cobrança
 de Taxas Locais, a fatura emitida não muda de Cliente nem é transferida com o
 mesmo valor. **Sem pagamento**, ela é cancelada e reemitida para o novo
-Cliente, com o ROE do dia (ADR 0077, item 3). **Com pagamento**, o recebimento
+Cliente, com o câmbio fixado na importação (ADR 0094, A1; antes, o ROE do dia
+da ADR 0077, item 3). **Com pagamento**, o recebimento
 do B/L vira restituição ao Cliente original (o saldo é abatido e o recebido é
 separado para devolução), o alerta Fatura desatualizada abre e a nova cobrança
 só sai depois que a devolução é confirmada; se a emissão para o novo Cliente
@@ -681,7 +745,10 @@ restituído. O CE Mercante não muda.
 
 Fatura consolidada e fatura paga não impedem a troca. Impedem: Invoice de
 Demurrage ou Fatura Avulsa do B/L recebidas sem restituição confirmada ao
-Cliente original, e Cliente de destino não cadastrado quando há cobrança.
+Cliente original, e Cliente de destino não cadastrado quando o B/L está
+faturado (fatura viva, status faturado ou recebível com baixa). O recebível em
+aberto de B/L não faturado não segura a troca: é anulado e nasce de novo com o
+Cliente vinculado depois (ADR 0093, decisão 13; migration `379`).
 **Código:** `relink_bl_customer`, `_apply_paid_basis_change`,
 `_finish_invoice_customer_change` e `_bl_customer_change_cash_blockers`
 (definição vigente na `136`; ADR 0077, "Regra de CNPJ definida em 2026-10-04";
@@ -701,8 +768,12 @@ do COD (justificativa obrigatória, `set_bl_cod`) é regra de
 - **B/L não faturado:** é recalculado pelo motor e não há ajuste. Exceção: se o
   B/L tem lançamento manual, abre um ajuste **Revisão manual de cobrança**.
 - **B/L faturado:** abre um **Ajuste de COD** append-only com o valor original
-  (lido do documento efetivamente emitido, nunca da tabela atual do POD antigo),
-  o valor no destino novo (linhas em USD pelo ROE vigente), a diferença, o pago
+  (lido do documento efetivamente emitido, nunca da tabela atual do POD antigo;
+  com a individual coberta, a consolidada pelo vínculo do recebível, e o pago
+  inclui o liquidado no recebível — migration `368`), sem ajuste quando não há
+  diferença (`368`),
+  o valor no destino novo (linhas em USD pelo câmbio fixado do B/L, migration
+  `385`), a diferença, o pago
   e o saldo em aberto. São três ramos:
   1. **sem pagamento:** a [correção após emissão](#correção-após-emissão-adr-0077)
      reemite a fatura sozinha; o ajuste registra o fato e se liquida com a
@@ -784,15 +855,70 @@ flowchart TD
 - A devolução é confirmada por `confirm_invoice_refund` (Financeiro ou
   Administrativo), com referência bancária, favorecido e data; o botão não
   transfere dinheiro. `settle_invoice_refund` recusa desde a `136`.
-- `covered` significa que uma invoice individual foi quitada por uma
-  consolidada ligada aos mesmos receivables. `covered_by_invoice_id` aponta para
-  o documento que liquidou.
+- Toda baixa e todo estorno **reprojetam** as demais faturas abertas ligadas
+  aos recebíveis alterados (`_reproject_invoices_for_receivables`, migration
+  `356`; ADR 0093, decisões 6 a 8): pagamento parcial da consolidada faz cada
+  individual mostrar o saldo restante do seu B/L, com QR novo; pagamento
+  parcial da individual faz a consolidada mostrar o saldo restante, com o mesmo
+  número e QR novo. Os QRs das individuais seguem pagáveis com a consolidada
+  aberta.
+- `covered` significa que o B/L de uma individual foi quitado por outro
+  documento (a consolidada, inteira ou em parte). `covered_by_invoice_id`
+  aponta para o documento que liquidou. Fatura coberta, ou individual cujo B/L
+  já tem baixa por outro documento, não se cancela (migration `357`); a tela
+  explica no lugar do botão.
 - `obsolete` significa que uma consolidada aberta perdeu validade porque uma
-  invoice individual liquidou receivables que ela cobria. Seus links passam a
-  `obsolete`.
+  invoice individual quitou um B/L dela. Ela é **substituída**: sai nova
+  consolidada com os B/Ls restantes (`replaces_invoice_id`), aviso no Portal
+  (sem e-mail), e a substituída continua visível no Portal no filtro
+  Cancelada como "Substituída pela INV-…", sem QR. O Pix do QR antigo pago
+  depois quita a sucessora e o excedente vira restituição pendente (migration
+  `361`).
 - O cancelamento da baixa local, documentado em
-  [Reconciliação PIX](reconciliacao-pix.md), restaura receivables, links e
-  estados `covered`/`obsolete` quando aplicável.
+  [Reconciliação PIX](reconciliacao-pix.md), restaura receivables e links e
+  desfaz só o que aquele pagamento causou: a cobertura das individuais
+  cobertas pela própria fatura e a consolidada obsoletada por ele, se não tem
+  sucessora nem B/L em outra consolidada aberta (migration `356`). Consolidada
+  já substituída continua obsoleta depois do cancelamento da baixa (a
+  sucessora é que cobra, com o saldo que voltou), e os demais documentos vivos
+  dos mesmos recebíveis passam a mostrar esse saldo (migration `385`). Desde a
+  `376`: excedente dessa baixa já devolvido impede o cancelamento; a
+  restituição pendente é cancelada e fica no histórico (não é apagada com a
+  baixa); baixa automática Itaú cancelada devolve o Pix à análise. A volta a
+  "emitida" não passa pelo gate do Portal nem pela Revisão, que valem só na
+  emissão (migration `375`).
+- O recibo da individual **Coberta** soma o que foi pago direto nela antes da
+  cobertura e o que a consolidada atribuiu ao B/L (migration `375`).
+- Consolidada com baixa ou Pix recebido pelo Itaú não é marcada obsoleta no
+  Vela nem desfeita no Portal (migration `376`).
+- Um recebível fica em no máximo um documento local aberto: uma consolidada
+  aberta e, por cima, nenhuma individual nova (gatilhos da `356` e da `365`).
+  A consolidada interna pode incluir B/L ainda sem individual: conta como
+  faturamento dele (o B/L fica "faturado") e passa pelas checagens do Emitir
+  (Revisão, CE, gate; ADR 0093, decisão 9). Cancelada (ou obsoleta sem
+  sucessora que o cubra), ela solta esse B/L, que volta a "não faturado" no
+  fim da transação; a nova cobrança dele sai só pelo Emitir (decisão 12;
+  migration `385`).
+- **Avulsa em cancelamento com devolução integral** (ADR 0093, decisão 19;
+  migration `375`): ao autorizar, o Pix é cancelado e a avulsa não aceita
+  baixa até a autorização ser cancelada; a avulsa é cancelada quando a
+  devolução é confirmada. Avulsa não é emitida para Cliente desativado, e
+  paga, paga em parte e cancelada geram evento em `invoice_lifecycle_events`
+  (migration `376`).
+- **Pix em duplicidade** em fatura de Taxas Locais já paga, coberta ou
+  cancelada (ADR 0093, decisão 18; migration `375`) vira restituição pendente
+  de origem `pix_duplicate`, ligada à fatura de origem e fora do recibo dela; o
+  Pix sai da análise quando a devolução é confirmada.
+- Cancelar a fatura **solta o B/L** (ADR 0093, decisão 12; migration `362`):
+  o vínculo da fatura cancelada não trava o cancelamento do B/L, e a nova
+  fatura só sai pelo **Emitir** — nunca sozinha pela Liberação, pela ativação
+  do Portal, pelo CE, pela planilha de CE, pelo vínculo de Cliente ou pelo
+  reprocessamento de efeito. No Vela o recebível continua no saldo; no Portal,
+  não entra.
+- A emissão pela RPC (`create_invoice_from_bls_with_ledger`) passa pelas
+  checagens do Emitir; `create_invoice_from_bls`, fora do ledger, saiu da API,
+  e a pessoa não grava `bls.charge_status` nem `bls.billing_hold_reason` direto
+  (migration `366`).
 - O breakdown de consolidada é derivado em leitura. O subtotal de
   `invoice_receivable_links` prevalece: se a soma atual de
   `charge_calculations` não reconciliar em `0,01`, a UI mostra uma linha
@@ -927,7 +1053,7 @@ Evidência de **Runtime**:
   com o dono).
 - **Baixa do Financeiro e Restituição de todos (ADR 0085, D2 e D4; P5).** Desde a migration `247`, Financeiro e Administrativo registram a baixa manual, e qualquer Departamento autoriza ou cancela a restituição excepcional, com a justificativa que as RPCs exigem; os alertas Fatura desatualizada e Restituição pendente avisam também o Financeiro. Cancelar fatura e cancelar baixa seguem do Administrativo (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
 - **Emissão por qualquer Departamento (A9 e P4).** Desde a migration `246`, todo usuário interno ativo emite a Fatura Avulsa, a fatura fora do automático (ficha do B/L, Validação, consolidada) e a Invoice de Demurrage, e usa Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente e Resolver fatura desatualizada; os botões aparecem para todos os setores. A emissão é só em nome próprio (`p_actor` conferido, migration `241`) e grava o rastro de sempre. Preparar cancelamento financeiro, cancelar fatura e cancelar baixa seguem do Administrativo (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
-- **Caminho manual segue a vigência do automático (A10, migration `248`):** o Item da tabela da avulsa e o lançamento manual escolhem a tabela e a Condição de Cliente pela mesma regra do cálculo automático, pela ETA da escala do POD (`bl_local_charge_reference_date`; ADR 0040; [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10). Regra em [Taxas Locais](taxas-locais.md#notas-e-divergências). **Teste local-pg:** `caminhoManualVigencia.local-pg.test.ts`.
+- **Caminho manual segue a vigência do automático (A10, migration `248`):** o Item da tabela da avulsa e o lançamento manual seguem a regra do cálculo automático ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10); desde a [ADR 0094](../adr/0094-preco-fixo-na-importacao.md), a data de referência é a do preço fixado, não a ETA. Regra em [Taxas Locais](taxas-locais.md#preço-fixo-na-importação-e-base-atual-adr-0094-a1-a-a4). **Teste local-pg:** `caminhoManualVigencia.local-pg.test.ts`.
 - **COD segue a ADR 0077 (A11).** No COD de B/L faturado sem pagamento, a correção automática reemite a fatura e, desde a migration `249`, o Ajuste de COD se liquida com a sucessora; o painel deixou de pedir "Cancelar e reemitir" e o número da fatura (**Teste**, Postgres local, `invoicePostBillingSafety.local-pg.test.ts`).
 - **Restituição (A1):** a devolução ao Cliente se chama Restituição, como nas telas e na ADR 0077; "estorno" é sinônimo a evitar, e Cancelar baixa é outra ação ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1).
 

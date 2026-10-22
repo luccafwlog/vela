@@ -22,6 +22,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
@@ -299,7 +303,7 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
       container_number: number, discharge_date: discharge, return_date: returned,
     })))
     const applied = adminJson<{ demurrage: { demurrage_effects: string[] } }>(
-      `SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${bl.lateB}', '${dates}'::jsonb, '${adminId}'::uuid)`)
+      `RESET ROLE; SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${bl.lateB}', '${dates}'::jsonb, '${adminId}'::uuid)`)
     // A caixa nova descoberta enfileira a emissão do âncora.
     expect(applied.demurrage.demurrage_effects).toEqual([bl.lateA])
 

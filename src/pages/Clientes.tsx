@@ -36,6 +36,7 @@ import { type CustomerSortKey } from '../lib/customerTableViewModel'
 import { CUSTOMER_COMMUNICATION_BOXES } from '../services/customerCommunicationBoxes'
 import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { afterBlRevisado, afterCargaAlterada } from '../services/cacheEffects'
+import { queryKeys } from '../services/queryKeys'
 import { checkCustomerDependencies, createCustomer, deleteCustomers } from '../services/customers'
 import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
@@ -215,6 +216,8 @@ export function Clientes() {
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
+        queryClient.invalidateQueries({ queryKey: ['customer-ficha'] }),
       ])
 
       showToast('Cliente cadastrado.', 'success')
@@ -270,6 +273,8 @@ export function Clientes() {
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
+        queryClient.invalidateQueries({ queryKey: ['customer-ficha'] }),
         // B/L vinculado pela Base sai da Revisão e segue para o faturamento (ADR 0078, item 24).
         result.blsLinked ? afterBlRevisado(queryClient) : Promise.resolve(),
         result.blsLinked ? afterCargaAlterada(queryClient) : queryClient.invalidateQueries({ queryKey: ['bls'] }),
@@ -358,6 +363,8 @@ export function Clientes() {
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
+        queryClient.invalidateQueries({ queryKey: ['customer-ficha'] }),
       ])
       const outcome = formatDeleteOutcome('cliente(s)', result)
       showToast(outcome.message, outcome.tone)

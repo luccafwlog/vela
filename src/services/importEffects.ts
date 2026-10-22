@@ -1,5 +1,6 @@
 import type { Json } from '../types/database'
 import { supabase } from './supabase'
+import { toError } from '../lib/errors'
 
 export type ImportEffectState = 'pending' | 'running' | 'retry_wait' | 'blocked' | 'succeeded' | 'superseded'
 export type ImportEffectKind = 'physical_flags' | 'provisional_charges' | 'local_billing' | 'granite_billing' | 'demurrage_billing' | 'vehicle_followup'
@@ -31,9 +32,10 @@ export type ImportEffectOutcome = {
   idempotent: boolean
 }
 
+// O erro do PostgREST em `{ data, error }` é objeto, não `Error`: `toError`
+// mantém a mensagem e o SQLSTATE para a tela traduzir (ADR 0095, decisão 4).
 function throwRpcError(error: unknown): never {
-  if (error instanceof Error) throw error
-  throw new Error(typeof error === 'string' ? error : 'Falha na fila duravel de efeitos de import.')
+  throw toError(error)
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

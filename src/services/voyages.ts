@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import type { VoyageFormValues } from './voyageForm'
+import { recordAuditEntries } from './auditEntries'
+import { type VoyageFormValues } from './voyageForm'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
 import { deleteRecords } from './deleteRecords'
 import type { DeleteDependencyReport } from './deleteDependencies'
@@ -35,15 +36,7 @@ export async function createVoyage(form: VoyageFormValues, changedBy: string | n
 export async function updateVoyage(voyageId: number, form: VoyageFormValues, changedBy: string | null) {
   const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
   const vesselId = await getOrCreateVessel(form.vesselName, form.vesselImo, carrierId)
-  const [{ data: current, error: currentError }, currentIndicated] = await Promise.all([
-    supabase
-      .from('voyages')
-      .select('vessel_id, voyage_number, status')
-      .eq('id', voyageId)
-      .single(),
-    getVoyageIndicatedFirstBrazilianPort(voyageId),
-  ])
-  if (currentError) throw currentError
+  const currentIndicated = await getVoyageIndicatedFirstBrazilianPort(voyageId)
 
   const { data: updated, error: updateError } = await supabase
     .from('voyages')
@@ -58,10 +51,9 @@ export async function updateVoyage(voyageId: number, form: VoyageFormValues, cha
 
   if (updateError || !updated) throw updateError
 
+  // Navio, número e status entram no Histórico pelo gatilho de `voyages`
+  // (`audit_voyages`), com o valor que de fato mudou (migration 408, R-13).
   await insertVoyageAuditRows([
-    makeVoyageAuditRow(voyageId, 'vessel_id', current?.vessel_id == null ? null : String(current.vessel_id), String(vesselId), changedBy),
-    makeVoyageAuditRow(voyageId, 'voyage_number', current?.voyage_number ?? null, form.voyageNumber.trim(), changedBy),
-    makeVoyageAuditRow(voyageId, 'status', current?.status ?? null, form.status, changedBy),
     makeVoyageAuditRow(voyageId, 'indicated_first_brazilian_port', currentIndicated?.port ?? null, form.indicatedFirstBrazilianPort ?? null, changedBy),
     makeVoyageAuditRow(voyageId, 'indicated_first_brazilian_eta', currentIndicated?.eta ?? null, form.indicatedFirstBrazilianEta ?? null, changedBy),
   ])
@@ -120,15 +112,10 @@ export function deleteVoyage(voyageId: number, reason: string): Promise<DeleteDe
   return deleteRecords('voyage', [voyageId], { reason })
 }
 
-async function getOrCreateCarrier(name: string, scac: string) {
-  let query = supabase.from('carriers').select('id').limit(1)
-  if (scac.trim()) {
-    query = query.eq('scac', scac.trim())
-  } else {
-    query = query.eq('name', name.trim())
-  }
-
-  const { data: existing, error: existingError } = await query
+/** Armador da Viagem: pelo SCAC, ou pelo nome sem SCAC. */
+async function getOrCreateCarrier(name: string, scac: string): Promise<number> {
+  const query = supabase.from('carriers').select('id').limit(1)
+  const { data: existing, error: existingError } = await (scac.trim() ? query.eq('scac', scac.trim()) : query.eq('name', name.trim()))
   if (existingError) throw existingError
   if (existing?.[0]) return existing[0].id
 
@@ -233,9 +220,6 @@ function makeVoyageAuditRow(
   voyageId: number,
   fieldName:
     | 'created'
-    | 'vessel_id'
-    | 'voyage_number'
-    | 'status'
     | 'indicated_first_brazilian_port'
     | 'indicated_first_brazilian_eta',
   oldValue: string | null,
@@ -319,8 +303,7 @@ async function insertVoyageAuditRows(rows: Array<ReturnType<typeof makeVoyageAud
   const payload = rows.filter((row): row is NonNullable<typeof row> => row !== null)
   if (!payload.length) return
 
-  const { error } = await supabase.from('audit_logs').insert(payload)
-  if (error) throw error
+  await recordAuditEntries(payload)
 }
 
 export async function fetchVoyagesWithUnpaidBls(voyageIds: number[]): Promise<Set<number>> {

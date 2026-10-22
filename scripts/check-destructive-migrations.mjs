@@ -60,7 +60,8 @@ export function stripFunctionBodies(sql) {
     const tag = match[0]
     const close = sql.indexOf(tag, match.index + tag.length)
     const end = close === -1 ? sql.length : close + tag.length
-    const precedingText = sql.slice(Math.max(0, match.index - 400), match.index)
+    // 2000: assinaturas longas (11 parâmetros) passam de 400 caracteres até o `AS $$`.
+    const precedingText = sql.slice(Math.max(0, match.index - 2000), match.index)
     const isFunctionBody = /CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\b/i.test(precedingText)
       && !/\bDO\s*$/i.test(precedingText.trimEnd())
     if (!isFunctionBody) out += sql.slice(match.index, end)

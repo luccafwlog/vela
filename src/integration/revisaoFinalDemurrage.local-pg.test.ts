@@ -23,6 +23,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
+// Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
+// teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
+// fazem as RPCs de lote da tela.
+
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
@@ -328,9 +332,10 @@ describeLocal('Revisão final de Demurrage, datas e Viagem Cancelada (migration 
     const id = containerId(bl.tz, containers.tz)
     const before = psql(`SELECT COALESCE(discharge_date::text, '-') || '|' || COALESCE(return_date::text, '-') FROM public.bl_containers WHERE id = ${id}`)
     const direct = asAdmin(`UPDATE public.bl_containers SET return_date = (now() AT TIME ZONE 'America/Sao_Paulo')::date WHERE id = ${id}`)
-    expect(direct.stderr).toMatch(/ficha do B\/L ou pela planilha de datas/)
+    // Migration 380: authenticated nem tem UPDATE nessas colunas.
+    expect(direct.stderr).toMatch(/permission denied|ficha do B\/L ou pela planilha de datas/)
     const discharge = asAdmin(`UPDATE public.bl_containers SET discharge_date = '2026-08-01' WHERE id = ${id}`)
-    expect(discharge.stderr).toMatch(/ficha do B\/L ou pela planilha de datas/)
+    expect(discharge.stderr).toMatch(/permission denied|ficha do B\/L ou pela planilha de datas/)
     expect(psql(`SELECT COALESCE(discharge_date::text, '-') || '|' || COALESCE(return_date::text, '-') FROM public.bl_containers WHERE id = ${id}`))
       .toBe(before)
 
@@ -350,7 +355,7 @@ describeLocal('Revisão final de Demurrage, datas e Viagem Cancelada (migration 
     })))
     const importSql = (marker: string, blId: string, numbers: string[]) => adminSql(`
       SELECT '${marker}';
-      SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${blId}', '${rows(numbers)}'::jsonb, '${adminId}'::uuid)`)
+      RESET ROLE; SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${blId}', '${rows(numbers)}'::jsonb, '${adminId}'::uuid)`)
 
     // Outra sessão segura o container A/Y até as duas planilhas estarem na fila.
     const holder = runAsync(`
@@ -384,8 +389,12 @@ describeLocal('Revisão final de Demurrage, datas e Viagem Cancelada (migration 
     expect(psql(`SELECT status || '|' || (dunning_suspended_reason IS NOT NULL) FROM public.demurrage_invoices WHERE id = ${paidInvoice}`))
       .toBe('paid|true')
 
-    const cancelled = asAdmin(`SELECT public.cancel_voyage(${voyage.cancelled}, 'Armador cancelou a escala (R211)', '${adminId}')`)
-    expect(cancelled.status, cancelled.stderr).toBe(0)
+    // Desde a 363 (ADR 0093, decisão 14) a Viagem com Invoice viva ou baixa
+    // não se cancela; o estado legado (Viagem já Cancelada com a Invoice paga)
+    // é montado direto para o resto do cenário.
+    const refused = asAdmin(`SELECT public.cancel_voyage(${voyage.cancelled}, 'Armador cancelou a escala (R211)', '${adminId}')`)
+    expect(refused.stderr).toMatch(/fatura viva ou baixa/)
+    psql(`SET session_replication_role = replica; UPDATE public.voyages SET status = 'cancelled' WHERE id = ${voyage.cancelled}; SET session_replication_role = origin;`)
 
     const issued = run(`SET vela.demurrage_internal = 'on'; SELECT public.issue_demurrage_invoice_for_bl('${bl.cancelledVoyage}', 'R211-DEM-CV')`)
     expect(issued.stderr).toMatch(/cancelada/)

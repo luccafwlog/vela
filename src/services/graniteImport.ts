@@ -1,5 +1,5 @@
 import { importDateOrNull } from '../lib/importDate'
-import { userFacingErrorMessage } from '../lib/errors'
+import { importErrorMessage } from '../lib/errors'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
@@ -273,6 +273,8 @@ function formatGraniteRowErrors(rowErrors: readonly RowError[]): string {
 
 export type ImportGraniteArgs = {
   filename: string
+  /** SHA-256 do arquivo (ADR 0095, decisão 3): gravado no lote; o reenvio só avisa na prévia. */
+  fileHash?: string | null
   voyageId: number
   manifest: ParsedGraniteManifest
   uploadedBy: string
@@ -376,6 +378,7 @@ export async function importGraniteManifest({
   manifest,
   uploadedBy,
   confirmRemoval,
+  fileHash = null,
 }: ImportGraniteArgs): Promise<GraniteImportResult> {
   // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
   // inteiro; não há aceite que grave só as linhas válidas.
@@ -431,10 +434,12 @@ export async function importGraniteManifest({
     p_uploaded_by: uploadedBy,
     p_bls: blRows,
     p_remove_missing: removeMissing,
+    p_filename: filename,
+    p_file_hash: fileHash,
   } as never)
   // O erro do PostgREST não é `Error`: as duas telas (Granito e Viagem) mostram
   // a mensagem de negócio da RPC pela classificação compartilhada.
-  if (error) throw new Error(userFacingErrorMessage(error, 'Não foi possível importar a planilha do Granito. Tente novamente.'), { cause: error })
+  if (error) throw new Error(importErrorMessage(error, 'Não foi possível importar a planilha do Granito. Tente novamente.'), { cause: error })
   if (data === null || typeof data !== 'object' || Array.isArray(data) || !('manifest_id' in data) || typeof data.manifest_id !== 'string') {
     throw new Error('O banco não devolveu o manifesto gravado. Confira o Granito antes de importar de novo.')
   }

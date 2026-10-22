@@ -79,6 +79,7 @@ export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<
 
   const containers: ParsedVaziosImportacaoContainer[] = []
   const rowErrors = createRowErrorCollector()
+  const firstRowByKey = new Map<string, number>()
 
   rows.forEach((row) => {
     const rowNumber = row.rowNumber
@@ -93,6 +94,13 @@ export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<
       rowErrors.add(rowNumber, `Container ${containerNumber}: formato ISO esperado (XXXX0000000).`, row)
       return
     }
+    // ADR 0095, decisão 21: o vazio de importação existe uma vez por Viagem.
+    const firstRow = firstRowByKey.get(vaziosContainerKey(containerNumber))
+    if (firstRow !== undefined) {
+      rowErrors.add(rowNumber, `Container ${containerNumber} repetido (já está na linha ${firstRow}): um vazio de importação existe uma vez por Viagem.`, row)
+      return
+    }
+    firstRowByKey.set(vaziosContainerKey(containerNumber), rowNumber)
 
     const parsedTare = parseImportNumber(mapped['tare_kg'], 'pt-BR')
     const tare_kg = parsedTare.kind === 'value' ? Number(parsedTare.decimal) : null
@@ -242,6 +250,82 @@ export function resolveVaziosManifestNumbers(
   return { manifestos, error: null }
 }
 
+/** Chave do container na unicidade por Viagem: a mesma régua de `container_key` (migration 398). */
+export function vaziosContainerKey(containerNumber: string | null | undefined): string {
+  return String(containerNumber ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+}
+
+/** Vazio de importação já gravado na Viagem, com a fonte (planilha `manual` ou `baplie`). */
+export type VoyageVazioImportacao = {
+  container_number: string
+  pol: string | null
+  pod: string | null
+  source: 'manual' | 'baplie'
+}
+
+/** Todos os vazios de importação da Viagem, paginado (o PostgREST devolve até 1000 por chamada). */
+export async function listVoyageVaziosImportacao(voyageId: number): Promise<VoyageVazioImportacao[]> {
+  const PAGE = 1000
+  const rows: VoyageVazioImportacao[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('vazios_importacao_containers')
+      .select('id, container_number, pol, pod, manifest:vazios_importacao_manifests!inner(source, voyage_id)')
+      .eq('manifest.voyage_id', voyageId)
+      .order('id')
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const page = (data ?? []) as unknown as Array<{ container_number: string; pol: string | null; pod: string | null; manifest: { source: string } | null }>
+    rows.push(...page.map((row) => ({
+      container_number: row.container_number,
+      pol: row.pol,
+      pod: row.pod,
+      source: row.manifest?.source === 'baplie' ? 'baplie' as const : 'manual' as const,
+    })))
+    if (page.length < PAGE) break
+  }
+  return rows
+}
+
+export type VaziosPlanilhaConflicts = {
+  /** Containers de outra planilha numa rota que esta não traz: a gravação é recusada. */
+  blocking: string[]
+  /** Containers que vieram do Baplie e passam a valer pela planilha. */
+  fromBaplie: string[]
+}
+
+const routeLabel = (pol: string | null | undefined, pod: string | null | undefined) =>
+  `${normalizeStoredPortCode(pol) ?? pol ?? '?'} → ${normalizeStoredPortCode(pod) ?? pod ?? '?'}`
+
+/**
+ * Prévia da regra "um vazio de importação por Viagem" (ADR 0095, decisão 21;
+ * o servidor repete na migration 398): a planilha vale sobre o Baplie, em
+ * qualquer rota; um container que outra planilha gravou numa rota que esta
+ * planilha não traz é recusado (a planilha só substitui as rotas que traz).
+ */
+export function vaziosPlanilhaConflicts(
+  containers: ReadonlyArray<Pick<ParsedVaziosImportacaoContainer, 'container_number' | 'pol' | 'pod'>>,
+  existing: ReadonlyArray<VoyageVazioImportacao>,
+): VaziosPlanilhaConflicts {
+  const routes = new Set(containers.map((c) => routeLabel(c.pol, c.pod)))
+  const incoming = new Map(containers.map((c) => [vaziosContainerKey(c.container_number), c]))
+  const blocking: string[] = []
+  const fromBaplie: string[] = []
+  for (const row of existing) {
+    const found = incoming.get(vaziosContainerKey(row.container_number))
+    if (!found) continue
+    const existingRoute = routeLabel(row.pol, row.pod)
+    if (row.source === 'baplie') {
+      fromBaplie.push(existingRoute === routeLabel(found.pol, found.pod)
+        ? `${found.container_number} (${existingRoute})`
+        : `${found.container_number} (Baplie ${existingRoute}, planilha ${routeLabel(found.pol, found.pod)})`)
+    } else if (!routes.has(existingRoute)) {
+      blocking.push(`O container ${found.container_number} já está nos Vazios de importação desta Viagem na rota ${existingRoute}, de outra planilha. Tire o container desta planilha ou traga nela a rota ${existingRoute} inteira, que a planilha substitui.`)
+    }
+  }
+  return { blocking: blocking.sort(), fromBaplie: fromBaplie.sort() }
+}
+
 export type ImportVaziosImportacaoArgs = {
   /** A gravação usa só os containers e os erros de linha; a pergunta das ocultas é de quem chama. */
   manifest: Pick<ParsedVaziosImportacaoManifest, 'containers' | 'rowErrors'>
@@ -250,6 +334,10 @@ export type ImportVaziosImportacaoArgs = {
   /** Nº do manifesto Mercante por rota da planilha (chave `vaziosRouteKey`), obrigatório em todas. */
   manifestNumbers: Readonly<Record<string, string>>
   description?: string
+  /** Nome do arquivo gravado no lote (ADR 0095, decisão 3). */
+  filename?: string | null
+  /** SHA-256 do arquivo (ADR 0095, decisão 3): gravado no lote; o reenvio só avisa na prévia. */
+  fileHash?: string | null
 }
 
 export async function importVaziosImportacaoManifest({
@@ -258,6 +346,8 @@ export async function importVaziosImportacaoManifest({
   voyageId,
   manifestNumbers,
   description,
+  filename = null,
+  fileHash = null,
 }: ImportVaziosImportacaoArgs): Promise<{ manifestId: string; mercanteManifestIds: string[] }> {
   // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo inteiro.
   if (manifest.rowErrors.length) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
@@ -278,7 +368,9 @@ export async function importVaziosImportacaoManifest({
     p_uploaded_by: uploadedBy,
     p_containers: containers,
     p_manifestos: manifestos,
-  })
+    p_filename: filename,
+    p_file_hash: fileHash,
+  } as never)
   if (error) throw error
   const result = data as { manifest_id: string; mercante_manifest_ids: string[] | null }
   return { manifestId: result.manifest_id, mercanteManifestIds: result.mercante_manifest_ids ?? [] }
@@ -291,6 +383,9 @@ function formatImportacaoRowErrors(rowErrors: readonly RowError[]): string {
   return [`Nada foi gravado: ${rowErrors.length === 1 ? 'uma linha tem erro' : `${rowErrors.length} linhas têm erro`}.`, ...shown].join('\n')
 }
 
+/** `total`: vazios cadastrados pelo Baplie; `planilha`: os que ficaram com a planilha. */
+export type VaziosFromBaplieResult = { manifestId: string | null; total: number; planilha: number }
+
 export async function importVaziosFromBaplie({
   voyageId,
   uploadedBy,
@@ -299,7 +394,7 @@ export async function importVaziosFromBaplie({
   voyageId: number
   uploadedBy: string
   description?: string
-}): Promise<{ manifestId: string | null; total: number }> {
+}): Promise<VaziosFromBaplieResult> {
   return persistVaziosFromBaplie({ voyageId, uploadedBy, description, replaceExisting: false })
 }
 
@@ -311,7 +406,7 @@ export async function replaceVaziosFromBaplie({
   voyageId: number
   uploadedBy: string
   description?: string
-}): Promise<{ manifestId: string | null; total: number }> {
+}): Promise<VaziosFromBaplieResult> {
   return persistVaziosFromBaplie({ voyageId, uploadedBy, description, replaceExisting: true })
 }
 
@@ -325,7 +420,7 @@ async function persistVaziosFromBaplie({
   uploadedBy: string
   description?: string
   replaceExisting: boolean
-}): Promise<{ manifestId: string | null; total: number }> {
+}): Promise<VaziosFromBaplieResult> {
   const { data, error } = await supabase.rpc('replace_vazios_from_baplie_transactional', {
     p_voyage_id: voyageId,
     p_description: description ?? null,
@@ -335,8 +430,10 @@ async function persistVaziosFromBaplie({
   if (error) throw error
   // Recadastro com o Baplie sem vazios (migration 336): os vazios do Baplie
   // anterior saem e não há manifesto novo (`manifest_id` nulo, total 0).
-  const result = data as { manifest_id: string | null; total: number }
-  return { manifestId: result.manifest_id, total: result.total }
+  // Migration 398 (ADR 0095, decisão 21): os vazios que uma planilha já
+  // trouxe ficam com ela (`planilha`); sem nenhum a cadastrar, não há manifesto.
+  const result = data as { manifest_id: string | null; total: number; planilha?: number | null }
+  return { manifestId: result.manifest_id, total: result.total, planilha: result.planilha ?? 0 }
 }
 
 export async function getBaplieManifestForVoyage(voyageId: number): Promise<{
