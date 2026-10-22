@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Baplie da COSCO aceito (2026-10-22;
+  [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)):**
+  migration `409`. O número de viagem do Baplie não é mais conferido com o da
+  Viagem e a confirmação da prévia saiu; UNT/UNZ com contagem errada só avisa;
+  a regra de "outro armador" e o campo "Códigos do armador no Baplie" saíram,
+  e todo container do arquivo entra. Os Baplies 1.5 e 2.2 do GREEN ITAPOA
+  (viagem `260911000000`, operadores COS e COT) passam a importar inteiros,
+  com BRVIX e BRSEP.
 - **Zhuhai (CNZUH) reconhecido nas importações (2026-10-22):** o Baplie com POL `CNZUH` era
   recusado inteiro ("POL não reconhecido"), porque o porto não estava na lista do import
   (`src/services/portCode.ts`). Zhuhai entra como porto próprio, pelo código e pelo nome, e aparece

@@ -4,7 +4,9 @@
 > no Baplie pelos containers dos B/Ls da Viagem) foi substituída pela
 > [ADR 0095](./0095-importacoes-regras-da-revisao.md), decisão 14 (migration
 > `403`): "outro armador" é decidido pelos códigos do armador da Viagem, sem
-> depender dos B/Ls. As demais decisões continuam valendo.
+> depender dos B/Ls. Desde a [ADR 0096](./0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)
+> (migration `409`) não há regra de "outro armador". As demais decisões
+> continuam valendo.
 
 Status: supersedida parcialmente (decisão 6, pela ADR 0095) — aceita em 2026-10-11 (decisões do dono). Implementado nas migrations
 `203` a `206` e no frontend, em produção desde o merge da PR 929 em 2026-10-12
