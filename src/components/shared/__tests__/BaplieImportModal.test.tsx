@@ -88,9 +88,9 @@ it('caminho feliz: grava uma vez, avisa e fecha; a Viagem escolhida aparece na p
   await importNow()
   await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   expect(mocks.reimport).toHaveBeenCalledTimes(1)
-  // Só os PODs marcados e a viagem do arquivo vão ao servidor (migration 388);
-  // com TDT não há confirmação a marcar, e o servidor confere a viagem do arquivo.
-  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, pods: ['BRSSZ'], file: { voyageNumber: '14N', voyageConfirmed: false } }))
+  // Só os PODs marcados vão ao servidor (migration 388); a viagem do arquivo é
+  // informativa (migration 409).
+  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, pods: ['BRSSZ'], file: { voyageNumber: '14N' } }))
 })
 
 it('pela aba da Viagem, a Viagem fica só no topo', async () => {
@@ -148,20 +148,16 @@ it('vazios pendentes: o Resultado oferece o recadastro, diz onde ele continua e 
   expect(onClose).toHaveBeenCalledTimes(1)
 })
 
-// B12a: Baplie sem TDT é aceito, mas só grava com a confirmação do operador.
-it('arquivo sem navio e viagem: destaca e só libera Importar depois da confirmação', async () => {
+// ADR 0096, decisão 2: Baplie sem TDT só avisa; não há confirmação a marcar.
+it('arquivo sem navio e viagem: avisa e libera Importar sem confirmação', async () => {
   mocks.parse.mockResolvedValue({ ...parsed(), vessel_name: null, voyage_number: null })
   const view = render(<BaplieImportModal voyage={fixed} onClose={vi.fn()} />)
   chooseFile(view)
-  expect(await screen.findByText('O arquivo não diz o navio nem a viagem')).toBeTruthy()
-  expect(screen.getByText('O arquivo não diz a viagem: confirme que ele é da viagem escolhida para importar.')).toBeTruthy()
-  expect((screen.getByRole('button', { name: 'Importar containers' }) as HTMLButtonElement).disabled).toBe(true)
-
-  fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo que este Baplie é da viagem GREEN SANTOS \/ 14N/ }))
+  expect(await screen.findByText('O arquivo não diz o navio')).toBeTruthy()
+  expect(screen.queryByRole('checkbox', { name: /Confirmo que este Baplie/ })).toBeNull()
   await importNow()
   await waitFor(() => expect(mocks.reimport).toHaveBeenCalledTimes(1))
-  // A confirmação marcada é a que o servidor confere (migration 388, decisão 13).
-  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ file: { voyageNumber: null, voyageConfirmed: true } }))
+  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ file: { voyageNumber: null } }))
 })
 
 it('arquivo com navio e viagem não pede a confirmação', async () => {

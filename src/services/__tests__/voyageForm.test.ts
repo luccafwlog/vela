@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialVoyageFormValues, normalizeVoyageFormValues, parseCarrierBaplieCodes, voyageFormSchema } from '../voyageForm'
+import { initialVoyageFormValues, normalizeVoyageFormValues, voyageFormSchema } from '../voyageForm'
 
 describe('normalizeVoyageFormValues', () => {
   it('normaliza os dados cadastrais da viagem', () => {
@@ -30,18 +30,5 @@ describe('voyageFormSchema', () => {
   it('mantém apenas a validação local de paridade do porto indicado', () => {
     expect(voyageFormSchema.safeParse({ ...initialVoyageFormValues, vesselName: 'NAV', voyageNumber: '1', indicatedFirstBrazilianPort: 'BRSSZ' }).success).toBe(false)
     expect(voyageFormSchema.safeParse({ ...initialVoyageFormValues, vesselName: 'NAV', voyageNumber: '1', indicatedFirstBrazilianEta: '2026-07-01' }).success).toBe(false)
-  })
-})
-
-// ADR 0095, decisão 14 (migration 403): códigos do armador no Baplie.
-describe('códigos do armador no Baplie', () => {
-  it('separa por vírgula, ponto e vírgula ou espaço, em maiúsculas e sem repetir', () => {
-    expect(parseCarrierBaplieCodes(' cos; COSCO  cos,, ')).toEqual(['COS', 'COSCO'])
-    expect(parseCarrierBaplieCodes('')).toEqual([])
-  })
-
-  it('o formulário só mexe nos códigos quando o operador os editou', () => {
-    expect(normalizeVoyageFormValues({ ...initialVoyageFormValues, vesselName: 'N', voyageNumber: '1' })).not.toHaveProperty('carrierBaplieCodes')
-    expect(normalizeVoyageFormValues({ ...initialVoyageFormValues, vesselName: 'N', voyageNumber: '1', carrierBaplieCodes: 'cos cosco' }).carrierBaplieCodes).toBe('COS, COSCO')
   })
 })

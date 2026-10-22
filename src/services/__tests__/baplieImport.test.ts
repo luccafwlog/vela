@@ -103,7 +103,7 @@ describe('baplieRowsReplacedBy — régua de porto do servidor', () => {
 
 describe('reimportBaplie', () => {
   const confirmReplacement = vi.fn<(plan: unknown) => Promise<boolean>>()
-  const file = { voyageNumber: '12N', voyageConfirmed: true }
+  const file = { voyageNumber: '12N' }
   const run = (containers: BaplieContainer[], pods = ['BRVIX']) =>
     reimportBaplie({ voyageId: 22, containers, pods, file, confirmReplacement })
   const importCalls = () => mocks.rpc.mock.calls.filter(([name]) => name === 'import_baplie_file_atomic')
@@ -115,7 +115,7 @@ describe('reimportBaplie', () => {
     expect(confirmReplacement).not.toHaveBeenCalled()
     expect(importCalls()).toEqual([['import_baplie_file_atomic', expect.objectContaining({
       p_voyage_id: 22, p_pods: ['BRVIX'], p_expected: { count: 0, max_id: null, vazios_manifest: { id: 'vazios-1', total: 2 } },
-      p_file: { voyage_number: '12N', voyage_confirmed: true },
+      p_file: { voyage_number: '12N' },
     })]])
     expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
   })
@@ -245,16 +245,15 @@ describe('Baplie completo e regras da Viagem (etapa 9)', () => {
     expect(options.affected.items).toContain('Marca que cai: AAAU1111111 no B/L BL-1 (IMO ⇒ sem marca)')
   })
 
-  it('TDT de outra viagem bloqueia e POD fora das escalas é ignorado com aviso', () => {
+  it('TDT de outra viagem não bloqueia e POD fora das escalas é ignorado com aviso', () => {
     const ruled = applyBaplieVoyageRules(
       { containers: [box('AAAU1111111', { pod: 'BRVIX' }), box('BBBU2222222', { pod: 'BRSSZ' })], issues: [], voyage_number: '14', vessel_name: 'GREEN SANTOS' },
       { voyageNumber: '15', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX'] },
     )
     expect(ruled.containers.map((c) => c.container_number)).toEqual(['AAAU1111111'])
-    expect(ruled.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ severity: 'error', message: expect.stringMatching(/viagem 14; a viagem escolhida é 15/) }),
+    expect(ruled.issues).toEqual([
       expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/fora das escalas da Viagem \(BRSSZ\)/) }),
-    ]))
+    ])
   })
 
   // Lote 3 (ADR 0095, decisão 12; migration 391): a prévia usa a régua do servidor.
@@ -279,7 +278,7 @@ describe('revisão da etapa 9 (E9)', () => {
   // E9-01: get_voyage_eligible_pods não tem GRANT para authenticated.
   it('lê as escalas pela RPC guardada list_voyage_eligible_pods', async () => {
     mocks.rpc.mockResolvedValue({ data: [{ pod: 'BRVIX' }, { pod: 'BRSSZ' }], error: null })
-    await expect(fetchBaplieVoyageContext(22)).resolves.toEqual({ voyageNumber: '12N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX', 'BRSSZ'], carrierName: null, carrierCodes: [] })
+    await expect(fetchBaplieVoyageContext(22)).resolves.toEqual({ voyageNumber: '12N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX', 'BRSSZ'] })
     expect(mocks.rpc).toHaveBeenCalledWith('list_voyage_eligible_pods', { p_voyage_id: 22 })
     expect(mocks.rpc).not.toHaveBeenCalledWith('get_voyage_eligible_pods', expect.anything())
   })
@@ -293,12 +292,9 @@ describe('revisão da etapa 9 (E9)', () => {
     expect(baplieVoyageContextBlock({ data: context, isError: false })).toBeNull()
   })
 
-  // E9-03a: zeros à esquerda não mudam a viagem (regra de blDocumentImport.ts).
-  it('viagem 0012N do TDT é a mesma 12N da Viagem', () => {
-    const ruled = applyBaplieVoyageRules(parsed({ voyage_number: '0012N' }), context)
-    expect(ruled.issues).toEqual([])
-    expect(applyBaplieVoyageRules(parsed({ voyage_number: '13N' }), context).issues)
-      .toEqual([expect.objectContaining({ field: 'voyage', severity: 'error' })])
+  // ADR 0096, decisão 2: o número de viagem do armador não é o da Viagem no Vela.
+  it('número de viagem do TDT diferente do da Viagem não bloqueia nem avisa', () => {
+    expect(applyBaplieVoyageRules(parsed({ voyage_number: '260911000000' }), context).issues).toEqual([])
   })
 
   // E9-03b: só o nome vindo do C222 bloqueia; o palpite só avisa.
@@ -309,55 +305,24 @@ describe('revisão da etapa 9 (E9)', () => {
       .toEqual([expect.objectContaining({ field: 'vessel', severity: 'error' })])
   })
 
-  // ADR 0095, decisão 14 (B12b): "outro armador" pelos códigos do armador da
-  // Viagem, sem depender dos B/Ls importados nem do cabeçalho do arquivo.
-  describe('container de outro armador', () => {
-    const file = (operator: string | null) => parsed({
-      operator,
+  // ADR 0096, decisão 3: sem regra de outro armador; todo container entra.
+  describe('operador do container', () => {
+    const file = parsed({
       containers: [
         box('COSU1000018', { operator: 'COS' }),
-        box('COSU1000023', { operator: 'COSCO' }),
+        box('COSU1000023', { operator: 'COT' }),
         box('MSCU1000017', { operator: 'MSC' }),
         box('ONEU1000016'),
       ],
     })
-    const cosco = { ...context, carrierName: 'COSCO', carrierCodes: ['COS', 'COSCO'] }
 
-    it('lê os códigos do armador da Viagem (navio → armador), em maiúsculas', async () => {
-      mocks.rpc.mockResolvedValue({ data: [], error: null })
-      mocks.voyage = { voyage_number: '12N', vessel: { name: 'GREEN SANTOS', carrier: { name: 'COSCO', baplie_codes: [' cos ', 'COSCO', ''] } } }
-      await expect(fetchBaplieVoyageContext(22)).resolves.toMatchObject({ carrierName: 'COSCO', carrierCodes: ['COS', 'COSCO'] })
-    })
-
-    it('fica fora o container cujo operador não está nos códigos, com contagem; o TDT do parceiro de slot não muda nada', () => {
-      const ruled = applyBaplieVoyageRules(file('MSC'), cosco)
-      expect(ruled.containers.map((c) => c.container_number)).toEqual(['COSU1000018', 'COSU1000023', 'ONEU1000016'])
-      expect(ruled.otherCarrier).toEqual([{ container_number: 'MSCU1000017', operator: 'MSC' }])
-      expect(ruled.issues).toEqual([
-        expect.objectContaining({ severity: 'warning', message: '1 container(s) de outro armador (MSC; códigos do armador da Viagem: COS, COSCO) fora das marcas e da conciliação: MSCU1000017.' }),
-      ])
-    })
-
-    it('não depende dos B/Ls: container de outro armador fica fora mesmo que algum B/L o cite', () => {
-      const ruled = applyBaplieVoyageRules(file('COS'), { ...cosco, blContainerNumbers: ['MSCU1000017'] } as typeof cosco)
-      expect(ruled.otherCarrier.map((c) => c.container_number)).toEqual(['MSCU1000017'])
-    })
-
-    it('armador sem códigos não separa nada e avisa', () => {
-      const ruled = applyBaplieVoyageRules(file('COS'), { ...context, carrierName: 'COSCO', carrierCodes: [] })
-      expect(ruled.containers).toHaveLength(4)
-      expect(ruled.otherCarrier).toEqual([])
-      expect(ruled.issues).toEqual([
-        expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/armador da Viagem \(COSCO\) não tem códigos do Baplie cadastrados/) }),
-      ])
-    })
-
-    it('arquivo só de outro armador não tem o que importar', () => {
-      const ruled = applyBaplieVoyageRules(parsed({ containers: [box('MSCU1000017', { operator: 'MSC' })] }), cosco)
-      expect(ruled.containers).toEqual([])
-      expect(ruled.issues).toEqual(expect.arrayContaining([
-        expect.objectContaining({ severity: 'error', message: expect.stringMatching(/Nenhum container a importar: todos são de outro armador/) }),
-      ]))
+    it('container de qualquer operador entra na prévia e na gravação, sem aviso', async () => {
+      const ruled = applyBaplieVoyageRules(file, context)
+      expect(ruled.containers.map((c) => c.container_number)).toEqual(['COSU1000018', 'COSU1000023', 'MSCU1000017', 'ONEU1000016'])
+      expect(ruled.issues).toEqual([])
+      await reimportBaplie({ voyageId: 22, containers: ruled.containers, pods: ruled.pods, file: { voyageNumber: '12N' }, confirmReplacement: async () => true })
+      const call = mocks.rpc.mock.calls.find(([name]) => name === 'import_baplie_file_atomic')
+      expect(call?.[1].p_rows.map((r: { container_number: string }) => r.container_number)).toContain('MSCU1000017')
     })
 
     it('a gravação leva operador e transbordo de cada container ao servidor', async () => {
@@ -365,28 +330,13 @@ describe('revisão da etapa 9 (E9)', () => {
         voyageId: 22,
         containers: [box('COSU1000018', { operator: 'COS', transshipment: true })],
         pods: ['BRVIX'],
-        file: { voyageNumber: '12N', voyageConfirmed: false },
+        file: { voyageNumber: '12N' },
         confirmReplacement: async () => true,
       })
       const call = mocks.rpc.mock.calls.find(([name]) => name === 'import_baplie_file_atomic')
       expect(call?.[1].p_rows).toEqual([expect.objectContaining({ container_number: 'COSU1000018', operator: 'COS', is_transshipment: true })])
     })
 
-    it('a gravação recebe também as de outro armador (o servidor as conta); prévia e diferença não', async () => {
-      const ruled = applyBaplieVoyageRules(file('COS'), cosco)
-      expect(ruled.rpcContainers.map((c) => c.container_number)).toContain('MSCU1000017')
-      mocks.existing = staged(box('COSU1000018', { operator: 'COS' }))
-      const confirm = vi.fn(async (plan: unknown) => Boolean(plan))
-      await reimportBaplie({
-        voyageId: 22, containers: ruled.containers, rpcContainers: ruled.rpcContainers, pods: ruled.pods,
-        file: { voyageNumber: '12N', voyageConfirmed: true }, confirmReplacement: confirm,
-      })
-      const call = mocks.rpc.mock.calls.find(([name]) => name === 'import_baplie_file_atomic')
-      expect(call?.[1].p_rows.map((r: { container_number: string }) => r.container_number)).toContain('MSCU1000017')
-      const plan = confirm.mock.calls[0][0] as unknown as { diff: { items: Array<{ container_number: string }> } }
-      expect(JSON.stringify(plan.diff)).not.toContain('MSCU1000017')
-      expect(JSON.stringify(plan.diff)).toContain('COSU1000023')
-    })
   })
 
   // E9-08: só `reissued` é fatura reemitida; pendências e falhas aparecem à parte.
@@ -406,7 +356,7 @@ describe('revisão da etapa 9 (E9)', () => {
     } }
     const result = await reimportBaplie({
       voyageId: 22, containers: [box('AAAU1111111', { status: 'full' })], pods: ['BRVIX'],
-      file: { voyageNumber: '12N', voyageConfirmed: true }, confirmReplacement: vi.fn(),
+      file: { voyageNumber: '12N' }, confirmReplacement: vi.fn(),
     })
     expect(result).toMatchObject({ status: 'imported', flags: { reissues: 1, corrected: 1, reissuesPending: 2, reissueErrors: 2 } })
     const toast = baplieImportToast(result as Exclude<typeof result, { status: 'cancelled' }>)
