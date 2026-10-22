@@ -200,6 +200,13 @@ jobs:
             sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
             sudo apt-get install -y -qq postgresql-16
           fi
+          # O pacote pode não criar o cluster (createcluster.conf da imagem);
+          # sem ele o replay não acha o servidor na porta 5432.
+          if ! pg_lsclusters -h 2>/dev/null | awk '$1==16 && $2=="main"' | grep -q .; then
+            sudo pg_createcluster 16 main --port 5432
+          fi
+          sudo pg_ctlcluster 16 main start || true
+          pg_lsclusters
 
       - name: Replay consolidated migrations from scratch
         run: sudo scripts/setup-local-pg.sh --reset
