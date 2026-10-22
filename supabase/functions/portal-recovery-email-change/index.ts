@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { emailChangeAlertTemplate, emailChangeAssistedAlertTemplate, emailChangeConfirmTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
-import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { confirmLoginFailure, confirmLoginSuccess, requestIp, reserveLoginAttempt, voidLoginAttempt } from '../_shared/portalLoginRateLimit.ts'
 import { resolveEmailChangeConfirmation } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
@@ -48,27 +48,35 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
     // 5 tentativas do login. A consulta vem ANTES de signInWithPassword: quem
     // está bloqueado não chega a ter a senha verificada.
     const rateLimitContext = { ip: requestIp(req) }
-    if (await isLoginRateLimited(admin, account.login_cnpj, rateLimitContext)) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })
+    // Reserva atômica (migration 410): a tentativa conta antes da verificação.
+    const attemptId = await reserveLoginAttempt(admin, account.login_cnpj, rateLimitContext)
+    if (attemptId === null) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })
     const { data: authUser } = await admin.auth.admin.getUserById(authId); const technicalEmail = authUser.user?.email
     // Sem email técnico não houve senha errada: houve falha nossa ao resolver o
     // usuário do Auth. Contar isso no balde do login gastaria as 5 tentativas do
     // cliente por conta de um defeito do servidor e o trancaria por 15 minutos
     // fora do Portal, sem que ele tivesse errado nada. O balde só registra o que
     // o cliente digitou.
-    if (!technicalEmail) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })
+    if (!technicalEmail) {
+      await voidLoginAttempt(admin, attemptId)
+      return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })
+    }
     const verifier = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!)
     // Senha migrada (HMAC) primeiro; a pura só vale para conta ainda legada.
     // Falha do Auth (429, 5xx, rede) em qualquer tentativa não é senha errada: não entra no balde.
-    const authUnavailable = () => new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 503 })
+    const authUnavailable = async () => {
+      await voidLoginAttempt(admin, attemptId)
+      return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 503 })
+    }
     let verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: await derivePortalAuthPassword(body.current_password, portalPasswordPepper()) })
-    if (verified.error && !isInvalidCredentials(verified.error)) return authUnavailable()
+    if (verified.error && !isInvalidCredentials(verified.error)) return await authUnavailable()
     if (verified.error) verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: body.current_password })
-    if (verified.error && !isInvalidCredentials(verified.error)) return authUnavailable()
+    if (verified.error && !isInvalidCredentials(verified.error)) return await authUnavailable()
     if (verified.error) {
-      await registerLoginFailure(admin, account.login_cnpj, rateLimitContext)
+      await confirmLoginFailure(account.login_cnpj, rateLimitContext)
       return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 422 })
     }
-    await registerLoginSuccess(admin, account.login_cnpj, rateLimitContext)
+    await confirmLoginSuccess(admin, attemptId, account.login_cnpj, rateLimitContext)
     // A verificação cria uma sessão do Supabase Auth que ninguém mais usa;
     // sem signOut, cada troca deixava um refresh token pendurado. O escopo é
     // `local` de propósito: o padrão do supabase-js é `global`, que revoga TODO

@@ -65,21 +65,36 @@ export function isRateLimitBlocked(persistedBlocked: boolean, distributed: Distr
   return persistedBlocked || distributed?.state === 'blocked'
 }
 
-export async function isLoginRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {
-  const { data, error } = await db.rpc('portal_login_check_rate_limit', { p_login: loginCnpj })
-  const persistedBlocked = Boolean(error) || data === true
-  if (persistedBlocked) return true
-  return isRateLimitBlocked(persistedBlocked, await distributedRateLimitState('login', loginCnpj, context))
+/**
+ * Reserva atômica no balde do login (migration 410): a tentativa já entra como
+ * falha antes de a senha ser conferida, sob trava do CNPJ, para pedidos em
+ * paralelo não passarem do limite. Devolve o id da reserva, ou null quando o
+ * CNPJ está bloqueado (no Supabase, por erro da RPC ou no Redis).
+ */
+export async function reserveLoginAttempt(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<number | null> {
+  const { data, error } = await db.rpc('portal_login_reserve_attempt', { p_login: loginCnpj })
+  const attemptId = typeof data === 'number' ? data : typeof data === 'string' ? Number(data) : null
+  if (error || attemptId === null || !Number.isFinite(attemptId)) return null
+  if (isRateLimitBlocked(false, await distributedRateLimitState('login', loginCnpj, context))) {
+    await db.rpc('portal_login_settle_attempt', { p_attempt_id: attemptId, p_outcome: 'void' })
+    return null
+  }
+  return attemptId
 }
 
-export async function registerLoginFailure(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  await db.rpc('portal_login_register_failure', { p_login: loginCnpj })
+/** Senha errada: a reserva já é a falha; só o Redis (IP+CNPJ) soma. */
+export async function confirmLoginFailure(loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
   await registerDistributedFailure('login', loginCnpj, context)
 }
 
-export async function registerLoginSuccess(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  await db.rpc('portal_login_register_success', { p_login: loginCnpj })
+export async function confirmLoginSuccess(db: PortalDb, attemptId: number, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
+  await db.rpc('portal_login_settle_attempt', { p_attempt_id: attemptId, p_outcome: 'success' })
   await registerDistributedSuccess('login', loginCnpj, context)
+}
+
+/** A senha não foi conferida (falha do Auth ou nossa): a reserva sai do balde. */
+export async function voidLoginAttempt(db: PortalDb, attemptId: number): Promise<void> {
+  await db.rpc('portal_login_settle_attempt', { p_attempt_id: attemptId, p_outcome: 'void' })
 }
 
 export async function isRecoveryRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {

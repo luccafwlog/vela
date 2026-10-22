@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
-import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { confirmLoginFailure, confirmLoginSuccess, requestIp, reserveLoginAttempt, voidLoginAttempt } from '../_shared/portalLoginRateLimit.ts'
 import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.ts'
 import { AuthUpstreamError, sessionOrRefusal } from '../_shared/authRefusal.ts'
 import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
@@ -47,7 +47,10 @@ if (typeof Deno !== 'undefined') {
       const pepper = portalPasswordPepper()
       const admin = createClient(url, serviceKey)
       const rateLimitContext = { ip: requestIp(req) }
-      if (await isLoginRateLimited(admin, normalized, rateLimitContext)) {
+      // Reserva atômica (migration 410): a tentativa já conta antes de a senha
+      // ser conferida, então pedidos em paralelo não passam das 5 por CNPJ.
+      const attemptId = await reserveLoginAttempt(admin, normalized, rateLimitContext)
+      if (attemptId === null) {
         // O caminho bloqueado consultava a conta e, SÓ se ela existisse,
         // consultava e inseria o alerta: os dois desfechos devolvem o mesmo 401,
         // mas um fazia consistentemente uma consulta a mais que o outro. É o
@@ -88,13 +91,17 @@ if (typeof Deno !== 'undefined') {
           // A sessão já foi emitida; a migração tenta de novo no próximo login.
           if (error) console.error('[portal-login] falha ao migrar senha legada', error)
         },
+      }).catch(async (err) => {
+        // A senha não chegou a ser conferida: a reserva sai do balde do CNPJ.
+        await voidLoginAttempt(admin, attemptId)
+        throw err
       })
       if (!authentication.accepted || !authentication.session) {
-        await registerLoginFailure(admin, normalized, rateLimitContext)
+        await confirmLoginFailure(normalized, rateLimitContext)
         return json(401, { error: GENERIC_ERROR }, origin)
       }
 
-      await registerLoginSuccess(admin, normalized, rateLimitContext)
+      await confirmLoginSuccess(admin, attemptId, normalized, rateLimitContext)
       await admin.from('customer_portal_accounts').update({ last_login_at: new Date().toISOString() }).eq('login_cnpj', normalized)
       return json(200, {
         access_token: authentication.session.access_token,

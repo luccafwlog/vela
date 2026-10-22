@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Portal: balde de login à prova de tentativas em paralelo (2026-10-22, auditoria de segurança
+  run-3, pendência P3; ADR 0049):** migration `410`. O login e a verificação da senha atual na troca
+  do Email de Recuperação reservam a tentativa no balde do CNPJ, sob trava, antes de conferir a
+  senha; antes, pedidos simultâneos passavam todos pela consulta e testavam mais de 5 senhas em 15
+  minutos. Prova: `baldeLoginReservaAtomica.local-pg.test.ts` (10 simultâneas, 5 admitidas),
+  `portalLoginRateLimit.test.ts`, `portalEdgeFunctionsOrder.test.ts`.
 - **Portal: falha do Auth não tranca o Cliente (2026-10-22, auditoria de segurança run-3,
   pendência P2):** `portal-login` e a verificação da senha atual em `portal-recovery-email-change`
   só contam no balde do CNPJ a credencial recusada; limite de taxa, erro 5xx ou falha de rede do

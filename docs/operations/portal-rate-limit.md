@@ -14,7 +14,11 @@ fluxo tem seu balde no Supabase (`portal_login_attempts`, por hash do CNPJ) e
 sua ação no Redis:
 
 - login: `portal-login` e verificação da senha atual na troca do Email de
-  Recuperação — Supabase bloqueia com 5 erros em 15 minutos;
+  Recuperação — Supabase bloqueia com 5 erros em 15 minutos. Desde a migration
+  `410`, a tentativa é reservada antes de a senha ser conferida
+  (`portal_login_reserve_attempt`, sob trava do CNPJ), já contada como erro;
+  senha certa a marca como sucesso e falha do Auth a apaga
+  (`portal_login_settle_attempt`). Pedidos simultâneos não passam do limite;
 - recuperação: pedidos de recuperação, inclusive os que não encontram conta —
   Supabase bloqueia com 5 pedidos em 15 minutos;
 - ativação: recusas de política de senha, em um balde próprio para não consumir

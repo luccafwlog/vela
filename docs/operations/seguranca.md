@@ -312,7 +312,9 @@ e não grava marco. Prova: `src/integration/corteTokenInterno.local-pg.test.ts`.
   sempre decide, e falha da RPC conta como bloqueio; trocar de IP não contorna o
   bloqueio. Só a credencial recusada pelo Auth (`invalid_credentials`) entra no
   balde do login; limite de taxa, erro 5xx ou falha de rede do Auth respondem
-  `503` sem cobrar o CNPJ (`_shared/authRefusal.ts`, auditoria run-3). A camada opcional no Upstash Redis (par IP+CNPJ, chaves HMAC) só
+  `503` sem cobrar o CNPJ (`_shared/authRefusal.ts`, auditoria run-3). A tentativa
+  de login é reservada no balde antes de a senha ser conferida, sob trava do
+  CNPJ (migration `410`), para pedidos simultâneos não passarem do limite. A camada opcional no Upstash Redis (par IP+CNPJ, chaves HMAC) só
   acrescenta bloqueio. Contrato, segredos, validação e rollback em
   [Rate limit do Portal](portal-rate-limit.md); comportamento das telas em
   [Portal do Cliente](../modules/portal-cliente.md#autenticação-e-sessão).

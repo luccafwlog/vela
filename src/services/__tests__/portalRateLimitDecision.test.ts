@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isLoginRateLimited, isRateLimitBlocked } from '../../../supabase/functions/_shared/portalLoginRateLimit.ts'
+import { isRateLimitBlocked, reserveLoginAttempt } from '../../../supabase/functions/_shared/portalLoginRateLimit.ts'
 import type { PortalDb } from '../../../supabase/functions/_shared/portalDb.ts'
 
 const env: Record<string, string> = {
@@ -8,8 +8,9 @@ const env: Record<string, string> = {
   PORTAL_RATE_LIMIT_HMAC_SECRET: 'hmac',
 }
 
+// A reserva devolve o id (CNPJ abaixo do limite) ou null (no limite).
 function dbReturning(blocked: boolean, error: unknown = null): PortalDb {
-  return { rpc: async () => ({ data: blocked, error }) } as unknown as PortalDb
+  return { rpc: async () => ({ data: blocked ? null : 1, error }) } as unknown as PortalDb
 }
 
 afterEach(() => {
@@ -29,8 +30,8 @@ describe('decisão combinada do rate limit do Portal (ADR 0049)', () => {
     // Redis sem contador para este IP+CNPJ: "allowed".
     const fetcher = vi.fn(async () => new Response(JSON.stringify([{ result: [0, 0] }])))
     vi.stubGlobal('fetch', fetcher)
-    expect(await isLoginRateLimited(dbReturning(true), '12345678000195', { ip: '198.51.100.7' })).toBe(true)
-    expect(await isLoginRateLimited(dbReturning(false, { message: 'rpc down' }), '12345678000195', { ip: '198.51.100.7' })).toBe(true)
-    expect(await isLoginRateLimited(dbReturning(false), '12345678000195', { ip: '198.51.100.7' })).toBe(false)
+    expect(await reserveLoginAttempt(dbReturning(true), '12345678000195', { ip: '198.51.100.7' })).toBeNull()
+    expect(await reserveLoginAttempt(dbReturning(false, { message: 'rpc down' }), '12345678000195', { ip: '198.51.100.7' })).toBeNull()
+    expect(await reserveLoginAttempt(dbReturning(false), '12345678000195', { ip: '198.51.100.7' })).toBe(1)
   })
 })

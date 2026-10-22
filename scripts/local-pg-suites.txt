@@ -163,3 +163,4 @@ src/integration/baplieArmadorETransbordo.local-pg.test.ts
 src/integration/corteTokenInterno.local-pg.test.ts
 src/integration/portalAntigoDonoDoBl.local-pg.test.ts
 src/integration/travaDaViagemConfereQuemChama.local-pg.test.ts
+src/integration/baldeLoginReservaAtomica.local-pg.test.ts
