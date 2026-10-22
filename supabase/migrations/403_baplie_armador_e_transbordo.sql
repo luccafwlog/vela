@@ -1,4 +1,4 @@
--- 402: Baplie — armador da Viagem e transbordo (ADR 0095, decisões 14 e 15;
+-- 403: Baplie — armador da Viagem e transbordo (ADR 0095, decisões 14 e 15;
 -- Lote 9 da frente das importações; decisões do dono B12b e B12c).
 --
 -- Problema:
@@ -306,7 +306,7 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  -- 402 (decisão 14): container de outro armador (pelos códigos do armador da
+  -- 403 (decisão 14): container de outro armador (pelos códigos do armador da
   -- Viagem) não entra no staging, nas marcas nem na conciliação; só é contado.
   v_codes := public._baplie_carrier_codes(p_voyage_id);
   SELECT COALESCE(jsonb_agg(r.value) FILTER (WHERE NOT public._baplie_other_carrier(r.value->>'operator', v_codes)), '[]'::jsonb),

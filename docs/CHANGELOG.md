@@ -7,7 +7,7 @@
 ## 2026-10
 
 - **Importações: Baplie, armador e transbordo (2026-10-22, Lote 9 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `402`.
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `403`.
   Navio compartilhado: o armador guarda os códigos com que aparece no Baplie (campo "Códigos do
   armador no Baplie" em **Nova Viagem**/**Editar**; a COSCO recebeu COS e COSCO); container de outro
   código fica fora das marcas IMO/OOG e SOC/COC e da conciliação, contado na prévia ("de outro

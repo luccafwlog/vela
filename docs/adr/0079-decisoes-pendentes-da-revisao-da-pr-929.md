@@ -3,7 +3,7 @@
 > **Situação atual (2026-10-22).** A decisão 6 (referência de "outro operador"
 > no Baplie pelos containers dos B/Ls da Viagem) foi substituída pela
 > [ADR 0095](./0095-importacoes-regras-da-revisao.md), decisão 14 (migration
-> `402`): "outro armador" é decidido pelos códigos do armador da Viagem, sem
+> `403`): "outro armador" é decidido pelos códigos do armador da Viagem, sem
 > depender dos B/Ls. As demais decisões continuam valendo.
 
 Status: aceito — 2026-10-11 (decisões do dono). Implementado nas migrations
