@@ -130,6 +130,12 @@ it('propaga efeitos financeiros de importação, Baplie e cancelamento ao Portal
   }
 })
 
+it('remover CE, cancelar e reativar B/L atualizam os Manifestos Mercante da Viagem (migration 396)', async () => {
+  const { client, keys } = fakeQueryClient()
+  await afterBlEstadoAlterado(client, { blId: 'BL1', voyageId: 24 })
+  expect(keys()).toEqual(expect.arrayContaining(keySet([['manifestos-mercante'], ['alerts']])))
+})
+
 it('gravação em Invoice de Demurrage atualiza lista, detalhe, caixas cobradas, fichas, Portal e alertas', async () => {
   const { client, keys } = fakeQueryClient()
   await afterFaturaDemurrageAlterada(client)

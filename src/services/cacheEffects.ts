@@ -138,6 +138,9 @@ export async function afterBlEstadoAlterado(
     queryKeys.bls.cockpit(options.blId),
     queryKeys.bls.all(),
     queryKeys.bls.summary(),
+    // Remover o CE, cancelar e reativar mudam o vínculo do Manifesto Mercante
+    // (migration 396): a aba Rotas e Manifestos da Viagem conta os B/Ls.
+    queryKeys.manifestosMercante.all(),
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...LINEUP_KEYS,
     ...(options.voyageId === null ? [] : [queryKeys.voyages.detail(Number(options.voyageId))]),
   ])
