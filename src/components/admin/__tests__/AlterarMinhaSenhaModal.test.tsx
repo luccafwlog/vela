@@ -6,19 +6,22 @@ const mocks = vi.hoisted(() => ({
   signInWithPassword: vi.fn(),
   updateUser: vi.fn(),
   showToast: vi.fn(),
+  recordAuditEntries: vi.fn(),
 }))
 
 vi.mock('../../../services/supabase', () => ({
   supabase: { auth: { signInWithPassword: mocks.signInWithPassword, updateUser: mocks.updateUser } },
 }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
+vi.mock('../../../services/auditEntries', () => ({ recordAuditEntries: mocks.recordAuditEntries }))
 
 import { AlterarMinhaSenhaModal } from '../AlterarMinhaSenhaModal'
 
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.signInWithPassword.mockResolvedValue({ error: null })
-  mocks.updateUser.mockResolvedValue({ error: null })
+  mocks.updateUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+  mocks.recordAuditEntries.mockResolvedValue(undefined)
 })
 afterEach(cleanup)
 
@@ -58,4 +61,22 @@ it('quando o Auth recusa a senha atual na troca, mostra senha atual incorreta', 
   preencher('Antiga123', 'Nova12345', 'Nova12345')
   await waitFor(() => expect(screen.getByText('Senha atual incorreta.')).toBeTruthy())
   expect(onClose).not.toHaveBeenCalled()
+})
+
+it('registra a troca no Histórico, sem a senha', async () => {
+  render(<AlterarMinhaSenhaModal open email="ana@fwlog.com.br" onClose={vi.fn()} />)
+  preencher('Antiga123', 'Nova12345', 'Nova12345')
+  await waitFor(() => expect(mocks.recordAuditEntries).toHaveBeenCalledWith([
+    { entity_type: 'user_profile', entity_id: 'user-1', field_name: 'password', old_value: null, new_value: 'alterada pelo próprio usuário' },
+  ]))
+  expect(JSON.stringify(mocks.recordAuditEntries.mock.calls)).not.toContain('Nova12345')
+})
+
+it('falha no Histórico não desfaz nem esconde a troca', async () => {
+  mocks.recordAuditEntries.mockRejectedValue(new Error('rede'))
+  const onClose = vi.fn()
+  render(<AlterarMinhaSenhaModal open email="ana@fwlog.com.br" onClose={onClose} />)
+  preencher('Antiga123', 'Nova12345', 'Nova12345')
+  await waitFor(() => expect(onClose).toHaveBeenCalled())
+  expect(mocks.showToast).toHaveBeenCalledWith('Senha alterada.', 'success')
 })

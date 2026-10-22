@@ -6,6 +6,8 @@ import { PasswordInput } from '../auth/PasswordInput'
 import { useToast } from '../ui/Toast'
 import { supabase } from '../../services/supabase'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../../lib/passwordPolicy'
+import { recordAuditEntries } from '../../services/auditEntries'
+import { reportBestEffortFailure } from '../../lib/telemetry'
 
 const CURRENT_PASSWORD_CODES = new Set(['invalid_credentials', 'current_password_mismatch', 'current_password_required'])
 
@@ -37,10 +39,17 @@ export function AlterarMinhaSenhaModal({
       if (signInError) { setError('Senha atual incorreta.'); return }
       // A senha atual também vai na troca: com "Require current password" ligado
       // no Auth, um token roubado não troca a senha sem ela (auditoria run-3, P1).
-      const { error: updateError } = await supabase.auth.updateUser({ password: next, current_password: current })
+      const { data: updated, error: updateError } = await supabase.auth.updateUser({ password: next, current_password: current })
       if (updateError) {
         setError(CURRENT_PASSWORD_CODES.has(updateError.code ?? '') ? 'Senha atual incorreta.' : 'Não foi possível alterar a senha.')
         return
+      }
+      // Histórico da troca (migration 418), sem a senha. A troca já valeu: falha
+      // aqui só vai para a telemetria.
+      const userId = updated?.user?.id
+      if (userId) {
+        await recordAuditEntries([{ entity_type: 'user_profile', entity_id: userId, field_name: 'password', old_value: null, new_value: 'alterada pelo próprio usuário' }])
+          .catch((auditError: unknown) => reportBestEffortFailure('alterar-minha-senha:historico', auditError))
       }
       showToast('Senha alterada.', 'success')
       onClose()

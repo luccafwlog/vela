@@ -306,6 +306,10 @@ senha atual na tela e também a envia ao Auth (`current_password`). A tela
 sozinha não protege contra um token roubado chamando o Auth direto: a proteção
 no servidor depende de "Require current password when changing password"
 ligado no projeto ([serviços externos](servicos-externos.md#conferência-supabase-auth--2026-10-22)).
+A troca bem-sucedida grava no Histórico `user_profile` / `password` com
+"alterada pelo próprio usuário", sem a senha; `record_audit_entries` aceita essa
+linha só para a própria conta (migration `418`). Falha nesse registro não desfaz a
+troca e vai para a telemetria.
 
 ### Rotinas reservadas ao sistema
 
