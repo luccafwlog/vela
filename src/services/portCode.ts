@@ -105,6 +105,8 @@ export function resolvePortCode(value: string | null | undefined): { code: strin
     .filter((item) => item.index >= 0)
     .sort((left, right) => left.index - right.index)[0]
   if (match) return { code: match.code, recognized: true }
+  const split = matchSplitPortName(text)
+  if (split) return { code: split, recognized: true }
 
   if (/^[A-Z]{5}$/.test(normalized)) {
     // Um LOCODE não reconhecido não pode virar texto persistido: o chamador
@@ -121,6 +123,28 @@ export function resolvePortCode(value: string | null | undefined): { code: strin
   }
 
   return { code: null, recognized: false }
+}
+
+// B/Ls da COSCO separam o nome chinês em sílabas ("ZHU HAI,CHINA", "NING BO").
+// Só casa palavras inteiras e seguidas cuja junção é o nome conhecido, para que
+// o fim de uma palavra e o começo da outra não formem um porto por acaso.
+const COMPACT_PORT_NAMES = new Map(
+  PORT_NAME_TO_LOCODE
+    .map(([name, code]) => [normalizeText(name).replace(/[^a-z0-9]/g, ''), code] as const)
+    .filter(([name]) => name.length >= 5), // "zos" partido seria acaso
+)
+
+function matchSplitPortName(text: string): string | null {
+  const words = text.split(/[^a-z0-9]+/).filter(Boolean)
+  for (let start = 0; start < words.length; start += 1) {
+    let joined = words[start]
+    for (let end = start + 1; end < Math.min(words.length, start + 4); end += 1) {
+      joined += words[end]
+      const code = COMPACT_PORT_NAMES.get(joined)
+      if (code) return code
+    }
+  }
+  return null
 }
 
 /** Todas as formas persistidas historicamente para o mesmo porto. */
