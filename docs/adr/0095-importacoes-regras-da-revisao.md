@@ -3,7 +3,7 @@
 Status: aceito — 2026-10-21 (respostas do responsável às perguntas da
 [revisão das importações](../archive/audits/2026-10-21-revisao-importacoes.md)).
 Leitura de arquivo e mensagens implementadas na PR luccafwlog/vela#1020; o
-restante, pelo [plano](../plans/2026-10-21-frente-das-importacoes.md).
+restante, pelo [plano](../archive/plans/2026-10-21-frente-das-importacoes.md).
 
 Estende a [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
 e a [ADR 0092](./0092-importacao-com-erro-e-recusada-inteira.md); muda em parte o

@@ -1,7 +1,7 @@
 # Plano — frente das importações (revisão de 2026-10-21)
 
-Executa a [ADR 0095](../adr/0095-importacoes-regras-da-revisao.md).
-Achados F-xx da [revisão](../archive/audits/2026-10-21-revisao-importacoes.md).
+Executa a [ADR 0095](../../adr/0095-importacoes-regras-da-revisao.md).
+Achados F-xx da [revisão](../audits/2026-10-21-revisao-importacoes.md).
 Base `staging` depois da PR luccafwlog/vela#1019; migrations a partir da `387`.
 Cada lote entrega migration (quando banco), suíte local-pg ou vitest que falha
 antes e passa depois, e o módulo dono atualizado.
@@ -104,7 +104,7 @@ antes e passa depois, e o módulo dono atualizado.
   `admin-users` gravam por `record_audit_entries`. Confirmação do dono em
   2026-10-22: mudar o POL de um B/L (ficha ou Manifesto BB) não recalcula o ATD
   do POL; o ATD fica até a próxima importação de B/L da Viagem
-  ([Viagens](../modules/viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota)).
+  ([Viagens](../../modules/viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota)).
   Prova: `historicoImportacao.local-pg.test.ts`, `blTimelinePresentation.test.ts`,
   `customerFicha.test.ts`, `customerCadastroChanges.test.ts`, `auditEntries.test.ts`.
 - **Lote 10 — hash e desova** (migrations `405` e `406`):
