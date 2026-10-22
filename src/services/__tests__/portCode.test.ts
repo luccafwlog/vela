@@ -68,6 +68,16 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(normalizeStoredPortCode('CNZUH')).toBe('CNZUH')
   })
 
+  // B/L CSC4535080C700 (COSCO): POL e Place of Receipt "ZHU HAI,CHINA".
+  it('reconhece o nome chinês separado em sílabas, só por palavras inteiras', () => {
+    expect(resolvePortCode('ZHU HAI,CHINA')).toEqual({ code: 'CNZUH', recognized: true })
+    expect(normalizePortCode('NING BO, CHINA')).toBe('CNNGB')
+    expect(normalizePortCode('QING DAO')).toBe('CNTAO')
+    expect(normalizePortCode('ZHANG JIA GANG')).toBe('CNZJG')
+    expect(normalizePortCode('HONG KONG')).toBe('HKHKG')
+    expect(resolvePortCode('XZHU HAIX')).toEqual({ code: null, recognized: false })
+  })
+
   it('reconhece LOCODE embutido nas descrições operacionais', () => {
     expect(resolvePortCode('Port of Singapore (SGSIN)')).toEqual({ code: 'SGSIN', recognized: true })
     expect(resolvePortCode('New York / USNYC')).toEqual({ code: 'USNYC', recognized: true })

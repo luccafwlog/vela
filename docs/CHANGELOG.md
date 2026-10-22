@@ -98,6 +98,11 @@
   (`src/services/portCode.ts`). Zhuhai entra como porto próprio, pelo código e pelo nome, e aparece
   como "ZHUHAI" nas telas; sem migration, porque `normalize_port_code` já devolve `CNZUH` como está.
   Prova: `portCode.test.ts`, `baplieParserS03.test.ts`.
+- **B/L com o porto chinês em sílabas (2026-10-22):** o B/L `CSC4535080C700` (COSCO) traz POL
+  "ZHU HAI,CHINA" e era importado sem POL, porque o import só conhecia "ZHUHAI" junto. O import passa
+  a reconhecer o nome partido em palavras inteiras ("ZHU HAI", "NING BO", "QING DAO") para todos os
+  portos da lista (`src/services/portCode.ts`); veículos e containers herdam o POL do B/L. B/L já
+  importado sem POL precisa ser reimportado. Prova: `portCode.test.ts`.
 - **Revisão da PR 1021, melhorias (2026-10-22;
   [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-09 a R-19):**
   migration `408`. Excluir um B/L recalcula o ATD do POL, como cancelar.
