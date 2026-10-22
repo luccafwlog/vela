@@ -15,16 +15,26 @@ não executa restore.
   e não acessa R2.
 - A URL do Postgres, a chave AES e as credenciais R2 entram somente por
   variáveis de ambiente injetadas no processo. O script nunca imprime esses
-  valores, nunca os grava no manifesto e remove a URL bruta antes de iniciar o
-  cliente PostgreSQL.
+  valores e nunca os grava no manifesto. Cada programa chamado recebe um
+  ambiente sem segredos: `pg_dump` só a conexão em variáveis `PG*` (sem a URL
+  bruta), `pg_restore --list` nenhuma variável de conexão e a AWS CLI só a
+  credencial do R2 em `AWS_*` (nenhum `AWS_*` herdado, como perfil ou token de
+  sessão).
+- A conexão exige TLS: `sslmode` ausente vira `require`; `require`,
+  `verify-ca` e `verify-full` são aceitos; `disable`, `allow` e `prefer` são
+  recusados.
 - O dump é cifrado localmente com AES-256-GCM em streaming. O arquivo plaintext
   não é persistido pelo script. O `.dump.enc` é validado com
   `pg_restore --list` antes do upload.
 - O upload usa a API S3-compatible do R2, mas não há `wrangler`, criação de
   bucket, alteração de ACL ou exclusão de objeto no repositório.
-- `--environment production` é bloqueado, a menos que o operador forneça
-  simultaneamente `--allow-production` e `BACKUP_ALLOW_PRODUCTION=YES` após a
-  aprovação operacional. É a combinação usada pela tarefa diária de produção.
+- Produção é bloqueada, a menos que o operador forneça simultaneamente
+  `--allow-production` e `BACKUP_ALLOW_PRODUCTION=YES` após a aprovação
+  operacional. É a combinação usada pela tarefa diária de produção. Conta como
+  produção o rótulo `--environment production`, `--project-ref` igual ao ref
+  de produção e a URL do banco de produção sob qualquer rótulo: o ref aparece
+  no host da conexão direta (`db.<ref>.supabase.co`) ou no usuário do pooler
+  (`postgres.<ref>`), a mesma comparação de `scripts/provision-preview-admin.mjs`.
 
 O dump é deliberadamente limitado ao schema `public`, que contém as entidades
 de negócio do Vela. Schemas gerenciados pelo Supabase, usuários do Auth e bytes
@@ -96,6 +106,13 @@ SHA-256, tamanho, ambiente, projeto, retenção pretendida e o resultado de
 `pg_restore --list`. A retenção de 90 dias deve ser aplicada por lifecycle rule
 no R2; o script não apaga objetos.
 
+Depois que o R2 aceita os dois uploads, o script apaga a cópia local do
+`.dump.enc` e do manifesto; a cópia que vale é a do R2. Se o upload falha, os
+dois arquivos ficam na pasta de saída para o operador reenviar ou investigar e
+podem ser apagados depois. Versões anteriores do script deixavam todos os
+dumps na pasta: no computador do backup, os `.dump.enc` e `.manifest.json`
+antigos em `%TEMP%\vela-r2-backups` já estão no R2 e podem ser apagados à mão.
+
 Para validar um artefato já baixado, sem restaurar nada:
 
 ```powershell
@@ -118,7 +135,9 @@ pasta dos dumps (`%TEMP%\vela-r2-backups` no computador do backup, ou o
 agendada descarta o que o script imprime, então esse arquivo é o único lugar
 onde fica o motivo da falha. O motivo traz o fim da mensagem de erro do
 `pg_dump`, do `pg_restore` ou da AWS CLI, que não contêm senha, chave nem
-credencial. O arquivo não é enviado ao R2 nem apagado pelo script.
+credencial. O arquivo não é enviado ao R2. Ao chegar a 256 KiB (anos de
+execuções diárias), o script renomeia o registro para `backup-r2.log.1`,
+substituindo a geração anterior, e começa um arquivo novo.
 
 Para ligar:
 
