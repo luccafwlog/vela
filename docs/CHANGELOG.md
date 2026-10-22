@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Zhuhai (CNZUH) reconhecido nas importações (2026-10-22):** o Baplie com POL `CNZUH` era
+  recusado inteiro ("POL não reconhecido"), porque o porto não estava na lista do import
+  (`src/services/portCode.ts`). Zhuhai entra como porto próprio, pelo código e pelo nome, e aparece
+  como "ZHUHAI" nas telas; sem migration, porque `normalize_port_code` já devolve `CNZUH` como está.
+  Prova: `portCode.test.ts`, `baplieParserS03.test.ts`.
 - **Revisão da PR 1021, melhorias (2026-10-22;
   [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-09 a R-19):**
   migration `408`. Excluir um B/L recalcula o ATD do POL, como cancelar.

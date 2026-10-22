@@ -23,6 +23,7 @@ export function formatPortDisplayName(port: string | null | undefined) {
     CNXMN: 'XIAMEN',
     CNSHK: 'SHEKOU',
     CNYTN: 'YANTIAN',
+    CNZUH: 'ZHUHAI',
     HKHKG: 'HONG KONG',
     // Lado brasileiro: os codigos canonicos sao os que `normalize_port_code`
     // (migration 391) produz, e e por eles que a tabela de cobranca e escolhida.
