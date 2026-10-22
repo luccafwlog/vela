@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
-import { IMMUTABLE, onRequest } from '../../functions/assets/[[path]]'
+import { ASSET_SECURITY_HEADERS, IMMUTABLE, onRequest } from '../../functions/assets/[[path]]'
+import { contentSecurityPolicy, STATIC_SECURITY_HEADERS } from '../../scripts/cloudflare-security-headers.mjs'
 
 const assets = (response: Response) => ({ ASSETS: { fetch: async () => response } })
 const request = new Request('https://vela.app.br/assets/x.js')
@@ -19,6 +20,21 @@ describe('Pages Function /assets/*', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toBe(IMMUTABLE)
     expect(await response.text()).toBe('export {}')
+  })
+
+  // `_headers` não se aplica a respostas de Function: os headers de segurança
+  // do site precisam vir dela, no asset real e no 404.
+  it('sends the site security headers on assets and on the 404', async () => {
+    const js = new Response('export {}', { headers: { 'content-type': 'application/javascript' } })
+    const fallback = new Response('<html></html>', { headers: { 'content-type': 'text/html' } })
+    for (const response of [await onRequest({ request, env: assets(js) }), await onRequest({ request, env: assets(fallback) })]) {
+      for (const [name, value] of Object.entries(STATIC_SECURITY_HEADERS)) expect(response.headers.get(name)).toBe(value)
+      const csp = response.headers.get('content-security-policy')
+      expect(csp).toBe(ASSET_SECURITY_HEADERS['Content-Security-Policy'])
+      expect(csp).toContain("frame-ancestors 'none'")
+      expect(csp).not.toMatch(/supabase\.co/)
+    }
+    expect(contentSecurityPolicy('https://abcd.supabase.co')).toContain('https://abcd.supabase.co wss://abcd.supabase.co')
   })
 })
 

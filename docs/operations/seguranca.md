@@ -426,7 +426,10 @@ sem decompor no navegador o fator comercial da cotação.
 
 ## Headers HTTP / CSP
 
-Gerados em `_headers` pelo staging do Cloudflare Pages:
+Gerados em `_headers` pelo staging do Cloudflare Pages, a partir de
+`scripts/cloudflare-security-headers.mjs`; a Pages Function de `/assets/*`
+aplica os mesmos headers, porque o `_headers` não vale para respostas de
+Function:
 
 - `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy`
 - **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog. O browser não chama o provedor de e-mail (MillionSend) diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
