@@ -13,7 +13,7 @@ export function isBodyTooLarge(error: unknown): boolean {
 }
 
 /** Bytes do corpo; acima de `maxBytes` lança `BODY_TOO_LARGE` sem ler o resto. */
-export async function readBoundedBytes(req: Request, maxBytes: number): Promise<Uint8Array> {
+export async function readBoundedBytes(req: Request, maxBytes: number): Promise<Uint8Array<ArrayBuffer>> {
   if (Number(req.headers.get("content-length") ?? 0) > maxBytes) throw new Error(BODY_TOO_LARGE);
   if (!req.body) return new Uint8Array(0);
   const reader = req.body.getReader();
