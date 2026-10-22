@@ -9,6 +9,8 @@ import { deleteVoyagePodSchedule } from '../voyageRouteSchedules'
 beforeEach(() => {
   fromMock.mockReset()
   rpcMock.mockReset()
+  // O Histórico grava pela RPC `record_audit_entries` (migration 404).
+  rpcMock.mockResolvedValue({ data: 1, error: null })
 })
 
 it('cancela a viagem e audita o motivo', async () => {
@@ -44,20 +46,18 @@ it('US-215: a prévia devolve a trava e o que vai junto', async () => {
 })
 
 it('US-218: exclusao de POD grava evento insert-only deleted=true', async () => {
-  const insertFn = vi.fn(() => Promise.resolve({ error: null }))
-  fromMock.mockImplementation(() => ({ insert: insertFn }))
-
   await deleteVoyagePodSchedule({ voyageId: 5, pod: 'brvit', changedBy: 'user-1' })
 
-  expect(fromMock).toHaveBeenCalledWith('audit_logs')
-  expect(insertFn).toHaveBeenCalledTimes(1)
-  const [rows] = insertFn.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
+  expect(fromMock).not.toHaveBeenCalledWith('audit_logs')
+  expect(rpcMock).toHaveBeenCalledTimes(1)
+  const [name, args] = rpcMock.mock.calls[0] as unknown as [string, { p_entries: Array<Record<string, unknown>> }]
+  expect(name).toBe('record_audit_entries')
+  const rows = args.p_entries
   expect(rows[0]).toMatchObject({
     entity_type: 'voyage_pod_schedule',
     field_name: 'deleted',
     old_value: 'false',
     new_value: 'true',
-    changed_by: 'user-1',
   })
   expect(String(rows[0].entity_id)).toMatch(/^5::/)
 })

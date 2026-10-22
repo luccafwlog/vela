@@ -26,7 +26,7 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'bl', label: 'B/L', entityTypes: ['bl', 'bls', 'bl_breakbulk_items', 'bl_freight_lines', 'bl_transshipments'] },
   { id: 'container', label: 'Container', entityTypes: ['bl_container', 'bl_containers', 'container'] },
   { id: 'veiculo', label: 'Veículo', entityTypes: ['vehicle', 'vehicles'] },
-  { id: 'importacao', label: 'Importação', entityTypes: ['import_batches', 'import_effect'] },
+  { id: 'importacao', label: 'Importação', entityTypes: ['import_batches', 'import_batch', 'import_effect'] },
   { id: 'vazios', label: 'Vazios', entityTypes: ['vazios_bookings', 'vazios_export_operations', 'vazios_export_service_lines', 'vazios_importacao_containers', 'vazios_importacao_manifests', 'vazios_manifests'] },
   { id: 'granito', label: 'Granito', entityTypes: ['granite_bl', 'granite_bls', 'granite_manifests', 'granite_bl_charges'] },
   { id: 'tarifa-granito', label: 'Tarifa do Granito', entityTypes: ['granite_rates'] },

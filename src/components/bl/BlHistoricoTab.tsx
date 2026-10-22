@@ -14,7 +14,7 @@ import { formatCountLabel } from '../../lib/utils'
 const PAGE_SIZE = 20
 
 /** Assuntos do filtro, na ordem da tela. */
-const BL_HISTORY_SUBJECTS = ['Edição', 'Contêiner', 'Taxas', 'Fatura', 'Comunicado', 'Sistema'] as const
+const BL_HISTORY_SUBJECTS = ['Edição', 'Contêiner', 'Veículo', 'Taxas', 'Fatura', 'Comunicado', 'Sistema'] as const
 type Subject = (typeof BL_HISTORY_SUBJECTS)[number]
 
 type Row = {
