@@ -23,6 +23,7 @@ export function contentSecurityPolicy(supabaseOrigin) {
     "img-src 'self' data:",
     "font-src 'self' https://fonts.gstatic.com",
     "frame-ancestors 'none'",
+    "form-action 'self'",
     "object-src 'none'",
     "base-uri 'self'",
   ].join('; ')
