@@ -1,5 +1,7 @@
-import { type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+// Só o tipo: some na compilação e o módulo carrega no Vitest sem a rede.
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { maskEmail, sendPortalEmail } from './portalEmail.ts'
+import { recipientKey } from './email.ts'
 import { bounceNotificationTemplate } from './portalEmailTemplates.ts'
 import { resolveBounceCascade, type BounceContact } from './portalBounceCascade.ts'
 import { canonicalPortalOrigin, portalSupportEmail } from './portalUrls.ts'
@@ -52,6 +54,19 @@ async function sendBounceNotification(
 ): Promise<boolean> {
   if (!recipient.email || !await isCommunicationsEnabled(admin)) return true
 
+  // Cliente desativado não recebe aviso, como nos Comunicados e no resumo
+  // diário (auditoria run-3). Erro na leitura vira nova tentativa do evento.
+  const { data: customer, error: customerError } = await admin
+    .from('customers')
+    .select('deactivated_at')
+    .eq('id', customerId)
+    .maybeSingle()
+  if (customerError) {
+    console.error('[portal-email-events-runner] falha ao conferir o Cliente do aviso de bounce', customerId, customerError)
+    return false
+  }
+  if (!customer || (customer as { deactivated_at?: string | null }).deactivated_at) return true
+
   const normalizedBouncedEmail = normalizeEmail(bouncedEmail)
   const template = bounceNotificationTemplate({
     bouncedEmailMasked: maskEmail(normalizedBouncedEmail),
@@ -67,7 +82,9 @@ async function sendBounceNotification(
       subject: template.subject,
       html: template.html,
       text: template.text,
-      idempotencyKey: `${BOUNCE_NOTIFICATION_KIND}:${customerId}:${normalizedBouncedEmail}:${recipient.id}`,
+      // O endereço devolvido entra na chave como hash, como no resumo e no aviso
+      // de CE: a chave fica gravada em portal_email_attempts (auditoria run-3).
+      idempotencyKey: `${BOUNCE_NOTIFICATION_KIND}:${customerId}:${await recipientKey(normalizedBouncedEmail)}:${recipient.id}`,
     })
     if (!sent.ok) console.warn('[portal-email-events-runner] notificação de bounce não enviada', customerId, recipient.id)
     return true

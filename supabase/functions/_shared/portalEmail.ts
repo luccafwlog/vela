@@ -1,4 +1,5 @@
-import { type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+// Só o tipo: some na compilação e o módulo carrega no Vitest sem a rede.
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { maskEmail, sendEmail } from './email.ts'
 
 export { maskEmail } from './email.ts'
