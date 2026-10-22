@@ -371,6 +371,22 @@ describe('revisão da etapa 9 (E9)', () => {
       const call = mocks.rpc.mock.calls.find(([name]) => name === 'import_baplie_file_atomic')
       expect(call?.[1].p_rows).toEqual([expect.objectContaining({ container_number: 'COSU1000018', operator: 'COS', is_transshipment: true })])
     })
+
+    it('a gravação recebe também as de outro armador (o servidor as conta); prévia e diferença não', async () => {
+      const ruled = applyBaplieVoyageRules(file('COS'), cosco)
+      expect(ruled.rpcContainers.map((c) => c.container_number)).toContain('MSCU1000017')
+      mocks.existing = staged(box('COSU1000018', { operator: 'COS' }))
+      const confirm = vi.fn(async (plan: unknown) => Boolean(plan))
+      await reimportBaplie({
+        voyageId: 22, containers: ruled.containers, rpcContainers: ruled.rpcContainers, pods: ruled.pods,
+        file: { voyageNumber: '12N', voyageConfirmed: true }, confirmReplacement: confirm,
+      })
+      const call = mocks.rpc.mock.calls.find(([name]) => name === 'import_baplie_file_atomic')
+      expect(call?.[1].p_rows.map((r: { container_number: string }) => r.container_number)).toContain('MSCU1000017')
+      const plan = confirm.mock.calls[0][0] as unknown as { diff: { items: Array<{ container_number: string }> } }
+      expect(JSON.stringify(plan.diff)).not.toContain('MSCU1000017')
+      expect(JSON.stringify(plan.diff)).toContain('COSU1000023')
+    })
   })
 
   // E9-08: só `reissued` é fatura reemitida; pendências e falhas aparecem à parte.

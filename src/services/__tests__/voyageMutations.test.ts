@@ -210,3 +210,32 @@ it('grava os códigos do Baplie no armador da viagem quando o operador os inform
   await createVoyage(form, 'user-1')
   expect(carrierUpdate).not.toHaveBeenCalled()
 })
+
+it('Viagem que falha ao salvar não altera os códigos do Baplie do armador', async () => {
+  const carrierUpdate = vi.fn()
+  const chain = (result: unknown) => {
+    const q: Record<string, unknown> = {}
+    for (const m of ['select', 'eq', 'limit', 'order']) q[m] = () => q
+    q.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve)
+    return q
+  }
+  fromMock.mockImplementation((table: string) => {
+    if (table === 'carriers') {
+      const q = chain({ data: [{ id: 3, baplie_codes: ['COS'] }], error: null })
+      q.update = (...args: unknown[]) => { carrierUpdate(...args); return chain({ error: null }) }
+      return q
+    }
+    if (table === 'vessels') return chain({ data: [{ id: 9, imo: '9000001', name: 'GREEN SANTOS', carrier_id: 3 }], error: null })
+    if (table === 'voyages') {
+      return { insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: new Error('falhou') }) }) }) }
+    }
+    throw new Error(`tabela inesperada ${table}`)
+  })
+  rpcMock.mockResolvedValue({ data: [{ id: 9, imo: '9000001', name: 'GREEN SANTOS', carrier_id: 3 }], error: null })
+
+  await expect(createVoyage({
+    carrierName: 'COSCO', carrierScac: 'COSU', carrierBaplieCodes: 'COS, COSCO',
+    vesselName: 'GREEN SANTOS', vesselImo: '9000001', voyageNumber: '12N', status: 'scheduled',
+  } as never, 'user-1')).rejects.toThrow('falhou')
+  expect(carrierUpdate).not.toHaveBeenCalled()
+})

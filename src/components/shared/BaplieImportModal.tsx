@@ -117,6 +117,9 @@ export function BaplieImportModal({
   const ruled = useMemo(() => (parsed ? applyBaplieVoyageRules(parsed, voyageContext.data) : null), [parsed, voyageContext.data])
   const pods = ruled?.pods ?? []
   const filteredContainers = (ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
+  // Gravação recebe também as de outro armador dos PODs marcados: o servidor
+  // as tira e conta no Histórico (migration 402).
+  const rpcContainers = (ruled?.rpcContainers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
   const includedPods = pods.filter((pod) => !excludedPods.has(pod)).length
   const issues = ruled?.issues ?? []
   const hasErrors = hasBlockingIssues(issues)
@@ -149,6 +152,7 @@ export function BaplieImportModal({
       const result = await reimportBaplie({
         voyageId: Number(voyageId),
         containers: filteredContainers,
+        rpcContainers,
         // Só os portos marcados são substituídos; os outros da Viagem ficam (migration 388).
         pods: pods.filter((pod) => !excludedPods.has(pod)),
         // O servidor confere a viagem do TDT; sem TDT, exige a confirmação
