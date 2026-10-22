@@ -677,7 +677,7 @@ pagamento (`source='payment'` no histórico), quando o recálculo daquela fatura
 cessa. O câmbio do header é apenas informativo.
 
 - **Recálculo:** a RPC `recalculate_demurrage_invoices` (`service_role`;
-  definição vigente na migration `430`) reprecifica toda fatura `issued` ou
+  definição vigente na migration `402`) reprecifica toda fatura `issued` ou
   `overdue` (vencida) e não paga, sem ROE manual (item seguinte), quando o ROE muda, inclusive com Disputa aberta, que não congela o fato
   cambial. Aplica o desconto em USD antes da conversão, grava
   `current_roe`/`current_total_brl`/`roe_source`, regenera o `pix_payload` e
@@ -690,7 +690,7 @@ cessa. O câmbio do header é apenas informativo.
   (`release_demurrage_invoice_manual_roe`): a Invoice passa ao câmbio de
   referência gravado no Vela, com foto no histórico na data dessa cotação e o
   motivo em `audit_logs` (`roe_manual_removed`), e volta ao recálculo diário,
-  inclusive a vencida (migration `430`).
+  inclusive a vencida (migration `402`).
   Enquanto o ROE manual vale, a rotina da cobrança Itaú estende o QR dela até o
   corte do dia sem esperar a PTAX, e o alerta das 14h não a conta como "sem a
   PTAX de hoje"; a Invoice com Pix em análise também não entra nesse alerta e

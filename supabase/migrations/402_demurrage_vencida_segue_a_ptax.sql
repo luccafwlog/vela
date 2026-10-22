@@ -1,4 +1,4 @@
--- 430: a Invoice de Demurrage vencida (`overdue`) e não paga também segue o
+-- 402: a Invoice de Demurrage vencida (`overdue`) e não paga também segue o
 -- recálculo diário pela PTAX (ADR 0094, B10; correção da 382/385).
 --
 -- Problema: a 385 passou a aceitar a Invoice vencida em
@@ -31,7 +31,7 @@ BEGIN
   FOR v_inv IN
     SELECT id, total_usd, coalesce(discount_value, 0) AS discount_value, discount_mode, doc_number, current_roe
     FROM public.demurrage_invoices
-    -- 430: a vencida e não paga é tão aberta quanto a emitida.
+    -- 402: a vencida e não paga é tão aberta quanto a emitida.
     WHERE status IN ('issued', 'overdue') AND paid_at IS NULL
       -- 382 (ADR 0094, B10): Invoice com ROE manual fica fora do recálculo
       -- pela PTAX até alguém tirar o ROE manual.
