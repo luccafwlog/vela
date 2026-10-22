@@ -168,6 +168,35 @@ describe('scrubBreadcrumbData', () => {
       url: 'https://x.com/y',
     })
   })
+
+  it('redige argumentos do breadcrumb de console em arrays e objetos aninhados', () => {
+    const scrubbed = scrubBreadcrumbData({
+      logger: 'console',
+      arguments: [
+        'falha para fulano@acme.com.br',
+        { url: '/portal/ativar?token=SEGREDO', cliente: { cnpj: '12.345.678/0001-95' } },
+        ['/x#access_token=abc'],
+        new Error('cnpj 12345678000195'),
+        42,
+      ],
+    })
+    expect(scrubbed).toEqual({
+      logger: 'console',
+      arguments: [
+        'falha para [email]',
+        { url: '/portal/ativar', cliente: { cnpj: '[cnpj]' } },
+        ['/x'],
+        'Error: cnpj [digits14]',
+        42,
+      ],
+    })
+    expect(JSON.stringify(scrubbed)).not.toMatch(/SEGREDO|abc|fulano|0001-95/)
+  })
+
+  it('limita a profundidade e omite valores aninhados demais', () => {
+    expect(scrubBreadcrumbData({ a: [[[[['segredo@x.com']]]]] })).toEqual({ a: [[[['[nested-value-omitted]']]]] })
+    expect(scrubBreadcrumbData({ a: [new Map([['k', 'fulano@x.com']])] })).toEqual({ a: ['[non-plain-value-omitted]'] })
+  })
 })
 
 describe('scrubEventValue', () => {
