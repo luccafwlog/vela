@@ -1,17 +1,24 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-const { createVoyageMock, updateVoyageMock } = vi.hoisted(() => ({
+const { createVoyageMock, updateVoyageMock, findDuplicateMock, showOnPortalMock, setShowMock } = vi.hoisted(() => ({
   createVoyageMock: vi.fn(),
   updateVoyageMock: vi.fn(),
+  findDuplicateMock: vi.fn(),
+  showOnPortalMock: vi.fn(),
+  setShowMock: vi.fn(),
 }))
 
-vi.mock('../../../services/voyages', () => ({
+vi.mock('../../../services/voyages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/voyages')>()),
   createVoyage: createVoyageMock,
   updateVoyage: updateVoyageMock,
+  findDuplicateVoyage: findDuplicateMock,
+  fetchVoyageShowOnPortal: showOnPortalMock,
+  setVoyageShowOnPortal: setShowMock,
 }))
 
 vi.mock('../../../hooks/useAuth', () => ({
@@ -46,6 +53,9 @@ describe('VoyageCreateModal', () => {
     vi.clearAllMocks()
     createVoyageMock.mockResolvedValue({ id: 101 })
     updateVoyageMock.mockResolvedValue({ id: 101 })
+    findDuplicateMock.mockResolvedValue(null)
+    showOnPortalMock.mockResolvedValue(false)
+    setShowMock.mockResolvedValue(undefined)
   })
 
   it('renderiza o formulário padrão com indicação desativada', () => {
@@ -100,7 +110,63 @@ describe('VoyageCreateModal', () => {
         voyageNumber: '045E',
       }),
       'user-1',
+      { origin: 'viagens', showOnPortal: false },
     )
+  })
+
+  // Revisão de 2026-10-22 (A2): a Viagem nova pode nascer em Chegadas e Saídas.
+  it('liga a aparição em Chegadas e Saídas no cadastro', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
+    await user.type(screen.getByLabelText('Numero da viagem'), '11')
+    const toggle = screen.getByRole('switch', { name: 'Não aparece em Chegadas e Saídas' })
+    await user.click(toggle)
+    expect(screen.getByRole('switch', { name: 'Aparece em Chegadas e Saídas' }).getAttribute('aria-checked')).toBe('true')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.objectContaining({ voyageNumber: '11' }), 'user-1', { origin: 'viagens', showOnPortal: true })
+  })
+
+  // Revisão de 2026-10-22 (A1): navio e número já cadastrados.
+  it('recusa navio e número já cadastrados antes de gravar, com a viagem existente', async () => {
+    const user = userEvent.setup()
+    findDuplicateMock.mockResolvedValue({ id: 9, label: 'GREEN ITAJAI / 11', cancelled: false })
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
+    await user.type(screen.getByLabelText('Numero da viagem'), '11')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    expect(await screen.findByText('Já existe a viagem GREEN ITAJAI / 11. Abra a viagem existente em vez de cadastrar outra.')).toBeTruthy()
+    expect(findDuplicateMock).toHaveBeenCalledWith(expect.objectContaining({ vesselName: 'GREEN ITAJAI', voyageNumber: '11', excludeVoyageId: null }))
+    expect(createVoyageMock).not.toHaveBeenCalled()
+  })
+
+  it('mostra a recusa do banco por duplicidade junto do número, não como falha genérica', async () => {
+    const user = userEvent.setup()
+    createVoyageMock.mockRejectedValue({ code: '23505', message: 'Já existe a viagem GREEN ITAJAI / 11, cancelada. Reative-a em Viagens em vez de cadastrar outra.' })
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
+    await user.type(screen.getByLabelText('Numero da viagem'), '11')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    expect(await screen.findByText(/Reative-a em Viagens/)).toBeTruthy()
+  })
+
+  it('na edição, publica a viagem oculta e não oferece tirar a que já aparece', async () => {
+    const user = userEvent.setup()
+    renderModal({ voyageId: 101, initialValues: { vesselName: 'GREEN ITAJAI', voyageNumber: '11' } })
+    const toggle = await screen.findByRole('switch', { name: 'Não aparece em Chegadas e Saídas' })
+    await waitFor(() => expect((toggle as HTMLButtonElement).disabled).toBe(false))
+    await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: 'Salvar viagem' }))
+    await waitFor(() => expect(setShowMock).toHaveBeenCalledWith(101, true))
+    // Mesmo navio e número: a edição não confere duplicidade.
+    expect(findDuplicateMock).not.toHaveBeenCalled()
+
+    cleanup()
+    showOnPortalMock.mockResolvedValue(true)
+    renderModal({ voyageId: 101, initialValues: { vesselName: 'GREEN ITAJAI', voyageNumber: '11' } })
+    const shown = await screen.findByRole('switch', { name: 'Aparece em Chegadas e Saídas' })
+    expect((shown as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText(/sai sozinha com o último ATD, ou por Excluir ou Cancelar/)).toBeTruthy()
   })
 
   it('pede confirmação antes de descartar alterações não salvas', async () => {

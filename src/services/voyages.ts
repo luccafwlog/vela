@@ -355,6 +355,70 @@ export async function setVoyageShowOnPortal(voyageId: number, show: boolean) {
   if (error) throw error
 }
 
+/** Lê se a Viagem aparece em Chegadas e Saídas (e na Programação do Portal). */
+export async function fetchVoyageShowOnPortal(voyageId: number): Promise<boolean> {
+  const { data, error } = await supabase.from('voyages').select('show_on_portal').eq('id', voyageId).maybeSingle()
+  if (error) throw error
+  return Boolean((data as { show_on_portal?: boolean } | null)?.show_on_portal)
+}
+
+export type DuplicateVoyage = { id: number; label: string; cancelled: boolean }
+
+/**
+ * Viagem já cadastrada com o mesmo navio e o mesmo número (revisão de
+ * 2026-10-22, A1): mesmo IMO, ou mesmo nome canônico quando os dois IMOs não
+ * se contradizem (IMO distinto é outro navio, regra de Chegadas e Saídas).
+ * Inclui a Viagem Cancelada, que é retida e se reativa. O banco confere de
+ * novo na gravação (`guard_voyage_identity_unique`, migration 413).
+ */
+export async function findDuplicateVoyage({
+  vesselName,
+  vesselImo,
+  voyageNumber,
+  excludeVoyageId,
+}: {
+  vesselName: string
+  vesselImo: string
+  voyageNumber: string
+  excludeVoyageId?: number | null
+}): Promise<DuplicateVoyage | null> {
+  const number = voyageNumber.trim().toUpperCase()
+  const imo = normalizeVesselImo(vesselImo)
+  const canonical = canonicalizeVesselName(vesselName)
+  if (!number || !canonical) return null
+  const numberPattern = number.replace(/[\\%_]/g, (char) => `\\${char}`)
+  const { data, error } = await supabase
+    .from('voyages')
+    .select('id, voyage_number, status, vessel:vessels(name, imo)')
+    .ilike('voyage_number', numberPattern)
+    .overrideTypes<Array<{ id: number; voyage_number: string; status: string | null; vessel: { name: string | null; imo: string | null } | null }>, { merge: false }>()
+  if (error) throw error
+  const match = (data ?? []).find((row) => {
+    if (row.id === excludeVoyageId || row.voyage_number.trim().toUpperCase() !== number) return false
+    const rowImo = normalizeVesselImo(row.vessel?.imo)
+    if (imo && rowImo === imo) return true
+    if (imo && rowImo && rowImo !== imo) return false
+    return canonicalizeVesselName(row.vessel?.name ?? '') === canonical
+  })
+  return match
+    ? { id: match.id, label: `${match.vessel?.name ?? 'Navio'} / ${match.voyage_number}`, cancelled: match.status === 'cancelled' }
+    : null
+}
+
+/** Mensagem da recusa por duplicidade, igual na tela e na recusa do banco. */
+export function duplicateVoyageMessage(duplicate: Pick<DuplicateVoyage, 'label' | 'cancelled'>) {
+  return duplicate.cancelled
+    ? `Já existe a viagem ${duplicate.label}, cancelada. Reative-a em Viagens em vez de cadastrar outra.`
+    : `Já existe a viagem ${duplicate.label}. Abra a viagem existente em vez de cadastrar outra.`
+}
+
+/** Recusa do banco por navio e número já cadastrados (migration 413), ou null. */
+export function duplicateVoyageRefusal(error: unknown): string | null {
+  const candidate = error as { code?: string; message?: string } | null
+  if (candidate?.code !== '23505' || !candidate.message?.startsWith('Já existe a viagem')) return null
+  return candidate.message
+}
+
 /** Busca viagem por VOY + navio (IMO prevalece; conflito explícito, nunca .find arbitrário). */
 export async function findVoyageByNumberAndVessel(
   voyageNumber: string,

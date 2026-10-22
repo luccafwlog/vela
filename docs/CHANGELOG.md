@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Viagem duplicada recusada e aparição em Chegadas e Saídas no cadastro
+  (2026-10-22):** migration `413`. Navio e número já cadastrados (inclusive
+  numa Viagem Cancelada) são recusados na tela e no banco, por qualquer
+  caminho, com "Já existe a viagem …". O cadastro pela tela Viagens ganha a
+  chave **Aparece em Chegadas e Saídas**, e a edição publica a viagem oculta;
+  Viagens ganha o atalho para Chegadas e Saídas, como o Painel. Prova:
+  `VoyageCreateModal.test.tsx`, `viagemDuplicada.local-pg.test.ts`.
 - **Linha do tempo da Viagem mais limpa (2026-10-22):** o cadastro vira um único
   "Viagem criada", com a origem (botão Nova viagem, Chegadas e Saídas ou a
   planilha) e o autor; cada importação de B/L vira um evento só, com as rotas,

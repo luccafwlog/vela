@@ -151,7 +151,7 @@ lanes e ordena pela menor ETA de POD.
   `show_on_portal = true`, com as suas Escalas brasileiras — inclusive as que
   só embarcam.
 - A lista de portos-vitrine é única em `PORTAL_SCHEDULE_LANES`.
-- `show_on_portal` controla visibilidade; viagens manuais começam ocultas.
+- `show_on_portal` controla visibilidade; viagens manuais começam ocultas, salvo quando o operador liga **Aparece em Chegadas e Saídas** no cadastro da tela Viagens, e o painel de edição da viagem publica a oculta (revisão de 2026-10-22). A viagem criada aqui já nasce publicada, na própria inserção (`createVoyage` com origem `chegadas_saidas`), e a linha do tempo mostra um só "Viagem criada · Origem: Chegadas e Saídas".
 - Viagens `completed` não aparecem na RPC do Portal.
 - PODs omitidos pelo armador (`audit_logs.field_name='omitted'`) aparecem na
   projeção como `OMIT`, enquanto snapshots deletados permanecem ocultos.

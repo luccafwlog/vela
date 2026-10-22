@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Plus, Ship } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../components/ui/Button'
 import { EmptyState, InlineError, PageHeader } from '../components/ui/Card'
@@ -307,12 +307,22 @@ export function Viagens() {
       <PageHeader
         title="Viagens"
         action={
-          canEditVoyages ? (
-            <Button onClick={() => setOpen(true)}>
-              <Plus size={16} />
-              Nova Viagem
-            </Button>
-          ) : null
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Mesmo atalho do Painel (revisão de 2026-10-22, A3). */}
+            <Link to="/chegadas-saidas" className="app-btn app-btn--secondary h-auto gap-3 py-2 text-left">
+              <Ship size={18} aria-hidden="true" />
+              <span className="flex flex-col">
+                <span>Chegadas e Saídas</span>
+                <span className="text-xs font-normal text-[var(--app-muted)]">programação por porto</span>
+              </span>
+            </Link>
+            {canEditVoyages ? (
+              <Button onClick={() => setOpen(true)}>
+                <Plus size={16} />
+                Nova Viagem
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
