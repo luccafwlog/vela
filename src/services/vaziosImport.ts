@@ -204,7 +204,7 @@ export async function importVaziosManifest({ filename, voyageId, port, manifest,
   const p_bookings = manifest.bookings.map((booking) => Object.fromEntries(Object.entries(booking).filter(([key]) => key !== 'rowNumber')))
   const { data, error } = await supabase.rpc('import_vazios_bookings_transactional', {
     p_voyage_id: voyageId, p_port: port, p_uploaded_by: uploadedBy, p_bookings,
-    // Nome e SHA-256 do arquivo no lote (ADR 0095, decisão 3; migration 420).
+    // Nome e SHA-256 do arquivo no lote (ADR 0095, decisão 3; migration 405).
     p_filename: filename, p_file_hash: fileHash,
   } as never)
   if (error) throw error

@@ -8,7 +8,7 @@
 
 - **Importações: hash do arquivo e desova (2026-10-22, Lote 10 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
-  migrations `420` e `421`. Arquivo de B/L, Manifesto BB, B/L avulso de carga solta, Granito,
+  migrations `405` e `406`. Arquivo de B/L, Manifesto BB, B/L avulso de carga solta, Granito,
   Embarque de Vazios e Vazios de Importação gravam no lote o nome e o SHA-256 do arquivo, com quem
   e quando; importar o mesmo arquivo de novo na mesma Viagem só avisa na prévia ("Este arquivo já
   foi importado em <data> por <pessoa>."), sem bloquear. O local de desova passa a ser um por

@@ -78,7 +78,7 @@ antes e passa depois, e o módulo dono atualizado.
   calculado (`_recompute_voyage_pol_atd`) conta só B/Ls ativos; cancelar e
   reativar recalculam. Correções manuais anteriores marcadas na migration.
   Prova: `atdDoPolManual.local-pg.test.ts` e `ws1FunctionalSmoke.test.ts`.
-- **Lote 10 — hash e desova** (migrations `420` e `421`, números provisórios):
+- **Lote 10 — hash e desova** (migrations `405` e `406`, números provisórios):
   decisões 3 e 26; F-50 (desova). Toda importação por arquivo que grava lote
   (arquivo de B/L, Manifesto BB e B/L avulso, Granito, Embarque de Vazios e
   Vazios de Importação) guarda nome, SHA-256 do arquivo (calculado no
@@ -131,7 +131,7 @@ antes e passa depois, e o módulo dono atualizado.
   de Clientes e Baplie não gravam lote e ficaram sem hash nem aviso de
   reenvio. A confirmação da troca de desova na planilha de Veículos continua
   olhando o container do B/L da linha; container que já tinha dois locais
-  diferentes antes da `421` só se unifica na próxima gravação.
+  diferentes antes da `406` só se unifica na próxima gravação.
 
 - Nenhuma do Lote 2: a modalidade FCL/LCL é lida do Type of Movement
   ("LCL/LCL" e "CFS-CFS" no B/L LCL real da COSCO).

@@ -3,7 +3,7 @@ import { describeWithProbe } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
 
 // Lote 10 do plano docs/plans/2026-10-21-frente-das-importacoes.md
-// (migrations 420 e 421; ADR 0095, decisões 3 e 26; F-50).
+// (migrations 405 e 406; ADR 0095, decisões 3 e 26; F-50).
 //   - Hash: toda importação por arquivo que grava lote guarda nome, hash, quem
 //     e quando; o mesmo arquivo de novo grava outro lote (só a prévia avisa) e
 //     `import_file_previous_upload` devolve a gravação anterior.
@@ -46,7 +46,7 @@ function cleanupExtra() {
     SET session_replication_role = origin;`)
 }
 
-describeLocal('420/421 — hash do arquivo importado e desova por container físico', () => {
+describeLocal('405/406 — hash do arquivo importado e desova por container físico', () => {
   let cnpj = ''
   let previousRoe = ''
 
@@ -144,7 +144,7 @@ describeLocal('420/421 — hash do arquivo importado e desova por container fís
     expect(previous('manifesto_bb', HASH_B)).toBe('FF9410 operacoes|bb.xlsx')
 
     // O corpo antigo não fica exposto à API: a gravação passa pelo envelope.
-    expect(w.as('operacoes', `SELECT public.import_vazios_bookings_transactional_core_420(${w.voyageId}, 'BRSSZ', '${actor}'::uuid, '[]'::jsonb)`).stderr)
+    expect(w.as('operacoes', `SELECT public.import_vazios_bookings_transactional_core_405(${w.voyageId}, 'BRSSZ', '${actor}'::uuid, '[]'::jsonb)`).stderr)
       .toMatch(/permission denied/)
   })
 

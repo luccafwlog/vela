@@ -1,4 +1,4 @@
--- 420: hash do arquivo importado — nome, hash, quem e quando no lote de toda
+-- 405: hash do arquivo importado — nome, hash, quem e quando no lote de toda
 -- importação por arquivo; reenvio só avisa (Lote 10 do plano
 -- docs/plans/2026-10-21-frente-das-importacoes.md; ADR 0095, decisão 3, que
 -- muda em parte o item 9 da ADR 0078: nenhum arquivo é guardado, só o hash).
@@ -26,7 +26,7 @@
 --      preenche nome e hash vazios com o que a RPC de importação declarou na
 --      transação (`vela.import_file_name`, `vela.import_file_hash`).
 --   4. As cinco RPCs de importação por arquivo que gravam lote ganham um
---      envelope com o mesmo nome (o corpo de antes fica com sufixo `_core_420`,
+--      envelope com o mesmo nome (o corpo de antes fica com sufixo `_core_405`,
 --      sem EXECUTE para a API): confere o formato do hash, declara nome e hash
 --      na transação, chama o corpo e limpa a declaração.
 --        - `import_bl_freight_file_atomic`: `p_batch.file_hash` (mesma
@@ -42,7 +42,7 @@
 --
 -- Não reescreve nem apaga linhas existentes.
 --
--- Rollback: renomear cada `_core_420` de volta ao nome original depois de
+-- Rollback: renomear cada `_core_405` de volta ao nome original depois de
 -- dropar o envelope; recriar `uq_import_batches_voyage_hash` como UNIQUE;
 -- dropar o gatilho, a função de consulta e as colunas novas.
 
@@ -132,9 +132,9 @@ CREATE TRIGGER import_file_receipt_fill BEFORE INSERT ON public.vazios_importaca
 
 -- 4. Envelopes das RPCs --------------------------------------------------------
 ALTER FUNCTION public.import_bl_freight_file_atomic(jsonb, uuid, jsonb)
-  RENAME TO import_bl_freight_file_atomic_core_420;
-REVOKE ALL ON FUNCTION public.import_bl_freight_file_atomic_core_420(jsonb, uuid, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.import_bl_freight_file_atomic_core_420(jsonb, uuid, jsonb) TO service_role;
+  RENAME TO import_bl_freight_file_atomic_core_405;
+REVOKE ALL ON FUNCTION public.import_bl_freight_file_atomic_core_405(jsonb, uuid, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.import_bl_freight_file_atomic_core_405(jsonb, uuid, jsonb) TO service_role;
 
 CREATE FUNCTION public.import_bl_freight_file_atomic(p_bls jsonb, p_changed_by uuid, p_batch jsonb DEFAULT NULL)
 RETURNS jsonb
@@ -147,7 +147,7 @@ DECLARE
   v_result jsonb;
 BEGIN
   PERFORM public._declare_import_file(p_batch->>'filename', p_batch->>'file_hash');
-  v_result := public.import_bl_freight_file_atomic_core_420(p_bls, p_changed_by, p_batch);
+  v_result := public.import_bl_freight_file_atomic_core_405(p_bls, p_changed_by, p_batch);
   PERFORM public._declare_import_file(NULL, NULL);
   RETURN v_result;
 END;
@@ -156,9 +156,9 @@ REVOKE ALL ON FUNCTION public.import_bl_freight_file_atomic(jsonb, uuid, jsonb) 
 GRANT EXECUTE ON FUNCTION public.import_bl_freight_file_atomic(jsonb, uuid, jsonb) TO authenticated, service_role;
 
 ALTER FUNCTION public.import_breakbulk_manifest_transactional(text, bigint, uuid, integer, jsonb, jsonb, jsonb)
-  RENAME TO import_breakbulk_manifest_transactional_core_420;
-REVOKE ALL ON FUNCTION public.import_breakbulk_manifest_transactional_core_420(text, bigint, uuid, integer, jsonb, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.import_breakbulk_manifest_transactional_core_420(text, bigint, uuid, integer, jsonb, jsonb, jsonb) TO service_role;
+  RENAME TO import_breakbulk_manifest_transactional_core_405;
+REVOKE ALL ON FUNCTION public.import_breakbulk_manifest_transactional_core_405(text, bigint, uuid, integer, jsonb, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.import_breakbulk_manifest_transactional_core_405(text, bigint, uuid, integer, jsonb, jsonb, jsonb) TO service_role;
 
 CREATE FUNCTION public.import_breakbulk_manifest_transactional(
   p_filename text, p_voyage_id bigint, p_uploaded_by uuid, p_total_bls integer,
@@ -173,7 +173,7 @@ DECLARE
   v_result jsonb;
 BEGIN
   PERFORM public._declare_import_file(p_filename, p_file_hash);
-  v_result := public.import_breakbulk_manifest_transactional_core_420(
+  v_result := public.import_breakbulk_manifest_transactional_core_405(
     p_filename, p_voyage_id, p_uploaded_by, p_total_bls, p_bls, p_items, p_errors);
   PERFORM public._declare_import_file(NULL, NULL);
   RETURN v_result;
@@ -183,9 +183,9 @@ REVOKE ALL ON FUNCTION public.import_breakbulk_manifest_transactional(text, bigi
 GRANT EXECUTE ON FUNCTION public.import_breakbulk_manifest_transactional(text, bigint, uuid, integer, jsonb, jsonb, jsonb, text) TO authenticated, service_role;
 
 ALTER FUNCTION public.import_granite_manifest_transactional(bigint, text, text, text, integer, numeric, uuid, jsonb, text[])
-  RENAME TO import_granite_manifest_transactional_core_420;
-REVOKE ALL ON FUNCTION public.import_granite_manifest_transactional_core_420(bigint, text, text, text, integer, numeric, uuid, jsonb, text[]) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.import_granite_manifest_transactional_core_420(bigint, text, text, text, integer, numeric, uuid, jsonb, text[]) TO service_role;
+  RENAME TO import_granite_manifest_transactional_core_405;
+REVOKE ALL ON FUNCTION public.import_granite_manifest_transactional_core_405(bigint, text, text, text, integer, numeric, uuid, jsonb, text[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.import_granite_manifest_transactional_core_405(bigint, text, text, text, integer, numeric, uuid, jsonb, text[]) TO service_role;
 
 CREATE FUNCTION public.import_granite_manifest_transactional(
   p_voyage_id bigint, p_vessel_voyage text, p_loading_port text, p_discharge_port text,
@@ -201,7 +201,7 @@ DECLARE
   v_result jsonb;
 BEGIN
   PERFORM public._declare_import_file(p_filename, p_file_hash);
-  v_result := public.import_granite_manifest_transactional_core_420(
+  v_result := public.import_granite_manifest_transactional_core_405(
     p_voyage_id, p_vessel_voyage, p_loading_port, p_discharge_port,
     p_total_bls, p_total_weight_kg, p_uploaded_by, p_bls, p_remove_missing);
   PERFORM public._declare_import_file(NULL, NULL);
@@ -212,9 +212,9 @@ REVOKE ALL ON FUNCTION public.import_granite_manifest_transactional(bigint, text
 GRANT EXECUTE ON FUNCTION public.import_granite_manifest_transactional(bigint, text, text, text, integer, numeric, uuid, jsonb, text[], text, text) TO authenticated, service_role;
 
 ALTER FUNCTION public.import_vazios_bookings_transactional(bigint, text, uuid, jsonb)
-  RENAME TO import_vazios_bookings_transactional_core_420;
-REVOKE ALL ON FUNCTION public.import_vazios_bookings_transactional_core_420(bigint, text, uuid, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.import_vazios_bookings_transactional_core_420(bigint, text, uuid, jsonb) TO service_role;
+  RENAME TO import_vazios_bookings_transactional_core_405;
+REVOKE ALL ON FUNCTION public.import_vazios_bookings_transactional_core_405(bigint, text, uuid, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.import_vazios_bookings_transactional_core_405(bigint, text, uuid, jsonb) TO service_role;
 
 CREATE FUNCTION public.import_vazios_bookings_transactional(
   p_voyage_id bigint, p_port text, p_uploaded_by uuid, p_bookings jsonb,
@@ -229,7 +229,7 @@ DECLARE
   v_result jsonb;
 BEGIN
   PERFORM public._declare_import_file(p_filename, p_file_hash);
-  v_result := public.import_vazios_bookings_transactional_core_420(p_voyage_id, p_port, p_uploaded_by, p_bookings);
+  v_result := public.import_vazios_bookings_transactional_core_405(p_voyage_id, p_port, p_uploaded_by, p_bookings);
   PERFORM public._declare_import_file(NULL, NULL);
   RETURN v_result;
 END;
@@ -238,9 +238,9 @@ REVOKE ALL ON FUNCTION public.import_vazios_bookings_transactional(bigint, text,
 GRANT EXECUTE ON FUNCTION public.import_vazios_bookings_transactional(bigint, text, uuid, jsonb, text, text) TO authenticated, service_role;
 
 ALTER FUNCTION public.import_vazios_importacao_transactional(bigint, text, uuid, jsonb, jsonb)
-  RENAME TO import_vazios_importacao_transactional_core_420;
-REVOKE ALL ON FUNCTION public.import_vazios_importacao_transactional_core_420(bigint, text, uuid, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.import_vazios_importacao_transactional_core_420(bigint, text, uuid, jsonb, jsonb) TO service_role;
+  RENAME TO import_vazios_importacao_transactional_core_405;
+REVOKE ALL ON FUNCTION public.import_vazios_importacao_transactional_core_405(bigint, text, uuid, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.import_vazios_importacao_transactional_core_405(bigint, text, uuid, jsonb, jsonb) TO service_role;
 
 CREATE FUNCTION public.import_vazios_importacao_transactional(
   p_voyage_id bigint, p_description text, p_uploaded_by uuid, p_containers jsonb,
@@ -255,7 +255,7 @@ DECLARE
   v_result jsonb;
 BEGIN
   PERFORM public._declare_import_file(p_filename, p_file_hash);
-  v_result := public.import_vazios_importacao_transactional_core_420(
+  v_result := public.import_vazios_importacao_transactional_core_405(
     p_voyage_id, p_description, p_uploaded_by, p_containers, p_manifestos);
   PERFORM public._declare_import_file(NULL, NULL);
   RETURN v_result;

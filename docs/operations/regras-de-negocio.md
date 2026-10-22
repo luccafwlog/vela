@@ -550,7 +550,7 @@ o nome e o hash (abaixo).
   arquivo, o SHA-256 do conteúdo (calculado no navegador; o servidor recusa o
   que não tem 64 hexadecimais), quem e quando
   ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md), decisão 3, que
-  muda em parte o item 9 da ADR 0078; migration `420`). Vários arquivos numa
+  muda em parte o item 9 da ADR 0078; migration `405`). Vários arquivos numa
   importação só (B/L avulso) guardam o hash do conjunto. O mesmo arquivo de
   novo para a mesma Viagem e o mesmo tipo de importação **só avisa** na
   prévia: "Este arquivo já foi importado em <data> por <pessoa>." — nunca

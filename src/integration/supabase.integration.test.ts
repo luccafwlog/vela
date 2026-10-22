@@ -50,7 +50,7 @@ describeIntegration('supabase integration - hardening gate', () => {
     await client.auth.signOut()
   })
 
-  // ADR 0095, decisão 3 (migration 420): o reenvio do mesmo arquivo só avisa.
+  // ADR 0095, decisão 3 (migration 405): o reenvio do mesmo arquivo só avisa.
   it('import_manifest_transactional aceita o mesmo hash de novo (reenvio só avisa)', async () => {
     const hash = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('')
 

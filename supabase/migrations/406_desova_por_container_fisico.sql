@@ -1,4 +1,4 @@
--- 421: um local de desova por container físico (Lote 10 do plano
+-- 406: um local de desova por container físico (Lote 10 do plano
 -- docs/plans/2026-10-21-frente-das-importacoes.md; ADR 0095, decisão 26;
 -- achado F-50 da revisão docs/archive/audits/2026-10-21-revisao-importacoes.md).
 --

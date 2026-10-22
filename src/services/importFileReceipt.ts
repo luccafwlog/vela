@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 import { formatDateTimeBR } from '../lib/utils'
 
 /**
- * Hash do arquivo importado (ADR 0095, decisão 3; migration 420). Toda
+ * Hash do arquivo importado (ADR 0095, decisão 3; migration 405). Toda
  * importação por arquivo que grava lote leva nome e SHA-256 do arquivo ao
  * servidor; o reenvio do mesmo arquivo para a mesma Viagem e o mesmo tipo de
  * importação só avisa na prévia. Nenhum arquivo é guardado, só o hash.

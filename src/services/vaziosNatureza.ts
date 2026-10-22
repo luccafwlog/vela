@@ -148,7 +148,7 @@ const containerKey = (value: string | null | undefined) => String(value ?? '').r
 
 /**
  * Um local de desova por container físico (ADR 0095, decisão 26; migration
- * 421): gravar o local num B/L grava em todos os B/Ls ativos da Viagem com o
+ * 406): gravar o local num B/L grava em todos os B/Ls ativos da Viagem com o
  * mesmo container. Devolve, por container e B/L, o local diferente já gravado
  * que a gravação vai trocar, para a tela pedir a confirmação.
  */
@@ -193,7 +193,7 @@ export async function findUnpackingReplacements(containerIds: readonly number[],
   return unpackingReplacements([...targets, ...siblings], containerIds, value)
 }
 
-/** O servidor grava o local em todos os B/Ls do container físico (migration 421). */
+/** O servidor grava o local em todos os B/Ls do container físico (migration 406). */
 export async function setContainerUnpackingLocation(
   containerId: number,
   unpackingLocation: string | null,
