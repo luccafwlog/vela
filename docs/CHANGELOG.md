@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Portal: suspensão, reativação e convite com autor (2026-10-22, auditoria de segurança run-3,
+  achado C6):** migration `411`. Os eventos que `portal-account-suspend` e `portal-invite-send`
+  gravam com `service_role` passam a registrar quem agiu (o id que o `getUser` da sessão confirmou);
+  antes ficavam só com o Departamento. As duas Edges recusam sessão que o Auth não confirma.
+  Publicar a migration antes das Edges. Prova: `autorDosEventosDoPortal.local-pg.test.ts`,
+  `edgeFunctionsRun2.test.ts`.
 - **Portal: balde de login à prova de tentativas em paralelo (2026-10-22, auditoria de segurança
   run-3, pendência P3; ADR 0049):** migration `410`. O login e a verificação da senha atual na troca
   do Email de Recuperação reservam a tentativa no balde do CNPJ, sob trava, antes de conferir a
