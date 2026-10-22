@@ -174,6 +174,10 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
     const source = fn('portal-recovery-email-change')
     expect(source).toContain("account.account_situation !== 'ativo'")
     expect(source).toContain('>= EMAIL_CHANGE_DAILY_LIMIT')
+    // Cliente desativado recebe a mesma recusa, antes da cota e da senha (run-3).
+    expect(source).toContain('customers(name, cnpj_cpf, deactivated_at)')
+    expect(source).toContain("if (!account.active || account.account_situation !== 'ativo' || customerDeactivated) return")
+    expect(source.indexOf('customerDeactivated) return')).toBeLessThan(source.indexOf('>= EMAIL_CHANGE_DAILY_LIMIT'))
   })
 
   it('anexos órfãos de Dispute são removidos pelo job do detector', () => {
