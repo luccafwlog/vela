@@ -1,8 +1,13 @@
 /** Falha do Supabase Auth que não é senha errada: limite de taxa, 5xx, rede. */
 export class AuthUpstreamError extends Error {
-  constructor(readonly status: number | undefined, readonly code: string | undefined) {
+  readonly status: number | undefined
+  readonly code: string | undefined
+
+  constructor(status: number | undefined, code: string | undefined) {
     super(`Supabase Auth indisponível (status ${status ?? '?'}, code ${code ?? '?'})`)
     this.name = 'AuthUpstreamError'
+    this.status = status
+    this.code = code
   }
 }
 
