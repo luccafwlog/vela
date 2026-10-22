@@ -102,9 +102,9 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'central-informacoes', group: 'importacoes', action: 'Publicar na Central de Informações do Portal', can: ALL, proof: ['caso: P8:'] },
 
   // Taxas Locais e faturamento
-  { id: 'editar-taxas', group: 'taxas', action: 'Criar e editar tabela, item e Condição de Cliente; lançar e editar taxa manual', can: ALL, proof: ['todos: Editar tabela de Taxas Locais', 'todos: Editar item de Taxas Locais', 'todos: Lançar taxa manual'] },
+  { id: 'editar-taxas', group: 'taxas', action: 'Criar e editar tabela; incluir e corrigir item de tabela ainda sem uso; criar Condição de Cliente; lançar e editar taxa manual', can: ALL, proof: ['todos: Editar tabela de Taxas Locais', 'caso: Catálogo: item de tabela ainda sem uso', 'todos: Lançar taxa manual'] },
   { id: 'excluir-taxa-manual', group: 'taxas', action: 'Excluir taxa manual do B/L', can: ADM, proof: ['exceção: Excluir taxa manual do B/L'] },
-  { id: 'desativar-tarifa', group: 'taxas', action: 'Desativar, reativar e excluir tarifa', can: ADM, proof: ['caso: P9:', 'caso: B13:'] },
+  { id: 'desativar-tarifa', group: 'taxas', action: 'Desativar, reativar e excluir tarifa; corrigir item de tabela já usada e editar Condição de Cliente', can: ADM, proof: ['caso: P9:', 'caso: B13:', 'caso: Catálogo: item de tabela ainda sem uso'] },
   { id: 'emitir-fatura', group: 'taxas', action: 'Emitir fatura (do B/L, na Validação, consolidada, avulsa) e corrigir fatura emitida', can: ALL, proof: ['caso: A9:', 'caso: P4:'] },
   { id: 'autorizar-restituicao', group: 'taxas', action: 'Autorizar restituição excepcional e cancelar a autorização', can: ALL, proof: ['caso: P5: %s lê a Conciliação, autoriza restituição'] },
   { id: 'baixa-restituicao', group: 'taxas', action: 'Registrar pagamento (baixa manual) e confirmar Restituição', can: ADM_FIN, proof: ['caso: P5: baixa manual e conciliar PIX', 'exceção: Registrar a Restituição (fatura)', 'exceção: Registrar a Restituição (Demurrage)'] },
@@ -114,7 +114,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   // Demurrage
   { id: 'gerar-invoice', group: 'demurrage', action: 'Gerar Invoice e complementar; aplicar desconto; editar tarifa, acordo e condição de Demurrage do B/L', can: ALL, proof: ['caso: P4:', 'caso: P5: %s lê a Conciliação, autoriza restituição e aplica desconto', 'caso: P9:', 'todos: Condição de Demurrage do B/L'] },
   { id: 'disputas', group: 'demurrage', action: 'Ver Disputas e editar os dados da disputa e o vencimento', can: ALL, proof: ['caso: P12: %s lê o Desbloqueio de CE com os documentos, as Disputas', 'todos: Editar os dados da disputa'] },
-  { id: 'baixa-invoice', group: 'demurrage', action: 'Registrar pagamento de Invoice', can: ADM_FIN, proof: ['exceção: Baixa de Invoice de Demurrage'] },
+  { id: 'baixa-invoice', group: 'demurrage', action: 'Registrar pagamento de Invoice e tirar o ROE manual', can: ADM_FIN, proof: ['exceção: Baixa de Invoice de Demurrage', 'exceção: Tirar o ROE manual da Invoice de Demurrage'] },
   { id: 'informar-ptax', group: 'demurrage', action: 'Informar PTAX', can: only('administrativo', 'financeiro', 'equipamentos'), proof: ['exceção: Informar PTAX'] },
   { id: 'responder-disputa', group: 'demurrage', action: 'Responder, reabrir e anexar na Disputa', can: only('administrativo', 'equipamentos'), proof: ['exceção: Responder Disputa', 'exceção: Reabrir Disputa'] },
   { id: 'cancelar-invoice', group: 'demurrage', action: 'Cancelar Invoice e cancelar baixa; mudar o intervalo da Régua', can: ADM, proof: ['exceção: Cancelar Invoice de Demurrage', 'exceção: Cancelar baixa de Demurrage', 'exceção: Intervalo da Régua'] },

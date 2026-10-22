@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   deleteOverride: vi.fn(),
   lookupCustomers: vi.fn(),
   activeConditions: { value: 0 },
+  // Tabelas já usadas (vínculo, cálculo ou fatura), como `charge_tables_in_use` devolve.
+  tablesInUse: { value: new Set<number>() as Set<number> | null },
 }))
 
 const item = (over: Record<string, unknown>) => ({
@@ -145,6 +147,7 @@ vi.mock('../../ui/ConfirmDialog', () => ({
 }))
 vi.mock('../../../hooks/useLocalCharges', () => ({
   useLocalChargeTables: () => ({ data: tables, isLoading: false, error: null, refetch: vi.fn(), isFetching: false }),
+  useChargeTablesInUse: () => ({ data: mocks.tablesInUse.value ?? undefined }),
   useSaveChargeTable: () => ({ mutateAsync: mocks.saveTable, isPending: false }),
   useSetChargeTableActive: () => ({ mutateAsync: mocks.toggleTable, isPending: false }),
   useSetChargeTableItemActive: () => ({ mutateAsync: mocks.toggleItem, isPending: false }),
@@ -408,6 +411,53 @@ describe('Tabelas de Taxas Locais', () => {
     expect(screen.queryByRole('button', { name: /^Desativar tabela/ })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
     expect(screen.getByRole('button', { name: 'Adicionar item' })).toBeTruthy()
+  })
+
+  it('quem não é Administrativo corrige item só de tabela ainda sem uso (ADR 0093, decisão 2; decisão de 2026-10-22)', async () => {
+    const user = userEvent.setup()
+    try {
+      mocks.tablesInUse.value = new Set([1])
+      const { unmount } = renderTables({ canDelete: false })
+      await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
+      expect(screen.queryByRole('button', { name: 'Adicionar item' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Editar item THD' })).toBeNull()
+      unmount()
+
+      // Sem saber o uso, a tela não oferece a correção.
+      mocks.tablesInUse.value = null
+      const second = renderTables({ canDelete: false })
+      await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
+      expect(screen.queryByRole('button', { name: 'Adicionar item' })).toBeNull()
+      second.unmount()
+
+      mocks.tablesInUse.value = new Set()
+      renderTables({ canDelete: false })
+      await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
+      expect(screen.getByRole('button', { name: 'Adicionar item' })).toBeTruthy()
+      await user.click(screen.getByRole('button', { name: 'Editar item THD' }))
+      const value = within(screen.getByRole('dialog')).getByLabelText(/Valor unitário/)
+      await user.clear(value)
+      await user.type(value, '150')
+      expect(screen.getByText(/Tabela ainda sem uso/)).toBeTruthy()
+    } finally {
+      mocks.tablesInUse.value = new Set()
+    }
+  })
+
+  it('o Administrativo corrige item de tabela já usada e vê que a correção reemite faturas', async () => {
+    const user = userEvent.setup()
+    try {
+      mocks.tablesInUse.value = new Set([1])
+      renderTables()
+      await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
+      await user.click(screen.getByRole('button', { name: 'Editar item THD' }))
+      const value = within(screen.getByRole('dialog')).getByLabelText(/Valor unitário/)
+      await user.clear(value)
+      await user.type(value, '150')
+      expect(screen.getByText(/Correção de erro: recalcula os B\/Ls vinculados/)).toBeTruthy()
+    } finally {
+      mocks.tablesInUse.value = new Set()
+    }
   })
 
   it('lente "Com aviso" e recorte vazio oferecem Limpar filtros', async () => {

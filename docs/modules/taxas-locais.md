@@ -82,10 +82,15 @@ de grafias diferentes do mesmo POD (BRVIX × BRVIT):
   linha. O nome da tabela abre a linha: notas da tabela, avisos de vigência e
   os itens numa tabela de cabeçalho claro (Item, Entra no cálculo, Perfil,
   Incide, Valor unitário, Aviso curto em âmbar com a frase inteira ao passar o
-  mouse), item desativado em cinza e **+ Adicionar item** uma vez no pé. Cada
-  item tem, só para o Administrativo, **Editar** e o menu ⋮ (Desativar/Reativar
-  item, Excluir item) — editar item é correção de faturas (ADR 0093, decisão 2),
-  e o formulário diz a consequência; abaixo de 640 px tabelas e itens viram cartões;
+  mouse), item desativado em cinza e **+ Adicionar item** uma vez no pé. Em
+  tabela já usada, **+ Adicionar item** e o **Editar** do item são só do
+  Administrativo, porque corrigir item é correção de faturas (ADR 0093,
+  decisão 2); em tabela ainda sem uso aparecem para todos. A tela sabe o uso
+  por `charge_tables_in_use` (migration `407`) e, enquanto não sabe, não os
+  oferece a quem não é Administrativo. O menu ⋮ do item (Desativar/Reativar
+  item, Excluir item) é do Administrativo. O formulário diz a consequência:
+  correção que reemite faturas na tabela usada; "vale para os B/Ls que a
+  usarem" na tabela sem uso. Abaixo de 640 px tabelas e itens viram cartões;
 - `src/components/taxasLocais/chargePresentation.ts` traduz o cadastro no que
   o motor faz (`resolve_bl_local_charge_items`, migrations `129` e `171`): THD por
   container com perfil "Todos" vai para revisão; perfil em item que não é THD
@@ -388,8 +393,9 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
 - **Editar é corrigir** (ADR 0093, decisão 2; migration `354`): editar,
   incluir, ativar ou desativar item de tabela já usada (vinculada, calculada
   ou faturada) e editar Condição de Cliente são só do Administrativo
-  (`guard_tariff_correction_admin`); criar tabela, incluir item em tabela ainda
-  não usada e criar Condição continuam com todos. A edição recalcula os B/Ls não
+  (`guard_tariff_correction_admin`); criar tabela, incluir e corrigir item de
+  tabela ainda não usada e criar Condição continuam com todos (nota de
+  2026-10-22 na ADR 0093). A edição recalcula os B/Ls não
   faturados vinculados, inclusive com CE (o preço fixado acompanha), e passa
   os faturados pela correção automática (fonte `tariff_correction`): sem
   pagamento, cancela e reemite com número novo, aviso no Portal e QR novo; com

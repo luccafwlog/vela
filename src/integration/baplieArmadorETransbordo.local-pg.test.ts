@@ -1,5 +1,5 @@
 // Lote 9 da frente das importações (ADR 0095, decisões 14 e 15; decisões do
-// dono B12b e B12c; migration 410):
+// dono B12b e B12c; migration 403):
 // - navio compartilhado: o container cujo operador (NAD+CA) não está nos
 //   códigos do armador da Viagem (`carriers.baplie_codes`) não entra no
 //   staging, nas marcas nem na conciliação, mesmo estando num B/L da Viagem;

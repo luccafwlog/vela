@@ -24,7 +24,7 @@ export type BaplieContainer = {
   ownership?: ContainerOwnership | null
   /**
    * NAD+CA do container (operador). Não é gravado no staging: a regra da
-   * Viagem (`applyBaplieVoyageRules`) e o servidor (migration 410) o comparam
+   * Viagem (`applyBaplieVoyageRules`) e o servidor (migration 403) o comparam
    * com os códigos do armador da Viagem (ADR 0095, decisão 14).
    */
   operator?: string | null

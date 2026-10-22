@@ -36,11 +36,11 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
 
   const caller = createClient(url, anon, { global: { headers: { Authorization: jwt } } })
   const { data: isAdmin } = await caller.rpc('is_admin')
-  if (isAdmin !== true) return json(404, { error: 'permission denied' }, origin)
+  if (isAdmin !== true) return json(403, { error: 'permission denied' }, origin)
 
   const { data: callerUser } = await caller.auth.getUser()
   const actorId = callerUser.user?.id ?? null
-  if (!actorId) return json(404, { error: 'permission denied' }, origin)
+  if (!actorId) return json(403, { error: 'permission denied' }, origin)
 
   // service_role restrito ao que exige privilégio de autenticação.
   const admin = createClient(url, service)

@@ -62,7 +62,7 @@ export type BaplieReconciliationResult = {
 import { normalizePortCode } from './portCode'
 
 /**
- * Linha do staging em transbordo (migration 410; ADR 0095, decisão 15):
+ * Linha do staging em transbordo (migration 403; ADR 0095, decisão 15):
  * aparece na conciliação, mas não leva IMO/OOG nem SOC/COC aos B/Ls.
  * `is_transshipment` falta nos tipos gerados (database.ts protegido).
  */

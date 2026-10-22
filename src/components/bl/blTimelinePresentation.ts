@@ -86,7 +86,7 @@ const FIELD_LABELS: Record<string, string> = {
   container_load_type: 'FCL/LCL',
   free_time_override: 'Free time do B/L',
   container_number: 'Número do container',
-  type: 'Perfil',
+  type: 'Tipo',
   tare_weight_kg: 'Tara (kg)',
   unpacking_location: 'Local de desova',
   ownership: 'SOC/COC',

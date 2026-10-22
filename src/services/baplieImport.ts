@@ -15,7 +15,7 @@ export type BaplieVoyageContext = {
   /** Armador da Viagem (navio → armador). */
   carrierName?: string | null
   /**
-   * Códigos do armador no Baplie (`carriers.baplie_codes`, migration 410):
+   * Códigos do armador no Baplie (`carriers.baplie_codes`, migration 403):
    * container de outro operador fica fora (ADR 0095, decisão 14). Ausente =
    * não conferido.
    */
@@ -84,7 +84,7 @@ export type BaplieOtherCarrier = { container_number: string; operator: string }
  * conciliação, com contagem na prévia. Não depende dos B/Ls importados nem do
  * cabeçalho do arquivo e não recusa o arquivo. Container sem operador fica.
  * Armador sem códigos não separa nada (aviso). O servidor aplica a mesma regra
- * (`_baplie_other_carrier`, migration 410).
+ * (`_baplie_other_carrier`, migration 403).
  */
 function applyCarrierRule(
   containers: BaplieContainer[],
@@ -369,7 +369,7 @@ function vaziosKeys(list: Iterable<VaziosKeyFields>) {
   return [...list].map((c) => `${c.container_number}|${c.pol}|${c.pod}`).sort().join(',')
 }
 
-// Vazio em transbordo não é vazio de importação (decisão 15; migration 410).
+// Vazio em transbordo não é vazio de importação (decisão 15; migration 403).
 function baplieEmptyKeys(list: Iterable<BaplieDiffFields>) {
   return vaziosKeys([...list].filter((c) => c.status === 'empty' && !isBaplieTransshipment(c)))
 }
@@ -476,7 +476,7 @@ export async function listBaplieStagingForDiff(voyageId: number): Promise<Baplie
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from('baplie_containers')
-      // `is_transshipment` é da migration 410 (tipos gerados protegidos).
+      // `is_transshipment` é da migration 403 (tipos gerados protegidos).
       .select('id, container_number, status, size_type, pol, pod, is_imo, is_oog, ownership, is_transshipment' as 'id, container_number, status, size_type, pol, pod, is_imo, is_oog, ownership')
       .eq('voyage_id', voyageId)
       .order('id')

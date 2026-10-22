@@ -328,13 +328,8 @@ gravado no rastro. **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts`
 (B14).
 
 **ADR de Saída fechado trava tudo no Embarque de vazios** (ADR 0095, decisão
-22; migrations `274`, `398` e `399`): com o ADR fechado, nada muda nas unidades nem
-nas linhas de serviço — reimportar, incluir, editar e excluir unidade, lançar
-ou mudar linha, trocar o porto do embarque e criar o Embarque da escala são recusados com "ADR de Saída de
-<porto> fechado: … Reabra o ADR de Saída para mudar.", inclusive pela escrita
-direta na API (gatilho `guard_vazios_export_adr_lock`); a tela tira as ações.
-Regra e tela em [Manifestos & EDI](../modules/manifesto-edi.md#embarquevazios).
-**Teste local-pg:** `vaziosUmaVezPorViagem.local-pg.test.ts`.
+22): regra, mensagem, gatilho e tela em
+[Manifestos & EDI](../modules/manifesto-edi.md#embarquevazios).
 
 **Um vazio de importação por Viagem** (ADR 0095, decisão 21; F-32; migration
 `398`): o mesmo container entra uma vez nos Vazios de importação da Viagem,
@@ -554,7 +549,11 @@ o nome e o hash (abaixo).
   importação só (B/L avulso) guardam o hash do conjunto. O mesmo arquivo de
   novo para a mesma Viagem e o mesmo tipo de importação **só avisa** na
   prévia: "Este arquivo já foi importado em <data> por <pessoa>." — nunca
-  bloqueia (`import_file_previous_upload`). Veículos, planilha de CE, datas de
+  bloqueia (`import_file_previous_upload`). A reimportação que só atualiza
+  unidades já gravadas (Embarque de Vazios, como o Granito) grava o recibo no
+  manifesto mais recente delas, para o aviso apontar a última importação
+  (migration `408`). Uma falha ao calcular o hash não impede a importação: o
+  lote fica sem hash e a prévia não avisa. Veículos, planilha de CE, datas de
   container, Programação, Base de Clientes e Baplie não gravam lote e não têm
   esse aviso.
 
@@ -631,12 +630,9 @@ decisões 7, 18 e 25).
 
 ### CE e Manifesto Mercante
 
-O B/L só fica num Manifesto Mercante enquanto está ativo e tem CE: remover o CE
-ou cancelar o B/L o tira do Manifesto, com Histórico; reativar o B/L o recoloca
-no Manifesto guardado (se ainda for da rota), e registrar o CE de novo, só pela
-planilha de CE, vincula o Manifesto da planilha. B/L com CE que muda de rota e
-fica sem Manifesto abre "CE fora do Manifesto da rota" (normal, Documentação),
-que fecha quando o CE muda ou o B/L entra num Manifesto. A regra completa é a
+O B/L só fica num Manifesto Mercante enquanto está ativo e tem CE, e o B/L
+com CE que muda de rota abre o alerta "CE fora do Manifesto da rota". A regra
+(saída, volta, alerta e fechamento) é a
 [regra 21 de Manifestos & EDI](../modules/manifesto-edi.md) ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md),
 decisões 19 e 20).
 

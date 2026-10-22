@@ -543,7 +543,7 @@ describe('countOpenBaplieDivergences (faixa de viagens)', () => {
   })
 })
 
-// ADR 0095, decisão 15 (B12c; migration 410): o transbordo aparece na
+// ADR 0095, decisão 15 (B12c; migration 403): o transbordo aparece na
 // conciliação, marcado, mas não leva IMO/OOG nem SOC/COC aos B/Ls.
 describe('transbordo na conciliação', () => {
   const transbordo = { container_number: 'ABCD1234567', status: 'full', is_transshipment: true, is_imo: true, imo_class: '3', un_number: '1203', is_oog: true, ownership: 'SOC' }

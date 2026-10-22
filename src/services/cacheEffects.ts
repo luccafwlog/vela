@@ -89,7 +89,7 @@ export async function afterViagemAlterada(queryClient: QueryInvalidator, options
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS,
     queryKeys.voyages.options(), ['vehicle-voyage-options'], ['voyage-indicated-first-port'],
     ...EMPTY_IMPORT_KEYS, ['baplie-staging'],
-    // Os códigos do armador no Baplie (migration 410) valem para toda Viagem dele.
+    // Os códigos do armador no Baplie (migration 403) valem para toda Viagem dele.
     ['baplie-voyage-context'],
     // A lista do Granito mostra Navio / Viagem de cada B/L (lote 5b).
     queryKeys.granite.all(),
