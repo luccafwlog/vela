@@ -121,6 +121,14 @@ describeLocal('404 — Histórico: importação visível no B/L e no Cliente; tr
     expect(find(rows, 'updated_at')).toHaveLength(0)
   })
 
+  it('terminal aparece pelo nome, não pelo uuid', () => {
+    const depot = w.psql(`INSERT INTO public.depots (code, name) VALUES ('FF9402T', 'Terminal FF9402') RETURNING id`)
+    expect(w.psql(`SELECT public._bl_timeline_value('terminal_id', '${depot}')`)).toBe('Terminal FF9402')
+    expect(w.psql(`SELECT public._bl_timeline_value('terminal_id', gen_random_uuid()::text)`)).toBe('Terminal excluído')
+    expect(w.psql(`SELECT public._bl_timeline_value('manifesto_mercante_id', gen_random_uuid()::text)`)).toBe('Manifesto excluído')
+    w.psql(`DELETE FROM public.depots WHERE id = '${depot}'`)
+  })
+
   it('a Base de Clientes aparece na ficha do Cliente com origem, quem e quando', () => {
     const cnpj = w.psql(`SELECT cnpj_cpf FROM public.customers WHERE id = ${w.customerId}`)
     const result = w.json<{ ok: boolean }>('administrativo', `SELECT public.apply_customer_base_batch_atomic($json$${JSON.stringify([{

@@ -202,19 +202,28 @@ AS $function$
 DECLARE
   v_text text;
 BEGIN
-  IF p_value IS NULL OR btrim(p_value) !~ '^[0-9]+$' THEN
+  IF p_value IS NULL THEN
+    RETURN p_value;
+  END IF;
+  -- Terminal e Manifesto têm id uuid; os demais, bigint.
+  IF p_field IN ('terminal_id', 'manifesto_mercante_id') THEN
+    IF btrim(p_value) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+      RETURN p_value;
+    END IF;
+    IF p_field = 'terminal_id' THEN
+      SELECT d.name INTO v_text FROM public.depots d WHERE d.id = btrim(p_value)::uuid;
+      RETURN COALESCE(v_text, 'Terminal excluído');
+    END IF;
+    SELECT m.numero INTO v_text FROM public.manifestos_mercante m WHERE m.id = btrim(p_value)::uuid;
+    RETURN COALESCE(v_text, 'Manifesto excluído');
+  END IF;
+  IF btrim(p_value) !~ '^[0-9]+$' THEN
     RETURN p_value;
   END IF;
   IF p_field IN ('customer_id', 'suggested_customer_id') THEN
     SELECT concat_ws(' · ', c.name, CASE WHEN c.cnpj_cpf IS NOT NULL THEN 'CNPJ ' || c.cnpj_cpf END)
       INTO v_text FROM public.customers c WHERE c.id = btrim(p_value)::bigint;
     RETURN COALESCE(v_text, 'Cliente excluído');
-  ELSIF p_field = 'terminal_id' THEN
-    SELECT d.name INTO v_text FROM public.depots d WHERE d.id = btrim(p_value)::bigint;
-    RETURN COALESCE(v_text, 'Terminal excluído');
-  ELSIF p_field = 'manifesto_mercante_id' THEN
-    SELECT m.numero INTO v_text FROM public.manifestos_mercante m WHERE m.id = btrim(p_value)::bigint;
-    RETURN COALESCE(v_text, 'Manifesto excluído');
   ELSIF p_field = 'voyage_id' THEN
     SELECT btrim(concat_ws(' ', vs.name, v.voyage_number)) INTO v_text
     FROM public.voyages v LEFT JOIN public.vessels vs ON vs.id = v.vessel_id
