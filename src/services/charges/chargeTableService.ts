@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import { sanitizeLikeTerm } from '../../lib/utils'
 import { deleteOneById, reactivateCatalogRow } from '../deleteRecords'
+import { toError } from '../../lib/errors'
 
 export type LocalChargeTableWithItems = {
   id: number
@@ -112,6 +113,19 @@ export async function listLocalChargeTables(filters?: {
       return String(left.name ?? '').localeCompare(String(right.name ?? ''), 'pt-BR')
     }),
   }))
+}
+
+/**
+ * Tabelas já usadas (vínculo com B/L, cálculo ou fatura), pela mesma régua da
+ * guarda do banco (`charge_table_in_use`, migration 407). Item de tabela usada
+ * só o Administrativo corrige (ADR 0093, decisão 2); o de tabela ainda sem uso,
+ * todos os setores.
+ */
+export async function listChargeTablesInUse(tableIds: readonly number[]): Promise<Set<number>> {
+  if (!tableIds.length) return new Set()
+  const { data, error } = await supabase.rpc('charge_tables_in_use' as never, { p_table_ids: [...tableIds] } as never)
+  if (error) throw toError(error)
+  return new Set(((data ?? []) as Array<number | string>).map(Number))
 }
 
 export async function saveChargeTable(input: ChargeTableInput) {

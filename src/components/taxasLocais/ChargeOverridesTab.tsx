@@ -182,9 +182,12 @@ export function ChargeOverridesTab({
     const confirmOptions = {
       title: nextActive ? 'Reativar condição de Cliente' : 'Desativar condição de Cliente',
       message: `${nextActive ? 'Reativar' : 'Desativar'} a condição ${who}?`,
+      // ADR 0094, A3 (migration 378): ativar ou desativar não recalcula B/L
+      // existente; vale para os que entrarem depois e para a reimportação com
+      // o aceite de refixar.
       consequence: nextActive
-        ? 'Os B/Ls deste Cliente ainda sem fatura e sem CE são recalculados com o valor negociado dentro da vigência. O banco recusa se outra condição ativa ocupar o mesmo período.'
-        : 'Os B/Ls deste Cliente ainda sem fatura e sem CE são recalculados pelo valor da tabela; faturas emitidas e B/Ls com CE não mudam.',
+        ? 'Vale para os B/Ls deste Cliente que entrarem depois e para a reimportação com o aceite de refixar o preço; B/Ls já gravados e faturas não mudam. O banco recusa se outra condição ativa ocupar o mesmo período.'
+        : 'Os B/Ls deste Cliente que entrarem depois voltam ao valor da tabela; B/Ls já gravados e faturas não mudam.',
       reversibility: nextActive ? 'Pode ser desativada de novo.' : 'Pode ser reativada pelo Administrativo.',
       confirmLabel: nextActive ? 'Reativar condição' : 'Desativar condição',
       tone: nextActive ? ('primary' as const) : ('danger' as const),

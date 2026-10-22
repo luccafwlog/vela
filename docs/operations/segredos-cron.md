@@ -127,9 +127,11 @@ essa leitura.
 | `demurrage-dunning` | `0 * * * *` | `7 * * * *` |
 
 `portal-daily-digest` (11:00 UTC) e os jobs por minuto (`portal-email-events-runner`,
-`itau-pix-queue`) não mudam. Os jobs agendados manualmente
+`itau-pix-queue`) não mudam. Os jobs então agendados à mão
 (`ce-unlock-notify-email`, `ce-unlock-cleanup`, `recalc-demurrage-ptax`,
-`itau-pix-queue`) não são tocados pela migration; recebem só o timeout novo.
+`itau-pix-queue`) não são tocados por essa migration; recebem só o timeout novo.
+Desde a migration `358`, `recalc-demurrage-ptax` e `itau-pix-queue` são
+recriados pela cadeia, com o mesmo nome e corpo.
 
 **Risco residual:** uma falha que dure mais de 30 s (DNS fora do ar, Function
 travada) ainda perde a rodada. Se reaparecer, o próximo passo é um job de
@@ -210,12 +212,12 @@ WHERE command ~ $re$Bearer ' \|\| '[^']$re$
 ```
 
 **Os jobs HTTP passam pelo dispatcher** — deve retornar `ok = true` em todas as
-linhas. `recalc-demurrage-ptax`, `itau-pix-queue`, `ce-unlock-cleanup` e
-`ce-unlock-notify-email` **não são criados pelas migrations** (ver as seções de
-agendamento abaixo e o roteiro de ativação do
-[plano Itaú](../archive/plans/2026-10-06-integracao-itau-pix.md)), então em um banco
-recém-provisionado a consulta devolve seis linhas; dez depois que os quatro forem
-agendados manualmente, como em produção desde 07/10:
+linhas. Desde a migration `358`, `recalc-demurrage-ptax` e `itau-pix-queue`
+são criados pela cadeia (com o `ops.dispatch_edge_job` presente; sem ele, a
+`358` só avisa por WARNING). `ce-unlock-cleanup` e `ce-unlock-notify-email`
+**não são criados pelas migrations** (ver as seções de agendamento abaixo),
+então em um banco recém-provisionado a consulta devolve oito linhas; dez depois
+que os dois forem agendados manualmente, como em produção:
 
 ```sql
 SELECT jobname, schedule, active,
@@ -237,7 +239,9 @@ validado: HTTP 200, referência cambial de hoje persistida, zero faturas
 alteradas (só havia uma Demurrage em rascunho). Primeiro ciclo agendado
 observado em 2026-10-08 às 17:00 UTC (`cron.job_run_details`).
 
-A migration `018` deliberadamente **não** cria o job `recalc-demurrage-ptax`.
+Desde a migration `358` a cadeia recria o job (`cron.unschedule` e
+`cron.schedule`, sem `UPDATE` em `cron.job`); o roteiro abaixo serve para
+recriá-lo à mão. A migration `018` deliberadamente **não** criava o job.
 Criá-lo e desativá-lo no replay exigiria `UPDATE` em `cron.job`, privilégio que
 o papel de migrations do Supabase não tem — a tentativa anterior abortava a
 aplicação com `permission denied for table job (SQLSTATE 42501)` e impedia as

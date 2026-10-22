@@ -50,8 +50,12 @@ Fontes executáveis principais:
   aberto de `/granito` e da aba da Viagem (lote 6a);
 - entrada pela Viagem em
   [`src/components/shared/VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx);
-- banco: `import_granite_manifest_transactional` na definição da migration
-  `325` (corpo da `206`).
+- banco: `import_granite_manifest_transactional`, envelope da migration `405`
+  com o nome e o hash do arquivo (`p_filename`, `p_file_hash`): grava o recibo
+  da importação no manifesto, inclusive na reimportação, e chama o corpo
+  `import_granite_manifest_transactional_core_405` (trava da Viagem da `387`
+  sobre a definição da `325`, corpo da `206`). A prévia avisa quando o mesmo
+  arquivo já foi importado para a Viagem (`import_file_previous_upload`).
 
 ## Anatomia das telas
 

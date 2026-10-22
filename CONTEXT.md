@@ -801,8 +801,11 @@ importação em [Manifestos & EDI](docs/modules/manifesto-edi.md)
 
 **Tabela de Taxas Locais**
 Cadastro que define quais taxas locais existem e quanto custam, por POD e
-modalidade; é a fonte dos valores padrão. A vigência é informativa: vale a
-tabela **ativa** do escopo, e desativar é a única forma de tirá-la do cálculo.
+modalidade; é a fonte dos valores padrão. A vigência é informativa: o B/L
+fica vinculado à tabela **ativa** do escopo no primeiro cálculo e a segue
+enquanto ela servir ao POD e ao modo de carga; desativar a tabela tira-a só dos
+B/Ls que entrarem depois. Corrigir item de tabela já usada é correção (só o
+Administrativo).
 → Regra: [Taxas Locais § Tabela aplicável, Item de Taxa e Condição de Cliente](docs/modules/taxas-locais.md#tabela-aplicável-item-de-taxa-e-condição-de-cliente)
 
 - **Evitar:** "tabela de preços", "tarifa local"
@@ -846,12 +849,24 @@ sobrepostas.
 - **Ver também:** Item de Taxa, Cliente, Tarifa de Demurrage
 
 **Data de Referência da Tarifa**
-Data que escolhe qual Condição de Cliente vale para um B/L: ETA da escala do
-POD, depois ETA da Viagem, depois hoje. Não escolhe a tabela e não é a ATA nem
-a data de importação do B/L.
+Data que escolhe qual Condição de Cliente vale para um B/L: o dia da
+importação (Brasília), fixado no primeiro cálculo com o Preço Fixado; sem
+preço fixado, hoje. Não escolhe a tabela, não é a ETA nem a ATA, e a ETA
+alterada não muda o preço.
 → Regra: [Taxas Locais § Data de Referência da Tarifa](docs/modules/taxas-locais.md#data-de-referência-da-tarifa)
 
 - **Ver também:** Tabela de Taxas Locais, Condição de Cliente, Escala
+
+**Preço Fixado (Refixar o preço)**
+Tabela, Condição de Cliente, Data de Referência e câmbio das Taxas Locais que
+ficam fixos no dia em que o B/L entra no Vela (primeiro cálculo,
+`bl_price_freezes`). A base (containers, rateio, POD, peso, veículos) continua
+a atual na emissão. **Refixar o preço** refaz esses quatro no dia, só em B/L
+não faturado e só pelo aceite na prévia do arquivo de B/L.
+→ Regra: [Taxas Locais § Preço fixo na importação e base atual](docs/modules/taxas-locais.md#preço-fixo-na-importação-e-base-atual-adr-0094-a1-a-a4)
+
+- **Evitar:** "preço congelado no CE"
+- **Ver também:** Data de Referência da Tarifa, ROE, Condição de Cliente
 
 **Movimento (FCL/LCL)**
 Declaração do armador, no B/L, de como a carga foi estufada na origem e é
@@ -871,9 +886,9 @@ normalmente.
 - **Ver também:** Movimento (FCL/LCL), Taxas Locais
 
 **Taxa Local em Dólar**
-Item de Taxa cadastrado em USD, convertido em BRL pelo ROE na emissão da fatura
-e congelado. Difere do Demurrage, que recalcula o BRL a cada PTAX até o
-pagamento.
+Item de Taxa cadastrado em USD, convertido em BRL pelo ROE fixado no primeiro
+cálculo do B/L (Preço Fixado) e congelado na fatura. Difere do Demurrage, que
+recalcula o BRL a cada PTAX até o pagamento.
 → Regra: [Faturamento § Taxa local em dólar](docs/modules/faturamento.md#taxa-local-em-dólar)
 
 - **Ver também:** ROE, Recálculo Diário, Item de Taxa
@@ -946,9 +961,9 @@ do B/L, que trocam só a diária.
 → Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
 
 **ROE (Taxa de Câmbio)**
-Taxa USD→BRL: PTAX Venda do BCB × Markup. Em Taxas Locais, congela na emissão;
-na Invoice de Demurrage, acompanha a PTAX pelo Recálculo Diário e só congela
-no pagamento.
+Taxa USD→BRL: PTAX Venda do BCB × Markup. Em Taxas Locais, fica fixa no
+primeiro cálculo do B/L (Preço Fixado); na Invoice de Demurrage, acompanha a
+PTAX pelo Recálculo Diário e só congela no pagamento, salvo o ROE manual.
 - **Ver também:** PTAX, Markup, Recálculo Diário
 → Regra: [Regras de negócio § Câmbio](docs/operations/regras-de-negocio.md#câmbio-roe--ptax); em Demurrage, [Demurrage § Recálculo diário e congelamento no pagamento](docs/modules/demurrage.md#recálculo-diário-e-congelamento-no-pagamento)
 
@@ -1507,7 +1522,9 @@ O caminho de cada tela até o código está em [RASTREABILIDADE.md](docs/RASTREA
 Alteração do B/L (reimportação, Baplie, edição de B/L, containers ou veículos)
 que muda o valor faturado ou o Cliente de uma fatura de Taxas Locais já
 emitida. A fatura nunca é editada: o sistema reemite, abate ou restitui
-sozinho. Erro de preço (tabela ou Condição de Cliente) não é correção.
+sozinho. Corrigir item de tabela já usada ou Condição de Cliente (erro de
+preço, só o Administrativo) também é correção; reajuste se faz com tabela ou
+Condição nova.
 → Regra: [Faturamento § Correção após emissão](docs/modules/faturamento.md#correção-após-emissão-adr-0077)
 
 **Reemissão pendente**
