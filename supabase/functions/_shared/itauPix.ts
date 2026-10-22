@@ -304,6 +304,30 @@ function outcomeFromCob(cob: ItauCob, amount: string): ChargeOutcome {
   return { outcome: 'error', error: `Cobrança existente em estado ${cob.status} / ${cob.valor.original}.` }
 }
 
+// Campos com dado de quem paga (pessoa ou empresa) nas respostas da API Pix:
+// devedor e pagador da cobrança, infoPagador de cada Pix recebido e os
+// identificadores que aparecem dentro deles.
+const PAYER_KEYS = new Set(['devedor', 'pagador', 'infopagador', 'cpf', 'cnpj', 'nome', 'email', 'logradouro', 'cidade', 'uf', 'cep', 'telefone'])
+
+/**
+ * Corpo de erro do Itaú sem dado do pagador, para gravar no motivo da cobrança
+ * (auditoria run-3). As violações do problem+json trazem o valor recusado em
+ * `valor` ao lado de `propriedade`; esse valor também sai.
+ */
+export function redactPayerData(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactPayerData)
+  if (!value || typeof value !== 'object') return value
+  const record = value as Record<string, unknown>
+  const isViolation = typeof record.propriedade === 'string'
+  const out: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(record)) {
+    if (PAYER_KEYS.has(key.toLowerCase())) continue
+    if (isViolation && key === 'valor') continue
+    out[key] = redactPayerData(item)
+  }
+  return out
+}
+
 export async function stepCharge(client: ItauPixClient, charge: QueuedCharge, now = new Date()): Promise<ChargeOutcome> {
   const amount = Number(charge.amount_brl).toFixed(2)
   try {
@@ -362,7 +386,7 @@ export async function stepCharge(client: ItauPixClient, charge: QueuedCharge, no
     if (charge.status !== 'pending_create' && (error.body as Partial<ItauCob> | null)?.status === 'CONCLUIDA') return { outcome: 'concluded' }
     // Nunca chegou a existir no banco: nada a cancelar.
     if (charge.status === 'pending_cancel' && error.status === 404) return { outcome: 'cancelled' }
-    return { outcome: 'error', error: `${error.message}${error.body ? ' ' + JSON.stringify(error.body).slice(0, 300) : ''}` }
+    return { outcome: 'error', error: `${error.message}${error.body ? ' ' + JSON.stringify(redactPayerData(error.body)).slice(0, 300) : ''}` }
   }
 }
 

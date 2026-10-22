@@ -192,6 +192,25 @@ describe('processador da fila de cobranças', () => {
   })
   const ativa = (txid: string, extra: Record<string, unknown> = {}) => Response.json(cob(txid, { valor: { original: '2.50' }, ...extra }))
 
+  it('erro do Itaú gravado na cobrança sai sem dado do pagador (auditoria run-3)', async () => {
+    const c = charge({ status: 'pending_update' })
+    const refused = Response.json({
+      title: 'Cobrança inválida.', status: 400,
+      violacoes: [{ razao: 'CPF inválido', propriedade: 'devedor.cpf', valor: '12345678909' }],
+      devedor: { cpf: '12345678909', nome: 'Fulano de Tal' },
+      pix: [{ endToEndId: 'E1', infoPagador: 'pago por Fulano', valor: '2.50' }],
+    }, { status: 400 })
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(refused)
+    const result = await stepCharge(createItauPixClient(config, fetchMtls), c)
+    expect(result.outcome).toBe('error')
+    const error = (result as { error: string }).error
+    expect(error).toContain('CPF inválido')
+    expect(error).toContain('devedor.cpf')
+    expect(error).not.toContain('12345678909')
+    expect(error).not.toContain('Fulano')
+    expect(error).toContain('"valor":"2.50"')
+  })
+
   it('primeira tentativa cria a COB com o valor formatado', async () => {
     const c = charge()
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid))
