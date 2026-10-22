@@ -16,6 +16,7 @@ import {
   assertValidCommunicationAttachments,
   renderCustomerCommunicationTemplate,
   renderCeMercanteTaxasTemplate,
+  singleLine,
   type CustomerCommunicationKind,
   type CommunicationAttachment,
 } from '../_shared/customerCommunicationTemplates.ts'
@@ -443,7 +444,7 @@ async function handler(req: Request): Promise<Response> {
   try {
     for (const [index, attachment] of (body.attachments ?? []).entries()) {
       if (!attachment || typeof attachment !== 'object') return permanentRejection(`Anexo inválido na posição ${index + 1}.`, origin)
-      const filename = String(attachment.filename ?? '').trim()
+      const filename = singleLine(String(attachment.filename ?? '')).trim()
       const contentType = String(attachment.content_type ?? '').trim().toLowerCase()
       const contentBase64 = String(attachment.content_base64 ?? '')
       const actualSize = decodeBase64ByteLength(contentBase64)

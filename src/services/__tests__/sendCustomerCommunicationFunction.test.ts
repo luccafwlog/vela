@@ -65,6 +65,8 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain('existingBytes + newBytes > 10 * 1024 * 1024')
     expect(source).toContain('uploadedBy: string | null')
     expect(source).toContain('callerUser.user?.id ?? null')
+    // Nome do anexo vai a cabeçalho no provedor: sem CR/LF (auditoria run-3).
+    expect(source).toContain("const filename = singleLine(String(attachment.filename ?? '')).trim()")
   })
 
   it('identidade reaproveitada só repete o mesmo envio: outra pessoa ou outro conteúdo é recusa definitiva (run-3, C5)', () => {
