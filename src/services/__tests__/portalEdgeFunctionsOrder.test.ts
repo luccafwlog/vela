@@ -24,7 +24,7 @@ function indexOf(source: string, needle: string): number {
 describe('troca de Email de Recuperação consulta a trava antes de verificar a senha', () => {
   // Achado B: quem tivesse uma sessão do Portal aberta testava senha sem limite
   // por este caminho, contornando as 5 tentativas do login.
-  it('reserva a tentativa no balde antes de signInWithPassword (migration 410)', () => {
+  it('reserva a tentativa no balde antes de signInWithPassword (migration 413)', () => {
     expect(indexOf(emailChange, 'reserveLoginAttempt(admin, account.login_cnpj, rateLimitContext)')).toBeLessThan(indexOf(emailChange, 'verifier.auth.signInWithPassword'))
   })
 

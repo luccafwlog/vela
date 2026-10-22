@@ -1,5 +1,11 @@
 # 0092 — Importação com erro é recusada inteira e não grava nada
 
+> **Situação atual (2026-10-22).** Estendida pela
+> [ADR 0095](./0095-importacoes-regras-da-revisao.md) (migrations `392` a `406`):
+> B/L cancelado no arquivo é aviso e não é tocado em todo arquivo (decisão 8).
+> A regra vigente está em
+> [Regras de negócio](../operations/regras-de-negocio.md#importações).
+
 Status: aceito — 2026-10-19 (decisão do responsável na página do lote 6a da
 identidade visual). Implementada no lote 6a
 ([plano](../plans/2026-10-13-identidade-visual-tela-a-tela.md)).

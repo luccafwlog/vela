@@ -54,6 +54,9 @@ const PORT_NAME_TO_LOCODE: Array<[string, string]> = [
   ['cnszk', 'CNSHK'],
   ['cnshe', 'CNSHK'],
   ['yantian', 'CNYTN'],
+  // Zhuhai (Gaolan) é porto próprio do delta do Rio das Pérolas, não apelido
+  // de Nansha nem de Shekou.
+  ['zhuhai', 'CNZUH'],
   ['hong kong', 'HKHKG'],
   ['hongkong', 'HKHKG'],
   ['singapore', 'SGSIN'],

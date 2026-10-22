@@ -18,6 +18,17 @@
 > provisório pela ETA. A decisão 16 vale só para Pix sem TXID nenhum; o de
 > TXID de outro sistema na mesma chave segue ignorado. A decisão 21 mantém
 > quatro dígitos e o número inteiro a partir de 10.000.
+>
+> **Nota editorial — 2026-10-22 (decisão do responsável na
+> [revisão da PR 1021](../archive/audits/2026-10-22-revisao-pr-1021.md), R-05).**
+> O "só o Administrativo edita item de tabela" da decisão 2 vale para tabela
+> **já usada** (vínculo com B/L, cálculo ou fatura), cuja correção reemite as
+> faturas. Incluir e corrigir item de tabela ainda sem uso fica com todos os
+> setores, como o gatilho `guard_tariff_correction_admin` da migration `354` já
+> fazia; a tela de Taxas Locais passou a seguir o banco pela migration `407`.
+> Editar Condição de Cliente continua só do Administrativo. Regra em
+> [Taxas Locais](../modules/taxas-locais.md) e na
+> [matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento).
 
 Status: supersedida parcialmente — 2026-10-21 (aceita no mesmo dia, decisões do dono respondidas pergunta a pergunta); preço fixo na importação pela ADR 0094
 

@@ -251,15 +251,13 @@ describeLocal('Lote 1 das importações — trava por Viagem e Baplie no servido
       AND field_name = 'baplie_import' ORDER BY id DESC LIMIT 1`)).toBe('Baplie substituído (portos BRRIG)')
   })
 
-  it('F-16 (decisão 13): Viagem, escalas, PODs marcados e container repetido conferidos no servidor; nada é gravado', () => {
+  it('F-16 (decisão 13): escalas, PODs marcados e container repetido conferidos no servidor; nada é gravado', () => {
     const before = staging()
     const cases: Array<[Row[], string[], object | undefined, RegExp]> = [
       [[{ container_number: 'AQCU3870002', pod: 'BRRIG' }, { container_number: 'AQCU3870002', pod: 'BRRIG', status: 'empty' }],
         ['BRRIG'], undefined, /Container repetido no Baplie \(AQCU3870002\)/],
       [[{ container_number: 'AQCU3870021', pod: 'BRPNG' }], ['BRPNG'], undefined, /fora das escalas da Viagem \(BRPNG\)/],
       [[{ container_number: 'AQCU3870021', pod: 'BRSSZ' }], ['BRRIG'], undefined, /fora dos portos marcados \(BRSSZ\)/],
-      [[{ container_number: 'AQCU3870021', pod: 'BRRIG' }], ['BRRIG'], { voyage_number: 'B999' }, /O arquivo é da viagem B999; a viagem escolhida é A387V/],
-      [[{ container_number: 'AQCU3870021', pod: 'BRRIG' }], ['BRRIG'], {}, /O arquivo não diz a viagem/],
     ]
     for (const [list, pods, file, message] of cases) {
       const result = importBaplie(list, pods, { file })
@@ -267,11 +265,12 @@ describeLocal('Lote 1 das importações — trava por Viagem e Baplie no servido
     }
     expect(staging()).toBe(before)
 
-    // Sem TDT, com a confirmação da prévia: aceito. Zeros e pontuação não mudam a viagem.
+    // ADR 0096, decisão 2 (migration 409): o número de viagem não é conferido;
+    // outro número ou nenhum (sem confirmação) é aceito.
     expect(importBaplie([{ container_number: 'AQCU3870002', pod: 'BRRIG', is_oog: true }, { container_number: 'AQCU3870013', pod: 'BRRIG', status: 'empty' }],
-      ['BRRIG'], { file: { voyage_confirmed: true } }).error).toBeNull()
+      ['BRRIG'], { file: {} }).error).toBeNull()
     expect(importBaplie([{ container_number: 'AQCU3870002', pod: 'BRRIG', is_oog: true }, { container_number: 'AQCU3870013', pod: 'BRRIG', status: 'empty' }],
-      ['BRRIG'], { file: { voyage_number: '0A387-V' } }).error).toBeNull()
+      ['BRRIG'], { file: { voyage_number: '260911000000' } }).error).toBeNull()
     expect(staging()).toBe(before)
   })
 

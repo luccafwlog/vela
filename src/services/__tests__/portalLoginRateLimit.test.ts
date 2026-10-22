@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { confirmLoginFailure, confirmLoginSuccess, reserveLoginAttempt, voidLoginAttempt } from '../../../supabase/functions/_shared/portalLoginRateLimit.ts'
 import { createFakePortalDb } from './fakePortalDb'
 
-describe('trava de tentativas do login do Portal (reserva atômica, migration 410)', () => {
+describe('trava de tentativas do login do Portal (reserva atômica, migration 413)', () => {
   it('reserva a tentativa e devolve o id', async () => {
     const { db, rpcCalls } = createFakePortalDb({ rpc: () => ({ data: 42 }) })
     expect(await reserveLoginAttempt(db, '12ABC34501DE35')).toBe(42)

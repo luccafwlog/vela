@@ -351,7 +351,7 @@ cujo aviso no Portal pede `FOR KEY SHARE` no Cliente). Envio e exportação trav
 recebíveis do B/L e revalidam a liquidação depois de esperar uma baixa ou um cancelamento de baixa em
 curso: B/L que perdeu a liquidação é recusado.
 
-Desde a migration `415`: o rascunho do Portal confere que todo B/L é do Cliente
+Desde a migration `418`: o rascunho do Portal confere que todo B/L é do Cliente
 da sessão e liberado antes de travar solicitações e B/Ls; a visão sem Cliente das
 funções privadas (`list`, `request_json`) exige perfil interno e `vip_json` exige
 Cliente; o item do B/L com solicitação de outro Cliente esconde também os motivos

@@ -47,6 +47,8 @@ export const queryKeys = {
   charges: {
     tables: (filters?: unknown) =>
       (filters === undefined ? (['local-charge-tables'] as const) : (['local-charge-tables', filters] as const)),
+    // Debaixo de `local-charge-tables`: invalidar as tabelas relê o uso.
+    tablesInUse: (tableIds: readonly number[]) => ['local-charge-tables', 'in-use', [...tableIds].sort((a, b) => a - b)] as const,
     // Sem filtros => prefixo base, para que invalidateQueries({ operations() })
     // case com qualquer query ativa keyed por filtros (React Query v5 nao faz
     // prefix-match quando a chave passada tem `undefined` na posicao do filtro).
@@ -91,7 +93,6 @@ export const queryKeys = {
     indicatedFirstPort: (voyageIds: number[]) => ['voyage-indicated-first-port', voyageIds] as const,
     exportSchedules: (voyageIds: number[]) => ['voyage-export-schedules', voyageIds] as const,
     vaziosExportPorts: (voyageId: number) => ['voyage-vazios-export-ports', voyageId] as const,
-    carrierBaplieCodes: (name: string, scac: string) => ['voyages', 'carrier-baplie-codes', name, scac] as const,
     escalaTerminal: (voyageId: number, port: string) => ['voyage-escala-terminal', voyageId, port] as const,
     escalaTerminalAll: () => ['voyage-escala-terminal'] as const,
     timeline: (voyageId: number) => ['voyage-timeline', String(voyageId)] as const,

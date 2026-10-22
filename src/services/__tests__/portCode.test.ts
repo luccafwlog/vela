@@ -62,6 +62,12 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(resolvePortCode('SEPTEMBER')).toEqual({ code: null, recognized: false })
   })
 
+  it('reconhece Zhuhai como porto próprio, pelo código e pelo nome', () => {
+    expect(resolvePortCode('CNZUH')).toEqual({ code: 'CNZUH', recognized: true })
+    expect(resolvePortCode('ZHUHAI, CHINA')).toEqual({ code: 'CNZUH', recognized: true })
+    expect(normalizeStoredPortCode('CNZUH')).toBe('CNZUH')
+  })
+
   it('reconhece LOCODE embutido nas descrições operacionais', () => {
     expect(resolvePortCode('Port of Singapore (SGSIN)')).toEqual({ code: 'SGSIN', recognized: true })
     expect(resolvePortCode('New York / USNYC')).toEqual({ code: 'USNYC', recognized: true })

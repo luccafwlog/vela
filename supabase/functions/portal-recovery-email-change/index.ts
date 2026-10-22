@@ -50,7 +50,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
     // 5 tentativas do login. A consulta vem ANTES de signInWithPassword: quem
     // está bloqueado não chega a ter a senha verificada.
     const rateLimitContext = { ip: requestIp(req) }
-    // Reserva atômica (migration 410): a tentativa conta antes da verificação.
+    // Reserva atômica (migration 413): a tentativa conta antes da verificação.
     const attemptId = await reserveLoginAttempt(admin, account.login_cnpj, rateLimitContext)
     if (attemptId === null) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })
     const { data: authUser } = await admin.auth.admin.getUserById(authId); const technicalEmail = authUser.user?.email

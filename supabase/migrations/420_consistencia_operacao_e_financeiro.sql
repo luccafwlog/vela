@@ -1,4 +1,4 @@
--- 417: consistência na operação e no financeiro (auditoria de segurança
+-- 420: consistência na operação e no financeiro (auditoria de segurança
 -- run-3, notas de endurecimento).
 --
 -- 1. `close_agency_departure_report` fechava alertas por `LIKE` montado com o
@@ -15,13 +15,13 @@
 --    verificada.
 -- 6. `_itau_pix_sync` ignorava o valor novo de Demurrage com a cobrança em
 --    conferência de vencimento; grava na mesma linha, e `itau_pix_record`
---    (definição da 412) estende a conferência de versão a esse estado.
+--    (definição da 415) estende a conferência de versão a esse estado.
 -- 7. `delete_records` descartava os efeitos de importação de um id
 --    inexistente (inclusive na prévia); a recusa "não encontrado" desfaz o
 --    descarte.
 --
 -- Só redefine funções; não reescreve nem apaga linhas.
--- Rollback: reaplicar as definições anteriores (002, 090, 049, 247, 370, 412,
+-- Rollback: reaplicar as definições anteriores (002, 090, 049, 247, 370, 415,
 -- 394 e seguintes).
 
 CREATE OR REPLACE FUNCTION public.close_agency_departure_report(p_voyage_id bigint, p_port text, p_snapshot jsonb)
@@ -485,7 +485,7 @@ BEGIN
   -- Vencida em confirmação: nada a mostrar nem a criar até o banco responder.
   -- Demurrage que muda de valor no meio grava o valor novo na mesma linha: se
   -- a conferência achar a cobrança viva, itau_pix_record vê a versão mudada e
-  -- a manda como alteração (417), em vez de ativar o valor antigo.
+  -- a manda como alteração (420), em vez de ativar o valor antigo.
   IF FOUND AND v_open.status = 'pending_expire_check' THEN
     IF p_demurrage_invoice_id IS NOT NULL AND p_payable AND round(p_amount_brl, 2) > 0
        AND v_open.amount_brl <> round(p_amount_brl, 2) THEN
@@ -548,9 +548,9 @@ BEGIN
       expires_at = coalesce(bank_created_at, p_bank_created_at) + make_interval(secs => expiration_seconds),
       uncertain = false, last_error = NULL, updated_at = now(),
       status = CASE
-        -- 412: valor ou validade mudaram durante a chamada: enviar a versão nova
+        -- 415: valor ou validade mudaram durante a chamada: enviar a versão nova
         -- (depois da criação, como alteração da cobrança já criada).
-        -- 417: também na conferência de vencimento (Demurrage que mudou de valor).
+        -- 420: também na conferência de vencimento (Demurrage que mudou de valor).
         WHEN status IN ('pending_create', 'pending_update', 'pending_expire_check') AND p_claimed_version IS NOT NULL
           AND change_version <> p_claimed_version THEN 'pending_update'
         WHEN status IN ('pending_create', 'pending_update', 'pending_expire_check') THEN 'active'
@@ -609,6 +609,7 @@ DECLARE
   v_bl_id text;
   v_reason text := NULLIF(btrim(COALESCE(p_reason, '')), '');
   v_bl_voyage bigint;
+  v_bl_pol text;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() OR NOT public.is_admin() THEN
     RAISE EXCEPTION 'Somente o Administrativo pode excluir.' USING ERRCODE = '42501';
@@ -677,7 +678,7 @@ BEGIN
         PERFORM public.delete_voyage_children(v_id::bigint);
         DELETE FROM public.voyages WHERE id = v_id::bigint;
       ELSIF p_kind = 'bl' THEN
-        SELECT b.voyage_id INTO v_bl_voyage FROM public.bls AS b WHERE b.id = v_id;
+        SELECT b.voyage_id, b.pol INTO v_bl_voyage, v_bl_pol FROM public.bls AS b WHERE b.id = v_id;
         DELETE FROM public.vehicles WHERE bl_id = v_id;
         DELETE FROM public.bls WHERE id = v_id;
       ELSIF p_kind = 'container' THEN
@@ -705,6 +706,13 @@ BEGIN
         IF p_kind = 'bl' AND v_bl_voyage IS NOT NULL THEN
           INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
           VALUES ('voyages', v_bl_voyage::text, 'bl_deleted', v_id, 'excluído', auth.uid(), v_reason);
+          -- 408 (R-09; ADR 0095, decisão 23): o B/L excluído deixa de contar no
+          -- ATD do POL, como o cancelado (salvo correção manual).
+          IF NULLIF(btrim(COALESCE(v_bl_pol, '')), '') IS NOT NULL THEN
+            PERFORM public._recompute_voyage_pol_atd(
+              v_bl_voyage, v_bl_pol, auth.uid(),
+              'ATD recalculado: B/L ' || v_id || ' excluído; só B/Ls ativos contam (ADR 0095, decisão 23)');
+          END IF;
         END IF;
         v_deleted := v_deleted || to_jsonb(v_id);
       END IF;

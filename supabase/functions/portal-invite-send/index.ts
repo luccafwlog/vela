@@ -20,7 +20,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   const { data: role } = await caller.rpc('portal_current_role')
   if (!['administrativo', 'documentacao'].includes(String(role))) return json(403, { error: 'permission denied' }, origin)
   const admin = createClient(url, service)
-  // Sessão viva no Auth e autor do convite e do evento (migration 411).
+  // Sessão viva no Auth e autor do convite e do evento (migration 414).
   const { data: callerUser, error: callerError } = await caller.auth.getUser()
   const actorId = callerUser?.user?.id
   if (callerError || !actorId) return json(403, { error: 'permission denied' }, origin)

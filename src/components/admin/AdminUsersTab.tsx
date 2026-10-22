@@ -117,7 +117,7 @@ export function AdminUsersTab() {
     },
     onSuccess: (result, { releasesEmail }) => {
       if (result?.sessionEnded) {
-        // A própria credencial mudou: o token desta sessão já não vale (migration 407).
+        // A própria credencial mudou: o token desta sessão já não vale (migration 410).
         showToast('Acesso atualizado. Entre de novo com a nova credencial.', 'success')
         setEditando(null)
         void signOut()

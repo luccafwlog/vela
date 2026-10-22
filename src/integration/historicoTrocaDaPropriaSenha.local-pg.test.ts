@@ -2,7 +2,7 @@ import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 418 (auditoria run-3, nota de endurecimento): a troca da própria
+// Migration 421 (auditoria run-3, nota de endurecimento): a troca da própria
 // senha entra no Histórico, só para a própria conta e sem valor. Tudo roda numa
 // transação descartada no fim.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -42,7 +42,7 @@ function scenario(sql: string): string[] {
 
 const describeLocal = describeWithProbe(migration418Applied, 'migration418Applied (Histórico da troca da própria senha)')
 
-describeLocal('418 — Histórico da troca da própria senha', () => {
+describeLocal('421 — Histórico da troca da própria senha', () => {
   it('aceita só a própria conta, com o valor fixo', () => {
     expect(scenario(`
       SELECT pg_temp.try($q$SELECT public.record_audit_entries(${entry(OPS, 'alterada pelo próprio usuário')})$q$);

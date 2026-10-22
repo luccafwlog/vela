@@ -9,7 +9,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   const caller = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: jwt } } })
   const { data: role } = await caller.rpc('portal_current_role')
   if (!['administrativo', 'documentacao'].includes(String(role))) return new Response(JSON.stringify({ error: 'permission denied' }), { status: 403 })
-  // Sessão viva no Auth e autor do evento (migration 411): sob service_role,
+  // Sessão viva no Auth e autor do evento (migration 414): sob service_role,
   // auth.uid() é nulo e o histórico ficaria sem a pessoa.
   const { data: callerUser, error: callerError } = await caller.auth.getUser()
   const actorId = callerUser?.user?.id

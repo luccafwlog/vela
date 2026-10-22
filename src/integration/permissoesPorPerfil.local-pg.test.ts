@@ -813,6 +813,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Registrar a Restituição (Demurrage)', allowed: FIN, call: `public.confirm_demurrage_refund(-1, 'comprovante', 'favorecido', now())` },
     { row: 'Liquidar Ajuste de COD', allowed: FIN, call: `public.settle_cod_adjustment(-1, '{actor}', NULL, 'motivo')` },
     { row: 'Baixa de Invoice de Demurrage', allowed: FIN, call: `public.register_demurrage_payment('{actor}', -1, current_date, 'motivo', 1, 1)` },
+    { row: 'Tirar o ROE manual da Invoice de Demurrage', allowed: FIN, call: `public.release_demurrage_invoice_manual_roe(-1, 'motivo do teste P14')` },
     { row: 'Informar PTAX', allowed: ['administrativo', 'financeiro', 'equipamentos'], call: `public.recalculate_demurrage_invoices_manual(0)` },
     { row: 'Responder Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.add_demurrage_dispute_message(-1, 'mensagem', 'invalido')` },
     { row: 'Reabrir Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.reopen_demurrage_dispute(-1, 'motivo')` },
@@ -884,6 +885,45 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     for (const profile of ALL_PROFILES) {
       expect(outcomeAs(profile, statement), `${profile}: ${statement}`).not.toMatch(/^(42501|42883|42601|42P01|42703|SEM-LINHA|sem-resultado)/)
     }
+  })
+
+  // ADR 0093, decisão 2, com a decisão do responsável de 2026-10-22: corrigir
+  // item de tabela já usada (vínculo, cálculo ou fatura) e editar Condição de
+  // Cliente reemitem faturas e são do Administrativo; incluir e corrigir item de
+  // tabela ainda sem uso fica com todos (guard_tariff_correction_admin, 354).
+  // A tela sabe o uso por charge_tables_in_use (407).
+  it('Catálogo: item de tabela ainda sem uso todos corrigem; de tabela já usada e Condição, só o Administrativo', () => {
+    const correctItem = `UPDATE public.charge_table_items SET unit_value_brl = unit_value_brl + 1 WHERE id = ${ITEM_THC}`
+    const addItem = `INSERT INTO public.charge_table_items (charge_table_id, name, applies_to, value_brl, unit_value_brl, currency, manual_only)
+      VALUES (${TABLE_ID}, 'Item P85 novo', 'bl', 10, 10, 'BRL', true)`
+    const inUse = (profile: Profile) => runAs(profile, `SELECT array_to_string(public.charge_tables_in_use(ARRAY[${TABLE_ID}]::bigint[]), ',')`)
+    for (const profile of ALL_PROFILES) {
+      expect(inUse(profile).output, profile).toBe('')
+      expect(outcomeAs(profile, correctItem), `${profile}: tabela sem uso`).toBe('OK')
+      expect(outcomeAs(profile, addItem), `${profile}: item novo em tabela sem uso`).toBe('OK')
+    }
+    psql(`INSERT INTO public.bl_charge_table_links (bl_id, scope, charge_table_id) VALUES ('${BL}', 'container', ${TABLE_ID})
+      ON CONFLICT (bl_id, scope) DO UPDATE SET charge_table_id = EXCLUDED.charge_table_id;
+      INSERT INTO public.customer_rate_overrides (id, customer_id, charge_item_id, override_value, valid_from)
+      VALUES (${TABLE_ID}, ${CUSTOMER_ID}, ${ITEM_THC}, 1200, '2020-01-01') ON CONFLICT (id) DO NOTHING;`)
+    try {
+      const editCondition = `UPDATE public.customer_rate_overrides SET override_value = override_value + 1 WHERE id = ${TABLE_ID}`
+      for (const profile of ALL_PROFILES) {
+        expect(inUse(profile).output, profile).toBe(String(TABLE_ID))
+        for (const [label, statement] of [['tabela usada', correctItem], ['item novo em tabela usada', addItem], ['Condição', editCondition]] as const) {
+          const state = outcomeAs(profile, statement)
+          if (profile === 'administrativo') expect(state, `${profile}: ${label}`).not.toBe('42501')
+          else expect(state, `${profile}: ${label}`).toBe('42501')
+        }
+      }
+    } finally {
+      psql(`SET session_replication_role = replica;
+        DELETE FROM public.customer_rate_overrides WHERE id = ${TABLE_ID};
+        DELETE FROM public.bl_charge_table_links WHERE bl_id = '${BL}';
+        SET session_replication_role = origin;`)
+    }
+    const outsider = runAsUser('85850000-0000-4000-8000-0000000000ff', `SELECT public.charge_tables_in_use(ARRAY[${TABLE_ID}]::bigint[])`)
+    expect(outsider.error).toMatch(/42501/)
   })
 
   it('Catálogo: só o Administrativo muda o setor e a situação de um usuário', () => {

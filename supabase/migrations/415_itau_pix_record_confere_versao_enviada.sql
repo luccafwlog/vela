@@ -1,4 +1,4 @@
--- 412: o resultado do Itaú só ativa a cobrança na versão que foi enviada
+-- 415: o resultado do Itaú só ativa a cobrança na versão que foi enviada
 -- (auditoria de segurança run-3, achado C7).
 --
 -- Problema: itau_pix_record (153) marcava 'active' qualquer cobrança em
@@ -54,7 +54,7 @@ BEGIN
       expires_at = coalesce(bank_created_at, p_bank_created_at) + make_interval(secs => expiration_seconds),
       uncertain = false, last_error = NULL, updated_at = now(),
       status = CASE
-        -- 412: valor ou validade mudaram durante a chamada: enviar a versão nova
+        -- 415: valor ou validade mudaram durante a chamada: enviar a versão nova
         -- (depois da criação, como alteração da cobrança já criada).
         WHEN status IN ('pending_create', 'pending_update') AND p_claimed_version IS NOT NULL
           AND change_version <> p_claimed_version THEN 'pending_update'

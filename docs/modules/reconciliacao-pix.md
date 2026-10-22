@@ -391,12 +391,12 @@ o copia e cola em `pix_payload`; até lá Vela e Portal mostram "QR em
 preparação". Faturas individual e consolidada com cobrança ativa também entram
 em `local_pix_charge_versions`, então a conciliação por extrato continua
 resolvendo o TXID delas. A avulsa não entra nessa tabela (`itau_pix_record`,
-migrations `152` e `153`). Desde a migration `412` (auditoria de segurança run-3), cada mudança de valor
+migrations `152` e `153`). Desde a migration `415` (auditoria de segurança run-3), cada mudança de valor
 ou validade soma `itau_pix_charges.change_version`, e o runner devolve a versão
 que reservou: se o valor mudou enquanto o Itaú respondia (desconto, PTAX), o
 resultado não ativa a cobrança, que fica em `pending_update` para a versão nova
 seguir na mesma execução. Sem isso, o QR cobrava o valor antigo enquanto a fatura
-e o Portal mostravam o novo. Desde a migration `417`, o mesmo vale para a cobrança
+e o Portal mostravam o novo. Desde a migration `420`, o mesmo vale para a cobrança
 de Demurrage em conferência de vencimento: o valor novo fica gravado na linha e,
 se o banco disser que ela segue viva, ela vai como alteração. Na mesma migration,
 a exceção do extrato já resolvida não tem TXID, valor e data reescritos por uma
@@ -405,7 +405,7 @@ recusada ("Esta baixa foi cancelada…") em vez de devolver o sucesso guardado.
 **Teste:** `src/integration/consistenciaOperacaoFinanceiro.local-pg.test.ts`.
 Quando o runner para no meio do bloco reservado (429 do Itaú ou banco sem
 resposta), as cobranças do bloco que não foram chamadas voltam sem a tentativa e
-com a vez liberada (`itau_pix_release`, migration `419`); antes, ficavam com uma
+com a vez liberada (`itau_pix_release`, migration `422`); antes, ficavam com uma
 tentativa a mais e o atraso crescia.
 
 **Baixa automática (migration 152):** a função consulta `GET /pix` e chama

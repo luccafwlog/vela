@@ -116,7 +116,7 @@ export function GraniteImportModal({
         manifest,
         uploadedBy,
         confirmRemoval: (missing) => confirm(graniteRemovalConfirmOptions(missing, manifest.hidden)),
-        fileHash: receipt.fileHash ?? (file ? await importFilesSha256([file]) : null),
+        fileHash: receipt.fileHash ?? (file ? await importFilesSha256([file]).catch(() => null) : null),
       })
       // Inclui a lista e os totais do Granito, a Viagem e o ADR (G6).
       await afterManifestoImportado(queryClient, { voyageId })

@@ -1,9 +1,18 @@
 # 0095 — Importações: regras de entrada, concorrência e rastro da revisão de 2026-10-21
 
-Status: aceito — 2026-10-21 (respostas do responsável às perguntas da
+> **Situação atual (2026-10-22).** A [ADR 0096](./0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)
+> (migration `409`) supersede três decisões do Baplie: a 13 (o número de viagem
+> do TDT não é mais conferido e não há confirmação na prévia), a 14 (não há
+> regra de "outro armador"; todo container entra) e a 16 na parte da contagem
+> (UNT/UNZ com contagem errada só avisa; sem UNT/UNZ continua erro). As demais
+> decisões continuam valendo.
+
+Status: supersedida parcialmente (decisões 13, 14 e 16, pela ADR 0096) — aceita em 2026-10-21 (respostas do responsável às perguntas da
 [revisão das importações](../archive/audits/2026-10-21-revisao-importacoes.md)).
 Leitura de arquivo e mensagens implementadas na PR luccafwlog/vela#1020; o
-restante, pelo [plano](../archive/plans/2026-10-21-frente-das-importacoes.md).
+restante, pelos lotes do [plano](../archive/plans/2026-10-21-frente-das-importacoes.md),
+já executado (migrations `392` a `406`; revisão em
+[2026-10-22](../archive/audits/2026-10-22-revisao-pr-1021.md)).
 
 Estende a [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
 e a [ADR 0092](./0092-importacao-com-erro-e-recusada-inteira.md); muda em parte o

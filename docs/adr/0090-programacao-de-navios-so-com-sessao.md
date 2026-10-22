@@ -2,7 +2,7 @@
 
 > **Situação atual (2026-10-20).** "Sessão" passou a ser checada no corpo, não só no grant: desde a migration `337`, `portal_ship_schedule()` atende usuário interno ativo (`is_active_read_user()`), conta ativa do Portal com credencial não revogada (`current_portal_customer_id()`) ou `service_role`, e recusa as demais contas `authenticated` com 28000. A auditoria defensiva de 2026-10-19 achou o cadastro público do Auth de produção aberto, o que dava a qualquer pessoa uma conta `authenticated` capaz de ler a programação. Continua sem guarda de Cliente, como diz a consequência abaixo. Regra vigente em [Segurança](../operations/seguranca.md#rls-first).
 >
-> **Situação atual (2026-10-22).** O item 1 ganhou uma exceção: desde a migration `407` ([ADR 0096](./0096-corte-do-token-interno-na-revogacao.md)), `check_internal_token_cutoff()` é executável por `anon`, porque o PostgREST a chama antes de toda requisição, com o papel da requisição. Ela não lê nem devolve dado; sem sessão, não faz nada. A suíte local-pg aceita só essa função na varredura de `anon`.
+> **Situação atual (2026-10-22).** O item 1 ganhou uma exceção: desde a migration `410` ([ADR 0097](./0097-corte-do-token-interno-na-revogacao.md)), `check_internal_token_cutoff()` é executável por `anon`, porque o PostgREST a chama antes de toda requisição, com o papel da requisição. Ela não lê nem devolve dado; sem sessão, não faz nada. A suíte local-pg aceita só essa função na varredura de `anon`.
 
 Status: supersedida parcialmente — 2026-10-19 (pedido do responsável a partir do advisor de
 segurança do Supabase de 19/10/2026). Implementada na migration `320`, com a

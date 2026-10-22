@@ -93,7 +93,7 @@ export function BreakbulkManifestImportModal({
           manifest,
           uploadedBy,
           approval,
-          fileHash: await importFilesSha256([file]),
+          fileHash: await importFilesSha256([file]).catch(() => null),
         })
         await afterManifestoImportado(queryClient, { voyageId })
         showToast(`Manifesto BB importado: ${plural(manifest.bls.length, 'B/L', 'B/Ls')}.`, 'success')

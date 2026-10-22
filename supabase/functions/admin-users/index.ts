@@ -36,11 +36,11 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
 
   const caller = createClient(url, anon, { global: { headers: { Authorization: jwt } } })
   const { data: isAdmin } = await caller.rpc('is_admin')
-  if (isAdmin !== true) return json(404, { error: 'permission denied' }, origin)
+  if (isAdmin !== true) return json(403, { error: 'permission denied' }, origin)
 
   const { data: callerUser } = await caller.auth.getUser()
   const actorId = callerUser.user?.id ?? null
-  if (!actorId) return json(404, { error: 'permission denied' }, origin)
+  if (!actorId) return json(403, { error: 'permission denied' }, origin)
 
   // Corpo lido só depois do papel e com teto (auditoria run-3).
   const parsed = await readBoundedJsonBody(req, SMALL_JSON_MAX_BYTES)
@@ -174,7 +174,7 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     } finally {
       // Credencial trocada derruba as sessões abertas com a credencial antiga,
       // mesmo se a auditoria falhar. Fica por último porque a revogação corta o
-      // token na hora (migration 407) e a auditoria usa a sessão de quem chama,
+      // token na hora (migration 410) e a auditoria usa a sessão de quem chama,
       // que é a própria quando o Administrativo troca a sua credencial.
       if (credentialChanged) await revokeSessions(userId)
     }

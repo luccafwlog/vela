@@ -1,4 +1,4 @@
--- 419: cobrança Itaú reservada e não chamada volta sem contar tentativa
+-- 422: cobrança Itaú reservada e não chamada volta sem contar tentativa
 -- (auditoria de segurança run-3, nota de endurecimento).
 --
 -- Problema: itau_pix_claim (219) soma `attempts` e adia `next_attempt_at` de

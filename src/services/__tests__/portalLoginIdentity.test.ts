@@ -137,7 +137,7 @@ describe('falha do Auth não é senha errada (auditoria run-3, P2)', () => {
     expect(login).toContain('if (err instanceof AuthUpstreamError)')
     const recovery = readFileSync('supabase/functions/portal-recovery-email-change/index.ts', 'utf8')
     expect(recovery.indexOf('!isInvalidCredentials(verified.error)')).toBeLessThan(recovery.indexOf('await confirmLoginFailure('))
-    // Falha do Auth apaga a reserva (migration 410), no login e na troca.
+    // Falha do Auth apaga a reserva (migration 413), no login e na troca.
     expect(login).toContain('await voidLoginAttempt(admin, attemptId)')
     expect(recovery).toContain('await voidLoginAttempt(admin, attemptId)')
   })

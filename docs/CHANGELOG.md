@@ -7,7 +7,7 @@
 ## 2026-10
 
 - **Reforços da auditoria de segurança run-3 (2026-10-22, notas de endurecimento):** migrations
-  `413` a `419`. Banco: guardas de permissão antes das travas (baixa de 8 argumentos, rascunho do
+  `410` a `423`. Banco: guardas de permissão antes das travas (baixa de 8 argumentos, rascunho do
   Desbloqueio de CE), rotinas só do sistema recusam outro chamador, Cliente desativado sai do Portal
   na hora e não recebe aviso de CE, Disputas com teto de pedido de reabertura e reabertura só da
   resolvida, Invoice reemitida sem a Dispute do Cliente anterior, sem oráculo de ids no Portal,
@@ -34,7 +34,7 @@
   quando a maioria dos Pix da janela diverge (com os TXIDs no log); o caso isolado vai para
   análise. `endToEndId` com data impossível passa a ser formato inesperado.
 - **Pix Itaú: o resultado só ativa a versão enviada (2026-10-22, auditoria de segurança run-3,
-  achado C7):** migration `412`. Mudança de valor ou validade durante a chamada ao Itaú (desconto
+  achado C7):** migration `415`. Mudança de valor ou validade durante a chamada ao Itaú (desconto
   de Demurrage, PTAX, renovação) deixava a cobrança `active` com o valor antigo no banco do Itaú;
   agora a cobrança volta a `pending_update` e o valor novo segue na mesma execução. Publicar a
   migration antes da `itau-pix`. Prova: `itauPixCharges.local-pg.test.ts`, `itauPix.test.ts`.
@@ -44,13 +44,13 @@
   conteúdo; antes, o texto novo era entregue e o registro guardava a autoria e a cópia do Comunicado
   original. Regra em [Clientes](modules/clientes.md). Prova: `sendCustomerCommunicationFunction.test.ts`.
 - **Portal: suspensão, reativação e convite com autor (2026-10-22, auditoria de segurança run-3,
-  achado C6):** migration `411`. Os eventos que `portal-account-suspend` e `portal-invite-send`
+  achado C6):** migration `414`. Os eventos que `portal-account-suspend` e `portal-invite-send`
   gravam com `service_role` passam a registrar quem agiu (o id que o `getUser` da sessão confirmou);
   antes ficavam só com o Departamento. As duas Edges recusam sessão que o Auth não confirma.
   Publicar a migration antes das Edges. Prova: `autorDosEventosDoPortal.local-pg.test.ts`,
   `edgeFunctionsRun2.test.ts`.
 - **Portal: balde de login à prova de tentativas em paralelo (2026-10-22, auditoria de segurança
-  run-3, pendência P3; ADR 0049):** migration `410`. O login e a verificação da senha atual na troca
+  run-3, pendência P3; ADR 0049):** migration `413`. O login e a verificação da senha atual na troca
   do Email de Recuperação reservam a tentativa no balde do CNPJ, sob trava, antes de conferir a
   senha; antes, pedidos simultâneos passavam todos pela consulta e testavam mais de 5 senhas em 15
   minutos. Prova: `baldeLoginReservaAtomica.local-pg.test.ts` (10 simultâneas, 5 admitidas),
@@ -66,18 +66,18 @@
   declara Content-Length; antes o corpo inteiro era lido antes da conferência. Prova:
   `ceUnlockDocuments.test.ts`, `edgeFunctionsRun2.test.ts`.
 - **Importações: a trava da Viagem confere quem chama (2026-10-22, auditoria de segurança run-3,
-  pendência P5):** migration `409`. Sessão sem permissão (Portal ou usuário inativo) é recusada
+  pendência P5):** migration `412`. Sessão sem permissão (Portal ou usuário inativo) é recusada
   antes de entrar na fila da Viagem, em todas as importações que usam a trava; antes ela esperava
   a vez e, com carga grande, segurava a Viagem por segundos à frente da equipe. Prova:
   `travaDaViagemConfereQuemChama.local-pg.test.ts`.
 - **Portal: B/L que muda de Cliente (2026-10-22, auditoria de segurança run-3, achados C2, C3
-  e C4):** migration `408`. Depois da troca de Cliente do B/L, o Portal do Cliente anterior não
+  e C4):** migration `411`. Depois da troca de Cliente do B/L, o Portal do Cliente anterior não
   mostra mais contêineres e situação viva do B/L, saldo, correção e abatimento do recebível que
   passou ao novo Cliente, nem o prazo do Desbloqueio de CE calculado com a baixa do novo.
   Regra em [Portal do Cliente](modules/portal-cliente.md#bl-que-muda-de-cliente). Prova:
   `portalAntigoDonoDoBl.local-pg.test.ts`.
 - **Segurança: token interno cortado na revogação (2026-10-22, auditoria de segurança run-3,
-  achado C1; ADR 0096):** migration `407`. Editar acesso (troca de e-mail ou senha) e Desativar
+  achado C1; ADR 0097):** migration `410`. Editar acesso (troca de e-mail ou senha) e Desativar
   passam a cortar na hora o access token já emitido, como o Portal já fazia: o marco da revogação
   fica numa tabela sem grant para os clientes; os helpers de papel, o Desbloqueio de CE e as
   políticas recusam o token anterior; uma checagem antes de toda requisição do PostgREST cobre o
@@ -85,8 +85,53 @@
   acesso tem a sessão encerrada e entra de novo. Prova: `corteTokenInterno.local-pg.test.ts`,
   `advisorFuncoesFechadas.local-pg.test.ts`, `Admin.behavior.test.tsx`,
   `useAuthHydrationFailure.test.tsx`, `edgeFunctionsRun2.test.ts`.
+- **Baplie da COSCO aceito (2026-10-22;
+  [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)):**
+  migration `409`. O número de viagem do Baplie não é mais conferido com o da
+  Viagem e a confirmação da prévia saiu; UNT/UNZ com contagem errada só avisa;
+  a regra de "outro armador" e o campo "Códigos do armador no Baplie" saíram,
+  e todo container do arquivo entra. Os Baplies 1.5 e 2.2 do GREEN ITAPOA
+  (viagem `260911000000`, operadores COS e COT) passam a importar inteiros,
+  com BRVIX e BRSEP.
+- **Zhuhai (CNZUH) reconhecido nas importações (2026-10-22):** o Baplie com POL `CNZUH` era
+  recusado inteiro ("POL não reconhecido"), porque o porto não estava na lista do import
+  (`src/services/portCode.ts`). Zhuhai entra como porto próprio, pelo código e pelo nome, e aparece
+  como "ZHUHAI" nas telas; sem migration, porque `normalize_port_code` já devolve `CNZUH` como está.
+  Prova: `portCode.test.ts`, `baplieParserS03.test.ts`.
+- **Revisão da PR 1021, melhorias (2026-10-22;
+  [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-09 a R-19):**
+  migration `408`. Excluir um B/L recalcula o ATD do POL, como cancelar.
+  Reimportar o Embarque de Vazios grava o recibo no manifesto em que as
+  unidades estão, e o aviso de reenvio aponta a última importação. Planilha
+  de CE, Manifesto BB e Granito recusam usuário sem permissão antes de travar
+  a Viagem. O Histórico da Viagem recebe navio, número e status só pelo
+  gatilho, sem linha repetida quando nada mudou. A planilha de Veículos pede
+  confirmação para trocar o local de desova gravado noutro B/L do mesmo
+  container. Nas telas: as importações usam a mensagem de importação; uma
+  falha ao calcular o hash não impede a importação; editar Cliente relê a
+  ficha; o código `55000` mostra a mensagem do banco; o tipo do container no
+  Histórico aparece como "Tipo". Notas de R-12 e R-18 em Manifestos & EDI;
+  vigências, ADRs, pendências e glossário revistos (R-19). Prova:
+  `atdDoPolManual` e `hashEDesova` (PostgreSQL local),
+  `guardaAntesDaTravaMigration.test.ts`, `voyageMutations.test.ts`,
+  `vehicleImport.test.ts`, `portalErrorMessage.test.ts`.
+- **Revisão da PR 1021, correções antes do merge (2026-10-22;
+  [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-01 a R-08):**
+  migration `407`. `admin-users` volta a responder 403 a quem não é
+  Administrativo (a renumeração da migration do lote 8 tinha trocado para 404,
+  junto com duas linhas de `seguranca.md`). Em Taxas Locais, corrigir item ou
+  Condição relê faturas, ficha do B/L, saldo e Alertas; a confirmação de
+  ativar/desativar Condição diz que só os B/Ls novos mudam (ADR 0094, A3); item
+  de tabela ainda sem uso é corrigido por todos os setores e o de tabela já
+  usada só pelo Administrativo (nota de 2026-10-22 na ADR 0093; a tela sabe o
+  uso por `charge_tables_in_use`). Reprocessar efeito mostra o motivo da recusa
+  do banco. Matriz de permissões, catálogo "O que cada setor pode", glossário,
+  roteiro de cron, Saldo pendente do Cliente, Granito e a ordem de deploy das
+  Edge Functions `admin-users` e `itau-pix` atualizados. Prova:
+  `tariffCorrectionCache.test.tsx`, `TaxasLocais.behavior.test.tsx`,
+  `importEffects.test.ts`, `permissoesPorPerfil.local-pg.test.ts`.
 - **Importações: hash do arquivo e desova (2026-10-22, Lote 10 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
   migrations `405` e `406`. Arquivo de B/L, Manifesto BB, B/L avulso de carga solta, Granito,
   Embarque de Vazios e Vazios de Importação gravam no lote o nome e o SHA-256 do arquivo, com quem
   e quando; importar o mesmo arquivo de novo na mesma Viagem só avisa na prévia ("Este arquivo já
@@ -96,7 +141,7 @@
   gravado pede confirmação. Prova: `hashEDesova.local-pg.test.ts`, `importFileReceipt.test.ts`,
   `Veiculos.unpackingCache.test.tsx`.
 - **Importações: Histórico (2026-10-22, Lote 8 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 24; achados F-23, F-24 e F-46):**
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 24; achados F-23, F-24 e F-46):**
   migration `404`. O Histórico do B/L mostra tudo o que a importação muda: container que entra e sai
   (com a origem; o histórico do container removido fica), lacre, peso, perfil, SOC/COC (inclusive do
   Baplie), local de desova, veículos que entram e saem, consignatário e troca de Cliente com razão
@@ -110,7 +155,7 @@
   `historicoImportacao.local-pg.test.ts`, `blTimelinePresentation.test.ts`, `customerFicha.test.ts`,
   `customerCadastroChanges.test.ts`, `auditEntries.test.ts`.
 - **Importações: Baplie, armador e transbordo (2026-10-22, Lote 9 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `403`.
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `403`.
   Navio compartilhado: o armador guarda os códigos com que aparece no Baplie (campo "Códigos do
   armador no Baplie" em **Nova Viagem**/**Editar**; a COSCO recebeu COS e COSCO); container de outro
   código fica fora das marcas IMO/OOG e SOC/COC e da conciliação, contado na prévia ("de outro
@@ -125,7 +170,7 @@
   tirada do ROE manual ficava parada no câmbio do clique. A Invoice com ROE manual e a paga seguem
   fora. Prova: `demurrageRoeManual.local-pg.test.ts`.
 - **Importações: ATD do POL (2026-10-22, Lote 7 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
   migration `401`. O ATD do POL corrigido à mão (Rotas e Manifestos → **Editar**) fica marcado, com
   quem e quando, e não é mais recalculado pela importação de B/L da Viagem e do POL nem pelo
   cancelamento; a prévia do Importar B/L avisa quando o Laden on Board do arquivo diverge ("ATD do
@@ -135,7 +180,7 @@
   `ladenOnBoardAtd.ts`, cálculo antigo no navegador que nenhuma tela usava. Prova:
   `atdDoPolManual.local-pg.test.ts`, `ws1FunctionalSmoke.test.ts`.
 - **Importações: Vazios (2026-10-22, Lote 6 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 21 e 22; achado F-32):**
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 21 e 22; achado F-32):**
   migrations `398` a `400`. O vazio de importação existe uma vez por Viagem, em qualquer rota e fonte: a
   planilha vale sobre o Baplie (tira do Baplie o container que traz e fica com a natureza
   cama/cover plate digitada nele quando não traz outra, `400`), o Baplie cadastra só os vazios
@@ -150,7 +195,7 @@
   que o ADR está aberto (carregando ou falha, com **Tentar de novo**), as ações ficam fora. Prova: `vaziosUmaVezPorViagem.local-pg.test.ts`,
   `vaziosImportacaoImport.test.ts`, `baplieVaziosPending.test.ts`, `EmbarqueVazios.flow.test.tsx`.
 - **Importações: CE e Manifesto Mercante (2026-10-22, Lote 5 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 19 e 20; achados F-49,
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 19 e 20; achados F-49,
   F-53, F-17 e F-18):** migrations `396` e `397` (índice da guarda). Remover o CE pela ficha ou cancelar o B/L tira o B/L do
   Manifesto Mercante, com Histórico; reativar o B/L o recoloca no Manifesto de antes (se ainda é da
   rota), e o CE removido volta pela planilha de CE, que vincula o Manifesto dela. B/L com CE que muda
@@ -164,7 +209,7 @@
   remover CE, cancelar ou reativar. Prova: `ceEManifestoMercante.local-pg.test.ts`,
   `ceForaDoManifestoAlerta.test.ts`.
 - **Importações: exclusão e efeitos (2026-10-21, Lote 4 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 7, 18 e 25;
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 7, 18 e 25;
   achados F-10, F-13, F-14, F-33a, F-34, F-42 e F-43):** migrations `394` e `395`. Excluir B/L ou Viagem
   encerra os efeitos de importação pendentes como "descartado: registro excluído", sem Alerta (e
   fecha o Alerta do que estava bloqueado); excluir a Viagem apaga os vazios de importação dela e o
@@ -182,7 +227,7 @@
   cenário da revisão. Prova: `exclusaoEEfeitosImportacao.local-pg.test.ts`,
   `Alertas.reprocessar.test.tsx`.
 - **Importações: arquivo de B/L com as regras no servidor (2026-10-21, Lote 2 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 5, 8, 9, 10, 26 e 27;
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 5, 8, 9, 10, 26 e 27;
   achados F-05, F-15, F-27 e F-50):** migrations `392` e `393`. Na rolagem, o B/L é excluído na Viagem antiga (cancelar não libera o número). B/L que já está em outra Viagem recusa o
   arquivo com a Viagem dele (a importação não move B/L entre Viagens); B/L cancelado no arquivo fica
   de fora com aviso para reativar pela ficha e importar de novo, e o resto entra. A confirmação de
@@ -196,7 +241,7 @@
   modalidade FCL/LCL é lida do Type of Movement e gravada em `bls.container_load_type`; B/L LCL
   divide container com outro Cliente. Suíte local-pg `arquivoDeBlRegras`.
 - **Importações: Navegantes ≠ Itajaí e Recife ≠ Suape (2026-10-21, Lote 3 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 12; achado F-08):** migration
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 12; achado F-08):** migration
   `391`. `normalize_port_code` deixa de juntar BRNVT/NVT/NAVEGANTES com BRITJ e BRREC/REC/RECIFE com
   BRSUA e passa a conhecer os apelidos exatos do Baplie da COSCO (BRSPB/SPB/SEP, CNTCA/TCA, TAO,
   CNCAN); `_baplie_port_key` passa a ser a mesma função. B/L, Baplie, Manifesto Mercante, alertas,
@@ -210,7 +255,7 @@
   do nome no arquivo, vínculo de B/L com a tabela de outro porto, que deixa de valer no próximo
   cálculo). Suíte local-pg `portosSeparados`.
 - **Importações: trava por Viagem e Baplie no servidor (2026-10-21, PR luccafwlog/vela#1023, Lote 1 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 6, 11 e 13):** migrations
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 6, 11 e 13):** migrations
   `387` a `390`. Toda importação de Viagem (arquivo de B/L, Manifesto BB e B/L avulso, planilha de
   CE, Baplie, datas, Vazios de importação, Embarque de vazios, Veículos e Granito) pega a mesma trava
   da Viagem: a segunda importação espera a primeira, em vez de cair em "deadlock detected" ou deixar

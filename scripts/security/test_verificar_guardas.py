@@ -141,7 +141,7 @@ class TravaAntesDaGuardaTest(unittest.TestCase):
     def test_arvore_atual_passa_sem_trava_antes_da_guarda(self):
         guardas._CONTEUDO.clear()
         *_, fns, grants = guardas.estado_final()
-        # A 413 pôs a guarda de Financeiro antes da trava na baixa de 8 argumentos.
+        # A 416 pôs a guarda de Financeiro antes da trava na baixa de 8 argumentos.
         sig = 'register_ledger_invoice_payment(int8,numeric,text,timestamptz,text,text,text,uuid)'
         self.assertIsNone(guardas.trava_antes_da_guarda(sig, fns))
         expostas = [

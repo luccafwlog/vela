@@ -328,13 +328,8 @@ gravado no rastro. **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts`
 (B14).
 
 **ADR de Saída fechado trava tudo no Embarque de vazios** (ADR 0095, decisão
-22; migrations `274`, `398` e `399`): com o ADR fechado, nada muda nas unidades nem
-nas linhas de serviço — reimportar, incluir, editar e excluir unidade, lançar
-ou mudar linha, trocar o porto do embarque e criar o Embarque da escala são recusados com "ADR de Saída de
-<porto> fechado: … Reabra o ADR de Saída para mudar.", inclusive pela escrita
-direta na API (gatilho `guard_vazios_export_adr_lock`); a tela tira as ações.
-Regra e tela em [Manifestos & EDI](../modules/manifesto-edi.md#embarquevazios).
-**Teste local-pg:** `vaziosUmaVezPorViagem.local-pg.test.ts`.
+22): regra, mensagem, gatilho e tela em
+[Manifestos & EDI](../modules/manifesto-edi.md#embarquevazios).
 
 **Um vazio de importação por Viagem** (ADR 0095, decisão 21; F-32; migration
 `398`): o mesmo container entra uma vez nos Vazios de importação da Viagem,
@@ -559,7 +554,11 @@ o nome e o hash (abaixo).
   importação só (B/L avulso) guardam o hash do conjunto. O mesmo arquivo de
   novo para a mesma Viagem e o mesmo tipo de importação **só avisa** na
   prévia: "Este arquivo já foi importado em <data> por <pessoa>." — nunca
-  bloqueia (`import_file_previous_upload`). Veículos, planilha de CE, datas de
+  bloqueia (`import_file_previous_upload`). A reimportação que só atualiza
+  unidades já gravadas (Embarque de Vazios, como o Granito) grava o recibo no
+  manifesto mais recente delas, para o aviso apontar a última importação
+  (migration `408`). Uma falha ao calcular o hash não impede a importação: o
+  lote fica sem hash e a prévia não avisa. Veículos, planilha de CE, datas de
   container, Programação, Base de Clientes e Baplie não gravam lote e não têm
   esse aviso.
 
@@ -599,9 +598,9 @@ o nome e o hash (abaixo).
 ## Conciliação Baplie ↔ B/L
 
 - Match key: `container_number` + `voyage_id`. `bl_ref` do Baplie é sinal secundário, não critério de bloqueio.
-- **Navio compartilhado e transbordo** ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md), decisões 14 e 15; migration `403`): container de outro armador (operador fora dos códigos do armador da Viagem) fica fora das marcas e da conciliação, contado na prévia, sem recusar o arquivo; container em transbordo (EQD 8249 = 6) aparece na conciliação, marcado, e não leva marcas aos B/Ls. Regra completa em [Manifestos & EDI § Baplie](../modules/manifesto-edi.md#baplie).
+- **Navio compartilhado e transbordo** ([ADR 0096](../adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md), decisão 3, e [ADR 0095](../adr/0095-importacoes-regras-da-revisao.md), decisão 15; migrations `409` e `403`): não há regra de outro armador, e todo container do Baplie entra na conciliação; container em transbordo (EQD 8249 = 6) aparece na conciliação, marcado, e não leva marcas aos B/Ls. Regra completa em [Manifestos & EDI § Baplie](../modules/manifesto-edi.md#baplie).
 - **Gate de cobertura por rota:** uma rota (POL→POD) de containers cheios prevista pelo Baplie só entra na conciliação quando tem pelo menos um B/L **com containers** naquela rota — B/L sem container não cobre rota. O gate é por rota: uma rota ainda sem B/L fica fora da conciliação, sem silenciar as demais rotas da viagem. Em D-7 do primeiro ETA brasileiro todas as rotas são conciliadas, inclusive as sem B/L.
-- Códigos de porto são normalizados antes da comparação, por uma régua só: `public.normalize_port_code` no banco e `normalizeStoredPortCode` (`src/services/portCode.ts`), cópia exata conferida pela suíte `operationalLists.local-pg`, no app sempre que o valor é comparado com o que o banco decide (filtro POL/POD de `/bls` e `/containers`, escopo da tabela de Taxas Locais, PODs do Baplie). `normalizePortCode` é a régua do import: reconhece também o nome do porto dentro de um texto ("SALVADOR, BRAZIL"), e os apelidos exatos do Baplie da COSCO (`CNTCA`, `SEP`, `TAO`…) valem igual nas duas desde a migration `391`. **Navegantes (`BRNVT`) e Itajaí (`BRITJ`), Recife (`BRREC`) e Suape (`BRSUA`) são quatro portos e quatro escalas** (ADR 0095, decisão 12; migration `391`): B/L, Baplie, Manifesto Mercante, alertas, Comunicados e tabela de Taxas Locais de um não valem para o outro. Até a `391` o banco juntava cada par. Zhoushan (`CNZOS`/`ZOS`) e Ningbo (`CNNGB`) são o mesmo complexo portuário: o Baplie costuma codificar `CNZOS` onde o B/L declara Ningbo. Variações como `QINDGAO` e `TSINGTAO` resolvem canonicamente para Qingdao (`CNTAO`).
+- Códigos de porto são normalizados antes da comparação, por uma régua só: `public.normalize_port_code` no banco e `normalizeStoredPortCode` (`src/services/portCode.ts`), cópia exata conferida pela suíte `operationalLists.local-pg`, no app sempre que o valor é comparado com o que o banco decide (filtro POL/POD de `/bls` e `/containers`, escopo da tabela de Taxas Locais, PODs do Baplie). `normalizePortCode` é a régua do import: reconhece também o nome do porto dentro de um texto ("SALVADOR, BRAZIL"), e os apelidos exatos do Baplie da COSCO (`CNTCA`, `SEP`, `TAO`…) valem igual nas duas desde a migration `391`. **Navegantes (`BRNVT`) e Itajaí (`BRITJ`), Recife (`BRREC`) e Suape (`BRSUA`) são quatro portos e quatro escalas** (ADR 0095, decisão 12; migration `391`): B/L, Baplie, Manifesto Mercante, alertas, Comunicados e tabela de Taxas Locais de um não valem para o outro. Até a `391` o banco juntava cada par. Zhoushan (`CNZOS`/`ZOS`) e Ningbo (`CNNGB`) são o mesmo complexo portuário: o Baplie costuma codificar `CNZOS` onde o B/L declara Ningbo. Variações como `QINDGAO` e `TSINGTAO` resolvem canonicamente para Qingdao (`CNTAO`). Zhuhai (`CNZUH`) é porto próprio, reconhecido pelo código e pelo nome; não é apelido de Nansha nem de Shekou.
 - Divergências — de existência (container cheio no Baplie e em nenhum B/L, ou no B/L e ausente do Baplie), SOC/COC e perfil IMO/OOG corrigido à mão — são avisos, sem bloqueio. Os tipos, a única resolução (**Vale o B/L**, com motivo) e a aplicação das marcas físicas do Baplie estão em [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](../modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências). Dados documentais e financeiros vêm do B/L e permanecem protegidos.
 
 Definições em [CONTEXT.md](../../CONTEXT.md).
@@ -636,12 +635,9 @@ decisões 7, 18 e 25).
 
 ### CE e Manifesto Mercante
 
-O B/L só fica num Manifesto Mercante enquanto está ativo e tem CE: remover o CE
-ou cancelar o B/L o tira do Manifesto, com Histórico; reativar o B/L o recoloca
-no Manifesto guardado (se ainda for da rota), e registrar o CE de novo, só pela
-planilha de CE, vincula o Manifesto da planilha. B/L com CE que muda de rota e
-fica sem Manifesto abre "CE fora do Manifesto da rota" (normal, Documentação),
-que fecha quando o CE muda ou o B/L entra num Manifesto. A regra completa é a
+O B/L só fica num Manifesto Mercante enquanto está ativo e tem CE, e o B/L
+com CE que muda de rota abre o alerta "CE fora do Manifesto da rota". A regra
+(saída, volta, alerta e fechamento) é a
 [regra 21 de Manifestos & EDI](../modules/manifesto-edi.md) ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md),
 decisões 19 e 20).
 

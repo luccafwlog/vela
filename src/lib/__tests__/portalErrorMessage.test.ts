@@ -26,4 +26,13 @@ describe('portalErrorMessage', () => {
       ),
     ).toBe('Esta fatura ja possui uma disputa em aberto.')
   })
+
+  it('preserva a recusa de estado das RPCs (55000), sem vazar texto técnico', () => {
+    expect(
+      portalErrorMessage(Object.assign(new Error('A fatura já foi paga e não pode ser contestada.'), { code: '55000' }), 'Falha generica.'),
+    ).toBe('A fatura já foi paga e não pode ser contestada.')
+    expect(
+      portalErrorMessage(Object.assign(new Error('invoice_state_check'), { code: '55000' }), 'Falha generica.'),
+    ).toBe('A operação não é possível no estado atual do registro.')
+  })
 })

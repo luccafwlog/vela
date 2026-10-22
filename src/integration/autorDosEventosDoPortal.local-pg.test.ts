@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 411 (auditoria run-3, achado C6): o evento de provisionamento
+// Migration 414 (auditoria run-3, achado C6): o evento de provisionamento
 // gravado pelas Edge Functions (service_role) leva o autor que o getUser()
 // confirmou. Sessão de usuário não executa a função nem escolhe outro autor.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -35,7 +35,7 @@ const lastActor = () => psql(`SELECT coalesce(actor_id::text, '-') FROM public.p
 
 const describeLocal = describeWithProbe(migration411Applied, 'migration411Applied (autor dos eventos do Portal)')
 
-describeLocal('411 — autor dos eventos do Portal gravados pelas Edges', () => {
+describeLocal('414 — autor dos eventos do Portal gravados pelas Edges', () => {
   beforeAll(() => {
     psql(`INSERT INTO auth.users (id, email) VALUES ('${STAFF}', 'c411-staff@example.test') ON CONFLICT (id) DO NOTHING;`)
     psql(`INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${STAFF}', 'Documentação C411', 'documentacao', true)

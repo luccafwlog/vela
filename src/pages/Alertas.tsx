@@ -15,6 +15,7 @@ import { useToast } from '../components/ui/Toast'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { formatDate, formatDateTime } from '../lib/utils'
+import { userFacingErrorMessage } from '../lib/errors'
 import {
   ALERT_DEPARTMENT_LABELS,
   alertEntityLink,
@@ -284,7 +285,7 @@ export function Alertas() {
       ])
     },
     onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Falha ao reprocessar o efeito.', 'error')
+      showToast(userFacingErrorMessage(err, 'Não foi possível reprocessar o efeito. Atualize a lista e tente de novo.'), 'error')
     },
   })
 

@@ -50,7 +50,7 @@ if (typeof Deno !== 'undefined') {
       const pepper = portalPasswordPepper()
       const admin = createClient(url, serviceKey)
       const rateLimitContext = { ip: requestIp(req) }
-      // Reserva atômica (migration 410): a tentativa já conta antes de a senha
+      // Reserva atômica (migration 413): a tentativa já conta antes de a senha
       // ser conferida, então pedidos em paralelo não passam das 5 por CNPJ.
       const attemptId = await reserveLoginAttempt(admin, normalized, rateLimitContext)
       if (attemptId === null) {

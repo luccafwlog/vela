@@ -143,6 +143,27 @@ describeLocal('401 — ATD do POL: correção manual vence e só B/Ls ativos con
     expect(lastJustification(pol)).toContain('ATD manual apagado')
   })
 
+  it('excluir o B/L de menor Laden on Board recalcula o ATD (migration 408, R-09)', () => {
+    const pol = 'CNXMN'
+    const a = blAt('A4', pol, '2026-10-12')
+    const b = blAt('B4', pol, '2026-10-09')
+    importOk([line(a, pol, '2026-10-12')])
+    expect(atd(pol)).toBe('2026-10-09')
+
+    w.asOk('administrativo', `RESET ROLE; SELECT public.delete_records('bl', ARRAY['${b}'], false, 'Lançado por engano')`)
+    expect(atd(pol)).toBe('2026-10-12')
+  })
+
+  it('o Histórico da Viagem não aceita navio, número nem status pela tela: vêm do gatilho (migration 408, R-13)', () => {
+    for (const field of ['vessel_id', 'voyage_number', 'status']) {
+      const result = w.as('operacoes', `SELECT public.record_audit_entries(jsonb_build_array(jsonb_build_object(
+        'entity_type', 'voyages', 'entity_id', '${w.voyageId}', 'field_name', '${field}',
+        'old_value', 'x', 'new_value', 'y', 'justification', NULL)))`)
+      expect(result.status, field).not.toBe(0)
+      expect(result.stderr).toContain('Registro do Histórico não aceito')
+    }
+  })
+
   it('a marca não se grava pela API', () => {
     const result = w.as('operacoes', `INSERT INTO public.voyage_pol_atd_manual (voyage_id, pol, atd) VALUES (${w.voyageId}, 'XXPOL', '2026-01-01')`)
     expect(result.status).not.toBe(0)

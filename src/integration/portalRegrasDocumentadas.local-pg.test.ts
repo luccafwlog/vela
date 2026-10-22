@@ -2,7 +2,7 @@ import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 416 (auditoria run-3, notas de endurecimento): consolidada, convite,
+// Migration 419 (auditoria run-3, notas de endurecimento): consolidada, convite,
 // recuperação e eventos de e-mail do Portal seguem a regra documentada. Tudo
 // roda numa transação descartada no fim.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -66,7 +66,7 @@ function scenario(sql: string): string[] {
 
 const describeLocal = describeWithProbe(migration416Applied, 'migration416Applied (Portal segue a regra documentada)')
 
-describeLocal('416 — Portal segue a regra documentada', () => {
+describeLocal('419 — Portal segue a regra documentada', () => {
   it('desfazer consolidada vale só para a emitida e ainda a pagar', () => {
     const [draft, issued] = scenario(`
       ${as(PORTAL_A)}

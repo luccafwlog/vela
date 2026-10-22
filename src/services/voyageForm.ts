@@ -7,12 +7,6 @@ export const DEFAULT_CARRIER_SCAC = 'CSSC'
 export type VoyageFormValues = {
   carrierName: string
   carrierScac: string
-  /**
-   * Códigos do armador no Baplie (NAD+CA, TDT), separados por vírgula
-   * (`carriers.baplie_codes`, migration 410; ADR 0095, decisão 14).
-   * Ausente = o formulário não mexe nos códigos já cadastrados.
-   */
-  carrierBaplieCodes?: string
   vesselName: string
   vesselImo: string
   voyageNumber: string
@@ -61,11 +55,6 @@ export const voyageFormSchema = z.object({
   }
 })
 
-/** "cos; COSCO  cos" → ['COS', 'COSCO']: maiúsculas, sem repetir, na ordem digitada. */
-export function parseCarrierBaplieCodes(text: string | null | undefined): string[] {
-  return [...new Set(String(text ?? '').split(/[\s,;]+/).map((code) => code.trim().toUpperCase()).filter(Boolean))]
-}
-
 export type VoyageFormErrors = Partial<Record<keyof VoyageFormValues, string>>
 
 export function normalizeVoyageFormValues(values: VoyageFormValues): VoyageFormValues {
@@ -75,7 +64,6 @@ export function normalizeVoyageFormValues(values: VoyageFormValues): VoyageFormV
     ...values,
     carrierName: values.carrierName.trim(),
     carrierScac: values.carrierScac.trim().toUpperCase(),
-    ...(values.carrierBaplieCodes === undefined ? {} : { carrierBaplieCodes: parseCarrierBaplieCodes(values.carrierBaplieCodes).join(', ') }),
     vesselName: values.vesselName.trim().toUpperCase(),
     vesselImo: values.vesselImo.trim(),
     voyageNumber: values.voyageNumber.trim().toUpperCase(),

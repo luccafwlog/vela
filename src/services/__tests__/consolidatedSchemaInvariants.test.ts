@@ -94,7 +94,7 @@ describe('schema consolidado v1.0 (arquivos realmente aplicados)', () => {
     }
     // A vitrine pública portal_ship_schedule (ADR 0047) fechou na migration
     // 320: não resta função pré-autenticação. Única exceção: a checagem que o
-    // PostgREST roda antes de toda requisição, com o papel dela (ADR 0096).
+    // PostgREST roda antes de toda requisição, com o papel dela (ADR 0097).
     expect([...anonAberto]).toEqual(['public.check_internal_token_cutoff()'])
     expect(concessoesPublic).toEqual([])
   })

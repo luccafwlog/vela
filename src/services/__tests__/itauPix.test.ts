@@ -307,7 +307,7 @@ describe('processador da fila de cobranças', () => {
       claim: vi.fn().mockResolvedValueOnce([a, b]).mockResolvedValue([]),
       record: async (id, outcome, claimedVersion) => { recorded.push([id, outcome.outcome, claimedVersion]) },
     })
-    // A versão reservada volta ao banco, que só ativa a versão enviada (migration 412).
+    // A versão reservada volta ao banco, que só ativa a versão enviada (migration 415).
     expect(recorded).toEqual([[10, 'active', 3], [11, 'cancelled', undefined]])
     expect(summary).toMatchObject({ active: 1, cancelled: 1, error: 0 })
   })
@@ -366,7 +366,7 @@ describe('processador da fila de cobranças', () => {
     expect(summary).toMatchObject({ active: 2, error: 1, throttled: true })
   })
 
-  it('parada no meio do bloco libera as reservadas e não chamadas (419)', async () => {
+  it('parada no meio do bloco libera as reservadas e não chamadas (422)', async () => {
     const released: number[][] = []
     const q = queueOf(20, { failOn: 3 })
     await processItauPixQueue(q.client, { ...q.queue, release: async (ids: number[]) => { released.push(ids) } }, { now: q.now })

@@ -1,7 +1,7 @@
-# 0096 — Corte do access token interno na revogação
+# 0097 — Corte do access token interno na revogação
 
 Status: aceito — 2026-10-22 (pedido do responsável para corrigir os achados da
-auditoria de segurança run-3; achado C1). Implementada na migration `407`, com
+auditoria de segurança run-3; achado C1). Implementada na migration `410`, com
 a suíte `src/integration/corteTokenInterno.local-pg.test.ts`.
 
 Supersede parcialmente a [ADR 0090](./0090-programacao-de-navios-so-com-sessao.md)

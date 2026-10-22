@@ -364,7 +364,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(psql(`SELECT pix_payload FROM public.demurrage_invoices WHERE id = ${demurrage2Id}`)).toBe('000201ITAU152')
     expect(psql(`SELECT bank_created_at + make_interval(secs => expiration_seconds) >= public.itau_pix_cutoff(now())
       FROM public.itau_pix_charges WHERE id = ${charge.id}`)).toBe('t')
-    // Desconto durante a chamada ao Itaú (auditoria run-3, C7; migration 412): o
+    // Desconto durante a chamada ao Itaú (auditoria run-3, C7; migration 415): o
     // resultado da versão enviada não ativa a linha; a versão nova segue.
     const sent = psql(`SELECT change_version FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)
     psql(`UPDATE public.demurrage_invoices SET current_total_brl = 513 WHERE id = ${demurrage2Id}`)
