@@ -167,6 +167,20 @@ describeLocal('398 — vazio de importação uma vez por Viagem; ADR de Saída f
     expect(psql(`SELECT total_containers FROM public.vazios_importacao_manifests WHERE voyage_id = ${voyageId} AND source = 'baplie';`)).toBe('1')
   })
 
+  it('400: a planilha que substitui o vazio do Baplie leva a natureza digitada; a da planilha vale', () => {
+    resetVazios()
+    baplie([{ container: 'VZCU3980025', pod: 'BRSSZ' }, { container: 'VZCU3980026', pod: 'BRSSZ' }])
+    expect(confirmarBaplie(false).stderr).toBe('')
+    psql(`UPDATE public.vazios_importacao_containers SET natureza = CASE container_number WHEN 'VZCU3980025' THEN 'cama' ELSE 'cover_plate' END
+      WHERE voyage_id = ${voyageId};`)
+    const result = planilha([{ container: 'VZCU3980025', pod: 'BRVIX' }, { container: 'VZCU3980026', pod: 'BRVIX' }])
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({ replaced_from_baplie: 2 })
+    expect(vazios()).toBe('VZCU3980025:manual:BRVIX,VZCU3980026:manual:BRVIX')
+    expect(psql(`SELECT string_agg(container_key || ':' || natureza, ',' ORDER BY container_key) FROM public.vazios_importacao_containers
+      WHERE voyage_id = ${voyageId};`)).toBe('VZCU3980025:cama,VZCU3980026:cover_plate')
+  })
+
   it('decisão 21: container de outra planilha em outra rota é recusado com o container e a rota', () => {
     resetVazios()
     expect(planilha([{ container: 'VZCU3980031', pod: 'BRVIX' }]).stderr).toBe('')
@@ -249,5 +263,29 @@ describeLocal('398 — vazio de importação uma vez por Viagem; ADR de Saída f
     expect(psql(`BEGIN; SET LOCAL vela.deleting_records = 'on';
       DELETE FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};
       SELECT count(*) FROM public.vazios_export_operations WHERE voyage_id = ${voyageId}; ROLLBACK;`)).toBe('0')
+  })
+
+  it('400: Embarque gravado com apelido do porto (BRVIT) trava com o ADR fechado no código canônico (BRVIX)', () => {
+    psql(`SET session_replication_role = replica;
+      DELETE FROM public.vazios_bookings WHERE voyage_id = ${voyageId};
+      DELETE FROM public.vazios_export_service_lines WHERE operation_id IN (SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId});
+      DELETE FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};
+      DELETE FROM public.agency_departure_reports WHERE voyage_id = ${voyageId};
+      SET session_replication_role = origin;
+      INSERT INTO public.vazios_export_operations (voyage_id, embark_port) VALUES (${voyageId}, 'BRVIT');`)
+    const operation = psql(`SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};`)
+    const depot = psql(`SELECT id FROM public.depots WHERE code = '${depotCode}';`)
+    psql(`INSERT INTO public.agency_departure_reports (voyage_id, port, status) VALUES (${voyageId}, 'BRVIX', 'closed');`)
+
+    expect(asUser(`SELECT public.vazios_export_adr_locked(${voyageId}, 'BRVIT')`).stdout).toBe('t')
+    const message = /fechado: o Embarque de vazios não muda/
+    expect(asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', 'VZCU3980071', '40HC', '${depot}', 'vazio', '2026-09-01', '2026-09-02', '2026-09-02');`).stderr).toMatch(message)
+    expect(asUser(`INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, quantidade, valor_unitario)
+      SELECT '${operation}', s.id, s.depot_id, 1, 5 FROM public.depot_services s WHERE s.name = 'V398 handling'`).stderr).toMatch(message)
+    // Inclusão direta com o apelido também é recusada.
+    const direct = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `INSERT INTO public.vazios_bookings (voyage_id, operation_id, container_number, pol) VALUES (${voyageId}, '${operation}', 'VZCU3980072', 'BRVIT');`], { encoding: 'utf8' })
+    expect(direct.stderr).toMatch(message)
+    expect(psql(`SELECT count(*) FROM public.vazios_bookings WHERE voyage_id = ${voyageId};`)).toBe('0')
   })
 })

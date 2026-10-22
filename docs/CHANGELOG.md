@@ -8,15 +8,17 @@
 
 - **Importações: Vazios (2026-10-22, Lote 6 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 21 e 22; achado F-32):**
-  migrations `398` e `399`. O vazio de importação existe uma vez por Viagem, em qualquer rota e fonte: a
-  planilha vale sobre o Baplie (tira do Baplie o container que traz), o Baplie cadastra só os vazios
+  migrations `398` a `400`. O vazio de importação existe uma vez por Viagem, em qualquer rota e fonte: a
+  planilha vale sobre o Baplie (tira do Baplie o container que traz e fica com a natureza
+  cama/cover plate digitada nele quando não traz outra, `400`), o Baplie cadastra só os vazios
   que nenhuma planilha trouxe e não desfaz a planilha em **Cadastrar** nem em **Atualizar vazios do
   Baplie**, e o container que outra planilha gravou em outra rota é recusado com o container e a rota.
   A prévia da planilha e o bloco Vazios de importação de `/baplie` mostram a diferença; um índice
   único por Viagem e container segura o resto, e os repetidos que existiam ficaram numa linha só. Com
   o ADR de Saída fechado, nada muda no Embarque de vazios: incluir e editar unidade, lançar ou mudar
   linha de serviço, trocar o porto do embarque e criar o Embarque da escala (`399`) são recusados
-  também pela escrita direta, e a tela tira as ações e diz para reabrir o ADR; enquanto não confirma
+  também pela escrita direta, inclusive com o porto gravado por apelido (BRVIT diante do ADR em
+  BRVIX, `400`), e a tela tira as ações e diz para reabrir o ADR; enquanto não confirma
   que o ADR está aberto (carregando ou falha, com **Tentar de novo**), as ações ficam fora. Prova: `vaziosUmaVezPorViagem.local-pg.test.ts`,
   `vaziosImportacaoImport.test.ts`, `baplieVaziosPending.test.ts`, `EmbarqueVazios.flow.test.tsx`.
 - **Importações: CE e Manifesto Mercante (2026-10-22, Lote 5 do plano

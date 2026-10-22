@@ -357,7 +357,9 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
   `398`): o container existe uma vez nos Vazios de importação da Viagem, em
   qualquer rota e de qualquer fonte. A planilha vale sobre o Baplie: o
   container que ela traz sai do Baplie, em qualquer rota
-  (`replaced_from_baplie` na resposta), e a prévia lista esses containers
+  (`replaced_from_baplie` na resposta), levando para a linha da planilha a
+  natureza (cama/cover plate) digitada no vazio do Baplie quando a linha nova
+  não tem natureza (migration `400`), e a prévia lista esses containers
   ("vieram do Baplie"). O container que outra planilha gravou numa rota que esta
   planilha não traz é recusado com o container e a rota ("O container X já está
   nos Vazios de importação desta Viagem na rota A → B, de outra planilha…"),
@@ -476,9 +478,11 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   de Linha de Serviço (`delete_catalog_row`) e a reimportação da planilha de
   Unidades Embarcadas (`import_vazios_bookings_transactional`, migration `274`)
   seguem a mesma trava.
-- **ADR de Saída fechado trava tudo** (ADR 0095, decisão 22; migrations `398` e `399`):
+- **ADR de Saída fechado trava tudo** (ADR 0095, decisão 22; migrations `398`, `399` e `400`):
   com o ADR de Saída do porto de embarque fechado, nada muda no Embarque de
-  vazios. Incluir e editar unidade (`create_manual_vazios_booking`,
+  vazios. O porto do Embarque e o do ADR são comparados pela régua de porto
+  (`normalize_port_code`, desde a `400`): o Embarque gravado com apelido
+  (BRVIT) trava com o ADR fechado em BRVIX. Incluir e editar unidade (`create_manual_vazios_booking`,
   `update_manual_vazios_booking`) também são recusados, e o gatilho
   `guard_vazios_export_adr_lock` recusa a escrita direta permitida por coluna
   (lançar, mudar ou observar Linha de Serviço; trocar a Viagem ou o porto do
