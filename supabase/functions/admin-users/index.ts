@@ -36,24 +36,27 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
 
   const caller = createClient(url, anon, { global: { headers: { Authorization: jwt } } })
   const { data: isAdmin } = await caller.rpc('is_admin')
-  if (isAdmin !== true) return json(403, { error: 'permission denied' }, origin)
+  if (isAdmin !== true) return json(404, { error: 'permission denied' }, origin)
 
   const { data: callerUser } = await caller.auth.getUser()
   const actorId = callerUser.user?.id ?? null
-  if (!actorId) return json(403, { error: 'permission denied' }, origin)
+  if (!actorId) return json(404, { error: 'permission denied' }, origin)
 
   // service_role restrito ao que exige privilégio de autenticação.
   const admin = createClient(url, service)
 
   // Falha de auditoria é falha da operação (auditoria run-2, reforço de #9).
   const audit = async (entityId: string, field: string, oldValue: string | null, newValue: string | null) => {
-    const { error } = await caller.from('audit_logs').insert({
-      entity_type: 'user_profile',
-      entity_id: entityId,
-      field_name: field,
-      old_value: oldValue,
-      new_value: newValue,
-      changed_by: actorId,
+    // INSERT direto fechado (migration 404, F-46): grava pela RPC, que confere
+    // o Administrativo e toma o autor da sessão de quem chamou.
+    const { error } = await caller.rpc('record_audit_entries', {
+      p_entries: [{
+        entity_type: 'user_profile',
+        entity_id: entityId,
+        field_name: field,
+        old_value: oldValue,
+        new_value: newValue,
+      }],
     })
     if (error) throw new Error(`audit_logs: ${error.message}`)
   }

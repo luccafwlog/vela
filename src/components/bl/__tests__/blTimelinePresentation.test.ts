@@ -90,3 +90,32 @@ describe('Histórico do B/L: motivo e autor', () => {
     expect(describeTimelineEvent(e)).toBe('Fatura alterada')
   })
 })
+
+describe('Histórico do B/L: o que a importação muda (migration 404, F-23)', () => {
+  const ev = (entity_type: string, field_name: string, old_value: string | null, new_value: string | null, justification: string | null = null) =>
+    ({ family: 'container', entity_type, field_name, old_value, new_value, justification }) as never
+
+  it('container e veículo que entram e saem, desova, SOC/COC e Cliente em linguagem da operação', () => {
+    expect(describeTimelineEvent(ev('bl_container', 'criado|TCLU1234567', null, null))).toBe('Container TCLU1234567 entrou no B/L')
+    expect(describeTimelineEvent(ev('bl_container', 'excluido|TCLU1234567', null, null))).toBe('Container TCLU1234567 saiu do B/L')
+    expect(describeTimelineEvent(ev('vehicle', 'criado|9BWZZZ377VT004251', null, null))).toBe('Veículo 9BWZZZ377VT004251 entrou no B/L')
+    expect(describeTimelineEvent(ev('bl_container', 'unpacking_location|TCLU1234567', null, 'Armazém 3'))).toBe('Container TCLU1234567 · Local de desova: vazio → Armazém 3')
+    expect(describeTimelineEvent(ev('bl_container', 'ownership|TCLU1234567', 'COC', 'SOC'))).toBe('Container TCLU1234567 · SOC/COC: COC → SOC')
+    expect(describeTimelineEvent(ev('bl', 'customer_id', 'Cliente A · CNPJ 1', 'Cliente B · CNPJ 2'))).toBe('Cliente: Cliente A · CNPJ 1 → Cliente B · CNPJ 2')
+    expect(describeTimelineEvent(ev('bl', 'pod', 'BRITJ', 'BRVIX'))).toBe('POD: BRITJ → BRVIX')
+    expect(familyLabel('veiculo')).toBe('Veículo')
+  })
+
+  it('marcas técnicas e JSON viram frase, sem código', () => {
+    expect(describeTimelineEvent(ev('bl', 'FATURAMENTO_SOBRESCRITO', null, 'override_billing'))).toBe('Mudança com impacto na fatura aplicada com confirmação')
+    expect(describeTimelineEvent(ev('bl', 'reimportacao_carga_solta', null, '{"tipo":"reimportacao_carga_solta","campos":["bb_weight_ton","bb_cbm"]}')))
+      .toBe('Carga solta reimportada: Peso (Ton), CBM carga solta')
+    expect(describeTimelineEvent(ev('bl', 'container_ownership', '{"container":"TCLU1234567","ownership":"COC"}', '{"container":"TCLU1234567","ownership":"SOC"}')))
+      .toBe('Container TCLU1234567 · SOC/COC: COC → SOC')
+    expect(describeTimelineEvent(ev('bl', 'campo_interno_novo', 'a', 'b'))).toBe('Dado do B/L: a → b')
+  })
+
+  it('o rastro antigo da importação de frete ("Importacao de …") é origem, não motivo', () => {
+    expect(isImportContext('Importacao de frete do BL: alteracao com impacto em faturamento aplicada por override do operador')).toBe(true)
+  })
+})

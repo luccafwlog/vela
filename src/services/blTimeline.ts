@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export type BlTimelineFamily = 'edicao' | 'container' | 'taxas' | 'fatura' | 'sistema'
+export type BlTimelineFamily = 'edicao' | 'container' | 'veiculo' | 'taxas' | 'fatura' | 'sistema'
 
 export type BlTimelineEvent = {
   id: number
@@ -17,7 +17,7 @@ export type BlTimelineEvent = {
 export const BL_TIMELINE_PAGE_SIZE = 50
 
 function parseTimelineFamily(value: string): BlTimelineFamily {
-  if (value === 'edicao' || value === 'container' || value === 'taxas' || value === 'fatura' || value === 'sistema') return value
+  if (value === 'edicao' || value === 'container' || value === 'veiculo' || value === 'taxas' || value === 'fatura' || value === 'sistema') return value
   throw new Error(`Família inválida na timeline do B/L: ${value}`)
 }
 

@@ -6,7 +6,8 @@ import { CUSTOMER_FIELD_LABELS } from './customerFicha'
 /**
  * Alterações do cadastro do Cliente (aba Cadastro e contatos, lote 1 da
  * identidade): o que mudou, de, para, por quem, quando e a justificativa,
- * a partir de `audit_logs` (dados cadastrais) e de
+ * a partir de `customer_audit_timeline` (dados cadastrais e e-mails da Base
+ * de Clientes, migration `404`) e de
  * `customer_contact_change_events` (contatos e caixas de Comunicado).
  */
 export type CadastroChange = {
@@ -63,16 +64,30 @@ export function diffContactSnapshots(before: unknown, after: unknown): Array<Pic
 type AuditRow = { id: number; field_name: string; old_value: string | null; new_value: string | null; changed_at: string | null; justification: string | null; changed_by: string | null }
 type ContactEventRow = { id: number; source: string; actor_id: string | null; before_snapshot: unknown; after_snapshot: unknown; change_summary: { justification?: unknown; action?: unknown } | null; created_at: string }
 
+// E-mails da Base de Clientes, lidos por `customer_audit_timeline` (404).
+const AUDIT_CONTACT_LABELS: Record<string, string> = {
+  contact_added: 'E-mail incluído',
+  contact_removed: 'E-mail retirado',
+  contact_email: 'E-mail alterado',
+}
+
+/** Rastro da importação ("Importação de Base de Clientes") vira "Origem: Base de Clientes". */
+function auditJustification(text: string | null) {
+  const trimmed = text?.trim() ?? ''
+  if (trimmed.startsWith('Importação de ')) return `Origem: ${trimmed.slice('Importação de '.length).split(' · ')[0]}`
+  return text
+}
+
 export function buildCadastroChanges(audit: AuditRow[], events: ContactEventRow[], names: ReadonlyMap<string, string>): CadastroChange[] {
   const actor = (id: string | null) => (id ? names.get(id) ?? 'Usuário interno' : null)
   const rows: CadastroChange[] = audit.filter((row) => row.changed_at).map((row) => ({
     id: `audit-${row.id}`,
     at: row.changed_at!,
-    what: row.field_name === 'deactivated' ? 'Situação do Cliente' : CUSTOMER_FIELD_LABELS[row.field_name] ?? 'Dado cadastral',
+    what: row.field_name === 'deactivated' ? 'Situação do Cliente' : AUDIT_CONTACT_LABELS[row.field_name] ?? CUSTOMER_FIELD_LABELS[row.field_name] ?? 'Dado cadastral',
     from: row.field_name === 'deactivated' ? (row.old_value === 'true' ? 'Desativado' : 'Ativo') : row.old_value,
     to: row.field_name === 'deactivated' ? (row.new_value === 'true' ? 'Desativado' : 'Ativo') : row.new_value,
     by: actor(row.changed_by),
-    justification: row.justification,
+    justification: auditJustification(row.justification),
   }))
   for (const event of events) {
     const summary = event.change_summary ?? {}
@@ -93,7 +108,9 @@ export function buildCadastroChanges(audit: AuditRow[], events: ContactEventRow[
 
 export async function fetchCustomerCadastroChanges(customerId: number): Promise<CadastroChange[]> {
   const [audit, events] = await Promise.all([
-    supabase.from('audit_logs').select('id, field_name, old_value, new_value, changed_at, justification, changed_by').eq('entity_type', 'customer').eq('entity_id', String(customerId)).order('changed_at', { ascending: false }).range(0, 199),
+    // Cadastro e e-mails da Base de Clientes, com origem (migration 404, F-24).
+    supabase.rpc('customer_audit_timeline' as never, { p_customer_id: customerId, p_limit: 200 } as never)
+      .overrideTypes<AuditRow[], { merge: false }>(),
     supabase.from('customer_contact_change_events').select('id, source, actor_id, before_snapshot, after_snapshot, change_summary, created_at').eq('customer_id', customerId).order('created_at', { ascending: false }).range(0, 199),
   ])
   if (audit.error) throw audit.error

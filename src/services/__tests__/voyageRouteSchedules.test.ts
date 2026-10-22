@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { fromMock, updateMock } = vi.hoisted(() => ({
+const { fromMock, updateMock, recordAuditEntriesMock } = vi.hoisted(() => ({
   fromMock: vi.fn(),
   updateMock: vi.fn(),
+  recordAuditEntriesMock: vi.fn(async () => undefined),
 }))
 
 vi.mock('../supabase', () => ({ supabase: { from: fromMock } }))
+// A agenda grava o Histórico pela RPC `record_audit_entries` (migration 404).
+vi.mock('../auditEntries', () => ({ recordAuditEntries: recordAuditEntriesMock }))
 
 import {
   listVoyagePodSchedules,
@@ -18,6 +21,7 @@ import {
 beforeEach(() => {
   fromMock.mockReset()
   updateMock.mockReset()
+  recordAuditEntriesMock.mockClear()
 })
 
 describe('projectVoyageEscalaSchedules', () => {
@@ -721,7 +725,7 @@ it('lote com mais de 1.000 linhas de auditoria lê a página seguinte e não per
 })
 
 it('grava audit row de ATD por POL sem quebrar callers antigos', async () => {
-  const insertMock = vi.fn(async () => ({ error: null }))
+  const insertMock = recordAuditEntriesMock
   const auditLogs = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -768,7 +772,7 @@ it('grava audit row de ATD por POL sem quebrar callers antigos', async () => {
 })
 
 it('preserva a alteração de schedule quando o caller não informa changedBy', async () => {
-  const insertMock = vi.fn(async () => ({ error: null }))
+  const insertMock = recordAuditEntriesMock
   const auditLogs = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -828,7 +832,7 @@ it('hidrata ATB e ETD mais recentes ao listar schedules de POD', async () => {
 })
 
 it('grava audit rows de ATB e ETD por POD', async () => {
-  const insertMock = vi.fn(async () => ({ error: null }))
+  const insertMock = recordAuditEntriesMock
   let selectCalls = 0
   const auditLogs = {
     select: vi.fn(() => {
@@ -890,7 +894,7 @@ it.each([
   { previous: null, next: 'waiting' },
   { previous: 'approved', next: undefined },
 ] as const)('preserva o status $previous ao salvar sem alteração documental', async ({ previous, next }) => {
-  const insertMock = vi.fn(async () => ({ error: null }))
+  const insertMock = recordAuditEntriesMock
   const auditLogs = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({

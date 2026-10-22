@@ -3,6 +3,7 @@ import type { BlTimelineEvent, BlTimelineFamily } from '../../services/blTimelin
 const FAMILY_LABEL: Record<BlTimelineFamily, string> = {
   edicao: 'Edição',
   container: 'Contêiner',
+  veiculo: 'Veículo',
   taxas: 'Taxas',
   fatura: 'Fatura',
   sistema: 'Sistema',
@@ -11,6 +12,7 @@ const FAMILY_LABEL: Record<BlTimelineFamily, string> = {
 const FAMILY_TONE: Record<BlTimelineFamily, 'blue' | 'slate' | 'green' | 'yellow' | 'red'> = {
   edicao: 'blue',
   container: 'slate',
+  veiculo: 'slate',
   taxas: 'green',
   fatura: 'yellow',
   sistema: 'slate',
@@ -64,7 +66,40 @@ const FIELD_LABELS: Record<string, string> = {
   seal_number: 'Lacre',
   gross_weight_kg: 'Peso bruto (kg)',
   cbm: 'CBM (m³)',
+  // Lidos do gatilho de `bls`, `bl_containers` e `vehicles` (migration 404).
+  pol: 'POL',
+  pod: 'POD',
+  shipper_block: 'Shipper (bloco)',
+  consignee_block: 'Consignatário (bloco)',
+  consignee_address: 'Endereço do consignatário',
+  notify_cnpj_cpf: 'CNPJ do Notify',
+  notify_block: 'Notify (bloco)',
+  manifest_customer_cnpj_cpf: 'CNPJ do Cliente no B/L',
+  manifest_customer_name: 'Cliente no B/L',
+  manifest_customer_email: 'E-mail do Cliente no B/L',
+  suggested_customer_id: 'Cliente sugerido',
+  manifesto_mercante_id: 'Manifesto Mercante',
+  total_packages: 'Volumes',
+  packages_unit: 'Unidade dos volumes',
+  incoterm: 'Incoterm',
+  laden_on_board: 'Laden on Board',
+  container_load_type: 'FCL/LCL',
+  free_time_override: 'Free time do B/L',
+  container_number: 'Número do container',
+  type: 'Perfil',
+  tare_weight_kg: 'Tara (kg)',
+  unpacking_location: 'Local de desova',
+  ownership: 'SOC/COC',
+  bl_id: 'B/L',
+  chassis: 'Chassi',
+  brand: 'Marca',
+  model: 'Modelo',
+  weight_kg: 'Peso (kg)',
+  container_id: 'Container',
 }
+
+const NUMERIC_FIELDS = new Set(['gross_weight_kg', 'tare_weight_kg', 'cbm', 'weight_kg', 'total_weight_kg', 'total_cbm', 'bb_weight_ton', 'bb_cbm'])
+const DATE_FIELDS = new Set(['discharge_date', 'return_date', 'laden_on_board', 'bl_emission_date'])
 
 const VALUE_LABELS_BY_FIELD: Record<string, Record<string, string>> = {
   is_imo: { true: 'Sim', false: 'Não' },
@@ -129,9 +164,9 @@ function formatTimelineValue(fieldName: string, val: string | null | undefined):
   if (VALUE_LABELS_BY_FIELD[fieldName] && normalized.toLowerCase() === 'null') return EMPTY_VALUE
   const fieldLabels = VALUE_LABELS_BY_FIELD[fieldName]
   const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized)
-  if (isoDate && (fieldName === 'discharge_date' || fieldName === 'return_date')) return `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}`
+  if (isoDate && DATE_FIELDS.has(fieldName)) return `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}`
   // Peso e CBM chegam como texto do numeric ("47900.000"): mostra no formato da tela.
-  if ((fieldName === 'gross_weight_kg' || fieldName === 'cbm') && Number.isFinite(Number(normalized))) {
+  if (NUMERIC_FIELDS.has(fieldName) && Number.isFinite(Number(normalized))) {
     return Number(normalized).toLocaleString('pt-BR', { maximumFractionDigits: 3 })
   }
   return fieldLabels?.[normalized.toLowerCase()] ?? normalized
@@ -179,6 +214,43 @@ function describeContainerDates(oldValue: string | null | undefined, newValue: s
   return parts.length ? `${subject}: ${parts.join('; ')}` : subject
 }
 
+function parseJsonObject(value: string | null | undefined): Record<string, unknown> | null {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Marcas que as RPCs gravam no B/L com nome técnico ou JSON (F-23): viram
+ * frase da operação, sem o código nem o JSON.
+ */
+function describeBlMark(field: string, oldValue: string | null, newValue: string | null): string | null {
+  if (field === 'FATURAMENTO_SOBRESCRITO') return 'Mudança com impacto na fatura aplicada com confirmação'
+  if (field === 'ALTERACAO_OPERACIONAL_BLOQUEADA') return 'Mudança com impacto na fatura não aplicada (sem confirmação)'
+  if (field === 'FONTE_SOBRESCRITO') return 'Dados do B/L substituídos pelo arquivo, com confirmação'
+  if (field === 'reimportacao_carga_solta') {
+    const fields = parseJsonObject(newValue)?.campos
+    const labels = Array.isArray(fields) ? fields.map((name) => FIELD_LABELS[String(name)] ?? null).filter(Boolean) : []
+    return labels.length ? `Carga solta reimportada: ${labels.join(', ')}` : 'Carga solta reimportada'
+  }
+  if (field === 'container_ownership' || field === 'container_profile') {
+    const key = field === 'container_ownership' ? 'ownership' : 'profile'
+    const before = parseJsonObject(oldValue)
+    const after = parseJsonObject(newValue)
+    if (!before && !after) return null
+    const container = String(after?.container ?? before?.container ?? '').trim()
+    const label = field === 'container_ownership' ? 'SOC/COC' : 'Perfil'
+    const from = before?.[key] == null ? null : String(before[key])
+    const to = after?.[key] == null ? null : String(after[key])
+    return `${container ? `Container ${container}` : 'Container'} · ${label}: ${formatTimelineValue(key, from)} → ${formatTimelineValue(key, to)}`
+  }
+  return null
+}
+
 export function describeTimelineEvent(event: BlTimelineEvent): string {
   const { entity_type, field_name, old_value, new_value } = event
   if (entity_type === 'bl' && field_name === 'container_dates') {
@@ -197,19 +269,26 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
   if (entity_type === 'charge_calculation') {
     return new_value ? `Taxa: ${new_value}` : 'Taxa alterada'
   }
-  if (entity_type === 'bl_container') {
-    // bl_timeline (migration 079) envia '<campo>|<container>' para a auditoria
-    // por coluna de bl_containers; eventos antigos vêm só com o campo.
-    const [field, containerNumber] = field_name.split('|')
-    const cleanField = FIELD_LABELS[field] ?? field
-    const subject = containerNumber ? `Container ${containerNumber} · ${cleanField}` : `Container ${cleanField}`
-    return `${subject}: ${formatTimelineValue(field, old_value)} → ${formatTimelineValue(field, new_value)}`
+  if (entity_type === 'bl_container' || entity_type === 'vehicle') {
+    // bl_timeline envia '<campo>|<container ou chassi>' (migrations 079 e
+    // 404); eventos antigos vêm só com o campo.
+    const [field, name] = field_name.split('|')
+    const noun = entity_type === 'vehicle' ? 'Veículo' : 'Container'
+    const who = name ? `${noun} ${name}` : noun
+    if (field === 'criado') return `${who} entrou no B/L`
+    if (field === 'excluido') return `${who} saiu do B/L`
+    const cleanField = FIELD_LABELS[field] ?? 'dado alterado'
+    return `${who} · ${cleanField}: ${formatTimelineValue(field, old_value)} → ${formatTimelineValue(field, new_value)}`
+  }
+  if (entity_type === 'bl') {
+    const described = describeBlMark(field_name, old_value, new_value)
+    if (described) return described
   }
   if (entity_type === 'system_event') {
     return new_value ?? field_name
   }
   // entity_type === 'bl' (field edits, incl. charge_status/financial_status)
-  const cleanField = FIELD_LABELS[field_name] ?? field_name
+  const cleanField = FIELD_LABELS[field_name] ?? 'Dado do B/L'
   return `${cleanField}: ${formatTimelineValue(field_name, old_value)} → ${formatTimelineValue(field_name, new_value)}`
 }
 
@@ -217,12 +296,14 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
 // `_set_import_context`): "Importação de <tipo> · Viagem … · Manifesto …".
 // É rastro do sistema, não justificativa deliberada — salvo quando traz o
 // motivo que a pessoa informou (troca de CE pela planilha, migration 195).
-const IMPORT_CONTEXT_PREFIX = 'Importação de '
+// Rastros antigos da importação de frete escrevem "Importacao de …" sem acento
+// (migration 205): também são origem, não motivo (F-23).
+const IMPORT_CONTEXT_PREFIXES = ['Importação de ', 'Importacao de ']
 const REASON_MARK = ' · Motivo: '
 
 export function isImportContext(justification: string | null | undefined): boolean {
   const text = justification?.trim() ?? ''
-  return text.startsWith(IMPORT_CONTEXT_PREFIX) && !text.includes(REASON_MARK)
+  return IMPORT_CONTEXT_PREFIXES.some((prefix) => text.startsWith(prefix)) && !text.includes(REASON_MARK)
 }
 
 // Auditoria = entrada com justificativa deliberada (ver CONTEXT.md).

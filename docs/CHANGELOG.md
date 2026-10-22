@@ -16,6 +16,20 @@
   com Histórico em cada um; B/L novo herda o local; em Veículos, trocar ou apagar um local já
   gravado pede confirmação. Prova: `hashEDesova.local-pg.test.ts`, `importFileReceipt.test.ts`,
   `Veiculos.unpackingCache.test.tsx`.
+- **Importações: Histórico (2026-10-22, Lote 8 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 24; achados F-23, F-24 e F-46):**
+  migration `404`. O Histórico do B/L mostra tudo o que a importação muda: container que entra e sai
+  (com a origem; o histórico do container removido fica), lacre, peso, perfil, SOC/COC (inclusive do
+  Baplie), local de desova, veículos que entram e saem, consignatário e troca de Cliente com razão
+  social e CNPJ — nunca o id —, POL/POD e os demais campos do B/L, com rótulos da operação no lugar de
+  códigos e JSON (assunto novo **Veículo**). A ficha do Cliente (Histórico e Alterações do cadastro)
+  mostra o que a Base de Clientes mudou e os e-mails que ela incluiu, com "Origem: Base de Clientes",
+  quem e quando. "Informar Nº" reconcilia os alertas da Viagem na hora, e o Nº de Manifesto do lote não
+  aparece mais na linha do tempo da Viagem de mesmo número. O Histórico deixou de aceitar gravação
+  direta de usuário (forjável): só o banco grava, e a tela grava a agenda de POL/POD, a Viagem e os
+  eventos operacionais pela RPC `record_audit_entries`, com o autor da sessão. Prova:
+  `historicoImportacao.local-pg.test.ts`, `blTimelinePresentation.test.ts`, `customerFicha.test.ts`,
+  `customerCadastroChanges.test.ts`, `auditEntries.test.ts`.
 - **Importações: Baplie, armador e transbordo (2026-10-22, Lote 9 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `403`.
   Navio compartilhado: o armador guarda os códigos com que aparece no Baplie (campo "Códigos do

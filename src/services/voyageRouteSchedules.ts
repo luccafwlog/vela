@@ -1,5 +1,6 @@
 import { normalizePortCode } from './portCode'
 import { supabase } from './supabase'
+import { recordAuditEntries } from './auditEntries'
 import { fetchExportSchedulesByVoyageIds } from './voyageExportSchedules'
 import type { VoyageExportSchedule, VoyageExportSchedulesByPort } from './voyageExportSchedules'
 import { mapChunks } from '../lib/utils'
@@ -502,8 +503,7 @@ export async function saveVoyagePolSchedule({
 
   if (!changes.length) return
 
-  const { error } = await supabase.from('audit_logs').insert(changes)
-  if (error) throw error
+  await recordAuditEntries(changes)
 }
 
 /** Linhas de Histórico que uma gravação de agenda de POL produz (sem gravar). */
@@ -565,8 +565,7 @@ export async function saveVoyagePodSchedule({
 
   if (!changes.length) return
 
-  const { error } = await supabase.from('audit_logs').insert(changes)
-  if (error) throw error
+  await recordAuditEntries(changes)
 
   if (atd !== undefined) {
     await syncVoyageStatusAfterAtdChange(voyageId)
@@ -716,7 +715,7 @@ export async function deleteVoyagePodSchedule({
   changedBy: string | null
 }) {
   const entityId = buildVoyagePodEntityId(voyageId, pod)
-  const { error } = await supabase.from('audit_logs').insert([
+  await recordAuditEntries([
     {
       entity_type: POD_ENTITY_TYPE,
       entity_id: entityId,
@@ -727,7 +726,6 @@ export async function deleteVoyagePodSchedule({
       justification: 'Remocao de POD do planejamento',
     },
   ])
-  if (error) throw error
 }
 
 export type EscalaDeleteResult = {

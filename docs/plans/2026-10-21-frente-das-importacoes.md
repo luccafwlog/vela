@@ -90,6 +90,23 @@ antes e passa depois, e o módulo dono atualizado.
   `baplieArmadorETransbordo.local-pg.test.ts`, `baplieImport.test.ts`,
   `baplieParserEtapa9.test.ts`, `baplieReconciliation.test.ts`,
   `voyageForm.test.ts`, `voyageMutations.test.ts`.
+- **Lote 8 — Histórico** (migration `404`): decisão 24; F-23, F-24 e F-46.
+  O Histórico do B/L (`bl_timeline`) lê o gatilho de `bls`, `vehicles` e
+  `bl_containers` pelo B/L gravado no rastro (`audit_logs.bl_id`): container e
+  veículo que entram e saem (com a origem, e o histórico depois da remoção),
+  lacre, peso, SOC/COC do Baplie, desova, consignatário e Cliente com razão
+  social e CNPJ (nunca o id), sem termos técnicos nem JSON. A ficha do Cliente
+  mostra o que a Base de Clientes mudou, com "Origem: Base de Clientes", quem e
+  quando (`customer_audit_timeline`). F-24: a reconciliação de alertas pela
+  trilha aceita `voyage` (Informar Nº reconcilia na hora) e o Nº de Manifesto
+  do lote grava `import_batch`, sem colidir com o lote de mesmo número na
+  linha do tempo da Viagem. F-46: `audit_logs` sem INSERT direto; a tela e a
+  `admin-users` gravam por `record_audit_entries`. Confirmação do dono em
+  2026-10-22: mudar o POL de um B/L (ficha ou Manifesto BB) não recalcula o ATD
+  do POL; o ATD fica até a próxima importação de B/L da Viagem
+  ([Viagens](../modules/viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota)).
+  Prova: `historicoImportacao.local-pg.test.ts`, `blTimelinePresentation.test.ts`,
+  `customerFicha.test.ts`, `customerCadastroChanges.test.ts`, `auditEntries.test.ts`.
 - **Lote 10 — hash e desova** (migrations `405` e `406`):
   decisões 3 e 26; F-50 (desova). Toda importação por arquivo que grava lote
   (arquivo de B/L, Manifesto BB e B/L avulso, Granito, Embarque de Vazios e
@@ -121,7 +138,7 @@ antes e passa depois, e o módulo dono atualizado.
 | 5 CE e Manifesto Mercante (entregue, ver acima) | 19, 20 | F-49, F-53 | remover CE e cancelar tiram do Manifesto; alerta "CE fora do Manifesto da rota"; planilha de CE com recusa de cálculo testada e mensagem no formato da ADR 0094 | local-pg |
 | 6 Vazios (entregue, ver acima) | 21, 22 | F-32 | unicidade por Viagem, planilha vence; ADR de Saída fechado trava | local-pg |
 | 7 ATD (entregue, ver acima) | 23 | F-48 | ATD manual marcado e preservado; só B/Ls ativos | local-pg |
-| 8 Histórico | 24 | F-23, F-24, F-46 | `bl_timeline` lê `bls`, `vehicles` e `bl_containers`; origem Base de Clientes; `audit_logs` sem INSERT direto | local-pg + vitest |
+| 8 Histórico (entregue, ver acima) | 24 | F-23, F-24, F-46 | `bl_timeline` lê `bls`, `vehicles` e `bl_containers`; origem Base de Clientes; `audit_logs` sem INSERT direto | local-pg + vitest |
 | 9 Baplie: armador e transbordo (entregue, ver acima) | 14, 15 | — | códigos do armador no cadastro; transbordo marcado | vitest + local-pg |
 | 10 Hash e desova (entregue, ver acima) | 3, 26 | F-50 | `import_batches` com hash e aviso de reenvio; desova por container físico | local-pg |
 
@@ -139,6 +156,11 @@ antes e passa depois, e o módulo dono atualizado.
   por Viagem e a mensagem própria de 57014 ficaram de fora. O 23505 de chassi (F-39) não é
   deste lote.
 
+- Do Lote 8 (F-24): ficaram de fora as reconciliações "na hora" que a revisão
+  só leu, sem reproduzir — o B/L novo fechando "B/Ls esperados", vazios, troca
+  de POD e `cancel_bl`; elas seguem no detector periódico. O "B/Ls esperados"
+  já compara o porto normalizado (lote 3). A linha do tempo da Viagem lê
+  `import_batch` (semântico) e o gatilho `import_batches` só pelo id do lote.
 - Do Lote 10: Veículos, planilha de CE, datas de container, Programação, Base
   de Clientes e Baplie não gravam lote e ficaram sem hash nem aviso de
   reenvio. A confirmação da troca de desova na planilha de Veículos continua
