@@ -33,7 +33,7 @@ describe('voyageFormSchema', () => {
   })
 })
 
-// ADR 0095, decisão 14 (migration 410): códigos do armador no Baplie.
+// ADR 0095, decisão 14 (migration 403): códigos do armador no Baplie.
 describe('códigos do armador no Baplie', () => {
   it('separa por vírgula, ponto e vírgula ou espaço, em maiúsculas e sem repetir', () => {
     expect(parseCarrierBaplieCodes(' cos; COSCO  cos,, ')).toEqual(['COS', 'COSCO'])

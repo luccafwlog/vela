@@ -9,7 +9,7 @@ import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
-import { userFacingErrorMessage } from '../../lib/errors'
+import { importErrorMessage } from '../../lib/errors'
 import { afterManifestoImportado } from '../../services/cacheEffects'
 import { hasBlockingIssues, rowErrorsToImportIssues } from '../../services/importValidation'
 import {
@@ -129,13 +129,13 @@ export function VaziosImportacaoImportModal({
         manifestNumbers,
         description: description.trim() || undefined,
         filename: file?.name ?? null,
-        fileHash: receipt.fileHash ?? (file ? await importFilesSha256([file]) : null),
+        fileHash: receipt.fileHash ?? (file ? await importFilesSha256([file]).catch(() => null) : null),
       })
       await afterManifestoImportado(queryClient, { voyageId })
       showToast(`Vazios de importação gravados: ${plural(containerCount, 'container', 'containers')}.`, 'success')
       onClose()
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar os vazios.'))
+      setImportError(err instanceof Error ? err.message : importErrorMessage(err, 'Falha ao importar os vazios.'))
     } finally {
       setImporting(false)
     }

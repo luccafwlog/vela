@@ -39,15 +39,7 @@ export async function updateVoyage(voyageId: number, form: VoyageFormValues, cha
   const carrier = await getOrCreateCarrier(form.carrierName, form.carrierScac)
   const carrierId = carrier.id
   const vesselId = await getOrCreateVessel(form.vesselName, form.vesselImo, carrierId)
-  const [{ data: current, error: currentError }, currentIndicated] = await Promise.all([
-    supabase
-      .from('voyages')
-      .select('vessel_id, voyage_number, status')
-      .eq('id', voyageId)
-      .single(),
-    getVoyageIndicatedFirstBrazilianPort(voyageId),
-  ])
-  if (currentError) throw currentError
+  const currentIndicated = await getVoyageIndicatedFirstBrazilianPort(voyageId)
 
   const { data: updated, error: updateError } = await supabase
     .from('voyages')
@@ -62,10 +54,9 @@ export async function updateVoyage(voyageId: number, form: VoyageFormValues, cha
 
   if (updateError || !updated) throw updateError
 
+  // Navio, número e status entram no Histórico pelo gatilho de `voyages`
+  // (`audit_voyages`), com o valor que de fato mudou (migration 408, R-13).
   await insertVoyageAuditRows([
-    makeVoyageAuditRow(voyageId, 'vessel_id', current?.vessel_id == null ? null : String(current.vessel_id), String(vesselId), changedBy),
-    makeVoyageAuditRow(voyageId, 'voyage_number', current?.voyage_number ?? null, form.voyageNumber.trim(), changedBy),
-    makeVoyageAuditRow(voyageId, 'status', current?.status ?? null, form.status, changedBy),
     makeVoyageAuditRow(voyageId, 'indicated_first_brazilian_port', currentIndicated?.port ?? null, form.indicatedFirstBrazilianPort ?? null, changedBy),
     makeVoyageAuditRow(voyageId, 'indicated_first_brazilian_eta', currentIndicated?.eta ?? null, form.indicatedFirstBrazilianEta ?? null, changedBy),
   ])
@@ -132,7 +123,7 @@ function carrierLookup(name: string, scac: string) {
 /**
  * Códigos do Baplie do armador que o formulário da Viagem vai usar (mesma
  * busca de `getOrCreateCarrier`: SCAC, ou o nome sem SCAC). `null` = armador
- * ainda não cadastrado. `baplie_codes` é da migration 410 (tipos protegidos).
+ * ainda não cadastrado. `baplie_codes` é da migration 403 (tipos protegidos).
  */
 export async function fetchCarrierBaplieCodes(name: string, scac: string): Promise<string[] | null> {
   if (!scac.trim() && !name.trim()) return null
@@ -269,9 +260,6 @@ function makeVoyageAuditRow(
   voyageId: number,
   fieldName:
     | 'created'
-    | 'vessel_id'
-    | 'voyage_number'
-    | 'status'
     | 'indicated_first_brazilian_port'
     | 'indicated_first_brazilian_eta',
   oldValue: string | null,

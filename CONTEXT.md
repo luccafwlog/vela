@@ -219,8 +219,24 @@ Seguimento da carga em navio de terceiro após a omissão de escala, até o POD
 original: o destino final é preservado. Os dados do seguimento (porto, navio,
 armador, viagem, ETD e ETA) formam um registro global da omissão, compartilhado
 pelos B/Ls afetados; não é uma nova Viagem.
-- **Distinto de:** COD, exceção individual por B/L que muda o destino final.
+- **Distinto de:** COD, exceção individual por B/L que muda o destino final;
+  **Container em transbordo (Baplie)**, marca do arquivo Baplie que não tem
+  relação com omissão de escala.
 → Regra: [Viagens § Omissão de Escala, Transbordo e COD](docs/modules/viagens.md#omissão-de-escala-transbordo-e-cod)
+
+**Container em transbordo (Baplie)**
+Container que o Baplie marca como em transbordo (EQD 8249 = 6): entra no Baplie
+da Viagem marcado "Transbordo" e aparece na conciliação, sem levar marcas aos
+B/Ls. Não é o Transbordo da omissão de escala.
+→ Regra: [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](docs/modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências)
+
+**Códigos do armador no Baplie / Outro armador**
+Códigos com que o armador da Viagem aparece no operador (NAD+CA) do Baplie
+(ex.: COS, COSCO), cadastrados em Nova Viagem/Editar e válidos para todas as
+Viagens do armador. Container cujo operador não está nesses códigos é **de
+outro armador** (navio compartilhado): fica fora do staging, das marcas e da
+conciliação, e a prévia conta e avisa.
+→ Regra: [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](docs/modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências)
 
 **COD (Change of Destination)**
 Alteração do destino final do B/L para o Porto de Transbordo após omissão de

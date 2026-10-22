@@ -6,7 +6,7 @@
 > `403`): "outro armador" é decidido pelos códigos do armador da Viagem, sem
 > depender dos B/Ls. As demais decisões continuam valendo.
 
-Status: aceito — 2026-10-11 (decisões do dono). Implementado nas migrations
+Status: supersedida parcialmente (decisão 6, pela ADR 0095) — aceita em 2026-10-11 (decisões do dono). Implementado nas migrations
 `203` a `206` e no frontend, em produção desde o merge da PR 929 em 2026-10-12
 (ver "Evidência").
 

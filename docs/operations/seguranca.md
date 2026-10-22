@@ -60,7 +60,11 @@ igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
   Histórico do B/L. A tela (agenda de POL/POD, Viagem, eventos operacionais) e
   a Edge Function `admin-users` gravam pela RPC `record_audit_entries`, que
   aceita só esses assuntos e campos (usuário só para o Administrativo), toma
-  autor, Departamento e hora da sessão e recusa o resto com `42501`.
+  autor, Departamento e hora da sessão e recusa o resto com `42501`. Da
+  Viagem, a RPC aceita só a criação e o primeiro porto brasileiro indicado
+  (porto e ETA); navio, número e status entram pelo gatilho `audit_voyages`,
+  com o valor que de fato mudou (migration `408`; antes a tela gravava as
+  três linhas mesmo sem mudança).
   `update_customer_with_audit` passou a `SECURITY DEFINER` pela mesma razão.
   `service_role` mantém `INSERT`/`SELECT` (`340`).
 

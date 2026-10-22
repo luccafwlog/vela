@@ -139,7 +139,7 @@ export function BlDocumentImportModal({
           uploadedBy: user.id,
           acceptWarnings: Boolean(acceptWarnings),
           approval,
-          fileHash: await importFilesSha256(entries.map((entry) => entry.file)),
+          fileHash: await importFilesSha256(entries.map((entry) => entry.file)).catch(() => null),
         })
         await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
         const pending = describeBreakbulkPending(result)

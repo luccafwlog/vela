@@ -8,7 +8,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import { useBaplieVoyageContext } from '../../hooks/useBaplieVoyageContext'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
-import { userFacingErrorMessage } from '../../lib/errors'
+import { importErrorMessage } from '../../lib/errors'
 import { afterBaplieImportado } from '../../services/cacheEffects'
 import { parseBaplieFile } from '../../services/baplieParser'
 import {
@@ -171,7 +171,7 @@ export function BaplieImportModal({
       onClose()
     } catch (err) {
       await afterBaplieImportado(queryClient, { voyageId })
-      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar o Baplie EDI.'))
+      setImportError(err instanceof Error ? err.message : importErrorMessage(err, 'Falha ao importar o Baplie EDI.'))
     } finally {
       setImporting(false)
     }

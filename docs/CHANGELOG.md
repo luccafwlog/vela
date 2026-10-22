@@ -6,6 +6,23 @@
 
 ## 2026-10
 
+- **Revisão da PR 1021, melhorias (2026-10-22;
+  [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-09 a R-19):**
+  migration `408`. Excluir um B/L recalcula o ATD do POL, como cancelar.
+  Reimportar o Embarque de Vazios grava o recibo no manifesto em que as
+  unidades estão, e o aviso de reenvio aponta a última importação. Planilha
+  de CE, Manifesto BB e Granito recusam usuário sem permissão antes de travar
+  a Viagem. O Histórico da Viagem recebe navio, número e status só pelo
+  gatilho, sem linha repetida quando nada mudou. A planilha de Veículos pede
+  confirmação para trocar o local de desova gravado noutro B/L do mesmo
+  container. Nas telas: as importações usam a mensagem de importação; uma
+  falha ao calcular o hash não impede a importação; editar Cliente relê a
+  ficha; o código `55000` mostra a mensagem do banco; o tipo do container no
+  Histórico aparece como "Tipo". Notas de R-12 e R-18 em Manifestos & EDI;
+  vigências, ADRs, pendências e glossário revistos (R-19). Prova:
+  `atdDoPolManual` e `hashEDesova` (PostgreSQL local),
+  `guardaAntesDaTravaMigration.test.ts`, `voyageMutations.test.ts`,
+  `vehicleImport.test.ts`, `portalErrorMessage.test.ts`.
 - **Revisão da PR 1021, correções antes do merge (2026-10-22;
   [relatório](archive/audits/2026-10-22-revisao-pr-1021.md), R-01 a R-08):**
   migration `407`. `admin-users` volta a responder 403 a quem não é
@@ -22,7 +39,7 @@
   `tariffCorrectionCache.test.tsx`, `TaxasLocais.behavior.test.tsx`,
   `importEffects.test.ts`, `permissoesPorPerfil.local-pg.test.ts`.
 - **Importações: hash do arquivo e desova (2026-10-22, Lote 10 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
   migrations `405` e `406`. Arquivo de B/L, Manifesto BB, B/L avulso de carga solta, Granito,
   Embarque de Vazios e Vazios de Importação gravam no lote o nome e o SHA-256 do arquivo, com quem
   e quando; importar o mesmo arquivo de novo na mesma Viagem só avisa na prévia ("Este arquivo já
@@ -32,7 +49,7 @@
   gravado pede confirmação. Prova: `hashEDesova.local-pg.test.ts`, `importFileReceipt.test.ts`,
   `Veiculos.unpackingCache.test.tsx`.
 - **Importações: Histórico (2026-10-22, Lote 8 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 24; achados F-23, F-24 e F-46):**
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 24; achados F-23, F-24 e F-46):**
   migration `404`. O Histórico do B/L mostra tudo o que a importação muda: container que entra e sai
   (com a origem; o histórico do container removido fica), lacre, peso, perfil, SOC/COC (inclusive do
   Baplie), local de desova, veículos que entram e saem, consignatário e troca de Cliente com razão
@@ -46,7 +63,7 @@
   `historicoImportacao.local-pg.test.ts`, `blTimelinePresentation.test.ts`, `customerFicha.test.ts`,
   `customerCadastroChanges.test.ts`, `auditEntries.test.ts`.
 - **Importações: Baplie, armador e transbordo (2026-10-22, Lote 9 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `403`.
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 14 e 15):** migration `403`.
   Navio compartilhado: o armador guarda os códigos com que aparece no Baplie (campo "Códigos do
   armador no Baplie" em **Nova Viagem**/**Editar**; a COSCO recebeu COS e COSCO); container de outro
   código fica fora das marcas IMO/OOG e SOC/COC e da conciliação, contado na prévia ("de outro
@@ -61,7 +78,7 @@
   tirada do ROE manual ficava parada no câmbio do clique. A Invoice com ROE manual e a paga seguem
   fora. Prova: `demurrageRoeManual.local-pg.test.ts`.
 - **Importações: ATD do POL (2026-10-22, Lote 7 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
   migration `401`. O ATD do POL corrigido à mão (Rotas e Manifestos → **Editar**) fica marcado, com
   quem e quando, e não é mais recalculado pela importação de B/L da Viagem e do POL nem pelo
   cancelamento; a prévia do Importar B/L avisa quando o Laden on Board do arquivo diverge ("ATD do
@@ -71,7 +88,7 @@
   `ladenOnBoardAtd.ts`, cálculo antigo no navegador que nenhuma tela usava. Prova:
   `atdDoPolManual.local-pg.test.ts`, `ws1FunctionalSmoke.test.ts`.
 - **Importações: Vazios (2026-10-22, Lote 6 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 21 e 22; achado F-32):**
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 21 e 22; achado F-32):**
   migrations `398` a `400`. O vazio de importação existe uma vez por Viagem, em qualquer rota e fonte: a
   planilha vale sobre o Baplie (tira do Baplie o container que traz e fica com a natureza
   cama/cover plate digitada nele quando não traz outra, `400`), o Baplie cadastra só os vazios
@@ -86,7 +103,7 @@
   que o ADR está aberto (carregando ou falha, com **Tentar de novo**), as ações ficam fora. Prova: `vaziosUmaVezPorViagem.local-pg.test.ts`,
   `vaziosImportacaoImport.test.ts`, `baplieVaziosPending.test.ts`, `EmbarqueVazios.flow.test.tsx`.
 - **Importações: CE e Manifesto Mercante (2026-10-22, Lote 5 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 19 e 20; achados F-49,
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 19 e 20; achados F-49,
   F-53, F-17 e F-18):** migrations `396` e `397` (índice da guarda). Remover o CE pela ficha ou cancelar o B/L tira o B/L do
   Manifesto Mercante, com Histórico; reativar o B/L o recoloca no Manifesto de antes (se ainda é da
   rota), e o CE removido volta pela planilha de CE, que vincula o Manifesto dela. B/L com CE que muda
@@ -100,7 +117,7 @@
   remover CE, cancelar ou reativar. Prova: `ceEManifestoMercante.local-pg.test.ts`,
   `ceForaDoManifestoAlerta.test.ts`.
 - **Importações: exclusão e efeitos (2026-10-21, Lote 4 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 7, 18 e 25;
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 7, 18 e 25;
   achados F-10, F-13, F-14, F-33a, F-34, F-42 e F-43):** migrations `394` e `395`. Excluir B/L ou Viagem
   encerra os efeitos de importação pendentes como "descartado: registro excluído", sem Alerta (e
   fecha o Alerta do que estava bloqueado); excluir a Viagem apaga os vazios de importação dela e o
@@ -118,7 +135,7 @@
   cenário da revisão. Prova: `exclusaoEEfeitosImportacao.local-pg.test.ts`,
   `Alertas.reprocessar.test.tsx`.
 - **Importações: arquivo de B/L com as regras no servidor (2026-10-21, Lote 2 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 5, 8, 9, 10, 26 e 27;
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 5, 8, 9, 10, 26 e 27;
   achados F-05, F-15, F-27 e F-50):** migrations `392` e `393`. Na rolagem, o B/L é excluído na Viagem antiga (cancelar não libera o número). B/L que já está em outra Viagem recusa o
   arquivo com a Viagem dele (a importação não move B/L entre Viagens); B/L cancelado no arquivo fica
   de fora com aviso para reativar pela ficha e importar de novo, e o resto entra. A confirmação de
@@ -132,7 +149,7 @@
   modalidade FCL/LCL é lida do Type of Movement e gravada em `bls.container_load_type`; B/L LCL
   divide container com outro Cliente. Suíte local-pg `arquivoDeBlRegras`.
 - **Importações: Navegantes ≠ Itajaí e Recife ≠ Suape (2026-10-21, Lote 3 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 12; achado F-08):** migration
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 12; achado F-08):** migration
   `391`. `normalize_port_code` deixa de juntar BRNVT/NVT/NAVEGANTES com BRITJ e BRREC/REC/RECIFE com
   BRSUA e passa a conhecer os apelidos exatos do Baplie da COSCO (BRSPB/SPB/SEP, CNTCA/TCA, TAO,
   CNCAN); `_baplie_port_key` passa a ser a mesma função. B/L, Baplie, Manifesto Mercante, alertas,
@@ -146,7 +163,7 @@
   do nome no arquivo, vínculo de B/L com a tabela de outro porto, que deixa de valer no próximo
   cálculo). Suíte local-pg `portosSeparados`.
 - **Importações: trava por Viagem e Baplie no servidor (2026-10-21, PR luccafwlog/vela#1023, Lote 1 do plano
-  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 6, 11 e 13):** migrations
+  `docs/archive/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 6, 11 e 13):** migrations
   `387` a `390`. Toda importação de Viagem (arquivo de B/L, Manifesto BB e B/L avulso, planilha de
   CE, Baplie, datas, Vazios de importação, Embarque de vazios, Veículos e Granito) pega a mesma trava
   da Viagem: a segunda importação espera a primeira, em vez de cair em "deadlock detected" ou deixar

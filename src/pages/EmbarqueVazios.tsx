@@ -63,7 +63,7 @@ import {
 import type { DepotService, VaziosBooking, VaziosExportServiceLine } from "../types/database";
 import { formatBRL, formatDate, normalizeText, voyageLabel } from "../lib/utils";
 import { condicaoLabel, diasLabel, naturezaServicoLabel } from "../lib/vaziosLabels";
-import { classifyDbError } from "../lib/errors";
+import { classifyDbError, importErrorMessage } from "../lib/errors";
 import { invalidateAgencyReportForVoyage } from "../services/agencyReportInvalidation";
 
 type Tab = "unidades" | "servicos";
@@ -609,14 +609,14 @@ function EmbarqueDetalhe({
     refreshes.push(onChanged());
     await Promise.all(refreshes);
   }
-  async function notify(action: () => Promise<void>, success: string) {
+  async function notify(action: () => Promise<void>, success: string, errorMessage = (error: unknown) => classifyDbError(error).message) {
     setSaving(true);
     try {
       await action();
       showToast(success, "success");
       return true;
     } catch (error) {
-      showToast(classifyDbError(error).message, "error");
+      showToast(errorMessage(error), "error");
       return false;
     } finally {
       setSaving(false);
@@ -654,12 +654,12 @@ function EmbarqueDetalhe({
         port: ref.embark_port,
         uploadedBy: user.id,
         manifest: parsed,
-        fileHash: await importFilesSha256([file]),
+        fileHash: await importFilesSha256([file]).catch(() => null),
       });
       setFile(null);
       await refreshOperationData();
       setImportOpen(false);
-    }, "Lista de unidades substituída.");
+    }, "Lista de unidades substituída.", (error) => importErrorMessage(error, "Não foi possível importar a lista de unidades."));
   }
   function openUnit(item?: VaziosBooking) {
     setUnit(item

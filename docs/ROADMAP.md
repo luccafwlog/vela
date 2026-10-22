@@ -132,6 +132,15 @@ demais itens que bloqueiam a ativação.
 - avaliar realtime para eventos operacionais prioritários;
 - revisar políticas e índices orientado por queries reais, não por contagem
   genérica de advisors.
+- pendências da frente das importações ([plano arquivado](archive/plans/2026-10-21-frente-das-importacoes.md),
+  [ADR 0095](adr/0095-importacoes-regras-da-revisao.md)):
+  - planilha de CE Mercante: a reconciliação do "CE Mercante pendente" roda
+    por B/L dentro da planilha (custo quadrático, F-18); o teto é 60 s, sem
+    medição de volume; falta reconciliar uma vez por Viagem;
+  - reconciliações "na hora" que ficaram no detector periódico: B/L novo
+    fechando "B/Ls esperados", vazios, troca de POD e `cancel_bl` (F-24);
+  - tempo da importação da Base de Clientes, que é contingência (F-54,
+    decisão 28).
 
 ## Riscos ativos
 

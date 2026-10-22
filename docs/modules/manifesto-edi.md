@@ -182,7 +182,9 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
   cancelado fica como está. B/L novo que compartilha o container herda o local
   (`unpacking_location_inherits_container`). Em `/veiculos`, trocar ou apagar um
   local já gravado no container, também noutro B/L, pede confirmação listando
-  container, B/L e local atual (`findUnpackingReplacements`). A migration
+  container, B/L e local atual (`findUnpackingReplacements`); a planilha de
+  Veículos também, na prévia e na RPC: o local gravado noutro B/L do mesmo
+  container só é trocado com a confirmação (migration `408`). A migration
   preencheu o local vazio onde o container tinha um só local gravado; container
   com dois locais diferentes ficou como estava até a próxima gravação.
   Sem fatura viva, as Taxas Locais são recalculadas na hora e B/L isento anula o
@@ -1211,6 +1213,20 @@ persiste `bls.laden_on_board` e recalcula o menor ATD do POL dentro da mesma
 transação. Desde a migration `392` a aba VIN do arquivo de B/L é ignorada
 (ADR 0095, decisão 26); veículos entram só pela planilha de Veículos.
 
+- **Código — trava da desova (R-12 da [revisão da PR 1021](../archive/audits/2026-10-22-revisao-pr-1021.md)):**
+  o comentário da `406` diz que a trava consultiva do gatilho
+  `unpacking_location_follows_container` evita o impasse, mas o gatilho roda
+  depois de a linha já estar travada. Duas gravações do local em B/Ls
+  diferentes do mesmo container, em sessões paralelas, podem terminar uma com
+  `40P01`, que a tela traduz ("Outra gravação estava usando os mesmos
+  registros. Tente novamente."). A tela grava um container por vez, então é
+  raro e recuperável. Para eliminar: gravar o local por uma RPC que pegue a
+  trava antes do UPDATE e tirar o grant da coluna.
+- **Rollback da `396`:** a nota de rollback cita reaplicar
+  `trg_auto_bill_bl_after_ce_mercante` da `379`, mas a versão anterior real é a
+  da `385` (recusa pela `_raise_local_charge_failure` quando o cálculo falha).
+  Um rollback da `396` reaplica a versão da `385`; a migration é protegida e
+  fica como está (R-18 da mesma revisão).
 - A migration arquivada `199` (`199_drop_import_manifest_cntr_rpc.sql`) removeu as assinaturas histórica de 13 argumentos e ativa de 14 argumentos de `import_manifest_with_postprocess_transactional`; `import_manifest_transactional` permanece disponível para os fluxos legítimos que ainda a compõem.
 - O Nº de Manifesto Mercante é editado em `/viagens/:voyageId` (aba Rotas e Manifestos) e na ficha do B/L; `/manifestos` é só redirect e não possui editor.
 - Free time e P1/P2 do B/L são gravados juntos por `save_bl_demurrage_config`, com optimistic lock e auditoria por campo na mesma transação (`src/services/blDemurrageConfig.ts`).

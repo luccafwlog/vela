@@ -4,10 +4,13 @@ import { resolve } from 'node:path'
 import { importVehicleRows, parseVehicleImportBuffer, type VehicleImportRow } from '../vehicleImport'
 import { jsonToBuffer, sheetsToBuffer } from './testWorkbook'
 
-const { mockFrom, mockRpc } = vi.hoisted(() => ({
+const { mockFrom, mockRpc, mockReplacements } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
+  mockReplacements: vi.fn(),
 }))
+
+vi.mock('../vaziosNatureza', () => ({ findUnpackingReplacements: mockReplacements }))
 
 vi.mock('../supabase', () => ({
   supabase: {
@@ -20,6 +23,8 @@ describe('vehicleImport', () => {
   beforeEach(() => {
     mockFrom.mockReset()
     mockRpc.mockReset()
+    mockReplacements.mockReset()
+    mockReplacements.mockResolvedValue([])
     mockRpc.mockResolvedValue({ data: { status: 'exempt', exempt: true }, error: null })
   })
 
@@ -524,6 +529,27 @@ describe('vehicleImport', () => {
     expect(result).toMatchObject({ successCount: 1, errorCount: 0 })
     expect(confirmUnpacking).toHaveBeenCalledWith([{ containerNumber: 'CAXU0000001', blId: 'BL001', current: 'TVV', next: 'CFS' }])
     expect(inserted).toEqual([expect.objectContaining({ chassis: 'V1', unpacking_location: 'CFS', unpacking_confirmed: false })])
+  })
+
+  it('local de desova: o gravado em outro B/L do mesmo container também pede confirmação (migration 408)', async () => {
+    const inserted = regraMocks({
+      containers: [
+        { id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } },
+      ],
+    })
+    mockReplacements.mockResolvedValue([{ containerNumber: 'CAXU0000001', blId: 'BL009', current: 'TVV' }])
+    const confirmUnpacking = vi.fn().mockResolvedValue(true)
+    const result = await importVehicleRows({
+      voyageId: 7,
+      confirmUnpacking,
+      rows: [
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1', unpacking_location: 'CFS' },
+      ],
+    })
+    expect(mockReplacements).toHaveBeenCalledWith([1], 'CFS')
+    expect(confirmUnpacking).toHaveBeenCalledWith([{ containerNumber: 'CAXU0000001', blId: 'BL009', current: 'TVV', next: 'CFS' }])
+    expect(result.successCount).toBe(1)
+    expect(inserted).toEqual([expect.objectContaining({ unpacking_location: 'CFS', unpacking_confirmed: true })])
   })
 
   it('B/L cancelado recusa a planilha antes de gravar, sem mandar o lote ao servidor', async () => {
