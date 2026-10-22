@@ -124,7 +124,15 @@ it('contagem da planilha com erro: aviso com Tentar de novo, que libera a ação
   expect(await screen.findByText('Não foi possível conferir os vazios na planilha')).toBeTruthy()
   expect(screen.queryByRole('button', { name: /Cadastrar/ })).toBeNull()
 
+  let resolveRetry: (value: { aCadastrar: number; naPlanilha: number; rotaDiferente: string[] }) => void = () => {}
+  mocks.naPlanilha.mockReturnValueOnce(new Promise((resolve) => { resolveRetry = resolve }))
   fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+  // Na nova tentativa a contagem volta a "carregando": o aviso de erro sai e a
+  // tela mostra que está conferindo, sem ações de vazios.
+  expect(await screen.findByText(/Conferindo os vazios na planilha/)).toBeTruthy()
+  expect(screen.queryByText('Não foi possível conferir os vazios na planilha')).toBeNull()
+  expect(screen.queryByRole('button', { name: /Cadastrar/ })).toBeNull()
+  resolveRetry({ aCadastrar: 1, naPlanilha: 0, rotaDiferente: [] })
   expect(await screen.findByRole('button', { name: 'Cadastrar 1 vazio' })).toBeTruthy()
   expect(screen.queryByText('Não foi possível conferir os vazios na planilha')).toBeNull()
 })
