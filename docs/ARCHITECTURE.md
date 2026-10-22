@@ -214,6 +214,8 @@ O projeto cria dois clientes em `src/services/supabase.ts`:
 - `supabasePortal`: sessão do cliente, com `storageKey` próprio.
 
 As duas sessões podem coexistir no navegador sem que um logout derrube a outra.
+Cada cliente só é criado no primeiro uso: o bundle do Portal não instancia o
+cliente interno, que lê a sessão da URL (`detectSessionInUrl`, PKCE).
 
 ### Acesso interno
 
