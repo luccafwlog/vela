@@ -781,7 +781,7 @@ Ordenados por severidade. "Reproduzir" aponta para o roteiro mínimo; os scripts
 - **Reproduzir** [reproduzido F06]: sem ROE, item em USD; Excluir um veículo → fila inalterada, taxa com a contagem antiga, sem alerta.
 - **Correção sugerida.** Enfileirar `vehicle_followup` nesses dois caminhos.
 
-**F-35 — Médio (área 13; ver revisão de comunicados e alertas) — A Cobertura de comunicados conta B/L cancelado.** 
+**F-35 — Médio (área 13; ver revisão de comunicados e alertas) — A Cobertura de comunicados conta B/L cancelado.**
 - **Descrição.** `fetchVoyageCommunicationCoverage` (`customerCommunications.ts:1394`) não lê `cancelled_at`; o filtro usa `financial_status==='cancelled'`, que nenhuma rotina grava.
   - Um Cliente que só tem B/L cancelado fica pendente para sempre.
   - Um B/L cancelado num POD cria uma linha "devido" num porto onde o Cliente não tem carga **[reproduzido F10 na função pura]**.

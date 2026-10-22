@@ -47,7 +47,7 @@ export function VoyageCreateModal({
   })
   const [errors, setErrors] = useState<VoyageFormErrors>({})
   const [saving, setSaving] = useState(false)
-  // Códigos do armador no Baplie (migration 410): mostra os cadastrados até o
+  // Códigos do armador no Baplie (migration 403): mostra os cadastrados até o
   // operador editar; só o que ele digitar vai para a gravação.
   const carrierCodes = useQuery({
     queryKey: queryKeys.voyages.carrierBaplieCodes(form.carrierName.trim(), form.carrierScac.trim()),

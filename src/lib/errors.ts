@@ -124,6 +124,9 @@ const ERROR_TABLE: Readonly<Record<string, ErrorTableEntry>> = {
   P0006: { kind: 'validacao', message: 'Um container que sai pelo arquivo ainda tem Invoice de Demurrage ou veículos.', preserveMessage: true },
   // P0008: container FCL em B/Ls de Clientes diferentes (migration 176).
   P0008: { kind: 'conflito', message: 'Um container FCL do arquivo está em B/Ls de Clientes diferentes. Corrija o Cliente ou o container do arquivo.', preserveMessage: true },
+  // 55000 (object_not_in_prerequisite_state): recusas de estado das RPCs
+  // ("Viagem cancelada", "fatura já emitida"); todas em português no banco.
+  '55000': { kind: 'validacao', message: 'A operação não é possível no estado atual do registro.', preserveMessage: true, screenTechnical: true },
   P0010: { kind: 'conflito', message: 'Este CE Mercante já está em outro B/L.', preserveMessage: true },
   P0011: { kind: 'validacao', message: 'Há fatura emitida para este B/L.', preserveMessage: true },
   P0012: { kind: 'validacao', message: 'Nº de Manifesto Mercante inválido.', preserveMessage: true },

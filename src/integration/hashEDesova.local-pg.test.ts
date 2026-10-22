@@ -210,4 +210,26 @@ describeLocal('405/406 — hash do arquivo importado e desova por container fís
     expect(w.psql(`SELECT string_agg(coalesce(unpacking_location, ''), ',' ORDER BY bl_id) FROM public.bl_containers WHERE bl_id IN ('${a}', '${b}')`))
       .toBe('Pátio 3,Pátio 3')
   })
+
+  it('desova: a planilha de Veículos não troca sem confirmação o local gravado no outro B/L do container (migration 408, R-16)', () => {
+    const shared = w.container()
+    const a = w.createBl('VEC-A', { container: shared })
+    const b = w.createBl('VEC-B', { container: shared })
+    // Só o B/L B tem o local (divergência de antes da 406, gravada sem os gatilhos).
+    w.psql(`SET session_replication_role = replica;
+      UPDATE public.bl_containers SET unpacking_location = 'TVV' WHERE bl_id = '${b}';
+      SET session_replication_role = origin;`)
+    const idA = w.psql(`SELECT id FROM public.bl_containers WHERE bl_id = '${a}'`)
+    const rows = [{ voyage_id: w.voyageId, container_id: Number(idA), bl_id: a, chassis: 'FF9410VEC1', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1500, cbm: 12, unpacking_location: 'Pátio 3', unpacking_confirmed: false }]
+    w.asOk('operacoes', `SELECT public.import_vehicle_rows_transactional($json$${JSON.stringify(rows)}$json$::jsonb)`)
+    expect(w.psql(`SELECT string_agg(coalesce(unpacking_location, ''), ',' ORDER BY bl_id) FROM public.bl_containers WHERE bl_id IN ('${a}', '${b}')`))
+      .toBe(',TVV')
+  })
+
+  it('Vazios de exportação: reimportar as mesmas unidades grava o recibo no manifesto em que elas estão (migration 408, R-10)', () => {
+    const actor = w.actors.operacoes
+    const bookings = [{ container_number: 'FFVZ9410001', container_type: '40HC', local_code: 'FF9410DEP', condition: 'vazio', hand_in_date: '2026-10-01', hand_out_date: '2026-10-06' }]
+    w.asOk('operacoes', `SELECT public.import_vazios_bookings_transactional(${w.voyageId}, 'BRSSZ', '${actor}'::uuid, '${JSON.stringify(bookings)}'::jsonb, 'vazios-2.xlsx', '${HASH_A}')`)
+    expect(previous('vazios_exportacao', HASH_A)).toBe('FF9410 operacoes|vazios-2.xlsx')
+  })
 })

@@ -1,5 +1,5 @@
 import { importDateOrNull } from '../lib/importDate'
-import { userFacingErrorMessage } from '../lib/errors'
+import { importErrorMessage } from '../lib/errors'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
@@ -439,7 +439,7 @@ export async function importGraniteManifest({
   } as never)
   // O erro do PostgREST não é `Error`: as duas telas (Granito e Viagem) mostram
   // a mensagem de negócio da RPC pela classificação compartilhada.
-  if (error) throw new Error(userFacingErrorMessage(error, 'Não foi possível importar a planilha do Granito. Tente novamente.'), { cause: error })
+  if (error) throw new Error(importErrorMessage(error, 'Não foi possível importar a planilha do Granito. Tente novamente.'), { cause: error })
   if (data === null || typeof data !== 'object' || Array.isArray(data) || !('manifest_id' in data) || typeof data.manifest_id !== 'string') {
     throw new Error('O banco não devolveu o manifesto gravado. Confira o Granito antes de importar de novo.')
   }

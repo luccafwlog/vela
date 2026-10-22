@@ -9,7 +9,7 @@ export type VoyageFormValues = {
   carrierScac: string
   /**
    * Códigos do armador no Baplie (NAD+CA, TDT), separados por vírgula
-   * (`carriers.baplie_codes`, migration 410; ADR 0095, decisão 14).
+   * (`carriers.baplie_codes`, migration 403; ADR 0095, decisão 14).
    * Ausente = o formulário não mexe nos códigos já cadastrados.
    */
   carrierBaplieCodes?: string
