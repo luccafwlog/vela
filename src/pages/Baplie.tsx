@@ -33,6 +33,7 @@ import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
   applyBapliePhysicalFlagsDetailed,
   countPendingBapliePhysicalFlags,
+  isTransshipmentRow,
   reconcileBaplieWithManifest,
   resolveBaplieDivergence,
   type BaplieReconciliationItem,
@@ -910,7 +911,7 @@ function ContainerList({
                 <div className="app-cargo-card__head">
                   <div className="app-cargo-card__id">
                     <span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span>
-                    <span className="app-cargo-cell__sub">{[c.status === 'empty' ? 'Vazio' : 'Cheio', c.size_type, `${c.pol ?? '—'} → ${c.pod ?? '—'}`, c.slot ? `slot ${c.slot}` : null, c.bl_ref ? `B/L citado ${c.bl_ref}` : null].filter(Boolean).join(' · ')}</span>
+                    <span className="app-cargo-cell__sub">{[c.status === 'empty' ? 'Vazio' : 'Cheio', isTransshipmentRow(c) ? 'Transbordo' : null, c.size_type, `${c.pol ?? '—'} → ${c.pod ?? '—'}`, c.slot ? `slot ${c.slot}` : null, c.bl_ref ? `B/L citado ${c.bl_ref}` : null].filter(Boolean).join(' · ')}</span>
                   </div>
                 </div>
                 <span className="app-cargo-card__status">
@@ -943,7 +944,7 @@ function ContainerList({
                   <tr key={c.id} className={coverage?.keys.includes('empty') || coverage?.keys.includes('out_of_scope') ? 'app-table__row--muted' : undefined}>
                     <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span></td>
                     <td className="app-table__text"><CoverageTag coverage={coverage} /></td>
-                    <td>{c.status === 'empty' ? 'Vazio' : 'Cheio'}</td>
+                    <td>{c.status === 'empty' ? 'Vazio' : 'Cheio'}{isTransshipmentRow(c) ? ' · transbordo' : ''}</td>
                     <td>{c.size_type ?? <NoValue label="Sem tipo" />}</td>
                     <td className="whitespace-nowrap">{c.pol ?? <NoValue label="Sem POL" />} → {c.pod ?? <NoValue label="Sem POD" />}</td>
                     <td className="app-cargo-code">{c.slot ?? <NoValue label="Sem slot" />}</td>

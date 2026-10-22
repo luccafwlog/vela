@@ -4,8 +4,6 @@ import type { BaplieContainer } from '../baplieParser'
 const mocks = vi.hoisted(() => ({
   existing: [] as Array<Record<string, unknown>>,
   voyage: { voyage_number: '12N', vessel: { name: 'GREEN SANTOS' } } as Record<string, unknown> | null,
-  voyageContainers: [] as Array<{ container_number: string | null }>,
-  containerFilters: [] as Array<[string, string, unknown]>,
   rpc: vi.fn(),
   getBaplieManifestForVoyage: vi.fn(),
   replaceVaziosFromBaplie: vi.fn(),
@@ -17,16 +15,11 @@ vi.mock('../supabase', () => ({
   supabase: {
     // listBaplieStagingForDiff pagina (order + range): uma página basta aqui.
     // fetchBaplieVoyageContext lê a Viagem com maybeSingle.
-    // Os containers dos B/Ls da Viagem (decisão 6) filtram por B/L ativo (`is`).
     from: () => ({
       select: () => ({
-        eq: (column: string, value: unknown) => ({
+        eq: () => ({
           order: () => ({ range: () => Promise.resolve({ data: mocks.existing, error: null }) }),
           maybeSingle: () => Promise.resolve({ data: mocks.voyage, error: null }),
-          is: (isColumn: string, isValue: unknown) => {
-            mocks.containerFilters.push(['eq', column, value], ['is', isColumn, isValue])
-            return { order: () => ({ range: () => Promise.resolve({ data: mocks.voyageContainers, error: null }) }) }
-          },
         }),
       }),
     }),
@@ -62,8 +55,7 @@ const staged = (...rows: BaplieContainer[]) => rows.map((row, index) => ({ ...ro
 
 beforeEach(() => {
   mocks.existing = []
-  mocks.voyageContainers = []
-  mocks.containerFilters = []
+  mocks.voyage = { voyage_number: '12N', vessel: { name: 'GREEN SANTOS' } }
   // A prévia das marcas (migration 182) vem vazia; a gravação devolve o resumo da 388.
   mocks.imported = null
   mocks.rpc.mockReset().mockImplementation(async (name: string, args: { p_rows: unknown[] }) => (name === 'import_baplie_file_atomic'
@@ -287,7 +279,7 @@ describe('revisão da etapa 9 (E9)', () => {
   // E9-01: get_voyage_eligible_pods não tem GRANT para authenticated.
   it('lê as escalas pela RPC guardada list_voyage_eligible_pods', async () => {
     mocks.rpc.mockResolvedValue({ data: [{ pod: 'BRVIX' }, { pod: 'BRSSZ' }], error: null })
-    await expect(fetchBaplieVoyageContext(22)).resolves.toEqual({ voyageNumber: '12N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX', 'BRSSZ'], blContainerNumbers: [] })
+    await expect(fetchBaplieVoyageContext(22)).resolves.toEqual({ voyageNumber: '12N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX', 'BRSSZ'], carrierName: null, carrierCodes: [] })
     expect(mocks.rpc).toHaveBeenCalledWith('list_voyage_eligible_pods', { p_voyage_id: 22 })
     expect(mocks.rpc).not.toHaveBeenCalledWith('get_voyage_eligible_pods', expect.anything())
   })
@@ -317,57 +309,83 @@ describe('revisão da etapa 9 (E9)', () => {
       .toEqual([expect.objectContaining({ field: 'vessel', severity: 'error' })])
   })
 
-  // ADR 0079, decisão 6: a referência de "outro operador" são os containers dos B/Ls da Viagem.
-  describe('container de outro operador', () => {
+  // ADR 0095, decisão 14 (B12b): "outro armador" pelos códigos do armador da
+  // Viagem, sem depender dos B/Ls importados nem do cabeçalho do arquivo.
+  describe('container de outro armador', () => {
     const file = (operator: string | null) => parsed({
       operator,
       containers: [
         box('COSU1000018', { operator: 'COS' }),
-        box('COSU1000023', { operator: 'COS' }),
+        box('COSU1000023', { operator: 'COSCO' }),
         box('MSCU1000017', { operator: 'MSC' }),
         box('ONEU1000016'),
       ],
     })
+    const cosco = { ...context, carrierName: 'COSCO', carrierCodes: ['COS', 'COSCO'] }
 
-    it('lê os containers dos B/Ls ativos da Viagem', async () => {
+    it('lê os códigos do armador da Viagem (navio → armador), em maiúsculas', async () => {
       mocks.rpc.mockResolvedValue({ data: [], error: null })
-      mocks.voyageContainers = [{ container_number: ' cosu1000018 ' }, { container_number: 'COSU1000018' }, { container_number: null }]
-      await expect(fetchBaplieVoyageContext(22)).resolves.toMatchObject({ blContainerNumbers: ['COSU1000018'] })
-      expect(mocks.containerFilters).toEqual([['eq', 'bl.voyage_id', 22], ['is', 'bl.cancelled_at', null]])
+      mocks.voyage = { voyage_number: '12N', vessel: { name: 'GREEN SANTOS', carrier: { name: 'COSCO', baplie_codes: [' cos ', 'COSCO', ''] } } }
+      await expect(fetchBaplieVoyageContext(22)).resolves.toMatchObject({ carrierName: 'COSCO', carrierCodes: ['COS', 'COSCO'] })
     })
 
-    it('com o TDT do parceiro de slot, vale o operador dos containers dos B/Ls da Viagem', () => {
-      const ruled = applyBaplieVoyageRules(file('MSC'), { ...context, blContainerNumbers: ['COSU1000018'] })
+    it('fica fora o container cujo operador não está nos códigos, com contagem; o TDT do parceiro de slot não muda nada', () => {
+      const ruled = applyBaplieVoyageRules(file('MSC'), cosco)
       expect(ruled.containers.map((c) => c.container_number)).toEqual(['COSU1000018', 'COSU1000023', 'ONEU1000016'])
+      expect(ruled.otherCarrier).toEqual([{ container_number: 'MSCU1000017', operator: 'MSC' }])
       expect(ruled.issues).toEqual([
-        expect.objectContaining({ severity: 'warning', message: '1 container(s) de outro operador (MSC; referência COS) ignorado(s): MSCU1000017.' }),
+        expect.objectContaining({ severity: 'warning', message: '1 container(s) de outro armador (MSC; códigos do armador da Viagem: COS, COSCO) fora das marcas e da conciliação: MSCU1000017.' }),
       ])
     })
 
-    it('container dos B/Ls da Viagem nunca é ignorado por operador', () => {
-      const ruled = applyBaplieVoyageRules(file('COS'), { ...context, blContainerNumbers: ['COSU1000018', 'MSCU1000017'] })
-      expect(ruled.containers.map((c) => c.container_number)).toEqual(['COSU1000018', 'COSU1000023', 'MSCU1000017', 'ONEU1000016'])
-      expect(ruled.issues).toEqual([])
+    it('não depende dos B/Ls: container de outro armador fica fora mesmo que algum B/L o cite', () => {
+      const ruled = applyBaplieVoyageRules(file('COS'), { ...cosco, blContainerNumbers: ['MSCU1000017'] } as typeof cosco)
+      expect(ruled.otherCarrier.map((c) => c.container_number)).toEqual(['MSCU1000017'])
     })
 
-    it('sem container do arquivo nos B/Ls da Viagem, vale o cabeçalho com aviso', () => {
-      const ruled = applyBaplieVoyageRules(file('COS'), { ...context, blContainerNumbers: ['XXXU0000000'] })
-      expect(ruled.containers.map((c) => c.container_number)).toEqual(['COSU1000018', 'COSU1000023', 'ONEU1000016'])
+    it('armador sem códigos não separa nada e avisa', () => {
+      const ruled = applyBaplieVoyageRules(file('COS'), { ...context, carrierName: 'COSCO', carrierCodes: [] })
+      expect(ruled.containers).toHaveLength(4)
+      expect(ruled.otherCarrier).toEqual([])
       expect(ruled.issues).toEqual([
-        expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/Nenhum container do arquivo está nos B\/Ls da Viagem: o operador de referência é o do cabeçalho do arquivo \(COS\)/) }),
-        expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/de outro operador \(MSC; referência COS\)/) }),
+        expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/armador da Viagem \(COSCO\) não tem códigos do Baplie cadastrados/) }),
       ])
     })
 
-    it('cabeçalho que exclui todos os containers bloqueia com o motivo', () => {
-      const ruled = applyBaplieVoyageRules(
-        parsed({ operator: 'MSC', containers: [box('COSU1000018', { operator: 'COS' })] }),
-        { ...context, blContainerNumbers: [] },
-      )
+    it('arquivo só de outro armador não tem o que importar', () => {
+      const ruled = applyBaplieVoyageRules(parsed({ containers: [box('MSCU1000017', { operator: 'MSC' })] }), cosco)
       expect(ruled.containers).toEqual([])
       expect(ruled.issues).toEqual(expect.arrayContaining([
-        expect.objectContaining({ severity: 'error', message: expect.stringMatching(/Nenhum container a importar: todos são de outro operador/) }),
+        expect.objectContaining({ severity: 'error', message: expect.stringMatching(/Nenhum container a importar: todos são de outro armador/) }),
       ]))
+    })
+
+    it('a gravação leva operador e transbordo de cada container ao servidor', async () => {
+      await reimportBaplie({
+        voyageId: 22,
+        containers: [box('COSU1000018', { operator: 'COS', transshipment: true })],
+        pods: ['BRVIX'],
+        file: { voyageNumber: '12N', voyageConfirmed: false },
+        confirmReplacement: async () => true,
+      })
+      const call = mocks.rpc.mock.calls.find(([name]) => name === 'import_baplie_file_atomic')
+      expect(call?.[1].p_rows).toEqual([expect.objectContaining({ container_number: 'COSU1000018', operator: 'COS', is_transshipment: true })])
+    })
+
+    it('a gravação recebe também as de outro armador (o servidor as conta); prévia e diferença não', async () => {
+      const ruled = applyBaplieVoyageRules(file('COS'), cosco)
+      expect(ruled.rpcContainers.map((c) => c.container_number)).toContain('MSCU1000017')
+      mocks.existing = staged(box('COSU1000018', { operator: 'COS' }))
+      const confirm = vi.fn(async (plan: unknown) => Boolean(plan))
+      await reimportBaplie({
+        voyageId: 22, containers: ruled.containers, rpcContainers: ruled.rpcContainers, pods: ruled.pods,
+        file: { voyageNumber: '12N', voyageConfirmed: true }, confirmReplacement: confirm,
+      })
+      const call = mocks.rpc.mock.calls.find(([name]) => name === 'import_baplie_file_atomic')
+      expect(call?.[1].p_rows.map((r: { container_number: string }) => r.container_number)).toContain('MSCU1000017')
+      const plan = confirm.mock.calls[0][0] as unknown as { diff: { items: Array<{ container_number: string }> } }
+      expect(JSON.stringify(plan.diff)).not.toContain('MSCU1000017')
+      expect(JSON.stringify(plan.diff)).toContain('COSU1000023')
     })
   })
 
