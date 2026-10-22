@@ -440,7 +440,21 @@ const END_TO_END_TOLERANCE_MS = 60 * 60 * 1000 // Liquidação segue a iniciaç�
 
 function endToEndTime(id: string): number | null {
   const m = END_TO_END.exec(id)
-  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null
+  if (!m) return null
+  const time = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5])
+  const back = new Date(time)
+  // Data impossível (mês 13, minuto 99) não vira outro instante: é formato inesperado.
+  const exact = back.getUTCFullYear() === +m[1] && back.getUTCMonth() === +m[2] - 1 && back.getUTCDate() === +m[3]
+    && back.getUTCHours() === +m[4] && back.getUTCMinutes() === +m[5]
+  return exact ? time : null
+}
+
+function receiptFormatOk(p: ItauPix): boolean {
+  return endToEndTime(p.endToEndId ?? '') !== null && MONEY.test(p.valor ?? '') && Number.isFinite(Date.parse(p.horario))
+}
+
+function receiptDeviates(p: ItauPix): boolean {
+  return Math.abs(Date.parse(p.horario) - endToEndTime(p.endToEndId)!) > END_TO_END_TOLERANCE_MS
 }
 
 const OVERLAP_MS = 10 * 60 * 1000 // Pix disponibilizado com atraso entra na janela seguinte.
@@ -462,6 +476,17 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
       if (!(error instanceof ItauPixError) || error.status !== 413 || end - start <= MIN_WINDOW_MS) throw error
       end = start + Math.max(MIN_WINDOW_MS, Math.floor((end - start) / 2))
     }
+  }
+  // Desvio de fuso atinge todos os recebimentos: se a maioria dos Pix do Vela
+  // diverge do endToEndId, para sem avançar e o Alerta de consulta parada
+  // (migration 358) avisa. Um comprovante isolado que destoa vai para análise e
+  // não segura a baixa dos demais (auditoria run-3, pendência P4).
+  // ponytail: maioria simples da janela; com um único Pix, ele decide sozinho.
+  const checked = pix.filter((p) => isVelaTxid(p.txid) && !isVelaTestTxid(p.txid) && receiptFormatOk(p))
+  const deviating = checked.filter(receiptDeviates)
+  if (deviating.length > 0 && deviating.length * 2 > checked.length) {
+    throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502,
+      { txids: deviating.map((p) => p.txid) })
   }
   const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, untracked: 0, until: new Date(end).toISOString() }
   for (const p of pix) {
@@ -486,17 +511,17 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
     // Cobrança de teste paga (Fase 1): não é fatura, então não vira baixa nem Alerta.
     if (isVelaTestTxid(p.txid)) { summary.test++; continue }
     summary.vela++
-    const initiatedAt = endToEndTime(p.endToEndId ?? '')
-    if (initiatedAt === null || !MONEY.test(p.valor ?? '') || !Number.isFinite(Date.parse(p.horario))) {
+    if (!receiptFormatOk(p)) {
       // Registro ruim vai para análise e a consulta avança.
       await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw: p }, 'Recebimento do Itaú em formato inesperado.', true)
       summary.review++
       continue
     }
-    if (Math.abs(Date.parse(p.horario) - initiatedAt) > END_TO_END_TOLERANCE_MS) {
-      // Desvio de fuso vale para todos os recebimentos: para sem avançar, e o
-      // Alerta de consulta parada (migration 358) avisa.
-      throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502, { txid: p.txid })
+    if (receiptDeviates(p)) {
+      // Minoria da janela: não é fuso, é este comprovante.
+      await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw: p }, 'Horário do Itaú diverge do endToEndId deste recebimento.', true)
+      summary.review++
+      continue
     }
     let outcome: 'settled' | 'review'
     try {

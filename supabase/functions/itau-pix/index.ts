@@ -107,7 +107,12 @@ if (typeof Deno !== "undefined")
             const { error } = await admin.rpc("itau_pix_checkpoint", { p_polled_until: until });
             if (error) throw new Error("Falha ao salvar o checkpoint Itaú.");
           },
-        }).catch((error) => ({ error: error instanceof Error ? error.message : "Falha na consulta de recebimentos" }));
+        }).catch((error) => {
+          // A parada por fuso leva os TXIDs que divergiram: ficam no log e na resposta.
+          const detail = error instanceof ItauPixError ? error.body : null;
+          console.error("itau-pix receipts", error instanceof Error ? error.message : error, detail);
+          return { error: error instanceof Error ? error.message : "Falha na consulta de recebimentos", detail };
+        });
         // Falha da fila ou da consulta responde fora de 2xx: o Alerta rotina_http_falhou
         // (migration 310) só enxerga o status (F-09).
         const failed = "error" in charges || "error" in receipts;

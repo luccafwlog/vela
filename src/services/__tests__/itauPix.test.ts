@@ -445,6 +445,48 @@ describe('consulta de recebimentos', () => {
     expect(s.saved).toEqual([])
   })
 
+  it('um comprovante isolado que diverge do endToEndId vai para análise sem parar a baixa dos demais (P4)', async () => {
+    const odd = newVelaTxid()
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610061500', 1), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
+      { endToEndId: e2e('202610060800', 2), txid: odd, valor: '0.02', horario: '2026-10-06T12:01:00Z' },
+      { endToEndId: e2e('202610061502', 3), txid: newVelaTxid(), valor: '0.03', horario: '2026-10-06T12:02:00Z' },
+    ]))
+    const s = sink('2026-10-06T12:00:00.000Z')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ vela: 3, settled: 2, review: 1 })
+    expect(s.failed).toHaveBeenCalledWith(expect.objectContaining({ txid: odd }), expect.stringContaining('diverge do endToEndId'), true)
+    expect(s.settle).not.toHaveBeenCalledWith(expect.objectContaining({ txid: odd }))
+    expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
+  })
+
+  it('a maioria divergindo é fuso: para sem baixar nenhum e leva os TXIDs', async () => {
+    const a = newVelaTxid()
+    const b = newVelaTxid()
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610061500', 1), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
+      { endToEndId: e2e('202610061201', 2), txid: a, valor: '0.02', horario: '2026-10-06T12:01:00Z' },
+      { endToEndId: e2e('202610061202', 3), txid: b, valor: '0.03', horario: '2026-10-06T12:02:00Z' },
+    ]))
+    const s = sink('2026-10-06T12:00:00.000Z')
+    const error = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z')).catch((e) => e)
+    expect(error).toMatchObject({ message: expect.stringContaining('diverge do endToEndId'), body: { txids: [a, b] } })
+    expect(s.settle).not.toHaveBeenCalled()
+    expect(s.saved).toEqual([])
+  })
+
+  it('endToEndId com data impossível é formato inesperado, não outro instante', async () => {
+    for (const minute of ['202613061500', '202610061599', '202602301500']) {
+      const s = sink('2026-10-06T12:00:00.000Z')
+      const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+        { endToEndId: e2e(minute), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
+      ]))
+      const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z'))
+      expect(summary).toMatchObject({ review: 1, settled: 0 })
+      expect(s.failed).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('formato inesperado'), true)
+    }
+  })
+
   it('baixa só TXID do Vela, ignora o terceiro e avança o checkpoint com sobreposição', async () => {
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
       { endToEndId: e2e('202610061500'), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },

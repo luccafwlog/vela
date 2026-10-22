@@ -419,7 +419,11 @@ registro como **Pix recebido**. Antes, esse Alerta só aparecia em `/alertas`. E
 consulta seguinte tenta de novo; na terceira falha seguida do mesmo Pix, ele
 vai para análise (`itau_pix_receipt_failures`, Alerta `pix_unreconciled`) e a
 consulta avança. Pix em formato inesperado vai para análise na primeira vez
-(migration `358`). O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
+(migration `358`); `endToEndId` com data impossível (mês 13, minuto 99) conta como formato inesperado.
+Horário a mais de 1 h do minuto UTC do `endToEndId` só para a consulta quando é a
+maioria dos Pix do Vela na janela (desvio de fuso, com os TXIDs no log da `itau-pix`);
+um comprovante isolado que diverge vai para análise e os demais são baixados
+(auditoria de segurança run-3, P4). O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
 `endToEndId` já é referência de uma baixa, ou cujo TXID já conciliou a avulsa
 pelo extrato, vai para análise; o extrato que baixa avulsa cobrada pelo QR Itaú
 marca a cobrança como concluída (migration `357`). O Pix do QR de uma

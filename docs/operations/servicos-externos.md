@@ -1070,7 +1070,8 @@ normaliza as datas recebidas para UTC, preservando offsets explícitos;
 publicada na v7 com autorização. Se o Itaú passar a mandar UTC verdadeiro, a
 leitura soma 3 h: o cliente recusa horário mais de 5 min à frente do relógio
 (erro "Horário do Itaú no futuro") e, na baixa, horário a mais de 1 h do minuto
-UTC gravado no `endToEndId` (erro "Horário do Itaú diverge do endToEndId"),
+UTC gravado no `endToEndId` na maioria dos Pix da janela (erro "Horário do Itaú diverge do endToEndId",
+com os TXIDs no log; desde 2026-10-22 um caso isolado vai para análise),
 sem baixa nem avanço do checkpoint, inclusive na recuperação de atraso; nesse
 caso, remover a troca de `Z` em `_shared/itauPix.ts`.
 GET autenticado confirmou o horário UTC

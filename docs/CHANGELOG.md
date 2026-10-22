@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Pix Itaú: um comprovante destoante não para a baixa automática (2026-10-22, auditoria de
+  segurança run-3, pendência P4):** um único Pix do Vela com horário divergente do `endToEndId`
+  parava a consulta inteira e segurava a baixa dos demais. Agora a parada por fuso só acontece
+  quando a maioria dos Pix da janela diverge (com os TXIDs no log); o caso isolado vai para
+  análise. `endToEndId` com data impossível passa a ser formato inesperado.
 - **Pix Itaú: o resultado só ativa a versão enviada (2026-10-22, auditoria de segurança run-3,
   achado C7):** migration `412`. Mudança de valor ou validade durante a chamada ao Itaú (desconto
   de Demurrage, PTAX, renovação) deixava a cobrança `active` com o valor antigo no banco do Itaú;
