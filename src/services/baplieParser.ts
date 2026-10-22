@@ -23,10 +23,16 @@ export type BaplieContainer = {
   /** EQD 8077: 1 = SOC, 2 = COC; vazio = não informado */
   ownership?: ContainerOwnership | null
   /**
-   * NAD+CA do container (operador). Não vai ao staging: a regra da Viagem
-   * (`applyBaplieVoyageRules`) usa para ignorar container de outro operador.
+   * NAD+CA do container (operador). Não é gravado no staging: a regra da
+   * Viagem (`applyBaplieVoyageRules`) e o servidor (migration 410) o comparam
+   * com os códigos do armador da Viagem (ADR 0095, decisão 14).
    */
   operator?: string | null
+  /**
+   * EQD 8249 = 6: em transbordo. Entra no staging marcado e na conciliação,
+   * mas não leva IMO/OOG nem SOC/COC aos B/Ls (ADR 0095, decisão 15).
+   */
+  transshipment?: boolean
 }
 
 export type ParsedBaplie = {
@@ -41,8 +47,8 @@ export type ParsedBaplie = {
   voyage_number: string | null
   /**
    * Operador do cabeçalho (TDT, ou o NAD+CA mais frequente quando o TDT não
-   * traz). Só é a referência de "outro operador" quando nenhum container do
-   * arquivo está nos B/Ls da Viagem (ADR 0079, decisão 6).
+   * traz). Só informativo: "outro armador" é decidido pelos códigos do
+   * armador da Viagem (ADR 0095, decisão 14).
    */
   operator?: string | null
   containers: BaplieContainer[]
@@ -327,7 +333,8 @@ export function parseBaplieText(text: string): ParsedBaplie {
 
   const containers: BaplieContainer[] = []
   const issues: ImportIssue[] = []
-  const ignored: Array<{ container_number: string; reason: 'transshipment' | 'unknown_pod'; group: number; pod?: string | null }> = []
+  const ignored: Array<{ container_number: string; reason: 'unknown_pod'; group: number; pod?: string | null }> = []
+  const transshipments: Array<{ container_number: string; group: number }> = []
   for (const segment of trailingSegments) {
     issues.push({
       row: segment.index + 1,
@@ -360,6 +367,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
     existing.is_oog = existing.is_oog || next.is_oog
     existing.ownership = existing.ownership ?? next.ownership
     if (next.operator) existing.operator = next.operator
+    if (next.transshipment) existing.transshipment = true
     return existing
   }
 
@@ -405,7 +413,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
       const dgs = lastValue(dgsSegments.filter((i) => !isLimitedQuantity(i)).map((i) => parseDgs(i)))
       const ownOperator = lastValue(ownItems.filter((i) => i.tag === 'NAD' && (i.components[1]?.[0] ?? '').trim() === 'CA')
         .map((i) => i.components[2]?.[0]?.trim().toUpperCase() || null))
-      // EQD 8249 = 6: em transbordo, não descarrega nesta operação.
+      // EQD 8249 = 6: em transbordo (ADR 0095, decisão 15).
       const equipmentStatus = (eqd.components[5]?.[0] ?? '').trim()
       const rawNumber = (eqd.components[2]?.[0] ?? '').trim()
       const container_number = normalizeIsoContainerNumber(rawNumber)
@@ -451,10 +459,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
             : `Container ${container_number}: carga LQ (quantidade limitada) tratada como carga normal, sem IMO.`,
         })
       }
-      if (equipmentStatus === '6') {
-        ignored.push({ container_number, reason: 'transshipment', group: group.order })
-        return
-      }
+      const transshipment = equipmentStatus === '6'
       // POD informado mas fora dos portos conhecidos (ex.: UYMVD): o container
       // não descarga nesta operação e sai com aviso, como o filtro de escalas
       // (ADR 0078, item 21). Só o arquivo sem nenhum container restante bloqueia.
@@ -492,7 +497,9 @@ export function parseBaplieText(text: string): ParsedBaplie {
         // EQD 8077 (equipment supplier) mora no elemento 4, antes do 8249.
         ownership: ownershipFromEquipmentSupplier(eqd.components[4]?.[0]),
         ...(ownOperator ? { operator: ownOperator } : {}),
+        ...(transshipment ? { transshipment: true } : {}),
       }
+      if (transshipment) transshipments.push({ container_number, group: group.order })
       const created = upsert(next)
       // Garante que duplicata preserve atributos físicos (compat) sem herdar
       // POL/POD/peso para unidades distintas.
@@ -580,22 +587,21 @@ export function parseBaplieText(text: string): ParsedBaplie {
   }
   const operator = tdtCarrier ?? [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
   for (const item of ignored) {
-    if (item.reason === 'unknown_pod') {
-      issues.push({
-        row: item.group,
-        field: 'pod',
-        code: 'unknown_port',
-        severity: 'warning',
-        message: `Container ${item.container_number}: porto de descarga não reconhecido (${item.pod}); fora das escalas, ignorado.`,
-      })
-      continue
-    }
+    issues.push({
+      row: item.group,
+      field: 'pod',
+      code: 'unknown_port',
+      severity: 'warning',
+      message: `Container ${item.container_number}: porto de descarga não reconhecido (${item.pod}); fora das escalas, ignorado.`,
+    })
+  }
+  for (const item of transshipments) {
     issues.push({
       row: item.group,
       field: 'container_number',
       code: 'invalid_group',
       severity: 'warning',
-      message: `Container ${item.container_number}: em transbordo (EQD 8249 = 6); ignorado nesta operação.`,
+      message: `Container ${item.container_number}: em transbordo (EQD 8249 = 6); entra no Baplie marcado como transbordo e não leva IMO, OOG nem SOC/COC aos B/Ls.`,
     })
   }
   if (!containers.length && ignored.length) {
@@ -610,7 +616,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
 
   const pods = Array.from(new Set(containers.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
   const ignored_pods = ignored
-    .filter((item) => item.reason === 'unknown_pod' && item.pod)
+    .filter((item) => item.pod)
     .map((item) => ({ container_number: item.container_number, pod: item.pod as string }))
   return { vessel_name, vessel_name_source, voyage_number, operator, containers, pods, ignored_pods, issues, encoding: 'utf-8' }
 }

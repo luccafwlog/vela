@@ -1082,16 +1082,36 @@ vigentes: ADR 0078, item 21; ADR 0079, decisões 5 e 6; migrations `182`,
   operador confirma que é da viagem escolhida; a marcação vai na gravação
   (`voyage_confirmed`) e o servidor recusa sem ela (migration `388`). Um 2º EQD do mesmo slot sem POL, POD
   ou peso entra com aviso.
-- **Containers ignorados e arquivos bloqueados.** Containers de outro operador
-  (NAD+CA), em transbordo (EQD 8249=6), com POD fora das escalas ou com porto
-  de descarga desconhecido são ignorados com aviso (pelo porto desconhecido, o
-  parser só recusa o arquivo se não sobrar container). "Outro operador" é
-  medido contra os operadores dos containers do arquivo que estão nos B/Ls
-  ativos da Viagem (lidos com o contexto da Viagem e invalidados com a carga),
-  e esses containers nunca são ignorados por operador; sem nenhum deles no
-  arquivo, vale o operador do cabeçalho (TDT ou o NAD+CA mais frequente), com
-  aviso para conferir, e se a referência excluir todos a importação fica
-  bloqueada com o motivo (`applyBaplieVoyageRules`). O número de viagem do TDT
+- **Containers ignorados e arquivos bloqueados.** Containers com POD fora das
+  escalas ou com porto de descarga desconhecido são ignorados com aviso (pelo
+  porto desconhecido, o parser só recusa o arquivo se não sobrar container).
+- **Navio compartilhado: outro armador** ([ADR 0095](../adr/0095-importacoes-regras-da-revisao.md),
+  decisão 14; migration `403`). O armador da Viagem (navio → armador) guarda os
+  códigos com que aparece no Baplie (`carriers.baplie_codes`, ex.: COS, COSCO),
+  editados em **Nova Viagem**/**Editar** no campo "Códigos do armador no
+  Baplie" (valem para todas as Viagens do armador). Container cujo operador
+  (NAD+CA) não está nesses códigos é de outro armador: fica fora do staging,
+  das marcas IMO/OOG e SOC/COC e da conciliação, com a contagem "de outro
+  armador" no resumo da prévia e um aviso por operador; não depende dos B/Ls
+  importados nem do cabeçalho (TDT) do arquivo e não recusa o arquivo.
+  Container sem NAD+CA fica. Armador sem códigos não separa nada, e a prévia
+  avisa para cadastrá-los. A regra roda na prévia (`applyBaplieVoyageRules`) e
+  no servidor: `import_baplie_file_atomic` não grava o container de outro
+  armador e devolve `other_carrier` (no Histórico, "N container(s) de outro
+  armador fora"); `preview_baplie_physical_flags` o deixa de fora. Arquivo só
+  de outro armador não tem o que importar e o Baplie gravado fica. Os Baplies
+  da COSCO trazem COS e COSCO; a migration `403` cadastrou esses códigos no
+  armador COSCO (SCAC CSSC).
+- **Transbordo** (EQD 8249 = 6; ADR 0095, decisão 15; migration `403`). O
+  container em transbordo entra no Baplie da Viagem marcado
+  (`baplie_containers.is_transshipment`; "Transbordo" na lista de containers do
+  `/baplie`) e aparece na conciliação ("No Baplie, sem B/L" quando nenhum B/L
+  o traz; presente no Baplie para o B/L que o traz), mas não leva IMO/OOG nem
+  SOC/COC aos B/Ls e não abre divergência de SOC/COC nem de perfil manual
+  (`_baplie_flag_plan` e as regras da tela o deixam de fora). O vazio em
+  transbordo não vira vazio de importação (`replace_vazios_from_baplie_transactional`).
+  A prévia avisa cada container em transbordo e conta "em transbordo" no resumo.
+- **Viagem do arquivo.** O número de viagem do TDT
   é comparado sem zeros à esquerda nem pontuação, e TDT de outra viagem
   bloqueia; navio diferente bloqueia quando o nome vem da identificação do
   transporte e só avisa quando foi deduzido; dígito verificador errado é
@@ -1160,7 +1180,7 @@ ignorado, com 634 testes aprovados e 9 ignorados.
 - Revisão automática depois da ADR 0079 (migration `209`): `ceImportacaoContrato` (Remover CE e Mover/Desvincular com o valor exibido diferente recusam; duas emissões simultâneas no mesmo POD mantêm os dois B/Ls no Alerta de tabela faltando), `programacaoPlanilha` (data mudada depois da prévia recusa o arquivo), `BlCeMercanteField`, `BlManifestoField`, `ManifestoBlsModal` e `manifestosMercanteService`.
 - Revisão automática depois da ADR 0079 (migration `208`): `ceImportacaoContrato` (B/L cancelado, sem CE, com outro POD ou de Viagem cancelada sai do Alerta de tabela faltando), `auditoriaFaturasDemurrageComunicado` (o Alerta de datas fecha quando as datas voltam) e `ceMercanteImport.test.ts` (número de B/L de Granito repetido em outra Viagem).
 - Revisão automática depois da ADR 0079 (migration `207`): `ceImportacaoContrato` (troca de POL desvincula o Manifesto; correção do CE com o CE exibido diferente é recusada) e `BlCeMercanteField.test.tsx`.
-- Decisões da ADR 0079 (migrations `203`–`206`): `ceImportacaoContrato` (`204`, tabela faltando e nada a faturar; `205`, Part Lot com irmão faturado), `containerProfile` (o B/L faturado como ponto de partida continua recusado), `granitoReimportacao` (`206`) e, sem banco, `baplieImport.test.ts` (outro operador pelos containers dos B/Ls da Viagem), `graniteImportAtomic.test.ts` e `vaziosNaturezaProfile.test.ts`.
+- Decisões da ADR 0079 (migrations `203`–`206`): `ceImportacaoContrato` (`204`, tabela faltando e nada a faturar; `205`, Part Lot com irmão faturado), `containerProfile` (o B/L faturado como ponto de partida continua recusado), `granitoReimportacao` (`206`) e, sem banco, `baplieImport.test.ts` (outro armador; desde a migration `403`, pelos códigos do armador da Viagem, ADR 0095, decisão 14), `graniteImportAtomic.test.ts` e `vaziosNaturezaProfile.test.ts`.
 - Revisão da PR 929 (migrations `190`–`202`): checagens em `src/integration/correcoesRevisaoImportacoes.local-pg.test.ts` (`190`), `auditoriaImportacaoCargaSolta`, `baseClientesVinculo`, `granitoReimportacao` e `vaziosReimportacao` (`192`; totais e sugestão de Cliente do Granito na `196` e na `198`), o status de atraso da Demurrage em `correcoesRevisaoImportacoes` (`197` e `200`), `programacaoPlanilha` e `veiculosRegras` (`193`; trava da Programação por nome e IMO na `199` e em ordem fixa na `201`; IMO gravado no navio achado pelo nome e veículo de Viagem Cancelada fora do Mover na `202`; a prévia de datas com descarga vazia, `201`, em `correcoesRevisaoImportacoes`), `auditoriaImportacaoBlContainer` e `baplieMarcas` (`194`) e `ceImportacaoContrato` (`195`, casos K1–K12), todas `local-pg` no CI; no frontend, `importCore.test.ts`, `importDate.test.ts`, `EmbarqueVazios.flow.test.tsx`, `BlManifestoField.test.tsx` e `CeMercanteImportModal.test.tsx`. Esta página registra a existência das checagens; o resultado de execução fica no CI da PR.
 - `src/services/__tests__/uploadLimits.test.ts` comprova o guard antes da leitura para base de clientes e PIX; para os parsers deste módulo, a cobertura do guard foi confirmada estaticamente pelas chamadas a `assertUploadSize`.
 

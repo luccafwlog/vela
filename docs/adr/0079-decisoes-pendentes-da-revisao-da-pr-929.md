@@ -1,5 +1,11 @@
 # 0079 — Decisões pendentes da revisão da PR 929
 
+> **Situação atual (2026-10-22).** A decisão 6 (referência de "outro operador"
+> no Baplie pelos containers dos B/Ls da Viagem) foi substituída pela
+> [ADR 0095](./0095-importacoes-regras-da-revisao.md), decisão 14 (migration
+> `403`): "outro armador" é decidido pelos códigos do armador da Viagem, sem
+> depender dos B/Ls. As demais decisões continuam valendo.
+
 Status: aceito — 2026-10-11 (decisões do dono). Implementado nas migrations
 `203` a `206` e no frontend, em produção desde o merge da PR 929 em 2026-10-12
 (ver "Evidência").

@@ -20,14 +20,15 @@ function parse(lines: string[]) {
 }
 
 describe('Baplie — regras da etapa 9', () => {
-  it('container em transbordo (EQD 8249 = 6) é ignorado com aviso', () => {
+  // ADR 0095, decisão 15 (B12c): o transbordo entra marcado, sem levar marcas.
+  it('container em transbordo (EQD 8249 = 6) entra marcado, com aviso', () => {
     const parsed = parse([
-      ...unit(["EQD+CN+MSCU1234566+45G1++6+5'"]),
+      ...unit(["EQD+CN+MSCU1234566+45G1++6+5'", "DGS+IMD+3+1263'"]),
       ...unit(["EQD+CN+MSCU7654329+45G1++3+5'"]),
     ])
-    expect(parsed.containers.map((c) => c.container_number)).toEqual(['MSCU7654329'])
+    expect(parsed.containers.map((c) => [c.container_number, Boolean(c.transshipment)])).toEqual([['MSCU1234566', true], ['MSCU7654329', false]])
     expect(parsed.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/MSCU1234566: em transbordo/) }),
+      expect.objectContaining({ severity: 'warning', message: 'Container MSCU1234566: em transbordo (EQD 8249 = 6); entra no Baplie marcado como transbordo e não leva IMO, OOG nem SOC/COC aos B/Ls.' }),
     ]))
     expect(hasBlockingIssues(parsed.issues)).toBe(false)
   })
