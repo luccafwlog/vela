@@ -12,11 +12,14 @@ export function sanitizeCellValue<T>(value: T): T | string {
   return value
 }
 
+// A chave vira o cabeçalho da coluna (`json_to_sheet`) e pode vir de dado
+// cadastrado (o nome da taxa na Validação de Taxas Locais): passa pela mesma
+// neutralização do valor.
 export function sanitizeSheetRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   return rows.map((row) => {
     const out: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(row)) {
-      out[key] = sanitizeCellValue(value)
+      out[String(sanitizeCellValue(key))] = sanitizeCellValue(value)
     }
     return out
   })
