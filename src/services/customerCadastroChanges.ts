@@ -7,7 +7,7 @@ import { CUSTOMER_FIELD_LABELS } from './customerFicha'
  * Alterações do cadastro do Cliente (aba Cadastro e contatos, lote 1 da
  * identidade): o que mudou, de, para, por quem, quando e a justificativa,
  * a partir de `customer_audit_timeline` (dados cadastrais e e-mails da Base
- * de Clientes, migration `403`) e de
+ * de Clientes, migration `404`) e de
  * `customer_contact_change_events` (contatos e caixas de Comunicado).
  */
 export type CadastroChange = {
@@ -64,7 +64,7 @@ export function diffContactSnapshots(before: unknown, after: unknown): Array<Pic
 type AuditRow = { id: number; field_name: string; old_value: string | null; new_value: string | null; changed_at: string | null; justification: string | null; changed_by: string | null }
 type ContactEventRow = { id: number; source: string; actor_id: string | null; before_snapshot: unknown; after_snapshot: unknown; change_summary: { justification?: unknown; action?: unknown } | null; created_at: string }
 
-// E-mails da Base de Clientes, lidos por `customer_audit_timeline` (403).
+// E-mails da Base de Clientes, lidos por `customer_audit_timeline` (404).
 const AUDIT_CONTACT_LABELS: Record<string, string> = {
   contact_added: 'E-mail incluído',
   contact_removed: 'E-mail retirado',
@@ -108,7 +108,7 @@ export function buildCadastroChanges(audit: AuditRow[], events: ContactEventRow[
 
 export async function fetchCustomerCadastroChanges(customerId: number): Promise<CadastroChange[]> {
   const [audit, events] = await Promise.all([
-    // Cadastro e e-mails da Base de Clientes, com origem (migration 403, F-24).
+    // Cadastro e e-mails da Base de Clientes, com origem (migration 404, F-24).
     supabase.rpc('customer_audit_timeline' as never, { p_customer_id: customerId, p_limit: 200 } as never)
       .overrideTypes<AuditRow[], { merge: false }>(),
     supabase.from('customer_contact_change_events').select('id, source, actor_id, before_snapshot, after_snapshot, change_summary, created_at').eq('customer_id', customerId).order('created_at', { ascending: false }).range(0, 199),

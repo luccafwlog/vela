@@ -91,7 +91,7 @@ describe('Histórico do B/L: motivo e autor', () => {
   })
 })
 
-describe('Histórico do B/L: o que a importação muda (migration 403, F-23)', () => {
+describe('Histórico do B/L: o que a importação muda (migration 404, F-23)', () => {
   const ev = (entity_type: string, field_name: string, old_value: string | null, new_value: string | null, justification: string | null = null) =>
     ({ family: 'container', entity_type, field_name, old_value, new_value, justification }) as never
 

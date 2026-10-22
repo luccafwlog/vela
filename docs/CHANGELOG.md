@@ -8,7 +8,7 @@
 
 - **Importações: Histórico (2026-10-22, Lote 8 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 24; achados F-23, F-24 e F-46):**
-  migration `403`. O Histórico do B/L mostra tudo o que a importação muda: container que entra e sai
+  migration `404`. O Histórico do B/L mostra tudo o que a importação muda: container que entra e sai
   (com a origem; o histórico do container removido fica), lacre, peso, perfil, SOC/COC (inclusive do
   Baplie), local de desova, veículos que entram e saem, consignatário e troca de Cliente com razão
   social e CNPJ — nunca o id —, POL/POD e os demais campos do B/L, com rótulos da operação no lugar de

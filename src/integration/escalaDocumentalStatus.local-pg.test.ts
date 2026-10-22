@@ -86,7 +86,7 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
         SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"received","new_value":"partial","justification":"Estado legado"}]'::jsonb);
         SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"partial","new_value":"launching"}]'::jsonb);
         SELECT pg_temp.check_status('BRVIX', 'launching');
-        -- A RPC grava ces com clock_timestamp() (403), como o INSERT direto fazia.
+        -- A RPC grava ces com clock_timestamp() (404), como o INSERT direto fazia.
         SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"received","new_value":"approving","justification":"Conferência manual"}]'::jsonb);
         UPDATE public.bls SET notes = 'Sem alteração documental' WHERE id = 'DOC134A';
         SELECT pg_temp.check_status('BRVIX', 'approving');

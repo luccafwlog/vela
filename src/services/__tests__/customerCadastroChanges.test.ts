@@ -39,7 +39,7 @@ describe('Alterações do cadastro do Cliente', () => {
     expect(rows.map((row) => row.by)).toEqual(['Cliente pelo Portal'])
   })
 
-  it('mudança da Base de Clientes aparece com "Origem: Base de Clientes", quem e quando (403, F-24)', () => {
+  it('mudança da Base de Clientes aparece com "Origem: Base de Clientes", quem e quando (404, F-24)', () => {
     const rows = buildCadastroChanges(
       [
         { id: 1, field_name: 'name', old_value: 'ALFA LTDA', new_value: 'ALFA COMERCIO LTDA', changed_at: '2026-10-22T10:00:00Z', justification: 'Importação de Base de Clientes', changed_by: 'u1' },

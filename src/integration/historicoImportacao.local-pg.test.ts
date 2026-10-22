@@ -3,7 +3,7 @@ import { describeWithProbe } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
 
 // Lote 8 do plano docs/plans/2026-10-21-frente-das-importacoes.md (migration
-// 403; ADR 0095, decisão 24; F-23, F-24 e F-46):
+// 404; ADR 0095, decisão 24; F-23, F-24 e F-46):
 // - o Histórico do B/L (`bl_timeline`) mostra container que entra e sai (com a
 //   origem e o histórico depois da remoção), lacre, peso, SOC/COC, desova,
 //   veículos e a troca de Cliente com razão social e CNPJ, nunca o id;
@@ -38,7 +38,7 @@ function cleanupExtra() {
     SET session_replication_role = origin;`)
 }
 
-describeLocal('403 — Histórico: importação visível no B/L e no Cliente; trilha sem INSERT direto', () => {
+describeLocal('404 — Histórico: importação visível no B/L e no Cliente; trilha sem INSERT direto', () => {
   beforeAll(() => {
     cleanupExtra()
     w.setup()

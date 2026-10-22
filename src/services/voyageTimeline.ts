@@ -54,7 +54,7 @@ export async function fetchVoyageTimelineSources(
       .from('audit_logs')
       .select('entity_type, entity_id, field_name, old_value, new_value, changed_by, actor_role, actor_department, justification, changed_at')
       // `import_batches` é o gatilho do lote (id do lote): lido abaixo pelo id
-      // do lote, nunca pelo id da Viagem (migration 403, F-24).
+      // do lote, nunca pelo id da Viagem (migration 404, F-24).
       .in('entity_type', ['voyages', 'voyage', 'import_batch', 'baplie_import'])
       .eq('entity_id', String(voyageId))
       .order('changed_at', { ascending: false })

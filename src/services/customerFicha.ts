@@ -441,7 +441,7 @@ export async function fetchCustomerRunningDemurrage(customerId: number) {
 
 export async function fetchCustomerTimelineSources(customerId: number, contacts: Array<Pick<CustomerContact, 'id' | 'name' | 'created_at'>>, bls: Array<{ id: string; created_at: string | null }>) {
   const [auditLogs, portalEvents, localInvoices, payments, demurrage, communications, contactChanges] = await Promise.all([
-    // Cadastro e e-mails da Base de Clientes, com origem (migration 403, F-24).
+    // Cadastro e e-mails da Base de Clientes, com origem (migration 404, F-24).
     supabase.rpc('customer_audit_timeline' as never, { p_customer_id: customerId, p_limit: 100 } as never)
       .overrideTypes<TimelineSources['auditLogs'], { merge: false }>(),
     supabase.from('portal_provisioning_events').select('id, new_decision, new_situation, reason, created_at, actor_id, actor_type').eq('customer_id', customerId).order('created_at', { ascending: false }).range(0, 99),

@@ -9,7 +9,7 @@ import { deleteVoyagePodSchedule } from '../voyageRouteSchedules'
 beforeEach(() => {
   fromMock.mockReset()
   rpcMock.mockReset()
-  // O Histórico grava pela RPC `record_audit_entries` (migration 403).
+  // O Histórico grava pela RPC `record_audit_entries` (migration 404).
   rpcMock.mockResolvedValue({ data: 1, error: null })
 })
 
