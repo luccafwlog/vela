@@ -11,9 +11,14 @@ const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(() => Promise.resolve()),
   showToast: vi.fn(),
   confirm: vi.fn(() => Promise.resolve(true)),
+  existing: [] as Array<{ container_number: string; pol: string | null; pod: string | null; source: 'manual' | 'baplie' }>,
 }))
 
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }) }))
+// Vazios já gravados na Viagem escolhida (ADR 0095, decisão 21).
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
+  useQuery: ({ enabled }: { enabled?: boolean }) => ({ data: enabled ? mocks.existing : undefined, isError: false }),
+}))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
@@ -35,6 +40,7 @@ const container = (container_number: string) => ({ rowNumber: 2, container_numbe
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.existing = []
   mocks.importManifest.mockResolvedValue({ manifestId: 'm1', mercanteManifestIds: ['mm1'] })
 })
 afterEach(cleanup)
@@ -109,4 +115,20 @@ it('aviso sem erro pede o aceite e então importa o arquivo inteiro', async () =
   await waitFor(() => expect(confirm.disabled).toBe(false))
   fireEvent.click(confirm)
   await waitFor(() => expect(mocks.importManifest).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7 })))
+})
+
+// ADR 0095, decisão 21 (migration 398): um vazio de importação por Viagem.
+it('container de outra planilha em outra rota da Viagem bloqueia; o do Baplie passa a valer pela planilha', async () => {
+  mocks.existing = [
+    { container_number: 'TGHU7654325', pol: 'CNTAC', pod: 'BRSSZ', source: 'manual' },
+    { container_number: 'MSCU1234565', pol: 'CNTAC', pod: 'BRSSZ', source: 'baplie' },
+  ]
+  mocks.parse.mockResolvedValue({ containers: [container('TGHU7654325'), container('MSCU1234565')], rowErrors: [], warnings: [], hidden: { rows: 0, sheets: [] } })
+  const view = render(<VaziosImportacaoImportModal onClose={vi.fn()} defaultVoyageId="7" />)
+  chooseFile(view)
+  expect(await screen.findByText(/O container TGHU7654325 já está nos Vazios de importação desta Viagem na rota CNTAC → BRSSZ, de outra planilha/)).toBeTruthy()
+  expect(screen.getByText(/MSCU1234565 \(Baplie CNTAC → BRSSZ, planilha CNTAC → BRVIX\) passam a valer pela planilha/)).toBeTruthy()
+  fireEvent.change(screen.getByPlaceholderText('Ex.: 1226501801342'), { target: { value: '1226501801342' } })
+  expect((screen.getByRole('button', { name: 'Importar 2 containers' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(mocks.importManifest).not.toHaveBeenCalled()
 })

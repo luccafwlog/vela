@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
@@ -14,9 +14,11 @@ import { afterManifestoImportado } from '../../services/cacheEffects'
 import { hasBlockingIssues, rowErrorsToImportIssues } from '../../services/importValidation'
 import {
   importVaziosImportacaoManifest,
+  listVoyageVaziosImportacao,
   parseVaziosImportacaoFile,
   resolveVaziosManifestNumbers,
   vaziosImportacaoHiddenConfirmOptions,
+  vaziosPlanilhaConflicts,
   type ParsedVaziosImportacaoManifest,
 } from '../../services/vaziosImportacaoImport'
 import type { FixedImportVoyage } from './BreakbulkManifestImportModal'
@@ -95,8 +97,19 @@ export function VaziosImportacaoImportModal({
   const containerCount = manifest?.containers.length ?? 0
   const numbers = manifest ? resolveVaziosManifestNumbers(manifest, manifestNumbers) : null
   const numbersReady = Boolean(numbers?.manifestos)
+  // ADR 0095, decisão 21: um vazio de importação por Viagem. A prévia mostra o
+  // que vem do Baplie (a planilha vale) e recusa o que outra planilha gravou
+  // noutra rota; o servidor confere de novo (migration 398).
+  const existingVazios = useQuery({
+    queryKey: ['vazios-importacao-containers', 'voyage-keys', voyageId],
+    enabled: Boolean(voyageId && manifest && containerCount > 0),
+    queryFn: () => listVoyageVaziosImportacao(Number(voyageId)),
+  })
+  const conflicts = manifest && existingVazios.data ? vaziosPlanilhaConflicts(manifest.containers, existingVazios.data) : null
+  const conflictsReady = Boolean(conflicts) || !voyageId
   const canImport = Boolean(
-    manifest && containerCount > 0 && !hasErrors && numbersReady && voyageId && uploadedBy && (warnings === 0 || acceptWarnings),
+    manifest && containerCount > 0 && !hasErrors && numbersReady && voyageId && uploadedBy && (warnings === 0 || acceptWarnings)
+      && conflictsReady && !conflicts?.blocking.length,
   )
 
   async function handleImport() {
@@ -135,6 +148,14 @@ export function VaziosImportacaoImportModal({
   } else if (manifest && !voyageId) {
     footnote = 'Escolha a viagem de destino: é ela que libera o botão Importar.'
     footnoteTone = 'warning'
+  } else if (manifest && conflicts?.blocking.length) {
+    footnote = 'Há container que já está em outra rota desta Viagem: nada é importado.'
+    footnoteTone = 'warning'
+  } else if (manifest && voyageId && existingVazios.isError) {
+    footnote = 'Não foi possível conferir os vazios já gravados nesta Viagem. Escolha o arquivo de novo.'
+    footnoteTone = 'warning'
+  } else if (manifest && voyageId && !conflictsReady) {
+    footnote = 'Conferindo os vazios já gravados nesta Viagem…'
   } else if (manifest && !numbersReady) {
     footnote = 'Informe o Nº do manifesto Mercante de cada rota (POL → POD) para importar.'
     footnoteTone = 'warning'
@@ -221,6 +242,18 @@ export function VaziosImportacaoImportModal({
           </ImportSection>
         ) : null}
         {manifest ? <ImportIssuesPanel issues={issues} filename="vazios-importacao-issues.csv" /> : null}
+        {conflicts?.blocking.length ? (
+          <ImportNotice tone="danger" role="alert" title="Container já está em outra rota desta Viagem">
+            {conflicts.blocking.slice(0, 10).map((message) => <p key={message}>{message}</p>)}
+            {conflicts.blocking.length > 10 ? <p>… e mais {conflicts.blocking.length - 10}.</p> : null}
+            <p>Um vazio de importação existe uma vez por Viagem. Nada é importado.</p>
+          </ImportNotice>
+        ) : null}
+        {conflicts?.fromBaplie.length ? (
+          <ImportNotice tone="info" title={`${plural(conflicts.fromBaplie.length, 'container veio', 'containers vieram')} do Baplie`}>
+            <p>A planilha vale sobre o Baplie: {conflicts.fromBaplie.slice(0, 10).join(', ')}{conflicts.fromBaplie.length > 10 ? ` e mais ${conflicts.fromBaplie.length - 10}` : ''} passam a valer pela planilha.</p>
+          </ImportNotice>
+        ) : null}
         {manifest && !hasErrors ? (
           <VaziosImportacaoManifestNumbers manifest={manifest} values={manifestNumbers} onChange={setManifestNumbers} disabled={importing} />
         ) : null}

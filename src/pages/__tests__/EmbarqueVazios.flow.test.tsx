@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   // Estado de leitura forçado por chave (carregando ou falha), sem dado.
   queryOverrides: {} as Record<string, { isLoading?: boolean; error?: unknown }>,
   openOrCreate: vi.fn(() => Promise.resolve({ id: "operation-new", created: true })),
+  adrLocked: false,
 }));
 
 const queryFns = new Map<string, (() => unknown) | undefined>();
@@ -78,7 +79,9 @@ vi.mock("@tanstack/react-query", () => ({
                 ? mocks.armazenagemServicesData
                 : key === "embarque-vazios-voyage-ports"
                   ? mocks.voyagePortsData
-                  : [];
+                  : key === "agency-report" && queryKey[3] === "vazios-lock"
+                    ? mocks.adrLocked
+                    : [];
     const override = mocks.queryOverrides[String(key)];
     if (override) {
       return { data: undefined, isLoading: Boolean(override.isLoading), error: override.error ?? null, fetchStatus: "idle", refetch: mocks.refetch };
@@ -131,6 +134,7 @@ vi.mock("../../services/vaziosExportOperations", async (importOriginal) => {
     updateServiceLineObservation: vi.fn(),
     upsertServiceLine: mocks.upsertServiceLine,
     openOrCreateVaziosExportOperation: mocks.openOrCreate,
+    isVaziosExportLockedByAdr: vi.fn(),
   };
 });
 
@@ -154,6 +158,7 @@ beforeEach(() => {
   mocks.queryOverrides = {};
   mocks.refetch.mockClear();
   mocks.openOrCreate.mockClear();
+  mocks.adrLocked = false;
 });
 
 const OPENED = "/embarquevazios?embarque=operation-1";
@@ -184,6 +189,20 @@ describe("EmbarqueVazios", () => {
     fireEvent.change(screen.getByLabelText("Busca"), { target: { value: "azul" } });
     expect(screen.queryByText("NAVIO VERDE / 123N")).toBeNull();
     expect(screen.getByText("NAVIO AZUL / 045S")).toBeTruthy();
+  });
+
+  // ADR 0095, decisão 22 (migration 398): com o ADR de Saída fechado, nada
+  // muda no Embarque de vazios; a tela tira as ações e diz para reabrir o ADR.
+  it("ADR de Saída fechado: sem incluir, importar, editar ou lançar, com o aviso de reabrir", () => {
+    mocks.adrLocked = true;
+    mocks.unitsData = { rows: [{ id: "unit-1", container_number: "MSCU1234567", container_type: "40HC", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-10-01", hand_out_date: "2026-10-02", movement_date: null }], count: 1 };
+    renderPage();
+    expect(screen.getByText(/Reabra o ADR de Saída para mudar/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Adicionar unidade/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Importar planilha/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Editar/i })).toBeNull();
+    openServicesTab();
+    expect(screen.queryByRole("button", { name: /Lançar linha/i })).toBeNull();
   });
 
   it("com embarque escolhido, mostra a faixa de identidade e as abas", () => {

@@ -6,6 +6,18 @@
 
 ## 2026-10
 
+- **Importações: Vazios (2026-10-22, Lote 6 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 21 e 22; achado F-32):**
+  migration `398`. O vazio de importação existe uma vez por Viagem, em qualquer rota e fonte: a
+  planilha vale sobre o Baplie (tira do Baplie o container que traz), o Baplie cadastra só os vazios
+  que nenhuma planilha trouxe e não desfaz a planilha em **Cadastrar** nem em **Atualizar vazios do
+  Baplie**, e o container que outra planilha gravou em outra rota é recusado com o container e a rota.
+  A prévia da planilha e o bloco Vazios de importação de `/baplie` mostram a diferença; um índice
+  único por Viagem e container segura o resto, e os repetidos que existiam ficaram numa linha só. Com
+  o ADR de Saída fechado, nada muda no Embarque de vazios: incluir e editar unidade, lançar ou mudar
+  linha de serviço e trocar o porto do embarque são recusados também pela escrita direta, e a tela
+  tira as ações e diz para reabrir o ADR. Prova: `vaziosUmaVezPorViagem.local-pg.test.ts`,
+  `vaziosImportacaoImport.test.ts`, `baplieVaziosPending.test.ts`, `EmbarqueVazios.flow.test.tsx`.
 - **Importações: CE e Manifesto Mercante (2026-10-22, Lote 5 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 19 e 20; achados F-49,
   F-53, F-17 e F-18):** migrations `396` e `397` (índice da guarda). Remover o CE pela ficha ou cancelar o B/L tira o B/L do

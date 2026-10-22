@@ -39,7 +39,7 @@ vi.mock('../../services/baplieReadModel', () => ({
   listBaplieStaging: vi.fn(() => Promise.resolve([full(1, 'BEAU4381520'), full(2, 'BEAU4406130'), full(3, 'CSGU6733222')])),
 }))
 vi.mock('../../services/vaziosImportacaoImport', () => ({
-  getBaplieManifestForVoyage: vi.fn(() => Promise.resolve(null)), importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn(),
+  getBaplieManifestForVoyage: vi.fn(() => Promise.resolve(null)), importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn(), listVoyageVaziosImportacao: vi.fn(() => Promise.resolve([])), vaziosContainerKey: (value: string) => value.replace(/[^A-Za-z0-9]/g, '').toUpperCase(),
 }))
 
 import { Baplie } from '../Baplie'

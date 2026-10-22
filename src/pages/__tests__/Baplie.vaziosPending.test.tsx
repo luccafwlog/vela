@@ -36,7 +36,7 @@ vi.mock('../../services/baplieReadModel', () => ({
   listBaplieStaging: mocks.staging,
 }))
 vi.mock('../../services/vaziosImportacaoImport', () => ({
-  getBaplieManifestForVoyage: mocks.manifest, importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn(),
+  getBaplieManifestForVoyage: mocks.manifest, importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn(), listVoyageVaziosImportacao: vi.fn(() => Promise.resolve([])), vaziosContainerKey: (value: string) => value.replace(/[^A-Za-z0-9]/g, '').toUpperCase(),
 }))
 
 import { Baplie } from '../Baplie'
