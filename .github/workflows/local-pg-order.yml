@@ -33,9 +33,25 @@ jobs:
         run: |
           pg_lsclusters || true
           if ! pg_lsclusters 2>/dev/null | grep -q '^16'; then
+            # A imagem do runner passou a trazer só o PostgreSQL 18 e o apt
+            # dela não tem mais o pacote 16: adiciona o repositório oficial
+            # (PGDG) antes de instalar. O cluster de outra versão é parado e
+            # removido para o 16 ficar na porta 5432 que o replay usa.
+            for v in $(pg_lsclusters -h 2>/dev/null | awk '$1!=16{print $1}'); do
+              sudo pg_dropcluster --stop "$v" main || true
+            done
             sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-common
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
             sudo apt-get install -y -qq postgresql-16
           fi
+          # O pacote pode não criar o cluster (createcluster.conf da imagem);
+          # sem ele o replay não acha o servidor na porta 5432.
+          if ! pg_lsclusters -h 2>/dev/null | awk '$1==16 && $2=="main"' | grep -q .; then
+            sudo pg_createcluster 16 main --port 5432
+          fi
+          sudo pg_ctlcluster 16 main start || true
+          pg_lsclusters
 
       - uses: actions/setup-node@v7.1.0
         with:
