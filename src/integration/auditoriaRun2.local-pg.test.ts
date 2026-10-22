@@ -169,7 +169,7 @@ describeLocal('migration 106 — remediação da auditoria run-2', () => {
   })
 
   it('2.5 audit_logs grava departamento e data reais', () => {
-    // Desde a 402 (F-46) o INSERT direto é recusado; a porta da tela
+    // Desde a 403 (F-46) o INSERT direto é recusado; a porta da tela
     // (`record_audit_entries`) grava autor, Departamento e hora da sessão,
     // ignorando o que vier no pedido.
     expect(scenario(`

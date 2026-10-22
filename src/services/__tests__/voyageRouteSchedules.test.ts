@@ -7,7 +7,7 @@ const { fromMock, updateMock, recordAuditEntriesMock } = vi.hoisted(() => ({
 }))
 
 vi.mock('../supabase', () => ({ supabase: { from: fromMock } }))
-// A agenda grava o Histórico pela RPC `record_audit_entries` (migration 402).
+// A agenda grava o Histórico pela RPC `record_audit_entries` (migration 403).
 vi.mock('../auditEntries', () => ({ recordAuditEntries: recordAuditEntriesMock }))
 
 import {

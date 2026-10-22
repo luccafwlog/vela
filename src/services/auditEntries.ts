@@ -11,7 +11,7 @@ export type AuditEntry = {
 }
 
 /**
- * Única porta de escrita da tela em `audit_logs` (migration `402`, F-46): o
+ * Única porta de escrita da tela em `audit_logs` (migration `403`, F-46): o
  * INSERT direto foi fechado e a RPC `record_audit_entries` aceita só os
  * assuntos que a tela grava (agenda de POL/POD, Viagem, evento operacional),
  * com o autor tirado da sessão — `changed_by` enviado é ignorado.

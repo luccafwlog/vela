@@ -78,7 +78,7 @@ antes e passa depois, e o módulo dono atualizado.
   calculado (`_recompute_voyage_pol_atd`) conta só B/Ls ativos; cancelar e
   reativar recalculam. Correções manuais anteriores marcadas na migration.
   Prova: `atdDoPolManual.local-pg.test.ts` e `ws1FunctionalSmoke.test.ts`.
-- **Lote 8 — Histórico** (migration `402`): decisão 24; F-23, F-24 e F-46.
+- **Lote 8 — Histórico** (migration `403`): decisão 24; F-23, F-24 e F-46.
   O Histórico do B/L (`bl_timeline`) lê o gatilho de `bls`, `vehicles` e
   `bl_containers` pelo B/L gravado no rastro (`audit_logs.bl_id`): container e
   veículo que entram e saem (com a origem, e o histórico depois da remoção),
@@ -131,6 +131,12 @@ antes e passa depois, e o módulo dono atualizado.
   (`statement_timeout`), sem nova medição de volume, e a reconciliação uma vez
   por Viagem e a mensagem própria de 57014 ficaram de fora. O 23505 de chassi (F-39) não é
   deste lote.
+
+- Do Lote 8 (F-24): ficaram de fora as reconciliações "na hora" que a revisão
+  só leu, sem reproduzir — o B/L novo fechando "B/Ls esperados", vazios, troca
+  de POD e `cancel_bl`; elas seguem no detector periódico. O "B/Ls esperados"
+  já compara o porto normalizado (lote 3). A linha do tempo da Viagem lê
+  `import_batch` (semântico) e o gatilho `import_batches` só pelo id do lote.
 
 - Nenhuma do Lote 2: a modalidade FCL/LCL é lida do Type of Movement
   ("LCL/LCL" e "CFS-CFS" no B/L LCL real da COSCO).

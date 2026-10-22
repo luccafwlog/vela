@@ -66,7 +66,7 @@ const FIELD_LABELS: Record<string, string> = {
   seal_number: 'Lacre',
   gross_weight_kg: 'Peso bruto (kg)',
   cbm: 'CBM (m³)',
-  // Lidos do gatilho de `bls`, `bl_containers` e `vehicles` (migration 402).
+  // Lidos do gatilho de `bls`, `bl_containers` e `vehicles` (migration 403).
   pol: 'POL',
   pod: 'POD',
   shipper_block: 'Shipper (bloco)',
@@ -271,7 +271,7 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
   }
   if (entity_type === 'bl_container' || entity_type === 'vehicle') {
     // bl_timeline envia '<campo>|<container ou chassi>' (migrations 079 e
-    // 402); eventos antigos vêm só com o campo.
+    // 403); eventos antigos vêm só com o campo.
     const [field, name] = field_name.split('|')
     const noun = entity_type === 'vehicle' ? 'Veículo' : 'Container'
     const who = name ? `${noun} ${name}` : noun

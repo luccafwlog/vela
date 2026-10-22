@@ -8,7 +8,7 @@ import { financeWorld } from './frenteFinanceira'
 // conta só B/Ls ativos; cancelar e reativar recalculam; apagar o ATD à mão
 // devolve o cálculo pelos B/Ls. Chama a RPC da tela
 // (`import_bl_freight_file_atomic`) e grava a correção manual como a tela
-// (`saveVoyagePolSchedule`, que grava pela RPC `record_audit_entries` como o operador desde a 402).
+// (`saveVoyagePolSchedule`, que grava pela RPC `record_audit_entries` como o operador desde a 403).
 
 const w = financeWorld(9401)
 

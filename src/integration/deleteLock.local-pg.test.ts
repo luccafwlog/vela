@@ -194,7 +194,7 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
   })
 
   it('"não escala" (marca de POD removido) segue a regra de Excluir escala (migration 090)', () => {
-    // A tela grava a marca pela RPC `record_audit_entries` (402; INSERT direto fechado).
+    // A tela grava a marca pela RPC `record_audit_entries` (403; INSERT direto fechado).
     const entry = (port: string, value: string) => `SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"${V_LOCKED}::${port}","field_name":"deleted","old_value":"false","new_value":"${value}","justification":"não escala"}]'::jsonb);`
     const mark = (userId: string, port: string) => as(userId, entry(port, 'true'))
 

@@ -206,7 +206,7 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
       COMMIT;
     `)
     expect(rows).toContain('bl_container return_date|TCLU0790001 2026-10-20')
-    // Desde a 402 o CBM do container aparece (dado da carga); a situação de
+    // Desde a 403 o CBM do container aparece (dado da carga); a situação de
     // Demurrage recalculada pelo gatilho é campo técnico e fica fora.
     expect(rows).toContain('bl_container cbm|TCLU0790001 67')
     expect(rows).not.toContain('demurrage_status')

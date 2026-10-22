@@ -287,7 +287,7 @@ describe('differingConsignee', () => {
   })
 })
 
-describe('Histórico do Cliente: Base de Clientes (migration 402, F-24)', () => {
+describe('Histórico do Cliente: Base de Clientes (migration 403, F-24)', () => {
   it('mostra a mudança da Base de Clientes com "Origem: Base de Clientes", quem e quando; e-mail incluído vai para Contatos', () => {
     const events = buildCustomerTimeline({
       auditLogs: [

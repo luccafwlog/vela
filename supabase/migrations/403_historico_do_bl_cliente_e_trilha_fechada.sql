@@ -1,4 +1,4 @@
--- 402: Histórico — o que a importação muda aparece no B/L e no Cliente; a
+-- 403: Histórico — o que a importação muda aparece no B/L e no Cliente; a
 -- trilha deixa de aceitar INSERT direto (Lote 8 do plano
 -- docs/plans/2026-10-21-frente-das-importacoes.md; ADR 0095, decisão 24;
 -- achados F-23, F-24 e F-46 da revisão
@@ -67,7 +67,7 @@
 ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS bl_id text;
 
 COMMENT ON COLUMN public.audit_logs.bl_id IS
-  'B/L da linha do gatilho em bl_containers e vehicles (402): o Histórico do B/L lê o rastro por aqui, inclusive depois da remoção.';
+  'B/L da linha do gatilho em bl_containers e vehicles (403): o Histórico do B/L lê o rastro por aqui, inclusive depois da remoção.';
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_bl_id
   ON public.audit_logs (bl_id, changed_at DESC) WHERE bl_id IS NOT NULL;
@@ -108,7 +108,7 @@ DECLARE
   v_skip text[] := string_to_array(NULLIF(current_setting('vela.audit_skip', true), ''), ',');
   v_token text;
   v_context text := NULLIF(btrim(current_setting('vela.import_context', true)), '');
-  -- 402: o B/L da linha, para o Histórico do B/L ler o rastro de containers e
+  -- 403: o B/L da linha, para o Histórico do B/L ler o rastro de containers e
   -- veículos mesmo depois da remoção.
   v_bl_id text := CASE WHEN TG_TABLE_NAME IN ('bl_containers', 'vehicles')
                        THEN COALESCE(v_new ->> 'bl_id', v_old ->> 'bl_id') END;
@@ -245,7 +245,7 @@ AS $function$
   WITH bl_row AS (
     SELECT b.id, b.created_at FROM public.bls b WHERE b.id = p_bl_id
   ),
-  -- Rastro de containers e veículos do B/L pelo `bl_id` gravado (402), mais as
+  -- Rastro de containers e veículos do B/L pelo `bl_id` gravado (403), mais as
   -- linhas em que o container ou veículo saiu deste B/L para outro.
   trail AS (
     SELECT a.* FROM public.audit_logs a
@@ -408,6 +408,9 @@ LANGUAGE sql
 STABLE SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $function$
+  -- ponytail: o contato já excluído é achado pelo JSON do rastro, numa
+  -- varredura das linhas criado/excluído de `customer_contacts` (poucas). Se
+  -- crescer, o upgrade é gravar o Cliente na linha, como `bl_id` faz para o B/L.
   WITH contacts AS (
     SELECT cc.id::text AS id FROM public.customer_contacts cc WHERE cc.customer_id = p_customer_id
     UNION
@@ -479,7 +482,7 @@ BEGIN
     END IF;
     RETURN NEW;
   END IF;
-  -- 402 (F-24): `voyage` (Informar Nº, omissão, Baplie) reconcilia como
+  -- 403 (F-24): `voyage` (Informar Nº, omissão, Baplie) reconcilia como
   -- `voyages` (gatilho da tabela).
   IF NEW.entity_type NOT IN ('voyage_pod_schedule', 'voyage_pol_schedule', 'voyages', 'voyage') THEN
     RETURN NEW;
@@ -561,7 +564,7 @@ BEGIN
 
   UPDATE public.import_batches SET ce_master = v_normalized WHERE id = p_batch_id;
 
-  -- 402 (F-24): `import_batch` (singular) é a linha semântica com o id da
+  -- 403 (F-24): `import_batch` (singular) é a linha semântica com o id da
   -- Viagem; `import_batches` fica só para o gatilho, com o id do lote.
   INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
   VALUES ('import_batch', COALESCE(v_batch.voyage_id::text, p_batch_id::text), 'ce_master',

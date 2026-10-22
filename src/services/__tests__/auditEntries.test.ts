@@ -12,7 +12,7 @@ beforeEach(() => {
   rpcMock.mockResolvedValue({ data: 1, error: null })
 })
 
-// F-46 (migration 402): a tela não grava direto em audit_logs; grava pela RPC,
+// F-46 (migration 403): a tela não grava direto em audit_logs; grava pela RPC,
 // que toma o autor da sessão — o changed_by enviado nem sai do navegador.
 it('grava pela RPC record_audit_entries, sem INSERT direto e sem o autor enviado', async () => {
   await recordAuditEntries([{ entity_type: 'voyage_pol_schedule', entity_id: '1::CNSHA', field_name: 'etd', old_value: null, new_value: '2026-11-01', changed_by: 'forjado', justification: 'x' }])

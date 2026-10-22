@@ -559,7 +559,7 @@ prevalece. Não se guarda lote, arquivo nem linha da planilha.
   deliberada e aparece como **Motivo**
   (`src/components/bl/blTimelinePresentation.ts`).
 - **O que aparece no Histórico do B/L** (ADR 0095, decisão 24; migration
-  `402`): tudo o que a importação muda no B/L — containers que entram e saem
+  `403`): tudo o que a importação muda no B/L — containers que entram e saem
   (com a origem, e o histórico do container fica depois da remoção), lacre,
   peso, perfil, SOC/COC (inclusive pelo Baplie), consignatário e Cliente (com
   razão social e CNPJ, nunca o id), veículos e local de desova —, com rótulos

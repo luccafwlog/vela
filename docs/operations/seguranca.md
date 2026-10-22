@@ -51,11 +51,11 @@ igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
   (`audit_logs.actor_role`/`actor_department`); o Departamento é gravado com o
   evento, nunca derivado do cadastro atual. Ações automáticas assinam
   `sistema`.
-- **Histórico só pelo banco** (migration `402`; F-46 da
+- **Histórico só pelo banco** (migration `403`; F-46 da
   [revisão das importações](../archive/audits/2026-10-21-revisao-importacoes.md)):
   `authenticated` e `anon` não têm `INSERT` em `audit_logs` e a tabela não tem
   política de INSERT; só gatilhos e funções `SECURITY DEFINER` gravam. Até a
-  `402`, qualquer usuário ativo inseria uma linha no próprio nome e forjava,
+  `403`, qualquer usuário ativo inseria uma linha no próprio nome e forjava,
   por exemplo, um "CE Mercante … · Origem: Importação de CE Mercante" no
   Histórico do B/L. A tela (agenda de POL/POD, Viagem, eventos operacionais) e
   a Edge Function `admin-users` gravam pela RPC `record_audit_entries`, que
