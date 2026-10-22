@@ -89,8 +89,15 @@ function reapplyMigration() {
   // (387: trava da Viagem; 396: statement_timeout) ficariam desfeitas para as
   // suítes que rodam depois. Guarda e devolve a definição vigente.
   const wrapper = psql(`SELECT pg_get_functiondef('public.apply_ce_mercante_rows_atomic(jsonb,uuid,text,text,bigint,boolean,text,boolean)'::regprocedure);`)
+  const granite = psql(`SELECT coalesce(pg_get_functiondef(to_regprocedure('public.import_granite_manifest_transactional_core_420(bigint,text,text,text,integer,numeric,uuid,jsonb,text[])')), '')`)
   execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
   execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl, '-c', wrapper], { encoding: 'utf8' })
+  // Desde a 420 a RPC pública do Granito é o envelope do nome e hash do
+  // arquivo e o corpo vigente (com a trava da 387) é o `_core_420`: a 325
+  // recria a assinatura antiga com o nome público, que sai, e o corpo volta.
+  execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl, '-c',
+    'DROP FUNCTION IF EXISTS public.import_granite_manifest_transactional(bigint,text,text,text,integer,numeric,uuid,jsonb,text[])'], { encoding: 'utf8' })
+  if (granite) execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl, '-c', granite], { encoding: 'utf8' })
 }
 
 describeLocal('Granito sem Cliente e sem cálculo de taxas (migration 325)', () => {
@@ -184,7 +191,7 @@ describeLocal('Granito sem Cliente e sem cálculo de taxas (migration 325)', () 
     const fn = 'public.save_granite_bl_review(uuid,bigint,uuid)'
     expect(psql(`SELECT has_function_privilege('authenticated', '${fn}', 'EXECUTE');`)).toBe('f')
     expect(psql(`SELECT has_function_privilege('anon', '${fn}', 'EXECUTE');`)).toBe('f')
-    expect(psql(`SELECT has_function_privilege('authenticated', 'public.import_granite_manifest_transactional(bigint,text,text,text,integer,numeric,uuid,jsonb,text[])', 'EXECUTE');`)).toBe('t')
+    expect(psql(`SELECT has_function_privilege('authenticated', 'public.import_granite_manifest_transactional(bigint,text,text,text,integer,numeric,uuid,jsonb,text[],text,text)', 'EXECUTE');`)).toBe('t')
   })
 })
 

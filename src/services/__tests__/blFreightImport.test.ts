@@ -797,6 +797,13 @@ describe('blFreightImport', () => {
       p_changed_by: 'user-1',
       p_batch: { filename: 'importacao-bl.xlsx', voyage_id: 7, cargo_mode: 'container' },
     })
+
+    // ADR 0095, decisão 3: o SHA-256 do arquivo vai no lote.
+    const hash = 'f'.repeat(64)
+    await confirmBlFreightImport(clean, 'user-1', false, 'bl.pdf', false, new Set(), hash)
+    expect(mockRpc).toHaveBeenLastCalledWith('import_bl_freight_file_atomic', expect.objectContaining({
+      p_batch: { filename: 'bl.pdf', voyage_id: 7, cargo_mode: 'container', file_hash: hash },
+    }))
     expect(preview.rows[0]?.payload).toMatchObject({
       customer_id: null,
       customer_reconciliation_status: 'missing_customer',

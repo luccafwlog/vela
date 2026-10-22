@@ -14,7 +14,9 @@ const mocks = vi.hoisted(() => {
   const save = vi.fn(async (containerId: number, value: string | null) => {
     for (const row of rows) if (row.container.id === containerId) row.container.unpacking_location = value
   })
-  return { rows, save }
+  const replacements = vi.fn(async (): Promise<Array<{ containerNumber: string; blId: string; current: string }>> => [])
+  const confirm = vi.fn(async () => true)
+  return { rows, save, replacements, confirm }
 })
 // Busca por chassi fica pendente até o teste liberar, para ver o recorte anterior na tela.
 const pending = vi.hoisted(() => ({ release: null as (() => void) | null }))
@@ -35,8 +37,8 @@ vi.mock('../../services/supabase', () => ({
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' }, isAdmin: false }) }))
 vi.mock('../../components/shared/VoyageCombobox', () => ({ VoyageCombobox: () => <div /> }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirmWithReason: () => vi.fn() }))
-vi.mock('../../services/vaziosNatureza', () => ({ setContainerUnpackingLocation: mocks.save }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => vi.fn() }))
+vi.mock('../../services/vaziosNatureza', () => ({ setContainerUnpackingLocation: mocks.save, findUnpackingReplacements: mocks.replacements }))
 vi.mock('../../hooks/useVehicles', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../hooks/useVehicles')>()
   return {
@@ -88,5 +90,29 @@ it('busca por chassi deixa os veículos anteriores esmaecidos e sem seleção at
 
     pending.release?.()
     expect(await screen.findByText('Nenhum veículo neste recorte')).not.toBeNull()
+  } finally { client.clear() }
+})
+
+it('local de desova diferente já gravado no container (inclusive em outro B/L) pede confirmação; voltar não grava', async () => {
+  mocks.save.mockClear()
+  mocks.replacements.mockResolvedValueOnce([{ containerNumber: 'CXRU1234567', blId: 'BL-2', current: 'Terminal Z' }])
+  mocks.confirm.mockResolvedValueOnce(false)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+  try {
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
+    await screen.findByRole('checkbox', { name: 'Selecionar veículo CHASSI-1' })
+    fireEvent.click(screen.getByRole('button', { name: /Definir local de desova/ }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Todos os 1 veículo do recorte/ }))
+    fireEvent.change(within(dialog).getByLabelText(/Local de desova/), { target: { value: 'Terminal C' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Aplicar a 1 container' }))
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1))
+    expect(mocks.replacements).toHaveBeenCalledWith([33], 'Terminal C')
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Trocar o local de desova',
+      message: expect.stringContaining('CXRU1234567 (B/L BL-2): Terminal Z'),
+    }))
+    expect(mocks.save).not.toHaveBeenCalled()
   } finally { client.clear() }
 })

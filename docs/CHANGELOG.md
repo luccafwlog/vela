@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Importações: hash do arquivo e desova (2026-10-22, Lote 10 do plano
+  `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
+  migrations `420` e `421`. Arquivo de B/L, Manifesto BB, B/L avulso de carga solta, Granito,
+  Embarque de Vazios e Vazios de Importação gravam no lote o nome e o SHA-256 do arquivo, com quem
+  e quando; importar o mesmo arquivo de novo na mesma Viagem só avisa na prévia ("Este arquivo já
+  foi importado em <data> por <pessoa>."), sem bloquear. O local de desova passa a ser um por
+  container físico: gravar num B/L grava em todos os B/Ls ativos da Viagem com o mesmo container,
+  com Histórico em cada um; B/L novo herda o local; em Veículos, trocar ou apagar um local já
+  gravado pede confirmação. Prova: `hashEDesova.local-pg.test.ts`, `importFileReceipt.test.ts`,
+  `Veiculos.unpackingCache.test.tsx`.
 - **Importações: ATD do POL (2026-10-22, Lote 7 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisão 23; achado F-48):**
   migration `401`. O ATD do POL corrigido à mão (Rotas e Manifestos → **Editar**) fica marcado, com

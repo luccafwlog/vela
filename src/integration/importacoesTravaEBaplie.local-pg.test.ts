@@ -418,7 +418,8 @@ describeLocal('Lote 1 das importações — trava por Viagem e Baplie no servido
     const locked = psql(`SELECT string_agg(proname, ',' ORDER BY proname) FROM pg_proc
       WHERE pronamespace = 'public'::regnamespace AND prosrc LIKE '%public._lock_import_voyages%'
         AND proname NOT LIKE '\\_lock%'`)
-    expect(locked.split(',')).toEqual(expect.arrayContaining([
+    // Desde a 420 a RPC pública de arquivo é um envelope; a trava fica no corpo `_core_420`.
+    expect(locked.split(',').map((name) => name.replace(/_core_420$/, ''))).toEqual(expect.arrayContaining([
       'apply_baplie_physical_flags_atomic', 'apply_ce_mercante_rows_atomic', 'apply_container_dates_batch_atomic',
       'import_baplie_file_atomic', 'import_bl_freight_file_atomic', 'import_breakbulk_manifest_transactional',
       'import_granite_manifest_transactional', 'import_vazios_bookings_transactional', 'import_vazios_importacao_transactional',

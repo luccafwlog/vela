@@ -17,7 +17,7 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
-import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { VehicleImportModal } from '../components/shared/VehicleImportModal'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
@@ -36,7 +36,7 @@ import { deleteVehicles } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { userFacingErrorMessage } from '../lib/errors'
-import { setContainerUnpackingLocation } from '../services/vaziosNatureza'
+import { findUnpackingReplacements, setContainerUnpackingLocation } from '../services/vaziosNatureza'
 import { exportVehicleWorkbook } from '../services/exports'
 import { listVoyageEscalaSchedulesByVoyageIds } from '../services/voyageRouteSchedules'
 import { buildVoyageRailItems, type VoyageRailModuleStats } from '../services/voyageSummaries'
@@ -66,6 +66,7 @@ export function Veiculos() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
+  const confirm = useConfirm()
   const { user, profile } = useAuth()
   const narrow = useNarrowViewport()
   const canEditVehicles = Boolean(profile || user)
@@ -213,6 +214,23 @@ export function Veiculos() {
     setBulkDesovaSaving(true)
     setBulkDesovaError(null)
     try {
+      // Um local por container físico (ADR 0095, decisão 26): o servidor grava
+      // em todos os B/Ls do container; local diferente já gravado pede confirmação.
+      const replaced = await findUnpackingReplacements(containerIds, value)
+      if (replaced.length) {
+        const shown = replaced.slice(0, 8).map((item) => `${item.containerNumber} (B/L ${item.blId}): ${item.current}`)
+        if (replaced.length > shown.length) shown.push(`e mais ${replaced.length - shown.length}`)
+        const proceed = await confirm({
+          title: value ? 'Trocar o local de desova' : 'Apagar o local de desova',
+          message: `${plural(replaced.length, 'container já tem', 'containers já têm')} outro local de desova: ${shown.join('; ')}.`,
+          consequence: value
+            ? `O local passa a ser "${value}" no container em todos os B/Ls da Viagem que o compartilham.`
+            : 'O local é apagado do container em todos os B/Ls da Viagem que o compartilham.',
+          reversibility: 'Dá para gravar o local anterior de novo; a troca fica no Histórico de cada B/L.',
+          confirmLabel: value ? 'Trocar o local' : 'Apagar o local',
+        })
+        if (!proceed) return
+      }
       await Promise.all(containerIds.map(async (containerId) => {
         await setContainerUnpackingLocation(containerId, value)
         cacheUnpackingLocation(queryClient, [containerId], value)

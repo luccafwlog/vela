@@ -260,7 +260,7 @@ it('confirma importacao, usa o efeito central de manifesto e fecha modal', async
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithDiff, 'user-1', new Set(), 'bl.xlsx', false, new Set()))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithDiff, 'user-1', new Set(), 'bl.xlsx', false, new Set(), expect.stringMatching(/^[0-9a-f]{64}$/)))
 
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
   expect(mocks.invalidateQueries).not.toHaveBeenCalled()
@@ -327,7 +327,7 @@ it('exibe impacto de faturamento e envia override quando o operador marca', asyn
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithBillingImpact, 'user-1', new Set(['COSU777']), 'bl.xlsx', false, new Set()))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithBillingImpact, 'user-1', new Set(['COSU777']), 'bl.xlsx', false, new Set(), expect.stringMatching(/^[0-9a-f]{64}$/)))
 })
 
 /** Preview com troca de consignatario, compartilhado pelos testes de confirmacao. */
@@ -383,7 +383,7 @@ it('alerta a troca de consignatario e so envia o revinculo quando o operador ace
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithCustomerChange, 'user-1', new Set(), 'bl.xlsx', true, new Set()))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithCustomerChange, 'user-1', new Set(), 'bl.xlsx', true, new Set(), expect.stringMatching(/^[0-9a-f]{64}$/)))
 })
 
 it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () => {
@@ -568,7 +568,7 @@ it('mostra preço do dia da importação → preço de hoje e envia o aceite por
   const confirm = screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithRefix, 'user-1', new Set(), 'bl.xlsx', false, new Set(['COSU456'])))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithRefix, 'user-1', new Set(), 'bl.xlsx', false, new Set(['COSU456']), expect.stringMatching(/^[0-9a-f]{64}$/)))
 })
 
 // ADR 0092: B/L com erro recusa o arquivo inteiro; os liberados não gravam sozinhos.

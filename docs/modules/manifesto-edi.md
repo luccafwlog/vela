@@ -174,6 +174,17 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
   recusam as linhas (pelo número do container, inclusive quando dois B/Ls o
   dividem); B/L cancelado recusa a linha na prévia. As mesmas regras valem em
   `import_vehicle_rows_transactional`.
+- **Um local de desova por container físico (migration `421`, ADR 0095,
+  decisão 26; F-50):** gravar o local num B/L (planilha de Veículos ou
+  **Definir local de desova** em `/veiculos`) grava o mesmo valor, inclusive
+  apagar, no container de mesmo número em todos os B/Ls ativos da Viagem, pelo
+  gatilho `unpacking_location_follows_container`, com Histórico em cada B/L; B/L
+  cancelado fica como está. B/L novo que compartilha o container herda o local
+  (`unpacking_location_inherits_container`). Em `/veiculos`, trocar ou apagar um
+  local já gravado no container, também noutro B/L, pede confirmação listando
+  container, B/L e local atual (`findUnpackingReplacements`). A migration
+  preencheu o local vazio onde o container tinha um só local gravado; container
+  com dois locais diferentes ficou como estava até a próxima gravação.
   Sem fatura viva, as Taxas Locais são recalculadas na hora e B/L isento anula o
   Recebível. Na página Veículos, **Mover para outro B/L**
   (`move_vehicles_to_bl`) e **Excluir** (`delete_vehicles_with_reason`) valem
@@ -803,6 +814,7 @@ flowchart LR
 15. **Datas de container afetam demurrage.** Devolução anterior à descarga é rejeitada; todos retornados podem criar e emitir invoice de demurrage.
 16. **Vazios são atômicos por manifesto.** Planilhas criam cabeçalho e itens na mesma RPC. Vazios vindos do Baplie substituem por viagem dentro da mesma transação; a opção “manter” não escreve.
 17. **Importar B/L calcula, mas não emite.** Com a viagem declarada, `import_bl_freight_with_metadata` persiste `bl_freight_lines`, `bl_emission_date`, campos documentais e reconciliação de cliente, aplica o review gate/fila do lote e calcula as taxas locais provisórias de cada B/L (migration `072`); sem cliente vinculado, o cálculo existe mas o recebível só nasce na conciliação. Invoice e ledger não são criados na importação: pelas ADRs 0038/0042, o CE confirma e dispara a emissão elegível — pela planilha de CE, o cálculo sai na gravação e a emissão logo depois, em lotes (migration `181`; ver [CE Mercante](#ce-mercante)); sem Portal pronto nem Liberação de faturamento vigente, a fatura fica retida (migration `083`, ADR 0070). Quando há cálculo/invoice, as variáveis de faturamento — containers, IMO/OOG, SOC/COC, lista de veículos (chassis), peso de carga solta, CNPJ, rota (POL/POD), viagem e modo de carga — ficam bloqueadas por padrão e só são aplicadas com a confirmação auditada por B/L (migration arquivada `357`); peso de contêiner, cubagem e os campos comerciais e de frete seguem sempre corrigíveis. A Troca de Consignatário aceita no preview segue a regra de CNPJ da ADR 0077 (reemitir sem pagamento; com pagamento, devolver ao Cliente original antes da nova cobrança; ADR 0078, item 14).
+18. **Arquivo importado deixa nome e hash no lote.** As RPCs de importação por arquivo que gravam lote (`import_bl_freight_file_atomic`, `import_breakbulk_manifest_transactional`, `import_granite_manifest_transactional`, `import_vazios_bookings_transactional`, `import_vazios_importacao_transactional`) recebem o SHA-256 do arquivo e o gravam com o nome; o corpo de antes ficou como `<nome>_core_420`, sem acesso pela API (migration `420`). O reenvio do mesmo arquivo grava outro lote; a prévia avisa (`PreviousImportCheck`, `useImportFileReceipt`). A regra está em [Regras de negócio § Rastro das importações](../operations/regras-de-negocio.md#rastro-das-importações).
 
 ### B/L Cancelado e exclusão
 

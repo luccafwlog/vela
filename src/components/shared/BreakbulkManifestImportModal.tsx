@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { FileImportModal } from './FileImportModal'
 import { ImportContext, ImportGuide, ImportSection, ImportTemplateLinks } from './ImportParts'
+import { PreviousImportCheck } from './PreviousImportCheck'
+import { importFilesSha256 } from '../../services/importFileReceipt'
 import { VoyageCombobox } from './VoyageCombobox'
 import { TruncationNote } from './TruncationNote'
 import { BreakbulkImportOutcome, BreakbulkReimportReview } from './BreakbulkReimportReview'
@@ -91,6 +93,7 @@ export function BreakbulkManifestImportModal({
           manifest,
           uploadedBy,
           approval,
+          fileHash: await importFilesSha256([file]),
         })
         await afterManifestoImportado(queryClient, { voyageId })
         showToast(`Manifesto BB importado: ${plural(manifest.bls.length, 'B/L', 'B/Ls')}.`, 'success')
@@ -135,8 +138,9 @@ export function BreakbulkManifestImportModal({
           </Field>
         </div>
       )}
-      renderPreview={(manifest) => (
+      renderPreview={(manifest, file) => (
         <>
+          <PreviousImportCheck kind="manifesto_bb" voyageId={voyageId ? Number(voyageId) : null} files={[file]} />
           <BreakbulkReimportReview
             check={manifest.reimport}
             approval={approval}

@@ -803,6 +803,8 @@ export async function confirmBlFreightImport(
   confirmCustomerChange = false,
   /** B/Ls cujo preço o operador aceitou refixar (ADR 0094, A2) */
   refixPrices: ReadonlySet<string> = new Set(),
+  /** SHA-256 do arquivo (ADR 0095, decisão 3): gravado no lote; o reenvio só avisa na prévia. */
+  fileHash: string | null = null,
 ): Promise<BlFreightImportResult> {
   // ADR 0092: B/L bloqueado é erro do arquivo e recusa a importação inteira;
   // nenhum B/L liberado é gravado sem os outros. B/L cancelado (`skipped`) é
@@ -863,7 +865,7 @@ export async function confirmBlFreightImport(
   const { data: rawData, error } = await supabase.rpc('import_bl_freight_file_atomic' as never, {
     p_bls: payload,
     p_changed_by: changedBy,
-    p_batch: voyageId != null ? { filename, voyage_id: voyageId, cargo_mode: 'container' } : null,
+    p_batch: voyageId != null ? { filename, voyage_id: voyageId, cargo_mode: 'container', ...(fileHash ? { file_hash: fileHash } : {}) } : null,
   } as never)
   if (error) {
     const raw = error as { code?: string }

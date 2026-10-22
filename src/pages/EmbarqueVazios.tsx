@@ -18,6 +18,8 @@ import { Field, Input, Select, Textarea } from "../components/ui/Input";
 import { QueryStateGate } from "../components/shared/QueryStateGate";
 import { VoyageCombobox } from "../components/shared/VoyageCombobox";
 import { ImportFilePicker, ImportNotice } from "../components/shared/ImportParts";
+import { PreviousImportCheck } from "../components/shared/PreviousImportCheck";
+import { importFilesSha256 } from "../services/importFileReceipt";
 import { useAuth } from "../hooks/useAuth";
 import { useDepots } from "../hooks/useDepots";
 import { useToast } from "../components/ui/Toast";
@@ -652,6 +654,7 @@ function EmbarqueDetalhe({
         port: ref.embark_port,
         uploadedBy: user.id,
         manifest: parsed,
+        fileHash: await importFilesSha256([file]),
       });
       setFile(null);
       await refreshOperationData();
@@ -1370,6 +1373,7 @@ function EmbarqueDetalhe({
           {/* O seletor comum mostra os avisos de leitura (linhas e abas
               ocultas, CSV Windows-1252) assim que o arquivo é escolhido. */}
           <ImportFilePicker accept=".xlsx,.xls,.csv" files={file ? [file] : []} onFiles={(files) => setFile(files[0] ?? null)} disabled={!canEdit} />
+          {file ? <PreviousImportCheck kind="vazios_exportacao" voyageId={ref.voyage_id} files={[file]} /> : null}
           <div className="app-modal__actions">
             <Button
               variant="secondary"

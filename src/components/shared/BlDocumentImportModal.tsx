@@ -5,6 +5,8 @@ import { VoyageCombobox } from './VoyageCombobox'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
 import { ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from './ImportParts'
+import { PreviousImportCheck } from './PreviousImportCheck'
+import { importFilesSha256 } from '../../services/importFileReceipt'
 import { plural } from './importPresentation'
 import { useAuth } from '../../hooks/useAuth'
 import { useVoyageOptions } from '../../hooks/useBls'
@@ -137,6 +139,7 @@ export function BlDocumentImportModal({
           uploadedBy: user.id,
           acceptWarnings: Boolean(acceptWarnings),
           approval,
+          fileHash: await importFilesSha256(entries.map((entry) => entry.file)),
         })
         await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
         const pending = describeBreakbulkPending(result)
@@ -154,6 +157,7 @@ export function BlDocumentImportModal({
       )}
       renderBatchSummary={(entries) => (
         <>
+          <PreviousImportCheck kind="manifesto_bb" voyageId={selectedVoyageId ? Number(selectedVoyageId) : null} files={entries.map((entry) => entry.file)} />
           <BatchSummary entries={entries} voyage={selectedVoyage} />
           {/* A Troca de Consignatário e a confirmação de faturamento valem para o
               lote inteiro: a prévia lista os B/Ls de TODOS os arquivos que podem

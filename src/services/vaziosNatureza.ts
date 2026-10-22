@@ -139,6 +139,61 @@ export async function setContainerOwnership(input: {
   return correctionResult(data)
 }
 
+/** Local de desova já gravado que a gravação nova troca (ou apaga). */
+export type UnpackingReplacement = { containerNumber: string; blId: string; current: string }
+
+type UnpackingRow = { id: number; bl_id: string | null; container_number: string | null; unpacking_location: string | null; bl?: { voyage_id: number | null } | null }
+
+const containerKey = (value: string | null | undefined) => String(value ?? '').replace(/\s+/g, '').toUpperCase()
+
+/**
+ * Um local de desova por container físico (ADR 0095, decisão 26; migration
+ * 421): gravar o local num B/L grava em todos os B/Ls ativos da Viagem com o
+ * mesmo container. Devolve, por container e B/L, o local diferente já gravado
+ * que a gravação vai trocar, para a tela pedir a confirmação.
+ */
+export function unpackingReplacements(rows: readonly UnpackingRow[], targetIds: readonly number[], value: string | null): UnpackingReplacement[] {
+  const next = (value ?? '').trim().toUpperCase()
+  const targets = new Set(rows.filter((row) => targetIds.includes(row.id)).map((row) => `${row.bl?.voyage_id ?? ''}|${containerKey(row.container_number)}`))
+  const seen = new Set<string>()
+  const out: UnpackingReplacement[] = []
+  for (const row of rows) {
+    const current = (row.unpacking_location ?? '').trim()
+    if (!current || current.toUpperCase() === next) continue
+    if (!targets.has(`${row.bl?.voyage_id ?? ''}|${containerKey(row.container_number)}`)) continue
+    const key = `${containerKey(row.container_number)}|${row.bl_id}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ containerNumber: containerKey(row.container_number), blId: row.bl_id ?? '', current })
+  }
+  return out.sort((a, b) => a.containerNumber.localeCompare(b.containerNumber) || a.blId.localeCompare(b.blId))
+}
+
+export async function findUnpackingReplacements(containerIds: readonly number[], value: string | null): Promise<UnpackingReplacement[]> {
+  if (!containerIds.length) return []
+  const select = 'id, bl_id, container_number, unpacking_location, bl:bls!inner(voyage_id, cancelled_at)'
+  const targets: UnpackingRow[] = []
+  for (let index = 0; index < containerIds.length; index += 200) {
+    const { data, error } = await supabase.from('bl_containers').select(select).in('id', containerIds.slice(index, index + 200))
+    if (error) throw toError(error)
+    targets.push(...((data ?? []) as unknown as UnpackingRow[]))
+  }
+  const numbers = [...new Set(targets.map((row) => row.container_number).filter((n): n is string => Boolean(n)))]
+  const voyages = [...new Set(targets.map((row) => row.bl?.voyage_id).filter((v): v is number => v != null))]
+  if (!numbers.length || !voyages.length) return []
+  const siblings: UnpackingRow[] = []
+  for (let index = 0; index < numbers.length; index += 200) {
+    const { data, error } = await supabase.from('bl_containers').select(select)
+      .in('container_number', numbers.slice(index, index + 200))
+      .in('bl.voyage_id', voyages)
+      .is('bl.cancelled_at', null)
+    if (error) throw toError(error)
+    siblings.push(...((data ?? []) as unknown as UnpackingRow[]))
+  }
+  return unpackingReplacements([...targets, ...siblings], containerIds, value)
+}
+
+/** O servidor grava o local em todos os B/Ls do container físico (migration 421). */
 export async function setContainerUnpackingLocation(
   containerId: number,
   unpackingLocation: string | null,

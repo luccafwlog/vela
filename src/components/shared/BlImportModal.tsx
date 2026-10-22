@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
+import { useImportFileReceipt } from '../../hooks/useImportFileReceipt'
 import { parseBLFile } from '../../services/blParser'
 import {
   BlFreightImportRefused,
@@ -30,6 +31,7 @@ import {
   ImportFootnote,
   ImportGuide,
   ImportNotice,
+  PreviousImportNotice,
   ImportSection,
   ImportSteps,
   ImportTemplateLinks,
@@ -116,6 +118,7 @@ export function BlImportModal({
   // Refixar o preço por B/L (ADR 0094, A2): sem marcar, o preço fixado fica.
   const [refixBls, setRefixBls] = useState<ReadonlySet<string>>(new Set())
   const [selectedVoyageId, setSelectedVoyageId] = useState<number | null>(voyageId)
+  const receipt = useImportFileReceipt('arquivo_bl', selectedVoyageId, files)
   const [readError, setReadError] = useState<string | null>(null)
   /** Algum dos arquivos escolhidos não pôde ser lido: com vários, um ruim bloqueia todos. */
   const [readFailed, setReadFailed] = useState(false)
@@ -244,9 +247,10 @@ export function BlImportModal({
         preview,
         user?.id ?? '',
         overrideBls,
-        files[0]?.name,
+        receipt.filename ?? undefined,
         confirmCustomerChange,
         refixBls,
+        receipt.fileHash,
       )
       const { refusedCustomerRelinks, calculationErrors } = result
       const customerKept = result.customerChangesIgnored ?? []
@@ -353,6 +357,8 @@ export function BlImportModal({
             <p>Confira o arquivo e escolha de novo. Nada foi gravado.</p>
           </ImportNotice>
         ) : null}
+
+        {preview ? <PreviousImportNotice message={receipt.previousImportMessage} /> : null}
 
         {preview ? <BlImportPreview preview={preview} /> : null}
 

@@ -273,6 +273,8 @@ function formatGraniteRowErrors(rowErrors: readonly RowError[]): string {
 
 export type ImportGraniteArgs = {
   filename: string
+  /** SHA-256 do arquivo (ADR 0095, decisão 3): gravado no lote; o reenvio só avisa na prévia. */
+  fileHash?: string | null
   voyageId: number
   manifest: ParsedGraniteManifest
   uploadedBy: string
@@ -376,6 +378,7 @@ export async function importGraniteManifest({
   manifest,
   uploadedBy,
   confirmRemoval,
+  fileHash = null,
 }: ImportGraniteArgs): Promise<GraniteImportResult> {
   // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
   // inteiro; não há aceite que grave só as linhas válidas.
@@ -431,6 +434,8 @@ export async function importGraniteManifest({
     p_uploaded_by: uploadedBy,
     p_bls: blRows,
     p_remove_missing: removeMissing,
+    p_filename: filename,
+    p_file_hash: fileHash,
   } as never)
   // O erro do PostgREST não é `Error`: as duas telas (Granito e Viagem) mostram
   // a mensagem de negócio da RPC pela classificação compartilhada.
