@@ -173,6 +173,50 @@ export function typedCellValue(
 }
 
 /**
+ * Teto de leitura de uma aba. O `!ref` vem do `<dimension>` do XLSX, que o
+ * arquivo declara à vontade: um arquivo de poucos KB pode declarar
+ * `A1:XFD1048576` e travar a aba percorrendo 17 bilhões de células vazias. A
+ * leitura percorre só até a última linha e a última coluna com célula de fato
+ * e recusa a aba acima destes tetos, folgados para o maior arquivo legítimo
+ * (conciliação ZPT, 20 mil linhas; layouts com algumas dezenas de colunas).
+ */
+export const SHEET_MAX_ROWS = 100_000
+export const SHEET_MAX_COLUMNS = 1_000
+export const SHEET_MAX_CELLS = 5_000_000
+
+type SheetRange = { s: { r: number; c: number }; e: { r: number; c: number } }
+
+/**
+ * Faixa a percorrer: começa onde o `!ref` declara (o B/L lê por posição) e
+ * termina na última célula presente. `null` quando a aba não tem célula.
+ */
+export function sheetReadRange(sheet: Record<string, unknown>, XLSX: XlsxModule): SheetRange | null {
+  const ref = typeof sheet['!ref'] === 'string' ? sheet['!ref'] : null
+  if (!ref) return null
+  const declared = XLSX.utils.decode_range(ref)
+  let lastRow = -1
+  let lastColumn = -1
+  for (const key of Object.keys(sheet)) {
+    if (key.startsWith('!')) continue
+    const { r, c } = XLSX.utils.decode_cell(key)
+    if (r < declared.s.r || c < declared.s.c || r > declared.e.r || c > declared.e.c) continue
+    if (r > lastRow) lastRow = r
+    if (c > lastColumn) lastColumn = c
+  }
+  if (lastRow < 0) return null
+  const rows = lastRow - declared.s.r + 1
+  const columns = lastColumn - declared.s.c + 1
+  if (rows > SHEET_MAX_ROWS || columns > SHEET_MAX_COLUMNS || rows * columns > SHEET_MAX_CELLS) {
+    throw new Error(
+      `A planilha passa do limite de leitura (${SHEET_MAX_ROWS.toLocaleString('pt-BR')} linhas e `
+      + `${SHEET_MAX_COLUMNS.toLocaleString('pt-BR')} colunas): há dado na linha ${(lastRow + 1).toLocaleString('pt-BR')}, `
+      + `coluna ${XLSX.utils.encode_col(lastColumn)}. Apague as linhas e colunas fora da tabela, ou divida o arquivo, e importe de novo.`,
+    )
+  }
+  return { s: declared.s, e: { r: lastRow, c: lastColumn } }
+}
+
+/**
  * Conta as linhas ocultas que têm alguma célula (as vazias não fazem falta).
  *
  * `belowFirstVisibleRow`: só conta as ocultas abaixo da primeira linha visível
@@ -189,9 +233,8 @@ function countHiddenRows(
   XLSX: XlsxModule,
   options: { belowFirstVisibleRow?: boolean } = {},
 ): number {
-  const ref = typeof sheet['!ref'] === 'string' ? sheet['!ref'] : null
-  if (!ref) return 0
-  const range = XLSX.utils.decode_range(ref)
+  const range = sheetReadRange(sheet, XLSX)
+  if (!range) return 0
   const rowInfo = (sheet['!rows'] ?? []) as Array<{ hidden?: boolean } | undefined>
   let hiddenRows = 0
   let seenVisibleRow = !options.belowFirstVisibleRow
@@ -223,13 +266,12 @@ export function typedSheetMatrix(
    */
   options: { textOnly?: boolean; keepHidden?: boolean; date1904?: boolean } = {},
 ) {
-  const ref = typeof sheet['!ref'] === 'string' ? sheet['!ref'] : null
   const matrix: SheetCellValue[][] = []
   const rowNumbers: number[] = []
   /** Linha física (1-based) de cada linha oculta com dado, deixada fora da matriz. */
   const hiddenRowNumbers: number[] = []
-  if (!ref) return { matrix, rowNumbers, hiddenRows: 0, hiddenRowNumbers }
-  const range = XLSX.utils.decode_range(ref)
+  const range = sheetReadRange(sheet, XLSX)
+  if (!range) return { matrix, rowNumbers, hiddenRows: 0, hiddenRowNumbers }
   const rowInfo = (sheet['!rows'] ?? []) as Array<{ hidden?: boolean } | undefined>
   for (let r = range.s.r; r <= range.e.r; r += 1) {
     if (rowInfo[r]?.hidden && !options.keepHidden) {

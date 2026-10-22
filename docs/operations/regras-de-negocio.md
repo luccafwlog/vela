@@ -464,6 +464,11 @@ módulo, por exemplo em [Manifestos & EDI § Propósito e escopo](../modules/man
   existe em linha ou aba oculta, o erro diz isso em vez de "Planilha vazia.". A
   importação que substitui dados pede confirmação antes de gravar quando há
   linhas ou abas ocultas (ver o módulo de cada uma).
+- **Tamanho da aba.** A leitura vai até a última linha e a última coluna com
+  célula, não até a faixa que o arquivo declara (`<dimension>`). Aba com dado
+  além de 100.000 linhas, de 1.000 colunas ou de 5 milhões de células é
+  recusada com a linha e a coluna do dado mais distante
+  (`SHEET_MAX_ROWS`, `SHEET_MAX_COLUMNS`, `SHEET_MAX_CELLS`).
 - **Uma aba só.** Arquivo com mais de uma aba visível com dados é recusado em
   toda importação de planilha, com o nome das abas ("deixe os dados numa aba
   só"); aba oculta, aba vazia e aba com dado só em linhas ocultas não contam.
