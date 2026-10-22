@@ -156,3 +156,4 @@ src/integration/revisaoFinalFrenteFinanceira.local-pg.test.ts
 src/integration/exclusaoEEfeitosImportacao.local-pg.test.ts
 src/integration/ceEManifestoMercante.local-pg.test.ts
 src/integration/vaziosUmaVezPorViagem.local-pg.test.ts
+src/integration/atdDoPolManual.local-pg.test.ts

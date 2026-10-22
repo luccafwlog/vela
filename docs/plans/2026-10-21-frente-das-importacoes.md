@@ -69,6 +69,15 @@ antes e passa depois, e o módulo dono atualizado.
   (`vazios_export_adr_locked`). Prova: `vaziosUmaVezPorViagem.local-pg.test.ts`,
   `vaziosImportacaoImport.test.ts`, `baplieVaziosPending.test.ts` e
   `EmbarqueVazios.flow.test.tsx`.
+- **Lote 7 — ATD do POL** (migration `401`): decisão 23; F-48. ATD do POL
+  gravado à mão (Rotas e Manifestos → **Editar**, que grava o Histórico
+  `voyage_pol_schedule`) marca o POL em `voyage_pol_atd_manual` (quem e quando,
+  pelo gatilho `voyage_pol_atd_manual_mark`); a importação de B/L e o
+  cancelamento não recalculam o POL marcado e a prévia avisa a divergência do
+  Laden on Board; apagar o ATD à mão desfaz a marca e volta ao cálculo. O ATD
+  calculado (`_recompute_voyage_pol_atd`) conta só B/Ls ativos; cancelar e
+  reativar recalculam. Correções manuais anteriores marcadas na migration.
+  Prova: `atdDoPolManual.local-pg.test.ts` e `ws1FunctionalSmoke.test.ts`.
 - **Pela PR luccafwlog/vela#1019** (ADR 0094), não refazer: escrita direta
   fechada (F-03), RPCs antigas revogadas (F-19), B/L cancelado somente leitura
   e datas só nos B/Ls ativos (F-12), carga solta faturada com confirmação no
@@ -87,7 +96,7 @@ antes e passa depois, e o módulo dono atualizado.
 | 4 Exclusão e efeitos (entregue, ver acima) | 7, 18, 25 | F-10 (só a suíte), F-13, F-14, F-33a, F-34, F-42, F-43 | exclusão encerra efeitos e apaga vazios da Viagem; espera de negócio não é bloqueio; reprocessar no alerta; ator de sistema; excluir/mover veículo enfileira o efeito; `import_effects_queue_health` passa a contar `blocked` e `running` com lease vencida | efeito órfão some; alerta fecha; saúde da fila acusa bloqueado e lease vencida; excluir o irmão de container compartilhado faturado |
 | 5 CE e Manifesto Mercante (entregue, ver acima) | 19, 20 | F-49, F-53 | remover CE e cancelar tiram do Manifesto; alerta "CE fora do Manifesto da rota"; planilha de CE com recusa de cálculo testada e mensagem no formato da ADR 0094 | local-pg |
 | 6 Vazios (entregue, ver acima) | 21, 22 | F-32 | unicidade por Viagem, planilha vence; ADR de Saída fechado trava | local-pg |
-| 7 ATD | 23 | F-48 | ATD manual marcado e preservado; só B/Ls ativos | local-pg |
+| 7 ATD (entregue, ver acima) | 23 | F-48 | ATD manual marcado e preservado; só B/Ls ativos | local-pg |
 | 8 Histórico | 24 | F-23, F-24, F-46 | `bl_timeline` lê `bls`, `vehicles` e `bl_containers`; origem Base de Clientes; `audit_logs` sem INSERT direto | local-pg + vitest |
 | 9 Baplie: armador e transbordo | 14, 15 | — | códigos do armador no cadastro; transbordo marcado | vitest + local-pg |
 | 10 Hash e desova | 3, 26 | F-50 | `import_batches` com hash e aviso de reenvio; desova por container físico | local-pg |
