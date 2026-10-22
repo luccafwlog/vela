@@ -282,12 +282,12 @@ novas não falharem na `165`.
   público). Em Authentication → Sign In / Providers → User Signups, "Allow new
   users to sign up" fica desligado (`disable_signup = true`). A auditoria
   defensiva de 2026-10-19 achou o cadastro aberto em produção
-  (`GET /auth/v1/settings`: `disable_signup: false`); **desligar é passo
-  pendente do dono** e esta linha deve ganhar a data da conferência quando
-  `GET /auth/v1/settings` voltar `disable_signup: true`. A branch Supabase
-  `staging` (`uvgqfpleiyfythkhutlj`) ainda não foi conferida: o mesmo
-  `GET /auth/v1/settings` no host dela, com a chave anon do staging, deve
-  voltar `disable_signup: true`; se não voltar, desligar no painel da branch.
+  (`GET /auth/v1/settings`: `disable_signup: false`). **Conferido desligado
+  em 2026-10-22:** `GET /auth/v1/settings` com a chave publicável voltou
+  `disable_signup: true` em produção (`fgmkhbzhaeebrsizwccx`) e na branch
+  Supabase `staging` (`uvgqfpleiyfythkhutlj`), ambas também com
+  `anonymous_users: false` e `mailer_autoconfirm: false`. Para reconferir,
+  repita o mesmo `GET` no host de cada projeto com a chave publicável dele.
   Desde a migration `337`, uma conta criada assim também
   não lê a programação de navios.
 - **Usuário técnico do Auth:**
@@ -1147,3 +1147,23 @@ saiu de Meu perfil, D13 do [plano dos e-mails](../archive/plans/2026-10-17-corre
 a confirmação do Auth não chegava pelo SMTP padrão.) Email provider com "Secure email change"
 ligado (confirmação no e-mail antigo e no novo). O Portal não depende dessas
 URLs: convite e senha usam links próprios das Edge Functions.
+
+### Conferência Supabase Auth — 2026-10-22
+
+Feita só por leitura, sem alterar configuração, para a auditoria de segurança
+run-3.
+
+- **Cadastro público:** desligado em produção e na branch `staging`. O registro
+  fica no item "Cadastro público do Auth desligado" acima.
+- **Security Advisor da produção:** acusa "Leaked password protection" desligada.
+  É o passo pendente do dono: ligar "Prevent use of leaked passwords" em
+  Authentication → Sign In / Providers → Email, o que faz o Auth recusar senhas
+  que aparecem em vazamentos conhecidos (HaveIBeenPwned). O recurso existe a
+  partir do plano Pro.
+- **Configurações que a API pública não expõe:** "Require reauthentication when
+  changing password", "Require current password when changing password" (ambas em
+  Authentication → Sign In / Providers → Email) e os limites de login
+  (Authentication → Rate Limits) só podem ser lidos no painel ou pela Management
+  API. Ainda não foram conferidas.
+- **Migrations aplicadas:** produção estava na `353`; a branch `staging` estava
+  na `406`.
