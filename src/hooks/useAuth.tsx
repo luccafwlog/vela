@@ -23,6 +23,8 @@ export type ProfileHydrationStatus = 'loading' | 'ready' | 'transient-error' | '
 export function classifyProfileHydrationError(error: unknown): 'transient-error' | 'unauthorized' {
   if (error && typeof error === 'object') {
     if ((error as { code?: unknown }).code === 'PGRST116') return 'unauthorized'
+    // Token emitido antes da revogação da credencial (migration 407).
+    if ((error as { code?: unknown }).code === '28000') return 'unauthorized'
   }
   if (error instanceof Error && error.message === 'Perfil de usuário inválido.') return 'unauthorized'
   return 'transient-error'

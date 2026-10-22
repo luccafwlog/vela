@@ -6,6 +6,15 @@
 
 ## 2026-10
 
+- **Segurança: token interno cortado na revogação (2026-10-22, auditoria de segurança run-3,
+  achado C1; ADR 0096):** migration `407`. Editar acesso (troca de e-mail ou senha) e Desativar
+  passam a cortar na hora o access token já emitido, como o Portal já fazia: o marco da revogação
+  fica numa tabela sem grant para os clientes; os helpers de papel, o Desbloqueio de CE e as
+  políticas recusam o token anterior; uma checagem antes de toda requisição do PostgREST cobre o
+  resto. Rotinas de serviço em nome do usuário seguem. Quem troca a própria credencial em Editar
+  acesso tem a sessão encerrada e entra de novo. Prova: `corteTokenInterno.local-pg.test.ts`,
+  `advisorFuncoesFechadas.local-pg.test.ts`, `Admin.behavior.test.tsx`,
+  `useAuthHydrationFailure.test.tsx`, `edgeFunctionsRun2.test.ts`.
 - **Importações: hash do arquivo e desova (2026-10-22, Lote 10 do plano
   `docs/plans/2026-10-21-frente-das-importacoes.md`; ADR 0095, decisões 3 e 26; achado F-50):**
   migrations `405` e `406`. Arquivo de B/L, Manifesto BB, B/L avulso de carga solta, Granito,

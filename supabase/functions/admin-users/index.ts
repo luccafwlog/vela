@@ -146,7 +146,8 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     if (email && emailChanged) { updates.email = email; updates.email_confirm = true }
     if (password) updates.password = password
 
-    if (Object.keys(updates).length) {
+    const credentialChanged = Object.keys(updates).length > 0
+    if (credentialChanged) {
       const { error: updateError } = await admin.auth.admin.updateUserById(userId, updates)
       if (updateError) {
         const duplicate = String(updateError.message ?? '').toLowerCase().includes('already')
@@ -154,19 +155,25 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
           error: duplicate ? 'Já existe um usuário com este e-mail.' : 'Não foi possível atualizar o acesso.',
         }, origin)
       }
-
-      // Credencial trocada derruba as sessões abertas com a credencial antiga.
-      await revokeSessions(userId)
     }
 
-    // E-mail salvo (novo ou o mesmo) libera a supressão (bounce/spam) do endereço anterior (2.8).
-    // `released` 0 com o mesmo e-mail: o endereço é de Cliente e continua suprimido.
-    const released = email ? await releasePreviousEmailSuppression(admin, previousEmail, email) : 0
+    let released = 0
+    try {
+      // E-mail salvo (novo ou o mesmo) libera a supressão (bounce/spam) do endereço anterior (2.8).
+      // `released` 0 com o mesmo e-mail: o endereço é de Cliente e continua suprimido.
+      released = email ? await releasePreviousEmailSuppression(admin, previousEmail, email) : 0
 
-    if (emailChanged) await audit(userId, 'email', previousEmail, email ?? null)
-    // A senha nunca é registrada, só o fato de ter sido trocada.
-    if (password) await audit(userId, 'password', null, 'redefinida pelo administrador')
-    return json(200, { ok: true, released }, origin)
+      if (emailChanged) await audit(userId, 'email', previousEmail, email ?? null)
+      // A senha nunca é registrada, só o fato de ter sido trocada.
+      if (password) await audit(userId, 'password', null, 'redefinida pelo administrador')
+    } finally {
+      // Credencial trocada derruba as sessões abertas com a credencial antiga,
+      // mesmo se a auditoria falhar. Fica por último porque a revogação corta o
+      // token na hora (migration 407) e a auditoria usa a sessão de quem chama,
+      // que é a própria quando o Administrativo troca a sua credencial.
+      if (credentialChanged) await revokeSessions(userId)
+    }
+    return json(200, { ok: true, released, session_ended: credentialChanged && userId === actorId }, origin)
   }
 
   if (body.action === 'deactivate') {

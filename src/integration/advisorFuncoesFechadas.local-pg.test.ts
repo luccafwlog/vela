@@ -63,9 +63,14 @@ function migration320Applied(): boolean {
 const describeLocal = describeWithProbe(migration320Applied, 'migration320Applied (advisor: funções fechadas e índices de FK)')
 
 describeLocal('320 — funções fechadas, search_path fixo e índices de FK', () => {
-  it('nenhuma função do projeto é executável por anon', () => {
+  it('nenhuma função do projeto é executável por anon, salvo a checagem que o PostgREST roda antes da requisição', () => {
+    // ADR 0096: o PostgREST chama `pgrst.db_pre_request` com o papel da
+    // requisição, inclusive `anon`; sem sessão a função não faz nada.
     expect(lines(psql(`SELECT p.oid::regprocedure ${PROJECT_FUNCTIONS}
-      AND has_function_privilege('anon', p.oid, 'EXECUTE') ORDER BY 1;`))).toEqual([])
+      AND has_function_privilege('anon', p.oid, 'EXECUTE') ORDER BY 1;`)))
+      .toEqual(psql(`SELECT to_regprocedure('public.check_internal_token_cutoff()') IS NOT NULL;`) === 't'
+        ? ['check_internal_token_cutoff()']
+        : [])
   })
 
   it('função de trigger não é executável por PUBLIC, anon nem authenticated', () => {

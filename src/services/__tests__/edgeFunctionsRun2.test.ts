@@ -36,6 +36,14 @@ describe('admin-users: revogação de sessões (auditoria run-2 #9)', () => {
   it('trata falha de auditoria como falha', () => {
     expect(source).toContain('if (error) throw new Error(`audit_logs:')
   })
+
+  it('troca de credencial revoga por último e mesmo com falha da auditoria (migration 407)', () => {
+    const branch = source.slice(source.indexOf("body.action === 'update_credentials'"), source.indexOf("body.action === 'deactivate'"))
+    const finallyAt = branch.indexOf('} finally {')
+    expect(finallyAt).toBeGreaterThan(branch.indexOf("await audit(userId, 'password'"))
+    expect(branch.indexOf('await revokeSessions(userId)')).toBeGreaterThan(finallyAt)
+    expect(branch).toContain('session_ended: credentialChanged && userId === actorId')
+  })
 })
 
 const fn = (name: string) => readFileSync(`supabase/functions/${name}/index.ts`, 'utf8')
