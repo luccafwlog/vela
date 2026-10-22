@@ -396,7 +396,13 @@ ou validade soma `itau_pix_charges.change_version`, e o runner devolve a versão
 que reservou: se o valor mudou enquanto o Itaú respondia (desconto, PTAX), o
 resultado não ativa a cobrança, que fica em `pending_update` para a versão nova
 seguir na mesma execução. Sem isso, o QR cobrava o valor antigo enquanto a fatura
-e o Portal mostravam o novo.
+e o Portal mostravam o novo. Desde a migration `417`, o mesmo vale para a cobrança
+de Demurrage em conferência de vencimento: o valor novo fica gravado na linha e,
+se o banco disser que ela segue viva, ela vai como alteração. Na mesma migration,
+a exceção do extrato já resolvida não tem TXID, valor e data reescritos por uma
+nova importação, e a baixa repetida com a mesma chave depois de cancelada é
+recusada ("Esta baixa foi cancelada…") em vez de devolver o sucesso guardado.
+**Teste:** `src/integration/consistenciaOperacaoFinanceiro.local-pg.test.ts`.
 
 **Baixa automática (migration 152):** a função consulta `GET /pix` e chama
 `itau_pix_settle` para cada Pix com TXID `VELA…`, que baixa pelos mesmos

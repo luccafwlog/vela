@@ -167,5 +167,6 @@ src/integration/guardasAntesDoTrabalho.local-pg.test.ts
 src/integration/disputasReaberturaSemOraculo.local-pg.test.ts
 src/integration/desbloqueioCeGuardasDeDono.local-pg.test.ts
 src/integration/portalRegrasDocumentadas.local-pg.test.ts
+src/integration/consistenciaOperacaoFinanceiro.local-pg.test.ts
 src/integration/baldeLoginReservaAtomica.local-pg.test.ts
 src/integration/autorDosEventosDoPortal.local-pg.test.ts
