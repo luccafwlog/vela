@@ -6,6 +6,24 @@
 
 ## 2026-10
 
+- **Reforços da auditoria de segurança run-3 (2026-10-22, notas de endurecimento):** migrations
+  `413` a `419`. Banco: guardas de permissão antes das travas (baixa de 8 argumentos, rascunho do
+  Desbloqueio de CE), rotinas só do sistema recusam outro chamador, Cliente desativado sai do Portal
+  na hora e não recebe aviso de CE, Disputas com teto de pedido de reabertura e reabertura só da
+  resolvida, Invoice reemitida sem a Dispute do Cliente anterior, sem oráculo de ids no Portal,
+  consolidada/convite/recuperação/bounce na regra documentada, exceção PIX resolvida imutável, baixa
+  cancelada não volta como sucesso, Demurrage em conferência de vencimento não perde o valor novo,
+  exclusão de id inexistente não descarta efeitos, histórico da troca da própria senha e reserva
+  Itaú não chamada sem tentativa a mais. Edge Functions: leitura do corpo com limite em streaming
+  (webhook confere a assinatura antes de ler), JSON lido depois do papel, sem chave `service_role`
+  entre funções, assunto e anexo de Comunicado sem quebra de linha, dados do pagador fora do erro
+  Itaú gravado. Navegador: guarda de rota nos links de Alerta, leitura de XLSX/DOCX limitada e
+  linear, CSV e chaves de planilha sem fórmula, telemetria limpa em profundidade, clientes de Auth
+  criados por aplicativo, troca de Cliente no Portal limpa a sessão anterior. Scripts e CI: backup
+  com SSL obrigatório e ambiente mínimo para cada processo, `rpc:check` sem senha no log, actions
+  fixadas por SHA, `persist-credentials: false`, cabeçalhos de segurança em `/assets`,
+  `form-action 'self'`, `package-lock` com `integrity` em todas as entradas e checagem de trava
+  antes da guarda em `verificar_guardas.py`.
 - **Meu perfil: a troca de senha envia a senha atual ao Auth (2026-10-22, auditoria de segurança
   run-3, pendência P1):** a conferência da senha atual era só da tela; um token roubado trocava a
   senha direto no Auth. Agora `current_password` vai na troca; a proteção no servidor passa a valer
