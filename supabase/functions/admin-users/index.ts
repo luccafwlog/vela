@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { decideInternalTarget } from '../_shared/internalUserTarget.ts'
 import { releasePreviousEmailSuppression } from '../_shared/internalUserEmailSuppression.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
+import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
 
 const MANAGED_PROFILES = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']
 const isValidEmail = (value: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)
@@ -28,7 +29,6 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return json(204, null, origin)
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, origin)
 
-  const body = await req.json().catch(() => ({})) as Payload
   const url = Deno.env.get('SUPABASE_URL')!
   const anon = Deno.env.get('SUPABASE_ANON_KEY')!
   const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -41,6 +41,11 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   const { data: callerUser } = await caller.auth.getUser()
   const actorId = callerUser.user?.id ?? null
   if (!actorId) return json(404, { error: 'permission denied' }, origin)
+
+  // Corpo lido só depois do papel e com teto (auditoria run-3).
+  const parsed = await readBoundedJsonBody(req, SMALL_JSON_MAX_BYTES)
+  if (parsed.tooLarge) return json(413, { error: 'Requisição acima do tamanho permitido.' }, origin)
+  const body = parsed.value as Payload
 
   // service_role restrito ao que exige privilégio de autenticação.
   const admin = createClient(url, service)

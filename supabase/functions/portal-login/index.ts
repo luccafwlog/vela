@@ -6,6 +6,7 @@ import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.
 import { AuthUpstreamError, sessionOrRefusal } from '../_shared/authRefusal.ts'
 import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
+import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
 
 const GENERIC_ERROR = 'CNPJ ou senha inválidos.'
 
@@ -31,7 +32,9 @@ if (typeof Deno !== 'undefined') {
     if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, origin)
 
     try {
-      const body = await req.json().catch(() => ({})) as { cnpj?: unknown; password?: unknown; turnstile_token?: unknown }
+      const parsed = await readBoundedJsonBody(req, SMALL_JSON_MAX_BYTES)
+      if (parsed.tooLarge) return json(413, { error: 'Requisição acima do tamanho permitido.' }, origin)
+      const body = parsed.value as { cnpj?: unknown; password?: unknown; turnstile_token?: unknown }
       if (!await verifyTurnstileRequest(req, body.turnstile_token, 'portal_login')) {
         return json(403, { error: 'Verificação de segurança inválida. Atualize e tente novamente.' }, origin)
       }

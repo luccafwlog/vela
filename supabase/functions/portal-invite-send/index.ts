@@ -5,6 +5,7 @@ import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
 
 const json = (status: number, body: unknown, origin: string | null) => new Response(body === null ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) } })
 const maskCnpj = (value: string) => { const d = value.replace(/[^0-9a-z]/gi, '').toUpperCase(); return d.length === 14 ? `${d.slice(0, 2)}.***.***/${d.slice(8, 12)}-${d.slice(12)}` : '***' }
@@ -13,8 +14,6 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   const origin = req.headers.get('Origin')
   if (req.method === 'OPTIONS') return json(204, null, origin)
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, origin)
-  const body = await req.json().catch(() => ({})) as { customer_id?: number; recovery_email?: string; recovery_email_source?: string; reason?: string }
-  if (!body.customer_id || !body.recovery_email?.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) return json(422, { error: 'Email inválido.' }, origin)
   const url = Deno.env.get('SUPABASE_URL')!; const anon = Deno.env.get('SUPABASE_ANON_KEY')!; const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const jwt = req.headers.get('Authorization') ?? ''
   const caller = createClient(url, anon, { global: { headers: { Authorization: jwt } } })
@@ -25,6 +24,11 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   const { data: callerUser, error: callerError } = await caller.auth.getUser()
   const actorId = callerUser?.user?.id
   if (callerError || !actorId) return json(403, { error: 'permission denied' }, origin)
+  // Corpo lido só depois do papel e com teto (auditoria run-3).
+  const parsed = await readBoundedJsonBody(req, SMALL_JSON_MAX_BYTES)
+  if (parsed.tooLarge) return json(413, { error: 'Requisição acima do tamanho permitido.' }, origin)
+  const body = parsed.value as { customer_id?: number; recovery_email?: string; recovery_email_source?: string; reason?: string }
+  if (!body.customer_id || !body.recovery_email?.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) return json(422, { error: 'Email inválido.' }, origin)
   const email = body.recovery_email.toLowerCase()
   const { data: suppressed } = await admin.from('portal_suppressed_emails').select('id').eq('email', email).maybeSingle()
   if (suppressed) return json(422, { error: 'Endereço suprimido por bounce/complaint. Informe outro.' }, origin)
