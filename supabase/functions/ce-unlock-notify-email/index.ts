@@ -23,16 +23,27 @@ if (typeof Deno !== "undefined") {
       if (!cached) {
         cached = (async () => {
           const [request, items, moved] = await Promise.all([
-            admin.from("ce_unlock_requests").select("protocol").eq("id", requestId).maybeSingle(),
+            admin.from("ce_unlock_requests").select("protocol, customer_id").eq("id", requestId).maybeSingle(),
             admin.from("ce_unlock_request_bls").select("bl_id").eq("request_id", requestId).order("bl_id"),
             admin.from("ce_unlock_events").select("bl_id").eq("request_id", requestId).eq("action", "bl_moved"),
           ]);
           if (request.error) throw request.error;
           if (items.error) throw items.error;
           if (moved.error) throw moved.error;
+          const requestRow = request.data as { protocol?: string; customer_id?: number } | null;
+          const itemRows = (items.data ?? []) as Array<{ bl_id: string }>;
+          // Só B/L que ainda é do Cliente da solicitação, como a visão do Portal (request_json).
+          const owned = itemRows.length && requestRow?.customer_id != null
+            ? await admin.from("bls").select("id").in("id", itemRows.map((item) => item.bl_id)).eq("customer_id", requestRow.customer_id)
+            : { data: [], error: null };
+          if (owned.error) throw owned.error;
           return {
-            protocol: (request.data as { protocol?: string } | null)?.protocol ?? "",
-            bls: ceUnlockNoticeBls((items.data ?? []) as Array<{ bl_id: string }>, (moved.data ?? []) as Array<{ bl_id: string | null }>),
+            protocol: requestRow?.protocol ?? "",
+            bls: ceUnlockNoticeBls(
+              itemRows,
+              (moved.data ?? []) as Array<{ bl_id: string | null }>,
+              ((owned.data ?? []) as Array<{ id: string }>).map((bl) => bl.id),
+            ),
           };
         })();
         requestCache.set(requestId, cached);

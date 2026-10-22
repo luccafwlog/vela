@@ -214,9 +214,19 @@ describe('e-mail ao cliente', () => {
   it('o bloco da solicitação deixa de fora o B/L que passou para outra solicitação, e mantém o confirmado', () => {
     // MEDU2 mudou para outra solicitação (bl_moved); MEDU3 foi confirmado (também active=false) e continua.
     const items = [{ bl_id: 'MEDU1' }, { bl_id: 'MEDU2' }, { bl_id: 'MEDU3' }]
-    expect(ceUnlockNoticeBls(items, [{ bl_id: 'MEDU2' }])).toEqual(['MEDU1', 'MEDU3'])
-    expect(ceUnlockNoticeBls(items, [])).toEqual(['MEDU1', 'MEDU2', 'MEDU3'])
-    expect(ceUnlockNoticeBls([{ bl_id: 'MEDU2' }], [{ bl_id: 'MEDU2' }])).toEqual([])
+    const all = ['MEDU1', 'MEDU2', 'MEDU3']
+    expect(ceUnlockNoticeBls(items, [{ bl_id: 'MEDU2' }], all)).toEqual(['MEDU1', 'MEDU3'])
+    expect(ceUnlockNoticeBls(items, [], all)).toEqual(['MEDU1', 'MEDU2', 'MEDU3'])
+    expect(ceUnlockNoticeBls([{ bl_id: 'MEDU2' }], [{ bl_id: 'MEDU2' }], all)).toEqual([])
+  })
+
+  it('o bloco da solicitação deixa de fora o B/L que já é de outro Cliente (auditoria run-3)', () => {
+    // MEDU2 trocou de Cliente: some do aviso, como some da visão do Portal.
+    const items = [{ bl_id: 'MEDU1' }, { bl_id: 'MEDU2' }, { bl_id: 'MEDU3' }]
+    expect(ceUnlockNoticeBls(items, [], ['MEDU1', 'MEDU3'])).toEqual(['MEDU1', 'MEDU3'])
+    expect(ceUnlockNoticeBls(items, [], [])).toEqual([])
+    const source = readFileSync('supabase/functions/ce-unlock-notify-email/index.ts', 'utf8')
+    expect(source).toContain('.from("bls").select("id").in("id", itemRows.map((item) => item.bl_id)).eq("customer_id", requestRow.customer_id)')
   })
 
   // Asserção de texto do SQL: confere o contrato da migration, não a execução.

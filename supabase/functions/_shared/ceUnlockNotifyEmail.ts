@@ -44,10 +44,17 @@ export type NotifySummary = { sent: number; partialSuppressed: number; simulated
  * B/Ls do bloco "Solicitação" do aviso. O B/L que passou para outra solicitação
  * (evento `bl_moved`) segue na tabela com `active=false`, mas saiu desta, como em
  * `request_json` (migration `301`); o B/L confirmado também fica inativo e continua.
+ * `owned` são os B/Ls que ainda são do Cliente da solicitação: o que trocou de
+ * Cliente fica fora, como na visão do Portal em `request_json` (auditoria run-3).
  */
-export function ceUnlockNoticeBls(items: ReadonlyArray<{ bl_id: string }>, moved: ReadonlyArray<{ bl_id: string | null }>): string[] {
+export function ceUnlockNoticeBls(
+  items: ReadonlyArray<{ bl_id: string }>,
+  moved: ReadonlyArray<{ bl_id: string | null }>,
+  owned: ReadonlyArray<string>,
+): string[] {
   const out = new Set(moved.map((event) => event.bl_id))
-  return items.map((item) => item.bl_id).filter((bl) => !out.has(bl))
+  const current = new Set(owned)
+  return items.map((item) => item.bl_id).filter((bl) => !out.has(bl) && current.has(bl))
 }
 
 function errorMessage(error: unknown): string {
