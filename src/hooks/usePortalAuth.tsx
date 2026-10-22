@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Sentry from '@sentry/react'
 import { supabasePortal } from '../services/supabase'
@@ -60,6 +60,11 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [signOutError, setSignOutError] = useState<string | null>(null)
+  // Usuário do Auth dono do `overview` e do cache do Portal. Um login em outra
+  // aba com outro Cliente troca a sessão compartilhada (`td-portal-auth`) e
+  // chega aqui como SIGNED_IN de outro id: o estado do Cliente anterior não
+  // pode continuar na tela.
+  const sessionUserIdRef = useRef<string | null>(null)
 
   const clearPortalQueries = useCallback(() => {
     queryClient.removeQueries({
@@ -72,6 +77,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
   }, [queryClient])
 
   const clearSession = useCallback(() => {
+    sessionUserIdRef.current = null
     setOverview(null)
     Sentry.setUser(null)
     setTelemetrySessionEnded(true)
@@ -86,6 +92,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
       try {
         const { data: { session } } = await supabasePortal.auth.getSession()
         if (!session) return
+        sessionUserIdRef.current = session.user?.id ?? null
 
         const ov = await fetchOverview()
         if (mounted) {
@@ -103,17 +110,27 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
     }
 
     void hydrate()
-    const { data: { subscription } } = supabasePortal.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabasePortal.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         clearSession()
         return
       }
 
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && !hydrating) {
+        const nextUserId = session?.user?.id ?? null
+        const previousUserId = sessionUserIdRef.current
+        const userChanged = previousUserId !== null && nextUserId !== null && nextUserId !== previousUserId
+        if (nextUserId !== null) sessionUserIdRef.current = nextUserId
+        if (userChanged) {
+          setOverview(null)
+          clearPortalQueries()
+        }
         void fetchOverview()
           .then((ov) => {
-            if (mounted) setOverview((current) => current ?? ov)
-            if (mounted) setPortalTelemetryUser()
+            // Resposta de uma sessão que já foi trocada não vale mais.
+            if (!mounted || (nextUserId !== null && sessionUserIdRef.current !== nextUserId)) return
+            setOverview((current) => (userChanged ? ov : current ?? ov))
+            setPortalTelemetryUser()
           })
           .catch((error) => {
             if (isPortalSessionError(error) && mounted) clearSession()
@@ -125,7 +142,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [clearSession])
+  }, [clearSession, clearPortalQueries])
 
   const signIn = useCallback(async (cnpj: string, password: string, turnstileToken?: string) => {
     setLoading(true)
@@ -137,8 +154,9 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
       if (turnstileToken) payload.turnstile_token = turnstileToken
       const { data, error } = await supabasePortal.functions.invoke('portal-login', { body: payload })
       if (error || !data?.access_token) throw new Error('CNPJ ou senha inválidos.')
-      const { error: sessionError } = await supabasePortal.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
+      const { data: sessionData, error: sessionError } = await supabasePortal.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
       if (sessionError) throw new Error('CNPJ ou senha inválidos.')
+      sessionUserIdRef.current = sessionData?.session?.user?.id ?? sessionUserIdRef.current
       const ov = await fetchOverview()
       setOverview(ov)
       setPortalTelemetryUser()

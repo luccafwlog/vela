@@ -259,7 +259,9 @@ O `PortalAuthProvider` também assina `supabasePortal.auth.onAuthStateChange`.
 Eventos `SIGNED_OUT` limpam o overview local e removem todos os caches TanStack
 Query com chave iniciada por `portal-`, cobrindo logout em outra aba e falha de
 refresh de token. Eventos `SIGNED_IN` e `TOKEN_REFRESHED` reidratam o overview
-quando necessário, sem compartilhar estado com a sessão interna.
+quando necessário, sem compartilhar estado com a sessão interna. Se o evento
+traz outro usuário do Auth (login de outro Cliente em outra aba), o overview e
+os mesmos caches são descartados antes de carregar o do novo Cliente.
 
 O provisionamento operacional mantém decisão e situação da conta em eixos
 separados em `customer_portal_accounts`. Convites, tentativas/eventos de email,
