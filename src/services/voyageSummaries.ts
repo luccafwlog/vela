@@ -762,7 +762,7 @@ export function buildVoyageTimeline({
 /** Linha automática da importação de B/L que vai para o evento do lote. */
 const ATD_FROM_BL_IMPORT = /^ATD derivado do menor Laden on Board.*importação do B\/L/
 export const DOCUMENTAL_AUTOMATIC_REASON = 'Atualização automática de BLs e CEs pela conciliação documental'
-/** Contexto que a gravação grava na justificativa automática (migration 412); sem contexto, linha antiga. */
+/** Contexto que a gravação grava na justificativa automática (migration 412); sem contexto, não veio de importação. */
 const DOCUMENTAL_IMPORT_CONTEXT = /\((Importação de [^)]*)\)\s*$/
 const IMPORT_FOLD_WINDOW_MS = 120_000
 
@@ -772,8 +772,8 @@ function isFoldableImportRow(row: TimelineAuditEvent) {
   if (row.field_name !== 'ces' && row.field_name !== 'export_ces') return false
   if (!reason.startsWith(DOCUMENTAL_AUTOMATIC_REASON)) return false
   const context = reason.match(DOCUMENTAL_IMPORT_CONTEXT)?.[1]
-  // Outra importação (Baplie, CE Mercante) fica no evento próprio.
-  return !context || /^Importação de (B\/L|Manifesto BB)/.test(context)
+  // Sem contexto (edição manual) ou outra importação (Baplie, CE Mercante): evento próprio.
+  return !!context && /^Importação de (B\/L|Manifesto BB)/.test(context)
 }
 
 /**

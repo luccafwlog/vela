@@ -119,6 +119,11 @@ export function useFilteredSelection<K extends RowKey, V = K>({
       clear()
       return
     }
+    // O teto vale para toda tela, carregue ela a lista inteira ou página a página.
+    if (totalCount > SELECT_ALL_CAP) {
+      setLoadError(capMessage(totalCount))
+      return
+    }
     const current = ++request.current
     setLoadingAll(true)
     setLoadError(null)
@@ -132,7 +137,7 @@ export function useFilteredSelection<K extends RowKey, V = K>({
     } finally {
       if (current === request.current) setLoadingAll(false)
     }
-  }, [allSelected, clear, key])
+  }, [allSelected, clear, key, totalCount])
 
   return useMemo(() => ({
     selected,
@@ -169,7 +174,7 @@ export async function loadAllPageKeys<T, K>(
 ): Promise<K[]> {
   const first = await readPage(firstPage)
   if (first.count > cap) {
-    throw new Error(`O filtro tem ${first.count.toLocaleString('pt-BR')} linhas; a seleção vai até ${cap.toLocaleString('pt-BR')}. Refine o filtro.`)
+    throw new Error(capMessage(first.count, cap))
   }
   const pages = Math.ceil(first.count / pageSize)
   const keys = new Set(first.rows.map(keyOf))
@@ -183,3 +188,7 @@ export async function loadAllPageKeys<T, K>(
 }
 
 export const SELECT_ALL_CAP = 10_000
+
+function capMessage(count: number, cap = SELECT_ALL_CAP) {
+  return `O filtro tem ${count.toLocaleString('pt-BR')} linhas; a seleção vai até ${cap.toLocaleString('pt-BR')}. Refine o filtro.`
+}

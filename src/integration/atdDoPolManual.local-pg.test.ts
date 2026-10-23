@@ -223,6 +223,16 @@ describeLocal('401 — ATD do POL: correção manual vence e só B/Ls ativos con
     expect(atd(manual)).toBe('2026-09-14')
   })
 
+  it('415: B/L com POL apelido (BRSEP) substitui a saída confirmada em BRIGI e grava na escala BRIGI', () => {
+    scheduleEtd('BRIGI', '2026-09-15')
+    expect(confirm('BRIGI', 'pol', '2026-09-16').status).toBe(0)
+    const a = blAt('C4', 'BRSEP', '2026-09-18')
+    importOk([line(a, 'BRSEP', '2026-09-18')])
+    expect(atd('BRIGI')).toBe('2026-09-18')
+    expect(confirmedMark('BRIGI')).toBe('none')
+    expect(atd('BRSEP')).toBe('none')
+  })
+
   it('414: a chegada confirmada grava o ATA com hora; recusa sem hora, futura ou porto sem programação', () => {
     w.psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value, justification)
       VALUES ('voyage_pod_schedule', '${w.voyageId}::BRCNF', 'eta', '2026-09-15', 'fixture 414')`)

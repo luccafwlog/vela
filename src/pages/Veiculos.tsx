@@ -407,6 +407,8 @@ export function Veiculos() {
             <BulkActionsBar
               count={selection.count}
               total={selection.totalCount}
+              loadingAll={selection.loadingAll}
+              loadError={selection.loadError}
               onClear={selection.clear}
               onDelete={canDeleteVehicles ? () => runDelete([...selection.selected], `Excluir ${selection.count} veículo(s) selecionado(s)?`) : undefined}
               deleting={deleting}

@@ -62,3 +62,12 @@ it('lê todas as páginas do servidor e recusa acima do teto', async () => {
   expect(readPage.mock.calls.map(([page]) => page)).toEqual([1, 2, 3])
   await expect(loadAllPageKeys(readPage, (row) => row.id, { pageSize: 100, cap: 200 })).rejects.toThrow(/O filtro tem 250 linhas; a seleção vai até 200/)
 })
+
+it('acima do teto, o selecionar todos não lê nada e pede para refinar, qualquer que seja a tela', async () => {
+  const loadAll = vi.fn(async () => ['a'])
+  const { result } = renderHook(() => useFilteredSelection<string>({ scope: null, totalCount: 10_001, loadAll }))
+  await act(async () => { await result.current.toggleAll() })
+  expect(loadAll).not.toHaveBeenCalled()
+  expect(result.current.count).toBe(0)
+  expect(result.current.loadError).toMatch(/Refine o filtro/)
+})

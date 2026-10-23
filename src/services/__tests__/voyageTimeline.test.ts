@@ -391,4 +391,15 @@ describe('linha do tempo da viagem — revisão de 2026-10-22', () => {
     expect(ce?.title).toBe('CE atualizado · BRVIX')
     expect(ce?.detail).toBe('Aguardando → Recebido · Automático: os 2 containers cheios do Baplie em BRVIX têm B/L ativo (Importação de Baplie · Viagem GREEN ITAJAI 11)')
   })
+  it('F2: status automático sem contexto de importação (edição manual) não entra no lote importado logo antes', () => {
+    const events = buildVoyageTimeline({
+      importBatches: [{ id: 32, filename: 'bls.xlsx', cargo_mode: 'container', uploaded_at: '2026-10-22T12:00:00Z', routes: [{ pol: 'CNSHA', pod: 'BRVIX', blCount: 1 }] }],
+      scheduleEvents: [
+        { entity_id: '7::BRVIX', field_name: 'ces', old_value: 'waiting', new_value: 'received', changed_at: '2026-10-22T12:01:00Z',
+          justification: 'Atualização automática de BLs e CEs pela conciliação documental: os 2 containers cheios do Baplie em BRVIX têm B/L ativo' },
+      ],
+    })
+    expect(events.find((event) => event.kind === 'ce-status')?.title).toBe('CE atualizado · BRVIX')
+    expect(events.find((event) => event.kind === 'import')?.detail).not.toContain('BLs e CEs')
+  })
 })

@@ -421,6 +421,11 @@ export function DesbloqueioCe() {
                 </div>
               </div>
             )}
+            {selection.loadError ? (
+              <div className="app-block__body">
+                <InlineError message={selection.loadError} />
+              </div>
+            ) : null}
             <QueryStateGate
               isLoading={false}
               isError={Boolean(list.error)}
