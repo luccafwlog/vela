@@ -159,3 +159,11 @@ describe('e-mails sem o domínio do portal antigo (ponto 4)', () => {
     expect(offenders).toEqual([])
   })
 })
+
+// Revisão do PR: configuração antiga terminando em `/billing` continua gerando
+// o link certo, como faziam os normalizadores que o módulo substituiu.
+it('URL configurada com /billing ou /portal/billing leva a /portal/billing', () => {
+  for (const configured of ['https://portalfwlog.com.br/billing', 'https://portalfwlog.com.br/portal/billing', 'https://portalfwlog.com.br/billing/']) {
+    expect(portalPageUrl('billing', configured)).toBe('https://portalfwlog.com.br/portal/billing')
+  }
+})

@@ -21,13 +21,15 @@ function isLegacyHost(hostname: string): boolean {
 
 /**
  * Origem (esquema e host, sem `/portal` nem barra final) a partir do valor
- * configurado, que pode vir com `/portal`, `/portal/billing` ou sem esquema.
+ * configurado, que pode vir com `/portal`, `/portal/billing`, `/billing` ou sem esquema.
  * Vazio ou domínio antigo dão a origem de produção.
  */
 export function portalOrigin(configured?: string | null): string {
   const raw = (configured ?? '').trim().replace(/\/+$/, '')
   if (!raw) return PORTAL_ORIGIN
-  const origin = raw.replace(/\/portal(?:\/.*)?$/, '').replace(/\/+$/, '') || PORTAL_ORIGIN
+  // Configuração antiga terminava em `/billing` (com ou sem `/portal` antes):
+  // os normalizadores que este módulo substituiu tiravam esse sufixo.
+  const origin = raw.replace(/\/portal(?:\/.*)?$/, '').replace(/\/billing$/, '').replace(/\/+$/, '') || PORTAL_ORIGIN
   try {
     const parsed = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `https://${origin}`)
     if (isLegacyHost(parsed.hostname)) return PORTAL_ORIGIN
