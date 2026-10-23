@@ -280,3 +280,35 @@ describe('Cobertura de viagens na ordem da escala', () => {
     expect(result.map((r) => r.voyageId)).toEqual([20, 10])
   })
 })
+
+// Ponto 8 de 2026-10-23: o link de um Comunicado mostrava só ele no Histórico,
+// como se houvesse um envio só. A causa estava na consulta (filtro por id), não
+// na gravação: cada envio é uma linha. Agora o link abre todos os envios do
+// mesmo Cliente na mesma viagem.
+describe('Histórico aberto pelo link de um Comunicado', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('busca todos os Comunicados do Cliente na viagem, não só o do link', async () => {
+    const focus = queryResult(null)
+    focus.maybeSingle = vi.fn(async () => ({ data: { id: 17, customer_id: 5, anchor_voyage_id: 7 }, error: null }))
+    const list = queryResult([
+      { id: 18, customer_id: 5, kind: 'aviso_chegada_noa', anchor_voyage_id: 7, created_at: '2026-10-21T10:00:00Z' },
+      { id: 17, customer_id: 5, kind: 'ce_mercante_taxas', anchor_voyage_id: 7, created_at: '2026-10-20T19:19:00Z' },
+    ])
+    mockFrom.mockReturnValueOnce(focus).mockReturnValueOnce(list)
+    const rows = await fetchCustomerCommunicationHistory({ id: 17 })
+    expect(rows.map((row) => row.id)).toEqual([18, 17])
+    expect(focus.eq).toHaveBeenCalledWith('id', 17)
+    expect(list.eq).toHaveBeenCalledWith('customer_id', 5)
+    expect(list.eq).toHaveBeenCalledWith('anchor_voyage_id', 7)
+    expect(list.eq).not.toHaveBeenCalledWith('id', 17)
+  })
+
+  it('Comunicado inexistente devolve vazio sem consultar a lista', async () => {
+    const focus = queryResult(null)
+    focus.maybeSingle = vi.fn(async () => ({ data: null, error: null }))
+    mockFrom.mockReturnValueOnce(focus)
+    expect(await fetchCustomerCommunicationHistory({ id: 999 })).toEqual([])
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+})

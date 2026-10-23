@@ -203,6 +203,8 @@ async function recordDunningAttempt({
   const { data, error } = await admin.from('customer_communication_attempts').insert({
     communication_id: communicationId,
     recipient_masked: maskEmail(to),
+    // Endereço exato para o Histórico interno (migration 451, ponto 8 de 2026-10-23).
+    recipient_email: to,
     recipient_key: recipientIdentity,
     status: 'aceito',
     dispatch_mode: communicationsEnabled ? 'real' : 'simulado',

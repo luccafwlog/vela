@@ -1023,6 +1023,8 @@ export async function fetchCustomerCommunicationConference(input: {
 export type CustomerCommunicationAttemptHistory = {
   id: number
   recipient_masked: string
+  /** E-mail exato do envio (migration 451); nulo nos envios anteriores e depois da retenção de 1 ano. */
+  recipient_email?: string | null
   dispatch_mode: 'real' | 'simulado'
   status: string
   retry_count: number
@@ -1347,10 +1349,26 @@ export async function saveCustomerCommunicationSavedTemplate(input: { name: stri
   return data as number
 }
 
-const COMMUNICATION_HISTORY_SELECT = 'id, customer_id, kind, nature, anchor_voyage_id, anchor_port, anchor_atracacao_id, anchor_invoice_id, attempt_discriminator, status, dispatch_id, vessel_name, voyage_number, terminal_name, created_by, origin, created_at, customer:customers(id, name, cnpj_cpf), attempts:customer_communication_attempts(id, recipient_masked, dispatch_mode, status, retry_count, provider_message_id, last_error, created_at, updated_at), bl_links:customer_communication_bls(bl_id), attachments:customer_communication_attachments(id, file_name, mime_type, storage_path, size_bytes, created_at)'
+const COMMUNICATION_HISTORY_SELECT = 'id, customer_id, kind, nature, anchor_voyage_id, anchor_port, anchor_atracacao_id, anchor_invoice_id, attempt_discriminator, status, dispatch_id, vessel_name, voyage_number, terminal_name, created_by, origin, created_at, customer:customers(id, name, cnpj_cpf), attempts:customer_communication_attempts(id, recipient_masked, recipient_email, dispatch_mode, status, retry_count, provider_message_id, last_error, created_at, updated_at), bl_links:customer_communication_bls(bl_id), attachments:customer_communication_attachments(id, file_name, mime_type, storage_path, size_bytes, created_at)'
 
 export async function fetchCustomerCommunicationHistory(input?: number | CustomerCommunicationHistoryFilters): Promise<CustomerCommunicationHistoryItem[]> {
-  const filters: CustomerCommunicationHistoryFilters = typeof input === 'number' ? { customerId: input } : (input ?? {})
+  let filters: CustomerCommunicationHistoryFilters = typeof input === 'number' ? { customerId: input } : (input ?? {})
+  // Ponto 8 de 2026-10-23: o link de um Comunicado (Cobertura, ficha, B/L) mostrava
+  // só ele, e o Histórico parecia ter um envio só. Agora abre todos os envios do
+  // mesmo Cliente na mesma viagem; a tela deixa aberto o Comunicado do link.
+  if (filters.id != null) {
+    const { data: focus, error: focusError } = await supabase
+      .from('customer_communications')
+      .select('id, customer_id, anchor_voyage_id')
+      .eq('id', filters.id)
+      .maybeSingle()
+    if (focusError) throw focusError
+    if (!focus) return []
+    const anchor = focus as { customer_id: number | null; anchor_voyage_id: number | null }
+    if (anchor.customer_id != null) {
+      filters = { ...filters, id: undefined, customerId: filters.customerId ?? anchor.customer_id, voyageId: filters.voyageId ?? anchor.anchor_voyage_id ?? undefined }
+    }
+  }
   const rows: CustomerCommunicationHistoryItem[] = []
   let blCommunicationIds: number[] | null = null
   if (filters.blId?.trim()) {
