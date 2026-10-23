@@ -96,6 +96,8 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(portCodeVariants('CNTAO')).toEqual(expect.arrayContaining(['CNTAO', 'QINGDAO', 'QINDGAO']))
     expect(portCodeVariants('PECEM')).toEqual(expect.arrayContaining(['BRPEC', 'PECEM']))
     expect(portCodeVariants('CNTAC')).toEqual(expect.arrayContaining(['CNTAC', 'TAICANG', 'CNTAG']))
+    // B/L e vazio anteriores à 410 continuam com BRSEP: a escala BRIGI os acha.
+    expect(portCodeVariants('BRIGI')).toEqual(expect.arrayContaining(['BRIGI', 'SEPETIBA', 'ITAGUAI', 'BRSEP', 'BRSPB', 'SPB', 'SEP', 'IGI']))
     expect(portCodeVariants('CNNGB')).toEqual(expect.arrayContaining(['CNNGB', 'ZOS']))
   })
 })

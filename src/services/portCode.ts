@@ -161,7 +161,12 @@ export function portCodeVariants(value: string | null | undefined): string[] {
   for (const [name, code] of PORT_NAME_TO_LOCODE) {
     if (code === canonical) variants.add(name.toUpperCase())
   }
-  if (canonical === 'BRVIX') ['BRVIT', 'VIX', 'VIT'].forEach((alias) => variants.add(alias))
+  // Apelidos exatos que continuam gravados nas colunas cruas (BRSEP de B/L e
+  // vazio anteriores à migration 410): o filtro por escala BRIGI precisa achá-los.
+  for (const [alias, code] of Object.entries(EXACT_PORT_ALIASES)) {
+    if (code === canonical) variants.add(alias)
+  }
+  if (canonical === 'BRVIX') variants.add('BRVIT')
   return [...variants]
 }
 
