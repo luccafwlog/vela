@@ -7,7 +7,8 @@ import { canonicalizeDocument } from '../lib/cnpj'
 import { sanitizeLikeTerm } from '../lib/utils'
 import { operationFrontKindsForCargoMode } from './escalaTerminalAllocation'
 import { normalizePortCode } from './portCode'
-import { listVoyageEscalaSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
+import { listVoyageEscalaSchedulesByVoyageIds, listVoyagePodSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
+import { compareVoyageRailItems, getProximaEscala } from './voyageSummaries'
 import { supabase } from './supabase'
 import { toError } from '../lib/errors'
 import { formatCommunicationDateTime, type CustomerCommunicationKind, type CustomerCommunicationTemplateInput } from './customerCommunicationTemplates'
@@ -1184,6 +1185,35 @@ export type CoverageVoyageRow = { id: number; voyage_number: string; vessel: { n
 export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null }
 export type CoverageCommunicationRow = { id?: number; customer_id: number | null; kind: string; status: string; anchor_voyage_id: number | null; anchor_port: string | null; anchor_atracacao_id: string | null; created_at: string }
 export type CoverageTerminalStateRow = { id: string; voyage_id: number; port: string; terminal_atb: string | null }
+/** Escala (POD) da viagem para a ordem da Cobertura: ETA, ETB, ATA e omissão. */
+export type CoverageEscalaRow = { pod: string; eta: string | null; etb: string | null; ata: string | null; omitted?: boolean }
+
+/**
+ * Ordem da Cobertura na ordem da escala (ponto 7 de 2026-10-23), a mesma regra
+ * das faixas de Viagens, Veículos e Baplie (`compareVoyageRailItems`): a viagem
+ * da escala mais próxima primeiro e a mais distante embaixo, e dentro da viagem
+ * os portos pela ETA (sem ETA no fim). A ordem anterior era a de cadastro da
+ * viagem, com os portos em ordem alfabética.
+ */
+export function orderCoverageByEscala<T extends { voyageId: number; vesselName: string; voyageNumber: string; port: string | null }>(
+  rows: readonly T[],
+  escalas: ReadonlyMap<number, readonly CoverageEscalaRow[]>,
+): T[] {
+  const proxima = new Map<number, ReturnType<typeof getProximaEscala>>()
+  const portEta = (voyageId: number, port: string | null) => {
+    const code = communicationPortCode(port)
+    const matches = (escalas.get(voyageId) ?? []).filter((escala) => !escala.omitted && communicationPortCode(escala.pod) === code && escala.eta)
+    return matches.length ? matches.map((escala) => escala.eta!).sort()[0] : '\uffff'
+  }
+  const railKey = (row: T) => {
+    if (!proxima.has(row.voyageId)) proxima.set(row.voyageId, getProximaEscala([...(escalas.get(row.voyageId) ?? [])]))
+    return { proximaEscala: proxima.get(row.voyageId) ?? null, vesselName: row.vesselName, voyageNumber: row.voyageNumber }
+  }
+  return [...rows].sort((left, right) => compareVoyageRailItems(railKey(left), railKey(right))
+    || left.voyageId - right.voyageId
+    || portEta(left.voyageId, left.port).localeCompare(portEta(right.voyageId, right.port))
+    || (left.port ?? '').localeCompare(right.port ?? ''))
+}
 
 /**
  * Monta a Cobertura (uma linha por viagem × POD) a partir das linhas já lidas.
@@ -1470,7 +1500,11 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
   const readiness = new Map(readinessEntries.map(([key, value]) => [key, value.ready] as const))
   const customerNames = new Map(customerRows.map((row) => [row.id, row.name] as const))
 
-  return buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames })
+  const escalas = new Map<number, CoverageEscalaRow[]>()
+  for (const schedule of (await listVoyagePodSchedulesByVoyageIds(voyageIds)).values()) {
+    escalas.set(schedule.voyageId, [...(escalas.get(schedule.voyageId) ?? []), schedule])
+  }
+  return orderCoverageByEscala(buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames }), escalas)
 }
 
 /**

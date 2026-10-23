@@ -9,7 +9,7 @@ vi.mock('../supabase', () => ({
   supabase: { from: mockFrom, rpc: mockRpc },
 }))
 
-import { buildVoyageCommunicationCoverage, fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage } from '../customerCommunications'
+import { buildVoyageCommunicationCoverage, fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage, orderCoverageByEscala } from '../customerCommunications'
 
 function queryResult(data: unknown, error: unknown = null) {
   const chain: Record<string, unknown> = {}
@@ -47,6 +47,8 @@ describe('fetchVoyageCommunicationCoverage', () => {
       if (table === 'customer_communications') return commsMock
       if (table === 'voyage_escala_terminal_state') return terminalStatesMock
       if (table === 'customers') return queryResult([{ id: 1, name: 'Cliente 1' }, { id: 2, name: 'Cliente 2' }])
+      // Escalas (POD) das viagens, para a ordem da escala (ponto 7 de 2026-10-23).
+      if (table === 'audit_logs') return queryResult([])
       throw new Error(`Tabela inesperada: ${table}`)
     })
     mockRpc.mockImplementation((name: string, args: { p_customer_id: number }) => name === 'customer_communication_queue_preview'
@@ -219,5 +221,62 @@ describe('buildVoyageCommunicationCoverage — drill-down e fila', () => {
     })
     expect(dueRow.details[0].cells.ce_mercante_taxas.state).toBe('devido')
     expect(dueRow.details[0].cells.aviso_prontidao_nor.state).toBe('nao_devido')
+  })
+})
+
+// Ponto 7 de 2026-10-23: a Cobertura de viagens segue a ordem da escala, a mesma
+// regra das faixas de Viagens, Veículos e Baplie (compareVoyageRailItems).
+describe('Cobertura de viagens na ordem da escala', () => {
+  const row = (voyageId: number, vesselName: string, voyageNumber: string, port: string | null) => ({ voyageId, vesselName, voyageNumber, port })
+
+  it('a escala mais próxima no topo e a mais distante embaixo; portos da viagem pela ETA', () => {
+    const rows = [
+      row(10, 'ALFA', '001', 'BRSSZ'), row(10, 'ALFA', '001', 'BRVIX'),
+      row(20, 'BETA', '002', 'BRSSA'),
+      row(30, 'GAMA', '003', 'BRPNG'),
+      row(40, 'DELTA', '004', null),
+    ]
+    const escalas = new Map([
+      // ALFA: Vitória antes de Santos; a próxima escala da viagem é 05/11.
+      [10, [{ pod: 'BRSSZ', eta: '2026-11-10T08:00:00Z', etb: null, ata: null }, { pod: 'BRVIX', eta: '2026-11-05T08:00:00Z', etb: null, ata: null }]],
+      // BETA chega antes de todas.
+      [20, [{ pod: 'BRSSA', eta: '2026-11-01T08:00:00Z', etb: null, ata: null }]],
+      // GAMA já atracou em tudo: sem próxima escala, vai para o fim.
+      [30, [{ pod: 'BRPNG', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-20T09:00:00Z' }]],
+    ])
+    expect(orderCoverageByEscala(rows, escalas).map((r) => `${r.vesselName} ${r.port ?? '—'}`))
+      .toEqual(['BETA BRSSA', 'ALFA BRVIX', 'ALFA BRSSZ', 'DELTA —', 'GAMA BRPNG'])
+  })
+
+  it('escala omitida não conta como próxima; empate de ETA desempata por ETB, navio e viagem', () => {
+    const escalas = new Map([
+      [1, [{ pod: 'BRSSZ', eta: '2026-11-01T08:00:00Z', etb: null, ata: null, omitted: true }, { pod: 'BRVIX', eta: '2026-11-09T08:00:00Z', etb: null, ata: null }]],
+      [2, [{ pod: 'BRSSZ', eta: '2026-11-05T08:00:00Z', etb: '2026-11-06T08:00:00Z', ata: null }]],
+      [3, [{ pod: 'BRSSZ', eta: '2026-11-05T08:00:00Z', etb: '2026-11-05T20:00:00Z', ata: null }]],
+    ])
+    const ordered = orderCoverageByEscala([row(1, 'A', '1', 'BRVIX'), row(2, 'B', '2', 'BRSSZ'), row(3, 'C', '3', 'BRSSZ')], escalas)
+    expect(ordered.map((r) => r.voyageId)).toEqual([3, 2, 1])
+  })
+
+  it('a tela recebe a Cobertura já ordenada pelas escalas gravadas', async () => {
+    const tables: Record<string, unknown> = {
+      voyages: queryResult([{ id: 10, voyage_number: 'V10', vessel: { name: 'Antigo' } }, { id: 20, voyage_number: 'V20', vessel: { name: 'Novo' } }]),
+      bls: queryResult([
+        { id: 'BL-1', voyage_id: 10, customer_id: 1, pod: 'BRSSZ', ce_mercante: null, financial_status: 'pending' },
+        { id: 'BL-2', voyage_id: 20, customer_id: 1, pod: 'BRVIX', ce_mercante: null, financial_status: 'pending' },
+      ]),
+      customer_communications: queryResult([]),
+      voyage_escala_terminal_state: queryResult([]),
+      customers: queryResult([{ id: 1, name: 'Cliente 1' }]),
+      audit_logs: queryResult([
+        { entity_id: '10::BRSSZ', field_name: 'eta', new_value: '2026-12-01T08:00:00Z', changed_at: '2026-10-01T00:00:00Z' },
+        { entity_id: '20::BRVIX', field_name: 'eta', new_value: '2026-11-02T08:00:00Z', changed_at: '2026-10-01T00:00:00Z' },
+      ]),
+    }
+    mockFrom.mockImplementation((table: string) => tables[table] ?? (() => { throw new Error(`Tabela inesperada: ${table}`) })())
+    mockRpc.mockImplementation((name: string) => Promise.resolve({ data: name === 'customer_communication_queue_preview' ? [] : { ready: false }, error: null }))
+    const result = await fetchVoyageCommunicationCoverage()
+    // A viagem 20, cadastrada depois, chega antes e fica no topo (antes saía pela ordem de cadastro).
+    expect(result.map((r) => r.voyageId)).toEqual([20, 10])
   })
 })
