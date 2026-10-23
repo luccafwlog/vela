@@ -16,7 +16,8 @@ são defesa em profundidade.
 dependências por URL do `esm.sh` (`https://esm.sh/@supabase/supabase-js@2.117.2`)
 sem passar por `supabase/functions/deno.json` e `deno.lock`. O CI confere com
 lock só as funções que ele checa (`ci.yml`, passos "Email Edge Functions type
-check" e o teste de `portal-ce-unlock-document`/`ce-unlock-cleanup`). Não se
+check", "Itaú Pix Edge Function type check and routine status" e o teste de
+`portal-ce-unlock-document`/`ce-unlock-cleanup`). Não se
 sabe se a publicação usa o `deno.lock`: o `supabase functions deploy` resolve
 os imports de novo.
 

@@ -490,3 +490,4 @@ import_map = "./functions/deno.json"
 
 [functions.itau-pix]
 verify_jwt = false
+import_map = "./functions/deno.json"

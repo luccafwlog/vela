@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Rotina Itaú Pix volta a responder 200 (2026-10-23):** desde a v29 (merge da PR
+  luccafwlog/vela#1021 na `main`, 22/10) a `itau-pix` respondia 500 a toda rodada boa: o
+  status vinha de `"error" in charges`, e o resumo da fila sempre tem a chave `error` (contagem
+  das cobranças com erro). A falha agora conta onde é capturada; a função entrou no wrapper do
+  Sentry, cada falha vira uma linha JSON no log e as falhas absorvidas (devolução da vez,
+  renovação, liberação das reservas) também vão ao Sentry. `itau-pix/index.test.ts` roda a função
+  contra banco, Itaú e Sentry falsos, no passo próprio do CI.
 - **Revisão final da PR da auditoria de segurança run-3 (2026-10-23):** migration `439`. Token
   interno do mesmo segundo da revogação é recusado (o renovado antes do corte não sobrevive até
   expirar). Aba VIN do B/L lida só até a última célula presente; avisos do Desbloqueio de CE aceitam o segredo novo e o do

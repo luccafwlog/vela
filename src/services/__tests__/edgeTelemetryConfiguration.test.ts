@@ -19,6 +19,7 @@ const instrumentedFunctions = [
   'customer-communication-auto-runner',
   'import-effects-runner',
   'recalc-demurrage-ptax',
+  'itau-pix',
 ]
 
 describe('Edge telemetry configuration', () => {
