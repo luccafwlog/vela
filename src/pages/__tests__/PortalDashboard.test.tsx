@@ -129,7 +129,9 @@ describe('PortalDashboard (Painel)', () => {
       '/portal/informacoes/agentes', '/portal/informacoes/atendimento', '/portal/informacoes/tracking',
     ])
     expect(screen.queryByText('Chegadas e Saídas')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Programação de navios' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Chegadas e saídas' })).toBeTruthy()
+    // Ponto 1 (2026-10-23): o bloco deixou de se chamar "Programação de navios".
+    expect(screen.queryByText('Programação de navios')).toBeNull()
   })
 
   it('navega para Containers filtrado ao clicar no cartão de containers', async () => {

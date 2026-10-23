@@ -60,7 +60,7 @@ it('renderiza a programação projetada com data efetiva, previsão, omitida e s
   expect(screen.getByText(/sem data em nenhum navio/)).toBeTruthy()
 
   // O cartão do celular segue a mesma ordem e também deixa o porto sem data de fora.
-  const card = within(screen.getByRole('list', { name: 'Programação de navios' })).getByRole('listitem')
+  const card = within(screen.getByRole('list', { name: 'Chegadas e saídas' })).getByRole('listitem')
   const text = card.textContent ?? ''
   expect(text.indexOf('Saída na origem (ETD)')).toBeLessThan(text.indexOf('Chegada no Brasil (ETA)'))
   expect(text).not.toMatch(/Ningbo/i)
@@ -70,7 +70,7 @@ it('não confunde erro de consulta com programação vazia', async () => {
   hookState = { isLoading: false, isError: true }
   render(<ShipScheduleWidget />)
 
-  expect(screen.getByRole('alert').textContent).toContain('Não foi possível carregar a programação de navios.')
+  expect(screen.getByRole('alert').textContent).toContain('Não foi possível carregar chegadas e saídas.')
   expect(screen.queryByText('Nenhum navio programado no momento.')).toBeNull()
   await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
   expect(refetch).toHaveBeenCalled()

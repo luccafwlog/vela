@@ -12,6 +12,9 @@ import { NoValue } from '../ui/NoValue'
 import { RowActionLink } from '../ui/RowActionLink'
 import { StatusText } from '../ui/StatusText'
 
+/** Nome do bloco no Painel do Portal (ponto 1 de 2026-10-23; antes "Programação de navios"). */
+const SCHEDULE_TITLE = 'Chegadas e saídas'
+
 const POL_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pol')
 const POD_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pod')
 
@@ -155,10 +158,11 @@ export function ScheduleWidthPage({ children }: { children: ReactNode }) {
 }
 
 /**
- * Programação de navios no Portal (dono: etapa 03; composto no Painel do
- * Portal pela etapa 19). Mesma projeção e mesmas regras de célula de
- * Chegadas e Saídas, que publica estas datas. Um bloco só (lote 4): o nome
- * do serviço na faixa do título e a legenda no pé.
+ * Chegadas e saídas no Portal (dono: etapa 03; composto no Painel do Portal
+ * pela etapa 19; até 2026-10-23 "Programação de navios"). Mesma projeção e
+ * mesmas regras de célula de Chegadas e Saídas do Vela, que publica estas
+ * datas. Um bloco só (lote 4): o nome do serviço na faixa do título e a
+ * legenda no pé.
  */
 export function ShipScheduleWidget({ className }: { className?: string }) {
   const { data: vessels, isLoading, isError, refetch, isFetching } = usePortalScheduleVoyages()
@@ -169,12 +173,12 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
   const cardPodLanes = POD_LANES.filter((lane) => shownLanes.has(lane))
 
   return (
-    <Block title="Programação de navios" aside="CSSC Container Liner Service Schedule – ECSA" flush className={cn('app-schedule', className)}>
+    <Block title={SCHEDULE_TITLE} aside="CSSC Container Liner Service Schedule – ECSA" flush className={cn('app-schedule', className)}>
       {isLoading ? (
-        <SkeletonTable rows={3} cols={6} label="Carregando a programação de navios" />
+        <SkeletonTable rows={3} cols={6} label="Carregando chegadas e saídas" />
       ) : isError ? (
         <div className="app-schedule__state" role="alert">
-          <p>Não foi possível carregar a programação de navios.</p>
+          <p>Não foi possível carregar chegadas e saídas.</p>
           <Button variant="secondary" className="app-btn--sm" loading={isFetching} loadingLabel="Tentando novamente" onClick={() => void refetch()}>
             Tentar novamente
           </Button>
@@ -184,10 +188,10 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
       ) : (
         <>
           <div className="app-schedule__table">
-            <ScheduleTable vessels={vessels} caption="Programação de navios: saída na origem e chegada no Brasil" />
+            <ScheduleTable vessels={vessels} caption="Chegadas e saídas: saída na origem e chegada no Brasil" />
           </div>
 
-          <ul className="app-schedule__cards" aria-label="Programação de navios">
+          <ul className="app-schedule__cards" aria-label={SCHEDULE_TITLE}>
             {vessels.map((vessel) => (
               <li key={vessel.voyageId} className="app-schedule-card">
                 <div className="app-schedule-card__head">
