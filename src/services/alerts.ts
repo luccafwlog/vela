@@ -497,6 +497,22 @@ function alertEntityLinkRaw(alert: {
   return destination
 }
 
+/**
+ * Para onde o clique numa notificação do sino leva (ponto 14 de 2026-10-23):
+ * a tela onde a pendência se resolve, pelo tipo e pelo registro do alerta
+ * (`alertEntityLink`); sem tela específica, a fila de Alertas, origem do
+ * aviso.
+ */
+export function internalNotificationDestination(notification: Pick<InternalNotification, 'item_type' | 'type' | 'entity_type' | 'entity_id' | 'payload' | 'destination'>): string {
+  return alertEntityLink({
+    type: notification.item_type ?? notification.type ?? '',
+    entity_type: notification.entity_type,
+    entity_id: notification.entity_id,
+    metadata: notification.payload ?? {},
+    destination: notification.destination,
+  }) ?? '/alertas'
+}
+
 export function alertEntityLinkLabel(alert: {
   type: string
   item_type?: string | null
