@@ -64,7 +64,9 @@ describeLocal('Viagem duplicada recusada no banco (413)', () => {
         (99413011, ' d413  green itajai ', NULL, ${carrierId}),
         -- Mesmo nome, outro IMO: outro navio.
         (99413012, 'D413 GREEN ITAJAI', '9000001', ${carrierId}),
-        (99413013, 'D413 GREEN SANTOS', NULL, ${carrierId});
+        (99413013, 'D413 GREEN SANTOS', NULL, ${carrierId}),
+        -- Mesmo IMO do primeiro com outra grafia do nome: o mesmo navio (416).
+        (99413014, 'D413 GRN ITAJAY', '987-6543', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
         (99413100, 99413010, '11', 'active'),
         (99413101, 99413013, '7', 'active')
@@ -87,6 +89,11 @@ describeLocal('Viagem duplicada recusada no banco (413)', () => {
     const result = asUser(`INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (99413102, 99413012, '11', 'active') RETURNING id`)
     expect(result.error).toBeNull()
     expect(result.output).toBe('99413102')
+  })
+
+  it('416: o mesmo IMO com outra grafia do nome é o mesmo navio e é recusado', () => {
+    expect(asUser(`INSERT INTO public.voyages (vessel_id, voyage_number, status) VALUES (99413014, '11', 'active')`).error)
+      .toMatch(/Já existe a viagem D413 GREEN ITAJAI \/ 11/)
   })
 
   it('trocar o número para o de outra viagem do navio é recusado; editar outro campo passa', () => {

@@ -210,3 +210,16 @@ it('porto sem escala vem desmarcado e, marcado, entra na gravação como escala 
     file: { voyageNumber: '14N', newEscalas: ['BRIGI'] },
   }))
 })
+
+it('trocar a Viagem de destino desmarca a escala nova escolhida para a anterior', async () => {
+  const brigi = { container_number: 'SEGU7664016', status: 'full', pod: 'BRIGI', is_imo: false, is_oog: false }
+  mocks.parse.mockResolvedValue({ ...parsed(), newEscalas: [{ pod: 'BRIGI', containers: [brigi] }] })
+  const view = render(<BaplieImportModal onClose={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Escolher viagem 7' }))
+  chooseFile(view)
+  const option = await screen.findByRole('checkbox', { name: /BRIGI — não é escala da viagem/ }) as HTMLInputElement
+  fireEvent.click(option)
+  expect(option.checked).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Escolher viagem 7' }))
+  await waitFor(() => expect((screen.getByRole('checkbox', { name: /BRIGI — não é escala da viagem/ }) as HTMLInputElement).checked).toBe(false))
+})

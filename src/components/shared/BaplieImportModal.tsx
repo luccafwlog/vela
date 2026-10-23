@@ -211,7 +211,11 @@ export function BaplieImportModal({
             label="Viagem de destino"
             disabled={importing || Boolean(partial)}
             selectedVoyageId={chosenVoyageId}
-            onSelect={(id) => setChosenVoyageId(id == null ? '' : String(id))}
+            onSelect={(id) => {
+              setChosenVoyageId(id == null ? '' : String(id))
+              // Escala nova é escolha por Viagem: trocar a Viagem volta tudo para desmarcado.
+              setIncludedNewEscalas(new Set())
+            }}
           />
         )}
         <ImportFileBlock templates={<ImportTemplateLinks baseName="baplie-modelo" extensions={['edi']} />}>

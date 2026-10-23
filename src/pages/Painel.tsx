@@ -57,6 +57,13 @@ export function Painel() {
     // ponytail: o snapshot cobre só as 60 viagens mais recentes; paginar ou ampliar a query quando o painel precisar de histórico maior.
     return filterLineUpRows(lineup?.rows ?? [], filters)
   }, [lineup, filters])
+  // Vazios sem escala seguem os filtros pela Viagem: só os das Viagens que a tabela mostra.
+  // Viagem sem nenhuma linha no Line Up não tem como ser filtrada e continua no aviso.
+  const unassignedMty = useMemo(() => {
+    const all = new Set((lineup?.rows ?? []).map((row) => row.voyageId))
+    const visible = new Set(rows.filter((row) => row.rowType !== 'export').map((row) => row.voyageId))
+    return (lineup?.unassignedMty ?? []).filter((item) => visible.has(item.voyageId) || !all.has(item.voyageId))
+  }, [lineup, rows])
   const activeFilterCount = countActiveLineUpFilters(filters)
 
   useEffect(() => {
@@ -178,7 +185,7 @@ export function Painel() {
               emptyTitle="Nenhuma escala encontrada."
               emptyDescription="Ajuste os filtros ou aguarde o próximo ciclo de atualização."
             />
-            {lineup?.unassignedMty?.length ? <UnassignedMtyNote items={lineup.unassignedMty} /> : null}
+            {unassignedMty.length ? <UnassignedMtyNote items={unassignedMty} /> : null}
             <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
               Faixa verde à esquerda: navio atracado · ✓ data efetiva (ATA na coluna ETA, ATB na coluna ETB) · TBC: terminal sem atribuição ·
               VIN veículos · VIN CNTR containers com veículos · CG carga geral · MTY vazios · RTW restow · BB máquinas / packages ·
