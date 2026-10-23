@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Bls } from '../Bls'
 
@@ -235,6 +235,26 @@ describe('Página Bls (unificada)', () => {
     fireEvent.click(card)
     await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ voyageId: '' }))
     railItemsMock.mockReturnValue({ items: [], isLoading: false })
+  })
+
+  // Ponto 15: o link do sino com /bls já aberta troca os filtros pelos do alerta.
+  it('endereço novo vindo de fora, com a lista aberta, substitui os filtros', async () => {
+    function AlertLink() {
+      const navigate = useNavigate()
+      return <button type="button" onClick={() => navigate('/bls?voyage=5&pod=BRSSZ&cliente=sem')}>Abrir alerta</button>
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls?q=MEDU']}>
+          <Bls />
+          <AlertLink />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ search: 'MEDU' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir alerta' }))
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ search: '', voyageId: '5', pod: 'BRSSZ', customerLink: 'sem' }))
   })
 
   it('alterna a lente de modalidade [Todos, Contêiner, Carga solta, Misto]', async () => {

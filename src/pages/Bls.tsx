@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp, Download, FileText, Upload } from 'lucide-react'
@@ -142,10 +142,21 @@ export function Bls() {
   const { showToast } = useToast()
 
   const listSearch = blsSearchFromFilters(filters)
+  // Último endereço que a própria lista escreveu. Um endereço diferente dele e
+  // do recorte atual veio de fora (link do sino com a lista já aberta) e
+  // substitui os filtros, em vez de ser sobrescrito por eles.
+  const writtenSearch = useRef(listSearch)
   useEffect(() => {
-    if (listSearch !== searchParams.toString()) setSearchParams(new URLSearchParams(listSearch), { replace: true })
+    const current = searchParams.toString()
+    if (current !== writtenSearch.current && current !== listSearch) {
+      writtenSearch.current = current
+      setFilters(filtersFromBlsSearch(searchParams))
+      return
+    }
+    writtenSearch.current = listSearch
+    if (listSearch !== current) setSearchParams(new URLSearchParams(listSearch), { replace: true })
     rememberBlsListSearch(listSearch)
-  }, [listSearch, searchParams, setSearchParams])
+  }, [listSearch, searchParams, setSearchParams, setFilters])
 
   const debouncedSearch = useDebouncedValue(filters.search)
   const queryFilters = useMemo(() => ({
