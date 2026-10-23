@@ -1606,9 +1606,9 @@ exportou: *Desbloqueio conferido* quando a ZPT mostra a carga desbloqueada,
 → Regra: [Desbloqueio de CE § Envio e conciliação com a ZPT](docs/modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt)
 
 **Prazo (SLA) do Desbloqueio**
-Prazo do desk para deixar o B/L pronto para a ZPT, contado do envio da
-solicitação em dias úteis e cumprido pela exportação. Recomeça quando o Cliente
-resolve uma pendência dele.
+Prazo do desk para enviar o B/L à ZPT, em dias úteis, cumprido pela exportação.
+Só começa quando os quatro requisitos estão cumpridos e parte do último deles;
+antes disso não há prazo, nem no Portal nem nos avisos.
 → Regra: [Desbloqueio de CE § Prazo (SLA)](docs/modules/desbloqueio-ce.md#prazo-sla)
 
 ## Central de Informações e indicação de devolução

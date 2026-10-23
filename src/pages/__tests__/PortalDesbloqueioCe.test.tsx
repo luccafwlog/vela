@@ -265,6 +265,10 @@ it("sem todos os requisitos não diz documentação validada", () => {
   const block = screen.getByRole("region", { name: "Solicitação" });
   expect(block.textContent).toContain("Em análise");
   expect(block.textContent).not.toContain("Documentação validada");
+  // Ponto 10 de 2026-10-23: sem os quatro requisitos não há prazo, e a tela diz quando ele começa.
+  expect(block.textContent).toContain("Prazo para desbloqueio—Sem prazo");
+  expect(block.textContent).toContain("O prazo para desbloqueio começa a contar quando os quatro requisitos estiverem cumpridos");
+  expect(block.textContent).not.toContain("recomeça");
 });
 
 it("BL com solicitação em andamento não fala em desbloqueio confirmado", () => {

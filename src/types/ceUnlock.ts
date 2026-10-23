@@ -97,6 +97,9 @@ export type CeUnlockReviewRow = {
   created_at: string;
   customer_name: string;
   cnpj_cpf: string;
+  /** Hora do último envio pelo Cliente; a fila segue por ela (migration 448). */
+  submitted_at?: string | null;
+  /** Prazo: só com os quatro requisitos, então nulo enquanto há documento a analisar (448). */
   sla_started_at: string | null;
   bl_ids: string[];
   termo_status: CeUnlockDocument["status"] | null;

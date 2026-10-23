@@ -856,10 +856,10 @@ export function PortalDesbloqueioCe() {
                   </Fact>
                   <Fact label="Documentos">{vipSource ? "Anuais VIP" : "Da solicitação"}</Fact>
                 </FactList>
-                {latestStart && !validated && (
+                {!latestStart && detail.state !== "cancelled" && (
                   <p className="app-table__cell-meta">
-                    O prazo para desbloqueio recomeça quando uma pendência é regularizada: reenvio de documento, entrega
-                    do B/L original ou pagamento das taxas.
+                    O prazo para desbloqueio começa a contar quando os quatro requisitos estiverem cumpridos em todos os
+                    B/Ls: taxas locais pagas, termo de devolução e procuração aprovados e B/L original entregue na agência.
                   </p>
                 )}
               </Block>
