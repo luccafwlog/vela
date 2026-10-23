@@ -1,7 +1,8 @@
-import { useMemo, type ReactNode } from 'react'
-import { MapPin, Package } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { MapPin, Package, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/utils'
+import { formatBrasiliaDateTime } from '../../lib/dates'
 import { blsOfVoyagePath, voyageIdsWithCargo } from '../../lib/portalOperationViews'
 import { usePortalOperationBls } from '../../hooks/usePortalOperation'
 import { usePortalScheduleVoyages } from '../../hooks/usePortalScheduleVoyages'
@@ -187,11 +188,22 @@ export function ScheduleWidthPage({ children }: { children: ReactNode }) {
  * legenda no pé.
  */
 export function ShipScheduleWidget({ className }: { className?: string }) {
-  const { data: vessels, isLoading, isError, refetch, isFetching } = usePortalScheduleVoyages()
+  const { data: vessels, isLoading, isError, refetch, isFetching, dataUpdatedAt } = usePortalScheduleVoyages()
   const scope = usePortalScope()
   // Mesma consulta da tela BLs e Containers e dos cartões do Painel: só os
   // B/Ls do próprio Cliente, liberados no Portal (escopo do banco).
-  const { data: customerBls } = usePortalOperationBls()
+  const { data: customerBls, refetch: refetchCustomerBls } = usePortalOperationBls()
+  // Atualizar quando quiser (ponto 3 de 2026-10-23): relê as datas e o recorte
+  // de carga; a hora mostrada é a da última leitura que deu certo.
+  const [refreshing, setRefreshing] = useState(false)
+  async function refresh() {
+    setRefreshing(true)
+    try {
+      await Promise.all([refetch(), refetchCustomerBls()])
+    } finally {
+      setRefreshing(false)
+    }
+  }
   const withCargo = useMemo(() => voyageIdsWithCargo(customerBls ?? []), [customerBls])
   const cargoPath = (vessel: PortalScheduleVoyage) =>
     withCargo.has(vessel.voyageId) ? portalPath(scope, blsOfVoyagePath(vessel.vesselName, vessel.voyage)) : null
@@ -206,7 +218,21 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
   const cardPodLanes = POD_LANES.filter((lane) => shownLanes.has(lane))
 
   return (
-    <Block title={SCHEDULE_TITLE} aside="CSSC Container Liner Service Schedule – ECSA" flush className={cn('app-schedule', className)}>
+    <Block
+      title={SCHEDULE_TITLE}
+      aside={
+        <>
+          <span>CSSC Container Liner Service Schedule – ECSA</span>
+          {dataUpdatedAt ? <span role="status">Atualizado em {formatBrasiliaDateTime(dataUpdatedAt)} (horário de Brasília)</span> : null}
+          <Button variant="secondary" className="app-btn--sm" loading={refreshing} loadingLabel="Atualizando" disabled={isLoading} onClick={() => void refresh()}>
+            <RefreshCw size={14} aria-hidden="true" />
+            Atualizar
+          </Button>
+        </>
+      }
+      flush
+      className={cn('app-schedule', className)}
+    >
       {isLoading ? (
         <SkeletonTable rows={3} cols={6} label="Carregando chegadas e saídas" />
       ) : isError ? (

@@ -47,3 +47,16 @@ export function saoPauloTodayIso(now = new Date()): string {
 export function brasiliaDayBounds(day: string): { start: string; end: string } {
   return { start: `${day}T00:00:00-03:00`, end: `${day}T23:59:59.999-03:00` }
 }
+
+/**
+ * Instante em data e hora de Brasília, "dd/mm/aaaa às HH:MM", seja qual for o
+ * fuso do computador de quem vê (Portal: "Atualizado em …" de Chegadas e
+ * saídas, ponto 3 de 2026-10-23).
+ */
+export function formatBrasiliaDateTime(instant: Date | number): string {
+  const values = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(instant).map(({ type, value }) => [type, value]))
+  return `${values.day}/${values.month}/${values.year} às ${values.hour}:${values.minute}`
+}

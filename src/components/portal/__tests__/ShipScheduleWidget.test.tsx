@@ -10,8 +10,9 @@ import type { PortalOperationBL } from '../../../services/portalOperation'
 import { PORTAL_SCHEDULE_LANES } from '../../../services/portalScheduleLanes'
 
 const refetch = vi.fn()
-let hookState: { isLoading: boolean; isError?: boolean; data?: PortalScheduleVoyage[] } = { isLoading: false }
+let hookState: { isLoading: boolean; isError?: boolean; data?: PortalScheduleVoyage[]; dataUpdatedAt?: number } = { isLoading: false }
 let customerBls: PortalOperationBL[] = []
+const refetchCustomerBls = vi.fn()
 
 vi.mock('../../../hooks/usePortalScheduleVoyages', () => ({
   usePortalScheduleVoyages: () => ({ ...hookState, refetch, isFetching: false }),
@@ -19,7 +20,7 @@ vi.mock('../../../hooks/usePortalScheduleVoyages', () => ({
 
 // A lista de B/Ls que o Portal já recebe do banco, só do Cliente da sessão.
 vi.mock('../../../hooks/usePortalOperation', () => ({
-  usePortalOperationBls: () => ({ data: customerBls, isLoading: false }),
+  usePortalOperationBls: () => ({ data: customerBls, isLoading: false, refetch: refetchCustomerBls }),
 }))
 
 function LocationProbe() {
@@ -174,4 +175,28 @@ it('sem carga do Cliente em nenhum navio, não mostra o atalho; o cartão do cel
   const cards = within(screen.getByRole('list', { name: 'Chegadas e saídas' })).getAllByRole('listitem')
   expect(within(cards[1]).getByRole('link', { name: /Ver meus B\/Ls no BETA STAR/ }).textContent).toContain('Meus B/Ls')
   expect(within(cards[0]).queryByRole('link', { name: /Ver meus B\/Ls/ })).toBeNull()
+})
+
+// Ponto 3 de 2026-10-23: o cliente atualiza quando quiser e vê a hora da última leitura.
+it('Atualizar relê as datas e a carga e mostra a hora de Brasília da última leitura', async () => {
+  hookState = { isLoading: false, data: [ALPHA], dataUpdatedAt: Date.parse('2026-10-23T17:32:00Z') }
+  refetch.mockReset()
+  refetchCustomerBls.mockReset()
+  refetch.mockImplementation(async () => {
+    hookState = { ...hookState, dataUpdatedAt: Date.parse('2026-10-23T18:05:00Z') }
+  })
+  render(<ShipScheduleWidget />)
+
+  expect(screen.getByRole('status').textContent).toBe('Atualizado em 23/10/2026 às 14:32 (horário de Brasília)')
+  await userEvent.click(screen.getByRole('button', { name: 'Atualizar' }))
+  expect(refetch).toHaveBeenCalledTimes(1)
+  expect(refetchCustomerBls).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('status').textContent).toBe('Atualizado em 23/10/2026 às 15:05 (horário de Brasília)')
+})
+
+it('sem leitura concluída não inventa horário de atualização', () => {
+  hookState = { isLoading: true }
+  render(<ShipScheduleWidget />)
+  expect(screen.queryByText(/Atualizado em/)).toBeNull()
+  expect((screen.getByRole('button', { name: 'Atualizar' }) as HTMLButtonElement).disabled).toBe(true)
 })
