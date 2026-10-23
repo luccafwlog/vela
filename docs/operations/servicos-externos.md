@@ -397,6 +397,9 @@ publicado. Depois do merge, confira:
 3. Um ETA salvo em **Chegadas e Saídas** aparece no Histórico da escala.
 4. A rodada seguinte do job `itau-pix-queue` responde 200 e o checkpoint da consulta anda.
 
+O item 4 não passou: desde a publicação, a `itau-pix` respondia 500 a toda
+rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
+
 ### Secrets das Edge Functions
 
 | Grupo | Nomes | Serviço de origem |
@@ -1055,9 +1058,9 @@ A função `itau-pix` é a rotina das cobranças das faturas: chamada pelo job
 `itau-pix-queue` (corpo vazio), cuida dos prazos, da fila de cobranças (cria,
 altera e cancela a COB de cada fatura) e da consulta de recebimentos para a
 baixa automática; chamada com `{"action":"process_charges"}` pelo disparo da
-migration `219`, processa só a fila. Está publicada (v20 em 2026-10-13, ver
-[Edge Functions](#edge-functions); a v8 de 08/10 trouxe a correção de fuso e as
-travas de horário). Ela exige bearer próprio (≥ 32 caracteres aleatórios,
+migration `219`, processa só a fila. Está publicada e é republicada a cada
+merge na `main` (v34 em 2026-10-23, ver [Edge Functions](#edge-functions); a v8
+de 08/10 trouxe a correção de fuso e as travas de horário). Ela exige bearer próprio (≥ 32 caracteres aleatórios,
 nunca `service_role`): desde a auditoria run-3 (decisão do dono de
 2026-10-22), `ITAU_PIX_CRON_SECRET` na rotina (corpo vazio, `process_queue` e
 `process_charges`) e `ITAU_PIX_DIAGNOSTIC_SECRET` nas ações de diagnóstico;
@@ -1069,6 +1072,33 @@ do guia. As ações de diagnóstico da Fase 1 continuam restritas: criam
 cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só alteram ou cancelam
 essas; consultam qualquer TXID `VELA`, então nunca tocam cobranças do sistema
 de terceiro nem mudam a cobrança de uma fatura.
+
+**Rodadas com 500 desde a v29 (2026-10-22).** A integração publicou a v29 cerca
+de dois minutos depois do merge da PR luccafwlog/vela#1021 na `main` (19:23 UTC
+de 22/10). Era a primeira versão com o F-09 (`3c242644`, de 21/10), que passou a
+decidir o status por `"error" in charges || "error" in receipts`. O resumo da
+fila sempre tem a chave `error` (as cobranças com resultado `error`, zero numa
+rodada boa), então toda rodada que pegava a vez do runner respondia 500 com o
+corpo normal, sem log (nada era lançado) e sem Sentry (a função não tinha o
+wrapper). Prazos, fila e recebimentos seguiram rodando. **Runtime** (leitura de
+`function_edge_logs` e da lista de funções em 2026-10-23): o deployment `_28`
+respondeu 200 às 19:25 UTC e o `_29`, 500 às 19:26; até 11:10 UTC de 23/10
+foram 944 respostas 500 e nenhuma 200; a v34 (10:19 UTC, merge da PR
+luccafwlog/vela#1044) tem o mesmo código. A correção conta a falha onde ela é
+capturada e põe a função no wrapper do Sentry
+([observabilidade](observabilidade.md#erros-das-edge-functions)). Quando ela
+chegar à `main`, confira:
+
+1. Em Supabase → Edge Functions, `itau-pix` com a data do merge e o import map
+   `supabase/functions/deno.json`.
+2. As chamadas seguintes da `itau-pix` em `function_edge_logs` respondem 200.
+3. O checkpoint da consulta (`itau_pix_checkpoint`) continua andando.
+4. O Alerta `rotina_http_falhou` fecha sozinho quando a última hora fica sem
+   resposta fora de 2xx.
+
+Na branch Supabase `staging` a função também é republicada no merge, mas o job
+não a chama: nenhuma chamada da `itau-pix` nas 24 h até 11 h UTC de 23/10
+(Vault vazio, ver [Supabase](#supabase)).
 
 **Sandbox (só testes, desde 2026-10-06).** Aplicação de sandbox criada pelo
 dono no [Itaú for Developers](https://devportal.itau.com.br), na conta dele.
