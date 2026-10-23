@@ -138,7 +138,7 @@ describe('B11b / F-08: portos de 3 letras do SMDG 1.5', () => {
     const ruled = applyBaplieVoyageRules(parsed, { voyageNumber: '14N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRITJ', 'BRSUA'] })
     expect(ruled.containers.map((c) => c.container_number)).toEqual(['CSNU2049996'])
     // Porto brasileiro sem escala é oferecido desmarcado (migration 411).
-    expect(ruled.newEscalas.map((escala) => [escala.pod, escala.containers.map((c) => c.container_number)])).toEqual([
+    expect(ruled.podsWithoutEscala.map((escala) => [escala.pod, escala.containers.map((c) => c.container_number)])).toEqual([
       ['BRNVT', ['TEMU1234567']],
       ['BRREC', ['TGHU7654325']],
     ])

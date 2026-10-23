@@ -38,14 +38,16 @@
   Recebido" depois da importação de B/Ls era legítimo: os B/Ls completaram a
   cobertura do Baplie). Prova: `voyageTimeline.test.ts`,
   `escalaDocumentalStatus.local-pg.test.ts`.
-- **Baplie cria a escala do porto marcado; Sepetiba é Itaguaí (2026-10-22):**
-  migrations `410` e `411`. BRSEP, BRSPB, SPB, SEP e SEPETIBA passam a ser
-  apelidos de BRIGI (Itaguaí) no banco e no app; as chaves de escala, ADR,
-  Manifesto Mercante, Comunicado e estado documental gravadas como BRSEP foram
-  passadas a BRIGI. No Baplie, o porto brasileiro que não é escala da Viagem é
-  oferecido desmarcado; marcado, a gravação cria a escala e importa os
-  containers na mesma transação (caso GREEN ITAJAI / 11, 242 containers de
-  Sepetiba). Prova: `baplieCriaEscala.local-pg.test.ts`.
+- **Baplie importa porto sem escala sem criar escala; Sepetiba é Itaguaí
+  (2026-10-22/23):** migrations `410` e `418` ([ADR 0098](adr/0098-baplie-nao-cria-nem-exige-escala.md)).
+  BRSEP, BRSPB, SPB, SEP e SEPETIBA passam a ser apelidos de BRIGI (Itaguaí) no
+  banco e no app; as chaves de escala, ADR, Manifesto Mercante, Comunicado e
+  estado documental gravadas como BRSEP foram passadas a BRIGI. No Baplie, o
+  porto brasileiro que não é escala da Viagem é oferecido desmarcado; marcado,
+  os containers entram no Baplie sem escala e ficam pendentes de conciliação
+  com B/L até a escala ser criada (caso GREEN ITAJAI / 11, 242 containers de
+  Sepetiba). O Baplie não cria escala: a `411`, que criava, foi substituída pela
+  `418` na revisão da PR. Prova: `baplieSemEscala.local-pg.test.ts`.
 - **Line-Up credita os vazios no porto do container (2026-10-22):** o MTY
   contava os vazios de importação só por viagem e os punha na primeira linha
   ordenada pelo ETA (os 190 vazios de BRVIX da GREEN ITAJAI / 11 apareciam em

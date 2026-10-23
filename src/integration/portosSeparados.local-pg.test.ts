@@ -158,16 +158,18 @@ describeLocal('Lote 3 das importações — Navegantes ≠ Itajaí e Recife ≠ 
     ])
   })
 
-  it('Baplie com POD de Navegantes numa Viagem com escala só em Itajaí é recusado', () => {
+  it('Baplie com POD de Navegantes numa Viagem com escala só em Itajaí entra sem escala, não na de Itajaí', () => {
     const rows = [{
       container_number: 'PQCU3900001', size_type: '40HC', status: 'full', weight_kg: 3800, pol: 'CNSHA', pod: 'BRNVT',
       final_dest: null, bl_ref: null, slot: null, is_imo: false, imo_class: null, un_number: null, is_oog: false, ownership: null,
     }]
-    const expected = psql(`SELECT public._baplie_staging_version(${voyageId})::text`)
+    const expected = psql(`SELECT (public._baplie_staging_version(${voyageId}) || jsonb_build_object('vazios_manifest', NULL))::text`)
     const result = asUser(`SELECT public.import_baplie_file_atomic(${voyageId}, $r$${JSON.stringify(rows)}$r$::jsonb,
       ARRAY['BRNVT']::text[], '${expected}'::jsonb, '{"voyage_number":"P390V"}'::jsonb)`)
-    expect(result.error).toMatch(/fora das escalas da Viagem \(BRNVT\)/)
-    expect(psql(`SELECT count(*) FROM public.baplie_containers WHERE voyage_id = ${voyageId}`)).toBe('0')
+    // 418: o Baplie não exige escala; Navegantes continua sendo outro porto (ADR 0095, decisão 12).
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.output)).toMatchObject({ portos_sem_escala: ['BRNVT'] })
+    psql(`DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId}`)
   })
 
   it('B/L de Navegantes não cobre a escala de Itajaí nem trava a exclusão dela', () => {

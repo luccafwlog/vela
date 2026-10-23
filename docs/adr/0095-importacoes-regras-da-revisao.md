@@ -7,6 +7,11 @@
 > (UNT/UNZ com contagem errada só avisa; sem UNT/UNZ continua erro). As demais
 > decisões continuam valendo.
 >
+> **Situação atual (2026-10-23).** A [ADR 0098](./0098-baplie-nao-cria-nem-exige-escala.md)
+> (migration `418`) supersede a parte da decisão 13 em que o servidor recusava o
+> container de porto brasileiro fora das escalas: marcado, ele entra no Baplie sem
+> escala. Porto estrangeiro fora das escalas continua recusado.
+>
 > **Decisão 23 estendida (2026-10-22).** A [ADR 0097](./0097-data-efetiva-confirmada-e-aparicao-na-programacao.md) cria a saída confirmada em Chegadas e Saídas, provisória: o Laden on Board diferente do B/L a substitui. A correção manual em Viagens continua vencendo o B/L.
 
 Status: supersedida parcialmente (decisões 13, 14 e 16, pela ADR 0096) — aceita em 2026-10-21 (respostas do responsável às perguntas da
