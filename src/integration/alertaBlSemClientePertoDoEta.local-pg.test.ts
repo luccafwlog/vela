@@ -174,6 +174,8 @@ describeLocal('352 — B/L sem Cliente perto do ETA', () => {
       WHERE i.item_type = 'bl_sem_cliente_perto_eta' AND a.entity_id = '${SSZ}' AND e.event_type = 'opened';`)).toBe('2')
     const run = asAdmin(`SELECT public.cancel_bl('${BLS[2]}', 'teste 352');`)
     expect(JSON.parse(run.split('\n').pop() ?? '{}')).toMatchObject({ cancelled: true })
+    // O filtro "Sem Cliente vinculado" segue o recorte do alerta: B/L cancelado fica fora.
+    expect(asAdmin(`SELECT public.operational_list_bl_summary(p_voyage_id => ${VOYAGE_ID}, p_pod => 'BRSSZ', p_without_customer => true)::text;`).split('\n').pop()).toContain('"totalBls": 0')
     expect(status(SSZ)).toBe('resolved')
   })
 

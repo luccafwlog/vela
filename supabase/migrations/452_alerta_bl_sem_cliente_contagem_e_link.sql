@@ -14,7 +14,7 @@
 --      Ele passa a abrir `/bls?voyage=<viagem>&pod=<porto>&cliente=sem`.
 --   2. `operational_list_bls` e `operational_list_bl_summary` ganham
 --      `p_without_customer boolean DEFAULT false`: verdadeiro mostra só B/L sem
---      Cliente vinculado. Como o parâmetro muda a assinatura, as versões
+--      Cliente vinculado e não cancelado (o mesmo recorte que o alerta conta). Como o parâmetro muda a assinatura, as versões
 --      antigas são apagadas e recriadas (mesmo corpo da migration 322 mais a
 --      cláusula nova), com as mesmas permissões da migration 226.
 --
@@ -44,7 +44,7 @@ WITH filtered AS (
     AND (NULLIF(btrim(coalesce(p_pol, '')), '') IS NULL OR public.normalize_port_code(b.pol) = public.normalize_port_code(p_pol))
     AND (NULLIF(btrim(coalesce(p_pod, '')), '') IS NULL OR public.normalize_port_code(b.pod) = public.normalize_port_code(p_pod))
     AND (NULLIF(btrim(coalesce(p_review_status, '')), '') IS NULL OR b.review_status = p_review_status)
-    AND (NOT coalesce(p_without_customer, false) OR b.customer_id IS NULL)
+    AND (NOT coalesce(p_without_customer, false) OR (b.customer_id IS NULL AND b.cancelled_at IS NULL))
     AND (NULLIF(btrim(coalesce(p_financial_status, '')), '') IS NULL OR b.financial_status = p_financial_status)
     AND (
       NULLIF(btrim(coalesce(p_charge_status, '')), '') IS NULL
@@ -125,7 +125,7 @@ WITH filtered AS (
     AND (NULLIF(btrim(coalesce(p_pol, '')), '') IS NULL OR public.normalize_port_code(b.pol) = public.normalize_port_code(p_pol))
     AND (NULLIF(btrim(coalesce(p_pod, '')), '') IS NULL OR public.normalize_port_code(b.pod) = public.normalize_port_code(p_pod))
     AND (NULLIF(btrim(coalesce(p_review_status, '')), '') IS NULL OR b.review_status = p_review_status)
-    AND (NOT coalesce(p_without_customer, false) OR b.customer_id IS NULL)
+    AND (NOT coalesce(p_without_customer, false) OR (b.customer_id IS NULL AND b.cancelled_at IS NULL))
     AND (NULLIF(btrim(coalesce(p_financial_status, '')), '') IS NULL OR b.financial_status = p_financial_status)
     AND (
       NULLIF(btrim(coalesce(p_charge_status, '')), '') IS NULL
