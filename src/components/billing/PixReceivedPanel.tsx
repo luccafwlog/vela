@@ -54,18 +54,16 @@ const sourceLabel = (source: 'local' | 'demurrage') => (source === 'demurrage' ?
 /** Data e hora de Brasília na célula da tabela, sem o "às" da frase. */
 const cellInstant = (value: string | null | undefined) => formatBrasiliaInstant(value).replace(' às', '')
 
-function payerLine(receipt: Pick<ItauPixReceipt, 'payerName' | 'payerDocument'>): string | null {
-  const document = receipt.payerDocument ? formatCnpjCpf(receipt.payerDocument) : null
-  return receipt.payerName ?? document
-}
-
 /**
  * Aba Pix recebidos (ADR 0100): todo Pix que o Itaú informou na consulta de
  * recebimentos, inclusive o que não veio de uma cobrança do Vela (chave
  * digitada, QR de outro sistema na mesma chave). Só o Pix de cobrança do Vela
  * em análise pede ação, e ela é feita em Pendências; para os demais, dar a
  * baixa numa fatura é opção de quem concilia, na linha aberta. Filtros,
- * página e tamanho ficam na URL com o prefixo `pix`.
+ * página e tamanho ficam na URL com o prefixo `pix`. A tela mostra o que o
+ * Itaú manda de fato: identificador, valor, horário e, às vezes, a mensagem do
+ * pagador e a chave; o nome e o CPF/CNPJ de quem pagou não vêm na consulta
+ * (conferido em produção em 2026-10-23) e só aparecem se um dia vierem.
  */
 export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice }) {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -158,7 +156,7 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
           <Field label="Buscar">
             <Input
               type="text"
-              placeholder="Pagador, identificador ou fatura"
+              placeholder="Mensagem, identificador ou fatura"
               value={state.search}
               onChange={(e) => setFilter('search', e.target.value)}
             />
@@ -197,7 +195,7 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
                 <th scope="col"><span className="sr-only">Detalhe do Pix</span></th>
                 <th scope="col">Recebido em</th>
                 <th scope="col">Valor</th>
-                <th scope="col" className="app-table__text-head">Pagador</th>
+                <th scope="col" className="app-table__text-head">Mensagem do pagador</th>
                 <th scope="col">Origem</th>
                 <th scope="col">Situação</th>
                 <th scope="col">Fatura</th>
@@ -247,7 +245,6 @@ function ReceiptRow({ receipt, columns, open, onToggle, onOpenInvoice }: {
 }) {
   const situation = receiptSituation(receipt)
   const invoice = receiptInvoice(receipt)
-  const payer = payerLine(receipt)
   const detailId = `pix-received-${receipt.endToEndId}`
   const when = cellInstant(receipt.paidAt)
   return (
@@ -258,9 +255,7 @@ function ReceiptRow({ receipt, columns, open, onToggle, onOpenInvoice }: {
         </td>
         <td className="whitespace-nowrap tabular-nums">{when}</td>
         <td className="whitespace-nowrap tabular-nums">{formatBRL(receipt.amount)}</td>
-        <td className="app-table__text" title={[receipt.payerName, receipt.payerDocument ? formatCnpjCpf(receipt.payerDocument) : null].filter(Boolean).join(' · ') || undefined}>
-          {payer ?? <NoValue label="Pagador não informado pelo Itaú" />}
-        </td>
+        <td className="app-table__text app-table__text--wrap">{receipt.payerMessage ?? <NoValue label="Sem mensagem" />}</td>
         <td className="whitespace-nowrap">{receiptOriginLabel(receipt.origin)}</td>
         <td className="whitespace-nowrap">{situation.needsAction ? <StatusText tone="warning">{situation.label}</StatusText> : situation.label}</td>
         <td className="whitespace-nowrap">
@@ -295,20 +290,17 @@ function ReceiptDetail({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; on
         <Fact label="Identificador do Pix">
           <CopyValue value={receipt.endToEndId} label="identificador do Pix"><span className={mono}>{receipt.endToEndId}</span></CopyValue>
         </Fact>
-        <Fact label="Identificador da cobrança">
-          {receipt.txid ? <span className={mono}>{receipt.txid}</span> : <NoValue label="Pix sem identificador da cobrança" />}
-        </Fact>
-        <Fact label="Chave Pix">{receipt.pixKey ?? <NoValue label="Chave não informada" />}</Fact>
+        {receipt.txid ? <Fact label="Identificador da cobrança"><span className={mono}>{receipt.txid}</span></Fact> : null}
+        {receipt.pixKey ? <Fact label="Chave Pix">{receipt.pixKey}</Fact> : null}
         <Fact label="Recebido em">{formatBrasiliaInstant(receipt.paidAt)}</Fact>
         <Fact label="Gravado no Vela em">{formatBrasiliaInstant(receipt.recordedAt)}</Fact>
         <Fact label="Origem">{receiptOriginLabel(receipt.origin)}</Fact>
-        <Fact label="Pagador">{receipt.payerName ?? <NoValue label="Nome não informado pelo Itaú" />}</Fact>
-        <Fact label="CPF ou CNPJ do pagador">
-          {receipt.payerDocument
-            ? <CopyValue value={receipt.payerDocument} label="CPF ou CNPJ do pagador">{formatCnpjCpf(receipt.payerDocument)}</CopyValue>
-            : <NoValue label="Documento não informado pelo Itaú" />}
-        </Fact>
-        <Fact label="Mensagem do pagador">{receipt.payerMessage ?? <NoValue label="Sem mensagem" />}</Fact>
+        {receipt.payerName ? <Fact label="Pagador">{receipt.payerName}</Fact> : null}
+        {receipt.payerDocument ? (
+          <Fact label="CPF ou CNPJ do pagador">
+            <CopyValue value={receipt.payerDocument} label="CPF ou CNPJ do pagador">{formatCnpjCpf(receipt.payerDocument)}</CopyValue>
+          </Fact>
+        ) : null}
         {receipt.settled?.docNumber ? (
           <Fact label="Fatura da baixa">{receipt.settled.docNumber} ({sourceLabel(receipt.settled.source)}) · {receiptSituation(receipt).label}</Fact>
         ) : null}
@@ -331,9 +323,9 @@ type SettleFeedback = { tone: 'success' | 'danger'; text: string }
 
 /**
  * Baixa opcional do Pix recebido numa fatura aberta. Sem número, a lista traz
- * as de mesmo valor e as do Cliente com o documento do pagador; com número,
- * só a fatura procurada. O banco confere de novo e usa o valor e o horário do
- * Pix, com o identificador na referência bancária.
+ * as de mesmo valor (e as do Cliente com o documento do pagador, se o Itaú um
+ * dia mandar); com número, só a fatura procurada. O banco confere de novo e
+ * usa o valor e o horário do Pix, com o identificador na referência bancária.
  */
 function SettleReceipt({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; onOpenInvoice: OpenInvoice }) {
   const queryClient = useQueryClient()
@@ -366,7 +358,7 @@ function SettleReceipt({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; on
     <div className="grid gap-3">
       <p>
         <strong>Baixar numa fatura (opcional).</strong>
-        {' '}Sem número, aparecem as faturas abertas com o mesmo valor do Pix ou do Cliente com o documento do pagador.
+        {' '}Sem número, aparecem as faturas abertas com o mesmo valor do Pix.
         {' '}A baixa usa o valor e o horário do Pix e grava o identificador do Pix como referência bancária.
       </p>
       <form className="flex flex-wrap items-end gap-2" onSubmit={search}>
@@ -386,7 +378,7 @@ function SettleReceipt({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; on
         <p role="alert"><StatusText tone="warning">Não foi possível procurar as faturas: {extractErrorText(candidatesQuery.error)}</StatusText></p>
       ) : null}
       {candidatesQuery.data && !candidates.length ? (
-        <p>{docNumber ? `Nenhuma fatura aberta com o número ${docNumber}.` : 'Nenhuma fatura aberta com o mesmo valor ou do Cliente do pagador. Procure pelo número.'}</p>
+        <p>{docNumber ? `Nenhuma fatura aberta com o número ${docNumber}.` : 'Nenhuma fatura aberta com o mesmo valor. Procure pelo número.'}</p>
       ) : null}
       {candidates.length ? (
         <table className="app-table app-table--compact app-table--nested">

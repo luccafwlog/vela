@@ -1,4 +1,5 @@
 import { parseImportNumber } from '../../lib/importNumber'
+import { formatBRL } from '../../lib/utils'
 import type {
   ItauPixMonitor,
   ItauPixMonitorCharge,
@@ -288,16 +289,39 @@ export function parsePixAmountFilter(text: string): number | null {
 }
 
 /** Campos do retorno do Itaú que a linha aberta já mostra com nome próprio. */
-const SHOWN_BANK_FIELDS = new Set(['endToEndId', 'txid', 'valor', 'horario', 'chave', 'infoPagador', 'pagador', 'devedor'])
+const SHOWN_BANK_FIELDS = new Set(['endToEndId', 'txid', 'valor', 'horario', 'chave', 'infoPagador', 'pagador', 'devedor', 'componentesValor'])
 const BANK_FIELD_LIMIT = 30
 
+/** Nomes do padrão Pix do Banco Central como a tela os escreve. */
+const BANK_FIELD_LABELS: Record<string, string> = {
+  original: 'Original', juros: 'Juros', multa: 'Multa', desconto: 'Desconto', abatimento: 'Abatimento',
+  troco: 'Troco', saque: 'Saque', devolucoes: 'Devolução', id: 'Identificador', rtrId: 'Identificador da devolução',
+  valor: 'Valor', status: 'Situação', motivo: 'Motivo', natureza: 'Natureza', horario: 'Horário',
+  solicitacao: 'Pedida em', liquidacao: 'Liquidada em',
+}
+const bankLabel = (key: string) => BANK_FIELD_LABELS[key] ?? key
+const bankAmount = (value: unknown) => {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount : null
+}
+
 /**
- * O que mais o Itaú mandou no Pix (componentes do valor, devoluções, campos
- * próprios do banco), achatado em rótulo e valor para a linha aberta. Os campos
- * com nome próprio na tela ficam de fora.
+ * O que mais o Itaú mandou no Pix, em rótulo e valor para a linha aberta: as
+ * parcelas do valor que não são zero (juros, multa, desconto…; a original só
+ * quando difere do total), devoluções e campos próprios do banco. Os campos com
+ * nome próprio na tela ficam de fora.
  */
 export function bankExtraFields(raw: Record<string, unknown> | null): Array<{ label: string; value: string }> {
   const fields: Array<{ label: string; value: string }> = []
+  const components = raw?.componentesValor
+  if (components && typeof components === 'object' && !Array.isArray(components)) {
+    const total = bankAmount(raw?.valor)
+    for (const [key, part] of Object.entries(components)) {
+      const amount = bankAmount(part && typeof part === 'object' ? (part as Record<string, unknown>).valor : part)
+      if (amount === null || amount === 0 || (key === 'original' && amount === total)) continue
+      fields.push({ label: `Valor › ${bankLabel(key)}`, value: formatBRL(amount) })
+    }
+  }
   const walk = (value: unknown, path: string[]) => {
     if (fields.length >= BANK_FIELD_LIMIT) return
     if (value !== null && typeof value === 'object') {
@@ -306,10 +330,10 @@ export function bankExtraFields(raw: Record<string, unknown> | null): Array<{ la
       return
     }
     if (value === null || value === undefined || String(value).trim() === '') return
-    fields.push({ label: path.join(' › '), value: String(value) })
+    fields.push({ label: path.map(bankLabel).join(' › '), value: String(value) })
   }
   for (const [key, value] of Object.entries(raw ?? {})) {
     if (!SHOWN_BANK_FIELDS.has(key)) walk(value, [key])
   }
-  return fields
+  return fields.slice(0, BANK_FIELD_LIMIT)
 }

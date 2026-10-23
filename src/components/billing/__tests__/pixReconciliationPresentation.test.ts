@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { UnifiedPixMatch } from '../../../services/reconciliacao'
+import { formatBRL } from '../../../lib/utils'
 import {
   bankExtraFields,
   countPixPending,
@@ -142,19 +143,22 @@ describe('Pix recebidos (ADR 0100)', () => {
     expect(receiptInvoice({ settled: null, charge: null })).toBeNull()
   })
 
-  it('o que mais o banco mandou vira rótulo e valor, sem repetir o que a linha já mostra', () => {
+  it('o que mais o banco mandou vira rótulo e valor, sem repetir o que a linha já mostra nem parcela zerada', () => {
     const fields = bankExtraFields({
       endToEndId: 'E1', valor: '10.00', chave: 'x', infoPagador: 'oi', pagador: { nome: 'Fulano' },
-      componentesValor: { original: { valor: '10.00' } },
+      componentesValor: { original: { valor: '10.00' }, juros: { valor: '0.00' }, desconto: { valor: '1.50' } },
       devolucoes: [{ id: 'D1', valor: '2.00', status: 'DEVOLVIDO' }],
       vazio: '',
     })
     expect(fields).toEqual([
-      { label: 'componentesValor › original › valor', value: '10.00' },
-      { label: 'devolucoes › 1 › id', value: 'D1' },
-      { label: 'devolucoes › 1 › valor', value: '2.00' },
-      { label: 'devolucoes › 1 › status', value: 'DEVOLVIDO' },
+      { label: 'Valor › Desconto', value: formatBRL(1.5) },
+      { label: 'Devolução › 1 › Identificador', value: 'D1' },
+      { label: 'Devolução › 1 › Valor', value: '2.00' },
+      { label: 'Devolução › 1 › Situação', value: 'DEVOLVIDO' },
     ])
+    // A parcela original só aparece quando difere do total.
+    expect(bankExtraFields({ valor: '120.00', componentesValor: { original: { valor: '110.00' } } }))
+      .toEqual([{ label: 'Valor › Original', value: formatBRL(110) }])
     expect(bankExtraFields(null)).toEqual([])
     expect(bankExtraFields(Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`campo${i}`, i]))).length).toBe(30)
   })
