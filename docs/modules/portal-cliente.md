@@ -628,7 +628,12 @@ depósito, com e-mail copiável e "Agendar no site do depósito" quando há link
 Demurrage: dias e valor em colunas separadas, vigência na faixa e "Como a
 contagem funciona" num bloco abaixo. Agentes: Agente | Portos | E-mails.
 Contato: um bloco por área, Importação primeiro, e-mail como dado principal e
-WhatsApp como botão.
+WhatsApp como botão. Os três contatos de entrega do B/L original
+(`entrega_bl_vitoria`, `entrega_bl_salvador` e `entrega_bl_suape`, migration
+`447`) não aparecem em Contato: são os endereços das agências que o
+[Desbloqueio de CE](desbloqueio-ce.md#anatomia-das-telas) mostra; no Vela, são
+editados em `/clientes/informacoes` → Contato, como "Entrega do B/L original ·
+Vitória", "· Salvador" e "· Suape" (nascem com "Endereço a definir").
 
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
 na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas

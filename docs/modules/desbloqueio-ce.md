@@ -27,7 +27,11 @@ Manifesto Mercante é regra de
   termo e procuração "Coberto(a) pelo … anual até 31/12/AAAA" ou "Falta …" em âmbar, com "Abrir
   Documentos anuais" quando falta; Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
   "Em PDF, anexada à solicitação", com **Baixar modelo do termo** quando há modelo publicado, e
-  nenhuma menção a documento anual. Na faixa, **Baixar memorando de liberação**
+  nenhuma menção a documento anual. Embaixo de "B/L original · Entregue na agência", o botão
+  **Endereços de entrega do B/L** abre os endereços das agências que recebem o original em Vitória,
+  Salvador e Suape (ponto 6 das observações de 2026-10-23): contatos da Central de Informações
+  (migration `447`), editados no Vela em `/clientes/informacoes` → Contato; sem endereço informado,
+  "Endereço a definir". Na faixa, **Baixar memorando de liberação**
   (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar documentos
   na agência; não é requisito nem entra no pedido. Cartões que filtram ("Podem ser pedidos", "Com
   taxas locais em aberto", "Já em solicitação") e tabela limpa: B/L, CE Mercante, Navio / Viagem, POD,

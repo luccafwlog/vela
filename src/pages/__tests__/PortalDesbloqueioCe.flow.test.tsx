@@ -26,6 +26,15 @@ const svc = vi.hoisted(() => ({
   confirm: vi.fn(async () => true),
 }));
 vi.mock("../../services/ceUnlockService", () => svc);
+
+// Central de Informações do Portal: os endereços de entrega do B/L original (migration 447).
+const information = vi.hoisted(() => ({
+  state: { isLoading: false, isError: false, data: { contacts: [] as Array<Record<string, unknown>> } as { contacts: Array<Record<string, unknown>> } | undefined },
+  refetch: vi.fn(),
+}));
+vi.mock("../../hooks/usePortalInformation", () => ({
+  usePortalInformation: () => ({ ...information.state, refetch: information.refetch }),
+}));
 vi.mock("../../components/ui/ConfirmDialog", () => ({
   useConfirm: () => svc.confirm,
   useConfirmWithReason: () => async () => "motivo",
@@ -277,4 +286,48 @@ it("B/L isento aparece como Isentas, não como taxas pagas", async () => {
   mount();
   expect(await screen.findByText("Isentas")).toBeTruthy();
   expect(screen.queryByText("Pagas")).toBeNull();
+});
+
+// Ponto 6 de 2026-10-23: abaixo do B/L original, os endereços das agências que o recebem.
+const contact = (key: string, address: string, extra: Record<string, unknown> = {}) => ({
+  key, title: key, description: "", emails: [], phones: [], whatsapp: null, address, active: true, ...extra,
+});
+
+it("botão abaixo do B/L original abre os endereços de entrega de Vitória, Salvador e Suape", async () => {
+  information.state = {
+    isLoading: false,
+    isError: false,
+    data: { contacts: [
+      contact("entrega_bl_vitoria", "Rua Desembargador Ferreira Coelho, 330\nSala 813", { phones: ["(27) 2124-1652"] }),
+      contact("entrega_bl_salvador", "Endereço a definir"),
+      // Suape ainda sem cadastro: o Portal não inventa endereço.
+    ] },
+  };
+  mount();
+  const requirements = await screen.findByRole("region", { name: "O que o desbloqueio pede" });
+  const toggle = within(requirements).getByRole("button", { name: "Endereços de entrega do B/L" });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(within(requirements).queryByText("Vitória")).toBeNull();
+
+  await userEvent.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "") as HTMLElement;
+  expect(within(panel).getByText("Vitória")).toBeTruthy();
+  expect(within(panel).getByText((_, node) => node?.textContent === "Rua Desembargador Ferreira Coelho, 330\nSala 813" && node.tagName === "SPAN")).toBeTruthy();
+  expect(within(panel).getByText("(27) 2124-1652")).toBeTruthy();
+  expect(within(panel).getAllByText("Endereço a definir")).toHaveLength(2);
+  expect(within(panel).getByText("Suape")).toBeTruthy();
+
+  await userEvent.click(within(requirements).getByRole("button", { name: "Ocultar endereços de entrega" }));
+  expect(within(requirements).queryByText("Vitória")).toBeNull();
+});
+
+it("falha ao ler os endereços de entrega mostra o erro com Tentar novamente", async () => {
+  information.state = { isLoading: false, isError: true, data: undefined };
+  mount();
+  const requirements = await screen.findByRole("region", { name: "O que o desbloqueio pede" });
+  await userEvent.click(within(requirements).getByRole("button", { name: "Endereços de entrega do B/L" }));
+  expect(within(requirements).getByRole("alert").textContent).toContain("Não foi possível carregar os endereços de entrega.");
+  await userEvent.click(within(requirements).getByRole("button", { name: "Tentar novamente" }));
+  expect(information.refetch).toHaveBeenCalled();
 });

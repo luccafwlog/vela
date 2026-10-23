@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download, Inbox, Receipt, RefreshCw, SearchX, Upload, X } from "lucide-react";
+import { Download, Inbox, MapPin, Receipt, RefreshCw, SearchX, Upload, X } from "lucide-react";
 import { Badge } from "../components/ui/Badge";
 import { Block, Fact, FactList, LeadValue } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
@@ -26,6 +26,7 @@ import {
   CeUnlockFileButton,
   CeUnlockFileLink,
 } from "../components/ce-unlock/CeUnlockDocuments";
+import { CeUnlockDeliveryAddresses } from "../components/ce-unlock/CeUnlockDeliveryAddresses";
 import { CeUnlockHistory } from "../components/ce-unlock/CeUnlockHistory";
 import { CeUnlockRequirementIcon } from "../components/ce-unlock/CeUnlockRequirements";
 import { CeUnlockVipCoveragePanel } from "../components/ce-unlock/CeUnlockVipCoveragePanel";
@@ -144,6 +145,9 @@ export function PortalDesbloqueioCe() {
   const [selected, setSelected] = useState<string[]>([]);
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState("");
+  // Endereços das agências que recebem o B/L original, abertos por botão (ponto 6 de 2026-10-23).
+  const [showDelivery, setShowDelivery] = useState(false);
+  const deliveryId = useId();
   // Termo e procuração escolhidos e ainda não enviados: sobem ao clicar em Solicitar desbloqueio.
   const [pendingFiles, setPendingFiles] = useState<Partial<Record<DocType, File>>>({});
   const [sending, setSending] = useState(false);
@@ -433,8 +437,25 @@ export function PortalDesbloqueioCe() {
                   <StatusText tone="warning">Falta a procuração anual</StatusText>
                 )}
               </Fact>
-              <Fact label="B/L original">Entregue na agência</Fact>
+              <Fact
+                label="B/L original"
+                detail={
+                  <Button
+                    variant="secondary"
+                    className="app-btn--sm"
+                    aria-expanded={showDelivery}
+                    aria-controls={deliveryId}
+                    onClick={() => setShowDelivery((open) => !open)}
+                  >
+                    <MapPin size={14} aria-hidden="true" />
+                    {showDelivery ? "Ocultar endereços de entrega" : "Endereços de entrega do B/L"}
+                  </Button>
+                }
+              >
+                Entregue na agência
+              </Fact>
             </FactList>
+            {showDelivery ? <CeUnlockDeliveryAddresses id={deliveryId} /> : null}
             {gap && (
               <div className="app-callout app-callout--warning flex flex-wrap items-center gap-3">
                 <span>{gap}</span>
