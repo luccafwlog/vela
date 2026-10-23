@@ -99,6 +99,54 @@
   acesso tem a sessão encerrada e entra de novo. Prova: `corteTokenInterno.local-pg.test.ts`,
   `advisorFuncoesFechadas.local-pg.test.ts`, `Admin.behavior.test.tsx`,
   `useAuthHydrationFailure.test.tsx`, `edgeFunctionsRun2.test.ts`.
+- **Data efetiva confirmada em Chegadas e Saídas (2026-10-22;
+  [ADR 0097](adr/0097-data-efetiva-confirmada-e-aparicao-na-programacao.md)):**
+  migration `414`. A célula vencida (âmbar, agora só no Vela) tem **Confirmar**:
+  a chegada grava o ATA com hora; a saída grava o ATD do POL, provisório, que o
+  Laden on Board diferente do B/L substitui (a correção em Viagens continua
+  vencendo). No Portal só há previsão e data efetiva. A edição da viagem passa
+  a desligar a aparição em Chegadas e Saídas (supersede o item 12 da ADR 0071).
+  Prova: `atdDoPolManual.local-pg.test.ts`, `ChegadasSaidas.behavior.test.tsx`.
+- **"Selecionar todos" marca o filtro inteiro (2026-10-22):** em BLs,
+  Containers, Vazios IMP, Veículos, Clientes e Desbloqueio de CE (interno e
+  Portal), o checkbox do cabeçalho seleciona todo o resultado filtrado, em
+  todas as páginas, e a barra diz "N de M selecionados"; a seleção atravessa
+  páginas e zera quando o filtro muda. Componente e hook comuns
+  (`SelectAllFilteredCheckbox`, `useFilteredSelection`); o botão "Selecionar
+  os N do filtro" de Vazios IMP saiu. Prova: `useFilteredSelection.test.tsx`.
+- **Viagem duplicada recusada e aparição em Chegadas e Saídas no cadastro
+  (2026-10-22):** migration `413`. Navio e número já cadastrados (inclusive
+  numa Viagem Cancelada) são recusados na tela e no banco, por qualquer
+  caminho, com "Já existe a viagem …". O cadastro pela tela Viagens ganha a
+  chave **Aparece em Chegadas e Saídas**, e a edição publica a viagem oculta;
+  Viagens ganha o atalho para Chegadas e Saídas, como o Painel. Prova:
+  `VoyageCreateModal.test.tsx`, `viagemDuplicada.local-pg.test.ts`.
+- **Linha do tempo da Viagem mais limpa (2026-10-22):** o cadastro vira um único
+  "Viagem criada", com a origem (botão Nova viagem, Chegadas e Saídas ou a
+  planilha) e o autor; cada importação de B/L vira um evento só, com as rotas,
+  o ATD do POL e o status de BLs e CEs que ela mudou; campo interno da viagem
+  ("Dado interno da viagem atualizado") deixa de aparecer, e o que fica diz o
+  campo e o valor anterior → novo. A migration `412` faz o status automático
+  de BLs e CEs dizer o fato e a importação que o mudou (o "Aguardando →
+  Recebido" depois da importação de B/Ls era legítimo: os B/Ls completaram a
+  cobertura do Baplie). Prova: `voyageTimeline.test.ts`,
+  `escalaDocumentalStatus.local-pg.test.ts`.
+- **Baplie importa porto sem escala sem criar escala; Sepetiba é Itaguaí
+  (2026-10-22/23):** migrations `410` e `418` ([ADR 0098](adr/0098-baplie-nao-cria-nem-exige-escala.md)).
+  BRSEP, BRSPB, SPB, SEP e SEPETIBA passam a ser apelidos de BRIGI (Itaguaí) no
+  banco e no app; as chaves de escala, ADR, Manifesto Mercante, Comunicado e
+  estado documental gravadas como BRSEP foram passadas a BRIGI. No Baplie, o
+  porto brasileiro que não é escala da Viagem é oferecido desmarcado; marcado,
+  os containers entram no Baplie sem escala e ficam pendentes de conciliação
+  com B/L até a escala ser criada (caso GREEN ITAJAI / 11, 242 containers de
+  Sepetiba). O Baplie não cria escala: a `411`, que criava, foi substituída pela
+  `418` na revisão da PR. Prova: `baplieSemEscala.local-pg.test.ts`.
+- **Line-Up credita os vazios no porto do container (2026-10-22):** o MTY
+  contava os vazios de importação só por viagem e os punha na primeira linha
+  ordenada pelo ETA (os 190 vazios de BRVIX da GREEN ITAJAI / 11 apareciam em
+  BRSSA). Agora a contagem é por viagem e porto, e o vazio de porto sem linha
+  aparece no Painel como "sem escala". Prova: `lineupSnapshot.test.ts`.
+
 - **Baplie da COSCO aceito (2026-10-22;
   [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)):**
   migration `409`. O número de viagem do Baplie não é mais conferido com o da

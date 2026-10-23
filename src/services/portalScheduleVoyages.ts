@@ -23,6 +23,8 @@ export type PortalScheduleVoyage = {
   forecastDatesByLabel?: Record<string, string>
   actualDatesByLabel?: Record<string, string>
   omittedByLabel?: Record<string, boolean>
+  /** Porto como gravado na escala, para confirmar a data efetiva (migration 414). */
+  portCodeByLabel?: Record<string, string>
   earliestEta: string | null
 }
 
@@ -41,10 +43,13 @@ export function projectPortalScheduleRows(rows: PortalScheduleRpcRow[]): PortalS
       forecastDatesByLabel: {},
       actualDatesByLabel: {},
       omittedByLabel: {},
+      portCodeByLabel: {},
       earliestEta: null,
     }
     const label = LABEL_BY_CODE.get(row.port_code)
     if (label) {
+      const portCodeByLabel = voyage.portCodeByLabel ?? (voyage.portCodeByLabel = {})
+      portCodeByLabel[label] = row.port_code
       if (row.omitted) {
         const omittedByLabel = voyage.omittedByLabel ?? (voyage.omittedByLabel = {})
         omittedByLabel[label] = true
@@ -92,4 +97,19 @@ export async function fetchInternalScheduleVoyages(): Promise<PortalScheduleVoya
   const { data, error } = await supabase.rpc('portal_ship_schedule')
   if (error) throw error
   return projectRpcRows(data as PortalScheduleRpcRow[] | null)
+}
+
+/**
+ * Confirma a data efetiva de uma célula vencida de Chegadas e Saídas (ADR 0097,
+ * migration 414): saída do POL com a data (provisória até o B/L) ou chegada na
+ * escala com data e hora.
+ */
+export async function confirmScheduleEffectiveDate(input: { voyageId: number; port: string; kind: 'pol' | 'pod'; value: string }) {
+  const { error } = await supabase.rpc('confirm_schedule_effective_date' as never, {
+    p_voyage_id: input.voyageId,
+    p_port: input.port,
+    p_kind: input.kind,
+    p_value: input.value,
+  } as never)
+  if (error) throw error
 }

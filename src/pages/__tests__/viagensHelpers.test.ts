@@ -586,7 +586,6 @@ describe('buildVoyageTimeline', () => {
       'voyage-completed',
       'escala-date',
       'escala-date',
-      'ce-master',
       'ce-coverage',
       'import',
       'divergence-opened',
@@ -594,7 +593,8 @@ describe('buildVoyageTimeline', () => {
     ])
     expect(events.find((event) => event.kind === 'baplie-import')?.detail).toBe('42 containers')
     expect(events.find((event) => event.kind === 'divergence-opened')?.detail).toBe('2 divergências abertas')
-    expect(events.find((event) => event.kind === 'ce-master')?.detail).toBe('CE123')
+    // O Nº de Manifesto Mercante do lote vai no próprio evento da importação (F2).
+    expect(events.find((event) => event.kind === 'import')?.detail).toContain('Manifesto Mercante CE123')
   })
 
   it('inclui eventos auditados de dados da viagem e CE Master alterado', () => {
@@ -636,11 +636,12 @@ describe('buildVoyageTimeline', () => {
       ],
     })
 
-    expect(events).toHaveLength(2)
+    // Campo sem rótulo (cópia interna, id) não vira evento (revisão de 2026-10-22, F3).
+    expect(events).toHaveLength(1)
     const details = events.map((event) => event.detail).join(' | ')
     expect(details).not.toMatch(/snapshot|pol_id|\{/)
-    expect(details).toContain('Dado interno da viagem atualizado')
-    expect(details).not.toContain('active')
+    expect(details).not.toContain('Dado interno')
+    expect(details).toBe('Status: Ativa → Cancelada')
   })
 
   it('resolve o autor pelo nome e não exibe UUID cru', () => {

@@ -26,7 +26,7 @@ import {
 } from '../components/customers/customerCreateForm'
 import { useAuth } from '../hooks/useAuth'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import { useRowSelection } from '../hooks/useRowSelection'
+import { useFilteredSelection } from '../hooks/useFilteredSelection'
 import { fetchCustomerRows, useCustomers, useCustomerSummary, type CustomerFilters } from '../hooks/useCustomers'
 import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
 import { formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
@@ -98,8 +98,6 @@ export function Clientes() {
   const debouncedSearch = useDebouncedValue(filters.search)
   const queryFilters = useMemo(() => ({ ...filters, search: debouncedSearch }), [filters, debouncedSearch])
 
-  const selectionScope = clientesSearchFromFilters(queryFilters)
-  const selection = useRowSelection<number>(selectionScope)
 
   function setFilterField<K extends 'search' | PanelFilterKey>(field: K, value: CustomerFilters[K]) {
     setFilters((current) => ({ ...current, [field]: value, page: 0 }))
@@ -143,6 +141,13 @@ export function Clientes() {
   const [parsingBase, setParsingBase] = useState(false)
   const [importingBase, setImportingBase] = useState(false)
   const { data, isLoading, error, fetchStatus, refetch } = useCustomers(queryFilters)
+  // "Selecionar todos" marca o filtro inteiro, em todas as páginas (G1); a
+  // seleção atravessa páginas e zera quando o filtro muda.
+  const selection = useFilteredSelection<number>({
+    scope: clientesSearchFromFilters({ ...queryFilters, page: 0 }),
+    totalCount: data?.totalCount ?? 0,
+    loadAll: async () => (await fetchCustomerRows({ ...queryFilters, page: 0 }, false)).rows.map((row) => row.id),
+  })
   const summaryQuery = useCustomerSummary(queryFilters)
   const summary = summaryQuery.data
   const canSeePortalQueue = ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole ?? '')
@@ -536,6 +541,9 @@ export function Clientes() {
           onDelete={() => runCustomerDelete([...selection.selected])}
           deleting={deleting}
           noun={['cliente', 'clientes']}
+          total={selection.totalCount}
+          loadingAll={selection.loadingAll}
+          loadError={selection.loadError}
         />
       ) : null}
 

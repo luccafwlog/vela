@@ -13,7 +13,8 @@ porque os assuntos não estavam separados e o que importa não se destacava.
 
 - **Fixo em todas as telas:** cores, letra, fundo, cabeçalho de tabela, o
   formato do bloco com título, a faixa de identidade da ficha, a faixa de
-  próxima ação, a forma dos botões e a forma de mostrar estado e ausência.
+  próxima ação, a forma dos botões, a forma de mostrar estado e ausência e o
+  espaço entre as peças da página ([abaixo](#espaço-entre-as-peças-da-página)).
 - **Ajustado tela a tela, com aprovação do responsável:** quais blocos a tela
   tem, a ordem, qual é o dado principal de cada bloco, quais colunas a tabela
   mostra e qual grupo vem primeiro.
@@ -60,6 +61,28 @@ Uma tela compõe estas peças; não cria CSS próprio para elas.
 | `Switch` | `src/components/ui/Switch.tsx` | Ligar e desligar uma chave, com o estado escrito ao lado (`role="switch"`); quem usa decide se confirma antes (envio real da Comunicação). |
 | `SegmentedControl` `variant="bar"` | `src/components/ui/SegmentedControl.tsx` | Abas de segundo nível na largura do bloco, com ícone e a escolhida em azul-marinho (vistas da Comunicação). |
 | Demais primitivas | `src/components/ui/` | `Modal`, `Drawer`, `TabList`, `SegmentedControl`, `SummaryStrip`, `StepRail`, `MetricCard`, `Badge`, `Combobox`, paginação e estados de consulta, descritas em [ARCHITECTURE.md](ARCHITECTURE.md). |
+
+### Espaço entre as peças da página
+
+Peças empilhadas no corpo da página (bloco, cartão, filtros abertos, "Mais
+filtros", cartões de total, faixa de identidade) ficam a pelo menos 16 px uma
+da outra sem a tela pedir, no Vela e no Portal (decisão de 2026-10-23: blocos
+do Baplie e filtros de BLs, Painel e Vazios de importação apareciam
+encostados). A regra é do `.app-main` em `src/index.css`: margem de cima de
+16 px em cada filho da página depois do primeiro, que se funde com a margem de
+baixo do anterior, então o vão que já era maior (20 px sob "Mais filtros" e sob
+o título) não muda. Vale também no painel de aba sem classe que é filho direto
+da página (Relatórios, Admin, Tabelas e condições das Taxas Locais). Ficam de
+fora:
+
+- o parágrafo (`p`) logo abaixo dos filtros, que é a legenda deles e continua
+  junto;
+- a margem utilitária que a tela declara (`mt-*`), que continua valendo;
+- o que empilha peças num contêiner próprio: ele usa grade com `gap` (ficha do
+  B/L, ficha do Cliente, corpo do `Block`), sem somar margem;
+- a impressão, que mostra só o documento do modal.
+
+A tela não cria margem própria para separar um bloco do outro.
 
 ## Cores
 

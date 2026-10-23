@@ -144,6 +144,8 @@ export async function createOrAttachVoyageFromSchedule(
   const { pols, pods } = partitionScheduleLanes(input.lanes)
   const existingId = options.voyageId
     ?? await findVoyageByNumberAndVessel(input.voyageNumber, input.vesselImo, input.vesselName)
+  // A Viagem nova já nasce publicada, com a origem na linha do tempo; a
+  // existente é publicada aqui (revisão de 2026-10-22, F1).
   const voyageId = existingId ?? (await createVoyage({
     carrierName: DEFAULT_CARRIER_NAME,
     carrierScac: DEFAULT_CARRIER_SCAC,
@@ -151,9 +153,9 @@ export async function createOrAttachVoyageFromSchedule(
     vesselImo: input.vesselImo,
     voyageNumber: input.voyageNumber,
     status: 'active',
-  }, changedBy)).id
+  }, changedBy, { origin: 'chegadas_saidas', showOnPortal: true })).id
 
-  await setVoyageShowOnPortal(voyageId, true)
+  if (existingId !== null) await setVoyageShowOnPortal(voyageId, true)
 
   await Promise.all(pols.map((pol) => saveVoyagePolSchedule({
     voyageId,

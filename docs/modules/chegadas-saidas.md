@@ -51,9 +51,9 @@ a escala continua sem data (migration `090`, ADR 0071). O upload em lote nunca c
 ou "X" são ignoradas.
 
 A tela não tira linhas do quadro. A viagem sai da Programação sozinha ao
-receber o último ATD (passa a Concluída); antes disso, só sai por Excluir ou
-Cancelar em `/viagens` (ADR 0071, item 12; "Remover do Portal" foi retirado na
-Fase 4a da política de exclusão).
+receber o último ATD (passa a Concluída); antes disso, sai por Excluir ou
+Cancelar em `/viagens` ou pela chave Aparece em Chegadas e Saídas da edição da
+viagem (ADR 0097).
 
 O upload em lote baixa um template gerado da mesma constante de lanes. **Conferir
 prévia** lê o arquivo e mostra, por linha (`VESSEL NAME`, `VOY`, `IMO`, lanes
@@ -106,7 +106,7 @@ lote 2 da identidade, 2026-10-16): uma linha de título, com Saída na origem
 (colunas "Porto ETD") antes de Chegada no Brasil ("Porto ETA"), na ordem em que
 acontecem; data efetiva (ATD no POL, ATA no POD) com o `✓` verde e a data em
 tinta normal; previsão sem marca; previsão já passada sem data efetiva, de saída
-ou de chegada, em âmbar, com o motivo ao passar o mouse; escala omitida como
+ou de chegada, em âmbar, com o motivo ao passar o mouse, **só no Vela** (`audience="internal"`, revisão de 2026-10-22): no Portal só existem previsão e data efetiva, e a previsão vencida aparece como previsão, sem âmbar nem legenda dele (`ScheduleTable`/`ScheduleLegend` com `audience`, padrão `portal`); escala omitida como
 "Omitida" em cinza e porto sem data como "—", cada estado também em texto para
 leitor de tela. Porto sem data em nenhum navio sai da tabela, com uma nota. A
 posição do navio no MarineTraffic (pelo IMO cadastrado) é o botão **Ver no
@@ -151,12 +151,12 @@ lanes e ordena pela menor ETA de POD.
   `show_on_portal = true`, com as suas Escalas brasileiras — inclusive as que
   só embarcam.
 - A lista de portos-vitrine é única em `PORTAL_SCHEDULE_LANES`.
-- `show_on_portal` controla visibilidade; viagens manuais começam ocultas.
+- `show_on_portal` controla visibilidade; viagens manuais começam ocultas, salvo quando o operador liga **Aparece em Chegadas e Saídas** no cadastro da tela Viagens, e o painel de edição da viagem liga ou desliga a aparição ([ADR 0097](../adr/0097-data-efetiva-confirmada-e-aparicao-na-programacao.md); revisão de 2026-10-22). A viagem criada aqui já nasce publicada, na própria inserção (`createVoyage` com origem `chegadas_saidas`), e a linha do tempo mostra um só "Viagem criada · Origem: Chegadas e Saídas".
 - Viagens `completed` não aparecem na RPC do Portal.
 - PODs omitidos pelo armador (`audit_logs.field_name='omitted'`) aparecem na
   projeção como `OMIT`, enquanto snapshots deletados permanecem ocultos.
 - "Não escala" não cria schedule para a lane.
-- Chegadas e Saídas nunca grava ATA/ATD/RTW/CE/linked.
+- Chegadas e Saídas não grava RTW/CE/linked. ATA e ATD só pela **confirmação da data efetiva** ([ADR 0097](../adr/0097-data-efetiva-confirmada-e-aparicao-na-programacao.md), migration `414`): na célula vencida (âmbar), **Confirmar** abre a janela com a previsão; a chegada grava o ATA da escala com data e hora; a saída grava o ATD do POL só com a data e fica provisória (`voyage_pol_atd_confirmed`): o Laden on Board diferente de um B/L a substitui, com as duas datas na linha do tempo, e o mesmo dia só tira a marca. A correção em Viagens → Rotas e Manifestos → Editar continua vencendo o B/L. A RPC `confirm_schedule_effective_date` recusa Viagem cancelada, porto sem programação, escala removida ou omitida, data futura e data efetiva já registrada. No Portal a data confirmada é só a data efetiva.
 - A ordenação do quadro é automática pela menor ETA; não há setas manuais nem
   arquivamento em `ended_vessels` no fluxo atual.
 - O ATD do POL (regra em [Viagens](viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota))
@@ -167,10 +167,12 @@ lanes e ordena pela menor ETA de POD.
 
 - A linha da viagem sai da Programação, no Vela e no Portal, quando a viagem
   recebe o último ATD e passa a Concluída; não há ação manual para isso.
-- Antes do último ATD, a viagem só sai por **Excluir** ou **Cancelar viagem**
-  em `/viagens`, com a confirmação e os avisos dessas ações. "Remover do
-  Portal" e "Encerrar navio" não existem mais ([ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md),
-  item 12; `archive_vessel_schedule` foi removida na migration `087`).
+- Antes do último ATD, a viagem sai por **Excluir** ou **Cancelar viagem**
+  em `/viagens`, ou pela chave **Aparece em Chegadas e Saídas** desligada na
+  edição da viagem ([ADR 0097](../adr/0097-data-efetiva-confirmada-e-aparicao-na-programacao.md),
+  que supersede o item 12 da [ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md)),
+  registrada no Histórico. Esta tela não desliga a aparição; "Encerrar navio"
+  não existe mais (`archive_vessel_schedule` foi removida na migration `087`).
 
 ## Testes e validação
 

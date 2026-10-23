@@ -160,6 +160,8 @@ src/integration/atdDoPolManual.local-pg.test.ts
 src/integration/historicoImportacao.local-pg.test.ts
 src/integration/hashEDesova.local-pg.test.ts
 src/integration/baplieArmadorETransbordo.local-pg.test.ts
+src/integration/baplieSemEscala.local-pg.test.ts
+src/integration/viagemDuplicada.local-pg.test.ts
 src/integration/corteTokenInterno.local-pg.test.ts
 src/integration/portalAntigoDonoDoBl.local-pg.test.ts
 src/integration/travaDaViagemConfereQuemChama.local-pg.test.ts

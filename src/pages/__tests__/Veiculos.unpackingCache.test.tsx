@@ -75,6 +75,7 @@ it('"Definir local de desova" fica à vista sem seleção, aplica ao recorte e a
 
 it('busca por chassi deixa os veículos anteriores esmaecidos e sem seleção até a resposta', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+  pending.release = null
   try {
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
     const row = await screen.findByRole('checkbox', { name: 'Selecionar veículo CHASSI-1' }) as HTMLInputElement
@@ -88,7 +89,11 @@ it('busca por chassi deixa os veículos anteriores esmaecidos e sem seleção at
     expect(table.className).toContain(STALE_PAGE_CLASS)
     expect(row.disabled).toBe(true)
 
-    pending.release?.()
+    // A tela esmaece antes de a consulta nova chamar o servidor: espera a chamada
+    // existir para liberar a resposta (senão a liberação se perde e o teste trava).
+    await waitFor(() => expect(pending.release).not.toBeNull())
+    // O tipo é estreitado a null pela atribuição no início; quem a preenche é a consulta.
+    ;(pending.release as (() => void) | null)?.()
     expect(await screen.findByText('Nenhum veículo neste recorte')).not.toBeNull()
   } finally { client.clear() }
 })

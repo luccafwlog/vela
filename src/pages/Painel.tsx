@@ -5,13 +5,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block } from '../components/ui/Block'
 import { MetricCard } from '../components/ui/MetricCard'
+import { StatusText } from '../components/ui/StatusText'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useToast } from '../components/ui/Toast'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { LineUpTable } from '../components/lineup/LineUpTable'
 import { LineUpFilters } from '../components/lineup/LineUpFilters'
 import { countActiveLineUpFilters, emptyLineUpFilters, filterLineUpRows, type LineUpFilters as LineUpFiltersState } from '../lib/lineupFilters'
-import { fetchLineUpSnapshot } from '../services/lineup'
+import { fetchLineUpSnapshot, type LineUpUnassignedMty } from '../services/lineup'
 import { markStartupStage } from '../lib/telemetry'
 import { ALERT_DEPARTMENT_LABELS, getAlertDepartmentSummary, type AlertDepartmentSummary } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
@@ -56,6 +57,13 @@ export function Painel() {
     // ponytail: o snapshot cobre só as 60 viagens mais recentes; paginar ou ampliar a query quando o painel precisar de histórico maior.
     return filterLineUpRows(lineup?.rows ?? [], filters)
   }, [lineup, filters])
+  // Vazios sem escala seguem os filtros pela Viagem: só os das Viagens que a tabela mostra.
+  // Viagem sem nenhuma linha no Line Up não tem como ser filtrada e continua no aviso.
+  const unassignedMty = useMemo(() => {
+    const all = new Set((lineup?.rows ?? []).map((row) => row.voyageId))
+    const visible = new Set(rows.filter((row) => row.rowType !== 'export').map((row) => row.voyageId))
+    return (lineup?.unassignedMty ?? []).filter((item) => visible.has(item.voyageId) || !all.has(item.voyageId))
+  }, [lineup, rows])
   const activeFilterCount = countActiveLineUpFilters(filters)
 
   useEffect(() => {
@@ -177,6 +185,7 @@ export function Painel() {
               emptyTitle="Nenhuma escala encontrada."
               emptyDescription="Ajuste os filtros ou aguarde o próximo ciclo de atualização."
             />
+            {unassignedMty.length ? <UnassignedMtyNote items={unassignedMty} /> : null}
             <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
               Faixa verde à esquerda: navio atracado · ✓ data efetiva (ATA na coluna ETA, ATB na coluna ETB) · TBC: terminal sem atribuição ·
               VIN veículos · VIN CNTR containers com veículos · CG carga geral · MTY vazios · RTW restow · BB máquinas / packages ·
@@ -186,5 +195,27 @@ export function Painel() {
         )}
       </Block>
     </>
+  )
+}
+
+// Vazios de importação cujo porto não tem linha no Line Up: ficam fora das
+// linhas (nunca entram no MTY de outro porto) e são listados aqui.
+function UnassignedMtyNote({ items }: { items: LineUpUnassignedMty[] }) {
+  const total = items.reduce((sum, item) => sum + item.count, 0)
+  return (
+    <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-sm">
+      <StatusText tone="warning">
+        {total} {total === 1 ? 'vazio de importação sem escala' : 'vazios de importação sem escala'} no Line Up:
+      </StatusText>{' '}
+      {items.map((item, index) => (
+        <span key={`${item.voyageId}::${item.pod ?? ''}`}>
+          {index > 0 ? ' · ' : null}
+          <Link className="app-link" to={`/vazios-importacao?voyage=${item.voyageId}${item.pod ? `&pod=${encodeURIComponent(item.pod)}` : ''}`}>
+            {item.vesselName} / {item.voyageNumber}
+          </Link>{' '}
+          {item.count} em {item.pod ?? 'porto não informado'}
+        </span>
+      ))}
+    </p>
   )
 }

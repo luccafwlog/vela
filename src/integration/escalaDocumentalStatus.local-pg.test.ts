@@ -254,4 +254,41 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
       `,
     })
   })
+
+  // Migration 412 (revisão de 2026-10-22, F4): o "CE atualizado" automático
+  // diz o fato que mudou o status e a importação que o disparou.
+  it('a justificativa automática diz o fato e a importação que mudou o status', () => {
+    const output = execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl], {
+      encoding: 'utf8',
+      input: `
+        BEGIN;
+        SET LOCAL session_replication_role = replica;
+        INSERT INTO auth.users(id, email, aud, role)
+        VALUES ('41200000-0000-4000-8000-0000000000a1', 'documental412@test.local', 'authenticated', 'authenticated');
+        INSERT INTO public.user_profiles(id, full_name, role, active)
+        VALUES ('41200000-0000-4000-8000-0000000000a1', 'Documental 412', 'administrativo', true);
+        INSERT INTO public.carriers(id, name) VALUES (41200001, 'DOCUMENTAL 412');
+        INSERT INTO public.vessels(id, carrier_id, name) VALUES (41200001, 41200001, 'GREEN ITAJAI 412');
+        INSERT INTO public.voyages(id, vessel_id, voyage_number) VALUES (41200001, 41200001, '11');
+        INSERT INTO public.baplie_containers(voyage_id, container_number, status, pol, pod) VALUES
+          (41200001, 'GITU4120001', 'full', 'CNSHA', 'BRVIX'),
+          (41200001, 'GITU4120002', 'full', 'CNSHA', 'BRVIX');
+        SET LOCAL session_replication_role = origin;
+        SELECT set_config('request.jwt.claims', '{"sub":"41200000-0000-4000-8000-0000000000a1","role":"authenticated"}', true);
+        -- O contexto que o envelope da importação de B/L grava (migration 189).
+        SELECT public._set_import_context('B/L', 41200001, NULL);
+        INSERT INTO public.bls(id, voyage_id, pol, pod, cargo_mode) VALUES ('DOC412A', 41200001, 'CNSHA', 'BRVIX', 'container');
+        INSERT INTO public.bl_containers(bl_id, container_number) VALUES ('DOC412A', 'GITU4120001'), ('DOC412A', 'GITU4120002');
+        SET CONSTRAINTS ALL IMMEDIATE;
+        SELECT old_value || '>' || new_value || '|' || justification FROM public.audit_logs
+        WHERE entity_type = 'voyage_pod_schedule' AND entity_id = '41200001::BRVIX' AND field_name = 'ces'
+        ORDER BY changed_at DESC, id DESC LIMIT 1;
+        ROLLBACK;
+      `,
+    })
+    const line = output.split('\n').map((item) => item.trim()).find((item) => item.startsWith('waiting>'))
+    if (line !== 'waiting>received|Atualização automática de BLs e CEs pela conciliação documental: os 2 container(s) cheio(s) do Baplie em BRVIX têm B/L ativo; falta CE Mercante em 1 de 1 B/L(s) (Importação de B/L · Viagem GREEN ITAJAI 412 11)') {
+      throw new Error(`Justificativa inesperada: ${output}`)
+    }
+  })
 })

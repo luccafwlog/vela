@@ -11,6 +11,7 @@ import { SummaryStrip } from '../components/ui/SummaryStrip'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
+import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { useAuth } from '../hooks/useAuth'
 import { useReviewQueue, type ReviewCustomer, type ReviewQueueItem } from '../hooks/useReview'
 import {
@@ -87,6 +88,9 @@ export function Revisao() {
   const [arrivalTarget] = useState(() => readQueueTarget(searchParams))
   const searchText = readQueueTarget(searchParams) ?? ''
   const causeFilter = readReviewCauseParam(searchParams)
+  // Filtro de navio/viagem (revisão de 2026-10-22): a fila vem toda numa
+  // leitura e cada B/L traz a viagem, então o recorte é local.
+  const voyageFilter = searchParams.get('voyage') ?? ''
 
   const reviewQueue = useReviewQueue()
   const { data, isLoading, error } = reviewQueue
@@ -129,9 +133,16 @@ export function Revisao() {
     })
   }
 
+  function setVoyageFilter(voyageId: number | null) {
+    updateParams((next) => {
+      if (voyageId == null) next.delete('voyage')
+      else next.set('voyage', String(voyageId))
+    })
+  }
+
   function clearFilters() {
     updateParams((next) => {
-      for (const key of ['cliente', 'busca', 'q', 'bl', 'causa', 'motivo', 'reason']) next.delete(key)
+      for (const key of ['cliente', 'busca', 'q', 'bl', 'causa', 'motivo', 'reason', 'voyage']) next.delete(key)
     })
   }
 
@@ -304,8 +315,9 @@ export function Revisao() {
   const searchedData = useMemo(() => {
     if (!data) return []
     const q = searchText.toLowerCase().trim()
-    return q ? data.filter((item) => matchesSearch(item, q)) : data
-  }, [data, searchText])
+    const voyageId = voyageFilter ? Number(voyageFilter) : null
+    return data.filter((item) => (voyageId == null || item.voyage_id === voyageId) && (!q || matchesSearch(item, q)))
+  }, [data, searchText, voyageFilter])
 
   const causeCounts = useMemo(() => countReviewCauses(searchedData), [searchedData])
 
@@ -340,7 +352,7 @@ export function Revisao() {
     return openOverrides.get(key) ?? arrivalKeys.has(key)
   }
 
-  const hasActiveFilters = Boolean(searchText.trim() || causeFilter)
+  const hasActiveFilters = Boolean(searchText.trim() || causeFilter || voyageFilter)
 
   function toggleGroupCollapsed(key: string) {
     setOpenOverrides((current) => new Map(current).set(key, !isGroupOpen(key)))
@@ -611,6 +623,13 @@ export function Revisao() {
               placeholder="B/L, cliente, consignatário ou CNPJ"
             />
           </Field>
+          <VoyageCombobox
+            clearable
+            label="Navio / viagem"
+            placeholder="Navio ou viagem"
+            selectedVoyageId={voyageFilter}
+            onSelect={setVoyageFilter}
+          />
           <div className="flex flex-wrap items-center gap-3">
             {data ? <SummaryStrip items={summaryItems} label="Resumo da fila" /> : null}
             {hasActiveFilters ? <Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button> : null}
