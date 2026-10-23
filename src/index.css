@@ -925,6 +925,26 @@ textarea {
   padding: 34px 28px 52px;
 }
 
+/* Espaço mínimo entre as peças empilhadas da página: bloco, cartão, filtros
+   abertos, "Mais filtros", cartões de total. Sem isto, o que não traz margem
+   própria (Block, Card, .app-filter-grid) encostava no vizinho. A margem de
+   cima se funde com a margem de baixo do anterior (fluxo de bloco), então só
+   sobe o vão menor que 16px; o que já tinha 20px continua igual. Parágrafo
+   (`p`) fica de fora: é a legenda logo abaixo dos filtros e continua junto
+   deles. Vale também no painel de aba sem classe (fluxo de bloco) que é filho
+   direto da página, como o dos Relatórios; painel em grade (ficha do B/L,
+   ficha do Cliente) já tem o próprio gap e fica fora para não somar. Em
+   camada de componentes: a margem utilitária de uma tela (mt-6) continua
+   valendo. Só na tela: a impressão mostra só o documento do modal. */
+@layer components {
+  @media screen {
+    .app-main > * + :not(p),
+    .app-main > [role='tabpanel']:not([class]) > * + :not(p) {
+      margin-top: 16px;
+    }
+  }
+}
+
 /* ─── Barra lateral ────────────────────────────────────────────────────────
    Posição do menu escolhida no menu da conta (useNavPosition), só acima de
    1100 px: abaixo, toda posição usa o botão Menu do cabeçalho. Fixa: 240 px.
