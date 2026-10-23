@@ -361,7 +361,10 @@ it("VIP coberto com B/L importado antes da vigência: a solicitação diz que a 
   svc.getPortalCeUnlockVip.mockResolvedValue({ enabled: true, termo: true, procuracao: true, documents: [] });
   svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ vip_covered: false })], total: 1 });
   svc.getPortalCeUnlockRequest.mockResolvedValue(request({ items: [{ bl_id: "BL-A", paid: true, termo: false, procuracao: false, reasons: [], source: "request", vip_covered: false }] }));
+  svc.getPortalCeUnlockModel.mockResolvedValue({ id: "model-1" });
   mount();
+  // Esse B/L pede o termo comum: o modelo fica disponível para baixar.
+  expect(await screen.findByRole("button", { name: "Baixar modelo do termo" })).toBeTruthy();
   await userEvent.click(await screen.findByLabelText("Selecionar B/L BL-A"));
   expect(screen.getByText(/os documentos anuais não cobrem esta seleção/)).toBeTruthy();
   cleanup();

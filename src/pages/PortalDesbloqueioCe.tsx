@@ -180,6 +180,9 @@ export function PortalDesbloqueioCe() {
   const vip = flow.vip.data;
   const vipEnabled = !!vip?.enabled;
   const vipPending = vipEnabled && (!vip.termo || !vip.procuracao);
+  // B/L importado antes da vigência dos anuais pede o termo comum: o modelo
+  // precisa estar à mão também nesse caso.
+  const vipHasUncoveredBl = vipEnabled && (flow.list.data ?? []).some((item) => item.vip_covered === false);
   const detail = flow.detail.data;
 
   // Nova solicitação: a lista inteira do Cliente; busca, cartões e paginação aqui.
@@ -410,7 +413,7 @@ export function PortalDesbloqueioCe() {
               <>
                 <span>para cada B/L</span>
                 {vipEnabled && <Badge tone="slate" title="Condição VIP: documentos anuais">VIP</Badge>}
-                {(!vipEnabled || vipPending) && flow.model.data && (
+                {(!vipEnabled || vipPending || vipHasUncoveredBl) && flow.model.data && (
                   <Button
                     variant="secondary"
                     className="app-btn--sm"
