@@ -6,13 +6,13 @@
 
 ## 2026-10
 
-- **Conta de integração API ITAÚ (2026-10-23):** migration `440`. `user_profiles.account_kind`
+- **Conta de integração API ITAÚ (2026-10-23):** migrations `440` e `441`. `user_profiles.account_kind`
   (`pessoa` ou `integracao`, sem escrita pelo navegador); a conta da baixa automática do Pix vira
   integração e Financeiro (a baixa só exige Financeiro), com o e-mail suprimido e a troca no Histórico
-  de ações. Ela sai do Resumo diário, do sino e da contagem do Administrativo ativo mínimo, e ganha a
-  badge **Integração** na tela Usuários. O 422 `all_recipients_suppressed` do provedor no envio do
-  Portal conta como suprimido, não falha, e grava o endereço na supressão: o heartbeat do
-  `portal-daily-digest` não fica mais vermelho por ele.
+  de ações. Ela sai do Resumo diário, do sino (inclusive do Eco da dispensa, `441`) e da contagem
+  do Administrativo ativo mínimo, e ganha a badge **Integração** na tela Usuários. O 422
+  `all_recipients_suppressed` do provedor no envio do Portal conta como suprimido, não falha, e
+  grava o endereço na supressão: o heartbeat do `portal-daily-digest` não fica mais vermelho por ele.
 - **Rotina Itaú Pix volta a responder 200 (2026-10-23):** desde a v29 (merge da PR
   luccafwlog/vela#1021 na `main`, 22/10) a `itau-pix` respondia 500 a toda rodada boa: o
   status vinha de `"error" in charges`, e o resumo da fila sempre tem a chave `error` (contagem
