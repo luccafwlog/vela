@@ -1591,7 +1591,8 @@ Cliente nunca vê nada da ZPT.
 Condição por CNPJ em que termo e procuração anuais aprovados e vigentes
 substituem os anexos de cada pedido, e a solicitação não passa pela análise.
 Não dispensa pagamento nem entrega por B/L; o selo VIP sem documentos vigentes
-não dispensa nada.
+não dispensa nada. A vigência do anual só vale para os B/Ls importados no Vela
+dentro dela (data de importação do B/L); não retroage.
 → Regra: [Desbloqueio de CE § Requisitos e condição VIP](docs/modules/desbloqueio-ce.md#requisitos-e-condição-vip)
 
 **Exportação para a ZPT**

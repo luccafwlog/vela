@@ -36,6 +36,12 @@ export type CeUnlockItem = {
   state: string;
   version: number;
   vip: boolean;
+  /**
+   * O termo e a procuração anuais vigentes cobrem este B/L: ele foi importado no
+   * Vela dentro da vigência deles (migration 449). Sem isso, a solicitação segue
+   * com termo e procuração anexados a ela.
+   */
+  vip_covered?: boolean;
   termo: boolean;
   procuracao: boolean;
   paid: boolean;
@@ -55,7 +61,7 @@ export type CeUnlockItem = {
   zpt_pending?: string[] | null;
   zpt_updated_at?: string | null;
   zpt_without_export?: boolean | null;
-  /** Início do prazo (SLA): envio, entrega do original ou liquidação mais recente. */
+  /** Início do prazo (SLA): só com os quatro requisitos; o último fato que os completou (migration 448). */
   sla_started_at?: string | null;
   reasons: string[];
   source: "request" | "vip_annual";

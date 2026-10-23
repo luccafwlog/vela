@@ -182,7 +182,16 @@ Os quatro requisitos são termo de devolução aprovado, procuração aprovada, 
 integralmente liquidadas (Financeiro) e B/L original entregue (BL de Entrega). Selo VIP
 não dispensa documento: exige termo e procuração anuais aprovados/vigentes para o mesmo
 CNPJ. Validade até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não renova
-em janeiro. Pagamento e entrega continuam por B/L, também para VIP. A entrega do
+em janeiro. **A vigência não retroage** (migration `449`, ponto 11 das observações de
+2026-10-23, [ADR 0101](../adr/0101-desbloqueio-ce-prazo-e-vigencia-anual.md), decisão 4): o anual,
+e cada renovação, só cobre o B/L importado no Vela dentro da vigência dele, pela data de
+importação (`bls.created_at`, gravada na primeira importação e mantida na reimportação; dia de
+Brasília), e só enquanto está vigente hoje. O B/L importado antes (ex.: em 20/12, com o VIP
+começando na virada do ano) segue as regras de quem não tem o anual: a solicitação dele nasce
+comum (`source = 'request'`), com termo e procuração anexados. O rascunho só nasce VIP
+(`vip_annual`) quando os anuais cobrem todos os B/Ls; um B/L sem cobertura faz o pedido inteiro
+seguir comum. O item traz `vip_covered` para o Portal explicar. **Teste:**
+`ceUnlockVigenciaAnual.local-pg.test.ts`. Pagamento e entrega continuam por B/L, também para VIP. A entrega do
 original é independente da solicitação: o desk a registra antes ou depois do pedido.
 Conteúdo, assinatura e validade do termo e da procuração são conferidos só pela
 análise humana do desk ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)). Reserva de upload

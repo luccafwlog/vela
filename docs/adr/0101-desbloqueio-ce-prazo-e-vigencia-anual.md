@@ -1,7 +1,7 @@
-# 0101 — Desbloqueio de CE: prazo só com os quatro requisitos
+# 0101 — Desbloqueio de CE: prazo só com os quatro requisitos e vigência anual sem retroagir
 
-Status: aceito — 2026-10-23 (observações do responsável, ponto 10). Implementada
-na migration `448`.
+Status: aceito — 2026-10-23 (observações do responsável, pontos 10 e 11).
+Implementada nas migrations `448` (prazo) e `449` (vigência).
 
 Supersede a decisão 15 da
 [spec de revisão do fluxo](../archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md)
@@ -27,6 +27,12 @@ como cumprir.
 2. A solicitação só tem prazo quando todos os B/Ls ativos têm os quatro
    requisitos.
 3. Desfazer um requisito tira o prazo; cumpri-lo de novo recomeça a contagem.
+4. **A vigência do termo e da procuração anuais não retroage.** O anual, e cada
+   renovação, cobre só o B/L importado no Vela dentro da vigência dele
+   (`bls.created_at`, dia de Brasília), e só enquanto ele próprio está vigente.
+   O B/L importado antes segue as regras de quem não tem o anual: termo e
+   procuração anexados à solicitação. Exemplo: B/L importado em 20/12, com o
+   Cliente VIP a partir da virada do ano, não ganha a condição VIP.
 
 ## Consequências
 
@@ -34,3 +40,8 @@ como cumprir.
   documentos ainda não foram aprovados) e mostra a hora do envio.
 - O aviso "documentação validada" já saía só com os quatro requisitos e não
   muda.
+- O rascunho do Cliente VIP só nasce VIP quando os anuais cobrem todos os B/Ls;
+  um B/L sem cobertura faz a solicitação inteira seguir comum. Pedido VIP já
+  aberto com B/L importado antes da vigência perde a cobertura desse B/L.
+- Pergunta em aberto (PR B): depois de 31/12, o anual vencido deixa de cobrir
+  até o B/L importado no ano dele; a implementação mantém essa exigência.

@@ -121,7 +121,13 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     sql(`INSERT INTO public.ce_unlock_documents(customer_id,type,source,status,file_name,storage_path,size_bytes,hash,coverage_year,valid_from,valid_until,uploaded_by) VALUES
     (998557,'termo','vip_annual','approved','termo.pdf','annual/termo',100,'hash',extract(year from now())::int,make_date(extract(year from now())::int,1,1),make_date(extract(year from now())::int,12,31),'${admin}'),
     (998557,'procuracao','vip_annual','approved','proc.pdf','annual/proc',100,'hash',extract(year from now())::int,make_date(extract(year from now())::int,1,1),make_date(extract(year from now())::int,12,31),'${admin}');`)
-    const draft=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items[0]
+    // 449: o rascunho feito antes dos anuais nasceu comum (termo e procuração anexados);
+    // com os anuais cobrindo o B/L, o pedido novo nasce VIP.
+    const before=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items[0]
+    expect(before.source).toBe('request')
+    cancelOpenRequests('Pedir de novo com os anuais')
+    const draft=command('draft',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()},client)
+    expect(draft.source).toBe('vip_annual')
     const sent=command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)
     expect(sent.items[0]).toMatchObject({termo:true,procuracao:true,paid:true,delivered:false,can_export:false})
     const key=crypto.randomUUID()
