@@ -37,6 +37,7 @@ import { usePortalCeUnlock } from "../hooks/usePortalCeUnlock";
 import { downloadCeUnlockDocument, uploadCeUnlockDocument } from "../services/ceUnlockService";
 import type { CeUnlockDocument, CeUnlockItem, CeUnlockRequest, CeUnlockVipCoverage } from "../types/ceUnlock";
 import { portalPath, type PortalScope } from "../services/portalScope";
+import { matchesAnyToken } from "../lib/searchTerms";
 
 type Tab = "new" | "requests" | "annual";
 type DocType = "termo" | "procuracao";
@@ -162,7 +163,7 @@ export function PortalDesbloqueioCe() {
   const allItems = flow.list.data ?? [];
   const needle = search.trim().toLowerCase();
   const searched = needle
-    ? allItems.filter((i) => i.bl_id.toLowerCase().includes(needle) || (i.ce_mercante ?? "").toLowerCase().includes(needle))
+    ? allItems.filter((i) => i.bl_id.toLowerCase().includes(needle) || (i.ce_mercante ?? "").toLowerCase().includes(needle) || matchesAnyToken(needle, [i.bl_id, i.ce_mercante]))
     : allItems;
   // Com documento anual faltando, nada pode ser pedido agora (o botão fica desativado).
   const canRequest = (i: CeUnlockItem) => i.can_submit && !vipPending;
