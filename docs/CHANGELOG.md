@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Todo Pix recebido pelo Itaú fica gravado (2026-10-23):** migrations `442` e `443`,
+  [ADR 0100](adr/0100-todo-pix-recebido-fica-gravado.md). A consulta de recebimentos já trazia
+  todo Pix que entra na conta da Transhipping; agora a `itau-pix` entrega cada um a
+  `itau_pix_receive`: o de cobrança do Vela segue para a baixa automática e o resto (sem
+  identificador, de outro sistema na mesma chave, teste) fica gravado sem baixa e sem Alerta, com o
+  retorno do Itaú (chave, mensagem e, quando vier, nome e CPF/CNPJ do pagador). Nova aba **Pix
+  recebidos** na Conciliação PIX, com filtros, origem, situação, fatura e pagador (só para
+  Financeiro e Administrativo), e baixa opcional numa fatura sugerida pelo valor ou pelo documento
+  do pagador. Em Pendências, o bloco vira **Pix em análise**, só com o Pix de cobrança do Vela. Os
+  Pix sem identificador que estavam em análise viram recebidos e os Alertas deles fecham.
 - **Conta de integração API ITAÚ (2026-10-23):** migrations `440` e `441`. `user_profiles.account_kind`
   (`pessoa` ou `integracao`, sem escrita pelo navegador); a conta da baixa automática do Pix vira
   integração e Financeiro (a baixa só exige Financeiro), com o e-mail suprimido e a troca no Histórico

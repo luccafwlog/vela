@@ -72,6 +72,8 @@ export const queryKeys = {
     history: () => ['reconciliation-history'] as const,
     pixExceptions: () => ['pix-reconciliation-exceptions'] as const,
     itauPixMonitor: () => ['itau-pix-monitor'] as const,
+    /** Aba Pix recebidos (`list_itau_pix_receipts`): filtros entram como sufixo. */
+    itauPixReceipts: () => ['itau-pix-receipts'] as const,
   },
   voyages: {
     all: () => ['voyages'] as const,

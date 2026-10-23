@@ -19,6 +19,12 @@
 > TXID de outro sistema na mesma chave segue ignorado. A decisão 21 mantém
 > quatro dígitos e o número inteiro a partir de 10.000.
 >
+> **Supersedida na decisão 16 pela [ADR 0100](./0100-todo-pix-recebido-fica-gravado.md)
+> (2026-10-23, migrations `442` e `443`).** O Pix sem TXID não vai mais para
+> análise nem abre `pix_unreconciled`: como todo Pix que não é de cobrança do
+> Vela, fica gravado como recebido, sem Alerta, na aba Pix recebidos da
+> Conciliação, onde o Financeiro pode dar a baixa numa fatura se quiser.
+>
 > **Nota editorial — 2026-10-22 (decisão do responsável na
 > [revisão da PR 1021](../archive/audits/2026-10-22-revisao-pr-1021.md), R-05).**
 > O "só o Administrativo edita item de tabela" da decisão 2 vale para tabela

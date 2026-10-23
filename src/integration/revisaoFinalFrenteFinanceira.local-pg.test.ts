@@ -134,11 +134,15 @@ describeLocal('385 — revisão final da frente financeira', () => {
     expect(w.psql(`SELECT status FROM public.itau_pix_receipt_failures WHERE failure_key = '${e2e(1)}'`)).toBe('handled')
   })
 
-  it('Pix sem TXID fecha quando a baixa manual leva o endToEndId na referência', () => {
+  it('Pix sem TXID aparece baixado quando a baixa manual leva o endToEndId na referência', () => {
     const b = issued('SEMTX')
     w.psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_record_untracked('${e2e(2)}', 1000, now())`)
     w.asOk('financeiro', `SELECT public.register_verified_invoice_payment(${b.invoice}, 1000, 'pix', now(), 'Pix sem TXID', gen_random_uuid(), '${e2e(2)}')`)
-    expect(w.psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(2)}'`)).toBe('handled')
+    // Desde a 442 (ADR 0100) o Pix sem TXID fica "recebido"; a situação vem da baixa com a referência dele.
+    const listing = w.json<{ rows: { situation: string; settled_doc_number: string }[] }>('financeiro',
+      `SELECT public.list_itau_pix_receipts(p_search => '${e2e(2)}')`)
+    expect(listing.rows).toEqual([expect.objectContaining({ situation: 'settled' })])
+    expect(w.psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(2)}'`)).toBe('received')
   })
 
   it('Pix estático da avulsa: o QR remontado cobra o saldo, não o total', () => {

@@ -126,9 +126,11 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao ler o checkpoint Itaú.");
             return data;
           },
-          async settle(pix) {
-            const { data, error } = await admin.rpc("itau_pix_settle", {
+          // Todo Pix da consulta (ADR 0100): o de cobrança do Vela é baixado; o resto fica gravado.
+          async receive(pix) {
+            const { data, error } = await admin.rpc("itau_pix_receive", {
               p_end_to_end_id: pix.endToEndId, p_txid: pix.txid, p_amount_brl: Number(pix.valor), p_paid_at: pix.horario,
+              p_raw: pix.raw,
             });
             if (error) throw new Error("Falha ao registrar recebimento Itaú.");
             return data;
@@ -138,13 +140,6 @@ if (typeof Deno !== "undefined")
               p_end_to_end_id: pix.endToEndId ?? null, p_txid: pix.txid, p_raw: pix.raw, p_error: message, p_permanent: permanent,
             });
             if (error) throw new Error("Falha ao registrar recebimento Itaú com erro.");
-            return data;
-          },
-          async untracked(pix) {
-            const { data, error } = await admin.rpc("itau_pix_record_untracked", {
-              p_end_to_end_id: pix.endToEndId, p_amount_brl: Number(pix.valor), p_paid_at: pix.horario,
-            });
-            if (error) throw new Error("Falha ao registrar Pix sem TXID.");
             return data;
           },
           async saveCheckpoint(until) {

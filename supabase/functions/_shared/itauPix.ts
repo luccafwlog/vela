@@ -24,7 +24,8 @@ export type ItauCob = {
   pix?: { endToEndId: string; valor: string; horario: string }[]
 }
 
-export type ItauPix = { endToEndId: string; txid?: string; valor: string; horario: string }
+// `raw` é o Pix como o Itaú devolveu (antes da troca de fuso): fica gravado inteiro (ADR 0100).
+export type ItauPix = { endToEndId: string; txid?: string; valor: string; horario: string; raw?: Record<string, unknown> }
 
 export class ItauPixError extends Error {
   // status 0 = sem resposta (timeout/rede): o resultado de uma escrita é incerto.
@@ -245,13 +246,14 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
         // Só o Pix do Vela tem o horário convertido: horário inesperado de terceiro não
         // derruba a consulta, e o do Vela segue cru para a validação, que o manda à análise.
         all.push(...(body?.pix ?? []).map(p => {
-          if (!isVelaTxid(p.txid)) return p
+          const raw = p as unknown as Record<string, unknown>
+          if (!isVelaTxid(p.txid)) return { ...p, raw }
           try {
-            return { ...p, horario: itauTimeToUtc(p.horario) }
+            return { ...p, horario: itauTimeToUtc(p.horario), raw }
           } catch (error) {
             // Horário no futuro é o banco que mudou o fuso: vale para todos, então para.
             if (error instanceof ItauPixError && error.message.includes('no futuro')) throw error
-            return { ...p, horario: '' }
+            return { ...p, horario: '', raw }
           }
         }))
         const pages = body?.parametros?.paginacao?.quantidadeDePaginas ?? 1
@@ -448,17 +450,19 @@ export async function processItauPixQueue(
 }
 
 // ---------------------------------------------------------------------------
-// Recebimentos (Fase 3): GET /pix por janela, baixa no banco por itau_pix_settle.
+// Recebimentos (Fase 3): GET /pix por janela; cada Pix vai ao banco por itau_pix_receive.
+
+export type ReceivedPix = { endToEndId: string; txid: string; valor: string; horario: string; raw: Record<string, unknown> }
 
 export type ReceiptSink = {
   checkpoint(): Promise<string | null>
-  settle(pix: { endToEndId: string; txid: string; valor: string; horario: string }): Promise<'settled' | 'review'>
-  // Recebimento que não pôde ser baixado (F-09, migration 358): o banco conta as
+  // Todo Pix da consulta (ADR 0100, migration 442): o de cobrança do Vela vai
+  // para a baixa automática ('settled' ou 'review'); o resto fica gravado como
+  // recebido, sem baixa e sem Alerta ('received').
+  receive(pix: ReceivedPix): Promise<'settled' | 'review' | 'handled' | 'received'>
+  // Recebimento que não pôde ser gravado (F-09, migration 358): o banco conta as
   // tentativas; 'review' manda para análise e a consulta segue, 'retry' para sem avançar.
   failed(pix: { endToEndId?: string; txid: string; raw: unknown }, error: string, permanent: boolean): Promise<'review' | 'retry'>
-  // Pix sem TXID na chave do Vela (ADR 0093, decisão 16; migration 375): vira
-  // "Pix recebido sem baixa" com Alerta para o Financeiro.
-  untracked(pix: { endToEndId: string; valor: string; horario: string }): Promise<'review'>
   saveCheckpoint(until: string): Promise<void>
 }
 
@@ -483,6 +487,19 @@ function receiptFormatOk(p: ItauPix): boolean {
 
 function receiptDeviates(p: ItauPix): boolean {
   return Math.abs(Date.parse(p.horario) - endToEndTime(p.endToEndId)!) > END_TO_END_TOLERANCE_MS
+}
+
+// Horário do Pix que não é do Vela: o do Itaú convertido de Brasília, ou o
+// minuto UTC do endToEndId quando o do banco não se lê ou se afasta dele (fuso
+// trocado). Não para a consulta: as travas de fuso ficam com os Pix do Vela.
+function receivedTime(horario: string, e2eTime: number): string {
+  try {
+    const value = itauTimeToUtc(horario)
+    if (Math.abs(Date.parse(value) - e2eTime) <= END_TO_END_TOLERANCE_MS) return value
+  } catch {
+    // cai no endToEndId
+  }
+  return new Date(e2eTime).toISOString()
 }
 
 const OVERLAP_MS = 10 * 60 * 1000 // Pix disponibilizado com atraso entra na janela seguinte.
@@ -516,51 +533,60 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
     throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502,
       { txids: deviating.map((p) => p.txid) })
   }
-  const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, untracked: 0, until: new Date(end).toISOString() }
+  const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, received: 0, skipped: 0, until: new Date(end).toISOString() }
   for (const p of pix) {
-    // Pix sem TXID (cópia e cola sem cobrança, chave digitada): pode ser de
-    // fatura do Vela, então vai para análise. Registro sem horário/valor válido
-    // não é baixável e fica de fora.
-    if (!p.txid && endToEndTime(p.endToEndId ?? '') !== null && MONEY.test(p.valor ?? '')) {
-      const horario = (() => { try { return itauTimeToUtc(p.horario) } catch { return new Date(endToEndTime(p.endToEndId)!).toISOString() } })()
+    const raw = p.raw ?? (p as unknown as Record<string, unknown>)
+    if (!isVelaTxid(p.txid) || isVelaTestTxid(p.txid)) {
+      // Sem TXID (chave digitada, dados da conta), TXID de outro sistema na mesma
+      // chave ou teste do Vela: fica gravado como recebido, sem baixa e sem Alerta
+      // (ADR 0100). Sem endToEndId ou valor válidos não há o que gravar.
+      const e2eTime = endToEndTime(p.endToEndId ?? '')
+      if (e2eTime === null || !MONEY.test(p.valor ?? '') || Number(p.valor) <= 0) {
+        summary.skipped++
+        continue
+      }
+      const txid = typeof p.txid === 'string' ? p.txid : ''
+      // O horário do retorno como veio: o do teste `VELAT…` já chega convertido em `p`.
+      const horario = receivedTime(typeof raw.horario === 'string' ? raw.horario : p.horario, e2eTime)
       try {
-        await sink.untracked({ endToEndId: p.endToEndId, valor: p.valor, horario })
-        summary.untracked++
+        // ponytail: uma chamada por Pix, repetida nas ~10 rodadas da sobreposição
+        // (idempotente pelo endToEndId). Com volume alto de Pix de terceiro,
+        // gravar em lote numa RPC só.
+        await sink.receive({ endToEndId: p.endToEndId, txid, valor: p.valor, horario, raw })
+        summary.received++
+        if (isVelaTestTxid(p.txid)) summary.test++
       } catch (error) {
-        // Mesma regra do Pix com TXID: até a terceira vez para sem avançar; depois, análise.
-        const message = error instanceof Error ? error.message : 'Falha ao registrar Pix sem TXID.'
-        if (await sink.failed({ endToEndId: p.endToEndId, txid: '', raw: p }, message, false) === 'retry') throw error
+        // Mesma regra do Pix do Vela: até a terceira vez para sem avançar; depois, análise.
+        const message = error instanceof Error ? error.message : 'Falha ao gravar o Pix recebido.'
+        if (await sink.failed({ endToEndId: p.endToEndId, txid, raw }, message, false) === 'retry') throw error
         summary.review++
       }
       continue
     }
-    // Pix do sistema de terceiro na mesma chave (TXID de outro padrão): ignorado e não persistido.
-    if (!isVelaTxid(p.txid)) continue
-    // Cobrança de teste paga (Fase 1): não é fatura, então não vira baixa nem Alerta.
-    if (isVelaTestTxid(p.txid)) { summary.test++; continue }
     summary.vela++
     if (!receiptFormatOk(p)) {
       // Registro ruim vai para análise e a consulta avança.
-      await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw: p }, 'Recebimento do Itaú em formato inesperado.', true)
+      await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw }, 'Recebimento do Itaú em formato inesperado.', true)
       summary.review++
       continue
     }
     if (receiptDeviates(p)) {
       // Minoria da janela: não é fuso, é este comprovante.
-      await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw: p }, 'Horário do Itaú diverge do endToEndId deste recebimento.', true)
+      await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw }, 'Horário do Itaú diverge do endToEndId deste recebimento.', true)
       summary.review++
       continue
     }
-    let outcome: 'settled' | 'review'
+    let outcome: Awaited<ReturnType<ReceiptSink['receive']>>
     try {
-      outcome = await sink.settle({ endToEndId: p.endToEndId, txid: p.txid, valor: p.valor, horario: p.horario })
+      outcome = await sink.receive({ endToEndId: p.endToEndId, txid: p.txid, valor: p.valor, horario: p.horario, raw })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao registrar recebimento Itaú.'
       // Erro passageiro: até a terceira vez a consulta para sem avançar; depois, análise.
-      if (await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw: p }, message, false) === 'retry') throw error
+      if (await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw }, message, false) === 'retry') throw error
       outcome = 'review'
     }
-    summary[outcome]++
+    // Repetido pela sobreposição, o Pix já tratado volta como 'handled' e não conta de novo.
+    if (outcome === 'settled' || outcome === 'review') summary[outcome]++
   }
   await sink.saveCheckpoint(summary.until)
   return summary

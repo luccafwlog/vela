@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { UnifiedPixMatch } from '../../../services/reconciliacao'
 import {
+  bankExtraFields,
   countPixPending,
   describeConfirmation,
   describeItauPoll,
@@ -9,8 +10,12 @@ import {
   formatExtractDay,
   historyRowStatus,
   itauChargeState,
+  parsePixAmountFilter,
   pendingExceptionReason,
   readyAmountNote,
+  receiptInvoice,
+  receiptOriginLabel,
+  receiptSituation,
   shortTxid,
   sortItauCharges,
   splitExtractLines,
@@ -103,5 +108,53 @@ describe('Conciliação PIX — leituras', () => {
     expect(historyRowStatus({ source: 'local', status: 'paid' }).label).toBe('Paga')
     expect(historyRowStatus({ source: 'local', status: 'partially_paid' })).toEqual({ label: 'Parcialmente paga', kind: 'partial' })
     expect(historyRowStatus({ source: 'local', status: 'covered' }).label).toBe('Coberta pela consolidada')
+  })
+})
+
+describe('Pix recebidos (ADR 0100)', () => {
+  it('lê o valor digitado no filtro em reais, com ou sem R$, e acusa o ilegível', () => {
+    expect(parsePixAmountFilter('')).toBeNull()
+    expect(parsePixAmountFilter('  ')).toBeNull()
+    expect(parsePixAmountFilter('1.234,56')).toBe(1234.56)
+    expect(parsePixAmountFilter('R$ 50')).toBe(50)
+    expect(parsePixAmountFilter('50.00')).toBe(50)
+    expect(parsePixAmountFilter('0,015')).toBe(0.02)
+    expect(parsePixAmountFilter('abc')).toBeNaN()
+    expect(parsePixAmountFilter('0')).toBeNaN()
+    expect(parsePixAmountFilter('-5')).toBeNaN()
+  })
+
+  it('situação: só o Pix do Vela em análise pede ação; a baixa diz se foi automática ou manual', () => {
+    expect(receiptSituation({ situation: 'settled', settledBy: 'itau' })).toEqual({ label: 'Baixa automática', needsAction: false })
+    expect(receiptSituation({ situation: 'settled', settledBy: 'manual' })).toEqual({ label: 'Baixa manual', needsAction: false })
+    expect(receiptSituation({ situation: 'review', settledBy: null })).toEqual({ label: 'Em análise', needsAction: true })
+    expect(receiptSituation({ situation: 'received', settledBy: null })).toEqual({ label: 'Sem baixa', needsAction: false })
+    expect(receiptOriginLabel('none')).toBe('Sem identificador')
+    expect(receiptOriginLabel('other')).toBe('Outro sistema')
+  })
+
+  it('fatura da linha: a da baixa e, sem baixa, a da cobrança do Vela', () => {
+    const charge = { source: 'demurrage' as const, invoiceId: 31, docNumber: 'DEM-31' }
+    const settled = { source: 'local' as const, invoiceId: 11, docNumber: 'INV-11' }
+    expect(receiptInvoice({ settled, charge })).toBe(settled)
+    expect(receiptInvoice({ settled: null, charge })).toBe(charge)
+    expect(receiptInvoice({ settled: null, charge: null })).toBeNull()
+  })
+
+  it('o que mais o banco mandou vira rótulo e valor, sem repetir o que a linha já mostra', () => {
+    const fields = bankExtraFields({
+      endToEndId: 'E1', valor: '10.00', chave: 'x', infoPagador: 'oi', pagador: { nome: 'Fulano' },
+      componentesValor: { original: { valor: '10.00' } },
+      devolucoes: [{ id: 'D1', valor: '2.00', status: 'DEVOLVIDO' }],
+      vazio: '',
+    })
+    expect(fields).toEqual([
+      { label: 'componentesValor › original › valor', value: '10.00' },
+      { label: 'devolucoes › 1 › id', value: 'D1' },
+      { label: 'devolucoes › 1 › valor', value: '2.00' },
+      { label: 'devolucoes › 1 › status', value: 'DEVOLVIDO' },
+    ])
+    expect(bankExtraFields(null)).toEqual([])
+    expect(bankExtraFields(Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`campo${i}`, i]))).length).toBe(30)
   })
 })
