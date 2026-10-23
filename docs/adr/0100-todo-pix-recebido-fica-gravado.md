@@ -9,7 +9,7 @@
 
 Status: aceito — 2026-10-23 (pedido do responsável, ao saber que a consulta da
 API Pix Recebimentos traz também transferências que não vieram de uma cobrança
-do Vela). Implementada nas migrations `442` a `445`, na Edge `itau-pix` e na
+do Vela). Implementada nas migrations `442` a `446`, na Edge `itau-pix` e na
 aba **Pix recebidos** da Conciliação PIX.
 
 Supersede a decisão 16 da [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md)

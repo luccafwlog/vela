@@ -257,7 +257,7 @@ const DEMURRAGE_INVOICE_KEYS: readonly (readonly unknown[])[] = [
   ['demurrage-latest-recalc'], ['financial-refunds'], ['bl-detail'], ['bl-cockpit'], ['customer-ficha'],
   ['customer-detail'], ['portal-demurrage-invoices'], ['portal-demurrage-invoices-page'],
   ['portal-demurrage-invoice-detail'], ['portal-disputes'], ['reconciliation-history'],
-  ['alerts'], ['header-alert'], ['itau-pix-receipts'],
+  ['alerts'], ['header-alert'], ['itau-pix-receipts'], ['itau-pix-monitor'],
 ]
 
 /**

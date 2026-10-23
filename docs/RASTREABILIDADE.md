@@ -513,7 +513,7 @@ Regra: [Conciliação PIX](modules/reconciliacao-pix.md).
 | `list_pix_reconciliation_candidates` | `reconciliacao.ts` | `097`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `list_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `resolve_pix_reconciliation_exception` | `reconciliacao.ts` | `002`, `247`, `269` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
-| `reverse_demurrage_payment` | `reconciliacao.ts` | `002` | DEFINER · `authenticated` | Administrativo ativo | Reabre a Invoice; os gatilhos da `191` reemitem a Invoice suspensa e a `136` recusa com restituição ativa. `p_actor` conferido com a sessão (`241`). |
+| `reverse_demurrage_payment` | `reconciliacao.ts` | `002`, `241`, `446` | DEFINER · `authenticated` | Administrativo ativo | Reabre a Invoice; os gatilhos da `191` reemitem a Invoice suspensa e a `136` recusa com restituição ativa. `p_actor` conferido com a sessão (`241`). O Pix do Itaú da baixa volta a análise com Alerta (`446`). |
 | `reverse_invoice_payment` | `reconciliacao.ts` | `136`, `376`, `385` | DEFINER · `authenticated` | Administrativo; ator = sessão | Cancela excedente automático pendente e recalcula a avulsa (`136`); a exclusão da baixa fica em `audit_logs` pelo gatilho `audit_payments`. |
 | `upsert_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
 

@@ -51,7 +51,7 @@ describeLocal('442 — Pix recebidos', () => {
       DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id LIKE 'E9442%');
       DELETE FROM public.alerts WHERE entity_id LIKE 'E9442%';
       DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E9442%';
-      DELETE FROM public.demurrage_mutation_requests WHERE invoice_id = ${demurrageId};
+      DELETE FROM public.demurrage_mutation_requests WHERE invoice_id IN (${demurrageId}, ${demurrageId + 1});
       SET session_replication_role = origin;`)
     w.cleanup()
   })
@@ -165,8 +165,8 @@ describeLocal('442 — Pix recebidos', () => {
   })
 
   it('baixa automática que não existe mais não aparece como baixa (migration 444)', () => {
-    // Recebimento gravado 'settled' pela baixa automática cuja baixa foi cancelada
-    // (reverse_demurrage_payment não muda o recebimento): nenhuma baixa usa o Pix.
+    // Recebimento gravado 'settled' sem nenhuma baixa que use o Pix (a Invoice de
+    // Demurrage cancelada antes da 446 ficava assim).
     w.psql(`INSERT INTO public.itau_pix_receipts (end_to_end_id, txid, amount_brl, paid_at, status)
       VALUES ('${e2e(10)}', 'VELA${'C'.repeat(28)}', 42, now(), 'settled')`)
     expect(row(10)).toMatchObject({ situation: 'received', settled_by: null, settled_doc_number: null })
@@ -181,6 +181,31 @@ describeLocal('442 — Pix recebidos', () => {
       VALUES ('${e2e(11)}', '${txid}', ${total}, now(), 'settled', '{"already_settled": true}'::jsonb)`)
     const docNumber = w.psql(`SELECT invoice_number FROM public.invoices WHERE id = ${b.invoice}`)
     expect(row(11)).toMatchObject({ situation: 'settled', settled_by: 'extract', settled_source: 'local', settled_doc_number: docNumber })
+  })
+
+  it('cancelar a baixa automática da Invoice de Demurrage devolve o Pix para análise com Alerta (migration 446)', () => {
+    const blId = w.bl('DEMR')
+    const invoiceId = demurrageId + 1
+    const txid = `VELA${'E'.repeat(28)}`
+    w.psql(`INSERT INTO public.bls (id, voyage_id, customer_id, ce_mercante) VALUES ('${blId}', ${w.voyageId}, ${w.customerId}, 'CE9442DEMR')`)
+    w.psql(`INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, total_usd, current_roe, current_total_brl, roe_source, status)
+      VALUES (${invoiceId}, 'DEM-9443', '${blId}', ${w.customerId}, 100, 5.5, 550, 'manual', 'issued')`)
+    // Como a baixa automática grava: o TXID da cobrança na Invoice e o recebimento 'settled'.
+    w.json('financeiro', `SELECT public.register_demurrage_payment(gen_random_uuid(), ${invoiceId}, current_date, '${txid}', 550, NULL)`)
+    w.psql(`INSERT INTO public.itau_pix_receipts (end_to_end_id, txid, amount_brl, paid_at, status)
+      VALUES ('${e2e(12)}', '${txid}', 550, now(), 'settled')`)
+    expect(row(12)).toMatchObject({ situation: 'settled', settled_by: 'itau', settled_doc_number: 'DEM-9443' })
+
+    w.asOk('administrativo', `SELECT public.reverse_demurrage_payment(${invoiceId}, 'Pix de outro B/L')`)
+    expect(receipt(12)).toBe('review')
+    expect(openAlerts(12)).toBe(1)
+    expect(row(12)).toMatchObject({ situation: 'review', reason: 'Baixa cancelada: Pix de outro B/L' })
+
+    // O Pix recebido baixado pela aba volta a "Sem baixa", sem Alerta (ADR 0100, item 5).
+    w.asOk('administrativo', `SELECT public.reverse_demurrage_payment(${demurrageId}, 'Fatura errada')`)
+    expect(receipt(9)).toBe('received')
+    expect(openAlerts(9)).toBe(0)
+    expect(row(9)).toMatchObject({ situation: 'received', settled_doc_number: null })
   })
 
   it('o Pix de cobrança do Vela não recebe baixa por aqui', () => {
