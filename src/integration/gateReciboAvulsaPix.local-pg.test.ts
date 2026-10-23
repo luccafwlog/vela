@@ -98,12 +98,12 @@ describeLocal('375 — gate, recibo, avulsa e Pix sem baixa', () => {
     expect(w.psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(1)}'`)).not.toBe('review')
   })
 
-  it('F-38 (decisão 16): Pix sem TXID vira "Pix recebido sem baixa" com Alerta, uma vez só', () => {
+  it('F-38: Pix sem TXID fica gravado uma vez só; desde a 442 (ADR 0100) como recebido, sem Alerta', () => {
     const run = () => w.psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_record_untracked('${e2e(2)}', 123.45, now())`)
-    expect(run()).toBe('review')
-    expect(run()).toBe('review')
-    expect(w.psql(`SELECT count(*) FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(2)}' AND status = 'review'`)).toBe('1')
-    expect(w.psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id WHERE ai.item_type = 'pix_unreconciled' AND a.entity_id = '${e2e(2)}' AND ai.status = 'active'`)).toBe('1')
+    expect(run()).toBe('received')
+    expect(run()).toBe('received')
+    expect(w.psql(`SELECT count(*) FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(2)}' AND status = 'received'`)).toBe('1')
+    expect(w.psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id WHERE ai.item_type = 'pix_unreconciled' AND a.entity_id = '${e2e(2)}' AND ai.status = 'active'`)).toBe('0')
     expect(w.as('financeiro', `SELECT public.itau_pix_record_untracked('${e2e(3)}', 1, now())`).status).not.toBe(0)
   })
 

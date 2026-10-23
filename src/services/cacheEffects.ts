@@ -271,15 +271,17 @@ export async function afterFaturaDemurrageAlterada(queryClient: QueryInvalidator
 }
 
 /**
- * Baixa por Pix pela Conciliação (lote do extrato ou exceção conciliada): a
- * fatura local passa pelo ledger e a Invoice de Demurrage pela persistência
- * própria; as duas famílias, o histórico, as exceções PIX, o monitor Itaú e o
- * Alerta `pix_unreconciled` leem o resultado.
+ * Baixa por Pix pela Conciliação (lote do extrato, exceção conciliada ou Pix
+ * recebido baixado numa fatura): a fatura local passa pelo ledger e a Invoice
+ * de Demurrage pela persistência própria; as duas famílias, o histórico, as
+ * exceções PIX, o monitor Itaú, a aba Pix recebidos e o Alerta
+ * `pix_unreconciled` leem o resultado.
  */
 export async function afterPixConciliado(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [
     ...INVOICE_BASIS_CACHE_KEYS, ...DEMURRAGE_INVOICE_KEYS,
     queryKeys.reconciliation.pixExceptions(), queryKeys.reconciliation.itauPixMonitor(), ['pix-reconciliation-candidates'],
+    queryKeys.reconciliation.itauPixReceipts(), ['itau-pix-receipt-candidates'],
   ])
 }
 
@@ -290,7 +292,7 @@ export async function afterPixConciliado(queryClient: QueryInvalidator): Promise
  */
 export async function afterPendenciaPixAlterada(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [
-    queryKeys.reconciliation.pixExceptions(), queryKeys.reconciliation.itauPixMonitor(),
+    queryKeys.reconciliation.pixExceptions(), queryKeys.reconciliation.itauPixMonitor(), queryKeys.reconciliation.itauPixReceipts(),
     queryKeys.alerts.all(), queryKeys.alerts.financial(), ['header-alert'],
   ])
 }

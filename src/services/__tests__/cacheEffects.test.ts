@@ -152,13 +152,14 @@ it('tarifa ou acordo alterado refaz a previsão da aba Containers', async () => 
   expect(keys()).toEqual(expect.arrayContaining(keySet([['demurrage-containers']])))
 })
 
-it('baixa por Pix na Conciliação atualiza fatura local, Demurrage, histórico, exceções e monitor Itaú uma vez cada', async () => {
+it('baixa por Pix na Conciliação atualiza fatura local, Demurrage, histórico, exceções, monitor Itaú e Pix recebidos uma vez cada', async () => {
   const { client, keys } = fakeQueryClient()
   await afterPixConciliado(client)
   expect(keys()).toEqual(expect.arrayContaining(keySet([
     ['invoices'], ['invoice-detail'], ['billing-ledger'], ['bls'], ['bl-detail'], ['customer-ficha'], ['portal-invoices'],
     ['demurrage-invoices'], ['demurrage-invoice-detail'], ['portal-demurrage-invoices'], ['financial-refunds'],
     ['reconciliation-history'], ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['alerts'], ['header-alert'],
+    ['itau-pix-receipts'], ['itau-pix-receipt-candidates'],
   ])))
   expect(new Set(keys()).size).toBe(keys().length)
 })
@@ -167,7 +168,7 @@ it('pendência PIX gravada ou tratada atualiza Pendências e o Alerta sem reler 
   const { client, keys } = fakeQueryClient()
   await afterPendenciaPixAlterada(client)
   expect(keys()).toEqual(keySet([
-    ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['alerts'], ['financial-alerts'], ['header-alert'],
+    ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['itau-pix-receipts'], ['alerts'], ['financial-alerts'], ['header-alert'],
   ]))
 })
 

@@ -1,6 +1,11 @@
 # 0094 — Preço das Taxas Locais fixo na importação e respostas às pendências da frente financeira
 
-Status: aceito — 2026-10-21 (decisões do responsável na revisão das
+> **Situação atual (2026-10-23).** O item B11 não vale mais (migrations `442`
+> e `443`). Pela [ADR 0100](./0100-todo-pix-recebido-fica-gravado.md), o Pix
+> com TXID de outro sistema na mesma chave deixa de ser ignorado e, como o Pix
+> sem TXID, fica gravado como recebido, sem Alerta, com o retorno do Itaú.
+
+Status: supersedida parcialmente (item B11, pela ADR 0100) — aceita em 2026-10-21 (decisões do responsável na revisão das
 importações e respostas às perguntas do plano de pendências). Implementada na
 PR luccafwlog/vela#1019, migrations `378` a `383` e, da revisão final antes do
 merge, `384` a `386`, pelo

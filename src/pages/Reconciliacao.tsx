@@ -11,6 +11,7 @@ import { InvoiceDetailModal } from '../components/billing/InvoiceDetailModal'
 import { ReconciliationHistoryTable } from '../components/billing/ReconciliationHistoryTable'
 import { PixExtractPanel } from '../components/billing/PixExtractPanel'
 import { PixPendingPanel } from '../components/billing/PixPendingPanel'
+import { PixReceivedPanel } from '../components/billing/PixReceivedPanel'
 import { countPixPending } from '../components/billing/pixReconciliationPresentation'
 import { useItauPixMonitor, usePixExceptions } from '../hooks/usePixReconciliation'
 import { DemurrageInvoiceDetailModal } from '../components/demurrage/DemurrageInvoiceDetailModal'
@@ -37,6 +38,7 @@ export function Reconciliacao() {
 
 const TAB_LABELS: Record<ReconciliacaoTab, string> = {
   historico: 'Histórico de baixas',
+  recebidos: 'Pix recebidos',
   pendencias: 'Pendências',
   extrato: 'Conciliar extrato',
 }
@@ -141,6 +143,7 @@ function ReconciliacaoContent() {
 
       {tabs.filter((item) => visited.has(item)).map((item) => (
         <div key={item} id={`${panelId}-${item}`} role="tabpanel" aria-labelledby={`pix-tab-${item}`} hidden={tab !== item}>
+          {item === 'recebidos' ? <PixReceivedPanel onOpenInvoice={(source, id) => openInvoice(source, id)} /> : null}
           {item === 'pendencias' ? (
             <PixPendingPanel onOpenExtract={() => selectTab('extrato')} onOpenInvoice={(source, id) => openInvoice(source, id)} />
           ) : null}

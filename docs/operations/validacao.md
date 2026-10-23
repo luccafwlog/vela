@@ -418,8 +418,11 @@ Regras em [Reconciliação PIX](../modules/reconciliacao-pix.md#fluxos-e-invaria
    em preparação" até a cobrança ficar ativa, e depois o QR;
 2. pague e confirme a baixa em segundos, sem ação manual;
 3. provoque uma recusa (TXID sem fatura, fatura cancelada) e confirme o item em
-   **Pix recebidos sem baixa** e o Alerta `pix_unreconciled`;
-4. confira o aviso da aba Pendências quando a consulta de recebimentos parar.
+   **Pix em análise** e o Alerta `pix_unreconciled`;
+4. confira o aviso da aba Pendências quando a consulta de recebimentos parar;
+5. faça um Pix digitando a chave, sem o QR, e confirme que ele aparece na aba
+   **Pix recebidos** como "Sem identificador", sem Alerta, com o pagador quando
+   o Itaú o informar, e que **Baixar nesta fatura** dá a baixa.
 
 No banco, a suíte `src/integration/itauPixCharges.local-pg.test.ts`
 (PostgreSQL local, sem o Itaú) cobre a fila, a virada e a baixa. O caminho com

@@ -34,7 +34,7 @@ const queued = (id: number) => ({
   status: "pending_create", uncertain: false, attempts: 1, change_version: 1,
 });
 
-async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?: unknown[] } = {}) {
+async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?: unknown[]; pix?: unknown[] } = {}) {
   const originalFetch = globalThis.fetch;
   const originalHttpClient = Deno.createHttpClient;
   const originalConsoleError = console.error;
@@ -45,6 +45,7 @@ async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?:
   // O evento só sai com DSN; o falso aponta para o fetch abaixo.
   Deno.env.set("SENTRY_DSN", `https://public@${SENTRY_HOST}/1`);
   const rpcs: string[] = [];
+  const received: Record<string, unknown>[] = [];
   const sentry: string[] = [];
   const logs: unknown[][] = [];
   // Certificado fictício: o cliente mTLS real recusaria o PEM.
@@ -59,7 +60,8 @@ async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?:
     }
     if (url.href === env.ITAU_TOKEN_URL) return json({ access_token: "test-token", token_type: "Bearer", expires_in: 300 });
     if (url.href.startsWith(`${env.ITAU_PIX_BASE_URL}/pix?`)) {
-      return json({ pix: [], parametros: { paginacao: { quantidadeDePaginas: 1, quantidadeTotalDeItens: 0 } } });
+      const pix = options.pix ?? [];
+      return json({ pix, parametros: { paginacao: { quantidadeDePaginas: 1, quantidadeTotalDeItens: pix.length } } });
     }
     if (url.href.startsWith(`${env.ITAU_PIX_BASE_URL}/cob/`)) return json({ title: "Too Many Requests" }, 429);
     const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/)?.[1];
@@ -73,6 +75,9 @@ async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?:
       case "itau_pix_record": return json(null);
       case "itau_pix_release": return json(null);
       case "release_itau_pix_runner": return json(null);
+      case "itau_pix_receive":
+        received.push(JSON.parse(body));
+        return json("received");
       case "itau_pix_checkpoint":
         return json(JSON.parse(body).p_polled_until ? null : new Date(Date.now() - 60_000).toISOString());
       default: throw new Error(`RPC inesperada: ${rpc}`);
@@ -83,7 +88,7 @@ async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?:
     const response = await handler(new Request("https://function.example.test/itau-pix", {
       method: "POST", headers: { Authorization: `Bearer ${env.ITAU_PIX_CRON_SECRET}` }, body: "{}",
     }));
-    return { status: response.status, body: await response.json(), rpcs, sentry, logs };
+    return { status: response.status, body: await response.json(), rpcs, received, sentry, logs };
   } finally {
     globalThis.fetch = originalFetch;
     Deno.createHttpClient = originalHttpClient;
@@ -178,4 +183,23 @@ Deno.test("429 no meio do bloco: a liberação das não chamadas que falha vai a
   assert(run.rpcs.filter((rpc) => rpc === "itau_pix_record").length === 1, "Só a cobrança chamada é registrada");
   assert(loggedSteps(run.logs).join() === "charges_release", `Etapas no log: ${loggedSteps(run.logs)}`);
   assertSentryEvent(run.sentry, "charges_release");
+});
+
+Deno.test("Pix sem TXID e de outro sistema vão para itau_pix_receive com o retorno inteiro do Itaú (ADR 0100)", async () => {
+  // Minuto UTC do endToEndId = horário de Brasília do banco + 3 h.
+  const minute = new Date(Date.now() - 2 * 60_000);
+  const stamp = minute.toISOString().slice(0, 16).replace(/[-T:]/g, "");
+  const brasilia = new Date(minute.getTime() - 3 * 60 * 60_000).toISOString().slice(0, 19) + "Z";
+  const semTxid = { endToEndId: `E18236120${stamp}s0000000001`, valor: "120.00", horario: brasilia, chave: "test-pix-key",
+    infoPagador: "Pagamento B/L 123", pagador: { nome: "Cliente Teste", cnpj: "12345678000190" } };
+  const outro = { endToEndId: `E18236120${stamp}s0000000002`, txid: "88ba8ec675e044178d434908d9b2a30a", valor: "50.00", horario: brasilia };
+  const run = await routineRun({ pix: [semTxid, outro] });
+  assert(run.status === 200, `Rodada respondeu ${run.status}: ${JSON.stringify(run.body)}`);
+  assert(run.body.receipts.received === 2 && run.body.receipts.vela === 0, `Resumo: ${JSON.stringify(run.body.receipts)}`);
+  assert(run.received.length === 2, `Chamadas de itau_pix_receive: ${run.received.length}`);
+  const [first, second] = run.received as Array<{ p_txid: string; p_amount_brl: number; p_paid_at: string; p_raw: Record<string, unknown> }>;
+  assert(first.p_txid === "" && first.p_amount_brl === 120, `Pix sem TXID: ${JSON.stringify(first)}`);
+  assert(first.p_paid_at === `${minute.toISOString().slice(0, 19)}.000Z`, `Horário em UTC: ${first.p_paid_at}`);
+  assert(JSON.stringify(first.p_raw) === JSON.stringify(semTxid), `Retorno guardado: ${JSON.stringify(first.p_raw)}`);
+  assert(second.p_txid === outro.txid && JSON.stringify(second.p_raw) === JSON.stringify(outro), `Outro sistema: ${JSON.stringify(second)}`);
 });

@@ -848,3 +848,149 @@ export async function markItauPixReceiptHandled(endToEndId: string, note: string
   const { error } = await callPixRpc('itau_pix_mark_receipt_handled', { p_end_to_end_id: endToEndId, p_note: note })
   if (error) throw error
 }
+
+// Pix recebidos (ADR 0100, migration 442): todo Pix que o Itaú informou na
+// consulta. O de cobrança do Vela tem a baixa automática; o resto fica gravado
+// sem baixa e sem Alerta, e o operador pode dar a baixa numa fatura se quiser.
+
+export type ItauPixReceiptOrigin = 'vela' | 'none' | 'other' | 'test'
+export type ItauPixReceiptSituation = 'settled' | 'received' | 'review' | 'handled'
+type InvoiceRef = { source: 'local' | 'demurrage'; invoiceId: number; docNumber: string | null }
+
+export type ItauPixReceipt = {
+  endToEndId: string
+  txid: string
+  origin: ItauPixReceiptOrigin
+  amount: number
+  paidAt: string
+  recordedAt: string
+  situation: ItauPixReceiptSituation
+  /** Quem deu a baixa: a automática do Itaú ou a manual (por esta tela ou com o endToEndId na referência). */
+  settledBy: 'itau' | 'manual' | null
+  settled: InvoiceRef | null
+  /** Fatura da cobrança do Vela que gerou o Pix, mesmo sem baixa. */
+  charge: InvoiceRef | null
+  reason: string | null
+  handledNote: string | null
+  pixKey: string | null
+  payerName: string | null
+  payerDocument: string | null
+  payerMessage: string | null
+  /** Retorno do Itaú como veio; só para Financeiro e Administrativo. */
+  raw: Record<string, unknown> | null
+}
+
+export type ItauPixReceiptFilters = {
+  from: string
+  to: string
+  situation: ItauPixReceiptSituation | ''
+  origin: ItauPixReceiptOrigin | ''
+  amount: number | null
+  search: string
+  page: number
+  pageSize: number
+}
+
+export type ItauPixReceiptPage = { total: number; totalAmount: number; payerVisible: boolean; rows: ItauPixReceipt[] }
+
+type InvoiceRefRow = { source: 'local' | 'demurrage' | null; id: number | string | null; doc: string | null }
+type ItauPixReceiptRow = {
+  end_to_end_id: string; txid: string; origin: ItauPixReceiptOrigin; amount_brl: number | string; paid_at: string
+  recorded_at: string; situation: ItauPixReceiptSituation; settled_by: 'itau' | 'manual' | null
+  settled_source: InvoiceRefRow['source']; settled_invoice_id: InvoiceRefRow['id']; settled_doc_number: string | null
+  charge_source: InvoiceRefRow['source']; charge_invoice_id: InvoiceRefRow['id']; charge_doc_number: string | null
+  reason: string | null; handled_note: string | null; pix_key: string | null
+  payer_name: string | null; payer_document: string | null; payer_message: string | null
+  raw: Record<string, unknown> | null
+}
+
+function invoiceRef({ source, id, doc }: InvoiceRefRow): InvoiceRef | null {
+  return source && id != null ? { source, invoiceId: Number(id), docNumber: doc } : null
+}
+
+export async function listItauPixReceipts(filters: ItauPixReceiptFilters): Promise<ItauPixReceiptPage> {
+  const { data, error } = await callPixRpc('list_itau_pix_receipts', {
+    p_from: filters.from || null,
+    p_to: filters.to || null,
+    p_situation: filters.situation || null,
+    p_origin: filters.origin || null,
+    p_amount_brl: filters.amount,
+    p_search: filters.search.trim() || null,
+    p_limit: filters.pageSize,
+    p_offset: (Math.max(filters.page, 1) - 1) * filters.pageSize,
+  })
+  if (error) throw error
+  const page = data as { total: number | string; total_amount_brl: number | string; payer_visible: boolean; rows: ItauPixReceiptRow[] | null }
+  return {
+    total: Number(page.total),
+    totalAmount: Number(page.total_amount_brl),
+    payerVisible: page.payer_visible === true,
+    rows: (page.rows ?? []).map((r) => ({
+      endToEndId: r.end_to_end_id,
+      txid: r.txid,
+      origin: r.origin,
+      amount: Number(r.amount_brl),
+      paidAt: r.paid_at,
+      recordedAt: r.recorded_at,
+      situation: r.situation,
+      settledBy: r.settled_by,
+      settled: invoiceRef({ source: r.settled_source, id: r.settled_invoice_id, doc: r.settled_doc_number }),
+      charge: invoiceRef({ source: r.charge_source, id: r.charge_invoice_id, doc: r.charge_doc_number }),
+      reason: r.reason,
+      handledNote: r.handled_note,
+      pixKey: r.pix_key,
+      payerName: r.payer_name,
+      payerDocument: r.payer_document,
+      payerMessage: r.payer_message,
+      raw: r.raw,
+    })),
+  }
+}
+
+export type ItauPixReceiptCandidate = {
+  source: 'local' | 'demurrage'
+  invoiceId: number
+  docNumber: string
+  invoiceType: string | null
+  openAmount: number
+  customerName: string | null
+  customerDocument: string | null
+  sameAmount: boolean
+  /** O documento do pagador informado pelo Itaú é o do Cliente da fatura. */
+  sameCustomer: boolean
+}
+
+/** Faturas abertas para um Pix recebido: as do número digitado ou, sem número, as de mesmo valor ou do Cliente do pagador. */
+export async function listItauPixReceiptCandidates(endToEndId: string, docNumber?: string): Promise<ItauPixReceiptCandidate[]> {
+  const { data, error } = await callPixRpc('list_itau_pix_receipt_candidates', {
+    p_end_to_end_id: endToEndId,
+    p_doc_number: docNumber?.trim() || null,
+  })
+  if (error) throw error
+  return ((data ?? []) as Array<{
+    source: 'local' | 'demurrage'; invoice_id: number | string; doc_number: string; invoice_type: string | null
+    open_amount_brl: number | string | null; customer_name: string | null; customer_document: string | null
+    same_amount: boolean; same_customer: boolean
+  }>).map((c) => ({
+    source: c.source,
+    invoiceId: Number(c.invoice_id),
+    docNumber: c.doc_number,
+    invoiceType: c.invoice_type,
+    openAmount: Number(c.open_amount_brl ?? 0),
+    customerName: c.customer_name,
+    customerDocument: c.customer_document,
+    sameAmount: c.same_amount === true,
+    sameCustomer: c.same_customer === true,
+  }))
+}
+
+/** Baixa de um Pix recebido na fatura escolhida, com o valor e o horário do Pix e o endToEndId na referência. */
+export async function settleItauPixReceipt(endToEndId: string, candidate: Pick<ItauPixReceiptCandidate, 'source' | 'invoiceId'>): Promise<{ docNumber: string | null }> {
+  const { data, error } = await callPixRpc('itau_pix_settle_received', {
+    p_end_to_end_id: endToEndId,
+    p_source: candidate.source,
+    p_invoice_id: candidate.invoiceId,
+  })
+  if (error) throw error
+  return { docNumber: (data as { doc_number?: string | null } | null)?.doc_number ?? null }
+}
