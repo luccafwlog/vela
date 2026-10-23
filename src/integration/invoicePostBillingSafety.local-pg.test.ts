@@ -15,6 +15,9 @@ const actorId = '00000000-0000-0000-0000-000000839001'
 // Outro Administrativo ativo: os casos que trocam o setor de `actorId` não
 // esbarram no "Administrativo ativo mínimo" (migration 239) num banco recém-replicado.
 const spareAdminId = '00000000-0000-0000-0000-000000839002'
+// Conta da baixa automática Itaú como em produção desde a migration 440:
+// integração com o papel Financeiro.
+const settlementActorId = '00000000-0000-0000-0000-000000839003'
 const customerId = 99283901
 const otherCustomerId = 99283909
 const carrierId = 99283902
@@ -166,7 +169,7 @@ function cleanup() {
     DELETE FROM public.cod_adjustments WHERE bl_id = ANY(${bls}); DELETE FROM public.bl_transshipments WHERE bl_id = ANY(${bls}); DELETE FROM public.voyage_omissions WHERE voyage_id = ${voyageId}; DELETE FROM public.invoice_corrections WHERE invoice_id IN ${invoices};
     DELETE FROM public.invoice_refunds WHERE invoice_id IN ${invoices};
     DELETE FROM public.ledger_settlements WHERE invoice_id IN ${invoices};
-    DO $$ BEGIN IF to_regclass('public.financial_payment_attempts') IS NOT NULL THEN DELETE FROM public.financial_payment_attempts WHERE created_by='${actorId}'; END IF; END $$;
+    DO $$ BEGIN IF to_regclass('public.financial_payment_attempts') IS NOT NULL THEN DELETE FROM public.financial_payment_attempts WHERE created_by IN ('${actorId}', '${settlementActorId}'); END IF; END $$;
     DELETE FROM public.ledger_payment_requests WHERE created_by = '${actorId}';
     DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN ${invoices};
     DELETE FROM public.invoice_items WHERE invoice_id IN ${invoices};
@@ -196,8 +199,8 @@ function cleanup() {
     DELETE FROM public.customer_portal_accounts WHERE customer_id IN (${customerId}, ${otherCustomerId});
     DELETE FROM public.customers WHERE id IN (${customerId}, ${otherCustomerId});
     DELETE FROM public.audit_logs WHERE changed_by = '${actorId}';
-    DELETE FROM public.user_profiles WHERE id IN ('${actorId}', '${spareAdminId}');
-    DELETE FROM auth.users WHERE id IN ('${actorId}', '${spareAdminId}');
+    DELETE FROM public.user_profiles WHERE id IN ('${actorId}', '${spareAdminId}', '${settlementActorId}');
+    DELETE FROM auth.users WHERE id IN ('${actorId}', '${spareAdminId}', '${settlementActorId}');
     SET session_replication_role = origin;
   `)
 }
@@ -207,10 +210,13 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     cleanup()
     const customers = [[customerId, 128001], [otherCustomerId, 128009]] as const
     psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'basis-128@example.test'), ('${spareAdminId}', 'basis-128-reserva@example.test');
+      INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'basis-128@example.test'), ('${spareAdminId}', 'basis-128-reserva@example.test'),
+        ('${settlementActorId}', 'basis-128-itau@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true),
         ('${spareAdminId}', 'Administrativo 128 reserva', 'administrativo', true)
         ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true;
+      INSERT INTO public.user_profiles (id, full_name, role, active, account_kind)
+        VALUES ('${settlementActorId}', 'API ITAÚ 128', 'financeiro', true, 'integracao');
       ${customers.map(([id, ns]) => `
         INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${id}, '${syntheticCnpj(ns)}', 'Cliente ${ns}');
         INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)
@@ -238,7 +244,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
 
   it('152 — Pix Itaú baixa a individual pelo endToEndId uma única vez e diverge para análise', () => {
     if (psql(`SELECT to_regproc('public.itau_pix_settle') IS NOT NULL`) !== 't') return
-    psql(`UPDATE public.app_settings SET pix_provider = 'itau', itau_pix_settlement_actor = '${actorId}' WHERE id = 1`)
+    psql(`UPDATE public.app_settings SET pix_provider = 'itau', itau_pix_settlement_actor = '${settlementActorId}' WHERE id = 1`)
     try {
       const invoice = issueByCe(bl.full, '839000000000151')
       expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${invoice}`)).toBe('NULL')
@@ -255,6 +261,8 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
       expect(psql(`SET ROLE service_role; SELECT public.itau_pix_settle('E151CERTO', '${txid}', 600, now())`)).toBe('settled')
       expect(psql(`SELECT status || '|' || balance_brl FROM public.invoices WHERE id = ${invoice}`)).toBe('paid|0.00')
       expect(psql(`SELECT count(*) || '|' || max(bank_reference) FROM public.payments WHERE invoice_id = ${invoice}`)).toBe('1|E151CERTO')
+      // A baixa por TXID roda como a conta de integração Financeiro (migration 440).
+      expect(psql(`SELECT max(registered_by::text) FROM public.payments WHERE invoice_id = ${invoice}`)).toBe(settlementActorId)
       // Repetição da consulta não baixa de novo.
       expect(psql(`SELECT public.itau_pix_settle('E151CERTO', '${txid}', 600, now())`)).toBe('settled')
       expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id = ${invoice}`)).toBe('1')

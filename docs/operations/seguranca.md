@@ -148,7 +148,8 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ler dado operacional e financeiro | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` | ADR 0044 | vigente |
 | `/admin`: usuários, falhas de entrega de alertas, histórico de ações, sistema e Prazo do ADR | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). As demais abas: só a navegação (rota `adminOnly`); os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha | ✔ | — | — | — | — | Edge `admin-users` (`is_admin`); policy de `user_profiles` e gatilho `prevent_user_profile_privilege_escalation` | ADR 0046 | vigente (**Teste** local da troca de setor e da situação: `permissoesPorPerfil.local-pg.test.ts`) |
-| Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | Gatilho `guard_last_active_administrativo` (migration `239`) | ADR 0083, item 2 | vigente (**Teste** local) |
+| Mudar o tipo de conta (`account_kind`, pessoa ou integração) | — | — | — | — | — | INSERT e UPDATE de `user_profiles` por coluna, sem `account_kind` (migration `440`); só migration ou `service_role` | [Conta de integração](../modules/operacao-suporte.md#conta-de-integração) | vigente (**Teste** local: `contaDeIntegracao.local-pg.test.ts`) |
+| Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | Gatilho `guard_last_active_administrativo` (migration `239`; só pessoas contam desde a `440`) | ADR 0083, item 2 | vigente (**Teste** local) |
 | Excluir perfil interno | — | — | — | — | — | Sem DELETE em `user_profiles` para `authenticated` (migration `240`) | ADR 0083, item 3 | vigente (**Teste** local) |
 | Registrar escrita em nome de outro usuário | — | — | — | — | — | `_assert_actor_is_caller` sem exceção para o Administrativo, chamado no início de toda RPC `SECURITY DEFINER` com `p_actor` executável por `authenticated` (migration `241`); sem usuário na sessão (`service_role`), o autor informado vale | ADR 0085, regra base 2 | vigente (**Teste** local) |
 
@@ -518,12 +519,14 @@ os identificadores dentro deles nem o valor recusado das violações
 (`redactPayerData`, auditoria run-3).
 
 A baixa automática (`itau_pix_settle`, só `service_role`) assume dentro da
-transação a identidade da conta Admin dedicada "API Itaú" configurada em
+transação a identidade da conta dedicada "API Itaú" configurada em
 `app_settings.itau_pix_settlement_actor` e a restaura ao sair (em produção,
 `auth.uid()` lê `request.jwt.claim.sub` antes de `request.jwt.claims`;
 conferido em 2026-10-06). Assim, as
-mesmas checagens de `auth.uid()`/`is_admin()` das baixas manuais continuam
-valendo. Conta inativa ou ausente faz o Pix ir para análise, sem baixa. Pix
+mesmas checagens de `auth.uid()`/`is_financeiro_user()` das baixas manuais
+continuam valendo; nenhuma função da baixa exige `is_admin()`. Desde a migration
+`440` a conta é uma [conta de integração](../modules/operacao-suporte.md#conta-de-integração)
+com o papel Financeiro, o menor que a baixa aceita (era Administrativa). Conta inativa ou ausente faz o Pix ir para análise, sem baixa. Pix
 do sistema de terceiro e dados do pagador não são gravados.
 
 `itau_pix_monitor` (leitura) aceita qualquer usuário interno ativo e

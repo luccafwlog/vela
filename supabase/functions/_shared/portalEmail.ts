@@ -18,7 +18,12 @@ export type SendPortalEmailInput = {
   simulate?: boolean
 }
 
-/** `suppressed`: o endereço está na supressão do Portal; nenhuma tentativa foi registrada. */
+/**
+ * `suppressed`: o endereço está na supressão do Portal (nenhuma tentativa é
+ * registrada) ou o provedor o recusou como suprimido (422
+ * `all_recipients_suppressed`: a tentativa fica `bounce` e o endereço entra em
+ * `portal_suppressed_emails`). Nos dois casos não é falha do envio.
+ */
 export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok: boolean; suppressed: boolean }> {
   const { admin } = input
   let suppressedAddress = false
@@ -41,6 +46,17 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
       if (error) throw error
       suppressedAddress = Boolean(suppressed)
       return { suppressed: suppressedAddress }
+    },
+    // A próxima rodada para na consulta acima, sem chamar o provedor.
+    // ponytail: grava só a supressão. O bounce que chega pelo webhook
+    // (process_portal_email_event) também marca o Email de Recuperação da conta
+    // e repara as caixas de contato do Cliente; aqui isso não roda, e a
+    // supressão do provedor por reclamação também vira `bounce_permanente`.
+    // Upgrade: RPC server-only com o mesmo efeito do bounce permanente do webhook.
+    recordProviderSuppression: async (to) => {
+      const { error } = await admin.from('portal_suppressed_emails')
+        .upsert({ email: to.trim().toLowerCase(), reason: 'bounce_permanente' }, { onConflict: 'email', ignoreDuplicates: true })
+      if (error) throw error
     },
     recordAttempt: async ({ kind, to, idempotencyKey }) => {
       const { data, error } = await admin.from('portal_email_attempts').insert({
@@ -83,5 +99,5 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
       if (error) throw error
     },
   })
-  return { ok: result.ok, suppressed: suppressedAddress }
+  return { ok: result.ok, suppressed: suppressedAddress || result.suppressed === true }
 }

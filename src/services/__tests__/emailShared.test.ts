@@ -205,6 +205,59 @@ describe('sendEmail', () => {
     })
   })
 
+  // Conta API ITAÚ (migration 440): o provedor recusa o endereço que já está
+  // na supressão dele. Não é falha do envio, e a supressão passa a ser local.
+  const suppressedByProvider = () => vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    name: 'all_recipients_suppressed', message: 'All recipients are suppressed.',
+  }), { status: 422 }))
+
+  it('422 all_recipients_suppressed com callback: tentativa bounce, supressão gravada e resultado suprimido', async () => {
+    const updateAttempt = vi.fn(async () => undefined)
+    const recordProviderSuppression = vi.fn(async () => undefined)
+    const fetchMock = suppressedByProvider()
+
+    const result = await sendEmail({ ...baseInput, to: ' Cliente@Example.com ', updateAttempt, recordProviderSuppression, fetchImpl: fetchMock })
+
+    expect(result).toEqual({ ok: false, suppressed: true })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(updateAttempt).toHaveBeenCalledWith(7, {
+      status: 'bounce',
+      retryCount: 0,
+      lastError: 'HTTP 422 all_recipients_suppressed (endereço suprimido no provedor)',
+    })
+    expect(recordProviderSuppression).toHaveBeenCalledWith(' Cliente@Example.com ')
+  })
+
+  it('falha ao gravar a supressão não fecha a tentativa: a nova rodada tenta de novo', async () => {
+    const updateAttempt = vi.fn(async () => undefined)
+    const recordProviderSuppression = vi.fn(async () => { throw new Error('banco indisponível') })
+
+    await expect(sendEmail({ ...baseInput, updateAttempt, recordProviderSuppression, fetchImpl: suppressedByProvider() }))
+      .rejects.toThrow('banco indisponível')
+    expect(updateAttempt).not.toHaveBeenCalled()
+  })
+
+  it('422 all_recipients_suppressed sem callback continua recusa definitiva', async () => {
+    const updateAttempt = vi.fn(async () => undefined)
+
+    const result = await sendEmail({ ...baseInput, updateAttempt, fetchImpl: suppressedByProvider() })
+
+    expect(result).toEqual({ ok: false })
+    expect(updateAttempt).toHaveBeenCalledWith(7, {
+      status: 'falha_permanente',
+      retryCount: 0,
+      lastError: 'HTTP 422 all_recipients_suppressed',
+    })
+  })
+
+  it('outro 422 não vira supressão mesmo com callback', async () => {
+    const recordProviderSuppression = vi.fn(async () => undefined)
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'validation_error' }), { status: 422 }))
+
+    expect(await sendEmail({ ...baseInput, recordProviderSuppression, fetchImpl: fetchMock })).toEqual({ ok: false })
+    expect(recordProviderSuppression).not.toHaveBeenCalled()
+  })
+
   it('aborta antes de registrar a tentativa quando o endereço está suprimido', async () => {
     const checkSuppression = vi.fn(async () => ({ suppressed: true, reason: 'bounce_permanente' }))
     const recordAttempt = vi.fn()

@@ -397,6 +397,9 @@ publicado. Depois do merge, confira:
 3. Um ETA salvo em **Chegadas e Saídas** aparece no Histórico da escala.
 4. A rodada seguinte do job `itau-pix-queue` responde 200 e o checkpoint da consulta anda.
 
+O item 4 não passou: desde a publicação, a `itau-pix` respondia 500 a toda
+rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
+
 ### Secrets das Edge Functions
 
 | Grupo | Nomes | Serviço de origem |
@@ -469,7 +472,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `http-job-failures` | a cada 15 min, em :09/:24/:39/:54 (`9-59/15 * * * *`, migration `310`) | `reconcile_http_job_failures_alert()`: abre o Alerta crítico `rotina_http_falhou` (Administrativo) quando `net._http_response` tem, na última hora, resposta fora de 2xx ou falha sem resposta que não seja tempo esgotado, 10 ou mais tempos esgotados, ou quando há 30 ou mais chamadas paradas na fila do `pg_net` (migration `316`), e o fecha quando a hora fica limpa; SQL puro, sem Vault nem Edge Function | — |
 | `itau-pix-checkpoint-health` | a cada 5 min, em :01/:06/… (`1-59/5 * * * *`, migration `358`) | `reconcile_itau_pix_checkpoint_alert()`: com `pix_provider = 'itau'`, abre o Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro) quando o checkpoint da consulta Itaú está parado há mais de 15 minutos e o fecha quando anda; SQL puro, não depende da Edge | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
-| `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação (inclui a exceção crítica de fatura) | `portal-daily-digest` |
+| `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação, sem a conta de integração (migration `440`; inclui a exceção crítica de fatura) | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (`0 17 * * 1-5`, 14:00 de Brasília; criado à mão em 07/10, jobid 26; recriado pela migration `358`) | PTAX do BCB, referência cambial e recálculo em BRL das Invoices de Demurrage emitidas ou vencidas e não pagas, salvo as de ROE manual (migrations `382` e `402`) | — |
 
 O job `cleanup-portal-sessions` (03:00, sessões do token antigo do Portal) foi
@@ -597,7 +600,7 @@ mesmos.
 | Uso | Remetente | Resposta vai para |
 |---|---|---|
 | Acesso ao Portal (convite, recuperação de senha, aviso de senha alterada, troca do Email de Recuperação) e aviso de bounce ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
-| Resumo diário do Portal (interno, aos usuários ativos de Administrativo e Documentação; o papel `admin`, extinto na migration `093`, saiu da consulta no lote 6b) | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
+| Resumo diário do Portal (interno, aos usuários ativos de Administrativo e Documentação, menos a [conta de integração](../modules/operacao-suporte.md#conta-de-integração) API ITAÚ, cujo e-mail não é caixa real e o provedor recusava com 422 `all_recipients_suppressed`, deixando o heartbeat vermelho em 23/10; o papel `admin`, extinto na migration `093`, saiu da consulta no lote 6b) | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
 | Avisos do Desbloqueio de CE ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
 | Comunicados | `PORTAL_FROM_EMAIL` | `COMMUNICATIONS_REPLY_TO` = `importacao@fwlog.com.br` |
 | Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` (obrigatório: sem ele o envio real é recusado, desde 2026-10-20); o rodapé do e-mail também leva `eqp@fwlog.com.br` (lote 6b, `DEMURRAGE_CONTACT_EMAIL`) |
@@ -1055,9 +1058,9 @@ A função `itau-pix` é a rotina das cobranças das faturas: chamada pelo job
 `itau-pix-queue` (corpo vazio), cuida dos prazos, da fila de cobranças (cria,
 altera e cancela a COB de cada fatura) e da consulta de recebimentos para a
 baixa automática; chamada com `{"action":"process_charges"}` pelo disparo da
-migration `219`, processa só a fila. Está publicada (v20 em 2026-10-13, ver
-[Edge Functions](#edge-functions); a v8 de 08/10 trouxe a correção de fuso e as
-travas de horário). Ela exige bearer próprio (≥ 32 caracteres aleatórios,
+migration `219`, processa só a fila. Está publicada e é republicada a cada
+merge na `main` (v34 em 2026-10-23, ver [Edge Functions](#edge-functions); a v8
+de 08/10 trouxe a correção de fuso e as travas de horário). Ela exige bearer próprio (≥ 32 caracteres aleatórios,
 nunca `service_role`): desde a auditoria run-3 (decisão do dono de
 2026-10-22), `ITAU_PIX_CRON_SECRET` na rotina (corpo vazio, `process_queue` e
 `process_charges`) e `ITAU_PIX_DIAGNOSTIC_SECRET` nas ações de diagnóstico;
@@ -1069,6 +1072,33 @@ do guia. As ações de diagnóstico da Fase 1 continuam restritas: criam
 cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só alteram ou cancelam
 essas; consultam qualquer TXID `VELA`, então nunca tocam cobranças do sistema
 de terceiro nem mudam a cobrança de uma fatura.
+
+**Rodadas com 500 desde a v29 (2026-10-22).** A integração publicou a v29 cerca
+de dois minutos depois do merge da PR luccafwlog/vela#1021 na `main` (19:23 UTC
+de 22/10). Era a primeira versão com o F-09 (`3c242644`, de 21/10), que passou a
+decidir o status por `"error" in charges || "error" in receipts`. O resumo da
+fila sempre tem a chave `error` (as cobranças com resultado `error`, zero numa
+rodada boa), então toda rodada que pegava a vez do runner respondia 500 com o
+corpo normal, sem log (nada era lançado) e sem Sentry (a função não tinha o
+wrapper). Prazos, fila e recebimentos seguiram rodando. **Runtime** (leitura de
+`function_edge_logs` e da lista de funções em 2026-10-23): o deployment `_28`
+respondeu 200 às 19:25 UTC e o `_29`, 500 às 19:26; até 11:10 UTC de 23/10
+foram 944 respostas 500 e nenhuma 200; a v34 (10:19 UTC, merge da PR
+luccafwlog/vela#1044) tem o mesmo código. A correção conta a falha onde ela é
+capturada e põe a função no wrapper do Sentry
+([observabilidade](observabilidade.md#erros-das-edge-functions)). Quando ela
+chegar à `main`, confira:
+
+1. Em Supabase → Edge Functions, `itau-pix` com a data do merge e o import map
+   `supabase/functions/deno.json`.
+2. As chamadas seguintes da `itau-pix` em `function_edge_logs` respondem 200.
+3. O checkpoint da consulta (`itau_pix_checkpoint`) continua andando.
+4. O Alerta `rotina_http_falhou` fecha sozinho quando a última hora fica sem
+   resposta fora de 2xx.
+
+Na branch Supabase `staging` a função também é republicada no merge, mas o job
+não a chama: nenhuma chamada da `itau-pix` nas 24 h até 11 h UTC de 23/10
+(Vault vazio, ver [Supabase](#supabase)).
 
 **Sandbox (só testes, desde 2026-10-06).** Aplicação de sandbox criada pelo
 dono no [Itaú for Developers](https://devportal.itau.com.br), na conta dele.
@@ -1094,7 +1124,11 @@ agendar o job `itau-pix-queue` a cada minuto
 [segredos e cron](segredos-cron.md)); só então virar a chave. Certificado,
 secrets Edge, publicação e diagnóstico validados; conta `API ITAÚ`
 (Administrativo, ativa) vinculada em `itau_pix_settlement_actor` em 07/10,
-com autorização do dono. `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
+com autorização do dono. Desde a migration `440`, a conta é de integração e
+Financeiro, com o e-mail em `portal_suppressed_emails`
+([Conta de integração](../modules/operacao-suporte.md#conta-de-integração)); uma
+conta nova para a baixa precisa de Financeiro e de `account_kind = 'integracao'`
+gravado por migration ou `service_role`. `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
 chamada de diagnóstico pelo banco confirmou HTTP 200, Bearer, 300 s em 07/10.
 Job `itau-pix-queue` ativo a cada minuto (jobid 25), autorizado em 07/10;
 primeiro ciclo confirmou cron `succeeded`, Edge HTTP 200 e avanço do checkpoint,

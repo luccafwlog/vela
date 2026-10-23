@@ -11,7 +11,7 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   valores aninhados e URLs, usada pelo browser e pelas Edge Functions;
 - `src/lib/telemetry.ts` captura erros de browser em builds de produção,
   remove query strings e redige CNPJ, CPF e e-mail;
-- treze Edge Functions têm wrapper repository-side (`instrumentEdgeHandler`) que reporta exceções não
+- catorze Edge Functions têm wrapper repository-side (`instrumentEdgeHandler`) que reporta exceções não
   tratadas e respostas HTTP 5xx apenas se `SENTRY_DSN` estiver configurado;
   erros brutos, corpo/resposta HTTP, usuário e headers não são enviados;
 - o helper Edge carrega o SDK Sentry sob demanda e fica em no-op sem `SENTRY_DSN`;
@@ -29,7 +29,9 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   o secret, operam em no-op sem falhar o job; o `customer-communication-auto-runner`
   conta em `failed` todo destinatário recusado ou com falha na rodada; o
   `portal-daily-digest` conta em `failed` cada destinatário que não recebeu e responde
-  500 quando uma consulta falha; o `ce-unlock-notify-email` conta em `failed` cada aviso
+  500 quando uma consulta falha (endereço suprimido, inclusive o 422
+  `all_recipients_suppressed` do provedor, conta em `suppressed`, e a conta de
+  integração não recebe o resumo; migration `440`); o `ce-unlock-notify-email` conta em `failed` cada aviso
   que esgotou as tentativas; o `portal-email-events-runner` conta em `failed` cada evento
   que falhou e foi devolvido para nova tentativa; o `alerts-detector` conta em `failed` cada
   detector que falhou numa rodada parcial (migration `351`). Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
@@ -143,7 +145,7 @@ falha com exceção não
 tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
 `portal-password-recovery`, `portal-recovery-email-change`,
 `send-customer-communication`, `portal-email-webhook`, `demurrage-dunning`,
-`ce-unlock-notify-email` e seis runners. Em `portal-password-recovery`, o envio roda depois da resposta
+`ce-unlock-notify-email`, `itau-pix` e seis runners. Em `portal-password-recovery`, o envio roda depois da resposta
 (`EdgeRuntime.waitUntil`); a falha desse trabalho em segundo plano é enviada
 direto por `captureEdgeException`. Cada evento leva o fingerprint
 `['edge', função, status]` (`_shared/telemetryScope.ts`), para o Sentry não
@@ -160,7 +162,19 @@ que falhou, com status `detector_failed:<detector>` (um issue por detector),
 (`_shared/alertDetectorFailures.ts`). A mensagem do banco não vai ao Sentry: fica
 no corpo da resposta (`failures`), gravado em `net._http_response`, e no `WARNING`
 do log do Postgres.
-As treze entradas em `supabase/config.toml` apontam para o manifesto Deno
+A `itau-pix` (job `itau-pix-queue`) entrou no wrapper em 2026-10-23: da v29 à
+correção, toda rodada boa respondia 500 sem log nem evento
+([manual de serviços externos](servicos-externos.md#itaú--api-pix-recebimentos)).
+Cada falha da rotina vira uma linha JSON no log da função, com `function`,
+`step` (`charges`, `receipts` ou, quando a chamada inteira falha, a ação pedida:
+`routine` no job, `process_charges` no disparo da fila ou a de diagnóstico) e
+`error`.
+As falhas que a rotina absorve sem mudar o status vão direto por
+`captureEdgeException`, um issue por etapa: `runner_release` (devolução da vez),
+`charges_renew` (renovação da vez) e `charges_release` (liberação das reservas
+não chamadas). `supabase/functions/itau-pix/index.test.ts` confere o status, o
+log e o envelope enviado a um Sentry falso.
+As catorze entradas em `supabase/config.toml` apontam para o manifesto Deno
 compartilhado em `supabase/functions/deno.json`; a configuração não altera
 `verify_jwt` nem os contratos HTTP.
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, TriangleAlert, UserCheck, UserX } from 'lucide-react'
+import { Badge } from '../ui/Badge'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { Field, Input, Select } from '../ui/Input'
@@ -40,6 +41,7 @@ function sameEmail(a: string | null | undefined, b: string | null | undefined) {
 }
 
 const BOUNCED_TITLE = 'E-mail devolvido pelo provedor ou marcado como spam: o sistema não envia mais para ele. Corrija em Editar acesso.'
+const INTEGRATION_TITLE = 'Conta técnica da baixa automática do Pix; não é uma pessoa'
 
 export function AdminUsersTab() {
   const queryClient = useQueryClient()
@@ -261,11 +263,17 @@ export function AdminUsersTab() {
                 <tbody>
                   {visibleUsers.map((user) => {
                     const isBusy = pendingId === user.id && busy
+                    const isIntegration = user.account_kind === 'integracao'
+                    // O e-mail da conta de integração não é caixa real: suprimido de propósito (migration 440).
+                    const bounced = Boolean(user.email_bounced) && !isIntegration
                     return (
                       <tr key={user.id} className={user.active ? undefined : 'app-table__row--muted'}>
-                        <td className="app-table__text" title={user.full_name}>{user.full_name}</td>
-                        <td className="app-table__text" title={user.email_bounced ? BOUNCED_TITLE : user.email ?? undefined}>
-                          {!user.email ? <NoValue label="Sem e-mail" /> : user.email_bounced ? (
+                        <td className="app-table__text" title={user.full_name}>
+                          {user.full_name}
+                          {isIntegration ? <Badge tone="info" className="ml-2" title={INTEGRATION_TITLE}>Integração</Badge> : null}
+                        </td>
+                        <td className="app-table__text" title={bounced ? BOUNCED_TITLE : user.email ?? undefined}>
+                          {!user.email ? <NoValue label="Sem e-mail" /> : bounced ? (
                             <StatusText tone="warning">
                               {user.email}
                               <TriangleAlert size={14} role="img" aria-label="E-mail devolvido" className="ml-1 inline-block align-text-bottom" />
@@ -325,7 +333,8 @@ export function AdminUsersTab() {
           userName={editando.full_name}
           currentEmail={editando.email}
           currentRole={editando.role}
-          emailBounced={Boolean(editando.email_bounced)}
+          // Conta de integração: a supressão é de propósito, sem convite para liberar o e-mail.
+          emailBounced={Boolean(editando.email_bounced) && editando.account_kind !== 'integracao'}
           isSelf={editando.id === currentUserId}
           onClose={() => setEditando(null)}
           onSubmit={(input) => void handleSaveAccess(editando, input)}

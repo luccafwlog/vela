@@ -417,7 +417,9 @@ ou avulsa exige o valor exato da cobrança; a Invoice de Demurrage aceita o Pix
 de uma revisão anterior pela janela das duas PTAX (migration `153`). As baixas
 de faturas de Taxas Locais e avulsas são gravadas em nome da conta designada em
 `app_settings.itau_pix_settlement_actor`, que aparece em **Registrado por** nos
-Pagamentos do detalhe da fatura (migration `221`). Qualquer recusa
+Pagamentos do detalhe da fatura (migration `221`). Essa conta ("API ITAÚ") é uma
+[conta de integração](operacao-suporte.md#conta-de-integração) com o papel
+Financeiro, o que a baixa exige (migration `440`; antes era Administrativa). Qualquer recusa
 (valor diferente, fatura não pagável, TXID do Vela sem cobrança, fatura de
 Taxas Locais ou avulsa sem usuário de baixa configurado) grava o Pix em análise e abre o Alerta
 `pix_unreconciled` para o Administrativo e o Financeiro, sem baixa; o Pix aparece em **Pix
@@ -472,7 +474,10 @@ Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro), que
 fecha quando a consulta anda (migration `358`). Período com mais de 50 páginas
 encolhe a janela até 5 min em vez de travar; horário inesperado de Pix de
 terceiro não derruba a consulta; a função responde fora de 2xx quando a fila ou
-a consulta falha, o que alimenta `rotina_http_falhou`. Os jobs `itau-pix-queue`
+a consulta falha, o que alimenta `rotina_http_falhou`. Rodada sem falha responde
+200 mesmo com cobrança recusada pelo Itaú: esse erro fica gravado na cobrança e
+só soma no contador `error` do resumo da fila. Cada falha da rotina vai ao log da
+função e ao Sentry ([observabilidade](../operations/observabilidade.md#erros-das-edge-functions)). Os jobs `itau-pix-queue`
 e `recalc-demurrage-ptax` são criados pela migration `358`. Sintomas, travas, correção, segredos e a versão publicada da
 função estão no
 [manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos).
