@@ -1,4 +1,4 @@
--- 428: limites do bucket do Desbloqueio de CE (auditoria de segurança run-3,
+-- 437: limites do bucket do Desbloqueio de CE (auditoria de segurança run-3,
 -- decisão do dono em 2026-10-22).
 --
 -- O bucket `ce-unlock-documents` nasceu na 139 sem tamanho máximo nem tipos

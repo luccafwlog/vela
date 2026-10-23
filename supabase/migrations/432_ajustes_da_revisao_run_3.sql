@@ -1,18 +1,18 @@
--- 423: ajustes da revisão da PR da auditoria run-3.
+-- 432: ajustes da revisão da PR da auditoria run-3.
 --
--- 1. `_internal_token_current` (410) comparava o `iat` do JWT, em segundos
+-- 1. `_internal_token_current` (419) comparava o `iat` do JWT, em segundos
 --    inteiros, com `revoked_at` em microssegundos: o token emitido no mesmo
 --    segundo da revogação (novo login logo depois da troca de credencial)
 --    ficava inválido para sempre. O marco passa a ser truncado ao segundo,
 --    como o `iat`; o token anterior emitido nesse mesmo segundo é a janela
 --    aceita (menos de 1 s).
--- 2. A 420 corrigiu o setor gravado só no envelope
+-- 2. A 429 corrigiu o setor gravado só no envelope
 --    `save_voyage_escala_terminal_state_v2`; as linhas de auditoria do caminho
 --    normal saem de `save_voyage_escala_terminal_state`, que ainda gravava
 --    Operações para Financeiro e operator. O mesmo mapeamento passa a valer lá.
 --
 -- Só redefine funções; não reescreve nem apaga linhas.
--- Rollback: reaplicar as definições da 410 e a anterior de
+-- Rollback: reaplicar as definições da 419 e a anterior de
 -- save_voyage_escala_terminal_state.
 
 CREATE OR REPLACE FUNCTION public._internal_token_current()
@@ -110,7 +110,7 @@ BEGIN
     RAISE EXCEPTION 'Usuario ativo sem permissao para editar a escala.'
       USING ERRCODE = '42501';
   END IF;
-  -- 423: setor do autor (ADR 0046), o mesmo mapeamento do envelope v2 (420).
+  -- 432: setor do autor (ADR 0046), o mesmo mapeamento do envelope v2 (429).
   v_department := CASE
     WHEN v_role IN ('admin', 'administrativo') THEN 'administrativo'
     WHEN v_role IN ('documentacao', 'operator') THEN 'documentacao'

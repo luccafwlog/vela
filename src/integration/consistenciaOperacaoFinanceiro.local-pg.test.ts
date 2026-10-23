@@ -2,7 +2,7 @@ import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 420 (auditoria run-3, notas de endurecimento): consistência na
+// Migration 429 (auditoria run-3, notas de endurecimento): consistência na
 // operação e no financeiro. Tudo roda numa transação descartada no fim.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -58,7 +58,7 @@ function scenario(sql: string): string[] {
 
 const describeLocal = describeWithProbe(migration417Applied, 'migration417Applied (consistência na operação e no financeiro)')
 
-describeLocal('420 — consistência na operação e no financeiro', () => {
+describeLocal('429 — consistência na operação e no financeiro', () => {
   it('marca de retirada da escala só aceita true ou false', () => {
     // A API não insere em audit_logs; o caminho real é o payload da escala
     // gravado por save_voyage_escala_terminal_state_v2, que dispara o mesmo gatilho.
@@ -67,7 +67,7 @@ describeLocal('420 — consistência na operação e no financeiro', () => {
     expect(scenario(`${asOwner} ${insert('sim')} ${insert('1')} ${insert('false')}`)).toEqual(['22023', '22023', 'ok'])
   })
 
-  it('a escala gravada pelo Financeiro assina como Financeiro (420 e 420)', () => {
+  it('a escala gravada pelo Financeiro assina como Financeiro (429 e 432)', () => {
     expect(scenario(`
       ${as(FIN)}
       SELECT public.save_voyage_escala_terminal_state_v2(${VOYAGE}, 'BRSSZ', 0, '[]', '[]',

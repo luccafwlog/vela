@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 410 (auditoria run-3, achado C1; ADR 0097): depois de
+// Migration 419 (auditoria run-3, achado C1; ADR 0099): depois de
 // `internal_revoke_sessions`, o access token interno emitido antes do marco
 // não autoriza mais nada — helpers, `ce_unlock_private.actor`, políticas e a
 // checagem que roda antes de toda requisição do PostgREST. Token emitido
@@ -59,7 +59,7 @@ const HELPERS = `SELECT public.is_active_user(), public.is_active_read_user(), p
 
 const describeLocal = describeWithProbe(migration407Applied, 'migration407Applied (corte do token interno)')
 
-describeLocal('410 — corte do access token interno na revogação', () => {
+describeLocal('419 — corte do access token interno na revogação', () => {
   beforeAll(() => {
     psql(`INSERT INTO auth.users (id, email) VALUES
       ('${DOC}', 'c407-doc@example.test'), ('${ADMIN}', 'c407-admin@example.test'), ('${FRESH}', 'c407-fresh@example.test')
@@ -122,7 +122,7 @@ describeLocal('410 — corte do access token interno na revogação', () => {
 
   it('token emitido depois do marco segue valendo', () => {
     const cut = revoke(DOC)
-    // Migration 423: o `iat` tem segundos inteiros; o login no mesmo segundo do marco vale.
+    // Migration 432: o `iat` tem segundos inteiros; o login no mesmo segundo do marco vale.
     expect(staff(DOC, cut, HELPERS).output).toBe('t|t|f|f|documentacao|documentacao')
     expect(staff(DOC, cut - 1, HELPERS).output).toBe('f|f|f|f|-|-')
     expect(staff(DOC, cut + 1, HELPERS).output).toBe('t|t|f|f|documentacao|documentacao')

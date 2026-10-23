@@ -3,7 +3,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 418 (auditoria run-3, notas de endurecimento): Desbloqueio de CE
+// Migration 427 (auditoria run-3, notas de endurecimento): Desbloqueio de CE
 // confere o dono antes das travas e não abre visão sem Cliente.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -81,7 +81,7 @@ function cleanup() {
 
 const describeLocal = describeWithProbe(migration415Applied, 'migration415Applied (Desbloqueio de CE: guardas de dono)')
 
-describeLocal('418 — Desbloqueio de CE confere o dono antes das travas', () => {
+describeLocal('427 — Desbloqueio de CE confere o dono antes das travas', () => {
   beforeAll(() => {
     cleanup()
     psql(`

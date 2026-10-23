@@ -64,7 +64,7 @@ const describeLocal = describeWithProbe(migration320Applied, 'migration320Applie
 
 describeLocal('320 — funções fechadas, search_path fixo e índices de FK', () => {
   it('nenhuma função do projeto é executável por anon, salvo a checagem que o PostgREST roda antes da requisição', () => {
-    // ADR 0097: o PostgREST chama `pgrst.db_pre_request` com o papel da
+    // ADR 0099: o PostgREST chama `pgrst.db_pre_request` com o papel da
     // requisição, inclusive `anon`; sem sessão a função não faz nada.
     expect(lines(psql(`SELECT p.oid::regprocedure ${PROJECT_FUNCTIONS}
       AND has_function_privilege('anon', p.oid, 'EXECUTE') ORDER BY 1;`)))

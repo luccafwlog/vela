@@ -1,4 +1,4 @@
--- 429: um segredo por rotina nos disparos do banco (auditoria de segurança
+-- 438: um segredo por rotina nos disparos do banco (auditoria de segurança
 -- run-3, decisão do dono em 2026-10-22).
 --
 -- `ITAU_PIX_ADMIN_SECRET` servia ao cron da fila Itaú, ao disparo imediato
@@ -35,7 +35,7 @@ AS $preferred$
 $preferred$;
 
 COMMENT ON FUNCTION ops.preferred_vault_secret(text, text) IS
-  'Nome do segredo próprio da rotina quando está no Vault; senão o compartilhado antigo. Migration 429.';
+  'Nome do segredo próprio da rotina quando está no Vault; senão o compartilhado antigo. Migration 438.';
 
 REVOKE ALL ON FUNCTION ops.preferred_vault_secret(text, text) FROM PUBLIC, anon, authenticated;
 
@@ -56,7 +56,7 @@ BEGIN
   PERFORM set_config('vela.itau_pix_kicked', 'on', true);
 
   SELECT decrypted_secret INTO v_base FROM vault.decrypted_secrets WHERE name = 'SUPABASE_URL';
-  -- 429: o segredo próprio da rotina, quando cadastrado; senão o antigo.
+  -- 438: o segredo próprio da rotina, quando cadastrado; senão o antigo.
   SELECT decrypted_secret INTO v_secret FROM vault.decrypted_secrets
    WHERE name = ops.preferred_vault_secret('ITAU_PIX_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET');
   -- Sem o par no Vault (banco novo, Preview): pula em silêncio.
@@ -80,7 +80,7 @@ END;
 $kick$;
 
 COMMENT ON FUNCTION ops.kick_itau_pix_runner() IS
-  'Dispara a fila da função itau-pix uma vez por transação (pg_net envia após o COMMIT). Falha vira WARNING. Migrations 219 e 429 (segredo próprio da rotina).';
+  'Dispara a fila da função itau-pix uma vez por transação (pg_net envia após o COMMIT). Falha vira WARNING. Migrations 219 e 438 (segredo próprio da rotina).';
 
 REVOKE ALL ON FUNCTION ops.kick_itau_pix_runner() FROM PUBLIC, anon, authenticated;
 
@@ -89,7 +89,7 @@ DECLARE
   v_schedule text;
 BEGIN
   IF to_regclass('cron.job') IS NULL OR to_regprocedure('ops.dispatch_edge_job(text,text,text,text)') IS NULL THEN
-    RAISE WARNING '429: pg_cron ou ops.dispatch_edge_job ausente; agende itau-pix-queue com ops.preferred_vault_secret no ambiente de produção.';
+    RAISE WARNING '438: pg_cron ou ops.dispatch_edge_job ausente; agende itau-pix-queue com ops.preferred_vault_secret no ambiente de produção.';
     RETURN;
   END IF;
   SELECT schedule INTO v_schedule FROM cron.job WHERE jobname = 'itau-pix-queue';

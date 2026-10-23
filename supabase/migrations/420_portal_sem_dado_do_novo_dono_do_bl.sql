@@ -1,4 +1,4 @@
--- 411: o antigo Cliente de um B/L não lê mais, pelo Portal, o que o novo
+-- 420: o antigo Cliente de um B/L não lê mais, pelo Portal, o que o novo
 -- Cliente fez com ele (auditoria de segurança run-3, achados C2, C3 e C4).
 --
 -- Problema: depois da troca de Cliente do B/L (Troca de Consignatário,
@@ -61,7 +61,7 @@ BEGIN
   INTO v_corrections FROM public.invoice_corrections c JOIN public.bl_receivables b ON b.id = c.receivable_id
     JOIN public.invoices ci ON ci.id = c.invoice_id
     WHERE c.receivable_id IN (SELECT receivable_id FROM public.invoice_receivable_links WHERE invoice_id = p_invoice_id)
-      -- Só correções lançadas em fatura do próprio Cliente (411).
+      -- Só correções lançadas em fatura do próprio Cliente (420).
       AND ci.customer_id = p_customer_id;
   RETURN v_raw || jsonb_build_object('corrections', v_corrections);
 END;
@@ -221,7 +221,7 @@ BEGIN
       COALESCE(SUM(COALESCE(br.balance_brl, 0)), 0) AS balance_brl
     FROM public.invoice_receivable_links AS irl
     JOIN public.bl_receivables AS br ON br.id = irl.receivable_id
-    -- Só o recebível que ainda é do Cliente da fatura (411).
+    -- Só o recebível que ainda é do Cliente da fatura (420).
     WHERE irl.invoice_id = i.id AND irl.status = 'active' AND br.customer_id = i.customer_id
   ) AS ledger ON true
   WHERE i.customer_id = p_customer_id

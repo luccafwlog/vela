@@ -3,7 +3,7 @@
 Data: 2026-10-23. Origem: notas de endurecimento da auditoria de segurança
 run-3 (2026-10-22). Decisão do dono de 2026-10-22: tratar estes dois pontos
 numa rodada própria, depois da PR luccafwlog/vela#1038, que trouxe as correções
-e as demais decisões da auditoria (migrations `410` a `429`).
+e as demais decisões da auditoria (migrations `419` a `438`).
 
 ## Estado
 

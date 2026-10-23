@@ -176,7 +176,7 @@ em [Contratos Supabase](#contratos-supabase).
 
 | Rota / superfície | Ação | Origem | Hook / serviço | RPC / tabela / integração | Efeito e cache | Evidência | Módulo |
 |---|---|---|---|---|---|---|---|
-| `/portal/login` | Entrar por CNPJ e senha | `src/pages/PortalLogin.tsx` | `usePortalAuth.tsx` → Edge `portal-login` | A Edge lê `customer_portal_accounts` por `login_cnpj` com `service_role`, controla tentativas (reserva atômica `portal_login_reserve_attempt` e `portal_login_settle_attempt`, migration `413`) e autentica no Supabase Auth isolado do Portal | Mesma resposta 401 genérica para CNPJ desconhecido, conta inativa, senha errada e bloqueio; hidrata o overview e libera `PortalProtectedRoute`. `portal_resolve_login` não tem chamador nem grant | **Código**; **Teste:** `PortalLogin.test.tsx` | [Portal do Cliente](modules/portal-cliente.md#autenticação-e-sessão) |
+| `/portal/login` | Entrar por CNPJ e senha | `src/pages/PortalLogin.tsx` | `usePortalAuth.tsx` → Edge `portal-login` | A Edge lê `customer_portal_accounts` por `login_cnpj` com `service_role`, controla tentativas (reserva atômica `portal_login_reserve_attempt` e `portal_login_settle_attempt`, migration `422`) e autentica no Supabase Auth isolado do Portal | Mesma resposta 401 genérica para CNPJ desconhecido, conta inativa, senha errada e bloqueio; hidrata o overview e libera `PortalProtectedRoute`. `portal_resolve_login` não tem chamador nem grant | **Código**; **Teste:** `PortalLogin.test.tsx` | [Portal do Cliente](modules/portal-cliente.md#autenticação-e-sessão) |
 | `/portal/ativar` | Inspecionar e ativar o convite | `src/pages/PortalAtivacao.tsx` | Edge `portal-invite-activate` (`inspect`, `activate`) | `portal_invites` por hash do token; usuário Auth criado na ativação; `portal_activation_check_rate_limit`, `reprocess_customer_billing_after_portal_activation`, `reconcile_client_portal_alerts` | Consome o token atomicamente e volta ao login sem sessão automática | **Código**; **Teste:** `PortalAtivacao.test.tsx` | [Portal do Cliente](modules/portal-cliente.md#provisionamento-e-ativação-do-convite) |
 | `/portal/esqueci-senha` | Pedir recuperação sem revelar se a conta existe | `src/pages/PortalForgotPassword.tsx` | Edge `portal-password-recovery` | Convite de recuperação por token de uso único; `portal_recovery_check_rate_limit` | Resposta sempre genérica | **Código**; **Teste:** `PortalRecovery.behavior.test.tsx` | [Portal do Cliente](modules/portal-cliente.md#autenticação-e-sessão) |
 | `/portal/recuperar-senha` | Consumir o token e trocar a senha | `src/pages/PortalResetPassword.tsx` | Edge `portal-password-reset` | `portal_begin_password_reset`, `portal_finish_password_reset`; senha trocada pelo Auth Admin | Volta ao login sem sessão automática | **Código**; **Teste:** `PortalRecovery.behavior.test.tsx`, `PortalResetPassword.confirmation.test.tsx` | [Portal do Cliente](modules/portal-cliente.md#autenticação-e-sessão) |
@@ -414,7 +414,7 @@ Regra: [Clientes](modules/clientes.md).
 | `revoke_customer_billing_portal_release` | `billingPortalRelease.ts` | `083` | DEFINER · `authenticated`, `service_role` | Administrativo | — |
 | `save_customer_communication_saved_template` | `customerCommunications.ts` | `068` | DEFINER · `authenticated` | Administrativo, Documentação ou Equipamentos | — |
 | `set_communications_enabled` | `appSettings.ts` | `002` | DEFINER · `authenticated` | Administrativo | Chave global de envio de Comunicados. |
-| `update_customer_with_audit` | `customers.ts` | `002`; DEFINER desde a `404`; `427` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Edição auditada do cadastro do Cliente. Passou a DEFINER quando `audit_logs` deixou de aceitar INSERT direto (`404`). Desde a `427` é o único caminho do CNPJ (`cnpj_cpf`) para Cliente sem convite nem Conta de Portal; o UPDATE direto da coluna saiu de `authenticated`. |
+| `update_customer_with_audit` | `customers.ts` | `002`; DEFINER desde a `404`; `436` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Edição auditada do cadastro do Cliente. Passou a DEFINER quando `audit_logs` deixou de aceitar INSERT direto (`404`). Desde a `436` é o único caminho do CNPJ (`cnpj_cpf`) para Cliente sem convite nem Conta de Portal; o UPDATE direto da coluna saiu de `authenticated`. |
 
 #### Taxas Locais
 
@@ -481,12 +481,12 @@ Regra: [Demurrage](modules/demurrage.md).
 | `list_demurrage_disputes_internal` | `demurrage/demurrageDisputes.ts` | `081`, `250` | DEFINER · `authenticated` | Usuário interno ativo (P12, `250`) | Responder, reabrir e anexar seguem de Equipamentos e do Administrativo. |
 | `list_demurrage_dunning_claim_statuses` | `demurrageDunning.ts` | `002`, `313` | DEFINER · `authenticated`, `service_role` | usuário interno ativo ou `service_role` | Uma linha por Invoice pedida, com o motivo da pausa (`_demurrage_dunning_block_reason`, `313`). |
 | `recalculate_demurrage_invoices_manual` | `demurrage/demurrageKpis.ts` | `110` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos | — |
-| `release_demurrage_invoice_manual_roe` | `demurrage/demurrageInvoices.ts` | `382`, `385`, `426` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos (`426`); motivo ≥ 10 caracteres | Tira o ROE manual da Invoice emitida ou vencida e volta à PTAX, com histórico e rastro (ADR 0094, B10). |
+| `release_demurrage_invoice_manual_roe` | `demurrage/demurrageInvoices.ts` | `382`, `385`, `435` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos (`435`); motivo ≥ 10 caracteres | Tira o ROE manual da Invoice emitida ou vencida e volta à PTAX, com histórico e rastro (ADR 0094, B10). |
 | `register_demurrage_payment` | `demurrage/demurrageInvoices.ts` | `027` | DEFINER · `authenticated`, `service_role` | Financeiro ou Administrativo ou `service_role` | — |
 | `reopen_demurrage_dispute` | `demurrage/demurrageDisputes.ts` | `081` | DEFINER · `authenticated` | Equipamentos ou Administrativo | — |
 | `reopen_demurrage_invoice` | Sem chamador (o wrapper `unmarkInvoicePaid` saiu) | `012`, `328` | DEFINER · `service_role` (revogada de `authenticated` na `328`) | `service_role` | Reabre Invoice paga (volta a `issued`), com justificativa e auditoria; a tela desfaz a baixa por `reverse_demurrage_payment`. |
 | `save_bl_demurrage_config` | `blDemurrageConfig.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | — |
-| `set_bl_manual_roe` | `blDemurrageConfig.ts` | `426` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos; motivo ≥ 10 caracteres | Põe ou tira o ROE manual do B/L, que vale para a próxima Invoice de Demurrage; o histórico do B/L leva o motivo. O UPDATE direto das colunas saiu de `authenticated`. |
+| `set_bl_manual_roe` | `blDemurrageConfig.ts` | `435` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos; motivo ≥ 10 caracteres | Põe ou tira o ROE manual do B/L, que vale para a próxima Invoice de Demurrage; o histórico do B/L leva o motivo. O UPDATE direto das colunas saiu de `authenticated`. |
 | `save_exchange_rate_reference_v2` | Edge `recalc-demurrage-ptax`; `recalculate_demurrage_invoices` | `018`, `236`, `264` | DEFINER · `service_role` | `service_role` (ou chamada interna como dono) | Só o job do BCB e o Informar PTAX gravam a referência (ADR 0083, item 14). |
 | `set_container_dates` | `demurrage/demurrageContainers.ts` | `211` | DEFINER · `authenticated`, `service_role` | usuário interno ativo | Datas de descarga e devolução do container (ficha do B/L e `/demurrage`). |
 | `set_demurrage_dunning_interval_days` | `appSettings.ts` | `002` | DEFINER · `authenticated` | Administrativo | — |
@@ -518,7 +518,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 |---|---|---|---|---|---|
 | `count_alert_queue` | `alerts.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `count_unread_internal_notifications` | `alerts.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `dismiss_alert_item` | `alerts.ts` | `002`, `424` | DEFINER · `authenticated` | usuário interno ativo | Data de revisão até o fim do 30º dia (`424`). |
+| `dismiss_alert_item` | `alerts.ts` | `002`, `433` | DEFINER · `authenticated` | usuário interno ativo | Data de revisão até o fim do 30º dia (`433`). |
 | `list_alert_queue_page` | `alerts.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | Fila paginada de 100 em 100, filtro de setor no servidor; `list_alert_queue` (atalho da primeira página) não tem chamador. |
 | `list_internal_notifications` | `alerts.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo (filtro na consulta) | — |
 | `mark_all_internal_notifications_read` | `alerts.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
@@ -561,7 +561,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 |---|---|---|---|---|---|
 | `internal_get_portal_information` | `portalInformation.ts` | `137` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `internal_save_portal_information` | `portalInformation.ts` | `137`, `253` | DEFINER · `authenticated` | Usuário interno ativo, em todos os tipos (P8, `253`) | Grava o rastro em `audit_logs`. |
-| `portal_add_dispute_message` | `portalBilling.ts` | `109`, `417`, `425` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Não abre Dispute nova em Invoice paga (`425`). |
+| `portal_add_dispute_message` | `portalBilling.ts` | `109`, `426`, `434` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Não abre Dispute nova em Invoice paga (`434`). |
 | `portal_admin_change_cnpj` | `hooks/usePortalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo | — |
 | `portal_cancel_invite` | `hooks/usePortalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação | — |
 | `portal_check_dispute_attachment_eligibility` | `portalBilling.ts`; Edge `portal-dispute-attachment` | `075` | DEFINER · `authenticated`, `service_role` | equipe interna ou Cliente da sessão | — |
@@ -624,7 +624,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
-| `_portal_log_event` | Edge `portal-account-suspend`; Edge `portal-invite-activate`; Edge `portal-invite-send`; Edge `portal-password-reset`; Edge `portal-recovery-email-change` | `002`, `414` (`p_actor_id`) | DEFINER · `service_role` | só pelo grant a `service_role` | Autor: a sessão ou, sob `service_role`, o `p_actor_id` que a Edge confirmou com `getUser` (suspender, reativar, convidar) |
+| `_portal_log_event` | Edge `portal-account-suspend`; Edge `portal-invite-activate`; Edge `portal-invite-send`; Edge `portal-password-reset`; Edge `portal-recovery-email-change` | `002`, `423` (`p_actor_id`) | DEFINER · `service_role` | só pelo grant a `service_role` | Autor: a sessão ou, sob `service_role`, o `p_actor_id` que a Edge confirmou com `getUser` (suspender, reativar, convidar) |
 | `acquire_import_effects_runner` | Edge `import-effects-runner` | `218` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `acquire_itau_pix_runner` | Edge `itau-pix` | `219` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `ce_unlock_cleanup_candidates` | Edge `ce-unlock-cleanup` | `143` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
@@ -648,8 +648,8 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `customer_local_charges_communication_payload` | Edge `customer-communication-auto-runner`; Edge `send-customer-communication` | `179` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `demurrage_dunning_candidate_sendable` | Edge `demurrage-dunning` | `179`, `305` | DEFINER · `service_role` | `service_role` (conferido no corpo) | A mesma regra da seleção (`_demurrage_dunning_invoice_billable`, `305`). |
 | `evaluate_and_dispatch_automatic_communications` | Edge `customer-communication-auto-runner` | `190`, `243`, `244`, `297`, `304`, `314` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Produtora de NOA, NOR, NOB e CE e Taxas; o NOB usa a regra única `bl_belongs_to_atracacao`, e o Cliente sem contato abre `nob_sem_destinatario` sem abortar a rodada (`243`); claim recusada nas últimas 24 h não volta como candidata (`297`); claim adiada só volta depois de `next_attempt_at` e os alvos vêm de `customer_communication_automation_targets` (`304`). |
-| `internal_revoke_sessions` | Edge `admin-users` | `106`, `410` (marco em `internal_credential_revocations`) | DEFINER · `service_role` | só pelo grant a `service_role` | — |
-| `check_internal_token_cutoff` | PostgREST (`pgrst.db_pre_request`), antes de toda requisição | `410` | DEFINER · `anon`, `authenticated`, `service_role` | nenhum: não lê nem devolve dado ao chamador | Recusa com `28000` o token interno anterior ao marco da revogação; sem sessão não faz nada ([ADR 0097](adr/0097-corte-do-token-interno-na-revogacao.md)) |
+| `internal_revoke_sessions` | Edge `admin-users` | `106`, `419` (marco em `internal_credential_revocations`) | DEFINER · `service_role` | só pelo grant a `service_role` | — |
+| `check_internal_token_cutoff` | PostgREST (`pgrst.db_pre_request`), antes de toda requisição | `419` | DEFINER · `anon`, `authenticated`, `service_role` | nenhum: não lê nem devolve dado ao chamador | Recusa com `28000` o token interno anterior ao marco da revogação; sem sessão não faz nada ([ADR 0099](adr/0099-corte-do-token-interno-na-revogacao.md)) |
 | `is_admin` | Edge `admin-users` | `002` | DEFINER · `authenticated` | devolve se a sessão é Administrativo ativo | — |
 | `itau_pix_checkpoint` | Edge `itau-pix` | `152` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `itau_pix_claim` | Edge `itau-pix` | `219` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
@@ -667,11 +667,11 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `portal_confirm_recovery_email` | Edge `_shared/portalInvites.ts` | `131` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_current_role` | Edge `portal-account-suspend`; Edge `portal-invite-send`; Edge `send-customer-communication` | `002` | DEFINER · `authenticated` | devolve o papel do usuário interno da sessão | — |
 | `portal_finish_password_reset` | Edge `portal-password-reset` | `131` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
-| `portal_login_reserve_attempt` | Edge `_shared/portalLoginRateLimit.ts` (`portal-login`, `portal-recovery-email-change`) | `413` | DEFINER · `service_role` | só pelo grant a `service_role` | Reserva a tentativa como erro sob trava do CNPJ; null no limite |
-| `portal_login_settle_attempt` | Edge `_shared/portalLoginRateLimit.ts` | `413` | DEFINER · `service_role` | só pelo grant a `service_role` | Marca a reserva como sucesso ou a apaga (falha do Auth) |
-| `portal_login_check_rate_limit` | sem chamador desde a `413` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | Substituída pela reserva |
-| `portal_login_register_failure` | sem chamador desde a `413` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | Substituída pela reserva |
-| `portal_login_register_success` | sem chamador desde a `413` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | Substituída pela reserva |
+| `portal_login_reserve_attempt` | Edge `_shared/portalLoginRateLimit.ts` (`portal-login`, `portal-recovery-email-change`) | `422` | DEFINER · `service_role` | só pelo grant a `service_role` | Reserva a tentativa como erro sob trava do CNPJ; null no limite |
+| `portal_login_settle_attempt` | Edge `_shared/portalLoginRateLimit.ts` | `422` | DEFINER · `service_role` | só pelo grant a `service_role` | Marca a reserva como sucesso ou a apaga (falha do Auth) |
+| `portal_login_check_rate_limit` | sem chamador desde a `422` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | Substituída pela reserva |
+| `portal_login_register_failure` | sem chamador desde a `422` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | Substituída pela reserva |
+| `portal_login_register_success` | sem chamador desde a `422` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | Substituída pela reserva |
 | `portal_recovery_check_rate_limit` | Edge `_shared/portalLoginRateLimit.ts` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_recovery_register_failure` | Edge `_shared/portalLoginRateLimit.ts` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_revoke_sessions` | Edge `_shared/revokePortalSessions.ts` | `132` | DEFINER · `service_role` | só pelo grant a `service_role` | — |

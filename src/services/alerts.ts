@@ -613,7 +613,7 @@ const alertsRpc = supabase as unknown as {
 /**
  * Último dia aceito para a dispensa voltar à fila: o 30º a partir de hoje, em
  * UTC como a data que a tela envia (`T23:59:59Z`). `dismiss_alert_item`
- * recusa depois dele (migration 424).
+ * recusa depois dele (migration 433).
  */
 export function getMaxReviewDateString(now: Date = new Date()): string {
   const d = new Date(now)

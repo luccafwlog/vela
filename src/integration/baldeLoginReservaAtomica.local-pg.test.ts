@@ -3,7 +3,7 @@ import { execPsql } from './localPsql'
 import { afterEach, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 413 (auditoria run-3, pendência P3; ADR 0049): o balde de login do
+// Migration 422 (auditoria run-3, pendência P3; ADR 0049): o balde de login do
 // Portal reserva a tentativa sob trava do CNPJ, então pedidos simultâneos não
 // passam das 5 falhas em 15 minutos, como passavam com consulta e registro em
 // passos separados.
@@ -42,7 +42,7 @@ const failures = () => psql(`SELECT count(*) FROM public.portal_login_attempts
 
 const describeLocal = describeWithProbe(migration410Applied, 'migration410Applied (reserva atômica do balde de login)')
 
-describeLocal('413 — reserva atômica no balde de login do Portal', () => {
+describeLocal('422 — reserva atômica no balde de login do Portal', () => {
   afterEach(() => {
     psql(`DELETE FROM public.portal_login_attempts WHERE cnpj_hash = encode(extensions.digest('${CNPJ}', 'sha256'), 'hex');`)
   })

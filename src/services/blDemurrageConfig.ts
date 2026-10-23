@@ -27,7 +27,7 @@ export async function saveBlDemurrageConfig({
 }
 
 /**
- * ROE manual do B/L (migration 426): Financeiro, Administrativo e Equipamentos
+ * ROE manual do B/L (migration 435): Financeiro, Administrativo e Equipamentos
  * põem (`roe`) ou tiram (`null`), com motivo de 10 caracteres ou mais. Vale
  * para a próxima Invoice de Demurrage emitida; o histórico do B/L leva o motivo.
  */

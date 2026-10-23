@@ -1,4 +1,4 @@
--- 414: suspensão, reativação e convite do Portal registram quem os fez
+-- 423: suspensão, reativação e convite do Portal registram quem os fez
 -- (auditoria de segurança run-3, achado C6).
 --
 -- Problema: `portal-account-suspend` e `portal-invite-send` gravam o evento de

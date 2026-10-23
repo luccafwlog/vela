@@ -1,4 +1,4 @@
--- 421: a troca da própria senha entra no Histórico (auditoria de segurança
+-- 430: a troca da própria senha entra no Histórico (auditoria de segurança
 -- run-3, nota de endurecimento).
 --
 -- A redefinição pelo Administrativo (admin-users) grava `user_profile` /
@@ -54,7 +54,7 @@ BEGIN
             'customer_finance_communication_failed', 'granite_reimport_already_invoiced'))
       OR (v_type = 'user_profile' AND v_field IN ('created', 'email', 'password', 'role', 'active', 'full_name')
           AND public.is_admin())
-      -- 421: a troca da própria senha em Meu perfil, só da própria conta e
+      -- 430: a troca da própria senha em Meu perfil, só da própria conta e
       -- sem valor (a senha nunca vai para o Histórico).
       OR (v_type = 'user_profile' AND v_field = 'password'
           AND btrim(v_entry ->> 'entity_id') = v_actor::text

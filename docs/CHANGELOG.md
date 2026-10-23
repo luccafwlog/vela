@@ -6,8 +6,8 @@
 
 ## 2026-10
 
-- **Decisões do dono sobre a auditoria de segurança run-3 (2026-10-23):** migrations `424` a
-  `429`. Dispensa de alerta até o 30º dia; Invoice de Demurrage reemitida para o novo Cliente sem o
+- **Decisões do dono sobre a auditoria de segurança run-3 (2026-10-23):** migrations `433` a
+  `438`. Dispensa de alerta até o 30º dia; Invoice de Demurrage reemitida para o novo Cliente sem o
   desconto do anterior; Dispute nova do Portal só em Invoice não paga; ROE manual do B/L só por
   função, com motivo, para Financeiro, Administrativo e Equipamentos (ação na ficha do B/L), e
   Equipamentos também tira o da Invoice; CNPJ do Cliente só por `update_customer_with_audit`, com
@@ -21,7 +21,7 @@
   Desconto integral segue com todos os setores (nota na ADR 0085). Fixar dependências das Edge
   Functions e tirar o PostHog da CSP ficaram para a [rodada própria](plans/2026-10-23-reforcos-adiados-da-auditoria-run-3.md).
 - **Reforços da auditoria de segurança run-3 (2026-10-22, notas de endurecimento):** migrations
-  `410` a `423`. Banco: guardas de permissão antes das travas (baixa de 8 argumentos, rascunho do
+  `419` a `432`. Banco: guardas de permissão antes das travas (baixa de 8 argumentos, rascunho do
   Desbloqueio de CE), rotinas só do sistema recusam outro chamador, Cliente desativado sai do Portal
   na hora e não recebe aviso de CE, Disputas com teto de pedido de reabertura e reabertura só da
   resolvida, Invoice reemitida sem a Dispute do Cliente anterior, sem oráculo de ids no Portal,
@@ -48,23 +48,23 @@
   quando a maioria dos Pix da janela diverge (com os TXIDs no log); o caso isolado vai para
   análise. `endToEndId` com data impossível passa a ser formato inesperado.
 - **Pix Itaú: o resultado só ativa a versão enviada (2026-10-22, auditoria de segurança run-3,
-  achado C7):** migration `415`. Mudança de valor ou validade durante a chamada ao Itaú (desconto
+  achado C7):** migration `424`. Mudança de valor ou validade durante a chamada ao Itaú (desconto
   de Demurrage, PTAX, renovação) deixava a cobrança `active` com o valor antigo no banco do Itaú;
   agora a cobrança volta a `pending_update` e o valor novo segue na mesma execução. Publicar a
   migration antes da `itau-pix`. Prova: `itauPixCharges.local-pg.test.ts`, `itauPix.test.ts`.
 - **Comunicados: identidade de envio não serve a outro remetente nem a outro texto (2026-10-22,
-  auditoria de segurança run-3, achado C5):** `send-customer-communication` recusa (422 definitivo)
+  auditoria de segurança run-3, achado C5):** `send-customer-communication` recusa (431 definitivo)
   a chamada manual que reaproveita o `dispatch_id` de um Comunicado de outra pessoa ou com outro
   conteúdo; antes, o texto novo era entregue e o registro guardava a autoria e a cópia do Comunicado
   original. Regra em [Clientes](modules/clientes.md). Prova: `sendCustomerCommunicationFunction.test.ts`.
 - **Portal: suspensão, reativação e convite com autor (2026-10-22, auditoria de segurança run-3,
-  achado C6):** migration `414`. Os eventos que `portal-account-suspend` e `portal-invite-send`
+  achado C6):** migration `423`. Os eventos que `portal-account-suspend` e `portal-invite-send`
   gravam com `service_role` passam a registrar quem agiu (o id que o `getUser` da sessão confirmou);
   antes ficavam só com o Departamento. As duas Edges recusam sessão que o Auth não confirma.
   Publicar a migration antes das Edges. Prova: `autorDosEventosDoPortal.local-pg.test.ts`,
   `edgeFunctionsRun2.test.ts`.
 - **Portal: balde de login à prova de tentativas em paralelo (2026-10-22, auditoria de segurança
-  run-3, pendência P3; ADR 0049):** migration `413`. O login e a verificação da senha atual na troca
+  run-3, pendência P3; ADR 0049):** migration `422`. O login e a verificação da senha atual na troca
   do Email de Recuperação reservam a tentativa no balde do CNPJ, sob trava, antes de conferir a
   senha; antes, pedidos simultâneos passavam todos pela consulta e testavam mais de 5 senhas em 15
   minutos. Prova: `baldeLoginReservaAtomica.local-pg.test.ts` (10 simultâneas, 5 admitidas),
@@ -80,18 +80,18 @@
   declara Content-Length; antes o corpo inteiro era lido antes da conferência. Prova:
   `ceUnlockDocuments.test.ts`, `edgeFunctionsRun2.test.ts`.
 - **Importações: a trava da Viagem confere quem chama (2026-10-22, auditoria de segurança run-3,
-  pendência P5):** migration `412`. Sessão sem permissão (Portal ou usuário inativo) é recusada
+  pendência P5):** migration `421`. Sessão sem permissão (Portal ou usuário inativo) é recusada
   antes de entrar na fila da Viagem, em todas as importações que usam a trava; antes ela esperava
   a vez e, com carga grande, segurava a Viagem por segundos à frente da equipe. Prova:
   `travaDaViagemConfereQuemChama.local-pg.test.ts`.
 - **Portal: B/L que muda de Cliente (2026-10-22, auditoria de segurança run-3, achados C2, C3
-  e C4):** migration `411`. Depois da troca de Cliente do B/L, o Portal do Cliente anterior não
+  e C4):** migration `420`. Depois da troca de Cliente do B/L, o Portal do Cliente anterior não
   mostra mais contêineres e situação viva do B/L, saldo, correção e abatimento do recebível que
   passou ao novo Cliente, nem o prazo do Desbloqueio de CE calculado com a baixa do novo.
   Regra em [Portal do Cliente](modules/portal-cliente.md#bl-que-muda-de-cliente). Prova:
   `portalAntigoDonoDoBl.local-pg.test.ts`.
 - **Segurança: token interno cortado na revogação (2026-10-22, auditoria de segurança run-3,
-  achado C1; ADR 0097):** migration `410`. Editar acesso (troca de e-mail ou senha) e Desativar
+  achado C1; ADR 0099):** migration `419`. Editar acesso (troca de e-mail ou senha) e Desativar
   passam a cortar na hora o access token já emitido, como o Portal já fazia: o marco da revogação
   fica numa tabela sem grant para os clientes; os helpers de papel, o Desbloqueio de CE e as
   políticas recusam o token anterior; uma checagem antes de toda requisição do PostgREST cobre o

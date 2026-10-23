@@ -1,4 +1,4 @@
--- 424: a dispensa de alerta vale por até 30 dias (auditoria de segurança
+-- 433: a dispensa de alerta vale por até 30 dias (auditoria de segurança
 -- run-3, decisão do dono em 2026-10-22).
 --
 -- `dismiss_alert_item` aceitava qualquer data futura: uma dispensa para 2099
@@ -35,7 +35,7 @@ BEGIN
   IF p_review_at IS NULL OR p_review_at <= now() THEN
     RAISE EXCEPTION 'A revisão deve ser uma data futura.' USING ERRCODE = '22023';
   END IF;
-  -- 424: até o fim do 30º dia (UTC) a partir de hoje, o limite da tela.
+  -- 433: até o fim do 30º dia (UTC) a partir de hoje, o limite da tela.
   IF p_review_at >= (date_trunc('day', now() AT TIME ZONE 'UTC') + interval '31 days') AT TIME ZONE 'UTC' THEN
     RAISE EXCEPTION 'A dispensa vale por no máximo 30 dias.' USING ERRCODE = '22023';
   END IF;

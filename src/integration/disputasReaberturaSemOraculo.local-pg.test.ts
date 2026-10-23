@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 417 (auditoria run-3, notas de endurecimento): reabertura de
+// Migration 426 (auditoria run-3, notas de endurecimento): reabertura de
 // Dispute com teto e só da resolvida, Invoice reemitida sem a Dispute do
 // Cliente anterior e sem oráculo de ids para a sessão do Portal.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -73,7 +73,7 @@ function cleanup() {
 
 const describeLocal = describeWithProbe(migration414Applied, 'migration414Applied (Disputas)')
 
-describeLocal('417 — Disputas: reabertura, reemissão e sem oráculo de ids', () => {
+describeLocal('426 — Disputas: reabertura, reemissão e sem oráculo de ids', () => {
   beforeAll(() => {
     cleanup()
     psql(`

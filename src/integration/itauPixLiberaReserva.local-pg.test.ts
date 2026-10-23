@@ -2,7 +2,7 @@ import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 422 (auditoria run-3, nota de endurecimento): a cobrança reservada e
+// Migration 431 (auditoria run-3, nota de endurecimento): a cobrança reservada e
 // não chamada volta sem contar tentativa. Transação descartada no fim.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -22,7 +22,7 @@ function migration419Applied(): boolean {
 
 const describeLocal = describeWithProbe(migration419Applied, 'migration419Applied (Itaú libera reserva não chamada)')
 
-describeLocal('422 — Itaú libera a reserva não chamada', () => {
+describeLocal('431 — Itaú libera a reserva não chamada', () => {
   it('devolve a tentativa e a vez só da reserva vigente', () => {
     const out = psql(`BEGIN;
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (419001, '${syntheticCnpj(41901)}', 'Cliente C419');

@@ -3,7 +3,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 412 (auditoria run-3, pendência P5): a trava de importação da
+// Migration 421 (auditoria run-3, pendência P5): a trava de importação da
 // Viagem confere quem chama antes de entrar na fila. Sessão sem permissão é
 // recusada na hora, mesmo com a trava ocupada; usuário interno ativo continua
 // esperando a vez, então a trava segue serializando as importações.
@@ -59,7 +59,7 @@ async function lockIsHeld(): Promise<void> {
 
 const describeLocal = describeWithProbe(migration409Applied, 'migration409Applied (trava da Viagem confere quem chama)')
 
-describeLocal('412 — trava da Viagem confere quem chama', () => {
+describeLocal('421 — trava da Viagem confere quem chama', () => {
   beforeAll(() => {
     psql(`INSERT INTO auth.users (id, email) VALUES ('${STAFF}', 'c409-staff@example.test'), ('${ORPHAN}', 'c409-orphan@example.test')
       ON CONFLICT (id) DO NOTHING;`)

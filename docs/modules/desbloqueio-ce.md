@@ -153,7 +153,7 @@ confirmações externas antigas permanecem como histórico do desk.
 
 ### Armazenamento e funções
 
-Bucket privado `ce-unlock-documents`, com limite próprio desde a migration `428`
+Bucket privado `ce-unlock-documents`, com limite próprio desde a migration `437`
 (decisão do dono de 2026-10-22): até 10 MB (10485760 bytes) e só `application/pdf`
 e o DOCX do modelo do termo, os mesmos que `portal-ce-unlock-document` aceita
 (`_shared/ceUnlockFile.ts`). O Storage recusa o resto mesmo fora da Edge.
@@ -355,7 +355,7 @@ cujo aviso no Portal pede `FOR KEY SHARE` no Cliente). Envio e exportação trav
 recebíveis do B/L e revalidam a liquidação depois de esperar uma baixa ou um cancelamento de baixa em
 curso: B/L que perdeu a liquidação é recusado.
 
-Desde a migration `418`: o rascunho do Portal confere que todo B/L é do Cliente
+Desde a migration `427`: o rascunho do Portal confere que todo B/L é do Cliente
 da sessão e liberado antes de travar solicitações e B/Ls; a visão sem Cliente das
 funções privadas (`list`, `request_json`) exige perfil interno e `vip_json` exige
 Cliente; o item do B/L com solicitação de outro Cliente esconde também os motivos

@@ -1,4 +1,4 @@
--- 418: Desbloqueio de CE — guardas de dono antes das travas e sem visão sem
+-- 427: Desbloqueio de CE — guardas de dono antes das travas e sem visão sem
 -- Cliente (auditoria de segurança run-3, notas de endurecimento).
 --
 -- 1. `ce_unlock_prepare_upload` gravava o `request_id` do contexto mesmo para

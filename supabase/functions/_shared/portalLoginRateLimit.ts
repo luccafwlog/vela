@@ -66,7 +66,7 @@ export function isRateLimitBlocked(persistedBlocked: boolean, distributed: Distr
 }
 
 /**
- * Reserva atômica no balde do login (migration 413): a tentativa já entra como
+ * Reserva atômica no balde do login (migration 422): a tentativa já entra como
  * falha antes de a senha ser conferida, sob trava do CNPJ, para pedidos em
  * paralelo não passarem do limite. Devolve o id da reserva, ou null quando o
  * CNPJ está bloqueado (no Supabase, por erro da RPC ou no Redis).

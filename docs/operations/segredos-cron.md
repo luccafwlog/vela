@@ -38,10 +38,10 @@ por nome:
 | `PORTAL_EMAIL_EVENTS_CRON_SECRET` | `portal-email-events-runner` | `PORTAL_EMAIL_EVENTS_CRON_SECRET` |
 | `IMPORT_EFFECTS_CRON_SECRET` | `import-effects-runner` e o disparo pela importação (`ops.kick_import_effects_runner`, migration `218`) | `IMPORT_EFFECTS_CRON_SECRET` |
 | `RECALC_CRON_SECRET` | `recalc-demurrage-ptax` | `RECALC_CRON_SECRET` |
-| `ITAU_PIX_CRON_SECRET` (a cadastrar; até lá, `ITAU_PIX_ADMIN_SECRET`) | `itau-pix-queue` e o disparo da fila (`ops.kick_itau_pix_runner`, migrations `219` e `429`) | `ITAU_PIX_CRON_SECRET` (a Edge aceita também `ITAU_PIX_ADMIN_SECRET` na transição) |
+| `ITAU_PIX_CRON_SECRET` (a cadastrar; até lá, `ITAU_PIX_ADMIN_SECRET`) | `itau-pix-queue` e o disparo da fila (`ops.kick_itau_pix_runner`, migrations `219` e `438`) | `ITAU_PIX_CRON_SECRET` (a Edge aceita também `ITAU_PIX_ADMIN_SECRET` na transição) |
 | — | diagnóstico manual da `itau-pix` (equipe técnica, sem cron) | `ITAU_PIX_DIAGNOSTIC_SECRET` (só na Edge) |
 | `CE_UNLOCK_CLEANUP_SECRET` | `ce-unlock-cleanup` | `CE_UNLOCK_CLEANUP_SECRET` |
-| `CE_UNLOCK_NOTIFY_SECRET` (a cadastrar; até lá, `CE_UNLOCK_CLEANUP_SECRET`) | `ce-unlock-notify-email` (migration `429`) | `CE_UNLOCK_NOTIFY_SECRET` |
+| `CE_UNLOCK_NOTIFY_SECRET` (a cadastrar; até lá, `CE_UNLOCK_CLEANUP_SECRET`) | `ce-unlock-notify-email` (migration `438`) | `CE_UNLOCK_NOTIFY_SECRET` |
 
 Os nomes são iguais aos dos Edge Function Secrets de propósito: o par
 banco/Function é o contrato, e rotacionar um sem o outro derruba o job.
@@ -51,7 +51,7 @@ banco/Function é o contrato, e rotacionar um sem o outro derruba o job.
 Decisão do dono de 2026-10-22: cada rotina com o próprio segredo. Antes,
 `ITAU_PIX_ADMIN_SECRET` servia ao cron Itaú, ao disparo da fila e ao
 diagnóstico, e `CE_UNLOCK_CLEANUP_SECRET` servia ao expurgo e aos avisos do
-Desbloqueio de CE. A migration `429` faz o job `itau-pix-queue`, o disparo
+Desbloqueio de CE. A migration `438` faz o job `itau-pix-queue`, o disparo
 `ops.kick_itau_pix_runner` e o job `ce-unlock-notify-email` (se existir)
 escolherem o segredo pelo nome com `ops.preferred_vault_secret(próprio,
 compartilhado)`: o próprio quando está no Vault, o compartilhado enquanto não

@@ -1,5 +1,5 @@
--- 410: o access token interno emitido antes da revogação deixa de valer
--- (auditoria de segurança run-3, achado C1; ADR 0097).
+-- 419: o access token interno emitido antes da revogação deixa de valer
+-- (auditoria de segurança run-3, achado C1; ADR 0099).
 --
 -- Problema: `internal_revoke_sessions` (106) apaga sessões e refresh tokens,
 -- mas não grava o instante da revogação. Os helpers de papel (002) decidem só
@@ -26,7 +26,7 @@
 --   4. `check_internal_token_cutoff()` roda antes de toda requisição do
 --      PostgREST (`pgrst.db_pre_request`) e cobre as RPCs que ainda leem
 --      `user_profiles` no corpo. É a única função executável por `anon`
---      (ADR 0097, exceção à ADR 0090): sem sessão, não faz nada.
+--      (ADR 0099, exceção à ADR 0090): sem sessão, não faz nada.
 --
 -- Não altera nem apaga linhas existentes.
 -- Rollback: `ALTER ROLE authenticator RESET pgrst.db_pre_request` e

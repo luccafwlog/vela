@@ -15,7 +15,7 @@ sua ação no Redis:
 
 - login: `portal-login` e verificação da senha atual na troca do Email de
   Recuperação — Supabase bloqueia com 5 erros em 15 minutos. Desde a migration
-  `413`, a tentativa é reservada antes de a senha ser conferida
+  `422`, a tentativa é reservada antes de a senha ser conferida
   (`portal_login_reserve_attempt`, sob trava do CNPJ), já contada como erro;
   senha certa a marca como sucesso e falha do Auth a apaga
   (`portal_login_settle_attempt`). Pedidos simultâneos não passam do limite;

@@ -385,13 +385,13 @@ GUARDAS_DE_PERFIL = [g for g in GUARDAS if g not in ('42501', '28000')]
 # que a condição lê o perfil (`user_profiles`, `v_role`, `auth.role()`).
 GUARDA_INLINE = re.compile(
     r"\bif\b((?:(?!\bend\s+if\b|\bthen\b).)*?)\bthen\s+raise\b[^;]*?'(?:42501|28000)'", re.S)
-# Helper de trava que confere quem chama antes de travar (migration 412).
+# Helper de trava que confere quem chama antes de travar (migration 421).
 HELPER_DE_TRAVA = re.compile(r'\b(_lock_import_voyages\w*)\s*\(')
 
 # Casos já triados. Cada entrada diz por que a ordem é aceita ou quando sai.
 TRAVA_ANTES_DA_GUARDA_ACEITA: dict[str, str] = {
     # A baixa de 8 argumentos (register_ledger_invoice_payment) travava os B/Ls
-    # antes da guarda de Financeiro; a migration 416 pôs a guarda antes.
+    # antes da guarda de Financeiro; a migration 425 pôs a guarda antes.
     # Triados como não materiais pela run-3, sem exceção: o check já aprova
     # portal_add_dispute_message e portal_obsolete_consolidation (guarda antes
     # da trava); ce_unlock_prepare_upload e ce_unlock_finish_upload não

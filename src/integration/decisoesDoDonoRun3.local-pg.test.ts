@@ -2,7 +2,7 @@ import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migrations 424 a 429 (auditoria run-3, decisões do dono de 2026-10-22):
+// Migrations 433 a 438 (auditoria run-3, decisões do dono de 2026-10-22):
 // dispensa de alerta até 30 dias, Demurrage reemitida sem o desconto, Dispute
 // nova só em fatura não paga, ROE manual do B/L e CNPJ do Cliente só por
 // função, limites do bucket do Desbloqueio de CE e um segredo por rotina no
@@ -89,10 +89,10 @@ function scenario(sql: string): string[] {
     '-c', `BEGIN; ${FIXTURES} ${sql} ROLLBACK;`], { encoding: 'utf8' }).trim().split(/\r?\n/)
 }
 
-const describeLocal = describeWithProbe(decisionsApplied, 'decisionsApplied (migrations 424 a 429)')
+const describeLocal = describeWithProbe(decisionsApplied, 'decisionsApplied (migrations 433 a 438)')
 
-describeLocal('424 a 429 — decisões do dono da auditoria run-3', () => {
-  it('424: dispensa vai até o fim do 30º dia e não além', () => {
+describeLocal('433 a 438 — decisões do dono da auditoria run-3', () => {
+  it('433: dispensa vai até o fim do 30º dia e não além', () => {
     const endOfDay30 = `(date_trunc('day', now() AT TIME ZONE 'UTC') + interval '30 days 23:59:59') AT TIME ZONE 'UTC'`
     const day31 = `(date_trunc('day', now() AT TIME ZONE 'UTC') + interval '31 days') AT TIME ZONE 'UTC'`
     expect(scenario(`
@@ -102,7 +102,7 @@ describeLocal('424 a 429 — decisões do dono da auditoria run-3', () => {
     `)).toEqual(['22023', 'ok'])
   })
 
-  it('425: Invoice de Demurrage reemitida para o novo Cliente nasce sem o desconto, com o R$ cheio', () => {
+  it('434: Invoice de Demurrage reemitida para o novo Cliente nasce sem o desconto, com o R$ cheio', () => {
     expect(scenario(`
       UPDATE public.bls SET customer_id = ${CUSTOMER_B} WHERE id = '${BL_DESCONTO}';
       SELECT concat_ws('|', coalesce(discount_mode, '-'), coalesce(discount_value::text, '-'), coalesce(discount_justification, '-'),
@@ -112,7 +112,7 @@ describeLocal('424 a 429 — decisões do dono da auditoria run-3', () => {
     `)).toEqual(['-|-|-|550.00|t', 'cancelled'])
   })
 
-  it('425: Portal não abre Dispute nova em Invoice paga, mas segue a conversa já aberta', () => {
+  it('434: Portal não abre Dispute nova em Invoice paga, mas segue a conversa já aberta', () => {
     expect(scenario(`
       ${as(PORTAL_A)}
       ${try_(`SELECT public.portal_open_demurrage_dispute(${INVOICE_PAGA}, 'Contesto a cobrança')`)}
@@ -124,7 +124,7 @@ describeLocal('424 a 429 — decisões do dono da auditoria run-3', () => {
     `)).toEqual(['22023', 'ok'])
   })
 
-  it('426: ROE manual do B/L só pela função, pelos três setores, com motivo no histórico', () => {
+  it('435: ROE manual do B/L só pela função, pelos três setores, com motivo no histórico', () => {
     const [direct, ops, short, set, afterSet, history, removed, afterRemove] = scenario(`
       ${as(OPS)}
       ${try_(`UPDATE public.bls SET demurrage_roe = 5, demurrage_roe_manual = true WHERE id = '${BL_ROE}'`)}
@@ -150,7 +150,7 @@ describeLocal('424 a 429 — decisões do dono da auditoria run-3', () => {
     expect(afterRemove).toBe('f|-')
   })
 
-  it('427: CNPJ do Cliente só muda pela função com justificativa; com Conta de Portal, só pela troca administrativa', () => {
+  it('436: CNPJ do Cliente só muda pela função com justificativa; com Conta de Portal, só pela troca administrativa', () => {
     const [direct, viaFunction, stored, history, withPortal] = scenario(`
       ${as(ADM)}
       ${try_(`UPDATE public.customers SET cnpj_cpf = '${CNPJ_NOVO}' WHERE id = ${CUSTOMER_C}`)}
@@ -169,13 +169,13 @@ describeLocal('424 a 429 — decisões do dono da auditoria run-3', () => {
     expect(withPortal).toBe('42501')
   })
 
-  it('428: bucket do Desbloqueio de CE aceita só PDF e DOCX de até 10 MB', () => {
+  it('437: bucket do Desbloqueio de CE aceita só PDF e DOCX de até 10 MB', () => {
     expect(psql(`SELECT concat_ws('|', file_size_limit, array_to_string(allowed_mime_types, ','))
       FROM storage.buckets WHERE id = 'ce-unlock-documents'`))
       .toBe('10485760|application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document')
   })
 
-  it('429: o cron da fila Itaú usa o segredo próprio quando ele está no Vault, e o antigo enquanto não está', () => {
+  it('438: o cron da fila Itaú usa o segredo próprio quando ele está no Vault, e o antigo enquanto não está', () => {
     expect(psql(`SELECT command FROM cron.job WHERE jobname = 'itau-pix-queue'`))
       .toBe(`SELECT ops.dispatch_edge_job('itau-pix', ops.preferred_vault_secret('ITAU_PIX_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET'));`)
     expect(scenario(`

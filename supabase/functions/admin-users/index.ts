@@ -174,7 +174,7 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     } finally {
       // Credencial trocada derruba as sessões abertas com a credencial antiga,
       // mesmo se a auditoria falhar. Fica por último porque a revogação corta o
-      // token na hora (migration 410) e a auditoria usa a sessão de quem chama,
+      // token na hora (migration 419) e a auditoria usa a sessão de quem chama,
       // que é a própria quando o Administrativo troca a sua credencial.
       if (credentialChanged) await revokeSessions(userId)
     }

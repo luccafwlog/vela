@@ -1,9 +1,9 @@
--- 425: Demurrage reemitida sem o desconto do Cliente anterior e Dispute nova
+-- 434: Demurrage reemitida sem o desconto do Cliente anterior e Dispute nova
 -- só em fatura não paga (auditoria de segurança run-3, decisões do dono em
 -- 2026-10-22).
 --
 -- 1. A troca de Cliente do B/L reemite a Invoice de Demurrage aberta para o
---    novo Cliente (`reissue_open_documents_on_customer_change`). A 417 tirou
+--    novo Cliente (`reissue_open_documents_on_customer_change`). A 426 tirou
 --    a Dispute do Cliente anterior da cópia; o desconto seguia copiado. O
 --    desconto foi negociado com o Cliente anterior: a Invoice nova nasce sem
 --    ele, com o R$ cheio pelo ROE da anterior (`total_usd × current_roe`), e
@@ -15,7 +15,7 @@
 --    continua mesmo se a Invoice for paga no meio dela.
 --
 -- Só redefine funções; não reescreve nem apaga linhas.
--- Rollback: reaplicar as definições da 417.
+-- Rollback: reaplicar as definições da 426.
 
 CREATE OR REPLACE FUNCTION public.reissue_open_documents_on_customer_change()
  RETURNS trigger
@@ -60,7 +60,7 @@ BEGIN
     v_new := public._clone_row('public.demurrage_invoices', v_doc.id,
       jsonb_build_object('customer_id', NEW.customer_id, 'doc_number', public.next_demurrage_doc_number(), 'status', v_doc.status,
         'pix_payload', NULL, 'pix_txid', NULL, 'conciliated_by_extract', false,
-        -- O desconto foi negociado com o Cliente anterior (425): a Invoice nova
+        -- O desconto foi negociado com o Cliente anterior (434): a Invoice nova
         -- nasce com o valor cheio em R$, pelo ROE da anterior.
         'current_total_brl', CASE WHEN v_doc.current_roe > 0 THEN round(v_doc.total_usd * v_doc.current_roe, 2) END,
         'notes', 'Reemitida pela troca de CNPJ do B/L (substitui a Invoice ' || v_doc.id || ').'
@@ -104,7 +104,7 @@ BEGIN
   FROM public.demurrage_disputes
   WHERE demurrage_invoice_id = v_invoice.id AND customer_id = v_customer_id AND state = 'aberta'
   ORDER BY id DESC LIMIT 1 FOR UPDATE;
-  -- Fatura paga não abre Dispute nova (425); a conversa já aberta segue.
+  -- Fatura paga não abre Dispute nova (434); a conversa já aberta segue.
   IF v_dispute.id IS NULL AND v_invoice.status = 'paid' THEN
     RAISE EXCEPTION 'Fatura de demurrage paga não aceita nova disputa.' USING ERRCODE = '22023';
   END IF;

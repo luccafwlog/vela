@@ -36,7 +36,7 @@ export type DemurrageDetailPermissions = {
   canAdmin: boolean
   /** Conversa de Disputas: Equipamentos e Administrativo. */
   canAnswerDispute: boolean
-  /** Tirar o ROE manual: Financeiro, Administrativo e Equipamentos (migration 426). */
+  /** Tirar o ROE manual: Financeiro, Administrativo e Equipamentos (migration 435). */
   canManageRoe: boolean
 }
 

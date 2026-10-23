@@ -14,7 +14,7 @@ export function canAnswerDemurrageDispute(role: string | null | undefined) {
   return role === 'equipamentos' || role === 'administrativo'
 }
 
-/** ROE manual do B/L e da Invoice: Financeiro, Administrativo e Equipamentos põem e tiram, com motivo (migration 426). */
+/** ROE manual do B/L e da Invoice: Financeiro, Administrativo e Equipamentos põem e tiram, com motivo (migration 435). */
 export function canManageManualRoe(role: string | null | undefined) {
   return role === 'financeiro' || role === 'administrativo' || role === 'equipamentos'
 }

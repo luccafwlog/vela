@@ -176,7 +176,7 @@ it('janela de dispensa: peça comum, data mínima futura, botão com a data e ca
 
   const dateInput = within(dialog).getByLabelText('Volta para a fila em') as HTMLInputElement
   expect(dateInput.min).toBeTruthy()
-  // Até o 30º dia (migration 424): o calendário não oferece data além.
+  // Até o 30º dia (migration 433): o calendário não oferece data além.
   expect(dateInput.max).toBe(getMaxReviewDateString())
   const inRange = new Date()
   inRange.setUTCDate(inRange.getUTCDate() + 10)

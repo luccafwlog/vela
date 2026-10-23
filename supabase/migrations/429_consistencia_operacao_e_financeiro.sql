@@ -1,4 +1,4 @@
--- 420: consistência na operação e no financeiro (auditoria de segurança
+-- 429: consistência na operação e no financeiro (auditoria de segurança
 -- run-3, notas de endurecimento).
 --
 -- 1. `close_agency_departure_report` fechava alertas por `LIKE` montado com o
@@ -15,13 +15,13 @@
 --    verificada.
 -- 6. `_itau_pix_sync` ignorava o valor novo de Demurrage com a cobrança em
 --    conferência de vencimento; grava na mesma linha, e `itau_pix_record`
---    (definição da 415) estende a conferência de versão a esse estado.
+--    (definição da 424) estende a conferência de versão a esse estado.
 -- 7. `delete_records` descartava os efeitos de importação de um id
 --    inexistente (inclusive na prévia); a recusa "não encontrado" desfaz o
 --    descarte.
 --
 -- Só redefine funções; não reescreve nem apaga linhas.
--- Rollback: reaplicar as definições anteriores (002, 090, 049, 247, 370, 415,
+-- Rollback: reaplicar as definições anteriores (002, 090, 049, 247, 370, 424,
 -- 394 e seguintes).
 
 CREATE OR REPLACE FUNCTION public.close_agency_departure_report(p_voyage_id bigint, p_port text, p_snapshot jsonb)
@@ -485,7 +485,7 @@ BEGIN
   -- Vencida em confirmação: nada a mostrar nem a criar até o banco responder.
   -- Demurrage que muda de valor no meio grava o valor novo na mesma linha: se
   -- a conferência achar a cobrança viva, itau_pix_record vê a versão mudada e
-  -- a manda como alteração (420), em vez de ativar o valor antigo.
+  -- a manda como alteração (429), em vez de ativar o valor antigo.
   IF FOUND AND v_open.status = 'pending_expire_check' THEN
     IF p_demurrage_invoice_id IS NOT NULL AND p_payable AND round(p_amount_brl, 2) > 0
        AND v_open.amount_brl <> round(p_amount_brl, 2) THEN
@@ -548,9 +548,9 @@ BEGIN
       expires_at = coalesce(bank_created_at, p_bank_created_at) + make_interval(secs => expiration_seconds),
       uncertain = false, last_error = NULL, updated_at = now(),
       status = CASE
-        -- 415: valor ou validade mudaram durante a chamada: enviar a versão nova
+        -- 424: valor ou validade mudaram durante a chamada: enviar a versão nova
         -- (depois da criação, como alteração da cobrança já criada).
-        -- 420: também na conferência de vencimento (Demurrage que mudou de valor).
+        -- 429: também na conferência de vencimento (Demurrage que mudou de valor).
         WHEN status IN ('pending_create', 'pending_update', 'pending_expire_check') AND p_claimed_version IS NOT NULL
           AND change_version <> p_claimed_version THEN 'pending_update'
         WHEN status IN ('pending_create', 'pending_update', 'pending_expire_check') THEN 'active'

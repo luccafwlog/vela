@@ -3,7 +3,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 416 (auditoria run-3, notas de endurecimento): guardas antes do
+// Migration 425 (auditoria run-3, notas de endurecimento): guardas antes do
 // trabalho e Cliente desativado fora do Portal.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -82,7 +82,7 @@ function cleanup() {
 
 const describeLocal = describeWithProbe(migration413Applied, 'migration413Applied (guardas antes do trabalho)')
 
-describeLocal('416 — guardas antes do trabalho e Cliente desativado fora do Portal', () => {
+describeLocal('425 — guardas antes do trabalho e Cliente desativado fora do Portal', () => {
   beforeAll(() => {
     cleanup()
     psql(`

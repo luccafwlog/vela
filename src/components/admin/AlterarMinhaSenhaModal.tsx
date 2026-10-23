@@ -55,7 +55,7 @@ export function AlterarMinhaSenhaModal({
         setError(CURRENT_PASSWORD_CODES.has(updateError.code ?? '') ? 'Senha atual incorreta.' : 'Não foi possível alterar a senha.')
         return
       }
-      // Histórico da troca (migration 421), sem a senha. A troca já valeu: falha
+      // Histórico da troca (migration 430), sem a senha. A troca já valeu: falha
       // aqui só vai para a telemetria.
       const userId = updated?.user?.id
       if (userId) {

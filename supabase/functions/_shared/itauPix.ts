@@ -276,7 +276,7 @@ export type QueuedCharge = {
   status: 'pending_create' | 'pending_update' | 'pending_expire_check' | 'pending_cancel'
   uncertain: boolean
   attempts: number
-  /** Versão de valor e validade reservada (migration 415); o resultado só ativa esta versão. */
+  /** Versão de valor e validade reservada (migration 424); o resultado só ativa esta versão. */
   change_version?: number
 }
 
@@ -292,7 +292,7 @@ export type ChargeQueue = {
   // falso encerra a execução. Ausente: sem vez (testes, ações manuais).
   renew?(): Promise<boolean>
   // Desfaz a reserva das cobranças do bloco que não foram chamadas (migration
-  // 422). Ausente: a reserva vence sozinha.
+  // 431). Ausente: a reserva vence sozinha.
   release?(ids: number[]): Promise<void>
 }
 
@@ -432,7 +432,7 @@ export async function processItauPixQueue(
       if (stop) {
         if (outcome.outcome === 'uncertain') summary.unreachable = true
         else summary.throttled = true
-        // As reservadas e não chamadas voltam sem a tentativa (422); se a
+        // As reservadas e não chamadas voltam sem a tentativa (431); se a
         // liberação falhar, a reserva vence sozinha.
         const untouched = charges.slice(index + 1).map((c) => c.id)
         if (untouched.length && queue.release) await queue.release(untouched).catch(() => undefined)

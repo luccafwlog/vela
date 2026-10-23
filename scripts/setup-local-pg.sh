@@ -216,7 +216,7 @@ CREATE OR REPLACE FUNCTION net.http_post(url text, body jsonb DEFAULT '{}'::json
 RETURNS bigint LANGUAGE sql AS $f$ SELECT 0::bigint $f$;
 CREATE SCHEMA IF NOT EXISTS storage;
 CREATE TABLE IF NOT EXISTS storage.buckets (id text PRIMARY KEY, name text, public boolean DEFAULT false);
--- Colunas de limite do Storage real (a 428 grava as do bucket do Desbloqueio de CE).
+-- Colunas de limite do Storage real (a 437 grava as do bucket do Desbloqueio de CE).
 ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS file_size_limit bigint, ADD COLUMN IF NOT EXISTS allowed_mime_types text[];
 INSERT INTO storage.buckets (id, name, public) VALUES
   ('demurrage-disputes', 'demurrage-disputes', false),

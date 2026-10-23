@@ -1,4 +1,4 @@
--- 427: CNPJ do Cliente só muda por função, com justificativa (auditoria de
+-- 436: CNPJ do Cliente só muda por função, com justificativa (auditoria de
 -- segurança run-3, decisão do dono em 2026-10-22).
 --
 -- `customers.cnpj_cpf` tinha UPDATE de coluna para `authenticated`: qualquer
@@ -76,7 +76,7 @@ BEGIN
     RAISE EXCEPTION 'Cliente % nao encontrado.', p_customer_id USING ERRCODE = 'P0002';
   END IF;
 
-  -- 427: o CNPJ só muda por aqui, com justificativa. O gatilho
+  -- 436: o CNPJ só muda por aqui, com justificativa. O gatilho
   -- `portal_protect_customer_cnpj` segue recusando o Cliente com convite ou
   -- Conta de Portal (esse vai por `portal_admin_change_cnpj`), e
   -- `canonicalize_customer_cnpj` normaliza e valida o documento.

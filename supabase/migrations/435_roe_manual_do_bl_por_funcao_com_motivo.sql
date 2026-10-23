@@ -1,4 +1,4 @@
--- 426: ROE manual do B/L só por função, com motivo e histórico (auditoria de
+-- 435: ROE manual do B/L só por função, com motivo e histórico (auditoria de
 -- segurança run-3, decisão do dono em 2026-10-22).
 --
 -- `bls.demurrage_roe` e `bls.demurrage_roe_manual` tinham UPDATE de coluna
@@ -85,7 +85,7 @@ DECLARE
   v_total_brl numeric(14,2);
   v_quote_date date := (now() AT TIME ZONE 'America/Sao_Paulo')::date;
 BEGIN
-  -- 426: Equipamentos também tira o ROE manual (decisão do dono, 2026-10-22).
+  -- 435: Equipamentos também tira o ROE manual (decisão do dono, 2026-10-22).
   IF auth.uid() IS NULL OR NOT public.is_active_user()
      OR public.current_actor_role() NOT IN ('financeiro', 'administrativo', 'equipamentos') THEN
     RAISE EXCEPTION 'Tirar o ROE manual é do Financeiro, do Administrativo ou de Equipamentos.' USING ERRCODE = '42501';

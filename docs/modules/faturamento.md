@@ -749,7 +749,7 @@ também são canceladas e reemitidas para o novo Cliente
 nasce sem a Dispute e sem o desconto do Cliente anterior, que foram tratados
 com ele: o valor em R$ volta ao cheio pelo ROE da anterior, e a observação da
 Invoice diz que o desconto não foi copiado. Desconto para o novo Cliente é
-aplicado de novo, com justificativa (migrations `417` e `425`; decisão do dono
+aplicado de novo, com justificativa (migrations `426` e `434`; decisão do dono
 de 2026-10-22). **Teste local-pg:** `decisoesDoDonoRun3.local-pg.test.ts` e
 `disputasReaberturaSemOraculo.local-pg.test.ts`.
 

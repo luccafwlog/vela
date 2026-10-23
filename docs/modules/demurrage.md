@@ -682,7 +682,7 @@ cessa. O câmbio do header é apenas informativo.
   cambial. Aplica o desconto em USD antes da conversão, grava
   `current_roe`/`current_total_brl`/`roe_source`, regenera o `pix_payload` e
   insere a foto em `demurrage_invoice_history`.
-- **ROE manual do B/L** (migration `426`; decisão do dono de 2026-10-22): o
+- **ROE manual do B/L** (migration `435`; decisão do dono de 2026-10-22): o
   ROE manual do B/L (`bls.demurrage_roe_manual` e `bls.demurrage_roe`) só se
   grava por `set_bl_manual_roe`, no bloco **Condições de Demurrage deste B/L**
   da ficha do B/L (**Definir ROE manual…**, **Trocar ROE manual…**, **Tirar ROE
@@ -694,7 +694,7 @@ cessa. O câmbio do header é apenas informativo.
 - **ROE manual prevalece** (ADR 0094, B10; migration `382`): a Invoice emitida
   com o ROE manual do B/L (`roe_manual`) fica fora do recálculo pela PTAX, e o
   detalhe mostra "ROE manual, fora do recálculo pela PTAX". O Financeiro, o
-  Administrativo ou Equipamentos (desde a migration `426`) usa **Tirar ROE manual…** no detalhe da Invoice emitida ou
+  Administrativo ou Equipamentos (desde a migration `435`) usa **Tirar ROE manual…** no detalhe da Invoice emitida ou
   vencida, com motivo de 10 caracteres ou mais
   (`release_demurrage_invoice_manual_roe`): a Invoice passa ao câmbio de
   referência gravado no Vela, com foto no histórico na data dessa cotação e o

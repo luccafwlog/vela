@@ -1,9 +1,9 @@
--- 416: guardas de permissão antes do trabalho e cliente desativado fora do
+-- 425: guardas de permissão antes do trabalho e cliente desativado fora do
 -- Portal (auditoria de segurança run-3, notas de endurecimento).
 --
 -- 1. `register_ledger_invoice_payment` de 8 argumentos travava os B/Ls da
 --    fatura (`bl:<id>`) antes de a guarda de Financeiro rodar na sobrecarga de
---    9 argumentos. A guarda passa a ser a primeira instrução, como na 412 para
+--    9 argumentos. A guarda passa a ser a primeira instrução, como na 421 para
 --    as importações.
 -- 2. `current_user_role()` devolvia o papel de um perfil desativado; nenhuma
 --    função o usa hoje, mas uma guarda futura construída sobre ele admitiria a
@@ -14,13 +14,13 @@
 -- 4. Sete funções que só o `service_role` e o pg_cron chamam, e que elevam
 --    `request.jwt.claim.role` ou agem como ator do sistema, dependiam só do
 --    GRANT. Ganham um envelope com o mesmo nome que recusa (42501) qualquer
---    outro chamador antes do corpo (`*_core_416`, sem EXECUTE para a API).
+--    outro chamador antes do corpo (`*_core_425`, sem EXECUTE para a API).
 --    `_reprocess_customer_held_billing_as_system` fica de fora: é chamada de
 --    dentro de RPCs do Portal, na sessão do Cliente.
 --
 -- Só redefine funções; não reescreve nem apaga linhas.
 -- Rollback: reaplicar as definições anteriores (247, 002, 092) e renomear os
--- `*_core_416` de volta, removendo os envelopes.
+-- `*_core_425` de volta, removendo os envelopes.
 
 CREATE OR REPLACE FUNCTION public._assert_service_caller()
  RETURNS void
@@ -123,8 +123,8 @@ BEGIN
 END;
 $function$;
 
-ALTER FUNCTION public.itau_pix_settle(text,text,numeric,timestamp with time zone) RENAME TO itau_pix_settle_core_416;
-REVOKE ALL ON FUNCTION public.itau_pix_settle_core_416(text,text,numeric,timestamp with time zone) FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.itau_pix_settle(text,text,numeric,timestamp with time zone) RENAME TO itau_pix_settle_core_425;
+REVOKE ALL ON FUNCTION public.itau_pix_settle_core_425(text,text,numeric,timestamp with time zone) FROM PUBLIC, anon, authenticated, service_role;
 CREATE FUNCTION public.itau_pix_settle(p_end_to_end_id text, p_txid text, p_amount_brl numeric, p_paid_at timestamp with time zone)
  RETURNS text
  LANGUAGE plpgsql
@@ -133,14 +133,14 @@ CREATE FUNCTION public.itau_pix_settle(p_end_to_end_id text, p_txid text, p_amou
 AS $function$
 BEGIN
   PERFORM public._assert_service_caller();
-  RETURN public.itau_pix_settle_core_416(p_end_to_end_id, p_txid, p_amount_brl, p_paid_at);
+  RETURN public.itau_pix_settle_core_425(p_end_to_end_id, p_txid, p_amount_brl, p_paid_at);
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.itau_pix_settle(text,text,numeric,timestamp with time zone) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.itau_pix_settle(text,text,numeric,timestamp with time zone) TO service_role;
 
-ALTER FUNCTION public.itau_pix_receipt_failed(text,text,jsonb,text,boolean) RENAME TO itau_pix_receipt_failed_core_416;
-REVOKE ALL ON FUNCTION public.itau_pix_receipt_failed_core_416(text,text,jsonb,text,boolean) FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.itau_pix_receipt_failed(text,text,jsonb,text,boolean) RENAME TO itau_pix_receipt_failed_core_425;
+REVOKE ALL ON FUNCTION public.itau_pix_receipt_failed_core_425(text,text,jsonb,text,boolean) FROM PUBLIC, anon, authenticated, service_role;
 CREATE FUNCTION public.itau_pix_receipt_failed(p_end_to_end_id text, p_txid text, p_raw jsonb, p_error text, p_permanent boolean DEFAULT false)
  RETURNS text
  LANGUAGE plpgsql
@@ -149,14 +149,14 @@ CREATE FUNCTION public.itau_pix_receipt_failed(p_end_to_end_id text, p_txid text
 AS $function$
 BEGIN
   PERFORM public._assert_service_caller();
-  RETURN public.itau_pix_receipt_failed_core_416(p_end_to_end_id, p_txid, p_raw, p_error, p_permanent);
+  RETURN public.itau_pix_receipt_failed_core_425(p_end_to_end_id, p_txid, p_raw, p_error, p_permanent);
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.itau_pix_receipt_failed(text,text,jsonb,text,boolean) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.itau_pix_receipt_failed(text,text,jsonb,text,boolean) TO service_role;
 
-ALTER FUNCTION public.itau_pix_record_untracked(text,numeric,timestamp with time zone) RENAME TO itau_pix_record_untracked_core_416;
-REVOKE ALL ON FUNCTION public.itau_pix_record_untracked_core_416(text,numeric,timestamp with time zone) FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.itau_pix_record_untracked(text,numeric,timestamp with time zone) RENAME TO itau_pix_record_untracked_core_425;
+REVOKE ALL ON FUNCTION public.itau_pix_record_untracked_core_425(text,numeric,timestamp with time zone) FROM PUBLIC, anon, authenticated, service_role;
 CREATE FUNCTION public.itau_pix_record_untracked(p_end_to_end_id text, p_amount_brl numeric, p_paid_at timestamp with time zone)
  RETURNS text
  LANGUAGE plpgsql
@@ -165,14 +165,14 @@ CREATE FUNCTION public.itau_pix_record_untracked(p_end_to_end_id text, p_amount_
 AS $function$
 BEGIN
   PERFORM public._assert_service_caller();
-  RETURN public.itau_pix_record_untracked_core_416(p_end_to_end_id, p_amount_brl, p_paid_at);
+  RETURN public.itau_pix_record_untracked_core_425(p_end_to_end_id, p_amount_brl, p_paid_at);
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.itau_pix_record_untracked(text,numeric,timestamp with time zone) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.itau_pix_record_untracked(text,numeric,timestamp with time zone) TO service_role;
 
-ALTER FUNCTION public.reconcile_http_job_failures_alert(interval) RENAME TO reconcile_http_job_failures_alert_core_416;
-REVOKE ALL ON FUNCTION public.reconcile_http_job_failures_alert_core_416(interval) FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.reconcile_http_job_failures_alert(interval) RENAME TO reconcile_http_job_failures_alert_core_425;
+REVOKE ALL ON FUNCTION public.reconcile_http_job_failures_alert_core_425(interval) FROM PUBLIC, anon, authenticated, service_role;
 CREATE FUNCTION public.reconcile_http_job_failures_alert(p_window interval DEFAULT '01:00:00'::interval)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -181,14 +181,14 @@ CREATE FUNCTION public.reconcile_http_job_failures_alert(p_window interval DEFAU
 AS $function$
 BEGIN
   PERFORM public._assert_service_caller();
-  RETURN public.reconcile_http_job_failures_alert_core_416(p_window);
+  RETURN public.reconcile_http_job_failures_alert_core_425(p_window);
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.reconcile_http_job_failures_alert(interval) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_http_job_failures_alert(interval) TO service_role;
 
-ALTER FUNCTION public.reconcile_import_effects_queue_alert() RENAME TO reconcile_import_effects_queue_alert_core_416;
-REVOKE ALL ON FUNCTION public.reconcile_import_effects_queue_alert_core_416() FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.reconcile_import_effects_queue_alert() RENAME TO reconcile_import_effects_queue_alert_core_425;
+REVOKE ALL ON FUNCTION public.reconcile_import_effects_queue_alert_core_425() FROM PUBLIC, anon, authenticated, service_role;
 CREATE FUNCTION public.reconcile_import_effects_queue_alert()
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -197,14 +197,14 @@ CREATE FUNCTION public.reconcile_import_effects_queue_alert()
 AS $function$
 BEGIN
   PERFORM public._assert_service_caller();
-  RETURN public.reconcile_import_effects_queue_alert_core_416();
+  RETURN public.reconcile_import_effects_queue_alert_core_425();
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.reconcile_import_effects_queue_alert() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_import_effects_queue_alert() TO service_role;
 
-ALTER FUNCTION public.reconcile_itau_pix_checkpoint_alert(interval) RENAME TO reconcile_itau_pix_checkpoint_alert_core_416;
-REVOKE ALL ON FUNCTION public.reconcile_itau_pix_checkpoint_alert_core_416(interval) FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.reconcile_itau_pix_checkpoint_alert(interval) RENAME TO reconcile_itau_pix_checkpoint_alert_core_425;
+REVOKE ALL ON FUNCTION public.reconcile_itau_pix_checkpoint_alert_core_425(interval) FROM PUBLIC, anon, authenticated, service_role;
 CREATE FUNCTION public.reconcile_itau_pix_checkpoint_alert(p_threshold interval DEFAULT '00:15:00'::interval)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -213,14 +213,14 @@ CREATE FUNCTION public.reconcile_itau_pix_checkpoint_alert(p_threshold interval 
 AS $function$
 BEGIN
   PERFORM public._assert_service_caller();
-  RETURN public.reconcile_itau_pix_checkpoint_alert_core_416(p_threshold);
+  RETURN public.reconcile_itau_pix_checkpoint_alert_core_425(p_threshold);
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.reconcile_itau_pix_checkpoint_alert(interval) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_itau_pix_checkpoint_alert(interval) TO service_role;
 
-ALTER FUNCTION public.reevaluate_expired_billing_releases(interval) RENAME TO reevaluate_expired_billing_releases_core_416;
-REVOKE ALL ON FUNCTION public.reevaluate_expired_billing_releases_core_416(interval) FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.reevaluate_expired_billing_releases(interval) RENAME TO reevaluate_expired_billing_releases_core_425;
+REVOKE ALL ON FUNCTION public.reevaluate_expired_billing_releases_core_425(interval) FROM PUBLIC, anon, authenticated, service_role;
 CREATE FUNCTION public.reevaluate_expired_billing_releases(p_lookback interval DEFAULT '7 days'::interval)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -229,7 +229,7 @@ CREATE FUNCTION public.reevaluate_expired_billing_releases(p_lookback interval D
 AS $function$
 BEGIN
   PERFORM public._assert_service_caller();
-  RETURN public.reevaluate_expired_billing_releases_core_416(p_lookback);
+  RETURN public.reevaluate_expired_billing_releases_core_425(p_lookback);
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.reevaluate_expired_billing_releases(interval) FROM PUBLIC, anon, authenticated;

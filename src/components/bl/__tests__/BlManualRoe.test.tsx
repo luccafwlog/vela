@@ -23,7 +23,7 @@ afterEach(() => {
   mocks.role = 'equipamentos'
 })
 
-describe('BlManualRoe (migration 426)', () => {
+describe('BlManualRoe (migration 435)', () => {
   it('Equipamentos define o ROE manual do B/L com motivo', async () => {
     mocks.setRoe.mockResolvedValue(undefined)
     mocks.confirm.mockResolvedValue(true)
