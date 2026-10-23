@@ -98,6 +98,24 @@ jobs:
           npx --yes deno@2.9.6 check $deno_flags --cached-only $files
           npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net $webhook_test
 
+      - name: Itaú Pix Edge Function type check and routine status
+        # A v29 da itau-pix (2026-10-22) respondia 500 a toda rodada boa, sem log
+        # nem Sentry. O teste roda a função contra banco, Itaú e Sentry falsos.
+        # Mesmo manifesto, lock e download com nova tentativa do passo anterior.
+        env:
+          DENO_NO_PACKAGE_JSON: "1"
+        run: |
+          deno_flags="--config supabase/functions/deno.json --frozen"
+          files="supabase/functions/itau-pix/index.ts supabase/functions/itau-pix/index.test.ts"
+          for attempt in 1 2 3; do
+            npx --yes deno@2.9.6 cache $deno_flags $files && break
+            [ "$attempt" = 3 ] && exit 1
+            echo "Download das dependências falhou ($attempt/3); nova tentativa em 10 s."
+            sleep 10
+          done
+          npx --yes deno@2.9.6 check $deno_flags --cached-only $files
+          npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net supabase/functions/itau-pix/index.test.ts
+
       - name: Squash generator self-check
         run: node scripts/build-squash-migrations.mjs --self-check
 

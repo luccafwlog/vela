@@ -474,7 +474,10 @@ Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro), que
 fecha quando a consulta anda (migration `358`). Período com mais de 50 páginas
 encolhe a janela até 5 min em vez de travar; horário inesperado de Pix de
 terceiro não derruba a consulta; a função responde fora de 2xx quando a fila ou
-a consulta falha, o que alimenta `rotina_http_falhou`. Os jobs `itau-pix-queue`
+a consulta falha, o que alimenta `rotina_http_falhou`. Rodada sem falha responde
+200 mesmo com cobrança recusada pelo Itaú: esse erro fica gravado na cobrança e
+só soma no contador `error` do resumo da fila. Cada falha da rotina vai ao log da
+função e ao Sentry ([observabilidade](../operations/observabilidade.md#erros-das-edge-functions)). Os jobs `itau-pix-queue`
 e `recalc-demurrage-ptax` são criados pela migration `358`. Sintomas, travas, correção, segredos e a versão publicada da
 função estão no
 [manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos).

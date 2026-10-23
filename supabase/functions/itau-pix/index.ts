@@ -11,9 +11,27 @@ import {
   type ChargeQueue, createItauPixClient, ItauPixError, itauPixConfigFromEnv, pollItauPixReceipts, processItauPixQueue,
   runItauPixAction,
 } from "../_shared/itauPix.ts";
+import { captureEdgeException, instrumentEdgeHandler } from "../_shared/telemetry.ts";
+
+// Log estruturado: uma linha JSON por falha, com a etapa da rotina. As mensagens
+// são as desta função, sem segredo; o detalhe da consulta leva os TXIDs.
+function logFailure(step: string, error: unknown, detail?: unknown) {
+  console.error(JSON.stringify({
+    function: "itau-pix", step, error: error instanceof Error ? error.message : String(error),
+    ...(detail == null ? {} : { detail }),
+  }));
+}
+
+// Falha que a rotina absorve sem mudar o status (a vez e a reserva vencem
+// sozinhas): sem 5xx, o wrapper não a vê, então vai ao Sentry por aqui.
+async function reportAbsorbedFailure(step: string, error: unknown, detail?: unknown) {
+  logFailure(step, error, detail);
+  await captureEdgeException(error, { functionName: "itau-pix", status: step, category: "absorbed_failure" });
+}
 
 if (typeof Deno !== "undefined")
-  Deno.serve(async (req) => {
+  // O wrapper manda ao Sentry toda resposta 5xx e toda exceção (F-09 só mudava o status).
+  Deno.serve(instrumentEdgeHandler("itau-pix", async (req) => {
     // Um segredo por uso (auditoria run-3, decisão do dono de 2026-10-22): a
     // rotina (cron e disparo da fila) usa ITAU_PIX_CRON_SECRET; o diagnóstico
     // da equipe técnica, ITAU_PIX_DIAGNOSTIC_SECRET. ITAU_PIX_ADMIN_SECRET, que
@@ -49,7 +67,10 @@ if (typeof Deno !== "undefined")
         };
         const queue: ChargeQueue = {
           // Falha ao renovar encerra a fila desta execução; a vez vence sozinha.
-          renew: () => acquire().catch(() => false),
+          renew: () => acquire().catch(async (error) => {
+            await reportAbsorbedFailure("charges_renew", error);
+            return false;
+          }),
           async claim(limit) {
             const { data, error } = await admin.rpc("itau_pix_claim", { p_limit: limit });
             if (error) throw new Error("Falha ao reservar a fila Itaú.");
@@ -68,7 +89,11 @@ if (typeof Deno !== "undefined")
           },
           async release(ids) {
             const { error } = await admin.rpc("itau_pix_release", { p_ids: ids });
-            if (error) throw new Error("Falha ao liberar a reserva Itaú.");
+            if (!error) return;
+            // processItauPixQueue ignora esta falha (a reserva vence sozinha).
+            const failure = new Error("Falha ao liberar a reserva Itaú.");
+            await reportAbsorbedFailure("charges_release", failure, { code: error.code });
+            throw failure;
           },
         };
         const runCharges = async () => {
@@ -79,16 +104,19 @@ if (typeof Deno !== "undefined")
           } finally {
             const { error } = await admin.rpc("release_itau_pix_runner", { p_worker_id: workerId });
             // Sem a devolução, a vez vence sozinha em 120 s.
-            if (error) console.error("itau-pix: devolução da vez falhou", error);
+            if (error) await reportAbsorbedFailure("runner_release", new Error("Falha ao devolver a vez do runner Itaú."), { code: error.code });
           }
         };
         if (chargesOnly) return Response.json({ charges: await runCharges() });
         // Prazos (vencimento, renovação, PTAX do dia e Alerta das 14h) antes da fila.
         const { data: maintenance, error: maintenanceError } = await admin.rpc("itau_pix_maintain", {});
         if (maintenanceError) throw new Error("Falha na manutenção dos prazos Itaú.");
+        // Etapas que falharam nesta rodada, contadas onde a falha é capturada.
+        const failedSteps: string[] = [];
         // A fila falha isolada (vez, reserva, registro): os recebimentos seguem neste minuto.
         const charges = await runCharges().catch((error) => {
-          console.error("itau-pix: fila de cobranças falhou", error);
+          failedSteps.push("charges");
+          logFailure("charges", error);
           return { error: error instanceof Error ? error.message : "Falha na fila de cobranças" };
         });
         // Recebimentos falham isolados: a fila de cobranças já foi processada.
@@ -126,18 +154,21 @@ if (typeof Deno !== "undefined")
         }).catch((error) => {
           // A parada por fuso leva os TXIDs que divergiram: ficam no log e na resposta.
           const detail = error instanceof ItauPixError ? error.body : null;
-          console.error("itau-pix receipts", error instanceof Error ? error.message : error, detail);
+          failedSteps.push("receipts");
+          logFailure("receipts", error, detail);
           return { error: error instanceof Error ? error.message : "Falha na consulta de recebimentos", detail };
         });
         // Falha da fila ou da consulta responde fora de 2xx: o Alerta rotina_http_falhou
-        // (migration 310) só enxerga o status (F-09).
-        const failed = "error" in charges || "error" in receipts;
-        return Response.json({ maintenance, charges, receipts }, { status: failed ? 500 : 200 });
+        // (migration 310) só enxerga o status (F-09). A falha conta no catch, nunca pela
+        // chave `error` do resumo: o da fila sempre a tem, com as cobranças de resultado
+        // 'error' (zero numa rodada boa), e o teste `"error" in charges` dava 500 sempre.
+        return Response.json({ maintenance, charges, receipts }, { status: failedSteps.length > 0 ? 500 : 200 });
       }
       return Response.json(await runItauPixAction(client, input));
     } catch (error) {
+      logFailure(String(input.action ?? "routine"), error);
       if (error instanceof ItauPixError)
         return Response.json({ error: error.message, itau_status: error.status, itau_body: error.body }, { status: error.status === 400 ? 400 : 502 });
       return Response.json({ error: error instanceof Error ? error.message : "Falha interna" }, { status: 500 });
     }
-  });
+  }));
