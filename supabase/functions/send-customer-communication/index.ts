@@ -16,6 +16,7 @@ import {
   assertValidCommunicationAttachments,
   renderCustomerCommunicationTemplate,
   renderCeMercanteTaxasTemplate,
+  singleLine,
   type CustomerCommunicationKind,
   type CommunicationAttachment,
 } from '../_shared/customerCommunicationTemplates.ts'
@@ -443,7 +444,7 @@ async function handler(req: Request): Promise<Response> {
   try {
     for (const [index, attachment] of (body.attachments ?? []).entries()) {
       if (!attachment || typeof attachment !== 'object') return permanentRejection(`Anexo inválido na posição ${index + 1}.`, origin)
-      const filename = String(attachment.filename ?? '').trim()
+      const filename = singleLine(String(attachment.filename ?? '')).trim()
       const contentType = String(attachment.content_type ?? '').trim().toLowerCase()
       const contentBase64 = String(attachment.content_base64 ?? '')
       const actualSize = decodeBase64ByteLength(contentBase64)
@@ -741,20 +742,57 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
+  const renderedHtmlSha256 = await sha256Hex(effectiveHtml)
+  // Identidade reaproveitada (mesmo dispatch_id e discriminador) só segue para
+  // repetir o mesmo envio: outra pessoa, ou outro conteúdo, entregaria texto
+  // novo registrado com a autoria e a cópia de outro Comunicado (auditoria
+  // run-3, C5). Conteúdo do mesmo registro não varia por destinatário.
+  if (!isAutomation) {
+    const { data: stored, error: storedError } = await admin
+      .from('customer_communications')
+      .select('created_by, rendered_subject, rendered_text, rendered_html_sha256')
+      .eq('id', communicationId)
+      .single()
+    if (storedError || !stored) return json(500, { error: 'Não foi possível conferir o comunicado existente.' }, origin)
+    if (stored.created_by !== callerUser.user?.id) {
+      return permanentRejection('Este envio pertence a outro Comunicado. Confira de novo e envie como um Comunicado novo.', origin)
+    }
+    if (stored.rendered_subject !== null && (stored.rendered_subject !== effectiveSubject
+      || stored.rendered_text !== effectiveText || stored.rendered_html_sha256 !== renderedHtmlSha256)) {
+      return permanentRejection('O conteúdo mudou depois da conferência. Confira de novo para enviar como um Comunicado novo.', origin)
+    }
+  }
+
   // Cópia do que saiu: o registro do comunicado guarda assunto, texto e o
   // hash do HTML efetivamente enviados (auditoria run-2, #10).
-  const { error: renderedError } = await admin
+  const { data: claimedCopy, error: renderedError } = await admin
     .from('customer_communications')
     .update({
       rendered_subject: effectiveSubject,
       rendered_text: effectiveText,
-      rendered_html_sha256: await sha256Hex(effectiveHtml),
+      rendered_html_sha256: renderedHtmlSha256,
     })
     .eq('id', communicationId)
     .is('rendered_subject', null)
+    .select('id')
   if (renderedError) {
     console.error('customer communication rendered copy persistence failed', renderedError)
     return json(500, { error: 'Não foi possível registrar o conteúdo do comunicado.' }, origin)
+  }
+  // A cópia é gravada uma vez só. Se outra chamada do mesmo registro gravou
+  // primeiro (envio simultâneo), confere com o que ela gravou: texto diferente
+  // não sai sob este registro.
+  if (!isAutomation && (claimedCopy?.length ?? 0) === 0) {
+    const { data: winner, error: winnerError } = await admin
+      .from('customer_communications')
+      .select('rendered_subject, rendered_text, rendered_html_sha256')
+      .eq('id', communicationId)
+      .single()
+    if (winnerError || !winner) return json(500, { error: 'Não foi possível conferir o comunicado existente.' }, origin)
+    if (winner.rendered_subject !== effectiveSubject || winner.rendered_text !== effectiveText
+      || winner.rendered_html_sha256 !== renderedHtmlSha256) {
+      return permanentRejection('O conteúdo mudou depois da conferência. Confira de novo para enviar como um Comunicado novo.', origin)
+    }
   }
 
   if (isAutomation && existingCommunicationId == null) {

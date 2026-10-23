@@ -100,8 +100,14 @@ CREATE TABLE IF NOT EXISTS auth.users (id UUID PRIMARY KEY DEFAULT gen_random_uu
 -- Colunas e leitura do sub como no Supabase: as suítes que simulam a sessão
 -- com request.jwt.claims (JSON) e gravam aud/role em auth.users rodam aqui.
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS aud VARCHAR(255), ADD COLUMN IF NOT EXISTS role VARCHAR(255);
+-- Sessões e refresh tokens existem no GoTrue; as revogações (portal_revoke_sessions,
+-- internal_revoke_sessions, deactivate_customer) apagam linhas delas.
+CREATE TABLE IF NOT EXISTS auth.sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID);
+CREATE TABLE IF NOT EXISTS auth.refresh_tokens (id BIGSERIAL PRIMARY KEY, user_id VARCHAR(255));
 CREATE OR REPLACE FUNCTION auth.uid()  RETURNS UUID LANGUAGE sql STABLE AS $f$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claim.sub', true), ''), (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'))::uuid $f$;
-CREATE OR REPLACE FUNCTION auth.role() RETURNS TEXT LANGUAGE sql STABLE AS $f$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claim.role', true), ''), 'authenticated') $f$;
+-- Como no Supabase, o papel cai para o claim `role` do JSON quando o GUC
+-- request.jwt.claim.role está vazio (inclusive depois de uma função restaurar '').
+CREATE OR REPLACE FUNCTION auth.role() RETURNS TEXT LANGUAGE sql STABLE AS $f$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claim.role', true), ''), (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'), 'authenticated') $f$;
 CREATE OR REPLACE FUNCTION auth.jwt()  RETURNS JSONB LANGUAGE sql STABLE AS $f$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb) $f$;
 GRANT USAGE ON SCHEMA auth, extensions TO anon, authenticated, service_role;
 CREATE SCHEMA IF NOT EXISTS cron;
@@ -210,6 +216,8 @@ CREATE OR REPLACE FUNCTION net.http_post(url text, body jsonb DEFAULT '{}'::json
 RETURNS bigint LANGUAGE sql AS $f$ SELECT 0::bigint $f$;
 CREATE SCHEMA IF NOT EXISTS storage;
 CREATE TABLE IF NOT EXISTS storage.buckets (id text PRIMARY KEY, name text, public boolean DEFAULT false);
+-- Colunas de limite do Storage real (a 437 grava as do bucket do Desbloqueio de CE).
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS file_size_limit bigint, ADD COLUMN IF NOT EXISTS allowed_mime_types text[];
 INSERT INTO storage.buckets (id, name, public) VALUES
   ('demurrage-disputes', 'demurrage-disputes', false),
   ('customer-communications', 'customer-communications', false)

@@ -8,8 +8,9 @@ import { releaseDemurrageManualRoe } from '../../services/demurrage/demurrageInv
 import { afterFaturaDemurrageAlterada } from '../../services/cacheEffects'
 import { userFacingErrorMessage } from '../../lib/errors'
 
-// ADR 0094, B10: a Invoice com ROE manual não acompanha a PTAX; o Financeiro
-// ou o Administrativo tira o ROE manual, com motivo, e ela volta ao câmbio do dia.
+// ADR 0094, B10: a Invoice com ROE manual não acompanha a PTAX; o Financeiro,
+// o Administrativo ou Equipamentos (migration 435) tira o ROE manual, com
+// motivo, e ela volta ao câmbio do dia.
 export function ManualRoeRelease({ invoiceId, docNumber }: { invoiceId: number; docNumber: string }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()

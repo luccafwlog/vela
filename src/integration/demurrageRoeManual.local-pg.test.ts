@@ -54,7 +54,7 @@ describeLocal('382 — ROE manual da Demurrage prevalece', () => {
   })
 
   it('tirar o ROE manual exige motivo e o perfil; volta ao câmbio do dia, com histórico e rastro', () => {
-    expect(w.as('operacoes', `SELECT public.release_demurrage_invoice_manual_roe(99931881, 'Cliente pediu PTAX do dia')`).stderr).toMatch(/Financeiro ou do Administrativo/)
+    expect(w.as('operacoes', `SELECT public.release_demurrage_invoice_manual_roe(99931881, 'Cliente pediu PTAX do dia')`).stderr).toMatch(/Financeiro, do Administrativo ou de Equipamentos/)
     expect(w.as('financeiro', `SELECT public.release_demurrage_invoice_manual_roe(99931881, 'curto')`).stderr).toMatch(/motivo/)
     const roe = w.psql(`SELECT roe FROM public.exchange_rate_reference WHERE id = 1`)
     w.asOk('financeiro', `SELECT public.release_demurrage_invoice_manual_roe(99931881, 'Cliente pediu PTAX do dia')`)

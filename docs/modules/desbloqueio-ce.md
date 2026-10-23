@@ -157,7 +157,11 @@ confirmações externas antigas permanecem como histórico do desk.
 
 ### Armazenamento e funções
 
-Bucket privado `ce-unlock-documents`. Documentos são versionados. Funções:
+Bucket privado `ce-unlock-documents`, com limite próprio desde a migration `437`
+(decisão do dono de 2026-10-22): até 10 MB (10485760 bytes) e só `application/pdf`
+e o DOCX do modelo do termo, os mesmos que `portal-ce-unlock-document` aceita
+(`_shared/ceUnlockFile.ts`). O Storage recusa o resto mesmo fora da Edge.
+Documentos são versionados. Funções:
 `portal-ce-unlock-document`, `ce-unlock-document-download`,
 `ce-unlock-export`, `ce-unlock-cleanup`, `ce-unlock-notify-email`; config e
 operação no [manual externo](../operations/servicos-externos.md). Os jobs
@@ -270,7 +274,8 @@ Desde a migration `338` (lote 6b), o motivo da recusa diz de qual documento é:
 "Motivo (procuração): …" ou "Motivo (termo de devolução): …", no sino e no e-mail
 (antes saía "Motivo: Procuração: …"). O e-mail traz, depois do texto, o bloco
 **Solicitação** (com o protocolo) e os B/Ls da solicitação (`ce_unlock_request_bls`,
-sem o B/L que passou para outra solicitação, com evento `bl_moved`, como na tela;
+sem o B/L que passou para outra solicitação, com evento `bl_moved`, como na tela,
+e, desde a auditoria run-3, sem o B/L que já é de outro Cliente, como na visão do Portal;
 o B/L confirmado continua; sem B/L, o bloco não aparece) e o botão **Abrir Desbloqueio de CE**; o rodapé leva
 `PORTAL_SUPPORT_EMAIL`.
 
@@ -353,6 +358,16 @@ Cliente (`220`; antes `FOR UPDATE`, que entrava em deadlock com o cancelamento d
 cujo aviso no Portal pede `FOR KEY SHARE` no Cliente). Envio e exportação travam os
 recebíveis do B/L e revalidam a liquidação depois de esperar uma baixa ou um cancelamento de baixa em
 curso: B/L que perdeu a liquidação é recusado.
+
+Desde a migration `427`: o rascunho do Portal confere que todo B/L é do Cliente
+da sessão e liberado antes de travar solicitações e B/Ls; a visão sem Cliente das
+funções privadas (`list`, `request_json`) exige perfil interno e `vip_json` exige
+Cliente; o item do B/L com solicitação de outro Cliente esconde também os motivos
+de documentos, entrega e CE daquela solicitação (fica só "Cliente do B/L
+alterado"); o `request_id` do contexto de upload só vale para `source = 'request'`;
+e o aviso por e-mail não sai para Cliente desativado. **Teste:**
+`src/integration/desbloqueioCeGuardasDeDono.local-pg.test.ts` e
+`portalAntigoDonoDoBl.local-pg.test.ts`.
 
 ### Documentos, upload e expurgo
 

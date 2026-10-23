@@ -36,6 +36,14 @@ describe('admin-users: revogação de sessões (auditoria run-2 #9)', () => {
   it('trata falha de auditoria como falha', () => {
     expect(source).toContain('if (error) throw new Error(`audit_logs:')
   })
+
+  it('troca de credencial revoga por último e mesmo com falha da auditoria (migration 419)', () => {
+    const branch = source.slice(source.indexOf("body.action === 'update_credentials'"), source.indexOf("body.action === 'deactivate'"))
+    const finallyAt = branch.indexOf('} finally {')
+    expect(finallyAt).toBeGreaterThan(branch.indexOf("await audit(userId, 'password'"))
+    expect(branch.indexOf('await revokeSessions(userId)')).toBeGreaterThan(finallyAt)
+    expect(branch).toContain('session_ended: credentialChanged && userId === actorId')
+  })
 })
 
 const fn = (name: string) => readFileSync(`supabase/functions/${name}/index.ts`, 'utf8')
@@ -51,7 +59,8 @@ describe('send-customer-communication: conteúdo renderizado no servidor (audito
 
   it('grava assunto, texto e hash do HTML enviados no registro do comunicado', () => {
     expect(source).toContain('rendered_subject: effectiveSubject')
-    expect(source).toContain('rendered_html_sha256: await sha256Hex(effectiveHtml)')
+    expect(source).toContain('const renderedHtmlSha256 = await sha256Hex(effectiveHtml)')
+    expect(source).toContain('rendered_html_sha256: renderedHtmlSha256')
     const migration = readFileSync('supabase/migrations/108_customer_communication_rendered_copy.sql', 'utf8')
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS rendered_subject text')
   })
@@ -131,7 +140,9 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
   it('Dispute confere sessão e cota antes de ler e gravar o arquivo', () => {
     const source = fn('portal-dispute-attachment')
     expect(source.indexOf("portal.rpc('portal_check_dispute_attachment_eligibility'")).toBeLessThan(source.indexOf('await file.arrayBuffer()'))
-    expect(source.indexOf("req.headers.get('Content-Length')")).toBeLessThan(source.indexOf('await req.formData()'))
+    // O corpo passa pela leitora com limite, que para mesmo sem Content-Length (run-3, P6).
+    expect(source).toContain('await readBoundedMultipart(req, MAX_FILE_SIZE + 64 * 1024)')
+    expect(source).not.toContain('req.formData()')
   })
 
   it('histórico do Comunicado grava navio e viagem derivados dos B/Ls', () => {
@@ -163,9 +174,35 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
     const source = fn('portal-recovery-email-change')
     expect(source).toContain("account.account_situation !== 'ativo'")
     expect(source).toContain('>= EMAIL_CHANGE_DAILY_LIMIT')
+    // Cliente desativado recebe a mesma recusa, antes da cota e da senha (run-3).
+    expect(source).toContain('customers(name, cnpj_cpf, deactivated_at)')
+    expect(source).toContain("if (!account.active || account.account_situation !== 'ativo' || customerDeactivated) return")
+    expect(source.indexOf('customerDeactivated) return')).toBeLessThan(source.indexOf('>= EMAIL_CHANGE_DAILY_LIMIT'))
   })
 
   it('anexos órfãos de Dispute são removidos pelo job do detector', () => {
     expect(fn('alerts-detector')).toContain("admin.rpc('list_orphaned_dispute_attachments'")
+  })
+})
+
+describe('autor dos eventos do Portal gravados pelas Edges (auditoria run-3, C6)', () => {
+  it('suspensão, reativação e convite exigem getUser válido e passam o autor', () => {
+    const suspend = fn('portal-account-suspend')
+    expect(suspend).toContain('if (callerError || !actorId)')
+    expect(suspend.match(/p_actor_id: actorId/g)).toHaveLength(2)
+    expect(suspend.indexOf('caller.auth.getUser()')).toBeLessThan(suspend.indexOf("createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)"))
+    const invite = fn('portal-invite-send')
+    expect(invite).toContain('if (callerError || !actorId)')
+    expect(invite).toContain('created_by: actorId')
+    expect(invite).toContain('p_actor_id: actorId')
+  })
+
+  it('convite só grava a conta se ela ainda está na situação lida; senão cancela o convite e responde 409 (run-3)', () => {
+    const invite = fn('portal-invite-send')
+    expect(invite).toContain(".eq('id', account.id).eq('account_situation', account.account_situation).is('auth_user_id', null).select('id').maybeSingle()")
+    const guard = invite.slice(invite.indexOf('if (updateError || !updated) {'), invite.indexOf("admin.rpc('_portal_log_event'"))
+    expect(guard).toContain(".from('portal_invites').update({ status: 'cancelado' }).eq('id', invite.id).eq('status', 'pendente')")
+    expect(guard).toContain('return json(409,')
+    expect(guard).toContain('return json(500,')
   })
 })

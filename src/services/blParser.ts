@@ -1,4 +1,4 @@
-import { isDate1904Workbook, positionalSheetNames, typedSheetMatrix } from './importCore'
+import { isDate1904Workbook, positionalSheetNames, sheetReadRange, typedSheetMatrix } from './importCore'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeValidCnpj } from '../lib/cnpj'
 import { isAmbiguousSeparatorShape, parseImportNumber } from '../lib/importNumber'
@@ -154,7 +154,7 @@ export async function parseBLBuffer(buffer: ArrayBuffer): Promise<ParsedBLDocume
       unNumber: extractUnNumber(cargoDescription),
     },
     containers: parseContainers(rows, numberIssues),
-    vehicles: parseVehicles(workbook, XLSX.utils),
+    vehicles: parseVehicles(workbook, XLSX),
     vinSheet: hasVinSheet(workbook),
     freightCharges: parseFreightCharges(rows, numberIssues),
     numberIssues,
@@ -380,12 +380,16 @@ function hasVinSheet(workbook: { SheetNames: string[] }) {
   return Boolean(findVinSheetName(workbook))
 }
 
-function parseVehicles(workbook: { SheetNames: string[]; Sheets: Record<string, unknown> }, utils: typeof import('@e965/xlsx').utils) {
+function parseVehicles(workbook: { SheetNames: string[]; Sheets: Record<string, unknown> }, XLSX: typeof import('@e965/xlsx')) {
   const vinSheetName = findVinSheetName(workbook)
   const vinSheet = vinSheetName ? workbook.Sheets[vinSheetName] : null
   if (!vinSheet) return []
 
-  const rows = utils.sheet_to_json<Record<string, unknown>>(vinSheet, { defval: '' })
+  // Só até a última célula presente, com o teto do leitor comum: o `!ref`
+  // declarado (ex.: A1:XFD1048576) faria o `defval` preencher a aba inteira.
+  const range = sheetReadRange(vinSheet as Record<string, unknown>, XLSX)
+  if (!range) return []
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(vinSheet, { defval: '', range })
   return rows.flatMap((row) => {
     const chassis = findHeaderValue(row, ['CHASSIS', 'CHASSI', 'VIN'])
     if (!chassis) return []

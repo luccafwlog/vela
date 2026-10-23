@@ -221,7 +221,7 @@ BEGIN
   EXECUTE 'DROP FUNCTION public.__check_default_acl()';
 
   FOREACH v_function IN ARRAY ARRAY[
-    'public._portal_log_event(bigint,bigint,bigint,text,text,text,text,text,text,text)',
+    'public._portal_log_event(bigint,bigint,bigint,text,text,text,text,text,text,text,uuid)',
     'public.portal_login_check_rate_limit(text)',
     'public.portal_login_register_failure(text)',
     'public.portal_login_register_success(text)',

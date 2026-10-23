@@ -20,7 +20,7 @@ function functionUpdated() {
   if (!enabled) return false
   try {
     return psql(`SELECT to_regprocedure('public.portal_reopen_on_new_process()') IS NULL
-      AND to_regprocedure('public._portal_log_event(bigint,bigint,bigint,text,text,text,text,text,text,text)') IS NOT NULL;`) === 't'
+      AND to_regprocedure('public._portal_log_event(bigint,bigint,bigint,text,text,text,text,text,text,text,uuid)') IS NOT NULL;`) === 't'
   } catch {
     return false
   }

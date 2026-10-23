@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { InlineError } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Input'
 import { AuthLayout } from '../components/auth/AuthLayout'
 import { PasswordInput } from '../components/auth/PasswordInput'
+import { TurnstileChallenge } from '../components/security/TurnstileChallenge'
+import { TURNSTILE_MESSAGES } from '../lib/turnstileMessages'
 import { isSupabaseConfigured } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -19,6 +21,12 @@ function isTransportError(err: unknown): boolean {
   return false
 }
 
+// Recusa do captcha do Auth (auditoria run-3): o token do Turnstile faltou,
+// expirou ou já foi usado.
+function isCaptchaRefusal(err: unknown): boolean {
+  return (err as { code?: string } | null)?.code === 'captcha_failed'
+}
+
 export function Login() {
   const navigate = useNavigate()
   const { user, loading, signIn } = useAuth()
@@ -26,6 +34,11 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const [turnstileError, setTurnstileError] = useState('')
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0)
+  const handleTurnstileToken = useCallback((token: string) => setTurnstileToken(token), [])
+  const handleTurnstileError = useCallback((message: string) => setTurnstileError(message), [])
 
   if (!loading && user) {
     return <Navigate to="/painel" replace />
@@ -40,18 +53,26 @@ export function Login() {
       return
     }
 
+    // Captcha do Auth (auditoria run-3): o token do Turnstile vai quando existe e
+    // quem exige é o Auth. A tela não barra sem token: com o captcha ainda
+    // desligado, ou com o widget fora do ar, a equipe continua entrando.
     setSubmitting(true)
 
     try {
-      await signIn(email, password)
+      await signIn(email, password, turnstileToken || undefined)
       navigate('/painel', { replace: true })
     } catch (err) {
       setError(
-        isTransportError(err)
+        isCaptchaRefusal(err)
+          ? turnstileError || TURNSTILE_MESSAGES.verification
+          : isTransportError(err)
           ? 'Serviço de autenticação indisponível no momento. Verifique a conexão e tente novamente.'
           : 'Credenciais inválidas ou usuário sem permissão ativa.',
       )
     } finally {
+      // O token do Turnstile vale uma vez: cada tentativa pede um novo.
+      setTurnstileToken('')
+      setTurnstileResetKey((current) => current + 1)
       setSubmitting(false)
     }
   }
@@ -88,6 +109,13 @@ export function Login() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </Field>
+
+        <TurnstileChallenge
+          action="vela_login"
+          resetKey={turnstileResetKey}
+          onToken={handleTurnstileToken}
+          onError={handleTurnstileError}
+        />
 
         {error ? <InlineError message={error} /> : null}
 

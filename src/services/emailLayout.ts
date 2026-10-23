@@ -162,7 +162,7 @@ export type EmailLayoutInput = {
 export function renderEmailLayout(input: EmailLayoutInput): string {
   const brand = input.brand ?? 'portal'
   const colors = EMAIL_BRANDS[brand]
-  const origin = emailOrigin(input.siteUrl)
+  const origin = escapeHtml(emailOrigin(input.siteUrl))
   const mark = brand === 'vela'
     ? `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td><img src="${origin}/branding/vela-icon-192.png" width="28" height="28" alt="" style="display:block;border:0;border-radius:6px"></td><td style="padding-left:10px;font-family:Syne,${FONT};font-size:22px;font-weight:700;color:#ffffff;letter-spacing:.01em">Vela</td></tr></table>`
     : `<img src="${origin}/branding/fwlog-logo-white.png" alt="Fwlog" height="28" style="height:28px;width:auto;display:block;border:0">`

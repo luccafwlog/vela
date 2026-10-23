@@ -118,13 +118,42 @@ def separar_top(texto: str) -> list[str]:
     return [p for p in partes if p]
 
 
+# Nomes que o PostgreSQL trata como o mesmo tipo. Sem normalizar, um GRANT
+# escrito com `timestamptz` não alcançaria a função recriada com
+# `timestamp with time zone`, e o replay perderia o EXECUTE que o catálogo
+# real mantém (CREATE OR REPLACE preserva a ACL).
+ALIASES_DE_TIPO = {
+    'timestamp with time zone': 'timestamptz',
+    'timestamp without time zone': 'timestamp',
+    'time with time zone': 'timetz',
+    'time without time zone': 'time',
+    'integer': 'int4', 'int': 'int4',
+    'bigint': 'int8',
+    'smallint': 'int2',
+    'boolean': 'bool',
+    'character varying': 'varchar',
+    'double precision': 'float8',
+    'real': 'float4',
+    'decimal': 'numeric',
+}
+
+
+def normalizar_tipo(tipo: str) -> str:
+    tipo = ' '.join(tipo.lower().split())
+    sufixo = ''
+    while tipo.endswith('[]'):
+        tipo, sufixo = tipo[:-2].rstrip(), sufixo + '[]'
+    tipo = re.sub(r'^public\.', '', tipo)
+    return ALIASES_DE_TIPO.get(tipo, tipo) + sufixo
+
+
 def tipos_de_argumentos(args: str) -> str:
     tipos = []
     for arg in separar_top(args):
         arg = re.sub(r'\s+(?:DEFAULT|=)\s+.*$', '', arg, flags=re.I).strip()
         arg = re.sub(r'^(?:INOUT|IN|OUT|VARIADIC)\s+', '', arg, flags=re.I)
         partes = arg.split()
-        tipos.append(' '.join(partes[1:] if len(partes) > 1 else partes).lower())
+        tipos.append(normalizar_tipo(' '.join(partes[1:] if len(partes) > 1 else partes)))
     return ','.join(tipos)
 
 
@@ -317,7 +346,7 @@ def estado_final():
     return tabelas, rls, policies, fns, grants
 
 
-def tem_guarda(sig, fns, prof=0, vistos=None):
+def tem_guarda(sig, fns, prof=0, vistos=None, guardas=GUARDAS):
     vistos = vistos if vistos is not None else set()
     if sig in vistos or prof > 4:
         return None
@@ -326,17 +355,93 @@ def tem_guarda(sig, fns, prof=0, vistos=None):
     if not v:
         return None
     baixo = sem_comentarios(v['corpo']).lower()
-    for guarda in GUARDAS:
+    for guarda in guardas:
         if guarda in baixo:
             return f'{v["nome"]} -> {guarda}'
     for chamada in re.finditer(r'public\.(\w+)\s*\(', baixo, re.I):
         alvo = chamada.group(1).lower()
         for candidato, valor in fns.items():
             if valor['nome'] == alvo:
-                resultado = tem_guarda(candidato, fns, prof + 1, vistos)
+                resultado = tem_guarda(candidato, fns, prof + 1, vistos, guardas)
                 if resultado:
                     return f'{v["nome"]} -> {resultado}'
     return None
+
+
+# Check [6]: trava antes da guarda. Uma função executável por `authenticated`
+# que pega trava (advisory, FOR UPDATE, LOCK TABLE ou o helper de trava das
+# importações) antes de conferir quem chama deixa qualquer sessão segurar a
+# trava dos outros. O código de erro sozinho ('42501'/'28000') não conta como
+# guarda aqui: `_assert_actor_is_caller`, por exemplo, só confere que o autor
+# informado é a sessão, não o perfil. Conta o predicado de perfil/cliente no
+# corpo ou a chamada a função que o tenha.
+TRAVA = re.compile(
+    r'pg_(?:try_)?advisory_(?:xact_)?lock(?:_shared)?\s*\('
+    r'|\bfor\s+(?:no\s+key\s+)?update\b'
+    r'|\b_lock_import_voyages\w*\s*\('
+    r'|\block\s+table\b', re.I)
+GUARDAS_DE_PERFIL = [g for g in GUARDAS if g not in ('42501', '28000')]
+# Guarda escrita no próprio corpo: `IF <condição> THEN RAISE ... '42501'`, em
+# que a condição lê o perfil (`user_profiles`, `v_role`, `auth.role()`).
+GUARDA_INLINE = re.compile(
+    r"\bif\b((?:(?!\bend\s+if\b|\bthen\b).)*?)\bthen\s+raise\b[^;]*?'(?:42501|28000)'", re.S)
+# Helper de trava que confere quem chama antes de travar (migration 421).
+HELPER_DE_TRAVA = re.compile(r'\b(_lock_import_voyages\w*)\s*\(')
+
+# Casos já triados. Cada entrada diz por que a ordem é aceita ou quando sai.
+TRAVA_ANTES_DA_GUARDA_ACEITA: dict[str, str] = {
+    # A baixa de 8 argumentos (register_ledger_invoice_payment) travava os B/Ls
+    # antes da guarda de Financeiro; a migration 425 pôs a guarda antes.
+    # Triados como não materiais pela run-3, sem exceção: o check já aprova
+    # portal_add_dispute_message e portal_obsolete_consolidation (guarda antes
+    # da trava); ce_unlock_prepare_upload e ce_unlock_finish_upload não
+    # aparecem no replay como executáveis por authenticated.
+}
+
+
+def corpo_executavel(corpo: str) -> str:
+    """Corpo da função sem o cabeçalho (nome, argumentos, defaults)."""
+    baixo = sem_comentarios(corpo).lower()
+    tag = re.search(r'\bas\s+(\$\w*\$)', baixo)
+    return baixo[tag.end():] if tag else baixo
+
+
+def helper_de_trava_guardado(nome, fns, vistos):
+    candidatos = [c for c, valor in fns.items() if valor['nome'] == nome]
+    return bool(candidatos) and all(
+        c not in vistos and tem_guarda(c, fns, guardas=GUARDAS_DE_PERFIL)
+        and not trava_antes_da_guarda(c, fns, vistos | {c})
+        for c in candidatos)
+
+
+def trava_antes_da_guarda(sig, fns, vistos=frozenset()):
+    """Devolve a trava encontrada antes da primeira guarda de perfil, ou None."""
+    v = fns[sig]
+    corpo = corpo_executavel(v['corpo'])
+    trava = None
+    for candidata in TRAVA.finditer(corpo):
+        helper = HELPER_DE_TRAVA.match(candidata.group(0))
+        # O helper que já confere quem chama antes de travar não conta.
+        if helper and helper_de_trava_guardado(helper.group(1), fns, vistos | {sig}):
+            continue
+        trava = candidata
+        break
+    if not trava:
+        return None
+    posicoes = [corpo.find(g) for g in GUARDAS_DE_PERFIL if g in corpo]
+    posicoes += [m.start() for m in GUARDA_INLINE.finditer(corpo)
+                 if re.search(r'user_profiles|role', m.group(1))]
+    for chamada in re.finditer(r'public\.(\w+)\s*\(', corpo[:trava.start()]):
+        alvo = chamada.group(1)
+        if alvo == v['nome']:
+            continue
+        if any(valor['nome'] == alvo and tem_guarda(c, fns, guardas=GUARDAS_DE_PERFIL)
+               for c, valor in fns.items()):
+            posicoes.append(chamada.start())
+            break
+    if posicoes and min(posicoes) < trava.start():
+        return None
+    return ' '.join(trava.group(0).split())
 
 
 def main():
@@ -410,6 +515,23 @@ def main():
         falhas.append(
             'nenhuma migration revoga EXECUTE de public.upsert_portal_invoice_exception(bigint,text) '
             'de PUBLIC, anon e authenticated: no catálogo real o helper herdaria EXECUTE (#659.2)')
+
+    travas = []
+    for sig, valor in sorted(fns.items()):
+        if not ({'authenticated', 'public'} & grants.get(sig, set())) or valor['nome'] in EXCECOES:
+            continue
+        trava = trava_antes_da_guarda(sig, fns)
+        if trava and sig not in TRAVA_ANTES_DA_GUARDA_ACEITA:
+            travas.append((sig, valor, trava))
+    print(f'[6] Nenhuma trava antes da guarda ............ {"OK" if not travas else f"FALHA ({len(travas)})"}')
+    for sig, valor, trava in travas:
+        falhas.append(f'trava antes da guarda em função de authenticated: {sig} ({valor["arquivo"]}): {trava}')
+        print(f'      - {sig} ({valor["arquivo"]}): {trava}')
+    # Aviso, não falha: a correção pode chegar por outra PR, e a exceção
+    # obsoleta não abre nada.
+    for sig in sorted(TRAVA_ANTES_DA_GUARDA_ACEITA):
+        if sig not in fns or not trava_antes_da_guarda(sig, fns):
+            print(f'      aviso: exceção obsoleta, apague de TRAVA_ANTES_DA_GUARDA_ACEITA: {sig}')
 
     print()
     if falhas:

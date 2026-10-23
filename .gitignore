@@ -52,3 +52,11 @@ supabase/test_*.sql
 fatura-avulsa-exemplo.html
 
 .wrangler/
+
+# Segredos e artefatos do backup que nunca entram no git
+*.pem
+*.key
+credentials.json
+.dev.vars
+*.dump.enc
+backup-r2.log*

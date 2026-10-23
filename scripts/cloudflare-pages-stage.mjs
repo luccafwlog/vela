@@ -1,16 +1,13 @@
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { securityHeaders } from './cloudflare-security-headers.mjs'
 
-const securityHeaders = (supabaseOrigin) => `  X-Frame-Options: DENY
-  X-Content-Type-Options: nosniff
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://eu-assets.i.posthog.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace('https://', 'wss://')} https://olinda.bcb.gov.br https://*.ingest.us.sentry.io https://eu.i.posthog.com https://eu-assets.i.posthog.com https://challenges.cloudflare.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'
-`
+const securityHeadersBlock = (supabaseOrigin) => Object.entries(securityHeaders(supabaseOrigin))
+  .map(([name, value]) => `  ${name}: ${value}\n`)
+  .join('')
 
 function headersFile(supabaseOrigin) {
-  return `/*\n${securityHeaders(supabaseOrigin)}\n/index.html\n  Cache-Control: no-cache, no-store, must-revalidate\n\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n`
+  return `/*\n${securityHeadersBlock(supabaseOrigin)}\n/index.html\n  Cache-Control: no-cache, no-store, must-revalidate\n\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n`
 }
 
 function redirectsFile(app, portalOrigin) {

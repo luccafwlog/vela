@@ -31,7 +31,13 @@ export type AutoRunnerDeps = {
   rpc: AutoRunnerRpc
   fetcher: typeof fetch
   supabaseUrl: string
-  serviceKey: string
+  /**
+   * Chave pública (anon) que vai no Authorization da chamada à
+   * send-customer-communication. O ramo da automação autentica só pelo
+   * X-Communication-Automation-Secret e não usa o portador; a chave de serviço
+   * não precisa sair da Edge (auditoria run-3).
+   */
+  anonKey: string
   secret: string
   portalUrl?: string
   asOf?: Date
@@ -107,7 +113,7 @@ async function settleClaim(rpc: AutoRunnerRpc, claimKey: string | undefined, set
 // o lote na produtora (LIMIT por rodada) e/ou paralelizar os destinatários com
 // concorrência fixa (ex.: 4).
 export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<AutoRunnerResult> {
-  const { rpc, fetcher, supabaseUrl, serviceKey, secret } = deps
+  const { rpc, fetcher, supabaseUrl, anonKey, secret } = deps
   const { data, error } = await rpc('evaluate_and_dispatch_automatic_communications', { p_as_of: (deps.asOf ?? new Date()).toISOString() })
   if (error) {
     return {
@@ -180,7 +186,7 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
           try {
             const response = await fetcher(`${supabaseUrl}/functions/v1/send-customer-communication`, {
               method: 'POST',
-              headers: { Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', 'X-Communication-Automation-Secret': secret },
+              headers: { Authorization: `Bearer ${anonKey}`, 'Content-Type': 'application/json', 'X-Communication-Automation-Secret': secret },
               body: JSON.stringify({
                 customer_id: candidate.customer_id, kind: candidate.kind, nature: candidate.nature ?? 'avisos_operacionais', recipient,
                 subject: rendered.subject, html: rendered.html, text: rendered.text, bl_ids: candidate.bl_ids,

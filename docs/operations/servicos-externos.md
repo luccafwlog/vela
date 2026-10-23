@@ -59,6 +59,7 @@ Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-re
 | GitHub → environment **`cloudflare-production`** | 7 variáveis `VITE_*` e secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); deployment restrito à branch `main` | só o workflow de produção |
 | GitHub → environment **`cloudflare-pages`** | secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); sem restrição de branch | jobs `publish` da Preview, limpeza e provisionamento do Pages |
 | GitHub → environment **`staging`** | variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` da branch Supabase `staging`, `VITE_TURNSTILE_SITE_KEY` (Site Key pública do widget `Vela staging`) e `SUPABASE_STAGING_PROJECT_REF` (ref da branch staging); secrets `CLOUDFLARE_PAGES_API_TOKEN` e `SUPABASE_STAGING_ACCESS_TOKEN` (token Supabase só de leitura das migrations, a criar pelo dono) | só o workflow de staging |
+| GitHub → environment **`staging-release`** | secret `STAGING_TO_MAIN_TOKEN`, movido dos secrets do repositório; deployment restrito à branch `staging` (a criar pelo dono, decisão de 2026-10-22) | só `staging-to-main-pr.yml` |
 | GitHub → environment **`supabase-branches`** | secrets `SUPABASE_ACCESS_TOKEN` (PAT de 2026-10-08) e `PREVIEW_ADMIN_PASSWORD` (2026-10-07); sem restrição de branch | job `prepare` da Preview e `provision-preview-admin` |
 | Windows do computador do backup → **variáveis do usuário** | `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_KEY_HEX`, `R2_*`, `BACKUP_ALLOW_PRODUCTION` | tarefa agendada do backup |
 | Windows → **Gerenciador de Credenciais** | `VelaBackup/R2AccessKeyId`, `VelaBackup/R2SecretAccessKey`, `VelaBackup/EncryptionKey` | o dono, para reconfigurar o backup |
@@ -282,12 +283,12 @@ novas não falharem na `165`.
   público). Em Authentication → Sign In / Providers → User Signups, "Allow new
   users to sign up" fica desligado (`disable_signup = true`). A auditoria
   defensiva de 2026-10-19 achou o cadastro aberto em produção
-  (`GET /auth/v1/settings`: `disable_signup: false`); **desligar é passo
-  pendente do dono** e esta linha deve ganhar a data da conferência quando
-  `GET /auth/v1/settings` voltar `disable_signup: true`. A branch Supabase
-  `staging` (`uvgqfpleiyfythkhutlj`) ainda não foi conferida: o mesmo
-  `GET /auth/v1/settings` no host dela, com a chave anon do staging, deve
-  voltar `disable_signup: true`; se não voltar, desligar no painel da branch.
+  (`GET /auth/v1/settings`: `disable_signup: false`). **Conferido desligado
+  em 2026-10-22:** `GET /auth/v1/settings` com a chave publicável voltou
+  `disable_signup: true` em produção (`fgmkhbzhaeebrsizwccx`) e na branch
+  Supabase `staging` (`uvgqfpleiyfythkhutlj`), ambas também com
+  `anonymous_users: false` e `mailer_autoconfirm: false`. Para reconferir,
+  repita o mesmo `GET` no host de cada projeto com a chave publicável dele.
   Desde a migration `337`, uma conta criada assim também
   não lê a programação de navios.
 - **Usuário técnico do Auth:**
@@ -403,9 +404,9 @@ publicado. Depois do merge, confira:
 | Plataforma (automáticos) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS`, `SUPABASE_PUBLISHABLE_KEYS`, `SUPABASE_SECRET_KEYS` | Supabase |
 | Portal | `PORTAL_URL`, `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
 | E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | MillionSend (API compatível com a Resend) |
-| Anti-robô | `TURNSTILE_SECRET_KEY` (e opcional `TURNSTILE_ALLOWED_HOSTNAMES`) | Cloudflare Turnstile |
+| Anti-robô | `TURNSTILE_SECRET_KEY` e `TURNSTILE_ALLOWED_HOSTNAMES` (obrigatório fora do stack local desde a auditoria run-3: sem ele, o desafio do Portal é recusado) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
-| Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `ITAU_PIX_ADMIN_SECRET` (par com o Vault quando o job está habilitado; lista do cofre em [segredos-cron.md](segredos-cron.md)) | — |
+| Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `CE_UNLOCK_NOTIFY_SECRET`, `ITAU_PIX_CRON_SECRET`, `ITAU_PIX_DIAGNOSTIC_SECRET` e, na transição, `ITAU_PIX_ADMIN_SECRET`; `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` (não é segredo) encerra a transição dos avisos de CE (par com o Vault quando o job está habilitado; lista do cofre e ordem da troca em [segredos-cron.md](segredos-cron.md#um-segredo-por-rotina-auditoria-run-3)) | — |
 | Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
 | Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6, todos gravados; os dois últimos, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
@@ -717,6 +718,16 @@ Widget `Portal Fwlog` (modo Managed, sem pre-clearance), hostnames
 `portalfwlog.com.br`, `vela-portal.pages.dev`, `localhost`. Protege
 `/portal/login` e `/portal/esqueci-senha` em produção.
 
+**Passos do dono decididos na auditoria run-3 (2026-10-22), ainda não feitos:**
+cadastrar `TURNSTILE_ALLOWED_HOSTNAMES=portalfwlog.com.br` nos secrets das
+Edge Functions da produção **antes** de publicar as Edge Functions desta
+versão (sem a variável, o `portal-login` passa a recusar todo desafio fora do
+stack local); tirar `localhost` dos hostnames do widget de produção; e
+acrescentar `vela.app.br`, porque o login da equipe e a conferência da senha
+atual em Meu perfil passam a mostrar o mesmo widget (ações `vela_login` e
+`vela_senha_atual`) para o captcha do Auth (ver
+[Conferência Supabase Auth](#captcha-e-sessão-da-equipe-auditoria-run-3)).
+
 - **Site Key** (pública): `VITE_TURNSTILE_SITE_KEY` no environment GitHub
   `cloudflare-production`.
 - **Secret Key:** `TURNSTILE_SECRET_KEY` no Supabase de produção.
@@ -870,16 +881,19 @@ para eles vale o backup do próprio Supabase.
 - **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e
   force-push, exige PR (sem aprovação obrigatória, decisão do dono em
   2026-10-15) e o check `checks` do GitHub Actions verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
-  O check `main-only-from-staging` existe para entrar nessa proteção; esta
-  mudança não altera o ruleset.
+  O check `main-only-from-staging` existe para entrar nessa proteção; o dono
+  decidiu em 2026-10-22 (auditoria run-3) torná-lo obrigatório, passo dele no
+  ruleset.
 - **Repository secrets:** em 2026-10-08 havia `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Na mesma data
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
   `SUPABASE_ACCESS_TOKEN` e `PREVIEW_ADMIN_PASSWORD`, que agora existem só nos
   environments, e o legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.
-  `staging-to-main-pr.yml` lê o secret de repositório `STAGING_TO_MAIN_TOKEN`
-  (PAT fine-grained só deste repositório: Contents em leitura, Pull requests
-  em leitura e escrita). O workflow não cria o secret. Sem ele, usa o
+  `staging-to-main-pr.yml` lê `STAGING_TO_MAIN_TOKEN` (PAT fine-grained só
+  deste repositório: Contents em leitura, Pull requests em leitura e escrita).
+  Desde a auditoria run-3 o lugar dele é o environment `staging-release`,
+  restrito à branch `staging` (o dono cria o environment, move o secret e apaga
+  a cópia do repositório). O workflow não cria o secret. Sem ele, usa o
   `GITHUB_TOKEN` e o CI da PR `staging` → `main` fica esperando aprovação.
 - **Environment secrets e variables:** os jobs referenciam explicitamente os
   três environments acima, e o workflow de staging o environment `staging`. Se um secret existir no escopo do environment e do
@@ -972,8 +986,9 @@ externa automática. Exportar registra o envio no Vela; a conciliação importa 
 "Exportar Tela" da ZPT.
 
 A função `ce-unlock-notify-email` envia a fila de avisos ao cliente (recusa de documento e
-documentação validada) pela MillionSend, para a caixa Documentação e Operação. Usa o mesmo
-segredo `CE_UNLOCK_CLEANUP_SECRET` e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`;
+documentação validada) pela MillionSend, para a caixa Documentação e Operação. Usa
+`CE_UNLOCK_NOTIFY_SECRET` (o segredo do expurgo, `CE_UNLOCK_CLEANUP_SECRET`, vale
+também até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` nos secrets da Edge; auditoria run-3) e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`;
 Antes de enviar, reavalia a conclusão das solicitações abertas (`ce_unlock_refresh_open`);
 com a chave global de Comunicados ligada e sem a chave do provedor ou o remetente, responde 503
 e deixa a fila intacta. Cada envio registra tentativa em `portal_email_attempts` (kind
@@ -1042,8 +1057,12 @@ altera e cancela a COB de cada fatura) e da consulta de recebimentos para a
 baixa automática; chamada com `{"action":"process_charges"}` pelo disparo da
 migration `219`, processa só a fila. Está publicada (v20 em 2026-10-13, ver
 [Edge Functions](#edge-functions); a v8 de 08/10 trouxe a correção de fuso e as
-travas de horário). Ela exige `ITAU_PIX_ADMIN_SECRET`
-(bearer próprio, ≥ 32 caracteres aleatórios, nunca `service_role`). Os
+travas de horário). Ela exige bearer próprio (≥ 32 caracteres aleatórios,
+nunca `service_role`): desde a auditoria run-3 (decisão do dono de
+2026-10-22), `ITAU_PIX_CRON_SECRET` na rotina (corpo vazio, `process_queue` e
+`process_charges`) e `ITAU_PIX_DIAGNOSTIC_SECRET` nas ações de diagnóstico;
+`ITAU_PIX_ADMIN_SECRET`, que servia aos dois, vale na transição, até o dono
+apagá-lo da Edge e do Vault ([segredos e cron](segredos-cron.md#um-segredo-por-rotina-auditoria-run-3)). Os
 overrides opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL` e
 `ITAU_AUTH_HEADER` só existem para ajustar host e header se o Itaú divergir
 do guia. As ações de diagnóstico da Fase 1 continuam restritas: criam
@@ -1094,7 +1113,8 @@ normaliza as datas recebidas para UTC, preservando offsets explícitos;
 publicada na v7 com autorização. Se o Itaú passar a mandar UTC verdadeiro, a
 leitura soma 3 h: o cliente recusa horário mais de 5 min à frente do relógio
 (erro "Horário do Itaú no futuro") e, na baixa, horário a mais de 1 h do minuto
-UTC gravado no `endToEndId` (erro "Horário do Itaú diverge do endToEndId"),
+UTC gravado no `endToEndId` na maioria dos Pix da janela (erro "Horário do Itaú diverge do endToEndId",
+com os TXIDs no log; desde 2026-10-22 um caso isolado vai para análise),
 sem baixa nem avanço do checkpoint, inclusive na recuperação de atraso; nesse
 caso, remover a troca de `Z` em `_shared/itauPix.ts`.
 GET autenticado confirmou o horário UTC
@@ -1171,3 +1191,58 @@ saiu de Meu perfil, D13 do [plano dos e-mails](../archive/plans/2026-10-17-corre
 a confirmação do Auth não chegava pelo SMTP padrão.) Email provider com "Secure email change"
 ligado (confirmação no e-mail antigo e no novo). O Portal não depende dessas
 URLs: convite e senha usam links próprios das Edge Functions.
+
+### Captcha e sessão da equipe (auditoria run-3)
+
+Decisão do dono de 2026-10-22: captcha no login da equipe e sessão de 12 h.
+O código desta versão já manda o token do Turnstile no login da equipe
+(`src/pages/Login.tsx`) e na conferência da senha atual
+(`AlterarMinhaSenhaModal.tsx`) quando o build tem `VITE_TURNSTILE_SITE_KEY`; o
+Auth ignora o token enquanto o captcha estiver desligado. As Edge Functions que
+conferem senha do Portal no servidor (`portal-login` e
+`portal-recovery-email-change`) passam a fazê-lo com a chave `service_role`,
+que o captcha do Auth dispensa (`_shared/passwordCheckClient.ts`): o Turnstile
+do Portal já é conferido pela própria Edge e o token não vale duas vezes.
+
+Passos do dono, nesta ordem:
+
+1. Publicar a versão (SPA e Edge Functions) e conferir `vela.app.br` nos
+   hostnames do widget `Portal Fwlog` (seção [Cloudflare Turnstile](#cloudflare-turnstile)).
+2. Produção: Authentication → Attack Protection → Enable CAPTCHA protection,
+   provedor Turnstile, com o Secret Key do widget `Portal Fwlog` (o mesmo valor
+   de `TURNSTILE_SECRET_KEY`). Ligar antes da publicação recusa o login da
+   equipe e o das Edges do Portal.
+3. Produção: Authentication → Sessions → Time-box user sessions = 12 h. Vale
+   para a equipe e para o Portal; a Tela TV do Line-Up (`/line-up-tv/display`)
+   pede login de novo a cada 12 h.
+
+A staging e os previews recebem a sessão de 12 h por `supabase/config.toml`
+(`[auth.sessions] timebox`) e ficam sem captcha: testes e scripts entram por
+senha sem desafio. `scripts/qa-display-production/` e
+`src/integration/supabase.integration.test.ts` entram por senha e deixam de
+funcionar contra a produção com o captcha ligado.
+
+### Conferência Supabase Auth — 2026-10-22
+
+Feita só por leitura, sem alterar configuração, para a auditoria de segurança
+run-3.
+
+- **Cadastro público:** desligado em produção e na branch `staging`. O registro
+  fica no item "Cadastro público do Auth desligado" acima.
+- **Security Advisor da produção:** acusa "Leaked password protection" desligada.
+  É o passo pendente do dono: ligar "Prevent use of leaked passwords" em
+  Authentication → Sign In / Providers → Email, o que faz o Auth recusar senhas
+  que aparecem em vazamentos conhecidos (HaveIBeenPwned). O recurso existe a
+  partir do plano Pro.
+- **Configurações que a API pública não expõe:** "Require reauthentication when
+  changing password", "Require current password when changing password" (ambas em
+  Authentication → Sign In / Providers → Email) e os limites de login
+  (Authentication → Rate Limits) só podem ser lidos no painel ou pela Management
+  API. Ainda não foram conferidas. Desde a auditoria run-3 (P1), a troca de senha
+  em Meu perfil envia a senha atual: depois de essa versão estar publicada, o dono
+  liga "Require current password when changing password" em produção e na
+  `staging`. Ligar antes quebra a troca de senha da versão anterior.
+- **Migrations aplicadas:** produção estava na `353`; a branch `staging` estava
+  na `406`. Mais tarde, no mesmo dia, o merge da PR luccafwlog/vela#1021
+  (`staging` → `main`) levou a produção à `409` e republicou as Edge Functions
+  da `main` (conferido por leitura de `supabase_migrations` e da lista de funções).

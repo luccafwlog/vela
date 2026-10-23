@@ -76,6 +76,7 @@ beforeEach(() => {
 describe('classifyProfileHydrationError', () => {
   it('perfil ausente/inativo (PGRST116) é unauthorized; falha de rede é transitória', () => {
     expect(classifyProfileHydrationError({ code: 'PGRST116', message: '0 rows' })).toBe('unauthorized')
+    expect(classifyProfileHydrationError({ code: '28000', message: 'Sessão encerrada: entre de novo.' })).toBe('unauthorized')
     expect(classifyProfileHydrationError(new Error('Perfil de usuário inválido.'))).toBe('unauthorized')
     expect(classifyProfileHydrationError(new TypeError('Failed to fetch'))).toBe('transient-error')
     expect(classifyProfileHydrationError({ message: 'timeout' })).toBe('transient-error')

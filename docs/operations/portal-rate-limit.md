@@ -14,11 +14,21 @@ fluxo tem seu balde no Supabase (`portal_login_attempts`, por hash do CNPJ) e
 sua ação no Redis:
 
 - login: `portal-login` e verificação da senha atual na troca do Email de
-  Recuperação — Supabase bloqueia com 5 erros em 15 minutos;
+  Recuperação — Supabase bloqueia com 5 erros em 15 minutos. Desde a migration
+  `422`, a tentativa é reservada antes de a senha ser conferida
+  (`portal_login_reserve_attempt`, sob trava do CNPJ), já contada como erro;
+  senha certa a marca como sucesso e falha do Auth a apaga
+  (`portal_login_settle_attempt`). Pedidos simultâneos não passam do limite;
 - recuperação: pedidos de recuperação, inclusive os que não encontram conta —
   Supabase bloqueia com 5 pedidos em 15 minutos;
 - ativação: recusas de política de senha, em um balde próprio para não consumir
   as tentativas de login — Supabase bloqueia com 10 recusas em 5 minutos.
+
+O limite de taxa do próprio Supabase Auth não distingue Clientes: os logins do
+Portal chegam ao Auth pela Edge Function, e o Auth registra o IP de saída dela,
+não o do Cliente (conferido nos logs de produção em 2026-10-22: vários IPs
+AWS `sa-east-1` que se alternam). Recusa do Auth por limite ou falha (429, 5xx,
+rede) responde 503 e não conta como senha errada no balde do CNPJ.
 
 Com os limiares padrão, a camada Redis não bloqueia nada além do balde: no
 login e na recuperação, depois de 5 erros (ou pedidos) do mesmo CNPJ, a 6ª

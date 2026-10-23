@@ -65,6 +65,27 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain('existingBytes + newBytes > 10 * 1024 * 1024')
     expect(source).toContain('uploadedBy: string | null')
     expect(source).toContain('callerUser.user?.id ?? null')
+    // Nome do anexo vai a cabeçalho no provedor: sem CR/LF (auditoria run-3).
+    expect(source).toContain("const filename = singleLine(String(attachment.filename ?? '')).trim()")
+  })
+
+  it('identidade reaproveitada só repete o mesmo envio: outra pessoa ou outro conteúdo é recusa definitiva (run-3, C5)', () => {
+    const guard = source.slice(source.indexOf('if (!isAutomation) {\n    const { data: stored'), source.indexOf('// Cópia do que saiu'))
+    expect(guard).toContain("select('created_by, rendered_subject, rendered_text, rendered_html_sha256')")
+    expect(guard).toContain('if (stored.created_by !== callerUser.user?.id)')
+    expect(guard).toContain('stored.rendered_html_sha256 !== renderedHtmlSha256')
+    expect(guard.match(/permanentRejection\(/g)).toHaveLength(2)
+    // A conferência vem antes de gravar a cópia, dos anexos e do envio ao provedor.
+    expect(source.indexOf('if (stored.created_by !== callerUser.user?.id)')).toBeLessThan(source.indexOf('rendered_subject: effectiveSubject,'))
+    expect(source.indexOf('if (stored.created_by !== callerUser.user?.id)')).toBeLessThan(source.indexOf('persistCommunicationAttachments(admin'))
+  })
+
+  it('envio simultâneo do mesmo registro: quem não gravou a cópia confere com a gravada antes de enviar', () => {
+    const claim = source.slice(source.indexOf('const { data: claimedCopy'), source.indexOf('persistCommunicationAttachments(admin'))
+    expect(claim).toContain(".is('rendered_subject', null)\n    .select('id')")
+    expect(claim).toContain('if (!isAutomation && (claimedCopy?.length ?? 0) === 0)')
+    expect(claim).toContain('winner.rendered_html_sha256 !== renderedHtmlSha256')
+    expect(claim).toContain('permanentRejection(')
   })
 
   it('lê a sigla do terminal do NOB em depots e nunca manda o UUID ao cliente', () => {

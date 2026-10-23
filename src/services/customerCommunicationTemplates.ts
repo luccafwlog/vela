@@ -118,6 +118,15 @@ function clean(value: string | null | undefined, fallback = '—'): string {
   return result || fallback
 }
 
+/**
+ * Troca quebras de linha por espaço. Assunto e nome de anexo escritos pela
+ * pessoa vão a cabeçalhos do e-mail no provedor; CR/LF ali abriria um cabeçalho
+ * novo (auditoria run-3).
+ */
+export function singleLine(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ')
+}
+
 function formatDateOnly(value: string): string {
   const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (!match) return value
@@ -617,7 +626,7 @@ export function renderInstitutionalTemplate(input: CustomerCommunicationTemplate
     if (!input.customerName.trim()) throw new Error('Nome do cliente ausente.')
   }
   if (kind === 'institucional' && input.bls.length) throw new Error('Comunicado institucional não pode conter B/Ls.')
-  const subject = clean(input.subject, 'Comunicado Transhipping Desk')
+  const subject = clean(singleLine(input.subject ?? ''), 'Comunicado Transhipping Desk')
   const text = clean(input.body, '')
   // D15: o livre leva os dados da carga do Cliente — Navio / Viagem e B/Ls —, que
   // a tela promete ("os dados da carga de cada cliente são acrescentados").

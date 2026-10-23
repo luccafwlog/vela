@@ -162,3 +162,16 @@ src/integration/hashEDesova.local-pg.test.ts
 src/integration/baplieArmadorETransbordo.local-pg.test.ts
 src/integration/baplieSemEscala.local-pg.test.ts
 src/integration/viagemDuplicada.local-pg.test.ts
+src/integration/corteTokenInterno.local-pg.test.ts
+src/integration/portalAntigoDonoDoBl.local-pg.test.ts
+src/integration/travaDaViagemConfereQuemChama.local-pg.test.ts
+src/integration/guardasAntesDoTrabalho.local-pg.test.ts
+src/integration/disputasReaberturaSemOraculo.local-pg.test.ts
+src/integration/desbloqueioCeGuardasDeDono.local-pg.test.ts
+src/integration/portalRegrasDocumentadas.local-pg.test.ts
+src/integration/consistenciaOperacaoFinanceiro.local-pg.test.ts
+src/integration/historicoTrocaDaPropriaSenha.local-pg.test.ts
+src/integration/itauPixLiberaReserva.local-pg.test.ts
+src/integration/baldeLoginReservaAtomica.local-pg.test.ts
+src/integration/autorDosEventosDoPortal.local-pg.test.ts
+src/integration/decisoesDoDonoRun3.local-pg.test.ts

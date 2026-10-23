@@ -24,25 +24,26 @@ function indexOf(source: string, needle: string): number {
 describe('troca de Email de Recuperação consulta a trava antes de verificar a senha', () => {
   // Achado B: quem tivesse uma sessão do Portal aberta testava senha sem limite
   // por este caminho, contornando as 5 tentativas do login.
-  it('chama isLoginRateLimited antes de signInWithPassword', () => {
-    expect(indexOf(emailChange, 'isLoginRateLimited(admin, account.login_cnpj, rateLimitContext)')).toBeLessThan(indexOf(emailChange, 'verifier.auth.signInWithPassword'))
+  it('reserva a tentativa no balde antes de signInWithPassword (migration 422)', () => {
+    expect(indexOf(emailChange, 'reserveLoginAttempt(admin, account.login_cnpj, rateLimitContext)')).toBeLessThan(indexOf(emailChange, 'verifier.auth.signInWithPassword'))
   })
 
   it('responde 429 sem seguir adiante quando o balde está cheio', () => {
-    expect(emailChange).toContain('if (await isLoginRateLimited(admin, account.login_cnpj, rateLimitContext)) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })')
+    expect(emailChange).toContain('if (attemptId === null) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })')
   })
 
-  it('registra falha e sucesso no contador do login', () => {
-    expect(emailChange).toContain('await registerLoginFailure(admin, account.login_cnpj, rateLimitContext)')
-    expect(emailChange).toContain('await registerLoginSuccess(admin, account.login_cnpj, rateLimitContext)')
+  it('fecha a reserva como falha ou sucesso no contador do login', () => {
+    expect(emailChange).toContain('await confirmLoginFailure(account.login_cnpj, rateLimitContext)')
+    expect(emailChange).toContain('await confirmLoginSuccess(admin, attemptId, account.login_cnpj, rateLimitContext)')
   })
 
   // Falha ao resolver o usuário do Auth não é senha errada: registrá-la no
   // balde gastaria as tentativas do cliente por defeito do servidor e o
   // trancaria 15 minutos fora do Portal sem que ele tivesse errado nada.
-  it('não registra falha quando o email técnico não pôde ser resolvido', () => {
-    expect(emailChange).toContain("if (!technicalEmail) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })")
-    expect(indexOf(emailChange, 'if (!technicalEmail)')).toBeLessThan(indexOf(emailChange, 'await registerLoginFailure(admin, account.login_cnpj, rateLimitContext)'))
+  it('não cobra o balde quando o email técnico não pôde ser resolvido', () => {
+    const branch = emailChange.slice(indexOf(emailChange, 'if (!technicalEmail) {'), indexOf(emailChange, 'const verifier = createPasswordCheckClient'))
+    expect(branch).toContain('await voidLoginAttempt(admin, attemptId)')
+    expect(branch).toContain('{ status: 500 }')
   })
 
   // A verificação criava uma sessão do Auth que ninguém mais usava. O escopo
@@ -64,7 +65,7 @@ describe('caminho bloqueado do login não faz trabalho síncrono a mais', () => 
   // (e às vezes `alerts`) antes de responder — assimetria mensurável num
   // caminho projetado para não ter nenhuma.
   it('move a consulta e o alerta para segundo plano com EdgeRuntime.waitUntil', () => {
-    const blockedBranch = login.slice(indexOf(login, 'if (await isLoginRateLimited(admin, normalized, rateLimitContext))'), indexOf(login, 'const { data: account }'))
+    const blockedBranch = login.slice(indexOf(login, 'if (attemptId === null) {'), indexOf(login, 'const { data: account }'))
     expect(blockedBranch).toContain('EdgeRuntime.waitUntil(alertWork)')
     expect(indexOf(blockedBranch, 'EdgeRuntime.waitUntil(alertWork)')).toBeLessThan(indexOf(blockedBranch, 'return json(401, { error: GENERIC_ERROR }, origin)'))
     // A consulta à conta e a abertura do alerta ficam dentro do trabalho

@@ -66,6 +66,9 @@ test('jobs com token declaram o environment, e o build não (auditoria run-2, #1
   // Secrets fora do env do job: só nos steps que os usam.
   const jobEnv = admin.slice(admin.indexOf('    env:\n'), admin.indexOf('    steps:'))
   assert.doesNotMatch(jobEnv, /SUPABASE_ACCESS_TOKEN|PREVIEW_ADMIN_PASSWORD/)
+  // A PR da staging para a main não ganha admin de Preview (auditoria run-3).
+  assert.match(admin, /github\.event\.pull_request\.head\.ref != 'staging'/)
+  assert.match(admin, /\[\[ "\$head_ref" != staging \]\]/)
 })
 
 test('actions dos workflows com token fixadas por SHA', async () => {

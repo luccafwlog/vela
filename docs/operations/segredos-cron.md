@@ -38,11 +38,47 @@ por nome:
 | `PORTAL_EMAIL_EVENTS_CRON_SECRET` | `portal-email-events-runner` | `PORTAL_EMAIL_EVENTS_CRON_SECRET` |
 | `IMPORT_EFFECTS_CRON_SECRET` | `import-effects-runner` e o disparo pela importação (`ops.kick_import_effects_runner`, migration `218`) | `IMPORT_EFFECTS_CRON_SECRET` |
 | `RECALC_CRON_SECRET` | `recalc-demurrage-ptax` | `RECALC_CRON_SECRET` |
-| `ITAU_PIX_ADMIN_SECRET` | `itau-pix-queue` e o disparo da fila (`ops.kick_itau_pix_runner`, migration `219`) | `ITAU_PIX_ADMIN_SECRET` |
-| `CE_UNLOCK_CLEANUP_SECRET` | `ce-unlock-cleanup` e `ce-unlock-notify-email` | `CE_UNLOCK_CLEANUP_SECRET` |
+| `ITAU_PIX_CRON_SECRET` (a cadastrar; até lá, `ITAU_PIX_ADMIN_SECRET`) | `itau-pix-queue` e o disparo da fila (`ops.kick_itau_pix_runner`, migrations `219` e `438`) | `ITAU_PIX_CRON_SECRET` (a Edge aceita também `ITAU_PIX_ADMIN_SECRET` na transição) |
+| — | diagnóstico manual da `itau-pix` (equipe técnica, sem cron) | `ITAU_PIX_DIAGNOSTIC_SECRET` (só na Edge) |
+| `CE_UNLOCK_CLEANUP_SECRET` | `ce-unlock-cleanup` | `CE_UNLOCK_CLEANUP_SECRET` |
+| `CE_UNLOCK_NOTIFY_SECRET` (a cadastrar; até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true`, vale também `CE_UNLOCK_CLEANUP_SECRET`) | `ce-unlock-notify-email` (migration `438`) | `CE_UNLOCK_NOTIFY_SECRET` |
 
 Os nomes são iguais aos dos Edge Function Secrets de propósito: o par
 banco/Function é o contrato, e rotacionar um sem o outro derruba o job.
+
+### Um segredo por rotina (auditoria run-3)
+
+Decisão do dono de 2026-10-22: cada rotina com o próprio segredo. Antes,
+`ITAU_PIX_ADMIN_SECRET` servia ao cron Itaú, ao disparo da fila e ao
+diagnóstico, e `CE_UNLOCK_CLEANUP_SECRET` servia ao expurgo e aos avisos do
+Desbloqueio de CE. A migration `438` faz o job `itau-pix-queue`, o disparo
+`ops.kick_itau_pix_runner` e o job `ce-unlock-notify-email` (se existir)
+escolherem o segredo pelo nome com `ops.preferred_vault_secret(próprio,
+compartilhado)`: o próprio quando está no Vault, o compartilhado enquanto não
+está. Não é preciso reagendar job.
+
+Ordem da troca, com um valor novo de 32 caracteres aleatórios ou mais por
+segredo:
+
+1. **Itaú, rotina:** cadastre `ITAU_PIX_CRON_SECRET` nos secrets das Edge
+   Functions e depois no Vault, com o mesmo valor. A Edge aceita o novo e o
+   antigo; o cron passa ao novo assim que ele está no Vault, sem rodada
+   recusada.
+2. **Itaú, diagnóstico:** cadastre `ITAU_PIX_DIAGNOSTIC_SECRET` só na Edge e
+   use-o nas chamadas manuais.
+3. **Fim da transição Itaú:** confira no histórico do cron (`cron.job_run_details`)
+   que `itau-pix-queue` segue `succeeded`, e apague `ITAU_PIX_ADMIN_SECRET` da
+   Edge e do Vault.
+4. **Avisos do Desbloqueio de CE:** cadastre `CE_UNLOCK_NOTIFY_SECRET` na Edge
+   e depois no Vault, com o mesmo valor. A função dos avisos aceita o novo e o
+   do expurgo (`CE_UNLOCK_CLEANUP_SECRET`) durante a troca, sem rodada
+   recusada.
+5. **Fim da transição dos avisos:** confira no histórico do cron que
+   `ce-unlock-notify-email` segue `succeeded` e cadastre
+   `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` nos secrets das Edge Functions. Os
+   secrets valem para o projeto inteiro e `CE_UNLOCK_CLEANUP_SECRET` continua
+   do expurgo, por isso ele não é apagado: a variável é que tira dele o acesso
+   aos avisos.
 
 `SUPABASE_URL` não é segredo — é a base pública da API. Ele mora no cofre para
 que exista **um** caminho de leitura e **um** procedimento de rotação, não por
@@ -291,14 +327,14 @@ Remover: `SELECT cron.unschedule('ce-unlock-cleanup');`.
 **Agendado em produção em 2026-10-07** (jobid 23), após cadastrar o segredo no cofre e na
 Edge Function e de um disparo manual responder HTTP 200. A migration `160` não cria o job
 `ce-unlock-notify-email`; em outro ambiente, agende somente depois de
-cadastrar `CE_UNLOCK_CLEANUP_SECRET` (o mesmo segredo do expurgo), `RESEND_API_KEY`,
+cadastrar `CE_UNLOCK_NOTIFY_SECRET` (segredo próprio desde a auditoria run-3), `RESEND_API_KEY`,
 `PORTAL_FROM_EMAIL` e `PORTAL_REPLY_TO` na Edge Function:
 
 ```sql
 SELECT cron.schedule(
   'ce-unlock-notify-email',
   '*/5 * * * *',
-  $$SELECT ops.dispatch_edge_job('ce-unlock-notify-email', 'CE_UNLOCK_CLEANUP_SECRET', 'Authorization', 'Bearer ');$$
+  $$SELECT ops.dispatch_edge_job('ce-unlock-notify-email', ops.preferred_vault_secret('CE_UNLOCK_NOTIFY_SECRET', 'CE_UNLOCK_CLEANUP_SECRET'), 'Authorization', 'Bearer ');$$
 );
 ```
 
@@ -316,6 +352,8 @@ WHERE name IN ('SUPABASE_URL', 'PORTAL_DIGEST_SECRET', 'ALERTS_DETECTOR_SECRET',
                'PORTAL_EMAIL_EVENTS_CRON_SECRET', 'IMPORT_EFFECTS_CRON_SECRET',
                'RECALC_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET',
                'CE_UNLOCK_CLEANUP_SECRET');
+-- Depois da troca da auditoria run-3: 'ITAU_PIX_CRON_SECRET' no lugar de
+-- 'ITAU_PIX_ADMIN_SECRET', mais 'CE_UNLOCK_NOTIFY_SECRET'.
 ```
 
 **O cofre está fechado para o cliente** — as quatro colunas devem ser `false`:
@@ -358,8 +396,9 @@ SELECT vault.create_secret('<valor>', 'PORTAL_DIGEST_SECRET',
   'Espelha o Edge Function Secret de mesmo nome.');
 -- idem para ALERTS_DETECTOR_SECRET, DEMURRAGE_DUNNING_SECRET,
 -- CUSTOMER_COMMUNICATION_AUTOMATION_SECRET, PORTAL_EMAIL_EVENTS_CRON_SECRET,
--- IMPORT_EFFECTS_CRON_SECRET, RECALC_CRON_SECRET, ITAU_PIX_ADMIN_SECRET e
--- CE_UNLOCK_CLEANUP_SECRET.
+-- IMPORT_EFFECTS_CRON_SECRET, RECALC_CRON_SECRET, ITAU_PIX_CRON_SECRET,
+-- CE_UNLOCK_CLEANUP_SECRET e CE_UNLOCK_NOTIFY_SECRET (ITAU_PIX_ADMIN_SECRET só
+-- até o fim da transição da auditoria run-3).
 ```
 
 Até lá, os jobs ficam agendados e inertes, com `WARNING` no log a cada execução.

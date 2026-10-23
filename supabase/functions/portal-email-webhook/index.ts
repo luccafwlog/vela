@@ -1,6 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { Webhook } from 'https://esm.sh/svix@1.99.1'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { isBodyTooLarge, readBoundedText } from '../_shared/boundedBody.ts'
+
+// Evento do Resend/MillionSend é um JSON de poucos KiB; o teto só existe para
+// não ler um corpo arbitrário antes de conferir a assinatura.
+const MAX_EVENT_BYTES = 256 * 1024
 
 type ResendEvent = {
   type: string
@@ -32,13 +37,22 @@ function minimalPayload(event: ResendEvent): Record<string, unknown> {
 if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-email-webhook', async (req) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' })
 
-  const payload = await req.text()
   const svixHeaders = {
     'svix-id': req.headers.get('svix-id') ?? '',
     'svix-timestamp': req.headers.get('svix-timestamp') ?? '',
     'svix-signature': req.headers.get('svix-signature') ?? '',
   }
+  // Cabeçalhos conferidos antes de ler o corpo: sem eles a assinatura nunca vale.
   if (!svixHeaders['svix-id']) return json(400, { error: 'missing_provider_event_id' })
+  if (!svixHeaders['svix-timestamp'] || !svixHeaders['svix-signature']) return json(401, { error: 'invalid_signature' })
+
+  let payload: string
+  try {
+    payload = await readBoundedText(req, MAX_EVENT_BYTES)
+  } catch (error) {
+    if (isBodyTooLarge(error)) return json(413, { error: 'payload_too_large' })
+    return json(400, { error: 'invalid_body' })
+  }
 
   let event: ResendEvent
   try {

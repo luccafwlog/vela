@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { withCors } from '../_shared/cors.ts'
 import { matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
+import { BODY_TOO_LARGE, readBoundedMultipart } from '../_shared/boundedMultipart.ts'
 
 const ALLOWED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'text/plain'])
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
@@ -38,15 +39,15 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     return json({ error: 'Acesso negado ao Portal.', code: 'FORBIDDEN' }, 403)
   }
 
-  // Corpo acima do teto nem é lido (auditoria run-2, reforço); a folga
-  // cobre o envelope multipart.
-  const declaredLength = Number(req.headers.get('Content-Length') ?? '0')
-  if (declaredLength > MAX_FILE_SIZE + 64 * 1024) {
-    return json({ error: 'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.', code: 'INVALID_FILE' }, 413)
-  }
-
-  const formData = await req.formData().catch(() => null)
-  if (!formData) {
+  // Corpo acima do teto não é lido além dele, com ou sem Content-Length
+  // (auditoria run-2, reforço; run-3, P6); a folga cobre o envelope multipart.
+  let formData: FormData
+  try {
+    formData = await readBoundedMultipart(req, MAX_FILE_SIZE + 64 * 1024)
+  } catch (error) {
+    if (error instanceof Error && error.message === BODY_TOO_LARGE) {
+      return json({ error: 'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.', code: 'INVALID_FILE' }, 413)
+    }
     return json({ error: 'Requisição inválida (esperado multipart/form-data).', code: 'BAD_REQUEST' }, 400)
   }
 

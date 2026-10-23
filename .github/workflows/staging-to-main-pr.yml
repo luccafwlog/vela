@@ -1,11 +1,16 @@
 name: Abrir PR staging → main
 
-# Quando uma PR contra a staging é mergeada, abre ou atualiza a PR da staging
-# para a main. O merge na main continua manual: push na main publica a
-# produção (cloudflare-pages-production.yml). ADR 0091.
+# Quando a staging recebe um push (o merge de uma PR), abre ou atualiza a PR
+# da staging para a main. O merge na main continua manual: push na main
+# publica a produção (cloudflare-pages-production.yml). ADR 0091.
+#
+# Gatilho no push, não no fechamento da PR (auditoria run-3, decisão do dono
+# de 2026-10-22): STAGING_TO_MAIN_TOKEN mora no environment `staging-release`,
+# restrito à branch staging, e o GitHub confere essa restrição contra o
+# GITHUB_REF da execução, que no evento de PR é `refs/pull/N/merge`. Sem o
+# secret no environment, o job segue com o GITHUB_TOKEN.
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [staging]
 
 permissions:
@@ -18,17 +23,32 @@ concurrency:
 
 jobs:
   open-release-pr:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: staging-release
     env:
       GH_TOKEN: ${{ secrets.STAGING_TO_MAIN_TOKEN || secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
       REPO: ${{ github.repository }}
-      MERGED_NUMBER: ${{ github.event.pull_request.number }}
-      MERGED_TITLE: ${{ github.event.pull_request.title }}
-      MERGED_AUTHOR: ${{ github.event.pull_request.user.login }}
+      PUSHED_SHA: ${{ github.sha }}
     steps:
+      - name: Achar a PR mergeada neste push
+        # Push direto na staging não tem PR: o corpo sai sem a linha do merge.
+        # O título vai ao GITHUB_ENV com delimitador aleatório; o script o
+        # reduz a uma linha, e número e autor também são conferidos lá.
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/commits/${PUSHED_SHA}/pulls" > merged.json
+          number=$(jq -r '[.[] | select(.merged_at != null and .base.ref == "staging")][0].number // empty' merged.json)
+          title=$(jq -r '[.[] | select(.merged_at != null and .base.ref == "staging")][0].title // empty' merged.json)
+          author=$(jq -r '[.[] | select(.merged_at != null and .base.ref == "staging")][0].user.login // empty' merged.json)
+          delimiter="TITLE_$(openssl rand -hex 16)"
+          {
+            printf 'MERGED_NUMBER=%s\n' "$number"
+            printf 'MERGED_AUTHOR=%s\n' "$author"
+            printf 'MERGED_TITLE<<%s\n%s\n%s\n' "$delimiter" "$title" "$delimiter"
+          } >> "$GITHUB_ENV"
+
       - name: Baixar o script da staging
         run: |
           set -euo pipefail

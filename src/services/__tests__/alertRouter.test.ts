@@ -142,6 +142,26 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(fallbackLink).toBe('/fallback-route')
   })
 
+  it('descarta destination externo ou malformado e usa o destino padrão do tipo', () => {
+    const unsafe = [
+      'https://evil.example/x',
+      '//evil.example/x',
+      'javascript:alert(1)',
+      '/\\evil.example',
+      '/ok\nlinha',
+      '/ok\u0085',
+      'relativo/sem-barra',
+    ]
+    for (const destination of unsafe) {
+      expect(alertEntityLink({ type: 'unknown_type', entity_type: null, entity_id: null, destination })).toBeNull()
+      expect(alertEntityLink({ type: 'comunicado_recusado', entity_type: 'bl', entity_id: 'BL-1', destination }))
+        .toBe('/clientes/comunicacao')
+      expect(alertEntityLink({ type: 'tipo_sem_rota', entity_type: 'outro', entity_id: 'X', destination })).toBeNull()
+    }
+    expect(alertEntityLink({ type: 'comunicado_recusado', entity_type: 'bl', entity_id: 'BL-1', destination: '/clientes/comunicacao?tab=historico' }))
+      .toBe('/clientes/comunicacao?tab=historico')
+  })
+
   it('formata adequadamente o label de exibição de entidades conhecidas', () => {
     expect(formatAlertEntity('customer', '123')).toBe('Cliente 123')
     expect(formatAlertEntity('bl', 'BL001')).toBe('B/L BL001')

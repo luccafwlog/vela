@@ -175,9 +175,13 @@ test('check da main tem o nome do job e não interpola expressão no shell', asy
 
 test('promoção abre ou atualiza a PR e não faz merge', async () => {
   const yaml = await workflow('staging-to-main-pr.yml')
-  assert.match(yaml, /types: \[closed\]/)
-  assert.match(yaml, /branches: \[staging\]/)
-  assert.match(yaml, /github\.event\.pull_request\.merged == true/)
+  // Push na staging, não fechamento de PR: o environment restrito à staging
+  // só libera o token quando o GITHUB_REF é a staging (auditoria run-3).
+  assert.match(yaml, /on:\n {2}push:\n {4}branches: \[staging\]/)
+  assert.doesNotMatch(yaml, /pull_request:/)
+  assert.match(yaml, /environment: staging-release/)
+  assert.match(yaml, /commits\/\$\{PUSHED_SHA\}\/pulls/)
+  assert.match(yaml, /MERGED_TITLE<<%s/)
   assert.match(yaml, /secrets\.STAGING_TO_MAIN_TOKEN \|\| secrets\.GITHUB_TOKEN/)
   assert.match(yaml, /pull-requests: write/)
   assert.match(yaml, /contents: read/)

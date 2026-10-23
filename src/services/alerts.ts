@@ -351,6 +351,22 @@ export function alertEntityLink(alert: Parameters<typeof alertEntityLinkRaw>[0])
   return link === '/reconciliacao' ? PIX_PENDING_HREF : link
 }
 
+// Rotas vindas do banco (`destination` e `metadata.correction_route`) chegam ao
+// `navigate()` e ao `<Link to>`. Só passa caminho interno: uma única '/' no
+// início, sem '\\', sem esquema e sem caractere de controle. Fora disso o
+// chamador usa o destino padrão do tipo de alerta.
+export function safeInternalRoute(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  if (!value.startsWith('/') || value.startsWith('//')) return null
+  if (value.includes('\\')) return null
+  if (/^[^/]+:\/\//.test(value)) return null
+  const hasControlCharacter = Array.from(value).some((character) => {
+    const code = character.charCodeAt(0)
+    return code < 0x20 || (code >= 0x7f && code <= 0x9f)
+  })
+  return hasControlCharacter ? null : value
+}
+
 function alertEntityLinkRaw(alert: {
   type: string
   item_type?: string | null
@@ -359,7 +375,8 @@ function alertEntityLinkRaw(alert: {
   metadata?: Record<string, unknown> | null
   destination?: string | null
 }): string | null {
-  if (!alert.entity_id) return alert.destination ?? null
+  const destination = safeInternalRoute(alert.destination)
+  if (!alert.entity_id) return destination
   const effectiveType = getEffectiveAlertType(alert)
   if ((effectiveType === 'fatura_desatualizada' || effectiveType === 'restituicao_pendente') && alert.entity_type === 'invoice') return `/taxas-locais?invoice=${encodeURIComponent(alert.entity_id)}`
 
@@ -367,21 +384,8 @@ function alertEntityLinkRaw(alert: {
     (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')
     && alert.entity_type === 'bl'
   ) {
-    const correctionRoute = alert.metadata?.correction_route
-    const hasControlCharacter = typeof correctionRoute === 'string'
-      && Array.from(correctionRoute).some((character) => {
-        const code = character.charCodeAt(0)
-        return code < 0x20 || code === 0x7f
-      })
-    if (
-      effectiveType === 'billing_calculation_blocked'
-      && typeof correctionRoute === 'string'
-      && correctionRoute.startsWith('/')
-      && !correctionRoute.startsWith('//')
-      && !correctionRoute.includes('\\')
-      && !hasControlCharacter
-      && !/^[^/]+:\/\//.test(correctionRoute)
-    ) {
+    const correctionRoute = safeInternalRoute(alert.metadata?.correction_route)
+    if (effectiveType === 'billing_calculation_blocked' && correctionRoute) {
       return correctionRoute
     }
     return '/taxas-locais'
@@ -393,7 +397,7 @@ function alertEntityLinkRaw(alert: {
     || effectiveType === 'comunicado_nob_pendente'
     || effectiveType === 'comunicado_recusado'
   ) {
-    return alert.destination ?? '/clientes/comunicacao'
+    return destination ?? '/clientes/comunicacao'
   }
 
   // O reenvio do CE e Taxas mora no Histórico dos Comunicados (plano dos
@@ -440,7 +444,7 @@ function alertEntityLinkRaw(alert: {
     if (typeof customerCnpj === 'string' && customerCnpj.trim()) {
       return `/clientes/${encodeURIComponent(customerCnpj.trim())}?tab=cadastro`
     }
-    return alert.destination ?? '/clientes'
+    return destination ?? '/clientes'
   }
   if (effectiveType.startsWith('review_')) {
     return alert.entity_id
@@ -490,7 +494,7 @@ function alertEntityLinkRaw(alert: {
     if (terminalId) params.set('terminal', terminalId)
     return `/viagens/${voyageId}${params.toString() ? `?${params.toString()}` : ''}`
   }
-  return alert.destination ?? null
+  return destination
 }
 
 export function alertEntityLinkLabel(alert: {
@@ -604,6 +608,17 @@ export type AlertDepartmentSummary = {
 
 const alertsRpc = supabase as unknown as {
   rpc: (fn: string, params?: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }>
+}
+
+/**
+ * Último dia aceito para a dispensa voltar à fila: o 30º a partir de hoje, em
+ * UTC como a data que a tela envia (`T23:59:59Z`). `dismiss_alert_item`
+ * recusa depois dele (migration 433).
+ */
+export function getMaxReviewDateString(now: Date = new Date()): string {
+  const d = new Date(now)
+  d.setUTCDate(d.getUTCDate() + 30)
+  return d.toISOString().slice(0, 10)
 }
 
 export async function dismissAlertItem(

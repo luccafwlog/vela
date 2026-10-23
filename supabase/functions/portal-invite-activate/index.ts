@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 import { isActivationRateLimited, registerActivationFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
 
 const PENDING_SITUATIONS = ['convite_pendente', 'convite_expirado', 'falha_no_envio']
 const GENERIC_INVALID = 'Link inválido ou expirado. Solicite um novo convite à empresa.'
@@ -14,7 +15,9 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     const maskCnpj = (value: string) => { const d = value.replace(/[^0-9a-z]/gi, '').toUpperCase(); return d.length === 14 ? `${d.slice(0, 2)}.***.***/${d.slice(8, 12)}-${d.slice(12)}` : '***' }
   if (req.method === 'OPTIONS') return cors(204, null)
   if (req.method !== 'POST') return cors(405, { error: 'Method not allowed' })
-  const body = await req.json().catch(() => ({})) as { action?: string; token?: string; password?: string }
+  const parsed = await readBoundedJsonBody(req, SMALL_JSON_MAX_BYTES)
+  if (parsed.tooLarge) return cors(413, { error: 'Requisição acima do tamanho permitido.' })
+  const body = parsed.value as { action?: string; token?: string; password?: string }
   if (!body.token) return cors(400, { error: GENERIC_INVALID })
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const tokenHash = await hashToken(body.token)

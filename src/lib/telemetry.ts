@@ -78,12 +78,29 @@ export function redactUrlQueryString(url: string): string {
 // depois da URL limpa. scrubPii nao pega token aleatorio (nao e CNPJ/CPF/
 // email), entao a query string inteira de qualquer valor string em
 // breadcrumb.data e removida, alem do scrub de PII de costume.
+// O breadcrumb de console guarda os argumentos em `data.arguments` (array de
+// strings e objetos): o scrub desce em arrays e objetos simples até
+// MAX_BREADCRUMB_DEPTH níveis; abaixo disso, e em objeto não simples, o valor
+// é omitido. Error vira "nome: mensagem", com o mesmo scrub.
+const MAX_BREADCRUMB_DEPTH = 4
+
+function scrubBreadcrumbValue(value: unknown, depth: number): unknown {
+  if (typeof value === 'string') return scrubPii(redactUrlQueryString(value))
+  if (value == null || typeof value !== 'object') return value
+  if (value instanceof Error) return scrubPii(redactUrlQueryString(`${value.name}: ${value.message}`))
+  if (depth >= MAX_BREADCRUMB_DEPTH) return '[nested-value-omitted]'
+  if (Array.isArray(value)) return value.map((item) => scrubBreadcrumbValue(item, depth + 1))
+  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    return '[non-plain-value-omitted]'
+  }
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, scrubBreadcrumbValue(item, depth + 1)]),
+  )
+}
+
 export function scrubBreadcrumbData(data: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(data).map(([key, value]) => [
-      key,
-      typeof value === 'string' ? scrubPii(redactUrlQueryString(value)) : value,
-    ]),
+    Object.entries(data).map(([key, value]) => [key, scrubBreadcrumbValue(value, 0)]),
   )
 }
 

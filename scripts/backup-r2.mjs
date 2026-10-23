@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process'
 import { pipeline } from 'node:stream/promises'
 import { Writable } from 'node:stream'
 import { pathToFileURL } from 'node:url'
+import { PRODUCTION_SUPABASE_PROJECT_REF } from './wait-supabase-migrations.mjs'
 
 const FORMAT_VERSION = 1
 const MAGIC = Buffer.from('VELA-R2-BACKUP\0', 'ascii')
@@ -16,6 +17,10 @@ const AUTH_TAG_BYTES = 16
 const HEADER_BYTES = MAGIC.length + 1 + IV_BYTES
 const DEFAULT_OUTPUT_DIR = path.join(os.tmpdir(), 'vela-r2-backups')
 const RUN_LOG_NAME = 'backup-r2.log'
+const RUN_LOG_MAX_BYTES = 256 * 1024
+// sslmode que pode cair para conexão sem TLS (disable, allow, prefer) não serve
+// para levar o banco inteiro pela rede.
+const ALLOWED_SSLMODES = new Set(['require', 'verify-ca', 'verify-full'])
 
 function requiredValue(name, value) {
   if (!value) throw new Error(`${name} is obrigatoria para --execute.`)
@@ -87,7 +92,10 @@ function parseDatabaseUrl(rawUrl) {
     throw new Error('SUPABASE_DB_URL/DATABASE_URL deve usar o protocolo PostgreSQL.')
   }
   if (!url.username || !url.password) throw new Error('a URL PostgreSQL precisa conter usuario e senha.')
-  if (url.searchParams.get('sslmode') === 'disable') throw new Error('sslmode=disable e proibido no backup.')
+  const sslmode = url.searchParams.get('sslmode') ?? 'require'
+  if (!ALLOWED_SSLMODES.has(sslmode)) {
+    throw new Error(`sslmode=${sslmode} e proibido no backup; use require, verify-ca ou verify-full.`)
+  }
 
   return {
     env: {
@@ -96,7 +104,7 @@ function parseDatabaseUrl(rawUrl) {
       PGUSER: decodeURIComponent(url.username),
       PGPASSWORD: decodeURIComponent(url.password),
       PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, '')) || 'postgres',
-      PGSSLMODE: url.searchParams.get('sslmode') ?? 'require',
+      PGSSLMODE: sslmode,
     },
   }
 }
@@ -133,7 +141,8 @@ Uso:
 --execute exige SUPABASE_DB_URL ou DATABASE_URL, BACKUP_ENCRYPTION_KEY_HEX,
 R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY e aws CLI.
 Nenhum valor de segredo e impresso; a chave de cifragem nao e armazenada no
-manifesto. --allow-production exige tambem BACKUP_ALLOW_PRODUCTION=YES.
+manifesto. Producao (rotulo production, --project-ref ou URL do banco de
+producao) exige --allow-production e BACKUP_ALLOW_PRODUCTION=YES.
 `)
 }
 
@@ -154,15 +163,45 @@ function planFor(args) {
   }
 }
 
-function childEnvironment(databaseEnv = {}) {
-  const env = { ...process.env, ...databaseEnv }
-  delete env.DATABASE_URL
-  delete env.SUPABASE_DB_URL
-  delete env.PGPASSWORD_RAW
-  delete env.BACKUP_ENCRYPTION_KEY_HEX
-  delete env.R2_ACCESS_KEY_ID
-  delete env.R2_SECRET_ACCESS_KEY
+// Nomes de variável que carregam segredo: URLs de banco, senhas, tokens, chaves
+// de acesso, a chave AES e a URL do heartbeat. O filtro é por nome para pegar
+// também o que o computador do backup tiver a mais no ambiente.
+const SECRET_ENV_NAME = /DATABASE_URL|DB_URL|PASSWORD|PGPASS|SECRET|TOKEN|ACCESS_KEY|ENCRYPTION_KEY|HEARTBEAT/i
+
+// Cópia do ambiente sem segredos e sem as variáveis dos prefixos pedidos. O
+// resto (PATH, SystemRoot, TEMP, proxy) continua, porque os binários precisam.
+function strippedEnvironment(source, dropPrefixes = []) {
+  const env = {}
+  for (const [name, value] of Object.entries(source)) {
+    if (SECRET_ENV_NAME.test(name)) continue
+    if (dropPrefixes.some((prefix) => name.toUpperCase().startsWith(prefix))) continue
+    env[name] = value
+  }
   return env
+}
+
+// pg_dump recebe só a conexão já separada em PG*; nunca a URL, a chave AES ou o R2.
+function pgDumpEnvironment(databaseEnv, source = process.env) {
+  return { ...strippedEnvironment(source, ['AWS_', 'R2_']), ...databaseEnv }
+}
+
+// pg_restore --list só lê o stdin: nenhuma variável de conexão ou segredo.
+function pgRestoreEnvironment(source = process.env) {
+  return strippedEnvironment(source, ['PG', 'AWS_', 'R2_'])
+}
+
+// aws recebe só a credencial do R2 nas variáveis AWS_* que ela lê; nenhum
+// AWS_* herdado (perfil, token de sessão) se mistura com essa credencial.
+function awsEnvironment(config, source = process.env) {
+  return {
+    ...strippedEnvironment(source, ['AWS_', 'PG']),
+    AWS_ACCESS_KEY_ID: config.accessKeyId,
+    AWS_SECRET_ACCESS_KEY: config.secretAccessKey,
+    AWS_REGION: 'auto',
+    AWS_ENDPOINT_URL: config.endpoint,
+    AWS_EC2_METADATA_DISABLED: 'true',
+    AWS_PAGER: '',
+  }
 }
 
 function waitForClose(child, label) {
@@ -196,7 +235,7 @@ async function encryptPgDump({ destination, databaseEnv, key }) {
     '--no-privileges',
     // Sem --file: o dump sai no stdout. pg_dump no Windows trata --file=- como
     // um arquivo chamado "-" e grava o banco em texto claro no diretório atual.
-  ],{ env: childEnvironment(databaseEnv), stdio: ['ignore', 'pipe', 'pipe'] })
+  ],{ env: pgDumpEnvironment(databaseEnv), stdio: ['ignore', 'pipe', 'pipe'] })
   const pgDumpStderr = drain(pgDump.stderr)
   const cipher = createCipheriv('aes-256-gcm', key, iv)
   const output = createWriteStream(destination, { flags: 'a' })
@@ -273,6 +312,7 @@ async function verifyArchive(filePath, key) {
   decipher.setAuthTag(tag)
   const input = createReadStream(filePath, { start: HEADER_BYTES, end: fileSize - AUTH_TAG_BYTES - 1 })
   const restore = spawn(process.env.PG_RESTORE_BIN ?? 'pg_restore', ['--list', '--exit-on-error'], {
+    env: pgRestoreEnvironment(),
     stdio: ['pipe', 'ignore', 'pipe'],
   })
   const restoreStderr = drain(restore.stderr)
@@ -315,23 +355,25 @@ function r2Config() {
   }
 }
 
-function assertExecuteAllowed(args) {
-  if (args.environment === 'production' && !(args.allowProduction && process.env.BACKUP_ALLOW_PRODUCTION === 'YES')) {
-    throw new Error('production bloqueada: use --allow-production e BACKUP_ALLOW_PRODUCTION=YES apos aprovacao operacional.')
+// O rótulo --environment não basta: a URL de produção sob outro rótulo também
+// é produção. Como em provision-preview-admin.mjs, o ref aparece no host da
+// conexão direta (db.<ref>.supabase.co) e no usuário do pooler (postgres.<ref>).
+function targetsProduction(args, databaseEnv = {}, productionRef = PRODUCTION_SUPABASE_PROJECT_REF) {
+  if (args.environment === 'production' || args.projectRef === productionRef) return true
+  const host = String(databaseEnv.PGHOST ?? '').toLowerCase().split('.')
+  const user = String(databaseEnv.PGUSER ?? '').toLowerCase().split('.')
+  return host.includes(productionRef) || user.includes(productionRef)
+}
+
+function assertExecuteAllowed(args, databaseEnv) {
+  if (targetsProduction(args, databaseEnv) && !(args.allowProduction && process.env.BACKUP_ALLOW_PRODUCTION === 'YES')) {
+    throw new Error('production bloqueada (rotulo, project-ref ou URL do banco de producao): use --allow-production e BACKUP_ALLOW_PRODUCTION=YES apos aprovacao operacional.')
   }
 }
 
 async function uploadToR2({ filePath, objectKey, config, contentType }) {
   const target = `s3://${config.bucket}/${objectKey}`
-  const env = {
-    ...process.env,
-    AWS_ACCESS_KEY_ID: config.accessKeyId,
-    AWS_SECRET_ACCESS_KEY: config.secretAccessKey,
-    AWS_REGION: 'auto',
-    AWS_ENDPOINT_URL: config.endpoint,
-    AWS_EC2_METADATA_DISABLED: 'true',
-    AWS_PAGER: '',
-  }
+  const env = awsEnvironment(config)
   const cliArgs = [
     's3', 'cp', filePath, target,
     '--endpoint-url', config.endpoint,
@@ -347,8 +389,8 @@ async function uploadToR2({ filePath, objectKey, config, contentType }) {
 }
 
 async function executeBackup(args) {
-  assertExecuteAllowed(args)
   const database = parseDatabaseUrl(process.env.SUPABASE_DB_URL ?? process.env.DATABASE_URL)
+  assertExecuteAllowed(args, database.env)
   const key = parseEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY_HEX)
   const r2 = r2Config()
   const createdAt = new Date()
@@ -387,9 +429,23 @@ async function executeBackup(args) {
     await uploadToR2({ filePath: encryptedPath, objectKey: names.dumpKey, config: r2 })
     await uploadToR2({ filePath: manifestPath, objectKey: names.manifestKey, config: r2, contentType: 'application/json' })
     console.log(`upload concluido no prefixo R2: ${args.prefix}/${args.environment}/${args.projectRef}/`)
+    // Validado com pg_restore e aceito pelo R2 (aws s3 cp confere o checksum):
+    // a cópia local só acumularia dumps na pasta temporária. Se o upload falha,
+    // dump e manifesto ficam para o operador reenviar.
+    await removeLocalCopies([encryptedPath, manifestPath])
     return names.dumpKey
   } finally {
     await unlink(partPath).catch(() => {})
+  }
+}
+
+async function removeLocalCopies(paths) {
+  for (const filePath of paths) {
+    try {
+      await unlink(filePath)
+    } catch (error) {
+      console.error(`backup-r2: copia local nao removida (${path.basename(filePath)}: ${error.code ?? error.message}).`)
+    }
   }
 }
 
@@ -430,15 +486,18 @@ async function pingHeartbeat(ok, fetchImpl = globalThis.fetch) {
   }
 }
 
-// A tarefa agendada descarta o que o script imprime; este arquivo, ao lado dos
-// dumps, guarda uma linha por execução com o resultado e o motivo da falha.
-// ponytail: cresce uma linha por dia e nunca é podado; se incomodar, rotacione
-// por tamanho aqui.
+// A tarefa agendada descarta o que o script imprime; este arquivo, na pasta de
+// saída, guarda uma linha por execução com o resultado e o motivo da falha.
+// ponytail: rotação simples por tamanho, com uma única geração anterior
+// (`backup-r2.log.1`); a 256 KiB são anos de execuções diárias.
 async function appendRunLog(outputDir, line) {
   try {
     const dir = path.resolve(outputDir)
     await mkdir(dir, { recursive: true })
-    await appendFile(path.join(dir, RUN_LOG_NAME), `${new Date().toISOString()} ${line}\n`)
+    const logPath = path.join(dir, RUN_LOG_NAME)
+    const size = await stat(logPath).then((info) => info.size, () => 0)
+    if (size >= RUN_LOG_MAX_BYTES) await rename(logPath, `${logPath}.1`)
+    await appendFile(logPath, `${new Date().toISOString()} ${line}\n`)
   } catch (error) {
     console.error(`backup-r2: registro da execucao nao gravado (${error.message}).`)
   }
@@ -469,4 +528,20 @@ if (isMain) {
   })
 }
 
-export { buildObjectNames, consumeArchive, heartbeatUrl, parseArgs, parseDatabaseUrl, parseEncryptionKey, pingHeartbeat, planFor, verifyArchive }
+export {
+  appendRunLog,
+  assertExecuteAllowed,
+  awsEnvironment,
+  buildObjectNames,
+  consumeArchive,
+  heartbeatUrl,
+  parseArgs,
+  parseDatabaseUrl,
+  parseEncryptionKey,
+  pgDumpEnvironment,
+  pgRestoreEnvironment,
+  pingHeartbeat,
+  planFor,
+  targetsProduction,
+  verifyArchive,
+}
