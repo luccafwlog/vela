@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Pix recebidos mostra o que o Itaú manda (2026-10-23):** sem migration. A conferência em
+  produção mostrou que a consulta de recebimentos não traz nome nem CPF/CNPJ de quem pagou. A
+  coluna Pagador sai e dá lugar à **Mensagem do pagador**; a linha aberta só mostra identificador da
+  cobrança, chave, nome e documento quando vêm, e as parcelas do valor em português, sem as
+  zeradas. A busca e as sugestões de fatura falam em mensagem e valor.
 - **Todo Pix recebido pelo Itaú fica gravado (2026-10-23):** migrations `442` a `446`,
   [ADR 0100](adr/0100-todo-pix-recebido-fica-gravado.md). A consulta de recebimentos já trazia
   todo Pix que entra na conta da Transhipping; agora a `itau-pix` entrega cada um a

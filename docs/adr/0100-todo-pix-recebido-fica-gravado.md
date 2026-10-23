@@ -4,7 +4,10 @@
 > da publicação: nome, CPF/CNPJ e mensagem do pagador e o retorno do banco
 > aparecem para todo usuário interno ativo, e a busca por pagador vale para
 > todos (migration `445`). Conciliar continua do Financeiro e do
-> Administrativo. Regra vigente em
+> Administrativo. Em produção, o Itaú não mandou `pagador` em nenhum Pix
+> (conferido em 2026-10-23): a aba mostra a mensagem do pagador no lugar da
+> coluna Pagador, e nome e CPF/CNPJ só aparecem na linha aberta se um dia
+> vierem. Regra vigente em
 > [Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos).
 
 Status: aceito — 2026-10-23 (pedido do responsável, ao saber que a consulta da
