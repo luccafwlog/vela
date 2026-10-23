@@ -6,6 +6,8 @@ describe('searchTerms', () => {
   it('quebra em espaço, vírgula, ponto e vírgula e quebra de linha; um termo só não vira lista', () => {
     expect(searchTokens('MEDU1, medu2;\nMEDU3  MEDU1')).toEqual(['medu1', 'medu2', 'medu3'])
     expect(searchTokens('MEDU1')).toEqual([])
+    // Coluna colada com o mesmo número em toda linha continua sendo lista.
+    expect(searchTokens('MEDU1\nMEDU1')).toEqual(['medu1'])
     expect(searchTokens('  ')).toEqual([])
   })
 

@@ -90,6 +90,7 @@ describeLocal('453 — busca por vários B/Ls e contêineres', () => {
     expect(bls(`${BLS[0]}, ${BLS[2]}`)).toEqual([BLS[0], BLS[2]])
     expect(bls(`${BLS[0]};${BLS[1]}\n${BLS[2]}`)).toEqual(BLS)
     expect(summary(`${BLS[0]} ${BLS[1]}`)).toBe(2)
+    expect(bls(`${BLS[1]}\n${BLS[1]}`)).toEqual([BLS[1]])
   })
 
   it('um termo só e o texto inteiro seguem a busca de antes', () => {

@@ -6,8 +6,10 @@
 
 /** Termos em minúsculas, só quando são dois ou mais; um termo só devolve []. */
 export function searchTokens(query: string): string[] {
-  const tokens = [...new Set(query.toLowerCase().split(/[\s,;]+/).filter(Boolean))]
-  return tokens.length >= 2 ? tokens : []
+  // É lista quando há dois ou mais termos antes de tirar os repetidos: a
+  // coluna colada com o mesmo B/L em toda linha continua achando esse B/L.
+  const terms = query.toLowerCase().split(/[\s,;]+/).filter(Boolean)
+  return terms.length >= 2 ? [...new Set(terms)] : []
 }
 
 /** Algum termo da lista colada aparece em algum dos números (B/L, contêiner). */

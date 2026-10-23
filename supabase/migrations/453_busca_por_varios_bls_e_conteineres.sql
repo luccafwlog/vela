@@ -27,9 +27,11 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path TO 'public', 'pg_temp'
 AS $function$
-  SELECT CASE WHEN cardinality(t) >= 2 THEN t ELSE ARRAY[]::text[] END
+  -- Lista é contada antes de tirar os repetidos (coluna com o mesmo B/L).
+  SELECT CASE WHEN n >= 2 THEN t ELSE ARRAY[]::text[] END
   FROM (
-    SELECT COALESCE(array_agg(DISTINCT x) FILTER (WHERE x <> ''), ARRAY[]::text[]) AS t
+    SELECT count(*) FILTER (WHERE x <> '') AS n,
+      COALESCE(array_agg(DISTINCT x) FILTER (WHERE x <> ''), ARRAY[]::text[]) AS t
     FROM regexp_split_to_table(COALESCE(p_search, ''), '[\s,;]+') AS x
   ) s;
 $function$;
