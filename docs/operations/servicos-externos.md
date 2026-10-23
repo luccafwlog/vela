@@ -1116,7 +1116,18 @@ gravado como recebido). Depois do merge na `main`, confira:
 
 1. `SELECT proname FROM pg_proc WHERE proname IN ('itau_pix_receive', 'list_itau_pix_receipts', 'itau_pix_settle_received');` devolve as três.
 2. Em Supabase → Edge Functions, `itau-pix` com a data do merge; as rodadas seguintes respondem 200 e o checkpoint anda.
-3. Depois do primeiro Pix recebido, `SELECT jsonb_object_keys(raw) FROM itau_pix_receipts WHERE raw IS NOT NULL LIMIT 20;` mostra os campos que o Itaú manda; se houver `pagador`, a aba mostra nome e CPF/CNPJ. Esse é o primeiro registro de produção do contrato do pagador.
+3. Depois do primeiro Pix recebido, `SELECT jsonb_object_keys(raw) FROM itau_pix_receipts WHERE raw IS NOT NULL LIMIT 20;` mostra os campos que o Itaú manda; se houver `pagador`, a aba mostra nome e CPF/CNPJ.
+
+Conferido em 2026-10-23, depois da publicação (`442`–`443` com a PR
+luccafwlog/vela#1050 e `444`–`446` com a luccafwlog/vela#1053): as funções
+existem, a `itau-pix` foi republicada às 18h14 UTC e o checkpoint seguia a
+menos de 1 minuto da hora, sem falhas. Nos seis primeiros Pix gravados com o
+retorno, o Itaú mandou `endToEndId`, `valor` e `horario` em todos,
+`infoPagador` em três, `chave` em dois e, só no Pix de outro sistema, `txid` e
+`componentesValor` (original, juros, multa, desconto e abatimento). **Nenhum
+trouxe `pagador` nem `devedor`**: a consulta de recebimentos segue o padrão do
+Banco Central, sem nome nem CPF/CNPJ de quem pagou. A aba Pix recebidos mostra
+o que vem ([Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos)).
 
 **Sandbox (só testes, desde 2026-10-06).** Aplicação de sandbox criada pelo
 dono no [Itaú for Developers](https://devportal.itau.com.br), na conta dele.

@@ -586,8 +586,10 @@ describe('Conciliação PIX', () => {
     const rows = [
       { ...receipt, endToEndId: 'E1', origin: 'vela' as const, txid: 'VELA1', amount: 1000, situation: 'settled' as const, settledBy: 'itau' as const,
         settled: { source: 'local' as const, invoiceId: 11, docNumber: 'INV-2026-0011' } },
-      { ...receipt, endToEndId: 'E2', payerName: 'Pagador Sem QR', payerDocument: '12345678000190', payerMessage: 'B/L ABC123',
-        raw: { endToEndId: 'E2', valor: '120.00', chave: '06352972000121', componentesValor: { original: { valor: '120.00' } } } },
+      // Como o Itaú manda de fato (2026-10-23): sem pagador e sem chave; a mensagem às vezes.
+      { ...receipt, endToEndId: 'E2', pixKey: null, payerMessage: 'B/L ABC123',
+        raw: { endToEndId: 'E2', valor: '120.00', horario: '2026-10-06T15:01:00Z', infoPagador: 'B/L ABC123',
+          componentesValor: { original: { valor: '110.00' }, juros: { valor: '10.00' }, multa: { valor: '0.00' } } } },
       { ...receipt, endToEndId: 'E3', origin: 'other' as const, txid: '88ba8ec675e044178d434908d9b2a30a', amount: 50 },
       { ...receipt, endToEndId: 'E4', origin: 'vela' as const, txid: 'VELA4', amount: 5, situation: 'review' as const,
         reason: 'Valor recebido difere do valor da cobrança.', charge: { source: 'demurrage' as const, invoiceId: 31, docNumber: 'DEM-31' } },
@@ -608,9 +610,12 @@ describe('Conciliação PIX', () => {
       const user = userEvent.setup()
       renderPage('/reconciliacao?tab=recebidos')
       const block = (await screen.findByRole('heading', { name: 'Pix recebidos' })).closest('section')!
-      expect(await within(block).findByText('Pagador Sem QR')).toBeTruthy()
+      expect(await within(block).findByText('B/L ABC123')).toBeTruthy()
       expect(within(block).getByText(/4 Pix · R\$\s1\.175,00/)).toBeTruthy()
-      expect(within(block).getByRole('columnheader', { name: 'Pagador' })).toBeTruthy()
+      // O Itaú não manda o pagador: a coluna é a mensagem dele, quando houver.
+      expect(within(block).getByRole('columnheader', { name: 'Mensagem do pagador' })).toBeTruthy()
+      expect(within(block).queryByRole('columnheader', { name: 'Pagador' })).toBeNull()
+      expect(within(block).getAllByText('Sem mensagem').length).toBe(3)
       expect(within(block).getByText('Outro sistema')).toBeTruthy()
       expect(within(block).getAllByText('Sem identificador').length).toBe(1)
       expect(within(block).getByText('Baixa automática').closest('.app-status-text')).toBeNull()
@@ -631,12 +636,16 @@ describe('Conciliação PIX', () => {
       authState.role = 'financeiro'
       const user = userEvent.setup()
       const { invalidate } = renderPage('/reconciliacao?tab=recebidos')
-      await screen.findByText('Pagador Sem QR')
+      await screen.findByText('B/L ABC123')
       await user.click(screen.getByRole('button', { name: /Abrir detalhe do Pix de R\$\s120,00/ }))
       expect(screen.getByText('E2')).toBeTruthy()
-      expect(screen.getByText('B/L ABC123')).toBeTruthy()
-      expect(screen.getByText('12.345.678/0001-90')).toBeTruthy()
-      expect(screen.getByText('componentesValor › original › valor')).toBeTruthy()
+      // Só o que veio: sem pagador, chave nem identificador da cobrança; parcelas do valor sem as zeradas.
+      for (const absent of ['Pagador', 'CPF ou CNPJ do pagador', 'Chave Pix', 'Identificador da cobrança', 'Valor › Multa']) {
+        expect(screen.queryByText(absent)).toBeNull()
+      }
+      expect(screen.getByText('Valor › Juros')).toBeTruthy()
+      expect(screen.getByText('R$ 10,00')).toBeTruthy()
+      expect(screen.getByText('Valor › Original')).toBeTruthy()
       expect(await screen.findByRole('button', { name: 'INV-2026-0077' })).toBeTruthy()
       expect(mocks.listReceiptCandidates).toHaveBeenCalledWith('E2', '')
       // Valor diferente do Pix fica em âmbar na lista de faturas.
@@ -649,6 +658,17 @@ describe('Conciliação PIX', () => {
       await user.type(screen.getByLabelText('Número da fatura'), 'DEM-78')
       await user.click(screen.getByRole('button', { name: 'Procurar' }))
       await waitFor(() => expect(mocks.listReceiptCandidates).toHaveBeenCalledWith('E2', 'DEM-78'))
+    })
+
+    it('quando o Itaú manda pagador, chave ou identificador da cobrança, a linha aberta mostra', async () => {
+      mocks.listReceipts.mockResolvedValue({ total: 1, totalAmount: 50, rows: [{ ...rows[2], payerName: 'Pagador Informado', payerDocument: '12345678000190' }] })
+      const user = userEvent.setup()
+      renderPage('/reconciliacao?tab=recebidos')
+      await user.click(await screen.findByRole('button', { name: /Abrir detalhe do Pix de R\$\s50,00/ }))
+      expect(screen.getByText('Pagador Informado')).toBeTruthy()
+      expect(screen.getByText('12.345.678/0001-90')).toBeTruthy()
+      expect(screen.getByText('06352972000121')).toBeTruthy()
+      expect(screen.getByText('88ba8ec675e044178d434908d9b2a30a')).toBeTruthy()
     })
 
     it('Pix de cobrança do Vela com a baixa cancelada fica sem baixa e sem a baixa opcional', async () => {
@@ -665,23 +685,21 @@ describe('Conciliação PIX', () => {
       mocks.settleReceipt.mockRejectedValueOnce(new Error('Valor divergente das duas ultimas fotos financeiras da Demurrage 78.'))
       const user = userEvent.setup()
       renderPage('/reconciliacao?tab=recebidos')
-      await screen.findByText('Pagador Sem QR')
+      await screen.findByText('B/L ABC123')
       await user.click(screen.getByRole('button', { name: /Abrir detalhe do Pix de R\$\s120,00/ }))
       await user.click(await screen.findByRole('button', { name: 'Baixar o Pix na fatura DEM-78' }))
       expect(await screen.findByText(/Nenhuma baixa foi gravada: Valor divergente/)).toBeTruthy()
     })
 
-    it('sem conciliar: vê o pagador, mas a linha aberta não tem a baixa', async () => {
+    it('sem conciliar: vê a mensagem do pagador, mas a linha aberta não tem a baixa', async () => {
       authState.isAdmin = false
       authState.role = 'operacoes'
       mocks.listReceipts.mockResolvedValue({ total: 1, totalAmount: 120, rows: [rows[1]] })
       const user = userEvent.setup()
       renderPage('/reconciliacao?tab=recebidos')
-      expect(await screen.findByText('Pagador Sem QR')).toBeTruthy()
-      expect(screen.getByRole('columnheader', { name: 'Pagador' })).toBeTruthy()
+      expect(await screen.findByText('B/L ABC123')).toBeTruthy()
       await user.click(screen.getByRole('button', { name: /Abrir detalhe do Pix/ }))
       expect(screen.getByText('E2')).toBeTruthy()
-      expect(screen.getByText('B/L ABC123')).toBeTruthy()
       expect(screen.queryByText(/Baixar numa fatura/)).toBeNull()
       expect(mocks.listReceiptCandidates).not.toHaveBeenCalled()
     })
@@ -698,7 +716,7 @@ describe('Conciliação PIX', () => {
       expect(await screen.findByText('Valor ilegível: use 1.234,56.')).toBeTruthy()
       // O recorte anterior não fica na tabela como se fosse deste valor.
       expect(screen.getByText('Corrija o valor do filtro')).toBeTruthy()
-      expect(screen.queryByText('Pagador Sem QR')).toBeNull()
+      expect(screen.queryByText('B/L ABC123')).toBeNull()
       expect(mocks.listReceipts).not.toHaveBeenCalledWith(expect.objectContaining({ amount: Number.NaN }))
     })
   })

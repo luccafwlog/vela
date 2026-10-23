@@ -127,27 +127,34 @@ feita em Pendências.
 - **Filtros** (na URL, com o prefixo `pix` para não colidir com os do
   histórico): Recebido de e até (dias de Brasília), Situação (Sem baixa, Com
   baixa, Em análise, Tratado), Origem (Cobrança do Vela, Sem identificador,
-  Outro sistema, Teste do Vela), Valor e Buscar (identificador do Pix, da
-  cobrança ou número da fatura; nome, documento e mensagem do pagador). Valor ilegível avisa no campo e não consulta.
+  Outro sistema, Teste do Vela), Valor e Buscar (mensagem do pagador,
+  identificador do Pix, da cobrança ou número da fatura; também nome e
+  documento do pagador, se o Itaú os mandar). Valor ilegível avisa no campo e não consulta.
 - **Bloco Pix recebidos**, com "N Pix · R$ X" do recorte na faixa e a tabela
-  limpa: Recebido em (Brasília), Valor, Pagador, Origem, Situação e Fatura (a
-  da baixa ou, sem baixa, a da cobrança do Vela, abrindo o detalhe). Situação em
+  limpa: Recebido em (Brasília), Valor, Mensagem do pagador (texto inteiro,
+  quebrando linha; "—" sem mensagem), Origem, Situação e Fatura (a da baixa ou,
+  sem baixa, a da cobrança do Vela, abrindo o detalhe). Situação em
   texto: Baixa automática, Baixa pelo extrato, Baixa manual, Sem baixa, Tratado
   e "Em análise" em âmbar. Paginação no rodapé (20, 50 ou 100) e relida a cada minuto.
-- **Pagador** para todo usuário interno ativo (migration `445`; da `442` à
-  `444` era só do Financeiro e do Administrativo): nome e CPF/CNPJ quando o
-  Itaú manda o campo `pagador` (ou `devedor`); sem ele, "Pagador não informado
-  pelo Itaú".
-- **Linha aberta** (seta): identificador do Pix (com copiar), identificador da
-  cobrança, chave Pix, recebido e gravado em, origem, pagador, CPF/CNPJ,
-  mensagem do pagador, fatura da baixa, cobrança do Vela, motivo da análise,
-  tratamento e, achatado em rótulo e valor, o que mais o banco mandou
-  (componentes do valor, devoluções), até 30 campos.
+- **O que o Itaú manda** (conferido em produção em 2026-10-23,
+  [serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos)): sempre o
+  identificador do Pix, o valor e o horário; às vezes a mensagem do pagador
+  (`infoPagador`) e a chave; no Pix de outro sistema, o identificador da
+  cobrança e as parcelas do valor. O nome e o CPF/CNPJ de quem pagou não vêm,
+  por isso a tabela não tem coluna Pagador. Tudo o que a tela mostra vale para
+  todo usuário interno ativo (migration `445`; da `442` à `444` o pagador e o
+  retorno do banco eram só do Financeiro e do Administrativo).
+- **Linha aberta** (seta): identificador do Pix (com copiar), recebido e
+  gravado em, origem, fatura da baixa, cobrança do Vela, motivo da análise e
+  tratamento; o identificador da cobrança, a chave, o nome e o CPF/CNPJ do
+  pagador só quando o Itaú os manda; e o que mais o banco mandou, em rótulo e
+  valor (parcelas do valor que não são zero, como juros e desconto, a original
+  só quando difere do total, e devoluções), até 30 campos.
 - **Baixar numa fatura (opcional)**, na linha aberta de um Pix sem baixa que
   não é de cobrança do Vela, para o Financeiro e o Administrativo: a lista
   sugere as faturas abertas (Taxas Locais, avulsa e Invoice de Demurrage) com o
-  mesmo valor em aberto e as do Cliente com o documento do pagador, este
-  primeiro; **Procurar** pelo número troca as sugestões pela fatura procurada.
+  mesmo valor em aberto (e as do Cliente com o documento do pagador, este
+  primeiro, se o Itaú um dia o mandar); **Procurar** pelo número troca as sugestões pela fatura procurada.
   A tabela da lista tem Fatura, Origem, Cliente, Em aberto (âmbar quando difere
   do Pix) e o ícone **Baixar nesta fatura**. A baixa usa o valor e o horário do
   Pix e grava o identificador do Pix como referência bancária, pelos mesmos
