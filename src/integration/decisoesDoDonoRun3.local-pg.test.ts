@@ -2,11 +2,11 @@ import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migrations 424 a 428 (auditoria run-3, decisões do dono de 2026-10-22):
+// Migrations 424 a 429 (auditoria run-3, decisões do dono de 2026-10-22):
 // dispensa de alerta até 30 dias, Demurrage reemitida sem o desconto, Dispute
 // nova só em fatura não paga, ROE manual do B/L e CNPJ do Cliente só por
-// função, limites do bucket do Desbloqueio de CE. Tudo roda numa transação
-// descartada no fim.
+// função, limites do bucket do Desbloqueio de CE e um segredo por rotina no
+// cron. Tudo roda numa transação descartada no fim.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
@@ -34,7 +34,8 @@ function decisionsApplied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT to_regprocedure('public.set_bl_manual_roe(text,numeric,text)') IS NOT NULL
-      AND to_regprocedure('public.dismiss_alert_item_core_424(bigint,text,timestamp with time zone)') IS NOT NULL;`) === 't'
+      AND to_regprocedure('public.dismiss_alert_item_core_424(bigint,text,timestamp with time zone)') IS NOT NULL
+      AND to_regprocedure('ops.preferred_vault_secret(text,text)') IS NOT NULL;`) === 't'
   } catch {
     return false
   }
@@ -88,9 +89,9 @@ function scenario(sql: string): string[] {
     '-c', `BEGIN; ${FIXTURES} ${sql} ROLLBACK;`], { encoding: 'utf8' }).trim().split(/\r?\n/)
 }
 
-const describeLocal = describeWithProbe(decisionsApplied, 'decisionsApplied (migrations 424 a 428)')
+const describeLocal = describeWithProbe(decisionsApplied, 'decisionsApplied (migrations 424 a 429)')
 
-describeLocal('424 a 428 — decisões do dono da auditoria run-3', () => {
+describeLocal('424 a 429 — decisões do dono da auditoria run-3', () => {
   it('424: dispensa vai até o fim do 30º dia e não além', () => {
     const endOfDay30 = `(date_trunc('day', now() AT TIME ZONE 'UTC') + interval '30 days 23:59:59') AT TIME ZONE 'UTC'`
     const day31 = `(date_trunc('day', now() AT TIME ZONE 'UTC') + interval '31 days') AT TIME ZONE 'UTC'`
@@ -172,5 +173,15 @@ describeLocal('424 a 428 — decisões do dono da auditoria run-3', () => {
     expect(psql(`SELECT concat_ws('|', file_size_limit, array_to_string(allowed_mime_types, ','))
       FROM storage.buckets WHERE id = 'ce-unlock-documents'`))
       .toBe('10485760|application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+  })
+
+  it('429: o cron da fila Itaú usa o segredo próprio quando ele está no Vault, e o antigo enquanto não está', () => {
+    expect(psql(`SELECT command FROM cron.job WHERE jobname = 'itau-pix-queue'`))
+      .toBe(`SELECT ops.dispatch_edge_job('itau-pix', ops.preferred_vault_secret('ITAU_PIX_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET'));`)
+    expect(scenario(`
+      SELECT ops.preferred_vault_secret('ITAU_PIX_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET');
+      INSERT INTO vault.secrets (name, secret) VALUES ('ITAU_PIX_CRON_SECRET', 'segredo-da-rotina-c424');
+      SELECT ops.preferred_vault_secret('ITAU_PIX_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET');
+    `).slice(-2)).toEqual(['ITAU_PIX_ADMIN_SECRET', 'ITAU_PIX_CRON_SECRET'])
   })
 })

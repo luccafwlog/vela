@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Decisões do dono sobre a auditoria de segurança run-3 (2026-10-23):** migrations `424` a
+  `429`. Dispensa de alerta até o 30º dia; Invoice de Demurrage reemitida para o novo Cliente sem o
+  desconto do anterior; Dispute nova do Portal só em Invoice não paga; ROE manual do B/L só por
+  função, com motivo, para Financeiro, Administrativo e Equipamentos (ação na ficha do B/L), e
+  Equipamentos também tira o da Invoice; CNPJ do Cliente só por `update_customer_with_audit`, com
+  justificativa (UPDATE de `customers` por coluna); bucket do Desbloqueio de CE com 10 MB, PDF e
+  DOCX; um segredo por rotina (`ITAU_PIX_CRON_SECRET`, `ITAU_PIX_DIAGNOSTIC_SECRET`,
+  `CE_UNLOCK_NOTIFY_SECRET`, com transição). Portal sem a senha pura legada; Turnstile só com
+  hostnames configurados fora do stack local. Login da equipe e conferência da senha atual com o
+  Turnstile para o captcha do Auth, conferência de senha das Edges do Portal com credencial de
+  administrador, sessão de 12 h na staging e nos previews. Preview não provisiona admin na
+  staging; promoção `staging` → `main` no push, com o token no environment `staging-release`.
+  Desconto integral segue com todos os setores (nota na ADR 0085). Fixar dependências das Edge
+  Functions e tirar o PostHog da CSP ficaram para a [rodada própria](plans/2026-10-23-reforcos-adiados-da-auditoria-run-3.md).
 - **Reforços da auditoria de segurança run-3 (2026-10-22, notas de endurecimento):** migrations
   `410` a `423`. Banco: guardas de permissão antes das travas (baixa de 8 argumentos, rascunho do
   Desbloqueio de CE), rotinas só do sistema recusam outro chamador, Cliente desativado sai do Portal

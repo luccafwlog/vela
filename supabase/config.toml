@@ -271,10 +271,15 @@ token_verifications = 30
 web3 = 30
 
 # Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
+# Captcha do Auth (auditoria run-3, decisão do dono de 2026-10-22): ligado só
+# na produção, pelo painel (Authentication → Attack Protection, Turnstile, com
+# o segredo do mesmo widget de VITE_TURNSTILE_SITE_KEY). Aqui fica desligado:
+# esta configuração vale para a staging e os previews, onde testes e scripts
+# entram por senha sem desafio. A tela de login da equipe já manda o token.
 # [auth.captcha]
 # enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# provider = "turnstile"
+# secret = "env(SUPABASE_AUTH_CAPTCHA_SECRET)"
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
@@ -331,9 +336,11 @@ max_frequency = "5s"
 # 4152127777 = "123456"
 
 # Configure logged in session timeouts.
-# [auth.sessions]
-# Force log out after the specified duration.
-# timebox = "24h"
+[auth.sessions]
+# Sessão encerra 12 h depois do login, para a equipe e o Portal (auditoria
+# run-3, decisão do dono de 2026-10-22). Vale para a staging e os previews por
+# esta configuração; a produção liga no painel (Authentication → Sessions).
+timebox = "12h"
 # Force log out if the user has been inactive longer than the specified duration.
 # inactivity_timeout = "8h"
 

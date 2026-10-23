@@ -5,6 +5,13 @@ no caminho até a produção. Não altera o que o CI confere
 ([ADR 0086](./0086-ci-confere-na-medida-da-mudanca.md)) nem o hosting
 ([ADR 0076](./0076-cloudflare-pages-como-hosting.md)).
 
+> **Situação atual (2026-10-22, auditoria de segurança run-3).** Os itens 3 e 5
+> valem com dois ajustes decididos pelo dono: o workflow da promoção dispara no
+> push na `staging` (o merge de uma PR), e não mais no fechamento da PR, e
+> `STAGING_TO_MAIN_TOKEN` mora no environment GitHub `staging-release`,
+> restrito à branch `staging`. O check `main-only-from-staging` passa a ser
+> obrigatório na proteção da `main` (passo do dono).
+
 Regra vigente em [WORKFLOW.md](../../WORKFLOW.md#promoção-da-staging-para-a-main)
 e em [Deploy](../setup/deploy.md#workflows).
 

@@ -880,17 +880,24 @@ na integração, não inferida da existência da PR.
 
 PR de feature abre contra `staging`. O check `main-only-from-staging`
 (`.github/workflows/main-only-from-staging.yml`) falha quando a PR contra a
-`main` não vem da branch `staging` deste repositório. O merge de uma PR na
-`staging` dispara `.github/workflows/staging-to-main-pr.yml`, que abre a PR
-`staging` → `main` ou atualiza a que já estiver aberta. O merge na `main`
+`main` não vem da branch `staging` deste repositório. O push na `staging` (o
+merge de uma PR) dispara `.github/workflows/staging-to-main-pr.yml`, que acha a
+PR mergeada pelo commit, abre a PR `staging` → `main` ou atualiza a que já
+estiver aberta. O merge na `main`
 continua manual: é esse push que publica a produção. A lista de PRs no corpo
 sai do assunto dos commits (`título (#n)` ou `Merge pull request #n`).
 
-O secret de repositório `STAGING_TO_MAIN_TOKEN` (PAT fine-grained só deste
-repositório, Contents em leitura e Pull requests em escrita) faz o CI dessa PR
-começar sozinho. Sem ele, o workflow usa o `GITHUB_TOKEN` e o CI fica
-esperando aprovação. Marcar o check como obrigatório, trocar a branch padrão
-para `staging` e criar o secret são passos do dono, fora do workflow. Regra
+O secret `STAGING_TO_MAIN_TOKEN` (PAT fine-grained só deste repositório,
+Contents em leitura e Pull requests em escrita) faz o CI dessa PR começar
+sozinho. Desde a auditoria run-3 (decisão do dono de 2026-10-22) ele mora no
+environment GitHub `staging-release`, restrito à branch `staging`, e não mais
+nos secrets do repositório: só um job rodando na `staging` o lê. Por isso o
+gatilho é o push, e não o fechamento da PR (no evento de PR o GitHub confere a
+restrição contra `refs/pull/N/merge`). Sem o secret no environment, o workflow
+usa o `GITHUB_TOKEN` e o CI fica esperando aprovação. Marcar o check
+`main-only-from-staging` como obrigatório na proteção da `main`, trocar a
+branch padrão para `staging`, criar o environment com a restrição e mover o
+secret para ele são passos do dono, fora do workflow. Regra
 em [ADR 0091](docs/adr/0091-promocao-feature-staging-main.md) e em
 [Deploy](docs/setup/deploy.md#workflows).
 

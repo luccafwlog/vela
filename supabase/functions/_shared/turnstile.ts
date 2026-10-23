@@ -78,12 +78,18 @@ function requestHostname(request: Request): string | null {
   }
 }
 
-function configuredHostnames(raw: string | undefined): string[] {
+/**
+ * Hostnames aceitos no desafio. Sem `TURNSTILE_ALLOWED_HOSTNAMES`, só o stack
+ * local tem padrão (auditoria run-3, decisão do dono de 2026-10-22): fora dele
+ * nenhum hostname vale e o desafio é recusado, em vez de aceitar `localhost`
+ * em produção.
+ */
+export function configuredHostnames(raw: string | undefined, local: boolean): string[] {
   const list = (raw ?? '').split(',').map((hostname) => hostname.trim()).filter(Boolean)
-  if (list.length === 0) {
-    return ['portalfwlog.com.br', 'localhost', '127.0.0.1']
-  }
-  return list
+  if (list.length > 0) return list
+  if (local) return ['localhost', '127.0.0.1']
+  console.error('[turnstile] TURNSTILE_ALLOWED_HOSTNAMES ausente: desafio recusado.')
+  return []
 }
 
 export function isLocalSupabase(url: string | undefined): boolean {
@@ -115,7 +121,7 @@ export async function verifyTurnstileRequest(
     expectedAction,
     expectedHostname: requestHostname(request),
     secret,
-    allowedHostnames: configuredHostnames(deno?.env.get('TURNSTILE_ALLOWED_HOSTNAMES')),
+    allowedHostnames: configuredHostnames(deno?.env.get('TURNSTILE_ALLOWED_HOSTNAMES'), isLocalSupabase(deno?.env.get('SUPABASE_URL'))),
     fetcher,
   })
 }

@@ -31,6 +31,7 @@ jobs:
         github.event.action == 'labeled' &&
         github.event.label.name == 'preview' &&
         github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.head.ref != 'staging' &&
         github.event.pull_request.head.repo.id == github.event.repository.id
       ) || (
         github.event_name == 'workflow_dispatch' &&
@@ -100,8 +101,15 @@ jobs:
             echo 'Nome de branch inesperado; recusando passá-lo ao Supabase CLI.'
             exit 1
           }
+          # A PR da staging para a main usa a branch Supabase persistente da
+          # staging: admin de QA ali seria conta real num ambiente compartilhado
+          # (auditoria run-3, decisão do dono de 2026-10-22). O script também
+          # recusa o ref dela.
+          [[ "$head_ref" != staging ]] || {
+            echo 'PR da staging para a main não ganha admin de Preview; sem provisionar.'
+            exit 1
+          }
           {
-            echo "PR_NUMBER=$PR_NUMBER"
             echo "PR_HEAD_REF=$head_ref"
             echo "PR_HEAD_SHA=$head_sha"
           } >> "$GITHUB_ENV"

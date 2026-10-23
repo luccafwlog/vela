@@ -166,6 +166,8 @@ As queries são `['report-operational', filters]`, `['report-financial', filters
 
 `/line-up-tv` não tem rota nem página própria: o catch-all `<Route path="*">` de `src/AppInterno.tsx` absorve o caminho, como faz com qualquer rota interna desconhecida. Ele renderiza `NaoEncontrado` (antes redirecionava para `/painel` com `replace`, realocando o usuário sem aviso e sem histórico recuperável) e fica dentro do `ProtectedRoute`, para que visitante sem sessão continue indo para `/login`.
 
+A Tela TV usa a sessão de um usuário interno. Com a sessão de 12 h no servidor (decisão do dono de 2026-10-22, auditoria run-3; ligada na produção pelo dono, [serviços externos](../operations/servicos-externos.md#captcha-e-sessão-da-equipe-auditoria-run-3)), o monitor volta ao `/login` a cada 12 h e alguém precisa entrar de novo, com a verificação de segurança.
+
 `src/pages/LineUpTVDisplay.tsx` usa `['lineup-tv-display-v2']` com as 60 viagens mais recentes, `staleTime` e auto-refresh de 30 segundos; a cada rodada só relê o snapshot inteiro quando `hasLineUpChanged` detecta mudança. Remove as linhas com ATD, exceto as de escala omitida, que continuam visíveis para a operação; tenta fullscreen na carga, mostra flash verde quando recebe novo snapshot e:
 
 - usa o quadro claro anterior à etapa 03, com tamanhos fixos (decisão do responsável de 2026-10-08, item 3 do [plano de revisão visual, arquivado](../archive/plans/2026-10-07-revisao-visual-ux-prompts.md)): cabeçalhos Vessel, Voy, POD, Terminal, ETA, ETB, VIN, VIN CNTR, CG, Total, MTY, RTW, BB, CEs e Linked, e BB em três linhas (MAQ, PACK e TOTAL);

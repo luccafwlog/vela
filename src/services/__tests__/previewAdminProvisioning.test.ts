@@ -125,4 +125,9 @@ describe('assertPreviewTarget', () => {
   it('rejeita URL malformada em vez de deixá-la passar', () => {
     expect(() => assertPreviewTarget('nao-e-url', PRODUCTION_REF)).toThrow(/inválida/)
   })
+
+  it('recusa a branch persistente da staging (auditoria run-3)', () => {
+    expect(() => assertPreviewTarget('https://uvgqfpleiyfythkhutlj.supabase.co', PRODUCTION_REF)).toThrow(/persistente uvgqfpleiyfythkhutlj/)
+    expect(() => assertPreviewTarget('https://outra-persistente.supabase.co', PRODUCTION_REF, ['outra-persistente'])).toThrow(/persistente/)
+  })
 })

@@ -70,7 +70,8 @@ type AuthContextValue = {
   /** Hidratação do perfil: `loading` inicial, `ready`, erro transitório (sessão válida, retry permitido) ou `unauthorized` (acesso eliminado). */
   profileStatus: ProfileHydrationStatus
   profileError: string | null
-  signIn: (email: string, password: string) => Promise<void>
+  /** `captchaToken`: token do Turnstile, exigido pelo captcha do Auth quando ligado (auditoria run-3). */
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
   isAdmin: boolean
@@ -261,9 +262,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isAdmin: role === 'administrativo',
       effectiveRole,
       can: (permission: Permission) => roleHasPermission(role, permission),
-      async signIn(email, password) {
+      async signIn(email, password, captchaToken) {
         setLoading(true)
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { error } = await supabase.auth.signInWithPassword(captchaToken ? { email, password, options: { captchaToken } } : { email, password })
         if (error) {
           setLoading(false)
           throw error

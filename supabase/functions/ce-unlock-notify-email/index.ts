@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
-import { validCleanupAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
+import { validDedicatedAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
 import { CE_UNLOCK_BOX, ceUnlockNoticeBls, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
 import { runWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { recipientKey } from "../_shared/email.ts";
@@ -9,11 +9,15 @@ import { canonicalPortalOrigin, portalSupportEmail } from "../_shared/portalUrls
 import { instrumentEdgeHandler } from "../_shared/telemetry.ts";
 // Envia a fila de avisos do Desbloqueio de CE (recusa de documento / documentação validada).
 // Com a chave de envio desligada, registra o aviso como simulado (D11). Antes, reavalia a conclusão das solicitações abertas (liquidação não passa por comando do módulo).
-// Bearer dedicado e server-only, o mesmo segredo de manutenção do módulo (CE_UNLOCK_CLEANUP_SECRET).
+// Bearer dedicado e server-only: CE_UNLOCK_NOTIFY_SECRET; enquanto ele não está na
+// Edge, o segredo do expurgo (CE_UNLOCK_CLEANUP_SECRET) (auditoria run-3).
+function notifyAuthorized(header: string | null): boolean {
+  return validDedicatedAuthorization(header, Deno.env.get("CE_UNLOCK_NOTIFY_SECRET"), Deno.env.get("CE_UNLOCK_CLEANUP_SECRET"));
+}
+
 if (typeof Deno !== "undefined") {
   const edgeHandler = instrumentEdgeHandler("ce-unlock-notify-email", async (req) => {
-    const secret = Deno.env.get("CE_UNLOCK_CLEANUP_SECRET");
-    if (req.method !== "POST" || !validCleanupAuthorization(req.headers.get("Authorization"), secret))
+    if (req.method !== "POST" || !notifyAuthorized(req.headers.get("Authorization")))
       return new Response("Acesso negado", { status: 403 });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     // Protocolo e B/Ls da solicitação, para o bloco "Solicitação" do e-mail: uma leitura por solicitação.
@@ -136,8 +140,7 @@ if (typeof Deno !== "undefined") {
   });
 
   Deno.serve((req) => {
-    const authorized = req.method === "POST" &&
-      validCleanupAuthorization(req.headers.get("Authorization"), Deno.env.get("CE_UNLOCK_CLEANUP_SECRET"));
+    const authorized = req.method === "POST" && notifyAuthorized(req.headers.get("Authorization"));
     return runWithBetterStackHeartbeat("ceUnlockNotifyEmail", () => edgeHandler(req), { enabled: authorized });
   });
 }
