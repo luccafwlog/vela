@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockFrom, mockRpc } = vi.hoisted(() => ({
+const { mockFrom, mockRpc, mockEscalas } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
+  mockEscalas: vi.fn(async () => new Map()),
+}))
+
+// Escalas pela projeção canônica (a mesma de Viagens, Veículos e Baplie).
+vi.mock('../voyageRouteSchedules', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../voyageRouteSchedules')>()),
+  listVoyageEscalaSchedulesByVoyageIds: mockEscalas,
 }))
 
 vi.mock('../supabase', () => ({
@@ -47,8 +54,6 @@ describe('fetchVoyageCommunicationCoverage', () => {
       if (table === 'customer_communications') return commsMock
       if (table === 'voyage_escala_terminal_state') return terminalStatesMock
       if (table === 'customers') return queryResult([{ id: 1, name: 'Cliente 1' }, { id: 2, name: 'Cliente 2' }])
-      // Escalas (POD) das viagens, para a ordem da escala (ponto 7 de 2026-10-23).
-      if (table === 'audit_logs') return queryResult([])
       throw new Error(`Tabela inesperada: ${table}`)
     })
     mockRpc.mockImplementation((name: string, args: { p_customer_id: number }) => name === 'customer_communication_queue_preview'
@@ -268,16 +273,20 @@ describe('Cobertura de viagens na ordem da escala', () => {
       customer_communications: queryResult([]),
       voyage_escala_terminal_state: queryResult([]),
       customers: queryResult([{ id: 1, name: 'Cliente 1' }]),
-      audit_logs: queryResult([
-        { entity_id: '10::BRSSZ', field_name: 'eta', new_value: '2026-12-01T08:00:00Z', changed_at: '2026-10-01T00:00:00Z' },
-        { entity_id: '20::BRVIX', field_name: 'eta', new_value: '2026-11-02T08:00:00Z', changed_at: '2026-10-01T00:00:00Z' },
-      ]),
     }
+    const escala = (voyageId: number, port: string, eta: string, extra: Record<string, unknown> = {}) =>
+      ({ voyageId, port, eta, ata: null, omitted: false, deleted: false, ...extra })
+    mockEscalas.mockResolvedValueOnce(new Map([
+      // A escala excluída da viagem 10, mais próxima, não conta.
+      [10, [escala(10, 'BRSSZ', '2026-12-01T08:00:00Z'), escala(10, 'BRRIG', '2026-10-30T08:00:00Z', { deleted: true })]],
+      [20, [escala(20, 'BRVIX', '2026-11-02T08:00:00Z')]],
+    ]) as never)
     mockFrom.mockImplementation((table: string) => tables[table] ?? (() => { throw new Error(`Tabela inesperada: ${table}`) })())
     mockRpc.mockImplementation((name: string) => Promise.resolve({ data: name === 'customer_communication_queue_preview' ? [] : { ready: false }, error: null }))
     const result = await fetchVoyageCommunicationCoverage()
     // A viagem 20, cadastrada depois, chega antes e fica no topo (antes saía pela ordem de cadastro).
     expect(result.map((r) => r.voyageId)).toEqual([20, 10])
+    expect(mockEscalas).toHaveBeenCalledWith([10, 20])
   })
 })
 

@@ -7,7 +7,7 @@ import { canonicalizeDocument } from '../lib/cnpj'
 import { sanitizeLikeTerm } from '../lib/utils'
 import { operationFrontKindsForCargoMode } from './escalaTerminalAllocation'
 import { normalizePortCode } from './portCode'
-import { listVoyageEscalaSchedulesByVoyageIds, listVoyagePodSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
+import { listVoyageEscalaSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
 import { compareVoyageRailItems, getProximaEscala } from './voyageSummaries'
 import { supabase } from './supabase'
 import { toError } from '../lib/errors'
@@ -1518,9 +1518,12 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
   const readiness = new Map(readinessEntries.map(([key, value]) => [key, value.ready] as const))
   const customerNames = new Map(customerRows.map((row) => [row.id, row.name] as const))
 
+  // Projeção canônica das escalas, a mesma de Viagens, Veículos e Baplie: une
+  // apelidos do mesmo porto (BRVIT/BRVIX) e respeita a exclusão.
   const escalas = new Map<number, CoverageEscalaRow[]>()
-  for (const schedule of (await listVoyagePodSchedulesByVoyageIds(voyageIds)).values()) {
-    escalas.set(schedule.voyageId, [...(escalas.get(schedule.voyageId) ?? []), schedule])
+  for (const [voyageId, schedules] of await listVoyageEscalaSchedulesByVoyageIds([...voyageIds])) {
+    escalas.set(voyageId, schedules.filter((schedule) => !schedule.deleted)
+      .map((schedule) => ({ pod: schedule.port, eta: schedule.eta, etb: null, ata: schedule.ata, omitted: schedule.omitted })))
   }
   return orderCoverageByEscala(buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames }), escalas)
 }
