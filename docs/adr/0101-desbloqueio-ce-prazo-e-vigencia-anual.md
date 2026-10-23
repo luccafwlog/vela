@@ -1,6 +1,6 @@
 # 0101 — Desbloqueio de CE: prazo só com os quatro requisitos e vigência anual sem retroagir
 
-Status: aceito — 2026-10-23 (observações do responsável, pontos 10 e 11).
+Status: aceito — 2026-10-23 (observações do responsável, pontos 10, 11 e 13).
 Implementada nas migrations `448` (prazo) e `449` (vigência).
 
 Supersede a decisão 15 da
@@ -33,6 +33,11 @@ como cumprir.
    O B/L importado antes segue as regras de quem não tem o anual: termo e
    procuração anexados à solicitação. Exemplo: B/L importado em 20/12, com o
    Cliente VIP a partir da virada do ano, não ganha a condição VIP.
+5. **VIP sem anual que cubra os B/Ls pede como os demais.** Com a procuração
+   (ou o termo) anual faltando, vencida, recusada ou revogada, a solicitação
+   nasce comum, explica ao Cliente o motivo e aceita o termo e a procuração
+   comuns. Pede os dois documentos, porque o pedido é inteiro comum ou inteiro
+   VIP. O VIP coberto continua sem anexo avulso.
 
 ## Consequências
 

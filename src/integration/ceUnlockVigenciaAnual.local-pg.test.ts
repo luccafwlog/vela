@@ -119,6 +119,40 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
     expect(item('CE449-JAN', draft.id).reasons).toContain('Procuração pendente, vencida ou revogada')
   })
 
+  // Ponto 13 de 2026-10-23: VIP com procuração anual inválida, vencida ou faltando abre a
+  // solicitação comum e anexa o termo de procuração comum; o VIP coberto continua sem anexo avulso.
+  it('VIP com procuração anual vencida, recusada ou faltando anexa a procuração comum; VIP coberto segue sem anexo avulso', () => {
+    const y = Y()
+    const prepare = (requestId: string, type: string) => `SELECT public.ce_unlock_prepare_upload(jsonb_build_object('source','request','type','${type}','request_id','${requestId}','file_name','${type}.pdf','size_bytes',100))->>'storage_path';`
+    command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
+    annual('termo', y)
+    const cases: Array<[string, () => void]> = [
+      ['faltando', () => {}],
+      ['vencida', () => { annual('procuracao', y - 1) }],
+      ['recusada', () => {
+        const id = sql(`INSERT INTO public.ce_unlock_documents(customer_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by)
+          VALUES(${C},'procuracao','vip_annual','uploaded','p.pdf','ce449/'||gen_random_uuid(),100,repeat('f',64),'${client}') RETURNING id;`)
+        command('review', { document_id: id, expected_document_version: 0, decision: 'changes_requested', reason: 'Assinatura ilegível', request_key: key() })
+      }],
+    ]
+    for (const [label, setup] of cases) {
+      sql(`DELETE FROM public.ce_unlock_documents WHERE customer_id=${C} AND type='procuracao';`)
+      setup()
+      const draft = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
+      expect(draft.source, label).toBe('request')
+      expect(sql(prepare(draft.id, 'procuracao'), client), label).toMatch(/\.pdf$/)
+      expect(sql(prepare(draft.id, 'termo'), client), label).toMatch(/\.pdf$/)
+      const current = JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${draft.id}');`, client))
+      command('cancel', { request_id: draft.id, expected_version: current.version, request_key: key() }, client)
+    }
+    // Com os dois anuais vigentes, o pedido nasce VIP e anexo avulso continua recusado.
+    sql(`DELETE FROM public.ce_unlock_documents WHERE customer_id=${C} AND type='procuracao';`)
+    annual('procuracao', y)
+    const vipDraft = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
+    expect(vipDraft.source).toBe('vip_annual')
+    expect(error(prepare(vipDraft.id, 'procuracao'), client)).toContain('Pedido não aceita anexos')
+  })
+
   it('o banco usa a data de importação, não a de hoje nem a da reimportação', () => {
     const y = Y()
     expect(sql("SELECT ce_unlock_private.bl_import_day('CE449-DEZ');")).toBe(`${y - 1}-12-20`)

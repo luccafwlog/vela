@@ -1592,7 +1592,9 @@ Condição por CNPJ em que termo e procuração anuais aprovados e vigentes
 substituem os anexos de cada pedido, e a solicitação não passa pela análise.
 Não dispensa pagamento nem entrega por B/L; o selo VIP sem documentos vigentes
 não dispensa nada. A vigência do anual só vale para os B/Ls importados no Vela
-dentro dela (data de importação do B/L); não retroage.
+dentro dela (data de importação do B/L); não retroage. Sem anual que cubra os
+B/Ls (faltando, vencido, recusado ou revogado), o VIP pede como os demais, com
+termo e procuração anexados à solicitação.
 → Regra: [Desbloqueio de CE § Requisitos e condição VIP](docs/modules/desbloqueio-ce.md#requisitos-e-condição-vip)
 
 **Exportação para a ZPT**

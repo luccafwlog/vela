@@ -24,8 +24,14 @@ Manifesto Mercante é regra de
 - Portal (`/portal/desbloqueio-ce`): abas Nova solicitação, Minhas solicitações (`?aba=solicitacoes`) e
   Documentos anuais (`?aba=anuais`, só VIP); desenho do lote 4 da identidade (2026-10-18).
   **Nova solicitação** abre com o bloco "O que o desbloqueio pede" na situação deste Cliente: VIP vê
-  termo e procuração "Coberto(a) pelo … anual até 31/12/AAAA" ou "Falta …" em âmbar, com "Abrir
-  Documentos anuais" quando falta; Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
+  termo e procuração "Coberto(a) pelo … anual até 31/12/AAAA" ou "Falta …" em âmbar ("Até lá, … anexado(a)
+  à solicitação"), com "Abrir Documentos anuais" quando falta. **VIP com anual faltando, vencido, recusado
+  ou revogado pede mesmo assim** (ponto 13 das observações de 2026-10-23): a faixa avisa que "os
+  documentos anuais não cobrem esta seleção", a solicitação nasce comum (migration `449`), o modelo do
+  termo volta a aparecer, e o detalhe explica "Sua condição VIP não cobre esta solicitação: <o que falta,
+  ou B/L importado antes da vigência>" e aceita o termo e a procuração comuns. O VIP com os anuais
+  cobrindo os B/Ls continua sem anexo avulso (`ce_unlock_prepare_upload` recusa "Pedido não aceita
+  anexos"); Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
   "Em PDF, anexada à solicitação", com **Baixar modelo do termo** quando há modelo publicado, e
   nenhuma menção a documento anual. Embaixo de "B/L original · Entregue na agência", o botão
   **Endereços de entrega do B/L** abre os endereços das agências que recebem o original em Vitória,

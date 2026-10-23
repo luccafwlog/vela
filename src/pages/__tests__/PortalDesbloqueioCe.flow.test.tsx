@@ -191,7 +191,7 @@ it("correção completa: com a nova versão do documento recusado, a solicitaç�
   expect(commandCalls("submit")[0][2]).toMatchObject({ request_id: "req-1", expected_version: 3 });
 });
 
-it("VIP com termo anual vencido fica pendente: bloqueia nova solicitação e mostra o vencido e a renovação em análise", async () => {
+it("VIP com termo anual vencido: pede com os anexos comuns enquanto isso e mostra o vencido e a renovação em análise", async () => {
   svc.getPortalCeUnlockVip.mockResolvedValue({
     enabled: true, termo: false, procuracao: true,
     documents: [
@@ -201,10 +201,13 @@ it("VIP com termo anual vencido fica pendente: bloqueia nova solicitação e mos
     ],
   });
   mount();
-  expect(await screen.findByText("O termo de devolução anual está em análise: os pedidos ficam liberados quando a análise terminar.")).toBeTruthy();
+  expect(await screen.findByText("O termo de devolução anual está em análise: os pedidos voltam a usar os documentos anuais quando a análise terminar. Até lá, as solicitações seguem com termo de devolução e procuração anexados a elas.")).toBeTruthy();
   expect(screen.getByText("Falta o termo anual")).toBeTruthy();
+  expect(screen.getByText("Até lá, assinado, em PDF, anexado à solicitação")).toBeTruthy();
   await userEvent.click(screen.getByLabelText("Selecionar B/L BL-A"));
-  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }).hasAttribute("disabled")).toBe(true);
+  // Ponto 13 de 2026-10-23: o VIP sem anual vigente pede mesmo assim, como pedido comum.
+  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }).hasAttribute("disabled")).toBe(false);
+  expect(screen.getByText(/os documentos anuais não cobrem esta seleção: a solicitação seguirá com termo e procuração anexados/)).toBeTruthy();
 
   await userEvent.click(screen.getByRole("button", { name: "Abrir Documentos anuais" }));
   expect(await screen.findByText("Falta")).toBeTruthy();
@@ -330,4 +333,39 @@ it("falha ao ler os endereços de entrega mostra o erro com Tentar novamente", a
   expect(within(requirements).getByRole("alert").textContent).toContain("Não foi possível carregar os endereços de entrega.");
   await userEvent.click(within(requirements).getByRole("button", { name: "Tentar novamente" }));
   expect(information.refetch).toHaveBeenCalled();
+});
+
+// Ponto 13 de 2026-10-23: VIP com a procuração anual vencida, recusada ou faltando
+// abre a solicitação comum, que explica o motivo e aceita o termo e a procuração comuns.
+it("VIP com procuração anual recusada: a solicitação explica o motivo e aceita os anexos comuns", async () => {
+  svc.getPortalCeUnlockVip.mockResolvedValue({
+    enabled: true, termo: true, procuracao: false,
+    documents: [doc({ id: "proc-old", type: "procuracao", source: "vip_annual", status: "changes_requested", reason: "Assinatura ilegível", file_name: "proc-anual.pdf" })],
+  });
+  svc.getPortalCeUnlockModel.mockResolvedValue({ id: "model-1" });
+  svc.portalCeUnlockCommand.mockResolvedValue({ id: "req-1" });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ documents: [] }));
+  mount();
+  // O modelo do termo comum volta a aparecer para quem vai anexar.
+  expect(await screen.findByRole("button", { name: "Baixar modelo do termo" })).toBeTruthy();
+  await userEvent.click(screen.getByLabelText("Selecionar B/L BL-A"));
+  await userEvent.click(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }));
+  await waitFor(() => expect(commandCalls("draft")).toHaveLength(1));
+  const block = await screen.findByRole("region", { name: "Solicitação" });
+  expect(block.textContent).toContain("Sua condição VIP não cobre esta solicitação: a procuração anual foi recusada");
+  expect(block.textContent).toContain("com o termo de devolução e a procuração anexados a ela");
+  expect(screen.getAllByRole("button", { name: /Anexar PDF/ }).length).toBeGreaterThanOrEqual(2);
+});
+
+it("VIP coberto com B/L importado antes da vigência: a solicitação diz que a vigência não retroage", async () => {
+  svc.getPortalCeUnlockVip.mockResolvedValue({ enabled: true, termo: true, procuracao: true, documents: [] });
+  svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ vip_covered: false })], total: 1 });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ items: [{ bl_id: "BL-A", paid: true, termo: false, procuracao: false, reasons: [], source: "request", vip_covered: false }] }));
+  mount();
+  await userEvent.click(await screen.findByLabelText("Selecionar B/L BL-A"));
+  expect(screen.getByText(/os documentos anuais não cobrem esta seleção/)).toBeTruthy();
+  cleanup();
+  mount("/portal/desbloqueio-ce?pedido=req-1");
+  const block = await screen.findByRole("region", { name: "Solicitação" });
+  expect(block.textContent).toContain("há B/L importado antes da vigência dos documentos anuais, que não retroage");
 });
