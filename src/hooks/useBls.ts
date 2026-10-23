@@ -14,6 +14,7 @@ import {
 } from '../services/operationalLists'
 import type { VoyageDetail } from '../services/voyageReadModels'
 import type { AuditLog, BLDetail, BLListItem, ContainerListItem } from '../types/database'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 const voyageDetailSelect = `
   *,
@@ -360,7 +361,10 @@ function applyContainerFilters(
       row.bl?.voyage?.vessel?.carrier?.name,
     ]
 
+    // Lista colada (ponto 9): basta um termo casar o contêiner ou o B/L, como
+    // na busca da tela (migration 453).
     return values.some((value) => normalizeText(String(value ?? '')).includes(searchTerm))
+      || matchesAnyToken(searchTerm, [row.container_number, row.bl?.id])
   })
 }
 
