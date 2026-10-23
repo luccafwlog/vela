@@ -98,8 +98,20 @@ export type LineUpRow = {
   exportLinked: boolean | null
 }
 
+/** Vazios de importação cujo porto não tem linha de importação no Line Up. */
+export type LineUpUnassignedMty = {
+  voyageId: number
+  voyageNumber: string
+  vesselName: string
+  /** Porto gravado no container (normalizado); null quando o container não tem porto. */
+  pod: string | null
+  count: number
+}
+
 export type LineUpSnapshot = {
   rows: LineUpRow[]
+  /** Vazios fora de qualquer linha: nunca são creditados em outro porto. */
+  unassignedMty?: LineUpUnassignedMty[]
   lastChangedAt: string | null
   /** True when the panel can request an older window of voyages. */
   hasMore?: boolean
@@ -319,7 +331,7 @@ export async function fetchLineUpSnapshot(
   // resolucao de codigo dentro das duas projecoes de Atracacao; sem
   // compartilhar a promise seriam tres leituras por atualizacao do Line-Up.
   const depotsPromise = listDepots()
-  const [bls, vehicles, vaziosImportacaoMtyByVoyage, escalaSchedulesByVoyage, terminalStatesByVoyage, terminalFrontsByVoyage, depots] = await Promise.all([
+  const [bls, vehicles, vaziosImportacaoMtyByVoyagePort, escalaSchedulesByVoyage, terminalStatesByVoyage, terminalFrontsByVoyage, depots] = await Promise.all([
     fetchBlsByVoyageIds(voyageIds),
     fetchVehiclesByVoyageIds(voyageIds),
     fetchVaziosImportacaoMtyByVoyageIds(voyageIds),
@@ -362,6 +374,7 @@ export async function fetchLineUpSnapshot(
   }
 
   const rows: LineUpRow[] = []
+  const unassignedMty: LineUpUnassignedMty[] = []
 
   for (const voyage of voyages) {
     const voyageBls = blsByVoyage.get(voyage.id) ?? []
@@ -374,6 +387,8 @@ export async function fetchLineUpSnapshot(
       .map((schedule) => normalizePort(schedule.port))
     const routePods = Array.from(new Set([...voyageBls.map((bl) => normalizePort(bl.pod)), ...scheduledPorts]))
     const voyageVehicles = vehiclesByVoyage.get(voyage.id) ?? []
+    const voyageMtyByPort = vaziosImportacaoMtyByVoyagePort.get(voyage.id) ?? new Map<string, number>()
+    const creditedMtyPorts = new Set<string>()
 
     for (const pod of routePods) {
       const routeBls = voyageBls.filter((bl) => normalizePort(bl.pod) === pod)
@@ -429,6 +444,9 @@ export async function fetchLineUpSnapshot(
       const bbPackages = routeBls.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0)
 
       if (!isExportOnly) {
+        // MTY = vazios de importação do próprio porto da linha.
+        const mty = voyageMtyByPort.get(pod) ?? 0
+        creditedMtyPorts.add(pod)
         rows.push({
           id: `${voyage.id}::${pod}`,
           voyageId: voyage.id,
@@ -447,7 +465,7 @@ export async function fetchLineUpSnapshot(
           car: carContainers,
           cg: Math.max(totalContainers - carContainers, 0),
           total: totalContainers,
-          mty: 0,
+          mty,
           rtw: importDates.rtw,
           bbMachines,
           bbPackages,
@@ -496,18 +514,20 @@ export async function fetchLineUpSnapshot(
         })
       }
     }
+
+    for (const [port, count] of voyageMtyByPort) {
+      if (creditedMtyPorts.has(port)) continue
+      unassignedMty.push({
+        voyageId: voyage.id,
+        voyageNumber: voyage.voyage_number,
+        vesselName: voyage.vessel?.name ?? '-',
+        pod: port === '-' ? null : port,
+        count,
+      })
+    }
   }
 
   const sortedRows = rows.sort(compareLineUpRows)
-
-  // MTY = exclusively Vazios Importacao containers, credited to the first route of each voyage
-  const creditedVoyageIds = new Set<number>()
-  for (const row of sortedRows) {
-    if (creditedVoyageIds.has(row.voyageId)) continue
-    const vaziosImportacaoCount = vaziosImportacaoMtyByVoyage.get(row.voyageId) ?? 0
-    row.mty = vaziosImportacaoCount
-    creditedVoyageIds.add(row.voyageId)
-  }
 
   const scheduleEntityIds = Array.from(escalaSchedulesByVoyage.values())
     .flatMap((schedules) => schedules.map((schedule) => schedule.entityId))
@@ -515,6 +535,7 @@ export async function fetchLineUpSnapshot(
 
   return {
     rows: sortedRows,
+    unassignedMty,
     lastChangedAt,
     ...pageMeta,
   }
@@ -633,8 +654,11 @@ async function fetchVehiclesByVoyageIds(voyageIds: number[]) {
   })
 }
 
+// Vazios de importação por viagem e porto (normalizado), como os cheios: cada
+// linha do Line Up recebe só os vazios do seu porto. A régua de porto é a
+// mesma das linhas (`normalizePort`), então porto ausente vira '-'.
 async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
-  const countByVoyage = new Map<number, number>()
+  const countByVoyage = new Map<number, Map<string, number>>()
   if (!voyageIds.length) return countByVoyage
 
   // A relação inner já restringe os containers ao conjunto de viagens. A
@@ -642,15 +666,15 @@ async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
   // segunda cascata de páginas; em um refresh isso virava um waterfall
   // proporcional ao número de manifestos.
   const containers = await mapChunks(voyageIds, 50, async (voyageChunk) => {
-    const rows: Array<{ manifest: { voyage_id: number | null } | null }> = []
+    const rows: Array<{ pod: string | null; manifest: { voyage_id: number | null } | null }> = []
     let from = 0
     while (true) {
       const { data: containerRows, error: containerError } = await supabase
         .from('vazios_importacao_containers')
-        .select('manifest:vazios_importacao_manifests!inner(voyage_id)')
+        .select('pod, manifest:vazios_importacao_manifests!inner(voyage_id)')
         .in('manifest.voyage_id', voyageChunk)
         .range(from, from + 999)
-        .overrideTypes<Array<{ manifest: { voyage_id: number | null } | null }>, { merge: false }>()
+        .overrideTypes<Array<{ pod: string | null; manifest: { voyage_id: number | null } | null }>, { merge: false }>()
       if (containerError) throw containerError
       const batch = containerRows ?? []
       if (!batch.length) break
@@ -663,7 +687,10 @@ async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
   for (const container of containers) {
     const voyageId = container.manifest?.voyage_id
     if (voyageId == null) continue
-    countByVoyage.set(voyageId, (countByVoyage.get(voyageId) ?? 0) + 1)
+    const port = normalizePort(container.pod)
+    const byPort = countByVoyage.get(voyageId) ?? new Map<string, number>()
+    byPort.set(port, (byPort.get(port) ?? 0) + 1)
+    countByVoyage.set(voyageId, byPort)
   }
 
   return countByVoyage

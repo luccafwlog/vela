@@ -6,10 +6,29 @@ import { deleteRecords } from './deleteRecords'
 import type { DeleteDependencyReport } from './deleteDependencies'
 import { toError } from '../lib/errors'
 
-export async function createVoyage(form: VoyageFormValues, changedBy: string | null) {
+/** De onde a Viagem foi cadastrada: vai para o "Viagem criada" da linha do tempo. */
+export type VoyageOrigin = 'viagens' | 'chegadas_saidas'
+
+const VOYAGE_ORIGIN_LABELS: Record<VoyageOrigin, string> = {
+  viagens: 'botão Nova viagem',
+  chegadas_saidas: 'Chegadas e Saídas',
+}
+
+/** Justificativa da linha `created`, lida por `buildVoyageCreation` (voyageSummaries.ts). */
+export function voyageCreationJustification(origin: VoyageOrigin) {
+  return `Origem: ${VOYAGE_ORIGIN_LABELS[origin]}`
+}
+
+export async function createVoyage(
+  form: VoyageFormValues,
+  changedBy: string | null,
+  { origin = 'viagens', showOnPortal = false }: { origin?: VoyageOrigin; showOnPortal?: boolean } = {},
+) {
   const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
   const vesselId = await getOrCreateVessel(form.vesselName, form.vesselImo, carrierId)
 
+  // A aparição em Chegadas e Saídas vai na própria inserção: um UPDATE depois
+  // virava um segundo evento na linha do tempo (revisão de 2026-10-22).
   const { data: created, error: createError } = await supabase
     .from('voyages')
     .insert({
@@ -18,6 +37,7 @@ export async function createVoyage(form: VoyageFormValues, changedBy: string | n
       pol_id: null,
       pod_id: null,
       status: form.status,
+      show_on_portal: showOnPortal,
     })
     .select('id')
     .single()
@@ -25,7 +45,7 @@ export async function createVoyage(form: VoyageFormValues, changedBy: string | n
   if (createError || !created) throw createError
 
   await insertVoyageAuditRows([
-    makeVoyageAuditRow(created.id, 'created', null, form.voyageNumber.trim(), changedBy),
+    makeVoyageAuditRow(created.id, 'created', null, form.voyageNumber.trim(), changedBy, voyageCreationJustification(origin)),
     makeVoyageAuditRow(created.id, 'indicated_first_brazilian_port', null, form.indicatedFirstBrazilianPort ?? null, changedBy),
     makeVoyageAuditRow(created.id, 'indicated_first_brazilian_eta', null, form.indicatedFirstBrazilianEta ?? null, changedBy),
   ])
@@ -225,6 +245,7 @@ function makeVoyageAuditRow(
   oldValue: string | null,
   newValue: string | null,
   changedBy: string | null,
+  justification = 'Atualizacao de dados da viagem',
 ) {
   if (!changedBy) return null
   if ((oldValue ?? '') === (newValue ?? '')) return null
@@ -235,7 +256,7 @@ function makeVoyageAuditRow(
     old_value: oldValue,
     new_value: newValue,
     changed_by: changedBy,
-    justification: 'Atualizacao de dados da viagem',
+    justification,
   }
 }
 
@@ -332,6 +353,70 @@ export async function setVoyageShowOnPortal(voyageId: number, show: boolean) {
     .update({ show_on_portal: show })
     .eq('id', voyageId)
   if (error) throw error
+}
+
+/** Lê se a Viagem aparece em Chegadas e Saídas (e na Programação do Portal). */
+export async function fetchVoyageShowOnPortal(voyageId: number): Promise<boolean> {
+  const { data, error } = await supabase.from('voyages').select('show_on_portal').eq('id', voyageId).maybeSingle()
+  if (error) throw error
+  return Boolean((data as { show_on_portal?: boolean } | null)?.show_on_portal)
+}
+
+export type DuplicateVoyage = { id: number; label: string; cancelled: boolean }
+
+/**
+ * Viagem já cadastrada com o mesmo navio e o mesmo número (revisão de
+ * 2026-10-22, A1): mesmo IMO, ou mesmo nome canônico quando os dois IMOs não
+ * se contradizem (IMO distinto é outro navio, regra de Chegadas e Saídas).
+ * Inclui a Viagem Cancelada, que é retida e se reativa. O banco confere de
+ * novo na gravação (`guard_voyage_identity_unique`, migration 413).
+ */
+export async function findDuplicateVoyage({
+  vesselName,
+  vesselImo,
+  voyageNumber,
+  excludeVoyageId,
+}: {
+  vesselName: string
+  vesselImo: string
+  voyageNumber: string
+  excludeVoyageId?: number | null
+}): Promise<DuplicateVoyage | null> {
+  const number = voyageNumber.trim().toUpperCase()
+  const imo = normalizeVesselImo(vesselImo)
+  const canonical = canonicalizeVesselName(vesselName)
+  if (!number || !canonical) return null
+  const numberPattern = number.replace(/[\\%_]/g, (char) => `\\${char}`)
+  const { data, error } = await supabase
+    .from('voyages')
+    .select('id, voyage_number, status, vessel:vessels(name, imo)')
+    .ilike('voyage_number', numberPattern)
+    .overrideTypes<Array<{ id: number; voyage_number: string; status: string | null; vessel: { name: string | null; imo: string | null } | null }>, { merge: false }>()
+  if (error) throw error
+  const match = (data ?? []).find((row) => {
+    if (row.id === excludeVoyageId || row.voyage_number.trim().toUpperCase() !== number) return false
+    const rowImo = normalizeVesselImo(row.vessel?.imo)
+    if (imo && rowImo === imo) return true
+    if (imo && rowImo && rowImo !== imo) return false
+    return canonicalizeVesselName(row.vessel?.name ?? '') === canonical
+  })
+  return match
+    ? { id: match.id, label: `${match.vessel?.name ?? 'Navio'} / ${match.voyage_number}`, cancelled: match.status === 'cancelled' }
+    : null
+}
+
+/** Mensagem da recusa por duplicidade, igual na tela e na recusa do banco. */
+export function duplicateVoyageMessage(duplicate: Pick<DuplicateVoyage, 'label' | 'cancelled'>) {
+  return duplicate.cancelled
+    ? `Já existe a viagem ${duplicate.label}, cancelada. Reative-a em Viagens em vez de cadastrar outra.`
+    : `Já existe a viagem ${duplicate.label}. Abra a viagem existente em vez de cadastrar outra.`
+}
+
+/** Recusa do banco por navio e número já cadastrados (migration 413), ou null. */
+export function duplicateVoyageRefusal(error: unknown): string | null {
+  const candidate = error as { code?: string; message?: string } | null
+  if (candidate?.code !== '23505' || !candidate.message?.startsWith('Já existe a viagem')) return null
+  return candidate.message
 }
 
 /** Busca viagem por VOY + navio (IMO prevalece; conflito explícito, nunca .find arbitrário). */

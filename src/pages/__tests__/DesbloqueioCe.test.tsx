@@ -21,6 +21,8 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ can: (p: string) => p 
 vi.mock('../../services/ceUnlockService', async (orig) => ({
   ...(await orig<typeof import('../../services/ceUnlockService')>()),
   ceUnlockCommand: state.command,
+  // O "selecionar todos" lê o filtro inteiro (revisão de 2026-10-22, G1).
+  fetchAllCeUnlockBls: async () => [row(), ...state.extra.map((p) => row(p))],
 }))
 vi.mock('../../hooks/useCeUnlock', () => ({
   useCeUnlock: (filters: unknown) => {
@@ -118,8 +120,8 @@ it('faixa de seleção conta aptos e sem entrega; exportar leva só os aptos sel
   mount()
   const exportButton = () => screen.getByRole('button', { name: /aptos? para a ZPT$/ })
   expect(exportButton().hasAttribute('disabled')).toBe(true)
-  await userEvent.click(screen.getByLabelText('Selecionar os B/Ls da página'))
-  const bar = screen.getByRole('region', { name: 'Seleção' })
+  await userEvent.click(screen.getByLabelText('Selecionar todos os B/Ls do filtro (3)'))
+  const bar = await screen.findByRole('region', { name: 'Seleção' })
   expect(bar.textContent).toContain('3 selecionados · 1 apto para a ZPT · 2 sem a entrega do B/L original')
   expect(within(bar).getByRole('button', { name: 'Registrar entrega de 2 B/Ls' })).toBeTruthy()
   expect(exportButton().textContent).toContain('Exportar 1 apto para a ZPT')
@@ -133,8 +135,8 @@ it('registra a entrega em massa B/L por B/L e diz quais falharam', async () => {
     return {}
   })
   mount()
-  await userEvent.click(screen.getByLabelText('Selecionar os B/Ls da página'))
-  await userEvent.click(screen.getByRole('button', { name: 'Registrar entrega de 2 B/Ls' }))
+  await userEvent.click(screen.getByLabelText('Selecionar todos os B/Ls do filtro (3)'))
+  await userEvent.click(await screen.findByRole('button', { name: 'Registrar entrega de 2 B/Ls' }))
   expect(state.confirms.at(-1)).toMatchObject({ affected: { items: ['BL-557', 'BL-700'] } })
   await waitFor(() => expect(state.command).toHaveBeenCalledTimes(2))
   expect(state.command.mock.calls.map((c) => (c[1] as { bl_id: string }).bl_id)).toEqual(['BL-557', 'BL-700'])

@@ -678,7 +678,20 @@ export const TIMELINE_VOYAGE_FIELD_LABELS: Record<string, string> = {
   voyage_number: 'Nº da viagem',
   vessel_id: 'Navio',
   status: 'Status',
+  show_on_portal: 'Aparece em Chegadas e Saídas',
+  indicated_first_brazilian_port: '1º porto brasileiro indicado',
+  indicated_first_brazilian_eta: 'ETA indicado do 1º porto',
 }
+
+/**
+ * Origem gravada na justificativa da linha `created` da Viagem
+ * (`voyageCreationJustification`, em voyages.ts). A planilha de Chegadas e
+ * Saídas não a grava: vem do contexto da importação na linha `criado` do gatilho.
+ */
+const VOYAGE_ORIGIN_PATTERN = /^Origem: (.+)$/
+const SCHEDULE_SHEET_CONTEXT = /^Importação de Programação/
+/** Mudanças da aparição em Chegadas e Saídas logo depois do cadastro fazem parte dele. */
+const VOYAGE_CREATION_FOLD_MS = 60_000
 const TIMELINE_KIND_ORDER: Record<VoyageTimelineEventKind, number> = {
   'voyage-completed': 0,
   'ce-master': 1,
@@ -712,7 +725,11 @@ export function buildVoyageTimeline({
   actorNames,
   actorDepartments,
 }: VoyageTimelineInput): VoyageTimelineEvent[] {
-  const imports = buildImportTimeline(importBatches, actorNames, actorDepartments)
+  // Efeitos automáticos da importação de B/L (ATD do POL pelo Laden on Board
+  // e status de BLs e CEs da conciliação documental) entram no evento da
+  // importação, que fica um só por lote (revisão de 2026-10-22, F2).
+  const folded = foldImportSideEffects(importBatches, scheduleEvents)
+  const imports = buildImportTimeline(importBatches, actorNames, actorDepartments, folded.byBatch)
   const events = [...imports.events]
   const appendActor = (detail: string, row: { changed_by?: string | null; actor_role?: string | null; actor_department?: string | null }) =>
     appendTimelineActor(
@@ -727,7 +744,7 @@ export function buildVoyageTimeline({
 
   events.push(...buildBaplieTimeline(baplieImports, openDivergenceCount))
 
-  events.push(...buildScheduleTimeline(scheduleEvents, appendActor))
+  events.push(...buildScheduleTimeline(folded.remaining, appendActor))
 
   events.push(...buildVoyageCompletionTimeline(voyageStatus, events))
 
@@ -742,6 +759,71 @@ export function buildVoyageTimeline({
   })
 }
 
+/** Linha automática da importação de B/L que vai para o evento do lote. */
+const ATD_FROM_BL_IMPORT = /^ATD derivado do menor Laden on Board.*importação do B\/L/
+export const DOCUMENTAL_AUTOMATIC_REASON = 'Atualização automática de BLs e CEs pela conciliação documental'
+/** Contexto que a gravação grava na justificativa automática (migration 412); sem contexto, não veio de importação. */
+const DOCUMENTAL_IMPORT_CONTEXT = /\((Importação de [^)]*)\)\s*$/
+const IMPORT_FOLD_WINDOW_MS = 120_000
+
+function isFoldableImportRow(row: TimelineAuditEvent) {
+  const reason = String(row.justification ?? '').trim()
+  if (row.field_name === 'atd') return ATD_FROM_BL_IMPORT.test(reason)
+  if (row.field_name !== 'ces' && row.field_name !== 'export_ces') return false
+  if (!reason.startsWith(DOCUMENTAL_AUTOMATIC_REASON)) return false
+  const context = reason.match(DOCUMENTAL_IMPORT_CONTEXT)?.[1]
+  // Sem contexto (edição manual) ou outra importação (Baplie, CE Mercante): evento próprio.
+  return !!context && /^Importação de (B\/L|Manifesto BB)/.test(context)
+}
+
+/**
+ * Distribui as linhas automáticas pelo lote importado: a do mesmo instante
+ * ou de até dois minutos depois (a conciliação documental grava no fim da
+ * transação, com a hora do relógio). ponytail: janela de tempo, não id do
+ * lote; o rastro não guarda o lote. Duas importações da mesma Viagem em menos
+ * de dois minutos ficam com a mais recente.
+ */
+function foldImportSideEffects(
+  importBatches: TimelineImportBatch[] | null | undefined,
+  scheduleEvents: TimelineAuditEvent[] | null | undefined,
+) {
+  const batches = (importBatches ?? [])
+    .filter((batch) => batch.uploaded_at)
+    .map((batch) => ({ id: batch.id, at: Date.parse(batch.uploaded_at as string) }))
+    .sort((left, right) => right.at - left.at)
+  const byBatch = new Map<number, TimelineAuditEvent[]>()
+  const remaining: TimelineAuditEvent[] = []
+  for (const row of scheduleEvents ?? []) {
+    const at = row.changed_at ? Date.parse(row.changed_at) : Number.NaN
+    const owner = isFoldableImportRow(row)
+      ? batches.find((batch) => batch.at <= at && at - batch.at <= IMPORT_FOLD_WINDOW_MS)
+      : undefined
+    if (owner) byBatch.set(owner.id, [...(byBatch.get(owner.id) ?? []), row])
+    else remaining.push(row)
+  }
+  return { byBatch, remaining }
+}
+
+/** Frases do que a importação mudou além dos B/Ls: ATD do POL e BLs e CEs. */
+function describeImportSideEffects(rows: TimelineAuditEvent[]) {
+  const latest = new Map<string, TimelineAuditEvent>()
+  // Do mais antigo para o mais novo: o último valor de cada porto e campo vale.
+  for (const row of [...rows].sort((left, right) => String(left.changed_at ?? '').localeCompare(String(right.changed_at ?? '')))) {
+    latest.set(`${row.field_name}::${row.entity_id}`, { ...row, old_value: latest.get(`${row.field_name}::${row.entity_id}`)?.old_value ?? row.old_value })
+  }
+  return [...latest.values()].flatMap((row) => {
+    const port = row.entity_id.split('::')[1] || '-'
+    const value = (row.new_value ?? '').trim()
+    const oldValue = (row.old_value ?? '').trim()
+    if (stableTimelineValue(oldValue) === stableTimelineValue(value)) return []
+    if (row.field_name === 'atd') {
+      if (!value) return [`ATD do POL ${port} retirado`]
+      return [`ATD do POL ${port}: ${oldValue ? `${formatDate(oldValue)} → ` : ''}${formatDate(value)}`]
+    }
+    return [`BLs e CEs ${port}: ${oldValue ? `${formatTimelineCeStatus(oldValue)} → ` : ''}${formatTimelineCeStatus(value)}`]
+  })
+}
+
 // O import é o único evento da linha do tempo cujo autor não vem de
 // `audit_logs`: o batch guarda `uploaded_by`, e o departamento é resolvido à
 // parte (`fetchVoyageTimelineSources` casa o batch com a linha `criado` da
@@ -752,6 +834,7 @@ function buildImportTimeline(
   importBatches: TimelineImportBatch[] | null | undefined,
   actorNames?: Record<string, string> | null,
   actorDepartments?: Record<string, string> | null,
+  sideEffectsByBatch: Map<number, TimelineAuditEvent[]> = new Map(),
 ) {
   const events: VoyageTimelineEvent[] = []
   let latestImportAt: string | null = null
@@ -762,16 +845,14 @@ function buildImportTimeline(
     const appendUploader = (detail: string) =>
       appendTimelineActor(detail, batch.uploaded_by, actorNames, batch.uploaded_by ? actorDepartments?.[batch.uploaded_by] : null)
 
+    // Um evento por importação (revisão de 2026-10-22, F2): rotas, Nº de
+    // Manifesto Mercante, ATD do POL e BLs e CEs no detalhe.
+    const mode = batch.cargo_mode === 'carga_solta' ? 'BB' : 'CNTR'
     const ceMaster = String(batch.ce_master ?? '').trim()
-    if (ceMaster) {
-      events.push({
-        id: `ce-master-batch-${batch.id}`,
-        kind: 'ce-master',
-        at: batch.uploaded_at,
-        title: 'Nº de Manifesto Mercante definido',
-        detail: ceMaster,
-      })
-    }
+    const extras = [
+      ...(ceMaster ? [`Manifesto Mercante ${ceMaster}`] : []),
+      ...describeImportSideEffects(sideEffectsByBatch.get(batch.id) ?? []),
+    ]
 
     if (batch.routes?.length) {
       const grouped = new Map<string, { pol: string; pod: string; count: number }>()
@@ -780,16 +861,18 @@ function buildImportTimeline(
         const current = grouped.get(key)
         grouped.set(key, { pol: route.pol, pod: route.pod, count: (current?.count ?? 0) + route.blCount })
       }
-      for (const [key, route] of grouped) {
-        const plural = route.count === 1 ? '' : 's'
-        events.push({
-          id: `import-${batch.id}-${key}`,
-          kind: 'import',
-          at: batch.uploaded_at,
-          title: `${route.count} B/L${plural} importado${plural} · ${route.pol} → ${route.pod}`,
-          detail: appendUploader(batch.cargo_mode === 'carga_solta' ? 'BB' : 'CNTR'),
-        })
-      }
+      const routes = [...grouped.values()]
+      const total = routes.reduce((sum, route) => sum + route.count, 0)
+      const plural = total === 1 ? '' : 's'
+      const routeTitle = routes.length === 1 ? ` · ${routes[0].pol} → ${routes[0].pod}` : ` · ${routes.length} rotas`
+      const routeDetail = routes.length > 1 ? routes.map((route) => `${route.pol} → ${route.pod}: ${route.count}`) : []
+      events.push({
+        id: `import-${batch.id}`,
+        kind: 'import',
+        at: batch.uploaded_at,
+        title: `${total} B/L${plural} importado${plural}${routeTitle}`,
+        detail: appendUploader([mode, ...routeDetail, ...extras].join(' · ')),
+      })
     } else {
       const count = Number(batch.total_bls ?? 0)
       const route = String(batch.route ?? '').trim()
@@ -799,7 +882,7 @@ function buildImportTimeline(
         kind: 'import',
         at: batch.uploaded_at,
         title: route ? `${countLabel} · ${route}` : countLabel,
-        detail: appendUploader(`${batch.cargo_mode === 'carga_solta' ? 'BB' : 'CNTR'} · ${route || stripFileExtension(batch.filename)}`),
+        detail: appendUploader([`${mode} · ${route || stripFileExtension(batch.filename)}`, ...extras].join(' · ')),
       })
     }
   }
@@ -970,6 +1053,12 @@ function buildScheduleTimeline(
   // salvamento; sem isto ela ficava gravada, mas fora da linha do tempo.
   const appendActor = (detail: string, row: TimelineAuditEvent) => {
     const reason = scheduleJustification(row)
+    if (reason?.startsWith(DOCUMENTAL_AUTOMATIC_REASON)) {
+      // Status de BLs e CEs que o sistema mudou: o fato e o que o disparou
+      // (migration 412), sem parecer justificativa de uma pessoa (F4).
+      const fact = reason.slice(DOCUMENTAL_AUTOMATIC_REASON.length).replace(/^:\s*/, '').trim()
+      return appendActorBase(`${detail} · Automático: ${fact || 'conciliação documental'}`, row)
+    }
     return appendActorBase(reason ? `${detail} · Justificativa: ${reason}` : detail, row)
   }
   const events: VoyageTimelineEvent[] = []
@@ -1124,11 +1213,76 @@ function buildVoyageCompletionTimeline(
   }]
 }
 
+function formatVoyageFieldValue(field: string, raw: string) {
+  if (field === 'status') return VOYAGE_STATUS_LABELS[raw] ?? raw
+  if (field === 'show_on_portal') return raw === 'true' ? 'Sim' : raw === 'false' ? 'Não' : raw
+  if (field === 'indicated_first_brazilian_eta') return formatDate(raw)
+  return raw
+}
+
+function parseCreatedRow(value: string | null | undefined): { show_on_portal?: unknown } | null {
+  const text = (value ?? '').trim()
+  if (!text.startsWith('{')) return null
+  try {
+    return JSON.parse(text) as { show_on_portal?: unknown }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Um único "Viagem criada" com a origem e o autor (revisão de 2026-10-22, F1).
+ * Junta a linha `created` (quem cadastrou e a origem), a `criado` do gatilho
+ * (a linha da tabela, com `show_on_portal`) e a aparição em Chegadas e Saídas
+ * ligada logo depois, que antes viravam três eventos.
+ */
+function buildVoyageCreation(
+  auditEvents: TimelineAuditEvent[] | null | undefined,
+  appendActor: (detail: string, row: TimelineAuditEvent) => string,
+): { event: VoyageTimelineEvent; rows: Set<TimelineAuditEvent> } | null {
+  const voyageRows = (auditEvents ?? []).filter((row) => (row.entity_type === 'voyages' || row.entity_type === 'voyage') && row.changed_at)
+  const byTime = (left: TimelineAuditEvent, right: TimelineAuditEvent) => String(left.changed_at).localeCompare(String(right.changed_at))
+  const created = voyageRows.filter((row) => row.field_name === 'created').sort(byTime)[0]
+  const trigger = voyageRows.filter((row) => row.field_name === 'criado').sort(byTime)[0]
+  const anchor = created ?? trigger
+  if (!anchor) return null
+  const rows = new Set<TimelineAuditEvent>(voyageRows.filter((row) => row.field_name === 'created' || row.field_name === 'criado'))
+  const at = [created?.changed_at, trigger?.changed_at].filter(Boolean).sort()[0] as string
+
+  const origin = String(created?.justification ?? '').trim().match(VOYAGE_ORIGIN_PATTERN)?.[1]
+    ?? (SCHEDULE_SHEET_CONTEXT.test(String(trigger?.justification ?? '').trim()) ? 'planilha de Chegadas e Saídas' : null)
+  let showOnPortal = parseCreatedRow(trigger?.new_value)?.show_on_portal
+  const startedAt = Date.parse(at)
+  for (const row of voyageRows) {
+    if (row.field_name !== 'show_on_portal') continue
+    const delay = Date.parse(row.changed_at as string) - startedAt
+    if (delay >= 0 && delay <= VOYAGE_CREATION_FOLD_MS) {
+      rows.add(row)
+      showOnPortal = (row.new_value ?? '').trim() === 'true'
+    }
+  }
+  const parts = [
+    origin ? `Origem: ${origin}` : null,
+    showOnPortal === true ? 'Aparece em Chegadas e Saídas' : showOnPortal === false ? 'Fora de Chegadas e Saídas' : null,
+  ].filter(Boolean)
+  return {
+    rows,
+    event: {
+      id: 'voyage-created',
+      kind: 'voyage-data',
+      at,
+      title: 'Viagem criada',
+      detail: appendActor(parts.join(' · ') || 'Cadastro da viagem', created ?? anchor),
+    },
+  }
+}
+
 function buildAuditTimeline(
   auditEvents: TimelineAuditEvent[] | null | undefined,
   appendActor: (detail: string, row: TimelineAuditEvent) => string,
 ): VoyageTimelineEvent[] {
-  const events: VoyageTimelineEvent[] = []
+  const creation = buildVoyageCreation(auditEvents, appendActor)
+  const events: VoyageTimelineEvent[] = creation ? [creation.event] : []
   for (const [index, row] of (auditEvents ?? []).entries()) {
     const at = row.changed_at
     const value = (row.new_value ?? '').trim()
@@ -1196,22 +1350,23 @@ function buildAuditTimeline(
     }
 
     if (row.entity_type === 'voyages' || row.entity_type === 'voyage') {
-      // Cópia interna da situação das escalas: repete o "CE atualizado" do
-      // mesmo instante e não é fato para a operação (lote 1 da identidade).
-      if (row.field_name === 'pod_schedule_snapshot') continue
+      // O cadastro é um evento só, "Viagem criada" (revisão de 2026-10-22, F1).
+      if (creation?.rows.has(row)) continue
       const label = TIMELINE_VOYAGE_FIELD_LABELS[row.field_name]
-      const show = (raw: string) => (row.field_name === 'status' ? VOYAGE_STATUS_LABELS[raw] ?? raw : raw)
-      // Campo sem rótulo ou que guarda um id nunca mostra nome técnico nem valor bruto.
-      const detail = !label
-        ? 'Dado interno da viagem atualizado'
-        : row.field_name === 'vessel_id'
-          ? (oldValue ? 'Navio trocado' : 'Navio definido')
-          : oldValue ? `${label}: ${show(oldValue)} → ${show(value)}` : `${label}: ${show(value)}`
+      // Campo sem rótulo é cópia interna (resumo das escalas, datas antigas da
+      // viagem, ids de porto) que repete um evento mais específico: não vira
+      // evento (F3). O que fica diz o campo e o valor anterior → novo.
+      if (!label || row.field_name === 'created') continue
+      const detail = row.field_name === 'vessel_id'
+        ? (oldValue ? 'Navio trocado' : 'Navio definido')
+        : oldValue
+          ? `${label}: ${formatVoyageFieldValue(row.field_name, oldValue)} → ${formatVoyageFieldValue(row.field_name, value)}`
+          : `${label}: ${formatVoyageFieldValue(row.field_name, value)}`
       events.push({
         id: `audit-voyage-${index}`,
         kind: 'voyage-data',
         at,
-        title: oldValue ? 'Dados da viagem alterados' : 'Viagem criada',
+        title: 'Dados da viagem alterados',
         detail: appendActor(detail, row),
       })
     }

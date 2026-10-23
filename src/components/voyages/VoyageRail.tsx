@@ -110,11 +110,18 @@ export function VoyageRail({ items, selectedId, onSelect, onEdit }: VoyageRailPr
 
   useLayoutEffect(() => sync(), [items, sync])
 
+  // A faixa começa sempre na próxima escala (o primeiro card). A ordem muda
+  // depois da montagem: as escalas chegam numa consulta própria e reordenam os
+  // cards, e o snap do navegador seguia o card que estava à vista até o fim da
+  // faixa (revisão de 2026-10-22). Volta ao início a cada nova ordem, inclusive
+  // quando a faixa só aparece depois de carregar (antes o efeito rodava uma
+  // vez, com a faixa ainda vazia).
+  const orderKey = items.map((item) => item.id).join(',')
   useLayoutEffect(() => {
     if (ref.current && typeof ref.current.scrollTo === 'function') {
       ref.current.scrollTo({ left: 0, behavior: 'auto' })
     }
-  }, [ref])
+  }, [ref, orderKey])
 
   if (items.length === 0) {
     return (

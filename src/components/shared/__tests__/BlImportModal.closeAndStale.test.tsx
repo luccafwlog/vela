@@ -119,5 +119,7 @@ it('não fecha durante a gravação', async () => {
   expect(mocks.showToast).toHaveBeenCalledWith('Aguarde: a gravação ainda está em andamento.', 'info')
 
   finish?.({ result: { imported: 1 }, refusedCustomerRelinks: [], calculationErrors: [] })
-  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  // Terminada a gravação, a confirmação fica no modal até Concluir.
+  fireEvent.click(await screen.findByRole('button', { name: 'Concluir' }))
+  expect(onClose).toHaveBeenCalledTimes(1)
 })

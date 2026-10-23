@@ -67,7 +67,11 @@ Manifesto Mercante é regra de
   o impedimento que não é requisito (CE alterado, B/L cancelado, troca de Cliente, Cliente alterado).
   Navio, viagem e POD ficam no filtro e na planilha. Qualquer B/L pode ser selecionado; a faixa diz
   quantos são aptos e quantos estão sem a entrega do original, com **Registrar entrega de N B/Ls**;
-  a entrega registrada ou desmarcada na linha renova os dados guardados do B/L selecionado.
+  a entrega registrada ou desmarcada na linha renova os dados guardados do B/L selecionado. O
+  checkbox do cabeçalho da tabela marca todos os B/Ls do filtro, em todas as páginas
+  (`fetchAllCeUnlockBls`), e trocar o filtro zera a seleção; no Portal, marca os B/Ls disponíveis
+  do filtro inteiro e a seleção do pedido continua entre buscas (revisão de 2026-10-22; regra em
+  [Regras de negócio § Seleção em massa](../operations/regras-de-negocio.md#seleção-em-massa)).
   No cabeçalho do bloco: **Exportar planilha** (planilha comum do recorte inteiro, separada da
   planilha da ZPT), **Planilhas enviadas à ZPT** (baixar e reexportar lotes), **Conciliar com a ZPT**
   (importa o "Exportar Tela") e **Exportar N aptos para a ZPT** (só os aptos selecionados, até 100).

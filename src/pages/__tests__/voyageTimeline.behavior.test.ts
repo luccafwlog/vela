@@ -14,12 +14,12 @@ describe('buildVoyageTimeline (US-220 carregar timeline)', () => {
 
     const kinds = events.map((e) => e.kind)
     expect(kinds).toContain('import')
-    expect(kinds).toContain('ce-master')
     expect(kinds).toContain('ce-coverage')
     expect(kinds).toContain('baplie-import')
 
-    expect(events.find((e) => e.kind === 'ce-master')?.detail).toBe('CE-123')
-    expect(events.find((e) => e.kind === 'import')?.detail).toContain('CNTR')
+    // Nº de Manifesto Mercante do lote no evento da importação (F2).
+    expect(kinds).not.toContain('ce-master')
+    expect(events.find((e) => e.kind === 'import')?.detail).toBe('CNTR · BRSSZ-BRVIX · Manifesto Mercante CE-123')
     expect(events.find((e) => e.kind === 'ce-coverage')?.detail).toBe('2/2 B/Ls com CE')
   })
 
@@ -36,7 +36,7 @@ describe('buildVoyageTimeline (US-220 carregar timeline)', () => {
     expect(evento.detail).toBe('CNTR · BRSSZ-BRVIX · por Ana Lima (Documentação)')
   })
 
-  it('credita cada rota do lote quando o manifesto cobre mais de uma', () => {
+  it('um evento por lote, com cada rota no detalhe, quando o manifesto cobre mais de uma', () => {
     const events = buildVoyageTimeline({
       importBatches: [{
         id: 1, filename: 'manifesto.edi', cargo_mode: 'carga_solta', uploaded_at: '2026-06-01T10:00:00Z', uploaded_by: 'u-1',
@@ -45,8 +45,9 @@ describe('buildVoyageTimeline (US-220 carregar timeline)', () => {
       actorNames: { 'u-1': 'Ana Lima' },
       actorDepartments: { 'u-1': 'Documentação' },
     })
-    expect(events).toHaveLength(2)
-    for (const evento of events) expect(evento.detail).toBe('BB · por Ana Lima (Documentação)')
+    expect(events).toHaveLength(1)
+    expect(events[0].title).toBe('3 B/Ls importados · 2 rotas')
+    expect(events[0].detail).toBe('BB · BRSSZ → BRVIX: 2 · BRSSZ → BRRIO: 1 · por Ana Lima (Documentação)')
   })
 
   // Sem nome resolvido o UUID não vira texto de tela, e sem departamento o

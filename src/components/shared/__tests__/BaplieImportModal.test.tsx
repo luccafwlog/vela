@@ -35,7 +35,7 @@ vi.mock('../VoyageCombobox', () => ({
 vi.mock('../../../services/baplieImport', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../services/baplieImport')>()),
   // As regras da Viagem têm teste próprio; aqui a prévia é a do parser.
-  applyBaplieVoyageRules: (parsed: { containers: unknown[]; pods?: string[]; issues: unknown[]; podsOutside?: unknown[] }) => ({ containers: parsed.containers, pods: parsed.pods ?? [], issues: parsed.issues, podsOutside: parsed.podsOutside ?? [] }),
+  applyBaplieVoyageRules: (parsed: { containers: unknown[]; pods?: string[]; issues: unknown[]; podsOutside?: unknown[]; podsWithoutEscala?: unknown[] }) => ({ containers: parsed.containers, pods: parsed.pods ?? [], issues: parsed.issues, podsOutside: parsed.podsOutside ?? [], podsWithoutEscala: parsed.podsWithoutEscala ?? [] }),
   reimportBaplie: mocks.reimport,
   retryBaplieVazios: mocks.retryVazios,
 }))
@@ -187,4 +187,40 @@ it('containers fora das escalas aparecem no resumo e listados por porto, sem blo
   expect(screen.getByText(/\(1\): CSNU2049996/)).toBeTruthy()
   await importNow()
   await waitFor(() => expect(mocks.reimport).toHaveBeenCalledTimes(1))
+})
+
+// Revisão de 2026-10-22 (GREEN ITAJAI / 11): porto brasileiro que não é escala
+// aparece desmarcado; marcado, os containers entram como porto comum, sem
+// escala (o Baplie nunca cria escala; decisão de 2026-10-23, migration 418).
+it('porto sem escala vem desmarcado e, marcado, entra na gravação sem pedir escala', async () => {
+  const brigi = { container_number: 'SEGU7664016', status: 'full', pod: 'BRIGI', is_imo: false, is_oog: false }
+  mocks.parse.mockResolvedValue({ ...parsed(), podsWithoutEscala: [{ pod: 'BRIGI', containers: [brigi] }] })
+  const view = render(<BaplieImportModal voyage={fixed} onClose={vi.fn()} />)
+  chooseFile(view)
+  const option = await screen.findByRole('checkbox', { name: /BRIGI — sem escala na viagem \(1 container\); marcado, entra no Baplie sem escala/ }) as HTMLInputElement
+  expect(option.checked).toBe(false)
+  expect(screen.getByLabelText('Resumo do Baplie').textContent).toContain('em porto sem escala1')
+  fireEvent.click(option)
+  const confirm = await screen.findByRole('button', { name: 'Importar 2 containers' }) as HTMLButtonElement
+  await waitFor(() => expect(confirm.disabled).toBe(false))
+  fireEvent.click(confirm)
+  await waitFor(() => expect(mocks.reimport).toHaveBeenCalledTimes(1))
+  expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({
+    pods: ['BRSSZ', 'BRIGI'],
+    containers: [container, brigi],
+    file: { voyageNumber: '14N' },
+  }))
+})
+
+it('trocar a Viagem de destino desmarca a escala nova escolhida para a anterior', async () => {
+  const brigi = { container_number: 'SEGU7664016', status: 'full', pod: 'BRIGI', is_imo: false, is_oog: false }
+  mocks.parse.mockResolvedValue({ ...parsed(), podsWithoutEscala: [{ pod: 'BRIGI', containers: [brigi] }] })
+  const view = render(<BaplieImportModal onClose={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Escolher viagem 7' }))
+  chooseFile(view)
+  const option = await screen.findByRole('checkbox', { name: /BRIGI — sem escala na viagem/ }) as HTMLInputElement
+  fireEvent.click(option)
+  expect(option.checked).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Escolher viagem 7' }))
+  await waitFor(() => expect((screen.getByRole('checkbox', { name: /BRIGI — sem escala na viagem/ }) as HTMLInputElement).checked).toBe(false))
 })
