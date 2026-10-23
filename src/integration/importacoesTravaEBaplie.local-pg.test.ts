@@ -256,7 +256,8 @@ describeLocal('Lote 1 das importações — trava por Viagem e Baplie no servido
     const cases: Array<[Row[], string[], object | undefined, RegExp]> = [
       [[{ container_number: 'AQCU3870002', pod: 'BRRIG' }, { container_number: 'AQCU3870002', pod: 'BRRIG', status: 'empty' }],
         ['BRRIG'], undefined, /Container repetido no Baplie \(AQCU3870002\)/],
-      [[{ container_number: 'AQCU3870021', pod: 'BRPNG' }], ['BRPNG'], undefined, /fora das escalas da Viagem \(BRPNG\)/],
+      // 418: porto brasileiro sem escala entra sem escala; só o estrangeiro fora das escalas é recusado.
+      [[{ container_number: 'AQCU3870021', pod: 'SGSIN' }], ['SGSIN'], undefined, /porto estrangeiro fora das escalas da Viagem \(SGSIN\)/],
       [[{ container_number: 'AQCU3870021', pod: 'BRSSZ' }], ['BRRIG'], undefined, /fora dos portos marcados \(BRSSZ\)/],
     ]
     for (const [list, pods, file, message] of cases) {

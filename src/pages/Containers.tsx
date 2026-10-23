@@ -17,7 +17,9 @@ import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { useToast } from '../components/ui/Toast'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useAuth } from '../hooks/useAuth'
-import { useRowSelection } from '../hooks/useRowSelection'
+import { loadAllPageKeys, useFilteredSelection } from '../hooks/useFilteredSelection'
+import { listOperationalContainers } from '../services/operationalLists'
+import { SelectAllFilteredCheckbox } from '../components/shared/SelectAllFilteredCheckbox'
 import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
@@ -25,6 +27,8 @@ import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { ContainerDatesImportModal } from '../components/shared/ContainerDatesImportModal'
 import { CargoProfileBadge, ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { VoyageRail } from '../components/voyages/VoyageRail'
+import { toggleRailVoyage, useVoyageRailItems } from '../hooks/useVoyageRailItems'
 import { checkContainerDependencies, deleteContainers } from '../services/containers'
 import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { type ContainerFilters, fetchAllContainers, useContainers, usePortOptions, useContainerTypeOptions } from '../hooks/useBls'
@@ -138,9 +142,9 @@ export function Containers() {
   const confirmWithReason = useConfirmWithReason()
   const { isAdmin } = useAuth()
   const narrow = useNarrowViewport()
-  const selection = useRowSelection<number>()
   const [deleting, setDeleting] = useState(false)
   const { filters, setFilters, updateFilter } = usePageFilters<ContainerFilters>(filtersFromContainersSearch(searchParams))
+  const voyageRail = useVoyageRailItems()
   const [exporting, setExporting] = useState(false)
   const [datesImportOpen, setDatesImportOpen] = useState(false)
 
@@ -170,6 +174,12 @@ export function Containers() {
     page: debouncedSearch === filters.search ? filters.page : 1,
   }), [debouncedSearch, filters])
   const { data, isLoading, isPlaceholderData, error, fetchStatus, refetch } = useContainers(queryFilters)
+  // "Selecionar todos" marca o filtro inteiro, em todas as páginas (G1).
+  const selection = useFilteredSelection<number>({
+    scope: { ...queryFilters, page: undefined, pageSize: undefined },
+    totalCount: data?.count ?? 0,
+    loadAll: () => loadAllPageKeys((page) => listOperationalContainers(queryFilters, page, 100), (row) => row.id, { pageSize: 100 }),
+  })
   // Filtro trocado: as linhas na tela ainda são do recorte anterior até a
   // resposta chegar. Ficam esmaecidas e sem seleção, e os totais não as contam.
   const stale = isPlaceholderData
@@ -245,8 +255,6 @@ export function Containers() {
     }
   }
 
-  const pageContainerIds = rows.map((row) => row.id)
-  const allPageSelected = pageContainerIds.length > 0 && pageContainerIds.every((id) => selection.isSelected(id))
   const containerColumnCount = isAdmin ? 11 : 10
   const containerSkeletonTemplate = `${isAdmin ? '44px ' : ''}1.1fr 1.1fr 1.3fr 1.4fr 0.6fr 0.7fr 0.7fr 0.8fr 0.9fr 0.9fr`
 
@@ -274,6 +282,14 @@ export function Containers() {
           </div>
         }
       />
+
+      {voyageRail.isLoading ? null : (
+        <VoyageRail
+          items={voyageRail.items}
+          selectedId={filters.voyageId ? Number(filters.voyageId) : null}
+          onSelect={(id) => updateFilter('voyageId', toggleRailVoyage(filters.voyageId, id))}
+        />
+      )}
 
       <div className="app-metric-row" role="group" aria-label="Totais do recorte">
         <MetricCard label="Containers" value={count(data?.distinctCount)} />
@@ -371,6 +387,9 @@ export function Containers() {
           onDelete={() => runContainerDelete([...selection.selected])}
           deleting={deleting}
           noun={['container', 'containers']}
+          total={selection.totalCount}
+          loadingAll={selection.loadingAll}
+          loadError={selection.loadError}
         />
       ) : null}
 
@@ -450,13 +469,7 @@ export function Containers() {
                   <tr>
                     {isAdmin ? (
                       <th scope="col" className="app-cargo-table__check">
-                        <input
-                          type="checkbox"
-                          aria-label="Selecionar todos os containers da página"
-                          checked={allPageSelected}
-                          disabled={stale}
-                          onChange={() => selection.toggleMany(pageContainerIds)}
-                        />
+                        <SelectAllFilteredCheckbox selection={selection} noun="containers" disabled={stale} />
                       </th>
                     ) : null}
                     <th scope="col" className="app-cargo-table__id app-table__text-head">Container</th>

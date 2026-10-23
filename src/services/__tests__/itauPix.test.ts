@@ -192,6 +192,25 @@ describe('processador da fila de cobranças', () => {
   })
   const ativa = (txid: string, extra: Record<string, unknown> = {}) => Response.json(cob(txid, { valor: { original: '2.50' }, ...extra }))
 
+  it('erro do Itaú gravado na cobrança sai sem dado do pagador (auditoria run-3)', async () => {
+    const c = charge({ status: 'pending_update' })
+    const refused = Response.json({
+      title: 'Cobrança inválida.', status: 400,
+      violacoes: [{ razao: 'CPF inválido', propriedade: 'devedor.cpf', valor: '12345678909' }],
+      devedor: { cpf: '12345678909', nome: 'Fulano de Tal' },
+      pix: [{ endToEndId: 'E1', infoPagador: 'pago por Fulano', valor: '2.50' }],
+    }, { status: 400 })
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(refused)
+    const result = await stepCharge(createItauPixClient(config, fetchMtls), c)
+    expect(result.outcome).toBe('error')
+    const error = (result as { error: string }).error
+    expect(error).toContain('CPF inválido')
+    expect(error).toContain('devedor.cpf')
+    expect(error).not.toContain('12345678909')
+    expect(error).not.toContain('Fulano')
+    expect(error).toContain('"valor":"2.50"')
+  })
+
   it('primeira tentativa cria a COB com o valor formatado', async () => {
     const c = charge()
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid))
@@ -279,16 +298,17 @@ describe('processador da fila de cobranças', () => {
   })
 
   it('processa o que foi reservado e registra cada resultado', async () => {
-    const a = charge({ id: 10 })
+    const a = charge({ id: 10, change_version: 3 })
     const b = charge({ id: 11, status: 'pending_cancel' })
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(a.txid))
       .mockResolvedValueOnce(ativa(b.txid, { status: 'REMOVIDA_PELO_USUARIO_RECEBEDOR' }))
-    const recorded: [number, string][] = []
+    const recorded: [number, string, number | undefined][] = []
     const summary = await processItauPixQueue(createItauPixClient(config, fetchMtls), {
       claim: vi.fn().mockResolvedValueOnce([a, b]).mockResolvedValue([]),
-      record: async (id, outcome) => { recorded.push([id, outcome.outcome]) },
+      record: async (id, outcome, claimedVersion) => { recorded.push([id, outcome.outcome, claimedVersion]) },
     })
-    expect(recorded).toEqual([[10, 'active'], [11, 'cancelled']])
+    // A versão reservada volta ao banco, que só ativa a versão enviada (migration 424).
+    expect(recorded).toEqual([[10, 'active', 3], [11, 'cancelled', undefined]])
     expect(summary).toMatchObject({ active: 1, cancelled: 1, error: 0 })
   })
 
@@ -344,6 +364,19 @@ describe('processador da fila de cobranças', () => {
     const summary = await processItauPixQueue(q.client, q.queue, { now: q.now })
     expect(q.recorded).toEqual([1, 2, 3])
     expect(summary).toMatchObject({ active: 2, error: 1, throttled: true })
+  })
+
+  it('parada no meio do bloco libera as reservadas e não chamadas (431)', async () => {
+    const released: number[][] = []
+    const q = queueOf(20, { failOn: 3 })
+    await processItauPixQueue(q.client, { ...q.queue, release: async (ids: number[]) => { released.push(ids) } }, { now: q.now })
+    // Bloco 1–5: 3 respondeu 429; 4 e 5 não foram chamadas.
+    expect(released).toEqual([[4, 5]])
+    const unreachable = queueOf(20, { failOn: 5, failStatus: 0 })
+    const none: number[][] = []
+    await processItauPixQueue(unreachable.client, { ...unreachable.queue, release: async (ids: number[]) => { none.push(ids) } }, { now: unreachable.now })
+    // A última do bloco ficou incerta: não há reservada sem chamada.
+    expect(none).toEqual([])
   })
 
   it('Itaú sem resposta: registra a incerta e para, sem esperar o resto do bloco', async () => {
@@ -442,6 +475,48 @@ describe('consulta de recebimentos', () => {
     await expect(pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())).rejects.toThrow('diverge do endToEndId')
     expect(s.settle).not.toHaveBeenCalled()
     expect(s.saved).toEqual([])
+  })
+
+  it('um comprovante isolado que diverge do endToEndId vai para análise sem parar a baixa dos demais (P4)', async () => {
+    const odd = newVelaTxid()
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610061500', 1), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
+      { endToEndId: e2e('202610060800', 2), txid: odd, valor: '0.02', horario: '2026-10-06T12:01:00Z' },
+      { endToEndId: e2e('202610061502', 3), txid: newVelaTxid(), valor: '0.03', horario: '2026-10-06T12:02:00Z' },
+    ]))
+    const s = sink('2026-10-06T12:00:00.000Z')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ vela: 3, settled: 2, review: 1 })
+    expect(s.failed).toHaveBeenCalledWith(expect.objectContaining({ txid: odd }), expect.stringContaining('diverge do endToEndId'), true)
+    expect(s.settle).not.toHaveBeenCalledWith(expect.objectContaining({ txid: odd }))
+    expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
+  })
+
+  it('a maioria divergindo é fuso: para sem baixar nenhum e leva os TXIDs', async () => {
+    const a = newVelaTxid()
+    const b = newVelaTxid()
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610061500', 1), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
+      { endToEndId: e2e('202610061201', 2), txid: a, valor: '0.02', horario: '2026-10-06T12:01:00Z' },
+      { endToEndId: e2e('202610061202', 3), txid: b, valor: '0.03', horario: '2026-10-06T12:02:00Z' },
+    ]))
+    const s = sink('2026-10-06T12:00:00.000Z')
+    const error = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z')).catch((e) => e)
+    expect(error).toMatchObject({ message: expect.stringContaining('diverge do endToEndId'), body: { txids: [a, b] } })
+    expect(s.settle).not.toHaveBeenCalled()
+    expect(s.saved).toEqual([])
+  })
+
+  it('endToEndId com data impossível é formato inesperado, não outro instante', async () => {
+    for (const minute of ['202613061500', '202610061599', '202602301500']) {
+      const s = sink('2026-10-06T12:00:00.000Z')
+      const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+        { endToEndId: e2e(minute), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
+      ]))
+      const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z'))
+      expect(summary).toMatchObject({ review: 1, settled: 0 })
+      expect(s.failed).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('formato inesperado'), true)
+    }
   })
 
   it('baixa só TXID do Vela, ignora o terceiro e avança o checkpoint com sobreposição', async () => {

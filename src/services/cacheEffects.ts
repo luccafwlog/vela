@@ -45,7 +45,7 @@ const FINANCIAL_READ_KEYS: readonly (readonly unknown[])[] = [
   ['customer-reconciliation-queue'], ['report-financial'], ['report-customers'],
 ]
 const CARD_SCHEDULE_KEYS: readonly (readonly unknown[])[] = [
-  ['baplie-voyage-card-schedules'], ['vehicles-voyage-card-schedules'],
+  ['baplie-voyage-card-schedules'], ['vehicles-voyage-card-schedules'], ['voyage-rail-card-schedules'],
 ]
 const EMPTY_IMPORT_KEYS: readonly (readonly unknown[])[] = [
   ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
@@ -124,6 +124,9 @@ export async function afterBaplieImportado(queryClient: QueryInvalidator, option
   await invalidate(queryClient, [
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...EMPTY_IMPORT_KEYS,
     ['baplie-staging', String(options.voyageId)], ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, ...LINEUP_KEYS,
+    // O Baplie pode criar a escala do porto marcado (migration 410): as
+    // escalas da conferência, a linha do tempo e o rail mudam junto.
+    queryKeys.baplie.voyageContext(Number(options.voyageId)), voyageTimelineKey(options.voyageId), ['voyages'],
   ])
 }
 

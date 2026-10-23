@@ -41,6 +41,9 @@ Abra <http://localhost:5173> e entre com **auditor@local.test** / **audit-local*
 - `local-stack.ps1` — orquestra tudo (serviço, banco, migrations, seed, shim).
 - O shim é `scripts/design-audit/sb-shim.cjs`; o proxy `/sb-proxy` em
   `vite.config.ts` encaminha para ele.
+- O shim só atende o Host `localhost:54321`, `127.0.0.1:54321` ou
+  `[::1]:54321` e responde 403 a qualquer outro, contra DNS rebinding. O proxy
+  do Vite chega como `127.0.0.1:54321` (`changeOrigin`).
 
 ## Notas
 

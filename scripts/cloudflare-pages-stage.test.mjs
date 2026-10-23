@@ -55,6 +55,7 @@ test('stages separate internal and Portal Pages sites with SPA routing and secur
     }
     assert.ok(headers.includes("connect-src 'self' https://abcdefgh.supabase.co wss://abcdefgh.supabase.co "))
     assert.ok(!headers.includes('*.supabase.co'))
+    assert.match(headers, /frame-ancestors 'none'; form-action 'self';/)
     assert.match(headers, /^\/index\.html\s*\n(?:  .*\n)*  Cache-Control: no-cache, no-store, must-revalidate/m)
 
     await stagePagesSite({ app: 'portal', input, output: portalOutput, supabaseUrl: SUPABASE })

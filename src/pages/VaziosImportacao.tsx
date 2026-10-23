@@ -14,13 +14,16 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { useToast } from '../components/ui/Toast'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { VoyageRail } from '../components/voyages/VoyageRail'
+import { toggleRailVoyage, useVoyageRailItems } from '../hooks/useVoyageRailItems'
 import { VaziosImportacaoImportModal } from '../components/shared/VaziosImportacaoImportModal'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyageOptions } from '../hooks/useBls'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { usePageFilters } from '../hooks/usePageFilters'
-import { useRowSelection } from '../hooks/useRowSelection'
+import { useFilteredSelection } from '../hooks/useFilteredSelection'
+import { SelectAllFilteredCheckbox } from '../components/shared/SelectAllFilteredCheckbox'
 import { describeActiveFilters } from '../lib/operationalState'
 import { formatDate, voyageLabel } from '../lib/utils'
 import {
@@ -80,10 +83,10 @@ export function VaziosImportacao() {
     pageSize: 20,
   })
 
+  const voyageRail = useVoyageRailItems()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [bulkUpdating, setBulkUpdating] = useState(false)
-  const [selectingAllFiltered, setSelectingAllFiltered] = useState(false)
 
   const filterVoyageId = Number(filters.voyageId)
   const hasVoyage = Number.isInteger(filterVoyageId) && filterVoyageId > 0
@@ -112,7 +115,6 @@ export function VaziosImportacao() {
     pageSize: filters.pageSize,
   }), [debouncedSearch, filters, selectedManifesto])
 
-  const selection = useRowSelection<string>(queryFilters)
 
   const containers = useQuery({
     queryKey: ['vazios-importacao-containers', queryFilters],
@@ -140,10 +142,13 @@ export function VaziosImportacao() {
 
   const totalCount = data?.count ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / filters.pageSize))
-  const pageContainerIds = rows.map((row) => row.id)
-  const allPageSelected = pageContainerIds.length > 0 && pageContainerIds.every((id) => selection.isSelected(id))
-  const hasMultiplePages = totalCount > pageContainerIds.length
-  const isAllFilteredSelected = selection.count === totalCount && totalCount > 0
+  // "Selecionar todos" marca o filtro inteiro, em todas as páginas (G1); a
+  // seleção atravessa páginas e zera quando o filtro muda.
+  const selection = useFilteredSelection<string>({
+    scope: { ...queryFilters, page: undefined, pageSize: undefined },
+    totalCount,
+    loadAll: () => fetchVaziosImportacaoContainerIds(queryFilters),
+  })
 
   const selectedVoyage = voyages.find((voyage) => String(voyage.id) === filters.voyageId)
   const activeFilterCount = [filters.search, filters.voyageId, filters.mercanteId, filters.pod].filter((value) => value.trim() !== '').length
@@ -172,18 +177,6 @@ export function VaziosImportacao() {
       mercanteId: selectedManifesto && selectedManifesto.pod !== pod ? '' : current.mercanteId,
       page: 1,
     }))
-  }
-
-  async function handleSelectAllFiltered() {
-    setSelectingAllFiltered(true)
-    try {
-      const allIds = await fetchVaziosImportacaoContainerIds(queryFilters)
-      selection.toggleMany(allIds)
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Não foi possível selecionar os containers do filtro.', 'error')
-    } finally {
-      setSelectingAllFiltered(false)
-    }
   }
 
   async function handleBulkNatureza(natureza: 'cama' | 'cover_plate' | null) {
@@ -254,6 +247,14 @@ export function VaziosImportacao() {
         }
       />
 
+      {voyageRail.isLoading ? null : (
+        <VoyageRail
+          items={voyageRail.items}
+          selectedId={hasVoyage ? filterVoyageId : null}
+          onSelect={(id) => setFilters((current) => ({ ...current, voyageId: toggleRailVoyage(current.voyageId, id), mercanteId: '', page: 1 }))}
+        />
+      )}
+
       <div className="app-filter-grid">
         <Field label="Busca">
           <Input
@@ -295,6 +296,9 @@ export function VaziosImportacao() {
       {canImport ? (
         <BulkActionsBar
           count={selection.count}
+          total={selection.totalCount}
+          loadingAll={selection.loadingAll}
+          loadError={selection.loadError}
           onClear={selection.clear}
           deleting={bulkUpdating}
           noun={['container', 'containers']}
@@ -304,11 +308,6 @@ export function VaziosImportacao() {
               <Button variant="secondary" disabled={bulkUpdating} onClick={() => void handleBulkNatureza('cama')}>Cama</Button>
               <Button variant="secondary" disabled={bulkUpdating} onClick={() => void handleBulkNatureza('cover_plate')}>Cover plate</Button>
               <Button variant="ghost" disabled={bulkUpdating} aria-label="Limpar natureza" onClick={() => void handleBulkNatureza(null)}>Limpar</Button>
-              {allPageSelected && hasMultiplePages && !isAllFilteredSelected ? (
-                <Button variant="secondary" loading={selectingAllFiltered} loadingLabel="Selecionando…" onClick={() => void handleSelectAllFiltered()}>
-                  {`Selecionar os ${totalCount.toLocaleString('pt-BR')} do filtro`}
-                </Button>
-              ) : null}
             </div>
           }
         />
@@ -350,13 +349,7 @@ export function VaziosImportacao() {
                   <tr>
                     {canImport ? (
                       <th scope="col">
-                        <input
-                          type="checkbox"
-                          aria-label="Selecionar todos os containers da página"
-                          checked={allPageSelected}
-                          disabled={stale}
-                          onChange={() => selection.toggleMany(pageContainerIds)}
-                        />
+                        <SelectAllFilteredCheckbox selection={selection} noun="containers" disabled={stale} />
                       </th>
                     ) : null}
                     <th scope="col">Container</th>

@@ -12,7 +12,7 @@
 - A lógica financeira sensível (criar invoice, numerar, consolidar, PIX) roda em **RPCs `SECURITY DEFINER`** transacionais. Desde as migrations `232` e `233`, nenhum perfil escreve direto nas tabelas de fatura, pagamento e recebível nem em `bls.financial_status`, e `register_invoice_payment` roda como dono. `mark_bl(s)_ready_and_create_invoice` seguem `SECURITY INVOKER` sobre RPCs `SECURITY DEFINER` (P4 na [matriz](#modelo-de-permissões-por-perfil)).
 - **Default-deny em funções** (ADR 0011, reforçada pela ADR 0047): desde a migration arquivada `297` — hoje nas migrations `001` e `006`, com a varredura de `PUBLIC`/`anon` da `003` —, o `ALTER DEFAULT PRIVILEGES` de `public` **revoga** `EXECUTE` de `PUBLIC`, `anon` e `authenticated`. Função nova nasce fechada e o acesso é concedido caso a caso na própria migration (`GRANT EXECUTE ON FUNCTION public.<fn>(<args>) TO authenticated;`) — esquecer quebra fechado, com erro de permissão em teste, em vez de abrir em silêncio. Antes disso o default do Supabase concedia `EXECUTE` a `anon`/`authenticated` em toda função criada, o que gerou as correções das migrations arquivadas `078`, `088`, `093`, `152` e `257` e deixou 51 funções executáveis por `anon` até a arquivada `297` varrê-las. `PUBLIC` faz parte da revogação por necessidade: sem ela, `anon` e `authenticated` herdariam o EXECUTE do default embutido do PostgreSQL. Atenção ao recriar função: `CREATE OR REPLACE` preserva o ACL, mas `DROP FUNCTION` + `CREATE` exige o `GRANT` de volta.
 - **`search_path` fixo em toda função**, não só nas `SECURITY DEFINER` (lint 0011 do advisor). Função que só usa `pg_catalog` ou nomes qualificados recebe `SET search_path = ''`; 19 das 23 que faltavam receberam na migration `320`. **Exceção de desempenho, decidida pelo responsável em 2026-10-19:** função `LANGUAGE sql` com `SET` deixa de ser expandida inline pelo planejador e passa a custar uma chamada por linha (de 5 a 18 vezes mais lenta no Postgres 16 local). Por isso `bl_cargo_mode_matches_filter`, `normalize_port_code`, `bl_operation_front_modalidade` e `_import_effect_priority`, que rodam linha a linha nas listas de B/L e containers, nas importações, nos comunicados automáticos e na fila de efeitos, ficam sem `SET`; o advisor continua listando as quatro. O risco é pequeno porque nenhuma é `SECURITY DEFINER` e o corpo só chama `pg_catalog`. A suíte `advisorFuncoesFechadas` aceita só essas quatro e confere no plano que continuam inline. Função SQL nova chamada em volume segue a mesma regra: sem `DEFINER`, nomes qualificados e entrada na lista da suíte.
-- **Nenhuma função pré-autenticação:** desde a migration `320` ([ADR 0090](../adr/0090-programacao-de-navios-so-com-sessao.md)) nenhuma função do projeto é executável por `anon`. `portal_ship_schedule()`, que a ADR 0047 mantinha como vitrine pública, só atende sessão (Portal ou interna), porque o Portal só a chama depois do login. Desde a migration `337` o corpo confere o chamador: usuário interno ativo, conta ativa do Portal com credencial não revogada ou `service_role`; outra conta `authenticated` recebe 28000. O grant sozinho não bastava, porque o cadastro público do Auth fica fora do app: contas só nascem pelas Edge Functions `admin-users` e `portal-invite-activate` (`auth.admin.createUser`), e o cadastro público tem de ficar desligado em produção ([serviços externos](servicos-externos.md#supabase)). A `320` também fechou dez funções de trigger que em produção tinham `EXECUTE` para `PUBLIC`, resíduo da cadeia arquivada que a varredura da `003` não alcançou (ela nunca rodou em produção). A suíte local-pg `advisorFuncoesFechadas` varre o catálogo e falha com função executável por `anon`, trigger executável por cliente ou função sem `search_path` fixo; a `320` também recusa o deploy se sobrar função aberta a `anon`. A exceção `anon` da ADR 0013 (`portal_resolve_login`) foi encerrada pela migration arquivada `182`, quando o login passou a ser resolvido pela Edge Function `portal-login` com `service_role`, que lê `customer_portal_accounts` diretamente; `portal_resolve_login` ficou no catálogo sem grant e sem chamador.
+- **Nenhuma função pré-autenticação:** desde a migration `320` ([ADR 0090](../adr/0090-programacao-de-navios-so-com-sessao.md)) nenhuma função do projeto é executável por `anon`. A única exceção, desde a `419` ([ADR 0099](../adr/0099-corte-do-token-interno-na-revogacao.md)), é `check_internal_token_cutoff()`: o PostgREST a chama antes de toda requisição com o papel da requisição, e sem sessão ela não faz nada ([revogação de sessões internas](#revogação-de-sessões-internas)). `portal_ship_schedule()`, que a ADR 0047 mantinha como vitrine pública, só atende sessão (Portal ou interna), porque o Portal só a chama depois do login. Desde a migration `337` o corpo confere o chamador: usuário interno ativo, conta ativa do Portal com credencial não revogada ou `service_role`; outra conta `authenticated` recebe 28000. O grant sozinho não bastava, porque o cadastro público do Auth fica fora do app: contas só nascem pelas Edge Functions `admin-users` e `portal-invite-activate` (`auth.admin.createUser`), e o cadastro público tem de ficar desligado em produção ([serviços externos](servicos-externos.md#supabase)). A `320` também fechou dez funções de trigger que em produção tinham `EXECUTE` para `PUBLIC`, resíduo da cadeia arquivada que a varredura da `003` não alcançou (ela nunca rodou em produção). A suíte local-pg `advisorFuncoesFechadas` varre o catálogo e falha com função executável por `anon`, trigger executável por cliente ou função sem `search_path` fixo; a `320` também recusa o deploy se sobrar função aberta a `anon`. A exceção `anon` da ADR 0013 (`portal_resolve_login`) foi encerrada pela migration arquivada `182`, quando o login passou a ser resolvido pela Edge Function `portal-login` com `service_role`, que lê `customer_portal_accounts` diretamente; `portal_resolve_login` ficou no catálogo sem grant e sem chamador.
 - **Helpers de revisão privilegiados:** `compute_bl_review_pendencies` lê `customer_portal_accounts`, relação administrativa protegida por RLS. Por isso roda como `SECURITY DEFINER` com `search_path` fixo e sem `EXECUTE` direto para `PUBLIC`, `anon` ou `authenticated`; somente RPCs/triggers autorizados o invocam.
 - **Tabelas lidas pelo navegador ganham `GRANT` explícito:** tabelas seguem o default da plataforma Supabase (`authenticated` recebe privilégios em tabela nova de `public`) e a fronteira real é a RLS. Banco montado só pelas migrations — replay do CI, design-audit, `setup-local-pg.sh` — não tem esse default, então tabela que o navegador lê direto precisa do grant na própria migration; sem ele a leitura falha com 42501 fora de produção (VELA-16, corrigida pela `166` para `baplie_reconciliation_resolutions`). Esse default também dá `TRUNCATE`, `TRIGGER` e `REFERENCES` a `authenticated` (89 tabelas na conferência de 2026-10-18) e, em 4 tabelas, a `anon`; `TRUNCATE` não passa pela RLS nem pelos gatilhos de `DELETE`. A migration `312` tirou os três das tabelas de Comunicado e de e-mail (plano dos e-mails, 5.3), e a `340`, de todas as tabelas de `public` para `anon` e `authenticated`, inclusive do default privilege do papel das migrations. A branch `staging`, criada em 2026-10-19 só pelas migrations, recusava com 42501 leituras que produção aceitava (VELA-22, VELA-23): a `340` dá a `service_role` o SELECT/INSERT/UPDATE/DELETE que ele tem em produção (sem `DELETE` nas append-only `invoices`, `invoice_items`, `payments`, `ledger_settlements` e `bl_receivables`; `audit_logs` só `INSERT`/`SELECT`) e a `authenticated` só o `SELECT` que as telas usam (embeds do Relatório Próprio de Agência e `customer_portal_accounts`, lida pela policy de `customer_communication_box_kinds`/`_boxes`). Os demais privilégios de `authenticated` que só produção tem não são usados pela Data API e não entram na cadeia. A `340` também tira de `anon` o SELECT/INSERT/UPDATE/DELETE que produção dava em `financial_payment_attempts`, `demurrage_refunds`, `invoice_corrections` e `invoice_customer_changes` (RLS sem policy para `anon`; o `TRUNCATE` dessas tabelas passava por cima da RLS). A suíte local-pg `grantsDoReplay` falha quando o replay sai desse contrato: `service_role` sem `SELECT` numa tabela de `public` ou sem `INSERT`/`UPDATE`/`DELETE` fora das append-only, `anon` com qualquer privilégio de tabela, `anon`/`authenticated` com `TRUNCATE`, `TRIGGER` ou `REFERENCES`. Ela não sabe quais tabelas o navegador lê: o `SELECT` de `authenticated` numa tabela nova continua dependendo do grant na migration e do teste da tela.
 - **Edge Functions do Portal:** chamadas que usam `service_role` validam ator e escopo no servidor. As migrations `101` e `102` concedem a esse role somente as operações diretas de runtime necessárias em `customer_portal_accounts`, `customers`, `portal_invites`, `portal_email_attempts` e `alerts`, incluindo uso das sequences; não alteram grants de `PUBLIC`, `anon` ou `authenticated`.
@@ -213,8 +213,9 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Gerar Invoice de Demurrage e complementar | ✔ | ✔ | ✔ | ✔ | ✔ | `issue_demurrage_invoice_for_bl` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
 | Editar a condição de Demurrage do B/L (free time e diárias do B/L) | ✔ | ✔ | ✔ | ✔ | ✔ | `save_bl_demurrage_config` (`is_active_user()`, autor igual ao da sessão) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, MATRIX_GLOBAL) |
 | Registrar pagamento de Invoice de Demurrage | ✔ | ✔ | — | — | — | `register_demurrage_payment` (`is_financeiro_user`) | ADR 0085, base e D4 | vigente |
-| Tirar o ROE manual da Invoice de Demurrage, com motivo | ✔ | ✔ | — | — | — | `release_demurrage_invoice_manual_roe` (`is_financeiro_user`; migrations `382` e `385`) | ADR 0094, B10 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14; `demurrageRoeManual.local-pg.test.ts`) |
-| Aplicar ou alterar desconto | ✔ | ✔ | ✔ | ✔ | ✔ | `apply_demurrage_discount` | ADR 0085, D4 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
+| Tirar o ROE manual da Invoice de Demurrage, com motivo | ✔ | ✔ | — | — | ✔ | `release_demurrage_invoice_manual_roe` (`current_actor_role()` em Financeiro, Administrativo ou Equipamentos; migrations `382`, `385` e `435`) | ADR 0094, B10; decisão do dono de 2026-10-22 | vigente desde a migration `435` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14; `demurrageRoeManual.local-pg.test.ts`) |
+| Pôr e tirar o ROE manual do B/L, com motivo | ✔ | ✔ | — | — | ✔ | `set_bl_manual_roe` (migration `435`); o UPDATE direto de `bls.demurrage_roe` e `bls.demurrage_roe_manual` saiu de `authenticated` | ADR 0094, B10; decisão do dono de 2026-10-22 | vigente desde a migration `435` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14; `decisoesDoDonoRun3.local-pg.test.ts`) |
+| Aplicar ou alterar desconto, inclusive o de 100%, que quita a Invoice como isenta | ✔ | ✔ | ✔ | ✔ | ✔ | `apply_demurrage_discount` (desconto que zera o USD líquido grava `paid`, migration `306`) | ADR 0085, D4 (nota de 2026-10-22: o desconto integral segue com todos os setores) | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
 | Cancelar Invoice e cancelar baixa de Demurrage | ✔ | — | — | — | — | `cancel_demurrage_invoice`, `reverse_demurrage_payment` (`is_admin`) | ADR 0085, base; ADR 0071, item 13 | vigente |
 | Reabrir Invoice de Demurrage paga | — | — | — | — | — | `reopen_demurrage_invoice` não tinha tela e saiu do alcance de `authenticated` (migration `328`); a baixa se desfaz por `reverse_demurrage_payment` | Achado P5 do lote 5b | vigente desde a migration `328` |
 | Alterar itens de Invoice emitida (dias, diária, subtotal) | — | — | — | — | — | Só as RPCs de emissão e recálculo | ADR 0077; ADR 0085 | vigente: escrita direta em `demurrage_invoice_items` revogada (migration `231`, **Teste** local) |
@@ -241,6 +242,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Criar e editar Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `create_customer_with_contacts`, `update_customer_with_audit` | ADR 0046 | vigente |
+| Corrigir o CNPJ de Cliente sem convite nem Conta de Portal, com justificativa | ✔ | ✔ | ✔ | ✔ | ✔ | Só `update_customer_with_audit` (`cnpj_cpf`, migration `436`); o UPDATE de `customers` por `authenticated` é por coluna, sem `cnpj_cpf` | Decisão do dono de 2026-10-22 | vigente desde a migration `436` (**Teste** local: `decisoesDoDonoRun3.local-pg.test.ts`); a tela não oferece o campo |
 | Desativar e reativar Cliente | ✔ | — | — | — | — | `deactivate_customer`, `reactivate_customer` (`is_admin`) e gatilho da migration `092` | ADR 0073, item 5 | vigente |
 | Editar contatos e Caixas de Comunicação | ✔ | — | — | ✔ | ✔ | `internal_save_customer_contact_configuration` (migration `008`), `internal_fill_empty_contact_boxes` | ADR 0060; ADR 0046, nota de 2026-09-18 | vigente: sem escrita direta em `customer_contacts` (migration `232`, **Teste** local) |
 | Consultar o histórico de Comunicados (`/clientes/comunicacao?tab=historico`) | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` de `customer_communications` e `customer_communication_bls`; a rota abre a todos; a vista Disparo exige `customer_communications` (`canSend` em `src/pages/ClientesComunicacao.tsx`) | ADR 0044; ADR 0085, D19 | vigente: a rota abre a todos e a vista Disparo fica com quem envia (**Teste:** `ClientesComunicacao.test.tsx`) |
@@ -272,14 +274,66 @@ por ele. A API do navegador não apaga perfil (migration `240`).
 
 | Fronteira | Hook | Mecanismo |
 |---|---|---|
-| **Interna** | `src/hooks/useAuth.tsx` | Supabase Auth + perfil em `user_profiles`; timeout de inatividade de **8 horas**; role → permissões. |
+| **Interna** | `src/hooks/useAuth.tsx` | Supabase Auth + perfil em `user_profiles`; timeout de inatividade de **8 horas**; role → permissões. Login e conferência da senha atual mandam o token do Turnstile (ações `vela_login` e `vela_senha_atual`) para o captcha do Auth; sessão de 12 h no servidor (decisão do dono de 2026-10-22; ligar na produção é passo do dono, ver [serviços externos](servicos-externos.md#captcha-e-sessão-da-equipe-auditoria-run-3)). |
 | **Portal** | `src/hooks/usePortalAuth.tsx` | Supabase Auth. Login exclusivo por CNPJ normalizado via Edge Function `portal-login`. |
 
 > **Logout fail-closed:** tanto `useAuth` quanto `usePortalAuth` utilizam `removeLocalSessionFallback` (`src/services/supabaseAuth.ts`). Se a revogação remota falhar ou exceder o timeout de 5 segundos (por partição de rede ou indisponibilidade do Auth), a sessão local (localStorage e memória) é purgada forçadamente no cliente de forma isolada, removendo estritamente o `storageKey` da respectiva aplicação (`td-portal-auth` no Portal e a chave padrão no app interno), preservando o isolamento de sessões no mesmo domínio. Na interface do Portal, o botão de logout desabilita durante o processo (`isSigningOut`) e exibe aviso contextual na tela de login caso a revogação no servidor não tenha sido confirmada (G-PAF3). O aviso vem do estado vivo do provider (`signOutError`): aparece quando a falha é confirmada, até 5 s depois do redirecionamento para o login, e é limpo ao iniciar um novo login; não é persistido em `sessionStorage`, para nunca reaparecer num logout posterior bem-sucedido.
 
-> **Portal login:** o navegador envia apenas CNPJ, senha e o token do desafio Cloudflare Turnstile para `portal-login`; a identidade técnica fica no servidor. A Edge Function confere o Turnstile (ação `portal_login`; `portal_recovery` na recuperação) antes de qualquer outra verificação e recusa com HTTP `403` token ausente ou inválido; sem `TURNSTILE_SECRET_KEY`, só o stack local passa ([serviços externos](servicos-externos.md#cloudflare-turnstile)). As demais recusas do login — CNPJ desconhecido, conta inativa, senha errada e bloqueio — recebem o mesmo `401` genérico; o email técnico aparece no claim `email` do JWT depois do login, então a senha guardada no GoTrue é derivada com pepper e só as Edge Functions sabem calculá-la. Para não transformar o custo da verificação em oráculo de CNPJ, conta elegível e conta inexistente fazem exatamente um lookup administrativo e as mesmas tentativas no Auth (primeiro a senha derivada `HMAC(PORTAL_PASSWORD_PEPPER, senha)`, depois a senha pura de conta legada, que migra para a derivada quando acerta); o caso inexistente usa a identidade sem vínculo configurada em `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, e qualquer sessão dummy é descartada. As Edge Functions do Portal chamadas pelo navegador compartilham uma allowlist de origens em `supabase/functions/_shared/cors.ts` (`vela.app.br`, `portalfwlog.com.br` e localhost de dev); os previews dos dois projetos Cloudflare Pages são aceitos por padrões restritos aos nomes `vela-internal` e `vela-portal`, e domínios adicionais entram somente como URLs HTTPS exatas em `CLOUDFLARE_PAGES_PREVIEW_ORIGINS`. Origem fora da allowlist recebe a **ausência** de `Access-Control-Allow-Origin`, nunca a string `null` — `null` é uma origem real (iframe `sandbox`, documento `data:`, alguns redirecionamentos) e devolvê-la liberaria justamente o contexto mais anônimo; `Vary: Origin` acompanha para que cache compartilhado não sirva o header de uma origem a outra.
+> **Portal login:** o navegador envia apenas CNPJ, senha e o token do desafio Cloudflare Turnstile para `portal-login`; a identidade técnica fica no servidor. A Edge Function confere o Turnstile (ação `portal_login`; `portal_recovery` na recuperação) antes de qualquer outra verificação e recusa com HTTP `403` token ausente ou inválido; sem `TURNSTILE_SECRET_KEY`, só o stack local passa, e sem `TURNSTILE_ALLOWED_HOSTNAMES` nenhum hostname vale fora do stack local (auditoria run-3; antes a lista padrão aceitava `localhost` em produção) ([serviços externos](servicos-externos.md#cloudflare-turnstile)). A conferência da senha no Auth vai com a chave `service_role` (`_shared/passwordCheckClient.ts`), que o captcha do Auth dispensa. As demais recusas do login — CNPJ desconhecido, conta inativa, senha errada e bloqueio — recebem o mesmo `401` genérico; o email técnico aparece no claim `email` do JWT depois do login, então a senha guardada no GoTrue é derivada com pepper e só as Edge Functions sabem calculá-la. Para não transformar o custo da verificação em oráculo de CNPJ, conta elegível e conta inexistente fazem exatamente um lookup administrativo e a mesma tentativa única no Auth, com a senha derivada `HMAC(PORTAL_PASSWORD_PEPPER, senha)` (a tentativa com a senha pura de conta legada saiu na auditoria run-3, decisão do dono de 2026-10-22; conta que ainda tivesse a senha pura redefine pela recuperação); o caso inexistente usa a identidade sem vínculo configurada em `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, e qualquer sessão dummy é descartada. As Edge Functions do Portal chamadas pelo navegador compartilham uma allowlist de origens em `supabase/functions/_shared/cors.ts` (`vela.app.br`, `portalfwlog.com.br` e localhost de dev); os previews dos dois projetos Cloudflare Pages são aceitos por padrões restritos aos nomes `vela-internal` e `vela-portal`, e domínios adicionais entram somente como URLs HTTPS exatas em `CLOUDFLARE_PAGES_PREVIEW_ORIGINS`. Origem fora da allowlist recebe a **ausência** de `Access-Control-Allow-Origin`, nunca a string `null` — `null` é uma origem real (iframe `sandbox`, documento `data:`, alguns redirecionamentos) e devolvê-la liberaria justamente o contexto mais anônimo; `Vary: Origin` acompanha para que cache compartilhado não sirva o header de uma origem a outra.
 
 > **Senha do Portal:** a ADR 0019 vale para as duas fronteiras. `supabase/functions/_shared/passwordPolicy.ts` espelha `src/lib/passwordPolicy.ts` e é a única regra aplicada em `admin-users`, `portal-invite-activate` e `portal-password-reset` — mínimo de 8 caracteres com maiúscula, minúscula e dígito, igual ao `password_requirements` de `supabase/config.toml`. As Edge Functions validam antes de chamar o GoTrue para que a recusa chegue ao cliente como regra explicada, e não como erro genérico de ativação.
+
+### Revogação de sessões internas
+
+Desde a migration `419` ([ADR 0099](../adr/0099-corte-do-token-interno-na-revogacao.md)),
+Editar acesso (troca de e-mail ou senha) e Desativar cortam na hora o access
+token já emitido, como o Portal faz desde a `069`. `internal_revoke_sessions`
+apaga sessões e refresh tokens e grava o marco (`clock_timestamp()`, sob lock
+do perfil) em `internal_credential_revocations`, tabela sem grant para os
+clientes. Depois disso, o token do próprio usuário com `iat` ausente, não
+numérico ou do mesmo segundo do marco é recusado (o `iat` tem segundos
+inteiros e não distingue o token renovado antes da revogação do login feito
+logo depois; vale o emitido a partir do segundo seguinte, migration `439`):
+
+- os helpers de papel (`is_active_user`, `is_active_read_user`, `is_admin`,
+  `is_financeiro_user`, `_portal_actor_role`, `current_actor_role`) e
+  `ce_unlock_private.actor` respondem como se o usuário não estivesse ativo;
+- as políticas que liam `user_profiles` direto passaram a chamar os helpers;
+- `check_internal_token_cutoff()`, o `pgrst.db_pre_request` do PostgREST,
+  responde `28000` antes de qualquer RPC ou tabela. Ela cobre também as
+  funções que ainda leem `user_profiles` no corpo.
+
+Rotina de serviço que age em nome do usuário (troca só `request.jwt.claim.sub`
+e carrega o JWT do `service_role`) não é cortada. Reativar o usuário não devolve
+a autoridade ao token antigo. No app interno, perfil que não carrega com `28000`
+encerra a sessão local. Quando o Administrativo troca a própria credencial, a
+`admin-users` audita antes de revogar, e a tela encerra a sessão e pede um novo
+login. A troca da própria senha em Meu perfil segue o contrato do Supabase Auth
+e não grava marco. Prova: `src/integration/corteTokenInterno.local-pg.test.ts`.
+
+A troca da própria senha em Meu perfil (`AlterarMinhaSenhaModal`) confere a
+senha atual na tela e também a envia ao Auth (`current_password`). A tela
+sozinha não protege contra um token roubado chamando o Auth direto: a proteção
+no servidor depende de "Require current password when changing password"
+ligado no projeto ([serviços externos](servicos-externos.md#conferência-supabase-auth--2026-10-22)).
+A troca bem-sucedida grava no Histórico `user_profile` / `password` com
+"alterada pelo próprio usuário", sem a senha; `record_audit_entries` aceita essa
+linha só para a própria conta (migration `430`). Falha nesse registro não desfaz a
+troca e vai para a telemetria.
+
+### Rotinas reservadas ao sistema
+
+As funções que só o `service_role` e o pg_cron chamam e que elevam
+`request.jwt.claim.role` ou agem como ator do sistema (`itau_pix_settle`,
+`itau_pix_receipt_failed`, `itau_pix_record_untracked`,
+`reconcile_http_job_failures_alert`, `reconcile_import_effects_queue_alert`,
+`reconcile_itau_pix_checkpoint_alert`, `reevaluate_expired_billing_releases`)
+não dependem só do GRANT: um envelope com o mesmo nome chama
+`_assert_service_caller()`, que recusa com `42501` qualquer chamador com JWT
+que não seja `service_role` (migration `425`). Guardas de permissão vêm antes de
+travas: a baixa de 8 argumentos (`register_ledger_invoice_payment`) confere o
+Financeiro antes de travar os B/Ls. Prova:
+`src/integration/guardasAntesDoTrabalho.local-pg.test.ts`.
 
 ## Rate limiting
 
@@ -290,7 +344,11 @@ por ele. A API do navegador não apaga perfil (migration `240`).
   5 minutos). O balde do Supabase, chaveado só pelo CNPJ
   ([ADR 0049](../adr/0049-rate-limit-do-portal-chaveado-somente-por-cnpj.md)),
   sempre decide, e falha da RPC conta como bloqueio; trocar de IP não contorna o
-  bloqueio. A camada opcional no Upstash Redis (par IP+CNPJ, chaves HMAC) só
+  bloqueio. Só a credencial recusada pelo Auth (`invalid_credentials`) entra no
+  balde do login; limite de taxa, erro 5xx ou falha de rede do Auth respondem
+  `503` sem cobrar o CNPJ (`_shared/authRefusal.ts`, auditoria run-3). A tentativa
+  de login é reservada no balde antes de a senha ser conferida, sob trava do
+  CNPJ (migration `422`), para pedidos simultâneos não passarem do limite. A camada opcional no Upstash Redis (par IP+CNPJ, chaves HMAC) só
   acrescenta bloqueio. Contrato, segredos, validação e rollback em
   [Rate limit do Portal](portal-rate-limit.md); comportamento das telas em
   [Portal do Cliente](../modules/portal-cliente.md#autenticação-e-sessão).
@@ -359,6 +417,22 @@ sem decompor no navegador o fator comercial da cotação.
 - **`send-customer-communication`** — valida sessão interna, perfil ativo,
   natureza, contato, preferência e supressões antes de registrar a tentativa;
   a chave global desligada registra simulação e não chama o provedor de e-mail.
+  A automação (`customer-communication-auto-runner`) autentica só pelo
+  `X-Communication-Automation-Secret` e manda no `Authorization` a chave
+  pública (`SUPABASE_ANON_KEY`), nunca a de serviço; as duas funções têm
+  `verify_jwt = false`. Assunto do livre e do institucional e nome de anexo
+  saem sem CR/LF (`singleLine`).
+- **Corpo com teto** (auditoria run-3) — `_shared/boundedBody.ts` conta os
+  bytes do stream e para no limite, com ou sem Content-Length; acima dele a
+  função responde 413. `admin-users`, `portal-invite-send`,
+  `portal-account-suspend`, `portal-login`, `portal-password-recovery`,
+  `portal-password-reset` e `portal-invite-activate` leem até 16 KiB de JSON
+  (as três primeiras só depois do papel e da sessão de quem chama);
+  `portal-email-webhook` recusa sem `svix-id`, `svix-timestamp` ou
+  `svix-signature` antes de ler e lê até 256 KiB. A leitora multipart
+  (`boundedMultipart.ts`) usa a mesma contagem.
+- **`recalc-demurrage-ptax`** — só `POST` (o job chama por `net.http_post`);
+  outro método recebe 405 antes da conferência do segredo.
 - **`demurrage-dunning`** — aceita somente o bearer de
   `DEMURRAGE_DUNNING_SECRET` em comparação *timing-safe*, usa `service_role`
   apenas no servidor e reivindica cada cobrança antes de renderizar/enviar,
@@ -366,16 +440,19 @@ sem decompor no navegador o fator comercial da cotação.
 
 ## Headers HTTP / CSP
 
-Gerados em `_headers` pelo staging do Cloudflare Pages:
+Gerados em `_headers` pelo staging do Cloudflare Pages, a partir de
+`scripts/cloudflare-security-headers.mjs`; a Pages Function de `/assets/*`
+aplica os mesmos headers, porque o `_headers` não vale para respostas de
+Function:
 
 - `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy`
-- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog. O browser não chama o provedor de e-mail (MillionSend) diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
+- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog; `form-action 'self'` e `frame-ancestors 'none'`. O browser não chama o provedor de e-mail (MillionSend) diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
 
 ## Outras defesas
 
 - **Upload guard:** `assertUploadSize` (`src/lib/fileGuard.ts`) limita tamanho antes de `XLSX.read` (mitiga a vulnerabilidade conhecida do `xlsx`).
 - **Injeção em filtros PostgREST:** input de usuário em `.or()/.ilike()` é escapado por `escapeFilterTerm` / `sanitizeLikeTerm` (`src/lib/utils.ts`) e termos que ficam vazios após o escape não geram cláusula. A fronteira cobre as buscas de clientes (lista, lookup e export), faturamento, Granito e bookings de Vazios.
-- **Injeção de fórmula em planilhas:** `src/lib/spreadsheetSafe.ts` é o sanitizador canônico. `src/services/exports.ts`, `src/lib/csv.ts` e `src/services/reconciliacao.ts` o reutilizam antes de gerar XLSX/CSV.
+- **Injeção de fórmula em planilhas:** `src/lib/spreadsheetSafe.ts` é o sanitizador canônico. `src/services/exports.ts`, `src/lib/csv.ts` e `src/services/reconciliacao.ts` o reutilizam antes de gerar XLSX/CSV, nos valores e nos cabeçalhos. O CSV também põe entre aspas o campo com `;` ou tab, porque o Excel em pt-BR separa por `;` e o pedaço depois do separador abriria outra célula.
 - **Higienização de artefatos de build:** `scripts/clean-build-artifacts.mjs` remove `.map` e `.vite` ao final de cada build (`cleanProductionArtifacts`) e executa varredura recursiva estrita pós-build (`assertNoForbiddenArtifacts`), falhando fechado (`process.exit(1)`) se qualquer mapa de código-fonte ou diretório de cache vazar no diretório final de distribuição.
 - **Segredos de servidor** ficam **apenas** em env vars de Edge Functions, nunca no bundle do cliente. No Portal, `service_role` e a chave do provedor de e-mail (`RESEND_API_KEY`) nunca vão ao navegador nem a logs ou auditoria, e o frontend não os usa para contornar RLS e permissões.
 
@@ -397,7 +474,9 @@ e Documentação gerenciam; todos leem, inclusive os documentos (migration
 `250`; [matriz](#desbloqueio-de-ce)). Inspeção
 consulta pelo cliente selecionado e recusa comandos de escrita.
 
-`portal-ce-unlock-document` limita o corpo multipart mesmo sem Content-Length,
+`portal-ce-unlock-document` limita o corpo multipart mesmo sem Content-Length
+(leitora compartilhada `_shared/boundedMultipart.ts`, que desde a auditoria run-3
+também lê o anexo de Dispute em `portal-dispute-attachment`, com 10 MiB mais a folga do envelope),
 aceita PDFs de até 10 MiB com extensão, MIME e assinatura `%PDF-`, e reserva
 caminho/quota no servidor (20 tentativas/24 h; 100 MiB ativos por cliente).
 Autentica com `getUser`, grava com cliente de serviço e finaliza com RPC do
@@ -414,22 +493,29 @@ revalida os requisitos em transação e registra snapshot; download ou aprovaç�
 não confirmam desbloqueio. Arquivos gerados usam sanitização canônica para
 evitar fórmulas de planilha.
 
-`ce-unlock-cleanup` e `ce-unlock-notify-email` usam bearer dedicado `CE_UNLOCK_CLEANUP_SECRET` e falham
+`ce-unlock-cleanup` usa bearer dedicado `CE_UNLOCK_CLEANUP_SECRET`; `ce-unlock-notify-email`, desde a
+auditoria run-3, `CE_UNLOCK_NOTIFY_SECRET` (o do expurgo vale também até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true`). Falham
 fechado se ausente. Envio à ZPT e conciliação (`ce_unlock_zpt_status`, `exported_at`) são
 visíveis só ao desk: o Portal os recebe removidos por `ce_unlock_private.portal_view`. `service_role` é usado apenas dentro do servidor, nunca
 como segredo do cron ou no navegador. A agenda nasce desativada. Consulte
 [serviços externos](servicos-externos.md#desbloqueio-de-ce-mercante) para rollout
 e retenção. Código no checkout não comprova publicação destas funções/policies.
 
-`itau-pix` usa bearer dedicado `ITAU_PIX_ADMIN_SECRET`, sem JWT da plataforma,
-e falha fechado se ele ou a configuração Itaú estiverem ausentes. O
+`itau-pix` usa bearer dedicado, sem JWT da plataforma: `ITAU_PIX_CRON_SECRET`
+na rotina e `ITAU_PIX_DIAGNOSTIC_SECRET` no diagnóstico (auditoria run-3, um
+segredo por uso; `ITAU_PIX_ADMIN_SECRET` vale para os dois só na transição,
+[segredos e cron](segredos-cron.md#um-segredo-por-rotina-auditoria-run-3)). Falha
+fechado se o segredo ou a configuração Itaú estiverem ausentes. O
 certificado mTLS e o client_secret ficam só em secrets das Edge Functions;
 respostas e erros nunca contêm o token de acesso. As ações de diagnóstico
 consultam somente TXIDs com prefixo `VELA` (a mesma chave Pix é usada por um
 sistema de terceiro) e só alteram ou cancelam cobranças de teste (`VELAT…`,
 até R$ 1,00); a cobrança de uma fatura só muda pela própria fatura. A
 listagem de Pix recebidos devolve apenas os do Vela, sem `infoPagador`, e só
-a contagem dos demais.
+a contagem dos demais. O motivo de erro gravado na cobrança leva no máximo 300
+caracteres do corpo de erro do Itaú, sem `devedor`, `pagador`, `infoPagador`,
+os identificadores dentro deles nem o valor recusado das violações
+(`redactPayerData`, auditoria run-3).
 
 A baixa automática (`itau_pix_settle`, só `service_role`) assume dentro da
 transação a identidade da conta Admin dedicada "API Itaú" configurada em

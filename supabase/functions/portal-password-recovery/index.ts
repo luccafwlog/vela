@@ -8,6 +8,7 @@ import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { isRecoveryRateLimited, registerRecoveryFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
+import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
 import { captureEdgeException, instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 // Achado 3.2 (auditoria 2026-08-12): a resposta antiga distinguia
@@ -40,7 +41,9 @@ const reportBackgroundFailure = (error: unknown) => captureEdgeException(error, 
 
 if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-password-recovery', withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
-  const body = await req.json().catch(() => ({})) as { cnpj?: unknown; turnstile_token?: unknown }
+  const parsed = await readBoundedJsonBody(req, SMALL_JSON_MAX_BYTES)
+  if (parsed.tooLarge) return new Response(JSON.stringify({ error: 'Requisição acima do tamanho permitido.' }), { status: 413, headers: { 'Content-Type': 'application/json' } })
+  const body = parsed.value as { cnpj?: unknown; turnstile_token?: unknown }
   if (!await verifyTurnstileRequest(req, body.turnstile_token, 'portal_recovery')) {
     return new Response(JSON.stringify({ error: 'Verificação de segurança inválida. Atualize e tente novamente.' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
   }

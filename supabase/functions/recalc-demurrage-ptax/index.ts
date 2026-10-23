@@ -147,6 +147,13 @@ async function resolvePtaxFailure(
 }
 
 Deno.serve(instrumentEdgeHandler('recalc-demurrage-ptax', async (req: Request) => {
+  // O job chama por POST (ops.dispatch_edge_job → net.http_post, migration 358).
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
+      status: 405,
+      headers: { 'content-type': 'application/json', allow: 'POST' },
+    })
+  }
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   const cronSecret = Deno.env.get('RECALC_CRON_SECRET') ?? ''
   const auth = req.headers.get('authorization') ?? ''

@@ -6,6 +6,152 @@
 
 ## 2026-10
 
+- **Revisão final da PR da auditoria de segurança run-3 (2026-10-23):** migration `439`. Token
+  interno do mesmo segundo da revogação é recusado (o renovado antes do corte não sobrevive até
+  expirar). Aba VIN do B/L lida só até a última célula presente; avisos do Desbloqueio de CE aceitam o segredo novo e o do
+  expurgo durante a troca, até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true`; troca do Email de
+  Recuperação não conta tentativa quando o servidor falha; anexo de Dispute sem corpo responde 400.
+- **Decisões do dono sobre a auditoria de segurança run-3 (2026-10-23):** migrations `433` a
+  `438`. Dispensa de alerta até o 30º dia; Invoice de Demurrage reemitida para o novo Cliente sem o
+  desconto do anterior; Dispute nova do Portal só em Invoice não paga; ROE manual do B/L só por
+  função, com motivo, para Financeiro, Administrativo e Equipamentos (ação na ficha do B/L), e
+  Equipamentos também tira o da Invoice; CNPJ do Cliente só por `update_customer_with_audit`, com
+  justificativa (UPDATE de `customers` por coluna); bucket do Desbloqueio de CE com 10 MB, PDF e
+  DOCX; um segredo por rotina (`ITAU_PIX_CRON_SECRET`, `ITAU_PIX_DIAGNOSTIC_SECRET`,
+  `CE_UNLOCK_NOTIFY_SECRET`, com transição). Portal sem a senha pura legada; Turnstile só com
+  hostnames configurados fora do stack local. Login da equipe e conferência da senha atual com o
+  Turnstile para o captcha do Auth, conferência de senha das Edges do Portal com credencial de
+  administrador, sessão de 12 h na staging e nos previews. Preview não provisiona admin na
+  staging; promoção `staging` → `main` no push, com o token no environment `staging-release`.
+  Desconto integral segue com todos os setores (nota na ADR 0085). Fixar dependências das Edge
+  Functions e tirar o PostHog da CSP ficaram para a [rodada própria](plans/2026-10-23-reforcos-adiados-da-auditoria-run-3.md).
+- **Reforços da auditoria de segurança run-3 (2026-10-22, notas de endurecimento):** migrations
+  `419` a `432`. Banco: guardas de permissão antes das travas (baixa de 8 argumentos, rascunho do
+  Desbloqueio de CE), rotinas só do sistema recusam outro chamador, Cliente desativado sai do Portal
+  na hora e não recebe aviso de CE, Disputas com teto de pedido de reabertura e reabertura só da
+  resolvida, Invoice reemitida sem a Dispute do Cliente anterior, sem oráculo de ids no Portal,
+  consolidada/convite/recuperação/bounce na regra documentada, exceção PIX resolvida imutável, baixa
+  cancelada não volta como sucesso, Demurrage em conferência de vencimento não perde o valor novo,
+  exclusão de id inexistente não descarta efeitos, histórico da troca da própria senha e reserva
+  Itaú não chamada sem tentativa a mais. Edge Functions: leitura do corpo com limite em streaming
+  (webhook confere a assinatura antes de ler), JSON lido depois do papel, sem chave `service_role`
+  entre funções, assunto e anexo de Comunicado sem quebra de linha, dados do pagador fora do erro
+  Itaú gravado. Navegador: guarda de rota nos links de Alerta, leitura de XLSX/DOCX limitada e
+  linear, CSV e chaves de planilha sem fórmula, telemetria limpa em profundidade, clientes de Auth
+  criados por aplicativo, troca de Cliente no Portal limpa a sessão anterior. Scripts e CI: backup
+  com SSL obrigatório e ambiente mínimo para cada processo, `rpc:check` sem senha no log, actions
+  fixadas por SHA, `persist-credentials: false`, cabeçalhos de segurança em `/assets`,
+  `form-action 'self'`, `package-lock` com `integrity` em todas as entradas e checagem de trava
+  antes da guarda em `verificar_guardas.py`.
+- **Meu perfil: a troca de senha envia a senha atual ao Auth (2026-10-22, auditoria de segurança
+  run-3, pendência P1):** a conferência da senha atual era só da tela; um token roubado trocava a
+  senha direto no Auth. Agora `current_password` vai na troca; a proteção no servidor passa a valer
+  quando o dono ligar "Require current password when changing password" depois da publicação.
+- **Pix Itaú: um comprovante destoante não para a baixa automática (2026-10-22, auditoria de
+  segurança run-3, pendência P4):** um único Pix do Vela com horário divergente do `endToEndId`
+  parava a consulta inteira e segurava a baixa dos demais. Agora a parada por fuso só acontece
+  quando a maioria dos Pix da janela diverge (com os TXIDs no log); o caso isolado vai para
+  análise. `endToEndId` com data impossível passa a ser formato inesperado.
+- **Pix Itaú: o resultado só ativa a versão enviada (2026-10-22, auditoria de segurança run-3,
+  achado C7):** migration `424`. Mudança de valor ou validade durante a chamada ao Itaú (desconto
+  de Demurrage, PTAX, renovação) deixava a cobrança `active` com o valor antigo no banco do Itaú;
+  agora a cobrança volta a `pending_update` e o valor novo segue na mesma execução. Publicar a
+  migration antes da `itau-pix`. Prova: `itauPixCharges.local-pg.test.ts`, `itauPix.test.ts`.
+- **Comunicados: identidade de envio não serve a outro remetente nem a outro texto (2026-10-22,
+  auditoria de segurança run-3, achado C5):** `send-customer-communication` recusa (431 definitivo)
+  a chamada manual que reaproveita o `dispatch_id` de um Comunicado de outra pessoa ou com outro
+  conteúdo; antes, o texto novo era entregue e o registro guardava a autoria e a cópia do Comunicado
+  original. Regra em [Clientes](modules/clientes.md). Prova: `sendCustomerCommunicationFunction.test.ts`.
+- **Portal: suspensão, reativação e convite com autor (2026-10-22, auditoria de segurança run-3,
+  achado C6):** migration `423`. Os eventos que `portal-account-suspend` e `portal-invite-send`
+  gravam com `service_role` passam a registrar quem agiu (o id que o `getUser` da sessão confirmou);
+  antes ficavam só com o Departamento. As duas Edges recusam sessão que o Auth não confirma.
+  Publicar a migration antes das Edges. Prova: `autorDosEventosDoPortal.local-pg.test.ts`,
+  `edgeFunctionsRun2.test.ts`.
+- **Portal: balde de login à prova de tentativas em paralelo (2026-10-22, auditoria de segurança
+  run-3, pendência P3; ADR 0049):** migration `422`. O login e a verificação da senha atual na troca
+  do Email de Recuperação reservam a tentativa no balde do CNPJ, sob trava, antes de conferir a
+  senha; antes, pedidos simultâneos passavam todos pela consulta e testavam mais de 5 senhas em 15
+  minutos. Prova: `baldeLoginReservaAtomica.local-pg.test.ts` (10 simultâneas, 5 admitidas),
+  `portalLoginRateLimit.test.ts`, `portalEdgeFunctionsOrder.test.ts`.
+- **Portal: falha do Auth não tranca o Cliente (2026-10-22, auditoria de segurança run-3,
+  pendência P2):** `portal-login` e a verificação da senha atual em `portal-recovery-email-change`
+  só contam no balde do CNPJ a credencial recusada; limite de taxa, erro 5xx ou falha de rede do
+  Supabase Auth respondem `503` sem cobrar o Cliente, que antes ficava bloqueado por 15 minutos
+  mesmo digitando a senha certa. Prova: `portalLoginIdentity.test.ts`.
+- **Portal: anexo de Dispute com limite real de tamanho (2026-10-22, auditoria de segurança
+  run-3, pendência P6):** `portal-dispute-attachment` lê o corpo pela mesma leitora com limite do
+  Desbloqueio de CE (`_shared/boundedMultipart.ts`), que para em 10 MiB mesmo quando o envio não
+  declara Content-Length; antes o corpo inteiro era lido antes da conferência. Prova:
+  `ceUnlockDocuments.test.ts`, `edgeFunctionsRun2.test.ts`.
+- **Importações: a trava da Viagem confere quem chama (2026-10-22, auditoria de segurança run-3,
+  pendência P5):** migration `421`. Sessão sem permissão (Portal ou usuário inativo) é recusada
+  antes de entrar na fila da Viagem, em todas as importações que usam a trava; antes ela esperava
+  a vez e, com carga grande, segurava a Viagem por segundos à frente da equipe. Prova:
+  `travaDaViagemConfereQuemChama.local-pg.test.ts`.
+- **Portal: B/L que muda de Cliente (2026-10-22, auditoria de segurança run-3, achados C2, C3
+  e C4):** migration `420`. Depois da troca de Cliente do B/L, o Portal do Cliente anterior não
+  mostra mais contêineres e situação viva do B/L, saldo, correção e abatimento do recebível que
+  passou ao novo Cliente, nem o prazo do Desbloqueio de CE calculado com a baixa do novo.
+  Regra em [Portal do Cliente](modules/portal-cliente.md#bl-que-muda-de-cliente). Prova:
+  `portalAntigoDonoDoBl.local-pg.test.ts`.
+- **Segurança: token interno cortado na revogação (2026-10-22, auditoria de segurança run-3,
+  achado C1; ADR 0099):** migration `419`. Editar acesso (troca de e-mail ou senha) e Desativar
+  passam a cortar na hora o access token já emitido, como o Portal já fazia: o marco da revogação
+  fica numa tabela sem grant para os clientes; os helpers de papel, o Desbloqueio de CE e as
+  políticas recusam o token anterior; uma checagem antes de toda requisição do PostgREST cobre o
+  resto. Rotinas de serviço em nome do usuário seguem. Quem troca a própria credencial em Editar
+  acesso tem a sessão encerrada e entra de novo. Prova: `corteTokenInterno.local-pg.test.ts`,
+  `advisorFuncoesFechadas.local-pg.test.ts`, `Admin.behavior.test.tsx`,
+  `useAuthHydrationFailure.test.tsx`, `edgeFunctionsRun2.test.ts`.
+- **Data efetiva confirmada em Chegadas e Saídas (2026-10-22;
+  [ADR 0097](adr/0097-data-efetiva-confirmada-e-aparicao-na-programacao.md)):**
+  migration `414`. A célula vencida (âmbar, agora só no Vela) tem **Confirmar**:
+  a chegada grava o ATA com hora; a saída grava o ATD do POL, provisório, que o
+  Laden on Board diferente do B/L substitui (a correção em Viagens continua
+  vencendo). No Portal só há previsão e data efetiva. A edição da viagem passa
+  a desligar a aparição em Chegadas e Saídas (supersede o item 12 da ADR 0071).
+  Prova: `atdDoPolManual.local-pg.test.ts`, `ChegadasSaidas.behavior.test.tsx`.
+- **"Selecionar todos" marca o filtro inteiro (2026-10-22):** em BLs,
+  Containers, Vazios IMP, Veículos, Clientes e Desbloqueio de CE (interno e
+  Portal), o checkbox do cabeçalho seleciona todo o resultado filtrado, em
+  todas as páginas, e a barra diz "N de M selecionados"; a seleção atravessa
+  páginas e zera quando o filtro muda. Componente e hook comuns
+  (`SelectAllFilteredCheckbox`, `useFilteredSelection`); o botão "Selecionar
+  os N do filtro" de Vazios IMP saiu. Prova: `useFilteredSelection.test.tsx`.
+- **Viagem duplicada recusada e aparição em Chegadas e Saídas no cadastro
+  (2026-10-22):** migration `413`. Navio e número já cadastrados (inclusive
+  numa Viagem Cancelada) são recusados na tela e no banco, por qualquer
+  caminho, com "Já existe a viagem …". O cadastro pela tela Viagens ganha a
+  chave **Aparece em Chegadas e Saídas**, e a edição publica a viagem oculta;
+  Viagens ganha o atalho para Chegadas e Saídas, como o Painel. Prova:
+  `VoyageCreateModal.test.tsx`, `viagemDuplicada.local-pg.test.ts`.
+- **Linha do tempo da Viagem mais limpa (2026-10-22):** o cadastro vira um único
+  "Viagem criada", com a origem (botão Nova viagem, Chegadas e Saídas ou a
+  planilha) e o autor; cada importação de B/L vira um evento só, com as rotas,
+  o ATD do POL e o status de BLs e CEs que ela mudou; campo interno da viagem
+  ("Dado interno da viagem atualizado") deixa de aparecer, e o que fica diz o
+  campo e o valor anterior → novo. A migration `412` faz o status automático
+  de BLs e CEs dizer o fato e a importação que o mudou (o "Aguardando →
+  Recebido" depois da importação de B/Ls era legítimo: os B/Ls completaram a
+  cobertura do Baplie). Prova: `voyageTimeline.test.ts`,
+  `escalaDocumentalStatus.local-pg.test.ts`.
+- **Baplie importa porto sem escala sem criar escala; Sepetiba é Itaguaí
+  (2026-10-22/23):** migrations `410` e `418` ([ADR 0098](adr/0098-baplie-nao-cria-nem-exige-escala.md)).
+  BRSEP, BRSPB, SPB, SEP e SEPETIBA passam a ser apelidos de BRIGI (Itaguaí) no
+  banco e no app; as chaves de escala, ADR, Manifesto Mercante, Comunicado e
+  estado documental gravadas como BRSEP foram passadas a BRIGI. No Baplie, o
+  porto brasileiro que não é escala da Viagem é oferecido desmarcado; marcado,
+  os containers entram no Baplie sem escala e ficam pendentes de conciliação
+  com B/L até a escala ser criada (caso GREEN ITAJAI / 11, 242 containers de
+  Sepetiba). O Baplie não cria escala: a `411`, que criava, foi substituída pela
+  `418` na revisão da PR. Prova: `baplieSemEscala.local-pg.test.ts`.
+- **Line-Up credita os vazios no porto do container (2026-10-22):** o MTY
+  contava os vazios de importação só por viagem e os punha na primeira linha
+  ordenada pelo ETA (os 190 vazios de BRVIX da GREEN ITAJAI / 11 apareciam em
+  BRSSA). Agora a contagem é por viagem e porto, e o vazio de porto sem linha
+  aparece no Painel como "sem escala". Prova: `lineupSnapshot.test.ts`.
+
 - **Baplie da COSCO aceito (2026-10-22;
   [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)):**
   migration `409`. O número de viagem do Baplie não é mais conferido com o da

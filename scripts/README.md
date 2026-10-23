@@ -306,8 +306,9 @@ termina com erro de propósito — serve como portão antes da migração real.
 **O que faz:** em modo padrão, apenas ensaia o backup do schema `public`. Com
 `--execute`, lê a conexão PostgreSQL do ambiente, gera `pg_dump`
 custom, cifra localmente com AES-256-GCM, valida com `pg_restore --list` e envia
-o arquivo e um manifesto sem segredos para um bucket R2 privado. Não cria
-recursos Cloudflare, não apaga objetos e não restaura banco. Em produção, o
+o arquivo e um manifesto sem segredos para um bucket R2 privado; depois do
+upload, apaga a cópia local. Não cria recursos Cloudflare, não apaga objetos
+no R2 e não restaura banco. Em produção, o
 backup diário roda numa tarefa agendada fora do GitHub, descrita no
 [manual de serviços externos](../docs/operations/servicos-externos.md#backup).
 

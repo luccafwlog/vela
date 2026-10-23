@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createHeaderMapper, createRowErrorCollector, locateHeaderRowIndex, matchHeaders, missingHeaderFields, positionalSheetNames, readFirstSheetRows, readSheet, readSpreadsheetNotices, readSpreadsheetWarnings, WINDOWS_1252_WARNING, type HeaderSpec } from '../importCore'
-import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
+import { createHeaderMapper, createRowErrorCollector, locateHeaderRowIndex, matchHeaders, missingHeaderFields, positionalSheetNames, readFirstSheetRows, readSheet, readSpreadsheetNotices, readSpreadsheetWarnings, SHEET_MAX_ROWS, WINDOWS_1252_WARNING, type HeaderSpec } from '../importCore'
+import * as XLSX from '@e965/xlsx'
+import { aoaToBuffer, jsonToBuffer, withDeclaredDimension } from './testWorkbook'
 
 describe('createHeaderMapper', () => {
   it('normaliza cabeçalhos (trim + lowercase) e mapeia para a chave canônica', () => {
@@ -538,5 +539,30 @@ describe('missingHeaderFields', () => {
     expect(missingHeaderFields(['Container', 'Conteiner'], spec)).toEqual(['tipo'])
     expect(missingHeaderFields(['Container', 'Conteiner', 'Tipo'], spec)).toEqual([])
     expect(() => matchHeaders(['Container', 'Conteiner', 'Tipo'], spec)).toThrow('são o mesmo campo')
+  })
+})
+
+describe('readSheet — faixa declarada no <dimension>', () => {
+  it('arquivo pequeno que declara A1:XFD1048576 é lido só até a última célula presente', async () => {
+    const buffer = withDeclaredDimension(aoaToBuffer([['Booking', 'Container'], ['BK1', 'MSCU1234567']]), 'A1:XFD1048576')
+    const started = Date.now()
+    const content = await readSheet(buffer)
+    const notices = await readSpreadsheetNotices({ arrayBuffer: async () => buffer })
+    const positional = await readSpreadsheetNotices({ arrayBuffer: async () => buffer }, { positional: true })
+    // Folga larga: percorrer a faixa declarada levaria horas.
+    expect(Date.now() - started).toBeLessThan(5_000)
+    expect(content.headers).toEqual(['Booking', 'Container'])
+    expect(content.matrix).toEqual([['Booking', 'Container'], ['BK1', 'MSCU1234567']])
+    expect(notices.warnings).toEqual([])
+    expect(positional.warnings).toEqual([])
+  })
+
+  it('dado além do teto de linhas recusa a aba com o motivo', async () => {
+    const lastRow = SHEET_MAX_ROWS + 1
+    const sheet = { A1: { t: 's', v: 'Booking' }, A2: { t: 's', v: 'BK1' }, [`A${lastRow}`]: { t: 's', v: 'perdido' }, '!ref': `A1:A${lastRow}` }
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, sheet as XLSX.WorkSheet, 'Sheet1')
+    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+    await expect(readSheet(buffer)).rejects.toThrow(/passa do limite de leitura .* linha 100\.001, coluna A/)
   })
 })

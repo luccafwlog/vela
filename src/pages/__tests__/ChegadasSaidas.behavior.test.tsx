@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   setShow: vi.fn(),
   effectiveRole: vi.fn(() => 'documentacao'),
   confirm: vi.fn(),
+  confirmEffective: vi.fn(),
 }))
 
 const vessels = [
@@ -65,6 +66,7 @@ vi.mock('../../services/voyages', () => ({
 }))
 vi.mock('../../services/portalScheduleVoyages', () => ({
   fetchInternalScheduleVoyages: vi.fn(),
+  confirmScheduleEffectiveDate: mocks.confirmEffective,
 }))
 
 import { ChegadasSaidas } from '../ChegadasSaidas'
@@ -406,4 +408,22 @@ describe('ChegadasSaidas user behaviours', () => {
     )
     expect(mocks.createOrAttach).toHaveBeenCalled()
   })
+
+  // Revisão de 2026-10-22 (B1, ADR 0097): a célula vencida (âmbar) tem
+  // Confirmar; a chegada pede data e hora, como o modal da Escala.
+  it('confirma a chegada vencida com data e hora pela célula âmbar', async () => {
+    const user = userEvent.setup()
+    mocks.confirmEffective.mockResolvedValue(undefined)
+    render(<ChegadasSaidas />)
+    await user.click(screen.getByRole('button', { name: 'Confirmar chegada de ALPHA / 001 em SALVADOR' }))
+    const dialog = screen.getByRole('dialog', { name: /Confirmar chegada · ALPHA \/ 001/ })
+    expect((within(dialog).getByLabelText('Data da chegada') as HTMLInputElement).value).toBe('2026-01-22')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar chegada' }))
+    expect(within(dialog).getByRole('alert').textContent).toBe('Informe a data e a hora da chegada.')
+    await user.type(within(dialog).getByLabelText('Hora da chegada'), '14:30')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar chegada' }))
+    await waitFor(() => expect(mocks.confirmEffective).toHaveBeenCalledWith({ voyageId: 1, port: 'SALVADOR', kind: 'pod', value: '2026-01-22T14:30' }))
+    expect(mocks.showToast).toHaveBeenCalledWith('Data efetiva confirmada.', 'success')
+  })
 })
+

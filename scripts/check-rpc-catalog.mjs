@@ -4,7 +4,42 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
-const databaseUrl = process.env.LOCAL_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
+// Só LOCAL_DATABASE_URL: DATABASE_URL pode apontar para um banco remoto real.
+const databaseUrl = process.env.LOCAL_DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
+
+// A conexão vai ao psql por variáveis PG*, não pelo argv (visível em `ps`), e
+// a senha nunca aparece numa mensagem.
+function connectionEnvironment(rawUrl) {
+  let url
+  try {
+    url = new URL(rawUrl)
+  } catch {
+    throw new Error('LOCAL_DATABASE_URL nao e uma URL PostgreSQL valida.')
+  }
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+    throw new Error('LOCAL_DATABASE_URL deve usar o protocolo PostgreSQL.')
+  }
+  const env = {
+    PGHOST: decodeURIComponent(url.hostname.replace(/^\[|\]$/g, '')) || '127.0.0.1',
+    PGPORT: url.port || '5432',
+    PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, '')) || 'postgres',
+  }
+  if (url.username) env.PGUSER = decodeURIComponent(url.username)
+  if (url.password) env.PGPASSWORD = decodeURIComponent(url.password)
+  const sslmode = url.searchParams.get('sslmode')
+  if (sslmode) env.PGSSLMODE = sslmode
+  return env
+}
+
+function redactDatabaseUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl)
+    if (url.password) url.password = '***'
+    return url.href
+  } catch {
+    return '(URL invalida)'
+  }
+}
 
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -42,9 +77,13 @@ const sql = `
 `
 let rows
 try {
-  rows = execFileSync('psql', ['-X', '-At', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
+  const env = { ...process.env, ...connectionEnvironment(databaseUrl) }
+  // A URL não segue para o psql nem para quem ele chamar.
+  delete env.LOCAL_DATABASE_URL
+  delete env.DATABASE_URL
+  rows = execFileSync('psql', ['-X', '-At', '-c', sql], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'inherit'] })
 } catch (error) {
-  console.error(`RPC catalog could not connect to ${databaseUrl}. Run scripts/setup-local-pg.sh first.`)
+  console.error(`RPC catalog could not connect to ${redactDatabaseUrl(databaseUrl)}. Run scripts/setup-local-pg.sh first.`)
   process.exitCode = 2
 }
 

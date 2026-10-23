@@ -68,10 +68,14 @@ export async function updateUserCredentials(input: {
   user_id: string
   email?: string
   password?: string
-}): Promise<{ released: number }> {
-  const data = await invokeAdminUsers({ action: 'update_credentials', ...input }) as { released?: unknown } | null
+}): Promise<{ released: number; sessionEnded: boolean }> {
+  const data = await invokeAdminUsers({ action: 'update_credentials', ...input }) as { released?: unknown; session_ended?: unknown } | null
   // `released`: supressões liberadas do endereço salvo (0 quando ele também é de Cliente).
-  return { released: typeof data?.released === 'number' ? data.released : 0 }
+  // `session_ended`: a credencial trocada era a de quem chamou, e o token dela já foi cortado (migration 419).
+  return {
+    released: typeof data?.released === 'number' ? data.released : 0,
+    sessionEnded: data?.session_ended === true,
+  }
 }
 
 // Desativar passa pela Edge Function porque encerrar a sessão exige service_role;

@@ -176,6 +176,12 @@ it('sem viagem escolhida mostra a tabela de viagens, com BB e Veículos', () => 
   expect(within(table).getByRole('link', { name: 'Navio ativo / ACTIVE-41' }).getAttribute('href')).toBe('/viagens/41')
 })
 
+// Revisão de 2026-10-22 (A3): o mesmo atalho do Painel, para qualquer usuário.
+it('tem o atalho para Chegadas e Saídas no topo, como o Painel', () => {
+  renderAt('/viagens')
+  expect(screen.getByRole('link', { name: /Chegadas e Saídas/ }).getAttribute('href')).toBe('/chegadas-saidas')
+})
+
 it('declara granito e vazios no rail mesmo sem quantidades operadas', () => {
   renderAt('/viagens')
 

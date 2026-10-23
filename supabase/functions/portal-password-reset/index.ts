@@ -8,11 +8,14 @@ import { canonicalPortalOrigin, portalSupportEmail } from '../_shared/portalUrls
 import { withCors } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
+import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
 // Global do runtime das Edge Functions do Supabase; não existe no deno check.
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
-  const body = await req.json().catch(() => ({})) as { token?: string; password?: string }
+  const parsed = await readBoundedJsonBody(req, SMALL_JSON_MAX_BYTES)
+  if (parsed.tooLarge) return new Response(JSON.stringify({ error: 'Requisição acima do tamanho permitido.' }), { status: 413 })
+  const body = parsed.value as { token?: string; password?: string }
   if (!body.token || typeof body.password !== 'string') return new Response(JSON.stringify({ error: 'Link inválido ou senha inválida.' }), { status: 422 })
   // A regra da senha não é oráculo de token: dizer o que falta na senha não revela
   // nada sobre o link, e a mensagem genérica acima continua cobrindo o token.

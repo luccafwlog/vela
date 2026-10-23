@@ -27,7 +27,8 @@ import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
-import { useRowSelection } from '../hooks/useRowSelection'
+import { useFilteredSelection } from '../hooks/useFilteredSelection'
+import { SelectAllFilteredCheckbox } from '../components/shared/SelectAllFilteredCheckbox'
 import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { STALE_PAGE_CLASS } from '../lib/pagination'
@@ -84,7 +85,6 @@ export function Veiculos() {
   const { data: options } = useVehicleOptions()
   const selectedVoyageId = searchParams.get('voyage') ?? ''
   const { filters, setFilters, updateFilter } = usePageFilters<VehiclePageFilters>({ ...EMPTY_FILTERS, page: 1, pageSize: 20 })
-  const selection = useRowSelection<number>(`${selectedVoyageId}:${JSON.stringify({ ...filters, page: undefined, pageSize: undefined })}`)
   const [importOpen, setImportOpen] = useState(false)
 
   // A faixa usa o mesmo resumo de Viagens que o Baplie (armador, situação, B/Ls,
@@ -117,6 +117,15 @@ export function Veiculos() {
   const debouncedSeal = useDebouncedValue(filters.seal)
   const queryFilters = useMemo(() => ({ ...filters, search: debouncedSearch, seal: debouncedSeal }), [filters, debouncedSearch, debouncedSeal])
   const { data, isLoading, isPlaceholderData, error } = useVehicles(voyageId, queryFilters)
+  // O recorte inteiro já vem carregado (`filteredIds`): o "selecionar todos" do
+  // cabeçalho marca todas as páginas (G1), com o hook comum das listas.
+  const filteredRowIds = data?.filteredIds ?? []
+  const selection = useFilteredSelection<number>({
+    // Pelo filtro que foi ao servidor: na pausa da digitação, `filteredRowIds` ainda é o do anterior.
+    scope: `${selectedVoyageId}:${JSON.stringify({ ...queryFilters, page: undefined, pageSize: undefined })}`,
+    totalCount: filteredRowIds.length,
+    loadAll: () => filteredRowIds,
+  })
   // Chassi, lacre, marca, modelo ou tipo trocados: as linhas na tela ainda são
   // do recorte anterior até a resposta chegar. Ficam esmaecidas e sem seleção.
   const stale = isPlaceholderData
@@ -277,8 +286,6 @@ export function Veiculos() {
     }
   }
 
-  const filteredRowIds = data?.filteredIds ?? []
-  const allFilteredSelected = filteredRowIds.length > 0 && filteredRowIds.every((id) => selection.isSelected(id))
   const columnCount = 8 + (canSelect ? 1 : 0)
   const skeletonTemplate = `${canSelect ? '40px ' : ''}1.4fr 0.8fr 1fr 1.1fr 1.2fr 0.7fr 0.7fr 1fr`
 
@@ -400,6 +407,9 @@ export function Veiculos() {
           {canSelect ? (
             <BulkActionsBar
               count={selection.count}
+              total={selection.totalCount}
+              loadingAll={selection.loadingAll}
+              loadError={selection.loadError}
               onClear={selection.clear}
               onDelete={canDeleteVehicles ? () => runDelete([...selection.selected], `Excluir ${selection.count} veículo(s) selecionado(s)?`) : undefined}
               deleting={deleting}
@@ -484,13 +494,7 @@ export function Veiculos() {
                     <tr>
                       {canSelect ? (
                         <th scope="col" className="app-cargo-table__check">
-                          <input
-                            type="checkbox"
-                            aria-label={`Selecionar os ${filteredRowIds.length} veículos do recorte`}
-                            checked={allFilteredSelected}
-                            disabled={stale}
-                            onChange={() => selection.toggleMany(filteredRowIds)}
-                          />
+                          <SelectAllFilteredCheckbox selection={selection} noun="veículos" disabled={sliceSettling} />
                         </th>
                       ) : null}
                       <th scope="col">Chassi</th>

@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { afterViagemAlterada } from '../../services/cacheEffects'
 import { Button } from '../ui/Button'
 import { Field, Input, Select } from '../ui/Input'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Modal } from '../ui/Modal'
+import { Switch } from '../ui/Switch'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import {
@@ -15,7 +16,15 @@ import {
   type VoyageFormErrors,
   type VoyageFormValues,
 } from '../../services/voyageForm'
-import { createVoyage, updateVoyage } from '../../services/voyages'
+import {
+  createVoyage,
+  duplicateVoyageMessage,
+  duplicateVoyageRefusal,
+  fetchVoyageShowOnPortal,
+  findDuplicateVoyage,
+  setVoyageShowOnPortal,
+  updateVoyage,
+} from '../../services/voyages'
 
 export function VoyageCreateModal({
   open,
@@ -46,6 +55,19 @@ export function VoyageCreateModal({
   })
   const [errors, setErrors] = useState<VoyageFormErrors>({})
   const [saving, setSaving] = useState(false)
+  // Aparição em Chegadas e Saídas (revisão de 2026-10-22, A2): `null` é "como
+  // está"; na Viagem nova, desligada até o operador ligar.
+  const [portalChoice, setPortalChoice] = useState<boolean | null>(null)
+  const portalQuery = useQuery({
+    queryKey: ['voyage-show-on-portal', voyageId ?? null],
+    queryFn: () => fetchVoyageShowOnPortal(voyageId as number),
+    enabled: open && voyageId != null,
+  })
+  const currentlyShown = voyageId != null && portalQuery.data === true
+  const showOnPortal = portalChoice ?? currentlyShown
+  // Desligar tira a viagem da Programação do Vela e do Portal (ADR 0097,
+  // que supersede a ADR 0071, item 12); fica no Histórico da viagem.
+  const portalLocked = voyageId != null && (portalQuery.isLoading || portalQuery.isError)
 
   // Re-baseia o formulário quando o modal abre ou os valores iniciais mudam —
   // ajuste durante o render (sem useEffect), mantendo o gatilho original.
@@ -65,12 +87,13 @@ export function VoyageCreateModal({
       setForm(nextForm)
       setHasIndicatedFirstPort(nextHasIndicatedFirstPort)
       setPristine({ form: nextForm, hasIndicatedFirstPort: nextHasIndicatedFirstPort })
+      setPortalChoice(null)
       setErrors({})
     }
   }
 
   const isDirty =
-    JSON.stringify({ form, hasIndicatedFirstPort }) !== JSON.stringify(pristine)
+    JSON.stringify({ form, hasIndicatedFirstPort }) !== JSON.stringify(pristine) || portalChoice !== null
 
   async function handleClose() {
     if (!isDirty) {
@@ -114,17 +137,38 @@ export function VoyageCreateModal({
     setSaving(true)
 
     try {
+      // Navio e número já cadastrados (revisão de 2026-10-22, A1): a tela
+      // avisa antes; o banco recusa de novo na gravação (migration 413).
+      const identityChanged = !voyageId
+        || normalizedForm.vesselName !== normalizeVoyageFormValues(pristine.form).vesselName
+        || normalizedForm.vesselImo !== normalizeVoyageFormValues(pristine.form).vesselImo
+        || normalizedForm.voyageNumber !== normalizeVoyageFormValues(pristine.form).voyageNumber
+      const duplicate = identityChanged
+        ? await findDuplicateVoyage({ ...normalizedForm, excludeVoyageId: voyageId ?? null })
+        : null
+      if (duplicate) {
+        setErrors({ voyageNumber: duplicateVoyageMessage(duplicate) })
+        return
+      }
+
       const saved = voyageId
         ? await updateVoyage(voyageId, normalizedForm, user?.id ?? null)
-        : await createVoyage(normalizedForm, user?.id ?? null)
+        : await createVoyage(normalizedForm, user?.id ?? null, { origin: 'viagens', showOnPortal })
+      if (voyageId && showOnPortal !== currentlyShown) await setVoyageShowOnPortal(voyageId, showOnPortal)
 
       await afterViagemAlterada(queryClient, { voyageId: saved.id })
+      void queryClient.invalidateQueries({ queryKey: ['voyage-show-on-portal'] })
 
       showToast(voyageId ? 'Viagem atualizada com sucesso.' : 'Viagem cadastrada com sucesso.', 'success')
       onSaved?.(saved.id)
       onClose()
       setForm(initialVoyageFormValues)
-    } catch {
+    } catch (error) {
+      const refusal = duplicateVoyageRefusal(error)
+      if (refusal) {
+        setErrors({ voyageNumber: refusal })
+        return
+      }
       showToast(
         voyageId
           ? 'Falha ao atualizar viagem. Revise os dados e tente novamente.'
@@ -187,6 +231,22 @@ export function VoyageCreateModal({
               {form.status === 'cancelled' ? <option value="cancelled" disabled>Cancelada</option> : null}
             </Select>
           </Field>
+        </div>
+
+        <div className="app-panel app-panel--padded grid gap-2">
+          <div className="app-panel__title">Chegadas e Saídas</div>
+          <Switch
+            checked={showOnPortal}
+            disabled={portalLocked}
+            onChange={(next) => setPortalChoice(next === currentlyShown ? null : next)}
+          >
+            {showOnPortal ? 'Aparece em Chegadas e Saídas' : 'Não aparece em Chegadas e Saídas'}
+          </Switch>
+          <div className="app-panel__meta">
+            {showOnPortal
+              ? 'A viagem fica na programação de Chegadas e Saídas e do Portal até o último ATD. Desligue para tirá-la antes.'
+              : 'Ligada, a viagem entra na programação de Chegadas e Saídas e do Portal; as datas são as das escalas.'}
+          </div>
         </div>
 
         <div className="app-panel app-panel--padded grid gap-3">

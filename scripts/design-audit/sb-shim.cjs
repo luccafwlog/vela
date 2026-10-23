@@ -15,6 +15,14 @@ types.setTypeParser(1184, v => v)            // timestamptz -> raw string
 types.setTypeParser(1114, v => v)            // timestamp   -> raw string
 
 const PORT = 54321
+// Só aceita o próprio endereço local no Host. Sem isso, uma página qualquer
+// aberta no navegador poderia apontar um domínio seu para 127.0.0.1 (DNS
+// rebinding) e falar com o emulador, que não tem autenticação de verdade.
+// O proxy /sb-proxy do Vite usa changeOrigin e chega como 127.0.0.1:54321.
+const ALLOWED_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'].map(host => `${host}:${PORT}`))
+function isAllowedHost(hostHeader) {
+  return ALLOWED_HOSTS.has(String(hostHeader || '').toLowerCase())
+}
 const JWT_SECRET = 'local-audit-jwt-secret-local-audit-jwt-secret-32'
 const pool = new Pool({
   host: process.env.PGHOST || '127.0.0.1',
@@ -484,6 +492,7 @@ async function handleAuth(req, res, urlObj) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (!isAllowedHost(req.headers.host)) return send(res, 403, { message: 'host not allowed' })
   const urlObj = new URL(req.url, 'http://localhost')
   try {
     if (urlObj.pathname.startsWith('/auth/v1')) return await handleAuth(req, res, urlObj)
@@ -504,6 +513,10 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
-loadFks().then(() => {
-  server.listen(PORT, '127.0.0.1', () => console.log(`sb-shim listening on ${PORT}, ${fks.length} FKs loaded`))
-}).catch(e => { console.error(e); process.exit(1) })
+if (require.main === module) {
+  loadFks().then(() => {
+    server.listen(PORT, '127.0.0.1', () => console.log(`sb-shim listening on ${PORT}, ${fks.length} FKs loaded`))
+  }).catch(e => { console.error(e); process.exit(1) })
+}
+
+module.exports = { isAllowedHost, server }

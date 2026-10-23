@@ -43,7 +43,7 @@ const BOUNCED_TITLE = 'E-mail devolvido pelo provedor ou marcado como spam: o si
 
 export function AdminUsersTab() {
   const queryClient = useQueryClient()
-  const { user: sessionUser } = useAuth()
+  const { user: sessionUser, signOut } = useAuth()
   const currentUserId = sessionUser?.id ?? null
   const { showToast } = useToast()
   const confirm = useConfirm()
@@ -116,6 +116,13 @@ export function AdminUsersTab() {
       }
     },
     onSuccess: (result, { releasesEmail }) => {
+      if (result?.sessionEnded) {
+        // A própria credencial mudou: o token desta sessão já não vale (migration 419).
+        showToast('Acesso atualizado. Entre de novo com a nova credencial.', 'success')
+        setEditando(null)
+        void signOut()
+        return
+      }
       invalidateUsers()
       if (releasesEmail && result?.released === 0) {
         // A RPC mantém suprimido o endereço que também é contato de Cliente ou e-mail de recuperação do Portal.

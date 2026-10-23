@@ -85,6 +85,8 @@ const FIELD_LABELS: Record<string, string> = {
   laden_on_board: 'Laden on Board',
   container_load_type: 'FCL/LCL',
   free_time_override: 'Free time do B/L',
+  demurrage_roe: 'ROE manual do B/L',
+  demurrage_roe_manual: 'Usa ROE manual',
   container_number: 'Número do container',
   type: 'Tipo',
   tare_weight_kg: 'Tara (kg)',

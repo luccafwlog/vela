@@ -6,9 +6,24 @@
 // ponytail: toda requisição de /assets/* passa por uma invocação de Function
 // (cota do plano Pages Functions); se o volume pesar, migrar para Workers
 // Static Assets com `not_found_handling = "none"` no diretório de assets.
+import { securityHeaders } from '../../scripts/cloudflare-security-headers.mjs'
+
 type Context = { request: Request; env: { ASSETS: { fetch: (request: Request) => Promise<Response> } } }
 
 export const IMMUTABLE = 'public, max-age=31536000, immutable'
+
+// Os mesmos headers de segurança do `_headers` (fonte única em
+// scripts/cloudflare-security-headers.mjs). A CSP sai sem o projeto Supabase
+// em connect-src: o build não chega à Function e nenhum asset (nem o worker do
+// Baplie) chama o Supabase.
+// ponytail: se um worker em /assets passar a chamar o Supabase, a Function
+// precisa receber a origem do build (variável do projeto Pages).
+export const ASSET_SECURITY_HEADERS: Readonly<Record<string, string>> = securityHeaders(null)
+
+function withSecurityHeaders(headers: Headers): Headers {
+  for (const [name, value] of Object.entries(ASSET_SECURITY_HEADERS)) headers.set(name, value)
+  return headers
+}
 
 export async function onRequest({ request, env }: Context): Promise<Response> {
   const asset = await env.ASSETS.fetch(request)
@@ -17,11 +32,11 @@ export async function onRequest({ request, env }: Context): Promise<Response> {
   if (asset.status === 404 || contentType.startsWith('text/html')) {
     return new Response('Not found', {
       status: 404,
-      headers: { 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8', 'X-Content-Type-Options': 'nosniff' },
+      headers: withSecurityHeaders(new Headers({ 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8' })),
     })
   }
   const response = new Response(asset.body, asset)
   if (asset.ok || asset.status === 304) response.headers.set('Cache-Control', IMMUTABLE)
-  response.headers.set('X-Content-Type-Options', 'nosniff')
+  withSecurityHeaders(response.headers)
   return response
 }

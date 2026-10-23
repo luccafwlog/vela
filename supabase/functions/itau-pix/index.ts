@@ -14,7 +14,17 @@ import {
 
 if (typeof Deno !== "undefined")
   Deno.serve(async (req) => {
-    if (req.method !== "POST" || !validBearer(req.headers.get("Authorization"), Deno.env.get("ITAU_PIX_ADMIN_SECRET")))
+    // Um segredo por uso (auditoria run-3, decisão do dono de 2026-10-22): a
+    // rotina (cron e disparo da fila) usa ITAU_PIX_CRON_SECRET; o diagnóstico
+    // da equipe técnica, ITAU_PIX_DIAGNOSTIC_SECRET. ITAU_PIX_ADMIN_SECRET, que
+    // servia aos dois, segue aceito na transição.
+    // ponytail: apagar ITAU_PIX_ADMIN_SECRET da Edge e do Vault encerra a
+    // transição; daí em diante cada uso só aceita o próprio.
+    const authorization = req.headers.get("Authorization");
+    const legacy = validBearer(authorization, Deno.env.get("ITAU_PIX_ADMIN_SECRET"));
+    const routine = legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_CRON_SECRET"));
+    const diagnostic = legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_DIAGNOSTIC_SECRET"));
+    if (req.method !== "POST" || !(routine || diagnostic))
       return new Response("Acesso negado", { status: 403 });
     let input: Record<string, unknown>;
     try {
@@ -22,6 +32,8 @@ if (typeof Deno !== "undefined")
     } catch {
       return Response.json({ error: "JSON inválido" }, { status: 400 });
     }
+    const routineAction = input.action === undefined || input.action === "process_queue" || input.action === "process_charges";
+    if (routineAction ? !routine : !diagnostic) return new Response("Acesso negado", { status: 403 });
     try {
       const config = itauPixConfigFromEnv((name) => Deno.env.get(name));
       const httpClient = Deno.createHttpClient({ cert: config.certPem, key: config.keyPem });
@@ -43,15 +55,20 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao reservar a fila Itaú.");
             return data ?? [];
           },
-          async record(id, result) {
+          async record(id, result, claimedVersion) {
             const { error } = await admin.rpc("itau_pix_record", {
               p_id: id, p_outcome: result.outcome,
               p_revision: result.outcome === "active" ? result.revision : null,
               p_pix_copia_e_cola: result.outcome === "active" ? result.pixCopiaECola : null,
               p_error: result.outcome === "active" ? null : result.error ?? null,
               p_bank_created_at: result.outcome === "active" ? result.bankCreatedAt : null,
+              p_claimed_version: claimedVersion ?? null,
             });
             if (error) throw new Error("Falha ao registrar resultado Itaú.");
+          },
+          async release(ids) {
+            const { error } = await admin.rpc("itau_pix_release", { p_ids: ids });
+            if (error) throw new Error("Falha ao liberar a reserva Itaú.");
           },
         };
         const runCharges = async () => {
@@ -106,7 +123,12 @@ if (typeof Deno !== "undefined")
             const { error } = await admin.rpc("itau_pix_checkpoint", { p_polled_until: until });
             if (error) throw new Error("Falha ao salvar o checkpoint Itaú.");
           },
-        }).catch((error) => ({ error: error instanceof Error ? error.message : "Falha na consulta de recebimentos" }));
+        }).catch((error) => {
+          // A parada por fuso leva os TXIDs que divergiram: ficam no log e na resposta.
+          const detail = error instanceof ItauPixError ? error.body : null;
+          console.error("itau-pix receipts", error instanceof Error ? error.message : error, detail);
+          return { error: error instanceof Error ? error.message : "Falha na consulta de recebimentos", detail };
+        });
         // Falha da fila ou da consulta responde fora de 2xx: o Alerta rotina_http_falhou
         // (migration 310) só enxerga o status (F-09).
         const failed = "error" in charges || "error" in receipts;

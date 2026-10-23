@@ -179,6 +179,43 @@ it('mostra preview consolidado e tabela de diferencas depois do upload', async (
   expect(screen.getByText('USD 12')).toBeTruthy()
 })
 
+// Revisão de 2026-10-22 (E1): a prévia mostrava só os seis primeiros B/Ls
+// (a tabela cortava o resto sem rolagem). Agora pagina e diz, por B/L, se o
+// CNPJ do consignatário casou um Cliente.
+it('pagina a prévia e mostra se o CNPJ do consignatário foi identificado', async () => {
+  const statuses = ['matched_document', 'matched_name', 'missing_customer'] as const
+  const rows = Array.from({ length: 12 }, (_, index) => ({
+    ...previewWithDiff.rows[0],
+    blNumber: `COSU${String(index + 1).padStart(3, '0')}`,
+    payload: {
+      id: `COSU${index + 1}`,
+      manifest_customer_cnpj_cpf: index === 2 ? null : '12345678000195',
+      customer_reconciliation_status: statuses[index % 3],
+    },
+  }))
+  mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU001'))
+  mocks.previewBlFreightImport.mockResolvedValue({ rows, summary: { ...previewWithDiff.summary, total: 12, newCount: 12, updatedCount: 0 } })
+  const { container } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'bl.xlsx')] },
+  })
+
+  expect(await screen.findByText('COSU010')).toBeTruthy()
+  expect(screen.queryByText('COSU011')).toBeNull()
+  expect(screen.getAllByText('CNPJ identificado').length).toBe(4)
+  expect(screen.getAllByText('CNPJ não identificado; Cliente pelo nome').length).toBe(3)
+  expect(screen.getByText('Sem CNPJ no arquivo')).toBeTruthy()
+  expect(screen.getAllByText('12.345.678/0001-95').length).toBe(9)
+  // O resumo conta os 8 B/Ls cujo CNPJ não casou um Cliente.
+  expect(screen.getByLabelText('O que a importação faz').textContent).toContain('CNPJ não identificado8')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Próxima' }))
+  expect(screen.getByText('COSU011')).toBeTruthy()
+  expect(screen.getByText('COSU012')).toBeTruthy()
+  expect(screen.queryByText('COSU001')).toBeNull()
+})
+
 it('bloqueia confirmacao quando todos os B/Ls estao bloqueados', async () => {
   mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU999'))
   mocks.previewBlFreightImport.mockResolvedValue({
@@ -247,7 +284,8 @@ it('usa o voyageId escolhido pelo operador ao preparar o preview', async () => {
   }))
 })
 
-it('confirma importacao, usa o efeito central de manifesto e fecha modal', async () => {
+// Revisão de 2026-10-22 (E3): a confirmação fica no modal, sem toast por cima do Concluir.
+it('confirma importacao, usa o efeito central de manifesto e confirma no modal, sem toast', async () => {
   mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU123'))
   mocks.previewBlFreightImport.mockResolvedValue(previewWithDiff)
   const { container, onClose } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N', onlyBlId: 'COSU123' })
@@ -264,7 +302,10 @@ it('confirma importacao, usa o efeito central de manifesto e fecha modal', async
 
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
   expect(mocks.invalidateQueries).not.toHaveBeenCalled()
-  expect(mocks.showToast).toHaveBeenCalledWith('Importação de B/L concluída: 2 B/Ls gravados.', 'success')
+  expect(await screen.findByText('Importação concluída: 2 B/Ls gravados · 0 containers entraram')).toBeTruthy()
+  expect(mocks.showToast).not.toHaveBeenCalled()
+  expect(onClose).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Concluir' }))
   expect(onClose).toHaveBeenCalled()
 })
 
@@ -282,10 +323,10 @@ it('confia na transação do servidor para persistir ATD junto com o import', as
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(onClose).toHaveBeenCalled())
-  expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('ATD do POL não pôde ser atualizado'), 'info')
+  expect(await screen.findByText(/^Importação concluída: 2 B\/Ls gravados/)).toBeTruthy()
+  expect(mocks.showToast).not.toHaveBeenCalled()
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
-  expect(mocks.showToast).toHaveBeenCalledWith('Importação de B/L concluída: 2 B/Ls gravados.', 'success')
+  expect(onClose).not.toHaveBeenCalled()
 })
 
 it('exibe impacto de faturamento e envia override quando o operador marca', async () => {
@@ -407,15 +448,11 @@ it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () =
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() =>
-    expect(mocks.showToast).toHaveBeenCalledWith(
-      expect.stringContaining('troca de cliente foi recusada em 1 B/L: COSU888 (Fatura INV-001 ja tem pagamento registrado.)'),
-      'error',
-    ),
-  )
-  expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Importação de B/L concluída'), 'success')
   // O resultado parcial fica no modal: o operador vê qual B/L manteve o cliente antigo.
-  expect(screen.getByText(/A troca de cliente foi recusada; o B\/L continua com o cliente anterior/)).toBeTruthy()
+  expect(await screen.findByText(/A troca de cliente foi recusada; o B\/L continua com o cliente anterior/)).toBeTruthy()
+  expect(screen.getByText('COSU888 (Fatura INV-001 ja tem pagamento registrado.)')).toBeTruthy()
+  expect(screen.getByText(/, com pendências$/)).toBeTruthy()
+  expect(mocks.showToast).not.toHaveBeenCalled()
   expect(screen.getByRole('button', { name: 'Concluir' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: /^Importar/ })).toBeNull()
 })
@@ -442,13 +479,9 @@ it('informa B/Ls cujo calculo automatico falhou sem esconder a importacao', asyn
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() =>
-    expect(mocks.showToast).toHaveBeenCalledWith(
-      expect.stringContaining('1 B/L ficou sem cálculo automático: COSU777 (Nenhuma tabela vigente.)'),
-      'error',
-    ),
-  )
-  expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Importação de B/L concluída'), 'success')
+  expect(await screen.findByText('COSU777 (Nenhuma tabela vigente.)')).toBeTruthy()
+  expect(screen.getByText(/Ficaram sem cálculo automático de taxas locais/)).toBeTruthy()
+  expect(mocks.showToast).not.toHaveBeenCalled()
 })
 
 it('avisa no resultado quando a Troca de Consignatário não foi confirmada (migration 213)', async () => {
@@ -473,7 +506,7 @@ it('avisa no resultado quando a Troca de Consignatário não foi confirmada (mig
   fireEvent.click(confirm)
 
   expect(await screen.findByText(/Consignatário mantido em COSU555: a troca de cliente não foi confirmada/)).toBeTruthy()
-  expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('consignatário mantido em COSU555'), 'error')
+  expect(mocks.showToast).not.toHaveBeenCalled()
 })
 
 it('mostra o impedimento quando a fatura nao pode acompanhar a troca de cliente', async () => {
@@ -518,16 +551,19 @@ it('mostra o impedimento quando a fatura nao pode acompanhar a troca de cliente'
   expect(container.querySelector('input[type="checkbox"]')).toBeNull()
 })
 
-// A7 (revisão da PR 929): o resultado por B/L aparece sempre que a gravação
-// mexeu em contêineres ou veículos, não só quando há remoção ou pendência.
-it('mostra o resultado por B/L quando a gravação muda contêineres, mesmo sem pendência', async () => {
+// Revisão de 2026-10-22 (E2): o resultado mostra só os totais de B/Ls gravados
+// e de containers que entraram (e saíram), não a lista por B/L.
+it('mostra só os totais quando a gravação muda contêineres, sem lista por B/L', async () => {
   mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU123'))
   mocks.previewBlFreightImport.mockResolvedValue(previewWithDiff)
   const result = {
     result: { imported: 2 },
     refusedCustomerRelinks: [],
     calculationErrors: [],
-    containerChanges: [{ blNumber: 'COSU456', inserted: ['TCLU1234567'], updated: [], removed: [] }],
+    containerChanges: [
+      { blNumber: 'COSU456', inserted: ['TCLU1234567'], updated: [], removed: [] },
+      { blNumber: 'COSU123', inserted: ['TCLU7654321', 'TCLU7654322'], updated: ['TCLU0000001'], removed: ['TCLU0000002'] },
+    ],
     cancelledSkipped: [],
     pricesRefixed: [],
   }
@@ -541,10 +577,10 @@ it('mostra o resultado por B/L quando a gravação muda contêineres, mesmo sem 
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await screen.findByText('COSU456 — 1 container entrou')
-  expect(screen.getAllByText('2 B/Ls gravados').length).toBeGreaterThan(0)
+  await screen.findByText('Importação concluída: 2 B/Ls gravados · 3 containers entraram · 1 container saiu')
+  expect(screen.queryByText(/COSU456 —/)).toBeNull()
   expect(screen.queryByText(/com pendências/)).toBeNull()
-  expect(mocks.showToast).toHaveBeenCalledWith('Importação gravada; confira o resultado por B/L.', 'success')
+  expect(mocks.showToast).not.toHaveBeenCalled()
   expect(onClose).not.toHaveBeenCalled()
 })
 

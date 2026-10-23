@@ -5,6 +5,8 @@
 > Pela [ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md) (item 7), não vale mais o item 1 sem a exigência de "sem B/L": escala com B/L não se exclui, mesmo sem CE (primeiro saem os B/Ls, depois a escala). A tela e `delete_escala` recusam (migration `235`, item A7 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 > Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (item D1), no item 9 "o Financeiro cancela ou estorna antes" passa a ser: o Administrativo cancela a fatura e a baixa (como no item 13); a baixa e o registro da Restituição são do Financeiro e do Administrativo. A exclusão direta pela API, sem motivo e sem a Trava, saiu na migration `235` (item P1 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 > Regra vigente em [Viagens](../modules/viagens.md), seção "Catálogo de ações", em [Regras de negócio](../operations/regras-de-negocio.md), seção "Hard delete controlado", e em [Segurança](../operations/seguranca.md), seção "Modelo de permissões por perfil".
+>
+> **Item 12 supersedido (2026-10-22).** A [ADR 0097](./0097-data-efetiva-confirmada-e-aparicao-na-programacao.md) devolve à Viagem a chave "Aparece em Chegadas e Saídas": a edição pode tirar a viagem da Programação antes do último ATD, com registro no Histórico.
 
 Status: supersedida parcialmente — 2026-09-24. Implementado em 2026-09-25 (ver nota).
 

@@ -99,7 +99,13 @@ export async function provisionPreviewAdmin({ authAdmin, profiles, email, passwo
  * é ele que localiza as branches. Se o host da URL resolvida cita esse mesmo
  * ref, a URL não é a de uma Preview Branch: aborta.
  */
-export function assertPreviewTarget(url, productionProjectRef) {
+// Branches persistentes do Supabase (auditoria run-3, decisão do dono de
+// 2026-10-22): a da staging é ambiente compartilhado, e um admin com a senha
+// de QA nela seria uma conta de acesso total fora da Preview. O ref não é
+// segredo (docs/operations/servicos-externos.md).
+export const PERSISTENT_BRANCH_REFS = Object.freeze(['uvgqfpleiyfythkhutlj'])
+
+export function assertPreviewTarget(url, productionProjectRef, persistentRefs = PERSISTENT_BRANCH_REFS) {
   const ref = (productionProjectRef ?? '').trim()
   if (!ref) {
     throw new Error(
@@ -112,9 +118,17 @@ export function assertPreviewTarget(url, productionProjectRef) {
   } catch {
     throw new Error(`SUPABASE_URL inválida: ${url}`)
   }
-  if (host.split('.').includes(ref)) {
+  const labels = host.split('.')
+  if (labels.includes(ref)) {
     throw new Error(
       `Recusado: SUPABASE_URL aponta para o projeto de produção (${ref}). ` +
+        'O admin de Preview só pode ser provisionado numa Preview Branch.',
+    )
+  }
+  const persistent = persistentRefs.find((candidate) => labels.includes(candidate))
+  if (persistent) {
+    throw new Error(
+      `Recusado: SUPABASE_URL aponta para a branch persistente ${persistent} (staging). ` +
         'O admin de Preview só pode ser provisionado numa Preview Branch.',
     )
   }

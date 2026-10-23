@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { downloadCsv } from '../csv'
+import { downloadCsv, formatCsv } from '../csv'
 
 // Captura o conteudo do CSV gerado interceptando o Blob entregue a
 // URL.createObjectURL, sem disparar download real no jsdom.
@@ -32,5 +32,20 @@ describe('downloadCsv', () => {
     expect(lines[3]).toBe(`'-2`)
     expect(lines[4]).toBe(`'@cmd`)
     expect(lines[5]).toBe('ok') // valor benigno permanece intacto
+  })
+})
+
+describe('formatCsv', () => {
+  it('põe entre aspas o campo com ; ou tab, para o Excel pt-BR não abrir outra célula', () => {
+    const csv = formatCsv(['nome'], [['ACME;=HYPERLINK("http://x")'], ['a\tb'], ['ok']])
+    const lines = csv.replace('﻿', '').split('\n')
+    expect(lines[1]).toBe('"ACME;=HYPERLINK(""http://x"")"')
+    expect(lines[2]).toBe('"a\tb"')
+    expect(lines[3]).toBe('ok')
+  })
+
+  it('cabeçalho passa pelo mesmo escape dos valores, inclusive a fórmula', () => {
+    const csv = formatCsv(['=cmd|/c calc', 'Peso, kg', 'Obs;x', 'BL'], [])
+    expect(csv).toBe('﻿\'=cmd|/c calc,"Peso, kg","Obs;x",BL')
   })
 })

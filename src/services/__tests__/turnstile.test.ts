@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { verifyTurnstileToken } from '../../../supabase/functions/_shared/turnstile'
+import { configuredHostnames, verifyTurnstileToken } from '../../../supabase/functions/_shared/turnstile'
 
 const fetcher = vi.fn<typeof fetch>()
 
@@ -85,4 +85,13 @@ it('rejeita respostas HTTP e JSON inválidas', async () => {
   await expect(verifyTurnstileToken(base)).resolves.toBe(false)
   fetcher.mockResolvedValueOnce(new Response('not-json', { status: 200 }))
   await expect(verifyTurnstileToken(base)).resolves.toBe(false)
+})
+
+it('sem TURNSTILE_ALLOWED_HOSTNAMES, só o stack local tem hostnames; fora dele nada vale (auditoria run-3)', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  expect(configuredHostnames('portalfwlog.com.br, staging.vela-portal.pages.dev', false)).toEqual(['portalfwlog.com.br', 'staging.vela-portal.pages.dev'])
+  expect(configuredHostnames(undefined, true)).toEqual(['localhost', '127.0.0.1'])
+  expect(configuredHostnames('', false)).toEqual([])
+  expect(error).toHaveBeenCalledWith('[turnstile] TURNSTILE_ALLOWED_HOSTNAMES ausente: desafio recusado.')
+  error.mockRestore()
 })

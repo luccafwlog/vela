@@ -34,8 +34,8 @@ it('exposes the audit author filter as a list of people and clears it with the o
 it('uses the voyage-backed schedule flow instead of the legacy schedule export', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/pages/ChegadasSaidas.tsx'), 'utf8')
   expect(source).toContain('createOrAttachVoyageFromSchedule')
-  // Tirar a viagem da Programação só acontece em Viagens (Excluir/Cancelar) ou
-  // pelo último ATD (ADR 0071, item 12): a tela não desliga a publicação.
+  // Tirar a viagem da Programação é na Viagem (chave da edição, Excluir ou
+  // Cancelar; ADR 0097) ou pelo último ATD: esta tela não desliga a publicação.
   expect(source).not.toContain('setVoyageShowOnPortal')
   expect(source).not.toContain('vessel_schedules')
   expect(source).not.toContain('ended_vessels')

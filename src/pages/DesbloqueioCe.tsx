@@ -5,6 +5,7 @@ import { Download, FileSpreadsheet, History, RotateCcw, SearchX, X } from "lucid
 import { useAuth } from "../hooks/useAuth";
 import { useCeUnlock, useCeUnlockRequest, useCeUnlockReviewQueue, useCeUnlockSituationCounts } from "../hooks/useCeUnlock";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { useFilteredSelection } from "../hooks/useFilteredSelection";
 import { Block } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
 import { RowActionButton } from "../components/ui/RowActionButton";
@@ -23,6 +24,7 @@ import { TableFooterPagination } from "../components/ui/TableFooterPagination";
 import { useToast } from "../components/ui/Toast";
 import { QueryStateGate } from "../components/shared/QueryStateGate";
 import { VoyageCombobox } from "../components/shared/VoyageCombobox";
+import { SelectAllFilteredCheckbox } from "../components/shared/SelectAllFilteredCheckbox";
 import { useConfirm, useConfirmWithReason } from "../components/ui/ConfirmDialog";
 import { CeUnlockRequestDetail } from "../components/ce-unlock/CeUnlockRequestDetail";
 import { CeUnlockDocumentList, CeUnlockDocumentUploader } from "../components/ce-unlock/CeUnlockDocuments";
@@ -82,8 +84,6 @@ export function DesbloqueioCe() {
   const tab: Tab = params.get("aba") === "controle" ? "controle" : "solicitacoes";
   const [filters, setFilters] = useState<CeUnlockFilters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
-  // A seleção guarda o B/L inteiro: atravessa páginas e ainda sabe se é apto e se tem a entrega.
-  const [selection, setSelection] = useState<Map<string, CeUnlockItem>>(new Map());
   const [panel, setPanel] = useState<Panel>(null);
   const [exportBusy, setExportBusy] = useState(false);
   const [sheetBusy, setSheetBusy] = useState(false);
@@ -114,6 +114,14 @@ export function DesbloqueioCe() {
   });
   const items = list.data?.items ?? [];
   const total = list.data?.total ?? 0;
+  // A seleção guarda o B/L inteiro: atravessa páginas e ainda sabe se é apto e se tem a entrega. O
+  // "selecionar todos" marca o filtro inteiro (revisão de 2026-10-22, G1); trocar o filtro zera.
+  const selection = useFilteredSelection<string, CeUnlockItem>({
+    scope: queryFilters,
+    totalCount: total,
+    loadAll: () => fetchAllCeUnlockBls(queryFilters),
+    keyOf: (i) => i.bl_id,
+  });
   const moreFilters = filters.pending_requirement ? 1 : 0;
   const openFilters =
     (["search", "pod", "voyage_id"] as const).filter((k) => !!filters[k]).length +
@@ -122,10 +130,9 @@ export function DesbloqueioCe() {
   // A linha da página atual é a versão mais recente do B/L selecionado; fora dela vale a cópia guardada,
   // que a entrega registrada ou desmarcada nesta tela renova com o B/L devolvido pelo comando.
   const current = new Map(items.map((i) => [i.bl_id, i]));
-  const selected = [...selection.values()].map((i) => current.get(i.bl_id) ?? i);
+  const selected = selection.values.map((i) => current.get(i.bl_id) ?? i);
   const selectedReady = selected.filter((i) => i.can_export);
   const selectedUndelivered = selected.filter((i) => !i.delivered);
-  const allPageSelected = items.length > 0 && items.every((i) => selection.has(i.bl_id));
 
   function filter(key: keyof CeUnlockFilters, value: string | number | undefined) {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -134,24 +141,6 @@ export function DesbloqueioCe() {
   function clearFilters() {
     setFilters(DEFAULT_FILTERS);
     setPage(1);
-  }
-  function toggle(i: CeUnlockItem, on: boolean) {
-    setSelection((prev) => {
-      const next = new Map(prev);
-      if (on) next.set(i.bl_id, i);
-      else next.delete(i.bl_id);
-      return next;
-    });
-  }
-  function togglePage() {
-    setSelection((prev) => {
-      const next = new Map(prev);
-      for (const i of items) {
-        if (allPageSelected) next.delete(i.bl_id);
-        else next.set(i.bl_id, i);
-      }
-      return next;
-    });
   }
   function setRequest(next: string | null) {
     setParams((p) => {
@@ -179,7 +168,7 @@ export function DesbloqueioCe() {
   }
   function refreshSelected(i: CeUnlockItem, updated: unknown) {
     if (!updated || typeof updated !== "object") return;
-    setSelection((prev) => (prev.has(i.bl_id) ? new Map(prev).set(i.bl_id, { ...i, ...(updated as Partial<CeUnlockItem>) }) : prev));
+    selection.refresh([{ ...i, ...(updated as Partial<CeUnlockItem>) }]);
   }
   async function delivery(i: CeUnlockItem) {
     let reason: string | null = null;
@@ -242,11 +231,7 @@ export function DesbloqueioCe() {
     setDeliveryBusy(false);
     if (saved) showToast(`Entrega registrada em ${bls(saved)}.`, "success");
     if (failed.length) showToast(`Não gravou em ${bls(failed.length)}: ${failed.join("; ")}`, "error");
-    setSelection((prev) => {
-      const next = new Map(prev);
-      for (const i of targets) if (!failed.some((f) => f.startsWith(`${i.bl_id}:`))) next.delete(i.bl_id);
-      return next;
-    });
+    selection.removeMany(targets.filter((i) => !failed.some((f) => f.startsWith(`${i.bl_id}:`))).map((i) => i.bl_id));
   }
   async function exportSelected(blIds = selectedReady.map((i) => i.bl_id), reexportOf?: string) {
     if (
@@ -266,12 +251,7 @@ export function DesbloqueioCe() {
       await downloadCeUnlockExport({ ...payload, request_key: k.key });
       keys.current.delete(k.text);
       await afterCeUnlockChanged(client);
-      if (!reexportOf)
-        setSelection((prev) => {
-          const next = new Map(prev);
-          for (const b of blIds) next.delete(b);
-          return next;
-        });
+      if (!reexportOf) selection.removeMany(blIds);
       showToast(`Planilha gerada com ${bls(blIds.length)}. Importe-a na aba "Planilha desbloqueio" da ZPT.`, "success");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Falha ao exportar", "error");
@@ -392,7 +372,7 @@ export function DesbloqueioCe() {
                     </Button>
                     <Button
                       className="app-btn--sm"
-                      disabled={!selectedReady.length || selectedReady.length > EXPORT_LIMIT || command.isPending || deliveryBusy}
+                      disabled={!selectedReady.length || selectedReady.length > EXPORT_LIMIT || command.isPending || deliveryBusy || selection.loadingAll}
                       title={selectedReady.length ? undefined : "Selecione B/Ls aptos para exportar"}
                       loading={exportBusy}
                       loadingLabel="Exportando…"
@@ -427,13 +407,13 @@ export function DesbloqueioCe() {
                         variant="secondary"
                         loading={deliveryBusy}
                         loadingLabel="Registrando…"
-                        disabled={command.isPending || exportBusy}
+                        disabled={command.isPending || exportBusy || selection.loadingAll}
                         onClick={() => void deliverSelected()}
                       >
                         Registrar entrega de {bls(selectedUndelivered.length)}
                       </Button>
                     )}
-                    <Button variant="ghost" disabled={deliveryBusy} onClick={() => setSelection(new Map())}>
+                    <Button variant="ghost" disabled={deliveryBusy} onClick={selection.clear}>
                       <X size={15} aria-hidden="true" />
                       Limpar seleção
                     </Button>
@@ -441,6 +421,11 @@ export function DesbloqueioCe() {
                 </div>
               </div>
             )}
+            {selection.loadError ? (
+              <div className="app-block__body">
+                <InlineError message={selection.loadError} />
+              </div>
+            ) : null}
             <QueryStateGate
               isLoading={false}
               isError={Boolean(list.error)}
@@ -454,13 +439,7 @@ export function DesbloqueioCe() {
                   <thead>
                     <tr>
                       <th scope="col" className="w-10">
-                        <input
-                          type="checkbox"
-                          aria-label="Selecionar os B/Ls da página"
-                          disabled={!manage || !items.length}
-                          checked={allPageSelected}
-                          onChange={togglePage}
-                        />
+                        <SelectAllFilteredCheckbox selection={selection} noun="B/Ls" disabled={!manage || !items.length} />
                       </th>
                       <th scope="col">B/L</th>
                       <th scope="col">CE Mercante</th>
@@ -503,8 +482,8 @@ export function DesbloqueioCe() {
                             type="checkbox"
                             aria-label={`Selecionar B/L ${i.bl_id}`}
                             disabled={!manage}
-                            checked={selection.has(i.bl_id)}
-                            onChange={(e) => toggle(i, e.target.checked)}
+                            checked={selection.isSelected(i.bl_id)}
+                            onChange={() => selection.toggle(i)}
                           />
                         </td>
                         <td>

@@ -41,3 +41,26 @@ it('reposiciona o rail na abertura mesmo quando a viagem ja vem selecionada pela
 
   expect(scrollTo).toHaveBeenCalledWith({ left: 0, behavior: 'auto' })
 })
+
+// Revisão de 2026-10-22: a faixa abria no fim. As escalas chegam depois e
+// reordenam os cards; a faixa que só aparece depois de carregar (Veículos)
+// também não voltava ao início.
+it('volta ao início quando a ordem dos cards muda e quando a faixa aparece depois de carregar', () => {
+  const scrollTo = vi.fn()
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrollTo })
+  const other = { ...item, id: 8, vesselName: 'GREEN ITAJAI', voyageNumber: '11' } as VoyageRailItem
+
+  const view = render(<VoyageRail items={[]} selectedId={null} onSelect={vi.fn()} />)
+  expect(scrollTo).not.toHaveBeenCalled()
+
+  view.rerender(<VoyageRail items={[item, other]} selectedId={null} onSelect={vi.fn()} />)
+  expect(scrollTo).toHaveBeenCalledTimes(1)
+
+  // Mesma ordem: a rolagem do operador fica onde está.
+  view.rerender(<VoyageRail items={[item, other]} selectedId={8} onSelect={vi.fn()} />)
+  expect(scrollTo).toHaveBeenCalledTimes(1)
+
+  view.rerender(<VoyageRail items={[other, item]} selectedId={8} onSelect={vi.fn()} />)
+  expect(scrollTo).toHaveBeenCalledTimes(2)
+  expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' })
+})

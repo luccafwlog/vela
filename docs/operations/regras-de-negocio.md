@@ -141,6 +141,18 @@ Esta seção diz quem pode, quando se exige motivo, o que trava a exclusão e po
 quanto tempo cada dado fica. A matriz de quem pode cada operação está em
 [Segurança § Modelo de permissões por perfil](seguranca.md#modelo-de-permissões-por-perfil).
 
+### Seleção em massa
+
+Nas listas com ação em massa (BLs, Containers, Vazios IMP, Veículos, Clientes e
+Desbloqueio de CE, interno e no Portal), o checkbox do cabeçalho marca **todo o
+resultado filtrado, em todas as páginas**, e não só as linhas visíveis; a barra
+diz "N de M selecionados", e o checkbox fica meio marcado com parte do filtro
+selecionada. A seleção atravessa páginas e é zerada quando o filtro muda (no
+Portal, a seleção do pedido continua entre buscas). Dono: `useFilteredSelection`
+e `SelectAllFilteredCheckbox`; as listas paginadas no servidor leem as páginas
+até 10.000 linhas e, acima disso, pedem para refinar o filtro (revisão de
+2026-10-22).
+
 ### Vocabulário e rótulos
 
 O vocabulário foi decidido em 2026-09-24. Cada termo tem um único efeito, e o
@@ -459,6 +471,11 @@ módulo, por exemplo em [Manifestos & EDI § Propósito e escopo](../modules/man
   existe em linha ou aba oculta, o erro diz isso em vez de "Planilha vazia.". A
   importação que substitui dados pede confirmação antes de gravar quando há
   linhas ou abas ocultas (ver o módulo de cada uma).
+- **Tamanho da aba.** A leitura vai até a última linha e a última coluna com
+  célula, não até a faixa que o arquivo declara (`<dimension>`). Aba com dado
+  além de 100.000 linhas, de 1.000 colunas ou de 5 milhões de células é
+  recusada com a linha e a coluna do dado mais distante
+  (`SHEET_MAX_ROWS`, `SHEET_MAX_COLUMNS`, `SHEET_MAX_CELLS`).
 - **Uma aba só.** Arquivo com mais de uma aba visível com dados é recusado em
   toda importação de planilha, com o nome das abas ("deixe os dados numa aba
   só"); aba oculta, aba vazia e aba com dado só em linhas ocultas não contam.

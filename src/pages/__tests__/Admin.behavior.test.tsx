@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   updateUserProfile: vi.fn(),
   restoreUserRole: vi.fn(),
   authUserId: 'u-admin' as string | null,
+  signOut: vi.fn(),
   createUser: vi.fn(),
   updateUserCredentials: vi.fn(),
   deactivateUser: vi.fn(),
@@ -48,7 +49,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (options: unknown) => ((await mocks.confirm(options)) ? 'motivo' : null) }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.authUserId ? { id: mocks.authUserId } : null }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.authUserId ? { id: mocks.authUserId } : null, signOut: mocks.signOut }) }))
 vi.mock('../../services/deleteRecords', () => ({ reactivateCatalogRow: mocks.reactivateCatalogRow }))
 vi.mock('../../services/adminUsers', async (importActual) => {
   const actual = await importActual<typeof import('../../services/adminUsers')>()
@@ -246,6 +247,19 @@ it('na própria linha, o Setor fica travado com a explicação e só a credencia
   fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
   await waitFor(() => expect(mocks.updateUserCredentials).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'u-1', password: 'SenhaNova#2026' })))
   expect(mocks.updateUserProfile).not.toHaveBeenCalled()
+})
+
+it('trocar a própria senha encerra a sessão, porque o token antigo já foi cortado', async () => {
+  mocks.authUserId = 'u-1'
+  mocks.updateUserCredentials.mockResolvedValue({ released: 0, sessionEnded: true })
+  renderAdmin()
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
+  const dialog = screen.getByRole('dialog')
+  fireEvent.change(within(dialog).getByLabelText('Nova senha'), { target: { value: 'SenhaNova#2026' } })
+  fireEvent.change(within(dialog).getByLabelText('Confirmar nova senha'), { target: { value: 'SenhaNova#2026' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.signOut).toHaveBeenCalledTimes(1))
+  expect(mocks.showToast).toHaveBeenCalledWith('Acesso atualizado. Entre de novo com a nova credencial.', 'success')
 })
 
 it('a linha de outra pessoa continua com o Setor liberado', () => {

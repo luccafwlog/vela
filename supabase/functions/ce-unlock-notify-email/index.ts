@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
-import { validCleanupAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
+import { validDedicatedAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
 import { CE_UNLOCK_BOX, ceUnlockNoticeBls, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
 import { runWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { recipientKey } from "../_shared/email.ts";
@@ -9,11 +9,20 @@ import { canonicalPortalOrigin, portalSupportEmail } from "../_shared/portalUrls
 import { instrumentEdgeHandler } from "../_shared/telemetry.ts";
 // Envia a fila de avisos do Desbloqueio de CE (recusa de documento / documentação validada).
 // Com a chave de envio desligada, registra o aviso como simulado (D11). Antes, reavalia a conclusão das solicitações abertas (liquidação não passa por comando do módulo).
-// Bearer dedicado e server-only, o mesmo segredo de manutenção do módulo (CE_UNLOCK_CLEANUP_SECRET).
+// Bearer dedicado e server-only: CE_UNLOCK_NOTIFY_SECRET. O do expurgo
+// (CE_UNLOCK_CLEANUP_SECRET) vale até CE_UNLOCK_NOTIFY_SHARED_RETIRED=true (auditoria run-3).
+function notifyAuthorized(header: string | null): boolean {
+  return validDedicatedAuthorization(
+    header,
+    Deno.env.get("CE_UNLOCK_NOTIFY_SECRET"),
+    Deno.env.get("CE_UNLOCK_CLEANUP_SECRET"),
+    Deno.env.get("CE_UNLOCK_NOTIFY_SHARED_RETIRED") === "true",
+  );
+}
+
 if (typeof Deno !== "undefined") {
   const edgeHandler = instrumentEdgeHandler("ce-unlock-notify-email", async (req) => {
-    const secret = Deno.env.get("CE_UNLOCK_CLEANUP_SECRET");
-    if (req.method !== "POST" || !validCleanupAuthorization(req.headers.get("Authorization"), secret))
+    if (req.method !== "POST" || !notifyAuthorized(req.headers.get("Authorization")))
       return new Response("Acesso negado", { status: 403 });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     // Protocolo e B/Ls da solicitação, para o bloco "Solicitação" do e-mail: uma leitura por solicitação.
@@ -23,16 +32,27 @@ if (typeof Deno !== "undefined") {
       if (!cached) {
         cached = (async () => {
           const [request, items, moved] = await Promise.all([
-            admin.from("ce_unlock_requests").select("protocol").eq("id", requestId).maybeSingle(),
+            admin.from("ce_unlock_requests").select("protocol, customer_id").eq("id", requestId).maybeSingle(),
             admin.from("ce_unlock_request_bls").select("bl_id").eq("request_id", requestId).order("bl_id"),
             admin.from("ce_unlock_events").select("bl_id").eq("request_id", requestId).eq("action", "bl_moved"),
           ]);
           if (request.error) throw request.error;
           if (items.error) throw items.error;
           if (moved.error) throw moved.error;
+          const requestRow = request.data as { protocol?: string; customer_id?: number } | null;
+          const itemRows = (items.data ?? []) as Array<{ bl_id: string }>;
+          // Só B/L que ainda é do Cliente da solicitação, como a visão do Portal (request_json).
+          const owned = itemRows.length && requestRow?.customer_id != null
+            ? await admin.from("bls").select("id").in("id", itemRows.map((item) => item.bl_id)).eq("customer_id", requestRow.customer_id)
+            : { data: [], error: null };
+          if (owned.error) throw owned.error;
           return {
-            protocol: (request.data as { protocol?: string } | null)?.protocol ?? "",
-            bls: ceUnlockNoticeBls((items.data ?? []) as Array<{ bl_id: string }>, (moved.data ?? []) as Array<{ bl_id: string | null }>),
+            protocol: requestRow?.protocol ?? "",
+            bls: ceUnlockNoticeBls(
+              itemRows,
+              (moved.data ?? []) as Array<{ bl_id: string | null }>,
+              ((owned.data ?? []) as Array<{ id: string }>).map((bl) => bl.id),
+            ),
           };
         })();
         requestCache.set(requestId, cached);
@@ -125,8 +145,7 @@ if (typeof Deno !== "undefined") {
   });
 
   Deno.serve((req) => {
-    const authorized = req.method === "POST" &&
-      validCleanupAuthorization(req.headers.get("Authorization"), Deno.env.get("CE_UNLOCK_CLEANUP_SECRET"));
+    const authorized = req.method === "POST" && notifyAuthorized(req.headers.get("Authorization"));
     return runWithBetterStackHeartbeat("ceUnlockNotifyEmail", () => edgeHandler(req), { enabled: authorized });
   });
 }

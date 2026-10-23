@@ -16,7 +16,7 @@ import { ContainerDatesImportModal } from '../components/shared/ContainerDatesIm
 import { CustomerReportModal } from '../components/demurrage/CustomerReportModal'
 import { DemurrageContainersTab } from '../components/demurrage/DemurrageContainersTab'
 import { DemurrageContainerDatesModal } from '../components/demurrage/DemurrageContainerDatesModal'
-import { canAnswerDemurrageDispute, type ContainerDatesInput } from '../components/demurrage/demurrageFormRules'
+import { canAnswerDemurrageDispute, canManageManualRoe, type ContainerDatesInput } from '../components/demurrage/demurrageFormRules'
 import { DemurrageCustomersTab } from '../components/demurrage/DemurrageCustomersTab'
 import { DemurrageDunningSettingsModal } from '../components/demurrage/DemurrageDunningSettingsModal'
 import { DemurrageInvoiceDetailModal, type DemurrageDetailInvoice } from '../components/demurrage/DemurrageInvoiceDetailModal'
@@ -107,6 +107,7 @@ export function Demurrage() {
   const canSettle = effectiveRole === 'financeiro' || effectiveRole === 'administrativo' // register_demurrage_payment; apply_demurrage_discount é de qualquer Departamento (247)
   const canInformPtax = canSettle || effectiveRole === 'equipamentos' // migration 110
   const canAnswerDispute = canAnswerDemurrageDispute(effectiveRole)
+  const canManageRoe = canManageManualRoe(effectiveRole)
   // A aba Disputas é de leitura para todos (ADR 0085, D12; migration 250).
   const canReadDisputes = effectiveRole != null
   const activeTab: DemurrageTab = tab === 'disputas' && !canReadDisputes ? 'containers' : tab
@@ -544,7 +545,7 @@ export function Demurrage() {
       />
       <DemurrageInvoiceDetailModal
         invoiceId={state.invoiceId}
-        permissions={{ canSettle, canAdmin, canAnswerDispute }}
+        permissions={{ canSettle, canAdmin, canAnswerDispute, canManageRoe }}
         cancelling={cancelMutation.isPending}
         cancelError={cancelError}
         onClose={() => { setCancelError(null); closeInvoice() }}

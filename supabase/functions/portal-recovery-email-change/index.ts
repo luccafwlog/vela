@@ -1,14 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createPasswordCheckClient } from '../_shared/passwordCheckClient.ts'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { emailChangeAlertTemplate, emailChangeAssistedAlertTemplate, emailChangeConfirmTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
-import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { confirmLoginFailure, confirmLoginSuccess, requestIp, reserveLoginAttempt, voidLoginAttempt } from '../_shared/portalLoginRateLimit.ts'
 import { resolveEmailChangeConfirmation } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import type { PortalDb } from '../_shared/portalDb.ts'
+import { isInvalidCredentials } from '../_shared/authRefusal.ts'
 
 // Mensagem própria para o pedido que já não tem o que aplicar. Dizer "link
 // inválido" aqui seria mentira -- o link estava válido -- e mandaria o cliente
@@ -33,11 +35,13 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
     const portal = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: jwt } } })
     const { data: userData } = await portal.auth.getUser(); const authId = userData.user?.id
     if (!authId || !body.current_password || !body.new_email?.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) return new Response(JSON.stringify({ error: 'Dados inválidos.' }), { status: 422 })
-    const { data: account } = await admin.from('customer_portal_accounts').select('id, customer_id, login_cnpj, recovery_email, auth_user_id, active, account_situation, customers(name, cnpj_cpf)').eq('auth_user_id', authId).single()
+    const { data: account } = await admin.from('customer_portal_accounts').select('id, customer_id, login_cnpj, recovery_email, auth_user_id, active, account_situation, customers(name, cnpj_cpf, deactivated_at)').eq('auth_user_id', authId).single()
     if (!account?.login_cnpj) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 422 })
-    // Só conta ativa, e no máximo 5 pedidos por dia: cada pedido manda e-mail
-    // a um endereço escolhido pelo cliente (auditoria run-2, reforço).
-    if (!account.active || account.account_situation !== 'ativo') return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 403 })
+    // Só conta ativa de Cliente não desativado, e no máximo 5 pedidos por dia:
+    // cada pedido manda e-mail a um endereço escolhido pelo cliente (auditoria
+    // run-2, reforço; Cliente desativado, run-3). A recusa é a mesma das demais.
+    const customerDeactivated = Boolean((account.customers as { deactivated_at?: string | null } | null)?.deactivated_at)
+    if (!account.active || account.account_situation !== 'ativo' || customerDeactivated) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 403 })
     const { count: recentRequests, error: quotaError } = await admin.from('portal_invites').select('id', { count: 'exact', head: true }).eq('account_id', account.id).eq('purpose', 'confirmacao_email').gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
     if (quotaError) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })
     if ((recentRequests ?? 0) >= EMAIL_CHANGE_DAILY_LIMIT) return new Response(JSON.stringify({ error: 'Limite de pedidos de troca de email atingido. Tente novamente amanhã.' }), { status: 429 })
@@ -47,23 +51,41 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
     // 5 tentativas do login. A consulta vem ANTES de signInWithPassword: quem
     // está bloqueado não chega a ter a senha verificada.
     const rateLimitContext = { ip: requestIp(req) }
-    if (await isLoginRateLimited(admin, account.login_cnpj, rateLimitContext)) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })
-    const { data: authUser } = await admin.auth.admin.getUserById(authId); const technicalEmail = authUser.user?.email
+    // Reserva atômica (migration 422): a tentativa conta antes da verificação.
+    const attemptId = await reserveLoginAttempt(admin, account.login_cnpj, rateLimitContext)
+    if (attemptId === null) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })
+    // Exceção daqui até a conferência (rede, pepper ausente) é falha nossa:
+    // a reserva sai do balde antes de a resposta 500 subir.
+    const voidOnThrow = async <T>(work: Promise<T>): Promise<T> => {
+      try { return await work } catch (error) { await voidLoginAttempt(admin, attemptId).catch(() => {}); throw error }
+    }
+    const { data: authUser } = await voidOnThrow(admin.auth.admin.getUserById(authId)); const technicalEmail = authUser.user?.email
     // Sem email técnico não houve senha errada: houve falha nossa ao resolver o
     // usuário do Auth. Contar isso no balde do login gastaria as 5 tentativas do
     // cliente por conta de um defeito do servidor e o trancaria por 15 minutos
     // fora do Portal, sem que ele tivesse errado nada. O balde só registra o que
     // o cliente digitou.
-    if (!technicalEmail) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })
-    const verifier = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!)
-    // Senha migrada (HMAC) primeiro; a pura só vale para conta ainda legada.
-    let verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: await derivePortalAuthPassword(body.current_password, portalPasswordPepper()) })
-    if (verified.error) verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: body.current_password })
+    if (!technicalEmail) {
+      await voidLoginAttempt(admin, attemptId)
+      return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })
+    }
+    // Com credencial de administrador, para o captcha do Auth não recusar a conferência.
+    const verifier = createPasswordCheckClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    // Só a senha derivada (HMAC); a pura legada saiu (auditoria run-3).
+    // Falha do Auth (429, 5xx, rede) não é senha errada: não entra no balde.
+    const authUnavailable = async () => {
+      await voidLoginAttempt(admin, attemptId)
+      return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 503 })
+    }
+    const currentPassword = body.current_password
+    const authPassword = await voidOnThrow(Promise.resolve().then(() => derivePortalAuthPassword(currentPassword, portalPasswordPepper())))
+    const verified = await voidOnThrow(verifier.auth.signInWithPassword({ email: technicalEmail, password: authPassword }))
+    if (verified.error && !isInvalidCredentials(verified.error)) return await authUnavailable()
     if (verified.error) {
-      await registerLoginFailure(admin, account.login_cnpj, rateLimitContext)
+      await confirmLoginFailure(account.login_cnpj, rateLimitContext)
       return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 422 })
     }
-    await registerLoginSuccess(admin, account.login_cnpj, rateLimitContext)
+    await confirmLoginSuccess(admin, attemptId, account.login_cnpj, rateLimitContext)
     // A verificação cria uma sessão do Supabase Auth que ninguém mais usa;
     // sem signOut, cada troca deixava um refresh token pendurado. O escopo é
     // `local` de propósito: o padrão do supabase-js é `global`, que revoga TODO

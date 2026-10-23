@@ -391,7 +391,22 @@ o copia e cola em `pix_payload`; até lá Vela e Portal mostram "QR em
 preparação". Faturas individual e consolidada com cobrança ativa também entram
 em `local_pix_charge_versions`, então a conciliação por extrato continua
 resolvendo o TXID delas. A avulsa não entra nessa tabela (`itau_pix_record`,
-migrations `152` e `153`).
+migrations `152` e `153`). Desde a migration `424` (auditoria de segurança run-3), cada mudança de valor
+ou validade soma `itau_pix_charges.change_version`, e o runner devolve a versão
+que reservou: se o valor mudou enquanto o Itaú respondia (desconto, PTAX), o
+resultado não ativa a cobrança, que fica em `pending_update` para a versão nova
+seguir na mesma execução. Sem isso, o QR cobrava o valor antigo enquanto a fatura
+e o Portal mostravam o novo. Desde a migration `429`, o mesmo vale para a cobrança
+de Demurrage em conferência de vencimento: o valor novo fica gravado na linha e,
+se o banco disser que ela segue viva, ela vai como alteração. Na mesma migration,
+a exceção do extrato já resolvida não tem TXID, valor e data reescritos por uma
+nova importação, e a baixa repetida com a mesma chave depois de cancelada é
+recusada ("Esta baixa foi cancelada…") em vez de devolver o sucesso guardado.
+**Teste:** `src/integration/consistenciaOperacaoFinanceiro.local-pg.test.ts`.
+Quando o runner para no meio do bloco reservado (429 do Itaú ou banco sem
+resposta), as cobranças do bloco que não foram chamadas voltam sem a tentativa e
+com a vez liberada (`itau_pix_release`, migration `431`); antes, ficavam com uma
+tentativa a mais e o atraso crescia.
 
 **Baixa automática (migration 152):** a função consulta `GET /pix` e chama
 `itau_pix_settle` para cada Pix com TXID `VELA…`, que baixa pelos mesmos
@@ -414,7 +429,11 @@ registro como **Pix recebido**. Antes, esse Alerta só aparecia em `/alertas`. E
 consulta seguinte tenta de novo; na terceira falha seguida do mesmo Pix, ele
 vai para análise (`itau_pix_receipt_failures`, Alerta `pix_unreconciled`) e a
 consulta avança. Pix em formato inesperado vai para análise na primeira vez
-(migration `358`). O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
+(migration `358`); `endToEndId` com data impossível (mês 13, minuto 99) conta como formato inesperado.
+Horário a mais de 1 h do minuto UTC do `endToEndId` só para a consulta quando é a
+maioria dos Pix do Vela na janela (desvio de fuso, com os TXIDs no log da `itau-pix`);
+um comprovante isolado que diverge vai para análise e os demais são baixados
+(auditoria de segurança run-3, P4). O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
 `endToEndId` já é referência de uma baixa, ou cujo TXID já conciliou a avulsa
 pelo extrato, vai para análise; o extrato que baixa avulsa cobrada pelo QR Itaú
 marca a cobrança como concluída (migration `357`). O Pix do QR de uma

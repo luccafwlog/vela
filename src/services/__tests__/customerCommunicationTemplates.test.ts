@@ -9,6 +9,7 @@ import {
   renderNoaTemplate,
   renderNobTemplate,
   renderNorTemplate,
+  singleLine,
   validateCommunicationAttachments,
   type CustomerCommunicationTemplateInput,
 } from '../customerCommunicationTemplates'
@@ -79,6 +80,14 @@ describe('templates de Comunicados', () => {
   it('não aceita B/L em comunicado institucional', () => {
     expect(() => renderInstitutionalTemplate(input({ subject: 'Aviso', body: 'Mensagem' })))
       .toThrow('não pode conter B/Ls')
+  })
+
+  it('assunto do livre e do institucional sai numa linha só, sem CR/LF (auditoria run-3)', () => {
+    const institutional = renderInstitutionalTemplate(input({ bls: [], subject: 'Aviso\r\nBcc: fora@exemplo.test', body: 'Mensagem' }))
+    expect(institutional.subject).toBe('Aviso Bcc: fora@exemplo.test')
+    const free = renderInstitutionalTemplate(input({ subject: 'Linha 1\nLinha 2\r', body: 'Mensagem' }), 'livre')
+    expect(free.subject).toBe('Linha 1 Linha 2')
+    expect(singleLine('nota\r\nfiscal.pdf')).toBe('nota fiscal.pdf')
   })
 
   it('renderiza CE Mercante com resumo BRL, link do Portal e sem PIX/anexo', () => {

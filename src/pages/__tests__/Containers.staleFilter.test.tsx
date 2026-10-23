@@ -10,6 +10,12 @@ const page = (containerNumber: string, id: number): Page => ({
   count: 1, distinctCount: 1, blCount: 1, oogDistinctCount: 0, imoDistinctCount: 0, typeSummary: [],
 })
 const mocks = vi.hoisted(() => ({ releaseBrssz: null as ((value: Page) => void) | null }))
+const railItemsMock = vi.hoisted(() => vi.fn(() => ({ items: [] as unknown[], isLoading: false })))
+// Cards de navio/viagem: o teste próprio está em VoyageRail.behavior.test.tsx.
+vi.mock('../../hooks/useVoyageRailItems', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../hooks/useVoyageRailItems')>()),
+  useVoyageRailItems: () => railItemsMock(),
+}))
 vi.mock('../../services/operationalLists', () => ({
   listOperationalContainers: (filters: { pod?: string }) => filters.pod === 'BRSSZ'
     ? new Promise<Page>((resolve) => { mocks.releaseBrssz = resolve })
@@ -44,7 +50,7 @@ it('trocar o POD deixa as linhas do recorte anterior esmaecidas, sem seleção e
     await waitFor(() => expect(table.getAttribute('aria-busy')).toBe('true'))
     expect(table.className).toContain(STALE_PAGE_CLASS)
     expect((oldRow as HTMLInputElement).disabled).toBe(true)
-    expect((screen.getByRole('checkbox', { name: 'Selecionar todos os containers da página' }) as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByRole('checkbox', { name: /Selecionar todos os containers do filtro/ }) as HTMLInputElement).disabled).toBe(true)
     expect(within(screen.getByRole('group', { name: 'Totais do recorte' })).getByText('Containers').parentElement?.textContent).toContain('—')
 
     mocks.releaseBrssz?.(page('MSCU7654321', 44))
