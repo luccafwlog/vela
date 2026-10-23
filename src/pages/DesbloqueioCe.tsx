@@ -372,7 +372,7 @@ export function DesbloqueioCe() {
                     </Button>
                     <Button
                       className="app-btn--sm"
-                      disabled={!selectedReady.length || selectedReady.length > EXPORT_LIMIT || command.isPending || deliveryBusy}
+                      disabled={!selectedReady.length || selectedReady.length > EXPORT_LIMIT || command.isPending || deliveryBusy || selection.loadingAll}
                       title={selectedReady.length ? undefined : "Selecione B/Ls aptos para exportar"}
                       loading={exportBusy}
                       loadingLabel="Exportando…"
@@ -407,7 +407,7 @@ export function DesbloqueioCe() {
                         variant="secondary"
                         loading={deliveryBusy}
                         loadingLabel="Registrando…"
-                        disabled={command.isPending || exportBusy}
+                        disabled={command.isPending || exportBusy || selection.loadingAll}
                         onClick={() => void deliverSelected()}
                       >
                         Registrar entrega de {bls(selectedUndelivered.length)}

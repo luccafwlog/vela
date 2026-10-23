@@ -45,3 +45,13 @@ describe('BulkActionsBar', () => {
     expect(screen.getByRole('button', { name: 'Definir local de desova' })).toBeTruthy()
   })
 })
+
+it('enquanto lê o filtro inteiro, esconde excluir e as ações extras (agiriam só na seleção antiga)', () => {
+  render(
+    <BulkActionsBar count={2} total={50} loadingAll noun={['B/L', 'B/Ls']} onClear={() => {}} onDelete={() => {}}
+      extraActions={<button type="button">Mover</button>} />,
+  )
+  expect(screen.queryByRole('button', { name: /Excluir selecionados/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Mover' })).toBeNull()
+  expect(screen.getByRole('button', { name: /Limpar seleção/ })).toBeTruthy()
+})

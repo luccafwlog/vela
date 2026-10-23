@@ -45,8 +45,9 @@ export function BulkActionsBar({ count, onClear, onDelete, deleting, noun, extra
           <X size={15} />
           Limpar seleção
         </Button>
-        {extraActions}
-        {onDelete ? (
+        {/* Enquanto lê o filtro inteiro, nenhuma ação: agiria só na seleção antiga. */}
+        {loadingAll ? null : extraActions}
+        {onDelete && !loadingAll ? (
           <Button variant="danger" onClick={onDelete} loading={deleting}>
             <Trash2 size={15} />
             Excluir selecionados
