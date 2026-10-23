@@ -417,7 +417,9 @@ ou avulsa exige o valor exato da cobrança; a Invoice de Demurrage aceita o Pix
 de uma revisão anterior pela janela das duas PTAX (migration `153`). As baixas
 de faturas de Taxas Locais e avulsas são gravadas em nome da conta designada em
 `app_settings.itau_pix_settlement_actor`, que aparece em **Registrado por** nos
-Pagamentos do detalhe da fatura (migration `221`). Qualquer recusa
+Pagamentos do detalhe da fatura (migration `221`). Essa conta ("API ITAÚ") é uma
+[conta de integração](operacao-suporte.md#conta-de-integração) com o papel
+Financeiro, o que a baixa exige (migration `440`; antes era Administrativa). Qualquer recusa
 (valor diferente, fatura não pagável, TXID do Vela sem cobrança, fatura de
 Taxas Locais ou avulsa sem usuário de baixa configurado) grava o Pix em análise e abre o Alerta
 `pix_unreconciled` para o Administrativo e o Financeiro, sem baixa; o Pix aparece em **Pix

@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Conta de integração API ITAÚ (2026-10-23):** migration `440`. `user_profiles.account_kind`
+  (`pessoa` ou `integracao`, sem escrita pelo navegador); a conta da baixa automática do Pix vira
+  integração e Financeiro (a baixa só exige Financeiro), com o e-mail suprimido e a troca no Histórico
+  de ações. Ela sai do Resumo diário, do sino e da contagem do Administrativo ativo mínimo, e ganha a
+  badge **Integração** na tela Usuários. O 422 `all_recipients_suppressed` do provedor no envio do
+  Portal conta como suprimido, não falha, e grava o endereço na supressão: o heartbeat do
+  `portal-daily-digest` não fica mais vermelho por ele.
 - **Revisão final da PR da auditoria de segurança run-3 (2026-10-23):** migration `439`. Token
   interno do mesmo segundo da revogação é recusado (o renovado antes do corte não sobrevive até
   expirar). Aba VIN do B/L lida só até a última célula presente; avisos do Desbloqueio de CE aceitam o segredo novo e o do

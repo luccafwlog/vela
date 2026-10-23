@@ -18,6 +18,9 @@ const userId = '00000000-0000-0000-0000-000000098801'
 // Outro Administrativo ativo: os casos que trocam o setor de `userId` não
 // esbarram no "Administrativo ativo mínimo" (migration 239) num banco recém-replicado.
 const spareAdminId = '00000000-0000-0000-0000-000000098802'
+// Conta da baixa automática como em produção desde a migration 440:
+// integração com o papel Financeiro.
+const settlementActorId = '00000000-0000-0000-0000-000000098803'
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -55,7 +58,7 @@ function cleanup() {
     DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E15%');
     DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E15%';
     DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E15%';
-    DELETE FROM public.financial_payment_attempts WHERE created_by = '${userId}';
+    DELETE FROM public.financial_payment_attempts WHERE created_by IN ('${userId}', '${settlementActorId}');
     DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_type = 'exchange_rate_reference' AND entity_id LIKE 'itau-pix-%');
     DELETE FROM public.demurrage_mutation_requests WHERE invoice_id IN (${demurrageId}, ${demurrage2Id});
@@ -74,8 +77,8 @@ function cleanup() {
     DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}) OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
     DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId});
     DELETE FROM public.customers WHERE id = ${customerId};
-    DELETE FROM public.user_profiles WHERE id IN ('${userId}', '${spareAdminId}');
-    DELETE FROM auth.users WHERE id IN ('${userId}', '${spareAdminId}');
+    DELETE FROM public.user_profiles WHERE id IN ('${userId}', '${spareAdminId}', '${settlementActorId}');
+    DELETE FROM auth.users WHERE id IN ('${userId}', '${spareAdminId}', '${settlementActorId}');
     SET session_replication_role = origin;
     UPDATE public.app_settings SET pix_provider = 'static', itau_pix_settlement_actor = NULL WHERE id = 1;
   `)
@@ -85,9 +88,12 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
   beforeAll(() => {
     cleanup()
     psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${userId}', 'admin-150@example.test'), ('${spareAdminId}', 'admin-150-reserva@example.test');
+      INSERT INTO auth.users (id, email) VALUES ('${userId}', 'admin-150@example.test'), ('${spareAdminId}', 'admin-150-reserva@example.test'),
+        ('${settlementActorId}', 'api-itau-150@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${userId}', 'Admin 150', 'administrativo', true),
         ('${spareAdminId}', 'Admin 150 reserva', 'administrativo', true);
+      INSERT INTO public.user_profiles (id, full_name, role, active, account_kind)
+        VALUES ('${settlementActorId}', 'API ITAÚ 150', 'financeiro', true, 'integracao');
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${syntheticCnpj(98801)}', 'Cliente Itau 150');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 150');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 150', ${carrierId});
@@ -234,20 +240,22 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
 
   it('avulsa é baixada pelo endToEndId e a repetição não cria segunda baixa', () => {
     setProvider('itau')
-    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${settlementActorId}' WHERE id = 1`)
     const id = manualInvoice('ITAU151-AV', 0.02)
     const charge = activate(`invoice_id = ${id}`, '000201ITAU151AV')
     expect(settle('E151AVULSA', charge.txid, '0.02')).toBe('settled')
     expect(settle('E151AVULSA', charge.txid, '0.02')).toBe('settled')
     expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('paid')
     expect(psql(`SELECT count(*) || '|' || max(bank_reference) FROM public.payments WHERE invoice_id = ${id}`)).toBe('1|E151AVULSA')
+    // "Registrado por" é a conta de integração Financeiro (migration 440).
+    expect(psql(`SELECT max(registered_by::text) FROM public.payments WHERE invoice_id = ${id}`)).toBe(settlementActorId)
     // A avulsa não entra no resolvedor da 130 (o extrato não a leva ao ledger).
     expect(psql(`SELECT count(*) FROM public.local_pix_charge_versions WHERE txid = '${charge.txid}'`)).toBe('0')
   })
 
   it('F-05: avulsa já baixada pela referência com o endToEndId (Plano B) vai para análise, sem segunda baixa nem restituição', () => {
     setProvider('itau')
-    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${settlementActorId}' WHERE id = 1`)
     const id = manualInvoice('ITAU357-AV', 0.05)
     const charge = activate(`invoice_id = ${id}`, '000201ITAU357AV')
     psql(`SET request.jwt.claim.sub = '${userId}';
@@ -294,7 +302,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
 
   it('erro passageiro do banco não manda o Pix para análise: a próxima consulta baixa', () => {
     setProvider('itau')
-    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${settlementActorId}' WHERE id = 1`)
     const id = manualInvoice('ITAU151-LOCK', 0.04)
     const charge = activate(`invoice_id = ${id}`, '000201ITAU151LOCK')
     // Simula lock não obtido (55P03) no momento da baixa.

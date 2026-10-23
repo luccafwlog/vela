@@ -56,6 +56,7 @@ src/integration/invoicePostBillingSafety.local-pg.test.ts
 src/integration/portalConsolidadaPaga.local-pg.test.ts
 src/integration/alertasDoBlCanceladoExcluido.local-pg.test.ts
 src/integration/itauPixCharges.local-pg.test.ts
+src/integration/contaDeIntegracao.local-pg.test.ts
 src/integration/thdImoOog.local-pg.test.ts
 src/integration/auditoriaImportacaoCargaSolta.local-pg.test.ts
 src/integration/auditoriaImportacaoBlContainer.local-pg.test.ts

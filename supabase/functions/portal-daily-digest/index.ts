@@ -35,7 +35,8 @@ if (typeof Deno !== 'undefined') {
         activity: admin.from('portal_provisioning_events').select('id').gte('created_at', since),
         // Cliente desativado não entra na contagem de convites pendentes.
         pending: admin.from('customer_portal_accounts').select('id, customers!inner(deactivated_at)').eq('account_situation', 'convite_pendente').is('customers.deactivated_at', null),
-        users: admin.from('user_profiles').select('id').eq('active', true).in('role', ['administrativo', 'documentacao']),
+        // `account_kind`: a conta de integração (migration 440) sai no runPortalDailyDigest.
+        users: admin.from('user_profiles').select('id, account_kind').eq('active', true).in('role', ['administrativo', 'documentacao']),
         // Exceção crítica de fatura: abertura e fechamento nas últimas 24 horas (ADR 0083, item 19),
         // pelos eventos do item: a reabertura reaproveita a linha e mantém o `created_at`.
         criticalOpened: admin.from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'opened').gte('created_at', since),
