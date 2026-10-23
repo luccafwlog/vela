@@ -41,7 +41,7 @@ describe('troca de Email de Recuperação consulta a trava antes de verificar a 
   // balde gastaria as tentativas do cliente por defeito do servidor e o
   // trancaria 15 minutos fora do Portal sem que ele tivesse errado nada.
   it('não cobra o balde quando o email técnico não pôde ser resolvido', () => {
-    const branch = emailChange.slice(indexOf(emailChange, 'if (!technicalEmail) {'), indexOf(emailChange, 'const verifier = createClient'))
+    const branch = emailChange.slice(indexOf(emailChange, 'if (!technicalEmail) {'), indexOf(emailChange, 'const verifier = createPasswordCheckClient'))
     expect(branch).toContain('await voidLoginAttempt(admin, attemptId)')
     expect(branch).toContain('{ status: 500 }')
   })
