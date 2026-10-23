@@ -138,6 +138,7 @@ vi.mock('@tanstack/react-query', () => ({
           exportCeStatus: 'approved',
           exportLinked: true,
         }],
+        unassignedMty: [{ voyageId: 1, voyageNumber: 'V1', vesselName: 'Navio ativo', pod: 'BRRIO', count: 2 }],
         lastChangedAt: '2026-06-23T00:00:00Z',
       },
       isLoading: false,
@@ -280,6 +281,14 @@ it('combina busca por navio e filtro de veículos no Line-Up', () => {
 
   expect(screen.getByRole('link', { name: 'Navio ativo' })).toBeTruthy()
   expect(screen.queryByRole('link', { name: 'Navio cancelado' })).toBeNull()
+})
+
+it('vazios sem escala seguem os filtros do Line-Up pela Viagem', () => {
+  renderPainel()
+  expect(screen.getByText(/vazios de importação sem escala/)).toBeTruthy()
+
+  fireEvent.change(screen.getByLabelText('Escalas'), { target: { value: 'completed' } })
+  expect(screen.queryByText(/vazios de importação sem escala/)).toBeNull()
 })
 
 it('US-123: oferece os atalhos para Chegadas/Saidas e para a tela TV', () => {

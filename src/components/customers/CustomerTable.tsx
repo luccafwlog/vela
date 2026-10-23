@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { CopyValue } from '../ui/CopyValue'
@@ -6,6 +6,7 @@ import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
 import { Card } from '../ui/Card'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
+import { SelectAllFilteredCheckbox } from '../shared/SelectAllFilteredCheckbox'
 import { summarizeChargeStatuses } from '../../lib/chargeStatus'
 import { accountSituationLabel } from '../../lib/portalProvisioningViewModel'
 import {
@@ -61,8 +62,7 @@ export function CustomerTable({
   selection: {
     isSelected: (id: number) => boolean
     toggle: (id: number) => void
-    toggleMany: (ids: number[]) => void
-  }
+  } & ComponentProps<typeof SelectAllFilteredCheckbox>['selection']
   filters: CustomerFilters
   totalPages: number
   deleting: boolean
@@ -80,8 +80,6 @@ export function CustomerTable({
   portalStatus?: PortalStatus
 }) {
   const rows = data?.rows ?? []
-  const pageCustomerIds = rows.map((row) => row.id)
-  const allPageSelected = pageCustomerIds.length > 0 && pageCustomerIds.every((id) => selection.isSelected(id))
   const portalByCustomer = new Map((portalRows ?? []).map((row) => [row.customer_id, row]))
   const handlers: RowHandlers = { canDeleteCustomers, deleting, onCopy, onDeleteCustomer, portalStatus }
 
@@ -124,12 +122,7 @@ export function CustomerTable({
               <tr>
                 {canDeleteCustomers ? (
                   <th scope="col" className="app-customer-table__select">
-                    <input
-                      type="checkbox"
-                      aria-label="Selecionar todos os clientes da página"
-                      checked={allPageSelected}
-                      onChange={() => selection.toggleMany(pageCustomerIds)}
-                    />
+                    <SelectAllFilteredCheckbox selection={selection} noun="clientes" />
                   </th>
                 ) : null}
                 {sortHeader('name', 'Cliente', 'app-customer-table__name app-table__text-head')}

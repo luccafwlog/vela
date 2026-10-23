@@ -128,7 +128,7 @@ describe('B11b / F-08: portos de 3 letras do SMDG 1.5', () => {
     expect(hasBlockingIssues(parsed.issues)).toBe(false)
   })
 
-  it('Navegantes não vira Itajaí, nem Recife vira Suape: POD fora das escalas fica de fora, listado', () => {
+  it('Navegantes não vira Itajaí, nem Recife vira Suape: o porto sem escala vira escala nova a marcar', () => {
     const parsed = parseBaplieText(envelope([
       "LOC+147+010101'", "LOC+6+SSZ'", "LOC+12+NVT'", "MEA+WT++KGM:10000'", "EQD+CN+TEMU1234567+45G1+++5'",
       "LOC+147+010102'", "LOC+6+SSZ'", "LOC+12+BRREC'", "MEA+WT++KGM:10000'", "EQD+CN+TGHU7654325+45G1+++5'",
@@ -137,10 +137,12 @@ describe('B11b / F-08: portos de 3 letras do SMDG 1.5', () => {
     expect(parsed.containers.map((c) => c.pod)).toEqual(['BRNVT', 'BRREC', 'BRITJ'])
     const ruled = applyBaplieVoyageRules(parsed, { voyageNumber: '14N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRITJ', 'BRSUA'] })
     expect(ruled.containers.map((c) => c.container_number)).toEqual(['CSNU2049996'])
-    expect(ruled.podsOutside).toEqual([
-      { container_number: 'TEMU1234567', pod: 'BRNVT', reason: 'outside_calls' },
-      { container_number: 'TGHU7654325', pod: 'BRREC', reason: 'outside_calls' },
+    // Porto brasileiro sem escala é oferecido desmarcado (migration 411).
+    expect(ruled.podsWithoutEscala.map((escala) => [escala.pod, escala.containers.map((c) => c.container_number)])).toEqual([
+      ['BRNVT', ['TEMU1234567']],
+      ['BRREC', ['TGHU7654325']],
     ])
+    expect(ruled.podsOutside).toEqual([])
     expect(hasBlockingIssues(ruled.issues)).toBe(false)
   })
 

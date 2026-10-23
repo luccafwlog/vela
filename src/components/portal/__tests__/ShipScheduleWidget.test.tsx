@@ -13,7 +13,7 @@ vi.mock('../../../hooks/usePortalScheduleVoyages', () => ({
   usePortalScheduleVoyages: () => ({ ...hookState, refetch, isFetching: false }),
 }))
 
-import { ShipScheduleWidget } from '../ShipScheduleWidget'
+import { ScheduleLegend, ScheduleTable, ShipScheduleWidget } from '../ShipScheduleWidget'
 import { scheduleCellState } from '../shipScheduleCells'
 
 const ALPHA: PortalScheduleVoyage = {
@@ -43,7 +43,13 @@ it('renderiza a programação projetada com data efetiva, previsão, omitida e s
   // ATD no POL: data efetiva, lida em texto e não só pela cor.
   expect(within(table).getByText(/04\/01\/2026/).textContent).toContain('saída registrada')
   expect(within(table).getByText(/22\/01\/2099/).textContent).toContain('previsão')
-  expect(within(table).getByText(/10\/01\/2026/).textContent).toContain('previsão a confirmar')
+  // Revisão de 2026-10-22 (B3/B4): no Portal a previsão vencida é só previsão,
+  // sem âmbar nem "a confirmar"; o cliente vê previsão ou data efetiva.
+  const overdue = within(table).getByText(/10\/01\/2026/)
+  expect(overdue.textContent).toContain('previsão')
+  expect(overdue.textContent).not.toContain('a confirmar')
+  expect(overdue.closest('.app-status-text--warning')).toBeNull()
+  expect(screen.queryByText('âmbar')).toBeNull()
   expect(within(table).getByText('Omitida')).toBeTruthy()
   // Uma linha de título: Saída (ETD) antes da Chegada (ETA), na ordem em que acontecem.
   const headers = within(table).getAllByRole('columnheader').map((th) => th.textContent ?? '')
@@ -77,4 +83,13 @@ it('classifica a célula pela origem da data', () => {
   expect(scheduleCellState(ALPHA, lane('PECÉM'), today).state).toBe('overdue')
   expect(scheduleCellState(ALPHA, lane('VITÓRIA'), today).state).toBe('omitted')
   expect(scheduleCellState(ALPHA, lane('NINGBO'), today).state).toBe('none')
+})
+
+// Revisão de 2026-10-22 (B3): o âmbar fica no Vela, para o operador confirmar.
+it('no Vela a previsão vencida fica em âmbar, com o motivo e a legenda', () => {
+  render(<><ScheduleTable vessels={[ALPHA]} caption="Programação" audience="internal" /><ScheduleLegend audience="internal" /></>)
+  const overdue = screen.getByText(/10\/01\/2026/)
+  expect(overdue.textContent).toContain('previsão a confirmar')
+  expect(overdue.closest('.app-status-text--warning')).toBeTruthy()
+  expect(screen.getByText('âmbar')).toBeTruthy()
 })

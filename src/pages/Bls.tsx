@@ -17,13 +17,17 @@ import { BlDocumentImportModal } from '../components/shared/BlDocumentImportModa
 import { CargoProfileBadge } from '../components/shared/OperationalBadges'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { VoyageRail } from '../components/voyages/VoyageRail'
+import { toggleRailVoyage, useVoyageRailItems } from '../hooks/useVoyageRailItems'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { useToast } from '../components/ui/Toast'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useAuth } from '../hooks/useAuth'
-import { useRowSelection } from '../hooks/useRowSelection'
+import { loadAllPageKeys, useFilteredSelection } from '../hooks/useFilteredSelection'
+import { listOperationalBls } from '../services/operationalLists'
+import { SelectAllFilteredCheckbox } from '../components/shared/SelectAllFilteredCheckbox'
 import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { checkBlDependencies, deleteBls } from '../services/bls'
@@ -115,7 +119,6 @@ export function Bls() {
   const confirmWithReason = useConfirmWithReason()
   const { isAdmin, user, profile } = useAuth()
   const canImport = Boolean(profile || user)
-  const selection = useRowSelection<string>()
   const [deleting, setDeleting] = useState(false)
   // Exclusão recusada pelas dependências: o motivo fica na lista, não só no toast.
   const [deleteBlocked, setDeleteBlocked] = useState<Array<{ id: string; reasons: string[] }> | null>(null)
@@ -126,6 +129,7 @@ export function Bls() {
   // Filtros, lente e página vivem na URL: voltar da ficha, recarregar ou
   // compartilhar o endereço reabre a mesma lista.
   const { filters, setFilters, updateFilter } = usePageFilters<BlFilters>(filtersFromBlsSearch(searchParams))
+  const voyageRail = useVoyageRailItems()
 
   const [blFreightOpen, setBlFreightOpen] = useState(false)
   const [ceMercanteOpen, setCeMercanteOpen] = useState(false)
@@ -157,6 +161,13 @@ export function Bls() {
   }
 
   const { data, isLoading, isPlaceholderData, error, fetchStatus, refetch } = useBls(queryFilters)
+  // "Selecionar todos" marca o filtro inteiro, em todas as páginas (G1); a
+  // seleção atravessa páginas e zera quando o filtro muda.
+  const selection = useFilteredSelection<string>({
+    scope: { ...queryFilters, page: undefined, pageSize: undefined },
+    totalCount: data?.count ?? 0,
+    loadAll: () => loadAllPageKeys((page) => listOperationalBls(queryFilters, page, 100), (row) => row.id, { pageSize: 100 }),
+  })
   // Filtro trocado: as linhas na tela ainda são do recorte anterior até a
   // resposta chegar. Ficam esmaecidas e sem seleção.
   const stale = isPlaceholderData
@@ -256,8 +267,6 @@ export function Bls() {
     { key: 'ce', label: 'CE Mercante', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setCeMercanteOpen(true) },
   ]
 
-  const pageBlIds = (data?.rows ?? []).map((row) => row.id)
-  const allPageSelected = pageBlIds.length > 0 && pageBlIds.every((id) => selection.isSelected(id))
   // Colunas: B/L, Cliente, Navio, Viagem, Trecho, Carga, CE Mercante, Taxas locais (+ seleção do Administrativo).
   const blColumnCount = 8 + (isAdmin ? 1 : 0)
   const blSkeletonTemplate = `${isAdmin ? '40px ' : ''}1.3fr 1.8fr 1.4fr 0.8fr 1.2fr 1fr 1.3fr 1fr`
@@ -315,6 +324,14 @@ export function Bls() {
           <Button variant="secondary" onClick={() => setDeleteBlocked(null)}>Fechar aviso</Button>
         </div>
       ) : null}
+
+      {voyageRail.isLoading ? null : (
+        <VoyageRail
+          items={voyageRail.items}
+          selectedId={filters.voyageId ? Number(filters.voyageId) : null}
+          onSelect={(id) => updateFilter('voyageId', toggleRailVoyage(filters.voyageId, id))}
+        />
+      )}
 
       <div className="app-metric-row" role="group" aria-label="Totais do recorte">
         <MetricCard label="B/Ls" value={metric(summary?.totalBls)} />
@@ -428,6 +445,9 @@ export function Bls() {
           onDelete={() => runBlDelete([...selection.selected])}
           deleting={deleting}
           noun={['B/L', 'B/Ls']}
+          total={selection.totalCount}
+          loadingAll={selection.loadingAll}
+          loadError={selection.loadError}
         />
       ) : null}
 
@@ -499,13 +519,7 @@ export function Bls() {
                   <tr>
                     {isAdmin ? (
                       <th scope="col" className="app-bl-table__check">
-                        <input
-                          type="checkbox"
-                          aria-label="Selecionar todos os B/Ls da página"
-                          checked={allPageSelected}
-                          disabled={stale}
-                          onChange={() => selection.toggleMany(pageBlIds)}
-                        />
+                        <SelectAllFilteredCheckbox selection={selection} noun="B/Ls" disabled={stale} />
                       </th>
                     ) : null}
                     <th scope="col" className="app-bl-table__id">B/L</th>

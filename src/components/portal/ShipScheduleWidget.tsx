@@ -23,8 +23,18 @@ const CELL_DESCRIPTION: Record<ScheduleCellState, (lane: PortalScheduleLane) => 
   none: () => 'sem data programada',
 }
 
-export function ScheduleDate({ voyage, lane }: { voyage: PortalScheduleVoyage; lane: PortalScheduleLane }) {
-  const { state, value } = scheduleCellState(voyage, lane)
+/**
+ * Quem vê a Programação (revisão de 2026-10-22, B3/B4): o âmbar da previsão
+ * vencida é só do Vela, para o operador confirmar a data; no Portal o
+ * cliente vê só previsão ou data efetiva. O padrão é o Portal, para o âmbar
+ * nunca vazar por esquecimento.
+ */
+export type ScheduleAudience = 'internal' | 'portal'
+
+export function ScheduleDate({ voyage, lane, audience = 'portal' }: { voyage: PortalScheduleVoyage; lane: PortalScheduleLane; audience?: ScheduleAudience }) {
+  const cell = scheduleCellState(voyage, lane)
+  const state: ScheduleCellState = cell.state === 'overdue' && audience === 'portal' ? 'forecast' : cell.state
+  const { value } = cell
   const description = CELL_DESCRIPTION[state](lane)
   if (state === 'omitted') return <StatusText tone="muted">Omitida<span className="sr-only">: {description}</span></StatusText>
   if (state === 'none') return <NoValue label="Sem data programada" />
@@ -63,11 +73,11 @@ export function VesselMapButton({ voyage, withText = false }: { voyage: PortalSc
   )
 }
 
-export function ScheduleLegend() {
+export function ScheduleLegend({ audience = 'portal' }: { audience?: ScheduleAudience }) {
   return (
     <p className="app-schedule-legend [contain:inline-size]">
       <span><span className="app-schedule-date__check">✓</span> data efetiva: saída ou chegada registrada</span>
-      <span><StatusText tone="warning">âmbar</StatusText>: previsão já passou e ainda não foi registrada</span>
+      {audience === 'internal' ? <span><StatusText tone="warning">âmbar</StatusText>: previsão já passou e ainda não foi confirmada</span> : null}
       <span>"Omitida": escala omitida pelo armador · "—": sem data</span>
       <span>As demais datas são previsões</span>
     </p>
@@ -85,10 +95,13 @@ function visibleLanes(vessels: readonly PortalScheduleVoyage[]) {
  * acontecem, numa linha de título só; a posição do navio e as ações da tela
  * ficam na ponta da linha.
  */
-export function ScheduleTable({ vessels, caption, actions }: {
+export function ScheduleTable({ vessels, caption, actions, audience = 'portal', cellAction }: {
   vessels: readonly PortalScheduleVoyage[]
   caption: string
   actions?: (vessel: PortalScheduleVoyage) => ReactNode
+  audience?: ScheduleAudience
+  /** Ação na própria célula (Chegadas e Saídas: confirmar a data efetiva). */
+  cellAction?: (vessel: PortalScheduleVoyage, lane: PortalScheduleLane) => ReactNode
 }) {
   const lanes = visibleLanes(vessels)
   const hidden = PORTAL_SCHEDULE_LANES.length - lanes.length
@@ -113,7 +126,7 @@ export function ScheduleTable({ vessels, caption, actions }: {
                 <th scope="row" className="app-table__text font-semibold">{vessel.vesselName}</th>
                 <td>{vessel.voyage}</td>
                 {lanes.map((lane) => (
-                  <td key={lane.label}><ScheduleDate voyage={vessel} lane={lane} /></td>
+                  <td key={lane.label}><ScheduleDate voyage={vessel} lane={lane} audience={audience} />{cellAction?.(vessel, lane)}</td>
                 ))}
                 <td><span className="inline-flex gap-2"><VesselMapButton voyage={vessel} />{actions?.(vessel)}</span></td>
               </tr>

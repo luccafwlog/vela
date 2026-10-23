@@ -576,3 +576,21 @@ describe('Revisao', () => {
     await waitFor(() => expect(mockedApplyInlineBlReviewFix).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BLW', field: 'bb_weight_ton', value: 12.5 })))
   })
 })
+
+// Revisão de 2026-10-22 (C3): filtro de navio/viagem na Revisão, pelo endereço.
+it('filtra a fila pelo navio/viagem do endereço e limpa junto com os demais filtros', async () => {
+  const otherVoyage = { ...makeBl('BL3', 'Alma Trading'), voyage_id: 2, voyage: { id: 2, voyage_number: '11', vessel: { id: 2, name: 'GREEN ITAJAI', carrier: null } } } as unknown as ReviewQueueItem
+  mockedUseReviewQueue.mockReturnValue({
+    data: [{ ...makeBl('BL1', 'AC Comercial'), voyage_id: 1 }, otherVoyage],
+    isLoading: false,
+    error: null,
+  } as never)
+  const user = userEvent.setup()
+  renderPage(['/revisao?voyage=2'])
+
+  expect(await screen.findByText('Alma Trading')).toBeTruthy()
+  expect(screen.queryByText('AC Comercial')).toBeNull()
+  await user.click(screen.getAllByRole('button', { name: 'Limpar filtros' })[0])
+  await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(''))
+  expect(await screen.findByText('AC Comercial')).toBeTruthy()
+})

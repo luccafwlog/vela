@@ -18,6 +18,8 @@ import { TabList } from "../components/ui/TabList";
 import { TableFooterPagination } from "../components/ui/TableFooterPagination";
 import { useConfirm } from "../components/ui/ConfirmDialog";
 import { QueryStateGate } from "../components/shared/QueryStateGate";
+import { SelectAllFilteredCheckbox } from "../components/shared/SelectAllFilteredCheckbox";
+import { capMessage, SELECT_ALL_CAP } from "../hooks/useFilteredSelection";
 import {
   CeUnlockAnnualDocumentTable,
   CeUnlockDocumentSituation,
@@ -171,8 +173,24 @@ export function PortalDesbloqueioCe() {
   };
   const filtered = card ? searched.filter(cardFilters[card]) : searched;
   const pageItems = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
-  const pageSelectable = pageItems.filter((i) => i.can_submit).map((i) => i.bl_id);
-  const allPageSelected = pageSelectable.length > 0 && pageSelectable.every((b) => selected.includes(b));
+  // "Selecionar todos" marca os disponíveis do filtro inteiro, em todas as páginas (revisão de
+  // 2026-10-22, G1). A seleção continua entre buscas, como um carrinho do pedido.
+  const filteredSelectable = filtered.filter((i) => i.can_submit).map((i) => i.bl_id);
+  const allFilteredSelected = filteredSelectable.length > 0 && filteredSelectable.every((b) => selected.includes(b));
+  const selectAllFiltered = {
+    allSelected: allFilteredSelected,
+    someSelected: !allFilteredSelected && filteredSelectable.some((b) => selected.includes(b)),
+    loadingAll: false,
+    totalCount: filteredSelectable.length,
+    toggleAll: async () => {
+      // Mesmo teto das telas internas: acima dele, pede para refinar a busca.
+      if (!allFilteredSelected && filteredSelectable.length > SELECT_ALL_CAP) {
+        setError(capMessage(filteredSelectable.length));
+        return;
+      }
+      toggle(filteredSelectable, !allFilteredSelected);
+    },
+  };
   const byBl = new Map(allItems.map((i) => [i.bl_id, i]));
   const moves = selected.flatMap((b) => {
     const item = byBl.get(b);
@@ -482,13 +500,7 @@ export function PortalDesbloqueioCe() {
                   <thead>
                     <tr>
                       <th scope="col" className="w-10">
-                        <input
-                          type="checkbox"
-                          aria-label="Selecionar os B/Ls disponíveis da página"
-                          disabled={readOnly || !pageSelectable.length}
-                          checked={allPageSelected}
-                          onChange={() => toggle(pageSelectable, !allPageSelected)}
-                        />
+                        <SelectAllFilteredCheckbox selection={selectAllFiltered} noun="B/Ls disponíveis" disabled={readOnly} />
                       </th>
                       <th scope="col">B/L</th>
                       <th scope="col">CE Mercante</th>

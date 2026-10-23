@@ -12,6 +12,12 @@ const { useBlsMock, useBlSummaryMock, showToastMock, checkBlDependenciesMock } =
   checkBlDependenciesMock: vi.fn(),
 }))
 
+const railItemsMock = vi.hoisted(() => vi.fn(() => ({ items: [] as unknown[], isLoading: false })))
+// Cards de navio/viagem: o teste próprio está em VoyageRail.behavior.test.tsx.
+vi.mock('../../hooks/useVoyageRailItems', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../hooks/useVoyageRailItems')>()),
+  useVoyageRailItems: () => railItemsMock(),
+}))
 vi.mock('../../services/bls', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/bls')>()),
   checkBlDependencies: checkBlDependenciesMock,
@@ -201,6 +207,34 @@ describe('Página Bls (unificada)', () => {
     expect(card.getAttribute('aria-pressed')).toBe('true')
     fireEvent.click(card)
     await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ chargeStatus: '' }))
+  })
+
+  // Revisão de 2026-10-22 (C2): os cards de navio/viagem também em BLs.
+  it('o card de navio/viagem filtra a lista pela viagem e o segundo clique tira o filtro', async () => {
+    railItemsMock.mockReturnValue({
+      isLoading: false,
+      items: [{
+        id: 11, estado: 'incompleto', vesselName: 'GREEN ITAJAI', voyageNumber: '11', carrierName: 'COSCO',
+        originPorts: [], destinationPorts: ['BRVIX'], proximaEscala: null, escalasBrasileiras: [],
+        modules: { container: true, cargaSolta: false, veiculos: false, vazios: false, granito: false },
+      }],
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const card = screen.getByText('GREEN ITAJAI / 11').closest('button') as HTMLButtonElement
+    fireEvent.click(card)
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ voyageId: '11', page: 1 }))
+    expect(card.getAttribute('aria-current')).toBe('true')
+    fireEvent.click(card)
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ voyageId: '' }))
+    railItemsMock.mockReturnValue({ items: [], isLoading: false })
   })
 
   it('alterna a lente de modalidade [Todos, Contêiner, Carga solta, Misto]', async () => {

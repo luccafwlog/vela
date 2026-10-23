@@ -46,7 +46,10 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(resolvePortCode('ITGOA')).toEqual({ code: 'ITGOA', recognized: true })
     expect(resolvePortCode('NLRTM')).toEqual({ code: 'NLRTM', recognized: true })
     expect(resolvePortCode('BRIGI')).toEqual({ code: 'BRIGI', recognized: true })
-    expect(resolvePortCode('BRSEP')).toEqual({ code: 'BRSEP', recognized: true })
+    // Migration 410: Sepetiba é o porto de Itaguaí; BRSEP é apelido de BRIGI.
+    expect(resolvePortCode('BRSEP')).toEqual({ code: 'BRIGI', recognized: true })
+    expect(resolvePortCode('SEPETIBA, BRAZIL')).toEqual({ code: 'BRIGI', recognized: true })
+    expect(resolvePortCode('ITAGUAI')).toEqual({ code: 'BRIGI', recognized: true })
   })
 
   it('reconhece códigos curtos do Baplie da COSCO só por valor inteiro', () => {
@@ -54,11 +57,11 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(resolvePortCode('TAO')).toEqual({ code: 'CNTAO', recognized: true })
     expect(resolvePortCode('VIX')).toEqual({ code: 'BRVIX', recognized: true })
     expect(resolvePortCode('VIT')).toEqual({ code: 'BRVIX', recognized: true })
-    expect(resolvePortCode('SPB')).toEqual({ code: 'BRSEP', recognized: true })
-    expect(resolvePortCode('BRSPB')).toEqual({ code: 'BRSEP', recognized: true })
+    expect(resolvePortCode('SPB')).toEqual({ code: 'BRIGI', recognized: true })
+    expect(resolvePortCode('BRSPB')).toEqual({ code: 'BRIGI', recognized: true })
     expect(resolvePortCode('CNTCA')).toEqual({ code: 'CNTAC', recognized: true })
     expect(resolvePortCode('TCA')).toEqual({ code: 'CNTAC', recognized: true })
-    expect(resolvePortCode('SEP')).toEqual({ code: 'BRSEP', recognized: true })
+    expect(resolvePortCode('SEP')).toEqual({ code: 'BRIGI', recognized: true })
     expect(resolvePortCode('SEPTEMBER')).toEqual({ code: null, recognized: false })
   })
 
@@ -93,6 +96,8 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(portCodeVariants('CNTAO')).toEqual(expect.arrayContaining(['CNTAO', 'QINGDAO', 'QINDGAO']))
     expect(portCodeVariants('PECEM')).toEqual(expect.arrayContaining(['BRPEC', 'PECEM']))
     expect(portCodeVariants('CNTAC')).toEqual(expect.arrayContaining(['CNTAC', 'TAICANG', 'CNTAG']))
+    // B/L e vazio anteriores à 410 continuam com BRSEP: a escala BRIGI os acha.
+    expect(portCodeVariants('BRIGI')).toEqual(expect.arrayContaining(['BRIGI', 'SEPETIBA', 'ITAGUAI', 'BRSEP', 'BRSPB', 'SPB', 'SEP', 'IGI']))
     expect(portCodeVariants('CNNGB')).toEqual(expect.arrayContaining(['CNNGB', 'ZOS']))
   })
 })

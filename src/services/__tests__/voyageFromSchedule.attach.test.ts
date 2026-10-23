@@ -90,13 +90,15 @@ describe('createOrAttachVoyageFromSchedule', () => {
       lanes: [],
     }, null)
 
+    // A Viagem nova nasce publicada e com a origem: um evento só na linha do
+    // tempo, sem o UPDATE de publicação depois (revisão de 2026-10-22, F1).
     expect(calls.createVoyage).toHaveBeenCalledWith(expect.objectContaining({
       carrierScac: 'CSSC',
       vesselName: 'GREEN PECEM',
       voyageNumber: '6',
       status: 'active',
-    }), null)
-    expect(calls.setShow).toHaveBeenCalledWith(7, true)
+    }), null, { origin: 'chegadas_saidas', showOnPortal: true })
+    expect(calls.setShow).not.toHaveBeenCalled()
   })
 })
 

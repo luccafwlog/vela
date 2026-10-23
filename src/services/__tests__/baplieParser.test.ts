@@ -12,9 +12,10 @@ function baplieFile(text: string) {
 
 describe('baplieParser', () => {
   it.each([
-    ['12', '  N', 'BRSEP', 'BRSEP', 'warning'],
-    ['11', 'N', 'BRSEP', 'BRSEP', 'warning'],
-    ['12', null, 'BRSEP', 'BRSEP', 'warning'],
+    // Migration 410: BRSEP (Sepetiba) é apelido de BRIGI (Itaguaí).
+    ['12', '  N', 'BRSEP', 'BRIGI', 'warning'],
+    ['11', 'N', 'BRSEP', 'BRIGI', 'warning'],
+    ['12', null, 'BRSEP', 'BRIGI', 'warning'],
     ['12', 'BRVIX', 'BRSEP', 'BRVIX', null],
     ['11', 'BRVIX', 'BRSEP', 'BRVIX', null],
     ['12', null, null, null, 'error'],
@@ -28,10 +29,10 @@ describe('baplieParser', () => {
       "EQD+CN+CAAU2184518+45G1+++5'",
     ]))
 
-    expect(parsed.containers[0]).toMatchObject({ pod: expectedPod, final_dest: delivery === 'BRSEP' ? 'BRSEP' : null })
+    expect(parsed.containers[0]).toMatchObject({ pod: expectedPod, final_dest: delivery === 'BRSEP' ? 'BRIGI' : null })
     expect(parsed.pods).toEqual(expectedPod ? [expectedPod] : [])
     expect(parsed.issues).toEqual(severity ? [expect.objectContaining({ field: 'pod', severity })] : [])
-    if (severity === 'warning') expect(parsed.issues[0].message).toContain('Utilizado o local de entrega BRSEP (LOC+83)')
+    if (severity === 'warning') expect(parsed.issues[0].message).toContain('Utilizado o local de entrega BRIGI (LOC+83)')
   })
 
   // E9-02: POD informado e não reconhecido, sem local de entrega que o
@@ -130,8 +131,8 @@ describe('baplieParser', () => {
       final_dest: 'BRVIX',
       weight_kg: 8900,
     })
-    expect(parsed.containers[1]).toMatchObject({ pol: 'CNNSA', pod: 'BRSEP', weight_kg: 17300 })
-    expect(parsed.pods).toEqual(['BRSEP', 'BRVIX'])
+    expect(parsed.containers[1]).toMatchObject({ pol: 'CNNSA', pod: 'BRIGI', weight_kg: 17300 })
+    expect(parsed.pods).toEqual(['BRIGI', 'BRVIX'])
   })
 
   it('processa múltiplas mensagens dentro do mesmo interchange UNB...UNZ', async () => {
@@ -327,7 +328,7 @@ describe('baplieParser — Obs. 1: SMDG 1.5 e 2.2 do mesmo navio dão o mesmo st
     expect(comparable(smdg15)).toEqual(comparable(smdg22))
     expect(comparable(smdg22)).toEqual([
       { container_number: 'UETU7016802', pol: 'CNTAO', pod: 'BRVIX', final_dest: 'BRVIX', status: 'full', slot: '0010282', bl_ref: '1' },
-      { container_number: 'SEGU7664016', pol: 'CNTAO', pod: 'BRSEP', final_dest: 'BRSEP', status: 'full', slot: '0030184', bl_ref: 'CSC4516000' },
+      { container_number: 'SEGU7664016', pol: 'CNTAO', pod: 'BRIGI', final_dest: 'BRIGI', status: 'full', slot: '0030184', bl_ref: 'CSC4516000' },
       { container_number: 'FCIU8751693', pol: 'CNTAC', pod: 'BRVIX', final_dest: null, status: 'empty', slot: '0050086', bl_ref: null },
     ])
     expect(v15.pods).toEqual(v22.pods)
