@@ -1,7 +1,12 @@
-import type { ReactNode } from 'react'
-import { MapPin } from 'lucide-react'
+import { useMemo, type ReactNode } from 'react'
+import { MapPin, Package } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { cn } from '../../lib/utils'
+import { blsOfVoyagePath, voyageIdsWithCargo } from '../../lib/portalOperationViews'
+import { usePortalOperationBls } from '../../hooks/usePortalOperation'
 import { usePortalScheduleVoyages } from '../../hooks/usePortalScheduleVoyages'
+import { usePortalScope } from '../../hooks/usePortalScope'
+import { portalPath } from '../../services/portalScope'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate, type PortalScheduleLane } from '../../services/portalScheduleLanes'
 import { scheduleCellState, scheduleLaneTitle, type ScheduleCellState } from './shipScheduleCells'
 import type { PortalScheduleVoyage } from '../../services/portalScheduleVoyages'
@@ -58,21 +63,38 @@ export function ScheduleDate({ voyage, lane, audience = 'portal' }: { voyage: Po
 /**
  * Posição do navio no MarineTraffic, pelo IMO cadastrado; sem IMO, nada. Só o
  * ícone na tabela (2026-10-19): em toda linha, o texto repetido pesava; o nome
- * fica no `title` e no rótulo acessível. No cartão do celular, o botão ocupa a
- * largura do cartão e leva o texto junto (`withText`).
+ * fica no `title` e no rótulo acessível. Sem borda nem fundo (ponto 2 de
+ * 2026-10-23: o quadrado com borda pesava na linha); no cartão do celular, o
+ * texto vai junto, do tamanho do texto, sem ocupar a largura do cartão.
  */
 export function VesselMapButton({ voyage, withText = false }: { voyage: PortalScheduleVoyage; withText?: boolean }) {
   if (!voyage.imoNumber) return null
   const href = `https://www.marinetraffic.com/en/ais/details/ships/imo:${voyage.imoNumber}`
   const label = `Ver ${voyage.vesselName} no mapa (MarineTraffic, abre em nova aba)`
   if (!withText) {
-    return <RowActionLink href={href} target="_blank" rel="noopener noreferrer" label={label} title="Ver no mapa" icon={MapPin} />
+    return <RowActionLink href={href} target="_blank" rel="noopener noreferrer" label={label} title="Ver no mapa" icon={MapPin} variant="ghost" />
   }
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="app-btn app-btn--secondary app-btn--sm" aria-label={label} title="Ver no mapa">
-      <MapPin size={16} aria-hidden="true" />
+    <a href={href} target="_blank" rel="noopener noreferrer" className="app-btn app-btn--ghost app-btn--sm" aria-label={label} title="Ver no mapa">
+      <MapPin size={14} aria-hidden="true" />
       {' Ver no mapa'}
     </a>
+  )
+}
+
+/**
+ * Atalho para os B/Ls do Cliente nesta viagem (ponto 2 de 2026-10-23): só na
+ * viagem em que ele tem carga, ao lado do mapa. Leva à aba BLs filtrada pelo
+ * navio e pela viagem, com o filtro na URL.
+ */
+function CustomerCargoLink({ voyage, to, withText = false }: { voyage: PortalScheduleVoyage; to: string; withText?: boolean }) {
+  const label = `Ver meus B/Ls no ${voyage.vesselName}, viagem ${voyage.voyage}`
+  if (!withText) return <RowActionLink to={to} label={label} title="Ver meus B/Ls nesta viagem" icon={Package} variant="ghost" />
+  return (
+    <Link to={to} className="app-btn app-btn--ghost app-btn--sm" aria-label={label} title="Ver meus B/Ls nesta viagem">
+      <Package size={14} aria-hidden="true" />
+      {' Meus B/Ls'}
+    </Link>
   )
 }
 
@@ -166,6 +188,17 @@ export function ScheduleWidthPage({ children }: { children: ReactNode }) {
  */
 export function ShipScheduleWidget({ className }: { className?: string }) {
   const { data: vessels, isLoading, isError, refetch, isFetching } = usePortalScheduleVoyages()
+  const scope = usePortalScope()
+  // Mesma consulta da tela BLs e Containers e dos cartões do Painel: só os
+  // B/Ls do próprio Cliente, liberados no Portal (escopo do banco).
+  const { data: customerBls } = usePortalOperationBls()
+  const withCargo = useMemo(() => voyageIdsWithCargo(customerBls ?? []), [customerBls])
+  const cargoPath = (vessel: PortalScheduleVoyage) =>
+    withCargo.has(vessel.voyageId) ? portalPath(scope, blsOfVoyagePath(vessel.vesselName, vessel.voyage)) : null
+  const cargoAction = (vessel: PortalScheduleVoyage) => {
+    const to = cargoPath(vessel)
+    return to ? <CustomerCargoLink voyage={vessel} to={to} /> : null
+  }
   // O cartão do celular segue a tabela: Saída antes da Chegada, sem o porto
   // que não tem data em nenhum navio.
   const shownLanes = new Set(visibleLanes(vessels ?? []))
@@ -188,7 +221,7 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
       ) : (
         <>
           <div className="app-schedule__table">
-            <ScheduleTable vessels={vessels} caption="Chegadas e saídas: saída na origem e chegada no Brasil" />
+            <ScheduleTable vessels={vessels} caption="Chegadas e saídas: saída na origem e chegada no Brasil" actions={cargoAction} />
           </div>
 
           <ul className="app-schedule__cards" aria-label={SCHEDULE_TITLE}>
@@ -200,7 +233,7 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
                 </div>
                 <ScheduleCardGroup title="Saída na origem (ETD)" lanes={cardPolLanes} voyage={vessel} />
                 <ScheduleCardGroup title="Chegada no Brasil (ETA)" lanes={cardPodLanes} voyage={vessel} />
-                <VesselMapButton voyage={vessel} withText />
+                <ScheduleCardActions voyage={vessel} cargoTo={cargoPath(vessel)} />
               </li>
             ))}
           </ul>
@@ -209,6 +242,16 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
         </>
       )}
     </Block>
+  )
+}
+
+function ScheduleCardActions({ voyage, cargoTo }: { voyage: PortalScheduleVoyage; cargoTo: string | null }) {
+  if (!voyage.imoNumber && !cargoTo) return null
+  return (
+    <div className="flex flex-wrap gap-2">
+      <VesselMapButton voyage={voyage} withText />
+      {cargoTo ? <CustomerCargoLink voyage={voyage} to={cargoTo} withText /> : null}
+    </div>
   )
 }
 

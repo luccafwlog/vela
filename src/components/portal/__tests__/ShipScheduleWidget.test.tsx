@@ -1,17 +1,42 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render as rtlRender, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactElement } from 'react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { PortalScheduleVoyage } from '../../../services/portalScheduleVoyages'
+import type { PortalOperationBL } from '../../../services/portalOperation'
 import { PORTAL_SCHEDULE_LANES } from '../../../services/portalScheduleLanes'
 
 const refetch = vi.fn()
 let hookState: { isLoading: boolean; isError?: boolean; data?: PortalScheduleVoyage[] } = { isLoading: false }
+let customerBls: PortalOperationBL[] = []
 
 vi.mock('../../../hooks/usePortalScheduleVoyages', () => ({
   usePortalScheduleVoyages: () => ({ ...hookState, refetch, isFetching: false }),
 }))
+
+// A lista de B/Ls que o Portal já recebe do banco, só do Cliente da sessão.
+vi.mock('../../../hooks/usePortalOperation', () => ({
+  usePortalOperationBls: () => ({ data: customerBls, isLoading: false }),
+}))
+
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="location">{location.pathname + location.search}</div>
+}
+
+function render(ui: ReactElement) {
+  return rtlRender(
+    <MemoryRouter initialEntries={['/portal']}>
+      <Routes>
+        <Route path="/portal" element={ui} />
+        <Route path="*" element={<LocationProbe />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
 
 import { ScheduleLegend, ScheduleTable, ShipScheduleWidget } from '../ShipScheduleWidget'
 import { scheduleCellState } from '../shipScheduleCells'
@@ -27,9 +52,28 @@ const ALPHA: PortalScheduleVoyage = {
   earliestEta: '2099-01-22',
 }
 
+const BETA: PortalScheduleVoyage = {
+  voyageId: 2,
+  vesselName: 'BETA STAR',
+  voyage: '7/W',
+  imoNumber: null,
+  datesByLabel: { SALVADOR: '2099-02-10' },
+  earliestEta: '2099-02-10',
+}
+
+function bl(id: string, voyageId: number | null, extra: Partial<PortalOperationBL> = {}): PortalOperationBL {
+  return {
+    bl_id: id, ce_mercante: null, pol: null, pod: null, voyage_id: voyageId, voyage_number: null, vessel_name: null,
+    container_count: 0, containers_in_demurrage: 0, containers_returned: 0, containers: [], ...extra,
+  }
+}
+
 const lane = (label: string) => PORTAL_SCHEDULE_LANES.find((item) => item.label === label)!
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  customerBls = []
+})
 
 it('renderiza a programação projetada com data efetiva, previsão, omitida e sem data distintos', () => {
   hookState = { isLoading: false, data: [ALPHA] }
@@ -92,4 +136,42 @@ it('no Vela a previsão vencida fica em âmbar, com o motivo e a legenda', () =>
   expect(overdue.textContent).toContain('previsão a confirmar')
   expect(overdue.closest('.app-status-text--warning')).toBeTruthy()
   expect(screen.getByText('âmbar')).toBeTruthy()
+})
+
+// Ponto 2 de 2026-10-23: atalho para os B/Ls do Cliente só no navio em que ele tem carga.
+it('mostra "Ver meus B/Ls" só na viagem com carga do Cliente e leva à aba BLs filtrada', async () => {
+  hookState = { isLoading: false, data: [ALPHA, BETA] }
+  // B/L vivo na BETA; o da ALPHA foi cancelado e não conta.
+  customerBls = [bl('BL-1', 2), bl('BL-2', 1, { cancelled_at: '2026-06-01T10:00:00Z' })]
+  render(<ShipScheduleWidget />)
+
+  const table = screen.getByRole('table')
+  const rows = within(table).getAllByRole('row').slice(1)
+  expect(within(rows[0]).queryByRole('link', { name: /Ver meus B\/Ls/ })).toBeNull()
+  const link = within(rows[1]).getByRole('link', { name: 'Ver meus B/Ls no BETA STAR, viagem 7/W' })
+  // O mapa continua ao lado (ALPHA tem IMO), sem borda: ação fantasma.
+  expect(within(rows[0]).getByRole('link', { name: /Ver ALPHA no mapa/ }).className).toContain('app-btn--ghost')
+
+  await userEvent.click(link)
+  const location = screen.getByTestId('location').textContent ?? ''
+  const [path, query] = location.split('?')
+  expect(path).toBe('/portal/operacao')
+  const params = new URLSearchParams(query)
+  expect(params.get('tab')).toBe('bls')
+  expect(params.get('navio')).toBe('BETA STAR')
+  expect(params.get('viagem')).toBe('7/W')
+})
+
+it('sem carga do Cliente em nenhum navio, não mostra o atalho; o cartão do celular também segue a regra', () => {
+  hookState = { isLoading: false, data: [ALPHA, BETA] }
+  customerBls = [bl('BL-9', 99)]
+  render(<ShipScheduleWidget />)
+  expect(screen.queryByRole('link', { name: /Ver meus B\/Ls/ })).toBeNull()
+
+  customerBls = [bl('BL-1', 2)]
+  cleanup()
+  render(<ShipScheduleWidget />)
+  const cards = within(screen.getByRole('list', { name: 'Chegadas e saídas' })).getAllByRole('listitem')
+  expect(within(cards[1]).getByRole('link', { name: /Ver meus B\/Ls no BETA STAR/ }).textContent).toContain('Meus B/Ls')
+  expect(within(cards[0]).queryByRole('link', { name: /Ver meus B\/Ls/ })).toBeNull()
 })

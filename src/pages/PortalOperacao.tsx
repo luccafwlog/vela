@@ -18,6 +18,7 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { usePortalOperationBls } from '../hooks/usePortalOperation'
 import { formatBRL, formatDate } from '../lib/utils'
 import {
+  BL_VOYAGE_PARAMS,
   blCargoLabel,
   blMatchesReturnSituation,
   blReturnSummary,
@@ -120,7 +121,26 @@ export function PortalOperacao() {
   }
 
   const initialDevolucao = (searchParams.get('devolucao') ?? '') as ReturnSituation
-  const [blFilters, setBlFilters] = useState<BlFilters>(EMPTY_BL_FILTERS)
+  // Navio e Viagem da aba BLs moram na URL (ponto 2 de 2026-10-23): o atalho
+  // "Ver meus B/Ls" de Chegadas e saídas chega filtrado e o recarregar mantém.
+  const [blLocalFilters, setBlLocalFilters] = useState<BlFilters>(EMPTY_BL_FILTERS)
+  const vesselParam = searchParams.get(BL_VOYAGE_PARAMS.vessel) ?? ''
+  const voyageParam = searchParams.get(BL_VOYAGE_PARAMS.voyage) ?? ''
+  const blFilters = useMemo<BlFilters>(
+    () => ({ ...blLocalFilters, vessel: vesselParam, voyage: voyageParam }),
+    [blLocalFilters, vesselParam, voyageParam],
+  )
+  const setBlFilters = (next: BlFilters) => {
+    setBlLocalFilters(next)
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      for (const [key, param] of [['vessel', BL_VOYAGE_PARAMS.vessel], ['voyage', BL_VOYAGE_PARAMS.voyage]] as const) {
+        if (next[key]) params.set(param, next[key])
+        else params.delete(param)
+      }
+      return params
+    }, { replace: true })
+  }
   const [containerFilters, setContainerFilters] = useState<ContainerFilters>({
     ...EMPTY_CONTAINER_FILTERS,
     devolucao: RETURN_OPTIONS.some((o) => o.value === initialDevolucao) ? initialDevolucao : '',

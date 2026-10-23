@@ -165,3 +165,27 @@ export function localChargesView(charges: PortalOperationLocalCharges | undefine
       return { total: null, payment: null }
   }
 }
+
+/**
+ * Viagens em que o Cliente tem carga, para o ícone de B/Ls em Chegadas e
+ * saídas (ponto 2 de 2026-10-23). Sai da mesma lista que a tela BLs e
+ * Containers mostra (`portal_list_operation_bls`: B/Ls do Cliente da sessão,
+ * liberados no Portal, escopo decidido no banco), então o Portal não fica
+ * sabendo de carga de outro Cliente. B/L cancelado não conta.
+ */
+export function voyageIdsWithCargo(bls: readonly PortalOperationBL[]): Set<number> {
+  const ids = new Set<number>()
+  for (const bl of bls) {
+    if (bl.voyage_id != null && !bl.cancelled_at) ids.add(bl.voyage_id)
+  }
+  return ids
+}
+
+/** Filtros de Navio e Viagem da aba BLs na URL, para o link sobreviver ao recarregar. */
+export const BL_VOYAGE_PARAMS = { vessel: 'navio', voyage: 'viagem' } as const
+
+/** Caminho (sem o prefixo do Portal) da aba BLs filtrada pelo navio e pela viagem. */
+export function blsOfVoyagePath(vesselName: string, voyage: string): string {
+  const params = new URLSearchParams({ tab: 'bls', [BL_VOYAGE_PARAMS.vessel]: vesselName, [BL_VOYAGE_PARAMS.voyage]: voyage })
+  return `/operacao?${params.toString()}`
+}
