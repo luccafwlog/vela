@@ -1,13 +1,14 @@
-import type { ReconciliationFilters } from '../services/reconciliacao'
+import type { ItauPixReceiptOrigin, ItauPixReceiptSituation, ReconciliationFilters } from '../services/reconciliacao'
 
-// Estado de /reconciliacao na URL: aba e filtros do histórico de baixas. Sem
-// `tab`, a tela abre no Histórico de baixas (lote 3 da identidade, 2026-10-16);
-// os Alertas de Pix levam a `?tab=pendencias` (`alertEntityLink`).
+// Estado de /reconciliacao na URL: aba, filtros do histórico de baixas e da
+// aba Pix recebidos. Sem `tab`, a tela abre no Histórico de baixas (lote 3 da
+// identidade, 2026-10-16); os Alertas de Pix levam a `?tab=pendencias`
+// (`alertEntityLink`).
 
-export type ReconciliacaoTab = 'pendencias' | 'extrato' | 'historico'
+export type ReconciliacaoTab = 'pendencias' | 'extrato' | 'historico' | 'recebidos'
 
 /** Ordem das abas na tela. */
-export const RECONCILIACAO_TABS: readonly ReconciliacaoTab[] = ['historico', 'pendencias', 'extrato']
+export const RECONCILIACAO_TABS: readonly ReconciliacaoTab[] = ['historico', 'recebidos', 'pendencias', 'extrato']
 
 export function reconciliacaoTabFromSearch(params: URLSearchParams): ReconciliacaoTab {
   const tab = params.get('tab')
@@ -160,4 +161,90 @@ export function withReconciliacaoTab(params: URLSearchParams, tab: Reconciliacao
   if (tab === 'historico') next.delete('tab')
   else next.set('tab', tab)
   return next
+}
+
+// Aba Pix recebidos (ADR 0100). As abas já abertas continuam montadas e leem a
+// mesma URL, então os parâmetros levam o prefixo `pix` e não colidem com os do
+// histórico (`de`, `ate`, `origem`, `pagina`).
+
+export type ReceivedUrlState = {
+  from: string
+  to: string
+  situation: ItauPixReceiptSituation | ''
+  origin: ItauPixReceiptOrigin | ''
+  /** Valor como digitado ("1.234,56"); a tela converte antes de consultar. */
+  amount: string
+  search: string
+  page: number
+  pageSize: number
+}
+
+export type ReceivedFilterKey = Exclude<keyof ReceivedUrlState, 'page' | 'pageSize'>
+
+const RECEIVED_PARAM = {
+  from: 'pixDe',
+  to: 'pixAte',
+  situation: 'pixSituacao',
+  origin: 'pixOrigem',
+  amount: 'pixValor',
+  search: 'pixBusca',
+  page: 'pixPagina',
+  pageSize: 'pixPorPagina',
+} as const satisfies Record<keyof ReceivedUrlState, string>
+
+export const RECEIVED_FILTER_KEYS: readonly ReceivedFilterKey[] = ['from', 'to', 'situation', 'origin', 'amount', 'search']
+const SITUATIONS: readonly ItauPixReceiptSituation[] = ['settled', 'received', 'review', 'handled']
+const ORIGINS: readonly ItauPixReceiptOrigin[] = ['vela', 'none', 'other', 'test']
+
+export function receivedStateFromSearch(params: URLSearchParams): ReceivedUrlState {
+  const date = (key: 'from' | 'to') => {
+    const value = params.get(RECEIVED_PARAM[key]) ?? ''
+    return ISO_DATE.test(value) ? value : ''
+  }
+  const situation = params.get(RECEIVED_PARAM.situation)
+  const origin = params.get(RECEIVED_PARAM.origin)
+  const size = positiveInt(params.get(RECEIVED_PARAM.pageSize))
+  return {
+    from: date('from'),
+    to: date('to'),
+    situation: SITUATIONS.includes(situation as ItauPixReceiptSituation) ? (situation as ItauPixReceiptSituation) : '',
+    origin: ORIGINS.includes(origin as ItauPixReceiptOrigin) ? (origin as ItauPixReceiptOrigin) : '',
+    amount: params.get(RECEIVED_PARAM.amount) ?? '',
+    search: params.get(RECEIVED_PARAM.search) ?? '',
+    page: positiveInt(params.get(RECEIVED_PARAM.page)) ?? 1,
+    pageSize: size && (HISTORY_PAGE_SIZES as readonly number[]).includes(size) ? size : DEFAULT_PAGE_SIZE,
+  }
+}
+
+/** Troca um filtro da aba e volta à primeira página; o texto vai como digitado. */
+export function withReceivedFilter(params: URLSearchParams, key: ReceivedFilterKey, value: string): URLSearchParams {
+  const next = new URLSearchParams(params)
+  setOrDelete(next, RECEIVED_PARAM[key], value, false)
+  next.delete(RECEIVED_PARAM.page)
+  return next
+}
+
+export function withReceivedPage(params: URLSearchParams, page: number): URLSearchParams {
+  const next = new URLSearchParams(params)
+  setOrDelete(next, RECEIVED_PARAM.page, String(page), page <= 1)
+  return next
+}
+
+export function withReceivedPageSize(params: URLSearchParams, pageSize: number): URLSearchParams {
+  const next = new URLSearchParams(params)
+  setOrDelete(next, RECEIVED_PARAM.pageSize, String(pageSize), pageSize === DEFAULT_PAGE_SIZE)
+  next.delete(RECEIVED_PARAM.page)
+  return next
+}
+
+/** "Limpar": tira os filtros e a página da aba; mantém a aba, o histórico e o tamanho da página. */
+export function withoutReceivedFilters(params: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(params)
+  for (const key of RECEIVED_FILTER_KEYS) next.delete(RECEIVED_PARAM[key])
+  next.delete(RECEIVED_PARAM.page)
+  return next
+}
+
+export function countActiveReceivedFilters(state: ReceivedUrlState): number {
+  return RECEIVED_FILTER_KEYS.filter((key) => String(state[key] ?? '').trim() !== '').length
 }

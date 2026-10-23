@@ -176,3 +176,4 @@ src/integration/itauPixLiberaReserva.local-pg.test.ts
 src/integration/baldeLoginReservaAtomica.local-pg.test.ts
 src/integration/autorDosEventosDoPortal.local-pg.test.ts
 src/integration/decisoesDoDonoRun3.local-pg.test.ts
+src/integration/pixRecebidos.local-pg.test.ts

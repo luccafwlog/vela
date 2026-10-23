@@ -1,6 +1,9 @@
+import { parseImportNumber } from '../../lib/importNumber'
 import type {
   ItauPixMonitor,
   ItauPixMonitorCharge,
+  ItauPixReceipt,
+  ItauPixReceiptOrigin,
   ReconciliationHistoryRow,
   PixReconciliationException,
   UnifiedPixConfirmationResult,
@@ -235,4 +238,75 @@ export function historyRowStatus(row: Pick<ReconciliationHistoryRow, 'source' | 
 export function countPixPending(monitor: Pick<ItauPixMonitor, 'receipts' | 'charges'> | undefined, exceptions: readonly unknown[] | undefined): number | null {
   if (!monitor || !exceptions) return null
   return monitor.receipts.length + exceptions.length + monitor.charges.filter((charge) => itauChargeState(charge).needsAction).length
+}
+
+// Aba Pix recebidos (ADR 0100).
+
+const RECEIPT_ORIGIN: Record<ItauPixReceiptOrigin, string> = {
+  vela: 'Cobrança do Vela',
+  none: 'Sem identificador',
+  other: 'Outro sistema',
+  test: 'Teste do Vela',
+}
+
+/** De onde veio o Pix, pelo identificador: QR do Vela, chave digitada (sem identificador), QR de outro sistema na mesma chave ou teste. */
+export function receiptOriginLabel(origin: ItauPixReceiptOrigin): string {
+  return RECEIPT_ORIGIN[origin] ?? origin
+}
+
+/**
+ * Situação do Pix recebido em texto (regra 5): só "Em análise" pede ação, e
+ * só no Pix de cobrança do Vela; o Pix sem baixa de outra origem não pede
+ * nada (ADR 0100).
+ */
+export function receiptSituation(receipt: Pick<ItauPixReceipt, 'situation' | 'settledBy'>): { label: string; needsAction: boolean } {
+  if (receipt.situation === 'settled') return { label: receipt.settledBy === 'manual' ? 'Baixa manual' : 'Baixa automática', needsAction: false }
+  if (receipt.situation === 'review') return { label: 'Em análise', needsAction: true }
+  if (receipt.situation === 'handled') return { label: 'Tratado', needsAction: false }
+  return { label: 'Sem baixa', needsAction: false }
+}
+
+/** Fatura que mostrar na linha: a da baixa ou, sem baixa, a da cobrança do Vela que gerou o Pix. */
+export function receiptInvoice(receipt: Pick<ItauPixReceipt, 'settled' | 'charge'>) {
+  return receipt.settled ?? receipt.charge
+}
+
+/**
+ * Valor digitado no filtro ("1.234,56", "R$ 50", "50.00"): número positivo ou
+ * `null` quando vazio; `NaN` quando ilegível, para a tela avisar sem consultar.
+ */
+export function parsePixAmountFilter(text: string): number | null {
+  const value = text.replace(/R\$/gi, '').trim()
+  if (!value) return null
+  const pt = parseImportNumber(value, 'pt-BR')
+  const parsed = pt.kind === 'value' ? pt : parseImportNumber(value, 'unknown')
+  const amount = parsed.kind === 'value' ? Number(parsed.decimal) : Number.NaN
+  return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : Number.NaN
+}
+
+/** Campos do retorno do Itaú que a linha aberta já mostra com nome próprio. */
+const SHOWN_BANK_FIELDS = new Set(['endToEndId', 'txid', 'valor', 'horario', 'chave', 'infoPagador', 'pagador', 'devedor'])
+const BANK_FIELD_LIMIT = 30
+
+/**
+ * O que mais o Itaú mandou no Pix (componentes do valor, devoluções, campos
+ * próprios do banco), achatado em rótulo e valor para a linha aberta. Os campos
+ * com nome próprio na tela ficam de fora.
+ */
+export function bankExtraFields(raw: Record<string, unknown> | null): Array<{ label: string; value: string }> {
+  const fields: Array<{ label: string; value: string }> = []
+  const walk = (value: unknown, path: string[]) => {
+    if (fields.length >= BANK_FIELD_LIMIT) return
+    if (value !== null && typeof value === 'object') {
+      const entries = Array.isArray(value) ? value.map((item, index) => [String(index + 1), item] as const) : Object.entries(value)
+      for (const [key, item] of entries) walk(item, [...path, key])
+      return
+    }
+    if (value === null || value === undefined || String(value).trim() === '') return
+    fields.push({ label: path.join(' › '), value: String(value) })
+  }
+  for (const [key, value] of Object.entries(raw ?? {})) {
+    if (!SHOWN_BANK_FIELDS.has(key)) walk(value, [key])
+  }
+  return fields
 }

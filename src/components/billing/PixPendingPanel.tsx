@@ -47,7 +47,8 @@ const sourceLabel = (source: 'local' | 'demurrage') => (source === 'demurrage' ?
 /** Data e hora de Brasília na célula da tabela, sem o "às" da frase. */
 const cellInstant = (value: string | null | undefined) => formatBrasiliaInstant(value).replace(' às', '')
 
-function RowToggle({ open, controls, label, onClick, disabled }: { open: boolean; controls: string; label: string; onClick: () => void; disabled?: boolean }) {
+/** Seta que abre e recolhe a linha de detalhe; também usada na aba Pix recebidos. */
+export function RowToggle({ open, controls, label, onClick, disabled }: { open: boolean; controls: string; label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -64,8 +65,10 @@ function RowToggle({ open, controls, label, onClick, disabled }: { open: boolean
 }
 
 /**
- * Pendências da Conciliação PIX: Pix que entrou no Itaú e não deu baixa,
- * linhas de extrato sem baixa segura e cobranças que ainda esperam o banco.
+ * Pendências da Conciliação PIX: Pix de cobrança do Vela que entrou no Itaú e
+ * não deu baixa, linhas de extrato sem baixa segura e cobranças que ainda
+ * esperam o banco. Os demais Pix recebidos ficam na aba Pix recebidos, sem
+ * pedir ação (ADR 0100).
  * Cada assunto é um bloco com tabela limpa (lote 3 da identidade); a situação
  * vai em texto, âmbar só no que pede ação. Nada aqui baixa por semelhança.
  */
@@ -101,7 +104,7 @@ function ItauStatus({ query, monitor }: { query: ReturnType<typeof useItauPixMon
   if (query.error || !monitor) {
     return (
       <div role="alert" className="grid justify-items-start gap-2">
-        <p>Não foi possível consultar a cobrança Pix Itaú: {extractErrorText(query.error)}. Os Pix sem baixa e a fila do banco não estão nesta tela agora.</p>
+        <p>Não foi possível consultar a cobrança Pix Itaú: {extractErrorText(query.error)}. Os Pix em análise e a fila do banco não estão nesta tela agora.</p>
         <Button variant="secondary" className="app-btn--sm" onClick={() => void query.refetch()}>Tentar novamente</Button>
       </div>
     )
@@ -175,12 +178,12 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
   }
 
   return (
-    <Block title="Pix recebidos sem baixa" flush aside={`${receipts.length.toLocaleString('pt-BR')} · o dinheiro entrou e nenhuma fatura foi baixada`}>
+    <Block title="Pix em análise" flush aside={`${receipts.length.toLocaleString('pt-BR')} · Pix de cobrança do Vela que não deu baixa automática`}>
       {done ? <p className="app-block__body" role="status">{done}</p> : null}
       {receipts.length ? (
         <div className="app-table-scroll">
           <table className="app-table app-table--compact">
-            <caption className="sr-only">Pix recebidos pelo Itaú sem baixa</caption>
+            <caption className="sr-only">Pix de cobrança do Vela em análise</caption>
             <thead>
               <tr>
                 <th scope="col">Recebido em</th>
@@ -252,7 +255,7 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
           </table>
         </div>
       ) : (
-        <p className="app-block__body">Nenhum Pix recebido sem baixa.</p>
+        <p className="app-block__body">Nenhum Pix em análise.</p>
       )}
     </Block>
   )

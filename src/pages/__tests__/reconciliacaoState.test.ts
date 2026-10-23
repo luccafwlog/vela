@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   countActiveHistoryFilters,
+  countActiveReceivedFilters,
+  receivedStateFromSearch,
+  withReceivedFilter,
+  withReceivedPage,
+  withoutReceivedFilters,
   historyStateFromSearch,
   reconciliacaoTabFromSearch,
   withHistoryCustomer,
@@ -67,5 +72,27 @@ describe('estado de /reconciliacao na URL', () => {
     expect(withHistoryPageSize(params('pagina=4'), 50).toString()).toBe('')
     expect(withHistoryPage(params(''), 2).toString()).toBe('pagina=2')
     expect(withHistoryPage(params('pagina=2'), 1).toString()).toBe('')
+  })
+
+  it('aba Pix recebidos: filtros com prefixo próprio, sem colidir com os do histórico (ADR 0100)', () => {
+    expect(reconciliacaoTabFromSearch(params('tab=recebidos'))).toBe('recebidos')
+    const both = params('tab=recebidos&de=2026-10-01&origem=local&pixDe=2026-10-05&pixOrigem=other&pixSituacao=received&pixValor=1.234,56&pixBusca=E2&pixPagina=3')
+    expect(receivedStateFromSearch(both)).toEqual({
+      from: '2026-10-05', to: '', situation: 'received', origin: 'other', amount: '1.234,56', search: 'E2', page: 3, pageSize: 50,
+    })
+    expect(historyStateFromSearch(both)).toEqual(expect.objectContaining({ paidFrom: '2026-10-01', source: 'local' }))
+    expect(countActiveReceivedFilters(receivedStateFromSearch(both))).toBe(5)
+    // Trocar um filtro volta à primeira página da aba e não mexe no histórico.
+    const changed = withReceivedFilter(both, 'origin', 'none')
+    expect(changed.get('pixOrigem')).toBe('none')
+    expect(changed.get('pixPagina')).toBeNull()
+    expect(changed.get('origem')).toBe('local')
+    const cleared = withoutReceivedFilters(both)
+    expect(cleared.toString()).toBe('tab=recebidos&de=2026-10-01&origem=local')
+    expect(withReceivedPage(params(''), 2).toString()).toBe('pixPagina=2')
+    // Valor inválido de link antigo vira "sem filtro".
+    expect(receivedStateFromSearch(params('pixSituacao=paga&pixOrigem=pix&pixDe=05/10/2026'))).toEqual(expect.objectContaining({
+      situation: '', origin: '', from: '',
+    }))
   })
 })
