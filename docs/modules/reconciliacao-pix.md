@@ -118,7 +118,7 @@ entra na contagem (ADR 0100).
 ### Pix recebidos
 
 Aba **Pix recebidos** (`?tab=recebidos`, `PixReceivedPanel.tsx`; ADR 0100,
-migrations `442` a `444`): todo Pix que o Itaú informou na consulta de
+migrations `442` a `445`): todo Pix que o Itaú informou na consulta de
 recebimentos, inclusive o feito digitando a chave (sem identificador da
 cobrança), o do QR de outro sistema que usa a mesma chave e o de teste. Nada
 aqui abre Alerta; só o Pix de cobrança do Vela em análise pede ação, e ela é
@@ -128,18 +128,16 @@ feita em Pendências.
   histórico): Recebido de e até (dias de Brasília), Situação (Sem baixa, Com
   baixa, Em análise, Tratado), Origem (Cobrança do Vela, Sem identificador,
   Outro sistema, Teste do Vela), Valor e Buscar (identificador do Pix, da
-  cobrança ou número da fatura; nome, documento e mensagem do pagador para quem
-  os vê). Valor ilegível avisa no campo e não consulta.
+  cobrança ou número da fatura; nome, documento e mensagem do pagador). Valor ilegível avisa no campo e não consulta.
 - **Bloco Pix recebidos**, com "N Pix · R$ X" do recorte na faixa e a tabela
   limpa: Recebido em (Brasília), Valor, Pagador, Origem, Situação e Fatura (a
   da baixa ou, sem baixa, a da cobrança do Vela, abrindo o detalhe). Situação em
   texto: Baixa automática, Baixa pelo extrato, Baixa manual, Sem baixa, Tratado
   e "Em análise" em âmbar. Paginação no rodapé (20, 50 ou 100) e relida a cada minuto.
-- **Pagador** só para o Financeiro e o Administrativo
-  (`is_financeiro_user`): nome e CPF/CNPJ quando o Itaú manda o campo
-  `pagador` (ou `devedor`); sem ele, "Pagador não informado pelo Itaú". Para os
-  demais, a coluna sai e uma nota diz que o pagador aparece só para o
-  Financeiro e o Administrativo; a busca não alcança os dados do pagador.
+- **Pagador** para todo usuário interno ativo (migration `445`; da `442` à
+  `444` era só do Financeiro e do Administrativo): nome e CPF/CNPJ quando o
+  Itaú manda o campo `pagador` (ou `devedor`); sem ele, "Pagador não informado
+  pelo Itaú".
 - **Linha aberta** (seta): identificador do Pix (com copiar), identificador da
   cobrança, chave Pix, recebido e gravado em, origem, pagador, CPF/CNPJ,
   mensagem do pagador, fatura da baixa, cobrança do Vela, motivo da análise,
@@ -330,7 +328,7 @@ baixas**) combina:
 | Histórico · abrir detalhe Demurrage | Linha Demurrage | `onSelectDemurrageInvoice` | `DemurrageInvoiceDetailModal` (etapa 11) | Leitura de invoice, itens, outras Invoices do B/L e restituições | Query `['demurrage-invoice-detail', id]`, a mesma de `/demurrage` | Erro mostra falha no modal com Tentar novamente | **Código:** `src/pages/Reconciliacao.tsx`, `src/components/demurrage/DemurrageInvoiceDetailModal.tsx` |
 | Detalhe local · cancelar baixa | Admin, `paymentId` e justificativa | `InvoiceDetailModal.handleReversePayment` | `reverseLocalPaymentAndInvalidate` → `reverseLocalInvoicePayment` | RPC `reverse_invoice_payment` restaura ledger/links/status, limpa PIX e exclui `payments`; cancela junto o excedente automático ainda pendente dessa baixa ([Cancelar baixa](#cancelar-baixa)) | Invalida ledger, invoices, B/Ls, cliente, detalhe, refunds, alertas e histórico antes de fechar | RPC exige admin/justificativa e rejeita payment/invoice ausente; recusa a baixa que financia restituição (“Esta baixa financia restituição…”) | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/hooks/useBillingLedger.ts`, `src/services/reconciliacao.ts`, migrations `136` (`reverse_invoice_payment`) e `130` (`guard_payment_reversal_after_correction`) · **Teste:** `src/hooks/__tests__/billingLedgerInvalidation.test.ts` |
 | Detalhe Demurrage · cancelar baixa | Admin, invoice paga e justificativa | `reversalMutation` | `DemurragePaymentReversalModal` → `reverseDemurragePayment` | RPC `reverse_demurrage_payment` volta status a `issued`, limpa data, TXID e `conciliated_by_extract` e audita; Invoice suspensa por datas alteradas é cancelada e reemitida pelo cálculo atual, ou segue suspensa ([Cancelar baixa](#cancelar-baixa)) | `afterFaturaDemurrageAlterada`; relê o detalhe e volta a ele | UI e RPC exigem justificativa; com restituição de Demurrage não cancelada o banco recusa; recusa fica no formulário (“A baixa continua registrada”) | **Código:** `src/pages/Reconciliacao.tsx`, `src/services/reconciliacao.ts`, migrations `002` (`reverse_demurrage_payment`), `191` (`trg_reconcile_demurrage_after_payment_reversal`) e `136` (`guard_demurrage_payment_after_refund`) · **Teste:** `Reconciliacao.behavior.test.tsx` |
-| `/reconciliacao?tab=recebidos` · listar Pix recebidos | Usuário interno ativo; Itaú ligado gravando a consulta | `PixReceivedPanel` | `useQuery` → `listItauPixReceipts` → RPC `list_itau_pix_receipts` (filtros e página no servidor) | Nenhuma | Query `['itau-pix-receipts', filtros]`, relida a cada minuto; filtros, página e tamanho na URL com prefixo `pix` | Erro mostra "Não foi possível carregar os Pix recebidos" com Tentar novamente; valor ilegível avisa no campo sem consultar; pagador, mensagem e retorno do banco só para Financeiro e Administrativo | **Código:** migrations `442` e `444`, `src/components/billing/PixReceivedPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `Reconciliacao.behavior.test.tsx`, `reconciliacaoState.test.ts`, `pixReconciliationPresentation.test.ts` · **Teste local-pg:** `pixRecebidos.local-pg.test.ts` |
+| `/reconciliacao?tab=recebidos` · listar Pix recebidos | Usuário interno ativo; Itaú ligado gravando a consulta | `PixReceivedPanel` | `useQuery` → `listItauPixReceipts` → RPC `list_itau_pix_receipts` (filtros e página no servidor) | Nenhuma | Query `['itau-pix-receipts', filtros]`, relida a cada minuto; filtros, página e tamanho na URL com prefixo `pix` | Erro mostra "Não foi possível carregar os Pix recebidos" com Tentar novamente; valor ilegível avisa no campo sem consultar; pagador, mensagem e retorno do banco para todos | **Código:** migrations `442`, `444` e `445`, `src/components/billing/PixReceivedPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `Reconciliacao.behavior.test.tsx`, `reconciliacaoState.test.ts`, `pixReconciliationPresentation.test.ts` · **Teste local-pg:** `pixRecebidos.local-pg.test.ts` |
 | Pix recebidos · baixar numa fatura (opcional) | Financeiro ou Administrativo; Pix `received` (não é de cobrança do Vela) e sem baixa com o identificador dele | Linha aberta → `SettleReceipt` | `list_itau_pix_receipt_candidates` (mesmo valor, documento do pagador ou número procurado) → `itau_pix_settle_received` → `register_verified_invoice_payment` (local e avulsa) ou `register_demurrage_payment` (Demurrage, janela das duas PTAX) | `payments` com o identificador do Pix em `bank_reference`, ledger e fatura; ou Invoice de Demurrage paga com ele em `pix_txid` | `afterPixConciliado` (faturas, Demurrage, histórico, monitor, Pix recebidos e as sugestões) | Fatura não aberta, Pix já baixado, valor fora da janela da Demurrage ou Pix de cobrança do Vela: recusa na linha ("Nenhuma baixa foi gravada: …") | **Código:** migrations `442` e `443`, `PixReceivedPanel.tsx` · **Teste:** `Reconciliacao.behavior.test.tsx` · **Teste local-pg:** `pixRecebidos.local-pg.test.ts` (inclui nova baixa depois de cancelada) |
 | Edge `itau-pix` · gravar cada Pix da consulta | Job `itau-pix-queue` (1 min) | `pollItauPixReceipts` | `itau_pix_receive` com o retorno do Itaú: TXID `VELA…` segue para a baixa automática; o resto fica `received` | `itau_pix_receipts` (`status`, `raw`) | Sem cache de tela; a aba relê a cada minuto | Falha passageira segue a regra das três tentativas (`itau_pix_receipt_failed`); Pix sem endToEndId ou valor válidos fica de fora (`skipped`) | **Código:** `supabase/functions/_shared/itauPix.ts`, `supabase/functions/itau-pix/index.ts` · **Teste:** `itauPix.test.ts`, `supabase/functions/itau-pix/index.test.ts` (Deno) |
 
@@ -656,11 +654,11 @@ sem isso ficam em `skip`.
   (idempotente pelo `endToEndId`), Pix em análise sem usuário de baixa ou com
   TXID desconhecido, prazos (14h30 do próximo dia útil, calendário de feriados, renovação),
   monitoramento e **Marcar como tratado…**, e o disparo da fila na emissão.
-- `src/integration/pixRecebidos.local-pg.test.ts`: migrations `442` a `444`.
+- `src/integration/pixRecebidos.local-pg.test.ts`: migrations `442` a `445`.
   Pix sem TXID, de outro sistema e de teste gravados como recebidos sem Alerta
   e uma vez só; Pix do Vela pela baixa automática; registro antigo sem TXID
-  também como recebido; só o sistema grava; lista com pagador só para
-  Financeiro e Administrativo e busca pelo documento; filtros; baixa opcional
+  também como recebido; só o sistema grava; lista com pagador para todo
+  usuário interno e busca pelo nome e pelo documento; filtros; baixa opcional
   em fatura de Taxas Locais (sugestão por valor e documento, cancelamento sem
   Alerta e nova baixa) e em Invoice de Demurrage (janela de valor); o Pix do
   Vela não recebe baixa por aqui; baixa automática cancelada aparece sem

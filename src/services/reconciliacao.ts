@@ -891,7 +891,7 @@ export type ItauPixReceiptFilters = {
   pageSize: number
 }
 
-export type ItauPixReceiptPage = { total: number; totalAmount: number; payerVisible: boolean; rows: ItauPixReceipt[] }
+export type ItauPixReceiptPage = { total: number; totalAmount: number; rows: ItauPixReceipt[] }
 
 type InvoiceRefRow = { source: 'local' | 'demurrage' | null; id: number | string | null; doc: string | null }
 type ItauPixReceiptRow = {
@@ -920,11 +920,10 @@ export async function listItauPixReceipts(filters: ItauPixReceiptFilters): Promi
     p_offset: (Math.max(filters.page, 1) - 1) * filters.pageSize,
   })
   if (error) throw error
-  const page = data as { total: number | string; total_amount_brl: number | string; payer_visible: boolean; rows: ItauPixReceiptRow[] | null }
+  const page = data as { total: number | string; total_amount_brl: number | string; rows: ItauPixReceiptRow[] | null }
   return {
     total: Number(page.total),
     totalAmount: Number(page.total_amount_brl),
-    payerVisible: page.payer_visible === true,
     rows: (page.rows ?? []).map((r) => ({
       endToEndId: r.end_to_end_id,
       txid: r.txid,

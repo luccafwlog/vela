@@ -1102,7 +1102,7 @@ não a chama: nenhuma chamada da `itau-pix` nas 24 h até 11 h UTC de 23/10
 
 **Todo Pix recebido fica gravado (2026-10-23,
 [ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md), migrations `442` a
-`444`).** A consulta de recebimentos (`GET /pix`) devolve todo Pix que entrou
+`445`).** A consulta de recebimentos (`GET /pix`) devolve todo Pix que entrou
 na conta, inclusive o do sistema de terceiro na mesma chave e o feito digitando
 a chave. A `itau-pix` passa a entregar cada um, com o retorno do Itaú, a
 `itau_pix_receive`: o de TXID `VELA…` segue para a baixa automática e o resto

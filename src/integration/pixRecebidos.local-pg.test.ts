@@ -24,7 +24,7 @@ type Row = {
   settled_source: string | null; settled_doc_number: string | null; payer_name: string | null; payer_document: string | null
   payer_message: string | null; pix_key: string | null; raw: Record<string, unknown> | null
 }
-type Listing = { total: number; total_amount_brl: number; payer_visible: boolean; rows: Row[] }
+type Listing = { total: number; total_amount_brl: number; rows: Row[] }
 type Candidate = { source: string; invoice_id: number; doc_number: string; same_amount: boolean; same_customer: boolean }
 
 describeLocal('442 — Pix recebidos', () => {
@@ -92,9 +92,9 @@ describeLocal('442 — Pix recebidos', () => {
     expect(receipt(6)).toBe('')
   })
 
-  it('a lista traz todos os Pix; o pagador só para o Financeiro e o Administrativo', () => {
+  it('a lista traz todos os Pix, com o pagador para todo usuário interno', () => {
     const finance = list('financeiro')
-    expect(finance.payer_visible).toBe(true)
+    expect(finance).not.toHaveProperty('payer_visible')
     expect(finance.rows.map((r) => r.end_to_end_id)).toEqual(expect.arrayContaining([e2e(1), e2e(2), e2e(3), e2e(4), e2e(5)]))
     expect(row(1)).toMatchObject({ origin: 'none', situation: 'received', payer_name: 'Pagador Sem TXID', payer_document: '12345678909',
       payer_message: 'Pagamento B/L 123', pix_key: 'chave-transhipping' })
@@ -102,12 +102,11 @@ describeLocal('442 — Pix recebidos', () => {
     expect(row(3)).toMatchObject({ origin: 'test', situation: 'received' })
     expect(row(4)).toMatchObject({ origin: 'vela', situation: 'review' })
 
-    const operations = list('operacoes')
-    expect(operations.payer_visible).toBe(false)
-    expect(row(1, 'operacoes')).toMatchObject({ payer_name: null, payer_document: null, payer_message: null, raw: null, pix_key: 'chave-transhipping' })
-    // Quem não vê o pagador também não acha o Pix pelo nome dele.
-    expect(list('operacoes', `p_search => 'Pagador Sem'`).total).toBe(0)
-    expect(list('financeiro', `p_search => 'Pagador Sem'`).total).toBe(1)
+    // Migration 445: quem não concilia também vê e busca o pagador.
+    expect(row(1, 'operacoes')).toMatchObject({ payer_name: 'Pagador Sem TXID', payer_document: '12345678909',
+      payer_message: 'Pagamento B/L 123', pix_key: 'chave-transhipping' })
+    expect(row(1, 'operacoes')?.raw).toMatchObject({ chave: 'chave-transhipping' })
+    expect(list('operacoes', `p_search => 'Pagador Sem'`).total).toBe(1)
     expect(list('financeiro', `p_search => '123.456.789-09'`).rows.map((r) => r.end_to_end_id)).toEqual([e2e(1)])
   })
 
