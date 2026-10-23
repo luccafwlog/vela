@@ -252,15 +252,16 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
 
     const providerFailure = await providerError(response)
     if (response.status === 422 && providerFailure.name === PROVIDER_SUPPRESSED_NAME && input.recordProviderSuppression) {
-      // A tentativa é atualizada antes: se gravar a supressão falhar, a
-      // exceção chega a quem chama e a próxima rodada não chama o provedor de
-      // novo para a mesma chave (tentativa `bounce`).
+      // A supressão é gravada antes de fechar a tentativa: se gravar falhar, a
+      // tentativa fica `aceito` sem id do provedor e a nova rodada tenta tudo
+      // de novo. Fechada como `bounce` primeiro, a repetição pararia nela sem
+      // nunca gravar a supressão.
+      await input.recordProviderSuppression(input.to)
       await input.updateAttempt(attempt.id, {
         retryCount: index,
         status: 'bounce',
         lastError: `HTTP 422 ${PROVIDER_SUPPRESSED_NAME} (endereço suprimido no provedor)`,
       })
-      await input.recordProviderSuppression(input.to)
       return { ok: false, suppressed: true }
     }
     const configuration = CONFIGURATION_STATUS.has(response.status) ||

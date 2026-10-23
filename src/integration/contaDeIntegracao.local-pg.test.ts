@@ -201,6 +201,29 @@ describeLocal('440 — conta de integração (API ITAÚ) — PostgreSQL local', 
       SET LOCAL session_replication_role = origin;`)).toBe(personAdminId)
   })
 
+  it('o Eco da dispensa não vai à conta de integração avisada antes da 440 (441)', () => {
+    const result = withOnlyFixtureAdmins(`
+      SET LOCAL request.jwt.claim.role = 'service_role';
+      SELECT public.upsert_alert_item('pix_unreconciled', 'itau_pix_receipt', 'E440ECO', 'Aviso de teste 440', 'teste_440',
+        '{"fixture": "conta-integracao-440"}'::jsonb, '/alertas') IS NOT NULL;
+      -- Como antes da 440: a ocorrência também foi entregue à conta de integração.
+      INSERT INTO public.internal_notifications (alert_id, alert_item_id, event_id, recipient_id, recipient_department,
+          is_fallback, item_type, severity, title, message)
+        SELECT n.alert_id, n.alert_item_id, n.event_id, '${itauId}', 'administrativo', false, n.item_type, n.severity, n.title, n.message
+        FROM public.internal_notifications n JOIN public.alert_items i ON i.id = n.alert_item_id
+        WHERE i.metadata->>'fixture' = 'conta-integracao-440' AND n.recipient_id = '${personAdminId}';
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+      SELECT set_config('request.jwt.claim.sub', '${documentacaoId}', true);
+      SELECT public.dismiss_alert_item(i.id, 'Teste do eco 440', now() + interval '2 days') IS NOT NULL
+        FROM public.alert_items i WHERE i.metadata->>'fixture' = 'conta-integracao-440';
+      RESET ROLE;
+      SELECT 'ECHO=' || coalesce(string_agg(n.recipient_id::text, ',' ORDER BY n.recipient_id::text), '')
+        FROM public.internal_notifications n JOIN public.alert_items i ON i.id = n.alert_item_id
+        WHERE i.metadata->>'fixture' = 'conta-integracao-440' AND n.payload->>'is_echo' = 'true' AND n.recipient_id IN (${idList});`)
+    expect(result.stderr).toBe('')
+    expect(result.stdout.split('\n').find((line) => line.startsWith('ECHO='))).toBe(`ECHO=${personAdminId}`)
+  })
+
   it('a baixa automática do Pix de centavos funciona com a conta de integração Financeiro', () => {
     expect(psql(`SELECT role || '|' || account_kind FROM public.user_profiles WHERE id = '${itauId}'`)).toBe('financeiro|integracao')
     psql(`UPDATE public.app_settings SET pix_provider = 'itau', itau_pix_settlement_actor = '${itauId}' WHERE id = 1`)

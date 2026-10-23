@@ -228,6 +228,15 @@ describe('sendEmail', () => {
     expect(recordProviderSuppression).toHaveBeenCalledWith(' Cliente@Example.com ')
   })
 
+  it('falha ao gravar a supressão não fecha a tentativa: a nova rodada tenta de novo', async () => {
+    const updateAttempt = vi.fn(async () => undefined)
+    const recordProviderSuppression = vi.fn(async () => { throw new Error('banco indisponível') })
+
+    await expect(sendEmail({ ...baseInput, updateAttempt, recordProviderSuppression, fetchImpl: suppressedByProvider() }))
+      .rejects.toThrow('banco indisponível')
+    expect(updateAttempt).not.toHaveBeenCalled()
+  })
+
   it('422 all_recipients_suppressed sem callback continua recusa definitiva', async () => {
     const updateAttempt = vi.fn(async () => undefined)
 
