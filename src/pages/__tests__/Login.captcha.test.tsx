@@ -32,19 +32,25 @@ async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Entrar' }))
 }
 
-it('com a chave do Turnstile, o login não sai sem o desafio e leva o token ao Auth', async () => {
+it('leva o token do desafio ao Auth', async () => {
+  vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'chave-do-site')
+  auth.signIn.mockResolvedValue(undefined)
+  const user = userEvent.setup()
+  render(<MemoryRouter><Login /></MemoryRouter>)
+
+  await user.click(screen.getByRole('button', { name: 'Resolver desafio' }))
+  await fillAndSubmit(user)
+  await waitFor(() => expect(auth.signIn).toHaveBeenCalledWith('ana@fwlog.com.br', 'Senha123', 'token-vela_login'))
+})
+
+it('sem o token (widget fora do ar ou captcha ainda desligado), a tela não barra: quem exige é o Auth', async () => {
   vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'chave-do-site')
   auth.signIn.mockResolvedValue(undefined)
   const user = userEvent.setup()
   render(<MemoryRouter><Login /></MemoryRouter>)
 
   await fillAndSubmit(user)
-  expect(await screen.findByText('Complete a verificação de segurança antes de continuar.')).toBeTruthy()
-  expect(auth.signIn).not.toHaveBeenCalled()
-
-  await user.click(screen.getByRole('button', { name: 'Resolver desafio' }))
-  await user.click(screen.getByRole('button', { name: 'Entrar' }))
-  await waitFor(() => expect(auth.signIn).toHaveBeenCalledWith('ana@fwlog.com.br', 'Senha123', 'token-vela_login'))
+  await waitFor(() => expect(auth.signIn).toHaveBeenCalledWith('ana@fwlog.com.br', 'Senha123', undefined))
 })
 
 it('recusa do captcha pelo Auth pede a verificação de novo, não fala em credencial', async () => {

@@ -34,7 +34,7 @@ function decisionsApplied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT to_regprocedure('public.set_bl_manual_roe(text,numeric,text)') IS NOT NULL
-      AND to_regprocedure('public.dismiss_alert_item_core_424(bigint,text,timestamp with time zone)') IS NOT NULL
+      AND (SELECT position('no máximo 30 dias' in prosrc) > 0 FROM pg_proc WHERE proname = 'dismiss_alert_item')
       AND to_regprocedure('ops.preferred_vault_secret(text,text)') IS NOT NULL;`) === 't'
   } catch {
     return false

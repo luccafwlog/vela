@@ -53,14 +53,9 @@ export function Login() {
       return
     }
 
-    // Captcha do Auth (auditoria run-3): com a chave do Turnstile no build, o
-    // login só sai com o token do desafio; sem a chave (local, preview), segue sem.
-    const hasSiteKey = Boolean(String(import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '').trim())
-    if (hasSiteKey && !turnstileToken) {
-      setError(turnstileError || 'Complete a verificação de segurança antes de continuar.')
-      return
-    }
-
+    // Captcha do Auth (auditoria run-3): o token do Turnstile vai quando existe e
+    // quem exige é o Auth. A tela não barra sem token: com o captcha ainda
+    // desligado, ou com o widget fora do ar, a equipe continua entrando.
     setSubmitting(true)
 
     try {
@@ -69,7 +64,7 @@ export function Login() {
     } catch (err) {
       setError(
         isCaptchaRefusal(err)
-          ? TURNSTILE_MESSAGES.verification
+          ? turnstileError || TURNSTILE_MESSAGES.verification
           : isTransportError(err)
           ? 'Serviço de autenticação indisponível no momento. Verifique a conexão e tente novamente.'
           : 'Credenciais inválidas ou usuário sem permissão ativa.',

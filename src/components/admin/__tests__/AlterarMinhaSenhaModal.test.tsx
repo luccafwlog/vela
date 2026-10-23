@@ -28,10 +28,7 @@ beforeEach(() => {
   mocks.updateUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
   mocks.recordAuditEntries.mockResolvedValue(undefined)
 })
-afterEach(() => {
-  cleanup()
-  vi.unstubAllEnvs()
-})
+afterEach(cleanup)
 
 function preencher(atual: string, nova: string, confirmacao: string) {
   fireEvent.change(screen.getByLabelText(/Senha atual/), { target: { value: atual } })
@@ -90,15 +87,18 @@ it('falha no Histórico não desfaz nem esconde a troca', async () => {
 })
 
 it('com o captcha do Auth, a conferência da senha atual leva o token do Turnstile (auditoria run-3)', async () => {
-  vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'chave-do-site')
   render(<AlterarMinhaSenhaModal open email="ana@fwlog.com.br" onClose={vi.fn()} />)
-  preencher('Antiga123', 'Nova12345', 'Nova12345')
-  await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Complete a verificação de segurança antes de continuar.'))
-  expect(mocks.signInWithPassword).not.toHaveBeenCalled()
-
   fireEvent.click(screen.getByRole('button', { name: 'Resolver desafio' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Alterar senha' }))
+  preencher('Antiga123', 'Nova12345', 'Nova12345')
   await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalledWith({
     email: 'ana@fwlog.com.br', password: 'Antiga123', options: { captchaToken: 'token-vela_senha_atual' },
   }))
+})
+
+it('recusa do captcha pelo Auth não vira senha atual incorreta', async () => {
+  mocks.signInWithPassword.mockResolvedValue({ error: { code: 'captcha_failed', message: 'captcha protection' } })
+  render(<AlterarMinhaSenhaModal open email="ana@fwlog.com.br" onClose={vi.fn()} />)
+  preencher('Antiga123', 'Nova12345', 'Nova12345')
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/validar a segurança/))
+  expect(mocks.updateUser).not.toHaveBeenCalled()
 })

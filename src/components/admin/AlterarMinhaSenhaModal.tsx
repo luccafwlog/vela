@@ -38,10 +38,8 @@ export function AlterarMinhaSenhaModal({
     event.preventDefault()
     if (!isValidPassword(next)) return setError(PASSWORD_RULE_MESSAGE)
     if (next !== confirmation) return setError('As senhas não conferem.')
-    // A conferência da senha atual é um login: com o captcha do Auth ligado,
-    // ela leva o token do Turnstile (auditoria run-3).
-    const hasSiteKey = Boolean(String(import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '').trim())
-    if (hasSiteKey && !turnstileToken) return setError(turnstileError || 'Complete a verificação de segurança antes de continuar.')
+    // A conferência da senha atual é um login: leva o token do Turnstile quando
+    // existe, e quem exige é o captcha do Auth (auditoria run-3).
     setError('')
     setSubmitting(true)
     try {
@@ -49,7 +47,7 @@ export function AlterarMinhaSenhaModal({
       const { error: signInError } = await supabase.auth.signInWithPassword(
         turnstileToken ? { email, password: current, options: { captchaToken: turnstileToken } } : { email, password: current },
       )
-      if (signInError) { setError(signInError.code === 'captcha_failed' ? TURNSTILE_MESSAGES.verification : 'Senha atual incorreta.'); return }
+      if (signInError) { setError(signInError.code === 'captcha_failed' ? turnstileError || TURNSTILE_MESSAGES.verification : 'Senha atual incorreta.'); return }
       // A senha atual também vai na troca: com "Require current password" ligado
       // no Auth, um token roubado não troca a senha sem ela (auditoria run-3, P1).
       const { data: updated, error: updateError } = await supabase.auth.updateUser({ password: next, current_password: current })
