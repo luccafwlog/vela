@@ -80,6 +80,8 @@ export type BlFilters = {
   financialStatus: string
   chargeStatus: string
   cargoProfile: string
+  /** 'sem': só B/L sem Cliente vinculado (alerta da migration 452). */
+  customerLink?: string
   page: number
   pageSize: number
 }

@@ -18,6 +18,7 @@ const TEXT_PARAMS: Record<TextFilterKey, string> = {
   financialStatus: 'financial',
   chargeStatus: 'charge',
   cargoProfile: 'profile',
+  customerLink: 'cliente',
 }
 
 const CARGO_MODES = new Set(['container', 'carga_solta', 'misto'])
@@ -43,6 +44,7 @@ export function filtersFromBlsSearch(params: URLSearchParams): BlFilters {
   // mesma régua do banco (não a do import).
   text.pol = normalizeStoredPortCode(text.pol) ?? ''
   text.pod = normalizeStoredPortCode(text.pod) ?? ''
+  if (text.customerLink !== 'sem') text.customerLink = ''
   const cargoMode = params.get('cargoMode') ?? ''
   const pageSize = positiveInt(params.get('pageSize'))
   return {

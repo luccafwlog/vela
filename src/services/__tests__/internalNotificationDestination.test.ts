@@ -58,3 +58,11 @@ describe('destino das notificações do sino (ponto 14)', () => {
     expect(internalNotificationDestination({ ...base, item_type: 'voyage_schedule_date_pending', entity_type: 'voyage_pod_schedule', entity_id: '5::BRSSZ' })).toBe('/viagens/5?escala=BRSSZ')
   })
 })
+
+// Ponto 15 (migration 452): o alerta da escala abre os B/Ls dela sem Cliente.
+describe('B/L sem Cliente perto do ETA (ponto 15)', () => {
+  it('leva à lista de B/Ls da viagem e do porto, só sem Cliente', () => {
+    const destination = internalNotificationDestination({ item_type: 'bl_sem_cliente_perto_eta', type: undefined, entity_type: 'voyage_pod_schedule', entity_id: '5::BRSSZ', payload: null, destination: null })
+    expect(destination).toBe('/bls?voyage=5&pod=BRSSZ&cliente=sem')
+  })
+})

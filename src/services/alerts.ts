@@ -451,9 +451,13 @@ function alertEntityLinkRaw(alert: {
       ? `/revisao?cliente=${encodeURIComponent(alert.entity_id)}`
       : '/revisao'
   }
-  // B/L sem Cliente perto do ETA (migration 352): a chave é a escala, e o
-  // vínculo se faz na Revisão, no cartão dos B/Ls sem Cliente.
-  if (effectiveType === 'bl_sem_cliente_perto_eta') return '/revisao?causa=cliente'
+  // B/L sem Cliente perto do ETA (migrations 352 e 452): a chave é a escala
+  // `<viagem>::<porto>`; abre a lista de B/Ls da escala só com os sem Cliente.
+  if (effectiveType === 'bl_sem_cliente_perto_eta') {
+    const [voyageId, port] = alert.entity_id.split('::')
+    if (!voyageId || !port) return '/revisao?causa=cliente'
+    return `/bls?${new URLSearchParams({ voyage: voyageId, pod: port, cliente: 'sem' }).toString()}`
+  }
   if (effectiveType.startsWith('portal_')) {
     if (alert.entity_type === 'invoice') return invoiceLink(alert)
     return `/clientes/portal?cliente=${encodeURIComponent(alert.entity_id)}`
@@ -533,7 +537,8 @@ export function alertEntityLinkLabel(alert: {
   }
   if (effectiveType === 'review_portal_not_ready') return 'Abrir Portal'
   if (effectiveType === 'review_granite_customer_unlinked') return 'Abrir Granito'
-  if (effectiveType.startsWith('review_') || effectiveType === 'bl_sem_cliente_perto_eta') return 'Revisar B/Ls'
+  if (effectiveType === 'bl_sem_cliente_perto_eta') return 'Ver B/Ls sem Cliente'
+  if (effectiveType.startsWith('review_')) return 'Revisar B/Ls'
   if (alert.entity_type === 'pix_transaction') return 'Abrir Reconciliação'
   if (alert.entity_type === 'portal_email_event') return 'Abrir Alertas'
   if (alert.entity_type === 'customer') return 'Abrir Portal'

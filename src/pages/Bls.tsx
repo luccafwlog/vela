@@ -65,6 +65,7 @@ const EMPTY_FILTERS = {
   financialStatus: '',
   chargeStatus: '',
   cargoProfile: '',
+  customerLink: '',
 }
 
 function CustomerCell({ bl }: { bl: BLListItem }) {
@@ -187,7 +188,7 @@ export function Bls() {
   // Busca, Viagem, POL e POD ficam abertos; os outros quatro vão para "Mais filtros".
   // A lente de modalidade tem controle próprio, sempre visível.
   const isSet = (key: keyof BlFilters) => String(filters[key] ?? '').trim() !== ''
-  const moreFilterCount = (['reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile'] as (keyof BlFilters)[]).filter(isSet).length
+  const moreFilterCount = (['reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile', 'customerLink'] as (keyof BlFilters)[]).filter(isSet).length
   const openFilterCount = (['search', 'voyageId', 'pol', 'pod'] as (keyof BlFilters)[]).filter(isSet).length
   const hasAnyFilter = moreFilterCount + openFilterCount > 0 || Boolean(filters.cargoMode)
 
@@ -433,6 +434,12 @@ export function Bls() {
               <option value="standard">Padrão</option>
               <option value="oog">OOG</option>
               <option value="imo">IMO</option>
+            </Select>
+          </Field>
+          <Field label="Cliente">
+            <Select value={filters.customerLink ?? ''} onChange={(event) => updateFilter('customerLink', event.target.value)}>
+              <option value="">Todos</option>
+              <option value="sem">Sem Cliente vinculado</option>
             </Select>
           </Field>
         </div>

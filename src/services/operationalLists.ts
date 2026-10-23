@@ -11,6 +11,8 @@ export type OperationalListFilters = {
   financialStatus?: string
   chargeStatus?: string
   cargoProfile?: string
+  /** Só nas listas de B/L: 'sem' mostra só B/L sem Cliente (migration 452). */
+  customerLink?: string
 }
 
 export type OperationalBlPage = {
@@ -197,6 +199,7 @@ export async function listOperationalBls(
     p_page: page,
     p_page_size: pageSize,
     ...baseArgs(filters),
+    p_without_customer: filters.customerLink === 'sem',
   })
   if (error) throw error
   const payload = asRecord(data)
@@ -227,7 +230,7 @@ export async function fetchOperationalFilterOptions(): Promise<OperationalFilter
 }
 
 export async function getOperationalBlSummary(filters: OperationalListFilters): Promise<OperationalBlSummary> {
-  const { data, error } = await supabase.rpc('operational_list_bl_summary', baseArgs(filters))
+  const { data, error } = await supabase.rpc('operational_list_bl_summary', { ...baseArgs(filters), p_without_customer: filters.customerLink === 'sem' })
   if (error) throw error
   const payload = asRecord(data)
   return {

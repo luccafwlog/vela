@@ -140,9 +140,11 @@ describeLocal('352 — B/L sem Cliente perto do ETA', () => {
     detector()
     const [state, message] = item(SSZ).split('|')
     expect(state).toBe('active')
-    expect(message).toContain('2 B/Ls sem Cliente')
-    expect(message).toContain('B352-A (CONSIG 352 0)')
-    expect(message).toContain('B352-B (CONSIG 352 1)')
+    // Ponto 15 (migration 452): a mensagem traz só a contagem e o ETA; a
+    // lista fica no metadata (o link para /bls é calculado na tela).
+    expect(message).toBe(`2 B/Ls sem Cliente com ETA em ${day(5).split('-').reverse().join('/')}.`)
+    expect(psql(`SELECT (i.metadata->'bl_ids')::text FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'bl_sem_cliente_perto_eta' AND a.entity_id = '${SSZ}';`)).toBe('["B352-A", "B352-B"]')
     expect(psql(`SELECT i.severity || '|' || i.department FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'bl_sem_cliente_perto_eta' AND a.entity_id = '${SSZ}';`)).toBe('critical|documentacao')
   })
@@ -151,8 +153,15 @@ describeLocal('352 — B/L sem Cliente perto do ETA', () => {
     asOwner(`UPDATE public.bls SET customer_id = ${CUSTOMER_ID} WHERE id = '${BLS[0]}';`)
     const [state, message] = item(SSZ).split('|')
     expect(state).toBe('active')
-    expect(message).toContain('1 B/L sem Cliente')
-    expect(message).not.toContain('B352-A')
+    expect(message).toContain('1 B/L sem Cliente com ETA em')
+    expect(psql(`SELECT (i.metadata->'bl_ids')::text FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'bl_sem_cliente_perto_eta' AND a.entity_id = '${SSZ}';`)).toBe('["B352-B"]')
+    // O destino do alerta: a lista de B/Ls com "Cliente: Sem Cliente vinculado"
+    // mostra só o B/L que falta, e o resumo conta o mesmo recorte.
+    const filtered = (fn: string, extra: string) => asAdmin(`SELECT public.${fn}(${extra}p_voyage_id => ${VOYAGE_ID}, p_pod => 'BRSSZ', p_without_customer => true)::text;`).split('\n').pop() ?? '{}'
+    expect(JSON.parse(filtered('operational_list_bls', 'p_page => 1, p_page_size => 50, ')).rows.map((row: { id: string }) => row.id)).toEqual(['B352-B'])
+    expect(JSON.parse(filtered('operational_list_bl_summary', '')).totalBls).toBe(1)
+    expect(JSON.parse(asAdmin(`SELECT public.operational_list_bls(p_page => 1, p_page_size => 50, p_voyage_id => ${VOYAGE_ID}, p_pod => 'BRSSZ')::text;`).split('\n').pop() ?? '{}').count).toBe(2)
     asOwner(`UPDATE public.bls SET customer_id = ${CUSTOMER_ID} WHERE id = '${BLS[1]}';`)
     expect(status(SSZ)).toBe('resolved')
   })
@@ -182,7 +191,7 @@ describeLocal('352 — B/L sem Cliente perto do ETA', () => {
     const [state, message] = item(RIG).split('|')
     expect(state).toBe('active')
     expect(message).toContain('1 B/L sem Cliente')
-    expect(message).toContain('B352-E')
+    expect(message).not.toContain('B352-E')
     // A outra escala, com ETA a 10 dias, continua fechada.
     expect(status(SSZ)).toBe('resolved')
   })

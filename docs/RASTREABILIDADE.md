@@ -362,8 +362,8 @@ Regra: [Manifestos e EDI](modules/manifesto-edi.md).
 | `list_voyage_eligible_pods` | `baplieImport.ts` | `190` | DEFINER · `authenticated` | usuário interno ativo | Escalas da Viagem para a conferência do Baplie. |
 | `move_bls_to_manifesto_mercante` | `manifestosMercanteService.ts` | `209` | DEFINER · `authenticated` | usuário interno ativo | Confere o Manifesto que a tela mostrava (`p_expected`) e recusa se outra sessão o trocou. |
 | `move_vehicles_to_bl` | `vehicles.ts` | `202` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `operational_list_bl_summary` | `operationalLists.ts` | `064`, `229`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | — |
-| `operational_list_bls` | `operationalLists.ts` | `064`, `229`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/bls` e o export; `operational_list_bl_summary` dá os totais. |
+| `operational_list_bl_summary` | `operationalLists.ts` | `064`, `229`, `322`, `452` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | — |
+| `operational_list_bls` | `operationalLists.ts` | `064`, `229`, `322`, `452` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/bls` e o export; `operational_list_bl_summary` dá os totais. |
 | `operational_list_containers` | `operationalLists.ts` | `059`, `284`, `295`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/containers`. |
 | `operational_list_filter_options` | `operationalLists.ts` | `285`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | POL e POD distintos por porto canônico (`322`) e tipos de contêiner dos filtros de `/bls` e `/containers`. |
 | `preflight_depots_terminal_port_mapping` | `depots.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
