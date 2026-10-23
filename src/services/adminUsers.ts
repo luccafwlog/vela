@@ -3,11 +3,15 @@ import { DEPARTMENT_LABELS } from '../lib/departmentLabel'
 import type { Department } from './permissionMatrix'
 import type { UserProfile, UserProfileRole } from '../types/database'
 
+/** `integracao`: conta técnica, não é pessoa (API ITAÚ da baixa automática do Pix; migration 440). */
+export type AccountKind = 'pessoa' | 'integracao'
+
 export type AdminUserRow = UserProfile & {
   email: string | null
   last_sign_in_at: string | null
   /** E-mail suprimido por devolução ou spam (migration 309, plano dos e-mails 2.8). */
   email_bounced?: boolean
+  account_kind?: AccountKind
 }
 
 export async function listAllUserProfiles(): Promise<AdminUserRow[]> {

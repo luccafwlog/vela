@@ -382,7 +382,9 @@ consulta no sistema sem estar na audiência.
 O resumo diário (`portal-daily-digest`, 08:00 de Brasília) é um e-mail
 **interno**, de acompanhamento do provisionamento: não vai a Clientes. Vai aos
 usuários ativos de Administrativo e Documentação (papéis `administrativo` e
-`documentacao`; o `admin` não existe desde a migration `093`) quando houve, nas últimas 24
+`documentacao`; o `admin` não existe desde a migration `093`), menos a
+[conta de integração](operacao-suporte.md#conta-de-integração) (API ITAÚ,
+migration `440`), quando houve, nas últimas 24
 horas, falha ou supressão de email, atividade de provisionamento, abertura ou
 fechamento de exceção crítica de fatura (`portal_excecao_critica_fatura`), ou
 quando há Ativação pendente; sem nada disso, não sai. Não há email imediato de
@@ -488,7 +490,14 @@ local seguida de um hash do conteúdo: a API (MillionSend, compatível com a
 Resend) guarda chaves por 24h e recusa com 409 a mesma chave com outro
 conteúdo, o que acontecia quando ids sequenciais se repetiam após um reset do
 banco. A falha grava o motivo do provedor em
-`last_error` (ex.: `HTTP 409 invalid_idempotent_request`).
+`last_error` (ex.: `HTTP 409 invalid_idempotent_request`). O 422
+`all_recipients_suppressed` (o endereço está na supressão do provedor) não é
+falha: a tentativa fica `bounce`, o endereço entra em `portal_suppressed_emails`
+(`bounce_permanente`, em minúsculas e sem espaços) e o envio sai como suprimido,
+o que o resumo diário conta em `suppressed`, não em `failed`; a rodada seguinte
+para na supressão local, sem chamar o provedor. Comunicados e a régua de
+Demurrage não usam esse caminho: lá o 422 segue recusa definitiva
+(`falha_permanente`).
 `portal-email-webhook` valida assinatura Svix, janela de cinco minutos e
 deduplicação por evento: grava o evento numa inbox durável
 (`portal_email_events`, chave do evento do provedor) e responde; uma repetição

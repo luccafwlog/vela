@@ -29,7 +29,9 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   o secret, operam em no-op sem falhar o job; o `customer-communication-auto-runner`
   conta em `failed` todo destinatário recusado ou com falha na rodada; o
   `portal-daily-digest` conta em `failed` cada destinatário que não recebeu e responde
-  500 quando uma consulta falha; o `ce-unlock-notify-email` conta em `failed` cada aviso
+  500 quando uma consulta falha (endereço suprimido, inclusive o 422
+  `all_recipients_suppressed` do provedor, conta em `suppressed`, e a conta de
+  integração não recebe o resumo; migration `440`); o `ce-unlock-notify-email` conta em `failed` cada aviso
   que esgotou as tentativas; o `portal-email-events-runner` conta em `failed` cada evento
   que falhou e foi devolvido para nova tentativa; o `alerts-detector` conta em `failed` cada
   detector que falhou numa rodada parcial (migration `351`). Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.

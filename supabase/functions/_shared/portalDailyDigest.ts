@@ -17,7 +17,8 @@ export type DailyDigestDeps = {
     failures: PromiseLike<QueryResult>
     activity: PromiseLike<QueryResult>
     pending: PromiseLike<QueryResult>
-    users: PromiseLike<{ data: Array<{ id: string }> | null; error: unknown }>
+    /** Usuários internos ativos dos papéis do resumo, com o tipo de conta (migration 440). */
+    users: PromiseLike<{ data: Array<{ id: string; account_kind?: string | null }> | null; error: unknown }>
     criticalOpened: PromiseLike<QueryResult>
     criticalClosed: PromiseLike<QueryResult>
   }
@@ -69,7 +70,9 @@ export async function runPortalDailyDigest(deps: DailyDigestDeps): Promise<Daily
   if (Object.values(counts).every((count) => count === 0)) return { status: 200, body: { sent: 0, failed: 0, suppressed: 0 } }
   const date = deps.today()
   const result = { sent: 0, failed: 0, suppressed: 0 }
-  for (const user of users.data ?? []) {
+  // Conta de integração (API ITAÚ) não é pessoa: o e-mail dela não é caixa real
+  // e a recusa do provedor contava falha e deixava o heartbeat vermelho.
+  for (const user of (users.data ?? []).filter((candidate) => candidate.account_kind !== 'integracao')) {
     try {
       const email = await deps.userEmail(user.id)
       if (!email) {

@@ -12,13 +12,14 @@ export type EmailAttachment = {
 export type EmailAttemptUpdate = {
   providerMessageId?: string | null
   retryCount: number
-  status: 'aceito' | 'falha_transitoria' | 'falha_permanente'
+  /** `bounce` só no 422 de endereço suprimido no provedor, com `recordProviderSuppression`. */
+  status: 'aceito' | 'falha_transitoria' | 'falha_permanente' | 'bounce'
   lastError?: string
 }
 
 export type EmailAttemptRecord = {
   id: string | number
-  status: EmailAttemptUpdate['status'] | 'entregue' | 'bounce' | 'complaint'
+  status: EmailAttemptUpdate['status'] | 'entregue' | 'complaint'
   providerMessageId?: string | null
   /** Chave persistida; tentativas legadas podem ter hash de email sem canonicalização. */
   idempotencyKey?: string
@@ -42,6 +43,13 @@ export type SendEmailInput = {
   replyTo?: string | null
   missingConfigurationMessage?: string
   checkSuppression: (to: string) => Promise<EmailSuppression>
+  /**
+   * O provedor recusou o envio porque o endereço está na supressão dele
+   * (422 `all_recipients_suppressed`). Com este callback, quem chama grava a
+   * supressão local, a tentativa fica `bounce` e o resultado sai `suppressed`;
+   * sem ele, a recusa segue como `falha_permanente`.
+   */
+  recordProviderSuppression?: (to: string) => Promise<void>
   recordAttempt: (input: { kind: string; to: string; idempotencyKey: string }) => Promise<EmailAttemptRecord>
   updateAttempt: (attemptId: string | number, update: EmailAttemptUpdate) => Promise<void>
   fetchImpl?: typeof fetch
@@ -74,6 +82,9 @@ const CONFIGURATION_STATUS = new Set([401, 403])
 // (`concurrent_idempotent_requests`) ou o recurso está travado. O e-mail pode
 // ter saído; só `invalid_idempotent_request` (chave com outro corpo) é definitivo.
 const TRANSIENT_CONFLICT_NAMES = new Set(['concurrent_idempotent_requests', 'resource_locked'])
+// 422 da Resend quando todo destinatário está na supressão do provedor (bounce
+// ou reclamação anterior): o endereço não recebe, mas não é falha do envio.
+const PROVIDER_SUPPRESSED_NAME = 'all_recipients_suppressed'
 const BACKOFF_MS = [1000, 3000, 9000]
 const PROVIDER_TIMEOUT_MS = 15_000
 const MAX_RETRY_AFTER_MS = 10_000
@@ -125,7 +136,8 @@ async function providerError(response: Response): Promise<{ name: string; config
   return { name, configuration }
 }
 
-export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }> {
+/** `suppressed` só aparece quando o provedor recusou o endereço como suprimido (ver `recordProviderSuppression`). */
+export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; suppressed?: true }> {
   const suppression = await input.checkSuppression(input.to.toLowerCase())
   if (suppression.suppressed) return { ok: false }
 
@@ -239,6 +251,19 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
     }
 
     const providerFailure = await providerError(response)
+    if (response.status === 422 && providerFailure.name === PROVIDER_SUPPRESSED_NAME && input.recordProviderSuppression) {
+      // A supressão é gravada antes de fechar a tentativa: se gravar falhar, a
+      // tentativa fica `aceito` sem id do provedor e a nova rodada tenta tudo
+      // de novo. Fechada como `bounce` primeiro, a repetição pararia nela sem
+      // nunca gravar a supressão.
+      await input.recordProviderSuppression(input.to)
+      await input.updateAttempt(attempt.id, {
+        retryCount: index,
+        status: 'bounce',
+        lastError: `HTTP 422 ${PROVIDER_SUPPRESSED_NAME} (endereço suprimido no provedor)`,
+      })
+      return { ok: false, suppressed: true }
+    }
     const configuration = CONFIGURATION_STATUS.has(response.status) ||
       ((response.status === 400 || response.status === 422) && providerFailure.configuration)
     const transient = isTransientStatus(response.status) || (response.status === 409 && TRANSIENT_CONFLICT_NAMES.has(providerFailure.name))

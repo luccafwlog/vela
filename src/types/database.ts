@@ -6636,6 +6636,7 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          account_kind: string
           active: boolean
           created_at: string | null
           full_name: string
@@ -6643,6 +6644,7 @@ export type Database = {
           role: string
         }
         Insert: {
+          account_kind?: string
           active?: boolean
           created_at?: string | null
           full_name: string
@@ -6650,6 +6652,7 @@ export type Database = {
           role?: string
         }
         Update: {
+          account_kind?: string
           active?: boolean
           created_at?: string | null
           full_name?: string
@@ -8371,6 +8374,7 @@ export type Database = {
       admin_list_users: {
         Args: never
         Returns: {
+          account_kind: string
           active: boolean
           created_at: string
           email: string

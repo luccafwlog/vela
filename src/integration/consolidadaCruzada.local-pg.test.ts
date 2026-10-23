@@ -111,7 +111,8 @@ describeLocal('356 — consolidada e individuais coerentes', () => {
     const settings = w.psql(`SELECT pix_provider || '|' || coalesce(itau_pix_settlement_actor::text, '') FROM public.app_settings WHERE id = 1`)
     const [provider, actor] = settings.split('|')
     try {
-      w.psql(`UPDATE public.app_settings SET pix_provider = 'itau', itau_pix_settlement_actor = '${w.actors.administrativo}' WHERE id = 1`)
+      // A conta da baixa automática é Financeiro desde a migration 440.
+      w.psql(`UPDATE public.app_settings SET pix_provider = 'itau', itau_pix_settlement_actor = '${w.actors.financeiro}' WHERE id = 1`)
       const [p, q] = issued(['P6', 'Q6'])
       const c = w.consolidate([p.id, q.id])
       const txid = w.psql(`SELECT txid FROM public.itau_pix_charges WHERE invoice_id = ${c} ORDER BY id LIMIT 1`)

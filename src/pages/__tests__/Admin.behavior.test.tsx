@@ -22,7 +22,9 @@ const mocks = vi.hoisted(() => ({
 }))
 
 const users = [
-  { id: 'u-1', full_name: 'Alice Operadora', role: 'operacoes', active: true, created_at: '2026-01-02T00:00:00Z', email: 'alice@fwlog.com.br', last_sign_in_at: '2026-08-01T12:00:00Z', email_bounced: true },
+  { id: 'u-1', full_name: 'Alice Operadora', role: 'operacoes', active: true, created_at: '2026-01-02T00:00:00Z', email: 'alice@fwlog.com.br', last_sign_in_at: '2026-08-01T12:00:00Z', email_bounced: true, account_kind: 'pessoa' },
+  // Conta técnica da baixa automática do Pix (migration 440): e-mail suprimido de propósito.
+  { id: 'u-itau', full_name: 'API ITAÚ', role: 'financeiro', active: true, created_at: '2026-10-07T00:00:00Z', email: 'api-itau@fwlog.com.br', last_sign_in_at: null, email_bounced: true, account_kind: 'integracao' },
   { id: 'u-2', full_name: 'Bruno Inativo', role: 'financeiro', active: false, created_at: '2026-01-03T00:00:00Z', email: 'bruno@fwlog.com.br', last_sign_in_at: null },
   { id: 'u-3', full_name: 'Carla Nunca', role: 'documentacao', active: true, created_at: '2026-01-04T00:00:00Z', email: 'carla@fwlog.com.br', last_sign_in_at: null },
 ]
@@ -129,6 +131,31 @@ it('marca o e-mail devolvido em âmbar, com o motivo ao passar o mouse', () => {
   const cell = icons[0].closest('td') as HTMLElement
   expect(cell.textContent).toContain('alice@fwlog.com.br')
   expect(cell.getAttribute('title')).toMatch(/devolvido/)
+})
+
+it('badge "Integração" só na conta de integração, sem o aviso de e-mail devolvido', () => {
+  renderAdmin()
+  const badges = screen.getAllByText('Integração')
+  expect(badges).toHaveLength(1)
+  expect(badges[0].className).toContain('app-badge--blue')
+  expect(badges[0].getAttribute('title')).toBe('Conta técnica da baixa automática do Pix; não é uma pessoa')
+  const itau = userRow('API ITAÚ')
+  expect(within(itau).getByText('Integração')).toBe(badges[0])
+  expect(within(itau).queryByRole('img', { name: 'E-mail devolvido' })).toBeNull()
+  expect((within(itau).getByText('api-itau@fwlog.com.br').closest('td') as HTMLElement).getAttribute('title')).toBe('api-itau@fwlog.com.br')
+  for (const name of ['Alice Operadora', 'Carla Nunca']) expect(within(userRow(name)).queryByText('Integração')).toBeNull()
+})
+
+it('Editar acesso da conta de integração não convida a liberar o e-mail suprimido', async () => {
+  renderAdmin()
+  // Pessoa com e-mail devolvido: a janela explica como liberar.
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
+  await waitFor(() => expect(screen.getByText(/Este e-mail foi devolvido/)).toBeTruthy())
+  cleanup()
+  renderAdmin()
+  fireEvent.click(within(userRow('API ITAÚ')).getByRole('button', { name: 'Editar acesso de API ITAÚ' }))
+  await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy())
+  expect(screen.queryByText(/Este e-mail foi devolvido/)).toBeNull()
 })
 
 it('mostra "Nunca acessou" para quem nunca entrou', () => {

@@ -1339,6 +1339,14 @@ se rebaixa de setor nem se desativa.
 - **Evitar:** "Administrador ativo mínimo" (o papel Administrador não existe mais)
 → Regra: [Operação e Suporte § Administrativo ativo mínimo](docs/modules/operacao-suporte.md#administrativo-ativo-mínimo)
 
+**Conta de integração**
+Perfil interno de uma conta técnica, que não é uma pessoa (hoje, a "API ITAÚ"
+da baixa automática do Pix). Continua ativa e aparece em "Registrado por", mas
+não recebe e-mail nem aviso do sino e não conta como Administrativo ativo
+mínimo. Na tela Usuários, leva a badge "Integração".
+- **Evitar:** "conta Admin da API Itaú" (desde a migration `440` ela é Financeiro)
+→ Regra: [Operação e Suporte § Conta de integração](docs/modules/operacao-suporte.md#conta-de-integração)
+
 **Dupla proteção RBAC**
 A interface esconde ou mostra ações conforme a permissão, mas quem autoriza é
 o banco (RLS, RPCs) e as Edge Functions; esconder um botão não protege a

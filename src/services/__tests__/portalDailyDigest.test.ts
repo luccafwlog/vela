@@ -58,6 +58,54 @@ describe('Resumo diário do Portal', () => {
     expect((await runPortalDailyDigest(full)).body).toEqual({ sent: 2, failed: 1, suppressed: 0 })
   })
 
+  // Conta API ITAÚ (migration 440): o e-mail dela não é caixa real e a recusa
+  // do provedor contava falha e deixava o heartbeat vermelho (23/10).
+  it('conta de integração não recebe o resumo nem conta como falha', async () => {
+    const { full, send } = deps({
+      userEmail: async (id) => ({ u1: 'ana@fwlog.com.br', itau: 'falha-api-itau@fwlog.com.br' } as Record<string, string>)[id] ?? null,
+    }, {
+      users: Promise.resolve({ data: [{ id: 'u1', account_kind: 'pessoa' }, { id: 'itau', account_kind: 'integracao' }], error: null }),
+    })
+    expect((await runPortalDailyDigest(full)).body).toEqual({ sent: 1, failed: 0, suppressed: 0 })
+    expect(send.mock.calls.map(([input]) => (input as unknown as { to: string }).to)).toEqual(['ana@fwlog.com.br'])
+  })
+
+  it('422 all_recipients_suppressed do provedor conta como suprimido, não como falha', async () => {
+    type SendPortalEmail = (input: Record<string, unknown>) => Promise<{ ok: boolean; suppressed: boolean }>
+    const portalEmailPath = '../../../supabase/functions/_shared/portalEmail.ts'
+    const { sendPortalEmail } = await import(/* @vite-ignore */ portalEmailPath) as { sendPortalEmail: SendPortalEmail }
+    const attemptUpdates: Array<Record<string, unknown>> = []
+    const suppressions: Array<{ row: Record<string, unknown>; options: unknown }> = []
+    const admin = {
+      from: (table: string) => table === 'portal_suppressed_emails'
+        ? {
+            select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+            upsert: async (row: Record<string, unknown>, options: unknown) => { suppressions.push({ row, options }); return { error: null } },
+          }
+        : {
+            insert: () => ({ select: () => ({ single: async () => ({ data: { id: 31 }, error: null }) }) }),
+            update: (row: Record<string, unknown>) => { attemptUpdates.push(row); return { eq: async () => ({ error: null }) } },
+          },
+    }
+    const env: Record<string, string> = { RESEND_API_KEY: 'resend-key', PORTAL_FROM_EMAIL: 'portal@fwlog.com.br', PORTAL_REPLY_TO: 'suporte@fwlog.com.br' }
+    vi.stubGlobal('Deno', { env: { get: (name: string) => env[name] } })
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ name: 'all_recipients_suppressed' }), { status: 422 }))
+    try {
+      const { full } = deps({
+        userEmail: async () => ' Sem.Caixa@Fwlog.com.br ',
+        send: ({ to, idempotencyKey }) => sendPortalEmail({ admin, kind: 'resumo_diario', to, subject: 's', html: '<p>h</p>', text: 't', idempotencyKey }),
+      }, { users: Promise.resolve({ data: [{ id: 'u1', account_kind: 'pessoa' }], error: null }) })
+
+      expect(await runPortalDailyDigest(full)).toEqual({ status: 200, body: { sent: 0, failed: 0, suppressed: 1 } })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(attemptUpdates).toEqual([expect.objectContaining({ status: 'bounce', last_error: 'HTTP 422 all_recipients_suppressed (endereço suprimido no provedor)' })])
+      expect(suppressions).toEqual([{ row: { email: 'sem.caixa@fwlog.com.br', reason: 'bounce_permanente' }, options: { onConflict: 'email', ignoreDuplicates: true } }])
+    } finally {
+      fetchMock.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('sem ocorrência não envia', async () => {
     const { full, send } = deps({}, { failures: ok(0), activity: ok(0) })
     expect((await runPortalDailyDigest(full)).body).toEqual({ sent: 0, failed: 0, suppressed: 0 })
