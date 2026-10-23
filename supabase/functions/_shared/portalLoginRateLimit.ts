@@ -76,7 +76,9 @@ export async function reserveLoginAttempt(db: PortalDb, loginCnpj: string, conte
   const attemptId = typeof data === 'number' ? data : typeof data === 'string' ? Number(data) : null
   if (error || attemptId === null || !Number.isFinite(attemptId)) return null
   if (isRateLimitBlocked(false, await distributedRateLimitState('login', loginCnpj, context))) {
-    await db.rpc('portal_login_settle_attempt', { p_attempt_id: attemptId, p_outcome: 'void' })
+    // Mesma conferência de erro e nova tentativa do cancelamento comum: a
+    // reserva que ficasse gravada somaria no balde do CNPJ.
+    await settleAttempt(db, attemptId, 'void')
     return null
   }
   return attemptId

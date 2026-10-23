@@ -25,4 +25,9 @@ describe('sanitizeSheetRows', () => {
     expect(Object.keys(row)).toEqual([`'=HYPERLINK("http://x") (US$)`, "'+taxa", 'B/L'])
     expect(row).toEqual({ [`'=HYPERLINK("http://x") (US$)`]: 10, "'+taxa": 'ok', 'B/L': 'BL1' })
   })
+
+  it('chaves que viram o mesmo cabeçalho não se sobrescrevem', () => {
+    const rows = sanitizeSheetRows([{ '+THC': 10, "'+THC": 20 }, { '+THC': 30, "'+THC": 40 }])
+    expect(rows).toEqual([{ "'+THC": 10, "'+THC (2)": 20 }, { "'+THC": 30, "'+THC (2)": 40 }])
+  })
 })

@@ -54,7 +54,8 @@ describe('authenticatePortalLoginIdentity', () => {
     const { readFileSync } = await import('node:fs')
     const recovery = readFileSync('supabase/functions/portal-recovery-email-change/index.ts', 'utf8')
     expect(recovery.match(/signInWithPassword\(/g)).toHaveLength(1)
-    expect(recovery).toContain('password: await derivePortalAuthPassword(body.current_password')
+    expect(recovery).toContain('derivePortalAuthPassword(currentPassword, portalPasswordPepper())')
+    expect(recovery).toContain('signInWithPassword({ email: technicalEmail, password: authPassword })')
     expect(readFileSync('supabase/functions/portal-login/index.ts', 'utf8')).not.toContain('migrateLegacyPassword')
   })
 
