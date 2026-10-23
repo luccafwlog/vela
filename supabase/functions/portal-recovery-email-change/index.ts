@@ -54,7 +54,12 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
     // Reserva atômica (migration 422): a tentativa conta antes da verificação.
     const attemptId = await reserveLoginAttempt(admin, account.login_cnpj, rateLimitContext)
     if (attemptId === null) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })
-    const { data: authUser } = await admin.auth.admin.getUserById(authId); const technicalEmail = authUser.user?.email
+    // Exceção daqui até a conferência (rede, pepper ausente) é falha nossa:
+    // a reserva sai do balde antes de a resposta 500 subir.
+    const voidOnThrow = async <T>(work: Promise<T>): Promise<T> => {
+      try { return await work } catch (error) { await voidLoginAttempt(admin, attemptId).catch(() => {}); throw error }
+    }
+    const { data: authUser } = await voidOnThrow(admin.auth.admin.getUserById(authId)); const technicalEmail = authUser.user?.email
     // Sem email técnico não houve senha errada: houve falha nossa ao resolver o
     // usuário do Auth. Contar isso no balde do login gastaria as 5 tentativas do
     // cliente por conta de um defeito do servidor e o trancaria por 15 minutos
@@ -72,7 +77,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
       await voidLoginAttempt(admin, attemptId)
       return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 503 })
     }
-    const verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: await derivePortalAuthPassword(body.current_password, portalPasswordPepper()) })
+    const verified = await voidOnThrow((async () => verifier.auth.signInWithPassword({ email: technicalEmail, password: await derivePortalAuthPassword(body.current_password, portalPasswordPepper()) }))())
     if (verified.error && !isInvalidCredentials(verified.error)) return await authUnavailable()
     if (verified.error) {
       await confirmLoginFailure(account.login_cnpj, rateLimitContext)

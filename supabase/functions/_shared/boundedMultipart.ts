@@ -7,7 +7,8 @@ export { BODY_TOO_LARGE };
  * Content-Length (corpo em streaming): `req.formData()` sozinho leria tudo.
  */
 export async function readBoundedMultipart(req: Request, maxBytes: number): Promise<FormData> {
-  if (!req.body) throw new Error(BODY_TOO_LARGE);
+  // Sem corpo é requisição malformada (400 no chamador), não excesso de tamanho.
+  if (!req.body) throw new Error("multipart ausente");
   const bytes = await readBoundedBytes(req, maxBytes);
   return new Response(bytes, {
     headers: { "content-type": req.headers.get("content-type") ?? "" },

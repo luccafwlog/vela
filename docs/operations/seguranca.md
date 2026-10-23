@@ -291,8 +291,9 @@ token já emitido, como o Portal faz desde a `069`. `internal_revoke_sessions`
 apaga sessões e refresh tokens e grava o marco (`clock_timestamp()`, sob lock
 do perfil) em `internal_credential_revocations`, tabela sem grant para os
 clientes. Depois disso, o token do próprio usuário com `iat` ausente, não
-numérico ou anterior ao segundo do marco é recusado (o `iat` tem segundos
-inteiros: o novo login no mesmo segundo da revogação vale, migration `432`):
+numérico ou do mesmo segundo do marco é recusado (o `iat` tem segundos
+inteiros e não distingue o token renovado antes da revogação do login feito
+logo depois; vale o emitido a partir do segundo seguinte, migration `439`):
 
 - os helpers de papel (`is_active_user`, `is_active_read_user`, `is_admin`,
   `is_financeiro_user`, `_portal_actor_role`, `current_actor_role`) e
@@ -493,7 +494,7 @@ não confirmam desbloqueio. Arquivos gerados usam sanitização canônica para
 evitar fórmulas de planilha.
 
 `ce-unlock-cleanup` usa bearer dedicado `CE_UNLOCK_CLEANUP_SECRET`; `ce-unlock-notify-email`, desde a
-auditoria run-3, `CE_UNLOCK_NOTIFY_SECRET` (enquanto ele não estiver na Edge, o do expurgo). Falham
+auditoria run-3, `CE_UNLOCK_NOTIFY_SECRET` (o do expurgo vale também até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true`). Falham
 fechado se ausente. Envio à ZPT e conciliação (`ce_unlock_zpt_status`, `exported_at`) são
 visíveis só ao desk: o Portal os recebe removidos por `ce_unlock_private.portal_view`. `service_role` é usado apenas dentro do servidor, nunca
 como segredo do cron ou no navegador. A agenda nasce desativada. Consulte

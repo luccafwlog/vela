@@ -15,12 +15,12 @@ export function jsonToBuffer(rows: Array<Record<string, string | number>>) {
 }
 
 /**
- * Reescreve o `<dimension>` da primeira aba de um XLSX: o arquivo declara a
- * faixa que quiser, sem ter as células (planilha "pequena e enorme").
+ * Reescreve o `<dimension>` de uma aba de um XLSX (a primeira, por padrão): o
+ * arquivo declara a faixa que quiser, sem ter as células (planilha "pequena e enorme").
  */
-export function withDeclaredDimension(buffer: ArrayBuffer, ref: string): ArrayBuffer {
+export function withDeclaredDimension(buffer: ArrayBuffer, ref: string, sheet = 1): ArrayBuffer {
   const zip = XLSX.CFB.read(new Uint8Array(buffer), { type: 'array' })
-  const index = zip.FullPaths.findIndex((path: string) => path.endsWith('xl/worksheets/sheet1.xml'))
+  const index = zip.FullPaths.findIndex((path: string) => path.endsWith(`xl/worksheets/sheet${sheet}.xml`))
   const entry = zip.FileIndex[index]
   const xml = new TextDecoder().decode(entry.content as Uint8Array)
   entry.content = new TextEncoder().encode(xml.replace(/<dimension ref="[^"]*"\/>/, `<dimension ref="${ref}"/>`)) as never

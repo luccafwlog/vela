@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Revisão final da PR da auditoria de segurança run-3 (2026-10-23):** migration `439`. Token
+  interno do mesmo segundo da revogação é recusado (o renovado antes do corte não sobrevive até
+  expirar). Aba VIN do B/L lida só até a última célula presente; avisos do Desbloqueio de CE aceitam o segredo novo e o do
+  expurgo durante a troca, até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true`; troca do Email de
+  Recuperação não conta tentativa quando o servidor falha; anexo de Dispute sem corpo responde 400.
 - **Decisões do dono sobre a auditoria de segurança run-3 (2026-10-23):** migrations `433` a
   `438`. Dispensa de alerta até o 30º dia; Invoice de Demurrage reemitida para o novo Cliente sem o
   desconto do anterior; Dispute nova do Portal só em Invoice não paga; ROE manual do B/L só por

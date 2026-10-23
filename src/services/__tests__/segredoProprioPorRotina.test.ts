@@ -9,17 +9,27 @@ describe('validDedicatedAuthorization', () => {
     expect(validDedicatedAuthorization('Bearer outro', undefined, 'compartilhado')).toBe(false)
   })
 
-  it('com o próprio cadastrado, só ele vale: o compartilhado é de outra rotina', () => {
+  it('com o próprio cadastrado, o compartilhado ainda vale na troca: o cron pode não ter passado ao novo', () => {
     expect(validDedicatedAuthorization('Bearer proprio', 'proprio', 'compartilhado')).toBe(true)
-    expect(validDedicatedAuthorization('Bearer compartilhado', 'proprio', 'compartilhado')).toBe(false)
+    expect(validDedicatedAuthorization('Bearer compartilhado', 'proprio', 'compartilhado')).toBe(true)
     expect(validDedicatedAuthorization(null, 'proprio', 'compartilhado')).toBe(false)
+  })
+
+  it('compartilhado aposentado: só o próprio vale', () => {
+    expect(validDedicatedAuthorization('Bearer proprio', 'proprio', 'compartilhado', true)).toBe(true)
+    expect(validDedicatedAuthorization('Bearer compartilhado', 'proprio', 'compartilhado', true)).toBe(false)
+  })
+
+  it('aposentar sem o próprio cadastrado não tranca a rotina', () => {
+    expect(validDedicatedAuthorization('Bearer compartilhado', undefined, 'compartilhado', true)).toBe(true)
   })
 })
 
 describe('Edges com segredo próprio', () => {
   it('avisos do Desbloqueio de CE usam CE_UNLOCK_NOTIFY_SECRET e, sem ele, o do expurgo', () => {
     const notify = readFileSync('supabase/functions/ce-unlock-notify-email/index.ts', 'utf8')
-    expect(notify).toContain('validDedicatedAuthorization(header, Deno.env.get("CE_UNLOCK_NOTIFY_SECRET"), Deno.env.get("CE_UNLOCK_CLEANUP_SECRET"))')
+    expect(notify).toContain('Deno.env.get("CE_UNLOCK_NOTIFY_SECRET"),')
+    expect(notify).toContain('Deno.env.get("CE_UNLOCK_NOTIFY_SHARED_RETIRED") === "true"')
     expect(notify).not.toContain('validCleanupAuthorization(')
     // O expurgo continua só com o próprio.
     const cleanup = readFileSync('supabase/functions/ce-unlock-cleanup/index.ts', 'utf8')

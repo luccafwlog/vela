@@ -9,10 +9,15 @@ import { canonicalPortalOrigin, portalSupportEmail } from "../_shared/portalUrls
 import { instrumentEdgeHandler } from "../_shared/telemetry.ts";
 // Envia a fila de avisos do Desbloqueio de CE (recusa de documento / documentação validada).
 // Com a chave de envio desligada, registra o aviso como simulado (D11). Antes, reavalia a conclusão das solicitações abertas (liquidação não passa por comando do módulo).
-// Bearer dedicado e server-only: CE_UNLOCK_NOTIFY_SECRET; enquanto ele não está na
-// Edge, o segredo do expurgo (CE_UNLOCK_CLEANUP_SECRET) (auditoria run-3).
+// Bearer dedicado e server-only: CE_UNLOCK_NOTIFY_SECRET. O do expurgo
+// (CE_UNLOCK_CLEANUP_SECRET) vale até CE_UNLOCK_NOTIFY_SHARED_RETIRED=true (auditoria run-3).
 function notifyAuthorized(header: string | null): boolean {
-  return validDedicatedAuthorization(header, Deno.env.get("CE_UNLOCK_NOTIFY_SECRET"), Deno.env.get("CE_UNLOCK_CLEANUP_SECRET"));
+  return validDedicatedAuthorization(
+    header,
+    Deno.env.get("CE_UNLOCK_NOTIFY_SECRET"),
+    Deno.env.get("CE_UNLOCK_CLEANUP_SECRET"),
+    Deno.env.get("CE_UNLOCK_NOTIFY_SHARED_RETIRED") === "true",
+  );
 }
 
 if (typeof Deno !== "undefined") {

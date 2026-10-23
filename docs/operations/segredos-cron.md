@@ -41,7 +41,7 @@ por nome:
 | `ITAU_PIX_CRON_SECRET` (a cadastrar; até lá, `ITAU_PIX_ADMIN_SECRET`) | `itau-pix-queue` e o disparo da fila (`ops.kick_itau_pix_runner`, migrations `219` e `438`) | `ITAU_PIX_CRON_SECRET` (a Edge aceita também `ITAU_PIX_ADMIN_SECRET` na transição) |
 | — | diagnóstico manual da `itau-pix` (equipe técnica, sem cron) | `ITAU_PIX_DIAGNOSTIC_SECRET` (só na Edge) |
 | `CE_UNLOCK_CLEANUP_SECRET` | `ce-unlock-cleanup` | `CE_UNLOCK_CLEANUP_SECRET` |
-| `CE_UNLOCK_NOTIFY_SECRET` (a cadastrar; até lá, `CE_UNLOCK_CLEANUP_SECRET`) | `ce-unlock-notify-email` (migration `438`) | `CE_UNLOCK_NOTIFY_SECRET` |
+| `CE_UNLOCK_NOTIFY_SECRET` (a cadastrar; até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true`, vale também `CE_UNLOCK_CLEANUP_SECRET`) | `ce-unlock-notify-email` (migration `438`) | `CE_UNLOCK_NOTIFY_SECRET` |
 
 Os nomes são iguais aos dos Edge Function Secrets de propósito: o par
 banco/Function é o contrato, e rotacionar um sem o outro derruba o job.
@@ -70,12 +70,15 @@ segredo:
    que `itau-pix-queue` segue `succeeded`, e apague `ITAU_PIX_ADMIN_SECRET` da
    Edge e do Vault.
 4. **Avisos do Desbloqueio de CE:** cadastre `CE_UNLOCK_NOTIFY_SECRET` na Edge
-   e, em seguida, no Vault. Os secrets das Edge Functions valem para o projeto
-   inteiro e `CE_UNLOCK_CLEANUP_SECRET` continua do expurgo, então a função dos
-   avisos aceita o segredo do expurgo só enquanto não tiver o próprio. Entre
-   os dois cadastros, uma rodada (a cada 5 min) pode ser recusada e abrir o
-   Alerta `rotina_http_falhou`, que fecha sozinho; a fila de avisos só atrasa.
-   Faça os dois no mesmo intervalo.
+   e depois no Vault, com o mesmo valor. A função dos avisos aceita o novo e o
+   do expurgo (`CE_UNLOCK_CLEANUP_SECRET`) durante a troca, sem rodada
+   recusada.
+5. **Fim da transição dos avisos:** confira no histórico do cron que
+   `ce-unlock-notify-email` segue `succeeded` e cadastre
+   `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` nos secrets das Edge Functions. Os
+   secrets valem para o projeto inteiro e `CE_UNLOCK_CLEANUP_SECRET` continua
+   do expurgo, por isso ele não é apagado: a variável é que tira dele o acesso
+   aos avisos.
 
 `SUPABASE_URL` não é segredo — é a base pública da API. Ele mora no cofre para
 que exista **um** caminho de leitura e **um** procedimento de rotação, não por

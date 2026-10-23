@@ -11,6 +11,7 @@ it('extrai CNPJ válido embutido no bloco mesmo sem o rótulo CNPJ', () => {
   expect(extractTaxId('ACME COMERCIO LTDA\nRUA X 100\n12.345.678/0001-95')).toBe('12345678000195')
 })
 import { parseBLBuffer, parseBLFile } from '../blParser'
+import { withDeclaredDimension } from './testWorkbook'
 
 // Fixtures reais de B/L COSCO nao estao versionados no repositorio; estes
 // workbooks sinteticos preservam as celulas fixas e colunas do template.
@@ -293,6 +294,16 @@ describe('blParser', () => {
       { chassis: '9BWZZZ377VT004251', containerNumber: 'RORO001', blNumber: 'CSC45250E02Y00', brand: null, model: null, weightKg: null, cbm: null },
       { chassis: '9BWZZZ377VT004252', containerNumber: 'RORO001', blNumber: 'CSC45250E02Y00', brand: null, model: null, weightKg: null, cbm: null },
     ])
+  })
+
+  it('aba VIN que declara A1:XFD1048576 é lida só até a última célula presente', async () => {
+    const buffer = withDeclaredDimension(coscoBuffer({
+      containerRows: [],
+      vinRows: [{ CHASSIS: '9BWZZZ377VT004251', 'CONTAINER NO': 'RORO001' }],
+    }), 'A1:XFD1048576', 2)
+
+    const parsed = await parseBLBuffer(buffer)
+    expect(parsed.vehicles.map((vehicle) => vehicle.chassis)).toEqual(['9BWZZZ377VT004251'])
   })
 
   it('parseia Laden on Board quando a celula do B/L e uma data Excel (nao texto)', async () => {
