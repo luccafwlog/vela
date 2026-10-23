@@ -127,6 +127,7 @@ describe('Pix recebidos (ADR 0100)', () => {
   it('situação: só o Pix do Vela em análise pede ação; a baixa diz se foi automática ou manual', () => {
     expect(receiptSituation({ situation: 'settled', settledBy: 'itau' })).toEqual({ label: 'Baixa automática', needsAction: false })
     expect(receiptSituation({ situation: 'settled', settledBy: 'manual' })).toEqual({ label: 'Baixa manual', needsAction: false })
+    expect(receiptSituation({ situation: 'settled', settledBy: 'extract' })).toEqual({ label: 'Baixa pelo extrato', needsAction: false })
     expect(receiptSituation({ situation: 'review', settledBy: null })).toEqual({ label: 'Em análise', needsAction: true })
     expect(receiptSituation({ situation: 'received', settledBy: null })).toEqual({ label: 'Sem baixa', needsAction: false })
     expect(receiptOriginLabel('none')).toBe('Sem identificador')

@@ -142,7 +142,7 @@ it('gravação em Invoice de Demurrage atualiza lista, detalhe, caixas cobradas,
   expect(keys()).toEqual(expect.arrayContaining(keySet([
     ['demurrage-invoices'], ['demurrage-invoice-detail'], ['demurrage-kpis'], ['demurrage-containers'], ['portal-disputes'],
     ['demurrage-customer-summary'], ['demurrage-disputes'], ['bl-detail'], ['customer-ficha'],
-    ['portal-demurrage-invoices'], ['alerts'], ['header-alert'],
+    ['portal-demurrage-invoices'], ['alerts'], ['header-alert'], ['itau-pix-receipts'], ['itau-pix-monitor'],
   ])))
 })
 

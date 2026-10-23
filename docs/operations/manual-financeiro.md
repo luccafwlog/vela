@@ -116,7 +116,7 @@ Papéis, condições e falhas de cada ação estão no [catálogo de ações do 
 
 | Situação | Procedimento | Resultado esperado |
 |---|---|---|
-| Baixa falsa gerou excedente automático ainda não devolvido | Administrativo confere que não houve recebimento nem devolução e cancela a baixa selecionada | Excedente pendente é cancelado e fica no histórico, com auditoria. Excedente já devolvido impede o cancelamento da baixa. Baixa automática Itaú cancelada volta para **Pix recebidos sem baixa** |
+| Baixa falsa gerou excedente automático ainda não devolvido | Administrativo confere que não houve recebimento nem devolução e cancela a baixa selecionada | Excedente pendente é cancelado e fica no histórico, com auditoria. Excedente já devolvido impede o cancelamento da baixa. Baixa automática Itaú cancelada (Taxas Locais, avulsa ou Invoice de Demurrage) volta para **Pendências → Pix em análise**, com Alerta |
 | Cancelar fatura sem recebimento/ajuste | Administrativo confere dependências e cancela com motivo | Documento cancelado preservado; conferir cobrança ativa e Portal |
 | Individual pertence a consolidada aberta | Tratar primeiro a consolidada e conferir individuais | Banco impede cancelamento isolado inconsistente |
 | Cancelar cobrança local com recebimento verdadeiro, inclusive parcial | Administrativo seleciona o B/L em Ajustes pela correção do B/L, justifica e usa Preparar cancelamento financeiro. Financeiro devolve e confirma; Administrativo cancela o B/L na ficha | Abate saldo e restitui o recebido desse B/L; demais B/Ls preservados. Preparar cobrança não cancela operacionalmente o B/L |
