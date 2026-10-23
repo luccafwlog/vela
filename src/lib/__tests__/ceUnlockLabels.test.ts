@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { ceActionLabel, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove, ceShortReason, ceUnlockZptText, type CeUnlockZptItem } from '../ceUnlockLabels'
+import { ceActionLabel, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove, ceUnlockZptText, type CeUnlockZptItem } from '../ceUnlockLabels'
 
 const base: CeUnlockZptItem = { zpt_status: null, reasons: [], can_export: false, export_state: 'not_exported', exported_at: null, confirmed: false }
 
@@ -22,13 +22,6 @@ it('Na ZPT mostra cada pendência uma vez: ZPT antes do impedimento, impedimento
   expect(ceUnlockZptText({ ...base, can_export: true }).text).toBe('Apto, não exportado')
   // Requisito pendente não se repete aqui: já tem coluna própria.
   expect(ceUnlockZptText({ ...base, reasons: ['Taxas locais sem liquidação integral confirmada'] })).toMatchObject({ text: 'Não exportado', tone: 'muted' })
-})
-
-it('motivo curto: primeira frase, sem repetir o documento, cortado numa palavra', () => {
-  expect(ceShortReason('A procuração anual venceu em 30/09/2026; envie a renovada com vigência até 31/12/2026.')).toBe('venceu em 30/09/2026')
-  expect(ceShortReason('Procuração sem reconhecimento de firma do representante legal; envie a versão assinada.')).toBe('sem reconhecimento de firma…')
-  expect(ceShortReason('Assinatura ilegível.')).toBe('assinatura ilegível')
-  expect(ceShortReason('CNPJ divergente')).toBe('CNPJ divergente')
 })
 
 it('Portal: situação da solicitação no feminino, âmbar no que pede ação do Cliente', () => {

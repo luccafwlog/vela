@@ -86,12 +86,14 @@ it("Vela: Analisar abre ano, início e fim (31/12, só leitura) e aprova com a v
   }));
 });
 
-it("Portal: correção pedida com o motivo curto em âmbar; envio por botões, sem análise", async () => {
+it("Portal: correção pedida em âmbar com o motivo inteiro; envio por botões, sem análise", async () => {
   svc.getPortalCeUnlockVip.mockResolvedValue(coverage([docs[1], docs[2]]));
   const scope = { mode: "client" as const, customerId: null, overview: null, basePath: "/portal" };
   mount(<CeUnlockVipCoveragePanel scope={scope} />);
   const block = await screen.findByRole("region", { name: "Documentos anuais VIP" });
-  expect(within(block).getByText("Correção pedida: venceu em 30/09/2026")).toBeTruthy();
+  expect(within(block).getByText("Correção pedida")).toBeTruthy();
+  // Ponto 5 de 2026-10-23: o motivo escrito no Vela aparece inteiro, sem corte.
+  expect(within(block).getByText("A procuração anual venceu em 30/09/2026; envie a renovada.")).toBeTruthy();
   expect(within(block).queryByRole("button", { name: /Analisar|Ações de/ })).toBeNull();
   expect(within(block).getByRole("button", { name: "Enviar procuração" }).className).toContain("app-btn--primary");
   const pdf = new File(["%PDF"], "nova.pdf", { type: "application/pdf" });
