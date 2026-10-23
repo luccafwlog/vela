@@ -233,6 +233,17 @@ describeLocal('401 — ATD do POL: correção manual vence e só B/Ls ativos con
     expect(atd('BRSEP')).toBe('none')
   })
 
+  it('417: a marca manual que ficou com o apelido (BRSEP) ainda vence a importação de B/L em BRIGI', () => {
+    // ATD gravado sem passar pela marca (a marca é só a BRSEP abaixo).
+    w.psql(`SELECT set_config('vela.atd_from_bls', 'on', false);
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value, justification)
+      VALUES ('voyage_pol_schedule', '${w.voyageId}::BRIGI', 'atd', '2026-08-01', 'fixture 417')`)
+    w.psql(`INSERT INTO public.voyage_pol_atd_manual (voyage_id, pol, atd) VALUES (${w.voyageId}, 'BRSEP', '2026-08-01')`)
+    const a = blAt('C5', 'BRSEP', '2026-08-09')
+    importOk([line(a, 'BRSEP', '2026-08-09')])
+    expect(atd('BRIGI')).toBe('2026-08-01')
+  })
+
   it('414: a chegada confirmada grava o ATA com hora; recusa sem hora, futura ou porto sem programação', () => {
     w.psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value, justification)
       VALUES ('voyage_pod_schedule', '${w.voyageId}::BRCNF', 'eta', '2026-09-15', 'fixture 414')`)

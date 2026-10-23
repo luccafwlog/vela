@@ -189,6 +189,7 @@ export async function loadAllPageKeys<T, K>(
 
 export const SELECT_ALL_CAP = 10_000
 
-function capMessage(count: number, cap = SELECT_ALL_CAP) {
+/** Aviso do teto, para a tela que seleciona sem este hook (Portal). */
+export function capMessage(count: number, cap = SELECT_ALL_CAP) {
   return `O filtro tem ${count.toLocaleString('pt-BR')} linhas; a seleção vai até ${cap.toLocaleString('pt-BR')}. Refine o filtro.`
 }

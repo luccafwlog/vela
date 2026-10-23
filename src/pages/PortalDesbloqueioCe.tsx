@@ -19,6 +19,7 @@ import { TableFooterPagination } from "../components/ui/TableFooterPagination";
 import { useConfirm } from "../components/ui/ConfirmDialog";
 import { QueryStateGate } from "../components/shared/QueryStateGate";
 import { SelectAllFilteredCheckbox } from "../components/shared/SelectAllFilteredCheckbox";
+import { capMessage, SELECT_ALL_CAP } from "../hooks/useFilteredSelection";
 import {
   CeUnlockAnnualDocumentTable,
   CeUnlockDocumentSituation,
@@ -181,7 +182,14 @@ export function PortalDesbloqueioCe() {
     someSelected: !allFilteredSelected && filteredSelectable.some((b) => selected.includes(b)),
     loadingAll: false,
     totalCount: filteredSelectable.length,
-    toggleAll: async () => toggle(filteredSelectable, !allFilteredSelected),
+    toggleAll: async () => {
+      // Mesmo teto das telas internas: acima dele, pede para refinar a busca.
+      if (!allFilteredSelected && filteredSelectable.length > SELECT_ALL_CAP) {
+        setError(capMessage(filteredSelectable.length));
+        return;
+      }
+      toggle(filteredSelectable, !allFilteredSelected);
+    },
   };
   const byBl = new Map(allItems.map((i) => [i.bl_id, i]));
   const moves = selected.flatMap((b) => {

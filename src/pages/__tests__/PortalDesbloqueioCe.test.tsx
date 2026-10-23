@@ -306,3 +306,11 @@ it("o cabeçalho seleciona os B/Ls disponíveis de todas as páginas do filtro",
   await userEvent.click(screen.getByLabelText("Desmarcar todos os B/Ls disponíveis do filtro (30)"));
   expect(screen.getByRole("button", { name: "Pedir desbloqueio de 0 B/Ls" })).toBeTruthy();
 });
+
+it("acima do teto, o cabeçalho não seleciona e pede para refinar a busca", async () => {
+  fixtures.extraItems = Array.from({ length: 10_000 }, (_, index) => ({ bl_id: `BL-T${index}`, ce_mercante: `8${index}`, paid: true, can_submit: true, state: "no_request", reasons: [] }));
+  mount();
+  await userEvent.click(screen.getByLabelText("Selecionar todos os B/Ls disponíveis do filtro (10.001)"));
+  expect(screen.getByText(/Refine o filtro/)).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 0 B/Ls" })).toBeTruthy();
+});

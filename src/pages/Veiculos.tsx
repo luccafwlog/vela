@@ -121,7 +121,8 @@ export function Veiculos() {
   // cabeçalho marca todas as páginas (G1), com o hook comum das listas.
   const filteredRowIds = data?.filteredIds ?? []
   const selection = useFilteredSelection<number>({
-    scope: `${selectedVoyageId}:${JSON.stringify({ ...filters, page: undefined, pageSize: undefined })}`,
+    // Pelo filtro que foi ao servidor: na pausa da digitação, `filteredRowIds` ainda é o do anterior.
+    scope: `${selectedVoyageId}:${JSON.stringify({ ...queryFilters, page: undefined, pageSize: undefined })}`,
     totalCount: filteredRowIds.length,
     loadAll: () => filteredRowIds,
   })
@@ -493,7 +494,7 @@ export function Veiculos() {
                     <tr>
                       {canSelect ? (
                         <th scope="col" className="app-cargo-table__check">
-                          <SelectAllFilteredCheckbox selection={selection} noun="veículos" disabled={stale} />
+                          <SelectAllFilteredCheckbox selection={selection} noun="veículos" disabled={sliceSettling} />
                         </th>
                       ) : null}
                       <th scope="col">Chassi</th>
