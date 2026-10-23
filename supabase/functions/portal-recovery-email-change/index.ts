@@ -77,7 +77,9 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recove
       await voidLoginAttempt(admin, attemptId)
       return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 503 })
     }
-    const verified = await voidOnThrow((async () => verifier.auth.signInWithPassword({ email: technicalEmail, password: await derivePortalAuthPassword(body.current_password, portalPasswordPepper()) }))())
+    const currentPassword = body.current_password
+    const authPassword = await voidOnThrow(Promise.resolve().then(() => derivePortalAuthPassword(currentPassword, portalPasswordPepper())))
+    const verified = await voidOnThrow(verifier.auth.signInWithPassword({ email: technicalEmail, password: authPassword }))
     if (verified.error && !isInvalidCredentials(verified.error)) return await authUnavailable()
     if (verified.error) {
       await confirmLoginFailure(account.login_cnpj, rateLimitContext)
