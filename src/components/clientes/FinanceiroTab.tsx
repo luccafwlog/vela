@@ -171,6 +171,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
     if (!term) return true
     const ids = row.invoice ? invoiceBls.get(row.invoice.id) ?? [] : []
     return ids.some((id) => id.toUpperCase().includes(term)) || (row.invoice?.invoice_number ?? '').toUpperCase().includes(term)
+      || matchesAnyToken(term, [...ids, row.invoice?.invoice_number])
   })
   const paymentPages = Math.max(1, Math.ceil(payments.length / PAGE_SIZE))
   const currentPaymentPage = Math.min(paymentPage, paymentPages)

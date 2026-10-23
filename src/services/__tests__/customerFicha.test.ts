@@ -277,6 +277,13 @@ describe('Faturas e Recebíveis num bloco só (aba Financeiro)', () => {
     expect(filterCustomerInvoiceLines(lines, { search: '', situation: 'paid', from: '', to: '' }).map((line) => line.kind === 'invoice' && line.invoice.id)).toEqual([2])
     expect(filterCustomerInvoiceLines(lines, { search: '', situation: '', from: '2026-09-01', to: '' }).map((line) => line.kind === 'invoice' && line.invoice.id)).toEqual([1])
   })
+
+  // Ponto 9: lista colada de B/Ls acha cada fatura.
+  it('a busca por lista de B/Ls traz as faturas de cada um', () => {
+    const lines = buildCustomerInvoiceLines([invoice(1, 'issued', ['BL-A']), invoice(2, 'paid', ['BL-C']), invoice(3, 'issued', ['BL-X'])], [])
+    expect(filterCustomerInvoiceLines(lines, { search: 'BL-A, BL-C', situation: '', from: '', to: '' })
+      .map((line) => line.kind === 'invoice' && line.invoice.id).sort()).toEqual([1, 2])
+  })
 })
 
 describe('differingConsignee', () => {
