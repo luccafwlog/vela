@@ -509,7 +509,7 @@ Regra: [Conciliação PIX](modules/reconciliacao-pix.md).
 | `list_local_pix_candidates` | Sem chamador desde a `242` (o matching usa `list_pix_txid_candidates`) | `130`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `list_pix_txid_candidates` | `reconciliacao.ts` | `242`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | Resolve o TXID nas faturas abertas, inclusive avulsa e Invoice de Demurrage (`_pix_txid_open_candidates`). |
 | `list_itau_pix_receipt_candidates` | `reconciliacao.ts` | `442` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo | Faturas abertas de mesmo valor, do Cliente com o documento do pagador ou do número procurado. |
-| `list_itau_pix_receipts` | `reconciliacao.ts` | `442` | DEFINER · `authenticated` | Usuário interno ativo; pagador e retorno do banco só para Financeiro e Administrativo | Aba Pix recebidos: todos os Pix da consulta Itaú com a situação lida da baixa (ADR 0100). |
+| `list_itau_pix_receipts` | `reconciliacao.ts` | `442`, `444` | DEFINER · `authenticated` | Usuário interno ativo; pagador e retorno do banco só para Financeiro e Administrativo | Aba Pix recebidos: todos os Pix da consulta Itaú com a situação lida da baixa (ADR 0100). |
 | `list_pix_reconciliation_candidates` | `reconciliacao.ts` | `097`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `list_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `resolve_pix_reconciliation_exception` | `reconciliacao.ts` | `002`, `247`, `269` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |

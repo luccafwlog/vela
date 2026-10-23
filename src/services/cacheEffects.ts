@@ -257,7 +257,7 @@ const DEMURRAGE_INVOICE_KEYS: readonly (readonly unknown[])[] = [
   ['demurrage-latest-recalc'], ['financial-refunds'], ['bl-detail'], ['bl-cockpit'], ['customer-ficha'],
   ['customer-detail'], ['portal-demurrage-invoices'], ['portal-demurrage-invoices-page'],
   ['portal-demurrage-invoice-detail'], ['portal-disputes'], ['reconciliation-history'],
-  ['alerts'], ['header-alert'],
+  ['alerts'], ['header-alert'], ['itau-pix-receipts'],
 ]
 
 /**
@@ -281,7 +281,7 @@ export async function afterPixConciliado(queryClient: QueryInvalidator): Promise
   await invalidate(queryClient, [
     ...INVOICE_BASIS_CACHE_KEYS, ...DEMURRAGE_INVOICE_KEYS,
     queryKeys.reconciliation.pixExceptions(), queryKeys.reconciliation.itauPixMonitor(), ['pix-reconciliation-candidates'],
-    queryKeys.reconciliation.itauPixReceipts(), ['itau-pix-receipt-candidates'],
+    ['itau-pix-receipt-candidates'],
   ])
 }
 

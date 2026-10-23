@@ -30,6 +30,8 @@ it('invalidates every financial consumer after a local payment reversal', () => 
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['financial-alerts'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['op-count'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['reconciliation-history'] })
+  // A aba Pix recebidos lê a situação da baixa (ADR 0100).
+  expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['itau-pix-receipts'] })
 })
 
 it('invalida todos os consumidores somente depois de reverter a baixa local', async () => {

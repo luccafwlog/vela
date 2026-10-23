@@ -651,6 +651,16 @@ describe('Conciliação PIX', () => {
       await waitFor(() => expect(mocks.listReceiptCandidates).toHaveBeenCalledWith('E2', 'DEM-78'))
     })
 
+    it('Pix de cobrança do Vela com a baixa cancelada fica sem baixa e sem a baixa opcional', async () => {
+      mocks.listReceipts.mockResolvedValue({ total: 1, totalAmount: 5, payerVisible: true, rows: [{ ...rows[3], endToEndId: 'E5', situation: 'received', reason: null }] })
+      const user = userEvent.setup()
+      renderPage('/reconciliacao?tab=recebidos')
+      await user.click(await screen.findByRole('button', { name: /Abrir detalhe do Pix de R\$\s5,00/ }))
+      expect(screen.getAllByText('Sem baixa').length).toBeGreaterThan(0)
+      expect(screen.queryByText(/Baixar numa fatura/)).toBeNull()
+      expect(mocks.listReceiptCandidates).not.toHaveBeenCalled()
+    })
+
     it('recusa da baixa fica na linha e diz que nada foi gravado', async () => {
       mocks.settleReceipt.mockRejectedValueOnce(new Error('Valor divergente das duas ultimas fotos financeiras da Demurrage 78.'))
       const user = userEvent.setup()

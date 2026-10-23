@@ -260,7 +260,10 @@ export function receiptOriginLabel(origin: ItauPixReceiptOrigin): string {
  * nada (ADR 0100).
  */
 export function receiptSituation(receipt: Pick<ItauPixReceipt, 'situation' | 'settledBy'>): { label: string; needsAction: boolean } {
-  if (receipt.situation === 'settled') return { label: receipt.settledBy === 'manual' ? 'Baixa manual' : 'Baixa automática', needsAction: false }
+  if (receipt.situation === 'settled') {
+    const label = receipt.settledBy === 'manual' ? 'Baixa manual' : receipt.settledBy === 'extract' ? 'Baixa pelo extrato' : 'Baixa automática'
+    return { label, needsAction: false }
+  }
   if (receipt.situation === 'review') return { label: 'Em análise', needsAction: true }
   if (receipt.situation === 'handled') return { label: 'Tratado', needsAction: false }
   return { label: 'Sem baixa', needsAction: false }

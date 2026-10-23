@@ -165,6 +165,25 @@ describeLocal('442 — Pix recebidos', () => {
     expect(w.as('financeiro', `SELECT public.itau_pix_settle_received('${e2e(8)}', 'demurrage', ${demurrageId})`).stderr).toMatch(/não está aberta/)
   })
 
+  it('baixa automática que não existe mais não aparece como baixa (migration 444)', () => {
+    // Recebimento gravado 'settled' pela baixa automática cuja baixa foi cancelada
+    // (reverse_demurrage_payment não muda o recebimento): nenhuma baixa usa o Pix.
+    w.psql(`INSERT INTO public.itau_pix_receipts (end_to_end_id, txid, amount_brl, paid_at, status)
+      VALUES ('${e2e(10)}', 'VELA${'C'.repeat(28)}', 42, now(), 'settled')`)
+    expect(row(10)).toMatchObject({ situation: 'received', settled_by: null, settled_doc_number: null })
+  })
+
+  it('Pix do Vela que o extrato já tinha baixado aparece como baixa pelo extrato (migration 444)', () => {
+    const b = issued('EXTR')
+    const total = w.invoice(b.invoice).total
+    const txid = `VELA${'D'.repeat(28)}`
+    w.json('financeiro', `SELECT public.register_ledger_invoice_payment(${b.invoice}, ${total}, 'pix', now(), '${txid}', 'pix_extract', 'Extrato', NULL)`)
+    w.psql(`INSERT INTO public.itau_pix_receipts (end_to_end_id, txid, amount_brl, paid_at, status, result)
+      VALUES ('${e2e(11)}', '${txid}', ${total}, now(), 'settled', '{"already_settled": true}'::jsonb)`)
+    const docNumber = w.psql(`SELECT invoice_number FROM public.invoices WHERE id = ${b.invoice}`)
+    expect(row(11)).toMatchObject({ situation: 'settled', settled_by: 'extract', settled_source: 'local', settled_doc_number: docNumber })
+  })
+
   it('o Pix de cobrança do Vela não recebe baixa por aqui', () => {
     const b = issued('VELA')
     expect(w.as('financeiro', `SELECT public.itau_pix_settle_received('${e2e(4)}', 'local', ${b.invoice})`).stderr).toMatch(/cobrança do Vela/)

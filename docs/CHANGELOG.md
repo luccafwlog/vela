@@ -6,7 +6,7 @@
 
 ## 2026-10
 
-- **Todo Pix recebido pelo Itaú fica gravado (2026-10-23):** migrations `442` e `443`,
+- **Todo Pix recebido pelo Itaú fica gravado (2026-10-23):** migrations `442` a `444`,
   [ADR 0100](adr/0100-todo-pix-recebido-fica-gravado.md). A consulta de recebimentos já trazia
   todo Pix que entra na conta da Transhipping; agora a `itau-pix` entrega cada um a
   `itau_pix_receive`: o de cobrança do Vela segue para a baixa automática e o resto (sem
