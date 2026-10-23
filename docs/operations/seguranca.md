@@ -237,7 +237,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 |---|---|---|---|---|---|---|---|---|
 | Ver a fila, as exceções e o monitor Itaú | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs `list_*` da conciliação e `itau_pix_monitor` | ADR 0044; ADR 0085, D5 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
 | Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú | ✔ | ✔ | — | — | — | `link_pix_reconciliation_candidate`, `confirm_unified_pix_matches` (SECURITY DEFINER com guarda de setor desde a `329`), `upsert`/`resolve_pix_reconciliation_exception(s)`, `itau_pix_mark_receipt_handled`. A baixa por TXID (`reconcile_invoice_payment_by_txid`) não é executável pela API desde a `329`: só a confirmação do lote e a baixa automática Itaú (`itau_pix_settle`, `service_role`) a chamam | ADR 0085, D5; decisão do responsável de 2026-10-19 (achado P5 do lote 5b) | vigente desde a migration `247`; baixa por TXID fechada na `329` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
-| Ver os Pix recebidos (aba Pix recebidos) | ✔ | ✔ | ✔ | ✔ | ✔ | `list_itau_pix_receipts`; nome, documento e mensagem do pagador e o retorno do banco só voltam para Financeiro e Administrativo (`is_financeiro_user`), e a busca dos demais não alcança esses dados | ADR 0085, D5; [ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md) | vigente desde a migration `442` (**Teste** local: `pixRecebidos.local-pg.test.ts`) |
+| Ver os Pix recebidos (aba Pix recebidos) | ✔ | ✔ | ✔ | ✔ | ✔ | `list_itau_pix_receipts`, com nome, documento e mensagem do pagador e o retorno do banco para todos (migration `445`; antes, só Financeiro e Administrativo) | ADR 0085, D5; [ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md) | vigente desde a migration `442` (**Teste** local: `pixRecebidos.local-pg.test.ts`) |
 | Baixar um Pix recebido numa fatura | ✔ | ✔ | — | — | — | `list_itau_pix_receipt_candidates` e `itau_pix_settle_received` conferem Financeiro ou Administrativo antes de tudo; a baixa passa por `register_verified_invoice_payment` ou `register_demurrage_payment`, com as guardas deles | ADR 0085, D5; [ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md) | vigente desde a migration `442` (**Teste** local: `pixRecebidos.local-pg.test.ts`) |
 
 ### Clientes, Comunicação e Portal
@@ -538,10 +538,13 @@ inclusive o do sistema de terceiro na mesma chave, com o retorno do Itaú em
 `itau_pix_receipts.raw`: chave, mensagem do pagador (`infoPagador`) e, quando
 o banco manda, nome e CPF/CNPJ do pagador. Antes, o Pix do terceiro e os dados
 do pagador não eram gravados. A tabela continua sem acesso direto para
-`authenticated`; `list_itau_pix_receipts` entrega a lista a todo usuário
-interno ativo e os dados do pagador e o retorno do banco só ao Financeiro e ao
-Administrativo, a mesma regra da leitura de `itau_pix_receipt_failures`
-(migration `385`, item 14). O retorno é guardado uma vez, com teto de 32 KB.
+`authenticated`; `list_itau_pix_receipts` entrega a lista, com os dados do
+pagador e o retorno do banco, a todo usuário interno ativo (decisão do
+responsável de 2026-10-23, migration `445`; da `442` à `444` eles voltavam só
+ao Financeiro e ao Administrativo). Conciliar o Pix e ver as faturas
+sugeridas continuam só do Financeiro e do Administrativo, como a leitura de
+`itau_pix_receipt_failures` (migration `385`, item 14). O retorno é guardado
+uma vez, com teto de 32 KB.
 
 `itau_pix_monitor` (leitura) aceita qualquer usuário interno ativo e
 `itau_pix_mark_receipt_handled` (encerrar Pix em análise com motivo), o

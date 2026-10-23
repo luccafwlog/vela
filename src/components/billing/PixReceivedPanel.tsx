@@ -102,8 +102,7 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
   const totalPages = Math.max(1, Math.ceil(totalCount / state.pageSize))
   const failed = !amountInvalid && Boolean(query.error)
   const pastEnd = Boolean(page) && state.page > totalPages
-  const payerVisible = page?.payerVisible ?? false
-  const columns = payerVisible ? 7 : 6
+  const columns = 7
 
   const update = (next: (params: URLSearchParams) => URLSearchParams) => setSearchParams((params) => next(params), { replace: true })
   useEffect(() => {
@@ -159,7 +158,7 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
           <Field label="Buscar">
             <Input
               type="text"
-              placeholder={payerVisible ? 'Pagador, identificador ou fatura' : 'Identificador ou fatura'}
+              placeholder="Pagador, identificador ou fatura"
               value={state.search}
               onChange={(e) => setFilter('search', e.target.value)}
             />
@@ -189,9 +188,6 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
             <Button variant="secondary" className="app-btn--sm" onClick={() => void query.refetch()}>Tentar novamente</Button>
           </div>
         ) : null}
-        {page && !payerVisible ? (
-          <p className="app-block__body">O pagador e a mensagem dele aparecem só para o Financeiro e o Administrativo.</p>
-        ) : null}
 
         <div className="app-table-scroll">
           <table className="app-table app-table--compact">
@@ -201,7 +197,7 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
                 <th scope="col"><span className="sr-only">Detalhe do Pix</span></th>
                 <th scope="col">Recebido em</th>
                 <th scope="col">Valor</th>
-                {payerVisible ? <th scope="col" className="app-table__text-head">Pagador</th> : null}
+                <th scope="col" className="app-table__text-head">Pagador</th>
                 <th scope="col">Origem</th>
                 <th scope="col">Situação</th>
                 <th scope="col">Fatura</th>
@@ -216,7 +212,6 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
                 <ReceiptRow
                   key={receipt.endToEndId}
                   receipt={receipt}
-                  payerVisible={payerVisible}
                   columns={columns}
                   open={openId === receipt.endToEndId}
                   onToggle={() => setOpenId((current) => (current === receipt.endToEndId ? null : receipt.endToEndId))}
@@ -243,9 +238,8 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
   )
 }
 
-function ReceiptRow({ receipt, payerVisible, columns, open, onToggle, onOpenInvoice }: {
+function ReceiptRow({ receipt, columns, open, onToggle, onOpenInvoice }: {
   receipt: ItauPixReceipt
-  payerVisible: boolean
   columns: number
   open: boolean
   onToggle: () => void
@@ -264,11 +258,9 @@ function ReceiptRow({ receipt, payerVisible, columns, open, onToggle, onOpenInvo
         </td>
         <td className="whitespace-nowrap tabular-nums">{when}</td>
         <td className="whitespace-nowrap tabular-nums">{formatBRL(receipt.amount)}</td>
-        {payerVisible ? (
-          <td className="app-table__text" title={[receipt.payerName, receipt.payerDocument ? formatCnpjCpf(receipt.payerDocument) : null].filter(Boolean).join(' · ') || undefined}>
-            {payer ?? <NoValue label="Pagador não informado pelo Itaú" />}
-          </td>
-        ) : null}
+        <td className="app-table__text" title={[receipt.payerName, receipt.payerDocument ? formatCnpjCpf(receipt.payerDocument) : null].filter(Boolean).join(' · ') || undefined}>
+          {payer ?? <NoValue label="Pagador não informado pelo Itaú" />}
+        </td>
         <td className="whitespace-nowrap">{receiptOriginLabel(receipt.origin)}</td>
         <td className="whitespace-nowrap">{situation.needsAction ? <StatusText tone="warning">{situation.label}</StatusText> : situation.label}</td>
         <td className="whitespace-nowrap">
@@ -282,7 +274,7 @@ function ReceiptRow({ receipt, payerVisible, columns, open, onToggle, onOpenInvo
       {open ? (
         <tr id={detailId} data-row-detail>
           <td colSpan={columns}>
-            <ReceiptDetail receipt={receipt} payerVisible={payerVisible} onOpenInvoice={onOpenInvoice} />
+            <ReceiptDetail receipt={receipt} onOpenInvoice={onOpenInvoice} />
           </td>
         </tr>
       ) : null}
@@ -290,11 +282,12 @@ function ReceiptRow({ receipt, payerVisible, columns, open, onToggle, onOpenInvo
   )
 }
 
-function ReceiptDetail({ receipt, payerVisible, onOpenInvoice }: { receipt: ItauPixReceipt; payerVisible: boolean; onOpenInvoice: OpenInvoice }) {
+function ReceiptDetail({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; onOpenInvoice: OpenInvoice }) {
   const { can } = useAuth()
   // Conciliar é do Financeiro e do Administrativo (ADR 0085, D5; migration 442).
-  const canSettle = can('settle_financial_adjustments') && receipt.situation === 'received'
-  const extra = payerVisible ? bankExtraFields(receipt.raw) : []
+  // O Pix de cobrança do Vela sem baixa (baixa cancelada) não recebe baixa por aqui.
+  const canSettle = can('settle_financial_adjustments') && receipt.situation === 'received' && receipt.origin !== 'vela'
+  const extra = bankExtraFields(receipt.raw)
   const mono = 'font-[var(--app-font-mono)] break-all'
   return (
     <div className="grid gap-3">
@@ -309,17 +302,13 @@ function ReceiptDetail({ receipt, payerVisible, onOpenInvoice }: { receipt: Itau
         <Fact label="Recebido em">{formatBrasiliaInstant(receipt.paidAt)}</Fact>
         <Fact label="Gravado no Vela em">{formatBrasiliaInstant(receipt.recordedAt)}</Fact>
         <Fact label="Origem">{receiptOriginLabel(receipt.origin)}</Fact>
-        {payerVisible ? (
-          <>
-            <Fact label="Pagador">{receipt.payerName ?? <NoValue label="Nome não informado pelo Itaú" />}</Fact>
-            <Fact label="CPF ou CNPJ do pagador">
-              {receipt.payerDocument
-                ? <CopyValue value={receipt.payerDocument} label="CPF ou CNPJ do pagador">{formatCnpjCpf(receipt.payerDocument)}</CopyValue>
-                : <NoValue label="Documento não informado pelo Itaú" />}
-            </Fact>
-            <Fact label="Mensagem do pagador">{receipt.payerMessage ?? <NoValue label="Sem mensagem" />}</Fact>
-          </>
-        ) : null}
+        <Fact label="Pagador">{receipt.payerName ?? <NoValue label="Nome não informado pelo Itaú" />}</Fact>
+        <Fact label="CPF ou CNPJ do pagador">
+          {receipt.payerDocument
+            ? <CopyValue value={receipt.payerDocument} label="CPF ou CNPJ do pagador">{formatCnpjCpf(receipt.payerDocument)}</CopyValue>
+            : <NoValue label="Documento não informado pelo Itaú" />}
+        </Fact>
+        <Fact label="Mensagem do pagador">{receipt.payerMessage ?? <NoValue label="Sem mensagem" />}</Fact>
         {receipt.settled?.docNumber ? (
           <Fact label="Fatura da baixa">{receipt.settled.docNumber} ({sourceLabel(receipt.settled.source)}) · {receiptSituation(receipt).label}</Fact>
         ) : null}

@@ -594,7 +594,7 @@ describe('Conciliação PIX', () => {
     ]
 
     beforeEach(() => {
-      mocks.listReceipts.mockResolvedValue({ total: 4, totalAmount: 1175, payerVisible: true, rows })
+      mocks.listReceipts.mockResolvedValue({ total: 4, totalAmount: 1175, rows })
       mocks.listReceiptCandidates.mockResolvedValue([
         { source: 'local', invoiceId: 77, docNumber: 'INV-2026-0077', invoiceType: 'individual', openAmount: 120,
           customerName: 'Cliente Pagador', customerDocument: '12345678000190', sameAmount: true, sameCustomer: true },
@@ -651,6 +651,16 @@ describe('Conciliação PIX', () => {
       await waitFor(() => expect(mocks.listReceiptCandidates).toHaveBeenCalledWith('E2', 'DEM-78'))
     })
 
+    it('Pix de cobrança do Vela com a baixa cancelada fica sem baixa e sem a baixa opcional', async () => {
+      mocks.listReceipts.mockResolvedValue({ total: 1, totalAmount: 5, rows: [{ ...rows[3], endToEndId: 'E5', situation: 'received', reason: null }] })
+      const user = userEvent.setup()
+      renderPage('/reconciliacao?tab=recebidos')
+      await user.click(await screen.findByRole('button', { name: /Abrir detalhe do Pix de R\$\s5,00/ }))
+      expect(screen.getAllByText('Sem baixa').length).toBeGreaterThan(0)
+      expect(screen.queryByText(/Baixar numa fatura/)).toBeNull()
+      expect(mocks.listReceiptCandidates).not.toHaveBeenCalled()
+    })
+
     it('recusa da baixa fica na linha e diz que nada foi gravado', async () => {
       mocks.settleReceipt.mockRejectedValueOnce(new Error('Valor divergente das duas ultimas fotos financeiras da Demurrage 78.'))
       const user = userEvent.setup()
@@ -661,16 +671,17 @@ describe('Conciliação PIX', () => {
       expect(await screen.findByText(/Nenhuma baixa foi gravada: Valor divergente/)).toBeTruthy()
     })
 
-    it('sem conciliar: sem coluna do pagador, com a nota, e sem baixa na linha aberta', async () => {
+    it('sem conciliar: vê o pagador, mas a linha aberta não tem a baixa', async () => {
       authState.isAdmin = false
       authState.role = 'operacoes'
-      mocks.listReceipts.mockResolvedValue({ total: 1, totalAmount: 120, payerVisible: false, rows: [{ ...rows[1], payerName: null, payerDocument: null, payerMessage: null, raw: null }] })
+      mocks.listReceipts.mockResolvedValue({ total: 1, totalAmount: 120, rows: [rows[1]] })
       const user = userEvent.setup()
       renderPage('/reconciliacao?tab=recebidos')
-      expect(await screen.findByText('O pagador e a mensagem dele aparecem só para o Financeiro e o Administrativo.')).toBeTruthy()
-      expect(screen.queryByRole('columnheader', { name: 'Pagador' })).toBeNull()
+      expect(await screen.findByText('Pagador Sem QR')).toBeTruthy()
+      expect(screen.getByRole('columnheader', { name: 'Pagador' })).toBeTruthy()
       await user.click(screen.getByRole('button', { name: /Abrir detalhe do Pix/ }))
       expect(screen.getByText('E2')).toBeTruthy()
+      expect(screen.getByText('B/L ABC123')).toBeTruthy()
       expect(screen.queryByText(/Baixar numa fatura/)).toBeNull()
       expect(mocks.listReceiptCandidates).not.toHaveBeenCalled()
     })

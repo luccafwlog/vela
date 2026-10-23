@@ -1,8 +1,15 @@
 # 0100 — Todo Pix recebido pelo Itaú fica gravado
 
+> **Situação atual (2026-10-23).** O item 4 foi revisto pelo responsável antes
+> da publicação: nome, CPF/CNPJ e mensagem do pagador e o retorno do banco
+> aparecem para todo usuário interno ativo, e a busca por pagador vale para
+> todos (migration `445`). Conciliar continua do Financeiro e do
+> Administrativo. Regra vigente em
+> [Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos).
+
 Status: aceito — 2026-10-23 (pedido do responsável, ao saber que a consulta da
 API Pix Recebimentos traz também transferências que não vieram de uma cobrança
-do Vela). Implementada nas migrations `442` e `443`, na Edge `itau-pix` e na
+do Vela). Implementada nas migrations `442` a `446`, na Edge `itau-pix` e na
 aba **Pix recebidos** da Conciliação PIX.
 
 Supersede a decisão 16 da [ADR 0093](./0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md)

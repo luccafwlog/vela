@@ -865,8 +865,8 @@ export type ItauPixReceipt = {
   paidAt: string
   recordedAt: string
   situation: ItauPixReceiptSituation
-  /** Quem deu a baixa: a automática do Itaú ou a manual (por esta tela ou com o endToEndId na referência). */
-  settledBy: 'itau' | 'manual' | null
+  /** Quem deu a baixa: a automática do Itaú, o extrato antes dela (migration 444) ou a manual (por esta tela ou com o endToEndId na referência). */
+  settledBy: 'itau' | 'extract' | 'manual' | null
   settled: InvoiceRef | null
   /** Fatura da cobrança do Vela que gerou o Pix, mesmo sem baixa. */
   charge: InvoiceRef | null
@@ -891,12 +891,12 @@ export type ItauPixReceiptFilters = {
   pageSize: number
 }
 
-export type ItauPixReceiptPage = { total: number; totalAmount: number; payerVisible: boolean; rows: ItauPixReceipt[] }
+export type ItauPixReceiptPage = { total: number; totalAmount: number; rows: ItauPixReceipt[] }
 
 type InvoiceRefRow = { source: 'local' | 'demurrage' | null; id: number | string | null; doc: string | null }
 type ItauPixReceiptRow = {
   end_to_end_id: string; txid: string; origin: ItauPixReceiptOrigin; amount_brl: number | string; paid_at: string
-  recorded_at: string; situation: ItauPixReceiptSituation; settled_by: 'itau' | 'manual' | null
+  recorded_at: string; situation: ItauPixReceiptSituation; settled_by: ItauPixReceipt['settledBy']
   settled_source: InvoiceRefRow['source']; settled_invoice_id: InvoiceRefRow['id']; settled_doc_number: string | null
   charge_source: InvoiceRefRow['source']; charge_invoice_id: InvoiceRefRow['id']; charge_doc_number: string | null
   reason: string | null; handled_note: string | null; pix_key: string | null
@@ -920,11 +920,10 @@ export async function listItauPixReceipts(filters: ItauPixReceiptFilters): Promi
     p_offset: (Math.max(filters.page, 1) - 1) * filters.pageSize,
   })
   if (error) throw error
-  const page = data as { total: number | string; total_amount_brl: number | string; payer_visible: boolean; rows: ItauPixReceiptRow[] | null }
+  const page = data as { total: number | string; total_amount_brl: number | string; rows: ItauPixReceiptRow[] | null }
   return {
     total: Number(page.total),
     totalAmount: Number(page.total_amount_brl),
-    payerVisible: page.payer_visible === true,
     rows: (page.rows ?? []).map((r) => ({
       endToEndId: r.end_to_end_id,
       txid: r.txid,
