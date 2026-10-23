@@ -115,10 +115,12 @@ describe('Identidade visual dos e-mails de Comunicação com o Cliente', () => {
 
     expect(bounce.html).toContain('background:#0d2b5e')
     expect(bounce.html).not.toContain('#d4882e')
-    expect(bounce.html).toContain('https://portal.transhippingdesk.com.br/branding/fwlog-logo-white.png')
+    // Ponto 4 de 2026-10-23: endereço do portal antigo configurado vira o Portal atual.
+    expect(bounce.html).toContain('https://portalfwlog.com.br/branding/fwlog-logo-white.png')
+    expect(bounce.html).not.toContain('transhippingdesk')
     expect(bounce.html).toContain('op***@cliente.com.br')
     expect(bounce.html).toContain('Abrir Meu perfil')
-    expect(bounce.html).toContain('href="https://portal.transhippingdesk.com.br/portal/perfil"')
+    expect(bounce.html).toContain('href="https://portalfwlog.com.br/portal/perfil"')
     expect(bounce.text).toContain('op***@cliente.com.br')
   })
 })
