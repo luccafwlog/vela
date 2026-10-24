@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
-import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
+import { runCronWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, type EmailAttemptRecord } from '../_shared/email.ts'
 import { canonicalPortalUrl } from '../_shared/portalUrls.ts'
@@ -369,10 +369,11 @@ async function handler(req: Request): Promise<Response> {
 
 if (typeof Deno !== 'undefined') {
   const edgeHandler = instrumentEdgeHandler('demurrage-dunning', handler)
+  // A emissão da Invoice (migration 456) manda {"source":"trigger"}: roda igual, sem heartbeat.
   Deno.serve((req) => {
     const expectedSecret = Deno.env.get('DEMURRAGE_DUNNING_SECRET') ?? ''
     const providedSecret = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
     const authorized = req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
-    return runWithBetterStackHeartbeat('demurrageDunning', () => edgeHandler(req), { enabled: authorized })
+    return runCronWithBetterStackHeartbeat('demurrageDunning', req, authorized, () => edgeHandler(req))
   })
 }

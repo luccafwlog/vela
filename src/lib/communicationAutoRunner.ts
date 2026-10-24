@@ -1,12 +1,14 @@
 /**
  * Agenda do robô de Comunicados (`customer-communication-auto-runner`, cron
- * `4-59/15 * * * *`: minutos 4, 19, 34 e 49 de cada hora; agenda em
- * docs/operations/servicos-externos.md). O minuto é o mesmo em UTC e em
- * Brasília, então a próxima rodada sai só do relógio.
+ * `1-59/2 * * * *` desde a migration 456: minutos ímpares de cada hora; agenda
+ * em docs/operations/servicos-externos.md). O minuto é o mesmo em UTC e em
+ * Brasília, então a próxima rodada sai só do relógio. O evento que deixa o
+ * alvo pronto também chama o robô (no máximo a cada 90 s), então o Comunicado
+ * pode sair antes desta rodada; ela é o limite.
  * ponytail: espelho do cron em código; se a agenda mudar no Supabase, mude
  * aqui também (o teste prende os minutos).
  */
-export const AUTO_RUNNER_MINUTES = [4, 19, 34, 49] as const
+export const AUTO_RUNNER_MINUTES: readonly number[] = Array.from({ length: 30 }, (_, index) => 1 + index * 2)
 
 /** Próxima rodada estritamente depois de `now`. */
 export function nextAutoRunnerRun(now: Date): Date {

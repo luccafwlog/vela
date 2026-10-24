@@ -101,17 +101,32 @@ async function settleClaim(rpc: AutoRunnerRpc, claimKey: string | undefined, set
   }
 }
 
-// ponytail: a rodada é sequencial — um POST à Edge por destinatário, um
-// candidato de cada vez, dentro do tempo de uma invocação da Edge (~150 s). Com
-// o provedor a ~1-2 s por chamada, o teto prático fica em torno de 60-100
-// destinatários por rodada. Se a invocação cair no meio de um Cliente, a claim
-// fica presa até envelhecer (30 min) e a produtora a devolve na primeira rodada
-// depois disso: o alvo só sai da lista quando todo destinatário automático tem
-// tentativa entregue (migration 315), e `emails` traz só os que faltam
-// (migration 318) — quem já recebeu, inclusive em simulação, não recebe de
-// novo, nem com a chave ligada depois. Caminho de melhoria: limitar
-// o lote na produtora (LIMIT por rodada) e/ou paralelizar os destinatários com
-// concorrência fixa (ex.: 4).
+// Clientes simultâneos: cada candidato tem claim e Comunicado próprios, e os
+// de Clientes diferentes não dividem linha. Os alvos de um mesmo Cliente e os
+// destinatários de um mesmo alvo seguem em série: dividem o alerta do Cliente
+// e o Comunicado, cujo status a send-customer-communication grava em dois
+// passos (recálculo e gravação). Quatro POSTs por vez ficam bem abaixo do
+// limite de 10 req/s do provedor; o 429 com retry-after já é tratado no envio
+// (_shared/email.ts).
+const CANDIDATE_CONCURRENCY = 4
+
+async function forEachWithConcurrency<T>(items: T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) await task(items[next++]!)
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+}
+
+// ponytail: até quatro Clientes por vez, um POST à Edge por destinatário, dentro
+// do tempo de uma invocação da Edge (~150 s). Com o provedor a ~1-2 s por
+// chamada, o teto prático fica em torno de 250-400 destinatários por rodada. Se
+// a invocação cair no meio de um Cliente, a claim fica presa até envelhecer
+// (30 min) e a produtora a devolve na primeira rodada depois disso: o alvo só
+// sai da lista quando todo destinatário automático tem tentativa entregue
+// (migration 315), e `emails` traz só os que faltam (migration 318) — quem já
+// recebeu, inclusive em simulação, não recebe de novo, nem com a chave ligada
+// depois. Caminho de melhoria: limitar o lote na produtora (LIMIT por rodada).
 export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<AutoRunnerResult> {
   const { rpc, fetcher, supabaseUrl, anonKey, secret } = deps
   const { data, error } = await rpc('evaluate_and_dispatch_automatic_communications', { p_as_of: (deps.asOf ?? new Date()).toISOString() })
@@ -123,10 +138,10 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
     }
   }
   const candidates = (data ?? []) as AutoRunnerCandidate[]
-  const sent: Array<{ kind: string; customerId: number; emails: number }> = []
+  const sent: Array<{ kind: string; customerId: number; emails: number }> = new Array(candidates.length)
   let releaseFailures = 0
   let failed = 0
-  for (const candidate of candidates) {
+  const processCandidate = async (candidate: AutoRunnerCandidate, index: number) => {
     let count = 0
     try {
       const payload = candidate.kind === 'ce_mercante_taxas'
@@ -254,7 +269,13 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
       const reason = candidateError instanceof Error ? candidateError.message : 'Erro ao preparar o Comunicado.'
       if (!await settleClaim(rpc, candidate.claim_key, { action: 'defer', reason, providerFailure: true })) releaseFailures += 1
     }
-    sent.push({ kind: candidate.kind, customerId: candidate.customer_id, emails: count })
+    sent[index] = { kind: candidate.kind, customerId: candidate.customer_id, emails: count }
   }
+  // Os alvos de um mesmo Cliente seguem em série (contatos e alerta do Cliente).
+  const byCustomer = new Map<number, number[]>()
+  candidates.forEach((candidate, index) => byCustomer.set(candidate.customer_id, [...(byCustomer.get(candidate.customer_id) ?? []), index]))
+  await forEachWithConcurrency([...byCustomer.values()], CANDIDATE_CONCURRENCY, async (indexes) => {
+    for (const index of indexes) await processCandidate(candidates[index]!, index)
+  })
   return { status: releaseFailures ? 500 : 200, body: { candidates: candidates.length, sent, failed, releaseFailures } }
 }

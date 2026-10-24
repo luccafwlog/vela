@@ -276,8 +276,9 @@ A solicitação passa a *Documentação validada* quando todos os B/Ls
 ativos têm os quatro requisitos; desfazer um requisito a reabre. Solicitação concluída
 não pode mais ser cancelada (nem pelo desk). O aviso "documentação validada" sai só na
 primeira conclusão. A conclusão é reavaliada nos comandos e, para liquidações feitas fora
-do módulo, pela varredura `ce_unlock_refresh_open()` que o job `ce-unlock-notify-email`
-executa a cada 5 minutos (ponytail: O(solicitações abertas); upgrade: fila por trigger).
+do módulo, pela varredura `ce_unlock_refresh_open()` que a Edge Function `ce-unlock-notify-email`
+executa a cada rodada: a do job de 5 minutos e, desde a migration `456`, a disparada por
+cada aviso gravado na fila (ponytail: O(solicitações abertas); upgrade: fila por trigger).
 
 ### Prazo (SLA)
 
@@ -321,7 +322,18 @@ Recusa de documento (com o motivo) e documentação validada (com o
 prazo) geram um aviso no sino do Portal e uma linha na fila `ce_unlock_email_outbox`; a
 Edge Function `ce-unlock-notify-email` envia aos contatos da caixa **Documentação e
 Operação** e registra cada tentativa em `portal_email_attempts`
-(`ce_unlock_notificacao`). Nenhum texto cita ZPT ou desbloqueio confirmado. O Portal mostra
+(`ce_unlock_notificacao`). Nenhum texto cita ZPT ou desbloqueio confirmado.
+
+Desde a migration `456`, gravar a linha na fila chama a Edge Function na hora
+(gatilho `trg_kick_ce_unlock_notify_email`, depois do COMMIT, com o segredo próprio
+`CE_UNLOCK_NOTIFY_SECRET`): o e-mail sai em segundos, não no próximo ciclo do job de
+5 minutos, que segue como rede de segurança para reenvios. A leitura da fila
+(`ce_unlock_email_pending`) reserva as linhas por 10 minutos (`claimed_until`, com
+`FOR UPDATE SKIP LOCKED`), para a rodada do gatilho e a do cron não pegarem a mesma
+linha; a linha que volta para nova tentativa fica reservada por 4 minutos, e o
+reenvio segue o passo do cron. As chaves de idempotência por destinatário
+(`ce-unlock:{id}:{destinatário}` e o `Idempotency-Key` no provedor) não mudam. O
+mecanismo do disparo está em [segredos e cron](../operations/segredos-cron.md#disparo-pelo-evento). O Portal mostra
 só a data do prazo (nunca "vencido"), e seu histórico omite exportação, entrega e VIP.
 
 Desde a migration `338` (lote 6b), o motivo da recusa diz de qual documento é:

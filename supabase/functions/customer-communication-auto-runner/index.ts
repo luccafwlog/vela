@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
-import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
+import { runCronWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { runAutomaticCommunications } from '../_shared/customerCommunicationAutoRunner.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { canonicalPortalUrl } from '../_shared/portalUrls.ts'
@@ -42,10 +42,11 @@ async function handler(req: Request): Promise<Response> {
 
 if (import.meta.main) {
   const edgeHandler = instrumentEdgeHandler('customer-communication-auto-runner', handler)
+  // Os gatilhos do banco (migration 456) mandam {"source":"trigger"}: roda igual, sem heartbeat.
   Deno.serve((req) => {
     const expectedSecret = Deno.env.get('CUSTOMER_COMMUNICATION_AUTOMATION_SECRET') ?? ''
     const providedSecret = req.headers.get('X-Communication-Automation-Secret') ?? ''
     const authorized = req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
-    return runWithBetterStackHeartbeat('customerCommunicationAutoRunner', () => edgeHandler(req), { enabled: authorized })
+    return runCronWithBetterStackHeartbeat('customerCommunicationAutoRunner', req, authorized, () => edgeHandler(req))
   })
 }

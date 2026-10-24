@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { validDedicatedAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
 import { CE_UNLOCK_BOX, ceUnlockNoticeBls, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
-import { runWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
+import { runCronWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { recipientKey } from "../_shared/email.ts";
 import { sendPortalEmail } from "../_shared/portalEmail.ts";
 import { ceUnlockNoticeTemplate } from "../_shared/portalEmailTemplates.ts";
@@ -144,8 +144,9 @@ if (typeof Deno !== "undefined") {
     return Response.json(result.body, { status: result.status });
   });
 
+  // O gatilho da fila (migration 456) manda {"source":"trigger"}: roda igual, sem heartbeat.
   Deno.serve((req) => {
     const authorized = req.method === "POST" && notifyAuthorized(req.headers.get("Authorization"));
-    return runWithBetterStackHeartbeat("ceUnlockNotifyEmail", () => edgeHandler(req), { enabled: authorized });
+    return runCronWithBetterStackHeartbeat("ceUnlockNotifyEmail", req, authorized, () => edgeHandler(req));
   });
 }
