@@ -1,7 +1,7 @@
 # 0101 — E-mails automáticos saem pelo evento, com o cron como rede de segurança
 
-Status: aceito — 2026-10-24 (pedido do responsável). Implementada na migration
-`447` e nas Edge Functions `ce-unlock-notify-email`,
+Status: aceito — 2026-10-24 (pedido do responsável). Implementada nas migrations
+`447` e `448` e nas Edge Functions `ce-unlock-notify-email`,
 `customer-communication-auto-runner`, `demurrage-dunning` e
 `portal-email-events-runner`.
 

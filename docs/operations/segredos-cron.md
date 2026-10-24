@@ -8,7 +8,8 @@ Decisão em [ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md).
 Implementação em `supabase/migrations/007_cron_secrets_no_vault.sql`; tempo limite
 e horários fora da rajada em `supabase/migrations/165_cron_dispatch_timeout_e_escalonamento.sql`;
 disparo das rotinas de e-mail pelo evento em
-`supabase/migrations/447_emails_automaticos_saem_pelo_evento.sql`
+`supabase/migrations/447_emails_automaticos_saem_pelo_evento.sql` (ajuste do
+intervalo na `448`)
 ([ADR 0101](../adr/0101-emails-automaticos-saem-pelo-evento.md)).
 
 ## Por que não é `app.settings.*`
@@ -237,9 +238,11 @@ Regras do disparo:
   importação de centenas de B/Ls chama o runner uma vez.
 - **Intervalo mínimo** em `ops.edge_job_kicks` (`last_kicked_at`): o primeiro
   evento dispara na hora; os seguintes, dentro do intervalo, ficam para o cron
-  ou para o próximo disparo. A linha de outra transação que está disparando a
-  mesma rotina não é esperada (`SKIP LOCKED`): com intervalo, conta como
-  disparo em andamento; sem intervalo, dispara sem registrar.
+  ou para o próximo disparo, e saem sem travar a linha da rotina (migration
+  `448`), para não fazer outra transação, já fora do intervalo, pular o
+  disparo. A linha de outra transação que está disparando a mesma rotina não é
+  esperada (`SKIP LOCKED`): com intervalo, conta como disparo em andamento; sem
+  intervalo, dispara sem registrar.
 - **Só o segredo dedicado.** O compartilhado de transição da migration `438`
   (`CE_UNLOCK_CLEANUP_SECRET`) não serve ao disparo. Sem o par `SUPABASE_URL` e
   segredo no Vault, nada dispara e nada é avisado; o job, que passa pelo

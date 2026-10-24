@@ -165,6 +165,52 @@ describeLocal('447 — e-mails automáticos disparados pelo evento', () => {
     expect(elapsed).toBeLessThan(2000)
   }, 20_000)
 
+  it('quem fica dentro do intervalo não segura a rotina para outra transação já fora dele (448)', async () => {
+    // Rotina de teste com o último disparo agora, gravado de verdade: as duas
+    // sessões precisam ver o mesmo Vault e a mesma linha.
+    const hadUrl = psql(`SELECT count(*) FROM vault.secrets WHERE name = 'SUPABASE_URL';`) !== '0'
+    const cleanup = () => psql(`
+      DELETE FROM ops.edge_job_kicks WHERE function = 'c447-teste';
+      DELETE FROM vault.secrets WHERE name = 'TESTE_447_SECRET';
+      ${hadUrl ? '' : "DELETE FROM vault.secrets WHERE name = 'SUPABASE_URL';"}
+    `)
+    cleanup()
+    try {
+      psql(`
+        DO $v$ BEGIN
+          ${hadUrl ? '' : "PERFORM vault.create_secret('https://exemplo.supabase.co', 'SUPABASE_URL', '');"}
+          PERFORM vault.create_secret('segredo-447', 'TESTE_447_SECRET', '');
+        END $v$;
+        INSERT INTO ops.edge_job_kicks (function, last_kicked_at) VALUES ('c447-teste', clock_timestamp());
+      `)
+      // Sessão A: dentro do intervalo de 1 h, não dispara e segue aberta.
+      const holder = spawn('psql', ['-X', '-At', '-q', '-d', databaseUrl, '-c',
+        `BEGIN; SELECT ops.kick_edge_job('c447-teste', 'TESTE_447_SECRET', 'Authorization', 'Bearer ', interval '1 hour'); SELECT pg_sleep(4); COMMIT;`],
+      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PGAPPNAME: 'c447-interval-a' } })
+      let holderOut = ''
+      holder.stdout.on('data', (chunk) => { holderOut += String(chunk) })
+      const holderDone = new Promise<void>((resolve) => holder.on('close', () => resolve()))
+      for (let attempt = 0; attempt < 50; attempt++) {
+        if (psql(`SELECT count(*) FROM pg_stat_activity WHERE application_name = 'c447-interval-a' AND wait_event = 'PgSleep';`) === '1') break
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      // Sessão B: fora do próprio intervalo (1 ms), com A ainda aberta, dispara.
+      const out = psql(`
+        BEGIN;
+        SET LOCAL lock_timeout = '2s';
+        ${captureHttpPost}
+        SELECT ops.kick_edge_job('c447-teste', 'TESTE_447_SECRET', 'Authorization', 'Bearer ', interval '1 millisecond');
+        SELECT count(*) FROM pg_temp.captured_post;
+        ROLLBACK;
+      `)
+      await holderDone
+      expect(holderOut.trim().split('\n')[0]).toBe('f')
+      expect(lines(out)).toEqual(['t', '1'])
+    } finally {
+      cleanup()
+    }
+  }, 20_000)
+
   it('sem o segredo dedicado no Vault não dispara nem avisa (o compartilhado de transição não serve)', () => {
     const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl], {
       input: `
