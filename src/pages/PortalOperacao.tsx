@@ -238,6 +238,9 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
         (r) =>
           includesText(r.bl_id, filters.bl) &&
           includesText(r.ce_mercante, filters.ce) &&
+          // ponytail: Navio e Viagem casam por texto contido, inclusive no atalho
+          // "Ver meus B/Ls" de Chegadas e saídas: "601" também traz "601W" do mesmo
+          // navio. Upgrade: o atalho passar o voyage_id e filtrar por ele.
           includesText(r.vessel_name, filters.vessel) &&
           includesText(r.voyage_number, filters.voyage) &&
           includesText(r.pol, filters.pol) &&

@@ -14,6 +14,7 @@ import type { PortalScheduleVoyage } from '../../services/portalScheduleVoyages'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { SkeletonTable } from '../ui/Skeleton'
+import { InlineError } from '../ui/Card'
 import { NoValue } from '../ui/NoValue'
 import { RowActionLink } from '../ui/RowActionLink'
 import { StatusText } from '../ui/StatusText'
@@ -64,9 +65,11 @@ export function ScheduleDate({ voyage, lane, audience = 'portal' }: { voyage: Po
 /**
  * Posição do navio no MarineTraffic, pelo IMO cadastrado; sem IMO, nada. Só o
  * ícone na tabela (2026-10-19): em toda linha, o texto repetido pesava; o nome
- * fica no `title` e no rótulo acessível. Sem borda nem fundo (ponto 2 de
- * 2026-10-23: o quadrado com borda pesava na linha); no cartão do celular, o
- * texto vai junto, do tamanho do texto, sem ocupar a largura do cartão.
+ * fica no `title` e no rótulo acessível. Botão `ghost`, o mais discreto, com
+ * borda clara (ponto 2 de 2026-10-23: o quadrado de borda forte pesava na
+ * linha; a regra 9 mantém a borda); vale também em Chegadas e Saídas do Vela,
+ * que usa esta tabela. No cartão do celular, o texto vai junto, do tamanho do
+ * texto, sem ocupar a largura do cartão.
  */
 export function VesselMapButton({ voyage, withText = false }: { voyage: PortalScheduleVoyage; withText?: boolean }) {
   if (!voyage.imoNumber) return null
@@ -235,7 +238,7 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
     >
       {isLoading ? (
         <SkeletonTable rows={3} cols={6} label="Carregando chegadas e saídas" />
-      ) : isError ? (
+      ) : isError && !vessels ? (
         <div className="app-schedule__state" role="alert">
           <p>Não foi possível carregar chegadas e saídas.</p>
           <Button variant="secondary" className="app-btn--sm" loading={isFetching} loadingLabel="Tentando novamente" onClick={() => void refetch()}>
@@ -246,6 +249,9 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
         <div className="app-schedule__state">Nenhum navio programado no momento.</div>
       ) : (
         <>
+          {/* Atualizar que falha mantém a última leitura na tela (React Query
+              guarda `data` com `isError`); o aviso diz que ela pode estar velha. */}
+          {isError ? <InlineError message="Não foi possível atualizar chegadas e saídas; a tabela abaixo é da última leitura." /> : null}
           <div className="app-schedule__table">
             <ScheduleTable vessels={vessels} caption="Chegadas e saídas: saída na origem e chegada no Brasil" actions={cargoAction} />
           </div>

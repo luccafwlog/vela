@@ -150,7 +150,7 @@ it('mostra "Ver meus B/Ls" só na viagem com carga do Cliente e leva à aba BLs 
   const rows = within(table).getAllByRole('row').slice(1)
   expect(within(rows[0]).queryByRole('link', { name: /Ver meus B\/Ls/ })).toBeNull()
   const link = within(rows[1]).getByRole('link', { name: 'Ver meus B/Ls no BETA STAR, viagem 7/W' })
-  // O mapa continua ao lado (ALPHA tem IMO), sem borda: ação fantasma.
+  // O mapa continua ao lado (ALPHA tem IMO), no botão mais discreto (ghost).
   expect(within(rows[0]).getByRole('link', { name: /Ver ALPHA no mapa/ }).className).toContain('app-btn--ghost')
 
   await userEvent.click(link)
@@ -192,6 +192,17 @@ it('Atualizar relê as datas e a carga e mostra a hora de Brasília da última l
   expect(refetch).toHaveBeenCalledTimes(1)
   expect(refetchCustomerBls).toHaveBeenCalledTimes(1)
   expect(screen.getByRole('status').textContent).toBe('Atualizado em 23/10/2026 às 15:05 (horário de Brasília)')
+})
+
+it('Atualizar que falha mantém a última leitura na tela e avisa', () => {
+  // React Query guarda os dados da leitura anterior quando a releitura falha.
+  hookState = { isLoading: false, isError: true, data: [ALPHA], dataUpdatedAt: Date.parse('2026-10-23T17:32:00Z') }
+  render(<ShipScheduleWidget />)
+
+  expect(screen.getByRole('table')).toBeTruthy()
+  expect(screen.getByRole('alert').textContent).toBe('Não foi possível atualizar chegadas e saídas; a tabela abaixo é da última leitura.')
+  expect(screen.queryByText('Não foi possível carregar chegadas e saídas.')).toBeNull()
+  expect(screen.getByRole('status').textContent).toBe('Atualizado em 23/10/2026 às 14:32 (horário de Brasília)')
 })
 
 it('sem leitura concluída não inventa horário de atualização', () => {
