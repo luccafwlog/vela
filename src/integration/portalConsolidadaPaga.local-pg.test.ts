@@ -224,6 +224,11 @@ describeLocal('Portal — saldo pendente com consolidada aberta (migration 344)'
     const run = callAs(user344, `SELECT public.portal_list_invoices_page(25, 0, 'issued', NULL, NULL, NULL, NULL, NULL);`)
     const numbers = (JSON.parse(run.json ?? '{}') as { rows: Row[] }).rows.map((row) => row.invoice_number).sort()
     expect(numbers).toEqual(['INV-344-0001', 'INV-344-0002', 'INV-344-0003'])
+    // Ponto 9 (migration 454): B/Ls colados na busca do Portal acham cada fatura.
+    const byList = callAs(user344, `SELECT public.portal_list_invoices_page(25, 0, 'issued', NULL, E'BL-344-1\\nBL-344-2', NULL, NULL, NULL);`)
+    expect(byList.status, byList.stderr).toBe(0)
+    expect((JSON.parse(byList.json ?? '{}') as { rows: Row[] }).rows.map((row) => row.invoice_number).sort())
+      .toEqual(['INV-344-0001', 'INV-344-0002', 'INV-344-0003'])
   })
 
   it('avulsa com B/L de contexto na consolidada aberta continua no saldo', () => {

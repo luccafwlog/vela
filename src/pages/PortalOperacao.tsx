@@ -32,6 +32,7 @@ import {
 } from '../lib/portalOperationViews'
 import { exportPortalBlsWorkbook, exportPortalContainersWorkbook } from '../services/exports'
 import type { PortalOperationBL, PortalOperationContainer, PortalOperationContainerStatus } from '../services/portalOperation'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 type OperationTab = 'bls' | 'containers'
 type OpStatus = '' | PortalOperationContainerStatus
@@ -77,6 +78,11 @@ const monoClass = 'font-(family-name:--app-font-mono) tabular-nums whitespace-no
 function includesText(value: string | null | undefined, term: string) {
   if (!term.trim()) return true
   return (value ?? '').toLowerCase().includes(term.trim().toLowerCase())
+}
+
+/** B/L, CE e contêiner: também aceita uma lista colada (ponto 9 de 2026-10-23). */
+function includesNumber(value: string | null | undefined, term: string) {
+  return includesText(value, term) || matchesAnyToken(term, [value])
 }
 
 type BlFilters = {
@@ -236,8 +242,8 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
     () =>
       rows.filter(
         (r) =>
-          includesText(r.bl_id, filters.bl) &&
-          includesText(r.ce_mercante, filters.ce) &&
+          includesNumber(r.bl_id, filters.bl) &&
+          includesNumber(r.ce_mercante, filters.ce) &&
           // ponytail: Navio e Viagem casam por texto contido, inclusive no atalho
           // "Ver meus B/Ls" de Chegadas e saídas: "601" também traz "601W" do mesmo
           // navio. Upgrade: o atalho passar o voyage_id e filtrar por ele.
@@ -449,9 +455,9 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
     () =>
       containers.filter(
         (c) =>
-          includesText(c.container_number, filters.container) &&
-          includesText(c.bl_id, filters.bl) &&
-          includesText(c.ce_mercante, filters.ce) &&
+          includesNumber(c.container_number, filters.container) &&
+          includesNumber(c.bl_id, filters.bl) &&
+          includesNumber(c.ce_mercante, filters.ce) &&
           includesText(c.vessel_name, filters.vessel) &&
           includesText(c.voyage_number, filters.voyage) &&
           includesText(c.pol, filters.pol) &&

@@ -5,6 +5,7 @@ import { queryKeys } from '../services/queryKeys'
 import { sanitizeLikeTerm } from '../lib/utils'
 import type { BLContainer, VehicleListItem } from '../types/database'
 import { fetchVoyageVehicleStats } from '../services/voyageVehicleStats'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 type VehicleListItemWithUnpackingLocation = Omit<VehicleListItem, 'container'> & {
   container?: Pick<BLContainer, 'id' | 'container_number' | 'type' | 'seal_number' | 'unpacking_location'> | null
@@ -161,11 +162,11 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
       let rows = allRows
       if (filters.container) {
         const term = filters.container.toLowerCase()
-        rows = rows.filter((r) => (r.container?.container_number ?? '').toLowerCase().includes(term))
+        rows = rows.filter((r) => (r.container?.container_number ?? '').toLowerCase().includes(term) || matchesAnyToken(term, [r.container?.container_number]))
       }
       if (filters.bl) {
         const term = filters.bl.toLowerCase()
-        rows = rows.filter((r) => (r.bl?.id ?? '').toLowerCase().includes(term))
+        rows = rows.filter((r) => (r.bl?.id ?? '').toLowerCase().includes(term) || matchesAnyToken(term, [r.bl?.id]))
       }
       if (filters.unpackingLocation === UNPACKING_LOCATION_NONE) {
         rows = rows.filter((r) => r.container && !(r.container.unpacking_location ?? '').trim())

@@ -28,6 +28,7 @@ import { formatCountLabel, formatDate } from '../../lib/utils'
 import { extractErrorText } from '../../lib/errors'
 import type { DemurrageContainerRow } from '../../services/demurrage/demurrageContainers'
 import type { ContainerLens } from '../../pages/demurrageListState'
+import { matchesAnyToken } from '../../lib/searchTerms'
 
 type Props = {
   containers: DemurrageContainerRow[] | undefined
@@ -63,6 +64,7 @@ function matchesSearch(container: DemurrageContainerRow, query: string) {
   return (
     container.container_number.toLowerCase().includes(term)
     || (container.bl_id ?? '').toLowerCase().includes(term)
+    || matchesAnyToken(term, [container.container_number, container.bl_id])
     || (container.bl?.customer?.name ?? '').toLowerCase().includes(term)
     || (container.billed_in ?? []).some((ref) => ref.doc_number.toLowerCase().includes(term))
   )

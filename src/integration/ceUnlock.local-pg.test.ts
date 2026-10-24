@@ -152,6 +152,9 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(portalItem.confirmed).toBe(false)
     // Exportar é o registro do envio: o desk vê, o Portal nunca recebe nada da ZPT.
     expect(JSON.parse(sql("SELECT public.ce_unlock_read('bls','{\"filters\":{\"search\":\"CE557-A\"}}');",admin)).items[0]).toMatchObject({export_state:'exported',can_export:true})
+    // Ponto 9 (migration 454): B/Ls colados na busca do Desbloqueio de CE acham cada um.
+    const listed=JSON.parse(sql("SELECT public.ce_unlock_read('bls','{\"filters\":{\"search\":\"CE557-A, CE557-SECOND\"}}');",admin)).items.map((i:{bl_id:string})=>i.bl_id)
+    expect(listed).toEqual(expect.arrayContaining(['CE557-A','CE557-SECOND']))
     for(const key of ['export_state','exported_at','zpt_status','zpt_description','zpt_pending','zpt_updated_at','zpt_without_export']) expect(portalItem).not.toHaveProperty(key)
     sql("UPDATE public.bl_receivables SET settled_amount_brl=50,balance_brl=50,status='partially_settled' WHERE id=998557;")
     expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow()
