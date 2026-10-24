@@ -173,7 +173,8 @@ it("correção completa: com a nova versão do documento recusado, a solicitaç�
   expect(resend.hasAttribute("disabled")).toBe(true);
   expect(screen.getByText("Envie o termo de devolução corrigido para reenviar.")).toBeTruthy();
   const refusedRow = screen.getByRole("button", { name: "termo.pdf" }).closest("tr") as HTMLElement;
-  expect(within(refusedRow).getByText("Correção pedida: assinatura ilegível")).toBeTruthy();
+  expect(within(refusedRow).getByText("Correção pedida")).toBeTruthy();
+  expect(within(refusedRow).getByText("Assinatura ilegível")).toBeTruthy();
   expect(within(refusedRow).getByRole("button", { name: "Enviar nova versão: termo de devolução" })).toBeTruthy();
   // Só o documento recusado oferece nova versão.
   expect(screen.getAllByRole("button", { name: /Enviar nova versão/ })).toHaveLength(1);
@@ -289,6 +290,41 @@ it("B/L isento aparece como Isentas, não como taxas pagas", async () => {
   mount();
   expect(await screen.findByText("Isentas")).toBeTruthy();
   expect(screen.queryByText("Pagas")).toBeNull();
+});
+
+// Ponto 5 de 2026-10-23: o motivo da recusa que o operador do Vela escreveu
+// aparece inteiro no Portal, com as quebras de linha, na solicitação e na
+// lista de protocolos; antes o Portal cortava em 40 letras.
+const LONG_REASON = [
+  "A procuração não tem o reconhecimento de firma do representante legal; o cartório precisa reconhecer a assinatura por autenticidade.",
+  "Envie também o contrato social atualizado, com a cláusula de administração que dá poderes ao signatário.",
+].join("\n");
+
+it("motivo da recusa inteiro, com as quebras de linha, no detalhe da solicitação", async () => {
+  const refused = doc({ id: "p0", type: "procuracao", status: "changes_requested", reason: LONG_REASON, file_name: "proc.pdf" });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ state: "changes_requested", documents: [doc({ id: "t1", status: "approved" }), refused] }));
+  mount("/portal/desbloqueio-ce?pedido=req-1");
+  const row = (await screen.findByRole("button", { name: "proc.pdf" })).closest("tr") as HTMLElement;
+  const reason = within(row).getByText((_, node) => node?.textContent === LONG_REASON && node.tagName === "SPAN");
+  expect(reason.className).toContain("whitespace-pre-line");
+  expect(reason.closest("td")?.className).toContain("app-table__text--wrap");
+  expect(row.textContent).not.toContain("…");
+});
+
+it("lista Minhas solicitações mostra o motivo inteiro de cada documento recusado", async () => {
+  svc.listPortalCeUnlockRequests.mockResolvedValue({
+    items: [{ id: "req-1", protocol: "CE-1", state: "changes_requested", version: 4, source: "request", created_at: "2026-10-10T10:00:00Z", bl_ids: ["BL-A"], sla_started_at: null }],
+    total: 1,
+  });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({
+    state: "changes_requested",
+    documents: [doc({ id: "t0", status: "changes_requested", reason: "Assinatura ilegível." }), doc({ id: "p0", type: "procuracao", status: "changes_requested", reason: LONG_REASON, file_name: "proc.pdf" })],
+  }));
+  mount("/portal/desbloqueio-ce?aba=solicitacoes");
+  const table = await screen.findByRole("table", { name: "Minhas solicitações de desbloqueio" });
+  await waitFor(() => expect(table.textContent).toContain("Motivo (termo de devolução): Assinatura ilegível."));
+  const proc = within(table).getByText((_, node) => node?.tagName === "SPAN" && node.textContent === `Motivo (procuração): ${LONG_REASON}`);
+  expect(proc.className).toContain("whitespace-pre-line");
 });
 
 // Ponto 6 de 2026-10-23: abaixo do B/L original, os endereços das agências que o recebem.
