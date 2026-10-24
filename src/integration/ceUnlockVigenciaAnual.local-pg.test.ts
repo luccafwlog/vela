@@ -55,7 +55,9 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
       INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante,created_at) VALUES
         ('CE449-DEZ',${C},${C},'998449000000001','${y - 1}-12-20T15:00:00-03:00'),
         ('CE449-JAN',${C},${C},'998449000000002','${y}-01-02T09:00:00-03:00'),
-        ('CE449-VIRADA',${C},${C},'998449000000003','${y}-01-01T00:30:00-03:00')
+        ('CE449-VIRADA',${C},${C},'998449000000003','${y}-01-01T00:30:00-03:00'),
+        -- 22:30 de 31/12 em Brasília já é 01/01 em UTC: só o dia de Brasília o deixa fora do anual novo.
+        ('CE449-REVEILLON',${C},${C},'998449000000004','${y - 1}-12-31T22:30:00-03:00')
         ON CONFLICT(id) DO UPDATE SET customer_id=EXCLUDED.customer_id,ce_mercante=EXCLUDED.ce_mercante,created_at=EXCLUDED.created_at,cancelled_at=NULL;
       INSERT INTO public.bl_receivables(id,bl_id,customer_id,original_amount_brl,settled_amount_brl,balance_brl,status) VALUES
         (998449,'CE449-DEZ',${C},100,100,0,'settled'),(998450,'CE449-JAN',${C},100,100,0,'settled'),(998451,'CE449-VIRADA',${C},100,100,0,'settled') ON CONFLICT DO NOTHING;
@@ -82,10 +84,12 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
     const y = Y()
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP desde a virada', request_key: key() })
     annual('termo', y); annual('procuracao', y)
-    // O anual é deste ano: cobre o B/L de janeiro e o da virada (00:30 de Brasília), não o de dezembro.
+    // O anual é deste ano: cobre o B/L de janeiro e o da virada (00:30 de Brasília), não o de dezembro
+    // nem o das 22:30 de 31/12 em Brasília, que em UTC já seria 01/01.
     expect(item('CE449-DEZ')).toMatchObject({ vip: true, vip_covered: false })
     expect(item('CE449-JAN')).toMatchObject({ vip: true, vip_covered: true })
     expect(item('CE449-VIRADA')).toMatchObject({ vip_covered: true })
+    expect(item('CE449-REVEILLON')).toMatchObject({ vip_covered: false })
 
     const old = command('draft', { bl_ids: ['CE449-DEZ'], request_key: key() }, client)
     expect(old.source).toBe('request')
@@ -153,10 +157,11 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
     expect(error(prepare(vipDraft.id, 'procuracao'), client)).toContain('Pedido não aceita anexos')
   })
 
-  it('o banco usa a data de importação, não a de hoje nem a da reimportação', () => {
+  it('o banco usa o dia de importação em Brasília, não o de hoje nem o de UTC', () => {
     const y = Y()
     expect(sql("SELECT ce_unlock_private.bl_import_day('CE449-DEZ');")).toBe(`${y - 1}-12-20`)
-    // 00:30 de 01/01 em Brasília ainda é 31/12 em UTC: vale o dia de Brasília.
     expect(sql("SELECT ce_unlock_private.bl_import_day('CE449-VIRADA');")).toBe(`${y}-01-01`)
+    // 22:30 de 31/12 em Brasília é 01:30 de 01/01 em UTC: vale o dia de Brasília.
+    expect(sql("SELECT ce_unlock_private.bl_import_day('CE449-REVEILLON');")).toBe(`${y - 1}-12-31`)
   })
 })

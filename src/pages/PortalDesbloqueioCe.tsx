@@ -453,10 +453,16 @@ export function PortalDesbloqueioCe() {
                 label="Termo de devolução"
                 detail={!vipEnabled && flow.model.isSuccess && !flow.model.data ? "Modelo ainda não disponibilizado pela agência." : null}
               >
+                {/* O pedido é inteiro VIP ou inteiro comum (ADR 0101, decisão 5): faltando um dos anuais, os dois vão anexados. */}
                 {!vipEnabled ? (
                   "Assinado, em PDF, anexado à solicitação"
-                ) : vip?.termo ? (
+                ) : vip?.termo && vip.procuracao ? (
                   `Coberto pelo termo anual${termoUntil ? ` até ${formatDate(termoUntil)}` : ""}`
+                ) : vip?.termo ? (
+                  <>
+                    {`Termo anual válido${termoUntil ? ` até ${formatDate(termoUntil)}` : ""}`}
+                    <span className="block">Enquanto falta a procuração anual, assinado, em PDF, anexado à solicitação</span>
+                  </>
                 ) : (
                   <>
                     <StatusText tone="warning">Falta o termo anual</StatusText>
@@ -467,8 +473,13 @@ export function PortalDesbloqueioCe() {
               <Fact label="Procuração">
                 {!vipEnabled ? (
                   "Em PDF, anexada à solicitação"
-                ) : vip?.procuracao ? (
+                ) : vip?.procuracao && vip.termo ? (
                   `Coberta pela procuração anual${procuracaoUntil ? ` até ${formatDate(procuracaoUntil)}` : ""}`
+                ) : vip?.procuracao ? (
+                  <>
+                    {`Procuração anual válida${procuracaoUntil ? ` até ${formatDate(procuracaoUntil)}` : ""}`}
+                    <span className="block">Enquanto falta o termo anual, em PDF, anexada à solicitação</span>
+                  </>
                 ) : (
                   <>
                     <StatusText tone="warning">Falta a procuração anual</StatusText>
@@ -903,7 +914,8 @@ export function PortalDesbloqueioCe() {
                   </Fact>
                   <Fact label="Documentos">{vipSource ? "Anuais VIP" : "Da solicitação"}</Fact>
                 </FactList>
-                {vipEnabled && !vipSource && vip && detail.state !== "cancelled" && (
+                {/* Só na solicitação em andamento: na concluída ou cancelada o motivo de hoje não explica a de antes. */}
+                {vipEnabled && !vipSource && vip && detail.state !== "cancelled" && detail.state !== "completed" && (
                   <div className="app-callout app-callout--warning">
                     Sua condição VIP não cobre esta solicitação: {vipFallbackReason(vip, detail.items)}. Por isso ela segue
                     como as comuns, com o termo de devolução e a procuração anexados a ela.

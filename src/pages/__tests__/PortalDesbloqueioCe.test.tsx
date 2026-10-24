@@ -8,6 +8,7 @@ import { PortalDesbloqueioCe } from "../PortalDesbloqueioCe";
 const fixtures = vi.hoisted(() => ({
   readonly: false,
   vip: false,
+  vipProcuracao: true,
   canSubmit: true,
   draft: false,
   documentsReady: false,
@@ -43,7 +44,7 @@ vi.mock("../../hooks/usePortalCeUnlock", () => ({
     requests: { data: { items: fixtures.requests, total: fixtures.requests.length } },
     allRequests: { data: fixtures.allRequests },
     correctionDetails: new Map(),
-    vip: { data: { enabled: fixtures.vip, termo: true, procuracao: true, documents: [] } },
+    vip: { data: { enabled: fixtures.vip, termo: true, procuracao: fixtures.vipProcuracao, documents: [] } },
     model: { data: null },
     detail: { data: fixtures.draft ? { id: "draft-id", protocol: "CE-DRAFT", state: fixtures.state, source: "request", version: 0, items: [{ bl_id: "BL-A", paid: true, reasons: [], source: "request", ...(fixtures.ready ? { can_export: true, sla_started_at: "2026-10-07T10:00:00-03:00" } : {}) }, ...(fixtures.confirmedUnpaid ? [{ bl_id: "BL-DONE", paid: false, confirmed: true, reasons: [], source: "request" }] : [])], documents: fixtures.documentsReady ? [{ id: "term", type: "termo", source: "request", status: "uploaded", file_name: "termo.pdf" }, { id: "proc", type: "procuracao", source: "request", status: "uploaded", file_name: "procuracao.pdf" }] : [], events: [] } : null },
     command: { isPending: false, mutateAsync: fixtures.mutate },
@@ -57,6 +58,7 @@ afterEach(() => {
   cleanup();
   fixtures.readonly = false;
   fixtures.vip = false;
+  fixtures.vipProcuracao = true;
   fixtures.canSubmit = true;
   fixtures.draft = false;
   fixtures.documentsReady = false;
@@ -96,6 +98,18 @@ it("VIP coberto: requisitos dizem a cobertura anual, com a marca VIP e a aba anu
   expect(block.textContent).toContain("Coberta pela procuração anual");
   expect(within(block).getByText("VIP")).toBeTruthy();
   expect(screen.getByRole("tab", { name: "Documentos anuais" })).toBeTruthy();
+});
+// O pedido é inteiro VIP ou inteiro comum: com só o termo anual válido, a procuração
+// falta e os dois vão anexados; nenhum dos dois pode aparecer como "coberto".
+it("VIP só com o termo anual: requisitos dizem que os dois vão anexados", () => {
+  fixtures.vip = true;
+  fixtures.vipProcuracao = false;
+  mount();
+  const block = screen.getByRole("region", { name: "O que o desbloqueio pede" });
+  expect(block.textContent).toContain("Falta a procuração anual");
+  expect(block.textContent).toContain("Termo anual válido");
+  expect(block.textContent).toContain("Enquanto falta a procuração anual, assinado, em PDF, anexado à solicitação");
+  expect(block.textContent).not.toContain("Coberto pelo termo anual");
 });
 it("Cliente sem VIP: nenhuma menção a documento anual", () => {
   const { container } = mount();

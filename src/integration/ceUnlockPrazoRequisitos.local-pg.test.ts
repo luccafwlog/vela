@@ -50,6 +50,7 @@ function scenario(req: Requirements, extra = '') {
       'request', ce_unlock_private.request_sla_start('${request}'),
       'portal', (SELECT x->>'sla_started_at' FROM jsonb_array_elements(ce_unlock_private.list(${customer},'{}',1,true)->'items') x WHERE x->>'id'='${request}'),
       'ficha', (SELECT x->>'sla_started_at' FROM jsonb_array_elements(public.ce_unlock_customer_requests(${customer},NULL,1)->'items') x WHERE x->>'id'='${request}'),
+      'ficha_exported_at', (SELECT x->>'exported_at' FROM jsonb_array_elements(public.ce_unlock_customer_requests(${customer},NULL,1)->'items') x WHERE x->>'id'='${request}'),
       'submit', (SELECT max(created_at) FROM public.ce_unlock_events WHERE request_id='${request}' AND action='submit'),
       'termo_at', (SELECT reviewed_at FROM public.ce_unlock_documents WHERE id='${termo}'),
       'procuracao_at', (SELECT reviewed_at FROM public.ce_unlock_documents WHERE id='${procuracao}'));
@@ -143,6 +144,61 @@ local('desbloqueio CE — prazo só com os quatro requisitos (migration 448)', (
     expect(r.a).not.toBeNull()
     expect(r.b).toBeNull()
     expect(r.request).toBeNull()
+  })
+
+  // 450 (revisão final): exportado, o prazo fica; antes, o anual VIP que vence
+  // na virada do ano ou a entrega desmarcada depois da exportação apagavam o
+  // prazo e "Exportado no prazo" virava "Sem prazo".
+  it('B/L exportado mantém o prazo quando um requisito cai depois, e a ficha recebe a exportação', () => {
+    const exported = scenario({ paid: true, termo: true, procuracao: true, delivered: true },
+      `UPDATE public.ce_unlock_request_bls SET exported_at=now()-interval '10 minutes', termo_approved=false WHERE bl_id='CE448-A';
+       UPDATE public.ce_unlock_bl_deliveries SET delivered=false WHERE bl_id='CE448-A';`)
+    expect(exported.item).not.toBeNull()
+    expect(exported.request).not.toBeNull()
+    expect(Date.parse(exported.ficha!)).toBe(Date.parse(exported.item!))
+    expect(exported.ficha_exported_at).not.toBeNull()
+    // Sem exportação, o mesmo requisito que cai tira o prazo (regra da 448).
+    const pending = scenario({ paid: true, termo: true, procuracao: true, delivered: true },
+      `UPDATE public.ce_unlock_request_bls SET termo_approved=false WHERE bl_id='CE448-A';`)
+    expect(pending).toMatchObject({ item: null, request: null, ficha: null, ficha_exported_at: null })
+  })
+
+  // 450 (revisão final): a solicitação com A pronto há dias e B sem a entrega
+  // só se completa quando B muda para outra solicitação (caminho A). Esse fato
+  // não está na lista da 448; o prazo nascia três dias atrás, já vencido, e o
+  // e-mail "documentação validada" saía com ele. A validação passa a ser fato.
+  it('validação por fato fora da lista (B/L pendente muda de solicitação): o prazo parte da validação', () => {
+    const out = sql(`BEGIN;
+      SET LOCAL session_replication_role=replica;
+      INSERT INTO public.ce_unlock_requests(id,customer_id,source,state,created_by) VALUES('${request}',${customer},'request','in_review','${client}');
+      INSERT INTO public.ce_unlock_documents(id,customer_id,request_id,type,source,status,storage_path,file_name,size_bytes,hash,uploaded_by,reviewed_at) VALUES
+        ('${termo}',${customer},'${request}','termo','request','approved','p/t','t.pdf',10,repeat('a',64),'${client}',now()-interval '3 days'),
+        ('${procuracao}',${customer},'${request}','procuracao','request','approved','p/p','p.pdf',10,repeat('b',64),'${client}',now()-interval '3 days');
+      INSERT INTO public.ce_unlock_events(customer_id,request_id,action,actor_id,created_at) VALUES(${customer},'${request}','submit','${client}',now()-interval '4 days');
+      INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('CE448-A',${customer},${customer},'998448000000101'),('CE448-B',${customer},${customer},'998448000000102');
+      INSERT INTO public.bl_receivables(id,bl_id,customer_id,original_amount_brl,settled_amount_brl,balance_brl,status) VALUES(998448,'CE448-A',${customer},100,100,0,'settled');
+      INSERT INTO public.ledger_settlements(receivable_id,amount_brl,source,created_at) VALUES(998448,100,'manual',now()-interval '3 days');
+      INSERT INTO public.ce_unlock_request_bls(request_id,bl_id,ce_at_request,termo_document_id,procuracao_document_id,termo_approved,procuracao_approved,active) VALUES
+        ('${request}','CE448-A','998448000000101','${termo}','${procuracao}',true,true,true),
+        ('${request}','CE448-B','998448000000102','${termo}','${procuracao}',true,true,false);
+      INSERT INTO public.ce_unlock_bl_deliveries(bl_id,delivered,updated_at) VALUES('CE448-A',true,now()-interval '3 days'),('CE448-B',false,now()-interval '3 days');
+      INSERT INTO public.ce_unlock_events(customer_id,request_id,bl_id,action,actor_id) VALUES(${customer},'${request}','CE448-B','bl_moved','${client}');
+      SET LOCAL session_replication_role=origin;
+      SELECT ce_unlock_private.refresh_completion('${request}');
+      SELECT jsonb_build_object(
+        'state', (SELECT state FROM public.ce_unlock_requests WHERE id='${request}'),
+        'now', now(),
+        'request', ce_unlock_private.request_sla_start('${request}'),
+        'item', ce_unlock_private.item('CE448-A','${request}')->>'sla_started_at',
+        'deadline', to_char(ce_unlock_private.sla_deadline(ce_unlock_private.request_sla_start('${request}')) AT TIME ZONE 'America/Sao_Paulo','DD/MM "às" HH24:MI'),
+        'email', (SELECT string_agg(body,' | ') FROM public.ce_unlock_email_outbox WHERE request_id='${request}' AND kind='documentation_validated'));
+      ROLLBACK;`)
+    const r = JSON.parse(out.split('\n').at(-1) ?? 'null') as Record<string, string>
+    expect(r.state).toBe('completed')
+    // Sem a 450, request e item seriam de três dias atrás.
+    expect(Date.parse(r.request)).toBe(Date.parse(r.now))
+    expect(Date.parse(r.item)).toBe(Date.parse(r.now))
+    expect(r.email).toContain(`Prazo para o desbloqueio: até ${r.deadline}`)
   })
 
   it('o aviso "documentação validada" (sino e e-mail) só sai com os quatro requisitos, com o prazo', () => {

@@ -1,7 +1,7 @@
 # 0101 — Desbloqueio de CE: prazo só com os quatro requisitos e vigência anual sem retroagir
 
 Status: aceito — 2026-10-23 (observações do responsável, pontos 10, 11 e 13).
-Implementada nas migrations `448` (prazo) e `449` (vigência).
+Implementada nas migrations `448` e `450` (prazo) e `449` (vigência).
 
 Supersede a decisão 15 da
 [spec de revisão do fluxo](../archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md)
@@ -20,13 +20,17 @@ como cumprir.
 
 1. **O prazo só começa com os quatro requisitos cumpridos**: taxas locais
    liquidadas, termo de devolução aprovado, procuração aprovada e B/L original
-   entregue. Parte do último que se cumpriu. Faltando um, não há prazo, nas
+   entregue. Parte do último que se cumpriu; a validação da solicitação conta
+   como fato, para o que a completa fora da lista (B/L pendente que muda de
+   solicitação, isenção, troca de Cliente) não fazer o prazo nascer vencido
+   (migration `450`). Faltando um, não há prazo, nas
    telas do Portal, nos avisos (sino e e-mail) e nas telas internas. A regra
    vale no banco (`ce_unlock_private.item` e `request_sla_start`), não só na
    tela.
 2. A solicitação só tem prazo quando todos os B/Ls ativos têm os quatro
    requisitos.
 3. Desfazer um requisito tira o prazo; cumpri-lo de novo recomeça a contagem.
+   Depois da exportação o prazo do B/L fica: ele já foi medido.
 4. **A vigência do termo e da procuração anuais não retroage.** O anual, e cada
    renovação, cobre só o B/L importado no Vela dentro da vigência dele
    (`bls.created_at`, dia de Brasília), e só enquanto ele próprio está vigente.
@@ -43,8 +47,10 @@ como cumprir.
 
 - A fila "Solicitações aguardando análise" deixa de ter prazo (ali os
   documentos ainda não foram aprovados) e mostra a hora do envio.
-- O aviso "documentação validada" já saía só com os quatro requisitos e não
-  muda.
+- O aviso "documentação validada" já saía só com os quatro requisitos; desde a
+  `450` usa o prazo da solicitação lido depois da validação, o mesmo do Portal.
+- Com o prazo só na solicitação validada, a ficha do Cliente passa a mostrá-lo
+  na concluída até a última exportação, como o detalhe.
 - O rascunho do Cliente VIP só nasce VIP quando os anuais cobrem todos os B/Ls;
   um B/L sem cobertura faz a solicitação inteira seguir comum. Pedido VIP já
   aberto com B/L importado antes da vigência perde a cobertura desse B/L.

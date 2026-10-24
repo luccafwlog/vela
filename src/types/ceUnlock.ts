@@ -107,6 +107,8 @@ export type CeUnlockReviewRow = {
   submitted_at?: string | null;
   /** Prazo: só com os quatro requisitos, então nulo enquanto há documento a analisar (448). */
   sla_started_at: string | null;
+  /** Ficha do Cliente: a última exportação, quando todos os B/Ls ativos foram exportados (migration 450). */
+  exported_at?: string | null;
   bl_ids: string[];
   termo_status: CeUnlockDocument["status"] | null;
   procuracao_status: CeUnlockDocument["status"] | null;
