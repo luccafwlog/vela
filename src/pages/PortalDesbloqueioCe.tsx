@@ -64,6 +64,13 @@ const latestRequestDoc = (documents: CeUnlockDocument[], type: DocType) =>
 const refusedTypes = (documents: CeUnlockDocument[]) =>
   DOC_TYPES.filter((type) => ["changes_requested", "revoked"].includes(latestRequestDoc(documents, type)?.status ?? ""));
 
+/** Motivo inteiro de cada documento recusado, como o operador da agência escreveu (ponto 5 de 2026-10-23). */
+const refusalReasons = (documents: CeUnlockDocument[]) =>
+  refusedTypes(documents).flatMap((type) => {
+    const reason = latestRequestDoc(documents, type)?.reason?.trim();
+    return reason ? [{ type, reason }] : [];
+  });
+
 /** B/L numa solicitação ativa (a cancelada não prende o B/L). */
 const inRequest = (i: CeUnlockItem) => !!i.request_id && i.state !== "cancelled";
 /** Taxas locais com fatura em aberto; "aguardando fatura" não pede ação do Cliente. */
@@ -687,6 +694,7 @@ export function PortalDesbloqueioCe() {
                       const blIds = r.bl_ids ?? [];
                       const correction = flow.correctionDetails.get(r.id);
                       const refused = correction ? refusedTypes(correction.documents) : [];
+                      const reasons = r.state === "changes_requested" && correction ? refusalReasons(correction.documents) : [];
                       const situation =
                         r.state === "draft"
                           ? "Rascunho · falta enviar"
@@ -716,9 +724,14 @@ export function PortalDesbloqueioCe() {
                           <td className="tabular-nums">
                             {r.sla_started_at ? formatCeUnlockDeadline(ceUnlockDeadline(r.sla_started_at)) : <NoValue label="Sem prazo" />}
                           </td>
-                          <td>
+                          <td className={reasons.length ? "app-table__text app-table__text--wrap" : undefined}>
                             <span className="app-table__cell-stack">
                               {state.tone === "default" ? situation : <StatusText tone={state.tone}>{situation}</StatusText>}
+                              {reasons.map(({ type, reason }) => (
+                                <span key={type} className="whitespace-pre-line">
+                                  Motivo ({ceDocumentName(type).toLocaleLowerCase("pt-BR")}): {reason}
+                                </span>
+                              ))}
                             </span>
                           </td>
                         </tr>
@@ -1006,7 +1019,7 @@ function RequestDocuments({
                     {doc ? <CeUnlockFileLink doc={doc} scope={scope} onError={onError} /> : <NoValue label="Sem arquivo" />}
                   </td>
                   <td className="whitespace-nowrap tabular-nums">{doc ? ceDate(doc.created_at) : <NoValue label="Não enviado" />}</td>
-                  <td className="whitespace-nowrap">
+                  <td className="app-table__text app-table__text--wrap">
                     {doc ? (
                       <CeUnlockDocumentSituation doc={doc} />
                     ) : (

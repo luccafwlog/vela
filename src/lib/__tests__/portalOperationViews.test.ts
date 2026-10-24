@@ -3,6 +3,7 @@ import type { PortalOperationBL } from '../../services/portalOperation'
 import {
   blCargoLabel,
   blMatchesReturnSituation,
+  blsOfVoyagePath,
   blReturnSummary,
   containerMatchesReturnSituation,
   containerSituation,
@@ -10,6 +11,7 @@ import {
   countContainersWithoutReturn,
   flattenContainers,
   localChargesView,
+  voyageIdsWithCargo,
 } from '../portalOperationViews'
 
 const bls: PortalOperationBL[] = [
@@ -135,5 +137,21 @@ describe('portalOperationViews — tela limpa da rodada 2', () => {
     expect(localChargesView({ status: 'awaiting_invoice', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: { label: 'Aguardando fatura', tone: 'default' } })
     expect(localChargesView({ status: 'none', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: null })
     expect(localChargesView(undefined)).toEqual({ total: null, payment: null })
+  })
+})
+
+describe('voyageIdsWithCargo (ponto 2 de 2026-10-23)', () => {
+  it('marca só as viagens com B/L vivo do próprio Cliente', () => {
+    const cancelled: PortalOperationBL = { ...bls[1], bl_id: 'BL3', voyage_id: 3, cancelled_at: '2026-06-03T10:00:00Z' }
+    const semViagem: PortalOperationBL = { ...bls[1], bl_id: 'BL4', voyage_id: null }
+    expect([...voyageIdsWithCargo([...bls, cancelled, semViagem])].sort()).toEqual([1, 2])
+    expect(voyageIdsWithCargo([]).size).toBe(0)
+  })
+
+  it('o link da aba BLs leva navio e viagem na URL, com o texto escapado', () => {
+    expect(blsOfVoyagePath('MSC ANNA', '601W')).toBe('/operacao?tab=bls&navio=MSC+ANNA&viagem=601W')
+    const params = new URLSearchParams(blsOfVoyagePath('A&B', '1/2').split('?')[1])
+    expect(params.get('navio')).toBe('A&B')
+    expect(params.get('viagem')).toBe('1/2')
   })
 })

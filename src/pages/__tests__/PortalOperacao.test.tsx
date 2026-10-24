@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import type { PortalOperationBL } from '../../services/portalOperation'
 
 const rows: PortalOperationBL[] = [
@@ -203,10 +203,15 @@ import { exportPortalBlsWorkbook, exportPortalContainersWorkbook } from '../../s
 
 afterEach(cleanup)
 
+function SearchProbe() {
+  return <div data-testid="search">{useLocation().search}</div>
+}
+
 function renderOperacao(initialEntry = '/portal/operacao') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <PortalOperacao />
+      <SearchProbe />
     </MemoryRouter>,
   )
 }
@@ -458,5 +463,29 @@ describe('PortalOperacao (BLs e Containers)', () => {
     const inner = screen.getByRole('table', { name: 'Containers do B/L BL004' })
     expect(within(inner).getByText('MIXU9999999')).toBeTruthy()
     expect(within(inner).getByText('40HC')).toBeTruthy()
+  })
+})
+
+// Ponto 2 de 2026-10-23: o atalho "Ver meus B/Ls" de Chegadas e saídas chega
+// pela URL; recarregar a página mantém o filtro de Navio e Viagem.
+describe('PortalOperacao: Navio e Viagem na URL', () => {
+  it('abre a aba BLs já filtrada pelo navio e pela viagem do endereço', () => {
+    renderOperacao('/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W')
+    expect((screen.getByLabelText('Navio') as HTMLInputElement).value).toBe('NAVIO DEVOLVIDO')
+    expect((screen.getByLabelText('Viagem') as HTMLInputElement).value).toBe('003W')
+    const shown = within(blsTable()).getAllByRole('button', { name: /Abrir os containers do B\/L/ }).map((b) => b.getAttribute('aria-label'))
+    expect(shown).toEqual(['Abrir os containers do B/L BL003'])
+  })
+
+  it('digitar ou limpar Navio e Viagem atualiza a URL', async () => {
+    const user = userEvent.setup()
+    renderOperacao('/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W')
+    await user.clear(screen.getByLabelText('Viagem'))
+    expect(new URLSearchParams(screen.getByTestId('search').textContent ?? '').get('viagem')).toBeNull()
+    await user.clear(screen.getByLabelText('Navio'))
+    await user.type(screen.getByLabelText('Navio'), 'MISTO')
+    const params = new URLSearchParams(screen.getByTestId('search').textContent ?? '')
+    expect(params.get('navio')).toBe('MISTO')
+    expect(params.get('tab')).toBe('bls')
   })
 })

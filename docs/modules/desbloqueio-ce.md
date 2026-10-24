@@ -38,9 +38,13 @@ Manifesto Mercante é regra de
   antiga; ver [B/L que muda de solicitação](#bl-que-muda-de-solicitação)).
   **Minhas solicitações:** Protocolo (abre o detalhe), Aberta em, B/Ls (primeiro e "+N"), Documentos,
   Prazo para desbloqueio (de `sla_started_at`) e Situação em texto ("Correção pedida · reenvie …" e
-  "Rascunho · falta enviar" em âmbar; cancelada em cinza). O **detalhe** (janela) tem os blocos
+  "Rascunho · falta enviar" em âmbar; cancelada em cinza). Na correção pedida, a Situação traz embaixo
+  "Motivo (termo de devolução): …" e "Motivo (procuração): …" com o texto inteiro que o operador
+  escreveu, com as quebras de linha (ponto 5 das observações de 2026-10-23; antes o Portal cortava o
+  motivo em 40 letras e o resto só aparecia ao passar o mouse). O **detalhe** (janela) tem os blocos
   Solicitação (situação e próximo passo, B/Ls, prazo e quando ele recomeça), Documentos em tabela
-  ("Enviar nova versão" só onde há correção pedida, por botão), B/Ls da solicitação, Histórico
+  ("Enviar nova versão" só onde há correção pedida, por botão; a Situação "Correção pedida" leva o
+  motivo inteiro logo abaixo, sem corte), B/Ls da solicitação, Histórico
   fechado em tabela e a faixa de reenvio no pé; "Cancelar solicitação" no topo, enquanto o pedido
   está em rascunho ou com correção solicitada. Com tudo atendido, "Documentação validada… consulte o
   Mercante". Não mostra envio, ZPT nem desbloqueio (**Código:** `src/pages/PortalDesbloqueioCe.tsx`).
@@ -86,7 +90,9 @@ Manifesto Mercante é regra de
   mesma no Portal, na ficha e na análise do pedido VIP (`CeUnlockVipCoveragePanel` e
   `CeUnlockDocuments`, lote 4): cobertura de cada documento como fato ("Coberto até
   31/12/AAAA" / "Falta" em âmbar) e uma tabela Documento | Arquivo | Enviado em |
-  Vigência | Situação, com a versão anterior recusada ou revogada em cinza. No Portal, o
+  Vigência | Situação, com a versão anterior recusada ou revogada em cinza; a Situação da versão atual
+  recusada ou revogada traz o motivo inteiro, com as quebras de linha (a anterior, em cinza, só ao passar o
+  mouse). No Portal, o
   envio é pelos botões "Enviar termo de devolução" e "Enviar procuração"; no Vela,
   **Analisar** só onde há decisão abre "Analisar <documento>" (Ano da cobertura,
   Início da vigência, Fim 31/12) com Aprovar / Solicitar correção / Voltar, e

@@ -16,7 +16,7 @@ import { annualDocumentValid } from "../../services/ceUnlockRules";
 import type { PortalScope } from "../../services/portalScope";
 import type { CeDocumentType, CeUnlockDocument } from "../../types/ceUnlock";
 import { cn, formatDate } from "../../lib/utils";
-import { ceDate, ceDocumentName, ceDocumentStatusText, ceShortReason, ceStateLabel, ceStateTone } from "../../lib/ceUnlockLabels";
+import { ceDate, ceDocumentName, ceDocumentStatusText, ceStateLabel, ceStateTone } from "../../lib/ceUnlockLabels";
 
 const PDF_ACCEPT = "application/pdf,.pdf";
 const DOCX_ACCEPT = ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -128,9 +128,11 @@ export function CeUnlockFileButton({
 
 /**
  * Situação de um documento em texto (regra 5): "✓ Aprovado"; "Aguardando
- * análise" e "Correção pedida: <motivo curto>" em âmbar, com o motivo inteiro
- * ao passar o mouse. Na versão anterior (`muted`, linha em cinza) só o nome
- * da situação.
+ * análise" e "Correção pedida" em âmbar, com o motivo escrito no Vela inteiro
+ * logo abaixo, sem corte e com as quebras de linha (ponto 5 de 2026-10-23:
+ * antes o Portal mostrava 40 letras e o resto só ao passar o mouse). Na versão
+ * anterior (`muted`, linha em cinza) só o nome da situação, com o motivo ao
+ * passar o mouse.
  */
 export function CeUnlockDocumentSituation({ doc, muted = false }: { doc: CeUnlockDocument; muted?: boolean }) {
   const expired = doc.source === "vip_annual" && doc.status === "approved" && !annualDocumentValid(doc);
@@ -142,11 +144,11 @@ export function CeUnlockDocumentSituation({ doc, muted = false }: { doc: CeUnloc
   else if (doc.status === "revoked") label = "Aprovação revogada";
   else ({ label, tone } = ceDocumentStatusText(doc.type, doc.status));
   const withReason = !muted && reason && ["changes_requested", "revoked"].includes(doc.status);
-  const text = withReason ? `${label}: ${ceShortReason(reason)}` : label;
-  // Pilha de uma linha: a célula fica à esquerda sem o corte com "…" do texto longo (situação é dado curto).
+  // A célula quebra linha (`app-table__text--wrap`): o motivo é o próprio conteúdo e não aparece inteiro em outro lugar.
   return (
-    <span className="app-table__cell-stack" title={reason && doc.status !== "approved" ? reason : undefined}>
-      <span>{muted ? text : <StatusText tone={tone}>{text}</StatusText>}</span>
+    <span className="app-table__cell-stack" title={muted && reason && doc.status !== "approved" ? reason : undefined}>
+      <span>{muted ? label : <StatusText tone={tone}>{label}</StatusText>}</span>
+      {withReason ? <span className="whitespace-pre-line">{reason}</span> : null}
     </span>
   );
 }
@@ -233,7 +235,7 @@ export function CeUnlockAnnualDocumentTable({
                   <NoValue label="Sem vigência" />
                 )}
               </td>
-              <td className="whitespace-nowrap"><CeUnlockDocumentSituation doc={doc} muted={muted} /></td>
+              <td className="app-table__text app-table__text--wrap"><CeUnlockDocumentSituation doc={doc} muted={muted} /></td>
               {actions ? <td className="whitespace-nowrap text-right">{actions(doc, current)}</td> : null}
             </tr>
           ))}
