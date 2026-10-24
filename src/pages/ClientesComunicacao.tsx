@@ -166,7 +166,7 @@ function CoverageCount({ sent, total, queued = 0, now }: { sent: number; total: 
   )
 }
 
-/** "1 na fila · 16:19": a próxima rodada automática envia (migration 345). */
+/** "1 na fila · 16:07": a próxima rodada automática envia (migration 345). */
 function QueuedNote({ queued, now }: { queued: number; now: Date }) {
   if (queued <= 0) return null
   return <span className="text-xs text-[var(--app-muted)]" title={queuedLabel(now)}>{queued} na fila · {formatBrasiliaTime(nextAutoRunnerRun(now))}</span>

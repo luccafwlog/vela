@@ -19,8 +19,11 @@ function psql(sql: string) {
 function migrationApplied() {
   if (!enabled) return false
   try {
-    return psql(`SELECT pg_get_functiondef('ops.dispatch_edge_job(text,text,text,text)'::regprocedure)
-      LIKE '%timeout_milliseconds%';`) === 't'
+    // Desde a 447 a forma de 4 argumentos delega à de 5 (com corpo), que
+    // carrega o timeout.
+    return psql(`SELECT bool_or(pg_get_functiondef(p.oid) LIKE '%timeout_milliseconds%')
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'ops' AND p.proname = 'dispatch_edge_job';`) === 't'
   } catch {
     return false
   }
@@ -72,10 +75,12 @@ describeLocal('165 — dispatcher dos jobs pg_cron fora da rajada', () => {
                          'demurrage-dunning', 'import-effects-runner', 'portal-daily-digest',
                          'portal-email-events-runner');
     `)
+    // Comunicados e Régua mudaram de novo na 447 (2 e 5 min, com disparo pelo
+    // evento), também por cron.alter_job: comando e estado continuam.
     expect(jobs.split(';')).toEqual([
       'alerts-foundation-detectors=2-59/15 * * * *=true=true',
-      'customer-communication-auto-runner=4-59/15 * * * *=true=true',
-      'demurrage-dunning=7 * * * *=true=true',
+      'customer-communication-auto-runner=1-59/2 * * * *=true=true',
+      'demurrage-dunning=3-59/5 * * * *=true=true',
       'import-effects-runner=* * * * *=true=true',
       'portal-daily-digest=0 11 * * *=true=true',
       'portal-email-events-runner=* * * * *=true=true',

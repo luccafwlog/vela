@@ -127,7 +127,13 @@ describeLocal('427 — Desbloqueio de CE confere o dono antes das travas', () =>
       INSERT INTO public.ce_unlock_email_outbox (customer_id, request_id, kind, subject, body)
         VALUES (${CUSTOMER_B}, gen_random_uuid(), 'changes_requested', 'Assunto C415', 'Corpo C415');
     `)
-    const pending = () => psql(`SELECT count(*) FROM jsonb_array_elements(public.ce_unlock_email_pending(100)) o WHERE (o->>'customer_id')::bigint = ${CUSTOMER_B}`)
+    // Desde a 447 a leitura reserva a linha: solta a reserva antes de cada
+    // leitura (noutra transação), para o zero vir do Cliente desativado e não
+    // da reserva.
+    const pending = () => {
+      psql(`UPDATE public.ce_unlock_email_outbox SET claimed_until = NULL WHERE customer_id = ${CUSTOMER_B}`)
+      return psql(`SELECT count(*) FROM jsonb_array_elements(public.ce_unlock_email_pending(100)) o WHERE (o->>'customer_id')::bigint = ${CUSTOMER_B}`)
+    }
     expect(pending()).toBe('1')
     psql(`SET vela.allow_customer_state = 'on'; UPDATE public.customers SET deactivated_at = now() WHERE id = ${CUSTOMER_B}`)
     expect(pending()).toBe('0')

@@ -69,15 +69,24 @@ ao bundle nem commitadas no Git:
 
 | Job | Variável de Secret Supabase | Cadência-alvo |
 |---|---|---|
-| `demurrage-dunning` | `BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL` | horária |
+| `demurrage-dunning` | `BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL` | 5 min (horária até a migration `447`) |
 | `alerts-detector` | `BETTERSTACK_HEARTBEAT_ALERTS_DETECTOR_URL` | 15 min |
-| `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL` | 15 min |
+| `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL` | 2 min (15 min até a migration `447`) |
 | `portal-daily-digest` | `BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL` | diária |
 | `ce-unlock-notify-email` | `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` | 5 min |
 | `portal-email-events-runner` | `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` | a cada minuto |
 
 O ping de sucesso só sai depois da conclusão do job com resposta 2xx sem falha
-contada; o restante manda `/fail`. Se a URL não estiver configurada no Supabase, a
+contada; o restante manda `/fail`. Desde a migration `447`, quatro desses runners
+(`demurrage-dunning`, `customer-communication-auto-runner`,
+`ce-unlock-notify-email` e `portal-email-events-runner`) também são chamados pelo
+banco no evento, com `{"source":"trigger"}`
+([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)); essa chamada roda a
+mesma rodada e **não** manda heartbeat (`runCronWithBetterStackHeartbeat`), para
+não esconder um cron parado. Os monitores de `demurrage-dunning` e
+`customer-communication-auto-runner`, cadastrados para hora e 15 min, continuam
+válidos com pings mais frequentes; encurtar o período deles (5 e 2 min) é ajuste
+opcional no painel do Better Stack, que avisaria antes de um cron parado. Se a URL não estiver configurada no Supabase, a
 função executa normalmente e ignora o ping. Só esses seis runners enviam heartbeat: `itau-pix` (job
 `itau-pix-queue`) e `import-effects-runner` não enviam; para a fila de efeitos,
 a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no

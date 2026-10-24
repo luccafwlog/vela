@@ -503,8 +503,10 @@ deduplicação por evento: grava o evento numa inbox durável
 (`portal_email_events`, chave do evento do provedor) e responde; uma repetição
 já processada é no-op e uma ainda pendente continua na fila, sem duplicar
 efeitos de entrega, bounce ou complaint. Receber o webhook não significa que o
-histórico já foi atualizado: `portal-email-events-runner` (job a cada minuto,
-migration `107`) aplica os eventos às tentativas. `portal-daily-digest`
+histórico já foi atualizado: `portal-email-events-runner` aplica os eventos às
+tentativas, chamado assim que o evento é gravado (gatilho em `portal_email_events`,
+migration `447`) e pelo job a cada minuto (migration `107`), que fica para as novas
+tentativas. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
 `RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave do provedor

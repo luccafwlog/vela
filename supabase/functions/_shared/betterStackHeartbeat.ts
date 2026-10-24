@@ -79,6 +79,36 @@ async function sendHeartbeat(
   }
 }
 
+/**
+ * Origem da chamada autorizada. O banco dispara pelo evento com
+ * `{"source":"trigger"}` (`ops.kick_edge_job`, migration 447); o cron e a
+ * chamada manual mandam `{}`. Lê uma cópia: o corpo continua disponível.
+ */
+export async function invocationSource(req: Request): Promise<'cron' | 'trigger'> {
+  if (req.method !== 'POST') return 'cron'
+  try {
+    const body: unknown = await req.clone().json()
+    return body && typeof body === 'object' && (body as { source?: unknown }).source === 'trigger' ? 'trigger' : 'cron'
+  } catch {
+    return 'cron'
+  }
+}
+
+/**
+ * Heartbeat só na execução do cron: a chamada do gatilho é extra e não pode
+ * esconder um cron parado (migration 447). Chamada não autorizada nunca reporta.
+ */
+export async function runCronWithBetterStackHeartbeat(
+  job: BetterStackHeartbeatJob,
+  req: Request,
+  authorized: boolean,
+  operation: () => Response | Promise<Response>,
+  options: Omit<HeartbeatOptions, 'enabled'> = {},
+): Promise<Response> {
+  const enabled = authorized && await invocationSource(req) === 'cron'
+  return runWithBetterStackHeartbeat(job, operation, { ...options, enabled })
+}
+
 /** Runs an authorized cron invocation and reports its outcome without affecting its result. */
 export async function runWithBetterStackHeartbeat(
   job: BetterStackHeartbeatJob,
