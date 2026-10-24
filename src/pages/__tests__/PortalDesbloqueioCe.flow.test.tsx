@@ -26,6 +26,15 @@ const svc = vi.hoisted(() => ({
   confirm: vi.fn(async () => true),
 }));
 vi.mock("../../services/ceUnlockService", () => svc);
+
+// Central de Informações do Portal: os endereços de entrega do B/L original (migration 447).
+const information = vi.hoisted(() => ({
+  state: { isLoading: false, isError: false, data: { contacts: [] as Array<Record<string, unknown>> } as { contacts: Array<Record<string, unknown>> } | undefined },
+  refetch: vi.fn(),
+}));
+vi.mock("../../hooks/usePortalInformation", () => ({
+  usePortalInformation: () => ({ ...information.state, refetch: information.refetch }),
+}));
 vi.mock("../../components/ui/ConfirmDialog", () => ({
   useConfirm: () => svc.confirm,
   useConfirmWithReason: () => async () => "motivo",
@@ -164,7 +173,8 @@ it("correção completa: com a nova versão do documento recusado, a solicitaç�
   expect(resend.hasAttribute("disabled")).toBe(true);
   expect(screen.getByText("Envie o termo de devolução corrigido para reenviar.")).toBeTruthy();
   const refusedRow = screen.getByRole("button", { name: "termo.pdf" }).closest("tr") as HTMLElement;
-  expect(within(refusedRow).getByText("Correção pedida: assinatura ilegível")).toBeTruthy();
+  expect(within(refusedRow).getByText("Correção pedida")).toBeTruthy();
+  expect(within(refusedRow).getByText("Assinatura ilegível")).toBeTruthy();
   expect(within(refusedRow).getByRole("button", { name: "Enviar nova versão: termo de devolução" })).toBeTruthy();
   // Só o documento recusado oferece nova versão.
   expect(screen.getAllByRole("button", { name: /Enviar nova versão/ })).toHaveLength(1);
@@ -182,7 +192,7 @@ it("correção completa: com a nova versão do documento recusado, a solicitaç�
   expect(commandCalls("submit")[0][2]).toMatchObject({ request_id: "req-1", expected_version: 3 });
 });
 
-it("VIP com termo anual vencido fica pendente: bloqueia nova solicitação e mostra o vencido e a renovação em análise", async () => {
+it("VIP com termo anual vencido: pede com os anexos comuns enquanto isso e mostra o vencido e a renovação em análise", async () => {
   svc.getPortalCeUnlockVip.mockResolvedValue({
     enabled: true, termo: false, procuracao: true,
     documents: [
@@ -192,10 +202,13 @@ it("VIP com termo anual vencido fica pendente: bloqueia nova solicitação e mos
     ],
   });
   mount();
-  expect(await screen.findByText("O termo de devolução anual está em análise: os pedidos ficam liberados quando a análise terminar.")).toBeTruthy();
+  expect(await screen.findByText("O termo de devolução anual está em análise: os pedidos voltam a usar os documentos anuais quando a análise terminar. Até lá, as solicitações seguem com termo de devolução e procuração anexados a elas.")).toBeTruthy();
   expect(screen.getByText("Falta o termo anual")).toBeTruthy();
+  expect(screen.getByText("Até lá, assinado, em PDF, anexado à solicitação")).toBeTruthy();
   await userEvent.click(screen.getByLabelText("Selecionar B/L BL-A"));
-  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }).hasAttribute("disabled")).toBe(true);
+  // Ponto 13 de 2026-10-23: o VIP sem anual vigente pede mesmo assim, como pedido comum.
+  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }).hasAttribute("disabled")).toBe(false);
+  expect(screen.getByText(/os documentos anuais não cobrem esta seleção: a solicitação seguirá com termo e procuração anexados/)).toBeTruthy();
 
   await userEvent.click(screen.getByRole("button", { name: "Abrir Documentos anuais" }));
   expect(await screen.findByText("Falta")).toBeTruthy();
@@ -277,4 +290,121 @@ it("B/L isento aparece como Isentas, não como taxas pagas", async () => {
   mount();
   expect(await screen.findByText("Isentas")).toBeTruthy();
   expect(screen.queryByText("Pagas")).toBeNull();
+});
+
+// Ponto 5 de 2026-10-23: o motivo da recusa que o operador do Vela escreveu
+// aparece inteiro no Portal, com as quebras de linha, na solicitação e na
+// lista de protocolos; antes o Portal cortava em 40 letras.
+const LONG_REASON = [
+  "A procuração não tem o reconhecimento de firma do representante legal; o cartório precisa reconhecer a assinatura por autenticidade.",
+  "Envie também o contrato social atualizado, com a cláusula de administração que dá poderes ao signatário.",
+].join("\n");
+
+it("motivo da recusa inteiro, com as quebras de linha, no detalhe da solicitação", async () => {
+  const refused = doc({ id: "p0", type: "procuracao", status: "changes_requested", reason: LONG_REASON, file_name: "proc.pdf" });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ state: "changes_requested", documents: [doc({ id: "t1", status: "approved" }), refused] }));
+  mount("/portal/desbloqueio-ce?pedido=req-1");
+  const row = (await screen.findByRole("button", { name: "proc.pdf" })).closest("tr") as HTMLElement;
+  const reason = within(row).getByText((_, node) => node?.textContent === LONG_REASON && node.tagName === "SPAN");
+  expect(reason.className).toContain("whitespace-pre-line");
+  expect(reason.closest("td")?.className).toContain("app-table__text--wrap");
+  expect(row.textContent).not.toContain("…");
+});
+
+it("lista Minhas solicitações mostra o motivo inteiro de cada documento recusado", async () => {
+  svc.listPortalCeUnlockRequests.mockResolvedValue({
+    items: [{ id: "req-1", protocol: "CE-1", state: "changes_requested", version: 4, source: "request", created_at: "2026-10-10T10:00:00Z", bl_ids: ["BL-A"], sla_started_at: null }],
+    total: 1,
+  });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({
+    state: "changes_requested",
+    documents: [doc({ id: "t0", status: "changes_requested", reason: "Assinatura ilegível." }), doc({ id: "p0", type: "procuracao", status: "changes_requested", reason: LONG_REASON, file_name: "proc.pdf" })],
+  }));
+  mount("/portal/desbloqueio-ce?aba=solicitacoes");
+  const table = await screen.findByRole("table", { name: "Minhas solicitações de desbloqueio" });
+  await waitFor(() => expect(table.textContent).toContain("Motivo (termo de devolução): Assinatura ilegível."));
+  const proc = within(table).getByText((_, node) => node?.tagName === "SPAN" && node.textContent === `Motivo (procuração): ${LONG_REASON}`);
+  expect(proc.className).toContain("whitespace-pre-line");
+});
+
+// Ponto 6 de 2026-10-23: abaixo do B/L original, os endereços das agências que o recebem.
+const contact = (key: string, address: string, extra: Record<string, unknown> = {}) => ({
+  key, title: key, description: "", emails: [], phones: [], whatsapp: null, address, active: true, ...extra,
+});
+
+it("botão abaixo do B/L original abre os endereços de entrega de Vitória, Salvador e Suape", async () => {
+  information.state = {
+    isLoading: false,
+    isError: false,
+    data: { contacts: [
+      contact("entrega_bl_vitoria", "Rua Desembargador Ferreira Coelho, 330\nSala 813", { phones: ["(27) 2124-1652"] }),
+      contact("entrega_bl_salvador", "Endereço a definir"),
+      // Suape ainda sem cadastro: o Portal não inventa endereço.
+    ] },
+  };
+  mount();
+  const requirements = await screen.findByRole("region", { name: "O que o desbloqueio pede" });
+  const toggle = within(requirements).getByRole("button", { name: "Endereços de entrega do B/L" });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(within(requirements).queryByText("Vitória")).toBeNull();
+
+  await userEvent.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "") as HTMLElement;
+  expect(within(panel).getByText("Vitória")).toBeTruthy();
+  expect(within(panel).getByText((_, node) => node?.textContent === "Rua Desembargador Ferreira Coelho, 330\nSala 813" && node.tagName === "SPAN")).toBeTruthy();
+  expect(within(panel).getByText("(27) 2124-1652")).toBeTruthy();
+  expect(within(panel).getAllByText("Endereço a definir")).toHaveLength(2);
+  expect(within(panel).getByText("Suape")).toBeTruthy();
+
+  await userEvent.click(within(requirements).getByRole("button", { name: "Ocultar endereços de entrega" }));
+  expect(within(requirements).queryByText("Vitória")).toBeNull();
+});
+
+it("falha ao ler os endereços de entrega mostra o erro com Tentar novamente", async () => {
+  information.state = { isLoading: false, isError: true, data: undefined };
+  mount();
+  const requirements = await screen.findByRole("region", { name: "O que o desbloqueio pede" });
+  await userEvent.click(within(requirements).getByRole("button", { name: "Endereços de entrega do B/L" }));
+  expect(within(requirements).getByRole("alert").textContent).toContain("Não foi possível carregar os endereços de entrega.");
+  await userEvent.click(within(requirements).getByRole("button", { name: "Tentar novamente" }));
+  expect(information.refetch).toHaveBeenCalled();
+});
+
+// Ponto 13 de 2026-10-23: VIP com a procuração anual vencida, recusada ou faltando
+// abre a solicitação comum, que explica o motivo e aceita o termo e a procuração comuns.
+it("VIP com procuração anual recusada: a solicitação explica o motivo e aceita os anexos comuns", async () => {
+  svc.getPortalCeUnlockVip.mockResolvedValue({
+    enabled: true, termo: true, procuracao: false,
+    documents: [doc({ id: "proc-old", type: "procuracao", source: "vip_annual", status: "changes_requested", reason: "Assinatura ilegível", file_name: "proc-anual.pdf" })],
+  });
+  svc.getPortalCeUnlockModel.mockResolvedValue({ id: "model-1" });
+  svc.portalCeUnlockCommand.mockResolvedValue({ id: "req-1" });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ documents: [] }));
+  mount();
+  // O modelo do termo comum volta a aparecer para quem vai anexar.
+  expect(await screen.findByRole("button", { name: "Baixar modelo do termo" })).toBeTruthy();
+  await userEvent.click(screen.getByLabelText("Selecionar B/L BL-A"));
+  await userEvent.click(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }));
+  await waitFor(() => expect(commandCalls("draft")).toHaveLength(1));
+  const block = await screen.findByRole("region", { name: "Solicitação" });
+  expect(block.textContent).toContain("Sua condição VIP não cobre esta solicitação: a procuração anual foi recusada");
+  expect(block.textContent).toContain("com o termo de devolução e a procuração anexados a ela");
+  expect(screen.getAllByRole("button", { name: /Anexar PDF/ }).length).toBeGreaterThanOrEqual(2);
+});
+
+it("VIP coberto com B/L importado antes da vigência: a solicitação diz que a vigência não retroage", async () => {
+  svc.getPortalCeUnlockVip.mockResolvedValue({ enabled: true, termo: true, procuracao: true, documents: [] });
+  svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ vip_covered: false })], total: 1 });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ items: [{ bl_id: "BL-A", paid: true, termo: false, procuracao: false, reasons: [], source: "request", vip_covered: false }] }));
+  svc.getPortalCeUnlockModel.mockResolvedValue({ id: "model-1" });
+  mount();
+  // Esse B/L pede o termo comum: o modelo fica disponível para baixar.
+  expect(await screen.findByRole("button", { name: "Baixar modelo do termo" })).toBeTruthy();
+  await userEvent.click(await screen.findByLabelText("Selecionar B/L BL-A"));
+  expect(screen.getByText(/os documentos anuais não cobrem esta seleção/)).toBeTruthy();
+  cleanup();
+  mount("/portal/desbloqueio-ce?pedido=req-1");
+  const block = await screen.findByRole("region", { name: "Solicitação" });
+  expect(block.textContent).toContain("há B/L importado antes da vigência dos documentos anuais, que não retroage");
 });

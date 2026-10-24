@@ -121,9 +121,9 @@ describeLocal('311 — retenção de 1 ano dos e-mails', () => {
       INSERT INTO public.portal_email_attempts (kind, idempotency_key, recipient_masked, status, last_error, created_at) VALUES
         ('resumo_diario', 'resumo:2025-01-02:Velho@Example.test', '${EMAIL_TAG}', 'falha_permanente', 'recusado para velho@example.test', now() - interval '2 years'),
         ('resumo_diario', 'resumo:2026-10-01:novo@example.test', '${EMAIL_TAG}', 'entregue', NULL, now() - interval '1 month');
-      INSERT INTO public.customer_communication_attempts (communication_id, recipient_masked, status, idempotency_key, dispatch_mode, created_at) VALUES
-        (${COMMUNICATION_ID}, 'v***@example.test', 'entregue', 'comunicado:${COMMUNICATION_ID}:0:velho@example.test', 'real', now() - interval '2 years'),
-        (${COMMUNICATION_ID}, 'n***@example.test', 'entregue', 'comunicado:${COMMUNICATION_ID}:0:novo@example.test', 'real', now() - interval '1 month');
+      INSERT INTO public.customer_communication_attempts (communication_id, recipient_masked, recipient_email, status, idempotency_key, dispatch_mode, created_at) VALUES
+        (${COMMUNICATION_ID}, 'v***@example.test', 'velho@example.test', 'entregue', 'comunicado:${COMMUNICATION_ID}:0:velho@example.test', 'real', now() - interval '2 years'),
+        (${COMMUNICATION_ID}, 'n***@example.test', 'novo@example.test', 'entregue', 'comunicado:${COMMUNICATION_ID}:0:novo@example.test', 'real', now() - interval '1 month');
       INSERT INTO public.portal_email_events (provider_event_id, event_type, payload, status, received_at) VALUES
         ('${EMAIL_TAG}-old', 'email.delivered', '{"data":{"to":["velho@example.test"]}}', 'processed', now() - interval '2 years'),
         ('${EMAIL_TAG}-new', 'email.delivered', '{"data":{"to":["novo@example.test"]}}', 'processed', now() - interval '1 month');
@@ -156,5 +156,35 @@ describeLocal('311 — retenção de 1 ano dos e-mails', () => {
       WHERE communication_id = ${COMMUNICATION_ID};`))
       .toMatch(new RegExp(`^comunicado:${COMMUNICATION_ID}:0:email-[0-9a-f]{32},comunicado:${COMMUNICATION_ID}:0:novo@example\\.test$`))
     expect(psql(`SELECT status FROM public.customer_communications WHERE id = ${COMMUNICATION_ID};`)).toBe('enviado')
+    // 451 (ponto 8 de 2026-10-23): o e-mail exato do Histórico segue a mesma guarda de 1 ano.
+    expect(psql(`SELECT string_agg(recipient_masked || '=' || COALESCE(recipient_email, '-'), ',' ORDER BY created_at) FROM public.customer_communication_attempts
+      WHERE communication_id = ${COMMUNICATION_ID};`)).toBe('v***@example.test=-,n***@example.test=novo@example.test')
+  })
+
+  it('451: a tentativa antiga com chave no formato novo (hash, sem @) também perde o e-mail exato', () => {
+    // A chave `comunicado:<id>:<n>:sha256:…` não tem @: só o ramo
+    // `recipient_email IS NOT NULL` da 451 alcança esta linha.
+    psql(`
+      SET request.jwt.claim.role = 'service_role';
+      INSERT INTO public.customer_communication_attempts (communication_id, recipient_masked, recipient_email, status, idempotency_key, dispatch_mode, created_at)
+      VALUES (${COMMUNICATION_ID}, 'h***@example.test', 'hash@example.test', 'entregue',
+        'comunicado:${COMMUNICATION_ID}:1:sha256:' || encode(sha256('hash@example.test'::bytea), 'hex'), 'real', now() - interval '2 years');
+    `)
+    const result = JSON.parse(psql(`SELECT public.run_retention();`))
+    expect(result.customer_communication_attempts_masked).toBeGreaterThanOrEqual(1)
+
+    expect(psql(`SELECT idempotency_key || '|' || COALESCE(recipient_email, '-') FROM public.customer_communication_attempts
+      WHERE communication_id = ${COMMUNICATION_ID} AND recipient_masked = 'h***@example.test';`))
+      .toMatch(new RegExp(`^comunicado:${COMMUNICATION_ID}:1:sha256:[0-9a-f]{64}\\|-$`))
+  })
+
+  it('451: o e-mail exato da tentativa é lido por usuário interno ativo e nunca pela sessão do Portal', () => {
+    expect(psql(`SELECT has_column_privilege('authenticated', 'public.customer_communication_attempts', 'recipient_email', 'SELECT')::text;`)).toBe('true')
+    // A política da tabela é só interna (is_active_read_user); sem perfil interno, nada volta.
+    expect(psql(`SELECT pg_get_expr(polqual, polrelid) FROM pg_policy WHERE polrelid = 'public.customer_communication_attempts'::regclass AND polcmd = 'r';`))
+      .toContain('is_active_read_user()')
+    const portalRead = psql(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '00000000-0000-0000-0000-000009400999';
+      SELECT count(*) FROM public.customer_communication_attempts WHERE recipient_email IS NOT NULL; ROLLBACK;`)
+    expect(portalRead.split('\n').filter(Boolean).at(-1)).toBe('0')
   })
 })

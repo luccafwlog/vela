@@ -16,6 +16,7 @@ import { fmtUSD } from '../../services/demurrage/demurragePresentation'
 import { formatCountLabel, formatDate } from '../../lib/utils'
 import { saoPauloTodayIso } from '../../lib/dates'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
+import { matchesAnyToken } from '../../lib/searchTerms'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
 type Line = { row: DemurrageContainerRow; view: CustomerContainerView }
@@ -65,7 +66,7 @@ export function ConteineresTab({ data }: { data: Data }) {
   }, [query.data])
   const term = search.trim().toLowerCase()
   const filtered = lines.filter((line) => (
-    (!term || (line.row.container_number ?? '').toLowerCase().includes(term) || (line.row.bl_id ?? '').toLowerCase().includes(term))
+    (!term || (line.row.container_number ?? '').toLowerCase().includes(term) || (line.row.bl_id ?? '').toLowerCase().includes(term) || matchesAnyToken(term, [line.row.container_number, line.row.bl_id]))
     && matchesSituation(line, situation)
     && (!from || (line.row.discharge_date ?? '') >= from)
     && (!to || (line.row.discharge_date ?? '9999') <= to)

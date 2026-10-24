@@ -450,11 +450,14 @@ type EscalaScheduleRow = {
 }
 
 /**
- * Ordem da faixa nas três telas que a mostram (Viagens, Veículos e Baplie):
- * próxima escala (ETA, depois ETB), sem próxima escala ao final, e então navio
- * e número da viagem.
+ * Ordem da faixa nas três telas que a mostram (Viagens, Veículos e Baplie) e
+ * da Cobertura de viagens dos Comunicados: próxima escala (ETA, depois ETB),
+ * sem próxima escala ao final, e então navio e número da viagem.
  */
-export function compareVoyageRailItems(left: VoyageRailItem, right: VoyageRailItem): number {
+export function compareVoyageRailItems(
+  left: Pick<VoyageRailItem, 'proximaEscala' | 'vesselName' | 'voyageNumber'>,
+  right: Pick<VoyageRailItem, 'proximaEscala' | 'vesselName' | 'voyageNumber'>,
+): number {
   const byEscala = (left.proximaEscala?.eta ?? '\uffff').localeCompare(right.proximaEscala?.eta ?? '\uffff')
   if (byEscala !== 0) return byEscala
   const byEtb = (left.proximaEscala?.etb ?? '\uffff').localeCompare(right.proximaEscala?.etb ?? '\uffff')

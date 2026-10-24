@@ -1,16 +1,26 @@
-import type { ReactNode } from 'react'
-import { MapPin } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { MapPin, Package, RefreshCw } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { cn } from '../../lib/utils'
+import { formatBrasiliaDateTime } from '../../lib/dates'
+import { blsOfVoyagePath, voyageIdsWithCargo } from '../../lib/portalOperationViews'
+import { usePortalOperationBls } from '../../hooks/usePortalOperation'
 import { usePortalScheduleVoyages } from '../../hooks/usePortalScheduleVoyages'
+import { usePortalScope } from '../../hooks/usePortalScope'
+import { portalPath } from '../../services/portalScope'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate, type PortalScheduleLane } from '../../services/portalScheduleLanes'
 import { scheduleCellState, scheduleLaneTitle, type ScheduleCellState } from './shipScheduleCells'
 import type { PortalScheduleVoyage } from '../../services/portalScheduleVoyages'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { SkeletonTable } from '../ui/Skeleton'
+import { InlineError } from '../ui/Card'
 import { NoValue } from '../ui/NoValue'
 import { RowActionLink } from '../ui/RowActionLink'
 import { StatusText } from '../ui/StatusText'
+
+/** Nome do bloco no Painel do Portal (ponto 1 de 2026-10-23; antes "Programação de navios"). */
+const SCHEDULE_TITLE = 'Chegadas e saídas'
 
 const POL_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pol')
 const POD_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pod')
@@ -55,21 +65,40 @@ export function ScheduleDate({ voyage, lane, audience = 'portal' }: { voyage: Po
 /**
  * Posição do navio no MarineTraffic, pelo IMO cadastrado; sem IMO, nada. Só o
  * ícone na tabela (2026-10-19): em toda linha, o texto repetido pesava; o nome
- * fica no `title` e no rótulo acessível. No cartão do celular, o botão ocupa a
- * largura do cartão e leva o texto junto (`withText`).
+ * fica no `title` e no rótulo acessível. Botão `ghost`, o mais discreto, com
+ * borda clara (ponto 2 de 2026-10-23: o quadrado de borda forte pesava na
+ * linha; a regra 9 mantém a borda); vale também em Chegadas e Saídas do Vela,
+ * que usa esta tabela. No cartão do celular, o texto vai junto, do tamanho do
+ * texto, sem ocupar a largura do cartão.
  */
 export function VesselMapButton({ voyage, withText = false }: { voyage: PortalScheduleVoyage; withText?: boolean }) {
   if (!voyage.imoNumber) return null
   const href = `https://www.marinetraffic.com/en/ais/details/ships/imo:${voyage.imoNumber}`
   const label = `Ver ${voyage.vesselName} no mapa (MarineTraffic, abre em nova aba)`
   if (!withText) {
-    return <RowActionLink href={href} target="_blank" rel="noopener noreferrer" label={label} title="Ver no mapa" icon={MapPin} />
+    return <RowActionLink href={href} target="_blank" rel="noopener noreferrer" label={label} title="Ver no mapa" icon={MapPin} variant="ghost" />
   }
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="app-btn app-btn--secondary app-btn--sm" aria-label={label} title="Ver no mapa">
-      <MapPin size={16} aria-hidden="true" />
+    <a href={href} target="_blank" rel="noopener noreferrer" className="app-btn app-btn--ghost app-btn--sm" aria-label={label} title="Ver no mapa">
+      <MapPin size={14} aria-hidden="true" />
       {' Ver no mapa'}
     </a>
+  )
+}
+
+/**
+ * Atalho para os B/Ls do Cliente nesta viagem (ponto 2 de 2026-10-23): só na
+ * viagem em que ele tem carga, ao lado do mapa. Leva à aba BLs filtrada pelo
+ * navio e pela viagem, com o filtro na URL.
+ */
+function CustomerCargoLink({ voyage, to, withText = false }: { voyage: PortalScheduleVoyage; to: string; withText?: boolean }) {
+  const label = `Ver meus B/Ls no ${voyage.vesselName}, viagem ${voyage.voyage}`
+  if (!withText) return <RowActionLink to={to} label={label} title="Ver meus B/Ls nesta viagem" icon={Package} variant="ghost" />
+  return (
+    <Link to={to} className="app-btn app-btn--ghost app-btn--sm" aria-label={label} title="Ver meus B/Ls nesta viagem">
+      <Package size={14} aria-hidden="true" />
+      {' Meus B/Ls'}
+    </Link>
   )
 }
 
@@ -155,13 +184,36 @@ export function ScheduleWidthPage({ children }: { children: ReactNode }) {
 }
 
 /**
- * Programação de navios no Portal (dono: etapa 03; composto no Painel do
- * Portal pela etapa 19). Mesma projeção e mesmas regras de célula de
- * Chegadas e Saídas, que publica estas datas. Um bloco só (lote 4): o nome
- * do serviço na faixa do título e a legenda no pé.
+ * Chegadas e saídas no Portal (dono: etapa 03; composto no Painel do Portal
+ * pela etapa 19; até 2026-10-23 "Programação de navios"). Mesma projeção e
+ * mesmas regras de célula de Chegadas e Saídas do Vela, que publica estas
+ * datas. Um bloco só (lote 4): o nome do serviço na faixa do título e a
+ * legenda no pé.
  */
 export function ShipScheduleWidget({ className }: { className?: string }) {
-  const { data: vessels, isLoading, isError, refetch, isFetching } = usePortalScheduleVoyages()
+  const { data: vessels, isLoading, isError, refetch, isFetching, dataUpdatedAt } = usePortalScheduleVoyages()
+  const scope = usePortalScope()
+  // Mesma consulta da tela BLs e Containers e dos cartões do Painel: só os
+  // B/Ls do próprio Cliente, liberados no Portal (escopo do banco).
+  const { data: customerBls, refetch: refetchCustomerBls } = usePortalOperationBls()
+  // Atualizar quando quiser (ponto 3 de 2026-10-23): relê as datas e o recorte
+  // de carga; a hora mostrada é a da última leitura que deu certo.
+  const [refreshing, setRefreshing] = useState(false)
+  async function refresh() {
+    setRefreshing(true)
+    try {
+      await Promise.all([refetch(), refetchCustomerBls()])
+    } finally {
+      setRefreshing(false)
+    }
+  }
+  const withCargo = useMemo(() => voyageIdsWithCargo(customerBls ?? []), [customerBls])
+  const cargoPath = (vessel: PortalScheduleVoyage) =>
+    withCargo.has(vessel.voyageId) ? portalPath(scope, blsOfVoyagePath(vessel.vesselName, vessel.voyage)) : null
+  const cargoAction = (vessel: PortalScheduleVoyage) => {
+    const to = cargoPath(vessel)
+    return to ? <CustomerCargoLink voyage={vessel} to={to} /> : null
+  }
   // O cartão do celular segue a tabela: Saída antes da Chegada, sem o porto
   // que não tem data em nenhum navio.
   const shownLanes = new Set(visibleLanes(vessels ?? []))
@@ -169,12 +221,26 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
   const cardPodLanes = POD_LANES.filter((lane) => shownLanes.has(lane))
 
   return (
-    <Block title="Programação de navios" aside="CSSC Container Liner Service Schedule – ECSA" flush className={cn('app-schedule', className)}>
+    <Block
+      title={SCHEDULE_TITLE}
+      aside={
+        <>
+          <span>CSSC Container Liner Service Schedule – ECSA</span>
+          {dataUpdatedAt ? <span role="status">Atualizado em {formatBrasiliaDateTime(dataUpdatedAt)} (horário de Brasília)</span> : null}
+          <Button variant="secondary" className="app-btn--sm" loading={refreshing} loadingLabel="Atualizando" disabled={isLoading} onClick={() => void refresh()}>
+            <RefreshCw size={14} aria-hidden="true" />
+            Atualizar
+          </Button>
+        </>
+      }
+      flush
+      className={cn('app-schedule', className)}
+    >
       {isLoading ? (
-        <SkeletonTable rows={3} cols={6} label="Carregando a programação de navios" />
-      ) : isError ? (
+        <SkeletonTable rows={3} cols={6} label="Carregando chegadas e saídas" />
+      ) : isError && !vessels ? (
         <div className="app-schedule__state" role="alert">
-          <p>Não foi possível carregar a programação de navios.</p>
+          <p>Não foi possível carregar chegadas e saídas.</p>
           <Button variant="secondary" className="app-btn--sm" loading={isFetching} loadingLabel="Tentando novamente" onClick={() => void refetch()}>
             Tentar novamente
           </Button>
@@ -183,11 +249,14 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
         <div className="app-schedule__state">Nenhum navio programado no momento.</div>
       ) : (
         <>
+          {/* Atualizar que falha mantém a última leitura na tela (React Query
+              guarda `data` com `isError`); o aviso diz que ela pode estar velha. */}
+          {isError ? <InlineError message="Não foi possível atualizar chegadas e saídas; a tabela abaixo é da última leitura." /> : null}
           <div className="app-schedule__table">
-            <ScheduleTable vessels={vessels} caption="Programação de navios: saída na origem e chegada no Brasil" />
+            <ScheduleTable vessels={vessels} caption="Chegadas e saídas: saída na origem e chegada no Brasil" actions={cargoAction} />
           </div>
 
-          <ul className="app-schedule__cards" aria-label="Programação de navios">
+          <ul className="app-schedule__cards" aria-label={SCHEDULE_TITLE}>
             {vessels.map((vessel) => (
               <li key={vessel.voyageId} className="app-schedule-card">
                 <div className="app-schedule-card__head">
@@ -196,7 +265,7 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
                 </div>
                 <ScheduleCardGroup title="Saída na origem (ETD)" lanes={cardPolLanes} voyage={vessel} />
                 <ScheduleCardGroup title="Chegada no Brasil (ETA)" lanes={cardPodLanes} voyage={vessel} />
-                <VesselMapButton voyage={vessel} withText />
+                <ScheduleCardActions voyage={vessel} cargoTo={cargoPath(vessel)} />
               </li>
             ))}
           </ul>
@@ -205,6 +274,16 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
         </>
       )}
     </Block>
+  )
+}
+
+function ScheduleCardActions({ voyage, cargoTo }: { voyage: PortalScheduleVoyage; cargoTo: string | null }) {
+  if (!voyage.imoNumber && !cargoTo) return null
+  return (
+    <div className="flex flex-wrap gap-2">
+      <VesselMapButton voyage={voyage} withText />
+      {cargoTo ? <CustomerCargoLink voyage={voyage} to={cargoTo} withText /> : null}
+    </div>
   )
 }
 

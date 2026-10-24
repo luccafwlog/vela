@@ -112,7 +112,7 @@ describe('templates de Comunicados', () => {
     expect(rendered.html).toContain('123456789012345')
     expect(rendered.html).toContain('BL-11')
     expect(rendered.text).toContain('Total da viagem:')
-    expect(rendered.html).toContain('https://portal.example/billing')
+    expect(rendered.html).toContain('https://portal.example/portal/billing')
     expect(rendered.html).not.toMatch(/PIX|vencimento|anexo/i)
   })
 

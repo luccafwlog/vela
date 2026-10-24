@@ -16,6 +16,7 @@ import { formatBRL, voyageDisplayName } from '../../lib/utils'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import { isPortalReadOnly } from '../../services/portalScope'
 import type { ConsolidatableReceivable } from '../../types/database'
+import { matchesAnyToken } from '../../lib/searchTerms'
 
 type Props = {
   open: boolean
@@ -61,7 +62,7 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
   const voyageQuery = voyageFilter.trim().toLowerCase()
   const filtering = Boolean(blQuery || voyageQuery)
   const matches = (row: ConsolidatableReceivable) =>
-    (!blQuery || normalize(row.bl_id).includes(blQuery)) && (!voyageQuery || voyageOf(row).toLowerCase().includes(voyageQuery))
+    (!blQuery || normalize(row.bl_id).includes(blQuery) || matchesAnyToken(blFilter, [row.bl_id])) && (!voyageQuery || voyageOf(row).toLowerCase().includes(voyageQuery))
   const visibleEligible = eligibleRows.filter(matches)
   const visibleBlocked = blockedRows.filter(matches)
 

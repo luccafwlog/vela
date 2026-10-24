@@ -17,6 +17,8 @@ export type StoredCommunicationAttempt = {
 export type NewCommunicationAttempt = {
   communication_id: number
   recipient_masked: string
+  /** Endereço exato do envio, para o Histórico interno (migration 451, ponto 8 de 2026-10-23). */
+  recipient_email?: string
   recipient_key: string
   status: 'aceito' | 'falha_transitoria'
   dispatch_mode: 'real' | 'simulado'
@@ -57,6 +59,7 @@ export function communicationAttemptRecorder(
       const { data, error } = await store.insertAttempt({
         communication_id: input.communicationId,
         recipient_masked: maskEmail(to),
+        recipient_email: to,
         recipient_key: await recipientKey(to),
         status: 'aceito',
         dispatch_mode: dispatchMode(input.enabled),
@@ -106,6 +109,7 @@ export async function recordUnsentCommunicationAttempt(
     const { error } = await store.insertAttempt({
       communication_id: input.communicationId,
       recipient_masked: maskEmail(input.recipient),
+      recipient_email: input.recipient,
       recipient_key: await recipientKey(input.recipient),
       status: 'falha_transitoria',
       dispatch_mode: dispatchMode(input.enabled),

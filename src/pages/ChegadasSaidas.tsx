@@ -555,7 +555,7 @@ export function ChegadasSaidas() {
     <ScheduleWidthPage>
       <PageHeader
         title="Chegadas e Saídas"
-        description="Programação de navios publicada no Portal. Cada linha é uma Viagem; datas efetivas vêm de Viagens."
+        description="Datas publicadas no Portal, no bloco Chegadas e saídas do Painel. Cada linha é uma Viagem; datas efetivas vêm de Viagens."
         action={canWrite ? (
           <Button type="button" onClick={openAdd}>
             <Plus size={16} /> Adicionar navio

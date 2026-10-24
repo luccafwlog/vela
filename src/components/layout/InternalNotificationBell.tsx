@@ -8,7 +8,7 @@ import {
   useMarkInternalNotificationRead,
   useUnreadInternalNotificationCount,
 } from '../../hooks/useInternalNotifications'
-import { alertEntityLink, formatAlertEntity, ENTITY_TYPE_LABELS, type InternalNotification } from '../../services/alerts'
+import { formatAlertEntity, internalNotificationDestination, ENTITY_TYPE_LABELS, type InternalNotification } from '../../services/alerts'
 import type { InternalNotificationCursor } from '../../services/alerts'
 import { listAllUnreadInternalNotifications } from '../../services/alerts'
 import { formatDate } from '../../lib/utils'
@@ -101,31 +101,17 @@ export function InternalNotificationBell({ variant = 'header' }: { variant?: 'he
     }
   }, [open])
 
+  // Ponto 14 de 2026-10-23: o clique leva à tela da pendência e marca como
+  // lida, sem a janela "Marcar como lida" no meio (com ela, o clique parecia
+  // só marcar). Ler é pessoal e não mexe no Alerta; "Marcar todas como lidas"
+  // continua pedindo confirmação.
   function openNotification(notification: InternalNotification, destination: string) {
     if (!notification.read_at) {
-      void (async () => {
-        const confirmed = await confirm({
-          title: 'Marcar notificação como lida',
-          message: `Marcar “${notification.title ?? 'Notificação'}” como lida e abrir o registro?`,
-          confirmLabel: 'Marcar como lida',
-          affected: {
-            summary: `1 notificação: ${notification.title ?? 'Notificação'}`,
-            items: [notification.message],
-          },
-          consequence: 'A notificação sai do contador de não lidas. A pendência operacional continua aberta na fila de Alertas.',
-          reversibility: 'Não há ação para marcar esta notificação novamente como não lida. A pendência continua acessível em Alertas.',
-        })
-        if (!confirmed) return
-
-        // A mutation é idempotente por notificação: o hook restaura
-        // o estado otimista no erro para permitir uma nova tentativa.
-        void markRead.mutateAsync(notification.id).catch(() =>
-          showToast('Não foi possível marcar como lida. Toque de novo para tentar.', 'error'),
-        )
-        navigate(destination)
-        setOpen(false)
-      })()
-      return
+      // A mutation é idempotente por notificação: o hook restaura
+      // o estado otimista no erro para permitir uma nova tentativa.
+      void markRead.mutateAsync(notification.id).catch(() =>
+        showToast('Não foi possível marcar como lida. Abra a notificação de novo para tentar.', 'error'),
+      )
     }
     navigate(destination)
     setOpen(false)
@@ -205,13 +191,7 @@ export function InternalNotificationBell({ variant = 'header' }: { variant?: 'he
               <ul className="app-notifications__items">
                 {data.map((notification: InternalNotification) => {
                   const isEcho = Boolean(notification.payload?.is_echo)
-                  const destination = alertEntityLink({
-                    type: notification.item_type ?? notification.type ?? '',
-                    entity_type: notification.entity_type,
-                    entity_id: notification.entity_id,
-                    metadata: notification.payload ?? {},
-                    destination: notification.destination,
-                  }) ?? '/alertas'
+                  const destination = internalNotificationDestination(notification)
 
                   const entityFormatted = formatAlertEntity(notification.entity_type, notification.entity_id, entityLabels)
                     ?? (notification.entity_type ? (ENTITY_TYPE_LABELS[notification.entity_type] ?? notification.entity_type) : null)

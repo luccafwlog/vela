@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 import { escapeFilterTerm, sanitizeLikeTerm } from '../../lib/utils'
 import { classifyDbError } from '../../lib/errors'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
+import { tokenIlikeClauses } from '../../lib/searchTerms'
 
 const OPERATIONAL_PAGE_SIZE = 1000
 const LOCAL_CHARGE_BATCH_SIZE = 100
@@ -306,7 +307,7 @@ async function loadBlOperationalRows(
     if (filters?.search) {
       const search = escapeFilterTerm(filters.search)
       if (search) {
-        query = query.or(`id.ilike.%${search}%,consignee.ilike.%${search}%`)
+        query = query.or([`id.ilike.%${search}%`, `consignee.ilike.%${search}%`, ...tokenIlikeClauses(filters.search, ['id'])].join(','))
       }
     }
 

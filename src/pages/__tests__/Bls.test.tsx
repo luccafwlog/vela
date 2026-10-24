@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Bls } from '../Bls'
+import { blsListHref } from '../blsListState'
 
 const { useBlsMock, useBlSummaryMock, showToastMock, checkBlDependenciesMock } = vi.hoisted(() => ({
   useBlsMock: vi.fn(),
@@ -235,6 +236,49 @@ describe('Página Bls (unificada)', () => {
     fireEvent.click(card)
     await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ voyageId: '' }))
     railItemsMock.mockReturnValue({ items: [], isLoading: false })
+  })
+
+  // Ponto 15: o link do sino com /bls já aberta troca os filtros pelos do alerta.
+  it('endereço novo vindo de fora, com a lista aberta, substitui os filtros', async () => {
+    function AlertLink() {
+      const navigate = useNavigate()
+      return <button type="button" onClick={() => navigate('/bls?voyage=5&pod=BRSSZ&cliente=sem')}>Abrir alerta</button>
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls?q=MEDU']}>
+          <Bls />
+          <AlertLink />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ search: 'MEDU' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir alerta' }))
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ search: '', voyageId: '5', pod: 'BRSSZ', customerLink: 'sem' }))
+    await waitFor(() => expect(blsListHref()).toBe('/bls?voyage=5&pod=BRSSZ&cliente=sem'))
+  })
+
+  // Endereço aberto fora da forma canônica (página padrão, valor desconhecido):
+  // a lista reescreve a URL e lembra o recorte para o "BLs" da ficha.
+  it('abrir /bls com endereço fora da forma canônica normaliza a URL e lembra o recorte', async () => {
+    window.sessionStorage.clear()
+    function LocationProbe() {
+      return <output data-testid="search">{useLocation().search}</output>
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls?page=1&q=MEDU&cliente=qualquer']}>
+          <Bls />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => expect(screen.getByTestId('search').textContent).toBe('?q=MEDU'))
+    expect(blsListHref()).toBe('/bls?q=MEDU')
+    expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ search: 'MEDU', customerLink: '', page: 1 })
   })
 
   it('alterna a lente de modalidade [Todos, Contêiner, Carga solta, Misto]', async () => {

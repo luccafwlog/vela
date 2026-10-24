@@ -18,6 +18,8 @@ src/integration/customerCommunicationCatalog.local-pg.test.ts
 src/integration/ceUnlock.local-pg.test.ts
 src/integration/ceUnlockMatriz.local-pg.test.ts
 src/integration/ceUnlockVip.local-pg.test.ts
+src/integration/ceUnlockPrazoRequisitos.local-pg.test.ts
+src/integration/ceUnlockVigenciaAnual.local-pg.test.ts
 src/integration/demurrageAuthority.local-pg.test.ts
 src/integration/demurrageMoney.local-pg.test.ts
 src/integration/emailInbox.local-pg.test.ts
@@ -177,3 +179,4 @@ src/integration/baldeLoginReservaAtomica.local-pg.test.ts
 src/integration/autorDosEventosDoPortal.local-pg.test.ts
 src/integration/decisoesDoDonoRun3.local-pg.test.ts
 src/integration/pixRecebidos.local-pg.test.ts
+src/integration/buscaPorVariosBls.local-pg.test.ts

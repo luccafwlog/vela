@@ -46,11 +46,19 @@ describe('Administração de informações do Portal', () => {
     expect(screen.getByRole('combobox', { name: /Assunto/ })).toBeTruthy()
     expect(screen.queryByRole('option', { name: 'Geral' })).toBeNull()
   })
-  it('não oferece adicionar atendimento quando os quatro assuntos já existem', () => {
-    mocks.isAdmin = true; mocks.contacts = ['geral', 'importacao', 'exportacao', 'containers'].map(key => ({ key, title: key, active: true }))
+  it('não oferece adicionar atendimento quando todos os assuntos já existem', () => {
+    // Os quatro de atendimento e as três agências de entrega do B/L original (migration 447).
+    mocks.isAdmin = true; mocks.contacts = ['geral', 'importacao', 'exportacao', 'containers', 'entrega_bl_vitoria', 'entrega_bl_salvador', 'entrega_bl_suape'].map(key => ({ key, title: key, active: true }))
     render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'Contato' }))
     expect(screen.queryByRole('button', { name: 'Adicionar contato' })).toBeNull()
+  })
+  it('agência de entrega do B/L original que falta pode ser cadastrada pelo Contato (ponto 6 de 2026-10-23)', () => {
+    mocks.isAdmin = true; mocks.contacts = ['geral', 'importacao', 'exportacao', 'containers', 'entrega_bl_vitoria', 'entrega_bl_salvador'].map(key => ({ key, title: key, active: true }))
+    render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Contato' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar contato' }))
+    expect(screen.getByRole('option', { name: 'Entrega do B/L original · Suape' })).toBeTruthy()
   })
   it('Equipamentos edita o depot e também mantém agentes (P8)', () => {
     render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)

@@ -26,6 +26,7 @@ import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvision
 import { isPortalReadyForBilling } from '../../lib/portalProvisioningViewModel'
 import { BillingPortalReleaseCard } from './BillingPortalReleaseCard'
 import type { CustomerDemurrageAgreementListItem } from '../../types/customerDemurrageAgreements'
+import { matchesAnyToken } from '../../lib/searchTerms'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
 
@@ -134,7 +135,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
   const localLines = filterCustomerInvoiceLines(lines, filter)
   const term = filter.search.trim().toUpperCase()
   const demurrageRows = (dem.data?.rows ?? []).filter((row) => {
-    if (term && !row.bl_id.toUpperCase().includes(term) && !(row.doc_number ?? '').toUpperCase().includes(term)) return false
+    if (term && !row.bl_id.toUpperCase().includes(term) && !(row.doc_number ?? '').toUpperCase().includes(term) && !matchesAnyToken(term, [row.bl_id, row.doc_number])) return false
     const status = row.status ?? 'issued'
     if (filter.situation === 'paid' && status !== 'paid') return false
     if (filter.situation === 'cancelled' && status !== 'cancelled') return false
@@ -170,6 +171,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
     if (!term) return true
     const ids = row.invoice ? invoiceBls.get(row.invoice.id) ?? [] : []
     return ids.some((id) => id.toUpperCase().includes(term)) || (row.invoice?.invoice_number ?? '').toUpperCase().includes(term)
+      || matchesAnyToken(term, [...ids, row.invoice?.invoice_number])
   })
   const paymentPages = Math.max(1, Math.ceil(payments.length / PAGE_SIZE))
   const currentPaymentPage = Math.min(paymentPage, paymentPages)
