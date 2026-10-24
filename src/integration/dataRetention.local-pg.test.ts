@@ -161,6 +161,23 @@ describeLocal('311 — retenção de 1 ano dos e-mails', () => {
       WHERE communication_id = ${COMMUNICATION_ID};`)).toBe('v***@example.test=-,n***@example.test=novo@example.test')
   })
 
+  it('451: a tentativa antiga com chave no formato novo (hash, sem @) também perde o e-mail exato', () => {
+    // A chave `comunicado:<id>:<n>:sha256:…` não tem @: só o ramo
+    // `recipient_email IS NOT NULL` da 451 alcança esta linha.
+    psql(`
+      SET request.jwt.claim.role = 'service_role';
+      INSERT INTO public.customer_communication_attempts (communication_id, recipient_masked, recipient_email, status, idempotency_key, dispatch_mode, created_at)
+      VALUES (${COMMUNICATION_ID}, 'h***@example.test', 'hash@example.test', 'entregue',
+        'comunicado:${COMMUNICATION_ID}:1:sha256:' || encode(sha256('hash@example.test'::bytea), 'hex'), 'real', now() - interval '2 years');
+    `)
+    const result = JSON.parse(psql(`SELECT public.run_retention();`))
+    expect(result.customer_communication_attempts_masked).toBeGreaterThanOrEqual(1)
+
+    expect(psql(`SELECT idempotency_key || '|' || COALESCE(recipient_email, '-') FROM public.customer_communication_attempts
+      WHERE communication_id = ${COMMUNICATION_ID} AND recipient_masked = 'h***@example.test';`))
+      .toMatch(new RegExp(`^comunicado:${COMMUNICATION_ID}:1:sha256:[0-9a-f]{64}\\|-$`))
+  })
+
   it('451: o e-mail exato da tentativa é lido por usuário interno ativo e nunca pela sessão do Portal', () => {
     expect(psql(`SELECT has_column_privilege('authenticated', 'public.customer_communication_attempts', 'recipient_email', 'SELECT')::text;`)).toBe('true')
     // A política da tabela é só interna (is_active_read_user); sem perfil interno, nada volta.

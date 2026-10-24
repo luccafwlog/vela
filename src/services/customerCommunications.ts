@@ -1356,6 +1356,8 @@ export async function fetchCustomerCommunicationHistory(input?: number | Custome
   // Ponto 8 de 2026-10-23: o link de um Comunicado (Cobertura, ficha, B/L) mostrava
   // só ele, e o Histórico parecia ter um envio só. Agora abre todos os envios do
   // mesmo Cliente na mesma viagem; a tela deixa aberto o Comunicado do link.
+  // Sem viagem (institucional, Cobrança de Demurrage agrupada), o recorte fica
+  // só no Cliente, e o aviso da tela diz isso.
   if (filters.id != null) {
     const { data: focus, error: focusError } = await supabase
       .from('customer_communications')

@@ -490,10 +490,11 @@ pelas Edge Functions (por `_shared/portalUrls.ts`). Ela troca o domínio do port
 antigo (`transhippingdesk.com.br`, Transhipping Desk) pelo atual, inclusive no
 `PORTAL_URL` e no `PORTAL_SUPPORT_EMAIL` configurados, completa `/portal/…` e é
 usada pelo layout (logo), pelos rodapés e pelos botões. Antes, o e-mail
-"CE Mercante e Taxas Locais disponíveis" (`send-customer-communication`) e a
-Cobrança de Demurrage (`demurrage-dunning`) montavam o link das faturas com o
-`PORTAL_URL` cru e, com o domínio antigo configurado, levavam o cliente a uma
-página quebrada. **Teste:** `emailsSemDominioAntigo.test.ts` gera todos os
+"CE Mercante e Taxas Locais disponíveis" (`send-customer-communication` e o
+envio automático, `customer-communication-auto-runner`) e a Cobrança de
+Demurrage (`demurrage-dunning`) montavam o link das faturas com o `PORTAL_URL`
+cru e, com o domínio antigo configurado, levavam o cliente a uma página
+quebrada. **Teste:** `emailsSemDominioAntigo.test.ts` gera todos os
 e-mails com o domínio antigo configurado e confere que nenhum o cita e que todo
 link vai a uma tela que existe no Portal.
 
