@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, type EmailAttemptRecord } from '../_shared/email.ts'
+import { canonicalPortalUrl } from '../_shared/portalUrls.ts'
 import {
   dunningResumeDispatchId,
   runDemurrageDunning,
@@ -52,13 +53,11 @@ function demurrageReplyTo(): string | undefined {
   return Deno.env.get('DEMURRAGE_REPLY_TO')?.trim() || undefined
 }
 
+// Faturas do Portal pela configuração única (src/config/portalUrl.ts): um
+// PORTAL_URL do portal antigo (Transhipping Desk) não chega ao e-mail (ponto 4
+// de 2026-10-23).
 function portalBillingUrl(): string {
-  const configured = (Deno.env.get('PORTAL_URL') ?? '').trim().replace(/\/+$/, '')
-  if (!configured) return 'https://portalfwlog.com.br/portal/billing'
-  if (configured.endsWith('/portal/billing')) return configured
-  if (configured.endsWith('/portal')) return `${configured}/billing`
-  if (configured.endsWith('/billing')) return `${configured.slice(0, -'/billing'.length)}/portal/billing`
-  return `${configured}/portal/billing`
+  return canonicalPortalUrl('billing')
 }
 
 async function recipientAllowed(admin: Admin, customerId: number, contactId: number): Promise<boolean> {
@@ -204,6 +203,8 @@ async function recordDunningAttempt({
   const { data, error } = await admin.from('customer_communication_attempts').insert({
     communication_id: communicationId,
     recipient_masked: maskEmail(to),
+    // Endereço exato para o Histórico interno (migration 451, ponto 8 de 2026-10-23).
+    recipient_email: to,
     recipient_key: recipientIdentity,
     status: 'aceito',
     dispatch_mode: communicationsEnabled ? 'real' : 'simulado',

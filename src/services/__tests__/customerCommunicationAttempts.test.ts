@@ -79,6 +79,8 @@ describe('registro da tentativa do Comunicado', () => {
       provider_message_id: 'prov-1',
       recipient_key: await recipientKey('a@example.test'),
       recipient_masked: 'a***@e***.test',
+      // Migration 451 (ponto 8 de 2026-10-23): o Histórico interno mostra o endereço exato.
+      recipient_email: 'a@example.test',
     })
   })
 

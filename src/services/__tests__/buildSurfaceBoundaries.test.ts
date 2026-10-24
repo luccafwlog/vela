@@ -45,11 +45,15 @@ describe('fronteiras dos builds Vela e Fwlog', () => {
 
   it('mantém os links de faturamento no caminho canônico do Portal', () => {
     expect(read('.env.example')).toContain('VITE_PORTAL_BILLING_URL=https://portalfwlog.com.br/portal/billing')
-    expect(read('src/services/customerFinanceCommunications.ts')).toContain('canonicalPortalBillingUrl(portal)')
-    expect(read('src/services/customerCommunicationTemplates.ts')).toContain("https://portalfwlog.com.br/portal/billing")
-    expect(read('src/services/emailLayout.ts')).toContain("https://portalfwlog.com.br'")
-    expect(read('supabase/functions/demurrage-dunning/index.ts')).toContain('`${configured}/portal/billing`')
-    expect(read('supabase/functions/send-customer-communication/index.ts')).toContain('`${configured}/portal/billing`')
+    // Configuração única do endereço do Portal (ponto 4 de 2026-10-23): todo gerador de e-mail passa por ela.
+    expect(read('src/config/portalUrl.ts')).toContain("export const PORTAL_ORIGIN = 'https://portalfwlog.com.br'")
+    expect(read('src/services/customerFinanceCommunications.ts')).toContain("portalPageUrl('billing', configured)")
+    expect(read('src/services/customerCommunicationTemplates.ts')).toContain("portalPageUrl('billing', input.portalUrl)")
+    expect(read('src/services/emailLayout.ts')).toContain('return portalOrigin(url)')
+    expect(read('supabase/functions/_shared/portalUrls.ts')).toContain("from '../../../src/config/portalUrl.ts'")
+    expect(read('supabase/functions/demurrage-dunning/index.ts')).toContain("canonicalPortalUrl('billing')")
+    expect(read('supabase/functions/send-customer-communication/index.ts')).toContain("canonicalPortalUrl('billing')")
+    expect(read('supabase/functions/customer-communication-auto-runner/index.ts')).toContain("canonicalPortalUrl('billing')")
     expect(read('supabase/functions/_shared/portalEmailEventProcessor.ts')).toContain('canonicalPortalOrigin')
     expect(read('supabase/functions/portal-invite-send/index.ts')).toContain('canonicalPortalUrl')
     expect(read('supabase/functions/portal-password-recovery/index.ts')).toContain('canonicalPortalUrl')
