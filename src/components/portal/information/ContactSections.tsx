@@ -5,7 +5,7 @@ import { EmptyState } from '../../ui/Card'
 import { CopyValue } from '../../ui/CopyValue'
 import { NoValue } from '../../ui/NoValue'
 import { useNarrowViewport } from '../../bl/useNarrowViewport'
-import { externalInformationUrl, type PortalContact, type PortalInformation } from '../../../services/portalInformation'
+import { externalInformationUrl, isBlDeliveryContact, type PortalContact, type PortalInformation } from '../../../services/portalInformation'
 import { FilterRow } from './FilterRow'
 
 export function AgentsSection({ information, pod, filters }: { information: PortalInformation; pod: string; filters?: ReactNode }) {
@@ -33,7 +33,8 @@ function contactOrder(contacts: PortalContact[]) {
 }
 
 export function ContactsSection({ information }: { information: PortalInformation }) {
-  const contacts = contactOrder(information.contacts.filter((contact) => contact.active))
+  // Os endereços de entrega do B/L original moram no Desbloqueio de CE (migration 447).
+  const contacts = contactOrder(information.contacts.filter((contact) => contact.active && !isBlDeliveryContact(contact.key)))
   const narrow = useNarrowViewport()
   if (!contacts.length) return <EmptyState title="Contato indisponível" description="Nenhum canal de atendimento publicado no momento." />
   return <div className="grid items-start gap-4 md:grid-cols-2">{contacts.map((contact) => {

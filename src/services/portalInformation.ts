@@ -21,6 +21,27 @@ export type PortalInformation = {
 }
 export type InformationKind = 'depot' | 'agent' | 'contact' | 'carrier' | 'notes'
 
+/**
+ * Agências que recebem o B/L original do Desbloqueio de CE (ponto 6 de
+ * 2026-10-23, migration 447): contatos da Central de Informações, editados no
+ * Vela em Informações do Portal → Contato. O Portal os mostra só no
+ * Desbloqueio de CE, não na tela Contato.
+ */
+export const BL_DELIVERY_AGENCIES = [
+  { key: 'entrega_bl_vitoria', port: 'Vitória' },
+  { key: 'entrega_bl_salvador', port: 'Salvador' },
+  { key: 'entrega_bl_suape', port: 'Suape' },
+] as const
+
+const BL_DELIVERY_KEYS: ReadonlySet<string> = new Set(BL_DELIVERY_AGENCIES.map((agency) => agency.key))
+
+export function isBlDeliveryContact(key: string): boolean {
+  return BL_DELIVERY_KEYS.has(key)
+}
+
+/** Texto que fica enquanto o endereço da agência não foi informado no Vela. */
+export const BL_DELIVERY_ADDRESS_PENDING = 'Endereço a definir'
+
 /** Marca do número do B/L no link de tracking do armador. */
 export const TRACKING_BL_MARKER = '{BL}'
 
