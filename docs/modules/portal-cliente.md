@@ -483,6 +483,21 @@ lê a migration arquivada `325`.
 
 #### Email transacional
 
+**Endereço do Portal nos e-mails (ponto 4 das observações de 2026-10-23).** A
+URL base do Portal mora numa configuração única, `src/config/portalUrl.ts`
+(`portalOrigin`, `portalPageUrl` e `portalContactEmail`), usada pelo frontend e
+pelas Edge Functions (por `_shared/portalUrls.ts`). Ela troca o domínio do portal
+antigo (`transhippingdesk.com.br`, Transhipping Desk) pelo atual, inclusive no
+`PORTAL_URL` e no `PORTAL_SUPPORT_EMAIL` configurados, completa `/portal/…` e é
+usada pelo layout (logo), pelos rodapés e pelos botões. Antes, o e-mail
+"CE Mercante e Taxas Locais disponíveis" (`send-customer-communication` e o
+envio automático, `customer-communication-auto-runner`) e a Cobrança de
+Demurrage (`demurrage-dunning`) montavam o link das faturas com o `PORTAL_URL`
+cru e, com o domínio antigo configurado, levavam o cliente a uma página
+quebrada. **Teste:** `emailsSemDominioAntigo.test.ts` gera todos os
+e-mails com o domínio antigo configurado e confere que nenhum o cita e que todo
+link vai a uma tela que existe no Portal.
+
 `_shared/portalEmail.ts` registra cada tentativa por chave idempotente, não
 envia para endereços suprimidos e repete somente respostas transitórias do
 provedor (máximo de três tentativas). A chave enviada ao provedor é a chave

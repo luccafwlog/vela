@@ -434,7 +434,10 @@ implementada (migrations `093` e `094`; backup encerrado em 2026-10-05).
   guardado em claro na chave de idempotência e no motivo da falha é trocado por
   um marcador (`email-` + hash), e o Histórico do Comunicado continua com o
   destinatário mascarado (decisão D17 de 2026-10-18, [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md);
-  migration `311`).
+  migration `311`). Desde a migration `451` (ponto 8 das observações de
+  2026-10-23), a tentativa do Comunicado guarda também o e-mail exato
+  (`recipient_email`), que o Histórico interno mostra no primeiro ano; a mesma
+  rotina o apaga com mais de 1 ano.
 - O expurgo é a rotina diária `run_retention` (job `data-retention` do
   `pg_cron`, 06:30 UTC; migration `094`). Os documentos do Desbloqueio de CE têm
   guarda própria ([Desbloqueio de CE § Documentos, upload e expurgo](../modules/desbloqueio-ce.md#documentos-upload-e-expurgo)).

@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { runAutomaticCommunications } from '../_shared/customerCommunicationAutoRunner.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { canonicalPortalUrl } from '../_shared/portalUrls.ts'
 
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   const encoder = new TextEncoder()
@@ -33,7 +34,8 @@ async function handler(req: Request): Promise<Response> {
     supabaseUrl: url,
     anonKey,
     secret,
-    portalUrl: Deno.env.get('PORTAL_URL'),
+    // Configuração única do endereço do Portal (ponto 4 de 2026-10-23).
+    portalUrl: canonicalPortalUrl('billing'),
   })
   return json(result.status, result.body, result.headers)
 }
