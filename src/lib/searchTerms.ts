@@ -3,6 +3,7 @@
 // cola dois ou mais termos separados por espaço, vírgula, ponto e vírgula ou
 // quebra de linha, basta um termo casar o número do B/L ou do contêiner.
 // Mesma regra de `search_term_tokens` no banco (migration 453).
+import { escapeFilterTerm } from './utils'
 
 /** Termos em minúsculas, só quando são dois ou mais; um termo só devolve []. */
 export function searchTokens(query: string): string[] {
@@ -18,4 +19,16 @@ export function matchesAnyToken(query: string, ids: Array<string | null | undefi
   if (!tokens.length) return false
   const values = ids.map((id) => (id ?? '').toLowerCase()).filter(Boolean)
   return tokens.some((token) => values.some((value) => value.includes(token)))
+}
+
+/**
+ * Cláusulas de `.or()` do PostgREST para a lista colada: cada termo em cada
+ * coluna de número. Vazio quando o texto não é lista; o chamador mantém a
+ * cláusula do texto inteiro.
+ */
+export function tokenIlikeClauses(query: string, columns: readonly string[]): string[] {
+  return searchTokens(query)
+    .map((token) => escapeFilterTerm(token))
+    .filter(Boolean)
+    .flatMap((token) => columns.map((column) => `${column}.ilike.%${token}%`))
 }

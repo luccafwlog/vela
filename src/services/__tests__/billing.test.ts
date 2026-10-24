@@ -618,10 +618,13 @@ describe('listInvoices', () => {
     const result = await listInvoices({ ...baseFilters, blSearch: ' csc 1% ' })
 
     expect(result).toEqual({ rows: [], count: 0 })
-    // Termo é normalizado: trim, uppercase e remoção dos curingas do LIKE.
-    expect(blLinks.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
-    expect(recvLinks.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
-    expect(manualInvoices.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
+    // Termo é normalizado: trim, uppercase e remoção dos curingas do LIKE. O
+    // texto inteiro continua valendo e, por ter dois termos, cada um também
+    // (busca por lista, ponto 9 de 2026-10-23).
+    const clauses = 'bl_id.ilike.%CSC 1%,bl_id.ilike.%csc%,bl_id.ilike.%1%'
+    expect(blLinks.or).toHaveBeenCalledWith(clauses)
+    expect(recvLinks.or).toHaveBeenCalledWith(clauses)
+    expect(manualInvoices.or).toHaveBeenCalledWith(clauses)
     expect(supabaseMocks.from).toHaveBeenCalledTimes(3)
   })
 

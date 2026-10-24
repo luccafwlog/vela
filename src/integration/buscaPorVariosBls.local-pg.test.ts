@@ -99,6 +99,21 @@ describeLocal('453 — busca por vários B/Ls e contêineres', () => {
     expect(bls('NADA453')).toEqual([])
   })
 
+  // Migration 454: contrato SQL das demais buscas (o comportamento das listas do
+  // Desbloqueio de CE e das Faturas do Portal está em ceUnlock e
+  // portalConsolidadaPaga; aqui só se confere que a regra está no corpo).
+  it('as demais buscas por B/L no banco usam a mesma regra de lista', () => {
+    for (const fn of [
+      'ce_unlock_private.list(bigint,jsonb,integer,boolean)',
+      'public.ce_unlock_customer_requests(bigint,text,integer)',
+      'public.list_consolidatable_receivables(bigint,bigint,text)',
+      'public._portal_list_invoices_page_core(bigint,integer,integer,text,text,text,text,date,date)',
+      'public._portal_list_demurrage_invoices_page_core(bigint,integer,integer,text,text,text,text,date,date)',
+    ]) {
+      expect(psql(`SELECT position('search_term_tokens' IN pg_get_functiondef('${fn}'::regprocedure)) > 0;`), fn).toBe('t')
+    }
+  })
+
   it('a lista de contêineres acha vários contêineres ou B/Ls colados', () => {
     expect(containers('TCNU4530001 TCNU4530003')).toEqual(['TCNU4530001', 'TCNU4530003'])
     expect(containers(`${BLS[1]}, TCNU4530003`)).toEqual(['TCNU4530002', 'TCNU4530003'])

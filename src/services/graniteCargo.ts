@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { escapeFilterTerm, voyageDisplayName } from '../lib/utils'
+import { tokenIlikeClauses } from '../lib/searchTerms'
 
 /**
  * Carga de Granito movimentada no navio (lote 5b da identidade, regra de
@@ -113,7 +114,7 @@ function filteredGraniteBls(filters: GraniteCargoFilters, withCount = false) {
   let query = supabase.from('granite_bls').select(GRANITE_BL_COLUMNS, withCount ? { count: 'exact' } : undefined)
   const search = filters.search ? escapeFilterTerm(filters.search) : ''
   // Busca por B/L ou shipper (achado G2: o CNPJ saiu da tela e da busca).
-  if (search) query = query.or(`bl_number.ilike.%${search}%,shipper_name.ilike.%${search}%`)
+  if (search) query = query.or([`bl_number.ilike.%${search}%`, `shipper_name.ilike.%${search}%`, ...tokenIlikeClauses(filters.search ?? '', ['bl_number'])].join(','))
   if (filters.voyageId) query = query.eq('manifest.voyage_id', Number(filters.voyageId))
   if (filters.dischargePort) query = query.eq('discharge_port', filters.dischargePort)
   return query

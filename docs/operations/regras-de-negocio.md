@@ -153,15 +153,24 @@ e `SelectAllFilteredCheckbox`; as listas paginadas no servidor leem as páginas
 até 10.000 linhas e, acima disso, pedem para refinar o filtro (revisão de
 2026-10-22).
 
-**Busca por vários números de uma vez** (ponto 9 de 2026-10-23): nas buscas de
-BLs e Containers (no servidor, migration `453`, `search_term_tokens`), Baplie,
-Demurrage (faturas e contêineres), Cliente (Contêineres e Financeiro) e
-Desbloqueio de CE do Portal, o texto inteiro continua casando como antes, e
+**Busca por vários números de uma vez** (ponto 9 de 2026-10-23; em
+2026-10-24 o responsável estendeu a regra a todo filtro do Vela e do Portal
+que busque por B/L ou contêiner): em toda busca por B/L, contêiner ou CE —
+BLs e Containers (no servidor, migration `453`, `search_term_tokens`, e a
+exportação), Baplie, Demurrage, Veículos, Revisão, Alertas, Manifesto da
+viagem, Conciliação, Faturas, Consolidar fatura, Validação de Taxas locais,
+Granito, Vazios Importação, Desbloqueio de CE e as solicitações na ficha do
+Cliente (migration `454`), Cliente (Contêineres e Financeiro) e, no Portal,
+Operação (BLs e Containers), Faturas, Demurrage (migration `454`), Consolidar
+fatura e Desbloqueio de CE —, o texto inteiro continua casando como antes, e
 uma lista colada com dois ou mais termos (separados por espaço, vírgula, ponto
 e vírgula ou quebra de linha) acha cada B/L ou contêiner em que algum termo
 aparece. Os termos casam só os números de B/L e contêiner (e o CE no Portal,
 o documento na Demurrage e no Financeiro), não nomes. Dono:
-`src/lib/searchTerms.ts`, espelhado no banco.
+`src/lib/searchTerms.ts` (`matchesAnyToken` nas telas, `tokenIlikeClauses`
+nas consultas do PostgREST), espelhado no banco. Caixas de escolha de um B/L
+só (Fatura manual, sugestões do filtro de B/L) não são busca e ficam como
+estão.
 
 ### Vocabulário e rótulos
 

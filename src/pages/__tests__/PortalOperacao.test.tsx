@@ -328,6 +328,19 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(blsTable()).queryByText('BL003')).toBeNull()
   })
 
+  // Ponto 9: colar vários B/Ls no filtro acha cada um.
+  it('filtra a aba BLs por uma lista de B/Ls colada', async () => {
+    const user = userEvent.setup()
+    renderOperacao()
+
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
+    await user.type(screen.getByLabelText('B/L'), 'BL001, BL003')
+
+    expect(within(blsTable()).getByText('BL001')).toBeTruthy()
+    expect(within(blsTable()).getByText('BL003')).toBeTruthy()
+    expect(within(blsTable()).queryByText('BL002')).toBeNull()
+  })
+
   it('abre a linha com os contêineres em tabela interna, Situação em texto e o transbordo', async () => {
     const user = userEvent.setup()
     renderOperacao()

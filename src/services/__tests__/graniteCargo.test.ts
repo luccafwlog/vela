@@ -123,7 +123,13 @@ describe('resumo da carga por viagem', () => {
 describe('consulta dos B/Ls de Granito', () => {
   it('busca por B/L ou shipper, com o termo escapado (sem CNPJ)', async () => {
     await listGraniteBls({ search: 'ACME,ME' })
-    expect(calls.or).toHaveBeenCalledWith('bl_number.ilike.%ACME ME%,shipper_name.ilike.%ACME ME%')
+    // Dois termos: também vira busca por lista, só no número do B/L (ponto 9).
+    expect(calls.or).toHaveBeenCalledWith('bl_number.ilike.%ACME ME%,shipper_name.ilike.%ACME ME%,bl_number.ilike.%acme%,bl_number.ilike.%me%')
+  })
+
+  it('um termo só busca como antes', async () => {
+    await listGraniteBls({ search: 'GRN123' })
+    expect(calls.or).toHaveBeenCalledWith('bl_number.ilike.%GRN123%,shipper_name.ilike.%GRN123%')
   })
 
   it('filtra a Viagem pelo manifesto e o POD exato, e pagina', async () => {

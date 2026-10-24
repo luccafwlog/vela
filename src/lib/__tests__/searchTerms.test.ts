@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { matchesAnyToken, searchTokens } from '../searchTerms'
+import { matchesAnyToken, searchTokens, tokenIlikeClauses } from '../searchTerms'
 
 // Ponto 9 de 2026-10-23: colar vários B/Ls ou contêineres na busca.
 describe('searchTerms', () => {
@@ -16,5 +16,10 @@ describe('searchTerms', () => {
     expect(matchesAnyToken('medu1 tcnu9', [undefined, 'TCNU9000'])).toBe(true)
     expect(matchesAnyToken('medu1 tcnu9', ['MSCU5'])).toBe(false)
     expect(matchesAnyToken('medu1', ['MEDU1'])).toBe(false)
+  })
+
+  it('monta as cláusulas do PostgREST só para lista, com cada termo escapado', () => {
+    expect(tokenIlikeClauses('MEDU1, MEDU(2)', ['bl_id'])).toEqual(['bl_id.ilike.%medu1%', 'bl_id.ilike.%medu 2%'])
+    expect(tokenIlikeClauses('MEDU1', ['bl_id'])).toEqual([])
   })
 })

@@ -452,7 +452,7 @@ Regra: [Faturamento](modules/faturamento.md).
 | `get_consolidated_invoice_item_breakdown` | `billing.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_invoice_correction_summary` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_invoice_reissue_links` | `billing.ts` | `128` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `list_consolidatable_receivables` | `billingLedger.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
+| `list_consolidatable_receivables` | `billingLedger.ts` | `002`, `454` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `list_financial_refunds` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `list_invoice_details` | `billing.ts` | `183` | DEFINER · `authenticated` | usuário interno ativo (núcleo `_legacy_134`) | — |
 | `list_invoice_refunds_with_evidence` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
@@ -546,7 +546,7 @@ Regra: [Desbloqueio de CE](modules/desbloqueio-ce.md).
 | `ce_unlock_document_access` | Edge `ce-unlock-document-download` | `143`, `250` | DEFINER · `authenticated` | Usuário interno ativo, ou Cliente da sessão (documento próprio) | Leitura de qualquer Departamento desde a `250`. |
 | `ce_unlock_finish_upload` | Edge `portal-ce-unlock-document` | `173` | DEFINER · `authenticated` | equipe do Desbloqueio ou Cliente da sessão (upload próprio) | — |
 | `ce_unlock_prepare_upload` | Edge `portal-ce-unlock-document` | `173` | DEFINER · `authenticated` | equipe do Desbloqueio ou Cliente da sessão (pedido próprio) | — |
-| `ce_unlock_read` | `ceUnlockService.ts`; Edge `ce-unlock-export` | `160`, `250` | DEFINER · `authenticated` | Usuário interno ativo (`ce_unlock_private.actor`) | Documentos para todos; referência externa da confirmação e `exports` só para Administrativo e Documentação (`250`). |
+| `ce_unlock_read` | `ceUnlockService.ts`; Edge `ce-unlock-export` | `160`, `250`, `454` | DEFINER · `authenticated` | Usuário interno ativo (`ce_unlock_private.actor`) | Documentos para todos; referência externa da confirmação e `exports` só para Administrativo e Documentação (`250`). |
 | `ce_unlock_reconcile` | `ceUnlockService.ts` | `177` | DEFINER · `authenticated` | usuário interno ativo e permissão do Desbloqueio | Grava o Desbloqueio conferido em `ce_unlock_zpt_status`. |
 | `portal_ce_unlock_command` | `ceUnlockService.ts` | `139` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_get_ce_unlock_model` | `ceUnlockService.ts` | `139` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
@@ -597,10 +597,10 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_invoice_details` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_consolidatable_receivables` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_demurrage_invoices` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
-| `portal_list_demurrage_invoices_page` | `portalBilling.ts` | `021` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
+| `portal_list_demurrage_invoices_page` | `portalBilling.ts` | `021`, `454` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_disputes` | `portalBilling.ts` | `013` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_invoices` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
-| `portal_list_invoices_page` | `portalBilling.ts` | `021` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
+| `portal_list_invoices_page` | `portalBilling.ts` | `021`, `454` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_notifications` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_operation_bls` | `portalOperation.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_provisioning_console` | `portalProvisioning.ts` | `103`, `250`, `324` | DEFINER · `authenticated` | Administrativo, Documentação, Financeiro, Operações ou Equipamentos | Fila do console `/clientes/portal` (`103`); sem máscara para Operações desde a `250`. |
