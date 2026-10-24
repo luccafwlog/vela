@@ -81,7 +81,7 @@ async function sendHeartbeat(
 
 /**
  * Origem da chamada autorizada. O banco dispara pelo evento com
- * `{"source":"trigger"}` (`ops.kick_edge_job`, migration 447); o cron e a
+ * `{"source":"trigger"}` (`ops.kick_edge_job`, migration 456); o cron e a
  * chamada manual mandam `{}`. Lê uma cópia: o corpo continua disponível.
  */
 export async function invocationSource(req: Request): Promise<'cron' | 'trigger'> {
@@ -96,7 +96,7 @@ export async function invocationSource(req: Request): Promise<'cron' | 'trigger'
 
 /**
  * Heartbeat só na execução do cron: a chamada do gatilho é extra e não pode
- * esconder um cron parado (migration 447). Chamada não autorizada nunca reporta.
+ * esconder um cron parado (migration 456). Chamada não autorizada nunca reporta.
  */
 export async function runCronWithBetterStackHeartbeat(
   job: BetterStackHeartbeatJob,

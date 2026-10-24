@@ -1,6 +1,6 @@
 /**
  * Agenda do robô de Comunicados (`customer-communication-auto-runner`, cron
- * `1-59/2 * * * *` desde a migration 447: minutos ímpares de cada hora; agenda
+ * `1-59/2 * * * *` desde a migration 456: minutos ímpares de cada hora; agenda
  * em docs/operations/servicos-externos.md). O minuto é o mesmo em UTC e em
  * Brasília, então a próxima rodada sai só do relógio. O evento que deixa o
  * alvo pronto também chama o robô (no máximo a cada 90 s), então o Comunicado

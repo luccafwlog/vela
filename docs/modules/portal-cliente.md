@@ -483,6 +483,21 @@ lê a migration arquivada `325`.
 
 #### Email transacional
 
+**Endereço do Portal nos e-mails (ponto 4 das observações de 2026-10-23).** A
+URL base do Portal mora numa configuração única, `src/config/portalUrl.ts`
+(`portalOrigin`, `portalPageUrl` e `portalContactEmail`), usada pelo frontend e
+pelas Edge Functions (por `_shared/portalUrls.ts`). Ela troca o domínio do portal
+antigo (`transhippingdesk.com.br`, Transhipping Desk) pelo atual, inclusive no
+`PORTAL_URL` e no `PORTAL_SUPPORT_EMAIL` configurados, completa `/portal/…` e é
+usada pelo layout (logo), pelos rodapés e pelos botões. Antes, o e-mail
+"CE Mercante e Taxas Locais disponíveis" (`send-customer-communication` e o
+envio automático, `customer-communication-auto-runner`) e a Cobrança de
+Demurrage (`demurrage-dunning`) montavam o link das faturas com o `PORTAL_URL`
+cru e, com o domínio antigo configurado, levavam o cliente a uma página
+quebrada. **Teste:** `emailsSemDominioAntigo.test.ts` gera todos os
+e-mails com o domínio antigo configurado e confere que nenhum o cita e que todo
+link vai a uma tela que existe no Portal.
+
 `_shared/portalEmail.ts` registra cada tentativa por chave idempotente, não
 envia para endereços suprimidos e repete somente respostas transitórias do
 provedor (máximo de três tentativas). A chave enviada ao provedor é a chave
@@ -505,7 +520,7 @@ já processada é no-op e uma ainda pendente continua na fila, sem duplicar
 efeitos de entrega, bounce ou complaint. Receber o webhook não significa que o
 histórico já foi atualizado: `portal-email-events-runner` aplica os eventos às
 tentativas, chamado assim que o evento é gravado (gatilho em `portal_email_events`,
-migration `447`) e pelo job a cada minuto (migration `107`), que fica para as novas
+migration `456`) e pelo job a cada minuto (migration `107`), que fica para as novas
 tentativas. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
@@ -630,7 +645,12 @@ depósito, com e-mail copiável e "Agendar no site do depósito" quando há link
 Demurrage: dias e valor em colunas separadas, vigência na faixa e "Como a
 contagem funciona" num bloco abaixo. Agentes: Agente | Portos | E-mails.
 Contato: um bloco por área, Importação primeiro, e-mail como dado principal e
-WhatsApp como botão.
+WhatsApp como botão. Os três contatos de entrega do B/L original
+(`entrega_bl_vitoria`, `entrega_bl_salvador` e `entrega_bl_suape`, migration
+`447`) não aparecem em Contato: são os endereços das agências que o
+[Desbloqueio de CE](desbloqueio-ce.md#anatomia-das-telas) mostra; no Vela, são
+editados em `/clientes/informacoes` → Contato, como "Entrega do B/L original ·
+Vitória", "· Salvador" e "· Suape" (nascem com "Endereço a definir").
 
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
 na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas

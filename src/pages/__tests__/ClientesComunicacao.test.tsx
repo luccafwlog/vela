@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CustomerCommunicationConference } from '../../services/customerCommunications'
 import { ClientesComunicacao } from '../ClientesComunicacao'
@@ -1039,6 +1039,97 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     const motivo = within(tabela).getByText('O provedor recusou a mensagem (endereço ou conteúdo inválido).')
     expect(motivo.getAttribute('title')).toBe('HTTP 422 validation_error')
     expect(within(tabela).getAllByText('Real')).toHaveLength(2)
+  })
+
+  // Ponto 8 de 2026-10-23: a aba é interna e mostra o e-mail exato do envio (migration 451).
+  it('o Histórico mostra o e-mail exato de cada envio e a hora em que foi registrado; o mascarado só no envio antigo', () => {
+    mockHistory = [{
+      ...defaultHistory[0],
+      attempts: [
+        { id: 1, recipient_masked: 'f***@a***.com', recipient_email: 'financeiro@acme.com.br', dispatch_mode: 'real', status: 'aceito', retry_count: 0, provider_message_id: 'msg-1', last_error: null, created_at: '2026-10-20T19:19:00Z', updated_at: '' },
+        { id: 2, recipient_masked: 'o***@a***.com', recipient_email: null, dispatch_mode: 'real', status: 'aceito', retry_count: 0, provider_message_id: 'msg-2', last_error: null, created_at: '2026-10-01T12:00:00Z', updated_at: '' },
+      ],
+    }]
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    abrirComunicados()
+    const tabela = screen.getByRole('table', { name: 'Destinatários do Comunicado 501' })
+    expect(within(tabela).getByText('financeiro@acme.com.br')).toBeTruthy()
+    expect(within(tabela).queryByText('f***@a***.com')).toBeNull()
+    expect(within(tabela).getByText('o***@a***.com').getAttribute('title')).toContain('só o endereço mascarado foi guardado')
+    expect(within(tabela).getByText('20/10/2026 às 16:19')).toBeTruthy()
+  })
+
+  it('o link de um Comunicado abre todos os envios do Cliente na viagem, com "Ver todos"', async () => {
+    mockHistory = [
+      { ...defaultHistory[0], id: 18, kind: 'aviso_chegada_noa', anchor_voyage_id: 101, created_at: '2026-10-21T10:00:00Z' },
+      { ...defaultHistory[0], id: 17, kind: 'ce_mercante_taxas', anchor_voyage_id: 101, created_at: '2026-10-20T19:19:00Z' },
+    ]
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico&communication=17']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('status').textContent).toBe('Todos os Comunicados de ACME Importadora na viagem COSCO SHIPPING XING WANG / 2401E; o do link está aberto.Ver todos')
+    expect(screen.getByRole('button', { name: 'Ver todos' })).toBeTruthy()
+  })
+
+  // Revisão da PR #1059: o link "Enviado em" da Cobertura troca o endereço na
+  // mesma tela, sem remontar; o Comunicado do link tem de abrir mesmo assim.
+  it('da Cobertura para o Histórico sem remontar, o Comunicado do link abre; "Ver todos" tira o recorte do endereço', () => {
+    const attempt = { recipient_masked: 'c***@a***.com', recipient_email: 'contato@acme.com', dispatch_mode: 'real', status: 'aceito', retry_count: 0, provider_message_id: null, last_error: null, created_at: '2026-10-20T19:19:00Z', updated_at: '' }
+    mockHistory = [
+      { ...defaultHistory[0], id: 18, anchor_voyage_id: 101, created_at: '2026-10-21T10:00:00Z', attempts: [{ ...attempt, id: 2 }] },
+      { ...defaultHistory[0], id: 17, anchor_voyage_id: 101, created_at: '2026-10-20T19:19:00Z', attempts: [{ ...attempt, id: 1 }] },
+    ]
+    function Endereco() {
+      return <output aria-label="Endereço">{useLocation().search}</output>
+    }
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
+        <ClientesComunicacao />
+        <Endereco />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir os Clientes de COSCO SHIPPING XING WANG / 2401E, BRVIX' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Enviado em 20/10/2026 às 16:19 (BRT)' }))
+
+    expect(screen.getByLabelText('Endereço').textContent).toBe('?tab=historico&communication=17')
+    expect(screen.getByRole('table', { name: 'Destinatários do Comunicado 17' })).toBeTruthy()
+    expect(screen.queryByRole('table', { name: 'Destinatários do Comunicado 18' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver todos' }))
+    expect(screen.getByLabelText('Endereço').textContent).toBe('?tab=historico')
+    expect(screen.queryByRole('button', { name: 'Ver todos' })).toBeNull()
+  })
+
+  it('o Comunicado do link sem viagem: o aviso diz que a lista traz todos os do Cliente, sem citar a viagem de outro', () => {
+    mockHistory = [
+      { ...defaultHistory[0], id: 30, kind: 'aviso_chegada_noa', anchor_voyage_id: 7, vessel_name: 'MSC OUTRO', voyage_number: '999N', created_at: '2026-10-21T10:00:00Z' },
+      { ...defaultHistory[0], id: 17, kind: 'institucional', anchor_voyage_id: null, vessel_name: null, voyage_number: null, created_at: '2026-10-20T19:19:00Z' },
+    ]
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico&communication=17']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    const aviso = screen.getByRole('status').textContent
+    expect(aviso).toBe('O Comunicado do link não tem viagem: a lista mostra todos os Comunicados de ACME Importadora; o do link está aberto.Ver todos')
+    expect(aviso).not.toContain('MSC OUTRO')
+  })
+
+  it('com o Comunicado do link fora da lista (outro filtro), o aviso não diz que ele está aberto', () => {
+    mockHistory = [{ ...defaultHistory[0], id: 30, anchor_voyage_id: 7 }]
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico&communication=17']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('status').textContent).toBe('O Comunicado do link não aparece na lista com os filtros atuais.Ver todos')
   })
 
   it('os filtros do Histórico têm todos os modelos e o status "Em envio"', () => {

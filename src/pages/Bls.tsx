@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp, Download, FileText, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -65,6 +65,7 @@ const EMPTY_FILTERS = {
   financialStatus: '',
   chargeStatus: '',
   cargoProfile: '',
+  customerLink: '',
 }
 
 function CustomerCell({ bl }: { bl: BLListItem }) {
@@ -141,10 +142,32 @@ export function Bls() {
   const { showToast } = useToast()
 
   const listSearch = blsSearchFromFilters(filters)
+  // Navegação de fora (link do sino com a lista já aberta, voltar do
+  // navegador) substitui os filtros, em vez de ser sobrescrita por eles. Ela é
+  // reconhecida pela chave e pelo tipo da navegação, não comparando o texto do
+  // endereço: o BrowserRouter aplica cada troca de endereço numa transição, e
+  // uma tecla digitada antes dela terminar renderiza com o endereço antigo,
+  // que não pode ser tomado por externo (o texto voltaria e a letra sumiria).
+  const location = useLocation()
+  const navigationType = useNavigationType()
+  const seenKey = useRef(location.key)
   useEffect(() => {
-    if (listSearch !== searchParams.toString()) setSearchParams(new URLSearchParams(listSearch), { replace: true })
-    rememberBlsListSearch(listSearch)
-  }, [listSearch, searchParams, setSearchParams])
+    let search = listSearch
+    if (location.key !== seenKey.current) {
+      seenKey.current = location.key
+      // PUSH e POP vêm de fora (sino, voltar do navegador, menu); REPLACE é a
+      // própria lista gravando o recorte.
+      if (navigationType !== 'REPLACE') {
+        const external = filtersFromBlsSearch(searchParams)
+        setFilters(external)
+        search = blsSearchFromFilters(external)
+      }
+    }
+    // Endereço fora da forma canônica (aberto de fora ou com grafia antiga) é
+    // reescrito, e o recorte fica lembrado para o "BLs" da ficha voltar a ele.
+    if (search !== searchParams.toString()) setSearchParams(new URLSearchParams(search), { replace: true })
+    rememberBlsListSearch(search)
+  }, [location.key, navigationType, listSearch, searchParams, setSearchParams, setFilters])
 
   const debouncedSearch = useDebouncedValue(filters.search)
   const queryFilters = useMemo(() => ({
@@ -187,7 +210,7 @@ export function Bls() {
   // Busca, Viagem, POL e POD ficam abertos; os outros quatro vão para "Mais filtros".
   // A lente de modalidade tem controle próprio, sempre visível.
   const isSet = (key: keyof BlFilters) => String(filters[key] ?? '').trim() !== ''
-  const moreFilterCount = (['reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile'] as (keyof BlFilters)[]).filter(isSet).length
+  const moreFilterCount = (['reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile', 'customerLink'] as (keyof BlFilters)[]).filter(isSet).length
   const openFilterCount = (['search', 'voyageId', 'pol', 'pod'] as (keyof BlFilters)[]).filter(isSet).length
   const hasAnyFilter = moreFilterCount + openFilterCount > 0 || Boolean(filters.cargoMode)
 
@@ -433,6 +456,12 @@ export function Bls() {
               <option value="standard">Padrão</option>
               <option value="oog">OOG</option>
               <option value="imo">IMO</option>
+            </Select>
+          </Field>
+          <Field label="Cliente">
+            <Select value={filters.customerLink ?? ''} onChange={(event) => updateFilter('customerLink', event.target.value)}>
+              <option value="">Todos</option>
+              <option value="sem">Sem Cliente vinculado</option>
             </Select>
           </Field>
         </div>

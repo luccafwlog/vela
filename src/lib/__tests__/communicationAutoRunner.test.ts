@@ -5,12 +5,12 @@ import { AUTO_RUNNER_MINUTES, nextAutoRunnerRun, queuedLabel } from '../communic
 
 // Melhoria 10 (sessão de testes de 2026-10-20): "Na fila · próxima rodada às
 // HH:MM (BRT)", calculado do cron do robô de Comunicados (`1-59/2 * * * *`
-// desde a migration 447; antes `4-59/15`).
+// desde a migration 456; antes `4-59/15`).
 describe('próxima rodada do robô de Comunicados', () => {
-  it('espelha o cron 1-59/2 da migration 447', () => {
+  it('espelha o cron 1-59/2 da migration 456', () => {
     expect(AUTO_RUNNER_MINUTES).toEqual([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29,
       31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59])
-    const migration = readFileSync(path.resolve('supabase/migrations/447_emails_automaticos_saem_pelo_evento.sql'), 'utf8')
+    const migration = readFileSync(path.resolve('supabase/migrations/456_emails_automaticos_saem_pelo_evento.sql'), 'utf8')
     expect(migration).toMatch(/\('customer-communication-auto-runner',\s+'1-59\/2 \* \* \* \*'\)/)
   })
 

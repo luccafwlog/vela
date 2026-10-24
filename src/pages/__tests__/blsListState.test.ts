@@ -37,3 +37,11 @@ describe('estado da lista /bls na URL', () => {
     expect(LOCAL_CHARGES_FILTER_OPTIONS.map((option) => option.label)).toEqual(['Pendente', 'Emitida', 'Isenta'])
   })
 })
+
+// Ponto 15: o link do alerta "B/L sem Cliente perto do ETA" chega com cliente=sem.
+it('lê e grava o filtro Cliente "sem"; outro valor é ignorado', () => {
+  const filters = filtersFromBlsSearch(new URLSearchParams('voyage=5&pod=BRSSZ&cliente=sem'))
+  expect(filters).toMatchObject({ voyageId: '5', pod: 'BRSSZ', customerLink: 'sem' })
+  expect(blsSearchFromFilters(filters)).toBe('voyage=5&pod=BRSSZ&cliente=sem')
+  expect(filtersFromBlsSearch(new URLSearchParams('cliente=qualquer')).customerLink).toBe('')
+})

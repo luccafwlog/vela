@@ -61,9 +61,13 @@ export const formatCeUnlockDeadline = (deadline: Date) =>
     minute: "2-digit",
   });
 
-/** Início de prazo mais recente entre os BLs: o prazo final do pedido parte da última pendência resolvida. */
+/**
+ * Início do prazo da solicitação: só existe quando todo B/L tem os quatro
+ * requisitos (o banco só dá `sla_started_at` a quem tem, migration 448); vale
+ * o mais recente. Um B/L faltando requisito deixa a solicitação sem prazo,
+ * como `ce_unlock_private.request_sla_start` (ponto 10 de 2026-10-23).
+ */
 export const latestSlaStart = (items: Array<{ sla_started_at?: string | null }>) =>
-  items.reduce<string | null>(
-    (latest, i) => (i.sla_started_at && (!latest || i.sla_started_at > latest) ? i.sla_started_at : latest),
-    null,
-  );
+  items.length === 0 || items.some((i) => !i.sla_started_at)
+    ? null
+    : items.reduce<string | null>((latest, i) => (!latest || i.sla_started_at! > latest ? i.sla_started_at! : latest), null);

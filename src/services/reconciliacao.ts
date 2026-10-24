@@ -6,6 +6,7 @@ import { normalizePixTxid } from '../lib/pix'
 import { supabase } from './supabase'
 import { invoiceTypeLabel } from './billing'
 import type { PixTransaction } from '../types/database'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 export type UnifiedPixMatch = {
   transaction: PixTransaction
@@ -675,7 +676,7 @@ export async function listReconciliationHistory(
   if (filters.source) all = all.filter((r) => r.source === filters.source)
   if (filters.blSearch) {
     const term = filters.blSearch.toUpperCase()
-    all = all.filter((r) => r.blId.toUpperCase().includes(term))
+    all = all.filter((r) => r.blId.toUpperCase().includes(term) || matchesAnyToken(term, [r.blId]))
   }
   if (filters.vesselSearch) {
     const term = filters.vesselSearch.toUpperCase()

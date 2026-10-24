@@ -11,6 +11,7 @@ import {
   renderEmailLayout,
   renderEmailText,
 } from './emailLayout.ts'
+import { portalPageUrl } from '../config/portalUrl.ts'
 
 export const CUSTOMER_COMMUNICATION_KINDS = [
   'aviso_chegada_noa',
@@ -111,7 +112,7 @@ export const COMMUNICATION_ATTACHMENT_ALLOWED_TYPES = [
 const COMMUNICATION_ATTACHMENT_ALLOWED_TYPE_SET = new Set<string>(COMMUNICATION_ATTACHMENT_ALLOWED_TYPES)
 const FORBIDDEN_ATTACHMENT_KINDS = new Set(['ce_mercante_taxas', 'cobranca_demurrage'])
 const BRASILIA_TIME_ZONE = 'America/Sao_Paulo'
-export const CUSTOMER_PORTAL_BILLING_URL = 'https://portalfwlog.com.br/portal/billing'
+export const CUSTOMER_PORTAL_BILLING_URL = portalPageUrl('billing')
 
 function clean(value: string | null | undefined, fallback = '—'): string {
   const result = value?.trim()
@@ -271,8 +272,10 @@ function assertCustomerFinanceScope(input: CustomerCommunicationTemplateInput): 
   if (!input.voyageNumber.trim()) throw new Error('Viagem ausente.')
 }
 
+// O botão das faturas passa sempre pela configuração única (ponto 4 de
+// 2026-10-23): um endereço do portal antigo vira o Portal atual.
 function customerPortalBillingUrl(input: { portalUrl?: string | null }): string {
-  return input.portalUrl?.trim() || CUSTOMER_PORTAL_BILLING_URL
+  return portalPageUrl('billing', input.portalUrl)
 }
 
 export function renderCeMercanteTaxasTemplate(input: CustomerCommunicationTemplateInput): RenderedCustomerCommunication {
@@ -626,7 +629,7 @@ export function renderInstitutionalTemplate(input: CustomerCommunicationTemplate
     if (!input.customerName.trim()) throw new Error('Nome do cliente ausente.')
   }
   if (kind === 'institucional' && input.bls.length) throw new Error('Comunicado institucional não pode conter B/Ls.')
-  const subject = clean(singleLine(input.subject ?? ''), 'Comunicado Transhipping Desk')
+  const subject = clean(singleLine(input.subject ?? ''), 'Comunicado Fwlog')
   const text = clean(input.body, '')
   // D15: o livre leva os dados da carga do Cliente — Navio / Viagem e B/Ls —, que
   // a tela promete ("os dados da carga de cada cliente são acrescentados").

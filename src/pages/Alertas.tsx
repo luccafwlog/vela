@@ -41,6 +41,7 @@ import {
 } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
 import { retryImportEffect } from '../services/importEffects'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 function getTomorrowDateString(): string {
   const d = new Date()
@@ -194,7 +195,7 @@ export function Alertas() {
         const metadataStr = alert.metadata ? JSON.stringify(alert.metadata).toLowerCase() : ''
         const metadataMatch = metadataStr.includes(q)
 
-        return messageMatch || entityIdMatch || typeLabelMatch || entityLabelMatch || metadataMatch
+        return messageMatch || entityIdMatch || typeLabelMatch || entityLabelMatch || metadataMatch || matchesAnyToken(q, [alert.entity_id])
       })
     }
 

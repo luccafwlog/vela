@@ -132,7 +132,8 @@ describe('Pix recebidos (ADR 0100)', () => {
     expect(receiptSituation({ situation: 'review', settledBy: null })).toEqual({ label: 'Em análise', needsAction: true })
     expect(receiptSituation({ situation: 'received', settledBy: null })).toEqual({ label: 'Sem baixa', needsAction: false })
     expect(receiptOriginLabel('none')).toBe('Sem identificador')
-    expect(receiptOriginLabel('other')).toBe('Outro sistema')
+    // Ponto 12 de 2026-10-23: o Pix de outro sistema na mesma chave é o da ZPT.
+    expect(receiptOriginLabel('other')).toBe('ZPT')
   })
 
   it('fatura da linha: a da baixa e, sem baixa, a da cobrança do Vela', () => {

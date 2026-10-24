@@ -1,8 +1,8 @@
 # 0083 — Decisões da revisão geral da documentação
 
-> **Situação atual (2026-10-24).** O item 5 foi estendido pela [ADR 0101](./0101-emails-automaticos-saem-pelo-evento.md):
+> **Situação atual (2026-10-24).** O item 5 foi estendido pela [ADR 0102](./0102-emails-automaticos-saem-pelo-evento.md):
 > as rotinas de e-mail também leem o segredo da própria rotina na transação do
-> evento (`ops.kick_edge_job`, migration `447`). O item 23 foi estendido pelo dono na revisão
+> evento (`ops.kick_edge_job`, migration `456`). O item 23 foi estendido pelo dono na revisão
 > dos alertas de 2026-10-21 (decisões P1 e P2):
 > `demurrage_invoice_dates_changed` e `comunicado_recusado` também aceitam
 > "Resolver com justificativa", embora o segundo tenha fato de origem (o envio);

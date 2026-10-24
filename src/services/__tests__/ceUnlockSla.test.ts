@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ceUnlockDeadline, ceUnlockSlaState } from '../ceUnlockSla'
+import { ceUnlockDeadline, ceUnlockSlaState, latestSlaStart } from '../ceUnlockSla'
 
 // Horários em Brasília (-03:00). 2026-10-07 é quarta-feira.
 const br = (iso: string) => new Date(`${iso}-03:00`)
@@ -27,5 +27,19 @@ describe('prazo de desbloqueio de CE', () => {
     expect(ceUnlockSlaState(start, br('2026-10-07T17:01:00')).state).toBe('overdue')
     expect(ceUnlockSlaState('2026-10-07T13:00:00-03:00', br('2026-10-07T13:30:00')).state).toBe('ok')
     expect(ceUnlockSlaState(null).state).toBe('none')
+  })
+})
+
+// Ponto 10 de 2026-10-23 (migration 448): o prazo da solicitação só existe com
+// os quatro requisitos em todos os B/Ls; vale o início mais recente.
+describe('latestSlaStart', () => {
+  it('sem prazo enquanto algum B/L não tem os quatro requisitos', () => {
+    expect(latestSlaStart([])).toBeNull()
+    expect(latestSlaStart([{ sla_started_at: '2026-10-20T13:00:00Z' }, { sla_started_at: null }])).toBeNull()
+    expect(latestSlaStart([{ sla_started_at: undefined }])).toBeNull()
+  })
+
+  it('com todos prontos, o início mais recente', () => {
+    expect(latestSlaStart([{ sla_started_at: '2026-10-20T13:00:00Z' }, { sla_started_at: '2026-10-21T09:00:00Z' }])).toBe('2026-10-21T09:00:00Z')
   })
 })

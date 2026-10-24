@@ -69,15 +69,15 @@ ao bundle nem commitadas no Git:
 
 | Job | Variável de Secret Supabase | Cadência-alvo |
 |---|---|---|
-| `demurrage-dunning` | `BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL` | 5 min (horária até a migration `447`) |
+| `demurrage-dunning` | `BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL` | 5 min (horária até a migration `456`) |
 | `alerts-detector` | `BETTERSTACK_HEARTBEAT_ALERTS_DETECTOR_URL` | 15 min |
-| `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL` | 2 min (15 min até a migration `447`) |
+| `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL` | 2 min (15 min até a migration `456`) |
 | `portal-daily-digest` | `BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL` | diária |
 | `ce-unlock-notify-email` | `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` | 5 min |
 | `portal-email-events-runner` | `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` | a cada minuto |
 
 O ping de sucesso só sai depois da conclusão do job com resposta 2xx sem falha
-contada; o restante manda `/fail`. Desde a migration `447`, quatro desses runners
+contada; o restante manda `/fail`. Desde a migration `456`, quatro desses runners
 (`demurrage-dunning`, `customer-communication-auto-runner`,
 `ce-unlock-notify-email` e `portal-email-events-runner`) também são chamados pelo
 banco no evento, com `{"source":"trigger"}`

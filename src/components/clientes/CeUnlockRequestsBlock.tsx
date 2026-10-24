@@ -101,7 +101,9 @@ export function CeUnlockRequestsBlock({ customerId, manage }: { customerId: numb
                       <td className="whitespace-nowrap"><StatusText tone={row.state === 'changes_requested' ? 'warning' : row.state === 'cancelled' ? 'muted' : 'default'}>{ceStateLabel(row.state)}</StatusText></td>
                       <td className="whitespace-nowrap"><DocumentStatus status={row.termo_status} /></td>
                       <td className="whitespace-nowrap"><DocumentStatus status={row.procuracao_status} /></td>
-                      <td><CeUnlockSla start={OPEN_STATES.has(row.state) ? row.sla_started_at : null} /></td>
+                      {/* Com a 448 o prazo só existe com a solicitação validada (concluída); ele corre até a
+                          última exportação, como no detalhe (migration 450). Rascunho e cancelada vêm sem prazo. */}
+                      <td><CeUnlockSla start={row.sla_started_at} doneAt={row.exported_at} /></td>
                       <td className="whitespace-nowrap tabular-nums">{formatDate(row.created_at)}</td>
                       <td>
                         <RowActionLink

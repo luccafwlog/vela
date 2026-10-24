@@ -19,7 +19,7 @@ function psql(sql: string) {
 function migrationApplied() {
   if (!enabled) return false
   try {
-    // Desde a 447 a forma de 4 argumentos delega à de 5 (com corpo), que
+    // Desde a 456 a forma de 4 argumentos delega à de 5 (com corpo), que
     // carrega o timeout.
     return psql(`SELECT bool_or(pg_get_functiondef(p.oid) LIKE '%timeout_milliseconds%')
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -75,7 +75,7 @@ describeLocal('165 — dispatcher dos jobs pg_cron fora da rajada', () => {
                          'demurrage-dunning', 'import-effects-runner', 'portal-daily-digest',
                          'portal-email-events-runner');
     `)
-    // Comunicados e Régua mudaram de novo na 447 (2 e 5 min, com disparo pelo
+    // Comunicados e Régua mudaram de novo na 456 (2 e 5 min, com disparo pelo
     // evento), também por cron.alter_job: comando e estado continuam.
     expect(jobs.split(';')).toEqual([
       'alerts-foundation-detectors=2-59/15 * * * *=true=true',

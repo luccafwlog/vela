@@ -11,7 +11,7 @@ import { runAutomaticCommunications } from '../../../supabase/functions/_shared/
 import { runDemurrageDunning, type DunningStore } from '../../../supabase/functions/_shared/demurrageDunningRunner.ts'
 import { runPortalEmailEventsBatch } from '../../../supabase/functions/_shared/portalEmailEventsRunner.ts'
 
-// Migration 447: o banco chama as quatro rotinas de e-mail pelo evento com
+// Migration 456: o banco chama as quatro rotinas de e-mail pelo evento com
 // {"source":"trigger"}; o cron segue chamando com {}. A rodada é a mesma nos
 // dois modos; só a execução do cron reporta ao Better Stack, para a chamada do
 // gatilho não esconder um cron parado.
@@ -90,7 +90,7 @@ const runners: Runner[] = [
       const result = await runPortalEmailEventsBatch(
         { rpc: (fn) => { work.push(fn); return Promise.resolve({ data: [{ id: 5 }], error: null }) } },
         async (eventId) => { work.push(`processa ${eventId}`); return { status: 'processed' } },
-        'worker-447',
+        'worker-456',
       )
       return { ...result, work }
     },
@@ -114,7 +114,7 @@ async function invoke(runner: Runner, body: string, authorized = true) {
   return { status: response.status, body: await response.json(), work, heartbeats }
 }
 
-describe('rotinas de e-mail nos modos cron e gatilho (migration 447)', () => {
+describe('rotinas de e-mail nos modos cron e gatilho (migration 456)', () => {
   for (const runner of runners) {
     it(`${runner.edge}: a rodada é a mesma nos dois modos e só o cron manda heartbeat`, async () => {
       const cron = await invoke(runner, CRON)

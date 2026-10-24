@@ -6,6 +6,7 @@ import { parseImportNumber } from '../lib/importNumber'
 import { IsoContainerSchema, LocodeSchema } from './importValidation'
 import { normalizeStoredPortCode, resolvePortCode, storedPortAliases } from './portCode'
 import type { VaziosImportacaoContainerListItem } from '../types/database'
+import { tokenIlikeClauses } from '../lib/searchTerms'
 
 const HEADER_MAP: Record<string, string> = {
   'container': 'container_number',
@@ -503,7 +504,7 @@ export async function resolveVaziosImportacaoContainerFilters(
 
   return (query) => {
     let filtered = query
-    if (safeSearch) filtered = filtered.or(`container_number.ilike.%${safeSearch}%,container_type.ilike.%${safeSearch}%`)
+    if (safeSearch) filtered = filtered.or([`container_number.ilike.%${safeSearch}%`, `container_type.ilike.%${safeSearch}%`, ...tokenIlikeClauses(filters.search ?? '', ['container_number'])].join(','))
     if (filters.manifestId) filtered = filtered.eq('manifest_id', filters.manifestId)
     if (manifestIds) filtered = filtered.in('manifest_id', manifestIds)
     if (polAliases.length) filtered = filtered.in('pol', polAliases)

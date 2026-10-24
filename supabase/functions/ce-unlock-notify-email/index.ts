@@ -144,7 +144,7 @@ if (typeof Deno !== "undefined") {
     return Response.json(result.body, { status: result.status });
   });
 
-  // O gatilho da fila (migration 447) manda {"source":"trigger"}: roda igual, sem heartbeat.
+  // O gatilho da fila (migration 456) manda {"source":"trigger"}: roda igual, sem heartbeat.
   Deno.serve((req) => {
     const authorized = req.method === "POST" && notifyAuthorized(req.headers.get("Authorization"));
     return runCronWithBetterStackHeartbeat("ceUnlockNotifyEmail", req, authorized, () => edgeHandler(req));

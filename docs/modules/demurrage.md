@@ -806,7 +806,7 @@ O Administrativo muda o intervalo no botão **Régua de cobrança** de
 data, o último envio ou a pausa.
 
 - **Quando cobra:** o job `demurrage-dunning` roda a cada 5 minutos (`3-59/5`,
-  migration `447`; antes de hora em hora, no minuto 7), e a emissão da Invoice
+  migration `456`; antes de hora em hora, no minuto 7), e a emissão da Invoice
   dentro da janela chama a rodada na hora, no máximo uma vez por minuto (gatilhos
   em `demurrage_invoices`, [disparo pelo evento](../operations/segredos-cron.md#disparo-pelo-evento)). Toda cobrança,
   inclusive a primeira, só sai em dia útil a partir das 9h de Brasília
@@ -935,7 +935,7 @@ data, o último envio ou a pausa.
   regra do banco tem a suíte `reguaCobrancaDemurrage.local-pg.test.ts`.
 - **Comunicado:** na mesma rodada, as Invoices do mesmo Cliente com o mesmo
   número de tentativa vão numa só mensagem, que lista cada Invoice sem
-  consolidar valores: não há soma das Invoices. Desde a migration `447` a
+  consolidar valores: não há soma das Invoices. Desde a migration `456` a
   primeira cobrança sai logo depois da emissão, então Invoices emitidas em
   cliques separados tendem a sair em mensagens separadas; antes, as emitidas na
   mesma hora iam juntas. As que vencem fora da janela continuam juntas na

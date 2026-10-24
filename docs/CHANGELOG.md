@@ -6,8 +6,8 @@
 
 ## 2026-10
 
-- **E-mails automáticos saem pelo evento (2026-10-24):** migrations `447` e `448`,
-  [ADR 0101](adr/0101-emails-automaticos-saem-pelo-evento.md). O banco chama a Edge Function da
+- **E-mails automáticos saem pelo evento (2026-10-24):** migration `456`,
+  [ADR 0102](adr/0102-emails-automaticos-saem-pelo-evento.md). O banco chama a Edge Function da
   rotina no evento, com o segredo da própria rotina e `{"source":"trigger"}`, e o cron fica como
   rede de segurança: aviso do Desbloqueio de CE e status de entrega em segundos; CE e Taxas e
   NOA/NOR/NOB pelo que deixa o alvo pronto (no máximo a cada 90 s) e cron de 2 min (era 15);

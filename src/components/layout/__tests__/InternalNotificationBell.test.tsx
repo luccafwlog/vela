@@ -196,36 +196,39 @@ describe('InternalNotificationBell', () => {
     await waitFor(() => expect(mutateMarkAllReadMock).toHaveBeenCalledTimes(1))
   })
 
-  it('confirma antes de marcar uma notificação individual como lida', async () => {
+  // Ponto 14 de 2026-10-23: o clique leva à tela da pendência e marca como lida,
+  // sem a janela de confirmação no meio (com ela, parecia que o clique só marcava).
+  it('o clique numa notificação marca como lida e leva à tela onde a pendência se resolve', async () => {
     render(
-      <MemoryRouter>
-        <InternalNotificationBell />
+      <MemoryRouter initialEntries={['/painel']}>
+        <Routes>
+          <Route path="*" element={<><InternalNotificationBell /><LocationProbe /></>} />
+        </Routes>
       </MemoryRouter>,
     )
 
     fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
     fireEvent.click(screen.getByText('Fatura 123 vencida há 5 dias.'))
 
-    await waitFor(() => expect(confirmMock).toHaveBeenCalledOnce())
-    expect(confirmMock.mock.calls[0]?.[0]).toMatchObject({
-      affected: { summary: '1 notificação: Fatura vencida', items: ['Fatura 123 vencida há 5 dias.'] },
-    })
     await waitFor(() => expect(mutateMarkReadMock).toHaveBeenCalledWith(101))
+    expect(confirmMock).not.toHaveBeenCalled()
+    // A fatura abre em Taxas Locais (`/taxas-locais?invoice=123`).
+    expect(screen.getByTestId('location').textContent).toBe('/taxas-locais')
+    expect(screen.queryByRole('region', { name: 'Notificações internas' })).toBeNull()
   })
 
-  it('mantém a notificação não lida se a pessoa voltar do diálogo', async () => {
-    confirmMock.mockResolvedValue(false)
+  it('Baplie faltando leva ao Baplie da viagem', async () => {
     render(
-      <MemoryRouter>
-        <InternalNotificationBell />
+      <MemoryRouter initialEntries={['/painel']}>
+        <Routes>
+          <Route path="*" element={<><InternalNotificationBell /><LocationProbe /></>} />
+        </Routes>
       </MemoryRouter>,
     )
-
     fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
-    fireEvent.click(screen.getByText('Fatura 123 vencida há 5 dias.'))
-
-    await waitFor(() => expect(confirmMock).toHaveBeenCalledOnce())
-    expect(mutateMarkReadMock).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Baplie não encontrado para viagem 88'))
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/baplie'))
+    expect(mutateMarkReadMock).toHaveBeenCalledWith(103)
   })
 
   it('não oferece ações de dispensar, fechar ou reconhecer alerta no sino', () => {

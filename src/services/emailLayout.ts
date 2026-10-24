@@ -1,3 +1,4 @@
+import { PORTAL_ORIGIN, portalContactEmail, portalOrigin } from '../config/portalUrl.ts'
 // Base única dos e-mails (lote 6b): o layout e as peças que todos os modelos
 // usam, do Portal do Cliente (convite, recuperação, avisos, Comunicados) ao
 // Resumo diário do Vela. Módulo puro, sem React nem Supabase: as Edge Functions
@@ -30,7 +31,7 @@ const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial
 const MONO = "'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
 const { text: TEXT, muted: MUTED, border: BORDER, soft: SOFT, page: PAGE, warn: WARN } = EMAIL_COLORS
 
-export const DEFAULT_EMAIL_ORIGIN = 'https://portalfwlog.com.br'
+export const DEFAULT_EMAIL_ORIGIN = PORTAL_ORIGIN
 
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({
@@ -48,8 +49,8 @@ export function escapeHtml(value: string): string {
  * chegava quebrada no e-mail.
  */
 export function emailOrigin(url?: string | null): string {
-  const raw = url?.trim() || DEFAULT_EMAIL_ORIGIN
-  return raw.replace(/\/+$/, '').replace(/\/portal(?:\/.*)?$/, '').replace(/\/+$/, '')
+  // Configuração única (ponto 4 de 2026-10-23): o domínio do portal antigo vira o atual.
+  return portalOrigin(url)
 }
 
 /** Parágrafo do corpo. Recebe HTML já escapado. */
@@ -132,7 +133,9 @@ export function emailKit(brand: EmailBrand) {
 }
 
 /** Rodapé padrão dos e-mails ao Cliente. */
-export function emailFooter(contactEmail: string): { html: string; text: string } {
+export function emailFooter(rawContactEmail: string): { html: string; text: string } {
+  // Endereço do domínio antigo não chega ao cliente (ponto 4 de 2026-10-23).
+  const contactEmail = portalContactEmail(rawContactEmail)
   return {
     html: `Portal do Cliente · Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com ${emailKit('portal').mailto(contactEmail)}.`,
     text: `Portal do Cliente · Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com ${contactEmail}.`,
@@ -140,7 +143,8 @@ export function emailFooter(contactEmail: string): { html: string; text: string 
 }
 
 /** Rodapé de segurança (troca do Email de Recuperação e senha alterada). */
-export function emailSecurityFooter(contactEmail: string): { html: string; text: string } {
+export function emailSecurityFooter(rawContactEmail: string): { html: string; text: string } {
+  const contactEmail = portalContactEmail(rawContactEmail)
   return {
     html: `Portal do Cliente · Fwlog. Não foi você? Fale com ${emailKit('portal').mailto(contactEmail)} imediatamente.`,
     text: `Portal do Cliente · Fwlog. Não foi você? Fale com ${contactEmail} imediatamente.`,

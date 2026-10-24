@@ -8,9 +8,8 @@ Decisão em [ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md).
 Implementação em `supabase/migrations/007_cron_secrets_no_vault.sql`; tempo limite
 e horários fora da rajada em `supabase/migrations/165_cron_dispatch_timeout_e_escalonamento.sql`;
 disparo das rotinas de e-mail pelo evento em
-`supabase/migrations/447_emails_automaticos_saem_pelo_evento.sql` (ajuste do
-intervalo na `448`)
-([ADR 0101](../adr/0101-emails-automaticos-saem-pelo-evento.md)).
+`supabase/migrations/456_emails_automaticos_saem_pelo_evento.sql`
+([ADR 0102](../adr/0102-emails-automaticos-saem-pelo-evento.md)).
 
 ## Por que não é `app.settings.*`
 
@@ -37,7 +36,7 @@ por nome:
 | `SUPABASE_URL` | todos os jobs | — (configuração, não segredo) |
 | `PORTAL_DIGEST_SECRET` | `portal-daily-digest` | `PORTAL_DIGEST_SECRET` |
 | `ALERTS_DETECTOR_SECRET` | `alerts-foundation-detectors` | `ALERTS_DETECTOR_SECRET` |
-| `DEMURRAGE_DUNNING_SECRET` | `demurrage-dunning` e o disparo na emissão da Invoice ([pelo evento](#disparo-pelo-evento), migration `447`) | `DEMURRAGE_DUNNING_SECRET` |
+| `DEMURRAGE_DUNNING_SECRET` | `demurrage-dunning` e o disparo na emissão da Invoice ([pelo evento](#disparo-pelo-evento), migration `456`) | `DEMURRAGE_DUNNING_SECRET` |
 | `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET` | `customer-communication-auto-runner` e o disparo pelo que deixa um alvo pronto ([pelo evento](#disparo-pelo-evento)) | `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET` |
 | `PORTAL_EMAIL_EVENTS_CRON_SECRET` | `portal-email-events-runner` e o disparo pelo evento gravado pelo webhook ([pelo evento](#disparo-pelo-evento)) | `PORTAL_EMAIL_EVENTS_CRON_SECRET` |
 | `IMPORT_EFFECTS_CRON_SECRET` | `import-effects-runner` e o disparo pela importação (`ops.kick_import_effects_runner`, migration `218`) | `IMPORT_EFFECTS_CRON_SECRET` |
@@ -97,7 +96,7 @@ SELECT ops.dispatch_edge_job('alerts-detector', 'ALERTS_DETECTOR_SECRET');
 ```
 
 O comando do job cita **nomes**; nenhum valor aparece em `cron.job.command`.
-Desde a migration `447` essa forma (2 ou 4 argumentos) manda o corpo `{}` pela
+Desde a migration `456` essa forma (2 ou 4 argumentos) manda o corpo `{}` pela
 forma de 5 argumentos, `ops.dispatch_edge_job(função, segredo, cabeçalho,
 prefixo, corpo)`, que é a implementação (Vault, timeout de 30 s); a Edge lê o
 corpo vazio como execução do cron.
@@ -120,7 +119,7 @@ dentro da transação de quem usa a tela, acionadas por gatilho:
   `SUPABASE_URL` e `ITAU_PIX_ADMIN_SECRET` e monta o próprio `net.http_post`
   com `{"action":"process_charges"}`, sem passar pelo dispatcher. Desde a
   migration `438`, lê `ITAU_PIX_CRON_SECRET` quando ele está no Vault;
-- `ops.kick_edge_job(...)` (migration `447`), chamada pelos gatilhos das
+- `ops.kick_edge_job(...)` (migration `456`), chamada pelos gatilhos das
   rotinas de e-mail ([Disparo pelo evento](#disparo-pelo-evento)): confere o
   par no cofre e chama o dispatcher com `{"source":"trigger"}` e o segredo
   dedicado da rotina.
@@ -134,7 +133,7 @@ partir da importação ou da emissão feita pelo usuário, e a exposição aceit
 que a chamada com o segredo passa pela fila do `pg_net`
 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 5,
 estendido às rotinas de e-mail pela
-[ADR 0101](../adr/0101-emails-automaticos-saem-pelo-evento.md)).
+[ADR 0102](../adr/0102-emails-automaticos-saem-pelo-evento.md)).
 
 O schema `ops` não concede `USAGE` a `PUBLIC`, `anon` nem `authenticated`, e não
 está entre os schemas expostos pela Data API — a função não é um endpoint REST.
@@ -178,7 +177,7 @@ essa leitura.
 | `demurrage-dunning` | `0 * * * *` | `7 * * * *` |
 
 `portal-daily-digest` (11:00 UTC) e os jobs por minuto (`portal-email-events-runner`,
-`itau-pix-queue`) não mudam. Desde a migration `447`,
+`itau-pix-queue`) não mudam. Desde a migration `456`,
 `customer-communication-auto-runner` roda em `1-59/2 * * * *` e
 `demurrage-dunning` em `3-59/5 * * * *`, também por `cron.alter_job`, com o
 disparo pelo evento ([Disparo pelo evento](#disparo-pelo-evento)). Os jobs então agendados à mão
@@ -215,8 +214,8 @@ ORDER BY jobname;
 
 ## Disparo pelo evento
 
-Desde a migration `447`
-([ADR 0101](../adr/0101-emails-automaticos-saem-pelo-evento.md)), as rotinas de
+Desde a migration `456`
+([ADR 0102](../adr/0102-emails-automaticos-saem-pelo-evento.md)), as rotinas de
 e-mail não esperam o próximo ciclo do cron: o gatilho no evento chama
 `ops.kick_edge_job(função, segredo, cabeçalho, prefixo, intervalo)`, que manda
 `{"source":"trigger"}` à Edge Function com o segredo **dedicado** da rotina. O
@@ -238,8 +237,7 @@ Regras do disparo:
   importação de centenas de B/Ls chama o runner uma vez.
 - **Intervalo mínimo** em `ops.edge_job_kicks` (`last_kicked_at`): o primeiro
   evento dispara na hora; os seguintes, dentro do intervalo, ficam para o cron
-  ou para o próximo disparo, e saem sem travar a linha da rotina (migration
-  `448`), para não fazer outra transação, já fora do intervalo, pular o
+  ou para o próximo disparo, e saem sem travar a linha da rotina, para não fazer outra transação, já fora do intervalo, pular o
   disparo. A linha de outra transação que está disparando a mesma rotina não é
   esperada (`SKIP LOCKED`): com intervalo, conta como disparo em andamento; sem
   intervalo, dispara sem registrar.
@@ -273,7 +271,7 @@ disparo é mais antigo que a retenção do `pg_net`. As rotinas sem intervalo
 (avisos do Desbloqueio de CE e eventos) só registram quando pegam a linha sem
 disputa.
 
-**Medir no ambiente** (staging ou produção, depois do deploy da `447` e com o
+**Medir no ambiente** (staging ou produção, depois do deploy da `456` e com o
 Vault e os secrets da Edge provisionados):
 
 1. Desbloqueio de CE: recuse um documento de uma solicitação de teste e confira
@@ -520,7 +518,7 @@ de subsegundos — o worker do `pg_net` consome e apaga a linha da fila — e
 Isso vale para **qualquer** chamada HTTP autenticada saída do banco: existia
 antes desta mudança e não foi introduzido por ela. Desde as migrations `218` e
 `219`, a chamada com o segredo também entra na fila a cada importação que grava
-efeito e a cada cobrança Pix que fica pendente, e desde a `447`, a cada evento
+efeito e a cada cobrança Pix que fica pendente, e desde a `456`, a cada evento
 das rotinas de e-mail (com o intervalo mínimo de cada uma), não só a cada ciclo
 do `pg_cron` (ver [Quem lê](#quem-lê)). Confirme em
 **Data API settings** que `net` não está exposto.
