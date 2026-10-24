@@ -24,10 +24,23 @@ Manifesto Mercante é regra de
 - Portal (`/portal/desbloqueio-ce`): abas Nova solicitação, Minhas solicitações (`?aba=solicitacoes`) e
   Documentos anuais (`?aba=anuais`, só VIP); desenho do lote 4 da identidade (2026-10-18).
   **Nova solicitação** abre com o bloco "O que o desbloqueio pede" na situação deste Cliente: VIP vê
-  termo e procuração "Coberto(a) pelo … anual até 31/12/AAAA" ou "Falta …" em âmbar, com "Abrir
-  Documentos anuais" quando falta; Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
+  termo e procuração "Coberto(a) pelo … anual até 31/12/AAAA" ou "Falta …" em âmbar ("Até lá, … anexado(a)
+  à solicitação"), com "Abrir Documentos anuais" quando falta. **VIP com anual faltando, vencido, recusado
+  ou revogado pede mesmo assim** (ponto 13 das observações de 2026-10-23): a faixa avisa que "os
+  documentos anuais não cobrem esta seleção", a solicitação nasce comum (migration `449`), o modelo do
+  termo volta a aparecer, e o detalhe explica "Sua condição VIP não cobre esta solicitação: <o que falta,
+  ou B/L importado antes da vigência>" (só enquanto a solicitação está em andamento) e aceita o termo e a
+  procuração comuns. Com só um dos anuais válido, a faixa "O que o desbloqueio pede" diz que os dois vão
+  anexados ("Termo anual válido… Enquanto falta a procuração anual, …"), porque o pedido é inteiro VIP ou
+  inteiro comum. O VIP com os anuais
+  cobrindo os B/Ls continua sem anexo avulso (`ce_unlock_prepare_upload` recusa "Pedido não aceita
+  anexos"); Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
   "Em PDF, anexada à solicitação", com **Baixar modelo do termo** quando há modelo publicado, e
-  nenhuma menção a documento anual. Na faixa, **Baixar memorando de liberação**
+  nenhuma menção a documento anual. Embaixo de "B/L original · Entregue na agência", o botão
+  **Endereços de entrega do B/L** abre os endereços das agências que recebem o original em Vitória,
+  Salvador e Suape (ponto 6 das observações de 2026-10-23): contatos da Central de Informações
+  (migration `447`), editados no Vela em `/clientes/informacoes` → Contato; sem endereço informado,
+  "Endereço a definir". Na faixa, **Baixar memorando de liberação**
   (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar documentos
   na agência; não é requisito nem entra no pedido. Cartões que filtram ("Podem ser pedidos", "Com
   taxas locais em aberto", "Já em solicitação") e tabela limpa: B/L, CE Mercante, Navio / Viagem, POD,
@@ -37,12 +50,12 @@ Manifesto Mercante é regra de
   validada, antes mostra a confirmação "Mudar N B/Ls e continuar" (B/L, Sai de, O que acontece com a
   antiga; ver [B/L que muda de solicitação](#bl-que-muda-de-solicitação)).
   **Minhas solicitações:** Protocolo (abre o detalhe), Aberta em, B/Ls (primeiro e "+N"), Documentos,
-  Prazo para desbloqueio (de `sla_started_at`) e Situação em texto ("Correção pedida · reenvie …" e
+  Prazo para desbloqueio (de `sla_started_at`, só com os quatro requisitos em todos os B/Ls; antes, "—") e Situação em texto ("Correção pedida · reenvie …" e
   "Rascunho · falta enviar" em âmbar; cancelada em cinza). Na correção pedida, a Situação traz embaixo
   "Motivo (termo de devolução): …" e "Motivo (procuração): …" com o texto inteiro que o operador
   escreveu, com as quebras de linha (ponto 5 das observações de 2026-10-23; antes o Portal cortava o
   motivo em 40 letras e o resto só aparecia ao passar o mouse). O **detalhe** (janela) tem os blocos
-  Solicitação (situação e próximo passo, B/Ls, prazo e quando ele recomeça), Documentos em tabela
+  Solicitação (situação e próximo passo, B/Ls, prazo e, enquanto não há prazo, quando ele começa), Documentos em tabela
   ("Enviar nova versão" só onde há correção pedida, por botão; a Situação "Correção pedida" leva o
   motivo inteiro logo abaixo, sem corte), B/Ls da solicitação, Histórico
   fechado em tabela e a faixa de reenvio no pé; "Cancelar solicitação" no topo, enquanto o pedido
@@ -53,7 +66,8 @@ Manifesto Mercante é regra de
 - Vela (`/desbloqueio-ce`), aba **Solicitações** (com a contagem): bloco "Solicitações aguardando
   análise", uma linha por pedido a validar (protocolo, que abre o detalhe; Cliente, que leva à ficha;
   primeiro B/L e "+n"; termo de devolução e procuração em texto, âmbar quando aguardam análise,
-  recusados ou revogados; situação; prazo). O botão **Modelo do termo de devolução** (DOCX oficial,
+  recusados ou revogados; situação; **Enviada em**, a hora do último envio, que ordena a fila: documento
+  ainda a analisar não dá prazo, migration `448`). O botão **Modelo do termo de devolução** (DOCX oficial,
   sem texto jurídico gerado; o cliente baixa, preenche, assina e anexa em PDF) fica no cabeçalho do
   bloco. Cada documento é aprovado ou recusado para o pedido inteiro; recusa exige motivo. Pedidos VIP
   não passam por aqui.
@@ -79,7 +93,7 @@ Manifesto Mercante é regra de
   No cabeçalho do bloco: **Exportar planilha** (planilha comum do recorte inteiro, separada da
   planilha da ZPT), **Planilhas enviadas à ZPT** (baixar e reexportar lotes), **Conciliar com a ZPT**
   (importa o "Exportar Tela") e **Exportar N aptos para a ZPT** (só os aptos selecionados, até 100).
-- Detalhe da solicitação (janela): blocos Solicitação ("aberta em" pelo primeiro rascunho ou envio; situação e o que falta, Cliente, B/Ls, prazo (corre até a exportação de todos os B/Ls, inclusive na concluída; some só na cancelada),
+- Detalhe da solicitação (janela): blocos Solicitação ("aberta em" pelo primeiro rascunho ou envio; situação e o que falta, Cliente, B/Ls, prazo (só com os quatro requisitos em todos os B/Ls; corre até a exportação de todos eles, inclusive na concluída; nunca na cancelada),
   origem dos documentos), Documentos (o nome do arquivo abre; **Analisar** abre Aprovar e Recusar;
   documento recusado continua com **Analisar**, só com Aprovar; aprovado tem o menu ⋮ com
   **Recusar aprovação**; versões anteriores no pé, com o motivo), B/Ls da
@@ -117,17 +131,17 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 |---|---|---|---|---|---|---|---|
 | `/portal/desbloqueio-ce` › Nova solicitação · **Continuar com N BL(s)** | Sessão do Portal do próprio CNPJ, fora da Inspeção; 1 a 100 B/Ls do Cliente, liberados no Portal, com CE, taxas pagas e sem pedido ativo | `PortalDesbloqueioCe.tsx` | `usePortalCeUnlock` → `portalCeUnlockCommand('draft')` | `portal_ce_unlock_command`: `ce_unlock_requests` (rascunho, origem pedido ou VIP, modelo vigente) e `ce_unlock_request_bls` com o CE do pedido; recibo idempotente | Sem confirmação (o rascunho pode ser cancelado); `afterCeUnlockChanged` | "Selecione de 1 a 100 B/Ls"; B/L de outro Cliente recusado (`42501`); B/L inapto recusado com os motivos | **Teste:** `PortalDesbloqueioCe.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 |
 | Solicitação (modal) · anexar ou **Substituir** termo de devolução e procuração | Pedido em rascunho ou com correção solicitada; PDF de até 10 MiB; limite diário e cota do Cliente. Anexar só escolhe o arquivo: ele sobe ao clicar em **Solicitar desbloqueio** / **Reenviar solicitação**, sem botão de envio por documento | `CeUnlockDocuments.tsx` (`CeUnlockDocumentUploader`, anexo adiado), `PortalDesbloqueioCe.tsx` | `uploadCeUnlockDocument` → Edge Function `portal-ce-unlock-document` | `ce_unlock_prepare_upload` reserva; objeto no bucket `ce-unlock-documents`; `ce_unlock_finish_upload` registra nova versão, sem sobrescrever | `afterCeUnlockChanged`; a versão recusada fica preservada | "O arquivo não é um PDF…" com orientação de salvar como PDF (HTTP 422) e "O arquivo passa de 10 MiB"; "Limite de 20 uploads por 24 horas"; cota de 100 MiB; "Pedido não aceita anexos" | **Teste:** `portal-ce-unlock-document/index.test.ts` (Deno), `ceUnlockDocuments.test.ts`; **Runtime:** produção, 2026-10-13 |
-| Solicitação · **Solicitar desbloqueio** / **Reenviar solicitação** | Rascunho ou correção solicitada; termo e procuração atuais anexados (VIP: anuais aprovados e vigentes); cada B/L pago, do Cliente, não cancelado e com o mesmo CE do pedido | `PortalDesbloqueioCe.tsx` (confirmação) | Depois de confirmar: `uploadCeUnlockDocument` dos anexos escolhidos (termo, depois procuração), releitura do pedido e `portalCeUnlockCommand('submit')` com a versão nova | Pedido enviado; itens ligados às versões atuais dos documentos (versão nova zera a aprovação daquele documento); evento `submit`; reavalia a conclusão | O prazo parte do envio e recomeça no reenvio; `afterCeUnlockChanged` | "Anexe versões atuais de termo de devolução e procuração"; "Regularize os documentos anuais VIP"; "Condição VIP revogada"; "B/L X perdeu elegibilidade" recusa o envio inteiro; versão desatualizada (`40001`) | **Teste:** `ceUnlock.local-pg.test.ts` (inclui baixa cancelada concorrente ao envio); **Runtime:** produção, 2026-10-13 |
+| Solicitação · **Solicitar desbloqueio** / **Reenviar solicitação** | Rascunho ou correção solicitada; termo e procuração atuais anexados (VIP: anuais aprovados, vigentes e que cubram cada B/L pela data de importação, migration `449`); cada B/L pago, do Cliente, não cancelado e com o mesmo CE do pedido | `PortalDesbloqueioCe.tsx` (confirmação) | Depois de confirmar: `uploadCeUnlockDocument` dos anexos escolhidos (termo, depois procuração), releitura do pedido e `portalCeUnlockCommand('submit')` com a versão nova | Pedido enviado; itens ligados às versões atuais dos documentos (versão nova zera a aprovação daquele documento); evento `submit`; reavalia a conclusão | Enviar não dá prazo: ele só começa com os quatro requisitos (migration `448`); `afterCeUnlockChanged` | "Anexe versões atuais de termo de devolução e procuração"; "Regularize os documentos anuais VIP"; "Condição VIP revogada"; "B/L X perdeu elegibilidade" recusa o envio inteiro; versão desatualizada (`40001`) | **Teste:** `ceUnlock.local-pg.test.ts` (inclui baixa cancelada concorrente ao envio); **Runtime:** produção, 2026-10-13 |
 | Solicitação · **Cancelar solicitação** (Portal) | Rascunho ou correção solicitada; nenhum B/L já exportado | `PortalDesbloqueioCe.tsx` | `portalCeUnlockCommand('cancel')` | Pedido cancelado e itens inativos; motivo padrão "Cancelado pelo cliente" | Libera os B/Ls; o Portal recebe só a projeção do cliente | "Pedido não pode ser cancelado pelo cliente. Contate a agência." | **Teste:** `ceUnlock.local-pg.test.ts` (cancelamento pelo cliente) |
 | Documentos anuais (Portal, só VIP) e ficha do Cliente · anexar termo e procuração anuais | CNPJ com condição VIP; PDF; mesmos limites de upload | `CeUnlockVipCoveragePanel.tsx` | `uploadCeUnlockDocument` (origem `vip_annual`) → `portal-ce-unlock-document` | `ce_unlock_documents` em análise; não revoga o anual vigente | `afterCeUnlockChanged` | "Cliente sem condição VIP" (`42501`); "Condição VIP revogada" | **Código:** `ce_unlock_prepare_upload` (`173`); matriz VIP incompleta (ver [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md)) |
 | Portal · baixar o modelo do termo; Portal e Vela · abrir documento | Modelo: qualquer Cliente; documento: autorização atual (Portal só do próprio CNPJ; interno: qualquer Departamento, migration `250`) | `PortalDesbloqueioCe.tsx`, `CeUnlockDocuments.tsx` | `downloadCeUnlockDocument` → `ce-unlock-document-download` | Não escreve; `ce_unlock_document_access` e URL assinada por 60 s; o PDF abre na aba nova e só o modelo DOCX é baixado com o nome enviado (`ceSignedUrlDownload`) | — | Documento de outro CNPJ: `403` (`42501`); objeto alheio no Storage: 400 "Object not found" | **Runtime:** produção, 2026-10-13 (acesso cruzado recusado) |
-| `/desbloqueio-ce` › Solicitações › pedido · **Aprovar** / **Recusar documento** | Gestão; pedido enviado, em análise, com correção solicitada ou concluído; versão mais recente do documento; recusa com motivo | `CeUnlockReviewQueue.tsx` → `CeUnlockRequestDetail.tsx` | `useCeUnlock` → `ceUnlockCommand('review')` | Decisão em todos os B/Ls abertos do pedido; status e motivo no documento; evento | Recusa: aviso no sino e linha em `ce_unlock_email_outbox` com o motivo; reavalia a conclusão; aprovar não recomeça o prazo | "Motivo obrigatório"; "Documento alterado; atualize a página" (`40001`); "Documento não pertence à análise atual" | **Teste:** `CeUnlockRequestDetail.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (recusa com motivo) |
-| Andamento dos B/Ls · caixa **B/L original** (**Registrar entrega** / **Desmarcar entrega**) | Gestão; B/L com CE, com ou sem pedido; desmarcar exige motivo | `DesbloqueioCe.tsx` | `useCeUnlock` → `ceUnlockCommand('delivery')` | `ce_unlock_bl_deliveries` com versão; evento; reavalia a conclusão do pedido ativo | Registrar recomeça o prazo; desmarcar tira o B/L dos aptos e reabre a conclusão | "Entrega alterada; atualize a página" (`40001`); "Motivo obrigatório" | **Teste:** `DesbloqueioCe.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (entrega parcial) |
-| Andamento dos B/Ls · seleção · **Registrar entrega de N B/Ls** | Gestão; B/Ls selecionados sem a entrega do original (os que já têm ficam de fora); confirmação lista os B/Ls | `DesbloqueioCe.tsx` | `ceUnlockCommand('delivery')` um B/L por vez, em sequência; depois `afterCeUnlockChanged` | O mesmo de registrar a entrega de um B/L | Prazo recomeça em cada B/L gravado | Não é atômico: a mensagem diz quantos gravaram e quais falharam (com o motivo), e os que falharam continuam selecionados | **Teste:** `DesbloqueioCe.test.tsx` |
+| `/desbloqueio-ce` › Solicitações › pedido · **Aprovar** / **Recusar documento** | Gestão; pedido enviado, em análise, com correção solicitada ou concluído; versão mais recente do documento; recusa com motivo | `CeUnlockReviewQueue.tsx` → `CeUnlockRequestDetail.tsx` | `useCeUnlock` → `ceUnlockCommand('review')` | Decisão em todos os B/Ls abertos do pedido; status e motivo no documento; evento | Recusa: aviso no sino e linha em `ce_unlock_email_outbox` com o motivo; reavalia a conclusão; a aprovação que completa os quatro requisitos inicia o prazo | "Motivo obrigatório"; "Documento alterado; atualize a página" (`40001`); "Documento não pertence à análise atual" | **Teste:** `CeUnlockRequestDetail.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (recusa com motivo) |
+| Andamento dos B/Ls · caixa **B/L original** (**Registrar entrega** / **Desmarcar entrega**) | Gestão; B/L com CE, com ou sem pedido; desmarcar exige motivo | `DesbloqueioCe.tsx` | `useCeUnlock` → `ceUnlockCommand('delivery')` | `ce_unlock_bl_deliveries` com versão; evento; reavalia a conclusão do pedido ativo | Registrar, se completa os quatro requisitos, inicia o prazo; desmarcar tira o prazo (se o B/L ainda não foi exportado), tira o B/L dos aptos e reabre a conclusão | "Entrega alterada; atualize a página" (`40001`); "Motivo obrigatório" | **Teste:** `DesbloqueioCe.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (entrega parcial) |
+| Andamento dos B/Ls · seleção · **Registrar entrega de N B/Ls** | Gestão; B/Ls selecionados sem a entrega do original (os que já têm ficam de fora); confirmação lista os B/Ls | `DesbloqueioCe.tsx` | `ceUnlockCommand('delivery')` um B/L por vez, em sequência; depois `afterCeUnlockChanged` | O mesmo de registrar a entrega de um B/L | Cada B/L gravado que completa os quatro requisitos ganha prazo | Não é atômico: a mensagem diz quantos gravaram e quais falharam (com o motivo), e os que falharam continuam selecionados | **Teste:** `DesbloqueioCe.test.tsx` |
 | Andamento dos B/Ls · **Exportar planilha** | Leitura (`ce_unlock_read`) | `DesbloqueioCe.tsx` | `fetchAllCeUnlockBls` (todas as páginas do recorte, quatro por vez, sem repetir B/L) → `exportCeUnlockWorkbook` (`src/services/exports.ts`) | Não escreve | Baixa `desbloqueio-ce-<data>.xlsx` com B/L, CE, Cliente, CNPJ/CPF, Navio, Viagem, POD, Solicitação, Situação, requisitos, Prazo e Na ZPT | Falha de leitura em mensagem | **Código** |
 | Pedido · **Versões anteriores** · **Abrir documento** | Gestão; pedido não VIP com termo ou procuração substituídos | `CeUnlockRequestDetail.tsx` (`CeUnlockDocumentList` sem ações de análise) | `downloadCeUnlockDocument` → `ce-unlock-document-download` | Não escreve | — | Cada versão mostra "Enviado em" com data e hora; versão já expurgada mostra "Arquivo removido pela regra de retenção" no lugar do botão (`purged`, migration `282`); reivindicada pelo expurgo e ainda não removida, "Arquivo em remoção pela regra de retenção" (`cleanup_pending`) | **Teste:** `CeUnlockRequestDetail.test.tsx`, `ceUnlock.local-pg.test.ts` |
 | Pedido · **Reconferir CE** | Gestão; B/L com o motivo "CE alterado: reconferência necessária"; motivo ("Como o CE foi conferido") | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('reconfirm_ce')` | O item passa a usar o CE atual; aprovações de termo e procuração do item voltam a pendentes; o envio volta à fila (`export_id` fica) | Reavalia a conclusão | "B/L não pertence ao pedido"; "Motivo obrigatório" | **Código:** `ce_unlock_private.command` (`161`); matriz de CE corrigido incompleta (ver plano) |
-| Pedido VIP · **Aplicar renovação VIP** | Gestão; pedido VIP aberto, fora de rascunho; CNPJ VIP com termo e procuração anuais vigentes | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('apply_vip')` | Itens pendentes passam a apontar os anuais vigentes; histórico preservado | Reavalia a conclusão | "Cobertura VIP indisponível"; "Cobertura anual incompleta" | **Código:** `161` |
+| Pedido VIP · **Aplicar renovação VIP** | Gestão; pedido VIP aberto, fora de rascunho; CNPJ VIP com termo e procuração anuais vigentes que cubram cada B/L (importado dentro da vigência, migration `449`) | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('apply_vip')` | Itens pendentes passam a apontar o anual que cobre cada B/L; histórico preservado | Reavalia a conclusão | "Cobertura VIP indisponível"; "Cobertura anual incompleta" (algum B/L sem anual que o cubra) | **Código:** `161`, `449` |
 | Pedido · **Cancelar pedido** (desk) | Gestão; pedido ativo e não concluído; nenhum B/L já exportado; motivo | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('cancel')` | Pedido cancelado e itens inativos; evento com o motivo | Libera os B/Ls para nova solicitação; o cliente vê o pedido cancelado | "Documentação validada: a solicitação não pode mais ser cancelada"; "Pedido com B/L já exportado para a ZPT: confirme o tratamento externo antes de cancelar" | **Código:** `161` |
 | Andamento dos B/Ls · **Exportar N aptos para a ZPT** (**Exportar para a ZPT**) | Gestão; 1 a 100 B/Ls com os quatro requisitos | `DesbloqueioCe.tsx` (confirmação) | `downloadCeUnlockExport` → Edge Function `ce-unlock-export` → `ce_unlock_command('export')` | `ce_unlock_exports` (layout `zpt-5-v2`, linhas e snapshot); `exported_at`, `exported_by` e `export_id` por B/L; apaga o *Divergente* anterior desses B/Ls | Baixa o XLSX e registra o envio, que mede o cumprimento do prazo; aviso para importar na aba "Planilha desbloqueio" da ZPT | "B/L X não apto" com os motivos recusa o lote inteiro (inclui liquidação perdida durante a exportação; a exportação trava também as faturas avulsas dos B/Ls, migration `279`); "Seleção inválida" | **Teste:** `ceUnlockRules.test.ts` (layout), `ceUnlock.local-pg.test.ts` (reversão concorrente); **Runtime:** produção, 2026-10-13 (`zpt-5-v2`, 3 B/Ls); aceite pela ZPT não comprovado |
 | **Planilhas enviadas à ZPT** · **Baixar lote** / **Reexportar** | Gestão | `DesbloqueioCe.tsx` | `listCeUnlockExports`; `downloadCeUnlockExport` com `export_id` ou `reexport_of` | Baixar não escreve (devolve o lote como foi gerado, inclusive `zpt-5-v1`); o lote guarda o hash SHA-256 do conteúdo e não aceita reescrita, só o registro do envio (migration `281`); Reexportar cria lote novo ligado ao anterior, com os requisitos atuais | Reexportar registra novo envio | "Lote não encontrado"; na reexportação, as mesmas recusas de Exportar | **Código:** `ce-unlock-export`; retry do mesmo lote sem teste (ver plano) |
@@ -183,7 +197,16 @@ Os quatro requisitos são termo de devolução aprovado, procuração aprovada, 
 integralmente liquidadas (Financeiro) e B/L original entregue (BL de Entrega). Selo VIP
 não dispensa documento: exige termo e procuração anuais aprovados/vigentes para o mesmo
 CNPJ. Validade até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não renova
-em janeiro. Pagamento e entrega continuam por B/L, também para VIP. A entrega do
+em janeiro. **A vigência não retroage** (migration `449`, ponto 11 das observações de
+2026-10-23, [ADR 0101](../adr/0101-desbloqueio-ce-prazo-e-vigencia-anual.md), decisão 4): o anual,
+e cada renovação, só cobre o B/L importado no Vela dentro da vigência dele, pela data de
+importação (`bls.created_at`, gravada na primeira importação e mantida na reimportação; dia de
+Brasília), e só enquanto está vigente hoje. O B/L importado antes (ex.: em 20/12, com o VIP
+começando na virada do ano) segue as regras de quem não tem o anual: a solicitação dele nasce
+comum (`source = 'request'`), com termo e procuração anexados. O rascunho só nasce VIP
+(`vip_annual`) quando os anuais cobrem todos os B/Ls; um B/L sem cobertura faz o pedido inteiro
+seguir comum. O item traz `vip_covered` para o Portal explicar. **Teste:**
+`ceUnlockVigenciaAnual.local-pg.test.ts`. Pagamento e entrega continuam por B/L, também para VIP. A entrega do
 original é independente da solicitação: o desk a registra antes ou depois do pedido.
 Conteúdo, assinatura e validade do termo e da procuração são conferidos só pela
 análise humana do desk ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)). Reserva de upload
@@ -237,7 +260,7 @@ solicitação CE-…") e deixa de aparecer nos B/Ls dela, também depois que ela
 é cancelada com o evento `cancel` ("Todos os B/Ls passaram para a solicitação
 CE-…"), e a que mantém outros B/Ls continua com eles, com a versão e a
 conclusão recalculadas. Documentos não passam para a nova: termo e procuração
-são enviados de novo (o VIP usa os anuais). O Portal mostra antes a
+são enviados de novo (o VIP usa os anuais quando eles cobrem os B/Ls da nova, [ADR 0101](../adr/0101-desbloqueio-ce-prazo-e-vigencia-anual.md)). O Portal mostra antes a
 confirmação "Mudar N B/Ls e continuar" com o destino de cada solicitação
 antiga, contado pelos B/Ls ativos dela (`bl_ids` de todas as solicitações,
 inclusive B/L que o Portal deixou de listar). O comando trava primeiro as solicitações de origem, na ordem dos demais
@@ -258,11 +281,36 @@ executa a cada 5 minutos (ponytail: O(solicitações abertas); upgrade: fila por
 
 ### Prazo (SLA)
 
-Começa no envio; só dias úteis, sem feriados. Antes das 12:00 vence às
-17:00 do mesmo dia; a partir das 12:00, às 12:30 do próximo dia útil; sábado/domingo
-vencem segunda às 12:00. Recomeça com a pendência do cliente resolvida
-(reenvio, entrega do original, nova liquidação ou pagamento da avulsa do B/L e do
-Cliente atual); aprovar documento não recomeça.
+O prazo só começa com os **quatro requisitos cumpridos** — taxas locais liquidadas, termo de
+devolução aprovado, procuração aprovada e B/L original entregue — e parte do último que se
+cumpriu: o envio, a entrega do original, a liquidação, o pagamento da avulsa, a aprovação do
+termo ou da procuração, ou a validação da solicitação (migration `448`, ponto 10 das observações
+de 2026-10-23, [ADR 0101](../adr/0101-desbloqueio-ce-prazo-e-vigencia-anual.md), decisão 1). A
+validação (evento `complete`, gravado quando todos os B/Ls ativos cumprem os quatro) entra desde a
+migration `450`: ela cobre o fato que completa a solicitação sem estar na lista — o B/L pendente
+que muda para outra solicitação, as Taxas Locais que viram isentas, a troca de Cliente, o ajuste
+COD ou a Fatura desatualizada que se resolvem — e que antes fazia o prazo nascer no passado, já
+vencido. Por ela, o prazo da solicitação começa na hora da validação: na hora do fato quando ele
+passa por comando do módulo, em até 5 minutos quando vem da liquidação (job
+`ce-unlock-notify-email`). Faltando um, não há
+prazo em lugar nenhum: o Portal mostra "—" e "O prazo para desbloqueio começa a contar quando os
+quatro requisitos estiverem cumpridos…", o Vela mostra a célula vazia e nenhum aviso cita prazo.
+A regra está no banco: `ce_unlock_private.item` só dá `sla_started_at` ao B/L com os quatro, e
+`ce_unlock_private.request_sla_start` só dá prazo à solicitação com todos os B/Ls ativos
+prontos (usada em Minhas solicitações, na fila Solicitações e na ficha do Cliente). Desfazer um
+requisito (desmarcar a entrega, recusar ou revogar um documento, perder a liquidação) tira o
+prazo; cumpri-lo de novo recomeça a contagem. Depois da exportação o prazo do B/L fica, mesmo que
+um requisito caia (o anual VIP que vence na virada do ano, a entrega desmarcada), e a validação
+posterior não o move (migration `450`). O aviso "documentação validada" usa o mesmo
+`request_sla_start`, lido depois de gravar a validação. A fila Solicitações, que só tem documentos a
+analisar, mostra a hora do envio, não prazo; a ficha do Cliente mostra o prazo da concluída até a
+última exportação (`exported_at` de `ce_unlock_customer_requests`), como o detalhe.
+**Teste:** `ceUnlockPrazoRequisitos.local-pg.test.ts` (as 16 combinações dos requisitos, o pedido
+com dois B/Ls, o B/L exportado que perde um requisito, a validação pela mudança do B/L pendente e o
+aviso "documentação validada").
+
+Só dias úteis, sem feriados. Antes das 12:00 vence às 17:00 do mesmo dia; a partir das 12:00,
+às 12:30 do próximo dia útil; sábado/domingo vencem segunda às 12:00.
 Calculado na tela (`ceUnlockSla.ts`) e no banco (`ce_unlock_private.sla_deadline`,
 usado no texto do aviso); o teste SQL confere os dois com os mesmos casos. O
 cumprimento é medido pela data da exportação.

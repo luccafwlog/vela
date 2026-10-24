@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download, Inbox, Receipt, RefreshCw, SearchX, Upload, X } from "lucide-react";
+import { Download, Inbox, MapPin, Receipt, RefreshCw, SearchX, Upload, X } from "lucide-react";
 import { Badge } from "../components/ui/Badge";
 import { Block, Fact, FactList, LeadValue } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
@@ -26,6 +26,7 @@ import {
   CeUnlockFileButton,
   CeUnlockFileLink,
 } from "../components/ce-unlock/CeUnlockDocuments";
+import { CeUnlockDeliveryAddresses } from "../components/ce-unlock/CeUnlockDeliveryAddresses";
 import { CeUnlockHistory } from "../components/ce-unlock/CeUnlockHistory";
 import { CeUnlockRequirementIcon } from "../components/ce-unlock/CeUnlockRequirements";
 import { CeUnlockVipCoveragePanel } from "../components/ce-unlock/CeUnlockVipCoveragePanel";
@@ -76,12 +77,9 @@ const inRequest = (i: CeUnlockItem) => !!i.request_id && i.state !== "cancelled"
 /** Taxas locais com fatura em aberto; "aguardando fatura" não pede ação do Cliente. */
 const openCharges = (i: CeUnlockItem) => !i.paid && !i.local_charges_awaiting_invoice;
 
-/**
- * O que falta nos documentos anuais VIP para pedir desbloqueios, uma frase.
- * Ex.: "A procuração anual foi recusada: envie a nova para pedir desbloqueios."
- */
-function annualGapMessage(vip: CeUnlockVipCoverage): string | null {
-  const gaps = DOC_TYPES.filter((type) => !vip[type]).map((type) => {
+/** O que falta nos documentos anuais VIP, em fatos ("a procuração anual venceu"). */
+function annualGaps(vip: CeUnlockVipCoverage) {
+  return DOC_TYPES.filter((type) => !vip[type]).map((type) => {
     const doc = vip.documents
       .filter((d) => d.type === type && d.status !== "uploading")
       .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
@@ -98,17 +96,40 @@ function annualGapMessage(vip: CeUnlockVipCoverage): string | null {
             : "venceu";
     return { type, sent: !!doc, waiting: doc?.status === "uploaded", text: `${name} ${fact}` };
   });
+}
+
+/**
+ * O que falta nos documentos anuais VIP e o que acontece com os pedidos, uma
+ * frase (ponto 13 de 2026-10-23: o Cliente VIP pede mesmo assim, com termo e
+ * procuração anexados). Ex.: "A procuração anual foi recusada: envie a nova em
+ * Documentos anuais. Até lá, as solicitações seguem com termo de devolução e
+ * procuração anexados a elas."
+ */
+function annualGapMessage(vip: CeUnlockVipCoverage): string | null {
+  const gaps = annualGaps(vip);
   if (!gaps.length) return null;
   const actionable = gaps.filter((g) => !g.waiting);
   const action = !actionable.length
-    ? "os pedidos ficam liberados quando a análise terminar"
+    ? "os pedidos voltam a usar os documentos anuais quando a análise terminar"
     : actionable.length > 1
-      ? "envie os novos para pedir desbloqueios"
+      ? "envie os novos em Documentos anuais"
       : !actionable[0].sent
-        ? `envie ${actionable[0].type === "termo" ? "o termo" : "a procuração"} para pedir desbloqueios`
-        : `envie ${actionable[0].type === "termo" ? "o novo" : "a nova"} para pedir desbloqueios`;
+        ? `envie ${actionable[0].type === "termo" ? "o termo" : "a procuração"} em Documentos anuais`
+        : `envie ${actionable[0].type === "termo" ? "o novo" : "a nova"} em Documentos anuais`;
   const sentence = gaps.map((g) => g.text).join(" e ");
-  return `${sentence[0].toUpperCase()}${sentence.slice(1)}: ${action}.`;
+  return `${sentence[0].toUpperCase()}${sentence.slice(1)}: ${action}. Até lá, as solicitações seguem com termo de devolução e procuração anexados a elas.`;
+}
+
+/**
+ * Por que a solicitação de um Cliente VIP pede termo e procuração (ponto 13 de
+ * 2026-10-23): o anual faltando, vencido, recusado ou revogado, ou B/L importado
+ * antes da vigência dele (migration 449).
+ */
+function vipFallbackReason(vip: CeUnlockVipCoverage, items: CeUnlockItem[]): string {
+  const gaps = annualGaps(vip);
+  if (gaps.length) return gaps.map((g) => g.text).join(" e ");
+  if (items.some((i) => i.vip_covered === false)) return "há B/L importado antes da vigência dos documentos anuais, que não retroage";
+  return "os documentos anuais não cobriam os B/Ls quando a solicitação foi aberta";
 }
 
 /** Próximo passo do Cliente em cada situação; o Portal nunca fala de envio à ZPT. */
@@ -151,6 +172,9 @@ export function PortalDesbloqueioCe() {
   const [selected, setSelected] = useState<string[]>([]);
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState("");
+  // Endereços das agências que recebem o B/L original, abertos por botão (ponto 6 de 2026-10-23).
+  const [showDelivery, setShowDelivery] = useState(false);
+  const deliveryId = useId();
   // Termo e procuração escolhidos e ainda não enviados: sobem ao clicar em Solicitar desbloqueio.
   const [pendingFiles, setPendingFiles] = useState<Partial<Record<DocType, File>>>({});
   const [sending, setSending] = useState(false);
@@ -163,6 +187,9 @@ export function PortalDesbloqueioCe() {
   const vip = flow.vip.data;
   const vipEnabled = !!vip?.enabled;
   const vipPending = vipEnabled && (!vip.termo || !vip.procuracao);
+  // B/L importado antes da vigência dos anuais pede o termo comum: o modelo
+  // precisa estar à mão também nesse caso.
+  const vipHasUncoveredBl = vipEnabled && (flow.list.data ?? []).some((item) => item.vip_covered === false);
   const detail = flow.detail.data;
 
   // Nova solicitação: a lista inteira do Cliente; busca, cartões e paginação aqui.
@@ -171,8 +198,9 @@ export function PortalDesbloqueioCe() {
   const searched = needle
     ? allItems.filter((i) => i.bl_id.toLowerCase().includes(needle) || (i.ce_mercante ?? "").toLowerCase().includes(needle))
     : allItems;
-  // Com documento anual faltando, nada pode ser pedido agora (o botão fica desativado).
-  const canRequest = (i: CeUnlockItem) => i.can_submit && !vipPending;
+  // Com documento anual faltando o VIP pede mesmo assim: a solicitação nasce comum, com termo e
+  // procuração anexados (migration 449, ponto 13 de 2026-10-23).
+  const canRequest = (i: CeUnlockItem) => i.can_submit;
   const cardFilters: Record<CardFilter, (i: CeUnlockItem) => boolean> = {
     can_submit: canRequest,
     open_charges: openCharges,
@@ -199,6 +227,8 @@ export function PortalDesbloqueioCe() {
     },
   };
   const byBl = new Map(allItems.map((i) => [i.bl_id, i]));
+  // A seleção nasce VIP só se os anuais cobrem todos os B/Ls (vigentes e com o B/L importado na vigência).
+  const vipCoversSelection = vipEnabled && !vipPending && selected.every((b) => byBl.get(b)?.vip_covered !== false);
   const moves = selected.flatMap((b) => {
     const item = byBl.get(b);
     return item?.request_id && ceRequestOpenForMove(item.state) ? [item] : [];
@@ -390,7 +420,7 @@ export function PortalDesbloqueioCe() {
               <>
                 <span>para cada B/L</span>
                 {vipEnabled && <Badge tone="slate" title="Condição VIP: documentos anuais">VIP</Badge>}
-                {!vipEnabled && flow.model.data && (
+                {(!vipEnabled || vipPending || vipHasUncoveredBl) && flow.model.data && (
                   <Button
                     variant="secondary"
                     className="app-btn--sm"
@@ -423,25 +453,59 @@ export function PortalDesbloqueioCe() {
                 label="Termo de devolução"
                 detail={!vipEnabled && flow.model.isSuccess && !flow.model.data ? "Modelo ainda não disponibilizado pela agência." : null}
               >
+                {/* O pedido é inteiro VIP ou inteiro comum (ADR 0101, decisão 5): faltando um dos anuais, os dois vão anexados. */}
                 {!vipEnabled ? (
                   "Assinado, em PDF, anexado à solicitação"
-                ) : vip?.termo ? (
+                ) : vip?.termo && vip.procuracao ? (
                   `Coberto pelo termo anual${termoUntil ? ` até ${formatDate(termoUntil)}` : ""}`
+                ) : vip?.termo ? (
+                  <>
+                    {`Termo anual válido${termoUntil ? ` até ${formatDate(termoUntil)}` : ""}`}
+                    <span className="block">Enquanto falta a procuração anual, assinado, em PDF, anexado à solicitação</span>
+                  </>
                 ) : (
-                  <StatusText tone="warning">Falta o termo anual</StatusText>
+                  <>
+                    <StatusText tone="warning">Falta o termo anual</StatusText>
+                    <span className="block">Até lá, assinado, em PDF, anexado à solicitação</span>
+                  </>
                 )}
               </Fact>
               <Fact label="Procuração">
                 {!vipEnabled ? (
                   "Em PDF, anexada à solicitação"
-                ) : vip?.procuracao ? (
+                ) : vip?.procuracao && vip.termo ? (
                   `Coberta pela procuração anual${procuracaoUntil ? ` até ${formatDate(procuracaoUntil)}` : ""}`
+                ) : vip?.procuracao ? (
+                  <>
+                    {`Procuração anual válida${procuracaoUntil ? ` até ${formatDate(procuracaoUntil)}` : ""}`}
+                    <span className="block">Enquanto falta o termo anual, em PDF, anexada à solicitação</span>
+                  </>
                 ) : (
-                  <StatusText tone="warning">Falta a procuração anual</StatusText>
+                  <>
+                    <StatusText tone="warning">Falta a procuração anual</StatusText>
+                    <span className="block">Até lá, em PDF, anexada à solicitação</span>
+                  </>
                 )}
               </Fact>
-              <Fact label="B/L original">Entregue na agência</Fact>
+              <Fact
+                label="B/L original"
+                detail={
+                  <Button
+                    variant="secondary"
+                    className="app-btn--sm"
+                    aria-expanded={showDelivery}
+                    aria-controls={deliveryId}
+                    onClick={() => setShowDelivery((open) => !open)}
+                  >
+                    <MapPin size={14} aria-hidden="true" />
+                    {showDelivery ? "Ocultar endereços de entrega" : "Endereços de entrega do B/L"}
+                  </Button>
+                }
+              >
+                Entregue na agência
+              </Fact>
             </FactList>
+            {showDelivery ? <CeUnlockDeliveryAddresses id={deliveryId} /> : null}
             {gap && (
               <div className="app-callout app-callout--warning flex flex-wrap items-center gap-3">
                 <span>{gap}</span>
@@ -629,7 +693,9 @@ export function PortalDesbloqueioCe() {
                   <StatusText tone="danger">máximo de {SELECTION_LIMIT} B/Ls por solicitação</StatusText>
                 ) : (
                   <span className="app-table__cell-meta">
-                    {vipPending ? "regularize os documentos anuais para pedir" : "a seleção abre a solicitação com os documentos"}
+                    {vipEnabled && !vipCoversSelection && selected.length > 0
+                      ? "os documentos anuais não cobrem esta seleção: a solicitação seguirá com termo e procuração anexados"
+                      : "a seleção abre a solicitação com os documentos"}
                   </span>
                 )}
               </span>
@@ -641,7 +707,7 @@ export function PortalDesbloqueioCe() {
                   </Button>
                 )}
                 <Button
-                  disabled={!selected.length || selected.length > SELECTION_LIMIT || flow.command.isPending || vipPending}
+                  disabled={!selected.length || selected.length > SELECTION_LIMIT || flow.command.isPending}
                   onClick={request}
                 >
                   Pedir desbloqueio de {bls(selected.length)}
@@ -793,7 +859,7 @@ export function PortalDesbloqueioCe() {
           </div>
           <p className="app-table__cell-meta">
             {/* Cliente VIP: os anuais cobrem a nova; a frase sobre termo e procuração não aparece. */}
-            {vipEnabled
+            {vipCoversSelection
               ? ""
               : movedFrom.size > 1
                 ? "Os documentos e a análise das solicitações antigas não passam para a nova: termo e procuração são enviados de novo nesta. "
@@ -848,10 +914,17 @@ export function PortalDesbloqueioCe() {
                   </Fact>
                   <Fact label="Documentos">{vipSource ? "Anuais VIP" : "Da solicitação"}</Fact>
                 </FactList>
-                {latestStart && !validated && (
+                {/* Só na solicitação em andamento: na concluída ou cancelada o motivo de hoje não explica a de antes. */}
+                {vipEnabled && !vipSource && vip && detail.state !== "cancelled" && detail.state !== "completed" && (
+                  <div className="app-callout app-callout--warning">
+                    Sua condição VIP não cobre esta solicitação: {vipFallbackReason(vip, detail.items)}. Por isso ela segue
+                    como as comuns, com o termo de devolução e a procuração anexados a ela.
+                  </div>
+                )}
+                {!latestStart && detail.state !== "cancelled" && (
                   <p className="app-table__cell-meta">
-                    O prazo para desbloqueio recomeça quando uma pendência é regularizada: reenvio de documento, entrega
-                    do B/L original ou pagamento das taxas.
+                    O prazo para desbloqueio começa a contar quando os quatro requisitos estiverem cumpridos em todos os
+                    B/Ls: taxas locais pagas, termo de devolução e procuração aprovados e B/L original entregue na agência.
                   </p>
                 )}
               </Block>

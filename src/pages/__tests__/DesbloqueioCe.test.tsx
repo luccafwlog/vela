@@ -36,7 +36,7 @@ vi.mock('../../hooks/useCeUnlock', () => ({
     isLoading: false, error: null, refetch: vi.fn(),
     data: { total: 1, items: [{
       id: 'req-1', protocol: 'CE-ABC', state: 'submitted', version: 1, created_at: '2026-10-07T10:00:00Z', customer_name: 'Cliente Fila',
-      cnpj_cpf: '999', sla_started_at: '2026-10-07T10:00:00-03:00', bl_ids: ['BL-1', 'BL-2'], termo_status: 'uploaded', procuracao_status: 'changes_requested',
+      cnpj_cpf: '999', submitted_at: '2026-10-07T10:00:00-03:00', sla_started_at: null, bl_ids: ['BL-1', 'BL-2'], termo_status: 'uploaded', procuracao_status: 'changes_requested',
     }] },
   }),
 }))
@@ -62,6 +62,10 @@ it('cabeçalho só com o título; aba Solicitações com contagem e tabela limpa
   expect(screen.getByText('+1')).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Abrir solicitação CE-ABC' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: /^Analisar/ })).toBeNull()
+  // Ponto 10 de 2026-10-23: documento a analisar ainda não dá prazo; a fila mostra quando o Cliente enviou.
+  expect(screen.getByRole('columnheader', { name: 'Enviada em' })).toBeTruthy()
+  expect(screen.queryByRole('columnheader', { name: 'Prazo' })).toBeNull()
+  expect(screen.getByRole('button', { name: 'Abrir solicitação CE-ABC' }).closest('tr')!.textContent).toContain('07/10')
   expect(screen.getByRole('button', { name: 'Modelo do termo de devolução' })).toBeTruthy()
   expect(screen.queryByLabelText('Selecionar B/L BL-557')).toBeNull()
 })

@@ -60,6 +60,10 @@ SELECT pg_sleep(1.2);
 BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role='authenticated'; SET LOCAL request.jwt.claim.sub='00000000-0000-0000-0011-0000000000a1';
 SELECT 'S2_A_submit' AS step, (public.portal_ce_unlock_command('submit', jsonb_build_object('request_id', :'req_a', 'expected_version', :req_a_version, 'request_key', '00000000-0000-0000-0011-00000000d0a2')))->>'state' AS state;
 COMMIT;
+-- Migration 448: o prazo só existe com os quatro requisitos; a equipe aprova os documentos e registra a entrega do original.
+UPDATE public.ce_unlock_documents SET status='approved', reviewed_at=now() WHERE request_id = :'req_a';
+UPDATE public.ce_unlock_request_bls SET termo_approved=true, procuracao_approved=true WHERE request_id = :'req_a';
+INSERT INTO public.ce_unlock_bl_deliveries (bl_id, delivered) VALUES ('V11-BL-1', true) ON CONFLICT (bl_id) DO UPDATE SET delivered=true;
 BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role='authenticated'; SET LOCAL request.jwt.claim.sub='00000000-0000-0000-0011-0000000000a1';
 SELECT 'S2_A_list_before_move' AS step, i->>'state' AS state, i->'bl_ids' AS bl_ids, i->>'sla_started_at' AS sla_started_at FROM jsonb_array_elements(public.portal_list_ce_unlock_requests('{}',1)->'items') i;
 COMMIT;

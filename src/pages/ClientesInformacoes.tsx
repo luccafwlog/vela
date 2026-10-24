@@ -6,12 +6,13 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, PageHeader } from '../components/ui/Card'
 import { InformationEditor, type InformationField } from '../components/portal-information/InformationEditor'
-import { externalInformationUrl, trackingUrlHasBlMarker, type InformationKind, type PortalInformation } from '../services/portalInformation'
+import { BL_DELIVERY_AGENCIES, externalInformationUrl, trackingUrlHasBlMarker, type InformationKind, type PortalInformation } from '../services/portalInformation'
 
 import { DemurrageSection } from '../components/portal/information/ReferenceSections'
 
 type Section = 'depots' | 'agents' | 'contacts' | 'carriers' | 'notes'
-const contactSubjects = [{ value: 'importacao', label: 'Importação' }, { value: 'exportacao', label: 'Exportação' }, { value: 'containers', label: 'Containers' }, { value: 'geral', label: 'Geral' }]
+// As três agências de entrega do B/L original aparecem no Desbloqueio de CE do Portal, não em Contato (migration 447).
+const contactSubjects = [{ value: 'importacao', label: 'Importação' }, { value: 'exportacao', label: 'Exportação' }, { value: 'containers', label: 'Containers' }, { value: 'geral', label: 'Geral' }, ...BL_DELIVERY_AGENCIES.map(agency => ({ value: agency.key, label: `Entrega do B/L original · ${agency.port}` }))]
 const sections: { key: Section; label: string }[] = [{ key: 'depots', label: 'Depots' }, { key: 'agents', label: 'Agentes' }, { key: 'contacts', label: 'Contato' }, { key: 'carriers', label: 'Tracking' }, { key: 'notes', label: 'Demurrage' }]
 const fields: Record<Section, InformationField[]> = {
   depots: [{ key: 'ports', label: 'Portos de devolução (códigos)', type: 'list' }, { key: 'address', label: 'Endereço', type: 'text' }, { key: 'opening_hours', label: 'Horário de atendimento' }, { key: 'emails', label: 'E-mails', type: 'list' }, { key: 'phones', label: 'Telefones', type: 'list' }, { key: 'scheduling_url', label: 'URL de agendamento', type: 'url' }, { key: 'instructions', label: 'Instruções de devolução', type: 'text' }, { key: 'restrictions', label: 'Restrições', type: 'text' }, { key: 'published', label: 'Publicado no Portal', type: 'boolean' }],

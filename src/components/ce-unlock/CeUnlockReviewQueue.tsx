@@ -9,9 +9,8 @@ import { SkeletonTable } from "../ui/Skeleton";
 import { StatusText } from "../ui/StatusText";
 import { TableFooterPagination } from "../ui/TableFooterPagination";
 import { QueryStateGate } from "../shared/QueryStateGate";
-import { CeUnlockSla } from "./CeUnlockSla";
 import { useCeUnlockReviewQueue } from "../../hooks/useCeUnlock";
-import { ceDocumentStatusText, ceStateLabel } from "../../lib/ceUnlockLabels";
+import { ceDateTime, ceDocumentStatusText, ceStateLabel } from "../../lib/ceUnlockLabels";
 
 const PAGE_SIZE = 25;
 const COLUMNS = 7;
@@ -82,7 +81,7 @@ export function CeUnlockReviewQueue({
                 <th scope="col">Termo de devolução</th>
                 <th scope="col">Procuração</th>
                 <th scope="col">Situação</th>
-                <th scope="col">Prazo</th>
+                <th scope="col">Enviada em</th>
               </tr>
             </thead>
             <tbody>
@@ -122,7 +121,8 @@ export function CeUnlockReviewQueue({
                   <td className="whitespace-nowrap"><CeUnlockDocumentStatus type="termo" status={r.termo_status} /></td>
                   <td className="whitespace-nowrap"><CeUnlockDocumentStatus type="procuracao" status={r.procuracao_status} /></td>
                   <td className="whitespace-nowrap">{ceStateLabel(r.state)}</td>
-                  <td><CeUnlockSla start={r.sla_started_at} /></td>
+                  {/* Ponto 10 de 2026-10-23: aqui os documentos ainda não foram aprovados, então não há prazo. */}
+                  <td className="whitespace-nowrap tabular-nums">{r.submitted_at ? ceDateTime(r.submitted_at) : <NoValue label="Sem envio" />}</td>
                 </tr>
               ))}
             </tbody>
