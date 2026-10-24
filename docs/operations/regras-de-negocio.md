@@ -163,14 +163,20 @@ Granito, Vazios Importação, Desbloqueio de CE e as solicitações na ficha do
 Cliente (migration `454`), Cliente (Contêineres e Financeiro) e, no Portal,
 Operação (BLs e Containers), Faturas, Demurrage (migration `454`), Consolidar
 fatura e Desbloqueio de CE —, o texto inteiro continua casando como antes, e
-uma lista colada com dois ou mais termos (separados por espaço, vírgula, ponto
-e vírgula ou quebra de linha) acha cada B/L ou contêiner em que algum termo
-aparece. Os termos casam só os números de B/L e contêiner (e o CE no Portal,
-o documento na Demurrage e no Financeiro), não nomes. Dono:
-`src/lib/searchTerms.ts` (`matchesAnyToken` nas telas, `tokenIlikeClauses`
-nas consultas do PostgREST), espelhado no banco. Caixas de escolha de um B/L
-só (Fatura manual, sugestões do filtro de B/L) não são busca e ficam como
-estão.
+uma lista colada com dois ou mais números acha cada B/L ou contêiner em que
+algum deles aparece. Só conta como termo da lista o que tem cara de número:
+pelo menos 4 caracteres e pelo menos um dígito (migration `455`). Os termos
+são separados por espaço (inclusive o não separável), vírgula, ponto e
+vírgula ou quebra de linha, e são contados antes de tirar os repetidos: a
+coluna colada com o mesmo B/L em toda linha continua achando esse B/L. Um
+nome de várias palavras ("IMPORTACAO E EXPORTACAO", "ACME 2") não vira lista
+e segue só a busca do texto inteiro. Os termos casam só os números de B/L e
+contêiner (e o CE no Desbloqueio de CE, interno e no Portal, o documento na
+Demurrage e no Financeiro), não nomes. Dono: `src/lib/searchTerms.ts`
+(`matchesAnyToken` nas telas, `tokenIlikeClauses` nas consultas do
+PostgREST), espelhado no banco (`search_term_tokens`). Caixas de escolha de
+um B/L só (Fatura manual, sugestões do filtro de B/L) não são busca e ficam
+como estão.
 
 ### Vocabulário e rótulos
 

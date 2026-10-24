@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp, Download, FileText, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -142,21 +142,32 @@ export function Bls() {
   const { showToast } = useToast()
 
   const listSearch = blsSearchFromFilters(filters)
-  // Último endereço que a própria lista escreveu. Um endereço diferente dele e
-  // do recorte atual veio de fora (link do sino com a lista já aberta) e
-  // substitui os filtros, em vez de ser sobrescrito por eles.
-  const writtenSearch = useRef(listSearch)
+  // Navegação de fora (link do sino com a lista já aberta, voltar do
+  // navegador) substitui os filtros, em vez de ser sobrescrita por eles. Ela é
+  // reconhecida pela chave e pelo tipo da navegação, não comparando o texto do
+  // endereço: o BrowserRouter aplica cada troca de endereço numa transição, e
+  // uma tecla digitada antes dela terminar renderiza com o endereço antigo,
+  // que não pode ser tomado por externo (o texto voltaria e a letra sumiria).
+  const location = useLocation()
+  const navigationType = useNavigationType()
+  const seenKey = useRef(location.key)
   useEffect(() => {
-    const current = searchParams.toString()
-    if (current !== writtenSearch.current && current !== listSearch) {
-      writtenSearch.current = current
-      setFilters(filtersFromBlsSearch(searchParams))
-      return
+    let search = listSearch
+    if (location.key !== seenKey.current) {
+      seenKey.current = location.key
+      // PUSH e POP vêm de fora (sino, voltar do navegador, menu); REPLACE é a
+      // própria lista gravando o recorte.
+      if (navigationType !== 'REPLACE') {
+        const external = filtersFromBlsSearch(searchParams)
+        setFilters(external)
+        search = blsSearchFromFilters(external)
+      }
     }
-    writtenSearch.current = listSearch
-    if (listSearch !== current) setSearchParams(new URLSearchParams(listSearch), { replace: true })
-    rememberBlsListSearch(listSearch)
-  }, [listSearch, searchParams, setSearchParams, setFilters])
+    // Endereço fora da forma canônica (aberto de fora ou com grafia antiga) é
+    // reescrito, e o recorte fica lembrado para o "BLs" da ficha voltar a ele.
+    if (search !== searchParams.toString()) setSearchParams(new URLSearchParams(search), { replace: true })
+    rememberBlsListSearch(search)
+  }, [location.key, navigationType, listSearch, searchParams, setSearchParams, setFilters])
 
   const debouncedSearch = useDebouncedValue(filters.search)
   const queryFilters = useMemo(() => ({

@@ -280,8 +280,8 @@ describe('Faturas e Recebíveis num bloco só (aba Financeiro)', () => {
 
   // Ponto 9: lista colada de B/Ls acha cada fatura.
   it('a busca por lista de B/Ls traz as faturas de cada um', () => {
-    const lines = buildCustomerInvoiceLines([invoice(1, 'issued', ['BL-A']), invoice(2, 'paid', ['BL-C']), invoice(3, 'issued', ['BL-X'])], [])
-    expect(filterCustomerInvoiceLines(lines, { search: 'BL-A, BL-C', situation: '', from: '', to: '' })
+    const lines = buildCustomerInvoiceLines([invoice(1, 'issued', ['MEDU1234567']), invoice(2, 'paid', ['MEDU2345678']), invoice(3, 'issued', ['MEDU3456789'])], [])
+    expect(filterCustomerInvoiceLines(lines, { search: 'MEDU1234567, MEDU2345678', situation: '', from: '', to: '' })
       .map((line) => line.kind === 'invoice' && line.invoice.id).sort()).toEqual([1, 2])
   })
 })

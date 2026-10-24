@@ -618,14 +618,34 @@ describe('listInvoices', () => {
     const result = await listInvoices({ ...baseFilters, blSearch: ' csc 1% ' })
 
     expect(result).toEqual({ rows: [], count: 0 })
-    // Termo é normalizado: trim, uppercase e remoção dos curingas do LIKE. O
-    // texto inteiro continua valendo e, por ter dois termos, cada um também
-    // (busca por lista, ponto 9 de 2026-10-23).
-    const clauses = 'bl_id.ilike.%CSC 1%,bl_id.ilike.%csc%,bl_id.ilike.%1%'
+    // Termo é normalizado: trim, uppercase e remoção dos curingas do LIKE.
+    // "CSC" e "1" não têm cara de número (4+ caracteres com dígito), então
+    // não viram busca por lista: só o texto inteiro vale.
+    const clauses = 'bl_id.ilike.%CSC 1%'
     expect(blLinks.or).toHaveBeenCalledWith(clauses)
     expect(recvLinks.or).toHaveBeenCalledWith(clauses)
     expect(manualInvoices.or).toHaveBeenCalledWith(clauses)
     expect(supabaseMocks.from).toHaveBeenCalledTimes(3)
+  })
+
+  // Ponto 9 de 2026-10-23: dois ou mais números colados casam cada B/L.
+  it('blSearch com dois números busca o texto inteiro e cada número', async () => {
+    const blLinks = chainQuery({ data: [], error: null })
+    const recvLinks = chainQuery({ data: [], error: null })
+    const manualInvoices = chainQuery({ data: [], error: null })
+    supabaseMocks.from.mockImplementation((table: string) => {
+      if (table === 'invoice_bls') return blLinks
+      if (table === 'invoice_receivable_links') return recvLinks
+      if (table === 'invoices') return manualInvoices
+      throw new Error(`tabela inesperada: ${table}`)
+    })
+
+    await listInvoices({ ...baseFilters, blSearch: 'MEDU1234567 MSCU7654321' })
+
+    const clauses = 'bl_id.ilike.%MEDU1234567 MSCU7654321%,bl_id.ilike.%medu1234567%,bl_id.ilike.%mscu7654321%'
+    expect(blLinks.or).toHaveBeenCalledWith(clauses)
+    expect(recvLinks.or).toHaveBeenCalledWith(clauses)
+    expect(manualInvoices.or).toHaveBeenCalledWith(clauses)
   })
 
   it('blSearch com correspondência restringe a query de invoices por id', async () => {

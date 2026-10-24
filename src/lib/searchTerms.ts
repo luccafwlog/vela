@@ -1,15 +1,34 @@
 // Busca por vários B/Ls ou contêineres de uma vez (ponto 9 de 2026-10-23).
 // O texto inteiro continua casando como sempre; além disso, quando o usuário
-// cola dois ou mais termos separados por espaço, vírgula, ponto e vírgula ou
-// quebra de linha, basta um termo casar o número do B/L ou do contêiner.
-// Mesma regra de `search_term_tokens` no banco (migration 453).
+// cola dois ou mais números separados por espaço, vírgula, ponto e vírgula ou
+// quebra de linha, basta um deles casar o número do B/L ou do contêiner.
+// Só conta como termo da lista o que tem cara de número: pelo menos 4
+// caracteres e pelo menos um dígito. Assim um nome de várias palavras
+// ("IMPORTACAO E EXPORTACAO", "ACME 2") não vira lista e não traz todo B/L
+// com a letra E ou o algarismo 2.
+// Mesma regra de `search_term_tokens` no banco (migrations 453 e 455).
+//
+// ponytail: cada termo vira um ILIKE '%termo%' sem índice, então o custo é
+// termos × linhas; e nas buscas por GET do PostgREST (Faturas em `billing.ts`,
+// `chargeOperationsService.ts`, `graniteCargo.ts`, `vaziosImportacaoImport.ts`)
+// cada termo entra na URL, e uma lista de centenas de números pode estourar o
+// tamanho da URL. Upgrade: teto de termos com aviso na tela, ou levar essas
+// buscas para RPC (POST).
 import { escapeFilterTerm } from './utils'
 
-/** Termos em minúsculas, só quando são dois ou mais; um termo só devolve []. */
+const MIN_TERM_LENGTH = 4
+
+/** Termo com cara de número de B/L, contêiner ou CE: 4+ caracteres e algum dígito. */
+function isNumberLike(term: string) {
+  return term.length >= MIN_TERM_LENGTH && /[0-9]/.test(term)
+}
+
+/** Termos em minúsculas, só quando são dois ou mais números; senão devolve []. */
 export function searchTokens(query: string): string[] {
-  // É lista quando há dois ou mais termos antes de tirar os repetidos: a
+  // É lista quando há dois ou mais números antes de tirar os repetidos: a
   // coluna colada com o mesmo B/L em toda linha continua achando esse B/L.
-  const terms = query.toLowerCase().split(/[\s,;]+/).filter(Boolean)
+  // O `\s` do JS já inclui o espaço não separável (U+00A0), como o banco.
+  const terms = query.toLowerCase().split(/[\s,;]+/).filter(isNumberLike)
   return terms.length >= 2 ? [...new Set(terms)] : []
 }
 
