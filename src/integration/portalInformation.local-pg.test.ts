@@ -143,6 +143,23 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
       expect(as(admin, `SELECT public.internal_save_portal_information('carrier',${quote({carrier_id: voyage, tracking_url: url})});`, true).status).not.toBe(0)
     }
   })
+  // Ponto 6 de 2026-10-23 (migration 447): endereços das agências que recebem o B/L original.
+  it('entrega do B/L original: três agências com "Endereço a definir", editáveis no Vela e lidas pelo Portal', () => {
+    const catalog = call<PortalInformation>(portal, 'SELECT public.portal_get_information();')
+    const delivery = catalog.contacts.filter(c => c.key.startsWith('entrega_bl_')).map(c => [c.key, c.address])
+    expect(delivery).toEqual([['entrega_bl_salvador', 'Endereço a definir'], ['entrega_bl_suape', 'Endereço a definir'], ['entrega_bl_vitoria', 'Endereço a definir']])
+    const data = { key: 'entrega_bl_suape', title: 'Entrega do B/L original · Suape', address: 'Av. Portuária, 1\nSuape/PE', active: true }
+    const saved = as(operations, `SELECT public.internal_save_portal_information('contact',${quote(data)}); SELECT address FROM public.portal_information_contacts WHERE key='entrega_bl_suape';`, true)
+    expect(saved.status, saved.stderr).toBe(0)
+    expect(saved.stdout).toContain('Av. Portuária, 1')
+    for (const key of ['entrega_bl_recife', 'info134']) {
+      const refused = as(admin, `SELECT public.internal_save_portal_information('contact',${quote({ ...data, key })});`, true)
+      expect(refused.status).not.toBe(0)
+      expect(refused.stderr).toContain('Assunto de atendimento inválido')
+    }
+    expect(as(portal, `SELECT public.internal_save_portal_information('contact',${quote(data)});`, true).stderr).toContain('42501')
+  })
+
   it('inspection matches customer reads and global catalog does not expose internal notes/reasons', () => {
     const catalog = call<PortalInformation>(portal, 'SELECT public.portal_get_information();')
     expect(call<PortalInformation>(operations, `SELECT public.portal_inspect_get_information(${customer});`)).toEqual(catalog)

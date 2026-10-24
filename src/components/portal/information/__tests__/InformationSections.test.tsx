@@ -161,6 +161,8 @@ describe('Central de Informações', () => {
       { ...contact, key: 'containers', title: 'Containers', emails: ['eqp@fwlog.com.br'] },
       { ...contact, key: 'geral', title: 'Assuntos gerais', emails: ['fwlog@fwlog.com.br'], phones: ['+55 (27) 99690-7107'], whatsapp: 'https://wa.me/5527996907107' },
       { ...contact, key: 'importacao', title: 'Importação', emails: ['importacao@fwlog.com.br'] },
+      // Endereço de entrega do B/L original: só no Desbloqueio de CE (migration 447).
+      { ...contact, key: 'entrega_bl_vitoria', title: 'Entrega do B/L original · Vitória', emails: [], address: 'Endereço a definir' },
     ] }} />)
     expect(screen.getAllByRole('heading').map((heading) => heading.textContent)).toEqual(['Importação', 'Containers', 'Assuntos gerais'])
     const importacao = screen.getByRole('heading', { name: 'Importação' }).closest('section') as HTMLElement

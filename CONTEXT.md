@@ -314,8 +314,9 @@ do `Laden on Board` do B/L.
 → Regra: [Viagens § ETD e ATD do POL](docs/modules/viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota)
 
 **Programação de Navios (Chegadas e Saídas)**
-Quadro com a previsão de datas por porto da rota, exibido ao cliente no Portal e
-mantido em Chegadas e Saídas. Não tem cadastro próprio: é a projeção das
+Quadro com a previsão de datas por porto da rota, exibido ao cliente no Portal
+(bloco **Chegadas e saídas** do Painel, nome desde 2026-10-23) e mantido em
+Chegadas e Saídas. Não tem cadastro próprio: é a projeção das
 Viagens marcadas como visíveis.
 - **Distinto de:** **Line-Up (TV)**, painel operacional interno derivado das
   viagens cadastradas.
@@ -1407,7 +1408,7 @@ token legado.
 **Dashboard do Portal (Painel)**
 Página inicial do Portal (`/portal`), com indicadores financeiros e
 operacionais, atalho para a Central de Informações e a programação de navios
-(Chegadas e Saídas). Não exibe alertas.
+no bloco Chegadas e saídas. Não exibe alertas.
 → Regra: [Portal do Cliente § `/portal`](docs/modules/portal-cliente.md#portal)
 
 **Disputa de Demurrage**
@@ -1591,7 +1592,10 @@ Cliente nunca vê nada da ZPT.
 Condição por CNPJ em que termo e procuração anuais aprovados e vigentes
 substituem os anexos de cada pedido, e a solicitação não passa pela análise.
 Não dispensa pagamento nem entrega por B/L; o selo VIP sem documentos vigentes
-não dispensa nada.
+não dispensa nada. A vigência do anual só vale para os B/Ls importados no Vela
+dentro dela (data de importação do B/L); não retroage. Sem anual que cubra os
+B/Ls (faltando, vencido, recusado ou revogado), o VIP pede como os demais, com
+termo e procuração anexados à solicitação.
 → Regra: [Desbloqueio de CE § Requisitos e condição VIP](docs/modules/desbloqueio-ce.md#requisitos-e-condição-vip)
 
 **Exportação para a ZPT**
@@ -1606,9 +1610,9 @@ exportou: *Desbloqueio conferido* quando a ZPT mostra a carga desbloqueada,
 → Regra: [Desbloqueio de CE § Envio e conciliação com a ZPT](docs/modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt)
 
 **Prazo (SLA) do Desbloqueio**
-Prazo do desk para deixar o B/L pronto para a ZPT, contado do envio da
-solicitação em dias úteis e cumprido pela exportação. Recomeça quando o Cliente
-resolve uma pendência dele.
+Prazo do desk para enviar o B/L à ZPT, em dias úteis, cumprido pela exportação.
+Só começa quando os quatro requisitos estão cumpridos e parte do último deles;
+antes disso não há prazo, nem no Portal nem nos avisos.
 → Regra: [Desbloqueio de CE § Prazo (SLA)](docs/modules/desbloqueio-ce.md#prazo-sla)
 
 ## Central de Informações e indicação de devolução
