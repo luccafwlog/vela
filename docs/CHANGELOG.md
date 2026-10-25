@@ -6,15 +6,16 @@
 
 ## 2026-10
 
-- **E-mails automáticos saem pelo evento (2026-10-24):** migration `456`,
-  [ADR 0102](adr/0102-emails-automaticos-saem-pelo-evento.md). O banco chama a Edge Function da
+- **E-mails automáticos saem pelo evento (2026-10-24, revisão de 2026-10-25):** migrations `456` e
+  `457`, [ADR 0102](adr/0102-emails-automaticos-saem-pelo-evento.md). O banco chama a Edge Function da
   rotina no evento, com o segredo da própria rotina e `{"source":"trigger"}`, e o cron fica como
   rede de segurança: aviso do Desbloqueio de CE e status de entrega em segundos; CE e Taxas e
-  NOA/NOR/NOB pelo que deixa o alvo pronto (no máximo a cada 90 s) e cron de 2 min (era 15);
-  Régua de Cobrança na emissão da Invoice, só dentro da janela, e cron de 5 min (era de hora em
-  hora). A fila do Desbloqueio de CE passa a reservar as linhas (`claimed_until`, `SKIP LOCKED`),
-  o heartbeat do Better Stack sai só das rodadas do cron e o runner de Comunicados atende até
-  quatro Clientes por vez. A produtora dos Comunicados deixou de crescer com B/L × Escala (3 mil
+  NOA/NOR/NOB pelo que deixa o alvo pronto (no máximo a cada 90 s) e cron de 2 min (era 15).
+  Régua de Cobrança só pelo cron, a cada 5 min (era de hora em hora): a chamada na emissão da
+  Invoice, que a `456` criava, sai na `457`, porque dividia ao acaso em dois e-mails as Invoices
+  de uma mesma importação. A fila do Desbloqueio de CE passa a reservar as linhas (`claimed_until`,
+  `SKIP LOCKED`); no Better Stack, o sucesso sai só das rodadas do cron e a falha sai também da
+  chamada pelo evento; o runner de Comunicados atende até quatro Clientes por vez. A produtora dos Comunicados deixou de crescer com B/L × Escala (3 mil
   pares Cliente × Viagem: de 75 s para ~1,5 s por rodada). A Cobertura de `/clientes/comunicacao`
   mostra a próxima rodada nos minutos ímpares.
 - **Pix recebidos mostra o que o Itaú manda (2026-10-23):** sem migration. A conferência em

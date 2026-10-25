@@ -1,13 +1,13 @@
 # 0102 — E-mails automáticos saem pelo evento, com o cron como rede de segurança
 
-Status: aceito — 2026-10-24 (pedido do responsável). Implementada na migration
-`456` e nas Edge Functions `ce-unlock-notify-email`,
-`customer-communication-auto-runner`, `demurrage-dunning` e
-`portal-email-events-runner`.
+Status: aceito — 2026-10-24 (pedido do responsável); revista em 2026-10-25 com
+as decisões do dono na revisão da PR (itens 2, 4, 7 e 8). Implementada nas
+migrations `456` e `457` e nas Edge Functions `ce-unlock-notify-email`,
+`customer-communication-auto-runner` e `portal-email-events-runner`.
 
 Estende a [ADR 0063](./0063-configuracao-de-jobs-cron-no-vault.md) e o item 5 da
 [ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md) (exceção ao
-cofre): mais quatro rotinas leem o segredo do Vault a partir da transação de
+cofre): mais três rotinas leem o segredo do Vault a partir da transação de
 quem usa a tela.
 
 ## Contexto
@@ -39,30 +39,49 @@ rotina usa o próprio segredo.
 2. **Intervalos.** Sem intervalo para os avisos do Desbloqueio de CE e para os
    eventos do provedor (trabalho pequeno, com claim). Comunicados automáticos:
    90 s, de propósito, porque o Comunicado sai uma vez por Cliente e Viagem e os
-   efeitos de uma importação não devem virar uma rodada por transação. Régua de
-   Cobrança: 60 s, e só dentro da janela de dia útil.
+   efeitos de uma importação não devem virar uma rodada por transação. A Régua
+   de Cobrança não tem chamada pelo evento (item 7).
 3. **Cron como rede de segurança.** Os jobs continuam, para reenvios, disparos
    perdidos e o que vence pelo relógio (o NOA, cinco dias antes do ETA): avisos
    do Desbloqueio de CE a cada 5 min e eventos a cada minuto, como estavam;
    Comunicados a cada 2 min e Régua a cada 5 min. A janela de dia útil, a régua
    de dias entre cobranças e os recuos depois de recusa ou bounce não mudam.
-4. **Heartbeat só do cron.** A chamada com `{"source":"trigger"}` roda a mesma
-   rodada sem reportar ao Better Stack: ela é extra e não pode esconder um cron
-   parado.
+4. **Sucesso do heartbeat só do cron; falha nos dois modos.** A chamada com
+   `{"source":"trigger"}` roda a mesma rodada e manda ao Better Stack só a falha
+   (`/fail`). O sucesso dela é extra e esconderia um cron parado; a falha da
+   primeira tentativa, que quase sempre é da chamada pelo evento, aparece na hora.
+   Na versão de 2026-10-24 a chamada pelo evento não mandava nada, e a falha só
+   aparecia quando a nova tentativa do cron falhava de novo (nos Comunicados, 15
+   minutos depois da recusa, ou 24 horas na recusa definitiva).
 5. **Reserva da fila do Desbloqueio de CE.** Com gatilho e cron juntos, a
    leitura da fila reserva as linhas (`FOR UPDATE SKIP LOCKED` e
    `claimed_until`). As chaves de idempotência por destinatário continuam.
 6. **Custo antes do intervalo.** O cron dos Comunicados só desceu para 2 min
    depois de medida a produtora dos alvos, e corrigido o plano que a fazia
    crescer com B/L × Escala (75 s com 3 mil pares Cliente × Viagem; ~1,5 s depois).
+7. **Régua de Cobrança só pelo cron (revisão de 2026-10-25).** A versão de
+   2026-10-24 chamava a Régua na emissão da Invoice (intervalo de 60 s, só dentro
+   da janela). A emissão vem quase sempre da fila de efeitos de importação
+   (`demurrage_billing`), que emite as Invoices de uma planilha de devoluções uma
+   a uma, cada uma na sua transação. A chamada na primeira cobrava só as já
+   gravadas, e o resto saía na rodada seguinte: o lote do mesmo Cliente em dois
+   e-mails, divididos ao acaso. A migration `457` tira a chamada; com o job de 5
+   minutos, o lote sai junto, em até 5 minutos.
+8. **Passos do dono, fora do repositório.** Os monitores do Better Stack da Régua
+   e dos Comunicados passam a 5 e 2 minutos, com tolerância de 5 minutos,
+   ajustados no painel só depois da promoção das migrations `456` e `457` para a
+   produção (antes, acusariam queda falsa). A medição dos tempos de ponta a ponta
+   fica para um trabalho à parte; o roteiro está em
+   [Segredos dos jobs](../operations/segredos-cron.md#disparo-pelo-evento).
 
 ## Consequências
 
 - O aviso do Desbloqueio de CE e o status de entrega saem em segundos; CE e
-  Taxas e NOA/NOR/NOB em até ~2 min depois do evento; a primeira cobrança logo
-  depois da emissão, se dentro da janela.
-- Invoices de Demurrage emitidas em cliques separados tendem a sair em
-  mensagens separadas; antes, as emitidas na mesma hora iam juntas.
+  Taxas e NOA/NOR/NOB em até ~2 min depois do evento; a primeira cobrança em até
+  5 min depois da emissão, se dentro da janela (antes, até 1 h).
+- Invoices de Demurrage do mesmo Cliente emitidas no mesmo intervalo de 5
+  minutos vão juntas, como o lote de uma importação de devoluções; as emitidas
+  em intervalos diferentes saem separadas (antes, as da mesma hora iam juntas).
 - O evento de entrega que chega antes do id do provedor estar gravado volta em
   1 minuto (`attempt_unresolved`), como já acontecia.
 - A chamada com o segredo passa pela fila do `pg_net` também a cada um desses
@@ -85,3 +104,11 @@ rotina usa o próprio segredo.
 - **Enviar os destinatários de um mesmo alvo em paralelo.** Eles dividem o
   Comunicado, cujo status é gravado em dois passos; o paralelismo ficou entre
   Clientes.
+- **Chamar a Régua na emissão da Invoice** (versão de 2026-10-24, migration
+  `456`): dividia ao acaso o lote de uma importação (item 7).
+- **Agrupar a Régua com espera** (mandar depois de alguns minutos sem nova
+  emissão do mesmo Cliente): agrupa também cliques espaçados, mas muda a regra
+  de que a primeira cobrança vence na emissão e exige uma tabela de pedidos; o
+  job de 5 minutos já junta o lote de uma importação.
+- **Nada ao Better Stack na chamada pelo evento** (versão de 2026-10-24):
+  escondia a falha da primeira tentativa (item 4).

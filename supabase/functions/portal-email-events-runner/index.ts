@@ -48,6 +48,6 @@ if (import.meta.main) {
   // manda /fail com resposta não-2xx (falha no claim ou na devolução do
   // evento) ou com `failed > 0` (evento devolvido para nova tentativa). O
   // evento gravado pelo webhook (migration 456) chama com {"source":"trigger"},
-  // sem heartbeat.
+  // que reporta só a falha.
   Deno.serve((req) => runCronWithBetterStackHeartbeat('portalEmailEvents', req, isAuthorized(req), () => edgeHandler(req)))
 }

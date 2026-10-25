@@ -81,8 +81,9 @@ describe('heartbeats dos jobs no Better Stack', () => {
       path.resolve('supabase/migrations/165_cron_dispatch_timeout_e_escalonamento.sql'),
       'utf8',
     )
-    // A 456 põe Régua e Comunicados a cada 5 e 2 min, com disparo pelo evento;
-    // o heartbeat continua vindo só das rodadas do cron.
+    // A 456 põe Régua e Comunicados a cada 5 e 2 min (os Comunicados também
+    // pelo evento; a Régua só pelo cron desde a 457); o sucesso continua vindo
+    // só das rodadas do cron.
     const eventMigration = readFileSync(
       path.resolve('supabase/migrations/456_emails_automaticos_saem_pelo_evento.sql'),
       'utf8',

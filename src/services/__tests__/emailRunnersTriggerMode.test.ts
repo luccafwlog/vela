@@ -8,13 +8,13 @@ import {
 } from '../../../supabase/functions/_shared/betterStackHeartbeat.ts'
 import { runCeUnlockNotify } from '../../../supabase/functions/_shared/ceUnlockNotifyEmail.ts'
 import { runAutomaticCommunications } from '../../../supabase/functions/_shared/customerCommunicationAutoRunner.ts'
-import { runDemurrageDunning, type DunningStore } from '../../../supabase/functions/_shared/demurrageDunningRunner.ts'
 import { runPortalEmailEventsBatch } from '../../../supabase/functions/_shared/portalEmailEventsRunner.ts'
 
-// Migration 456: o banco chama as quatro rotinas de e-mail pelo evento com
-// {"source":"trigger"}; o cron segue chamando com {}. A rodada é a mesma nos
-// dois modos; só a execução do cron reporta ao Better Stack, para a chamada do
-// gatilho não esconder um cron parado.
+// Migration 456: o banco chama três rotinas de e-mail pelo evento com
+// {"source":"trigger"}; o cron segue chamando com {}. A Régua de Cobrança ficou
+// só com o cron (457). A rodada é a mesma nos dois modos; o sucesso só sai da
+// execução do cron, para a chamada do gatilho não esconder um cron parado, e a
+// falha sai nos dois (decisão do dono de 2026-10-25, ADR 0102).
 
 const CRON = '{}'
 const TRIGGER = '{"source":"trigger"}'
@@ -70,19 +70,6 @@ const runners: Runner[] = [
     },
   },
   {
-    edge: 'demurrage-dunning',
-    job: 'demurrageDunning',
-    run: async () => {
-      const work: string[] = []
-      const store = {
-        loadCommunicationsEnabled: async () => true,
-        claimCandidates: async () => { work.push('claim_demurrage_dunning_candidates'); return [] },
-      } as unknown as DunningStore
-      const result = await runDemurrageDunning({ store, config: { portalUrl: 'https://portal.example.test/portal/billing' } })
-      return { ...result, work }
-    },
-  },
-  {
     edge: 'portal-email-events-runner',
     job: 'portalEmailEvents',
     run: async () => {
@@ -98,25 +85,32 @@ const runners: Runner[] = [
 ]
 
 async function invoke(runner: Runner, body: string, authorized = true) {
-  const heartbeats: string[] = []
   let work: string[] = []
-  const response = await runCronWithBetterStackHeartbeat(runner.job, edgeRequest(body), authorized, async () => {
+  const { response, heartbeats } = await withHeartbeat(runner.job, body, authorized, async () => {
     const result = await runner.run()
     work = result.work
     return Response.json(result.body, { status: result.status })
-  }, {
+  })
+  return { status: response.status, body: await response.json(), work, heartbeats }
+}
+
+async function withHeartbeat(job: BetterStackHeartbeatJob, body: string, authorized: boolean, operation: () => Promise<Response>) {
+  const heartbeats: string[] = []
+  const response = await runCronWithBetterStackHeartbeat(job, edgeRequest(body), authorized, operation, {
     getEnv: () => 'https://uptime.betterstack.com/api/v1/heartbeat/rotina',
     fetcher: (input: RequestInfo | URL) => {
       heartbeats.push(String(input))
       return Promise.resolve(new Response(null, { status: 200 }))
     },
   })
-  return { status: response.status, body: await response.json(), work, heartbeats }
+  return { response, heartbeats }
 }
+
+const HEARTBEAT = 'https://uptime.betterstack.com/api/v1/heartbeat/rotina'
 
 describe('rotinas de e-mail nos modos cron e gatilho (migration 456)', () => {
   for (const runner of runners) {
-    it(`${runner.edge}: a rodada é a mesma nos dois modos e só o cron manda heartbeat`, async () => {
+    it(`${runner.edge}: a rodada é a mesma nos dois modos e só o cron manda o sucesso`, async () => {
       const cron = await invoke(runner, CRON)
       const trigger = await invoke(runner, TRIGGER)
 
@@ -125,14 +119,37 @@ describe('rotinas de e-mail nos modos cron e gatilho (migration 456)', () => {
       expect(trigger.body).toEqual(cron.body)
       expect(cron.work.length).toBeGreaterThan(0)
       expect(trigger.work).toEqual(cron.work)
-      expect(cron.heartbeats).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/rotina'])
+      expect(cron.heartbeats).toEqual([HEARTBEAT])
       expect(trigger.heartbeats).toEqual([])
     })
   }
 
-  it('chamada não autorizada não reporta, nem com corpo de cron', async () => {
+  it('a falha sai nos dois modos: contagem de falha, resposta fora de 2xx e exceção', async () => {
+    const failing = [
+      () => Promise.resolve(Response.json({ sent: 0, failed: 1 })),
+      () => Promise.resolve(Response.json({ error: 'Envio de e-mail não configurado' }, { status: 503 })),
+    ]
+    for (const operation of failing) {
+      for (const body of [CRON, TRIGGER]) {
+        expect((await withHeartbeat('customerCommunicationAutoRunner', body, true, operation)).heartbeats).toEqual([`${HEARTBEAT}/fail`])
+      }
+    }
+    const error = new Error('rodada caiu')
+    for (const body of [CRON, TRIGGER]) {
+      const heartbeats: string[] = []
+      await expect(runCronWithBetterStackHeartbeat('ceUnlockNotifyEmail', edgeRequest(body), true, () => Promise.reject(error), {
+        getEnv: () => HEARTBEAT,
+        fetcher: (input: RequestInfo | URL) => { heartbeats.push(String(input)); return Promise.resolve(new Response(null, { status: 200 })) },
+      })).rejects.toBe(error)
+      expect(heartbeats).toEqual([`${HEARTBEAT}/fail`])
+    }
+  })
+
+  it('chamada não autorizada não reporta, nem com corpo de cron, nem com falha', async () => {
     const result = await invoke(runners[0], CRON, false)
     expect(result.heartbeats).toEqual([])
+    const failed = await withHeartbeat('ceUnlockNotifyEmail', TRIGGER, false, () => Promise.resolve(new Response(null, { status: 401 })))
+    expect(failed.heartbeats).toEqual([])
   })
 
   it('origem: só {"source":"trigger"} é gatilho; corpo vazio, inválido ou outro valor é cron', async () => {
@@ -150,13 +167,14 @@ describe('rotinas de e-mail nos modos cron e gatilho (migration 456)', () => {
     expect(await request.json()).toEqual({ source: 'trigger' })
   })
 
-  it('as quatro Edge Functions chamadas pelo banco usam o heartbeat só do cron; as que só o cron chama seguem como estavam', () => {
+  it('as três Edge Functions chamadas pelo banco distinguem a origem; as que só o cron chama seguem como estavam', () => {
     const source = (name: string) => readFileSync(path.resolve('supabase/functions', name, 'index.ts'), 'utf8')
     for (const runner of runners) {
       expect(source(runner.edge)).toMatch(new RegExp(`runCronWithBetterStackHeartbeat\\(['"]${runner.job}['"], req,`))
       expect(source(runner.edge)).not.toContain('runWithBetterStackHeartbeat(')
     }
     expect(source('alerts-detector')).toContain("runWithBetterStackHeartbeat('alertsDetector'")
+    expect(source('demurrage-dunning')).toContain("runWithBetterStackHeartbeat('demurrageDunning'")
     expect(source('portal-daily-digest')).toContain("runWithBetterStackHeartbeat('portalDailyDigest'")
   })
 })

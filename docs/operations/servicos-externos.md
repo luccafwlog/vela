@@ -463,7 +463,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
 | `customer-communication-auto-runner` | a cada 2 min, nos minutos ímpares (`1-59/2 * * * *`, migration `456`; antes `4-59/15`, migration `165`); também chamado pelo que deixa um alvo pronto, no máximo a cada 90 s ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global). A Cobertura de `/clientes/comunicacao` mostra "Na fila · próxima rodada às HH:MM" com estes minutos, espelhados em `src/lib/communicationAutoRunner.ts`: mudar o agendamento exige mudar o espelho no mesmo PR | `customer-communication-auto-runner` |
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos; a conta passa a Convite expirado e o Alerta de reenvio abre pelo gatilho da conta, só para Cliente com processo ativo (migration `350`) | — |
-| `demurrage-dunning` | a cada 5 min (`3-59/5 * * * *`, migration `456`; antes de hora em hora, `7 * * * *`); também chamado pela emissão da Invoice dentro da janela, no máximo a cada 60 s ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | Régua de Cobrança de Demurrage (respeita a chave global, a janela de dia útil a partir das 9h e o intervalo entre cobranças) | `demurrage-dunning` |
+| `demurrage-dunning` | a cada 5 min (`3-59/5 * * * *`, migration `456`; antes de hora em hora, `7 * * * *`); sem chamada pela emissão da Invoice (criada na `456`, tirada na `457`) | Régua de Cobrança de Demurrage (respeita a chave global, a janela de dia útil a partir das 9h e o intervalo entre cobranças) | `demurrage-dunning` |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
@@ -794,7 +794,14 @@ Variáveis: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`
   `https://portalfwlog.com.br/portal/login`.
 - **Heartbeats** (tabela dos [jobs](#jobs-agendados-pg_cron)): a rotina chama a
   URL a cada execução e acrescenta `/fail` quando falha. Heartbeat **Down** logo
-  após cadastrar quase sempre é nome de secret errado.
+  após cadastrar quase sempre é nome de secret errado. Desde a migration `456`,
+  a chamada pelo evento manda só o `/fail`; o sucesso vem só do cron
+  ([observabilidade](observabilidade.md#heartbeats-dos-runners)).
+- **Pendente (passo do dono, depois da promoção da `456` e da `457` para a
+  produção):** encurtar os heartbeats `demurrage-dunning` (de 1 h para 5 min) e
+  `customer-communication-auto-runner` (de 15 min para 2 min), com tolerância de
+  5 min (decisão de 2026-10-25). Antes da promoção o monitor encurtado acusaria
+  queda falsa.
 - **Heartbeat do backup** `backup-r2-diario` (criado pelo dono em 2026-10-14;
   **Up** desde a execução manual da tarefa no mesmo dia): período de 1 dia,
   tolerância de 6 horas, aviso por e-mail; a URL fica na variável do usuário

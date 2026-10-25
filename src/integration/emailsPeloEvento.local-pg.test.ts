@@ -3,13 +3,14 @@ import { execPsql, spawnPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 456: os e-mails automáticos saem pelo evento. O banco dispara a
-// Edge Function da rotina (`ops.kick_edge_job`) com o segredo dedicado e
-// `{"source":"trigger"}`, uma vez por transação e no máximo uma vez por
-// intervalo; a fila do Desbloqueio de CE reserva as linhas para o gatilho e o
-// cron não pegarem a mesma; a produtora dos Comunicados avalia os pendentes
-// uma vez por alvo. Tudo roda em transação desfeita, salvo a reserva
-// concorrente, que precisa de duas sessões e limpa o que gravou.
+// Migrations 456 e 457: os e-mails automáticos saem pelo evento. O banco
+// dispara a Edge Function da rotina (`ops.kick_edge_job`) com o segredo
+// dedicado e `{"source":"trigger"}`, uma vez por transação e no máximo uma vez
+// por intervalo; a fila do Desbloqueio de CE reserva as linhas para o gatilho e
+// o cron não pegarem a mesma; a produtora dos Comunicados avalia os pendentes
+// uma vez por alvo. A Régua de Cobrança fica só com o cron de 5 min (457).
+// Tudo roda em transação desfeita, salvo a reserva concorrente, que precisa de
+// duas sessões e limpa o que gravou.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -35,13 +36,14 @@ function migrationApplied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT to_regprocedure('ops.kick_edge_job(text,text,text,text,interval)') IS NOT NULL
-      AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_kick_ce_unlock_notify_email');`) === 't'
+      AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_kick_ce_unlock_notify_email')
+      AND to_regprocedure('public._kick_demurrage_dunning_trigger()') IS NULL;`) === 't'
   } catch {
     return false
   }
 }
 
-const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied (456: disparo pelo evento)')
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied (456 e 457: disparo pelo evento)')
 
 // net.http_post de captura, só nesta transação: guarda URL, cabeçalhos e corpo.
 const captureHttpPost = `
@@ -81,7 +83,7 @@ const baseFixture = `
   SET LOCAL session_replication_role = origin;
 `
 
-describeLocal('456 — e-mails automáticos disparados pelo evento', () => {
+describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () => {
   it('o disparo usa o segredo e o cabeçalho da rotina, manda {"source":"trigger"} e sai uma vez por transação', () => {
     const out = psql(`
       BEGIN;
@@ -115,19 +117,22 @@ describeLocal('456 — e-mails automáticos disparados pelo evento', () => {
   })
 
   it('intervalo mínimo: dentro dele não dispara; vencido, dispara e registra o pedido', () => {
+    const kick = `SELECT ops.kick_edge_job('customer-communication-auto-runner', 'CUSTOMER_COMMUNICATION_AUTOMATION_SECRET',
+        'X-Communication-Automation-Secret', '', interval '90 seconds');`
     const out = psql(`
       BEGIN;
       ${captureHttpPost}
-      ${vault('DEMURRAGE_DUNNING_SECRET')}
+      ${vault('CUSTOMER_COMMUNICATION_AUTOMATION_SECRET')}
       UPDATE ops.edge_job_kicks SET last_kicked_at = clock_timestamp() - interval '30 seconds', last_request_id = NULL
-       WHERE function = 'demurrage-dunning';
-      SELECT ops.kick_edge_job('demurrage-dunning', 'DEMURRAGE_DUNNING_SECRET', 'Authorization', 'Bearer ', interval '60 seconds');
+       WHERE function = 'customer-communication-auto-runner';
+      ${kick}
       -- Outra transação: a trava de "uma vez por transação" volta a valer zero.
-      SELECT set_config('vela.kick_demurrage_dunning', '', true);
-      UPDATE ops.edge_job_kicks SET last_kicked_at = clock_timestamp() - interval '61 seconds' WHERE function = 'demurrage-dunning';
-      SELECT ops.kick_edge_job('demurrage-dunning', 'DEMURRAGE_DUNNING_SECRET', 'Authorization', 'Bearer ', interval '60 seconds');
+      SELECT set_config('vela.kick_customer_communication_auto_runner', '', true);
+      UPDATE ops.edge_job_kicks SET last_kicked_at = clock_timestamp() - interval '91 seconds'
+       WHERE function = 'customer-communication-auto-runner';
+      ${kick}
       SELECT (last_kicked_at > clock_timestamp() - interval '5 seconds') || '|' || last_request_id
-        FROM ops.edge_job_kicks WHERE function = 'demurrage-dunning';
+        FROM ops.edge_job_kicks WHERE function = 'customer-communication-auto-runner';
       SELECT count(*) FROM pg_temp.captured_post;
       ROLLBACK;
     `)
@@ -138,7 +143,7 @@ describeLocal('456 — e-mails automáticos disparados pelo evento', () => {
     // Sessão de apoio segura a linha da rotina, como uma transação longa que
     // acabou de disparar e ainda não terminou.
     const holder = spawn('psql', ['-X', '-q', '-d', databaseUrl, '-c',
-      `BEGIN; SELECT 1 FROM ops.edge_job_kicks WHERE function = 'demurrage-dunning' FOR UPDATE; SELECT pg_sleep(4); COMMIT;`],
+      `BEGIN; SELECT 1 FROM ops.edge_job_kicks WHERE function = 'customer-communication-auto-runner' FOR UPDATE; SELECT pg_sleep(4); COMMIT;`],
     { stdio: 'ignore', env: { ...process.env, PGAPPNAME: 'c456-holder' } })
     const done = new Promise<void>((resolve) => holder.on('close', () => resolve()))
     for (let attempt = 0; attempt < 50; attempt++) {
@@ -150,10 +155,12 @@ describeLocal('456 — e-mails automáticos disparados pelo evento', () => {
       BEGIN;
       SET LOCAL lock_timeout = '2s';
       ${captureHttpPost}
-      ${vault('DEMURRAGE_DUNNING_SECRET')}
-      SELECT ops.kick_edge_job('demurrage-dunning', 'DEMURRAGE_DUNNING_SECRET', 'Authorization', 'Bearer ', interval '60 seconds');
-      SELECT set_config('vela.kick_demurrage_dunning', '', true);
-      SELECT ops.kick_edge_job('demurrage-dunning', 'DEMURRAGE_DUNNING_SECRET', 'Authorization', 'Bearer ', interval '0');
+      ${vault('CUSTOMER_COMMUNICATION_AUTOMATION_SECRET')}
+      SELECT ops.kick_edge_job('customer-communication-auto-runner', 'CUSTOMER_COMMUNICATION_AUTOMATION_SECRET',
+        'X-Communication-Automation-Secret', '', interval '90 seconds');
+      SELECT set_config('vela.kick_customer_communication_auto_runner', '', true);
+      SELECT ops.kick_edge_job('customer-communication-auto-runner', 'CUSTOMER_COMMUNICATION_AUTOMATION_SECRET',
+        'X-Communication-Automation-Secret', '', interval '0');
       SELECT count(*) FROM pg_temp.captured_post;
       ROLLBACK;
     `)
@@ -322,23 +329,24 @@ describeLocal('456 — e-mails automáticos disparados pelo evento', () => {
       .toBe(`1|${runner}`)
   })
 
-  it('Régua de Cobrança: a emissão dispara dentro da janela e não fora dela', () => {
-    const issue = (windowOpen: boolean) => psql(`
+  it('Régua de Cobrança: a emissão da Invoice não chama a rotina, que fica com o cron de 5 min (457)', () => {
+    const out = psql(`
       BEGIN;
       ${captureHttpPost}
       ${vault('DEMURRAGE_DUNNING_SECRET')}
       ${baseFixture}
+      -- Janela aberta à força: nem dentro dela a emissão dispara.
       CREATE OR REPLACE FUNCTION public._demurrage_dunning_window_open(p_at timestamptz) RETURNS boolean
-        LANGUAGE sql STABLE AS $w$ SELECT ${windowOpen} $w$;
-      UPDATE ops.edge_job_kicks SET last_kicked_at = NULL WHERE function = 'demurrage-dunning';
+        LANGUAGE sql STABLE AS $w$ SELECT true $w$;
       INSERT INTO public.demurrage_invoices
         (id, doc_number, bl_id, customer_id, doc_date, first_billed_at, total_usd, current_roe, current_total_brl, roe_source, status)
         VALUES (4560001, 'C456-1', 'C456-BL-1', ${CUSTOMER}, current_date, current_date, 100, 5.5, 550, 'manual', 'issued');
       ${posts}
+      SELECT count(*) FROM pg_trigger WHERE tgrelid = 'public.demurrage_invoices'::regclass AND tgname LIKE 'trg_kick_%';
+      SELECT count(*) FROM ops.edge_job_kicks WHERE function = 'demurrage-dunning';
       ROLLBACK;
-    `).split('\n').at(-1)
-    expect(issue(true)).toBe('1|https://exemplo.supabase.co/functions/v1/demurrage-dunning {"source": "trigger"}')
-    expect(issue(false)).toBe('0|')
+    `)
+    expect(lines(out).slice(-3)).toEqual(['0|', '0', '0'])
   })
 
   it('reserva da fila: o prazo vencido devolve a linha, a nova tentativa espera o cron e o estado final solta a reserva', () => {
@@ -499,7 +507,7 @@ describeLocal('456 — e-mails automáticos disparados pelo evento', () => {
       SELECT bool_or(has_function_privilege(r, f, 'EXECUTE'))
         FROM unnest(ARRAY['anon', 'authenticated']) r,
              unnest(ARRAY['ops.kick_edge_job(text,text,text,text,interval)', 'ops.dispatch_edge_job(text,text,text,text,jsonb)',
-                          'public._kick_edge_job_trigger()', 'public._kick_demurrage_dunning_trigger()']) f;
+                          'public._kick_edge_job_trigger()']) f;
       SELECT bool_or(has_table_privilege(r, 'ops.edge_job_kicks', 'SELECT'))
         FROM unnest(ARRAY['anon', 'authenticated', 'service_role']) r;
       SELECT prosecdef FROM pg_proc WHERE oid = 'ops.dispatch_edge_job(text,text,text,text,jsonb)'::regprocedure;

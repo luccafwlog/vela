@@ -806,9 +806,11 @@ O Administrativo muda o intervalo no botão **Régua de cobrança** de
 data, o último envio ou a pausa.
 
 - **Quando cobra:** o job `demurrage-dunning` roda a cada 5 minutos (`3-59/5`,
-  migration `456`; antes de hora em hora, no minuto 7), e a emissão da Invoice
-  dentro da janela chama a rodada na hora, no máximo uma vez por minuto (gatilhos
-  em `demurrage_invoices`, [disparo pelo evento](../operations/segredos-cron.md#disparo-pelo-evento)). Toda cobrança,
+  migration `456`; antes de hora em hora, no minuto 7). A emissão da Invoice
+  não chama a rodada: a `456` criou essa chamada e a `457` a tirou, por decisão
+  do dono de 2026-10-25 ([ADR 0102](../adr/0102-emails-automaticos-saem-pelo-evento.md)),
+  porque as Invoices de uma importação de devoluções são emitidas uma a uma pela
+  fila de efeitos e a chamada na primeira dividia o lote em dois e-mails. Toda cobrança,
   inclusive a primeira, só sai em dia útil a partir das 9h de Brasília
   (migration `305`; decisão D9 do plano de correção dos e-mails):
   o dia útil é o do calendário `business_holidays` usado pelo Itaú PIX
@@ -935,11 +937,12 @@ data, o último envio ou a pausa.
   regra do banco tem a suíte `reguaCobrancaDemurrage.local-pg.test.ts`.
 - **Comunicado:** na mesma rodada, as Invoices do mesmo Cliente com o mesmo
   número de tentativa vão numa só mensagem, que lista cada Invoice sem
-  consolidar valores: não há soma das Invoices. Desde a migration `456` a
-  primeira cobrança sai logo depois da emissão, então Invoices emitidas em
-  cliques separados tendem a sair em mensagens separadas; antes, as emitidas na
-  mesma hora iam juntas. As que vencem fora da janela continuam juntas na
-  primeira rodada dela. Uma Invoice só usa o modelo unitário
+  consolidar valores: não há soma das Invoices. Com a rodada a cada 5 minutos
+  (migration `456`; antes, de hora em hora), as Invoices emitidas no mesmo
+  intervalo de 5 minutos, como o lote de uma importação de devoluções, vão
+  juntas; as emitidas em intervalos diferentes saem em mensagens separadas
+  (antes, as da mesma hora iam juntas). As que vencem fora da janela continuam
+  juntas na primeira rodada dela. Uma Invoice só usa o modelo unitário
   (`renderDemurrageTemplate`): linha de apoio "DEM · navio / viagem", bloco
   "Invoice DEM" com o USD líquido em destaque ("US$ 1.840,00") e B/L, Navio /
   Viagem, "Em reais (informativo)" e ROE ("5,4600 em 19/10/2026"), a nota do
