@@ -180,6 +180,22 @@ local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante 
     expect(item('CE449-DEZ', draft.id)).toMatchObject({ termo: false, vip_covered: false })
   })
 
+  // 457: a limpeza diária revogava o anual vencido assim que havia um mais novo aprovado,
+  // e o pedido do B/L com CE vinculado em dezembro perdia a cobertura de novo em janeiro.
+  it('limpeza não expurga o anual vencido que ainda cobre B/L pendente; expurga quando não cobre mais', () => {
+    const y = Y()
+    const candidates = () => (JSON.parse(sql('SELECT public.ce_unlock_cleanup_candidates();')) as Array<{ id: string }>).map((c) => c.id)
+    command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
+    const oldTermo = annual('termo', y - 1); annual('procuracao', y - 1)
+    annual('termo', y); annual('procuracao', y)
+    // Vencido, com um anual mais novo aprovado, mas cobre o B/L de dezembro, ainda não exportado.
+    expect(item('CE449-DEZ')).toMatchObject({ vip_covered: true })
+    expect(candidates()).not.toContain(oldTermo)
+    // Recuada para dois anos atrás, a vigência não cobre mais nenhum B/L: volta a ser expurgável.
+    sql(`UPDATE public.ce_unlock_documents SET coverage_year=${y - 2},valid_from=make_date(${y - 2},1,1),valid_until=make_date(${y - 2},12,31) WHERE id='${oldTermo}';`)
+    expect(candidates()).toContain(oldTermo)
+  })
+
   it('vale o vínculo do CE atual: CE vinculado depois da importação, troca de número e reformatação', () => {
     const y = Y()
     const day = () => sql("SELECT ce_unlock_private.ce_link_day('CE449-LIGADO');")

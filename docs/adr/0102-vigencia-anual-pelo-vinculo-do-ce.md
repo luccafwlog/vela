@@ -1,7 +1,7 @@
 # 0102 — Desbloqueio de CE: a vigência do anual vale pelo vínculo do CE Mercante
 
 Status: aceito — 2026-10-25 (decisão do responsável, ao rever as perguntas em
-aberto da PR luccafwlog/vela#1058). Implementada na migration `456`.
+aberto da PR luccafwlog/vela#1058). Implementada nas migrations `456` e `457`.
 
 Supersede a decisão 4 da [ADR 0101](./0101-desbloqueio-ce-prazo-e-vigencia-anual.md)
 (o anual cobre o B/L importado no Vela dentro da vigência dele, pela data de
@@ -50,6 +50,10 @@ comum.
 - A situação VIP do Cliente na tela (termo e procuração anuais vigentes hoje)
   não muda: sem o anual do ano novo, o Portal mostra "Falta o termo anual",
   mas a seleção de B/Ls cobertos pelo anual anterior segue VIP, B/L a B/L.
+- A limpeza diária não expurga o anual vencido enquanto ele ainda cobre B/L do
+  Cliente não exportado nem conferido, por até um ano depois do fim da
+  vigência (migration `457`); antes, o anual vencido saía assim que havia um
+  mais novo aprovado.
 - A data do vínculo sai da auditoria do B/L (a última troca para o CE atual;
   sem troca registrada, a criação do B/L), não de uma coluna própria
   (`ponytail:` na migration `456`).

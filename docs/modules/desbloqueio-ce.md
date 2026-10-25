@@ -438,7 +438,10 @@ URL assinada por 60 s; PDF abre na aba nova, o modelo DOCX é baixado.
 
 O expurgo reivindica/fixa os registros no banco antes de apagar objetos;
 rascunho expirado é cancelado sob lock, e falha física permite retry.
-O modelo atual e anuais vigentes não são expurgados por mera idade.
+O modelo atual e anuais vigentes não são expurgados por mera idade. O anual vencido sai
+quando há outro aprovado mais novo do mesmo tipo, exceto enquanto ainda cobre B/L do Cliente
+não cancelado, nem exportado nem conferido (vínculo do CE na vigência dele, migration `457`), por
+até um ano depois do fim da vigência.
 
 Expurgo usa Storage API, preservando metadados e histórico
 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), item 5;
