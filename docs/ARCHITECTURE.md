@@ -151,8 +151,8 @@ aqui fica o desenho:
   (`customer_local_charges_communication_readiness`).
 - **Régua de Cobrança.** A Cobrança de Demurrage (`cobranca_demurrage`) é
   produzida e enviada pela Edge Function `demurrage-dunning`, em job de 5
-  minutos (migration `456`; sem chamada pela emissão da Invoice desde a
-  `457`), com o mesmo helper de
+  minutos (migration `458`; sem chamada pela emissão da Invoice desde a
+  `459`), com o mesmo helper de
   e-mail e a mesma trilha. Cadência, pausas (inclusive a
   Invoice suspensa por datas alteradas, `dunning_suspended_reason`, migration
   `179`) e conteúdo são regra de
@@ -750,9 +750,9 @@ padrões.
   avisos do Desbloqueio de CE, os eventos de e-mail e a régua automática de
   Comunicados também são chamados pela transação do evento, com
   `{"source":"trigger"}` e o segredo da própria rotina, por
-  `ops.kick_edge_job` (migration `456`,
-  [ADR 0102](adr/0102-emails-automaticos-saem-pelo-evento.md)); o job fica como
-  rede de segurança. A Régua de Cobrança fica só com o job (migration `457`).
+  `ops.kick_edge_job` (migration `458`,
+  [ADR 0103](adr/0103-emails-automaticos-saem-pelo-evento.md)); o job fica como
+  rede de segurança. A Régua de Cobrança fica só com o job (migration `459`).
 
 A lista completa, com segredos, jobs, horários e a versão publicada de cada
 função, está em

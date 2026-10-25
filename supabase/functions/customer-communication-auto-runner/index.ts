@@ -42,7 +42,7 @@ async function handler(req: Request): Promise<Response> {
 
 if (import.meta.main) {
   const edgeHandler = instrumentEdgeHandler('customer-communication-auto-runner', handler)
-  // Os gatilhos do banco (migration 456) mandam {"source":"trigger"}: roda igual e reporta só a falha.
+  // Os gatilhos do banco (migration 458) mandam {"source":"trigger"}: roda igual e reporta só a falha.
   Deno.serve((req) => {
     const expectedSecret = Deno.env.get('CUSTOMER_COMMUNICATION_AUTOMATION_SECRET') ?? ''
     const providedSecret = req.headers.get('X-Communication-Automation-Secret') ?? ''

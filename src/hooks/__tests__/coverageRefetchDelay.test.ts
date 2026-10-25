@@ -6,7 +6,7 @@ import { coverageRefetchDelay } from '../useCustomerCommunications'
 import type { VoyageCommunicationCoverageSummary } from '../../services/customerCommunications'
 
 // Melhoria 10: com Comunicado na fila, a Cobertura relê 90 s depois da
-// próxima rodada (minutos ímpares desde a migration 456) para virar
+// próxima rodada (minutos ímpares desde a migration 458) para virar
 // "enviado" sozinha.
 const row = (state: 'na_fila' | 'enviado') => ({
   details: [{ customerId: 1, customerName: 'A', cells: {

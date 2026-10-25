@@ -1,7 +1,7 @@
 // Fila de e-mails do Desbloqueio de CE (tabela ce_unlock_email_outbox, preenchida pelo banco).
 // Lógica pura, sem Deno nem rede: o handler injeta cliente, envio e configuração.
 // O gatilho da fila e o cron rodam juntos: `ce_unlock_email_pending` reserva as linhas (FOR UPDATE
-// SKIP LOCKED e prazo, migration 456) e a chave de idempotência por destinatário segue como segunda barreira.
+// SKIP LOCKED e prazo, migration 458) e a chave de idempotência por destinatário segue como segunda barreira.
 
 export const CE_UNLOCK_BOX = 'documentacao_operacao'
 const MAX_ATTEMPTS = 5

@@ -144,7 +144,7 @@ if (typeof Deno !== "undefined") {
     return Response.json(result.body, { status: result.status });
   });
 
-  // O gatilho da fila (migration 456) manda {"source":"trigger"}: roda igual e reporta só a falha.
+  // O gatilho da fila (migration 458) manda {"source":"trigger"}: roda igual e reporta só a falha.
   Deno.serve((req) => {
     const authorized = req.method === "POST" && notifyAuthorized(req.headers.get("Authorization"));
     return runCronWithBetterStackHeartbeat("ceUnlockNotifyEmail", req, authorized, () => edgeHandler(req));

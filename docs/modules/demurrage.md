@@ -806,9 +806,9 @@ O Administrativo muda o intervalo no botão **Régua de cobrança** de
 data, o último envio ou a pausa.
 
 - **Quando cobra:** o job `demurrage-dunning` roda a cada 5 minutos (`3-59/5`,
-  migration `456`; antes de hora em hora, no minuto 7). A emissão da Invoice
-  não chama a rodada: a `456` criou essa chamada e a `457` a tirou, por decisão
-  do dono de 2026-10-25 ([ADR 0102](../adr/0102-emails-automaticos-saem-pelo-evento.md)),
+  migration `458`; antes de hora em hora, no minuto 7). A emissão da Invoice
+  não chama a rodada: a `458` criou essa chamada e a `459` a tirou, por decisão
+  do dono de 2026-10-25 ([ADR 0103](../adr/0103-emails-automaticos-saem-pelo-evento.md)),
   porque as Invoices de uma importação de devoluções são emitidas uma a uma pela
   fila de efeitos e a chamada na primeira dividia o lote em dois e-mails. Toda cobrança,
   inclusive a primeira, só sai em dia útil a partir das 9h de Brasília
@@ -938,7 +938,7 @@ data, o último envio ou a pausa.
 - **Comunicado:** na mesma rodada, as Invoices do mesmo Cliente com o mesmo
   número de tentativa vão numa só mensagem, que lista cada Invoice sem
   consolidar valores: não há soma das Invoices. Com a rodada a cada 5 minutos
-  (migration `456`; antes, de hora em hora), as Invoices emitidas no mesmo
+  (migration `458`; antes, de hora em hora), as Invoices emitidas no mesmo
   intervalo de 5 minutos, como o lote de uma importação de devoluções, vão
   juntas; as emitidas em intervalos diferentes saem em mensagens separadas
   (antes, as da mesma hora iam juntas). As que vencem fora da janela continuam

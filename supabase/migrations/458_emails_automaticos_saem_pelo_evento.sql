@@ -1,4 +1,4 @@
--- 456: os e-mails automáticos saem pelo evento, não pelo próximo cron.
+-- 458: os e-mails automáticos saem pelo evento, não pelo próximo cron.
 --
 -- O provedor entrega em ~5 s; a demora vinha de esperar o job do pg_cron
 -- (produção, 2026-10-24, `cron.job`): avisos do Desbloqueio de CE a cada
@@ -142,7 +142,7 @@ END;
 $dispatch_edge_job$;
 
 COMMENT ON FUNCTION ops.dispatch_edge_job(text, text, text, text, jsonb) IS
-  'Dispara uma Edge Function pelo pg_net (timeout de 30 s) com o corpo dado, lendo base e segredo do Vault. SECURITY INVOKER: nao concede alcance ao Vault a quem nao tem. Migrations 007, 165 e 456.';
+  'Dispara uma Edge Function pelo pg_net (timeout de 30 s) com o corpo dado, lendo base e segredo do Vault. SECURITY INVOKER: nao concede alcance ao Vault a quem nao tem. Migrations 007, 165 e 458.';
 
 REVOKE ALL ON FUNCTION ops.dispatch_edge_job(text, text, text, text, jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ops.dispatch_edge_job(text, text, text, text, jsonb) FROM anon, authenticated;
@@ -164,7 +164,7 @@ AS $dispatch_edge_job_cron$
 $dispatch_edge_job_cron$;
 
 COMMENT ON FUNCTION ops.dispatch_edge_job(text, text, text, text) IS
-  'Forma dos jobs pg_cron: dispara a Edge Function com corpo {} (execucao do cron) pela forma de 5 argumentos (timeout de 30 s). SECURITY INVOKER. Migrations 007, 165 e 456.';
+  'Forma dos jobs pg_cron: dispara a Edge Function com corpo {} (execucao do cron) pela forma de 5 argumentos (timeout de 30 s). SECURITY INVOKER. Migrations 007, 165 e 458.';
 
 REVOKE ALL ON FUNCTION ops.dispatch_edge_job(text, text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ops.dispatch_edge_job(text, text, text, text) FROM anon, authenticated;
@@ -191,7 +191,7 @@ REVOKE ALL ON TABLE ops.edge_job_kicks FROM PUBLIC, anon, authenticated, service
 ALTER TABLE ops.edge_job_kicks ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE ops.edge_job_kicks IS
-  'Último disparo de cada Edge Function pelo evento (ops.kick_edge_job, migration 456): intervalo mínimo e id do pedido no pg_net.';
+  'Último disparo de cada Edge Function pelo evento (ops.kick_edge_job, migration 458): intervalo mínimo e id do pedido no pg_net.';
 
 -- ponytail: o intervalo é por rotina, global. Teto: um Cliente que gera muitos
 -- eventos atrasa o disparo dos demais até o cron. Upgrade: chave por rotina e
@@ -266,10 +266,10 @@ BEGIN
       IF NOT v_locked THEN
         RETURN false;
       END IF;
-      -- Outra transação disparou entre a leitura e a trava: VK456 desfaz a
+      -- Outra transação disparou entre a leitura e a trava: VK458 desfaz a
       -- subtransação e solta a trava, em vez de segurá-la até o COMMIT.
       IF v_last > v_now - p_min_interval THEN
-        RAISE EXCEPTION 'dentro do intervalo' USING ERRCODE = 'VK456';
+        RAISE EXCEPTION 'dentro do intervalo' USING ERRCODE = 'VK458';
       END IF;
     END IF;
 
@@ -283,7 +283,7 @@ BEGIN
     END IF;
     RETURN v_request IS NOT NULL;
   EXCEPTION
-    WHEN SQLSTATE 'VK456' THEN
+    WHEN SQLSTATE 'VK458' THEN
       RETURN false;
     WHEN OTHERS THEN
       RAISE WARNING 'ops.kick_edge_job(%): disparo falhou (%); o cron processa.', p_function, SQLERRM;
@@ -293,7 +293,7 @@ END;
 $kick_edge_job$;
 
 COMMENT ON FUNCTION ops.kick_edge_job(text, text, text, text, interval) IS
-  'Dispara a Edge Function com {"source":"trigger"} uma vez por transação e no máximo uma vez por intervalo (ops.edge_job_kicks); pg_net envia após o COMMIT. Sem o par no Vault, pula; falha vira WARNING. Dentro do intervalo, não trava a linha. Migration 456.';
+  'Dispara a Edge Function com {"source":"trigger"} uma vez por transação e no máximo uma vez por intervalo (ops.edge_job_kicks); pg_net envia após o COMMIT. Sem o par no Vault, pula; falha vira WARNING. Dentro do intervalo, não trava a linha. Migration 458.';
 
 REVOKE ALL ON FUNCTION ops.kick_edge_job(text, text, text, text, interval) FROM PUBLIC, anon, authenticated;
 
@@ -325,7 +325,7 @@ REVOKE ALL ON FUNCTION public._kick_edge_job_trigger() FROM PUBLIC, anon, authen
 ALTER TABLE public.ce_unlock_email_outbox ADD COLUMN IF NOT EXISTS claimed_until timestamptz;
 
 COMMENT ON COLUMN public.ce_unlock_email_outbox.claimed_until IS
-  'Reserva da linha pela rodada de ce-unlock-notify-email (migration 456): outra rodada só a pega depois deste prazo.';
+  'Reserva da linha pela rodada de ce-unlock-notify-email (migration 458): outra rodada só a pega depois deste prazo.';
 
 -- Definição da 427 com a reserva. ponytail: prazo fixo de 10 min, acima do
 -- teto de uma invocação da Edge. Teto: a rodada que morre segura as linhas
@@ -488,7 +488,7 @@ BEGIN
       AND v.status IS DISTINCT FROM 'cancelled'
       AND ((s.ata IS NULL AND s.eta IS NOT NULL AND v_as_of >= s.eta - interval '5 days' AND v_as_of < s.eta)
         OR (s.ata IS NOT NULL AND s.ata BETWEEN v_as_of - interval '30 days' AND v_as_of))
-  -- 456: MATERIALIZED, como o CE e Taxas. Sem a barreira, no plano genérico
+  -- 458: MATERIALIZED, como o CE e Taxas. Sem a barreira, no plano genérico
   -- da função o filtro de pendentes descia para o scan de `bls` e rodava
   -- por B/L × Escala na janela, antes de juntar a Viagem.
   ), grouped AS MATERIALIZED (
@@ -513,7 +513,7 @@ BEGIN
   FROM addressed a
   CROSS JOIN LATERAL (
     SELECT public.customer_communication_target_pending_recipients(a.kind, a.customer_id, a.voyage_id, a.port, NULL, a.recipients) AS pending
-    -- 456: OFFSET 0 avalia os pendentes uma vez por alvo (sem ele, o WHERE e o
+    -- 458: OFFSET 0 avalia os pendentes uma vez por alvo (sem ele, o WHERE e o
     -- SELECT chamavam a função duas vezes).
     OFFSET 0
   ) pr
@@ -539,7 +539,7 @@ BEGIN
       AND COALESCE(b.financial_status, 'pending') <> 'cancelled'
       AND b.cancelled_at IS NULL
     GROUP BY b.voyage_id, b.customer_id, c.name, c.cnpj_cpf, v.voyage_number, vs.name, v.eta
-  -- 456: pendentes antes da prontidão; o alvo já comunicado (pendentes nulo)
+  -- 458: pendentes antes da prontidão; o alvo já comunicado (pendentes nulo)
   -- não recalcula a prontidão a cada rodada.
   ), pending AS MATERIALIZED (
     SELECT g.*, public.customer_communication_target_pending_recipients('ce_mercante_taxas', g.customer_id, g.voyage_id, NULL, NULL,
@@ -576,7 +576,7 @@ BEGIN
       AND NOT EXISTS (
         SELECT 1 FROM public.customer_communication_scale_schedules(ts.voyage_id, ts.port) s
         WHERE s.deleted OR s.omitted)
-  -- 456: MATERIALIZED pelo mesmo motivo do NOA/NOR.
+  -- 458: MATERIALIZED pelo mesmo motivo do NOA/NOR.
   ), grouped AS MATERIALIZED (
     SELECT br.state_id, br.voyage_id, br.port, br.terminal_id, br.terminal_atb, br.terminal_code,
       br.voyage_number, br.vessel_name, b.customer_id, c.name AS customer_name, c.cnpj_cpf,
@@ -601,7 +601,7 @@ BEGIN
   FROM addressed a
   CROSS JOIN LATERAL (
     SELECT public.customer_communication_target_pending_recipients('aviso_atracacao_nob', a.customer_id, a.voyage_id, a.port, a.state_id, a.recipients) AS pending
-    -- 456: OFFSET 0 avalia os pendentes uma vez por alvo (sem ele, o WHERE e o
+    -- 458: OFFSET 0 avalia os pendentes uma vez por alvo (sem ele, o WHERE e o
     -- SELECT chamavam a função duas vezes).
     OFFSET 0
   ) pr
@@ -709,13 +709,13 @@ CREATE TRIGGER trg_kick_demurrage_dunning_on_first_billing
 -- 7. Jobs de rede de segurança
 -- ===========================================================================
 
-DO $schedule_456$
+DO $schedule_458$
 DECLARE
   r       RECORD;
   v_jobid bigint;
 BEGIN
   IF to_regclass('cron.job') IS NULL THEN
-    RAISE WARNING '456: pg_cron ausente; horários dos jobs não alterados.';
+    RAISE WARNING '458: pg_cron ausente; horários dos jobs não alterados.';
     RETURN;
   END IF;
 
@@ -727,11 +727,11 @@ BEGIN
   LOOP
     SELECT jobid INTO v_jobid FROM cron.job WHERE jobname = r.jobname;
     IF v_jobid IS NULL THEN
-      RAISE WARNING '456: job % ausente; nada a reagendar.', r.jobname;
+      RAISE WARNING '458: job % ausente; nada a reagendar.', r.jobname;
       CONTINUE;
     END IF;
     -- Só o horário: jobid, comando e ativo/pausado ficam como estão.
     PERFORM cron.alter_job(v_jobid, schedule := r.schedule);
   END LOOP;
 END;
-$schedule_456$;
+$schedule_458$;

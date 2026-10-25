@@ -10,11 +10,11 @@ import { runCeUnlockNotify } from '../../../supabase/functions/_shared/ceUnlockN
 import { runAutomaticCommunications } from '../../../supabase/functions/_shared/customerCommunicationAutoRunner.ts'
 import { runPortalEmailEventsBatch } from '../../../supabase/functions/_shared/portalEmailEventsRunner.ts'
 
-// Migration 456: o banco chama três rotinas de e-mail pelo evento com
+// Migration 458: o banco chama três rotinas de e-mail pelo evento com
 // {"source":"trigger"}; o cron segue chamando com {}. A Régua de Cobrança ficou
-// só com o cron (457). A rodada é a mesma nos dois modos; o sucesso só sai da
+// só com o cron (459). A rodada é a mesma nos dois modos; o sucesso só sai da
 // execução do cron, para a chamada do gatilho não esconder um cron parado, e a
-// falha sai nos dois (decisão do dono de 2026-10-25, ADR 0102).
+// falha sai nos dois (decisão do dono de 2026-10-25, ADR 0103).
 
 const CRON = '{}'
 const TRIGGER = '{"source":"trigger"}'
@@ -77,7 +77,7 @@ const runners: Runner[] = [
       const result = await runPortalEmailEventsBatch(
         { rpc: (fn) => { work.push(fn); return Promise.resolve({ data: [{ id: 5 }], error: null }) } },
         async (eventId) => { work.push(`processa ${eventId}`); return { status: 'processed' } },
-        'worker-456',
+        'worker-458',
       )
       return { ...result, work }
     },
@@ -108,7 +108,7 @@ async function withHeartbeat(job: BetterStackHeartbeatJob, body: string, authori
 
 const HEARTBEAT = 'https://uptime.betterstack.com/api/v1/heartbeat/rotina'
 
-describe('rotinas de e-mail nos modos cron e gatilho (migration 456)', () => {
+describe('rotinas de e-mail nos modos cron e gatilho (migration 458)', () => {
   for (const runner of runners) {
     it(`${runner.edge}: a rodada é a mesma nos dois modos e só o cron manda o sucesso`, async () => {
       const cron = await invoke(runner, CRON)

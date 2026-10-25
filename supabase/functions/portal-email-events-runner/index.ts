@@ -47,7 +47,7 @@ if (import.meta.main) {
   // Heartbeat só para chamada autorizada do cron (plano dos e-mails, 2.3);
   // manda /fail com resposta não-2xx (falha no claim ou na devolução do
   // evento) ou com `failed > 0` (evento devolvido para nova tentativa). O
-  // evento gravado pelo webhook (migration 456) chama com {"source":"trigger"},
+  // evento gravado pelo webhook (migration 458) chama com {"source":"trigger"},
   // que reporta só a falha.
   Deno.serve((req) => runCronWithBetterStackHeartbeat('portalEmailEvents', req, isAuthorized(req), () => edgeHandler(req)))
 }

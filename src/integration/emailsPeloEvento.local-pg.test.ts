@@ -3,12 +3,12 @@ import { execPsql, spawnPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migrations 456 e 457: os e-mails automáticos saem pelo evento. O banco
+// Migrations 458 e 459: os e-mails automáticos saem pelo evento. O banco
 // dispara a Edge Function da rotina (`ops.kick_edge_job`) com o segredo
 // dedicado e `{"source":"trigger"}`, uma vez por transação e no máximo uma vez
 // por intervalo; a fila do Desbloqueio de CE reserva as linhas para o gatilho e
 // o cron não pegarem a mesma; a produtora dos Comunicados avalia os pendentes
-// uma vez por alvo. A Régua de Cobrança fica só com o cron de 5 min (457).
+// uma vez por alvo. A Régua de Cobrança fica só com o cron de 5 min (459).
 // Tudo roda em transação desfeita, salvo a reserva concorrente, que precisa de
 // duas sessões e limpa o que gravou.
 
@@ -43,7 +43,7 @@ function migrationApplied(): boolean {
   }
 }
 
-const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied (456 e 457: disparo pelo evento)')
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied (458 e 459: disparo pelo evento)')
 
 // net.http_post de captura, só nesta transação: guarda URL, cabeçalhos e corpo.
 const captureHttpPost = `
@@ -69,21 +69,21 @@ function vault(...names: string[]): string {
 const posts = `SELECT count(*) || '|' || coalesce(string_agg(url || ' ' || body::text, ',' ORDER BY url), '') FROM pg_temp.captured_post;`
 
 // Cliente, Viagem e B/L da suíte, gravados com os gatilhos desligados (só os
-// gatilhos da 456 interessam aqui) e desfeitos com a transação.
+// gatilhos da 458 interessam aqui) e desfeitos com a transação.
 const baseFixture = `
   SET LOCAL session_replication_role = replica;
-  INSERT INTO auth.users (id, email) VALUES ('${PORTAL_USER}', 'c456@example.test');
-  INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${CUSTOMER}, '${syntheticCnpj(456001)}', 'Cliente C456');
-  INSERT INTO public.carriers (id, name) VALUES (${CARRIER}, 'Carrier C456');
-  INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL}, 'Vessel C456', ${CARRIER});
-  INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE}, ${VESSEL}, 'V456', 'active');
-  INSERT INTO public.bls (id, voyage_id, customer_id, pod, ce_mercante) VALUES ('C456-BL-1', ${VOYAGE}, ${CUSTOMER}, 'BRSSZ', 'CE456');
+  INSERT INTO auth.users (id, email) VALUES ('${PORTAL_USER}', 'c458@example.test');
+  INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${CUSTOMER}, '${syntheticCnpj(456001)}', 'Cliente C458');
+  INSERT INTO public.carriers (id, name) VALUES (${CARRIER}, 'Carrier C458');
+  INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL}, 'Vessel C458', ${CARRIER});
+  INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE}, ${VESSEL}, 'V458', 'active');
+  INSERT INTO public.bls (id, voyage_id, customer_id, pod, ce_mercante) VALUES ('C458-BL-1', ${VOYAGE}, ${CUSTOMER}, 'BRSSZ', 'CE458');
   INSERT INTO public.ce_unlock_requests (id, customer_id, state, source, created_by)
     VALUES ('45600000-0000-4000-8000-0000000000a1', ${CUSTOMER}, 'submitted', 'request', '${PORTAL_USER}');
   SET LOCAL session_replication_role = origin;
 `
 
-describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () => {
+describeLocal('458 e 459 — e-mails automáticos disparados pelo evento', () => {
   it('o disparo usa o segredo e o cabeçalho da rotina, manda {"source":"trigger"} e sai uma vez por transação', () => {
     const out = psql(`
       BEGIN;
@@ -144,10 +144,10 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
     // acabou de disparar e ainda não terminou.
     const holder = spawn('psql', ['-X', '-q', '-d', databaseUrl, '-c',
       `BEGIN; SELECT 1 FROM ops.edge_job_kicks WHERE function = 'customer-communication-auto-runner' FOR UPDATE; SELECT pg_sleep(4); COMMIT;`],
-    { stdio: 'ignore', env: { ...process.env, PGAPPNAME: 'c456-holder' } })
+    { stdio: 'ignore', env: { ...process.env, PGAPPNAME: 'c458-holder' } })
     const done = new Promise<void>((resolve) => holder.on('close', () => resolve()))
     for (let attempt = 0; attempt < 50; attempt++) {
-      if (psql(`SELECT count(*) FROM pg_stat_activity WHERE application_name = 'c456-holder' AND query LIKE '%pg_sleep%' AND wait_event = 'PgSleep';`) === '1') break
+      if (psql(`SELECT count(*) FROM pg_stat_activity WHERE application_name = 'c458-holder' AND query LIKE '%pg_sleep%' AND wait_event = 'PgSleep';`) === '1') break
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
     const started = Date.now()
@@ -177,8 +177,8 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
     // sessões precisam ver o mesmo Vault e a mesma linha.
     const hadUrl = psql(`SELECT count(*) FROM vault.secrets WHERE name = 'SUPABASE_URL';`) !== '0'
     const cleanup = () => psql(`
-      DELETE FROM ops.edge_job_kicks WHERE function = 'c456-teste';
-      DELETE FROM vault.secrets WHERE name = 'TESTE_456_SECRET';
+      DELETE FROM ops.edge_job_kicks WHERE function = 'c458-teste';
+      DELETE FROM vault.secrets WHERE name = 'TESTE_458_SECRET';
       ${hadUrl ? '' : "DELETE FROM vault.secrets WHERE name = 'SUPABASE_URL';"}
     `)
     cleanup()
@@ -186,19 +186,19 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
       psql(`
         DO $v$ BEGIN
           ${hadUrl ? '' : "PERFORM vault.create_secret('https://exemplo.supabase.co', 'SUPABASE_URL', '');"}
-          PERFORM vault.create_secret('segredo-456', 'TESTE_456_SECRET', '');
+          PERFORM vault.create_secret('segredo-458', 'TESTE_458_SECRET', '');
         END $v$;
-        INSERT INTO ops.edge_job_kicks (function, last_kicked_at) VALUES ('c456-teste', clock_timestamp());
+        INSERT INTO ops.edge_job_kicks (function, last_kicked_at) VALUES ('c458-teste', clock_timestamp());
       `)
       // Sessão A: dentro do intervalo de 1 h, não dispara e segue aberta.
       const holder = spawn('psql', ['-X', '-At', '-q', '-d', databaseUrl, '-c',
-        `BEGIN; SELECT ops.kick_edge_job('c456-teste', 'TESTE_456_SECRET', 'Authorization', 'Bearer ', interval '1 hour'); SELECT pg_sleep(4); COMMIT;`],
-      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PGAPPNAME: 'c456-interval-a' } })
+        `BEGIN; SELECT ops.kick_edge_job('c458-teste', 'TESTE_458_SECRET', 'Authorization', 'Bearer ', interval '1 hour'); SELECT pg_sleep(4); COMMIT;`],
+      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PGAPPNAME: 'c458-interval-a' } })
       let holderOut = ''
       holder.stdout.on('data', (chunk) => { holderOut += String(chunk) })
       const holderDone = new Promise<void>((resolve) => holder.on('close', () => resolve()))
       for (let attempt = 0; attempt < 50; attempt++) {
-        if (psql(`SELECT count(*) FROM pg_stat_activity WHERE application_name = 'c456-interval-a' AND wait_event = 'PgSleep';`) === '1') break
+        if (psql(`SELECT count(*) FROM pg_stat_activity WHERE application_name = 'c458-interval-a' AND wait_event = 'PgSleep';`) === '1') break
         await new Promise((resolve) => setTimeout(resolve, 100))
       }
       // Sessão B: fora do próprio intervalo (1 ms), com A ainda aberta, dispara.
@@ -206,7 +206,7 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
         BEGIN;
         SET LOCAL lock_timeout = '2s';
         ${captureHttpPost}
-        SELECT ops.kick_edge_job('c456-teste', 'TESTE_456_SECRET', 'Authorization', 'Bearer ', interval '1 millisecond');
+        SELECT ops.kick_edge_job('c458-teste', 'TESTE_458_SECRET', 'Authorization', 'Bearer ', interval '1 millisecond');
         SELECT count(*) FROM pg_temp.captured_post;
         ROLLBACK;
       `)
@@ -280,7 +280,7 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
       ${captureHttpPost}
       ${vault('PORTAL_EMAIL_EVENTS_CRON_SECRET')}
       INSERT INTO public.portal_email_events (provider_event_id, event_type, payload, status)
-        VALUES ('c456-evento-1', 'email.delivered', '{"type":"email.delivered","data":{}}'::jsonb, 'pending');
+        VALUES ('c458-evento-1', 'email.delivered', '{"type":"email.delivered","data":{}}'::jsonb, 'pending');
       SELECT count(*) || '|' || min(url) || '|' || min(headers->>'Authorization') FROM pg_temp.captured_post;
       ROLLBACK;
     `)
@@ -302,13 +302,13 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
       ${posts}
       ROLLBACK;
     `).split('\n').at(-1)
-    expect(scenario(`INSERT INTO public.bls (id, voyage_id, customer_id, pod) VALUES ('C456-BL-2', ${VOYAGE}, ${CUSTOMER}, 'BRSSZ');`))
+    expect(scenario(`INSERT INTO public.bls (id, voyage_id, customer_id, pod) VALUES ('C458-BL-2', ${VOYAGE}, ${CUSTOMER}, 'BRSSZ');`))
       .toBe(`1|${runner}`)
-    expect(scenario(`INSERT INTO public.bls (id, voyage_id, customer_id, pod) VALUES ('C456-BL-3', ${VOYAGE}, NULL, 'BRSSZ');`))
+    expect(scenario(`INSERT INTO public.bls (id, voyage_id, customer_id, pod) VALUES ('C458-BL-3', ${VOYAGE}, NULL, 'BRSSZ');`))
       .toBe('0|')
-    expect(scenario(`UPDATE public.bls SET charges_calculated_at = now() WHERE id = 'C456-BL-1';`)).toBe(`1|${runner}`)
-    expect(scenario(`UPDATE public.bls SET review_status = 'reviewed' WHERE id = 'C456-BL-1';`)).toBe(`1|${runner}`)
-    expect(scenario(`UPDATE public.bls SET notes = 'só observação' WHERE id = 'C456-BL-1';`)).toBe('0|')
+    expect(scenario(`UPDATE public.bls SET charges_calculated_at = now() WHERE id = 'C458-BL-1';`)).toBe(`1|${runner}`)
+    expect(scenario(`UPDATE public.bls SET review_status = 'reviewed' WHERE id = 'C458-BL-1';`)).toBe(`1|${runner}`)
+    expect(scenario(`UPDATE public.bls SET notes = 'só observação' WHERE id = 'C458-BL-1';`)).toBe('0|')
     expect(scenario(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value)
       VALUES ('voyage_pod_schedule', '${VOYAGE}::BRSSZ', 'ata', '2026-10-24T12:00:00Z');`)).toBe(`1|${runner}`)
     expect(scenario(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value)
@@ -316,20 +316,20 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
     expect(scenario(`
       SET LOCAL session_replication_role = replica;
       INSERT INTO public.depots (id, code, name, tipo, port_id)
-        VALUES ('45600000-0000-4000-8000-0000000000d1', 'C456T', 'Terminal C456', 'terminal_portuario', (SELECT id FROM public.ports WHERE locode = 'BRSSZ'));
+        VALUES ('45600000-0000-4000-8000-0000000000d1', 'C458T', 'Terminal C458', 'terminal_portuario', (SELECT id FROM public.ports WHERE locode = 'BRSSZ'));
       SET LOCAL session_replication_role = origin;
       INSERT INTO public.voyage_escala_terminal_state (voyage_id, port, port_id, terminal_id, terminal_atb)
         VALUES (${VOYAGE}, 'BRSSZ', (SELECT id FROM public.ports WHERE locode = 'BRSSZ'), '45600000-0000-4000-8000-0000000000d1', now());`))
       .toBe(`1|${runner}`)
     expect(scenario(`
       SET LOCAL session_replication_role = replica;
-      INSERT INTO public.customer_contacts (id, customer_id, name, email) VALUES (4560001, ${CUSTOMER}, 'Contato C456', 'c456@example.test');
+      INSERT INTO public.customer_contacts (id, customer_id, name, email) VALUES (4560001, ${CUSTOMER}, 'Contato C458', 'c458@example.test');
       SET LOCAL session_replication_role = origin;
       INSERT INTO public.customer_contact_box_links (contact_id, box_code) VALUES (4560001, 'documentacao_operacao');`))
       .toBe(`1|${runner}`)
   })
 
-  it('Régua de Cobrança: a emissão da Invoice não chama a rotina, que fica com o cron de 5 min (457)', () => {
+  it('Régua de Cobrança: a emissão da Invoice não chama a rotina, que fica com o cron de 5 min (459)', () => {
     const out = psql(`
       BEGIN;
       ${captureHttpPost}
@@ -340,7 +340,7 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
         LANGUAGE sql STABLE AS $w$ SELECT true $w$;
       INSERT INTO public.demurrage_invoices
         (id, doc_number, bl_id, customer_id, doc_date, first_billed_at, total_usd, current_roe, current_total_brl, roe_source, status)
-        VALUES (4560001, 'C456-1', 'C456-BL-1', ${CUSTOMER}, current_date, current_date, 100, 5.5, 550, 'manual', 'issued');
+        VALUES (4560001, 'C458-1', 'C458-BL-1', ${CUSTOMER}, current_date, current_date, 100, 5.5, 550, 'manual', 'issued');
       ${posts}
       SELECT count(*) FROM pg_trigger WHERE tgrelid = 'public.demurrage_invoices'::regclass AND tgname LIKE 'trg_kick_%';
       SELECT count(*) FROM ops.edge_job_kicks WHERE function = 'demurrage-dunning';
@@ -404,8 +404,8 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
     try {
       psql(`
         SET session_replication_role = replica;
-        INSERT INTO auth.users (id, email) VALUES ('${PORTAL_USER}', 'c456@example.test');
-        INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${CUSTOMER}, '${syntheticCnpj(456001)}', 'Cliente C456');
+        INSERT INTO auth.users (id, email) VALUES ('${PORTAL_USER}', 'c458@example.test');
+        INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${CUSTOMER}, '${syntheticCnpj(456001)}', 'Cliente C458');
         INSERT INTO public.ce_unlock_requests (id, customer_id, state, source, created_by)
           VALUES ('45600000-0000-4000-8000-0000000000a1', ${CUSTOMER}, 'submitted', 'request', '${PORTAL_USER}');
         INSERT INTO public.ce_unlock_email_outbox (id, customer_id, request_id, kind, subject, body)
@@ -416,12 +416,12 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
       // Rodada A reserva duas linhas e segura a transação aberta.
       const holder = spawn('psql', ['-X', '-At', '-q', '-d', databaseUrl, '-c',
         `BEGIN; ${ours('public.ce_unlock_email_pending(2)')}; SELECT pg_sleep(3); COMMIT;`],
-      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PGAPPNAME: 'c456-claim-a' } })
+      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PGAPPNAME: 'c458-claim-a' } })
       let holderOut = ''
       holder.stdout.on('data', (chunk) => { holderOut += String(chunk) })
       const holderDone = new Promise<void>((resolve) => holder.on('close', () => resolve()))
       for (let attempt = 0; attempt < 50; attempt++) {
-        if (psql(`SELECT count(*) FROM pg_stat_activity WHERE application_name = 'c456-claim-a' AND backend_xid IS NOT NULL AND wait_event = 'PgSleep';`) === '1') break
+        if (psql(`SELECT count(*) FROM pg_stat_activity WHERE application_name = 'c458-claim-a' AND backend_xid IS NOT NULL AND wait_event = 'PgSleep';`) === '1') break
         await new Promise((resolve) => setTimeout(resolve, 100))
       }
       // Rodada B, com A ainda aberta: pula as linhas travadas, sem esperar.
@@ -443,30 +443,30 @@ describeLocal('456 e 457 — e-mails automáticos disparados pelo evento', () =>
 
   it('produtora dos Comunicados: os pendentes rodam uma vez por alvo, não por B/L × Escala', () => {
     // 30 Viagens com ATA nos últimos 30 dias (NOR), 3 Clientes cada e 4 B/Ls
-    // por Cliente. Antes da 456 o filtro de pendentes do NOR descia para o
+    // por Cliente. Antes da 458 o filtro de pendentes do NOR descia para o
     // scan de `bls` (B/L × Escala na janela): 615 chamadas para 180 alvos.
     const out = psql(`
       BEGIN;
       SET LOCAL session_replication_role = replica;
       SET LOCAL track_functions = 'all';
       SET LOCAL request.jwt.claim.role = 'service_role';
-      INSERT INTO public.carriers (id, name) VALUES (${CARRIER}, 'Carrier C456');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL}, 'Vessel C456', ${CARRIER});
+      INSERT INTO public.carriers (id, name) VALUES (${CARRIER}, 'Carrier C458');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL}, 'Vessel C458', ${CARRIER});
       INSERT INTO public.customers (id, cnpj_cpf, name)
-        SELECT 456100 + c, lpad((45610000000000 + c)::text, 14, '0'), 'Cliente C456 ' || c FROM generate_series(1, 6) c;
+        SELECT 456100 + c, lpad((45610000000000 + c)::text, 14, '0'), 'Cliente C458 ' || c FROM generate_series(1, 6) c;
       INSERT INTO public.customer_contacts (id, customer_id, name, email)
-        SELECT 4561000 + c, 456100 + c, 'Contato', 'c456-' || c || '@example.test' FROM generate_series(1, 6) c;
+        SELECT 4561000 + c, 456100 + c, 'Contato', 'c458-' || c || '@example.test' FROM generate_series(1, 6) c;
       INSERT INTO public.customer_contact_box_links (contact_id, box_code)
         SELECT 4561000 + c, box FROM generate_series(1, 6) c, unnest(ARRAY['documentacao_operacao', 'financeiro']) box;
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status)
-        SELECT 456100 + v, ${VESSEL}, 'V456-' || v, 'active' FROM generate_series(1, 30) v;
+        SELECT 456100 + v, ${VESSEL}, 'V458-' || v, 'active' FROM generate_series(1, 30) v;
       INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value, changed_at)
         SELECT 'voyage_pod_schedule', (456100 + v) || '::BRSSZ', f,
           to_char((now() - make_interval(days => v - CASE f WHEN 'eta' THEN 1 ELSE 0 END)) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
           now() - make_interval(days => v)
         FROM generate_series(1, 29) v, unnest(ARRAY['eta', 'ata']) f;
       INSERT INTO public.bls (id, voyage_id, customer_id, pod, ce_mercante, financial_status)
-        SELECT 'C456-N-' || v || '-' || c || '-' || b, 456100 + v, 456100 + 1 + ((v + c) % 6), 'BRSSZ',
+        SELECT 'C458-N-' || v || '-' || c || '-' || b, 456100 + v, 456100 + 1 + ((v + c) % 6), 'BRSSZ',
           lpad((v * 1000 + c * 10 + b)::text, 15, '0'), 'invoiced'
         FROM generate_series(1, 30) v, generate_series(1, 3) c, generate_series(1, 4) b;
       SELECT count(*) FROM public.customer_communication_automation_targets(now()) WHERE customer_id BETWEEN 456101 AND 456106;

@@ -1,8 +1,8 @@
-# 0102 — E-mails automáticos saem pelo evento, com o cron como rede de segurança
+# 0103 — E-mails automáticos saem pelo evento, com o cron como rede de segurança
 
 Status: aceito — 2026-10-24 (pedido do responsável); revista em 2026-10-25 com
 as decisões do dono na revisão da PR (itens 2, 4, 7 e 8). Implementada nas
-migrations `456` e `457` e nas Edge Functions `ce-unlock-notify-email`,
+migrations `458` e `459` e nas Edge Functions `ce-unlock-notify-email`,
 `customer-communication-auto-runner` e `portal-email-events-runner`.
 
 Estende a [ADR 0063](./0063-configuracao-de-jobs-cron-no-vault.md) e o item 5 da
@@ -65,11 +65,11 @@ rotina usa o próprio segredo.
    (`demurrage_billing`), que emite as Invoices de uma planilha de devoluções uma
    a uma, cada uma na sua transação. A chamada na primeira cobrava só as já
    gravadas, e o resto saía na rodada seguinte: o lote do mesmo Cliente em dois
-   e-mails, divididos ao acaso. A migration `457` tira a chamada; com o job de 5
+   e-mails, divididos ao acaso. A migration `459` tira a chamada; com o job de 5
    minutos, o lote sai junto, em até 5 minutos.
 8. **Passos do dono, fora do repositório.** Os monitores do Better Stack da Régua
    e dos Comunicados passam a 5 e 2 minutos, com tolerância de 5 minutos,
-   ajustados no painel só depois da promoção das migrations `456` e `457` para a
+   ajustados no painel só depois da promoção das migrations `458` e `459` para a
    produção (antes, acusariam queda falsa). A medição dos tempos de ponta a ponta
    fica para um trabalho à parte; o roteiro está em
    [Segredos dos jobs](../operations/segredos-cron.md#disparo-pelo-evento).
@@ -105,7 +105,7 @@ rotina usa o próprio segredo.
   Comunicado, cujo status é gravado em dois passos; o paralelismo ficou entre
   Clientes.
 - **Chamar a Régua na emissão da Invoice** (versão de 2026-10-24, migration
-  `456`): dividia ao acaso o lote de uma importação (item 7).
+  `458`): dividia ao acaso o lote de uma importação (item 7).
 - **Agrupar a Régua com espera** (mandar depois de alguns minutos sem nova
   emissão do mesmo Cliente): agrupa também cliques espaçados, mas muda a regra
   de que a primeira cobrança vence na emissão e exige uma tabela de pedidos; o

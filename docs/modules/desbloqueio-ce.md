@@ -277,7 +277,7 @@ ativos têm os quatro requisitos; desfazer um requisito a reabre. Solicitação 
 não pode mais ser cancelada (nem pelo desk). O aviso "documentação validada" sai só na
 primeira conclusão. A conclusão é reavaliada nos comandos e, para liquidações feitas fora
 do módulo, pela varredura `ce_unlock_refresh_open()` que a Edge Function `ce-unlock-notify-email`
-executa a cada rodada: a do job de 5 minutos e, desde a migration `456`, a disparada por
+executa a cada rodada: a do job de 5 minutos e, desde a migration `458`, a disparada por
 cada aviso gravado na fila (ponytail: O(solicitações abertas); upgrade: fila por trigger).
 
 ### Prazo (SLA)
@@ -324,7 +324,7 @@ Edge Function `ce-unlock-notify-email` envia aos contatos da caixa **Documentaç
 Operação** e registra cada tentativa em `portal_email_attempts`
 (`ce_unlock_notificacao`). Nenhum texto cita ZPT ou desbloqueio confirmado.
 
-Desde a migration `456`, gravar a linha na fila chama a Edge Function na hora
+Desde a migration `458`, gravar a linha na fila chama a Edge Function na hora
 (gatilho `trg_kick_ce_unlock_notify_email`, depois do COMMIT, com o segredo próprio
 `CE_UNLOCK_NOTIFY_SECRET`): o e-mail sai em segundos, não no próximo ciclo do job de
 5 minutos, que segue como rede de segurança para reenvios. A leitura da fila

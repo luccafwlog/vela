@@ -8,8 +8,8 @@ Decisão em [ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md).
 Implementação em `supabase/migrations/007_cron_secrets_no_vault.sql`; tempo limite
 e horários fora da rajada em `supabase/migrations/165_cron_dispatch_timeout_e_escalonamento.sql`;
 disparo das rotinas de e-mail pelo evento em
-`supabase/migrations/456_emails_automaticos_saem_pelo_evento.sql`
-([ADR 0102](../adr/0102-emails-automaticos-saem-pelo-evento.md)).
+`supabase/migrations/458_emails_automaticos_saem_pelo_evento.sql`
+([ADR 0103](../adr/0103-emails-automaticos-saem-pelo-evento.md)).
 
 ## Por que não é `app.settings.*`
 
@@ -96,7 +96,7 @@ SELECT ops.dispatch_edge_job('alerts-detector', 'ALERTS_DETECTOR_SECRET');
 ```
 
 O comando do job cita **nomes**; nenhum valor aparece em `cron.job.command`.
-Desde a migration `456` essa forma (2 ou 4 argumentos) manda o corpo `{}` pela
+Desde a migration `458` essa forma (2 ou 4 argumentos) manda o corpo `{}` pela
 forma de 5 argumentos, `ops.dispatch_edge_job(função, segredo, cabeçalho,
 prefixo, corpo)`, que é a implementação (Vault, timeout de 30 s); a Edge lê o
 corpo vazio como execução do cron.
@@ -119,7 +119,7 @@ dentro da transação de quem usa a tela, acionadas por gatilho:
   `SUPABASE_URL` e `ITAU_PIX_ADMIN_SECRET` e monta o próprio `net.http_post`
   com `{"action":"process_charges"}`, sem passar pelo dispatcher. Desde a
   migration `438`, lê `ITAU_PIX_CRON_SECRET` quando ele está no Vault;
-- `ops.kick_edge_job(...)` (migration `456`), chamada pelos gatilhos das
+- `ops.kick_edge_job(...)` (migration `458`), chamada pelos gatilhos das
   rotinas de e-mail ([Disparo pelo evento](#disparo-pelo-evento)): confere o
   par no cofre e chama o dispatcher com `{"source":"trigger"}` e o segredo
   dedicado da rotina.
@@ -133,7 +133,7 @@ partir da importação ou da emissão feita pelo usuário, e a exposição aceit
 que a chamada com o segredo passa pela fila do `pg_net`
 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 5,
 estendido às rotinas de e-mail pela
-[ADR 0102](../adr/0102-emails-automaticos-saem-pelo-evento.md)).
+[ADR 0103](../adr/0103-emails-automaticos-saem-pelo-evento.md)).
 
 O schema `ops` não concede `USAGE` a `PUBLIC`, `anon` nem `authenticated`, e não
 está entre os schemas expostos pela Data API — a função não é um endpoint REST.
@@ -177,11 +177,11 @@ essa leitura.
 | `demurrage-dunning` | `0 * * * *` | `7 * * * *` |
 
 `portal-daily-digest` (11:00 UTC) e os jobs por minuto (`portal-email-events-runner`,
-`itau-pix-queue`) não mudam. Desde a migration `456`,
+`itau-pix-queue`) não mudam. Desde a migration `458`,
 `customer-communication-auto-runner` roda em `1-59/2 * * * *` e
 `demurrage-dunning` em `3-59/5 * * * *`, também por `cron.alter_job`; os
 Comunicados também saem pelo evento ([Disparo pelo evento](#disparo-pelo-evento)),
-e a Régua só pelo job (migration `457`). Os jobs então agendados à mão
+e a Régua só pelo job (migration `459`). Os jobs então agendados à mão
 (`ce-unlock-notify-email`, `ce-unlock-cleanup`, `recalc-demurrage-ptax`,
 `itau-pix-queue`) não são tocados por essa migration; recebem só o timeout novo.
 Desde a migration `358`, `recalc-demurrage-ptax` e `itau-pix-queue` são
@@ -215,8 +215,8 @@ ORDER BY jobname;
 
 ## Disparo pelo evento
 
-Desde a migration `456`
-([ADR 0102](../adr/0102-emails-automaticos-saem-pelo-evento.md)), três rotinas de
+Desde a migration `458`
+([ADR 0103](../adr/0103-emails-automaticos-saem-pelo-evento.md)), três rotinas de
 e-mail não esperam o próximo ciclo do cron: o gatilho no evento chama
 `ops.kick_edge_job(função, segredo, cabeçalho, prefixo, intervalo)`, que manda
 `{"source":"trigger"}` à Edge Function com o segredo **dedicado** da rotina. O
@@ -230,7 +230,7 @@ pelo relógio).
 | `customer-communication-auto-runner` | `bls` (B/L com Cliente inserido; Cliente, Viagem, porto, terminal, faturamento, CE, revisão, peso, cancelamento ou cálculo das taxas mudou); `audit_logs` (ETA, ATA, omissão ou exclusão da Escala); `voyage_escala_terminal_state` (ATB); `customer_contact_box_links` (contato ligado a caixa); `customer_contacts` (e-mail trocado ou contato reativado) | `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `X-Communication-Automation-Secret` | 90 s | `1-59/2 * * * *` |
 
 A Régua de Cobrança (`demurrage-dunning`) fica só com o job de 5 minutos
-(`3-59/5 * * * *`). A `456` a chamava na emissão da Invoice; a `457` tirou essa
+(`3-59/5 * * * *`). A `458` a chamava na emissão da Invoice; a `459` tirou essa
 chamada, porque a fila de efeitos emite as Invoices de uma importação uma a
 uma, e a chamada na primeira dividia o lote do mesmo Cliente em dois e-mails
 ([Demurrage](../modules/demurrage.md#régua-de-cobrança)).
@@ -279,7 +279,7 @@ disparo é mais antigo que a retenção do `pg_net`. As rotinas sem intervalo
 (avisos do Desbloqueio de CE e eventos) só registram quando pegam a linha sem
 disputa.
 
-**Medir no ambiente** (staging ou produção, depois do deploy da `456` e com o
+**Medir no ambiente** (staging ou produção, depois do deploy da `458` e com o
 Vault e os secrets da Edge provisionados). A medição ficou para um trabalho à
 parte do dono (decisão de 2026-10-25); o roteiro fica aqui para ele:
 
@@ -529,7 +529,7 @@ de subsegundos — o worker do `pg_net` consome e apaga a linha da fila — e
 Isso vale para **qualquer** chamada HTTP autenticada saída do banco: existia
 antes desta mudança e não foi introduzido por ela. Desde as migrations `218` e
 `219`, a chamada com o segredo também entra na fila a cada importação que grava
-efeito e a cada cobrança Pix que fica pendente, e desde a `456`, a cada evento
+efeito e a cada cobrança Pix que fica pendente, e desde a `458`, a cada evento
 das rotinas de e-mail (com o intervalo mínimo de cada uma), não só a cada ciclo
 do `pg_cron` (ver [Quem lê](#quem-lê)). Confirme em
 **Data API settings** que `net` não está exposto.

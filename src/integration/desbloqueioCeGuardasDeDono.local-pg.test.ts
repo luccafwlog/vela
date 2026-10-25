@@ -127,7 +127,7 @@ describeLocal('427 — Desbloqueio de CE confere o dono antes das travas', () =>
       INSERT INTO public.ce_unlock_email_outbox (customer_id, request_id, kind, subject, body)
         VALUES (${CUSTOMER_B}, gen_random_uuid(), 'changes_requested', 'Assunto C415', 'Corpo C415');
     `)
-    // Desde a 456 a leitura reserva a linha: solta a reserva antes de cada
+    // Desde a 458 a leitura reserva a linha: solta a reserva antes de cada
     // leitura (noutra transação), para o zero vir do Cliente desativado e não
     // da reserva.
     const pending = () => {
