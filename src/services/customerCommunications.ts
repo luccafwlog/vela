@@ -1195,7 +1195,10 @@ export type CoverageEscalaRow = { pod: string; eta: string | null; etb: string |
  * das faixas de Viagens, Veículos e Baplie (`compareVoyageRailItems`): a viagem
  * da escala mais próxima primeiro e a mais distante embaixo, e dentro da viagem
  * os portos pela ETA (sem ETA no fim). A ordem anterior era a de cadastro da
- * viagem, com os portos em ordem alfabética.
+ * viagem, com os portos em ordem alfabética. No fim, sem próxima escala, a
+ * viagem que atracou por último vem primeiro, porque é quando o NOB e o CE e
+ * Taxas ficam devidos; a que não tem atracação vem depois, pela ordem do navio
+ * (decisão do responsável de 2026-10-25).
  */
 export function orderCoverageByEscala<T extends { voyageId: number; vesselName: string; voyageNumber: string; port: string | null }>(
   rows: readonly T[],
@@ -1211,7 +1214,10 @@ export function orderCoverageByEscala<T extends { voyageId: number; vesselName: 
     if (!proxima.has(row.voyageId)) proxima.set(row.voyageId, getProximaEscala([...(escalas.get(row.voyageId) ?? [])]))
     return { proximaEscala: proxima.get(row.voyageId) ?? null, vesselName: row.vesselName, voyageNumber: row.voyageNumber }
   }
-  return [...rows].sort((left, right) => compareVoyageRailItems(railKey(left), railKey(right))
+  const lastAta = (voyageId: number) => (escalas.get(voyageId) ?? []).filter((escala) => !escala.omitted && escala.ata).map((escala) => escala.ata!).sort().at(-1) ?? ''
+  const byLastAta = (left: T, right: T) => (railKey(left).proximaEscala || railKey(right).proximaEscala ? 0 : lastAta(right.voyageId).localeCompare(lastAta(left.voyageId)))
+  return [...rows].sort((left, right) => byLastAta(left, right)
+    || compareVoyageRailItems(railKey(left), railKey(right))
     || left.voyageId - right.voyageId
     || portEta(left.voyageId, left.port).localeCompare(portEta(right.voyageId, right.port))
     || (left.port ?? '').localeCompare(right.port ?? ''))

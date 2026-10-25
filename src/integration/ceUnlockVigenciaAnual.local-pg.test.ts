@@ -1,7 +1,10 @@
-// Ponto 11 das observações de 2026-10-23 (migration 449): a vigência do termo
-// e da procuração anuais vale só para os B/Ls importados no Vela dentro dela
-// (bls.created_at, dia de Brasília). Não retroage: o B/L importado antes segue
-// com termo e procuração anexados à solicitação.
+// Ponto 11 das observações de 2026-10-23 (migrations 449 e 456, ADR 0102): a
+// vigência do termo e da procuração anuais vale para os B/Ls cujo CE Mercante
+// atual foi vinculado dentro dela (dia de Brasília), e o anual continua
+// cobrindo esses B/Ls depois de vencer. Não retroage: o B/L com o CE vinculado
+// antes segue com termo e procuração anexados à solicitação. O B/L que nasce
+// com o CE tem o vínculo na criação (`created_at`); a troca do CE fica na
+// auditoria.
 import { execPsql } from './localPsql'
 import { describe, expect, it, beforeAll, beforeEach, afterAll } from 'vitest'
 import { syntheticCnpj } from './localTestData'
@@ -28,7 +31,7 @@ function annual(type: 'termo' | 'procuracao', year: number, validFrom = `${year}
   return id
 }
 
-local('desbloqueio CE — vigência do termo anual pela data de importação do B/L (migration 449)', () => {
+local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante (migrations 449 e 456)', () => {
   const reset = () => sql(`SET session_replication_role=replica;
     DELETE FROM ce_unlock_private.receipts WHERE actor_id IN ('${admin}','${client}');
     DELETE FROM public.ce_unlock_email_outbox WHERE customer_id=${C};
@@ -39,6 +42,7 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
     DELETE FROM public.ce_unlock_requests WHERE customer_id=${C};
     DELETE FROM public.ce_unlock_vip_customers WHERE customer_id=${C};
     DELETE FROM public.ce_unlock_bl_deliveries WHERE bl_id LIKE 'CE449-%';
+    DELETE FROM public.audit_logs WHERE entity_type IN ('bl','bls') AND entity_id='CE449-LIGADO' AND field_name='ce_mercante';
     SET session_replication_role=origin;`)
   beforeAll(() => {
     reset()
@@ -51,13 +55,15 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
       INSERT INTO public.vessels(id,name,carrier_id) VALUES(${C},'CE449 vessel',${C}) ON CONFLICT DO NOTHING;
       INSERT INTO public.voyages(id,vessel_id,voyage_number,status) VALUES(${C},${C},'CE-449','active') ON CONFLICT DO NOTHING;
       SET session_replication_role=replica;
-      -- O exemplo do pedido: B/L importado em 20/12 do ano anterior e outro já neste ano.
+      -- O exemplo do pedido: B/L que nasceu com o CE em 20/12 do ano anterior e outro já neste ano.
+      -- CE449-LIGADO foi importado em 20/12 do ano anterior; o vínculo do CE vem da auditoria, por teste.
       INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante,created_at) VALUES
         ('CE449-DEZ',${C},${C},'998449000000001','${y - 1}-12-20T15:00:00-03:00'),
         ('CE449-JAN',${C},${C},'998449000000002','${y}-01-02T09:00:00-03:00'),
         ('CE449-VIRADA',${C},${C},'998449000000003','${y}-01-01T00:30:00-03:00'),
         -- 22:30 de 31/12 em Brasília já é 01/01 em UTC: só o dia de Brasília o deixa fora do anual novo.
-        ('CE449-REVEILLON',${C},${C},'998449000000004','${y - 1}-12-31T22:30:00-03:00')
+        ('CE449-REVEILLON',${C},${C},'998449000000004','${y - 1}-12-31T22:30:00-03:00'),
+        ('CE449-LIGADO',${C},${C},'998449000000005','${y - 1}-12-20T15:00:00-03:00')
         ON CONFLICT(id) DO UPDATE SET customer_id=EXCLUDED.customer_id,ce_mercante=EXCLUDED.ce_mercante,created_at=EXCLUDED.created_at,cancelled_at=NULL;
       INSERT INTO public.bl_receivables(id,bl_id,customer_id,original_amount_brl,settled_amount_brl,balance_brl,status) VALUES
         (998449,'CE449-DEZ',${C},100,100,0,'settled'),(998450,'CE449-JAN',${C},100,100,0,'settled'),(998451,'CE449-VIRADA',${C},100,100,0,'settled') ON CONFLICT DO NOTHING;
@@ -80,7 +86,7 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
       SET session_replication_role=origin;`)
   })
 
-  it('B/L importado em 20/12, antes do anual do ano novo, não ganha a condição VIP: segue com termo e procuração do pedido', () => {
+  it('B/L com o CE vinculado em 20/12, antes do anual do ano novo, não ganha a condição VIP: segue com termo e procuração do pedido', () => {
     const y = Y()
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP desde a virada', request_key: key() })
     annual('termo', y); annual('procuracao', y)
@@ -117,7 +123,7 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
     const draft = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
     const sent = command('submit', { request_id: draft.id, expected_version: draft.version, request_key: key() }, client)
     expect(sent.items[0]).toMatchObject({ termo: true, procuracao: true })
-    // A vigência passa a começar depois da importação do B/L: deixa de cobrir (não retroage).
+    // A vigência passa a começar depois do vínculo do CE: deixa de cobrir (não retroage).
     sql(`UPDATE public.ce_unlock_documents SET valid_from=make_date(${y},1,10) WHERE id IN('${termo}','${procuracao}');`)
     expect(item('CE449-JAN', draft.id)).toMatchObject({ termo: false, procuracao: false, vip_covered: false })
     expect(item('CE449-JAN', draft.id).reasons).toContain('Procuração pendente, vencida ou revogada')
@@ -157,11 +163,52 @@ local('desbloqueio CE — vigência do termo anual pela data de importação do 
     expect(error(prepare(vipDraft.id, 'procuracao'), client)).toContain('Pedido não aceita anexos')
   })
 
-  it('o banco usa o dia de importação em Brasília, não o de hoje nem o de UTC', () => {
+  // 456 (decisão de 2026-10-25): depois de 31/12 o anual continua cobrindo o B/L cujo CE foi
+  // vinculado na vigência dele; antes, o pedido VIP aberto em dezembro travava em janeiro.
+  it('anual vencido continua cobrindo o B/L cujo CE foi vinculado na vigência dele; revogado não cobre', () => {
     const y = Y()
-    expect(sql("SELECT ce_unlock_private.bl_import_day('CE449-DEZ');")).toBe(`${y - 1}-12-20`)
-    expect(sql("SELECT ce_unlock_private.bl_import_day('CE449-VIRADA');")).toBe(`${y}-01-01`)
+    command('set_vip', { customer_id: C, enabled: true, reason: 'VIP do ano passado', request_key: key() })
+    const termo = annual('termo', y - 1); annual('procuracao', y - 1)
+    expect(item('CE449-DEZ')).toMatchObject({ vip: true, vip_covered: true })
+    // O B/L com o CE vinculado neste ano precisa do anual deste ano.
+    expect(item('CE449-JAN')).toMatchObject({ vip_covered: false })
+    const draft = command('draft', { bl_ids: ['CE449-DEZ'], request_key: key() }, client)
+    expect(draft.source).toBe('vip_annual')
+    const sent = command('submit', { request_id: draft.id, expected_version: draft.version, request_key: key() }, client)
+    expect(sent.items[0]).toMatchObject({ termo: true, procuracao: true })
+    sql(`UPDATE public.ce_unlock_documents SET status='revoked' WHERE id='${termo}';`)
+    expect(item('CE449-DEZ', draft.id)).toMatchObject({ termo: false, vip_covered: false })
+  })
+
+  it('vale o vínculo do CE atual: CE vinculado depois da importação, troca de número e reformatação', () => {
+    const y = Y()
+    const day = () => sql("SELECT ce_unlock_private.ce_link_day('CE449-LIGADO');")
+    const audit = (entity: string, oldCe: string, newCe: string, at: string) => sql(`INSERT INTO public.audit_logs(entity_type,entity_id,field_name,old_value,new_value,changed_at)
+      VALUES('${entity}','CE449-LIGADO','ce_mercante','${oldCe}','${newCe}','${at}');`)
+    command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
+    annual('termo', y - 1); annual('procuracao', y - 1)
+    // Sem registro de troca, o B/L nasceu com o CE: vale a criação (20/12 do ano anterior).
+    expect(day()).toBe(`${y - 1}-12-20`)
+    expect(item('CE449-LIGADO')).toMatchObject({ vip_covered: true })
+    // Importado em dezembro sem CE; o CE chegou em 05/01 pela importação (registro explícito, entidade bl).
+    audit('bl', '', '998449000000005', `${y}-01-05T10:00:00-03:00`)
+    expect(day()).toBe(`${y}-01-05`)
+    expect(item('CE449-LIGADO')).toMatchObject({ vip_covered: false })
+    annual('termo', y); annual('procuracao', y)
+    expect(item('CE449-LIGADO')).toMatchObject({ vip_covered: true })
+    // Reformatar o mesmo número (mesma chave) não muda o vínculo.
+    audit('bls', '998449000000005', '998.449.000.000.005', `${y}-02-01T10:00:00-03:00`)
+    expect(day()).toBe(`${y}-01-05`)
+    // Trocar o número muda: vale a troca para o CE atual.
+    audit('bls', '998449000000099', '998449000000005', `${y}-03-01T10:00:00-03:00`)
+    expect(day()).toBe(`${y}-03-01`)
+  })
+
+  it('o banco usa o dia do vínculo do CE em Brasília, não o de hoje nem o de UTC', () => {
+    const y = Y()
+    expect(sql("SELECT ce_unlock_private.ce_link_day('CE449-DEZ');")).toBe(`${y - 1}-12-20`)
+    expect(sql("SELECT ce_unlock_private.ce_link_day('CE449-VIRADA');")).toBe(`${y}-01-01`)
     // 22:30 de 31/12 em Brasília é 01:30 de 01/01 em UTC: vale o dia de Brasília.
-    expect(sql("SELECT ce_unlock_private.bl_import_day('CE449-REVEILLON');")).toBe(`${y - 1}-12-31`)
+    expect(sql("SELECT ce_unlock_private.ce_link_day('CE449-REVEILLON');")).toBe(`${y - 1}-12-31`)
   })
 })

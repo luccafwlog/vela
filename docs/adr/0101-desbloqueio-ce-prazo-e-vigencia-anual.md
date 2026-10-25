@@ -1,6 +1,15 @@
 # 0101 — Desbloqueio de CE: prazo só com os quatro requisitos e vigência anual sem retroagir
 
-Status: aceito — 2026-10-23 (observações do responsável, pontos 10, 11 e 13).
+> **Situação atual (2026-10-25).** A decisão 4 foi supersedida pela
+> [ADR 0102](./0102-vigencia-anual-pelo-vinculo-do-ce.md): a vigência do anual
+> vale pela data do vínculo do CE Mercante ao B/L, não pela importação, e o
+> anual continua cobrindo esses B/Ls depois de vencer (migration `456`). A
+> pergunta em aberto do fim desta ADR ficou respondida assim. O responsável
+> confirmou em 2026-10-25 a decisão 5 (com um anual faltando, a solicitação
+> pede os dois documentos) e a fila "Solicitações aguardando análise" com
+> "Enviada em", sem prazo. As demais decisões valem como escritas.
+
+Status: supersedida parcialmente (decisão 4, pela ADR 0102) — aceita em 2026-10-23 (observações do responsável, pontos 10, 11 e 13).
 Implementada nas migrations `448` e `450` (prazo) e `449` (vigência).
 
 Supersede a decisão 15 da

@@ -100,7 +100,7 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
   pendentes (âmbar quando maior que zero) e Isentos. Só os dois últimos
   filtram a lista ao toque. Busca, Viagem, POL e POD ficam abertos; Revisão,
   Faturamento, Taxas locais, Perfil de carga e Cliente ("Sem Cliente
-  vinculado", só B/L não cancelado, como o alerta, `cliente=sem` na URL, `p_without_customer` da migration `452`)
+  vinculado", só B/L não cancelado, o mesmo recorte do alerta B/L sem Cliente perto do ETA, `cliente=sem` na URL, `p_without_customer` da migration `452`)
   ficam em "Mais filtros". Abaixo
   de 1024 px a lista vira cartões.
 - A coluna Taxas locais mostra três estados (`localChargesListState`,

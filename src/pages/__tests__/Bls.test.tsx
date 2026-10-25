@@ -238,7 +238,7 @@ describe('Página Bls (unificada)', () => {
     railItemsMock.mockReturnValue({ items: [], isLoading: false })
   })
 
-  // Ponto 15: o link do sino com /bls já aberta troca os filtros pelos do alerta.
+  // Link de fora (sino, voltar do navegador) com /bls já aberta troca os filtros pelos do endereço.
   it('endereço novo vindo de fora, com a lista aberta, substitui os filtros', async () => {
     function AlertLink() {
       const navigate = useNavigate()
