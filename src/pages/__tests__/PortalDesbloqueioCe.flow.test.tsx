@@ -393,7 +393,18 @@ it("VIP com procuração anual recusada: a solicitação explica o motivo e acei
   expect(screen.getAllByRole("button", { name: /Anexar PDF/ }).length).toBeGreaterThanOrEqual(2);
 });
 
-it("VIP coberto com B/L importado antes da vigência: a solicitação diz que a vigência não retroage", async () => {
+// Migration 456 (decisão de 2026-10-25): em janeiro, sem o anual do ano novo, o B/L com o CE
+// vinculado no ano que acabou continua coberto pelo anual dele; a faixa segue o banco, B/L a B/L.
+it("VIP sem o anual do ano novo: B/L coberto pelo anual do ano anterior segue VIP na seleção", async () => {
+  svc.getPortalCeUnlockVip.mockResolvedValue({ enabled: true, termo: false, procuracao: false, documents: [] });
+  svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ vip_covered: true })], total: 1 });
+  mount();
+  await userEvent.click(await screen.findByLabelText("Selecionar B/L BL-A"));
+  expect(screen.queryByText(/os documentos anuais não cobrem esta seleção/)).toBeNull();
+  expect(screen.getByText("a seleção abre a solicitação com os documentos")).toBeTruthy();
+});
+
+it("VIP coberto com B/L de CE vinculado antes da vigência: a solicitação diz que a vigência não retroage", async () => {
   svc.getPortalCeUnlockVip.mockResolvedValue({ enabled: true, termo: true, procuracao: true, documents: [] });
   svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ vip_covered: false })], total: 1 });
   svc.getPortalCeUnlockRequest.mockResolvedValue(request({ items: [{ bl_id: "BL-A", paid: true, termo: false, procuracao: false, reasons: [], source: "request", vip_covered: false }] }));
@@ -406,5 +417,5 @@ it("VIP coberto com B/L importado antes da vigência: a solicitação diz que a 
   cleanup();
   mount("/portal/desbloqueio-ce?pedido=req-1");
   const block = await screen.findByRole("region", { name: "Solicitação" });
-  expect(block.textContent).toContain("há B/L importado antes da vigência dos documentos anuais, que não retroage");
+  expect(block.textContent).toContain("há B/L com o CE Mercante vinculado antes da vigência dos documentos anuais, que não retroage");
 });

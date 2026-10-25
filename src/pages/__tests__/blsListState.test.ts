@@ -38,7 +38,7 @@ describe('estado da lista /bls na URL', () => {
   })
 })
 
-// Ponto 15: o link do alerta "B/L sem Cliente perto do ETA" chega com cliente=sem.
+// Ponto 15: o filtro Cliente "Sem Cliente vinculado" vai na URL como cliente=sem.
 it('lê e grava o filtro Cliente "sem"; outro valor é ignorado', () => {
   const filters = filtersFromBlsSearch(new URLSearchParams('voyage=5&pod=BRSSZ&cliente=sem'))
   expect(filters).toMatchObject({ voyageId: '5', pod: 'BRSSZ', customerLink: 'sem' })
