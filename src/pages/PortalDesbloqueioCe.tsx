@@ -123,13 +123,13 @@ function annualGapMessage(vip: CeUnlockVipCoverage): string | null {
 
 /**
  * Por que a solicitação de um Cliente VIP pede termo e procuração (ponto 13 de
- * 2026-10-23): o anual faltando, vencido, recusado ou revogado, ou B/L importado
- * antes da vigência dele (migration 449).
+ * 2026-10-23): o anual faltando, vencido, recusado ou revogado, ou B/L com o CE
+ * Mercante vinculado antes da vigência dele (migrations 449 e 456).
  */
 function vipFallbackReason(vip: CeUnlockVipCoverage, items: CeUnlockItem[]): string {
   const gaps = annualGaps(vip);
   if (gaps.length) return gaps.map((g) => g.text).join(" e ");
-  if (items.some((i) => i.vip_covered === false)) return "há B/L importado antes da vigência dos documentos anuais, que não retroage";
+  if (items.some((i) => i.vip_covered === false)) return "há B/L com o CE Mercante vinculado antes da vigência dos documentos anuais, que não retroage";
   return "os documentos anuais não cobriam os B/Ls quando a solicitação foi aberta";
 }
 
@@ -188,8 +188,8 @@ export function PortalDesbloqueioCe() {
   const vip = flow.vip.data;
   const vipEnabled = !!vip?.enabled;
   const vipPending = vipEnabled && (!vip.termo || !vip.procuracao);
-  // B/L importado antes da vigência dos anuais pede o termo comum: o modelo
-  // precisa estar à mão também nesse caso.
+  // B/L com o CE vinculado antes da vigência dos anuais pede o termo comum: o
+  // modelo precisa estar à mão também nesse caso.
   const vipHasUncoveredBl = vipEnabled && (flow.list.data ?? []).some((item) => item.vip_covered === false);
   const detail = flow.detail.data;
 
@@ -228,8 +228,10 @@ export function PortalDesbloqueioCe() {
     },
   };
   const byBl = new Map(allItems.map((i) => [i.bl_id, i]));
-  // A seleção nasce VIP só se os anuais cobrem todos os B/Ls (vigentes e com o B/L importado na vigência).
-  const vipCoversSelection = vipEnabled && !vipPending && selected.every((b) => byBl.get(b)?.vip_covered !== false);
+  // A seleção nasce VIP só se os anuais cobrem todos os B/Ls. Vale a cobertura de cada B/L que o banco
+  // devolve (`vip_covered`, CE vinculado na vigência, migration 456): em janeiro, sem o anual do ano novo,
+  // o B/L com o CE vinculado no ano que acabou continua coberto pelo anual dele.
+  const vipCoversSelection = vipEnabled && selected.every((b) => byBl.get(b)?.vip_covered ?? !vipPending);
   const moves = selected.flatMap((b) => {
     const item = byBl.get(b);
     return item?.request_id && ceRequestOpenForMove(item.state) ? [item] : [];

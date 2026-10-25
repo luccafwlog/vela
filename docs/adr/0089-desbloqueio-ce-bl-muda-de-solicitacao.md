@@ -1,6 +1,6 @@
 # 0089 — No Desbloqueio de CE, o B/L muda de solicitação ainda não validada
 
-> **Situação atual (2026-10-24).** A decisão vale inteira, com uma ressalva na decisão 4: desde a [ADR 0101](./0101-desbloqueio-ce-prazo-e-vigencia-anual.md) (decisões 4 e 5) o Cliente VIP só usa os anuais na solicitação cujos B/Ls eles cobrem (B/L importado dentro da vigência); a que tem B/L fora dela segue comum, com termo e procuração anexados.
+> **Situação atual (2026-10-24).** A decisão vale inteira, com uma ressalva na decisão 4: desde a [ADR 0101](./0101-desbloqueio-ce-prazo-e-vigencia-anual.md) (decisões 4 e 5) o Cliente VIP só usa os anuais na solicitação cujos B/Ls eles cobrem (CE Mercante vinculado dentro da vigência, [ADR 0102](./0102-vigencia-anual-pelo-vinculo-do-ce.md)); a que tem B/L fora dela segue comum, com termo e procuração anexados.
 
 Status: aceito — 2026-10-18 (decisão do responsável na aprovação do lote 4 da
 identidade visual, "caminho A"). Implementada na migration `299`, com testes no

@@ -246,11 +246,25 @@ describe('Cobertura de viagens na ordem da escala', () => {
       [10, [{ pod: 'BRSSZ', eta: '2026-11-10T08:00:00Z', etb: null, ata: null }, { pod: 'BRVIX', eta: '2026-11-05T08:00:00Z', etb: null, ata: null }]],
       // BETA chega antes de todas.
       [20, [{ pod: 'BRSSA', eta: '2026-11-01T08:00:00Z', etb: null, ata: null }]],
-      // GAMA já atracou em tudo: sem próxima escala, vai para o fim.
+      // GAMA já atracou em tudo: sem próxima escala, vai para o fim, antes da DELTA, que não tem escala.
       [30, [{ pod: 'BRPNG', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-20T09:00:00Z' }]],
     ])
     expect(orderCoverageByEscala(rows, escalas).map((r) => `${r.vesselName} ${r.port ?? '—'}`))
-      .toEqual(['BETA BRSSA', 'ALFA BRVIX', 'ALFA BRSSZ', 'DELTA —', 'GAMA BRPNG'])
+      .toEqual(['BETA BRSSA', 'ALFA BRVIX', 'ALFA BRSSZ', 'GAMA BRPNG', 'DELTA —'])
+  })
+
+  // Decisão de 2026-10-25: no fim, a viagem que atracou por último vem primeiro, porque é
+  // quando o NOB e o CE e Taxas ficam devidos; antes, ordem alfabética do navio.
+  it('sem próxima escala, a viagem que atracou por último vem primeiro', () => {
+    const escalas = new Map([
+      [1, [{ pod: 'BRSSZ', eta: '2026-10-01T08:00:00Z', etb: null, ata: '2026-10-01T10:00:00Z' }]],
+      [2, [{ pod: 'BRSSZ', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-21T10:00:00Z' }, { pod: 'BRVIX', eta: '2026-10-18T08:00:00Z', etb: null, ata: '2026-10-18T09:00:00Z' }]],
+      // Escala omitida não conta como atracação.
+      [3, [{ pod: 'BRSSZ', eta: '2026-10-10T08:00:00Z', etb: null, ata: '2026-10-10T10:00:00Z' }, { pod: 'BRVIX', eta: '2026-10-25T08:00:00Z', etb: null, ata: '2026-10-25T09:00:00Z', omitted: true }]],
+      [4, [{ pod: 'BRSSZ', eta: '2026-11-03T08:00:00Z', etb: null, ata: null }]],
+    ])
+    const ordered = orderCoverageByEscala([row(1, 'ALFA', '1', 'BRSSZ'), row(2, 'BETA', '2', 'BRSSZ'), row(3, 'GAMA', '3', 'BRSSZ'), row(4, 'ZETA', '4', 'BRSSZ'), row(5, 'AAA', '5', null)], escalas)
+    expect(ordered.map((r) => r.vesselName)).toEqual(['ZETA', 'BETA', 'GAMA', 'ALFA', 'AAA'])
   })
 
   it('escala omitida não conta como próxima; empate de ETA desempata por ETB, navio e viagem', () => {
