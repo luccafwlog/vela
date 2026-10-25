@@ -6,6 +6,18 @@
 
 ## 2026-10
 
+- **E-mails automáticos saem pelo evento (2026-10-24, revisão de 2026-10-25):** migrations `458` e
+  `459`, [ADR 0103](adr/0103-emails-automaticos-saem-pelo-evento.md). O banco chama a Edge Function da
+  rotina no evento, com o segredo da própria rotina e `{"source":"trigger"}`, e o cron fica como
+  rede de segurança: aviso do Desbloqueio de CE e status de entrega em segundos; CE e Taxas e
+  NOA/NOR/NOB pelo que deixa o alvo pronto (no máximo a cada 90 s) e cron de 2 min (era 15).
+  Régua de Cobrança só pelo cron, a cada 5 min (era de hora em hora): a chamada na emissão da
+  Invoice, que a `458` criava, sai na `459`, porque dividia ao acaso em dois e-mails as Invoices
+  de uma mesma importação. A fila do Desbloqueio de CE passa a reservar as linhas (`claimed_until`,
+  `SKIP LOCKED`); no Better Stack, o sucesso sai só das rodadas do cron e a falha sai também da
+  chamada pelo evento; o runner de Comunicados atende até quatro Clientes por vez. A produtora dos Comunicados deixou de crescer com B/L × Escala (3 mil
+  pares Cliente × Viagem: de 75 s para ~1,5 s por rodada). A Cobertura de `/clientes/comunicacao`
+  mostra a próxima rodada nos minutos ímpares.
 - **Pix recebidos mostra o que o Itaú manda (2026-10-23):** sem migration. A conferência em
   produção mostrou que a consulta de recebimentos não traz nome nem CPF/CNPJ de quem pagou. A
   coluna Pagador sai e dá lugar à **Mensagem do pagador**; a linha aberta só mostra identificador da

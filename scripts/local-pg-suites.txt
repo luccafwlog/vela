@@ -95,6 +95,7 @@ src/integration/containerOwnership.local-pg.test.ts
 src/integration/containerProfile.local-pg.test.ts
 src/integration/cronDispatchTimeout.local-pg.test.ts
 src/integration/runnerEfeitosDisparoImediato.local-pg.test.ts
+src/integration/emailsPeloEvento.local-pg.test.ts
 src/integration/customerCommunicationPartial.local-pg.test.ts
 src/integration/customerCommunicationReadinessGuards.local-pg.test.ts
 src/integration/pixBrCode.local-pg.test.ts

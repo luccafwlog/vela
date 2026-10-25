@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
-import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
+import { runCronWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { processPortalEmailEvent } from '../_shared/portalEmailEventProcessor.ts'
 import { runPortalEmailEventsBatch } from '../_shared/portalEmailEventsRunner.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
@@ -46,6 +46,8 @@ if (import.meta.main) {
   const edgeHandler = instrumentEdgeHandler('portal-email-events-runner', handler)
   // Heartbeat só para chamada autorizada do cron (plano dos e-mails, 2.3);
   // manda /fail com resposta não-2xx (falha no claim ou na devolução do
-  // evento) ou com `failed > 0` (evento devolvido para nova tentativa).
-  Deno.serve((req) => runWithBetterStackHeartbeat('portalEmailEvents', () => edgeHandler(req), { enabled: isAuthorized(req) }))
+  // evento) ou com `failed > 0` (evento devolvido para nova tentativa). O
+  // evento gravado pelo webhook (migration 458) chama com {"source":"trigger"},
+  // que reporta só a falha.
+  Deno.serve((req) => runCronWithBetterStackHeartbeat('portalEmailEvents', req, isAuthorized(req), () => edgeHandler(req)))
 }

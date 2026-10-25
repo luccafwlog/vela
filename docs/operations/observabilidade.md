@@ -69,20 +69,37 @@ ao bundle nem commitadas no Git:
 
 | Job | Variável de Secret Supabase | Cadência-alvo |
 |---|---|---|
-| `demurrage-dunning` | `BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL` | horária |
+| `demurrage-dunning` | `BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL` | 5 min (horária até a migration `458`) |
 | `alerts-detector` | `BETTERSTACK_HEARTBEAT_ALERTS_DETECTOR_URL` | 15 min |
-| `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL` | 15 min |
+| `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL` | 2 min (15 min até a migration `458`) |
 | `portal-daily-digest` | `BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL` | diária |
 | `ce-unlock-notify-email` | `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` | 5 min |
 | `portal-email-events-runner` | `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` | a cada minuto |
 
 O ping de sucesso só sai depois da conclusão do job com resposta 2xx sem falha
-contada; o restante manda `/fail`. Se a URL não estiver configurada no Supabase, a
+contada; o restante manda `/fail`. Desde a migration `458`, três desses runners
+(`customer-communication-auto-runner`, `ce-unlock-notify-email` e
+`portal-email-events-runner`) também são chamados pelo banco no evento, com
+`{"source":"trigger"}` ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento));
+essa chamada roda a mesma rodada e manda só a falha (`/fail`), nunca o sucesso
+(`runCronWithBetterStackHeartbeat`): o sucesso só vem do cron, para não esconder
+um cron parado, e a falha da primeira tentativa, que quase sempre é da chamada
+pelo evento, aparece na hora (decisão do dono de 2026-10-25). A
+`demurrage-dunning` só roda pelo cron (migration `459`). Se a URL não estiver configurada no Supabase, a
 função executa normalmente e ignora o ping. Só esses seis runners enviam heartbeat: `itau-pix` (job
 `itau-pix-queue`) e `import-effects-runner` não enviam; para a fila de efeitos,
 a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no
 painel do Better Stack deve alertar pela ausência de ping além
 da janela acordada (ex.: 70 min para job horário).
+
+**Períodos dos monitores (passo do dono, depois da promoção):** os monitores de
+`demurrage-dunning` e `customer-communication-auto-runner` foram cadastrados para
+1 h e 15 min. Decisão do dono de 2026-10-25: encurtá-los no painel do Better
+Stack para 5 min e 2 min, com tolerância de 5 min, **só depois** que as
+migrations `458` e `459` chegarem à produção (merge `staging` → `main`). Antes
+disso a rotina ainda roda no ritmo antigo, e o monitor encurtado acusaria queda
+falsa. Feito o ajuste, atualizar esta seção e o
+[manual de serviços externos](servicos-externos.md#better-stack-site-no-ar-e-rotinas).
 
 **Estado atual:** os seis runners enviam heartbeat e os seis estão cadastrados
 no Better Stack, com as URLs nos secrets do Supabase. Os de
