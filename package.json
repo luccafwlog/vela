@@ -19,6 +19,8 @@
     "docs:check": "node scripts/check-docs.mjs",
     "rpc:check": "node scripts/check-rpc-catalog.mjs",
     "migrations:check": "node scripts/check-destructive-migrations.mjs",
+    "manual:inventory": "node scripts/manual/inventory.mjs",
+    "manual:coverage": "node scripts/manual/check-coverage.mjs",
     "localpg:check": "node scripts/check-local-pg-ci.mjs",
     "ci:test": "node --test scripts/ci-db-paths.test.mjs scripts/check-local-pg-ci.test.mjs scripts/wait-supabase-migrations.test.mjs scripts/check-rpc-catalog.test.mjs scripts/design-audit/sb-shim.test.mjs",
     "typecheck": "tsc -b",

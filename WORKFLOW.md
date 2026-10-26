@@ -224,6 +224,8 @@ scripts/
   provision-preview-admin.mjs  fixture autenticada da Preview Supabase
   perf/                   harness de orçamento de carga das rotas
   design-audit/           bootstrap e seed da auditoria de design
+  manual/                 inventário do sistema e check de cobertura do
+                          Manual do Operador (`npm run manual:coverage`)
 
 supabase/
   migrations/             cadeia ativa do schema
@@ -246,6 +248,7 @@ docs/
   modules/                documentação por módulo
   CONVENCOES.md           convenções de documentação
   spec/                   especificações de produto e contrato
+  manual/                 Manual do Operador: matriz de cobertura
   plans/                  planos de implementação documentados
   archive/                histórico: planos, specs, auditorias e relatórios
 ```
@@ -775,6 +778,16 @@ de concorrência, lock), continue usando `spawn('psql', ...)`.
 de comando, e a mensagem de falha mostra a URL com a senha trocada por `***`.
 Ele compara nomes chamados com `public.pg_proc`, não valida assinaturas,
 grants nem comportamento das RPCs.
+
+`npm run manual:coverage` usa o mesmo banco preparado e a mesma
+`LOCAL_DATABASE_URL`. Ele extrai o inventário do sistema
+(`scripts/manual/inventory.mjs`: rotas, funções que as telas chamam, regras
+automáticas, restrições, rotinas, funções de servidor, alertas, e-mails,
+matriz de permissões e mensagens) e falha quando um item não tem lugar na
+[matriz de cobertura do Manual do Operador](docs/manual/README.md), quando a
+matriz cita um item que deixou de existir ou quando uma linha usa destino fora
+da lista. `npm run manual:inventory` imprime o inventário em JSON. Mudança que
+cria, remove ou renomeia um desses itens atualiza a matriz na mesma alteração.
 
 Para Supabase completo, carregue no ambiente do processo as variáveis indicadas
 em `.env.example`, inclusive os IDs das fixtures, antes de habilitar a suíte:

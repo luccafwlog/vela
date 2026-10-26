@@ -80,6 +80,7 @@ as rotas de cadastro, de Comunicados, do console e da Inspeção do Portal, é o
 - [agents/](agents/linguagem-do-sistema.md) — [contrato de comunicação dos agentes](agents/linguagem-do-sistema.md)
   e [issue tracker](agents/issue-tracker.md).
 - [setup/](setup/development.md) — desenvolvimento, deploy, testes.
+- [manual/](manual/README.md) — Manual do Operador: matriz de cobertura que liga cada regra do código ao lugar do manual que a explica (`npm run manual:coverage`).
 - [plans/](plans/README.md) — planos de implementação vivos (ainda não executados).
 - [spec/](spec/README.md) — specs funcionais ainda sem implementação concluída.
 - [archive/](archive/README.md) — histórico: planos executados, specs concluídas, auditorias, QA e relatórios.
