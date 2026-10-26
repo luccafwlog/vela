@@ -650,7 +650,8 @@ WhatsApp como botão. Os três contatos de entrega do B/L original
 `447`) não aparecem em Contato: são os endereços das agências que o
 [Desbloqueio de CE](desbloqueio-ce.md#anatomia-das-telas) mostra; no Vela, são
 editados em `/clientes/informacoes` → Contato, como "Entrega do B/L original ·
-Vitória", "· Salvador" e "· Suape" (nascem com "Endereço a definir").
+Vitória", "· Salvador" e "· Suape" (nasceram com "Endereço a definir"; a
+migration `464` gravou os endereços de Transhipping, Marinav e Transglobal).
 
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
 na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas

@@ -332,42 +332,43 @@ const contact = (key: string, address: string, extra: Record<string, unknown> = 
   key, title: key, description: "", emails: [], phones: [], whatsapp: null, address, active: true, ...extra,
 });
 
-it("botão abaixo do B/L original abre os endereços de entrega de Vitória, Salvador e Suape", async () => {
+it("link \"agência\" do B/L original abre o modal com os endereços de Vitória, Salvador e Suape", async () => {
   information.state = {
     isLoading: false,
     isError: false,
     data: { contacts: [
-      contact("entrega_bl_vitoria", "Rua Desembargador Ferreira Coelho, 330\nSala 813", { phones: ["(27) 2124-1652"] }),
+      contact("entrega_bl_vitoria", "Transhipping\nRua Dr. Desembargador Ferreira Coelho, 330", { phones: ["(27) 2124-1652"] }),
       contact("entrega_bl_salvador", "Endereço a definir"),
       // Suape ainda sem cadastro: o Portal não inventa endereço.
     ] },
   };
   mount();
   const requirements = await screen.findByRole("region", { name: "O que o desbloqueio pede" });
-  const toggle = within(requirements).getByRole("button", { name: "Endereços de entrega do B/L" });
-  expect(toggle.getAttribute("aria-expanded")).toBe("false");
-  expect(within(requirements).queryByText("Vitória")).toBeNull();
+  expect(within(requirements).getByText((_, node) => node?.tagName === "DD" && node.textContent === "Entregue na agência")).toBeTruthy();
+  expect(screen.queryByRole("dialog")).toBeNull();
 
-  await userEvent.click(toggle);
-  expect(toggle.getAttribute("aria-expanded")).toBe("true");
-  const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "") as HTMLElement;
-  expect(within(panel).getByText("Vitória")).toBeTruthy();
-  expect(within(panel).getByText((_, node) => node?.textContent === "Rua Desembargador Ferreira Coelho, 330\nSala 813" && node.tagName === "SPAN")).toBeTruthy();
-  expect(within(panel).getByText("(27) 2124-1652")).toBeTruthy();
-  expect(within(panel).getAllByText("Endereço a definir")).toHaveLength(2);
-  expect(within(panel).getByText("Suape")).toBeTruthy();
+  const link = within(requirements).getByRole("button", { name: /^agência/ });
+  await userEvent.click(link);
+  const dialog = screen.getByRole("dialog", { name: "Onde entregar o B/L original" });
+  expect(within(dialog).getByText("Vitória")).toBeTruthy();
+  expect(within(dialog).getByText((_, node) => node?.textContent === "Transhipping\nRua Dr. Desembargador Ferreira Coelho, 330" && node.tagName === "SPAN")).toBeTruthy();
+  expect(within(dialog).getByText("(27) 2124-1652")).toBeTruthy();
+  expect(within(dialog).getAllByText("Endereço a definir")).toHaveLength(2);
+  expect(within(dialog).getByText("Suape")).toBeTruthy();
 
-  await userEvent.click(within(requirements).getByRole("button", { name: "Ocultar endereços de entrega" }));
-  expect(within(requirements).queryByText("Vitória")).toBeNull();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Fechar modal" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(link);
 });
 
 it("falha ao ler os endereços de entrega mostra o erro com Tentar novamente", async () => {
   information.state = { isLoading: false, isError: true, data: undefined };
   mount();
   const requirements = await screen.findByRole("region", { name: "O que o desbloqueio pede" });
-  await userEvent.click(within(requirements).getByRole("button", { name: "Endereços de entrega do B/L" }));
-  expect(within(requirements).getByRole("alert").textContent).toContain("Não foi possível carregar os endereços de entrega.");
-  await userEvent.click(within(requirements).getByRole("button", { name: "Tentar novamente" }));
+  await userEvent.click(within(requirements).getByRole("button", { name: /^agência/ }));
+  const dialog = screen.getByRole("dialog", { name: "Onde entregar o B/L original" });
+  expect(within(dialog).getByRole("alert").textContent).toContain("Não foi possível carregar os endereços de entrega.");
+  await userEvent.click(within(dialog).getByRole("button", { name: "Tentar novamente" }));
   expect(information.refetch).toHaveBeenCalled();
 });
 

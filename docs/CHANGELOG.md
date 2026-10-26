@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Endereços de entrega do B/L original (2026-10-26):** migration `464`, sem ADR nova. No
+  Desbloqueio de CE do Portal, "agência" em "B/L original · Entregue na agência" vira link para o
+  modal "Onde entregar o B/L original" (era um botão que abria os endereços na faixa). A `464`
+  grava os endereços de Vitória (Transhipping), Salvador (Marinav) e Suape (Transglobal) no lugar
+  de "Endereço a definir"; endereço já editado no Vela fica como está.
 - **Revisão da release staging → main (2026-10-25/26):** migrations `460` a `463`, sem ADR nova
   (faixa "Situação atual" na [ADR 0103](adr/0103-emails-automaticos-saem-pelo-evento.md)).
   Decisões do dono de 2026-10-26 (`463`): o vínculo de Cliente, Viagem, porto ou terminal do B/L
