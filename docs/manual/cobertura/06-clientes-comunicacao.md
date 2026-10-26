@@ -13,7 +13,7 @@ página **Informações do Portal**).
 Conferência independente (2026-10-26, código da `staging` e banco local com a
 migration `463`): corrigiu CLI-005, CLI-006, CLI-019, CLI-024, CLI-029,
 CLI-041, CLI-077, CLI-089 e CLI-094, acrescentou CLI-103 a CLI-107, ajustou o
-destino ou o texto de oito mensagens e acrescentou as divergências D13 a D18.
+destino ou o texto de dez mensagens e acrescentou as divergências D13 a D18.
 Leitura do código e das definições do banco; nada foi executado.
 
 ## Regras
@@ -132,7 +132,7 @@ Leitura do código e das definições do banco; nada foi executado.
 
 | Mensagem | Quando aparece | Destino |
 |---|---|---|
-| `A caixa "%" ficaria sem nenhum destinatário ativo elegível. Vincule outro e-mail antes de remover.` | Ao salvar contatos (Vela ou Perfil do Portal) deixando uma caixa sem nenhum contato ativo com e-mail vinculado; % é o nome da caixa. | Ap. B |
+| `A caixa "%" ficaria sem nenhum destinatário ativo elegível. Vincule outro e-mail antes de remover.` | Nunca chega a uma pessoa: as duas telas de contatos (ficha do Cliente e Perfil do Portal) recusam antes, com regra mais estrita: "A caixa "…" não pode ficar sem nenhum contato ativo e elegível vinculado." (CLI-106). | Fora |
 | `A razão social do Cliente % mudou depois da prévia: leia o arquivo de novo.` | Na lista de recusas da Base de Clientes: o Cliente % foi renomeado depois da prévia que você aceitou. Escolha o arquivo de novo. | Ap. B |
 | `Acesso negado para automação de comunicados.` | Nunca chega a uma pessoa: função antiga da régua, sem chamada no sistema. | Fora |
 | `Acesso negado para cadastrar contato.` | Nunca chega a uma pessoa: as portas que capturam o e-mail do B/L (importação, Revisão) já recusam antes a sessão sem usuário interno ativo. | Fora |
@@ -148,7 +148,7 @@ Leitura do código e das definições do banco; nada foi executado.
 | `Caixa de comunicação inválida: %` | Nunca chega a uma pessoa: as telas só oferecem as três caixas ativas. | Fora |
 | `Campo de cliente nao editavel: %.` | Nunca chega a uma pessoa: a ficha só manda os campos editáveis. | Fora |
 | `Chave da claim e obrigatoria.` | Nunca chega a uma pessoa: rotina interna da régua automática. | Fora |
-| `Cliente % desativado: reative antes de vincular.` | Ao vincular manualmente um B/L a um Cliente desativado (Revisão, ficha do B/L, Base de Clientes). Peça ao Administrativo para reativar ou escolha outro Cliente. | Ap. B |
+| `Cliente % desativado: reative antes de vincular.` | Ao vincular um B/L a um Cliente desativado: na Revisão, ao cadastrar ou vincular pelo CNPJ de um Cliente desativado, ou na ficha do B/L se o Cliente foi desativado depois de escolhido. A Base de Clientes não mostra esta recusa (CLI-024). Peça ao Administrativo para reativar ou escolha outro Cliente. | Ap. B |
 | `Cliente % nao encontrado.` | Ao salvar os Dados cadastrais de um Cliente que não existe mais (ficha aberta com dado antigo). Recarregue a ficha. | Ap. B |
 | `Cliente % não encontrado.` | Ao salvar contatos, completar caixas ou desativar um Cliente que não existe mais. Recarregue a ficha. | Ap. B |
 | `Cliente % não está desativado.` | Ao reativar um Cliente que outra pessoa já reativou. Recarregue a ficha. | Ap. B |
@@ -159,15 +159,15 @@ Leitura do código e das definições do banco; nada foi executado.
 | `Comunicado institucional nao pode conter B/Ls.` | Nunca chega a uma pessoa: regra repetida pela checagem nova do servidor. | Fora |
 | `Comunicado institucional não pode conter B/Ls.` | No resultado do disparo, se um institucional fosse enviado com B/L; a conferência do institucional não leva B/L, então não aparece no uso normal. | Ap. B |
 | `Comunicado sem ancora exige dispatch_id.` | Nunca chega a uma pessoa: a tela sempre manda o disparo do institucional e do livre; o servidor responderia com texto genérico. | Fora |
-| `Configuração global não encontrada.` | Ao trocar a chave **Envio real** sem a configuração do sistema; avise o suporte técnico. | Ap. B |
+| `Configuração global não encontrada.` | Nunca chega a uma pessoa: a falha na troca da chave **Envio real** não aparece na tela, que fica como estava (CLI-104); só a telemetria registra. | Fora |
 | `Contato % não pertence ao cliente %.` | Ao salvar contatos com um contato de outro Cliente (tela desatualizada). Recarregue a ficha. | Ap. B |
-| `Contato adicional ativo deve ter ao menos uma caixa vinculada.` | Ao salvar contatos com um adicional ativo sem caixa marcada (a tela avisa antes, com o nome do contato). | Ap. B |
+| `Contato adicional ativo deve ter ao menos uma caixa vinculada.` | Nunca chega a uma pessoa: as duas telas de contatos recusam antes, com o nome do contato ("O contato "…" deve estar vinculado a pelo menos uma caixa."). | Fora |
 | `Credenciais invalidas para criar cliente.` | Ao cadastrar Cliente com sessão de usuário inativo ou expirada. Entre de novo. | Ap. B |
 | `Credenciais invalidas para editar cliente.` | Ao salvar os Dados cadastrais com sessão inativa ou expirada. Entre de novo. | Ap. B |
-| `Criação de cliente exige ao menos um contato principal com e-mail válido.` | Ao cadastrar Cliente sem principal com e-mail (a tela avisa antes: "O contato principal precisa de um e-mail válido."). | Ap. B |
-| `E-mail % já cadastrado para o contato "%" (ID %).` | Ao salvar contatos com um e-mail que já é de outro contato do Cliente, mesmo desativado. Reative aquele contato em vez de criar outro. | Ap. B |
-| `E-mail duplicado no envio: %` | Ao salvar contatos (ou importar a Base) com o mesmo e-mail repetido na lista. | Ap. B |
-| `E-mail é obrigatório para contato ativo.` | Ao salvar contatos com um contato ativo sem e-mail. | Ap. B |
+| `Criação de cliente exige ao menos um contato principal com e-mail válido.` | Nunca chega a uma pessoa: o **Novo cliente** recusa antes, com regra mais estrita ("O contato principal precisa de um e-mail válido."). | Fora |
+| `E-mail % já cadastrado para o contato "%" (ID %).` | Ao salvar contatos quando outro contato com o mesmo e-mail foi criado depois que a tela abriu (pelo B/L, pela Base ou pelo Portal). Recarregue a ficha e confira os contatos. | Ap. B |
+| `E-mail duplicado no envio: %` | Ao salvar contatos com um e-mail que já é de outro contato do Cliente na lista, inclusive desativado (reative aquele contato em vez de criar outro). Na Base de Clientes não aparece: a leitura já junta os e-mails repetidos. | Ap. B |
+| `E-mail é obrigatório para contato ativo.` | Ao salvar contatos com um contato novo, ainda sem e-mail, que foi desativado antes de salvar (o contato ativo sem e-mail a tela recusa antes: "O contato "…" possui um e-mail inválido."). Reative o contato e informe o e-mail, ou use **Descartar**. | Ap. B |
 | `E-mail invalido para o cliente %: %` | Na lista de recusas da Base, se um e-mail do Cliente não tiver formato válido. | Ap. B |
 | `E-mail inválido: %` | Ao salvar contatos com e-mail sem formato válido (nome@dominio.ext). | Ap. B |
 | `E-mail inválido.` | Ao capturar ou incluir como contato um e-mail sem formato válido (Revisão). | Ap. B |
@@ -179,7 +179,7 @@ Leitura do código e das definições do banco; nada foi executado.
 | `Informe um e-mail válido para o cliente.` | Na Revisão, ao cadastrar ou vincular o Cliente do grupo sem e-mail válido. | Ap. B |
 | `Item de contato inválido.` | Nunca chega a uma pessoa: as telas sempre mandam contatos completos. | Fora |
 | `Item de reconciliacao % nao encontrado.` | Nunca chega a uma pessoa: a aprovação e a rejeição antigas da conciliação saíram das telas. | Fora |
-| `Justificativa obrigatoria para editar cliente.` | Ao salvar os Dados cadastrais sem justificativa (a tela avisa antes). | Ap. B |
+| `Justificativa obrigatoria para editar cliente.` | Nunca chega a uma pessoa: a ficha recusa antes ("Informe a justificativa: ela fica registrada na auditoria do cadastro."). | Fora |
 | `Linha da base invalida.` | Nunca chega a uma pessoa: a tela sempre manda cada Cliente completo. | Fora |
 | `Natureza invalida para o tipo de comunicado.` | Nunca chega a uma pessoa: o servidor recusa antes com "Natureza inválida ou ausente." | Fora |
 | `Nenhum B/L informado para o grupo.` | Na Revisão, se nenhum B/L do grupo pode receber o cadastro (a tela avisa antes: "Nenhum B/L deste grupo pode receber o cadastro com esse CNPJ."). | Ap. B |
@@ -204,7 +204,7 @@ Leitura do código e das definições do banco; nada foi executado.
 | `Sem permissão para trocar o Cliente do B/L.` | Na Troca de Consignatário pela reimportação, se a sessão não for de usuário interno ativo. Entre de novo. | Ap. B |
 | `Somente o Administrativo desativa cliente.` | Ao desativar Cliente sem ser do Administrativo. | Ap. B |
 | `Somente o Administrativo reativa cliente.` | Ao reativar Cliente sem ser do Administrativo. | Ap. B |
-| `Somente o perfil administrativo pode alterar a chave de Comunicados.` | Ao trocar a chave **Envio real** sem ser do Administrativo (a chave só aparece para ele). | Ap. B |
+| `Somente o perfil administrativo pode alterar a chave de Comunicados.` | Nunca chega a uma pessoa: a chave só aparece para o Administrativo e a falha da troca não aparece na tela (CLI-104). | Fora |
 | `Um ou mais B/Ls não estão mais pendentes de revisão.` | Na Revisão, quando outra pessoa resolveu B/Ls do grupo antes; a fila é recarregada. | Ap. B |
 | `Use deactivate_customer ou reactivate_customer.` | Nunca chega a uma pessoa: protege a desativação contra gravação fora dos botões **Desativar/Reativar cliente**. | Fora |
 | `Usuário sem permissão ativa para concluir o grupo.` | Na Revisão, ao cadastrar ou vincular o Cliente do grupo com sessão inativa. Entre de novo. | Ap. B |
@@ -254,10 +254,16 @@ Leitura do código e das definições do banco; nada foi executado.
 | D06 | Documentação de `customer_communication_templates`. | Os e-mails saem dos modelos do código; o catálogo no banco não é lido e já diverge (assunto do CE "CE Mercante Disponível e Resumo de Taxas Locais" × "CE Mercante e Taxas Locais disponíveis" no e-mail). | clientes.md, Estado e dados: "Modelos server-side fixos; um modelo ativo por tipo". | a | Registrar no módulo que a tabela é inerte (ou removê-la). |
 | D07 | **Cadastrar cliente pela Revisão** com o e-mail digitado pela pessoa. | O e-mail entra como contato "Contato manifesto", origem "Capturado do B/L", mesmo digitado na Revisão. | clientes.md: e-mail do manifesto é "Capturado do B/L"; a Revisão diz "Salva o cliente e o contato <e-mail>". | b | Gravar o e-mail digitado com origem "Cadastrado pela equipe". |
 | D08 | CNPJ "00.000.000/0000-00". | A tela recusa CNPJ de caractere repetido; o banco aceita "00000000000000" como válido. | clientes.md: o gatilho "recusa CNPJ inválido". | b | Alinhar o banco à tela (recusar caractere repetido). |
-| D09 | B/L faturado, mensagem ao desvincular. | O banco diz "Use Trocar Cliente."; o botão da ficha do B/L chama **Trocar**. | Rótulo da tela. | a | Trocar o texto para "Use Trocar.". |
+| D09 | B/L faturado, mensagem ao desvincular. | O banco diz "Use Trocar Cliente."; o botão da ficha do B/L chama **Trocar**. | Rótulo da tela (o texto do banco é que diverge dela; não há documento defasado). | b | Trocar o texto para "Use Trocar.". |
 | D10 | Financeiro ou Operações importa a Base de Clientes (ou cadastra Cliente pela Revisão) com e-mails novos. | A Base cria e reativa contatos e muda o principal, e a Revisão inclui contato, para qualquer setor ativo. | clientes.md e a matriz: editar contatos e caixas é só de Administrativo, Documentação e Equipamentos; importar Clientes é de todos. | c | Dono decide se incluir e-mail pela Base e pela Revisão conta como "editar contatos". |
 | D11 | Histórico da Comunicação, filtro Origem e situação do destinatário. | Opções "Automático" e "Operador"; situação "Devolvido (endereço inexistente)". | clientes.md: origem "Robô automático"; situação "Devolvido". | a | Corrigir os rótulos no módulo. |
 | D12 | Modo **Institucional**: dica "Cliente com contato e B/L com ETA nos últimos 12 meses" e vazio "é preciso ter contato com e-mail". | O Cliente Comunicável depende só do ETA; Cliente sem contato aparece na conferência, bloqueado ("Sem contato elegível"). | clientes.md e CONTEXT.md: Cliente Comunicável é o de carga recente ou futura; sem contato, linha bloqueada. | b | Ajustar a dica e o vazio da tela à regra. |
+| D13 | Pessoa do Financeiro ou de Operações abre **Comunicação com Clientes** com o envio real ligado. | Esses setores não leem a chave (a leitura é só de Administrativo, Documentação e Equipamentos) e a tela usa o valor padrão: o bloco **Canal de envio** mostra "Em simulação" (CLI-103). | clientes.md: "os demais perfis veem só o estado ("Envio real" ou "Em simulação")" e "os demais perfis que operam o módulo leem a faixa". | b | Liberar a leitura da chave a todo usuário interno ativo, ou a tela dizer que o estado não está disponível para o perfil. |
+| D14 | Cliente com um único contato, o principal, que teve bounce (o reparo tira as caixas dele e, ao abrir a aba, o sistema o põe de volta nelas) ou foi marcado como spam; a Documentação tenta corrigir o telefone ou trocar o e-mail dele na ficha. | A tela recusa **Salvar contatos** ("A caixa "Documentação e Operação" não pode ficar sem nenhum contato ativo e elegível vinculado."), e o e-mail trocado na tela não libera o contato; é preciso cadastrar outro contato nas caixas (CLI-106). O mesmo vale no Perfil do Portal. | clientes.md (Gravação dos contatos, "igual no Vela e no Perfil do Portal"): "Se todos os vinculados a uma caixa estiverem suprimidos, a gravação passa e o alerta `caixa_sem_destinatario` registra a caixa"; o banco foi feito para isso ("o cliente cujo único contato sofreu bounce ficaria insalvável"). | b | Alinhar a tela ao banco: aceitar a gravação com aviso e deixar o alerta registrar a caixa; reavaliar o bloqueio quando o e-mail do contato muda. |
+| D15 | Base de Clientes com o CNPJ de um Cliente desativado que tem B/Ls pendentes desse CNPJ. | A prévia conta e lista esses B/Ls em "B/Ls vinculados"; na gravação o vínculo vira sugestão (B/L sem Cliente, nota "Cliente desativado: reative o cliente ou escolha outro."), mas o resultado soma "N B/Ls vinculados automaticamente" e o Histórico do B/L recebe "Vínculo por documento pela Base de Clientes". A Base também atualiza o cadastro e reativa contatos do Cliente desativado sem aviso. Leitura do código, não executado. | clientes.md e ADR 0073, item 6: B/L com CNPJ de Cliente desativado não se vincula, vai à Revisão como sugestão; o vínculo é recusado até a reativação. | b | Avisar na prévia que o Cliente está desativado (ou recusar a linha) e não contar a sugestão como vínculo. |
+| D16 | Quem recebe o CE e Taxas. | Caixas Documentação e Operação e Financeiro (CLI-055). | clientes.md, "Público": "NOA, NOR, NOB e CE e Taxas vão à caixa Documentação e Operação"; o mesmo documento, em A22 e na régua, diz Documentação e Operação somada a Financeiro. | a | Corrigir a linha "Público" do módulo. |
+| D17 | Chave de envio desligada e um aviso do Desbloqueio de CE ao Cliente. | O aviso do Desbloqueio de CE também depende da chave, como a Cobrança de Demurrage e o aviso de bounce (CLI-053). | CONTEXT.md, "Chave de envio de Comunicados": não silencia o e-mail do Portal "(salvo o aviso de bounce)"; regras-de-negocio.md e clientes.md incluem o aviso do Desbloqueio de CE. | a | Atualizar o verbete do CONTEXT.md. |
+| D18 | Cliente com o único contato ativo devolvido (bounce) e um contato antigo desativado com e-mail válido. | O processamento do bounce abre "Cliente sem contato alternativo" (conta só contatos ativos); o detector de 15 minutos conta também o desativado e fecha o alerta, sem contato ativo para receber (CLI-089). Leitura do código, não executado. | clientes.md (Bounce em Cascata): o alerta abre "sem nenhum contato válido restante (ativo, com e-mail, sem bounce…)". | b | O detector contar só contatos ativos, como o processamento do bounce. |
 
 ## Capturas
 
@@ -285,3 +291,5 @@ Leitura do código e das definições do banco; nada foi executado.
 | C20 | Pré-visualização dos e-mails NOA, NOR, NOB, CE e Taxas, institucional e livre | CLI-090 a CLI-095 |
 | C21 | **Informações do Portal**, seções Depots (Publicado/Não publicado) e editor de Tracking com a marca {BL} | CLI-097 a CLI-102 |
 | C22 | Revisão, janela **Cadastrar cliente pela Revisão** | CLI-031 |
+| C23 | Ficha, **Contatos** com o principal bloqueado como único contato e a recusa "A caixa "…" não pode ficar sem nenhum contato ativo e elegível vinculado." | CLI-106 |
+| C24 | **Comunicação com Clientes** vista pelo Financeiro: **Canal de envio** "Em simulação" e só as vistas Cobertura e Histórico | CLI-051, CLI-103 |
