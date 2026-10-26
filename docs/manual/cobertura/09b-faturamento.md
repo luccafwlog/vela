@@ -203,17 +203,17 @@ no banco local); nada foi executado no navegador nesta etapa.
 
 | Mensagem | Quando aparece | Destino |
 |---|---|---|
-| `A ação % exige o ID de uma invoice emitida para concluir o ajuste.` | Ao liquidar Ajuste de COD de Fatura complementar ou Revisão manual sem informar o número interno da fatura emitida. | Ap. B |
+| `A ação % exige o ID de uma invoice emitida para concluir o ajuste.` | Ao liquidar Ajuste de COD de Fatura complementar ou Revisão manual sem o número interno da fatura emitida (na tela, o aviso "Informe o ID da invoice emitida para concluir este ajuste." aparece antes). | Ap. B |
 | `A ação % não aceita vínculo manual de documento.` | Ao liquidar ajuste de abatimento ou restituição informando um documento (esses ramos não pedem fatura). | Ap. B |
 | `A correcao do B/L ja tratou este valor. Revise o ajuste de COD e a restituicao existente.` | Ao liquidar ajuste de COD que a correção automática do B/L já abateu ou restituiu. | Ap. B |
 | `A viagem informada não pertence ao B/L %.` | Na avulsa, com B/L e Navio / Viagem de viagens diferentes. | Ap. B |
-| `Acesso negado para marcar B/L como pronto para faturar.` | Ao emitir com usuário inativo ou sessão sem acesso. | Ap. B |
+| `Acesso negado para marcar B/L como pronto para faturar.` | Conferência interna repetida: toda emissão pela tela já recusa usuário inativo antes, com "Credenciais invalidas ou sem permissao de faturamento."; esta não chega a uma pessoa. | Fora |
 | `Ainda existem linhas com pendencia de revisao` | Ao emitir B/L com taxa em revisão (na ficha vira "Há linhas que precisam de revisão: corrija o B/L e recalcule antes de emitir."). | Ap. B |
 | `Ajuste de COD % nao encontrado.` | Ao liquidar ajuste que não existe mais (lista desatualizada). | Ap. B |
 | `Ajuste de COD % nao esta pendente (status=%).` | Ao liquidar ajuste já liquidado ou cancelado por outra pessoa. | Ap. B |
 | `Ajuste de COD sem excedente para restituir.` | Ao registrar restituição de ajuste sem valor a devolver. | Ap. B |
 | `Apenas consolidadas podem ser marcadas obsoletas por esta rotina.` | Nenhuma tela marca consolidada como obsoleta à mão; a recusa nunca chega à operação. | Fora |
-| `Apenas Financeiro, Administrativo ou Admin pode liquidar ajustes de COD.` | Ao liquidar ajuste de COD sem ser Financeiro ou Administrativo. | Ap. B |
+| `Apenas Financeiro, Administrativo ou Admin pode liquidar ajustes de COD.` | Conferência interna repetida: a liquidação já recusa antes, pelo mesmo motivo, com "Sem permissao para liquidar ajuste de COD."; esta não chega a uma pessoa. | Fora |
 | `Apenas itens manuais podem ser removidos.` | Ação de remover item de fatura emitida, desligada; nenhuma tela chama. | Fora |
 | `B/L "%" nao encontrado.` | Ao emitir B/L que foi excluído ou número errado. | Ap. B |
 | `B/L % cancelado e somente leitura; nao e permitido lancar taxa manual.` | Ao adicionar cobrança manual em B/L cancelado. | Ap. B |
@@ -284,8 +284,8 @@ no banco local); nada foi executado no navegador nesta etapa.
 | `Nenhuma linha BRL elegivel para faturamento.` | Ao emitir B/L sem taxa com valor. | Ap. B |
 | `No máximo 50 B/Ls por lote de emissão.` | Emissão pela planilha de CE com lote maior que 50 (a tela usa 25). | Ap. B |
 | `Nome do item é obrigatório.` | Avulsa Outra sem Nome do item. | Ap. B |
-| `O ator da emissão deve ser o usuário autenticado.` | Avulsa enviada em nome de outro usuário (sessão trocada). | Ap. B |
-| `O ator da liquidação deve ser o usuário autenticado.` | Liquidação de COD em nome de outro usuário (sessão trocada). | Ap. B |
+| `O ator da emissão deve ser o usuário autenticado.` | Conferência interna da avulsa: a emissão já recusa antes o autor diferente da sessão ("Autor informado difere do usuário da sessão."); esta não chega a uma pessoa. | Fora |
+| `O ator da liquidação deve ser o usuário autenticado.` | Conferência interna do Ajuste de COD: a liquidação já recusa antes o autor diferente da sessão; esta não chega a uma pessoa. | Fora |
 | `O B/L % ja esta em outra consolidada aberta.` | Ao incluir B/L que já está em consolidada aberta. | Ap. B |
 | `O B/L % ja tem documento de Taxas Locais aberto (individual ou consolidada); nao emita outro por cima.` | Ao emitir individual para B/L que já tem documento aberto. | Ap. B |
 | `O B/L % já tem esse ROE manual.` | Ao definir ROE manual igual ao vigente. | Ap. B |
