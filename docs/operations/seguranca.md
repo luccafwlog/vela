@@ -82,6 +82,24 @@ demais no banco (`admin_list_users`); os dados das outras abas, como
 Histórico do console do Portal e Comunicados passaram à leitura global na
 migration `250` (P12; [matriz](#modelo-de-permissões-por-perfil)).
 
+Algumas tabelas têm leitura direta pela API mais estreita que a da matriz
+(**Código**, policies na cadeia ativa, 2026-10-26): `user_profiles` mostra a
+cada um só o próprio perfil, e todos os perfis ao Administrativo
+(`user_profiles_self_select`; a exceção de usuários da ADR 0085);
+`pix_reconciliation_exceptions` (exceções do extrato Pix) e
+`customer_portal_accounts` (contas do Portal) só o Administrativo lê;
+`itau_pix_receipt_failures` (falhas de recebimento Itaú) só o Financeiro e o
+Administrativo (`is_financeiro_user()`). As telas leem as exceções e as contas
+pelas funções abertas da matriz (`list_pix_reconciliation_exceptions`,
+`portal_list_provisioning_console`), e nenhuma tela lê as falhas do Itaú
+direto. Os nomes de autor dos Históricos do B/L, da Viagem e da ficha do
+Cliente vêm de `user_profiles`: fora do Administrativo, só o próprio nome
+aparece ali. No Desbloqueio de CE, a lista de planilhas enviadas à ZPT e os
+registros da confirmação no pedido, com a referência externa, só o
+Administrativo e a Documentação leem (`ce_unlock_read`; a linha "Gerir
+pedidos, documentos, exportação para a ZPT e conciliação" da
+[matriz](#desbloqueio-de-ce)).
+
 A matriz do frontend está em `roleHasPermission` (`src/hooks/useAuth.tsx`) e
 nos gates de cada tela; a autorização real fica nas policies, nas RPCs e nas
 Edge Functions.
@@ -145,7 +163,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Ler dado operacional e financeiro | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` | ADR 0044 | vigente |
+| Ler dado operacional e financeiro | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` | ADR 0044 | vigente; leitura direta mais estreita em algumas tabelas ([Visualização global interna](#visualização-global-interna)) |
 | `/admin`: usuários, falhas de entrega de alertas, histórico de ações, sistema e Prazo do ADR | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). As demais abas: só a navegação (rota `adminOnly`); os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha | ✔ | — | — | — | — | Edge `admin-users` (`is_admin`); policy de `user_profiles` e gatilho `prevent_user_profile_privilege_escalation` | ADR 0046 | vigente (**Teste** local da troca de setor e da situação: `permissoesPorPerfil.local-pg.test.ts`) |
 | Mudar o tipo de conta (`account_kind`, pessoa ou integração) | — | — | — | — | — | INSERT e UPDATE de `user_profiles` por coluna, sem `account_kind` (migration `440`); só migration ou `service_role` | [Conta de integração](../modules/operacao-suporte.md#conta-de-integração) | vigente (**Teste** local: `contaDeIntegracao.local-pg.test.ts`) |

@@ -7,7 +7,14 @@
 ## Gate de faturamento
 
 A emissão exige cliente reconciliado, cálculo elegível, revisão sem pendências
-bloqueantes, CE Mercante e o Gate de faturamento do Portal aberto.
+bloqueantes, CE Mercante e o Gate de faturamento do Portal aberto. Também
+barram a emissão: terminal de descarga em conflito, B/L sem taxa com valor,
+tabela de cobrança inativa ou incompleta para o POD e o modo de carga, B/L ou
+Viagem cancelados, fatura viva no mesmo B/L, câmbio ausente para taxa em
+dólar, irmão de container compartilhado faturado com rateio que não é mais o
+atual ([Faturamento § Container compartilhado na emissão](../modules/faturamento.md#container-compartilhado-na-emissão))
+e troca de Cliente aguardando a devolução ao Cliente original
+([Faturamento § Troca de Cliente após emissão](../modules/faturamento.md#troca-de-cliente-após-emissão-regra-de-cnpj)).
 `047_bl_documental_gates.sql` guarda a promoção e a emissão
 individual/consolidada; `056` inclui as duas tabelas do B/L misto. O CE também
 participa da liberação documental para leitura no Portal
@@ -93,7 +100,7 @@ permissão, concessão com emissão, revogação, vencimento e ativação do Por
 
 ## Numeração de invoices
 
-A numeração sequencial é atômica no banco, via RPC `assign_invoice_number` sobre `invoice_counters`. Nunca gerar número no cliente — garante unicidade fiscal mesmo sob concorrência. Detalhes em [Faturamento](../modules/faturamento.md).
+A numeração sequencial é atômica no banco: o gatilho `assign_invoice_number` dá o número na gravação da fatura, sobre `invoice_counters`, sem chamada da tela. Nunca gerar número no cliente — garante unicidade fiscal mesmo sob concorrência. Detalhes em [Faturamento](../modules/faturamento.md).
 
 ## Ledger local e ciclo de vida
 
@@ -126,7 +133,7 @@ a retirada do `overdue` é da migration arquivada `157`): a coluna
 
 ## Câmbio (ROE / PTAX)
 
-Cobranças em moeda estrangeira usam o ROE obtido da PTAX Venda do Banco Central (`olinda.bcb.gov.br`) pelo serviço compartilhado `fetchROE`, com markup canônico de `1,065`. O header interno consome esse contrato por `useRoeHeaderRate`; sem ROE/dados fiscais suficientes, a emissão da invoice é bloqueada. Aplica-se a Faturamento e Demurrage. O Recálculo Diário e o congelamento no pagamento da Invoice de Demurrage estão em [Demurrage § Recálculo diário e congelamento no pagamento](../modules/demurrage.md#recálculo-diário-e-congelamento-no-pagamento); a taxa local em dólar, em [Faturamento § Taxa local em dólar](../modules/faturamento.md#taxa-local-em-dólar).
+Cobranças em moeda estrangeira usam o ROE da PTAX Venda do Banco Central (`olinda.bcb.gov.br`) com markup canônico de `1,065`. O header interno mostra esse câmbio pelo serviço compartilhado `fetchROE` (`useRoeHeaderRate`), que só lê; a emissão não usa o câmbio lido pelo navegador. A Invoice de Demurrage usa o ROE manual do B/L ou a referência cambial gravada no servidor pelo recálculo das 14h ou pelo **Informar PTAX**; sem referência gravada, a emissão é recusada ([Demurrage § Emissão da Invoice de Demurrage](../modules/demurrage.md#emissão-da-invoice-de-demurrage)). O Recálculo Diário e o congelamento no pagamento da Invoice de Demurrage estão em [Demurrage § Recálculo diário e congelamento no pagamento](../modules/demurrage.md#recálculo-diário-e-congelamento-no-pagamento); a taxa local em dólar, em [Faturamento § Taxa local em dólar](../modules/faturamento.md#taxa-local-em-dólar).
 
 ## Reconciliação de cliente
 
@@ -146,8 +153,10 @@ quanto tempo cada dado fica. A matriz de quem pode cada operação está em
 Nas listas com ação em massa (BLs, Containers, Vazios IMP, Veículos, Clientes e
 Desbloqueio de CE, interno e no Portal), o checkbox do cabeçalho marca **todo o
 resultado filtrado, em todas as páginas**, e não só as linhas visíveis; a barra
-diz "N de M selecionados", e o checkbox fica meio marcado com parte do filtro
-selecionada. A seleção atravessa páginas e é zerada quando o filtro muda (no
+diz "N de M selecionados" (no Desbloqueio de CE, só os selecionados: "N
+selecionados · N aptos para a ZPT · N sem a entrega do B/L original" no Vela e
+"N B/Ls selecionados" no Portal), e o checkbox fica meio marcado com parte do
+filtro selecionada. A seleção atravessa páginas e é zerada quando o filtro muda (no
 Portal, a seleção do pedido continua entre buscas). Dono: `useFilteredSelection`
 e `SelectAllFilteredCheckbox`; as listas paginadas no servidor leem as páginas
 até 10.000 linhas e, acima disso, pedem para refinar o filtro (revisão de
@@ -259,8 +268,8 @@ serviço em `/embarquevazios/depots` mostra antes e depois (B31,
 `src/pages/DepotCadastro.tsx`; **Teste:** `DepotCadastro.behavior.test.tsx`).
 
 **Reativar pede motivo (B13, migration `261`).** Reativar tarifa (tabela e
-item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, taxa
-de Granito) e reativar usuário interno dizem "Reativar" e pedem motivo; a
+item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage) e
+reativar usuário interno dizem "Reativar" e pedem motivo; a
 reativação passa pela RPC `reactivate_catalog_row`, do Administrativo, que
 grava o motivo em `audit_logs` (linha `reativado`). Desativar segue sem motivo.
 **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B13, os cinco
@@ -292,8 +301,8 @@ direto pela API nessas tabelas (ver a
 - **Escala e atracação:** `delete_escala` (Administrativo, motivo e trava no
   porto) e a remoção de atracação, que também exige o Administrativo e respeita
   a trava (migration `088`; [Viagens § Catálogo de ações](../modules/viagens.md#catálogo-de-ações)).
-- **Cadastros** (item de taxa, Condição de Cliente, tarifa de Granito, tarifa e
-  acordo de Demurrage, Local, serviço do Local) e linha de serviço de vazios:
+- **Cadastros** (item de taxa, Condição de Cliente, tarifa e acordo de
+  Demurrage, Local, serviço do Local) e linha de serviço de vazios:
   `delete_catalog_row` (migration `096`), que exige o motivo e o grava na
   auditoria; o DELETE direto dessas tabelas saiu da API. Tarifa usada não se
   exclui ([Cadastro usado](#cadastro-usado)).
@@ -389,11 +398,11 @@ se desativa, para que todo valor cobrado mantenha a origem
 são do Administrativo. Desativado, o cadastro sai das listas de escolha e
 continua no histórico e nos documentos que o referenciam.
 
-- **Tarifa** (tabela e item de Taxas Locais, Condição de Cliente, tarifa de
-  Granito, tarifa e acordo de Demurrage): usada é a referenciada por cálculo,
-  item de fatura, versão de regra de preço ou cobrança de Granito. O banco
-  recusa excluí-la ("desative em vez de excluir"), e só o Administrativo muda o
-  estado ativo (migration `091`). Desvio aceito: tarifa e acordo de Demurrage
+- **Tarifa** (tabela e item de Taxas Locais, Condição de Cliente, tarifa e
+  acordo de Demurrage): usada é a referenciada por cálculo, item de fatura ou
+  versão de regra de preço. A tarifa de Granito saiu do banco (migration `329`).
+  O banco recusa excluí-la ("desative em vez de excluir"), e só o
+  Administrativo muda o estado ativo (migration `091`). Desvio aceito: tarifa e acordo de Demurrage
   contam como usados quando já entraram em vigor, porque o cálculo não guarda o
   id da tarifa. Telas em [Taxas Locais](../modules/taxas-locais.md) e
   [Demurrage § Tarifa, free time, P1 e P2](../modules/demurrage.md#tarifa-free-time-p1-e-p2).
@@ -578,11 +587,15 @@ componente só, aberto de todas as telas que a oferecem.
 
 ### Rastro das importações
 
-Toda importação deixa no Histórico, em cada registro que cria, altera ou
-exclui, quem fez, a data e a hora, o valor anterior e o novo e o contexto da
+Toda importação deixa no Histórico, em cada registro que altera ou exclui,
+quem fez, a data e a hora, o valor anterior e o novo e o contexto da
 importação ([ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md),
-item 9; migration `189`). O contexto é gravado como justificativa da linha que
-não tem outra, no formato "Importação de <tipo> · Viagem <navio> <número> ·
+item 9; migration `189`). A inclusão só tem linha própria em parte dos
+registros: container do B/L, veículo e o lote (manifesto) da importação a
+gravam; a unidade embarcada, o vazio de importação, o B/L de Granito, a linha
+de serviço e o próprio Embarque de Vazios entram sem linha de inclusão, e
+deles fica só a criação do lote com o contexto da importação. O contexto é
+gravado como justificativa da linha que não tem outra, no formato "Importação de <tipo> · Viagem <navio> <número> ·
 Manifesto <Nº>" — por exemplo, "Importação de Vazios de Importação · Viagem
 <navio> <número> · Manifesto <Nº>"; o motivo de uma exclusão, quando há,
 prevalece. Não se guarda o arquivo nem a linha da planilha; do arquivo fica só
