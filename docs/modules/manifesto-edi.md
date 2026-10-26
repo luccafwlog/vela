@@ -1,6 +1,6 @@
 # Manifestos & EDI
 
-> **Status:** ativo · **Atualizado:** 2026-10-19 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
+> **Status:** ativo · **Atualizado:** 2026-10-26 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
 
 ## Propósito e escopo
 
@@ -261,8 +261,8 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
 
 ### `/containers`
 
-- `src/pages/Containers.tsx` lista containers consolidados com filtros, cartões de total Containers, B/Ls, IMO e OOG (erro de consulta aparece como "—", não zero; quantos há de cada tipo fica no filtro Tipo, decisão de 2026-10-16), exportação e navegação ao B/L e à Viagem. Busca, Viagem, Tipo, POL e POD ficam sempre abertos, com **Limpar filtros** ao lado quando só eles filtram; Perfil, Veículos, Revisão, Situação financeira e Taxas locais, em "Mais filtros". O filtro Taxas locais oferece os três estados da coluna (migration `295`, como a lista de BLs). A tabela limpa (lote 2) tem Container, B/L, Cliente, Navio / Viagem, Tipo, IMO / OOG e COC/SOC em texto (a origem ao passar o mouse), Descarga, Devolução e Taxas locais em três estados (Pendente, Emitida, Isenta, `LocalChargesStatus`; contêiner de B/L cancelado diz "B/L cancelado" em cinza, com o `cancelled_at` que a migration `295` passou a projetar); o lacre fica na busca e na aba Carga, e Excluir, só na seleção em lote. Filtros e página ficam na URL (`src/pages/containersListState.ts`: `q`, `voyage`, `pol`, `pod`, `review`, `financial`, `charge`, `profile`, `type`, `vehicle_container`, `page`, `pageSize`; `search` continua aceito). Um endereço que a tela não escreveu (menu lateral ou outro link para `/containers` com a página aberta) substitui os filtros. Na devolução, SOC aparece como "Não se aplica (SOC)"; a origem do SOC/COC que vale (pelo B/L, pelo Baplie ou correção manual, de `bl_containers.ownership_source`) aparece ao passar o mouse. Abaixo de 640 px a lista vira cartões.
-- A ação aprovada se chama **Importar Datas de Descarga e Devolução**, tanto no botão quanto no título do modal. A descarga é obrigatória e a devolução é opcional; a operação pode emitir invoice de demurrage quando todos os containers do B/L retornaram.
+- `src/pages/Containers.tsx` lista containers consolidados com filtros, cartões de total Containers, B/Ls, IMO e OOG (erro de consulta aparece como "—", não zero; quantos há de cada tipo fica no filtro Tipo, decisão de 2026-10-16), exportação e navegação ao B/L e à Viagem. Busca, Viagem, Tipo, POL e POD ficam sempre abertos, com **Limpar filtros** ao lado quando só eles filtram; Perfil, Veículos, Revisão, Situação financeira e Taxas locais, em "Mais filtros". O filtro Taxas locais oferece os três estados da coluna (migration `295`, como a lista de BLs). A tabela limpa (lote 2) tem Container, B/L, Cliente, Navio / Viagem, Tipo, IMO / OOG e SOC/COC em texto (a origem ao passar o mouse; na aba Carga do B/L e na janela Corrigir o rótulo é COC/SOC), Descarga, Devolução e Taxas locais em três estados (Pendente, Emitida, Isenta, `LocalChargesStatus`; contêiner de B/L cancelado diz "B/L cancelado" em cinza, com o `cancelled_at` que a migration `295` passou a projetar); o lacre fica na busca e na aba Carga, e Excluir, só na seleção em lote. Filtros e página ficam na URL (`src/pages/containersListState.ts`: `q`, `voyage`, `pol`, `pod`, `review`, `financial`, `charge`, `profile`, `type`, `vehicle_container`, `page`, `pageSize`; `search` continua aceito). Um endereço que a tela não escreveu (menu lateral ou outro link para `/containers` com a página aberta) substitui os filtros. Na devolução, SOC aparece como "Não se aplica (SOC)"; a origem do SOC/COC que vale (pelo B/L, pelo Baplie ou correção manual, de `bl_containers.ownership_source`) aparece ao passar o mouse. Abaixo de 640 px a lista vira cartões.
+- O botão se chama **Importar datas**, e a janela, **Importar datas de descarga e devolução**. A descarga é obrigatória e a devolução é opcional; a Invoice de Demurrage que a gravação das datas pode emitir, cancelar ou reemitir segue a regra de [Demurrage § Emissão da Invoice de Demurrage](demurrage.md#emissão-da-invoice-de-demurrage).
 - Não existe importador de planilha de IMO/OOG: o perfil do container vem do B/L (DG Class e número ONU), do Baplie — que prevalece sobre o B/L para container presente no arquivo — e da correção manual na aba Carga; ver [Baplie: marcas, SOC/COC e divergências](#baplie-marcas-soccoc-e-divergências). A resolução das divergências do Baplie continua disponível em `/baplie`.
 - O Administrativo exclui containers com motivo; o banco recusa container de B/L com CE Mercante ou com documento financeiro emitido e container com taxa local ou item de Demurrage; veículos dependentes saem junto (ver [B/L Cancelado e exclusão](#bl-cancelado-e-exclusão)).
 
@@ -345,7 +345,7 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
   que tirou o botão "Selecionar os N do filtro"). Falha ao ler os manifestos da Viagem
   aparece como erro da lista, não como "Nenhum container neste recorte". **Exportar** gera a planilha
   do recorte com Natureza e Nº do manifesto Mercante.
-- A janela **Importar planilha de vazios** importa para uma viagem e exige um
+- A janela **Importar vazios de importação** (botão **Importar planilha**) importa para uma viagem e exige um
   **Nº do manifesto Mercante por rota** (POL → POD) dos vazios. Colunas obrigatórias: **Container**, **POL**
   e **POD**; opcionais: **Tipo** e **Tara (kg)**. O modelo está em
   `public/templates/vazios-importacao-modelo.xlsx` (e `.csv`), com link no modal.
@@ -406,14 +406,18 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
 
 ### `/embarquevazios`
 
-O Embarque de Vazios é o registro, criado do zero por Equipamentos, do embarque
+O Embarque de Vazios é o registro, criado do zero, do embarque
 de containers vazios de exportação de uma Escala: existe **um por escala**
 (Viagem e porto de embarque; `vazios_export_operations` único por
 `(voyage_id, embark_port)`). Ele reúne duas partes de naturezas distintas, que
 só se tocam na armazenagem: a **Lista de Unidades Embarcadas** (o fato, por
 planilha ou inclusão manual, sem preço) e as **Linhas de Serviço** (o custo,
 lançado à mão; uma linha não aponta para containers). Decisões: ADR 0033, com a
-reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
+reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036. O
+Embarque é responsabilidade de Equipamentos, mas qualquer usuário ativo, de
+qualquer Departamento, cria o embarque e lança unidade e linha (policies de
+`vazios_export_operations`, `vazios_bookings` e `vazios_export_service_lines`
+por `is_active_user()`).
 
 - **Tela** (`src/pages/EmbarqueVazios.tsx`, **Embarque de vazios**; lote 5b
   da identidade visual). Sem embarque escolhido, a tela lista **todos os
@@ -472,8 +476,10 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   unidades que não geram armazenagem — e é a fonte da contagem de vazios
   embarcados e dos dias de armazenagem do ADR.
 - **Planilha de Unidades Embarcadas.** Sete colunas: CONTAINER, TIPO, LOCAL
-  (código do cadastro de Locais), CONDIÇÃO (vazio, material ou com material), ENTRADA,
-  SAÍDA e EMBARQUE; modelo em
+  (código do cadastro de Locais), CONDIÇÃO, ENTRADA, SAÍDA e EMBARQUE; só
+  CONTAINER, LOCAL e CONDIÇÃO são obrigatórias (sem uma delas, "Planilha
+  inválida. Colunas obrigatórias: …"), e CONDIÇÃO aceita vazio ou empty e
+  material, com material ou loaded (`parseCondition`); modelo em
   `public/templates/unidades-embarcadas-modelo.xlsx`, com o seletor de arquivo
   comum (`ImportFilePicker`). Datas `DD/MM/AAAA` ou data do Excel pelo parser
   único; container e tipo canonizados em maiúsculas. Container repetido,
@@ -498,7 +504,9 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   seguem a mesma trava.
 - **ADR de Saída fechado trava tudo** (ADR 0095, decisão 22; migrations `398`, `399` e `400`):
   com o ADR de Saída do porto de embarque fechado, nada muda no Embarque de
-  vazios. O porto do Embarque e o do ADR são comparados pela régua de porto
+  vazios. Trava o ADR sem terminal ou o ADR do terminal que tem a frente de
+  operação Vazios EXP na escala (`_vazios_export_locked_by_adr`); num porto
+  com dois terminais, fechar o ADR do terminal sem essa frente não trava. O porto do Embarque e o do ADR são comparados pela régua de porto
   (`normalize_port_code`, desde a `400`): o Embarque gravado com apelido
   (BRVIT) trava com o ADR fechado em BRVIX. Incluir e editar unidade (`create_manual_vazios_booking`,
   `update_manual_vazios_booking`) também são recusados, e o gatilho
@@ -520,8 +528,10 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
 - **Linha de Serviço.** Declaração de um serviço efetivamente performado:
   **Local**, **Natureza**, **Serviço** (do catálogo daquele local),
   **Quantidade** e **Valor unitário**; o serviço de transporte leva a rota (o
-  local é a origem e o destino é o do serviço). O mesmo serviço com tipo de
-  container ou rota diferentes é outra linha, porque o valor difere. O usuário
+  local é a origem e o destino é o do serviço). O mesmo serviço com rota
+  diferente é outra linha, porque o valor difere. A linha não tem tipo de
+  container: a janela **Lançar linha** não o oferece, e a coluna **Tipo** das
+  linhas novas fica "—". O usuário
   lança quantas linhas precisar e o sistema não presume nenhuma. Overtime
   (cobrado pelo depot ou pelo transportador fora do horário normal),
   reorganização, bundle composition, visual check, handling e transporte são
@@ -544,7 +554,8 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   observação da linha), mesmo depois de o local ou o serviço ser desativado.
 - **Valor da linha.** Ao escolher local e serviço, o sistema sugere o valor
   unitário do catálogo (`valorSugerido`, do discriminante mais específico ao
-  genérico: tipo de container, rota, condição); o usuário pode sobrescrevê-lo,
+  genérico: rota, condição; o catálogo de Locais grava serviço sem tipo de
+  container, e a sugestão não usa tipo); o usuário pode sobrescrevê-lo,
   e o valor efetivo fica na linha (`valor_sugerido` guarda a sugestão). O valor
   do serviço já é o efetivo, inclusive para overtime ou majoração: a linha não
   aceita percentual (`vetoPercentual`), e o total é `quantidade × valor
@@ -823,7 +834,7 @@ flowchart LR
 12. **Baplie substitui os portos marcados.** A RPC (`import_baplie_file_atomic`, migration `388`) apaga e reinsere no staging só os PODs marcados no modal, e aplica marcas e vazios, em uma transação; os outros portos da Viagem ficam (ADR 0095, decisão 11). Containers `empty` não entram na conciliação de B/L; alimentam Vazios de Importação. O parser mantém o POD reconhecido de `LOC+11/12`; se estiver ausente ou inválido, usa o porto reconhecido de `LOC+83` da mesma unidade, preserva o destino final e mostra aviso para conferir a descarga real. POD informado mas desconhecido, sem `LOC+83` utilizável, tira o container do staging com aviso (o arquivo só é recusado se não sobrar container); POD ausente sem nenhum porto utilizável continua erro bloqueante.
 13. **Baplie é a fonte dos atributos físicos, com exceções.** Ver [Baplie: marcas, SOC/COC e divergências](#baplie-marcas-soccoc-e-divergências).
 14. **Veículos têm fronteira dividida.** A inserção do lote é transacional e, sem fatura viva, recalcula as Taxas Locais na mesma transação (migration `184`); o efeito `vehicle_followup` refaz depois, por B/L; com fatura viva ele só age quando o B/L ficou isento e cancela apenas a fatura sem pagamento (a com pagamento segue a ADR 0077, migration `190`). Falha nessa fase não desfaz veículos já inseridos.
-15. **Datas de container afetam demurrage.** Devolução anterior à descarga é rejeitada; todos retornados podem criar e emitir invoice de demurrage.
+15. **Datas de container afetam demurrage.** Devolução anterior à descarga é rejeitada; a emissão automática da Invoice de Demurrage segue [Demurrage § Grupo de Demurrage e cobrança por caixa](demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa).
 16. **Vazios são atômicos por manifesto.** Planilhas criam cabeçalho e itens na mesma RPC. Vazios vindos do Baplie substituem por viagem dentro da mesma transação; com o cadastro igual ao do Baplie, a tela não oferece ação.
 17. **Importar B/L calcula, mas não emite.** Com a viagem declarada, `import_bl_freight_with_metadata` persiste `bl_freight_lines`, `bl_emission_date`, campos documentais e reconciliação de cliente, aplica o review gate/fila do lote e calcula as taxas locais provisórias de cada B/L (migration `072`); sem cliente vinculado, o cálculo existe mas o recebível só nasce na conciliação. Invoice e ledger não são criados na importação: pelas ADRs 0038/0042, o CE confirma e dispara a emissão elegível — pela planilha de CE, o cálculo sai na gravação e a emissão logo depois, em lotes (migration `181`; ver [CE Mercante](#ce-mercante)); sem Portal pronto nem Liberação de faturamento vigente, a fatura fica retida (migration `083`, ADR 0070). Quando há **fatura emitida** (situação faturado ou pago, ou fatura de Taxas Locais viva; `_bl_has_emitted_local_invoice`), as variáveis de faturamento — containers, IMO/OOG, SOC/COC, peso de carga solta, CNPJ, rota (POL/POD) e modo de carga — ficam bloqueadas por padrão e só são aplicadas com a confirmação auditada por B/L; sem ela, nem containers nem peso, cubagem, POD e Place of Delivery mudam, e os campos comerciais e de frete seguem corrigíveis. B/L só calculado, sem fatura, recebe a base nova sem confirmação e tem as Taxas Locais recalculadas com o preço fixado (migration `392`; ADR 0095, decisão 10; ADR 0094). A aba VIN é ignorada: veículos não entram nem saem pelo arquivo de B/L (ADR 0095, decisão 26). A Troca de Consignatário aceita no preview segue a regra de CNPJ da ADR 0077 (reemitir sem pagamento; com pagamento, devolver ao Cliente original antes da nova cobrança; ADR 0078, item 14).
 18. **Arquivo importado deixa nome e hash no lote.** As RPCs de importação por arquivo que gravam lote (`import_bl_freight_file_atomic`, `import_breakbulk_manifest_transactional`, `import_granite_manifest_transactional`, `import_vazios_bookings_transactional`, `import_vazios_importacao_transactional`) recebem o SHA-256 do arquivo e o gravam com o nome; o corpo de antes ficou como `<nome>_core_405`, sem acesso pela API (migration `405`). O reenvio do mesmo arquivo grava outro lote; a prévia avisa (`PreviousImportCheck`, `useImportFileReceipt`). A regra está em [Regras de negócio § Rastro das importações](../operations/regras-de-negocio.md#rastro-das-importações).

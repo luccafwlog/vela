@@ -1,6 +1,6 @@
 # Granito
 
-> **Status:** ativo · **Atualizado:** 2026-10-20 · **Rotas:** `/granito` (`/granito/taxas` leva a `/granito`)
+> **Status:** ativo · **Atualizado:** 2026-10-26 · **Rotas:** `/granito` (`/granito/taxas` leva a `/granito`)
 
 ## Propósito e escopo
 
