@@ -4,6 +4,10 @@ Fonte do Manual do Operador do Vela, escrito a partir do comportamento atual do
 sistema ([plano](../plans/2026-10-26-manual-do-operador.md)). O manual diz como
 agir; a regra continua no documento de módulo.
 
+O mapeamento que deu origem à matriz (números, quem faz o quê pelo código,
+sumário final proposto e divergências) está no
+[relatório de 2026-10-26](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md).
+
 ## Matriz de cobertura
 
 [`cobertura/`](cobertura/) liga cada regra de negócio do código ao lugar do

@@ -6,13 +6,22 @@ trabalho, não o manual.
 
 ## Estado
 
-Etapa 1 em execução desde 2026-10-26. Prontos: o inventário do sistema
-(`npm run manual:inventory`) e o check de cobertura (`npm run manual:coverage`),
-que roda contra o banco local preparado, como o `rpc:check`, e não junto do
-`docs:check`, porque o inventário sai do banco com todas as migrations. Em
-andamento: o mapeamento das regras por área em
-[`docs/manual/cobertura/`](../manual/README.md). O material antigo está guardado
-como registro histórico e serve só de referência de redação
+**Etapa 1 executada em 2026-10-26; aguarda a aprovação do dono.** Os 2.253
+itens do sistema têm lugar na [matriz de cobertura](../manual/README.md)
+(`npm run manual:coverage` passa contra o banco local), com 1.560 regras
+escritas como o operador as vê e conferidas por uma segunda leitura
+independente do código. As 79 divergências de documento defasado foram
+corrigidas nos documentos vivos. O resultado, com a tabela de quem faz o quê,
+o sumário final proposto, a lista "fora do manual" e as 118 divergências que
+dependem de decisão, está no
+[relatório de 2026-10-26](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md).
+Falta, para fechar a Etapa 1, o dono aprovar essas três listas. A Etapa 2
+começa depois.
+
+Diferença mecânica do plano: o check de cobertura roda contra o banco local
+preparado, como o `rpc:check`, e não junto do `docs:check`, porque o
+inventário sai do banco com todas as migrations. O material antigo está
+guardado como registro histórico e serve só de referência de redação
 ([Régua de qualidade](#régua-de-qualidade)).
 
 ## Síntese do pedido
@@ -444,6 +453,9 @@ corrigidos na mesma entrega.
 **Pronto quando** cada item de cada lista tem destino, o check de cobertura
 passa, e o dono aprovou:
 a lista "fora do manual", a lista de divergências e o sumário final.
+Os três primeiros critérios foram cumpridos em 2026-10-26; a aprovação do
+dono está pendente
+([relatório](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md)).
 
 ### Etapa 2 — Projeto gráfico, cenário, imagens e PDF; capítulo-piloto
 

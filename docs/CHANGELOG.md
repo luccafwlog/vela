@@ -6,6 +6,15 @@
 
 ## 2026-10
 
+- **Manual do Operador, Etapa 1: mapeamento do sistema (2026-10-26):** sem migration nem mudança
+  de tela. `npm run manual:inventory` extrai do código e do banco local os 2.253 itens que o
+  manual precisa cobrir; `npm run manual:coverage` falha quando um item não tem lugar na
+  [matriz de cobertura](manual/README.md) (13 áreas, 1.560 regras como o operador as vê,
+  conferidas por uma segunda leitura independente do código). 79 divergências de documento
+  defasado corrigidas em `CONTEXT.md`, nos módulos e em `docs/operations/`; 118 divergências
+  que dependem de decisão do dono ficaram no
+  [relatório](archive/reports/2026-10-26-mapeamento-manual-do-operador.md), com a tabela de quem
+  faz o quê e o sumário final proposto.
 - **Endereços de entrega do B/L original (2026-10-26):** migration `464`, sem ADR nova. No
   Desbloqueio de CE do Portal, "agência" em "B/L original · Entregue na agência" vira link para o
   modal "Onde entregar o B/L original" (era um botão que abria os endereços na faixa). A `464`

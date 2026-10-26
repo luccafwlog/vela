@@ -400,7 +400,9 @@ continua no histórico e nos documentos que o referenciam.
 
 - **Tarifa** (tabela e item de Taxas Locais, Condição de Cliente, tarifa e
   acordo de Demurrage): usada é a referenciada por cálculo, item de fatura ou
-  versão de regra de preço. A tarifa de Granito saiu do banco (migration `329`).
+  versão de regra de preço; a tabela de Taxas Locais também conta como usada
+  quando tem B/L vinculado a ela (`charge_table_in_use`). A tarifa de Granito
+  saiu do banco (migration `329`).
   O banco recusa excluí-la ("desative em vez de excluir"), e só o
   Administrativo muda o estado ativo (migration `091`). Desvio aceito: tarifa e acordo de Demurrage
   contam como usados quando já entraram em vigor, porque o cálculo não guarda o
@@ -595,9 +597,10 @@ registros: container do B/L, veículo e o lote (manifesto) da importação a
 gravam; a unidade embarcada, o vazio de importação, o B/L de Granito, a linha
 de serviço e o próprio Embarque de Vazios entram sem linha de inclusão, e
 deles fica só a criação do lote com o contexto da importação. O contexto é
-gravado como justificativa da linha que não tem outra, no formato "Importação de <tipo> · Viagem <navio> <número> ·
-Manifesto <Nº>" — por exemplo, "Importação de Vazios de Importação · Viagem
-<navio> <número> · Manifesto <Nº>"; o motivo de uma exclusão, quando há,
+gravado como justificativa da linha que não tem outra, no formato "Importação
+de <tipo> · Viagem <navio> <número> · Manifesto <Nº>" — por exemplo,
+"Importação de Vazios de Importação · Viagem <navio> <número> · Manifesto
+<Nº>"; o motivo de uma exclusão, quando há,
 prevalece. Não se guarda o arquivo nem a linha da planilha; do arquivo fica só
 o nome e o hash (abaixo).
 
