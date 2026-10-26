@@ -135,6 +135,9 @@ describe('e-mails sem o domínio do portal antigo (ponto 4)', () => {
     expect(portalPageUrl('billing', 'https://staging.vela-portal.pages.dev/portal/billing')).toBe('https://staging.vela-portal.pages.dev/portal/billing')
     expect(portalPageUrl('/portal/ativar?token=x')).toBe('https://portalfwlog.com.br/portal/ativar?token=x')
     expect(portalPageUrl()).toBe('https://portalfwlog.com.br/portal')
+    // Configurado sem esquema: o link do e-mail continua absoluto.
+    expect(portalPageUrl('billing', 'portalfwlog.com.br')).toBe('https://portalfwlog.com.br/portal/billing')
+    expect(portalOrigin('staging.vela-portal.pages.dev/portal')).toBe('https://staging.vela-portal.pages.dev')
     expect(portalContactEmail(LEGACY_SUPPORT)).toBe('suporte@portalfwlog.com.br')
     expect(portalContactEmail('importacao@fwlog.com.br')).toBe('importacao@fwlog.com.br')
   })

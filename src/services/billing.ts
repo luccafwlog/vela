@@ -247,7 +247,18 @@ function intersectIds(current: Set<number> | null, next: number[]): Set<number> 
  * casa como antes; uma lista colada casa cada B/L (ponto 9 de 2026-10-23).
  */
 function invoiceBlMatches(term: string) {
-  const clauses = [`bl_id.ilike.%${escapeFilterTerm(term)}%`, ...tokenIlikeClauses(term, ['bl_id'])].join(',')
+  const tokens = tokenIlikeClauses(term, ['bl_id'])
+  if (!tokens.length) {
+    // Sem lista colada, a busca de antes: o texto inteiro com a pontuação, pelo `.ilike`
+    // parametrizado. No `.or()`, `escapeFilterTerm` troca `.,():*"` por espaço: "." casava todo B/L.
+    return Promise.all([
+      supabase.from('invoice_bls').select('invoice_id').ilike('bl_id', `%${term}%`).limit(5000),
+      supabase.from('invoice_receivable_links').select('invoice_id').ilike('bl_id', `%${term}%`).limit(5000),
+      supabase.from('invoices').select('id').ilike('bl_id', `%${term}%`).limit(5000),
+    ])
+  }
+  const whole = escapeFilterTerm(term)
+  const clauses = [...(whole ? [`bl_id.ilike.%${whole}%`] : []), ...tokens].join(',')
   return Promise.all([
     supabase.from('invoice_bls').select('invoice_id').or(clauses).limit(5000),
     supabase.from('invoice_receivable_links').select('invoice_id').or(clauses).limit(5000),

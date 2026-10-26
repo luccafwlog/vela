@@ -8,7 +8,7 @@ const open = { id: 1, item_id: 101, status: 'open', severity: 'normal', type: 'd
 const ack = { id: 2, item_id: 102, status: 'open', severity: 'normal', type: 'invoice_overdue', message: 'Fatura vencida 123', entity_type: 'invoice', entity_id: '123', department: 'administrativo', created_at: '2026-06-19T00:00:00Z', dismissed_until: '2026-08-22T12:00:00Z', dismissal_reason: 'Aguardando o financeiro', dismissed_by_name: 'Ana Ribeiro' }
 const portalInvoice = { id: 3, status: 'open', severity: 'critical', type: 'portal_excecao_critica_fatura', message: 'Portal sem email para fatura', entity_type: 'invoice', entity_id: '456', department: 'documentacao', created_at: '2026-06-18T00:00:00Z' }
 const adrLegacy = { id: 4, status: 'open', severity: 'normal', type: 'agency_report_department_pending', message: 'ADR legado', entity_type: 'agency_departure_report', entity_id: '10::BRVIX::documentacao', created_at: '2026-06-17T00:00:00Z' }
-const reviewCustomer = { id: 6, item_id: 106, status: 'open', severity: 'critical', type: 'review_customer_unlinked', message: 'Cliente VALE: 5 B/Ls pendentes de vínculo com cliente', entity_type: 'customer', entity_id: 'VALE', department: 'documentacao', created_at: '2026-06-15T00:00:00Z' }
+const reviewCustomer = { id: 6, item_id: 106, status: 'open', severity: 'critical', type: 'review_customer_unlinked', message: 'Cliente VALE: 5 B/Ls pendentes de vínculo com cliente', entity_type: 'customer', entity_id: 'VALE', department: 'documentacao', created_at: '2026-06-15T00:00:00Z', metadata: { bl_ids: ['MEDU1234567', 'MEDU7654321'] } }
 const unlinked = { id: 8, item_id: 108, status: 'open', severity: 'critical', type: 'review_customer_unlinked', message: '', entity_type: 'customer', entity_id: 'sem_cliente', department: 'documentacao', created_at: '2026-06-15T00:00:00Z' }
 const ceChanged = { id: 7, item_id: 107, status: 'open', severity: 'critical', type: 'ce_trocado_com_desbloqueio', message: 'CE trocado depois do Desbloqueio', entity_type: 'bl', entity_id: 'BL-CE-1', department: 'documentacao', created_at: '2026-06-14T00:00:00Z' }
 
@@ -144,6 +144,14 @@ it('A23: nos alertas de conferência sem fato de origem, "Resolver" abre a justi
     confirmLabel: 'Resolver',
   })))
   expect(navigate).not.toHaveBeenCalled()
+})
+
+// Ponto 9: a lista colada casa também os B/Ls que o alerta guarda em metadata (alerta por Cliente ou escala).
+it('lista de B/Ls colada acha o alerta que guarda os B/Ls em metadata', () => {
+  renderAlertas()
+  fireEvent.change(screen.getByLabelText('Buscar alertas'), { target: { value: 'MSCU0000001 MEDU7654321' } })
+  expect(screen.getByText('Cliente VALE: 5 B/Ls pendentes de vínculo com cliente')).toBeTruthy()
+  expect(screen.queryByText('Container vencendo')).toBeNull()
 })
 
 it('oferece as regras de alertas no topo', () => {

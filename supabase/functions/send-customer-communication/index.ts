@@ -152,6 +152,8 @@ async function renderUserWrittenCommunication(
     subject: input.subject,
     body: input.messageBody,
     bls: input.blIds.map((id) => ({ id, customerId: input.customerId })),
+    // Logo e links pelo Portal do ambiente (configuração única, ponto 4 de 2026-10-23).
+    portalUrl: portalBillingUrl(),
   })
   return { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }
 }
@@ -352,7 +354,7 @@ function communicationAttemptStore(admin: Admin): CommunicationAttemptStore {
     insertAttempt: (row) => admin.from('customer_communication_attempts').insert(row).select('id').single(),
     findAttemptByKey: (idempotencyKey) => admin
       .from('customer_communication_attempts')
-      .select('id, status, provider_message_id, dispatch_mode')
+      .select('id, status, provider_message_id, dispatch_mode, recipient_email')
       .eq('idempotency_key', idempotencyKey)
       .single(),
     patchAttempt: (id, patch) => admin.from('customer_communication_attempts').update(patch).eq('id', id),
@@ -619,6 +621,7 @@ async function handler(req: Request): Promise<Response> {
         terminalStateId: body.anchor_atracacao_id ?? null,
         milestoneAt,
         bls: validBls.map((bl) => ({ id: bl.id, customerId, terminalId, terminalStateId: body.anchor_atracacao_id ?? null })),
+        portalUrl: portalBillingUrl(),
       })
       canonicalPayload = { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }
       effectiveBlIds = rendered.blIds

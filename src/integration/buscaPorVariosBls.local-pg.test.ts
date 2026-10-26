@@ -121,6 +121,9 @@ describeLocal('453 — busca por vários B/Ls e contêineres', () => {
     // 455: espaço não separável separa, como na tela; palavra solta no meio fica de fora.
     expect(bls(`${BLS[0]}\u00a0${BLS[2]}`)).toEqual([BLS[0], BLS[2]])
     expect(bls(`${BLS[0]} e ${BLS[2]}`)).toEqual([BLS[0], BLS[2]])
+    // 461: os demais espaços Unicode separam como na tela (o \s do banco depende do locale).
+    expect(bls(`${BLS[0]}\u202f${BLS[2]}`)).toEqual([BLS[0], BLS[2]])
+    expect(bls(`${BLS[0]}\u2007${BLS[1]}`)).toEqual([BLS[0], BLS[1]])
   })
 
   it('um termo só e o texto inteiro seguem a busca de antes', () => {

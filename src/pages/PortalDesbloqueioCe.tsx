@@ -118,7 +118,8 @@ function annualGapMessage(vip: CeUnlockVipCoverage): string | null {
         ? `envie ${actionable[0].type === "termo" ? "o termo" : "a procuração"} em Documentos anuais`
         : `envie ${actionable[0].type === "termo" ? "o novo" : "a nova"} em Documentos anuais`;
   const sentence = gaps.map((g) => g.text).join(" e ");
-  return `${sentence[0].toUpperCase()}${sentence.slice(1)}: ${action}. Até lá, as solicitações seguem com termo de devolução e procuração anexados a elas.`;
+  // B/L com o CE vinculado na vigência de um anual anterior segue coberto por ele (migration 456).
+  return `${sentence[0].toUpperCase()}${sentence.slice(1)}: ${action}. Até lá, as solicitações de B/Ls que os documentos anuais não cobrem seguem com termo de devolução e procuração anexados a elas.`;
 }
 
 /**
@@ -251,8 +252,13 @@ export function PortalDesbloqueioCe() {
     return !latest || !["uploaded", "approved"].includes(latest.status);
   });
   const vipSource = detail?.source === "vip_annual";
-  const documentsReady = vipSource ? !!(vip?.enabled && vip.termo && vip.procuracao) : missingDocs.length === 0;
   const pendingItems = detail?.items.filter((i) => !i.confirmed) ?? [];
+  // Pedido VIP: vale a cobertura de cada B/L que o banco devolve, a mesma que o envio confere
+  // (migration 456), e não o anual vigente hoje: em janeiro, sem o anual do ano novo, o B/L com o
+  // CE vinculado no ano que acabou continua coberto pelo anual dele e o pedido segue.
+  const documentsReady = vipSource
+    ? !!vip?.enabled && pendingItems.every((i) => i.vip_covered === true)
+    : missingDocs.length === 0;
   const unpaid = pendingItems.some((i) => !i.paid);
   const submitReady = documentsReady && pendingItems.length > 0 && !unpaid;
   // Com os quatro requisitos atendidos em todos os B/Ls: o prazo final parte da pendência resolvida mais recente.
@@ -1001,7 +1007,9 @@ export function PortalDesbloqueioCe() {
                     <span className="app-table__cell-meta">
                       {!documentsReady
                         ? vipSource
-                          ? "Regularize os documentos anuais VIP para enviar."
+                          ? vipEnabled && pendingItems.some((i) => i.vip_covered === false)
+                            ? "Os documentos anuais não cobrem todos os B/Ls desta solicitação: cancele e peça de novo para seguir com termo e procuração anexados."
+                            : "Regularize os documentos anuais VIP para enviar."
                           : detail.state === "draft"
                             ? `Anexe ${joinDocs(missingDocs)} para solicitar.`
                             : `Envie ${correctedDocs(missingDocs)} para reenviar.`

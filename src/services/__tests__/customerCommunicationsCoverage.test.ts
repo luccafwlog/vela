@@ -247,24 +247,27 @@ describe('Cobertura de viagens na ordem da escala', () => {
       // BETA chega antes de todas.
       [20, [{ pod: 'BRSSA', eta: '2026-11-01T08:00:00Z', etb: null, ata: null }]],
       // GAMA já atracou em tudo: sem próxima escala, vai para o fim, antes da DELTA, que não tem escala.
-      [30, [{ pod: 'BRPNG', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-20T09:00:00Z' }]],
+      [30, [{ pod: 'BRPNG', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-20T09:00:00Z', atb: '2026-10-20T15:00:00Z' }]],
     ])
     expect(orderCoverageByEscala(rows, escalas).map((r) => `${r.vesselName} ${r.port ?? '—'}`))
       .toEqual(['BETA BRSSA', 'ALFA BRVIX', 'ALFA BRSSZ', 'GAMA BRPNG', 'DELTA —'])
   })
 
   // Decisão de 2026-10-25: no fim, a viagem que atracou por último vem primeiro, porque é
-  // quando o NOB e o CE e Taxas ficam devidos; antes, ordem alfabética do navio.
+  // quando o NOB e o CE e Taxas ficam devidos; antes, ordem alfabética do navio. "Atracou" é
+  // a ATB da Atracação, não a ATA da escala (chegada ao porto).
   it('sem próxima escala, a viagem que atracou por último vem primeiro', () => {
     const escalas = new Map([
-      [1, [{ pod: 'BRSSZ', eta: '2026-10-01T08:00:00Z', etb: null, ata: '2026-10-01T10:00:00Z' }]],
-      [2, [{ pod: 'BRSSZ', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-21T10:00:00Z' }, { pod: 'BRVIX', eta: '2026-10-18T08:00:00Z', etb: null, ata: '2026-10-18T09:00:00Z' }]],
+      [1, [{ pod: 'BRSSZ', eta: '2026-10-01T08:00:00Z', etb: null, ata: '2026-10-01T10:00:00Z', atb: '2026-10-01T20:00:00Z' }]],
+      [2, [{ pod: 'BRSSZ', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-21T10:00:00Z', atb: '2026-10-21T20:00:00Z' }, { pod: 'BRVIX', eta: '2026-10-18T08:00:00Z', etb: null, ata: '2026-10-18T09:00:00Z', atb: '2026-10-18T20:00:00Z' }]],
       // Escala omitida não conta como atracação.
-      [3, [{ pod: 'BRSSZ', eta: '2026-10-10T08:00:00Z', etb: null, ata: '2026-10-10T10:00:00Z' }, { pod: 'BRVIX', eta: '2026-10-25T08:00:00Z', etb: null, ata: '2026-10-25T09:00:00Z', omitted: true }]],
+      [3, [{ pod: 'BRSSZ', eta: '2026-10-10T08:00:00Z', etb: null, ata: '2026-10-10T10:00:00Z', atb: '2026-10-10T20:00:00Z' }, { pod: 'BRVIX', eta: '2026-10-25T08:00:00Z', etb: null, ata: '2026-10-25T09:00:00Z', atb: '2026-10-25T20:00:00Z', omitted: true }]],
       [4, [{ pod: 'BRSSZ', eta: '2026-11-03T08:00:00Z', etb: null, ata: null }]],
+      // Chegou por último (ATA), mas ainda sem atracação: fica com as sem atracação.
+      [6, [{ pod: 'BRSSZ', eta: '2026-10-24T08:00:00Z', etb: null, ata: '2026-10-24T10:00:00Z', atb: null }]],
     ])
-    const ordered = orderCoverageByEscala([row(1, 'ALFA', '1', 'BRSSZ'), row(2, 'BETA', '2', 'BRSSZ'), row(3, 'GAMA', '3', 'BRSSZ'), row(4, 'ZETA', '4', 'BRSSZ'), row(5, 'AAA', '5', null)], escalas)
-    expect(ordered.map((r) => r.vesselName)).toEqual(['ZETA', 'BETA', 'GAMA', 'ALFA', 'AAA'])
+    const ordered = orderCoverageByEscala([row(1, 'ALFA', '1', 'BRSSZ'), row(2, 'BETA', '2', 'BRSSZ'), row(3, 'GAMA', '3', 'BRSSZ'), row(4, 'ZETA', '4', 'BRSSZ'), row(5, 'AAA', '5', null), row(6, 'BBB', '6', 'BRSSZ')], escalas)
+    expect(ordered.map((r) => r.vesselName)).toEqual(['ZETA', 'BETA', 'GAMA', 'ALFA', 'AAA', 'BBB'])
   })
 
   it('escala omitida não conta como próxima; empate de ETA desempata por ETB, navio e viagem', () => {
@@ -301,6 +304,30 @@ describe('Cobertura de viagens na ordem da escala', () => {
     // A viagem 20, cadastrada depois, chega antes e fica no topo (antes saía pela ordem de cadastro).
     expect(result.map((r) => r.voyageId)).toEqual([20, 10])
     expect(mockEscalas).toHaveBeenCalledWith([10, 20])
+  })
+
+  it('sem próxima escala, a ATB lida das Atracações põe na frente a viagem que atracou por último', async () => {
+    const tables: Record<string, unknown> = {
+      voyages: queryResult([{ id: 10, voyage_number: 'V10', vessel: { name: 'Antigo' } }, { id: 20, voyage_number: 'V20', vessel: { name: 'Novo' } }]),
+      bls: queryResult([
+        { id: 'BL-1', voyage_id: 10, customer_id: 1, pod: 'BRSSZ', ce_mercante: null, financial_status: 'pending' },
+        { id: 'BL-2', voyage_id: 20, customer_id: 1, pod: 'BRVIX', ce_mercante: null, financial_status: 'pending' },
+      ]),
+      customer_communications: queryResult([]),
+      // Só a viagem 20 atracou; a 10 chegou depois (ATA), mas não atracou.
+      voyage_escala_terminal_state: queryResult([{ id: 'ts-1', voyage_id: 20, port: 'BRVIX', terminal_atb: '2026-10-20T12:00:00Z' }]),
+      customers: queryResult([{ id: 1, name: 'Cliente 1' }]),
+    }
+    const escala = (voyageId: number, port: string, eta: string, ata: string) =>
+      ({ voyageId, port, eta, ata, omitted: false, deleted: false })
+    mockEscalas.mockResolvedValueOnce(new Map([
+      [10, [escala(10, 'BRSSZ', '2026-10-22T08:00:00Z', '2026-10-22T10:00:00Z')]],
+      [20, [escala(20, 'BRVIX', '2026-10-19T08:00:00Z', '2026-10-19T10:00:00Z')]],
+    ]) as never)
+    mockFrom.mockImplementation((table: string) => tables[table] ?? (() => { throw new Error(`Tabela inesperada: ${table}`) })())
+    mockRpc.mockImplementation((name: string) => Promise.resolve({ data: name === 'customer_communication_queue_preview' ? [] : { ready: false }, error: null }))
+    const result = await fetchVoyageCommunicationCoverage()
+    expect(result.map((r) => r.voyageId)).toEqual([20, 10])
   })
 })
 

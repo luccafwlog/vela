@@ -33,6 +33,8 @@ export function portalOrigin(configured?: string | null): string {
   try {
     const parsed = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `https://${origin}`)
     if (isLegacyHost(parsed.hostname)) return PORTAL_ORIGIN
+    // Sempre absoluta: o valor sem esquema ("portalfwlog.com.br") virava link relativo no e-mail.
+    return parsed.origin
   } catch {
     // Valor malformado e explícito fica como veio; a validação do deploy o recusa.
   }

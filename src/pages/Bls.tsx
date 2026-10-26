@@ -391,7 +391,7 @@ export function Bls() {
       <div className="app-filter-grid">
         <Field label="Buscar B/L ou cliente">
           <Input
-            placeholder="Número do B/L, contêiner, cliente..."
+            placeholder="Número do B/L, consignatário, cliente ou CNPJ..."
             value={filters.search}
             onChange={(event) => updateFilter('search', event.target.value)}
           />

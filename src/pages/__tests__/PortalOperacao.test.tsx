@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import type { PortalOperationBL } from '../../services/portalOperation'
 
 const rows: PortalOperationBL[] = [
@@ -500,5 +500,29 @@ describe('PortalOperacao: Navio e Viagem na URL', () => {
     const params = new URLSearchParams(screen.getByTestId('search').textContent ?? '')
     expect(params.get('navio')).toBe('MISTO')
     expect(params.get('tab')).toBe('bls')
+  })
+
+  // O roteador troca o endereço numa transição: o campo lido da URL voltava ao
+  // valor antigo a cada tecla e o texto digitado no meio ia para o fim.
+  it('digitar no meio do Navio mantém o cursor no lugar', async () => {
+    const user = userEvent.setup()
+    renderOperacao('/portal/operacao?tab=bls&navio=NAVIO&viagem=003W')
+    const navio = screen.getByLabelText('Navio') as HTMLInputElement
+    await user.type(navio, 'XY', { initialSelectionStart: 2, initialSelectionEnd: 2 })
+    expect(navio.value).toBe('NAXYVIO')
+    expect(new URLSearchParams(screen.getByTestId('search').textContent ?? '').get('navio')).toBe('NAXYVIO')
+  })
+
+  it('link de fora com a tela aberta troca Navio e Viagem pelos do endereço', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W']}>
+        <PortalOperacao />
+        <Link to="/portal/operacao?tab=bls">Menu BLs e Containers</Link>
+      </MemoryRouter>,
+    )
+    await user.click(screen.getByRole('link', { name: 'Menu BLs e Containers' }))
+    expect((screen.getByLabelText('Navio') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('Viagem') as HTMLInputElement).value).toBe('')
   })
 })

@@ -287,7 +287,7 @@ describeLocal('458 e 459 — e-mails automáticos disparados pelo evento', () =>
     expect(lines(out).at(-1)).toBe('1|https://exemplo.supabase.co/functions/v1/portal-email-events-runner|Bearer segredo-portal_email_events_cron_secret')
   })
 
-  it('Comunicados: B/L, Escala, Atracação e contato disparam o runner; mudança que não forma alvo não dispara', () => {
+  it('Comunicados: B/L, Escala, Atracação e contato disparam o runner; mudança que não forma alvo, ou que muda quem entra no aviso, não dispara', () => {
     const runner = 'https://exemplo.supabase.co/functions/v1/customer-communication-auto-runner {"source": "trigger"}'
     // Cada caso numa transação nova (a trava é de uma por transação) e com o
     // intervalo zerado, para o caso anterior não segurar o seguinte.
@@ -309,6 +309,16 @@ describeLocal('458 e 459 — e-mails automáticos disparados pelo evento', () =>
     expect(scenario(`UPDATE public.bls SET charges_calculated_at = now() WHERE id = 'C458-BL-1';`)).toBe(`1|${runner}`)
     expect(scenario(`UPDATE public.bls SET review_status = 'reviewed' WHERE id = 'C458-BL-1';`)).toBe(`1|${runner}`)
     expect(scenario(`UPDATE public.bls SET notes = 'só observação' WHERE id = 'C458-BL-1';`)).toBe('0|')
+    // 463 (decisão do dono de 2026-10-26): Cliente, Viagem, porto e terminal decidem quem entra no
+    // NOA/NOR/NOB; mudados B/L a B/L, saem na rodada de 2 min com todos os B/Ls vinculados até lá.
+    // O B/L inserido sem Cliente (C458-BL-3) e vinculado depois não dispara.
+    expect(scenario(`
+      SET LOCAL session_replication_role = replica;
+      INSERT INTO public.bls (id, voyage_id, customer_id, pod) VALUES ('C458-BL-3', ${VOYAGE}, NULL, 'BRSSZ');
+      SET LOCAL session_replication_role = origin;
+      UPDATE public.bls SET customer_id = ${CUSTOMER} WHERE id = 'C458-BL-3';`)).toBe('0|')
+    expect(scenario(`UPDATE public.bls SET pod = 'BRRIG' WHERE id = 'C458-BL-1';`)).toBe('0|')
+    expect(scenario(`UPDATE public.bls SET financial_status = 'cancelled' WHERE id = 'C458-BL-1';`)).toBe(`1|${runner}`)
     expect(scenario(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value)
       VALUES ('voyage_pod_schedule', '${VOYAGE}::BRSSZ', 'ata', '2026-10-24T12:00:00Z');`)).toBe(`1|${runner}`)
     expect(scenario(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value)
@@ -372,7 +382,7 @@ describeLocal('458 e 459 — e-mails automáticos disparados pelo evento', () =>
       SELECT public.ce_unlock_email_finish(45600001, 'pending', ARRAY[]::text[], 'Falha de envio');
       SELECT public.ce_unlock_email_finish(45600002, 'sent', ARRAY['k:a'], NULL);
       SELECT id || ':' || status || ':' || CASE WHEN claimed_until IS NULL THEN 'livre'
-        WHEN claimed_until BETWEEN now() + interval '3 minutes' AND now() + interval '5 minutes' THEN '4min' ELSE 'outro' END
+        WHEN claimed_until = now() + interval '3 minutes' THEN '3min' ELSE 'outro' END
         FROM public.ce_unlock_email_outbox WHERE id IN (45600001, 45600002) ORDER BY id;
       SELECT pg_temp.claim();
       ROLLBACK;
@@ -381,7 +391,9 @@ describeLocal('458 e 459 — e-mails automáticos disparados pelo evento', () =>
       '45600001,45600002', // primeira rodada reserva as duas
       '-', // a segunda não pega nada enquanto a reserva vale
       '45600002', // prazo vencido: a linha volta
-      '45600001:pending:4min', // nova tentativa espera ~o cron
+      // 462: 3 minutos, para a falha até 2 minutos antes da rodada do cron (a cada 5) ser
+      // reenviada nela; com 4, a falha de uma rodada do gatilho às 10:06:05 só saía às 10:15.
+      '45600001:pending:3min',
       '45600002:sent:livre',
       '-',
     ])

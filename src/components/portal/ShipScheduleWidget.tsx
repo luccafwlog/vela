@@ -246,7 +246,11 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
           </Button>
         </div>
       ) : !vessels || vessels.length === 0 ? (
-        <div className="app-schedule__state">Nenhum navio programado no momento.</div>
+        <>
+          {/* A última leitura não tinha navio: o aviso da releitura que falha vale também aqui. */}
+          {isError ? <InlineError message="Não foi possível atualizar chegadas e saídas; o que aparece é da última leitura." /> : null}
+          <div className="app-schedule__state">Nenhum navio programado no momento.</div>
+        </>
       ) : (
         <>
           {/* Atualizar que falha mantém a última leitura na tela (React Query

@@ -1187,8 +1187,8 @@ export type CoverageVoyageRow = { id: number; voyage_number: string; vessel: { n
 export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null }
 export type CoverageCommunicationRow = { id?: number; customer_id: number | null; kind: string; status: string; anchor_voyage_id: number | null; anchor_port: string | null; anchor_atracacao_id: string | null; created_at: string }
 export type CoverageTerminalStateRow = { id: string; voyage_id: number; port: string; terminal_atb: string | null }
-/** Escala (POD) da viagem para a ordem da Cobertura: ETA, ETB, ATA e omissão. */
-export type CoverageEscalaRow = { pod: string; eta: string | null; etb: string | null; ata: string | null; omitted?: boolean }
+/** Escala (POD) da viagem para a ordem da Cobertura: ETA, ETB, ATA, a última ATB das Atracações e omissão. */
+export type CoverageEscalaRow = { pod: string; eta: string | null; etb: string | null; ata: string | null; atb?: string | null; omitted?: boolean }
 
 /**
  * Ordem da Cobertura na ordem da escala (ponto 7 de 2026-10-23), a mesma regra
@@ -1214,9 +1214,10 @@ export function orderCoverageByEscala<T extends { voyageId: number; vesselName: 
     if (!proxima.has(row.voyageId)) proxima.set(row.voyageId, getProximaEscala([...(escalas.get(row.voyageId) ?? [])]))
     return { proximaEscala: proxima.get(row.voyageId) ?? null, vesselName: row.vesselName, voyageNumber: row.voyageNumber }
   }
-  const lastAta = (voyageId: number) => (escalas.get(voyageId) ?? []).filter((escala) => !escala.omitted && escala.ata).map((escala) => escala.ata!).sort().at(-1) ?? ''
-  const byLastAta = (left: T, right: T) => (railKey(left).proximaEscala || railKey(right).proximaEscala ? 0 : lastAta(right.voyageId).localeCompare(lastAta(left.voyageId)))
-  return [...rows].sort((left, right) => byLastAta(left, right)
+  // "Atracou" é a ATB da Atracação (CONTEXT: ATB é distinta da ATA, a chegada ao porto).
+  const lastAtb = (voyageId: number) => (escalas.get(voyageId) ?? []).filter((escala) => !escala.omitted && escala.atb).map((escala) => escala.atb!).sort().at(-1) ?? ''
+  const byLastAtb = (left: T, right: T) => (railKey(left).proximaEscala || railKey(right).proximaEscala ? 0 : lastAtb(right.voyageId).localeCompare(lastAtb(left.voyageId)))
+  return [...rows].sort((left, right) => byLastAtb(left, right)
     || compareVoyageRailItems(railKey(left), railKey(right))
     || left.voyageId - right.voyageId
     || portEta(left.voyageId, left.port).localeCompare(portEta(right.voyageId, right.port))
@@ -1466,7 +1467,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
   if (!voyages.length) return []
   const voyageIds = voyages.map((v) => v.id)
 
-  const [bls, communications, terminalStates] = await Promise.all([
+  const [bls, communications, terminalStates, schedulesByVoyage] = await Promise.all([
     fetchCoverageRows((from, to) =>
       supabase
         .from('bls')
@@ -1496,6 +1497,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
         .range(from, to)
         .overrideTypes<CoverageTerminalStateRow[], { merge: false }>(),
     ),
+    listVoyageEscalaSchedulesByVoyageIds([...voyageIds]),
   ])
   const rowsByVoyageCustomer = new Map<string, Promise<CoverageReadiness>>()
   for (const bl of bls) {
@@ -1528,10 +1530,16 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
 
   // Projeção canônica das escalas, a mesma de Viagens, Veículos e Baplie: une
   // apelidos do mesmo porto (BRVIT/BRVIX) e respeita a exclusão.
+  const lastAtbByEscala = new Map<string, string>()
+  for (const state of terminalStates) {
+    if (!state.terminal_atb) continue
+    const key = `${state.voyage_id}:${communicationPortCode(state.port)}`
+    if ((lastAtbByEscala.get(key) ?? '') < state.terminal_atb) lastAtbByEscala.set(key, state.terminal_atb)
+  }
   const escalas = new Map<number, CoverageEscalaRow[]>()
-  for (const [voyageId, schedules] of await listVoyageEscalaSchedulesByVoyageIds([...voyageIds])) {
+  for (const [voyageId, schedules] of schedulesByVoyage) {
     escalas.set(voyageId, schedules.filter((schedule) => !schedule.deleted)
-      .map((schedule) => ({ pod: schedule.port, eta: schedule.eta, etb: null, ata: schedule.ata, omitted: schedule.omitted })))
+      .map((schedule) => ({ pod: schedule.port, eta: schedule.eta, etb: null, ata: schedule.ata, atb: lastAtbByEscala.get(`${voyageId}:${communicationPortCode(schedule.port)}`) ?? null, omitted: schedule.omitted })))
   }
   return orderCoverageByEscala(buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames }), escalas)
 }

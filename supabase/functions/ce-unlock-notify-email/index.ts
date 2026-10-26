@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { validDedicatedAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
 import { CE_UNLOCK_BOX, ceUnlockNoticeBls, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
-import { runCronWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
+import { invocationSource, runCronWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { recipientKey } from "../_shared/email.ts";
 import { sendPortalEmail } from "../_shared/portalEmail.ts";
 import { ceUnlockNoticeTemplate } from "../_shared/portalEmailTemplates.ts";
@@ -61,6 +61,7 @@ if (typeof Deno !== "undefined") {
     };
     const result = await runCeUnlockNotify({
       refreshOpen: async () => await admin.rpc("ce_unlock_refresh_open"),
+      source: await invocationSource(req),
       providerConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("PORTAL_FROM_EMAIL") && Deno.env.get("PORTAL_REPLY_TO")),
       communicationsEnabled: async () => {
         const { data, error } = await admin.from("app_settings").select("communications_enabled").eq("id", 1).single();
@@ -144,7 +145,8 @@ if (typeof Deno !== "undefined") {
     return Response.json(result.body, { status: result.status });
   });
 
-  // O gatilho da fila (migration 458) manda {"source":"trigger"}: roda igual e reporta só a falha.
+  // O gatilho da fila (migration 458) manda {"source":"trigger"}: envia a fila sem a varredura
+  // das abertas (só o cron varre) e reporta só a falha.
   Deno.serve((req) => {
     const authorized = req.method === "POST" && notifyAuthorized(req.headers.get("Authorization"));
     return runCronWithBetterStackHeartbeat("ceUnlockNotifyEmail", req, authorized, () => edgeHandler(req));

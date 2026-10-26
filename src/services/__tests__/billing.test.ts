@@ -620,12 +620,30 @@ describe('listInvoices', () => {
     expect(result).toEqual({ rows: [], count: 0 })
     // Termo é normalizado: trim, uppercase e remoção dos curingas do LIKE.
     // "CSC" e "1" não têm cara de número (4+ caracteres com dígito), então
-    // não viram busca por lista: só o texto inteiro vale.
-    const clauses = 'bl_id.ilike.%CSC 1%'
-    expect(blLinks.or).toHaveBeenCalledWith(clauses)
-    expect(recvLinks.or).toHaveBeenCalledWith(clauses)
-    expect(manualInvoices.or).toHaveBeenCalledWith(clauses)
+    // não viram busca por lista: só o texto inteiro vale, como antes.
+    expect(blLinks.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
+    expect(recvLinks.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
+    expect(manualInvoices.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
+    expect(blLinks.or).not.toHaveBeenCalled()
     expect(supabaseMocks.from).toHaveBeenCalledTimes(3)
+  })
+
+  // Pontuação no `.or()` vira espaço: "." virava `bl_id.ilike.%%` e casava todo B/L.
+  it('blSearch só com pontuação busca o texto como veio, sem casar todo B/L', async () => {
+    const blLinks = chainQuery({ data: [], error: null })
+    const recvLinks = chainQuery({ data: [], error: null })
+    const manualInvoices = chainQuery({ data: [], error: null })
+    supabaseMocks.from.mockImplementation((table: string) => {
+      if (table === 'invoice_bls') return blLinks
+      if (table === 'invoice_receivable_links') return recvLinks
+      if (table === 'invoices') return manualInvoices
+      throw new Error(`tabela inesperada: ${table}`)
+    })
+
+    await listInvoices({ ...baseFilters, blSearch: '.' })
+
+    expect(blLinks.ilike).toHaveBeenCalledWith('bl_id', '%.%')
+    expect(blLinks.or).not.toHaveBeenCalled()
   })
 
   // Ponto 9 de 2026-10-23: dois ou mais números colados casam cada B/L.

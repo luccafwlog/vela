@@ -34,6 +34,8 @@ function annual(type: 'termo' | 'procuracao', year: number, validFrom = `${year}
 local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante (migrations 449 e 456)', () => {
   const reset = () => sql(`SET session_replication_role=replica;
     DELETE FROM ce_unlock_private.receipts WHERE actor_id IN ('${admin}','${client}');
+    -- Sem isto, rodar a suíte de novo em 24 h esbarra no limite de 20 uploads do Cliente.
+    DELETE FROM ce_unlock_private.upload_attempts WHERE customer_id=${C};
     DELETE FROM public.ce_unlock_email_outbox WHERE customer_id=${C};
     DELETE FROM public.portal_notifications WHERE customer_id=${C};
     DELETE FROM public.ce_unlock_events WHERE customer_id=${C} OR bl_id LIKE 'CE449-%';
@@ -194,6 +196,37 @@ local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante 
     // Recuada para dois anos atrás, a vigência não cobre mais nenhum B/L: volta a ser expurgável.
     sql(`UPDATE public.ce_unlock_documents SET coverage_year=${y - 2},valid_from=make_date(${y - 2},1,1),valid_until=make_date(${y - 2},12,31) WHERE id='${oldTermo}';`)
     expect(candidates()).toContain(oldTermo)
+  })
+
+  // 460: a 457 tratava o B/L exportado como encerrado. Exportado ainda pode voltar
+  // "Divergente" da ZPT e ser reexportado, o que exige termo e procuração.
+  it('limpeza guarda o anual vencido que cobre B/L exportado e ainda não conferido; conferido, expurga', () => {
+    const y = Y()
+    const candidates = () => (JSON.parse(sql('SELECT public.ce_unlock_cleanup_candidates();')) as Array<{ id: string }>).map((c) => c.id)
+    command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
+    const oldTermo = annual('termo', y - 1); const oldProcuracao = annual('procuracao', y - 1)
+    annual('termo', y); annual('procuracao', y)
+    const request = sql(`SET session_replication_role=replica;
+      INSERT INTO public.ce_unlock_requests(customer_id,source,state,created_by) VALUES(${C},'vip_annual','completed','${client}') RETURNING id;`)
+    // Os outros B/Ls do ano anterior já estão conferidos; só o de dezembro depende do anual vencido.
+    sql(`SET session_replication_role=replica;
+      INSERT INTO public.ce_unlock_request_bls(request_id,bl_id,ce_at_request,termo_document_id,procuracao_document_id,exported_at,confirmed_at) VALUES
+        ('${request}','CE449-DEZ','998449000000001','${oldTermo}','${oldProcuracao}',now()-interval '1 day',NULL),
+        ('${request}','CE449-REVEILLON','998449000000004','${oldTermo}','${oldProcuracao}',now()-interval '1 day',now()),
+        ('${request}','CE449-LIGADO','998449000000005','${oldTermo}','${oldProcuracao}',now()-interval '1 day',now());`)
+    expect(candidates()).not.toContain(oldTermo)
+    sql(`SET session_replication_role=replica; UPDATE public.ce_unlock_request_bls SET confirmed_at=now() WHERE bl_id='CE449-DEZ';`)
+    expect(candidates()).toContain(oldTermo)
+  })
+
+  // 460: um B/L excluído e importado de novo com o mesmo número não herda o vínculo do CE do antigo.
+  it('vínculo do CE ignora a auditoria anterior à criação do B/L atual', () => {
+    const y = Y()
+    const day = () => sql("SELECT ce_unlock_private.ce_link_day('CE449-LIGADO');")
+    // Troca para o CE atual registrada antes de 20/12 do ano anterior, quando o B/L atual foi criado.
+    sql(`INSERT INTO public.audit_logs(entity_type,entity_id,field_name,old_value,new_value,changed_at)
+      VALUES('bls','CE449-LIGADO','ce_mercante','998449000000077','998449000000005','${y - 1}-06-01T10:00:00-03:00');`)
+    expect(day()).toBe(`${y - 1}-12-20`)
   })
 
   it('vale o vínculo do CE atual: CE vinculado depois da importação, troca de número e reformatação', () => {

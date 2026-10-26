@@ -170,8 +170,8 @@ export function CeUnlockRequestDetail({
               disabled={busy}
               onClick={() =>
                 void act("apply_vip", {}, {
-                  message: "Aplicar a cobertura anual VIP vigente aos B/Ls pendentes deste pedido?",
-                  consequence: "Os B/Ls pendentes passam a usar o termo e a procuração anuais vigentes.",
+                  message: "Aplicar a cobertura anual VIP aos B/Ls pendentes deste pedido?",
+                  consequence: "Cada B/L pendente passa a usar o termo e a procuração anuais que o cobrem (CE vinculado na vigência deles).",
                   reversibility: "O histórico é preservado.",
                   confirmLabel: "Aplicar renovação",
                 })

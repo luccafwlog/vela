@@ -205,6 +205,14 @@ it('Atualizar que falha mantém a última leitura na tela e avisa', () => {
   expect(screen.getByRole('status').textContent).toBe('Atualizado em 23/10/2026 às 14:32 (horário de Brasília)')
 })
 
+it('Atualizar que falha com a última leitura sem navios também avisa', () => {
+  hookState = { isLoading: false, isError: true, data: [], dataUpdatedAt: Date.parse('2026-10-23T17:32:00Z') }
+  render(<ShipScheduleWidget />)
+
+  expect(screen.getByRole('alert').textContent).toBe('Não foi possível atualizar chegadas e saídas; o que aparece é da última leitura.')
+  expect(screen.getByText('Nenhum navio programado no momento.')).toBeTruthy()
+})
+
 it('sem leitura concluída não inventa horário de atualização', () => {
   hookState = { isLoading: true }
   render(<ShipScheduleWidget />)

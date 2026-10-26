@@ -127,6 +127,7 @@ type DunningAttemptRow = {
   dispatch_mode: string
   idempotency_key: string
   recipient_key: string | null
+  recipient_email: string | null
 }
 
 async function findExistingDunningAttempt(
@@ -145,7 +146,7 @@ async function findExistingDunningAttempt(
     keyPrefix: string
   },
 ): Promise<DunningAttemptRow | null> {
-  const select = 'id, status, provider_message_id, dispatch_mode, idempotency_key, recipient_key'
+  const select = 'id, status, provider_message_id, dispatch_mode, idempotency_key, recipient_key, recipient_email'
   const { data: exact, error: exactError } = await admin
     .from('customer_communication_attempts')
     .select(select)
@@ -220,9 +221,11 @@ async function recordDunningAttempt({
     })
     if (!existing) throw error
 
-    if (existing.recipient_key !== recipientIdentity || (existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null)) {
+    // Tentativa de antes da 451 reaproveitada agora: o Histórico passa a mostrar o endereço exato.
+    if (existing.recipient_key !== recipientIdentity || existing.recipient_email == null || (existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null)) {
       const { error: repairError } = await admin.from('customer_communication_attempts').update({
         recipient_key: recipientIdentity,
+        ...(existing.recipient_email == null ? { recipient_email: to } : {}),
         ...(existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null
           ? { dispatch_mode: communicationsEnabled ? 'real' : 'simulado' }
           : {}),

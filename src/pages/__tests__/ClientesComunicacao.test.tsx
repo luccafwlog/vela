@@ -1132,6 +1132,18 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     expect(screen.getByRole('status').textContent).toBe('O Comunicado do link não aparece na lista com os filtros atuais.Ver todos')
   })
 
+  it('com o filtro da tela escondendo o Comunicado do link e a lista vazia, o aviso e a lista dizem que é o filtro', () => {
+    mockHistory = []
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico&communication=17&kind=aviso_chegada_noa']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('status').textContent).toBe('O Comunicado do link não aparece na lista com os filtros atuais.Ver todos')
+    expect(screen.getByText('Nenhum Comunicado com os filtros atuais.')).toBeTruthy()
+    expect(screen.queryByText('Comunicado não encontrado.')).toBeNull()
+  })
+
   it('os filtros do Histórico têm todos os modelos e o status "Em envio"', () => {
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
