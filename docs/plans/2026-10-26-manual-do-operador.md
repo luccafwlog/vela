@@ -24,6 +24,34 @@ inventário sai do banco com todas as migrations. O material antigo está
 guardado como registro histórico e serve só de referência de redação
 ([Régua de qualidade](#régua-de-qualidade)).
 
+## Como retomar (para quem continuar)
+
+1. **Decisões do dono.** As 118 divergências estão na página
+   <https://claude.ai/artifact/SDGqaeCFq1Uht6ih1ef46R> (fonte e formato do
+   registro em [`docs/manual/decisoes/`](../manual/decisoes/README.md)). Leia as
+   escolhas com `ArtifactData` (`list`, coleção `decisoes`). Cada escolha vira
+   tarefa própria; não corrija o sistema dentro do trabalho do manual.
+2. **Aprovações que fecham a Etapa 1** (seções 5 e 7 do
+   [relatório](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md)):
+   o sumário final proposto (24 capítulos) e a lista "fora do manual". Ainda
+   não respondidas.
+3. **Ambiente.** `npm ci`, depois `sudo scripts/setup-local-pg.sh --reset`
+   (banco `vela_test` com todas as migrations), depois `npm run manual:coverage`
+   (precisa terminar em "2253/2253" ou mais, se o sistema ganhou itens).
+4. **Material de trabalho da Etapa 1** (instruções de mapeamento, conferência,
+   correção de documento e fichas de decisão; montagem do relatório):
+   [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).
+5. **Próximo passo depois das aprovações:** Etapa 2 (projeto gráfico com
+   páginas-modelo para o dono aprovar, cenário de demonstração, imagens por
+   script e capítulo-piloto 4 e 5 do sumário original, que no sumário final
+   são os capítulos 4 a 6).
+6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
+   etapas: o manual se pauta só pelo código; o material antigo é só referência
+   de redação; quem faz o quê sai do código (matriz "O que cada setor pode",
+   guardas do banco, avisos por setor), não de tabela pedida ao dono; as
+   sessões de teste com a equipe são do dono e ficam fora do plano;
+   "certificante" quer dizer CE Mercante.
+
 ## Síntese do pedido
 
 O Vela está maduro: identidade visual firmada, regras de negócio desenhadas e

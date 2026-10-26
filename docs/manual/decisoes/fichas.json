@@ -1,0 +1,3180 @@
+[
+ {
+  "key": "01-acesso-admin:ACE-D01",
+  "titulo": "Financeiro e Operações veem \"Em simulação\" com o envio real ligado",
+  "caso": "Rafael, do Financeiro, abre Clientes › Comunicação da Atlântica Importações. O envio real de e-mails está ligado, mas a tela mostra **Em simulação**. Na Régua de Cobrança da Demurrage, o próximo aviso aparece com 7 dias, embora o intervalo configurado seja 10.",
+  "hoje": "Só Administrativo, Documentação e Equipamentos leem a configuração do sistema; os demais setores veem o padrão (Em simulação e intervalo de 7 dias).",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Deixar todo usuário ativo ler a configuração; só o Administrativo continua alterando.",
+    "efeito": "Financeiro e Operações passam a ver a situação real do envio e as datas certas da Régua de Cobrança."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a restrição, registrá-la na regra e mostrar \"Sem acesso a esta configuração\" em vez de \"Em simulação\".",
+    "efeito": "Esses setores deixam de ver informação errada, mas continuam sem ver a situação do envio nem a data certa da Régua."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra já diz que todos os setores leem tudo, e o Financeiro precisa ver a data certa da cobrança; a opção A corrige isso sem abrir a alteração.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D01",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O banco só deixa Administrativo, Documentação e Equipamentos lerem a configuração do sistema; para os demais a tela usa o padrão e mostra **Em simulação**, e o ponto da Régua de Cobrança da Demurrage é calculado com 7 dias mesmo que o intervalo seja outro O que diz a documentação: `seguranca.md` e ADR 0085: leitura interna global (salvo `/admin`); a matriz diz \"Todos os setores leem tudo\""
+ },
+ {
+  "key": "01-acesso-admin:ACE-D02",
+  "titulo": "Documentação não consegue corrigir o ATB de uma atracação",
+  "caso": "Paula, da Documentação, abre a Viagem do navio MSC Aurora e corrige o ATB da atracação em Vitória. Ao salvar, o sistema recusa: \"Somente Operações/Admin podem editar terminais da escala.\"",
+  "hoje": "Só Operações e Administrativo gravam terminal e datas da atracação, embora a regra diga que todos os setores criam e editam escala.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: todos os setores gravam terminal, ATB e ATD.",
+    "efeito": "Qualquer pessoa da equipe corrige a atracação sem pedir a Operações."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema e registrar a restrição a Operações e Administrativo na regra de permissões, escondendo os campos dos demais.",
+    "efeito": "A regra passa a refletir a tela, e quem não pode alterar não vê campos que serão recusados."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra registrada diz que restrição fora da lista de exceções é acidental, e abrir evita que a escala fique parada esperando Operações. Decida junto com o cartão da escala de Vitória (Viagens), que trata o mesmo ponto.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D02",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O banco recusa: \"Somente Operações/Admin podem editar terminais da escala.\"; o terminal do ADR antigo também é só de Operações e Administrativo O que diz a documentação: A matriz e `seguranca.md` dizem \"Criar e editar viagem, escala... ✔ todos\"; a ADR 0085 diz que restrição fora da lista de exceções é acidental (só o terminal do ADR antigo está anotado em `seguranca.md`)"
+ },
+ {
+  "key": "01-acesso-admin:ACE-D03",
+  "titulo": "A matriz de permissões conta menos alertas do que Operações recebe",
+  "caso": "Carlos, de Operações, lê na matriz de permissões \"Recebe os alertas do próprio setor: 3 tipos\". No sino, porém, aparecem também \"ADR — departamento pendente\" e \"ADR — prazo vencido\" da seção dele, que contam nos cartões do Painel.",
+  "hoje": "O sino de Operações e de Equipamentos recebe também as pendências do ADR da própria seção, mas a matriz mostra só 3 e 2 tipos.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da matriz para incluir as pendências do ADR da própria seção.",
+    "efeito": "Quem consulta a matriz vê exatamente o que vai chegar no sino."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a matriz como está e explicar a soma só no manual.",
+    "efeito": "A tela continua contando menos tipos do que chegam; a explicação fica fora da tela."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só texto, a correção é pequena e evita que a equipe ache que o sino está errado.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D03",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O sino de Operações e de Equipamentos também recebe \"ADR — departamento pendente\" e \"ADR — prazo vencido\" da própria seção (a entrega soma o setor do item), e esses itens contam nos cartões do Painel O que diz a documentação: `permissionMatrix.ts` mostra só a contagem da audiência do catálogo (3 e 2); `operacao-suporte.md` explica a soma do setor do item"
+ },
+ {
+  "key": "01-acesso-admin:ACE-D03b",
+  "titulo": "Usuário desativado volta à tela de entrada sem explicação",
+  "caso": "Marina teve o acesso desativado. Ela digita e-mail e senha certos, vê por um instante **Acesso ainda não liberado** e volta à tela de entrada sem nenhuma mensagem. Tenta de novo várias vezes achando que errou a senha.",
+  "hoje": "O login passa, o perfil não carrega e o Vela volta à tela de entrada sem mensagem; a frase \"Credenciais inválidas ou usuário sem permissão ativa.\" não aparece.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Mostrar na tela de entrada que o acesso está desativado e que deve procurar o Administrativo.",
+    "efeito": "A pessoa entende na hora por que não entra e a quem recorrer."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a tela \"Acesso ainda não liberado\" aberta até a pessoa clicar em Sair.",
+    "efeito": "A pessoa vê uma explicação, mas o texto fala em acesso não liberado, não desativado."
+   },
+   {
+    "id": "C",
+    "texto": "Manter o sistema e corrigir o texto da regra para dizer que não há mensagem.",
+    "efeito": "Nada muda para quem usa; a dúvida e os pedidos de ajuda continuam."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É a mensagem mais clara e evita chamados ao suporte por \"senha errada\".",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D03b",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O login passa, o perfil não carrega, aparece por instantes **Acesso ainda não liberado** e o Vela volta à tela de entrada sem mensagem; a frase \"Credenciais inválidas ou usuário sem permissão ativa.\" não aparece nesse caso O que diz a documentação: `operacao-suporte.md`: a guarda trata a falta de perfil ativo \"com Sair\"; a frase da tela de entrada promete explicar o \"usuário sem permissão ativa\""
+ },
+ {
+  "key": "01-acesso-admin:ACE-D04",
+  "titulo": "Qualquer setor pode incluir e-mail de contato de Cliente fora das telas",
+  "caso": "Nenhuma tela permite, mas alguém do Financeiro, acessando o sistema diretamente, inclui o e-mail financeiro@atlantica.com.br como contato da Atlântica Importações. O sistema aceita, e esse e-mail pode passar a receber comunicações do Cliente.",
+  "hoje": "A inclusão de e-mail de contato feita fora das telas aceita qualquer usuário ativo, embora a regra limite contatos a Administrativo, Documentação e Equipamentos.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para aceitar só Administrativo, Documentação e Equipamentos.",
+    "efeito": "Contatos de Cliente só mudam por quem a regra autoriza, por qualquer caminho."
+   },
+   {
+    "id": "B",
+    "texto": "Fechar esse caminho para uso fora das telas, já que nenhuma tela o usa.",
+    "efeito": "Ninguém inclui contato por esse caminho; as telas continuam iguais."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar a exceção na regra.",
+    "efeito": "Qualquer setor continua podendo mudar para onde vão os e-mails do Cliente."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Os contatos definem quem recebe cobranças e avisos do Cliente; fechar aos três setores protege o Cliente sem risco de quebrar algo que use esse caminho.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D04",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: `ensure_customer_contact_email` aceita qualquer usuário ativo (nenhuma tela a usa hoje) O que diz a documentação: Matriz, `seguranca.md` e ADR 0085: contatos só Administrativo, Documentação e Equipamentos"
+ },
+ {
+  "key": "01-acesso-admin:ACE-D06",
+  "titulo": "Abas da Administração são lidas por todos, mas a decisão diz o contrário",
+  "caso": "A decisão registrada diz que a Administração é só do Administrativo, \"inclusive leitura\". Na prática, alguém de Operações com acesso direto consegue ler o Histórico de ações, as falhas de entrega e o Prazo do ADR; só a lista de usuários é recusada.",
+  "hoje": "Só a lista de usuários é fechada ao Administrativo; Histórico de ações, falhas de entrega e Prazo do ADR são lidos por todos fora das telas.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Manter a leitura dessas abas para todos e corrigir a decisão registrada com um aviso de situação atual.",
+    "efeito": "Nada muda para quem usa; os documentos passam a dizer a mesma coisa."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para fechar a leitura dessas abas ao Administrativo.",
+    "efeito": "Outros setores deixam de ler esses registros por qualquer caminho."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra geral é leitura interna para todos, as abas já não aparecem para os demais na tela, e a correção do documento é menor.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D06",
+  "classe": "c",
+  "codigoTexto": "O que o código faz: Só a lista de usuários é recusada no banco; Histórico de ações, falhas de entrega e Prazo do ADR são de leitura de todos pela API O que diz a documentação: ADR 0085 (exceção \"/admin e usuários, inclusive leitura\") e `seguranca.md` (\"só a lista de usuários é recusada aos demais no banco\") dizem coisas diferentes"
+ },
+ {
+  "key": "01-acesso-admin:ACE-D08",
+  "titulo": "Planilha de Demurrage sai com datas e rótulos diferentes da tela",
+  "caso": "Rafael, do Financeiro, exporta a planilha do relatório de Demurrage para mandar ao Cliente Atlântica Importações. As colunas Emissao e Vencimento saem como 2026-10-26, e aparece uma coluna \"Invoice\" em vez do nome usado na tela.",
+  "hoje": "As planilhas exportadas saem com datas em AAAA-MM-DD e alguns rótulos diferentes dos da tela.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir as planilhas para datas em dd/mm/aaaa e os mesmos rótulos da tela, nas quatro planilhas.",
+    "efeito": "Quem exporta recebe a planilha pronta para ler ou enviar, sem ajustar à mão."
+   },
+   {
+    "id": "B",
+    "texto": "Manter as planilhas e corrigir a regra para aceitar o formato atual.",
+    "efeito": "A equipe continua ajustando datas e títulos antes de usar a planilha."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra já pede os rótulos e datas da tela, e a planilha pode chegar ao Cliente.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D08",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: As colunas **Emissao** e **Vencimento** saem em AAAA-MM-DD; o Financeiro sai com a coluna \"Invoice\" O que diz a documentação: `operacao-suporte.md`: \"As planilhas usam os rótulos e as datas da tela, sem código cru\""
+ },
+ {
+  "key": "01-acesso-admin:ACE-D12",
+  "titulo": "O motivo da reativação do usuário some do filtro Usuário",
+  "caso": "Ana, do Administrativo, reativa o usuário Bruno informando o motivo \"voltou de férias\". Depois filtra o Histórico de ações por Assunto **Usuário** e vê só **Usuário reativado**, sem motivo; o motivo está numa segunda linha, **Registro reativado**, no assunto \"Outro registro\", com um número no lugar do nome.",
+  "hoje": "A reativação gera duas linhas no Histórico de ações, e a que guarda o motivo fica fora do assunto Usuário e sem o nome da pessoa.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para gravar uma linha só, no assunto Usuário, com o nome e o motivo.",
+    "efeito": "O filtro Usuário mostra quem foi reativado e por quê, numa linha."
+   },
+   {
+    "id": "B",
+    "texto": "Manter as duas linhas e registrar na regra que o motivo fica em \"Outro registro\".",
+    "efeito": "Quem procura o motivo precisa saber olhar em outro assunto e reconhecer o número."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O motivo é o que justifica a reativação; ele precisa aparecer onde a pessoa procura.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D12",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Saem duas linhas: **Usuário reativado** (assunto Usuário, sem motivo) e **Registro reativado** (assunto \"Outro registro\", com o registro como número curto), que é a que guarda o motivo; o filtro Usuário não mostra a linha do motivo O que diz a documentação: `operacao-suporte.md` (Histórico de ações: o Usuário aparece pelo nome; Reativar: motivo gravado no Histórico) e ADR 0072 (o motivo do Reativar é \"gravado junto com a ação\")"
+ },
+ {
+  "key": "01-acesso-admin:ACE-D13",
+  "titulo": "Usuários com o setor antigo \"Operador\" não recebem o resumo diário do Portal",
+  "caso": "Joana ainda está cadastrada com o setor antigo \"Operador\", que vale como Documentação. Ela recebe os alertas da Documentação no sino, mas o resumo diário do Portal nunca chega no e-mail dela.",
+  "hoje": "O resumo diário do Portal vai só para quem tem Administrativo ou Documentação gravado; quem tem o setor antigo Operador fica de fora.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o envio do resumo para tratar o setor Operador como Documentação.",
+    "efeito": "Quem ainda é Operador passa a receber o resumo, sem mudar cadastros."
+   },
+   {
+    "id": "B",
+    "texto": "Passar todos os usuários Operador para Documentação na tela de usuários.",
+    "efeito": "O setor antigo deixa de existir na prática e todos os envios ficam coerentes."
+   }
+  ],
+  "recomendada": "B",
+  "porque": "Acaba com o setor antigo de uma vez e evita a mesma falha em outros envios; se houver muitos usuários Operador, a opção A resolve sem mexer em cadastros.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D13",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A função de servidor do resumo filtra só os setores Administrativo e Documentação gravados; o Operador fica de fora, embora receba os alertas da Documentação O que diz a documentação: `seguranca.md`: \"O papel legado `operator` é tratado como Documentação\""
+ },
+ {
+  "key": "01-acesso-admin:ACE-D14",
+  "titulo": "Importar a base de Clientes muda contatos, o que a regra limita a três setores",
+  "caso": "Rafael, do Financeiro, importa a base de Clientes com o e-mail novo compras@atlantica.com.br para a Atlântica Importações, já cadastrada. O e-mail entra como contato e, como ela não tinha contato principal com e-mail, vira o principal. Um contato desativado com o mesmo e-mail seria reativado.",
+  "hoje": "A importação da base de Clientes, aberta a todos os setores, inclui e reativa contatos de Clientes já cadastrados, embora editar contatos seja só de Administrativo, Documentação e Equipamentos.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Manter como está e registrar na regra que a importação pode incluir e reativar contatos.",
+    "efeito": "Qualquer setor continua mudando, por importação, para onde vão os e-mails do Cliente."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema: fora dos três setores, a importação não mexe em contatos de Cliente já cadastrado e avisa quais ficaram de fora.",
+    "efeito": "Contatos só mudam por quem a regra autoriza; os demais setores importam o resto normalmente."
+   }
+  ],
+  "recomendada": "B",
+  "porque": "O contato principal recebe cobranças e avisos; um e-mail errado leva informação do Cliente para o lugar errado.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D14",
+  "classe": "c",
+  "codigoTexto": "O que o código faz: O e-mail entra como contato do Cliente (vira principal se o Cliente não tiver principal com e-mail) e um contato desativado com o mesmo e-mail é reativado O que diz a documentação: Matriz, `seguranca.md` e ADR 0085: \"Editar contatos e Caixas de Comunicação\" só Adm, Doc e Equ; a mesma matriz dá \"Importar arquivos (... Clientes)\" a todos"
+ },
+ {
+  "key": "01-acesso-admin:ACE-D15",
+  "titulo": "Uma aba esquecida do Vela encerra a sessão da aba em uso",
+  "caso": "Paula deixou uma aba do Vela aberta desde cedo e trabalha em outra. Às 16h, a aba esquecida completa 8 horas parada e encerra a sessão; a aba em que Paula está preenchendo uma escala volta à tela de entrada no meio do trabalho.",
+  "hoje": "Cada aba conta a própria inatividade, e quando uma delas chega a 8 horas encerra a sessão em todas as abas.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para contar a atividade de todas as abas juntas.",
+    "efeito": "A sessão só cai quando a pessoa fica 8 horas sem usar nenhuma aba, como diz a regra."
+   },
+   {
+    "id": "B",
+    "texto": "Fazer a saída por inatividade fechar só a aba parada.",
+    "efeito": "A aba em uso continua, mas a aba esquecida pede nova entrada."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É o que a regra registrada diz (inatividade da pessoa) e evita perder trabalho em andamento.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D15",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Cada aba conta a própria inatividade; quando a aba esquecida completa 8 horas, ela encerra a sessão da pessoa inteira (a saída do Vela vale para todas as sessões), e a aba em uso volta à tela de entrada no meio do trabalho O que diz a documentação: `seguranca.md`: \"timeout de inatividade de **8 horas**\" (inatividade da pessoa, não de uma aba)"
+ },
+ {
+  "key": "01-acesso-admin:ACE-D16",
+  "titulo": "O Histórico mostra \"—\" no autor para quem não é do Administrativo",
+  "caso": "Paula, da Documentação, abre o Histórico do B/L MSCU1234567, em que Rafael, do Financeiro, mexeu. A coluna **Por** mostra \"—\" com a explicação \"O registro não guarda o autor\"; na ficha do Cliente aparece \"Usuário interno\". Só o Administrativo vê o nome de Rafael.",
+  "hoje": "O autor está gravado, mas só o Administrativo vê o nome; os demais veem \"—\" ou \"Usuário interno\", com um texto que diz que o autor não foi guardado.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Mostrar o nome do autor a todos os setores no Histórico, como já acontece no ADR de Saída.",
+    "efeito": "Todos sabem quem fez cada alteração e a quem perguntar."
+   },
+   {
+    "id": "B",
+    "texto": "Manter os nomes só para o Administrativo e corrigir o texto da tela para \"Autor visível só para o Administrativo\".",
+    "efeito": "A tela deixa de dizer algo falso, mas os demais continuam sem saber quem fez."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está.",
+    "efeito": "A equipe continua achando que o sistema não guarda o autor."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O rastro de quem fez é regra de negócio e o nome de um colega não é dado sensível; isso evita retrabalho para descobrir o autor.",
+  "area": "01-acesso-admin",
+  "areaNome": "Entrada, navegação, usuários e permissões",
+  "num": "ACE-D16",
+  "classe": "c",
+  "codigoTexto": "O que o código faz: A coluna **Por** mostra \"—\" (\"O registro não guarda o autor\"), embora o autor esteja gravado; na ficha do Cliente aparece \"Usuário interno\". Só o Administrativo, que lê os perfis de todos, vê os nomes O que diz a documentação: `clientes.md` (Histórico: \"Por (nome; 'Sistema'; '—' quando o registro não guarda autor; nunca um id)\") e `regras-de-negocio.md` (Rastro: o Histórico guarda \"quem fez\"), contra a exceção \"usuários, inclusive leitura\" da ADR 0085, que fecha a leitura dos perfis"
+ },
+ {
+  "key": "02-viagens-adr:2",
+  "titulo": "Só Operações e Administrativo gravam terminal e datas da escala",
+  "caso": "Paula, da Documentação, abre a escala de Vitória do navio MSC Aurora e escolhe o terminal da frente de carga cheia; ou Lucas, de Equipamentos, registra o ATB. Ao salvar, a janela mostra só \"Falha ao salvar a escala.\", sem dizer o motivo. Os campos estavam liberados para eles.",
+  "hoje": "O sistema recusa terminal, ATB, ATD e Restow de quem não é de Operações ou Administrativo, com mensagem genérica, e remover uma Atracação (inclusive trocar a única frente de terminal) é só do Administrativo.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: todos os setores gravam terminal, ATB, ATD e Restow, e Operações também troca o terminal de uma frente.",
+    "efeito": "Qualquer pessoa da equipe atualiza a escala sem depender de outro setor."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a restrição a Operações e Administrativo, registrá-la na regra de permissões, esconder esses campos dos demais e mostrar o motivo quando houver recusa.",
+    "efeito": "A tela passa a mostrar só o que cada setor pode fazer, sem erro sem explicação."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra registrada abre a escala a todos e trata outras restrições como defeito; abrir é a correção menor e evita escala parada. Decida junto com o cartão sobre o ATB (Acesso), que trata o mesmo ponto.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "2",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O banco recusa (\"Somente Operações/Admin podem editar terminais da escala.\") e a janela mostra só \"Falha ao salvar a escala.\"; os campos aparecem para todos. Remover uma Atracação (inclusive mover a única frente de um terminal para outro) é só do Administrativo. O que diz a documentação: Matriz de `seguranca.md` (\"Criar e editar viagem, escala, programação e exportação\": todos os setores) e `viagens.md` (\"Adicionar ou editar escala: Usuário interno ativo\"); a matriz diz que restrição fora dela é defeito."
+ },
+ {
+  "key": "02-viagens-adr:3",
+  "titulo": "Textos errados ao omitir e ao reverter a omissão de uma escala",
+  "caso": "Carlos, de Operações, omite a escala de Salvador e lê na confirmação que só o Administrativo poderá reverter. Depois, Paula, da Documentação, reverte e lê que \"os registros de transbordo\" serão removidos.",
+  "hoje": "Qualquer setor reverte a omissão com justificativa, e a reversão só marca a omissão como revertida, mantendo o histórico.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir os dois textos da tela para dizer que qualquer setor reverte e que o histórico é mantido.",
+    "efeito": "A equipe lê na tela o que de fato vai acontecer."
+   },
+   {
+    "id": "B",
+    "texto": "Mudar o sistema para seguir os textos: só o Administrativo reverte e o transbordo é apagado.",
+    "efeito": "A reversão fica mais restrita e perde o histórico, contra a decisão registrada."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O comportamento atual segue a regra registrada; só o texto está errado.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "3",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Qualquer setor reverte a omissão (com justificativa), e a reversão só marca a omissão como revertida, mantendo o histórico. O que diz a documentação: Decisão D9 da ADR 0085 e `viagens.md`: reversão por qualquer Departamento; a omissão revertida fica no histórico. Os textos de `OmitEscalaModal.tsx` e `TransshipmentInfoCard.tsx` dizem outra coisa."
+ },
+ {
+  "key": "02-viagens-adr:4",
+  "titulo": "Selo \"Faturamento encerrado\" não aparece quando todos os B/Ls estão pagos",
+  "caso": "Rafael, do Financeiro, confere a Viagem do MSC Aurora: todos os B/Ls estão pagos. O selo **Faturamento encerrado**, cujo texto diz \"quitados ou isentos\", não aparece.",
+  "hoje": "O selo aparece só quando todos os B/Ls estão isentos de Taxas Locais; B/L pago não conta.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para mostrar o selo quando todos os B/Ls estão quitados ou isentos.",
+    "efeito": "O Financeiro vê no selo que a Viagem não tem mais nada a cobrar."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o cálculo e trocar o texto do selo para \"Todos os B/Ls isentos\".",
+    "efeito": "O selo fica correto, mas só serve para Viagens totalmente isentas."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O selo só é útil para o Financeiro se mostrar que a cobrança da Viagem acabou; o texto atual já promete isso.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "4",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O selo aparece só quando todos os B/Ls estão isentos de Taxas Locais; B/L pago não conta. O que diz a documentação: `viagens.md` admite que é um \"proxy\" de B/L não isento; o texto do selo na tela promete \"quitados ou isentos\"."
+ },
+ {
+  "key": "02-viagens-adr:5",
+  "titulo": "Editar uma Viagem pode renomear o navio em todas as Viagens",
+  "caso": "Carlos cadastra a Viagem do navio \"M/V GREEN PECEM\", e o cadastro grava \"GREEN PECEM\". Depois, ao editar outra Viagem, digita o nome do navio de outro jeito; como o IMO é o mesmo, o nome digitado passa a valer em todas as Viagens desse navio.",
+  "hoje": "O cadastro grava o nome padrão do navio, e a edição de uma Viagem troca o nome do navio para o digitado, o que muda todas as Viagens dele.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: o nome cadastrado nunca muda pelos apelidos, nem ao cadastrar nem ao editar uma Viagem.",
+    "efeito": "O nome do navio só muda de propósito, no cadastro do navio."
+   },
+   {
+    "id": "B",
+    "texto": "Manter tudo e corrigir a regra para aceitar as duas trocas.",
+    "efeito": "Uma edição numa Viagem continua podendo mudar o nome em todas as outras."
+   },
+   {
+    "id": "C",
+    "texto": "Aceitar o nome padrão no cadastro (corrigindo a regra) e impedir que a edição de uma Viagem renomeie o navio.",
+    "efeito": "O nome fica padronizado e nenhuma Viagem muda o nome das outras."
+   }
+  ],
+  "recomendada": "C",
+  "porque": "O nome padrão ajuda a reconhecer o navio; o perigo real é uma edição pontual trocar o nome em todas as Viagens, inclusive as que o Cliente vê no Portal.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "5",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O cadastro do navio grava o nome canônico (\"ZHONG YUAN HAI YUN JIN QU\", \"GREEN PECEM\"); ao editar uma Viagem, o navio achado pelo IMO recebe o nome digitado, o que muda o nome em todas as Viagens desse navio. O que diz a documentação: `viagens.md` (Identidade do navio) e `CONTEXT.md`: o alias vale \"sem alterar o nome exibido ou cadastrado\"."
+ },
+ {
+  "key": "02-viagens-adr:6",
+  "titulo": "A janela da escala não mostra o motivo real das recusas",
+  "caso": "Paula e Carlos salvam a escala de Vitória ao mesmo tempo; Paula vê no canto \"Falha ao salvar a escala.\" e na janela \"A escala foi atualizada por outra pessoa…\". Depois, Ana, do Administrativo, tenta remover uma Atracação travada por CE e recebe a mesma mensagem de conflito, em vez de \"Atracação travada: …\".",
+  "hoje": "No conflito, o aviso do canto é genérico, e outras recusas, como a trava da Atracação, aparecem como se fossem conflito de edição.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para mostrar o motivo de cada recusa na janela e separar o conflito de edição das demais.",
+    "efeito": "A pessoa sabe se deve recarregar a escala ou resolver a trava do CE."
+   },
+   {
+    "id": "B",
+    "texto": "Manter as mensagens e corrigir a regra para descrever o que aparece hoje.",
+    "efeito": "A equipe continua recarregando a escala sem resolver o motivo real."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A mensagem errada leva a retrabalho e esconde o motivo da trava.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "6",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: No conflito, o aviso no canto diz \"Falha ao salvar a escala.\" e a janela diz \"A escala foi atualizada por outra pessoa…\". A trava da Atracação (\"Atracação travada: …\") chega à janela com a mesma mensagem de conflito, em vez do motivo. O que diz a documentação: `viagens.md` (catálogo, \"Adicionar ou editar escala\") diz que o aviso é \"A escala foi atualizada por outra pessoa. Recarregue antes de salvar novamente.\" e que a trava recusa \"com o motivo\"."
+ },
+ {
+  "key": "02-viagens-adr:7",
+  "titulo": "Recusas na aba ADR não aparecem para quem tentou",
+  "caso": "Lucas, de Equipamentos, clica para assinar o ADR da Viagem do MSC Aurora no mesmo instante em que Ana fecha o ADR. A assinatura é recusada, mas a aba não mostra nada; Lucas acha que assinou.",
+  "hoje": "As recusas de resolução, observação, assinatura e reabertura do ADR não aparecem na tela; só o fechamento tem aviso de falha.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para mostrar a recusa na aba ADR, com o motivo.",
+    "efeito": "Quem tentou sabe que a ação não foi feita e por quê."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e corrigir a regra.",
+    "efeito": "A pessoa continua achando que assinou ou resolveu algo que não foi gravado."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Uma assinatura que a pessoa acha feita, mas não foi, deixa o ADR com pendência escondida.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "7",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A aba não mostra nenhuma mensagem: as recusas de resolução, observação, assinatura e reabertura só vão para o monitoramento técnico; só o fechamento tem aviso (\"Falha ao fechar o ADR. Tente novamente.\"). O que diz a documentação: `viagens.md` (catálogo do ADR) lista as recusas (\"outro departamento recebe 42501; ADR fechado recusa\") como respostas ao operador."
+ },
+ {
+  "key": "02-viagens-adr:10",
+  "titulo": "Faixa do Line Up mistura escalas com Viagens na contagem",
+  "caso": "No Painel há 75 Viagens. A faixa do Line Up mostra \"40 de 75 escalas\", mas 75 é o número de Viagens, não de escalas.",
+  "hoje": "Quando há mais Viagens do que o Painel carrega, o segundo número da faixa é o total de Viagens.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o contador para mostrar o total de escalas.",
+    "efeito": "A faixa passa a comparar escalas com escalas."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o texto da faixa para deixar claro que o segundo número é de Viagens.",
+    "efeito": "A faixa fica correta sem mudar a contagem."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra diz que a faixa mostra a contagem de escalas; corrigir o número mantém o texto que a equipe já conhece.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "10",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Quando há mais Viagens que a janela carregada, o segundo número é o total de Viagens, não de escalas. O que diz a documentação: `operacao-suporte.md`: a faixa mostra \"a contagem de escalas\"."
+ },
+ {
+  "key": "02-viagens-adr:13",
+  "titulo": "Atracação TBC vazia impede a Viagem de ficar Concluída",
+  "caso": "Carlos salva a escala de Vitória com a frente de carga cheia ainda em TBC. Depois escolhe o terminal, registra ATB e ATD e salva de novo. A escala continua com \"Aguardando o ATD de TBC.\" e a Viagem do MSC Aurora nunca passa sozinha a Concluída.",
+  "hoje": "A primeira gravação cria uma Atracação TBC sem datas que nunca é apagada nem pode ser preenchida, e ela segura a conclusão da escala e da Viagem (visto na leitura do sistema, ainda não observado em tela).",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para apagar a Atracação TBC vazia quando nenhuma frente fica em TBC.",
+    "efeito": "A escala conclui com o ATD do terminal real e a Viagem passa a Concluída sozinha."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para ignorar Atracação TBC sem datas ao decidir se a escala e a Viagem estão concluídas.",
+    "efeito": "A Viagem conclui, mas a Atracação TBC vazia continua aparecendo na escala."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Resolve a causa e limpa a escala; a Viagem presa em Ativa continua aparecendo em Chegadas e Saídas e no Portal do Cliente.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "13",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A primeira gravação criou uma Atracação TBC sem datas, que nunca é apagada nem pode ser preenchida pela janela. Ela conta como Atracação sem ATD: a escala não fica concluída (\"Aguardando o ATD de TBC.\") e a Viagem não passa sozinha a Concluída (VIA-143). Leitura do código, não observado em tela. O que diz a documentação: `viagens.md` (Ciclo de status): a Viagem conclui \"quando toda Escala ativa e não omitida tem Atracação e todas as Atracações têm ATD\"; TBC é só a falta de terminal de uma frente, não uma Atracação a cumprir."
+ },
+ {
+  "key": "02-viagens-adr:14",
+  "titulo": "Omitir a última escala não conclui a Viagem",
+  "caso": "O MSC Aurora saiu de Vitória (ATD registrado) e o armador omitiu Salvador, a última escala pendente. Paula registra a omissão, mas a Viagem continua Ativa, em Chegadas e Saídas e no Portal, até alguém salvar alguma escala dela.",
+  "hoje": "Omitir, reverter omissão e excluir escala não recalculam o status da Viagem; o recálculo só acontece ao salvar uma escala ou reativar a Viagem.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para recalcular o status da Viagem ao omitir, reverter omissão e excluir escala.",
+    "efeito": "A Viagem conclui (ou volta a Ativa) assim que a escala muda, também no Portal."
+   },
+   {
+    "id": "B",
+    "texto": "Manter e registrar na regra que é preciso salvar uma escala depois de omitir ou excluir.",
+    "efeito": "A equipe precisa lembrar de um passo a mais, e o Cliente vê a Viagem errada até lá."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O Cliente vê no Portal uma Viagem ativa que já acabou; a correção segue a regra registrada.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "14",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A omissão não recalcula o status: a Viagem continua Ativa, em Chegadas e Saídas e no Portal, até alguém salvar alguma escala dela. Excluir escala e reverter omissão também não recalculam (o recálculo só roda ao salvar escala e ao reativar). O que diz a documentação: `viagens.md` (Omissão é distinta de exclusão): a escala omitida \"sai das derivações internas (Próxima Escala, status da viagem…)\"."
+ },
+ {
+  "key": "02-viagens-adr:15",
+  "titulo": "Escala omitida aceita como transbordo o próprio porto omitido",
+  "caso": "A Viagem do MSC Aurora tem só a escala de Vitória no Brasil, e o armador a omite. A janela \"Omitir escala de BRVIX\" oferece BRVIX como Porto de Transbordo, e Paula grava assim.",
+  "hoje": "A tela oferece e o sistema aceita como Porto de Transbordo o mesmo porto que foi omitido.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para recusar Porto de Transbordo igual ao porto omitido, na tela e na gravação, e orientar a cadastrar antes a escala de descarga.",
+    "efeito": "A omissão sempre aponta para onde a carga vai ser descarregada de verdade."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar na regra que o próprio porto pode ser escolhido.",
+    "efeito": "A Viagem pode ficar com uma informação de transbordo sem sentido."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra diz que a carga vai para outro porto da Viagem; aceitar o mesmo porto gera informação errada sobre a carga do Cliente.",
+  "area": "02-viagens-adr",
+  "areaNome": "Viagens e ADR de Saída",
+  "num": "15",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A janela \"Omitir escala de BRVIX\" oferece como Porto de Transbordo o próprio BRVIX, e o banco aceita a omissão com descarga no mesmo porto omitido. O que diz a documentação: `viagens.md` e `CONTEXT.md` (Porto de Transbordo): a carga é \"descarregada em outro porto da mesma viagem\"."
+ },
+ {
+  "key": "03-bl-revisao:BLR-D01",
+  "titulo": "B/L cancelado continua na fila da Revisão e no número do menu",
+  "caso": "Ana, do Administrativo, cancela pela ficha o B/L MSCU1234567, que estava com Revisão **Pendente**. Ao abrir a **Revisão**, o B/L continua na fila e no número do menu; Paula tenta vincular o Cliente e o sistema recusa, porque o B/L cancelado não pode ser alterado.",
+  "hoje": "Cancelar o B/L não muda a Revisão, então ele segue na fila e no número do menu, mas todas as ações da fila sobre ele são recusadas.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para tirar o B/L cancelado da fila e do número da Revisão, como já sai dos Alertas.",
+    "efeito": "A fila mostra só o que ainda precisa de trabalho."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o B/L na fila, marcado como Cancelado e sem botões de ação.",
+    "efeito": "A equipe vê que ele foi cancelado, mas o número do menu continua contando-o."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Um B/L cancelado não tem mais o que revisar; tirá-lo evita trabalho inútil e segue o que já acontece nos Alertas.",
+  "area": "03-bl-revisao",
+  "areaNome": "B/L e Revisão",
+  "num": "BLR-D01",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O B/L continua na fila e no número do item **Revisão** do menu: a fila e o número só olham a Revisão Pendente, e cancelar não muda a Revisão. As ações da fila sobre ele (vincular Cliente, informar peso, salvar) são recusadas, porque o B/L cancelado é somente leitura. O que diz a documentação: `docs/modules/manifesto-edi.md` (B/L Cancelado) e `docs/modules/operacao-suporte.md`: cancelado, o B/L fica somente leitura, deixa de contar nos Alertas de revisão do Cliente e fica fora da reavaliação da Revisão."
+ },
+ {
+  "key": "03-bl-revisao:BLR-D02",
+  "titulo": "Filtro de Faturamento \"Cancelado\" sempre vem vazio",
+  "caso": "Rafael abre **BLs** › **Mais filtros** › **Faturamento** e escolhe **Cancelado** para achar o B/L MSCU1234567, que foi cancelado. A lista vem vazia.",
+  "hoje": "O filtro procura uma situação de faturamento \"cancelado\" que nenhuma ação grava, então nunca encontra nada.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Trocar a opção por um filtro que mostre os B/Ls cancelados.",
+    "efeito": "A equipe acha os B/Ls cancelados pela lista."
+   },
+   {
+    "id": "B",
+    "texto": "Retirar a opção Cancelado do filtro.",
+    "efeito": "Ninguém mais recebe uma lista vazia enganosa, mas não há como filtrar cancelados."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A opção existe porque a equipe precisa achar B/Ls cancelados; com a lista vazia, alguém pode concluir que não há cancelados.",
+  "area": "03-bl-revisao",
+  "areaNome": "B/L e Revisão",
+  "num": "BLR-D02",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O filtro procura uma situação financeira \"cancelado\" que nenhuma ação grava. A lista vem sempre vazia, mesmo com B/Ls cancelados, porque o cancelamento do B/L é outra marca (data, autor e motivo). O que diz a documentação: `docs/modules/manifesto-edi.md` descreve o cancelamento do B/L por data, autor e motivo, sem situação financeira \"cancelado\"."
+ },
+ {
+  "key": "03-bl-revisao:BLR-D03",
+  "titulo": "Aviso ao cancelar B/L faturado indica o setor errado",
+  "caso": "Paula tenta cancelar o B/L MSCU1234567, que tem fatura emitida, em **Mais ações** › **Cancelar B/L**. O aviso diz \"O Financeiro cancela ou estorna antes.\" Ela pede ao Financeiro, que não tem o botão de cancelar a fatura.",
+  "hoje": "O aviso manda o Financeiro cancelar a fatura, mas cancelar fatura é só do Administrativo; o Financeiro só registra baixa ou Restituição.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto do aviso: o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição.",
+    "efeito": "A pessoa sabe a quem pedir na primeira vez."
+   },
+   {
+    "id": "B",
+    "texto": "Mudar o sistema para o Financeiro também cancelar fatura.",
+    "efeito": "O aviso fica certo, mas muda quem mexe em fatura, contra a decisão registrada."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O comportamento segue a regra; só o texto está errado.",
+  "area": "03-bl-revisao",
+  "areaNome": "B/L e Revisão",
+  "num": "BLR-D03",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O aviso diz \"O B/L <nº> não pode ser cancelado agora: ... O Financeiro cancela ou estorna antes.\". Mas cancelar fatura é só do Administrativo; o Financeiro só registra baixa ou Restituição. O que diz a documentação: `docs/modules/manifesto-edi.md` (B/L Cancelado): \"o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição\" (ADR 0085, D1)."
+ },
+ {
+  "key": "03-bl-revisao:BLR-D04",
+  "titulo": "Prévia do Manifesto BB diz que a Revisão fica como está, mas ela é refeita",
+  "caso": "Paula reimporta o Manifesto BB com o B/L MSCU1234567, que estava Pendente por falta de peso, agora com o peso. A prévia diz \"CE Mercante, Cliente vinculado, Revisão e observações ficam como estão.\", mas depois de gravar a Revisão do B/L sai de Pendente.",
+  "hoje": "A gravação refaz a Revisão pelas pendências e mantém a nota escrita, enquanto a prévia diz que a Revisão não muda.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da prévia: a Revisão é refeita e a nota escrita é mantida.",
+    "efeito": "A pessoa sabe antes de gravar que as pendências serão recalculadas."
+   },
+   {
+    "id": "B",
+    "texto": "Mudar o sistema para não refazer a Revisão na reimportação.",
+    "efeito": "B/Ls corrigidos pelo arquivo continuariam Pendentes até alguém resolver à mão."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Refazer a Revisão é a regra e é útil; só o texto está errado.",
+  "area": "03-bl-revisao",
+  "areaNome": "B/L e Revisão",
+  "num": "BLR-D04",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A gravação refaz a Revisão (Pendente vira sem pendência, ou ganha pendência nova), preservando a nota escrita. A prévia, porém, diz \"CE Mercante, Cliente vinculado, Revisão e observações ficam como estão.\". O que diz a documentação: `docs/modules/manifesto-edi.md`, catálogo do BB: \"a Revisão é reavaliada só pelas pendências calculadas, preservando a nota humana\"."
+ },
+ {
+  "key": "03-bl-revisao:BLR-D05",
+  "titulo": "Manifesto BB não aparece na Importação rápida da Viagem",
+  "caso": "Paula abre a Viagem do MSC Aurora, aba **Importação**, e procura o Manifesto BB na **Importação rápida**. Não encontra; ele só abre por **BLs** › **Importar** › **Manifesto de carga solta (BB)**.",
+  "hoje": "A Importação rápida da Viagem não oferece o Manifesto BB.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para voltar a oferecer o Manifesto BB na Importação rápida da Viagem.",
+    "efeito": "A equipe importa o BB direto da Viagem, como os outros arquivos."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema e corrigir o documento para dizer que o BB só abre por BLs › Importar.",
+    "efeito": "Nada muda na tela; a orientação fica correta."
+   }
+  ],
+  "recomendada": "B",
+  "porque": "O caminho por BLs funciona e a correção do documento é menor; vale a opção A só se a equipe sentir falta do atalho.",
+  "area": "03-bl-revisao",
+  "areaNome": "B/L e Revisão",
+  "num": "BLR-D05",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A Importação rápida não oferece o Manifesto BB; ele só abre por **BLs** › **Importar** › **Manifesto de carga solta (BB)**. O que diz a documentação: `docs/modules/manifesto-edi.md`, catálogo do BB: \"Modal em `Bls` ou `VoyageImportActions`\"; o comentário do próprio modal diz o mesmo."
+ },
+ {
+  "key": "03-bl-revisao:BLR-D06",
+  "titulo": "Botão de convite do Portal aparece para quem não pode enviar",
+  "caso": "Rafael, do Financeiro, abre a ficha do B/L MSCU1234567, da Atlântica Importações, que ainda não tem Portal ativo, e clica **Enviar convite do Portal**. Aparece em inglês \"Edge Function returned a non-2xx status code\" e o convite não sai.",
+  "hoje": "O botão e a caixa de convite aparecem para todos os setores, mas só Documentação e Administrativo conseguem enviar, e a recusa aparece em inglês técnico.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Esconder o botão e a caixa de convite fora da Documentação e do Administrativo, como a Revisão já faz, e traduzir a recusa.",
+    "efeito": "Cada setor vê só o que pode fazer, com mensagem em português."
+   },
+   {
+    "id": "B",
+    "texto": "Abrir o envio do convite a todos os setores e atualizar a regra de permissões.",
+    "efeito": "Qualquer setor dá acesso ao Portal ao Cliente."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Dar acesso ao Portal mexe com dados do Cliente e a regra deixa isso com dois setores; esconder o botão segue a regra e acaba com o erro.",
+  "area": "03-bl-revisao",
+  "areaNome": "B/L e Revisão",
+  "num": "BLR-D06",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O botão aparece para todos os setores. O envio só aceita Documentação e Administrativo, e a tela mostra, em inglês, \"Edge Function returned a non-2xx status code\". A Revisão esconde a ação corretamente (\"O convite do Portal é enviado pela Documentação ou pelo Administrativo.\"). O que diz a documentação: `docs/operations/seguranca.md` (matriz de permissões): provisionar o Portal é do Administrativo e da Documentação."
+ },
+ {
+  "key": "03-bl-revisao:BLR-D07",
+  "titulo": "Salvar B/L cancelado ou de Cliente desativado dá erro sem motivo",
+  "caso": "Paula abre o B/L MSCU1234567, que foi cancelado, muda um campo em **Detalhes do B/L** (o formulário continua editável) e salva. A tela mostra só \"Falha ao salvar alterações do B/L.\"",
+  "hoje": "O sistema recusa a gravação de B/L cancelado ou de Cliente desativado, mas a tela não diz o motivo e deixa o formulário editável.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Mostrar o motivo da recusa e travar o formulário em B/L cancelado.",
+    "efeito": "A pessoa nem tenta editar o B/L cancelado e entende a recusa no caso do Cliente desativado."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e corrigir a regra.",
+    "efeito": "A equipe continua editando, perdendo o trabalho e sem saber por quê."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Evita retrabalho e segue o que a regra já pede (a recusa mostra o bloqueio).",
+  "area": "03-bl-revisao",
+  "areaNome": "B/L e Revisão",
+  "num": "BLR-D07",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O sistema recusa, e a tela mostra só \"Falha ao salvar alterações do B/L.\", sem o motivo. Só a recusa de faturamento e o conflito de versão têm texto próprio. O que diz a documentação: `docs/modules/manifesto-edi.md`, catálogo Cancelar B/L: \"Recusa mostra o bloqueio; editar B/L cancelado é recusado\"."
+ },
+ {
+  "key": "03-bl-revisao:BLR-D12",
+  "titulo": "Prévia impede trocar o consignatário em casos que o sistema aceita",
+  "caso": "A Atlântica Importações tem o B/L MSCU1234567 com Taxas Locais calculadas e sem fatura. Paula reimporta o arquivo de B/L, em que o consignatário passou a ser um CNPJ não cadastrado. A prévia mostra \"Impedimento: Cliente do novo consignatário não está cadastrado…\" e a troca não é enviada; no Manifesto BB a prévia deixa passar, mas o texto diz que com fatura ou recebível a troca é recusada.",
+  "hoje": "A prévia do arquivo de B/L impede a troca sempre que há valor a receber, mas a gravação só recusa quando o B/L está faturado; a prévia do BB não impede e mostra um texto mais restrito que a regra.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir as duas prévias para seguir a regra: impedir só quando o B/L está faturado (fatura emitida, faturado, pago ou com baixa).",
+    "efeito": "A equipe troca o consignatário de B/L ainda não faturado sem cadastrar o Cliente antes."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a prévia do arquivo de B/L mais restrita, registrar essa decisão na regra e corrigir o texto da prévia do BB.",
+    "efeito": "A equipe continua tendo de cadastrar o novo Cliente antes de reimportar quando há valor calculado."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra atual foi afrouxada de propósito e protege o dinheiro onde importa (B/L já faturado); prévia e gravação precisam dizer a mesma coisa.",
+  "area": "03-bl-revisao",
+  "areaNome": "B/L e Revisão",
+  "num": "BLR-D12",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Na prévia do arquivo de B/L, o cartão da troca mostra \"Impedimento: Cliente do novo consignatário não está cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.\" sempre que o B/L tem fatura viva ou qualquer valor a receber não anulado (todo B/L calculado com Cliente tem um), e a troca não é enviada. A gravação só recusa quando o B/L está faturado (fatura viva, situação faturado ou pago, ou valor a receber com baixa). No Manifesto BB a prévia não impede, mas o texto diz \"Com fatura ou recebível a troca é recusada\". O que diz a documentação: `docs/modules/manifesto-edi.md` (importação do B/L e catálogo do BB): a troca para consignatário não cadastrado só é recusada \"quando o B/L está faturado (fatura viva, status faturado ou recebível com baixa; migration `379`)\"; \"antes, qualquer recebível segurava a troca\"."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D01",
+  "titulo": "B/L sem CE pode ser movido para um Manifesto Mercante",
+  "caso": "Paula da Documentação abre a Viagem do navio MSC Aurora, em Rotas e Manifestos › Ver B/Ls, marca o B/L MSCU1234567, que ainda não tem CE, e clica Mover para o manifesto 1226501860578. O sistema aceita e o B/L passa a constar no Manifesto sem CE.",
+  "hoje": "O Mover vincula ao Manifesto Mercante um B/L sem CE, sem nenhum aviso.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: recusar Mover de B/L sem CE, na tela e no sistema.",
+    "efeito": "A equipe vê o motivo da recusa e só entra no Manifesto o B/L com CE."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar na regra que o Mover aceita B/L sem CE.",
+    "efeito": "A equipe pode adiantar o vínculo, mas o Manifesto passa a ter B/Ls sem CE."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra existe para o Manifesto refletir só B/Ls com CE; aceitar sem CE abre espaço para manifesto incompleto sem ninguém perceber.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D01",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O B/L é vinculado ao Manifesto: nem a tela nem o servidor conferem o CE em Mover. Ele fica no Manifesto sem CE. O que diz a documentação: Regra 21 de `docs/modules/manifesto-edi.md`, `docs/operations/regras-de-negocio.md` § CE e Manifesto Mercante (ADR 0095, decisão 19): \"O B/L fica no Manifesto Mercante só enquanto está ativo e tem CE\"."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D02",
+  "titulo": "Janela do SOC/COC promete um efeito que não acontece",
+  "caso": "Na Viagem do navio MSC Aurora, o operador abre Baplie EDI › SOC/COC diverge e clica Vale o B/L para o container MSCU7654321. A janela diz que o próximo Baplie não troca o valor. No Baplie seguinte, com outro valor, a divergência volta, e reimportar o B/L também troca o SOC/COC.",
+  "hoje": "No SOC/COC, Vale o B/L resolve só aquele par de valores e a janela mostra o texto do IMO/OOG, que promete proteger o valor.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da janela para o SOC/COC: resolve só esta divergência; novo Baplie ou nova planilha de B/L podem mudar o valor.",
+    "efeito": "O operador sabe que a divergência pode voltar e não confia numa proteção que não existe."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para o SOC/COC funcionar como o IMO/OOG: o valor do B/L vira correção manual protegida.",
+    "efeito": "O valor escolhido fica fixo até alguém mudar à mão, inclusive na reimportação do B/L."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O comportamento atual está registrado como a regra; só o texto engana, e corrigir o texto é a mudança menor.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D02",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: No SOC/COC a origem continua a do B/L e só aquele par de valores fica resolvido: Baplie novo com outro valor volta a divergir e a reimportação do B/L ainda troca o SOC/COC. A frase só é verdadeira para IMO/OOG. O que diz a documentação: `docs/modules/manifesto-edi.md` § Baplie: \"No SOC/COC, registra só a resolução daquele par de valores … e a origem continua do B/L\"."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D03",
+  "titulo": "Conferência do CE diz que o Comunicado será reenviado, mas ninguém reenvia",
+  "caso": "Paula da Documentação importa a planilha de CE da Viagem do navio MSC Aurora, que troca o CE do B/L MSCU1234567 da Cliente Atlântica Importações. O Comunicado de CE e Taxas já tinha sido enviado, e a conferência mostra \"Comunicado será reenviado\". Nada é enviado: só aparece o alerta Reenviar Comunicado de CE e Taxas.",
+  "hoje": "A troca de CE abre um alerta de reenvio pendente; o reenvio depende de alguém, mas a conferência diz que ele vai acontecer.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da conferência: \"o reenvio do Comunicado fica pendente (alerta)\".",
+    "efeito": "A equipe sabe que precisa reenviar e procura o alerta."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para reenviar sozinho o Comunicado de CE e Taxas quando o CE muda.",
+    "efeito": "O Cliente recebe o CE novo sem depender de ninguém."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O texto atual faz a equipe acreditar que o Cliente vai receber o CE correto; deixar claro que há pendência é a correção menor e o alerta já existe.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D03",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Nada reenvia sozinho: abre o alerta **Reenviar Comunicado de CE e Taxas**, e o envio automático não repete um Comunicado de CE e Taxas já enviado na Viagem. Alguém precisa reenviar. O que diz a documentação: `docs/modules/manifesto-edi.md` § CE Mercante: a troca \"abre `comunicado_ce_reenvio_pendente` (pendência de reenvio ao Cliente)\"."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D04",
+  "titulo": "B/L cancelado mantém aberto o alerta de cobertura do Baplie",
+  "caso": "Na Viagem do navio MSC Aurora, o B/L MSCU1234567 foi cancelado e o container dele não está no Baplie. A tela Baplie EDI mostra \"Baplie e B/Ls conferem\", mas o alerta Cobertura Baplie / B/L continua aberto com \"1 container diverge…\".",
+  "hoje": "A tela ignora o B/L cancelado na conferência, mas o alerta conta containers de todos os B/Ls da Viagem, cancelados inclusive.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o alerta para seguir a regra: ignorar B/L cancelado e recalcular quando um B/L é cancelado.",
+    "efeito": "Tela e alerta dizem a mesma coisa e o alerta fecha sozinho."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar que o alerta também conta B/L cancelado.",
+    "efeito": "A equipe continua com alerta aberto que a tela diz estar resolvido."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra já diz que B/L cancelado fica fora da conciliação; alerta falso gera retrabalho e tira a confiança nos alertas.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D04",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Baplie EDI ignora o B/L cancelado e pode dizer **Baplie e B/Ls conferem**, mas o alerta **Cobertura Baplie / B/L** conta containers e rotas de todos os B/Ls da Viagem, cancelados inclusive, e fica aberto com \"1 container diverge…\". O que diz a documentação: `docs/modules/manifesto-edi.md` § Baplie e ADR 0078 item 21: B/L cancelado fica fora da conciliação; `docs/operations/regras-de-negocio.md` § Conciliação Baplie ↔ B/L."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D05",
+  "titulo": "Conferência da planilha de CE não mostra quem está no Portal",
+  "caso": "Paula da Documentação importa a planilha de CE com B/Ls da Cliente Atlântica Importações, que tem Portal ativo. A tabela Conferência com o que já está gravado não indica se cada B/L aparece no Portal, embora o manual diga que a prévia mostra isso.",
+  "hoje": "O sistema calcula se o B/L está visível no Portal, mas a conferência não mostra essa informação.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela para mostrar a nota de Portal em cada B/L da conferência.",
+    "efeito": "Antes de gravar, a equipe vê quais B/Ls o Cliente vai enxergar no Portal."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a tela como está e tirar a menção ao Portal do manual.",
+    "efeito": "O manual passa a descrever o que a tela mostra, sem informação nova."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A informação já é calculada e ajuda a equipe a prever o que o Cliente vê com o CE novo; mostrar é uma mudança pequena.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D05",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O servidor devolve, por B/L, se ele está visível no Portal, mas a tabela **Conferência com o que já está gravado** não mostra essa informação. O que diz a documentação: `docs/modules/manifesto-edi.md` (catálogo e § CE Mercante): a prévia mostra \"Portal, Comunicado e Desbloqueio\"."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D06",
+  "titulo": "Dica do Manifesto Mercante esquece que mudar o POL desvincula",
+  "caso": "Paula da Documentação abre a ficha do B/L MSCU1234567, em Detalhes do B/L › Manifesto Mercante. A dica diz que mudar o POD ou a Viagem desvincula o Manifesto. Ela muda só o POL e o B/L também sai do Manifesto.",
+  "hoje": "Mudar o POL, o POD ou a Viagem desvincula o Manifesto, mas a dica cita só POD e Viagem.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da dica: \"Mudar o POL, o POD ou a Viagem do B/L desvincula o Manifesto.\"",
+    "efeito": "A pessoa sabe de antemão que mudar o POL tira o B/L do Manifesto."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para mudar o POL não desvincular o Manifesto.",
+    "efeito": "O B/L continua no Manifesto mesmo com a origem trocada."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra registrada inclui o POL e faz sentido, porque o Manifesto depende da rota; só a dica está incompleta.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D06",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Mudar o POL também desvincula (gatilho de mudança de rota). O que diz a documentação: `docs/modules/manifesto-edi.md` § Manifesto Mercante: \"Mudar o POL, o POD ou a Viagem do B/L desvincula o Manifesto\"."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D10",
+  "titulo": "Resultado da planilha de CE não diz quais faturas ficaram de fora nem por quê",
+  "caso": "Paula da Documentação importa a planilha de CE com um B/L da Cliente Atlântica Importações, que não tem Portal, e outro da Cliente Boreal Têxtil, cuja fatura foi cancelada por uma pessoa. O Resultado: emissão das faturas mostra só \"1 retido\" e soma os dois em processados, sem dizer quais B/Ls nem o motivo.",
+  "hoje": "O resultado conta os retidos sem listá-los e põe os B/Ls pulados só em processados, sem motivo.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela para seguir a regra: listar por B/L o que foi faturado, retido ou pulado, com o motivo.",
+    "efeito": "A equipe vê na hora quais Clientes ficaram sem fatura e o que fazer em cada caso."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar no manual que o resultado mostra só contagens.",
+    "efeito": "A equipe precisa procurar B/L por B/L para descobrir o que não foi faturado."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Fatura que não sai sem ninguém saber atrasa a cobrança; a lista com motivo protege o dinheiro e já é a regra registrada.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D10",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: **Resultado: emissão das faturas** só conta os **retidos**, sem listar quais; B/L pulado (fatura cancelada aguardando **Emitir**, sem CE, cancelado) entra só em **processados**, sem motivo em lugar nenhum. O que diz a documentação: `docs/modules/manifesto-edi.md` § CE Mercante: \"o resultado por B/L (faturado, retido, aguardando ou bloqueado com motivo)\"."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D12",
+  "titulo": "Aviso do Manifesto BB manda pôr o CE pela ficha do B/L, que não aceita",
+  "caso": "Paula da Documentação importa o Manifesto BB do navio MSC Aurora com a coluna CE preenchida. O aviso diz que o CE entra \"pela planilha de CE Mercante ou pela ficha do B/L\". Ela abre a ficha do B/L MSCU1234567 e não há como lançar o CE: o campo só mostra um traço.",
+  "hoje": "O primeiro CE só entra pela planilha de CE Mercante; a ficha só corrige ou remove CE existente, mas os avisos do Manifesto BB citam a ficha.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto dos dois avisos do Manifesto BB, tirando \"ou pela ficha do B/L\".",
+    "efeito": "A pessoa vai direto à planilha de CE Mercante, sem procurar um campo que não existe."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para a ficha do B/L aceitar o primeiro CE.",
+    "efeito": "Abre um segundo caminho para lançar CE, contra a regra de que o CE entra só pela planilha."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra registrada é que o CE entra só pela planilha; o erro está só no texto do aviso.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D12",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A ficha não grava o primeiro CE: sem CE, o campo só mostra o traço e a dica \"O CE entra pela importação de CE Mercante, que também vincula o Manifesto.\"; **Corrigir CE** só existe para B/L com CE e o servidor recusa B/L sem CE. Os dois avisos estão em `src/services/breakbulkManifestParser.ts` e `src/services/breakbulkImport.ts`. O que diz a documentação: `docs/modules/manifesto-edi.md` § CE Mercante (ADR 0078): o CE entra só pela planilha; a ficha só corrige ou remove."
+ },
+ {
+  "key": "04-ce-baplie:CEB-D13",
+  "titulo": "Container que o Baplie traz vazio aparece como faltando a bordo",
+  "caso": "Na Viagem do navio MSC Aurora, o B/L MSCU1234567 declara o container TGHU1111111, que o Baplie traz como vazio. A tela Baplie EDI lista o container em Em B/L, fora do Baplie (\"O Baplie não mostra a bordo\"), embora ele esteja em Containers do Baplie como Vazio. O alerta Cobertura Baplie / B/L também o conta.",
+  "hoje": "Container presente no Baplie como vazio é tratado como ausente, e o alerta o conta como divergência.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: considerar presente o container que o Baplie traz vazio.",
+    "efeito": "Some a falsa falta e o alerta deixa de contar o container."
+   },
+   {
+    "id": "B",
+    "texto": "Criar uma divergência própria \"cheio no B/L, vazio no Baplie\", com texto correto, e registrar na regra.",
+    "efeito": "A equipe vê o problema real (cheio declarado como vazio) com o nome certo."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar que vazio no Baplie conta como fora do Baplie.",
+    "efeito": "A tela continua dizendo que o container não está a bordo quando está."
+   }
+  ],
+  "recomendada": "B",
+  "porque": "Um container declarado cheio que o Baplie traz vazio pode indicar erro de carga ou de B/L; mostrar a divergência com o nome certo protege a operação melhor do que escondê-la.",
+  "area": "04-ce-baplie",
+  "areaNome": "CE Mercante e Baplie",
+  "num": "CEB-D13",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Baplie EDI lista o container em **Em B/L, fora do Baplie** (\"O B/L declara um container que o Baplie não mostra a bordo\"), embora ele esteja na lista **Containers do Baplie** como **Vazio**, **Fora da conciliação**; o alerta **Cobertura Baplie / B/L** também o conta. O que diz a documentação: `docs/modules/manifesto-edi.md` § Baplie: \"Status cheio/vazio não é divergência da conciliação\"."
+ },
+ {
+  "key": "05-equipamentos:EQU-D7",
+  "titulo": "Planilha de datas mexe em container de B/L cancelado",
+  "caso": "Paula de Equipamentos importa a planilha de datas e uma linha traz o B/L cancelado MSCU1234567. O sistema não recusa: o B/L cancelado fica igual, mas a data vai para os B/Ls ativos que dividem o container, e a linha conta como \"container atualizado\".",
+  "hoje": "A linha do B/L cancelado é aceita, a data vai aos B/Ls ativos do mesmo container e conta como atualizada.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra do B/L cancelado: recusar a linha na prévia com \"B/L cancelado: somente leitura. Reative para corrigir.\"",
+    "efeito": "A equipe vê na prévia que a linha não entra e decide o que fazer."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a data indo aos B/Ls ativos, mas não contar a linha como atualizada e avisar na prévia.",
+    "efeito": "A data chega aos B/Ls ativos e a contagem fica honesta."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar a exceção na regra.",
+    "efeito": "Uma linha de B/L cancelado continua mudando outros B/Ls sem aviso."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Mudar outros B/Ls a partir de uma linha de B/L cancelado é inesperado e pode afetar datas que geram cobrança; recusar segue a regra que já vale nas demais correções.",
+  "area": "05-equipamentos",
+  "areaNome": "Equipamentos",
+  "num": "EQU-D7",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A linha não é recusada: o B/L cancelado fica igual, a data vai aos B/Ls ativos que dividem o container, e a linha conta como \"container atualizado\". O que diz a documentação: A regra de B/L cancelado somente leitura (ADR 0094, B4; `seguranca.md`) recusa as demais correções com \"B/L … cancelado: somente leitura. Reative para corrigir.\"."
+ },
+ {
+  "key": "05-equipamentos:EQU-D11",
+  "titulo": "Viagem cancelada ainda aceita Cama e serviço no Embarque de vazios",
+  "caso": "A Viagem do navio MSC Aurora foi cancelada. Mesmo assim, Paula de Equipamentos marca vazios como Cama em Vazios IMP e lança uma linha de serviço no Embarque de vazios dessa Viagem, e as duas gravações passam.",
+  "hoje": "A trava da Viagem cancelada vale para containers, veículos, lotes, Embarque e Granito, mas não para a natureza do vazio nem para as linhas de serviço do Embarque.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: recusar também essas duas gravações em Viagem cancelada.",
+    "efeito": "Viagem cancelada fica toda fechada e ninguém lança serviço nela por engano."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar essas duas exceções na regra.",
+    "efeito": "A equipe pode ajustar vazios e serviços depois do cancelamento, mas sem trava."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Linha de serviço pode virar cobrança; numa Viagem cancelada isso é risco de cobrar indevidamente, e a regra registrada já diz que tudo fica selado.",
+  "area": "05-equipamentos",
+  "areaNome": "Equipamentos",
+  "num": "EQU-D11",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: As duas gravações passam: só a natureza do vazio e a linha de serviço ficam sem a trava da Viagem Cancelada (containers, veículos, lotes de vazios, Embarque e unidades, e Granito são recusados). O que diz a documentação: `docs/modules/viagens.md`: \"Viagens canceladas são seladas no banco: … mutações operacionais posteriores são recusadas\"."
+ },
+ {
+  "key": "06-clientes-comunicacao:D01",
+  "titulo": "Contato sem e-mail some ao cadastrar o Cliente",
+  "caso": "Paula da Documentação usa Novo cliente para a Cliente Atlântica Importações e inclui um contato adicional, João, só com nome e telefone. A confirmação mostra \"João (sem e-mail)\" e \"2 contatos\". Depois de salvar, só existe o contato com e-mail; João sumiu sem aviso.",
+  "hoje": "Só contatos com e-mail são gravados; o contato sem e-mail aparece na confirmação e é descartado em silêncio.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela: recusar contato sem e-mail, com aviso, e não listá-lo na confirmação.",
+    "efeito": "A pessoa sabe na hora que precisa do e-mail e a confirmação bate com o que é gravado."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para gravar o contato sem e-mail como desativado.",
+    "efeito": "O telefone fica guardado, mas o contato não recebe Comunicados."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar que contato sem e-mail é descartado.",
+    "efeito": "A confirmação continua prometendo um contato que não é gravado."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Perder dado sem aviso é o pior caso; recusar na tela é a correção menor e deixa claro que o contato precisa de e-mail.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D01",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O banco grava só contatos com e-mail; o adicional sem e-mail some sem aviso. O que diz a documentação: clientes.md: \"contatos parcialmente preenchidos precisam de nome\"; nada diz que contato sem e-mail é descartado."
+ },
+ {
+  "key": "06-clientes-comunicacao:D02",
+  "titulo": "Cobertura de viagens ignora NOA simulado e envio parcial",
+  "caso": "Com o envio real desligado, a régua registra o NOA da Viagem do navio MSC Aurora como simulado e o alerta \"Comunicado NOA pendente\" fecha. Na Cobertura de viagens, a coluna NOA mostra \"0 de N\" e o detalhe da Cliente Atlântica Importações diz \"Não devido\".",
+  "hoje": "A Cobertura só conta Comunicado Enviado: simulado e parcial ficam fora, ao contrário da régua e dos alertas.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a Cobertura para mostrar simulado e parcial (por exemplo, \"Simulado em …\" e \"Parcial em …\") e contá-los como a régua conta.",
+    "efeito": "Cobertura, régua e alertas contam a mesma coisa."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar que a Cobertura mostra só envios reais.",
+    "efeito": "A equipe vê \"0 de N\" e \"Não devido\" para algo que o resto do sistema dá como feito."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Com Clientes reais chegando, a equipe precisa de uma única leitura do que foi comunicado; \"Não devido\" para algo já tratado engana.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D02",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A **Cobertura de viagens** só conta Comunicado Enviado: mostra \"0 de N\" e, no detalhe, \"Não devido\" para o NOA já simulado; Parcial também não conta. O que diz a documentação: clientes.md e D4: a tentativa simulada conta como recebida; a Cobertura mostra \"Enviado em\"."
+ },
+ {
+  "key": "06-clientes-comunicacao:D03",
+  "titulo": "B/L cancelado ainda aparece na Cobertura de viagens",
+  "caso": "Paula da Documentação usa Cancelar B/L no B/L MSCU1234567 da Cliente Atlântica Importações, o único dela na Viagem do navio MSC Aurora. Na Cobertura de viagens, a Cliente continua contada em Clientes e em \"Sem CE ou fatura\" e aparece como \"Bloqueado · sem B/L na viagem\".",
+  "hoje": "A Cobertura considera o B/L cancelado; só a fatura cancelada é filtrada.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a Cobertura para seguir a regra: tirar o B/L cancelado, como a conferência e a régua já fazem.",
+    "efeito": "Cliente sem B/L ativo na Viagem some da Cobertura e os números batem."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar que a Cobertura mostra também B/L cancelado.",
+    "efeito": "A Cobertura continua com Clientes que não vão receber nada."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra já tira o B/L cancelado da conferência e da régua; a Cobertura com números diferentes confunde a equipe.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D03",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A Cobertura lê o B/L cancelado (filtra só a situação financeira cancelada): o Cliente conta em Clientes, em \"Sem CE ou fatura\" e aparece \"Bloqueado · sem B/L na viagem\". O que diz a documentação: clientes.md: B/L cancelado não entra na conferência nem gera alvo."
+ },
+ {
+  "key": "06-clientes-comunicacao:D04",
+  "titulo": "Rodapé da Cobertura fala em rodada a cada 15 minutos",
+  "caso": "Paula da Documentação abre a Cobertura de viagens e lê no rodapé que a próxima rodada automática é \"a cada 15 minutos\". Na prática, os Comunicados saem em poucos minutos.",
+  "hoje": "A rodada automática roda a cada 2 minutos e também quando acontece o evento, mas o rodapé diz a cada 15 minutos.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto do rodapé para \"a cada 2 minutos e logo após o evento\".",
+    "efeito": "A equipe sabe quanto esperar antes de agir à mão."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para rodar a cada 15 minutos.",
+    "efeito": "Os Comunicados passam a sair mais devagar."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O comportamento atual é o registrado; só o texto está errado.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D04",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Diz \"a próxima rodada automática (a cada 15 minutos…)\"; a rodada é nos minutos ímpares (a cada 2 minutos) e também pelo evento. O que diz a documentação: clientes.md: job a cada 2 minutos desde a migration 458."
+ },
+ {
+  "key": "06-clientes-comunicacao:D05",
+  "titulo": "Cobertura cobra NOA e NOR antes de a janela abrir",
+  "caso": "A Viagem do navio MSC Aurora tem ETA daqui a 20 dias. Na Cobertura de viagens, NOA e NOR aparecem como \"0 de N\" para todo Cliente com carga, embora o rodapé diga que mostra \"—\" quando o marco da escala ainda não chegou.",
+  "hoje": "NOA e NOR contam como devidos antes de a janela abrir e aparecem como \"0 de N\".",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a Cobertura: só contar como devido quando a janela abrir, e mostrar \"—\" antes.",
+    "efeito": "A Cobertura só mostra pendência quando há algo a fazer."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a contagem e corrigir o texto do rodapé.",
+    "efeito": "A equipe continua vendo \"0 de N\" com antecedência, mas o rodapé deixa de prometer \"—\"."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "\"0 de N\" com 20 dias de antecedência parece atraso e gera retrabalho; mostrar pendência só quando ela existe deixa a operação clara.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D05",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: NOA e NOR mostram \"0 de N\" para todo Cliente com carga, antes da janela; o rodapé promete \"—\" quando \"o marco da escala ainda não chegou\". O que diz a documentação: Rodapé da tela e clientes.md (contagem de devidos)."
+ },
+ {
+  "key": "06-clientes-comunicacao:D07",
+  "titulo": "E-mail digitado na Revisão é gravado como capturado do B/L",
+  "caso": "Paula da Documentação usa Cadastrar cliente pela Revisão para a Cliente Atlântica Importações e digita o e-mail compras@atlantica.com.br. O contato é gravado como \"Contato manifesto\", com origem \"Capturado do B/L\", embora tenha sido digitado por ela.",
+  "hoje": "Todo e-mail do cadastro pela Revisão entra com origem \"Capturado do B/L\", mesmo digitado pela pessoa.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para gravar o e-mail digitado com origem \"Cadastrado pela equipe\".",
+    "efeito": "A ficha mostra de onde o contato veio de verdade."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar que o cadastro pela Revisão sempre marca \"Capturado do B/L\".",
+    "efeito": "A origem do contato continua imprecisa."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Saber quem cadastrou o contato ajuda quando um Cliente reclama de destinatário errado; a correção é pequena.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D07",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O e-mail entra como contato \"Contato manifesto\", origem \"Capturado do B/L\", mesmo digitado na Revisão. O que diz a documentação: clientes.md: e-mail do manifesto é \"Capturado do B/L\"; a Revisão diz \"Salva o cliente e o contato <e-mail>\"."
+ },
+ {
+  "key": "06-clientes-comunicacao:D08",
+  "titulo": "Sistema aceita CNPJ só com zeros que a tela recusa",
+  "caso": "Paula da Documentação digita o CNPJ 00.000.000/0000-00 e a tela recusa. Uma importação, que não passa pela tela, consegue gravar o mesmo CNPJ como válido.",
+  "hoje": "A tela recusa CNPJ de dígitos repetidos, mas o sistema por trás aceita \"00000000000000\".",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para recusar CNPJ de dígitos repetidos, como a tela.",
+    "efeito": "Nenhum caminho grava CNPJ falso."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar que só a tela recusa.",
+    "efeito": "CNPJ falso continua podendo entrar por importação e vincular B/Ls errados."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "CNPJ é a chave que liga B/L ao Cliente; um CNPJ falso pode vincular cargas e faturas ao cadastro errado.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D08",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A tela recusa CNPJ de caractere repetido; o banco aceita \"00000000000000\" como válido. O que diz a documentação: clientes.md: o gatilho \"recusa CNPJ inválido\"."
+ },
+ {
+  "key": "06-clientes-comunicacao:D09",
+  "titulo": "Mensagem manda usar \"Trocar Cliente\", mas o botão se chama Trocar",
+  "caso": "Paula da Documentação tenta desvincular a Cliente Atlântica Importações do B/L MSCU1234567, já faturado. A mensagem diz \"Use Trocar Cliente.\", mas na ficha do B/L o botão se chama Trocar.",
+  "hoje": "A mensagem cita um botão \"Trocar Cliente\" que não existe com esse nome.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da mensagem para \"Use Trocar.\"",
+    "efeito": "A pessoa encontra o botão certo de primeira."
+   },
+   {
+    "id": "B",
+    "texto": "Renomear o botão da ficha para \"Trocar Cliente\".",
+    "efeito": "O botão fica mais explícito e a mensagem passa a bater."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Só o texto da mensagem diverge da tela; corrigir uma frase é a mudança menor.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D09",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O banco diz \"Use Trocar Cliente.\"; o botão da ficha do B/L chama **Trocar**. O que diz a documentação: Rótulo da tela (o texto do banco é que diverge dela; não há documento defasado)."
+ },
+ {
+  "key": "06-clientes-comunicacao:D10",
+  "titulo": "Qualquer setor inclui contatos pela Base de Clientes e pela Revisão",
+  "caso": "Paula do Financeiro importa a Base de Clientes com e-mails novos da Cliente Atlântica Importações. O sistema cria e reativa contatos e troca o contato principal, embora pela ficha só Administrativo, Documentação e Equipamentos possam editar contatos.",
+  "hoje": "A Base de Clientes e o cadastro pela Revisão mexem em contatos para qualquer setor ativo, enquanto a ficha restringe a edição de contatos a três setores.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Restringir: na Base e na Revisão, só Administrativo, Documentação e Equipamentos incluem ou mudam contatos; os demais importam só o cadastro.",
+    "efeito": "Quem recebe os Comunicados do Cliente fica sob controle dos mesmos setores em todos os caminhos."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar que importar Clientes inclui mexer em contatos, para todos os setores.",
+    "efeito": "Financeiro e Operações continuam mudando destinatários pela Base e pela Revisão."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Trocar o contato principal muda quem recebe faturas e Comunicados; com Clientes reais, essa porta lateral deve seguir a mesma permissão da ficha.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D10",
+  "classe": "c",
+  "codigoTexto": "O que o código faz: A Base cria e reativa contatos e muda o principal, e a Revisão inclui contato, para qualquer setor ativo. O que diz a documentação: clientes.md e a matriz: editar contatos e caixas é só de Administrativo, Documentação e Equipamentos; importar Clientes é de todos."
+ },
+ {
+  "key": "06-clientes-comunicacao:D12",
+  "titulo": "Modo Institucional diz que precisa de contato, mas não precisa",
+  "caso": "Paula da Documentação abre Comunicação com Clientes no modo Institucional. A dica fala em \"Cliente com contato e B/L com ETA nos últimos 12 meses\" e a tela vazia diz que \"é preciso ter contato com e-mail\". A Cliente Atlântica Importações, sem contato, aparece na conferência como bloqueada, \"Sem contato elegível\".",
+  "hoje": "O Cliente entra no modo Institucional só pelo ETA; sem contato, aparece bloqueado, ao contrário do que dizem a dica e a tela vazia.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da dica e da tela vazia para a regra: Cliente com carga recente ou futura; sem contato, a linha fica bloqueada.",
+    "efeito": "A equipe entende por que aparece Cliente bloqueado e o que falta cadastrar."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para tirar da lista o Cliente sem contato.",
+    "efeito": "Cliente sem contato some da conferência e a equipe deixa de ver que falta cadastrá-lo."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Mostrar o Cliente bloqueado ajuda a achar quem está sem contato; só o texto precisa mudar.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D12",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O Cliente Comunicável depende só do ETA; Cliente sem contato aparece na conferência, bloqueado (\"Sem contato elegível\"). O que diz a documentação: clientes.md e CONTEXT.md: Cliente Comunicável é o de carga recente ou futura; sem contato, linha bloqueada."
+ },
+ {
+  "key": "06-clientes-comunicacao:D13",
+  "titulo": "Financeiro e Operações veem \"Em simulação\" com o envio real ligado",
+  "caso": "Paula do Financeiro abre Comunicação com Clientes com o envio real ligado. O bloco Canal de envio mostra \"Em simulação\", porque o perfil dela não consegue ler a chave de envio, e a tela usa o valor padrão.",
+  "hoje": "Só Administrativo, Documentação e Equipamentos leem a chave de envio; os demais veem \"Em simulação\", mesmo com o envio real ligado.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: todo usuário interno ativo lê o estado da chave (só ler, sem mudar).",
+    "efeito": "Todos veem o estado real; ninguém acha que o Cliente não recebeu o que recebeu."
+   },
+   {
+    "id": "B",
+    "texto": "Mostrar \"Estado não disponível para o seu perfil\" no lugar de \"Em simulação\".",
+    "efeito": "A tela deixa de mentir, mas esses setores continuam sem saber o estado."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Achar que está em simulação quando o envio é real pode levar alguém a testar com Cliente de verdade; ler o estado não dá poder de mudá-lo.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D13",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Esses setores não leem a chave (a leitura é só de Administrativo, Documentação e Equipamentos) e a tela usa o valor padrão: o bloco **Canal de envio** mostra \"Em simulação\" (CLI-103). O que diz a documentação: clientes.md: \"os demais perfis veem só o estado (\"Envio real\" ou \"Em simulação\")\" e \"os demais perfis que operam o módulo leem a faixa\"."
+ },
+ {
+  "key": "06-clientes-comunicacao:D14",
+  "titulo": "Cliente com único contato em bounce não consegue salvar contatos",
+  "caso": "A Cliente Atlântica Importações tem um único contato, o principal, cujo e-mail teve bounce. Paula da Documentação tenta corrigir o telefone ou trocar o e-mail dele e clica Salvar contatos. A tela recusa: a caixa \"Documentação e Operação\" não pode ficar sem contato ativo e elegível. O mesmo acontece no Perfil do Portal.",
+  "hoje": "A tela bloqueia a gravação e o e-mail trocado não libera o contato; é preciso cadastrar outro contato nas caixas.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela para seguir a regra: aceitar a gravação com aviso, deixar o alerta registrar a caixa sem destinatário e liberar o contato quando o e-mail muda.",
+    "efeito": "A equipe e o Cliente corrigem o e-mail do contato e voltam a receber Comunicados."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o bloqueio e mostrar na mensagem o caminho: cadastrar outro contato nas caixas.",
+    "efeito": "A equipe sabe o que fazer, mas não consegue corrigir o próprio contato com bounce."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar o bloqueio na regra.",
+    "efeito": "Cliente com único contato em bounce continua sem conseguir salvar."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Corrigir o e-mail com bounce é justamente o que traz o Cliente de volta; a regra e o sistema por trás já foram feitos para aceitar essa gravação.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D14",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A tela recusa **Salvar contatos** (\"A caixa \"Documentação e Operação\" não pode ficar sem nenhum contato ativo e elegível vinculado.\"), e o e-mail trocado na tela não libera o contato; é preciso cadastrar outro contato nas caixas (CLI-106). O mesmo vale no Perfil do Portal. O que diz a documentação: clientes.md (Gravação dos contatos, \"igual no Vela e no Perfil do Portal\"): \"Se todos os vinculados a uma caixa estiverem suprimidos, a gravação passa e o alerta `caixa_sem_destinatario` registra a caixa\"; o banco foi feito para isso (\"o cliente cujo único contato sofreu bounce ficaria insalvável\")."
+ },
+ {
+  "key": "06-clientes-comunicacao:D15",
+  "titulo": "Base de Clientes conta como vinculados B/Ls de Cliente desativado",
+  "caso": "A Cliente Atlântica Importações está desativada e tem B/Ls pendentes com o CNPJ dela. Paula da Documentação importa a Base de Clientes com esse CNPJ: a prévia lista os B/Ls em \"B/Ls vinculados\" e o resultado soma \"N B/Ls vinculados automaticamente\", mas os B/Ls ficam sem Cliente, só com sugestão na Revisão. A Base também atualiza o cadastro e reativa contatos da Cliente desativada sem aviso.",
+  "hoje": "Pela leitura do código, o vínculo vira sugestão, mas a prévia, o resultado e o Histórico do B/L falam em vínculo, e o cadastro e os contatos do Cliente desativado mudam sem aviso.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a prévia: avisar que o Cliente está desativado, não contar a sugestão como vínculo e não mexer no cadastro sem confirmação.",
+    "efeito": "A equipe vê que precisa reativar o Cliente ou escolher outro, e os números batem."
+   },
+   {
+    "id": "B",
+    "texto": "Recusar na Base a linha de Cliente desativado.",
+    "efeito": "Nada muda até alguém reativar o Cliente; a linha aparece como recusada."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar o comportamento.",
+    "efeito": "A equipe continua achando que os B/Ls estão vinculados quando não estão."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "B/L sem Cliente não é faturado nem comunicado; a equipe precisa saber disso, e o aviso segue a regra de que Cliente desativado não recebe vínculo.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D15",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A prévia conta e lista esses B/Ls em \"B/Ls vinculados\"; na gravação o vínculo vira sugestão (B/L sem Cliente, nota \"Cliente desativado: reative o cliente ou escolha outro.\"), mas o resultado soma \"N B/Ls vinculados automaticamente\" e o Histórico do B/L recebe \"Vínculo por documento pela Base de Clientes\". A Base também atualiza o cadastro e reativa contatos do Cliente desativado sem aviso. Leitura do código, não executado. O que diz a documentação: clientes.md e ADR 0073, item 6: B/L com CNPJ de Cliente desativado não se vincula, vai à Revisão como sugestão; o vínculo é recusado até a reativação."
+ },
+ {
+  "key": "06-clientes-comunicacao:D18",
+  "titulo": "Alerta de Cliente sem contato fecha sozinho por causa de contato desativado",
+  "caso": "O único contato ativo da Cliente Atlântica Importações teve bounce e abre o alerta \"Cliente sem contato alternativo\". Em até 15 minutos o alerta fecha sozinho, porque a verificação conta um contato antigo desativado. A Cliente continua sem ninguém ativo para receber.",
+  "hoje": "Pela leitura do código, o bounce abre o alerta contando só contatos ativos, mas a verificação a cada 15 minutos conta também os desativados e fecha o alerta.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: a verificação contar só contatos ativos, como o processamento do bounce.",
+    "efeito": "O alerta fica aberto até alguém cadastrar ou reativar um contato."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar que contato desativado conta como alternativo.",
+    "efeito": "O alerta continua fechando com o Cliente sem ninguém para receber."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Alerta que fecha sozinho esconde que o Cliente não está recebendo faturas e Comunicados.",
+  "area": "06-clientes-comunicacao",
+  "areaNome": "Clientes e Comunicados",
+  "num": "D18",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O processamento do bounce abre \"Cliente sem contato alternativo\" (conta só contatos ativos); o detector de 15 minutos conta também o desativado e fecha o alerta, sem contato ativo para receber (CLI-089). Leitura do código, não executado. O que diz a documentação: clientes.md (Bounce em Cascata): o alerta abre \"sem nenhum contato válido restante (ativo, com e-mail, sem bounce…)\"."
+ },
+ {
+  "key": "07-portal:POR-D01",
+  "titulo": "Convite recusado mostra erro técnico em inglês em vez do motivo",
+  "caso": "Paula da Documentação clica Enviar convite para compras@atlantica.com.br, que está na lista de bloqueio por bounce. O painel mostra uma mensagem técnica em inglês, em vez de \"Endereço suprimido por bounce/complaint. Informe outro.\". O mesmo vale para Cliente desativado, conta Suspensa, na Revisão e na ficha do B/L.",
+  "hoje": "O sistema recusa com o motivo certo, mas a tela não o lê e mostra uma mensagem técnica genérica em inglês.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela para mostrar o motivo da recusa, como a troca de e-mail assistida já faz, e acertar o manual.",
+    "efeito": "A equipe sabe por que o convite falhou e o que fazer."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar no manual que a recusa aparece como erro genérico.",
+    "efeito": "A equipe continua sem saber o motivo e tenta de novo à toa."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A mensagem certa já existe; mostrá-la evita retrabalho e chamados no momento de convidar Clientes reais.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D01",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O painel mostra \"Edge Function returned a non-2xx status code\"; o motivo do servidor (\"Endereço suprimido por bounce/complaint. Informe outro.\", \"Cliente desativado não recebe convite.\", \"Conta ativa usa recuperação de senha.\", \"A conta não está numa situação que permita esta ação.\") não é lido. O mesmo vale na Revisão e na ficha do B/L. O servidor responde 422 e 409. O que diz a documentação: `portal-cliente.md`, catálogo de Provisionamento: recusas \"`431` email inválido ou suprimido; `421` Cliente desativado ou conta já ativa (\"Conta ativa usa recuperação de senha.\")\" e \"falha de envio mostra 'O envio do email falhou…'\"."
+ },
+ {
+  "key": "07-portal:POR-D02",
+  "titulo": "Espiadinha mostra Transbordo de omissão já revertida",
+  "caso": "Operações reverte a omissão de escala do navio MSC Aurora. Paula da Documentação confere pela Espiadinha o B/L MSCU1234567 da Cliente Atlântica Importações, e a aba BLs ainda mostra Informações de Transbordo. A Cliente, no Portal, não vê esse bloco.",
+  "hoje": "No Modo Inspeção a aba BLs não aplica o filtro de omissão vigente que o Portal do Cliente aplica, e mostra dados já revertidos.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para seguir a regra: aplicar o mesmo filtro na Espiadinha e no Portal do Cliente.",
+    "efeito": "A Espiadinha mostra exatamente o que o Cliente vê."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e avisar na Espiadinha que o Transbordo pode estar desatualizado.",
+    "efeito": "A equipe continua vendo algo diferente do Cliente."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A Espiadinha só serve se mostrar o que o Cliente vê; diferença gera atendimento errado.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D02",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: No Modo Inspeção a aba BLs ainda mostra **Informações de Transbordo** da omissão revertida (e traria dados de navio no COD): o invólucro de inspeção usa o núcleo sem o filtro de omissão vigente que o invólucro do Cliente aplica. O Cliente não vê o bloco. O que diz a documentação: `portal-cliente.md`, Inspeção: leituras pelo mesmo núcleo, \"paridade\"; Operação: bloco alimentado \"pelo registro global vigente da omissão\"."
+ },
+ {
+  "key": "07-portal:POR-D03",
+  "titulo": "Consolidada desfeita pelo Cliente aparece como \"Substituída\"",
+  "caso": "A Cliente Atlântica Importações usa Refazer consolidada no Portal. Depois filtra por Cancelada e abre a consolidada desfeita: a lista diz \"Cancelada\", mas o detalhe diz \"Substituída por outra fatura\", sem indicar fatura nova.",
+  "hoje": "Toda consolidada desfeita aparece no detalhe como \"Substituída por outra fatura\", mesmo sem fatura nova.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o detalhe para mostrar \"Desfeita pelo cliente pelo portal.\" na consolidada desfeita e reservar \"Substituída\" para a que tem fatura nova.",
+    "efeito": "O Cliente entende o que aconteceu com a fatura e não procura uma fatura nova que não existe."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar que desfeita aparece como substituída.",
+    "efeito": "O Cliente continua vendo duas situações diferentes para a mesma fatura."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Fatura com situação confusa no Portal vira chamado e dúvida sobre o que pagar.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D03",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A lista mostra \"Cancelada\", mas o detalhe mostra \"Substituída por outra fatura\", sem fatura nova, porque toda fatura desfeita usa o mesmo estado da substituída. O que diz a documentação: `portal-cliente.md`: **Substituída** é a \"consolidada que perdeu um B/L pago na individual\", com \"Abrir INV-…\" da nova; desfeitas aparecem no filtro Cancelada."
+ },
+ {
+  "key": "07-portal:POR-D04",
+  "titulo": "Link de redefinição vencido mostra \"tente novamente\"",
+  "caso": "O Cliente Rafael, da Atlântica Importações, abre o link de redefinição de senha duas horas depois e envia a nova senha. A tela diz \"Falha ao redefinir senha. Tente novamente em instantes.\", e ele tenta várias vezes sem sucesso.",
+  "hoje": "O sistema recusa o link vencido ou usado com \"Link inválido ou expirado\", mas a tela não lê a resposta e mostra uma falha genérica.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela para mostrar \"Link inválido ou expirado\" e levar a Pedir um novo link, como a confirmação de e-mail já faz.",
+    "efeito": "O Cliente sabe que precisa de um link novo e resolve sozinho."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar a mensagem genérica no manual.",
+    "efeito": "O Cliente continua tentando um link que nunca vai funcionar."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O Cliente fica sem acesso ao Portal e sem saber por quê; a correção é pequena e já existe um modelo na confirmação de e-mail.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D04",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A tela mostra \"Falha ao redefinir senha. Tente novamente em instantes.\" — o \"Link inválido ou expirado. Solicite uma nova recuperação.\" do servidor não é lido; só a falta de código mostra \"Link de recuperação inválido ou expirado.\". O que diz a documentação: `portal-cliente.md`, catálogo: \"Token ausente/expirado/inválido mostra mensagem única\"."
+ },
+ {
+  "key": "07-portal:POR-D05",
+  "titulo": "Limite diário de troca de e-mail mostra mensagem do limite de senha",
+  "caso": "O Cliente Rafael, da Atlântica Importações, pede pela sexta vez no dia a troca do E-mail de recuperação. O sistema recusa pelo limite diário de 5 pedidos, mas a tela diz \"Muitas tentativas com a senha atual…\", e ele acha que errou a senha.",
+  "hoje": "A recusa pelo limite diário de troca de e-mail aparece com a mensagem do limite de senha.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela para mostrar \"Limite de pedidos de troca de email atingido. Tente novamente amanhã.\" e registrar o limite diário no manual.",
+    "efeito": "O Cliente sabe que deve esperar até amanhã e não desconfia da senha."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar o limite diário só no manual.",
+    "efeito": "A equipe conhece o limite, mas o Cliente continua vendo a mensagem errada."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A mensagem errada faz o Cliente achar que a senha está errada e gera chamado; a mensagem certa já existe.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D05",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O servidor recusa por limite diário (5 em 24 horas, \"Limite de pedidos de troca de email atingido. Tente novamente amanhã.\"), mas a tela mostra a mensagem do limite de senha (\"Muitas tentativas com a senha atual…\"). O que diz a documentação: `portal-cliente.md` e `portal-rate-limit.md` não citam o limite diário; o catálogo diz que o bloqueio \"devolve 429 com mensagem própria\" (o da senha)."
+ },
+ {
+  "key": "07-portal:POR-D06",
+  "titulo": "Aviso de disputa no sino do Portal não abre nada",
+  "caso": "A Cliente Atlântica Importações registra uma disputa de demurrage no Portal. Depois, clica no sino na notificação \"Disputa registrada\". Nada acontece: a tela continua onde estava.",
+  "hoje": "A notificação aponta para a tela de demurrage do Vela, que o Cliente não acessa, e o sino do Portal ignora o clique.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para a notificação abrir Faturamento → Demurrage com as disputas no Portal.",
+    "efeito": "O Cliente clica no aviso e cai direto na sua disputa."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar no manual que esse aviso não abre tela.",
+    "efeito": "O Cliente continua clicando sem resposta e procura a disputa sozinho."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É a primeira coisa que o Cliente toca depois de abrir uma disputa; um aviso que não abre parece defeito e gera chamado.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D06",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Nada abre: o destino gravado é o endereço interno `/demurrage`, e o sino só navega para endereços do Portal. O que diz a documentação: `portal-cliente.md`, Layout — abrir notificação: \"Notificação com `link` em `/portal/*`… navega para o `link`\"."
+ },
+ {
+  "key": "07-portal:POR-D07",
+  "titulo": "Login do Portal mostra \"senha inválida\" quando o erro é outro",
+  "caso": "A Cliente Atlântica Importações digita CNPJ e senha certos, mas a verificação de segurança falha (ou a internet cai). A tela diz \"CNPJ ou senha inválidos…\". Ela troca a senha à toa ou liga para a agência.",
+  "hoje": "No login, falha da verificação de segurança e falta de rede aparecem como \"CNPJ ou senha inválidos\"; só a recuperação de senha tem mensagem própria.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para o login mostrar a mensagem da verificação de segurança e a de rede, como a recuperação já faz.",
+    "efeito": "O Cliente entende que deve tentar de novo, sem achar que errou a senha."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e deixar no manual o aviso \"comportamento em revisão\".",
+    "efeito": "O Cliente segue recebendo a mensagem errada até alguém corrigir depois."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O Portal vai abrir para Clientes reais; mensagem errada no login gera troca de senha desnecessária e chamados logo no primeiro acesso.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D07",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Mostra \"CNPJ ou senha inválidos…\": a mensagem própria da verificação e a de rede nunca aparecem no login. O que diz a documentação: `portal-cliente.md` registra como defeito a tratar (\"mensagem do Turnstile inalcançável no login\"); na recuperação a recusa tem mensagem própria."
+ },
+ {
+  "key": "07-portal:POR-D11",
+  "titulo": "Refazer consolidada fica ativo no Modo Inspeção e falha",
+  "caso": "Paula da Documentação abre pela Espiadinha a fatura consolidada da Cliente Atlântica Importações, emitida e sem pagamento. O botão Refazer consolidada está ativo; ela clica, confirma \"Desfazer fatura consolidada\" e recebe \"Falha ao desfazer a fatura.\". Nada muda.",
+  "hoje": "No Modo Inspeção as outras ações do Cliente ficam apagadas com dica, mas Refazer consolidada aparece ativo e só falha depois da confirmação.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para apagar Refazer consolidada no Modo Inspeção, com a mesma dica das outras ações.",
+    "efeito": "A equipe vê de cara que a ação é do Cliente e não tenta à toa."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar no manual que o botão falha na Inspeção.",
+    "efeito": "A equipe continua clicando, confirmando e recebendo erro."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Correção pequena que segue a regra já registrada e evita a impressão de que algo quebrou.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D11",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: **Refazer consolidada** aparece e responde ao clique (não é apagado nem tem a dica); depois da confirmação \"Desfazer fatura consolidada\", a tela recusa por dentro e mostra \"Falha ao desfazer a fatura.\", sem mudar nada. As demais ações do Cliente ficam apagadas. O que diz a documentação: `portal-cliente.md`, catálogo, \"Inspeção — ação do cliente\": \"Disputa, perfil, consolidação e sino — UI desabilita\", com a dica de ação indisponível."
+ },
+ {
+  "key": "07-portal:POR-D12",
+  "titulo": "Ficha do B/L diz \"Não visível no Portal\" para Cliente que vê o B/L",
+  "caso": "A Cliente Atlântica Importações tem conta Ativa, mas o e-mail de recuperação voltou. Paula da Documentação abre a ficha do B/L MSCU1234567: o bloco Portal diz \"Não visível no Portal\" e oferece Enviar convite do Portal. Ela clica e recebe \"Conta ativa usa recuperação de senha.\" em texto técnico, embora o Cliente esteja entrando e vendo o B/L.",
+  "hoje": "O bloco Portal mistura \"o Cliente vê o B/L\" com \"Portal pronto para faturar\" e oferece o convite também para conta Ativa, Suspensa e para setores sem permissão de convite, que depois é recusado.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a ficha: dizer se o Cliente vê o B/L (conta Ativa e CE) separado de \"Portal pronto para faturar\", e mostrar o convite só quando ele é aceito e a quem pode enviar; nos outros casos, levar ao Provisionamento.",
+    "efeito": "A equipe vê a situação real e só tenta o convite quando ele funciona."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a ficha e só trocar o texto do erro do convite por uma frase clara.",
+    "efeito": "Some o texto técnico, mas a ficha continua dizendo que o Cliente não vê o que ele vê."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e corrigir o documento para descrever o comportamento atual.",
+    "efeito": "A equipe segue com informação errada sobre o que o Cliente enxerga."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A ficha é onde a equipe responde ao Cliente \"você está vendo o B/L?\"; uma resposta errada gera retrabalho e convites recusados.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D12",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O bloco **Portal** diz \"Não visível no Portal\" (\"Conta do Portal não está ativa/provisionada\"), embora o Cliente entre e veja o B/L, e oferece **Enviar convite do Portal**; o envio é recusado (\"Conta ativa usa recuperação de senha.\", mostrado como texto técnico). O mesmo botão aparece para conta Suspensa e para setores sem permissão de convite. O que diz a documentação: `manifesto-edi.md`, ficha do B/L: o bloco \"diz se o Cliente vê o B/L\" e \"oferece **Enviar convite do Portal** quando o B/L tem Cliente e a conta do Portal não está ativa\"."
+ },
+ {
+  "key": "07-portal:POR-D13",
+  "titulo": "Faturas retidas não saem quando a equipe corrige o e-mail do Cliente",
+  "caso": "O e-mail de recuperação da Cliente Atlântica Importações voltou e duas faturas ficaram retidas pelo Portal. Paula da Documentação troca o e-mail pelo atendimento. O alerta de Revisão do Portal fecha, mas as faturas não são emitidas; na Validação os B/Ls seguem em \"Conta do Portal não ativa\", sem Emitir, e a Liberação não aparece porque o Portal já está pronto.",
+  "hoje": "Só a ativação da conta, a confirmação do e-mail pelo próprio Cliente e a Liberação emitem as faturas retidas; a troca de e-mail pela equipe e a liberação do endereço bloqueado não emitem, e a Validação fica travada.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para que a troca de e-mail pela equipe e a liberação do endereço também emitam as faturas retidas, como a confirmação pelo Cliente.",
+    "efeito": "Assim que o Portal fica pronto, as faturas retidas saem sozinhas."
+   },
+   {
+    "id": "B",
+    "texto": "Não emitir sozinho, mas corrigir a Validação para não mostrar \"Conta do Portal não ativa\" quando o Portal está pronto e oferecer Emitir.",
+    "efeito": "A equipe emite as retidas com um clique, decidindo o momento."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar no documento que nesses casos a fatura fica parada.",
+    "efeito": "As faturas ficam presas sem caminho na tela; a cobrança atrasa."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Hoje a cobrança trava sem saída na tela; seguir a regra registrada (\"abrir o portão emite o que ficou retido\") resolve sem depender de alguém lembrar.",
+  "area": "07-portal",
+  "areaNome": "Portal",
+  "num": "POR-D13",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O Portal fica pronto e o alerta de Revisão do Portal fecha, mas as faturas retidas não são emitidas: só a ativação, a confirmação do e-mail pelo Cliente e a concessão da Liberação reprocessam. A Validação segue em **Conta do Portal não ativa** sem **Emitir**, e a Liberação não é oferecida porque o Portal está pronto. O que diz a documentação: ADR 0070, decisão 4: \"Abrir o gate emite o que ficou retido\"; `portal-cliente.md` e `regras-de-negocio.md` citam ativação, Liberação e (desde a 375) confirmação do e-mail."
+ },
+ {
+  "key": "08-desbloqueio-ce:1",
+  "titulo": "Confirmação do B/L original promete que o prazo recomeça agora",
+  "caso": "Paula da Documentação marca B/L original no B/L MSCU1234567, em Andamento dos B/Ls. A confirmação diz \"o prazo do cliente recomeça a partir de agora\". Mas ainda falta outro requisito, então o prazo não começa; e, se o B/L já foi exportado, o prazo nem se move.",
+  "hoje": "A confirmação sempre diz que o prazo recomeça, mas o prazo só começa quando os quatro requisitos estão cumpridos e fica parado depois da exportação.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela: \"se for o último requisito, o prazo começa agora\".",
+    "efeito": "A equipe passa a entender corretamente quando o prazo corre."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto e registrar a explicação só no manual.",
+    "efeito": "A equipe continua lendo uma promessa que não acontece."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O comportamento segue a regra; só o texto engana, e é a correção menor.",
+  "area": "08-desbloqueio-ce",
+  "areaNome": "Desbloqueio de CE",
+  "num": "1",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A confirmação diz \"o prazo do cliente recomeça a partir de agora\", mas o prazo só nasce se os outros três requisitos já estão cumpridos e, com o B/L exportado, não se move O que diz a documentação: ADR 0101 (decisões 1 e 3) e módulo § Prazo: o prazo só começa com os quatro requisitos e fica parado depois da exportação"
+ },
+ {
+  "key": "08-desbloqueio-ce:2",
+  "titulo": "Ficha do Cliente VIP não lista as solicitações VIP",
+  "caso": "A Cliente Atlântica Importações é VIP. Paula da Documentação abre a ficha dela, aba Desbloqueio de CE e VIP, e vê só as solicitações comuns; as VIP não aparecem. Na coluna B/Ls ainda aparece o B/L MSCU1234567, que já passou para outra solicitação.",
+  "hoje": "A lista da ficha só mostra solicitações comuns e repete o B/L que mudou de solicitação.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a ficha para mostrar todas as solicitações do Cliente, inclusive as VIP, e tirar o B/L que mudou de solicitação.",
+    "efeito": "A equipe vê o histórico completo do Cliente num lugar só, sem B/L duplicado."
+   },
+   {
+    "id": "B",
+    "texto": "Manter só as comuns na ficha, deixar isso claro no título e na regra, e só tirar o B/L que mudou de solicitação.",
+    "efeito": "A equipe sabe que as VIP ficam em outra tela."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e corrigir o documento.",
+    "efeito": "A lista continua incompleta e com B/L repetido."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra registrada pede todas as solicitações; mostrar a VIP evita a equipe concluir que o Cliente não pediu nada.",
+  "area": "08-desbloqueio-ce",
+  "areaNome": "Desbloqueio de CE",
+  "num": "2",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Só lista solicitações comuns; as VIP não aparecem. A coluna B/Ls também mostra o B/L que passou para outra solicitação O que diz a documentação: Migration `224` (decisão do lote 1): \"as solicitações do Cliente… de todos os estados\"; módulo § Prazo cita a ficha sem exceção"
+ },
+ {
+  "key": "08-desbloqueio-ce:3",
+  "titulo": "Termo anual vencido fica guardado até um ano a mais",
+  "caso": "O termo anual de 2026 da Cliente Atlântica Importações venceu e o de 2027 já foi aprovado. O B/L MSCU1234567, coberto pelo termo de 2026, já foi conciliado com a ZPT como \"Desbloqueado\". Mesmo assim, a limpeza diária não descarta o termo de 2026, que fica até um ano depois do fim da vigência.",
+  "hoje": "A limpeza só considera o B/L conferido por uma confirmação externa antiga que nenhuma tela cria hoje; a conciliação \"Desbloqueado\" não conta, então o anual fica um ano a mais.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para a conciliação com a ZPT \"Desbloqueado\" (ou a confirmação manual) contar como conferido e liberar o anual.",
+    "efeito": "Os termos vencidos saem no prazo previsto, como diz a regra."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e corrigir o documento: o anual fica até um ano depois da vigência.",
+    "efeito": "Os documentos ficam guardados mais tempo; nada muda na operação."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra já define conferido pela conciliação; guardar documento do Cliente além do necessário não ajuda ninguém.",
+  "area": "08-desbloqueio-ce",
+  "areaNome": "Desbloqueio de CE",
+  "num": "3",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O anual fica até um ano depois do fim da vigência: o código só considera \"conferido\" a confirmação externa antiga, que nenhuma ação atual cria O que diz a documentação: Módulo § Documentos (\"ainda não conferido\") e § Troca de CE (conferido = conciliação com a ZPT \"Desbloqueado\" ou confirmação manual); ADR 0102 (\"não exportado nem conferido\")"
+ },
+ {
+  "key": "08-desbloqueio-ce:4",
+  "titulo": "Textos dizem que o VIP cobre pedidos até 31/12, mas a regra é outra",
+  "caso": "A Cliente Atlântica Importações tem termo anual VIP aprovado em 2026. A ficha e o Portal dizem que ele cobre todos os pedidos até 31/12. O B/L MSCU1234567, com CE vinculado em dezembro, segue coberto em janeiro; outro B/L, com CE vinculado antes da aprovação, não é coberto.",
+  "hoje": "A cobertura VIP vale para o B/L cujo CE foi vinculado dentro da vigência, continua depois de 31/12 e não alcança CE vinculado antes; três textos de tela dizem outra coisa.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir os três textos (ficha do Cliente, Portal e Habilitar VIP) para a regra do vínculo do CE.",
+    "efeito": "Equipe e Cliente leem a mesma regra que o sistema aplica."
+   },
+   {
+    "id": "B",
+    "texto": "Mudar o sistema para cobrir pelos pedidos até 31/12, como dizem os textos.",
+    "efeito": "Muda a regra decidida e B/Ls de dezembro perdem cobertura em janeiro."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O sistema segue a regra decidida; o Cliente lê o texto do Portal e precisa ler a regra certa.",
+  "area": "08-desbloqueio-ce",
+  "areaNome": "Desbloqueio de CE",
+  "num": "4",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A cobertura é por B/L, pelo vínculo do CE dentro da vigência; continua depois de 31/12 e não cobre o CE vinculado antes O que diz a documentação: ADR 0102 e módulo § Requisitos e condição VIP"
+ },
+ {
+  "key": "08-desbloqueio-ce:5",
+  "titulo": "Na Inspeção, Financeiro e Operações não veem os documentos de desbloqueio",
+  "caso": "Carlos do Financeiro abre o Modo Inspeção da Cliente Atlântica Importações, vai em Desbloqueio de CE e abre uma solicitação. A lista de documentos vem vazia. No Vela, na mesma solicitação, ele vê os documentos.",
+  "hoje": "No Modo Inspeção, a lista de documentos vem vazia para Financeiro, Operações e Equipamentos.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para mostrar os documentos a todos os setores também na Inspeção.",
+    "efeito": "A equipe vê na Inspeção o mesmo que vê no Vela e o mesmo que o Cliente vê."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e corrigir a regra: na Inspeção, só alguns setores veem documentos.",
+    "efeito": "A equipe pode concluir que o Cliente não enviou nada."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra já libera esses documentos a todos os setores; uma lista vazia induz a equipe a cobrar do Cliente o que ele já mandou.",
+  "area": "08-desbloqueio-ce",
+  "areaNome": "Desbloqueio de CE",
+  "num": "5",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A lista de documentos vem vazia para esses setores O que diz a documentação: ADR 0085 (D16) e [Segurança § Desbloqueio de CE](../../operations/seguranca.md#desbloqueio-de-ce): todos os setores abrem os documentos; no Vela eles abrem"
+ },
+ {
+  "key": "08-desbloqueio-ce:11",
+  "titulo": "Recusa de documento promete e-mail que pode não sair",
+  "caso": "Paula da Documentação recusa a procuração da Cliente Atlântica Importações. A confirmação diz \"O cliente recebe o motivo no Portal e por e-mail\". Com o envio de e-mails desligado, o e-mail é só simulado e nunca sai.",
+  "hoje": "O texto sempre promete e-mail; com o envio desligado, o Cliente só vê o motivo no Portal.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela: \"no Portal e, com o envio ligado, por e-mail\".",
+    "efeito": "A equipe sabe quando o Cliente realmente recebe e-mail."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto e explicar a exceção só no manual.",
+    "efeito": "A equipe pode achar que o Cliente foi avisado por e-mail quando não foi."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Só o texto está errado; a correção é pequena e evita a equipe esperar resposta a um e-mail que não saiu.",
+  "area": "08-desbloqueio-ce",
+  "areaNome": "Desbloqueio de CE",
+  "num": "11",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A confirmação diz \"O cliente recebe o motivo no Portal e por e-mail\"; com a chave desligada o e-mail só é simulado O que diz a documentação: Módulo § Avisos: com a chave desligada o aviso fica simulado e não sai depois"
+ },
+ {
+  "key": "08-desbloqueio-ce:13",
+  "titulo": "Pedido com B/L exportado nunca mais pode ser cancelado",
+  "caso": "A Cliente Atlântica Importações pede para cancelar a solicitação do B/L MSCU1234567, que já foi exportado para a ZPT. Paula da Documentação clica Cancelar pedido e recebe \"confirme o tratamento externo antes de cancelar\". Não há botão para confirmar esse tratamento, então o pedido fica preso.",
+  "hoje": "O cancelamento é sempre recusado depois da exportação, com uma mensagem que manda fazer algo que nenhuma tela permite.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela para \"não pode ser cancelado depois de exportado\" e registrar a regra.",
+    "efeito": "A equipe entende que o pedido exportado não se cancela e para de procurar o botão."
+   },
+   {
+    "id": "B",
+    "texto": "Criar uma ação para registrar o tratamento externo com a ZPT e então permitir o cancelamento.",
+    "efeito": "A equipe consegue cancelar depois de resolver com a ZPT, com registro de quem fez."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Depois de exportado o desbloqueio já está com a ZPT; deixar claro que não se cancela é a correção menor e não abre caminho para desfazer algo já enviado.",
+  "area": "08-desbloqueio-ce",
+  "areaNome": "Desbloqueio de CE",
+  "num": "13",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Recusa sempre com \"Pedido com B/L já exportado para a ZPT: confirme o tratamento externo antes de cancelar\"; não existe ação que registre esse tratamento, então a solicitação nunca mais se cancela O que diz a documentação: Módulo: \"As ações `sent` e `confirm` foram removidas\" e a mesma mensagem listada como falha do cancelamento, sem dizer o caminho"
+ },
+ {
+  "key": "08-desbloqueio-ce:17",
+  "titulo": "Texto da lista vazia diz que B/Ls aparecem conforme os requisitos",
+  "caso": "Paula da Documentação filtra o Andamento dos B/Ls e nada aparece. A tela explica \"B/Ls com CE aparecem aqui conforme os quatro requisitos são atendidos.\". Na verdade, todo B/L com CE aparece, com ou sem solicitação.",
+  "hoje": "A lista mostra todo B/L com CE, mas a explicação de lista vazia sugere que só aparecem os que cumprem requisitos.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela: \"Todo B/L com CE aparece aqui, com ou sem solicitação\".",
+    "efeito": "A equipe entende por que a lista está vazia (filtro ou falta de CE)."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto como está.",
+    "efeito": "A equipe pode procurar requisitos pendentes que não existem."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Só o texto está errado; corrigir é simples.",
+  "area": "08-desbloqueio-ce",
+  "areaNome": "Desbloqueio de CE",
+  "num": "17",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A explicação diz \"B/Ls com CE aparecem aqui conforme os quatro requisitos são atendidos.\" O que diz a documentação: Módulo, Anatomia: \"Uma linha por B/L com CE, com ou sem pedido\" (é o que a lista faz)"
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D01",
+  "titulo": "Telas dizem que a Condição de Cliente vale pela ETA",
+  "caso": "Paula cadastra uma Condição de Cliente para a Cliente Atlântica Importações a partir de 01/11. A ajuda do modal e a lista dizem que vale pela chegada do navio MSC Aurora no POD. O B/L MSCU1234567 entrou no Vela em 28/10, com ETA em 05/11, e não recebe o valor negociado.",
+  "hoje": "O sistema escolhe a Condição pelo dia em que o B/L entrou no Vela; a ajuda do modal e o subtítulo da lista falam em ETA.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir os dois textos da tela para \"dia em que o B/L entrou no Vela\".",
+    "efeito": "Quem cadastra acerta a vigência e o Cliente recebe o preço combinado."
+   },
+   {
+    "id": "B",
+    "texto": "Mudar o sistema para usar a ETA, como dizem os textos.",
+    "efeito": "Muda uma regra já decidida e reprecifica B/Ls por mudança de ETA."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O sistema segue a regra decidida; o texto errado leva a vigência mal cadastrada e preço diferente do negociado.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D01",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O cálculo escolhe a Condição pelo dia do primeiro cálculo do B/L (importação, horário de Brasília); a ETA não entra. Mas a ajuda do modal diz \"data de referência (ETA da escala do POD; sem ela, ETA da viagem ou a data do cálculo)\" e o bloco da lista diz \"o valor negociado vale quando a chegada do navio no POD cai na vigência\". O que diz a documentação: ADR 0094 (A1), `docs/modules/taxas-locais.md` (Data de Referência) e `CONTEXT.md`: dia da importação; não é a ETA."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D02",
+  "titulo": "Editar vigência da Condição não alcança todos os B/Ls do período",
+  "caso": "Paula do Administrativo amplia a vigência da Condição da Cliente Atlântica Importações para cobrir B/Ls que entraram antes. O modal diz \"recalcula os B/Ls deste Cliente na vigência\". Só os B/Ls que já usavam essa Condição mudam; o B/L MSCU1234567, de antes, segue com o preço antigo.",
+  "hoje": "A correção alcança só os B/Ls cujo preço já usava essa Condição, mas o modal promete recalcular todos os B/Ls do Cliente na vigência.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela para dizer que só os B/Ls que já usavam esta Condição são corrigidos.",
+    "efeito": "O Administrativo sabe que B/Ls antigos não mudam e trata à parte."
+   },
+   {
+    "id": "B",
+    "texto": "Mudar o sistema para aplicar a Condição a todos os B/Ls do Cliente no novo período.",
+    "efeito": "Faturas já calculadas mudam de valor ao editar a vigência."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O sistema segue o documento do módulo; o risco é a pessoa achar que corrigiu o preço do Cliente sem ter corrigido.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D02",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Só os B/Ls cujo preço fixado já usava essa Condição são reprecificados; os outros não a recebem. O modal diz \"recalcula os B/Ls deste Cliente na vigência\". O que diz a documentação: `docs/modules/taxas-locais.md`: a correção alcança só os B/Ls cujo preço fixado a usou (coerente com o código)."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D03",
+  "titulo": "Telas dizem que o câmbio é o da emissão, mas é o da entrada do B/L",
+  "caso": "Paula cadastra uma taxa em dólar e lê \"Convertido em reais pelo ROE na emissão da fatura\". O B/L MSCU1234567 entrou no Vela com câmbio 5,10 e foi faturado dias depois com câmbio 5,40. A fatura sai a 5,10, e o recálculo, que diz usar \"a tabela e as regras vigentes\", também mantém o preço fixado.",
+  "hoje": "Câmbio e preço ficam fixados no primeiro cálculo do B/L, mas quatro textos de tela falam em câmbio da emissão e em tabela atual no recálculo.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir os quatro textos da tela para \"câmbio e preço fixados quando o B/L entrou\".",
+    "efeito": "A equipe entende de onde vem o valor da fatura e explica ao Cliente."
+   },
+   {
+    "id": "B",
+    "texto": "Mudar o sistema para usar o câmbio da emissão, como dizem os textos.",
+    "efeito": "Muda uma regra decidida e o valor da fatura passa a variar com a data de emissão."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O sistema segue a regra decidida; a equipe precisa explicar valores ao Cliente com o texto certo.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D03",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O câmbio é o fixado no primeiro cálculo e o recálculo usa o preço fixado. A tela diz \"Convertido em reais pelo ROE na emissão da fatura\" (item), \"(convertido pelo ROE na emissão)\" (Emitir fatura) e \"definido pela tabela e pelas regras atuais do B/L\" / \"com a tabela e as regras vigentes\" (recálculo). O que diz a documentação: ADR 0094 (A1, A2), `docs/modules/faturamento.md` (Taxa local em dólar): câmbio e preço fixados no primeiro cálculo."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D04",
+  "titulo": "Formulário de tabela ainda oferece o modo Granito",
+  "caso": "Paula cadastra uma tabela de Taxas Locais e escolhe Modo de carga Granito. A tabela é gravada, mas nenhum B/L a usa, porque Granito não tem Taxa Local.",
+  "hoje": "O formulário oferece e grava Granito, que nunca é usado; o filtro da lista já não oferece.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para tirar Granito do formulário.",
+    "efeito": "Ninguém cadastra tabela que nunca será usada."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e avisar no manual que Granito não tem Taxa Local.",
+    "efeito": "Continua possível cadastrar tabela inútil."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Correção pequena que evita esperar cobrança que não vai acontecer.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D04",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O formulário oferece Granito e grava; nenhum B/L usa a tabela. O que diz a documentação: `docs/modules/taxas-locais.md` e lote 5b: Granito não tem Taxa Local; o filtro não oferece mais Granito."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D07",
+  "titulo": "Categoria na fatura não muda nada na fatura",
+  "caso": "Paula cadastra um item e escolhe Categoria na fatura: \"Outra cobrança\". A fatura do B/L MSCU1234567 sai igual a como sairia com \"Taxa base\".",
+  "hoje": "A categoria só serve para a regra de item repetido; a fatura não muda.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Tirar a Categoria na fatura do formulário (ou trocar o rótulo pelo que ela faz de fato).",
+    "efeito": "O formulário deixa de prometer um efeito que não existe."
+   },
+   {
+    "id": "B",
+    "texto": "Fazer a fatura agrupar os itens pela categoria.",
+    "efeito": "O Cliente passa a ver a fatura separada em taxa base e outras cobranças."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar no documento que a categoria não afeta a fatura.",
+    "efeito": "O campo segue confundindo quem cadastra."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Não há regra pedindo o agrupamento; tirar a promessa é a correção menor e não muda a fatura que o Cliente vai receber.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D07",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Nada lê a categoria além da regra de item repetido: a fatura não muda. O que diz a documentação: Formulário promete efeito na fatura; nenhum documento define o uso."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D08",
+  "titulo": "Histórico do B/L perde a exclusão de taxa e mostra texto técnico",
+  "caso": "Paula do Administrativo exclui uma taxa manual do B/L MSCU1234567. Depois o Financeiro abre o Histórico para saber quem excluiu, e a exclusão não aparece. Quando alguém aceita refixar o preço, o Histórico mostra \"Dado do B/L\" com conteúdo técnico.",
+  "hoje": "O Histórico só mostra eventos de taxas que ainda existem; a exclusão some, e o refixar aparece com conteúdo técnico.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para guardar os eventos de taxa no B/L e dar um texto legível ao refixar.",
+    "efeito": "Toda mudança de cobrança fica registrada com autor, em linguagem clara."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar na regra que exclusões de taxa não aparecem no Histórico.",
+    "efeito": "Fica sem rastro quem tirou uma cobrança do Cliente."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Mexe em dinheiro do Cliente; quem excluiu uma cobrança precisa ficar registrado antes de abrir a Clientes reais.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D08",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O Histórico só mostra eventos de linha de taxa que ainda existe: a exclusão (e a linha excluída) some. O refixar aparece como \"Dado do B/L\" com o conteúdo técnico antes → depois. O que diz a documentação: Regras de negócio (Histórico e auditoria; F-23): toda ação com autor fica legível no Histórico, sem conteúdo técnico."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D09",
+  "titulo": "B/L cancelado ainda mostra Calcular taxas e cobrança manual",
+  "caso": "O B/L MSCU1234567 foi cancelado. Paula abre a aba Faturamento e vê Calcular taxas e Adicionar cobrança manual. Ela clica e recebe só uma mensagem genérica de falha.",
+  "hoje": "A ficha do B/L cancelado oferece as ações; o sistema recusa com falha genérica.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para esconder essas ações no B/L cancelado.",
+    "efeito": "A ficha fica somente leitura, como diz a regra."
+   },
+   {
+    "id": "B",
+    "texto": "Manter as ações e trocar a falha por \"B/L cancelado não pode ser alterado\".",
+    "efeito": "A equipe entende a recusa, mas ainda clica à toa."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "O dinheiro já está protegido pela recusa; esconder segue a regra e evita tentativa e erro.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D09",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A ficha ainda oferece **Calcular taxas** e **Adicionar cobrança manual**; o sistema recusa e a tela mostra só a falha genérica. O que diz a documentação: `docs/modules/manifesto-edi.md`: B/L cancelado é somente leitura."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D11",
+  "titulo": "Ficha do Cliente fala em \"override\" e mistura condições encerradas",
+  "caso": "Paula abre a ficha da Cliente Atlântica Importações, aba Financeiro. O bloco Tarifas do cliente fala em \"Regras gerais (overrides)\" e lista condições desativadas e encerradas como se valessem. Ao desativar uma condição que já não existe, lê \"O override não foi alterado…\".",
+  "hoje": "A tela usa \"override\" em vez de Condição de Cliente e lista condições desativadas e encerradas sem dizer a situação.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir os textos da tela para \"Condição de Cliente\" e mostrar a situação de cada uma (ativa, desativada, encerrada).",
+    "efeito": "A equipe sabe qual condição vale hoje."
+   },
+   {
+    "id": "B",
+    "texto": "Só trocar o rótulo, sem mostrar a situação.",
+    "efeito": "Some o termo em inglês, mas a lista segue misturando condições."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Ver uma condição encerrada como se valesse leva a prometer preço errado ao Cliente; mostrar a situação custa pouco.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D11",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O bloco **Tarifas do cliente** usa \"Regras gerais (overrides)\" e \"Nenhum override cadastrado.\", lista também condições desativadas e encerradas sem dizer a situação. A aba Condições de Cliente responde \"O override não foi alterado: sem permissão ou override inexistente.\". O que diz a documentação: `CONTEXT.md`: o termo é Condição de Cliente; evitar \"override de cliente\"."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D13",
+  "titulo": "Mudar POD ou modo de tabela já usada tira preço dos B/Ls sem aviso",
+  "caso": "Paula de Operações muda o POD de uma tabela de Taxas Locais já usada pelo B/L MSCU1234567, do navio MSC Aurora. Nada é recalculado na hora; no próximo cálculo, o B/L deixa de usar essa tabela, sem correção de fatura.",
+  "hoje": "Qualquer setor edita o POD ou o modo de uma tabela já usada, sem recálculo e sem correção das faturas.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Travar a mudança de POD e modo em tabela já usada; para mudar, criar uma tabela nova.",
+    "efeito": "O preço dos B/Ls já calculados fica protegido."
+   },
+   {
+    "id": "B",
+    "texto": "Permitir só ao Administrativo, tratando como correção, com recálculo e ajuste de fatura como no item e na Condição.",
+    "efeito": "A mudança vale, mas passa pelo mesmo controle das outras correções de preço."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar a regra no documento.",
+    "efeito": "Qualquer setor pode mudar o preço de B/Ls sem controle."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Protege o valor cobrado do Cliente com a mudança menor; o caminho da tabela nova já existe.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D13",
+  "classe": "c",
+  "codigoTexto": "O que o código faz: A edição é livre e não recalcula; os B/Ls vinculados deixam de usá-la no próximo cálculo, sem correção de fatura. O que diz a documentação: ADR 0093 (decisão 2) trata como correção só o item e a Condição; nada fala da tabela."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D14",
+  "titulo": "B/L misto: taxa por B/L da carga solta cobrada pela metade das regras",
+  "caso": "O B/L MSCU1234567 tem container e carga solta. A tabela de container não tem taxa por B/L; a de carga solta tem duas. A fatura cobra só a primeira na ordem de exibição e a outra some sem aviso. A ajuda do formulário diz que no B/L misto a taxa por B/L vem só do lado container.",
+  "hoje": "Quando a tabela de container não tem taxa por B/L, só a primeira taxa por B/L da carga solta é cobrada e as outras somem; quando a de container tem, nenhuma da carga solta é cobrada.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Seguir a regra registrada: no B/L misto, taxa por B/L só do lado container; a carga solta não cobra nenhuma.",
+    "efeito": "Cobrança coerente com a regra e com a ajuda do formulário; pode cobrar menos quando o container não tem taxa."
+   },
+   {
+    "id": "B",
+    "texto": "Quando o container não tiver taxa por B/L, cobrar todas as da carga solta, e atualizar regra e ajuda do formulário.",
+    "efeito": "Nada some sem aviso e não há perda de receita."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está (só a primeira) e registrar isso na regra e na ajuda.",
+    "efeito": "Continua dependendo da ordem de exibição, o que é difícil de explicar ao Cliente."
+   }
+  ],
+  "recomendada": "B",
+  "porque": "Hoje uma cobrança some ao acaso pela ordem da lista; cobrar todas quando o container não tem nenhuma é previsível, explicável ao Cliente e evita perda de receita. Decisão comercial do dono.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D14",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Só a primeira taxa por B/L da tabela de carga solta (na Ordem de exibição) é cobrada; as demais taxas por B/L dessa tabela saem sem aviso, porque a marca \"já cobrou taxa por B/L\" também é ligada pela própria taxa de carga solta. Quando a de container tem alguma, todas as de carga solta saem. O comentário do código diz que \"a taxa da tabela de carga solta é preservada para evitar perda de receita\". O que diz a documentação: ADR 0069 (decisão 4): a taxa documental incide uma vez, \"vinda da tabela de contêiner, suprimida na de carga solta\"; `docs/modules/taxas-locais.md`: a taxa por B/L \"incide só do lado container\"; ajuda do formulário: \"No B/L misto, só do lado container\"."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D15",
+  "titulo": "Revisão manda cancelar e reemitir fatura em vez de corrigir o B/L",
+  "caso": "Paula recalcula na Revisão o B/L MSCU1234567, já faturado. A tela diz \"Fatura já emitida para … — cancele e reemita para corrigir.\". A regra é corrigir o dado do B/L e deixar a fatura ser reemitida ou ajustada sozinha.",
+  "hoje": "A Revisão orienta cancelar e reemitir a fatura, contrário à regra de correção após emissão.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela para orientar a corrigir o dado do B/L.",
+    "efeito": "A equipe segue o caminho certo e não cancela faturas sem necessidade."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto e explicar a regra só no manual.",
+    "efeito": "A equipe pode cancelar faturas do Cliente à toa."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Cancelar fatura emitida mexe no que o Cliente já recebeu; a correção de texto é pequena e evita isso.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D15",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A tela diz \"Fatura já emitida para … — cancele e reemita para corrigir.\" O que diz a documentação: ADR 0077 e `docs/modules/faturamento.md` (Correção após emissão): corrige-se o dado do B/L e a fatura é reemitida ou ajustada sozinha; a mensagem do próprio cálculo diz isso."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D16",
+  "titulo": "Linha em revisão mostra motivo genérico em vez do que falta",
+  "caso": "O B/L MSCU1234567 é de carga solta e está sem peso. Na ficha, na Validação e na Conferência a taxa aparece em revisão com \"Tarifa BRL sem valor unitário vigente.\", e não \"Peso de carga solta ausente\". Paula vai conferir a tabela, quando o que falta é o peso. (Visto lendo o sistema; não testado.)",
+  "hoje": "O sistema chega ao motivo certo, mas ele é trocado por \"Tarifa BRL/USD sem valor unitário vigente\" antes de aparecer nas telas.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para manter o motivo original da revisão (peso ausente, perfil ou base não suportada) e conferir com teste.",
+    "efeito": "A equipe vê o que falta e resolve no lugar certo."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar no manual que o motivo pode ser genérico.",
+    "efeito": "A equipe continua procurando o problema no lugar errado."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra pede pendência com motivo claro; o motivo errado gera retrabalho e atrasa a fatura.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D16",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O cálculo produz o motivo certo (\"Peso de carga solta ausente…\", \"Item THD cadastrado com perfil de carga 'any'…\", \"Base de aplicacao nao suportada…\"), mas a linha é gravada sem valor unitário e a guarda de preço ausente troca o motivo por \"Tarifa BRL sem valor unitário vigente.\" (ou USD). Ficha, Validação e Conferência mostram só esse texto. Leitura do código; não executado. O que diz a documentação: ADR 0069 (decisão 5, \"pendência, nunca silêncio\") e a ajuda do formulário do item (\"Sem peso informado, o B/L vai para revisão\"): a revisão deveria dizer o que falta. A migration `066` criou a guarda para item sem preço, não para essas linhas."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D17",
+  "titulo": "Trocar container por carga solta deixa taxas antigas até recalcular",
+  "caso": "Paula digita Peso carga solta (t) no B/L MSCU1234567, que era só container, e ele vira misto. As taxas vão para Não calculado e continuam com as linhas antigas até alguém clicar Calcular taxas, ou a Validação, a Revisão ou o CE recalcularem. (Visto lendo o sistema; não testado.)",
+  "hoje": "Quando a modalidade muda, as taxas ficam em Não calculado com as linhas antigas, sem recálculo automático.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para recalcular também quando a modalidade muda, como na regra.",
+    "efeito": "As taxas acompanham a mudança na hora, sem depender de alguém lembrar."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e avisar na ficha que trocar a modalidade pede Calcular taxas.",
+    "efeito": "A equipe sabe que precisa recalcular, mas depende de lembrar."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra já diz que mudança de base recalcula; seguir a regra evita fatura com taxa velha.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D17",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A troca de modalidade põe as taxas em **Não calculado**, e o recálculo do fim da gravação pula B/L **Não calculado**: as linhas antigas ficam, com **Calcular taxas**, até alguém calcular, a Validação ou a Revisão recalcular, ou o CE ser gravado. Leitura do código; não executado. O que diz a documentação: `docs/modules/taxas-locais.md` (fase provisória) e ADR 0094: todo B/L não faturado cuja base mudou é recalculado no fim da transação; a modalidade faz parte da base."
+ },
+ {
+  "key": "09a-taxas-locais:TAX-D18",
+  "titulo": "Condições de Cliente mostra erro com código técnico",
+  "caso": "Paula do Administrativo tenta excluir uma Condição da Cliente Atlântica Importações que já foi usada. A aba Condições de Cliente mostra \"P0001 Esta tarifa já foi usada…\", com código e detalhes técnicos. Na aba Tabelas, a mesma situação aparece sem código.",
+  "hoje": "A aba Condições de Cliente mostra o erro bruto com código e detalhes; a aba Tabelas mostra a mensagem limpa.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a aba Condições para mostrar a recusa como a aba Tabelas.",
+    "efeito": "A equipe lê só a frase clara, sem código."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está.",
+    "efeito": "Continua aparecendo texto técnico na tela."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Correção pequena que segue a regra de segurança e deixa a tela clara.",
+  "area": "09a-taxas-locais",
+  "areaNome": "Taxas Locais",
+  "num": "TAX-D18",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A aba **Condições de Cliente** mostra o texto bruto do erro, com o código na frente (e detalhe ou dica, quando o banco manda): \"P0001 Esta tarifa já foi usada…\". A aba **Tabelas** usa a leitura padrão, sem código. O que diz a documentação: `docs/operations/seguranca.md`: a recusa do banco é lida pela tabela compartilhada de códigos, e quem a consome não mostra `details`, `hint` nem dados do erro bruto."
+ },
+ {
+  "key": "09b-faturamento:FAT-D09",
+  "titulo": "B/L cancelado continua na fila da Validação",
+  "caso": "O B/L MSCU1234567, ainda não faturado, é cancelado na ficha. Paula abre a Validação e ele continua lá, como \"Cálculo sem linhas\", com Recalcular.",
+  "hoje": "A Validação mostra B/Ls cancelados como se ainda fossem virar fatura.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para tirar os B/Ls cancelados da Validação.",
+    "efeito": "A fila mostra só o que vai virar fatura."
+   },
+   {
+    "id": "B",
+    "texto": "Mostrar cancelados só com \"Incluir faturados e isentos\", com o motivo \"Cancelado\".",
+    "efeito": "A fila fica limpa e ainda dá para consultar os cancelados."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar no documento.",
+    "efeito": "A equipe perde tempo com B/Ls que não serão cobrados."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A Validação é a fila do que vira fatura; tirar o cancelado é a correção menor.",
+  "area": "09b-faturamento",
+  "areaNome": "Faturamento",
+  "num": "FAT-D09",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O B/L cancelado continua na fila (como \"Cálculo sem linhas\", com **Recalcular**), porque a consulta da Validação não filtra cancelados. O que diz a documentação: O módulo trata a Validação como fila do que ainda vai virar fatura; B/L cancelado não entra em fatura (FAT-029)."
+ },
+ {
+  "key": "09b-faturamento:FAT-D10",
+  "titulo": "Fatura cancelada pode voltar a sair sozinha depois de vincular o Cliente",
+  "caso": "Paula do Administrativo cancela a fatura do B/L MSCU1234567 da Cliente Atlântica Importações. Depois, a Documentação vincula de novo o Cliente na ficha (ou resolve o B/L na Revisão). Uma nova fatura sai sozinha, sem ninguém clicar Emitir.",
+  "hoje": "Depois do vínculo de Cliente pela tela, o Vela tenta faturar sozinho sem verificar que a última fatura foi cancelada por uma pessoa; os outros caminhos automáticos respeitam a regra.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para o faturamento automático da tela pular B/L cuja última fatura foi cancelada por uma pessoa.",
+    "efeito": "Fatura cancelada só volta pelo Emitir, como diz a regra."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e registrar a exceção na regra.",
+    "efeito": "O Cliente pode receber de novo uma fatura que a agência cancelou de propósito."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Protege o Cliente de cobrança indevida e alinha a tela com os outros caminhos, que já respeitam a regra.",
+  "area": "09b-faturamento",
+  "areaNome": "Faturamento",
+  "num": "FAT-D10",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A tela tenta faturar sozinha depois do vínculo e chama a mesma emissão do **Emitir**, que não confere se a última fatura foi cancelada por uma pessoa: a fatura pode sair de novo sem ninguém clicar **Emitir**. Os caminhos do servidor (CE, Liberação, Portal, fila) respeitam a regra. O que diz a documentação: ADR 0093, decisão 12, e `faturamento.md`: a nova fatura \"só sai pelo Emitir — nunca sozinha pela Liberação, pela ativação do Portal, pelo CE, pela planilha de CE, pelo vínculo de Cliente…\"."
+ },
+ {
+  "key": "09b-faturamento:FAT-D11",
+  "titulo": "Busca de fatura sugere número no formato errado",
+  "caso": "Paula procura uma fatura em Buscar fatura ou B/L. O campo sugere \"Ex.: FAT-2026-0018\", mas as faturas são numeradas como INV-2026-0018.",
+  "hoje": "O exemplo do campo de busca usa FAT-, enquanto o número real da fatura começa com INV-.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela para \"Ex.: INV-2026-0018\".",
+    "efeito": "A equipe digita o número no formato certo."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o exemplo como está.",
+    "efeito": "A equipe pode buscar um número que não existe."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Só o texto está errado; correção trivial.",
+  "area": "09b-faturamento",
+  "areaNome": "Faturamento",
+  "num": "FAT-D11",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O campo sugere \"Ex.: FAT-2026-0018\". O que diz a documentação: O número da fatura é `INV-<ano>-<sequência>` (FAT-086)."
+ },
+ {
+  "key": "09b-faturamento:FAT-D12",
+  "titulo": "Consolidada oferece B/L sem CE Mercante e depois recusa a emissão",
+  "caso": "Paula do Faturamento abre Emitir consolidada para a Cliente Atlântica Importações. O B/L MSCU1234567 tem saldo, mas ainda não tem CE Mercante, e aparece na lista como \"Sim\" (pode consolidar). Ela marca o B/L, clica em Emitir consolidada e a emissão é recusada pela falta do CE.",
+  "hoje": "A lista da consolidada mostra como elegível o B/L com saldo sem CE Mercante, e só a emissão o recusa, embora a tela diga que a lista traz apenas B/L com CE.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para mostrar esse B/L como não elegível, com o motivo \"sem CE Mercante\".",
+    "efeito": "A pessoa vê de saída quais B/L não entram e por quê, sem tentar emitir à toa."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a lista como está e corrigir o texto da tela vazia, que hoje promete só B/L com CE.",
+    "efeito": "O texto deixa de prometer o que a lista não cumpre, mas a recusa continua aparecendo só na emissão."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É uma correção pequena que evita retrabalho e deixa claro o que falta para faturar o B/L.",
+  "area": "09b-faturamento",
+  "areaNome": "Faturamento",
+  "num": "FAT-D12",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A lista mostra o B/L como \"Sim\" (pode consolidar); a emissão é recusada pela falta de CE. A tela vazia diz \"Este Cliente não tem B/L com saldo aberto e CE Mercante…\". O que diz a documentação: O texto da tela promete que a lista só tem B/L com CE."
+ },
+ {
+  "key": "09b-faturamento:FAT-D13",
+  "titulo": "Confirmações de emissão usam \"estorno\" em vez dos nomes do Vela",
+  "caso": "Paula do Faturamento clica em Emitir na Validação. A confirmação diz que \"pagamentos seguem o fluxo próprio de estorno\". No Vela não existe ação chamada estorno: existem Cancelar baixa e Restituição.",
+  "hoje": "As confirmações de Emitir na Validação e de Emitir consolidada falam em \"fluxo próprio de estorno\".",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto das duas confirmações para citar Cancelar baixa e Restituição.",
+    "efeito": "A equipe lê os mesmos nomes que encontra nas telas de recebimento."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto como está e aceitar \"estorno\" como sinônimo na regra.",
+    "efeito": "Nada muda na tela; a regra de vocabulário passa a ter uma exceção."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só troca de texto e evita que a equipe procure uma ação que não existe.",
+  "area": "09b-faturamento",
+  "areaNome": "Faturamento",
+  "num": "FAT-D13",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Dizem \"pagamentos seguem o fluxo próprio de estorno\". O que diz a documentação: ADR 0083, item 1: \"estorno\" é sinônimo a evitar; a ação é **Cancelar baixa** e a devolução é **Restituição**."
+ },
+ {
+  "key": "09b-faturamento:FAT-D15",
+  "titulo": "Fatura desatualizada sem pagamento não tem \"Tentar aplicar correção\"",
+  "caso": "O B/L MSCU1234567 da Cliente Atlântica Importações é corrigido depois da emissão, mas a reemissão da fatura, ainda sem pagamento, fica bloqueada (por exemplo, terminal em conflito). Paula abre a fatura pelo alerta Fatura desatualizada, que manda usar Tentar aplicar correção. No detalhe da fatura o botão não existe; só há Resolver com justificativa, e o bloco diz que a correção reemite a fatura sozinha, o que não aconteceu.",
+  "hoje": "O botão Tentar aplicar correção só aparece em fatura individual ou consolidada paga ou parcialmente paga; na fatura sem pagamento, e para B/L que está só em consolidada, a correção só volta a rodar se o B/L mudar de novo.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para mostrar a correção pendente e o botão Tentar aplicar correção também na fatura sem pagamento e no B/L de consolidada, e ajustar o texto de \"Aguardando reemissão\".",
+    "efeito": "Quem recebe o alerta consegue reemitir a fatura com o valor certo depois de destravar o motivo."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema como está e corrigir o alerta e o documento para orientar a alterar o B/L de novo ou Resolver com justificativa.",
+    "efeito": "Sem mudança no sistema, mas o caminho fica indireto e a fatura errada pode seguir com o Cliente."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A fatura com valor desatualizado fica visível para o Cliente; o caminho prometido pela regra precisa existir na tela.",
+  "area": "09b-faturamento",
+  "areaNome": "Faturamento",
+  "num": "FAT-D15",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O alerta manda \"use Tentar aplicar correção\", mas o botão só existe no bloco **Ajustes pela correção do B/L**, que o detalhe mostra só em individual ou consolidada paga ou parcialmente paga; na fatura sem pagamento só há **Resolver com justificativa**, e o bloco diz \"a correção do B/L reemite esta fatura sozinha\", o que não aconteceu. A lista de correções pendentes do detalhe também ignora B/L que está só em consolidada. Sem o botão, a correção só volta a rodar quando o B/L muda de novo (`InvoiceDetailModal.tsx`, `StaleInvoiceResolutionPanel.tsx`, `get_invoice_correction_summary_legacy_134`). O que diz a documentação: `faturamento.md` §Correção após emissão: \"nada é cancelado … a correção fica pendente para 'Tentar aplicar correção'\" (ADR 0094, B5 e D1)."
+ },
+ {
+  "key": "09b-faturamento:FAT-D16",
+  "titulo": "Conferência do cálculo chama cobrança manual de \"fora de tabela\"",
+  "caso": "Paula abre a Conferência do cálculo de um B/L com cobrança manual na Validação. O grupo Lançamentos manuais diz \"Fora de tabela: valor digitado na operação\". Na verdade, o valor veio da tabela, do preço fixado ou da Condição do Cliente; a operação só informou a quantidade.",
+  "hoje": "O texto do grupo Lançamentos manuais diz que o valor foi digitado fora da tabela.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela para algo como \"Itens manuais da tabela: quantidade informada na operação\".",
+    "efeito": "Quem confere entende que o preço segue a tabela e que só a quantidade foi lançada à mão."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto como está.",
+    "efeito": "A equipe continua achando que alguém digitou o valor, e pode questionar ou refazer cobranças corretas."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só troca de texto e evita desconfiança indevida de valores corretos.",
+  "area": "09b-faturamento",
+  "areaNome": "Faturamento",
+  "num": "FAT-D16",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O grupo **Lançamentos manuais** diz \"Fora de tabela: valor digitado na operação.\", mas a cobrança manual é sempre um item manual da tabela do B/L, com valor do preço fixado, da Condição do Cliente ou da tabela; a pessoa só informa a quantidade (`conferenciaCalculo.ts`, `add_manual_bl_charge`). O que diz a documentação: `taxas-locais.md` (o lançamento manual segue a regra da tabela; ADR 0083, item 10; migration `248`)."
+ },
+ {
+  "key": "10-recebimento:1",
+  "titulo": "\"Identificador do Pix\" tem dois significados em telas diferentes",
+  "caso": "O Financeiro quer dar baixa manual num Pix que está em Pix em análise. Copia o Identificador do Pix dessa lista (o código VELA… da cobrança) e cola na Referência bancária. A baixa entra, mas o Pix continua em análise, porque só o identificador do próprio Pix, mostrado na aba Pix recebidos, o tira de lá.",
+  "hoje": "Em Pendências e em Conciliar extrato, Identificador do Pix é o código da cobrança (VELA…); na aba Pix recebidos, o mesmo nome é o identificador do próprio Pix e o VELA… se chama Identificador da cobrança.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para mostrar, em Pix em análise, o identificador do próprio Pix (com botão de copiar) e o VELA… com o nome Identificador da cobrança.",
+    "efeito": "O Financeiro copia o código certo e a baixa manual tira o Pix da análise na primeira tentativa."
+   },
+   {
+    "id": "B",
+    "texto": "Só renomear para Identificador da cobrança a coluna VELA… em Pendências e Conciliar extrato.",
+    "efeito": "Some a confusão de nomes, mas o Financeiro ainda precisa ir à aba Pix recebidos buscar o código certo."
+   },
+   {
+    "id": "C",
+    "texto": "Manter as telas como estão e explicar a diferença no documento.",
+    "efeito": "Nada muda na tela; o erro de copiar o código errado continua possível."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Dá ao Financeiro, no lugar onde ele trabalha, o código que resolve a pendência, com nomes iguais em todas as telas.",
+  "area": "10-recebimento",
+  "areaNome": "Recebimento",
+  "num": "1",
+  "classe": "c",
+  "codigoTexto": "O que o código faz: Em Pendências (Pix em análise, Exceções do extrato, Cobranças aguardando o Itaú) e em Conciliar extrato, **Identificador do Pix** é o identificador da **cobrança** (`VELA…`, a coluna Identificador do extrato); na aba Pix recebidos, **Identificador do Pix** é o identificador do próprio Pix e o `VELA…` se chama **Identificador da cobrança**. Só a baixa com o identificador do próprio Pix (o da aba Pix recebidos) tira o Pix da análise (REC-028, REC-029). O que diz a documentação: `reconciliacao-pix.md` (Monitoramento) diz que **Identificador do Pix** é o nome da coluna do extrato do Itaú (o identificador da cobrança); o mesmo módulo (Pix recebidos) e a ADR 0100 chamam de \"identificador do Pix\" o do próprio Pix, usado como referência bancária."
+ },
+ {
+  "key": "10-recebimento:3",
+  "titulo": "Pix que falha ao ser gravado só gera alerta, sem lugar para tratar",
+  "caso": "Um Pix da Cliente Atlântica Importações chega pelo Itaú, mas falha três vezes ao ser gravado no Vela. Abre o alerta PIX sem conciliação segura pedindo baixa manual. O Financeiro procura o Pix em Pix em análise e em Pix recebidos e não o encontra.",
+  "hoje": "Depois da terceira falha o Vela abre o alerta, mas o Pix não aparece em Pix em análise nem em Pix recebidos; mesmo Pix de fora do Vela abre alerta.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para gravar esse Pix como Pix recebido em análise (ou listá-lo em Pendências), sem alerta para Pix de fora do Vela.",
+    "efeito": "O Financeiro vê o Pix com valor e pagador no lugar de sempre e consegue dar a baixa com segurança."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema como está e corrigir o documento para dizer que o caso é tratado só pelo alerta, com baixa manual a partir do extrato.",
+    "efeito": "Nada muda; o Financeiro trata o caso fora das listas, comparando com o extrato do banco."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É dinheiro do Cliente que entrou e pode ficar sem baixa; precisa aparecer onde o Financeiro trabalha.",
+  "area": "10-recebimento",
+  "areaNome": "Recebimento",
+  "num": "3",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Abre o Alerta **PIX sem conciliação segura** mandando dar baixa manual, mas o Pix não aparece em **Pix em análise** nem em **Pix recebidos** (REC-022); se for Pix de fora do Vela, também abre Alerta. O que diz a documentação: `reconciliacao-pix.md` diz que na terceira falha \"ele vai para análise\"; ADR 0100 diz que todo Pix recebido fica gravado e aparece em Pix recebidos, e que Pix de fora do Vela não abre Alerta."
+ },
+ {
+  "key": "10-recebimento:7",
+  "titulo": "Regra do alerta Restituição pendente descreve só um dos gatilhos",
+  "caso": "O Financeiro dá baixa manual de R$ 1.200 numa fatura com saldo de R$ 1.000 e surge o alerta Restituição pendente. Ele abre Regras dos alertas para entender, e o texto fala só de correção do B/L em fatura paga. A explicação não bate com o que ele acabou de fazer.",
+  "hoje": "O alerta abre para qualquer restituição a devolver (excedente, Pix em duplicidade, restituição excepcional, troca de CNPJ, cancelamento financeiro e Invoice de Demurrage), mas a tela de Regras cita só a correção do B/L.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da regra na tela Regras dos alertas para listar todos os casos.",
+    "efeito": "Quem consulta a regra entende por que o alerta apareceu."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto como está.",
+    "efeito": "A equipe continua sem explicação para a maioria dos alertas desse tipo."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só texto e evita dúvidas sobre um alerta que envolve devolver dinheiro ao Cliente.",
+  "area": "10-recebimento",
+  "areaNome": "Recebimento",
+  "num": "7",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Abre o Alerta **Restituição pendente** para qualquer restituição a devolver de fatura (excedente, Pix em duplicidade, restituição excepcional, troca de CNPJ, cancelamento financeiro) e de Invoice de Demurrage (REC-081). O que diz a documentação: A tela **Regras dos alertas** descreve o gatilho só como \"Correção do B/L em fatura paga cuja redução passa do saldo em aberto\"."
+ },
+ {
+  "key": "10-recebimento:11",
+  "titulo": "Pix fica em análise mesmo depois que o extrato quitou a fatura",
+  "caso": "Um Pix de cobrança do Vela para a fatura da Cliente Atlântica Importações fica em análise (por exemplo, sem a conta de integração configurada). O Financeiro concilia o extrato do Itaú, que traz o mesmo identificador da cobrança, e a fatura vira Paga. Mesmo assim o Pix continua em Pix em análise, com o alerta aberto, embora a aba Pix recebidos já o mostre com baixa.",
+  "hoje": "Na fatura de Taxas Locais, o extrato quita a fatura antes de gravar o identificador, e a conferência que tiraria o Pix da análise não roda de novo; é preciso Marcar como tratado (na Invoice de Demurrage funciona). Análise feita pela leitura do sistema, sem execução.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para que a conciliação pelo extrato tire o Pix da análise e feche o alerta, como já acontece na Demurrage.",
+    "efeito": "O Financeiro concilia uma vez e a pendência some sozinha."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema como está e corrigir o documento para dizer que, nesse caso, é preciso Marcar como tratado.",
+    "efeito": "Nada muda; o Financeiro faz um passo a mais e a lista de análise mostra pendências já resolvidas."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A regra registrada já promete esse fechamento; pendência falsa esconde as verdadeiras.",
+  "area": "10-recebimento",
+  "areaNome": "Recebimento",
+  "num": "11",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O extrato quita a fatura e só depois grava nela o identificador conciliado; a conferência que tira o Pix da análise roda no momento em que a fatura passa a **Paga**, ainda sem o identificador, e não roda de novo quando ele é gravado. O Pix segue em **Pix em análise** com o Alerta aberto, embora a aba Pix recebidos já o mostre com baixa; é preciso **Marcar como tratado** (REC-028). Na Invoice de Demurrage o extrato grava tudo junto e o Pix sai da análise. Leitura do código, não executado. O que diz a documentação: `reconciliacao-pix.md` (Pix em análise) e a migration 360 dizem que o Pix sai da análise quando \"o extrato conciliou o TXID dele\"."
+ },
+ {
+  "key": "10-recebimento:12",
+  "titulo": "Devolução de Pix em duplicidade é recusada em fatura sem recebimento",
+  "caso": "A Cliente Atlântica Importações paga por Pix uma fatura que já estava Cancelada (ou Coberta por uma consolidada). O Financeiro devolve o dinheiro e clica em Confirmar devolução realizada. O Vela recusa com \"Restituição sem lastro no valor recebido.\", o Pix continua em análise e o alerta não fecha.",
+  "hoje": "A confirmação exige que as restituições não passem do que a fatura recebeu; fatura Cancelada sem baixa, individual Coberta e consolidada substituída não receberam nada, e a devolução do Pix em duplicidade é recusada. Análise feita pela leitura do sistema, sem execução.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para que a devolução de Pix em duplicidade conte o próprio Pix como lastro, nos quatro casos.",
+    "efeito": "O Financeiro confirma a devolução, o Pix sai da análise e o alerta fecha."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema como está e corrigir a regra para dizer que esses casos são devolvidos e registrados fora do Vela.",
+    "efeito": "A devolução fica sem registro no Vela e o Pix e o alerta ficam abertos sem solução."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É dinheiro do Cliente a devolver; o registro da devolução precisa funcionar em todos os casos.",
+  "area": "10-recebimento",
+  "areaNome": "Recebimento",
+  "num": "12",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A confirmação exige que a soma das restituições não canceladas da fatura não passe do que ela recebeu; essas faturas não receberam nada, então a confirmação é recusada (\"Restituição sem lastro no valor recebido.\"), o Pix fica em análise e o Alerta não fecha (REC-020, REC-083). Na avulsa em cancelamento com devolução integral, a restituição do Pix em duplicidade somada à do cancelamento também passa do recebido e trava as duas. Leitura do código, não executado; o teste existente só cobre fatura Paga. O que diz a documentação: ADR 0093 (decisão 18), ADR 0094 (D5) e `reconciliacao-pix.md` (Baixa automática): o Pix em duplicidade vira restituição pendente e sai da análise quando a devolução é confirmada."
+ },
+ {
+  "key": "11-demurrage:DEM-D01",
+  "titulo": "Anexos da Disputa de Demurrage não podem ser abertos",
+  "caso": "A Cliente Atlântica Importações abre uma Disputa pelo Portal e anexa um PDF com o comprovante de devolução do contêiner. Equipamentos abre Demurrage → Disputas para analisar, mas a conversa não mostra o anexo, nem o nome do arquivo. No Portal o Cliente vê só o nome, sem conseguir abrir.",
+  "hoje": "O Vela guarda o arquivo, mas nenhuma tela o lista para download.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para listar os anexos com link para baixar na aba Disputas e no Portal.",
+    "efeito": "Equipamentos lê os documentos do Cliente e responde com base neles."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema como está e corrigir o documento e o alerta para não prometer leitura de anexos, pedindo os documentos por e-mail.",
+    "efeito": "O Cliente anexa, mas a equipe precisa pedir o arquivo de novo por outro canal."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A Disputa é sobre dinheiro do Cliente, e ele já está enviando provas que hoje ninguém consegue ver.",
+  "area": "11-demurrage",
+  "areaNome": "Demurrage",
+  "num": "DEM-D01",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A conversa interna não traz anexos (nem o nome do arquivo); no Portal aparece só o nome, sem abrir. Nenhuma tela baixa o arquivo guardado. O que diz a documentação: Módulo: \"anexos privados por mensagem\"; catálogo de alertas: \"Leia a conversa, analise os documentos e responda\"."
+ },
+ {
+  "key": "11-demurrage:DEM-D05",
+  "titulo": "Aviso da PTAX de Demurrage aparece à noite e some com outra ação",
+  "caso": "Às 22h de um dia útil, com a PTAX do dia já aplicada, o Financeiro abre Demurrage e vê \"PTAX de hoje não obtida do BCB\". Em outro dia, sem a PTAX do dia, alguém lança um desconto e o aviso desaparece.",
+  "hoje": "O aviso usa a data em horário internacional, que vira antes da meia-noite de Brasília, e considera qualquer atualização do dia (desconto ou baixa) como se fosse o recálculo da PTAX.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para usar a data de Brasília e só o recálculo da PTAX.",
+    "efeito": "O aviso aparece só quando a PTAX do dia realmente falta."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema como está e corrigir o documento para explicar as exceções.",
+    "efeito": "O aviso continua dando alarme falso à noite e escondendo a falta de PTAX em alguns dias."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Um aviso que erra nos dois sentidos perde a confiança da equipe, e a PTAX define o valor cobrado do Cliente.",
+  "area": "11-demurrage",
+  "areaNome": "Demurrage",
+  "num": "DEM-D05",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O aviso \"PTAX de hoje não obtida do BCB\" aparece (o \"último dia útil\" é calculado pela data UTC, que já virou); e um desconto ou baixa feitos hoje escondem o aviso mesmo sem a PTAX do dia, porque vale a última foto de qualquer tipo. O que diz a documentação: \"Um banner de staleness aparece quando há faturas aguardando pagamento e o último recálculo é anterior ao último dia útil.\""
+ },
+ {
+  "key": "11-demurrage:DEM-D06",
+  "titulo": "Portal mostra o valor em dólar sem o desconto da Invoice",
+  "caso": "A Invoice de Demurrage da Cliente Atlântica Importações é de US$ 1.000 com desconto de 10%. No Vela e no e-mail da Régua aparece US$ 900. No Portal, a Cliente vê \"Total US$\" US$ 1.000 ao lado do valor em reais já com desconto.",
+  "hoje": "O Vela e o e-mail mostram o dólar com desconto; o Portal mostra o dólar sem desconto junto do real com desconto.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o Portal para mostrar o valor em dólar com desconto, como no Vela e no e-mail.",
+    "efeito": "O Cliente vê o mesmo valor em todos os lugares, coerente com o valor em reais."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o Portal para mostrar valor bruto, desconto e valor líquido em dólar.",
+    "efeito": "O Cliente vê o desconto aplicado de forma explícita, com mais informação na tela."
+   },
+   {
+    "id": "C",
+    "texto": "Manter o Portal como está e corrigir a regra.",
+    "efeito": "O Cliente continua vendo dois valores em dólar diferentes para a mesma Invoice."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Segue a regra registrada com a menor mudança e acaba com a diferença que o Cliente vê hoje.",
+  "area": "11-demurrage",
+  "areaNome": "Demurrage",
+  "num": "DEM-D06",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O Vela mostra \"USD a cobrar\" US$ 900 e o e-mail da Régua US$ 900; o Portal mostra \"Total US$\" e \"Total em dólar\" US$ 1.000 ao lado do R$ já com desconto. O que diz a documentação: ADR 0083, item 13 (e módulo, A13): o valor em dólar informado ao Cliente é o líquido do desconto, coerente com o BRL e a tela."
+ },
+ {
+  "key": "11-demurrage:DEM-D08",
+  "titulo": "Invoice de Demurrage reemitida não cita a Invoice cancelada",
+  "caso": "A Invoice de Demurrage da Cliente Atlântica Importações é cancelada e reemitida porque as datas do contêiner mudaram. A nova Invoice não diz qual substituiu. Só o Histórico da antiga informa \"cancelada para reemissão automática\".",
+  "hoje": "A Invoice nova não guarda referência à cancelada; a ligação só aparece no Histórico da cancelada.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para que a Invoice reemitida cite o número da Invoice cancelada que ela substitui.",
+    "efeito": "A equipe e o Cliente entendem de imediato que a nova cobrança substitui a anterior."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema como está e registrar na regra que, na Demurrage, a ligação fica só no Histórico da cancelada.",
+    "efeito": "Nada muda; quem olha a Invoice nova precisa procurar a antiga para entender a troca."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Com Clientes reais, duas cobranças parecidas sem ligação geram dúvida e contestação.",
+  "area": "11-demurrage",
+  "areaNome": "Demurrage",
+  "num": "DEM-D08",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A Invoice nova não guarda referência à cancelada; só o Histórico da cancelada diz \"cancelada para reemissão automática\". O que diz a documentação: Regras de negócio: documento fiscal cancelado \"não se reativa: emite-se outro, que referencia o cancelado\"."
+ },
+ {
+  "key": "11-demurrage:DEM-D09",
+  "titulo": "Invoices antigas no estado \"vencida\" somem das listas",
+  "caso": "Uma Invoice de Demurrage antiga ficou com o estado \"vencida\". Ao abrir o detalhe, ela aparece como emitida, mas não está na aba Faturas, não entra no cartão Aguardando pagamento nem em Por Cliente, e o filtro Emitida do Portal não a mostra.",
+  "hoje": "O detalhe trata a Invoice \"vencida\" como emitida, mas as listas e os totais a ignoram; nenhuma ação produz mais esse estado.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Passar de uma vez as Invoices \"vencidas\" para emitidas.",
+    "efeito": "Elas voltam às listas e aos totais, sem mudar as telas."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir as listas e totais para incluir também \"vencida\".",
+    "efeito": "As Invoices aparecem, mas o estado antigo continua existindo no sistema."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar a exceção no documento.",
+    "efeito": "Essas Invoices continuam fora das listas e dos totais."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É a correção menor e resolve todas as telas de uma vez, já que o estado não é mais produzido.",
+  "area": "11-demurrage",
+  "areaNome": "Demurrage",
+  "num": "DEM-D09",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O detalhe a trata como emitida, mas nenhuma aba a lista (Faturas lista só emitidas), o cartão \"Aguardando pagamento\" e **Por Cliente** não a somam, e o filtro do Portal \"Emitida\" não a inclui. O que diz a documentação: \"se `overdue` aparecer, a tela a trata como emitida\"."
+ },
+ {
+  "key": "11-demurrage:DEM-D13",
+  "titulo": "Invoice de Demurrage é emitida sem CE e sem Portal liberado",
+  "caso": "Equipamentos emite uma Invoice de Demurrage para o B/L MSCU1234567, ainda sem CE Mercante, da Cliente Atlântica Importações, que não tem Conta do Portal ativa. A Invoice nasce emitida, fica fora do Portal e da Régua, mas a Cliente recebe a notificação \"Nova fatura de demurrage\" de uma fatura que não consegue abrir.",
+  "hoje": "A emissão da Invoice de Demurrage não exige CE Mercante nem o Gate de faturamento do Portal aberto, e a notificação ao Cliente sai mesmo assim.",
+  "impacto": "alto",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para que a Invoice de Demurrage siga a mesma trava das faturas: exige CE Mercante e Gate de faturamento do Portal aberto.",
+    "efeito": "A Invoice só existe quando o Cliente consegue vê-la; a equipe precisa liberar o Portal antes de emitir."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a emissão como está, mas segurar a notificação até a Invoice aparecer no Portal.",
+    "efeito": "A equipe emite quando quiser e o Cliente só é avisado quando consegue abrir a fatura."
+   },
+   {
+    "id": "C",
+    "texto": "Manter o sistema como está e registrar que a trava do Portal não vale para Demurrage.",
+    "efeito": "O Cliente continua recebendo aviso de fatura que não consegue abrir."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Segue a regra geral de que a fatura só existe quando o Cliente consegue vê-la, e evita cobrança que o Cliente não pode conferir.",
+  "area": "11-demurrage",
+  "areaNome": "Demurrage",
+  "num": "DEM-D13",
+  "classe": "c",
+  "codigoTexto": "O que o código faz: A emissão não passa pelo Gate de faturamento do Portal nem exige CE: a Invoice nasce emitida, fica fora do Portal e da Régua até o CE, mas o Cliente já recebe a notificação \"Nova fatura de demurrage\" de uma fatura que não consegue abrir. O que diz a documentação: `docs/operations/regras-de-negocio.md`, Gate de faturamento: \"O Portal trava toda emissão\" e \"a emissão exige … CE Mercante e o Gate de faturamento do Portal aberto\" (ADR 0070: \"a fatura só existe quando o cliente consegue vê-la\"); o módulo de Demurrage não diz se o gate vale para ela."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D03",
+  "titulo": "Regras de alertas mostram dois setores responsáveis, mas o alerta tem um",
+  "caso": "Em Regras de alertas, \"PIX sem conciliação segura\" diz Responsável: Administrativo · Financeiro. O Financeiro filtra Alertas pelo seu setor e não encontra o alerta. O mesmo acontece com outros seis tipos de alerta.",
+  "hoje": "O alerta fica só com o primeiro setor; o segundo apenas recebe a notificação, e a tela de Regras mostra os dois como responsáveis.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela de Regras para mostrar só o setor responsável e indicar o outro como notificado.",
+    "efeito": "A equipe sabe onde procurar o alerta no filtro por setor."
+   },
+   {
+    "id": "B",
+    "texto": "Corrigir o sistema para que o alerta pertença de fato aos dois setores e apareça no filtro de ambos.",
+    "efeito": "Os dois setores encontram o alerta, mas a responsabilidade fica dividida."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É a correção menor e deixa claro quem resolve cada alerta.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D03",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O item é gravado só com o setor do catálogo (Administrativo nos três primeiros, Documentação nos outros quatro); o segundo setor só recebe a notificação. Não existe setor responsável Financeiro. O que diz a documentação: `operacao-suporte.md` define setor responsável como o setor do item; a tela de Regras (`alertRulesCatalog.ts`, `responsibleDepartments`) põe dois setores como responsáveis."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D04",
+  "titulo": "Regras da Revisão de B/L dizem \"Registro: B/L\", mas o alerta é por Cliente",
+  "caso": "Paula abre Regras de alertas e vê que as três regras da Revisão de B/L dizem Registro: B/L. Na fila de Alertas, encontra um alerta por Cliente, com a contagem de B/Ls, em vez de um por B/L.",
+  "hoje": "Essas regras abrem um alerta por Cliente (ou consignatário sem Cliente), e a tela de Regras diz B/L.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela de Regras para Registro: Cliente.",
+    "efeito": "A tela descreve o alerta que a equipe de fato vê na fila."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto como está.",
+    "efeito": "A equipe continua esperando um alerta por B/L."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só texto e alinha a explicação ao que a fila mostra.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D04",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Abrem um alerta por Cliente (ou consignatário sem Cliente), com contagem de B/Ls. O que diz a documentação: `operacao-suporte.md` (agregados por Cliente); a tela de Regras diz B/L."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D05",
+  "titulo": "Alguns alertas não têm Resolver nem levam à tela prometida",
+  "caso": "Aparece o alerta \"Usuário interno com e-mail devolvido\". Na fila não há Resolver, a coluna Registro mostra um código, e a notificação abre só a tela de Alertas. A tela de Regras promete o botão Abrir Usuários. O mesmo vale para tabela de cobrança faltando, consulta de Pix do Itaú parada, falhas da PTAX e do calendário de feriados da Demurrage e Recebimento Itaú com falha.",
+  "hoje": "Esses alertas não guardam o endereço da tela de destino, então ficam sem Resolver e com o registro em código.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para que esses alertas levem às telas que a tela de Regras já cita, com o nome do registro legível.",
+    "efeito": "Quem recebe o alerta chega em um clique ao lugar de resolver."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o sistema como está e corrigir a tela de Regras e o documento para não prometer o botão.",
+    "efeito": "Nada muda na fila; a equipe precisa saber de cor para onde ir."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Envolve rotinas de Pix e PTAX que afetam cobrança; o caminho direto acelera a solução.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D05",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O endereço gravado pela rotina é apagado (`clear_alert_item_destination`) e `alertEntityLink` não tem tela para esses registros; o rótulo do registro também não é traduzido. O que diz a documentação: `alertRulesCatalog.ts` (botão de destino de cada regra) e `operacao-suporte.md`, `/alertas` (\"Toda linha tem **Resolver** e **Dispensar**\"; \"**Resolver** leva ao lugar da resolução\")."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D06",
+  "titulo": "\"Aberto em\" mostra a data antiga quando o alerta é reaberto",
+  "caso": "O alerta do B/L MSCU1234567 foi resolvido há meses e reabriu hoje. Na fila de Alertas, Aberto em mostra a data de meses atrás. Quem olha acha que o problema está parado há muito tempo.",
+  "hoje": "Aberto em mostra a data em que o alerta foi criado pela primeira vez, e a data da reabertura não aparece.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para mostrar em Aberto em a data da abertura ou reabertura atual.",
+    "efeito": "A fila mostra há quanto tempo o problema de hoje está aberto."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e renomear a coluna para Primeira abertura, corrigindo o documento.",
+    "efeito": "O nome fica correto, mas a equipe continua sem ver quando o problema voltou."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "A data atual é a que ajuda a priorizar a fila, e a regra já trata a reabertura como nova ocorrência.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D06",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: **Aberto em** é a data de criação do alerta do registro, reaproveitado a cada reabertura; a data da ocorrência atual não aparece. O que diz a documentação: `operacao-suporte.md` descreve a coluna **Aberto em** e a reabertura como nova ocorrência (ADR 0053)."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D07",
+  "titulo": "Dispensa com motivo curto falha com mensagem genérica",
+  "caso": "Paula dispensa um alerta e escreve o motivo \"ok\". A tela aceita, mas aparece só \"Falha ao dispensar alerta.\". Ela não sabe que o motivo precisa ter pelo menos 3 caracteres.",
+  "hoje": "A tela aceita qualquer motivo, mas o sistema recusa motivo com menos de 3 caracteres e mostra uma mensagem genérica.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela para exigir 3 caracteres no motivo, com mensagem clara antes de enviar.",
+    "efeito": "A pessoa sabe na hora o que corrigir."
+   },
+   {
+    "id": "B",
+    "texto": "Retirar o mínimo de 3 caracteres e aceitar qualquer motivo.",
+    "efeito": "A dispensa passa, mas motivos como \"ok\" não explicam nada no histórico."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e registrar o mínimo no documento.",
+    "efeito": "A tela continua mostrando só a falha genérica."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Mantém motivos úteis e acaba com a falha sem explicação.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D07",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A tela e a função aceitam; o banco recusa (mínimo de 3 caracteres) e a fila mostra só \"Falha ao dispensar alerta.\", sem dizer que o motivo é curto. O que diz a documentação: `operacao-suporte.md`: dispensa \"exige motivo\", sem mínimo."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D08",
+  "titulo": "Justificativa de alerta resolvido não aparece em nenhuma tela",
+  "caso": "Paula fecha um alerta com Resolver com justificativa. No dia seguinte, um colega quer saber por que o alerta foi fechado e por quem. Ele não encontra a informação nem em Histórico de ações.",
+  "hoje": "O nome e a justificativa ficam gravados no histórico do alerta, mas nenhuma tela os mostra.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Mostrar a justificativa e o autor em Histórico de ações.",
+    "efeito": "A equipe consulta o motivo no lugar onde já procura o que foi feito."
+   },
+   {
+    "id": "B",
+    "texto": "Criar na tela de Alertas uma visão de alertas resolvidos com justificativa e autor.",
+    "efeito": "A consulta fica junto da fila, mas é uma tela nova a construir."
+   },
+   {
+    "id": "C",
+    "texto": "Manter como está e corrigir os textos que prometem o histórico.",
+    "efeito": "A justificativa continua invisível para a equipe."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Usa uma tela que já existe e dá à equipe a explicação que a regra promete.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D08",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Autor e justificativa são gravados no histórico do alerta, mas nenhuma tela o mostra (nem **Histórico de ações**). O que diz a documentação: Janela e Regras: \"A justificativa e o seu nome ficam no histórico do alerta\"; ADR 0083, item 23 (\"registro no histórico\")."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D10",
+  "titulo": "Regra \"Comunicado sem destinatário\" informa intervalo errado",
+  "caso": "Paula lê em Regras de alertas que \"Comunicado sem destinatário\" aparece na rodada automática a cada 15 minutos. Na prática, o alerta surge poucos minutos depois do envio.",
+  "hoje": "A rodada dos Comunicados roda a cada 2 minutos e logo depois de eventos, mas a tela diz 15 minutos.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela para \"a cada 2 minutos e logo após o envio\".",
+    "efeito": "A equipe sabe quando esperar o alerta."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto como está.",
+    "efeito": "A tela segue informando um intervalo que não existe."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só texto e alinha a tela ao funcionamento real.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D10",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: A rodada dos Comunicados roda a cada 2 minutos e logo depois de eventos (migration `458`). O que diz a documentação: `alertRulesCatalog.ts`."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D11",
+  "titulo": "Regra da PTAX Demurrage omite o alerta das 14h",
+  "caso": "Às 14h de um dia útil, a PTAX do dia não chegou às cobranças Pix da Demurrage e abre o alerta \"Falha na atualização da PTAX Demurrage\". O Financeiro lê a regra, que fala só de falha da rotina, e não entende o alerta.",
+  "hoje": "O alerta também abre às 14h de dia útil, com o Itaú ligado, quando a PTAX do dia não chegou às cobranças Pix, mas a tela de Regras não cita esse caso.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da tela de Regras para incluir o caso das 14h.",
+    "efeito": "Quem recebe o alerta entende o que o disparou."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto como está.",
+    "efeito": "O segundo motivo do alerta continua sem explicação."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só texto e ajuda a tratar um alerta ligado ao valor cobrado.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D11",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Também abre às 14h de dia útil, com o Itaú ligado, quando a PTAX do dia não chegou às cobranças Pix da Demurrage (registro próprio, fecha pela rodada do Itaú). O que diz a documentação: `alertRulesCatalog.ts`."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D12",
+  "titulo": "Resolver de dois alertas de contato abre a lista, não a ficha",
+  "caso": "Aparece o alerta \"Cliente sem contato principal\" para a Cliente Atlântica Importações. Paula clica em Resolver e cai na lista de Clientes, e precisa procurar a Cliente. Nos outros alertas de contato, Resolver abre direto a ficha.",
+  "hoje": "\"Caixa de comunicação sem destinatário\" e \"Cliente sem contato principal\" não guardam o CNPJ, então Resolver abre a lista de Clientes.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para que esses dois alertas guardem o CNPJ e abram a ficha do Cliente.",
+    "efeito": "Um clique leva ao cadastro a corrigir, como nos outros alertas de contato."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e corrigir o documento.",
+    "efeito": "A equipe continua procurando o Cliente na lista."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Correção pequena que tira retrabalho e garante que o Cliente tenha contato para receber cobranças.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D12",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Esses dois alertas não guardam o CNPJ do Cliente, e o link só abre a ficha com o CNPJ. O que diz a documentação: Regras: \"Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=cadastro`\"; os outros alertas de contato passaram a guardar o CNPJ (migration `314`)."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D13",
+  "titulo": "Tela de Usuários conta a menos os alertas de Operações e Equipamentos",
+  "caso": "Em Admin › Usuários, \"O que cada setor pode\", a linha \"Recebe os alertas do próprio setor\" diz 3 tipos para Operações e 2 para Equipamentos. Na prática, Operações recebe 5 tipos e Equipamentos 4.",
+  "hoje": "A contagem da tela ignora os alertas que chegam a esses setores por serem do próprio departamento.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a contagem da tela para 5 e 4 tipos.",
+    "efeito": "Quem configura acessos vê o número real de alertas de cada setor."
+   },
+   {
+    "id": "B",
+    "texto": "Manter a contagem como está.",
+    "efeito": "A tela segue mostrando menos alertas do que o setor recebe."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só um número na tela e evita surpresa de quem gerencia os setores.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D13",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Operações e Equipamentos recebem também os dois tipos do ADR (pelo item do próprio departamento): 5 e 4 tipos. O que diz a documentação: `src/services/permissionMatrix.ts` (`ALERT_TYPE_COUNTS`, só a audiência do catálogo); `operacao-suporte.md` descreve a entrega ao departamento do item."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D16",
+  "titulo": "Regra \"Restituição pendente\" não cita a Invoice de Demurrage",
+  "caso": "Uma Invoice de Demurrage da Cliente Atlântica Importações fica com restituição pendente e abre o alerta Restituição pendente, com o botão Ver Demurrage. O Financeiro lê a regra, que fala só de fatura de Taxas Locais.",
+  "hoje": "O alerta também abre para Invoice de Demurrage, mas o texto da regra cita só fatura de Taxas Locais.",
+  "impacto": "baixo",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o texto da regra para incluir a Invoice de Demurrage.",
+    "efeito": "O Financeiro entende que o alerta vale para as duas cobranças."
+   },
+   {
+    "id": "B",
+    "texto": "Manter o texto como está.",
+    "efeito": "O alerta de Demurrage continua sem explicação na tela de Regras."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "É só texto e pode ser feito junto da correção do mesmo alerta em Recebimento.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D16",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Também abre para Invoice de Demurrage com restituição pendente (registro **Invoice Demurrage**, **Ver Demurrage**). O que diz a documentação: `alertRulesCatalog.ts`."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D17",
+  "titulo": "Número de Alertas no menu não se atualiza sozinho",
+  "caso": "Paula deixa o Vela aberto o dia todo e acompanha o número ao lado de Alertas no menu. Durante a tarde, a rodada automática e colegas abrem novos alertas, mas o número não muda. Ela só vê a mudança ao recarregar a página.",
+  "hoje": "O número é lido quando o Vela abre e só é relido depois de ações da própria pessoa, sem atualização por tempo.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir o sistema para atualizar o número periodicamente, como já fazem o sino e o Painel.",
+    "efeito": "O menu passa a mostrar os alertas novos sem recarregar."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e corrigir o documento para dizer que é preciso recarregar.",
+    "efeito": "A equipe continua vendo um número desatualizado."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Mudança pequena, e o número do menu é o que avisa a equipe de que há algo a tratar.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D17",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: O número é lido quando o Vela abre e só é relido depois de ações do próprio usuário que invalidam a contagem; não há releitura por tempo (a consulta tem `staleTime` de 60 s, sem `refetchInterval`, e o app não relê ao voltar à janela). Alertas abertos pela rodada ou por colegas não aparecem no número até recarregar. O que diz a documentação: `operacao-suporte.md`, `/alertas`: \"A contagem do menu não tem realtime: atualiza pelo `staleTime` de 60 s\"; comentário `ponytail` em `useOperationalCounts.ts`."
+ },
+ {
+  "key": "12-alertas-rotinas:ALE-D18",
+  "titulo": "Falha ao dispensar ou resolver alerta esconde o motivo",
+  "caso": "Paula e um colega dispensam o mesmo alerta ao mesmo tempo. O colega vê só \"Falha ao dispensar alerta.\", sem saber que o alerta já tinha sido dispensado. No Reprocessar da mesma tela, o motivo da recusa aparece.",
+  "hoje": "Em Alertas, Dispensar e Resolver com justificativa trocam o motivo da recusa (alerta já fechado, motivo inválido, sem permissão) por uma mensagem genérica.",
+  "impacto": "medio",
+  "opcoes": [
+   {
+    "id": "A",
+    "texto": "Corrigir a tela para mostrar o motivo da recusa, como já faz o Reprocessar.",
+    "efeito": "A pessoa entende na hora se o alerta já foi tratado, se o motivo é inválido ou se falta permissão."
+   },
+   {
+    "id": "B",
+    "texto": "Manter como está e corrigir o documento.",
+    "efeito": "A equipe segue sem saber por que a ação falhou."
+   }
+  ],
+  "recomendada": "A",
+  "porque": "Correção pequena que evita tentativas repetidas e dúvidas sobre quem tratou o alerta.",
+  "area": "12-alertas-rotinas",
+  "areaNome": "Alertas e rotinas",
+  "num": "ALE-D18",
+  "classe": "b",
+  "codigoTexto": "O que o código faz: Em **Alertas**, a dispensa e a resolução com justificativa só mostram o texto da recusa quando o erro é da própria tela; a recusa do banco chega como objeto, não como `Error`, e a tela troca o motivo (\"Item de alerta não está ativo.\", restrição do motivo, \"Sem permissão.\") pela mensagem genérica. O **Reprocessar** da mesma tela usa `userFacingErrorMessage` e mostra o motivo. O que diz a documentação: `operacao-suporte.md`, Catálogo de ações › `/alertas` › Dispensar: motivo ausente, data fora do prazo e item que deixou de estar ativo \"são recusados na tela e no banco\"; contrato de erro compartilhado em `src/lib/errors.ts` (`docs/ARCHITECTURE.md`)."
+ }
+]
