@@ -10,8 +10,8 @@ no B/L, contatos e Caixas de Comunicação, Comunicados manuais e régua
 automática, e-mails dos Comunicados e Central de Informações (lado interno,
 página **Informações do Portal**).
 
-Conferência independente (2026-10-26, código da `staging` e banco local com a
-migration `463`): corrigiu CLI-005, CLI-006, CLI-019, CLI-024, CLI-029,
+Conferência independente (2026-10-26, código da `staging` e banco local até a
+migration `464`): corrigiu CLI-005, CLI-006, CLI-019, CLI-024, CLI-029,
 CLI-041, CLI-077, CLI-089 e CLI-094, acrescentou CLI-103 a CLI-107, ajustou o
 destino ou o texto de dez mensagens e acrescentou as divergências D13 a D18.
 Leitura do código e das definições do banco; nada foi executado.
