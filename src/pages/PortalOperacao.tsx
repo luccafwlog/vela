@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Download } from 'lucide-react'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
@@ -109,6 +109,10 @@ type ContainerFilters = {
 }
 
 const EMPTY_BL_FILTERS: BlFilters = { bl: '', ce: '', vessel: '', voyage: '', pol: '', pod: '', devolucao: '', status: '' }
+
+function blVoyageFromSearch(params: URLSearchParams): Pick<BlFilters, 'vessel' | 'voyage'> {
+  return { vessel: params.get(BL_VOYAGE_PARAMS.vessel) ?? '', voyage: params.get(BL_VOYAGE_PARAMS.voyage) ?? '' }
+}
 const EMPTY_CONTAINER_FILTERS: ContainerFilters = { container: '', bl: '', ce: '', vessel: '', voyage: '', pol: '', pod: '', devolucao: '', status: '' }
 
 export function PortalOperacao() {
@@ -127,15 +131,20 @@ export function PortalOperacao() {
   }
 
   const initialDevolucao = (searchParams.get('devolucao') ?? '') as ReturnSituation
-  // Navio e Viagem da aba BLs moram na URL (ponto 2 de 2026-10-23): o atalho
+  // Navio e Viagem da aba BLs vão para a URL (ponto 2 de 2026-10-23): o atalho
   // "Ver meus B/Ls" de Chegadas e saídas chega filtrado e o recarregar mantém.
-  const [blLocalFilters, setBlLocalFilters] = useState<BlFilters>(EMPTY_BL_FILTERS)
-  const vesselParam = searchParams.get(BL_VOYAGE_PARAMS.vessel) ?? ''
-  const voyageParam = searchParams.get(BL_VOYAGE_PARAMS.voyage) ?? ''
-  const blFilters = useMemo<BlFilters>(
-    () => ({ ...blLocalFilters, vessel: vesselParam, voyage: voyageParam }),
-    [blLocalFilters, vesselParam, voyageParam],
-  )
+  // O campo lê o estado da tela, não a URL: o roteador aplica a troca de
+  // endereço numa transição, e o campo controlado pela URL voltava ao valor
+  // antigo a cada tecla (o cursor pulava para o fim, como em /bls antes da
+  // a6e99ca). Navegação de fora (menu, voltar) relê a URL; REPLACE é a tela.
+  const location = useLocation()
+  const navigationType = useNavigationType()
+  const [blFilters, setBlLocalFilters] = useState<BlFilters>(() => ({ ...EMPTY_BL_FILTERS, ...blVoyageFromSearch(searchParams) }))
+  const [seenLocationKey, setSeenLocationKey] = useState(location.key)
+  if (seenLocationKey !== location.key) {
+    setSeenLocationKey(location.key)
+    if (navigationType !== 'REPLACE') setBlLocalFilters((current) => ({ ...current, ...blVoyageFromSearch(searchParams) }))
+  }
   const setBlFilters = (next: BlFilters) => {
     setBlLocalFilters(next)
     setSearchParams((prev) => {

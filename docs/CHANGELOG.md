@@ -6,6 +6,26 @@
 
 ## 2026-10
 
+- **Revisão da release staging → main (2026-10-25/26):** migrations `460` a `463`, sem ADR nova
+  (faixa "Situação atual" na [ADR 0103](adr/0103-emails-automaticos-saem-pelo-evento.md)).
+  Decisões do dono de 2026-10-26 (`463`): o vínculo de Cliente, Viagem, porto ou terminal do B/L
+  sai pela rodada de 2 min, não pelo evento, para o NOA/NOR/NOB levar todos os B/Ls vinculados B/L
+  a B/L; a 1ª cobrança da Régua espera a fila de efeitos do Cliente, para o lote de uma importação
+  de devoluções sair num e-mail só.
+  Desbloqueio de CE: no Portal, o pedido VIP coberto pelo anual do ano anterior pode ser enviado
+  em janeiro (o botão seguia o anual vigente hoje, e não a cobertura que o envio confere); o prazo
+  de um B/L exportado não muda com fato posterior à exportação (`460`); o anual vencido que cobre
+  B/L exportado e ainda não conferido não é expurgado (`460`); o vínculo do CE ignora a auditoria
+  de um B/L excluído com o mesmo número (`460`). Busca por lista: tela e banco separam os termos
+  nos mesmos espaços (`461`); em Faturas, a busca sem lista volta a ser a de antes (um "." casava
+  todo B/L); em Alertas, a lista casa os B/Ls guardados no alerta. E-mails: reenvio do aviso do
+  Desbloqueio de CE reservado por 3 min, no passo do cron (`462`); a rodada pelo evento não varre as
+  solicitações abertas; o alerta `rotina_http_falhou` cita a chamada pelo evento (`462`); a tentativa
+  reaproveitada ganha o e-mail exato; os Comunicados do operador usam o Portal do ambiente; o
+  `PORTAL_URL` sem esquema gera link absoluto. Comunicados: "atracou por último" na Cobertura é a
+  ATB das Atracações; o aviso do link diz quando é o filtro que esconde o Comunicado. Portal: Navio
+  e Viagem da aba BLs não perdem letras nem o cursor; a releitura que falha não apaga os cartões do
+  Painel nem some com a programação vazia.
 - **E-mails automáticos saem pelo evento (2026-10-24, revisão de 2026-10-25):** migrations `458` e
   `459`, [ADR 0103](adr/0103-emails-automaticos-saem-pelo-evento.md). O banco chama a Edge Function da
   rotina no evento, com o segredo da própria rotina e `{"source":"trigger"}`, e o cron fica como

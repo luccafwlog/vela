@@ -1,5 +1,21 @@
 # 0103 — E-mails automáticos saem pelo evento, com o cron como rede de segurança
 
+> **Situação atual (2026-10-26, revisão da PR de release luccafwlog/vela#1061,
+> migrations `462` e `463`).** Decisões do dono: (a) o B/L que ganha Cliente,
+> Viagem, porto ou terminal deixa de chamar o runner de Comunicados na hora — o
+> vínculo feito B/L a B/L disparava o NOA/NOR/NOB com o primeiro B/L e deixava os
+> seguintes sem aviso; essas mudanças saem na rodada de 2 minutos, com todos os
+> B/Ls vinculados até lá (o item 2 abaixo e as Consequências descrevem a versão
+> anterior); (b) a primeira cobrança da Régua espera a fila de efeitos terminar
+> de emitir as Invoices de Demurrage do Cliente (`pending`, `running`,
+> `retry_wait`, até 2 h), porque a fila emite um lote por vários minutos e o job
+> de 5 minutos sozinho não garantia "o lote sai junto" (item 7). A rodada pelo
+> evento do Desbloqueio de CE envia a fila sem varrer as solicitações abertas, e
+> o reenvio fica reservado por 3 minutos (`462`). Regra vigente:
+> [Segredos dos jobs](../operations/segredos-cron.md#disparo-pelo-evento),
+> [Clientes](../modules/clientes.md#régua-automática-de-comunicados) e
+> [Demurrage](../modules/demurrage.md#régua-de-cobrança).
+
 Status: aceito — 2026-10-24 (pedido do responsável); revista em 2026-10-25 com
 as decisões do dono na revisão da PR (itens 2, 4, 7 e 8). Implementada nas
 migrations `458` e `459` e nas Edge Functions `ce-unlock-notify-email`,

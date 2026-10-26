@@ -752,7 +752,8 @@ padrões.
   `{"source":"trigger"}` e o segredo da própria rotina, por
   `ops.kick_edge_job` (migration `458`,
   [ADR 0103](adr/0103-emails-automaticos-saem-pelo-evento.md)); o job fica como
-  rede de segurança. A Régua de Cobrança fica só com o job (migration `459`).
+  rede de segurança. A Régua de Cobrança fica só com o job (migration `459`),
+  e a primeira cobrança espera a fila de efeitos do Cliente (migration `463`).
 
 A lista completa, com segredos, jobs, horários e a versão publicada de cada
 função, está em

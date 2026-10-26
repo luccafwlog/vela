@@ -37,9 +37,9 @@ export type CeUnlockItem = {
   version: number;
   vip: boolean;
   /**
-   * O termo e a procuração anuais vigentes cobrem este B/L: ele foi importado no
-   * Vela dentro da vigência deles (migration 449). Sem isso, a solicitação segue
-   * com termo e procuração anexados a ela.
+   * Termo e procuração anuais aprovados cobrem este B/L: o CE Mercante atual foi
+   * vinculado dentro da vigência deles, e a cobertura continua depois de vencer
+   * (migration 456). Sem isso, a solicitação segue com termo e procuração anexados a ela.
    */
   vip_covered?: boolean;
   termo: boolean;

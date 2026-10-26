@@ -141,7 +141,8 @@ describeLocal('352 — B/L sem Cliente perto do ETA', () => {
     const [state, message] = item(SSZ).split('|')
     expect(state).toBe('active')
     // Ponto 15 (migration 452): a mensagem traz só a contagem e o ETA; a
-    // lista fica no metadata (o link para /bls é calculado na tela).
+    // lista fica no metadata (o link é calculado na tela: desde a decisão de
+    // 2026-10-25, a Revisão no cartão "Sem cliente vinculado" da viagem).
     expect(message).toBe(`2 B/Ls sem Cliente com ETA em ${day(5).split('-').reverse().join('/')}.`)
     expect(psql(`SELECT (i.metadata->'bl_ids')::text FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'bl_sem_cliente_perto_eta' AND a.entity_id = '${SSZ}';`)).toBe('["B352-A", "B352-B"]')
@@ -156,8 +157,8 @@ describeLocal('352 — B/L sem Cliente perto do ETA', () => {
     expect(message).toContain('1 B/L sem Cliente com ETA em')
     expect(psql(`SELECT (i.metadata->'bl_ids')::text FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'bl_sem_cliente_perto_eta' AND a.entity_id = '${SSZ}';`)).toBe('["B352-B"]')
-    // O destino do alerta: a lista de B/Ls com "Cliente: Sem Cliente vinculado"
-    // mostra só o B/L que falta, e o resumo conta o mesmo recorte.
+    // O filtro "Cliente: Sem Cliente vinculado" de /bls (migration 452) mostra só o
+    // B/L que falta, e o resumo conta o mesmo recorte que o alerta.
     const filtered = (fn: string, extra: string) => asAdmin(`SELECT public.${fn}(${extra}p_voyage_id => ${VOYAGE_ID}, p_pod => 'BRSSZ', p_without_customer => true)::text;`).split('\n').pop() ?? '{}'
     expect(JSON.parse(filtered('operational_list_bls', 'p_page => 1, p_page_size => 50, ')).rows.map((row: { id: string }) => row.id)).toEqual(['B352-B'])
     expect(JSON.parse(filtered('operational_list_bl_summary', '')).totalBls).toBe(1)

@@ -12,6 +12,8 @@ export type StoredCommunicationAttempt = {
   status: string
   provider_message_id: string | null
   dispatch_mode: string
+  /** Nulo na tentativa gravada antes da migration 451. */
+  recipient_email?: string | null
 }
 
 export type NewCommunicationAttempt = {
@@ -70,11 +72,13 @@ export function communicationAttemptRecorder(
         if (existingError || !existing) throw existingError ?? error
         const mode = dispatchMode(input.enabled)
         const unconfirmed = existing.provider_message_id == null && (existing.status === 'aceito' || existing.status === 'falha_transitoria')
-        if (unconfirmed && existing.dispatch_mode !== mode) {
-          const { error: repairError } = await store.patchAttempt(existing.id, {
-            ...(existing.dispatch_mode === 'legado' ? { recipient_key: await recipientKey(to) } : {}),
-            dispatch_mode: mode,
-          })
+        const repair: Record<string, unknown> = unconfirmed && existing.dispatch_mode !== mode
+          ? { ...(existing.dispatch_mode === 'legado' ? { recipient_key: await recipientKey(to) } : {}), dispatch_mode: mode }
+          : {}
+        // Tentativa de antes da 451 reaproveitada agora: o Histórico passa a mostrar o endereço exato.
+        if (existing.recipient_email == null) repair.recipient_email = to
+        if (Object.keys(repair).length) {
+          const { error: repairError } = await store.patchAttempt(existing.id, repair)
           if (repairError) throw repairError
         }
         return { id: existing.id, status: existing.status as EmailAttemptRecord['status'], providerMessageId: existing.provider_message_id, existing: true }

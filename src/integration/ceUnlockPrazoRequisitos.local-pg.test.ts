@@ -163,6 +163,23 @@ local('desbloqueio CE — prazo só com os quatro requisitos (migration 448)', (
     expect(pending).toMatchObject({ item: null, request: null, ficha: null, ficha_exported_at: null })
   })
 
+  // 460 (revisão da release): a 450 só limitava o evento `complete` à exportação.
+  // A entrega desmarcada ou a procuração revista depois dela empurravam o início
+  // do prazo para depois da exportação, e "Exportado fora do prazo" virava "no prazo".
+  it('B/L exportado: fato posterior à exportação não muda o início do prazo', () => {
+    const r = scenario({ paid: true, termo: true, procuracao: true, delivered: true },
+      `UPDATE public.ce_unlock_bl_deliveries SET updated_at=now()-interval '20 minutes' WHERE bl_id='CE448-A';
+       UPDATE public.ledger_settlements SET created_at=now()-interval '20 minutes' WHERE receivable_id=998448;
+       UPDATE public.ce_unlock_request_bls SET exported_at=now()-interval '10 minutes' WHERE bl_id='CE448-A';
+       UPDATE public.ce_unlock_bl_deliveries SET delivered=false, updated_at=now() WHERE bl_id='CE448-A';
+       UPDATE public.ce_unlock_documents SET reviewed_at=now() WHERE id='${procuracao}';
+       INSERT INTO public.ce_unlock_events(customer_id,request_id,action,actor_id) VALUES(${customer},'${request}','submit','${client}');`)
+    // O último fato até a exportação é a entrega e a liquidação, 20 minutos antes de agora; o termo
+    // foi aprovado 1 h antes de agora (cenário), então o prazo parte 40 minutos depois dele.
+    expect(Date.parse(r.item!) - Date.parse(r.termo_at!)).toBe(40 * 60_000)
+    expect(Date.parse(r.request!)).toBe(Date.parse(r.item!))
+  })
+
   // 450 (revisão final): a solicitação com A pronto há dias e B sem a entrega
   // só se completa quando B muda para outra solicitação (caminho A). Esse fato
   // não está na lista da 448; o prazo nascia três dias atrás, já vencido, e o

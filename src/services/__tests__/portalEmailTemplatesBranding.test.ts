@@ -180,12 +180,17 @@ describe('Identidade visual dos emails do Portal', () => {
 
 describe('renderEmailLayout — origem da logo', () => {
   it('escapa a origem no src da logo, nas duas marcas', () => {
-    const siteUrl = 'https://x.example/"><script>alert(1)</script>'
+    // Valor que não é URL válida (porta fora do intervalo) chega como veio e é escapado.
+    const siteUrl = 'https://x.example:99999/"><script>alert(1)</script>'
     for (const brand of ['portal', 'vela'] as const) {
       const html = renderEmailLayout({ brand, siteUrl, title: 'T', body: '', footer: '' })
       expect(html).not.toContain('<script>')
       expect(html).not.toContain('"><script')
-      expect(html).toContain('<img src="https://x.example/&quot;&gt;&lt;script&gt;')
+      expect(html).toContain('<img src="https://x.example:99999/&quot;&gt;&lt;script&gt;')
     }
+    // URL válida vira só a origem: o caminho não chega ao src.
+    const html = renderEmailLayout({ brand: 'portal', siteUrl: 'https://x.example/"><script>alert(1)</script>', title: 'T', body: '', footer: '' })
+    expect(html).not.toContain('script')
+    expect(html).toContain('<img src="https://x.example/')
   })
 })

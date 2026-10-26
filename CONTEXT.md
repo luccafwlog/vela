@@ -1589,12 +1589,12 @@ Cliente nunca vê nada da ZPT.
 → Regra: [Desbloqueio de CE § Conclusão](docs/modules/desbloqueio-ce.md#conclusão)
 
 **Condição VIP**
-Condição por CNPJ em que termo e procuração anuais aprovados e vigentes
-substituem os anexos de cada pedido, e a solicitação não passa pela análise.
-Não dispensa pagamento nem entrega por B/L; o selo VIP sem documentos vigentes
-não dispensa nada. A vigência do anual vale para os B/Ls cujo CE Mercante foi
-vinculado dentro dela, inclusive depois de o anual vencer; não retroage. Sem anual que cubra os
-B/Ls (faltando, vencido, recusado ou revogado), o VIP pede como os demais, com
+Condição por CNPJ em que termo e procuração anuais aprovados substituem os
+anexos de cada pedido dos B/Ls que eles cobrem, e a solicitação não passa pela
+análise. Não dispensa pagamento nem entrega por B/L; o selo VIP sem anual que
+cubra os B/Ls não dispensa nada. O anual cobre os B/Ls cujo CE Mercante foi
+vinculado dentro da vigência dele, inclusive depois de o anual vencer; não retroage. Sem anual que cubra os
+B/Ls (faltando, recusado, revogado ou com o CE vinculado fora da vigência), o VIP pede como os demais, com
 termo e procuração anexados à solicitação.
 → Regra: [Desbloqueio de CE § Requisitos e condição VIP](docs/modules/desbloqueio-ce.md#requisitos-e-condição-vip)
 

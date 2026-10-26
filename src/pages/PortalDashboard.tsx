@@ -57,8 +57,11 @@ export function PortalDashboard() {
   const correctionRequests = openRequests.filter((request) => request.state === 'changes_requested').length
 
   const loading = invLoading || demLoading || opLoading
-  const financialError = Boolean(invoicesError || demurrageError)
-  const operationLoadError = Boolean(operationError)
+  // Releitura que falha (Atualizar de Chegadas e saídas, foco da janela) não
+  // apaga os cartões: o React Query mantém a última leitura junto do erro, e o
+  // aviso só toma o lugar deles quando não há leitura nenhuma.
+  const financialError = Boolean((invoicesError && !invoices) || (demurrageError && !demurrage))
+  const operationLoadError = Boolean(operationError && !operationBls)
 
   return (
     <ScheduleWidthPage>

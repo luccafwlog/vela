@@ -20,6 +20,8 @@ const [invoiceA, invoiceB, invoiceD, invoiceE, invoiceF, invoiceG] = invoiceIds 
 const customerCnpj = syntheticCnpj(30301)
 // Quinta-feira, 10/09/2026, 09:00 em Brasília: dia útil, dentro da janela.
 const BUSINESS_MORNING = "'2026-09-10T12:00:00Z'::timestamptz"
+// Efeito de faturamento de Demurrage na fila da importação (migration 463).
+const effectAction = '99330300-0000-4000-8000-000000000463'
 
 function psql(sql: string): string {
   return execPsql([
@@ -66,6 +68,7 @@ function cleanup(): void {
     SET session_replication_role = replica;
     DELETE FROM public.demurrage_invoices WHERE id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);
     SET session_replication_role = origin;
+    DELETE FROM public.import_pending_effects WHERE source_action_id = '${effectAction}';
     DELETE FROM public.bls WHERE id LIKE 'REG303-BL-%';
     DELETE FROM public.customer_contact_change_events WHERE customer_id = ${customerId};
     DELETE FROM public.customer_contacts WHERE customer_id = ${customerId};
@@ -245,6 +248,32 @@ describeLocal('Régua de Cobrança de Demurrage — plano dos e-mails (1E, 2.5, 
     // 2ª cobrança vence 17/09 (quinta) 00h; às 08h ainda não sai, às 9h07 sai.
     expect(claimAt("'2026-09-17T11:00:00Z'::timestamptz").map((item) => Number(item.invoice_id))).not.toContain(invoiceA)
     expect(claimAt("'2026-09-17T12:07:00Z'::timestamptz").find((item) => Number(item.invoice_id) === invoiceA)?.attempt_discriminator).toBe(2)
+  })
+
+  // 463 (decisão do dono de 2026-10-26): a fila de efeitos emite as Invoices de uma planilha
+  // de devoluções uma a uma, por vários minutos; a rodada no meio dividia o lote em dois e-mails.
+  it('463 — com faturamento de Demurrage do Cliente na fila de efeitos, a 1ª cobrança espera; terminado, sai', () => {
+    const effect = (status: string) => psql(`
+      INSERT INTO public.import_pending_effects (source_action_id, effect_kind, entity_id, status)
+      VALUES ('${effectAction}', 'demurrage_billing', 'REG303-BL-${invoiceA}', '${status}')
+      ON CONFLICT (source_action_id, effect_kind, entity_id) DO UPDATE SET status = EXCLUDED.status;`)
+    for (const status of ['pending', 'running', 'retry_wait']) {
+      effect(status)
+      expect(claimAt(BUSINESS_MORNING), status).toEqual([])
+    }
+    // Bloqueado espera uma pessoa: não segura a Régua.
+    effect('blocked')
+    expect(claimAt(BUSINESS_MORNING).length).toBe(invoiceIds.length)
+    psql(`DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);`)
+    effect('succeeded')
+    expect(claimAt(BUSINESS_MORNING).length).toBe(invoiceIds.length)
+    // As cobranças seguintes não esperam a fila.
+    psql(`
+      INSERT INTO public.customer_communications (customer_id, kind, nature, status, anchor_invoice_id, attempt_discriminator)
+      VALUES (${customerId}, 'cobranca_demurrage', 'demurrage', 'enviado', ${invoiceA}, 1);`)
+    effect('running')
+    expect(claimAt("'2026-09-17T12:07:00Z'::timestamptz").find((item) => Number(item.invoice_id) === invoiceA)?.attempt_discriminator).toBe(2)
+    psql(`DELETE FROM public.import_pending_effects WHERE source_action_id = '${effectAction}';`)
   })
 
   it('4.3 — a data do ROE é a da cotação vigente no histórico', () => {

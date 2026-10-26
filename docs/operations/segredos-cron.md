@@ -227,12 +227,14 @@ pelo relógio).
 |---|---|---|---|---|
 | `ce-unlock-notify-email` | `ce_unlock_email_outbox`, inserção (por instrução) | `CE_UNLOCK_NOTIFY_SECRET`, `Authorization: Bearer` | nenhum | `*/5 * * * *` (à mão) |
 | `portal-email-events-runner` | `portal_email_events`, evento `pending` gravado pelo webhook | `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `Authorization: Bearer` | nenhum | `* * * * *` |
-| `customer-communication-auto-runner` | `bls` (B/L com Cliente inserido; Cliente, Viagem, porto, terminal, faturamento, CE, revisão, peso, cancelamento ou cálculo das taxas mudou); `audit_logs` (ETA, ATA, omissão ou exclusão da Escala); `voyage_escala_terminal_state` (ATB); `customer_contact_box_links` (contato ligado a caixa); `customer_contacts` (e-mail trocado ou contato reativado) | `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `X-Communication-Automation-Secret` | 90 s | `1-59/2 * * * *` |
+| `customer-communication-auto-runner` | `bls` (B/L com Cliente inserido; faturamento, CE, revisão, peso, cancelamento ou cálculo das taxas mudou; Cliente, Viagem, porto e terminal saem pelo job desde a migration `463`, para o NOA/NOR/NOB levar todos os B/Ls vinculados B/L a B/L); `audit_logs` (ETA, ATA, omissão ou exclusão da Escala); `voyage_escala_terminal_state` (ATB); `customer_contact_box_links` (contato ligado a caixa); `customer_contacts` (e-mail trocado ou contato reativado) | `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `X-Communication-Automation-Secret` | 90 s | `1-59/2 * * * *` |
 
 A Régua de Cobrança (`demurrage-dunning`) fica só com o job de 5 minutos
 (`3-59/5 * * * *`). A `458` a chamava na emissão da Invoice; a `459` tirou essa
 chamada, porque a fila de efeitos emite as Invoices de uma importação uma a
-uma, e a chamada na primeira dividia o lote do mesmo Cliente em dois e-mails
+uma, e a chamada na primeira dividia o lote do mesmo Cliente em dois e-mails; a
+`463` faz a primeira cobrança esperar a fila de efeitos do Cliente, porque o
+lote leva vários minutos e o job sozinho também o dividia
 ([Demurrage](../modules/demurrage.md#régua-de-cobrança)).
 
 Regras do disparo:
@@ -249,8 +251,12 @@ Regras do disparo:
   intervalo, dispara sem registrar.
 - **Só o segredo dedicado.** O compartilhado de transição da migration `438`
   (`CE_UNLOCK_CLEANUP_SECRET`) não serve ao disparo. Sem o par `SUPABASE_URL` e
-  segredo no Vault, nada dispara e nada é avisado; o job, que passa pelo
-  dispatcher, é quem avisa com `WARNING`.
+  segredo no Vault, nada dispara e nada é avisado. O job avisa com `WARNING`
+  quando ele mesmo não acha o segredo, mas o do Desbloqueio de CE escolhe o
+  segredo por `ops.preferred_vault_secret` e cai no compartilhado sem aviso: sem
+  `CE_UNLOCK_NOTIFY_SECRET` no Vault, o job segue e o disparo pelo evento fica
+  desligado em silêncio. `ops.edge_job_kicks.last_kicked_at` parado com avisos
+  saindo na fila é o sinal (consulta em **Verificar**, abaixo).
 - **Falha não derruba a gravação.** Erro no disparo vira `WARNING`; o cron
   processa.
 - **Sucesso do heartbeat só do cron.** A Edge Function lê o corpo: com
@@ -277,7 +283,12 @@ ORDER BY k.function;
 `net._http_response` guarda as respostas por algumas horas; sem linha, o
 disparo é mais antigo que a retenção do `pg_net`. As rotinas sem intervalo
 (avisos do Desbloqueio de CE e eventos) só registram quando pegam a linha sem
-disputa.
+disputa. O alerta `rotina_http_falhou` conta todas as respostas de
+`net._http_response`, inclusive as das chamadas pelo evento, que não aparecem em
+`cron.job_run_details`: pelo horário, procure o `last_request_id` acima (texto
+do alerta desde a migration `462`). A rodada do Desbloqueio de CE chamada pelo
+evento só envia a fila; a varredura das solicitações abertas
+(`ce_unlock_refresh_open`) fica com o job.
 
 **Medir no ambiente** (staging ou produção, depois do deploy da `458` e com o
 Vault e os secrets da Edge provisionados). A medição ficou para um trabalho à
@@ -292,7 +303,9 @@ parte do dono (decisão de 2026-10-25); o roteiro fica aqui para ele:
    `ce_mercante_taxas` e até o `email.delivered`. Meta: até ~3 min.
 3. Régua de Cobrança: emita uma Invoice de Demurrage dentro da janela e confira
    que o Comunicado `cobranca_demurrage` sai na rodada seguinte do job (até
-   5 min); duas Invoices do mesmo Cliente emitidas no mesmo intervalo vão juntas.
+   5 min); duas Invoices do mesmo Cliente emitidas no mesmo intervalo vão juntas,
+   e o lote de uma importação de devoluções espera a fila de efeitos do Cliente
+   terminar (migration `463`).
 4. Better Stack: o sucesso continua vindo só no ritmo do cron; uma falha da
    chamada pelo evento aparece como `/fail`.
 

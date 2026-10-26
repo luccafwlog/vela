@@ -161,10 +161,11 @@ function historyStatusTone(status: string) {
  * a lista traz todos os Comunicados do Cliente, e com outro filtro da tela ele
  * pode nem estar na lista.
  */
-function linkedCommunicationNotice(items: CustomerCommunicationHistoryItem[] | undefined, linkedId: number): string {
-  if (!items?.length) return 'Comunicado do link.'
+function linkedCommunicationNotice(items: CustomerCommunicationHistoryItem[] | undefined, linkedId: number, filtered: boolean): string {
+  if (!items) return 'Comunicado do link.'
   const linked = items.find((item) => item.id === linkedId)
-  if (!linked) return 'O Comunicado do link não aparece na lista com os filtros atuais.'
+  // Lista vazia com filtro da tela: o filtro esconde o Comunicado, que existe.
+  if (!linked) return filtered || items.length ? 'O Comunicado do link não aparece na lista com os filtros atuais.' : 'Comunicado não encontrado.'
   const customer = linked.customer?.name ?? 'Cliente'
   if (linked.anchor_voyage_id == null) return `O Comunicado do link não tem viagem: a lista mostra todos os Comunicados de ${customer}; o do link está aberto.`
   const voyage = [linked.vessel_name, linked.voyage_number].filter(Boolean).join(' / ')
@@ -304,6 +305,7 @@ export function ClientesComunicacao() {
   })
   // Só o Comunicado livre deixa o operador escolher o público; os demais modelos
   // recebem o público imposto por `getCustomerCommunicationAudienceRule`.
+  const historyFiltered = Object.values(historyFilters).some(Boolean)
   const [freeAudience, setFreeAudience] = useState<CustomerCommunicationAudience>({ mode: 'todos' })
   const { data: settings, isLoading: settingsLoading, error: settingsError, refetch: refetchSettings } = useAppSettings()
   const { effectiveRole, isAdmin, can } = useAuth()
@@ -1438,7 +1440,7 @@ export function ClientesComunicacao() {
           {historyCommunicationId > 0 ? (
             // Ponto 8 de 2026-10-23: o link de um Comunicado abre todos os envios do Cliente na viagem.
             <div className="mb-3 flex flex-wrap items-center gap-3" role="status">
-              <span>{linkedCommunicationNotice(historyQuery.data, historyCommunicationId)}</span>
+              <span>{linkedCommunicationNotice(historyQuery.data, historyCommunicationId, historyFiltered)}</span>
               <Button
                 type="button"
                 variant="secondary"
@@ -1569,7 +1571,7 @@ export function ClientesComunicacao() {
                 </table>
               </div>
             ) : (
-              <p className="py-8 text-center text-[var(--app-muted)]">{historyCommunicationId > 0 ? 'Comunicado não encontrado.' : 'Nenhum comunicado registrado ainda.'}</p>
+              <p className="py-8 text-center text-[var(--app-muted)]">{historyCommunicationId > 0 ? (historyFiltered ? 'Nenhum Comunicado com os filtros atuais.' : 'Comunicado não encontrado.') : 'Nenhum comunicado registrado ainda.'}</p>
             )}
           </Block>
         </>

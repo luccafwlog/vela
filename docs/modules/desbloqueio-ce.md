@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; mudanças da PR 956 conferidas e observadas em produção em 2026-10-15, com os ajustes da PR 961; [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md) arquivado; B/L que muda de solicitação (migration `299`, [ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)) e "Taxas locais aguardando fatura" (migration `298`) ainda não aplicados no Supabase remoto · **Atualizado:** 2026-10-20 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; mudanças da PR 956 conferidas e observadas em produção em 2026-10-15, com os ajustes da PR 961; [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md) arquivado; B/L que muda de solicitação (migration `299`, [ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)) e "Taxas locais aguardando fatura" (migration `298`) ainda não aplicados no Supabase remoto · **Atualizado:** 2026-10-25 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -195,7 +195,7 @@ operacional ([segredos e cron](../operations/segredos-cron.md)).
 
 Os quatro requisitos são termo de devolução aprovado, procuração aprovada, taxas locais
 integralmente liquidadas (Financeiro) e B/L original entregue (BL de Entrega). Selo VIP
-não dispensa documento: exige termo e procuração anuais aprovados/vigentes para o mesmo
+não dispensa documento: exige termo e procuração anuais aprovados que cubram o B/L, do mesmo
 CNPJ. Validade até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não renova
 em janeiro. **A vigência vale pelo vínculo do CE Mercante e não retroage** (migration `456`,
 decisão do responsável de 2026-10-25, [ADR 0102](../adr/0102-vigencia-anual-pelo-vinculo-do-ce.md),
@@ -205,10 +205,13 @@ cobrindo esse B/L depois de 31/12, enquanto estiver aprovado (revogado ou recusa
 Vale o vínculo do CE atual: trocar o número muda a data, reformatar o mesmo número não muda; o
 B/L que nasce com o CE tem o vínculo na criação. A data sai da auditoria do B/L
 (`ce_unlock_private.ce_link_day`: a última troca para o CE atual; sem troca registrada, a
-criação do B/L). Exemplos: CE vinculado em 20/12, com o VIP começando na virada do ano, não ganha
+criação do B/L; desde a migration `460`, só a auditoria a partir da criação do B/L atual, para o
+B/L excluído e importado de novo com o mesmo número não herdar a data do antigo). Exemplos: CE vinculado em 20/12, com o VIP começando na virada do ano, não ganha
 o anual novo e segue as regras de quem não tem o anual (solicitação comum, `source = 'request'`,
 com termo e procuração anexados); CE vinculado em 20/12 com o anual daquele ano aprovado segue
-coberto em janeiro, e o pedido VIP aberto em dezembro não trava. A situação VIP do Cliente na
+coberto em janeiro, e o pedido VIP aberto em dezembro não trava: no Portal, **Solicitar
+desbloqueio** do pedido VIP segue a cobertura de cada B/L (`vip_covered`), a mesma que o envio
+confere, e não o anual vigente hoje (revisão da release, 2026-10-25). A situação VIP do Cliente na
 tela (anuais vigentes hoje) não muda; a seleção de B/Ls no Portal segue a cobertura de cada B/L
 (`vip_covered`). O rascunho só nasce VIP
 (`vip_annual`) quando os anuais cobrem todos os B/Ls; um B/L sem cobertura faz o pedido inteiro
@@ -284,8 +287,10 @@ ativos têm os quatro requisitos; desfazer um requisito a reabre. Solicitação 
 não pode mais ser cancelada (nem pelo desk). O aviso "documentação validada" sai só na
 primeira conclusão. A conclusão é reavaliada nos comandos e, para liquidações feitas fora
 do módulo, pela varredura `ce_unlock_refresh_open()` que a Edge Function `ce-unlock-notify-email`
-executa a cada rodada: a do job de 5 minutos e, desde a migration `458`, a disparada por
-cada aviso gravado na fila (ponytail: O(solicitações abertas); upgrade: fila por trigger).
+executa na rodada do job de 5 minutos (ponytail: O(solicitações abertas); upgrade: fila por
+trigger). A rodada disparada por cada aviso gravado na fila (migration `458`) só envia a fila,
+sem a varredura: o aviso foi gravado por um comando que já reavaliou a própria solicitação, e a
+varredura trava todas as abertas numa transação (revisão da release, 2026-10-25).
 
 ### Prazo (SLA)
 
@@ -299,8 +304,10 @@ migration `450`: ela cobre o fato que completa a solicitação sem estar na list
 que muda para outra solicitação, as Taxas Locais que viram isentas, a troca de Cliente, o ajuste
 COD ou a Fatura desatualizada que se resolvem — e que antes fazia o prazo nascer no passado, já
 vencido. Por ela, o prazo da solicitação começa na hora da validação: na hora do fato quando ele
-passa por comando do módulo, em até 5 minutos quando vem da liquidação (job
-`ce-unlock-notify-email`). Faltando um, não há
+passa por comando do módulo, em até 5 minutos quando vem da liquidação ou de outro fato fora do
+módulo (job `ce-unlock-notify-email`). Nesse intervalo, o B/L que já cumpre os quatro mostra o
+prazo do último fato da lista, que pode estar no passado; a validação o traz para a hora dela.
+Se o job parar, a validação não acontece e esse prazo do B/L fica no fato anterior. Faltando um, não há
 prazo em lugar nenhum: o Portal mostra "—" e "O prazo para desbloqueio começa a contar quando os
 quatro requisitos estiverem cumpridos…", o Vela mostra a célula vazia e nenhum aviso cita prazo.
 A regra está no banco: `ce_unlock_private.item` só dá `sla_started_at` ao B/L com os quatro, e
@@ -308,14 +315,16 @@ A regra está no banco: `ce_unlock_private.item` só dá `sla_started_at` ao B/L
 prontos (usada em Minhas solicitações, na fila Solicitações e na ficha do Cliente). Desfazer um
 requisito (desmarcar a entrega, recusar ou revogar um documento, perder a liquidação) tira o
 prazo; cumpri-lo de novo recomeça a contagem. Depois da exportação o prazo do B/L fica, mesmo que
-um requisito caia (o anual VIP que vence na virada do ano, a entrega desmarcada), e a validação
-posterior não o move (migration `450`). O aviso "documentação validada" usa o mesmo
+um requisito caia (a entrega desmarcada, um documento revogado), e nenhum fato posterior à
+exportação o move: nem a validação (migration `450`), nem o envio, a entrega, a liquidação, a
+avulsa ou a revisão de documento (migration `460`; antes, desmarcar a entrega de um B/L exportado
+fora do prazo o fazia passar a "Exportado no prazo"). O aviso "documentação validada" usa o mesmo
 `request_sla_start`, lido depois de gravar a validação. A fila Solicitações, que só tem documentos a
 analisar, mostra a hora do envio, não prazo; a ficha do Cliente mostra o prazo da concluída até a
 última exportação (`exported_at` de `ce_unlock_customer_requests`), como o detalhe.
 **Teste:** `ceUnlockPrazoRequisitos.local-pg.test.ts` (as 16 combinações dos requisitos, o pedido
-com dois B/Ls, o B/L exportado que perde um requisito, a validação pela mudança do B/L pendente e o
-aviso "documentação validada").
+com dois B/Ls, o B/L exportado que perde um requisito, o fato posterior à exportação, a validação
+pela mudança do B/L pendente e o aviso "documentação validada").
 
 Só dias úteis, sem feriados. Antes das 12:00 vence às 17:00 do mesmo dia; a partir das 12:00,
 às 12:30 do próximo dia útil; sábado/domingo vencem segunda às 12:00.
@@ -337,8 +346,9 @@ Desde a migration `458`, gravar a linha na fila chama a Edge Function na hora
 5 minutos, que segue como rede de segurança para reenvios. A leitura da fila
 (`ce_unlock_email_pending`) reserva as linhas por 10 minutos (`claimed_until`, com
 `FOR UPDATE SKIP LOCKED`), para a rodada do gatilho e a do cron não pegarem a mesma
-linha; a linha que volta para nova tentativa fica reservada por 4 minutos, e o
-reenvio segue o passo do cron. As chaves de idempotência por destinatário
+linha; a linha que volta para nova tentativa fica reservada por 3 minutos (migration `462`;
+eram 4 na `458`, e a falha logo depois de um múltiplo de 5 escorregava para a segunda rodada), e
+o reenvio segue o passo do cron. As chaves de idempotência por destinatário
 (`ce-unlock:{id}:{destinatário}` e o `Idempotency-Key` no provedor) não mudam. O
 mecanismo do disparo está em [segredos e cron](../operations/segredos-cron.md#disparo-pelo-evento). O Portal mostra
 só a data do prazo (nunca "vencido"), e seu histórico omite exportação, entrega e VIP.
@@ -452,13 +462,14 @@ O expurgo reivindica/fixa os registros no banco antes de apagar objetos;
 rascunho expirado é cancelado sob lock, e falha física permite retry.
 O modelo atual e anuais vigentes não são expurgados por mera idade. O anual vencido sai
 quando há outro aprovado mais novo do mesmo tipo, exceto enquanto ainda cobre B/L do Cliente
-não cancelado, nem exportado nem conferido (vínculo do CE na vigência dele, migration `457`), por
-até um ano depois do fim da vigência.
+não cancelado e ainda não conferido (vínculo do CE na vigência dele, migration `457`), por
+até um ano depois do fim da vigência. O B/L exportado e não conferido também segura o anual
+(migration `460`): se a ZPT devolver "Divergente", reexportar exige termo e procuração.
 
 Expurgo usa Storage API, preservando metadados e histórico
 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), item 5;
-**Código:** `ce_unlock_cleanup_candidates`, migration `280`; **Teste:**
-`ceUnlock.local-pg.test.ts`):
+**Código:** `ce_unlock_cleanup_candidates`, migrations `280`, `457` e `460`; **Teste:**
+`ceUnlock.local-pg.test.ts` e `ceUnlockVigenciaAnual.local-pg.test.ts`):
 
 - upload abandonado após 1 dia e rascunho após 7 dias;
 - anexos de solicitação 30 dias após o encerramento (concluída ou cancelada,

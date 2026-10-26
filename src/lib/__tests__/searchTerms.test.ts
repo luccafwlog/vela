@@ -9,6 +9,8 @@ describe('searchTerms', () => {
     // Espaço não separável (colado de planilha ou e-mail) também separa.
     expect(searchTokens('MEDU1234567 MEDU2345678')).toEqual(['medu1234567', 'medu2345678'])
     expect(searchTokens('  ')).toEqual([])
+    // Os demais espaços Unicode separam como no banco (migration 461), inclusive o não separável estreito.
+    expect(searchTokens('MEDU1234567\u202fMEDU2345678\u2007MEDU3456789')).toEqual(['medu1234567', 'medu2345678', 'medu3456789'])
   })
 
   it('coluna colada com o mesmo número em toda linha continua sendo lista', () => {

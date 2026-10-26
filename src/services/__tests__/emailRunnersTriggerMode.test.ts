@@ -31,16 +31,21 @@ type Runner = {
   edge: string
   job: BetterStackHeartbeatJob
   // Roda a rodada com banco falso e devolve o que ela fez no banco.
-  run: () => Promise<{ status: number; body: unknown; work: string[] }>
+  run: (source: 'cron' | 'trigger') => Promise<{ status: number; body: unknown; work: string[] }>
+  // O que só a rodada do cron faz no banco.
+  cronOnly?: string[]
 }
 
 const runners: Runner[] = [
   {
     edge: 'ce-unlock-notify-email',
     job: 'ceUnlockNotifyEmail',
-    run: async () => {
+    // A varredura das abertas trava todas elas: só o cron a faz (revisão da release).
+    cronOnly: ['ce_unlock_refresh_open'],
+    run: async (source) => {
       const work: string[] = []
       const result = await runCeUnlockNotify({
+        source,
         refreshOpen: async () => { work.push('ce_unlock_refresh_open'); return { data: 0, error: null } },
         providerConfigured: true,
         communicationsEnabled: async () => true,
@@ -87,7 +92,7 @@ const runners: Runner[] = [
 async function invoke(runner: Runner, body: string, authorized = true) {
   let work: string[] = []
   const { response, heartbeats } = await withHeartbeat(runner.job, body, authorized, async () => {
-    const result = await runner.run()
+    const result = await runner.run(body === TRIGGER ? 'trigger' : 'cron')
     work = result.work
     return Response.json(result.body, { status: result.status })
   })
@@ -116,9 +121,11 @@ describe('rotinas de e-mail nos modos cron e gatilho (migration 458)', () => {
 
       expect(cron.status).toBe(200)
       expect(trigger.status).toBe(cron.status)
-      expect(trigger.body).toEqual(cron.body)
+      // O Desbloqueio de CE devolve quantas abertas a varredura reavaliou: `null` sem varredura.
+      expect(trigger.body).toEqual(runner.cronOnly ? { ...(cron.body as object), refreshed: null } : cron.body)
       expect(cron.work.length).toBeGreaterThan(0)
-      expect(trigger.work).toEqual(cron.work)
+      expect(trigger.work).toEqual(cron.work.filter((step) => !runner.cronOnly?.includes(step)))
+      for (const step of runner.cronOnly ?? []) expect(cron.work).toContain(step)
       expect(cron.heartbeats).toEqual([HEARTBEAT])
       expect(trigger.heartbeats).toEqual([])
     })
