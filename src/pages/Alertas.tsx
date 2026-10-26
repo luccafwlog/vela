@@ -41,6 +41,7 @@ import {
 } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
 import { retryImportEffect } from '../services/importEffects'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 function getTomorrowDateString(): string {
   const d = new Date()
@@ -92,6 +93,20 @@ function sumSummary(summary: AlertDepartmentSummary[] | undefined, department: s
   return summary
     .filter((row) => department === 'all' || row.department === department)
     .reduce((total, row) => total + Number(row[field] ?? 0), 0)
+}
+
+/**
+ * B/Ls do alerta que a lista colada também casa: o alerta por escala ou por
+ * Cliente guarda os B/Ls em `metadata` (`bl_id`, `bl_ids`, `bls`), não no `entity_id`.
+ */
+function alertBlIds(metadata: unknown): string[] {
+  if (!metadata || typeof metadata !== 'object') return []
+  const record = metadata as { bl_id?: unknown; bl_ids?: unknown; bls?: unknown }
+  const ids: unknown[] = [record.bl_id, ...(Array.isArray(record.bl_ids) ? record.bl_ids : [])]
+  if (Array.isArray(record.bls)) {
+    for (const bl of record.bls) ids.push(typeof bl === 'object' && bl ? (bl as { bl_id?: unknown }).bl_id : bl)
+  }
+  return ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
 }
 
 export function Alertas() {
@@ -194,7 +209,7 @@ export function Alertas() {
         const metadataStr = alert.metadata ? JSON.stringify(alert.metadata).toLowerCase() : ''
         const metadataMatch = metadataStr.includes(q)
 
-        return messageMatch || entityIdMatch || typeLabelMatch || entityLabelMatch || metadataMatch
+        return messageMatch || entityIdMatch || typeLabelMatch || entityLabelMatch || metadataMatch || matchesAnyToken(q, [alert.entity_id, ...alertBlIds(alert.metadata)])
       })
     }
 

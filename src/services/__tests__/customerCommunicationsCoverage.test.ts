@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockFrom, mockRpc } = vi.hoisted(() => ({
+const { mockFrom, mockRpc, mockEscalas } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
+  mockEscalas: vi.fn(async () => new Map()),
+}))
+
+// Escalas pela projeção canônica (a mesma de Viagens, Veículos e Baplie).
+vi.mock('../voyageRouteSchedules', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../voyageRouteSchedules')>()),
+  listVoyageEscalaSchedulesByVoyageIds: mockEscalas,
 }))
 
 vi.mock('../supabase', () => ({
   supabase: { from: mockFrom, rpc: mockRpc },
 }))
 
-import { buildVoyageCommunicationCoverage, fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage } from '../customerCommunications'
+import { buildVoyageCommunicationCoverage, fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage, orderCoverageByEscala } from '../customerCommunications'
 
 function queryResult(data: unknown, error: unknown = null) {
   const chain: Record<string, unknown> = {}
@@ -219,5 +226,139 @@ describe('buildVoyageCommunicationCoverage — drill-down e fila', () => {
     })
     expect(dueRow.details[0].cells.ce_mercante_taxas.state).toBe('devido')
     expect(dueRow.details[0].cells.aviso_prontidao_nor.state).toBe('nao_devido')
+  })
+})
+
+// Ponto 7 de 2026-10-23: a Cobertura de viagens segue a ordem da escala, a mesma
+// regra das faixas de Viagens, Veículos e Baplie (compareVoyageRailItems).
+describe('Cobertura de viagens na ordem da escala', () => {
+  const row = (voyageId: number, vesselName: string, voyageNumber: string, port: string | null) => ({ voyageId, vesselName, voyageNumber, port })
+
+  it('a escala mais próxima no topo e a mais distante embaixo; portos da viagem pela ETA', () => {
+    const rows = [
+      row(10, 'ALFA', '001', 'BRSSZ'), row(10, 'ALFA', '001', 'BRVIX'),
+      row(20, 'BETA', '002', 'BRSSA'),
+      row(30, 'GAMA', '003', 'BRPNG'),
+      row(40, 'DELTA', '004', null),
+    ]
+    const escalas = new Map([
+      // ALFA: Vitória antes de Santos; a próxima escala da viagem é 05/11.
+      [10, [{ pod: 'BRSSZ', eta: '2026-11-10T08:00:00Z', etb: null, ata: null }, { pod: 'BRVIX', eta: '2026-11-05T08:00:00Z', etb: null, ata: null }]],
+      // BETA chega antes de todas.
+      [20, [{ pod: 'BRSSA', eta: '2026-11-01T08:00:00Z', etb: null, ata: null }]],
+      // GAMA já atracou em tudo: sem próxima escala, vai para o fim, antes da DELTA, que não tem escala.
+      [30, [{ pod: 'BRPNG', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-20T09:00:00Z', atb: '2026-10-20T15:00:00Z' }]],
+    ])
+    expect(orderCoverageByEscala(rows, escalas).map((r) => `${r.vesselName} ${r.port ?? '—'}`))
+      .toEqual(['BETA BRSSA', 'ALFA BRVIX', 'ALFA BRSSZ', 'GAMA BRPNG', 'DELTA —'])
+  })
+
+  // Decisão de 2026-10-25: no fim, a viagem que atracou por último vem primeiro, porque é
+  // quando o NOB e o CE e Taxas ficam devidos; antes, ordem alfabética do navio. "Atracou" é
+  // a ATB da Atracação, não a ATA da escala (chegada ao porto).
+  it('sem próxima escala, a viagem que atracou por último vem primeiro', () => {
+    const escalas = new Map([
+      [1, [{ pod: 'BRSSZ', eta: '2026-10-01T08:00:00Z', etb: null, ata: '2026-10-01T10:00:00Z', atb: '2026-10-01T20:00:00Z' }]],
+      [2, [{ pod: 'BRSSZ', eta: '2026-10-20T08:00:00Z', etb: null, ata: '2026-10-21T10:00:00Z', atb: '2026-10-21T20:00:00Z' }, { pod: 'BRVIX', eta: '2026-10-18T08:00:00Z', etb: null, ata: '2026-10-18T09:00:00Z', atb: '2026-10-18T20:00:00Z' }]],
+      // Escala omitida não conta como atracação.
+      [3, [{ pod: 'BRSSZ', eta: '2026-10-10T08:00:00Z', etb: null, ata: '2026-10-10T10:00:00Z', atb: '2026-10-10T20:00:00Z' }, { pod: 'BRVIX', eta: '2026-10-25T08:00:00Z', etb: null, ata: '2026-10-25T09:00:00Z', atb: '2026-10-25T20:00:00Z', omitted: true }]],
+      [4, [{ pod: 'BRSSZ', eta: '2026-11-03T08:00:00Z', etb: null, ata: null }]],
+      // Chegou por último (ATA), mas ainda sem atracação: fica com as sem atracação.
+      [6, [{ pod: 'BRSSZ', eta: '2026-10-24T08:00:00Z', etb: null, ata: '2026-10-24T10:00:00Z', atb: null }]],
+    ])
+    const ordered = orderCoverageByEscala([row(1, 'ALFA', '1', 'BRSSZ'), row(2, 'BETA', '2', 'BRSSZ'), row(3, 'GAMA', '3', 'BRSSZ'), row(4, 'ZETA', '4', 'BRSSZ'), row(5, 'AAA', '5', null), row(6, 'BBB', '6', 'BRSSZ')], escalas)
+    expect(ordered.map((r) => r.vesselName)).toEqual(['ZETA', 'BETA', 'GAMA', 'ALFA', 'AAA', 'BBB'])
+  })
+
+  it('escala omitida não conta como próxima; empate de ETA desempata por ETB, navio e viagem', () => {
+    const escalas = new Map([
+      [1, [{ pod: 'BRSSZ', eta: '2026-11-01T08:00:00Z', etb: null, ata: null, omitted: true }, { pod: 'BRVIX', eta: '2026-11-09T08:00:00Z', etb: null, ata: null }]],
+      [2, [{ pod: 'BRSSZ', eta: '2026-11-05T08:00:00Z', etb: '2026-11-06T08:00:00Z', ata: null }]],
+      [3, [{ pod: 'BRSSZ', eta: '2026-11-05T08:00:00Z', etb: '2026-11-05T20:00:00Z', ata: null }]],
+    ])
+    const ordered = orderCoverageByEscala([row(1, 'A', '1', 'BRVIX'), row(2, 'B', '2', 'BRSSZ'), row(3, 'C', '3', 'BRSSZ')], escalas)
+    expect(ordered.map((r) => r.voyageId)).toEqual([3, 2, 1])
+  })
+
+  it('a tela recebe a Cobertura já ordenada pelas escalas gravadas', async () => {
+    const tables: Record<string, unknown> = {
+      voyages: queryResult([{ id: 10, voyage_number: 'V10', vessel: { name: 'Antigo' } }, { id: 20, voyage_number: 'V20', vessel: { name: 'Novo' } }]),
+      bls: queryResult([
+        { id: 'BL-1', voyage_id: 10, customer_id: 1, pod: 'BRSSZ', ce_mercante: null, financial_status: 'pending' },
+        { id: 'BL-2', voyage_id: 20, customer_id: 1, pod: 'BRVIX', ce_mercante: null, financial_status: 'pending' },
+      ]),
+      customer_communications: queryResult([]),
+      voyage_escala_terminal_state: queryResult([]),
+      customers: queryResult([{ id: 1, name: 'Cliente 1' }]),
+    }
+    const escala = (voyageId: number, port: string, eta: string, extra: Record<string, unknown> = {}) =>
+      ({ voyageId, port, eta, ata: null, omitted: false, deleted: false, ...extra })
+    mockEscalas.mockResolvedValueOnce(new Map([
+      // A escala excluída da viagem 10, mais próxima, não conta.
+      [10, [escala(10, 'BRSSZ', '2026-12-01T08:00:00Z'), escala(10, 'BRRIG', '2026-10-30T08:00:00Z', { deleted: true })]],
+      [20, [escala(20, 'BRVIX', '2026-11-02T08:00:00Z')]],
+    ]) as never)
+    mockFrom.mockImplementation((table: string) => tables[table] ?? (() => { throw new Error(`Tabela inesperada: ${table}`) })())
+    mockRpc.mockImplementation((name: string) => Promise.resolve({ data: name === 'customer_communication_queue_preview' ? [] : { ready: false }, error: null }))
+    const result = await fetchVoyageCommunicationCoverage()
+    // A viagem 20, cadastrada depois, chega antes e fica no topo (antes saía pela ordem de cadastro).
+    expect(result.map((r) => r.voyageId)).toEqual([20, 10])
+    expect(mockEscalas).toHaveBeenCalledWith([10, 20])
+  })
+
+  it('sem próxima escala, a ATB lida das Atracações põe na frente a viagem que atracou por último', async () => {
+    const tables: Record<string, unknown> = {
+      voyages: queryResult([{ id: 10, voyage_number: 'V10', vessel: { name: 'Antigo' } }, { id: 20, voyage_number: 'V20', vessel: { name: 'Novo' } }]),
+      bls: queryResult([
+        { id: 'BL-1', voyage_id: 10, customer_id: 1, pod: 'BRSSZ', ce_mercante: null, financial_status: 'pending' },
+        { id: 'BL-2', voyage_id: 20, customer_id: 1, pod: 'BRVIX', ce_mercante: null, financial_status: 'pending' },
+      ]),
+      customer_communications: queryResult([]),
+      // Só a viagem 20 atracou; a 10 chegou depois (ATA), mas não atracou.
+      voyage_escala_terminal_state: queryResult([{ id: 'ts-1', voyage_id: 20, port: 'BRVIX', terminal_atb: '2026-10-20T12:00:00Z' }]),
+      customers: queryResult([{ id: 1, name: 'Cliente 1' }]),
+    }
+    const escala = (voyageId: number, port: string, eta: string, ata: string) =>
+      ({ voyageId, port, eta, ata, omitted: false, deleted: false })
+    mockEscalas.mockResolvedValueOnce(new Map([
+      [10, [escala(10, 'BRSSZ', '2026-10-22T08:00:00Z', '2026-10-22T10:00:00Z')]],
+      [20, [escala(20, 'BRVIX', '2026-10-19T08:00:00Z', '2026-10-19T10:00:00Z')]],
+    ]) as never)
+    mockFrom.mockImplementation((table: string) => tables[table] ?? (() => { throw new Error(`Tabela inesperada: ${table}`) })())
+    mockRpc.mockImplementation((name: string) => Promise.resolve({ data: name === 'customer_communication_queue_preview' ? [] : { ready: false }, error: null }))
+    const result = await fetchVoyageCommunicationCoverage()
+    expect(result.map((r) => r.voyageId)).toEqual([20, 10])
+  })
+})
+
+// Ponto 8 de 2026-10-23: o link de um Comunicado mostrava só ele no Histórico,
+// como se houvesse um envio só. A causa estava na consulta (filtro por id), não
+// na gravação: cada envio é uma linha. Agora o link abre todos os envios do
+// mesmo Cliente na mesma viagem.
+describe('Histórico aberto pelo link de um Comunicado', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('busca todos os Comunicados do Cliente na viagem, não só o do link', async () => {
+    const focus = queryResult(null)
+    focus.maybeSingle = vi.fn(async () => ({ data: { id: 17, customer_id: 5, anchor_voyage_id: 7 }, error: null }))
+    const list = queryResult([
+      { id: 18, customer_id: 5, kind: 'aviso_chegada_noa', anchor_voyage_id: 7, created_at: '2026-10-21T10:00:00Z' },
+      { id: 17, customer_id: 5, kind: 'ce_mercante_taxas', anchor_voyage_id: 7, created_at: '2026-10-20T19:19:00Z' },
+    ])
+    mockFrom.mockReturnValueOnce(focus).mockReturnValueOnce(list)
+    const rows = await fetchCustomerCommunicationHistory({ id: 17 })
+    expect(rows.map((row) => row.id)).toEqual([18, 17])
+    expect(focus.eq).toHaveBeenCalledWith('id', 17)
+    expect(list.eq).toHaveBeenCalledWith('customer_id', 5)
+    expect(list.eq).toHaveBeenCalledWith('anchor_voyage_id', 7)
+    expect(list.eq).not.toHaveBeenCalledWith('id', 17)
+  })
+
+  it('Comunicado inexistente devolve vazio sem consultar a lista', async () => {
+    const focus = queryResult(null)
+    focus.maybeSingle = vi.fn(async () => ({ data: null, error: null }))
+    mockFrom.mockReturnValueOnce(focus)
+    expect(await fetchCustomerCommunicationHistory({ id: 999 })).toEqual([])
+    expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 })

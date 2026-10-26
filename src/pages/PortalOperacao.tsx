@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Download } from 'lucide-react'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
@@ -18,6 +18,7 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { usePortalOperationBls } from '../hooks/usePortalOperation'
 import { formatBRL, formatDate } from '../lib/utils'
 import {
+  BL_VOYAGE_PARAMS,
   blCargoLabel,
   blMatchesReturnSituation,
   blReturnSummary,
@@ -31,6 +32,7 @@ import {
 } from '../lib/portalOperationViews'
 import { exportPortalBlsWorkbook, exportPortalContainersWorkbook } from '../services/exports'
 import type { PortalOperationBL, PortalOperationContainer, PortalOperationContainerStatus } from '../services/portalOperation'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 type OperationTab = 'bls' | 'containers'
 type OpStatus = '' | PortalOperationContainerStatus
@@ -78,6 +80,11 @@ function includesText(value: string | null | undefined, term: string) {
   return (value ?? '').toLowerCase().includes(term.trim().toLowerCase())
 }
 
+/** B/L, CE e contêiner: também aceita uma lista colada (ponto 9 de 2026-10-23). */
+function includesNumber(value: string | null | undefined, term: string) {
+  return includesText(value, term) || matchesAnyToken(term, [value])
+}
+
 type BlFilters = {
   bl: string
   ce: string
@@ -102,6 +109,10 @@ type ContainerFilters = {
 }
 
 const EMPTY_BL_FILTERS: BlFilters = { bl: '', ce: '', vessel: '', voyage: '', pol: '', pod: '', devolucao: '', status: '' }
+
+function blVoyageFromSearch(params: URLSearchParams): Pick<BlFilters, 'vessel' | 'voyage'> {
+  return { vessel: params.get(BL_VOYAGE_PARAMS.vessel) ?? '', voyage: params.get(BL_VOYAGE_PARAMS.voyage) ?? '' }
+}
 const EMPTY_CONTAINER_FILTERS: ContainerFilters = { container: '', bl: '', ce: '', vessel: '', voyage: '', pol: '', pod: '', devolucao: '', status: '' }
 
 export function PortalOperacao() {
@@ -120,7 +131,31 @@ export function PortalOperacao() {
   }
 
   const initialDevolucao = (searchParams.get('devolucao') ?? '') as ReturnSituation
-  const [blFilters, setBlFilters] = useState<BlFilters>(EMPTY_BL_FILTERS)
+  // Navio e Viagem da aba BLs vão para a URL (ponto 2 de 2026-10-23): o atalho
+  // "Ver meus B/Ls" de Chegadas e saídas chega filtrado e o recarregar mantém.
+  // O campo lê o estado da tela, não a URL: o roteador aplica a troca de
+  // endereço numa transição, e o campo controlado pela URL voltava ao valor
+  // antigo a cada tecla (o cursor pulava para o fim, como em /bls antes da
+  // a6e99ca). Navegação de fora (menu, voltar) relê a URL; REPLACE é a tela.
+  const location = useLocation()
+  const navigationType = useNavigationType()
+  const [blFilters, setBlLocalFilters] = useState<BlFilters>(() => ({ ...EMPTY_BL_FILTERS, ...blVoyageFromSearch(searchParams) }))
+  const [seenLocationKey, setSeenLocationKey] = useState(location.key)
+  if (seenLocationKey !== location.key) {
+    setSeenLocationKey(location.key)
+    if (navigationType !== 'REPLACE') setBlLocalFilters((current) => ({ ...current, ...blVoyageFromSearch(searchParams) }))
+  }
+  const setBlFilters = (next: BlFilters) => {
+    setBlLocalFilters(next)
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      for (const [key, param] of [['vessel', BL_VOYAGE_PARAMS.vessel], ['voyage', BL_VOYAGE_PARAMS.voyage]] as const) {
+        if (next[key]) params.set(param, next[key])
+        else params.delete(param)
+      }
+      return params
+    }, { replace: true })
+  }
   const [containerFilters, setContainerFilters] = useState<ContainerFilters>({
     ...EMPTY_CONTAINER_FILTERS,
     devolucao: RETURN_OPTIONS.some((o) => o.value === initialDevolucao) ? initialDevolucao : '',
@@ -216,8 +251,11 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
     () =>
       rows.filter(
         (r) =>
-          includesText(r.bl_id, filters.bl) &&
-          includesText(r.ce_mercante, filters.ce) &&
+          includesNumber(r.bl_id, filters.bl) &&
+          includesNumber(r.ce_mercante, filters.ce) &&
+          // ponytail: Navio e Viagem casam por texto contido, inclusive no atalho
+          // "Ver meus B/Ls" de Chegadas e saídas: "601" também traz "601W" do mesmo
+          // navio. Upgrade: o atalho passar o voyage_id e filtrar por ele.
           includesText(r.vessel_name, filters.vessel) &&
           includesText(r.voyage_number, filters.voyage) &&
           includesText(r.pol, filters.pol) &&
@@ -426,9 +464,9 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
     () =>
       containers.filter(
         (c) =>
-          includesText(c.container_number, filters.container) &&
-          includesText(c.bl_id, filters.bl) &&
-          includesText(c.ce_mercante, filters.ce) &&
+          includesNumber(c.container_number, filters.container) &&
+          includesNumber(c.bl_id, filters.bl) &&
+          includesNumber(c.ce_mercante, filters.ce) &&
           includesText(c.vessel_name, filters.vessel) &&
           includesText(c.voyage_number, filters.voyage) &&
           includesText(c.pol, filters.pol) &&

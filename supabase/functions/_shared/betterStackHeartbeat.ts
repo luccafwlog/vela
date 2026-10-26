@@ -38,6 +38,8 @@ export function betterStackHeartbeatUrl(
 
 type HeartbeatOptions = {
   enabled?: boolean
+  /** `false`: reporta só a falha (`/fail`), nunca o sucesso. */
+  reportSuccess?: boolean
   getEnv?: (name: string) => string | undefined
   fetcher?: typeof fetch
   timeoutMs?: number
@@ -79,6 +81,39 @@ async function sendHeartbeat(
   }
 }
 
+/**
+ * Origem da chamada autorizada. O banco dispara pelo evento com
+ * `{"source":"trigger"}` (`ops.kick_edge_job`, migration 458); o cron e a
+ * chamada manual mandam `{}`. Lê uma cópia: o corpo continua disponível.
+ */
+export async function invocationSource(req: Request): Promise<'cron' | 'trigger'> {
+  if (req.method !== 'POST') return 'cron'
+  try {
+    const body: unknown = await req.clone().json()
+    return body && typeof body === 'object' && (body as { source?: unknown }).source === 'trigger' ? 'trigger' : 'cron'
+  } catch {
+    return 'cron'
+  }
+}
+
+/**
+ * Sucesso só na execução do cron: a chamada do gatilho é extra e não pode
+ * esconder um cron parado (migration 458). A falha sai nos dois modos, para a
+ * primeira tentativa, que quase sempre é do gatilho, aparecer na hora (decisão
+ * do dono de 2026-10-25, ADR 0103). Chamada não autorizada nunca reporta.
+ */
+export async function runCronWithBetterStackHeartbeat(
+  job: BetterStackHeartbeatJob,
+  req: Request,
+  authorized: boolean,
+  operation: () => Response | Promise<Response>,
+  options: Omit<HeartbeatOptions, 'enabled' | 'reportSuccess'> = {},
+): Promise<Response> {
+  if (!authorized) return runWithBetterStackHeartbeat(job, operation, { ...options, enabled: false })
+  const reportSuccess = await invocationSource(req) === 'cron'
+  return runWithBetterStackHeartbeat(job, operation, { ...options, reportSuccess })
+}
+
 /** Runs an authorized cron invocation and reports its outcome without affecting its result. */
 export async function runWithBetterStackHeartbeat(
   job: BetterStackHeartbeatJob,
@@ -104,7 +139,9 @@ export async function runWithBetterStackHeartbeat(
   try {
     const response = await operation()
     const hasFailures = await hasOperationalFailures(response)
-    await sendHeartbeat(heartbeatUrl, hasFailures ? 'failure' : 'success', fetcher, timeoutMs)
+    if (hasFailures || options.reportSuccess !== false) {
+      await sendHeartbeat(heartbeatUrl, hasFailures ? 'failure' : 'success', fetcher, timeoutMs)
+    }
     return response
   } catch (error) {
     await sendHeartbeat(heartbeatUrl, 'failure', fetcher, timeoutMs)

@@ -13,13 +13,23 @@ import {
 } from '../../../supabase/functions/_shared/portalEmailTemplates.ts'
 import { renderEmailLayout } from '../emailLayout'
 
+// PORTAL_URL do portal antigo, como ainda pode estar num ambiente: os e-mails
+// saem com o Portal atual (ponto 4 de 2026-10-23).
 const portalUrl = 'https://portal.transhippingdesk.com.br'
-const supportEmail = 'suporte@transhippingdesk.com.br'
+const supportEmail = 'suporte@portalfwlog.com.br'
 
 describe('Identidade visual dos emails do Portal', () => {
-  it('inclui a logo real da Fwlog, hospedada a partir do PORTAL_URL', () => {
+  it('inclui a logo real da Fwlog, hospedada a partir do PORTAL_URL, nunca no domínio do portal antigo', () => {
     const { html } = inviteTemplate({ companyName: 'ACME LTDA', cnpjMasked: '12.***.***/0001-90', activationUrl: 'https://x/ativar', portalUrl, supportEmail })
-    expect(html).toContain(`<img src="${portalUrl}/branding/fwlog-logo-white.png"`)
+    // Ponto 4 de 2026-10-23: PORTAL_URL antigo (Transhipping Desk) vira o Portal atual.
+    expect(html).toContain('<img src="https://portalfwlog.com.br/branding/fwlog-logo-white.png"')
+    expect(html).not.toContain('transhippingdesk')
+    // O suporte do domínio antigo também vira o atual no rodapé.
+    const legacySupport = inviteTemplate({ companyName: 'ACME LTDA', cnpjMasked: '***', activationUrl: 'https://x/ativar', portalUrl, supportEmail: 'suporte@transhippingdesk.com.br' })
+    expect(legacySupport.html).toContain('mailto:suporte@portalfwlog.com.br')
+    expect(legacySupport.html + legacySupport.text).not.toContain('transhippingdesk')
+    const custom = inviteTemplate({ companyName: 'ACME LTDA', cnpjMasked: '***', activationUrl: 'https://x/ativar', portalUrl: 'https://staging.vela-portal.pages.dev', supportEmail })
+    expect(custom.html).toContain('<img src="https://staging.vela-portal.pages.dev/branding/fwlog-logo-white.png"')
   })
 
   it('normaliza a logo para a raiz do domínio mesmo quando portalUrl inclui /portal', () => {
@@ -142,7 +152,7 @@ describe('Identidade visual dos emails do Portal', () => {
     expect(digest.subject).toBe('Resumo do Portal — 15/07/2026')
     expect(digest.html).toContain('>Resumo do Portal de 15/07/2026</h1>')
     expect(digest.html).toContain('Últimas 24 horas do provisionamento do Portal do Cliente')
-    expect(digest.html).toContain(`${portalUrl}/branding/vela-icon-192.png`)
+    expect(digest.html).toContain('https://portalfwlog.com.br/branding/vela-icon-192.png')
     expect(digest.html).toContain('background:#152238')
     expect(digest.html).toContain('background:#eef2f7')
     expect(digest.html.indexOf('Pede ação')).toBeLessThan(digest.html.indexOf('Para acompanhar'))
@@ -170,12 +180,17 @@ describe('Identidade visual dos emails do Portal', () => {
 
 describe('renderEmailLayout — origem da logo', () => {
   it('escapa a origem no src da logo, nas duas marcas', () => {
-    const siteUrl = 'https://x.example/"><script>alert(1)</script>'
+    // Valor que não é URL válida (porta fora do intervalo) chega como veio e é escapado.
+    const siteUrl = 'https://x.example:99999/"><script>alert(1)</script>'
     for (const brand of ['portal', 'vela'] as const) {
       const html = renderEmailLayout({ brand, siteUrl, title: 'T', body: '', footer: '' })
       expect(html).not.toContain('<script>')
       expect(html).not.toContain('"><script')
-      expect(html).toContain('<img src="https://x.example/&quot;&gt;&lt;script&gt;')
+      expect(html).toContain('<img src="https://x.example:99999/&quot;&gt;&lt;script&gt;')
     }
+    // URL válida vira só a origem: o caminho não chega ao src.
+    const html = renderEmailLayout({ brand: 'portal', siteUrl: 'https://x.example/"><script>alert(1)</script>', title: 'T', body: '', footer: '' })
+    expect(html).not.toContain('script')
+    expect(html).toContain('<img src="https://x.example/')
   })
 })

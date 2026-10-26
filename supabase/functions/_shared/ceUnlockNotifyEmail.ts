@@ -1,7 +1,7 @@
 // Fila de e-mails do Desbloqueio de CE (tabela ce_unlock_email_outbox, preenchida pelo banco).
 // Lógica pura, sem Deno nem rede: o handler injeta cliente, envio e configuração.
-// ponytail: um executor por vez (cron de minutos); dois executores simultâneos só não duplicam
-// e-mail graças à chave de idempotência por destinatário. Upgrade: reservar a linha com SKIP LOCKED.
+// O gatilho da fila e o cron rodam juntos: `ce_unlock_email_pending` reserva as linhas (FOR UPDATE
+// SKIP LOCKED e prazo, migration 458) e a chave de idempotência por destinatário segue como segunda barreira.
 
 export const CE_UNLOCK_BOX = 'documentacao_operacao'
 const MAX_ATTEMPTS = 5
@@ -148,14 +148,25 @@ export async function processCeUnlockEmails(deps: NotifyDeps): Promise<NotifySum
 
 export type CeUnlockNotifyHandlerDeps = NotifyDeps & {
   refreshOpen: () => Promise<{ data: unknown; error: unknown }>
+  /** `trigger`: chamada pelo evento (migration 458), que não varre as solicitações abertas. */
+  source?: 'cron' | 'trigger'
   /** Chave, remetente e reply-to do provedor presentes. Só são exigidos com a chave de envio ligada. */
   providerConfigured: boolean
 }
 
 /** Corpo do handler HTTP, sem Deno: o status devolvido decide o heartbeat e o Sentry. */
 export async function runCeUnlockNotify(deps: CeUnlockNotifyHandlerDeps): Promise<{ status: number; body: unknown }> {
-  const refreshed = await deps.refreshOpen()
-  if (refreshed.error) return { status: 500, body: { error: 'Falha ao reavaliar solicitações' } }
+  // A varredura reavalia as abertas pelo que vem de fora do módulo (liquidação) e trava
+  // todas elas numa transação: só o cron a faz. O aviso que dispara o gatilho foi gravado
+  // por um comando que já reavaliou a própria solicitação; varrer a cada aviso só somava
+  // espera, e risco de deadlock, aos comandos do desk e do Portal.
+  // `null` na chamada do gatilho: a rodada não varreu.
+  let refreshedOpen: unknown = null
+  if (deps.source !== 'trigger') {
+    const refreshed = await deps.refreshOpen()
+    if (refreshed.error) return { status: 500, body: { error: 'Falha ao reavaliar solicitações' } }
+    refreshedOpen = refreshed.data
+  }
   let enabled: boolean
   try {
     enabled = await deps.communicationsEnabled()
@@ -167,5 +178,5 @@ export async function runCeUnlockNotify(deps: CeUnlockNotifyHandlerDeps): Promis
   // Com a chave ligada e sem chave/remetente nada é consumido: as linhas esperam a configuração.
   if (enabled && !deps.providerConfigured) return { status: 503, body: { error: 'Envio de e-mail não configurado' } }
   const summary = await processCeUnlockEmails({ ...deps, communicationsEnabled: async () => enabled })
-  return { status: 200, body: { ...summary, refreshed: refreshed.data } }
+  return { status: 200, body: { ...summary, refreshed: refreshedOpen } }
 }

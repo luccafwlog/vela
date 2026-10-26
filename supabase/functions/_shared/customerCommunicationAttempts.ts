@@ -12,11 +12,15 @@ export type StoredCommunicationAttempt = {
   status: string
   provider_message_id: string | null
   dispatch_mode: string
+  /** Nulo na tentativa gravada antes da migration 451. */
+  recipient_email?: string | null
 }
 
 export type NewCommunicationAttempt = {
   communication_id: number
   recipient_masked: string
+  /** Endereço exato do envio, para o Histórico interno (migration 451, ponto 8 de 2026-10-23). */
+  recipient_email?: string
   recipient_key: string
   status: 'aceito' | 'falha_transitoria'
   dispatch_mode: 'real' | 'simulado'
@@ -57,6 +61,7 @@ export function communicationAttemptRecorder(
       const { data, error } = await store.insertAttempt({
         communication_id: input.communicationId,
         recipient_masked: maskEmail(to),
+        recipient_email: to,
         recipient_key: await recipientKey(to),
         status: 'aceito',
         dispatch_mode: dispatchMode(input.enabled),
@@ -67,11 +72,13 @@ export function communicationAttemptRecorder(
         if (existingError || !existing) throw existingError ?? error
         const mode = dispatchMode(input.enabled)
         const unconfirmed = existing.provider_message_id == null && (existing.status === 'aceito' || existing.status === 'falha_transitoria')
-        if (unconfirmed && existing.dispatch_mode !== mode) {
-          const { error: repairError } = await store.patchAttempt(existing.id, {
-            ...(existing.dispatch_mode === 'legado' ? { recipient_key: await recipientKey(to) } : {}),
-            dispatch_mode: mode,
-          })
+        const repair: Record<string, unknown> = unconfirmed && existing.dispatch_mode !== mode
+          ? { ...(existing.dispatch_mode === 'legado' ? { recipient_key: await recipientKey(to) } : {}), dispatch_mode: mode }
+          : {}
+        // Tentativa de antes da 451 reaproveitada agora: o Histórico passa a mostrar o endereço exato.
+        if (existing.recipient_email == null) repair.recipient_email = to
+        if (Object.keys(repair).length) {
+          const { error: repairError } = await store.patchAttempt(existing.id, repair)
           if (repairError) throw repairError
         }
         return { id: existing.id, status: existing.status as EmailAttemptRecord['status'], providerMessageId: existing.provider_message_id, existing: true }
@@ -106,6 +113,7 @@ export async function recordUnsentCommunicationAttempt(
     const { error } = await store.insertAttempt({
       communication_id: input.communicationId,
       recipient_masked: maskEmail(input.recipient),
+      recipient_email: input.recipient,
       recipient_key: await recipientKey(input.recipient),
       status: 'falha_transitoria',
       dispatch_mode: dispatchMode(input.enabled),

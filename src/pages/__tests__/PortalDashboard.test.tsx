@@ -33,15 +33,17 @@ const hookState = vi.hoisted(() => ({
   localError: null as Error | null,
   demurrageError: null as Error | null,
   operationError: null as Error | null,
+  // Releitura que falhou depois de uma leitura boa: o React Query devolve o erro com os dados antigos.
+  keepData: false,
 }))
 
 vi.mock('../../hooks/usePortalBilling', () => ({
-  usePortalInvoices: () => ({ data: hookState.localError ? undefined : localInvoices, isLoading: false, error: hookState.localError }),
-  usePortalDemurrageInvoices: () => ({ data: hookState.demurrageError ? undefined : demurrageInvoices, isLoading: false, error: hookState.demurrageError }),
+  usePortalInvoices: () => ({ data: hookState.localError && !hookState.keepData ? undefined : localInvoices, isLoading: false, error: hookState.localError }),
+  usePortalDemurrageInvoices: () => ({ data: hookState.demurrageError && !hookState.keepData ? undefined : demurrageInvoices, isLoading: false, error: hookState.demurrageError }),
 }))
 
 vi.mock('../../hooks/usePortalOperation', () => ({
-  usePortalOperationBls: () => ({ data: hookState.operationError ? undefined : operationBls, isLoading: false, error: hookState.operationError }),
+  usePortalOperationBls: () => ({ data: hookState.operationError && !hookState.keepData ? undefined : operationBls, isLoading: false, error: hookState.operationError }),
 }))
 
 const ceRequests = vi.hoisted(() => ({
@@ -94,6 +96,7 @@ describe('PortalDashboard (Painel)', () => {
     hookState.localError = null
     hookState.demurrageError = null
     hookState.operationError = null
+    hookState.keepData = false
   })
 
   it('mostra os quatro cartões com valores derivados e plural certo', async () => {
@@ -128,8 +131,11 @@ describe('PortalDashboard (Painel)', () => {
       '/portal/informacoes/taxas', '/portal/informacoes/devolucao', '/portal/informacoes/demurrage',
       '/portal/informacoes/agentes', '/portal/informacoes/atendimento', '/portal/informacoes/tracking',
     ])
-    expect(screen.queryByText('Chegadas e Saídas')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Programação de navios' })).toBeTruthy()
+    // O bloco do Portal tem nome próprio e não leva à tela interna de Chegadas e Saídas.
+    expect(screen.getByRole('heading', { name: 'Chegadas e saídas' })).toBeTruthy()
+    expect(screen.queryAllByRole('link').some((link) => link.getAttribute('href')?.includes('chegadas-saidas'))).toBe(false)
+    // Ponto 1 (2026-10-23): o bloco deixou de se chamar "Programação de navios".
+    expect(screen.queryByText('Programação de navios')).toBeNull()
   })
 
   it('navega para Containers filtrado ao clicar no cartão de containers', async () => {
@@ -153,5 +159,18 @@ describe('PortalDashboard (Painel)', () => {
 
     expect(screen.getByText('Falha ao carregar indicadores financeiros. Tente novamente em instantes.')).toBeTruthy()
     expect(screen.queryByText('R$ 0,00')).toBeNull()
+  })
+
+  // Atualizar de Chegadas e saídas relê os B/Ls do Cliente: a releitura que falha não apaga os cartões.
+  it('releitura que falha mantém os cartões com a última leitura', () => {
+    hookState.operationError = new Error('rede')
+    hookState.localError = new Error('rede')
+    hookState.keepData = true
+
+    renderPainel()
+
+    expect(screen.getByRole('button', { name: /Containers sem devolução/ }).textContent).toContain('2')
+    expect(screen.getByRole('button', { name: /Taxas Locais em aberto/ })).toBeTruthy()
+    expect(screen.queryByText(/Falha ao carregar indicadores/)).toBeNull()
   })
 })

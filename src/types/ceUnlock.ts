@@ -36,6 +36,12 @@ export type CeUnlockItem = {
   state: string;
   version: number;
   vip: boolean;
+  /**
+   * Termo e procuração anuais aprovados cobrem este B/L: o CE Mercante atual foi
+   * vinculado dentro da vigência deles, e a cobertura continua depois de vencer
+   * (migration 456). Sem isso, a solicitação segue com termo e procuração anexados a ela.
+   */
+  vip_covered?: boolean;
   termo: boolean;
   procuracao: boolean;
   paid: boolean;
@@ -55,7 +61,7 @@ export type CeUnlockItem = {
   zpt_pending?: string[] | null;
   zpt_updated_at?: string | null;
   zpt_without_export?: boolean | null;
-  /** Início do prazo (SLA): envio, entrega do original ou liquidação mais recente. */
+  /** Início do prazo (SLA): só com os quatro requisitos; o último fato que os completou (migration 448). */
   sla_started_at?: string | null;
   reasons: string[];
   source: "request" | "vip_annual";
@@ -97,7 +103,12 @@ export type CeUnlockReviewRow = {
   created_at: string;
   customer_name: string;
   cnpj_cpf: string;
+  /** Hora do último envio pelo Cliente; a fila segue por ela (migration 448). */
+  submitted_at?: string | null;
+  /** Prazo: só com os quatro requisitos, então nulo enquanto há documento a analisar (448). */
   sla_started_at: string | null;
+  /** Ficha do Cliente: a última exportação, quando todos os B/Ls ativos foram exportados (migration 450). */
+  exported_at?: string | null;
   bl_ids: string[];
   termo_status: CeUnlockDocument["status"] | null;
   procuracao_status: CeUnlockDocument["status"] | null;

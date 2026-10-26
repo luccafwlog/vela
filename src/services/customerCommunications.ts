@@ -8,6 +8,7 @@ import { sanitizeLikeTerm } from '../lib/utils'
 import { operationFrontKindsForCargoMode } from './escalaTerminalAllocation'
 import { normalizePortCode } from './portCode'
 import { listVoyageEscalaSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
+import { compareVoyageRailItems, getProximaEscala } from './voyageSummaries'
 import { supabase } from './supabase'
 import { toError } from '../lib/errors'
 import { formatCommunicationDateTime, type CustomerCommunicationKind, type CustomerCommunicationTemplateInput } from './customerCommunicationTemplates'
@@ -1022,6 +1023,8 @@ export async function fetchCustomerCommunicationConference(input: {
 export type CustomerCommunicationAttemptHistory = {
   id: number
   recipient_masked: string
+  /** E-mail exato do envio (migration 451); nulo nos envios anteriores e depois da retenção de 1 ano. */
+  recipient_email?: string | null
   dispatch_mode: 'real' | 'simulado'
   status: string
   retry_count: number
@@ -1184,6 +1187,42 @@ export type CoverageVoyageRow = { id: number; voyage_number: string; vessel: { n
 export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null }
 export type CoverageCommunicationRow = { id?: number; customer_id: number | null; kind: string; status: string; anchor_voyage_id: number | null; anchor_port: string | null; anchor_atracacao_id: string | null; created_at: string }
 export type CoverageTerminalStateRow = { id: string; voyage_id: number; port: string; terminal_atb: string | null }
+/** Escala (POD) da viagem para a ordem da Cobertura: ETA, ETB, ATA, a última ATB das Atracações e omissão. */
+export type CoverageEscalaRow = { pod: string; eta: string | null; etb: string | null; ata: string | null; atb?: string | null; omitted?: boolean }
+
+/**
+ * Ordem da Cobertura na ordem da escala (ponto 7 de 2026-10-23), a mesma regra
+ * das faixas de Viagens, Veículos e Baplie (`compareVoyageRailItems`): a viagem
+ * da escala mais próxima primeiro e a mais distante embaixo, e dentro da viagem
+ * os portos pela ETA (sem ETA no fim). A ordem anterior era a de cadastro da
+ * viagem, com os portos em ordem alfabética. No fim, sem próxima escala, a
+ * viagem que atracou por último vem primeiro, porque é quando o NOB e o CE e
+ * Taxas ficam devidos; a que não tem atracação vem depois, pela ordem do navio
+ * (decisão do responsável de 2026-10-25).
+ */
+export function orderCoverageByEscala<T extends { voyageId: number; vesselName: string; voyageNumber: string; port: string | null }>(
+  rows: readonly T[],
+  escalas: ReadonlyMap<number, readonly CoverageEscalaRow[]>,
+): T[] {
+  const proxima = new Map<number, ReturnType<typeof getProximaEscala>>()
+  const portEta = (voyageId: number, port: string | null) => {
+    const code = communicationPortCode(port)
+    const matches = (escalas.get(voyageId) ?? []).filter((escala) => !escala.omitted && communicationPortCode(escala.pod) === code && escala.eta)
+    return matches.length ? matches.map((escala) => escala.eta!).sort()[0] : '\uffff'
+  }
+  const railKey = (row: T) => {
+    if (!proxima.has(row.voyageId)) proxima.set(row.voyageId, getProximaEscala([...(escalas.get(row.voyageId) ?? [])]))
+    return { proximaEscala: proxima.get(row.voyageId) ?? null, vesselName: row.vesselName, voyageNumber: row.voyageNumber }
+  }
+  // "Atracou" é a ATB da Atracação (CONTEXT: ATB é distinta da ATA, a chegada ao porto).
+  const lastAtb = (voyageId: number) => (escalas.get(voyageId) ?? []).filter((escala) => !escala.omitted && escala.atb).map((escala) => escala.atb!).sort().at(-1) ?? ''
+  const byLastAtb = (left: T, right: T) => (railKey(left).proximaEscala || railKey(right).proximaEscala ? 0 : lastAtb(right.voyageId).localeCompare(lastAtb(left.voyageId)))
+  return [...rows].sort((left, right) => byLastAtb(left, right)
+    || compareVoyageRailItems(railKey(left), railKey(right))
+    || left.voyageId - right.voyageId
+    || portEta(left.voyageId, left.port).localeCompare(portEta(right.voyageId, right.port))
+    || (left.port ?? '').localeCompare(right.port ?? ''))
+}
 
 /**
  * Monta a Cobertura (uma linha por viagem × POD) a partir das linhas já lidas.
@@ -1317,10 +1356,28 @@ export async function saveCustomerCommunicationSavedTemplate(input: { name: stri
   return data as number
 }
 
-const COMMUNICATION_HISTORY_SELECT = 'id, customer_id, kind, nature, anchor_voyage_id, anchor_port, anchor_atracacao_id, anchor_invoice_id, attempt_discriminator, status, dispatch_id, vessel_name, voyage_number, terminal_name, created_by, origin, created_at, customer:customers(id, name, cnpj_cpf), attempts:customer_communication_attempts(id, recipient_masked, dispatch_mode, status, retry_count, provider_message_id, last_error, created_at, updated_at), bl_links:customer_communication_bls(bl_id), attachments:customer_communication_attachments(id, file_name, mime_type, storage_path, size_bytes, created_at)'
+const COMMUNICATION_HISTORY_SELECT = 'id, customer_id, kind, nature, anchor_voyage_id, anchor_port, anchor_atracacao_id, anchor_invoice_id, attempt_discriminator, status, dispatch_id, vessel_name, voyage_number, terminal_name, created_by, origin, created_at, customer:customers(id, name, cnpj_cpf), attempts:customer_communication_attempts(id, recipient_masked, recipient_email, dispatch_mode, status, retry_count, provider_message_id, last_error, created_at, updated_at), bl_links:customer_communication_bls(bl_id), attachments:customer_communication_attachments(id, file_name, mime_type, storage_path, size_bytes, created_at)'
 
 export async function fetchCustomerCommunicationHistory(input?: number | CustomerCommunicationHistoryFilters): Promise<CustomerCommunicationHistoryItem[]> {
-  const filters: CustomerCommunicationHistoryFilters = typeof input === 'number' ? { customerId: input } : (input ?? {})
+  let filters: CustomerCommunicationHistoryFilters = typeof input === 'number' ? { customerId: input } : (input ?? {})
+  // Ponto 8 de 2026-10-23: o link de um Comunicado (Cobertura, ficha, B/L) mostrava
+  // só ele, e o Histórico parecia ter um envio só. Agora abre todos os envios do
+  // mesmo Cliente na mesma viagem; a tela deixa aberto o Comunicado do link.
+  // Sem viagem (institucional, Cobrança de Demurrage agrupada), o recorte fica
+  // só no Cliente, e o aviso da tela diz isso.
+  if (filters.id != null) {
+    const { data: focus, error: focusError } = await supabase
+      .from('customer_communications')
+      .select('id, customer_id, anchor_voyage_id')
+      .eq('id', filters.id)
+      .maybeSingle()
+    if (focusError) throw focusError
+    if (!focus) return []
+    const anchor = focus as { customer_id: number | null; anchor_voyage_id: number | null }
+    if (anchor.customer_id != null) {
+      filters = { ...filters, id: undefined, customerId: filters.customerId ?? anchor.customer_id, voyageId: filters.voyageId ?? anchor.anchor_voyage_id ?? undefined }
+    }
+  }
   const rows: CustomerCommunicationHistoryItem[] = []
   let blCommunicationIds: number[] | null = null
   if (filters.blId?.trim()) {
@@ -1410,7 +1467,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
   if (!voyages.length) return []
   const voyageIds = voyages.map((v) => v.id)
 
-  const [bls, communications, terminalStates] = await Promise.all([
+  const [bls, communications, terminalStates, schedulesByVoyage] = await Promise.all([
     fetchCoverageRows((from, to) =>
       supabase
         .from('bls')
@@ -1440,6 +1497,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
         .range(from, to)
         .overrideTypes<CoverageTerminalStateRow[], { merge: false }>(),
     ),
+    listVoyageEscalaSchedulesByVoyageIds([...voyageIds]),
   ])
   const rowsByVoyageCustomer = new Map<string, Promise<CoverageReadiness>>()
   for (const bl of bls) {
@@ -1470,7 +1528,20 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
   const readiness = new Map(readinessEntries.map(([key, value]) => [key, value.ready] as const))
   const customerNames = new Map(customerRows.map((row) => [row.id, row.name] as const))
 
-  return buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames })
+  // Projeção canônica das escalas, a mesma de Viagens, Veículos e Baplie: une
+  // apelidos do mesmo porto (BRVIT/BRVIX) e respeita a exclusão.
+  const lastAtbByEscala = new Map<string, string>()
+  for (const state of terminalStates) {
+    if (!state.terminal_atb) continue
+    const key = `${state.voyage_id}:${communicationPortCode(state.port)}`
+    if ((lastAtbByEscala.get(key) ?? '') < state.terminal_atb) lastAtbByEscala.set(key, state.terminal_atb)
+  }
+  const escalas = new Map<number, CoverageEscalaRow[]>()
+  for (const [voyageId, schedules] of schedulesByVoyage) {
+    escalas.set(voyageId, schedules.filter((schedule) => !schedule.deleted)
+      .map((schedule) => ({ pod: schedule.port, eta: schedule.eta, etb: null, ata: schedule.ata, atb: lastAtbByEscala.get(`${voyageId}:${communicationPortCode(schedule.port)}`) ?? null, omitted: schedule.omitted })))
+  }
+  return orderCoverageByEscala(buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames }), escalas)
 }
 
 /**

@@ -13,7 +13,7 @@ import {
 
 // Registro da tentativa e status final da Edge send-customer-communication,
 // com banco falso (plano dos e-mails, 1B/1D; revisão do núcleo, item 9).
-type Row = StoredCommunicationAttempt & Partial<Omit<NewCommunicationAttempt, 'dispatch_mode'>> & { retry_count?: number }
+type Row = StoredCommunicationAttempt & Partial<Omit<NewCommunicationAttempt, 'dispatch_mode' | 'recipient_email'>> & { retry_count?: number }
 
 function fakeStore(options: { refreshed?: unknown; refreshError?: boolean; persistError?: boolean; insertError?: { code?: string; message?: string } } = {}) {
   const rows = new Map<string, Row>()
@@ -79,6 +79,8 @@ describe('registro da tentativa do Comunicado', () => {
       provider_message_id: 'prov-1',
       recipient_key: await recipientKey('a@example.test'),
       recipient_masked: 'a***@e***.test',
+      // Migration 451 (ponto 8 de 2026-10-23): o Histórico interno mostra o endereço exato.
+      recipient_email: 'a@example.test',
     })
   })
 
@@ -89,6 +91,13 @@ describe('registro da tentativa do Comunicado', () => {
     expect(await send(store, fetchImpl)).toEqual({ ok: true })
     expect(fetchImpl).not.toHaveBeenCalled()
     expect(rows.get(KEY)!.provider_message_id).toBe('prov-old')
+  })
+
+  it('23505 com tentativa de antes da migration 451: grava o endereço exato para o Histórico', async () => {
+    const { store, rows } = fakeStore()
+    rows.set(KEY, { id: 43, status: 'aceito', provider_message_id: 'prov-old', dispatch_mode: 'real', recipient_email: null })
+    expect(await send(store, accepted())).toEqual({ ok: true })
+    expect(rows.get(KEY)!.recipient_email).toBe('a@example.test')
   })
 
   it('23505 com tentativa aceita sem id: chama o provedor de novo com a mesma chave e grava o id', async () => {

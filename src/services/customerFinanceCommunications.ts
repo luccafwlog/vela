@@ -21,6 +21,7 @@ import {
   type CustomerContactBoxLink,
 } from './customerCommunicationBoxes'
 import { supabase } from './supabase'
+import { portalPageUrl } from '../config/portalUrl'
 
 type FinanceBlRow = {
   id: string
@@ -69,19 +70,10 @@ type RecipientDispatchResult = Pick<CustomerCommunicationDispatchResult, 'status
   reason?: string
 }
 
-function canonicalPortalBillingUrl(value: string): string {
-  const normalized = value.replace(/\/+$/, '')
-  if (normalized.endsWith('/portal/billing')) return normalized
-  if (normalized.endsWith('/portal')) return `${normalized}/billing`
-  if (normalized.endsWith('/billing')) return `${normalized.slice(0, -'/billing'.length)}/portal/billing`
-  return `${normalized}/portal/billing`
-}
-
+// Configuração única do endereço do Portal (src/config/portalUrl.ts, ponto 4 de 2026-10-23).
 function configuredPortalBillingUrl(): string {
-  const explicit = String(import.meta.env.VITE_PORTAL_BILLING_URL ?? '').trim()
-  if (explicit) return canonicalPortalBillingUrl(explicit)
-  const portal = String(import.meta.env.VITE_PORTAL_URL ?? '').trim().replace(/\/+$/, '')
-  return portal ? canonicalPortalBillingUrl(portal) : CUSTOMER_PORTAL_BILLING_URL
+  const configured = String(import.meta.env.VITE_PORTAL_BILLING_URL ?? '').trim() || String(import.meta.env.VITE_PORTAL_URL ?? '').trim()
+  return configured ? portalPageUrl('billing', configured) : CUSTOMER_PORTAL_BILLING_URL
 }
 
 function normalizeNested<T>(value: T | T[] | null | undefined): T | null {

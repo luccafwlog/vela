@@ -405,7 +405,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 | Grupo | Nomes | Serviço de origem |
 |---|---|---|
 | Plataforma (automáticos) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS`, `SUPABASE_PUBLISHABLE_KEYS`, `SUPABASE_SECRET_KEYS` | Supabase |
-| Portal | `PORTAL_URL`, `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
+| Portal | `PORTAL_URL` (valor esperado em produção: `https://portalfwlog.com.br`; como os e-mails montam os links a partir dele: [Portal do Cliente](../modules/portal-cliente.md#email-transacional)), `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
 | E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | MillionSend (API compatível com a Resend) |
 | Anti-robô | `TURNSTILE_SECRET_KEY` e `TURNSTILE_ALLOWED_HOSTNAMES` (obrigatório fora do stack local desde a auditoria run-3: sem ele, o desafio do Portal é recusado) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
@@ -456,14 +456,14 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
-| `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
+| `portal-email-events-runner` | a cada minuto; desde a migration `458` também chamado assim que o webhook grava o evento ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
 | `itau-pix-queue` | a cada minuto (criado à mão em 07/10, jobid 25; recriado pela migration `358`, `ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
-| `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
+| `ce-unlock-notify-email` | a cada 5 min (manual, 07/10; jobid 35 desde a recriação da migration `438`); desde a migration `458` também chamado assim que o aviso é gravado na fila ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
-| `customer-communication-auto-runner` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `165`) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global). A Cobertura de `/clientes/comunicacao` mostra "Na fila · próxima rodada às HH:MM" com estes minutos, espelhados em `src/lib/communicationAutoRunner.ts`: mudar o agendamento exige mudar o espelho no mesmo PR | `customer-communication-auto-runner` |
+| `customer-communication-auto-runner` | a cada 2 min, nos minutos ímpares (`1-59/2 * * * *`, migration `458`; antes `4-59/15`, migration `165`); também chamado pelo que deixa um alvo pronto, no máximo a cada 90 s ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global). A Cobertura de `/clientes/comunicacao` mostra "Na fila · próxima rodada às HH:MM" com estes minutos, espelhados em `src/lib/communicationAutoRunner.ts`: mudar o agendamento exige mudar o espelho no mesmo PR | `customer-communication-auto-runner` |
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos; a conta passa a Convite expirado e o Alerta de reenvio abre pelo gatilho da conta, só para Cliente com processo ativo (migration `350`) | — |
-| `demurrage-dunning` | de hora em hora, no minuto 7 (`7 * * * *`, migration `165`) | Régua de Cobrança de Demurrage (respeita a chave global) | `demurrage-dunning` |
+| `demurrage-dunning` | a cada 5 min (`3-59/5 * * * *`, migration `458`; antes de hora em hora, `7 * * * *`); sem chamada pela emissão da Invoice (criada na `458`, tirada na `459`) | Régua de Cobrança de Demurrage (respeita a chave global, a janela de dia útil a partir das 9h e o intervalo entre cobranças) | `demurrage-dunning` |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
@@ -794,7 +794,14 @@ Variáveis: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`
   `https://portalfwlog.com.br/portal/login`.
 - **Heartbeats** (tabela dos [jobs](#jobs-agendados-pg_cron)): a rotina chama a
   URL a cada execução e acrescenta `/fail` quando falha. Heartbeat **Down** logo
-  após cadastrar quase sempre é nome de secret errado.
+  após cadastrar quase sempre é nome de secret errado. Desde a migration `458`,
+  a chamada pelo evento manda só o `/fail`; o sucesso vem só do cron
+  ([observabilidade](observabilidade.md#heartbeats-dos-runners)).
+- **Pendente (passo do dono, depois da promoção da `458` e da `459` para a
+  produção):** encurtar os heartbeats `demurrage-dunning` (de 1 h para 5 min) e
+  `customer-communication-auto-runner` (de 15 min para 2 min), com tolerância de
+  5 min (decisão de 2026-10-25). Antes da promoção o monitor encurtado acusaria
+  queda falsa.
 - **Heartbeat do backup** `backup-r2-diario` (criado pelo dono em 2026-10-14;
   **Up** desde a execução manual da tarefa no mesmo dia): período de 1 dia,
   tolerância de 6 horas, aviso por e-mail; a URL fica na variável do usuário

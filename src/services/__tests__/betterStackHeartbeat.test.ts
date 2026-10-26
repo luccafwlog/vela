@@ -81,11 +81,18 @@ describe('heartbeats dos jobs no Better Stack', () => {
       path.resolve('supabase/migrations/165_cron_dispatch_timeout_e_escalonamento.sql'),
       'utf8',
     )
+    // A 458 põe Régua e Comunicados a cada 5 e 2 min (os Comunicados também
+    // pelo evento; a Régua só pelo cron desde a 459); o sucesso continua vindo
+    // só das rodadas do cron.
+    const eventMigration = readFileSync(
+      path.resolve('supabase/migrations/458_emails_automaticos_saem_pelo_evento.sql'),
+      'utf8',
+    )
     const expectedSchedules = [
       ['portal-daily-digest', '0 11 * * *', 'portal-daily-digest', cronMigration],
       ['alerts-foundation-detectors', '2-59/15 * * * *', 'alerts-detector', staggerMigration],
-      ['demurrage-dunning', '7 * * * *', 'demurrage-dunning', staggerMigration],
-      ['customer-communication-auto-runner', '4-59/15 * * * *', 'customer-communication-auto-runner', staggerMigration],
+      ['demurrage-dunning', '3-59/5 * * * *', 'demurrage-dunning', eventMigration],
+      ['customer-communication-auto-runner', '1-59/2 * * * *', 'customer-communication-auto-runner', eventMigration],
     ] as const
     // portal-email-events-runner: a cada minuto desde a migration 107 (plano dos e-mails, 2.3).
     expect(readFileSync(path.resolve('supabase/migrations/107_schedule_email_events_and_import_effects_runners.sql'), 'utf8'))
@@ -98,7 +105,7 @@ describe('heartbeats dos jobs no Better Stack', () => {
     for (const [functionName, entrypoint] of Object.entries(entrypoints)) {
       const source = readFileSync(path.resolve('supabase/functions', functionName, 'index.ts'), 'utf8')
       const job = typeof entrypoint === 'string' ? entrypoint : entrypoint.job
-      expect(source).toContain(`runWithBetterStackHeartbeat('${job}'`)
+      expect(source).toMatch(new RegExp(`run(Cron)?WithBetterStackHeartbeat\\('${job}'`))
     }
 
     const helper = readFileSync(path.resolve('supabase/functions/_shared/betterStackHeartbeat.ts'), 'utf8')
@@ -109,7 +116,7 @@ describe('heartbeats dos jobs no Better Stack', () => {
 
   it('avisos do Desbloqueio de CE (job agendado manualmente) reportam ao próprio heartbeat', async () => {
     const source = readFileSync(path.resolve('supabase/functions/ce-unlock-notify-email/index.ts'), 'utf8')
-    expect(source).toContain('runWithBetterStackHeartbeat("ceUnlockNotifyEmail"')
+    expect(source).toContain('runCronWithBetterStackHeartbeat("ceUnlockNotifyEmail"')
     expect(source).toContain('instrumentEdgeHandler("ce-unlock-notify-email"')
     const requests: string[] = []
     const response = Response.json({ sent: 0, failed: 1 })

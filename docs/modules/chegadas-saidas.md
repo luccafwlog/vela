@@ -1,6 +1,6 @@
 # Chegadas e Saídas
 
-> **Status:** ativo · **Atualizado:** 2026-10-20 · **Rota interna:** `/chegadas-saidas` · **Consumidor:** widget do Dashboard do Portal
+> **Status:** ativo · **Atualizado:** 2026-10-25 · **Rota interna:** `/chegadas-saidas` · **Consumidor:** bloco Chegadas e saídas do Painel do Portal
 
 ## Propósito e escopo
 
@@ -98,8 +98,11 @@ tamanho do arquivo.
 
 ### Widget do Portal
 
-`ShipScheduleWidget` usa `usePortalScheduleVoyages` com query key
-`['portal-schedule-voyages']`. Widget e quadro interno compartilham as regras de célula de
+`ShipScheduleWidget` (no Painel do Portal, o bloco **Chegadas e saídas**; até
+2026-10-23 "Programação de navios") usa `usePortalScheduleVoyages` com query key
+`['portal-schedule-voyages']`. O que só o bloco do Portal tem — **Atualizar**, a
+hora da última leitura e o atalho **Ver meus B/Ls** — está em
+[Portal do Cliente § `/portal`](portal-cliente.md#portal). Widget e quadro interno compartilham as regras de célula de
 `src/components/portal/shipScheduleCells.ts` e a apresentação de
 `ShipScheduleWidget.tsx` (`ScheduleTable`, a mesma tabela nas duas telas desde o
 lote 2 da identidade, 2026-10-16): uma linha de título, com Saída na origem
@@ -110,10 +113,11 @@ ou de chegada, em âmbar, com o motivo ao passar o mouse, **só no Vela** (`audi
 "Omitida" em cinza e porto sem data como "—", cada estado também em texto para
 leitor de tela. Porto sem data em nenhum navio sai da tabela, com uma nota. A
 posição do navio no MarineTraffic (pelo IMO cadastrado) é o botão **Ver no
-mapa**, na ponta da linha; navio sem IMO não tem o botão. No Vela, **Editar**
+mapa**, na ponta da linha (desde 2026-10-23 `ghost`, com a borda clara da regra 9
+da identidade, nas duas telas); navio sem IMO não tem o botão. No Vela, **Editar**
 fica ao lado dele, e a tabela fica no bloco "Programação publicada no Portal".
-Abaixo de 640 px o widget do Portal vira cartões por navio. Erro de consulta mostra "Tentar novamente" e não se confunde
-com programação vazia. O serviço chama a RPC `portal_ship_schedule`,
+Abaixo de 640 px o widget do Portal vira cartões por navio. Erro de consulta sem leitura nenhuma mostra "Tentar novamente" e não se confunde
+com programação vazia; a releitura que falha mantém a última leitura na tela, com um aviso. O serviço chama a RPC `portal_ship_schedule`,
 que é `SECURITY DEFINER`, executável por `authenticated` e, desde a migration
 `320`, não por `anon` ([ADR 0090](../adr/0090-programacao-de-navios-so-com-sessao.md)), retornando somente viagens
 ativas com `show_on_portal = true`. PODs deletados continuam ocultos; PODs

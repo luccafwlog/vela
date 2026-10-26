@@ -805,14 +805,23 @@ O Administrativo muda o intervalo no botão **Régua de cobrança** de
 `/demurrage`, e a coluna Régua da aba Faturas mostra a tentativa seguinte, a
 data, o último envio ou a pausa.
 
-- **Quando cobra:** o job `demurrage-dunning` roda de hora em hora (no minuto 7
-  desde a migration `165`, fora da rajada dos minutos cheios). Toda cobrança,
+- **Quando cobra:** o job `demurrage-dunning` roda a cada 5 minutos (`3-59/5`,
+  migration `458`; antes de hora em hora, no minuto 7). A emissão da Invoice
+  não chama a rodada: a `458` criou essa chamada e a `459` a tirou, por decisão
+  do dono de 2026-10-25 ([ADR 0103](../adr/0103-emails-automaticos-saem-pelo-evento.md)),
+  porque as Invoices de uma importação de devoluções são emitidas uma a uma pela
+  fila de efeitos e a chamada na primeira dividia o lote em dois e-mails. Como a
+  fila leva vários minutos para emitir um lote, a primeira cobrança de uma
+  Invoice também espera enquanto o Cliente tiver faturamento de Demurrage na fila
+  (`pending`, `running` ou `retry_wait`, criado nas últimas 2 horas; `blocked`
+  não segura), para o lote sair num e-mail só (migration `463`, decisão do dono
+  de 2026-10-26). Toda cobrança,
   inclusive a primeira, só sai em dia útil a partir das 9h de Brasília
   (migration `305`; decisão D9 do plano de correção dos e-mails):
   o dia útil é o do calendário `business_holidays` usado pelo Itaú PIX
   (`itau_pix_business_day`; sem o ano cadastrado, feriado conta como dia
   útil). A cobrança que vence fora da janela sai na primeira rodada da janela
-  seguinte, em geral às 9h07 do próximo dia útil. O vencimento não muda: o
+  seguinte, em geral às 9h03 do próximo dia útil. O vencimento não muda: o
   primeiro envio vence na emissão (`first_billed_at`) e cada tentativa
   seguinte vence o intervalo configurado em
   `app_settings.demurrage_dunning_interval_days` (padrão de 7 dias, de 1 a
@@ -933,7 +942,14 @@ data, o último envio ou a pausa.
   regra do banco tem a suíte `reguaCobrancaDemurrage.local-pg.test.ts`.
 - **Comunicado:** na mesma rodada, as Invoices do mesmo Cliente com o mesmo
   número de tentativa vão numa só mensagem, que lista cada Invoice sem
-  consolidar valores: não há soma das Invoices. Uma Invoice só usa o modelo unitário
+  consolidar valores: não há soma das Invoices. Com a rodada a cada 5 minutos
+  (migration `458`; antes, de hora em hora), as Invoices emitidas no mesmo
+  intervalo de 5 minutos vão juntas, e o lote de uma importação de devoluções
+  vai junto mesmo emitido ao longo de vários minutos, porque a primeira cobrança
+  espera a fila de efeitos do Cliente (migration `463`); as emitidas à mão em
+  intervalos diferentes saem em mensagens separadas (antes, as da mesma hora
+  iam juntas). As que vencem fora da janela continuam
+  juntas na primeira rodada dela. Uma Invoice só usa o modelo unitário
   (`renderDemurrageTemplate`): linha de apoio "DEM · navio / viagem", bloco
   "Invoice DEM" com o USD líquido em destaque ("US$ 1.840,00") e B/L, Navio /
   Viagem, "Em reais (informativo)" e ROE ("5,4600 em 19/10/2026"), a nota do

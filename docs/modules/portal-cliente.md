@@ -106,7 +106,7 @@ tem outra tela de troca de senha.
 
 ### `/portal`
 
-`src/pages/PortalDashboard.tsx` mostra quatro cartões `MetricCard` (lote 4 da identidade, 2026-10-18), em âmbar quando há algo em aberto: **Taxas Locais em aberto** (R$ e número de faturas), **Demurrage em aberto** (US$ das Invoices emitidas, com "R$ … hoje"), **Containers sem devolução** (com "N já em demurrage") e **Desbloqueio de CE em aberto** (solicitações em rascunho, enviadas, em análise ou com correção pedida, com quantas pedem correção; lê todas as páginas de `listPortalCeUnlockRequests`). Cada cartão só navega (sem `aria-pressed`) para Faturas, BLs e Containers ou Minhas solicitações (`/portal/desbloqueio-ce?aba=solicitacoes`) com aba e filtro na query string. Abaixo, o bloco **Programação de navios** (`ShipScheduleWidget`, projeção de `portal_ship_schedule`, com o serviço na faixa e a legenda no pé) e o bloco **Consultas**, com um botão para cada seção da Central de Informações. O Painel não tem bloco de alertas: as pendências do Portal são da equipe interna.
+`src/pages/PortalDashboard.tsx` mostra quatro cartões `MetricCard` (lote 4 da identidade, 2026-10-18), em âmbar quando há algo em aberto: **Taxas Locais em aberto** (R$ e número de faturas), **Demurrage em aberto** (US$ das Invoices emitidas, com "R$ … hoje"), **Containers sem devolução** (com "N já em demurrage") e **Desbloqueio de CE em aberto** (solicitações em rascunho, enviadas, em análise ou com correção pedida, com quantas pedem correção; lê todas as páginas de `listPortalCeUnlockRequests`). Cada cartão só navega (sem `aria-pressed`) para Faturas, BLs e Containers ou Minhas solicitações (`/portal/desbloqueio-ce?aba=solicitacoes`) com aba e filtro na query string. Abaixo, o bloco **Chegadas e saídas** (até 2026-10-23 "Programação de navios"; `ShipScheduleWidget`, projeção de `portal_ship_schedule`, com o serviço na faixa e a legenda no pé) e o bloco **Consultas**, com um botão para cada seção da Central de Informações. Em Chegadas e saídas, ao lado do ícone do mapa (MarineTraffic; desde 2026-10-23 no botão `ghost`, o mais discreto, com borda clara pela regra 9 da identidade, também em Chegadas e Saídas do Vela, que usa a mesma tabela), o ícone **Ver meus B/Ls** aparece só na viagem em que o Cliente tem B/L não cancelado e leva à aba BLs filtrada pelo navio e pela viagem (`/portal/operacao?tab=bls&navio=…&viagem=…`). A marcação sai da mesma lista da tela BLs e Containers (`portal_list_operation_bls`, escopo do Cliente da sessão e B/L liberado decididos no banco): o Portal não fica sabendo de carga de outro Cliente nem chama RPC nova (ponto 2 das observações de 2026-10-23). Na faixa do bloco, o botão **Atualizar** relê as datas e esse recorte quando o cliente quiser, e "Atualizado em dd/mm/aaaa às HH:MM (horário de Brasília)" mostra a hora da última leitura que deu certo (`dataUpdatedAt` da consulta, formatado por `formatBrasiliaDateTime`); a programação não guarda a hora em que cada data mudou, então o bloco informa quando a tela leu, não quando o dado mudou (ponto 3). Se a releitura falhar, a tabela da última leitura continua na tela com o aviso "Não foi possível atualizar chegadas e saídas; a tabela abaixo é da última leitura." (sem navio na última leitura, o aviso também aparece); o erro de tela cheia com **Tentar novamente** fica para quando não há leitura nenhuma. Do mesmo jeito, a releitura que falha não apaga os cartões do Painel: o aviso "Falha ao carregar indicadores…" só toma o lugar deles quando não há leitura nenhuma. O Painel não tem bloco de alertas: as pendências do Portal são da equipe interna.
 
 ### `/portal/billing`
 
@@ -120,7 +120,7 @@ tem outra tela de troca de senha.
 
 ### `/portal/operacao`
 
-`src/pages/PortalOperacao.tsx` alterna B/Ls e Containers (`TabList`), com os atalhos "Depósitos de devolução", "Tracking do B/L" e "Solicitar desbloqueio de CE" uma vez só no título. Cada aba abre com cartões que filtram (`MetricCard`) contando o recorte dos demais filtros: B/Ls, Com container sem devolução, Com container em demurrage e Tudo devolvido; Containers, Sem devolução no free time (situação `no_free_time` do filtro de devolução), Em demurrage e Devolvidos. A tabela de B/Ls tem B/L e CE Mercante (copiar), Navio / Viagem, Trecho, Carga, **Taxas locais** e **Pagamento** (de `local_charges`, migration `298`: total e saldo em aberto em âmbar, "✓ Pago", "Aguardando fatura" sem valor quando o B/L ainda não tem fatura visível, "—" sem cobrança), Devolução e Demurrage; a linha aberta mostra os contêineres numa tabela interna e o bloco persistente `Informações de Transbordo`, alimentado pelo registro global vigente da omissão (a disposição COD não publica o motivo interno, navio ou datas do desvio). A aba Containers (derivada por `flattenContainers`) tem Container, Tipo, B/L, POD, Descarga, Devolução, Dias de uso, Free time, Dias em demurrage e Situação ("Em demurrage" em vermelho, "No free time · N dias" em âmbar); CE, Navio, Viagem e POL ficam só na planilha. A planilha de B/Ls ganha Taxas locais e Pagamento com a mesma regra. No celular, cartões sem os botões repetidos. `tab` e o filtro inicial `devolucao` podem vir da URL.
+`src/pages/PortalOperacao.tsx` alterna B/Ls e Containers (`TabList`), com os atalhos "Depósitos de devolução", "Tracking do B/L" e "Solicitar desbloqueio de CE" uma vez só no título. Cada aba abre com cartões que filtram (`MetricCard`) contando o recorte dos demais filtros: B/Ls, Com container sem devolução, Com container em demurrage e Tudo devolvido; Containers, Sem devolução no free time (situação `no_free_time` do filtro de devolução), Em demurrage e Devolvidos. A tabela de B/Ls tem B/L e CE Mercante (copiar), Navio / Viagem, Trecho, Carga, **Taxas locais** e **Pagamento** (de `local_charges`, migration `298`: total e saldo em aberto em âmbar, "✓ Pago", "Aguardando fatura" sem valor quando o B/L ainda não tem fatura visível, "—" sem cobrança), Devolução e Demurrage; a linha aberta mostra os contêineres numa tabela interna e o bloco persistente `Informações de Transbordo`, alimentado pelo registro global vigente da omissão (a disposição COD não publica o motivo interno, navio ou datas do desvio). A aba Containers (derivada por `flattenContainers`) tem Container, Tipo, B/L, POD, Descarga, Devolução, Dias de uso, Free time, Dias em demurrage e Situação ("Em demurrage" em vermelho, "No free time · N dias" em âmbar); CE, Navio, Viagem e POL ficam só na planilha. A planilha de B/Ls ganha Taxas locais e Pagamento com a mesma regra. No celular, cartões sem os botões repetidos. `tab` e o filtro inicial `devolucao` podem vir da URL; Navio e Viagem da aba BLs vão para a URL (`navio`, `viagem`), para o atalho de Chegadas e saídas chegar filtrado e o recarregar manter o recorte: a tela lê a URL ao abrir e numa navegação de fora (menu, voltar) e grava cada mudança com `replace`; o campo segue o estado da tela, para a digitação não perder letras nem o cursor.
 
 ### `/portal/perfil`
 
@@ -483,6 +483,21 @@ lê a migration arquivada `325`.
 
 #### Email transacional
 
+**Endereço do Portal nos e-mails (ponto 4 das observações de 2026-10-23).** A
+URL base do Portal mora numa configuração única, `src/config/portalUrl.ts`
+(`portalOrigin`, `portalPageUrl` e `portalContactEmail`), usada pelo frontend e
+pelas Edge Functions (por `_shared/portalUrls.ts`). Ela troca o domínio do portal
+antigo (`transhippingdesk.com.br`, Transhipping Desk) pelo atual, inclusive no
+`PORTAL_URL` e no `PORTAL_SUPPORT_EMAIL` configurados, completa `/portal/…` e é
+usada pelo layout (logo), pelos rodapés e pelos botões. Antes, o e-mail
+"CE Mercante e Taxas Locais disponíveis" (`send-customer-communication` e o
+envio automático, `customer-communication-auto-runner`) e a Cobrança de
+Demurrage (`demurrage-dunning`) montavam o link das faturas com o `PORTAL_URL`
+cru e, com o domínio antigo configurado, levavam o cliente a uma página
+quebrada. **Teste:** `emailsSemDominioAntigo.test.ts` gera todos os
+e-mails com o domínio antigo configurado e confere que nenhum o cita e que todo
+link vai a uma tela que existe no Portal.
+
 `_shared/portalEmail.ts` registra cada tentativa por chave idempotente, não
 envia para endereços suprimidos e repete somente respostas transitórias do
 provedor (máximo de três tentativas). A chave enviada ao provedor é a chave
@@ -503,8 +518,10 @@ deduplicação por evento: grava o evento numa inbox durável
 (`portal_email_events`, chave do evento do provedor) e responde; uma repetição
 já processada é no-op e uma ainda pendente continua na fila, sem duplicar
 efeitos de entrega, bounce ou complaint. Receber o webhook não significa que o
-histórico já foi atualizado: `portal-email-events-runner` (job a cada minuto,
-migration `107`) aplica os eventos às tentativas. `portal-daily-digest`
+histórico já foi atualizado: `portal-email-events-runner` aplica os eventos às
+tentativas, chamado assim que o evento é gravado (gatilho em `portal_email_events`,
+migration `458`) e pelo job a cada minuto (migration `107`), que fica para as novas
+tentativas. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
 `RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave do provedor
@@ -628,7 +645,12 @@ depósito, com e-mail copiável e "Agendar no site do depósito" quando há link
 Demurrage: dias e valor em colunas separadas, vigência na faixa e "Como a
 contagem funciona" num bloco abaixo. Agentes: Agente | Portos | E-mails.
 Contato: um bloco por área, Importação primeiro, e-mail como dado principal e
-WhatsApp como botão.
+WhatsApp como botão. Os três contatos de entrega do B/L original
+(`entrega_bl_vitoria`, `entrega_bl_salvador` e `entrega_bl_suape`, migration
+`447`) não aparecem em Contato: são os endereços das agências que o
+[Desbloqueio de CE](desbloqueio-ce.md#anatomia-das-telas) mostra; no Vela, são
+editados em `/clientes/informacoes` → Contato, como "Entrega do B/L original ·
+Vitória", "· Salvador" e "· Suape" (nascem com "Endereço a definir").
 
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
 na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas

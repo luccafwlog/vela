@@ -19,6 +19,7 @@ import {
   type VoyageManifestoBl,
 } from '../../services/manifestosMercanteService'
 import { normalizePortCode } from '../../services/portCode'
+import { matchesAnyToken } from '../../lib/searchTerms'
 
 // A rota da Viagem e o Manifesto guardam o porto normalizado; o B/L pode trazer
 // sinônimo (BRVIT, VITORIA, ITAJAÍ). Compara como `manifestosOfRoute`.
@@ -63,7 +64,7 @@ export function ManifestoBlsModal({
   const filtered = useMemo(() => {
     const term = search.trim().toUpperCase()
     if (!term) return routeBls
-    return routeBls.filter((bl) => bl.id.toUpperCase().includes(term) || (bl.manifestoNumero ?? '').includes(term))
+    return routeBls.filter((bl) => bl.id.toUpperCase().includes(term) || (bl.manifestoNumero ?? '').includes(term) || matchesAnyToken(term, [bl.id, bl.manifestoNumero]))
   }, [routeBls, search])
   const selectable = (bl: VoyageManifestoBl) => !bl.cancelled
   const selectedBls = routeBls.filter((bl) => selected.has(bl.id))

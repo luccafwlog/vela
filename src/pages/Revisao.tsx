@@ -49,6 +49,7 @@ import {
 import { logOperationalEvent } from '../services/operationalEvents'
 import { tryAutoIssueInvoice } from '../services/reviewBillingAutomation'
 import { useReviewCustomerGroup } from '../hooks/useReviewCustomerGroup'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 // Endereçamento da fila por URL. `?bl=` existe para quem chega de outra tela
 // apontando um B/L específico (a Validação, ADR 0061): o filtro da fila já casa
@@ -78,7 +79,8 @@ function matchesSearch(item: ReviewQueueItem, q: string) {
     (item.customer?.name ?? '').toLowerCase().includes(q) ||
     (item.customer?.cnpj_cpf ?? '').includes(q) ||
     (item.manifest_customer_cnpj_cpf ?? '').includes(q) ||
-    (item.customer_id ? String(item.customer_id) === q : false)
+    (item.customer_id ? String(item.customer_id) === q : false) ||
+    matchesAnyToken(q, [item.id])
 }
 
 export function Revisao() {

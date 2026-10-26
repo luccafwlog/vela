@@ -6,6 +6,7 @@ import { escapeFilterTerm, sanitizeLikeTerm } from '../lib/utils'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { reportBestEffortFailure } from '../lib/telemetry'
 import { manualInvoiceCreationSchema } from './financialValidation'
+import { tokenIlikeClauses } from '../lib/searchTerms'
 
 // Filtro de status exposto na UI: 3 estados operacionais. Cada um cobre os
 // status documentais reais persistidos na coluna invoices.status.
@@ -240,6 +241,31 @@ function intersectIds(current: Set<number> | null, next: number[]): Set<number> 
   return out
 }
 
+/**
+ * Faturas cujo B/L casa a busca: B/L direto (`invoice_bls`), da consolidada
+ * (`invoice_receivable_links`) ou da avulsa (`invoices.bl_id`). O texto inteiro
+ * casa como antes; uma lista colada casa cada B/L (ponto 9 de 2026-10-23).
+ */
+function invoiceBlMatches(term: string) {
+  const tokens = tokenIlikeClauses(term, ['bl_id'])
+  if (!tokens.length) {
+    // Sem lista colada, a busca de antes: o texto inteiro com a pontuação, pelo `.ilike`
+    // parametrizado. No `.or()`, `escapeFilterTerm` troca `.,():*"` por espaço: "." casava todo B/L.
+    return Promise.all([
+      supabase.from('invoice_bls').select('invoice_id').ilike('bl_id', `%${term}%`).limit(5000),
+      supabase.from('invoice_receivable_links').select('invoice_id').ilike('bl_id', `%${term}%`).limit(5000),
+      supabase.from('invoices').select('id').ilike('bl_id', `%${term}%`).limit(5000),
+    ])
+  }
+  const whole = escapeFilterTerm(term)
+  const clauses = [...(whole ? [`bl_id.ilike.%${whole}%`] : []), ...tokens].join(',')
+  return Promise.all([
+    supabase.from('invoice_bls').select('invoice_id').or(clauses).limit(5000),
+    supabase.from('invoice_receivable_links').select('invoice_id').or(clauses).limit(5000),
+    supabase.from('invoices').select('id').or(clauses).limit(5000),
+  ])
+}
+
 export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: InvoiceListRow[]; count: number }> {
   const from = (filters.page - 1) * filters.pageSize
   const to = from + filters.pageSize - 1
@@ -249,11 +275,7 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
 
   const normalizedBlSearch = sanitizeLikeTerm(normalizeText(filters.blSearch).toUpperCase())
   if (normalizedBlSearch) {
-    const [individual, consolidated, manual] = await Promise.all([
-      supabase.from('invoice_bls').select('invoice_id').ilike('bl_id', `%${normalizedBlSearch}%`).limit(5000),
-      supabase.from('invoice_receivable_links').select('invoice_id').ilike('bl_id', `%${normalizedBlSearch}%`).limit(5000),
-      supabase.from('invoices').select('id').ilike('bl_id', `%${normalizedBlSearch}%`).limit(5000),
-    ])
+    const [individual, consolidated, manual] = await invoiceBlMatches(normalizedBlSearch)
     if (individual.error) throw individual.error
     if (consolidated.error) throw consolidated.error
     if (manual.error) throw manual.error
@@ -341,11 +363,7 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
   const anyTerm = sanitizeLikeTerm(normalizeText(filters.query ?? '').toUpperCase())
   let anyIds: number[] | null = null
   if (anyTerm) {
-    const [individual, consolidated, manual] = await Promise.all([
-      supabase.from('invoice_bls').select('invoice_id').ilike('bl_id', `%${anyTerm}%`).limit(5000),
-      supabase.from('invoice_receivable_links').select('invoice_id').ilike('bl_id', `%${anyTerm}%`).limit(5000),
-      supabase.from('invoices').select('id').ilike('bl_id', `%${anyTerm}%`).limit(5000),
-    ])
+    const [individual, consolidated, manual] = await invoiceBlMatches(anyTerm)
     if (individual.error) throw individual.error
     if (consolidated.error) throw consolidated.error
     if (manual.error) throw manual.error

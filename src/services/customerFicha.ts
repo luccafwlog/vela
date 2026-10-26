@@ -6,6 +6,7 @@ import { classifyDbError } from '../lib/errors'
 import { accountSituationLabel, provisioningDecisionLabel } from '../lib/portalProvisioningViewModel'
 import { fetchPaymentRegistrarNames } from './billing'
 import { fetchCustomerCommunicationHistory, customerCommunicationKindLabel, customerCommunicationStatusLabel, type CustomerCommunicationHistoryItem } from './customerCommunications'
+import { matchesAnyToken } from '../lib/searchTerms'
 
 export type FichaLocalInvoiceRow = {
   id: number
@@ -133,7 +134,8 @@ export function filterCustomerInvoiceLines(lines: FichaInvoiceLine[], filter: Fi
   const term = filter.search.trim().toUpperCase()
   return lines.filter((line) => {
     const blIds = line.kind === 'invoice' ? line.invoice.bl_ids : [line.blId]
-    if (term && !blIds.some((id) => id.toUpperCase().includes(term)) && !(line.kind === 'invoice' && (line.invoice.invoice_number ?? '').toUpperCase().includes(term))) return false
+    if (term && !blIds.some((id) => id.toUpperCase().includes(term)) && !(line.kind === 'invoice' && (line.invoice.invoice_number ?? '').toUpperCase().includes(term))
+      && !matchesAnyToken(term, [...blIds, line.kind === 'invoice' ? line.invoice.invoice_number : null])) return false
     if (filter.situation === 'no_invoice') return line.kind === 'no_invoice'
     if (line.kind === 'no_invoice') return filter.situation === '' || filter.situation === 'open'
     const status = line.invoice.status ?? 'issued'

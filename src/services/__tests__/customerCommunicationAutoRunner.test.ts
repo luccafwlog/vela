@@ -210,6 +210,45 @@ describe('rodada do runner com envio falso', () => {
 
     expect(heartbeats).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/token/fail'])
   })
+
+  it('até quatro Clientes por vez; alvos do mesmo Cliente e destinatários do mesmo alvo em série', async () => {
+    // Seis Clientes; o Cliente 1 tem dois alvos (NOA e NOR), o NOA com dois destinatários.
+    const candidates: AutoRunnerCandidate[] = [
+      { ...candidate, claim_key: 'aviso_chegada_noa:1:1:BRSSZ', customer_id: 1 },
+      ...[2, 3, 4, 5, 6].map((customerId) => ({ ...candidate, claim_key: `aviso_chegada_noa:${customerId}:1:BRSSZ`, customer_id: customerId, emails: ['x@example.test'] })),
+      { ...candidate, claim_key: 'aviso_prontidao_nor:1:1:BRSSZ', kind: 'aviso_prontidao_nor', customer_id: 1, emails: ['c@example.test'] },
+    ]
+    const rpc = vi.fn((fn: string) => Promise.resolve({ data: fn === 'evaluate_and_dispatch_automatic_communications' ? candidates : true, error: null }))
+    let inFlight = 0
+    let maxInFlight = 0
+    const inFlightByCustomer = new Map<number, number>()
+    let sameCustomerOverlap = false
+    const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
+      const { customer_id: customerId } = JSON.parse(String(init.body)) as { customer_id: number }
+      inFlight += 1
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      inFlightByCustomer.set(customerId, (inFlightByCustomer.get(customerId) ?? 0) + 1)
+      if (inFlightByCustomer.get(customerId)! > 1) sameCustomerOverlap = true
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      inFlight -= 1
+      inFlightByCustomer.set(customerId, inFlightByCustomer.get(customerId)! - 1)
+      return new Response(JSON.stringify({ status: 'enviado' }), { status: 200 })
+    }) as unknown as typeof fetch
+
+    const result = await runAutomaticCommunications({
+      rpc, fetcher, supabaseUrl: 'https://supabase.example.test', anonKey: 'anon', secret: 'secret',
+    })
+
+    expect(fetcher).toHaveBeenCalledTimes(8)
+    expect(maxInFlight).toBe(4)
+    expect(sameCustomerOverlap).toBe(false)
+    // O resumo segue a ordem dos candidatos, não a ordem de término.
+    expect(result.body.sent?.map((item) => `${item.kind}:${item.customerId}:${item.emails}`)).toEqual([
+      'aviso_chegada_noa:1:2', 'aviso_chegada_noa:2:1', 'aviso_chegada_noa:3:1', 'aviso_chegada_noa:4:1',
+      'aviso_chegada_noa:5:1', 'aviso_chegada_noa:6:1', 'aviso_prontidao_nor:1:1',
+    ])
+    expect(result.body).toMatchObject({ candidates: 7, failed: 0, releaseFailures: 0 })
+  })
 })
 
 describe('recusas da Edge send-customer-communication', () => {

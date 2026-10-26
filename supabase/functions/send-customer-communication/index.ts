@@ -12,6 +12,7 @@ import {
   type CommunicationAttemptStore,
 } from '../_shared/customerCommunicationAttempts.ts'
 import { resolveCommunicationAttemptKey } from '../_shared/customerCommunicationAttemptKey.ts'
+import { canonicalPortalUrl } from '../_shared/portalUrls.ts'
 import {
   assertValidCommunicationAttachments,
   renderCustomerCommunicationTemplate,
@@ -151,6 +152,8 @@ async function renderUserWrittenCommunication(
     subject: input.subject,
     body: input.messageBody,
     bls: input.blIds.map((id) => ({ id, customerId: input.customerId })),
+    // Logo e links pelo Portal do ambiente (configuração única, ponto 4 de 2026-10-23).
+    portalUrl: portalBillingUrl(),
   })
   return { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }
 }
@@ -203,13 +206,11 @@ function safeStorageFileName(value: string): string {
   return safe || 'anexo'
 }
 
+// Faturas do Portal pela configuração única (src/config/portalUrl.ts): um
+// PORTAL_URL do portal antigo (Transhipping Desk) não chega ao e-mail (ponto 4
+// de 2026-10-23).
 function portalBillingUrl(): string {
-  const configured = (Deno.env.get('PORTAL_URL') ?? '').trim().replace(/\/+$/, '')
-  if (!configured) return 'https://portalfwlog.com.br/portal/billing'
-  if (configured.endsWith('/portal/billing')) return configured
-  if (configured.endsWith('/portal')) return `${configured}/billing`
-  if (configured.endsWith('/billing')) return `${configured.slice(0, -'/billing'.length)}/portal/billing`
-  return `${configured}/portal/billing`
+  return canonicalPortalUrl('billing')
 }
 
 function isAlreadyExists(error: unknown): boolean {
@@ -353,7 +354,7 @@ function communicationAttemptStore(admin: Admin): CommunicationAttemptStore {
     insertAttempt: (row) => admin.from('customer_communication_attempts').insert(row).select('id').single(),
     findAttemptByKey: (idempotencyKey) => admin
       .from('customer_communication_attempts')
-      .select('id, status, provider_message_id, dispatch_mode')
+      .select('id, status, provider_message_id, dispatch_mode, recipient_email')
       .eq('idempotency_key', idempotencyKey)
       .single(),
     patchAttempt: (id, patch) => admin.from('customer_communication_attempts').update(patch).eq('id', id),
@@ -620,6 +621,7 @@ async function handler(req: Request): Promise<Response> {
         terminalStateId: body.anchor_atracacao_id ?? null,
         milestoneAt,
         bls: validBls.map((bl) => ({ id: bl.id, customerId, terminalId, terminalStateId: body.anchor_atracacao_id ?? null })),
+        portalUrl: portalBillingUrl(),
       })
       canonicalPayload = { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }
       effectiveBlIds = rendered.blIds

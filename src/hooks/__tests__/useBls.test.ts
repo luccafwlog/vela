@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchAllBls, useBls, useVoyages, type BlFilters } from '../useBls'
+import { fetchAllBls, fetchAllContainers, useBls, useVoyages, type BlFilters } from '../useBls'
 
 const { mockFrom } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -91,6 +91,17 @@ describe('fetchAllBls', () => {
       p_voyage_id: 24,
       p_cargo_mode: 'container',
     }))
+  })
+
+  // Ponto 9: a exportação de Containers segue a busca por lista da tela.
+  it('exporta os contêineres de uma lista colada', async () => {
+    const rows = [
+      { ...makeBl('BL-A', []), bl_containers: [{ id: 1, container_number: 'TCNU4530001' }, { id: 2, container_number: 'TCNU4530002' }] },
+      { ...makeBl('BL-B', []), bl_containers: [{ id: 3, container_number: 'TCNU4530003' }] },
+    ]
+    mockRpc.mockResolvedValue({ data: { rows, count: rows.length }, error: null })
+    const result = await fetchAllContainers({ ...baseFilters, search: 'TCNU4530001, TCNU4530003', containerType: '', vehicleContainer: '' } as never)
+    expect(result.map((row) => row.container_number)).toEqual(['TCNU4530001', 'TCNU4530003'])
   })
 
   it('pagina a RPC até completar a contagem do envelope', async () => {

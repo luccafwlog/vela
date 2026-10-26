@@ -246,11 +246,14 @@ export function countPixPending(monitor: Pick<ItauPixMonitor, 'receipts' | 'char
 const RECEIPT_ORIGIN: Record<ItauPixReceiptOrigin, string> = {
   vela: 'Cobrança do Vela',
   none: 'Sem identificador',
-  other: 'Outro sistema',
+  // Pix pela API do Itaú gerado pelo sistema da ZPT, que cobra na mesma chave
+  // (ponto 12 de 2026-10-23; antes "Outro sistema"). Só o rótulo: a
+  // classificação (`_itau_pix_origin`, migration 442) e a baixa não mudam.
+  other: 'ZPT',
   test: 'Teste do Vela',
 }
 
-/** De onde veio o Pix, pelo identificador: QR do Vela, chave digitada (sem identificador), QR de outro sistema na mesma chave ou teste. */
+/** De onde veio o Pix, pelo identificador: QR do Vela, chave digitada (sem identificador), QR da ZPT na mesma chave ou teste. */
 export function receiptOriginLabel(origin: ItauPixReceiptOrigin): string {
   return RECEIPT_ORIGIN[origin] ?? origin
 }

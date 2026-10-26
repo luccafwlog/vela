@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import type { PortalOperationBL } from '../../services/portalOperation'
 
 const rows: PortalOperationBL[] = [
@@ -203,10 +203,15 @@ import { exportPortalBlsWorkbook, exportPortalContainersWorkbook } from '../../s
 
 afterEach(cleanup)
 
+function SearchProbe() {
+  return <div data-testid="search">{useLocation().search}</div>
+}
+
 function renderOperacao(initialEntry = '/portal/operacao') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <PortalOperacao />
+      <SearchProbe />
     </MemoryRouter>,
   )
 }
@@ -326,6 +331,19 @@ describe('PortalOperacao (BLs e Containers)', () => {
 
     expect(within(blsTable()).getByText('BL001')).toBeTruthy()
     expect(within(blsTable()).queryByText('BL003')).toBeNull()
+  })
+
+  // Ponto 9: colar vários B/Ls no filtro acha cada um.
+  it('filtra a aba BLs por uma lista de B/Ls colada', async () => {
+    const user = userEvent.setup()
+    renderOperacao()
+
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
+    await user.type(screen.getByLabelText('B/L'), 'BL001, BL003')
+
+    expect(within(blsTable()).getByText('BL001')).toBeTruthy()
+    expect(within(blsTable()).getByText('BL003')).toBeTruthy()
+    expect(within(blsTable()).queryByText('BL002')).toBeNull()
   })
 
   it('abre a linha com os contêineres em tabela interna, Situação em texto e o transbordo', async () => {
@@ -458,5 +476,53 @@ describe('PortalOperacao (BLs e Containers)', () => {
     const inner = screen.getByRole('table', { name: 'Containers do B/L BL004' })
     expect(within(inner).getByText('MIXU9999999')).toBeTruthy()
     expect(within(inner).getByText('40HC')).toBeTruthy()
+  })
+})
+
+// Ponto 2 de 2026-10-23: o atalho "Ver meus B/Ls" de Chegadas e saídas chega
+// pela URL; recarregar a página mantém o filtro de Navio e Viagem.
+describe('PortalOperacao: Navio e Viagem na URL', () => {
+  it('abre a aba BLs já filtrada pelo navio e pela viagem do endereço', () => {
+    renderOperacao('/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W')
+    expect((screen.getByLabelText('Navio') as HTMLInputElement).value).toBe('NAVIO DEVOLVIDO')
+    expect((screen.getByLabelText('Viagem') as HTMLInputElement).value).toBe('003W')
+    const shown = within(blsTable()).getAllByRole('button', { name: /Abrir os containers do B\/L/ }).map((b) => b.getAttribute('aria-label'))
+    expect(shown).toEqual(['Abrir os containers do B/L BL003'])
+  })
+
+  it('digitar ou limpar Navio e Viagem atualiza a URL', async () => {
+    const user = userEvent.setup()
+    renderOperacao('/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W')
+    await user.clear(screen.getByLabelText('Viagem'))
+    expect(new URLSearchParams(screen.getByTestId('search').textContent ?? '').get('viagem')).toBeNull()
+    await user.clear(screen.getByLabelText('Navio'))
+    await user.type(screen.getByLabelText('Navio'), 'MISTO')
+    const params = new URLSearchParams(screen.getByTestId('search').textContent ?? '')
+    expect(params.get('navio')).toBe('MISTO')
+    expect(params.get('tab')).toBe('bls')
+  })
+
+  // O roteador troca o endereço numa transição: o campo lido da URL voltava ao
+  // valor antigo a cada tecla e o texto digitado no meio ia para o fim.
+  it('digitar no meio do Navio mantém o cursor no lugar', async () => {
+    const user = userEvent.setup()
+    renderOperacao('/portal/operacao?tab=bls&navio=NAVIO&viagem=003W')
+    const navio = screen.getByLabelText('Navio') as HTMLInputElement
+    await user.type(navio, 'XY', { initialSelectionStart: 2, initialSelectionEnd: 2 })
+    expect(navio.value).toBe('NAXYVIO')
+    expect(new URLSearchParams(screen.getByTestId('search').textContent ?? '').get('navio')).toBe('NAXYVIO')
+  })
+
+  it('link de fora com a tela aberta troca Navio e Viagem pelos do endereço', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W']}>
+        <PortalOperacao />
+        <Link to="/portal/operacao?tab=bls">Menu BLs e Containers</Link>
+      </MemoryRouter>,
+    )
+    await user.click(screen.getByRole('link', { name: 'Menu BLs e Containers' }))
+    expect((screen.getByLabelText('Navio') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('Viagem') as HTMLInputElement).value).toBe('')
   })
 })

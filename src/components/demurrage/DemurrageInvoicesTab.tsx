@@ -18,6 +18,7 @@ import type { DemurrageInvoiceListItem } from '../../services/demurrage/demurrag
 import { fetchDemurrageDunningStatuses, getDemurrageDunningDisplay } from '../../services/demurrageDunning'
 import { queryKeys } from '../../services/queryKeys'
 import { DemurrageDunningStatus } from './DemurrageDunningStatus'
+import { matchesAnyToken } from '../../lib/searchTerms'
 
 type InvoiceTab = 'emitidas' | 'pagas' | 'canceladas'
 
@@ -45,6 +46,7 @@ function matchesSearch(invoice: DemurrageInvoiceListItem, query: string) {
   return (
     invoice.doc_number.toLowerCase().includes(term)
     || invoice.bl_id.toLowerCase().includes(term)
+    || matchesAnyToken(term, [invoice.bl_id, invoice.doc_number])
     || (invoice.customer?.name ?? '').toLowerCase().includes(term)
     || (digits.length >= 3 && (invoice.customer?.cnpj_cpf ?? '').replace(/\D/g, '').includes(digits))
   )

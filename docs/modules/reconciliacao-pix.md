@@ -127,7 +127,8 @@ feita em Pendências.
 - **Filtros** (na URL, com o prefixo `pix` para não colidir com os do
   histórico): Recebido de e até (dias de Brasília), Situação (Sem baixa, Com
   baixa, Em análise, Tratado), Origem (Cobrança do Vela, Sem identificador,
-  Outro sistema, Teste do Vela), Valor e Buscar (mensagem do pagador,
+  ZPT, Teste do Vela; "ZPT" é o Pix gerado pelo sistema da ZPT que cobra na
+  mesma chave, até 2026-10-23 "Outro sistema", só o rótulo mudou), Valor e Buscar (mensagem do pagador,
   identificador do Pix, da cobrança ou número da fatura; também nome e
   documento do pagador, se o Itaú os mandar). Valor ilegível avisa no campo e não consulta.
 - **Bloco Pix recebidos**, com "N Pix · R$ X" do recorte na faixa e a tabela

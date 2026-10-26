@@ -121,7 +121,13 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     sql(`INSERT INTO public.ce_unlock_documents(customer_id,type,source,status,file_name,storage_path,size_bytes,hash,coverage_year,valid_from,valid_until,uploaded_by) VALUES
     (998557,'termo','vip_annual','approved','termo.pdf','annual/termo',100,'hash',extract(year from now())::int,make_date(extract(year from now())::int,1,1),make_date(extract(year from now())::int,12,31),'${admin}'),
     (998557,'procuracao','vip_annual','approved','proc.pdf','annual/proc',100,'hash',extract(year from now())::int,make_date(extract(year from now())::int,1,1),make_date(extract(year from now())::int,12,31),'${admin}');`)
-    const draft=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items[0]
+    // 449: o rascunho feito antes dos anuais nasceu comum (termo e procuração anexados);
+    // com os anuais cobrindo o B/L, o pedido novo nasce VIP.
+    const before=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items[0]
+    expect(before.source).toBe('request')
+    cancelOpenRequests('Pedir de novo com os anuais')
+    const draft=command('draft',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()},client)
+    expect(draft.source).toBe('vip_annual')
     const sent=command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)
     expect(sent.items[0]).toMatchObject({termo:true,procuracao:true,paid:true,delivered:false,can_export:false})
     const key=crypto.randomUUID()
@@ -146,6 +152,9 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(portalItem.confirmed).toBe(false)
     // Exportar é o registro do envio: o desk vê, o Portal nunca recebe nada da ZPT.
     expect(JSON.parse(sql("SELECT public.ce_unlock_read('bls','{\"filters\":{\"search\":\"CE557-A\"}}');",admin)).items[0]).toMatchObject({export_state:'exported',can_export:true})
+    // Ponto 9 (migration 454): B/Ls colados na busca do Desbloqueio de CE acham cada um.
+    const listed=JSON.parse(sql("SELECT public.ce_unlock_read('bls','{\"filters\":{\"search\":\"CE557-A, CE557-SECOND\"}}');",admin)).items.map((i:{bl_id:string})=>i.bl_id)
+    expect(listed).toEqual(expect.arrayContaining(['CE557-A','CE557-SECOND']))
     for(const key of ['export_state','exported_at','zpt_status','zpt_description','zpt_pending','zpt_updated_at','zpt_without_export']) expect(portalItem).not.toHaveProperty(key)
     sql("UPDATE public.bl_receivables SET settled_amount_brl=50,balance_brl=50,status='partially_settled' WHERE id=998557;")
     expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow()
@@ -281,7 +290,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     try { expect(()=>command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)).toThrow() }
     finally { await worker.done; sql("UPDATE public.ce_unlock_documents SET status='approved' WHERE customer_id=998557 AND source='vip_annual' AND type='termo';") }
   })
-  it('recusa de documento avisa o cliente com o motivo, reenvio reinicia o prazo e preserva o outro documento aprovado',()=>{
+  it('recusa de documento avisa o cliente com o motivo, reenvio não dá prazo sem os requisitos e preserva o outro documento aprovado',()=>{
     cancelOpenRequests('Teste de reenvio parcial')
     command('set_vip',{customer_id:998557,enabled:false,reason:'Documentos por pedido',request_key:crypto.randomUUID()})
     sql("UPDATE public.bls SET ce_mercante='123456789018888' WHERE id='CE557-SECOND'; UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998557;")
@@ -290,8 +299,8 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       (998557,'${request.id}','termo','request','uploaded','partial-term.pdf','partial/term-${request.id}',10,'hash','${client}'),
       (998557,'${request.id}','procuracao','request','uploaded','partial-proc.pdf','partial/proc-${request.id}',10,'hash','${client}');`)
     request=command('submit',{request_id:request.id,expected_version:request.version,request_key:crypto.randomUUID()},client)
-    const firstStart=request.items[0].sla_started_at
-    expect(firstStart).toBeTruthy()
+    // 448 (ponto 10 de 2026-10-23): enviar não dá prazo; faltam aprovação e entrega do original.
+    expect(request.items[0].sla_started_at).toBeNull()
     // A análise vale para a solicitação inteira: nenhum bl_ids é necessário.
     for(const type of ['termo','procuracao']) {
       const doc=request.documents.find((d:{type:string})=>d.type===type)
@@ -308,7 +317,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     const replacement=sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by) VALUES(998557,'${request.id}','procuracao','request','uploaded','replacement-partial.pdf','partial/new-${request.id}',10,'hash','${client}') RETURNING id;`)
     request=command('submit',{request_id:request.id,expected_version:request.version,request_key:crypto.randomUUID()},client)
     expect(request.state).toBe('submitted')
-    expect(Date.parse(request.items[0].sla_started_at)).toBeGreaterThan(Date.parse(firstStart))
+    expect(request.items[0].sla_started_at).toBeNull()
     for(const bid of ['CE557-A','CE557-SECOND']) expect(sql(`SELECT procuracao_document_id FROM public.ce_unlock_request_bls WHERE request_id='${request.id}' AND bl_id='${bid}';`)).toBe(replacement)
     expect(request.items.every((i:{termo:boolean;procuracao:boolean})=>i.termo&&!i.procuracao)).toBe(true)
   })

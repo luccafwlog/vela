@@ -155,6 +155,23 @@ function historyStatusTone(status: string) {
   return 'default' as const
 }
 
+/**
+ * Aviso do Histórico aberto pelo link de um Comunicado, montado pelo próprio
+ * Comunicado do link: sem viagem (institucional, Cobrança de Demurrage agrupada)
+ * a lista traz todos os Comunicados do Cliente, e com outro filtro da tela ele
+ * pode nem estar na lista.
+ */
+function linkedCommunicationNotice(items: CustomerCommunicationHistoryItem[] | undefined, linkedId: number, filtered: boolean): string {
+  if (!items) return 'Comunicado do link.'
+  const linked = items.find((item) => item.id === linkedId)
+  // Lista vazia com filtro da tela: o filtro esconde o Comunicado, que existe.
+  if (!linked) return filtered || items.length ? 'O Comunicado do link não aparece na lista com os filtros atuais.' : 'Comunicado não encontrado.'
+  const customer = linked.customer?.name ?? 'Cliente'
+  if (linked.anchor_voyage_id == null) return `O Comunicado do link não tem viagem: a lista mostra todos os Comunicados de ${customer}; o do link está aberto.`
+  const voyage = [linked.vessel_name, linked.voyage_number].filter(Boolean).join(' / ')
+  return `Todos os Comunicados de ${customer} ${voyage ? `na viagem ${voyage}` : 'na mesma viagem'}; o do link está aberto.`
+}
+
 /** "0 de 3", âmbar enquanto falta enviar; "—" quando nada é devido (lote 5a). */
 function CoverageCount({ sent, total, queued = 0, now }: { sent: number; total: number; queued?: number; now: Date }) {
   if (total === 0) return <NoValue label="Nada devido" />
@@ -166,7 +183,7 @@ function CoverageCount({ sent, total, queued = 0, now }: { sent: number; total: 
   )
 }
 
-/** "1 na fila · 16:19": a próxima rodada automática envia (migration 345). */
+/** "1 na fila · 16:07": a próxima rodada automática envia (migration 345). */
 function QueuedNote({ queued, now }: { queued: number; now: Date }) {
   if (queued <= 0) return null
   return <span className="text-xs text-[var(--app-muted)]" title={queuedLabel(now)}>{queued} na fila · {formatBrasiliaTime(nextAutoRunnerRun(now))}</span>
@@ -288,6 +305,7 @@ export function ClientesComunicacao() {
   })
   // Só o Comunicado livre deixa o operador escolher o público; os demais modelos
   // recebem o público imposto por `getCustomerCommunicationAudienceRule`.
+  const historyFiltered = Object.values(historyFilters).some(Boolean)
   const [freeAudience, setFreeAudience] = useState<CustomerCommunicationAudience>({ mode: 'todos' })
   const { data: settings, isLoading: settingsLoading, error: settingsError, refetch: refetchSettings } = useAppSettings()
   const { effectiveRole, isAdmin, can } = useAuth()
@@ -316,6 +334,15 @@ export function ClientesComunicacao() {
   const historyCommunicationId = Number(searchParams.get('communication'))
   // Linhas abertas do Histórico; o Comunicado pedido pelo endereço já abre aberto.
   const [openHistory, setOpenHistory] = useState<ReadonlySet<number>>(() => new Set(historyCommunicationId > 0 ? [historyCommunicationId] : []))
+  // O link "Enviado em" da Cobertura troca o endereço sem remontar a tela: o
+  // Comunicado novo do link também abre. Compara o texto do parâmetro (o número
+  // de um parâmetro inválido é NaN, sempre diferente de si).
+  const communicationParam = searchParams.get('communication')
+  const [seenCommunicationParam, setSeenCommunicationParam] = useState(communicationParam)
+  if (seenCommunicationParam !== communicationParam) {
+    setSeenCommunicationParam(communicationParam)
+    if (historyCommunicationId > 0) setOpenHistory((current) => new Set(current).add(historyCommunicationId))
+  }
   function toggleHistory(id: number) {
     setOpenHistory((current) => {
       const next = new Set(current)
@@ -1410,6 +1437,24 @@ export function ClientesComunicacao() {
         </div>
       ) : (
         <>
+          {historyCommunicationId > 0 ? (
+            // Ponto 8 de 2026-10-23: o link de um Comunicado abre todos os envios do Cliente na viagem.
+            <div className="mb-3 flex flex-wrap items-center gap-3" role="status">
+              <span>{linkedCommunicationNotice(historyQuery.data, historyCommunicationId, historyFiltered)}</span>
+              <Button
+                type="button"
+                variant="secondary"
+                className="app-btn--sm"
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams)
+                  next.delete('communication')
+                  setSearchParams(next, { replace: true })
+                }}
+              >
+                Ver todos
+              </Button>
+            </div>
+          ) : null}
           {historyBlId ? (
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <span>Comunicados do B/L <strong className="font-mono">{historyBlId}</strong></span>
@@ -1526,7 +1571,7 @@ export function ClientesComunicacao() {
                 </table>
               </div>
             ) : (
-              <p className="py-8 text-center text-[var(--app-muted)]">{historyCommunicationId > 0 ? 'Comunicado não encontrado.' : 'Nenhum comunicado registrado ainda.'}</p>
+              <p className="py-8 text-center text-[var(--app-muted)]">{historyCommunicationId > 0 ? (historyFiltered ? 'Nenhum Comunicado com os filtros atuais.' : 'Comunicado não encontrado.') : 'Nenhum comunicado registrado ainda.'}</p>
             )}
           </Block>
         </>
@@ -1733,9 +1778,12 @@ function formatAttachmentSize(size: number): string {
 }
 
 /**
- * Uma linha por destinatário (plano dos e-mails, 3.3): o endereço mascarado
- * como foi gravado, real ou simulado, a situação e o motivo traduzido — o texto
- * técnico do provedor fica no `title`.
+ * Uma linha por destinatário (plano dos e-mails, 3.3): o e-mail exato usado no
+ * envio (migration 451, ponto 8 de 2026-10-23; o mascarado só nos envios
+ * anteriores, que não guardaram o endereço, e depois da retenção de 1 ano),
+ * quando foi registrado, real ou simulado, a situação e o motivo traduzido — o
+ * texto técnico do provedor fica no `title`. Tela interna: o Portal não lê
+ * estas tentativas.
  */
 function AttemptsTable({ communicationId, attempts }: { communicationId: number; attempts: CustomerCommunicationHistoryItem['attempts'] }) {
   return (
@@ -1745,6 +1793,7 @@ function AttemptsTable({ communicationId, attempts }: { communicationId: number;
         <thead>
           <tr>
             <th scope="col" className="app-table__text-head">Destinatário</th>
+            <th scope="col">Registrado em</th>
             <th scope="col">Envio</th>
             <th scope="col">Situação</th>
             <th scope="col" className="app-table__text-head">Motivo</th>
@@ -1756,7 +1805,8 @@ function AttemptsTable({ communicationId, attempts }: { communicationId: number;
             const reason = customerCommunicationAttemptReason(attempt.last_error)
             return (
               <tr key={attempt.id}>
-                <td className="app-table__text text-xs">{attempt.recipient_masked}</td>
+                <td className="app-table__text text-xs" title={attempt.recipient_email ? undefined : 'Envio anterior à gravação do endereço exato ou com mais de 1 ano: só o endereço mascarado foi guardado'}>{attempt.recipient_email ?? attempt.recipient_masked}</td>
+                <td className="whitespace-nowrap tabular-nums text-xs">{formatDateTime(attempt.created_at)}</td>
                 <td>{attempt.dispatch_mode === 'simulado' ? 'Simulado' : attempt.dispatch_mode === 'real' ? 'Real' : <NoValue label="Modo não registrado" />}</td>
                 <td>{failed ? <StatusText tone="danger">{customerCommunicationAttemptStatusLabel(attempt)}</StatusText> : customerCommunicationAttemptStatusLabel(attempt)}</td>
                 <td className="app-table__text app-table__text--wrap" title={attempt.last_error ?? undefined}>{reason ?? <NoValue label="Sem motivo registrado" />}</td>

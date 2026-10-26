@@ -47,6 +47,7 @@ import { formatDate, formatDateTimeBR } from '../lib/utils'
 import { listVoyageEscalaSchedulesByVoyageIds } from '../services/voyageRouteSchedules'
 import { buildVoyageRailItems, type VoyageRailItem } from '../services/voyageSummaries'
 import { VoyageRail } from '../components/voyages/VoyageRail'
+import { matchesAnyToken } from '../lib/searchTerms'
 import {
   buildReconciliationOverview,
   describeRowCoverage,
@@ -845,7 +846,7 @@ function ContainerList({
   const filtered = useMemo(() => {
     const term = filters.container.trim().toLowerCase()
     return rows.filter(({ container, coverage }) => {
-      return (!term || container.container_number.toLowerCase().includes(term) || (container.slot ?? '').toLowerCase().includes(term) || (container.bl_ref ?? '').toLowerCase().includes(term))
+      return (!term || container.container_number.toLowerCase().includes(term) || (container.slot ?? '').toLowerCase().includes(term) || (container.bl_ref ?? '').toLowerCase().includes(term) || matchesAnyToken(term, [container.container_number, container.bl_ref]))
         && (!filters.coverage || Boolean(coverage?.keys.includes(filters.coverage)))
         && (!filters.status || (container.status === 'empty' ? 'empty' : 'full') === filters.status)
         && (!filters.type || container.size_type === filters.type)

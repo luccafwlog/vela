@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, type EmailAttemptRecord } from '../_shared/email.ts'
+import { canonicalPortalUrl } from '../_shared/portalUrls.ts'
 import {
   dunningResumeDispatchId,
   runDemurrageDunning,
@@ -52,13 +53,11 @@ function demurrageReplyTo(): string | undefined {
   return Deno.env.get('DEMURRAGE_REPLY_TO')?.trim() || undefined
 }
 
+// Faturas do Portal pela configuração única (src/config/portalUrl.ts): um
+// PORTAL_URL do portal antigo (Transhipping Desk) não chega ao e-mail (ponto 4
+// de 2026-10-23).
 function portalBillingUrl(): string {
-  const configured = (Deno.env.get('PORTAL_URL') ?? '').trim().replace(/\/+$/, '')
-  if (!configured) return 'https://portalfwlog.com.br/portal/billing'
-  if (configured.endsWith('/portal/billing')) return configured
-  if (configured.endsWith('/portal')) return `${configured}/billing`
-  if (configured.endsWith('/billing')) return `${configured.slice(0, -'/billing'.length)}/portal/billing`
-  return `${configured}/portal/billing`
+  return canonicalPortalUrl('billing')
 }
 
 async function recipientAllowed(admin: Admin, customerId: number, contactId: number): Promise<boolean> {
@@ -128,6 +127,7 @@ type DunningAttemptRow = {
   dispatch_mode: string
   idempotency_key: string
   recipient_key: string | null
+  recipient_email: string | null
 }
 
 async function findExistingDunningAttempt(
@@ -146,7 +146,7 @@ async function findExistingDunningAttempt(
     keyPrefix: string
   },
 ): Promise<DunningAttemptRow | null> {
-  const select = 'id, status, provider_message_id, dispatch_mode, idempotency_key, recipient_key'
+  const select = 'id, status, provider_message_id, dispatch_mode, idempotency_key, recipient_key, recipient_email'
   const { data: exact, error: exactError } = await admin
     .from('customer_communication_attempts')
     .select(select)
@@ -204,6 +204,8 @@ async function recordDunningAttempt({
   const { data, error } = await admin.from('customer_communication_attempts').insert({
     communication_id: communicationId,
     recipient_masked: maskEmail(to),
+    // Endereço exato para o Histórico interno (migration 451, ponto 8 de 2026-10-23).
+    recipient_email: to,
     recipient_key: recipientIdentity,
     status: 'aceito',
     dispatch_mode: communicationsEnabled ? 'real' : 'simulado',
@@ -219,9 +221,11 @@ async function recordDunningAttempt({
     })
     if (!existing) throw error
 
-    if (existing.recipient_key !== recipientIdentity || (existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null)) {
+    // Tentativa de antes da 451 reaproveitada agora: o Histórico passa a mostrar o endereço exato.
+    if (existing.recipient_key !== recipientIdentity || existing.recipient_email == null || (existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null)) {
       const { error: repairError } = await admin.from('customer_communication_attempts').update({
         recipient_key: recipientIdentity,
+        ...(existing.recipient_email == null ? { recipient_email: to } : {}),
         ...(existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null
           ? { dispatch_mode: communicationsEnabled ? 'real' : 'simulado' }
           : {}),
