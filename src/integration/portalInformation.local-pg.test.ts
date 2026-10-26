@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
@@ -143,15 +144,21 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
       expect(as(admin, `SELECT public.internal_save_portal_information('carrier',${quote({carrier_id: voyage, tracking_url: url})});`, true).status).not.toBe(0)
     }
   })
-  // Ponto 6 de 2026-10-23 (migration 447): endereços das agências que recebem o B/L original.
-  it('entrega do B/L original: três agências com "Endereço a definir", editáveis no Vela e lidas pelo Portal', () => {
+  // Ponto 6 de 2026-10-23: as agências que recebem o B/L original (migration 447), com o endereço da 464.
+  it('entrega do B/L original: três agências com endereço, editáveis no Vela e lidas pelo Portal', () => {
     const catalog = call<PortalInformation>(portal, 'SELECT public.portal_get_information();')
-    const delivery = catalog.contacts.filter(c => c.key.startsWith('entrega_bl_')).map(c => [c.key, c.address])
-    expect(delivery).toEqual([['entrega_bl_salvador', 'Endereço a definir'], ['entrega_bl_suape', 'Endereço a definir'], ['entrega_bl_vitoria', 'Endereço a definir']])
+    const delivery = catalog.contacts.filter(c => c.key.startsWith('entrega_bl_')).map(c => [c.key, c.address.split('\n')[0]])
+    expect(delivery).toEqual([['entrega_bl_salvador', 'Marinav'], ['entrega_bl_suape', 'Transglobal'], ['entrega_bl_vitoria', 'Transhipping']])
+    expect(catalog.contacts.find(c => c.key === 'entrega_bl_vitoria')?.address).toContain('CEP 29052-210')
     const data = { key: 'entrega_bl_suape', title: 'Entrega do B/L original · Suape', address: 'Av. Portuária, 1\nSuape/PE', active: true }
     const saved = as(operations, `SELECT public.internal_save_portal_information('contact',${quote(data)}); SELECT address FROM public.portal_information_contacts WHERE key='entrega_bl_suape';`, true)
     expect(saved.status, saved.stderr).toBe(0)
     expect(saved.stdout).toContain('Av. Portuária, 1')
+    // A 464 só troca o texto provisório: reaplicada, não apaga o endereço editado no Vela.
+    const migration = readFileSync('supabase/migrations/464_enderecos_das_agencias_de_entrega_do_bl.sql', 'utf8')
+    const kept = sql(`BEGIN; SET LOCAL request.jwt.claim.sub='${admin}'; SELECT public.internal_save_portal_information('contact',${quote(data)}); ${migration} SELECT address FROM public.portal_information_contacts WHERE key='entrega_bl_suape'; ROLLBACK;`)
+    expect(kept).toContain('Av. Portuária, 1')
+    expect(kept).not.toContain('Transglobal')
     for (const key of ['entrega_bl_recife', 'info134']) {
       const refused = as(admin, `SELECT public.internal_save_portal_information('contact',${quote({ ...data, key })});`, true)
       expect(refused.status).not.toBe(0)
