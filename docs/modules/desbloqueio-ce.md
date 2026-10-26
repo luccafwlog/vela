@@ -36,11 +36,13 @@ Manifesto Mercante é regra de
   cobrindo os B/Ls continua sem anexo avulso (`ce_unlock_prepare_upload` recusa "Pedido não aceita
   anexos"); Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
   "Em PDF, anexada à solicitação", com **Baixar modelo do termo** quando há modelo publicado, e
-  nenhuma menção a documento anual. Embaixo de "B/L original · Entregue na agência", o botão
-  **Endereços de entrega do B/L** abre os endereços das agências que recebem o original em Vitória,
-  Salvador e Suape (ponto 6 das observações de 2026-10-23): contatos da Central de Informações
-  (migration `447`), editados no Vela em `/clientes/informacoes` → Contato; sem endereço informado,
-  "Endereço a definir". Na faixa, **Baixar memorando de liberação**
+  nenhuma menção a documento anual. Em "B/L original · Entregue na agência", a palavra **agência**
+  é um link que abre o modal "Onde entregar o B/L original", com os endereços das agências que
+  recebem o original em Vitória, Salvador e Suape (ponto 6 das observações de 2026-10-23):
+  contatos da Central de Informações (migration `447`), preenchidos com Transhipping, Marinav e
+  Transglobal (migration `464`) e editados no Vela em Clientes → Portal → **Informações do Portal**
+  (`/clientes/informacoes`) → Contato; sem endereço informado, "Endereço a definir". Na faixa,
+  **Baixar memorando de liberação**
   (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar documentos
   na agência; não é requisito nem entra no pedido. Cartões que filtram ("Podem ser pedidos", "Com
   taxas locais em aberto", "Já em solicitação") e tabela limpa: B/L, CE Mercante, Navio / Viagem, POD,
