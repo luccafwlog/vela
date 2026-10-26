@@ -19,7 +19,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { collectInventory } from './inventory.mjs'
+import { collectInventory, databaseFunctionNames } from './inventory.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 
@@ -106,8 +106,11 @@ const missing = inventory.filter((item) => !(cited.has(item.id) || (item.kind ==
 for (const item of missing) {
   errors.push(`sem lugar no manual: ${item.kind === 'mensagem' ? `mensagem "${item.name}"` : item.id}`)
 }
+// Função interna (não chamável pela tela) pode ser citada como referência de código.
+const functionNames = databaseFunctionNames()
 for (const [token, file] of cited) {
   const kind = token.split(':', 1)[0]
+  if (kind === 'funcao' && functionNames.has(token.slice('funcao:'.length))) continue
   if (KINDS.includes(kind) && token.includes(':') && !ids.has(token)) {
     errors.push(`${file}: cita ${token}, que não existe mais no sistema`)
   }

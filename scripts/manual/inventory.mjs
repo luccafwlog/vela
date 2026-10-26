@@ -238,6 +238,15 @@ function databaseItems(env, callers) {
   return items
 }
 
+/** Nome de toda função própria do banco, inclusive as internas que não são item do inventário. */
+export function databaseFunctionNames(databaseUrl = process.env.LOCAL_DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test') {
+  const schemaList = SCHEMAS.map((schema) => `'${schema}'`).join(',')
+  return new Set(psqlRows(connectionEnvironment(databaseUrl), `
+    select distinct p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in (${schemaList})
+      and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')`).map(([name]) => name))
+}
+
 export function collectInventory(databaseUrl = process.env.LOCAL_DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test') {
   const files = sourceFiles()
   const callers = rpcCallers(files)
