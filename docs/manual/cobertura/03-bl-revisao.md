@@ -9,8 +9,10 @@ As regras seguem a ordem do trabalho: lista BLs (BLR-001 a 016), arquivo de
 B/L de contêiner (017 a 047), carga solta pelo Manifesto BB e pelo B/L avulso
 (048 a 064), leitura comum e rastro das importações (065 a 071), modalidade,
 peso e cubagem (072 a 075), ficha do B/L (076 a 101), cancelar e reativar (102
-a 108), Revisão (109 a 135), efeitos de importação (136 a 145) e quem grava
-(146 e 147).
+a 108), Revisão (109 a 135), processamento pós-importação, faturamento
+automático e Preparar cancelamento financeiro (136 a 145) e quem grava (146 e
+147). Na seção Mensagens, as linhas que começam com "Tela:" são textos que só
+existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 
 ## Regras
 
@@ -163,3 +165,196 @@ a 108), Revisão (109 a 135), efeitos de importação (136 a 145) e quem grava
 | BLR-145 | **Preparar cancelamento financeiro** (na fatura, em Taxas Locais) é só do Administrativo: escolhe o B/L da fatura paga ou parcialmente paga, exige motivo de pelo menos 10 caracteres e prepara a devolução do recebido; troca de Cliente em andamento no B/L impede. A tela mostra só "Não foi possível preparar o cancelamento. Confira o recebível e a pendência financeira." quando recusa. | Fin; Op 17 | Adm | `funcao:prepare_bl_financial_cancellation`, `permissao:cancelar-fatura`, `src/components/billing/InvoiceCorrectionPanel.tsx` |
 | BLR-146 | Qualquer usuário interno ativo grava B/L, itens de carga solta, Frete e despesas, registro de importação e erros de importação, sempre com rastro de autor. O que só um setor faz fica nas ações (Cancelar, Reativar e Excluir B/L: Administrativo), e o sistema protege por conta própria o CE, a situação financeira, o Manifesto e o estado do B/L, que só mudam pelas ações próprias. | Op 2 | Todos | `politica:bls.bls_insert_active_global`, `politica:bls.bls_update_active_global`, `politica:bl_breakbulk_items.bl_breakbulk_items_insert_active_global`, `politica:bl_breakbulk_items.bl_breakbulk_items_update_active_global`, `politica:bl_freight_lines.bl_freight_lines_insert_active_global`, `politica:bl_freight_lines.bl_freight_lines_update_active_global`, `politica:import_batches.import_batches_insert_active_global`, `politica:import_batches.import_batches_update_active_global`, `politica:import_errors.import_errors_insert_active_global`, `politica:import_errors.import_errors_update_active_global` |
 | BLR-147 | No histórico de ações da Administração, o assunto **Importação** mostra cada registro de importação e cada **Reprocessar** de passo bloqueado, com quem fez e a justificativa. Os avisos de leitura aceitos na carga solta (linha de B/L cancelado, coluna CE ignorada, número a conferir) ficam guardados com o registro da importação, sem tela de consulta. | Adm; Op 15 | Adm + Sistema | `funcao:retry_import_effect`, `funcao:import_breakbulk_manifest_transactional`, `src/components/admin/auditLogPresentation.ts`, `src/services/breakbulkImport.ts` |
+
+## Mensagens
+
+| Mensagem | Quando aparece | Destino |
+|---|---|---|
+| `app_settings é configuração única do sistema; não pode ser apagada (%).` | Nunca chega a uma pessoa: guarda técnica contra apagar a configuração única do sistema; nenhuma tela apaga essa configuração. | Fora |
+| `Assinatura do arquivo inválida: escolha o arquivo de novo.` | Ao gravar uma importação de B/L, Manifesto BB ou B/L avulso, ou ao conferir "Arquivo já importado", quando a assinatura calculada no navegador veio fora do formato. Escolha o arquivo de novo. | Ap. B |
+| `Ator inativo para faturamento automatico.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando o faturamento pelo CE roda em nome de alguém que deixou de estar ativo no meio do processo. | Ap. B |
+| `B/L % cancelado é somente leitura: reative o B/L pela ficha para alterar containers ou veículos.` | Ao tentar incluir, alterar ou tirar container ou veículo de B/L cancelado (por exemplo, mover veículo ou editar datas em Containers). Reative o B/L pela ficha (Administrativo). | Ap. B |
+| `B/L % já faturado: o preço é o da fatura e não é refixado.` | Ao gravar o arquivo de B/L com o aceite de preço de hoje num B/L que ficou faturado depois da prévia. Refaça a prévia. | Ap. B |
+| `B/L % ja foi faturado (status financeiro=%); a importacao removeria carga solta. Estorne/refature antes de substituir o manifesto.` | Ao gravar o Manifesto BB ou o B/L avulso quando o arquivo tiraria toda a carga solta de um B/L faturado ou pago. Peça estorno ou refaturamento antes. | Ap. B |
+| `B/L % ja foi faturado (status financeiro=%); remover conteudo exige estorno/refaturamento (transicao=%).` | Ao tirar container ou item de carga solta (por correção ou reimportação) de B/L faturado ou pago de modo que ele mude de modalidade. Peça estorno ou refaturamento. | Ap. B |
+| `B/L % ja foi faturado (status financeiro=%); remover conteudo exige estorno/refaturamento.` | Ao salvar na ficha (Detalhes do B/L ou Carga) mudança que tira a carga solta ou os containers de B/L faturado ou pago (por exemplo, zerar o peso da carga solta). Peça estorno ou refaturamento. | Ap. B |
+| `B/L % não está cancelado.` | Ao reativar um B/L que outra pessoa já reativou. Recarregue a ficha. | Ap. B |
+| `B/L %: a confirmação de faturamento chegou sem o impacto mostrado na prévia. Refaça a prévia e importe de novo.` | Ao gravar o arquivo de B/L com a confirmação de faturamento num B/L cuja prévia não mostrou impacto (o B/L mudou depois da prévia). Refaça a prévia. | Ap. B |
+| `B/L %: a confirmação de faturamento só vale para B/L com fatura emitida. Refaça a prévia e importe de novo.` | Ao gravar o arquivo de B/L com a confirmação de faturamento num B/L que não tem fatura emitida (a fatura foi cancelada depois da prévia). Refaça a prévia. | Ap. B |
+| `B/L %: B/L novo não tem preço a refixar. Refaça a prévia e importe de novo.` | Ao gravar o arquivo de B/L com o aceite de preço de hoje num B/L que não existia (excluído depois da prévia). Refaça a prévia. | Ap. B |
+| `B/L %: o Cliente enviado não é o do CNPJ do consignatário no arquivo. Refaça a prévia e importe de novo.` | Ao gravar o arquivo de B/L quando o Cliente que a prévia escolheu não é o do CNPJ do consignatário (o cadastro mudou depois da prévia). Refaça a prévia. | Ap. B |
+| `B/L sem identificador no payload de frete.` | Guarda de uma etapa interna da gravação do arquivo de B/L; a gravação recusa antes, com "B/L sem número no arquivo.", então esta não chega ao operador. | Fora |
+| `B/L sem número no arquivo.` | Ao gravar arquivo de B/L de contêiner sem o número do B/L na célula do número: "Nada foi gravado: B/L sem número no arquivo.". Corrija o arquivo. | Ap. B |
+| `Batch da viagem % com B/L de outra viagem.` | Guarda da gravação do arquivo de B/L; a tela manda sempre a mesma Viagem para todos os B/Ls do envio. | Fora |
+| `Batch invalido: filename e voyage_id obrigatorios.` | Guarda da gravação do arquivo de B/L; a tela sempre manda o nome do arquivo e a Viagem. | Fora |
+| `BL nao encontrado para item de carga solta` | Guarda técnica: o item de carga solta só é gravado depois do B/L, então a mensagem não chega ao operador. | Fora |
+| `bl_id obrigatorio` | Guarda técnica da gravação da Revisão; a tela sempre manda o número do B/L. | Fora |
+| `cargo_mode de batch invalido.` | Guarda da gravação do arquivo de B/L; a tela sempre manda a modalidade contêiner. | Fora |
+| `Conclua a troca de Cliente antes de solicitar outro ajuste.` | Na fatura, em Preparar cancelamento financeiro, com troca de Cliente do B/L em andamento; a tela troca o texto por "Não foi possível preparar o cancelamento. Confira o recebível e a pendência financeira.". | Fora |
+| `Credenciais invalidas para importar carga solta.` | Ao gravar Manifesto BB ou B/L avulso com a sessão sem setor ativo ou de outra pessoa. Entre de novo. | Ap. B |
+| `Dependencia de efeito inexistente.` | Nunca chega a uma pessoa: guarda dos pedidos de processamento pós-importação, feitos pelo próprio sistema. | Fora |
+| `Efeito % nao encontrado.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar um passo que não existe mais. Atualize a lista de Alertas. | Ap. B |
+| `Efeito sem iniciador validado.` | Como motivo no Alerta "Efeito de importação bloqueado", quando o passo não guarda quem o iniciou. | Ap. B |
+| `effect_kind nao suportado: %.` | Como motivo no Alerta "Efeito de importação bloqueado", quando o passo é de um tipo que o processador não conhece. Avise o Administrativo. | Ap. B |
+| `Emissao automatica nao retornou invoice para o B/L %.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando a emissão terminou sem gerar fatura. Confira o B/L em Taxas Locais. | Ap. B |
+| `Estado final invalido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Executor server-only.` | Nunca chega a uma pessoa: as funções do processador pós-importação (e de outras rotinas do servidor) só rodam pelo próprio sistema. | Fora |
+| `Faturamento automatico sem ator validado.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando não há conta para rodar o faturamento. | Ap. B |
+| `Historico de efeitos e append-only.` | Nunca chega a uma pessoa: o histórico de tentativas do processamento pós-importação não pode ser alterado. | Fora |
+| `Identidade de conclusao incompleta.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Identidade de processamento incompleta.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Identidade do efeito incompleta.` | Nunca chega a uma pessoa: guarda dos pedidos de processamento feitos pelo próprio sistema. | Fora |
+| `Informe justificativa detalhada para cancelar a cobrança deste B/L.` | Na fatura, em Preparar cancelamento financeiro, com motivo de menos de 10 caracteres; a tela já desativa o botão e troca o texto pela mensagem genérica. | Fora |
+| `Informe o motivo da reativação.` | Ao reativar B/L (ou Viagem, Cliente e cadastros de apoio) sem motivo. Informe o motivo. | Ap. B |
+| `Informe o motivo do cancelamento.` | Ao cancelar B/L (ou Viagem) sem motivo. Informe o motivo. | Ap. B |
+| `Informe o motivo e quem revisou.` | Nunca chega a uma pessoa: ferramenta do sistema para revisar o acumulado da fila pós-importação. | Fora |
+| `Iniciador desativado e nenhuma conta de sistema ativa.` | Como motivo no Alerta "Efeito de importação bloqueado", quando quem iniciou foi desativado e não há conta de sistema nem Administrativo ativo. Avise o Administrativo. | Ap. B |
+| `Justificativa obrigatoria para retry.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar sem justificativa ou com justificativa de mais de 500 caracteres. Escreva uma justificativa mais curta. | Ap. B |
+| `Lease do efeito expirou.` | Nunca chega a uma pessoa: o processador demorou demais num passo e outro o retoma. | Fora |
+| `Lease do efeito nao pertence ao worker.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Lease invalido.` | Nunca chega a uma pessoa: guarda interna dos processadores do servidor. | Fora |
+| `Limite de claim invalido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Limite de consulta invalido.` | Nunca chega a uma pessoa: a consulta da fila pós-importação não é usada por nenhuma tela. | Fora |
+| `Limite de importacoes atingido. Aguarde 60 segundos antes de importar novamente.` | Ao gravar Manifesto BB ou B/L avulso depois de cinco importações de B/L no último minuto; a tela mostra "Muitas tentativas. Aguarde alguns minutos e tente novamente.". Espere um minuto e grave de novo. | Ap. B |
+| `Limite de simulacao invalido.` | Nunca chega a uma pessoa: ferramenta do sistema que simula a fila pós-importação. | Fora |
+| `Modalidade de carga invalida para item de carga solta: %` | Guarda técnica: a modalidade do B/L só pode ser contêiner, carga solta ou misto, então a mensagem não chega ao operador. | Fora |
+| `Nenhum B/L informado.` | Guarda da gravação do arquivo de B/L; a tela recusa antes ("Nada foi gravado: o arquivo não tem B/L."). | Fora |
+| `O B/L % está cancelado na Viagem %: o número continua lá. Exclua o B/L na Viagem % e importe de novo.` | Na prévia e na gravação do arquivo de B/L, quando o número está num B/L cancelado de outra Viagem. Exclua o B/L naquela Viagem (Administrativo) e importe de novo. | Ap. B |
+| `O B/L % ja esta na Viagem % e o arquivo foi importado na Viagem %. Nenhum B/L do lote foi gravado: confira a Viagem de destino ou corrija a Viagem do B/L pela ficha.` | Ao gravar Manifesto BB ou B/L avulso com B/L que já está em outra Viagem; nenhum B/L do arquivo é gravado. Confira a Viagem de destino ou corrija a Viagem do B/L. | Ap. B |
+| `O B/L % já está na Viagem %: exclua o B/L lá e importe de novo (cancelar não libera o número).` | Na prévia e na gravação do arquivo de B/L, quando o B/L já está em outra Viagem. Exclua o B/L lá (cancelar não libera o número) e importe de novo. | Ap. B |
+| `O CE Mercante do B/L % não pode ser apagado: há fatura emitida. Corrija o número.` | Ao remover o CE Mercante de B/L com fatura emitida. Corrija o número em Corrigir CE. | Ap. B |
+| `O container % do B/L % sai pelo arquivo, mas tem o veículo %: mova ou exclua os veículos dele (planilha de Veículos ou ficha) antes de tirar o container.` | Ao gravar o arquivo de B/L que tira um container que tem veículo (a prévia já mostra o erro). Mova ou exclua os veículos pela planilha de Veículos ou pela ficha. | Ap. B |
+| `O container % do B/L % tem a Invoice de Demurrage % e não sai por reimportação.` | Ao gravar o arquivo de B/L que tira um container com item de Invoice de Demurrage (a prévia já mostra o erro). O container fica; corrija o arquivo. | Ap. B |
+| `Payload de B/L invalido.` | Guarda da gravação do arquivo de B/L; a tela sempre manda a lista de B/Ls. | Fora |
+| `Payload de B/Ls invalido.` | Guarda da gravação do arquivo de B/L; a tela sempre manda a lista de B/Ls. | Fora |
+| `Payload de carga solta invalido.` | Guarda da gravação do Manifesto BB; a tela sempre manda as listas de B/Ls e itens. | Fora |
+| `probe` | Nunca chega a uma pessoa: usada só por dentro da prévia do preço de hoje, para desfazer o cálculo de teste. | Fora |
+| `Reimport abortado: % container(s) remapeados de forma ambigua por numero dentro do mesmo B/L.` | Nunca chega a uma pessoa: era do manifesto de contêiner, que não existe mais; a carga solta não passa por esse caminho. | Fora |
+| `Reimport abortado: % vinculo(s) de container referenciados por veiculos/calculos nao puderam ser remapeados.` | Nunca chega a uma pessoa: era do manifesto de contêiner, que não existe mais; a carga solta não passa por esse caminho. | Fora |
+| `Resultado de efeito invalido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Revisao de origem invalida.` | Nunca chega a uma pessoa: guarda dos pedidos de processamento feitos pelo próprio sistema. | Fora |
+| `Revisao server-only.` | Nunca chega a uma pessoa: ferramenta do sistema para revisar o acumulado da fila pós-importação. | Fora |
+| `Selecione B/L da fatura paga ou parcialmente paga.` | Na fatura, em Preparar cancelamento financeiro, com B/L ou fatura que não estão pagos; a tela troca o texto pela mensagem genérica. | Fora |
+| `Simulacao server-only.` | Nunca chega a uma pessoa: ferramenta do sistema que simula a fila pós-importação. | Fora |
+| `Snapshot de origem invalido.` | Nunca chega a uma pessoa: guarda dos pedidos de processamento feitos pelo próprio sistema. | Fora |
+| `Somente efeitos bloqueados podem ser reabertos.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar um passo que já voltou à fila ou concluiu. Atualize a lista de Alertas. | Ap. B |
+| `Somente o Administrativo cancela B/L.` | Ao cancelar B/L sem ser do Administrativo (a tela só mostra a ação ao Administrativo; aparece se o setor mudou com a ficha aberta). Peça ao Administrativo. | Ap. B |
+| `Somente o Administrativo prepara cancelamento financeiro.` | Na fatura, em Preparar cancelamento financeiro, sem ser do Administrativo; a tela só mostra a ação ao Administrativo e troca o texto pela mensagem genérica. | Fora |
+| `Somente o Administrativo reativa B/L.` | Ao reativar B/L sem ser do Administrativo (a tela só mostra a ação ao Administrativo). Peça ao Administrativo. | Ap. B |
+| `Status de reconciliacao de cliente invalido no payload de frete.` | Guarda da gravação do arquivo de B/L; a tela sempre manda uma situação de Cliente válida. | Fora |
+| `Um efeito nao pode ser aprovado e descartado ao mesmo tempo.` | Nunca chega a uma pessoa: ferramenta do sistema para revisar o acumulado da fila pós-importação. | Fora |
+| `updated_at obrigatorio; recarregue o B/L antes de salvar` | Guarda da gravação da ficha e da Revisão; as telas sempre mandam a versão lida e mostram "Este B/L foi alterado por outro usuário..." ou "Outro usuário alterou este B/L..." no conflito. | Fora |
+| `Use cancel_bl ou reactivate_bl para mudar o estado do B/L.` | Nunca chega a uma pessoa pela tela: o estado do B/L só muda por Cancelar B/L e Reativar B/L. | Fora |
+| `Usuario sem permissao ativa para aplicar gate de importacao.` | Guarda interna da Revisão aplicada pela importação; a recusa da própria importação vem antes. | Fora |
+| `Usuario sem permissao ativa para faturamento automatico.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando o faturamento roda com uma pessoa sem setor ativo. | Ap. B |
+| `Usuario sem permissao ativa para importar manifesto.` | Nunca chega a uma pessoa: a gravação de manifesto que usava essa porta não é chamada pelas telas. | Fora |
+| `Usuario sem permissao ativa para revisar B/L.` | Na Revisão (no resultado da ação) ao salvar com a sessão sem setor ativo; na ficha aparece como "Falha ao salvar alterações do B/L.". Entre de novo. | Ap. B |
+| `Usuario sem permissao de leitura.` | Nunca chega a uma pessoa: a consulta da fila pós-importação não é usada por nenhuma tela. | Fora |
+| `Usuario sem permissao para reabrir efeito.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar com a sessão sem setor ativo. Entre de novo. | Ap. B |
+| `Viagem invalida no efeito de flags: %.` | Como motivo no Alerta "Efeito de importação bloqueado", quando o passo das marcas do Baplie não aponta uma Viagem. Avise o Administrativo. | Ap. B |
+| `Vinculo de batch falhou: % de % B/Ls vinculados.` | Guarda da gravação do arquivo de B/L; a tela manda só B/Ls da Viagem escolhida. | Fora |
+| `voyage_id obrigatorio` | Guarda do Manifesto BB e do B/L avulso; a tela exige a Viagem de destino antes do arquivo. | Fora |
+| `Worker invalido.` | Nunca chega a uma pessoa: guarda interna dos processadores do servidor. | Fora |
+| Tela: `Nada foi gravado: o arquivo não tem B/L.` | Ao gravar o arquivo de B/L de contêiner quando a leitura não achou nenhum B/L. | Op 5; Ap. B |
+| Tela: `Nada foi gravado: todos os B/Ls do arquivo estão cancelados. Reative pela ficha (Administrativo) e importe de novo.` | Ao gravar o arquivo de B/L em que todos os B/Ls estão cancelados. | Op 5; Ap. B |
+| Tela: `Nada foi gravado: o B/L <nº> está bloqueado. Corrija o arquivo e escolha de novo.` | Proteção da gravação do arquivo de B/L com B/L em erro (no plural, "os B/Ls ... estão bloqueados"); em geral o botão **Importar N B/Ls** já fica desligado antes. | Op 5; Ap. B |
+| Tela: `Nada foi gravado: o arquivo é grande demais para gravar de uma vez. Divida os B/Ls em arquivos menores e importe cada um.` | Arquivo de B/L de contêiner que passa do tempo máximo da gravação (60 segundos, uns 7.000 containers). | Op 5; Ap. B |
+| Tela: `Outra importação da mesma Viagem estava em andamento. Nada foi gravado: tente de novo.` | Arquivo de B/L, Manifesto BB, B/L avulso e demais importações por arquivo, quando outra gravação disputa os mesmos registros. | Op 5; Ap. B |
+| Tela: `A importação demorou demais e foi cancelada. Nada foi gravado: tente de novo ou divida o arquivo em partes menores.` | Manifesto BB, B/L avulso e demais importações por arquivo que passam do tempo máximo da gravação. | Op 5; Ap. B |
+| Tela: `Muitas tentativas. Aguarde alguns minutos e tente novamente.` | Manifesto BB ou B/L avulso depois de cinco importações de B/L da mesma pessoa no último minuto; o sistema libera depois de 60 segundos. | Op 5; Ap. B |
+| Tela: `Arquivo já importado` | Aviso na prévia, com "Este arquivo já foi importado em <data> às <hora> por <pessoa>.", quando o mesmo arquivo já foi gravado antes. Não impede gravar de novo. | Op 5; Ap. B |
+| Tela: `CE Mercante, Cliente vinculado, Revisão e observações ficam como estão.` | Prévia do Manifesto BB com B/L já gravado. A Revisão, na verdade, é refeita (ver BLR-D04). | Op 5 |
+| Tela: `Falha ao salvar alterações do B/L.` | Ficha, aba **Detalhes do B/L**, quando o sistema recusa o salvamento por motivo que não é de faturamento nem de versão (B/L cancelado, Cliente desativado, sessão sem setor ativo); o motivo não aparece (ver BLR-D07). | Op 6; Ap. B |
+| Tela: `Este B/L foi alterado por outro usuário. Os dados foram recarregados; revise e salve novamente.` | Ficha, ao salvar depois que outra pessoa gravou o mesmo B/L. | Op 6; Ap. B |
+| Tela: `B/L salvo com auditoria campo a campo.` | Ficha, salvamento concluído. | Op 6 |
+| Tela: `O B/L <nº> não pode ser cancelado agora: <motivos>. O Financeiro cancela ou estorna antes.` | Ficha, **Mais ações** › **Cancelar B/L**, com fatura, recebível ou Invoice de Demurrage em aberto (ver BLR-D03). | Op 6; Ap. B |
+| Tela: `O B/L não foi cancelado: <motivos>.` | **Cancelar B/L** quando a conferência na gravação acha um impedimento que surgiu depois de abrir a confirmação. | Op 6; Ap. B |
+| Tela: `B/L cancelado.` | Fim de **Cancelar B/L**; no **Reativar B/L**, "B/L reativado.". | Op 6 |
+| Tela: `Falha ao cancelar o B/L.` | Recusa sem motivo legível ao cancelar; ao reativar, "Falha ao reativar o B/L.". Com motivo legível, a tela mostra o texto do sistema. | Op 6; Ap. B |
+| Tela: `B/L faturado: para mudar o Cliente, use Trocar.` | Ficha, bloco **Cliente**, em B/L faturado: **Desvincular** não aparece. | Op 6 |
+| Tela: `Convite do Portal iniciado.` | Ficha, bloco **Portal**, **Enviar convite do Portal** concluído. | Op 6; Op 12 |
+| Tela: `Edge Function returned a non-2xx status code` | Ficha, **Enviar convite do Portal** (e a caixa de convite do cadastro de Cliente pela ficha) quando o envio é recusado, inclusive por pessoa fora da Documentação e do Administrativo (ver BLR-D06). | Op 6; Ap. B |
+| Tela: `Informe um e-mail válido para o convite.` | Ficha, **Enviar convite do Portal** com e-mail vazio ou inválido. | Op 6; Ap. B |
+| Tela: `O convite do Portal é enviado pela Documentação ou pelo Administrativo.` | Revisão, bloco **Portal do Cliente**, para quem não pode enviar o convite. | Op 7 |
+| Tela: `Convite enviado para <e-mail>. O B/L sai da Revisão quando o Cliente ativar a conta.` | Revisão, bloco **Portal do Cliente**, depois do envio (no plural, "Os B/Ls saem"). | Op 7 |
+| Tela: `B/L <nº>: não foi salvo` | Revisão, conflito de versão, com "Outro usuário alterou este B/L. A fila foi recarregada; confira os dados e salve de novo." (no peso, "confira o valor"). | Op 7; Ap. B |
+| Tela: `B/L <nº>: falha ao salvar a revisão` | Revisão, recusa do sistema ao salvar (no peso, "falha ao salvar a correção"); abaixo vem o motivo do sistema ou "Tente de novo.". | Op 7; Ap. B |
+| Tela: `<Cliente>: nada foi gravado` | Revisão, cadastro do grupo recusado, com "Nenhum B/L deste grupo pode receber o cadastro com esse CNPJ.", "Outro usuário alterou este grupo. A fila foi recarregada; confira e tente de novo." ou o motivo do sistema. | Op 7; Ap. B |
+| Tela: `O convite do Portal não foi enviado; o cadastro foi concluído. Envie pelo Provisionamento do Portal.` | Revisão, cadastro do grupo concluído com falha no envio do convite. | Op 7; Op 12; Ap. B |
+| Tela: `Recálculo concluído, mas ainda há pendências de revisão nas taxas locais.` | Revisão, **Recalcular taxas** que termina com Taxas Locais a revisar; sem pendência, "Taxas locais recalculadas.". | Op 7; Op 17 |
+| Tela: `Fatura já emitida para <nº> — cancele e reemita para corrigir.` | Revisão, **Recalcular taxas** em B/L já faturado; outra recusa mostra "Falha ao recalcular as taxas locais.". | Op 7; Op 17; Ap. B |
+| Tela: `Efeito reenviado para a fila. O alerta fecha quando o efeito concluir.` | Alertas, **Reprocessar** concluído no Alerta "Efeito de importação bloqueado". | Op 16 |
+| Tela: `Não foi possível reprocessar o efeito. Atualize a lista e tente de novo.` | Alertas, **Reprocessar** recusado sem motivo legível; com motivo, a tela mostra o texto do sistema. | Op 16; Ap. B |
+| Tela: `Não foi possível preparar o cancelamento. Confira o recebível e a pendência financeira.` | Fatura, **Preparar cancelamento financeiro** recusado, qualquer que seja o motivo (troca de Cliente em andamento, justificativa curta, B/L ou fatura não paga, setor). | Fin; Ap. B |
+
+## Itens sem efeito na operação
+
+| Item | Motivo |
+|---|---|
+| `funcao:list_import_effects` | Consulta do andamento dos passos pós-importação. Só o painel de resultado de importação a usa, e nenhuma tela monta esse painel (ver BLR-D10). O operador acompanha o passo bloqueado pelo Alerta (BLR-140). |
+| `gatilho:app_settings_block_removal` | Guarda técnica que impede apagar a configuração única do sistema; nenhuma tela apaga essa configuração. |
+| `gatilho:prevent_import_effect_attempt_mutation` | Mantém sem alteração o registro de cada tentativa dos passos pós-importação; esse registro não aparece em nenhuma tela. |
+| `gatilho:validate_bl_breakbulk_item_parent` | Confere que o item de carga solta pertence a um B/L com modalidade válida. As importações sempre gravam o B/L antes do item e a modalidade só tem três valores, então a recusa não chega ao operador. |
+| `restricao:import_batches.import_batches_status_check` | Situação interna do registro de importação (em processamento, concluída, parcial, com falha); nenhuma tela a mostra. O que o operador vê do registro está em BLR-069. |
+| `restricao:import_effect_attempts.import_effect_attempts_error_code_chk`, `restricao:import_effect_attempts.import_effect_attempts_error_message_chk`, `restricao:import_effect_attempts.import_effect_attempts_worker_chk` | Limites de tamanho do registro técnico de cada tentativa; não aparecem em tela. |
+| `restricao:import_pending_effects.import_pending_effects_source_snapshot_chk` | Formato interno da fotografia guardada com cada passo pós-importação. |
+| Mensagens com destino `Fora` (seção Mensagens) | Guardas de rotinas internas, de etapas que a tela nunca aciona do jeito recusado, ou textos que a tela troca por outro. O motivo de cada uma está na própria linha. |
+
+## Divergências
+
+| Nº | Caso prático | O que o código faz | O que diz a documentação | Classe | Recomendação |
+|---|---|---|---|---|---|
+| BLR-D01 | O Administrativo cancela pela ficha um B/L com Revisão **Pendente** e depois abre a **Revisão**. | O B/L continua na fila e no número do item **Revisão** do menu: a fila e o número só olham a Revisão Pendente, e cancelar não muda a Revisão. As ações da fila sobre ele (vincular Cliente, informar peso, salvar) são recusadas, porque o B/L cancelado é somente leitura. | `docs/modules/manifesto-edi.md` (B/L Cancelado) e `docs/modules/operacao-suporte.md`: cancelado, o B/L fica somente leitura, deixa de contar nos Alertas de revisão do Cliente e fica fora da reavaliação da Revisão. | b | Decidir se o B/L cancelado sai da fila e do número do menu, como já sai dos Alertas, ou aparece marcado como Cancelado e sem ações; registrar no módulo. |
+| BLR-D02 | Em **BLs** › **Mais filtros** › **Faturamento**, escolher **Cancelado**. | O filtro procura uma situação financeira "cancelado" que nenhuma ação grava. A lista vem sempre vazia, mesmo com B/Ls cancelados, porque o cancelamento do B/L é outra marca (data, autor e motivo). | `docs/modules/manifesto-edi.md` descreve o cancelamento do B/L por data, autor e motivo, sem situação financeira "cancelado". | b | Trocar a opção por um filtro de B/L cancelado ou retirá-la. |
+| BLR-D03 | B/L com fatura emitida: na ficha, **Mais ações** › **Cancelar B/L**. | O aviso diz "O B/L <nº> não pode ser cancelado agora: ... O Financeiro cancela ou estorna antes.". Mas cancelar fatura é só do Administrativo; o Financeiro só registra baixa ou Restituição. | `docs/modules/manifesto-edi.md` (B/L Cancelado): "o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição" (ADR 0085, D1). | b | Corrigir o texto do aviso na ficha para dizer quem faz o quê. |
+| BLR-D04 | Reimportar o Manifesto BB com um B/L que estava Pendente por peso ausente, agora com peso. | A gravação refaz a Revisão (Pendente vira sem pendência, ou ganha pendência nova), preservando a nota escrita. A prévia, porém, diz "CE Mercante, Cliente vinculado, Revisão e observações ficam como estão.". | `docs/modules/manifesto-edi.md`, catálogo do BB: "a Revisão é reavaliada só pelas pendências calculadas, preservando a nota humana". | b | Corrigir o texto da prévia: a Revisão é refeita; a nota escrita fica. |
+| BLR-D05 | Na Viagem, aba **Importação**, procurar o Manifesto BB na **Importação rápida**. | A Importação rápida não oferece o Manifesto BB; ele só abre por **BLs** › **Importar** › **Manifesto de carga solta (BB)**. | `docs/modules/manifesto-edi.md`, catálogo do BB: "Modal em `Bls` ou `VoyageImportActions`"; o comentário do próprio modal diz o mesmo. | b | Decidir se o BB volta à Importação rápida da Viagem ou corrigir o catálogo. |
+| BLR-D06 | Uma pessoa do Operacional, do Equipamento ou do Financeiro abre a ficha de B/L cujo Cliente não tem Portal ativo e clica **Enviar convite do Portal** (ou marca o convite ao cadastrar o Cliente pela ficha). | O botão aparece para todos os setores. O envio só aceita Documentação e Administrativo, e a tela mostra, em inglês, "Edge Function returned a non-2xx status code". A Revisão esconde a ação corretamente ("O convite do Portal é enviado pela Documentação ou pelo Administrativo."). | `docs/operations/seguranca.md` (matriz de permissões): provisionar o Portal é do Administrativo e da Documentação. | b | Esconder o botão e a caixa de convite fora desses setores, como na Revisão, e traduzir a recusa. |
+| BLR-D07 | Salvar **Detalhes do B/L** num B/L cancelado (o formulário continua editável) ou num B/L cujo Cliente foi desativado. | O sistema recusa, e a tela mostra só "Falha ao salvar alterações do B/L.", sem o motivo. Só a recusa de faturamento e o conflito de versão têm texto próprio. | `docs/modules/manifesto-edi.md`, catálogo Cancelar B/L: "Recusa mostra o bloqueio; editar B/L cancelado é recusado". | b | Mostrar o motivo do sistema e desativar o formulário em B/L cancelado. |
+| BLR-D08 | Ficha de B/L faturado, bloco **Cliente**. | Só há **Trocar**. **Desvincular** não aparece, e o bloco diz "B/L faturado: para mudar o Cliente, use Trocar.". | `docs/modules/manifesto-edi.md` (ficha `/bls/:blId`, bloco Cliente) lista Trocar e Desvincular sem a exceção do B/L faturado. | a | Acrescentar a exceção ao módulo. |
+| BLR-D09 | Reimportar o arquivo de B/L de contêiner de um B/L com Taxas Locais calculadas e sem fatura, mudando containers. | A prévia só pede a confirmação de faturamento com fatura emitida (faturado, pago ou fatura viva). Com cálculo e sem fatura, a mudança entra e as Taxas Locais são recalculadas. A aba VIN é ignorada: veículos não entram nem saem pelo arquivo de B/L. | `docs/modules/manifesto-edi.md`, invariante 17 e parágrafo de Frete e despesas: "Quando há cálculo/invoice, as variáveis de faturamento (containers, IMO/OOG, SOC/COC, lista de veículos...) só são aplicadas com a confirmação". O catálogo de `/bls` ainda cita a gravação de veículos. | a | Atualizar a invariante 17, o parágrafo e o catálogo para a regra atual (migration `392`, ADR 0094). |
+| BLR-D10 | Depois de importar Manifesto BB (ou Veículos), abrir a ficha do B/L para ver o andamento do processamento pós-importação. | Nenhuma tela mostra esse andamento: o painel que o lia não está em uso. O operador só vê o passo que ficou bloqueado, pelo Alerta "Efeito de importação bloqueado". | `docs/modules/manifesto-edi.md`, catálogo do BB e de Veículos: "o detalhe do B/L reabre o status do efeito" / "reabre o estado". | a | Corrigir o catálogo, ou decidir mostrar o andamento na ficha. |
+| BLR-D11 | Consultar o termo "Reconciliação de Cliente" no glossário. | A Reconciliação vale só para B/L de contêiner e carga solta; o Granito não tem Cliente desde o lote 5b. | `CONTEXT.md`: "consignatário importado (B/L ou Granito)". Já `docs/modules/clientes.md` e `docs/operations/regras-de-negocio.md` dizem que o Granito não tem Cliente. | a | Corrigir o verbete do `CONTEXT.md`. |
+
+## Capturas
+
+| Nº | Tela e estado | Para as regras |
+|---|---|---|
+| BLR-C01 | Menu lateral, grupo de importação, com o número de B/Ls Pendentes no item **Revisão** | BLR-001 |
+| BLR-C02 | **BLs**, lista com os seis cartões de total, a lente **Modalidade** e linhas com "Sem cliente vinculado", CE ausente e as **Taxas locais** nos quatro estados | BLR-003 a BLR-006, BLR-009, BLR-072 |
+| BLR-C03 | **BLs**, **Mais filtros** aberto, com filtros aplicados | BLR-007, BLR-008, BLR-010 |
+| BLR-C04 | **BLs**, linha com a carga aberta embaixo (contêineres e itens de carga solta de um B/L misto) | BLR-011, BLR-073 |
+| BLR-C05 | **BLs**, menu **Importar** aberto | BLR-013, BLR-017, BLR-048 |
+| BLR-C06 | **BLs** vazia, sem filtro ("Nenhum B/L cadastrado ainda.") e com filtro ("Nenhum B/L encontrado.") | BLR-014 |
+| BLR-C07 | **BLs** como Administrativo, linhas marcadas e a confirmação de exclusão | BLR-015, BLR-016 |
+| BLR-C08 | Importar B/L de container sem Viagem escolhida, com a área do arquivo desativada | BLR-017 a BLR-019, BLR-065 |
+| BLR-C09 | Importar B/L de container, **Prévia** com um B/L em erro, painel de erros e o rodapé de arquivo recusado | BLR-024 a BLR-026, BLR-066 |
+| BLR-C10 | **Prévia** com avisos: B/L cancelado fica de fora, aba VIN ignorada, B/L em COD, containers que saem e **Arquivo já importado** | BLR-027, BLR-028, BLR-033, BLR-045, BLR-068 |
+| BLR-C11 | **Prévia** de B/L faturado com a confirmação de faturamento (fatura e valor antes e depois) | BLR-035, BLR-036 |
+| BLR-C12 | **Prévia** com o preço de hoje diferente do fixado e o aceite por B/L | BLR-037, BLR-038 |
+| BLR-C13 | **Prévia** com Troca de Consignatário e a caixa de aceite | BLR-039, BLR-040 |
+| BLR-C14 | Resultado no modal, com totais e pendências (troca não aceita, B/L cancelado de fora) | BLR-046, BLR-047 |
+| BLR-C15 | **Reimportar B/L** pela ficha, com o erro de arquivo de outro B/L | BLR-030, BLR-031 |
+| BLR-C16 | Importar manifesto BB, **Prévia** com **Formato numérico do arquivo**, linha em erro e B/L existente | BLR-049 a BLR-053, BLR-055 |
+| BLR-C17 | Manifesto BB com B/L faturado: confirmação de faturamento e aceite da troca de Cliente | BLR-056 a BLR-058 |
+| BLR-C18 | B/L avulso (.pdf, .docx), prévia com vários arquivos e um recusado | BLR-062 a BLR-064 |
+| BLR-C19 | Ficha do B/L, **Visão geral** com os trilhos **Documental** e **Operacional** e a faixa **Próxima ação** | BLR-076 a BLR-081 |
+| BLR-C20 | Ficha, bloco **Cliente** sem Cliente (**Declarado no manifesto**, **Vincular este cliente**) e o formulário **Cadastrar ou vincular cliente** em B/L Pendente | BLR-084, BLR-087 |
+| BLR-C21 | Ficha de B/L faturado: bloco **Cliente** só com **Trocar** e bloco **Portal** "Não visível no Portal" com **Enviar convite do Portal** | BLR-085, BLR-086, BLR-088, BLR-089 |
+| BLR-C22 | Ficha, aba **Carga** com o aviso de Baplie divergente e a janela **Corrigir** aberta | BLR-090 a BLR-093 |
+| BLR-C23 | Ficha, aba **Detalhes do B/L** com campos alterados, a contagem no **Salvar alterações** e a **Justificativa da alteração** | BLR-094 a BLR-098 |
+| BLR-C24 | Ficha, aba **Faturamento** com as **Taxas Locais** e a fatura | BLR-100 |
+| BLR-C25 | Ficha, aba **Histórico** com linhas de importação e Comunicados | BLR-070, BLR-101 |
+| BLR-C26 | Ficha, **Mais ações** com o aviso de cancelamento bloqueado e a confirmação **Cancelar B/L** com motivo | BLR-102 a BLR-104 |
+| BLR-C27 | Ficha de B/L cancelado, com a faixa "B/L cancelado em ..." e **Reativar B/L** | BLR-105, BLR-106, BLR-108 |
+| BLR-C28 | **Revisão**, cartões, busca e fila agrupada por Cliente com a **Próxima ação** | BLR-109 a BLR-115 |
+| BLR-C29 | **Revisão**, grupo aberto no caso **Cadastrar o cliente**, com o formulário preenchido | BLR-116, BLR-117, BLR-120, BLR-121 |
+| BLR-C30 | **Revisão**, casos **Identificar o cliente** e **Confirmar o CNPJ do cliente** | BLR-118, BLR-119 |
+| BLR-C31 | **Revisão**, **Vincular a um cliente cadastrado** com "CNPJ diferente" e o bloco **CNPJ do B/L diferente do cliente vinculado** | BLR-123, BLR-124 |
+| BLR-C32 | **Revisão**, caso **Informar o peso da carga solta**, com o peso editado na linha | BLR-125 |
+| BLR-C33 | **Revisão**, bloco **Portal do Cliente**, como Documentação (com envio) e como outro setor (sem envio) | BLR-126 |
+| BLR-C34 | **Revisão**, caso **Conferir os dados do B/L** | BLR-128 |
+| BLR-C35 | **Revisão**, resultados no alto da tela, com "taxas locais ainda por recalcular" e **Recalcular taxas** | BLR-129 a BLR-131 |
+| BLR-C36 | **Alertas**, Alerta "Efeito de importação bloqueado" com **Reprocessar** e o diálogo de justificativa | BLR-136, BLR-140, BLR-143 |
+| BLR-C37 | Viagem, aba **Importação**, **Importação rápida** | BLR-017 |
+| BLR-C38 | Fatura de Taxas Locais paga, **Preparar cancelamento financeiro** (Administrativo) | BLR-145 |
