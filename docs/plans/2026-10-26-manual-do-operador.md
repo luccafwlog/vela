@@ -6,10 +6,14 @@ trabalho, não o manual.
 
 ## Estado
 
-Nada executado. O mapeamento completo do sistema (Etapa 1) é o primeiro passo
-da execução e não depende de nada do dono. O material antigo foi recebido em
-2026-10-26 e está guardado como registro histórico
-([O material antigo e a régua de qualidade](#o-material-antigo-e-a-régua-de-qualidade)).
+Etapa 1 em execução desde 2026-10-26. Prontos: o inventário do sistema
+(`npm run manual:inventory`) e o check de cobertura (`npm run manual:coverage`),
+que roda contra o banco local preparado, como o `rpc:check`, e não junto do
+`docs:check`, porque o inventário sai do banco com todas as migrations. Em
+andamento: o mapeamento das regras por área em
+[`docs/manual/cobertura/`](../manual/README.md). O material antigo está guardado
+como registro histórico e serve só de referência de redação
+([Régua de qualidade](#régua-de-qualidade)).
 
 ## Síntese do pedido
 
@@ -275,44 +279,17 @@ usados na coluna "Onde" do escopo.
 
 Fora do PDF principal, um **guia de bolso** por equipe (régua visual).
 
-## O material antigo e a régua de qualidade
+## Régua de qualidade
 
-Recebido do dono em 2026-10-26: "Vela — Manual do Operador", versão 1, de
-2026-10-15, com 36 páginas A4 e não revisado. Está guardado como registro
-histórico em
+O manual novo tem de ficar **muito acima** do material que já existe, no visual
+e no conteúdo. As réguas abaixo são critérios de aceite, não intenções.
+
+O material antigo ("Vela — Manual do Operador", versão 1, de 2026-10-15, 36
+páginas, não revisado) está guardado como registro histórico em
 [`docs/archive/assets/2026-10-15-manual-do-operador-antigo.pdf`](../archive/assets/2026-10-15-manual-do-operador-antigo.pdf).
-É **insumo, não fonte**: lista de cobertura, vocabulário da equipe e sinal de
-mudança (cada afirmação dele que o código contradiz indica algo que mudou ou um
-defeito). Nenhuma frase dele entra no manual novo sem ser conferida no código.
-
-O manual novo tem de ficar **muito acima** dele, no visual e no conteúdo. As
-réguas abaixo são critérios de aceite, não intenções.
-
-### O que o material antigo acerta e o novo mantém, melhorado
-
-- Núcleo comum para todos e uma trilha por setor.
-- Rotina diária a partir do Painel: cartão do setor → Alertas → Notificações
-  Internas.
-- "Como o Vela fala": cores, sinais e a janela de confirmação.
-- O quadro "a quem passar cada pendência".
-- Checklists: o dia, B/L pronto para faturar, chegada e saída do navio,
-  fechamento do dia.
-- Mensagens em cartões (onde aparece, o que quer dizer, o que fazer),
-  inclusive as que o Cliente vê no Portal.
-- Glossário.
-
-### Onde ele fica aquém
-
-| No material antigo | No manual novo |
-|---|---|
-| 51 lugares de imagem vazios ("[PRINT: …]") e nenhuma tela real | Toda tela e todo passo com imagem real, gerada por script sobre o cenário de demonstração, com marcações numeradas que casam com os passos |
-| Cerca de 30 marcas "[confirmar]" e uma lista de 19 pontos a confirmar (rotas, textos de mensagem, quem reabre o ADR, faixas P1 e P2, Régua de Cobrança, chave de envio, usuários de mais de um setor…) | Nenhum ponto a confirmar na versão publicada: cada um é resolvido no código durante o mapeamento; o que o código não resolver vira decisão do dono antes da publicação |
-| Mensagens genéricas com texto não conferido ("Sem permissão", "Sessão expirada") | O texto exato de cada mensagem, tirado do código, com onde aparece e o que fazer |
-| Permissões descritas como "regra nova que entra em vigor em breve" | Permissões como o sistema aplica hoje |
-| Procedimentos de 3 a 6 passos, quase sempre "abra e confira" | Cada procedimento no [modelo de oito partes](#modelo-de-cada-procedimento), com o que precisa existir antes, o que o sistema faz sozinho depois e o porquê |
-| Recorte das telas: sem gatilhos, sem o catálogo de alertas, sem os e-mails ao Cliente, sem as regras de cálculo | O sistema inteiro, provado pelo mapeamento e pelo check de cobertura |
-| Endereços de página (`/bls/:id`) como forma de achar as telas | O caminho pelo menu e pelas abas, como o operador navega |
-| Documento de texto corrido: tabelas genéricas, páginas meio vazias, nenhum desenho | O projeto gráfico da régua visual |
+Por decisão do dono, ele é só **referência de como outra pessoa redigiu um
+manual completo e hoje desatualizado**. Não é roteiro, não é lista de pontos a
+responder e não é fonte: o manual novo se pauta pelo código.
 
 ### Régua visual
 
@@ -347,6 +324,14 @@ réguas abaixo são critérios de aceite, não intenções.
 ### Régua de conteúdo
 
 - Toda regra do mapeamento escrita no destino que recebeu.
+- Cada procedimento no [modelo de oito partes](#modelo-de-cada-procedimento),
+  com o que precisa existir antes, o que o sistema faz sozinho depois e o
+  porquê.
+- As telas são achadas pelo caminho do menu e das abas, como o operador
+  navega, não pelo endereço da página.
+- Recursos de consulta: rotina diária por equipe, checklists, o quadro "a quem
+  passar cada pendência" e as mensagens em cartões (onde aparece, o que quer
+  dizer, o que fazer).
 - Nenhuma marca "[confirmar]", nenhum lugar de imagem vazio e nenhum termo
   técnico proibido no texto impresso.
 - Cada rótulo, caminho de tela e mensagem conferido no código ou na captura.
@@ -419,8 +404,7 @@ que o sistema implementa, não de uma tabela pedida ao dono:
 - as seções do ADR de Saída assinadas por Operações, Documentação e
   Equipamentos;
 - os cartões de pendências por setor do Painel e a regra que põe cada
-  pendência num setor (o material antigo cita Documentação, Equipamentos,
-  Operações e "Sem setor/Legado");
+  pendência num setor;
 - como o sistema trata quem trabalha em mais de um setor;
 - qualquer outra regra do código que ligue uma ação, aviso ou fila a um setor.
 
@@ -430,16 +414,11 @@ o código não distingue setores, o manual diz "qualquer setor" e não inventa
 divisão. Divergência entre a matriz da tela e o banco vai para a lista de
 divergências.
 
-**1.5 Cruzar com a documentação e com o material antigo.** Toda divergência
-vai para a lista de divergências, classificada como em
+**1.5 Cruzar com a documentação.** Toda divergência entre o código e os
+documentos de módulo e as regras transversais vai para a lista de
+divergências, classificada como em
 [Princípios](#o-que-o-código-faz-é-o-que-o-manual-diz), com caso prático e
-recomendação, para o dono responder de uma vez. Do material antigo:
-
-- toda tela ou situação que não apareceu no levantamento é investigada: ou a
-  lista do código está incompleta, ou aquilo deixou de existir;
-- cada marca "[confirmar]" e cada um dos 19 pontos da lista "Pontos a
-  confirmar" ganha resposta tirada do código;
-- cada uma das 51 imagens planejadas vira um item da lista de capturas.
+recomendação, para o dono responder de uma vez.
 
 **1.6 Garantia automática de cobertura.** Um check, rodado junto do
 `docs:check`, extrai de novo as listas enumeráveis do código (telas, funções
@@ -462,8 +441,8 @@ Produtos:
 Os documentos de módulo com defasagem do tipo "documento defasado" são
 corrigidos na mesma entrega.
 
-**Pronto quando** cada item de cada lista tem destino, cada ponto a confirmar
-do material antigo tem resposta, o check de cobertura passa, e o dono aprovou:
+**Pronto quando** cada item de cada lista tem destino, o check de cobertura
+passa, e o dono aprovou:
 a lista "fora do manual", a lista de divergências e o sumário final.
 
 ### Etapa 2 — Projeto gráfico, cenário, imagens e PDF; capítulo-piloto

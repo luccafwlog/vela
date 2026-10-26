@@ -22,7 +22,7 @@ não verifica este diretório.
 | `reports/sdd/` | Relatórios de execução por task (subagent-driven development), agrupados por plano |
 | `qa/` | Loops de QA por história e QA contínua (2026-06) |
 | `design-audit/` | Auditoria UX/UI antiga (README) e `assets/` com os screenshots das auditorias de design, inclusive as datadas em `audits/` |
-| `assets/` | Screenshots referenciados pelas auditorias de QA, o bundle de handoff do design system (`2026-06-12-design-system-handoff.zip`, movido da raiz em 2026-07-19) e o manual do operador anterior, de 2026-10-15 (`2026-10-15-manual-do-operador-antigo.pdf`, não revisado, insumo do [plano do Manual do Operador](../plans/2026-10-26-manual-do-operador.md)) |
+| `assets/` | Screenshots referenciados pelas auditorias de QA, o bundle de handoff do design system (`2026-06-12-design-system-handoff.zip`, movido da raiz em 2026-07-19) e o manual do operador anterior, de 2026-10-15 (`2026-10-15-manual-do-operador-antigo.pdf`, não revisado, só referência de redação para o [plano do Manual do Operador](../plans/2026-10-26-manual-do-operador.md)) |
 
 O estado em que cada plano ou spec foi arquivado fica no
 [índice dos planos arquivados](plans/README.md) e no
