@@ -16,8 +16,9 @@ emissão; ROE/BRL congelam só no pagamento — ver
 [ADR 0014](../adr/0014-demurrage-recalculo-diario-substitui-roe-congelado.md) e
 [ADR 0015](../adr/0015-demurrage-conciliacao-janela-duas-ptax-data-pagamento.md)).
 As rotas internas ficam sob
-`ProtectedRoute` em [`src/AppInterno.tsx`](../../src/AppInterno.tsx); a interface de tarifas
-expõe mutações apenas para admin, enquanto as policies e RPCs continuam sendo a
+`ProtectedRoute` em [`src/AppInterno.tsx`](../../src/AppInterno.tsx); na interface de tarifas,
+criar e editar tarifa e acordo é de qualquer Departamento e ativar, desativar e
+excluir, só do Administrativo (migration `254`), enquanto as policies e RPCs continuam sendo a
 fronteira efetiva de autorização.
 
 O domínio não pertence ao ledger de taxas locais. Datas vivem em
@@ -474,8 +475,10 @@ migration `179`, e o que reagia à mudança de `voyages.ata`
   de B/L (migration `211`). Leem esse status a aba `Containers`
   (`listDemurrageContainers`), o KPI "Containers em atraso", o sinal do
   cabeçalho (`useOperationalAlerts`), a Demurrage correndo da ficha do Cliente
-  (`fetchCustomerRunningDemurrage`) e o **Gerar Fatura** de B/L com container
-  ainda fora (`DemurrageContainersTab`).
+  (`fetchCustomerRunningDemurrage`) e a linha do B/L com container ainda fora
+  na aba `Containers` (`DemurrageContainersTab`), que diz "Aguarda devolução"
+  em vez de oferecer **Gerar Invoice**: o botão só aparece com o grupo todo
+  devolvido.
 - `calculateDemurrage` rejeita devolução anterior à descarga; o modal repete a
   validação e
   a migration arquivada
@@ -723,10 +726,11 @@ cessa. O câmbio do header é apenas informativo.
   pagamento e o último recálculo é anterior ao último dia útil.
 - **Cache do cabeçalho:** `localStorage` permite continuidade do câmbio do
   cabeçalho quando o BCB está indisponível, mas não impõe expiração máxima ao
-  cache de ROE. A emissão
-  não mostra aviso de cache: usa a referência cambial gravada no banco
-  (`exchange_rate_reference`), que o navegador também regrava a partir da PTAX
-  lida ou do cache (ver [Notas e divergências](#notas-e-divergências)).
+  cache de ROE. O cabeçalho só lê: a emissão
+  não mostra aviso de cache e usa a referência cambial gravada no banco
+  (`exchange_rate_reference`), que só o recálculo das 14h e o **Informar PTAX**
+  gravam; o navegador não a regrava a partir da PTAX lida nem do cache
+  (migration `236`; ver [Notas e divergências](#notas-e-divergências)).
 
 ### Desconto
 
