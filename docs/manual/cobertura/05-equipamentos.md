@@ -10,7 +10,9 @@ correção do container na ficha do B/L (019 a 024), datas de descarga e
 devolução e o que muda sozinho depois delas (025 a 041), Veículos (042 a 060),
 Vazios de importação (061 a 074), Embarque de vazios (075 a 098), Locais
 (depots e terminais) (099 a 108), Granito (109 a 117), frentes de operação e
-ADR de Saída (118 a 120) e quem pode o quê na área (121 e 122). As mensagens
+ADR de Saída (118 a 120), quem pode o quê na área (121 e 122) e, acrescentadas na
+conferência independente, Viagem Cancelada, apagar datas, leitura da planilha de
+veículos e mensagens de sucesso (123 a 126). As mensagens
 do inventário vêm primeiro na seção Mensagens; depois delas, as mensagens das
 telas desta área que o inventário não lista.
 
@@ -140,6 +142,10 @@ telas desta área que o inventário não lista.
 | EQU-120 | As antigas ocorrências do ADR (substituídas pela Observação da seção) continuam legíveis nos relatórios antigos, presas a uma dessas seções ou às antigas **Ocorrências** e **Operação de pátio**. | Op 9 | Sistema | `restricao:agency_departure_report_occurrences.agency_departure_report_occurrences_section_check`, `src/services/agencyReportLabels.ts` |
 | EQU-121 | Na área de Equipamentos, qualquer usuário ativo, de qualquer setor, importa (datas, veículos, Vazios de importação, Embarque de vazios, Granito), corrige container, grava datas, define local de desova e natureza, exclui e move veículo, cria embarque, lança e exclui unidade e linha (antes do ADR fechado) e cadastra e edita Locais e serviços. Só o Administrativo exclui container e desativa, reativa ou exclui Local e serviço. Usuário desativado é recusado em tudo. | Op 2 | Todos+Adm | `permissao:importar`, `permissao:veiculos-vazios`, `permissao:editar-cadastros`, `permissao:desativar-cadastros`, `permissao:excluir-registros` |
 | EQU-122 | Equipamentos responde no ADR pelas seções Veículos, Carga carregada (Granito) e Embarque de vazios; Vazios descarregados (importação) é da Documentação. O sistema não restringe ao setor a gravação nas telas desta área. | Op 2; Op 9 | Equ | `permissao:assinar-adr`, `src/services/agencyReportLabels.ts` |
+| EQU-123 | Viagem Cancelada é somente leitura também nesta área: containers (dados, datas e local de desova), veículos (importar, excluir, mover), lotes de Vazios de importação, Embarque de vazios (criar, trocar, incluir, editar, excluir ou importar unidade) e Granito (importar) são recusados com "Viagem … cancelada: operação selada e somente leitura."; só o status de Demurrage do container continua sendo refeito pelo sistema. Exceção do código: a **Natureza** do vazio de importação e as linhas de serviço do Embarque de vazios não têm essa trava (ver EQU-D11). Reativar a Viagem (Administrativo, com motivo) solta a trava. | Op 8; Op 4; Op 2; Ap. B | Sistema | `gatilho:guard_voyage_cancelled_via_parent`, `gatilho:guard_voyage_cancelled_mutation`, `funcao:move_vehicles_to_bl` |
+| EQU-124 | Pela tela, a descarga gravada só se troca, nunca se apaga: a janela **Corrigir**, **Editar datas** de Demurrage e a planilha exigem a descarga. A devolução pode ser apagada, sempre com motivo: na seção de Demurrage da ficha (**Remover data de devolução**, com motivo) e em **Editar datas** (campo de motivo); na janela **Corrigir**, a **Justificativa** serve de motivo. A planilha nunca apaga data (devolução em branco mantém a gravada). | Op 8; Op 6; Op 17 | Todos | `funcao:set_container_dates`, `src/components/bl/BlContainerCorrectModal.tsx`, `src/components/bl/BlDemurrageSection.tsx`, `src/components/demurrage/demurrageFormRules.ts` |
+| EQU-125 | Na janela **Importar veículos**, a leitura procura, aba por aba, a primeira que tem todas as colunas obrigatórias, pulando abas vazias ou só com linhas ocultas; sem nenhuma, recusa com "Planilha inválida. Colunas obrigatórias: …" (e avisa se havia dados em linhas ou abas ocultas). A conferência com o gravado (EQU-051) só roda ao clicar **Importar**; com linha recusada, nada é gravado e a janela lista as recusadas ("Nada foi gravado: N linhas recusadas na conferência com o que já está gravado"). Sucesso: "N veículos importados.". | Op 5; Op 8; Ap. B | Todos | `src/services/vehicleImport.ts`, `src/components/shared/VehicleImportModal.tsx` |
+| EQU-126 | Mensagens de sucesso desta área (canto da tela): Containers "Exportação concluída com N container(es)."; Veículos "Local de desova aplicado a N container(s).", "N veículo(s) movido(s) para o B/L …" e "Exportação de veículos concluída."; Vazios IMP "N containers atualizados como Cama." (ou Cover plate, ou ": sem natureza.") e "N containers exportados."; Embarque "Unidade excluída.", "Linha excluída.", "Linha de armazenagem lançada." e "Observação da linha atualizada."; Locais "Local cadastrado.", "Local salvo.", "Local desativado.", "Local reativado.", "Local excluído.", "Serviço salvo.", "Serviço desativado.", "Serviço reativado." e "Serviço excluído."; Granito "Granito importado: …". | Ap. B; Op 8 | Todos | `src/pages/Containers.tsx`, `src/pages/Veiculos.tsx`, `src/components/vehicles/MoveVehiclesModal.tsx`, `src/pages/VaziosImportacao.tsx`, `src/pages/EmbarqueVazios.tsx`, `src/pages/DepotCadastro.tsx`, `src/components/shared/GraniteImportModal.tsx` |
 
 ## Mensagens
 
@@ -159,9 +165,9 @@ telas desta área que o inventário não lista.
 | `B/L % está cancelado.` | Mover veículos para um B/L de destino cancelado. | Ap. B |
 | `B/L % já foi faturado; o perfil não pode mudar porque as taxas não podem ser recalculadas.%` | Corrigir o Perfil de container de B/L faturado; quando um B/L irmão do Part Lot não tem fatura, a mensagem acrescenta "O container também está no B/L …, sem fatura: corrija por ele.". | Ap. B |
 | `B/L % já foi faturado; SOC/COC não pode mudar porque as taxas não podem ser recalculadas.%` | Corrigir o COC/SOC de container de B/L faturado, com o mesmo acréscimo sobre o B/L irmão sem fatura. | Ap. B |
-| `B/L % nao encontrado para efeito de veículos.` | No texto do Alerta "Efeito de importação bloqueado" quando o B/L da importação de veículos foi excluído antes do acompanhamento automático. | Ap. B |
+| `B/L % nao encontrado para efeito de veículos.` | Nunca chega a uma pessoa: excluir o B/L ou a Viagem descarta o acompanhamento pendente dos veículos ("descartado: registro excluído", sem Alerta), e não há outro caminho que apague B/L. Se ocorresse, iria ao texto do Alerta "Efeito de importação bloqueado". | Fora |
 | `B/L Granite % nao encontrado` | Nunca chega a uma pessoa: a revisão de Cliente do Granito saiu do sistema e nenhuma tela a chama. | Fora |
-| `B/L inválido no efeito de veículos.` | No texto do Alerta "Efeito de importação bloqueado" quando o acompanhamento automático dos veículos ficou sem B/L. | Ap. B |
+| `B/L inválido no efeito de veículos.` | Nunca chega a uma pessoa: a importação de veículos sempre registra o acompanhamento com o B/L de cada linha (rotina interna). | Fora |
 | `B/L obrigatorio.` | Nunca chega a uma pessoa: a tela sempre manda o B/L de cada grupo da planilha de datas. | Fora |
 | `BL nao encontrado` | Gravar veículo de B/L inexistente (a importação e o Mover conferem antes; só aparece com dado incoerente). | Ap. B |
 | `BL nao pertence a viagem informada` | Gravar veículo com Viagem diferente da do B/L (idem). | Ap. B |
@@ -186,7 +192,7 @@ telas desta área que o inventário não lista.
 | `Destino inativo: escolha um transporte para local ativo ou reative o destino no cadastro.` | Lançar linha de transporte cujo destino foi desativado. | Ap. B |
 | `Devolucao anterior a descarga para % no B/L %.` | Planilha de datas com devolução antes da descarga (a prévia já recusa); aparece no Resultado. | Ap. B |
 | `Devolução anterior à descarga.` | Gravar devolução anterior à descarga pela ficha do B/L ou por Demurrage. | Ap. B |
-| `Escolha o container do B/L % que recebe os veículos.` | Mover veículos para B/L com mais de um container sem escolher o container. | Ap. B |
+| `Escolha o container do B/L % que recebe os veículos.` | Mover veículos para B/L com mais de um container sem escolher o container, ou para B/L sem container (a janela já não libera **Mover** nesses casos). | Ap. B |
 | `Há Nº de manifesto Mercante para uma rota que não está na planilha.` | Importar Vazios de importação com número para rota que, depois de reconhecer os portos, não está no arquivo. | Ap. B |
 | `Informe a descarga antes da devolução.` | Gravar devolução em container sem descarga. | Ap. B |
 | `Informe o motivo da exclusao.` | Excluir unidade embarcada sem motivo. | Ap. B |
@@ -294,7 +300,7 @@ telas desta área que o inventário não lista.
 | `Armazenagem exige um depot.` | Lançar armazenagem em terminal (conferência da tela). | Ap. B |
 | `O percentual já está incorporado ao valor do serviço.` | Linha com percentual (conferência da tela). | Ap. B |
 | `Já existe uma linha de armazenagem para este depot e condição.` | Segunda armazenagem do mesmo depot e condição (conferência da tela). | Ap. B |
-| `Serviço de transporte sem destino cadastrado.` | Lançar linha com serviço de transporte sem destino. | Ap. B |
+| `Serviço de transporte sem destino cadastrado.` | Nunca chega a uma pessoa: a lista **Serviço** de **Lançar linha** não oferece transporte sem destino ativo, então a conferência da tela não é alcançada. | Fora |
 | `Escolha a condição da linha de armazenagem.` | Lançar armazenagem com serviço genérico sem escolher a condição. | Ap. B |
 | `Sem serviço de armazenagem cadastrado` | Armazenagem a lançar de depot sem serviço de armazenagem da condição. | Ap. B |
 | `Código do local obrigatório.` | Gravar Local sem código. | Ap. B |
@@ -304,6 +310,36 @@ telas desta área que o inventário não lista.
 | `O local deste endereço não existe mais (excluído ou link antigo).` | Abrir Locais por um endereço de local excluído. | Ap. B |
 | `Este registro já existe.` | Cadastrar Local com código já usado ou serviço repetido no mesmo local; adicionar unidade embarcada já presente no embarque ou na Viagem. | Ap. B |
 | `Dados fora das regras do cadastro.` | Recusa genérica quando uma regra de valor é violada sem mensagem própria (ex.: unidade com embarque antes da saída do depot pela janela Adicionar unidade). | Ap. B |
+| `Viagem % cancelada: operação selada e somente leitura.` | Qualquer mudança em container, veículo, Vazios de importação, Embarque de vazios ou Granito de Viagem Cancelada. | Ap. B |
+| `Chassi já cadastrado na Viagem %.` | Conferência da planilha de veículos: o chassi está em outra Viagem ativa (B/L e Viagem não cancelados). | Ap. B |
+| `Planilha inválida. Colunas obrigatórias: %.` | Leitura da planilha de veículos, de Vazios de importação, de unidades embarcadas ou do Granito sem alguma coluna obrigatória. | Ap. B |
+| `Peso %kg fora da faixa plausível para um veículo (300–60.000kg).` | Leitura da planilha de veículos. | Ap. B |
+| `Cubagem %m³ fora da faixa plausível para um veículo (1–300m³).` | Leitura da planilha de veículos. | Ap. B |
+| `Container %: formato ISO esperado (XXXX0000000).` | Leitura das planilhas de veículos, de Vazios de importação e de unidades embarcadas. | Ap. B |
+| `Chassi %: formato VIN esperado (17 caracteres, sem I/O/Q).` | Leitura da planilha de veículos. | Ap. B |
+| `Container % repetido (já está na linha %): um vazio de importação existe uma vez por Viagem.` | Prévia da planilha de Vazios de importação. | Ap. B |
+| `Container %: % % não reconhecido como LOCODE.` | Prévia da planilha de Vazios de importação com POL ou POD que o sistema não reconhece como porto. | Ap. B |
+| `Container %: tara não pode ser negativa.` | Prévia da planilha de Vazios de importação. | Ap. B |
+| `Informe o Nº do manifesto Mercante de %.` | Janela Importar vazios de importação com rota sem número. | Ap. B |
+| `O número % foi informado para mais de uma rota.` | Janela Importar vazios de importação com o mesmo número em duas rotas. | Ap. B |
+| `POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence à rota (POL → POD).` | Janela Importar vazios de importação com linha sem POL ou POD (aviso **Importação bloqueada**). | Ap. B |
+| `Container já está em outra rota desta Viagem` | Prévia de Vazios de importação com container que outra planilha gravou numa rota que este arquivo não traz (bloqueia **Importar**). | Ap. B |
+| `Viagem nao encontrada.` | Importar Vazios de importação ou unidades embarcadas para uma Viagem excluída depois de a janela abrir. | Ap. B |
+| `Container %: condição deve ser Vazio ou Com material.` | Importar planilha de unidades embarcadas. | Ap. B |
+| `Container %: data de embarque anterior à saída do depot.` | Importar planilha de unidades embarcadas. | Ap. B |
+| `Container %: local "%" não encontrado em Locais (depots e terminais).` | Importar planilha de unidades embarcadas com código de local que não existe. | Ap. B |
+| `Container %: local "%" está inativo em Locais (depots e terminais).` | Importar planilha de unidades embarcadas com local desativado. | Ap. B |
+| `Container %: depot "%" exige entrada e saída preenchidas.` | Importar planilha de unidades embarcadas. | Ap. B |
+| `Container %: saída anterior à entrada no depot "%".` | Importar planilha de unidades embarcadas. | Ap. B |
+| `Container %: terminal portuário "%" não aceita entrada ou saída de depot.` | Importar planilha de unidades embarcadas. | Ap. B |
+| `Container %: duplicado da linha %.` | Importar planilha de unidades embarcadas com o mesmo container duas vezes. | Ap. B |
+| `Já existe um registro com o valor "%".` | Importar planilha de unidades embarcadas com container já embarcado em outra escala da mesma Viagem. | Ap. B |
+| `BL % duplicado na planilha.` | Prévia do Granito. | Ap. B |
+| `BL %: Real Weight ausente ou zero.` | Prévia do Granito. | Ap. B |
+| `BL %: Cargo Readiness Date inválida (%). Use DD/MM/AAAA.` | Prévia do Granito. | Ap. B |
+| `Este local ainda está em uso em outros registros e não pode ser excluído.` | Excluir local em uso por escala, ADR, unidade, linha ou serviço de transporte de outro local. | Ap. B |
+| `a planilha é grande demais para gravar de uma vez. Divida os B/Ls em planilhas menores e importe cada uma.` | Planilha de datas cuja gravação passa de 60 segundos (nada é gravado). | Ap. B |
+| `Nenhum container nesta escolha.` | Janela Definir local de desova quando a escolha de Aplicar a não tem container. | Ap. B |
 
 ## Itens sem efeito na operação
 
@@ -329,6 +365,11 @@ telas desta área que o inventário não lista.
 | EQU-D6 | A última devolução de um container é gravada. | A emissão automática olha o grupo de Demurrage (B/Ls ativos da mesma Viagem e Cliente que dividem container), ignora SOC e só cobra caixa ainda não cobrada; datas mudadas em Invoice emitida a cancelam e reemitem, ou suspendem a Régua com Alerta. | `manifesto-edi.md` (`/containers`): "a operação pode emitir invoice de demurrage quando todos os containers do B/L retornaram". | a | Trocar a frase por um link à regra de `demurrage.md`. |
 | EQU-D7 | A planilha de datas traz uma linha de B/L cancelado. | A linha não é recusada: o B/L cancelado fica igual, a data vai aos B/Ls ativos que dividem o container, e a linha conta como "container atualizado". | A regra de B/L cancelado somente leitura (ADR 0094, B4; `seguranca.md`) recusa as demais correções com "B/L … cancelado: somente leitura. Reative para corrigir.". | b | Decidir se a prévia recusa a linha do B/L cancelado ou só deixa de contá-la como atualizada. |
 | EQU-D8 | O operador monta a planilha de unidades embarcadas. | Só Container, Local e Condição são colunas obrigatórias; Condição aceita também "empty" e "loaded". | `manifesto-edi.md`: "Sete colunas … CONDIÇÃO (vazio, material ou com material)". | a | Corrigir o módulo com as colunas obrigatórias e os valores aceitos. |
+| EQU-D9 | O operador procura no manual o "Cadastro de Terminais" para cadastrar um depot. | A tela e o botão do Embarque de vazios se chamam **Locais (depots e terminais)**; não existe tarifa de Granito (a tabela saiu na migration `329`). | `CONTEXT.md` define o termo **Cadastro de Terminais** e diz que ele é "Distinto de … a Tabela de Taxas — Granito, que é tabela de tarifas". | a | Alinhar o glossário ao nome da tela (ou registrar "Locais" como sinônimo) e tirar a menção à tabela de tarifas do Granito. |
+| EQU-D10 | O operador procura a janela de importação na página Vazios IMP. | A janela se chama **Importar vazios de importação** (botão **Importar planilha**). | `docs/modules/manifesto-edi.md` (`/vazios-importacao`): "A janela **Importar planilha de vazios** importa para uma viagem…". | a | Corrigir o nome da janela no módulo. |
+| EQU-D11 | Com a Viagem cancelada, alguém marca vazios como **Cama** em Vazios IMP ou lança uma linha de serviço no Embarque de vazios dela. | As duas gravações passam: só a natureza do vazio e a linha de serviço ficam sem a trava da Viagem Cancelada (containers, veículos, lotes de vazios, Embarque e unidades, e Granito são recusados). | `docs/modules/viagens.md`: "Viagens canceladas são seladas no banco: … mutações operacionais posteriores são recusadas". | b | Decidir se a trava da Viagem Cancelada vale também para a natureza do vazio de importação e para as linhas de serviço do Embarque, e aplicá-la no banco. |
+| EQU-D12 | Alguém procura no Histórico quem incluiu uma unidade embarcada, um vazio de importação, um B/L de Granito, uma linha de serviço ou o próprio Embarque de vazios. | A inclusão desses registros não grava linha própria no Histórico; das importações fica só a criação do lote (manifesto) com o contexto da importação. Alteração e exclusão gravam. Containers e veículos gravam também a inclusão. | `docs/operations/regras-de-negocio.md`: "Toda importação deixa no Histórico, em cada registro que cria, altera ou exclui…"; a ADR 0078, item 9, fala em "cada registro alterado". | a | Ajustar a regra transversal ao que a ADR decidiu e o banco faz (ou, se a inclusão deve constar, registrar a decisão e ligar o rastro de inclusão nessas tabelas). |
+| EQU-D13 | O operador lança no Embarque o mesmo serviço para dois tipos de container. | A janela **Lançar linha** não oferece tipo de container, o catálogo de Locais grava serviço sem tipo e a sugestão de valor usa só condição e rota; a coluna **Tipo** das linhas novas fica "—". | `docs/modules/manifesto-edi.md` (`/embarquevazios`): "O mesmo serviço com tipo de container ou rota diferentes é outra linha, porque o valor difere" e "discriminante mais específico ao genérico: tipo de container, rota, condição". | a | Tirar o tipo de container da descrição da linha e da sugestão de valor no módulo. |
 
 ## Capturas
 
@@ -363,3 +404,6 @@ telas desta área que o inventário não lista.
 | EQU-C27 | Granito: cartões, Carga por viagem e B/Ls de Granito | EQU-109, EQU-110 |
 | EQU-C28 | Janela **Importar manifesto Granito** com prévia e a confirmação **B/Ls fora do arquivo novo** | EQU-111 a EQU-113 |
 | EQU-C29 | ADR de Saída, seções Veículos, Carga carregada e Embarque de vazios (Containers embarcados e Operação de pátio) | EQU-059, EQU-095, EQU-115, EQU-119 |
+| EQU-C30 | Ficha do B/L, aba Carga, coluna Demurrage com Não se aplica (SOC), Devolvido, Em atraso e No free time | EQU-034 |
+| EQU-C31 | Janela **Importar veículos** com o aviso "Nada foi gravado: N linhas recusadas na conferência com o que já está gravado" | EQU-125 |
+| EQU-C32 | Embarque de vazios de Viagem Cancelada com a recusa "Viagem … cancelada: operação selada e somente leitura." | EQU-123 |
