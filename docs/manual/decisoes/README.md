@@ -11,7 +11,8 @@ hoje, duas ou três opções com o efeito de cada uma e a opção recomendada.
 - **Onde ficam as escolhas:** no banco do próprio artefato, coleção
   `decisoes`, um documento por ficha. O id do documento é a chave da ficha
   com `:` trocado por `_` (por exemplo `07-portal_POR-D13`). Campos:
-  `escolha` (letra da opção ou `null`), `nota` e `decididoEm`. Um agente lê
+  `escolha` (letra da opção, `outra` quando nenhuma opção serve e a
+  `nota` descreve a solução pedida, ou `null`), `nota` e `decididoEm`. Um agente lê
   com a ferramenta `ArtifactData` (`action: "list"`, `collection: "decisoes"`,
   a URL acima).
 - **Fonte da página:** [`pagina-modelo.html`](pagina-modelo.html) (layout e

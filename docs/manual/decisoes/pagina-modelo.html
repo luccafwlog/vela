@@ -105,7 +105,7 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
     </div>
   </header>
 
-  <p class="intro">Cada ficha é um ponto em que o sistema faz uma coisa e a regra registrada diz outra, ou em que dois documentos se contradizem. O caso é hipotético, com nomes inventados, para mostrar o efeito na prática. A opção em laranja é a recomendada. Escolha uma opção por ficha; a escolha fica guardada e vira tarefa depois. Se quiser, escreva uma observação.</p>
+  <p class="intro">Cada ficha é um ponto em que o sistema faz uma coisa e a regra registrada diz outra, ou em que dois documentos se contradizem. O caso é hipotético, com nomes inventados, para mostrar o efeito na prática. A opção em laranja é a recomendada. Escolha uma opção por ficha; a escolha fica guardada e vira tarefa depois. Se nenhuma opção servir, clique em “Outra solução” e escreva na observação o que você quer.</p>
 
   <div class="bulk" id="bulk" hidden>
     <span id="bulkText"></span>
@@ -124,8 +124,10 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
   const CARDS = JSON.parse(document.getElementById('cards').textContent);
   const IMP = { alto: 'Impacto alto', medio: 'Impacto médio', baixo: 'Impacto baixo' };
   const RANK = { alto: 0, medio: 1, baixo: 2 };
+  const OUTRA = 'outra';          // escolha quando nenhuma opção serve; a nota diz o quê
   const decisions = {};           // docId -> {escolha, nota}
   let db = null, st = 'pend';
+  const keep = new Set();         // fichas mexidas desde a última troca de filtro: continuam na tela para a observação
   const docId = (k) => k.replace(/[^A-Za-z0-9_-]/g, '_');
   const $ = (id) => document.getElementById(id);
 
@@ -137,7 +139,7 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
   function visible() {
     const a = $('fArea').value, i = $('fImp').value;
     return CARDS.filter(c => (!a || c.area === a) && (!i || c.impacto === i) &&
-      (st === 'all' || (st === 'done') === !!decisions[docId(c.key)]?.escolha))
+      (st === 'all' || keep.has(docId(c.key)) || (st === 'done') === !!decisions[docId(c.key)]?.escolha))
       .sort((x, y) => (RANK[x.impacto] ?? 3) - (RANK[y.impacto] ?? 3));
   }
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -159,7 +161,7 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
     const meta = el('div', 'meta');
     meta.append(el('span', 'code', `${c.areaNome} · ${c.num}`), el('span', 'pill ' + c.impacto, IMP[c.impacto] || c.impacto));
     if (c.classe === 'c') meta.append(el('span', 'pill baixo', 'Documentos se contradizem'));
-    if (d.escolha) meta.append(el('span', 'pill ok', 'Decidido: ' + d.escolha));
+    if (d.escolha) meta.append(el('span', 'pill ok', d.escolha === OUTRA ? 'Decidido: outra solução' : 'Decidido: ' + d.escolha));
     art.append(meta, el('h2', null, c.titulo), el('p', 'caso', c.caso));
     const hoje = el('p', 'hoje'); hoje.append(el('b', null, 'Hoje: '), document.createTextNode(c.hoje)); art.append(hoje);
     const opts = el('div', 'opts'); opts.setAttribute('role', 'group'); opts.setAttribute('aria-label', 'Opções');
@@ -171,10 +173,18 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
       b.addEventListener('click', () => save(id, { escolha: d.escolha === o.id ? null : o.id, nota: d.nota || '' }));
       opts.append(b);
     }
+    const ob = el('button', 'opt'); ob.type = 'button';
+    ob.setAttribute('aria-pressed', d.escolha === OUTRA ? 'true' : 'false');
+    ob.append(el('span', 'l', '…'), el('span', 't', 'Outra solução'), el('span', 'e', 'Nenhuma opção acima serve: escreva na observação abaixo o que você quer.'));
+    ob.addEventListener('click', async () => {
+      await save(id, { escolha: d.escolha === OUTRA ? null : OUTRA, nota: d.nota || '' });
+      if (decisions[id]?.escolha === OUTRA) $('nota-' + id)?.focus();
+    });
+    opts.append(ob);
     art.append(opts);
     const pq = el('p', 'porque'); pq.append(el('b', null, 'Por que recomendo '), document.createTextNode(c.porque)); art.append(pq);
     const det = el('details'); det.append(el('summary', null, 'Detalhe técnico'), el('p', null, `${c.codigoTexto}`)); art.append(det);
-    const ta = el('textarea'); ta.id = 'nota-' + id; ta.placeholder = 'Observação (opcional)'; ta.value = d.nota || ''; ta.rows = 1;
+    const ta = el('textarea'); ta.id = 'nota-' + id; ta.placeholder = d.escolha === OUTRA ? 'Descreva a solução que você quer' : 'Observação (opcional)'; ta.value = d.nota || ''; ta.rows = 1;
     ta.addEventListener('change', () => save(id, { escolha: (decisions[id] || {}).escolha || null, nota: ta.value.trim() }));
     art.append(ta);
     return art;
@@ -183,6 +193,7 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
   async function save(id, val) {
     const prev = decisions[id];
     decisions[id] = { ...val };
+    keep.add(id);
     render();
     if (!db) { setStatus('Sem conexão com o registro: a escolha não foi guardada.', true); return; }
     try {
@@ -196,9 +207,9 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
   function setStatus(t, err) { const s = $('status'); s.textContent = t; s.classList.toggle('err', !!err); }
   function syncSeg() { document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.st === st))); }
 
-  $('fArea').addEventListener('change', render);
-  $('fImp').addEventListener('change', render);
-  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => { st = b.dataset.st; syncSeg(); render(); }));
+  $('fArea').addEventListener('change', () => { keep.clear(); render(); });
+  $('fImp').addEventListener('change', () => { keep.clear(); render(); });
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => { st = b.dataset.st; keep.clear(); syncSeg(); render(); }));
   $('bulkOpen').addEventListener('click', () => {
     const pend = visible().filter(c => !decisions[docId(c.key)]?.escolha);
     if (!pend.length) { setStatus('Nenhuma ficha pendente nos filtros atuais.'); return; }
