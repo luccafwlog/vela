@@ -9,6 +9,10 @@
 // - a cobertura cita um item que não existe mais no sistema;
 // - uma linha de Regras ou Mensagens usa destino fora da lista do plano.
 //
+// Mensagem listada que não é do banco (texto da tela ou de função de servidor)
+// é procurada no código; a que não aparece vira aviso, não falha, porque a
+// matriz pode trocar um valor variável por "<data>" ou "%".
+//
 // Uma tela, regra ou alerta novo quebra este check até ganhar lugar no manual.
 //
 //   Uso: LOCAL_DATABASE_URL=... npm run manual:coverage
@@ -18,6 +22,37 @@ import { fileURLToPath } from 'node:url'
 import { collectInventory } from './inventory.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
+
+function walk(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (['node_modules', 'dist', '.git', '__tests__'].includes(entry.name)) return []
+    const absolute = path.join(directory, entry.name)
+    return entry.isDirectory() ? walk(absolute) : [absolute]
+  })
+}
+
+const normalize = (text) => text.replace(/\\(['"`])/g, '$1').replace(/''/g, "'").replace(/\s+/g, ' ')
+
+/** Código das telas, das funções de servidor e das migrations, para achar textos que não são erro do banco. */
+function sourceText() {
+  return normalize([
+    ...walk(path.join(root, 'src')),
+    ...walk(path.join(root, 'supabase', 'functions')),
+    ...walk(path.join(root, 'supabase', 'migrations')),
+  ]
+    .filter((file) => /\.(?:ts|tsx|sql)$/.test(file) && !/\.test\.tsx?$|_test\.ts$/.test(file))
+    .map((file) => fs.readFileSync(file, 'utf8'))
+    .join('\n'))
+}
+
+/** Os trechos fixos da mensagem (sem valores variáveis) estão todos no código? */
+function foundInSource(message, source) {
+  const fragments = normalize(message)
+    .split(/<[^>]+>|%|\{[^}]+\}|\$\{[^}]+\}|…|\.\.\.|"/)
+    .map((fragment) => fragment.trim())
+    .filter((fragment) => fragment.length >= 6)
+  return fragments.length > 0 && fragments.every((fragment) => source.includes(fragment))
+}
 const coverageDir = path.join(root, 'docs', 'manual', 'cobertura')
 const KINDS = ['rota', 'servidor', 'email', 'permissao', 'funcao', 'gatilho', 'restricao', 'unico', 'politica', 'rotina', 'alerta', 'parametro', 'arquivo']
 const DESTINATION = /^(?:Op (?:[1-9]|1[0-7])|Ap\. [A-D]|Fin|Adm|Fora)$/
@@ -77,9 +112,14 @@ for (const [token, file] of cited) {
     errors.push(`${file}: cita ${token}, que não existe mais no sistema`)
   }
 }
+const warnings = []
+const source = sourceText()
 for (const [message, file] of listedMessages) {
-  if (!messages.has(message)) errors.push(`${file}: mensagem "${message}" não existe mais no sistema`)
+  if (!messages.has(message) && !foundInSource(message, source)) {
+    warnings.push(`${file}: mensagem "${message}" não foi achada no banco nem no código`)
+  }
 }
+if (warnings.length) console.warn(`${warnings.join('\n')}\n(${warnings.length} aviso(s): confira o texto na tela)\n`)
 
 const byKind = inventory.reduce((acc, item) => ({ ...acc, [item.kind]: (acc[item.kind] ?? 0) + 1 }), {})
 const summary = Object.entries(byKind).map(([kind, count]) => `${kind} ${count}`).join(' · ')
