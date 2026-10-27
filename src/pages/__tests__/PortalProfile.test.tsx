@@ -30,7 +30,7 @@ vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: vi.fn() }),
 }))
 
-import { PortalProfile, RECOVERY_EMAIL_SEND_FAILED_MESSAGE } from '../PortalProfile'
+import { PortalProfile, RECOVERY_EMAIL_DAILY_LIMIT_MESSAGE, RECOVERY_EMAIL_SEND_FAILED_MESSAGE } from '../PortalProfile'
 import { ConfirmDialogProvider } from '../../components/ui/ConfirmDialog'
 import { PortalScopeProvider } from '../../hooks/usePortalScope'
 
@@ -125,6 +125,22 @@ it('avisa que a troca não começou quando o email de confirmação não sai', a
   const addressForm = screen.getByLabelText('Endereço').closest('form')!
   expect(within(recoveryForm).getByRole('alert').textContent).toContain(RECOVERY_EMAIL_SEND_FAILED_MESSAGE)
   expect(within(addressForm).queryByRole('alert')).toBeNull()
+})
+
+it('POR-D05: o limite diário de troca de e-mail tem mensagem própria, não a da senha', async () => {
+  const user = userEvent.setup()
+  getProfile.mockResolvedValue({ contact_email: 'perfil@example.com', phone: '', address: '', city: '', state: '', zip: '' })
+  const context = { status: 429, json: async () => ({ error: RECOVERY_EMAIL_DAILY_LIMIT_MESSAGE }) }
+  invoke.mockResolvedValue({ data: null, error: Object.assign(new Error('Edge Function returned a non-2xx status code'), { context }) })
+  renderProfile()
+
+  await user.type(await screen.findByLabelText('Senha atual'), 'senha-atual')
+  await user.type(screen.getByLabelText('Novo e-mail'), 'novo@example.com')
+  await user.type(screen.getByLabelText('Confirmar novo e-mail'), 'novo@example.com')
+  await user.click(screen.getByRole('button', { name: 'Trocar e-mail de recuperação' }))
+  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Enviar link' }))
+
+  expect(await screen.findByText(RECOVERY_EMAIL_DAILY_LIMIT_MESSAGE)).toBeTruthy()
 })
 
 it('mostra os blocos com um botão principal cada, apagado até haver o que salvar', async () => {

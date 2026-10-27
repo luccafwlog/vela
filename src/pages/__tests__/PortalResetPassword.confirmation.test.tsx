@@ -50,6 +50,20 @@ describe('PortalResetPassword — confirmação', () => {
     }))
   })
 
+  it('POR-D04: link vencido ou já usado (410) mostra "Link inválido ou expirado" e leva a pedir outro', async () => {
+    mocks.confirm.mockResolvedValue(true)
+    mocks.invoke.mockResolvedValue({ data: null, error: Object.assign(new Error('Edge Function returned a non-2xx status code'), { context: { status: 410 } }) })
+    const user = userEvent.setup()
+    renderPage()
+    await user.type(screen.getByLabelText('Nova senha'), 'senhaNova123')
+    await user.type(screen.getByLabelText('Confirmar senha'), 'senhaNova123')
+    await user.click(screen.getByRole('button', { name: 'Redefinir senha' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Link indisponível' })).toBeTruthy()
+    expect(screen.getByText('Link inválido ou expirado.')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Pedir um novo link' })).toBeTruthy()
+  })
+
   it('sem token mostra "Link indisponível", não "vencido"', () => {
     render(
       <MemoryRouter initialEntries={['/portal/recuperar-senha']}>

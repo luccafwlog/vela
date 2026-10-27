@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { listPortalProvisioningEvents, listPortalProvisioningQueue, assistedPortalEmailChange, releaseSuppressedEmail, returnToAnalysis, sendPortalInvite, type RecoveryEmailSource } from '../services/portalProvisioning'
+import { listPortalProvisioningEvents, listPortalProvisioningQueue, assistedPortalEmailChange, releaseSuppressedEmail, returnToAnalysis, sendPortalInvite, suspendPortalAccount, type RecoveryEmailSource } from '../services/portalProvisioning'
 import { supabase } from '../services/supabase'
 
 export const PORTAL_PROVISIONING_QUERY_KEY = ['portal-provisioning'] as const
@@ -59,10 +59,7 @@ export function useCancelPortalInvite() {
 export function useSuspendPortalAccount() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ customerId, action, reason }: { customerId: number; action: 'suspend' | 'reactivate'; reason: string }) => {
-      const { error } = await supabase.functions.invoke('portal-account-suspend', { body: { customer_id: customerId, action, reason } })
-      if (error) throw error
-    },
+    mutationFn: ({ customerId, action, reason }: { customerId: number; action: 'suspend' | 'reactivate'; reason: string }) => suspendPortalAccount(customerId, action, reason),
     onSuccess: () => invalidatePortalQueries(queryClient),
   })
 }

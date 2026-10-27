@@ -6,6 +6,18 @@
 
 ## 2026-10
 
+- **Portal do Cliente decidido pelo dono (2026-10-27):** migration `470`, lote 5 do
+  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). A troca do e-mail de
+  recuperação pelo atendimento e a liberação do endereço bloqueado emitem as faturas retidas; o
+  login mostra a mensagem da verificação de segurança e a de falta de rede; o link de redefinição
+  vencido mostra "Link inválido ou expirado." com **Pedir um novo link**; o Perfil mostra o limite
+  diário de troca do e-mail; a notificação de disputa abre a disputa no Portal; a Espiadinha lê os
+  B/Ls como o Cliente; a consolidada desfeita mostra o motivo e **Refazer consolidada** fica apagado
+  na inspeção; convite e suspensão mostram o motivo da recusa; a ficha do B/L separa "Visível no
+  Portal" de **Pronto para faturar** e só oferece o convite à Documentação e ao Administrativo.
+  Prova: `portalLote5.local-pg.test.ts`, `gateReciboAvulsaPix.local-pg.test.ts`,
+  `usePortalAuth.test.tsx`, `PortalProfile.test.tsx`, `PortalInvoiceDetailModal.test.tsx`,
+  `BlClienteSection.test.tsx`.
 - **Demurrage decidida pelo dono (2026-10-27):** migration `469`, lote 4 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). A Invoice de Demurrage
   só é emitida com CE Mercante e o Gate de faturamento do Portal aberto (como as faturas); o CE

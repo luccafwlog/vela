@@ -11,7 +11,8 @@ ACE-D01 (opção A) no mesmo dia.
 | 2 | Executado em 2026-10-27 (migration `467`, [ADR 0105](../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md)); conferido no Postgres local e nos testes de tela, falta conferir as telas em staging |
 | 3 | Executado em 2026-10-27 (migration `468`); conferido no Postgres local e nos testes de tela, falta conferir em staging com um Pix real |
 | 4 | Executado em 2026-10-27 (migration `469`); conferido no Postgres local e nos testes de tela, falta conferir em staging (anexos da Disputa pelo Storage e emissão retida pelo gate) |
-| 5 a 11 | Não autorizados; nada executado |
+| 5 | Executado em 2026-10-27 (migration `470`); conferido no Postgres local e nos testes de tela, falta conferir em staging (login com a verificação de segurança e convite pela ficha do B/L) |
+| 6 a 11 | Não autorizados; nada executado |
 
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:
 

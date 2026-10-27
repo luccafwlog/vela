@@ -31,6 +31,8 @@ export function PortalResetPassword() {
   const [error, setError] = useState(() => (token ? '' : INVALID_LINK_MESSAGE))
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  // Link vencido ou já usado (410): a mesma tela do link ausente, com Pedir um novo link (POR-D04).
+  const [expired, setExpired] = useState(false)
   // Erro de validação fica no campo que precisa mudar, não no fim do formulário.
   const [fieldError, setFieldError] = useState<{ field: 'password' | 'confirm'; message: string } | null>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
@@ -68,7 +70,14 @@ export function PortalResetPassword() {
     try {
       if (!token) throw new Error(INVALID_LINK_MESSAGE)
       const { error: updateError } = await supabasePortal.functions.invoke('portal-password-reset', { body: { token, password } })
-      if (updateError) throw updateError
+      if (updateError) {
+        if ((updateError as { context?: { status?: unknown } }).context?.status === 410) {
+          setError('Link inválido ou expirado.')
+          setExpired(true)
+          return
+        }
+        throw updateError
+      }
       setDone(true)
     } catch (err: unknown) {
       setError(portalErrorMessage(err, 'Falha ao redefinir senha. Tente novamente em instantes.'))
@@ -90,7 +99,7 @@ export function PortalResetPassword() {
 
   // Sem token não há o que redefinir: a tela explica e leva ao pedido de um
   // novo link, em vez de parar num erro sem saída.
-  if (!token) {
+  if (!token || expired) {
     return (
       <AuthLayout brand="portal" title="Link indisponível">
         <AuthNotice title={error || INVALID_LINK_MESSAGE}>

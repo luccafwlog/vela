@@ -35,7 +35,7 @@ ou quando há [Liberação de faturamento sem Portal](#liberação-de-faturament
 vigente. Para Cliente sem gate aberto, o CE calcula e **retém** a fatura no B/L
 (`billing_hold_reason = 'Acesso ao portal nao provisionado'`), sem tratar isso
 como falha; a Validação mostra *Conta do Portal não ativa*. A ativação do Portal e
-a concessão da Liberação reprocessam o Cliente e emitem as retidas pelo mesmo
+a concessão da Liberação (e, desde a migration `470`, a troca assistida do e-mail da equipe e a liberação do endereço suprimido) reprocessam o Cliente e emitem as retidas pelo mesmo
 caminho da transição do CE, com o preço e o câmbio fixados na importação e a
 base atual ([ADR 0094](../adr/0094-preco-fixo-na-importacao.md); [Faturamento §
 Propósito e escopo](../modules/faturamento.md#propósito-e-escopo)).

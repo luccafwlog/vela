@@ -568,7 +568,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 |---|---|---|---|---|---|
 | `internal_get_portal_information` | `portalInformation.ts` | `137` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `internal_save_portal_information` | `portalInformation.ts` | `137`, `253` | DEFINER · `authenticated` | Usuário interno ativo, em todos os tipos (P8, `253`) | Grava o rastro em `audit_logs`. |
-| `portal_add_dispute_message` | `portalBilling.ts` | `109`, `426`, `434` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Não abre Dispute nova em Invoice paga (`434`). |
+| `portal_add_dispute_message` | `portalBilling.ts` | `109`, `426`, `434`, `470` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Não abre Dispute nova em Invoice paga (`434`). O aviso ao Cliente aponta para a disputa no Portal (`470`). |
 | `portal_admin_change_cnpj` | `hooks/usePortalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo | — |
 | `portal_cancel_invite` | `hooks/usePortalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação | — |
 | `portal_check_dispute_attachment_eligibility` | `portalBilling.ts`; Edge `portal-dispute-attachment` | `075` | DEFINER · `authenticated`, `service_role` | equipe interna ou Cliente da sessão | — |
@@ -592,7 +592,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_inspect_list_invoices` | variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
 | `portal_inspect_list_invoices_page` | variante de `portalRpcContracts.ts` | `021` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
 | `portal_inspect_list_notifications` | variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
-| `portal_inspect_list_operation_bls` | variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
+| `portal_inspect_list_operation_bls` | variante de `portalRpcContracts.ts` | `002`, `470` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | Lê `_portal_list_operation_bls_visible`, a mesma lista do Cliente (`470`). |
 | `portal_inspect_notification_unread_count` | variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
 | `portal_invoice_details` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_consolidatable_receivables` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
@@ -602,7 +602,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_list_invoices` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_invoices_page` | `portalBilling.ts` | `021`, `454` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_notifications` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
-| `portal_list_operation_bls` | `portalOperation.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
+| `portal_list_operation_bls` | `portalOperation.ts` | `002`, `470` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Lê `_portal_list_operation_bls_visible` (`470`). |
 | `portal_list_provisioning_console` | `portalProvisioning.ts` | `103`, `250`, `324` | DEFINER · `authenticated` | Administrativo, Documentação, Financeiro, Operações ou Equipamentos | Fila do console `/clientes/portal` (`103`); sem máscara para Operações desde a `250`. |
 | `portal_list_provisioning_events` | `portalProvisioning.ts` | `002`, `250` | DEFINER · `authenticated` | Usuário interno ativo (`250`) | — |
 | `portal_mark_all_notifications_read` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
@@ -611,7 +611,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_obsolete_consolidation` | `portalBilling.ts` | `109` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_open_demurrage_dispute` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | delega a `portal_add_dispute_message` (Cliente da sessão (`current_portal_customer_id()`)) | — |
 | `portal_open_inspection` | `portalScope.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
-| `portal_release_suppressed_email` | `portalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação | — |
+| `portal_release_suppressed_email` | `portalProvisioning.ts` | `002`, `470` | DEFINER · `authenticated` | Administrativo ou Documentação | Reprocessa as retidas quando o gate fica aberto (`470`). |
 | `portal_request_dispute_reopen` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_resolve_login` | `portalBilling.ts` | `002` | DEFINER · nenhum papel | sem `EXECUTE` para nenhum papel da API | Resíduo legado: sem grant e sem chamador de produção (`portalResolveLogin` está `@deprecated`); o login lê `customer_portal_accounts` na Edge `portal-login`. |
 | `portal_return_to_analysis` | `portalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação; ou `service_role` | Única transição de decisão no console; `portal_set_exception` só recusa e não tem chamador. |
@@ -670,7 +670,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `mark_customer_communication_dispatch_blocked` | Edge `send-customer-communication` | `039` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `portal_activation_check_rate_limit` | Edge `_shared/portalLoginRateLimit.ts` | `076` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_activation_register_failure` | Edge `_shared/portalLoginRateLimit.ts` | `076` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
-| `portal_assisted_email_change` | Edge `portal-recovery-email-change` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação (JWT de quem chamou) | — |
+| `portal_assisted_email_change` | Edge `portal-recovery-email-change` | `002`, `470` | DEFINER · `authenticated` | Administrativo ou Documentação (JWT de quem chamou) | Reprocessa as retidas quando o gate fica aberto (`470`). |
 | `portal_begin_password_reset` | Edge `portal-password-reset` | `131` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_confirm_recovery_email` | Edge `_shared/portalInvites.ts` | `131` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_current_role` | Edge `portal-account-suspend`; Edge `portal-invite-send`; Edge `send-customer-communication` | `002` | DEFINER · `authenticated` | devolve o papel do usuário interno da sessão | — |

@@ -9,6 +9,7 @@ import { NoValue } from '../ui/NoValue'
 import { Field, Input } from '../ui/Input'
 import { ReviewCustomerOnboarding, type ReviewCustomerOnboardingInput } from '../review/ReviewCustomerOnboarding'
 import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
+import { PORTAL_INVITE_SITUATIONS } from '../../services/blPortalStatus'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
@@ -56,7 +57,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
   layout?: BlClienteLayout
 }) {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { user, can } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [picking, setPicking] = useState(false)
@@ -374,6 +375,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
     </Block>
   )
 
+  const inviteAccepted = (PORTAL_INVITE_SITUATIONS as readonly string[]).includes(portalStatus?.visibility.accountSituation ?? 'sem_conta')
   const portalActions = (
     <>
       {failedInvite ? (
@@ -381,8 +383,11 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
           <p className="app-bl-notice app-bl-notice--warning">Cadastro concluído. O convite para {failedInvite.email} não foi iniciado; tente de novo.</p>
           <div><Button type="button" variant="secondary" loading={saving} onClick={() => void invite(failedInvite.customerId, failedInvite.email)}>Tentar convite novamente</Button></div>
         </div>
-      ) : linked && portalStatus?.visibility.reasons.some((reason) => reason.includes('Conta do Portal')) && !showOnboarding && !inviteOpen ? (
+      ) : linked && inviteAccepted && can('portal_provisioning') && !showOnboarding && !inviteOpen ? (
+        // Convite só quando o servidor o aceita e para quem pode enviar (POR-D12, BLR-D06).
         <div><Button type="button" disabled={saving} onClick={() => { setInviteOpen(true); setInviteEmail(customerEmail) }}>Enviar convite do Portal</Button></div>
+      ) : linked && portalStatus && !portalStatus.visibility.billingReady && !inviteOpen ? (
+        <div><Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${linked.id}`}>Abrir no Provisionamento do Portal</Link></div>
       ) : null}
       {inviteOpen && linked ? (
         <div className="grid gap-3">

@@ -14,6 +14,8 @@ import { formatPortalPaymentDate } from '../../lib/portalInvoiceStatus'
 import { invoiceTypeLabel } from '../../services/billing'
 import type { PortalInvoiceDetail } from '../../services/portalBilling'
 import { PortalPaymentBlock } from './PortalPixPaymentBlock'
+import { usePortalScope } from '../../hooks/usePortalScope'
+import { isPortalReadOnly } from '../../services/portalScope'
 
 type PortalInvoiceDetailModalProps = {
   open: boolean
@@ -70,6 +72,7 @@ export function PortalInvoiceDetailModal({
   // A coluna B/L dos itens e dos contêineres e a tabela B/Ls só na fatura de mais de um B/L.
   const multipleBls = isConsolidated || bls.length > 1
   const cancelled = CANCELLED.includes(invoice?.status ?? '')
+  const readOnly = isPortalReadOnly(usePortalScope())
   const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount_brl ?? 0), 0)
 
   return (
@@ -82,7 +85,8 @@ export function PortalInvoiceDetailModal({
             <div className="flex flex-wrap items-center justify-end gap-2">
               {isConsolidated ? <ConsolidatedMark /> : null}
               {canObsolete && isConsolidated ? (
-                <Button variant="secondary" loading={obsoleteLoading} onClick={onObsolete}>
+                // Ação do Cliente: apagada no Modo Inspeção, como as demais (POR-D11).
+                <Button variant="secondary" loading={obsoleteLoading} onClick={onObsolete} disabled={readOnly} title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>
                   <RotateCcw size={16} />
                   Refazer consolidada
                 </Button>
@@ -296,8 +300,11 @@ function PaymentSummary({ invoice, bls, multipleBls, payments, onOpenInvoice }: 
     )
   } else if (status === 'obsolete') {
     // Consolidada substituída (ADR 0093, decisão 8): sem QR; a sucessora cobra o restante.
+    // Sem sucessora, foi desfeita pelo Cliente (Refazer consolidada): diz isso (POR-D03).
     const replacedBy = invoice.replaced_by_invoice_number
-    amount = <>Substituída <span className="app-lead__unit">{replacedBy ? `pela ${replacedBy}` : 'por outra fatura'}</span></>
+    amount = replacedBy
+      ? <>Substituída <span className="app-lead__unit">pela {replacedBy}</span></>
+      : <>{invoice.obsolete_reason?.trim() || 'Desfeita pelo cliente pelo portal.'}</>
     tone = 'muted'
     leadAction = invoice.replaced_by_invoice_id && onOpenInvoice ? (
       <Button className="app-btn--sm" onClick={() => onOpenInvoice(invoice.replaced_by_invoice_id!)}>

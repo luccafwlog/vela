@@ -12,10 +12,11 @@ const mocks = vi.hoisted(() => ({
   onboard: vi.fn(),
   invite: vi.fn(),
   autoInvoice: vi.fn(),
+  can: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }))
-vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }))
+vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, can: (permission: string) => mocks.can(permission) }) }))
 vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [] }), useCustomerPendingBalance: () => ({ data: { totalBrl: 0 } }) }))
 vi.mock('../../../hooks/useReviewCustomerGroup', () => ({ useReviewCustomerGroup: () => ({ mutateAsync: mocks.onboard, isPending: false }) }))
 vi.mock('../../../services/reviewCustomerGroup', () => ({ sendReviewPortalInvite: mocks.invite }))
@@ -41,8 +42,13 @@ const bl = {
   manifest_customer_email: 'ops@acme.test',
 }
 
+const noAccount = { visibility: { visible: false, reasons: ['Conta do Portal não está ativa'], billingReady: false, accountSituation: 'sem_conta' }, notifications: [], openDisputes: [] }
+
 afterEach(cleanup)
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  mocks.can.mockReturnValue(true)
+})
 
 function clickManifestLink() {
   render(<MemoryRouter><BlClienteSection bl={bl as never} /></MemoryRouter>)
@@ -105,7 +111,7 @@ it('preserva o cadastro concluído e oferece nova tentativa quando o convite fal
 
 it('reúne cliente e situação do Portal na mesma superfície', () => {
   // Seção dentro da superfície da Visão geral: nenhum card próprio.
-  const { container } = render(<MemoryRouter><BlClienteSection bl={bl as never} portalStatus={{ visibility: { visible: false, reasons: ['Sem CE Mercante'] }, notifications: [], openDisputes: [] }} /></MemoryRouter>)
+  const { container } = render(<MemoryRouter><BlClienteSection bl={bl as never} portalStatus={{ visibility: { visible: false, reasons: ['Sem CE Mercante'], billingReady: false, accountSituation: 'ativo' }, notifications: [], openDisputes: [] }} /></MemoryRouter>)
   expect(screen.getByRole('heading', { name: 'Cliente' })).toBeTruthy()
   expect(screen.getByRole('heading', { name: 'Portal' })).toBeTruthy()
   expect(screen.getByText('Sem CE Mercante')).toBeTruthy()
@@ -124,7 +130,7 @@ it('não executa o cadastro da Revisão quando a confirmação é recusada', asy
 it('permite convidar o cliente de B/L já revisado sem refazer o vínculo', async () => {
   mocks.confirm.mockResolvedValue(true)
   mocks.invite.mockResolvedValue(undefined)
-  render(<MemoryRouter><BlClienteSection bl={{ ...bl, review_status: 'ok', customer_id: 42, customer: { id: 42, name: 'ACME', cnpj_cpf: bl.manifest_customer_cnpj_cpf } } as never} portalStatus={{ visibility: { visible: false, reasons: ['Conta do Portal não está ativa/provisionada'] }, notifications: [], openDisputes: [] }} /></MemoryRouter>)
+  render(<MemoryRouter><BlClienteSection bl={{ ...bl, review_status: 'ok', customer_id: 42, customer: { id: 42, name: 'ACME', cnpj_cpf: bl.manifest_customer_cnpj_cpf } } as never} portalStatus={noAccount} /></MemoryRouter>)
   fireEvent.click(screen.getByRole('button', { name: 'Enviar convite do Portal' }))
   fireEvent.change(screen.getByLabelText('E-mail do convite'), { target: { value: ' Portal@acme.test ' } })
   fireEvent.click(screen.getByRole('button', { name: 'Enviar convite' }))
@@ -132,6 +138,20 @@ it('permite convidar o cliente de B/L já revisado sem refazer o vínculo', asyn
   expect(mocks.invite).toHaveBeenCalledWith(42, 'portal@acme.test')
   expect(mocks.onboard).not.toHaveBeenCalled()
   expect(mocks.linkBlCustomer).not.toHaveBeenCalled()
+})
+
+// POR-D12 e BLR-D06: o convite só aparece quando o servidor o aceita e para quem pode enviar.
+it('conta ativa ou setor sem permissão não vê o convite; leva ao Provisionamento quando o Portal não está pronto', () => {
+  const linkedBl = { ...bl, review_status: 'ok', customer_id: 42, customer: { id: 42, name: 'ACME', cnpj_cpf: bl.manifest_customer_cnpj_cpf } } as never
+  const active = { visibility: { visible: true, reasons: [], billingReady: false, accountSituation: 'ativo' }, notifications: [], openDisputes: [] }
+  render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={active} /></MemoryRouter>)
+  expect(screen.queryByRole('button', { name: 'Enviar convite do Portal' })).toBeNull()
+  expect(screen.getByRole('link', { name: 'Abrir no Provisionamento do Portal' }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
+  cleanup()
+
+  mocks.can.mockReturnValue(false)
+  render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={noAccount} /></MemoryRouter>)
+  expect(screen.queryByRole('button', { name: 'Enviar convite do Portal' })).toBeNull()
 })
 
 it('falha da consulta do Portal mostra erro com Tentar novamente, não "Verificando…" para sempre', () => {

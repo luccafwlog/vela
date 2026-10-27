@@ -27,6 +27,10 @@ export function BlPortalCard({ status, children }: { status: BlPortalStatus; chi
         </ul>
       ) : null}
       <FactList>
+        <Fact label="Pronto para faturar">
+          {/* Separado de "vê o B/L" (POR-D12): conta ativa com e-mail de recuperação devolvido vê o B/L, mas a fatura fica retida. */}
+          {status.visibility.billingReady ? 'Sim' : 'Não: a fatura fica retida até o Portal estar pronto (conta ativa e e-mail de recuperação válido) ou haver Liberação de faturamento'}
+        </Fact>
         <Fact label="Avisos ao Cliente">
           {status.notifications.length ? (
             <ul className="app-bl-portal__list">

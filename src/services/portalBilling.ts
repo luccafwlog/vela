@@ -71,6 +71,8 @@ export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice' | 'payments'> & 
     covered_by_invoice_number?: string | null
     replaced_by_invoice_id?: number | null
     replaced_by_invoice_number?: string | null
+    /** Motivo da consolidada desfeita (migration 470): "Desfeita pelo cliente pelo portal.". */
+    obsolete_reason?: string | null
   }) | null
   containers: PortalInvoiceContainer[]
   payments: PortalInvoicePayment[]
