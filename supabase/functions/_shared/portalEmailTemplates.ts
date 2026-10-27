@@ -163,7 +163,7 @@ export function bounceNotificationTemplate(i: {
 }
 
 // Avisos do Desbloqueio de CE ao cliente (recusa de documento; documentação validada).
-// Nunca cita ZPT nem desbloqueio confirmado: o cliente confere o resultado no Mercante.
+// Nunca cita ZPT nem desbloqueio confirmado: o cliente confere o resultado no SISCARGA.
 // `request`: protocolo e B/Ls da solicitação; sem B/L, o bloco não aparece.
 export function ceUnlockNoticeTemplate(i: {
   title: string
