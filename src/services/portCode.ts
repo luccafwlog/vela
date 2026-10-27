@@ -84,6 +84,7 @@ const EXACT_PORT_ALIASES: Record<string, string> = {
   VIX: 'BRVIX',
   VIT: 'BRVIX', // Vitória: VIX, VIT, BRVIT e BRVIX são o mesmo porto
   CNTCA: 'CNTAC', // Taicang (variante COSCO)
+  CNTCG: 'CNTAC', // Taicang (LOC+6 do Baplie 1.5 da COSCO, migration 465)
   TCA: 'CNTAC', // Taicang (LOC+6 do Baplie da COSCO)
   // Sepetiba é o porto de Itaguaí (BRIGI): BRSEP é apelido, como BRVIT de BRVIX (migration 410).
   BRSEP: 'BRIGI',
@@ -170,7 +171,7 @@ export function portCodeVariants(value: string | null | undefined): string[] {
   return [...variants]
 }
 
-// Cópia exata de `public.normalize_port_code` (migration 410). Filtros de
+// Cópia exata de `public.normalize_port_code` (migration 465). Filtros de
 // leitura que mandam o porto ao banco e comparações com o que o banco decide
 // (escopo da tabela de Taxas Locais, PODs do Baplie) usam esta régua:
 // `normalizePortCode` é a do import, que também reconhece nomes dentro de um
@@ -195,7 +196,7 @@ const STORED_PORT_ALIASES: Array<[string, string[]]> = [
   ['BRMAO', ['MANAUS', 'BRMAO']],
   ['CNTAO', ['QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG', 'TAO']],
   ['CNSHA', ['SHANGHAI', 'CNSHA', 'CNSHG', 'SHG']],
-  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'TCA']],
+  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'CNTCG', 'TCA']],
   ['CNNGB', ['NINGBO', 'CNNGB', 'CNNBO', 'NBO', 'ZHOUSHAN', 'CNZOS', 'ZOS']],
   ['CNNSA', ['NANSHA', 'CNNSA', 'CNNAN', 'GUANGZHOU', 'CNGZU', 'CNCAN']],
   ['CNZJG', ['ZHANGJIAGANG', 'CNZJG']],
