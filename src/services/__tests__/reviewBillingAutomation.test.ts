@@ -110,6 +110,32 @@ describe('tryAutoIssueInvoice', () => {
     expect(mockedCreateInvoice).not.toHaveBeenCalled()
   })
 
+  it('não emite sozinho o B/L cuja última fatura individual foi cancelada por uma pessoa (FAT-D10)', async () => {
+    const bl = (invoices: Array<{ id: number; status: string; invoice_type: string; reissue_requested_at: string | null }>) => ({
+      select: () => ({ eq: () => ({ single: async () => ({
+        data: {
+          ce_mercante: '122605051526081', cargo_mode: 'container', customer_id: 99,
+          customer_reconciliation_status: 'matched_document', review_status: 'reviewed', billing_hold_reason: null,
+          financial_status: 'pending', invoice_bls: invoices.map((invoice) => ({ invoice })),
+        },
+        error: null,
+      }) }) }),
+    })
+    mockFrom.mockImplementation(() => bl([
+      { id: 10, status: 'cancelled', invoice_type: 'individual', reissue_requested_at: '2026-10-01T00:00:00Z' },
+      { id: 11, status: 'cancelled', invoice_type: 'individual', reissue_requested_at: null },
+    ]))
+    const result = await tryAutoIssueInvoice({ blId: 'BL1', customerId: 99, actorId: 'user-1' })
+    expect(result).toMatchObject({ status: 'blocked', reason: 'awaiting_flow', message: 'A última fatura deste B/L foi cancelada: a nova sai só pelo Emitir.' })
+    expect(mockedCalculate).not.toHaveBeenCalled()
+    expect(mockedCreateInvoice).not.toHaveBeenCalled()
+
+    // A reemissão pedida pela correção do B/L continua automática.
+    mockFrom.mockImplementation(() => bl([{ id: 12, status: 'cancelled', invoice_type: 'individual', reissue_requested_at: '2026-10-02T00:00:00Z' }]))
+    await tryAutoIssueInvoice({ blId: 'BL1', customerId: 99, actorId: 'user-1' })
+    expect(mockedCreateInvoice).toHaveBeenCalledTimes(1)
+  })
+
   it('reconhece a emissão que terminou durante o recálculo antes de tentar a segunda invoice', async () => {
     const pendingBl = {
       ce_mercante: '122605051526081',

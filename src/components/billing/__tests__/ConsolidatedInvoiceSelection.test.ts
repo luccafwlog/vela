@@ -33,6 +33,8 @@ describe('consolidatedInvoiceSelection', () => {
     expect(isReceivableSelectable(makeRow({ eligibility_status: 'paid' }))).toBe(false)
     expect(isReceivableSelectable(makeRow({ eligibility_status: 'no_balance' }))).toBe(false)
     expect(isReceivableSelectable(makeRow({ eligibility_status: 'open_consolidated' }))).toBe(false)
+    // FAT-D12 (migration 467): B/L com saldo e sem CE Mercante não entra.
+    expect(isReceivableSelectable(makeRow({ eligibility_status: 'no_ce_mercante' }))).toBe(false)
   })
 
   it('summarizes only the selected receivables and counts eligible rows', () => {

@@ -205,7 +205,8 @@ do container compartilhado.
   bloco "Validação" com a contagem, **Recalcular selecionados** e **Exportar
   (n)** na faixa do título. `src/components/billing/ValidacaoControls.tsx`
   contém os filtros (Busca, Motivo — ver [Motivo de bloqueio de faturamento](#motivo-de-bloqueio-de-faturamento) — e Navio / Viagem abertos; Modo de carga, POD
-  e "Incluir faturados e isentos" em "Mais filtros");
+  e "Incluir faturados e isentos" em "Mais filtros"); B/L cancelado não entra
+  na fila, nem com esse filtro (FAT-D09, decisão do dono de 2026-10-27);
   `src/components/billing/ValidacaoOperationsTable.tsx` renderiza a tabela limpa
   (lote 1 da identidade, 2026-10-14): seleção, seta de abrir e as colunas B/L,
   Cliente, Navio / Viagem, Motivo (em texto, uma vez), Subtotal e **uma ação por
@@ -447,7 +448,7 @@ para achar o peso de carga solta do quadro do alto. **Código:**
 | Validação · recalcular selecionados | Seleção não vazia | `ValidacaoTab.runBatchOperation('recalculate')` | Hooks de Taxas Locais | Uma operação por B/L | Invalida operações, invoices, B/Ls e resumo após o lote | Resultado parcial agrega erros sem interromper os demais B/Ls | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/hooks/useLocalCharges.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts` |
 | Validação · emitir invoice individual | B/L "Pronto para emitir" (calculado, revisado ou pronto), não faturado e com cliente | `handleIssueSingleInvoice` | `markBlReadyAndCreateInvoice` (RPC `mark_bl_ready_and_create_invoice`: marca pronto e emite na mesma transação, como a ficha do B/L); Granito é somente apoio operacional e não oferece emissão | RPC local para B/Ls financeiros; nenhum caminho financeiro novo para Granito | Invalida operações, invoices, B/Ls e resumo após emissão local | RPC revalida estado, cliente e vínculos; Granito não exibe o botão “Emitir” | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/ValidacaoOperationsTable.tsx` · **Teste:** `ValidacaoOperationsTable.test.tsx`, `ValidacaoTab.confirmation.test.tsx` |
 | B/L · Emitir fatura (marca pronto e emite atomicamente) | Um B/L com cliente reconciliado, taxas elegíveis e CE Mercante | `BlCobrancasTab` (botão **Emitir fatura**, qualquer Departamento desde a migration `246`; com confirmação), `reviewBillingAutomation` | `markBlReadyAndCreateInvoice` | RPC `mark_bl_ready_and_create_invoice` chama promoção + criação ledger na mesma transação; `047_bl_documental_gates.sql` reforça CE na prontidão e emissão | Chamadores invalidam seus domínios após sucesso | Qualquer falha aborta promoção e emissão juntas | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/reviewBillingAutomation.ts`, `supabase/migrations_archive/102_mark_ready_and_invoice_atomic.sql`, `supabase/migrations/047_bl_documental_gates.sql` |
-| Modal consolidada · listar elegíveis | Cliente selecionado; filtros opcionais | `ConsolidatedInvoiceModal` | `useConsolidatableReceivables` → `listConsolidatableReceivables` | RPC `list_consolidatable_receivables` lê ledger e links | Query `queryKeys.billingLedger.consolidatableReceivables(filters)` | Sem cliente não consulta; rows pagas/sem saldo/em consolidada aberta ficam desabilitadas | **Código:** `src/components/billing/ConsolidatedInvoiceModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/components/billing/__tests__/ConsolidatedInvoiceSelection.test.ts` |
+| Modal consolidada · listar elegíveis | Cliente selecionado; filtros opcionais | `ConsolidatedInvoiceModal` | `useConsolidatableReceivables` → `listConsolidatableReceivables` | RPC `list_consolidatable_receivables` lê ledger e links | Query `queryKeys.billingLedger.consolidatableReceivables(filters)` | Sem cliente não consulta; rows pagas/sem saldo/em consolidada aberta ficam desabilitadas; B/L com saldo e sem CE Mercante aparece como "Não: sem CE Mercante." (`no_ce_mercante`; FAT-D12, migration `467`) | **Código:** `src/components/billing/ConsolidatedInvoiceModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/components/billing/__tests__/ConsolidatedInvoiceSelection.test.ts` |
 | Modal consolidada · emitir | Cliente, ao menos um receivable elegível e CE Mercante em cada B/L selecionado | `ConsolidatedInvoiceModal.submit` | `useCreateConsolidatedInvoice` → `createConsolidatedInvoice` | RPC `create_local_consolidated_invoice` cria invoice, links, evento e auditoria; `047_bl_documental_gates.sql` guarda links e transição para emissão | Invalidação ledger comum: ledger, invoices, B/Ls, clientes, detalhes, refunds, alertas e contagem | RPC trava receivables e rejeita cliente divergente, saldo inválido, consolidada aberta ou B/L sem CE | **Código:** `src/services/billingLedger.ts`, `supabase/migrations_archive/067_local_billing_ledger_phase2.sql`, `supabase/migrations/047_bl_documental_gates.sql` · **Teste:** `src/services/__tests__/billingLedger.test.ts`, `src/services/__tests__/blDocumentalGatesMigration.test.ts` |
 | Detalhe · registrar pagamento ledger | `canRegisterInvoicePayment`: fatura não avulsa com status `issued`/`partially_paid`/`overdue` e saldo positivo; fora disso o card mostra que a fatura não aceita pagamento | `InvoiceDetailModal.handleRegisterPayment` | `useRegisterLedgerInvoicePayment` → `registerLedgerInvoicePayment` | RPC `register_verified_invoice_payment` → `register_ledger_invoice_payment` → `payments`, `ledger_settlements`, receivables, invoice, B/Ls, eventos e possível refund | Invalidação ledger comum | Valor/data validados; RPC rejeita estado, ausência de links, TXID duplicado e regras de valor | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/services/__tests__/billingLedger.test.ts` |
 | Detalhe · registrar pagamento de avulsa | `canRegisterInvoicePayment`: fatura avulsa com status `issued`/`overdue`/`partially_paid`/`paid` (excedente vira restituição); cancelada ou rascunho não mostra o formulário (VELA-15) | Mesmo handler, ramo `else` | `useRegisterInvoicePayment` → `registerInvoicePayment` | RPC `register_verified_invoice_payment` (ramo `manual`) → `payments`, agregados de `invoices`, restituição do excedente | Invalida invoices, detalhe, B/Ls e clientes | Bloqueia valor não positivo, referência bancária ausente e avulsa fora dos status aceitos (22023) | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/hooks/useBilling.ts`, `supabase/migrations/136_controles_financeiros.sql` · **Teste:** `src/pages/__tests__/faturamentoLedgerPayment.test.ts`, `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
@@ -652,7 +653,10 @@ Cliente. Tabela reajustada não muda a cotação; só a base nova muda o valor:
   cancelado: a fatura continua valendo, abre **Fatura desatualizada** com o
   motivo e a correção fica pendente para "Tentar aplicar correção" (ADR 0094,
   B5 e D1; migrations `381` e `386`; antes, a `126` cancelava e deixava em
-  Reemissão pendente);
+  Reemissão pendente). O botão fica no bloco **Ajustes pela correção do B/L**
+  do detalhe também na fatura sem pagamento e no B/L que está só em
+  consolidada, e o bloco Fatura desatualizada mostra **Reemissão travada**;
+  a tentativa que volta a travar mantém a pendência (FAT-D15, migration `467`);
 - com pagamento e valor menor: `_register_invoice_correction_core` abate
   primeiro o saldo em aberto e só o que passar dele vira restituição, com o
   alerta **Restituição pendente**, que fecha quando o Financeiro (ou o
@@ -925,7 +929,9 @@ flowchart TD
   o vínculo da fatura cancelada não trava o cancelamento do B/L, e a nova
   fatura só sai pelo **Emitir** — nunca sozinha pela Liberação, pela ativação
   do Portal, pelo CE, pela planilha de CE, pelo vínculo de Cliente ou pelo
-  reprocessamento de efeito. No Vela o recebível continua no saldo; no Portal,
+  reprocessamento de efeito. A tentativa da tela depois do vínculo de Cliente
+  (card Cliente da ficha e Revisão, `tryAutoIssueInvoice`) segue a mesma regra
+  desde 2026-10-27 (FAT-D10): antes ela emitia pela RPC do Emitir. No Vela o recebível continua no saldo; no Portal,
   não entra.
 - A emissão pela RPC (`create_invoice_from_bls_with_ledger`) passa pelas
   checagens do Emitir; `create_invoice_from_bls`, fora do ledger, saiu da API,

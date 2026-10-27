@@ -117,6 +117,7 @@ function cleanup() {
     DELETE FROM public.invoices WHERE customer_id = ${customerId};
     DELETE FROM public.bl_receivables WHERE customer_id = ${customerId};
     DELETE FROM public.import_pending_effects WHERE entity_id = ANY(${bls});
+    DELETE FROM public.invoice_basis_pending_changes WHERE bl_id = ANY(${bls});
     DELETE FROM public.charge_calculations WHERE bl_id = ANY(${bls});
     DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId};
     DELETE FROM public.bl_containers WHERE bl_id = ANY(${bls});
@@ -231,5 +232,13 @@ describeLocal('126 — reimportação com impacto reemite individual e consolida
     expect(result.invoice_reissues[0].pending_reason).toMatch(/Liberação/)
     expect(psql(`SELECT status FROM public.invoices WHERE id = ${held}`)).toBe('issued')
     expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND status = 'active' AND metadata->>'invoice_id' = '${held}' AND metadata->>'auto_reissue' = 'blocked'`)).toBe('1')
+    // 467 (FAT-D15): a fatura sem pagamento mostra a pendência, e a tentativa
+    // que volta a travar mantém a pendência (antes o botão sumia).
+    const pending = () => psql(`SELECT count(*) FROM public.invoice_basis_pending_changes WHERE bl_id = '${blHeld}'`)
+    expect(pending()).toBe('1')
+    expect(adminJson<{ pending_bl_ids: string[] }>(`SELECT public.get_invoice_correction_summary(${held})`).pending_bl_ids).toEqual([blHeld])
+    adminJson(`SELECT public.retry_invoice_basis_changes('${blHeld}')`)
+    expect(pending()).toBe('1')
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${held}`)).toBe('issued')
   })
 })

@@ -317,6 +317,7 @@ export function ChargeTablesTab({
           open
           table={tableModal?.table ?? null}
           tables={tables}
+          tableInUse={tableModal?.table ? tablesInUse === null || tablesInUse.has(tableModal.table.id) : false}
           onClose={closeTableModal}
           onSave={handleSaveTable}
         />

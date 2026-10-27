@@ -77,6 +77,9 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   // Apos o B/L ser faturado, as taxas viram fonte da fatura emitida — nao podem mais
   // ser editadas aqui (o RPC tambem bloqueia; a UI apenas evita a tentativa).
   const chargesLocked = isBlFinanciallyLocked(bl.financial_status)
+  // B/L cancelado é somente leitura (TAX-D09): sem cálculo, cobrança manual nem emissão.
+  const cancelled = Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)
+  const readOnly = chargesLocked || cancelled
 
   async function handleSaveManualCharge() {
     if (!bl || !user) return
@@ -208,7 +211,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   // da emissão automática.
   // Qualquer Departamento emite (ADR 0085, D3; migration 246).
   const canIssue = Boolean(
-    !chargesLocked && bl.customer_id && bl.ce_mercante
+    !readOnly && bl.customer_id && bl.ce_mercante
       && bl.charge_status !== 'not_calculated' && bl.charge_status !== 'exempt',
   )
 
@@ -218,7 +221,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
       title: 'Emitir fatura',
       message: `Emitir a fatura de Taxas Locais do B/L ${bl.id}?`,
       affected: {
-        summary: `B/L ${bl.id} · ${formatBRL(localChargeSummary.totalBrl)}${localChargeSummary.totalUsd ? ` + ${formatUSD(localChargeSummary.totalUsd)} (convertido pelo ROE na emissão)` : ''}`,
+        summary: `B/L ${bl.id} · ${formatBRL(localChargeSummary.totalBrl)}${localChargeSummary.totalUsd ? ` + ${formatUSD(localChargeSummary.totalUsd)} (convertido pelo câmbio fixado quando o B/L entrou)` : ''}`,
         items: [`${localChargeSummary.lines.length} linha(s) de cobrança`],
       },
       consequence: 'Cria e emite a fatura, que aparece no Portal do Cliente. O B/L passa a faturado e deixa de aceitar recálculo.',
@@ -258,7 +261,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - activeInvoice.total_brl) > 0.01,
   )
   const lines = localChargeSummary.lines
-  const { showOrigin, showSituation, showNotes, showActions: showActionsColumn } = chargeTableColumns(lines, chargesLocked)
+  const { showOrigin, showSituation, showNotes, showActions: showActionsColumn } = chargeTableColumns(lines, readOnly)
   const reviewPendingCount = lines.filter((line) => line.status === 'review_required').length
   const columnCount = 4 + Number(showOrigin) + Number(showSituation) + Number(showNotes) + Number(showActionsColumn)
   const totalLabel = (
@@ -272,7 +275,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     <Block
       title="Taxas Locais"
       flush
-      aside={chargesLocked ? null : (
+      aside={readOnly ? null : (
         <span className="flex flex-wrap items-center gap-2">
           {manualFormOpen || manualChargeForm.editingChargeCalculationId ? null : (
             <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setManualFormOpen(true)}>
@@ -304,7 +307,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
             detail={(
               <>
                 {formatCountLabel(lines.length, 'cobrança', 'cobranças')}
-                {chargesLocked ? null : ' · valores provisórios até a emissão'}
+                {readOnly ? null : ' · valores provisórios até a emissão'}
                 {reviewPendingCount ? <> · <StatusText tone="warning"><span id="bl-issue-blocked">{formatCountLabel(reviewPendingCount, 'linha em revisão', 'linhas em revisão')}: corrija e recalcule antes de emitir</span></StatusText></> : null}
               </>
             )}
@@ -330,7 +333,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           {bl.charge_exemption_reason ? <Fact label="Isenção">{bl.charge_exemption_reason}</Fact> : null}
           {bl.charge_status === 'exempt' && !bl.charge_exemption_reason ? <Fact label="Situação"><StatusText tone="muted">Isento</StatusText></Fact> : null}
         </FactList>
-        {bl.charge_status === 'not_calculated' ? (
+        {bl.charge_status === 'not_calculated' && !cancelled ? (
           <Notice tone="warn">
             <span>As taxas deste B/L ainda não foram calculadas.</span>
             <Button variant="secondary" onClick={handleCalculateCharges} loading={calculateChargesMutation.isPending} loadingLabel="Calculando…" type="button">
@@ -340,6 +343,9 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         ) : null}
         {invoiceDiverges ? (
           <Notice tone="warn">As taxas mudaram depois da emissão: o total atual difere da fatura ativa. A reemissão ou o ajuste é tratado no Faturamento.</Notice>
+        ) : null}
+        {cancelled && !chargesLocked ? (
+          <p className="app-facts__detail">B/L cancelado: as taxas ficam só para consulta.</p>
         ) : null}
         {chargesLocked ? (
           <p className="app-facts__detail">Faturado: as taxas são a base da fatura e não se editam aqui. Correções no B/L reemitem ou ajustam a fatura automaticamente.</p>
@@ -429,7 +435,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         </table>
       </div>
 
-      {chargesLocked || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
+      {readOnly || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
         <div className="app-block__body">
           <ManualChargeFormFields
             form={manualChargeForm}

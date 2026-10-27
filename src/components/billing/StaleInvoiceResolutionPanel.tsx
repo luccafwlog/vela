@@ -17,6 +17,8 @@ export function StaleInvoiceResolutionPanel({ invoiceId, hasPayment }: { invoice
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   if (!query.data?.stale) return null
+  // FAT-D15: correção pendente do B/L desta fatura = a reemissão automática travou.
+  const reissueBlocked = (query.data.pending_bl_ids ?? []).length > 0
   async function resolve() {
     setError('')
     if (!await confirm({ title: 'Resolver Fatura desatualizada?', message: 'Confirma que a diferença já foi tratada?',
@@ -26,8 +28,10 @@ export function StaleInvoiceResolutionPanel({ invoiceId, hasPayment }: { invoice
     catch (caught) { const message = userFacingErrorMessage(caught, 'Falha ao resolver alerta.'); setError(message); showToast(message, 'error') }
   }
   return <Block title="Fatura desatualizada" headingLevel={3} aside="o B/L foi corrigido depois da emissão">
-    <LeadValue tone="warning" detail={hasPayment ? 'com pagamento, o aumento vai em fatura avulsa; reduções o sistema já abate do saldo e restitui o excedente' : 'a correção do B/L reemite esta fatura sozinha; se o alerta continuar, a nova emissão travou e o motivo está no alerta financeiro'}>
-      {hasPayment ? 'Diferença a tratar' : 'Aguardando reemissão'}
+    <LeadValue tone="warning" detail={hasPayment ? 'com pagamento, o aumento vai em fatura avulsa; reduções o sistema já abate do saldo e restitui o excedente'
+      : reissueBlocked ? 'a nova emissão travou: resolva o motivo do alerta e use Tentar aplicar correção em Ajustes pela correção do B/L'
+        : 'a correção do B/L reemite esta fatura sozinha; se o alerta continuar, a nova emissão travou e o motivo está no alerta'}>
+      {hasPayment ? 'Diferença a tratar' : reissueBlocked ? 'Reemissão travada' : 'Aguardando reemissão'}
     </LeadValue>
     <div className="app-invoice-detail__form">
       <div className="app-invoice-detail__form-wide"><Field label="Como a diferença foi tratada" required hint="Informe a avulsa emitida ou por que a diferença não é cobrada (mínimo de 15 caracteres)."><Textarea value={reason} onChange={(event) => setReason(event.target.value)} /></Field></div>

@@ -256,7 +256,7 @@ export function ChargeOverrideFormModal({
             <Input type="date" value={form.validTo} onChange={(event) => update('validTo', event.target.value)} />
           </Field>
           <p className="app-rates-form__wide app-rates-help">
-            Vale para o B/L cuja data de referência (ETA da escala do POD; sem ela, ETA da viagem ou a data do cálculo) cai no período. Vazio é sem limite. Não pode sobrepor outra condição ativa do mesmo Cliente e item: para trocar o valor, encerre a anterior.
+            Vale para o B/L cujo dia de entrada no Vela cai no período. Vazio é sem limite. Não pode sobrepor outra condição ativa do mesmo Cliente e item: para trocar o valor, encerre a anterior.
           </p>
           <ChargeNoteList notes={notes} className="app-rates-form__wide" />
           <div className="app-rates-form__wide">
@@ -266,7 +266,7 @@ export function ChargeOverrideFormModal({
           </div>
         </div>
 
-        {isEdit ? <ChargeChanges changes={changes} consequence="Correção de erro: recalcula os B/Ls deste Cliente na vigência, inclusive com CE. Faturas sem pagamento são canceladas e reemitidas com número novo; nas pagas abre Fatura desatualizada. Para reajuste, crie uma condição nova com vigência nova." /> : null}
+        {isEdit ? <ChargeChanges changes={changes} consequence="Correção de erro: recalcula só os B/Ls que já usavam esta Condição, inclusive com CE; B/Ls que não a usavam seguem com o preço deles. Faturas sem pagamento são canceladas e reemitidas com número novo; nas pagas abre Fatura desatualizada. Para reajuste, crie uma condição nova com vigência nova." /> : null}
         {saveError ? <InlineError message={saveError} /> : null}
 
         <div className="app-rates-form__footer">

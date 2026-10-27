@@ -93,7 +93,7 @@ export function InvoiceFiltersBar({
     <>
       <div className="app-filter-grid">
         <Field label="Buscar fatura ou B/L">
-          <Input placeholder="Ex.: FAT-2026-0018" value={queryText} onChange={(event) => setQueryText(event.target.value)} />
+          <Input placeholder="Ex.: INV-2026-0018" value={queryText} onChange={(event) => setQueryText(event.target.value)} />
         </Field>
         <Combobox
           key={`cli-${filterResetKey}-${customerInitialValue}`}

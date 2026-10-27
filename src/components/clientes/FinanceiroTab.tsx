@@ -27,6 +27,8 @@ import { isPortalReadyForBilling } from '../../lib/portalProvisioningViewModel'
 import { BillingPortalReleaseCard } from './BillingPortalReleaseCard'
 import type { CustomerDemurrageAgreementListItem } from '../../types/customerDemurrageAgreements'
 import { matchesAnyToken } from '../../lib/searchTerms'
+import { conditionPeriodLabel } from '../taxasLocais/chargePresentation'
+import { saoPauloTodayIso } from '../../lib/dates'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
 
@@ -452,7 +454,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
       >
         <div className="app-customer-subsections">
           <div>
-            <h3 className="app-customer-subsection-title">Regras gerais (overrides)</h3>
+            <h3 className="app-customer-subsection-title">Condições de Cliente</h3>
             <QueryBody query={overrides}>
               {overrides.data?.length ? (
                 <ul className="app-customer-rows">
@@ -460,13 +462,13 @@ export function FinanceiroTab({ data }: { data: Data }) {
                     <li key={row.id}>
                       <div className="app-customer-rows__main">
                         <strong>{row.charge_item?.name ?? <NoValue label="Sem item de cobrança" />}</strong>
-                        <span className="app-customer-muted">{row.charge_item?.charge_table?.name ?? <NoValue label="Sem tabela" />} · desde {row.valid_from ? formatDate(row.valid_from) : <NoValue label="Sem data de início" />}</span>
+                        <span className="app-customer-muted">{row.charge_item?.charge_table?.name ?? <NoValue label="Sem tabela" />} · desde {row.valid_from ? formatDate(row.valid_from) : <NoValue label="Sem data de início" />} · {conditionPeriodLabel(row, saoPauloTodayIso())}</span>
                       </div>
                       <span className="app-customer-money">{row.charge_item?.currency === 'USD' ? formatUSD(row.override_value) : formatBRL(row.override_value)}</span>
                     </li>
                   ))}
                 </ul>
-              ) : <Empty>Nenhum override cadastrado.</Empty>}
+              ) : <Empty>Nenhuma Condição de Cliente cadastrada.</Empty>}
             </QueryBody>
           </div>
           <div>

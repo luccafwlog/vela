@@ -355,7 +355,7 @@ export function Clientes() {
         title: 'Excluir cliente',
         message: `Excluir ${report.deletableIds.length} cliente(s)?`,
         affected: buildDeleteAffected('cliente(s)', report),
-        consequence: 'Os clientes saem das listas e das escolhas; contatos e overrides de tarifa deles são apagados junto.',
+        consequence: 'Os clientes saem das listas e das escolhas; contatos e Condições de Cliente deles são apagados junto.',
         reversibility: 'Não é possível desfazer pelo sistema; o registro apagado fica guardado na auditoria.',
         confirmLabel: 'Excluir',
         tone: 'danger',

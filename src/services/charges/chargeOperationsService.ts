@@ -289,6 +289,8 @@ async function loadBlOperationalRows(
       )
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1)
+      // B/L cancelado não vira fatura: sai da fila, mesmo com "Incluir faturados e isentos" (FAT-D09).
+      .is('cancelled_at', null)
 
     if (filters?.cargoMode === 'container') query = query.in('cargo_mode', ['container', 'misto'])
     else if (filters?.cargoMode === 'carga_solta') query = query.in('cargo_mode', ['carga_solta', 'misto'])

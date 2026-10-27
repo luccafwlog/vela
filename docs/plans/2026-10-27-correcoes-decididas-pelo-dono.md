@@ -8,7 +8,8 @@ ACE-D01 (opção A) no mesmo dia.
 | Lote | Situação |
 |---|---|
 | 1 | Executado em 2026-10-27 (migration `466`, [ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); falta conferir em staging um envio redirecionado chegando à caixa do suporte |
-| 2 a 11 | Não autorizados; nada executado |
+| 2 | Executado em 2026-10-27 (migration `467`, [ADR 0105](../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md)); conferido no Postgres local e nos testes de tela, falta conferir as telas em staging |
+| 3 a 11 | Não autorizados; nada executado |
 
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:
 
@@ -326,11 +327,12 @@ Impacto: médio (alto no item VIP, que muda quem é cobrado).
 
 ## ADRs previstas
 
-1. Marca Dev e chave de envio que redireciona ao suporte (lote 1).
+1. Marca Dev e chave de envio que redireciona ao suporte (lote 1; ADR 0104).
 2. Sino só do setor responsável e alerta resolvido fora do sino (lote 8).
 3. Fim da dispensa de alertas (lote 8).
 4. Frente de operação vinculada a terminal até o ATA (lote 9).
 5. Cobertura do termo anual VIP pela data da solicitação (lote 11).
+6. B/L misto cobra as taxas por B/L da carga solta quando o container não tem (lote 2; ADR 0105, acrescentada na execução porque TAX-D14 muda a decisão 4 da ADR 0069).
 
 ## Arquivos
 

@@ -334,7 +334,7 @@ Regra: [Manifestos e EDI](modules/manifesto-edi.md).
 | `apply_ce_mercante_rows_atomic` | `ceMercanteImport.ts` | `325` (corpo da `181`), `387` (trava da Viagem) | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Planilha de CE dos B/Ls de carga; o alvo `granite` é recusado desde a `325`: trava da Viagem, Manifesto de 13 caracteres, troca de CE ou de Manifesto só com confirmação e motivo; grava sem emitir. |
 | `apply_container_dates_atomic` | `apply_container_dates_batch_atomic` | `179` | DEFINER · só o servidor (EXECUTE revogado de `authenticated` na `366`) | usuário interno ativo; ator = sessão | Datas de descarga/devolução de um B/L, tudo ou nada; a tela chama o lote (`333`). |
 | `apply_container_dates_batch_atomic` | `containerDatesImport.ts` | `333`, `387` (trava da Viagem) | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Planilha de datas inteira numa chamada: B/L recusado desfaz todos e volta em `errors`; B/Ls em ordem de `bl_id`; `statement_timeout` 60 s e teto de 300 B/Ls por arquivo (`22023`; a tela recusa na leitura); tempo esgotado (`57014`) não grava nada e a tela pede para dividir a planilha. |
-| `bl_timeline` | `blTimeline.ts` | `404` (antes `133`) | DEFINER · `authenticated` | usuário interno ativo | Histórico paginado (50); a transação de criação vira um único "B/L criado" (`133`). Lê as linhas semânticas `bl`, o gatilho de `bls` (campos de negócio), o rastro de `bl_containers` e `vehicles` pelo `bl_id` gravado (container e veículo que entram e saem, histórico depois da remoção) e devolve Cliente com razão social e CNPJ, terminal, Manifesto, Viagem e container pelo nome (`404`, F-23); família `veiculo`. |
+| `bl_timeline` | `blTimeline.ts` | `467` (antes `404`, `133`) | DEFINER · `authenticated` | usuário interno ativo | Histórico paginado (50); a transação de criação vira um único "B/L criado" (`133`). Lê as linhas semânticas `bl`, o gatilho de `bls` (campos de negócio), o rastro de `bl_containers` e `vehicles` pelo `bl_id` gravado (container e veículo que entram e saem, histórico depois da remoção) e devolve Cliente com razão social e CNPJ, terminal, Manifesto, Viagem e container pelo nome (`404`, F-23); família `veiculo`. |
 | `cancel_bl` | `blState.ts` | `179`, `372` | DEFINER · `authenticated` | Administrativo ativo | Recusa com fatura em aberto (inclusive rascunho), recebível com baixa ou ligado a fatura e Invoice de Demurrage aberta, inclusive do grupo (`bl_open_financial_reasons`, `191`); anula recebível e cálculo sem fatura, com Histórico. |
 | `claim_import_effects` | `importEffects.ts`; Edge `import-effects-runner` | `178` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `complete_import_effect` | `importEffects.ts` | `017` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
@@ -450,9 +450,9 @@ Regra: [Faturamento](modules/faturamento.md).
 | `create_local_consolidated_invoice` | `billingLedger.ts` | `002`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | `p_actor` conferido com a sessão (`241`). |
 | `create_manual_invoice` | `billing.ts` | `125`, `246`, `272` | DEFINER · `authenticated` | Usuário interno ativo (A9, `246`) | Fatura avulsa `manual`, com tipo de cobrança opcional; motivo interno obrigatório no rastro (`272`, 10 parâmetros); `p_actor` conferido com a sessão (`241`). |
 | `get_consolidated_invoice_item_breakdown` | `billing.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `get_invoice_correction_summary` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
+| `get_invoice_correction_summary` | `billingLedger.ts` | `136`, `467` | DEFINER · `authenticated` | usuário interno ativo | Correção pendente também do B/L que está só em consolidada (`467`). |
 | `get_invoice_reissue_links` | `billing.ts` | `128` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `list_consolidatable_receivables` | `billingLedger.ts` | `002`, `454` | DEFINER · `authenticated` | usuário interno ativo | — |
+| `list_consolidatable_receivables` | `billingLedger.ts` | `002`, `454`, `467` | DEFINER · `authenticated` | usuário interno ativo | B/L com saldo e sem CE Mercante volta como não elegível (`467`). |
 | `list_financial_refunds` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `list_invoice_details` | `billing.ts` | `183` | DEFINER · `authenticated` | usuário interno ativo (núcleo `_legacy_134`) | — |
 | `list_invoice_refunds_with_evidence` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
@@ -467,7 +467,7 @@ Regra: [Faturamento](modules/faturamento.md).
 | `register_verified_invoice_payment` | `billing.ts`; `billingLedger.ts` | `136`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | Baixa com referência bancária (`136`). |
 | `request_financial_refund` | `financialRefunds.ts` | `136`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | Restituição excepcional autorizada (`136`). |
 | `resolve_stale_invoice` | `billingLedger.ts` | `124`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
-| `retry_invoice_basis_changes` | `billingLedger.ts` | `136`, `246`, `275` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | Sem correção pendente não faz nada (`275`). |
+| `retry_invoice_basis_changes` | `billingLedger.ts` | `136`, `246`, `275`, `467` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | Sem correção pendente não faz nada (`275`); se voltar a travar, a pendência fica (`467`). |
 | `retry_pending_consolidated_reissue` | `billing.ts` | `128`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
 | `settle_cod_adjustment` | `billingLedger.ts` | `130` | DEFINER · `authenticated` | Financeiro ou Administrativo; ator = sessão | Liquidação do Ajuste de COD. |
 

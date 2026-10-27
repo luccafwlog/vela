@@ -51,6 +51,7 @@ src/integration/customerDeactivate.local-pg.test.ts
 src/integration/dataRetention.local-pg.test.ts
 src/integration/catalogDeleteReason.local-pg.test.ts
 src/integration/invoiceAutoReissue.local-pg.test.ts
+src/integration/taxasLocaisLote2.local-pg.test.ts
 src/integration/invoiceCorrection.local-pg.test.ts
 src/integration/invoiceReissue.local-pg.test.ts
 src/integration/invoiceBasisCorrection.local-pg.test.ts

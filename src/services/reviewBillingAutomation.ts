@@ -140,9 +140,25 @@ function calculationAlertMetadata(
 async function loadBillingAttemptBl(blId: string) {
   return supabase
     .from('bls')
-    .select('ce_mercante, cargo_mode, customer_id, customer_reconciliation_status, review_status, billing_hold_reason, charge_status, financial_status')
+    .select('ce_mercante, cargo_mode, customer_id, customer_reconciliation_status, review_status, billing_hold_reason, charge_status, financial_status, invoice_bls(invoice:invoices(id, status, invoice_type, reissue_requested_at))')
     .eq('id', blId)
     .single()
+}
+
+type AttemptInvoiceLink = { invoice: { id: number; status: string | null; invoice_type: string | null; reissue_requested_at: string | null } | null }
+
+/**
+ * Última fatura individual do B/L cancelada por uma pessoa (sem pedido de
+ * reemissão da correção): a nova fatura só sai pelo Emitir (ADR 0093, decisão
+ * 12; FAT-D10). É a mesma régua de `_auto_bill_bl_core` (migration 362), que a
+ * tentativa da tela não atravessa porque emite pela RPC do Emitir.
+ */
+export function lastIndividualInvoiceCancelledByPerson(links: AttemptInvoiceLink[] | null | undefined) {
+  const last = (links ?? [])
+    .map((link) => link.invoice)
+    .filter((invoice): invoice is NonNullable<AttemptInvoiceLink['invoice']> => invoice?.invoice_type === 'individual')
+    .sort((a, b) => b.id - a.id)[0]
+  return Boolean(last && last.status === 'cancelled' && !last.reissue_requested_at)
 }
 
 export async function tryAutoIssueInvoice({
@@ -185,6 +201,9 @@ export async function tryAutoIssueInvoice({
       status: 'invoiced',
       invoiceResult: { idempotent: true, financial_status: attemptBl.financial_status },
     }
+  }
+  if (lastIndividualInvoiceCancelledByPerson((blData as { invoice_bls?: AttemptInvoiceLink[] } | null)?.invoice_bls)) {
+    return { status: 'blocked', reason: 'awaiting_flow', message: 'A última fatura deste B/L foi cancelada: a nova sai só pelo Emitir.' }
   }
   if (!customerId || !attemptBl.customer_id || !isCustomerReconciliationResolved(attemptBl.customer_reconciliation_status)) {
     return { status: 'blocked', reason: 'awaiting_flow', message: 'Aguardando vínculo e reconciliação do cliente.' }

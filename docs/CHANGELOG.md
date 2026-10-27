@@ -6,6 +6,19 @@
 
 ## 2026-10
 
+- **Taxas Locais e faturamento decididos pelo dono (2026-10-27):** migration `467`,
+  [ADR 0105](adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md), lote 2 do
+  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). B/L misto sem taxa
+  por B/L no container cobra todas as da carga solta; tabela já usada não muda POD nem modo de
+  carga; troca de modalidade recalcula; linha em revisão mostra o que falta; Histórico do B/L
+  guarda a exclusão de taxa e o refixar legível; consolidada mostra "sem CE Mercante."; a
+  correção travada de fatura sem pagamento ou de consolidada tem **Tentar aplicar correção** e
+  não perde a pendência; a tela não refatura B/L cuja fatura foi cancelada por uma pessoa; B/L
+  cancelado sai da Validação e fica só para consulta na ficha; Granito e "Categoria na fatura"
+  saíram dos formulários; textos de tela corrigidos (dia de entrada do B/L, câmbio fixado,
+  Condição de Cliente, `INV-`, Cancelar baixa e Restituição). Prova:
+  `taxasLocaisLote2.local-pg.test.ts`, `invoiceAutoReissue.local-pg.test.ts`,
+  `reviewBillingAutomation.test.ts`, `chargeOperationsService.test.ts`.
 - **Chave de envio redireciona ao suporte e marca Dev (2026-10-27):** migration `466`,
   [ADR 0104](adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md), lote 1 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Com a chave

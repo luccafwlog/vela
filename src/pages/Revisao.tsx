@@ -284,7 +284,7 @@ export function Revisao() {
       message: `Recalcular as taxas do registro ${notice.label}?`,
       confirmLabel: 'Recalcular',
       affected: { summary: `B/L ${notice.label}` },
-      consequence: 'Atualiza o cálculo com a tabela e as regras vigentes e registra o resultado. O novo valor é calculado pelo servidor e não pode ser antecipado neste diálogo.',
+      consequence: 'Atualiza o cálculo com o câmbio e o preço fixados quando o B/L entrou e registra o resultado. O novo valor é calculado pelo servidor e não pode ser antecipado neste diálogo.',
       reversibility: 'É possível executar novo recálculo enquanto o registro não estiver faturado. B/Ls faturados são bloqueados.',
     })
     if (!confirmed) return
@@ -305,7 +305,7 @@ export function Revisao() {
       const message = extractErrorText(error)
       showToast(
         message.toLowerCase().includes('ja foi faturado')
-          ? `Fatura já emitida para ${notice.id} — cancele e reemita para corrigir.`
+          ? `Fatura já emitida para ${notice.id} — corrija o dado do B/L; a fatura é reemitida ou ajustada sozinha.`
           : 'Falha ao recalcular as taxas locais.',
         'error',
       )

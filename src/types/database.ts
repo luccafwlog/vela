@@ -12227,7 +12227,7 @@ export type ConsolidatableReceivable = Omit<
   individual_invoice_id: number | null
   individual_invoice_number: string | null
   receivable_status: BlReceivableStatus
-  eligibility_status: 'eligible' | 'paid' | 'no_balance' | 'open_consolidated'
+  eligibility_status: 'eligible' | 'paid' | 'no_balance' | 'open_consolidated' | 'no_ce_mercante'
 }
 
 export type LedgerPaymentResult = {

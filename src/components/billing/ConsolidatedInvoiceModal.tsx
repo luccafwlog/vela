@@ -90,7 +90,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
         items: selectedRows.map((row) => `B/L ${row.bl_id} · ${fmtBRL(row.balance_brl)} · ${[row.vessel_name, row.voyage_number].filter(Boolean).join(' ') || 'viagem não informada'}`),
       },
       consequence: 'Cria a invoice consolidada, vincula os recebíveis selecionados e registra o evento financeiro na mesma transação. Enquanto estiver ativa, esses saldos não poderão entrar em outra invoice.',
-      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o perfil Administrativo pode cancelá-la; se ficar obsoleta, os recebíveis podem ser consolidados novamente. Pagamentos seguem o fluxo próprio de estorno.',
+      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o perfil Administrativo pode cancelá-la; se ficar obsoleta, os recebíveis podem ser consolidados novamente. Com pagamento, use Cancelar baixa ou Restituição no recebimento.',
     })
     if (!confirmed) return
     try {
@@ -181,7 +181,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
             ) : isLoading ? (
               <EmptyState title="Consultando B/Ls…" description="Buscando B/Ls com saldo aberto." />
             ) : rows.length === 0 ? (
-              <EmptyState title="Nenhum B/L para consolidar" description="Este Cliente não tem B/L com saldo aberto e CE Mercante nos filtros atuais." />
+              <EmptyState title="Nenhum B/L para consolidar" description="Este Cliente não tem B/L com saldo aberto nos filtros atuais." />
             ) : (
               <table className="app-table app-table--compact app-invoice-detail__table">
                 <caption className="sr-only">B/Ls do Cliente com saldo aberto</caption>
