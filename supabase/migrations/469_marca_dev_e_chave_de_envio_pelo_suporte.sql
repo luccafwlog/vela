@@ -1,4 +1,4 @@
--- 466: marca Dev e chave de envio que redireciona ao suporte (ADR 0104;
+-- 469: marca Dev e chave de envio que redireciona ao suporte (ADR 0104;
 -- decisões do dono de 2026-10-27, lote 1 do plano de correções).
 --
 -- Problema:
@@ -282,7 +282,7 @@ END;
 $function$;
 
 -- 8 --- Retorno do provedor para o e-mail enviado ao suporte ------------------
--- Definição vigente da 428 com o bloco da 466 depois do evento desconhecido.
+-- Definição vigente da 428 com o bloco da 469 depois do evento desconhecido.
 CREATE OR REPLACE FUNCTION public.process_portal_email_event(p_event_id bigint, p_worker_id text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -364,7 +364,7 @@ BEGIN
     RETURN v_result;
   END IF;
 
-  -- 466 (ADR 0104): e-mail enviado ao suporte com a chave desligada. A
+  -- 469 (ADR 0104): e-mail enviado ao suporte com a chave desligada. A
   -- tentativa guarda o id do provedor com o prefixo `suporte:`; o retorno da
   -- caixa do suporte não muda a tentativa nem o contato do Cliente, e o evento
   -- fecha sem novas tentativas nem o alerta de reprocessamento.
@@ -672,7 +672,7 @@ DO $dev_466$
 DECLARE
   v_marked integer;
 BEGIN
-  PERFORM set_config('vela.access_change_reason', 'Marca Dev dada pela migration 466 (ADR 0104).', true);
+  PERFORM set_config('vela.access_change_reason', 'Marca Dev dada pela migration 469 (ADR 0104).', true);
 
   UPDATE public.user_profiles p
      SET is_dev = true
@@ -686,9 +686,9 @@ BEGIN
     SELECT 1 FROM public.user_profiles p JOIN auth.users u ON u.id = p.id
      WHERE lower(btrim(u.email)) IN ('lucca.juliatti@fwlog.com.br')
   ) THEN
-    RAISE NOTICE '466: nenhuma conta com e-mail da lista Dev neste ambiente; marca não atribuída.';
+    RAISE NOTICE '469: nenhuma conta com e-mail da lista Dev neste ambiente; marca não atribuída.';
   ELSE
-    RAISE NOTICE '466: % conta(s) marcada(s) como Dev.', v_marked;
+    RAISE NOTICE '469: % conta(s) marcada(s) como Dev.', v_marked;
   END IF;
 
   PERFORM set_config('vela.access_change_reason', '', true);

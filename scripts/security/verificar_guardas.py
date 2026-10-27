@@ -71,7 +71,7 @@ GUARDAS = [
     # permitido e levanta 42501; vive fora de `public`, onde a busca recursiva
     # abaixo não chega.
     'ce_unlock_private.actor(',
-    # Marca Dev (466, ADR 0104): exige conta ativa do Administrativo com a marca.
+    # Marca Dev (469, ADR 0104): exige conta ativa do Administrativo com a marca.
     'is_dev_user',
 ]
 

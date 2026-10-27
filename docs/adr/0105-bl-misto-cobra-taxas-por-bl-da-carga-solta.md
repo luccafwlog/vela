@@ -2,7 +2,7 @@
 
 Status: aceito — 2026-10-27 (decisão do dono, ficha TAX-D14, opção B; lote 2
 do [plano de correções](../plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
-Implementada na migration `467`.
+Implementada na migration `470`.
 
 Supersede parcialmente a [ADR 0069](./0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md)
 (decisão 4: a taxa por B/L vinha só da tabela de container).

@@ -44,7 +44,7 @@ const BOUNCED_TITLE = 'E-mail devolvido pelo provedor ou marcado como spam: o si
 const INTEGRATION_TITLE = 'Conta técnica da baixa automática do Pix; não é uma pessoa'
 const DEV_TITLE = 'Marca Dev: liga e desliga o envio real de e-mails. Dada só por migration (ADR 0104).'
 
-/** Marca Dev só vale no Administrativo (`is_dev_user`, migration 466). */
+/** Marca Dev só vale no Administrativo (`is_dev_user`, migration 469). */
 function isDevAccount(user: AdminUserRow): boolean {
   return user.is_dev === true && user.role === 'administrativo'
 }

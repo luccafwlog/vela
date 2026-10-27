@@ -1,4 +1,4 @@
--- 471: Clientes, contatos e Comunicados (decisões do dono de 2026-10-27,
+-- 474: Clientes, contatos e Comunicados (decisões do dono de 2026-10-27,
 -- lote 6 do plano de correções).
 --
 -- Problema e mudança, por seção:
@@ -53,7 +53,7 @@ BEGIN
   IF v_cnpj !~ '^[0-9A-Z]{14}$' OR right(v_cnpj, 2) !~ '^[0-9]{2}$' THEN
     RETURN FALSE;
   END IF;
-  -- 471 (D08): CNPJ de caractere repetido não existe na Receita; "00000000000000"
+  -- 474 (D08): CNPJ de caractere repetido não existe na Receita; "00000000000000"
   -- passava no dígito verificador. Mesma guarda de `src/lib/cnpj.ts`.
   IF v_cnpj ~ '^(.)\1{13}$' THEN
     RETURN FALSE;
@@ -111,7 +111,7 @@ DECLARE
   v_existing record;
   v_contact_id bigint;
 BEGIN
-  -- 471: núcleo interno, sem a guarda de quem chama (a de cada chamador vale).
+  -- 474: núcleo interno, sem a guarda de quem chama (a de cada chamador vale).
   -- `p_origin`: `bl_automatico` (e-mail do manifesto) ou `interno` (digitado
   -- pela equipe na Revisão, D07).
   IF p_origin NOT IN ('bl_automatico', 'interno') THEN
@@ -208,7 +208,7 @@ CREATE OR REPLACE FUNCTION public.ensure_customer_contact_email(p_customer_id bi
  SET search_path TO 'pg_catalog', 'public', 'pg_temp'
 AS $function$
 BEGIN
-  -- 471 (ACE-D04): chamada direta só de Administrativo, Documentação e
+  -- 474 (ACE-D04): chamada direta só de Administrativo, Documentação e
   -- Equipamentos (ou do service_role); a captura do manifesto usa o núcleo.
   IF auth.role() IS DISTINCT FROM 'service_role' AND (auth.uid() IS NULL OR NOT public._can_edit_customer_contacts()) THEN
     RAISE EXCEPTION 'Permissão negada para editar contatos do cliente.' USING ERRCODE = '42501';
@@ -354,7 +354,7 @@ DECLARE
   v_requested_count INTEGER := 0;
   v_group_name_identity TEXT;
   v_bl_name_identity TEXT;
-  -- 471 (D10): só quem edita contatos inclui o e-mail; os demais cadastram o Cliente.
+  -- 474 (D10): só quem edita contatos inclui o e-mail; os demais cadastram o Cliente.
   v_can_contacts BOOLEAN := public._can_edit_customer_contacts();
 BEGIN
   IF v_actor IS NULL OR NOT public.is_active_user() OR p_changed_by IS DISTINCT FROM v_actor THEN
@@ -530,9 +530,9 @@ DECLARE
   v_consignees text[];
   v_consignee text;
   v_previous_batch text;
-  -- 471 (D10): só quem edita contatos inclui ou muda contatos pela Base.
+  -- 474 (D10): só quem edita contatos inclui ou muda contatos pela Base.
   v_can_contacts boolean := public._can_edit_customer_contacts();
-  -- 471 (D15): Cliente desativado não muda pela Base.
+  -- 474 (D15): Cliente desativado não muda pela Base.
   v_deactivated boolean := false;
   v_suggested text[];
 BEGIN
@@ -970,7 +970,7 @@ BEGIN
           AND cc.deactivated_at IS NULL
           AND NULLIF(btrim(cc.email), '') IS NOT NULL
       ),
-      -- 471 (D18): só contato ativo conta como alternativa, como no bounce.
+      -- 474 (D18): só contato ativo conta como alternativa, como no bounce.
       COUNT(*) FILTER (
         WHERE cc.deactivated_at IS NULL
           AND NULLIF(btrim(cc.email), '') IS NOT NULL
@@ -1047,7 +1047,7 @@ CREATE OR REPLACE FUNCTION public.resolve_customer_contact_bounce_alert_on_chang
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 BEGIN
-  -- 471 (D18): contato desativado não é alternativa.
+  -- 474 (D18): contato desativado não é alternativa.
   IF NEW.deactivated_at IS NULL
      AND NULLIF(btrim(NEW.email), '') IS NOT NULL
      AND NOT EXISTS (

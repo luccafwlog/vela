@@ -240,7 +240,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(charges(`id = ${charge.id}`)[0].status).toBe('concluded')
   })
 
-  // 468 (10-recebimento:11): o extrato quita a fatura e depois grava o identificador
+  // 471 (10-recebimento:11): o extrato quita a fatura e depois grava o identificador
   // da cobrança; a gravação dele também tira o Pix da análise e fecha o alerta.
   it('Pix em análise sai da análise quando o extrato concilia a fatura pelo identificador da cobrança', () => {
     setProvider('itau')
@@ -301,7 +301,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
       SET session_replication_role = origin;`)
   })
 
-  // 468 (10-recebimento:3): na terceira falha o Pix com valor e horário legíveis é
+  // 471 (10-recebimento:3): na terceira falha o Pix com valor e horário legíveis é
   // gravado: o do Vela em Pix em análise, com o alerta do Pix em análise; o de fora
   // do Vela como recebido, sem alerta (ADR 0100).
   it('Pix que falha três vezes fica em Pix recebidos: o do Vela em análise; o de fora, recebido e sem alerta', () => {

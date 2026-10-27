@@ -1,7 +1,7 @@
 import { execPsql } from './localPsql'
 import { describe, expect, it } from 'vitest'
 
-// Migration 470 (lote 5 do plano de correções, decisões do dono de 2026-10-27).
+// Migration 473 (lote 5 do plano de correções, decisões do dono de 2026-10-27).
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -32,7 +32,7 @@ const asPortal = `RESET ROLE; SET LOCAL ROLE authenticated; SET LOCAL request.jw
 const asAdmin = `RESET ROLE; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated'; SET LOCAL request.jwt.claim.sub = '${ADM}';`
 const asOwner = `RESET ROLE; SET LOCAL request.jwt.claim.role = 'service_role';`
 
-describeLocal('migration 470 — Portal do Cliente', () => {
+describeLocal('migration 473 — Portal do Cliente', () => {
   it('a Espiadinha da aba BLs aplica o filtro de omissão revertida, como o Portal do Cliente (POR-D02)', () => {
     const out = scenario(`
       SET LOCAL session_replication_role = replica;

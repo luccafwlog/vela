@@ -99,7 +99,7 @@ describeLocal('3.1 — Reenviar CE e Taxas fecha "Reenviar Comunicado de CE e Ta
     expect(psql(`SELECT status FROM public.customer_communications WHERE id = ${id};`)).toBe('pendente')
     expect(itemStatus(BL_A)).toBe('active')
 
-    // "simulado" é o envio redirecionado ao suporte com a chave desligada (migration 466).
+    // "simulado" é o envio redirecionado ao suporte com a chave desligada (migration 469).
     psql(`UPDATE public.customer_communications SET status = 'simulado' WHERE id = ${id};`)
     expect(itemStatus(BL_A)).toBe('resolved')
     expect(itemStatus(BL_B)).toBe('resolved')

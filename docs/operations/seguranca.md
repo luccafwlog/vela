@@ -75,7 +75,7 @@ tarifação (`is_active_read_user()`;
 [ADR 0044](../adr/0044-leitura-interna-global-departamento-restringe-escrita.md)).
 A tela `/admin` — Usuários, Falhas de entrega de alertas, Histórico de ações,
 Sistema e Prazo do ADR — só abre para o Administrativo (rota `adminOnly`; o item
-Admin do menu só aparece para ele). No banco, desde a migration `472`
+Admin do menu só aparece para ele). No banco, desde a migration `475`
 ([ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)), ficam só com
 o Administrativo a lista de usuários (`admin_list_users`), as falhas de entrega
 (`alert_notification_failures`) e as linhas de Usuário do Histórico de ações
@@ -97,7 +97,7 @@ Administrativo (`is_financeiro_user()`). As telas leem as exceções e as contas
 pelas funções abertas da matriz (`list_pix_reconciliation_exceptions`,
 `portal_list_provisioning_console`), e nenhuma tela lê as falhas do Itaú
 direto. Os nomes de autor dos Históricos do B/L, da Viagem, da ficha do
-Cliente e do Histórico de ações vêm, desde a migration `472`, de
+Cliente e do Histórico de ações vêm, desde a migration `475`, de
 `get_user_display_names`, que devolve só o id e o nome a todo usuário interno
 ativo ([ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); antes
 vinham de `user_profiles`, e fora do Administrativo só o próprio nome aparecia. No Desbloqueio de CE, a lista de planilhas enviadas à ZPT e os
@@ -273,8 +273,8 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Desativar e reativar Cliente | ✔ | — | — | — | — | `deactivate_customer`, `reactivate_customer` (`is_admin`) e gatilho da migration `092` | ADR 0073, item 5 | vigente |
 | Editar contatos e Caixas de Comunicação | ✔ | — | — | ✔ | ✔ | `internal_save_customer_contact_configuration` (migration `008`), `internal_fill_empty_contact_boxes` | ADR 0060; ADR 0046, nota de 2026-09-18 | vigente: sem escrita direta em `customer_contacts` (migration `232`, **Teste** local) |
 | Consultar o histórico de Comunicados (`/clientes/comunicacao?tab=historico`) | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` de `customer_communications` e `customer_communication_bls`; a rota abre a todos; a vista Disparo exige `customer_communications` (`canSend` em `src/pages/ClientesComunicacao.tsx`) | ADR 0044; ADR 0085, D19; ADR 0104 | vigente: a rota e a vista Disparo abrem a todos desde a ADR 0104 (**Teste:** `ClientesComunicacao.test.tsx`) |
-| Disparar Comunicado e salvar modelo; ler o estado da chave de envio | ✔ | ✔ | ✔ | ✔ | ✔ | Edge `send-customer-communication` (todo papel interno ativo); `save_customer_communication_saved_template` e política `app_settings_communications_read` (migration `466`) | ADR 0104 (ficha ACE-D01, opção A) | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Salvar modelo de Comunicado" e "Dev: todos os setores leem a chave de envio") |
-| Ligar e desligar a chave global de envio | só a conta Dev | — | — | — | — | `set_communications_enabled` exige `is_dev_user()`: conta ativa do Administrativo com `user_profiles.is_dev`, marca dada só por migration (coluna sem `INSERT`/`UPDATE` para `authenticated`, mudança no Histórico de ações) | ADR 0059; ADR 0104 | vigente desde a migration `466` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Dev: só a conta Dev…"; `marcaDevMigration.local-pg.test.ts`) |
+| Disparar Comunicado e salvar modelo; ler o estado da chave de envio | ✔ | ✔ | ✔ | ✔ | ✔ | Edge `send-customer-communication` (todo papel interno ativo); `save_customer_communication_saved_template` e política `app_settings_communications_read` (migration `469`) | ADR 0104 (ficha ACE-D01, opção A) | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Salvar modelo de Comunicado" e "Dev: todos os setores leem a chave de envio") |
+| Ligar e desligar a chave global de envio | só a conta Dev | — | — | — | — | `set_communications_enabled` exige `is_dev_user()`: conta ativa do Administrativo com `user_profiles.is_dev`, marca dada só por migration (coluna sem `INSERT`/`UPDATE` para `authenticated`, mudança no Histórico de ações) | ADR 0059; ADR 0104 | vigente desde a migration `469` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Dev: só a conta Dev…"; `marcaDevMigration.local-pg.test.ts`) |
 | Provisionar o Portal: enviar e cancelar convite, conta, Email de Recuperação, endereço bloqueado, reabrir análise | ✔ | — | — | ✔ | — | Edges `portal-invite-send`, `portal-account-suspend` e `portal-recovery-email-change`; RPCs `portal_cancel_invite`, `portal_assisted_email_change`, `portal_release_suppressed_email`, `portal_return_to_analysis` (migration `002`) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Trocar o CNPJ do Portal | ✔ | — | — | — | — | `portal_admin_change_cnpj` | Plano arquivado de 2026-08-13; ADR 0085 | vigente |
 | Conceder e revogar a Liberação de faturamento sem Portal | ✔ | — | — | — | — | `grant_`/`revoke_customer_billing_portal_release` | ADR 0070 | vigente |

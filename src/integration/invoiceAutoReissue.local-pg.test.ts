@@ -232,7 +232,7 @@ describeLocal('126 — reimportação com impacto reemite individual e consolida
     expect(result.invoice_reissues[0].pending_reason).toMatch(/Liberação/)
     expect(psql(`SELECT status FROM public.invoices WHERE id = ${held}`)).toBe('issued')
     expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND status = 'active' AND metadata->>'invoice_id' = '${held}' AND metadata->>'auto_reissue' = 'blocked'`)).toBe('1')
-    // 467 (FAT-D15): a fatura sem pagamento mostra a pendência, e a tentativa
+    // 470 (FAT-D15): a fatura sem pagamento mostra a pendência, e a tentativa
     // que volta a travar mantém a pendência (antes o botão sumia).
     const pending = () => psql(`SELECT count(*) FROM public.invoice_basis_pending_changes WHERE bl_id = '${blHeld}'`)
     expect(pending()).toBe('1')

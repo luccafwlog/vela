@@ -445,7 +445,7 @@ transição do CE, com o preço e o câmbio fixados na importação (migration 0
 ADR 0094); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
 Liberação não depende de contato com e-mail: sem Portal, a fatura é entregue
 por um usuário interno. A Liberação aparece no painel do Cliente no Console do Portal.
-Desde a migration `470` (lote 5, ficha POR-D13), a troca assistida do e-mail da equipe (`portal_assisted_email_change`) e a liberação do endereço suprimido (`portal_release_suppressed_email`) também reprocessam as retidas quando o gate fica aberto. Desde a migration `375`: o gate vale só na emissão (a fatura que volta a
+Desde a migration `473` (lote 5, ficha POR-D13), a troca assistida do e-mail da equipe (`portal_assisted_email_change`) e a liberação do endereço suprimido (`portal_release_suppressed_email`) também reprocessam as retidas quando o gate fica aberto. Desde a migration `375`: o gate vale só na emissão (a fatura que volta a
 emitida por estorno de baixa não é barrada); confirmar o e-mail de recuperação
 que abre o gate também reprocessa as retidas, como a ativação; e o
 reprocessamento automático emite em nome de `app_settings.system_billing_actor`
@@ -499,7 +499,7 @@ quebrada. **Teste:** `emailsSemDominioAntigo.test.ts` gera todos os
 e-mails com o domínio antigo configurado e confere que nenhum o cita e que todo
 link vai a uma tela que existe no Portal.
 
-**Chave de envio (ADR 0104).** Desde a migration `466`, o e-mail do Portal
+**Chave de envio (ADR 0104).** Desde a migration `469`, o e-mail do Portal
 dirigido a Cliente (convite, reenvio, recuperação e redefinição de senha, troca
 de e-mail de recuperação, senha alterada, aviso de bounce, aviso do Desbloqueio
 de CE) lê a [chave de envio](clientes.md#chave-de-envio-de-comunicados) em
@@ -969,7 +969,7 @@ Há testes focados de componente para `PortalLogin` (`src/pages/__tests__/Portal
 
 - **Teste de contrato SQL — ações críticas do Portal.** Na definição vigente da migration `109`, `portal_create_consolidation` e `portal_obsolete_consolidation` gravam `portal_notifications` (o desfazimento também grava `invoice_lifecycle_events`), e a abertura de disputa (`portal_open_demurrage_dispute` → `portal_add_dispute_message`) grava a mensagem, `portal_notifications` e o alerta `portal_dispute_opened`. `portal_update_profile`, na definição vigente da migration `008`, não grava trilha server-side; criar auditoria para essa ação exige decisão e migration próprias.
 - **Corrigido em 2026-10-27 (lote 5, ficha POR-D01) — mensagem do Turnstile no login.** `usePortalAuth.signIn` trocava qualquer erro do `portal-login` por `Error('CNPJ ou senha inválidos.')`, e a recusa do Turnstile aparecia como credencial inválida. Agora `portalLoginFailure` devolve `TURNSTILE_REJECTED` para o `403` do Turnstile e erro de rede para falha de conexão; o resto continua genérico, inclusive o bloqueio por tentativas, como pede a ADR 0049 (**Teste:** `usePortalAuth.test.tsx`).
-- **Correções decididas pelo dono (lote 5, 2026-10-27).** Migration `470` e telas:
+- **Correções decididas pelo dono (lote 5, 2026-10-27).** Migration `473` e telas:
   - a Espiadinha lê a aba BLs pela mesma lista do Cliente (`_portal_list_operation_bls_visible`), sem o transbordo de omissão revertida (POR-D02);
   - a consolidada desfeita sem fatura nova mostra o motivo gravado (`obsolete_reason`, "Desfeita pelo cliente pelo portal."); "Substituída pela INV-…" só com fatura nova (POR-D03);
   - a notificação de disputa grava `/portal/billing?tab=demurrage&disputas=1&disputa=<id>`, e as antigas com `/demurrage` foram regravadas (POR-D06);

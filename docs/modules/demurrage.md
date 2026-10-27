@@ -101,7 +101,7 @@ Containers em atraso aplica a
 lente, Aguardando pagamento abre Faturas e Disputas aguardando resposta abre a
 aba. Sob recálculo diário (ADR 0014) não há `draft` nem `overdue`: a fatura
 nasce `issued`; as Invoices antigas em `overdue` passaram a `issued` na
-migration `469` (DEM-D09), e voltaram às listas e aos totais. A URL é
+migration `472` (DEM-D09), e voltaram às listas e aos totais. A URL é
 trocada com `replace`: o Voltar do navegador sai de `/demurrage` em vez de
 desfazer aba, busca ou detalhe. A busca guarda o texto como digitado (o espaço
 entre palavras fica) e só é aparada ao filtrar; ela segue entre Containers e as
@@ -631,7 +631,7 @@ gravada entra no cálculo pela data, não pelo status.
 
 ### Datas alteradas depois da emissão
 
-**Trava de emissão (DEM-D13, migration `469`).** A Invoice de Demurrage segue
+**Trava de emissão (DEM-D13, migration `472`).** A Invoice de Demurrage segue
 a trava das faturas ([Gate de faturamento](../operations/regras-de-negocio.md#gate-de-faturamento),
 ADR 0070): só é emitida com CE Mercante no B/L-âncora e o Gate de faturamento
 do Portal aberto (`_demurrage_issue_block_reason`). Pela tela, a recusa diz o
@@ -658,7 +658,7 @@ devolução (por exemplo, virou SOC) não passa por sucesso: o retorno traz
 `demurrage_invoice_dates_changed` da Invoice cancelada diz quais caixas
 conferir (migration `214`); quando a reemissão espera a trava de emissão, o
 Alerta diz o motivo e que a nova Invoice sai sozinha quando ele for resolvido
-(migration `469`). A Invoice reemitida guarda qual cancelada substitui
+(migration `472`). A Invoice reemitida guarda qual cancelada substitui
 (`replaces_invoice_id`, DEM-D08): o detalhe no Vela diz "Substitui a Invoice
 …, cancelada para reemissão automática…" com link, e o Portal "Substitui a
 fatura …". Ele fecha sozinho quando todas essas caixas entram
@@ -1007,7 +1007,7 @@ uma conversa append-only em `demurrage_disputes` e
 `demurrage-disputes`. Cada anexo aparece na conversa, no Vela e no Portal, com
 link para abrir (PDF) ou baixar: um link temporário do Storage de 60 s, com a
 regra de leitura do bucket (equipe interna ativa ou o Cliente dono da pasta,
-migration `158`; DEM-D01, migration `469` acrescentou os anexos à lista
+migration `158`; DEM-D01, migration `472` acrescentou os anexos à lista
 interna).
 
 - **Quem responde:** Equipamentos é o dono da Disputa e do Alerta

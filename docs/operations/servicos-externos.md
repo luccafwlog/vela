@@ -688,7 +688,7 @@ envio redirecionado chegando à caixa em staging ou produção.
 
 A chave `app_settings.communications_enabled` ([Clientes](../modules/clientes.md#chave-de-envio-de-comunicados))
 está desligada. Ligar é decisão do dono, a única conta com a marca Dev
-(migration `466`); antes, conferir:
+(migration `469`); antes, conferir:
 
 1. Um envio de teste real de cada tipo chegou a um endereço controlado: NOA,
    NOR, NOB, CE e Taxas, institucional, livre com anexo, Cobrança de Demurrage

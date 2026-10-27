@@ -3,13 +3,13 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// Migration 466, seção 7 (ADR 0104): a marca Dev vai para a conta da lista de
+// Migration 469, seção 7 (ADR 0104): a marca Dev vai para a conta da lista de
 // e-mails que existir no ambiente, fica no Histórico de ações com o motivo e
 // rodar de novo não marca nem registra outra vez.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
-const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/466_marca_dev_e_chave_de_envio_pelo_suporte.sql'), 'utf8')
+const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/469_marca_dev_e_chave_de_envio_pelo_suporte.sql'), 'utf8')
 const assignment = migration.slice(migration.indexOf('DO $dev_466$'))
 
 const OWNER_ID = '46600000-0000-4000-8000-000000000001'
@@ -19,7 +19,7 @@ function localPsql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
 
-describeLocal('migration 466 — atribuição da marca Dev', () => {
+describeLocal('migration 469 — atribuição da marca Dev', () => {
   it('marca só a conta do e-mail da lista, registra o motivo e é idempotente', () => {
     expect(assignment.startsWith('DO $dev_466$')).toBe(true)
     const result = localPsql(`
@@ -41,6 +41,6 @@ describeLocal('migration 466 — atribuição da marca Dev', () => {
         (SELECT nullif(current_setting('vela.access_change_reason', true), '') IS NULL));
       ROLLBACK;
     `)
-    expect(result.split('\n').at(-1)).toBe('t|f|1|Marca Dev dada pela migration 466 (ADR 0104).|t')
+    expect(result.split('\n').at(-1)).toBe('t|f|1|Marca Dev dada pela migration 469 (ADR 0104).|t')
   })
 })

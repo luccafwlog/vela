@@ -172,7 +172,7 @@ export function PortalDemurrageDetailModal({
             ) : null}
 
             {invoice.replaces_doc_number ? (
-              // DEM-D08 (migration 469): a cancelada não aparece no Portal; só o número.
+              // DEM-D08 (migration 472): a cancelada não aparece no Portal; só o número.
               <p className="text-sm text-[var(--app-muted)]">
                 Substitui a fatura <strong className="text-[var(--app-text-strong)]">{invoice.replaces_doc_number}</strong>, cancelada porque as datas dos containers mudaram.
               </p>

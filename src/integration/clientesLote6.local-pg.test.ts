@@ -1,4 +1,4 @@
-// Lote 6 das correções decididas pelo dono em 2026-10-27 (migration 471):
+// Lote 6 das correções decididas pelo dono em 2026-10-27 (migration 474):
 // quem inclui contatos pela Base de Clientes, pela Revisão e pela RPC direta
 // (D10, ACE-D04), a origem do e-mail digitado na Revisão (D07), a Base diante
 // de Cliente desativado (D15), o CNPJ de caractere repetido (D08) e o alerta
@@ -80,7 +80,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Clientes, contatos e Comunicados decididos pelo dono (migration 471)', () => {
+describeLocal('Clientes, contatos e Comunicados decididos pelo dono (migration 474)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

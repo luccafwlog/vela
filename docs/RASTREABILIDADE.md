@@ -299,7 +299,7 @@ Regra: [Viagens](modules/viagens.md).
 | `close_agency_departure_report_by_report_id` | `agencyDepartureReport.ts`; variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | Exige os três sign-offs departamentais; congela `closed_snapshot`. |
 | `delete_escala` | `voyageRouteSchedules.ts` | `088`, `235` | DEFINER · `authenticated` | Administrativo ativo | Marca o POD como removido e apaga a escala de exportação do porto, com motivo; `p_dry_run` devolve só a trava. Recusa escala com B/L, com ou sem CE (`235`). |
 | `get_agency_report_actor_names` | `agencyDepartureReport.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `get_user_display_names` | `userNames.ts` (Históricos do B/L, da Viagem, do Cliente e de ações) | `472` | DEFINER · `authenticated` | usuário interno ativo | Só id e nome do autor; até 500 por chamada ([ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md)). |
+| `get_user_display_names` | `userNames.ts` (Históricos do B/L, da Viagem, do Cliente e de ações) | `475` | DEFINER · `authenticated` | usuário interno ativo | Só id e nome do autor; até 500 por chamada ([ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md)). |
 | `get_agency_report_actor_names_by_report_id` | `agencyDepartureReport.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_voyage_first_brazilian_eta` | `baplieReconciliation.ts` | `002` | DEFINER · `authenticated`, `service_role` | usuário interno ativo | — |
 | `omit_voyage_escala` | `transshipments.ts` | `016` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Registro global da omissão, herdado pelos B/Ls; audita. |
@@ -335,7 +335,7 @@ Regra: [Manifestos e EDI](modules/manifesto-edi.md).
 | `apply_ce_mercante_rows_atomic` | `ceMercanteImport.ts` | `325` (corpo da `181`), `387` (trava da Viagem) | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Planilha de CE dos B/Ls de carga; o alvo `granite` é recusado desde a `325`: trava da Viagem, Manifesto de 13 caracteres, troca de CE ou de Manifesto só com confirmação e motivo; grava sem emitir. |
 | `apply_container_dates_atomic` | `apply_container_dates_batch_atomic` | `179` | DEFINER · só o servidor (EXECUTE revogado de `authenticated` na `366`) | usuário interno ativo; ator = sessão | Datas de descarga/devolução de um B/L, tudo ou nada; a tela chama o lote (`333`). |
 | `apply_container_dates_batch_atomic` | `containerDatesImport.ts` | `333`, `387` (trava da Viagem) | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Planilha de datas inteira numa chamada: B/L recusado desfaz todos e volta em `errors`; B/Ls em ordem de `bl_id`; `statement_timeout` 60 s e teto de 300 B/Ls por arquivo (`22023`; a tela recusa na leitura); tempo esgotado (`57014`) não grava nada e a tela pede para dividir a planilha. |
-| `bl_timeline` | `blTimeline.ts` | `467` (antes `404`, `133`) | DEFINER · `authenticated` | usuário interno ativo | Histórico paginado (50); a transação de criação vira um único "B/L criado" (`133`). Lê as linhas semânticas `bl`, o gatilho de `bls` (campos de negócio), o rastro de `bl_containers` e `vehicles` pelo `bl_id` gravado (container e veículo que entram e saem, histórico depois da remoção) e devolve Cliente com razão social e CNPJ, terminal, Manifesto, Viagem e container pelo nome (`404`, F-23); família `veiculo`. |
+| `bl_timeline` | `blTimeline.ts` | `470` (antes `404`, `133`) | DEFINER · `authenticated` | usuário interno ativo | Histórico paginado (50); a transação de criação vira um único "B/L criado" (`133`). Lê as linhas semânticas `bl`, o gatilho de `bls` (campos de negócio), o rastro de `bl_containers` e `vehicles` pelo `bl_id` gravado (container e veículo que entram e saem, histórico depois da remoção) e devolve Cliente com razão social e CNPJ, terminal, Manifesto, Viagem e container pelo nome (`404`, F-23); família `veiculo`. |
 | `cancel_bl` | `blState.ts` | `179`, `372` | DEFINER · `authenticated` | Administrativo ativo | Recusa com fatura em aberto (inclusive rascunho), recebível com baixa ou ligado a fatura e Invoice de Demurrage aberta, inclusive do grupo (`bl_open_financial_reasons`, `191`); anula recebível e cálculo sem fatura, com Histórico. |
 | `claim_import_effects` | `importEffects.ts`; Edge `import-effects-runner` | `178` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `complete_import_effect` | `importEffects.ts` | `017` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
@@ -401,14 +401,14 @@ Regra: [Clientes](modules/clientes.md).
 
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
-| `apply_customer_base_batch_atomic` | `customerBase.ts` | `334`, `471` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Base de Clientes inteira numa chamada: Cliente recusado desfaz todos; Clientes em ordem de CNPJ; confere o nome de antes do aceite da troca de razão social exatamente como gravado; `statement_timeout` 60 s e teto de 3.000 Clientes por arquivo (`22023`; a tela recusa na leitura); tempo esgotado (`57014`) não grava nada e a tela pede para dividir o arquivo. Desde a `471`, só Administrativo, Documentação e Equipamentos mudam contatos; Cliente desativado não muda e devolve `bls_suggested`. |
+| `apply_customer_base_batch_atomic` | `customerBase.ts` | `334`, `474` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Base de Clientes inteira numa chamada: Cliente recusado desfaz todos; Clientes em ordem de CNPJ; confere o nome de antes do aceite da troca de razão social exatamente como gravado; `statement_timeout` 60 s e teto de 3.000 Clientes por arquivo (`22023`; a tela recusa na leitura); tempo esgotado (`57014`) não grava nada e a tela pede para dividir o arquivo. Desde a `474`, só Administrativo, Documentação e Equipamentos mudam contatos; Cliente desativado não muda e devolve `bls_suggested`. |
 | `apply_customer_base_row_atomic` | `apply_customer_base_batch_atomic` | `185` | DEFINER · só o servidor (EXECUTE revogado de `authenticated` na `366`) | usuário interno ativo; ator = sessão | Base de Clientes: vincula só B/Ls pendentes com o mesmo CNPJ; corpo vigente `_legacy_189` na `192`. |
-| `complete_review_customer_group` | `reviewCustomerGroup.ts` | `002`, `471` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Cria ou resolve o Cliente, contato, vínculo, auditoria e gate por B/L numa transação; convite é posterior. Desde a `471`, o e-mail só entra para Administrativo, Documentação e Equipamentos, com origem `interno`. |
+| `complete_review_customer_group` | `reviewCustomerGroup.ts` | `002`, `474` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Cria ou resolve o Cliente, contato, vínculo, auditoria e gate por B/L numa transação; convite é posterior. Desde a `474`, o e-mail só entra para Administrativo, Documentação e Equipamentos, com origem `interno`. |
 | `customer_audit_timeline` | `customerFicha.ts` | `404` | DEFINER · `authenticated` | usuário interno ativo | Histórico de cadastro do Cliente: linhas `customer`, o gatilho de `customers` (sem repetir o mesmo instante) e os e-mails incluídos, mudados ou tirados pela Base de Clientes, com quem, quando e a origem (F-24). |
 | `create_customer_with_contacts` | `customers.ts` | `008` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `customer_local_charges_communication_readiness` | `customerCommunicationReadiness.ts`; `customerCommunications.ts`; Edge `send-customer-communication` | `179` | DEFINER · `authenticated`, `service_role` | usuário interno ativo ou `service_role` | — |
 | `deactivate_customer` | `customers.ts` | `092` | DEFINER · `authenticated` | Administrativo ativo | Recusa com cobrança aberta; `p_dry_run` devolve o bloqueio. |
-| `ensure_customer_contact_email` | `customers.ts` | `106`, `471` | DEFINER · `authenticated`, `service_role` | Administrativo, Documentação e Equipamentos (`_can_edit_customer_contacts`) ou `service_role` | A captura do manifesto usa o núcleo interno `_ensure_customer_contact_email` (`471`). |
+| `ensure_customer_contact_email` | `customers.ts` | `106`, `474` | DEFINER · `authenticated`, `service_role` | Administrativo, Documentação e Equipamentos (`_can_edit_customer_contacts`) ou `service_role` | A captura do manifesto usa o núcleo interno `_ensure_customer_contact_email` (`474`). |
 | `get_customer_pending_balances` | `customers.ts` | `070`, `371` | DEFINER · `authenticated` | usuário interno ativo | Saldo pendente total = "Faturado em aberto" + "A faturar"; por origem, Taxas Locais, Demurrage e Fatura avulsa (ADR 0093, decisões 10 e 11). |
 | `get_customer_receivables` | `customerFicha.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `grant_customer_billing_portal_release` | `billingPortalRelease.ts` | `085` | DEFINER · `authenticated`, `service_role` | Administrativo | Liberação de faturamento sem Portal: reprocessa as faturas retidas do Cliente (`_reprocess_customer_held_billing`). |
@@ -418,7 +418,7 @@ Regra: [Clientes](modules/clientes.md).
 | `reactivate_customer` | `customers.ts` | `092` | DEFINER · `authenticated` | Administrativo ativo | — |
 | `revoke_customer_billing_portal_release` | `billingPortalRelease.ts` | `083` | DEFINER · `authenticated`, `service_role` | Administrativo | — |
 | `save_customer_communication_saved_template` | `customerCommunications.ts` | `068` | DEFINER · `authenticated` | Administrativo, Documentação ou Equipamentos | — |
-| `set_communications_enabled` | `appSettings.ts` | `466` | DEFINER · `authenticated` | Conta do Administrativo com a marca Dev (`is_dev_user`) | Chave global de envio; desligada, e-mail de Cliente vai ao suporte (ADR 0104). |
+| `set_communications_enabled` | `appSettings.ts` | `469` | DEFINER · `authenticated` | Conta do Administrativo com a marca Dev (`is_dev_user`) | Chave global de envio; desligada, e-mail de Cliente vai ao suporte (ADR 0104). |
 | `update_customer_with_audit` | `customers.ts` | `002`; DEFINER desde a `404`; `436` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Edição auditada do cadastro do Cliente. Passou a DEFINER quando `audit_logs` deixou de aceitar INSERT direto (`404`). Desde a `436` é o único caminho do CNPJ (`cnpj_cpf`) para Cliente sem convite nem Conta de Portal; o UPDATE direto da coluna saiu de `authenticated`. |
 
 #### Taxas Locais
@@ -446,14 +446,14 @@ Regra: [Faturamento](modules/faturamento.md).
 | `cancel_financial_refund_authorization` | `financialRefunds.ts` | `136`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `cancel_invoice` | `billing.ts` | `126`, `241` | DEFINER · `authenticated`, `service_role` | Administrativo ativo ou `service_role` (consumidor de efeitos) | Cancela invoice sem pagamento, com justificativa (`126`). `p_actor` conferido com a sessão (`241`). |
 | `confirm_demurrage_refund` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | Financeiro ou Administrativo | Idem para Demurrage (`136`). |
-| `confirm_invoice_refund` | `billingLedger.ts` | `136`, `468` | DEFINER · `authenticated` | Financeiro ou Administrativo | Confirma devolução com referência bancária, favorecido e data (`136`); chamada por `settleInvoiceRefund`. A de Pix em duplicidade tem o próprio Pix como lastro (`468`). |
+| `confirm_invoice_refund` | `billingLedger.ts` | `136`, `471` | DEFINER · `authenticated` | Financeiro ou Administrativo | Confirma devolução com referência bancária, favorecido e data (`136`); chamada por `settleInvoiceRefund`. A de Pix em duplicidade tem o próprio Pix como lastro (`471`). |
 | `create_invoice_from_bls_with_ledger` | `billing.ts` | `002`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | `p_actor` conferido com a sessão (`241`). |
 | `create_local_consolidated_invoice` | `billingLedger.ts` | `002`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | `p_actor` conferido com a sessão (`241`). |
 | `create_manual_invoice` | `billing.ts` | `125`, `246`, `272` | DEFINER · `authenticated` | Usuário interno ativo (A9, `246`) | Fatura avulsa `manual`, com tipo de cobrança opcional; motivo interno obrigatório no rastro (`272`, 10 parâmetros); `p_actor` conferido com a sessão (`241`). |
 | `get_consolidated_invoice_item_breakdown` | `billing.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `get_invoice_correction_summary` | `billingLedger.ts` | `136`, `467` | DEFINER · `authenticated` | usuário interno ativo | Correção pendente também do B/L que está só em consolidada (`467`). |
+| `get_invoice_correction_summary` | `billingLedger.ts` | `136`, `470` | DEFINER · `authenticated` | usuário interno ativo | Correção pendente também do B/L que está só em consolidada (`470`). |
 | `get_invoice_reissue_links` | `billing.ts` | `128` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `list_consolidatable_receivables` | `billingLedger.ts` | `002`, `454`, `467` | DEFINER · `authenticated` | usuário interno ativo | B/L com saldo e sem CE Mercante volta como não elegível (`467`). |
+| `list_consolidatable_receivables` | `billingLedger.ts` | `002`, `454`, `470` | DEFINER · `authenticated` | usuário interno ativo | B/L com saldo e sem CE Mercante volta como não elegível (`470`). |
 | `list_financial_refunds` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `list_invoice_details` | `billing.ts` | `183` | DEFINER · `authenticated` | usuário interno ativo (núcleo `_legacy_134`) | — |
 | `list_invoice_refunds_with_evidence` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
@@ -468,7 +468,7 @@ Regra: [Faturamento](modules/faturamento.md).
 | `register_verified_invoice_payment` | `billing.ts`; `billingLedger.ts` | `136`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | Baixa com referência bancária (`136`). |
 | `request_financial_refund` | `financialRefunds.ts` | `136`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | Restituição excepcional autorizada (`136`). |
 | `resolve_stale_invoice` | `billingLedger.ts` | `124`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
-| `retry_invoice_basis_changes` | `billingLedger.ts` | `136`, `246`, `275`, `467` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | Sem correção pendente não faz nada (`275`); se voltar a travar, a pendência fica (`467`). |
+| `retry_invoice_basis_changes` | `billingLedger.ts` | `136`, `246`, `275`, `470` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | Sem correção pendente não faz nada (`275`); se voltar a travar, a pendência fica (`470`). |
 | `retry_pending_consolidated_reissue` | `billing.ts` | `128`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
 | `settle_cod_adjustment` | `billingLedger.ts` | `130` | DEFINER · `authenticated` | Financeiro ou Administrativo; ator = sessão | Liquidação do Ajuste de COD. |
 
@@ -482,8 +482,8 @@ Regra: [Demurrage](modules/demurrage.md).
 | `add_demurrage_dispute_message` | `demurrage/demurrageDisputes.ts` | `081` | DEFINER · `authenticated` | Equipamentos ou Administrativo | Responde com `next_responder = equipamentos`; o Alerta segue de Equipamentos (`081`). |
 | `apply_demurrage_discount` | `demurrage/demurrageInvoices.ts` | `012`, `247`, `264`, `306` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P5, `247`) ou `service_role` | Desconto que zera o USD líquido quita a Invoice (isenta, `306`). |
 | `cancel_demurrage_invoice` | `demurrage/demurrageInvoices.ts` | `012` | DEFINER · `authenticated`, `service_role` | Administrativo ou `service_role` | — |
-| `issue_demurrage_invoice_for_bl` | `demurrage/demurrageInvoices.ts` | `214`, `246`, `469` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P4, `246`) ou `service_role` | Emissão da Invoice de Demurrage do B/L (`214`); sem CE Mercante ou com o gate do Portal fechado devolve `blocked` com o motivo (`469`). |
-| `list_demurrage_disputes_internal` | `demurrage/demurrageDisputes.ts` | `081`, `250`, `469` | DEFINER · `authenticated` | Usuário interno ativo (P12, `250`) | Responder, reabrir e anexar seguem de Equipamentos e do Administrativo. Devolve os anexos de cada mensagem (`469`). |
+| `issue_demurrage_invoice_for_bl` | `demurrage/demurrageInvoices.ts` | `214`, `246`, `472` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P4, `246`) ou `service_role` | Emissão da Invoice de Demurrage do B/L (`214`); sem CE Mercante ou com o gate do Portal fechado devolve `blocked` com o motivo (`472`). |
+| `list_demurrage_disputes_internal` | `demurrage/demurrageDisputes.ts` | `081`, `250`, `472` | DEFINER · `authenticated` | Usuário interno ativo (P12, `250`) | Responder, reabrir e anexar seguem de Equipamentos e do Administrativo. Devolve os anexos de cada mensagem (`472`). |
 | `list_demurrage_dunning_claim_statuses` | `demurrageDunning.ts` | `002`, `313` | DEFINER · `authenticated`, `service_role` | usuário interno ativo ou `service_role` | Uma linha por Invoice pedida, com o motivo da pausa (`_demurrage_dunning_block_reason`, `313`). |
 | `recalculate_demurrage_invoices_manual` | `demurrage/demurrageKpis.ts` | `110` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos | — |
 | `release_demurrage_invoice_manual_roe` | `demurrage/demurrageInvoices.ts` | `382`, `385`, `435` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos (`435`); motivo ≥ 10 caracteres | Tira o ROE manual da Invoice emitida ou vencida e volta à PTAX, com histórico e rastro (ADR 0094, B10). |
@@ -569,14 +569,14 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 |---|---|---|---|---|---|
 | `internal_get_portal_information` | `portalInformation.ts` | `137` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `internal_save_portal_information` | `portalInformation.ts` | `137`, `253` | DEFINER · `authenticated` | Usuário interno ativo, em todos os tipos (P8, `253`) | Grava o rastro em `audit_logs`. |
-| `portal_add_dispute_message` | `portalBilling.ts` | `109`, `426`, `434`, `470` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Não abre Dispute nova em Invoice paga (`434`). O aviso ao Cliente aponta para a disputa no Portal (`470`). |
+| `portal_add_dispute_message` | `portalBilling.ts` | `109`, `426`, `434`, `473` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Não abre Dispute nova em Invoice paga (`434`). O aviso ao Cliente aponta para a disputa no Portal (`473`). |
 | `portal_admin_change_cnpj` | `hooks/usePortalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo | — |
 | `portal_cancel_invite` | `hooks/usePortalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação | — |
 | `portal_check_dispute_attachment_eligibility` | `portalBilling.ts`; Edge `portal-dispute-attachment` | `075` | DEFINER · `authenticated`, `service_role` | equipe interna ou Cliente da sessão | — |
 | `portal_create_consolidation` | `portalBilling.ts` | `109` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Recusa B/L de outro Cliente ou sem CE liberado. |
 | `portal_get_contact_configuration` | `portalContactConfiguration.ts` | `008` | DEFINER · `authenticated`, `service_role` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_get_current_roe` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
-| `portal_get_demurrage_invoice_detail` | `portalBilling.ts` | `002`, `469` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Traz `replaces_doc_number` da Invoice reemitida (`469`). |
+| `portal_get_demurrage_invoice_detail` | `portalBilling.ts` | `002`, `472` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Traz `replaces_doc_number` da Invoice reemitida (`472`). |
 | `portal_get_information` | `portalInformation.ts` | `137` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_get_profile` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_get_session_overview_v2` | `hooks/usePortalAuth.tsx` | `105` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`); sessão inválida devolve `28000` | — |
@@ -593,7 +593,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_inspect_list_invoices` | variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
 | `portal_inspect_list_invoices_page` | variante de `portalRpcContracts.ts` | `021` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
 | `portal_inspect_list_notifications` | variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
-| `portal_inspect_list_operation_bls` | variante de `portalRpcContracts.ts` | `002`, `470` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | Lê `_portal_list_operation_bls_visible`, a mesma lista do Cliente (`470`). |
+| `portal_inspect_list_operation_bls` | variante de `portalRpcContracts.ts` | `002`, `473` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | Lê `_portal_list_operation_bls_visible`, a mesma lista do Cliente (`473`). |
 | `portal_inspect_notification_unread_count` | variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
 | `portal_invoice_details` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_consolidatable_receivables` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
@@ -603,7 +603,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_list_invoices` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_invoices_page` | `portalBilling.ts` | `021`, `454` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_notifications` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
-| `portal_list_operation_bls` | `portalOperation.ts` | `002`, `470` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Lê `_portal_list_operation_bls_visible` (`470`). |
+| `portal_list_operation_bls` | `portalOperation.ts` | `002`, `473` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Lê `_portal_list_operation_bls_visible` (`473`). |
 | `portal_list_provisioning_console` | `portalProvisioning.ts` | `103`, `250`, `324` | DEFINER · `authenticated` | Administrativo, Documentação, Financeiro, Operações ou Equipamentos | Fila do console `/clientes/portal` (`103`); sem máscara para Operações desde a `250`. |
 | `portal_list_provisioning_events` | `portalProvisioning.ts` | `002`, `250` | DEFINER · `authenticated` | Usuário interno ativo (`250`) | — |
 | `portal_mark_all_notifications_read` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
@@ -612,7 +612,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_obsolete_consolidation` | `portalBilling.ts` | `109` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_open_demurrage_dispute` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | delega a `portal_add_dispute_message` (Cliente da sessão (`current_portal_customer_id()`)) | — |
 | `portal_open_inspection` | `portalScope.ts` | `002` | DEFINER · `authenticated` | inspeção (`_portal_inspect_guard`) | — |
-| `portal_release_suppressed_email` | `portalProvisioning.ts` | `002`, `470` | DEFINER · `authenticated` | Administrativo ou Documentação | Reprocessa as retidas quando o gate fica aberto (`470`). |
+| `portal_release_suppressed_email` | `portalProvisioning.ts` | `002`, `473` | DEFINER · `authenticated` | Administrativo ou Documentação | Reprocessa as retidas quando o gate fica aberto (`473`). |
 | `portal_request_dispute_reopen` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_resolve_login` | `portalBilling.ts` | `002` | DEFINER · nenhum papel | sem `EXECUTE` para nenhum papel da API | Resíduo legado: sem grant e sem chamador de produção (`portalResolveLogin` está `@deprecated`); o login lê `customer_portal_accounts` na Edge `portal-login`. |
 | `portal_return_to_analysis` | `portalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação; ou `service_role` | Única transição de decisão no console; `portal_set_exception` só recusa e não tem chamador. |
@@ -665,13 +665,13 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `itau_pix_record` | Edge `itau-pix` | `153` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `itau_pix_settle` | Edge `itau-pix` | `153`, `357`, `361`, `375`, `376`, `385`, `386` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `itau_pix_receive` | Edge `itau-pix` | `442` | DEFINER · `service_role` | `_assert_service_caller` | Entrada de cada Pix da consulta: TXID `VELA…` vai à baixa automática (`itau_pix_settle_core_425`); o resto fica `received`, com o retorno do Itaú (ADR 0100). |
-| `itau_pix_receipt_failed` | Edge `itau-pix` | `358`, `425`, `468` | DEFINER · `service_role` | só pelo grant a `service_role` | Na terceira falha grava o Pix em `itau_pix_receipts` (do Vela em análise; de fora, recebido e sem alerta) (`468`). |
+| `itau_pix_receipt_failed` | Edge `itau-pix` | `358`, `425`, `471` | DEFINER · `service_role` | só pelo grant a `service_role` | Na terceira falha grava o Pix em `itau_pix_receipts` (do Vela em análise; de fora, recebido e sem alerta) (`471`). |
 | `itau_pix_record_untracked` | Edge `itau-pix` publicada antes da `442` | `375`, `385`, `442` | DEFINER · `service_role` | só pelo grant a `service_role` | Desde a `442`, grava o Pix sem TXID como recebido, sem Alerta (delega a `itau_pix_receive`). |
 | `list_orphaned_dispute_attachments` | Edge `alerts-detector` | `075` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `mark_customer_communication_dispatch_blocked` | Edge `send-customer-communication` | `039` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `portal_activation_check_rate_limit` | Edge `_shared/portalLoginRateLimit.ts` | `076` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_activation_register_failure` | Edge `_shared/portalLoginRateLimit.ts` | `076` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
-| `portal_assisted_email_change` | Edge `portal-recovery-email-change` | `002`, `470` | DEFINER · `authenticated` | Administrativo ou Documentação (JWT de quem chamou) | Reprocessa as retidas quando o gate fica aberto (`470`). |
+| `portal_assisted_email_change` | Edge `portal-recovery-email-change` | `002`, `473` | DEFINER · `authenticated` | Administrativo ou Documentação (JWT de quem chamou) | Reprocessa as retidas quando o gate fica aberto (`473`). |
 | `portal_begin_password_reset` | Edge `portal-password-reset` | `131` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_confirm_recovery_email` | Edge `_shared/portalInvites.ts` | `131` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_current_role` | Edge `portal-account-suspend`; Edge `portal-invite-send`; Edge `send-customer-communication` | `002` | DEFINER · `authenticated` | devolve o papel do usuário interno da sessão | — |

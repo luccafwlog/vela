@@ -1,7 +1,7 @@
 import { execPsql } from './localPsql'
 import { describe, expect, it } from 'vitest'
 
-// Migration 469 (DEM-D01): a conversa interna da Disputa traz os anexos de
+// Migration 472 (DEM-D01): a conversa interna da Disputa traz os anexos de
 // cada mensagem, com o caminho no bucket que o link temporário usa.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -13,7 +13,7 @@ function psql(sql: string): string {
 
 const ADMIN = '46900000-0000-4000-8000-000000000001'
 
-describeLocal('migration 469 — anexos na conversa interna da Disputa', () => {
+describeLocal('migration 472 — anexos na conversa interna da Disputa', () => {
   it('lista o nome, o tipo, o tamanho e o caminho de cada anexo da mensagem', () => {
     const out = psql(`
       BEGIN;

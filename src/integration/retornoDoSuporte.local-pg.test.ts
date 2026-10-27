@@ -1,7 +1,7 @@
 import { execPsql } from './localPsql'
 import { describe, expect, it } from 'vitest'
 
-// Migration 466, seção 8 (ADR 0104): com a chave desligada o e-mail sai para o
+// Migration 469, seção 8 (ADR 0104): com a chave desligada o e-mail sai para o
 // suporte e a tentativa guarda o id do provedor com o prefixo `suporte:`. O
 // retorno do provedor para essa mensagem (entrega ou devolução da caixa do
 // suporte) fecha o evento na primeira rodada, sem mudar a tentativa, sem
@@ -15,7 +15,7 @@ function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
 
-describeLocal('migration 466 — retorno do provedor para o e-mail enviado ao suporte', () => {
+describeLocal('migration 469 — retorno do provedor para o e-mail enviado ao suporte', () => {
   it('fecha o evento de devolução sem mexer na tentativa nem suprimir o endereço do Cliente', () => {
     const result = psql(`
       BEGIN;

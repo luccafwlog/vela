@@ -1,4 +1,4 @@
--- 467: Taxas Locais e faturamento (decisões do dono de 2026-10-27, lote 2 do
+-- 470: Taxas Locais e faturamento (decisões do dono de 2026-10-27, lote 2 do
 -- plano de correções).
 --
 -- Problema e mudança, por seção:
@@ -306,7 +306,7 @@ BEGIN
     LOOP
       -- Regra ADR 0069: em BL misto, suprimir itens de base 'bl' da tabela de carga solta
       -- se a tabela de container já forneceu taxa de base 'bl'. Se não forneceu, todas as
-      -- taxas por B/L da carga solta são cobradas (467, TAX-D14; ADR 0105).
+      -- taxas por B/L da carga solta são cobradas (470, TAX-D14; ADR 0105).
       IF v_bl.cargo_mode = 'misto' AND v_tbl.cargo_mode = 'carga_solta' AND item.application_basis = 'bl' THEN
         IF v_has_bl_basis_item THEN
           CONTINUE;
@@ -332,7 +332,7 @@ BEGIN
 
       IF item.application_basis = 'bl' THEN
         v_qty := 1;
-        -- Só a taxa por B/L do lado container suprime a da carga solta (467, TAX-D14).
+        -- Só a taxa por B/L do lado container suprime a da carga solta (470, TAX-D14).
         IF v_tbl.cargo_mode = 'container' THEN
           v_has_bl_basis_item := true;
         END IF;
@@ -800,7 +800,7 @@ AS $function$
            (a.entity_type = 'bl' AND a.entity_id = p_bl_id
             AND a.changed_at IS DISTINCT FROM (SELECT created_at FROM bl_row))
         OR (a.entity_type = 'bl_container' AND a.entity_id IN (SELECT id FROM member_containers))
-        -- 467 (TAX-D08): o `bl_id` gravado mantém a taxa excluída no Histórico.
+        -- 470 (TAX-D08): o `bl_id` gravado mantém a taxa excluída no Histórico.
         OR (a.entity_type = 'charge_calculation' AND (a.bl_id = p_bl_id OR a.entity_id IN (
               SELECT cc.id::text FROM public.charge_calculations cc WHERE cc.bl_id = p_bl_id)))
         OR (a.entity_type = 'invoice' AND a.entity_id IN (

@@ -882,7 +882,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Salvar modelo de Comunicado', statement: `SELECT public.save_customer_communication_saved_template('Modelo P14', 'Assunto P14', 'Corpo P14')` },
   ]
 
-  // Marca Dev (ADR 0104, migration 466): a chave de envio é só da conta do
+  // Marca Dev (ADR 0104, migration 469): a chave de envio é só da conta do
   // Administrativo com a marca; ninguém logado dá ou tira a marca, e todos leem a chave.
   it('Dev: só a conta Dev liga e desliga o envio real de e-mails', () => {
     const before = psql(`SELECT communications_enabled FROM public.app_settings WHERE id = 1;`)

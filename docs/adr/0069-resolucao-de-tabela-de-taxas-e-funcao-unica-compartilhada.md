@@ -1,7 +1,7 @@
 # 0069 — A resolução da Tabela de Taxas Locais é uma função única compartilhada
 
 > **Situação atual (2026-10-27).** Pela [ADR 0105](./0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md)
-> (migration `467`): no B/L misto sem taxa por B/L na tabela de container,
+> (migration `470`): no B/L misto sem taxa por B/L na tabela de container,
 > todas as taxas por B/L da carga solta são cobradas; com taxa no container,
 > a decisão 4 abaixo segue valendo. Regra vigente:
 > [Taxas Locais](../modules/taxas-locais.md).

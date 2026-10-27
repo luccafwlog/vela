@@ -234,7 +234,7 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     })])
     // Antes: alerta ativo na Invoice cancelada, sem nada que o fechasse.
     expect(datesAlert(invoiceId)).not.toBe('active')
-    // 469 (DEM-D08): a Invoice reemitida cita a cancelada que ela substitui.
+    // 472 (DEM-D08): a Invoice reemitida cita a cancelada que ela substitui.
     expect(psql(`SELECT count(*) FROM public.demurrage_invoices WHERE replaces_invoice_id = ${invoiceId} AND status = 'issued'`)).toBe('1')
   })
 

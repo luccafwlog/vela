@@ -1,4 +1,4 @@
--- 469: Demurrage (decisões do dono de 2026-10-27, lote 4 do plano de
+-- 472: Demurrage (decisões do dono de 2026-10-27, lote 4 do plano de
 -- correções).
 --
 -- Problema e mudança, por seção:
@@ -213,7 +213,7 @@ BEGIN
     RETURN jsonb_build_object('status', 'no_overstay', 'anchor_bl_id', v_anchor);
   END IF;
 
-  -- 469 (DEM-D13): a Invoice de Demurrage segue a trava das faturas: CE
+  -- 472 (DEM-D13): a Invoice de Demurrage segue a trava das faturas: CE
   -- Mercante e Gate de faturamento do Portal aberto. Sem eles, nada é emitido
   -- (a fila não falha); o CE ou a abertura do gate enfileira de novo.
   v_block := public._demurrage_issue_block_reason(v_anchor);
@@ -336,7 +336,7 @@ BEGIN
     RAISE EXCEPTION 'Nenhum container com sobreestadia para este B/L.' USING ERRCODE = '22023';
   END IF;
 
-  -- 469 (DEM-D13): mesma trava das faturas (CE Mercante e Gate do Portal),
+  -- 472 (DEM-D13): mesma trava das faturas (CE Mercante e Gate do Portal),
   -- depois das recusas da própria conta (grupo, caixa já cobrada, sobreestadia).
   v_block := public._demurrage_issue_block_reason(p_bl_id);
   IF v_block IS NOT NULL THEN
@@ -516,7 +516,7 @@ BEGIN
       PERFORM set_config('vela.demurrage_internal', 'on', true);
       LOOP
         v_attempt := public.issue_demurrage_invoice_for_bl(v_next_bl, NULL);
-        -- 469 (DEM-D08): a Invoice reemitida guarda qual cancelada ela substitui.
+        -- 472 (DEM-D08): a Invoice reemitida guarda qual cancelada ela substitui.
         IF v_attempt->>'status' = 'issued' AND (v_attempt->>'invoice_id') IS NOT NULL THEN
           UPDATE public.demurrage_invoices SET replaces_invoice_id = v_invoice.id
            WHERE id = (v_attempt->>'invoice_id')::bigint;
@@ -675,7 +675,7 @@ BEGIN
     'pod', v_raw #> '{invoice,pod}',
     'voyage_number', v_raw #> '{invoice,voyage_number}',
     'vessel_name', v_raw #> '{invoice,vessel_name}',
-    -- 469 (DEM-D08): a Invoice reemitida diz qual cancelada ela substitui.
+    -- 472 (DEM-D08): a Invoice reemitida diz qual cancelada ela substitui.
     'replaces_doc_number', (SELECT prev.doc_number FROM public.demurrage_invoices cur
       JOIN public.demurrage_invoices prev ON prev.id = cur.replaces_invoice_id
       WHERE cur.id = (v_raw #>> '{invoice,id}')::bigint)
@@ -752,7 +752,7 @@ BEGIN
       'issued', 0, 'blocked', 0, 'failed', 0);
   END IF;
 
-  -- 469 (DEM-D13): com o gate aberto, a Demurrage retida por ele volta à fila.
+  -- 472 (DEM-D13): com o gate aberto, a Demurrage retida por ele volta à fila.
   PERFORM public._enqueue_held_demurrage_billing(
     ARRAY(SELECT b.id FROM public.bls b WHERE b.customer_id = p_customer_id AND b.cancelled_at IS NULL), p_actor);
 

@@ -1,7 +1,7 @@
 import { execPsql } from './localPsql'
 import { describe, expect, it } from 'vitest'
 
-// Migration 467 (lote 2 do plano de correções, decisões do dono de 2026-10-27).
+// Migration 470 (lote 2 do plano de correções, decisões do dono de 2026-10-27).
 // Cada caso roda numa transação desfeita no fim, com POD próprio para não
 // esbarrar nas tabelas de outros testes.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -40,7 +40,7 @@ const items = (rows: string[]) => `
 const chargedItems = `SELECT coalesce(string_agg(charge_item_id::text, ',' ORDER BY charge_item_id), '-')
   FROM public.resolve_bl_local_charge_items('B467A', '${POD}') WHERE status <> 'review_required';`
 
-describeLocal('migration 467 — Taxas Locais e faturamento', () => {
+describeLocal('migration 470 — Taxas Locais e faturamento', () => {
   it('B/L misto sem taxa por B/L no container cobra todas as da carga solta (TAX-D14)', () => {
     const out = psql(`BEGIN; ${fixture('misto')}
       ${items([item(4670201, 4670200, 'Documental 467', 'bl', 1), item(4670202, 4670200, 'Liberação 467', 'bl', 2)])}

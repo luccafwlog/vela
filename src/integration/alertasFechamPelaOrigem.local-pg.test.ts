@@ -134,7 +134,7 @@ describeLocal('238 — alertas fecham pela origem ou com justificativa (B27, A23
 
   it('A23: o reenvio do Comunicado de CE e Taxas fecha "Reenviar Comunicado"; o envio anterior à troca não', () => {
     // Comunicado criado antes da troca de CE: não vale como reenvio. Os dois nascem
-    // "Em envio" (pendente): desde a 466, "simulado" (ao suporte) já é envio feito.
+    // "Em envio" (pendente): desde a 469, "simulado" (ao suporte) já é envio feito.
     psql(`SET session_replication_role = replica;
       INSERT INTO public.customer_communications (id, customer_id, kind, nature, status, created_at)
       VALUES (99238101, ${CUSTOMER_ID}, 'ce_mercante_taxas', 'documentacao', 'pendente', now() - interval '1 hour');

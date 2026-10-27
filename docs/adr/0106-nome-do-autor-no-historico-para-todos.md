@@ -3,7 +3,7 @@
 Status: aceito — 2026-10-27 (decisões do dono, fichas ACE-D16, opção A, e
 ACE-D06, opção B com o alcance escolhido em 2026-10-27; lote 7 do
 [plano de correções](../plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
-Implementada na migration `472`.
+Implementada na migration `475`.
 
 Supersede parcialmente a [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md)
 (exceção "/admin e usuários, inclusive leitura").

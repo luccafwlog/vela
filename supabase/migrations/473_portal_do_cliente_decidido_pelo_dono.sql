@@ -1,4 +1,4 @@
--- 470: Portal do Cliente (decisões do dono de 2026-10-27, lote 5 do plano de
+-- 473: Portal do Cliente (decisões do dono de 2026-10-27, lote 5 do plano de
 -- correções).
 --
 -- Problema e mudança, por seção:
@@ -50,7 +50,7 @@ BEGIN
   UPDATE public.portal_invites SET status='invalidado_por_reenvio' WHERE account_id=v_account.id AND purpose IN ('confirmacao_email','recuperacao','convite') AND status='pendente';
   IF v_account.auth_user_id IS NOT NULL THEN PERFORM public.portal_revoke_sessions(v_account.auth_user_id); END IF;
   PERFORM public._portal_log_event(p_customer_id,v_account.id,NULL,v_account.provisioning_decision,v_account.provisioning_decision,v_account.account_situation,v_account.account_situation,v_role,p_reason || ' Sessões anteriores encerradas.',p_request_id);
-  -- 470 (POR-D13): o Portal ficou pronto pela troca da equipe: emite o que
+  -- 473 (POR-D13): o Portal ficou pronto pela troca da equipe: emite o que
   -- estava retido, como a confirmação pelo Cliente (375).
   IF public.customer_billing_access_ready(p_customer_id) THEN
     PERFORM public._reprocess_customer_held_billing_as_system(p_customer_id, 'assisted_email_change');
@@ -125,7 +125,7 @@ BEGIN
       PERFORM public._reprocess_customer_held_billing_as_system(v_compartilhada.customer_id, 'suppressed_email_release');
     END IF;
   END LOOP;
-  -- 470 (POR-D13): o endereço liberado deixa o Portal pronto: emite o retido.
+  -- 473 (POR-D13): o endereço liberado deixa o Portal pronto: emite o retido.
   IF public.customer_billing_access_ready(p_customer_id) THEN
     PERFORM public._reprocess_customer_held_billing_as_system(p_customer_id, 'suppressed_email_release');
   END IF;
@@ -339,7 +339,7 @@ BEGIN
       'pix_payload', NULL,
       'replaced_by_invoice_id', v_covered_by,
       'replaced_by_invoice_number', v_covered_by_number,
-      -- 470 (POR-D03): a desfeita pelo Cliente diz isso, sem fatura nova.
+      -- 473 (POR-D03): a desfeita pelo Cliente diz isso, sem fatura nova.
       'obsolete_reason', (SELECT i.obsolete_reason FROM public.invoices i WHERE i.id = p_invoice_id)
     ));
   END IF;

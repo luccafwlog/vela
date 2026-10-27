@@ -12,7 +12,7 @@ export type DemurrageInvoiceFilters = {
 export type DemurrageInvoiceListItem = DemurrageInvoice & {
   customer?: { id: number; name: string; cnpj_cpf: string } | null
   bl?: { id: string; pol: string | null; pod: string | null; voyage?: { id: number; voyage_number: string; vessel?: { id: number; name: string } | null } | null } | null
-  /** Invoice cancelada que esta reemissão substitui (migration 469, DEM-D08); só no detalhe. */
+  /** Invoice cancelada que esta reemissão substitui (migration 472, DEM-D08); só no detalhe. */
   replaces?: { id: number; doc_number: string } | null
 }
 
@@ -38,7 +38,7 @@ export function applyDemurrageUsdDiscount(
 type IssueDemurrageResult = {
   status: 'issued' | 'existing' | 'waiting_return' | 'no_overstay' | 'no_containers' | 'blocked'
   invoice_id?: number
-  /** `blocked` (migration 469, DEM-D13): CE Mercante ou Gate de faturamento do Portal. */
+  /** `blocked` (migration 472, DEM-D13): CE Mercante ou Gate de faturamento do Portal. */
   reason?: string
   anchor_bl_id?: string
 }

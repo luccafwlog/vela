@@ -1,4 +1,4 @@
--- 468: Recebimento e Pix (decisões do dono de 2026-10-27, lote 3 do plano de
+-- 471: Recebimento e Pix (decisões do dono de 2026-10-27, lote 3 do plano de
 -- correções).
 --
 -- Problema e mudança, por seção:
@@ -131,7 +131,7 @@ BEGIN
     RETURN jsonb_build_object('refund_id', r.id, 'status', 'settled'); END IF;
   IF r.status <> 'pending' THEN RAISE EXCEPTION 'Restituição não está pendente.' USING ERRCODE = '22023'; END IF;
   PERFORM 1 FROM public.invoices WHERE id = r.invoice_id FOR UPDATE;
-  -- 468 (10-recebimento:12): a devolução do Pix em duplicidade tem como lastro o
+  -- 471 (10-recebimento:12): a devolução do Pix em duplicidade tem como lastro o
   -- próprio Pix, não o recebido pela fatura (que pode ser zero: cancelada,
   -- coberta, substituída); e ela não consome o lastro das outras restituições.
   IF r.origin = 'pix_duplicate' THEN

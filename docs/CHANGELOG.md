@@ -6,7 +6,7 @@
 
 ## 2026-10
 
-- **Acesso, usuários e Histórico decididos pelo dono (2026-10-27):** migration `472`,
+- **Acesso, usuários e Histórico decididos pelo dono (2026-10-27):** migration `475`,
   [ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md), lote 7 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todo setor vê o nome de
   quem fez cada registro nos Históricos; as falhas de entrega dos alertas e as linhas de Usuário do
@@ -15,7 +15,7 @@
   horas conta todas as abas juntas; **Editar acesso** passa o setor antigo Operador para
   Documentação. Prova: `acessoLote7.local-pg.test.ts`, `userNames.test.ts`, `sharedIdle.test.ts`,
   `Login.accessDenied.test.tsx`, `EditarAcessoModal.test.tsx`.
-- **Clientes, contatos e Comunicados decididos pelo dono (2026-10-27):** migration `471`, lote 6
+- **Clientes, contatos e Comunicados decididos pelo dono (2026-10-27):** migration `474`, lote 6
   do [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Pela Base de Clientes
   e pela Revisão, só Administrativo, Documentação e Equipamentos incluem ou mudam contatos; os
   demais importam só o cadastro. A Base não muda Cliente desativado e conta à parte o B/L que fica
@@ -27,7 +27,7 @@
   contato sem e-mail; o botão da ficha do B/L virou **Trocar Cliente**. Prova:
   `clientesLote6.local-pg.test.ts`, `customerCommunicationsCoverage.test.ts`,
   `customerContactDrafts.test.ts`, `ImportBaseModal.test.tsx`, `ReviewCustomerOnboarding.test.tsx`.
-- **Portal do Cliente decidido pelo dono (2026-10-27):** migration `470`, lote 5 do
+- **Portal do Cliente decidido pelo dono (2026-10-27):** migration `473`, lote 5 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). A troca do e-mail de
   recuperação pelo atendimento e a liberação do endereço bloqueado emitem as faturas retidas; o
   login mostra a mensagem da verificação de segurança e a de falta de rede; o link de redefinição
@@ -39,7 +39,7 @@
   Prova: `portalLote5.local-pg.test.ts`, `gateReciboAvulsaPix.local-pg.test.ts`,
   `usePortalAuth.test.tsx`, `PortalProfile.test.tsx`, `PortalInvoiceDetailModal.test.tsx`,
   `BlClienteSection.test.tsx`.
-- **Demurrage decidida pelo dono (2026-10-27):** migration `469`, lote 4 do
+- **Demurrage decidida pelo dono (2026-10-27):** migration `472`, lote 4 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). A Invoice de Demurrage
   só é emitida com CE Mercante e o Gate de faturamento do Portal aberto (como as faturas); o CE
   gravado ou o gate aberto enfileiram de novo a emissão. A Invoice reemitida cita a cancelada no
@@ -49,7 +49,7 @@
   da tela. Prova: `demurrageAuthority.local-pg.test.ts`,
   `datasDemurrageEComunicadoJustificados.local-pg.test.ts`, `disputaAnexosInterna.local-pg.test.ts`,
   `DisputeAttachmentLinks.test.tsx`, `PortalDemurrageDetailModal.test.tsx`, `exports.test.ts`.
-- **Recebimento e Pix decididos pelo dono (2026-10-27):** migration `468`, lote 3 do
+- **Recebimento e Pix decididos pelo dono (2026-10-27):** migration `471`, lote 3 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). O Pix que falha três
   vezes ao ser gravado entra em Pix recebidos (o do Vela em análise, com alerta; o de fora do
   Vela como recebido, sem alerta); a devolução do Pix em duplicidade tem o próprio Pix como
@@ -59,7 +59,7 @@
   regra do alerta Restituição pendente lista todos os casos. Prova:
   `itauPixCharges.local-pg.test.ts`, `gateReciboAvulsaPix.local-pg.test.ts`,
   `Reconciliacao.behavior.test.tsx`.
-- **Taxas Locais e faturamento decididos pelo dono (2026-10-27):** migration `467`,
+- **Taxas Locais e faturamento decididos pelo dono (2026-10-27):** migration `470`,
   [ADR 0105](adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md), lote 2 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). B/L misto sem taxa
   por B/L no container cobra todas as da carga solta; tabela já usada não muda POD nem modo de
@@ -72,7 +72,7 @@
   Condição de Cliente, `INV-`, Cancelar baixa e Restituição). Prova:
   `taxasLocaisLote2.local-pg.test.ts`, `invoiceAutoReissue.local-pg.test.ts`,
   `reviewBillingAutomation.test.ts`, `chargeOperationsService.test.ts`.
-- **Chave de envio redireciona ao suporte e marca Dev (2026-10-27):** migration `466`,
+- **Chave de envio redireciona ao suporte e marca Dev (2026-10-27):** migration `469`,
   [ADR 0104](adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md), lote 1 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Com a chave
   desligada, todo e-mail dirigido a Cliente, inclusive convite e senha do Portal (antes saíam

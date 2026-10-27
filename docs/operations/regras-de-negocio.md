@@ -25,7 +25,7 @@ Validação, o que ainda impede a emissão aparece na coluna **Motivo**
 ([Faturamento § Motivo de bloqueio de faturamento](../modules/faturamento.md#motivo-de-bloqueio-de-faturamento)).
 
 **O Portal trava toda emissão** — manual, consolidada ou automática pela
-transição do CE, inclusive a Invoice de Demurrage desde a migration `469`
+transição do CE, inclusive a Invoice de Demurrage desde a migration `472`
 ([Demurrage § Trava de emissão](../modules/demurrage.md), DEM-D13) ([ADR 0070](../adr/0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md)).
 O gate (`customer_billing_access_ready`, definição vigente na migration `084`)
 passa quando a Conta de Portal do Cliente está pronta — ativa, com acesso
@@ -35,7 +35,7 @@ ou quando há [Liberação de faturamento sem Portal](#liberação-de-faturament
 vigente. Para Cliente sem gate aberto, o CE calcula e **retém** a fatura no B/L
 (`billing_hold_reason = 'Acesso ao portal nao provisionado'`), sem tratar isso
 como falha; a Validação mostra *Conta do Portal não ativa*. A ativação do Portal e
-a concessão da Liberação (e, desde a migration `470`, a troca assistida do e-mail da equipe e a liberação do endereço suprimido) reprocessam o Cliente e emitem as retidas pelo mesmo
+a concessão da Liberação (e, desde a migration `473`, a troca assistida do e-mail da equipe e a liberação do endereço suprimido) reprocessam o Cliente e emitem as retidas pelo mesmo
 caminho da transição do CE, com o preço e o câmbio fixados na importação e a
 base atual ([ADR 0094](../adr/0094-preco-fixo-na-importacao.md); [Faturamento §
 Propósito e escopo](../modules/faturamento.md#propósito-e-escopo)).

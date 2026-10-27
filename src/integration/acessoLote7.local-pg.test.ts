@@ -1,4 +1,4 @@
-// Lote 7 das correções decididas pelo dono em 2026-10-27 (migration 472; ADR
+// Lote 7 das correções decididas pelo dono em 2026-10-27 (migration 475; ADR
 // 0106): o nome do autor do Histórico para todos os setores (ACE-D16), a
 // reativação de usuário numa linha só, no assunto Usuário e com o motivo
 // (ACE-D12), e a leitura das falhas de entrega e das linhas de Usuário do
@@ -41,7 +41,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Acesso, usuários e Histórico decididos pelo dono (migration 472)', () => {
+describeLocal('Acesso, usuários e Histórico decididos pelo dono (migration 475)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

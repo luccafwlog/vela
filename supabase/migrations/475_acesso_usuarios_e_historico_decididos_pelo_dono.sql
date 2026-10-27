@@ -1,4 +1,4 @@
--- 472: Acesso, usuários e Histórico (decisões do dono de 2026-10-27, lote 7 do
+-- 475: Acesso, usuários e Histórico (decisões do dono de 2026-10-27, lote 7 do
 -- plano de correções).
 --
 -- Problema e mudança, por seção:
@@ -75,7 +75,7 @@ BEGIN
   END IF;
 
   PERFORM set_config('vela.import_context', 'Reativação: ' || v_reason, true);
-  -- 472 (ACE-D12): no usuário, o motivo vai na linha da troca de situação que o
+  -- 475 (ACE-D12): no usuário, o motivo vai na linha da troca de situação que o
   -- gatilho `audit_user_profile_changes` grava (assunto Usuário, com o nome),
   -- e não sai a segunda linha genérica.
   IF p_table = 'user_profiles' THEN

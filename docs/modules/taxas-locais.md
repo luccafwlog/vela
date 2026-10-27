@@ -146,7 +146,7 @@ aceita "1.420,50"; cada erro indica o campo).
   calcula um B/L **Não calculado** (**Calcular taxas**; o B/L já calculado se
   recalcula pela Validação, pela Revisão ou sozinho quando a base muda,
   inclusive quando a troca de modalidade o pôs em **Não calculado**: TAX-D17,
-  migration `467`), mantém cobranças manuais (botões **Editar** e, só
+  migration `470`), mantém cobranças manuais (botões **Editar** e, só
   para o Administrativo, **Excluir** na linha manual, enquanto o B/L não está
   faturado) e oferece **Emitir fatura** a qualquer Departamento
   ([matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento);
@@ -387,7 +387,7 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   Tabela já usada (vinculada, calculada ou faturada) não muda **POD** nem
   **modo de carga**: o banco recusa (`trg_guard_used_tariff_scope`) e o
   formulário trava os dois campos; para outro POD ou modo, cadastra-se tabela
-  nova (decisão do dono de 2026-10-27, TAX-D13; migration `467`).
+  nova (decisão do dono de 2026-10-27, TAX-D13; migration `470`).
   Excluir tabela vinculada é recusado como as demais tarifas usadas.
 - **Escolha da tabela no primeiro cálculo:** por escopo (modalidade + POD
   normalizado por `normalize_port_code`) e tabela **ativa**, sem data. A
@@ -421,7 +421,7 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   `application_basis = 'bl'` (por B/L) vem do lado container; quando a tabela
   de container não tem nenhuma, todas as taxas por B/L da carga solta são
   cobradas ([ADR 0105](../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md);
-  migration `467`; até ela só a primeira, na Ordem de exibição, era cobrada).
+  migration `470`; até ela só a primeira, na Ordem de exibição, era cobrada).
   Falta parcial de tabela gera pendência específica. `059` estende o mesmo resolvedor
   ao catálogo/lançamento manual e `062` corrige quantidades BB. O catálogo de
   tabelas continua com `container`, `carga_solta` e `granito`, sem cadastro
@@ -430,15 +430,15 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   `charge_tables_cargo_mode_check`). O filtro Modo de `/taxas-locais/tabelas`
   não o oferece mais e `?modo=granito` cai em "Todos"; o formulário de tabela
   também não, salvo na edição de tabela antiga de Granito (TAX-D04).
-- **Linha em revisão diz o que falta** (TAX-D16; migration `467`): a guarda de
+- **Linha em revisão diz o que falta** (TAX-D16; migration `470`): a guarda de
   preço ausente (`guard_missing_charge_price`, `066`) mantém o motivo da linha
   de revisão do cálculo ("Peso de carga solta ausente…", perfil `any` no THD,
   base não suportada); o texto "Tarifa BRL/USD sem valor unitário vigente." fica
-  para o item sem preço. Linha gravada antes da `467` mostra o motivo novo no
+  para o item sem preço. Linha gravada antes da `470` mostra o motivo novo no
   próximo recálculo.
 - **B/L cancelado é só consulta** na aba Faturamento da ficha: sem **Calcular
   taxas**, cobrança manual, edição de linha nem **Emitir fatura** (TAX-D09).
-- **Histórico do B/L e taxas** (TAX-D08; migration `467`): o registro de taxa
+- **Histórico do B/L e taxas** (TAX-D08; migration `470`): o registro de taxa
   grava o B/L (`audit_logs.bl_id`, preenchido por `trg_audit_logs_fill_charge_bl_id`
   e pela própria migration nos registros antigos), e `bl_timeline` lê por ele;
   a exclusão de cobrança manual continua no Histórico ("Cobrança manual

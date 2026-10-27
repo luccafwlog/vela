@@ -103,7 +103,7 @@ describeLocal('S08-B — cálculo server-side e snapshots de Demurrage', () => {
     `)
   })
 
-  // 469 (DEM-D13): sem CE Mercante ou com o gate do Portal fechado, nada é
+  // 472 (DEM-D13): sem CE Mercante ou com o gate do Portal fechado, nada é
   // emitido: a emissão pela fila devolve `blocked` com o motivo, a da tela
   // recusa; gravar o CE põe a emissão de novo na fila.
   it('sem CE ou com o Portal fechado a Demurrage não é emitida, e o CE gravado a enfileira', () => {

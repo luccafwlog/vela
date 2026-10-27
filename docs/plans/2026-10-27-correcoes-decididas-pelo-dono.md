@@ -7,13 +7,13 @@ ACE-D01 (opção A) no mesmo dia.
 
 | Lote | Situação |
 |---|---|
-| 1 | Executado em 2026-10-27 (migration `466`, [ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); falta conferir em staging um envio redirecionado chegando à caixa do suporte |
-| 2 | Executado em 2026-10-27 (migration `467`, [ADR 0105](../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md)); conferido no Postgres local e nos testes de tela, falta conferir as telas em staging |
-| 3 | Executado em 2026-10-27 (migration `468`); conferido no Postgres local e nos testes de tela, falta conferir em staging com um Pix real |
-| 4 | Executado em 2026-10-27 (migration `469`); conferido no Postgres local e nos testes de tela, falta conferir em staging (anexos da Disputa pelo Storage e emissão retida pelo gate) |
-| 5 | Executado em 2026-10-27 (migration `470`); conferido no Postgres local e nos testes de tela, falta conferir em staging (login com a verificação de segurança e convite pela ficha do B/L) |
-| 6 | Executado em 2026-10-27 (migration `471`); conferido no Postgres local e nos testes de tela, falta conferir em staging (Base de Clientes por setor e Cobertura de viagens com envio redirecionado) |
-| 7 | Executado em 2026-10-27 (migration `472`, [ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); conferido no Postgres local e nos testes de tela. Falta o Administrativo passar os usuários Operador para Documentação em Usuários (ACE-D13) e conferir em staging a tela de entrada de um usuário desativado |
+| 1 | Executado em 2026-10-27 (migration `469`, [ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); falta conferir em staging um envio redirecionado chegando à caixa do suporte |
+| 2 | Executado em 2026-10-27 (migration `470`, [ADR 0105](../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md)); conferido no Postgres local e nos testes de tela, falta conferir as telas em staging |
+| 3 | Executado em 2026-10-27 (migration `471`); conferido no Postgres local e nos testes de tela, falta conferir em staging com um Pix real |
+| 4 | Executado em 2026-10-27 (migration `472`); conferido no Postgres local e nos testes de tela, falta conferir em staging (anexos da Disputa pelo Storage e emissão retida pelo gate) |
+| 5 | Executado em 2026-10-27 (migration `473`); conferido no Postgres local e nos testes de tela, falta conferir em staging (login com a verificação de segurança e convite pela ficha do B/L) |
+| 6 | Executado em 2026-10-27 (migration `474`); conferido no Postgres local e nos testes de tela, falta conferir em staging (Base de Clientes por setor e Cobertura de viagens com envio redirecionado) |
+| 7 | Executado em 2026-10-27 (migration `475`, [ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); conferido no Postgres local e nos testes de tela. Falta o Administrativo passar os usuários Operador para Documentação em Usuários (ACE-D13) e conferir em staging a tela de entrada de um usuário desativado |
 | 8 a 11 | Não autorizados; nada executado |
 
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:

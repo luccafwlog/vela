@@ -98,7 +98,7 @@ describeLocal('375 — gate, recibo, avulsa e Pix sem baixa', () => {
     expect(w.psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(1)}'`)).not.toBe('review')
   })
 
-  // 468 (10-recebimento:12): na fatura cancelada sem baixa, o recebido é zero; o
+  // 471 (10-recebimento:12): na fatura cancelada sem baixa, o recebido é zero; o
   // lastro da devolução é o próprio Pix, e a confirmação tira o Pix da análise.
   it('Pix em duplicidade em fatura cancelada sem baixa: a devolução é confirmada pelo lastro do próprio Pix', () => {
     w.psql(`UPDATE public.app_settings SET pix_provider = 'itau' WHERE id = 1`)
@@ -174,7 +174,7 @@ describeLocal('375 — gate, recibo, avulsa e Pix sem baixa', () => {
     expect(w.psql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'customer' AND entity_id = '${w.customerId}' AND field_name = 'held_billing_reprocessed'`)).toBe('1')
   })
 
-  // 470 (POR-D13): a troca do E-mail de recuperação pela equipe deixa o Portal
+  // 473 (POR-D13): a troca do E-mail de recuperação pela equipe deixa o Portal
   // pronto e emite as retidas, como a confirmação pelo Cliente.
   it('a troca do e-mail de recuperação pela equipe emite as faturas retidas', () => {
     w.closeGate()

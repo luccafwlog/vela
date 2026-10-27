@@ -2,7 +2,7 @@
 
 Status: aceito — 2026-10-27 (decisões do dono; lote 1 do
 [plano de correções](../plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
-Implementada na migration `466` e nas Edge Functions de e-mail
+Implementada na migration `469` e nas Edge Functions de e-mail
 (`supabase/functions/_shared/email.ts` e `portalEmail.ts`).
 
 Supersede parcialmente a [ADR 0059](./0059-chave-global-de-envio-desligada-por-padrao.md)
