@@ -536,12 +536,15 @@ function statusNote(row: CePreviewRow): string {
   return [
     STATUS_LABEL[row.status] ?? row.status,
     row.live_invoices?.length ? `fatura ${row.live_invoices.join(', ')} não muda` : null,
-    row.status === 'change' && row.comunicado_sent ? 'Comunicado será reenviado' : null,
+    // Nada reenvia sozinho: a troca abre o Alerta de reenvio (CEB-D03).
+    row.status === 'change' && row.comunicado_sent ? 'o reenvio do Comunicado fica pendente (alerta)' : null,
+    // A prévia do servidor diz, por B/L, se ele aparece no Portal (CEB-D05).
+    row.portal_visible === true ? 'visível no Portal' : row.portal_visible === false ? 'fora do Portal' : null,
     row.status === 'change' && row.unlock_confirmed ? 'Desbloqueio já conferido' : null,
   ].filter(Boolean).join(' · ')
 }
 
-function ServerPreviewSection({ preview }: { preview: CeServerPreview }) {
+export function ServerPreviewSection({ preview }: { preview: CeServerPreview }) {
   const rows = preview.rows.slice(0, 50)
   return (
     <ImportSection
@@ -600,6 +603,12 @@ const BILLING_REASON_LABEL: Record<string, string> = {
   exempt: 'Nada a faturar: B/L isento das Taxas Locais.',
   not_found: 'B/L não encontrado.',
   auto_billing_failed: 'A emissão automática falhou; o Alerta de faturamento traz o detalhe.',
+  portal_not_provisioned: 'Retido: a Conta do Portal do Cliente não está ativa.',
+  invoice_cancelled_awaiting_emitir: 'Pulado: a fatura foi cancelada e aguarda Emitir na ficha do B/L.',
+  // ponytail: `emit_ce_mercante_billing` (migration 212) junta "sem CE" e
+  // "B/L cancelado" num motivo só; separar exige o servidor devolver os dois.
+  no_ce_or_cancelled: 'Pulado: B/L sem CE Mercante ou cancelado.',
+  already_invoiced: 'Já faturado.',
 }
 
 function billingResultMessage(item: Pick<CeBillingResult, 'message' | 'reason'>): string {
@@ -608,7 +617,7 @@ function billingResultMessage(item: Pick<CeBillingResult, 'message' | 'reason'>)
   return (item.reason && BILLING_REASON_LABEL[item.reason]) || 'Motivo não informado pelo servidor.'
 }
 
-function BillingProgress({
+export function BillingProgress({
   billing,
   onResume,
 }: {
@@ -621,6 +630,10 @@ function BillingProgress({
   const blocked = billing.results.filter((item) => item.status === 'blocked' && !item.waiting)
   // B/L calculado sem taxa com valor ou isento: não há fatura a emitir, nem falha (migration 204).
   const nothingToBill = billing.results.filter((item) => item.status === 'skipped' && (item.reason === 'nothing_to_bill' || item.reason === 'exempt'))
+  // Por B/L, o que foi faturado, retido ou pulado, com o motivo (CEB-D10).
+  const invoiced = billing.results.filter((item) => item.status === 'invoiced')
+  const held = billing.results.filter((item) => item.status === 'held')
+  const skipped = billing.results.filter((item) => item.status === 'skipped' && !nothingToBill.includes(item))
   return (
     <ImportSection
       title="Resultado: emissão das faturas"
@@ -633,6 +646,7 @@ function BillingProgress({
             { label: 'retidos', value: count('held') },
             { label: 'aguardando', value: waiting.length, tone: waiting.length ? 'warning' : 'default' },
             { label: 'nada a faturar', value: nothingToBill.length },
+            { label: 'pulados', value: skipped.length, tone: skipped.length ? 'warning' : 'default' },
             { label: 'bloqueados', value: blocked.length, tone: blocked.length ? 'danger' : 'default' },
           ]}
         />
@@ -643,6 +657,31 @@ function BillingProgress({
         <ImportNotice tone="warning" title="Aguardando">
           <ul className="app-import-notice__list">
             {waiting.map((item) => <li key={item.bl_id}>{item.bl_id}: {billingResultMessage(item)}</li>)}
+          </ul>
+        </ImportNotice>
+      ) : null}
+      {invoiced.length ? (
+        <ImportNotice tone="info" title="Faturados">
+          <ul className="app-import-notice__list">
+            {invoiced.map((item) => (
+              <li key={item.bl_id}>
+                {item.bl_id}: {item.invoice_number ? `fatura ${item.invoice_number}` : billingResultMessage({ ...item, reason: item.reason ?? 'already_invoiced' })}
+              </li>
+            ))}
+          </ul>
+        </ImportNotice>
+      ) : null}
+      {held.length ? (
+        <ImportNotice tone="warning" title="Retidos">
+          <ul className="app-import-notice__list">
+            {held.map((item) => <li key={item.bl_id}>{item.bl_id}: {billingResultMessage(item)}</li>)}
+          </ul>
+        </ImportNotice>
+      ) : null}
+      {skipped.length ? (
+        <ImportNotice tone="warning" title="Pulados">
+          <ul className="app-import-notice__list">
+            {skipped.map((item) => <li key={item.bl_id}>{item.bl_id}: {billingResultMessage(item)}</li>)}
           </ul>
         </ImportNotice>
       ) : null}

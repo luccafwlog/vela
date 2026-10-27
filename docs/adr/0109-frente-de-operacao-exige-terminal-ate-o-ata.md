@@ -2,7 +2,7 @@
 
 Status: aceito — 2026-10-27 (decisão do dono sobre `02-viagens-adr:13`,
 resposta "outra": TBC não é terminal; lote 9 do
-[plano de correções](../plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
+[plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
 Implementada na migration `477`.
 
 Supersede parcialmente a [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md)

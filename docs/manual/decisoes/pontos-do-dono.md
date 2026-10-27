@@ -90,7 +90,7 @@ com Clientes reais.
   - Atribuição (2026-10-27): por migration com a lista de e-mails
     (`lucca.juliatti@fwlog.com.br`, o mesmo em produção e staging); nenhuma
     tela nem usuário logado muda a marca; cada mudança fica no Histórico de
-    ações. Detalhe no [plano de correções](../../plans/2026-10-27-correcoes-decididas-pelo-dono.md).
+    ações. Detalhe no [plano de correções](../../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md).
   - O e-mail redirecionado chega ao suporte com o assunto começando por
     "[Teste → <e-mail do Cliente>]" e uma linha no topo dizendo qual Cliente
     receberia.

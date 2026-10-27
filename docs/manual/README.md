@@ -84,8 +84,8 @@ avisa, não uma divisão de trabalho que o código não aplica.
 A matriz foi lida na `staging` em `9839364` (2026-10-26) e é mantida em dia com
 o sistema. Cada mudança cita a data e a migration na própria linha.
 
-- **Correções decididas pelo dono** (lotes 1 a 7 do
-  [plano](../plans/2026-10-27-correcoes-decididas-pelo-dono.md)): a linha da
+- **Correções decididas pelo dono** (lotes 1 a 11 do
+  [plano](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)): a linha da
   divergência corrigida diz "Corrigida no sistema em 2026-10-27" e as regras
   descrevem o comportamento novo.
 - **Staging até `c3be255` (2026-10-27)**, revisada contra as decisões do dono

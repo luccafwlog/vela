@@ -97,7 +97,7 @@ de início do ciclo usam a mesma precedência.
 - não há janela lateral: a correção dos dados de um B/L fora do caso "Conferir os dados do B/L" é feita na ficha do B/L (Detalhes do B/L e Carga);
 - resultados recentes no conteúdo (o que foi gravado, o que falhou e o que continua em revisão), além dos avisos de recálculo das taxas locais.
 
-`src/hooks/useReview.ts` carrega todos os `bls` em `pending_review`, em páginas de 500 até a última. O Granito saiu da Revisão no lote 5b (2026-10-19): não tem Cliente ([Granito](granito.md)). A UI não faz join direto com `customer_portal_accounts`: extrai apenas a linha técnica `Pendencias de importacao:` de `bls.notes`.
+`src/hooks/useReview.ts` carrega todos os `bls` em `pending_review` não cancelados, em páginas de 500 até a última; o número do item **Revisão** do menu (`useOperationalCounts.ts`, `['op-count', 'pending-review']`) usa o mesmo recorte. B/L cancelado é somente leitura e fica fora da fila e do número, como já ficava fora dos alertas da Revisão (lote 10 de 2026-10-27, `03-bl-revisao:BLR-D01`). O Granito saiu da Revisão no lote 5b (2026-10-19): não tem Cliente ([Granito](granito.md)). A UI não faz join direto com `customer_portal_accounts`: extrai apenas a linha técnica `Pendencias de importacao:` de `bls.notes`.
 
 `src/pages/revisaoHelpers.ts` trata cliente e consignatário como a mesma entidade de agrupamento, mas só permite onboarding em grupo com CNPJ válido e sem conflito. `getReviewItemDocumentCandidates` também procura CNPJ rotulado nas evidências brutas.
 

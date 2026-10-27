@@ -6,9 +6,36 @@
 
 ## 2026-10
 
+- **Desbloqueio de CE decidido pelo dono (2026-10-27):** migration `479`,
+  [ADR 0110](adr/0110-vip-cobre-pela-data-da-solicitacao.md), lote 11 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md), que fecha o plano
+  (arquivado). O termo e a procuração anuais VIP cobrem todo CE com o desbloqueio solicitado dentro
+  da vigência (dia do primeiro envio; antes do envio, hoje), sem olhar importação do B/L nem vínculo
+  do CE; vencidos, seguem cobrindo o que foi pedido neles. Na Inspeção, todos os setores veem os
+  documentos da solicitação e os anuais. A ficha do Cliente lista também as solicitações VIP, sem o
+  B/L que mudou de solicitação. Solicitação exportada para a ZPT não se cancela: **Cancelar pedido**
+  fica desligado e diz por quê. Textos da entrega do B/L original, da lista vazia e da cobertura VIP
+  corrigidos; o anual guardado até um ano depois da vigência e o e-mail redirecionado ao suporte
+  ficaram registrados no módulo. Prova: `ceUnlockVigenciaAnual.local-pg.test.ts`,
+  `CeUnlockRequestDetail.test.tsx`, `PortalDesbloqueioCe.flow.test.tsx`.
+- **B/L, Revisão, CE Mercante, Baplie e Equipamentos decididos pelo dono (2026-10-27):** migration
+  `478`, lote 10 do [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md).
+  B/L cancelado sai da fila e do número da Revisão; o filtro de Faturamento **B/L cancelado** lista os
+  cancelados; o Manifesto BB voltou à Importação rápida da Viagem; a ficha de B/L cancelado fica
+  travada e as recusas mostram o motivo; as prévias só impedem trocar o consignatário com o B/L
+  faturado. Mover recusa B/L sem CE. O alerta **Cobertura Baplie / B/L** ignora B/L cancelado e se
+  recalcula ao cancelar ou reativar; o container cheio no B/L e vazio no Baplie virou divergência
+  própria, em Baplie EDI e contada à parte no alerta. A planilha de CE mostra a nota de Portal e
+  lista Faturados, Retidos e Pulados com o motivo. A planilha de datas recusa linha de B/L
+  cancelado, e Viagem cancelada recusa a natureza do vazio e as linhas de serviço do Embarque. Textos
+  do cancelamento com fatura, da prévia do BB, do **Vale o B/L** de SOC/COC, do reenvio do
+  Comunicado e da dica do Manifesto corrigidos. Prova: `blCeBaplieLote10.local-pg.test.ts`,
+  `BlOperacionalTab.cancelled.test.tsx`, `CeMercanteImportModal.conferencia.test.tsx`,
+  `BreakbulkReimportReview.texts.test.tsx`, `operationalListsFinancialFilter.test.ts`,
+  `baplieReconciliation.test.ts`, `containerDatesImport.test.ts`, `blFreightImport.test.ts`.
 - **Viagens e escalas decididas pelo dono (2026-10-27):** migration `477`,
   [ADR 0109](adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md), lote 9 do
-  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todos os setores gravam
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todos os setores gravam
   terminal, ATB, ATD e Restow da escala; Operações também remove a Atracação ao trocar o terminal de
   uma frente, com a mesma trava por CE, ADR e B/L. TBC não é terminal: com o ATA registrado, toda
   frente precisa de terminal, e a Atracação TBC vazia sai e deixa a Viagem concluir. Omitir,
@@ -22,7 +49,7 @@
 - **Alertas e sino decididos pelo dono (2026-10-27):** migration `476`,
   [ADR 0107](adr/0107-sino-so-do-setor-responsavel.md) e
   [ADR 0108](adr/0108-fim-da-dispensa-de-alertas.md), lote 8 do
-  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). O sino avisa só o setor
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). O sino avisa só o setor
   responsável pelo alerta (o Financeiro também recebe Pix, consulta do Itaú parada, Restituição e
   Fatura desatualizada), e o alerta resolvido sai do sino e do número sem marcar como lido. A
   dispensa saiu: sem **Dispensar**, sem **Dispensados** e sem "N dispensados" no Painel; as
@@ -36,7 +63,7 @@
   `AlertasRegrasCatalog.test.tsx`, `PainelAlertsSummary.test.tsx`, `permissionMatrix.test.ts`.
 - **Acesso, usuários e Histórico decididos pelo dono (2026-10-27):** migration `475`,
   [ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md), lote 7 do
-  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todo setor vê o nome de
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todo setor vê o nome de
   quem fez cada registro nos Históricos; as falhas de entrega dos alertas e as linhas de Usuário do
   Histórico de ações passaram a ser leitura só do Administrativo. A reativação de usuário grava
   uma linha só, com o motivo; a tela de entrada explica o acesso desativado; a inatividade de 8
@@ -44,7 +71,7 @@
   Documentação. Prova: `acessoLote7.local-pg.test.ts`, `userNames.test.ts`, `sharedIdle.test.ts`,
   `Login.accessDenied.test.tsx`, `EditarAcessoModal.test.tsx`.
 - **Clientes, contatos e Comunicados decididos pelo dono (2026-10-27):** migration `474`, lote 6
-  do [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Pela Base de Clientes
+  do [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). Pela Base de Clientes
   e pela Revisão, só Administrativo, Documentação e Equipamentos incluem ou mudam contatos; os
   demais importam só o cadastro. A Base não muda Cliente desativado e conta à parte o B/L que fica
   só com sugestão. O e-mail digitado na Revisão entra como "Cadastrado pela equipe"; o banco recusa
@@ -56,7 +83,7 @@
   `clientesLote6.local-pg.test.ts`, `customerCommunicationsCoverage.test.ts`,
   `customerContactDrafts.test.ts`, `ImportBaseModal.test.tsx`, `ReviewCustomerOnboarding.test.tsx`.
 - **Portal do Cliente decidido pelo dono (2026-10-27):** migration `473`, lote 5 do
-  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). A troca do e-mail de
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). A troca do e-mail de
   recuperação pelo atendimento e a liberação do endereço bloqueado emitem as faturas retidas; o
   login mostra a mensagem da verificação de segurança e a de falta de rede; o link de redefinição
   vencido mostra "Link inválido ou expirado." com **Pedir um novo link**; o Perfil mostra o limite
@@ -68,7 +95,7 @@
   `usePortalAuth.test.tsx`, `PortalProfile.test.tsx`, `PortalInvoiceDetailModal.test.tsx`,
   `BlClienteSection.test.tsx`.
 - **Demurrage decidida pelo dono (2026-10-27):** migration `472`, lote 4 do
-  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). A Invoice de Demurrage
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). A Invoice de Demurrage
   só é emitida com CE Mercante e o Gate de faturamento do Portal aberto (como as faturas); o CE
   gravado ou o gate aberto enfileiram de novo a emissão. A Invoice reemitida cita a cancelada no
   Vela e no Portal; os anexos da Disputa abrem pelo nome nos dois apps; o Portal mostra o dólar
@@ -78,7 +105,7 @@
   `datasDemurrageEComunicadoJustificados.local-pg.test.ts`, `disputaAnexosInterna.local-pg.test.ts`,
   `DisputeAttachmentLinks.test.tsx`, `PortalDemurrageDetailModal.test.tsx`, `exports.test.ts`.
 - **Recebimento e Pix decididos pelo dono (2026-10-27):** migration `471`, lote 3 do
-  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). O Pix que falha três
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). O Pix que falha três
   vezes ao ser gravado entra em Pix recebidos (o do Vela em análise, com alerta; o de fora do
   Vela como recebido, sem alerta); a devolução do Pix em duplicidade tem o próprio Pix como
   lastro e é confirmada também em fatura cancelada, coberta ou substituída; o extrato que
@@ -89,7 +116,7 @@
   `Reconciliacao.behavior.test.tsx`.
 - **Taxas Locais e faturamento decididos pelo dono (2026-10-27):** migration `470`,
   [ADR 0105](adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md), lote 2 do
-  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). B/L misto sem taxa
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). B/L misto sem taxa
   por B/L no container cobra todas as da carga solta; tabela já usada não muda POD nem modo de
   carga; troca de modalidade recalcula; linha em revisão mostra o que falta; Histórico do B/L
   guarda a exclusão de taxa e o refixar legível; consolidada mostra "sem CE Mercante."; a
@@ -102,7 +129,7 @@
   `reviewBillingAutomation.test.ts`, `chargeOperationsService.test.ts`.
 - **Chave de envio redireciona ao suporte e marca Dev (2026-10-27):** migration `469`,
   [ADR 0104](adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md), lote 1 do
-  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Com a chave
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). Com a chave
   desligada, todo e-mail dirigido a Cliente, inclusive convite e senha do Portal (antes saíam
   sempre ao destinatário), vai para `suporte@portalfwlog.com.br` com "[Teste → e-mail do
   Cliente]" no assunto e conta como enviado; o reenvio de CE e Taxas ao suporte fecha o alerta.

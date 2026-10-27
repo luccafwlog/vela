@@ -582,6 +582,8 @@ conta não ativa.
 
 B/L cancelado depois de liberado continua listado em BLs e Containers, com o selo **Cancelado** (`cancelled_at` vindo de `_portal_list_operation_bls_core`, migration `089`; ADR 0071).
 
+No Desbloqueio de CE da inspeção, todo setor vê os documentos da solicitação e os anuais VIP, com datas, situação e motivos, como no Vela (`portal_inspect_get_ce_unlock_request` e `portal_inspect_get_ce_unlock_vip_coverage`, migration `479`; ADR 0085, D16). Antes, só Administrativo e Documentação os recebiam.
+
 
 ##### Ações do Modo Inspeção
 

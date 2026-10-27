@@ -1296,7 +1296,8 @@ describe('blFreightImport', () => {
     expect(comBaixa.rows[0]?.requiresCustomerConfirmation).toBe(true)
     expect(comBaixa.rows[0]?.customerChange?.messages).toContain('Devolver o recebido ao Cliente original; a nova cobrança local aguarda a confirmação da restituição.')
 
-    // sem fatura viva, mas com recebivel aberto: a RPC recusa por falta de cliente de destino
+    // B/L não faturado com recebível em aberto: a RPC (migration 379) aceita a
+    // troca e o B/L volta à reconciliação (BLR-D12)
     const semCliente = buildBlFreightPreview({
       documents: [doc],
       selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
@@ -1307,9 +1308,29 @@ describe('blFreightImport', () => {
     })
 
     expect(semCliente.rows[0]?.customerChange?.targetMissing).toBe(true)
-    expect(semCliente.rows[0]?.customerChange?.blockedReasons).toEqual([
+    expect(semCliente.rows[0]?.customerChange?.blockedReasons).toEqual([])
+    expect(semCliente.rows[0]?.customerChange?.messages).toContain('B/L volta para a reconciliação de Cliente até o novo consignatário ser cadastrado.')
+
+    // faturado pela situação, sem fatura viva no recorte: a troca é recusada
+    const faturado = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      existingBls: [{ ...existingBl(), customer_id: 42, financial_status: 'paid', bl_containers: [existingContainer()] }],
+    })
+    expect(faturado.rows[0]?.customerChange?.blockedReasons).toEqual([
       'Cliente do novo consignatário não está cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.',
     ])
+
+    // com baixa no recebível: também faturado
+    const comBaixaSemCliente = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      existingBls: [{ ...existingBl(), customer_id: 42, bl_containers: [existingContainer()] }],
+      receivablesByBl: new Map([
+        ['CSC45250E02Y00', [{ blId: 'CSC45250E02Y00', status: 'partially_settled', settledAmountBrl: 10 }]],
+      ]),
+    })
+    expect(comBaixaSemCliente.rows[0]?.customerChange?.blockedReasons).toHaveLength(1)
   })
 
   it('aba VIN vazia não tira veículos nem pede confirmação de faturamento', () => {

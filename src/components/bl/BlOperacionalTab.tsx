@@ -111,7 +111,12 @@ export function BlOperacionalTab({
         </div>
       </Block>
 
-      <form onSubmit={onSubmit} className="grid gap-5">
+      <form onSubmit={onSubmit} className="grid gap-5" aria-readonly={cancelled || undefined}>
+        {cancelled ? (
+          <p className="app-facts__detail" role="note">B/L cancelado: somente leitura. Reative para corrigir.</p>
+        ) : null}
+        {/* B/L cancelado: o banco recusa a edição; o fieldset trava os campos antes. */}
+        <fieldset disabled={cancelled} className="m-0 grid min-w-0 gap-5 border-0 p-0">
         <Block title="Partes">
           <div className="grid gap-4 md:grid-cols-3">
             {text('shipper', 'Shipper')}
@@ -214,6 +219,9 @@ export function BlOperacionalTab({
           />
         </Block>
 
+        </fieldset>
+
+        {cancelled ? null : (
         <div className={`app-bl-savebar${changes.length ? ' app-bl-savebar--dirty' : ''}`}>
           <Field label="Justificativa da alteração" required hint="Fica no histórico com o autor.">
             <Input
@@ -232,6 +240,7 @@ export function BlOperacionalTab({
             </Button>
           </div>
         </div>
+        )}
       </form>
     </>
   )

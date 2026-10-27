@@ -158,7 +158,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
   `MATRIX_GLOBAL`.
 - **Matriz da tela:** "O que cada setor pode", em `/admin/usuarios`, e a lista
   "Com este setor, ... pode" das janelas de usuário vêm do catálogo único
-  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 39 linhas
+  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 41 linhas
   que resumem as ações desta matriz, cada uma citando os casos da bateria que a
   provam. `permissionMatrix.test.ts` falha se uma linha ficar sem caso ou citar
   caso inexistente; a bateria falha se o banco divergir do catálogo. Mudar uma
@@ -286,7 +286,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Ver pedidos, situação e solicitações do Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_private.actor()` (definição vigente na migration `250`) | ADR 0085, D11 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
-| Abrir e baixar documentos do pedido (procuração, termo, anexos) | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_document_access` com `ce_unlock_private.actor()` (migration `250`); Edge `ce-unlock-document-download` | ADR 0085, D16 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
+| Abrir e baixar documentos do pedido (procuração, termo, anexos) | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_document_access` com `ce_unlock_private.actor()` (migration `250`); Edge `ce-unlock-document-download` | ADR 0085, D16 | vigente desde a migration `250`; no Modo Inspeção (`portal_inspect_get_ce_unlock_request`, `portal_inspect_get_ce_unlock_vip_coverage`) desde a migration `479` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18; Inspeção em `ceUnlockVigenciaAnual.local-pg.test.ts`) |
 | Gerir pedidos, documentos, exportação para a ZPT e conciliação | ✔ | — | — | ✔ | — | `ce_unlock_private.actor(true)` (definição vigente na migration `250`) | ADR 0085, D11 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e P14) |
 
 ### Administrativo ativo mínimo
@@ -503,7 +503,8 @@ com allowlists e `search_path` fixo. Não há grants de tabela para o navegador.
 Portal resolve CNPJ pela sessão/conta ativa, nunca pelo payload. Administrativo
 e Documentação gerenciam; todos leem, inclusive os documentos (migration
 `250`; [matriz](#desbloqueio-de-ce)). Inspeção
-consulta pelo cliente selecionado e recusa comandos de escrita.
+consulta pelo cliente selecionado e recusa comandos de escrita; os documentos da
+solicitação e os anuais vêm a todos os setores também na Inspeção (migration `479`).
 
 `portal-ce-unlock-document` limita o corpo multipart mesmo sem Content-Length
 (leitora compartilhada `_shared/boundedMultipart.ts`, que desde a auditoria run-3

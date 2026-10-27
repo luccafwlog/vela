@@ -2,7 +2,7 @@
 
 Status: aceito — 2026-10-27 (decisão do dono, ponto 3 de
 [Pontos do dono](../manual/decisoes/pontos-do-dono.md); lote 8 do
-[plano de correções](../plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
+[plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
 Implementada na migration `476`.
 
 Supersede parcialmente a [ADR 0053](./0053-ciclo-de-vida-alerta-dispensa-temporaria.md)

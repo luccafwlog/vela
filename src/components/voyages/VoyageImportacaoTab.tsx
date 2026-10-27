@@ -77,7 +77,7 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
       {userId ? (
         <section className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-4" aria-label="Importação rápida">
           <h3 className="text-sm font-semibold text-[var(--app-strip-text)]">Importação rápida</h3>
-          <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'vehicles', 'vaziosImp']} />
+          <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'bb', 'vehicles', 'vaziosImp']} />
         </section>
       ) : null}
     </div>

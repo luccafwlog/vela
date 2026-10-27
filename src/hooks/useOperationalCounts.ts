@@ -38,6 +38,8 @@ export function useOperationalCounts(): OperationalCounts {
         .from('bls')
         .select('*', { count: 'exact', head: true })
         .eq('review_status', 'pending_review')
+        // BLR-D01 (lote 10): o número da Revisão não conta B/L cancelado.
+        .is('cancelled_at', null)
       if (error) return 0
       return count ?? 0
     },

@@ -115,3 +115,21 @@ it('saves only after the user confirms the displayed changes', async () => {
     expect(currentClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [family] })
   }
 })
+
+it('mostra o motivo da recusa do banco em vez da frase genérica (BLR-D07)', async () => {
+  mocks.rpc.mockResolvedValue({ error: { code: 'P0001', message: 'O B/L está cancelado: reative para editar.' } })
+  const { result } = renderHook(() => useBlEditForm(bl), { wrapper: makeWrapper() })
+  act(() => {
+    result.current.setField('shipper', 'Armador novo')
+    result.current.setJustification('Correção do documento')
+  })
+
+  let submitted: Promise<void> | undefined
+  act(() => {
+    submitted = result.current.handleSubmit({ preventDefault: vi.fn() } as never)
+  })
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' }))
+  await act(async () => submitted)
+  expect(mocks.showToast).toHaveBeenCalledWith('O B/L está cancelado: reative para editar.', 'error')
+})

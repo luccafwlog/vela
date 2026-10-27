@@ -320,4 +320,14 @@ describe('importContainerDates (arquivo inteiro numa chamada)', () => {
     })])
     expect(preview.conflicts.map((conflict) => [conflict.row_number, conflict.bl_id])).toEqual([[3, 'BL002'], [4, 'BL003']])
   })
+
+  it('EQU-D7: linha de B/L cancelado é recusada na prévia e não leva a data aos outros B/Ls', () => {
+    const preview = annotateContainerDates([
+      { bl_id: 'BL009', container_number: 'TCLU1111111', discharge_date: '2026-01-10', return_date: null, row_number: 2 },
+    ], [{ bl_id: 'BL009', container_number: 'TCLU1111111', voyage_id: 1, discharge_date: null, return_date: null, bl_cancelled: true }])
+    expect(preview.rows).toEqual([])
+    expect(preview.conflicts).toEqual([expect.objectContaining({
+      row_number: 2, message: 'B/L BL009 cancelado: somente leitura. Reative para corrigir.',
+    })])
+  })
 })

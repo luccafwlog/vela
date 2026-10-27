@@ -825,8 +825,8 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-I1', 'B/L lançado em duplicidade (A207)', false);`))).toEqual({ cancelled: true, reasons: [] })
     expect(localPsql(`SELECT cardinality(public.demurrage_group_bl_ids('A207-I1'));`)).toBe('0')
 
-    // A planilha traz a linha do B/L cancelado; a data vale também para o B/L ativo.
-    importContainerDates('A207-I1', [{ number: 'ADCU2070111', discharge: '2026-07-01', return: '2026-09-30' }])
+    // Desde a 478 (EQU-D7) a linha do B/L cancelado é recusada: a data entra pelo B/L ativo.
+    importContainerDates('A207-I2', [{ number: 'ADCU2070111', discharge: '2026-07-01', return: '2026-09-30' }])
     expect(containerDates('A207-I2').ADCU2070111).toEqual({ discharge: '2026-07-01', return: '2026-09-30' })
     expect(demurrageEffects('A207-I1')).toEqual([])
     expect(runWorker('A207-I%').map((effect) => [effect.entity, effect.status])).toEqual([['A207-I2', 'succeeded']])

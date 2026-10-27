@@ -53,3 +53,8 @@ it('Desvincular também atualiza o Histórico do B/L', async () => {
   expect(mocks.unlink).toHaveBeenCalledWith({ blIds: ['BL-1'], reason: 'B/L de outro Manifesto', expected: { 'BL-1': '1226501860578' } })
   expect(invalidatedKeys()).toContain('["bl-timeline"]')
 })
+
+it('a dica inclui o POL entre o que desvincula o Manifesto (CEB-D06)', () => {
+  render(<BlManifestoField blId="BL-1" voyageId={7} numero="1226501860578" />)
+  expect(screen.getByText('Mudar o POL, o POD ou a Viagem do B/L desvincula o Manifesto.')).toBeTruthy()
+})

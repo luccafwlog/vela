@@ -221,6 +221,8 @@ export type ContainerDatesCurrent = {
   voyage_id: number | null
   discharge_date: string | null
   return_date: string | null
+  /** EQU-D7 (lote 10): B/L cancelado é somente leitura; a linha é recusada na prévia. */
+  bl_cancelled?: boolean
 }
 
 export type AnnotatedContainerDatesRow = ContainerDatesImportRow & {
@@ -241,12 +243,12 @@ export type ContainerDatesPreview = {
 export async function fetchContainerDatesCurrent(rows: ContainerDatesImportRow[]): Promise<ContainerDatesCurrent[]> {
   const blIds = Array.from(new Set(rows.map((row) => row.bl_id)))
   if (!blIds.length) return []
-  type Row = { id: number; bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; bl: { voyage_id: number | null } | null }
+  type Row = { id: number; bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; bl: { voyage_id: number | null; cancelled_at: string | null } | null }
   // Em páginas (`max_rows` = 1.000): sem isso, acima de 1.000 containers o
   // resto aparecia como "não encontrado" e recusava o arquivo inteiro.
   const { rows: saved } = await fetchAllPages<Row>((from, to) => supabase
     .from('bl_containers')
-    .select('id, bl_id, container_number, discharge_date, return_date, bl:bls(voyage_id)')
+    .select('id, bl_id, container_number, discharge_date, return_date, bl:bls(voyage_id, cancelled_at)')
     .in('bl_id', blIds)
     .order('id')
     .range(from, to)
@@ -257,6 +259,7 @@ export async function fetchContainerDatesCurrent(rows: ContainerDatesImportRow[]
     voyage_id: row.bl?.voyage_id ?? null,
     discharge_date: row.discharge_date,
     return_date: row.return_date,
+    bl_cancelled: Boolean(row.bl?.cancelled_at),
   }))
 }
 
@@ -295,14 +298,23 @@ export function annotateContainerDates(rows: ContainerDatesImportRow[], current:
     if (discharges.size > 1 || returns.size > 1) group.forEach((row) => conflicting.add(row))
   }
 
+  const cancelled = new Set(annotated.filter((row) => byKey.get(makeKey(row.bl_id, row.container_number))?.bl_cancelled))
   return {
-    rows: annotated.filter((row) => !conflicting.has(row)),
-    conflicts: annotated.filter((row) => conflicting.has(row)).map((row) => ({
-      row_number: row.row_number,
-      bl_id: row.bl_id,
-      container_number: row.container_number,
-      message: 'O mesmo container aparece com datas diferentes nesta Viagem; corrija o arquivo.',
-    })),
+    rows: annotated.filter((row) => !conflicting.has(row) && !cancelled.has(row)),
+    conflicts: [
+      ...annotated.filter((row) => cancelled.has(row)).map((row) => ({
+        row_number: row.row_number,
+        bl_id: row.bl_id,
+        container_number: row.container_number,
+        message: `B/L ${row.bl_id} cancelado: somente leitura. Reative para corrigir.`,
+      })),
+      ...annotated.filter((row) => conflicting.has(row) && !cancelled.has(row)).map((row) => ({
+        row_number: row.row_number,
+        bl_id: row.bl_id,
+        container_number: row.container_number,
+        message: 'O mesmo container aparece com datas diferentes nesta Viagem; corrija o arquivo.',
+      })),
+    ],
   }
 }
 

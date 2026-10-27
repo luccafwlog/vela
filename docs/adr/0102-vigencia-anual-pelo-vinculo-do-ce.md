@@ -1,6 +1,14 @@
 # 0102 — Desbloqueio de CE: a vigência do anual vale pelo vínculo do CE Mercante
 
-Status: aceito — 2026-10-25 (decisão do responsável, ao rever as perguntas em
+> **Situação atual (2026-10-27).** As decisões 1 e 3 foram supersedidas pela
+> [ADR 0110](./0110-vip-cobre-pela-data-da-solicitacao.md) (migration `479`): o
+> anual cobre todo CE com o desbloqueio solicitado dentro da vigência, sem
+> olhar o vínculo do CE nem a importação do B/L, e o B/L com o CE vinculado
+> antes da vigência deixa de ficar de fora. A decisão 2 (o anual vencido segue
+> cobrindo; revogado ou recusado não cobre) e a limpeza da migration `457`
+> continuam valendo, pela data da solicitação. O texto abaixo é o original.
+
+Status: supersedida parcialmente (decisões 1 e 3, pela ADR 0110) — aceito em 2026-10-25 (decisão do responsável, ao rever as perguntas em
 aberto da PR luccafwlog/vela#1058). Implementada nas migrations `456` e `457`.
 
 Supersede a decisão 4 da [ADR 0101](./0101-desbloqueio-ce-prazo-e-vigencia-anual.md)

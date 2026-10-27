@@ -3,40 +3,43 @@
 ## Estado
 
 Proposto em 2026-10-27. O dono aprovou a lista e decidiu o conflito de
-ACE-D01 (opção A) no mesmo dia.
+ACE-D01 (opção A) no mesmo dia. Todos os lotes executados em 2026-10-27;
+plano arquivado na mesma mudança do lote 11. O que falta é conferência em
+staging, por lote, na tabela abaixo.
 
 | Lote | Situação |
 |---|---|
-| 1 | Executado em 2026-10-27 (migration `469`, [ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); falta conferir em staging um envio redirecionado chegando à caixa do suporte |
-| 2 | Executado em 2026-10-27 (migration `470`, [ADR 0105](../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md)); conferido no Postgres local e nos testes de tela, falta conferir as telas em staging |
+| 1 | Executado em 2026-10-27 (migration `469`, [ADR 0104](../../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); falta conferir em staging um envio redirecionado chegando à caixa do suporte |
+| 2 | Executado em 2026-10-27 (migration `470`, [ADR 0105](../../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md)); conferido no Postgres local e nos testes de tela, falta conferir as telas em staging |
 | 3 | Executado em 2026-10-27 (migration `471`); conferido no Postgres local e nos testes de tela, falta conferir em staging com um Pix real |
 | 4 | Executado em 2026-10-27 (migration `472`); conferido no Postgres local e nos testes de tela, falta conferir em staging (anexos da Disputa pelo Storage e emissão retida pelo gate) |
 | 5 | Executado em 2026-10-27 (migration `473`); conferido no Postgres local e nos testes de tela, falta conferir em staging (login com a verificação de segurança e convite pela ficha do B/L) |
 | 6 | Executado em 2026-10-27 (migration `474`); conferido no Postgres local e nos testes de tela, falta conferir em staging (Base de Clientes por setor e Cobertura de viagens com envio redirecionado) |
-| 7 | Executado em 2026-10-27 (migration `475`, [ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); conferido no Postgres local e nos testes de tela. Falta o Administrativo passar os usuários Operador para Documentação em Usuários (ACE-D13) e conferir em staging a tela de entrada de um usuário desativado |
-| 8 | Executado em 2026-10-27 (migration `476`, ADRs [0107](../adr/0107-sino-so-do-setor-responsavel.md) e [0108](../adr/0108-fim-da-dispensa-de-alertas.md)); conferido no Postgres local e nos testes de tela; falta conferir em staging o sino de cada setor |
-| 9 | Executado em 2026-10-27 (migration `477`, [ADR 0109](../adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md)); conferido no Postgres local e nos testes de tela; falta conferir em staging a janela da escala com ATA e frente em TBC |
-| 10 e 11 | Em execução |
+| 7 | Executado em 2026-10-27 (migration `475`, [ADR 0106](../../adr/0106-nome-do-autor-no-historico-para-todos.md)); conferido no Postgres local e nos testes de tela. Falta o Administrativo passar os usuários Operador para Documentação em Usuários (ACE-D13) e conferir em staging a tela de entrada de um usuário desativado |
+| 8 | Executado em 2026-10-27 (migration `476`, ADRs [0107](../../adr/0107-sino-so-do-setor-responsavel.md) e [0108](../../adr/0108-fim-da-dispensa-de-alertas.md)); conferido no Postgres local e nos testes de tela; falta conferir em staging o sino de cada setor |
+| 9 | Executado em 2026-10-27 (migration `477`, [ADR 0109](../../adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md)); conferido no Postgres local e nos testes de tela; falta conferir em staging a janela da escala com ATA e frente em TBC |
+| 10 | Executado em 2026-10-27 (migration `478`); conferido no Postgres local e nos testes de tela; falta conferir em staging a Revisão sem B/L cancelado, o alerta Cobertura Baplie / B/L com "cheio no B/L, vazio no Baplie" e o resultado da planilha de CE com faturados, retidos e pulados |
+| 11 | Executado em 2026-10-27 (migration `479`, [ADR 0110](../../adr/0110-vip-cobre-pela-data-da-solicitacao.md)); conferido no Postgres local e nos testes de tela; falta conferir em staging um pedido VIP com o CE vinculado antes da vigência e a Inspeção do Desbloqueio de CE aberta por Financeiro |
 
 **Revisão contra a staging (2026-10-27, até `c3be255`).** As mudanças que
 entraram na staging depois do mapeamento (Baplie e Taicang, migration `465`;
 lote da reunião de testes de 26/10, migrations `466` a `468`; correções da
 revisão dele; telemetria do Sentry) não contrariam nenhuma decisão deste
 plano nem os lotes 1 a 7. Mudam dois números do lote 8 (itens 3 e 6) e o
-manual, já atualizado ([atualizações da matriz](../manual/README.md#atualizações-da-matriz)).
+manual, já atualizado ([atualizações da matriz](../../manual/README.md#atualizações-da-matriz)).
 
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:
 
 - as 112 fichas de divergência do
-  [mapeamento do Manual do Operador](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md),
-  decididas na [página de decisões](../manual/decisoes/README.md) (cópia em
-  [`decisoes-2026-10-27.json`](../manual/decisoes/decisoes-2026-10-27.json));
-- os quatro [pontos do dono fora das fichas](../manual/decisoes/pontos-do-dono.md)
+  [mapeamento do Manual do Operador](../reports/2026-10-26-mapeamento-manual-do-operador.md),
+  decididas na [página de decisões](../../manual/decisoes/README.md) (cópia em
+  [`decisoes-2026-10-27.json`](../../manual/decisoes/decisoes-2026-10-27.json));
+- os quatro [pontos do dono fora das fichas](../../manual/decisoes/pontos-do-dono.md)
   (fila de Alertas, sino, fim da dispensa, chave de envio com a marca Dev).
 
 Cada ficha aparece uma vez, pela chave da página (`área:número`), com a opção
 escolhida resumida. O caso, o efeito de cada opção e o detalhe técnico estão em
-[`fichas.json`](../manual/decisoes/fichas.json).
+[`fichas.json`](../../manual/decisoes/fichas.json).
 
 ## Como executar
 
@@ -68,7 +71,7 @@ chave de envio fica só com a marca Dev (ponto 4).
 ## Lote 1 — Chave de envio e marca Dev (antes de Clientes reais)
 
 Impacto: alto. Hoje convite e senha do Portal saem ao destinatário real mesmo
-com a chave desligada. [Ponto 4](../manual/decisoes/pontos-do-dono.md).
+com a chave desligada. [Ponto 4](../../manual/decisoes/pontos-do-dono.md).
 
 1. Marca **Dev** no usuário; o usuário continua no Administrativo. Tela de
    Usuários mostra "Administrativo · Dev". ADR. Atribuição decidida pelo dono
@@ -102,7 +105,7 @@ com a chave desligada. [Ponto 4](../manual/decisoes/pontos-do-dono.md).
    Comunicado e salva modelo; contatos e Caixas seguem com três setores
    (decisão acima). Atualizar a linha "Editar contatos e Caixas de
    Comunicação; disparar Comunicado" da matriz.
-7. Atualizar [serviços externos](../operations/servicos-externos.md) (destino
+7. Atualizar [serviços externos](../../operations/servicos-externos.md) (destino
    do redirecionamento), `clientes.md`, `portal-cliente.md`, a matriz de
    permissões e a cobertura das áreas 01, 06 e 07.
 
@@ -244,7 +247,7 @@ Impacto: médio.
 
 ## Lote 8 — Alertas e sino
 
-Impacto: médio. [Pontos 2 e 3](../manual/decisoes/pontos-do-dono.md).
+Impacto: médio. [Pontos 2 e 3](../../manual/decisoes/pontos-do-dono.md).
 
 1. Sino só para o setor responsável pelo item; alerta crítico sem ninguém
    ativo no setor continua indo ao Administrativo. Exceção decidida pelo dono
@@ -349,14 +352,14 @@ Impacto: médio (alto no item VIP, que muda quem é cobrado).
 ## ADRs previstas
 
 1. Marca Dev e chave de envio que redireciona ao suporte (lote 1; ADR 0104).
-2. Sino só do setor responsável e alerta resolvido fora do sino (lote 8).
-3. Fim da dispensa de alertas (lote 8).
-4. Frente de operação vinculada a terminal até o ATA (lote 9).
-5. Cobertura do termo anual VIP pela data da solicitação (lote 11).
+2. Sino só do setor responsável e alerta resolvido fora do sino (lote 8; ADR 0107).
+3. Fim da dispensa de alertas (lote 8; ADR 0108).
+4. Frente de operação vinculada a terminal até o ATA (lote 9; ADR 0109).
+5. Cobertura do termo anual VIP pela data da solicitação (lote 11; ADR 0110).
 6. B/L misto cobra as taxas por B/L da carga solta quando o container não tem (lote 2; ADR 0105, acrescentada na execução porque TAX-D14 muda a decisão 4 da ADR 0069).
 
 ## Arquivos
 
-- Decisões: [`docs/manual/decisoes/`](../manual/decisoes/README.md).
-- Mapeamento por área: [`docs/manual/cobertura/`](../manual/cobertura/).
-- Plano do manual: [Manual do Operador](2026-10-26-manual-do-operador.md).
+- Decisões: [`docs/manual/decisoes/`](../../manual/decisoes/README.md).
+- Mapeamento por área: [`docs/manual/cobertura/`](../../manual/cobertura/).
+- Plano do manual: [Manual do Operador](../../plans/2026-10-26-manual-do-operador.md).

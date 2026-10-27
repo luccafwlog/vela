@@ -55,6 +55,8 @@ export function useReviewQueue() {
           bl_containers(id, container_number, is_imo, is_oog)`,
         )
         .eq('review_status', 'pending_review')
+        // BLR-D01 (lote 10): B/L cancelado é somente leitura e sai da fila.
+        .is('cancelled_at', null)
         .order('created_at', { ascending: false })
         .range(from, to))
 

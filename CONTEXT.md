@@ -1603,9 +1603,10 @@ Cliente nunca vê nada da ZPT.
 Condição por CNPJ em que termo e procuração anuais aprovados substituem os
 anexos de cada pedido dos B/Ls que eles cobrem, e a solicitação não passa pela
 análise. Não dispensa pagamento nem entrega por B/L; o selo VIP sem anual que
-cubra os B/Ls não dispensa nada. O anual cobre os B/Ls cujo CE Mercante foi
-vinculado dentro da vigência dele, inclusive depois de o anual vencer; não retroage. Sem anual que cubra os
-B/Ls (faltando, recusado, revogado ou com o CE vinculado fora da vigência), o VIP pede como os demais, com
+cubra os B/Ls não dispensa nada. O anual cobre todo CE cujo desbloqueio foi
+solicitado dentro da vigência dele (dia do envio da solicitação), sem olhar a importação do B/L nem o
+vínculo do CE, inclusive depois de o anual vencer. Sem anual que cubra os
+B/Ls (faltando, recusado, revogado ou com o desbloqueio solicitado fora da vigência), o VIP pede como os demais, com
 termo e procuração anexados à solicitação.
 → Regra: [Desbloqueio de CE § Requisitos e condição VIP](docs/modules/desbloqueio-ce.md#requisitos-e-condição-vip)
 

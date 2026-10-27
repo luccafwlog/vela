@@ -190,3 +190,5 @@ src/integration/portalLote5.local-pg.test.ts
 src/integration/clientesLote6.local-pg.test.ts
 src/integration/acessoLote7.local-pg.test.ts
 src/integration/alertasESinoLote8.local-pg.test.ts
+src/integration/viagensLote9.local-pg.test.ts
+src/integration/blCeBaplieLote10.local-pg.test.ts

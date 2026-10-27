@@ -176,6 +176,24 @@ function parseOperationalVoyageSummary(value: unknown): OperationalVoyageSummary
   }
 }
 
+/**
+ * O filtro "Faturamento › B/L cancelado" usa o valor `cancelled`, mas nenhum
+ * B/L grava `financial_status = 'cancelado'`: o cancelamento é `cancelled_at`.
+ * O servidor já conhece esse estado no derivado de taxas locais
+ * (`bl_local_charges_state` → `cancelled`), então a opção vira esse filtro.
+ * Combinada com outro estado de taxas locais, o resultado é vazio (os estados
+ * são exclusivos), o que mantém o filtro financeiro de igualdade.
+ */
+export function financialAndChargeArgs(filters: Pick<OperationalListFilters, 'financialStatus' | 'chargeStatus'>) {
+  const financial = filters.financialStatus || null
+  const charge = filters.chargeStatus || null
+  if (financial === 'cancelled') {
+    if (!charge || charge === 'cancelled') return { p_financial_status: null, p_charge_status: 'cancelled' }
+    return { p_financial_status: 'cancelled', p_charge_status: charge }
+  }
+  return { p_financial_status: financial, p_charge_status: charge }
+}
+
 function baseArgs(filters: OperationalListFilters) {
   return {
     p_search: filters.search?.trim() || null,
@@ -184,8 +202,7 @@ function baseArgs(filters: OperationalListFilters) {
     p_pol: filters.pol?.trim() || null,
     p_pod: filters.pod?.trim() || null,
     p_review_status: filters.reviewStatus || null,
-    p_financial_status: filters.financialStatus || null,
-    p_charge_status: filters.chargeStatus || null,
+    ...financialAndChargeArgs(filters),
     p_cargo_profile: filters.cargoProfile || null,
   }
 }

@@ -267,6 +267,11 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     insertBl('A228-M1', { container: 'ADCU2280011' })
     insertBl('A228-M2', { container: 'ADCU2280012' })
     insertBl('A228-M9', { container: 'ADCU2280019', blPod: 'A228Q' })
+    // 478 (CEB-D01): só B/L com CE entra em Manifesto; o CE entra sem os gatilhos do vínculo.
+    psql(`SET session_replication_role = replica;
+      UPDATE public.bls SET ce_mercante = CASE id WHEN 'A228-M1' THEN '228000000000911' WHEN 'A228-M2' THEN '228000000000912' ELSE '228000000000919' END
+        WHERE id IN ('A228-M1', 'A228-M2', 'A228-M9');
+      SET session_replication_role = origin;`)
 
     // Rota diferente na seleção: nada muda.
     expect(asAdmin(`SELECT public.move_bls_to_manifesto_mercante(ARRAY['A228-M1', 'A228-M9'], 'A228E00000001', 'Reemissão (A228)');`).error)
