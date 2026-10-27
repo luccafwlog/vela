@@ -2,7 +2,9 @@
 
 ## Estado
 
-Proposto em 2026-10-27, aguardando a aprovação do dono. Nada executado.
+Proposto em 2026-10-27. O dono aprovou a lista e decidiu o conflito de
+ACE-D01 (opção A) no mesmo dia, e pediu para não começar ainda: nenhum lote
+está autorizado. Nada executado.
 
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:
 
@@ -35,21 +37,14 @@ escolhida resumida. O caso, o efeito de cada opção e o detalhe técnico estão
 - O Manual do Operador descreve o sistema como está até cada lote sair; ao
   sair, a área correspondente do manual é atualizada.
 
-## Pendente de decisão do dono
+## Decisão sobre ACE-D01 e contatos (2026-10-27)
 
-**`01-acesso-admin:ACE-D01`, "ninguém deve ter impedimento de ação em
-Comunicações", conflita com `06-clientes-comunicacao:D10` (absorve ACE-D14) e
-`ACE-D04`**, que restringem contatos a Administrativo, Documentação e
-Equipamentos. Hoje a mesma restrição cobre "editar contatos e Caixas de
-Comunicação; disparar Comunicado" (`src/services/permissionMatrix.ts`).
-
-- **A (recomendada):** todos os setores leem tudo em Comunicação e disparam
-  Comunicado e salvam modelo; contatos e Caixas de Comunicação continuam só de
-  Administrativo, Documentação e Equipamentos, como D10 e ACE-D04.
-- **B:** abrir também contatos e Caixas a todos; D10 e ACE-D04 passam a ser
-  "manter aberto" em vez de restringir.
-
-A chave de envio fica fora das duas: é só da marca Dev (ponto 4).
+"Ninguém deve ter impedimento de ação em Comunicações" (`ACE-D01`) conflitava
+com `06-clientes-comunicacao:D10` (absorve ACE-D14) e `ACE-D04`, que restringem
+contatos. O dono escolheu a opção A: todos os setores leem tudo em
+Comunicação, disparam Comunicado e salvam modelo; editar contatos e Caixas de
+Comunicação continua só de Administrativo, Documentação e Equipamentos. A
+chave de envio fica só com a marca Dev (ponto 4).
 
 ## Lote 1 — Chave de envio e marca Dev (antes de Clientes reais)
 
@@ -71,8 +66,10 @@ com a chave desligada. [Ponto 4](../manual/decisoes/pontos-do-dono.md).
 5. Envio redirecionado conta como enviado em Cobertura, Régua e alertas; a
    tela troca "Em simulação" por "Redirecionado ao suporte".
 6. `ACE-D01`: todo setor lê o estado real da chave e o intervalo da Régua
-   (hoje Financeiro e Operações veem "Em simulação" e 7 dias). A parte "ação
-   em Comunicações" depende da pendência acima.
+   (hoje Financeiro e Operações veem "Em simulação" e 7 dias), dispara
+   Comunicado e salva modelo; contatos e Caixas seguem com três setores
+   (decisão acima). Atualizar a linha "Editar contatos e Caixas de
+   Comunicação; disparar Comunicado" da matriz.
 7. Atualizar [serviços externos](../operations/servicos-externos.md) (destino
    do redirecionamento), `clientes.md`, `portal-cliente.md`, a matriz de
    permissões e a cobertura das áreas 01, 06 e 07.
@@ -169,8 +166,7 @@ Impacto: alto (o que o Cliente vê e consegue fazer).
 
 ## Lote 6 — Clientes, contatos e Comunicados
 
-Impacto: alto (quem recebe o e-mail do Cliente). Depende da pendência de
-ACE-D01 acima.
+Impacto: alto (quem recebe o e-mail do Cliente).
 
 - `06-clientes-comunicacao:D10` (absorve ACE-D14) — Base de Clientes e
   Revisão só incluem ou mudam contatos para Administrativo, Documentação e
