@@ -749,9 +749,10 @@ function validateTrailers(segments: Array<ParsedSegment & { index: number }>): I
     row, field: 'eof', code: 'invalid_group', severity: 'error',
     message: `${message} O arquivo parece cortado ou incompleto; peça o Baplie de novo ao armador.`,
   })
-  // ADR 0096, decisão 1: contagem do trailer diferente do que chegou só avisa
-  // (o Baplie da COSCO 1.5 declara um segmento a menos); falta de trailer
-  // continua erro, porque aí o arquivo foi de fato cortado.
+  // ADR 0096, decisão 1: contagem do trailer diferente do que chegou só avisa;
+  // falta de trailer continua erro, porque aí o arquivo foi de fato cortado.
+  // O Baplie 1.5 (SMDG15) da COSCO declara no UNT sempre um segmento a menos
+  // que o padrão: essa diferença exata é a convenção do gerador e não avisa.
   const countWarning = (row: number, message: string) => issues.push({
     row, field: 'eof', code: 'invalid_group', severity: 'warning',
     message: `${message} Os containers lidos entram; se faltar algum, peça o Baplie de novo ao armador.`,
@@ -762,6 +763,7 @@ function validateTrailers(segments: Array<ParsedSegment & { index: number }>): I
   }
 
   let messageStart: number | null = null
+  let messageIsSmdg15 = false
   let messages = 0
   let groups = 0
   let sawUnt = false
@@ -771,6 +773,7 @@ function validateTrailers(segments: Array<ParsedSegment & { index: number }>): I
     if (segment.tag === 'UNH') {
       if (messageStart !== null) fileError(segment.index + 1, `Mensagem iniciada no segmento ${messageStart + 1} sem trailer UNT antes da seguinte.`)
       messageStart = segment.index
+      messageIsSmdg15 = (segment.components[2] ?? []).some((part) => part.trim().toUpperCase() === 'SMDG15')
       continue
     }
     if (segment.tag === 'UNT') {
@@ -782,10 +785,11 @@ function validateTrailers(segments: Array<ParsedSegment & { index: number }>): I
       const actual = segment.index - start + 1
       if (declared === null) {
         fileError(segment.index + 1, 'Trailer UNT sem a contagem de segmentos.')
-      } else if (declared !== actual) {
+      } else if (declared !== actual && !(messageIsSmdg15 && messageStart !== null && declared === actual - 1)) {
         countWarning(segment.index + 1, `O trailer UNT declara ${declared} segmentos, mas a mensagem tem ${actual}.`)
       }
       messageStart = null
+      messageIsSmdg15 = false
       continue
     }
     if (segment.tag === 'UNZ') {

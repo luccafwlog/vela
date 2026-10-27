@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Baplie: CNTCG é Taicang e o UNT da COSCO 1.5 não avisa (2026-10-27):** migration `465`,
+  sem ADR nova (faixa "Situação atual" na [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)).
+  `CNTCG` e a forma curta `TCG` passam a ser apelidos de `CNTAC` (Taicang) no banco e no app: o Baplie 1.5 do GREEN
+  PORTOCEL / 260919000000 trazia 239 containers com `LOC+6+CNTCG`, recusados por POL não
+  reconhecido. No Baplie 1.5, o UNT que declara exatamente um segmento a menos (convenção do
+  gerador da COSCO) deixa de avisar. Prova: `portCode.test.ts`, `baplieParser.test.ts`,
+  `baplieParserReaderFixes.test.ts`, `portAliasCntcgMigration.test.ts`; paridade das réguas em
+  `operationalLists.local-pg.test.ts`.
 - **Endereços de entrega do B/L original (2026-10-26):** migration `464`, sem ADR nova. No
   Desbloqueio de CE do Portal, "agência" em "B/L original · Entregue na agência" vira link para o
   modal "Onde entregar o B/L original" (era um botão que abria os endereços na faixa). A `464`

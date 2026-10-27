@@ -334,6 +334,30 @@ describe('baplieParser — Obs. 1: SMDG 1.5 e 2.2 do mesmo navio dão o mesmo st
     expect(v15.pods).toEqual(v22.pods)
   })
 
+  it('LOC+6+CNTCG do Baplie 1.5 da COSCO é Taicang (CNTAC)', () => {
+    // Recorte do GREEN PORTOCEL / 260919000000 (2026-09-28): 239 containers com POL CNTCG.
+    const parsed = parseBaplieText([
+      "UNB+UNOA:1+COSTACO_ZH+ZICTG+260928:0018+260928+++++N'",
+      "UNH+2609280018+BAPLIE:1:911:UN:SMDG15'",
+      "BGM+++9'",
+      "TDT+20+260919000000++PGDE:103::GREEN PORTOCEL:LR++COSCOSC:172:20'",
+      "LOC+5+CNZUH'",
+      "LOC+61+HKHKG'",
+      "LOC+147+0080384::5'",
+      "MEA+WT++KGM:7965'",
+      "LOC+6+CNTCG'",
+      "LOC+12+BRVIX'",
+      "LOC+83+BRVIX'",
+      "RFF+BM:1'",
+      "EQD+CN+BEAU 4559761+45G1+++5'",
+      "NAD+CA+COT:172:ZZZ'",
+      "UNT+15+2609280018'",
+      "UNZ+1+260928'",
+    ].join(''))
+    expect(parsed.issues.filter((i) => i.field === 'pol')).toEqual([])
+    expect(parsed.containers[0]).toMatchObject({ container_number: 'BEAU4559761', pol: 'CNTAC', pod: 'BRVIX' })
+  })
+
   it('RFF+BM com o próprio qualificador no lugar do número não vira B/L citado', () => {
     const unit = (rff: string) => `UNB+UNOA:2+X+Y+261020:1500+1'TDT+20+11+++:::GREEN ITAJAI'LOC+147+0010282'MEA+VGM++KGM:20000'LOC+9+CNTAO'LOC+11+BRVIX'${rff}EQD+CN+UETU7016802+45G1+++5'`
     expect(parseBaplieText(unit("RFF+BM:BM'")).containers[0].bl_ref).toBeNull()

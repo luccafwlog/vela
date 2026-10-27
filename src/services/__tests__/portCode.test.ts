@@ -60,7 +60,9 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(resolvePortCode('SPB')).toEqual({ code: 'BRIGI', recognized: true })
     expect(resolvePortCode('BRSPB')).toEqual({ code: 'BRIGI', recognized: true })
     expect(resolvePortCode('CNTCA')).toEqual({ code: 'CNTAC', recognized: true })
+    expect(resolvePortCode('CNTCG')).toEqual({ code: 'CNTAC', recognized: true })
     expect(resolvePortCode('TCA')).toEqual({ code: 'CNTAC', recognized: true })
+    expect(resolvePortCode('TCG')).toEqual({ code: 'CNTAC', recognized: true })
     expect(resolvePortCode('SEP')).toEqual({ code: 'BRIGI', recognized: true })
     expect(resolvePortCode('SEPTEMBER')).toEqual({ code: null, recognized: false })
   })
@@ -132,7 +134,7 @@ describe('Navegantes, Itajaí, Recife e Suape são quatro portos', () => {
   })
 
   // Uma régua só: os apelidos exatos do import valem igual na cópia do banco.
-  it.each(['CNCAN', 'TAO', 'VIX', 'VIT', 'BRVIT', 'SPB', 'BRSPB', 'SEP', 'CNTCA', 'TCA'])(
+  it.each(['CNCAN', 'TAO', 'VIX', 'VIT', 'BRVIT', 'SPB', 'BRSPB', 'SEP', 'CNTCA', 'CNTCG', 'TCA', 'TCG'])(
     'apelido exato %s é o mesmo porto no import e no banco',
     (alias) => {
       expect(normalizeStoredPortCode(alias)).toBe(resolvePortCode(alias).code)
