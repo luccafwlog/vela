@@ -4,7 +4,8 @@ Status: aceito — 2026-10-27 (decisão do dono, ponto 2 de
 [Pontos do dono](../manual/decisoes/pontos-do-dono.md), com a exceção do
 Financeiro decidida em 2026-10-27; lote 8 do
 [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
-Implementada na migration `476`.
+Implementada na migration `476`; a exceção do Administrativo (item 2) e a
+leitura direta do sino (item 5) vêm da `485`.
 
 Supersede parcialmente a [ADR 0034](./0034-notificacao-interna-separada-do-alerta-sino-entrega-alertas-trata.md)
 (audiência e permanência da notificação) e o item 24 da
@@ -32,26 +33,32 @@ marcar como lida, mesmo com o alerta já resolvido.
    tipos que tinham o Financeiro na audiência — PIX sem conciliação segura,
    Consulta de Pix do Itaú parada, Restituição pendente e Fatura desatualizada
    — continuam avisando também o Financeiro. Mantém o P5 da ADR 0085.
+   **Exceção do Administrativo** (decidida pelo dono em 2026-10-27, na
+   revisão da PR #1070; migration `485`): os quatro críticos da Documentação
+   — Exceção crítica de fatura do Portal, Caixa de comunicação sem
+   destinatário, Cliente sem contato principal e Contato com bounce sem
+   alternativa — avisam também o Administrativo.
 3. Alerta crítico sem ninguém ativo nesses setores continua indo ao
    Administrativo (fallback crítico).
 4. A audiência do catálogo passa a dizer o mesmo que a entrega: o
-   responsável e, nos quatro tipos, o Financeiro.
+   responsável e os setores das exceções; a entrega lê as exceções do
+   catálogo.
 5. A notificação conta no sino e no número só enquanto o item dela está
    ativo, na mesma ocorrência. Resolvido (pela origem ou por justificativa),
    sai sem a pessoa marcar como lida; reaberto, volta pela notificação nova
-   (`_internal_notification_is_current`, usado por
-   `list_internal_notifications` e `count_unread_internal_notifications`).
+   (`list_internal_notifications` e `count_unread_internal_notifications`;
+   a leitura é direta desde a `485`, sem função por notificação).
 
 ## Consequências
 
 - Pix deixa de avisar Documentação e Equipamentos; "Data da escala pendente" e
   "Data de terminal pendente" deixam de avisar Documentação; "Revisão de B/L —
-  Portal não provisionado" deixa de avisar o Administrativo; os tipos de
-  contato e Portal que avisavam Documentação e Administrativo avisam só
-  Documentação.
+  Portal não provisionado" deixa de avisar o Administrativo. Os quatro
+  críticos de contato e Portal continuam avisando Documentação e
+  Administrativo (exceção da `485`).
 - Os dois tipos do ADR continuam com um item por departamento; cada setor
   recebe o aviso do próprio item.
 - Regras de alertas mostra um só setor responsável por regra, com o
-  Financeiro como "também recebe" nos quatro tipos.
+  Financeiro e o Administrativo como "também recebe" nos tipos das exceções.
 - As notificações entregues continuam guardadas (cópia congelada); só deixam
   de aparecer no sino e no número.

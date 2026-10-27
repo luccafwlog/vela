@@ -332,8 +332,9 @@ de alertas, todas têm Documentação como responsável: `portal_pendencia_geral
 `portal_reprocessamento_falhou` e `portal_abuso_login` avisam só Documentação
 (o `portal_reprocessamento_falhou` de um evento do provedor de e-mail em
 investigação não tem B/L nem Cliente e abre os Alertas);
-`portal_excecao_critica_fatura` e `review_portal_not_ready` avisam também o
-Administrativo. Operações não recebe pendências do Portal, e o Financeiro
+`portal_excecao_critica_fatura` avisa também o Administrativo (exceção do
+dono, migration `485`; `review_portal_not_ready` avisa só Documentação desde a
+`476`, [ADR 0107](../adr/0107-sino-so-do-setor-responsavel.md)). Operações não recebe pendências do Portal, e o Financeiro
 consulta no sistema sem estar na audiência.
 
 - **Processo ativo:** o Cliente tem processo ativo enquanto tiver B/L não

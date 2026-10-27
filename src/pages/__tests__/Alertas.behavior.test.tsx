@@ -10,8 +10,9 @@ const adrLegacy = { id: 4, status: 'open', severity: 'normal', type: 'agency_rep
 const reviewCustomer = { id: 6, item_id: 106, status: 'open', severity: 'critical', type: 'review_customer_unlinked', message: 'Cliente VALE: 5 B/Ls pendentes de vínculo com cliente', entity_type: 'customer', entity_id: 'VALE', department: 'documentacao', created_at: '2026-06-15T00:00:00Z', metadata: { bl_ids: ['MEDU1234567', 'MEDU7654321'] } }
 const unlinked = { id: 8, item_id: 108, status: 'open', severity: 'critical', type: 'review_customer_unlinked', message: '', entity_type: 'customer', entity_id: 'sem_cliente', department: 'documentacao', created_at: '2026-06-15T00:00:00Z' }
 const ceChanged = { id: 7, item_id: 107, status: 'open', severity: 'critical', type: 'ce_trocado_com_desbloqueio', message: 'CE trocado depois do Desbloqueio', entity_type: 'bl', entity_id: 'BL-CE-1', department: 'documentacao', created_at: '2026-06-14T00:00:00Z' }
+const itauStalled = { id: 9, item_id: 109, status: 'open', severity: 'critical', type: 'itau_pix_consulta_parada', message: 'Consulta Itaú parada há 20 minutos', entity_type: 'itau_pix_checkpoint', entity_id: 'itau_pix_polled_until', department: 'administrativo', created_at: '2026-06-13T00:00:00Z' }
 
-const ACTIVE = [open, portalInvoice, adrLegacy, reviewCustomer, unlinked, ceChanged]
+const ACTIVE = [open, portalInvoice, adrLegacy, reviewCustomer, unlinked, ceChanged, itauStalled]
 const summary = [
   { department: 'documentacao', active_count: 4, is_legacy: false },
   { department: 'administrativo', active_count: 0, is_legacy: false },
@@ -74,7 +75,7 @@ it('cartões contam a fila pelo resumo por setor e filtram os críticos; não h�
   renderAlertas()
 
   expect(screen.getByRole('button', { name: /Ativos\s*6/ })).toBeTruthy()
-  expect(screen.getByRole('button', { name: /Críticos\s*4/ })).toBeTruthy()
+  expect(screen.getByRole('button', { name: /Críticos\s*5/ })).toBeTruthy()
   expect(screen.queryByRole('button', { name: /Dispensados/ })).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: /Críticos/ }))
@@ -137,6 +138,17 @@ it('A23: nos alertas de conferência sem fato de origem, "Resolver" abre a justi
     confirmLabel: 'Resolver',
   })))
   expect(navigate).not.toHaveBeenCalled()
+})
+
+it('ALE-D05: "Consulta de Pix do Itaú parada" resolve com justificativa e mantém o atalho para a Conciliação', async () => {
+  confirmWithReason.mockResolvedValue(null)
+  renderAlertas()
+
+  const row = rowOf('Consulta Itaú parada há 20 minutos')
+  fireEvent.click(within(row).getByRole('button', { name: /^Abrir Conciliação/ }))
+  expect(navigate).toHaveBeenCalledWith('/reconciliacao?tab=pendencias')
+  fireEvent.click(within(row).getByRole('button', { name: /^Resolver / }))
+  await waitFor(() => expect(confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Resolver com justificativa' })))
 })
 
 // Ponto 9: a lista colada casa também os B/Ls que o alerta guarda em metadata (alerta por Cliente ou escala).

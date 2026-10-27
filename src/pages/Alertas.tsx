@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { RotateCcw, Wrench } from 'lucide-react'
+import { ArrowUpRight, RotateCcw, Wrench } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { RowActionButton } from '../components/ui/RowActionButton'
@@ -473,7 +473,11 @@ function AlertActions({ alert, isMutating, onResolve, onReprocess, onNavigate, i
   const reprocess = retryTarget !== null
   const reprocessing = retryTarget?.reprocessing === true
   const byJustification = !reprocess && Boolean(alert.item_id) && canResolveWithJustification(effectiveType, alert.entity_type)
-  const link = byJustification || reprocess ? null : alertEntityLink(alert)
+  const placeLink = reprocess ? null : alertEntityLink(alert)
+  const link = byJustification ? null : placeLink
+  // Tipos com justificativa que também levam a uma tela (Consulta de Pix do
+  // Itaú parada → Conciliação, ALE-D05): o atalho fica ao lado de Resolver.
+  const justifiedPlace = byJustification && placeLink && placeLink !== '/alertas' ? placeLink : null
   if (iconOnly) {
     const of = subject ? ` ${subject}` : ''
     const slot = <span className="app-btn--icon inline-block" aria-hidden="true" />
@@ -482,7 +486,10 @@ function AlertActions({ alert, isMutating, onResolve, onReprocess, onNavigate, i
         {reprocess ? (
           <RowActionButton label={reprocessing ? `Reprocessando…${of}` : `Reprocessar${of}`} icon={RotateCcw} title={reprocessing ? 'Reprocessando… o alerta fecha quando o efeito concluir' : 'Reprocessar o efeito com justificativa'} onClick={() => onReprocess(alert)} disabled={isMutating || reprocessing} />
         ) : byJustification ? (
-          <RowActionButton label={`Resolver${of}`} icon={Wrench} title="Resolver com justificativa" onClick={() => onResolve(alert)} disabled={isMutating} />
+          <>
+            {justifiedPlace ? <RowActionButton label={`${alertEntityLinkLabel(alert)}${of}`} icon={ArrowUpRight} title={alertEntityLinkLabel(alert)} onClick={() => onNavigate(justifiedPlace)} /> : null}
+            <RowActionButton label={`Resolver${of}`} icon={Wrench} title="Resolver com justificativa" onClick={() => onResolve(alert)} disabled={isMutating} />
+          </>
         ) : link ? (
           <RowActionButton label={`Resolver${of}`} icon={Wrench} title={alertEntityLinkLabel(alert)} onClick={() => onNavigate(link)} />
         ) : slot}
@@ -496,9 +503,16 @@ function AlertActions({ alert, isMutating, onResolve, onReprocess, onNavigate, i
           {reprocessing ? 'Reprocessando…' : 'Reprocessar'}
         </Button>
       ) : byJustification ? (
-        <Button variant="secondary" className="min-w-24" onClick={() => onResolve(alert)} disabled={isMutating} title="Resolver com justificativa">
-          Resolver
-        </Button>
+        <>
+          {justifiedPlace ? (
+            <Button variant="secondary" onClick={() => onNavigate(justifiedPlace)} title={alertEntityLinkLabel(alert)}>
+              {alertEntityLinkLabel(alert)}
+            </Button>
+          ) : null}
+          <Button variant="secondary" className="min-w-24" onClick={() => onResolve(alert)} disabled={isMutating} title="Resolver com justificativa">
+            Resolver
+          </Button>
+        </>
       ) : link ? (
         <Button variant="secondary" className="min-w-24" onClick={() => onNavigate(link)} title={alertEntityLinkLabel(alert)}>
           Resolver

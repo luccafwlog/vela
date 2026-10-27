@@ -68,6 +68,11 @@ const CATALOG_UPDATE_MIGRATIONS = [
 // setor responsável, com a exceção do Financeiro).
 const AUDIENCE_RESET_MIGRATION = '476_alertas_e_sino_decididos_pelo_dono.sql'
 
+// Migrations posteriores ao reset que acrescentam setores avisados a tipos
+// listados (`SET audience_departments = ARRAY[...] WHERE type IN (...)`).
+const AUDIENCE_EXCEPTION_MIGRATIONS = ['485_alertas_ajustes_da_revisao.sql']
+const AUDIENCE_IN_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\]\s+WHERE\s+type\s+IN\s*\(([^)]*)\)/gi
+
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
 
 // A coluna `active` opcional (`, true`) aparece nas linhas da migration 008.
@@ -131,6 +136,18 @@ export function readSqlAlertCatalog(): SqlAlertCatalogEntry[] {
     for (const entry of entries.values()) {
       const keepsFinanceiro = entry.audienceDepartments.includes('financeiro') && entry.responsibleDepartment !== 'financeiro'
       entry.audienceDepartments = [entry.responsibleDepartment, ...(keepsFinanceiro ? ['financeiro'] : [])]
+    }
+  }
+
+  // Migration 485 (decisão do dono): os quatro críticos da Documentação
+  // avisam também o Administrativo.
+  for (const fileName of AUDIENCE_EXCEPTION_MIGRATIONS) {
+    for (const match of readMigration(fileName).matchAll(AUDIENCE_IN_PATTERN)) {
+      const audience = Array.from(match[1].matchAll(/'([a-z_]+)'/g), (item) => item[1])
+      for (const type of match[2].matchAll(/'([a-z0-9_]+)'/g)) {
+        const entry = entries.get(type[1])
+        if (entry) entry.audienceDepartments = audience
+      }
     }
   }
 

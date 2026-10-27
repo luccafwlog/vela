@@ -3,7 +3,8 @@
 Status: aceito — 2026-10-27 (decisão do dono, ponto 3 de
 [Pontos do dono](../manual/decisoes/pontos-do-dono.md); lote 8 do
 [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
-Implementada na migration `476`.
+Implementada na migration `476`; o prazo de 24 horas e a outra causa da
+rotina (item 3) vêm da `485`.
 
 Supersede parcialmente a [ADR 0053](./0053-ciclo-de-vida-alerta-dispensa-temporaria.md)
 (dispensa temporária) e a [ADR 0034](./0034-notificacao-interna-separada-do-alerta-sino-entrega-alertas-trata.md)
@@ -36,8 +37,13 @@ sem saída enquanto a causa externa continua.
    (`email_retorno_provedor_silencioso`), Rotina agendada com resposta de erro
    (`rotina_http_falhou`) e Fila de efeitos de importação parada
    (`import_effects_queue_stalled`) — ganham **Resolver com justificativa**.
-   Resolvido assim, o alerta não reabre enquanto a mesma causa continua; reabre
-   quando a causa some (a varredura registra o fim pela origem) e volta.
+   Resolvido assim, o alerta não reabre pela mesma causa por **24 horas**
+   (decisão do dono de 2026-10-27, revisão da PR #1070); reabre antes quando a
+   causa some (a varredura registra o fim pela origem) e volta, e, depois das
+   24 horas, se a causa ainda estiver lá. Na Rotina agendada com resposta de
+   erro, que junta todas as rotinas num registro só, um tipo de falha que não
+   estava na justificativa (outro código HTTP, tempo esgotado, fila parada)
+   reabre na hora (`_alert_cause_within_justified`, migration `485`).
 4. A resolução com justificativa grava também uma linha no Histórico de ações
    (assunto Alerta), com autor e justificativa.
 

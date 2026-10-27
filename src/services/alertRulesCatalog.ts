@@ -21,14 +21,15 @@ export type AlertRule = {
    */
   responsibleDepartments: AlertRuleDepartment[]
   /**
-   * Espelha `alert_type_catalog.audience_departments` (migration 476): o
-   * setor responsável e, nos quatro tipos da exceção do dono, o Financeiro.
+   * Espelha `alert_type_catalog.audience_departments` (migrations 476 e
+   * 485): o setor responsável e as exceções do dono — o Financeiro nos quatro
+   * tipos do dinheiro e o Administrativo nos quatro críticos da Documentação.
    */
   catalogAudience: AlertRuleDepartment[]
   /**
    * Derivado: quem recebe a notificação interna. Desde a migration 476 o sino
-   * é do setor responsável pelo item (`fanout_alert_item_for_department`);
-   * o Financeiro segue avisado nos tipos em que está na audiência.
+   * é do setor responsável pelo item (`fanout_alert_item_for_department`),
+   * mais os setores das exceções da audiência do catálogo.
    */
   notifiedDepartments: AlertRuleDepartment[]
   routingNote?: string
@@ -67,6 +68,8 @@ export const ALERT_RULE_DEPARTMENT_LABELS: Record<AlertRuleDepartment, string> =
 
 const derivedResolution = 'O alerta é fechado automaticamente quando a origem é corrigida e a reconciliação confirma que a pendência deixou de existir.'
 // Conferência sem fato de origem (ADR 0083, item 23; migration 238).
+// Tipos de origem externa (migrations 476 e 485): fecham sozinhos ou com justificativa.
+const heldResolution = `${derivedResolution} Quando a origem não pode ser corrigida pela equipe (por exemplo, o fornecedor fora do ar), use Resolver na fila com a justificativa: o alerta não reabre pela mesma causa por 24 horas, volta antes se a causa sumir e reaparecer e, na rotina agendada, volta na hora se aparecer outro tipo de falha.`
 const justifiedResolution = 'Depois de conferir, use Resolver na fila: a justificativa é obrigatória e fica no histórico do alerta com o seu nome.'
 
 // Ordem canônica dos departamentos do ADR no detector SQL
@@ -254,7 +257,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Conferir se o processamento automático está ligado; rodar a simulação do acumulado antes de processar.',
     destination: '/alertas',
     destinationLabel: 'Abrir Alertas',
-    afterResolution: derivedResolution,
+    afterResolution: heldResolution,
   },
   {
     type: 'itau_pix_consulta_parada',
@@ -269,7 +272,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Usar o plano B (Conciliar extrato) e avisar o suporte da consulta parada.',
     destination: '/reconciliacao',
     destinationLabel: 'Abrir Conciliação',
-    afterResolution: derivedResolution,
+    afterResolution: heldResolution,
   },
   {
     type: 'demurrage_invoice_dates_changed',
@@ -368,7 +371,7 @@ const ALERT_RULES_BASE = [
     domain: 'Financeiro',
     responsible: 'administrativo',
     catalogAudience: ['administrativo', 'financeiro'],
-    routingNote: 'Administrativo e Financeiro tratam na fila, porque conciliar o PIX é deles (migration 247); Documentação e Equipamentos também recebem a notificação interna, porque o PIX pode se referir a uma invoice de Demurrage.',
+    routingNote: 'Administrativo e Financeiro tratam na fila e recebem o aviso, porque conciliar o PIX é deles (migration 247; exceção do Financeiro, migration 476).',
     entityType: 'pix_transaction',
     severity: 'critical',
     summary: 'Um PIX não encontrou uma correspondência segura com a cobrança esperada.',
@@ -473,7 +476,8 @@ const ALERT_RULES_BASE = [
     type: 'cliente_contato_bounced_sem_alternativa',
     domain: 'Portal',
     responsible: 'documentacao',
-    catalogAudience: ['documentacao'],
+    // Exceção do dono (migration 485): crítico da Documentação que avisa também o Administrativo.
+    catalogAudience: ['documentacao', 'administrativo'],
     entityType: 'customer',
     severity: 'critical',
     summary: 'O cliente perdeu todos os contatos válidos após bounce permanente e não possui endereço alternativo.',
@@ -489,7 +493,8 @@ const ALERT_RULES_BASE = [
     type: 'caixa_sem_destinatario',
     domain: 'Portal',
     responsible: 'documentacao',
-    catalogAudience: ['documentacao'],
+    // Exceção do dono (migration 485): crítico da Documentação que avisa também o Administrativo.
+    catalogAudience: ['documentacao', 'administrativo'],
     entityType: 'customer',
     severity: 'critical',
     summary: 'Uma Caixa de Comunicação do Cliente ficou sem destinatário elegível: os Comunicados dessa caixa não têm para quem ir.',
@@ -505,7 +510,8 @@ const ALERT_RULES_BASE = [
     type: 'cliente_sem_contato_principal',
     domain: 'Portal',
     responsible: 'documentacao',
-    catalogAudience: ['documentacao'],
+    // Exceção do dono (migration 485): crítico da Documentação que avisa também o Administrativo.
+    catalogAudience: ['documentacao', 'administrativo'],
     entityType: 'customer',
     severity: 'critical',
     summary: 'O Cliente não tem contato principal ativo e um B/L trouxe um e-mail que está desativado no cadastro.',
@@ -521,7 +527,8 @@ const ALERT_RULES_BASE = [
     type: 'portal_excecao_critica_fatura',
     domain: 'Portal',
     responsible: 'documentacao',
-    catalogAudience: ['documentacao'],
+    // Exceção do dono (migration 485): crítico da Documentação que avisa também o Administrativo.
+    catalogAudience: ['documentacao', 'administrativo'],
     entityType: 'bl',
     severity: 'critical',
     summary: 'Uma invoice foi emitida sem que o Portal do cliente estivesse apto a recebê-la.',
@@ -631,7 +638,6 @@ const ALERT_RULES_BASE = [
     domain: 'Operação',
     responsible: 'operacoes',
     catalogAudience: ['operacoes'],
-    routingNote: 'Operações é o setor responsável na fila; Documentação também recebe a notificação interna, porque a audiência do tipo no catálogo SQL inclui os dois setores.',
     entityType: 'voyage_pod_schedule',
     severity: 'normal',
     summary: 'Uma escala ainda não tem a data compartilhada que o ciclo operacional espera.',
@@ -647,7 +653,6 @@ const ALERT_RULES_BASE = [
     domain: 'Operação',
     responsible: 'operacoes',
     catalogAudience: ['operacoes'],
-    routingNote: 'Operações é o setor responsável na fila; Documentação também recebe a notificação interna, porque a audiência do tipo no catálogo SQL inclui os dois setores.',
     entityType: 'voyage_escala_terminal',
     severity: 'normal',
     summary: 'Uma atracação ainda não tem as datas próprias do terminal completas.',
@@ -769,7 +774,7 @@ const ALERT_RULES_BASE = [
     responsible: 'documentacao',
     responsibleDepartments: AGENCY_REPORT_DEPARTMENTS,
     catalogAudience: ['documentacao'],
-    routingNote: `O detector abre um item por departamento com seção pendente, e cada setor trata o próprio item: ${agencyReportOwnershipSentence()}. Documentação também é notificada dos itens de Operações e Equipamentos, porque a audiência fixa do tipo no catálogo SQL é Documentação.`,
+    routingNote: `O detector abre um item por departamento com seção pendente, e cada setor trata o próprio item: ${agencyReportOwnershipSentence()}.`,
     entityType: 'agency_departure_report',
     severity: 'normal',
     summary: 'Uma seção do ADR ainda aguarda a decisão do departamento responsável.',
@@ -786,7 +791,7 @@ const ALERT_RULES_BASE = [
     responsible: 'documentacao',
     responsibleDepartments: AGENCY_REPORT_DEPARTMENTS,
     catalogAudience: ['documentacao'],
-    routingNote: `O prazo é cobrado por departamento: cada setor recebe o próprio alerta enquanto não registrar o sign-off do ADR (${agencyReportOwnershipSentence()}). Documentação também é notificada dos itens de Operações e Equipamentos, porque a audiência fixa do tipo no catálogo SQL é Documentação.`,
+    routingNote: `O prazo é cobrado por departamento: cada setor recebe o próprio alerta enquanto não registrar o sign-off do ADR (${agencyReportOwnershipSentence()}).`,
     entityType: 'agency_departure_report',
     severity: 'critical',
     summary: 'O prazo de conclusão do ADR venceu com um departamento ainda sem sign-off.',
@@ -826,7 +831,7 @@ const ALERT_RULES_BASE = [
     timing: 'Abre na rodada dos detectores (a cada 15 min); fecha sozinho na hora em que chega qualquer evento do provedor.',
     resolution: 'Conferir na MillionSend se o webhook está ativo e entregando, e se o segredo RESEND_WEBHOOK_SECRET do Supabase é o do webhook (manual de serviços externos).',
     destination: '/alertas', destinationLabel: 'Abrir Alertas',
-    afterResolution: derivedResolution,
+    afterResolution: heldResolution,
   },
   {
     type: 'usuario_email_devolvido', domain: 'Portal', responsible: 'administrativo',
@@ -847,7 +852,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Pelo horário no alerta, achar a rotina em cron.job_run_details ou, na chamada pelo evento, pelo id do pedido em ops.edge_job_kicks (last_request_id), e conferir o segredo dela no Vault e na Edge Function (segredos do cron).',
     destination: '/alertas', destinationLabel: 'Abrir Alertas',
     destinationNote: 'O pg_net não guarda qual rotina fez a chamada: o alerta mostra horário e status, não o nome do job.',
-    afterResolution: derivedResolution,
+    afterResolution: heldResolution,
   },
 ] satisfies AlertRuleDraft[]
 
@@ -860,8 +865,8 @@ export const ALERT_RULES: AlertRule[] = ALERT_RULES_BASE.map((rule) => {
   return {
     ...rule,
     responsibleDepartments,
-    // Espelha `fanout_alert_item_for_department` (migration 476): o setor do
-    // item e, na exceção do dono, o Financeiro da audiência.
+    // Espelha `fanout_alert_item_for_department` (migrations 476 e 485): o
+    // setor do item e as exceções da audiência do catálogo.
     notifiedDepartments: sortDepartments([...rule.catalogAudience, ...responsibleDepartments]),
     label: TYPE_LABELS[rule.type],
     // Mantém o rótulo técnico em um único lugar e permite que a busca encontre

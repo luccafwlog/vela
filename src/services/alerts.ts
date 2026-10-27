@@ -578,6 +578,7 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType === 'bl_sem_cliente_perto_eta') return 'Abrir Revisão'
   if (effectiveType.startsWith('review_')) return 'Revisar B/Ls'
   if (alert.entity_type === 'pix_transaction') return 'Abrir Reconciliação'
+  if (alert.entity_type === 'itau_pix_checkpoint' || alert.entity_type === 'itau_pix_receipt_failure') return 'Abrir Conciliação'
   if (alert.entity_type === 'portal_email_event') return 'Abrir Alertas'
   if (alert.entity_type === 'customer') return 'Abrir Portal'
   if (alert.entity_type === 'invoice') return 'Ver Fatura'
