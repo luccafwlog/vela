@@ -1,5 +1,12 @@
 # 0096 — Baplie: contagem do trailer só avisa, número da viagem não é conferido e não há "outro armador"
 
+> **Situação atual (2026-10-27).** Decisão 1 refinada sem migration: no
+> Baplie 1.5 (SMDG15), o UNT que declara exatamente um segmento a menos do que
+> chegou é a convenção do gerador da COSCO e não avisa mais (o aviso aparecia
+> em todo arquivo 1.5 sem indicar perda). Outras diferenças continuam só
+> avisando; falta de UNT ou UNZ continua erro. Regra viva em
+> [Manifestos e EDI](../modules/manifesto-edi.md).
+
 Status: aceito — 2026-10-22 (decisões do responsável). Implementada na
 migration `409` e no leitor e na prévia do Baplie.
 
