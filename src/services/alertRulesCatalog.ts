@@ -836,7 +836,8 @@ const ALERT_RULES_BASE = [
   {
     type: 'fatura_desatualizada', domain: 'Financeiro', responsible: 'administrativo',
     responsibleDepartments: ['administrativo', 'financeiro'],
-    catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'normal',
+    // Crítico desde a migration 467 (reunião de testes de 2026-10-26).
+    catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'critical',
     summary: 'A correção do B/L mudou a cobrança de uma fatura e o sistema não conseguiu resolver sozinho.',
     trigger: 'Correção do B/L em fatura com pagamento que aumenta o valor, troca o Cliente ou precisa de revisão; ou reemissão automática travada.',
     timing: 'No fim da transação da correção.',

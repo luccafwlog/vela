@@ -112,6 +112,10 @@ export function PortalBilling() {
   const demurrageInvoiceCount = demurrageInvoicesQuery.data?.totalCount ?? 0
 
   const detailQuery = usePortalInvoiceDetail(selectedInvoiceId)
+  // Individual coberta: a forma e a data do pagamento vêm da consolidada que a cobriu.
+  // ponytail: uma leitura a mais por abertura; se pesar, portal_invoice_details devolve os pagamentos dela.
+  const coveredInvoice = detailQuery.data?.invoice
+  const coveringQuery = usePortalInvoiceDetail(coveredInvoice?.status === 'covered' ? coveredInvoice.covered_by_invoice_id ?? null : null)
   const demurrageDetailQuery = usePortalDemurrageInvoiceDetail(selectedDemurrageId)
   const trackedInvoiceViews = useRef(new Set<string>())
 
@@ -371,6 +375,7 @@ export function PortalBilling() {
         onPrint={() => setPrintOpen(true)}
         onPrintReceipt={() => setReceiptOpen(true)}
         onOpenInvoice={setSelectedInvoiceId}
+        coveringPayments={coveringQuery.data?.payments}
       />
       {printOpen && detailQuery.data?.invoice ? (
         <Modal open onClose={() => setPrintOpen(false)} title={`Imprimir fatura ${detailQuery.data.invoice.invoice_number ?? ''}`}>
