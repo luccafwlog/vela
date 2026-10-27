@@ -3,7 +3,7 @@
 Status: aceito — 2026-10-27 (decisão do dono sobre `02-viagens-adr:13`,
 resposta "outra": TBC não é terminal; lote 9 do
 [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
-Implementada na migration `477`.
+Implementada nas migrations `477` e `482`.
 
 Supersede parcialmente a [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md)
 (nota de 2026-08-24, item 1: a Atracação "pode existir sem terminal (TBC)").
@@ -32,14 +32,25 @@ Concluída. Não havia prazo para a frente ganhar terminal.
 3. A Atracação TBC vazia sai assim que nenhuma frente fica em TBC; ela não
    segura a conclusão da escala nem da Viagem. As existentes foram apagadas
    pela migration `477` (afirmação "Data status" do `AGENTS.md`).
+4. **A Atracação TBC não tem datas realizadas** (decisão do dono de
+   2026-10-27, revisão da PR #1070; migration `482`). TBC é só "terminal a
+   confirmar": o banco recusa ATB, ATD e Restow numa Atracação sem terminal,
+   antes ou depois do ATA ("TBC não é terminal: ATB, ATD e Restow só na
+   atracação de um terminal. Escolha o terminal antes de informar as
+   datas."). ETB e ETD estimadas continuam. As TBC que tinham esses campos
+   os perderam na `482`.
+5. A Atracação TBC não tem documento próprio: sai sem a trava de CE, fatura
+   ou ADR fechado do porto. A regra do ATA e a saída da TBC valem também na
+   gravação v1 (`save_voyage_escala_terminal_state`, usada pela declaração de
+   exportação), desde a `482`.
 
 ## Consequências
 
-- Antes do ATA, a frente pode continuar em TBC, e a Atracação TBC guarda a
-  previsão de berço como antes.
+- Antes do ATA, a frente pode continuar em TBC, e a Atracação TBC guarda só
+  a previsão de berço (ETB e ETD).
 - A conclusão da Viagem depende só das Atracações com terminal.
-- Remover a Atracação TBC na gravação da escala vale para todos os setores;
-  remover Atracação com terminal continua com Operações e o Administrativo e
-  com a trava por CE, ADR e B/L.
+- Remover a Atracação TBC na gravação da escala vale para todos os setores e
+  não passa pela trava; remover Atracação com terminal continua com Operações
+  e o Administrativo e com a trava por CE, ADR e B/L.
 
 Regra vigente: [Viagens](../modules/viagens.md).
