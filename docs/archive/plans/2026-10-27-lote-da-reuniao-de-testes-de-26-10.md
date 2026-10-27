@@ -6,9 +6,25 @@ abaixo.
 
 ## Estado
 
-Nada executado. Entrega prevista: uma branch e uma PR contra `staging`, com um
-commit por bloco, na ordem deste plano. Os blocos 1 a 3 são independentes entre
-si; o bloco 4 é o maior e fica por último.
+Executado em 2026-10-27 na branch `claude/tender-rubin-xxf52l`, um commit por
+bloco, na ordem deste plano: bloco 1 (migration `466`), bloco 2 (migration
+`467`), bloco 3 (só tela) e bloco 4 (migration `468`). Arquivado no mesmo
+change. Verificado no Postgres 16 local (todas as migrations aplicadas e as
+suítes local-pg) e nos checks do [AGENTS.md](../../../AGENTS.md); não aplicado em
+produção, o que acontece depois do merge na `main`.
+
+Diferenças do executado em relação ao planejado:
+
+- **Bloco 4, onde se declara:** a declaração "Esta viagem não terá veículos"
+  ficou só na tela Veículos (estado vazio da viagem), para onde o alerta leva;
+  as ações de importação da Viagem continuam só com "Importar veículos".
+- **Bloco 4, registro:** tabela própria `voyage_vehicle_declarations` (uma
+  linha por viagem), lida pela tela por `voyage_vehicle_declaration`.
+- **Bloco 4, destino do alerta:** o destino por item não é gravado (o gatilho
+  do catálogo o limpa); `alertEntityLink` leva o tipo a `/veiculos?voyage=<id>`.
+- **Tipos:** `src/types/database.ts` não foi regenerado. As RPCs novas são
+  chamadas como `rpc('nome' as never)`, com a resposta conferida no serviço,
+  como em `customerCommunications.ts`; a pendência de autorização caiu.
 
 ## Decisões do dono (2026-10-27)
 
@@ -21,10 +37,10 @@ si; o bloco 4 é o maior e fica por último.
    Portal Fwlog, que passa a dizer "Paga, coberta pela fatura X".
 3. **Planilha de Veículos:** só o alerta. A emissão pelo CE continua como hoje;
    se o CE for vinculado antes da resposta de Equipamentos, a fatura sai e a
-   correção segue a [ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md).
+   correção segue a [ADR 0077](../../adr/0077-fatura-emitida-nao-muda-de-valor.md).
 
 "Injeção" da ata é **isenção**: B/L de container com veículo em LCL é isento de
-Taxas Locais ([Taxas Locais](../modules/taxas-locais.md)); sem a planilha, o CE
+Taxas Locais ([Taxas Locais](../../modules/taxas-locais.md)); sem a planilha, o CE
 vinculado emite a fatura cheia.
 
 ## Bloco 1 — Desbloqueio de CE: Portal e e-mails ao cliente (pontos 3, 4 e 7)
@@ -34,7 +50,7 @@ vinculado emite a fatura cheia.
 **Hoje.** `ce_unlock_private.sla_deadline` (migration `161`) e
 `src/services/ceUnlockSla.ts` dão 12:30 do próximo dia útil para início a partir
 das 12:00 (D16 da spec arquivada
-[2026-10-07](../archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md)).
+[2026-10-07](../specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md)).
 
 **Muda para.** 12:00 do próximo dia útil, nos dois lados. O prazo é calculado na
 leitura, não gravado: as solicitações abertas e a medição das exportações
@@ -45,7 +61,7 @@ horário novo.
 - Migration nova: `CREATE OR REPLACE` de `ce_unlock_private.sla_deadline`.
 - `ceUnlockSla.ts`: `AFTERNOON_DEADLINE` 12:00 e comentário do cabeçalho.
 - Testes: `ceUnlockSla.test.ts` e a paridade SQL × tela citada em
-  [Desbloqueio de CE § Prazo (SLA)](../modules/desbloqueio-ce.md#prazo-sla).
+  [Desbloqueio de CE § Prazo (SLA)](../../modules/desbloqueio-ce.md#prazo-sla).
 
 ### 1.2 Prazos visíveis no Portal
 
@@ -95,9 +111,9 @@ leva `PORTAL_SUPPORT_EMAIL`. O Comunicado de CE Mercante e Taxas já usa
 - E-mails de acesso ao Portal, Resumo diário e falha de entrega continuam com
   `suporte@portalfwlog.com.br`.
 - Testes: `ceUnlockNotifyEmail.test.ts`, `emailsSemDominioAntigo.test.ts`.
-- Docs: [Serviços externos](../operations/servicos-externos.md) (tabela "Resposta
+- Docs: [Serviços externos](../../operations/servicos-externos.md) (tabela "Resposta
   vai para" e o parágrafo do ImprovMX) e
-  [Desbloqueio de CE § Avisos ao cliente](../modules/desbloqueio-ce.md#avisos-ao-cliente).
+  [Desbloqueio de CE § Avisos ao cliente](../../modules/desbloqueio-ce.md#avisos-ao-cliente).
 
 **Pronto quando** o prazo da tela e o do aviso batem nos mesmos casos com
 12:00, o Portal mostra a linha dos prazos, nenhum texto ao cliente cita
@@ -117,7 +133,7 @@ recibo são os da consolidada." (`PaymentSummary` em
 forma e a data do pagamento da consolidada (ex.: "Pix em 26/10/2026"; mais de
 uma forma, todas, separadas por vírgula). **Abrir INV-X** continua. Sem recibo
 próprio, como hoje. Lista, filtro e situação na faixa continuam "Coberta"
-([decisão de 2026-10-08](../modules/faturamento.md), migration `162`).
+([decisão de 2026-10-08](../../modules/faturamento.md), migration `162`).
 
 - A forma e a data vêm do detalhe da consolidada, já autorizado para o mesmo
   Cliente: `usePortalInvoiceDetail(covered_by_invoice_id)` só quando a
@@ -127,9 +143,9 @@ próprio, como hoje. Lista, filtro e situação na faixa continuam "Coberta"
   pela fatura INV-X".
 - Conferir o Modo Inspeção do Portal, que usa os wrappers `portal_inspect_*`.
 - Teste do modal com a individual coberta (com e sem a consolidada carregada).
-- Docs: [Portal do Cliente](../modules/portal-cliente.md) (parágrafo "Detalhe da
+- Docs: [Portal do Cliente](../../modules/portal-cliente.md) (parágrafo "Detalhe da
   fatura de Taxas Locais") e a frase do Portal em
-  [Faturamento](../modules/faturamento.md) sobre `covered`.
+  [Faturamento](../../modules/faturamento.md) sobre `covered`.
 
 ### 2.2 Alerta "Fatura desatualizada" passa a Crítico
 
@@ -141,7 +157,7 @@ Alertas e no sino; os alertas abertos também.
   gravidade do catálogo). O cabeçalho cita o "Data status" do `AGENTS.md`,
   exigido por `npm run migrations:check` para migration que reescreve linhas.
 - `src/services/alertRulesCatalog.ts`: `severity: 'critical'`.
-- Docs: [Operação e Suporte](../modules/operacao-suporte.md), se citar a
+- Docs: [Operação e Suporte](../../modules/operacao-suporte.md), se citar a
   gravidade.
 
 **Pronto quando** o cliente vê "Paga, coberta pela fatura X" no detalhe da
@@ -165,7 +181,7 @@ Crítico.
   botões da linha) segue o mesmo formato, sem o risco.
 
 - Testes do helper e da aba para os dois casos.
-- Docs: [Viagens](../modules/viagens.md) (aba Rotas e Manifestos).
+- Docs: [Viagens](../../modules/viagens.md) (aba Rotas e Manifestos).
 
 **Pronto quando** as duas rotas aparecem como acima numa viagem com omissão,
 uma com B/L em transbordo e outra com B/L em COD.
@@ -219,10 +235,10 @@ uma com B/L em transbordo e outra com B/L em COD.
 - `src/pages/Veiculos.tsx` e `src/components/shared/VoyageImportActions.tsx`.
 - `src/types/database.ts` para a RPC nova: arquivo protegido, **regenerar exige
   autorização explícita do dono** (ver Pendências).
-- Docs: [Operação e Suporte](../modules/operacao-suporte.md) (parágrafo do
-  alerta), [Manifestos & EDI § /veiculos](../modules/manifesto-edi.md#veiculos),
-  [Viagens](../modules/viagens.md) (Linha do Tempo) e
-  [RASTREABILIDADE](../RASTREABILIDADE.md).
+- Docs: [Operação e Suporte](../../modules/operacao-suporte.md) (parágrafo do
+  alerta), [Manifestos & EDI § /veiculos](../../modules/manifesto-edi.md#veiculos),
+  [Viagens](../../modules/viagens.md) (Linha do Tempo) e
+  [RASTREABILIDADE](../../RASTREABILIDADE.md).
 
 **Pronto quando** uma viagem com B/L de container entra em D-5 sem veículos e
 Equipamentos vê o alerta crítico; declarar "sem veículos" ou importar a
@@ -237,13 +253,14 @@ planilha fecha o alerta, e a declaração aparece na Linha do Tempo da Viagem.
 
 ## Pendências
 
-- **Bloco 4:** autorização do dono para regenerar `src/types/database.ts` com
-  a RPC nova (arquivo protegido pelo `AGENTS.md`).
+Nenhuma. Confirmar depois do deploy, em produção: o secret
+`COMMUNICATIONS_REPLY_TO` presente para a função `ce-unlock-notify-email`
+(sem ele, o envio real do aviso responde 503).
 
 ## Verificação
 
-Por bloco, os checks de [WORKFLOW.md](../../WORKFLOW.md) §11 conforme o
-[AGENTS.md](../../AGENTS.md): `npm run docs:check`, `npm run typecheck`,
+Por bloco, os checks de [WORKFLOW.md](../../../WORKFLOW.md) §11 conforme o
+[AGENTS.md](../../../AGENTS.md): `npm run docs:check`, `npm run typecheck`,
 `npm run lint`, `npm test` e `npm run build`; com migration,
 `npm run migrations:check` e `npm run rpc:check`; nas telas,
 `npm run design:check` e `npm run a11y:contrast`; os testes local-pg do
@@ -263,5 +280,5 @@ deploy: a aplicação em produção acontece depois do merge na `main`.
 ## Ao concluir
 
 Mover este plano para `docs/archive/plans/`, tirar a linha de
-`docs/plans/README.md`, registrar no [CHANGELOG](../CHANGELOG.md) e rodar
+`docs/plans/README.md`, registrar no [CHANGELOG](../../CHANGELOG.md) e rodar
 `npm run docs:check`.

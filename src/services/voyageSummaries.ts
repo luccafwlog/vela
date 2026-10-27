@@ -1341,6 +1341,21 @@ function buildAuditTimeline(
       continue
     }
 
+    // Planilha de Veículos (migration 468): a declaração "sem veículos" e o desfazer,
+    // com o motivo digitado ou "Veículos importados na viagem", quando a planilha chega.
+    if (row.field_name === 'sem_veiculos') {
+      const reason = String(row.justification ?? '').trim()
+      const undone = value === 'desfeita'
+      events.push({
+        id: `audit-vehicles-declaration-${index}`,
+        kind: 'voyage-data',
+        at,
+        title: undone ? 'Declaração "sem veículos" desfeita' : 'Viagem declarada sem veículos',
+        detail: appendActor(undone ? (reason ? `Motivo: ${reason}` : 'Declaração desfeita') : 'Planilha de Veículos dispensada', row),
+      })
+      continue
+    }
+
     if (row.field_name === 'transshipment_info') {
       events.push({
         id: `audit-transshipment-${index}`,

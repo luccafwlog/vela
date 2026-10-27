@@ -5,6 +5,7 @@ import { queryKeys } from '../services/queryKeys'
 import { sanitizeLikeTerm } from '../lib/utils'
 import type { BLContainer, VehicleListItem } from '../types/database'
 import { fetchVoyageVehicleStats } from '../services/voyageVehicleStats'
+import { fetchVoyageVehicleDeclaration } from '../services/vehicles'
 import { matchesAnyToken } from '../lib/searchTerms'
 
 type VehicleListItemWithUnpackingLocation = Omit<VehicleListItem, 'container'> & {
@@ -296,5 +297,14 @@ export function useVoyageVehicleStats(voyageIds: number[]) {
     queryKey: queryKeys.vehicles.stats(normalizedVoyageIds),
     enabled: normalizedVoyageIds.length > 0,
     queryFn: () => fetchVoyageVehicleStats(normalizedVoyageIds),
+  })
+}
+
+/** Declaração "Esta viagem não terá veículos" da viagem escolhida (migration 468). */
+export function useVoyageVehicleDeclaration(voyageId: number | null) {
+  return useQuery({
+    queryKey: queryKeys.vehicles.declaration(voyageId ?? 0),
+    enabled: Boolean(voyageId),
+    queryFn: () => fetchVoyageVehicleDeclaration(Number(voyageId)),
   })
 }
