@@ -23,59 +23,14 @@
   "areaNome": "Entrada, navegação, usuários e permissões",
   "num": "ACE-D01",
   "classe": "b",
-  "codigoTexto": "O que o código faz: O banco só deixa Administrativo, Documentação e Equipamentos lerem a configuração do sistema; para os demais a tela usa o padrão e mostra **Em simulação**, e o ponto da Régua de Cobrança da Demurrage é calculado com 7 dias mesmo que o intervalo seja outro O que diz a documentação: `seguranca.md` e ADR 0085: leitura interna global (salvo `/admin`); a matriz diz \"Todos os setores leem tudo\""
- },
- {
-  "key": "01-acesso-admin:ACE-D02",
-  "titulo": "Documentação não consegue corrigir o ATB de uma atracação",
-  "caso": "Paula, da Documentação, abre a Viagem do navio MSC Aurora e corrige o ATB da atracação em Vitória. Ao salvar, o sistema recusa: \"Somente Operações/Admin podem editar terminais da escala.\"",
-  "hoje": "Só Operações e Administrativo gravam terminal e datas da atracação, embora a regra diga que todos os setores criam e editam escala.",
-  "impacto": "medio",
-  "opcoes": [
+  "codigoTexto": "O que o código faz: O banco só deixa Administrativo, Documentação e Equipamentos lerem a configuração do sistema; para os demais a tela usa o padrão e mostra **Em simulação**, e o ponto da Régua de Cobrança da Demurrage é calculado com 7 dias mesmo que o intervalo seja outro O que diz a documentação: `seguranca.md` e ADR 0085: leitura interna global (salvo `/admin`); a matriz diz \"Todos os setores leem tudo\"",
+  "tambem": [
    {
-    "id": "A",
-    "texto": "Corrigir o sistema para seguir a regra: todos os setores gravam terminal, ATB e ATD.",
-    "efeito": "Qualquer pessoa da equipe corrige a atracação sem pedir a Operações."
-   },
-   {
-    "id": "B",
-    "texto": "Manter o sistema e registrar a restrição a Operações e Administrativo na regra de permissões, escondendo os campos dos demais.",
-    "efeito": "A regra passa a refletir a tela, e quem não pode alterar não vê campos que serão recusados."
+    "key": "06-clientes-comunicacao:D13",
+    "areaNome": "Clientes e Comunicados",
+    "num": "D13"
    }
-  ],
-  "recomendada": "A",
-  "porque": "A regra registrada diz que restrição fora da lista de exceções é acidental, e abrir evita que a escala fique parada esperando Operações. Decida junto com o cartão da escala de Vitória (Viagens), que trata o mesmo ponto.",
-  "area": "01-acesso-admin",
-  "areaNome": "Entrada, navegação, usuários e permissões",
-  "num": "ACE-D02",
-  "classe": "b",
-  "codigoTexto": "O que o código faz: O banco recusa: \"Somente Operações/Admin podem editar terminais da escala.\"; o terminal do ADR antigo também é só de Operações e Administrativo O que diz a documentação: A matriz e `seguranca.md` dizem \"Criar e editar viagem, escala... ✔ todos\"; a ADR 0085 diz que restrição fora da lista de exceções é acidental (só o terminal do ADR antigo está anotado em `seguranca.md`)"
- },
- {
-  "key": "01-acesso-admin:ACE-D03",
-  "titulo": "A matriz de permissões conta menos alertas do que Operações recebe",
-  "caso": "Carlos, de Operações, lê na matriz de permissões \"Recebe os alertas do próprio setor: 3 tipos\". No sino, porém, aparecem também \"ADR — departamento pendente\" e \"ADR — prazo vencido\" da seção dele, que contam nos cartões do Painel.",
-  "hoje": "O sino de Operações e de Equipamentos recebe também as pendências do ADR da própria seção, mas a matriz mostra só 3 e 2 tipos.",
-  "impacto": "baixo",
-  "opcoes": [
-   {
-    "id": "A",
-    "texto": "Corrigir o texto da matriz para incluir as pendências do ADR da própria seção.",
-    "efeito": "Quem consulta a matriz vê exatamente o que vai chegar no sino."
-   },
-   {
-    "id": "B",
-    "texto": "Manter a matriz como está e explicar a soma só no manual.",
-    "efeito": "A tela continua contando menos tipos do que chegam; a explicação fica fora da tela."
-   }
-  ],
-  "recomendada": "A",
-  "porque": "É só texto, a correção é pequena e evita que a equipe ache que o sino está errado.",
-  "area": "01-acesso-admin",
-  "areaNome": "Entrada, navegação, usuários e permissões",
-  "num": "ACE-D03",
-  "classe": "b",
-  "codigoTexto": "O que o código faz: O sino de Operações e de Equipamentos também recebe \"ADR — departamento pendente\" e \"ADR — prazo vencido\" da própria seção (a entrega soma o setor do item), e esses itens contam nos cartões do Painel O que diz a documentação: `permissionMatrix.ts` mostra só a contagem da audiência do catálogo (3 e 2); `operacao-suporte.md` explica a soma do setor do item"
+  ]
  },
  {
   "key": "01-acesso-admin:ACE-D03b",
@@ -244,32 +199,6 @@
   "codigoTexto": "O que o código faz: A função de servidor do resumo filtra só os setores Administrativo e Documentação gravados; o Operador fica de fora, embora receba os alertas da Documentação O que diz a documentação: `seguranca.md`: \"O papel legado `operator` é tratado como Documentação\""
  },
  {
-  "key": "01-acesso-admin:ACE-D14",
-  "titulo": "Importar a base de Clientes muda contatos, o que a regra limita a três setores",
-  "caso": "Rafael, do Financeiro, importa a base de Clientes com o e-mail novo compras@atlantica.com.br para a Atlântica Importações, já cadastrada. O e-mail entra como contato e, como ela não tinha contato principal com e-mail, vira o principal. Um contato desativado com o mesmo e-mail seria reativado.",
-  "hoje": "A importação da base de Clientes, aberta a todos os setores, inclui e reativa contatos de Clientes já cadastrados, embora editar contatos seja só de Administrativo, Documentação e Equipamentos.",
-  "impacto": "alto",
-  "opcoes": [
-   {
-    "id": "A",
-    "texto": "Manter como está e registrar na regra que a importação pode incluir e reativar contatos.",
-    "efeito": "Qualquer setor continua mudando, por importação, para onde vão os e-mails do Cliente."
-   },
-   {
-    "id": "B",
-    "texto": "Corrigir o sistema: fora dos três setores, a importação não mexe em contatos de Cliente já cadastrado e avisa quais ficaram de fora.",
-    "efeito": "Contatos só mudam por quem a regra autoriza; os demais setores importam o resto normalmente."
-   }
-  ],
-  "recomendada": "B",
-  "porque": "O contato principal recebe cobranças e avisos; um e-mail errado leva informação do Cliente para o lugar errado.",
-  "area": "01-acesso-admin",
-  "areaNome": "Entrada, navegação, usuários e permissões",
-  "num": "ACE-D14",
-  "classe": "c",
-  "codigoTexto": "O que o código faz: O e-mail entra como contato do Cliente (vira principal se o Cliente não tiver principal com e-mail) e um contato desativado com o mesmo e-mail é reativado O que diz a documentação: Matriz, `seguranca.md` e ADR 0085: \"Editar contatos e Caixas de Comunicação\" só Adm, Doc e Equ; a mesma matriz dá \"Importar arquivos (... Clientes)\" a todos"
- },
- {
   "key": "01-acesso-admin:ACE-D15",
   "titulo": "Uma aba esquecida do Vela encerra a sessão da aba em uso",
   "caso": "Paula deixou uma aba do Vela aberta desde cedo e trabalha em outra. Às 16h, a aba esquecida completa 8 horas parada e encerra a sessão; a aba em que Paula está preenchendo uma escala volta à tela de entrada no meio do trabalho.",
@@ -345,12 +274,19 @@
    }
   ],
   "recomendada": "A",
-  "porque": "A regra registrada abre a escala a todos e trata outras restrições como defeito; abrir é a correção menor e evita escala parada. Decida junto com o cartão sobre o ATB (Acesso), que trata o mesmo ponto.",
+  "porque": "A regra registrada abre a escala a todos e trata outras restrições como defeito; abrir é a correção menor e evita escala parada.",
   "area": "02-viagens-adr",
   "areaNome": "Viagens e ADR de Saída",
   "num": "2",
   "classe": "b",
-  "codigoTexto": "O que o código faz: O banco recusa (\"Somente Operações/Admin podem editar terminais da escala.\") e a janela mostra só \"Falha ao salvar a escala.\"; os campos aparecem para todos. Remover uma Atracação (inclusive mover a única frente de um terminal para outro) é só do Administrativo. O que diz a documentação: Matriz de `seguranca.md` (\"Criar e editar viagem, escala, programação e exportação\": todos os setores) e `viagens.md` (\"Adicionar ou editar escala: Usuário interno ativo\"); a matriz diz que restrição fora dela é defeito."
+  "codigoTexto": "O que o código faz: O banco recusa (\"Somente Operações/Admin podem editar terminais da escala.\") e a janela mostra só \"Falha ao salvar a escala.\"; os campos aparecem para todos. Remover uma Atracação (inclusive mover a única frente de um terminal para outro) é só do Administrativo. O que diz a documentação: Matriz de `seguranca.md` (\"Criar e editar viagem, escala, programação e exportação\": todos os setores) e `viagens.md` (\"Adicionar ou editar escala: Usuário interno ativo\"); a matriz diz que restrição fora dela é defeito.",
+  "tambem": [
+   {
+    "key": "01-acesso-admin:ACE-D02",
+    "areaNome": "Entrada, navegação, usuários e permissões",
+    "num": "ACE-D02"
+   }
+  ]
  },
  {
   "key": "02-viagens-adr:3",
@@ -1180,15 +1116,15 @@
  },
  {
   "key": "06-clientes-comunicacao:D04",
-  "titulo": "Rodapé da Cobertura fala em rodada a cada 15 minutos",
-  "caso": "Paula da Documentação abre a Cobertura de viagens e lê no rodapé que a próxima rodada automática é \"a cada 15 minutos\". Na prática, os Comunicados saem em poucos minutos.",
-  "hoje": "A rodada automática roda a cada 2 minutos e também quando acontece o evento, mas o rodapé diz a cada 15 minutos.",
+  "titulo": "Duas telas dizem que os Comunicados rodam a cada 15 minutos",
+  "caso": "Paula da Documentação lê no rodapé da Cobertura de viagens que a próxima rodada automática é \"a cada 15 minutos\", e em Regras de alertas que \"Comunicado sem destinatário\" aparece nessa mesma rodada. Na prática, os Comunicados e o alerta saem poucos minutos depois do evento.",
+  "hoje": "A rodada dos Comunicados roda a cada 2 minutos e também logo depois do evento, mas o rodapé da Cobertura e a regra \"Comunicado sem destinatário\" dizem a cada 15 minutos.",
   "impacto": "baixo",
   "opcoes": [
    {
     "id": "A",
-    "texto": "Corrigir o texto do rodapé para \"a cada 2 minutos e logo após o evento\".",
-    "efeito": "A equipe sabe quanto esperar antes de agir à mão."
+    "texto": "Corrigir os dois textos para \"a cada 2 minutos e logo após o evento\".",
+    "efeito": "A equipe sabe quanto esperar pelo Comunicado e pelo alerta antes de agir à mão."
    },
    {
     "id": "B",
@@ -1197,12 +1133,19 @@
    }
   ],
   "recomendada": "A",
-  "porque": "O comportamento atual é o registrado; só o texto está errado.",
+  "porque": "O comportamento atual é o registrado; só os textos estão errados.",
   "area": "06-clientes-comunicacao",
   "areaNome": "Clientes e Comunicados",
   "num": "D04",
   "classe": "b",
-  "codigoTexto": "O que o código faz: Diz \"a próxima rodada automática (a cada 15 minutos…)\"; a rodada é nos minutos ímpares (a cada 2 minutos) e também pelo evento. O que diz a documentação: clientes.md: job a cada 2 minutos desde a migration 458."
+  "codigoTexto": "O que o código faz: Diz \"a próxima rodada automática (a cada 15 minutos…)\"; a rodada é nos minutos ímpares (a cada 2 minutos) e também pelo evento. O que diz a documentação: clientes.md: job a cada 2 minutos desde a migration 458. Também: a regra \"Comunicado sem destinatário\" em `alertRulesCatalog.ts` diz 15 minutos.",
+  "tambem": [
+   {
+    "key": "12-alertas-rotinas:ALE-D10",
+    "areaNome": "Alertas e rotinas",
+    "num": "ALE-D10"
+   }
+  ]
  },
  {
   "key": "06-clientes-comunicacao:D05",
@@ -1332,7 +1275,14 @@
   "areaNome": "Clientes e Comunicados",
   "num": "D10",
   "classe": "c",
-  "codigoTexto": "O que o código faz: A Base cria e reativa contatos e muda o principal, e a Revisão inclui contato, para qualquer setor ativo. O que diz a documentação: clientes.md e a matriz: editar contatos e caixas é só de Administrativo, Documentação e Equipamentos; importar Clientes é de todos."
+  "codigoTexto": "O que o código faz: A Base cria e reativa contatos e muda o principal, e a Revisão inclui contato, para qualquer setor ativo. O que diz a documentação: clientes.md e a matriz: editar contatos e caixas é só de Administrativo, Documentação e Equipamentos; importar Clientes é de todos.",
+  "tambem": [
+   {
+    "key": "01-acesso-admin:ACE-D14",
+    "areaNome": "Entrada, navegação, usuários e permissões",
+    "num": "ACE-D14"
+   }
+  ]
  },
  {
   "key": "06-clientes-comunicacao:D12",
@@ -1359,32 +1309,6 @@
   "num": "D12",
   "classe": "b",
   "codigoTexto": "O que o código faz: O Cliente Comunicável depende só do ETA; Cliente sem contato aparece na conferência, bloqueado (\"Sem contato elegível\"). O que diz a documentação: clientes.md e CONTEXT.md: Cliente Comunicável é o de carga recente ou futura; sem contato, linha bloqueada."
- },
- {
-  "key": "06-clientes-comunicacao:D13",
-  "titulo": "Financeiro e Operações veem \"Em simulação\" com o envio real ligado",
-  "caso": "Paula do Financeiro abre Comunicação com Clientes com o envio real ligado. O bloco Canal de envio mostra \"Em simulação\", porque o perfil dela não consegue ler a chave de envio, e a tela usa o valor padrão.",
-  "hoje": "Só Administrativo, Documentação e Equipamentos leem a chave de envio; os demais veem \"Em simulação\", mesmo com o envio real ligado.",
-  "impacto": "alto",
-  "opcoes": [
-   {
-    "id": "A",
-    "texto": "Corrigir o sistema para seguir a regra: todo usuário interno ativo lê o estado da chave (só ler, sem mudar).",
-    "efeito": "Todos veem o estado real; ninguém acha que o Cliente não recebeu o que recebeu."
-   },
-   {
-    "id": "B",
-    "texto": "Mostrar \"Estado não disponível para o seu perfil\" no lugar de \"Em simulação\".",
-    "efeito": "A tela deixa de mentir, mas esses setores continuam sem saber o estado."
-   }
-  ],
-  "recomendada": "A",
-  "porque": "Achar que está em simulação quando o envio é real pode levar alguém a testar com Cliente de verdade; ler o estado não dá poder de mudá-lo.",
-  "area": "06-clientes-comunicacao",
-  "areaNome": "Clientes e Comunicados",
-  "num": "D13",
-  "classe": "b",
-  "codigoTexto": "O que o código faz: Esses setores não leem a chave (a leitura é só de Administrativo, Documentação e Equipamentos) e a tela usa o valor padrão: o bloco **Canal de envio** mostra \"Em simulação\" (CLI-103). O que diz a documentação: clientes.md: \"os demais perfis veem só o estado (\"Envio real\" ou \"Em simulação\")\" e \"os demais perfis que operam o módulo leem a faixa\"."
  },
  {
   "key": "06-clientes-comunicacao:D14",
@@ -2582,7 +2506,7 @@
  },
  {
   "key": "10-recebimento:7",
-  "titulo": "Regra do alerta Restituição pendente descreve só um dos gatilhos",
+  "titulo": "Regra do alerta Restituição pendente descreve só um dos casos",
   "caso": "O Financeiro dá baixa manual de R$ 1.200 numa fatura com saldo de R$ 1.000 e surge o alerta Restituição pendente. Ele abre Regras dos alertas para entender, e o texto fala só de correção do B/L em fatura paga. A explicação não bate com o que ele acabou de fazer.",
   "hoje": "O alerta abre para qualquer restituição a devolver (excedente, Pix em duplicidade, restituição excepcional, troca de CNPJ, cancelamento financeiro e Invoice de Demurrage), mas a tela de Regras cita só a correção do B/L.",
   "impacto": "baixo",
@@ -2599,12 +2523,19 @@
    }
   ],
   "recomendada": "A",
-  "porque": "É só texto e evita dúvidas sobre um alerta que envolve devolver dinheiro ao Cliente.",
+  "porque": "É só texto e evita dúvidas sobre um alerta que envolve devolver dinheiro ao Cliente, nas faturas de Taxas Locais e nas Invoices de Demurrage.",
   "area": "10-recebimento",
   "areaNome": "Recebimento",
   "num": "7",
   "classe": "b",
-  "codigoTexto": "O que o código faz: Abre o Alerta **Restituição pendente** para qualquer restituição a devolver de fatura (excedente, Pix em duplicidade, restituição excepcional, troca de CNPJ, cancelamento financeiro) e de Invoice de Demurrage (REC-081). O que diz a documentação: A tela **Regras dos alertas** descreve o gatilho só como \"Correção do B/L em fatura paga cuja redução passa do saldo em aberto\"."
+  "codigoTexto": "O que o código faz: Abre o Alerta **Restituição pendente** para qualquer restituição a devolver de fatura (excedente, Pix em duplicidade, restituição excepcional, troca de CNPJ, cancelamento financeiro) e de Invoice de Demurrage (REC-081). O que diz a documentação: A tela **Regras dos alertas** descreve o gatilho só como \"Correção do B/L em fatura paga cuja redução passa do saldo em aberto\".",
+  "tambem": [
+   {
+    "key": "12-alertas-rotinas:ALE-D16",
+    "areaNome": "Alertas e rotinas",
+    "num": "ALE-D16"
+   }
+  ]
  },
  {
   "key": "10-recebimento:11",
@@ -2996,32 +2927,6 @@
   "codigoTexto": "O que o código faz: Autor e justificativa são gravados no histórico do alerta, mas nenhuma tela o mostra (nem **Histórico de ações**). O que diz a documentação: Janela e Regras: \"A justificativa e o seu nome ficam no histórico do alerta\"; ADR 0083, item 23 (\"registro no histórico\")."
  },
  {
-  "key": "12-alertas-rotinas:ALE-D10",
-  "titulo": "Regra \"Comunicado sem destinatário\" informa intervalo errado",
-  "caso": "Paula lê em Regras de alertas que \"Comunicado sem destinatário\" aparece na rodada automática a cada 15 minutos. Na prática, o alerta surge poucos minutos depois do envio.",
-  "hoje": "A rodada dos Comunicados roda a cada 2 minutos e logo depois de eventos, mas a tela diz 15 minutos.",
-  "impacto": "baixo",
-  "opcoes": [
-   {
-    "id": "A",
-    "texto": "Corrigir o texto da tela para \"a cada 2 minutos e logo após o envio\".",
-    "efeito": "A equipe sabe quando esperar o alerta."
-   },
-   {
-    "id": "B",
-    "texto": "Manter o texto como está.",
-    "efeito": "A tela segue informando um intervalo que não existe."
-   }
-  ],
-  "recomendada": "A",
-  "porque": "É só texto e alinha a tela ao funcionamento real.",
-  "area": "12-alertas-rotinas",
-  "areaNome": "Alertas e rotinas",
-  "num": "ALE-D10",
-  "classe": "b",
-  "codigoTexto": "O que o código faz: A rodada dos Comunicados roda a cada 2 minutos e logo depois de eventos (migration `458`). O que diz a documentação: `alertRulesCatalog.ts`."
- },
- {
   "key": "12-alertas-rotinas:ALE-D11",
   "titulo": "Regra da PTAX Demurrage omite o alerta das 14h",
   "caso": "Às 14h de um dia útil, a PTAX do dia não chegou às cobranças Pix da Demurrage e abre o alerta \"Falha na atualização da PTAX Demurrage\". O Financeiro lê a regra, que fala só de falha da rotina, e não entende o alerta.",
@@ -3097,33 +3002,14 @@
   "areaNome": "Alertas e rotinas",
   "num": "ALE-D13",
   "classe": "b",
-  "codigoTexto": "O que o código faz: Operações e Equipamentos recebem também os dois tipos do ADR (pelo item do próprio departamento): 5 e 4 tipos. O que diz a documentação: `src/services/permissionMatrix.ts` (`ALERT_TYPE_COUNTS`, só a audiência do catálogo); `operacao-suporte.md` descreve a entrega ao departamento do item."
- },
- {
-  "key": "12-alertas-rotinas:ALE-D16",
-  "titulo": "Regra \"Restituição pendente\" não cita a Invoice de Demurrage",
-  "caso": "Uma Invoice de Demurrage da Cliente Atlântica Importações fica com restituição pendente e abre o alerta Restituição pendente, com o botão Ver Demurrage. O Financeiro lê a regra, que fala só de fatura de Taxas Locais.",
-  "hoje": "O alerta também abre para Invoice de Demurrage, mas o texto da regra cita só fatura de Taxas Locais.",
-  "impacto": "baixo",
-  "opcoes": [
+  "codigoTexto": "O que o código faz: Operações e Equipamentos recebem também os dois tipos do ADR (pelo item do próprio departamento): 5 e 4 tipos. O que diz a documentação: `src/services/permissionMatrix.ts` (`ALERT_TYPE_COUNTS`, só a audiência do catálogo); `operacao-suporte.md` descreve a entrega ao departamento do item.",
+  "tambem": [
    {
-    "id": "A",
-    "texto": "Corrigir o texto da regra para incluir a Invoice de Demurrage.",
-    "efeito": "O Financeiro entende que o alerta vale para as duas cobranças."
-   },
-   {
-    "id": "B",
-    "texto": "Manter o texto como está.",
-    "efeito": "O alerta de Demurrage continua sem explicação na tela de Regras."
+    "key": "01-acesso-admin:ACE-D03",
+    "areaNome": "Entrada, navegação, usuários e permissões",
+    "num": "ACE-D03"
    }
-  ],
-  "recomendada": "A",
-  "porque": "É só texto e pode ser feito junto da correção do mesmo alerta em Recebimento.",
-  "area": "12-alertas-rotinas",
-  "areaNome": "Alertas e rotinas",
-  "num": "ALE-D16",
-  "classe": "b",
-  "codigoTexto": "O que o código faz: Também abre para Invoice de Demurrage com restituição pendente (registro **Invoice Demurrage**, **Ver Demurrage**). O que diz a documentação: `alertRulesCatalog.ts`."
+  ]
  },
  {
   "key": "12-alertas-rotinas:ALE-D17",

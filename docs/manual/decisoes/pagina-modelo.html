@@ -56,6 +56,7 @@ main { display: grid; gap: 16px; margin-top: 20px }
 .caso { margin: 0; max-width: 70ch }
 .hoje { margin: 0; font-size: 14px; color: var(--muted) }
 .hoje b { color: var(--ink) }
+.tambem { font-size: 14px; color: var(--muted); margin: 0 }
 .opts { display: grid; gap: 8px }
 .opt { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; text-align: left; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer }
 .opt .l { font-family: var(--font-label); font-weight: 700; font-size: 18px; line-height: 1.2; color: var(--muted); grid-row: span 2 }
@@ -163,6 +164,7 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
     if (c.classe === 'c') meta.append(el('span', 'pill baixo', 'Documentos se contradizem'));
     if (d.escolha) meta.append(el('span', 'pill ok', d.escolha === OUTRA ? 'Decidido: outra solução' : 'Decidido: ' + d.escolha));
     art.append(meta, el('h2', null, c.titulo), el('p', 'caso', c.caso));
+    if (c.tambem?.length) art.append(el('p', 'tambem', 'Esta ficha junta o mesmo ponto encontrado em mais de uma área: ' + c.tambem.map(t => `${t.areaNome} · ${t.num}`).join(', ') + '.'));
     const hoje = el('p', 'hoje'); hoje.append(el('b', null, 'Hoje: '), document.createTextNode(c.hoje)); art.append(hoje);
     const opts = el('div', 'opts'); opts.setAttribute('role', 'group'); opts.setAttribute('aria-label', 'Opções');
     for (const o of c.opcoes) {

@@ -26,7 +26,8 @@ guardado como registro histórico e serve só de referência de redação
 
 ## Como retomar (para quem continuar)
 
-1. **Decisões do dono.** As 118 divergências estão na página
+1. **Decisões do dono.** As 118 divergências (em 112 fichas; ver o README da
+   pasta para as seis juntadas) estão na página
    <https://claude.ai/artifact/SDGqaeCFq1Uht6ih1ef46R> (fonte e formato do
    registro em [`docs/manual/decisoes/`](../manual/decisoes/README.md)). Leia as
    escolhas com `ArtifactData` (`list`, coleção `decisoes`). Cada escolha vira
