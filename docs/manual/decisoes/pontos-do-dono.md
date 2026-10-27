@@ -1,6 +1,6 @@
-# Pontos do dono fora das fichas (2026-10-27)
+# Pontos do dono fora das fichas
 
-Decisões que o dono trouxe depois de decidir as 112 fichas. Cada uma vira
+Decisões que o dono trouxe em 2026-10-27 depois de decidir as 112 fichas. Cada uma vira
 tarefa própria, junto com as fichas; as que mudam regra pedem ADR nova. O
 manual descreve o que o sistema faz até a correção sair.
 

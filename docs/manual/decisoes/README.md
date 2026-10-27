@@ -20,7 +20,7 @@ hoje, duas ou três opções com o efeito de cada uma e a opção recomendada.
   opção recomendada, 6 em outra opção e 3 em "Outra solução" com nota). O
   registro da página continua sendo a fonte; a cópia guarda o estado para
   quem continuar sem acesso à página.
-- **Pontos fora das fichas:** [`pontos-do-dono-2026-10-27.md`](pontos-do-dono-2026-10-27.md)
+- **Pontos fora das fichas:** [`pontos-do-dono.md`](pontos-do-dono.md)
   (Alertas, sino e fim da dispensa).
 - **Fonte da página:** [`pagina-modelo.html`](pagina-modelo.html) (layout e
   código) e [`fichas.json`](fichas.json) (112 fichas). Para republicar no
