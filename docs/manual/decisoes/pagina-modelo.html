@@ -163,7 +163,8 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
     // Rascunhos em edição sobrevivem à reconstrução da lista.
     document.querySelectorAll('textarea[id^="nota-"]').forEach((ta) => {
       const id = ta.id.slice(5);
-      if (ta.value !== ((decisions[id] || {}).nota || '')) drafts[id] = ta.value; else delete drafts[id];
+      // Só o campo editado desde a última montagem vira rascunho.
+      if (ta.value !== ta.dataset.base) drafts[id] = ta.value;
     });
     const focused = document.activeElement && document.activeElement.id;
     const list = $('list'); list.textContent = '';
@@ -214,7 +215,7 @@ textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); backg
     const pq = el('p', 'porque'); pq.append(el('b', null, 'Por que recomendo '), document.createTextNode(c.porque)); art.append(pq);
     const det = el('details'); det.append(el('summary', null, 'Detalhe técnico'), el('p', null, `${c.codigoTexto}`)); art.append(det);
     const ta = el('textarea'); ta.id = 'nota-' + id; ta.placeholder = d.escolha === OUTRA ? 'Descreva a solução que você quer' : 'Observação (opcional)';
-    ta.value = id in drafts ? drafts[id] : d.nota || ''; ta.rows = 1;
+    ta.value = id in drafts ? drafts[id] : d.nota || ''; ta.dataset.base = ta.value; ta.rows = 1;
     ta.disabled = !ready;
     ta.addEventListener('change', () => save(id, { escolha: (decisions[id] || {}).escolha || null, nota: ta.value.trim() }));
     art.append(ta);

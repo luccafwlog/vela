@@ -147,6 +147,16 @@ describe('página de decisões do dono', () => {
     expect(fake.writes.at(-1)).toEqual({ id: '01-a_A2', escolha: 'A', nota: 'rascunho' })
   })
 
+  it('a observação guardada aparece depois da primeira leitura e não é apagada ao trocar a opção', async () => {
+    const fake = fakeDb()
+    mount(fake); await flush()
+    fake.emit({ '01-a_A1': { escolha: 'A', nota: 'guardada' } })
+    ;(document.querySelector('[data-st="all"]') as HTMLElement | null)?.click()
+    expect(note('01-a:A1').value).toBe('guardada')
+    option('Ficha um', 'B').click(); await flush()
+    expect(fake.writes).toEqual([{ id: '01-a_A1', escolha: 'B', nota: 'guardada' }])
+  })
+
   it('sem registro, a escolha não fica marcada na tela', async () => {
     const fake = fakeDb()
     mount(fake); await flush(); fake.emit()
