@@ -11,6 +11,7 @@ type Declaration = { voyageId: number; declaredAt: string; declaredByName: strin
 
 const mocks = vi.hoisted(() => ({
   declaration: null as Declaration,
+  voyageStatus: 'active',
   declare: vi.fn<(voyageId: number) => Promise<Declaration>>(),
   undo: vi.fn<(voyageId: number, reason: string) => Promise<void>>(),
   confirm: vi.fn(async () => true),
@@ -22,6 +23,10 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }
 vi.mock('../../components/shared/VoyageCombobox', () => ({ VoyageCombobox: () => <div /> }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => mocks.confirmWithReason }))
+vi.mock('../../hooks/useBls', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../hooks/useBls')>()),
+  useVoyages: () => ({ data: [{ id: 7, voyage_number: '012S', status: mocks.voyageStatus, vessel: { name: 'MSC TESTE' } }] }),
+}))
 vi.mock('../../services/vehicles', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/vehicles')>()),
   fetchVoyageVehicleDeclaration: async () => mocks.declaration,
@@ -51,6 +56,7 @@ import { Veiculos } from '../Veiculos'
 
 beforeEach(() => {
   mocks.declaration = null
+  mocks.voyageStatus = 'active'
   mocks.declare.mockImplementation(async (voyageId) => {
     mocks.declaration = { voyageId, declaredAt: '2026-10-27T17:32:00Z', declaredByName: 'Equipamentos 468' }
     return mocks.declaration
@@ -96,4 +102,12 @@ it('voltar no diálogo não declara', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Esta viagem não terá veículos' }))
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
   expect(mocks.declare).not.toHaveBeenCalled()
+})
+
+it('viagem cancelada não oferece a declaração, que o banco recusaria', async () => {
+  mocks.voyageStatus = 'cancelled'
+  renderPage()
+  expect(await screen.findByText('Nenhum veículo nesta viagem')).toBeTruthy()
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Importar veículos' }).length).toBeGreaterThan(0))
+  expect(screen.queryByRole('button', { name: 'Esta viagem não terá veículos' })).toBeNull()
 })

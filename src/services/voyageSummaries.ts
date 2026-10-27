@@ -684,6 +684,8 @@ export const TIMELINE_VOYAGE_FIELD_LABELS: Record<string, string> = {
   show_on_portal: 'Aparece em Chegadas e Saídas',
   indicated_first_brazilian_port: '1º porto brasileiro indicado',
   indicated_first_brazilian_eta: 'ETA indicado do 1º porto',
+  // A Linha do Tempo trata `sem_veiculos` antes deste mapa; o rótulo serve à Auditoria (migration 468).
+  sem_veiculos: 'Viagem sem veículos',
 }
 
 /**

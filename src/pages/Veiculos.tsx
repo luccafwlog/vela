@@ -268,6 +268,8 @@ export function Veiculos() {
 
   const selectedVoyage = voyageRows.find((voyage) => voyage.id === voyageId)
   const selectedVoyageLabel = voyageLabel(selectedVoyage?.vessel?.name, selectedVoyage?.voyage_number, voyageId)
+  // Viagem cancelada não recebe a declaração (o banco recusa): o botão não aparece.
+  const canDeclareWithoutVehicles = declarationQuery.isSuccess && selectedVoyage?.status !== 'cancelled'
 
   async function declareWithoutVehicles() {
     if (!voyageId) return
@@ -527,7 +529,7 @@ export function Veiculos() {
                       <span className="inline-flex flex-wrap justify-center gap-2">
                         <Button variant="secondary" onClick={() => setImportOpen(true)}>Importar veículos</Button>
                         {/* Só depois de saber se já há declaração: a leitura que falha não oferece declarar de novo às cegas. */}
-                        {declarationQuery.isSuccess ? (
+                        {canDeclareWithoutVehicles ? (
                           <Button variant="secondary" loading={declaring} onClick={() => void declareWithoutVehicles()}>Esta viagem não terá veículos</Button>
                         ) : null}
                       </span>

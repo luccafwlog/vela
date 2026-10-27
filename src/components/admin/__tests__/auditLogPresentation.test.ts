@@ -36,6 +36,8 @@ describe('Histórico de ações legível', () => {
     expect(describeAuditLog(log('bl', 'ce_mercante', null, '123456789012345'))).toBe('CE Mercante: 123456789012345')
     expect(describeAuditLog(log('customers', 'trade_name', 'A', 'Atlântico'))).toBe('Nome fantasia: Atlântico')
     expect(describeAuditLog(log('voyages', 'voyage_number', '011S', '012S'))).toBe('Nº da viagem: 012S')
+    // Migration 468: a declaração da tela Veículos, gravada em `voyage`.
+    expect(describeAuditLog(log('voyage', 'sem_veiculos', null, 'declarada'))).toBe('Viagem sem veículos: declarada')
     expect(describeAuditLog(log('user_profile', 'role', 'documentacao', 'financeiro'))).toBe('Setor: Financeiro')
     expect(describeAuditLog(log('app_settings', 'communications_enabled', 'false', 'true'))).toBe('Envio real de e-mails: Sim')
     const unknown = describeAuditLog(log('vessels', 'imo_number_x', '1', '2'))

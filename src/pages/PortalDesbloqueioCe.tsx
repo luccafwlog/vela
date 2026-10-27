@@ -511,8 +511,8 @@ export function PortalDesbloqueioCe() {
             {/* Mesma regra de `ceUnlockDeadline` (src/services/ceUnlockSla.ts) e da migration 466: mudar os três juntos. */}
             <p className="text-sm">
               <strong>Prazo para desbloqueio:</strong> começa quando os quatro requisitos estão cumpridos em todos os
-              B/Ls da solicitação. Cumpridos até as 12h, o desbloqueio é feito até as 17h do mesmo dia útil; depois das
-              12h, até as 12h do próximo dia útil. Cumpridos no sábado ou no domingo, até as 12h de segunda-feira.
+              B/Ls da solicitação. Cumpridos antes das 12h, o desbloqueio é feito até as 17h do mesmo dia útil; a partir
+              das 12h, até as 12h do próximo dia útil. Cumpridos no sábado ou no domingo, até as 12h de segunda-feira.
             </p>
             {showDelivery ? <CeUnlockDeliveryAddresses onClose={() => setShowDelivery(false)} /> : null}
             {gap && (
