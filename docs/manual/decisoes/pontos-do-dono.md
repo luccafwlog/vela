@@ -70,11 +70,17 @@ com Clientes reais.
   e saem sempre: convite do Portal, recuperação e redefinição de senha do
   Portal, troca de e-mail de recuperação e resumo diário do Portal à equipe.
   Quem muda: qualquer usuário do Administrativo (`set_communications_enabled`).
-- **Decidido:** ligada, envia normalmente. Desligada, todo e-mail é enviado de
-  verdade, mas para `suporte@portalfwlog.com.br` em vez do destinatário. Só o
-  dono muda a chave: `lucca.juliatti@fwlog.com.br` em produção; em staging, o
-  e-mail principal do dono (a confirmar).
-- **Em aberto:** e-mail do dono em staging; se o resumo diário à equipe
-  também é redirecionado; como o e-mail redirecionado mostra o destinatário
-  original; se o envio redirecionado conta como enviado para Cobertura,
-  Régua e alertas.
+- **Decidido:** a chave vale para todo e-mail dirigido a Cliente, inclusive
+  os do Portal (convite, senha, troca de e-mail de recuperação). Ligada,
+  envia normalmente. Desligada, o e-mail é enviado de verdade, mas para
+  `suporte@portalfwlog.com.br` em vez do Cliente. E-mail para a própria
+  equipe (resumo diário do Portal) não passa pela chave.
+- **Decidido:** só o dono muda a chave, por uma permissão nova acima do
+  Administrativo chamada **Dev**, em que só ele estará; no começo a única
+  diferença para o Administrativo é a chave, e outras permissões especiais
+  podem entrar depois. Em vez de e-mail fixo por ambiente.
+- **Em aberto:** forma do Dev (recomendação: marca "Dev" no usuário, que
+  continua no setor Administrativo, dada só por migration, sem tela; um setor
+  novo exigiria revisar cerca de 200 verificações do Administrativo no banco e
+  76 nas telas); como o e-mail redirecionado mostra o Cliente original; se o
+  envio redirecionado conta como enviado para Cobertura, Régua e alertas.
