@@ -48,16 +48,18 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
 ]
 
 /**
- * Tipos de alerta que cada setor recebe pela audiência do catálogo de alertas
- * (`alert_type_catalog.audience_departments`, tipos ativos). A bateria confere
- * estes números no banco.
+ * Tipos de alerta que chegam ao sino de cada setor (migration 476, ADR 0107):
+ * os tipos de que ele é o setor responsável (`alert_type_catalog.audience_departments`,
+ * tipos ativos) e, em Operações e Equipamentos, os dois do ADR de Saída da
+ * própria seção (ALE-D13). O Financeiro recebe os quatro da exceção do dono.
+ * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 16,
+  administrativo: 11,
   financeiro: 4,
-  operacoes: 3,
-  documentacao: 38,
-  equipamentos: 3,
+  operacoes: 5,
+  documentacao: 35,
+  equipamentos: 4,
 }
 
 function only(...allowed: Department[]): Record<Department, PermissionCell> {

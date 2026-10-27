@@ -4,6 +4,7 @@ import type { Alert } from '../types/database'
 import { reportBestEffortFailure } from '../lib/telemetry'
 import { voyageDisplayName } from '../lib/utils'
 import { queryKeys } from './queryKeys'
+import { fetchUserDisplayNames } from './userNames'
 
 // Catálogo vivo de alertas suportados pela aplicação.
 export type ActiveAlertType =
@@ -169,7 +170,7 @@ export const FINANCIAL_ALERT_EVENTS = {
   billing_calculation_blocked: { audience: ['documentacao'], units: ['bl'] },
   billing_auto_issue_failed: { audience: ['documentacao'], units: ['bl'] },
   demurrage_ptax_recalc_failed: { audience: ['documentacao'], units: ['exchange_rate_reference'] },
-  pix_unreconciled: { audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'], units: ['pix_transaction', 'itau_pix_receipt'] },
+  pix_unreconciled: { audience: ['administrativo', 'financeiro'], units: ['pix_transaction', 'itau_pix_receipt'] },
   portal_dispute_opened: { audience: ['equipamentos'], units: ['demurrage_invoice'] },
 } as const satisfies Record<string, { audience: readonly AlertAudience[]; units: readonly AlertEventUnit[] }>
 
@@ -302,7 +303,9 @@ export function alertRecord(
     const [, port] = entityId.split('::')
     return { label: port && entityType !== 'voyage' ? `${voyage} · ${port}` : voyage, href: `/viagens/${voyageId}` }
   }
-  const label = resolveEntityLabel(labels, entityType, entityId) ?? entityId
+  const label = resolveEntityLabel(labels, entityType, entityId)
+    ?? FIXED_RECORD_LABELS[`${entityType}:${entityId}`]
+    ?? (entityType === 'exchange_rate_reference' ? 'PTAX Demurrage' : entityId)
   if (entityType === 'bl') return { label, href: `/bls/${encodeURIComponent(entityId)}` }
   return { label, href: null }
 }
@@ -347,6 +350,29 @@ export function getAlertTypeLabel(type: string): string {
 // está em Pendências. Destinos gravados antes como "/reconciliacao" (migrations
 // 152, 153 e 247) passam a abrir nessa aba.
 export const PIX_PENDING_HREF = '/reconciliacao?tab=pendencias'
+
+/**
+ * Registros sem ficha própria (ALE-D05): a tela onde a pendência se resolve,
+ * a mesma que a Regra cita. O destino gravado pela rotina é apagado
+ * (`clear_alert_item_destination`), por isso o mapa fica aqui.
+ */
+const SCREEN_BY_ENTITY_TYPE: Record<string, string> = {
+  user_profile: '/admin/usuarios',
+  charge_table_gap: '/taxas-locais/tabelas',
+  itau_pix_checkpoint: PIX_PENDING_HREF,
+  itau_pix_receipt_failure: PIX_PENDING_HREF,
+  exchange_rate_reference: '/demurrage',
+  business_holidays: '/demurrage',
+}
+
+/** Nome legível dos registros técnicos de uma linha só (ALE-D05). */
+const FIXED_RECORD_LABELS: Record<string, string> = {
+  'itau_pix_checkpoint:itau_pix_polled_until': 'Consulta de Pix do Itaú',
+  'business_holidays:itau-pix-calendar': 'Feriados do próximo ano',
+  'exchange_rate_reference:itau-pix-14h': 'PTAX das cobranças Pix (14h)',
+  'email_provider:webhook': 'Retorno do provedor de e-mail',
+  'cron_http:net_http_response': 'Rotinas por horário',
+}
 
 export function alertEntityLink(alert: Parameters<typeof alertEntityLinkRaw>[0]): string | null {
   const link = alertEntityLinkRaw(alert)
@@ -498,6 +524,9 @@ function alertEntityLinkRaw(alert: {
     if (port) params.set('escala', port)
     return `/viagens/${voyageId}${params.toString() ? `?${params.toString()}` : ''}`
   }
+  // ALE-D05: registros sem ficha própria levam à tela que a Regra cita.
+  const screen = SCREEN_BY_ENTITY_TYPE[alert.entity_type ?? '']
+  if (screen) return screen
   if (alert.entity_type === 'voyage_escala_terminal') {
     const [voyageId, port, terminalId] = alert.entity_id.split('::')
     if (!/^\d+$/.test(voyageId)) return '/viagens'
@@ -587,11 +616,8 @@ export type AlertQueueRow = Alert & {
   severity: 'normal' | 'critical'
   department: string | null
   target_route: string | null
-  dismissed_until: string | null
-  dismissal_reason: string | null
-  dismissed_by: string | null
-  dismissed_by_name?: string | null
-  dismissed_at?: string | null
+  /** Abertura da ocorrência atual (abertura ou reabertura; migration 476, ALE-D06). */
+  opened_at?: string | null
   resolved_at: string | null
   resolved_by: string | null
   resolution_source: string | null
@@ -599,7 +625,8 @@ export type AlertQueueRow = Alert & {
   metadata: Record<string, unknown> | null
 }
 
-export type AlertStatusFilter = 'all' | 'active' | 'dismissed'
+// A dispensa saiu na migration 476 (ADR 0108): 'active' e 'all' são a mesma fila.
+export type AlertStatusFilter = 'all' | 'active'
 
 // Mesma chave do consignatário na Revisão (`reconcile_customer_bl_review_alerts`):
 // nome aparado, ou `sem_cliente` quando vazio.
@@ -632,7 +659,6 @@ export function hasNearEtaMark(alert: AlertQueueRow, nearEta: ReadonlySet<string
 export type AlertDepartmentSummary = {
   department: string
   active_count: number
-  dismissed_count: number
   is_legacy: boolean
 }
 
@@ -641,34 +667,10 @@ const alertsRpc = supabase as unknown as {
 }
 
 /**
- * Último dia aceito para a dispensa voltar à fila: o 30º a partir de hoje, em
- * UTC como a data que a tela envia (`T23:59:59Z`). `dismiss_alert_item`
- * recusa depois dele (migration 433).
- */
-export function getMaxReviewDateString(now: Date = new Date()): string {
-  const d = new Date(now)
-  d.setUTCDate(d.getUTCDate() + 30)
-  return d.toISOString().slice(0, 10)
-}
-
-export async function dismissAlertItem(
-  itemId: number,
-  reason: string,
-  reviewAt: string,
-): Promise<void> {
-  const { error } = await alertsRpc.rpc('dismiss_alert_item', {
-    p_item_id: itemId,
-    p_reason: reason,
-    p_review_at: reviewAt,
-  })
-  if (error) throw error
-}
-
-/**
  * Tipos de conferência sem fato de origem: fecham com "Resolver com
  * justificativa" (ADR 0083, item 23). Espelha
- * `_alert_types_resolved_with_justification()` (migrations 238, 313, 316 e
- * 349), na mesma ordem; os demais fecham sozinhos quando a origem é corrigida.
+ * `_alert_types_resolved_with_justification()` (migrations 238, 313, 316,
+ * 349 e 476), na mesma ordem; os demais fecham sozinhos quando a origem é corrigida.
  */
 export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'portal_abuso_login',
@@ -683,6 +685,12 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   // Também fecha pelo envio; justificado, a próxima falha do mesmo Comunicado
   // não reabre (migration 349).
   'comunicado_recusado',
+  // Origem fora do alcance da equipe pela tela (migration 476, ponto 3 do dono):
+  // depois da justificativa, só reabrem se a causa sumir e voltar.
+  'itau_pix_consulta_parada',
+  'email_retorno_provedor_silencioso',
+  'rotina_http_falhou',
+  'import_effects_queue_stalled',
 ]
 
 /**
@@ -911,6 +919,7 @@ export async function fetchAlertEntityLabels(rows: AlertEntityRef[]): Promise<Al
   const customerIds = numericIdsOf(rows, 'customer')
   const demurrageIds = numericIdsOf(rows, 'demurrage_invoice')
   const graniteIds = idsOf(rows, 'granite_bl')
+  const userIds = idsOf(rows, 'user_profile')
 
   async function collect<T>(
     ids: string[],
@@ -965,6 +974,11 @@ export async function fetchAlertEntityLabels(rows: AlertEntityRef[]): Promise<Al
       demurrageIds,
       () => select<DemurrageRow>('demurrage_invoices', 'id, doc_number', demurrageIds),
       (invoice) => (invoice.doc_number ? [`demurrage_invoice:${invoice.id}`, invoice.doc_number] : null),
+    ),
+    collect<[string, string]>(
+      userIds,
+      async () => Array.from(await fetchUserDisplayNames(userIds)),
+      ([id, name]) => [`user_profile:${id}`, name],
     ),
     collect<GraniteRow>(
       graniteIds,

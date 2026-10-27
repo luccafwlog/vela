@@ -541,9 +541,10 @@ viagem segue [Saída da Programação](../modules/chegadas-saidas.md#saída-da-p
 - `/admin/usuarios`: crie um usuário de QA (**Novo usuário**), troque e-mail e
   senha (**Editar acesso**), troque o setor (**Alterar setor**) e confirme que
   **Desativar** derruba a sessão aberta dele ([regras](../modules/operacao-suporte.md#admin));
-- `/alertas`: dispense um alerta com motivo e data futura de revisão e confira
-  que volta à fila nessa data; corrija a origem de outro e confira que ele
-  fecha sozinho ([regras](../modules/operacao-suporte.md#ciclo-de-vida-do-alerta));
+- `/alertas`: confira que não há Dispensar; corrija a origem de um alerta e
+  confira que ele fecha sozinho e sai do sino de quem o recebeu; confira que
+  cada setor recebe no sino só os alertas do próprio setor (o Financeiro
+  também os quatro do dinheiro) ([regras](../modules/operacao-suporte.md#ciclo-de-vida-do-alerta));
 - `/relatorios`: testar abas e arquivos exportados;
 - `/line-up-tv/display`: validar legibilidade e atualização; `/line-up-tv`
   mostra "Página não encontrada";

@@ -143,7 +143,7 @@ O consignatário importado (B/L de container e carga solta) só se vincula sozin
 ## Ações sobre registros
 
 O vocabulário — Excluir, Corrigir, Cancelar, Reativar, Desativar, Remover,
-Revogar, Reverter e Dispensar — está no
+Revogar e Reverter — está no
 [glossário § Ações sobre registros](../../CONTEXT.md#ações-sobre-registros).
 Esta seção diz quem pode, quando se exige motivo, o que trava a exclusão e por
 quanto tempo cada dado fica. A matriz de quem pode cada operação está em
@@ -216,8 +216,10 @@ rótulo de um botão corresponde ao efeito que ele produz.
   que apaga o registro do banco se chama Excluir, não Remover.
 - **Reverter** desfaz, com motivo, uma marcação sobre algo que continua ativo
   (omissão de escala, transbordo).
-- **Dispensar** não muda o dado e só existe em Alertas e Notificações
-  ([Operação e Suporte § Leitura, dispensa e Eco de Tratamento](../modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)).
+- Alerta não se dispensa: a dispensa saiu na migration `476`
+  ([ADR 0108](../adr/0108-fim-da-dispensa-de-alertas.md)); o alerta fecha pela
+  origem ou, nos tipos listados, por "Resolver com justificativa"
+  ([Operação e Suporte § Ciclo de vida do Alerta](../modules/operacao-suporte.md#ciclo-de-vida-do-alerta)).
 - Baixa lançada por engano se cancela (**Cancelar baixa**:
   `reverse_invoice_payment` e `reverse_demurrage_payment`); devolver dinheiro
   ao Cliente é outro ato, com registro próprio (`invoice_refunds` e

@@ -6,6 +6,21 @@
 
 ## 2026-10
 
+- **Alertas e sino decididos pelo dono (2026-10-27):** migration `476`,
+  [ADR 0107](adr/0107-sino-so-do-setor-responsavel.md) e
+  [ADR 0108](adr/0108-fim-da-dispensa-de-alertas.md), lote 8 do
+  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). O sino avisa só o setor
+  responsável pelo alerta (o Financeiro também recebe Pix, consulta do Itaú parada, Restituição e
+  Fatura desatualizada), e o alerta resolvido sai do sino e do número sem marcar como lido. A
+  dispensa saiu: sem **Dispensar**, sem **Dispensados** e sem "N dispensados" no Painel; as
+  dispensas vigentes acabaram e o histórico ficou guardado. Consulta de Pix do Itaú parada,
+  provedor de e-mail sem retorno, rotina com erro e fila de efeitos parada ganharam **Resolver com
+  justificativa**, que segura a reabertura enquanto a mesma causa continua. **Aberto em** mostra a
+  ocorrência atual; a justificativa vai ao Histórico de ações; os alertas de registro técnico e os
+  de contato abrem a tela certa; Regras de alertas mostra um setor responsável; a matriz de Usuários
+  conta os tipos do sino; o número de Alertas do menu se relê a cada 60 s; a recusa mostra o
+  motivo. Prova: `alertasESinoLote8.local-pg.test.ts`, `Alertas.behavior.test.tsx`,
+  `AlertasRegrasCatalog.test.tsx`, `PainelAlertsSummary.test.tsx`, `permissionMatrix.test.ts`.
 - **Acesso, usuários e Histórico decididos pelo dono (2026-10-27):** migration `475`,
   [ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md), lote 7 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todo setor vê o nome de

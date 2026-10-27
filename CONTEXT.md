@@ -106,10 +106,6 @@ escala, transbordo.
 - **Distinto de:** Reativar, que traz de volta algo cancelado ou desativado.
 → Regra: [Viagens § Omissão de Escala, Transbordo e COD](docs/modules/viagens.md#omissão-de-escala-transbordo-e-cod)
 
-**Dispensar**
-Parar de ver um aviso; nada muda no dado. Só existe em Alertas e Notificações.
-→ Regra: [Operação e Suporte § Leitura, dispensa e Eco de Tratamento](docs/modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)
-
 **Restituição**
 Devolução ao Cliente de valor que ele pagou a maior, com registro próprio
 ([ADR 0083](docs/adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1).
@@ -1110,39 +1106,38 @@ para vários destinatários.
 
 **Cópia Congelada**
 Propriedade da Notificação Interna: descreve o Evento Notificável como ele
-ocorreu, não o estado atual da entidade envolvida. Dispensar ou fechar o Alerta
+ocorreu, não o estado atual da entidade envolvida. Fechar o Alerta
 não apaga nem altera as Notificações Internas já entregues.
 → Regra: [Operação e Suporte § Notificação Interna e Regra de Destinatários](docs/modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)
 
 **Evento Notificável**
 Acontecimento do sistema que origina Notificações Internas: a abertura ou a
-nova ocorrência de um item de Alerta e o Eco de Tratamento.
+nova ocorrência de um item de Alerta.
 → Regra: [Operação e Suporte § Notificação Interna e Regra de Destinatários](docs/modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)
 
 **Regra de Destinatários**
 Declaração, por tipo de Alerta no catálogo, de quais setores internos recebem
-a Notificação Interna (a audiência).
+a Notificação Interna (a audiência): o setor responsável e, nos quatro tipos
+do dinheiro, também o Financeiro ([ADR 0107](docs/adr/0107-sino-so-do-setor-responsavel.md)).
 - **Distinto de:** setor responsável, que é o setor do item e agrupa a fila
   `/alertas`.
 → Regra: [Operação e Suporte § Notificação Interna e Regra de Destinatários](docs/modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)
 
 **Eco de Tratamento**
 Notificação Interna enviada aos demais destinatários quando alguém executa uma
-ação manual de tratamento — hoje, a dispensa temporária —, para impedir que
-duas pessoas trabalhem a mesma pendência sem saber.
-→ Regra: [Operação e Suporte § Leitura, dispensa e Eco de Tratamento](docs/modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)
+ação manual de tratamento. Existia só para a dispensa temporária e saiu com
+ela na migration `476` ([ADR 0108](docs/adr/0108-fim-da-dispensa-de-alertas.md)); termo histórico.
+→ Regra: [Operação e Suporte § Leitura da Notificação Interna](docs/modules/operacao-suporte.md#leitura-da-notificação-interna)
 
-**Leitura e Dispensa**
-Ações distintas e sem acoplamento. Ler é pessoal, vale apenas para quem leu e
-não altera o Alerta. Dispensar é ato coletivo de triagem: tira a pendência da
-fila ativa até uma data de revisão, com motivo, mas não resolve a origem nem
-libera gate.
-→ Regra: [Operação e Suporte § Leitura, dispensa e Eco de Tratamento](docs/modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)
+**Leitura**
+Ler é pessoal, vale apenas para quem leu e não altera o Alerta. Alerta não se
+dispensa: a dispensa saiu na migration `476` ([ADR 0108](docs/adr/0108-fim-da-dispensa-de-alertas.md)).
+→ Regra: [Operação e Suporte § Leitura da Notificação Interna](docs/modules/operacao-suporte.md#leitura-da-notificação-interna)
 
 **Fechamento automático**
 Encerramento do Alerta quando a recomputação da condição de origem, no
 servidor, confirma que ela foi resolvida.
-- **Distinto de:** leitura, reconhecimento (que não existe) e dispensa.
+- **Distinto de:** leitura e reconhecimento (que não existe).
 → Regra: [Operação e Suporte § Ciclo de vida do Alerta](docs/modules/operacao-suporte.md#ciclo-de-vida-do-alerta)
 
 **Indicador Operacional**

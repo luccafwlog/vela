@@ -21,14 +21,14 @@ export type AlertRule = {
    */
   responsibleDepartments: AlertRuleDepartment[]
   /**
-   * Espelha `alert_type_catalog.audience_departments` (migrations 317/325).
-   * É a audiência fixa da notificação interna, independente do responsável.
+   * Espelha `alert_type_catalog.audience_departments` (migration 476): o
+   * setor responsável e, nos quatro tipos da exceção do dono, o Financeiro.
    */
   catalogAudience: AlertRuleDepartment[]
   /**
-   * Derivado: quem recebe a notificação interna. A função SQL
-   * `fanout_alert_item_for_department` une a audiência do catálogo ao
-   * departamento gravado no item.
+   * Derivado: quem recebe a notificação interna. Desde a migration 476 o sino
+   * é do setor responsável pelo item (`fanout_alert_item_for_department`);
+   * o Financeiro segue avisado nos tipos em que está na audiência.
    */
   notifiedDepartments: AlertRuleDepartment[]
   routingNote?: string
@@ -42,7 +42,6 @@ export type AlertRule = {
   destinationLabel: string
   destinationNote?: string
   afterResolution: string
-  dismissal: string
 }
 
 type AlertRuleDraft = Omit<AlertRule, 'label' | 'notifiedDepartments' | 'responsibleDepartments'> & {
@@ -66,7 +65,6 @@ export const ALERT_RULE_DEPARTMENT_LABELS: Record<AlertRuleDepartment, string> =
   administrativo: 'Administrativo',
 }
 
-const temporaryDismissal = 'Pode ser dispensado temporariamente na fila, com motivo obrigatório e data futura de revisão. A dispensa não corrige a origem nem libera um bloqueio.'
 const derivedResolution = 'O alerta é fechado automaticamente quando a origem é corrigida e a reconciliação confirma que a pendência deixou de existir.'
 // Conferência sem fato de origem (ADR 0083, item 23; migration 238).
 const justifiedResolution = 'Depois de conferir, use Resolver na fila: a justificativa é obrigatória e fica no histórico do alerta com o seu nome.'
@@ -96,7 +94,7 @@ const ALERT_RULES_BASE = [
     domain: 'Revisão',
     responsible: 'documentacao',
     catalogAudience: ['documentacao'],
-    entityType: 'bl',
+    entityType: 'customer',
     severity: 'critical',
     summary: 'O B/L está aguardando revisão, mas ainda não foi vinculado a um cliente.',
     trigger: 'B/L com status de revisão pendente e sem cliente associado.',
@@ -105,14 +103,13 @@ const ALERT_RULES_BASE = [
     destination: '/revisao',
     destinationLabel: 'Abrir Revisão',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'review_portal_not_ready',
     domain: 'Revisão',
     responsible: 'documentacao',
-    catalogAudience: ['documentacao', 'administrativo'],
-    entityType: 'bl',
+    catalogAudience: ['documentacao'],
+    entityType: 'customer',
     severity: 'critical',
     summary: 'O cliente do B/L ainda não tem uma conta de Portal pronta para uso, e o faturamento dele está retido.',
     trigger: 'Cliente sem conta ativa do Portal e sem Liberação de faturamento vigente, com B/L em revisão ou fatura retida pelo CE.',
@@ -121,14 +118,13 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/portal',
     destinationLabel: 'Abrir Clientes e Portal',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'review_breakbulk_weight_missing',
     domain: 'Revisão',
     responsible: 'documentacao',
     catalogAudience: ['documentacao'],
-    entityType: 'bl',
+    entityType: 'customer',
     severity: 'critical',
     summary: 'Um B/L de carga solta está sem peso informado para seguir na revisão.',
     trigger: 'B/L de carga solta com peso ausente ou menor que o valor mínimo aceito.',
@@ -137,7 +133,6 @@ const ALERT_RULES_BASE = [
     destination: '/revisao',
     destinationLabel: 'Abrir Revisão',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'bl_sem_cliente_perto_eta',
@@ -154,7 +149,6 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir Revisão',
     destinationNote: 'O link do alerta abre a Revisão já na viagem da escala (/revisao?causa=cliente&voyage=…), com os B/Ls sem Cliente de todos os portos da viagem.',
     afterResolution: 'Fecha na hora quando o último B/L listado ganha Cliente, é cancelado, excluído ou muda de escala, quando o ETA é adiado para mais de 5 dias, a escala é excluída ou omitida, ou a viagem é cancelada.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'billing_calculation_blocked',
@@ -171,7 +165,6 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir Taxas Locais',
     destinationNote: 'Quando o alerta traz uma rota de correção própria, ele abre direto a tela indicada no lugar da lista de Taxas Locais.',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'billing_auto_issue_failed',
@@ -187,7 +180,6 @@ const ALERT_RULES_BASE = [
     destination: '/taxas-locais',
     destinationLabel: 'Abrir Taxas Locais',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'billing_charge_table_missing',
@@ -203,7 +195,6 @@ const ALERT_RULES_BASE = [
     destination: '/taxas-locais/tabelas',
     destinationLabel: 'Abrir tabelas de Taxas Locais',
     afterResolution: 'O B/L sai da lista quando a fatura sai, quando é cancelado, perde o CE, muda de POD ou de modalidade, ou quando a Viagem é cancelada; o alerta fecha sozinho com a lista vazia.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'demurrage_ptax_recalc_failed',
@@ -213,13 +204,12 @@ const ALERT_RULES_BASE = [
     entityType: 'exchange_rate_reference',
     severity: 'critical',
     summary: 'A atualização automática da PTAX da Demurrage falhou e o último valor válido foi preservado.',
-    trigger: 'O job protegido não consegue obter uma cotação válida, salvar a referência cambial ou concluir o recálculo das invoices abertas.',
+    trigger: 'O job protegido não consegue obter uma cotação válida, salvar a referência cambial ou concluir o recálculo das invoices abertas. Também abre às 14h de dia útil, com o Itaú ligado, quando a PTAX do dia não chegou às cobranças Pix da Demurrage (registro próprio, que fecha pela rodada do Itaú; ALE-D11).',
     timing: 'Aparece na primeira falha do job e permanece até uma execução completa confirmar a recuperação.',
     resolution: 'Abra Demurrage, confira a disponibilidade da PTAX e trate a causa técnica antes de repetir o recálculo autorizado.',
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'calendario_feriados_pendente',
@@ -235,7 +225,6 @@ const ALERT_RULES_BASE = [
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'import_effect_blocked',
@@ -251,7 +240,6 @@ const ALERT_RULES_BASE = [
     destination: '/alertas',
     destinationLabel: 'Abrir Alertas',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'import_effects_queue_stalled',
@@ -267,7 +255,6 @@ const ALERT_RULES_BASE = [
     destination: '/alertas',
     destinationLabel: 'Abrir Alertas',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'itau_pix_consulta_parada',
@@ -283,7 +270,6 @@ const ALERT_RULES_BASE = [
     destination: '/reconciliacao',
     destinationLabel: 'Abrir Conciliação',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'demurrage_invoice_dates_changed',
@@ -299,7 +285,6 @@ const ALERT_RULES_BASE = [
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
     afterResolution: 'Fecha sozinho quando os containers sem cobrança entram numa Invoice emitida, ou quando as datas voltam às faturadas e a Régua volta a cobrar; nos demais casos, registre a conferência em "Resolver com justificativa".',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'cobranca_demurrage_recusada',
@@ -315,7 +300,6 @@ const ALERT_RULES_BASE = [
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
     afterResolution: 'A falha repetida fecha sozinha quando a cobrança sai. A recusa definitiva fecha pela pessoa: use Resolver na fila (a justificativa é obrigatória e fica no histórico do alerta com o seu nome); isso tira a suspensão e a Régua tenta de novo na rodada seguinte. Os dois fecham sozinhos quando a Invoice é paga, isenta ou cancelada (migration 317).',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'ce_trocado_com_desbloqueio',
@@ -331,7 +315,6 @@ const ALERT_RULES_BASE = [
     destination: '/desbloqueio-ce',
     destinationLabel: 'Abrir o Desbloqueio de CE',
     afterResolution: 'Fecha sozinho quando a conciliação com a ZPT confere o Desbloqueio do CE atual. Se o CE foi removido ou a conferência foi feita fora da conciliação, use Resolver na fila: a justificativa é obrigatória e fica no histórico do alerta com o seu nome.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'ce_fora_do_manifesto_da_rota',
@@ -348,7 +331,6 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir B/L',
     destinationNote: 'O link abre a ficha do B/L do alerta.',
     afterResolution: 'Fecha sozinho quando o CE é trocado ou removido, quando o B/L entra num Manifesto Mercante ou quando é cancelado; excluir o B/L apaga o alerta.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'bl_vehicles_changed_on_reimport',
@@ -364,7 +346,6 @@ const ALERT_RULES_BASE = [
     destination: '/bls',
     destinationLabel: 'Abrir o B/L',
     afterResolution: justifiedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'comunicado_ce_reenvio_pendente',
@@ -381,14 +362,12 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir os Comunicados do B/L',
     destinationNote: 'O alerta abre `/clientes/comunicacao?tab=historico&kind=ce_mercante_taxas&bl={id}`, com o Histórico já filtrado pelos Comunicados de CE e Taxas do B/L.',
     afterResolution: 'Fecha sozinho quando o Comunicado de CE e Taxas é enviado de novo ao Cliente, depois da troca do CE.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'pix_unreconciled',
     domain: 'Financeiro',
     responsible: 'administrativo',
-    responsibleDepartments: ['administrativo', 'financeiro'],
-    catalogAudience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'],
+    catalogAudience: ['administrativo', 'financeiro'],
     routingNote: 'Administrativo e Financeiro tratam na fila, porque conciliar o PIX é deles (migration 247); Documentação e Equipamentos também recebem a notificação interna, porque o PIX pode se referir a uma invoice de Demurrage.',
     entityType: 'pix_transaction',
     severity: 'critical',
@@ -399,7 +378,6 @@ const ALERT_RULES_BASE = [
     destination: '/reconciliacao?tab=pendencias',
     destinationLabel: 'Abrir Conciliação PIX',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'portal_dispute_opened',
@@ -415,7 +393,6 @@ const ALERT_RULES_BASE = [
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'portal_pendencia_geral',
@@ -431,7 +408,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/portal',
     destinationLabel: 'Abrir Clientes e Portal',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'portal_convite_expirado',
@@ -447,7 +423,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/portal',
     destinationLabel: 'Abrir Clientes e Portal',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'portal_falha_envio',
@@ -463,7 +438,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/portal',
     destinationLabel: 'Abrir Clientes e Portal',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'portal_email_suprimido',
@@ -479,7 +453,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/portal',
     destinationLabel: 'Abrir Clientes e Portal',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'portal_abuso_login',
@@ -495,14 +468,12 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/portal',
     destinationLabel: 'Abrir Clientes e Portal',
     afterResolution: justifiedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'cliente_contato_bounced_sem_alternativa',
     domain: 'Portal',
     responsible: 'documentacao',
-    responsibleDepartments: ['documentacao', 'administrativo'],
-    catalogAudience: ['documentacao', 'administrativo'],
+    catalogAudience: ['documentacao'],
     entityType: 'customer',
     severity: 'critical',
     summary: 'O cliente perdeu todos os contatos válidos após bounce permanente e não possui endereço alternativo.',
@@ -513,14 +484,12 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir Clientes',
     destinationNote: 'Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=cadastro`.',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'caixa_sem_destinatario',
     domain: 'Portal',
     responsible: 'documentacao',
-    responsibleDepartments: ['documentacao', 'administrativo'],
-    catalogAudience: ['documentacao', 'administrativo'],
+    catalogAudience: ['documentacao'],
     entityType: 'customer',
     severity: 'critical',
     summary: 'Uma Caixa de Comunicação do Cliente ficou sem destinatário elegível: os Comunicados dessa caixa não têm para quem ir.',
@@ -531,14 +500,12 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir Clientes',
     destinationNote: 'Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=cadastro`.',
     afterResolution: 'Fecha sozinho ao salvar os contatos com destinatário elegível em toda caixa ativa (migration 245).',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'cliente_sem_contato_principal',
     domain: 'Portal',
     responsible: 'documentacao',
-    responsibleDepartments: ['documentacao', 'administrativo'],
-    catalogAudience: ['documentacao', 'administrativo'],
+    catalogAudience: ['documentacao'],
     entityType: 'customer',
     severity: 'critical',
     summary: 'O Cliente não tem contato principal ativo e um B/L trouxe um e-mail que está desativado no cadastro.',
@@ -549,14 +516,12 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir Clientes',
     destinationNote: 'Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=cadastro`.',
     afterResolution: 'Fecha sozinho ao salvar os contatos, porque o salvamento exige exatamente um contato principal ativo (migration 245).',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'portal_excecao_critica_fatura',
     domain: 'Portal',
     responsible: 'documentacao',
-    responsibleDepartments: ['documentacao', 'administrativo'],
-    catalogAudience: ['documentacao', 'administrativo'],
+    catalogAudience: ['documentacao'],
     entityType: 'bl',
     severity: 'critical',
     summary: 'Uma invoice foi emitida sem que o Portal do cliente estivesse apto a recebê-la.',
@@ -567,7 +532,6 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir B/Ls',
     destinationNote: 'Quando o B/L estiver identificado, o alerta abre diretamente `/bls/{id}?tab=faturamento`; este link leva à lista para localizar o B/L afetado.',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'portal_reprocessamento_falhou',
@@ -585,7 +549,6 @@ const ALERT_RULES_BASE = [
     destinationNote: 'Quando o B/L estiver identificado, o alerta abre diretamente `/bls/{id}?tab=faturamento`; este link leva à lista para localizar o B/L afetado.',
     routingNote: 'O mesmo tipo avisa o evento de e-mail do provedor que foi para investigação (sem tentativa vinculada, ambíguo ou depois de 6 tentativas; migrations 109 e 309). Esse alerta não tem B/L nem Cliente: o link fica nos Alertas, e o motivo está na mensagem. Documentação continua responsável, como no restante do tipo.',
     afterResolution: `${derivedResolution} O alerta do evento de e-mail em investigação não tem rotina que o feche: depois de conferir o envio no provedor, use Resolver na fila com justificativa (migration 316).`,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'voyage_bl_expected',
@@ -601,7 +564,6 @@ const ALERT_RULES_BASE = [
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'voyage_baplie_missing',
@@ -617,7 +579,6 @@ const ALERT_RULES_BASE = [
     destination: '/baplie',
     destinationLabel: 'Abrir Baplie EDI',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'voyage_baplie_documentary_coverage',
@@ -633,7 +594,6 @@ const ALERT_RULES_BASE = [
     destination: '/baplie',
     destinationLabel: 'Abrir Baplie EDI',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'voyage_ce_mercante_missing',
@@ -649,7 +609,6 @@ const ALERT_RULES_BASE = [
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'voyage_vehicle_sheet_pending',
@@ -666,13 +625,12 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir Veículos',
     destinationNote: 'O alerta abre a tela Veículos já na viagem (`/veiculos?voyage={id}`).',
     afterResolution: `${derivedResolution} Veículo importado depois desfaz sozinho a declaração; desfazer a declaração com motivo reabre o alerta dentro do prazo.`,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'voyage_schedule_date_pending',
     domain: 'Operação',
     responsible: 'operacoes',
-    catalogAudience: ['operacoes', 'documentacao'],
+    catalogAudience: ['operacoes'],
     routingNote: 'Operações é o setor responsável na fila; Documentação também recebe a notificação interna, porque a audiência do tipo no catálogo SQL inclui os dois setores.',
     entityType: 'voyage_pod_schedule',
     severity: 'normal',
@@ -683,13 +641,12 @@ const ALERT_RULES_BASE = [
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'voyage_terminal_date_pending',
     domain: 'Operação',
     responsible: 'operacoes',
-    catalogAudience: ['operacoes', 'documentacao'],
+    catalogAudience: ['operacoes'],
     routingNote: 'Operações é o setor responsável na fila; Documentação também recebe a notificação interna, porque a audiência do tipo no catálogo SQL inclui os dois setores.',
     entityType: 'voyage_escala_terminal',
     severity: 'normal',
@@ -700,7 +657,6 @@ const ALERT_RULES_BASE = [
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'voyage_export_after_atd',
@@ -716,7 +672,6 @@ const ALERT_RULES_BASE = [
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'comunicado_noa_pendente',
@@ -732,7 +687,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/comunicacao',
     destinationLabel: 'Abrir Comunicados',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'comunicado_nor_pendente',
@@ -748,7 +702,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/comunicacao',
     destinationLabel: 'Abrir Comunicados',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'comunicado_nob_pendente',
@@ -764,7 +717,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/comunicacao',
     destinationLabel: 'Abrir Comunicados',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'comunicado_recusado',
@@ -780,7 +732,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes/comunicacao',
     destinationLabel: 'Abrir Comunicados',
     afterResolution: 'Fecha sozinho quando o Comunicado sai ou quando deixa de ser devido; também pode ser encerrado com justificativa. Depois da justificativa, só reabre se outro Comunicado do Cliente falhar: as novas tentativas dos que já estavam no alerta não o reabrem.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'desbloqueio_ce_aviso_nao_enviado',
@@ -796,7 +747,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes',
     destinationLabel: 'Abrir Clientes',
     afterResolution: 'Fecha sozinho quando um aviso seguinte do mesmo Cliente sai (enviado ou simulado); também pode ser resolvido na fila com justificativa.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'nob_sem_destinatario',
@@ -812,7 +762,6 @@ const ALERT_RULES_BASE = [
     destination: '/clientes',
     destinationLabel: 'Abrir Clientes',
     afterResolution: 'Fecha sozinho na rodada seguinte em que o Cliente tem contato elegível ou o Comunicado deixa de ser devido (janela vencida, Comunicado registrado, Cliente desativado).',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'agency_report_department_pending',
@@ -830,7 +779,6 @@ const ALERT_RULES_BASE = [
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens / ADR',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'agency_report_deadline_missed',
@@ -848,11 +796,9 @@ const ALERT_RULES_BASE = [
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens / ADR',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'fatura_desatualizada', domain: 'Financeiro', responsible: 'administrativo',
-    responsibleDepartments: ['administrativo', 'financeiro'],
     // Crítico desde a migration 467 (reunião de testes de 2026-10-26).
     catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'critical',
     summary: 'A correção do B/L mudou a cobrança de uma fatura e o sistema não conseguiu resolver sozinho.',
@@ -861,11 +807,9 @@ const ALERT_RULES_BASE = [
     resolution: 'Aumento com pagamento: fatura avulsa da diferença. Reemissão travada: resolver o motivo e emitir pela ficha do B/L.',
     destination: '/taxas-locais', destinationLabel: 'Taxas Locais',
     afterResolution: 'A reemissão ou o cancelamento fecham o alerta. Para avulsa, registre a resolução com justificativa.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'restituicao_pendente', domain: 'Financeiro', responsible: 'administrativo',
-    responsibleDepartments: ['administrativo', 'financeiro'],
     catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'normal',
     summary: 'Há dinheiro a devolver ao Cliente: uma restituição da fatura ou da Invoice de Demurrage está pendente.',
     trigger: 'Qualquer restituição pendente: excedente de baixa, Pix em duplicidade, correção do B/L em fatura paga que passa do saldo, restituição excepcional, troca de CNPJ, cancelamento financeiro do B/L ou Invoice de Demurrage.',
@@ -873,7 +817,6 @@ const ALERT_RULES_BASE = [
     resolution: 'Devolver o valor ao Cliente e marcar a restituição como efetuada no detalhe da fatura.',
     destination: '/taxas-locais', destinationLabel: 'Taxas Locais',
     afterResolution: 'Fecha sozinho quando não resta restituição pendente na fatura.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'email_retorno_provedor_silencioso', domain: 'Portal', responsible: 'administrativo',
@@ -884,7 +827,6 @@ const ALERT_RULES_BASE = [
     resolution: 'Conferir na MillionSend se o webhook está ativo e entregando, e se o segredo RESEND_WEBHOOK_SECRET do Supabase é o do webhook (manual de serviços externos).',
     destination: '/alertas', destinationLabel: 'Abrir Alertas',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
   {
     type: 'usuario_email_devolvido', domain: 'Portal', responsible: 'administrativo',
@@ -895,7 +837,6 @@ const ALERT_RULES_BASE = [
     resolution: 'Corrigir o e-mail em Admin › Usuários › Editar acesso. Salvar o e-mail libera a supressão do endereço antigo, se ele não for de Cliente.',
     destination: '/admin/usuarios', destinationLabel: 'Abrir Usuários',
     afterResolution: 'Fecha sozinho quando o e-mail muda, a supressão sai ou o usuário é desativado.',
-    dismissal: temporaryDismissal,
   },
   {
     type: 'rotina_http_falhou', domain: 'Operação', responsible: 'administrativo',
@@ -907,7 +848,6 @@ const ALERT_RULES_BASE = [
     destination: '/alertas', destinationLabel: 'Abrir Alertas',
     destinationNote: 'O pg_net não guarda qual rotina fez a chamada: o alerta mostra horário e status, não o nome do job.',
     afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
   },
 ] satisfies AlertRuleDraft[]
 
@@ -920,8 +860,8 @@ export const ALERT_RULES: AlertRule[] = ALERT_RULES_BASE.map((rule) => {
   return {
     ...rule,
     responsibleDepartments,
-    // Espelha `fanout_alert_item_for_department`: audiência do catálogo unida
-    // ao departamento gravado no item.
+    // Espelha `fanout_alert_item_for_department` (migration 476): o setor do
+    // item e, na exceção do dono, o Financeiro da audiência.
     notifiedDepartments: sortDepartments([...rule.catalogAudience, ...responsibleDepartments]),
     label: TYPE_LABELS[rule.type],
     // Mantém o rótulo técnico em um único lugar e permite que a busca encontre

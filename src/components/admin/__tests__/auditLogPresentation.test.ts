@@ -90,3 +90,10 @@ describe('appEnvironmentLabel', () => {
     expect(appEnvironmentLabel({ DEV: false, VITE_SENTRY_ENVIRONMENT: 'staging' })).toBe('Outro ambiente')
   })
 })
+
+describe('ALE-D08: resolução de alerta com justificativa (migration 476)', () => {
+  it('aparece no assunto Alerta com o nome do tipo', () => {
+    expect(auditSubjectLabel('alert_item')).toBe('Alerta')
+    expect(describeAuditLog(log('alert_item', 'status', 'itau_pix_consulta_parada', 'resolved'))).toBe('Alerta resolvido com justificativa: Consulta de Pix do Itaú parada')
+  })
+})

@@ -15,6 +15,7 @@ pelo setor do cartão.
 
 ## 2. Sino só com o que é do setor, e alerta resolvido sai do sino
 
+- **Situação:** executado em 2026-10-27, migration `476`, [ADR 0107](../../adr/0107-sino-so-do-setor-responsavel.md), com a exceção do Financeiro nos quatro tipos do dinheiro decidida pelo dono no mesmo dia.
 - **Hoje:** `fanout_alert_item` (migration `328`) entrega à audiência do
   catálogo (`alert_type_catalog.audience_departments`), que em 5 dos 50 tipos
   inclui setor que não é o responsável: Revisão de B/L — Portal não
@@ -36,6 +37,7 @@ pelo setor do cartão.
 
 ## 3. Retirar a dispensa de alerta
 
+- **Situação:** executado em 2026-10-27, migration `476`, [ADR 0108](../../adr/0108-fim-da-dispensa-de-alertas.md).
 - **Decidido:** o time concordou que dispensar alerta não é útil e pode ser
   prejudicial. A ação Dispensar sai do sistema.
 - **O que sai ou muda:** botão Dispensar e janela em `/alertas`

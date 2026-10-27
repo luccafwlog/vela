@@ -14,7 +14,8 @@ ACE-D01 (opção A) no mesmo dia.
 | 5 | Executado em 2026-10-27 (migration `473`); conferido no Postgres local e nos testes de tela, falta conferir em staging (login com a verificação de segurança e convite pela ficha do B/L) |
 | 6 | Executado em 2026-10-27 (migration `474`); conferido no Postgres local e nos testes de tela, falta conferir em staging (Base de Clientes por setor e Cobertura de viagens com envio redirecionado) |
 | 7 | Executado em 2026-10-27 (migration `475`, [ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); conferido no Postgres local e nos testes de tela. Falta o Administrativo passar os usuários Operador para Documentação em Usuários (ACE-D13) e conferir em staging a tela de entrada de um usuário desativado |
-| 8 a 11 | Não autorizados; nada executado |
+| 8 | Executado em 2026-10-27 (migration `476`, ADRs [0107](../adr/0107-sino-so-do-setor-responsavel.md) e [0108](../adr/0108-fim-da-dispensa-de-alertas.md)); conferido no Postgres local e nos testes de tela; falta conferir em staging o sino de cada setor |
+| 9 a 11 | Em execução |
 
 **Revisão contra a staging (2026-10-27, até `c3be255`).** As mudanças que
 entraram na staging depois do mapeamento (Baplie e Taicang, migration `465`;
@@ -245,7 +246,11 @@ Impacto: médio.
 Impacto: médio. [Pontos 2 e 3](../manual/decisoes/pontos-do-dono.md).
 
 1. Sino só para o setor responsável pelo item; alerta crítico sem ninguém
-   ativo no setor continua indo ao Administrativo. ADR.
+   ativo no setor continua indo ao Administrativo. Exceção decidida pelo dono
+   em 2026-10-27: os quatro tipos com o Financeiro na audiência (PIX sem
+   conciliação segura, Consulta de Pix do Itaú parada, Restituição pendente e
+   Fatura desatualizada) continuam avisando também o Financeiro (P5 da ADR
+   0085). ADR.
 2. Alerta resolvido sai do sino e do número sem marcar como lido. ADR (a
    mesma).
 3. Retirar a dispensa: botão, janela, lente e cartão Dispensados, coluna
@@ -258,9 +263,9 @@ Impacto: médio. [Pontos 2 e 3](../manual/decisoes/pontos-do-dono.md).
 5. `12-alertas-rotinas:ALE-D03` — tela de Regras mostra só o setor
    responsável (com o item 1, deixa de haver setor só notificado).
 6. `12-alertas-rotinas:ALE-D13` (absorve ACE-D03) — matriz de Usuários com 5
-   e 5 tipos para Operações e Equipamentos (eram 5 e 4 no mapeamento;
-   Equipamentos ganhou Planilha de Veículos pendente, migration `468`),
-   conferida depois do item 1.
+   e 4 tipos para Operações e Equipamentos (Equipamentos ganhou Planilha de
+   Veículos pendente, migration `468`, e deixou de receber o Pix com o item
+   1), conferida depois do item 1.
 7. `12-alertas-rotinas:ALE-D05` e `ALE-D12` — alertas levam à tela prometida
    e os de contato abrem a ficha do Cliente.
 8. `12-alertas-rotinas:ALE-D06` — "Aberto em" com a data da abertura atual.

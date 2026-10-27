@@ -7,6 +7,8 @@
 >
 > **Situação atual (2026-10-27, lote 7).** Pela [ADR 0106](./0106-nome-do-autor-no-historico-para-todos.md) (migration `475`), o nome de quem fez cada registro do Histórico é leitura de todos (só o nome, por `get_user_display_names`), e a exceção "/admin, inclusive leitura" vale no banco para as falhas de entrega e as linhas de Usuário do Histórico de ações; os demais assuntos do Histórico e o Prazo do ADR seguem lidos por todos.
 >
+> **Situação atual (2026-10-27, lote 8).** O P5 de D18 continua: pela [ADR 0107](./0107-sino-so-do-setor-responsavel.md) (migration `476`), o sino vai só ao setor responsável, com a exceção decidida pelo dono de os quatro tipos do dinheiro (PIX sem conciliação segura, Consulta de Pix do Itaú parada, Restituição pendente e Fatura desatualizada) avisarem também o Financeiro. O Pix deixou de avisar Documentação e Equipamentos.
+>
 > **Nota de 2026-10-22 (D4, auditoria de segurança run-3).** Desde a migration `306`, o desconto que zera o USD líquido quita a Invoice de Demurrage como isenta (`paid`), então o motivo de D4 ("só altera o valor e não registra baixa") não vale para o desconto integral. O dono decidiu manter o desconto, inclusive o de 100%, com qualquer Departamento, sempre com justificativa e no histórico.
 
 Status: supersedida parcialmente — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelos

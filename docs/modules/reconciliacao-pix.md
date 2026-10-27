@@ -519,8 +519,9 @@ Financeiro, o que a baixa exige (migration `440`; antes era Administrativa). Qua
 (valor diferente, fatura não pagável, TXID do Vela sem cobrança, fatura de
 Taxas Locais ou avulsa sem usuário de baixa configurado) grava o Pix em análise e abre o Alerta
 `pix_unreconciled` (**PIX sem conciliação segura**), sem baixa, que avisa
-Administrativo, Financeiro, Documentação e Equipamentos (os dois primeiros
-tratam); o Pix aparece em **Pix
+Administrativo e Financeiro, que tratam (desde a migration `476`, a
+Documentação e Equipamentos não recebem mais o aviso;
+[ADR 0107](../adr/0107-sino-so-do-setor-responsavel.md)); o Pix aparece em **Pix
 em análise**. O Alerta tem a entidade `itau_pix_receipt` (o Pix
 recebido), não a `pix_transaction` das exceções do extrato; desde a revisão dos
 alertas de 2026-10-21, o painel de alertas financeiros de `/taxas-locais` lê as

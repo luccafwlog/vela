@@ -34,7 +34,6 @@ function decisionsApplied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT to_regprocedure('public.set_bl_manual_roe(text,numeric,text)') IS NOT NULL
-      AND (SELECT position('no máximo 30 dias' in prosrc) > 0 FROM pg_proc WHERE proname = 'dismiss_alert_item')
       AND to_regprocedure('ops.preferred_vault_secret(text,text)') IS NOT NULL;`) === 't'
   } catch {
     return false
@@ -92,14 +91,8 @@ function scenario(sql: string): string[] {
 const describeLocal = describeWithProbe(decisionsApplied, 'decisionsApplied (migrations 433 a 438)')
 
 describeLocal('433 a 438 — decisões do dono da auditoria run-3', () => {
-  it('433: dispensa vai até o fim do 30º dia e não além', () => {
-    const endOfDay30 = `(date_trunc('day', now() AT TIME ZONE 'UTC') + interval '30 days 23:59:59') AT TIME ZONE 'UTC'`
-    const day31 = `(date_trunc('day', now() AT TIME ZONE 'UTC') + interval '31 days') AT TIME ZONE 'UTC'`
-    expect(scenario(`
-      ${as(ADM)}
-      ${try_(`SELECT public.dismiss_alert_item(${ALERT_ITEM}, 'Aguardando o armador', ${day31})`)}
-      ${try_(`SELECT public.dismiss_alert_item(${ALERT_ITEM}, 'Aguardando o armador', ${endOfDay30})`)}
-    `)).toEqual(['22023', 'ok'])
+  it('433 deixou de valer: a dispensa saiu na migration 476 (ADR 0108)', () => {
+    expect(psql(`SELECT to_regprocedure('public.dismiss_alert_item(bigint,text,timestamp with time zone)') IS NULL;`)).toBe('t')
   })
 
   it('434: Invoice de Demurrage reemitida para o novo Cliente nasce sem o desconto, com o R$ cheio', () => {

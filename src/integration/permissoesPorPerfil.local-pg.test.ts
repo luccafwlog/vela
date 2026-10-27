@@ -1012,10 +1012,15 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     const rows = psql(`SELECT department || '=' || count(*) FROM (
         SELECT unnest(audience_departments) AS department FROM public.alert_type_catalog WHERE active
       ) AS audience GROUP BY department ORDER BY department;`).split('\n')
-    const counts = Object.fromEntries(rows.map((line) => {
+    const counts: Record<string, number> = Object.fromEntries(rows.map((line) => {
       const [department, count] = line.split('=')
       return [department, Number(count)]
     }))
+    // ALE-D13 (migration 476): Operações e Equipamentos recebem também os dois
+    // tipos do ADR de Saída da própria seção, pelo setor gravado no item.
+    const adrTypes = Number(psql(`SELECT count(*) FROM public.alert_type_catalog WHERE active AND type LIKE 'agency_report_%';`))
+    counts.operacoes += adrTypes
+    counts.equipamentos += adrTypes
     expect(counts).toEqual(ALERT_TYPE_COUNTS)
   })
 
