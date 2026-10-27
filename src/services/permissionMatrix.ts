@@ -1,6 +1,6 @@
 // "O que cada setor pode" (lote 5b, tela Administração, decisão de
 // 2026-10-19: opção A com C). Fonte única da matriz da aba Usuários e da
-// lista "Com este setor, ... pode" das janelas de usuário. As 40 linhas
+// lista "Com este setor, ... pode" das janelas de usuário. As 41 linhas
 // resumem as ações de docs/operations/seguranca.md § "Modelo de permissões
 // por perfil", que diz onde o banco aplica cada uma.
 //
@@ -89,7 +89,9 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'editar-viagem', group: 'viagens', action: 'Criar e editar viagem, escala e programação; omitir escala; fechar o ADR', can: ALL, proof: ['todos: Editar viagem', 'todos: Editar escala de exportação', 'todos: Fechar o ADR de Saída'] },
   { id: 'reverter-omissao-reabrir-adr', group: 'viagens', action: 'Reverter omissão de escala e reabrir ADR fechado, com motivo', can: ALL, proof: ['caso: P6:'] },
   { id: 'cancelar-reativar-viagem-bl', group: 'viagens', action: 'Cancelar e reativar Viagem e B/L, com motivo', can: ADM, proof: ['exceção: Cancelar viagem', 'exceção: Reativar viagem', 'exceção: Cancelar B/L', 'exceção: Reativar B/L'] },
-  { id: 'excluir-registros', group: 'viagens', action: 'Excluir viagem, escala, atracação, B/L, container e Cliente', can: ADM, proof: ['exceção: Excluir viagem com Trava', 'exceção: Excluir escala', 'exceção: Excluir Cliente', 'caso: A7: delete_escala segue excluindo'] },
+  { id: 'excluir-registros', group: 'viagens', action: 'Excluir viagem, escala, B/L, container e Cliente', can: ADM, proof: ['exceção: Excluir viagem com Trava', 'exceção: Excluir escala', 'exceção: Excluir Cliente', 'caso: A7: delete_escala segue excluindo'] },
+  // 02-viagens-adr:2 (migration 477): trocar o terminal de uma frente remove a atracação antiga.
+  { id: 'remover-atracacao', group: 'viagens', action: 'Remover atracação (trocar o terminal de uma frente)', can: only('administrativo', 'operacoes'), proof: ['caso: 477: Operações e o Administrativo removem atracação'] },
   {
     id: 'assinar-adr', group: 'viagens', action: 'Assinar e observar a seção do ADR de Saída',
     can: { administrativo: 'Cobre quem faltar', financeiro: false, operacoes: 'Só a própria seção', documentacao: 'Só a própria seção', equipamentos: 'Só a própria seção' },

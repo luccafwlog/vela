@@ -160,8 +160,9 @@ async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
     }
     if (byImo?.[0] && normalizeVesselImo(byImo[0].imo) === normalizedImo) {
       const vessel = byImo[0]
-      const updates: { name?: string; imo?: string; carrier_id?: number } = {}
-      if (vessel.name && vessel.name !== canonical) updates.name = canonical
+      // 02-viagens-adr:5 (2026-10-27): achado pelo IMO, o navio mantém o nome
+      // cadastrado; a grafia digitada numa Viagem não renomeia as outras.
+      const updates: { imo?: string; carrier_id?: number } = {}
       if (vessel.carrier_id !== carrierId) updates.carrier_id = carrierId
       if (vessel.imo !== normalizedImo) updates.imo = normalizedImo
       if (Object.keys(updates).length > 0) {
@@ -334,7 +335,10 @@ export async function fetchVoyagesWithUnpaidBls(voyageIds: number[]): Promise<Se
     .from('bls')
     .select('voyage_id')
     .in('voyage_id', voyageIds)
+    // 02-viagens-adr:4: B/L quitado (pago) também encerra; B/L cancelado não segura.
     .neq('charge_status', 'exempt')
+    .or('financial_status.is.null,financial_status.neq.paid')
+    .is('cancelled_at', null)
     .limit(5000)
 
   if (error) throw error

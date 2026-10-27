@@ -157,8 +157,9 @@ reativada se o cancelamento foi por engano.
 
 **Alias de Nome de Navio**
 Prefixo abreviado reconhecido como equivalente ao prefixo canônico do nome do
-navio, sem alterar o nome exibido ou cadastrado (ex.: `ZYHY` = `ZHONG YUAN HAI
-YUN`; `CS` = `COSCO SHIPPING`).
+navio, sem alterar o nome exibido (ex.: `ZYHY` = `ZHONG YUAN HAI YUN`; `CS` =
+`COSCO SHIPPING`). O navio novo é cadastrado com o nome canônico; o navio já
+cadastrado mantém o nome quando uma Viagem usa outra grafia.
 → Regra: [Viagens § Identidade do navio](docs/modules/viagens.md#identidade-do-navio)
 
 **Escala portuária**
@@ -207,7 +208,8 @@ transbordo ou receber COD. Na programação de navios aparece como `OMIT`.
 
 **Porto de Transbordo**
 Porto onde a carga de uma escala omitida é efetivamente descarregada para seguir
-em transbordo ou receber COD. Pode ser diferente do POD original do B/L.
+em transbordo ou receber COD: outra escala da mesma viagem, nunca o próprio
+porto omitido. Pode ser diferente do POD original do B/L.
 → Regra: [Viagens § Omissão de Escala, Transbordo e COD](docs/modules/viagens.md#omissão-de-escala-transbordo-e-cod)
 
 **Transbordo**
@@ -263,7 +265,8 @@ referenciam esses mesmos portos.
 
 **Frente de Operação**
 Recorte da escala por sentido e modalidade. A atribuição de terminal liga a
-carga à Atracação correspondente; frente sem terminal é **TBC**. Em B/L misto,
+carga à Atracação correspondente; frente sem terminal é **TBC**, que não é
+terminal: com o ATA da escala registrado, toda frente precisa de terminal. Em B/L misto,
 carga cheia e carga solta são frentes distintas do mesmo documento, não dois
 B/Ls.
 → Regra: [Viagens § Escala, Atracação e datas](docs/modules/viagens.md#escala-atracação-e-datas)

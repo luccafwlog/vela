@@ -181,10 +181,11 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Criar e editar viagem, escala, programação e exportação; omitir escala; fechar ADR de Saída | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; RPCs com `is_active_user()` | ADR 0046 | vigente |
+| Criar e editar viagem, escala (inclusive terminal das frentes, ATB, ATD e Restow da Atracação), programação e exportação; omitir escala; fechar ADR de Saída | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; RPCs com `is_active_user()`; `save_voyage_escala_terminal_state` sem restrição de setor desde a migration `477` (ficha ACE-D02) | ADR 0046 | vigente |
 | Desmarcar a exportação de uma escala | ✔ | ✔ | ✔ | ✔ | ✔ | Gatilho `guard_export_schedule_removal` (migration `066`): recusa quando o porto tem Granito importado ou Embarque de Vazios aberto | ADR 0085, D14 | vigente (**Teste**, Postgres local, 2026-10-14) |
 | Cancelar e reativar Viagem e B/L, com motivo | ✔ | — | — | — | — | `cancel_voyage`, `reactivate_voyage`, `cancel_bl`, `reactivate_bl` (`is_admin`) e gatilhos das migrations `066` e `089` | ADR 0071, itens 8 e 9 | vigente |
 | Excluir viagem, escala (inclusive de exportação), atracação, B/L e container, com motivo e Trava | ✔ | — | — | — | — | `delete_records`, `delete_escala` (migrations `088` e `235`: escala com B/L recusada); sem DELETE direto pela API (`235`) | ADR 0046; ADR 0071; ADR 0083, item 7 | vigente (**Teste** local) |
+| Remover atracação da escala (tirar o terminal de todas as frentes, inclusive ao mover a frente para outro terminal), com Trava | ✔ | — | ✔ | — | — | Gatilho `guard_terminal_state_removal` (migration `477`: “Somente Operações e o Administrativo removem atracação.”; a Atracação TBC sem terminal sai para todos) | ADR 0071; ficha ACE-D02 / `02-viagens-adr:2` | migration `477` |
 | Excluir Cliente, com motivo | ✔ | — | — | — | — | `delete_records('customer', …)`, com a guarda do Administrativo antes do tipo | ADR 0046; ADR 0071 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Excluir taxa manual do B/L | ✔ | — | — | — | — | `delete_manual_bl_charge` (`is_admin`) | ADR 0071, item 11 | vigente: escrita direta em `charge_calculations` revogada (migration `231`, **Teste** local) |
 | Reverter omissão de escala, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `revert_voyage_omission` | ADR 0085, D9 | migration `251` |

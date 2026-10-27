@@ -6,6 +6,19 @@
 
 ## 2026-10
 
+- **Viagens e escalas decididas pelo dono (2026-10-27):** migration `477`,
+  [ADR 0109](adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md), lote 9 do
+  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todos os setores gravam
+  terminal, ATB, ATD e Restow da escala; Operações também remove a Atracação ao trocar o terminal de
+  uma frente, com a mesma trava por CE, ADR e B/L. TBC não é terminal: com o ATA registrado, toda
+  frente precisa de terminal, e a Atracação TBC vazia sai e deixa a Viagem concluir. Omitir,
+  reverter a omissão e excluir escala recalculam o status da Viagem na hora. O Porto de Transbordo
+  não pode ser o porto omitido. O navio achado pelo IMO mantém o nome cadastrado; **Faturamento
+  encerrado** conta B/L pago e ignora B/L cancelado. A janela da escala e a aba ADR mostram o motivo
+  de cada recusa; os textos de omitir e reverter dizem que qualquer setor reverte e que o histórico
+  fica. Prova: `viagensLote9.local-pg.test.ts`, `deleteLock.local-pg.test.ts`,
+  `OmitEscalaModal.test.tsx`, `VoyageAgencyReportTab.test.tsx`, `escalaTerminalAllocation.test.ts`,
+  `voyageMutations.test.ts`.
 - **Alertas e sino decididos pelo dono (2026-10-27):** migration `476`,
   [ADR 0107](adr/0107-sino-so-do-setor-responsavel.md) e
   [ADR 0108](adr/0108-fim-da-dispensa-de-alertas.md), lote 8 do

@@ -1039,6 +1039,12 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     }
   })
 
+  it('477: Operações e o Administrativo removem atracação; os demais setores não', () => {
+    const body = psql(`SELECT prosrc FROM pg_proc WHERE proname = 'guard_terminal_state_removal';`)
+    expect(body).toContain("up.role = 'operacoes'")
+    expect(body).toContain('public.is_admin()')
+  })
+
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {
     expect(psql(`SET request.jwt.claim.role = 'service_role'; SELECT public._assert_actor_is_caller('${PROFILES.financeiro}'); SELECT 'ok';`)).toBe('ok')
   })

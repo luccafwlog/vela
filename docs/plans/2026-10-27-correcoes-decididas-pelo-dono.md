@@ -15,7 +15,8 @@ ACE-D01 (opção A) no mesmo dia.
 | 6 | Executado em 2026-10-27 (migration `474`); conferido no Postgres local e nos testes de tela, falta conferir em staging (Base de Clientes por setor e Cobertura de viagens com envio redirecionado) |
 | 7 | Executado em 2026-10-27 (migration `475`, [ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); conferido no Postgres local e nos testes de tela. Falta o Administrativo passar os usuários Operador para Documentação em Usuários (ACE-D13) e conferir em staging a tela de entrada de um usuário desativado |
 | 8 | Executado em 2026-10-27 (migration `476`, ADRs [0107](../adr/0107-sino-so-do-setor-responsavel.md) e [0108](../adr/0108-fim-da-dispensa-de-alertas.md)); conferido no Postgres local e nos testes de tela; falta conferir em staging o sino de cada setor |
-| 9 a 11 | Em execução |
+| 9 | Executado em 2026-10-27 (migration `477`, [ADR 0109](../adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md)); conferido no Postgres local e nos testes de tela; falta conferir em staging a janela da escala com ATA e frente em TBC |
+| 10 e 11 | Em execução |
 
 **Revisão contra a staging (2026-10-27, até `c3be255`).** As mudanças que
 entraram na staging depois do mapeamento (Baplie e Taicang, migration `465`;

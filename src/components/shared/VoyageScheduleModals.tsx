@@ -29,6 +29,8 @@ import { formatDateTimeBR, splitIsoDateTime, combineIsoDateTime, combineBrasilia
 import { normalizePortCode } from '../../services/portCode'
 import { formatPortDisplayName } from '../../lib/voyageFormat'
 import { normalizeDischargePorts } from '../../services/voyageExportSchedules'
+import { userFacingErrorMessage } from '../../lib/errors'
+import { isRevisionConflictError } from '../../services/escalaTerminalAllocation'
 import type {
   ClosedAdrBlocker,
   OperationFront,
@@ -359,12 +361,6 @@ function sameExportExpectation(left: Record<string, unknown>, right: Record<stri
   return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right))
 }
 
-function isRevisionConflictError(error: unknown) {
-  const value = error as { code?: string; message?: string } | null
-  return value?.code === 'ESCALA_REVISION_CONFLICT'
-    || value?.code === 'P0001'
-    || /REVISAO_OBSOLETA|revis[aã]o.*(obsoleta|atualizada)|vers[aã]o.*(obsoleta|atualizada)/i.test(value?.message ?? '')
-}
 
 function isClosedAdrError(error: unknown): error is { blockers: ClosedAdrBlocker[] } {
   const value = error as { code?: string; blockers?: ClosedAdrBlocker[]; message?: string } | null
@@ -495,6 +491,8 @@ function buildTerminalPayload({
     },
   }
 }
+
+const TBC_AFTER_ATA_MESSAGE = 'Com o ATA registrado, toda frente de operação precisa de terminal: TBC não é terminal. Escolha o terminal de cada frente.'
 
 function DateTimeField({
   label,
@@ -1020,6 +1018,11 @@ export function EscalaModal({
       setTerminalError(terminalPayload.error)
       return
     }
+    // 02-viagens-adr:13 (decisão do dono): com o ATA, TBC não é terminal; o banco também recusa.
+    if (ataDate && terminalPayload.value?.fronts.some((front) => !front.terminalId)) {
+      setTerminalError(TBC_AFTER_ATA_MESSAGE)
+      return
+    }
     if (documentalAltered && !justification.trim()) {
       setTerminalError('Informe a justificativa para alterar BLs e CEs.')
       return
@@ -1064,7 +1067,7 @@ export function EscalaModal({
       } else if (isRevisionConflictError(error)) {
         setTerminalError('A escala foi atualizada por outra pessoa. Seus dados foram preservados; recarregue a escala antes de salvar novamente.')
       } else {
-        setTerminalError(error instanceof Error ? error.message : 'Falha ao salvar a escala.')
+        setTerminalError(userFacingErrorMessage(error, 'Falha ao salvar a escala.'))
       }
     } finally {
       setSaving(false)
