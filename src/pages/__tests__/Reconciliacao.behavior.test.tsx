@@ -245,6 +245,11 @@ describe('Conciliação PIX', () => {
     expect(within(receipts).getByText(/Valor recebido difere/)).toBeTruthy()
     expect(within(receipts).getByText('06/10/2026 11:00')).toBeTruthy()
     expect(within(receipts).getByRole('columnheader', { name: 'Identificador do Pix' })).toBeTruthy()
+    // 10-recebimento:1: o identificador do próprio Pix (o que a baixa manual usa) com copiar; o VELA… é o da cobrança.
+    expect(within(receipts).getByRole('columnheader', { name: 'Identificador da cobrança' })).toBeTruthy()
+    expect(within(receipts).getByText('E1')).toBeTruthy()
+    expect(within(receipts).getByRole('button', { name: /identificador do Pix/i })).toBeTruthy()
+    expect(within(receipts).getByText('VELA9')).toBeTruthy()
     expect(screen.queryByText(/TXID|endToEndId/)).toBeNull()
     // Pix sem baixa e cobrança com resposta incerta pedem ação; o cancelamento na fila não.
     expect(screen.getByRole('tab', { name: /Pendências/ }).textContent).toContain('2')

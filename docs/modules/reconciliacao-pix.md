@@ -75,8 +75,11 @@ visual, lote 3, aprovado em 2026-10-16; Pix recebidos pedida pelo responsável e
 2026-10-23, [ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md)). Os Alertas de Pix (`pix_unreconciled`, inclusive os
 gravados com destino `/reconciliacao` pelas migrations 152, 153 e 247) abrem em
 `/reconciliacao?tab=pendencias` (`alertEntityLink`, `PIX_PENDING_HREF`). Na
-tela, o código do Pix se chama **Identificador do Pix** (nome da coluna no
-extrato do Itaú), encurtado em letra de código na tabela e inteiro ao passar o
+tela, o código da cobrança (`VELA…`) se chama **Identificador do Pix** nas
+listas do extrato (nome da coluna no extrato do Itaú) e **Identificador da
+cobrança** em Pix em análise, em Cobranças aguardando o Itaú e em Pix
+recebidos; nessas, **Identificador do Pix** é o do próprio Pix (`endToEndId`),
+o que a baixa manual usa como referência bancária. Ele vem encurtado em letra de código na tabela e inteiro ao passar o
 mouse e na linha aberta; motivos gravados pelo matching com "TXID" são
 reescritos na tela (`pendingExceptionReason`, `extractLineReason`).
 
@@ -96,10 +99,14 @@ faixa; a situação vai em texto, âmbar só no que pede ação:
 
 - **Pix em análise** (`itau_pix_receipts` em análise, só Pix de cobrança do
   Vela desde a migration `442`): Recebido em,
-  Valor, Identificador do Pix e Motivo. O Pix sai da lista e o Alerta fecha
+  Valor, Identificador do Pix (o do próprio Pix, com copiar: é ele que vai na
+  referência bancária da baixa manual), Identificador da cobrança (`VELA…`) e
+  Motivo (10-recebimento:1, decisão do dono de 2026-10-27). O Pix sai da lista e o Alerta fecha
   sozinho só quando a baixa é **daquele Pix** e a fatura da cobrança fica (ou
   já está) **Paga**: a referência bancária da baixa é
   o `endToEndId` dele, ou o extrato conciliou o TXID dele (migration `360`;
+  desde a `468` também quando o extrato grava o identificador depois de quitar
+  a fatura, gatilho `itau_pix_close_receipts_on_extract_txid`;
   [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
   decisão 17). Baixa parcial ou em outra fatura não tira o Pix da análise:
   depois dela, use **Marcar como tratado**. O Pix do Vela sem cobrança sai com
@@ -519,9 +526,13 @@ recebido), não a `pix_transaction` das exceções do extrato; desde a revisão 
 alertas de 2026-10-21, o painel de alertas financeiros de `/taxas-locais` lê as
 duas (`FINANCIAL_ALERT_EVENTS`, `listFinancialAlerts`), e a fila mostra o
 registro como **Pix recebido**. Antes, esse Alerta só aparecia em `/alertas`. Erro passageiro do banco não manda o Pix para análise: a
-consulta seguinte tenta de novo; na terceira falha seguida do mesmo Pix, ele
-vai para análise (`itau_pix_receipt_failures`, Alerta `pix_unreconciled`) e a
-consulta avança. Pix em formato inesperado vai para análise na primeira vez
+consulta seguinte tenta de novo; na terceira falha seguida do mesmo Pix ele é
+gravado em `itau_pix_receipts` com o valor e o horário do retorno do Itaú: o de
+cobrança do Vela em análise (motivo "Não foi gravado depois de N
+tentativa(s): …", Alerta `pix_unreconciled` do Pix em análise), o de fora do
+Vela como recebido, sem Alerta; e a consulta avança (10-recebimento:3;
+migration `468`). Retorno sem valor ou horário legível fica só na fila de
+falhas (`itau_pix_receipt_failures`), com Alerta se for do Vela. Pix em formato inesperado vai para análise na primeira vez
 (migration `358`); `endToEndId` com data impossível (mês 13, minuto 99) conta como formato inesperado.
 Horário a mais de 1 h do minuto UTC do `endToEndId` só para a consulta quando é a
 maioria dos Pix do Vela na janela (desvio de fuso, com os TXIDs no log da `itau-pix`);
@@ -534,7 +545,9 @@ consolidada substituída quita a sucessora aberta e o excedente vira restituiç�
 pendente (migration `361`). Pix em duplicidade em fatura de Taxas Locais já
 paga, coberta ou cancelada vai para análise com a restituição pendente
 registrada (origem `pix_duplicate`, ADR 0093, decisão 18) e sai da análise
-quando a devolução é confirmada; o mesmo Pix que a fatura já recebeu (extrato
+quando a devolução é confirmada; o lastro dessa devolução é o próprio Pix, não
+o que a fatura recebeu, e ela não consome o lastro das outras restituições da
+fatura (10-recebimento:12; `confirm_invoice_refund`, migration `468`); o mesmo Pix que a fatura já recebeu (extrato
 ou baixa manual com o endToEndId na referência) e volta pela consulta não é
 duplicidade: fica como baixado, sem restituição, e fecha a falha de consulta
 do mesmo endToEndId (migration `385`). O Pix que chega na janela entre o cancelamento no Vela e a remoção da cobrança no Itaú (a fila pede a remoção a cada minuto) para consolidada substituída sem sucessora aberta ou avulsa em cancelamento com devolução integral segue a mesma regra: restituição pendente ligada à fatura de origem (ADR 0094, D5; migration `386`). Todo Pix que não é de cobrança do Vela (sem TXID nenhum,

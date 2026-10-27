@@ -98,6 +98,26 @@ describeLocal('375 — gate, recibo, avulsa e Pix sem baixa', () => {
     expect(w.psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(1)}'`)).not.toBe('review')
   })
 
+  // 468 (10-recebimento:12): na fatura cancelada sem baixa, o recebido é zero; o
+  // lastro da devolução é o próprio Pix, e a confirmação tira o Pix da análise.
+  it('Pix em duplicidade em fatura cancelada sem baixa: a devolução é confirmada pelo lastro do próprio Pix', () => {
+    w.psql(`UPDATE public.app_settings SET pix_provider = 'itau' WHERE id = 1`)
+    let b!: { id: string; invoice: number }
+    try {
+      b = issued('R468')
+    } finally {
+      w.psql(`UPDATE public.app_settings SET pix_provider = 'static' WHERE id = 1`)
+    }
+    const txid = w.psql(`SELECT txid FROM public.itau_pix_charges WHERE invoice_id = ${b.invoice} ORDER BY id DESC LIMIT 1`)
+    w.asOk('administrativo', `SELECT public.cancel_invoice(${b.invoice}, 'Cancelada no teste 468', NULL)`)
+    expect(w.psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_settle('${e2e(4)}', '${txid}', 1000, now())`)).toBe('review')
+    const refund = w.psql(`SELECT id FROM public.invoice_refunds WHERE itau_end_to_end_id = '${e2e(4)}' AND origin = 'pix_duplicate'`)
+    w.asOk('financeiro', `SELECT public.confirm_invoice_refund(${refund}, 'DEV468-1', 'Cliente FF9312', now() - interval '1 minute')`)
+    expect(w.psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(4)}'`)).toBe('handled')
+    expect(w.psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
+      AND metadata->>'end_to_end_id' = '${e2e(4)}'`)).toBe('0')
+  })
+
   it('F-38: Pix sem TXID fica gravado uma vez só; desde a 442 (ADR 0100) como recebido, sem Alerta', () => {
     const run = () => w.psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_record_untracked('${e2e(2)}', 123.45, now())`)
     expect(run()).toBe('received')

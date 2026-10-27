@@ -445,7 +445,7 @@ Regra: [Faturamento](modules/faturamento.md).
 | `cancel_financial_refund_authorization` | `financialRefunds.ts` | `136`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `cancel_invoice` | `billing.ts` | `126`, `241` | DEFINER · `authenticated`, `service_role` | Administrativo ativo ou `service_role` (consumidor de efeitos) | Cancela invoice sem pagamento, com justificativa (`126`). `p_actor` conferido com a sessão (`241`). |
 | `confirm_demurrage_refund` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | Financeiro ou Administrativo | Idem para Demurrage (`136`). |
-| `confirm_invoice_refund` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | Financeiro ou Administrativo | Confirma devolução com referência bancária, favorecido e data (`136`); chamada por `settleInvoiceRefund`. |
+| `confirm_invoice_refund` | `billingLedger.ts` | `136`, `468` | DEFINER · `authenticated` | Financeiro ou Administrativo | Confirma devolução com referência bancária, favorecido e data (`136`); chamada por `settleInvoiceRefund`. A de Pix em duplicidade tem o próprio Pix como lastro (`468`). |
 | `create_invoice_from_bls_with_ledger` | `billing.ts` | `002`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | `p_actor` conferido com a sessão (`241`). |
 | `create_local_consolidated_invoice` | `billingLedger.ts` | `002`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | `p_actor` conferido com a sessão (`241`). |
 | `create_manual_invoice` | `billing.ts` | `125`, `246`, `272` | DEFINER · `authenticated` | Usuário interno ativo (A9, `246`) | Fatura avulsa `manual`, com tipo de cobrança opcional; motivo interno obrigatório no rastro (`272`, 10 parâmetros); `p_actor` conferido com a sessão (`241`). |
@@ -664,7 +664,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `itau_pix_record` | Edge `itau-pix` | `153` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `itau_pix_settle` | Edge `itau-pix` | `153`, `357`, `361`, `375`, `376`, `385`, `386` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `itau_pix_receive` | Edge `itau-pix` | `442` | DEFINER · `service_role` | `_assert_service_caller` | Entrada de cada Pix da consulta: TXID `VELA…` vai à baixa automática (`itau_pix_settle_core_425`); o resto fica `received`, com o retorno do Itaú (ADR 0100). |
-| `itau_pix_receipt_failed` | Edge `itau-pix` | `358` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
+| `itau_pix_receipt_failed` | Edge `itau-pix` | `358`, `425`, `468` | DEFINER · `service_role` | só pelo grant a `service_role` | Na terceira falha grava o Pix em `itau_pix_receipts` (do Vela em análise; de fora, recebido e sem alerta) (`468`). |
 | `itau_pix_record_untracked` | Edge `itau-pix` publicada antes da `442` | `375`, `385`, `442` | DEFINER · `service_role` | só pelo grant a `service_role` | Desde a `442`, grava o Pix sem TXID como recebido, sem Alerta (delega a `itau_pix_receive`). |
 | `list_orphaned_dispute_attachments` | Edge `alerts-detector` | `075` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `mark_customer_communication_dispatch_blocked` | Edge `send-customer-communication` | `039` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |

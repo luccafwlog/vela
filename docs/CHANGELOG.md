@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Recebimento e Pix decididos pelo dono (2026-10-27):** migration `468`, lote 3 do
+  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). O Pix que falha três
+  vezes ao ser gravado entra em Pix recebidos (o do Vela em análise, com alerta; o de fora do
+  Vela como recebido, sem alerta); a devolução do Pix em duplicidade tem o próprio Pix como
+  lastro e é confirmada também em fatura cancelada, coberta ou substituída; o extrato que
+  concilia a fatura de Taxas Locais tira o Pix da análise; Pix em análise mostra o
+  identificador do próprio Pix, com copiar, e o `VELA…` como Identificador da cobrança; a
+  regra do alerta Restituição pendente lista todos os casos. Prova:
+  `itauPixCharges.local-pg.test.ts`, `gateReciboAvulsaPix.local-pg.test.ts`,
+  `Reconciliacao.behavior.test.tsx`.
 - **Taxas Locais e faturamento decididos pelo dono (2026-10-27):** migration `467`,
   [ADR 0105](adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md), lote 2 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). B/L misto sem taxa
