@@ -15,6 +15,8 @@ import { StatusText } from '../ui/StatusText'
 import { Textarea } from '../ui/Input'
 import { isPortalReadOnly } from '../../services/portalScope'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { DisputeAttachmentLinks } from '../demurrage/DisputeAttachmentLinks'
+import { supabase, supabasePortal } from '../../services/supabase'
 
 const ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'text/plain']
 const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
@@ -390,10 +392,11 @@ export function PortalDisputeConversation({ dispute }: { dispute: PortalDispute 
                 <span className="text-xs text-[var(--app-muted)]">{authorLabel(message)} · {formatDate(message.created_at)}</span>
                 <p className="whitespace-pre-wrap">{message.body}</p>
                 {message.attachments?.length ? (
-                  <span className="flex items-center gap-1 text-xs text-[var(--app-muted)]">
-                    <Paperclip size={12} aria-hidden="true" />
-                    {message.attachments.map((attachment) => attachment.file_name).join(', ')}
-                  </span>
+                  <DisputeAttachmentLinks
+                    attachments={message.attachments}
+                    client={scope.mode === 'client' ? supabasePortal : supabase}
+                    className="flex flex-wrap items-center gap-1 text-xs text-[var(--app-muted)]"
+                  />
                 ) : null}
               </li>
             )

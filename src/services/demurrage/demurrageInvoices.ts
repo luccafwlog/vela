@@ -12,6 +12,8 @@ export type DemurrageInvoiceFilters = {
 export type DemurrageInvoiceListItem = DemurrageInvoice & {
   customer?: { id: number; name: string; cnpj_cpf: string } | null
   bl?: { id: string; pol: string | null; pod: string | null; voyage?: { id: number; voyage_number: string; vessel?: { id: number; name: string } | null } | null } | null
+  /** Invoice cancelada que esta reemissão substitui (migration 469, DEM-D08); só no detalhe. */
+  replaces?: { id: number; doc_number: string } | null
 }
 
 /**
@@ -34,8 +36,10 @@ export function applyDemurrageUsdDiscount(
 }
 
 type IssueDemurrageResult = {
-  status: 'issued' | 'existing' | 'waiting_return' | 'no_overstay' | 'no_containers'
+  status: 'issued' | 'existing' | 'waiting_return' | 'no_overstay' | 'no_containers' | 'blocked'
   invoice_id?: number
+  /** `blocked` (migration 469, DEM-D13): CE Mercante ou Gate de faturamento do Portal. */
+  reason?: string
   anchor_bl_id?: string
 }
 
@@ -76,6 +80,7 @@ export async function createInvoiceForBL(blId: string): Promise<number> {
   if (result.status === 'existing') throw new Error(`Todos os containers deste B/L${group} já estão em Invoice de Demurrage emitida ou paga.`)
   if (result.status === 'waiting_return') throw new Error(`Aguardando a devolução de todos os containers do B/L${group}.`)
   if (result.status === 'no_overstay') throw new Error(`Nenhum container com sobreestadia para este B/L${group}.`)
+  if (result.status === 'blocked') throw new Error(result.reason?.trim() || `A Invoice deste B/L${group} aguarda o CE Mercante e o Portal do Cliente.`)
   throw new Error('Nenhum container para faturar neste B/L.')
 }
 
@@ -172,7 +177,7 @@ export async function getInvoiceDetail(invoiceId: number) {
   const [invRes, itemsRes] = await Promise.all([
     supabase
       .from('demurrage_invoices')
-      .select(`*, customer:customers(id,name,cnpj_cpf,address,city,state,zip), bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))`)
+      .select(`*, customer:customers(id,name,cnpj_cpf,address,city,state,zip), bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name))), replaces:demurrage_invoices!replaces_invoice_id(id,doc_number)`)
       .eq('id', invoiceId)
       .single()
       .overrideTypes<DemurrageInvoiceListItem, { merge: false }>(),

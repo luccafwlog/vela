@@ -15,15 +15,19 @@ export function fmtUSD(value: number | null | undefined) {
 // Ultimo dia util (hoje se for dia de semana; senao a sexta anterior). O recalculo
 // do BCB so roda em dias uteis. ponytail: feriados nacionais nao sao considerados
 // (banner pode soar falso-positivo em feriado) - operador pode ignorar/informar manual.
-export function lastBusinessDayISO(): string {
-  const date = new Date()
-  if (date.getDay() === 0) date.setDate(date.getDate() - 2)
-  else if (date.getDay() === 6) date.setDate(date.getDate() - 1)
+// Pela data de Brasília (DEM-D05): a data UTC vira antes da meia-noite e dava
+// aviso falso à noite.
+export function lastBusinessDayISO(now = new Date()): string {
+  const date = new Date(`${saoPauloTodayIso(now)}T12:00:00Z`)
+  if (date.getUTCDay() === 0) date.setUTCDate(date.getUTCDate() - 2)
+  else if (date.getUTCDay() === 6) date.setUTCDate(date.getUTCDate() - 1)
   return date.toISOString().slice(0, 10)
 }
 
+/** A PTAX do dia sai à tarde: o aviso só vale a partir das 14h de Brasília. */
 export function isPtaxWarningEligible(date = new Date()): boolean {
-  return date.getHours() >= 14
+  const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(date))
+  return hour >= 14
 }
 
 export function fmtBRL(value: number | null | undefined) {

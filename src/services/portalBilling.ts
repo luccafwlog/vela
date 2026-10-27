@@ -232,7 +232,8 @@ export type PortalDemurrageInvoice = {
 }
 
 export type PortalDemurrageInvoiceDetail = {
-  invoice: PortalDemurrageInvoice & { customer_name: string; customer_cnpj_cpf: string }
+  /** `replaces_doc_number`: fatura cancelada que esta reemissão substitui (migration 469). */
+  invoice: PortalDemurrageInvoice & { customer_name: string; customer_cnpj_cpf: string; replaces_doc_number?: string | null }
   items: DemurrageInvoiceItem[]
   /**
    * Restituições da Invoice, sem as anotações internas (migration 298), no

@@ -156,7 +156,9 @@ type ContainerFixture = {
 // B/L de container já importado, com Cliente reconciliado por CNPJ, rota
 // cadastrada (a planilha de CE exige POL/POD) e ROE manual de Demurrage (evita
 // depender da referência cambial global).
-function insertBl(id: string, voyageId: number, blPod: string, containers: ContainerFixture[]): void {
+// 469: a Invoice de Demurrage só sai com CE Mercante no B/L; os cenários de
+// Demurrage gravam o CE na fixture (os de Taxas Locais o importam pela planilha).
+function insertBl(id: string, voyageId: number, blPod: string, containers: ContainerFixture[], ce: string | null = null): void {
   const containerRows = containers.map((container) => `(
     '${id}', '${container.number}', '40HC',
     ${container.ownership ? `'${container.ownership}'` : 'NULL'}, ${container.ownership ? `'bl'` : 'NULL'},
@@ -167,10 +169,10 @@ function insertBl(id: string, voyageId: number, blPod: string, containers: Conta
   localPsql(`
     INSERT INTO public.bls (
       id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status,
-      customer_reconciliation_status, review_status, consignee, demurrage_roe_manual, demurrage_roe
+      customer_reconciliation_status, review_status, consignee, demurrage_roe_manual, demurrage_roe, ce_mercante
     ) VALUES (
       '${id}', ${voyageId}, ${cliente.id}, '${pol}', '${blPod}', 'container', 'pending', 'not_calculated',
-      'matched_document', 'ok', 'A207 CONSIGNATARIO', true, 5.5
+      'matched_document', 'ok', 'A207 CONSIGNATARIO', true, 5.5, ${ce ? `'${ce}'` : 'NULL'}
     );
     INSERT INTO public.bl_containers (
       bl_id, container_number, type, ownership, ownership_source, discharge_date, return_date, demurrage_status
@@ -585,7 +587,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
   let misto: { expectedUsd: number; attempts: Array<string | null>; invoices: DemurrageInvoice[] } | null = null
 
   it('cenário 4: a planilha devolve os dois containers de um B/L, um dentro do free time e outro em atraso, e o Administrativo emite a Invoice de Demurrage', () => {
-    insertBl('A207-M1', voyage.demurrage, pod, [{ number: 'ADCU2070041' }, { number: 'ADCU2070042' }])
+    insertBl('A207-M1', voyage.demurrage, pod, [{ number: 'ADCU2070041' }, { number: 'ADCU2070042' }], '207009000000001')
     const dates = importContainerDates('A207-M1', [
       { number: 'ADCU2070041', discharge: '2026-07-01', return: '2026-07-10' },
       { number: 'ADCU2070042', discharge: '2026-07-01', return: '2026-09-30' },
@@ -631,7 +633,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
   let socSemDevolucao: { dates: DatesResult; expectedUsd: number; effects: Array<{ status: string; error: string | null }>; invoices: DemurrageInvoice[] } | null = null
 
   it('cenário 5: a planilha devolve o container COC de um B/L que também tem um container SOC', () => {
-    insertBl('A207-S1', voyage.demurrage, pod, [{ number: 'ADCU2070051', ownership: 'SOC' }, { number: 'ADCU2070052' }])
+    insertBl('A207-S1', voyage.demurrage, pod, [{ number: 'ADCU2070051', ownership: 'SOC' }, { number: 'ADCU2070052' }], '207009000000002')
     const dates = importContainerDates('A207-S1', [{ number: 'ADCU2070052', discharge: '2026-07-01', return: '2026-09-30' }])
     expect(dates.updated_ids).toHaveLength(1)
     const expectedUsd = demurrageUsdOf('A207-S1', containerIds('A207-S1').ADCU2070052)
@@ -657,7 +659,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     insertBl('A207-S2', voyage.demurrage, pod, [
       { number: 'ADCU2070061', ownership: 'SOC', dischargeDate: '2026-07-01', returnDate: '2026-07-20', demurrageStatus: 'returned' },
       { number: 'ADCU2070062' },
-    ])
+    ], '207009000000003')
     const dates = importContainerDates('A207-S2', [{ number: 'ADCU2070062', discharge: '2026-07-01', return: '2026-09-30' }])
     expect(dates).toMatchObject({ billing_state: 'ready_for_billing' })
     expect(demurrageEffects('A207-S2').map((effect) => effect.status)).toEqual(['pending'])
@@ -702,8 +704,8 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
   })
 
   it('a data vale para o B/L irmão que divide o container e o grupo recebe uma única Invoice de Demurrage', () => {
-    insertBl('A207-G1', voyage.grupo, pod, [{ number: 'ADCU2070071' }])
-    insertBl('A207-G2', voyage.grupo, pod, [{ number: 'ADCU2070071' }, { number: 'ADCU2070072' }])
+    insertBl('A207-G1', voyage.grupo, pod, [{ number: 'ADCU2070071' }], '207009000000005')
+    insertBl('A207-G2', voyage.grupo, pod, [{ number: 'ADCU2070071' }, { number: 'ADCU2070072' }], '207009000000006')
     expect(localPsql(`SELECT array_to_string(public.demurrage_group_bl_ids('A207-G2'), ',');`)).toBe('A207-G1,A207-G2')
 
     const first = importContainerDates('A207-G2', [{ number: 'ADCU2070072', discharge: '2026-07-01', return: '2026-09-30' }])
@@ -785,8 +787,8 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
 
   // C6: o grupo de Demurrage muda depois da Invoice emitida.
   it('cancelar o B/L irmão cujo container está na Invoice de Demurrage do âncora é recusado', () => {
-    insertBl('A207-H1', voyage.grupoMuda, pod, [{ number: 'ADCU2070101' }])
-    insertBl('A207-H2', voyage.grupoMuda, pod, [{ number: 'ADCU2070101' }, { number: 'ADCU2070102' }])
+    insertBl('A207-H1', voyage.grupoMuda, pod, [{ number: 'ADCU2070101' }], '207009000000008')
+    insertBl('A207-H2', voyage.grupoMuda, pod, [{ number: 'ADCU2070101' }, { number: 'ADCU2070102' }], '207009000000009')
     importContainerDates('A207-H2', [
       { number: 'ADCU2070101', discharge: '2026-07-01', return: '2026-09-20' },
       { number: 'ADCU2070102', discharge: '2026-07-01', return: '2026-09-30' },
@@ -806,7 +808,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     insertBl('A207-H3', voyage.grupoMuda, pod, [
       { number: 'ADCU2070101', dischargeDate: '2026-07-01', returnDate: '2026-09-20' },
       { number: 'ADCU2070103' },
-    ])
+    ], '207009000000010')
     expect(localPsql(`SELECT array_to_string(public.demurrage_group_bl_ids('A207-H1'), ',');`)).toBe('A207-H1,A207-H2,A207-H3')
     const invoiceId = demurrageInvoiceId('A207-H1')
 
@@ -818,8 +820,8 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
 
   // C9: B/L cancelado não é raiz de grupo nem recebe Invoice de Demurrage.
   it('B/L cancelado não forma grupo nem recebe Invoice de Demurrage: a caixa é cobrada uma vez, pelo B/L ativo', () => {
-    insertBl('A207-I1', voyage.canceladoRaiz, pod, [{ number: 'ADCU2070111' }])
-    insertBl('A207-I2', voyage.canceladoRaiz, pod, [{ number: 'ADCU2070111' }])
+    insertBl('A207-I1', voyage.canceladoRaiz, pod, [{ number: 'ADCU2070111' }], '207009000000011')
+    insertBl('A207-I2', voyage.canceladoRaiz, pod, [{ number: 'ADCU2070111' }], '207009000000012')
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-I1', 'B/L lançado em duplicidade (A207)', false);`))).toEqual({ cancelled: true, reasons: [] })
     expect(localPsql(`SELECT cardinality(public.demurrage_group_bl_ids('A207-I1'));`)).toBe('0')
 
@@ -844,7 +846,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     insertBl('A207-J1', voyage.legado, pod, [
       { number: 'ADCU2070121', dischargeDate: '2026-07-01', returnDate: '2026-09-30' },
       { number: 'ADCU2070122', dischargeDate: '2026-07-01', returnDate: '2026-07-05' },
-    ])
+    ], '207009000000013')
     localPsql(`
       SET session_replication_role = replica;
       UPDATE public.bl_containers SET demurrage_status = 'within_free_time' WHERE bl_id = 'A207-J1';
@@ -861,7 +863,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
 
   // C12: a Régua não fica parada para sempre depois do estorno da baixa.
   it('estorno da baixa de Invoice suspensa por datas alteradas: sem pagamento, ela é cancelada e reemitida com as datas atuais', () => {
-    insertBl('A207-K1', voyage.regua, pod, [{ number: 'ADCU2070131' }])
+    insertBl('A207-K1', voyage.regua, pod, [{ number: 'ADCU2070131' }], '207009000000014')
     importContainerDates('A207-K1', [{ number: 'ADCU2070131', discharge: '2026-07-01', return: '2026-09-30' }])
     runWorker('A207-K1')
     const invoiceId = demurrageInvoiceId('A207-K1')
@@ -884,7 +886,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
   })
 
   it('estorno da baixa de Invoice suspensa cujas datas voltaram às faturadas: a suspensão sai e a fatura segue emitida', () => {
-    insertBl('A207-K2', voyage.regua, pod, [{ number: 'ADCU2070132' }])
+    insertBl('A207-K2', voyage.regua, pod, [{ number: 'ADCU2070132' }], '207009000000015')
     importContainerDates('A207-K2', [{ number: 'ADCU2070132', discharge: '2026-07-01', return: '2026-09-30' }])
     runWorker('A207-K2')
     const invoiceId = demurrageInvoiceId('A207-K2')
@@ -901,8 +903,8 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
   // ADR 0079, decisão 1 (migration 203): Invoice com desconto ou disputa aberta
   // não é reemitida sozinha quando as datas mudam; segue o caminho da paga.
   it('Invoice com desconto ou disputa aberta fica suspensa com Alerta, sem reemissão, quando as datas mudam', () => {
-    insertBl('A207-K3', voyage.regua, pod, [{ number: 'ADCU2070133' }])
-    insertBl('A207-K4', voyage.regua, pod, [{ number: 'ADCU2070134' }])
+    insertBl('A207-K3', voyage.regua, pod, [{ number: 'ADCU2070133' }], '207009000000016')
+    insertBl('A207-K4', voyage.regua, pod, [{ number: 'ADCU2070134' }], '207009000000017')
     importContainerDates('A207-K3', [{ number: 'ADCU2070133', discharge: '2026-07-01', return: '2026-09-30' }])
     importContainerDates('A207-K4', [{ number: 'ADCU2070134', discharge: '2026-07-01', return: '2026-09-30' }])
     runWorker('A207-K3')

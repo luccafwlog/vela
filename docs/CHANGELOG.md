@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Demurrage decidida pelo dono (2026-10-27):** migration `469`, lote 4 do
+  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). A Invoice de Demurrage
+  só é emitida com CE Mercante e o Gate de faturamento do Portal aberto (como as faturas); o CE
+  gravado ou o gate aberto enfileiram de novo a emissão. A Invoice reemitida cita a cancelada no
+  Vela e no Portal; os anexos da Disputa abrem pelo nome nos dois apps; o Portal mostra o dólar
+  com desconto; o aviso da PTAX usa a data de Brasília e só o recálculo da PTAX; as Invoices
+  "vencidas" passaram a emitidas; as quatro planilhas de Relatórios saem com os rótulos e as datas
+  da tela. Prova: `demurrageAuthority.local-pg.test.ts`,
+  `datasDemurrageEComunicadoJustificados.local-pg.test.ts`, `disputaAnexosInterna.local-pg.test.ts`,
+  `DisputeAttachmentLinks.test.tsx`, `PortalDemurrageDetailModal.test.tsx`, `exports.test.ts`.
 - **Recebimento e Pix decididos pelo dono (2026-10-27):** migration `468`, lote 3 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). O Pix que falha três
   vezes ao ser gravado entra em Pix recebidos (o do Vela em análise, com alerta; o de fora do

@@ -25,7 +25,8 @@ Validação, o que ainda impede a emissão aparece na coluna **Motivo**
 ([Faturamento § Motivo de bloqueio de faturamento](../modules/faturamento.md#motivo-de-bloqueio-de-faturamento)).
 
 **O Portal trava toda emissão** — manual, consolidada ou automática pela
-transição do CE ([ADR 0070](../adr/0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md)).
+transição do CE, inclusive a Invoice de Demurrage desde a migration `469`
+([Demurrage § Trava de emissão](../modules/demurrage.md), DEM-D13) ([ADR 0070](../adr/0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md)).
 O gate (`customer_billing_access_ready`, definição vigente na migration `084`)
 passa quando a Conta de Portal do Cliente está pronta — ativa, com acesso
 criado e Email de Recuperação válido, entregável e fora da lista de bloqueio

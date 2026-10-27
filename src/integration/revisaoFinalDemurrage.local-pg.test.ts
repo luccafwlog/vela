@@ -219,6 +219,7 @@ function cleanup() {
       OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
+    DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
     DELETE FROM public.customers WHERE id = ${customerId};
     DELETE FROM public.user_profiles WHERE id = '${adminId}';
     DELETE FROM auth.users WHERE id = '${adminId}';
@@ -228,14 +229,18 @@ function cleanup() {
 describeLocal('Revisão final de Demurrage, datas e Viagem Cancelada (migration 211)', () => {
   beforeAll(() => {
     cleanup()
+    // 469: a Demurrage só sai com CE Mercante (único por B/L) e o gate do Portal aberto.
+    const ceOf = (id: string) => `992110000000${String(Object.values(bl).indexOf(id) + 1).padStart(3, '0')}`
     const blRow = (id: string, voyageId: number) =>
-      `('${id}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5)`
+      `('${id}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5, '${ceOf(id)}')`
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'r211-admin@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'R211 Administrativo', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${syntheticCnpj(211001)}', 'R211 CLIENTE');
       INSERT INTO public.customer_demurrage_agreements (customer_id, free_days, p1_usd, p2_usd, valid_from, active)
       VALUES (${customerId}, 5, 100, 200, '2026-01-01', true);
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+      VALUES (${customerId}, 'Fixture R211: gate aberto para a Demurrage', '${adminId}', now() + interval '1 day');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'R211 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'R211 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
@@ -247,7 +252,7 @@ describeLocal('Revisão final de Demurrage, datas e Viagem Cancelada (migration 
         (${voyage.requeue}, ${vesselId}, 'R211F', 'active'),
         (${voyage.sealed}, ${vesselId}, 'R211G', 'active');
       INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status,
-                              demurrage_roe_manual, demurrage_roe) VALUES
+                              demurrage_roe_manual, demurrage_roe, ce_mercante) VALUES
         ${blRow(bl.pay, voyage.pay)}, ${blRow(bl.tz, voyage.pay)},
         ${blRow(bl.deadlockA, voyage.deadlock)}, ${blRow(bl.deadlockB, voyage.deadlock)},
         ${blRow(bl.cancelledVoyage, voyage.cancelled)}, ${blRow(bl.cancelledVoyagePaid, voyage.cancelled)},

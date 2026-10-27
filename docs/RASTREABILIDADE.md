@@ -481,8 +481,8 @@ Regra: [Demurrage](modules/demurrage.md).
 | `add_demurrage_dispute_message` | `demurrage/demurrageDisputes.ts` | `081` | DEFINER · `authenticated` | Equipamentos ou Administrativo | Responde com `next_responder = equipamentos`; o Alerta segue de Equipamentos (`081`). |
 | `apply_demurrage_discount` | `demurrage/demurrageInvoices.ts` | `012`, `247`, `264`, `306` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P5, `247`) ou `service_role` | Desconto que zera o USD líquido quita a Invoice (isenta, `306`). |
 | `cancel_demurrage_invoice` | `demurrage/demurrageInvoices.ts` | `012` | DEFINER · `authenticated`, `service_role` | Administrativo ou `service_role` | — |
-| `issue_demurrage_invoice_for_bl` | `demurrage/demurrageInvoices.ts` | `214`, `246` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P4, `246`) ou `service_role` | Emissão da Invoice de Demurrage do B/L (`214`). |
-| `list_demurrage_disputes_internal` | `demurrage/demurrageDisputes.ts` | `081`, `250` | DEFINER · `authenticated` | Usuário interno ativo (P12, `250`) | Responder, reabrir e anexar seguem de Equipamentos e do Administrativo. |
+| `issue_demurrage_invoice_for_bl` | `demurrage/demurrageInvoices.ts` | `214`, `246`, `469` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P4, `246`) ou `service_role` | Emissão da Invoice de Demurrage do B/L (`214`); sem CE Mercante ou com o gate do Portal fechado devolve `blocked` com o motivo (`469`). |
+| `list_demurrage_disputes_internal` | `demurrage/demurrageDisputes.ts` | `081`, `250`, `469` | DEFINER · `authenticated` | Usuário interno ativo (P12, `250`) | Responder, reabrir e anexar seguem de Equipamentos e do Administrativo. Devolve os anexos de cada mensagem (`469`). |
 | `list_demurrage_dunning_claim_statuses` | `demurrageDunning.ts` | `002`, `313` | DEFINER · `authenticated`, `service_role` | usuário interno ativo ou `service_role` | Uma linha por Invoice pedida, com o motivo da pausa (`_demurrage_dunning_block_reason`, `313`). |
 | `recalculate_demurrage_invoices_manual` | `demurrage/demurrageKpis.ts` | `110` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos | — |
 | `release_demurrage_invoice_manual_roe` | `demurrage/demurrageInvoices.ts` | `382`, `385`, `435` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos (`435`); motivo ≥ 10 caracteres | Tira o ROE manual da Invoice emitida ou vencida e volta à PTAX, com histórico e rastro (ADR 0094, B10). |
@@ -575,7 +575,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_create_consolidation` | `portalBilling.ts` | `109` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Recusa B/L de outro Cliente ou sem CE liberado. |
 | `portal_get_contact_configuration` | `portalContactConfiguration.ts` | `008` | DEFINER · `authenticated`, `service_role` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_get_current_roe` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
-| `portal_get_demurrage_invoice_detail` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
+| `portal_get_demurrage_invoice_detail` | `portalBilling.ts` | `002`, `469` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | Traz `replaces_doc_number` da Invoice reemitida (`469`). |
 | `portal_get_information` | `portalInformation.ts` | `137` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_get_profile` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_get_session_overview_v2` | `hooks/usePortalAuth.tsx` | `105` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`); sessão inválida devolve `28000` | — |

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { customerExportEmails, exportCustomerBaseWorkbook, exportFinancialReportWorkbook, exportInvoicesWorkbook, exportOperationalReportWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import { customerExportEmails, exportCustomerBaseWorkbook, exportFinancialReportWorkbook,
+  exportDemurrageReportWorkbook, exportInvoicesWorkbook, exportOperationalReportWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
 import type { PortalOperationBL } from '../portalOperation'
 import { flattenContainers } from '../../lib/portalOperationViews'
 import type { InvoiceListRow } from '../billing'
@@ -242,5 +243,14 @@ describe('planilhas de Relatórios', () => {
     const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
     expect(sheetRows[0]).toMatchObject({ Emissão: '02/05/2026', Situação: 'Coberta' })
     expect(sheetRows[0]).not.toHaveProperty('Status')
+  })
+
+  it('Demurrage sai com os rótulos e as datas da tela (ACE-D08)', async () => {
+    await exportDemurrageReportWorkbook([
+      { id: 1, doc_number: 'DEM-2026-0001', bl_id: 'BL1', doc_date: '2026-10-26', due_date: '2026-11-05', total_usd: 100, current_total_brl: 540, status: 'issued', customer: { id: 1, name: 'Cliente', cnpj_cpf: '1' } } as never,
+    ])
+    const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
+    expect(Object.keys(sheetRows[0])).toEqual(['Invoice', 'B/L', 'Cliente', 'CNPJ', 'Emissão', 'Vencimento', 'Total US$', 'Total R$', 'Situação'])
+    expect(sheetRows[0]).toMatchObject({ Emissão: '26/10/2026', Vencimento: '05/11/2026', Situação: 'Faturado' })
   })
 })

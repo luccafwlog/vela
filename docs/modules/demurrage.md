@@ -100,7 +100,8 @@ abas de Invoice e no detalhe. Os cartões do topo filtram:
 Containers em atraso aplica a
 lente, Aguardando pagamento abre Faturas e Disputas aguardando resposta abre a
 aba. Sob recálculo diário (ADR 0014) não há `draft` nem `overdue`: a fatura
-nasce `issued` (se `overdue` aparecer, a tela a trata como emitida). A URL é
+nasce `issued`; as Invoices antigas em `overdue` passaram a `issued` na
+migration `469` (DEM-D09), e voltaram às listas e aos totais. A URL é
 trocada com `replace`: o Voltar do navegador sai de `/demurrage` em vez de
 desfazer aba, busca ou detalhe. A busca guarda o texto como digitado (o espaço
 entre palavras fica) e só é aparada ao filtrar; ela segue entre Containers e as
@@ -630,6 +631,19 @@ gravada entra no cálculo pela data, não pelo status.
 
 ### Datas alteradas depois da emissão
 
+**Trava de emissão (DEM-D13, migration `469`).** A Invoice de Demurrage segue
+a trava das faturas ([Gate de faturamento](../operations/regras-de-negocio.md#gate-de-faturamento),
+ADR 0070): só é emitida com CE Mercante no B/L-âncora e o Gate de faturamento
+do Portal aberto (`_demurrage_issue_block_reason`). Pela tela, a recusa diz o
+motivo ("B/L … sem CE Mercante. Cadastre o CE antes de faturar." ou
+"Faturamento bloqueado pelo Portal: …"); pela fila de efeitos, a emissão fica
+`blocked`, sem falha. Gravar o CE ou abrir o gate (Liberação de faturamento ou
+Portal pronto, `_reprocess_customer_held_billing`) põe de novo na fila a
+emissão das caixas devolvidas ainda sem Invoice
+(`_enqueue_held_demurrage_billing`). Antes, a Invoice nascia emitida, fora do
+Portal e da Régua até o CE, e o Cliente recebia "Nova fatura de demurrage" de
+uma fatura que não conseguia abrir.
+
 A reconciliação é de `_reconcile_demurrage_after_dates`. Sem pagamento, a
 Invoice é cancelada e reemitida (ou só cancelada, se o valor
 novo for zero, o B/L estiver cancelado ou a Viagem cancelada); a decisão vale
@@ -642,7 +656,12 @@ de hoje. Caixa que fica sem cobrança sem ser por falta de sobreestadia ou de
 devolução (por exemplo, virou SOC) não passa por sucesso: o retorno traz
 `reissue_complete = false` e `unbilled_containers`, e o Alerta
 `demurrage_invoice_dates_changed` da Invoice cancelada diz quais caixas
-conferir (migration `214`). Ele fecha sozinho quando todas essas caixas entram
+conferir (migration `214`); quando a reemissão espera a trava de emissão, o
+Alerta diz o motivo e que a nova Invoice sai sozinha quando ele for resolvido
+(migration `469`). A Invoice reemitida guarda qual cancelada substitui
+(`replaces_invoice_id`, DEM-D08): o detalhe no Vela diz "Substitui a Invoice
+…, cancelada para reemissão automática…" com link, e o Portal "Substitui a
+fatura …". Ele fecha sozinho quando todas essas caixas entram
 numa Invoice emitida da mesma Viagem e do mesmo Cliente (gatilho na emissão,
 migration `349`). Se a reemissão cobriu todas as caixas, ou não havia o que
 cobrar (B/L ou Viagem cancelados, sem sobreestadia, aguardando devolução), o
@@ -723,7 +742,10 @@ cessa. O câmbio do header é apenas informativo.
   `recalculate_demurrage_invoices_manual`, restrita a Financeiro,
   Administrativo e Equipamentos (migrations `109` e `110`; o botão só aparece
   para eles). Um banner de staleness aparece quando há faturas aguardando
-  pagamento e o último recálculo é anterior ao último dia útil.
+  pagamento, já passou das 14h de Brasília e a última PTAX aplicada pelo
+  recálculo (`exchange_rate_reference.quote_date`) é anterior ao último dia
+  útil pela data de Brasília (DEM-D05; antes contava a data UTC, que virava
+  às 21h, e qualquer registro do histórico, como desconto ou baixa).
 - **Cache do cabeçalho:** `localStorage` permite continuidade do câmbio do
   cabeçalho quando o BCB está indisponível, mas não impõe expiração máxima ao
   cache de ROE. O cabeçalho só lê: a emissão
@@ -982,7 +1004,11 @@ A Disputa de Demurrage é aberta pelo Cliente no Portal
 [Portal do Cliente](portal-cliente.md#gate-de-faturamento-e-dispute)) e vira
 uma conversa append-only em `demurrage_disputes` e
 `demurrage_dispute_messages`, com anexos privados por mensagem no bucket
-`demurrage-disputes`.
+`demurrage-disputes`. Cada anexo aparece na conversa, no Vela e no Portal, com
+link para abrir (PDF) ou baixar: um link temporário do Storage de 60 s, com a
+regra de leitura do bucket (equipe interna ativa ou o Cliente dono da pasta,
+migration `158`; DEM-D01, migration `469` acrescentou os anexos à lista
+interna).
 
 - **Quem responde:** Equipamentos é o dono da Disputa e do Alerta
   `portal_dispute_opened`; o Administrativo responde e reabre como cobertura

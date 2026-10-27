@@ -184,3 +184,4 @@ src/integration/pixRecebidos.local-pg.test.ts
 src/integration/buscaPorVariosBls.local-pg.test.ts
 src/integration/marcaDevMigration.local-pg.test.ts
 src/integration/retornoDoSuporte.local-pg.test.ts
+src/integration/disputaAnexosInterna.local-pg.test.ts

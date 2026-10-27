@@ -10,7 +10,8 @@ ACE-D01 (opção A) no mesmo dia.
 | 1 | Executado em 2026-10-27 (migration `466`, [ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); falta conferir em staging um envio redirecionado chegando à caixa do suporte |
 | 2 | Executado em 2026-10-27 (migration `467`, [ADR 0105](../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md)); conferido no Postgres local e nos testes de tela, falta conferir as telas em staging |
 | 3 | Executado em 2026-10-27 (migration `468`); conferido no Postgres local e nos testes de tela, falta conferir em staging com um Pix real |
-| 4 a 11 | Não autorizados; nada executado |
+| 4 | Executado em 2026-10-27 (migration `469`); conferido no Postgres local e nos testes de tela, falta conferir em staging (anexos da Disputa pelo Storage e emissão retida pelo gate) |
+| 5 a 11 | Não autorizados; nada executado |
 
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:
 
