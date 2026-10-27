@@ -238,6 +238,17 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     expect(psql(`SELECT count(*) FROM public.demurrage_invoices WHERE replaces_invoice_id = ${invoiceId} AND status = 'issued'`)).toBe('1')
   })
 
+  it('480: reemissão adiada sem CE, emitida depois pela fila, também cita a cancelada', () => {
+    const current = Number(psql(`SELECT id FROM public.demurrage_invoices WHERE bl_id = '${bl.full}' AND status = 'issued'`))
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = NULL WHERE id = '${bl.full}'`)
+    const corrected = adminJson<{ demurrage: { demurrage_invoices: Array<Record<string, unknown>> } }>(
+      `SELECT public.set_container_dates(${containerId(bl.full, box.full)}, '${discharge}', '2026-09-23', 'Terminal corrigiu de novo (480)')`)
+    expect(corrected.demurrage.demurrage_invoices).toEqual([expect.objectContaining({ invoice_id: current, status: 'cancelled' })])
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = '1226501860480' WHERE id = '${bl.full}'`)
+    expect(issue(bl.full).status).toBe('issued')
+    expect(psql(`SELECT count(*) FROM public.demurrage_invoices WHERE replaces_invoice_id = ${current} AND status = 'issued'`)).toBe('1')
+  })
+
   it('P1: caixa sem cobrança abre o alerta, que fecha quando a caixa entra numa Invoice emitida', () => {
     const first = issue(bl.lostB)
     expect(first).toMatchObject({ status: 'issued', anchor_bl_id: bl.lostA })
