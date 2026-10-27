@@ -89,7 +89,11 @@ export function CeUnlockRequestsBlock({ customerId, manage }: { customerId: numb
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.id}>
-                      <td className="whitespace-nowrap"><strong>{row.protocol}</strong></td>
+                      <td className="whitespace-nowrap">
+                        <strong>{row.protocol}</strong>
+                        {/* 08-desbloqueio-ce:2: a ficha lista também as solicitações VIP. */}
+                        {row.source === 'vip_annual' ? <span className="app-facts__detail"> · VIP</span> : null}
+                      </td>
                       <td className="whitespace-nowrap">
                         {row.bl_ids.length ? (
                           <>

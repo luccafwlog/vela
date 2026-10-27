@@ -223,3 +223,10 @@ it("pedido VIP mostra os documentos anuais na tabela comum, com a vigência em c
   expect(within(block).getByRole("button", { name: "termo-anual.pdf" }).closest("tr")!.textContent).toContain("01/01/2026 a 31/12/2026");
   expect(within(block).queryByRole("button", { name: /Analisar/ })).toBeNull();
 })
+
+it('08-desbloqueio-ce:13: com B/L exportado para a ZPT, o pedido não pode ser cancelado e a tela diz por quê', () => {
+  const request = base({ items: [{ ...item('BL-1', true, true), exported_at: '2026-10-20T12:00:00Z' }] as never })
+  render(<CeUnlockRequestDetail request={request} manage onAction={async () => {}} busy={false} />)
+  expect((screen.getByRole('button', { name: 'Cancelar pedido' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(screen.getByText('A solicitação não pode ser cancelada depois de exportada para a ZPT.')).toBeTruthy()
+})

@@ -435,7 +435,7 @@ it("pedido VIP com B/L que o anual deixou de cobrir diz como seguir", async () =
   expect(screen.getByText(/não cobrem todos os B\/Ls desta solicitação: cancele e peça de novo/)).toBeTruthy();
 });
 
-it("VIP coberto com B/L de CE vinculado antes da vigência: a solicitação diz que a vigência não retroage", async () => {
+it("VIP com B/L de desbloqueio solicitado fora da vigência: a solicitação diz por que não é coberto (migration 479)", async () => {
   svc.getPortalCeUnlockVip.mockResolvedValue({ enabled: true, termo: true, procuracao: true, documents: [] });
   svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ vip_covered: false })], total: 1 });
   svc.getPortalCeUnlockRequest.mockResolvedValue(request({ items: [{ bl_id: "BL-A", paid: true, termo: false, procuracao: false, reasons: [], source: "request", vip_covered: false }] }));
@@ -448,5 +448,5 @@ it("VIP coberto com B/L de CE vinculado antes da vigência: a solicitação diz 
   cleanup();
   mount("/portal/desbloqueio-ce?pedido=req-1");
   const block = await screen.findByRole("region", { name: "Solicitação" });
-  expect(block.textContent).toContain("há B/L com o CE Mercante vinculado antes da vigência dos documentos anuais, que não retroage");
+  expect(block.textContent).toContain("há B/L com o desbloqueio solicitado fora da vigência dos documentos anuais");
 });
