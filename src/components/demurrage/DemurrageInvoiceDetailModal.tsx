@@ -234,7 +234,7 @@ function DetailBody({
       </div>
       {cancelError ? <p className="app-invoice-detail__alert" role="alert">{cancelError} A Invoice não foi cancelada.</p> : null}
       {restrictions.length ? <p className="app-invoice-detail__note">{restrictions.join(' ')}</p> : null}
-      {invoice.replaces ? (
+      {invoice.replaces?.doc_number ? (
         <p className="app-invoice-detail__note">
           Substitui a Invoice{' '}
           <button type="button" className="app-invoice-detail__link app-invoice-detail__code" onClick={() => { if (invoice.replaces) onOpenInvoice(invoice.replaces.id) }}>{invoice.replaces.doc_number}</button>

@@ -12,6 +12,8 @@ export type DemurrageInvoiceFilters = {
 export type DemurrageInvoiceListItem = DemurrageInvoice & {
   customer?: { id: number; name: string; cnpj_cpf: string } | null
   bl?: { id: string; pol: string | null; pod: string | null; voyage?: { id: number; voyage_number: string; vessel?: { id: number; name: string } | null } | null } | null
+  /** Coluna da migration 472 (DEM-D08), ainda fora dos tipos gerados. */
+  replaces_invoice_id?: number | null
   /** Invoice cancelada que esta reemissão substitui (migration 472, DEM-D08); só no detalhe. */
   replaces?: { id: number; doc_number: string } | null
 }
@@ -177,7 +179,7 @@ export async function getInvoiceDetail(invoiceId: number) {
   const [invRes, itemsRes] = await Promise.all([
     supabase
       .from('demurrage_invoices')
-      .select(`*, customer:customers(id,name,cnpj_cpf,address,city,state,zip), bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name))), replaces:demurrage_invoices!replaces_invoice_id(id,doc_number)`)
+      .select(`*, customer:customers(id,name,cnpj_cpf,address,city,state,zip), bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))`)
       .eq('id', invoiceId)
       .single()
       .overrideTypes<DemurrageInvoiceListItem, { merge: false }>(),
@@ -190,9 +192,24 @@ export async function getInvoiceDetail(invoiceId: number) {
   ])
   if (invRes.error) throw invRes.error
   if (itemsRes.error) throw itemsRes.error
+  // A Invoice cancelada que esta substitui vem numa leitura própria: o embed
+  // da tabela nela mesma (`demurrage_invoices!replaces_invoice_id`) o PostgREST
+  // resolve no sentido inverso (as que substituem esta, em lista).
+  let replaces: DemurrageInvoiceListItem['replaces'] = null
+  const replacesId = invRes.data?.replaces_invoice_id
+  if (replacesId != null) {
+    const prevRes = await supabase
+      .from('demurrage_invoices')
+      .select('id, doc_number')
+      .eq('id', replacesId)
+      .maybeSingle()
+    if (prevRes.error) throw prevRes.error
+    replaces = prevRes.data ? { id: prevRes.data.id, doc_number: prevRes.data.doc_number } : null
+  }
   return {
     invoice: {
       ...invRes.data!,
+      replaces,
     },
     items: itemsRes.data ?? [],
   }
