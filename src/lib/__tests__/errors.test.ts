@@ -171,6 +171,13 @@ describe('isExpectedUserFacingDbError', () => {
     expect(isExpectedUserFacingDbError({ code: '57014', message: 'canceling statement due to statement timeout' })).toBe(false)
     expect(isExpectedUserFacingDbError({ code: 'P0002', message: 'Registro não encontrado.' })).toBe(false)
   })
+
+  it('não marca P0001/P0003/55000 com mensagem técnica: guarda interna é defeito, não recusa', () => {
+    expect(isExpectedUserFacingDbError({ code: 'P0001', message: 'Esta escala já foi omitida.' })).toBe(true)
+    expect(isExpectedUserFacingDbError({ code: 'P0001', message: '210: effect_kind invalido' })).toBe(false)
+    expect(isExpectedUserFacingDbError({ code: 'P0003', message: 'cargo_mode = carga_solta' })).toBe(false)
+    expect(isExpectedUserFacingDbError({ code: '55000', message: 'REVISAO_OBSOLETA' })).toBe(false)
+  })
 })
 
 describe('userFacingErrorMessage', () => {

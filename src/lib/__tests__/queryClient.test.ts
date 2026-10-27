@@ -43,14 +43,15 @@ describe.each([
     expect(reportCaughtException).not.toHaveBeenCalled()
   })
 
-  it('continua reportando falha não esperada e permissão negada com sessão ativa', () => {
+  it('continua reportando falha não esperada, permissão negada com sessão ativa e guarda interna do banco', () => {
     const client = createClient()
     const crash = new Error('Cannot read properties of undefined')
     const denied = { code: '42501', message: 'permission denied for table invoices' }
+    const internalGuard = { code: 'P0001', message: '210: effect_kind invalido' }
     triggerQueryError(client, crash)
     triggerMutationError(client, denied)
-    expect(reportCaughtException).toHaveBeenCalledTimes(2)
-    expect(vi.mocked(reportCaughtException).mock.calls.map(([reported]) => reported)).toEqual([crash, denied])
+    triggerMutationError(client, internalGuard)
+    expect(vi.mocked(reportCaughtException).mock.calls.map(([reported]) => reported)).toEqual([crash, denied, internalGuard])
   })
 })
 
