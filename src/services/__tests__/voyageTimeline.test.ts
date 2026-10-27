@@ -222,6 +222,21 @@ describe('timeline operacional de transbordo', () => {
     expect(events[0].detail).toContain('Correção de omissão')
   })
 
+  // Migration 468: a declaração "sem veículos" e o desfazer, com motivo ou pela planilha que chegou.
+  it('mostra a viagem declarada sem veículos e a declaração desfeita com o motivo', () => {
+    const base = { entity_type: 'voyage', entity_id: '2', field_name: 'sem_veiculos' }
+    const events = buildVoyageTimeline({ auditEvents: [
+      { ...base, old_value: null, new_value: 'declarada', justification: null, changed_at: '2026-10-27T12:00:00Z' },
+      { ...base, old_value: 'declarada', new_value: 'desfeita', justification: 'Veículos importados na viagem', changed_at: '2026-10-28T12:00:00Z' },
+    ] })
+
+    const titles = events.map((event) => event.title)
+    expect(titles).toContain('Viagem declarada sem veículos')
+    expect(titles).toContain('Declaração "sem veículos" desfeita')
+    expect(events.find((event) => event.title.startsWith('Declaração'))?.detail).toContain('Motivo: Veículos importados na viagem')
+    expect(titles).not.toContain('Dados da viagem alterados')
+  })
+
   it('mostra complementação do registro global', () => {
     const events = buildVoyageTimeline({ auditEvents: [{
       entity_type: 'voyage', entity_id: '2', field_name: 'transshipment_info',

@@ -30,6 +30,12 @@ type PortalInvoiceDetailModalProps = {
   onPrint: () => void
   onPrintReceipt: () => void
   onOpenInvoice?: (invoiceId: number) => void
+  /**
+   * Pagamentos da consolidada que cobriu esta individual (`covered`): dão a
+   * forma e a data em "Paga · coberta pela fatura X". Ausentes enquanto a
+   * consolidada carrega ou quando a leitura falha; a linha fica sem eles.
+   */
+  coveringPayments?: PortalInvoiceDetail['payments']
 }
 
 type Invoice = NonNullable<PortalInvoiceDetail['invoice']>
@@ -62,6 +68,7 @@ export function PortalInvoiceDetailModal({
   onPrint,
   onPrintReceipt,
   onOpenInvoice,
+  coveringPayments,
 }: PortalInvoiceDetailModalProps) {
   const invoice = detail?.invoice
   const bls = detail?.bls ?? []
@@ -103,7 +110,7 @@ export function PortalInvoiceDetailModal({
               ) : null}
             </div>
 
-            <PaymentSummary invoice={invoice} bls={bls} multipleBls={multipleBls} payments={payments} onOpenInvoice={onOpenInvoice} />
+            <PaymentSummary invoice={invoice} bls={bls} multipleBls={multipleBls} payments={payments} coveringPayments={coveringPayments} onOpenInvoice={onOpenInvoice} />
 
             {detail?.corrections?.length ? (
               <Block title="Ajustes por correção" headingLevel={3}>
@@ -240,11 +247,12 @@ export function PortalInvoiceDetailModal({
  * Bloco Pagamento: o dado principal conforme a situação e, como fatos, o que
  * identifica a cobrança (B/L, navio, trecho; na avulsa, a descrição).
  */
-function PaymentSummary({ invoice, bls, multipleBls, payments, onOpenInvoice }: {
+function PaymentSummary({ invoice, bls, multipleBls, payments, coveringPayments, onOpenInvoice }: {
   invoice: Invoice
   bls: Bl[]
   multipleBls: boolean
   payments: PortalInvoiceDetail['payments']
+  coveringPayments?: PortalInvoiceDetail['payments']
   onOpenInvoice?: (invoiceId: number) => void
 }) {
   const status = invoice.status ?? 'issued'
@@ -285,8 +293,19 @@ function PaymentSummary({ invoice, bls, multipleBls, payments, onOpenInvoice }: 
     const paidDay = lastPaidAt ? splitIsoDateTime(lastPaidAt).date : ''
     amount = <><StatusText tone="paid">Paga</StatusText> <span className="app-lead__unit">{formatBRL(received)} recebidos{paidDay ? ` em ${formatDate(paidDay)}` : ''}</span></>
   } else if (status === 'covered') {
+    // Para o cliente, a individual coberta está paga (reunião de testes de 2026-10-26): o
+    // status continua `covered` no banco, nas listas e no filtro; só o detalhe diz "Paga".
     const coveredBy = invoice.covered_by_invoice_number
-    amount = <>Coberta <span className="app-lead__unit">{coveredBy ? `pela consolidada ${coveredBy}` : 'por uma fatura consolidada'}</span></>
+    const covering = describeCoveringPayment(coveringPayments)
+    amount = (
+      <>
+        <StatusText tone="paid">Paga</StatusText>{' '}
+        <span className="app-lead__unit">
+          {coveredBy ? `coberta pela fatura ${coveredBy}` : 'coberta por uma fatura consolidada'}
+          {covering ? ` · ${covering}` : ''}
+        </span>
+      </>
+    )
     leadAction = (
       <div className="flex flex-wrap items-center gap-2">
         {invoice.covered_by_invoice_id && onOpenInvoice ? (
@@ -332,6 +351,15 @@ function PaymentSummary({ invoice, bls, multipleBls, payments, onOpenInvoice }: 
       pixNote={showPix && received > 0 && balance > 0 ? `o QR cobra o saldo, ${formatBRL(balance)}` : undefined}
     />
   )
+}
+
+/** "Pix em 26/10/2026": formas da consolidada que cobriu a individual e o dia do último pagamento. */
+function describeCoveringPayment(payments: PortalInvoiceDetail['payments'] | undefined): string {
+  if (!payments?.length) return ''
+  const methods = Array.from(new Set(payments.map((payment) => paymentMethodLabel(payment.payment_method))))
+  const lastPaidAt = payments.map((payment) => payment.paid_at).filter(Boolean).sort().at(-1)
+  const paidDay = lastPaidAt ? splitIsoDateTime(lastPaidAt).date : ''
+  return `${methods.join(', ')}${paidDay ? ` em ${formatDate(paidDay)}` : ''}`
 }
 
 function Route({ bl }: { bl: Bl }) {

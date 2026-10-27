@@ -83,6 +83,21 @@
   salvam modelo (ficha ACE-D01, opção A). Tela de Usuários mostra "Administrativo · Dev".
   Prova: `emailShared.test.ts`, `portalEmailSend.test.ts`, `permissoesPorPerfil.local-pg.test.ts`,
   `marcaDevMigration.local-pg.test.ts`, `comunicadoCeReenvioFechaAlerta.local-pg.test.ts`.
+- **Lote da reunião de testes de 26/10 (2026-10-27):** migrations `466` a `468`, sem ADR nova;
+  decisões do dono de 2026-10-27 no [plano arquivado](archive/plans/2026-10-27-lote-da-reuniao-de-testes-de-26-10.md).
+  Desbloqueio de CE: requisitos cumpridos a partir das 12:00 vencem às 12:00 do próximo dia útil
+  (eram 12:30; banco e tela), o Portal mostra os prazos abaixo das quatro exigências, o aviso de
+  documentação validada e o Portal mandam consultar o SISCARGA, e os avisos respondem e mostram no
+  rodapé `importacao@fwlog.com.br` (`COMMUNICATIONS_REPLY_TO`). No Portal, o detalhe da fatura
+  individual coberta diz "✓ Paga · coberta pela fatura INV-…", com a forma e o dia do pagamento da
+  consolidada; o status continua Coberta. O alerta Fatura desatualizada passa a Crítico. Em Rotas e
+  Manifestos, a rota com omissão diz o porto omitido (riscado), o Porto de Transbordo e o destino
+  final. Alerta novo **Planilha de Veículos pendente** (Crítico, Equipamentos, D-5 do primeiro ETA
+  brasileiro), que fecha com a planilha importada ou com "Esta viagem não terá veículos" na tela
+  Veículos. Prova: `ceUnlockSla.test.ts`, `ceUnlock.local-pg.test.ts`, `ceUnlockNotifyEmail.test.ts`,
+  `PortalDesbloqueioCe.test.tsx`, `PortalInvoiceDetailModal.test.tsx`, `AlertasRegrasCatalog.test.tsx`,
+  `voyageCardHelpers.test.tsx`, `Veiculos.declaracaoSemVeiculos.test.tsx`, `voyageTimeline.test.ts` e
+  `alertaPlanilhaDeVeiculos.local-pg.test.ts`.
 - **Baplie: CNTCG é Taicang e o UNT da COSCO 1.5 não avisa (2026-10-27):** migration `465`,
   sem ADR nova (faixa "Situação atual" na [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)).
   `CNTCG` e a forma curta `TCG` passam a ser apelidos de `CNTAC` (Taicang) no banco e no app: o Baplie 1.5 do GREEN

@@ -135,6 +135,7 @@ src/integration/alertaBlSemClientePertoDoEta.local-pg.test.ts
 src/integration/grantsDoReplay.local-pg.test.ts
 src/integration/alertasDaViagem.local-pg.test.ts
 src/integration/alertasDeViagemEscala.local-pg.test.ts
+src/integration/alertaPlanilhaDeVeiculos.local-pg.test.ts
 src/integration/recebivelNoVinculoDoCliente.local-pg.test.ts
 src/integration/portalContaAtivaNaoReabre.local-pg.test.ts
 src/integration/comunicadoNaFila.local-pg.test.ts

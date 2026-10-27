@@ -57,7 +57,7 @@ export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
   financeiro: 4,
   operacoes: 3,
   documentacao: 38,
-  equipamentos: 2,
+  equipamentos: 3,
 }
 
 function only(...allowed: Department[]): Record<Department, PermissionCell> {

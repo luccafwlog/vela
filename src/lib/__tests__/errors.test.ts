@@ -6,6 +6,7 @@ import {
   extractErrorText,
   atomicImportRefusalMessage,
   importErrorMessage,
+  isExpectedUserFacingDbError,
   isRetriableDbError,
   toError,
   userFacingErrorMessage,
@@ -151,6 +152,31 @@ describe('isRetriableDbError', () => {
   it('continua repetindo falhas transitorias', () => {
     expect(isRetriableDbError(new TypeError('Failed to fetch'))).toBe(true)
     expect(isRetriableDbError({ code: '40001', message: 'could not serialize access' })).toBe(true)
+  })
+})
+
+describe('isExpectedUserFacingDbError', () => {
+  it('marca recusas que a tela já explica: validação, conflito e sessão vencida', () => {
+    expect(isExpectedUserFacingDbError({ code: '22023', message: 'Documento não corresponde ao B/L.' })).toBe(true)
+    expect(isExpectedUserFacingDbError({ code: '23505', message: 'duplicate key value violates unique constraint "x"' })).toBe(true)
+    expect(isExpectedUserFacingDbError(new DatabaseError('Escala já omitida.', { code: '23505' }))).toBe(true)
+    expect(isExpectedUserFacingDbError({ code: '28000', message: 'invalid authorization' })).toBe(true)
+    expect(isExpectedUserFacingDbError({ code: 'PGRST301', message: 'JWT expired' })).toBe(true)
+  })
+
+  it('não marca falha real: desconhecido, permissão, limite, não encontrado', () => {
+    expect(isExpectedUserFacingDbError(new Error('Cannot read properties of undefined'))).toBe(false)
+    expect(isExpectedUserFacingDbError({ code: 'XX000', message: 'internal error' })).toBe(false)
+    expect(isExpectedUserFacingDbError({ code: '42501', message: 'permission denied for table invoices' })).toBe(false)
+    expect(isExpectedUserFacingDbError({ code: '57014', message: 'canceling statement due to statement timeout' })).toBe(false)
+    expect(isExpectedUserFacingDbError({ code: 'P0002', message: 'Registro não encontrado.' })).toBe(false)
+  })
+
+  it('não marca P0001/P0003/55000 com mensagem técnica: guarda interna é defeito, não recusa', () => {
+    expect(isExpectedUserFacingDbError({ code: 'P0001', message: 'Esta escala já foi omitida.' })).toBe(true)
+    expect(isExpectedUserFacingDbError({ code: 'P0001', message: '210: effect_kind invalido' })).toBe(false)
+    expect(isExpectedUserFacingDbError({ code: 'P0003', message: 'cargo_mode = carga_solta' })).toBe(false)
+    expect(isExpectedUserFacingDbError({ code: '55000', message: 'REVISAO_OBSOLETA' })).toBe(false)
   })
 })
 

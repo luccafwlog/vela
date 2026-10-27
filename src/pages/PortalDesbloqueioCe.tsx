@@ -136,7 +136,7 @@ function vipFallbackReason(vip: CeUnlockVipCoverage, items: CeUnlockItem[]): str
 
 /** Próximo passo do Cliente em cada situação; o Portal nunca fala de envio à ZPT. */
 function nextStep(detail: CeUnlockRequest, validated: boolean): string | null {
-  if (validated) return "consulte o Mercante para verificar o desbloqueio";
+  if (validated) return "consulte o SISCARGA para verificar o desbloqueio";
   const vipSource = detail.source === "vip_annual";
   switch (detail.state) {
     case "draft":
@@ -154,7 +154,7 @@ function nextStep(detail: CeUnlockRequest, validated: boolean): string | null {
       return refused.length ? `envie ${correctedDocs(refused)} e reenvie a solicitação` : "reenvie a solicitação";
     }
     case "completed":
-      return "consulte o Mercante para verificar o desbloqueio";
+      return "consulte o SISCARGA para verificar o desbloqueio";
     case "cancelled":
       return [...detail.events].reverse().find((e) => e.action === "cancel")?.reason ?? null;
     default:
@@ -508,6 +508,12 @@ export function PortalDesbloqueioCe() {
                 </button>
               </Fact>
             </FactList>
+            {/* Mesma regra de `ceUnlockDeadline` (src/services/ceUnlockSla.ts) e da migration 466: mudar os três juntos. */}
+            <p className="text-sm">
+              <strong>Prazo para desbloqueio:</strong> começa quando os quatro requisitos estão cumpridos em todos os
+              B/Ls da solicitação. Cumpridos antes das 12h, o desbloqueio é feito até as 17h do mesmo dia útil; a partir
+              das 12h, até as 12h do próximo dia útil. Cumpridos no sábado ou no domingo, até as 12h de segunda-feira.
+            </p>
             {showDelivery ? <CeUnlockDeliveryAddresses onClose={() => setShowDelivery(false)} /> : null}
             {gap && (
               <div className="app-callout app-callout--warning flex flex-wrap items-center gap-3">

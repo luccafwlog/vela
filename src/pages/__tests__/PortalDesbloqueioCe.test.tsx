@@ -111,6 +111,17 @@ it("VIP só com o termo anual: requisitos dizem que os dois vão anexados", () =
   expect(block.textContent).toContain("Enquanto falta a procuração anual, assinado, em PDF, anexado à solicitação");
   expect(block.textContent).not.toContain("Coberto pelo termo anual");
 });
+// Reunião de testes de 2026-10-26: o prazo combinado com o mercado fica logo abaixo das quatro exigências.
+it("requisitos dizem o prazo para desbloqueio pelas janelas de 12h e 17h", () => {
+  mount();
+  const block = screen.getByRole("region", { name: "O que o desbloqueio pede" });
+  expect(block.textContent).toContain("Prazo para desbloqueio:");
+  // 12:00 em ponto já é a janela da tarde (`l::time >= 12:00` na 466): "antes" e "a partir", não "até".
+  expect(block.textContent).toContain("Cumpridos antes das 12h, o desbloqueio é feito até as 17h do mesmo dia útil");
+  expect(block.textContent).toContain("a partir das 12h, até as 12h do próximo dia útil");
+  expect(block.textContent).not.toContain("Cumpridos até as 12h");
+  expect(block.textContent).toContain("Cumpridos no sábado ou no domingo, até as 12h de segunda-feira");
+});
 it("Cliente sem VIP: nenhuma menção a documento anual", () => {
   const { container } = mount();
   const block = screen.getByRole("region", { name: "O que o desbloqueio pede" });
@@ -264,7 +275,7 @@ it("com os requisitos atendidos mostra prazo e orienta consultar o Mercante, sem
   const { container } = mount();
   const block = screen.getByRole("region", { name: "Solicitação" });
   expect(block.textContent).toContain("Documentação validada");
-  expect(block.textContent).toContain("consulte o Mercante para verificar o desbloqueio");
+  expect(block.textContent).toContain("consulte o SISCARGA para verificar o desbloqueio");
   expect(block.textContent).toContain("Prazo para desbloqueio07/10, 17:00");
   expect(container.textContent).not.toMatch(/ZPT/i);
   expect(container.textContent).not.toMatch(/Desbloqueio confirmado/i);

@@ -652,6 +652,23 @@ const ALERT_RULES_BASE = [
     dismissal: temporaryDismissal,
   },
   {
+    type: 'voyage_vehicle_sheet_pending',
+    domain: 'Operação',
+    responsible: 'equipamentos',
+    catalogAudience: ['equipamentos'],
+    entityType: 'voyage',
+    severity: 'critical',
+    summary: 'A viagem chegou a D-5 com B/L de container e Equipamentos ainda não importou a planilha de Veículos nem declarou que a viagem não terá veículos.',
+    trigger: 'Atinge D-5 do primeiro ETA brasileiro, a viagem tem B/L de container ou misto ativo e não tem veículo importado nem a declaração "Esta viagem não terá veículos".',
+    timing: 'Começa em D-5, junto com o CE Mercante pendente, e é recalculado quando entram veículos, quando a declaração é feita ou desfeita e quando os B/Ls ou o ETA mudam.',
+    resolution: 'Na tela Veículos da viagem, importe a planilha de Veículos ou use "Esta viagem não terá veículos". Sem a planilha, o CE vinculado emite a fatura cheia do B/L de veículo que seria isento.',
+    destination: '/veiculos',
+    destinationLabel: 'Abrir Veículos',
+    destinationNote: 'O alerta abre a tela Veículos já na viagem (`/veiculos?voyage={id}`).',
+    afterResolution: `${derivedResolution} Veículo importado depois desfaz sozinho a declaração; desfazer a declaração com motivo reabre o alerta dentro do prazo.`,
+    dismissal: temporaryDismissal,
+  },
+  {
     type: 'voyage_schedule_date_pending',
     domain: 'Operação',
     responsible: 'operacoes',
@@ -836,7 +853,8 @@ const ALERT_RULES_BASE = [
   {
     type: 'fatura_desatualizada', domain: 'Financeiro', responsible: 'administrativo',
     responsibleDepartments: ['administrativo', 'financeiro'],
-    catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'normal',
+    // Crítico desde a migration 467 (reunião de testes de 2026-10-26).
+    catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'critical',
     summary: 'A correção do B/L mudou a cobrança de uma fatura e o sistema não conseguiu resolver sozinho.',
     trigger: 'Correção do B/L em fatura com pagamento que aumenta o valor, troca o Cliente ou precisa de revisão; ou reemissão automática travada.',
     timing: 'No fim da transação da correção.',

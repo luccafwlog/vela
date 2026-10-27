@@ -180,6 +180,12 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(alertEntityLinkLabel({ type: 'generic_alert', item_type: 'voyage_baplie_missing', entity_type: 'voyage' })).toBe('Abrir Baplie')
   })
 
+  // Migration 468: a tela Veículos da viagem tem as duas saídas (planilha ou "sem veículos").
+  it('leva a Planilha de Veículos pendente à tela Veículos já na viagem', () => {
+    expect(alertEntityLink({ type: 'voyage_vehicle_sheet_pending', entity_type: 'voyage', entity_id: '99' })).toBe('/veiculos?voyage=99')
+    expect(alertEntityLinkLabel({ type: 'voyage_vehicle_sheet_pending', entity_type: 'voyage' })).toBe('Abrir Veículos')
+  })
+
   // Plano dos e-mails, 3.1: o reenvio do CE e Taxas está no Histórico dos Comunicados.
   it('abre os Comunicados de CE e Taxas do B/L no alerta de reenvio do CE', () => {
     expect(alertEntityLink({ type: 'comunicado_ce_reenvio_pendente', entity_type: 'bl', entity_id: 'BL 1/2' }))

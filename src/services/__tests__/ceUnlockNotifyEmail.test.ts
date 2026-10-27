@@ -11,6 +11,7 @@ import {
 } from '../../../supabase/functions/_shared/ceUnlockNotifyEmail.ts'
 import { runWithBetterStackHeartbeat } from '../../../supabase/functions/_shared/betterStackHeartbeat.ts'
 import { ceUnlockNoticeTemplate } from '../../../supabase/functions/_shared/portalEmailTemplates.ts'
+import { COMMUNICATIONS_CONTACT_EMAIL } from '../customerCommunicationTemplates'
 
 const row = (patch: Partial<OutboxRow> = {}): OutboxRow => ({
   id: 7, customer_id: 1, request_id: 'req', kind: 'changes_requested', subject: 'Assunto', body: 'Corpo', done_recipients: [], attempts: 0, ...patch,
@@ -177,11 +178,11 @@ describe('e-mail ao cliente', () => {
   it('leva o aviso e o link do Portal sem citar ZPT nem desbloqueio confirmado', () => {
     const mail = ceUnlockNoticeTemplate({
       title: 'Desbloqueio de CE: documentação validada',
-      message: 'A documentação da solicitação CE-1 foi validada. Prazo para o desbloqueio: até 07/10 às 17:00. Consulte o Mercante para verificar o desbloqueio.',
+      message: 'A documentação da solicitação CE-1 foi validada. Prazo para o desbloqueio: até 07/10 às 17:00. Consulte o SISCARGA para verificar o desbloqueio.',
       portalUrl: 'https://portal.exemplo.com.br', supportEmail: 'suporte@exemplo.com.br',
     })
     expect(mail.text).toContain('https://portal.exemplo.com.br/portal/desbloqueio-ce')
-    expect(mail.html).toContain('Consulte o Mercante')
+    expect(mail.html).toContain('Consulte o SISCARGA')
     expect(`${mail.subject}${mail.text}${mail.html}`).not.toMatch(/ZPT|desbloqueio confirmado/i)
   })
 
@@ -211,6 +212,24 @@ describe('e-mail ao cliente', () => {
     expect(source).toContain('request: await requestDetails(row.request_id)')
   })
 
+  // Reunião de testes de 2026-10-26: responder e o rodapé levam à importação, como os Comunicados.
+  it('responde e mostra no rodapé importacao@fwlog.com.br, não o suporte do Portal', () => {
+    const source = readFileSync('supabase/functions/ce-unlock-notify-email/index.ts', 'utf8')
+    expect(source).toContain('const replyTo = Deno.env.get("COMMUNICATIONS_REPLY_TO")?.trim() || undefined;')
+    expect(source).toContain('Deno.env.get("PORTAL_FROM_EMAIL") && replyTo')
+    expect(source).toContain('replyTo: replyTo ?? null,')
+    expect(source).toContain('supportEmail: COMMUNICATIONS_CONTACT_EMAIL,')
+    expect(source).not.toMatch(/PORTAL_REPLY_TO|portalSupportEmail/)
+    expect(COMMUNICATIONS_CONTACT_EMAIL).toBe('importacao@fwlog.com.br')
+    const mail = ceUnlockNoticeTemplate({
+      title: 'Desbloqueio de CE: documentação validada',
+      message: 'A documentação da solicitação CE-1 foi validada.',
+      portalUrl: 'https://portalfwlog.com.br', supportEmail: COMMUNICATIONS_CONTACT_EMAIL,
+    })
+    expect(mail.html).toContain('mailto:importacao@fwlog.com.br')
+    expect(`${mail.html}${mail.text}`).not.toContain('suporte@portalfwlog.com.br')
+  })
+
   it('o bloco da solicitação deixa de fora o B/L que passou para outra solicitação, e mantém o confirmado', () => {
     // MEDU2 mudou para outra solicitação (bl_moved); MEDU3 foi confirmado (também active=false) e continua.
     const items = [{ bl_id: 'MEDU1' }, { bl_id: 'MEDU2' }, { bl_id: 'MEDU3' }]
@@ -238,5 +257,17 @@ describe('e-mail ao cliente', () => {
     expect(sql).toContain("Consulte o Mercante para verificar o desbloqueio.")
     expect(sql).toContain('INSERT INTO public.portal_notifications')
     expect(sql).toContain('INSERT INTO public.ce_unlock_email_outbox')
+  })
+
+  // Asserção de texto do SQL: confere o contrato da migration, não a execução.
+  it('migration 466 manda consultar o SISCARGA, mantém o motivo por documento e vence a tarde às 12:00', () => {
+    const sql = readFileSync('supabase/migrations/466_desbloqueio_ce_prazo_12h_e_siscarga.sql', 'utf8')
+    const body = sql.replace(/^--.*$/gm, '')
+    expect(body).toContain("Consulte o SISCARGA para verificar o desbloqueio.")
+    expect(body).not.toContain('Mercante')
+    expect(body).toContain("'Motivo ('||lower(doc[1])||'): '")
+    expect(body).toContain("ELSIF l::time>=time '12:00' THEN d:=d+CASE WHEN dow=5 THEN 3 ELSE 1 END; slot:=time '12:00';")
+    expect(body).not.toContain("12:30")
+    expect(body).toContain("SET search_path = ''")
   })
 })

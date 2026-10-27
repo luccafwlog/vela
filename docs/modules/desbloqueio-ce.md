@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; mudanças da PR 956 conferidas e observadas em produção em 2026-10-15, com os ajustes da PR 961; [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md) arquivado; B/L que muda de solicitação (migration `299`, [ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)) e "Taxas locais aguardando fatura" (migration `298`) ainda não aplicados no Supabase remoto · **Atualizado:** 2026-10-25 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; mudanças da PR 956 conferidas e observadas em produção em 2026-10-15, com os ajustes da PR 961; [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md) arquivado; B/L que muda de solicitação (migration `299`, [ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)) e "Taxas locais aguardando fatura" (migration `298`) ainda não aplicados no Supabase remoto · **Atualizado:** 2026-10-27 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -32,7 +32,8 @@ Manifesto Mercante é regra de
   ou B/L com o CE Mercante vinculado antes da vigência>" (só enquanto a solicitação está em andamento) e aceita o termo e a
   procuração comuns. Com só um dos anuais válido, a faixa "O que o desbloqueio pede" diz que os dois vão
   anexados ("Termo anual válido… Enquanto falta a procuração anual, …"), porque o pedido é inteiro VIP ou
-  inteiro comum. O VIP com os anuais
+  inteiro comum. Logo abaixo das quatro exigências, o bloco diz o **Prazo para desbloqueio** com as
+  janelas da regra de [Prazo (SLA)](#prazo-sla) (reunião de testes de 2026-10-26). O VIP com os anuais
   cobrindo os B/Ls continua sem anexo avulso (`ce_unlock_prepare_upload` recusa "Pedido não aceita
   anexos"); Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
   "Em PDF, anexada à solicitação", com **Baixar modelo do termo** quando há modelo publicado, e
@@ -332,11 +333,14 @@ analisar, mostra a hora do envio, não prazo; a ficha do Cliente mostra o prazo 
 com dois B/Ls, o B/L exportado que perde um requisito, o fato posterior à exportação, a validação
 pela mudança do B/L pendente e o aviso "documentação validada").
 
-Só dias úteis, sem feriados. Antes das 12:00 vence às 17:00 do mesmo dia; a partir das 12:00,
-às 12:30 do próximo dia útil; sábado/domingo vencem segunda às 12:00.
-Calculado na tela (`ceUnlockSla.ts`) e no banco (`ce_unlock_private.sla_deadline`,
-usado no texto do aviso); o teste SQL confere os dois com os mesmos casos. O
-cumprimento é medido pela data da exportação.
+Só dias úteis, sem feriados. Antes das 12:00 (inclusive antes das 8h) vence às 17:00 do mesmo dia;
+a partir das 12:00, às 12:00 do próximo dia útil; sábado/domingo vencem segunda às 12:00 (decisão
+do dono de 2026-10-27, da reunião de testes de 2026-10-26, migration `466`; até então a janela da
+tarde vencia às 12:30, D16 da spec arquivada de 2026-10-07). O prazo é calculado na leitura, não
+gravado: a mudança vale também para as solicitações abertas e para a medição das exportações
+anteriores. Calculado na tela (`ceUnlockSla.ts`), no banco (`ce_unlock_private.sla_deadline`,
+usado no texto do aviso) e escrito no bloco "O que o desbloqueio pede" do Portal; o teste SQL
+confere tela e banco com os mesmos casos. O cumprimento é medido pela data da exportação.
 
 ### Avisos ao cliente
 
@@ -344,7 +348,9 @@ Recusa de documento (com o motivo) e documentação validada (com o
 prazo) geram um aviso no sino do Portal e uma linha na fila `ce_unlock_email_outbox`; a
 Edge Function `ce-unlock-notify-email` envia aos contatos da caixa **Documentação e
 Operação** e registra cada tentativa em `portal_email_attempts`
-(`ce_unlock_notificacao`). Nenhum texto cita ZPT ou desbloqueio confirmado.
+(`ce_unlock_notificacao`). Nenhum texto cita ZPT ou desbloqueio confirmado. O aviso de
+documentação validada, e a situação da solicitação no Portal, mandam o cliente consultar o
+**SISCARGA** para verificar o desbloqueio (migration `466`; antes, "o Mercante").
 
 Desde a migration `458`, gravar a linha na fila chama a Edge Function na hora
 (gatilho `trg_kick_ce_unlock_notify_email`, depois do COMMIT, com o segredo próprio
@@ -365,8 +371,10 @@ Desde a migration `338` (lote 6b), o motivo da recusa diz de qual documento é:
 **Solicitação** (com o protocolo) e os B/Ls da solicitação (`ce_unlock_request_bls`,
 sem o B/L que passou para outra solicitação, com evento `bl_moved`, como na tela,
 e, desde a auditoria run-3, sem o B/L que já é de outro Cliente, como na visão do Portal;
-o B/L confirmado continua; sem B/L, o bloco não aparece) e o botão **Abrir Desbloqueio de CE**; o rodapé leva
-`PORTAL_SUPPORT_EMAIL`.
+o B/L confirmado continua; sem B/L, o bloco não aparece) e o botão **Abrir Desbloqueio de CE**. Resposta
+e rodapé vão para `importacao@fwlog.com.br` (`COMMUNICATIONS_REPLY_TO` e `COMMUNICATIONS_CONTACT_EMAIL`,
+os mesmos dos Comunicados; reunião de testes de 2026-10-26); até então iam para o suporte do Portal
+(`PORTAL_REPLY_TO` e `PORTAL_SUPPORT_EMAIL`).
 
 Como cada aviso termina na fila (migration `307`):
 

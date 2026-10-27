@@ -166,6 +166,9 @@ export const queryKeys = {
   vehicles: {
     all: () => ['vehicles'] as const,
     stats: (voyageIds: number[]) => ['voyage-vehicle-stats', voyageIds] as const,
+    // Sob 'vehicles': importar ou excluir veículos (afterCargaAlterada) relê a declaração,
+    // que o veículo novo desfaz sozinho (migration 468).
+    declaration: (voyageId: number) => ['vehicles', 'declaration', voyageId] as const,
   },
   auditLogs: {
     detail: (entityType: string, entityId?: string) => ['audit-logs', entityType, entityId] as const,

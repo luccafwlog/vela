@@ -115,6 +115,19 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, _op
   ])
 }
 
+/**
+ * Declaração "Esta viagem não terá veículos" feita ou desfeita (migration 468):
+ * a tela Veículos, a Linha do Tempo da Viagem e o alerta Planilha de Veículos
+ * pendente, com o sino.
+ */
+export async function afterDeclaracaoVeiculosAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
+  await invalidate(queryClient, [
+    queryKeys.vehicles.declaration(Number(options.voyageId)), voyageTimelineKey(options.voyageId),
+    queryKeys.alerts.all(), queryKeys.alerts.departmentSummary(), queryKeys.alerts.operationalCount(), ['header-alert'],
+    queryKeys.alerts.internalNotifications(), queryKeys.alerts.internalNotificationsUnreadCount(),
+  ])
+}
+
 /** Natureza (Cama, Cover plate) dos vazios de importação: a lista, os totais e o ADR, que a mostra. */
 export async function afterNaturezaVaziosAlterada(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [['vazios-importacao-containers'], ['vazios-importacao-stats'], ['agency-report']])
