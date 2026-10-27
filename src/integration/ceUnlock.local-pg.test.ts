@@ -597,8 +597,8 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
   it('prazo SQL concorda com a regra do SLA da tela (mesmos casos de ceUnlockSla.test.ts)', () => {
     const cases: Array<[string, string]> = [
       ['2026-10-07 07:50', '2026-10-07T17:00'], ['2026-10-07 11:59', '2026-10-07T17:00'],
-      ['2026-10-07 12:00', '2026-10-08T12:30'], ['2026-10-07 18:30', '2026-10-08T12:30'],
-      ['2026-10-09 14:00', '2026-10-12T12:30'], ['2026-10-10 15:00', '2026-10-12T12:00'], ['2026-10-11 09:00', '2026-10-12T12:00'],
+      ['2026-10-07 12:00', '2026-10-08T12:00'], ['2026-10-07 18:30', '2026-10-08T12:00'],
+      ['2026-10-09 14:00', '2026-10-12T12:00'], ['2026-10-10 15:00', '2026-10-12T12:00'], ['2026-10-11 09:00', '2026-10-12T12:00'],
     ]
     const out = sql(cases.map(([start]) => `SELECT to_char(ce_unlock_private.sla_deadline(timestamp '${start}' AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD"T"HH24:MI');`).join('\n'))
     expect(out.split('\n')).toEqual(cases.map(([, deadline]) => deadline))

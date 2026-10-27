@@ -16,6 +16,12 @@ export type SendPortalEmailInput = {
   inviteId?: number
   /** Chave de envio desligada: registra a tentativa sem chamar o provedor (ver `sendEmail`). */
   simulate?: boolean
+  /**
+   * Endereço de resposta próprio do aviso. Sem ele, vale `PORTAL_REPLY_TO`
+   * (suporte do Portal). Os avisos do Desbloqueio de CE respondem à importação
+   * (`COMMUNICATIONS_REPLY_TO`, reunião de testes de 2026-10-26).
+   */
+  replyTo?: string | null
 }
 
 /**
@@ -36,9 +42,11 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
     idempotencyKey: input.idempotencyKey,
     resendApiKey: typeof Deno !== 'undefined' ? Deno.env.get('RESEND_API_KEY') : null,
     from: typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_FROM_EMAIL') : null,
-    replyTo: typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_REPLY_TO') : null,
+    replyTo: input.replyTo !== undefined ? input.replyTo : typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_REPLY_TO') : null,
     simulate: input.simulate,
-    missingConfigurationMessage: 'PORTAL_FROM_EMAIL e PORTAL_REPLY_TO são obrigatórios para envio real',
+    missingConfigurationMessage: input.replyTo !== undefined
+      ? 'PORTAL_FROM_EMAIL e o reply-to do aviso são obrigatórios para envio real'
+      : 'PORTAL_FROM_EMAIL e PORTAL_REPLY_TO são obrigatórios para envio real',
     checkSuppression: async (to) => {
       // Erro na consulta não libera o envio: sem a resposta, o endereço pode
       // estar suprimido. A exceção vira nova tentativa no chamador.

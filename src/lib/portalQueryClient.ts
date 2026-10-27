@@ -1,11 +1,12 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 import { reportCaughtException } from './telemetry'
-import { classifyDbError, isRetriableDbError } from './errors'
+import { classifyDbError, isExpectedUserFacingDbError, isRetriableDbError } from './errors'
 
 function reportPortalQueryError(
   error: unknown,
   meta: Record<string, unknown>,
 ) {
+  if (isExpectedUserFacingDbError(error)) return
   const classification = classifyDbError(error)
   const tags: Record<string, string> = {
     surface: 'portal',

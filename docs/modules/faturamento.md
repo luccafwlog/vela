@@ -1,6 +1,6 @@
 # Faturamento
 
-> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e cancelamento de baixa também são abertos por `/reconciliacao`
+> **Status:** ativo · **Atualizado:** 2026-10-27 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e cancelamento de baixa também são abertos por `/reconciliacao`
 
 ## Propósito e escopo
 
@@ -651,7 +651,8 @@ Cliente. Tabela reajustada não muda a cotação; só a base nova muda o valor:
   cancelado: a fatura continua valendo, abre **Fatura desatualizada** com o
   motivo e a correção fica pendente para "Tentar aplicar correção" (ADR 0094,
   B5 e D1; migrations `381` e `386`; antes, a `126` cancelava e deixava em
-  Reemissão pendente);
+  Reemissão pendente). O alerta é **Crítico** desde a migration `467` (reunião
+  de testes de 2026-10-26; era Normal desde a `124`);
 - com pagamento e valor menor: `_register_invoice_correction_core` abate
   primeiro o saldo em aberto e só o que passar dele vira restituição, com o
   alerta **Restituição pendente**, que fecha quando o Financeiro (ou o
@@ -938,7 +939,11 @@ flowchart TD
   `paid|covered → Paga`, `cancelled|obsolete → Cancelada`. No Portal, o rótulo
   da linha distingue `paid` ("Paga", com recibo) de `covered` ("Coberta pela
   <consolidada>", saldo zero, sem recibo próprio); a consolidada paga continua
-  visível com o recibo dela (migration `162`, decisão de 2026-10-08).
+  visível com o recibo dela (migration `162`, decisão de 2026-10-08). O
+  **detalhe** da individual coberta no Portal diz "✓ Paga · coberta pela fatura
+  <consolidada>", com a forma e o dia do pagamento da consolidada; o status
+  continua `covered` no banco, no Vela, na lista e no filtro (reunião de testes
+  de 2026-10-26, [Portal do Cliente](portal-cliente.md)).
   `overdue` saiu do domínio na migration arquivada `348` (ADR 0055).
 
 ## Testes e validação
