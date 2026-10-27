@@ -249,6 +249,21 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     expect(psql(`SELECT count(*) FROM public.demurrage_invoices WHERE replaces_invoice_id = ${current} AND status = 'issued'`)).toBe('1')
   })
 
+  it('481: Invoice de outra Viagem não cita a cancelada da mesma caixa', () => {
+    const cancelled = Number(psql(`SELECT id FROM public.demurrage_invoices WHERE bl_id = '${bl.full}' AND status = 'cancelled' ORDER BY id LIMIT 1`))
+    // A mesma caixa, cobrada em outra Viagem do Cliente, numa transação desfeita.
+    const out = psql(`BEGIN;
+      SET LOCAL session_replication_role = replica;
+      UPDATE public.demurrage_invoices SET replaces_invoice_id = NULL WHERE replaces_invoice_id = ${cancelled};
+      UPDATE public.bl_containers SET container_number = '${box.full}' WHERE bl_id = '${bl.negotiated}';
+      SET LOCAL session_replication_role = origin;
+      SET LOCAL vela.demurrage_internal = 'on';
+      SELECT public.issue_demurrage_invoice_for_bl('${bl.negotiated}', 'R349-DEM-481')->>'status';
+      SELECT count(*) FROM public.demurrage_invoices WHERE replaces_invoice_id = ${cancelled};
+      ROLLBACK;`).split('\n')
+    expect(out).toEqual(['issued', '0'])
+  })
+
   it('P1: caixa sem cobrança abre o alerta, que fecha quando a caixa entra numa Invoice emitida', () => {
     const first = issue(bl.lostB)
     expect(first).toMatchObject({ status: 'issued', anchor_bl_id: bl.lostA })

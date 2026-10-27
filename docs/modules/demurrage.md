@@ -663,7 +663,7 @@ Alerta diz o motivo e que a nova Invoice sai sozinha quando ele for resolvido
 …, cancelada para reemissão automática…" com link, e o Portal "Substitui a
 fatura …". A reemissão que esperou a trava e saiu depois pela fila também
 cita a cancelada: a primeira caixa da nova Invoice a liga à cancelada mais
-recente do Cliente com essa caixa (migration `480`). O Alerta fecha sozinho quando todas essas caixas entram
+recente do Cliente com essa caixa na mesma Viagem (migrations `480` e `481`). O Alerta fecha sozinho quando todas essas caixas entram
 numa Invoice emitida da mesma Viagem e do mesmo Cliente (gatilho na emissão,
 migration `349`). Se a reemissão cobriu todas as caixas, ou não havia o que
 cobrar (B/L ou Viagem cancelados, sem sobreestadia, aguardando devolução), o
