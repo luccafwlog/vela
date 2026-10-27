@@ -384,8 +384,9 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   Desativar a tabela só impede B/Ls novos de usá-la. Mudança de modo de carga
   ou de POD vincula à tabela ativa do escopo novo. Reajuste de preço é tabela
   nova: vale para os B/Ls que surgirem depois. Só o servidor grava o vínculo.
-  Tabela já usada (vinculada, calculada ou faturada) não muda **POD** nem
-  **modo de carga**: o banco recusa (`trg_guard_used_tariff_scope`) e o
+  Tabela já usada (vinculada, calculada ou faturada, inclusive só por B/L
+  cancelado ou nunca faturado — confirmado pelo dono na revisão da PR #1070)
+  não muda **POD** nem **modo de carga**: o banco recusa (`trg_guard_used_tariff_scope`) e o
   formulário trava os dois campos; para outro POD ou modo, cadastra-se tabela
   nova (decisão do dono de 2026-10-27, TAX-D13; migration `470`).
   Excluir tabela vinculada é recusado como as demais tarifas usadas.

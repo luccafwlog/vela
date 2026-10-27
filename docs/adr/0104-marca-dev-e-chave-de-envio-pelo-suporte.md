@@ -31,7 +31,7 @@ operação com Clientes reais. Até aqui:
 1. **Chave ligada:** os e-mails saem normalmente.
 2. **Chave desligada:** todo e-mail dirigido a Cliente, inclusive os do Portal,
    é enviado de verdade, mas para `suporte@portalfwlog.com.br` em vez do
-   destinatário. O assunto começa com "[Teste → e-mail do Cliente]" e o topo da
+   destinatário. O assunto começa com "[Teste → <e-mail do Cliente>]" e o topo da
    mensagem diz quem receberia. E-mail para a própria equipe (resumo diário do
    Portal) não passa pela chave.
 3. **O envio redirecionado conta como enviado** em Cobertura, Régua e alertas.

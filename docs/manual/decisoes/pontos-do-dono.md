@@ -96,3 +96,25 @@ com Clientes reais.
     receberia.
   - O envio redirecionado conta como enviado na Cobertura, na Régua e nos
     alertas; a tela troca "Em simulação" por "Redirecionado ao suporte".
+
+## 5. Decisões da revisão da PR #1070 (2026-10-27)
+
+A revisão da PR #1070 (relatório em
+[`docs/archive/audits/revisao-pr-1070-2026-10-27.md`](../../archive/audits/revisao-pr-1070-2026-10-27.md))
+levantou pontos em que o código escolhia sozinho. O dono decidiu cada um no
+mesmo dia; todos foram executados nas migrations `482` a `488`.
+
+| # | Ponto | Decisão do dono | Onde ficou |
+|---|---|---|---|
+| P1 | Outro Administrativo podia redefinir a senha da conta Dev e ligar a chave de envio | Só a própria pessoa troca e-mail e senha da conta com a marca Dev; desativar e trocar o setor seguem com o Administrativo; esquecida a senha, a redefinição é pelo painel do Supabase | `admin-users`, Editar acesso; [ADR 0104](../../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md) |
+| P2 | ACE-D06 (opção B) foi feita com alcance menor: só falhas de entrega e linhas de Usuário do Histórico ficaram do Administrativo | Vale o alcance da PR: o resto do Histórico e o Prazo do ADR seguem lidos por todos, porque alimentam as telas de Viagem, Line Up, ADR, B/L e Taxas | Migration `475`; [ADR 0106](../../adr/0106-nome-do-autor-no-historico-para-todos.md) |
+| P3 | Quatro críticos da Documentação deixaram de avisar o Administrativo (Exceção crítica de fatura do Portal, Caixa sem destinatário, Cliente sem contato principal, Contato com bounce sem alternativa) | Os quatro avisam também o Administrativo, como o Financeiro nos tipos do dinheiro | Migration `485`; [ADR 0107](../../adr/0107-sino-so-do-setor-responsavel.md) |
+| P4 | Alerta de origem externa resolvido com justificativa ficava calado sem prazo | Volta 24 horas depois da justificativa se a causa continuar; na rotina agendada, outro tipo de falha reabre na hora | Migration `485`; [ADR 0108](../../adr/0108-fim-da-dispensa-de-alertas.md) |
+| P5 | Dois Pix na mesma cobrança: o extrato fechava os dois | O extrato fecha um Pix; o outro vira Restituição "Pix em duplicidade", como na baixa normal | Migration `483`; [Reconciliação Pix](../../modules/reconciliacao-pix.md) |
+| P6 | Troca de CNPJ do B/L reemitia a Invoice de Demurrage para Cliente sem gate | Respeita o gate do novo Cliente: retida até o gate abrir, sai recalculada e com aviso | Migration `484`; [Demurrage](../../modules/demurrage.md) |
+| P7 | Reemissão por datas da Invoice que o Cliente já via ficava retida com o gate fechado | Reemite mesmo assim (o CE continua exigido); o gate vale para a primeira emissão | Migration `484`; [Demurrage](../../modules/demurrage.md) |
+| P8 | VIP: B/L que muda de solicitação; solicitações em andamento na troca da regra | Vale o primeiro envio do B/L, contando a solicitação de onde ele saiu; quem já tinha o anual ligado continua coberto | Migration `487`; [ADR 0110](../../adr/0110-vip-cobre-pela-data-da-solicitacao.md) |
+| P9 | Tabela de Taxas Locais usada só por B/L cancelado ou nunca faturado | Continua travada: mudar POD ou modo exige tabela nova | Migration `470` (sem mudança); [Taxas Locais](../../modules/taxas-locais.md) |
+| P10 | O Novo cliente gravava contatos para qualquer setor | Só Administrativo, Documentação e Equipamentos criam pelo Novo cliente; os demais trazem o Cliente pela Base e pela Revisão; o Cliente do manifesto pela ficha do B/L segue para todos | Migration `486`; [Segurança](../../operations/seguranca.md) |
+| P11 | Atracação TBC com ATB e ATD | TBC não é terminal, é só "terminal a confirmar": o banco recusa ATB, ATD e Restow nela, sempre; ETB e ETD seguem | Migration `482`; [ADR 0109](../../adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md) |
+| P12 | Onde corrigir | Direto na branch da PR #1070 | Commits da PR |

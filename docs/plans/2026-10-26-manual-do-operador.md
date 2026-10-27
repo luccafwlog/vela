@@ -6,7 +6,11 @@ trabalho, não o manual.
 
 ## Estado
 
-**Etapa 1 executada em 2026-10-26; aguarda a aprovação do dono.** Os 2.253
+**Etapa 1 executada em 2026-10-26; divergências decididas e corrigidas em
+2026-10-27; faltam o sumário final e a lista "fora do manual".** As 118
+divergências (112 fichas) foram decididas pelo dono e executadas nos lotes 1 a
+11 do [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md),
+com os ajustes da revisão da PR #1070 (migrations `482` a `488`). Os 2.253
 itens do sistema têm lugar na [matriz de cobertura](../manual/README.md)
 (`npm run manual:coverage` passa contra o banco local), com 1.560 regras
 escritas como o operador as vê e conferidas por uma segunda leitura
@@ -15,8 +19,8 @@ corrigidas nos documentos vivos. O resultado, com a tabela de quem faz o quê,
 o sumário final proposto, a lista "fora do manual" e as 118 divergências que
 dependem de decisão, está no
 [relatório de 2026-10-26](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md).
-Falta, para fechar a Etapa 1, o dono aprovar essas três listas. A Etapa 2
-começa depois.
+Falta, para fechar a Etapa 1, o dono aprovar o sumário final e a lista "fora
+do manual". A Etapa 2 começa depois.
 
 Diferença mecânica do plano: o check de cobertura roda contra o banco local
 preparado, como o `rpc:check`, e não junto do `docs:check`, porque o
@@ -26,19 +30,22 @@ guardado como registro histórico e serve só de referência de redação
 
 ## Como retomar (para quem continuar)
 
-1. **Decisões do dono.** As 118 divergências (em 112 fichas; ver o README da
-   pasta para as seis juntadas) estão na página
+1. **Decisões do dono (feitas).** As 118 divergências (em 112 fichas; ver o README da
+   pasta para as seis juntadas) foram decididas em 2026-10-27 na página
    <https://claude.ai/artifact/SDGqaeCFq1Uht6ih1ef46R> (fonte e formato do
    registro em [`docs/manual/decisoes/`](../manual/decisoes/README.md)). Leia as
    escolhas com `ArtifactData` (`list`, coleção `decisoes`). Cada escolha vira
-   tarefa própria; não corrija o sistema dentro do trabalho do manual.
+   tarefa própria; não corrija o sistema dentro do trabalho do manual. As
+   decisões da revisão da PR #1070 estão em
+   [Pontos do dono](../manual/decisoes/pontos-do-dono.md).
 2. **Aprovações que fecham a Etapa 1** (seções 5 e 7 do
    [relatório](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md)):
    o sumário final proposto (24 capítulos) e a lista "fora do manual". Ainda
    não respondidas.
 3. **Ambiente.** `npm ci`, depois `sudo scripts/setup-local-pg.sh --reset`
    (banco `vela_test` com todas as migrations), depois `npm run manual:coverage`
-   (precisa terminar em "2253/2253" ou mais, se o sistema ganhou itens).
+   (precisa terminar com todos os itens com lugar; 2282/2282 em 2026-10-27).
+   O CI roda o mesmo check no job `db`.
 4. **Material de trabalho da Etapa 1** (instruções de mapeamento, conferência,
    correção de documento e fichas de decisão; montagem do relatório):
    [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).

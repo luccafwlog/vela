@@ -3,7 +3,7 @@
 > **Situação atual (2026-10-27).** Pela [ADR 0104](./0104-marca-dev-e-chave-de-envio-pelo-suporte.md)
 > (migration `469`): desligada, a chave não registra simulação sem enviar: todo
 > e-mail dirigido a Cliente, inclusive o transacional do Portal, sai para
-> `suporte@portalfwlog.com.br`, com o Cliente no assunto. Só a conta do
+> `suporte@portalfwlog.com.br`, com o e-mail do Cliente no assunto. Só a conta do
 > Administrativo com a marca Dev muda a chave; todos os setores a leem. O texto
 > abaixo é o registro da decisão original. Regra vigente:
 > [Clientes § Chave de envio](../modules/clientes.md#chave-de-envio-de-comunicados).

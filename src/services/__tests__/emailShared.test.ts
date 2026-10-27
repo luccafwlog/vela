@@ -23,7 +23,7 @@ afterEach(() => {
 })
 
 describe('sendEmail', () => {
-  it('com a chave desligada envia ao suporte, com o Cliente no assunto e no topo', async () => {
+  it('com a chave desligada envia ao suporte, com o e-mail do Cliente no assunto e no topo', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'provider-9' }), { status: 200 }))
     const updateAttempt = vi.fn()
     const checkSuppression = vi.fn(async () => ({ suppressed: false }))

@@ -390,7 +390,7 @@ Como cada aviso termina na fila (migration `307`):
 | --- | --- |
 | `sent` | Todos os contatos da caixa receberam |
 | `partial` | Parte recebeu e o restante está na supressão do Portal (bounce ou reclamação); não volta a ser tentado |
-| `simulated` | Chave **Canal de envio real** desligada: os destinatários são resolvidos e cada aviso vai ao suporte (`suporte@portalfwlog.com.br`), com o Cliente no assunto ([ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)). O aviso **não** é enviado depois ao Cliente, quando a chave for ligada (D11 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)) |
+| `simulated` | Chave **Canal de envio real** desligada: os destinatários são resolvidos e cada aviso vai ao suporte (`suporte@portalfwlog.com.br`), com o e-mail do Cliente no assunto ([ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)). O aviso **não** é enviado depois ao Cliente, quando a chave for ligada (D11 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)) |
 | `skipped` | Nenhum destinatário: sem contato na caixa ou todos suprimidos |
 | `pending` | Falha de envio ou erro na linha; a próxima rodada tenta de novo, sem reenviar a quem já recebeu |
 | `failed` | Cinco tentativas sem sucesso |

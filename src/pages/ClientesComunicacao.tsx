@@ -631,7 +631,7 @@ export function ClientesComunicacao() {
       message: `${selectedEmailCount} destinatário(s) de ${customersCount} Cliente(s) recebem ${customerCommunicationKindLabel(kind)}.`,
       consequence: real
         ? 'A chave de envio está ligada: os e-mails saem agora aos Clientes, e cada envio fica no Histórico.'
-        : `A chave de envio está desligada: cada e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o Cliente no assunto, e fica no Histórico como redirecionado ao suporte.`,
+        : `A chave de envio está desligada: cada e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o e-mail do Cliente no assunto, e fica no Histórico como redirecionado ao suporte.`,
       reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
       confirmLabel: 'Confirmar',
       cancelLabel: 'Cancelar',
@@ -723,7 +723,7 @@ export function ClientesComunicacao() {
       message: `${failed.length} destinatário(s) de ${new Set(failed.map(({ input }) => input.customerId)).size} Cliente(s) recebem ${customerCommunicationKindLabel(kind)} de novo.`,
       consequence: real
         ? 'A chave de envio está ligada: os e-mails que falharam saem agora aos Clientes.'
-        : `A chave de envio está desligada: cada e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o Cliente no assunto, e fica no Histórico como redirecionado ao suporte.`,
+        : `A chave de envio está desligada: cada e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o e-mail do Cliente no assunto, e fica no Histórico como redirecionado ao suporte.`,
       reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
       confirmLabel: 'Confirmar',
       cancelLabel: 'Cancelar',
@@ -769,7 +769,7 @@ export function ClientesComunicacao() {
       message: `Reenviar o Comunicado de CE e Taxas de ${item.customer?.name ?? `Cliente ${item.customer_id}`} na viagem ${[item.vessel_name, item.voyage_number].filter(Boolean).join(' / ') || item.anchor_voyage_id}, com o CE e os valores atuais?${latestNote}`,
       consequence: real
         ? 'A chave de envio está ligada: o e-mail sai agora para as caixas Documentação e Operação e Financeiro do Cliente. O envio fecha o alerta "Reenviar Comunicado de CE e Taxas" dos B/Ls.'
-        : `A chave de envio está desligada: o e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o Cliente no assunto. O envio fecha o alerta "Reenviar Comunicado de CE e Taxas" dos B/Ls.`,
+        : `A chave de envio está desligada: o e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o e-mail do Cliente no assunto. O envio fecha o alerta "Reenviar Comunicado de CE e Taxas" dos B/Ls.`,
       reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
       confirmLabel: 'Reenviar CE e Taxas',
       cancelLabel: 'Cancelar',
@@ -847,7 +847,7 @@ export function ClientesComunicacao() {
         ) : settings?.communications_enabled === true ? (
           <LeadValue detail="Os e-mails saem para os contatos elegíveis.">Envio real</LeadValue>
         ) : (
-          <LeadValue tone="warning" detail={`Todo e-mail de Cliente vai para ${SUPPORT_REDIRECT_ADDRESS}, com o Cliente no assunto.`}>Redirecionado ao suporte</LeadValue>
+          <LeadValue tone="warning" detail={`Todo e-mail de Cliente vai para ${SUPPORT_REDIRECT_ADDRESS}, com o e-mail do Cliente no assunto.`}>Redirecionado ao suporte</LeadValue>
         )}
       </Block>
 

@@ -787,7 +787,8 @@ matriz de permissões e mensagens) e falha quando um item não tem lugar na
 [matriz de cobertura do Manual do Operador](docs/manual/README.md), quando a
 matriz cita um item que deixou de existir ou quando uma linha usa destino fora
 da lista. `npm run manual:inventory` imprime o inventário em JSON. Mudança que
-cria, remove ou renomeia um desses itens atualiza a matriz na mesma alteração.
+cria, remove ou renomeia um desses itens atualiza a matriz na mesma alteração;
+o job `db` do CI roda o check depois do `rpc:check`.
 
 Para Supabase completo, carregue no ambiente do processo as variáveis indicadas
 em `.env.example`, inclusive os IDs das fixtures, antes de habilitar a suíte:

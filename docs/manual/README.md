@@ -16,8 +16,8 @@ regra como o operador a vê, o destino no manual, os setores envolvidos e os
 itens do código que a implementam.
 
 `npm run manual:coverage` (banco local preparado, ver
-[WORKFLOW.md](../../WORKFLOW.md#testes-de-integração)) extrai o inventário do
-sistema e falha quando:
+[WORKFLOW.md](../../WORKFLOW.md#testes-de-integração); roda também no job `db`
+do CI) extrai o inventário do sistema e falha quando:
 
 - um item do sistema não tem lugar na matriz;
 - a matriz cita um item que deixou de existir;

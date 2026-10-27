@@ -290,6 +290,15 @@ jobs:
           LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
         run: npm run rpc:check
 
+      - name: Verify every system item has a place in the Operator Manual
+        # Cada tela, regra, permissão, gatilho, mensagem e alerta do banco e do
+        # código precisa de lugar na matriz de cobertura do manual
+        # (docs/manual/cobertura/). Antes rodava só à mão, e a própria PR que o
+        # criou chegou a deixar item sem lugar (revisão da PR #1070).
+        env:
+          LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
+        run: npm run manual:coverage
+
       - name: Apply seed on the replayed database
         # Supabase branches e `db reset` aplicam seed.sql automaticamente; sem
         # este passo, o caminho banco-novo+seed só era provado nos Previews,
