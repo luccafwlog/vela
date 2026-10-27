@@ -649,7 +649,8 @@ O gate vale para quem ainda não viu a Invoice (decisões do dono de
 2026-10-27, migration `484`):
 
 - **Troca de CNPJ do B/L.** A Invoice aberta do Cliente anterior é cancelada.
-  Com o gate do novo Cliente aberto, a cópia sai na hora para ele, sem
+  Com o CE no B/L e o gate do novo Cliente aberto (a trava de emissão
+  inteira), a cópia sai na hora para ele, sem
   desconto e sem a citação "Substitui a Invoice …" do Cliente anterior; com o
   gate fechado, nada é emitido nem avisado e a emissão fica na fila até o
   gate abrir, quando sai recalculada.

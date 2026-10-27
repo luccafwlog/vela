@@ -79,7 +79,12 @@ describeLocal('373 — desvincular o Cliente e container FCL entre Clientes', ()
         SELECT d.id, c.id, c.container_number, '22G1', '2026-09-01', '2026-09-20', 19, 14, 5, 20, 100
         FROM public.demurrage_invoices d JOIN public.bl_containers c ON c.bl_id = d.bl_id WHERE d.doc_number = 'FF9311-DEM';
       SET session_replication_role = origin;`)
-    w.psql(`UPDATE public.bls SET customer_id = ${w.otherCustomerId} WHERE id = '${id}'`)
+    // 484 (P6, DEM-D13): a Invoice de Demurrage sai na hora só com o CE e o gate do novo Cliente aberto.
+    w.psql(`SET session_replication_role = replica;
+      UPDATE public.bls SET ce_mercante = '999311000000001' WHERE id = '${id}' AND ce_mercante IS NULL;
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at) VALUES (${w.otherCustomerId}, 'Fixture: faturamento aberto do novo Cliente (484, P6)', gen_random_uuid(), now() + interval '1 day') ON CONFLICT DO NOTHING;
+      SET session_replication_role = origin;
+      UPDATE public.bls SET customer_id = ${w.otherCustomerId} WHERE id = '${id}'`)
     expect(w.psql(`SELECT string_agg(customer_id || ':' || status || ':' || total_brl, ',' ORDER BY id) FROM public.invoices
       WHERE bl_id = '${id}' AND invoice_type = 'manual'`)).toBe(`${w.customerId}:cancelled:80.00,${w.otherCustomerId}:issued:80.00`)
     // 385: a avulsa reemitida não herda data, autor e motivo do cancelamento da original.
