@@ -1,0 +1,567 @@
+{
+ "01-acesso-admin_ACE-D01": {
+  "escolha": "outra",
+  "nota": "Todos veem tudo da mesma forma, ninguem deve ter impedimento de ação em Comunicações",
+  "decididoEm": "2026-10-26T23:56:50.525Z"
+ },
+ "01-acesso-admin_ACE-D03b": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:19:52.665Z"
+ },
+ "01-acesso-admin_ACE-D04": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-26T23:58:14.780Z"
+ },
+ "01-acesso-admin_ACE-D06": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:41:27.829Z"
+ },
+ "01-acesso-admin_ACE-D08": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:31:03.574Z"
+ },
+ "01-acesso-admin_ACE-D12": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:19:57.928Z"
+ },
+ "01-acesso-admin_ACE-D13": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:20:21.827Z"
+ },
+ "01-acesso-admin_ACE-D14": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-26T23:58:51.669Z"
+ },
+ "01-acesso-admin_ACE-D15": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:20:54.695Z"
+ },
+ "01-acesso-admin_ACE-D16": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:21:09.444Z"
+ },
+ "02-viagens-adr_10": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:31:25.273Z"
+ },
+ "02-viagens-adr_13": {
+  "escolha": "outra",
+  "nota": "Devemos implementar uma trava no sistema para que seja obrigatório vincular uma frente de operaççao a um terminal para que isso nao ocorra. Penso que o ATA deve ser a data limite para vincular todas as frentes de operação, sendo obrigatório, portanto, vincular as frentes de operação. Além disso, é preciso afirmar categoricamente, TBC não terminal, é o mesmo que nada!",
+  "decididoEm": "2026-10-27T00:04:18.200Z"
+ },
+ "02-viagens-adr_14": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:12:21.382Z"
+ },
+ "02-viagens-adr_15": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:57:57.458Z"
+ },
+ "02-viagens-adr_2": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:21:31.910Z"
+ },
+ "02-viagens-adr_3": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:31:27.686Z"
+ },
+ "02-viagens-adr_4": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:22:04.194Z"
+ },
+ "02-viagens-adr_5": {
+  "escolha": "C",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:55:00.554Z"
+ },
+ "02-viagens-adr_6": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:55:33.637Z"
+ },
+ "02-viagens-adr_7": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:55:43.775Z"
+ },
+ "03-bl-revisao_BLR-D01": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:58:05.753Z"
+ },
+ "03-bl-revisao_BLR-D02": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:58:23.771Z"
+ },
+ "03-bl-revisao_BLR-D03": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:31:52.017Z"
+ },
+ "03-bl-revisao_BLR-D04": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:31:58.024Z"
+ },
+ "03-bl-revisao_BLR-D05": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:32:22.535Z"
+ },
+ "03-bl-revisao_BLR-D06": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:58:58.390Z"
+ },
+ "03-bl-revisao_BLR-D07": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:59:16.572Z"
+ },
+ "03-bl-revisao_BLR-D12": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:09:20.128Z"
+ },
+ "04-ce-baplie_CEB-D01": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:10:02.778Z"
+ },
+ "04-ce-baplie_CEB-D02": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:33:02.152Z"
+ },
+ "04-ce-baplie_CEB-D03": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:04:56.946Z"
+ },
+ "04-ce-baplie_CEB-D04": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:10:16.812Z"
+ },
+ "04-ce-baplie_CEB-D05": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:33:17.227Z"
+ },
+ "04-ce-baplie_CEB-D06": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:33:39.260Z"
+ },
+ "04-ce-baplie_CEB-D10": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:05:19.251Z"
+ },
+ "04-ce-baplie_CEB-D12": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:33:54.500Z"
+ },
+ "04-ce-baplie_CEB-D13": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:10:26.662Z"
+ },
+ "05-equipamentos_EQU-D11": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:12:12.878Z"
+ },
+ "05-equipamentos_EQU-D7": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:11:47.944Z"
+ },
+ "06-clientes-comunicacao_D01": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:14:27.395Z"
+ },
+ "06-clientes-comunicacao_D02": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:15:06.278Z"
+ },
+ "06-clientes-comunicacao_D03": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:15:31.363Z"
+ },
+ "06-clientes-comunicacao_D04": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:34:11.524Z"
+ },
+ "06-clientes-comunicacao_D05": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:15:43.996Z"
+ },
+ "06-clientes-comunicacao_D07": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:34:26.049Z"
+ },
+ "06-clientes-comunicacao_D08": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:15:51.028Z"
+ },
+ "06-clientes-comunicacao_D09": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:34:43.703Z"
+ },
+ "06-clientes-comunicacao_D10": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:05:35.236Z"
+ },
+ "06-clientes-comunicacao_D12": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:35:09.645Z"
+ },
+ "06-clientes-comunicacao_D14": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:12:40.901Z"
+ },
+ "06-clientes-comunicacao_D15": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:13:22.750Z"
+ },
+ "06-clientes-comunicacao_D18": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:13:37.432Z"
+ },
+ "07-portal_POR-D01": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:18:17.227Z"
+ },
+ "07-portal_POR-D02": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:18:22.578Z"
+ },
+ "07-portal_POR-D03": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:18:30.162Z"
+ },
+ "07-portal_POR-D04": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:13:55.823Z"
+ },
+ "07-portal_POR-D05": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:20:55.793Z"
+ },
+ "07-portal_POR-D06": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:14:05.346Z"
+ },
+ "07-portal_POR-D07": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:14:17.796Z"
+ },
+ "07-portal_POR-D11": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:21:02.960Z"
+ },
+ "07-portal_POR-D12": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:21:10.142Z"
+ },
+ "07-portal_POR-D13": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:14:39.779Z"
+ },
+ "08-desbloqueio-ce_1": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:36:03.523Z"
+ },
+ "08-desbloqueio-ce_11": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:36:52.989Z"
+ },
+ "08-desbloqueio-ce_13": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:23:42.027Z"
+ },
+ "08-desbloqueio-ce_17": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:37:27.492Z"
+ },
+ "08-desbloqueio-ce_2": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:21:23.110Z"
+ },
+ "08-desbloqueio-ce_3": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:36:31.141Z"
+ },
+ "08-desbloqueio-ce_4": {
+  "escolha": "outra",
+  "nota": "Em conversa com meu diretor, ficou definido que o termo anual irá cobrir todos os CEs que tiverem seu desbloqueio solicitado dentro da vigencia do termo. Portanto, independente de quando o BL foi importado ou o CE foi vinculado, o que importa é quando o desbloqueio foi solicitado",
+  "decididoEm": "2026-10-27T01:23:08.794Z"
+ },
+ "08-desbloqueio-ce_5": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:23:20.860Z"
+ },
+ "09a-taxas-locais_TAX-D01": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:25:07.711Z"
+ },
+ "09a-taxas-locais_TAX-D02": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:25:11.995Z"
+ },
+ "09a-taxas-locais_TAX-D03": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:25:18.227Z"
+ },
+ "09a-taxas-locais_TAX-D04": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:37:45.398Z"
+ },
+ "09a-taxas-locais_TAX-D07": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:37:57.066Z"
+ },
+ "09a-taxas-locais_TAX-D08": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:25:22.559Z"
+ },
+ "09a-taxas-locais_TAX-D09": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:38:34.852Z"
+ },
+ "09a-taxas-locais_TAX-D11": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:38:52.958Z"
+ },
+ "09a-taxas-locais_TAX-D13": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:14:54.897Z"
+ },
+ "09a-taxas-locais_TAX-D14": {
+  "escolha": "B",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:15:18.729Z"
+ },
+ "09a-taxas-locais_TAX-D15": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:25:36.477Z"
+ },
+ "09a-taxas-locais_TAX-D16": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:25:47.728Z"
+ },
+ "09a-taxas-locais_TAX-D17": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:26:06.811Z"
+ },
+ "09a-taxas-locais_TAX-D18": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:38:56.885Z"
+ },
+ "09b-faturamento_FAT-D09": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:28:37.643Z"
+ },
+ "09b-faturamento_FAT-D10": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:15:36.795Z"
+ },
+ "09b-faturamento_FAT-D11": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:42:22.216Z"
+ },
+ "09b-faturamento_FAT-D12": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T01:28:45.708Z"
+ },
+ "09b-faturamento_FAT-D13": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:42:30.919Z"
+ },
+ "09b-faturamento_FAT-D15": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:17:20.114Z"
+ },
+ "09b-faturamento_FAT-D16": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:42:43.901Z"
+ },
+ "10-recebimento_1": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:30:42.854Z"
+ },
+ "10-recebimento_11": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:41:37.899Z"
+ },
+ "10-recebimento_12": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:17:48.579Z"
+ },
+ "10-recebimento_3": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:17:44.014Z"
+ },
+ "10-recebimento_7": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:42:57.713Z"
+ },
+ "11-demurrage_DEM-D01": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:18:11.041Z"
+ },
+ "11-demurrage_DEM-D05": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:41:39.527Z"
+ },
+ "11-demurrage_DEM-D06": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:19:28.928Z"
+ },
+ "11-demurrage_DEM-D08": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:40:08.225Z"
+ },
+ "11-demurrage_DEM-D09": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:43:05.563Z"
+ },
+ "11-demurrage_DEM-D13": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T00:19:36.294Z"
+ },
+ "12-alertas-rotinas_ALE-D03": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:40:25.486Z"
+ },
+ "12-alertas-rotinas_ALE-D04": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:43:12.956Z"
+ },
+ "12-alertas-rotinas_ALE-D05": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:41:44.773Z"
+ },
+ "12-alertas-rotinas_ALE-D06": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:41:47.919Z"
+ },
+ "12-alertas-rotinas_ALE-D07": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:41:54.592Z"
+ },
+ "12-alertas-rotinas_ALE-D08": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:41:59.385Z"
+ },
+ "12-alertas-rotinas_ALE-D11": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:43:23.538Z"
+ },
+ "12-alertas-rotinas_ALE-D12": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:42:02.297Z"
+ },
+ "12-alertas-rotinas_ALE-D13": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:43:33.587Z"
+ },
+ "12-alertas-rotinas_ALE-D17": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:42:08.436Z"
+ },
+ "12-alertas-rotinas_ALE-D18": {
+  "escolha": "A",
+  "nota": "",
+  "decididoEm": "2026-10-27T09:42:11.483Z"
+ }
+}

@@ -15,6 +15,11 @@ hoje, duas ou três opções com o efeito de cada uma e a opção recomendada.
   `nota` descreve a solução pedida, ou `null`), `nota` e `decididoEm`. Um agente lê
   com a ferramenta `ArtifactData` (`action: "list"`, `collection: "decisoes"`,
   a URL acima).
+- **Cópia das escolhas:** [`decisoes-2026-10-27.json`](decisoes-2026-10-27.json),
+  tirada do registro em 2026-10-27, com as 112 fichas decididas (103 na
+  opção recomendada, 6 em outra opção e 3 em "Outra solução" com nota). O
+  registro da página continua sendo a fonte; a cópia guarda o estado para
+  quem continuar sem acesso à página.
 - **Fonte da página:** [`pagina-modelo.html`](pagina-modelo.html) (layout e
   código) e [`fichas.json`](fichas.json) (112 fichas). Para republicar no
   mesmo endereço: `python3 docs/manual/decisoes/montar-pagina.py saida.html`
