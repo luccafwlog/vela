@@ -28,8 +28,8 @@ pelo setor do cartão.
   `alert_items.department`). O alerta resolvido, pela origem ou com
   justificativa, sai do sino e do número sem a pessoa marcar como lido.
   O sino é por setor: o sistema não designa alerta a uma pessoa.
-- **Em aberto:** alerta crítico sem ninguém ativo no setor responsável hoje
-  vai ao Administrativo (rede de segurança). Recomendação: manter.
+- **Decidido (ok do dono à recomendação):** alerta crítico sem ninguém ativo
+  no setor responsável continua indo ao Administrativo (rede de segurança).
 - Afeta também a matriz de Admin › Usuários ("Recebe os alertas do próprio
   setor", `src/services/permissionMatrix.ts`) e a tela de Regras dos alertas
   (`src/services/alertRulesCatalog.ts`, `notifiedDepartments`).
@@ -47,10 +47,11 @@ pelo setor do cartão.
   em `alertRulesCatalog.ts`; o tópico de dispensa no manual. O histórico
   (`alert_item_dismissals`) fica guardado. As fichas ALE-D07 (motivo curto
   na dispensa) e a parte de dispensa da ALE-D18 deixam de valer.
-- **Em aberto:** (a) dispensas vigentes no dia da mudança: recomendação é o
-  alerta voltar a Ativos na hora; (b) tipos cuja origem a equipe não consegue
-  corrigir (saúde de rotina, provedor de e-mail, Pix de fora do Vela) ficariam
-  abertos para sempre: mapear esses tipos na tarefa e, onde não houver saída,
-  dar a eles "Resolver com justificativa".
+- **Decidido (ok do dono às recomendações):** (a) dispensas vigentes no dia
+  da mudança acabam e o alerta volta a Ativos na hora; (b) tipos cuja origem
+  a equipe não consegue corrigir (saúde de rotina, provedor de e-mail, Pix de
+  fora do Vela) seriam abertos para sempre: a tarefa mapeia esses tipos e,
+  onde não houver saída, dá a eles "Resolver com justificativa" (o alerta
+  reabre se a causa voltar).
 - Afeta o ponto 2: sem dispensa, deixa de existir a pergunta de o alerta
   dispensado sair do sino.
