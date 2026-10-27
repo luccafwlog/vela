@@ -6,6 +6,15 @@
 
 ## 2026-10
 
+- **Acesso, usuários e Histórico decididos pelo dono (2026-10-27):** migration `472`,
+  [ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md), lote 7 do
+  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todo setor vê o nome de
+  quem fez cada registro nos Históricos; as falhas de entrega dos alertas e as linhas de Usuário do
+  Histórico de ações passaram a ser leitura só do Administrativo. A reativação de usuário grava
+  uma linha só, com o motivo; a tela de entrada explica o acesso desativado; a inatividade de 8
+  horas conta todas as abas juntas; **Editar acesso** passa o setor antigo Operador para
+  Documentação. Prova: `acessoLote7.local-pg.test.ts`, `userNames.test.ts`, `sharedIdle.test.ts`,
+  `Login.accessDenied.test.tsx`, `EditarAcessoModal.test.tsx`.
 - **Clientes, contatos e Comunicados decididos pelo dono (2026-10-27):** migration `471`, lote 6
   do [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Pela Base de Clientes
   e pela Revisão, só Administrativo, Documentação e Equipamentos incluem ou mudam contatos; os

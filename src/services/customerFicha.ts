@@ -7,6 +7,7 @@ import { accountSituationLabel, provisioningDecisionLabel } from '../lib/portalP
 import { fetchPaymentRegistrarNames } from './billing'
 import { fetchCustomerCommunicationHistory, customerCommunicationKindLabel, customerCommunicationStatusLabel, type CustomerCommunicationHistoryItem } from './customerCommunications'
 import { matchesAnyToken } from '../lib/searchTerms'
+import { fetchUserDisplayNames } from './userNames'
 
 export type FichaLocalInvoiceRow = {
   id: number
@@ -465,9 +466,7 @@ export async function fetchCustomerTimelineSources(customerId: number, contacts:
   ].filter((id): id is string => Boolean(id))))
   const actorNames = new Map<string, string>()
   if (actorIds.length) {
-    const { data: profiles, error: profilesError } = await supabase.from('user_profiles').select('id, full_name').in('id', actorIds)
-    if (profilesError && classifyDbError(profilesError).kind !== 'permissao') throw profilesError
-    for (const profile of profiles ?? []) actorNames.set(profile.id, profile.full_name)
+    for (const [id, name] of await fetchUserDisplayNames(actorIds)) actorNames.set(id, name)
   }
   const registrarNames = await fetchPaymentRegistrarNames((paymentRows ?? []).map((row) => Number(row.id)))
   return buildCustomerTimeline({

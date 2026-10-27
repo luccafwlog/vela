@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { fetchUserDisplayNames } from './userNames'
 
 export type VoyageScheduleEvent = {
   entity_type?: string | null
@@ -103,17 +104,7 @@ export async function fetchVoyageTimelineSources(
   const actorDepartments: Record<string, string> = {}
 
   if (actorIds.length) {
-    const { data: profiles, error: profilesError } = await supabase
-      .from('user_profiles')
-      .select('id, full_name')
-      .in('id', actorIds)
-    if (profilesError) throw profilesError
-
-    for (const profile of profiles ?? []) {
-      const row = profile as { id: string; full_name: string | null }
-      const name = String(row.full_name ?? '').trim()
-      if (name) actorNames[row.id] = name
-    }
+    for (const [id, name] of await fetchUserDisplayNames(actorIds)) actorNames[id] = name
   }
 
   for (const row of importsRes.data ?? []) {

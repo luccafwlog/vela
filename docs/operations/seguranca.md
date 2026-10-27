@@ -75,9 +75,13 @@ tarifação (`is_active_read_user()`;
 [ADR 0044](../adr/0044-leitura-interna-global-departamento-restringe-escrita.md)).
 A tela `/admin` — Usuários, Falhas de entrega de alertas, Histórico de ações,
 Sistema e Prazo do ADR — só abre para o Administrativo (rota `adminOnly`; o item
-Admin do menu só aparece para ele), mas só a lista de usuários é recusada aos
-demais no banco (`admin_list_users`); os dados das outras abas, como
-`audit_logs` e `alert_notification_failures`, seguem a leitura global
+Admin do menu só aparece para ele). No banco, desde a migration `472`
+([ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)), ficam só com
+o Administrativo a lista de usuários (`admin_list_users`), as falhas de entrega
+(`alert_notification_failures`) e as linhas de Usuário do Histórico de ações
+(`audit_logs` de `entity_type = 'user_profile'`); os demais assuntos do
+Histórico de ações e o Prazo do ADR seguem a leitura global, porque são os
+dados do Histórico de cada assunto e do ADR de Saída
 ([matriz](#modelo-de-permissões-por-perfil)). Desbloqueio de CE, documentos do pedido, fila de Disputas,
 Histórico do console do Portal e Comunicados passaram à leitura global na
 migration `250` (P12; [matriz](#modelo-de-permissões-por-perfil)).
@@ -92,9 +96,11 @@ cada um só o próprio perfil, e todos os perfis ao Administrativo
 Administrativo (`is_financeiro_user()`). As telas leem as exceções e as contas
 pelas funções abertas da matriz (`list_pix_reconciliation_exceptions`,
 `portal_list_provisioning_console`), e nenhuma tela lê as falhas do Itaú
-direto. Os nomes de autor dos Históricos do B/L, da Viagem e da ficha do
-Cliente vêm de `user_profiles`: fora do Administrativo, só o próprio nome
-aparece ali. No Desbloqueio de CE, a lista de planilhas enviadas à ZPT e os
+direto. Os nomes de autor dos Históricos do B/L, da Viagem, da ficha do
+Cliente e do Histórico de ações vêm, desde a migration `472`, de
+`get_user_display_names`, que devolve só o id e o nome a todo usuário interno
+ativo ([ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); antes
+vinham de `user_profiles`, e fora do Administrativo só o próprio nome aparecia. No Desbloqueio de CE, a lista de planilhas enviadas à ZPT e os
 registros da confirmação no pedido, com a referência externa, só o
 Administrativo e a Documentação leem (`ce_unlock_read`; a linha "Gerir
 pedidos, documentos, exportação para a ZPT e conciliação" da
@@ -295,7 +301,7 @@ por ele. A API do navegador não apaga perfil (migration `240`).
 
 | Fronteira | Hook | Mecanismo |
 |---|---|---|
-| **Interna** | `src/hooks/useAuth.tsx` | Supabase Auth + perfil em `user_profiles`; timeout de inatividade de **8 horas**; role → permissões. Login e conferência da senha atual mandam o token do Turnstile (ações `vela_login` e `vela_senha_atual`) para o captcha do Auth; sessão de 12 h no servidor (decisão do dono de 2026-10-22; ligar na produção é passo do dono, ver [serviços externos](servicos-externos.md#captcha-e-sessão-da-equipe-auditoria-run-3)). |
+| **Interna** | `src/hooks/useAuth.tsx` | Supabase Auth + perfil em `user_profiles`; timeout de inatividade de **8 horas**, contado pela atividade de todas as abas juntas (`src/lib/sharedIdle.ts`, desde 2026-10-27; antes cada aba contava a sua e a esquecida derrubava a sessão de todas); role → permissões. Login e conferência da senha atual mandam o token do Turnstile (ações `vela_login` e `vela_senha_atual`) para o captcha do Auth; sessão de 12 h no servidor (decisão do dono de 2026-10-22; ligar na produção é passo do dono, ver [serviços externos](servicos-externos.md#captcha-e-sessão-da-equipe-auditoria-run-3)). |
 | **Portal** | `src/hooks/usePortalAuth.tsx` | Supabase Auth. Login exclusivo por CNPJ normalizado via Edge Function `portal-login`. |
 
 > **Logout fail-closed:** tanto `useAuth` quanto `usePortalAuth` utilizam `removeLocalSessionFallback` (`src/services/supabaseAuth.ts`). Se a revogação remota falhar ou exceder o timeout de 5 segundos (por partição de rede ou indisponibilidade do Auth), a sessão local (localStorage e memória) é purgada forçadamente no cliente de forma isolada, removendo estritamente o `storageKey` da respectiva aplicação (`td-portal-auth` no Portal e a chave padrão no app interno), preservando o isolamento de sessões no mesmo domínio. Na interface do Portal, o botão de logout desabilita durante o processo (`isSigningOut`) e exibe aviso contextual na tela de login caso a revogação no servidor não tenha sido confirmada (G-PAF3). O aviso vem do estado vivo do provider (`signOutError`): aparece quando a falha é confirmada, até 5 s depois do redirecionamento para o login, e é limpo ao iniciar um novo login; não é persistido em `sessionStorage`, para nunca reaparecer num logout posterior bem-sucedido.

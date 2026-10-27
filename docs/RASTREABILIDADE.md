@@ -299,6 +299,7 @@ Regra: [Viagens](modules/viagens.md).
 | `close_agency_departure_report_by_report_id` | `agencyDepartureReport.ts`; variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | Exige os três sign-offs departamentais; congela `closed_snapshot`. |
 | `delete_escala` | `voyageRouteSchedules.ts` | `088`, `235` | DEFINER · `authenticated` | Administrativo ativo | Marca o POD como removido e apaga a escala de exportação do porto, com motivo; `p_dry_run` devolve só a trava. Recusa escala com B/L, com ou sem CE (`235`). |
 | `get_agency_report_actor_names` | `agencyDepartureReport.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
+| `get_user_display_names` | `userNames.ts` (Históricos do B/L, da Viagem, do Cliente e de ações) | `472` | DEFINER · `authenticated` | usuário interno ativo | Só id e nome do autor; até 500 por chamada ([ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md)). |
 | `get_agency_report_actor_names_by_report_id` | `agencyDepartureReport.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_voyage_first_brazilian_eta` | `baplieReconciliation.ts` | `002` | DEFINER · `authenticated`, `service_role` | usuário interno ativo | — |
 | `omit_voyage_escala` | `transshipments.ts` | `016` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Registro global da omissão, herdado pelos B/Ls; audita. |

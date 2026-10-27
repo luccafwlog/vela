@@ -38,6 +38,9 @@ export function EditarAcessoModal({
   submitting: boolean
 }) {
   const initialRole = managedProfileOf(currentRole)
+  // ACE-D13 de 2026-10-27: o setor antigo Operador vira Documentação gravada
+  // ao salvar, mesmo sem escolher outro setor.
+  const legacyOperator = currentRole === 'operator'
   const [email, setEmail] = useState(currentEmail ?? '')
   const [role, setRole] = useState<Department>(initialRole)
   const [password, setPassword] = useState('')
@@ -49,7 +52,7 @@ export function EditarAcessoModal({
     const trimmed = email.trim().toLowerCase()
     const emailChanged = trimmed !== (currentEmail ?? '').toLowerCase()
     // O papel legado só muda quando alguém escolhe outro setor de fato.
-    const roleChanged = !isSelf && role !== initialRole
+    const roleChanged = !isSelf && (role !== initialRole || legacyOperator)
     if (emailChanged && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) return setError('E-mail inválido.')
     if (password && !isValidPassword(password)) return setError(PASSWORD_RULE_MESSAGE)
     if (password && password !== confirmation) return setError('As senhas não conferem.')
@@ -70,7 +73,9 @@ export function EditarAcessoModal({
       <form onSubmit={handleSubmit} className="grid gap-3">
         <Field
           label="Setor"
-          hint={isSelf ? 'O seu próprio setor só pode ser trocado por outra pessoa do Administrativo. Para trocar a sua senha, use Meu perfil › Alterar senha.' : undefined}
+          hint={isSelf
+            ? 'O seu próprio setor só pode ser trocado por outra pessoa do Administrativo. Para trocar a sua senha, use Meu perfil › Alterar senha.'
+            : legacyOperator ? 'Setor antigo Operador, que vale como Documentação. Salvar grava o setor escolhido.' : undefined}
         >
           <Select value={role} disabled={isSelf} onChange={(e) => setRole(e.target.value as Department)}>
             {MANAGED_PROFILES.map((profile) => (

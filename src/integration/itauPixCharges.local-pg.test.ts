@@ -55,9 +55,11 @@ function charges(where: string): { id: number; txid: string; amount: string; sta
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
-    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E15%');
-    DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E15%';
-    DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E15%';
+    -- E15x, E357 e E468: os Pix criados por esta suíte (rodar de novo não acha resto).
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' SIMILAR TO 'E(15|357|468)%');
+    DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' SIMILAR TO 'E(15|357|468)%';
+    DELETE FROM public.itau_pix_receipt_failures WHERE failure_key SIMILAR TO 'E(15|357|468)%';
+    DELETE FROM public.itau_pix_receipts WHERE end_to_end_id SIMILAR TO 'E(15|357|468)%';
     DELETE FROM public.financial_payment_attempts WHERE created_by IN ('${userId}', '${settlementActorId}');
     DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_type = 'exchange_rate_reference' AND entity_id LIKE 'itau-pix-%');

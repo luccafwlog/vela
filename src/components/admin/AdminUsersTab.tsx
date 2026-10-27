@@ -179,7 +179,7 @@ export function AdminUsersTab() {
     const emailChanged = Boolean(input.email) && !sameEmail(input.email, user.email)
     const releasesEmail = Boolean(input.email) && !emailChanged
     const changes = [
-      ...(input.role ? [{ field: 'Setor', before: departmentLabel(user.role), after: PROFILE_LABELS[input.role] }] : []),
+      ...(input.role ? [{ field: 'Setor', before: user.role === 'operator' ? 'Operador (setor antigo)' : departmentLabel(user.role), after: PROFILE_LABELS[input.role] }] : []),
       ...(releasesEmail ? [{ field: 'E-mail', before: 'Devolvido', after: 'Liberado para receber de novo' }] : []),
       ...(emailChanged ? [{ field: 'E-mail', before: user.email ?? '', after: input.email! }] : []),
       ...(input.password ? [{ field: 'Senha', before: '••••••••', after: 'Nova senha definida' }] : []),
@@ -287,7 +287,7 @@ export function AdminUsersTab() {
                           ) : user.email}
                         </td>
                         <td title={isDevAccount(user) ? DEV_TITLE : undefined}>
-                          {isDevAccount(user) ? `${departmentLabel(user.role)} · Dev` : departmentLabel(user.role)}
+                          {isDevAccount(user) ? `${departmentLabel(user.role)} · Dev` : user.role === 'operator' ? `${departmentLabel(user.role)} · setor antigo Operador` : departmentLabel(user.role)}
                         </td>
                         <td>{user.active ? 'Ativo' : <StatusText tone="muted">Inativo</StatusText>}</td>
                         <td className="tabular-nums whitespace-nowrap">

@@ -13,7 +13,8 @@ ACE-D01 (opção A) no mesmo dia.
 | 4 | Executado em 2026-10-27 (migration `469`); conferido no Postgres local e nos testes de tela, falta conferir em staging (anexos da Disputa pelo Storage e emissão retida pelo gate) |
 | 5 | Executado em 2026-10-27 (migration `470`); conferido no Postgres local e nos testes de tela, falta conferir em staging (login com a verificação de segurança e convite pela ficha do B/L) |
 | 6 | Executado em 2026-10-27 (migration `471`); conferido no Postgres local e nos testes de tela, falta conferir em staging (Base de Clientes por setor e Cobertura de viagens com envio redirecionado) |
-| 7 a 11 | Não autorizados; nada executado |
+| 7 | Executado em 2026-10-27 (migration `472`, [ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); conferido no Postgres local e nos testes de tela. Falta o Administrativo passar os usuários Operador para Documentação em Usuários (ACE-D13) e conferir em staging a tela de entrada de um usuário desativado |
+| 8 a 11 | Não autorizados; nada executado |
 
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:
 

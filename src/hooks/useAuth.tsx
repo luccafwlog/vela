@@ -7,6 +7,7 @@ import { signOutSupabaseClient } from '../services/supabaseAuth'
 import { extractErrorText } from '../lib/errors'
 import type { UserProfile, UserProfileRole } from '../types/database'
 import { markStartupStage, setTelemetryUser } from '../lib/telemetry'
+import { idleExpired, recordSharedActivity } from '../lib/sharedIdle'
 
 export function shouldHydrateProfile(nextUserId: string | null, hydratedUserId: string | null): boolean {
   return nextUserId !== null && nextUserId !== hydratedUserId
@@ -79,6 +80,11 @@ type AuthContextValue = {
   signIn: (email: string, password: string, captchaToken?: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  /**
+   * A última sessão saiu porque o perfil não está ativo (ACE-D03b de
+   * 2026-10-27): a tela de entrada explica em vez de voltar calada.
+   */
+  accessDenied: boolean
   isAdmin: boolean
   /** Marca Dev (ADR 0104): conta ativa do Administrativo com a marca, dada por migration. */
   isDev: boolean
@@ -117,12 +123,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true)
   const [profileStatus, setProfileStatus] = useState<ProfileHydrationStatus>('loading')
   const [profileError, setProfileError] = useState<string | null>(null)
+  const [accessDenied, setAccessDenied] = useState(false)
 
   useEffect(() => {
     let lastActivity = Date.now()
+    let lastShared = 0
+    recordSharedActivity(lastActivity)
 
     function onActivity() {
       lastActivity = Date.now()
+      // Grava no máximo a cada 30 s: mousemove dispara muitas vezes.
+      if (lastActivity - lastShared >= 30_000) {
+        lastShared = lastActivity
+        recordSharedActivity(lastActivity)
+      }
     }
 
     const activityEvents = ['mousemove', 'keydown', 'click', 'touchstart'] as const
@@ -131,7 +145,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     const idleInterval = window.setInterval(() => {
-      if (Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
+      if (idleExpired(Date.now(), lastActivity, IDLE_TIMEOUT_MS)) {
         void signOutSupabaseClient(supabase)
       }
     }, 60_000)
@@ -184,6 +198,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setProfile(nextProfile)
           setProfileError(null)
           setProfileStatus('ready')
+          setAccessDenied(false)
           setTelemetryUser({ id: nextSession!.user.id, role: nextProfile.role })
         } else if (!nextUserId) {
           hydratedUserId = null
@@ -201,6 +216,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setProfileError(extractErrorText(error) || 'Falha ao carregar o perfil.')
         if (kind === 'unauthorized') {
           setProfileStatus('unauthorized')
+          setAccessDenied(true)
           void signOutSupabaseClient(supabase)
         } else {
           setProfileStatus('transient-error')
@@ -270,7 +286,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isDev: role === 'administrativo' && profile?.is_dev === true && profile?.account_kind === 'pessoa',
       effectiveRole,
       can: (permission: Permission) => roleHasPermission(role, permission),
+      accessDenied,
       async signIn(email, password, captchaToken) {
+        setAccessDenied(false)
         setLoading(true)
         const { error } = await supabase.auth.signInWithPassword(captchaToken ? { email, password, options: { captchaToken } } : { email, password })
         if (error) {
@@ -295,6 +313,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setProfileError(extractErrorText(error) || 'Falha ao carregar o perfil.')
           if (kind === 'unauthorized') {
             setProfileStatus('unauthorized')
+            setAccessDenied(true)
             await signOutSupabaseClient(supabase)
           } else {
             setProfileStatus('transient-error')
@@ -302,7 +321,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
       },
     }
-  }, [loading, profile, profileError, profileStatus, session])
+  }, [accessDenied, loading, profile, profileError, profileStatus, session])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -187,3 +187,4 @@ src/integration/retornoDoSuporte.local-pg.test.ts
 src/integration/disputaAnexosInterna.local-pg.test.ts
 src/integration/portalLote5.local-pg.test.ts
 src/integration/clientesLote6.local-pg.test.ts
+src/integration/acessoLote7.local-pg.test.ts
