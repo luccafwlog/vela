@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { afterCargaAlterada } from '../services/cacheEffects'
+import { afterCargaAlterada, afterDeclaracaoVeiculosAlterada } from '../services/cacheEffects'
 import { Download, MapPin, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { CopyValue } from '../components/ui/CopyValue'
@@ -32,8 +32,8 @@ import { SelectAllFilteredCheckbox } from '../components/shared/SelectAllFiltere
 import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { STALE_PAGE_CLASS } from '../lib/pagination'
-import { UNPACKING_LOCATION_NONE, cacheUnpackingLocation, useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
-import { deleteVehicles } from '../services/vehicles'
+import { UNPACKING_LOCATION_NONE, cacheUnpackingLocation, useVehicleOptions, useVehicles, useVoyageVehicleDeclaration, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
+import { declareVoyageWithoutVehicles, deleteVehicles, undoVoyageVehicleDeclaration } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -43,6 +43,7 @@ import { listVoyageEscalaSchedulesByVoyageIds } from '../services/voyageRouteSch
 import { buildVoyageRailItems, type VoyageRailModuleStats } from '../services/voyageSummaries'
 import { VoyageRail } from '../components/voyages/VoyageRail'
 import { isMissingLabel } from './veiculosPresentation'
+import { formatDateTime, voyageLabel } from '../lib/utils'
 
 type DesovaScope = 'selected' | 'all' | 'missing'
 
@@ -117,6 +118,10 @@ export function Veiculos() {
   const debouncedSeal = useDebouncedValue(filters.seal)
   const queryFilters = useMemo(() => ({ ...filters, search: debouncedSearch, seal: debouncedSeal }), [filters, debouncedSearch, debouncedSeal])
   const { data, isLoading, isPlaceholderData, error } = useVehicles(voyageId, queryFilters)
+  // "Esta viagem não terá veículos" (migration 468): fecha o alerta Planilha de Veículos pendente.
+  const declarationQuery = useVoyageVehicleDeclaration(voyageId)
+  const declaration = declarationQuery.data ?? null
+  const [declaring, setDeclaring] = useState(false)
   // O recorte inteiro já vem carregado (`filteredIds`): o "selecionar todos" do
   // cabeçalho marca todas as páginas (G1), com o hook comum das listas.
   const filteredRowIds = data?.filteredIds ?? []
@@ -258,6 +263,53 @@ export function Veiculos() {
       setBulkDesovaError(err instanceof Error ? err.message : 'Falha ao aplicar o local de desova.')
     } finally {
       setBulkDesovaSaving(false)
+    }
+  }
+
+  const selectedVoyage = voyageRows.find((voyage) => voyage.id === voyageId)
+  const selectedVoyageLabel = voyageLabel(selectedVoyage?.vessel?.name, selectedVoyage?.voyage_number, voyageId)
+
+  async function declareWithoutVehicles() {
+    if (!voyageId) return
+    const proceed = await confirm({
+      title: 'Viagem sem veículos',
+      message: `Declarar que a viagem ${selectedVoyageLabel} não terá veículos?`,
+      consequence: 'O alerta Planilha de Veículos pendente fecha para esta viagem, e a declaração fica na Linha do Tempo da Viagem com o seu nome.',
+      reversibility: 'Dá para desfazer aqui, com motivo. Se a planilha chegar depois, importar os veículos desfaz a declaração sozinho.',
+      confirmLabel: 'Declarar sem veículos',
+    })
+    if (!proceed) return
+    setDeclaring(true)
+    try {
+      await declareVoyageWithoutVehicles(voyageId)
+      await afterDeclaracaoVeiculosAlterada(queryClient, { voyageId })
+      showToast('Viagem declarada sem veículos.', 'success')
+    } catch (err) {
+      showToast(`Falha ao declarar a viagem sem veículos: ${userFacingErrorMessage(err, 'tente novamente.')}`, 'error')
+    } finally {
+      setDeclaring(false)
+    }
+  }
+
+  async function undoDeclaration() {
+    if (!voyageId) return
+    const reason = await confirmWithReason({
+      title: 'Desfazer declaração',
+      message: `Desfazer a declaração de que a viagem ${selectedVoyageLabel} não terá veículos?`,
+      consequence: 'A viagem volta a esperar a planilha de Veículos; dentro do prazo de 5 dias antes do ETA, o alerta Planilha de Veículos pendente reabre para Equipamentos.',
+      reversibility: 'Dá para declarar de novo enquanto a viagem não tiver veículos.',
+      confirmLabel: 'Desfazer declaração',
+    })
+    if (reason === null) return
+    setDeclaring(true)
+    try {
+      await undoVoyageVehicleDeclaration(voyageId, reason)
+      await afterDeclaracaoVeiculosAlterada(queryClient, { voyageId })
+      showToast('Declaração desfeita.', 'success')
+    } catch (err) {
+      showToast(`Falha ao desfazer a declaração: ${userFacingErrorMessage(err, 'tente novamente.')}`, 'error')
+    } finally {
+      setDeclaring(false)
     }
   }
 
@@ -456,11 +508,32 @@ export function Veiculos() {
                   action={<Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>}
                 />
               ) : (
-                <EmptyState
-                  title="Nenhum veículo nesta viagem"
-                  description="Os veículos entram pela planilha do armador, ligados ao B/L e ao container da viagem."
-                  action={canEditVehicles ? <Button variant="secondary" onClick={() => setImportOpen(true)}>Importar veículos</Button> : undefined}
-                />
+                declaration ? (
+                  <EmptyState
+                    title="Viagem sem veículos"
+                    description={`Declarado por ${declaration.declaredByName ?? 'usuário sem nome'} em ${formatDateTime(declaration.declaredAt)}. Se a planilha chegar, importe os veículos: a declaração é desfeita sozinha.`}
+                    action={canEditVehicles ? (
+                      <span className="inline-flex flex-wrap justify-center gap-2">
+                        <Button variant="secondary" onClick={() => setImportOpen(true)}>Importar veículos</Button>
+                        <Button variant="ghost" loading={declaring} onClick={() => void undoDeclaration()}>Desfazer declaração</Button>
+                      </span>
+                    ) : undefined}
+                  />
+                ) : (
+                  <EmptyState
+                    title="Nenhum veículo nesta viagem"
+                    description="Os veículos entram pela planilha do armador, ligados ao B/L e ao container da viagem. Se a viagem não trouxer veículos, declare: o alerta Planilha de Veículos pendente fecha."
+                    action={canEditVehicles ? (
+                      <span className="inline-flex flex-wrap justify-center gap-2">
+                        <Button variant="secondary" onClick={() => setImportOpen(true)}>Importar veículos</Button>
+                        {/* Só depois de saber se já há declaração: a leitura que falha não oferece declarar de novo às cegas. */}
+                        {declarationQuery.isSuccess ? (
+                          <Button variant="secondary" loading={declaring} onClick={() => void declareWithoutVehicles()}>Esta viagem não terá veículos</Button>
+                        ) : null}
+                      </span>
+                    ) : undefined}
+                  />
+                )
               )
             ) : narrow ? (
               <ul className={`app-cargo-cards${stale ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-label="Veículos" aria-busy={stale || undefined}>

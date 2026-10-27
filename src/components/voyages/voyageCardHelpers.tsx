@@ -69,6 +69,33 @@ export type VoyageBlTransshipmentLink = {
   omissionId: number
 }
 
+export type OmissionRouteRole = 'omitted' | 'transshipment' | 'final'
+
+export const OMISSION_ROUTE_ROLE_LABELS: Record<OmissionRouteRole, string> = {
+  omitted: 'Omitida',
+  transshipment: 'Transbordo',
+  final: 'Destino Final',
+}
+
+/**
+ * Trechos da rota com omissão (reunião de testes de 2026-10-26). A rota cujo
+ * POD é o porto omitido é carga em transbordo: segue em navio de terceiro do
+ * Porto de Transbordo até o destino final original,
+ * `CNNSA → BRSSA (Omitida) → BRVIX (Transbordo) → BRSSA (Destino Final)`. A
+ * rota cujo POD é o Porto de Transbordo é COD: o destino final passou a ser
+ * ele (`set_bl_cod` grava o POD novo no B/L),
+ * `CNNSA → BRSSA (Omitida) → BRVIX (Destino Final)`.
+ */
+export function omissionRouteParts(pol: string, pod: string, omission: VoyageRouteOmission): Array<{ port: string; role: OmissionRouteRole | null }> {
+  const omitted = omission.omittedPod.trim().toUpperCase()
+  const discharge = omission.dischargePod.trim().toUpperCase()
+  const head = [{ port: pol, role: null }, { port: omitted, role: 'omitted' as const }]
+  if (pod.trim().toUpperCase() === omitted) {
+    return [...head, { port: discharge, role: 'transshipment' }, { port: omitted, role: 'final' }]
+  }
+  return [...head, { port: discharge, role: 'final' }]
+}
+
 export function collectVoyageManifestBatchRows({
   voyageId,
   batches,
@@ -228,7 +255,9 @@ export function collectVoyageManifestBatchRows({
       routeLabel: (() => {
         const omission = findRouteOmission(group.pod, group.blIds)
         if (!omission) return group.routeLabel
-        return `${formatPortDisplayName(group.pol)} → ${formatPortDisplayName(omission.omittedPod)} → ${formatPortDisplayName(omission.dischargePod)}`
+        return omissionRouteParts(group.pol, group.pod, omission)
+          .map((part) => `${formatPortDisplayName(part.port)}${part.role ? ` (${OMISSION_ROUTE_ROLE_LABELS[part.role]})` : ''}`)
+          .join(' → ')
       })(),
       omission: findRouteOmission(group.pod, group.blIds),
       modeLabel: group.isVazios

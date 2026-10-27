@@ -601,7 +601,7 @@ mesmos.
 |---|---|---|
 | Acesso ao Portal (convite, recuperação de senha, aviso de senha alterada, troca do Email de Recuperação) e aviso de bounce ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
 | Resumo diário do Portal (interno, aos usuários ativos de Administrativo e Documentação, menos a [conta de integração](../modules/operacao-suporte.md#conta-de-integração) API ITAÚ, cujo e-mail não é caixa real e o provedor recusava com 422 `all_recipients_suppressed`, deixando o heartbeat vermelho em 23/10; o papel `admin`, extinto na migration `093`, saiu da consulta no lote 6b) | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
-| Avisos do Desbloqueio de CE ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
+| Avisos do Desbloqueio de CE ao Cliente | `PORTAL_FROM_EMAIL` | `COMMUNICATIONS_REPLY_TO` = `importacao@fwlog.com.br` (desde a reunião de testes de 2026-10-26; antes, `PORTAL_REPLY_TO`); o rodapé também leva `importacao@fwlog.com.br` (`COMMUNICATIONS_CONTACT_EMAIL`) |
 | Comunicados | `PORTAL_FROM_EMAIL` | `COMMUNICATIONS_REPLY_TO` = `importacao@fwlog.com.br` |
 | Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` (obrigatório: sem ele o envio real é recusado, desde 2026-10-20); o rodapé do e-mail também leva `eqp@fwlog.com.br` (lote 6b, `DEMURRAGE_CONTACT_EMAIL`) |
 
@@ -706,8 +706,9 @@ Portal e o destino dos relatórios DMARC. O rodapé dos Comunicados
 imprime `importacao@fwlog.com.br`, o mesmo endereço de `COMMUNICATIONS_REPLY_TO`
 (D20 do plano dos e-mails, 2026-10-18); o da Cobrança de Demurrage imprime
 `eqp@fwlog.com.br` (`DEMURRAGE_CONTACT_EMAIL`, lote 6b, 2026-10-20), o mesmo de
-`DEMURRAGE_REPLY_TO`. Os avisos do Desbloqueio de CE e a falha de entrega levam
-`PORTAL_SUPPORT_EMAIL`. O "Fale com o suporte" das telas públicas do Portal
+`DEMURRAGE_REPLY_TO`. Os avisos do Desbloqueio de CE imprimem e respondem a
+`importacao@fwlog.com.br`, como os Comunicados (reunião de testes de 2026-10-26);
+a falha de entrega leva `PORTAL_SUPPORT_EMAIL`. O "Fale com o suporte" das telas públicas do Portal
 (`src/components/auth/PortalAccessHelp.tsx`) também leva a `suporte@portalfwlog.com.br`;
 até 2026-10-20 apontava para `suporte@fwlog.com.br`, que não existe. Ao trocar de responsável, troque também o destino pessoal do alias.
 
@@ -998,9 +999,9 @@ externa automática. Exportar registra o envio no Vela; a conciliação importa 
 A função `ce-unlock-notify-email` envia a fila de avisos ao cliente (recusa de documento e
 documentação validada) pela MillionSend, para a caixa Documentação e Operação. Usa
 `CE_UNLOCK_NOTIFY_SECRET` (o segredo do expurgo, `CE_UNLOCK_CLEANUP_SECRET`, vale
-também até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` nos secrets da Edge; auditoria run-3) e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`;
+também até `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` nos secrets da Edge; auditoria run-3) e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `COMMUNICATIONS_REPLY_TO` (até a reunião de testes de 2026-10-26, `PORTAL_REPLY_TO`);
 Antes de enviar, reavalia a conclusão das solicitações abertas (`ce_unlock_refresh_open`);
-com a chave global de Comunicados ligada e sem a chave do provedor ou o remetente, responde 503
+com a chave global de Comunicados ligada e sem a chave do provedor, o remetente ou o reply-to, responde 503
 e deixa a fila intacta. Cada envio registra tentativa em `portal_email_attempts` (kind
 `ce_unlock_notificacao`), associada pelo webhook de e-mail. Com a chave global desligada,
 registra o aviso como `simulated` e não o envia depois (D11, migration `307`); contato suprimido

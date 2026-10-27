@@ -10,12 +10,12 @@ describe('prazo de desbloqueio de CE', () => {
     expect(at(ceUnlockDeadline(br('2026-10-07T07:50:00')))).toBe(at(br('2026-10-07T17:00:00')))
     expect(at(ceUnlockDeadline(br('2026-10-07T11:59:59')))).toBe(at(br('2026-10-07T17:00:00')))
   })
-  it('a partir das 12:00 vence às 12:30 do próximo dia útil', () => {
-    expect(at(ceUnlockDeadline(br('2026-10-07T12:00:00')))).toBe(at(br('2026-10-08T12:30:00')))
-    expect(at(ceUnlockDeadline(br('2026-10-07T18:30:00')))).toBe(at(br('2026-10-08T12:30:00')))
+  it('a partir das 12:00 vence às 12:00 do próximo dia útil (reunião de 2026-10-26)', () => {
+    expect(at(ceUnlockDeadline(br('2026-10-07T12:00:00')))).toBe(at(br('2026-10-08T12:00:00')))
+    expect(at(ceUnlockDeadline(br('2026-10-07T18:30:00')))).toBe(at(br('2026-10-08T12:00:00')))
   })
-  it('sexta à tarde vence na segunda às 12:30', () => {
-    expect(at(ceUnlockDeadline(br('2026-10-09T14:00:00')))).toBe(at(br('2026-10-12T12:30:00')))
+  it('sexta à tarde vence na segunda às 12:00', () => {
+    expect(at(ceUnlockDeadline(br('2026-10-09T14:00:00')))).toBe(at(br('2026-10-12T12:00:00')))
   })
   it('sábado e domingo vencem segunda às 12:00', () => {
     expect(at(ceUnlockDeadline(br('2026-10-10T15:00:00')))).toBe(at(br('2026-10-12T12:00:00')))

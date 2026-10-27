@@ -1,7 +1,9 @@
-// Prazo (SLA) de desbloqueio de CE. Ver docs/archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md (D15–D19).
+// Prazo (SLA) de desbloqueio de CE. Ver docs/archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md (D15–D19)
+// e a regra vigente em docs/modules/desbloqueio-ce.md § Prazo (SLA).
 //
-// Janela da manhã (início antes das 12:00): vence às 17:00 do mesmo dia útil.
-// Janela da tarde (início a partir das 12:00): vence às 12:30 do próximo dia útil.
+// Janela da manhã (início antes das 12:00, inclusive antes das 8h): vence às 17:00 do mesmo dia útil.
+// Janela da tarde (início a partir das 12:00): vence às 12:00 do próximo dia útil (era 12:30 até a
+// reunião de testes de 2026-10-26; migration 466 muda o banco junto).
 // Sábado e domingo vencem às 12:00 de segunda.
 // ponytail: só dias úteis (seg–sex), sem calendário de feriados; e fuso fixo -03:00
 // porque America/Sao_Paulo não tem horário de verão desde 2019. Se um dos dois mudar,
@@ -9,7 +11,7 @@
 const OFFSET_MS = -3 * 3_600_000;
 const MORNING_CUTOFF_HOUR = 12;
 const MORNING_DEADLINE = { hour: 17, minute: 0 };
-const AFTERNOON_DEADLINE = { hour: 12, minute: 30 };
+const AFTERNOON_DEADLINE = { hour: 12, minute: 0 };
 const WEEKEND_DEADLINE = { hour: 12, minute: 0 };
 
 export type CeUnlockSlaState = "none" | "ok" | "today" | "overdue";

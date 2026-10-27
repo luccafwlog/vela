@@ -112,7 +112,8 @@ describe('collectVoyageManifestBatchRows', () => {
     expect(rows[0]).toMatchObject({ routeKey: 'CNTAC__BRVIX', batchIds: [], ceMaster: '25BR09999' })
   })
 
-  it('exibe o desvio da rota quando o POD da linha tem omissao vigente', () => {
+  // Reunião de testes de 2026-10-26: omissão, Porto de Transbordo e destino final na própria rota.
+  it('rota em transbordo diz o porto omitido, o Porto de Transbordo e o destino final', () => {
     const rows = collectVoyageManifestBatchRows({
       voyageId: 14,
       batches: [],
@@ -123,8 +124,23 @@ describe('collectVoyageManifestBatchRows', () => {
 
     expect(rows[0]).toMatchObject({
       routeKey: 'CNTAC__BRVIX',
-      routeLabel: 'TAICANG → VITORIA → SANTOS',
+      routeLabel: 'TAICANG → VITORIA (Omitida) → SANTOS (Transbordo) → VITORIA (Destino Final)',
       omission: { omittedPod: 'BRVIX', dischargePod: 'BRSSZ' },
+    })
+  })
+
+  it('rota em COD termina no Porto de Transbordo como destino final', () => {
+    const rows = collectVoyageManifestBatchRows({
+      voyageId: 14,
+      batches: [],
+      bls: [makeBl({ pod: 'BRSSZ', ce_mercante: 'CE-001' })],
+      omissions: [{ id: 1, omittedPod: 'BRVIX', dischargePod: 'BRSSZ' }],
+      transshipments: [{ blId: 'BL-001', omissionId: 1 }],
+    })
+
+    expect(rows[0]).toMatchObject({
+      routeKey: 'CNTAC__BRSSZ',
+      routeLabel: 'TAICANG → VITORIA (Omitida) → SANTOS (Destino Final)',
     })
   })
 
@@ -264,7 +280,7 @@ describe('VoyageManifestosTab', () => {
       id: 14,
       voyage_number: '001',
       vessel: { name: 'ALPHA' },
-      bls: [makeBl({ id: 'BL-001', ce_mercante: 'CE-001', pod: 'BRSSZ' })],
+      bls: [makeBl({ id: 'BL-001', ce_mercante: 'CE-001', pod: 'BRVIX' })],
     } as Voyage
 
     vi.mocked(useVoyageTransshipments).mockReturnValueOnce({
@@ -289,10 +305,11 @@ describe('VoyageManifestosTab', () => {
     )
 
     expect(html).toContain('CNTAC → <s')
-    expect(html).toContain('title="POD omitido: BRVIX">BRVIX</s> → BRSSZ')
-    expect(html).toContain('Omissão')
+    // Só o código omitido é riscado; os papéis vêm depois de cada porto.
+    expect(html).toContain('title="POD omitido: BRVIX">BRVIX</s> (Omitida) → BRSSZ (Transbordo) → BRVIX (Destino Final)')
+    expect(html).not.toContain('· Omissão')
     expect(html).toContain('A informar')
-    expect(html).toContain('aria-label="Informar Nº de Manifesto Mercante de TAICANG → VITORIA → SANTOS"')
+    expect(html).toContain('aria-label="Informar Nº de Manifesto Mercante de TAICANG → VITORIA (Omitida) → SANTOS (Transbordo) → VITORIA (Destino Final)"')
     expect(html).not.toContain('manifesto não informado')
     expect(html).not.toContain('Informe o CE Master pelo lápis desta linha')
   })

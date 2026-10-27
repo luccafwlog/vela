@@ -97,7 +97,7 @@ describe('PortalInvoiceDetailModal', () => {
     } as unknown as PortalInvoiceDetail
   }
 
-  function renderModal(detail: PortalInvoiceDetail, handlers: { onPrintReceipt?: () => void; onOpenInvoice?: (id: number) => void } = {}) {
+  function renderModal(detail: PortalInvoiceDetail, handlers: { onPrintReceipt?: () => void; onOpenInvoice?: (id: number) => void; coveringPayments?: PortalInvoiceDetail['payments'] } = {}) {
     render(
       <PortalInvoiceDetailModal
         open
@@ -112,6 +112,7 @@ describe('PortalInvoiceDetailModal', () => {
         onPrint={vi.fn()}
         onPrintReceipt={handlers.onPrintReceipt ?? vi.fn()}
         onOpenInvoice={handlers.onOpenInvoice}
+        coveringPayments={handlers.coveringPayments}
       />,
     )
   }
@@ -125,10 +126,29 @@ describe('PortalInvoiceDetailModal', () => {
     }), { onOpenInvoice })
 
     expect(screen.queryByRole('button', { name: /Imprimir recibo/ })).toBeNull()
-    expect(screen.getByText('pela consolidada INV-2026-0009')).toBeTruthy()
+    // Reunião de testes de 2026-10-26: para o cliente, a coberta está paga.
+    expect(screen.getByText('Paga')).toBeTruthy()
+    expect(screen.getByText('coberta pela fatura INV-2026-0009')).toBeTruthy()
+    expect(screen.queryByText(/^Coberta/)).toBeNull()
     expect(screen.getByText('O pagamento e o recibo são os da consolidada.')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Abrir INV-2026-0009' }))
     expect(onOpenInvoice).toHaveBeenCalledWith(9)
+  })
+
+  it('individual coberta diz a forma e o dia do pagamento da consolidada que a cobriu', () => {
+    renderModal(ledgerDetail({
+      id: 7, invoice_number: 'INV-2026-0007', invoice_type: 'individual', status: 'covered',
+      total_brl: 0.1, balance_brl: 0, covered_by_invoice_id: 9, covered_by_invoice_number: 'INV-2026-0009',
+    }), {
+      coveringPayments: [
+        { id: 1, amount_brl: 0.1, payment_method: 'ted', paid_at: '2026-10-20T15:00:00Z', created_at: null },
+        { id: 2, amount_brl: 0.11, payment_method: 'pix', paid_at: '2026-10-26T13:10:00Z', created_at: null },
+        { id: 3, amount_brl: 0.01, payment_method: 'pix', paid_at: null, created_at: null },
+      ],
+    })
+
+    expect(screen.getByText('Paga')).toBeTruthy()
+    expect(screen.getByText('coberta pela fatura INV-2026-0009 · TED, Pix em 26/10/2026')).toBeTruthy()
   })
 
   it('consolidada paga oferece o próprio recibo', async () => {

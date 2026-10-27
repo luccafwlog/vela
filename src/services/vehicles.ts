@@ -39,3 +39,43 @@ export async function listBlContainersForMove(blId: string): Promise<Array<{ id:
   if (error) throw error
   return (data ?? []) as Array<{ id: number; container_number: string }>
 }
+
+/** Declaração "Esta viagem não terá veículos" (migration 468), com quem declarou. */
+export type VoyageVehicleDeclaration = {
+  voyageId: number
+  declaredAt: string
+  declaredByName: string | null
+}
+
+export function parseVoyageVehicleDeclaration(value: unknown): VoyageVehicleDeclaration | null {
+  if (value === null || value === undefined) return null
+  const row = typeof value === 'object' ? value as Record<string, unknown> : null
+  const voyageId = Number(row?.voyage_id)
+  const declaredAt = typeof row?.declared_at === 'string' ? row.declared_at : ''
+  if (!row || !Number.isInteger(voyageId) || !declaredAt) throw new Error('Resposta inesperada da declaração de veículos da viagem.')
+  const name = typeof row.declared_by_name === 'string' ? row.declared_by_name.trim() : ''
+  return { voyageId, declaredAt, declaredByName: name || null }
+}
+
+/** `null` quando a viagem não está declarada sem veículos. */
+export async function fetchVoyageVehicleDeclaration(voyageId: number): Promise<VoyageVehicleDeclaration | null> {
+  const { data, error } = await supabase.rpc('voyage_vehicle_declaration' as never, { p_voyage_id: voyageId } as never)
+  if (error) throw error
+  return parseVoyageVehicleDeclaration(data)
+}
+
+/**
+ * Declara que a viagem não terá veículos: fecha o alerta Planilha de Veículos
+ * pendente. O banco recusa viagem cancelada ou que já tem veículo.
+ */
+export async function declareVoyageWithoutVehicles(voyageId: number): Promise<VoyageVehicleDeclaration | null> {
+  const { data, error } = await supabase.rpc('declare_voyage_without_vehicles' as never, { p_voyage_id: voyageId } as never)
+  if (error) throw error
+  return parseVoyageVehicleDeclaration(data)
+}
+
+/** Desfaz a declaração, com motivo; dentro do prazo, o alerta reabre. */
+export async function undoVoyageVehicleDeclaration(voyageId: number, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('undo_voyage_vehicle_declaration' as never, { p_voyage_id: voyageId, p_reason: reason } as never)
+  if (error) throw error
+}

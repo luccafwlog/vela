@@ -4,10 +4,13 @@ import { CE_UNLOCK_BOX, ceUnlockNoticeBls, runCeUnlockNotify, type Contact, type
 import { invocationSource, runCronWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { recipientKey } from "../_shared/email.ts";
 import { sendPortalEmail } from "../_shared/portalEmail.ts";
+import { COMMUNICATIONS_CONTACT_EMAIL } from "../_shared/customerCommunicationTemplates.ts";
 import { ceUnlockNoticeTemplate } from "../_shared/portalEmailTemplates.ts";
-import { canonicalPortalOrigin, portalSupportEmail } from "../_shared/portalUrls.ts";
+import { canonicalPortalOrigin } from "../_shared/portalUrls.ts";
 import { instrumentEdgeHandler } from "../_shared/telemetry.ts";
 // Envia a fila de avisos do Desbloqueio de CE (recusa de documento / documentação validada).
+// Resposta e rodapé vão para a importação (`COMMUNICATIONS_REPLY_TO` e `COMMUNICATIONS_CONTACT_EMAIL`,
+// importacao@fwlog.com.br), como os Comunicados; antes, para o suporte do Portal (reunião de 2026-10-26).
 // Com a chave de envio desligada, registra o aviso como simulado (D11). Antes, reavalia a conclusão das solicitações abertas (liquidação não passa por comando do módulo).
 // Bearer dedicado e server-only: CE_UNLOCK_NOTIFY_SECRET. O do expurgo
 // (CE_UNLOCK_CLEANUP_SECRET) vale até CE_UNLOCK_NOTIFY_SHARED_RETIRED=true (auditoria run-3).
@@ -25,6 +28,7 @@ if (typeof Deno !== "undefined") {
     if (req.method !== "POST" || !notifyAuthorized(req.headers.get("Authorization")))
       return new Response("Acesso negado", { status: 403 });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const replyTo = Deno.env.get("COMMUNICATIONS_REPLY_TO")?.trim() || undefined;
     // Protocolo e B/Ls da solicitação, para o bloco "Solicitação" do e-mail: uma leitura por solicitação.
     const requestCache = new Map<string, Promise<{ protocol: string; bls: string[] }>>();
     const requestDetails = (requestId: string) => {
@@ -62,7 +66,7 @@ if (typeof Deno !== "undefined") {
     const result = await runCeUnlockNotify({
       refreshOpen: async () => await admin.rpc("ce_unlock_refresh_open"),
       source: await invocationSource(req),
-      providerConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("PORTAL_FROM_EMAIL") && Deno.env.get("PORTAL_REPLY_TO")),
+      providerConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("PORTAL_FROM_EMAIL") && replyTo),
       communicationsEnabled: async () => {
         const { data, error } = await admin.from("app_settings").select("communications_enabled").eq("id", 1).single();
         if (error) throw error;
@@ -116,7 +120,7 @@ if (typeof Deno !== "undefined") {
           title: row.subject,
           message: row.body,
           portalUrl: canonicalPortalOrigin(),
-          supportEmail: portalSupportEmail(),
+          supportEmail: COMMUNICATIONS_CONTACT_EMAIL,
           request: await requestDetails(row.request_id),
         });
         const result = await sendPortalEmail({
@@ -128,6 +132,7 @@ if (typeof Deno !== "undefined") {
           text: mail.text,
           idempotencyKey,
           simulate,
+          replyTo: replyTo ?? null,
         });
         return result.ok ? "sent" : result.suppressed ? "suppressed" : "failed";
       },
