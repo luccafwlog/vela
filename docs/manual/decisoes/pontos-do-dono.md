@@ -79,8 +79,14 @@ com Clientes reais.
   Administrativo chamada **Dev**, em que só ele estará; no começo a única
   diferença para o Administrativo é a chave, e outras permissões especiais
   podem entrar depois. Em vez de e-mail fixo por ambiente.
-- **Em aberto:** forma do Dev (recomendação: marca "Dev" no usuário, que
-  continua no setor Administrativo, dada só por migration, sem tela; um setor
-  novo exigiria revisar cerca de 200 verificações do Administrativo no banco e
-  76 nas telas); como o e-mail redirecionado mostra o Cliente original; se o
-  envio redirecionado conta como enviado para Cobertura, Régua e alertas.
+- **Decidido (ok do dono às recomendações):**
+  - Dev é uma marca no usuário, que continua no setor Administrativo e faz
+    tudo o que ele faz; só o que for exclusivo de Dev olha a marca. A marca é
+    dada só por migration, sem tela, e vale igual em produção e staging. Um
+    setor novo exigiria revisar cerca de 200 verificações do Administrativo no
+    banco e 76 nas telas. A tela de Usuários mostra "Administrativo · Dev".
+  - O e-mail redirecionado chega ao suporte com o assunto começando por
+    "[Teste → <e-mail do Cliente>]" e uma linha no topo dizendo qual Cliente
+    receberia.
+  - O envio redirecionado conta como enviado na Cobertura, na Régua e nos
+    alertas; a tela troca "Em simulação" por "Redirecionado ao suporte".
