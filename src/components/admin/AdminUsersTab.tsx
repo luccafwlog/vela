@@ -42,6 +42,12 @@ function sameEmail(a: string | null | undefined, b: string | null | undefined) {
 
 const BOUNCED_TITLE = 'E-mail devolvido pelo provedor ou marcado como spam: o sistema não envia mais para ele. Corrija em Editar acesso.'
 const INTEGRATION_TITLE = 'Conta técnica da baixa automática do Pix; não é uma pessoa'
+const DEV_TITLE = 'Marca Dev: liga e desliga o envio real de e-mails. Dada só por migration (ADR 0104).'
+
+/** Marca Dev só vale no Administrativo (`is_dev_user`, migration 466). */
+function isDevAccount(user: AdminUserRow): boolean {
+  return user.is_dev === true && user.role === 'administrativo'
+}
 
 export function AdminUsersTab() {
   const queryClient = useQueryClient()
@@ -280,7 +286,9 @@ export function AdminUsersTab() {
                             </StatusText>
                           ) : user.email}
                         </td>
-                        <td>{departmentLabel(user.role)}</td>
+                        <td title={isDevAccount(user) ? DEV_TITLE : undefined}>
+                          {isDevAccount(user) ? `${departmentLabel(user.role)} · Dev` : departmentLabel(user.role)}
+                        </td>
                         <td>{user.active ? 'Ativo' : <StatusText tone="muted">Inativo</StatusText>}</td>
                         <td className="tabular-nums whitespace-nowrap">
                           {user.last_sign_in_at ? formatBrasiliaDateTime(user.last_sign_in_at) : <StatusText tone="muted">Nunca acessou</StatusText>}

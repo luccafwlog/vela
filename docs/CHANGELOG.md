@@ -6,6 +6,17 @@
 
 ## 2026-10
 
+- **Chave de envio redireciona ao suporte e marca Dev (2026-10-27):** migration `466`,
+  [ADR 0104](adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md), lote 1 do
+  [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Com a chave
+  desligada, todo e-mail dirigido a Cliente, inclusive convite e senha do Portal (antes saíam
+  sempre ao destinatário), vai para `suporte@portalfwlog.com.br` com "[Teste → e-mail do
+  Cliente]" no assunto e conta como enviado; o reenvio de CE e Taxas ao suporte fecha o alerta.
+  Só a conta do Administrativo com a marca Dev (`user_profiles.is_dev`, dada por migration a
+  `lucca.juliatti@fwlog.com.br`) muda a chave; todos os setores a leem, disparam Comunicado e
+  salvam modelo (ficha ACE-D01, opção A). Tela de Usuários mostra "Administrativo · Dev".
+  Prova: `emailShared.test.ts`, `portalEmailSend.test.ts`, `permissoesPorPerfil.local-pg.test.ts`,
+  `marcaDevMigration.local-pg.test.ts`, `comunicadoCeReenvioFechaAlerta.local-pg.test.ts`.
 - **Baplie: CNTCG é Taicang e o UNT da COSCO 1.5 não avisa (2026-10-27):** migration `465`,
   sem ADR nova (faixa "Situação atual" na [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)).
   `CNTCG` e a forma curta `TCG` passam a ser apelidos de `CNTAC` (Taicang) no banco e no app: o Baplie 1.5 do GREEN

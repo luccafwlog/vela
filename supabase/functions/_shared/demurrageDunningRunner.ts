@@ -416,7 +416,8 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
           html: template.html,
           text: template.text,
           idempotencyKey,
-          resendApiKey: communicationsEnabled ? config.resendApiKey : null,
+          // Desligada, o e-mail vai ao suporte (ADR 0104): a credencial segue nos dois casos.
+          resendApiKey: config.resendApiKey,
           simulate: !communicationsEnabled,
           from: config.from,
           replyTo: config.replyTo,

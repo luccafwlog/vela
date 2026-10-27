@@ -499,6 +499,15 @@ quebrada. **Teste:** `emailsSemDominioAntigo.test.ts` gera todos os
 e-mails com o domínio antigo configurado e confere que nenhum o cita e que todo
 link vai a uma tela que existe no Portal.
 
+**Chave de envio (ADR 0104).** Desde a migration `466`, o e-mail do Portal
+dirigido a Cliente (convite, reenvio, recuperação e redefinição de senha, troca
+de e-mail de recuperação, senha alterada, aviso de bounce, aviso do Desbloqueio
+de CE) lê a [chave de envio](clientes.md#chave-de-envio-de-comunicados) em
+`sendPortalEmail`: desligada, sai para `suporte@portalfwlog.com.br`, com o
+Cliente no assunto; erro ao ler a chave conta como desligada. O resumo diário,
+que vai à equipe, não passa pela chave. Antes, esses e-mails ignoravam a chave
+(ADR 0059). **Teste:** `portalEmailSend.test.ts`.
+
 `_shared/portalEmail.ts` registra cada tentativa por chave idempotente, não
 envia para endereços suprimidos e repete somente respostas transitórias do
 provedor (máximo de três tentativas). A chave enviada ao provedor é a chave

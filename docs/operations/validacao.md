@@ -554,8 +554,8 @@ viagem segue [Saída da Programação](../modules/chegadas-saidas.md#saída-da-p
 Regras em [Clientes § Comunicados ao Cliente](../modules/clientes.md#comunicados-ao-cliente),
 [Régua automática de Comunicados](../modules/clientes.md#régua-automática-de-comunicados)
 e [Demurrage § Régua de Cobrança](../modules/demurrage.md#régua-de-cobrança).
-Valide com a chave de envio desligada (modo de simulação), que registra o
-Comunicado como `simulado` sem chamar o provedor de e-mail
+Valide com a chave de envio desligada, que envia o Comunicado ao suporte
+(`suporte@portalfwlog.com.br`) e o registra como `simulado`
 ([Chave de envio](../modules/clientes.md#chave-de-envio-de-comunicados)):
 
 1. em `/clientes/comunicacao`, monte um disparo manual por carga (NOA, NOR,

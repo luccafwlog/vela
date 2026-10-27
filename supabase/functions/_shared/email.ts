@@ -37,7 +37,11 @@ export type SendEmailInput = {
   resendApiKey?: string | null
   /** Origem da API compatível com a Resend; sem valor, usa o secret `RESEND_BASE_URL` ou a Resend. */
   apiBaseUrl?: string | null
-  /** Somente produtores com chave de envio desligada podem pedir simulação. */
+  /**
+   * Chave de envio desligada: o e-mail sai de verdade, mas para
+   * `REDIRECT_TO_SUPPORT_ADDRESS`, com o destinatário original no assunto e no
+   * topo (ADR 0104). Sem credencial do provedor (ambiente local), só registra.
+   */
   simulate?: boolean
   from?: string | null
   replyTo?: string | null
@@ -60,6 +64,28 @@ export type SendEmailInput = {
 }
 
 const DEFAULT_API_BASE_URL = 'https://api.resend.com'
+
+/** Destino de todo e-mail de Cliente com a chave de envio desligada (ADR 0104). */
+export const REDIRECT_TO_SUPPORT_ADDRESS = 'suporte@portalfwlog.com.br'
+// O id do provedor do envio redirecionado ganha este prefixo: o webhook não o
+// encontra (entrega e bounce do suporte não marcam o contato do Cliente), e a
+// tentativa fica fechada, sem reenvio ao suporte a cada rodada.
+const REDIRECTED_PROVIDER_ID_PREFIX = 'suporte:'
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`)
+}
+
+/** Assunto, corpo e destino do e-mail redirecionado ao suporte. */
+export function redirectedToSupport(message: { to: string; subject: string; html: string; text: string }) {
+  const notice = `E-mail de teste redirecionado ao suporte. Destinatário original: ${message.to}`
+  return {
+    to: REDIRECT_TO_SUPPORT_ADDRESS,
+    subject: `[Teste → ${message.to}] ${message.subject}`,
+    html: `<p style="margin:0 0 16px;padding:8px 12px;border:1px solid #d97706;background:#fffbeb;color:#78350f;font-family:Arial,sans-serif;font-size:14px">${escapeHtml(notice)}</p>${message.html}`,
+    text: `${notice}\n\n${message.text}`,
+  }
+}
 
 // A MillionSend aceita as mesmas chamadas da Resend: trocar de provedor é
 // trocar `RESEND_BASE_URL` e `RESEND_API_KEY`, sem mudar o código.
@@ -141,13 +167,16 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
   const suppression = await input.checkSuppression(input.to.toLowerCase())
   if (suppression.suppressed) return { ok: false }
 
-  if (!input.simulate && input.resendApiKey && (!input.from || !input.replyTo)) {
+  if (input.resendApiKey && (!input.from || !input.replyTo)) {
     throw new Error(input.missingConfigurationMessage ?? 'Remetente e reply-to são obrigatórios para envio real')
   }
 
   const attempt = await input.recordAttempt({ kind: input.kind, to: input.to, idempotencyKey: input.idempotencyKey })
 
-  if (input.simulate) {
+  const redirected = Boolean(input.simulate)
+  // ponytail: sem credencial do provedor (banco local, testes) a chave
+  // desligada só registra a tentativa, como a simulação antiga.
+  if (redirected && !input.resendApiKey) {
     if (attempt.existing && (attempt.providerMessageId || attempt.status === 'entregue')) return { ok: true }
     if (attempt.existing && ['falha_permanente', 'bounce', 'complaint'].includes(attempt.status)) return { ok: false }
     await input.updateAttempt(attempt.id, {
@@ -173,13 +202,14 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
 
   const fetchImpl = input.fetchImpl ?? fetch
   const emailsUrl = `${emailApiBaseUrl(input.apiBaseUrl)}/emails`
+  const message = redirected ? redirectedToSupport(input) : input
   const body = JSON.stringify({
     from: input.from,
-    to: [input.to],
+    to: [message.to],
     reply_to: input.replyTo,
-    subject: input.subject,
-    html: input.html,
-    text: input.text,
+    subject: message.subject,
+    html: message.html,
+    text: message.text,
     ...(input.attachments?.length
       ? { attachments: input.attachments.map((attachment) => ({
           filename: attachment.filename,
@@ -234,7 +264,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
       const accepted = await response.json().catch(() => ({})) as { id?: string }
       try {
         await input.updateAttempt(attempt.id, {
-          providerMessageId: accepted.id ?? null,
+          providerMessageId: redirected ? `${REDIRECTED_PROVIDER_ID_PREFIX}${accepted.id ?? ''}` : accepted.id ?? null,
           retryCount: index,
           status: 'aceito',
           lastError: undefined,
@@ -251,7 +281,9 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
     }
 
     const providerFailure = await providerError(response)
-    if (response.status === 422 && providerFailure.name === PROVIDER_SUPPRESSED_NAME && input.recordProviderSuppression) {
+    // Redirecionado, a supressão é do endereço do suporte, não do Cliente: segue
+    // como recusa comum, sem gravar supressão do contato.
+    if (!redirected && response.status === 422 && providerFailure.name === PROVIDER_SUPPRESSED_NAME && input.recordProviderSuppression) {
       // A supressão é gravada antes de fechar a tentativa: se gravar falhar, a
       // tentativa fica `aceito` sem id do provedor e a nova rodada tenta tudo
       // de novo. Fechada como `bounce` primeiro, a repetição pararia nela sem

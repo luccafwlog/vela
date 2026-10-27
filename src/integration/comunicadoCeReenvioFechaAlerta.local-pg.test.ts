@@ -94,14 +94,21 @@ describeLocal('3.1 — Reenviar CE e Taxas fecha "Reenviar Comunicado de CE e Ta
   })
   afterAll(cleanup)
 
-  it('o reenvio nasce "Em envio" e não fecha o alerta; em simulação também não', () => {
+  it('o reenvio nasce "Em envio" e não fecha o alerta; redirecionado ao suporte fecha (ADR 0104)', () => {
     const id = createResend(1)
     expect(psql(`SELECT status FROM public.customer_communications WHERE id = ${id};`)).toBe('pendente')
     expect(itemStatus(BL_A)).toBe('active')
 
+    // "simulado" é o envio redirecionado ao suporte com a chave desligada (migration 466).
     psql(`UPDATE public.customer_communications SET status = 'simulado' WHERE id = ${id};`)
+    expect(itemStatus(BL_A)).toBe('resolved')
+    expect(itemStatus(BL_B)).toBe('resolved')
+
+    // Nova troca de CE reabre o alerta para o caso seguinte.
+    for (const bl of [BL_A, BL_B]) {
+      psql(`SELECT public.upsert_alert_item('comunicado_ce_reenvio_pendente', 'bl', '${bl}', 'CE trocado depois do Comunicado', 'e314_fixture', '{}'::jsonb, '/bls/${bl}');`)
+    }
     expect(itemStatus(BL_A)).toBe('active')
-    expect(itemStatus(BL_B)).toBe('active')
   })
 
   it('o reenvio que sai (enviado) fecha o alerta de todos os B/Ls do Comunicado', () => {
@@ -111,6 +118,7 @@ describeLocal('3.1 — Reenviar CE e Taxas fecha "Reenviar Comunicado de CE e Ta
     expect(itemStatus(BL_B)).toBe('resolved')
     expect(psql(`SELECT e.metadata->>'communication_id' FROM public.alert_item_events e
       JOIN public.alert_items i ON i.id = e.alert_item_id JOIN public.alerts a ON a.id = i.alert_id
-      WHERE a.entity_id = '${BL_A}' AND i.item_type = 'comunicado_ce_reenvio_pendente' AND e.event_type = 'resolved';`)).toBe(String(id))
+      WHERE a.entity_id = '${BL_A}' AND i.item_type = 'comunicado_ce_reenvio_pendente' AND e.event_type = 'resolved'
+      ORDER BY e.id DESC LIMIT 1;`)).toBe(String(id))
   })
 })

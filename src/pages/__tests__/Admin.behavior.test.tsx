@@ -27,6 +27,9 @@ const users = [
   { id: 'u-itau', full_name: 'API ITAÚ', role: 'financeiro', active: true, created_at: '2026-10-07T00:00:00Z', email: 'api-itau@fwlog.com.br', last_sign_in_at: null, email_bounced: true, account_kind: 'integracao' },
   { id: 'u-2', full_name: 'Bruno Inativo', role: 'financeiro', active: false, created_at: '2026-01-03T00:00:00Z', email: 'bruno@fwlog.com.br', last_sign_in_at: null },
   { id: 'u-3', full_name: 'Carla Nunca', role: 'documentacao', active: true, created_at: '2026-01-04T00:00:00Z', email: 'carla@fwlog.com.br', last_sign_in_at: null },
+  // Marca Dev (migration 466): só vale no Administrativo; em outro setor não aparece.
+  { id: 'u-dev', full_name: 'Dono Dev', role: 'administrativo', active: true, created_at: '2026-01-05T00:00:00Z', email: 'dono@fwlog.com.br', last_sign_in_at: null, account_kind: 'pessoa', is_dev: true },
+  { id: 'u-4', full_name: 'Davi Marcado', role: 'equipamentos', active: true, created_at: '2026-01-06T00:00:00Z', email: 'davi@fwlog.com.br', last_sign_in_at: null, account_kind: 'pessoa', is_dev: true },
 ]
 
 vi.mock('@tanstack/react-query', () => ({
@@ -144,6 +147,13 @@ it('badge "Integração" só na conta de integração, sem o aviso de e-mail dev
   expect(within(itau).queryByRole('img', { name: 'E-mail devolvido' })).toBeNull()
   expect((within(itau).getByText('api-itau@fwlog.com.br').closest('td') as HTMLElement).getAttribute('title')).toBe('api-itau@fwlog.com.br')
   for (const name of ['Alice Operadora', 'Carla Nunca']) expect(within(userRow(name)).queryByText('Integração')).toBeNull()
+})
+
+it('o Setor mostra "Administrativo · Dev" só para a conta do Administrativo com a marca Dev', () => {
+  renderAdmin()
+  expect(within(userRow('Dono Dev')).getByText('Administrativo · Dev')).toBeTruthy()
+  expect(within(userRow('Davi Marcado')).queryByText(/· Dev/)).toBeNull()
+  expect(within(userRow('Carla Nunca')).queryByText(/· Dev/)).toBeNull()
 })
 
 it('Editar acesso da conta de integração não convida a liberar o e-mail suprimido', async () => {

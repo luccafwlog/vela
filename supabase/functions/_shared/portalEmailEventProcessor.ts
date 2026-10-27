@@ -29,29 +29,15 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
-async function isCommunicationsEnabled(admin: AdminClient): Promise<boolean> {
-  // D04: o aviso de bounce ao cliente respeita a chave global de Comunicados.
-  // Supressão, reparo e alertas internos não dependem desta chave.
-  try {
-    const { data, error } = await admin
-      .from('app_settings')
-      .select('communications_enabled')
-      .eq('id', 1)
-      .maybeSingle()
-    if (error) return false
-    return Boolean((data as { communications_enabled?: boolean } | null)?.communications_enabled)
-  } catch {
-    return false
-  }
-}
-
 async function sendBounceNotification(
   admin: AdminClient,
   customerId: number,
   bouncedEmail: string,
   recipient: BounceContact,
 ): Promise<boolean> {
-  if (!recipient.email || !await isCommunicationsEnabled(admin)) return true
+  // A chave de envio desligada redireciona o aviso ao suporte (`sendPortalEmail`,
+  // ADR 0104); supressão, reparo e alertas internos não dependem dela.
+  if (!recipient.email) return true
 
   // Cliente desativado não recebe aviso, como nos Comunicados e no resumo
   // diário (auditoria run-3). Erro na leitura vira nova tentativa do evento.

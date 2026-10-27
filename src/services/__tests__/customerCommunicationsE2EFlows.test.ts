@@ -230,12 +230,13 @@ describe('Revisão Completa E2E: Módulo de Comunicação com o Cliente', () => 
   })
 
   describe('4. Gates de Negócio e Segurança', () => {
-    it('Gate RBAC: rota e ações de comunicados são concedidas a administrativo, documentacao e equipamentos, e negadas a operacoes e financeiro', () => {
-      expect(roleHasPermission('administrativo', 'customer_communications')).toBe(true)
-      expect(roleHasPermission('documentacao', 'customer_communications')).toBe(true)
-      expect(roleHasPermission('equipamentos', 'customer_communications')).toBe(true)
-      expect(roleHasPermission('operacoes', 'customer_communications')).toBe(false)
-      expect(roleHasPermission('financeiro', 'customer_communications')).toBe(false)
+    it('Gate RBAC: todos os setores disparam Comunicados; contatos ficam com administrativo, documentacao e equipamentos (ACE-D01, opção A)', () => {
+      for (const role of ['administrativo', 'documentacao', 'equipamentos', 'operacoes', 'financeiro'] as const) {
+        expect(roleHasPermission(role, 'customer_communications')).toBe(true)
+      }
+      expect(roleHasPermission('operacoes', 'edit_customer_contacts')).toBe(false)
+      expect(roleHasPermission('financeiro', 'edit_customer_contacts')).toBe(false)
+      expect(roleHasPermission('equipamentos', 'edit_customer_contacts')).toBe(true)
     })
 
     it('Gate Invariante 6: proíbe anexos em CE Mercante e Demurrage, permitindo nos demais modelos', () => {

@@ -678,7 +678,7 @@ O Portal do Cliente só expõe dados de B/Ls que tenham `ce_mercante` preenchido
 
 ## Chave de envio e supressão de e-mail
 
-A chave global de envio (`app_settings.communications_enabled`, desligada por padrão e ligada só pelo Administrativo) silencia, além dos Comunicados, a Régua de Cobrança de Demurrage, o aviso de bounce em cascata e o aviso do Desbloqueio de CE; os demais e-mails transacionais do Portal, como convite e recuperação de senha, não dependem dela. O bounce permanente suprime o endereço nos dois canais; a reclamação, só no canal em que aconteceu. Regra completa em [Clientes § Chave de envio de Comunicados](../modules/clientes.md#chave-de-envio-de-comunicados) e [Clientes § Comunicados ao Cliente](../modules/clientes.md#comunicados-ao-cliente).
+A chave global de envio (`app_settings.communications_enabled`, desligada por padrão, mudada só pela conta do Administrativo com a marca Dev) é ferramenta de teste: desligada, todo e-mail dirigido a Cliente — Comunicados, Régua de Cobrança de Demurrage, aviso de bounce em cascata, aviso do Desbloqueio de CE e os e-mails do Portal, como convite e recuperação de senha — sai para `suporte@portalfwlog.com.br`, com o Cliente no assunto, e conta como enviado ([ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); e-mail para a equipe não passa por ela. O bounce permanente suprime o endereço nos dois canais; a reclamação, só no canal em que aconteceu. Regra completa em [Clientes § Chave de envio de Comunicados](../modules/clientes.md#chave-de-envio-de-comunicados) e [Clientes § Comunicados ao Cliente](../modules/clientes.md#comunicados-ao-cliente).
 
 ## Permissões internas
 

@@ -1528,10 +1528,15 @@ recebe um alerta crítico.
 → Regra: [Clientes § Tratamento de Bounce em Cascata](docs/modules/clientes.md#tratamento-de-bounce-em-cascata)
 
 **Chave de envio de Comunicados**
-Controle único que habilita ou silencia o envio real de Comunicados; desligada,
-o Disparo é conferido e registrado como simulado. Não confundir com o e-mail
-transacional do Portal, que ela não silencia (salvo o aviso de bounce e o aviso
-do Desbloqueio de CE).
+Controle único, de teste, do envio dos e-mails dirigidos a Cliente (Comunicados,
+Régua, avisos e e-mails do Portal); desligada, cada e-mail vai ao suporte, com o
+Cliente no assunto, e conta como enviado ("Redirecionado ao suporte"). Só a
+conta com a marca **Dev** a muda.
+
+**Marca Dev**
+Permissão especial acima do Administrativo, dada só por migration a uma conta
+do Administrativo; hoje só liga e desliga a chave de envio. Não é setor: a conta
+continua no Administrativo.
 → Regra: [Clientes § Chave de envio de Comunicados](docs/modules/clientes.md#chave-de-envio-de-comunicados)
 
 ## Referências de verificação dos contratos

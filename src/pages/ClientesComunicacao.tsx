@@ -33,6 +33,7 @@ import {
   isUserWrittenCustomerCommunicationKind,
   makeCustomerCommunicationRenderInput,
   requiresResendConfirmation,
+  SUPPORT_REDIRECT_ADDRESS,
   validateCustomerCommunicationFilters,
   fetchCustomerCommunicationConference,
   fetchCustomerCommunicationHistory,
@@ -308,12 +309,13 @@ export function ClientesComunicacao() {
   const historyFiltered = Object.values(historyFilters).some(Boolean)
   const [freeAudience, setFreeAudience] = useState<CustomerCommunicationAudience>({ mode: 'todos' })
   const { data: settings, isLoading: settingsLoading, error: settingsError, refetch: refetchSettings } = useAppSettings()
-  const { effectiveRole, isAdmin, can } = useAuth()
+  const { isDev, can } = useAuth()
   // Consultar cobertura e histórico é de todos; enviar é de Administrativo,
   // Documentação e Equipamentos (ADR 0085, D19).
   const canSend = can('customer_communications')
   const confirm = useConfirm()
-  const canToggleCommunications = effectiveRole === 'administrativo' || isAdmin
+  // Marca Dev (ADR 0104): o banco recusa os demais, inclusive o Administrativo.
+  const canToggleCommunications = isDev
   const setCommunicationsMutation = useSetCommunicationsEnabled()
 
   const dispatchMode = getCustomerCommunicationDispatchMode(kind)
@@ -621,15 +623,15 @@ export function ClientesComunicacao() {
       return
     }
     // D16 (ADR 0072): antes de sair, a confirmação diz se é envio real ou
-    // simulação e quantos e-mails, para quantos Clientes.
+    // redirecionado ao suporte (ADR 0104) e quantos e-mails, para quantos Clientes.
     const real = settings.communications_enabled
     const customersCount = new Set(selectedRows.map((row) => row.customerId)).size
     const confirmed = await confirm({
-      title: real ? 'Enviar de verdade' : 'Registrar em simulação',
+      title: real ? 'Enviar de verdade' : 'Enviar ao suporte',
       message: `${selectedEmailCount} destinatário(s) de ${customersCount} Cliente(s) recebem ${customerCommunicationKindLabel(kind)}.`,
       consequence: real
         ? 'A chave de envio está ligada: os e-mails saem agora aos Clientes, e cada envio fica no Histórico.'
-        : 'A chave de envio está desligada: nenhum e-mail sai; cada destinatário fica registrado como simulado no Histórico.',
+        : `A chave de envio está desligada: cada e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o Cliente no assunto, e fica no Histórico como redirecionado ao suporte.`,
       reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
       confirmLabel: 'Confirmar',
       cancelLabel: 'Cancelar',
@@ -717,11 +719,11 @@ export function ClientesComunicacao() {
       return
     }
     const confirmed = await confirm({
-      title: real ? 'Repetir de verdade' : 'Repetir em simulação',
+      title: real ? 'Repetir de verdade' : 'Repetir ao suporte',
       message: `${failed.length} destinatário(s) de ${new Set(failed.map(({ input }) => input.customerId)).size} Cliente(s) recebem ${customerCommunicationKindLabel(kind)} de novo.`,
       consequence: real
         ? 'A chave de envio está ligada: os e-mails que falharam saem agora aos Clientes.'
-        : 'A chave de envio está desligada: nenhum e-mail sai; cada destinatário fica registrado como simulado no Histórico.',
+        : `A chave de envio está desligada: cada e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o Cliente no assunto, e fica no Histórico como redirecionado ao suporte.`,
       reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
       confirmLabel: 'Confirmar',
       cancelLabel: 'Cancelar',
@@ -744,8 +746,8 @@ export function ClientesComunicacao() {
   async function resendCeMercante(item: CustomerCommunicationHistoryItem) {
     if (item.anchor_voyage_id == null) return
     const key = `${item.customer_id}:${item.anchor_voyage_id}`
-    // Sem saber se a chave está ligada, a confirmação poderia prometer
-    // simulação e a Edge mandar o e-mail de verdade: relê antes de confirmar.
+    // Sem saber se a chave está ligada, a confirmação poderia prometer o
+    // suporte e a Edge mandar o e-mail ao Cliente: relê antes de confirmar.
     const real = await readCommunicationsEnabled()
     if (real === null) {
       setCeResendResults((current) => ({ ...current, [key]: { error: 'Não foi possível confirmar se o envio real está ligado. Recarregue a tela e tente de novo.' } }))
@@ -767,7 +769,7 @@ export function ClientesComunicacao() {
       message: `Reenviar o Comunicado de CE e Taxas de ${item.customer?.name ?? `Cliente ${item.customer_id}`} na viagem ${[item.vessel_name, item.voyage_number].filter(Boolean).join(' / ') || item.anchor_voyage_id}, com o CE e os valores atuais?${latestNote}`,
       consequence: real
         ? 'A chave de envio está ligada: o e-mail sai agora para as caixas Documentação e Operação e Financeiro do Cliente. O envio fecha o alerta "Reenviar Comunicado de CE e Taxas" dos B/Ls.'
-        : 'A chave de envio está desligada: o reenvio fica registrado como simulado e nenhum e-mail sai; o alerta "Reenviar Comunicado de CE e Taxas" só fecha com um envio real.',
+        : `A chave de envio está desligada: o e-mail vai para ${SUPPORT_REDIRECT_ADDRESS}, com o Cliente no assunto. O envio fecha o alerta "Reenviar Comunicado de CE e Taxas" dos B/Ls.`,
       reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
       confirmLabel: 'Reenviar CE e Taxas',
       cancelLabel: 'Cancelar',
@@ -817,13 +819,13 @@ export function ClientesComunicacao() {
                 const confirmed = await confirm(next
                   ? {
                     title: 'Ativar envio real',
-                    message: 'Confirma a ativação da chave global de envio? Os próximos disparos de comunicados e cobranças enviarão e-mails reais aos clientes.',
+                    message: 'Confirma a ativação da chave global de envio? Os próximos e-mails de Comunicados, cobranças, Desbloqueio de CE e Portal sairão para os Clientes.',
                     confirmLabel: 'Ativar envio real',
                     tone: 'danger',
                   }
                   : {
                     title: 'Desativar envio real',
-                    message: 'Deseja desativar a chave global de envio e retornar ao modo de simulação?',
+                    message: `Deseja desativar a chave global de envio? Todo e-mail de Cliente passará a ir para ${SUPPORT_REDIRECT_ADDRESS}.`,
                     confirmLabel: 'Desativar envio real',
                     tone: 'danger',
                   })
@@ -845,7 +847,7 @@ export function ClientesComunicacao() {
         ) : settings?.communications_enabled === true ? (
           <LeadValue detail="Os e-mails saem para os contatos elegíveis.">Envio real</LeadValue>
         ) : (
-          <LeadValue tone="warning" detail="Nenhum e-mail sai; os Comunicados ficam registrados como simulados.">Em simulação</LeadValue>
+          <LeadValue tone="warning" detail={`Todo e-mail de Cliente vai para ${SUPPORT_REDIRECT_ADDRESS}, com o Cliente no assunto.`}>Redirecionado ao suporte</LeadValue>
         )}
       </Block>
 
@@ -1807,7 +1809,7 @@ function AttemptsTable({ communicationId, attempts }: { communicationId: number;
               <tr key={attempt.id}>
                 <td className="app-table__text text-xs" title={attempt.recipient_email ? undefined : 'Envio anterior à gravação do endereço exato ou com mais de 1 ano: só o endereço mascarado foi guardado'}>{attempt.recipient_email ?? attempt.recipient_masked}</td>
                 <td className="whitespace-nowrap tabular-nums text-xs">{formatDateTime(attempt.created_at)}</td>
-                <td>{attempt.dispatch_mode === 'simulado' ? 'Simulado' : attempt.dispatch_mode === 'real' ? 'Real' : <NoValue label="Modo não registrado" />}</td>
+                <td>{attempt.dispatch_mode === 'simulado' ? 'Ao suporte' : attempt.dispatch_mode === 'real' ? 'Real' : <NoValue label="Modo não registrado" />}</td>
                 <td>{failed ? <StatusText tone="danger">{customerCommunicationAttemptStatusLabel(attempt)}</StatusText> : customerCommunicationAttemptStatusLabel(attempt)}</td>
                 <td className="app-table__text app-table__text--wrap" title={attempt.last_error ?? undefined}>{reason ?? <NoValue label="Sem motivo registrado" />}</td>
               </tr>
@@ -1828,9 +1830,9 @@ function CeResendResult({ result }: { result: { summary?: CeMercanteCommunicatio
       : summary.status === 'enviado'
         ? `CE e Taxas reenviado (tentativa ${summary.attemptDiscriminator}).`
         : summary.status === 'simulado'
-          ? `Reenvio registrado em simulação (tentativa ${summary.attemptDiscriminator}); nenhum e-mail saiu.`
+          ? `Reenvio redirecionado ao suporte (tentativa ${summary.attemptDiscriminator}); nada chegou ao Cliente.`
           : summary.status === 'parcial'
-            ? `Reenvio parcial: ${summary.sentCount} enviado(s), ${summary.simulatedCount} simulado(s), ${summary.failedCount} falha(s)${summary.reason ? ` (${summary.reason})` : ''}; confira os destinatários no Histórico.`
+            ? `Reenvio parcial: ${summary.sentCount} enviado(s), ${summary.simulatedCount} ao suporte, ${summary.failedCount} falha(s)${summary.reason ? ` (${summary.reason})` : ''}; confira os destinatários no Histórico.`
             : `Reenvio não feito: ${summary.reason ?? 'falha no envio.'}`
   if (!text) return null
   const problem = Boolean(result.error) || (summary ? summary.status !== 'enviado' && summary.status !== 'simulado' : false)
@@ -1861,7 +1863,7 @@ function BatchResult({
     <div role="status" className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-xs leading-relaxed text-[var(--app-text)]">
       <p className="font-semibold text-[var(--app-text-strong)]">Resultado do disparo</p>
       <p className="mt-1">
-        {summary.sent} enviado(s) · {summary.simulated} simulado(s) ·{' '}
+        {summary.sent} enviado(s) · {summary.simulated} ao suporte ·{' '}
         {summary.failed.length ? <StatusText tone="danger">{summary.failed.length} falha(s)</StatusText> : 'nenhuma falha'}
       </p>
       {attachmentCustomers ? <p className="mt-1">Anexo enviado a {attachmentCustomers} Cliente(s). Os anexos foram retirados para o próximo disparo.</p> : null}

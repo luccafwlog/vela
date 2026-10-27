@@ -39,6 +39,7 @@ export type Permission =
   | 'portal_provisioning'
   | 'settle_financial_adjustments'
   | 'customer_communications'
+  | 'edit_customer_contacts'
 
 export function roleHasPermission(role: UserProfileRole | undefined, permission: Permission): boolean {
   if (!role) return false
@@ -50,13 +51,17 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   // (ADR 0085, D11; migration 250).
   if (permission === 'ce_unlock_read' || permission === 'ce_unlock_documents') return ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole)
   if (permission === 'ce_unlock_manage') return ['administrativo', 'documentacao'].includes(effectiveRole)
+  // Disparar Comunicado e salvar modelo é de todos os Departamentos; editar
+  // contatos e Caixas de Comunicação segue de Administrativo, Documentação e
+  // Equipamentos (decisão do dono de 2026-10-27, ficha ACE-D01, opção A).
+  if (permission === 'customer_communications') return ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole)
 
   switch (effectiveRole) {
-    case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'customer_communications'
-    case 'documentacao': return permission === 'portal_provisioning' || permission === 'customer_communications'
+    case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'edit_customer_contacts'
+    case 'documentacao': return permission === 'portal_provisioning' || permission === 'edit_customer_contacts'
     case 'financeiro': return permission === 'settle_financial_adjustments'
     case 'operacoes': return false
-    case 'equipamentos': return permission === 'customer_communications'
+    case 'equipamentos': return permission === 'edit_customer_contacts'
     default:
       return false
   }
@@ -75,6 +80,8 @@ type AuthContextValue = {
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
   isAdmin: boolean
+  /** Marca Dev (ADR 0104): conta ativa do Administrativo com a marca, dada por migration. */
+  isDev: boolean
   can: (permission: Permission) => boolean
   effectiveRole: UserProfileRole | null
 }
@@ -260,6 +267,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       profileStatus,
       profileError,
       isAdmin: role === 'administrativo',
+      isDev: role === 'administrativo' && profile?.is_dev === true && profile?.account_kind === 'pessoa',
       effectiveRole,
       can: (permission: Permission) => roleHasPermission(role, permission),
       async signIn(email, password, captchaToken) {

@@ -1,6 +1,6 @@
 // "O que cada setor pode" (lote 5b, tela Administração, decisão de
 // 2026-10-19: opção A com C). Fonte única da matriz da aba Usuários e da
-// lista "Com este setor, ... pode" das janelas de usuário. As 39 linhas
+// lista "Com este setor, ... pode" das janelas de usuário. As 40 linhas
 // resumem as ações de docs/operations/seguranca.md § "Modelo de permissões
 // por perfil", que diz onde o banco aplica cada uma.
 //
@@ -79,7 +79,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   // Usuários e sistema
   { id: 'abrir-administracao', group: 'usuarios', action: 'Abrir a tela Administração e listar os usuários', can: ADM, proof: ['exceção: Abrir a Administração'] },
   { id: 'gerir-usuarios', group: 'usuarios', action: 'Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha', can: ADM, proof: ['caso: Catálogo: só o Administrativo muda o setor e a situação de um usuário'] },
-  { id: 'envio-real-emails', group: 'usuarios', action: 'Ligar e desligar o envio real de e-mails', can: ADM, proof: ['exceção: Ligar e desligar o envio real de e-mails'] },
+  // Marca Dev (ADR 0104): só a conta do Administrativo com a marca, dada por migration.
+  { id: 'envio-real-emails', group: 'usuarios', action: 'Ligar e desligar o envio real de e-mails', can: { ...only(), administrativo: 'só a conta Dev' }, proof: ['caso: Dev: só a conta Dev liga e desliga o envio real de e-mails'] },
   { id: 'ultimo-administrativo', group: 'usuarios', action: 'Desativar ou rebaixar o último Administrativo ativo', can: only(), proof: ['caso: Catálogo: ninguém desativa nem rebaixa o último Administrativo ativo'] },
 
   // Viagens, B/L e ADR de Saída
@@ -126,7 +127,9 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
 
   // Clientes, Comunicação e Portal
   { id: 'editar-cliente', group: 'clientes', action: 'Criar e editar Cliente; ler o Histórico de Comunicados e o console do Portal', can: ALL, proof: ['todos: Editar Cliente', 'todos: Ler o Histórico de Comunicados', 'caso: A18:'] },
-  { id: 'contatos-comunicados', group: 'clientes', action: 'Editar contatos e Caixas de Comunicação; disparar Comunicado', can: ADM_DOC_EQU, proof: ['exceção: Editar contatos do Cliente', 'exceção: Salvar modelo de Comunicado', 'caso: P3: a tela edita contatos pela RPC'] },
+  // Decisão do dono de 2026-10-27 (ficha ACE-D01, opção A): todos agem em Comunicação; contatos seguem com três setores.
+  { id: 'disparar-comunicado', group: 'clientes', action: 'Disparar Comunicado e salvar modelo; ler o estado da chave de envio', can: ALL, proof: ['todos: Salvar modelo de Comunicado', 'caso: Dev: todos os setores leem a chave de envio'] },
+  { id: 'contatos-comunicados', group: 'clientes', action: 'Editar contatos e Caixas de Comunicação', can: ADM_DOC_EQU, proof: ['exceção: Editar contatos do Cliente', 'caso: P3: a tela edita contatos pela RPC'] },
   { id: 'provisionar-portal', group: 'clientes', action: 'Provisionar o Portal: convite (enviar e cancelar), conta, e-mail de recuperação, reabrir análise', can: ADM_DOC, proof: ['exceção: Cancelar convite do Portal', 'exceção: Trocar o e-mail de recuperação do Portal', 'exceção: Liberar e-mail bloqueado do Portal', 'exceção: Reabrir análise do Portal'] },
   { id: 'desativar-cliente', group: 'clientes', action: 'Desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento', can: ADM, proof: ['exceção: Desativar Cliente', 'exceção: Reativar Cliente', 'exceção: Trocar o CNPJ do Portal', 'exceção: Conceder Liberação de faturamento', 'exceção: Revogar Liberação de faturamento'] },
 

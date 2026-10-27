@@ -180,11 +180,10 @@ vi.mock('../../hooks/useBls', () => ({
   useVoyageOptions: () => ({ data: [{ id: 1, voyage_number: '123', vessel: { name: 'COSCO SHIPPING XING WANG' } }] }),
 }))
 
-const authState = vi.hoisted(() => ({ canSend: true }))
+const authState = vi.hoisted(() => ({ canSend: true, isDev: true }))
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
-    effectiveRole: authState.canSend ? 'administrativo' : 'financeiro',
-    isAdmin: authState.canSend,
+    isDev: authState.isDev,
     can: () => authState.canSend,
   }),
 }))
@@ -247,6 +246,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     mockAppSettingsError = null
     mockRefetchSettings.mockImplementation(async () => ({ data: mockAppSettings }))
     authState.canSend = true
+    authState.isDev = true
   })
 
   it('quem não envia consulta cobertura e histórico, sem a aba Disparo (ADR 0085, D19)', () => {
@@ -261,7 +261,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByRole('heading', { name: 'Cobertura por viagem e porto' })).toBeTruthy()
   })
 
-  it('exibe o banner permanente de simulação quando communications_enabled é false', () => {
+  it('exibe o banner permanente de redirecionamento ao suporte quando communications_enabled é false', () => {
     mockAppSettings = { communications_enabled: false }
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao']}>
@@ -269,14 +269,14 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    // Canal de envio (lote 5a): "Em simulação" em âmbar e a chave desligada.
+    // Canal de envio (lote 5a; ADR 0104): "Redirecionado ao suporte" em âmbar e a chave desligada.
     expect(screen.getByRole('heading', { name: 'Canal de envio' })).toBeTruthy()
-    expect(screen.getByText('Em simulação').classList.contains('app-lead__value--warning')).toBe(true)
-    expect(screen.getByText(/Nenhum e-mail sai/)).toBeTruthy()
+    expect(screen.getByText('Redirecionado ao suporte').classList.contains('app-lead__value--warning')).toBe(true)
+    expect(screen.getByText(/Todo e-mail de Cliente vai para suporte@portalfwlog\.com\.br/)).toBeTruthy()
     expect(screen.getByRole('switch', { name: 'Envio real desligado' }).getAttribute('aria-checked')).toBe('false')
   })
 
-  it('a chave do envio real pede a confirmação de hoje antes de ligar, e só o Administrativo a vê', async () => {
+  it('a chave do envio real pede a confirmação de hoje antes de ligar, e só a conta Dev a vê', async () => {
     mockAppSettings = { communications_enabled: false }
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao']}>
@@ -289,14 +289,15 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: 'Ativar envio real', tone: 'danger' })
     cleanup()
 
-    authState.canSend = false
+    // Administrativo sem a marca Dev lê o estado, mas não vê a chave (ADR 0104).
+    authState.isDev = false
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao']}>
         <ClientesComunicacao />
       </MemoryRouter>,
     )
     expect(screen.queryByRole('switch')).toBeNull()
-    expect(screen.getByText('Em simulação')).toBeTruthy()
+    expect(screen.getByText('Redirecionado ao suporte')).toBeTruthy()
   })
 
   it('exibe o banner de canal ativo quando communications_enabled é true', () => {
@@ -312,7 +313,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
   })
 
 
-  it('exibe o banner de simulação como fallback seguro quando settings é nulo ou indefinido', () => {
+  it('exibe o banner de redirecionamento como fallback seguro quando settings é nulo ou indefinido', () => {
     mockAppSettings = null
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao']}>
@@ -320,7 +321,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Em simulação')).toBeTruthy()
+    expect(screen.getByText('Redirecionado ao suporte')).toBeTruthy()
   })
 
   it('exibe o estado de carregamento da chave sem ocultar o painel', () => {
@@ -334,7 +335,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getByRole('status')).toBeTruthy()
-    expect(screen.queryByText('Em simulação')).toBeNull()
+    expect(screen.queryByText('Redirecionado ao suporte')).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()
   })
 
@@ -720,7 +721,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
 
     expect(screen.getByRole('heading', { name: 'Histórico de Comunicados' })).toBeTruthy()
     expect(screen.getByText('ACME Importadora')).toBeTruthy()
-    expect(screen.getAllByText('Simulado').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Ao suporte').length).toBeGreaterThanOrEqual(1)
   })
 })
 
@@ -781,6 +782,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     mockAppSettingsLoading = false
     mockAppSettingsError = null
     authState.canSend = true
+    authState.isDev = true
   })
 
   it('lote com falha no 2º de 3: os 3 são chamados, o resumo aparece, a seleção fica e repetir envia só a falha com o mesmo item', async () => {
@@ -806,7 +808,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     const painel = resultado.closest('[role="status"]') as HTMLElement
     expect(mockDispatch).toHaveBeenCalledTimes(3)
     expect(mockDispatch.mock.calls.map(([input]) => input.recipient)).toEqual(['a@acme.com', 'b@acme.com', 'c@beta.com'])
-    expect(within(painel).getByText(/2 simulado\(s\)/)).toBeTruthy()
+    expect(within(painel).getByText(/2 ao suporte/)).toBeTruthy()
     expect(within(painel).getByText('1 falha(s)')).toBeTruthy()
     expect(within(painel).getByText(/b@acme.com: Contato desativado para esta caixa ou modelo\./)).toBeTruthy()
     // A conferência continua na tela, com a seleção de antes.
@@ -817,9 +819,9 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     mockDispatch.mockResolvedValueOnce({ communicationId: 1, status: 'simulado' })
     fireEvent.click(within(painel).getByRole('button', { name: /Repetir só as falhas \(1\)/ }))
 
-    await waitFor(() => expect(within(painel).getByText(/3 simulado\(s\)/)).toBeTruthy())
+    await waitFor(() => expect(within(painel).getByText(/3 ao suporte/)).toBeTruthy())
     // D16 também na repetição: a chave pode ter mudado depois do lote.
-    expect(mockConfirm.mock.calls.at(-1)?.[0]).toMatchObject({ title: 'Repetir em simulação' })
+    expect(mockConfirm.mock.calls.at(-1)?.[0]).toMatchObject({ title: 'Repetir ao suporte' })
     expect(mockConfirm.mock.calls.at(-1)?.[0].message).toMatch(/^1 destinatário\(s\) de 1 Cliente\(s\)/)
     expect(mockDispatch).toHaveBeenCalledTimes(4)
     expect(mockDispatch.mock.calls[3][0]).toEqual(mockDispatch.mock.calls[1][0])
@@ -851,7 +853,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     expect(mockDispatch).toHaveBeenCalledTimes(2)
   })
 
-  it('confirma antes de disparar, dizendo se é simulação e para quantos destinatários; Cancelar não envia nada', async () => {
+  it('confirma antes de disparar, dizendo se vai ao suporte e para quantos destinatários; Cancelar não envia nada', async () => {
     activeMockConference = conferenceOf('aviso_chegada_noa', [
       noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com']),
       noaRow(2, 'Beta Comércio', ['c@beta.com']),
@@ -868,7 +870,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
 
     await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1))
     expect(mockConfirm.mock.calls[0][0]).toMatchObject({
-      title: 'Registrar em simulação',
+      title: 'Enviar ao suporte',
       message: expect.stringContaining('3 destinatário(s) de 2 Cliente(s)'),
       confirmLabel: 'Confirmar',
       cancelLabel: 'Cancelar',
@@ -1178,7 +1180,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     await waitFor(() => expect(mockCeDispatch).toHaveBeenCalledWith(7, 1, { forceRetry: true }))
     expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: 'Reenviar CE e Taxas', cancelLabel: 'Cancelar' })
     expect(mockConfirm.mock.calls[0][0].message).not.toContain('mais recente')
-    expect(await screen.findByText(/Reenvio registrado em simulação \(tentativa 2\)/)).toBeTruthy()
+    expect(await screen.findByText(/Reenvio redirecionado ao suporte \(tentativa 2\)/)).toBeTruthy()
   })
 
   it('com o Histórico filtrado, o diálogo do reenvio do CE avisa o envio mais recente da viagem', async () => {

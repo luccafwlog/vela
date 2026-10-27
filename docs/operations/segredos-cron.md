@@ -454,8 +454,8 @@ SELECT cron.schedule(
 
 Remover: `SELECT cron.unschedule('ce-unlock-notify-email');`. Sem o job, os avisos do sino
 continuam funcionando e as linhas de e-mail ficam pendentes em `ce_unlock_email_outbox`.
-Com a chave de envio desligada, a função não exige `RESEND_API_KEY` nem remetente: registra
-os avisos como `simulated` (migration `307`).
+Com a chave de envio desligada, a função envia os avisos ao suporte e os registra como
+`simulated` (migration `307`, ADR 0104); sem `RESEND_API_KEY` (ambiente local), só registra.
 
 **O cofre tem as dez entradas** — deve retornar `10`:
 

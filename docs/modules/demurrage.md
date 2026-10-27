@@ -944,7 +944,8 @@ data, o último envio ou a pausa.
   a melhoria é consultar o provedor pela chave de idempotência antes de
   decidir. A UI lê o contador pela RPC
   `list_demurrage_dunning_claim_statuses`. Com a chave de envio desligada, a
-  tentativa é registrada como simulada e conta como cobrança da sequência
+  cobrança vai ao suporte com o Cliente no assunto ([ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)),
+  fica registrada como simulada e conta como cobrança da sequência
   (**Código:** a posição só é liberada em falha sem entrega ou pausa). A rodada fica em
   [`_shared/demurrageDunningRunner.ts`](../../supabase/functions/_shared/demurrageDunningRunner.ts),
   testada com banco e provedor falsos (`demurrageDunningRunner.test.ts`); a

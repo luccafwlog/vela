@@ -125,6 +125,7 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   dispute_subject: 'Assunto da disputa',
   dispute_reason: 'Motivo da disputa',
   communications_enabled: 'Envio real de e-mails',
+  is_dev: 'Marca Dev',
   password: 'Senha',
   container_number: 'Container',
   pod: 'POD',

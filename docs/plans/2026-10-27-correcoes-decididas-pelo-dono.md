@@ -3,8 +3,12 @@
 ## Estado
 
 Proposto em 2026-10-27. O dono aprovou a lista e decidiu o conflito de
-ACE-D01 (opção A) no mesmo dia, e pediu para não começar ainda: nenhum lote
-está autorizado. Nada executado.
+ACE-D01 (opção A) no mesmo dia.
+
+| Lote | Situação |
+|---|---|
+| 1 | Executado em 2026-10-27 (migration `466`, [ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); falta conferir em staging um envio redirecionado chegando à caixa do suporte |
+| 2 a 11 | Não autorizados; nada executado |
 
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:
 

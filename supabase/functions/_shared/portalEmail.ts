@@ -14,8 +14,27 @@ export type SendPortalEmailInput = {
   idempotencyKey: string
   accountId?: number
   inviteId?: number
-  /** Chave de envio desligada: registra a tentativa sem chamar o provedor (ver `sendEmail`). */
+  /**
+   * Chave de envio desligada: redireciona ao suporte (ver `sendEmail`). Sem
+   * valor, e-mail de Cliente lê a chave aqui; e-mail da equipe nunca redireciona.
+   */
   simulate?: boolean
+}
+
+// E-mail para a própria equipe não passa pela chave de envio (ADR 0104).
+const INTERNAL_KINDS: ReadonlySet<PortalEmailKind> = new Set(['resumo_diario', 'alerta_critico'])
+
+/**
+ * Chave de envio desligada? Erro na leitura conta como desligada: o e-mail vai
+ * ao suporte em vez de arriscar sair para o Cliente num teste.
+ */
+export async function communicationsSwitchOff(admin: SupabaseClient): Promise<boolean> {
+  const { data, error } = await admin.from('app_settings').select('communications_enabled').eq('id', 1).maybeSingle()
+  if (error) {
+    console.error('[portalEmail] falha ao ler a chave de envio; e-mail redirecionado ao suporte', error)
+    return true
+  }
+  return !(data as { communications_enabled?: boolean } | null)?.communications_enabled
 }
 
 /**
@@ -27,6 +46,7 @@ export type SendPortalEmailInput = {
 export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok: boolean; suppressed: boolean }> {
   const { admin } = input
   let suppressedAddress = false
+  const simulate = input.simulate ?? (INTERNAL_KINDS.has(input.kind) ? false : await communicationsSwitchOff(admin))
   const result = await sendEmail({
     kind: input.kind,
     to: input.to,
@@ -37,7 +57,7 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
     resendApiKey: typeof Deno !== 'undefined' ? Deno.env.get('RESEND_API_KEY') : null,
     from: typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_FROM_EMAIL') : null,
     replyTo: typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_REPLY_TO') : null,
-    simulate: input.simulate,
+    simulate,
     missingConfigurationMessage: 'PORTAL_FROM_EMAIL e PORTAL_REPLY_TO são obrigatórios para envio real',
     checkSuppression: async (to) => {
       // Erro na consulta não libera o envio: sem a resposta, o endereço pode

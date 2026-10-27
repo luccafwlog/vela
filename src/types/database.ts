@@ -6641,6 +6641,7 @@ export type Database = {
           created_at: string | null
           full_name: string
           id: string
+          is_dev: boolean
           role: string
         }
         Insert: {
@@ -6649,6 +6650,7 @@ export type Database = {
           created_at?: string | null
           full_name: string
           id: string
+          is_dev?: boolean
           role?: string
         }
         Update: {
@@ -6657,6 +6659,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string
           id?: string
+          is_dev?: boolean
           role?: string
         }
         Relationships: []
@@ -8381,6 +8384,7 @@ export type Database = {
           email_bounced: boolean
           full_name: string
           id: string
+          is_dev: boolean
           last_sign_in_at: string
           role: string
         }[]
@@ -9813,6 +9817,7 @@ export type Database = {
       is_active_read_user: { Args: never; Returns: boolean }
       is_active_user: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      is_dev_user: { Args: never; Returns: boolean }
       is_financeiro_user: { Args: never; Returns: boolean }
       is_internal_auto_billing_context: { Args: never; Returns: boolean }
       is_valid_cnpj: { Args: { p_value: string }; Returns: boolean }

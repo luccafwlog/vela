@@ -374,7 +374,7 @@ Como cada aviso termina na fila (migration `307`):
 | --- | --- |
 | `sent` | Todos os contatos da caixa receberam |
 | `partial` | Parte recebeu e o restante está na supressão do Portal (bounce ou reclamação); não volta a ser tentado |
-| `simulated` | Chave **Canal de envio real** desligada: os destinatários são resolvidos e o envio é registrado como simulado, sem chamar o provedor. O aviso **não** é enviado depois, quando a chave for ligada (D11 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)) |
+| `simulated` | Chave **Canal de envio real** desligada: os destinatários são resolvidos e cada aviso vai ao suporte (`suporte@portalfwlog.com.br`), com o Cliente no assunto ([ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)). O aviso **não** é enviado depois ao Cliente, quando a chave for ligada (D11 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)) |
 | `skipped` | Nenhum destinatário: sem contato na caixa ou todos suprimidos |
 | `pending` | Falha de envio ou erro na linha; a próxima rodada tenta de novo, sem reenviar a quem já recebeu |
 | `failed` | Cinco tentativas sem sucesso |
@@ -383,7 +383,8 @@ Regras da rodada:
 
 - Erro ao ler a chave de envio responde 500 e não consome a fila.
 - Com a chave ligada, sem chave do provedor, remetente ou reply-to, responde 503 e não consome a
-  fila. Com a chave desligada, simula mesmo sem essa configuração.
+  fila. Com a chave desligada e a chave do provedor presente, o envio ao suporte exige o
+  remetente; sem chave do provedor (ambiente local), só registra.
 - Um erro numa linha conta a tentativa dela e a rodada segue para a próxima.
 - `skipped` e `failed` abrem o alerta **Aviso do Desbloqueio de CE não enviado**
   (`desbloqueio_ce_aviso_nao_enviado`, Administrativo, um por Cliente). "Abrir Cliente" leva à ficha

@@ -1579,10 +1579,18 @@ export async function fetchBlCommunicationHistory(blId: string): Promise<Custome
   }))
 }
 
+/**
+ * Destino de todo e-mail de Cliente com a chave de envio desligada (ADR 0104).
+ * Espelha `REDIRECT_TO_SUPPORT_ADDRESS` de supabase/functions/_shared/email.ts,
+ * que o bundle do Vite não importa; o teste confere as duas.
+ */
+export const SUPPORT_REDIRECT_ADDRESS = 'suporte@portalfwlog.com.br'
+
 export function customerCommunicationStatusLabel(status: string): string {
   if (status === 'pendente') return 'Em envio'
   if (status === 'enviado') return 'Enviado'
-  if (status === 'simulado') return 'Simulado'
+  // "simulado" é o envio redirecionado ao suporte com a chave desligada (ADR 0104).
+  if (status === 'simulado') return 'Ao suporte'
   if (status === 'parcial') return 'Parcial'
   if (status === 'falha') return 'Falha'
   return status
@@ -1591,7 +1599,7 @@ export function customerCommunicationStatusLabel(status: string): string {
 /** Situação de cada tentativa (destinatário) no Histórico. */
 export function customerCommunicationAttemptStatusLabel(attempt: Pick<CustomerCommunicationAttemptHistory, 'status' | 'dispatch_mode' | 'provider_message_id'>): string {
   if (attempt.status === 'aceito') {
-    if (attempt.dispatch_mode === 'simulado') return 'Registrado em simulação'
+    if (attempt.dispatch_mode === 'simulado') return 'Redirecionado ao suporte'
     return attempt.provider_message_id ? 'Aceito pelo provedor' : 'Em envio'
   }
   if (attempt.status === 'entregue') return 'Entregue'
