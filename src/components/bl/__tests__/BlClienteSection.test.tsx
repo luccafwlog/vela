@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
-  createCustomer: vi.fn(),
+  createCustomerFromBlManifest: vi.fn(),
   findCustomerIdByDocument: vi.fn(),
   linkBlCustomer: vi.fn(),
   showToast: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('../../../hooks/useLocalCharges', () => ({ useOverrideCustomers: () => (
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../../services/customers', () => ({
-  createCustomer: mocks.createCustomer,
+  createCustomerFromBlManifest: mocks.createCustomerFromBlManifest,
   findCustomerIdByDocument: mocks.findCustomerIdByDocument,
 }))
 vi.mock('../../../services/review', () => ({ linkBlCustomer: mocks.linkBlCustomer }))
@@ -61,7 +61,7 @@ describe('vínculo do cliente na ficha do B/L', () => {
     mocks.confirm.mockResolvedValue(false)
     clickManifestLink()
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
-    expect(mocks.createCustomer).not.toHaveBeenCalled()
+    expect(mocks.createCustomerFromBlManifest).not.toHaveBeenCalled()
     expect(mocks.linkBlCustomer).not.toHaveBeenCalled()
   })
 
@@ -71,7 +71,7 @@ describe('vínculo do cliente na ficha do B/L', () => {
     mocks.linkBlCustomer.mockResolvedValue(undefined)
     clickManifestLink()
     await waitFor(() => expect(mocks.linkBlCustomer).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BL-1', customerId: 42 })))
-    expect(mocks.createCustomer).not.toHaveBeenCalled()
+    expect(mocks.createCustomerFromBlManifest).not.toHaveBeenCalled()
   })
 })
 
@@ -79,7 +79,7 @@ describe('vínculo do cliente na ficha do B/L', () => {
 it('recupera o cadastro criado enquanto o operador confirma o vínculo', async () => {
   mocks.findCustomerIdByDocument.mockResolvedValueOnce(null).mockResolvedValue(42)
   mocks.confirm.mockResolvedValue(true)
-  mocks.createCustomer.mockRejectedValue({ code: '23505', message: 'duplicate key value violates unique constraint "customers_cnpj_cpf_key"' })
+  mocks.createCustomerFromBlManifest.mockRejectedValue({ code: '23505', message: 'duplicate key value violates unique constraint "customers_cnpj_cpf_key"' })
   mocks.linkBlCustomer.mockResolvedValue(undefined)
   clickManifestLink()
   await waitFor(() => expect(mocks.showToast).toHaveBeenCalled())

@@ -24,7 +24,7 @@ import { userFacingErrorMessage } from '../../lib/errors'
 import { afterCargaAlterada, afterBlRevisado } from '../../services/cacheEffects'
 import { sendReviewPortalInvite } from '../../services/reviewCustomerGroup'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
-import { createCustomer, findCustomerIdByDocument } from '../../services/customers'
+import { createCustomerFromBlManifest, findCustomerIdByDocument } from '../../services/customers'
 import { linkBlCustomer } from '../../services/review'
 import { queryKeys } from '../../services/queryKeys'
 import type { BLDetail } from '../../types/database'
@@ -230,17 +230,8 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       let customerId = existingId
       if (customerId == null) {
         try {
-          customerId = (await createCustomer({
-            cnpjCpf: manifestDocument,
-            name: manifestName,
-            contacts: [{
-              name: 'Contato manifesto',
-              email: email!,
-              purpose: 'geral' as const,
-              is_primary: true,
-              box_codes: ['documentacao_operacao', 'financeiro', 'demurrage'],
-            }],
-          })).id
+          // O banco lê o Cliente e o e-mail do próprio manifesto (migration 486).
+          customerId = (await createCustomerFromBlManifest(bl.id)).id
         } catch (error) {
           const duplicate = typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
           if (!duplicate) throw error

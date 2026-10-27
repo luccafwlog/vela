@@ -75,7 +75,7 @@ describe('sendEmail', () => {
     expect(front).toContain(`export const SUPPORT_REDIRECT_ADDRESS = '${REDIRECT_TO_SUPPORT_ADDRESS}'`)
   })
 
-  it('supressão do endereço do suporte no provedor não grava supressão do Cliente', async () => {
+  it('supressão do endereço do suporte no provedor não grava supressão do Cliente nem vira falha definitiva dele', async () => {
     const recordProviderSuppression = vi.fn()
     const updateAttempt = vi.fn()
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'all_recipients_suppressed' }), { status: 422 }))
@@ -83,7 +83,10 @@ describe('sendEmail', () => {
       recordAttempt: async () => ({ id: 42, status: 'aceito' }),
     })).toEqual({ ok: false })
     expect(recordProviderSuppression).not.toHaveBeenCalled()
-    expect(updateAttempt).toHaveBeenCalledWith(42, expect.objectContaining({ status: 'falha_permanente' }))
+    expect(updateAttempt).toHaveBeenCalledWith(42, expect.objectContaining({
+      status: 'falha_transitoria',
+      lastError: expect.stringMatching(/suporte suprimido no provedor/),
+    }))
   })
 
   it('mantém supressão mesmo em simulação explícita', async () => {

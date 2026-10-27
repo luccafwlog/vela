@@ -819,6 +819,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Responder Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.add_demurrage_dispute_message(-1, 'mensagem', 'invalido')` },
     { row: 'Reabrir Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.reopen_demurrage_dispute(-1, 'motivo')` },
     { row: 'Editar contatos do Cliente', allowed: ADM_DOC_EQU, call: `public.internal_save_customer_contact_configuration(-1, '[]'::jsonb, 'motivo')` },
+    // Migration 486 (P10): o Novo cliente grava contatos.
+    { row: 'Criar Cliente pelo Novo cliente', allowed: ADM_DOC_EQU, call: `public.create_customer_with_contacts('{}'::jsonb, '[]'::jsonb)` },
     { row: 'Cancelar convite do Portal', allowed: ADM_DOC, call: `public.portal_cancel_invite(-1, 'motivo', NULL)` },
     { row: 'Trocar o e-mail de recuperação do Portal', allowed: ADM_DOC, call: `public.portal_assisted_email_change(-1, 'novo-p14@example.test', 'motivo', NULL)` },
     { row: 'Liberar e-mail bloqueado do Portal', allowed: ADM_DOC, call: `public.portal_release_suppressed_email(-1, 'novo-p14@example.test', 'motivo')` },

@@ -196,3 +196,4 @@ src/integration/tbcNaoETerminal.local-pg.test.ts
 src/integration/pixEmDobroFechaUmSo.local-pg.test.ts
 src/integration/demurrageTrocaDeCnpjEReemissao.local-pg.test.ts
 src/integration/alertasAjustesDaRevisao.local-pg.test.ts
+src/integration/comunicadosEClientesAjustes.local-pg.test.ts

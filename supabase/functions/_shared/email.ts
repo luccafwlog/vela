@@ -281,8 +281,18 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
     }
 
     const providerFailure = await providerError(response)
-    // Redirecionado, a supressão é do endereço do suporte, não do Cliente: segue
-    // como recusa comum, sem gravar supressão do contato.
+    // Redirecionado, a supressão é do endereço do suporte, não do Cliente: não
+    // grava supressão do contato nem vira falha definitiva do Cliente (convite
+    // em falha, Comunicado recusado); fica como falha passageira até o suporte
+    // ser liberado no provedor (revisão da PR #1070).
+    if (redirected && response.status === 422 && providerFailure.name === PROVIDER_SUPPRESSED_NAME) {
+      await input.updateAttempt(attempt.id, {
+        retryCount: index,
+        status: 'falha_transitoria',
+        lastError: `HTTP 422 ${PROVIDER_SUPPRESSED_NAME} (endereço do suporte suprimido no provedor)`,
+      })
+      return { ok: false }
+    }
     if (!redirected && response.status === 422 && providerFailure.name === PROVIDER_SUPPRESSED_NAME && input.recordProviderSuppression) {
       // A supressão é gravada antes de fechar a tentativa: se gravar falhar, a
       // tentativa fica `aceito` sem id do provedor e a nova rodada tenta tudo

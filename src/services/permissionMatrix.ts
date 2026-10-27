@@ -55,7 +55,7 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 11,
+  administrativo: 15,
   financeiro: 4,
   operacoes: 5,
   documentacao: 35,
@@ -130,10 +130,11 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'conciliar', group: 'pix', action: 'Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú', can: ADM_FIN, proof: ['caso: P5: baixa manual e conciliar PIX', 'caso: P5: baixa por TXID só pela confirmação do lote'] },
 
   // Clientes, Comunicação e Portal
-  { id: 'editar-cliente', group: 'clientes', action: 'Criar e editar Cliente; ler o Histórico de Comunicados e o console do Portal', can: ALL, proof: ['todos: Editar Cliente', 'todos: Ler o Histórico de Comunicados', 'caso: A18:'] },
+  { id: 'editar-cliente', group: 'clientes', action: 'Editar Cliente; ler o Histórico de Comunicados e o console do Portal; trazer Cliente pela Base de Clientes e pela Revisão', can: ALL, proof: ['todos: Editar Cliente', 'todos: Ler o Histórico de Comunicados', 'caso: A18:'] },
   // Decisão do dono de 2026-10-27 (ficha ACE-D01, opção A): todos agem em Comunicação; contatos seguem com três setores.
   { id: 'disparar-comunicado', group: 'clientes', action: 'Disparar Comunicado e salvar modelo; ler o estado da chave de envio', can: ALL, proof: ['todos: Salvar modelo de Comunicado', 'caso: Dev: todos os setores leem a chave de envio'] },
   { id: 'contatos-comunicados', group: 'clientes', action: 'Editar contatos e Caixas de Comunicação', can: ADM_DOC_EQU, proof: ['exceção: Editar contatos do Cliente', 'caso: P3: a tela edita contatos pela RPC'] },
+  { id: 'novo-cliente', group: 'clientes', action: 'Criar Cliente pelo Novo cliente (grava os contatos)', can: ADM_DOC_EQU, proof: ['exceção: Criar Cliente pelo Novo cliente'] },
   { id: 'provisionar-portal', group: 'clientes', action: 'Provisionar o Portal: convite (enviar e cancelar), conta, e-mail de recuperação, reabrir análise', can: ADM_DOC, proof: ['exceção: Cancelar convite do Portal', 'exceção: Trocar o e-mail de recuperação do Portal', 'exceção: Liberar e-mail bloqueado do Portal', 'exceção: Reabrir análise do Portal'] },
   { id: 'desativar-cliente', group: 'clientes', action: 'Desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento', can: ADM, proof: ['exceção: Desativar Cliente', 'exceção: Reativar Cliente', 'exceção: Trocar o CNPJ do Portal', 'exceção: Conceder Liberação de faturamento', 'exceção: Revogar Liberação de faturamento'] },
 
@@ -145,7 +146,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   {
     id: 'alertas-do-setor', group: 'alertas', action: 'Recebe os alertas do próprio setor',
     can: {
-      administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)}; também os críticos de setor sem ninguém ativo`,
+      administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal da Documentação); também os críticos de setor sem ninguém ativo`,
       financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada)`,
       operacoes: alertTypes(ALERT_TYPE_COUNTS.operacoes),
       documentacao: alertTypes(ALERT_TYPE_COUNTS.documentacao),

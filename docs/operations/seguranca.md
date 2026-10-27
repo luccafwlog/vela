@@ -158,7 +158,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
   `MATRIX_GLOBAL`.
 - **Matriz da tela:** "O que cada setor pode", em `/admin/usuarios`, e a lista
   "Com este setor, ... pode" das janelas de usuário vêm do catálogo único
-  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 41 linhas
+  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 42 linhas
   que resumem as ações desta matriz, cada uma citando os casos da bateria que a
   provam. `permissionMatrix.test.ts` falha se uma linha ficar sem caso ou citar
   caso inexistente; a bateria falha se o banco divergir do catálogo. Mudar uma
@@ -269,7 +269,8 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Criar e editar Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `create_customer_with_contacts`, `update_customer_with_audit` | ADR 0046 | vigente |
+| Editar Cliente; trazer Cliente pela Base de Clientes e pela Revisão (só o cadastro, fora os três setores dos contatos); cadastrar o Cliente do manifesto pela ficha do B/L | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `update_customer_with_audit`; `apply_customer_base_batch_atomic`; `create_customer_from_bl_manifest` (tudo do manifesto, migration `486`) | ADR 0046 | vigente |
+| Criar Cliente pelo **Novo cliente** (grava os contatos) | ✔ | — | — | ✔ | ✔ | `create_customer_with_contacts` exige `_can_edit_customer_contacts()` (migration `486`) | Decisão do dono de 2026-10-27 (P10; ACE-D04, 06-clientes-comunicacao:D10) | vigente desde a migration `486` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, `comunicadosEClientesAjustes.local-pg.test.ts`) |
 | Corrigir o CNPJ de Cliente sem convite nem Conta de Portal, com justificativa | ✔ | ✔ | ✔ | ✔ | ✔ | Só `update_customer_with_audit` (`cnpj_cpf`, migration `436`); o UPDATE de `customers` por `authenticated` é por coluna, sem `cnpj_cpf` | Decisão do dono de 2026-10-22 | vigente desde a migration `436` (**Teste** local: `decisoesDoDonoRun3.local-pg.test.ts`); a tela não oferece o campo |
 | Desativar e reativar Cliente | ✔ | — | — | — | — | `deactivate_customer`, `reactivate_customer` (`is_admin`) e gatilho da migration `092` | ADR 0073, item 5 | vigente |
 | Editar contatos e Caixas de Comunicação | ✔ | — | — | ✔ | ✔ | `internal_save_customer_contact_configuration` (migration `008`), `internal_fill_empty_contact_boxes` | ADR 0060; ADR 0046, nota de 2026-09-18 | vigente: sem escrita direta em `customer_contacts` (migration `232`, **Teste** local) |

@@ -65,6 +65,9 @@ export function Clientes() {
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const { user, effectiveRole, isAdmin, can } = useAuth()
+  // Novo cliente grava contatos: só os setores que editam contatos (decisão do
+  // dono de 2026-10-27, P10; os demais trazem o Cliente pela Base ou Revisão).
+  const canCreateCustomer = can('edit_customer_contacts')
   const narrow = useNarrowViewport()
   // Excluir e desativar exigem o Administrativo no banco; a tela só oferece
   // as ações a quem pode executá-las.
@@ -445,7 +448,7 @@ export function Clientes() {
       action={(
         <div className="app-customer-empty-actions">
           <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Importar base</Button>
-          <Button variant="secondary" onClick={() => setCreateOpen(true)}><Plus size={16} aria-hidden="true" />Novo cliente</Button>
+          {canCreateCustomer ? <Button variant="secondary" onClick={() => setCreateOpen(true)}><Plus size={16} aria-hidden="true" />Novo cliente</Button> : null}
         </div>
       )}
     />
@@ -465,10 +468,12 @@ export function Clientes() {
               <Download size={16} aria-hidden="true" />
               Exportar base
             </Button>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={16} aria-hidden="true" />
-              Novo cliente
-            </Button>
+            {canCreateCustomer ? (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus size={16} aria-hidden="true" />
+                Novo cliente
+              </Button>
+            ) : null}
           </>
         }
       />
