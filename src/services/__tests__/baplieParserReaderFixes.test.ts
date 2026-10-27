@@ -61,6 +61,20 @@ describe('F-09: UNT e UNZ obrigatórios; contagem diferente só avisa (ADR 0096,
     expect(hasBlockingIssues(parsed.issues)).toBe(false)
   })
 
+  it('Baplie 1.5 com o UNT um segmento abaixo (convenção da COSCO) não avisa; outra diferença avisa', () => {
+    const lines = unit('MSCU1234565')
+    const cosco = envelope(lines).replace(`UNT+${lines.length + 3}+1'`, `UNT+${lines.length + 2}+1'`)
+    expect(parseBaplieText(cosco).issues.filter((i) => i.field === 'eof')).toEqual([])
+    const twoShort = envelope(lines).replace(`UNT+${lines.length + 3}+1'`, `UNT+${lines.length + 1}+1'`)
+    expect(parseBaplieText(twoShort).issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'eof', severity: 'warning', message: expect.stringMatching(/UNT declara/) }),
+    ]))
+    const smdg22 = cosco.replace('SMDG15', 'SMDG22')
+    expect(parseBaplieText(smdg22).issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'eof', severity: 'warning', message: expect.stringMatching(/UNT declara/) }),
+    ]))
+  })
+
   it('UNZ com contagem de mensagens diferente avisa; sem UNZ bloqueia', () => {
     expect(trailerErrors(fixture.replace("UNZ+1+1'", "UNZ+2+1'"))).toEqual([])
     expect(parseBaplieText(fixture.replace("UNZ+1+1'", "UNZ+2+1'")).issues).toEqual(expect.arrayContaining([
