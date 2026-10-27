@@ -31,9 +31,18 @@ outra regra.
    olhar a importação do B/L nem o vínculo do CE.
 2. **O dia que vale é o do primeiro envio** da solicitação ativa mais recente
    do B/L, no calendário de Brasília; antes do envio (rascunho, seleção no
-   Portal), vale o dia de hoje (`ce_unlock_private.request_day`).
+   Portal), vale o dia de hoje (`ce_unlock_private.request_day`). O B/L que
+   passou de uma solicitação para outra conta pelo primeiro envio do B/L,
+   incluindo a solicitação de onde ele saiu (decisão do dono de 2026-10-27,
+   revisão da PR #1070; migration `487`); o pedido cancelado de propósito e
+   refeito depois vale pela data do novo.
 3. O anual vencido continua cobrindo o que foi solicitado na vigência dele;
    revogado ou recusado não cobre (decisão 2 da ADR 0102).
+4. **Transição** (decisão do dono de 2026-10-27; migration `487`): a
+   solicitação que já tinha o anual ligado pela regra anterior (vínculo do CE)
+   continua coberta, inclusive exportada; o vínculo fica guardado em
+   `ce_unlock_annual_kept_by_transition`. A data da solicitação vale para o
+   que for ligado depois da `487`.
 
 ## Alternativas rejeitadas
 
