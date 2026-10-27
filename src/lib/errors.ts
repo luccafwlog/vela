@@ -163,13 +163,43 @@ export function isRetriableDbError(error: unknown): boolean {
   return !NON_RETRIABLE_KINDS.has(classifyDbError(error).kind)
 }
 
-export function classifyDbError(error: unknown): ClassifiedDbError {
-  const fields = error instanceof Error
+/**
+ * Recusas que a tela já explica ao usuário (toast ou mensagem do formulário):
+ * dado inválido para a regra, registro duplicado ou concorrente, sessão
+ * vencida. Os clients do TanStack Query não as mandam ao Sentry; antes, cada
+ * teste de "omitir escala já omitida" virava uma issue (VELA-28 a VELA-2B,
+ * PORTAL-4). Permissão negada com sessão ativa, `desconhecido` e demais
+ * categorias continuam sendo reportadas.
+ *
+ * Exceção: P0001/P0003/55000 com mensagem de cara técnica (guarda de
+ * migration, snake_case) aparecem na tela como texto fixo, mas são sinal de
+ * defeito, não recusa de negócio; esses continuam indo ao Sentry.
+ *
+ * ponytail: fora essa exceção, decide pela categoria. Um bug do front que gere
+ * 23503/22P02/23514 cru (FK, formato, CHECK) também cai em `validacao` e fica
+ * fora do Sentry; se isso esconder regressão, trocar por uma lista de códigos.
+ */
+const USER_FACING_DB_KINDS: ReadonlySet<DbErrorKind> = new Set<DbErrorKind>([
+  'validacao', 'conflito', 'sessao_expirada',
+])
+
+export function isExpectedUserFacingDbError(error: unknown): boolean {
+  if (!USER_FACING_DB_KINDS.has(classifyDbError(error).kind)) return false
+  const fields = dbErrorFields(error)
+  return !(ERROR_TABLE[fields.code]?.screenTechnical && looksTechnical(fields.message))
+}
+
+function dbErrorFields(error: unknown): { code: string; message: string } {
+  return error instanceof Error
     ? { code: String((error as Error & { code?: unknown }).code ?? ''), message: error.message }
     : typeof error === 'string' ? { code: '', message: error }
       : error && typeof error === 'object'
         ? { code: String((error as { code?: unknown }).code ?? ''), message: String((error as { message?: unknown }).message ?? '') }
         : { code: '', message: '' }
+}
+
+export function classifyDbError(error: unknown): ClassifiedDbError {
+  const fields = dbErrorFields(error)
   const known = ERROR_TABLE[fields.code]
   const raw = /permission denied for (?:table|view|function|relation|schema|sequence)/i.test(fields.message)
     || /row-level security policy/i.test(fields.message)
