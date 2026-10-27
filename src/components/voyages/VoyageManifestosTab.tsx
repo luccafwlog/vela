@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ManifestoBlsModal } from './ManifestoBlsModal'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
@@ -10,7 +10,7 @@ import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
 import { formatCountLabel, formatDate } from '../../lib/utils'
 import type { VoyagePolSchedule } from '../../services/voyageRouteSchedules'
-import { collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, type VoyageImportBatch } from './voyageCardHelpers'
+import { collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, OMISSION_ROUTE_ROLE_LABELS, omissionRouteParts, type VoyageImportBatch } from './voyageCardHelpers'
 import type { EditingPolPayload, Voyage } from './voyageCardTypes'
 
 export function VoyageManifestosTab({
@@ -101,12 +101,17 @@ export function VoyageManifestosTab({
                       <td className="app-table__text whitespace-nowrap">
                         <Link className="app-link" to={routeTargetUrl} aria-label={row.routeLabel} title={row.routeLabel}>
                           {row.omission ? (
-                            <>
-                              {row.pol} → <s className="text-[var(--app-muted)]" title={`POD omitido: ${row.omission.omittedPod}`}>{row.omission.omittedPod}</s> → {row.omission.dischargePod}
-                            </>
+                            omissionRouteParts(row.pol, row.pod, row.omission).map((part, index) => (
+                              <Fragment key={`${part.port}-${part.role ?? 'pol'}`}>
+                                {index > 0 ? ' → ' : null}
+                                {part.role === 'omitted'
+                                  ? <s className="text-[var(--app-muted)]" title={`POD omitido: ${part.port}`}>{part.port}</s>
+                                  : part.port}
+                                {part.role ? ` (${OMISSION_ROUTE_ROLE_LABELS[part.role]})` : null}
+                              </Fragment>
+                            ))
                           ) : `${row.pol} → ${row.pod}`}
                         </Link>
-                        {row.omission ? <span className="text-[var(--app-muted)]"> · Omissão</span> : null}
                       </td>
                       <td className="whitespace-nowrap">{row.modeLabel}</td>
                       <td className="whitespace-nowrap tabular-nums">
