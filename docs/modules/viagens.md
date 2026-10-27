@@ -185,7 +185,7 @@ A timeline combina agenda, viagem, CE, imports e Baplie; `src/services/voyageTim
 
 - **Conciliação é sinal operacional.** `divergente` tem prioridade; `incompleto` cobre falta de manifesto ou CE; `conciliado` indica coerência dos sinais usados pela tela, não autorização financeira.
 - **Importação rápida respeita a viagem aberta.** Todo importador iniciado na aba Importação recebe a viagem selecionada como escopo. No CE Mercante, B/Ls de outra viagem são divergências bloqueantes exibidas no preview e não podem ser atualizados por essa operação.
-- **Faturamento encerrado.** O selo aparece quando todo B/L ativo da Viagem está isento de Taxas Locais (`charge_status = 'exempt'`) ou quitado (`financial_status = 'paid'`); B/L cancelado não segura o selo (`fetchVoyagesWithUnpaidBls`, `02-viagens-adr:4`, 2026-10-27).
+- **Faturamento encerrado.** O selo aparece quando todo B/L ativo da Viagem está isento de Taxas Locais (`charge_status = 'exempt'`) ou quitado (`financial_status = 'paid'`); B/L cancelado não segura nem fecha o selo, e a Viagem só com B/L cancelado fica sem ele; B/L de carga solta ainda sem cálculo (`charge_status` vazio) segura o selo (`fetchVoyagesWithUnpaidBls`, `02-viagens-adr:4`, 2026-10-27; revisão da PR #1070).
 
 ### Omissão de Escala, Transbordo e COD
 

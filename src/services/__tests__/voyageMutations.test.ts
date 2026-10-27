@@ -204,20 +204,24 @@ it('editar a Viagem não manda navio, número nem status ao Histórico: vêm do 
   expect(fields).toEqual(['indicated_first_brazilian_port'])
 })
 
-it('02-viagens-adr:4: "Faturamento encerrado" conta B/L pago como quitado e ignora B/L cancelado', async () => {
+it('02-viagens-adr:4: "Faturamento encerrado" só com todo B/L ativo quitado ou isento; carga solta sem cálculo segura o selo', async () => {
   const calls: Array<[string, ...unknown[]]> = []
+  const rows = [
+    // Viagem 5: um B/L pago e um isento — encerrada.
+    { voyage_id: 5, charge_status: 'calculated', financial_status: 'paid' },
+    { voyage_id: 5, charge_status: 'exempt', financial_status: 'pending' },
+    // Viagem 6: carga solta ainda sem cálculo (charge_status nulo) — não encerrada.
+    { voyage_id: 6, charge_status: null, financial_status: 'pending' },
+    // Viagem 7: só B/L cancelado (filtrado pelo banco) — sem B/L ativo, sem selo.
+  ]
   const chain = {
     select: (...args: unknown[]) => { calls.push(['select', ...args]); return chain },
     in: (...args: unknown[]) => { calls.push(['in', ...args]); return chain },
-    neq: (...args: unknown[]) => { calls.push(['neq', ...args]); return chain },
-    or: (...args: unknown[]) => { calls.push(['or', ...args]); return chain },
     is: (...args: unknown[]) => { calls.push(['is', ...args]); return chain },
-    limit: () => Promise.resolve({ data: [{ voyage_id: 5 }], error: null }),
+    limit: () => Promise.resolve({ data: rows, error: null }),
   }
   fromMock.mockImplementation(() => chain)
 
-  await expect(fetchVoyagesWithUnpaidBls([5, 6])).resolves.toEqual(new Set([5]))
-  expect(calls).toContainEqual(['neq', 'charge_status', 'exempt'])
-  expect(calls).toContainEqual(['or', 'financial_status.is.null,financial_status.neq.paid'])
+  await expect(fetchVoyagesWithUnpaidBls([5, 6, 7])).resolves.toEqual(new Set([6, 7]))
   expect(calls).toContainEqual(['is', 'cancelled_at', null])
 })

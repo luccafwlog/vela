@@ -328,21 +328,35 @@ async function insertVoyageAuditRows(rows: Array<ReturnType<typeof makeVoyageAud
   await recordAuditEntries(payload)
 }
 
+/**
+ * Viagens sem o selo "Faturamento encerrado" (02-viagens-adr:4): com algum B/L
+ * ativo nem quitado nem isento, ou sem nenhum B/L ativo. O `charge_status`
+ * nulo (carga solta ainda sem cálculo) conta como não quitado; B/L cancelado
+ * não segura nem fecha o selo (revisão da PR #1070).
+ */
 export async function fetchVoyagesWithUnpaidBls(voyageIds: number[]): Promise<Set<number>> {
   if (!voyageIds.length) return new Set<number>()
 
+  // ponytail: lê os B/Ls ativos das viagens carregadas até 5.000 linhas; acima
+  // disso, a viagem que ficar de fora fica sem selo (lado seguro). Upgrade:
+  // contagem agregada no banco.
   const { data, error } = await supabase
     .from('bls')
-    .select('voyage_id')
+    .select('voyage_id, charge_status, financial_status')
     .in('voyage_id', voyageIds)
-    // 02-viagens-adr:4: B/L quitado (pago) também encerra; B/L cancelado não segura.
-    .neq('charge_status', 'exempt')
-    .or('financial_status.is.null,financial_status.neq.paid')
     .is('cancelled_at', null)
     .limit(5000)
 
   if (error) throw error
-  return new Set((data ?? []).map((row) => Number((row as { voyage_id: number }).voyage_id)).filter(Boolean))
+  const rows = (data ?? []) as Array<{ voyage_id: number; charge_status: string | null; financial_status: string | null }>
+  const withActiveBl = new Set(rows.map((row) => Number(row.voyage_id)))
+  const withoutSeal = new Set(
+    rows
+      .filter((row) => row.charge_status !== 'exempt' && row.financial_status !== 'paid')
+      .map((row) => Number(row.voyage_id)),
+  )
+  for (const voyageId of voyageIds) if (!withActiveBl.has(voyageId)) withoutSeal.add(voyageId)
+  return withoutSeal
 }
 
 /** Devolve a viagem cancelada por engano (ADR 0071, item 8); so o Administrativo. */
