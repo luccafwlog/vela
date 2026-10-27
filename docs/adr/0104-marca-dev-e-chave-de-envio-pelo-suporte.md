@@ -51,7 +51,13 @@ operação com Clientes reais. Até aqui:
    `lucca.juliatti@fwlog.com.br`, o mesmo em produção e staging); nenhuma tela
    nem usuário logado a muda, e cada mudança entra no Histórico de ações. A
    marca só vale com a conta ativa, no Administrativo e de pessoa. Outras
-   permissões especiais podem entrar na marca depois.
+   permissões especiais podem entrar na marca depois. O e-mail e a senha da
+   conta com a marca só são trocados pela própria pessoa: **Editar acesso**
+   de outro Administrativo os mostra travados e a Edge Function `admin-users`
+   recusa (403) — senão, redefinir a senha e entrar com ela ligaria a chave.
+   Desativar e trocar o setor continuam com o Administrativo; nenhum dos dois
+   liga a chave (decisão do dono de 2026-10-27, revisão da PR #1070). Esquecida
+   a senha, a redefinição é pelo painel do Supabase.
 6. **Todos os setores leem a chave** e o intervalo da Régua, disparam
    Comunicado e salvam modelo; editar contatos e Caixas de Comunicação segue
    com Administrativo, Documentação e Equipamentos (ficha ACE-D01, opção A).

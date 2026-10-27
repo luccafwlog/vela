@@ -344,6 +344,7 @@ export function AdminUsersTab() {
           // Conta de integração: a supressão é de propósito, sem convite para liberar o e-mail.
           emailBounced={Boolean(editando.email_bounced) && editando.account_kind !== 'integracao'}
           isSelf={editando.id === currentUserId}
+          devAccount={editando.is_dev === true}
           onClose={() => setEditando(null)}
           onSubmit={(input) => void handleSaveAccess(editando, input)}
           submitting={accessMutation.isPending}
