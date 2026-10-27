@@ -116,8 +116,10 @@ it("requisitos dizem o prazo para desbloqueio pelas janelas de 12h e 17h", () =>
   mount();
   const block = screen.getByRole("region", { name: "O que o desbloqueio pede" });
   expect(block.textContent).toContain("Prazo para desbloqueio:");
-  expect(block.textContent).toContain("Cumpridos até as 12h, o desbloqueio é feito até as 17h do mesmo dia útil");
-  expect(block.textContent).toContain("depois das 12h, até as 12h do próximo dia útil");
+  // 12:00 em ponto já é a janela da tarde (`l::time >= 12:00` na 466): "antes" e "a partir", não "até".
+  expect(block.textContent).toContain("Cumpridos antes das 12h, o desbloqueio é feito até as 17h do mesmo dia útil");
+  expect(block.textContent).toContain("a partir das 12h, até as 12h do próximo dia útil");
+  expect(block.textContent).not.toContain("Cumpridos até as 12h");
   expect(block.textContent).toContain("Cumpridos no sábado ou no domingo, até as 12h de segunda-feira");
 });
 it("Cliente sem VIP: nenhuma menção a documento anual", () => {
