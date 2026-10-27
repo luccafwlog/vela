@@ -55,3 +55,26 @@ pelo setor do cartão.
   reabre se a causa voltar).
 - Afeta o ponto 2: sem dispensa, deixa de existir a pergunta de o alerta
   dispensado sair do sino.
+
+## 4. Chave "Envio real de e-mails": desligada redireciona para o suporte
+
+Ferramenta de desenvolvimento e teste; o dono vai retirá-la antes da operação
+com Clientes reais.
+
+- **Hoje:** `app_settings.communications_enabled` (migration `002`). Desligada,
+  os e-mails que obedecem à chave não saem: a tentativa é gravada como aceita
+  e a tela mostra "Em simulação". Obedecem: Comunicados
+  (`send-customer-communication`), Régua de Cobrança da Demurrage
+  (`demurrage-dunning`), avisos do Desbloqueio de CE (`ce-unlock-notify-email`)
+  e e-mails de eventos do Portal (`portal-email-events-runner`). Não obedecem
+  e saem sempre: convite do Portal, recuperação e redefinição de senha do
+  Portal, troca de e-mail de recuperação e resumo diário do Portal à equipe.
+  Quem muda: qualquer usuário do Administrativo (`set_communications_enabled`).
+- **Decidido:** ligada, envia normalmente. Desligada, todo e-mail é enviado de
+  verdade, mas para `suporte@portalfwlog.com.br` em vez do destinatário. Só o
+  dono muda a chave: `lucca.juliatti@fwlog.com.br` em produção; em staging, o
+  e-mail principal do dono (a confirmar).
+- **Em aberto:** e-mail do dono em staging; se o resumo diário à equipe
+  também é redirecionado; como o e-mail redirecionado mostra o destinatário
+  original; se o envio redirecionado conta como enviado para Cobertura,
+  Régua e alertas.
