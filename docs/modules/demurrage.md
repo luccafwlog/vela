@@ -637,12 +637,25 @@ ADR 0070): só é emitida com CE Mercante no B/L-âncora e o Gate de faturamento
 do Portal aberto (`_demurrage_issue_block_reason`). Pela tela, a recusa diz o
 motivo ("B/L … sem CE Mercante. Cadastre o CE antes de faturar." ou
 "Faturamento bloqueado pelo Portal: …"); pela fila de efeitos, a emissão fica
-`blocked`, sem falha. Gravar o CE ou abrir o gate (Liberação de faturamento ou
-Portal pronto, `_reprocess_customer_held_billing`) põe de novo na fila a
-emissão das caixas devolvidas ainda sem Invoice
+`blocked`, sem falha. Gravar o CE, abrir o gate (Liberação de faturamento ou
+Portal pronto, `_reprocess_customer_held_billing`) ou trocar o Cliente do B/L
+(`trg_enqueue_demurrage_after_customer_change`, migration `484`) põe de novo na
+fila a emissão das caixas devolvidas ainda sem Invoice
 (`_enqueue_held_demurrage_billing`). Antes, a Invoice nascia emitida, fora do
 Portal e da Régua até o CE, e o Cliente recebia "Nova fatura de demurrage" de
 uma fatura que não conseguia abrir.
+
+O gate vale para quem ainda não viu a Invoice (decisões do dono de
+2026-10-27, migration `484`):
+
+- **Troca de CNPJ do B/L.** A Invoice aberta do Cliente anterior é cancelada.
+  Com o gate do novo Cliente aberto, a cópia sai na hora para ele, sem
+  desconto e sem a citação "Substitui a Invoice …" do Cliente anterior; com o
+  gate fechado, nada é emitido nem avisado e a emissão fica na fila até o
+  gate abrir, quando sai recalculada.
+- **Reemissão por datas alteradas.** O Cliente já via a Invoice cancelada: a
+  substituta sai mesmo com o gate do Portal fechado (o CE continua exigido),
+  e o Cliente não fica sem fatura nem a Régua para.
 
 A reconciliação é de `_reconcile_demurrage_after_dates`. Sem pagamento, a
 Invoice é cancelada e reemitida (ou só cancelada, se o valor

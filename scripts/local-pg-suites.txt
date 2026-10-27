@@ -194,3 +194,4 @@ src/integration/viagensLote9.local-pg.test.ts
 src/integration/blCeBaplieLote10.local-pg.test.ts
 src/integration/tbcNaoETerminal.local-pg.test.ts
 src/integration/pixEmDobroFechaUmSo.local-pg.test.ts
+src/integration/demurrageTrocaDeCnpjEReemissao.local-pg.test.ts
