@@ -86,6 +86,7 @@ const EXACT_PORT_ALIASES: Record<string, string> = {
   CNTCA: 'CNTAC', // Taicang (variante COSCO)
   CNTCG: 'CNTAC', // Taicang (LOC+6 do Baplie 1.5 da COSCO, migration 465)
   TCA: 'CNTAC', // Taicang (LOC+6 do Baplie da COSCO)
+  TCG: 'CNTAC', // Taicang (forma de 3 letras de CNTCG, migration 465)
   // Sepetiba é o porto de Itaguaí (BRIGI): BRSEP é apelido, como BRVIT de BRVIX (migration 410).
   BRSEP: 'BRIGI',
   BRSPB: 'BRIGI', // Sepetiba (variante COSCO de 5 letras)
@@ -196,7 +197,7 @@ const STORED_PORT_ALIASES: Array<[string, string[]]> = [
   ['BRMAO', ['MANAUS', 'BRMAO']],
   ['CNTAO', ['QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG', 'TAO']],
   ['CNSHA', ['SHANGHAI', 'CNSHA', 'CNSHG', 'SHG']],
-  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'CNTCG', 'TCA']],
+  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'CNTCG', 'TCA', 'TCG']],
   ['CNNGB', ['NINGBO', 'CNNGB', 'CNNBO', 'NBO', 'ZHOUSHAN', 'CNZOS', 'ZOS']],
   ['CNNSA', ['NANSHA', 'CNNSA', 'CNNAN', 'GUANGZHOU', 'CNGZU', 'CNCAN']],
   ['CNZJG', ['ZHANGJIAGANG', 'CNZJG']],

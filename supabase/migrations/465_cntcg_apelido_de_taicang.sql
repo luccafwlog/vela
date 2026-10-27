@@ -1,4 +1,4 @@
--- 465: CNTCG passa a ser apelido de CNTAC (Taicang).
+-- 465: CNTCG e TCG passam a ser apelidos de CNTAC (Taicang).
 --
 -- Problema:
 --   O Baplie da COSCO (BAPLIE 1.5, viagem 260919000000 do GREEN PORTOCEL,
@@ -7,13 +7,13 @@
 --   CNTCG, e o import recusava o POL desses containers como não reconhecido.
 --
 -- Mudança:
---   `normalize_port_code` leva CNTCG a CNTAC, junto dos outros apelidos de
---   Taicang. A cópia do app (`STORED_PORT_ALIASES` e `EXACT_PORT_ALIASES` em
+--   `normalize_port_code` leva CNTCG e TCG (a forma de 3 letras, como TCA de
+--   CNTCA) a CNTAC, junto dos outros apelidos de Taicang. A cópia do app (`STORED_PORT_ALIASES` e `EXACT_PORT_ALIASES` em
 --   src/services/portCode.ts) muda junto e a suíte operationalLists confere
 --   as duas. Continua `LANGUAGE sql IMMUTABLE` sem `SET`, para ser expandida
 --   inline (docs/operations/seguranca.md); `CREATE OR REPLACE` preserva os
 --   privilégios da função. Nenhuma linha é reescrita: o import recusava
---   CNTCG, então não há chave gravada com ele, e colunas cruas passam pela
+--   CNTCG e TCG, então não há chave gravada com ele, e colunas cruas passam pela
 --   função em toda comparação.
 --
 -- Rollback: recriar `normalize_port_code` pela 410.
@@ -40,7 +40,7 @@ AS $$
     WHEN upper(btrim(COALESCE(p_value, ''))) IN ('MANAUS', 'BRMAO') THEN 'BRMAO'
     WHEN upper(btrim(COALESCE(p_value, ''))) IN ('QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG', 'TAO') THEN 'CNTAO'
     WHEN upper(btrim(COALESCE(p_value, ''))) IN ('SHANGHAI', 'CNSHA', 'CNSHG', 'SHG') THEN 'CNSHA'
-    WHEN upper(btrim(COALESCE(p_value, ''))) IN ('TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'CNTCG', 'TCA') THEN 'CNTAC'
+    WHEN upper(btrim(COALESCE(p_value, ''))) IN ('TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'CNTCG', 'TCA', 'TCG') THEN 'CNTAC'
     -- Ningbo-Zhoushan e um unico complexo portuario: o Baplie costuma trazer CNZOS
     -- (Zhoushan) para carga que o B/L declara como Ningbo (CNNGB).
     WHEN upper(btrim(COALESCE(p_value, ''))) IN ('NINGBO', 'CNNGB', 'CNNBO', 'NBO', 'ZHOUSHAN', 'CNZOS', 'ZOS') THEN 'CNNGB'

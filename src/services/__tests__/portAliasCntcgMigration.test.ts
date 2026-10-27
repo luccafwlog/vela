@@ -7,10 +7,10 @@ const sql = readFileSync(
   'utf-8',
 )
 
-describe('migration 465 — CNTCG é apelido de Taicang (CNTAC)', () => {
-  it('leva CNTCG a CNTAC junto dos outros apelidos de Taicang', () => {
+describe('migration 465 — CNTCG e TCG são apelidos de Taicang (CNTAC)', () => {
+  it('leva CNTCG e TCG a CNTAC junto dos outros apelidos de Taicang', () => {
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.normalize_port_code(p_value text)')
-    expect(sql).toContain("IN ('TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'CNTCG', 'TCA') THEN 'CNTAC'")
+    expect(sql).toContain("IN ('TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG', 'CNTCA', 'CNTCG', 'TCA', 'TCG') THEN 'CNTAC'")
   })
 
   it('continua expansível inline (IMMUTABLE, sem SET)', () => {

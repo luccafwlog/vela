@@ -1106,8 +1106,8 @@ vigentes: ADR 0078, item 21; ADR 0079, decisões 5 e 6; migrations `182`,
   sem VGM, o WT, em qualquer ordem. Os códigos de 3 letras do Baplie 1.5 (SSZ, ITJ, PNG,
   RIG, SSA, PEC, SUA, REC, NVT) valem como os de 5; BRNVT e BRITJ, BRREC e BRSUA são portos
   distintos; BRSEP, BRSPB, SPB, SEP e SEPETIBA são apelidos de BRIGI (Itaguaí,
-  migration `410`); CNTAG, CNTCA, CNTCG e TCA são apelidos de CNTAC (Taicang;
-  CNTCG desde a migration `465`). Containers fora das escalas da viagem aparecem em destaque
+  migration `410`); CNTAG, CNTCA, CNTCG, TCA e TCG são apelidos de CNTAC
+  (Taicang; CNTCG e TCG desde a migration `465`). Containers fora das escalas da viagem aparecem em destaque
   na prévia, por porto, e não entram, salvo os de porto brasileiro (ver
   **Porto brasileiro sem escala**, abaixo). Arquivo sem navio (TDT) só avisa ("O arquivo não diz
   o navio"); desde a migration `409` não há confirmação a marcar. Um 2º EQD do
