@@ -1,6 +1,6 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 import { reportCaughtException } from './telemetry'
-import { isRetriableDbError } from './errors'
+import { isExpectedUserFacingDbError, isRetriableDbError } from './errors'
 import { classifyErrorForTelemetry, describeMutation, describeQuery } from './telemetryContext'
 
 function reportQueryError(
@@ -8,6 +8,7 @@ function reportQueryError(
   meta: Record<string, unknown>,
   tags?: Record<string, string>,
 ) {
+  if (isExpectedUserFacingDbError(error)) return
   reportCaughtException(error, 'TanStack Query', meta, tags)
 }
 

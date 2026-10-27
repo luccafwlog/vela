@@ -163,6 +163,26 @@ export function isRetriableDbError(error: unknown): boolean {
   return !NON_RETRIABLE_KINDS.has(classifyDbError(error).kind)
 }
 
+/**
+ * Recusas que a tela já explica ao usuário (toast ou mensagem do formulário):
+ * dado inválido para a regra, registro duplicado ou concorrente, sessão
+ * vencida. Os clients do TanStack Query não as mandam ao Sentry; antes, cada
+ * teste de "omitir escala já omitida" virava uma issue (VELA-28 a VELA-2B,
+ * PORTAL-4). Permissão negada com sessão ativa, `desconhecido` e demais
+ * categorias continuam sendo reportadas.
+ *
+ * ponytail: decide só pela categoria. Um bug do front que gere 23503/22P02/
+ * 23514 cru (FK, formato, CHECK) também cai em `validacao` e fica fora do
+ * Sentry; se isso esconder regressão, trocar por uma lista de códigos.
+ */
+const USER_FACING_DB_KINDS: ReadonlySet<DbErrorKind> = new Set<DbErrorKind>([
+  'validacao', 'conflito', 'sessao_expirada',
+])
+
+export function isExpectedUserFacingDbError(error: unknown): boolean {
+  return USER_FACING_DB_KINDS.has(classifyDbError(error).kind)
+}
+
 export function classifyDbError(error: unknown): ClassifiedDbError {
   const fields = error instanceof Error
     ? { code: String((error as Error & { code?: unknown }).code ?? ''), message: error.message }
