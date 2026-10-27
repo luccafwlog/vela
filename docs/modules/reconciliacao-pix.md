@@ -108,7 +108,12 @@ faixa; a situação vai em texto, âmbar só no que pede ação:
   desde a `471` também quando o extrato grava o identificador depois de quitar
   a fatura, gatilho `itau_pix_close_receipts_on_extract_txid`;
   [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
-  decisão 17). Baixa parcial ou em outra fatura não tira o Pix da análise:
+  decisão 17). Pelo TXID só sai **um** Pix: o mais antigo, e só se nenhum Pix
+  da cobrança já pagou a fatura. Com dois Pix pagos no mesmo QR, o outro
+  continua em análise como Pix em duplicidade, com a Restituição
+  `pix_duplicate` e o alerta, como na baixa normal (migration `483`, decisão
+  do dono de 2026-10-27; na Invoice de Demurrage o excedente só continua em
+  análise). Baixa parcial ou em outra fatura não tira o Pix da análise:
   depois dela, use **Marcar como tratado**. O Pix do Vela sem cobrança sai com
   qualquer baixa manual que use o `endToEndId` dele. Outra baixa que quite a fatura (TED distinta, por exemplo) deixa
   o Pix em análise, para restituir ou decidir. Nos outros casos (fatura cancelada a restituir, identificador
