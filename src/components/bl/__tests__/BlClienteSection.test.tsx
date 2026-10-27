@@ -131,6 +131,8 @@ it('permite convidar o cliente de B/L já revisado sem refazer o vínculo', asyn
   mocks.confirm.mockResolvedValue(true)
   mocks.invite.mockResolvedValue(undefined)
   render(<MemoryRouter><BlClienteSection bl={{ ...bl, review_status: 'ok', customer_id: 42, customer: { id: 42, name: 'ACME', cnpj_cpf: bl.manifest_customer_cnpj_cpf } } as never} portalStatus={noAccount} /></MemoryRouter>)
+  // D09 de 2026-10-27: o botão tem o nome que a recusa do banco cita ("Use Trocar Cliente.").
+  expect(screen.getByRole('button', { name: 'Trocar Cliente' })).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Enviar convite do Portal' }))
   fireEvent.change(screen.getByLabelText('E-mail do convite'), { target: { value: ' Portal@acme.test ' } })
   fireEvent.click(screen.getByRole('button', { name: 'Enviar convite' }))

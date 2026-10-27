@@ -14,7 +14,7 @@ import {
 } from '../../services/customerCommunicationBoxes'
 import type { PortalContactDraft, PortalContactItem } from '../../services/portalContactConfiguration'
 import { isPortalReadOnly } from '../../services/portalScope'
-import { hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
+import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
 import { ProfileSaveBar } from './ProfileSaveBar'
 
 function formatOrigin(origin?: string): string {
@@ -93,6 +93,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
         boxCodes: [...c.box_codes],
         suppressionReason: c.suppression_reason,
         sendable: c.sendable,
+        suppressedEmail: c.suppression_reason || c.sendable === false ? c.email : null,
       }))
       setDrafts(isInspect ? loadedDrafts : normalizePrimaryContactBoxes(loadedDrafts))
     }
@@ -237,18 +238,15 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
       }
     }
 
-    // Checar se todas as caixas continuam cobertas por contatos ativos e elegíveis
-    for (const box of CUSTOMER_COMMUNICATION_BOXES) {
-      const hasCoverage = activeContacts.some(
-        (d) => d.boxCodes.includes(box.code) && isEligibleContact(d),
-      )
-      if (!hasCoverage) {
-        setLocalError(
-          `A caixa "${box.label}" não pode ficar sem nenhum contato ativo e elegível vinculado.`,
-        )
-        return
-      }
+    // Toda caixa precisa de um contato ativo com e-mail. Caixa só com e-mail
+    // devolvido ou bloqueado salva com aviso (D14 de 2026-10-27): corrigir o
+    // e-mail é o que traz o Cliente de volta.
+    const uncovered = firstBoxWithoutContact(activeContacts)
+    if (uncovered) {
+      setLocalError(`A caixa "${uncovered.label}" não pode ficar sem nenhum contato ativo com e-mail vinculado.`)
+      return
     }
+    const withoutRecipient = boxesWithoutRecipient(activeContacts)
 
     if (changedContacts.length === 0) {
       dirtyRef.current = false
@@ -273,7 +271,11 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
     try {
       await saveConfiguration.mutateAsync(drafts)
       dirtyRef.current = false
-      showToast('Contatos e recebimento atualizados com sucesso.', 'success')
+      if (withoutRecipient.length) {
+        showToast(`Contatos salvos. ${withoutRecipient.length === 1 ? 'A caixa' : 'As caixas'} ${withoutRecipient.map((box) => `"${box.label}"`).join(', ')} ${withoutRecipient.length === 1 ? 'segue' : 'seguem'} sem e-mail apto a receber: cadastre outro e-mail para voltar a receber os Comunicados.`, 'info')
+      } else {
+        showToast('Contatos e recebimento atualizados com sucesso.', 'success')
+      }
     } catch (err) {
       setLocalError(errorMessage(err, 'Falha ao salvar contatos.'))
     } finally {
@@ -311,7 +313,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
     >
       <form className="grid gap-4" onSubmit={handleSubmit}>
         {drafts.map((contact, index) => {
-          const suppressionMsg = formatSuppression(contact.suppressionReason)
+          const suppressionMsg = formatSuppression(currentSuppressionReason(contact))
           const legendName = contact.name || contact.email || 'novo contato'
           const title = [legendName, contact.isPrimary ? 'contato principal' : null, contact.active ? null : 'desativado'].filter(Boolean).join(' · ')
           const fieldsDisabled = isInspect || !contact.active

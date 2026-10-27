@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReviewQueueItem } from '../../hooks/useReview'
 
 vi.mock('../../hooks/useReview', () => ({ useReviewQueue: vi.fn() }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, isAdmin: true, can: () => true }) }))
+const authState = vi.hoisted(() => ({ canEditContacts: true }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, isAdmin: true, can: (permission: string) => permission !== 'edit_customer_contacts' || authState.canEditContacts }) }))
 vi.mock('../../hooks/useCustomers', () => ({ useCustomerLookup: vi.fn() }))
 vi.mock('../../hooks/useReviewCustomerGroup', () => ({ useReviewCustomerGroup: vi.fn() }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
@@ -428,6 +429,21 @@ describe('Revisao', () => {
 
     const mutateAsync = mockedUseReviewCustomerGroup.mock.results[0].value.mutateAsync
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BLX'], customerId: 7, email: 'novo@cliente.com', changedBy: 'user-1' })))
+  })
+
+  // D10 de 2026-10-27: quem não edita contatos não inclui o e-mail pela Revisão.
+  it('sem permissão de contatos, o grupo sem e-mail leva à ficha do Cliente em vez de pedir o e-mail', async () => {
+    const user = userEvent.setup()
+    authState.canEditContacts = false
+    try {
+      mockedUseReviewQueue.mockReturnValue({ data: [makeLinkedBl('BLX')], isLoading: false, error: null } as never)
+      renderPage()
+      await user.click(screen.getByRole('button', { name: /Linked Co/ }))
+      expect(screen.queryByLabelText('E-mail principal')).toBeNull()
+      expect(screen.getByRole('link', { name: 'Abrir a ficha do Cliente' }).getAttribute('href')).toBe('/clientes/7')
+    } finally {
+      authState.canEditContacts = true
+    }
   })
 
   it('B16: exibe a sugestão por nome do B/L e a leva ao vínculo', async () => {

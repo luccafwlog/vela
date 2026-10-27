@@ -81,6 +81,11 @@ export type CustomerBaseRow = {
   pendingBlIds?: string[]
   /** B/Ls rejeitados na Revisão com este CNPJ: nunca vinculados pela Base */
   rejectedBlIds?: string[]
+  /**
+   * Cliente desativado (D15 de 2026-10-27): a Base não muda o cadastro nem os
+   * contatos, e os B/Ls pendentes ficam só com sugestão na Revisão.
+   */
+  deactivated?: boolean
 }
 
 export type ParsedCustomerBase = {
@@ -104,7 +109,7 @@ export async function compareCustomerBaseWithExisting(parsed: ParsedCustomerBase
     const documents = parsed.rows.slice(from, from + 500).map((row) => row.cnpj_cpf)
     const { data, error } = await supabase
       .from('customers')
-      .select('id, cnpj_cpf, name, trade_name, address, city, state, zip')
+      .select('id, cnpj_cpf, name, trade_name, address, city, state, zip, deactivated_at')
       .in('cnpj_cpf', documents)
     if (error) throw error
     existing.push(...(data ?? []))
@@ -136,6 +141,9 @@ export async function compareCustomerBaseWithExisting(parsed: ParsedCustomerBase
       const current = byDocument.get(row.cnpj_cpf)
       const links = { pendingBlIds: pending.get(row.cnpj_cpf) ?? [], rejectedBlIds: rejected.get(row.cnpj_cpf) ?? [] }
       if (!current) return { ...row, ...links }
+      if (current.deactivated_at) {
+        return { ...row, ...links, existingCustomerId: Number(current.id), changedFields: [], currentName: null, storedName: null, deactivated: true }
+      }
       const changedFields = Object.keys(labels).filter((field) => String(current[field] ?? '').trim() !== String(row[field as keyof CustomerBaseRow] ?? '').trim()).map((field) => labels[field])
       const storedName = String(current.name ?? '')
       const currentName = storedName.trim()
@@ -185,6 +193,12 @@ export type CustomerBaseImportResult = {
   updated: number
   contactsCreated: number
   blsLinked: number
+  /** B/Ls de Cliente desativado: ficam com sugestão na Revisão, sem vínculo (D15). */
+  blsSuggested?: number
+  /** Clientes desativados que a Base não mudou (D15). */
+  deactivatedSkipped?: number
+  /** Quem importou não inclui contatos: os e-mails não foram gravados (D10). */
+  contactsSkipped?: boolean
   errors: Array<{ cnpj_cpf: string; message: string }>
 }
 
@@ -242,6 +256,9 @@ export async function importCustomerBaseRows(
     updated?: number
     contacts_created?: number
     bls_linked?: number
+    bls_suggested?: number
+    deactivated_skipped?: number
+    contacts_skipped?: boolean
     errors?: Array<{ cnpj?: string; code?: string; message?: string }>
   }
   if (result.ok === false) {
@@ -263,6 +280,9 @@ export async function importCustomerBaseRows(
     updated: Number(result.updated ?? 0),
     contactsCreated: Number(result.contacts_created ?? 0),
     blsLinked: Number(result.bls_linked ?? 0),
+    blsSuggested: Number(result.bls_suggested ?? 0),
+    deactivatedSkipped: Number(result.deactivated_skipped ?? 0),
+    contactsSkipped: result.contacts_skipped === true,
     errors: [],
   }
 }

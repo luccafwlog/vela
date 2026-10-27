@@ -90,7 +90,7 @@ const KIND_OPTIONS: Array<{ value: CustomerCommunicationKind; title: string; hin
 
 const MODE_OPTIONS: Array<{ value: CustomerCommunicationDispatchMode; title: string; hint: string }> = [
   { value: 'carga', title: 'Carga', hint: 'Clientes dos B/Ls de uma viagem' },
-  { value: 'institucional', title: 'Institucional', hint: 'Cliente com contato e B/L com ETA nos últimos 12 meses' },
+  { value: 'institucional', title: 'Institucional', hint: 'Cliente com contato com e-mail e B/L com ETA nos últimos 12 meses' },
 ]
 
 function kindOptionsForMode(mode: CustomerCommunicationDispatchMode) {
@@ -943,7 +943,7 @@ export function ClientesComunicacao() {
               </div>
             )}
             <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
-              Uma linha por navio/viagem e porto de descarga; a seta abre os Clientes da linha e a situação de cada Comunicado. "0 de 2": enviados de devidos. "N na fila · HH:MM": a próxima rodada automática (a cada 15 minutos, horário de Brasília) envia. Âmbar enquanto falta enviar. "Reenvio pendente": Cliente que já recebeu o CE e Taxas e ganhou B/L novo ainda não pronto; conta como devido, não como enviado. "Sem CE ou fatura": Clientes do porto que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
+              Uma linha por navio/viagem e porto de descarga; a seta abre os Clientes da linha e a situação de cada Comunicado. "0 de 2": enviados de devidos (contam também o redirecionado ao suporte e o parcial, como a régua). "N na fila · HH:MM": a próxima rodada automática (a cada 2 minutos e logo após o evento, horário de Brasília) envia. Âmbar enquanto falta enviar. "Reenvio pendente": Cliente que já recebeu o CE e Taxas e ganhou B/L novo ainda não pronto; conta como devido, não como enviado. "Sem CE ou fatura": Clientes do porto que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
             </p>
           </Block>
         </>

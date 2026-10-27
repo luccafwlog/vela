@@ -105,7 +105,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       message: `Salvar ${input.name} (${formatCnpjCpf(input.cnpjCpf)}) e vincular ao B/L ${bl.id}?`,
       confirmLabel: input.sendPortalInvite ? 'Salvar e enviar convite' : 'Salvar cadastro',
       affected: { summary: `B/L ${bl.id} · ${input.name} · ${formatCnpjCpf(input.cnpjCpf)}` },
-      consequence: `Salva o cliente e o contato ${input.email}.${input.sendPortalInvite ? ` Inicia também o convite do Portal para ${input.email}.` : ''} Se esta correção liberar o B/L, a fatura poderá ser emitida automaticamente.`,
+      consequence: `${input.email ? `Salva o cliente e o contato ${input.email}.` : 'Salva o cliente, sem contato.'}${input.sendPortalInvite ? ` Inicia também o convite do Portal para ${input.email}.` : ''} Se esta correção liberar o B/L, a fatura poderá ser emitida automaticamente.`,
       reversibility: 'Cadastro e contato podem ser corrigidos; o convite pode ser revogado. Faturas emitidas só podem ser canceladas pelo Administrativo quando não houver pagamento.',
     }))) return
     setSaving(true)
@@ -276,10 +276,10 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
                 </FactList>
                 {!picking ? (
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setPicking(true)} disabled={saving}>Trocar</Button>
+                    <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setPicking(true)} disabled={saving}>Trocar Cliente</Button>
                     {/* ADR 0093, decisão 13: B/L faturado troca de Cliente, não desvincula. */}
                     {['invoiced', 'partially_paid', 'paid'].includes(bl.financial_status ?? 'pending') ? (
-                      <span className="text-xs text-[var(--app-muted)]">B/L faturado: para mudar o Cliente, use Trocar.</span>
+                      <span className="text-xs text-[var(--app-muted)]">B/L faturado: para mudar o Cliente, use Trocar Cliente.</span>
                     ) : (
                       <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => void link(null)} loading={saving}>Desvincular</Button>
                     )}
@@ -309,6 +309,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
               saving={saving || onboarding.isPending}
               onSelectExistingCustomer={() => undefined}
               onSubmit={(input) => void completeCustomer(input)}
+              canEditContacts={can('edit_customer_contacts')}
             />
           ) : showPicker ? (
             <div className={linked ? 'grid gap-3 border-t border-[var(--app-border-soft)] pt-3' : 'grid gap-3'}>

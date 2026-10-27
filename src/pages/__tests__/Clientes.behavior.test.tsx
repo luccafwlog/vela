@@ -431,6 +431,25 @@ describe('Clientes page behaviours', () => {
     expect(mocks.createCustomer).not.toHaveBeenCalled()
   })
 
+  // D01 de 2026-10-27: o contato adicional sem e-mail sumia depois de salvar; agora a tela recusa.
+  it('contato adicional sem e-mail é recusado na tela, com o motivo', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(screen.getAllByLabelText('Nome')[0], 'Financeiro')
+    await user.type(within(screen.getByRole('dialog')).getAllByLabelText(/^E-mail/)[0], 'novo@example.com')
+    await user.click(screen.getByRole('button', { name: 'Adicionar contato' }))
+    await user.type(screen.getAllByLabelText('Nome')[1], 'João')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    expect(screen.getByText('Todo contato precisa de um e-mail válido. Informe o e-mail ou remova o contato.')).toBeTruthy()
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.createCustomer).not.toHaveBeenCalled()
+  })
+
   it('falha ao cadastrar fica no formulário, que continua aberto', async () => {
     const user = userEvent.setup()
     mocks.createCustomer.mockRejectedValue(new Error('duplicate key value violates unique constraint'))

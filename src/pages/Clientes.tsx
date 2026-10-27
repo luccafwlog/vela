@@ -64,7 +64,7 @@ export function Clientes() {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
-  const { user, effectiveRole, isAdmin } = useAuth()
+  const { user, effectiveRole, isAdmin, can } = useAuth()
   const narrow = useNarrowViewport()
   // Excluir e desativar exigem o Administrativo no banco; a tela só oferece
   // as ações a quem pode executá-las.
@@ -185,6 +185,10 @@ export function Clientes() {
       fieldErrors.contacts = 'Informe o nome de todo contato preenchido.'
     } else if (!primaryContact || !primaryContact.email?.trim() || !primaryContact.email.includes('@')) {
       fieldErrors.contacts = 'O contato principal precisa de um e-mail válido.'
+    } else if (activeContacts.some((contact) => !contact.email.trim().includes('@'))) {
+      // D01 de 2026-10-27: o banco grava só contato com e-mail; o sem e-mail
+      // sumia depois de salvar. A tela recusa antes, com o motivo.
+      fieldErrors.contacts = 'Todo contato precisa de um e-mail válido. Informe o e-mail ou remova o contato.'
     }
 
     setCreateErrors(fieldErrors)
@@ -196,7 +200,7 @@ export function Clientes() {
       confirmLabel: 'Cadastrar cliente',
       affected: {
         summary: `${createForm.name.trim()} · CNPJ ${formatCnpjCpf(createForm.cnpjCpf)} · ${formatCountLabel(activeContacts.length, 'contato', 'contatos')}`,
-        items: activeContacts.map((c) => `${c.name} (${c.email || 'sem e-mail'})${c.is_primary ? ' · principal' : ''}`),
+        items: activeContacts.map((c) => `${c.name} (${c.email})${c.is_primary ? ' · principal' : ''}`),
       },
       consequence: 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Provisionamento do Portal como "Aguardando análise". Nenhum convite é enviado.',
       reversibility: 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
@@ -285,8 +289,11 @@ export function Clientes() {
         result.blsLinked ? afterCargaAlterada(queryClient) : queryClient.invalidateQueries({ queryKey: ['bls'] }),
       ])
       const linkedMsg = result.blsLinked ? ` ${formatCountLabel(result.blsLinked, 'B/L vinculado', 'B/Ls vinculados')} automaticamente.` : ''
+      // D15: Cliente desativado não muda, e o B/L dele fica só com sugestão na Revisão.
+      const deactivatedMsg = result.deactivatedSkipped ? ` ${formatCountLabel(result.deactivatedSkipped, 'Cliente desativado não mudou', 'Clientes desativados não mudaram')}${result.blsSuggested ? `; ${formatCountLabel(result.blsSuggested, 'B/L ficou', 'B/Ls ficaram')} com sugestão na Revisão` : ''}.` : ''
+      const contactsMsg = result.contactsSkipped ? 'contatos não incluídos (só Administrativo, Documentação e Equipamentos)' : formatCountLabel(result.contactsCreated, 'contato', 'contatos')
       showToast(
-        `Base importada: ${formatCountLabel(result.imported, 'novo', 'novos')}, ${formatCountLabel(result.updated, 'atualizado', 'atualizados')}, ${formatCountLabel(result.contactsCreated, 'contato', 'contatos')}.${linkedMsg}`,
+        `Base importada: ${formatCountLabel(result.imported, 'novo', 'novos')}, ${formatCountLabel(result.updated, 'atualizado', 'atualizados')}, ${contactsMsg}.${linkedMsg}${deactivatedMsg}`,
         'success',
       )
       resetImportModal()
@@ -601,6 +608,7 @@ export function Clientes() {
         onClose={() => { if (!importingBase) resetImportModal() }}
         onFileSelect={(file) => void handleBaseFile(file)}
         onImport={(confirmNameChange) => void handleImportBase(confirmNameChange)}
+        canEditContacts={can('edit_customer_contacts')}
       />
     </>
   )

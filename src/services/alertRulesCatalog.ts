@@ -790,7 +790,7 @@ const ALERT_RULES_BASE = [
     severity: 'normal',
     summary: 'O Cliente deveria receber um Comunicado automático (NOA, NOR, NOB ou CE e Taxas), mas não tem contato elegível na caixa do modelo.',
     trigger: 'A rodada dos Comunicados automáticos encontra o Cliente num alvo sem contato ativo, com e-mail válido e sem supressão, na caixa Documentação e Operação (ou Financeiro, no CE e Taxas) (migration 304).',
-    timing: 'Aparece na rodada automática (a cada 15 minutos) enquanto o Comunicado é devido: NOA até o ETA, NOR e NOB até trinta dias depois da ATA ou do ATB, CE e Taxas enquanto a Viagem estiver pronta. Os outros Clientes recebem normalmente.',
+    timing: 'Aparece na rodada automática (a cada 2 minutos e logo após o evento) enquanto o Comunicado é devido: NOA até o ETA, NOR e NOB até trinta dias depois da ATA ou do ATB, CE e Taxas enquanto a Viagem estiver pronta. Os outros Clientes recebem normalmente.',
     resolution: 'Abra o cadastro do Cliente na aba Contatos e coloque um contato com e-mail válido na caixa indicada no alerta.',
     destination: '/clientes',
     destinationLabel: 'Abrir Clientes',

@@ -4,6 +4,7 @@ import { ChoiceCards } from '../ui/ChoiceCards'
 import { Field, Input } from '../ui/Input'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { InlineCustomerPicker } from '../shared/ReviewInlineEditors'
+import { useAuth } from '../../hooks/useAuth'
 import type { ReviewCustomer } from '../../hooks/useReview'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeValidCnpj, formatCnpj, normalizeCnpj } from '../../lib/cnpj'
 
@@ -72,6 +73,8 @@ export function ReviewCustomerForm({
   const [portal, setPortal] = useState<PortalChoice | null>(null)
   const [linkTarget, setLinkTarget] = useState<ReviewCustomer | null>(proposedCustomer?.customer ?? null)
   const blockId = useId()
+  // D10 de 2026-10-27: só Administrativo, Documentação e Equipamentos incluem o e-mail.
+  const canEditContacts = useAuth().can('edit_customer_contacts')
 
   // Escolhas feitas fora do formulário ajustam o estado durante o render
   // (padrão "adjusting state when props change").
@@ -97,7 +100,7 @@ export function ReviewCustomerForm({
     onCnpjChange?.(mode === 'cadastrar' ? validCnpj : null)
   }, [mode, validCnpj, onCnpjChange])
 
-  const validEmail = EMAIL_PATTERN.test(email.trim())
+  const validEmail = !canEditContacts || EMAIL_PATTERN.test(email.trim())
   const cnpjMismatch = Boolean(validCnpj && expectedCnpjs.length > 0 && !expectedCnpjs.includes(validCnpj))
   const target = plural(blCount, 'B/L', 'B/Ls')
   const linkTargetCnpj = canonicalizeValidCnpj(linkTarget?.cnpj_cpf)
@@ -115,7 +118,7 @@ export function ReviewCustomerForm({
             ? 'O CNPJ precisa ser um dos lidos no B/L.'
             : !validEmail
               ? 'Informe um e-mail válido.'
-              : !portal
+              : canEditContacts && !portal
                 ? 'Escolha o que fazer com o Portal do Cliente para continuar.'
                 : null
   const linkBlock = saving ? null : !linkTarget ? 'Escolha o cliente cadastrado.' : null
@@ -124,7 +127,7 @@ export function ReviewCustomerForm({
   const summary = mode === 'cadastrar'
     ? portal === 'convidar'
       ? <>Vai cadastrar <strong>{name.trim() || 'o cliente'}</strong>, vincular <strong>{target}</strong> e enviar o convite do Portal para <strong>{email.trim().toLowerCase() || 'o e-mail principal'}</strong>.</>
-      : portal === 'depois'
+      : portal === 'depois' || !canEditContacts
         ? <>Vai cadastrar <strong>{name.trim() || 'o cliente'}</strong> e vincular <strong>{target}</strong>. {blCount === 1 ? 'O B/L continua' : 'Os B/Ls continuam'} na Revisão até o Portal ficar ativo.</>
         : null
     : linkTarget
@@ -141,8 +144,8 @@ export function ReviewCustomerForm({
       customerId: null,
       cnpjCpf: validCnpj!,
       name: name.trim(),
-      email: email.trim().toLowerCase(),
-      sendPortalInvite: portal === 'convidar',
+      email: canEditContacts ? email.trim().toLowerCase() : '',
+      sendPortalInvite: canEditContacts && portal === 'convidar',
     })
   }
 
@@ -169,10 +172,13 @@ export function ReviewCustomerForm({
                 onChange={(event) => setCnpj(normalizeCnpj(event.target.value))}
               />
             </Field>
-            <Field label="E-mail principal" required>
-              <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="financeiro@cliente.com.br" />
-            </Field>
+            {canEditContacts ? (
+              <Field label="E-mail principal" required>
+                <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="financeiro@cliente.com.br" />
+              </Field>
+            ) : null}
           </div>
+          {canEditContacts ? (
           <ChoiceCards
             label="Portal do Cliente"
             value={portal}
@@ -190,6 +196,9 @@ export function ReviewCustomerForm({
               },
             ]}
           />
+          ) : (
+            <p className="text-[var(--app-muted)]" role="note">Só Administrativo, Documentação e Equipamentos incluem o e-mail do Cliente: o cadastro sai sem contato, e o convite do Portal fica com a Documentação ou o Administrativo.</p>
+          )}
         </>
       ) : (
         <div className="grid gap-2">

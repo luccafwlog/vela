@@ -430,6 +430,11 @@ function subtractMonths(value: Date, months: number): Date {
 }
 
 /** Cliente comunicável tem carga recente; carga futura também é válida. */
+/** Contato ativo com e-mail: o mínimo para o Cliente entrar no institucional (D12). */
+function hasActiveContactEmail(contact: Pick<CustomerContact, 'email' | 'deactivated_at'>): boolean {
+  return !contact.deactivated_at && Boolean(contact.email?.trim())
+}
+
 export function isInstitutionalCustomerCommunicable(
   rows: readonly CustomerCommunicationBlCandidate[],
   now = new Date(),
@@ -569,6 +574,10 @@ export function buildCustomerCommunicationConference(input: {
     if (institutional && !isInstitutionalCustomerCommunicable(sourceBls, input.now)) continue
 
     const customerContacts = [...(input.contactsByCustomer.get(first.customerId) ?? [])]
+    // D12 de 2026-10-27 (decisão do dono, opção B): o institucional só lista
+    // Cliente com contato ativo com e-mail; o sem contato sai da conferência.
+    // O que tem contato, mas suprimido, continua aparecendo bloqueado.
+    if (institutional && !customerContacts.some(hasActiveContactEmail)) continue
     let recipients: {
       eligible: (CustomerContact & Partial<CustomerCommunicationRecipient>)[]
       excluded: ExcludedCustomerCommunicationRecipient[]
@@ -1139,6 +1148,8 @@ export type CoverageCell = {
   state: CoverageCellState
   /** Último envio, mesmo quando a situação atual é reenvio pendente. */
   sentAt: string | null
+  /** Situação do último envio: enviado, redirecionado ao suporte (`simulado`) ou parcial. */
+  sentStatus?: string | null
   communicationId: number | null
   reason: string | null
 }
@@ -1180,11 +1191,36 @@ function queueBlockReason(row: CoverageQueueRow): string {
 }
 
 function coverageCell(state: CoverageCellState, sent: CoverageCommunicationRow | undefined, reason: string | null = null): CoverageCell {
-  return { state, sentAt: sent?.created_at ?? null, communicationId: sent?.id ?? null, reason }
+  return { state, sentAt: sent?.created_at ?? null, sentStatus: sent?.status ?? null, communicationId: sent?.id ?? null, reason }
 }
 
 export type CoverageVoyageRow = { id: number; voyage_number: string; vessel: { name: string } | null }
-export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null }
+export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null; cancelled_at?: string | null }
+
+/**
+ * Situações que a régua conta como Comunicado feito (D02 de 2026-10-27): o
+ * envio real, o redirecionado ao suporte com a chave desligada (`simulado`,
+ * ADR 0104) e o parcial. A Cobertura conta as mesmas.
+ */
+export const COVERAGE_DONE_STATUSES: readonly string[] = ['enviado', 'simulado', 'parcial']
+
+/** B/L que entra na Cobertura: com Cliente, sem cancelamento do B/L nem da situação financeira (D03). */
+function coverageBlCounts(bl: CoverageBlRow): boolean {
+  return bl.customer_id != null && bl.financial_status !== 'cancelled' && !bl.cancelled_at
+}
+
+/**
+ * Janela da régua por escala (D05): NOA devido de D-5 do ETA em diante; NOR
+ * só depois da ATA. Antes disso a Cobertura mostra "—", não "0 de N".
+ */
+export function coverageMilestoneOpen(kind: 'aviso_chegada_noa' | 'aviso_prontidao_nor', escalas: readonly CoverageEscalaRow[] | undefined, port: string, now: Date): boolean {
+  if (!escalas) return true
+  const matches = escalas.filter((escala) => !escala.omitted && (communicationPortCode(escala.pod) ?? '') === port)
+  if (matches.some((escala) => escala.ata)) return true
+  if (kind === 'aviso_prontidao_nor') return false
+  const fiveDays = 5 * 24 * 60 * 60 * 1000
+  return matches.some((escala) => escala.eta && now.getTime() >= new Date(escala.eta).getTime() - fiveDays)
+}
 export type CoverageCommunicationRow = { id?: number; customer_id: number | null; kind: string; status: string; anchor_voyage_id: number | null; anchor_port: string | null; anchor_atracacao_id: string | null; created_at: string }
 export type CoverageTerminalStateRow = { id: string; voyage_id: number; port: string; terminal_atb: string | null }
 /** Escala (POD) da viagem para a ordem da Cobertura: ETA, ETB, ATA, a última ATB das Atracações e omissão. */
@@ -1241,11 +1277,15 @@ export function buildVoyageCommunicationCoverage(input: {
   /** O que a próxima rodada automática vai enviar (migration 345). */
   queue?: readonly CoverageQueueRow[]
   customerNames?: ReadonlyMap<number, string>
+  /** Escalas por viagem, para a janela do NOA e do NOR; sem elas, os dois contam como devidos. */
+  escalas?: ReadonlyMap<number, readonly CoverageEscalaRow[]>
+  now?: Date
 }): VoyageCommunicationCoverageSummary[] {
+  const now = input.now ?? new Date()
   const noQueue: Record<CoverageKind, number> = { ce_mercante_taxas: 0, aviso_chegada_noa: 0, aviso_prontidao_nor: 0, aviso_atracacao_nob: 0 }
   const result: VoyageCommunicationCoverageSummary[] = []
   for (const voyage of input.voyages) {
-    const voyageBls = input.bls.filter((bl) => bl.voyage_id === voyage.id && bl.customer_id != null && bl.financial_status !== 'cancelled')
+    const voyageBls = input.bls.filter((bl) => bl.voyage_id === voyage.id && coverageBlCounts(bl))
     const ports = Array.from(new Set(voyageBls.map((bl) => communicationPortCode(bl.pod) ?? ''))).sort()
     const base = { voyageId: voyage.id, vesselName: voyage.vessel?.name ?? '—', voyageNumber: voyage.voyage_number }
     if (!ports.length) {
@@ -1253,7 +1293,8 @@ export function buildVoyageCommunicationCoverage(input: {
       result.push({ ...base, port: null, customers: 0, noa: none, nor: none, nob: none, finance: { sent: 0, due: 0, resend: 0, ready: 0, total: 0, pending: 0 }, queued: noQueue, details: [] })
       continue
     }
-    const voyageComms = input.communications.filter((comm) => comm.anchor_voyage_id === voyage.id && comm.status === 'enviado' && comm.customer_id != null)
+    const voyageComms = input.communications.filter((comm) => comm.anchor_voyage_id === voyage.id && COVERAGE_DONE_STATUSES.includes(comm.status) && comm.customer_id != null)
+    const voyageEscalas = input.escalas ? (input.escalas.get(voyage.id) ?? []) : undefined
     for (const port of ports) {
       const rows = voyageBls.filter((bl) => (communicationPortCode(bl.pod) ?? '') === port)
       const customers = new Set(rows.map((row) => row.customer_id!))
@@ -1266,6 +1307,8 @@ export function buildVoyageCommunicationCoverage(input: {
         .filter((comm) => kind !== 'aviso_atracacao_nob' || nobTargetKeys.has(`${comm.customer_id}:${comm.anchor_atracacao_id}`))
         .map((comm) => `${comm.customer_id}:${comm.anchor_atracacao_id ?? ''}`)).size
 
+      const noaOpen = coverageMilestoneOpen('aviso_chegada_noa', voyageEscalas, port, now)
+      const norOpen = coverageMilestoneOpen('aviso_prontidao_nor', voyageEscalas, port, now)
       const ready = new Set(Array.from(customers).filter((customerId) => input.readiness.get(`${voyage.id}:${customerId}`) === true))
       // CE e Taxas é por Cliente × Viagem (decisão D3): vale para todas as
       // escalas do Cliente, mesmo o envio antigo que gravou `anchor_port`.
@@ -1312,8 +1355,8 @@ export function buildVoyageCommunicationCoverage(input: {
         ...base,
         port: port || null,
         customers: customers.size,
-        noa: { sent: count('aviso_chegada_noa'), total: customers.size },
-        nor: { sent: count('aviso_prontidao_nor'), total: customers.size },
+        noa: noaOpen ? { sent: count('aviso_chegada_noa'), total: customers.size } : { sent: 0, total: 0 },
+        nor: norOpen ? { sent: count('aviso_prontidao_nor'), total: customers.size } : { sent: 0, total: 0 },
         nob: { sent: count('aviso_atracacao_nob'), total: nobTargetKeys.size },
         finance: { sent: upToDate, due: ready.size + resend, resend, ready: ready.size, total: customers.size, pending: customers.size - ready.size },
         queued: {
@@ -1471,7 +1514,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
     fetchCoverageRows((from, to) =>
       supabase
         .from('bls')
-        .select('id, voyage_id, customer_id, pod, ce_mercante, financial_status')
+        .select('id, voyage_id, customer_id, pod, ce_mercante, financial_status, cancelled_at')
         .in('voyage_id', voyageIds)
         .order('id', { ascending: false })
         .range(from, to)
@@ -1501,7 +1544,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
   ])
   const rowsByVoyageCustomer = new Map<string, Promise<CoverageReadiness>>()
   for (const bl of bls) {
-    if (bl.customer_id == null || bl.financial_status === 'cancelled') continue
+    if (!coverageBlCounts(bl)) continue
     const key = `${bl.voyage_id}:${bl.customer_id}`
     if (!rowsByVoyageCustomer.has(key)) {
       rowsByVoyageCustomer.set(key, (async () => {
@@ -1515,7 +1558,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
       })())
     }
   }
-  const customerIds = Array.from(new Set(bls.map((bl) => bl.customer_id).filter((id): id is number => id != null)))
+  const customerIds = Array.from(new Set(bls.filter(coverageBlCounts).map((bl) => bl.customer_id).filter((id): id is number => id != null)))
   const [readinessEntries, queue, customerRows] = await Promise.all([
     Promise.all([...rowsByVoyageCustomer.entries()].map(async ([key, value]) => [key, await value] as const)),
     fetchCommunicationQueuePreview(voyageIds),
@@ -1541,7 +1584,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
     escalas.set(voyageId, schedules.filter((schedule) => !schedule.deleted)
       .map((schedule) => ({ pod: schedule.port, eta: schedule.eta, etb: null, ata: schedule.ata, atb: lastAtbByEscala.get(`${voyageId}:${communicationPortCode(schedule.port)}`) ?? null, omitted: schedule.omitted })))
   }
-  return orderCoverageByEscala(buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames }), escalas)
+  return orderCoverageByEscala(buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames, escalas }), escalas)
 }
 
 /**

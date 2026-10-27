@@ -6,6 +6,18 @@
 
 ## 2026-10
 
+- **Clientes, contatos e Comunicados decididos pelo dono (2026-10-27):** migration `471`, lote 6
+  do [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). Pela Base de Clientes
+  e pela Revisão, só Administrativo, Documentação e Equipamentos incluem ou mudam contatos; os
+  demais importam só o cadastro. A Base não muda Cliente desativado e conta à parte o B/L que fica
+  só com sugestão. O e-mail digitado na Revisão entra como "Cadastrado pela equipe"; o banco recusa
+  CNPJ de caractere repetido; o alerta "Cliente sem contato alternativo" conta só contato ativo. A
+  Cobertura de viagens conta o redirecionado ao suporte e o parcial, tira o B/L cancelado e só
+  cobra NOA e NOR com a janela aberta; o Institucional tira o Cliente sem contato; contato com
+  e-mail devolvido salva com aviso e é liberado quando o e-mail muda; **Novo cliente** recusa
+  contato sem e-mail; o botão da ficha do B/L virou **Trocar Cliente**. Prova:
+  `clientesLote6.local-pg.test.ts`, `customerCommunicationsCoverage.test.ts`,
+  `customerContactDrafts.test.ts`, `ImportBaseModal.test.tsx`, `ReviewCustomerOnboarding.test.tsx`.
 - **Portal do Cliente decidido pelo dono (2026-10-27):** migration `470`, lote 5 do
   [plano de correções](plans/2026-10-27-correcoes-decididas-pelo-dono.md). A troca do e-mail de
   recuperação pelo atendimento e a liberação do endereço bloqueado emitem as faturas retidas; o
