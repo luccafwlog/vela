@@ -51,8 +51,21 @@ chave de envio fica só com a marca Dev (ponto 4).
 Impacto: alto. Hoje convite e senha do Portal saem ao destinatário real mesmo
 com a chave desligada. [Ponto 4](../manual/decisoes/pontos-do-dono.md).
 
-1. Marca **Dev** no usuário, dada só por migration; o usuário continua no
-   Administrativo. Tela de Usuários mostra "Administrativo · Dev". ADR.
+1. Marca **Dev** no usuário; o usuário continua no Administrativo. Tela de
+   Usuários mostra "Administrativo · Dev". ADR. Atribuição decidida pelo dono
+   em 2026-10-27:
+   - por migration, com a lista de e-mails que recebem a marca:
+     `lucca.juliatti@fwlog.com.br`, o mesmo em produção e em staging. A
+     migration marca as contas da lista que existem no ambiente e ignora as
+     que não existem (aviso no log);
+   - nenhuma tela dá ou tira a marca e o banco recusa a alteração por
+     usuário logado, inclusive do Administrativo (coluna sem INSERT/UPDATE
+     para `authenticated`, como `account_kind` na migration `440`); dar ou
+     tirar a marca depois é outra migration, por PR;
+   - cada mudança grava linha em Admin › Histórico de ações com o motivo
+     (`audit_user_profile_changes` e `vela.access_change_reason`);
+   - a marca só vale com a conta ativa e no Administrativo; sem ninguém com a
+     marca, a chave fica como está até nova migration.
 2. `set_communications_enabled` passa a exigir a marca Dev; a tela só oferece
    a chave a quem tem a marca. ADR (a mesma).
 3. Chave desligada redireciona todo e-mail dirigido a Cliente para
