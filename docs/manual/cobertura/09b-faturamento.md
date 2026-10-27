@@ -3,7 +3,9 @@
 Mapeamento da Etapa 1 do [plano do Manual do Operador](../../plans/2026-10-26-manual-do-operador.md),
 lido no código da `staging` em `9839364` e no banco local com as 461
 migrations, em 2026-10-26. Cada linha é uma regra como o operador a vê; a
-coluna "Itens do código" liga a regra ao que a implementa.
+coluna "Itens do código" liga a regra ao que a implementa. Mantido em dia
+com a `staging` até `c3be255` (2026-10-27); ver
+[atualizações da matriz](../README.md#atualizações-da-matriz).
 
 As regras seguem a ordem do trabalho: a página Taxas Locais e a lista de
 faturas (FAT-001 a 019), o que segura a emissão (020 a 037), a aba Validação

@@ -3,7 +3,9 @@
 Mapeamento da Etapa 1 do [plano do Manual do Operador](../../plans/2026-10-26-manual-do-operador.md),
 lido no código da `staging` em `9839364` e no banco local com as 461
 migrations, em 2026-10-26. Cada linha é uma regra como o operador a vê; a
-coluna "Itens do código" liga a regra ao que a implementa.
+coluna "Itens do código" liga a regra ao que a implementa. Mantido em dia
+com a `staging` até `c3be255` (2026-10-27); ver
+[atualizações da matriz](../README.md#atualizações-da-matriz).
 
 Evidência: leitura do código e das definições vigentes no banco local (só
 leitura). Nada foi executado na tela nem no banco; o que depende do servidor
@@ -132,7 +134,7 @@ repositório.
 | ACE-116 | **Desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento**: só o Administrativo. | Op 2; Op 11; Op 17 | Adm | `permissao:desativar-cliente` |
 | ACE-117 | **Ver pedidos e abrir documentos** do Desbloqueio de CE: qualquer setor; a tela Desbloqueio de CE abre para todos. A lista **Planilhas enviadas à ZPT** e as confirmações do pedido (CE confirmado, referência externa) ficam só com Administrativo e Documentação (ACE-124). | Op 2; Op 10 | Todos | `permissao:ver-desbloqueio` |
 | ACE-118 | **Gerir pedidos, documentos, exportação para a ZPT e conciliação** do Desbloqueio de CE: Administrativo e Documentação. | Op 2; Op 10 | Adm + Doc | `permissao:gerir-desbloqueio` |
-| ACE-119 | **Recebe os alertas do próprio setor** no sino: Administrativo 16 tipos e também os críticos de setor sem ninguém ativo; Financeiro 4 (PIX sem conciliação segura, Consulta de Pix do Itaú parada, Restituição pendente, Fatura desatualizada); Operações 3; Documentação 38; Equipamentos 2. Além do catálogo, cada setor recebe as pendências do ADR de Saída da própria seção (ver Divergências). | Op 2; Op 16 | Todos | `permissao:alertas-do-setor` |
+| ACE-119 | **Recebe os alertas do próprio setor** no sino: Administrativo 16 tipos e também os críticos de setor sem ninguém ativo; Financeiro 4 (PIX sem conciliação segura, Consulta de Pix do Itaú parada, Restituição pendente, Fatura desatualizada); Operações 3; Documentação 38; Equipamentos 3 (Disputa de invoice Demurrage, PIX sem conciliação segura e, desde a migration `468`, Planilha de Veículos pendente). Além do catálogo, cada setor recebe as pendências do ADR de Saída da própria seção (ver Divergências). | Op 2; Op 16 | Todos | `permissao:alertas-do-setor` |
 | ACE-120 | Fora da matriz: mudar terminal, ATB, ATD, Restow ou as frentes de operação da atracação de uma escala é só de Operações e Administrativo ("Somente Operações/Admin podem editar terminais da escala."); os demais setores salvam a escala sem mexer nisso. O terminal do ADR antigo (por porto) também ("Terminal pertence ao departamento operacoes."), e a tela só libera o campo a eles. | Op 2; Op 4; Op 9 | Ope + Adm | `save_voyage_escala_terminal_state`, `set_agency_report_terminal`, `src/components/voyages/VoyageAgencyReportTab.tsx` |
 | ACE-121 | O resumo diário do Portal (e-mail interno) vai às pessoas ativas de Administrativo e Documentação, menos a conta de integração. O antigo "Operador", que vale como Documentação no resto do Vela, não recebe: o Administrativo passa essas pessoas para Documentação em **Usuários** › **Editar acesso** (decisão de 2026-10-27, ficha ACE-D13; a lista mostra "setor antigo Operador"). | Op 13; Op 2 | Adm + Doc | `supabase/functions/portal-daily-digest/index.ts` |
 | ACE-122 | Conferências do sistema por trás da matriz: "é do Administrativo", "é do Financeiro ou do Administrativo" e "é usuário interno ativo", esta para gravar e para ler. Todas exigem perfil ativo e deixam de valer na hora em que o acesso da pessoa é revogado. | Op 2 | Todos | `funcao:is_admin`, `funcao:is_financeiro_user`, `funcao:is_active_user`, `funcao:is_active_read_user` |
@@ -326,7 +328,7 @@ Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 | `permissao:desativar-cliente` | ✓ / ○ / ○ / ○ / ○ | `deactivate_customer`, `reactivate_customer`, `portal_admin_change_cnpj`, `grant_customer_billing_portal_release`, `revoke_customer_billing_portal_release` (Administrativo) | Bate |
 | `permissao:ver-desbloqueio` | ✓ / ✓ / ✓ / ✓ / ✓ | `ce_unlock_private.actor()` (os cinco), `ce_unlock_document_access`, `ce_unlock_read` | Bate; a lista de planilhas enviadas à ZPT e a referência externa da confirmação ficam só com Adm e Doc (seção 2) |
 | `permissao:gerir-desbloqueio` | ✓ / ○ / ○ / ✓ / ○ | `ce_unlock_private.actor(true)` (Administrativo ou Documentação) nos comandos, envios de documento, exportação e conciliação | Bate |
-| `permissao:alertas-do-setor` | 16 tipos + críticos sem ninguém / 4 / 3 / 38 / 2 | Audiência dos tipos ativos do catálogo: 16 / 4 / 3 / 38 / 2, igual à tela; entrega soma o setor do item; crítico sem destinatário vai ao Administrativo | Bate no catálogo; Ope e Equ recebem também as pendências do ADR da própria seção (5 e 4 tipos na prática) |
+| `permissao:alertas-do-setor` | 16 tipos + críticos sem ninguém / 4 / 3 / 38 / 3 | Audiência dos tipos ativos do catálogo: 16 / 4 / 3 / 38 / 3, igual à tela (Equipamentos 3 desde a migration `468`); entrega soma o setor do item; crítico sem destinatário vai ao Administrativo | Bate no catálogo; Ope e Equ recebem também as pendências do ADR da própria seção (5 e 5 tipos na prática) |
 
 ### 2. Restrições por setor no banco que a matriz não lista
 
@@ -373,8 +375,8 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
   Documentação e um para Equipamentos no mesmo ADR.
 - Cartões fixos: **Documentação**, **Equipamentos**, **Operações** e
   **Administrativo**. Tipos ativos por responsável no catálogo: Documentação
-  35, Administrativo 11, Operações 3, Equipamentos 1 (Disputa de invoice
-  Demurrage), mais os itens do ADR por seção.
+  35, Administrativo 11, Operações 3, Equipamentos 2 (Disputa de invoice
+  Demurrage e, desde a migration `468`, Planilha de Veículos pendente), mais os itens do ADR por seção.
 - Alerta antigo, sem item por setor, conta no cartão do responsável do
   tipo no catálogo; só cai em **Sem setor** quando o tipo não está no
   catálogo. Hoje todo tipo do catálogo (ativo ou não) tem responsável, então
@@ -420,7 +422,7 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
 |---|---|
 | Só ela (com o Administrativo) | Responder, reabrir e anexar na Disputa de Demurrage. Com o Administrativo e o Financeiro: Informar PTAX, pôr e tirar o ROE manual do B/L e tirar o da Invoice. Com o Administrativo e a Documentação: contatos, Caixas de Comunicação, Comunicados; ler a chave de envio |
 | Assina no ADR de Saída | **Carga carregada**, **Veículos** e **Embarque de vazios** |
-| Recebe | 2 tipos no sino (Disputa de invoice Demurrage, PIX sem conciliação segura) e as pendências do ADR da própria seção; cartão **Equipamentos** (Disputa e ADR da seção) |
+| Recebe | 3 tipos no sino (Disputa de invoice Demurrage, PIX sem conciliação segura, Planilha de Veículos pendente) e as pendências do ADR da própria seção; cartão **Equipamentos** (Disputa, Planilha de Veículos e ADR da seção) |
 | Todos os setores podem | Como na Documentação |
 
 ### Operações

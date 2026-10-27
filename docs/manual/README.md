@@ -78,3 +78,31 @@ Mensagens de erro do banco são citadas pelo texto exato, na seção Mensagens.
 (Documentação), `Equ` (Equipamentos), `Sistema` (o sistema faz sozinho) e
 `Cliente` (pelo Portal). A coluna diz quem o sistema deixa fazer e quem ele
 avisa, não uma divisão de trabalho que o código não aplica.
+
+## Atualizações da matriz
+
+A matriz foi lida na `staging` em `9839364` (2026-10-26) e é mantida em dia com
+o sistema. Cada mudança cita a data e a migration na própria linha.
+
+- **Correções decididas pelo dono** (lotes 1 a 7 do
+  [plano](../plans/2026-10-27-correcoes-decididas-pelo-dono.md)): a linha da
+  divergência corrigida diz "Corrigida no sistema em 2026-10-27" e as regras
+  descrevem o comportamento novo.
+- **Staging até `c3be255` (2026-10-27)**, revisada contra as decisões do dono
+  sem conflito:
+  - Baplie: CNTCG e TCG lidos como Taicang e o fim de mensagem do Baplie 1.5
+    da COSCO sem aviso (migration `465`; CEB-060, CEB-061).
+  - Desbloqueio de CE: prazo da tarde às 12:00 do próximo dia útil, linha do
+    prazo no Portal, "Consulte o SISCARGA" e resposta e rodapé dos avisos em
+    importacao@fwlog.com.br (migration `466`; DCE-017, DCE-031, DCE-090 a
+    DCE-092, POR-099).
+  - Faturamento: individual coberta aparece no detalhe do Portal como "Paga ·
+    coberta pela fatura X" (POR-073) e **Fatura desatualizada** passou a
+    Crítico (migration `467`; catálogo de alertas).
+  - Viagem › Rotas e Manifestos: rota com omissão com "(Omitida)",
+    "(Transbordo)" e "(Destino Final)" (VIA-053, CEB-043).
+  - Veículos: **Esta viagem não terá veículos** e o alerta crítico **Planilha
+    de Veículos pendente** de Equipamentos (migration `468`; EQU-128, EQU-129,
+    catálogo de alertas, contagens de ACE-119 e ALE-D13).
+  - Telemetria: recusas do banco já explicadas na tela deixam de ir ao Sentry;
+    sem efeito na operação.

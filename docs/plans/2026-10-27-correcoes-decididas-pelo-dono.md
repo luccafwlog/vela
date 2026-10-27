@@ -16,6 +16,13 @@ ACE-D01 (opção A) no mesmo dia.
 | 7 | Executado em 2026-10-27 (migration `475`, [ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)); conferido no Postgres local e nos testes de tela. Falta o Administrativo passar os usuários Operador para Documentação em Usuários (ACE-D13) e conferir em staging a tela de entrada de um usuário desativado |
 | 8 a 11 | Não autorizados; nada executado |
 
+**Revisão contra a staging (2026-10-27, até `c3be255`).** As mudanças que
+entraram na staging depois do mapeamento (Baplie e Taicang, migration `465`;
+lote da reunião de testes de 26/10, migrations `466` a `468`; correções da
+revisão dele; telemetria do Sentry) não contrariam nenhuma decisão deste
+plano nem os lotes 1 a 7. Mudam dois números do lote 8 (itens 3 e 6) e o
+manual, já atualizado ([atualizações da matriz](../manual/README.md#atualizações-da-matriz)).
+
 Junta numa lista só, em ordem de impacto, o que o dono decidiu:
 
 - as 112 fichas de divergência do
@@ -243,14 +250,17 @@ Impacto: médio. [Pontos 2 e 3](../manual/decisoes/pontos-do-dono.md).
    mesma).
 3. Retirar a dispensa: botão, janela, lente e cartão Dispensados, coluna
    "Dispensado até", Eco da dispensa, "N dispensados" no Painel, filtro
-   `dismissed` das RPCs, frase de dispensa das 50 regras. Dispensas vigentes
-   acabam na hora (dados). O histórico das dispensas fica guardado. ADR.
+   `dismissed` das RPCs, frase de dispensa das 51 regras (50 no mapeamento;
+   a 51ª é Planilha de Veículos pendente, migration `468`). Dispensas
+   vigentes acabam na hora (dados). O histórico das dispensas fica guardado. ADR.
 4. Mapear os tipos cuja origem a equipe não consegue corrigir e dar a eles
    "Resolver com justificativa" (reabrem se a causa voltar).
 5. `12-alertas-rotinas:ALE-D03` — tela de Regras mostra só o setor
    responsável (com o item 1, deixa de haver setor só notificado).
 6. `12-alertas-rotinas:ALE-D13` (absorve ACE-D03) — matriz de Usuários com 5
-   e 4 tipos para Operações e Equipamentos, conferida depois do item 1.
+   e 5 tipos para Operações e Equipamentos (eram 5 e 4 no mapeamento;
+   Equipamentos ganhou Planilha de Veículos pendente, migration `468`),
+   conferida depois do item 1.
 7. `12-alertas-rotinas:ALE-D05` e `ALE-D12` — alertas levam à tela prometida
    e os de contato abrem a ficha do Cliente.
 8. `12-alertas-rotinas:ALE-D06` — "Aberto em" com a data da abertura atual.
