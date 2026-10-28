@@ -21,6 +21,7 @@ export type ActiveAlertType =
   | 'billing_calculation_blocked'
   | 'billing_auto_issue_failed'
   | 'billing_charge_table_missing'
+  | 'taxa_alterada_mudou'
   | 'import_effect_blocked'
   | 'import_effects_queue_stalled'
   | 'itau_pix_consulta_parada'
@@ -84,6 +85,7 @@ export const TYPE_LABELS: Record<string, string> = {
   billing_calculation_blocked: 'Cálculo bloqueado',
   billing_auto_issue_failed: 'Falha de emissão automática',
   billing_charge_table_missing: 'Tabela de cobrança faltando',
+  taxa_alterada_mudou: 'Taxa alterada à mão mudou',
   import_effect_blocked: 'Efeito de importação bloqueado',
   import_effects_queue_stalled: 'Fila de efeitos de importação parada',
   itau_pix_consulta_parada: 'Consulta de Pix do Itaú parada',
@@ -692,6 +694,8 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'email_retorno_provedor_silencioso',
   'rotina_http_falhou',
   'import_effects_queue_stalled',
+  // Conferência da taxa alterada à mão que uma mudança de base afetou (migration 495).
+  'taxa_alterada_mudou',
 ]
 
 /**

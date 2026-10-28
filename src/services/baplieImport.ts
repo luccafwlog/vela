@@ -6,6 +6,7 @@ import { canonicalizeVesselName } from '../lib/vesselAlias'
 import { userFacingErrorMessage } from '../lib/errors'
 import { getBaplieManifestForVoyage, listVoyageVaziosImportacao, replaceVaziosFromBaplie, vaziosContainerKey, type VoyageVazioImportacao } from './vaziosImportacaoImport'
 import { toBaplieFlagsApplyResult, type BaplieFlagsApplyResult } from './baplieReconciliation'
+import type { BlChargeImpactChange } from './charges/chargeOperationsService'
 
 export type BaplieVoyageContext = {
   voyageNumber: string | null
@@ -657,4 +658,17 @@ export async function reimportBaplie({
   if ((diff.items.length || plan.flags?.clear.length) && !(await confirmReplacement(plan))) return { status: 'cancelled' }
 
   return { status: diff.items.length ? 'replaced' : 'unchanged', ...(await write()) }
+}
+
+/**
+ * Perfis que o Baplie novo grava, para a prévia **Taxas alteradas à mão**
+ * (ADR 0111, D6). Lê o rótulo de `_baplie_flags_label` ("IMO, OOG, SOC").
+ */
+export function baplieImpactChanges(flags: BaplieFlagsPreview | undefined): BlChargeImpactChange[] {
+  const byBl = new Map<string, NonNullable<BlChargeImpactChange['container_flags']>>()
+  for (const item of [...(flags?.apply ?? []), ...(flags?.clear ?? [])]) {
+    const marks = (item.after ?? '').split(',').map((mark) => mark.trim())
+    byBl.set(item.bl_id, [...(byBl.get(item.bl_id) ?? []), { container_number: item.container, is_imo: marks.includes('IMO'), is_oog: marks.includes('OOG') }])
+  }
+  return [...byBl].map(([bl_id, container_flags]) => ({ bl_id, container_flags }))
 }

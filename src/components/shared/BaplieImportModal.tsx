@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useChargeAdjustmentGuard } from '../../hooks/useChargeAdjustmentGuard'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
@@ -15,6 +16,7 @@ import {
   applyBaplieVoyageRules,
   baplieFootnoteForPendency,
   baplieImportToast,
+  baplieImpactChanges,
   baplieReplacementConfirmOptions,
   baplieVoyageContextBlock,
   hasBapliePendency,
@@ -63,6 +65,7 @@ export function BaplieImportModal({
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirm = useConfirm()
+  const guardCharges = useChargeAdjustmentGuard()
   const { user } = useAuth()
   const actorId = userId ?? user?.id ?? null
   const [chosenVoyageId, setChosenVoyageId] = useState(defaultVoyageId ?? '')
@@ -169,7 +172,12 @@ export function BaplieImportModal({
         pods: markedPods,
         // O número de viagem é informativo: o servidor não o confere (migration 409).
         file: { voyageNumber: parsed?.voyage_number ?? null },
-        confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
+        confirmReplacement: async (plan) => {
+          if (!(await confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)))) return false
+          // ADR 0111, D6: marca IMO/OOG nova muda taxa alterada à mão.
+          const changes = baplieImpactChanges(plan.flags)
+          return changes.length === 0 || Boolean(await guardCharges(changes, async () => true))
+        },
       })
       if (result.status === 'cancelled') return
       await afterBaplieImportado(queryClient, { voyageId })

@@ -217,6 +217,7 @@ código na aba Condições de Cliente). Taxa alterada à mão (ADR 0111, 2026-10
 | Item | Motivo |
 |---|---|
 | `restricao:granite_bls.granite_bls_charge_status_check` | Situação das taxas do B/L de Granito. Desde que o Granito deixou de ter Taxa Local, a importação grava sempre "não calculado" e nenhuma tela mostra ou usa esse estado. |
+| `simulação desfeita` | Marca interna da prévia **Taxas alteradas à mão** (simulação desfeita); nunca aparece. |
 
 ## Divergências
 

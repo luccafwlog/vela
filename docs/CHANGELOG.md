@@ -27,6 +27,12 @@
   ficha do Cliente lista os **B/Ls com taxa alterada**; o Histórico de ações e a aba Histórico mostram a
   alteração e a edição da cobrança manual em frase; o aviso "As taxas mudaram depois da emissão" compara
   só a parte do B/L na consolidada.
+  Lote 5 (migration `495`): antes de gravar POD, peso, containers, marcas ou veículos de um B/L com
+  taxa alterada à mão, a ficha, a correção de container, o COD, `/veiculos` (mover e excluir) e as
+  importações de B/L, Manifesto BB e Baplie mostram o efeito e pedem **Gravar mesmo assim** quando a
+  alteração é descartada ou o total alterado ganha quantidade nova; sem essa confirmação, o efeito abre
+  o alerta **Taxa alterada à mão mudou** (Administrativo, avisa o Financeiro; Resolver com
+  justificativa).
 - **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
   compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
   listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta

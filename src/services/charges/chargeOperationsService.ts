@@ -609,6 +609,59 @@ export async function listBlChargeAdjustmentSummaries(input: { blIds?: string[];
   return out
 }
 
+/** Mudança de base simulada (migration 495): campos do B/L, containers, marcas e veículos. */
+export type BlChargeImpactChange = {
+  bl_id: string
+  bls?: Partial<Record<'pod' | 'cargo_mode' | 'bb_weight_ton' | 'bb_cbm' | 'bb_packages_qty' | 'bb_machine_qty' | 'total_weight_kg', string | number | null>>
+  remove_container_ids?: number[]
+  remove_container_numbers?: string[]
+  add_containers?: Array<{ container_number: string; type?: string | null; is_imo?: boolean; is_oog?: boolean }>
+  container_flags?: Array<{ container_number: string; type?: string | null; is_imo?: boolean | null; is_oog?: boolean | null }>
+  remove_vehicle_ids?: number[]
+  move_vehicles?: Array<{ id: number; to_bl_id: string }>
+}
+
+export type BlChargeImpactOutcome = 'kept' | 'quantity' | 'total_kept' | 'remapped' | 'discarded'
+
+export type BlChargeImpactItem = {
+  charge_name: string
+  kind: 'unit' | 'total' | 'excluded'
+  currency: string | null
+  basis: string | null
+  value: number | null
+  quantity: number | null
+  total: number | null
+  outcome: BlChargeImpactOutcome
+  after_quantity: number | null
+  after_total: number | null
+  reason: string | null
+  table_name: string | null
+  pod: string | null
+  needs_confirmation: boolean
+}
+
+export type BlChargeImpact = { bl_id: string; manual_exempt: boolean; items: BlChargeImpactItem[]; error?: string }
+
+/**
+ * O que a mudança de base faz com as taxas alteradas à mão dos B/Ls afetados,
+ * inclusive irmãos de container (ADR 0111, D6; migration 495). Simulação
+ * desfeita no banco; vazio quando nenhum B/L tem alteração à mão.
+ */
+export async function previewBlChargeAdjustmentImpact(changes: BlChargeImpactChange[]) {
+  const relevant = changes.filter((change) => change.bl_id)
+  if (relevant.length === 0) return [] as BlChargeImpact[]
+  const { data, error } = await supabase.rpc('preview_bl_charge_adjustment_impact' as never, { p_changes: relevant } as never)
+  if (error) throw error
+  return ((data ?? []) as BlChargeImpact[]).filter((entry) => !entry.error)
+}
+
+/** Aceite do **Gravar mesmo assim**: a gravação seguinte não abre o alerta (migration 495). */
+export async function ackBlChargeAdjustmentImpact(blIds: string[]) {
+  if (blIds.length === 0) return
+  const { error } = await supabase.rpc('ack_bl_charge_adjustment_impact' as never, { p_bl_ids: blIds } as never)
+  if (error) throw error
+}
+
 export async function listBlChargeHistory(blId: string) {
   const { data, error } = await supabase.rpc('list_bl_charge_history' as never, { p_bl_id: blId } as never)
   if (error) throw error

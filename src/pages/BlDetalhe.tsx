@@ -45,6 +45,7 @@ import { TabList } from '../components/ui/TabList'
 import { ActionMenu, type ActionMenuItem } from '../components/ui/ActionMenu'
 import { formatDate } from '../lib/utils'
 import { blsListHref } from './blsListState'
+import { useChargeAdjustmentGuard } from '../hooks/useChargeAdjustmentGuard'
 import { cargoModeLabel, resolveCargoMode } from './blDetalheHelpers'
 
 export type BlTab = 'visao-geral' | 'carga' | 'detalhes' | 'faturamento' | 'historico'
@@ -79,6 +80,7 @@ export function BlDetalhe() {
   const listHref = blsListHref()
   const { user, profile, isAdmin } = useAuth()
   const confirmWithReason = useConfirmWithReason()
+  const guardCharges = useChargeAdjustmentGuard()
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const canEditVoyages = Boolean(profile || user)
@@ -395,7 +397,12 @@ export function BlDetalhe() {
         disposition={cockpitQuery.data?.transshipment?.disposition}
         savingDisposition={setTransshipment.isPending || setCod.isPending}
         onCod={canEditVoyages ? (justification) => {
-          if (user?.id && bl?.voyage_id && cockpitQuery.data?.omission) setCod.mutate({ blId: bl.id, omissionId: cockpitQuery.data.omission.id, justification, changedBy: user.id })
+          const omission = cockpitQuery.data?.omission
+          if (!user?.id || !bl?.voyage_id || !omission) return
+          const run = () => setCod.mutate({ blId: bl.id, omissionId: omission.id, justification, changedBy: user.id })
+          // ADR 0111, D6: o COD troca o POD, que pode remapear taxa alterada à mão.
+          if (omission.dischargePod) void guardCharges([{ bl_id: bl.id, bls: { pod: omission.dischargePod } }], async () => true).then((ok) => { if (ok) run() })
+          else run()
         } : undefined}
         onRestore={canEditVoyages ? (justification) => {
           if (user?.id && bl?.voyage_id && cockpitQuery.data?.omission) setTransshipment.mutate({ blId: bl.id, omissionId: cockpitQuery.data.omission.id, justification, changedBy: user.id })

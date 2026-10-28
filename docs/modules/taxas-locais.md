@@ -609,6 +609,21 @@ O aviso "As taxas mudaram depois da emissão" compara o total cobrado com a
 parte deste B/L na fatura (`subtotal_brl` do vínculo); na consolidada, não com
 o total dela.
 
+**Mudança de base com taxa alterada (migration `495`, D6).** Antes de gravar
+POD, modalidade, peso, containers, marcas IMO/OOG ou veículos de um B/L com
+alteração ou isenção à mão, a tela pergunta o efeito ao banco
+(`preview_bl_charge_adjustment_impact`, simulação desfeita; também os B/Ls que
+dividem o container e o B/L de destino dos veículos movidos). Cada alteração
+sai como mantida, quantidade nova, total mantido com quantidade nova, passada
+para a tabela nova ou descartada (com a tabela e o motivo). Descarte e total
+com quantidade nova pedem o **Gravar mesmo assim** (diálogo **Taxas alteradas
+à mão serão afetadas**, `useChargeAdjustmentGuard`); B/L isento à mão aparece
+como "continua isento". Os pontos de gravação e as prévias estão em
+[Manifestos & EDI](manifesto-edi.md#importação-do-bl-e-invariantes-gerais) e
+em [Viagens](viagens.md) (COD). Sem a confirmação — fila de efeitos, rotina,
+outra tela —, o mesmo efeito abre o alerta **Taxa alterada à mão mudou**
+([Operação e Suporte](operacao-suporte.md#alertas-e-notificações-internas)).
+
 ### Correção de B/L após faturamento
 
 Depois da emissão, a cobrança fica congelada; a correção do B/L, inclusive a

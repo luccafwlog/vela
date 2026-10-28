@@ -131,3 +131,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     Recalcular da Revisão, lista **B/Ls com taxa alterada** na ficha do
     Cliente, Histórico de ações legível e aviso de divergência pela parte do
     B/L (TAX-105, TAX-106, FAT-177, FAT-178, CLI-108 e a mensagem nova).
+  - Lote 5 (migration `495`): o diálogo **Taxas alteradas à mão serão
+    afetadas** (**Gravar mesmo assim**) na ficha, na correção de container, no
+    COD e em Veículos; a seção **Taxas alteradas à mão** nas prévias de B/L e
+    Manifesto BB e a pergunta no Baplie; o alerta **Taxa alterada à mão mudou**
+    (BLR-150, CEB-099, EQU-130, VIA-145, ALE-086 e a marca interna da
+    simulação).

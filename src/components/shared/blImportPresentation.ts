@@ -1,4 +1,5 @@
 import type { BlFreightImportResult, BlFreightImportRow } from '../../services/blFreightImport'
+import type { BlChargeImpactChange } from '../../services/charges/chargeOperationsService'
 import { formatCnpjCpf } from '../../lib/utils'
 import { plural } from './importPresentation'
 
@@ -34,4 +35,29 @@ export function describeConsignee(row: BlFreightImportRow): { document: string |
   if (payload.customer_reconciliation_status === 'matched_document') return { document, label: 'CNPJ identificado', identified: true }
   if (payload.customer_reconciliation_status === 'matched_name') return { document, label: 'CNPJ não identificado; Cliente pelo nome', identified: false }
   return { document, label: document ? 'CNPJ não identificado' : 'Sem CNPJ no arquivo', identified: false }
+}
+
+/**
+ * Mudanças de base que a reimportação faz em B/Ls já gravados, para a prévia
+ * **Taxas alteradas à mão** (ADR 0111, D6): POD, containers que saem, entram e
+ * mudam de perfil. B/L novo ainda não tem taxa alterada.
+ */
+export function blImportImpactChanges(rows: readonly BlFreightImportRow[]): BlChargeImpactChange[] {
+  return rows.flatMap((row) => {
+    if (!row.existing || !row.payload || row.status === 'blocked' || row.status === 'skipped' || row.status === 'unchanged') return []
+    const existing = new Set((row.existingContainerNumbers ?? []).map((number) => number.toUpperCase()))
+    const containers = (row.payload.containers ?? []).map((container) => ({
+      container_number: container.container_number,
+      type: container.type,
+      is_imo: container.is_imo,
+      is_oog: container.is_oog,
+    }))
+    return [{
+      bl_id: row.blNumber,
+      bls: { pod: row.pod },
+      remove_container_numbers: row.removedContainers ?? [],
+      add_containers: containers.filter((container) => !existing.has(container.container_number.toUpperCase())),
+      container_flags: containers.filter((container) => existing.has(container.container_number.toUpperCase())),
+    }]
+  })
 }

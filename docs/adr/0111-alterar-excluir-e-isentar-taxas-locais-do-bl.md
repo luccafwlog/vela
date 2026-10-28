@@ -76,8 +76,18 @@ porque `charge_calculations` é refeita do zero pelo motor.
    alteração em `snapshot_payload.charge_adjustment`; o detalhe da fatura no
    Vela mostra a Origem **Alterado**, e `portal_invoice_details` tira a chave
    antes de devolver o item ao Cliente.
-12. **Aviso pelo tamanho do efeito (D6)** segue a spec e entra no lote 5 do
-   plano.
+12. **Aviso pelo tamanho do efeito (D6).** Antes de gravar uma mudança de
+   base (POD, modalidade, peso, containers, marcas IMO/OOG, veículos), a tela
+   pergunta ao banco o efeito nas taxas alteradas à mão
+   (`preview_bl_charge_adjustment_impact`: a mudança e o recálculo numa
+   subtransação desfeita, só para B/Ls com alteração ou isenção). Descarte, ou
+   quantidade nova de taxa com total alterado, pede o **Gravar mesmo assim**
+   (diálogo **Taxas alteradas à mão serão afetadas**); o resto só aparece na
+   seção **Taxas alteradas à mão** das prévias. Confirmado, o aceite
+   (`ack_bl_charge_adjustment_impact`) vale 30 minutos para aquele usuário e
+   B/L; sem aceite, o mesmo efeito abre o alerta **Taxa alterada à mão mudou**
+   (`taxa_alterada_mudou`, Administrativo com aviso ao Financeiro, fecha por
+   **Resolver com justificativa**). Migration `495`.
 
 ## Consequências
 

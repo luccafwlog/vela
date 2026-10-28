@@ -16,6 +16,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }) }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
+vi.mock('../../../hooks/useChargeAdjustmentGuard', () => ({
+  useChargeAdjustmentGuard: () => async (_changes: unknown, save: () => Promise<unknown>) => save(),
+  useImportChargeImpact: () => ({ data: undefined }),
+}))
 vi.mock('../../../services/supabase', () => ({ supabase: { from: vi.fn(), rpc: vi.fn() } }))
 vi.mock('../VoyageCombobox', () => ({
   VoyageCombobox: ({ onSelect, disabled }: { onSelect: (id: number | null) => void; disabled?: boolean }) => (

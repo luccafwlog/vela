@@ -13,6 +13,7 @@ import { updateContainerDates, updateContainerReturnDate } from '../../services/
 import { userFacingErrorMessage } from '../../lib/errors'
 import type { ContainerOwnership } from '../../lib/containerOwnership'
 import type { BLDetail } from '../../types/database'
+import { useChargeAdjustmentGuard } from '../../hooks/useChargeAdjustmentGuard'
 
 type Container = NonNullable<BLDetail['bl_containers']>[number]
 
@@ -55,6 +56,8 @@ export function BlContainerCorrectModal({
     setError(null)
   }
 
+  const guardCharges = useChargeAdjustmentGuard()
+
   async function handleSave() {
     if (badNumber.grossWeightKg || badNumber.cbm) return setError('Peso bruto e CBM aceitam só números positivos.')
     const plan = planContainerCorrection(initial, values)
@@ -80,6 +83,16 @@ export function BlContainerCorrectModal({
       reversibility: 'Corrija de novo, com nova justificativa. Reimportar o B/L volta lacre, peso e CBM ao que o arquivo traz.',
     })
     if (!confirmed) return
+    if (plan.profile) {
+      // ADR 0111, D6: o perfil muda a base das taxas de todos os B/Ls do container.
+      const profile = plan.profile
+      const proceed = await guardCharges([{ bl_id: bl.id, container_flags: [{
+        container_number: container.container_number,
+        is_imo: profile === 'imo' || profile === 'imo_oog',
+        is_oog: profile === 'oog' || profile === 'imo_oog',
+      }] }], async () => true)
+      if (!proceed) return
+    }
 
     // ponytail: cada correção é uma transação própria no banco (perfil,
     // COC/SOC, dados físicos e datas têm RPCs separadas); se uma falha no
