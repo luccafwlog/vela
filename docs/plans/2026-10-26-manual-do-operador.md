@@ -36,7 +36,8 @@ mensagem da P1 é tarefa separada). Os catálogos dos
 [capítulos 4](../manual/situacoes/04-viagens-escalas.md) e
 [5](../manual/situacoes/05-programacao.md) também estão em rascunho; a
 pergunta P4 (falhas de COD, transbordo e Complementar sem aviso na tela) foi
-decidida em 2026-10-28 e a correção é tarefa separada. As nove páginas-modelo
+decidida em 2026-10-28 e corrigida na PR luccafwlog/vela#1085; S4.21 já
+descreve a tela nova. As nove páginas-modelo
 do projeto gráfico (Etapa 2, item 1) estão em
 [`scripts/manual/pdf/`](../../scripts/manual/pdf/README.md), com imagens
 capturadas do Vela local com dados fictícios e marcações tiradas da posição

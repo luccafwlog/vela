@@ -221,16 +221,28 @@ VIA-020, VIA-025, VIA-048).
   Manifesto da rota (capítulo 6).
 - **Regras:** VIA-068, CEB-049.
 
-#### S4.21 — Cliquei em Marcar COD (ou Reverter para transbordo, ou Complementar) e nada aconteceu
+#### S4.21 — Omiti, complementei, reverti a omissão ou mudei o COD e o sistema recusou
 
-- **O que o sistema faz:** quando o sistema recusa essas três ações, a tela
-  não mostra nenhum aviso: a ação simplesmente não acontece. Na omissão e na
-  reversão da omissão aparece só uma mensagem genérica.
-- **Pergunta aberta P4:** sem mensagem, o manual não tem como dizer o que
-  fazer. Leitura do código em 2026-10-28: `useSetBlDisposition`
-  (`src/hooks/useTransshipments.ts`) não trata o erro, e o tratamento geral só
-  registra a falha para a equipe técnica.
-- **Regras:** VIA-070.
+- **O que o sistema faz:** não grava nada e mostra o motivo da recusa. Em
+  **Omitir escala** e **Reverter omissão**, na própria janela, que fica
+  aberta; em **Complementar**, no formulário, que fica aberto; em **Marcar
+  COD** e **Reverter para transbordo**, no aviso da ficha do B/L. Na reversão
+  da omissão recusada por B/L em COD aparece também "Verifique se algum B/L
+  está em COD.". Sem motivo legível, a mensagem é a da ação ("Falha ao marcar
+  COD. Tente novamente." e semelhantes).
+- **Por quê:** o banco confere quem faz e o estado da omissão e do B/L antes
+  de gravar.
+- **O que você faz:** siga o motivo:
+  - "Usuario sem permissao ativa.": saia e entre de novo; se continuar, o
+    Administrativo confere o seu acesso.
+  - "A escala da viagem … ja foi omitida …" ou "Omissao … ja foi
+    revertida.": outra pessoa já fez; atualize a tela.
+  - B/L em COD: reverta antes o COD de cada B/L e depois a omissão (S4.16).
+  - "Cambio (ROE) nao configurado; …": peça ao Financeiro para registrar o
+    câmbio e tente de novo.
+  - "Falha ao … Tente novamente.": tente de novo; se repetir, leve ao suporte
+    técnico.
+- **Regras:** VIA-070, VIA-064, TAX-050.
 
 ### Cancelar e excluir
 
@@ -274,5 +286,5 @@ VIA-020, VIA-025, VIA-048).
 
 Nenhuma. P4 (S4.21) decidida em 2026-10-28: a tela passa a mostrar o motivo
 da recusa em Marcar COD, Reverter para transbordo, Complementar, Omitir escala
-e Reverter omissão; a correção é tarefa separada, e o texto de S4.21 é
-reescrito quando ela sair.
+e Reverter omissão. A correção está na PR luccafwlog/vela#1085, e S4.21 já
+descreve a tela nova.
