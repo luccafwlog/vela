@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Alterar, excluir e isentar as Taxas Locais do B/L (2026-10-28, em lotes):** pedido do dono,
+  [ADR 0111](adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md). Lote 1 (migration `491`): na
+  ficha do B/L, qualquer setor altera o valor de uma taxa (por unidade ou pelo total), exclui a taxa e
+  desfaz, com justificativa; a alteração fica guardada no B/L e o resolvedor a aplica em todo recálculo,
+  até a tabela da taxa sair do B/L (POD ou modalidade; preço refixado passa a alteração para a taxa
+  equivalente). Bloco **Histórico das taxas** na página e o mesmo evento na aba Histórico; excluir
+  cobrança manual passa a todos os setores, com justificativa (supersede o item 11 da ADR 0071); as
+  falhas da aba mostram o motivo do banco.
 - **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
   compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
   listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta

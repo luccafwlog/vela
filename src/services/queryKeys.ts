@@ -23,6 +23,8 @@ export const queryKeys = {
     manualChargeItems: (blId?: string) =>
       (blId === undefined ? (['manual-charge-items'] as const) : (['manual-charge-items', blId] as const)),
     timeline: (blId?: string) => (blId === undefined ? (['bl-timeline'] as const) : (['bl-timeline', blId] as const)),
+    chargeHistory: (blId?: string) =>
+      (blId === undefined ? (['bl-charge-history'] as const) : (['bl-charge-history', blId] as const)),
   },
   invoices: {
     all: () => ['invoices'] as const,

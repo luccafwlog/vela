@@ -106,3 +106,12 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     catálogo de alertas, contagens de ACE-119 e ALE-D13).
   - Telemetria: recusas do banco já explicadas na tela deixam de ir ao Sentry;
     sem efeito na operação.
+- **Alterar, excluir e isentar as Taxas Locais do B/L** (pedido do dono de
+  2026-10-28, [ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
+  [plano](../plans/2026-10-28-alterar-taxa-calculada-do-bl.md)):
+  - Lote 1 (migration `491`): alterar valor por unidade ou total, excluir e
+    desfazer taxa, por qualquer setor com justificativa; marcas **Alterada** e
+    **Excluída**; bloco **Histórico das taxas**; a alteração sobrevive aos
+    recálculos e só se perde com a troca de tabela; excluir cobrança manual
+    deixa de ser só do Administrativo (TAX-076, TAX-082, TAX-083, TAX-085,
+    TAX-090, TAX-093 a TAX-100, ACE-098 e as mensagens novas).

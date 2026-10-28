@@ -1,0 +1,64 @@
+# 0111 — Alterar, excluir e isentar as Taxas Locais do B/L
+
+Status: aceito — 2026-10-28 (pedido e decisões do dono, D1 a D14, na
+[spec aprovada](../spec/2026-10-28-alterar-taxa-calculada-do-bl-design.md); R1 e
+R2 aprovados no [plano](../plans/2026-10-28-alterar-taxa-calculada-do-bl.md)).
+Implementação em lotes: lote 1 na migration `491` (alterar, excluir, desfazer,
+cobrança manual e Histórico das taxas).
+
+Supersede o item 11 da [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)
+(excluir cobrança manual era só do Administrativo). Estende a
+[ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md): a alteração no B/L
+faturado passa pela correção automática da fatura, como qualquer correção do
+B/L. Mantém a [ADR 0094](./0094-preco-fixo-na-importacao.md) (preço fixo da
+importação): a alteração vale por cima do preço da tabela, fixado ou não.
+
+## Contexto
+
+O operador não tinha como cobrar de um B/L um valor diferente da Tabela de
+Taxas Locais nem deixar de cobrar uma taxa. A saída era a Condição de Cliente
+(vale para todos os B/Ls do Cliente e só o Administrativo cria) ou a cobrança
+manual. Qualquer recálculo apagava o que se fizesse nas linhas do cálculo,
+porque `charge_calculations` é refeita do zero pelo motor.
+
+## Decisão
+
+1. **Só Taxas Locais (D1).** A Demurrage continua com o Desconto dela.
+2. **Alterar o valor por unidade ou pelo total, ou excluir a taxa; a quantidade
+   não se altera (D2).** Valor zero não existe: para não cobrar, exclui-se.
+3. **Todos os setores, com justificativa de ao menos 10 caracteres e sem
+   aprovação (D3, D4).** A regra vale também para excluir cobrança manual. O
+   banco confere usuário interno ativo, autor igual a quem está logado e a
+   justificativa; as tabelas novas não aceitam escrita direta pela API.
+4. **A alteração é do B/L sobre a taxa e sobrevive aos recálculos (D5).** Fica
+   em `bl_charge_adjustments`, e o resolvedor das Taxas Locais a aplica em todo
+   cálculo. Só se perde quando a tabela da taxa sai do B/L: troca de POD ou de
+   modalidade descarta, com registro (R1: no B/L misto, só as alterações da
+   tabela que saiu); preço refixado com tabela nova do mesmo escopo passa a
+   alteração para a taxa de mesmo nome, base, perfil e moeda, e descarta a que
+   não tem par (R2). Item desativado ou linha em revisão deixam a alteração
+   guardada, sem descarte.
+5. **Total alterado mantém o total quando a quantidade muda (D7)**, com evento
+   no histórico; a alteração por unidade acompanha a quantidade nova.
+6. **Rastreio no Vela (D10):** marca **Alterada**/**Excluída** na linha com o
+   valor da tabela ao lado, bloco **Histórico das taxas** na própria página e o
+   mesmo evento na aba Histórico da ficha. Desfazer é **Voltar ao valor da
+   tabela** ou **Incluir taxa de novo**, também com justificativa.
+7. **Portal (D9):** o Cliente vê só o valor final; a marca, o valor da tabela e
+   a justificativa não saem do banco para o Portal.
+8. **Vale só para aquele B/L (D11)** e continua com ele na troca de Cliente
+   (D13).
+9. **B/L faturado (D8), aviso pelo tamanho do efeito (D6) e isenção à mão
+   (D12)** seguem a spec; entram nos lotes seguintes do plano.
+
+## Consequências
+
+- `charge_calculations` ganha a situação `excluded` (total zero, fora da
+  fatura, do recebível e da emissão) e guarda o valor da tabela de cada linha.
+- `resolve_bl_local_charge_items` passa a devolver o valor cobrado; o valor da
+  tabela fica em `_resolve_bl_local_charge_items_table`.
+- `delete_manual_bl_charge` troca de assinatura (exige justificativa); a
+  antiga perde o `EXECUTE`.
+- Ceiling conhecido: alterar uma taxa recalcula o B/L inteiro, que volta a
+  **Provisório** as linhas que estavam **Pronto** — o mesmo efeito do
+  **Recalcular**.

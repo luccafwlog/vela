@@ -900,6 +900,17 @@ normalmente.
 
 - **Ver também:** Movimento (FCL/LCL), Taxas Locais
 
+**Taxa alterada à mão**
+Taxa Local de um B/L cujo valor o operador mudou (por unidade ou pelo total)
+ou que ele excluiu da cobrança, com justificativa. Vale só para aquele B/L,
+sobrevive aos recálculos e só se perde quando a tabela da taxa sai do B/L.
+Desfaz-se com **Voltar ao valor da tabela** ou **Incluir taxa de novo**; toda
+ação fica no **Histórico das taxas** da ficha.
+→ Regra: [Taxas Locais § Taxa alterada à mão](docs/modules/taxas-locais.md#taxa-alterada-à-mão-adr-0111)
+
+- **Evitar:** "desconto" (é da Demurrage), "override" (é a Condição de Cliente)
+- **Ver também:** Condição de Cliente, Cobrança manual, Taxas Locais
+
 **Taxa Local em Dólar**
 Item de Taxa cadastrado em USD, convertido em BRL pelo ROE fixado no primeiro
 cálculo do B/L (Preço Fixado) e congelado na fatura. Difere do Demurrage, que

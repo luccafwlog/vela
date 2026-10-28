@@ -113,7 +113,7 @@ repositório.
 | ACE-095 | **Desativar, reativar e excluir cadastro (Local, serviço) sem uso**: só o Administrativo. | Op 2; Op 8; Adm | Adm | `permissao:desativar-cadastros` |
 | ACE-096 | **Publicar na Central de Informações do Portal**: qualquer setor. | Op 2; Op 11 | Todos | `permissao:central-informacoes` |
 | ACE-097 | **Criar e editar tabela; incluir e corrigir item de tabela ainda sem uso; criar Condição de Cliente; lançar e editar taxa manual**: qualquer setor. Em tabela já usada (vinculada a B/L, com cálculo ou fatura), incluir item novo ou corrigir item só o Administrativo faz (ACE-099). | Op 2; Op 17; Fin | Todos | `permissao:editar-taxas` |
-| ACE-098 | **Excluir taxa manual do B/L**: só o Administrativo. | Op 2; Op 6; Op 17 | Adm | `permissao:excluir-taxa-manual` |
+| ACE-098 | **Alterar o valor e excluir taxa do B/L (calculada ou manual), com justificativa**: qualquer setor (desde 2026-10-28, ADR 0111; antes, excluir taxa manual era só do Administrativo). | Op 2; Op 6; Op 17 | Todos | `permissao:excluir-taxa-manual` |
 | ACE-099 | **Desativar, reativar e excluir tarifa; corrigir item de tabela já usada e editar Condição de Cliente**: só o Administrativo ("Só o Administrativo corrige item de tabela já usada: a correção reemite as faturas. ..."). Incluir item novo numa tabela já usada também é só dele (mesma recusa), embora a linha da matriz não diga. | Op 2; Op 17; Fin | Adm | `permissao:desativar-tarifa` |
 | ACE-100 | **Emitir fatura (do B/L, na Validação, consolidada, avulsa) e corrigir fatura emitida**: qualquer setor. | Op 2; Op 17; Fin | Todos | `permissao:emitir-fatura` |
 | ACE-101 | **Autorizar restituição excepcional e cancelar a autorização**: qualquer setor. | Op 2; Op 17; Fin | Todos | `permissao:autorizar-restituicao` |

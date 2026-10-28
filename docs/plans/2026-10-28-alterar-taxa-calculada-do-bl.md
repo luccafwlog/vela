@@ -9,7 +9,7 @@ regra de descarte (registrados na D5 da spec). Execução em andamento.
 
 | Lote | Situação |
 |---|---|
-| 1 — Alterar e excluir taxa em B/L sem fatura | A fazer |
+| 1 — Alterar e excluir taxa em B/L sem fatura | Feito (migration `491`). Drift mecânico: os eventos da aba Histórico vão para `audit_logs` com `entity_type = 'charge_calculation'` e `field_name = 'charge_adjustment'`, que `bl_timeline` já lê na família Taxas, em vez de um `entity_type` próprio |
 | 2 — Isentar Taxas Locais | A fazer |
 | 3 — B/L faturado | A fazer |
 | 4 — Leituras: Validação, fatura, Cliente, Históricos | A fazer |

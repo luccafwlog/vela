@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   markBlReadyAndCreateInvoice: vi.fn(),
   showToast: vi.fn(),
   confirm: vi.fn(),
+  confirmWithReason: vi.fn(),
+  changeCharge: vi.fn(),
+  deleteManual: vi.fn(),
   isAdmin: true,
   lines: vi.fn(),
 }))
@@ -21,6 +24,7 @@ vi.mock('../../../hooks/useAuth', () => ({
 }))
 vi.mock('../../ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
+  useConfirmWithReason: () => mocks.confirmWithReason,
 }))
 vi.mock('../../ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
@@ -30,8 +34,10 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
   useManualChargeItemsForBl: () => ({ data: [], isLoading: false }),
   useAddManualBlCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateManualBlCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useDeleteManualBlCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteManualBlCharge: () => ({ mutateAsync: mocks.deleteManual, isPending: false }),
   useCalculateBlLocalCharges: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useChangeBlCharge: () => ({ mutateAsync: mocks.changeCharge, isPending: false }),
+  useBlChargeHistory: () => ({ data: [], isLoading: false }),
 }))
 vi.mock('../../../services/billing', () => ({
   markBlReadyAndCreateInvoice: mocks.markBlReadyAndCreateInvoice,
@@ -114,4 +120,49 @@ it('não anuncia divergência de fatura enquanto as taxas estão indisponíveis'
   mocks.lines.mockReturnValue({ data: [{ total_value_brl: 100 }], isLoading: false })
   rerender(<MemoryRouter><BlCobrancasSection bl={bl} activeInvoice={{ id: 77, status: 'issued', total_brl: 100 } as never} /></MemoryRouter>)
   expect(screen.queryByText(/As taxas mudaram depois da emissão/)).toBeNull()
+})
+
+const renderSection = () => render(<MemoryRouter><BlCobrancasSection bl={bl} /></MemoryRouter>)
+
+describe('alterar e excluir taxa do B/L (ADR 0111)', () => {
+  const thd = {
+    id: 7, bl_id: 'BL-1', charge_name: 'THD', source: 'auto', status: 'calculated', quantity: 2, currency: 'BRL',
+    unit_value_brl: 1200, total_value_brl: 2400, calculation_key: 'auto:item:1', application_basis: 'container_distinct_voyage',
+    table_unit_value_brl: 1420, table_total_value_brl: 2840, adjustment_id: 3, adjustment_kind: 'unit',
+    adjustment_justification: 'Acordo comercial', adjusted_by_name: 'Fulano', adjusted_at: '2026-10-28T10:00:00Z',
+  }
+
+  it('marca a taxa alterada e oferece as ações a qualquer setor', () => {
+    mocks.isAdmin = false
+    mocks.lines.mockReturnValue({ data: [thd, { ...thd, id: 8, charge_name: 'Taxa de B/L', calculation_key: 'auto:item:2', adjustment_id: null, adjustment_kind: null }], isLoading: false })
+    renderSection()
+    expect(screen.getByText('Alterada')).toBeTruthy()
+    expect(screen.getByText('Histórico das taxas')).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Alterar valor da taxa' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Excluir taxa' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Voltar ao valor da tabela' })).toHaveLength(1)
+  })
+
+  it('excluir pede justificativa de 10 caracteres e mostra o motivo do banco ao falhar', async () => {
+    mocks.lines.mockReturnValue({ data: [thd], isLoading: false })
+    mocks.confirmWithReason.mockResolvedValueOnce('curta')
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir taxa' }))
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Escreva a justificativa (ao menos 10 caracteres).', 'error'))
+    expect(mocks.changeCharge).not.toHaveBeenCalled()
+
+    mocks.confirmWithReason.mockResolvedValueOnce('Cliente isento por contrato')
+    mocks.changeCharge.mockRejectedValueOnce({ code: 'P0001', message: 'Esta é a última taxa cobrada do B/L. Para não cobrar nada, use Isentar Taxas Locais.' })
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir taxa' }))
+    await waitFor(() => expect(mocks.changeCharge).toHaveBeenCalledWith(expect.objectContaining({ action: 'exclude', lineKey: 'auto:item:1', justification: 'Cliente isento por contrato' })))
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringMatching(/^Não foi possível excluir a taxa: .*última taxa cobrada/), 'error'))
+  })
+
+  it('linha excluída fica riscada e só oferece Incluir taxa de novo', () => {
+    mocks.lines.mockReturnValue({ data: [{ ...thd, status: 'excluded', total_value_brl: 0, adjustment_kind: 'excluded' }], isLoading: false })
+    renderSection()
+    expect(screen.getAllByText('Excluída').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Incluir taxa de novo' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Alterar valor da taxa' })).toBeNull()
+  })
 })

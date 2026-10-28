@@ -109,7 +109,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
 
   // Taxas Locais e faturamento
   { id: 'editar-taxas', group: 'taxas', action: 'Criar e editar tabela; incluir e corrigir item de tabela ainda sem uso; criar Condição de Cliente; lançar e editar taxa manual', can: ALL, proof: ['todos: Editar tabela de Taxas Locais', 'caso: Catálogo: item de tabela ainda sem uso', 'todos: Lançar taxa manual'] },
-  { id: 'excluir-taxa-manual', group: 'taxas', action: 'Excluir taxa manual do B/L', can: ADM, proof: ['exceção: Excluir taxa manual do B/L'] },
+  // ADR 0111 (migration 491): qualquer setor altera, exclui e desfaz taxa do B/L, com justificativa.
+  { id: 'excluir-taxa-manual', group: 'taxas', action: 'Alterar o valor e excluir taxa do B/L (calculada ou manual), com justificativa', can: ALL, proof: ['caso: P2: a taxa manual entra e sai pela RPC'] },
   { id: 'desativar-tarifa', group: 'taxas', action: 'Desativar, reativar e excluir tarifa; corrigir item de tabela já usada e editar Condição de Cliente', can: ADM, proof: ['caso: P9:', 'caso: B13:', 'caso: Catálogo: item de tabela ainda sem uso'] },
   { id: 'emitir-fatura', group: 'taxas', action: 'Emitir fatura (do B/L, na Validação, consolidada, avulsa) e corrigir fatura emitida', can: ALL, proof: ['caso: A9:', 'caso: P4:'] },
   { id: 'autorizar-restituicao', group: 'taxas', action: 'Autorizar restituição excepcional e cancelar a autorização', can: ALL, proof: ['caso: P5: %s lê a Conciliação, autoriza restituição'] },

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterTaxasDoBlAlteradas, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -11,6 +11,15 @@ function keySet(keys: (readonly unknown[])[]): string[] {
 }
 
 describe('cache effects', () => {
+  it('alterar taxa do B/L atualiza o cálculo, a fatura, o CE e os dois históricos', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterTaxasDoBlAlteradas(client)
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
+      ['bl-local-charge-lines'], ['bl-detail'], ['invoices'], ['customer-ficha'], ['local-charge-operations'],
+      ['ce-unlock'], ['bl-charge-history'], ['bl-timeline'],
+    ])))
+  })
+
   it('invalidates the voyage superset and refreshes the timeline family', async () => {
     const { client, keys } = fakeQueryClient()
     await afterViagemAlterada(client, { voyageId: 24 })

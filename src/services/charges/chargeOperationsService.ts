@@ -20,7 +20,7 @@ export type LocalChargeLine = {
   charge_table_pod: string | null
   application_basis: string | null
   source: 'auto' | 'manual' | null
-  status: 'calculated' | 'review_required' | 'reviewed' | 'ready_for_billing' | 'exempt' | null
+  status: 'calculated' | 'review_required' | 'reviewed' | 'ready_for_billing' | 'exempt' | 'excluded' | null
   quantity: number | null
   currency: string | null
   unit_value_brl: number | null
@@ -32,6 +32,35 @@ export type LocalChargeLine = {
   notes: string | null
   review_reason: string | null
   calculated_at: string | null
+  // Migration 491 (ADR 0111): alteração à mão em vigor na linha e o valor
+  // da tabela, que a tela mostra ao lado do valor cobrado.
+  adjustment_id?: number | null
+  adjustment_kind?: ChargeAdjustmentKind | null
+  adjustment_value?: number | null
+  adjustment_justification?: string | null
+  adjusted_by?: string | null
+  adjusted_by_name?: string | null
+  adjusted_at?: string | null
+  table_unit_value_brl?: number | null
+  table_unit_value_usd?: number | null
+  table_total_value_brl?: number | null
+  table_total_value_usd?: number | null
+}
+
+export type ChargeAdjustmentKind = 'unit' | 'total' | 'excluded'
+
+export type BlChargeHistoryEvent = {
+  id: number
+  created_at: string
+  event: string
+  line_key: string | null
+  charge_name: string | null
+  before: Record<string, unknown> | null
+  after: Record<string, unknown> | null
+  justification: string | null
+  actor: string | null
+  actor_name: string | null
+  invoice_effect: Record<string, unknown> | null
 }
 
 export type ManualChargeItemForBl = {
@@ -455,14 +484,66 @@ export async function updateManualBlCharge(
   return data
 }
 
-export async function deleteManualBlCharge(chargeCalculationId: number, actorId?: string | null) {
-  const { data, error } = await supabase.rpc('delete_manual_bl_charge', {
+export async function deleteManualBlCharge(chargeCalculationId: number, justification: string, actorId?: string | null) {
+  // Migration 491: a exclusão da cobrança manual pede justificativa e entra no
+  // Histórico das taxas; a assinatura antiga ainda está nos tipos gerados.
+  const { data, error } = await supabase.rpc('delete_manual_bl_charge' as never, {
     p_charge_calculation_id: chargeCalculationId,
+    p_justification: justification,
     ...(actorId == null ? {} : { p_actor: actorId }),
-  })
+  } as never)
 
   if (error) throw error
   return data
+}
+
+export async function alterBlChargeValue(input: {
+  blId: string
+  lineKey: string
+  kind: 'unit' | 'total'
+  value: number
+  justification: string
+  actorId?: string | null
+}) {
+  const { data, error } = await supabase.rpc('alter_bl_charge_value' as never, {
+    p_bl_id: input.blId,
+    p_line_key: input.lineKey,
+    p_kind: input.kind,
+    p_value: input.value,
+    p_justification: input.justification,
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+  if (error) throw error
+  return data as unknown
+}
+
+export async function excludeBlCharge(input: { blId: string; lineKey: string; justification: string; actorId?: string | null }) {
+  const { data, error } = await supabase.rpc('exclude_bl_charge' as never, {
+    p_bl_id: input.blId,
+    p_line_key: input.lineKey,
+    p_justification: input.justification,
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+  if (error) throw error
+  return data as unknown
+}
+
+/** Desfaz a alteração ou a exclusão da linha: volta ao valor da tabela. */
+export async function restoreBlCharge(input: { blId: string; lineKey: string; justification: string; actorId?: string | null }) {
+  const { data, error } = await supabase.rpc('restore_bl_charge' as never, {
+    p_bl_id: input.blId,
+    p_line_key: input.lineKey,
+    p_justification: input.justification,
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+  if (error) throw error
+  return data as unknown
+}
+
+export async function listBlChargeHistory(blId: string) {
+  const { data, error } = await supabase.rpc('list_bl_charge_history' as never, { p_bl_id: blId } as never)
+  if (error) throw error
+  return (data ?? []) as BlChargeHistoryEvent[]
 }
 
 export async function calculateLocalChargesBatch(

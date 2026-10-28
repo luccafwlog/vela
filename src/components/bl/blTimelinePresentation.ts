@@ -1,4 +1,5 @@
 import type { BlTimelineEvent, BlTimelineFamily } from '../../services/blTimeline'
+import { historyChangePhrase } from './blChargeAdjustmentPresentation'
 
 const FAMILY_LABEL: Record<BlTimelineFamily, string> = {
   edicao: 'Edição',
@@ -255,6 +256,17 @@ function describeBlMark(field: string, oldValue: string | null, newValue: string
   return null
 }
 
+function describeChargeAdjustment(value: string | null): string {
+  try {
+    const event = JSON.parse(value ?? '') as { event?: string; charge_name?: string | null; before?: Record<string, unknown> | null; after?: Record<string, unknown> | null }
+    if (!event.event) return 'Taxa alterada à mão'
+    const phrase = historyChangePhrase({ event: event.event, before: event.before ?? null, after: event.after ?? null })
+    return event.charge_name ? `${event.charge_name} · ${phrase}` : phrase
+  } catch {
+    return 'Taxa alterada à mão'
+  }
+}
+
 export function describeTimelineEvent(event: BlTimelineEvent): string {
   const { entity_type, field_name, old_value, new_value } = event
   if (entity_type === 'bl' && field_name === 'container_dates') {
@@ -272,6 +284,8 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
   }
   if (entity_type === 'charge_calculation') {
     if (field_name === 'manual_delete') return 'Cobrança manual excluída'
+    // Migration 491: alteração à mão nas taxas grava o evento em JSON.
+    if (field_name === 'charge_adjustment') return describeChargeAdjustment(new_value)
     return new_value ? `Taxa: ${new_value}` : 'Taxa alterada'
   }
   if (entity_type === 'bl_container' || entity_type === 'vehicle') {

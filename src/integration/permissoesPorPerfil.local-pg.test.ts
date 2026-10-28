@@ -353,15 +353,16 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     expect(runAs('financeiro', `SELECT count(*) FROM public.demurrage_invoice_items WHERE id = ${DEM_ITEM_ID}`).output).toBe('1')
   })
 
-  it('P2: a taxa manual entra pela RPC para qualquer Departamento e sai pela RPC do Administrativo', () => {
+  it('P2: a taxa manual entra e sai pela RPC para qualquer Departamento (ADR 0111)', () => {
     const added = runAs('operacoes', `SELECT public.add_manual_bl_charge('${BL}', ${ITEM_MANUAL}, 2, 'Taxa extra P85', NULL)`)
     expect(added.error).toBe('')
     const newId = psql(`SELECT id FROM public.charge_calculations WHERE bl_id = '${BL}' AND source = 'manual' AND id <> ${CALC_MANUAL_ID} ORDER BY id DESC LIMIT 1;`)
     expect(newId).not.toBe('')
     expect(psql(`SELECT total_value_brl FROM public.charge_calculations WHERE id = ${newId};`)).toBe('400.00')
 
-    expect(runAs('operacoes', `SELECT public.delete_manual_bl_charge(${newId}, NULL)`).ok).toBe(false)
-    const removed = runAs('administrativo', `SELECT public.delete_manual_bl_charge(${newId}, NULL)`)
+    // Migration 491: sem justificativa a assinatura antiga não existe mais para a API.
+    expect(runAs('operacoes', `SELECT public.delete_manual_bl_charge(${newId}, NULL::uuid)`).ok).toBe(false)
+    const removed = runAs('operacoes', `SELECT public.delete_manual_bl_charge(${newId}, 'Lançada no B/L errado', NULL)`)
     expect(removed.error).toBe('')
     expect(psql(`SELECT count(*) FROM public.charge_calculations WHERE id = ${newId};`)).toBe('0')
   })
@@ -792,7 +793,6 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Reativar viagem', allowed: ADM, call: `public.reactivate_voyage(-1, 'motivo')` },
     { row: 'Cancelar B/L', allowed: ADM, call: `public.cancel_bl('P14-INEXISTENTE', 'motivo', false)` },
     { row: 'Reativar B/L', allowed: ADM, call: `public.reactivate_bl('P14-INEXISTENTE', 'motivo')` },
-    { row: 'Excluir taxa manual do B/L', allowed: ADM, call: `public.delete_manual_bl_charge(-1, '{actor}')` },
     { row: 'Excluir viagem com Trava', allowed: ADM, call: `public.delete_records('voyage', ARRAY['-1'], true, 'motivo')` },
     { row: 'Excluir escala', allowed: ADM, call: `public.delete_escala(-1, 'BRZZZ', true, 'motivo')` },
     { row: 'Excluir Cliente', allowed: ADM, call: `public.delete_records('customer', ARRAY['-1'], true, 'motivo')` },

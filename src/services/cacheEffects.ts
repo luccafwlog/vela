@@ -235,6 +235,18 @@ export async function afterBlInvoiceBasisAlterada(queryClient: QueryInvalidator)
   await invalidate(queryClient, [...INVOICE_BASIS_CACHE_KEYS, queryKeys.ceUnlock.all()])
 }
 
+/**
+ * Alterar, excluir ou desfazer uma Taxa Local do B/L (ADR 0111) muda o
+ * cálculo, o "a faturar", o Desbloqueio de CE, o Histórico das taxas e a aba
+ * Histórico da ficha.
+ */
+export async function afterTaxasDoBlAlteradas(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [
+    ...INVOICE_BASIS_CACHE_KEYS, queryKeys.ceUnlock.all(), queryKeys.bls.chargeHistory(), queryKeys.bls.timeline(),
+    queryKeys.charges.pendencies(), queryKeys.voyages.all(),
+  ])
+}
+
 export async function afterCeUnlockChanged(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [queryKeys.ceUnlock.all(), ['customer-detail'], ['customer-ficha']])
 }

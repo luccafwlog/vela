@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { afterBlInvoiceBasisAlterada, afterReferenciaPortalAlterada } from '../services/cacheEffects'
+import { afterBlInvoiceBasisAlterada, afterReferenciaPortalAlterada, afterTaxasDoBlAlteradas } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import {
   quoteManualInvoiceCharge,
@@ -13,6 +13,10 @@ import {
   listBlLocalChargeLines,
   getInvoicedSubtotalForBl,
   updateManualBlCharge,
+  alterBlChargeValue,
+  excludeBlCharge,
+  restoreBlCharge,
+  listBlChargeHistory,
 } from '../services/charges/chargeOperationsService'
 import {
   deleteChargeTableItem,
@@ -101,20 +105,38 @@ export function useUpdateManualBlCharge(blId?: string) {
   })
 }
 
-export function useDeleteManualBlCharge(blId?: string) {
+export function useDeleteManualBlCharge() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (payload: { chargeCalculationId: number; actorId?: string | null }) =>
-      deleteManualBlCharge(payload.chargeCalculationId, payload.actorId),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
-      ])
+    mutationFn: async (payload: { chargeCalculationId: number; justification: string; actorId?: string | null }) =>
+      deleteManualBlCharge(payload.chargeCalculationId, payload.justification, payload.actorId),
+    onSuccess: () => afterTaxasDoBlAlteradas(queryClient),
+  })
+}
+
+export function useBlChargeHistory(blId?: string) {
+  return useQuery({
+    queryKey: queryKeys.bls.chargeHistory(blId ?? ''),
+    enabled: Boolean(blId),
+    queryFn: () => listBlChargeHistory(blId!),
+  })
+}
+
+/** Alterar valor, excluir taxa e desfazer (ADR 0111); todas pedem justificativa. */
+export function useChangeBlCharge(blId?: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload:
+      | { action: 'alter'; lineKey: string; kind: 'unit' | 'total'; value: number; justification: string; actorId?: string | null }
+      | { action: 'exclude' | 'restore'; lineKey: string; justification: string; actorId?: string | null }) => {
+      const base = { blId: blId!, lineKey: payload.lineKey, justification: payload.justification, actorId: payload.actorId }
+      if (payload.action === 'alter') return alterBlChargeValue({ ...base, kind: payload.kind, value: payload.value })
+      if (payload.action === 'exclude') return excludeBlCharge(base)
+      return restoreBlCharge(base)
     },
+    onSuccess: () => afterTaxasDoBlAlteradas(queryClient),
   })
 }
 
