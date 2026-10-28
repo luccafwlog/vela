@@ -7,7 +7,8 @@ trabalho, não o manual.
 ## Estado
 
 **Etapa 1 concluída em 2026-10-28; Etapa 2 em andamento: catálogos de
-situações dos capítulos 4, 5 e 6 (o piloto) em rascunho.** Divergências
+situações dos capítulos 4, 5 e 6 (o piloto) em rascunho e páginas-modelo
+esperando a aprovação do dono.** Divergências
 decididas e corrigidas em 2026-10-27; lista "fora do manual" e sumário final
 aprovados em 2026-10-28. As 118
 divergências (112 fichas) foram decididas pelo dono e executadas nos lotes 1 a
@@ -33,8 +34,13 @@ está em rascunho: 10 objetivos e 35 situações ligadas às regras da matriz; a
 três perguntas ao dono (P1 a P3) foram decididas em 2026-10-28 (a correção da
 mensagem da P1 é tarefa separada). Os catálogos dos
 [capítulos 4](../manual/situacoes/04-viagens-escalas.md) e
-[5](../manual/situacoes/05-programacao.md) também estão em rascunho, com a
-pergunta P4 (falhas de COD, transbordo e Complementar sem aviso na tela).
+[5](../manual/situacoes/05-programacao.md) também estão em rascunho; a
+pergunta P4 (falhas de COD, transbordo e Complementar sem aviso na tela) foi
+decidida em 2026-10-28 e a correção é tarefa separada. As nove páginas-modelo
+do projeto gráfico (Etapa 2, item 1) estão em
+[`scripts/manual/pdf/`](../../scripts/manual/pdf/README.md), com imagens
+capturadas do Vela local com dados fictícios e marcações tiradas da posição
+real dos elementos na tela.
 
 **Mudança entrada depois da Etapa 1 (2026-10-28): alterar, excluir e isentar
 as Taxas Locais do B/L** ([ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
@@ -80,12 +86,12 @@ guardado como registro histórico e serve só de referência de redação
 4. **Material de trabalho da Etapa 1** (instruções de mapeamento, conferência,
    correção de documento e fichas de decisão; montagem do relatório):
    [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).
-5. **Próximo passo (Etapa 2):** o dono decide a pergunta P4 do
-   [catálogo do capítulo 4](../manual/situacoes/04-viagens-escalas.md) (a
-   conferência dos catálogos 4 a 6 pelo dono pode ficar para o
-   capítulo-piloto); em seguida, projeto gráfico com páginas-modelo para o dono
-   aprovar, cenário de demonstração, imagens por script e capítulo-piloto
-   (capítulos 4 a 6 do sumário final).
+5. **Próximo passo (Etapa 2):** o dono aprova as páginas-modelo (PDF gerado
+   por [`scripts/manual/pdf/`](../../scripts/manual/pdf/README.md); a
+   conferência dos catálogos 4 a 6 pode ficar para o capítulo-piloto); em
+   seguida, cenário de demonstração, imagens por script, gerador do manual
+   inteiro (texto corrido paginado, `manual:capture` e `manual:build`) e
+   capítulo-piloto (capítulos 4 a 6 do sumário final).
 6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
    etapas: o manual se pauta só pelo código; o material antigo é só referência
    de redação; quem faz o quê sai do código (matriz "O que cada setor pode",
@@ -684,7 +690,9 @@ salvo as aprovadas como "fora do manual".
 - Extração das listas do código e check de cobertura junto das ferramentas de
   `scripts/`.
 - Cenário de demonstração (dados fictícios e arquivos de importação), scripts de
-  imagem e gerador de PDF junto das ferramentas de `scripts/`.
+  imagem e gerador de PDF junto das ferramentas de `scripts/`
+  (`scripts/manual/pdf/`; saída em `artifacts/manual/`, fora do Git).
+- Catálogo de situações por capítulo em `docs/manual/situacoes/`.
 - `package.json`: comandos do manual.
 - Relatório datado do mapeamento em `docs/archive/reports/`.
 - `docs/CONVENCOES.md`, `AGENTS.md` e CI na Etapa 4.

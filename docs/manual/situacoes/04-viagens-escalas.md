@@ -272,6 +272,7 @@ VIA-020, VIA-025, VIA-048).
 
 ## Perguntas abertas
 
-| Nº | Situação | Pergunta |
-|---|---|---|
-| P4 | S4.21 | **Marcar COD**, **Reverter para transbordo** e **Complementar** falham sem nenhum aviso, e omitir ou reverter omissão mostra só uma mensagem genérica. A tela deve mostrar o motivo da recusa? |
+Nenhuma. P4 (S4.21) decidida em 2026-10-28: a tela passa a mostrar o motivo
+da recusa em Marcar COD, Reverter para transbordo, Complementar, Omitir escala
+e Reverter omissão; a correção é tarefa separada, e o texto de S4.21 é
+reescrito quando ela sair.
