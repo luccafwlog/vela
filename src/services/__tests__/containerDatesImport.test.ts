@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { annotateContainerDates, fetchContainerDatesCurrent, importContainerDates, MAX_CONTAINER_DATES_BLS, parseContainerDatesFile } from '../containerDatesImport'
+import { annotateContainerDates, fetchContainerDatesCurrent, importContainerDates, parseContainerDatesFile } from '../containerDatesImport'
 import { classifyDbError } from '../../lib/errors'
 import { jsonToBuffer } from './testWorkbook'
 
@@ -294,12 +294,23 @@ describe('importContainerDates (arquivo inteiro numa chamada)', () => {
     expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 
-  it('planilha acima do teto de B/Ls é recusada antes de ler ou gravar', async () => {
-    const rows = Array.from({ length: MAX_CONTAINER_DATES_BLS + 1 }, (_, index) => ({
-      bl_id: `BL${index}`, container_number: 'TCLU1111111', discharge_date: '2026-01-10', return_date: null,
+  // Migration 499: sem teto de B/Ls; a planilha de 317 B/Ls que era recusada
+  // vai inteira numa chamada.
+  it('planilha com mais de 300 B/Ls vai inteira numa chamada', async () => {
+    const containers = Array.from({ length: 317 }, (_, index) => ({
+      id: index + 1, bl_id: `BL${index}`, container_number: `TCLU${String(index).padStart(7, '0')}`,
+      discharge_date: null, return_date: null, demurrage_status: null,
     }))
-    await expect(importContainerDates(rows)).rejects.toThrow(/limite é 300 por arquivo/)
-    expect(mockRpc).not.toHaveBeenCalled()
+    setContainers(containers)
+    mockRpc.mockResolvedValue({ data: { ok: true, updated: 317, unchanged: 0 }, error: null })
+
+    const result = await importContainerDates(containers.map((container) => ({
+      bl_id: container.bl_id, container_number: container.container_number, discharge_date: '2026-01-10', return_date: null,
+    })))
+
+    expect(result).toEqual({ ok: true, updated: 317, unchanged: 0, errors: [] })
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect((mockRpc.mock.calls[0][1] as { p_batches: unknown[] }).p_batches).toHaveLength(317)
   })
 
   // ADR 0078, item 19: a prévia mostra "antes → depois", devolução vazia mantém
