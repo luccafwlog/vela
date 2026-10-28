@@ -65,9 +65,11 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
   Viagem certa. A exclusão só é possível se o B/L não tem CE Mercante nem
   documento financeiro; veja S6.18.
 - **Regras:** BLR-015, BLR-026, BLR-053.
-- **Pergunta aberta P1:** a mensagem da carga solta manda "corrija a Viagem do
-  B/L pela ficha", mas a ficha do B/L não tem como mudar a Viagem (leitura do
-  código em 2026-10-28: `BlDetalhesTab` e `useBlEditForm` não têm o campo).
+- **P1 (decidida em 2026-10-28):** a mensagem da carga solta manda "corrija a
+  Viagem do B/L pela ficha", mas a ficha do B/L não tem como mudar a Viagem
+  (`BlDetalhesTab` e `useBlEditForm` não têm o campo). O dono decidiu que ela
+  dirá o mesmo que a do B/L de container; a correção é tarefa separada. O
+  manual ensina excluir e importar de novo.
 
 #### S6.04 — O B/L do arquivo está cancelado
 
@@ -156,13 +158,14 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
 #### S6.12 — O container não sai do B/L na reimportação
 
 - **O que o sistema faz:** a linha do B/L vira erro quando o container que
-  sairia tem Invoice de Demurrage (em qualquer situação, mesmo cancelada) ou
-  veículo gravado.
-- **Por quê:** a Demurrage cobrada e os veículos precisam do container.
-- **O que você faz:** com veículos, mova ou exclua os veículos (planilha de
-  Veículos ou ficha) e importe de novo. Com Invoice de Demurrage, o container
-  não sai por arquivo (veja a pergunta P3).
-- **Regras:** BLR-033, EQU-007, EQU-056.
+  sairia tem veículo gravado.
+- **Por quê:** o veículo precisa estar num container do B/L.
+- **O que você faz:** mova ou exclua os veículos (planilha de Veículos ou
+  ficha) e importe de novo.
+- **Regras:** BLR-033, EQU-056.
+- **Fora do texto (P3, decidida em 2026-10-28):** o sistema também segura o
+  container que tem Invoice de Demurrage, mas o dono confirmou que o armador
+  tirar do B/L um container já cobrado de Demurrage não ocorre na operação.
 
 #### S6.13 — Reimportei um B/L já faturado e mudou o que é cobrado
 
@@ -246,8 +249,13 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
 - **Regras:** BLR-015, BLR-102 a BLR-106.
 - **Pergunta aberta P2:** um B/L importado na Viagem errada que já teve fatura
   (mesmo cancelada) não pode ser excluído, e cancelar não libera o número
-  (BLR-026). Pela leitura do código, ele não consegue mais ser importado na
-  Viagem certa. Não foi executado.
+  (BLR-026). Executado no banco local em 2026-10-28 (dados montados à mão numa
+  transação desfeita no fim): B/L com uma fatura cancelada recebe o motivo
+  "documento financeiro emitido" em `bl_delete_lock_reasons`, e o mesmo número
+  numa segunda Viagem é recusado pela chave do B/L. Nenhuma ação ativa muda a
+  Viagem de um B/L. Logo, esse B/L não chega mais à Viagem certa. A chance é
+  pequena: a prévia já recusa arquivo de outro navio ou viagem (S6.01), e a
+  fatura só sai depois do CE.
 
 ### CE Mercante e Manifesto
 
@@ -422,6 +430,8 @@ EQU-033), Base de Clientes (capítulo 13; CLI-014 a CLI-020) e arquivo da ZPT
 
 | Nº | Situação | Pergunta |
 |---|---|---|
-| P1 | S6.03 | A recusa da carga solta de B/L em outra Viagem manda "corrigir a Viagem do B/L pela ficha", mas a ficha não muda a Viagem. A mensagem deve dizer o mesmo que a do B/L de container (excluir lá e importar de novo)? |
-| P2 | S6.18 | B/L importado na Viagem errada e que já teve fatura não pode ser excluído, e cancelar não libera o número. Como ele chega à Viagem certa? |
-| P3 | S6.12 | O armador tirou do B/L um container que já tem Invoice de Demurrage. A reimportação não tira o container, e cancelar a Invoice não destrava. Qual é o caminho que o manual deve ensinar? |
+| P2 | S6.18 | B/L importado na Viagem errada e que já teve fatura não pode ser excluído, e cancelar não libera o número (confirmado no banco local). Como ele chega à Viagem certa? |
+
+Decididas em 2026-10-28: P1 (S6.03; a mensagem da carga solta passa a dizer o
+mesmo que a do container, em tarefa separada) e P3 (S6.12; container com
+Demurrage que sai do B/L não ocorre na operação).

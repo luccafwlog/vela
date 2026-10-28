@@ -29,8 +29,10 @@ responsabilidade, e cobre as situações mais comuns, inclusive as de borda
 No mesmo dia o dono aprovou o sumário final (24 capítulos), o que fecha a
 Etapa 1, e pediu para começar a Etapa 2 pela importação de arquivos. O
 [catálogo de situações do capítulo 6](../manual/situacoes/06-importacao.md)
-está em rascunho: 10 objetivos, 35 situações ligadas às regras da matriz e três
-perguntas abertas para o dono (P1 a P3).
+está em rascunho: 10 objetivos e 35 situações ligadas às regras da matriz. Das
+três perguntas ao dono, P1 e P3 foram decididas em 2026-10-28 (a correção da
+mensagem da P1 é tarefa separada); a P2 foi confirmada no banco local e
+espera decisão.
 
 **Mudança entrada depois da Etapa 1 (2026-10-28): alterar, excluir e isentar
 as Taxas Locais do B/L** ([ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
@@ -76,9 +78,9 @@ guardado como registro histórico e serve só de referência de redação
 4. **Material de trabalho da Etapa 1** (instruções de mapeamento, conferência,
    correção de documento e fichas de decisão; montagem do relatório):
    [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).
-5. **Próximo passo (Etapa 2):** o dono confere o
-   [catálogo do capítulo 6](../manual/situacoes/06-importacao.md) e responde
-   as perguntas P1 a P3; em seguida, catálogo dos capítulos 4 e 5, projeto
+5. **Próximo passo (Etapa 2):** o dono decide a pergunta P2 do
+   [catálogo do capítulo 6](../manual/situacoes/06-importacao.md) (a conferência
+   do catálogo pelo dono pode ficar para o capítulo-piloto); em seguida, catálogo dos capítulos 4 e 5, projeto
    gráfico com páginas-modelo para o dono aprovar, cenário de demonstração,
    imagens por script e capítulo-piloto (capítulos 4 a 6 do sumário final).
 6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
