@@ -83,3 +83,27 @@ alteração do operador passa por eles assim:
 Tabela nova cadastrada não muda B/L existente (o B/L fica vinculado à tabela do
 primeiro cálculo, [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
 decisão 1); o B/L só troca de tabela quando muda de POD ou de modalidade.
+
+### D6 — Aviso ao operador pelo tamanho do efeito
+
+Quando um evento vai mexer num B/L com taxa alterada à mão, o aviso depende do
+efeito sobre a alteração. Não há confirmação em todo evento: na maioria (D5) a
+alteração se mantém e nada muda nela.
+
+1. **Prévia.** As telas que já mostram prévia antes de gravar (arquivo de B/L,
+   Manifesto BB, planilha de CE, Baplie, planilha de veículos) ganham a seção
+   **Taxas alteradas à mão**, com cada B/L afetado e o que acontece com cada
+   alteração: mantida; quantidade muda (com o total antes → depois); ou
+   descartada (com o motivo).
+2. **Confirmação obrigatória**, só quando alguma alteração vai ser descartada
+   ou mudar de valor: o botão de gravar pede uma confirmação à parte que lista
+   as taxas afetadas. Vale na prévia e nos diálogos da ficha do B/L (POD,
+   modalidade, containers), do COD e da correção de container.
+3. **Aviso nos diálogos que já confirmam**, sem passo a mais: **Recalcular
+   selecionados**, **Recalcular** da Revisão, **Emitir fatura**, **Emitir** da
+   Validação e fatura consolidada ("Este B/L tem 2 taxas alteradas à mão; a
+   fatura sai com os valores alterados.").
+4. **Evento sem ninguém na tela** (por exemplo, a fila de efeitos de
+   importação): alteração mantida fica só no histórico da página; descartada
+   ou com valor mudado fica no histórico e abre um alerta para os setores do
+   faturamento.
