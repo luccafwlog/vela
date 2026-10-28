@@ -44,9 +44,26 @@ export async function sendPortalInvite(customerId: number, recoveryEmail: string
   const { data, error } = await supabase.functions.invoke('portal-invite-send', {
     body: { customer_id: customerId, recovery_email: recoveryEmail.trim().toLowerCase(), recovery_email_source: source },
   })
-  if (error) throw error
+  if (error) {
+    // A recusa traz o motivo no corpo (422, 409); a tela mostra esse motivo, não
+    // "Edge Function returned a non-2xx status code" (POR-D01, BLR-D06).
+    const context = (error as { context?: Response }).context
+    if (context?.status === 403) throw new Error('O convite do Portal é enviado pela Documentação ou pelo Administrativo.')
+    const parsed = context ? await context.json().catch(() => null) as { error?: string } | null : null
+    throw new Error(parsed?.error ?? 'Não foi possível enviar o convite do Portal.')
+  }
   if (data?.situation === 'falha_no_envio') throw new Error('O envio do email falhou. Verifique o status do convite antes de tentar novamente.')
   if (data?.situation !== 'convite_pendente') throw new Error('Não foi possível confirmar o resultado do envio do convite.')
+}
+
+/** Suspende ou reativa a conta; a recusa mostra o motivo do servidor (POR-D01). */
+export async function suspendPortalAccount(customerId: number, action: 'suspend' | 'reactivate', reason: string) {
+  const { error } = await supabase.functions.invoke('portal-account-suspend', { body: { customer_id: customerId, action, reason } })
+  if (error) {
+    const context = (error as { context?: Response }).context
+    const parsed = context ? await context.json().catch(() => null) as { error?: string } | null : null
+    throw new Error(parsed?.error ?? 'Não foi possível alterar a conta do Portal.')
+  }
 }
 
 export type AssistedEmailChangeNotice = 'enviado' | 'falhou' | 'sem_anterior'

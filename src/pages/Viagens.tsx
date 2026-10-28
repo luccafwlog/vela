@@ -7,6 +7,7 @@ import { EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { VoyageCreateModal } from '../components/shared/VoyageCreateModal'
 import { EscalaModal, PolScheduleModal, type EscalaModalData } from '../components/shared/VoyageScheduleModals'
+import { isRevisionConflictError } from '../services/escalaTerminalAllocation'
 import { Modal } from '../components/ui/Modal'
 import { Field, Input } from '../components/ui/Input'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
@@ -585,11 +586,12 @@ export function Viagens() {
               showToast(`Exportação bloqueada por ADR fechado${blockers ? ` (${blockers})` : ''}. Reabra o ADR antes de alterar a escala.`, 'error')
               throw error
             }
-            if (error instanceof Error && /REVISAO_OBSOLETA|revis[aã]o.*(obsoleta|atualizada)/i.test(error.message)) {
+            // 02-viagens-adr:6: a recusa do banco chega como objeto, não como Error.
+            if (isRevisionConflictError(error)) {
               showToast('A escala foi atualizada por outra pessoa. Recarregue antes de salvar novamente.', 'error')
               throw error
             }
-            showToast('Falha ao salvar a escala.', 'error')
+            showToast(userFacingErrorMessage(error, 'Falha ao salvar a escala.'), 'error')
             throw error
           }
         }}

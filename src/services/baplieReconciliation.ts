@@ -29,6 +29,14 @@ export type BaplieReconciliationItem =
       bl_id: string | null
     }
   | {
+      // CEB-D13 (lote 10): o B/L declara o container cheio e o Baplie o traz
+      // vazio. Está a bordo, mas o status diverge (divergência própria).
+      kind: 'empty_in_baplie'
+      container_number: string
+      bl_container_id: number
+      bl_id: string | null
+    }
+  | {
       kind: 'ownership_mismatch'
       container_number: string
       bl_container_id: number
@@ -167,8 +175,12 @@ export function computeExistenceDivergences(
   }
 
   const baplieFullNumbers = new Set<string>()
+  const baplieEmptyNumbers = new Set<string>()
   for (const b of staged) {
-    if (b.status === 'empty') continue
+    if (b.status === 'empty') {
+      baplieEmptyNumbers.add(normalizeContainerNumber(b.container_number))
+      continue
+    }
     baplieFullNumbers.add(normalizeContainerNumber(b.container_number))
   }
 
@@ -191,10 +203,18 @@ export function computeExistenceDivergences(
     }
   }
 
-  // Container em B/L e ausente do Baplie (full).
+  // Container em B/L e ausente do Baplie (full). O que o Baplie traz vazio está
+  // a bordo: é a divergência própria "cheio no B/L, vazio no Baplie" (CEB-D13).
   for (const mc of activeBlContainers) {
     const key = normalizeContainerNumber(mc.container_number)
-    if (!baplieFullNumbers.has(key)) {
+    if (!baplieFullNumbers.has(key) && baplieEmptyNumbers.has(key)) {
+      items.push({
+        kind: 'empty_in_baplie',
+        container_number: mc.container_number,
+        bl_container_id: mc.id,
+        bl_id: mc.bl_id ?? null,
+      })
+    } else if (!baplieFullNumbers.has(key)) {
       items.push({
         kind: 'missing_in_baplie',
         container_number: mc.container_number,

@@ -45,9 +45,11 @@ são read-only (corrigidos na tela Viagens). Marcar um porto como "não escala"
 cancela aquela escala — quando é porto de descarga que tinha data, a tela pede
 confirmação antes (`clearedPodLabels`): o ETD/ETA publicado é removido. A
 escala só é retirada também de Viagens e do Line-Up quando quem salva é o
-Administrativo, ela não tem âncora operacional (manifesto vinculado, ATA/ATD ou
-B/L) e o porto não está sob a Trava de exclusão; para os demais Departamentos,
-a escala continua sem data (migration `090`, ADR 0071). O upload em lote nunca cancela escalas — células vazias
+Administrativo, ela não tem âncora operacional (manifesto vinculado, ATA/ATD,
+B/L ou edição de terminais salva, `voyage_escala_revision_state.revision > 0`)
+e o porto não está sob a Trava de exclusão; para os demais Departamentos,
+a escala continua sem data (migration `090`, ADR 0071). O texto da confirmação
+cita só "B/L, ATA nem manifesto". O upload em lote nunca cancela escalas — células vazias
 ou "X" são ignoradas.
 
 A tela não tira linhas do quadro. A viagem sai da Programação sozinha ao
@@ -158,7 +160,7 @@ lanes e ordena pela menor ETA de POD.
 - `show_on_portal` controla visibilidade; viagens manuais começam ocultas, salvo quando o operador liga **Aparece em Chegadas e Saídas** no cadastro da tela Viagens, e o painel de edição da viagem liga ou desliga a aparição ([ADR 0097](../adr/0097-data-efetiva-confirmada-e-aparicao-na-programacao.md); revisão de 2026-10-22). A viagem criada aqui já nasce publicada, na própria inserção (`createVoyage` com origem `chegadas_saidas`), e a linha do tempo mostra um só "Viagem criada · Origem: Chegadas e Saídas".
 - Viagens `completed` não aparecem na RPC do Portal.
 - PODs omitidos pelo armador (`audit_logs.field_name='omitted'`) aparecem na
-  projeção como `OMIT`, enquanto snapshots deletados permanecem ocultos.
+  projeção como "Omitida", enquanto snapshots deletados permanecem ocultos.
 - "Não escala" não cria schedule para a lane.
 - Chegadas e Saídas não grava RTW/CE/linked. ATA e ATD só pela **confirmação da data efetiva** ([ADR 0097](../adr/0097-data-efetiva-confirmada-e-aparicao-na-programacao.md), migration `414`): na célula vencida (âmbar), **Confirmar** abre a janela com a previsão; a chegada grava o ATA da escala com data e hora; a saída grava o ATD do POL só com a data e fica provisória (`voyage_pol_atd_confirmed`): o Laden on Board diferente de um B/L a substitui, com as duas datas na linha do tempo, e o mesmo dia só tira a marca. A correção em Viagens → Rotas e Manifestos → Editar continua vencendo o B/L. A RPC `confirm_schedule_effective_date` recusa Viagem cancelada, porto sem programação, escala removida ou omitida, data futura e data efetiva já registrada. No Portal a data confirmada é só a data efetiva.
 - A ordenação do quadro é automática pela menor ETA; não há setas manuais nem

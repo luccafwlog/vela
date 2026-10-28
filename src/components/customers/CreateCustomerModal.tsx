@@ -87,7 +87,7 @@ export function CreateCustomerModal({
           <div className="app-customer-form__head">
             <div>
               <h3 id={`${primaryGroup}-contacts`} className="app-customer-form__title">Contatos</h3>
-              <p className="app-customer-form__intro">Quem recebe os Comunicados. O contato principal precisa de e-mail e recebe todas as caixas.</p>
+              <p className="app-customer-form__intro">Quem recebe os Comunicados. Todo contato precisa de e-mail; o principal recebe todas as caixas.</p>
             </div>
             <Button type="button" variant="secondary" onClick={onAddContact}>
               <Plus size={16} aria-hidden="true" />
@@ -162,7 +162,7 @@ function ContactFields({
         <Field label="Nome">
           <Input value={contact.name} onChange={(event) => onChange(index, { name: event.target.value })} />
         </Field>
-        <Field label="E-mail" required={contact.is_primary}>
+        <Field label="E-mail" required>
           <Input type="email" autoComplete="off" value={contact.email} onChange={(event) => onChange(index, { email: event.target.value })} />
         </Field>
         <Field label="Telefone">

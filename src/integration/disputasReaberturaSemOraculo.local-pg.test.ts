@@ -136,7 +136,11 @@ describeLocal('426 — Disputas: reabertura, reemissão e sem oráculo de ids', 
   })
 
   it('Invoice reemitida para o novo Cliente nasce sem a Dispute do anterior', () => {
-    psql(`UPDATE public.bls SET customer_id = ${CUSTOMER_B} WHERE id = '${BL_TROCA}'`)
+    // 484 (P6): a cópia sai na hora só com o gate do novo Cliente aberto.
+    psql(`SET session_replication_role = replica;
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at) VALUES (${CUSTOMER_B}, 'Fixture: faturamento aberto do novo Cliente (484, P6)', gen_random_uuid(), now() + interval '1 day') ON CONFLICT DO NOTHING;
+      SET session_replication_role = origin;
+      UPDATE public.bls SET customer_id = ${CUSTOMER_B} WHERE id = '${BL_TROCA}'`)
     const reissued = psql(`SELECT concat_ws('|', dispute_open, coalesce(dispute_status, '-'), coalesce(dispute_reason, '-'), coalesce(dispute_subject, '-'))
       FROM public.demurrage_invoices WHERE bl_id = '${BL_TROCA}' AND customer_id = ${CUSTOMER_B}`)
     expect(reissued).toBe('f|-|-|-')

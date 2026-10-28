@@ -9,6 +9,7 @@ import { NoValue } from '../ui/NoValue'
 import { Field, Input } from '../ui/Input'
 import { ReviewCustomerOnboarding, type ReviewCustomerOnboardingInput } from '../review/ReviewCustomerOnboarding'
 import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
+import { PORTAL_INVITE_SITUATIONS } from '../../services/blPortalStatus'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
@@ -23,7 +24,7 @@ import { userFacingErrorMessage } from '../../lib/errors'
 import { afterCargaAlterada, afterBlRevisado } from '../../services/cacheEffects'
 import { sendReviewPortalInvite } from '../../services/reviewCustomerGroup'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
-import { createCustomer, findCustomerIdByDocument } from '../../services/customers'
+import { createCustomerFromBlManifest, findCustomerIdByDocument } from '../../services/customers'
 import { linkBlCustomer } from '../../services/review'
 import { queryKeys } from '../../services/queryKeys'
 import type { BLDetail } from '../../types/database'
@@ -56,7 +57,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
   layout?: BlClienteLayout
 }) {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { user, can } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [picking, setPicking] = useState(false)
@@ -104,7 +105,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       message: `Salvar ${input.name} (${formatCnpjCpf(input.cnpjCpf)}) e vincular ao B/L ${bl.id}?`,
       confirmLabel: input.sendPortalInvite ? 'Salvar e enviar convite' : 'Salvar cadastro',
       affected: { summary: `B/L ${bl.id} · ${input.name} · ${formatCnpjCpf(input.cnpjCpf)}` },
-      consequence: `Salva o cliente e o contato ${input.email}.${input.sendPortalInvite ? ` Inicia também o convite do Portal para ${input.email}.` : ''} Se esta correção liberar o B/L, a fatura poderá ser emitida automaticamente.`,
+      consequence: `${input.email ? `Salva o cliente e o contato ${input.email}.` : 'Salva o cliente, sem contato.'}${input.sendPortalInvite ? ` Inicia também o convite do Portal para ${input.email}.` : ''} Se esta correção liberar o B/L, a fatura poderá ser emitida automaticamente.`,
       reversibility: 'Cadastro e contato podem ser corrigidos; o convite pode ser revogado. Faturas emitidas só podem ser canceladas pelo Administrativo quando não houver pagamento.',
     }))) return
     setSaving(true)
@@ -229,17 +230,8 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       let customerId = existingId
       if (customerId == null) {
         try {
-          customerId = (await createCustomer({
-            cnpjCpf: manifestDocument,
-            name: manifestName,
-            contacts: [{
-              name: 'Contato manifesto',
-              email: email!,
-              purpose: 'geral' as const,
-              is_primary: true,
-              box_codes: ['documentacao_operacao', 'financeiro', 'demurrage'],
-            }],
-          })).id
+          // O banco lê o Cliente e o e-mail do próprio manifesto (migration 486).
+          customerId = (await createCustomerFromBlManifest(bl.id)).id
         } catch (error) {
           const duplicate = typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
           if (!duplicate) throw error
@@ -275,10 +267,10 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
                 </FactList>
                 {!picking ? (
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setPicking(true)} disabled={saving}>Trocar</Button>
+                    <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setPicking(true)} disabled={saving}>Trocar Cliente</Button>
                     {/* ADR 0093, decisão 13: B/L faturado troca de Cliente, não desvincula. */}
                     {['invoiced', 'partially_paid', 'paid'].includes(bl.financial_status ?? 'pending') ? (
-                      <span className="text-xs text-[var(--app-muted)]">B/L faturado: para mudar o Cliente, use Trocar.</span>
+                      <span className="text-xs text-[var(--app-muted)]">B/L faturado: para mudar o Cliente, use Trocar Cliente.</span>
                     ) : (
                       <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => void link(null)} loading={saving}>Desvincular</Button>
                     )}
@@ -308,6 +300,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
               saving={saving || onboarding.isPending}
               onSelectExistingCustomer={() => undefined}
               onSubmit={(input) => void completeCustomer(input)}
+              canEditContacts={can('edit_customer_contacts')}
             />
           ) : showPicker ? (
             <div className={linked ? 'grid gap-3 border-t border-[var(--app-border-soft)] pt-3' : 'grid gap-3'}>
@@ -374,6 +367,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
     </Block>
   )
 
+  const inviteAccepted = (PORTAL_INVITE_SITUATIONS as readonly string[]).includes(portalStatus?.visibility.accountSituation ?? 'sem_conta')
   const portalActions = (
     <>
       {failedInvite ? (
@@ -381,8 +375,11 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
           <p className="app-bl-notice app-bl-notice--warning">Cadastro concluído. O convite para {failedInvite.email} não foi iniciado; tente de novo.</p>
           <div><Button type="button" variant="secondary" loading={saving} onClick={() => void invite(failedInvite.customerId, failedInvite.email)}>Tentar convite novamente</Button></div>
         </div>
-      ) : linked && portalStatus?.visibility.reasons.some((reason) => reason.includes('Conta do Portal')) && !showOnboarding && !inviteOpen ? (
+      ) : linked && inviteAccepted && can('portal_provisioning') && !showOnboarding && !inviteOpen ? (
+        // Convite só quando o servidor o aceita e para quem pode enviar (POR-D12, BLR-D06).
         <div><Button type="button" disabled={saving} onClick={() => { setInviteOpen(true); setInviteEmail(customerEmail) }}>Enviar convite do Portal</Button></div>
+      ) : linked && portalStatus && !portalStatus.visibility.billingReady && !inviteOpen ? (
+        <div><Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${linked.id}`}>Abrir no Provisionamento do Portal</Link></div>
       ) : null}
       {inviteOpen && linked ? (
         <div className="grid gap-3">

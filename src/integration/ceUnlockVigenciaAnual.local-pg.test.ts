@@ -1,10 +1,10 @@
-// Ponto 11 das observações de 2026-10-23 (migrations 449 e 456, ADR 0102): a
-// vigência do termo e da procuração anuais vale para os B/Ls cujo CE Mercante
-// atual foi vinculado dentro dela (dia de Brasília), e o anual continua
-// cobrindo esses B/Ls depois de vencer. Não retroage: o B/L com o CE vinculado
-// antes segue com termo e procuração anexados à solicitação. O B/L que nasce
-// com o CE tem o vínculo na criação (`created_at`); a troca do CE fica na
-// auditoria.
+// Vigência do termo e da procuração anuais. Desde a migration 479 (decisão do
+// dono de 2026-10-27, ficha 08-desbloqueio-ce:4; ADR 0110) o anual cobre todo
+// CE cujo desbloqueio foi solicitado dentro da vigência (dia de Brasília do
+// envio; antes do envio, hoje), sem olhar a importação do B/L nem o vínculo do
+// CE, e continua cobrindo depois de vencer o que foi solicitado nela. O dia do
+// vínculo do CE (`ce_link_day`, migrations 449, 456 e 460) segue calculado, mas
+// não decide mais a cobertura.
 import { execPsql } from './localPsql'
 import { describe, expect, it, beforeAll, beforeEach, afterAll } from 'vitest'
 import { syntheticCnpj } from './localTestData'
@@ -20,7 +20,6 @@ function sql(q: string, uid?: string): string {
 function error(q: string, uid?: string) { try { sql(q, uid); return '' } catch (e) { return String((e as { stderr: string }).stderr) } }
 const key = () => crypto.randomUUID()
 const command = (action: string, payload: object, uid = admin) => JSON.parse(sql(`SELECT public.${uid === admin ? '' : 'portal_'}ce_unlock_command('${action}', '${JSON.stringify(payload)}'::jsonb);`, uid))
-const commandError = (action: string, payload: object, uid = admin) => error(`SELECT public.${uid === admin ? '' : 'portal_'}ce_unlock_command('${action}', '${JSON.stringify(payload)}'::jsonb);`, uid)
 const item = (bl: string, request?: string) => JSON.parse(sql(`SELECT ce_unlock_private.item('${bl}'${request ? `,'${request}'` : ''});`))
 const Y = () => Number(sql('SELECT extract(year FROM ce_unlock_private.today())::int;'))
 
@@ -31,7 +30,7 @@ function annual(type: 'termo' | 'procuracao', year: number, validFrom = `${year}
   return id
 }
 
-local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante (migrations 449 e 456)', () => {
+local('desbloqueio CE — vigência do termo anual pela data da solicitação (migration 479)', () => {
   const reset = () => sql(`SET session_replication_role=replica;
     DELETE FROM ce_unlock_private.receipts WHERE actor_id IN ('${admin}','${client}');
     -- Sem isto, rodar a suíte de novo em 24 h esbarra no limite de 20 uploads do Cliente.
@@ -88,47 +87,38 @@ local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante 
       SET session_replication_role=origin;`)
   })
 
-  it('B/L com o CE vinculado em 20/12, antes do anual do ano novo, não ganha a condição VIP: segue com termo e procuração do pedido', () => {
+  // Pedido enviado no ano anterior, com o B/L dele, para fixar o dia da solicitação.
+  function requestSubmittedLastYear(bl: string, termo?: string, procuracao?: string): string {
     const y = Y()
-    command('set_vip', { customer_id: C, enabled: true, reason: 'VIP desde a virada', request_key: key() })
-    annual('termo', y); annual('procuracao', y)
-    // O anual é deste ano: cobre o B/L de janeiro e o da virada (00:30 de Brasília), não o de dezembro
-    // nem o das 22:30 de 31/12 em Brasília, que em UTC já seria 01/01.
-    expect(item('CE449-DEZ')).toMatchObject({ vip: true, vip_covered: false })
-    expect(item('CE449-JAN')).toMatchObject({ vip: true, vip_covered: true })
-    expect(item('CE449-VIRADA')).toMatchObject({ vip_covered: true })
-    expect(item('CE449-REVEILLON')).toMatchObject({ vip_covered: false })
+    const request = sql(`SET session_replication_role=replica;
+      INSERT INTO public.ce_unlock_requests(customer_id,source,state,created_by,created_at) VALUES(${C},'vip_annual','submitted','${client}','${y - 1}-12-20T10:00:00-03:00') RETURNING id;`)
+    sql(`SET session_replication_role=replica;
+      INSERT INTO public.ce_unlock_request_bls(request_id,bl_id,ce_at_request,termo_document_id,procuracao_document_id)
+        SELECT '${request}', id, ce_mercante, ${termo ? `'${termo}'` : 'NULL'}, ${procuracao ? `'${procuracao}'` : 'NULL'} FROM public.bls WHERE id='${bl}';
+      INSERT INTO public.ce_unlock_events(customer_id,request_id,action,actor_id,created_at) VALUES(${C},'${request}','submit','${client}','${y - 1}-12-20T10:00:00-03:00');`)
+    return request
+  }
 
-    const old = command('draft', { bl_ids: ['CE449-DEZ'], request_key: key() }, client)
-    expect(old.source).toBe('request')
-    expect(commandError('submit', { request_id: old.id, expected_version: old.version, request_key: key() }, client)).toContain('Anexe versões atuais')
-    command('cancel', { request_id: old.id, expected_version: old.version, request_key: key() }, client)
-
-    const current = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
-    expect(current.source).toBe('vip_annual')
-    const sent = command('submit', { request_id: current.id, expected_version: current.version, request_key: key() }, client)
-    expect(sent.items[0]).toMatchObject({ termo: true, procuracao: true })
-  })
-
-  it('pedido com um B/L de antes e outro de depois da vigência segue inteiro como pedido comum', () => {
+  it('o anual vigente cobre qualquer B/L pedido agora, importado ou com o CE vinculado antes da vigência', () => {
     const y = Y()
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
     annual('termo', y); annual('procuracao', y)
+    for (const bl of ['CE449-DEZ', 'CE449-JAN', 'CE449-VIRADA', 'CE449-REVEILLON']) {
+      expect(item(bl), bl).toMatchObject({ vip: true, vip_covered: true })
+    }
     const mixed = command('draft', { bl_ids: ['CE449-DEZ', 'CE449-JAN'], request_key: key() }, client)
-    expect(mixed.source).toBe('request')
+    expect(mixed.source).toBe('vip_annual')
+    const sent = command('submit', { request_id: mixed.id, expected_version: mixed.version, request_key: key() }, client)
+    expect(sent.items.map((row: { termo: boolean; procuracao: boolean }) => [row.termo, row.procuracao])).toEqual([[true, true], [true, true]])
   })
 
-  it('renovação com início no meio do ano não cobre o que entrou antes dela, e o pedido VIP antigo perde o B/L sem cobertura', () => {
+  it('pedido enviado antes da vigência não é coberto pelo anual novo', () => {
     const y = Y()
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
-    const termo = annual('termo', y); const procuracao = annual('procuracao', y)
-    const draft = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
-    const sent = command('submit', { request_id: draft.id, expected_version: draft.version, request_key: key() }, client)
-    expect(sent.items[0]).toMatchObject({ termo: true, procuracao: true })
-    // A vigência passa a começar depois do vínculo do CE: deixa de cobrir (não retroage).
-    sql(`UPDATE public.ce_unlock_documents SET valid_from=make_date(${y},1,10) WHERE id IN('${termo}','${procuracao}');`)
-    expect(item('CE449-JAN', draft.id)).toMatchObject({ termo: false, procuracao: false, vip_covered: false })
-    expect(item('CE449-JAN', draft.id).reasons).toContain('Procuração pendente, vencida ou revogada')
+    annual('termo', y); annual('procuracao', y)
+    const request = requestSubmittedLastYear('CE449-JAN')
+    expect(sql("SELECT ce_unlock_private.request_day('CE449-JAN');")).toBe(`${y - 1}-12-20`)
+    expect(item('CE449-JAN', request)).toMatchObject({ termo: false, procuracao: false, vip_covered: false })
   })
 
   // Ponto 13 de 2026-10-23: VIP com procuração anual inválida, vencida ou faltando abre a
@@ -157,7 +147,6 @@ local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante 
       const current = JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${draft.id}');`, client))
       command('cancel', { request_id: draft.id, expected_version: current.version, request_key: key() }, client)
     }
-    // Com os dois anuais vigentes, o pedido nasce VIP e anexo avulso continua recusado.
     sql(`DELETE FROM public.ce_unlock_documents WHERE customer_id=${C} AND type='procuracao';`)
     annual('procuracao', y)
     const vipDraft = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
@@ -165,58 +154,57 @@ local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante 
     expect(error(prepare(vipDraft.id, 'procuracao'), client)).toContain('Pedido não aceita anexos')
   })
 
-  // 456 (decisão de 2026-10-25): depois de 31/12 o anual continua cobrindo o B/L cujo CE foi
-  // vinculado na vigência dele; antes, o pedido VIP aberto em dezembro travava em janeiro.
-  it('anual vencido continua cobrindo o B/L cujo CE foi vinculado na vigência dele; revogado não cobre', () => {
+  it('anual vencido continua cobrindo o que foi solicitado na vigência dele; revogado não cobre', () => {
     const y = Y()
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP do ano passado', request_key: key() })
-    const termo = annual('termo', y - 1); annual('procuracao', y - 1)
-    expect(item('CE449-DEZ')).toMatchObject({ vip: true, vip_covered: true })
-    // O B/L com o CE vinculado neste ano precisa do anual deste ano.
-    expect(item('CE449-JAN')).toMatchObject({ vip_covered: false })
-    const draft = command('draft', { bl_ids: ['CE449-DEZ'], request_key: key() }, client)
-    expect(draft.source).toBe('vip_annual')
-    const sent = command('submit', { request_id: draft.id, expected_version: draft.version, request_key: key() }, client)
-    expect(sent.items[0]).toMatchObject({ termo: true, procuracao: true })
+    const termo = annual('termo', y - 1); const procuracao = annual('procuracao', y - 1)
+    // Pedido de agora: o anual do ano passado não cobre.
+    expect(item('CE449-DEZ')).toMatchObject({ vip_covered: false })
+    const request = requestSubmittedLastYear('CE449-DEZ', termo, procuracao)
+    expect(item('CE449-DEZ', request)).toMatchObject({ vip: true, vip_covered: true, termo: true, procuracao: true })
     sql(`UPDATE public.ce_unlock_documents SET status='revoked' WHERE id='${termo}';`)
-    expect(item('CE449-DEZ', draft.id)).toMatchObject({ termo: false, vip_covered: false })
+    expect(item('CE449-DEZ', request)).toMatchObject({ termo: false, vip_covered: false })
   })
 
-  // 457: a limpeza diária revogava o anual vencido assim que havia um mais novo aprovado,
-  // e o pedido do B/L com CE vinculado em dezembro perdia a cobertura de novo em janeiro.
   it('limpeza não expurga o anual vencido que ainda cobre B/L pendente; expurga quando não cobre mais', () => {
     const y = Y()
     const candidates = () => (JSON.parse(sql('SELECT public.ce_unlock_cleanup_candidates();')) as Array<{ id: string }>).map((c) => c.id)
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
-    const oldTermo = annual('termo', y - 1); annual('procuracao', y - 1)
+    const oldTermo = annual('termo', y - 1); const oldProcuracao = annual('procuracao', y - 1)
     annual('termo', y); annual('procuracao', y)
-    // Vencido, com um anual mais novo aprovado, mas cobre o B/L de dezembro, ainda não exportado.
-    expect(item('CE449-DEZ')).toMatchObject({ vip_covered: true })
+    requestSubmittedLastYear('CE449-DEZ', oldTermo, oldProcuracao)
     expect(candidates()).not.toContain(oldTermo)
-    // Recuada para dois anos atrás, a vigência não cobre mais nenhum B/L: volta a ser expurgável.
     sql(`UPDATE public.ce_unlock_documents SET coverage_year=${y - 2},valid_from=make_date(${y - 2},1,1),valid_until=make_date(${y - 2},12,31) WHERE id='${oldTermo}';`)
     expect(candidates()).toContain(oldTermo)
   })
 
-  // 460: a 457 tratava o B/L exportado como encerrado. Exportado ainda pode voltar
-  // "Divergente" da ZPT e ser reexportado, o que exige termo e procuração.
   it('limpeza guarda o anual vencido que cobre B/L exportado e ainda não conferido; conferido, expurga', () => {
     const y = Y()
     const candidates = () => (JSON.parse(sql('SELECT public.ce_unlock_cleanup_candidates();')) as Array<{ id: string }>).map((c) => c.id)
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
     const oldTermo = annual('termo', y - 1); const oldProcuracao = annual('procuracao', y - 1)
     annual('termo', y); annual('procuracao', y)
-    const request = sql(`SET session_replication_role=replica;
-      INSERT INTO public.ce_unlock_requests(customer_id,source,state,created_by) VALUES(${C},'vip_annual','completed','${client}') RETURNING id;`)
-    // Os outros B/Ls do ano anterior já estão conferidos; só o de dezembro depende do anual vencido.
-    sql(`SET session_replication_role=replica;
-      INSERT INTO public.ce_unlock_request_bls(request_id,bl_id,ce_at_request,termo_document_id,procuracao_document_id,exported_at,confirmed_at) VALUES
-        ('${request}','CE449-DEZ','998449000000001','${oldTermo}','${oldProcuracao}',now()-interval '1 day',NULL),
-        ('${request}','CE449-REVEILLON','998449000000004','${oldTermo}','${oldProcuracao}',now()-interval '1 day',now()),
-        ('${request}','CE449-LIGADO','998449000000005','${oldTermo}','${oldProcuracao}',now()-interval '1 day',now());`)
+    requestSubmittedLastYear('CE449-DEZ', oldTermo, oldProcuracao)
+    sql(`SET session_replication_role=replica; UPDATE public.ce_unlock_request_bls SET exported_at=now()-interval '1 day' WHERE bl_id='CE449-DEZ';`)
     expect(candidates()).not.toContain(oldTermo)
     sql(`SET session_replication_role=replica; UPDATE public.ce_unlock_request_bls SET confirmed_at=now() WHERE bl_id='CE449-DEZ';`)
     expect(candidates()).toContain(oldTermo)
+  })
+
+  // 479 (08-desbloqueio-ce:2 e 5): a ficha lista as solicitações VIP sem o B/L movido, e a
+  // Inspeção mostra os documentos a todos os setores.
+  it('ficha do Cliente lista a solicitação VIP; Inspeção mostra os documentos a todos os setores', () => {
+    const y = Y()
+    command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
+    annual('termo', y); annual('procuracao', y)
+    const vip = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
+    expect(vip.source).toBe('vip_annual')
+    const list = JSON.parse(sql(`SELECT public.ce_unlock_customer_requests(${C});`, admin))
+    expect(list.items).toEqual([expect.objectContaining({ id: vip.id, source: 'vip_annual', bl_ids: ['CE449-JAN'] })])
+    for (const name of ['portal_inspect_get_ce_unlock_request', 'portal_inspect_get_ce_unlock_vip_coverage']) {
+      const body = sql(`SELECT prosrc FROM pg_proc WHERE proname = '${name}';`)
+      expect(body, name).not.toContain("IN('administrativo','documentacao')")
+    }
   })
 
   // 460: um B/L excluído e importado de novo com o mesmo número não herda o vínculo do CE do antigo.
@@ -234,17 +222,11 @@ local('desbloqueio CE — vigência do termo anual pelo vínculo do CE Mercante 
     const day = () => sql("SELECT ce_unlock_private.ce_link_day('CE449-LIGADO');")
     const audit = (entity: string, oldCe: string, newCe: string, at: string) => sql(`INSERT INTO public.audit_logs(entity_type,entity_id,field_name,old_value,new_value,changed_at)
       VALUES('${entity}','CE449-LIGADO','ce_mercante','${oldCe}','${newCe}','${at}');`)
-    command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
-    annual('termo', y - 1); annual('procuracao', y - 1)
     // Sem registro de troca, o B/L nasceu com o CE: vale a criação (20/12 do ano anterior).
     expect(day()).toBe(`${y - 1}-12-20`)
-    expect(item('CE449-LIGADO')).toMatchObject({ vip_covered: true })
     // Importado em dezembro sem CE; o CE chegou em 05/01 pela importação (registro explícito, entidade bl).
     audit('bl', '', '998449000000005', `${y}-01-05T10:00:00-03:00`)
     expect(day()).toBe(`${y}-01-05`)
-    expect(item('CE449-LIGADO')).toMatchObject({ vip_covered: false })
-    annual('termo', y); annual('procuracao', y)
-    expect(item('CE449-LIGADO')).toMatchObject({ vip_covered: true })
     // Reformatar o mesmo número (mesma chave) não muda o vínculo.
     audit('bls', '998449000000005', '998.449.000.000.005', `${y}-02-01T10:00:00-03:00`)
     expect(day()).toBe(`${y}-01-05`)

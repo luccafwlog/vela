@@ -321,6 +321,7 @@ describe('localCharges service', () => {
         in: vi.fn(() => builder),
         ilike: vi.fn(() => builder),
         or: vi.fn(() => builder),
+        is: vi.fn(() => builder),
         overrideTypes: vi.fn(() => builder),
         range: vi.fn((from: number, to: number) => {
           rangeCalls.push([from, to])

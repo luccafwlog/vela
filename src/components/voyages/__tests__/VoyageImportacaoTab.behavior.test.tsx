@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../services/supabase', () => ({ supabase: {}, isSupabaseConfigured: true }))
 vi.mock('../../shared/VoyageImportActions', () => ({
-  VoyageImportActions: () => <div data-testid="voyage-import-actions">Ações de Importação</div>,
+  VoyageImportActions: ({ types }: { types: string[] }) => <div data-testid="voyage-import-actions" data-types={types.join(',')}>Ações de Importação</div>,
 }))
 
 import { VoyageImportacaoTab } from '../VoyageImportacaoTab'
@@ -59,6 +59,20 @@ describe('VoyageImportacaoTab', () => {
     expect(screen.getByText('Nenhuma carga de importação vinculada a esta viagem.')).toBeTruthy()
     expect(screen.getByText('Total da viagem')).toBeTruthy()
     expect(screen.getByTestId('voyage-import-actions')).toBeTruthy()
+  })
+
+  it('Importação rápida oferece o Manifesto BB com a viagem fixa (BLR-D05)', () => {
+    render(
+      <VoyageImportacaoTab
+        voyage={makeVoyage([])}
+        voyageLabel="ARIES / 088E"
+        vehicleStats={emptyVehicleStats}
+        vaziosImpStats={emptyVaziosStats}
+        userId="user-1"
+      />,
+    )
+
+    expect(screen.getByTestId('voyage-import-actions').getAttribute('data-types')?.split(',')).toContain('bb')
   })
 
   it('renderiza blocos por escala com contagens de containers, carga solta e faixas por POD', () => {

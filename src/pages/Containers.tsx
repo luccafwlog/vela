@@ -368,7 +368,7 @@ export function Containers() {
               <option value="pending">Pendente</option>
               <option value="invoiced">Faturado</option>
               <option value="paid">Pago</option>
-              <option value="cancelled">Cancelado</option>
+              <option value="cancelled">B/L cancelado</option>
             </Select>
           </Field>
           <Field label="Taxas locais">

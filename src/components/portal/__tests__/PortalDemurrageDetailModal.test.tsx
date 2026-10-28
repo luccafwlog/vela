@@ -74,6 +74,17 @@ describe('PortalDemurrageDetailModal', () => {
     expect(handlers.onPrint).toHaveBeenCalled()
   })
 
+  it('Total em dólar já vem com o desconto, como no Vela e no e-mail (DEM-D06)', () => {
+    renderModal(makeDetail({ total_usd: 1000, discount_mode: 'percent', discount_value: 10, current_total_brl: 5175.9 }))
+    expect(screen.getByText('Total em dólar').parentElement?.textContent).toContain('US$ 900,00')
+    expect(screen.queryByText('US$ 1.000,00')).toBeNull()
+  })
+
+  it('Invoice reemitida diz qual fatura cancelada ela substitui (DEM-D08)', () => {
+    renderModal(makeDetail({ replaces_doc_number: 'DEM-2026-0007' }))
+    expect(screen.getByText(/Substitui a fatura/).textContent).toContain('DEM-2026-0007')
+  })
+
   it('B30: mostra cada período (P1/P2) numa linha, dias × diária, sem Dias cobrados', () => {
     const detail = makeDetail()
     detail.items = [{

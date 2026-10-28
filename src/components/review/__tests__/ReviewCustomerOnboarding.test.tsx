@@ -36,6 +36,18 @@ describe('ReviewCustomerOnboarding', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ email: 'financeiro@example.com', sendPortalInvite: true }))
   })
 
+  // D10 de 2026-10-27: quem não edita contatos cadastra só o Cliente.
+  it('sem permissão de contatos, não pede e-mail nem convite e salva só o cadastro', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<ReviewCustomerOnboarding group={group} existingCustomerId={null} existingCustomer={null} initialName="Alfa" initialCnpj="11222333000181" initialEmail="manifesto@alfa.com" saving={false} onSelectExistingCustomer={vi.fn()} onSubmit={onSubmit} canEditContacts={false} />)
+    expect(screen.queryByText('E-mail principal do cliente')).toBeNull()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.getByRole('note').textContent).toMatch(/Só Administrativo, Documentação e Equipamentos incluem o e-mail do Cliente/)
+    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 1 b\/l$/i }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ email: '', sendPortalInvite: false }))
+  })
+
   it('preenche o e-mail conhecido ao selecionar um cliente existente', async () => {
     const user = userEvent.setup()
     renderForm()

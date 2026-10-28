@@ -45,7 +45,7 @@ function parseReceivableStatus(value: string): ConsolidatableReceivable['receiva
 }
 
 function parseEligibilityStatus(value: string): ConsolidatableReceivable['eligibility_status'] {
-  if (value === 'eligible' || value === 'paid' || value === 'no_balance' || value === 'open_consolidated') return value
+  if (value === 'eligible' || value === 'paid' || value === 'no_balance' || value === 'open_consolidated' || value === 'no_ce_mercante') return value
   throw new Error(`Elegibilidade de recebível inválida: ${value}`)
 }
 

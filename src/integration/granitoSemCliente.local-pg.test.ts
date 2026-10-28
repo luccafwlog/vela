@@ -260,7 +260,13 @@ describeLocal('Granito sem tarifas nem cálculo no banco (migration 329)', () =>
       INSERT INTO public.granite_bl_charges (id, bl_id, rate_id, description, charge_type, unit_value, quantity, subtotal, currency)
       VALUES ('${a329ChargeId}', '${a329BlId}', '${a329RateId}', 'A329 THC', 'per_bl', 45, 1, 45, 'BRL');
     `)
+    // A 329 redefine três funções que migrations seguintes mudaram (472:
+    // reativação de usuário numa linha só). Guarda e devolve as vigentes para as
+    // suítes que rodam depois.
+    const current329 = ['guard_used_tariff_delete()', 'delete_catalog_row(text,text,text)', 'reactivate_catalog_row(text,text,text)']
+      .map((signature) => psql(`SELECT pg_get_functiondef('public.${signature}'::regprocedure);`))
     execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migration329Path], { encoding: 'utf8' })
+    for (const definition of current329) execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl, '-c', definition], { encoding: 'utf8' })
 
     expect(psql(`SELECT to_regclass('public.granite_rates') IS NULL;`)).toBe('t')
     expect(psql(`SELECT rate_id || ':' || subtotal FROM public.granite_bl_charges WHERE id = '${a329ChargeId}';`)).toBe(`${a329RateId}:45.00`)

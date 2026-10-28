@@ -1,6 +1,6 @@
 # Granito
 
-> **Status:** ativo · **Atualizado:** 2026-10-20 · **Rotas:** `/granito` (`/granito/taxas` leva a `/granito`)
+> **Status:** ativo · **Atualizado:** 2026-10-26 · **Rotas:** `/granito` (`/granito/taxas` leva a `/granito`)
 
 ## Propósito e escopo
 
@@ -33,10 +33,12 @@ guardam o id da tarifa (`rate_id`) como histórico, sem FK.
 A rota é interna e fica sob `ProtectedRoute` em
 [`src/AppInterno.tsx`](../../src/AppInterno.tsx). Qualquer Departamento ativo,
 inclusive Equipamentos, importa a planilha COSCO (ADR 0078, item 10). As
-tabelas operacionais (`granite_manifests`, `granite_bls`) aceitam leitura,
-inserção e edição de usuário ativo; a exclusão é só pelas RPCs com motivo e
-Trava (`delete_records` e a reimportação): o DELETE direto saiu na migration
-`235`.
+tabelas operacionais (`granite_manifests`, `granite_bls`) aceitam só leitura
+pela API: inserção e edição vêm só das funções do sistema (a importação), sem
+grant de escrita para `authenticated` desde a migration `380` (ADR 0094, B1;
+[Segurança](../operations/seguranca.md#manifesto-importações-e-cadastros)); a
+exclusão é só pelas RPCs com motivo e Trava (`delete_records` e a
+reimportação): o DELETE direto saiu na migration `235`.
 
 Fontes executáveis principais:
 

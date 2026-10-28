@@ -41,8 +41,8 @@ const globals = new Set([...section('MATRIX_GLOBAL').matchAll(/\{ row: '([^']+)'
 const titles = [...battery.matchAll(/\bit(?:\.each\([^)]*\))?\(\s*'([^']+)'/g)].map(([, title]) => title)
 
 describe('catálogo "O que cada setor pode"', () => {
-  it('tem as 39 linhas da página aprovada, nos nove assuntos, com os cinco setores', () => {
-    expect(PERMISSION_MATRIX).toHaveLength(39)
+  it('tem as 42 linhas (39 da página aprovada, o disparo de Comunicado, a remoção de atracação e o Novo cliente de 2026-10-27), nos nove assuntos, com os cinco setores', () => {
+    expect(PERMISSION_MATRIX).toHaveLength(42)
     expect(rowsByGroup().map(({ group }) => group.label)).toEqual(PERMISSION_GROUPS.map((group) => group.label))
     expect(new Set(PERMISSION_MATRIX.map((row) => row.id)).size).toBe(PERMISSION_MATRIX.length)
     for (const row of PERMISSION_MATRIX) {
@@ -88,7 +88,7 @@ describe('capabilitiesFor (lista da janela de usuário)', () => {
     expect(doc.can).toContain('Provisionar o Portal: convite (enviar e cancelar), conta, e-mail de recuperação, reabrir análise')
     expect(doc.can).toContain('Gerir pedidos, documentos, exportação para a ZPT e conciliação')
     expect(doc.can).toContain('Assinar e observar a seção do ADR de Saída: só a própria seção')
-    expect(doc.can).toContain('Recebe os alertas do próprio setor: 38 tipos')
+    expect(doc.can).toContain('Recebe os alertas do próprio setor: 35 tipos')
     expect(doc.cannot).toContain('Registrar pagamento (baixa manual) e confirmar Restituição')
     expect(doc.cannot).toContain('Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L')
   })

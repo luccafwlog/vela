@@ -6,6 +6,157 @@
 
 ## 2026-10
 
+- **Correções da revisão da PR #1070 (2026-10-27 e 2026-10-28):** migrations `482` a `490`, decisões do dono
+  registradas em [Pontos do dono](manual/decisoes/pontos-do-dono.md) (P1 a P12) e relatório em
+  [archive/audits](archive/audits/revisao-pr-1070-2026-10-27.md). Escala: TBC não é terminal — a
+  Atracação TBC sai sem a trava de documento do porto (escolher o terminal com B/L com CE no porto
+  deixou de travar a escala) e não aceita data nenhuma: ATB, ATD e Restow (`482`) e, por decisão de
+  2026-10-28, ETB e ETD (`490`); a janela da escala não mostra mais o cartão TBC. Pix: dois Pix na mesma
+  cobrança fecham um só, e o outro vira Restituição "Pix em duplicidade" (`483`). Demurrage: a troca
+  de CNPJ respeita o gate do novo Cliente e não herda a citação do anterior; a retida volta à fila
+  na troca de Cliente; a reemissão por datas sai mesmo com o gate fechado (`484`); o detalhe da
+  Invoice lê a substituída pelo id. Alertas: os quatro críticos de contato e Portal avisam também o
+  Administrativo; a justificativa cala por 24 horas e outra falha de rotina reabre; o sino lê direto
+  (`485`). Comunicados e Clientes: o Comunicado redirecionado abre o alerta de reenvio de CE; Novo
+  cliente só para os três setores dos contatos, com o Cliente do manifesto aberto a todos; CNPJ
+  conferido só quando muda; o Portal não mostra motivo interno; contato da Revisão com autor
+  (`486`). Conta Dev: e-mail e senha só pela própria pessoa. Desbloqueio de CE: primeiro envio do
+  B/L, transição sem reabrir e listas com índice (`487`). Selo "Faturamento encerrado" sem B/L
+  sem cálculo e gatilho do Histórico da taxa pela chave (`488`); grant do `service_role` na tabela
+  da transição VIP (`489`). `npm run manual:coverage` entrou no
+  job `db` do CI.
+- **Desbloqueio de CE decidido pelo dono (2026-10-27):** migration `479`,
+  [ADR 0110](adr/0110-vip-cobre-pela-data-da-solicitacao.md), lote 11 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md), que fecha o plano
+  (arquivado). O termo e a procuração anuais VIP cobrem todo CE com o desbloqueio solicitado dentro
+  da vigência (dia do primeiro envio; antes do envio, hoje), sem olhar importação do B/L nem vínculo
+  do CE; vencidos, seguem cobrindo o que foi pedido neles. Na Inspeção, todos os setores veem os
+  documentos da solicitação e os anuais. A ficha do Cliente lista também as solicitações VIP, sem o
+  B/L que mudou de solicitação. Solicitação exportada para a ZPT não se cancela: **Cancelar pedido**
+  fica desligado e diz por quê. Textos da entrega do B/L original, da lista vazia e da cobertura VIP
+  corrigidos; o anual guardado até um ano depois da vigência e o e-mail redirecionado ao suporte
+  ficaram registrados no módulo. Prova: `ceUnlockVigenciaAnual.local-pg.test.ts`,
+  `CeUnlockRequestDetail.test.tsx`, `PortalDesbloqueioCe.flow.test.tsx`.
+- **B/L, Revisão, CE Mercante, Baplie e Equipamentos decididos pelo dono (2026-10-27):** migration
+  `478`, lote 10 do [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md).
+  B/L cancelado sai da fila e do número da Revisão; o filtro de Faturamento **B/L cancelado** lista os
+  cancelados; o Manifesto BB voltou à Importação rápida da Viagem; a ficha de B/L cancelado fica
+  travada e as recusas mostram o motivo; as prévias só impedem trocar o consignatário com o B/L
+  faturado. Mover recusa B/L sem CE. O alerta **Cobertura Baplie / B/L** ignora B/L cancelado e se
+  recalcula ao cancelar ou reativar; o container cheio no B/L e vazio no Baplie virou divergência
+  própria, em Baplie EDI e contada à parte no alerta. A planilha de CE mostra a nota de Portal e
+  lista Faturados, Retidos e Pulados com o motivo. A planilha de datas recusa linha de B/L
+  cancelado, e Viagem cancelada recusa a natureza do vazio e as linhas de serviço do Embarque. Textos
+  do cancelamento com fatura, da prévia do BB, do **Vale o B/L** de SOC/COC, do reenvio do
+  Comunicado e da dica do Manifesto corrigidos. Prova: `blCeBaplieLote10.local-pg.test.ts`,
+  `BlOperacionalTab.cancelled.test.tsx`, `CeMercanteImportModal.conferencia.test.tsx`,
+  `BreakbulkReimportReview.texts.test.tsx`, `operationalListsFinancialFilter.test.ts`,
+  `baplieReconciliation.test.ts`, `containerDatesImport.test.ts`, `blFreightImport.test.ts`.
+- **Viagens e escalas decididas pelo dono (2026-10-27):** migration `477`,
+  [ADR 0109](adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md), lote 9 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todos os setores gravam
+  terminal, ATB, ATD e Restow da escala; Operações também remove a Atracação ao trocar o terminal de
+  uma frente, com a mesma trava por CE, ADR e B/L. TBC não é terminal: com o ATA registrado, toda
+  frente precisa de terminal, e a Atracação TBC vazia sai e deixa a Viagem concluir. Omitir,
+  reverter a omissão e excluir escala recalculam o status da Viagem na hora. O Porto de Transbordo
+  não pode ser o porto omitido. O navio achado pelo IMO mantém o nome cadastrado; **Faturamento
+  encerrado** conta B/L pago e ignora B/L cancelado. A janela da escala e a aba ADR mostram o motivo
+  de cada recusa; os textos de omitir e reverter dizem que qualquer setor reverte e que o histórico
+  fica. Prova: `viagensLote9.local-pg.test.ts`, `deleteLock.local-pg.test.ts`,
+  `OmitEscalaModal.test.tsx`, `VoyageAgencyReportTab.test.tsx`, `escalaTerminalAllocation.test.ts`,
+  `voyageMutations.test.ts`.
+- **Alertas e sino decididos pelo dono (2026-10-27):** migration `476`,
+  [ADR 0107](adr/0107-sino-so-do-setor-responsavel.md) e
+  [ADR 0108](adr/0108-fim-da-dispensa-de-alertas.md), lote 8 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). O sino avisa só o setor
+  responsável pelo alerta (o Financeiro também recebe Pix, consulta do Itaú parada, Restituição e
+  Fatura desatualizada), e o alerta resolvido sai do sino e do número sem marcar como lido. A
+  dispensa saiu: sem **Dispensar**, sem **Dispensados** e sem "N dispensados" no Painel; as
+  dispensas vigentes acabaram e o histórico ficou guardado. Consulta de Pix do Itaú parada,
+  provedor de e-mail sem retorno, rotina com erro e fila de efeitos parada ganharam **Resolver com
+  justificativa**, que segura a reabertura enquanto a mesma causa continua. **Aberto em** mostra a
+  ocorrência atual; a justificativa vai ao Histórico de ações; os alertas de registro técnico e os
+  de contato abrem a tela certa; Regras de alertas mostra um setor responsável; a matriz de Usuários
+  conta os tipos do sino; o número de Alertas do menu se relê a cada 60 s; a recusa mostra o
+  motivo. Prova: `alertasESinoLote8.local-pg.test.ts`, `Alertas.behavior.test.tsx`,
+  `AlertasRegrasCatalog.test.tsx`, `PainelAlertsSummary.test.tsx`, `permissionMatrix.test.ts`.
+- **Acesso, usuários e Histórico decididos pelo dono (2026-10-27):** migration `475`,
+  [ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md), lote 7 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). Todo setor vê o nome de
+  quem fez cada registro nos Históricos; as falhas de entrega dos alertas e as linhas de Usuário do
+  Histórico de ações passaram a ser leitura só do Administrativo. A reativação de usuário grava
+  uma linha só, com o motivo; a tela de entrada explica o acesso desativado; a inatividade de 8
+  horas conta todas as abas juntas; **Editar acesso** passa o setor antigo Operador para
+  Documentação. Prova: `acessoLote7.local-pg.test.ts`, `userNames.test.ts`, `sharedIdle.test.ts`,
+  `Login.accessDenied.test.tsx`, `EditarAcessoModal.test.tsx`.
+- **Clientes, contatos e Comunicados decididos pelo dono (2026-10-27):** migration `474`, lote 6
+  do [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). Pela Base de Clientes
+  e pela Revisão, só Administrativo, Documentação e Equipamentos incluem ou mudam contatos; os
+  demais importam só o cadastro. A Base não muda Cliente desativado e conta à parte o B/L que fica
+  só com sugestão. O e-mail digitado na Revisão entra como "Cadastrado pela equipe"; o banco recusa
+  CNPJ de caractere repetido; o alerta "Cliente sem contato alternativo" conta só contato ativo. A
+  Cobertura de viagens conta o redirecionado ao suporte e o parcial, tira o B/L cancelado e só
+  cobra NOA e NOR com a janela aberta; o Institucional tira o Cliente sem contato; contato com
+  e-mail devolvido salva com aviso e é liberado quando o e-mail muda; **Novo cliente** recusa
+  contato sem e-mail; o botão da ficha do B/L virou **Trocar Cliente**. Prova:
+  `clientesLote6.local-pg.test.ts`, `customerCommunicationsCoverage.test.ts`,
+  `customerContactDrafts.test.ts`, `ImportBaseModal.test.tsx`, `ReviewCustomerOnboarding.test.tsx`.
+- **Portal do Cliente decidido pelo dono (2026-10-27):** migration `473`, lote 5 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). A troca do e-mail de
+  recuperação pelo atendimento e a liberação do endereço bloqueado emitem as faturas retidas; o
+  login mostra a mensagem da verificação de segurança e a de falta de rede; o link de redefinição
+  vencido mostra "Link inválido ou expirado." com **Pedir um novo link**; o Perfil mostra o limite
+  diário de troca do e-mail; a notificação de disputa abre a disputa no Portal; a Espiadinha lê os
+  B/Ls como o Cliente; a consolidada desfeita mostra o motivo e **Refazer consolidada** fica apagado
+  na inspeção; convite e suspensão mostram o motivo da recusa; a ficha do B/L separa "Visível no
+  Portal" de **Pronto para faturar** e só oferece o convite à Documentação e ao Administrativo.
+  Prova: `portalLote5.local-pg.test.ts`, `gateReciboAvulsaPix.local-pg.test.ts`,
+  `usePortalAuth.test.tsx`, `PortalProfile.test.tsx`, `PortalInvoiceDetailModal.test.tsx`,
+  `BlClienteSection.test.tsx`.
+- **Demurrage decidida pelo dono (2026-10-27):** migration `472`, lote 4 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). A Invoice de Demurrage
+  só é emitida com CE Mercante e o Gate de faturamento do Portal aberto (como as faturas); o CE
+  gravado ou o gate aberto enfileiram de novo a emissão. A Invoice reemitida cita a cancelada no
+  Vela e no Portal; os anexos da Disputa abrem pelo nome nos dois apps; o Portal mostra o dólar
+  com desconto; o aviso da PTAX usa a data de Brasília e só o recálculo da PTAX; as Invoices
+  "vencidas" passaram a emitidas; as quatro planilhas de Relatórios saem com os rótulos e as datas
+  da tela. Prova: `demurrageAuthority.local-pg.test.ts`,
+  `datasDemurrageEComunicadoJustificados.local-pg.test.ts`, `disputaAnexosInterna.local-pg.test.ts`,
+  `DisputeAttachmentLinks.test.tsx`, `PortalDemurrageDetailModal.test.tsx`, `exports.test.ts`.
+- **Recebimento e Pix decididos pelo dono (2026-10-27):** migration `471`, lote 3 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). O Pix que falha três
+  vezes ao ser gravado entra em Pix recebidos (o do Vela em análise, com alerta; o de fora do
+  Vela como recebido, sem alerta); a devolução do Pix em duplicidade tem o próprio Pix como
+  lastro e é confirmada também em fatura cancelada, coberta ou substituída; o extrato que
+  concilia a fatura de Taxas Locais tira o Pix da análise; Pix em análise mostra o
+  identificador do próprio Pix, com copiar, e o `VELA…` como Identificador da cobrança; a
+  regra do alerta Restituição pendente lista todos os casos. Prova:
+  `itauPixCharges.local-pg.test.ts`, `gateReciboAvulsaPix.local-pg.test.ts`,
+  `Reconciliacao.behavior.test.tsx`.
+- **Taxas Locais e faturamento decididos pelo dono (2026-10-27):** migration `470`,
+  [ADR 0105](adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md), lote 2 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). B/L misto sem taxa
+  por B/L no container cobra todas as da carga solta; tabela já usada não muda POD nem modo de
+  carga; troca de modalidade recalcula; linha em revisão mostra o que falta; Histórico do B/L
+  guarda a exclusão de taxa e o refixar legível; consolidada mostra "sem CE Mercante."; a
+  correção travada de fatura sem pagamento ou de consolidada tem **Tentar aplicar correção** e
+  não perde a pendência; a tela não refatura B/L cuja fatura foi cancelada por uma pessoa; B/L
+  cancelado sai da Validação e fica só para consulta na ficha; Granito e "Categoria na fatura"
+  saíram dos formulários; textos de tela corrigidos (dia de entrada do B/L, câmbio fixado,
+  Condição de Cliente, `INV-`, Cancelar baixa e Restituição). Prova:
+  `taxasLocaisLote2.local-pg.test.ts`, `invoiceAutoReissue.local-pg.test.ts`,
+  `reviewBillingAutomation.test.ts`, `chargeOperationsService.test.ts`.
+- **Chave de envio redireciona ao suporte e marca Dev (2026-10-27):** migration `469`,
+  [ADR 0104](adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md), lote 1 do
+  [plano de correções](archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md). Com a chave
+  desligada, todo e-mail dirigido a Cliente, inclusive convite e senha do Portal (antes saíam
+  sempre ao destinatário), vai para `suporte@portalfwlog.com.br` com "[Teste → e-mail do
+  Cliente]" no assunto e conta como enviado; o reenvio de CE e Taxas ao suporte fecha o alerta.
+  Só a conta do Administrativo com a marca Dev (`user_profiles.is_dev`, dada por migration a
+  `lucca.juliatti@fwlog.com.br`) muda a chave; todos os setores a leem, disparam Comunicado e
+  salvam modelo (ficha ACE-D01, opção A). Tela de Usuários mostra "Administrativo · Dev".
+  Prova: `emailShared.test.ts`, `portalEmailSend.test.ts`, `permissoesPorPerfil.local-pg.test.ts`,
+  `marcaDevMigration.local-pg.test.ts`, `comunicadoCeReenvioFechaAlerta.local-pg.test.ts`.
 - **Lote da reunião de testes de 26/10 (2026-10-27):** migrations `466` a `468`, sem ADR nova;
   decisões do dono de 2026-10-27 no [plano arquivado](archive/plans/2026-10-27-lote-da-reuniao-de-testes-de-26-10.md).
   Desbloqueio de CE: requisitos cumpridos a partir das 12:00 vencem às 12:00 do próximo dia útil
@@ -29,6 +180,15 @@
   gerador da COSCO) deixa de avisar. Prova: `portCode.test.ts`, `baplieParser.test.ts`,
   `baplieParserReaderFixes.test.ts`, `portAliasCntcgMigration.test.ts`; paridade das réguas em
   `operationalLists.local-pg.test.ts`.
+- **Manual do Operador, Etapa 1: mapeamento do sistema (2026-10-26):** sem migration nem mudança
+  de tela. `npm run manual:inventory` extrai do código e do banco local os 2.253 itens que o
+  manual precisa cobrir; `npm run manual:coverage` falha quando um item não tem lugar na
+  [matriz de cobertura](manual/README.md) (13 áreas, 1.560 regras como o operador as vê,
+  conferidas por uma segunda leitura independente do código). 79 divergências de documento
+  defasado corrigidas em `CONTEXT.md`, nos módulos e em `docs/operations/`; 118 divergências
+  que dependem de decisão do dono ficaram no
+  [relatório](archive/reports/2026-10-26-mapeamento-manual-do-operador.md), com a tabela de quem
+  faz o quê e o sumário final proposto.
 - **Endereços de entrega do B/L original (2026-10-26):** migration `464`, sem ADR nova. No
   Desbloqueio de CE do Portal, "agência" em "B/L original · Entregue na agência" vira link para o
   modal "Onde entregar o B/L original" (era um botão que abria os endereços na faixa). A `464`

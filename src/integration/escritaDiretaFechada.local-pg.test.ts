@@ -61,16 +61,17 @@ describeLocal('380 — escrita direta fechada e B/L cancelado somente leitura', 
     w.psql(`UPDATE public.bl_containers SET demurrage_status = demurrage_status WHERE id = ${container}`)
   })
 
-  it('planilha de datas: a data vai ao B/L ativo do container e nunca ao cancelado', () => {
+  it('planilha de datas: a linha do B/L cancelado é recusada (478, EQU-D7) e nada muda nos dois', () => {
     const shared = w.container()
     const active = w.createBl('DATA-A', { container: shared })
     const cancelled = w.createBl('DATA-C', { container: shared })
     w.cancelBl(cancelled)
     const result = JSON.parse(w.asOk('operacoes', `SELECT public.apply_container_dates_batch_atomic(gen_random_uuid(),
       '[{"bl_id":"${cancelled}","rows":[{"container_number":"${shared}","discharge_date":"2026-10-01","return_date":null}]}]'::jsonb,
-      '${w.actors.operacoes}'::uuid)`)) as { ok: boolean }
-    expect(result.ok).toBe(true)
-    expect(w.psql(`SELECT coalesce(discharge_date::text, 'null') FROM public.bl_containers WHERE bl_id = '${active}'`)).toBe('2026-10-01')
+      '${w.actors.operacoes}'::uuid)`)) as { ok: boolean; errors?: Array<{ message: string }> }
+    expect(result.ok).toBe(false)
+    expect(result.errors?.[0]?.message).toMatch(/cancelado: somente leitura\. Reative para corrigir\./)
+    expect(w.psql(`SELECT coalesce(discharge_date::text, 'null') FROM public.bl_containers WHERE bl_id = '${active}'`)).toBe('null')
     expect(w.psql(`SELECT coalesce(discharge_date::text, 'null') FROM public.bl_containers WHERE bl_id = '${cancelled}'`)).toBe('null')
   })
 })

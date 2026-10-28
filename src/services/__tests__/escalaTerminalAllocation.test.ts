@@ -216,3 +216,11 @@ it('expõe a classe de domínio para consumidores sem depender do texto do Postg
   expect(error).toMatchObject({ name: 'EscalaTerminalBlockedError', code: 'ADR_CLOSED_BLOCKED', blockers: [{ terminalCode: 'TVV' }] })
   expect(error.message).toContain('Reabra o ADR')
 })
+
+describe('02-viagens-adr:6: recusa da escala', () => {
+  it('só a revisão obsoleta é conflito; "Atracação travada" mostra o próprio motivo', async () => {
+    const { isRevisionConflictError } = await import('../escalaTerminalAllocation')
+    expect(isRevisionConflictError({ code: 'P0001', message: 'REVISAO_OBSOLETA: esperada 1, atual 2.' })).toBe(true)
+    expect(isRevisionConflictError({ code: 'P0001', message: 'Atracação travada: B/L com CE Mercante.' })).toBe(false)
+  })
+})

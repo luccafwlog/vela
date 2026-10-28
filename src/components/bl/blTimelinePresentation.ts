@@ -234,6 +234,8 @@ function describeBlMark(field: string, oldValue: string | null, newValue: string
   if (field === 'FATURAMENTO_SOBRESCRITO') return 'Mudança com impacto na fatura aplicada com confirmação'
   if (field === 'ALTERACAO_OPERACIONAL_BLOQUEADA') return 'Mudança com impacto na fatura não aplicada (sem confirmação)'
   if (field === 'FONTE_SOBRESCRITO') return 'Dados do B/L substituídos pelo arquivo, com confirmação'
+  // Aceite de refixar na reimportação (385): os valores são o registro técnico do preço fixado (TAX-D08).
+  if (field === 'local_charge_prices_refixed') return 'Preço das Taxas Locais refixado pelo de hoje, aceito na reimportação'
   if (field === 'reimportacao_carga_solta') {
     const fields = parseJsonObject(newValue)?.campos
     const labels = Array.isArray(fields) ? fields.map((name) => FIELD_LABELS[String(name)] ?? null).filter(Boolean) : []
@@ -269,6 +271,7 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
     return 'Fatura alterada'
   }
   if (entity_type === 'charge_calculation') {
+    if (field_name === 'manual_delete') return 'Cobrança manual excluída'
     return new_value ? `Taxa: ${new_value}` : 'Taxa alterada'
   }
   if (entity_type === 'bl_container' || entity_type === 'vehicle') {

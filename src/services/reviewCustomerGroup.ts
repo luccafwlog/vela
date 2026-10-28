@@ -30,7 +30,8 @@ export async function completeReviewCustomerGroup(input: CompleteReviewCustomerG
   const email = normalizeEmail(input.email)
   if (!cnpjCpf) throw new Error('Informe um CNPJ válido antes de vincular o grupo.')
   if (!input.name.trim()) throw new Error('Informe a razão social do cliente.')
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe um e-mail válido para o cliente.')
+  // Sem e-mail: quem não edita contatos cadastra só o Cliente (D10 de 2026-10-27).
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe um e-mail válido para o cliente.')
   if (!input.blIds.length) throw new Error('Nenhum B/L informado para o grupo.')
 
   const { data, error } = await (supabase as unknown as UntypedRpc).rpc('complete_review_customer_group', {
@@ -38,7 +39,7 @@ export async function completeReviewCustomerGroup(input: CompleteReviewCustomerG
     p_customer_id: input.customerId,
     p_cnpj_cpf: cnpjCpf,
     p_name: input.name.trim(),
-    p_email: email,
+    p_email: email || null,
     p_changed_by: input.changedBy,
   })
   if (error) {

@@ -40,12 +40,12 @@ describe('fila de e-mails do Desbloqueio de CE', () => {
     expect(finish).toHaveBeenCalledWith(7, 'sent', ['k:ops@cliente.com'])
   })
 
-  it('com a chave desligada resolve os destinatários, simula o envio e fecha como simulado (D11)', async () => {
+  it('com a chave desligada resolve os destinatários, redireciona ao suporte e fecha como simulado (D11, ADR 0104)', async () => {
     const { deps: d, send, finish } = deps({ communicationsEnabled: async () => false })
     expect(await processCeUnlockEmails(d)).toEqual({ ...empty, simulated: 1 })
     expect(send).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: 'ops@cliente.com', simulate: true }))
-    expect(finish).toHaveBeenCalledWith(7, 'simulated', ['k:ops@cliente.com'], expect.stringContaining('simulado'))
+    expect(finish).toHaveBeenCalledWith(7, 'simulated', ['k:ops@cliente.com'], expect.stringContaining('redirecionado ao suporte'))
   })
 
   it('sem contato habilitado na caixa não envia e fecha sem destinatário', async () => {

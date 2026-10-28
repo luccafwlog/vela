@@ -326,7 +326,7 @@ export async function setCustomerRateOverrideActive(id: number, active: boolean,
   }
   const { data, error } = await supabase.from('customer_rate_overrides').update({ active } as never).eq('id', id).select('id')
   if (error) throw error
-  if (!data || data.length === 0) throw new Error('O override não foi alterado: sem permissão ou override inexistente.')
+  if (!data || data.length === 0) throw new Error('A Condição de Cliente não foi alterada: sem permissão ou Condição inexistente.')
 }
 
 export async function deleteCustomerRateOverride(id: number, reason: string) {

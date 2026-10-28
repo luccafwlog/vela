@@ -916,7 +916,7 @@ function ignoredCeWarning(rows: number[]): ParsedBreakbulkManifest['rowErrors'][
   const more = rows.length > 10 ? ` e mais ${rows.length - 10}` : ''
   return {
     row: rows[0],
-    message: `Coluna CE ignorada nas linhas ${shown}${more}: o Manifesto BB não grava CE Mercante; o CE entra pela planilha de CE Mercante ou pela ficha do B/L.`,
+    message: `Coluna CE ignorada nas linhas ${shown}${more}: o Manifesto BB não grava CE Mercante; o CE entra pela planilha de CE Mercante.`,
     raw: { ignored_ce_rows: rows },
     severity: 'warning',
   }

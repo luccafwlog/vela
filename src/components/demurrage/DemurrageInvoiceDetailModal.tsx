@@ -234,6 +234,13 @@ function DetailBody({
       </div>
       {cancelError ? <p className="app-invoice-detail__alert" role="alert">{cancelError} A Invoice não foi cancelada.</p> : null}
       {restrictions.length ? <p className="app-invoice-detail__note">{restrictions.join(' ')}</p> : null}
+      {invoice.replaces?.doc_number ? (
+        <p className="app-invoice-detail__note">
+          Substitui a Invoice{' '}
+          <button type="button" className="app-invoice-detail__link app-invoice-detail__code" onClick={() => { if (invoice.replaces) onOpenInvoice(invoice.replaces.id) }}>{invoice.replaces.doc_number}</button>
+          , cancelada para reemissão automática quando as datas dos containers mudaram.
+        </p>
+      ) : null}
 
       {earlier.length || siblings.length || siblingsError ? (
         <section className="app-invoice-detail__section" aria-labelledby="dem-detail-group">

@@ -6,6 +6,7 @@ import { useToast } from '../components/ui/Toast'
 import { logOperationalEvent } from '../services/operationalEvents'
 import { supabase } from '../services/supabase'
 import { formatNcm } from '../lib/ncm'
+import { userFacingErrorMessage } from '../lib/errors'
 import type { BL, BLDetail, Json } from '../types/database'
 import { useAuth } from './useAuth'
 
@@ -244,8 +245,9 @@ export function useBlEditForm(bl: BLDetail | undefined) {
     } catch (err) {
       // A causa vem do banco com frequência (constraint, trigger de modalidade).
       // Engolir a mensagem deixava o operador sem saber o que corrigir.
-      const detail = err instanceof Error ? err.message : ''
-      showToast(detail ? `Falha ao salvar alterações do B/L: ${detail}` : 'Falha ao salvar alterações do B/L.', 'error')
+      // O erro do PostgREST não é `Error`: sem o classificador, a recusa do
+      // banco (B/L cancelado, Cliente desativado) virava só a frase genérica.
+      showToast(userFacingErrorMessage(err, 'Falha ao salvar alterações do B/L.'), 'error')
     } finally {
       setSaving(false)
     }

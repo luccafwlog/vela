@@ -67,7 +67,7 @@ function groupTitle(kind: ConferenceGroupKind, line: LocalChargeLine) {
 }
 
 function groupSubtitle(kind: ConferenceGroupKind, line: LocalChargeLine) {
-  if (kind === 'manual') return 'Fora de tabela: valor digitado na operação.'
+  if (kind === 'manual') return 'Itens manuais da tabela: quantidade informada na operação.'
   if (kind === 'sem_tabela') return 'Linha automática sem tabela de cobrança vinculada — recalcule para reconciliar.'
   const pod = line.charge_table_pod?.trim()
   return pod ? `Descarga em ${formatPortDisplayName(pod)}` : null

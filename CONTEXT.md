@@ -106,10 +106,6 @@ escala, transbordo.
 - **Distinto de:** Reativar, que traz de volta algo cancelado ou desativado.
 → Regra: [Viagens § Omissão de Escala, Transbordo e COD](docs/modules/viagens.md#omissão-de-escala-transbordo-e-cod)
 
-**Dispensar**
-Parar de ver um aviso; nada muda no dado. Só existe em Alertas e Notificações.
-→ Regra: [Operação e Suporte § Leitura, dispensa e Eco de Tratamento](docs/modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)
-
 **Restituição**
 Devolução ao Cliente de valor que ele pagou a maior, com registro próprio
 ([ADR 0083](docs/adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1).
@@ -161,8 +157,9 @@ reativada se o cancelamento foi por engano.
 
 **Alias de Nome de Navio**
 Prefixo abreviado reconhecido como equivalente ao prefixo canônico do nome do
-navio, sem alterar o nome exibido ou cadastrado (ex.: `ZYHY` = `ZHONG YUAN HAI
-YUN`; `CS` = `COSCO SHIPPING`).
+navio, sem alterar o nome exibido (ex.: `ZYHY` = `ZHONG YUAN HAI YUN`; `CS` =
+`COSCO SHIPPING`). O navio novo é cadastrado com o nome canônico; o navio já
+cadastrado mantém o nome quando uma Viagem usa outra grafia.
 → Regra: [Viagens § Identidade do navio](docs/modules/viagens.md#identidade-do-navio)
 
 **Escala portuária**
@@ -211,7 +208,8 @@ transbordo ou receber COD. Na programação de navios aparece como `OMIT`.
 
 **Porto de Transbordo**
 Porto onde a carga de uma escala omitida é efetivamente descarregada para seguir
-em transbordo ou receber COD. Pode ser diferente do POD original do B/L.
+em transbordo ou receber COD: outra escala da mesma viagem, nunca o próprio
+porto omitido. Pode ser diferente do POD original do B/L.
 → Regra: [Viagens § Omissão de Escala, Transbordo e COD](docs/modules/viagens.md#omissão-de-escala-transbordo-e-cod)
 
 **Transbordo**
@@ -267,7 +265,8 @@ referenciam esses mesmos portos.
 
 **Frente de Operação**
 Recorte da escala por sentido e modalidade. A atribuição de terminal liga a
-carga à Atracação correspondente; frente sem terminal é **TBC**. Em B/L misto,
+carga à Atracação correspondente; frente sem terminal é **TBC**, que não é
+terminal: com o ATA da escala registrado, toda frente precisa de terminal. Em B/L misto,
 carga cheia e carga solta são frentes distintas do mesmo documento, não dois
 B/Ls.
 → Regra: [Viagens § Escala, Atracação e datas](docs/modules/viagens.md#escala-atracação-e-datas)
@@ -287,8 +286,8 @@ Data e hora efetivas em que a embarcação atracou no terminal da Atracação.
 → Regra: [Viagens § Escala, Atracação e datas](docs/modules/viagens.md#escala-atracação-e-datas)
 
 **ATD (Actual Time of Departure)**
-Data efetiva, sem hora, em que a embarcação desatracou do terminal da
-Atracação. Marca o início da contagem do Prazo de Conclusão do ADR.
+Data e hora efetivas, de Brasília, em que a embarcação desatracou do terminal
+da Atracação. Marca o início da contagem do Prazo de Conclusão do ADR.
 - **Distinto de:** ETD, previsão de desatracação; e ATD do POL, registro
   documental da rota.
 → Regra: [Viagens § Escala, Atracação e datas](docs/modules/viagens.md#escala-atracação-e-datas)
@@ -374,7 +373,8 @@ serviço performado.
 
 **Embarque de Vazios (EXP)**
 Registro operacional do embarque de containers vazios de exportação de uma
-Escala, criado por Equipamentos; existe um por escala. Reúne a Lista de
+Escala, de responsabilidade de Equipamentos (qualquer Departamento ativo pode
+criá-lo e lançar unidade e linha); existe um por escala. Reúne a Lista de
 Unidades Embarcadas (o fato) e as Linhas de Serviço do Embarque (o custo); o
 grão não é o container.
 - **Ver também:** Unidade Embarcada, Linha de Serviço do Embarque, Operação de Pátio
@@ -401,10 +401,12 @@ Registro dos locais com que a operação de vazios trabalha — cada local é
 um **Depot** ou um **Terminal Portuário** — e dos **valores sugeridos** dos
 seus serviços. A entidade é o local; o valor sugerido não é tarifa nem fonte do
 cálculo.
+- **Sinônimos:** **Locais (depots e terminais)**, nome da tela e do botão no
+  Embarque de vazios
 - **Evitar:** "Cadastro de Depot" (nome anterior), "Taxas de Vazios", "tabela de
   taxas de depot"
 - **Distinto de:** o **porto** da Escala (um Terminal Portuário fica dentro de
-  um porto) e a Tabela de Taxas — Granito, que é tabela de tarifas.
+  um porto).
 - **Ver também:** Free Time de Storage, Embarque Direto, Natureza do Serviço
 → Regra: [Manifestos & EDI § `/embarquevazios/depots`](docs/modules/manifesto-edi.md#embarquevaziosdepots)
 
@@ -505,9 +507,9 @@ reaberturas e o Fechamento. É exibição derivada: nenhum marco nasce nela.
 → Regra: [Viagens § Linha do Tempo do ADR](docs/modules/viagens.md#linha-do-tempo-do-adr)
 
 **Prazo de Conclusão do ADR**
-Compromisso interno de que cada departamento assina a sua parte do ADR até três
-dias úteis depois do ATD da Atracação. É medido por departamento, nunca por
-pessoa.
+Compromisso interno de que cada departamento assina a sua parte do ADR até 72
+horas corridas depois do ATD da Atracação (fim de semana e feriado contam). É
+medido por departamento, nunca por pessoa.
 - **Ver também:** Linha do Tempo do ADR, Sign-off Departamental, ATD
 - **Distinto de:** o alerta de pendência do ADR, que sinaliza seção não
   resolvida a partir do lançamento do ATD e não conhece data-limite.
@@ -601,8 +603,8 @@ aplicável, ao container físico.
 **Granito**
 Carga de exportação: blocos de granito embarcados nas escalas brasileiras.
 "Importação", no fluxo de Granito, é a ingestão das planilhas COSCO, não o
-sentido da carga. Tem B/Ls, revisão e tarifas próprios; na Validação de Taxas
-aparece como **Apoio operacional**, sem emissão de invoice.
+sentido da carga. Tem B/Ls próprios e serve só para totalizar a carga: não tem
+Cliente, Revisão, taxa nem fatura, e não entra na Validação de Taxas.
 - **Distinto de:** B/L de carga — o B/L de Granito é entidade própria, e
   conferir quantidades não é faturar.
 → Regra: [Granito § Fluxos e invariantes](docs/modules/granito.md#fluxos-e-invariantes)
@@ -641,8 +643,11 @@ divergente**). A única resolução é **Vale o B/L**, com motivo.
 Resumo de prontidão dos dados da Viagem:
 
 - **Divergente:** há conflito ainda não resolvido;
-- **Pendente:** falta fonte, CE ou etapa de conciliação;
-- **Conciliada:** fontes e CEs necessários estão coerentes.
+- **Pendente:** algum B/L ainda sem CE Mercante (falta de Manifesto não conta);
+- **Conciliada** (**Conciliado** na faixa e na ficha da Viagem): sem
+  divergência aberta e com todos os CEs.
+
+Na faixa, **Verificando** aparece enquanto a contagem de divergências não chega.
 
 É um sinal operacional, não autorização financeira.
 → Regra: [Viagens § Conciliação, importação rápida e indicadores](docs/modules/viagens.md#conciliação-importação-rápida-e-indicadores)
@@ -724,10 +729,10 @@ CE e na Validação de Taxas Locais.
 → Regra: [Operação e suporte § `/revisao`](docs/modules/operacao-suporte.md#revisao)
 
 **Reconciliação de Cliente**
-Vínculo confirmado entre o consignatário importado (B/L ou Granito) e o
-cadastro de Cliente. Só o CNPJ exato vincula sozinho; nome, nome canônico ou
-similaridade produzem apenas Cliente sugerido, que uma pessoa confirma na
-Revisão. Sugestão não é vínculo e não libera faturamento.
+Vínculo confirmado entre o consignatário importado (B/L de container ou de
+carga solta; o Granito não tem Cliente) e o cadastro de Cliente. Só o CNPJ
+exato vincula sozinho; nome, nome canônico ou similaridade produzem apenas
+Cliente sugerido, que uma pessoa confirma na Revisão. Sugestão não é vínculo e não libera faturamento.
 → Regra: [Clientes § Reconciliação de cliente no B/L](docs/modules/clientes.md#reconciliação-de-cliente-no-bl)
 
 **Troca de Consignatário**
@@ -804,8 +809,8 @@ serve só para conferência.
 
 **Motivo de Bloqueio de Faturamento**
 Categoria fechada que responde por que um B/L ainda não virou fatura: *Sem
-cliente vinculado*, *Cálculo incompleto*, *Aguardando CE Mercante* ou *Portal
-não provisionado*. Não é status marcado por alguém nem se confunde com
+cliente vinculado*, *Cálculo incompleto*, *Aguardando CE Mercante* ou *Conta
+do Portal não ativa*. Não é status marcado por alguém nem se confunde com
 `charge_status`; *Pronto para emitir* é situação resolvida, não bloqueio.
 → Regra: [Faturamento § Motivo de bloqueio de faturamento](docs/modules/faturamento.md#motivo-de-bloqueio-de-faturamento)
 
@@ -838,12 +843,6 @@ Taxas Locais.
 O que determina o preço de um B/L: destino final (POD) e modalidade escolhem as
 tabelas; a Data de Referência escolhe a Condição de Cliente, não a tabela.
 → Regra: [Taxas Locais § Tabela aplicável, Item de Taxa e Condição de Cliente](docs/modules/taxas-locais.md#tabela-aplicável-item-de-taxa-e-condição-de-cliente)
-
-**Fatura Adaptativa Modular**
-Layout da fatura impressa de Taxas Locais que agrupa os itens em blocos com
-subtotal: Carga conteinerizada, Carga solta (breakbulk) e Taxas administrativas
-e documentais; B/L misto mostra os dois blocos de carga.
-→ Regra: [Faturamento § Documento imprimível](docs/modules/faturamento.md#documento-imprimível)
 
 **Item de Taxa**
 Linha da Tabela de Taxas Locais: a taxa, o valor unitário e a base de
@@ -1110,44 +1109,44 @@ para vários destinatários.
 
 **Cópia Congelada**
 Propriedade da Notificação Interna: descreve o Evento Notificável como ele
-ocorreu, não o estado atual da entidade envolvida. Dispensar ou fechar o Alerta
+ocorreu, não o estado atual da entidade envolvida. Fechar o Alerta
 não apaga nem altera as Notificações Internas já entregues.
 → Regra: [Operação e Suporte § Notificação Interna e Regra de Destinatários](docs/modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)
 
 **Evento Notificável**
 Acontecimento do sistema que origina Notificações Internas: a abertura ou a
-nova ocorrência de um item de Alerta e o Eco de Tratamento.
+nova ocorrência de um item de Alerta.
 → Regra: [Operação e Suporte § Notificação Interna e Regra de Destinatários](docs/modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)
 
 **Regra de Destinatários**
 Declaração, por tipo de Alerta no catálogo, de quais setores internos recebem
-a Notificação Interna (a audiência).
+a Notificação Interna (a audiência): o setor responsável e, nos quatro tipos
+do dinheiro, também o Financeiro ([ADR 0107](docs/adr/0107-sino-so-do-setor-responsavel.md)).
 - **Distinto de:** setor responsável, que é o setor do item e agrupa a fila
   `/alertas`.
 → Regra: [Operação e Suporte § Notificação Interna e Regra de Destinatários](docs/modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)
 
 **Eco de Tratamento**
 Notificação Interna enviada aos demais destinatários quando alguém executa uma
-ação manual de tratamento — hoje, a dispensa temporária —, para impedir que
-duas pessoas trabalhem a mesma pendência sem saber.
-→ Regra: [Operação e Suporte § Leitura, dispensa e Eco de Tratamento](docs/modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)
+ação manual de tratamento. Existia só para a dispensa temporária e saiu com
+ela na migration `476` ([ADR 0108](docs/adr/0108-fim-da-dispensa-de-alertas.md)); termo histórico.
+→ Regra: [Operação e Suporte § Leitura da Notificação Interna](docs/modules/operacao-suporte.md#leitura-da-notificação-interna)
 
-**Leitura e Dispensa**
-Ações distintas e sem acoplamento. Ler é pessoal, vale apenas para quem leu e
-não altera o Alerta. Dispensar é ato coletivo de triagem: tira a pendência da
-fila ativa até uma data de revisão, com motivo, mas não resolve a origem nem
-libera gate.
-→ Regra: [Operação e Suporte § Leitura, dispensa e Eco de Tratamento](docs/modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)
+**Leitura**
+Ler é pessoal, vale apenas para quem leu e não altera o Alerta. Alerta não se
+dispensa: a dispensa saiu na migration `476` ([ADR 0108](docs/adr/0108-fim-da-dispensa-de-alertas.md)).
+→ Regra: [Operação e Suporte § Leitura da Notificação Interna](docs/modules/operacao-suporte.md#leitura-da-notificação-interna)
 
 **Fechamento automático**
 Encerramento do Alerta quando a recomputação da condição de origem, no
 servidor, confirma que ela foi resolvida.
-- **Distinto de:** leitura, reconhecimento (que não existe) e dispensa.
+- **Distinto de:** leitura e reconhecimento (que não existe).
 → Regra: [Operação e Suporte § Ciclo de vida do Alerta](docs/modules/operacao-suporte.md#ciclo-de-vida-do-alerta)
 
 **Indicador Operacional**
-Contagem derivada de uma consulta ao estado atual, como containers com
-demurrage vencido. Não tem instante de ocorrência nem estado de leitura.
+Contagem derivada de uma consulta ao estado atual, como os containers em
+atraso (que passaram do free time) da faixa do cabeçalho. Não tem instante de
+ocorrência nem estado de leitura.
 - **Distinto de:** Alerta e Notificação Interna; não entra na entrega pessoal.
 → Regra: [Operação e Suporte § Indicador Operacional](docs/modules/operacao-suporte.md#indicador-operacional)
 
@@ -1281,8 +1280,9 @@ de envio, entrega, bounce ou complaint. "Aceito pelo provedor" não é
 → Regra: [Portal do Cliente § Email transacional](docs/modules/portal-cliente.md#email-transacional)
 
 **Falha no envio**
-Situação da conta quando o envio do convite não foi aceito pelo provedor;
-exige revisar o email e reenviar.
+Situação da conta quando o envio do convite não foi aceito pelo provedor ou
+quando, em Ativação pendente, chega devolução permanente (bounce) ou
+reclamação (complaint) do endereço; exige revisar o email e reenviar.
 → Regra: [Portal do Cliente § Alertas internos do Portal](docs/modules/portal-cliente.md#alertas-internos-do-portal)
 
 **Email suprimido do Portal**
@@ -1526,9 +1526,15 @@ recebe um alerta crítico.
 → Regra: [Clientes § Tratamento de Bounce em Cascata](docs/modules/clientes.md#tratamento-de-bounce-em-cascata)
 
 **Chave de envio de Comunicados**
-Controle único que habilita ou silencia o envio real de Comunicados; desligada,
-o Disparo é conferido e registrado como simulado. Não confundir com o e-mail
-transacional do Portal, que ela não silencia (salvo o aviso de bounce).
+Controle único, de teste, do envio dos e-mails dirigidos a Cliente (Comunicados,
+Régua, avisos e e-mails do Portal); desligada, cada e-mail vai ao suporte, com o
+Cliente no assunto, e conta como enviado ("Redirecionado ao suporte"). Só a
+conta com a marca **Dev** a muda.
+
+**Marca Dev**
+Permissão especial acima do Administrativo, dada só por migration a uma conta
+do Administrativo; hoje só liga e desliga a chave de envio. Não é setor: a conta
+continua no Administrativo.
 → Regra: [Clientes § Chave de envio de Comunicados](docs/modules/clientes.md#chave-de-envio-de-comunicados)
 
 ## Referências de verificação dos contratos
@@ -1552,13 +1558,18 @@ Condição nova.
 → Regra: [Faturamento § Correção após emissão](docs/modules/faturamento.md#correção-após-emissão-adr-0077)
 
 **Reemissão pendente**
-Fatura cancelada pela correção do B/L cuja sucessora não pôde ser emitida
-(por exemplo, Portal não pronto); o alerta mostra o motivo até a reemissão.
+Fatura já cancelada pela correção do B/L cuja sucessora falhou depois, ou
+consolidada que aguarda a individual do B/L; o alerta mostra o motivo até a
+reemissão. Se a nova emissão já sairia bloqueada (por exemplo, Portal não
+pronto), a fatura não é cancelada: vira Fatura desatualizada.
 → Regra: [Faturamento § Correção após emissão](docs/modules/faturamento.md#correção-após-emissão-adr-0077)
 
 **Fatura desatualizada**
-Alerta de fatura com pagamento cujo valor ou Cliente não corresponde mais ao
-B/L corrigido. Distinto da Reemissão pendente: a fatura paga não é reemitida.
+Alerta de fatura que continua valendo, mas cujo valor ou Cliente não
+corresponde mais ao B/L corrigido: com pagamento, a fatura não é reemitida;
+sem pagamento, a reemissão sairia bloqueada (terminais em conflito, valor a
+revisar, Portal) e aguarda **Tentar aplicar correção**. Distinto da Reemissão
+pendente, em que a fatura já foi cancelada.
 → Regra: [Faturamento § Correção após emissão](docs/modules/faturamento.md#correção-após-emissão-adr-0077)
 
 **Restituição pendente**
@@ -1592,9 +1603,10 @@ Cliente nunca vê nada da ZPT.
 Condição por CNPJ em que termo e procuração anuais aprovados substituem os
 anexos de cada pedido dos B/Ls que eles cobrem, e a solicitação não passa pela
 análise. Não dispensa pagamento nem entrega por B/L; o selo VIP sem anual que
-cubra os B/Ls não dispensa nada. O anual cobre os B/Ls cujo CE Mercante foi
-vinculado dentro da vigência dele, inclusive depois de o anual vencer; não retroage. Sem anual que cubra os
-B/Ls (faltando, recusado, revogado ou com o CE vinculado fora da vigência), o VIP pede como os demais, com
+cubra os B/Ls não dispensa nada. O anual cobre todo CE cujo desbloqueio foi
+solicitado dentro da vigência dele (dia do envio da solicitação), sem olhar a importação do B/L nem o
+vínculo do CE, inclusive depois de o anual vencer. Sem anual que cubra os
+B/Ls (faltando, recusado, revogado ou com o desbloqueio solicitado fora da vigência), o VIP pede como os demais, com
 termo e procuração anexados à solicitação.
 → Regra: [Desbloqueio de CE § Requisitos e condição VIP](docs/modules/desbloqueio-ce.md#requisitos-e-condição-vip)
 

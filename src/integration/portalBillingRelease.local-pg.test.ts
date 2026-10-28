@@ -210,7 +210,7 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(Number(psql(`SELECT count(*) FROM public.charge_calculations WHERE bl_id = '${heldBlId}';`))).toBeGreaterThan(0)
     expect(portalAlert()).toBe('active/documentacao')
     expect(psql(`SELECT audience_departments::text FROM public.alert_type_catalog WHERE type = 'review_portal_not_ready';`))
-      .toBe('{documentacao,administrativo}')
+      .toBe('{documentacao}') // 476: o sino é do setor responsável
   })
 
   it('B/L do Cliente sem Portal entra na Revisão com o motivo do Portal', () => {

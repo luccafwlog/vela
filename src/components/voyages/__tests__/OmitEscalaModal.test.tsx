@@ -74,3 +74,24 @@ describe('OmitEscalaModal', () => {
     expect(onClose).toHaveBeenCalled()
   })
 })
+
+describe('OmitEscalaModal — decisões do dono (lote 9)', () => {
+  beforeEach(() => {
+    useAuthMock.mockReturnValue({ user: { id: 'user-1' } })
+  })
+
+  it('02-viagens-adr:15: não oferece o porto omitido como Porto de Transbordo', () => {
+    render(<OmitEscalaModal open onClose={vi.fn()} voyageId={7} omittedPod="BRVIX" candidateDischargePods={['BRVIX']} affectedBlNumbers={[]} />)
+    expect(screen.queryByRole('option', { name: 'BRVIX' })).toBeNull()
+    expect(screen.getByRole('alert').textContent).toMatch(/Cadastre antes a escala onde a carga será descarregada/)
+  })
+
+  it('02-viagens-adr:3: a confirmação diz que qualquer setor reverte e que o histórico fica', async () => {
+    const user = userEvent.setup()
+    render(<OmitEscalaModal open onClose={vi.fn()} voyageId={7} omittedPod="BRSSA" candidateDischargePods={['BRVIX']} affectedBlNumbers={['BL-1']} />)
+    await user.type(screen.getByLabelText(/Motivo/i), 'Armador omitiu')
+    await user.click(screen.getByRole('button', { name: /Omitir|Continuar|Revisar/ }))
+    expect(screen.getByText(/Qualquer setor pode reverter a omissão/)).toBeTruthy()
+    expect(screen.queryByText(/pelo Administrativo/)).toBeNull()
+  })
+})

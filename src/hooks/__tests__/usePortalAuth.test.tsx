@@ -100,6 +100,17 @@ describe('usePortalAuth', () => {
     expect(signInWithPassword).not.toHaveBeenCalled()
   })
 
+  it('POR-D07: verificação de segurança recusada e falta de rede passam com o próprio motivo', async () => {
+    const { result } = renderHook(() => usePortalAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    invoke.mockResolvedValueOnce({ data: null, error: Object.assign(new Error('Edge Function returned a non-2xx status code'), { context: { status: 403 } }) })
+    await expect(result.current.signIn('12.345.678/0001-95', 'senha-secreta')).rejects.toMatchObject({ code: 'TURNSTILE_REJECTED' })
+
+    invoke.mockResolvedValueOnce({ data: null, error: Object.assign(new Error('Failed to send a request to the Edge Function'), { name: 'FunctionsFetchError' }) })
+    await expect(result.current.signIn('12.345.678/0001-95', 'senha-secreta')).rejects.toBeInstanceOf(TypeError)
+  })
+
   it('mantém a mensagem genérica quando o rate limit bloqueia', async () => {
     invoke.mockResolvedValue({ data: null, error: Object.assign(new Error('blocked'), { code: 'P0429' }) })
 

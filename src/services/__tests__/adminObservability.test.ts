@@ -1,9 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { fetchAuditLogs, fetchSystemMetrics } from '../adminObservability'
 
-const { fromMock, supabaseMock } = vi.hoisted(() => {
-  const supabaseMock = { from: vi.fn() }
-  return { fromMock: supabaseMock.from, supabaseMock }
+const { fromMock, rpcMock, supabaseMock } = vi.hoisted(() => {
+  const supabaseMock = { from: vi.fn(), rpc: vi.fn() }
+  return { fromMock: supabaseMock.from, rpcMock: supabaseMock.rpc, supabaseMock }
 })
 vi.mock('../supabase', () => ({ supabase: supabaseMock }))
 
@@ -27,6 +27,7 @@ function builder(result: { data: unknown; error: unknown; count?: number | null 
 
 beforeEach(() => {
   fromMock.mockReset()
+  rpcMock.mockReset()
 })
 
 it('propaga falha de qualquer leitura das metricas', async () => {
@@ -58,9 +59,10 @@ it('propaga falha ao resolver nomes dos autores do log', async () => {
         count: 1,
       })
     }
-    if (table === 'user_profiles') return builder({ data: null, error: new Error('profiles unavailable') })
     throw new Error(`Tabela inesperada: ${table}`)
   })
+  // Os nomes vêm de get_user_display_names (ACE-D16; ADR 0106).
+  rpcMock.mockResolvedValue({ data: null, error: new Error('profiles unavailable') })
 
   await expect(fetchAuditLogs({
     entityTypes: [],
@@ -144,9 +146,9 @@ it('autor sem perfil aparece por extenso, nunca pelo número interno', async () 
         count: 2,
       })
     }
-    if (table === 'user_profiles') return builder({ data: [], error: null })
     throw new Error(`Tabela inesperada: ${table}`)
   })
+  rpcMock.mockResolvedValue({ data: [], error: null })
 
   const { rows } = await fetchAuditLogs({ entityTypes: [], changedBy: '', dateFrom: '', dateTo: '', page: 0 })
   expect(rows.map((row) => row.changer_name)).toEqual(['Pessoa sem cadastro', null])

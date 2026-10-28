@@ -134,7 +134,7 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
       <Modal open={revertOpen} title="Reverter omissão de escala" onClose={() => setRevertOpen(false)} size="sm">
         <form className="grid gap-4" onSubmit={submitRevert}>
           <div className="app-panel app-panel--padded text-sm">
-            Esta ação removerá a omissão e os registros de transbordo de {blCount} B/L(s). Clientes com link a um B/L afetado serão notificados da correção.
+            Esta ação reverte a omissão para {blCount} B/L(s); a omissão e o transbordo ficam no histórico. Clientes com link a um B/L afetado serão notificados da correção.
           </div>
           <Field label="Justificativa" required>
             <Textarea

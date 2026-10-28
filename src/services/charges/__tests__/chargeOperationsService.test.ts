@@ -11,7 +11,7 @@ vi.mock('../../supabase', () => ({
 
 function builder(result: { data: unknown; error: unknown }) {
   const chain: Record<string, unknown> = {}
-  for (const method of ['select', 'order', 'range', 'eq', 'neq', 'or', 'ilike', 'in', 'limit', 'overrideTypes']) {
+  for (const method of ['select', 'order', 'range', 'eq', 'neq', 'or', 'ilike', 'in', 'is', 'limit', 'overrideTypes']) {
     chain[method] = vi.fn(() => chain)
   }
   chain.then = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve)
@@ -33,6 +33,14 @@ describe('listLocalChargeOperationalRows', () => {
     await listLocalChargeOperationalRows({ cargoMode: 'misto' })
     expect(from.mock.calls.map(([table]) => table)).toContain('bls')
     expect(from.mock.calls.map(([table]) => table)).not.toContain('granite_bls')
+  })
+
+  it('tira o B/L cancelado da fila, inclusive com faturados e isentos (FAT-D09)', async () => {
+    const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
+    const chain = builder({ data: [], error: null })
+    from.mockImplementation(() => chain)
+    await listLocalChargeOperationalRows({ includeResolved: true })
+    expect(chain.is).toHaveBeenCalledWith('cancelled_at', null)
   })
 
   it('propaga o erro do banco em vez de devolver lista vazia', async () => {

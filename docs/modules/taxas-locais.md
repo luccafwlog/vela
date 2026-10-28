@@ -143,7 +143,10 @@ aceita "1.420,50"; cada erro indica o campo).
 ### Superfícies operacionais fora da rota
 
 - `src/components/bl/BlCobrancasTab.tsx`, em `/bls/:blId`, lista linhas,
-  calcula/recalcula um B/L, mantém cobranças manuais (botões **Editar** e, só
+  calcula um B/L **Não calculado** (**Calcular taxas**; o B/L já calculado se
+  recalcula pela Validação, pela Revisão ou sozinho quando a base muda,
+  inclusive quando a troca de modalidade o pôs em **Não calculado**: TAX-D17,
+  migration `470`), mantém cobranças manuais (botões **Editar** e, só
   para o Administrativo, **Excluir** na linha manual, enquanto o B/L não está
   faturado) e oferece **Emitir fatura** a qualquer Departamento
   ([matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento);
@@ -192,9 +195,9 @@ aceita "1.420,50"; cada erro indica o campo).
 | `/taxas-locais/tabelas` · buscar cliente/item de override | Busca de cliente com pelo menos dois caracteres; itens ativos e não manuais, filtrados na tela por palavra | `Combobox` do `ChargeOverrideFormModal` | `useOverrideCustomerLookup` / `useOverrideChargeItems` | `SELECT customers`; `SELECT charge_table_items` + `charge_tables` | Queries `charges.overrideCustomers(search)` e `charges.overrideItems()` | Erro da query impede opções; a tela não cria opção livre | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/services/charges/chargeRateService.ts` |
 | `/taxas-locais/tabelas` · criar/editar override | Cliente e item válidos; valor maior que zero; vigência coerente; **vigência não pode sobrepor outra condição do mesmo cliente+item** (etapa 10 do plano de faturamento, ADR 0038 decisão 5) | `handleSaveOverride` | `validateOverrideInput` → `useSaveCustomerRateOverride` → `saveCustomerRateOverride` → `findOverlappingCustomerRateOverride` | `INSERT` ou `UPDATE customer_rate_overrides`; restrição de exclusão `customer_rate_overrides_no_overlap` (GiST em `customer_id`/`charge_item_id`/`daterange(valid_from,valid_to,'[]')`, só entre condições ativas — definição vigente na migration `091`; origem na migration arquivada `267`) é a autoridade final | Invalida `charges.overrides()` e `bls.localChargeLines('')` | Toast de falha; erro de validação é exibido antes da chamada; conflito de vigência mostra qual condição existente colide e seu período (checagem no app antes de gravar; violação da restrição no banco — código `23P01`, corrida entre duas telas — cai no mesmo texto amigável) | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/pages/taxasLocaisHelpers.ts`, `src/services/charges/chargeRateService.ts` · **Teste:** `src/pages/__tests__/taxasLocaisHelpers.test.ts`, `src/services/charges/__tests__/chargeRateService.overlap.test.ts`, `src/services/__tests__/customerRateOverridesNoOverlapMigration.test.ts` |
 | `/taxas-locais/tabelas` · excluir override | Confirmação | `handleDeleteOverride` | `useDeleteCustomerRateOverride` → `deleteCustomerRateOverride` | `DELETE customer_rate_overrides` | Mesmas invalidações do save de override | Toast de falha | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/hooks/useLocalCharges.ts` |
-| B/L/revisão · calcular ou recalcular um B/L | B/L existente; usuário ativo; `recalculate` define limpeza/reuso; CE Mercante exigido para emitir (não para calcular) em todas as modalidades — container, carga solta e misto (`assert_bl_ce_mercante`, definição vigente na migration `180`); **B/L com `financial_status IN ('invoiced','partially_paid','paid')` é recusado** (etapa 2 do plano de faturamento, ADR 0038 achado 6) | `BlCobrancasTab`, `Revisao`, `BlClienteSection`, `reviewBillingAutomation` | `useCalculateBlLocalCharges` ou chamada direta → `calculateBlLocalCharges`; na Revisão e no card Cliente da ficha, `tryAutoIssueInvoice` calcula e tenta a emissão depois que o B/L sai da Revisão; pelo CE Mercante, cálculo e emissão são do servidor (`apply_ce_mercante_rows_atomic` grava CE e cálculo, `emit_ce_mercante_billing` emite em lotes; migration `181`) | RPC `calculate_bl_local_charges` → `charge_calculations`, estado e auditoria do B/L; automação pode emitir invoice | Invalida linhas do B/L, detalhe, lista de B/Ls, `charges.operations()`/`pendencies()` e viagens | RPC propaga ausência de tabela, dados inválidos e demais regras; automação sempre calcula (etapa 4, ADR 0038 achado 11) e só bloqueia a **emissão** enquanto o CE estiver vazio; UI mostra toast no cálculo manual. `calculateBlLocalCharges` consulta `bls.financial_status` antes de chamar a RPC e recusa localmente com mensagem clara se o B/L já foi faturado; a migration arquivada `262` replica a mesma trava dentro da própria RPC, cobrindo chamada direta fora do app. `charge_status` não é mais promovido automaticamente de `calculated` para `ready_for_billing` (migration arquivada `263` removeu `trg_promote_calculated_bl_ready`, etapa 3, ADR 0038 decisão 8) — a promoção só acontece dentro da emissão (`mark_bl_ready_and_create_invoice`, pelo CE Mercante ou pelo botão **Emitir fatura**). Na Revisão, bloqueio ou falha da tentativa aparece no resultado ("o faturamento automático não concluiu: …") e no aviso de recálculo; no card Cliente da ficha, a falha inesperada vira aviso para conferir a aba Faturamento. Pela planilha de CE, B/L já faturado volta como `already_invoiced`, sem nova emissão; espera de Cliente ou de Revisão aparece como aguardando, e só a falha técnica abre `billing_auto_issue_failed` (migration `195`). | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/pages/Revisao.tsx`, `src/services/reviewBillingAutomation.ts`, `src/components/bl/BlClienteSection.tsx`, `src/services/ceMercanteImport.ts`, `src/services/charges/chargeOperationsService.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts`, `src/services/__tests__/reviewBillingAutomation.test.ts`, `src/services/__tests__/ceMercanteImport.test.ts` |
+| B/L/revisão · calcular ou recalcular um B/L | B/L existente; usuário ativo; `recalculate` define limpeza/reuso; CE Mercante exigido para emitir (não para calcular) em todas as modalidades — container, carga solta e misto (`assert_bl_ce_mercante`, definição vigente na migration `180`); **B/L com `financial_status IN ('invoiced','partially_paid','paid')` é recusado** (etapa 2 do plano de faturamento, ADR 0038 achado 6) | `BlCobrancasTab` (só **Calcular taxas**, B/L Não calculado), `Revisao`, `BlClienteSection`, `reviewBillingAutomation` | `useCalculateBlLocalCharges` ou chamada direta → `calculateBlLocalCharges`; na Revisão e no card Cliente da ficha, `tryAutoIssueInvoice` calcula e tenta a emissão depois que o B/L sai da Revisão; pelo CE Mercante, cálculo e emissão são do servidor (`apply_ce_mercante_rows_atomic` grava CE e cálculo, `emit_ce_mercante_billing` emite em lotes; migration `181`) | RPC `calculate_bl_local_charges` → `charge_calculations`, estado e auditoria do B/L; automação pode emitir invoice | Invalida linhas do B/L, detalhe, lista de B/Ls, `charges.operations()`/`pendencies()` e viagens | RPC propaga ausência de tabela, dados inválidos e demais regras; automação sempre calcula (etapa 4, ADR 0038 achado 11) e só bloqueia a **emissão** enquanto o CE estiver vazio; UI mostra toast no cálculo manual. `calculateBlLocalCharges` consulta `bls.financial_status` antes de chamar a RPC e recusa localmente com mensagem clara se o B/L já foi faturado; a migration arquivada `262` replica a mesma trava dentro da própria RPC, cobrindo chamada direta fora do app. `charge_status` não é mais promovido automaticamente de `calculated` para `ready_for_billing` (migration arquivada `263` removeu `trg_promote_calculated_bl_ready`, etapa 3, ADR 0038 decisão 8) — a promoção só acontece dentro da emissão (`mark_bl_ready_and_create_invoice`, pelo CE Mercante ou pelo botão **Emitir fatura**). Na Revisão, bloqueio ou falha da tentativa aparece no resultado ("o faturamento automático não concluiu: …") e no aviso de recálculo; no card Cliente da ficha, a falha inesperada vira aviso para conferir a aba Faturamento. Pela planilha de CE, B/L já faturado volta como `already_invoiced`, sem nova emissão; espera de Cliente ou de Revisão aparece como aguardando, e só a falha técnica abre `billing_auto_issue_failed` (migration `195`). | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/pages/Revisao.tsx`, `src/services/reviewBillingAutomation.ts`, `src/components/bl/BlClienteSection.tsx`, `src/services/ceMercanteImport.ts`, `src/services/charges/chargeOperationsService.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts`, `src/services/__tests__/reviewBillingAutomation.test.ts`, `src/services/__tests__/ceMercanteImport.test.ts` |
 | B/L importado · cálculo inicial automático | Import confirmado; actor válido | RPC de importação | `import_bl_freight_with_metadata` dispara `calculate_bl_local_charges` síncrono no DB; falha do cálculo recusa a importação inteira, sem enfileirar `provisional_charges` (ADR 0094, B3; migration `379`) | `calculate_bl_local_charges`; `charge_calculations` e estado do B/L; `sync_local_charge_receivable` retorna `NULL` se cliente pendente | Invalida `local-charge-operations`, `customer-reconciliation-queue`, `bl-local-charge-lines` e demais caches via `afterManifestoImportado` | B/L sem cliente calcula taxas normalmente pelas tabelas ativas; recálculo automático com condições especiais ocorre na vinculação do cliente (`approve_customer_reconciliation` ou `relink_bl_customer`), gerando o recebível (`bl_receivables`); a falha volta como erro da importação, com o B/L e o que falta, no toast | **Código:** `src/components/shared/BlImportModal.tsx`, `src/services/blFreightImport.ts`, migration `072_local_charges_auto_calculation_on_import.sql`; **Teste:** `src/components/shared/__tests__/BlImportModal.test.tsx`, `src/services/__tests__/blFreightImport.test.ts`, `src/services/__tests__/localChargesAutoCalculationMigration.test.ts` |
-| `/taxas-locais` · calcular/recalcular selecionados | Seleção não vazia | `ValidacaoTab.runBatchOperation` | `useBatchCalculateLocalCharges` → `calculateLocalChargesBatch` | RPC `calculate_bl_local_charges_batch` em chunks de até 100, com fallback sequencial por chunk | Invalida `charges.operations()`/`pendencies()`, B/Ls, `bls.detail('')` e viagens; a tela também invalida invoices e resumo de B/Ls | Lote continua após erro e toast reporta contagem e descrição do primeiro erro. B/Ls já faturados são retirados da seleção antes de chamar a RPC e reportados à parte ("X recalculado(s), Y ignorado(s) — já faturados"), em vez de contarem como erro (`isBlLockedForRecalc`/`isBlFinanciallyLocked`) | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/validacaoPipeline.ts`, `src/lib/chargeStatus.ts`, `src/hooks/useLocalCharges.ts` · **Teste:** `src/components/billing/__tests__/validacaoFunnel.test.ts`, `src/services/charges/__tests__/chargeOperationsService.test.ts` |
+| `/taxas-locais` · calcular/recalcular selecionados | Seleção não vazia | `ValidacaoTab.runBatchOperation` | `useBatchCalculateLocalCharges` → `calculateLocalChargesBatch` | RPC `calculate_bl_local_charges_batch` em chunks de até 100, com fallback sequencial por chunk | Invalida `charges.operations()`/`pendencies()`, B/Ls, `bls.detail('')` e viagens; a tela também invalida invoices e resumo de B/Ls | Lote continua após erro e toast reporta contagem e descrição do primeiro erro. B/Ls já faturados são retirados da seleção antes de chamar a RPC e reportados à parte, em dois avisos ("N B/L(s) recalculado(s)." e "Y ignorado(s) (já faturados)."), em vez de contarem como erro (`isBlLockedForRecalc`/`isBlFinanciallyLocked`) | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/validacaoPipeline.ts`, `src/lib/chargeStatus.ts`, `src/hooks/useLocalCharges.ts` · **Teste:** `src/components/billing/__tests__/validacaoFunnel.test.ts`, `src/services/charges/__tests__/chargeOperationsService.test.ts` |
 | `/taxas-locais` (Validação) · Exportar n B/Ls | Seleção ou, sem seleção, a fila filtrada | `ValidacaoTab.handleExport` | `fetchChargeTotalsByBl` → `exportValidacaoWorkbook` (`src/services/exports.ts`) | `SELECT` em `charge_calculations` (join `charge_table_items`); para B/L com taxa `container_distinct_voyage`, `bls` e `bl_containers` da Viagem | Nenhuma (leitura, download local) | Uma linha por B/L com Motivo, Subtotal, Contêiner compartilhado (ADR 0038, `share_count`) e uma coluna por taxa. Substitui a planilha de conferência por item da Etapa 5 do plano de faturamento (docs/archive/plans/2026-08-06-faturamento-ajuste-completo.md); a origem do preço por item fica na Conferência do cálculo da expansão. | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/services/charges/chargeOperationsService.ts`, `src/services/exports.ts` · **Teste:** `src/services/__tests__/exports.test.ts` |
 | B/L · adicionar cobrança manual | Item elegível, quantidade válida e B/L não faturado conforme RPC | `BlCobrancasTab` → `ManualChargeFormFields` | `useAddManualBlCharge` → `addManualBlCharge` | RPC `add_manual_bl_charge` → `charge_calculations` e auditoria | Invalida linhas/detalhe/lista do B/L, pendências e viagens | RPC/validação bloqueia item ou estado inválido | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/charges/chargeOperationsService.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts`, `src/components/billing/__tests__/ManualChargeFormFields.test.tsx` |
 | B/L · editar cobrança manual | Linha manual existente e B/L elegível | `BlCobrancasTab` (botão **Editar** na linha manual) | `useUpdateManualBlCharge` → `updateManualBlCharge` | RPC `update_manual_bl_charge` | Invalida linhas/detalhe/lista do B/L e pendências | RPC rejeita linha automática, ausente ou invoice protegida | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/hooks/useLocalCharges.ts`, `supabase/migrations_archive/108_guard_manual_charges_and_clear_pix_on_reversal.sql` |
@@ -249,7 +252,9 @@ frontend: `mark_bl_charges_reviewed` está sem `EXECUTE` para a API (migration
   ativas por `valid_from DESC, id DESC`. Desativar ("Desativar tabela") é a única forma de tirar
   uma tabela do cálculo.
 - `charge_table_items` possui categoria, base de aplicação, perfil, moeda e
-  valor unitário; `manual_only` separa itens automáticos dos adicionáveis.
+  valor unitário. A categoria só separa itens de mesmo nome (`uq_charge_table_items_*`)
+  e não muda a fatura: saiu do formulário em 2026-10-27 (TAX-D07); item novo
+  grava "Taxa base" e a edição mantém a gravada; `manual_only` separa itens automáticos dos adicionáveis.
   `applies_to_soc` (migration `121`, padrão `true`; opção "Cobra de container
   SOC" no item) com `false` faz `resolve_bl_local_charge_items` contar só os
   containers que não são SOC, com o mesmo rateio de container compartilhado e o
@@ -262,7 +267,10 @@ frontend: `mark_bl_charges_reviewed` está sem `EXECUTE` para a API (migration
 - Tarifa usada só se desativa (ADR 0073; migration `091`): excluir tabela, item
   ou override referenciado por cálculo, item de fatura ou versão de regra de
   preço é recusado pelo trigger `trg_guard_used_tariff_delete`, com a mensagem
-  "desative em vez de excluir". Desativar e reativar tabela, item e override são
+  "desative em vez de excluir". Item nunca calculado que ainda tem Condição de
+  Cliente ou Preço Fixado (`bl_price_freeze_items`) também não se exclui: a
+  chave estrangeira recusa (`23503`) e a tela mostra "Registro referenciado nao
+  existe ou ainda esta em uso." (`src/lib/errors.ts`). Desativar e reativar tabela, item e override são
   do Administrativo (`trg_guard_tariff_active_change`); a tela só mostra essas
   ações a ele.
 - `charge_calculations` possui as linhas efetivamente calculadas ou manuais.
@@ -376,6 +384,11 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   Desativar a tabela só impede B/Ls novos de usá-la. Mudança de modo de carga
   ou de POD vincula à tabela ativa do escopo novo. Reajuste de preço é tabela
   nova: vale para os B/Ls que surgirem depois. Só o servidor grava o vínculo.
+  Tabela já usada (vinculada, calculada ou faturada, inclusive só por B/L
+  cancelado ou nunca faturado — confirmado pelo dono na revisão da PR #1070)
+  não muda **POD** nem **modo de carga**: o banco recusa (`trg_guard_used_tariff_scope`) e o
+  formulário trava os dois campos; para outro POD ou modo, cadastra-se tabela
+  nova (decisão do dono de 2026-10-27, TAX-D13; migration `470`).
   Excluir tabela vinculada é recusado como as demais tarifas usadas.
 - **Escolha da tabela no primeiro cálculo:** por escopo (modalidade + POD
   normalizado por `normalize_port_code`) e tabela **ativa**, sem data. A
@@ -406,14 +419,33 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   **Teste local-pg:** `tabelaVinculadaAoBl.local-pg.test.ts`.
 - **B/L misto** consome as tabelas container e carga solta por
   `resolve_bl_local_charge_table_ids` (`056`). A taxa com
-  `application_basis = 'bl'` (documental) incide só do lado container; falta
-  parcial de tabela gera pendência específica. `059` estende o mesmo resolvedor
+  `application_basis = 'bl'` (por B/L) vem do lado container; quando a tabela
+  de container não tem nenhuma, todas as taxas por B/L da carga solta são
+  cobradas ([ADR 0105](../adr/0105-bl-misto-cobra-taxas-por-bl-da-carga-solta.md);
+  migration `470`; até ela só a primeira, na Ordem de exibição, era cobrada).
+  Falta parcial de tabela gera pendência específica. `059` estende o mesmo resolvedor
   ao catálogo/lançamento manual e `062` corrige quantidades BB. O catálogo de
   tabelas continua com `container`, `carga_solta` e `granito`, sem cadastro
   separado de `misto`; o modo `granito` ficou sem consumidor desde o lote 5b
   (o Granito não calcula taxas), mas continua no cadastro (restrição
   `charge_tables_cargo_mode_check`). O filtro Modo de `/taxas-locais/tabelas`
-  não o oferece mais e `?modo=granito` cai em "Todos".
+  não o oferece mais e `?modo=granito` cai em "Todos"; o formulário de tabela
+  também não, salvo na edição de tabela antiga de Granito (TAX-D04).
+- **Linha em revisão diz o que falta** (TAX-D16; migration `470`): a guarda de
+  preço ausente (`guard_missing_charge_price`, `066`) mantém o motivo da linha
+  de revisão do cálculo ("Peso de carga solta ausente…", perfil `any` no THD,
+  base não suportada); o texto "Tarifa BRL/USD sem valor unitário vigente." fica
+  para o item sem preço. Linha gravada antes da `470` mostra o motivo novo no
+  próximo recálculo.
+- **B/L cancelado é só consulta** na aba Faturamento da ficha: sem **Calcular
+  taxas**, cobrança manual, edição de linha nem **Emitir fatura** (TAX-D09).
+- **Histórico do B/L e taxas** (TAX-D08; migration `470`): o registro de taxa
+  grava o B/L (`audit_logs.bl_id`, preenchido por `trg_audit_logs_fill_charge_bl_id`
+  e pela própria migration nos registros antigos), e `bl_timeline` lê por ele;
+  a exclusão de cobrança manual continua no Histórico ("Cobrança manual
+  excluída", com autor) depois que a linha some. O aceite de refixar o preço na
+  reimportação aparece em Taxas como "Preço das Taxas Locais refixado pelo de
+  hoje, aceito na reimportação".
 - **Terminal não seleciona preço:** não faz parte da chave de `charge_tables`
   e não reprecifica Taxas Locais (ADR 0068). A herança e a exceção de terminal
   por B/L são regra de [Manifestos & EDI](manifesto-edi.md).
@@ -651,8 +683,13 @@ Comando focado:
   (BRREC) e Suape (BRSUA), Navegantes (BRNVT) e Itajaí (BRITJ) são escopos
   distintos desde a migration `391` (ADR 0095, decisão 12).
 - **Caminho manual com a regra do automático (A10).** Desde a migration `248`, o lançamento manual (`add_manual_bl_charge`, `list_manual_charge_items_for_bl`) e o Item da tabela da avulsa (`quote_manual_invoice_charge`) escolhem a tabela ativa sem filtrar a vigência e a Condição de Cliente pela Data de Referência (`bl_local_charge_reference_date`, a mesma função do cálculo automático). Antes excluíam tabela ativa com vigência vencida ou futura e usavam a data do upload do lote (**Teste**, Postgres local, `caminhoManualVigencia.local-pg.test.ts`).
-- `pricing_rule_versions` não participa deste caminho atual; cálculo e
-  transições registram evidência principalmente em `audit_logs`.
+- Cada linha de cálculo com item grava, pelo gatilho
+  `populate_charge_calculation_billing_metadata` (`ensure_pricing_rule_version`),
+  um registro em `pricing_rule_versions`: tabela, item, Cliente, a Condição de
+  Cliente cuja vigência cobre a data (ativa ou não) e a data do lote de
+  importação do B/L. O cálculo não lê esse registro, mas ele é um dos critérios de
+  tarifa usada (`trg_guard_used_tariff_delete`); cálculo e transições registram
+  evidência principalmente em `audit_logs`.
 
 ### Segurança da correção automática — migration 130
 

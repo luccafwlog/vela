@@ -4,28 +4,26 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const open = { id: 1, item_id: 101, status: 'open', severity: 'normal', type: 'demurrage', message: 'Container vencendo', entity_type: 'container', entity_id: 'CNTR1', department: null, created_at: '2026-06-20T00:00:00Z' }
-const ack = { id: 2, item_id: 102, status: 'open', severity: 'normal', type: 'invoice_overdue', message: 'Fatura vencida 123', entity_type: 'invoice', entity_id: '123', department: 'administrativo', created_at: '2026-06-19T00:00:00Z', dismissed_until: '2026-08-22T12:00:00Z', dismissal_reason: 'Aguardando o financeiro', dismissed_by_name: 'Ana Ribeiro' }
+const open = { id: 1, item_id: 101, status: 'open', severity: 'normal', type: 'demurrage', message: 'Container vencendo', entity_type: 'container', entity_id: 'CNTR1', department: null, created_at: '2026-06-20T00:00:00Z', opened_at: '2026-10-25T13:00:00Z' }
 const portalInvoice = { id: 3, status: 'open', severity: 'critical', type: 'portal_excecao_critica_fatura', message: 'Portal sem email para fatura', entity_type: 'invoice', entity_id: '456', department: 'documentacao', created_at: '2026-06-18T00:00:00Z' }
 const adrLegacy = { id: 4, status: 'open', severity: 'normal', type: 'agency_report_department_pending', message: 'ADR legado', entity_type: 'agency_departure_report', entity_id: '10::BRVIX::documentacao', created_at: '2026-06-17T00:00:00Z' }
 const reviewCustomer = { id: 6, item_id: 106, status: 'open', severity: 'critical', type: 'review_customer_unlinked', message: 'Cliente VALE: 5 B/Ls pendentes de vínculo com cliente', entity_type: 'customer', entity_id: 'VALE', department: 'documentacao', created_at: '2026-06-15T00:00:00Z', metadata: { bl_ids: ['MEDU1234567', 'MEDU7654321'] } }
 const unlinked = { id: 8, item_id: 108, status: 'open', severity: 'critical', type: 'review_customer_unlinked', message: '', entity_type: 'customer', entity_id: 'sem_cliente', department: 'documentacao', created_at: '2026-06-15T00:00:00Z' }
 const ceChanged = { id: 7, item_id: 107, status: 'open', severity: 'critical', type: 'ce_trocado_com_desbloqueio', message: 'CE trocado depois do Desbloqueio', entity_type: 'bl', entity_id: 'BL-CE-1', department: 'documentacao', created_at: '2026-06-14T00:00:00Z' }
+const itauStalled = { id: 9, item_id: 109, status: 'open', severity: 'critical', type: 'itau_pix_consulta_parada', message: 'Consulta Itaú parada há 20 minutos', entity_type: 'itau_pix_checkpoint', entity_id: 'itau_pix_polled_until', department: 'administrativo', created_at: '2026-06-13T00:00:00Z' }
 
-const ACTIVE = [open, portalInvoice, adrLegacy, reviewCustomer, unlinked, ceChanged]
+const ACTIVE = [open, portalInvoice, adrLegacy, reviewCustomer, unlinked, ceChanged, itauStalled]
 const summary = [
-  { department: 'documentacao', active_count: 4, dismissed_count: 0, is_legacy: false },
-  { department: 'administrativo', active_count: 0, dismissed_count: 1, is_legacy: false },
-  { department: 'sem_departamento', active_count: 2, dismissed_count: 0, is_legacy: true },
+  { department: 'documentacao', active_count: 4, is_legacy: false },
+  { department: 'administrativo', active_count: 0, is_legacy: false },
+  { department: 'sem_departamento', active_count: 2, is_legacy: true },
 ]
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
     if (queryKey[0] === 'alert-department-summary') return { data: summary, isLoading: false, error: null }
     if (queryKey[1] === 'entity-labels') return { data: { 'voyage:10': 'COSCO SHIPPING ARIES / 088E' }, isLoading: false, error: null }
-    const filter = queryKey[1] as string
-    const data = filter === 'dismissed' ? [ack] : ACTIVE
-    return { data, isLoading: false, error: null }
+    return { data: ACTIVE, isLoading: false, error: null }
   },
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
@@ -43,12 +41,10 @@ vi.mock('../../services/alerts', async (importOriginal) => {
   return {
     ...actual,
     listAlerts: vi.fn(),
-    dismissAlertItem: vi.fn().mockResolvedValue(undefined),
   }
 })
 
 import { Alertas } from '../Alertas'
-import { getMaxReviewDateString } from '../../services/alerts'
 
 function renderAlertas(initialEntries: string[] = ['/alertas']) {
   return render(
@@ -73,26 +69,26 @@ it('abre em Ativos, sem "Todos" nem Atualizar, com o título igual ao menu', () 
   expect(screen.queryByRole('button', { name: 'Todos' })).toBeNull()
   expect(screen.queryByRole('button', { name: 'Atualizar' })).toBeNull()
   expect(screen.getByText('Container vencendo')).toBeTruthy()
-  expect(screen.queryByText('Fatura vencida 123')).toBeNull()
 })
 
-it('cartões contam a fila pelo resumo por setor e filtram críticos e dispensados', () => {
+it('cartões contam a fila pelo resumo por setor e filtram os críticos; não há Dispensados (migration 476)', () => {
   renderAlertas()
 
   expect(screen.getByRole('button', { name: /Ativos\s*6/ })).toBeTruthy()
-  expect(screen.getByRole('button', { name: /Críticos\s*4/ })).toBeTruthy()
-  expect(screen.getByRole('button', { name: /Dispensados\s*1/ })).toBeTruthy()
+  expect(screen.getByRole('button', { name: /Críticos\s*5/ })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /Dispensados/ })).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: /Críticos/ }))
   expect(screen.queryByText('Container vencendo')).toBeNull()
   expect(screen.getByText('Portal sem email para fatura')).toBeTruthy()
+})
 
-  fireEvent.click(screen.getByRole('button', { name: /Dispensados/ }))
-  expect(screen.queryByText('Container vencendo')).toBeNull()
-  const dismissed = rowOf('Ana Ribeiro')
-  expect(within(dismissed).getByText('22/08/2026')).toBeTruthy()
-  fireEvent.click(within(dismissed).getByRole('button', { name: /Abrir/ }))
-  expect(screen.getByText('Aguardando o financeiro')).toBeTruthy()
+it('ALE-D06: "Aberto em" mostra a abertura da ocorrência atual, não a criação do alerta', () => {
+  renderAlertas()
+
+  const row = rowOf('Container vencendo')
+  expect(within(row).getByText('25/10/2026')).toBeTruthy()
+  expect(within(row).queryByText('20/06/2026')).toBeNull()
 })
 
 it('gravidade em texto: Crítico em vermelho, Normal em tinta normal, sem selo', () => {
@@ -116,7 +112,7 @@ it('Registro diz onde, sem o tipo na frente, e não repete o grupo técnico sem_
   expect(within(unlinkedRow).getByText('—')).toBeTruthy()
 })
 
-it('toda linha tem "Resolver", que leva ao lugar da resolução, e "Dispensar" para alerta por item', () => {
+it('toda linha tem "Resolver", que leva ao lugar da resolução, e nenhuma tem "Dispensar"', () => {
   renderAlertas()
 
   const container = rowOf('Container vencendo')
@@ -125,13 +121,11 @@ it('toda linha tem "Resolver", que leva ao lugar da resolução, e "Dispensar" p
   expect(resolve.getAttribute('title')).toBe('Ver Demurrage')
   fireEvent.click(resolve)
   expect(navigate).toHaveBeenCalledWith('/demurrage?busca=CNTR1')
-  expect(within(container).getByRole('button', { name: /^Dispensar / })).toBeTruthy()
+  expect(within(container).queryByRole('button', { name: /^Dispensar/ })).toBeNull()
 
   fireEvent.click(within(rowOf('Cliente VALE: 5 B/Ls pendentes de vínculo com cliente')).getByRole('button', { name: /^Resolver / }))
   expect(navigate).toHaveBeenCalledWith('/revisao?cliente=VALE')
 
-  // Alerta antigo, sem item: não dispensa.
-  expect(within(rowOf('Portal sem email para fatura')).queryByRole('button', { name: /^Dispensar/ })).toBeNull()
 })
 
 it('A23: nos alertas de conferência sem fato de origem, "Resolver" abre a justificativa', async () => {
@@ -144,6 +138,17 @@ it('A23: nos alertas de conferência sem fato de origem, "Resolver" abre a justi
     confirmLabel: 'Resolver',
   })))
   expect(navigate).not.toHaveBeenCalled()
+})
+
+it('ALE-D05: "Consulta de Pix do Itaú parada" resolve com justificativa e mantém o atalho para a Conciliação', async () => {
+  confirmWithReason.mockResolvedValue(null)
+  renderAlertas()
+
+  const row = rowOf('Consulta Itaú parada há 20 minutos')
+  fireEvent.click(within(row).getByRole('button', { name: /^Abrir Conciliação/ }))
+  expect(navigate).toHaveBeenCalledWith('/reconciliacao?tab=pendencias')
+  fireEvent.click(within(row).getByRole('button', { name: /^Resolver / }))
+  await waitFor(() => expect(confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Resolver com justificativa' })))
 })
 
 // Ponto 9: a lista colada casa também os B/Ls que o alerta guarda em metadata (alerta por Cliente ou escala).
@@ -171,39 +176,6 @@ it('sincroniza o filtro de setor a partir da URL e faz fallback para valores des
 
   renderAlertas(['/alertas?departamento=setor_inexistente'])
   expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('all')
-})
-
-it('janela de dispensa: peça comum, data mínima futura, botão com a data e campos limpos ao voltar', () => {
-  renderAlertas()
-
-  fireEvent.click(within(rowOf('Container vencendo')).getByRole('button', { name: /^Dispensar / }))
-  const dialog = screen.getByRole('dialog')
-  expect(dialog.getAttribute('aria-modal')).toBe('true')
-  expect(within(dialog).getByText(/não resolve a pendência/)).toBeTruthy()
-  expect(within(dialog).getByText(/volta sozinho/)).toBeTruthy()
-
-  const dateInput = within(dialog).getByLabelText('Volta para a fila em') as HTMLInputElement
-  expect(dateInput.min).toBeTruthy()
-  // Até o 30º dia (migration 433): o calendário não oferece data além.
-  expect(dateInput.max).toBe(getMaxReviewDateString())
-  const inRange = new Date()
-  inRange.setUTCDate(inRange.getUTCDate() + 10)
-  const [, month, day] = inRange.toISOString().slice(0, 10).split('-')
-  fireEvent.change(dateInput, { target: { value: inRange.toISOString().slice(0, 10) } })
-  expect(within(dialog).getByRole('button', { name: `Dispensar até ${day}/${month}` })).toBeTruthy()
-
-  const reasonInput = within(dialog).getByLabelText('Motivo') as HTMLTextAreaElement
-  fireEvent.change(reasonInput, { target: { value: 'Aguardando armador' } })
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Voltar' }))
-  expect(screen.queryByRole('dialog')).toBeNull()
-
-  fireEvent.click(within(rowOf('Container vencendo')).getByRole('button', { name: /^Dispensar / }))
-  expect((screen.getByLabelText('Motivo') as HTMLTextAreaElement).value).toBe('')
-})
-
-it('limite da dispensa é o 30º dia a partir de hoje, em UTC como a data enviada ao banco', () => {
-  expect(getMaxReviewDateString(new Date('2026-10-22T10:00:00Z'))).toBe('2026-11-21')
-  expect(getMaxReviewDateString(new Date('2026-12-15T23:30:00Z'))).toBe('2027-01-14')
 })
 
 it('filtra por busca, gravidade e registro, e limpa os filtros', () => {

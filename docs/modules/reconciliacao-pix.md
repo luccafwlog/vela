@@ -43,10 +43,12 @@ pode aparecer pronta e ter o lote recusado (`no_match`).
   exportação e das chamadas de Cancelar baixa.
 - Taxas locais são liquidadas pelo ledger descrito em
   [Faturamento](faturamento.md); Demurrage é atualizado em persistência própria.
-- O gate visual usa `isAdmin` em `src/pages/Reconciliacao.tsx`;
-  as RPCs críticas também exigem sessão ativa/admin. A tela bloqueia o acesso
-  para os demais perfis antes do upload ou matching; nenhuma pendência PIX
-  fica apenas em memória do browser.
+- A tela abre para todos os perfis (`src/pages/Reconciliacao.tsx`); conciliar
+  é conferido nos painéis (`can('settle_financial_adjustments')`, Financeiro e
+  Administrativo) e nas RPCs críticas. Para os demais perfis, só a aba
+  Conciliar extrato troca o upload e o matching pelo aviso "Conciliar extrato é
+  do Financeiro e do Administrativo"; nenhuma pendência PIX fica apenas em
+  memória do browser.
 
 ## Anatomia das telas
 
@@ -60,7 +62,7 @@ Pix recebidos não se perdem ao trocar de aba. Pela [matriz de permissões](../o
 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D5), todos
 leem a tela e Financeiro e Administrativo conciliam; cancelar baixa segue só
 do Administrativo. Desde a migration `247` a tela abre para todos: quem não
-concilia não vê **Marcar como tratado…**, **Tentar de novo**, **Baixar nesta
+concilia não vê **Marcar como tratado**, **Tentar de novo**, **Baixar nesta
 fatura** nem **Encerrar exceção**, e a aba **Conciliar extrato** explica que
 ler o extrato e confirmar é do Financeiro e do Administrativo (ler o extrato já
 grava as exceções).
@@ -73,8 +75,11 @@ visual, lote 3, aprovado em 2026-10-16; Pix recebidos pedida pelo responsável e
 2026-10-23, [ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md)). Os Alertas de Pix (`pix_unreconciled`, inclusive os
 gravados com destino `/reconciliacao` pelas migrations 152, 153 e 247) abrem em
 `/reconciliacao?tab=pendencias` (`alertEntityLink`, `PIX_PENDING_HREF`). Na
-tela, o código do Pix se chama **Identificador do Pix** (nome da coluna no
-extrato do Itaú), encurtado em letra de código na tabela e inteiro ao passar o
+tela, o código da cobrança (`VELA…`) se chama **Identificador do Pix** nas
+listas do extrato (nome da coluna no extrato do Itaú) e **Identificador da
+cobrança** em Pix em análise, em Cobranças aguardando o Itaú e em Pix
+recebidos; nessas, **Identificador do Pix** é o do próprio Pix (`endToEndId`),
+o que a baixa manual usa como referência bancária. Ele vem encurtado em letra de código na tabela e inteiro ao passar o
 mouse e na linha aberta; motivos gravados pelo matching com "TXID" são
 reescritos na tela (`pendingExceptionReason`, `extractLineReason`).
 
@@ -94,11 +99,23 @@ faixa; a situação vai em texto, âmbar só no que pede ação:
 
 - **Pix em análise** (`itau_pix_receipts` em análise, só Pix de cobrança do
   Vela desde a migration `442`): Recebido em,
-  Valor, Identificador do Pix e Motivo. O Pix sai da lista e o Alerta fecha
-  sozinho só quando a baixa é **daquele Pix**: a referência bancária da baixa é
+  Valor, Identificador do Pix (o do próprio Pix, com copiar: é ele que vai na
+  referência bancária da baixa manual), Identificador da cobrança (`VELA…`) e
+  Motivo (10-recebimento:1, decisão do dono de 2026-10-27). O Pix sai da lista e o Alerta fecha
+  sozinho só quando a baixa é **daquele Pix** e a fatura da cobrança fica (ou
+  já está) **Paga**: a referência bancária da baixa é
   o `endToEndId` dele, ou o extrato conciliou o TXID dele (migration `360`;
+  desde a `471` também quando o extrato grava o identificador depois de quitar
+  a fatura, gatilho `itau_pix_close_receipts_on_extract_txid`;
   [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
-  decisão 17). Outra baixa que quite a fatura (TED distinta, por exemplo) deixa
+  decisão 17). Pelo TXID só sai **um** Pix: o mais antigo, e só se nenhum Pix
+  da cobrança já pagou a fatura. Com dois Pix pagos no mesmo QR, o outro
+  continua em análise como Pix em duplicidade, com a Restituição
+  `pix_duplicate` e o alerta, como na baixa normal (migration `483`, decisão
+  do dono de 2026-10-27; na Invoice de Demurrage o excedente só continua em
+  análise). Baixa parcial ou em outra fatura não tira o Pix da análise:
+  depois dela, use **Marcar como tratado**. O Pix do Vela sem cobrança sai com
+  qualquer baixa manual que use o `endToEndId` dele. Outra baixa que quite a fatura (TED distinta, por exemplo) deixa
   o Pix em análise, para restituir ou decidir. Nos outros casos (fatura cancelada a restituir, identificador
   do Vela sem cobrança), **Marcar como tratado** abre o motivo na linha de baixo (mínimo
   de 5 caracteres, como a `itau_pix_mark_receipt_handled`), com a recusa do
@@ -321,10 +338,10 @@ baixas**) combina:
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/reconciliacao?tab=extrato` · escolher a planilha | Financeiro ou Administrativo (migration `247`) e arquivo `.xlsx`/`.xls` dentro do limite | `ImportFilePicker` (clique ou arraste) → `chooseFile` em `PixExtractPanel` | `readMutation`: `parsePixExtractFile` e `readSpreadsheetNotices` em paralelo, depois `matchUnifiedPixTransactions` e `persistUnresolvedPixMatches`; linhas e abas ocultas ficam fora da leitura e o aviso aparece na conferência, antes de Confirmar | RPC `upsert_pix_reconciliation_exceptions` (definição vigente na migration `002`; origem na migration arquivada `328`): linhas sem baixa segura ficam salvas por importação/linha e abrem `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, `afterPendenciaPixAlterada` (exceções, monitor Itaú e Alerta) | Perfil não autorizado vê “Acesso restrito”; arquivo grande, formato, cabeçalho inválido ou extrato sem transação aparece na aba com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
+| `/reconciliacao?tab=extrato` · escolher a planilha | Financeiro ou Administrativo (migration `247`) e arquivo `.xlsx`/`.xls` dentro do limite | `ImportFilePicker` (clique ou arraste) → `chooseFile` em `PixExtractPanel` | `readMutation`: `parsePixExtractFile` e `readSpreadsheetNotices` em paralelo, depois `matchUnifiedPixTransactions` e `persistUnresolvedPixMatches`; linhas e abas ocultas ficam fora da leitura e o aviso aparece na conferência, antes de Confirmar | RPC `upsert_pix_reconciliation_exceptions` (definição vigente na migration `002`; origem na migration arquivada `328`): linhas sem baixa segura ficam salvas por importação/linha e abrem `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, `afterPendenciaPixAlterada` (exceções, monitor Itaú e Alerta) | Perfil que não concilia vê na aba o aviso “Conciliar extrato é do Financeiro e do Administrativo”, sem o seletor; arquivo grande, formato, cabeçalho inválido ou extrato sem transação aparece na aba com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
 | Parser · extrair linhas bancárias | Cabeçalho `identificador` e coluna `valor pago` | `parsePixExtractFile` | `assertUploadFile` (tamanho e extensão) → `readPixExtract` → `readSheet` de `importCore` (carrega `@e965/xlsx` sob demanda) | Nenhuma persistência | Retorna `{txid, cnpj, date, amount, lineNumber}`; preserva TXID vazio, ignora lançamento zerado ou negativo (tarifas e saídas, inclusive "(10,00)", "10,00-" e "10,00 D") e conta quantos (mostrado na conferência; linha sem valor e sem identificador, ou o rodapé "Total", não conta; identificador sem valor é erro), aceita o símbolo "R$" e recusa coluna repetida no cabeçalho | Cabeçalho ausente ou coluna repetida lança erro; valor pago ilegível ou "pago em" preenchido e ilegível é erro que recusa o extrato inteiro antes de procurar faturas ou salvar exceções (ADR 0092); "pago em" vazio vira string vazia | **Código:** `src/services/demurrage/demurrageKpis.ts` · **Teste:** `src/services/__tests__/demurrageKpis.test.ts` (inclui o arquivo de exemplo) |
 | Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | `list_pix_txid_candidates` resolve no servidor cada TXID do extrato nas faturas abertas (`_pix_txid_open_candidates`: versão de cobrança local, TXID gravado, avulsa e Invoice de Demurrage pelo número do documento, que é o TXID do QR estático, ou pela cobrança Itaú), depois o histórico de recálculo das Invoices de Demurrage candidatas; normalização alfanumérica maiúscula | RPC `list_pix_txid_candidates` (migration `242`) e `SELECT demurrage_invoice_history` | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer leitura aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
-| Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L. O matching acha a avulsa aberta pelo número (QR estático) ou pela cobrança Itaú (migration `242`) | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` (migration `130`), que sem versão de cobrança cai no caminho da migration `097` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | Avulsa aberta vira “Sem documento” no extrato; TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migrations `097` e `130`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
+| Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L. O matching acha a avulsa aberta pelo número (QR estático) ou pela cobrança Itaú (migration `242`) | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` (migration `130`), que sem versão de cobrança cai no caminho da migration `097` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migrations `097` e `130`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
 | Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Exceção salva na leitura (linha acima) | Linha `source = unmatched` (motivo “Nenhuma fatura aberta com este identificador”, ou “Linha sem identificador no extrato” sem identificador) na tabela **Ficam como exceção** e na contagem; nunca entra na confirmação | Nenhum documento é alterado; a linha é tratada em Pendências | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
 | Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Exceção salva na leitura | `ambiguous = true`, motivo e `candidateCount`; a linha vai para **Ficam como exceção** com o motivo em âmbar | A escolha da fatura não é feita na conferência: é feita em Pendências (seta da linha → **Baixar nesta fatura**) | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching · classificar divergência de valor | Diferença absoluta maior que `0,01` ou valor esperado não numérico | Mesmo loop | Compara transação com saldo local ou `current_total_brl` | Sem persistência | Marca como ambíguo; local e Demurrage recebem motivos distintos | Não existe pagamento parcial por PIX neste fluxo | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
@@ -506,15 +523,22 @@ Pagamentos do detalhe da fatura (migration `221`). Essa conta ("API ITAÚ") é u
 Financeiro, o que a baixa exige (migration `440`; antes era Administrativa). Qualquer recusa
 (valor diferente, fatura não pagável, TXID do Vela sem cobrança, fatura de
 Taxas Locais ou avulsa sem usuário de baixa configurado) grava o Pix em análise e abre o Alerta
-`pix_unreconciled` para o Administrativo e o Financeiro, sem baixa; o Pix aparece em **Pix
+`pix_unreconciled` (**PIX sem conciliação segura**), sem baixa, que avisa
+Administrativo e Financeiro, que tratam (desde a migration `476`, a
+Documentação e Equipamentos não recebem mais o aviso;
+[ADR 0107](../adr/0107-sino-so-do-setor-responsavel.md)); o Pix aparece em **Pix
 em análise**. O Alerta tem a entidade `itau_pix_receipt` (o Pix
 recebido), não a `pix_transaction` das exceções do extrato; desde a revisão dos
 alertas de 2026-10-21, o painel de alertas financeiros de `/taxas-locais` lê as
 duas (`FINANCIAL_ALERT_EVENTS`, `listFinancialAlerts`), e a fila mostra o
 registro como **Pix recebido**. Antes, esse Alerta só aparecia em `/alertas`. Erro passageiro do banco não manda o Pix para análise: a
-consulta seguinte tenta de novo; na terceira falha seguida do mesmo Pix, ele
-vai para análise (`itau_pix_receipt_failures`, Alerta `pix_unreconciled`) e a
-consulta avança. Pix em formato inesperado vai para análise na primeira vez
+consulta seguinte tenta de novo; na terceira falha seguida do mesmo Pix ele é
+gravado em `itau_pix_receipts` com o valor e o horário do retorno do Itaú: o de
+cobrança do Vela em análise (motivo "Não foi gravado depois de N
+tentativa(s): …", Alerta `pix_unreconciled` do Pix em análise), o de fora do
+Vela como recebido, sem Alerta; e a consulta avança (10-recebimento:3;
+migration `471`). Retorno sem valor ou horário legível fica só na fila de
+falhas (`itau_pix_receipt_failures`), com Alerta se for do Vela. Pix em formato inesperado vai para análise na primeira vez
 (migration `358`); `endToEndId` com data impossível (mês 13, minuto 99) conta como formato inesperado.
 Horário a mais de 1 h do minuto UTC do `endToEndId` só para a consulta quando é a
 maioria dos Pix do Vela na janela (desvio de fuso, com os TXIDs no log da `itau-pix`);
@@ -527,7 +551,9 @@ consolidada substituída quita a sucessora aberta e o excedente vira restituiç�
 pendente (migration `361`). Pix em duplicidade em fatura de Taxas Locais já
 paga, coberta ou cancelada vai para análise com a restituição pendente
 registrada (origem `pix_duplicate`, ADR 0093, decisão 18) e sai da análise
-quando a devolução é confirmada; o mesmo Pix que a fatura já recebeu (extrato
+quando a devolução é confirmada; o lastro dessa devolução é o próprio Pix, não
+o que a fatura recebeu, e ela não consome o lastro das outras restituições da
+fatura (10-recebimento:12; `confirm_invoice_refund`, migration `471`); o mesmo Pix que a fatura já recebeu (extrato
 ou baixa manual com o endToEndId na referência) e volta pela consulta não é
 duplicidade: fica como baixado, sem restituição, e fecha a falha de consulta
 do mesmo endToEndId (migration `385`). O Pix que chega na janela entre o cancelamento no Vela e a remoção da cobrança no Itaú (a fila pede a remoção a cada minuto) para consolidada substituída sem sucessora aberta ou avulsa em cancelamento com devolução integral segue a mesma regra: restituição pendente ligada à fatura de origem (ADR 0094, D5; migration `386`). Todo Pix que não é de cobrança do Vela (sem TXID nenhum,
@@ -554,8 +580,9 @@ de produção só encontra a janela pedida em `-03:00` e devolve horários de
 Brasília com `Z` indevido; o cliente envia a janela em Brasília e grava tudo em
 UTC. Se o banco passar a mandar UTC verdadeiro, travas de horário param a
 consulta sem baixa nem avanço do checkpoint; na aba Pendências isso aparece,
-depois de 15 min, como o aviso **A consulta de recebimentos do Itaú não está
-avançando**, e o job SQL `itau-pix-checkpoint-health` (a cada 5 min) abre o
+depois de 15 min, como **Consulta parada há N min** em âmbar ("Pix pagos depois
+de … não deram baixa automática. Avise quem cuida da integração antes de baixar
+à mão."), e o job SQL `itau-pix-checkpoint-health` (a cada 5 min) abre o
 Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro), que
 fecha quando a consulta anda (migration `358`). Período com mais de 50 páginas
 encolhe a janela até 5 min em vez de travar; horário inesperado de Pix de
@@ -669,7 +696,7 @@ sem isso ficam em `skip`.
   cobrança, Demurrage e PTAX, baixa automática de avulsa e Demurrage
   (idempotente pelo `endToEndId`), Pix em análise sem usuário de baixa ou com
   TXID desconhecido, prazos (14h30 do próximo dia útil, calendário de feriados, renovação),
-  monitoramento e **Marcar como tratado…**, e o disparo da fila na emissão.
+  monitoramento e **Marcar como tratado**, e o disparo da fila na emissão.
 - `src/integration/pixRecebidos.local-pg.test.ts`: migrations `442` a `446`.
   Pix sem TXID, de outro sistema e de teste gravados como recebidos sem Alerta
   e uma vez só; Pix do Vela pela baixa automática; registro antigo sem TXID

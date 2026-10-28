@@ -7,6 +7,7 @@ import { accountSituationLabel, provisioningDecisionLabel } from '../lib/portalP
 import { fetchPaymentRegistrarNames } from './billing'
 import { fetchCustomerCommunicationHistory, customerCommunicationKindLabel, customerCommunicationStatusLabel, type CustomerCommunicationHistoryItem } from './customerCommunications'
 import { matchesAnyToken } from '../lib/searchTerms'
+import { fetchUserDisplayNames } from './userNames'
 
 export type FichaLocalInvoiceRow = {
   id: number
@@ -20,7 +21,7 @@ export type FichaLocalInvoiceRow = {
 export type FichaDemurrageInvoiceRow = Pick<DemurrageInvoice, 'id' | 'doc_number' | 'bl_id' | 'due_date' | 'billed_at' | 'paid_at' | 'total_usd' | 'current_total_brl' | 'status' | 'dispute_open' | 'dispute_status' | 'dispute_subject' | 'discount_mode' | 'discount_value'>
 export type FichaReceivableRow = { id: number; bl_id: string; original_amount_brl: number; settled_amount_brl: number; balance_brl: number; status: string }
 export type FichaPaymentRow = { id: number; amount_brl: number; payment_method: string | null; paid_at: string | null; notes: string | null; registered_by_name?: string | null; invoice: { id: number; invoice_number: string | null } | null }
-export type FichaOverrideRow = Pick<CustomerRateOverride, 'id' | 'override_value' | 'valid_from' | 'valid_to' | 'notes'> & { charge_item: { id: number; name: string | null; currency: string | null; charge_table: { id: number; name: string | null; pod: string | null; cargo_mode: string | null } | null } | null }
+export type FichaOverrideRow = Pick<CustomerRateOverride, 'id' | 'override_value' | 'valid_from' | 'valid_to' | 'notes' | 'active'> & { charge_item: { id: number; name: string | null; currency: string | null; charge_table: { id: number; name: string | null; pod: string | null; cargo_mode: string | null } | null } | null }
 export type FichaManualChargeBlRow = { bl_id: string; manual_count: number }
 export type FichaPendingReconciliationRow = { id: string; consignee: string | null; customer_reconciliation_status: string | null }
 export type FichaRunningDemurrageRow = { container_id: number; container_number: string | null; bl_id: string; discharge_date: string }
@@ -406,7 +407,7 @@ export async function fetchCustomerPayments(customerId: number) {
 
 export async function fetchCustomerRateOverrides(customerId: number) {
   const { rows, error } = await fetchAllRows<FichaOverrideRow>((from, to) =>
-    supabase.from('customer_rate_overrides').select('id, override_value, valid_from, valid_to, notes, charge_item:charge_table_items(id, name, currency, charge_table:charge_tables(id, name, pod, cargo_mode))').eq('customer_id', customerId).order('created_at', { ascending: false }).range(from, to).overrideTypes<FichaOverrideRow[], { merge: false }>(),
+    supabase.from('customer_rate_overrides').select('id, override_value, valid_from, valid_to, notes, active, charge_item:charge_table_items(id, name, currency, charge_table:charge_tables(id, name, pod, cargo_mode))').eq('customer_id', customerId).order('created_at', { ascending: false }).range(from, to).overrideTypes<FichaOverrideRow[], { merge: false }>(),
   )
   if (error) throw error
   return rows
@@ -465,9 +466,7 @@ export async function fetchCustomerTimelineSources(customerId: number, contacts:
   ].filter((id): id is string => Boolean(id))))
   const actorNames = new Map<string, string>()
   if (actorIds.length) {
-    const { data: profiles, error: profilesError } = await supabase.from('user_profiles').select('id, full_name').in('id', actorIds)
-    if (profilesError && classifyDbError(profilesError).kind !== 'permissao') throw profilesError
-    for (const profile of profiles ?? []) actorNames.set(profile.id, profile.full_name)
+    for (const [id, name] of await fetchUserDisplayNames(actorIds)) actorNames.set(id, name)
   }
   const registrarNames = await fetchPaymentRegistrarNames((paymentRows ?? []).map((row) => Number(row.id)))
   return buildCustomerTimeline({

@@ -184,7 +184,7 @@ export function DesbloqueioCe() {
     } else if (
       !(await confirm({
         message: `Registrar o recebimento do B/L original ${i.bl_id}?`,
-        consequence: "O requisito B/L original passa a atendido e o prazo do cliente recomeça a partir de agora.",
+        consequence: "O requisito B/L original passa a atendido. Se for o último requisito, o prazo do cliente começa agora.",
         reversibility: "Uma marcação incorreta pode ser desfeita com motivo.",
         confirmLabel: "Registrar entrega",
       }))
@@ -204,7 +204,7 @@ export function DesbloqueioCe() {
       !(await confirm({
         message: `Registrar a entrega do B/L original de ${bls(targets.length)}?`,
         affected: { summary: bls(targets.length), items: targets.map((i) => i.bl_id) },
-        consequence: "O requisito B/L original passa a atendido nestes B/Ls e o prazo do cliente recomeça a partir de agora. Os que já têm a entrega ficam de fora.",
+        consequence: "O requisito B/L original passa a atendido nestes B/Ls; nos que ficarem com os quatro requisitos, o prazo do cliente começa agora. Os que já têm a entrega ficam de fora.",
         reversibility: "Uma marcação incorreta pode ser desfeita com motivo, um B/L por vez.",
         confirmLabel: `Registrar entrega de ${bls(targets.length)}`,
       }))
@@ -467,7 +467,7 @@ export function DesbloqueioCe() {
                           <EmptyState
                             icon={SearchX}
                             title={activeFilters === 0 ? "Nenhum B/L com CE Mercante" : "Nenhum B/L encontrado para este filtro"}
-                            description="B/Ls com CE aparecem aqui conforme os quatro requisitos são atendidos."
+                            description="Todo B/L com CE aparece aqui, com ou sem solicitação."
                             action={activeFilters > 0 ? (
                               <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
                             ) : undefined}

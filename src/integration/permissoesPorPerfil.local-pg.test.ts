@@ -788,7 +788,6 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   const ADM_DOC_EQU: Profile[] = ['administrativo', 'documentacao', 'equipamentos']
   const MATRIX_EXCEPTIONS: Array<{ row: string; allowed: Profile[]; call: string }> = [
     { row: 'Abrir a Administração', allowed: ADM, call: `public.admin_list_users()` },
-    { row: 'Ligar e desligar o envio real de e-mails', allowed: ADM, call: `public.set_communications_enabled(true)` },
     { row: 'Cancelar viagem', allowed: ADM, call: `public.cancel_voyage(-1, 'motivo', '{actor}')` },
     { row: 'Reativar viagem', allowed: ADM, call: `public.reactivate_voyage(-1, 'motivo')` },
     { row: 'Cancelar B/L', allowed: ADM, call: `public.cancel_bl('P14-INEXISTENTE', 'motivo', false)` },
@@ -820,7 +819,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Responder Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.add_demurrage_dispute_message(-1, 'mensagem', 'invalido')` },
     { row: 'Reabrir Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.reopen_demurrage_dispute(-1, 'motivo')` },
     { row: 'Editar contatos do Cliente', allowed: ADM_DOC_EQU, call: `public.internal_save_customer_contact_configuration(-1, '[]'::jsonb, 'motivo')` },
-    { row: 'Salvar modelo de Comunicado', allowed: ADM_DOC_EQU, call: `public.save_customer_communication_saved_template('Modelo P14', 'Assunto P14', 'Corpo P14')` },
+    // Migration 486 (P10): o Novo cliente grava contatos.
+    { row: 'Criar Cliente pelo Novo cliente', allowed: ADM_DOC_EQU, call: `public.create_customer_with_contacts('{}'::jsonb, '[]'::jsonb)` },
     { row: 'Cancelar convite do Portal', allowed: ADM_DOC, call: `public.portal_cancel_invite(-1, 'motivo', NULL)` },
     { row: 'Trocar o e-mail de recuperação do Portal', allowed: ADM_DOC, call: `public.portal_assisted_email_change(-1, 'novo-p14@example.test', 'motivo', NULL)` },
     { row: 'Liberar e-mail bloqueado do Portal', allowed: ADM_DOC, call: `public.portal_release_suppressed_email(-1, 'novo-p14@example.test', 'motivo')` },
@@ -881,7 +881,38 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Editar Cliente', statement: `UPDATE public.customers SET trade_name = 'P14' WHERE id = ${CUSTOMER_ID}` },
     // Lê a linha semeada: sem a leitura, a RLS devolve zero linhas e o caso dá SEM-LINHA (count(*) sempre devolveria uma).
     { row: 'Ler o Histórico de Comunicados', statement: `SELECT id FROM public.customer_communications WHERE id = ${COMMUNICATION_ID}` },
+    { row: 'Salvar modelo de Comunicado', statement: `SELECT public.save_customer_communication_saved_template('Modelo P14', 'Assunto P14', 'Corpo P14')` },
   ]
+
+  // Marca Dev (ADR 0104, migration 469): a chave de envio é só da conta do
+  // Administrativo com a marca; ninguém logado dá ou tira a marca, e todos leem a chave.
+  it('Dev: só a conta Dev liga e desliga o envio real de e-mails', () => {
+    const before = psql(`SELECT communications_enabled FROM public.app_settings WHERE id = 1;`)
+    try {
+      for (const profile of ALL_PROFILES) expect(sqlstateAs(profile, `public.set_communications_enabled(true)`), profile).toBe('42501')
+      // Nem o Administrativo põe a marca em si mesmo pela API.
+      expectDenied('administrativo', `UPDATE public.user_profiles SET is_dev = true WHERE id = '${PROFILES.administrativo}'`)
+      psql(`SELECT set_config('vela.access_change_reason', 'teste da marca Dev', false);
+        UPDATE public.user_profiles SET is_dev = true WHERE id = '${PROFILES.administrativo}';`)
+      expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = '${PROFILES.administrativo}' AND field_name = 'is_dev' ORDER BY id DESC LIMIT 1;`)).toBe('teste da marca Dev')
+      expect(sqlstateAs('administrativo', `public.set_communications_enabled(true)`)).not.toBe('42501')
+      expect(runAs('administrativo', `SELECT public.set_communications_enabled(NOT ${before === 't'})`).error).toBe('')
+      expect(psql(`SELECT communications_enabled FROM public.app_settings WHERE id = 1;`)).toBe(before === 't' ? 'f' : 't')
+      // A marca só vale no Administrativo: outro setor com a marca continua recusado.
+      psql(`UPDATE public.user_profiles SET is_dev = true WHERE id = '${PROFILES.documentacao}';`)
+      expect(sqlstateAs('documentacao', `public.set_communications_enabled(true)`)).toBe('42501')
+    } finally {
+      psql(`UPDATE public.user_profiles SET is_dev = false WHERE id IN ('${PROFILES.administrativo}', '${PROFILES.documentacao}');
+        UPDATE public.app_settings SET communications_enabled = ${before === 't'} WHERE id = 1;
+        DELETE FROM public.audit_logs WHERE entity_id IN ('${PROFILES.administrativo}', '${PROFILES.documentacao}', '1') AND field_name IN ('is_dev', 'communications_enabled');`)
+    }
+  })
+
+  it.each(ALL_PROFILES)('Dev: todos os setores leem a chave de envio (%s)', (profile) => {
+    const result = runAs(profile, `SELECT count(*) FROM public.app_settings WHERE id = 1`)
+    expect(result.error, profile).toBe('')
+    expect(result.output, profile).toBe('1')
+  })
 
   it.each(MATRIX_GLOBAL)('Catálogo: $row — os cinco setores passam da guarda', ({ statement }) => {
     for (const profile of ALL_PROFILES) {
@@ -983,10 +1014,15 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     const rows = psql(`SELECT department || '=' || count(*) FROM (
         SELECT unnest(audience_departments) AS department FROM public.alert_type_catalog WHERE active
       ) AS audience GROUP BY department ORDER BY department;`).split('\n')
-    const counts = Object.fromEntries(rows.map((line) => {
+    const counts: Record<string, number> = Object.fromEntries(rows.map((line) => {
       const [department, count] = line.split('=')
       return [department, Number(count)]
     }))
+    // ALE-D13 (migration 476): Operações e Equipamentos recebem também os dois
+    // tipos do ADR de Saída da própria seção, pelo setor gravado no item.
+    const adrTypes = Number(psql(`SELECT count(*) FROM public.alert_type_catalog WHERE active AND type LIKE 'agency_report_%';`))
+    counts.operacoes += adrTypes
+    counts.equipamentos += adrTypes
     expect(counts).toEqual(ALERT_TYPE_COUNTS)
   })
 
@@ -1003,6 +1039,12 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
         }
       }
     }
+  })
+
+  it('477: Operações e o Administrativo removem atracação; os demais setores não', () => {
+    const body = psql(`SELECT prosrc FROM pg_proc WHERE proname = 'guard_terminal_state_removal';`)
+    expect(body).toContain("up.role = 'operacoes'")
+    expect(body).toContain('public.is_admin()')
   })
 
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {

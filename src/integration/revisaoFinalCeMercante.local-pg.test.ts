@@ -187,6 +187,8 @@ describeLocal('Revisão final da PR 929 — CE Mercante e Manifesto (migration 2
     expect(psql(`SELECT has_table_privilege('authenticated', 'public.manifestos_mercante', 'SELECT');`)).toBe('t')
 
     insertBl('R212-M1', chargeTable.pod, 'RDCU2120001')
+    // 478 (CEB-D01): só B/L com CE entra em Manifesto.
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = '212000000000901' WHERE id = 'R212-M1'; SET session_replication_role = origin;`)
     const moved = json<{ created: boolean; moved: number }>(`SELECT public.move_bls_to_manifesto_mercante(ARRAY['R212-M1'], 'R212A00000001', 'Fixture (R212)');`)
     expect(moved).toMatchObject({ created: true, moved: 1 })
     expect(manifestoOf('R212-M1')).toBe('R212A00000001')

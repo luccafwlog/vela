@@ -53,7 +53,7 @@ describe('customerBase import', () => {
       { ...base, cnpj_cpf: '11222333000181', name: 'Outra', emails: ['outra@empresa.com'], existingCustomerId: 9 },
     ], { changedBy: 'actor-1' })
 
-    expect(result).toEqual({ ok: true, imported: 1, updated: 1, contactsCreated: 3, blsLinked: 2, errors: [] })
+    expect(result).toEqual({ ok: true, imported: 1, updated: 1, contactsCreated: 3, blsLinked: 2, blsSuggested: 0, deactivatedSkipped: 0, contactsSkipped: false, errors: [] })
     expect(mockRpc).toHaveBeenCalledTimes(1)
     expect(mockRpc).toHaveBeenCalledWith('apply_customer_base_batch_atomic', {
       p_rows: [
@@ -207,5 +207,20 @@ describe('prévia do vínculo da Base de Clientes (migration 192)', () => {
     const { rows } = await compareCustomerBaseWithExisting({ rows: [row], rowErrors: [] })
 
     expect(rows[0]).toMatchObject({ pendingBlIds: ['BL-ATIVA'], rejectedBlIds: ['BL-REJEITADO'] })
+  })
+})
+
+// D15 de 2026-10-27: Cliente desativado não muda pela Base; o B/L fica só com sugestão.
+describe('prévia da Base com Cliente desativado', () => {
+  it('marca o Cliente desativado sem pedir troca de razão social nem listar campos alterados', async () => {
+    const cnpj = '12345678000195'
+    const customers = [{ id: 9, cnpj_cpf: cnpj, name: 'Antiga Razão', trade_name: null, address: null, city: 'Santos', state: null, zip: null, deactivated_at: '2026-10-01T00:00:00Z' }]
+    const bls = [{ id: 'BL-1', manifest_customer_cnpj_cpf: cnpj, customer_reconciliation_status: 'missing_customer', customer_id: null, cancelled_at: null, voyage: { status: 'active' } }]
+    mockFrom.mockImplementation((table: string) => fakeQuery(table === 'bls' ? bls : customers))
+    const row: CustomerBaseRow = { cnpj_cpf: cnpj, name: 'Nova Razão', trade_name: null, emails: ['a@b.co'], address: null, city: 'Vitória', state: null, zip: null }
+
+    const { rows } = await compareCustomerBaseWithExisting({ rows: [row], rowErrors: [] })
+
+    expect(rows[0]).toMatchObject({ existingCustomerId: 9, deactivated: true, currentName: null, changedFields: [], pendingBlIds: ['BL-1'] })
   })
 })

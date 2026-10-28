@@ -44,6 +44,7 @@ export function ImportBaseModal({
   onClose,
   onFileSelect,
   onImport,
+  canEditContacts = true,
 }: {
   open: boolean
   baseFile: File | null
@@ -60,6 +61,8 @@ export function ImportBaseModal({
   onFileSelect: (file: File | null) => void
   /** `confirmNameChange`: o aceite dos avisos cobre a troca de razão social. */
   onImport: (confirmNameChange: boolean) => void
+  /** Só Administrativo, Documentação e Equipamentos incluem contatos pela Base (D10 de 2026-10-27). */
+  canEditContacts?: boolean
 }) {
   const [acceptedFor, setAcceptedFor] = useState<ParsedCustomerBase | null>(null)
   const accepted = Boolean(parsedBase) && acceptedFor === parsedBase
@@ -118,7 +121,13 @@ export function ImportBaseModal({
           </ImportNotice>
         ) : null}
 
-        {parsedBase && !refused ? <ImportBasePreview parsedBase={parsedBase} errors={issues.filter((issue) => issue.severity === 'error').length} /> : null}
+        {parsedBase && !refused && !canEditContacts ? (
+          <ImportNotice tone="info" title="Você importa só o cadastro">
+            <p>Só Administrativo, Documentação e Equipamentos incluem ou mudam contatos do Cliente. Os e-mails da planilha não são gravados.</p>
+          </ImportNotice>
+        ) : null}
+
+        {parsedBase && !refused ? <ImportBasePreview parsedBase={parsedBase} errors={issues.filter((issue) => issue.severity === 'error').length} canEditContacts={canEditContacts} /> : null}
 
         {!refused ? <ImportIssuesPanel issues={issues} filename="base-clientes-erros.csv" /> : null}
 
@@ -132,7 +141,7 @@ export function ImportBaseModal({
             <span>
               <span className="app-import-override__title">Conferi os avisos e quero importar o arquivo</span>
               <span className="app-import-override__hint">
-                A razão social nova vale para as próximas faturas; faturas emitidas mantêm o documento congelado. B/L rejeitado na Revisão não é vinculado pela Base.
+                A razão social nova vale para as próximas faturas; faturas emitidas mantêm o documento congelado. B/L rejeitado na Revisão não é vinculado pela Base. Cliente desativado não muda, e os B/Ls dele ficam só com sugestão na Revisão.
               </span>
             </span>
           </label>
@@ -180,6 +189,16 @@ function customerBaseIssues(parsedBase: ParsedCustomerBase): ImportIssue[] {
         message: `${formatCnpjCpf(row.cnpj_cpf)}: razão social muda de "${row.currentName}" para "${row.name}".`,
       })
     }
+    if (row.deactivated) {
+      const suggested = row.pendingBlIds?.length ?? 0
+      warnings.push({
+        row: row.row_number ?? 0,
+        field: 'row',
+        code: 'invalid_group',
+        severity: 'warning',
+        message: `${formatCnpjCpf(row.cnpj_cpf)}: Cliente desativado. A Base não muda o cadastro nem os contatos${suggested ? `, e ${plural(suggested, 'B/L fica', 'B/Ls ficam')} só com sugestão na Revisão` : ''}. Reative o Cliente na ficha para atualizar e vincular.`,
+      })
+    }
     if (row.rejectedBlIds?.length) {
       warnings.push({
         row: row.row_number ?? 0,
@@ -210,17 +229,20 @@ function ImportBaseRefused({ refused }: { refused: CustomerBaseRefusal }) {
 
 function situationOf(row: CustomerBaseRow): { text: string; tone?: 'warning' | 'muted' } {
   if (!row.existingCustomerId) return { text: 'Cria' }
+  if (row.deactivated) return { text: 'Cliente desativado: não muda', tone: 'warning' }
   if (row.currentName) return { text: 'Atualiza a razão social', tone: 'warning' }
   if (row.changedFields?.length) return { text: `Atualiza ${row.changedFields.join(', ')}`, tone: 'warning' }
   return { text: 'Sem alteração', tone: 'muted' }
 }
 
-function ImportBasePreview({ parsedBase, errors }: { parsedBase: ParsedCustomerBase; errors: number }) {
+function ImportBasePreview({ parsedBase, errors, canEditContacts }: { parsedBase: ParsedCustomerBase; errors: number; canEditContacts: boolean }) {
   const updates = parsedBase.rows.filter((row) => row.existingCustomerId && ((row.changedFields?.length ?? 0) > 0 || row.currentName)).length
   const unchanged = parsedBase.rows.filter((row) => row.existingCustomerId && !(row.changedFields?.length ?? 0) && !row.currentName).length
   const creates = parsedBase.rows.length - updates - unchanged
-  const emails = parsedBase.rows.reduce((sum, row) => sum + row.emails.length, 0)
-  const linked = parsedBase.rows.reduce((sum, row) => sum + (row.pendingBlIds?.length ?? 0), 0)
+  // D10 e D15: e-mail de quem não inclui contatos ou de Cliente desativado não é gravado.
+  const emails = canEditContacts ? parsedBase.rows.filter((row) => !row.deactivated).reduce((sum, row) => sum + row.emails.length, 0) : 0
+  const linked = parsedBase.rows.filter((row) => !row.deactivated).reduce((sum, row) => sum + (row.pendingBlIds?.length ?? 0), 0)
+  const suggested = parsedBase.rows.filter((row) => row.deactivated).reduce((sum, row) => sum + (row.pendingBlIds?.length ?? 0), 0)
   return (
     <ImportSection
       title="Prévia"
@@ -233,6 +255,7 @@ function ImportBasePreview({ parsedBase, errors }: { parsedBase: ParsedCustomerB
             { label: 'sem alteração', value: unchanged },
             { label: emails === 1 ? 'e-mail' : 'e-mails', value: emails },
             { label: linked === 1 ? 'B/L vinculado' : 'B/Ls vinculados', value: linked },
+            ...(suggested ? [{ label: suggested === 1 ? 'B/L só com sugestão' : 'B/Ls só com sugestão', value: suggested, tone: 'warning' as const }] : []),
             { label: errors === 1 ? 'linha com erro' : 'linhas com erro', value: errors, tone: errors ? 'danger' : 'default' },
           ]}
         />
@@ -262,7 +285,7 @@ function ImportBasePreview({ parsedBase, errors }: { parsedBase: ParsedCustomerB
                       <td className="app-table__text" title={row.name}>{row.name}</td>
                       <td className={situation.tone ? `app-table__text app-import-tone--${situation.tone}` : 'app-table__text'}>{situation.text}</td>
                       <td className="app-table__text" title={row.pendingBlIds?.join(', ')}>
-                        {row.pendingBlIds?.length ? row.pendingBlIds.join(', ') : <NoValue label="Sem B/L pendente" />}
+                        {row.pendingBlIds?.length ? `${row.deactivated ? 'Sugestão: ' : ''}${row.pendingBlIds.join(', ')}` : <NoValue label="Sem B/L pendente" />}
                       </td>
                       <td>
                         <span className="app-table__truncate app-table__truncate--xl" title={row.emails.join('; ')}>

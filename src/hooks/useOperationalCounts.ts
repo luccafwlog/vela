@@ -27,8 +27,9 @@ export function useOperationalCounts(): OperationalCounts {
     return () => window.clearTimeout(timer)
   }, [])
 
-  // ponytail: refresh is governed by staleTime; re-enable Realtime only after
-  // alerts is explicitly added to supabase_realtime.
+  // ponytail: o número de Alertas é relido a cada 60 s (ALE-D17); os demais
+  // seguem pelo staleTime. Realtime só depois de `alerts` entrar em
+  // supabase_realtime.
 
   const pendingReview = useQuery({
     queryKey: ['op-count', 'pending-review'],
@@ -37,6 +38,8 @@ export function useOperationalCounts(): OperationalCounts {
         .from('bls')
         .select('*', { count: 'exact', head: true })
         .eq('review_status', 'pending_review')
+        // BLR-D01 (lote 10): o número da Revisão não conta B/L cancelado.
+        .is('cancelled_at', null)
       if (error) return 0
       return count ?? 0
     },
@@ -77,6 +80,9 @@ export function useOperationalCounts(): OperationalCounts {
     queryFn: () => countAlertQueue('active'),
     enabled,
     staleTime: 60_000,
+    // ALE-D17: alertas abertos pela rodada ou por colegas entram no número
+    // sem recarregar, no mesmo passo do sino.
+    refetchInterval: 60_000,
   })
 
   const blsWithoutCustomer = useQuery({

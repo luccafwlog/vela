@@ -119,7 +119,8 @@ export function PortalDemurrageDetailModal({
                 : payable ? 'O valor em reais acompanha a cotação do dia até o pagamento.' : 'Total em reais'}
               amountTone={payable && Number(brl ?? 0) > 0 ? 'warning' : 'default'}
               facts={[
-                { label: 'Total em dólar', value: formatUsd(invoice.total_usd) },
+                // Dólar a cobrar, já com o desconto, como no Vela e no e-mail (DEM-D06; ADR 0083, item 13).
+                { label: 'Total em dólar', value: formatUsd(invoiceNetUsd(invoice).netUsd) },
                 { label: payable ? 'ROE de hoje' : 'ROE aplicado', value: roe != null ? formatRoe(roe) : <NoValue label="Sem ROE" /> },
                 { label: 'B/L', value: <CopyValue value={invoice.bl_id} label="número do B/L" /> },
                 { label: 'Trecho', value: invoice.pol || invoice.pod ? `${invoice.pol ?? '—'} → ${invoice.pod ?? '—'}` : <NoValue label="Sem trecho" /> },
@@ -168,6 +169,13 @@ export function PortalDemurrageDetailModal({
                   </table>
                 </div>
               </Block>
+            ) : null}
+
+            {invoice.replaces_doc_number ? (
+              // DEM-D08 (migration 472): a cancelada não aparece no Portal; só o número.
+              <p className="text-sm text-[var(--app-muted)]">
+                Substitui a fatura <strong className="text-[var(--app-text-strong)]">{invoice.replaces_doc_number}</strong>, cancelada porque as datas dos containers mudaram.
+              </p>
             ) : null}
 
             {earlier.length ? (

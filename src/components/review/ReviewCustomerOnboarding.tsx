@@ -28,6 +28,7 @@ export function ReviewCustomerOnboarding({
   onCnpjChange,
   onSelectExistingCustomer,
   onSubmit,
+  canEditContacts = true,
 }: {
   group: ReviewGroup
   existingCustomerId: number | null
@@ -45,6 +46,8 @@ export function ReviewCustomerOnboarding({
   onCnpjChange?: (cnpj: string | null) => void
   onSelectExistingCustomer: (customer: ReviewCustomer) => void
   onSubmit: (input: ReviewCustomerOnboardingInput) => void
+  /** Só Administrativo, Documentação e Equipamentos incluem contatos (D10 de 2026-10-27). */
+  canEditContacts?: boolean
 }) {
   const [name, setName] = useState(initialName)
   const [cnpj, setCnpj] = useState(initialCnpj)
@@ -72,7 +75,7 @@ export function ReviewCustomerOnboarding({
   useEffect(() => {
     onCnpjChange?.(validCnpj)
   }, [validCnpj, onCnpjChange])
-  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  const validEmail = !canEditContacts || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const expectedCnpjs = group.candidateCnpjs.length ? group.candidateCnpjs : group.cnpj ? [group.cnpj] : []
   const selectedCustomerCnpjMismatch = Boolean(validCnpj && expectedCnpjs.length > 0 && !expectedCnpjs.includes(validCnpj))
   const count = group.items.filter((item) => item.source === 'bl').length
@@ -150,6 +153,8 @@ export function ReviewCustomerOnboarding({
         <Field label="Razão social" required><Input value={name} onChange={(event) => { clearSelectedCustomer(); setName(event.target.value) }} /></Field>
         <Field label="CNPJ" required hint={cnpjHint} error={cnpjError}><Input maxLength={CNPJ_INPUT_MAX_LENGTH} placeholder="00.000.000/0000-00" inputMode="numeric" value={cnpj.length === 14 ? formatCnpj(cnpj) : cnpj} onChange={(event) => { clearSelectedCustomer(); setCnpj(normalizeCnpj(event.target.value)) }} /></Field>
       </div>
+      {canEditContacts ? (
+      <>
       <Field label="E-mail principal do cliente" required hint={email.trim() ? 'Será salvo como contato do cliente. Nenhum e-mail é enviado por esta ação.' : 'O cliente precisa ter pelo menos um e-mail cadastrado.'}>
         <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="financeiro@cliente.com.br" />
       </Field>
@@ -160,6 +165,10 @@ export function ReviewCustomerOnboarding({
           <span className="review-onboarding__invite-hint">{sendPortalInvite ? `O convite será enviado para ${email.trim().toLowerCase() || 'o e-mail informado acima'} depois do cadastro.` : 'Opcional — você poderá iniciar o convite depois em Provisionamento do Portal.'}</span>
         </span>
       </label>
+      </>
+      ) : (
+        <p className="review-onboarding__intro" role="note">Só Administrativo, Documentação e Equipamentos incluem o e-mail do Cliente: o cadastro sai sem contato, e o convite do Portal fica com a Documentação ou o Administrativo.</p>
+      )}
       <div className="review-onboarding__footer">
         <div className="review-onboarding__effect">
           <p><strong>Ao concluir:</strong> {effect}</p>
@@ -171,9 +180,9 @@ export function ReviewCustomerOnboarding({
             loading={saving}
             loadingLabel="Salvando…"
             aria-describedby={blockReason ? blockId : undefined}
-            onClick={() => onSubmit({ customerId: selectedId, cnpjCpf: validCnpj!, name: name.trim(), email: email.trim().toLowerCase(), sendPortalInvite })}
+            onClick={() => onSubmit({ customerId: selectedId, cnpjCpf: validCnpj!, name: name.trim(), email: canEditContacts ? email.trim().toLowerCase() : '', sendPortalInvite: canEditContacts && sendPortalInvite })}
           >
-            {selectedId ? `Adicionar e-mail e vincular ${targetLabel}` : `Criar cliente e vincular ${targetLabel}`}
+            {selectedId ? (canEditContacts ? `Adicionar e-mail e vincular ${targetLabel}` : `Vincular ${targetLabel}`) : `Criar cliente e vincular ${targetLabel}`}
           </Button>
           {blockReason ? <p id={blockId} className="review-onboarding__block">{blockReason}</p> : null}
         </div>

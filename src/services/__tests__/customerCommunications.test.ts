@@ -255,6 +255,21 @@ describe('recorte e conferência de Comunicados', () => {
     expect(conference.unassignedOperationFronts).toBe(true)
   })
 
+  // D12 de 2026-10-27 (opção B do dono): Cliente sem contato ativo com e-mail sai do institucional.
+  it('institucional tira da lista o Cliente sem contato ativo com e-mail', () => {
+    const now = new Date('2026-10-01T12:00:00Z')
+    const build = (contacts: CustomerContact[]) => buildCustomerCommunicationConference({
+      kind: 'institucional',
+      mode: 'institucional',
+      candidates: [candidate()],
+      contactsByCustomer: new Map([[99, contacts]]),
+      now,
+    })
+    expect(build([]).rows).toHaveLength(0)
+    expect(build([contact(1, null), { ...contact(2, 'antigo@example.com'), deactivated_at: '2026-09-02T00:00:00Z' }]).rows).toHaveLength(0)
+    expect(build([contact(1, 'cliente@example.com')]).rows).toHaveLength(1)
+  })
+
   it('usa o próprio disparo como âncora do comunicado livre e avança o discriminador', () => {
     const conference = buildCustomerCommunicationConference({
       kind: 'livre',

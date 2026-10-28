@@ -345,7 +345,7 @@ export function BlDetalhe() {
       {cancelBlockedReasons && !cancelledAt ? (
         <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
           <span>
-            <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}. O Financeiro cancela ou estorna antes.
+            <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}. Antes, o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição.
           </span>
           <Button variant="secondary" onClick={() => setCancelBlockedReasons(null)}>Fechar aviso</Button>
         </div>

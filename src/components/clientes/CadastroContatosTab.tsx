@@ -51,7 +51,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
   const { user, profile, can } = useAuth()
   // A política de `customers` aceita qualquer usuário interno ativo (migration 295).
   const canEdit = Boolean(profile || user)
-  const canEditContacts = can('customer_communications')
+  const canEditContacts = can('edit_customer_contacts')
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [saving, setSaving] = useState(false)

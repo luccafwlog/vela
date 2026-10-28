@@ -187,7 +187,8 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
     expect(escala.stderr).toMatch(/Somente o Administrativo pode excluir escala/)
 
     const opsTerminal = asOwnerFor(OPS_ID, `DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${V_LOCKED};`)
-    expect(opsTerminal.stderr).toMatch(/Somente o Administrativo remove atracação/)
+    // Desde a 477 (02-viagens-adr:2) Operações também remove a atracação; a trava por CE continua.
+    expect(opsTerminal.stderr).toMatch(/Atracação travada: B\/L com CE Mercante/)
 
     const adminTerminal = asOwnerFor(ADMIN_ID, `DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${V_LOCKED};`)
     expect(adminTerminal.stderr).toMatch(/Atracação travada: B\/L com CE Mercante/)

@@ -24,7 +24,9 @@ export function OmitEscalaModal({
 }: OmitEscalaModalProps) {
   const { user } = useAuth()
   const omit = useOmitEscala(voyageId)
-  const [dischargePod, setDischargePod] = useState(candidateDischargePods[0] ?? '')
+  // 02-viagens-adr:15: o porto omitido não é Porto de Transbordo (o banco também recusa).
+  const dischargeOptions = candidateDischargePods.filter((pod) => pod.trim().toUpperCase() !== omittedPod.trim().toUpperCase())
+  const [dischargePod, setDischargePod] = useState(dischargeOptions[0] ?? '')
   const [reason, setReason] = useState('')
   const [onwardVesselName, setOnwardVesselName] = useState('')
   const [onwardCarrier, setOnwardCarrier] = useState('')
@@ -36,7 +38,7 @@ export function OmitEscalaModal({
 
   if (open && omittedPod !== prevTarget) {
     setPrevTarget(omittedPod)
-    setDischargePod(candidateDischargePods[0] ?? '')
+    setDischargePod(dischargeOptions[0] ?? '')
     setReason('')
     setOnwardVesselName('')
     setOnwardCarrier('')
@@ -96,7 +98,7 @@ export function OmitEscalaModal({
               </details>
               <p className="text-xs text-[var(--app-muted)]">
                 Os B/Ls listados passam a seguir em transbordo e clientes vinculados recebem uma notificação no Portal.
-                A omissão pode ser revertida pelo Administrativo; a reversão remove os vínculos e também notifica os clientes.
+                Qualquer setor pode reverter a omissão, com justificativa; a reversão mantém o histórico da omissão e também notifica os clientes.
               </p>
             </div>
             <div className="app-modal__actions">
@@ -114,8 +116,13 @@ export function OmitEscalaModal({
               A carga de {omittedPod} sera descarregada no porto escolhido e entrara em transbordo por B/L.
             </div>
             <Field label="Porto de Transbordo">
+              {dischargeOptions.length === 0 ? (
+                <p className="text-sm text-[var(--app-warning-fg)]" role="alert">
+                  Nenhuma outra escala brasileira nesta viagem. Cadastre antes a escala onde a carga será descarregada.
+                </p>
+              ) : null}
               <select className="app-input" value={dischargePod} onChange={(event) => setDischargePod(event.target.value)} required>
-                {candidateDischargePods.map((pod) => (
+                {dischargeOptions.map((pod) => (
                   <option key={pod} value={pod}>
                     {pod}
                   </option>

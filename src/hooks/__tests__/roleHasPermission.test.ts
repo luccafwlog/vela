@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { roleHasPermission, type Permission } from '../useAuth'
 
-const ALL: Permission[] = ['admin_panel', 'manage_users', 'portal_provisioning', 'settle_financial_adjustments', 'customer_communications']
+const ALL: Permission[] = ['admin_panel', 'manage_users', 'portal_provisioning', 'settle_financial_adjustments', 'customer_communications', 'edit_customer_contacts']
 const NAVIGATION: Permission[] = ['admin_panel', 'manage_users', 'portal_provisioning']
 
 describe('matriz RBAC de exceções', () => {
@@ -11,6 +11,7 @@ describe('matriz RBAC de exceções', () => {
   it('Documentação mantém provisionamento do Portal e Comunicados', () => {
     expect(roleHasPermission('documentacao', 'portal_provisioning')).toBe(true)
     expect(roleHasPermission('documentacao', 'customer_communications')).toBe(true)
+    expect(roleHasPermission('documentacao', 'edit_customer_contacts')).toBe(true)
     expect(roleHasPermission('documentacao', 'admin_panel')).toBe(false)
     expect(roleHasPermission('documentacao', 'manage_users')).toBe(false)
   })
@@ -18,10 +19,13 @@ describe('matriz RBAC de exceções', () => {
     expect(roleHasPermission('administrativo', 'settle_financial_adjustments')).toBe(true)
     expect(roleHasPermission('financeiro', 'settle_financial_adjustments')).toBe(true)
   })
-  it('Financeiro e Operações não recebem Comunicados; Equipamentos recebe', () => {
-    expect(roleHasPermission('financeiro', 'customer_communications')).toBe(false)
-    expect(roleHasPermission('operacoes', 'customer_communications')).toBe(false)
-    expect(roleHasPermission('equipamentos', 'customer_communications')).toBe(true)
+  it('todos disparam Comunicado; só Administrativo, Documentação e Equipamentos editam contatos (ACE-D01, opção A)', () => {
+    for (const role of ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'] as const) {
+      expect(roleHasPermission(role, 'customer_communications')).toBe(true)
+    }
+    expect(roleHasPermission('financeiro', 'edit_customer_contacts')).toBe(false)
+    expect(roleHasPermission('operacoes', 'edit_customer_contacts')).toBe(false)
+    expect(roleHasPermission('equipamentos', 'edit_customer_contacts')).toBe(true)
   })
   it('os demais departamentos não recebem exceções de navegação', () => {
     for (const role of ['financeiro', 'operacoes', 'equipamentos'] as const) {

@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 const { fromMock, rpcMock } = vi.hoisted(() => ({ fromMock: vi.fn(), rpcMock: vi.fn() }))
 vi.mock('../supabase', () => ({ supabase: { from: fromMock, rpc: rpcMock } }))
 
-import { cancelVoyage, createVoyage, deleteVoyage, previewVoyageDeletion, updateVoyage } from '../voyages'
+import { cancelVoyage, createVoyage, deleteVoyage, fetchVoyagesWithUnpaidBls, previewVoyageDeletion, updateVoyage } from '../voyages'
 import { deleteVoyagePodSchedule } from '../voyageRouteSchedules'
 
 beforeEach(() => {
@@ -178,7 +178,8 @@ it('reaproveita IMO legado rotulado em vez de criar ou rejeitar o mesmo navio', 
     status: 'active',
   }, 'user-1')).resolves.toEqual({ id: 43 })
 
-  expect(vesselsUpdate).toHaveBeenCalledWith({ name: 'PLANILHA NAME', imo: '9846495' })
+  // 02-viagens-adr:5: o IMO acha o navio e o nome cadastrado fica; só o IMO legado é normalizado.
+  expect(vesselsUpdate).toHaveBeenCalledWith({ imo: '9846495' })
   expect(vesselsUpdateEq).toHaveBeenCalledWith('id', 9)
 })
 
@@ -201,4 +202,26 @@ it('editar a Viagem não manda navio, número nem status ao Histórico: vêm do 
     .filter(([name]) => name === 'record_audit_entries')
     .flatMap(([, args]) => (args as { p_entries: Array<{ field_name: string }> }).p_entries.map((entry) => entry.field_name))
   expect(fields).toEqual(['indicated_first_brazilian_port'])
+})
+
+it('02-viagens-adr:4: "Faturamento encerrado" só com todo B/L ativo quitado ou isento; carga solta sem cálculo segura o selo', async () => {
+  const calls: Array<[string, ...unknown[]]> = []
+  const rows = [
+    // Viagem 5: um B/L pago e um isento — encerrada.
+    { voyage_id: 5, charge_status: 'calculated', financial_status: 'paid' },
+    { voyage_id: 5, charge_status: 'exempt', financial_status: 'pending' },
+    // Viagem 6: carga solta ainda sem cálculo (charge_status nulo) — não encerrada.
+    { voyage_id: 6, charge_status: null, financial_status: 'pending' },
+    // Viagem 7: só B/L cancelado (filtrado pelo banco) — sem B/L ativo, sem selo.
+  ]
+  const chain = {
+    select: (...args: unknown[]) => { calls.push(['select', ...args]); return chain },
+    in: (...args: unknown[]) => { calls.push(['in', ...args]); return chain },
+    is: (...args: unknown[]) => { calls.push(['is', ...args]); return chain },
+    limit: () => Promise.resolve({ data: rows, error: null }),
+  }
+  fromMock.mockImplementation(() => chain)
+
+  await expect(fetchVoyagesWithUnpaidBls([5, 6, 7])).resolves.toEqual(new Set([6, 7]))
+  expect(calls).toContainEqual(['is', 'cancelled_at', null])
 })

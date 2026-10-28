@@ -1,0 +1,309 @@
+<title>Divergências do Vela</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: mesa de decisão — barra de progresso e filtros fixos no topo, uma coluna de fichas de decisão, cada ficha com caso, situação de hoje e opções. */
+:root {
+  --bg: #f3f5f8; --surface: #ffffff; --ink: #14223a; --muted: #5a6b84; --line: #d6dde8;
+  --accent: #d9631a; --accent-soft: #fbe9dc; --chosen: #1d6b52; --chosen-soft: #e1f2ea;
+  --alto: #b3261e; --alto-soft: #fbe3e1; --medio: #9a6200; --medio-soft: #fbefd6; --baixo: #4b5d78; --baixo-soft: #e6ebf3;
+  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-label: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1522; --surface: #162034; --ink: #e6ecf5; --muted: #9aaac2; --line: #2a3850;
+  --accent: #f08a45; --accent-soft: #3a2616; --chosen: #5fd0a6; --chosen-soft: #16352b;
+  --alto: #ff8a80; --alto-soft: #3d1d1c; --medio: #f2bd5a; --medio-soft: #3a2d12; --baixo: #a9b8d0; --baixo-soft: #243149; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e1522; --surface: #162034; --ink: #e6ecf5; --muted: #9aaac2; --line: #2a3850;
+  --accent: #f08a45; --accent-soft: #3a2616; --chosen: #5fd0a6; --chosen-soft: #16352b;
+  --alto: #ff8a80; --alto-soft: #3d1d1c; --medio: #f2bd5a; --medio-soft: #3a2d12; --baixo: #a9b8d0; --baixo-soft: #243149; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 48px }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
+.wrap { max-width: 860px; margin: 0 auto }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 16px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 12px }
+.kicker { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .08em; font-size: 13px; color: var(--muted); font-weight: 600 }
+h1 { margin: 0; font-size: 26px; line-height: 1.15; text-wrap: balance }
+.progress { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.bar { flex: 1 1 200px; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; min-width: 0 }
+.bar > i { display: block; height: 100%; background: var(--chosen); width: 0; transition: width .3s }
+.count { font-variant-numeric: tabular-nums; font-weight: 600 }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+select, .seg button, .btn { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer }
+select { max-width: 100% }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden }
+.seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line) }
+.seg button:last-child { border-right: 0 }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg) }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.intro { color: var(--muted); max-width: 65ch; margin: 16px 0 0 }
+.status { font-size: 13px; color: var(--muted) }
+.status.err { color: var(--alto) }
+main { display: grid; gap: 16px; margin-top: 20px }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 12px; min-width: 0 }
+.card.done { border-color: var(--chosen) }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-family: var(--font-label); font-size: 14px; letter-spacing: .03em }
+.code { color: var(--muted); font-weight: 600 }
+.pill { padding: 1px 8px; border-radius: 999px; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: .06em }
+.pill.alto { background: var(--alto-soft); color: var(--alto) }
+.pill.medio { background: var(--medio-soft); color: var(--medio) }
+.pill.baixo { background: var(--baixo-soft); color: var(--baixo) }
+.pill.ok { background: var(--chosen-soft); color: var(--chosen) }
+.card h2 { margin: 0; font-size: 18px; line-height: 1.3; text-wrap: balance }
+.caso { margin: 0; max-width: 70ch }
+.hoje { margin: 0; font-size: 14px; color: var(--muted) }
+.hoje b { color: var(--ink) }
+.tambem { font-size: 14px; color: var(--muted); margin: 0 }
+.opts { display: grid; gap: 8px }
+.opt { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; text-align: left; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer }
+.opt .l { font-family: var(--font-label); font-weight: 700; font-size: 18px; line-height: 1.2; color: var(--muted); grid-row: span 2 }
+.opt .t { font-weight: 600 }
+.opt .e { font-size: 14px; color: var(--muted); grid-column: 2 }
+.opt .rec { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: 12px; font-weight: 700; color: var(--accent); margin-left: 6px }
+.opt.is-rec { border-color: var(--accent); background: var(--accent-soft) }
+.opt[aria-pressed="true"] { border-color: var(--chosen); background: var(--chosen-soft); box-shadow: inset 0 0 0 1px var(--chosen) }
+.opt[aria-pressed="true"] .l { color: var(--chosen) }
+.porque { margin: 0; font-size: 14px }
+.porque b { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: 12px; color: var(--accent) }
+details { font-size: 14px }
+summary { cursor: pointer; color: var(--muted) }
+details p { margin: 6px 0 0; color: var(--muted) }
+textarea { width: 100%; font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; min-height: 2.6em; resize: vertical }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between }
+.btn.link { border: 0; background: none; color: var(--muted); text-decoration: underline; padding: 4px 0 }
+.empty { color: var(--muted); padding: 24px 0 }
+.bulk[hidden] { display: none }
+.bulk { display: grid; gap: 8px; background: var(--surface); border: 1px dashed var(--accent); border-radius: 8px; padding: 12px }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff }
+@media (prefers-reduced-motion: reduce) { .bar > i { transition: none } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="kicker">Manual do Operador · Etapa 1</div>
+      <h1>Divergências para decidir</h1>
+    </div>
+    <div class="progress">
+      <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
+      <span class="count" id="count">0 de 0 decididas</span>
+      <span class="status" id="status">Conectando ao registro de decisões…</span>
+    </div>
+    <div class="filters">
+      <label class="sr" for="fArea" hidden>Área</label>
+      <select id="fArea" aria-label="Área"><option value="">Todas as áreas</option></select>
+      <select id="fImp" aria-label="Impacto">
+        <option value="">Todo impacto</option><option value="alto">Impacto alto</option><option value="medio">Impacto médio</option><option value="baixo">Impacto baixo</option>
+      </select>
+      <div class="seg" role="group" aria-label="Situação">
+        <button type="button" data-st="pend" aria-pressed="true">Pendentes</button>
+        <button type="button" data-st="done" aria-pressed="false">Decididas</button>
+        <button type="button" data-st="all" aria-pressed="false">Todas</button>
+      </div>
+      <button type="button" class="btn" id="bulkOpen">Aceitar recomendações…</button>
+    </div>
+  </header>
+
+  <p class="intro">Cada ficha é um ponto em que o sistema faz uma coisa e a regra registrada diz outra, ou em que dois documentos se contradizem. O caso é hipotético, com nomes inventados, para mostrar o efeito na prática. A opção em laranja é a recomendada. Escolha uma opção por ficha; a escolha fica guardada e vira tarefa depois. Se nenhuma opção servir, clique em “Outra solução” e escreva na observação o que você quer.</p>
+
+  <div class="bulk" id="bulk" hidden>
+    <span id="bulkText"></span>
+    <div class="row">
+      <button type="button" class="btn primary" id="bulkYes">Aceitar todas</button>
+      <button type="button" class="btn" id="bulkNo">Cancelar</button>
+    </div>
+  </div>
+
+  <main id="list"><p class="empty">Carregando as fichas…</p></main>
+</div>
+
+<script type="application/json" id="cards">__DATA__</script>
+<script>
+(function () {
+  const CARDS = JSON.parse(document.getElementById('cards').textContent);
+  const IMP = { alto: 'Impacto alto', medio: 'Impacto médio', baixo: 'Impacto baixo' };
+  const RANK = { alto: 0, medio: 1, baixo: 2 };
+  const OUTRA = 'outra';          // escolha quando nenhuma opção serve; a nota diz o quê
+  const decisions = {};           // docId -> {escolha, nota}: o que a tela mostra (inclui o otimista)
+  const saved = {};               // docId -> último estado confirmado pelo registro
+  const drafts = {};              // docId -> observação digitada e ainda não gravada
+  const pending = {};             // docId -> gravações em andamento
+  let db = null, st = 'pend';
+  let ready = false;              // só grava depois da primeira leitura do registro
+  let bulkIds = null;             // fichas da confirmação em lote aberta
+  let bulkBusy = false;           // aceitação em lote em andamento
+  const keep = new Set();         // fichas mexidas desde a última troca de filtro: continuam na tela para a observação
+  const docId = (k) => k.replace(/[^A-Za-z0-9_-]/g, '_');
+  const $ = (id) => document.getElementById(id);
+
+  const areas = [...new Map(CARDS.map(c => [c.area, c.areaNome])).entries()];
+  for (const [a, n] of areas) { const o = document.createElement('option'); o.value = a; o.textContent = n; $('fArea').appendChild(o); }
+  try { const s = JSON.parse(localStorage.getItem('div-filtros') || '{}'); if (s.area) $('fArea').value = s.area; if (s.imp) $('fImp').value = s.imp; if (s.st) st = s.st; } catch (e) {}
+  syncSeg();
+
+  function visible() {
+    const a = $('fArea').value, i = $('fImp').value;
+    return CARDS.filter(c => (!a || c.area === a) && (!i || c.impacto === i) &&
+      (st === 'all' || keep.has(docId(c.key)) || (st === 'done') === !!decisions[docId(c.key)]?.escolha))
+      .sort((x, y) => (RANK[x.impacto] ?? 3) - (RANK[y.impacto] ?? 3));
+  }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  const locked = () => !ready || bulkBusy;
+  // Nota atual da ficha: o rascunho em edição vale mais que a gravada.
+  const noteOf = (id) => {
+    const ta = $('nota-' + id);
+    if (ta) return ta.value.trim();
+    return id in drafts ? drafts[id].trim() : (decisions[id] || {}).nota || '';
+  };
+
+  function render() {
+    // Rascunhos em edição sobrevivem à reconstrução da lista.
+    document.querySelectorAll('textarea[id^="nota-"]').forEach((ta) => {
+      const id = ta.id.slice(5);
+      // Só o campo editado desde a última montagem vira rascunho.
+      if (ta.value !== ta.dataset.base) drafts[id] = ta.value;
+    });
+    const focused = document.activeElement && document.activeElement.id;
+    const list = $('list'); list.textContent = '';
+    const vis = visible();
+    if (!vis.length) list.appendChild(el('p', 'empty', st === 'pend' ? 'Nenhuma ficha pendente com esses filtros.' : 'Nenhuma ficha com esses filtros.'));
+    for (const c of vis) list.appendChild(card(c));
+    if (focused && $(focused)) $(focused).focus();
+    const done = CARDS.filter(c => decisions[docId(c.key)]?.escolha).length;
+    $('count').textContent = `${done} de ${CARDS.length} decididas`;
+    $('barFill').style.width = (100 * done / CARDS.length) + '%';
+    $('bulkOpen').disabled = locked();
+    $('bulkYes').disabled = locked();
+    try { localStorage.setItem('div-filtros', JSON.stringify({ area: $('fArea').value, imp: $('fImp').value, st })); } catch (e) {}
+  }
+
+  function card(c) {
+    const id = docId(c.key), d = decisions[id] || {};
+    const art = el('article', 'card' + (d.escolha ? ' done' : ''));
+    const meta = el('div', 'meta');
+    meta.append(el('span', 'code', `${c.areaNome} · ${c.num}`), el('span', 'pill ' + c.impacto, IMP[c.impacto] || c.impacto));
+    if (c.classe === 'c') meta.append(el('span', 'pill baixo', 'Documentos se contradizem'));
+    if (d.escolha) meta.append(el('span', 'pill ok', d.escolha === OUTRA ? 'Decidido: outra solução' : 'Decidido: ' + d.escolha));
+    art.append(meta, el('h2', null, c.titulo), el('p', 'caso', c.caso));
+    if (c.tambem?.length) art.append(el('p', 'tambem', 'Esta ficha junta o mesmo ponto encontrado em mais de uma área: ' + c.tambem.map(t => `${t.areaNome} · ${t.num}`).join(', ') + '.'));
+    const hoje = el('p', 'hoje'); hoje.append(el('b', null, 'Hoje: '), document.createTextNode(c.hoje)); art.append(hoje);
+    const opts = el('div', 'opts'); opts.setAttribute('role', 'group'); opts.setAttribute('aria-label', 'Opções');
+    // A escolha atual é lida na hora do clique, não a da renderização.
+    const toggle = (value) => save(id, { escolha: (decisions[id] || {}).escolha === value ? null : value, nota: noteOf(id) });
+    for (const o of c.opcoes) {
+      const b = el('button', 'opt' + (o.id === c.recomendada ? ' is-rec' : '')); b.type = 'button';
+      b.setAttribute('aria-pressed', d.escolha === o.id ? 'true' : 'false');
+      b.disabled = locked();
+      const t = el('span', 't', o.texto); if (o.id === c.recomendada) t.append(el('span', 'rec', 'Recomendada'));
+      b.append(el('span', 'l', o.id), t, el('span', 'e', o.efeito));
+      b.addEventListener('click', () => toggle(o.id));
+      opts.append(b);
+    }
+    const ob = el('button', 'opt'); ob.type = 'button';
+    ob.setAttribute('aria-pressed', d.escolha === OUTRA ? 'true' : 'false');
+    ob.disabled = locked();
+    ob.append(el('span', 'l', '…'), el('span', 't', 'Outra solução'), el('span', 'e', 'Nenhuma opção acima serve: escreva na observação abaixo o que você quer.'));
+    ob.addEventListener('click', async () => {
+      await toggle(OUTRA);
+      if (decisions[id]?.escolha === OUTRA) $('nota-' + id)?.focus();
+    });
+    opts.append(ob);
+    art.append(opts);
+    const pq = el('p', 'porque'); pq.append(el('b', null, 'Por que recomendo '), document.createTextNode(c.porque)); art.append(pq);
+    const det = el('details'); det.append(el('summary', null, 'Detalhe técnico'), el('p', null, `${c.codigoTexto}`)); art.append(det);
+    const ta = el('textarea'); ta.id = 'nota-' + id; ta.placeholder = d.escolha === OUTRA ? 'Descreva a solução que você quer' : 'Observação (opcional)';
+    ta.value = id in drafts ? drafts[id] : d.nota || ''; ta.dataset.base = ta.value; ta.rows = 1;
+    ta.disabled = !ready;
+    ta.addEventListener('change', () => save(id, { escolha: (decisions[id] || {}).escolha || null, nota: ta.value.trim() }));
+    art.append(ta);
+    return art;
+  }
+
+  // Grava uma ficha. Devolve true só quando o registro confirmou; na falha a
+  // ficha volta ao último estado confirmado, não ao otimista de outra gravação.
+  async function save(id, val) {
+    if (!ready) { setStatus('Aguarde carregar as escolhas guardadas.', true); return false; }
+    decisions[id] = { ...val };
+    delete drafts[id];
+    keep.add(id);
+    render();
+    if (!db) {
+      restore(id); render();
+      setStatus('Sem conexão com o registro: a escolha não foi guardada.', true);
+      return false;
+    }
+    pending[id] = (pending[id] || 0) + 1;
+    try {
+      await db.collection('decisoes').doc(id).set({ escolha: val.escolha, nota: val.nota || '', decididoEm: new Date().toISOString() });
+      saved[id] = { ...val };
+      setStatus('Guardado.');
+      return true;
+    } catch (e) {
+      // Se outra gravação da mesma ficha veio depois, ela decide o que a tela mostra.
+      if (pending[id] === 1) { restore(id); render(); }
+      setStatus(e && e.code === 'permission_denied' ? 'Você só pode ler esta página: a escolha não foi guardada.' : 'Não foi possível guardar. Tente de novo.', true);
+      return false;
+    } finally {
+      pending[id] -= 1;
+    }
+  }
+  function restore(id) { if (saved[id]) decisions[id] = { ...saved[id] }; else delete decisions[id]; }
+  function setStatus(t, err) { const s = $('status'); s.textContent = t; s.classList.toggle('err', !!err); }
+  function syncSeg() { document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.st === st))); }
+  function closeBulk() { bulkIds = null; $('bulk').hidden = true; }
+
+  // Trocar o recorte fecha a confirmação em lote: ela vale para as fichas que mostrou.
+  $('fArea').addEventListener('change', () => { keep.clear(); closeBulk(); render(); });
+  $('fImp').addEventListener('change', () => { keep.clear(); closeBulk(); render(); });
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => { st = b.dataset.st; keep.clear(); closeBulk(); syncSeg(); render(); }));
+  $('bulkOpen').addEventListener('click', () => {
+    if (locked()) return;
+    const pend = visible().filter(c => !decisions[docId(c.key)]?.escolha);
+    if (!pend.length) { setStatus('Nenhuma ficha pendente nos filtros atuais.'); return; }
+    bulkIds = pend.map(c => docId(c.key));
+    $('bulkText').textContent = `Aceitar a opção recomendada nas ${pend.length} fichas pendentes que estão na tela? Você pode trocar qualquer uma depois.`;
+    $('bulk').hidden = false;
+  });
+  $('bulkNo').addEventListener('click', closeBulk);
+  $('bulkYes').addEventListener('click', async () => {
+    if (!bulkIds || locked()) return;
+    const ids = bulkIds; closeBulk();
+    bulkBusy = true; render();
+    let ok = 0, failed = 0;
+    try {
+      for (const c of CARDS.filter(card => ids.includes(docId(card.key)))) {
+        const id = docId(c.key);
+        if (decisions[id]?.escolha) continue;   // decidida no meio do lote: fica a escolha da pessoa
+        // As escolhas individuais ficam travadas durante o lote (`locked`); a gravação do lote passa.
+        const done = await save(id, { escolha: c.recomendada, nota: noteOf(id) });
+        if (done) ok += 1; else failed += 1;
+      }
+    } finally {
+      bulkBusy = false; render();
+    }
+    setStatus(failed ? `${ok} recomendações aceitas; ${failed} não foram guardadas.` : `${ok} recomendações aceitas.`, failed > 0);
+  });
+
+  render();
+  claude.use('db').then((d) => {
+    db = d;
+    if (!db) { setStatus('Registro indisponível nesta visualização: entre na sua conta para guardar escolhas.', true); return; }
+    db.collection('decisoes').onSnapshot((snap) => {
+      for (const doc of snap.docs) {
+        const v = doc.data() || {};
+        saved[doc.id] = { escolha: v.escolha || null, nota: v.nota || '' };
+        // Gravação em andamento da própria pessoa não é desfeita pelo snapshot.
+        if (!pending[doc.id]) decisions[doc.id] = { ...saved[doc.id] };
+      }
+      const first = !ready;
+      ready = true;
+      setStatus('Escolhas guardadas automaticamente.');
+      const active = document.activeElement && document.activeElement.tagName === 'TEXTAREA';
+      if (first || !active) render();
+    }, () => setStatus('Perdi a conexão com o registro. Recarregue a página.', true));
+  });
+})();
+</script>

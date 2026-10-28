@@ -242,6 +242,8 @@ type ExistingBl = Pick<
   manifest_customer_email?: string | null
   ncm_codes?: string[] | null
   container_load_type?: string | null
+  /** só para a régua de "B/L faturado" da troca de Cliente (migration 379) */
+  financial_status?: string | null
   vehicles?: (Pick<Vehicle, 'chassis'> & Partial<Pick<Vehicle, 'brand' | 'model' | 'weight_kg' | 'cbm' | 'container_id'>>)[] | null
   bl_containers?: (Pick<BLContainer, 'container_number' | 'seal_number' | 'type' | 'tare_weight_kg' | 'gross_weight_kg' | 'cbm' | 'is_imo' | 'is_oog' | 'imo_class' | 'un_number'> & { id?: number; ownership?: string | null; ownership_source?: string | null })[] | null
   bl_freight_lines?: Pick<BlFreightLine, 'seq' | 'description' | 'category' | 'mercante_code' | 'currency' | 'amount' | 'payment'>[] | null
@@ -1408,6 +1410,17 @@ function addDiff(
   diffs.push({ field, label: BL_FREIGHT_DIFF_LABELS[field] ?? field, from: from ?? null, to: to ?? null, billingImpact })
 }
 
+/** Régua de "B/L faturado" de `relink_bl_customer` (migration 379). */
+export function isBlInvoicedForCustomerChange(
+  financialStatus: string | null | undefined,
+  invoices: Pick<BlInvoiceSnapshot, 'kind'>[],
+  liveReceivables: Pick<BlReceivableSnapshot, 'settledAmountBrl'>[],
+) {
+  return (financialStatus ?? 'pending') !== 'pending'
+    || invoices.some((invoice) => invoice.kind === 'local')
+    || liveReceivables.some((receivable) => (receivable.settledAmountBrl ?? 0) > 0)
+}
+
 /**
  * Troca de consignatario: quem paga o B/L muda. Descreve de quem para quem, o
  * que acompanha (fatura aberta do proprio B/L) e o que impede a troca — um
@@ -1468,9 +1481,11 @@ function describeCustomerChange(
   }
 
   if (targetMissing) {
-    // O servidor recusa a troca quando ha qualquer financeiro vivo — fatura,
-    // demurrage ou recebivel — e nao ha cliente de destino cadastrado.
-    if (invoiceRows.length || liveReceivables.length) {
+    // `relink_bl_customer` (migration 379) só recusa a troca para destino sem
+    // cadastro quando o B/L está faturado: fatura de taxas locais viva,
+    // situação diferente de pendente ou recebível com baixa. Recebível em
+    // aberto de B/L não faturado não segura a troca (é anulado e recalculado).
+    if (isBlInvoicedForCustomerChange(existing.financial_status, invoices, liveReceivables)) {
       blockedReasons.push(
         'Cliente do novo consignatário não está cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.',
       )
@@ -1519,7 +1534,7 @@ async function fetchExistingBls(blNumbers: string[]): Promise<ExistingBl[]> {
       manifest_customer_cnpj_cpf, manifest_customer_name,
       place_of_receipt, movement_from, movement_to, issue_place,
       customer_id, shipper_block, consignee_block, notify_block, notify2_block, notify_cnpj_cpf,
-      manifest_customer_email, ncm_codes, container_load_type,
+      manifest_customer_email, ncm_codes, container_load_type, financial_status,
       bl_containers(id, container_number, seal_number, type, tare_weight_kg, gross_weight_kg, cbm, is_imo, is_oog, imo_class, un_number, ownership, ownership_source),
       bl_freight_lines(seq, description, category, mercante_code, currency, amount, payment),
       vehicles(chassis, brand, model, weight_kg, cbm, container_id)

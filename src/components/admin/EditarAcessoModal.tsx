@@ -17,6 +17,7 @@ export function EditarAcessoModal({
   currentRole,
   emailBounced = false,
   isSelf = false,
+  devAccount = false,
   onClose,
   onSubmit,
   submitting,
@@ -33,23 +34,32 @@ export function EditarAcessoModal({
    * tira o acesso à Administração no meio da edição e o banco não deixa voltar.
    */
   isSelf?: boolean
+  /**
+   * Conta com a marca Dev de outra pessoa (ADR 0104): e-mail e senha só são
+   * trocados pela própria pessoa; aqui fica só o setor.
+   */
+  devAccount?: boolean
   onClose: () => void
   onSubmit: (input: EditarAcessoInput) => void
   submitting: boolean
 }) {
   const initialRole = managedProfileOf(currentRole)
+  // ACE-D13 de 2026-10-27: o setor antigo Operador vira Documentação gravada
+  // ao salvar, mesmo sem escolher outro setor.
+  const legacyOperator = currentRole === 'operator'
   const [email, setEmail] = useState(currentEmail ?? '')
   const [role, setRole] = useState<Department>(initialRole)
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
+  const credentialsLocked = devAccount && !isSelf
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmed = email.trim().toLowerCase()
     const emailChanged = trimmed !== (currentEmail ?? '').toLowerCase()
     // O papel legado só muda quando alguém escolhe outro setor de fato.
-    const roleChanged = !isSelf && role !== initialRole
+    const roleChanged = !isSelf && (role !== initialRole || legacyOperator)
     if (emailChanged && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) return setError('E-mail inválido.')
     if (password && !isValidPassword(password)) return setError(PASSWORD_RULE_MESSAGE)
     if (password && password !== confirmation) return setError('As senhas não conferem.')
@@ -70,7 +80,9 @@ export function EditarAcessoModal({
       <form onSubmit={handleSubmit} className="grid gap-3">
         <Field
           label="Setor"
-          hint={isSelf ? 'O seu próprio setor só pode ser trocado por outra pessoa do Administrativo. Para trocar a sua senha, use Meu perfil › Alterar senha.' : undefined}
+          hint={isSelf
+            ? 'O seu próprio setor só pode ser trocado por outra pessoa do Administrativo. Para trocar a sua senha, use Meu perfil › Alterar senha.'
+            : legacyOperator ? 'Setor antigo Operador, que vale como Documentação. Salvar grava o setor escolhido.' : undefined}
         >
           <Select value={role} disabled={isSelf} onChange={(e) => setRole(e.target.value as Department)}>
             {MANAGED_PROFILES.map((profile) => (
@@ -79,8 +91,8 @@ export function EditarAcessoModal({
           </Select>
         </Field>
         <SectorCapabilities department={role} personName={userName} />
-        <Field label="E-mail de login">
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field label="E-mail de login" hint={credentialsLocked ? 'Conta com a marca Dev: o e-mail e a senha só são trocados pela própria pessoa.' : undefined}>
+          <Input type="email" value={email} disabled={credentialsLocked} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         {emailBounced ? (
           <p className="text-xs text-[var(--app-muted)]">
@@ -88,10 +100,10 @@ export function EditarAcessoModal({
           </p>
         ) : null}
         <Field label="Nova senha">
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Deixe em branco para manter" />
+          <Input type="password" value={password} disabled={credentialsLocked} onChange={(e) => setPassword(e.target.value)} placeholder="Deixe em branco para manter" />
         </Field>
         <Field label="Confirmar nova senha">
-          <Input type="password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
+          <Input type="password" value={confirmation} disabled={credentialsLocked} onChange={(e) => setConfirmation(e.target.value)} />
         </Field>
         <p className="text-xs text-[var(--app-muted)]">
           Ninguém consegue consultar a senha atual: ela é guardada cifrada. Para socorrer quem esqueceu, defina uma nova aqui.

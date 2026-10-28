@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { brasiliaDayBounds } from '../lib/dates'
+import { fetchUserDisplayNames } from './userNames'
 
 export type AuditLogRow = {
   id: number
@@ -55,9 +56,7 @@ export async function fetchAuditLogs(filters: LogFilters): Promise<{ rows: Audit
   const changerIds = Array.from(new Set(rows.map((r) => r.changed_by).filter(Boolean))) as string[]
   const nameById = new Map<string, string>()
   if (changerIds.length) {
-    const { data: profiles, error: profilesError } = await supabase.from('user_profiles').select('id, full_name').in('id', changerIds)
-    if (profilesError) throw profilesError
-    for (const p of profiles ?? []) nameById.set((p as { id: string; full_name: string }).id, (p as { id: string; full_name: string }).full_name)
+    for (const [id, name] of await fetchUserDisplayNames(changerIds)) nameById.set(id, name)
   }
 
   return {

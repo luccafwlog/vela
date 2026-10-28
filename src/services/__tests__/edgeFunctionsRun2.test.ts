@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { decideInternalTarget } from '../../../supabase/functions/_shared/internalUserTarget'
+import { decideDevCredentialChange, decideInternalTarget } from '../../../supabase/functions/_shared/internalUserTarget'
 import { renderDemurrageGroupTemplate } from '../../../supabase/functions/_shared/customerCommunicationTemplates'
 
 const base = { userId: 'u-1', dummyUserId: 'dummy', hasProfile: true, isPortalAccount: false }
@@ -18,6 +18,25 @@ describe('admin-users: alvo interno (auditoria run-2 #8)', () => {
 
   it('recusa user_id vazio com 422', () => {
     expect(decideInternalTarget({ ...base, userId: '' })).toMatchObject({ ok: false, status: 422 })
+  })
+})
+
+describe('admin-users: conta com a marca Dev (ADR 0104, revisão da PR #1070)', () => {
+  it('outro Administrativo não troca a senha nem o e-mail da conta Dev', () => {
+    expect(decideDevCredentialChange({ targetIsDev: true, targetId: 'dev', actorId: 'outro-adm' }))
+      .toMatchObject({ ok: false, status: 403, error: expect.stringMatching(/própria pessoa/) })
+  })
+
+  it('a própria pessoa troca, e a conta sem a marca segue com o Administrativo', () => {
+    expect(decideDevCredentialChange({ targetIsDev: true, targetId: 'dev', actorId: 'dev' })).toEqual({ ok: true })
+    expect(decideDevCredentialChange({ targetIsDev: false, targetId: 'u-1', actorId: 'outro-adm' })).toEqual({ ok: true })
+  })
+
+  it('a Edge Function confere a marca antes de mexer na credencial', () => {
+    const source = readFileSync('supabase/functions/admin-users/index.ts', 'utf8')
+    const credentials = source.slice(source.indexOf("body.action === 'update_credentials'"))
+    expect(credentials.indexOf('decideDevCredentialChange')).toBeGreaterThan(-1)
+    expect(credentials.indexOf('decideDevCredentialChange')).toBeLessThan(credentials.indexOf('updateUserById'))
   })
 })
 

@@ -448,6 +448,9 @@ function ReconciliacaoSection({
   const missingInBaplie = items.filter(
     (item): item is Extract<BaplieReconciliationItem, { kind: 'missing_in_baplie' }> => item.kind === 'missing_in_baplie',
   )
+  const emptyInBaplie = items.filter(
+    (item): item is Extract<BaplieReconciliationItem, { kind: 'empty_in_baplie' }> => item.kind === 'empty_in_baplie',
+  )
   const ownershipMismatch = items.filter(
     (item): item is Extract<BaplieReconciliationItem, { kind: 'ownership_mismatch' }> => item.kind === 'ownership_mismatch',
   )
@@ -455,6 +458,7 @@ function ReconciliacaoSection({
     (item): item is Extract<BaplieReconciliationItem, { kind: 'profile_mismatch' }> => item.kind === 'profile_mismatch',
   )
   const missingInBaplieRows = usePagedRows(missingInBaplie)
+  const emptyInBaplieRows = usePagedRows(emptyInBaplie)
   const ownershipRows = usePagedRows(ownershipMismatch)
   const profileRows = usePagedRows(profileMismatch)
   const headline = reconciliationHeadline(overview, items.length)
@@ -476,6 +480,7 @@ function ReconciliacaoSection({
             <Fact label="Cheios com B/L">{overview.covered.toLocaleString('pt-BR')} de {overview.inScope.toLocaleString('pt-BR')}</Fact>
             <CoverageFact label="No Baplie, sem B/L" count={missing.length} anchor="baplie-sem-bl" />
             <CoverageFact label="Em B/L, fora do Baplie" count={missingInBaplie.length} anchor="baplie-fora" />
+            <CoverageFact label="Cheio no B/L, vazio no Baplie" count={emptyInBaplie.length} anchor="baplie-vazio" />
             <CoverageFact label="SOC/COC diverge" count={ownershipMismatch.length} anchor="baplie-soc-coc" />
             <CoverageFact label="IMO/OOG manual diverge" count={profileMismatch.length} anchor="baplie-perfil" />
           </FactList>
@@ -524,6 +529,35 @@ function ReconciliacaoSection({
               </thead>
               <tbody>
                 {missingInBaplieRows.rows.map((item) => (
+                  <tr key={item.container_number}>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </DivergenceGroup>
+        ) : null}
+
+        {emptyInBaplie.length > 0 ? (
+          /* CEB-D13 (lote 10): o container está a bordo, mas o Baplie o traz vazio. */
+          <DivergenceGroup
+            id="baplie-vazio"
+            footer={emptyInBaplieRows.footer}
+            title={`Cheio no B/L, vazio no Baplie (${emptyInBaplie.length})`}
+            meaning="O container está a bordo, mas o Baplie o traz vazio e o B/L o declara com carga. A cobrança continua pelo B/L."
+            action="Confirmar com o armador se o container embarcou cheio; se sim, pedir o Baplie corrigido; se embarcou vazio, corrigir o B/L."
+          >
+            <table className="app-table app-table--nested app-cargo-table">
+              <caption className="sr-only">Containers cheios no B/L e vazios no Baplie</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Container</th>
+                  <th scope="col">B/L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emptyInBaplieRows.rows.map((item) => (
                   <tr key={item.container_number}>
                     <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
@@ -617,7 +651,10 @@ function ValeOBlButton({ blContainerId, field, label }: { blContainerId: number;
     const reason = await confirmWithReason({
       title: 'Vale o B/L',
       message: `Encerrar a divergência de ${field === 'ownership' ? 'SOC/COC' : 'IMO/OOG'} de ${label} mantendo o valor do B/L?`,
-      consequence: 'O valor do B/L passa a correção manual: o próximo Baplie não o troca. A resolução fica no Histórico.',
+      // CEB-D02 (lote 10): no SOC/COC só este par de valores fica resolvido.
+      consequence: field === 'ownership'
+        ? 'Resolve só esta divergência. Um Baplie novo ou uma nova planilha de B/L pode mudar o valor. A resolução fica no Histórico.'
+        : 'O valor do B/L passa a correção manual: o próximo Baplie não o troca. A resolução fica no Histórico.',
       reversibility: 'Corrigir o container na aba Carga do B/L, com justificativa.',
       confirmLabel: 'Vale o B/L',
     })

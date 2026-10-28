@@ -156,6 +156,7 @@ export function CeUnlockRequestDetail({
   const missing = open ? ceUnlockMissing(request) : null;
   // O prazo é medido pela exportação, não pela conclusão da documentação: a concluída continua com o
   // prazo correndo até o último B/L ser exportado (docs/modules/desbloqueio-ce.md, "Prazo").
+  const anyExported = request.items.some((i) => Boolean(i.exported_at))
   const exportedAt =
     request.items.length > 0 && request.items.every((i) => i.exported_at)
       ? request.items.reduce((last, i) => (i.exported_at! > last ? i.exported_at! : last), "")
@@ -171,7 +172,7 @@ export function CeUnlockRequestDetail({
               onClick={() =>
                 void act("apply_vip", {}, {
                   message: "Aplicar a cobertura anual VIP aos B/Ls pendentes deste pedido?",
-                  consequence: "Cada B/L pendente passa a usar o termo e a procuração anuais que o cobrem (CE vinculado na vigência deles).",
+                  consequence: "Cada B/L pendente passa a usar o termo e a procuração anuais que o cobrem (desbloqueio solicitado na vigência deles).",
                   reversibility: "O histórico é preservado.",
                   confirmLabel: "Aplicar renovação",
                 })
@@ -180,10 +181,13 @@ export function CeUnlockRequestDetail({
               Aplicar renovação VIP
             </Button>
           )}
-          {/* Documentação validada não se cancela mais. */}
+          {/* Documentação validada não se cancela mais. Pedido com B/L exportado para a ZPT
+              também não (08-desbloqueio-ce:13): o botão fica desligado e diz por quê. */}
+          {anyExported ? <span className="app-facts__detail">A solicitação não pode ser cancelada depois de exportada para a ZPT.</span> : null}
           <Button
             variant="danger"
-            disabled={busy}
+            disabled={busy || anyExported}
+            title={anyExported ? "Não pode ser cancelada depois de exportada para a ZPT." : undefined}
             onClick={() =>
               void act(
                 "cancel",

@@ -62,6 +62,17 @@ export async function createCustomer(input: CreateCustomerInput) {
   return data as unknown as Customer
 }
 
+/**
+ * Cadastra o Cliente do manifesto do B/L com o e-mail do documento como
+ * contato principal; tudo vem do B/L, nada é digitado, por isso vale para
+ * todo setor (migration 486). Cliente já cadastrado com o CNPJ volta sem mudança.
+ */
+export async function createCustomerFromBlManifest(blId: string) {
+  const { data, error } = await supabase.rpc('create_customer_from_bl_manifest' as never, { p_bl_id: blId } as never)
+  if (error || !data) throw error
+  return data as unknown as Customer
+}
+
 export async function updateCustomerWithAudit({
   customerId,
   original,

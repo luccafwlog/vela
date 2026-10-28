@@ -7,13 +7,16 @@ const read = (file: string) => readFileSync(resolve(process.cwd(), 'supabase/fun
 describe('Edge Function send-customer-communication', () => {
   const source = read('send-customer-communication/index.ts')
 
-  it('mantém autenticação interna, guarda de natureza e simulação sem Resend', () => {
+  it('mantém autenticação interna, guarda de natureza e redirecionamento ao suporte com a chave desligada', () => {
     expect(source).toContain("caller.rpc('portal_current_role')")
+    // Todo setor interno dispara Comunicado (ACE-D01, opção A).
+    expect(source).toContain("const INTERNAL_ROLES = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']")
     expect(source).toContain("if (!nature || !natureForKind(kind, nature))")
     expect(source).toContain("const enabled = Boolean")
     // Registro da tentativa: _shared/customerCommunicationAttempts.ts (testado com banco falso).
     expect(source).toContain('communicationAttemptRecorder(attemptStore, { communicationId: Number(communicationId), enabled })')
-    expect(source).toContain("resendApiKey: enabled ? resendApiKey : null")
+    // Desligada, o e-mail vai ao suporte (ADR 0104): a credencial segue nos dois casos.
+    expect(source).not.toContain("resendApiKey: enabled ? resendApiKey : null")
     expect(source).toContain("refresh_customer_communication_status")
     expect(source).toContain("replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO')")
     expect(source).not.toContain("replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO') ?? Deno.env.get('PORTAL_REPLY_TO')")

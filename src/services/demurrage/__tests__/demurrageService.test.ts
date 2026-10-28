@@ -96,6 +96,27 @@ it('US-040: abre o detalhe da invoice com header e itens', async () => {
   expect(detail.items).toHaveLength(1)
 })
 
+it('DEM-D08: o detalhe busca a Invoice cancelada pelo replaces_invoice_id, sem embed da tabela nela mesma', async () => {
+  const header = makeBuilder({ data: { id: 7, doc_number: 'DEM-2026-0002', replaces_invoice_id: 6 }, error: null })
+  const previous = makeBuilder({ data: null, error: null })
+  previous.maybeSingle = vi.fn(() => Promise.resolve({ data: { id: 6, doc_number: 'DEM-2026-0001' }, error: null }))
+  const invoiceBuilders = [header, previous]
+  fromMock.mockImplementation((table: string) => (table === 'demurrage_invoices' ? invoiceBuilders.shift()! : builderFor(table)))
+
+  const detail = await getInvoiceDetail(7)
+
+  expect(header.select.mock.calls[0][0]).not.toContain('replaces')
+  expect(previous.eq).toHaveBeenCalledWith('id', 6)
+  expect(detail.invoice.replaces).toEqual({ id: 6, doc_number: 'DEM-2026-0001' })
+})
+
+it('DEM-D08: Invoice que não substitui outra fica sem a citação', async () => {
+  results.demurrage_invoices = { data: { id: 5, doc_number: 'DEM-1', replaces_invoice_id: null }, error: null }
+  const detail = await getInvoiceDetail(5)
+  expect(detail.invoice.replaces).toBeNull()
+  expect(fromMock.mock.calls.filter(([table]) => table === 'demurrage_invoices')).toHaveLength(1)
+})
+
 it('US-030: lista os containers em tracking e filtra por cliente', async () => {
   results.bl_containers = { data: [{ id: 1, bl: { customer: { id: 9 }, voyage_id: 2 } }, { id: 2, bl: { customer: { id: 7 }, voyage_id: 3 } }], error: null }
   const all = await listDemurrageContainers()

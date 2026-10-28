@@ -55,9 +55,11 @@ function charges(where: string): { id: number; txid: string; amount: string; sta
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
-    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E15%');
-    DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E15%';
-    DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E15%';
+    -- E15x, E357 e E468: os Pix criados por esta suíte (rodar de novo não acha resto).
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' SIMILAR TO 'E(15|357|468)%');
+    DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' SIMILAR TO 'E(15|357|468)%';
+    DELETE FROM public.itau_pix_receipt_failures WHERE failure_key SIMILAR TO 'E(15|357|468)%';
+    DELETE FROM public.itau_pix_receipts WHERE end_to_end_id SIMILAR TO 'E(15|357|468)%';
     DELETE FROM public.financial_payment_attempts WHERE created_by IN ('${userId}', '${settlementActorId}');
     DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_type = 'exchange_rate_reference' AND entity_id LIKE 'itau-pix-%');
@@ -238,6 +240,22 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(charges(`id = ${charge.id}`)[0].status).toBe('concluded')
   })
 
+  // 471 (10-recebimento:11): o extrato quita a fatura e depois grava o identificador
+  // da cobrança; a gravação dele também tira o Pix da análise e fecha o alerta.
+  it('Pix em análise sai da análise quando o extrato concilia a fatura pelo identificador da cobrança', () => {
+    setProvider('itau')
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = NULL WHERE id = 1`)
+    const id = manualInvoice('ITAU468-EXT', 0.04)
+    const charge = activate(`invoice_id = ${id}`, '000201ITAU468EXT')
+    expect(settle('E468EXTRATO', charge.txid, '0.04')).toBe('review')
+    const matches = [{ source: 'local', invoice_id: id, txid: charge.txid, amount: 0.04, paid_at: '2026-10-27T12:00:00Z' }]
+    expect(asAuthenticated(`SELECT public.confirm_unified_pix_matches('${JSON.stringify(matches)}'::jsonb) IS NOT NULL`)).toBe('t')
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('paid')
+    expect(psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = 'E468EXTRATO'`)).toBe('handled')
+    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
+      AND metadata->>'end_to_end_id' = 'E468EXTRATO'`)).toBe('0')
+  })
+
   it('avulsa é baixada pelo endToEndId e a repetição não cria segunda baixa', () => {
     setProvider('itau')
     psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${settlementActorId}' WHERE id = 1`)
@@ -269,7 +287,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
 
   it('F-09: falha passageira repetida vai para análise na terceira; formato inválido, na primeira', () => {
     const failed = (e2e: string, permanent: boolean) =>
-      psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_receipt_failed('${e2e}', 'VELA358', '{}'::jsonb, 'lock simulado', ${permanent})`)
+      psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_receipt_failed('${e2e}', 'VELA3580000000000000000000', '{}'::jsonb, 'lock simulado', ${permanent})`)
     expect(failed('E358RETRY', false)).toBe('retry')
     expect(failed('E358RETRY', false)).toBe('retry')
     expect(failed('E358RETRY', false)).toBe('review')
@@ -280,6 +298,32 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     psql(`SET session_replication_role = replica;
       DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' IN ('E358RETRY', 'E358BAD');
       DELETE FROM public.itau_pix_receipt_failures WHERE failure_key IN ('E358RETRY', 'E358BAD');
+      SET session_replication_role = origin;`)
+  })
+
+  // 471 (10-recebimento:3): na terceira falha o Pix com valor e horário legíveis é
+  // gravado: o do Vela em Pix em análise, com o alerta do Pix em análise; o de fora
+  // do Vela como recebido, sem alerta (ADR 0100).
+  it('Pix que falha três vezes fica em Pix recebidos: o do Vela em análise; o de fora, recebido e sem alerta', () => {
+    const raw = (valor: string) => `'{"valor":"${valor}","horario":"2026-10-06T15:01:00.00Z"}'::jsonb`
+    const failed = (e2e: string, txid: string, valor: string) =>
+      psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_receipt_failed('${e2e}', '${txid}', ${raw(valor)}, 'lock simulado', false)`)
+    for (let i = 0; i < 3; i += 1) failed('E468VELA', 'VELA4680000000000000000000', '12.34')
+    for (let i = 0; i < 3; i += 1) failed('E468FORA', 'pedido-468', '5.00')
+    expect(psql(`SELECT string_agg(end_to_end_id || ':' || status || ':' || amount_brl || ':' || (reason IS NOT NULL), ',' ORDER BY end_to_end_id)
+      FROM public.itau_pix_receipts WHERE end_to_end_id IN ('E468VELA', 'E468FORA')`)).toBe('E468FORA:received:5.00:false,E468VELA:review:12.34:true')
+    expect(psql(`SELECT string_agg(ai.source || ':' || (ai.metadata->>'end_to_end_id'), ',') FROM public.alert_items ai WHERE ai.item_type = 'pix_unreconciled'
+      AND ai.status = 'active' AND ai.metadata->>'end_to_end_id' IN ('E468VELA', 'E468FORA')`)).toBe('itau_pix:E468VELA')
+    expect(psql(`SELECT string_agg(failure_key || ':' || status, ',' ORDER BY failure_key) FROM public.itau_pix_receipt_failures
+      WHERE failure_key IN ('E468VELA', 'E468FORA')`)).toBe('E468FORA:handled,E468VELA:handled')
+    // Tratar o Pix em análise fecha o alerta dele, como o de qualquer Pix em análise.
+    psql(`SET request.jwt.claim.role = 'service_role'; SELECT public._itau_pix_close_receipt('E468VELA', 'Baixa manual conferida no extrato.', NULL)`)
+    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
+      AND metadata->>'end_to_end_id' = 'E468VELA'`)).toBe('0')
+    psql(`SET session_replication_role = replica;
+      DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' IN ('E468VELA', 'E468FORA');
+      DELETE FROM public.itau_pix_receipts WHERE end_to_end_id IN ('E468VELA', 'E468FORA');
+      DELETE FROM public.itau_pix_receipt_failures WHERE failure_key IN ('E468VELA', 'E468FORA');
       SET session_replication_role = origin;`)
   })
 

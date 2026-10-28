@@ -45,7 +45,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, classifyProfileHydrationError, useAuth } from '../useAuth'
 
 function Probe() {
-  const { user, profile, loading, profileStatus, profileError, refreshProfile } = useAuth()
+  const { user, profile, loading, profileStatus, profileError, refreshProfile, accessDenied } = useAuth()
   return (
     <div>
       <span data-testid="user">{user?.id ?? 'sem-usuario'}</span>
@@ -53,6 +53,7 @@ function Probe() {
       <span data-testid="loading">{loading ? 'carregando' : 'pronto'}</span>
       <span data-testid="status">{profileStatus}</span>
       <span data-testid="error">{profileError ?? 'sem-erro'}</span>
+      <span data-testid="denied">{accessDenied ? 'negado' : 'liberado'}</span>
       <button type="button" onClick={() => void refreshProfile()}>
         recarregar
       </button>
@@ -130,6 +131,12 @@ describe('useAuth hidratação do perfil', () => {
     await waitFor(() => expect(signOutMock).toHaveBeenCalled())
     expect(screen.getByTestId('profile').textContent).toBe('sem-perfil')
     expect(screen.queryByText('user-1:operacoes')).toBeNull()
+    // ACE-D03b de 2026-10-27: a saída por perfil inativo fica lembrada para a
+    // tela de entrada explicar, mesmo depois que a sessão some.
+    expect(screen.getByTestId('denied').textContent).toBe('negado')
+    authListener?.('SIGNED_OUT', null)
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('signed-out'))
+    expect(screen.getByTestId('denied').textContent).toBe('negado')
   })
 
   it('saída da sessão limpa o cache do TanStack Query (auditoria run-2, reforço)', async () => {

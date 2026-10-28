@@ -70,7 +70,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
         items: eligibleRows.map((row) => `B/L ${row.id} · ${row.customer?.name ?? 'sem cliente'} · total atual ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.totals.total_brl)}`),
         ...(invoiced.size ? { blocked: [...invoiced].map((id) => ({ label: `B/L ${id}`, reasons: ['já faturado; não será recalculado'] })) } : {}),
       },
-      consequence: 'Atualiza as linhas e o total calculado da Taxa Local e registra o resultado da operação. O valor recalculado é definido pela tabela e pelas regras atuais do B/L; este diálogo mostra o valor vigente, não antecipa o novo cálculo.',
+      consequence: 'Atualiza as linhas e o total calculado da Taxa Local e registra o resultado da operação. O recálculo usa o câmbio e o preço fixados quando o B/L entrou; este diálogo mostra o valor vigente, não antecipa o novo cálculo.',
       reversibility: 'O cálculo pode ser executado novamente enquanto o B/L não estiver faturado. B/Ls já faturados permanecem bloqueados.',
     })
     if (!confirmed) return
@@ -115,7 +115,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
         items: [`${row.voyage?.vessel?.name ?? 'Navio não informado'} / ${row.voyage?.voyage_number ?? 'viagem não informada'}`, `${row.totals.line_count} linha(s) de cobrança`, ...(row.totals.total_usd ? [`Total em USD: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(row.totals.total_usd)}`] : [])],
       },
       consequence: 'Cria e emite a invoice, vincula o B/L e atualiza o recebível do ledger. O B/L passa ao estado faturado e deixa de aceitar recálculo.',
-      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o cancelamento é restrito ao perfil Administrativo; pagamentos seguem o fluxo próprio de estorno.',
+      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o cancelamento é restrito ao perfil Administrativo; com pagamento, use Cancelar baixa ou Restituição no recebimento.',
     })
     if (!confirmed) return
     // "Pronto para emitir" inclui B/L calculado ou revisado: a RPC marca pronto e emite numa transação, como a ficha do B/L.

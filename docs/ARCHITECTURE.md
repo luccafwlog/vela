@@ -173,15 +173,18 @@ propósito.
 Alertas internos têm um agregado por entidade em `alerts` e uma projeção de
 pendências em `alert_items`, um item por tipo e setor. O catálogo
 `alert_type_catalog` declara gravidade, setor, audiência, destino e se o tipo
-está ativo; `alert_item_events` e `alert_item_dismissals` guardam o histórico.
+está ativo; `alert_item_events` guarda o histórico (`alert_item_dismissals`
+guarda o das dispensas, que saíram na migration `476`).
 `internal_notifications` é o fan-out por usuário e evento
-(`fanout_alert_item_for_department`), com RLS que limita a leitura ao
+(`fanout_alert_item_for_department`); o sino e o número mostram só a
+notificação do alerta ainda aberto (`_internal_notification_is_current`), com RLS que limita a leitura ao
 destinatário e só permite marcar `read_at`; a entrega que não encontra
 destinatário fica em `alert_notification_failures`. A fila `/alertas` lê
 `list_alert_queue_page`, de 100 em 100, inclusive as linhas legadas de `alerts`
 sem item; a fila e o sino resolvem o rótulo da
 entidade numa consulta em lote separada (`fetchAlertEntityLabels`) e caem no id
-quando a tradução não volta. Ciclo de vida, dispensa, audiência e fallback
+quando a tradução não volta. Ciclo de vida, justificativa, audiência (só o setor responsável, mais o
+Financeiro nos quatro tipos do dinheiro) e fallback
 crítico ao Administrativo são regra de
 [Operação e suporte § Alertas e Notificações Internas](modules/operacao-suporte.md#alertas-e-notificações-internas).
 

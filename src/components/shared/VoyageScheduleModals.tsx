@@ -29,6 +29,8 @@ import { formatDateTimeBR, splitIsoDateTime, combineIsoDateTime, combineBrasilia
 import { normalizePortCode } from '../../services/portCode'
 import { formatPortDisplayName } from '../../lib/voyageFormat'
 import { normalizeDischargePorts } from '../../services/voyageExportSchedules'
+import { userFacingErrorMessage } from '../../lib/errors'
+import { isRevisionConflictError } from '../../services/escalaTerminalAllocation'
 import type {
   ClosedAdrBlocker,
   OperationFront,
@@ -324,14 +326,9 @@ function orderTerminalIds(
   dates: Record<string, TerminalDatesDraft>,
   terminalById: Map<string, TerminalOption>,
 ) {
+  // TBC não é terminal: a Atracação TBC não tem datas nem cartão (ADR 0109,
+  // migration 490).
   const ids = new Set(scale.terminals.flatMap((terminal) => terminal.terminalId ? [terminal.terminalId] : []))
-  const tbcDates = dates.__tbc__
-  const hasTbcData = Boolean(
-    tbcDates?.etbDate || tbcDates?.atbDate || tbcDates?.etdDate || tbcDates?.atdDate || tbcDates?.restow,
-  )
-  if (scale.terminals.some((terminal) => terminal.terminalId === null && (
-    terminal.etb || terminal.atb || terminal.etd || terminal.atd || terminal.restow !== null
-  )) || hasTbcData) ids.add('__tbc__')
   for (const terminalId of Object.values(fronts)) if (terminalId) ids.add(terminalId)
   return sortAtracacoes([...ids].map((terminalId) => ({
     terminalId,
@@ -359,12 +356,6 @@ function sameExportExpectation(left: Record<string, unknown>, right: Record<stri
   return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right))
 }
 
-function isRevisionConflictError(error: unknown) {
-  const value = error as { code?: string; message?: string } | null
-  return value?.code === 'ESCALA_REVISION_CONFLICT'
-    || value?.code === 'P0001'
-    || /REVISAO_OBSOLETA|revis[aã]o.*(obsoleta|atualizada)|vers[aã]o.*(obsoleta|atualizada)/i.test(value?.message ?? '')
-}
 
 function isClosedAdrError(error: unknown): error is { blockers: ClosedAdrBlocker[] } {
   const value = error as { code?: string; blockers?: ClosedAdrBlocker[]; message?: string } | null
@@ -448,20 +439,10 @@ function buildTerminalPayload({
     }
     terminals.push({ terminalId, etb, atb, etd, atd, restow })
   }
+  // A Atracação TBC só marca as frentes sem terminal; o banco recusa datas e
+  // Restow nela (migrations 482 e 490).
   if (fronts.some((front) => !front.terminalId)) {
-    const draft = terminalDates.__tbc__ ?? emptyTerminalDatesDraft()
-    const etb = combineBrasiliaDateTime(draft.etbDate, draft.etbTime)
-    const atb = combineBrasiliaDateTime(draft.atbDate, draft.atbTime)
-    const etd = combineBrasiliaDateTime(draft.etdDate, draft.etdTime)
-    const atd = combineBrasiliaDateTime(draft.atdDate, draft.atdTime)
-    terminals.push({
-      terminalId: null,
-      etb,
-      atb,
-      etd,
-      atd,
-      restow: draft.restow.trim() ? Number(draft.restow) : null,
-    })
+    terminals.push({ terminalId: null, etb: null, atb: null, etd: null, atd: null, restow: null })
   }
 
   // Justificativa só para alterar dado já informado; preencher vazio não exige.
@@ -495,6 +476,8 @@ function buildTerminalPayload({
     },
   }
 }
+
+const TBC_AFTER_ATA_MESSAGE = 'Com o ATA registrado, toda frente de operação precisa de terminal: TBC não é terminal. Escolha o terminal de cada frente.'
 
 function DateTimeField({
   label,
@@ -652,9 +635,9 @@ function TerminalFrontEditor({
       ) : (
         <div className="app-escala-berths">
           {terminalIds.map((terminalId) => {
-            const option = terminalId === '__tbc__' ? undefined : terminalById.get(terminalId)
+            const option = terminalById.get(terminalId)
             const draft = terminalDates[terminalId] ?? emptyTerminalDatesDraft()
-            const code = terminalId === '__tbc__' ? 'TBC' : option?.code ?? 'TBC'
+            const code = option?.code ?? 'TBC'
             const servedFronts = fronts.filter((front) => {
               const selected = terminalFronts[frontKey(front)] || '__tbc__'
               return selected === terminalId
@@ -1020,6 +1003,11 @@ export function EscalaModal({
       setTerminalError(terminalPayload.error)
       return
     }
+    // 02-viagens-adr:13 (decisão do dono): com o ATA, TBC não é terminal; o banco também recusa.
+    if (ataDate && terminalPayload.value?.fronts.some((front) => !front.terminalId)) {
+      setTerminalError(TBC_AFTER_ATA_MESSAGE)
+      return
+    }
     if (documentalAltered && !justification.trim()) {
       setTerminalError('Informe a justificativa para alterar BLs e CEs.')
       return
@@ -1064,7 +1052,7 @@ export function EscalaModal({
       } else if (isRevisionConflictError(error)) {
         setTerminalError('A escala foi atualizada por outra pessoa. Seus dados foram preservados; recarregue a escala antes de salvar novamente.')
       } else {
-        setTerminalError(error instanceof Error ? error.message : 'Falha ao salvar a escala.')
+        setTerminalError(userFacingErrorMessage(error, 'Falha ao salvar a escala.'))
       }
     } finally {
       setSaving(false)

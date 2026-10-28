@@ -197,8 +197,10 @@ describeLocal('migration 106 — remediação da auditoria run-2', () => {
   })
 
   it('2.8 e-mail novo do consignatário não derruba a captura (D2 = c: ativo e principal)', () => {
+    // Desde a 471 (ACE-D04), a chamada direta é só de Administrativo,
+    // Documentação e Equipamentos; a captura pela importação usa o núcleo.
     expect(scenario(`
-      ${as(FIN)}
+      ${as(ADM)}
       ${try_(`SELECT public.ensure_customer_contact_email(${CUSTOMER}, 'novo-105@example.test', 'Consignatario', 'financeiro', NULL)`)}
       RESET ROLE;
       SELECT concat_ws('|', c.is_primary::text, (c.deactivated_at IS NULL)::text,

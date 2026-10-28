@@ -133,10 +133,11 @@ describeLocal('238 — alertas fecham pela origem ou com justificativa (B27, A23
   })
 
   it('A23: o reenvio do Comunicado de CE e Taxas fecha "Reenviar Comunicado"; o envio anterior à troca não', () => {
-    // Comunicado criado antes da troca de CE: não vale como reenvio.
+    // Comunicado criado antes da troca de CE: não vale como reenvio. Os dois nascem
+    // "Em envio" (pendente): desde a 469, "simulado" (ao suporte) já é envio feito.
     psql(`SET session_replication_role = replica;
       INSERT INTO public.customer_communications (id, customer_id, kind, nature, status, created_at)
-      VALUES (99238101, ${CUSTOMER_ID}, 'ce_mercante_taxas', 'documentacao', 'simulado', now() - interval '1 hour');
+      VALUES (99238101, ${CUSTOMER_ID}, 'ce_mercante_taxas', 'documentacao', 'pendente', now() - interval '1 hour');
       INSERT INTO public.customer_communication_bls (communication_id, bl_id) VALUES (99238101, '${BL_RESEND}');
       SET session_replication_role = origin;`)
     openAlert('comunicado_ce_reenvio_pendente', BL_RESEND)
@@ -146,7 +147,7 @@ describeLocal('238 — alertas fecham pela origem ou com justificativa (B27, A23
     // Reenvio depois da troca: fecha o alerta, com o Comunicado no histórico.
     psql(`SET session_replication_role = replica;
       INSERT INTO public.customer_communications (id, customer_id, kind, nature, status, attempt_discriminator)
-      VALUES (99238102, ${CUSTOMER_ID}, 'ce_mercante_taxas', 'documentacao', 'simulado', 1);
+      VALUES (99238102, ${CUSTOMER_ID}, 'ce_mercante_taxas', 'documentacao', 'pendente', 1);
       INSERT INTO public.customer_communication_bls (communication_id, bl_id) VALUES (99238102, '${BL_RESEND}');
       SET session_replication_role = origin;`)
     psql(`UPDATE public.customer_communications SET status = 'enviado' WHERE id = 99238102;`)

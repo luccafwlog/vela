@@ -681,7 +681,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                 </Block>
               ) : null}
 
-              {['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && Number(detailInvoice.total_paid_brl ?? 0) > 0 && ['paid', 'partially_paid'].includes(detailInvoice.status ?? '') ? (
+              {/* Também sem pagamento (FAT-D15): a correção travada mostra "Tentar aplicar correção"; o bloco some quando não há ajuste. */}
+              {['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && !['cancelled', 'obsolete'].includes(detailInvoice.status ?? '') ? (
                 <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} />
               ) : null}
               {detailIsManual ? <FinancialRefundsPanel source="manual" invoiceId={Number(invoiceId)} variant="authorization" /> : null}

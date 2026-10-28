@@ -47,6 +47,7 @@ describeLocal('S08-B — cálculo server-side e snapshots de Demurrage', () => {
       DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
       DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}) OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
       DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId});
+      DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
       DELETE FROM public.customers WHERE id = ${customerId};
       DELETE FROM public.user_profiles WHERE id = '${actorId}';
       DELETE FROM auth.users WHERE id = '${actorId}';
@@ -61,9 +62,14 @@ describeLocal('S08-B — cálculo server-side e snapshots de Demurrage', () => {
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel S08 Authority', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status)
       VALUES (${voyageId}, ${vesselId}, 'S08-AUTH', 'active');
+      -- 469: a Demurrage só sai com CE Mercante e o gate do Portal aberto.
+      SET vela.ce_mercante_port = 'on';
       INSERT INTO public.bls (
-        id, voyage_id, customer_id, cargo_mode, demurrage_roe_manual, demurrage_roe
-      ) VALUES ('${blId}', ${voyageId}, ${customerId}, 'container', true, 5.5);
+        id, voyage_id, customer_id, cargo_mode, demurrage_roe_manual, demurrage_roe, ce_mercante
+      ) VALUES ('${blId}', ${voyageId}, ${customerId}, 'container', true, 5.5, '992230010000001');
+      RESET vela.ce_mercante_port;
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+      VALUES (${customerId}, 'Fixture S08: gate aberto para a Demurrage', '${actorId}', now() + interval '1 day');
       INSERT INTO public.bl_containers (
         id, bl_id, container_number, type, discharge_date, return_date, demurrage_status
       ) VALUES (${containerId}, '${blId}', 'ABCU1234567', '20GP', '2026-01-01', '2026-01-31', 'returned');
@@ -89,11 +95,39 @@ describeLocal('S08-B — cálculo server-side e snapshots de Demurrage', () => {
       DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
       DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}) OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
       DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId});
+      DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
       DELETE FROM public.customers WHERE id = ${customerId};
       DELETE FROM public.user_profiles WHERE id = '${actorId}';
       DELETE FROM auth.users WHERE id = '${actorId}';
       SET session_replication_role = origin;
     `)
+  })
+
+  // 472 (DEM-D13): sem CE Mercante ou com o gate do Portal fechado, nada é
+  // emitido: a emissão pela fila devolve `blocked` com o motivo, a da tela
+  // recusa; gravar o CE põe a emissão de novo na fila.
+  it('sem CE ou com o Portal fechado a Demurrage não é emitida, e o CE gravado a enfileira', () => {
+    const out = localPsql(`
+      BEGIN;
+      SET LOCAL request.jwt.claim.role = 'service_role';
+      DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
+      SELECT 'portal=' || (public.issue_demurrage_invoice_for_bl('${blId}', NULL)->>'reason');
+      UPDATE public.bls SET ce_mercante = NULL WHERE id = '${blId}';
+      SELECT 'ce=' || (public.issue_demurrage_invoice_for_bl('${blId}', NULL)->>'status') || ':' || (public.issue_demurrage_invoice_for_bl('${blId}', NULL)->>'reason');
+      DO $t$ BEGIN
+        PERFORM public.create_demurrage_invoice_authoritative('S08-BLOQ', '${blId}', ${customerId}, ARRAY[${containerId}]::bigint[]);
+        RAISE EXCEPTION 'emitiu';
+      EXCEPTION WHEN SQLSTATE 'P0003' THEN NULL;
+      END $t$;
+      SELECT 'invoices=' || count(*) FROM public.demurrage_invoices WHERE bl_id = '${blId}';
+      UPDATE public.bls SET ce_mercante = '992230010000001' WHERE id = '${blId}';
+      SELECT 'fila=' || count(*) FROM public.import_pending_effects WHERE effect_kind = 'demurrage_billing' AND entity_id = '${blId}';
+      ROLLBACK;
+    `).split('\n')
+    expect(out).toContain('portal=Faturamento bloqueado pelo Portal: Portal do Cliente não está ativo.')
+    expect(out).toContain(`ce=blocked:B/L ${blId} sem CE Mercante. Cadastre o CE antes de faturar.`)
+    expect(out).toContain('invoices=0')
+    expect(out).toContain('fila=1')
   })
 
   it('ignora total, datas e tarifa enviados pelo browser e congela o cálculo do banco', () => {

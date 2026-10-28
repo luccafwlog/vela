@@ -234,7 +234,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
                   <td className="whitespace-nowrap"><CopyValue value={inv.bl_id} label="número do B/L" /></td>
                   <td className="whitespace-nowrap tabular-nums">{inv.billed_at ? formatDate(inv.billed_at) : <NoValue label="Sem data de emissão" />}</td>
                   <td className="app-table__text" title={voyage || undefined}>{voyage || <NoValue label="Sem navio/viagem" />}</td>
-                  <td className="whitespace-nowrap tabular-nums">{formatUsd(inv.total_usd)}</td>
+                  <td className="whitespace-nowrap tabular-nums">{formatUsd(invoiceNetUsd(inv).netUsd)}</td>
                   <td className="whitespace-nowrap tabular-nums"><DemurrageBrl invoice={inv} /></td>
                   <td className="whitespace-nowrap"><DemurrageSituation invoice={inv} /></td>
                 </tr>
@@ -254,7 +254,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
               <span><DemurrageNumber invoice={inv} onOpen={onOpenDetail} complementOf={complementOf?.(inv)} /></span>
               <DemurrageSituation invoice={inv} />
             </div>
-            <div className="app-invoice-card__amount">{formatUsd(inv.total_usd)} · <DemurrageBrl invoice={inv} /></div>
+            <div className="app-invoice-card__amount">{formatUsd(invoiceNetUsd(inv).netUsd)} · <DemurrageBrl invoice={inv} /></div>
             <div className="text-sm text-[var(--app-muted)]">B/L <CopyValue value={inv.bl_id} label="número do B/L" /></div>
           </article>
         ))}

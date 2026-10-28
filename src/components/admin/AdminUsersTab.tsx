@@ -42,6 +42,12 @@ function sameEmail(a: string | null | undefined, b: string | null | undefined) {
 
 const BOUNCED_TITLE = 'E-mail devolvido pelo provedor ou marcado como spam: o sistema não envia mais para ele. Corrija em Editar acesso.'
 const INTEGRATION_TITLE = 'Conta técnica da baixa automática do Pix; não é uma pessoa'
+const DEV_TITLE = 'Marca Dev: liga e desliga o envio real de e-mails. Dada só por migration (ADR 0104).'
+
+/** Marca Dev só vale no Administrativo (`is_dev_user`, migration 469). */
+function isDevAccount(user: AdminUserRow): boolean {
+  return user.is_dev === true && user.role === 'administrativo'
+}
 
 export function AdminUsersTab() {
   const queryClient = useQueryClient()
@@ -173,7 +179,7 @@ export function AdminUsersTab() {
     const emailChanged = Boolean(input.email) && !sameEmail(input.email, user.email)
     const releasesEmail = Boolean(input.email) && !emailChanged
     const changes = [
-      ...(input.role ? [{ field: 'Setor', before: departmentLabel(user.role), after: PROFILE_LABELS[input.role] }] : []),
+      ...(input.role ? [{ field: 'Setor', before: user.role === 'operator' ? 'Operador (setor antigo)' : departmentLabel(user.role), after: PROFILE_LABELS[input.role] }] : []),
       ...(releasesEmail ? [{ field: 'E-mail', before: 'Devolvido', after: 'Liberado para receber de novo' }] : []),
       ...(emailChanged ? [{ field: 'E-mail', before: user.email ?? '', after: input.email! }] : []),
       ...(input.password ? [{ field: 'Senha', before: '••••••••', after: 'Nova senha definida' }] : []),
@@ -280,7 +286,9 @@ export function AdminUsersTab() {
                             </StatusText>
                           ) : user.email}
                         </td>
-                        <td>{departmentLabel(user.role)}</td>
+                        <td title={isDevAccount(user) ? DEV_TITLE : undefined}>
+                          {isDevAccount(user) ? `${departmentLabel(user.role)} · Dev` : user.role === 'operator' ? `${departmentLabel(user.role)} · setor antigo Operador` : departmentLabel(user.role)}
+                        </td>
                         <td>{user.active ? 'Ativo' : <StatusText tone="muted">Inativo</StatusText>}</td>
                         <td className="tabular-nums whitespace-nowrap">
                           {user.last_sign_in_at ? formatBrasiliaDateTime(user.last_sign_in_at) : <StatusText tone="muted">Nunca acessou</StatusText>}
@@ -336,6 +344,7 @@ export function AdminUsersTab() {
           // Conta de integração: a supressão é de propósito, sem convite para liberar o e-mail.
           emailBounced={Boolean(editando.email_bounced) && editando.account_kind !== 'integracao'}
           isSelf={editando.id === currentUserId}
+          devAccount={editando.is_dev === true}
           onClose={() => setEditando(null)}
           onSubmit={(input) => void handleSaveAccess(editando, input)}
           submitting={accessMutation.isPending}

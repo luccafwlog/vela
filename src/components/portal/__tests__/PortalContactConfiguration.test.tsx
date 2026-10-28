@@ -272,7 +272,9 @@ describe('PortalContactConfiguration', () => {
     })
   })
 
-  it('save falha quando uma caixa ficaria sem cobertura (sem RPC)', async () => {
+  // D14 de 2026-10-27: o único contato com e-mail não apto ainda deixa salvar
+  // (é assim que o Cliente corrige o e-mail); a tela avisa da caixa sem destinatário.
+  it('caixa só com e-mail não apto salva com aviso', async () => {
     const user = userEvent.setup()
     getContactConfig.mockResolvedValueOnce({
       boxes: [
@@ -305,7 +307,21 @@ describe('PortalContactConfiguration', () => {
     await user.type(screen.getByLabelText(/telefone/i), '1')
     await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
 
-    expect(await screen.findByText(/não pode ficar sem nenhum contato/i)).toBeTruthy()
+    const dialog = await screen.findByRole('dialog', { name: 'Confirmar contatos e recebimento' })
+    await user.click(within(dialog).getByRole('button', { name: 'Salvar contatos' }))
+    await waitFor(() => expect(saveContactConfig).toHaveBeenCalledTimes(1))
+  })
+
+  it('caixa sem nenhum contato com e-mail não salva', async () => {
+    const user = userEvent.setup()
+    getContactConfig.mockResolvedValueOnce({
+      boxes: [{ code: 'documentacao_operacao', label: 'Documentação e Operação', description: 'CE', sort_order: 1, active: true }],
+      contacts: [{ id: 1, name: 'Principal', email: 'principal@cliente.com', phone: null, is_primary: true, active: true, origin: 'portal', box_codes: ['documentacao_operacao', 'financeiro', 'demurrage'], suppression_reason: null, sendable: true }],
+    })
+    renderComponent()
+    await user.clear(await screen.findByDisplayValue('principal@cliente.com'))
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
+    expect(await screen.findByText(/precisa|não pode ficar sem nenhum contato/i)).toBeTruthy()
     expect(saveContactConfig).not.toHaveBeenCalled()
   })
 

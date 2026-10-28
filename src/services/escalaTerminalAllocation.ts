@@ -518,3 +518,14 @@ export async function saveEscalaTerminalState(payload: SaveEscalaTerminalStatePa
 export function deriveAgencyReportSections(fronts: OperationFront[], terminalId: string | null) {
   return reportSections(fronts, terminalId)
 }
+
+/**
+ * Conflito de edição: outra pessoa salvou a escala antes. Só a revisão obsoleta
+ * conta; outras recusas com o mesmo código (P0001), como "Atracação travada: …",
+ * mostram o próprio motivo (02-viagens-adr:6).
+ */
+export function isRevisionConflictError(error: unknown) {
+  const value = error as { code?: string; message?: string } | null
+  return value?.code === 'ESCALA_REVISION_CONFLICT'
+    || /REVISAO_OBSOLETA|revis[aã]o.*(obsoleta|atualizada)|vers[aã]o.*(obsoleta|atualizada)/i.test(value?.message ?? '')
+}

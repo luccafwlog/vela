@@ -373,6 +373,8 @@ function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   return difference === 0
 }
 
+const INTERNAL_ROLES = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']
+
 async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get('Origin')
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, origin)
@@ -391,7 +393,9 @@ async function handler(req: Request): Promise<Response> {
 
   const caller = createClient(url, anonKey, { global: { headers: { Authorization: jwt } } })
   const { data: role, error: roleError } = isAutomation ? { data: 'automatico', error: null } : await caller.rpc('portal_current_role')
-  if (!isAutomation && (roleError || !['administrativo', 'documentacao', 'equipamentos'].includes(String(role)))) {
+  // Todo setor interno ativo dispara Comunicado (decisão do dono de 2026-10-27,
+  // ficha ACE-D01, opção A); `portal_current_role` é nulo fora dele.
+  if (!isAutomation && (roleError || !INTERNAL_ROLES.includes(String(role)))) {
     return json(403, { error: 'Sem permissão para Comunicados.' }, origin)
   }
   const { data: callerUser } = isAutomation ? { data: { user: null } } : await caller.auth.getUser()
@@ -855,7 +859,8 @@ async function handler(req: Request): Promise<Response> {
       text: effectiveText,
       attachments: emailAttachments,
       idempotencyKey: attemptKey,
-      resendApiKey: enabled ? resendApiKey : null,
+      // Desligada, o e-mail vai ao suporte (ADR 0104): a credencial segue nos dois casos.
+      resendApiKey,
       simulate: !enabled,
       from: Deno.env.get('PORTAL_FROM_EMAIL'),
       replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO'),
@@ -915,7 +920,7 @@ async function handler(req: Request): Promise<Response> {
     // esgotado…"): a tela o traduz no resumo do lote e a régua automática o
     // grava como motivo da claim e do alerta comunicado_recusado.
     ...(!sent.ok && attempt?.last_error ? { reason: attempt.last_error } : {}),
-    message: !sent.ok ? 'Falha no envio do comunicado.' : enabled ? 'Comunicado enviado.' : 'Comunicado registrado em simulação; nenhum e-mail foi enviado.',
+    message: !sent.ok ? 'Falha no envio do comunicado.' : enabled ? 'Comunicado enviado.' : 'Comunicado redirecionado ao suporte (chave de envio desligada).',
   }, origin)
 }
 
