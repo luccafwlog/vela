@@ -6,9 +6,16 @@ trabalho, não o manual.
 
 ## Estado
 
-**Etapa 1 concluída em 2026-10-28; Etapa 2 em andamento: catálogos de
-situações dos capítulos 4, 5 e 6 (o piloto) em rascunho e páginas-modelo
-esperando a aprovação do dono.** Divergências
+**Etapa 1 concluída em 2026-10-28; Etapa 2 com o capítulo-piloto (capítulos 4
+a 6) pronto e esperando a aprovação do dono.** Páginas-modelo aprovadas em
+2026-10-28. O texto está em [`docs/manual/texto/`](../manual/texto/README.md),
+o cenário e as 32 capturas em [`scripts/manual/`](../../scripts/manual/pdf/README.md),
+e o PDF sai de `npm run manual:build`. Cada capítulo teve conferência
+independente contra o código; as correções estão no texto, e as linhas da
+matriz que descreviam outra coisa foram corrigidas ("Atualizações da matriz"
+no [README do manual](../manual/README.md)). Os defeitos de código que a
+conferência achou esperam decisão do dono (item 5 de "Como retomar").
+Divergências
 decididas e corrigidas em 2026-10-27; lista "fora do manual" e sumário final
 aprovados em 2026-10-28. As 118
 divergências (112 fichas) foram decididas pelo dono e executadas nos lotes 1 a
@@ -30,11 +37,11 @@ responsabilidade, e cobre as situações mais comuns, inclusive as de borda
 No mesmo dia o dono aprovou o sumário final (24 capítulos), o que fecha a
 Etapa 1, e pediu para começar a Etapa 2 pela importação de arquivos. O
 [catálogo de situações do capítulo 6](../manual/situacoes/06-importacao.md)
-está em rascunho: 10 objetivos e 35 situações ligadas às regras da matriz; as
+foi respondido no texto do piloto: 10 objetivos e 35 situações ligadas às regras da matriz; as
 três perguntas ao dono (P1 a P3) foram decididas em 2026-10-28 (a mensagem da
 P1 foi corrigida pela migration `500`, PR luccafwlog/vela#1083). Os catálogos dos
 [capítulos 4](../manual/situacoes/04-viagens-escalas.md) e
-[5](../manual/situacoes/05-programacao.md) também estão em rascunho; a
+[5](../manual/situacoes/05-programacao.md) também foram respondidos no piloto; a
 pergunta P4 (falhas de COD, transbordo e Complementar sem aviso na tela) foi
 decidida em 2026-10-28 e corrigida na PR luccafwlog/vela#1085; S4.21 já
 descreve a tela nova. As nove páginas-modelo
@@ -87,12 +94,24 @@ guardado como registro histórico e serve só de referência de redação
 4. **Material de trabalho da Etapa 1** (instruções de mapeamento, conferência,
    correção de documento e fichas de decisão; montagem do relatório):
    [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).
-5. **Próximo passo (Etapa 2):** o dono aprova as páginas-modelo (PDF gerado
-   por [`scripts/manual/pdf/`](../../scripts/manual/pdf/README.md); a
-   conferência dos catálogos 4 a 6 pode ficar para o capítulo-piloto); em
-   seguida, cenário de demonstração, imagens por script, gerador do manual
-   inteiro (texto corrido paginado, `manual:capture` e `manual:build`) e
-   capítulo-piloto (capítulos 4 a 6 do sumário final).
+5. **Próximo passo (Etapa 2):** o dono lê o PDF do piloto (capítulos 4 a 6) e
+   aprova linguagem, profundidade, imagens e aparência, ou diz o que muda. Junto,
+   decide os defeitos de código que a conferência achou e que o texto hoje
+   contorna ou descreve como estão: escala nova só de importação com código de
+   porto desconhecido ("Escala salva com sucesso." sem escala); ETA com hora
+   nunca aparece como vencido e o filtro **Período** perde o ETA com hora;
+   mensagem dos Vazios EXP que cita a aba "Escalas" inexistente; Nova Viagem e
+   **Adicionar navio** mostram só "Falha ao cadastrar…" em vez do motivo;
+   **Adicionar navio** sobre Viagem existente apaga datas dos portos em **Não
+   escala** sem a confirmação vermelha; gravar data de escala só de exportação
+   a marca como importação; confirmação de **Não escala** igual para todas as
+   equipes; **Não escala** com trava grava parte das datas; data sugerida em
+   UTC; planilha de programação descarta a hora do ETA; prévia do B/L mostra o
+   Embarque em formato ISO; exclusão de B/L com Desbloqueio de CE mostra nome
+   técnico. Aprovado o piloto, a Etapa 3 segue pelo catálogo de situações de
+   cada lote. Para refazer o PDF: `npm run manual:cenario`, emulador e Vela
+   (README do gerador), `npm run manual:capture`, `manual:check` e
+   `manual:build`.
 6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
    etapas: o manual se pauta só pelo código; o material antigo é só referência
    de redação; quem faz o quê sai do código (matriz "O que cada setor pode",
