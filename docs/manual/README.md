@@ -108,7 +108,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     sem efeito na operação.
 - **Alterar, excluir e isentar as Taxas Locais do B/L** (pedido do dono de
   2026-10-28, [ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
-  [plano](../plans/2026-10-28-alterar-taxa-calculada-do-bl.md)):
+  [plano](../archive/plans/2026-10-28-alterar-taxa-calculada-do-bl.md)):
   - Lote 1 (migration `491`): alterar valor por unidade ou total, excluir e
     desfazer taxa, por qualquer setor com justificativa; marcas **Alterada** e
     **Excluída**; bloco **Histórico das taxas**; a alteração sobrevive aos

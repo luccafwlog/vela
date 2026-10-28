@@ -51,12 +51,12 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * Tipos de alerta que chegam ao sino de cada setor (migration 476, ADR 0107):
  * os tipos de que ele é o setor responsável (`alert_type_catalog.audience_departments`,
  * tipos ativos) e, em Operações e Equipamentos, os dois do ADR de Saída da
- * própria seção (ALE-D13). O Financeiro recebe os quatro da exceção do dono.
+ * própria seção (ALE-D13). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 15,
-  financeiro: 4,
+  administrativo: 16,
+  financeiro: 5,
   operacoes: 5,
   documentacao: 35,
   equipamentos: 4,
@@ -150,7 +150,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     id: 'alertas-do-setor', group: 'alertas', action: 'Recebe os alertas do próprio setor',
     can: {
       administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal da Documentação); também os críticos de setor sem ninguém ativo`,
-      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada)`,
+      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada, Taxa alterada à mão mudou)`,
       operacoes: alertTypes(ALERT_TYPE_COUNTS.operacoes),
       documentacao: alertTypes(ALERT_TYPE_COUNTS.documentacao),
       equipamentos: alertTypes(ALERT_TYPE_COUNTS.equipamentos),

@@ -37,6 +37,8 @@ CREATE INDEX bl_charge_adjustment_acks_bl_idx ON public.bl_charge_adjustment_ack
 ALTER TABLE public.bl_charge_adjustment_acks ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.bl_charge_adjustment_acks FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON SEQUENCE public.bl_charge_adjustment_acks_id_seq FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE public.bl_charge_adjustment_acks TO service_role;
+GRANT ALL ON SEQUENCE public.bl_charge_adjustment_acks_id_seq TO service_role;
 
 -- ponytail: 30 minutos cobrem a fila de efeitos de uma importação confirmada;
 -- se a fila atrasar mais que isso, o alerta abre mesmo com o aceite dado.
@@ -66,6 +68,9 @@ GRANT EXECUTE ON FUNCTION public.ack_bl_charge_adjustment_impact(text[]) TO auth
 
 -- Aceite em vigor: o do usuário da sessão; sem sessão (fila de efeitos,
 -- rotina), o de qualquer pessoa.
+-- ponytail: o aceite é por B/L e janela de tempo, não pela mudança aceita;
+-- outra mudança no mesmo B/L dentro da janela também não abre o alerta. Se
+-- isso pesar, guardar no aceite as line_keys e o tipo de evento aceitos.
 CREATE OR REPLACE FUNCTION public._bl_charge_adjustment_acked(p_bl_id text)
  RETURNS boolean
  LANGUAGE sql
@@ -238,7 +243,11 @@ BEGIN
       is_imo = COALESCE((v_item->>'is_imo')::boolean, c.is_imo),
       is_oog = COALESCE((v_item->>'is_oog')::boolean, c.is_oog),
       type = COALESCE(NULLIF(btrim(v_item->>'type'), ''), c.type)
-     WHERE c.bl_id = v_bl AND upper(c.container_number) = upper(btrim(v_item->>'container_number'));
+     -- Como `set_bl_container_profile`: o perfil vale para o container em
+     -- todos os B/Ls ativos da Viagem (Part Lot).
+     WHERE upper(c.container_number) = upper(btrim(v_item->>'container_number'))
+       AND c.bl_id IN (SELECT b2.id FROM public.bls b2 JOIN public.bls b1 ON b1.id = v_bl
+                        WHERE b2.voyage_id = b1.voyage_id AND b2.cancelled_at IS NULL);
   END LOOP;
 
   DELETE FROM public.vehicles v
@@ -281,7 +290,8 @@ DECLARE
   v_outcome text;
   v_error text;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_active_read_user() THEN
+  -- A simulação trava linhas até o rollback: só quem grava pode rodá-la.
+  IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
     RAISE EXCEPTION 'Usuario sem permissao ativa' USING ERRCODE = '42501';
   END IF;
 

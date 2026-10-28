@@ -54,13 +54,13 @@ export function useChargeAdjustmentGuard() {
  */
 export function useImportChargeImpact(changes: BlChargeImpactChange[] | null) {
   const key = changes && changes.length > 0 ? JSON.stringify(changes) : null
-  const [result, setResult] = useState<{ key: string; data: BlChargeImpact[] } | null>(null)
+  const [result, setResult] = useState<{ key: string; data: BlChargeImpact[] | undefined } | null>(null)
   useEffect(() => {
     if (key === null) return
     let active = true
     previewBlChargeAdjustmentImpact(JSON.parse(key) as BlChargeImpactChange[])
       .then((data) => { if (active) setResult({ key, data }) })
-      .catch(() => { if (active) setResult({ key, data: [] }) })
+      .catch(() => { if (active) setResult({ key, data: undefined }) })
     return () => { active = false }
   }, [key])
   return { data: result && result.key === key ? result.data : undefined }

@@ -255,6 +255,14 @@ describeLocal('495 — prévia, aceite e alerta da taxa alterada à mão', () =>
     expect(result[0].items[0]).toMatchObject({ charge_name: 'THD', outcome: 'kept' })
   })
 
+  it('perfil do container corrigido pelo irmão: a simulação muda o container nos dois B/Ls (Part Lot)', () => {
+    // Como set_bl_container_profile: o perfil vale para todos os B/Ls ativos da Viagem.
+    expect(psql(`BEGIN;
+      SELECT public._apply_bl_charge_simulation_change(${q(JSON.stringify({ bl_id: BL.share2, container_flags: [{ container_number: 'RTAU4950008', is_imo: true }] }))}::jsonb);
+      SELECT string_agg(bl_id || '=' || is_imo, ',' ORDER BY bl_id) FROM public.bl_containers WHERE container_number = 'RTAU4950008';
+      ROLLBACK;`).split('\n').pop()).toBe(`${BL.share1}=true,${BL.share2}=true`)
+  })
+
   it('B/L isento à mão aparece como isento', () => {
     const [entry] = impact([{ bl_id: BL.exempt, bls: { pod: POD_B } }])
     expect(entry.manual_exempt).toBe(true)

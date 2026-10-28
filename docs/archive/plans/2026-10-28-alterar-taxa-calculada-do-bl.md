@@ -5,7 +5,7 @@
 Proposto em 2026-10-28, a partir da
 [spec aprovada pelo dono](../spec/2026-10-28-alterar-taxa-calculada-do-bl-design.md)
 (decisões D1 a D14). O dono aprovou no mesmo dia os refinamentos R1 e R2 da
-regra de descarte (registrados na D5 da spec). Execução em andamento.
+regra de descarte (registrados na D5 da spec). Executado em 2026-10-28 e arquivado.
 
 | Lote | Situação |
 |---|---|
@@ -14,7 +14,7 @@ regra de descarte (registrados na D5 da spec). Execução em andamento.
 | 3 — B/L faturado | Feito (migration `493`). Drift mecânico: o efeito é aplicado pelo invólucro de `_record_bl_charge_event` (a ação marca a transação com `vela.bl_charge_change`); no B/L faturado o cálculo só atualiza as linhas gravadas; a cobrança manual excluída que a fatura aponta fica Excluída em vez de apagada; `portal_invoice_details` tira a marca do item. Fica para o lote 6 conferir "Pix no QR antigo" e o Desbloqueio com "Diferença de valor a faturar", que são da correção já existente |
 | 4 — Leituras: Validação, fatura, Cliente, Históricos | Feito (migration `494`, uma leitura só para Validação, consolidada, Revisão e ficha do Cliente). Drift mecânico: a marca da fila vem dessa leitura, anexada pelo serviço, e não de uma mudança na RPC da fila; a edição da cobrança manual não grava o nome da taxa no `audit_logs`, então a frase é "Cobrança manual: quantidade 2 → 3" |
 | 5 — Eventos: prévias, confirmações e alerta | Feito (migration `495`). Drift mecânico: as prévias não mudaram as RPCs de prévia existentes; a tela chama a simulação genérica `preview_bl_charge_adjustment_impact` com as mudanças que a prévia já conhece. O Baplie pergunta no diálogo depois do **Substituir** (as marcas só são conhecidas ali), e a planilha de CE e a de veículos não mostram a seção: a do CE não muda a base, e a de veículos não tem prévia por B/L; nas duas, o efeito abre o alerta. A audiência ao Financeiro vem do catálogo, que a entrega da `476` já lê. |
-| 6 — Fechamento | A fazer |
+| 6 — Fechamento | Feito. Revisão independente (`vela-code-review`) corrigiu: a prévia aplica o perfil do container a todos os B/Ls da Viagem, como a gravação; prévia de importação que falha volta a perguntar ao gravar; a simulação exige usuário que grava. Ficou registrado (`ponytail:` na `495`) que o aceite vale por B/L e janela, não pela mudança. Drift: a bateria local-pg completa rodou no banco local já migrado, não recriado com `sudo scripts/setup-local-pg.sh --reset` (o dono recusou o sudo nesta sessão); o clique duplo na ficha e no COD durante a prévia ficou sem trava. |
 
 ## Resultado pretendido
 

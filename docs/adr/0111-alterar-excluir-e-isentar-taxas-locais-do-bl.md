@@ -1,11 +1,12 @@
 # 0111 — Alterar, excluir e isentar as Taxas Locais do B/L
 
-Status: aceito — 2026-10-28 (pedido e decisões do dono, D1 a D14, na
-[spec aprovada](../spec/2026-10-28-alterar-taxa-calculada-do-bl-design.md); R1 e
-R2 aprovados no [plano](../plans/2026-10-28-alterar-taxa-calculada-do-bl.md)).
+Status: aceito, implementada — 2026-10-28 (pedido e decisões do dono, D1 a D14, na
+[spec aprovada](../archive/specs/2026-10-28-alterar-taxa-calculada-do-bl-design.md); R1 e
+R2 aprovados no [plano](../archive/plans/2026-10-28-alterar-taxa-calculada-do-bl.md)).
 Implementação em lotes: lote 1 na migration `491` (alterar, excluir, desfazer,
 cobrança manual e Histórico das taxas); lote 2 na `492` (isenção à mão); lote 3
-na `493` (B/L faturado).
+na `493` (B/L faturado); lote 4 na `494` (leituras fora da ficha); lote 5 na
+`495` (aviso **Gravar mesmo assim**, prévias e alerta).
 
 Supersede o item 11 da [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)
 (excluir cobrança manual era só do Administrativo). Estende a

@@ -688,14 +688,14 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   // Também fecha pelo envio; justificado, a próxima falha do mesmo Comunicado
   // não reabre (migration 349).
   'comunicado_recusado',
+  // Conferência da taxa alterada à mão que uma mudança de base afetou (migration 495).
+  'taxa_alterada_mudou',
   // Origem fora do alcance da equipe pela tela (migration 476, ponto 3 do dono):
   // depois da justificativa, só reabrem se a causa sumir e voltar.
   'itau_pix_consulta_parada',
   'email_retorno_provedor_silencioso',
   'rotina_http_falhou',
   'import_effects_queue_stalled',
-  // Conferência da taxa alterada à mão que uma mudança de base afetou (migration 495).
-  'taxa_alterada_mudou',
 ]
 
 /**
