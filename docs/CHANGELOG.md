@@ -6,6 +6,10 @@
 
 ## 2026-10
 
+- **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
+  compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
+  listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta
+  `supabase/migrations/` dos dois commits ([Deploy](setup/deploy.md#staging-persistente)).
 - **Correções da revisão da PR #1070 (2026-10-27 e 2026-10-28):** migrations `482` a `490`, decisões do dono
   registradas em [Pontos do dono](manual/decisoes/pontos-do-dono.md) (P1 a P12) e relatório em
   [archive/audits](archive/audits/revisao-pr-1070-2026-10-27.md). Escala: TBC não é terminal — a

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { appliedCheckConfig, changesMigrations, decide, migrationVersions, main, missingVersions, needsAppliedCheck } from './wait-supabase-migrations.mjs'
+import { addedMigrationVersions, appliedCheckConfig, changesMigrations, decide, migrationVersions, main, missingVersions, needsAppliedCheck } from './wait-supabase-migrations.mjs'
 
 const run = (id, status, conclusion, slug = 'supabase') => ({ id, status, conclusion, app: { slug }, output: { title: null } })
 
@@ -149,14 +149,16 @@ test('push sem migration ou check verde não dependem da conferência', () => {
   assert.equal(decide({ checkRuns: [], migrationsChanged: false, timedOut: true }).action, 'publish')
 })
 
-async function runMain({ env, compareFiles, conclusion, appliedRows }) {
+async function runMain({ env, compareFiles, conclusion, appliedRows, folders = {} }) {
   const saved = { fetch: globalThis.fetch, log: console.log, env: { ...process.env } }
   const calls = []
   const logs = []
   Object.assign(process.env, { GITHUB_REPOSITORY: 'luccafwlog/vela', GITHUB_TOKEN: 'gh', COMMIT_SHA: '324875e', BEFORE_SHA: 'aaaaaaa', WAIT_SECONDS: '0' }, env)
   globalThis.fetch = async (url, init) => {
     calls.push({ url: String(url), authorization: init?.headers?.Authorization })
-    const body = String(url).includes('/compare/') ? { files: compareFiles }
+    const folderRef = /\/contents\/supabase\/migrations\?ref=(\w+)/.exec(String(url))?.[1]
+    const body = folderRef ? folders[folderRef]
+      : String(url).includes('/compare/') ? { files: compareFiles }
       : String(url).includes('/check-runs') ? { check_runs: [run(1, 'completed', conclusion)] }
         : appliedRows
     return { ok: true, status: 200, json: async () => body }
@@ -207,4 +209,38 @@ test('main: check failure recusa sem chamar a Management API', async () => {
   })
   assert.equal(code, 1)
   assert.ok(calls.every((call) => !call.url.startsWith('https://api.supabase.com/')))
+})
+
+test('pasta de migrations: versões novas são os NNN_*.sql que não existiam antes do push', () => {
+  const entries = (...names) => names.map((name) => ({ name }))
+  assert.deepEqual(addedMigrationVersions(entries('468_a.sql', 'README.md'), entries('468_a.sql', 'README.md', '490_c.sql', '469_b.sql')), ['469', '490'])
+  assert.deepEqual(addedMigrationVersions(entries('468_a.sql'), entries('468_a.sql')), [])
+})
+
+test('main: push da #1070 (compare truncado em 300) confere as versões novas pela pasta e publica', async () => {
+  const filler = Array.from({ length: 300 }, (_, index) => file(`docs/f${index}.md`))
+  const old = Array.from({ length: 468 }, (_, index) => ({ name: `${String(index + 1).padStart(3, '0')}_x.sql` }))
+  const added = ['469_a.sql', '490_b.sql'].map((name) => ({ name }))
+  const { code, logs } = await runMain({
+    env: { SUPABASE_ACCESS_TOKEN: 'sbp_x', SUPABASE_PROJECT_REF: STAGING_REF },
+    compareFiles: filler,
+    conclusion: 'skipped',
+    appliedRows: ['468', '469', '490'].map((version) => ({ version, name: 'x' })),
+    folders: { aaaaaaa: old, '324875e': [...old, ...added] },
+  })
+  assert.equal(code, 0)
+  assert.match(logs.join('\n'), /versões 469, 490/)
+  assert.match(logs.join('\n'), /aplicadas na branch Supabase: 469, 490/)
+})
+
+test('main: compare truncado sem migration nova não depende do check do Supabase', async () => {
+  const filler = Array.from({ length: 300 }, (_, index) => file(`docs/f${index}.md`))
+  const old = [{ name: '468_x.sql' }]
+  const { code } = await runMain({
+    env: { SUPABASE_ACCESS_TOKEN: '', SUPABASE_PROJECT_REF: '' },
+    compareFiles: filler,
+    conclusion: 'skipped',
+    folders: { aaaaaaa: old, '324875e': old },
+  })
+  assert.equal(code, 0)
 })
