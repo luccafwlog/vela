@@ -147,7 +147,7 @@ function capitulo(cap, { introducao, corpo, secoes }) {
       <div class="conteudo"><table class="quero">${quero}</table></div>
     </div>
   </div>
-  <div class="texto-corrido" style="page: cap${cap.numero}">${corpo.replace(/(<h2 class="secao-titulo" id="([\w-]+)">)/g, (_, h, id) => `${h}${alvo(id)}`)}</div>
+  <div class="texto-corrido" style="page: cap${cap.numero}">${corpo.replace(/(<h2 class="secao-titulo" id="([^"]+)">)/g, (_, h, id) => `${h}${alvo(id)}`)}</div>
 </section>`
 }
 
@@ -185,7 +185,7 @@ async function paginasDasMarcas(arquivo) {
   const mapa = {}
   for (let n = 1; n <= doc.numPages; n += 1) {
     const texto = (await (await doc.getPage(n)).getTextContent()).items.map((it) => it.str).join('')
-    for (const m of texto.matchAll(/§([\w-]+)§/g)) mapa[m[1]] ??= n
+    for (const m of texto.matchAll(/§([^§\s]+)§/g)) mapa[m[1]] ??= n
   }
   return { mapa, total: doc.numPages }
 }
@@ -216,11 +216,11 @@ ${paginasCss(m)}
     const rascunho = SAIDA.replace(/\.pdf$/, '') + '.rascunho.pdf'
     await imprimir(browser, html1, rascunho)
     const { mapa, total } = await paginasDasMarcas(rascunho)
-    const faltando = [...html1.matchAll(/data-alvo="([\w-]+)"/g)].map((x) => x[1]).filter((id) => !mapa[id])
+    const faltando = [...html1.matchAll(/data-alvo="([^"]+)"/g)].map((x) => x[1]).filter((id) => !mapa[id])
     if (faltando.length) throw new Error(`Sem página para: ${[...new Set(faltando)].join(', ')}`)
     const html2 = html1
-      .replace(/<span class="pag" data-alvo="([\w-]+)">000<\/span>/g, (_, id) => `<span class="pag">${mapa[id]}</span>`)
-      .replace(/<span class="pdf-alvo">§[\w-]+§<\/span>/g, '')
+      .replace(/<span class="pag" data-alvo="([^"]+)">000<\/span>/g, (_, id) => `<span class="pag">${mapa[id]}</span>`)
+      .replace(/<span class="pdf-alvo">§[^§\s]+§<\/span>/g, '')
     await imprimir(browser, html2, SAIDA)
     fs.rmSync(rascunho)
     console.log(`${total} páginas: ${path.relative(ROOT, SAIDA)}`)

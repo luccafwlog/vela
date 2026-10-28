@@ -13,7 +13,7 @@ A programação é o que o Vela mostra das datas dos navios. Para o Cliente, ela
 
 <!-- regras: VIA-103 VIA-104 VIA-115 -->
 
-**Chegadas e Saídas** mostra a "Programação publicada no Portal": para cada navio publicado, quando ele sai da origem e quando chega a cada porto brasileiro. Não é um cadastro à parte. Cada linha é uma Viagem, e cada data é a da escala dessa Viagem.
+**Chegadas e Saídas** mostra a "Programação publicada no Portal": para cada navio publicado, quando ele sai da origem e quando chega a cada porto brasileiro. Não é um cadastro à parte: cada linha é uma Viagem, e cada data vem dessa Viagem.
 
 ::: ficha
 - **Quando usar:** Para ver o que o Cliente está vendo, achar as datas que venceram e abrir a programação de um navio.
@@ -65,7 +65,7 @@ No Portal, o Cliente vê o mesmo quadro no bloco **Chegadas e saídas** do Paine
 
 ::: aconteceu "O navio não aparece em Chegadas e Saídas nem no Portal"
 - **O que o sistema faz:** Mostra só Viagens publicadas e **Ativas**, e só os oito portos do quadro.
-- **Por quê:** A programação é o que o Cliente vê; Viagem fora dela não é mostrada a ninguém.
+- **Por quê:** A programação mostra ao Cliente só o que a equipe publicou e ainda está valendo.
 - **O que você faz:** Em **Viagens**, abra a Viagem e confira se a chave **Aparece em Chegadas e Saídas** está ligada e se a Viagem não está **Concluída** ou **Cancelada** ([5.6](#s5-6)). Se a Viagem nem existe, publique o navio ([5.2](#s5-2)). Escala num porto fora do quadro não entra.
 :::
 
@@ -175,7 +175,7 @@ Em **Chegadas e Saídas**, na linha do navio, clique no lápis (**Editar**). Abr
 A escala também fica na Viagem quando está travada (por CE Mercante, documento financeiro ou ADR fechado no porto). Nesse caso, o Vela recusa a gravação do {{Administrativo}} com o motivo.
 
 ::: sozinho
-- Grava só as datas que mudaram, sem hora, nos portos de origem (ETD) e de chegada (ETA).
+- Grava as datas só com o dia, sem hora: o ETD dos portos de origem e o ETA dos portos de chegada.
 - Atualiza o quadro de Chegadas e Saídas e a ficha da Viagem no seu computador; o Portal mostra as datas novas na próxima leitura.
 :::
 
@@ -282,6 +282,9 @@ A saída efetiva da origem vem do B/L, pelo **Laden on Board**. A confirmação 
 
 ::: passos
 1. Em **Chegadas e Saídas**, abaixo do quadro, no bloco "Atualizar várias viagens por planilha", clique em **Importar programação**. Abre a janela "Importar programação de navios".
+:::
+
+::: passos
 2. Em **Planilha de programação**, clique em **Escolher arquivo** (ou arraste o arquivo para a área) e escolha a planilha. O Vela só lê o arquivo e monta a prévia: nada é gravado. Com um arquivo escolhido, o botão passa a ser **Trocar arquivo**.
 3. Confira a **Prévia**: uma linha por viagem, com a **Situação** e as datas que mudam, no formato "PORTO ETA: antes → depois". No alto, a contagem de viagens novas, atualizadas, sem alteração e linhas com erro.
 4. Clique em **Importar N viagens** (no exemplo, **Importar 2 viagens**). A etapa **Resultado** mostra **Viagens criadas** e **Viagens atualizadas**. Clique em **Concluir**.
@@ -408,6 +411,9 @@ O **Line Up** é o quadro de trabalho das escalas: que navios estão atracados, 
 
 ::: passos
 1. Para deixar o quadro num monitor, clique em **Tela TV**. Ele abre em outra janela ([5.8](#s5-8)).
+:::
+
+::: passos
 2. Para levar o quadro para uma planilha, clique em **Exportar**. A planilha traz as escalas que o Line Up está mostrando, com os filtros escolhidos (passo 3). Sem nenhuma linha, o botão fica desligado.
 3. Para recortar o quadro, use os filtros. Em **Escalas**, escolha **Ativas** (o padrão), **Concluídas** ou **Todas**. Há também **Busca** (navio ou viagem), **Período** (**Qualquer** ou **Entre datas**, pelo ETA), **CEs** e, em **Mais filtros**, **Veículos**, **BB**, **MTY**, **RTW** e **Vinculada** (com ou sem). **Limpar filtros** volta ao padrão.
 :::
