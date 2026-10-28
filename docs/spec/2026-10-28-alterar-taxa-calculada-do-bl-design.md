@@ -1,8 +1,8 @@
 # Alterar as taxas calculadas de um B/L
 
 Estado: decisões D1 a D14 tomadas pelo dono do Vela em 2026-10-28, uma por
-vez; **aguardando a aprovação desta spec**. Nenhum código é escrito antes dela.
-Depois de aprovada, o plano em lotes fica em `docs/plans/`.
+vez; **spec aprovada pelo dono em 2026-10-28**. O plano em lotes fica em
+`docs/plans/`.
 
 ## Pedido
 

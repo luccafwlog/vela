@@ -5,7 +5,7 @@ Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
 
 | Spec | Estado |
 |---|---|
-| [Alterar as taxas calculadas de um B/L](2026-10-28-alterar-taxa-calculada-do-bl-design.md) | Rascunho em entrevista com o dono; sem código antes da aprovação |
+| [Alterar as taxas calculadas de um B/L](2026-10-28-alterar-taxa-calculada-do-bl-design.md) | Aprovada pelo dono em 2026-10-28; [plano em lotes](../plans/2026-10-28-alterar-taxa-calculada-do-bl.md) |
 
 Specs concluídas ficam no [índice das specs arquivadas](../archive/specs/README.md);
 suas regras vigentes estão nos módulos (`docs/modules/`).
