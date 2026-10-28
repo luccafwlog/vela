@@ -40,7 +40,7 @@ A janela Nova Viagem preenchida com o navio do exemplo.
 :::
 :::
 
-As datas não são digitadas aqui. Chegada, atracação e saída pertencem a cada escala e são planejadas na ficha da Viagem ([4.2](#42-planejar-as-escalas-da-viagem)). O bloco **1º Porto Brasileiro** só fica disponível depois que a Viagem tem uma escala ([4.4](#44-atualizar-as-datas-do-navio)).
+As datas não são digitadas aqui. Chegada, atracação e saída pertencem a cada escala e são planejadas na ficha da Viagem ([4.2](#42-planejar-as-escalas-da-viagem)). O bloco **1º Porto Brasileiro** aparece aqui com a caixa desabilitada: você indica outro 1º porto na edição da Viagem ([4.4](#44-atualizar-as-datas-do-navio)).
 
 ::: sozinho
 - Grava navio, SCAC e número da viagem em maiúsculas.
@@ -56,20 +56,20 @@ Em **Viagens**, a Viagem aparece na faixa de cartões do alto e no quadro, orden
 :::
 
 ::: aconteceu "Já existe a viagem NAVIO / NÚMERO. Abra a viagem existente em vez de cadastrar outra."
-- **O que o sistema faz:** Recusa o cadastro. O Vela compara o navio pelo IMO (que vale mais que a grafia do nome) e o número sem diferença de maiúsculas nem espaços. Se a Viagem existente está cancelada, a mensagem termina com "Reative-a em Viagens em vez de cadastrar outra.".
+- **O que o sistema faz:** Recusa o cadastro. O Vela compara o navio pelo IMO (que vale mais que a grafia do nome) e o número sem diferença de maiúsculas nem de espaços no começo ou no fim. Se a Viagem existente está cancelada, a mensagem termina com "Reative-a em Viagens em vez de cadastrar outra.".
 - **Por quê:** Cada navio e número de viagem existe uma vez só no Vela.
 - **O que você faz:** Abra a Viagem existente. Se ela está cancelada e deve voltar, peça ao {{Administrativo}} para usar **Reativar viagem** ([4.10](#410-cancelar-reativar-ou-excluir-uma-viagem)).
 :::
 
-::: aconteceu "Navio … com IMO conflitante (… vs …). Corrija antes de importar."
-- **O que o sistema faz:** Recusa quando o nome é de um navio já cadastrado com outro IMO. Dois navios com o mesmo nome e sem IMO pedem o IMO.
+::: aconteceu "Falha ao cadastrar viagem. Revise os dados e tente novamente."
+- **O que o sistema faz:** Recusa quando o nome é de um navio já cadastrado com outro IMO, ou quando há dois navios com o mesmo nome e sem IMO. Na Nova Viagem, a recusa aparece só com este aviso geral; na edição, com "Falha ao atualizar viagem. Revise os dados e tente novamente.". O motivo ("Navio … com IMO conflitante (… vs …). Corrija antes de importar.") aparece nas importações.
 - **Por quê:** O IMO identifica o navio; nome parecido não junta navios diferentes.
-- **O que você faz:** Confira o IMO com o armador e digite o certo.
+- **O que você faz:** Confira os campos e o IMO com o armador, digite o certo e tente de novo.
 :::
 
 ::: aconteceu "Armador obrigatorio (min. 2 caracteres)"
 - **O que o sistema faz:** Não grava sem armador e navio com pelo menos 2 caracteres e sem o número da viagem ("Navio obrigatorio (min. 2 caracteres)", "Numero da viagem obrigatorio").
-- **O que você faz:** Preencha os três campos e clique de novo em **Cadastrar viagem**. Se o aviso for "Falha ao cadastrar viagem. Revise os dados e tente novamente.", confira os campos e tente de novo.
+- **O que você faz:** Preencha os três campos e clique de novo em **Cadastrar viagem**.
 :::
 
 ::: atencao
@@ -112,6 +112,10 @@ A janela Adicionar escala com o porto de Salvador.
 :::
 
 Repita para cada porto. No exemplo, a Viagem 024E tem duas escalas: Salvador (BRSSA) e Vitória (BRVIX). A janela de uma escala nova não mostra os terminais: você os atribui depois, na edição da escala ([4.3](#43-atribuir-os-terminais-e-registrar-a-atracação)).
+
+::: atencao
+Na escala nova só de importação, escolha o porto entre as sugestões do campo. Um código que o Vela não conhece não vira escala, mesmo com o aviso "Escala salva com sucesso.".
+:::
 
 ### Exportação na escala
 
@@ -158,7 +162,7 @@ O menor ETA das escalas de importação marca o 1º porto brasileiro, de onde co
 
 ::: sozinho
 <!-- regras: VIA-033 VIA-134 VIA-141 CEB-038 CEB-039 -->
-- Grava o porto pelo código, em maiúsculas. Porto brasileiro que ainda não existe no cadastro é criado sozinho, com o próprio código como nome.
+- Grava o porto pelo código, em maiúsculas. Na edição da escala e na escala nova com exportação, o porto brasileiro que ainda não existe no cadastro é criado sozinho, com o próprio código como nome.
 - A escala nova nasce importadora.
 - Guarda cada gravação no Histórico da escala (ETA, ATA, terminal, Atracação, frente, exportação, BLs e CEs, Vinculada, Nº escala, remoção e omissão), com autor, setor, momento e justificativa. Nada é apagado; a tela mostra sempre a gravação mais recente.
 - No fim de toda gravação que mexe em B/L, container de B/L, Baplie, Granito ou exportação, recalcula o **BLs e CEs** de cada escala brasileira:
@@ -166,7 +170,7 @@ O menor ETA das escalas de importação marca o 1º porto brasileiro, de onde co
   - **Recebido**: há B/Ls ativos e todos os cheios do Baplie daquele POD estão cobertos; ou só há carga solta, sem cheio no Baplie.
   - **Aprovado**: Recebido, e todos os B/Ls ativos com CE Mercante. Na exportação conta só o Granito: **Aprovado** quando todos os B/Ls de Granito do POL têm CE.
 - O status calculado só é gravado quando muda, e então substitui o que estava, inclusive o marcado à mão. Fica no Histórico como "Atualização automática de BLs e CEs pela conciliação documental: …". **Lançando** e **Em aprovação** só existem à mão.
-- Registra na Linha do tempo a escala adicionada e recalcula na hora o status da Viagem ([4.9](#49-concluir-a-viagem)).
+- Registra na Linha do tempo a escala adicionada.
 :::
 
 ::: conferir
@@ -174,7 +178,7 @@ No **Planejamento por escala**, cada escala tem uma linha: **Porto**, **Opera** 
 :::
 
 ::: aconteceu "A escala é de porto brasileiro; portos estrangeiros da rota não são escalas."
-- **O que o sistema faz:** Não adiciona a escala de porto estrangeiro. Com o campo vazio, avisa "Informe o porto da escala.". Código fora do formato brasileiro (BR e mais três letras ou dígitos) é recusado com "LOCODE brasileiro invalido: …".
+- **O que o sistema faz:** Não adiciona a escala de porto estrangeiro. Com o campo vazio, avisa "Informe o porto da escala.". Na edição da escala e na escala nova com exportação, código fora do formato brasileiro (BR e mais três letras ou dígitos) é recusado com "LOCODE brasileiro invalido: …".
 - **Por quê:** Escala é só a passagem por um porto brasileiro. O porto de embarque estrangeiro aparece na rota dos B/Ls ([4.6](#46-conferir-o-atd-do-porto-de-embarque-e-o-nº-de-manifesto-da-rota)).
 - **O que você faz:** Digite o código brasileiro do porto, como BRSSA ou BRVIX.
 :::
@@ -245,7 +249,7 @@ Qualquer equipe salva a escala inteira de uma vez: ETA, ATA, BLs e CEs, Vinculad
 ::: sozinho
 <!-- regras: VIA-032 VIA-042 VIA-141 VIA-143 EQU-118 ALE-044 ALE-047 BLR-083 -->
 - Cria uma Atracação para cada terminal atribuído. Cada terminal aparece uma vez por escala. Frente sem terminal não cria Atracação: antes do ATA, a escala guarda uma só Atracação **TBC**, sem datas e sem cartão na janela.
-- Tira a Atracação TBC assim que nenhuma frente fica em TBC. Ela não segura a conclusão da escala nem da Viagem.
+- Enquanto alguma frente está em TBC, a escala não conclui. Quando nenhuma frente fica em TBC (com o ATA registrado, nenhuma pode ficar), a Atracação TBC sai e deixa de segurar a conclusão da escala e da Viagem.
 - Ordena as Atracações pelo ATB (ou pelo ETB, na falta dele) e, no empate, pela sigla do terminal. A ordem não é digitada.
 - Confere que o porto e o terminal batem com o cadastro de portos. A janela preenche esses dados a partir da escala.
 - Liga cada frente à seção do ADR de Saída daquele terminal (capítulo 11): **Carga cheia** e **Carga solta** a **Carga descarregada**; **Vazios** de importação a **Vazios descarregados**; **Veículos** a **Veículos**; **Granito** a **Carga carregada**; **Vazios** de exportação a **Embarque de vazios**.
@@ -258,7 +262,7 @@ Qualquer equipe salva a escala inteira de uma vez: ETA, ATA, BLs e CEs, Vinculad
 ::: conferir
 No **Planejamento por escala**:
 
-1. Clique na seta antes do porto para abrir as Atracações da escala (elas ficam fechadas por padrão): **Terminal** (TBC quando não há terminal), **ETB**, **ATB**, **ETD**, **ATD** e **Restow**, com o lápis de cada uma. No fim fica **Adicionar atracação**, que leva à mesma janela da escala. Sem Atracação, aparece "Sem atracação em BRVIX.".
+1. Clique na seta antes do porto para abrir as Atracações da escala (elas ficam fechadas por padrão): **Terminal**, **ETB**, **ATB**, **ETD**, **ATD** e **Restow**, com o lápis de cada uma. No fim fica **Adicionar atracação**, que leva à mesma janela da escala. Sem Atracação, aparece "Sem atracação em BRVIX.".
 2. Para corrigir, clique no lápis da escala e refaça os passos.
 
 ::: tela viagem-planejamento
@@ -308,7 +312,7 @@ Planejamento por escala com as Atracações de Vitória abertas.
 <!-- regras: VIA-040 -->
 
 ::: aconteceu "A hora do … é obrigatória quando a data estiver preenchida para o terminal …"
-- **O que o sistema faz:** A janela recusa data sem hora, ATD sem ATB ou anterior a ele ("Informe o ATB antes do ATD do terminal …"), ETD anterior ao ETB e Restow que não seja número inteiro de zero para cima. O Vela confere a ordem das datas de novo ao gravar.
+- **O que o sistema faz:** A janela recusa data sem hora, ATD sem ATB ou anterior a ele ("Informe o ATB antes do ATD do terminal …"), ETD sem ETB ou anterior a ele ("Informe o ETB antes do ETD do terminal …"), e Restow que não seja inteiro de zero para cima ("Restow inválido para o terminal …"). O Vela confere a ordem das datas de novo ao gravar.
 - **O que você faz:** Complete a hora e corrija a ordem das datas.
 :::
 
@@ -377,7 +381,7 @@ Incluir ou excluir um B/L, mudar a Viagem, o POL ou o POD dele, ou cancelá-lo, 
 Para os prazos contarem de um porto anterior às escalas de importação, indique esse porto na edição da Viagem:
 
 1. Na ficha da Viagem, clique em **Editar**.
-2. No bloco **1º Porto Brasileiro (Âncora D−7 / D−5)**, marque **Indicar outro 1º porto brasileiro**. A opção só aparece na edição de uma Viagem que já tem escala.
+2. No bloco **1º Porto Brasileiro (Âncora D−7 / D−5)**, marque **Indicar outro 1º porto brasileiro**. Na Nova Viagem a caixa aparece desabilitada. Na edição você pode marcá-la, mas a Viagem sem escala de importação recusa a indicação ("A indicação exige a existência de ao menos uma Escala própria na viagem.").
 3. Preencha **Porto indicado** e **ETA indicado**. Os dois vão juntos.
 4. Clique em **Salvar viagem**.
 
@@ -419,7 +423,7 @@ Para os prazos contarem de um porto anterior às escalas de importação, indiqu
 
 ::: conferir
 <!-- regras: POR-069 CLI-060 CLI-080 -->
-- O bloco **Próxima escala** da **Visão geral** mostra o porto, o ETA, **Planejadas**, **Atracação** e **Status**. A Próxima escala é a escala não omitida, com ETA e ainda sem ATA, de menor ETA. Sem escala a cumprir, aparece "Sem próxima escala".
+- O bloco **Próxima escala**, no alto da ficha, mostra o porto, o ETA, **Planejadas**, **Atracação** e **Status**. A Próxima escala é a escala não omitida, com ETA e ainda sem ATA, de menor ETA. Sem escala a cumprir, o bloco mostra "—" e "Nenhuma escala com ETA a cumprir".
 - O Line Up do Painel e Chegadas e Saídas mostram a data nova (capítulo 5).
 - No Portal, o bloco **Chegadas e saídas** mostra só as Viagens ativas marcadas para o Portal, com a saída na origem (ETD) e a chegada no Brasil (ETA). O ✓ marca a data efetiva; "Omitida", a escala omitida; o porto excluído some. No Portal, a previsão vencida não fica em âmbar.
 - Os Comunicados de chegada seguem as datas (capítulo 16). O NOA exige o ETA da escala e o NOR exige o ATA; o NOB sai por Atracação com ATB. O B/L com exceção de terminal entra só naquele terminal; os outros, pela frente da modalidade (o misto precisa das duas). Ficam fora da conferência de carga a escala excluída ou omitida e o B/L cancelado, sem Cliente ou sem POD, de Cliente inativo ou de Viagem cancelada. O porto casa pela grafia (BRVIT e BRVIX são o mesmo). No envio manual não há janela de dias; o Comunicado livre é um por Cliente e Viagem.
@@ -429,7 +433,7 @@ Para os prazos contarem de um porto anterior às escalas de importação, indiqu
 <!-- regras: VIA-009 VIA-127 VIA-128 -->
 
 ::: aconteceu "ETA de … passou sem ATA registrada."
-- **O que o sistema faz:** A escala continua como Próxima escala: o bloco mostra o ETA com "· vencido" em âmbar e **Status** "ETA vencido" (senão, "Pendente"). O alerta abre já no próprio dia do ETA.
+- **O que o sistema faz:** A escala continua como Próxima escala até o ATA ser registrado. O alerta abre já no próprio dia do ETA.
 - **Por quê:** Só o ATA passa a vez à escala seguinte. ETA que já passou não tira a escala dessa posição.
 - **O que você faz:** Se o navio chegou, registre o **ATA** com hora. Se atrasou, atualize o **ETA**.
 :::
@@ -474,7 +478,7 @@ A lista de Viagens diz quais navios chegam e o que falta em cada um. A ficha da 
 
 No menu, clique em **Viagens**. A lista traz todas as Viagens, inclusive as concluídas e as canceladas:
 
-- **A faixa de cartões**, no alto, sempre abre no início e diz "Ordenado por próxima escala". Cada cartão mostra o armador, navio / viagem, a situação de conciliação, as escalas brasileiras com o ETA (ou "Sem escala brasileira prevista"), os selos do que a Viagem tem (**Container**, **Carga solta**, **Veículos**, **Vazios IMP**, **Vazios EXP**, **Granito**) e, no rodapé, os B/Ls, os contêineres e a cobertura de CE.
+- **A faixa de cartões**, no alto, sempre abre no início e diz "Ordenado por próxima escala". Cada cartão mostra o armador, navio / viagem, a situação de conciliação, as escalas brasileiras com o ETA (ou "Sem escala brasileira prevista"), ao lado de cada escala os ícones das operações (contêiner, carga solta, veículos, vazios de importação, vazios de exportação, Granito) e, no rodapé, os B/Ls, os contêineres e a cobertura de CE.
 - **O quadro Viagens** aparece quando nenhuma Viagem está aberta, com as colunas **Navio / Viagem**, **Armador**, **Próxima escala**, **Escalas no Brasil**, **B/Ls**, **Containers**, **BB (t)**, **Veículos**, **CE** e **Conciliação** e o lápis de edição. Os contêineres são contados pelo número, uma vez cada. A coluna **CE** conta os B/Ls com CE Mercante sobre o total de B/Ls da Viagem, em âmbar enquanto falta. A Viagem cancelada aparece esmaecida e sem lápis; na faixa de cartões o lápis continua no cartão dela, mas não abre a edição.
 
 A ordem é a da próxima escala no Brasil: o menor ETA primeiro (no empate, a ETB), as Viagens sem próxima escala no fim e, depois, navio e número.
@@ -482,11 +486,11 @@ A ordem é a da próxima escala no Brasil: o menor ETA primeiro (no empate, a ET
 Os filtros ficam sempre abertos:
 
 - **Buscar**: navio, viagem, armador e portos de origem e destino.
-- **Período**: **Qualquer**, **Hoje**, **Próximos 7 dias**, **Próximos 30 dias** ou **Entre datas**, sempre pelo ETA da próxima escala. A Viagem sem próxima escala, ou com o ETA vencido, sai do recorte.
+- **Período**: **Qualquer**, **Hoje**, **Próximos 7 dias**, **Próximos 30 dias** ou **Entre datas**, sempre pelo ETA da próxima escala. A Viagem sem próxima escala sai do recorte; em **Hoje**, **Próximos 7 dias** e **Próximos 30 dias**, sai também a Viagem com o ETA vencido.
 - **Status**: **Todas**, **Ativas**, **Concluídas** ou **Canceladas**. Começa em **Todas**.
-- **Conciliação**: **Todas**, **Conciliada** ou **Pendente**.
+- **Conciliação**: **Todas**, **Conciliada** ou **Pendente**. No filtro, **Pendente** traz as Viagens Pendentes e Divergentes.
 
-Com algum filtro ativo, aparece **Limpar filtros**, e o contador diz "N de M viagens".
+Com algum filtro ativo, aparece **Limpar filtros**. O contador ao lado sempre diz "N de M viagens".
 
 ### A Conciliação
 
@@ -510,7 +514,7 @@ Clique numa Viagem para abrir a ficha. O endereço guarda a aba aberta: o link c
 - **O topo** diz "Viagem · armador", navio / viagem e o selo do status: **Ativa** (azul), **Concluída** (verde) ou **Cancelada** (vermelho). Mostra também as rotas de **Importação** e **Exportação** ("Origem a definir" ou "Destino a definir" quando o lado é desconhecido) e os **B/Ls de importação**.
 - **O selo Faturamento encerrado** aparece quando todo B/L ativo da Viagem está isento de Taxas Locais ou pago. B/L cancelado não segura o selo; a Viagem só com B/L cancelado fica sem ele; e o B/L de carga solta ainda sem cálculo segura o selo.
 - **As ações** são **Editar** (todas as equipes, Viagem não cancelada), **Cancelar viagem** e **Excluir** (só o Administrativo, Viagem não cancelada) e **Reativar viagem** (só o Administrativo, Viagem cancelada).
-- **Cinco blocos** resumem a Viagem: **Contêineres** (cheios distintos de importação, **Vazios a descarregar** com os tipos, **B/Ls**, **IMO / OOG**, **Veículos**); **Carga solta** (toneladas, **B/Ls**, **Máquinas / Packages**, **CBM**, ou "Sem carga solta"); **Exportação** (vazios embarcados, **Granito · B/Ls**, **Granito · ton**, **Embarques de vazios**); **Próxima escala** (porto, ETA, **Planejadas**, **Atracação**, **Status**); e **Conciliação** (**CE Mercante** N/M, **Manifestos Mercante** com "N · X a informar" em âmbar, **Divergências EDI × B/Ls**).
+- **Cinco blocos**, no alto da ficha e acima das abas, resumem a Viagem: **Contêineres** (cheios distintos de importação, **Vazios a descarregar** com os tipos, **B/Ls**, **IMO / OOG**, **Veículos**); **Carga solta** (toneladas, **B/Ls**, **Máquinas / Packages**, **CBM**, ou "—" quando não há carga solta); **Exportação** (vazios embarcados, **Granito · B/Ls**, **Granito · ton**, **Embarques de vazios**); **Próxima escala** (porto, ETA, **Planejadas**, **Atracação**, **Status**); e **Conciliação** (**CE Mercante** N/M, **Manifestos Mercante** com "N · X a informar" em âmbar, **Divergências EDI × B/Ls**).
 - **As abas** são **Visão geral**, **Importação**, **Exportação**, **Rotas e Manifestos** e **ADR**. Na mesma linha ficam os atalhos **Resolver divergências (N)** (quando a Conciliação está Divergente) ou **Baplie EDI**, **B/Ls da viagem** e **Granito** (só com B/L de Granito). As abas Importação e Exportação trazem os totais por porto e a importação rápida no contexto da Viagem: Baplie EDI, B/L container, B/L carga solta, CE Mercante, Veículos e Vazios IMP; Manifesto Granito e Embarque de Vazios (capítulo 6).
 
 ### Editar os dados da Viagem
@@ -645,7 +649,7 @@ Com omissão de escala, a rota mostra o porto omitido riscado ([4.7](#47-registr
 
 ::: aconteceu "O ATD do porto de embarque está errado"
 - **O que o sistema faz:** O ATD do POL é o menor Laden on Board dos B/Ls ativos daquele porto e muda quando B/Ls entram, saem ou são cancelados.
-- **O que você faz:** Corrija em **Rotas e Manifestos**, no lápis da rota. O ATD digitado vence o calculado e a saída confirmada em Chegadas e Saídas. Apagar o ATD digitado volta ao calculado.
+- **O que você faz:** Corrija em **Rotas e Manifestos**, no lápis da rota (ou em **Informar Nº de Manifesto Mercante**, se a rota ainda não tem número). O ATD digitado vence o calculado e a saída confirmada em Chegadas e Saídas. Apagar o ATD digitado volta ao calculado.
 :::
 
 <!-- regras: VIA-054 CEB-044 -->
@@ -764,7 +768,7 @@ A confirmação avisa: "Qualquer setor pode reverter a omissão, com justificati
 
 ::: aconteceu "Os dados do navio de transbordo chegaram depois"
 - **O que o sistema faz:** **Complementar**, no cartão **Informações de Transbordo**, edita navio, armador, viagem, ETD, ETA e motivo para todos os B/Ls afetados de uma vez, com confirmação. Sem mudança, não grava nada; motivo vazio mantém o anterior. Cada complementação entra no Histórico da Viagem e dos B/Ls ("Informações de Transbordo complementadas"), e o Portal passa a mostrar os dados novos, sem nova notificação.
-- **O que você faz:** Clique em **Complementar**, preencha os dados, clique em **Salvar informações** e confirme.
+- **O que você faz:** Clique em **Complementar**, preencha os dados e clique em **Salvar informações**. Na confirmação, clique em **Salvar informações** de novo.
 :::
 
 <!-- regras: VIA-062 BLR-045 -->
@@ -829,7 +833,7 @@ Na **Visão geral** da ficha do B/L, ao lado dos blocos **Embarque** (Viagem, ar
 <!-- regras: VIA-145 CEB-099 -->
 
 ::: aconteceu "Taxas alteradas à mão serão afetadas"
-- **O que o sistema faz:** Se o B/L tem taxa alterada à mão que o novo POD descarta, depois da confirmação abre este diálogo. **Gravar mesmo assim** marca o COD; **Cancelar** não marca nada. **Reverter para transbordo**, que devolve o POD original, faz a mesma pergunta.
+- **O que o sistema faz:** Se o B/L tem taxa alterada à mão que o novo POD descarta, depois da confirmação abre este diálogo. **Gravar mesmo assim** marca o COD; **Voltar** não marca nada. **Reverter para transbordo**, que devolve o POD original, faz a mesma pergunta.
 - **Por quê:** A taxa alterada à mão é decisão de alguém; o Vela não a descarta sem perguntar. A mesma pergunta aparece na prévia do arquivo de B/L, do Manifesto BB e do Baplie, na seção **Taxas alteradas à mão**, quando a importação descarta ou muda uma taxa alterada à mão; recusar não grava nada ("Importação cancelada antes de gravar: nada foi alterado.", capítulo 6).
 - **O que você faz:** Confira a taxa com quem a alterou. Se o COD é certo, clique em **Gravar mesmo assim**.
 :::
@@ -879,8 +883,8 @@ Na maioria das vezes, você não conclui a Viagem: o Vela conclui sozinho quando
 
 ::: sozinho
 <!-- regras: VIA-019 VIA-130 VIA-131 -->
-- Recalcula o status ao salvar uma escala (**Salvar escala** ou **Adicionar escala**), ao omitir, excluir ou reverter a omissão de uma escala e ao reativar a Viagem. Omitir ou excluir a última escala pendente conclui a Viagem; reverter a omissão a reabre.
-- Segura a Viagem como **Ativa** enquanto alguma escala não tem Atracação, ou tem Atracação sem ATD. A Atracação **TBC** vazia não segura: ela sai quando nenhuma frente fica em TBC. A Viagem sem nenhuma escala gravada não muda.
+- Recalcula o status ao clicar em **Salvar escala**, ao omitir, excluir ou reverter a omissão de uma escala, ao gravar de novo um porto removido e ao reativar a Viagem. Omitir ou excluir a última escala pendente conclui a Viagem; reverter a omissão a reabre.
+- Segura a Viagem como **Ativa** enquanto alguma escala não tem Atracação, ou tem Atracação sem ATD. Enquanto alguma frente está em TBC, a Atracação **TBC** também segura; quando nenhuma frente fica em TBC, ela sai e deixa de segurar. A Viagem sem nenhuma escala gravada não muda.
 - Não recalcula na hora ao confirmar data em Chegadas e Saídas nem ao importar a planilha de programação.
 - Nunca muda o status da Viagem cancelada.
 - Concluída, a Viagem sai da programação de Chegadas e Saídas e do Portal e some do Line Up no filtro padrão (Ativas). A Linha do tempo registra "Viagem concluída".
@@ -1000,7 +1004,7 @@ O selo **Cancelada** (vermelho) no topo da ficha, com **Reativar viagem**; na li
 <!-- regras: VIA-020 VIA-024 -->
 
 ::: aconteceu "Somente o Administrativo cancela viagem."
-- **O que o sistema faz:** Recusa o cancelamento pedido por outra equipe. A reativação também é só do Administrativo ("Somente o Administrativo reativa viagem."). Se outra pessoa já reativou, aparece "Viagem N não está cancelada.".
+- **O que o sistema faz:** Para as outras equipes, **Cancelar viagem** e **Reativar viagem** não aparecem na ficha; se o pedido chega ao Vela por outra equipe, ele recusa com esta mensagem. A reativação também é só do Administrativo ("Somente o Administrativo reativa viagem."). Se outra pessoa já reativou, aparece "Viagem N não está cancelada.".
 - **O que você faz:** Peça ao Administrativo, com o motivo.
 :::
 
@@ -1043,7 +1047,7 @@ A escala sai do **Planejamento por escala** e a Linha do tempo registra a escala
 <!-- regras: VIA-048 -->
 
 ::: aconteceu "Não é possível excluir esta escala: existem B/Ls vinculados."
-- **O que o sistema faz:** Recusa excluir a escala com B/L ligado ao porto, como POD ou POL, cancelado inclusive. Sem dado planejado, avisa "Esta escala ja nao possui dados planejados para remover.".
+- **O que o sistema faz:** Recusa excluir a escala com B/L ligado ao porto, cancelado inclusive. Com B/L cujo POD é o porto, aparece esta mensagem. Com B/L cujo POL é o porto, a recusa vem como "Não é possível excluir a escala BRxxx: B/L vinculado à escala, …. Corrija a escala ou omita.". Sem dado planejado, avisa "Esta escala ja nao possui dados planejados para remover.".
 - **O que você faz:** Se o navio não foi ao porto, use **Omitir escala** ([4.7](#47-registrar-que-o-armador-omitiu-uma-escala)). Se a escala é mesmo engano, tire antes os B/Ls dela (capítulo 7).
 :::
 
@@ -1057,7 +1061,7 @@ A escala sai do **Planejamento por escala** e a Linha do tempo registra a escala
 <!-- regras: VIA-049 VIA-050 -->
 
 ::: aconteceu "Sem permissão para excluir a escala. Solicite acesso administrativo."
-- **O que o sistema faz:** Recusa a exclusão pedida por outra equipe. Em Chegadas e Saídas, a marca de escala removida também só é ligada pelo Administrativo ("Somente o Administrativo retira escala da viagem."), com a mesma trava ("Escala PORTO travada: …"); para as outras equipes, ali só a data sai (capítulo 5).
+- **O que o sistema faz:** Para as outras equipes, **Excluir escala** não aparece na janela da escala; se o pedido chega ao Vela por outra equipe, ele recusa com esta mensagem. Em Chegadas e Saídas, a marca de escala removida também só é ligada pelo Administrativo ("Somente o Administrativo retira escala da viagem."), com a mesma trava ("Escala PORTO travada: …"); para as outras equipes, ali só a data sai (capítulo 5).
 - **O que você faz:** Peça ao Administrativo, com o motivo.
 :::
 
@@ -1086,7 +1090,7 @@ Omitir registra o que aconteceu e avisa o Cliente; excluir apaga o que nunca dev
 <!-- regras: VIA-070 VIA-061 VIA-064 VIA-067 -->
 
 ::: aconteceu "Omiti, complementei, reverti a omissão ou mudei o COD e o Vela recusou"
-- **O que o sistema faz:** Não grava nada e mostra o motivo da recusa. Em **Omitir escala** e **Reverter omissão**, o motivo aparece na própria janela, que fica aberta. Em **Complementar**, aparece no formulário, que fica aberto. Em **Marcar COD** e **Reverter para transbordo**, aparece no aviso da ficha do B/L. Na reversão da omissão recusada por B/L em COD, aparece também "Verifique se algum B/L está em COD.". Sem motivo legível, aparece a mensagem de falha da própria ação, como "Falha ao omitir a escala.".
+- **O que o sistema faz:** Não grava nada e mostra o motivo da recusa. Em **Omitir escala** e **Reverter omissão**, o motivo aparece na própria janela, que fica aberta. Em **Complementar**, aparece no formulário, que fica aberto. Em **Marcar COD** e **Reverter para transbordo**, aparece no aviso da ficha do B/L. Na reversão da omissão recusada por B/L em COD, aparece também "Verifique se algum B/L está em COD.". Sem motivo legível, aparece a mensagem de falha da própria ação, como "Falha ao omitir a escala. Tente novamente.".
 - **Por quê:** O Vela confere quem faz e o estado da omissão e do B/L antes de gravar. Ele recusa usuário sem acesso ativo ou registrado em nome de outro ("Somente usuario interno ativo pode reverter omissao, com o proprio usuario autenticado."), omissão que não existe mais ou já revertida ("Omissao … nao encontrada", "Omissao … ja foi revertida."), porto já omitido ("A escala da viagem … ja foi omitida para o POD …"), porto omitido ou de transbordo em branco ("POD omitido/descarga invalidos") e B/L sem transbordo naquela omissão ("Transbordo do B/L … nao encontrado").
 - **O que você faz:** Siga o motivo:
   - usuário sem permissão ativa: saia e entre de novo; se continuar, o {{Administrativo}} confere o seu acesso;

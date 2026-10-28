@@ -16,7 +16,7 @@ A documentação de uma Viagem chega do armador em arquivos: o B/L de cada carga
 ::: ficha
 - **Quando usar:** Antes da primeira importação, e sempre que tiver dúvida sobre o que a janela de importação está mostrando.
 - **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}} importa os B/Ls, o CE Mercante e o Baplie.
-- **Antes de começar:** A Viagem precisa existir no Vela, com as escalas planejadas (capítulo 4).
+- **Antes de começar:** A Viagem precisa existir no Vela (capítulo 4).
 :::
 
 Toda importação é feita para uma Viagem. A Viagem de destino é escolhida antes do arquivo, para o Vela comparar o arquivo com ela. Esta seção mostra onde ficam as importações e o que todas têm em comum; as seções seguintes explicam cada arquivo.
@@ -24,7 +24,7 @@ Toda importação é feita para uma Viagem. A Viagem de destino é escolhida ant
 Há três caminhos para importar, e eles abrem as mesmas janelas:
 
 - **Lista BLs.** No menu **Importação**, clique em **BLs**. O botão **Importar**, no alto da lista, abre o menu com **B/L de contêiner (.xlsx)**, **B/L de carga solta (.pdf, .docx)**, **Manifesto de carga solta (BB)** e **CE Mercante**. Se a lista está filtrada por uma Viagem, a janela já abre com ela escolhida.
-- **Ficha da Viagem.** A ficha tem as abas **Visão geral**, **Importação**, **Exportação**, **Rotas e Manifestos** e **ADR**. As abas **Importação** e **Exportação** trazem os totais por porto e o bloco **Importação rápida**, que abre cada importação com a Viagem já escolhida: na aba **Importação**, **Baplie EDI**, **B/L container**, **B/L carga solta**, **CE Mercante**, **Manifesto BB**, **Veículos** e **Vazios IMP**; na aba **Exportação**, **Manifesto Granito** e o embarque de vazios. Na linha das abas ficam os atalhos **Resolver divergências (N)** (quando a Conciliação está Divergente) ou **Baplie EDI**, **B/Ls da viagem** e **Granito** (só com B/L de Granito). Na Viagem cancelada, a **Importação rápida** some.
+- **Ficha da Viagem.** A ficha tem as abas **Visão geral**, **Importação**, **Exportação**, **Rotas e Manifestos** e **ADR**. As abas **Importação** e **Exportação** trazem os totais por porto e abrem cada importação com a Viagem já escolhida. A aba **Importação** tem o bloco **Importação rápida**, com **Baplie EDI**, **B/L container**, **B/L carga solta**, **CE Mercante**, **Manifesto BB**, **Veículos** e **Vazios IMP**. A aba **Exportação** tem o bloco **Ações da exportação**, com **Manifesto Granito** e **Novo embarque de vazios**. Na linha das abas ficam os atalhos **Resolver divergências (N)** (quando a Conciliação está Divergente) ou **Baplie EDI**, **B/Ls da viagem** e **Granito** (só com B/L de Granito). Na Viagem cancelada, esses dois blocos somem.
 - **Baplie EDI.** É a primeira opção do grupo **Importação** do menu. A página trabalha sempre com uma Viagem: sem Viagem escolhida, mostra **Escolha uma viagem** ("O Baplie é importado e conferido com os B/Ls por viagem…"). Escolha a Viagem na faixa de viagens ou em **Buscar viagem**. A Viagem escolhida fica no endereço da página, e o link de um alerta abre direto nela.
 
 A ficha do B/L tem ainda **Reimportar B/L**, para o arquivo corrigido de um B/L ([6.3](#63-reimportar-um-bl-que-o-armador-corrigiu)).
@@ -50,7 +50,7 @@ A Importação rápida da aba Importação, na ficha da Viagem.
 
 Qualquer pessoa ativa do Vela, de qualquer equipe, importa todos os arquivos (B/L, CE, Baplie, veículos, Vazios, Granito, datas e Clientes) e reprocessa, com justificativa, o que a importação deixou travado ([6.11](#611-o-que-acontece-depois-da-importação)). Também são de qualquer equipe: corrigir e remover o CE de B/L sem fatura, mover e desvincular B/L de Manifesto Mercante, informar o Nº de Manifesto, usar **Vale o B/L** e **Aplicar IMO/OOG agora** e cadastrar os vazios do Baplie. Tudo fica no Histórico com o nome de quem fez. O Vela recusa usuário desativado e sessão vencida.
 
-Na Viagem cancelada, nada disso é aceito: o Vela recusa com "Viagem … cancelada: operação selada e somente leitura.", os botões da aba **Rotas e Manifestos** ficam desativados e a **Importação rápida** não aparece.
+Na Viagem cancelada, nada disso é aceito: o Vela recusa com "Viagem … cancelada: operação selada e somente leitura.", os botões da aba **Rotas e Manifestos** ficam desativados e os blocos **Importação rápida** e **Ações da exportação** não aparecem.
 
 ### Arquivo, Prévia e Resultado
 
@@ -62,7 +62,7 @@ Toda importação segue o mesmo caminho, mostrado no alto da janela em três eta
 - **Prévia.** O Vela mostra o que vai criar, mudar ou deixar de fora. Nada foi gravado ainda.
 - **Resultado.** Depois que você confirma, o Vela grava e mostra o que entrou e o que pede ação.
 
-O rodapé da janela diz sempre em que ponto você está: "Nada é gravado antes de você conferir a prévia e confirmar.", "Lendo o arquivo. Nada foi gravado.", "Prévia pronta. Nada foi gravado ainda." e, no fim, "Importação gravada.".
+O rodapé da janela diz, em geral, em que ponto você está: "Nada é gravado antes de você conferir a prévia e confirmar.", "Lendo o arquivo. Nada foi gravado.", "Prévia pronta. Nada foi gravado ainda." e, no fim, "Importação gravada.". No arquivo de B/L com pendência, o fim é "Importação gravada com pendências; veja acima."; na planilha de CE, "CE gravado. A emissão das faturas aparece acima.".
 
 ### Erros e avisos
 
@@ -93,7 +93,7 @@ O arquivo de B/L de container é a exceção: o Vela lê as células pela posiç
 
 <!-- regras: BLR-068 -->
 
-O Vela guarda uma impressão digital (assinatura) de cada arquivo importado, com o nome dele. Se você escolhe de novo o mesmo arquivo para a mesma Viagem e o mesmo tipo de importação, a prévia avisa **Arquivo já importado**: "Este arquivo já foi importado em \<data> por \<pessoa>." e "A importação continua permitida; confira se é mesmo para gravar de novo.". Manifesto BB e B/L avulso contam como o mesmo tipo. O aviso não impede a importação.
+No arquivo de B/L de container, no Manifesto BB e no B/L avulso, no Granito e nos Vazios IMP e EXP, o Vela guarda uma impressão digital (assinatura) de cada arquivo importado, com o nome dele. A planilha de CE Mercante, o Baplie, os Veículos, as datas e a base de Clientes não têm esse aviso. Se você escolhe de novo o mesmo arquivo para a mesma Viagem e o mesmo tipo de importação, a prévia avisa **Arquivo já importado**: "Este arquivo já foi importado em \<data> por \<pessoa>." e "A importação continua permitida; confira se é mesmo para gravar de novo.". Manifesto BB e B/L avulso contam como o mesmo tipo. O aviso não impede a importação.
 
 Se a assinatura não pôde ser calculada, a importação segue. Assinatura com defeito é recusada: "Assinatura do arquivo inválida: escolha o arquivo de novo.".
 
@@ -130,7 +130,7 @@ A prévia existe para nada ser gravado sem alguém conferir. O "tudo ou nada" fa
 ::: ficha
 - **Quando usar:** O armador mandou as planilhas dos B/Ls de container de uma Viagem.
 - **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
-- **Antes de começar:** A Viagem precisa estar no Vela, com as escalas (capítulo 4). Tenha os arquivos .xlsx ou .xls no layout da COSCO, um B/L por arquivo, até 10 MB cada.
+- **Antes de começar:** A Viagem precisa estar no Vela (capítulo 4). Tenha os arquivos .xlsx ou .xls no layout da COSCO, um B/L por arquivo, até 10 MB cada.
 :::
 
 O B/L (conhecimento de embarque) é o documento que agrupa a carga de um consignatário, a empresa que recebe a carga. É pelo B/L que o Vela vincula o Cliente, calcula as Taxas Locais (as cobranças do porto de destino) e mostra a carga no Portal. Os containers só entram no Vela por esta importação: o Baplie confere a carga a bordo, mas não cria container no B/L. Por isso, a lista **Containers** sem filtro diz "Nenhum container importado" até o primeiro arquivo de B/L.
@@ -227,7 +227,7 @@ Quando o CNPJ não resolve, o Vela procura, nesta ordem: o único CNPJ lido no B
 <!-- regras: BLR-038 BLR-046 CEB-077 FAT-165 FAT-106 -->
 
 - Antes de calcular, o Vela aplica aos containers do arquivo as marcas IMO/OOG e SOC/COC do Baplie da Viagem, se ele já foi importado. Assim, a ordem não importa: o B/L importado depois do Baplie recebe as marcas na própria importação.
-- O B/L de container ou misto nasce com as Taxas Locais **Não calculado** e, na mesma gravação, cada B/L novo ou ainda não faturado recebe o cálculo, ainda provisório, com o preço fixado na data da importação. B/L faturado não é recalculado.
+- Na mesma gravação, cada B/L novo ou ainda não faturado recebe o cálculo das Taxas Locais, ainda provisório, com o preço fixado na data da importação. Se o cálculo não pode ser feito, nada é gravado. Por isso, ao fim da importação, o B/L de container ou misto nunca fica com as Taxas Locais **Não calculado**. B/L faturado não é recalculado.
 - Se o cálculo de um B/L falha (câmbio do dia ausente e afins), o arquivo inteiro é recusado ([6.13](#613-situações-comuns)). O câmbio só é exigido do B/L com Cliente e taxa em dólar: o B/L sem Cliente fica com o preço fixado sem câmbio e recebe o câmbio no primeiro cálculo seguinte que tiver câmbio.
 - A importação não emite fatura: a fatura só sai depois do CE Mercante ([6.5](#65-importar-o-ce-mercante-e-emitir-as-faturas)).
 
@@ -317,7 +317,7 @@ Em **BLs**, filtre pela Viagem: os B/Ls aparecem com o Cliente (ou sem Cliente v
 <!-- regras: BLR-018 ALE-065 -->
 
 ::: aconteceu "Arquivo B/L não reconhecido como XLS/XLSX."
-- **O que o sistema faz:** Recusa o arquivo que não é planilha. Se a sessão não é de um usuário ativo do Vela, a gravação é recusada com "Credenciais invalidas para importar frete do BL.".
+- **O que o sistema faz:** Recusa o arquivo que não é planilha. Se a sessão não é de um usuário ativo do Vela, a gravação é recusada com "Usuario sem permissao ativa.".
 - **O que você faz:** Escolha a planilha .xlsx ou .xls do B/L. No caso da sessão, entre de novo no Vela e importe outra vez.
 :::
 
@@ -584,7 +584,7 @@ O aceite vale só para a troca mostrada: se o B/L mudou depois da prévia, ele n
 :::
 
 ::: conferir
-Em **BLs**, com a lente **Carga solta** ou **Misto**, filtrando pela Viagem. Na ficha do B/L, o peso em toneladas e a cubagem da carga solta; no **Histórico**, a linha da importação.
+Em **BLs**, no filtro **Modalidade**, escolha **Carga solta** ou **Misto** e filtre pela Viagem. Na ficha do B/L, o peso em toneladas e a cubagem da carga solta; no **Histórico**, a linha da importação.
 :::
 
 <!-- regras: BLR-053 -->
@@ -669,7 +669,7 @@ A planilha de CE do Manifesto de Vitória, pronta para importar.
 
 ::: lado
 5. Confira a **Conferência com o que já está gravado**. Sem erro nem troca de CE a confirmar, o Vela grava no mesmo clique e começa a emitir as faturas.
-6. Espere a emissão terminar, sem fechar a janela. Leia o **Resultado: emissão das faturas** e clique em **Concluir**.
+6. Espere a emissão terminar, sem fechar a janela. Leia o **Resultado: emissão das faturas** e clique em **Concluir**. Se nenhum B/L tem fatura a emitir (todos já faturados, por exemplo), a janela fecha sozinha depois do aviso, sem o resultado.
 
 ::: tela ce-resultado
 A conferência e o resultado da emissão das faturas.
@@ -748,7 +748,7 @@ A gravação da planilha é tudo ou nada. Na mesma operação, o Vela:
 - registra no Histórico do B/L o CE, com "Importação de CE Mercante · Viagem … · Manifesto … · Rota A → B · Motivo: …";
 - calcula as Taxas Locais dos B/Ls que recebem o primeiro CE. Trocar um CE por outro não recalcula.
 
-Se o cálculo de algum B/L falha, nada da planilha é gravado ([6.13](#613-situações-comuns)). Ao terminar, o aviso diz "CE Mercante atualizado em N B/Ls; N B/Ls cancelados não foram tocados.".
+Se o cálculo de algum B/L falha, nada da planilha é gravado ([6.13](#613-situações-comuns)). Ao terminar, o aviso diz "CE Mercante atualizado em N B/Ls." ou, quando a planilha tem B/L cancelado, "CE Mercante atualizado em N B/Ls; N B/Ls cancelados não foram tocados.".
 
 Sem CE Mercante, a fatura de Taxas Locais não sai por nenhum caminho: o Vela recusa emitir, recusa incluir o B/L numa fatura emitida e recusa ligar o valor a receber a uma consolidada emitida ("B/L … sem CE Mercante. Cadastre o CE antes de faturar."). A fatura avulsa é a única exceção.
 
@@ -766,7 +766,7 @@ O bloco **Resultado: emissão das faturas** conta os **processados** e separa ca
 | **retidos** | O Cliente não tem a Conta do Portal pronta nem Liberação de faturamento ("Retido: a Conta do Portal do Cliente não está ativa."). | Peça a ativação do Portal do Cliente (capítulo 14) ou a Liberação de faturamento ao {{Administrativo}}. A fatura sai sozinha depois, com o cálculo do dia do CE. |
 | **aguardando** | Falta a conciliação do Cliente, a Revisão do B/L ou a tabela de cobrança do POD e da modalidade. Não é falha. | Resolva a causa dita no motivo: Cliente e Revisão (capítulo 8) ou tabela de cobrança (capítulo 21). |
 | **nada a faturar** | O cálculo não tem taxa com valor, ou o B/L é isento ("Nada a faturar: o cálculo do B/L não tem taxa com valor."). | Confira as Taxas Locais do B/L, se esperava cobrança. |
-| **bloqueados** | Falha técnica na emissão. | Leia o motivo. O Vela tenta de novo sozinho; se a falha persistir, ela aparece em **Alertas** ([6.11](#611-o-que-acontece-depois-da-importação)). |
+| **bloqueados** | Falha técnica na emissão. Abre na hora o alerta **Falha de emissão automática** (Documentação), que fecha quando a fatura sai. | Leia o motivo. O pedido que ficou na fila tenta de novo sozinho; se a falha continuar, abre também **Efeito de importação bloqueado** ([6.11](#611-o-que-acontece-depois-da-importação)). |
 | **pulados** | A última fatura do B/L foi cancelada por uma pessoa ("Pulado: a fatura foi cancelada e aguarda Emitir na ficha do B/L."), ou o B/L está sem CE ou cancelado ("Pulado: B/L sem CE Mercante ou cancelado."). | Se a fatura deve sair, use **Emitir** na ficha do B/L. |
 
 Os motivos de **aguardando** são três: "Aguardando conciliação do Cliente: a fatura sai quando o Cliente do B/L for conciliado.", "Aguardando Revisão do B/L: a fatura sai quando a Revisão terminar." e "Aguardando tabela de cobrança: …", com o POD, a modalidade e onde cadastrar a tabela de cobrança em **Taxas Locais**.
@@ -776,7 +776,7 @@ A fatura emitida aqui leva a nota interna "Sistema — CE Mercante: fatura autom
 <!-- regras: FAT-048 FAT-054 DEM-012 POR-066 -->
 
 ::: sozinho
-- Se a emissão falha por um problema passageiro, o pedido vai para a fila do que a importação deixou para depois, e o Vela tenta de novo sozinho. O mesmo pedido repetido não cria segunda fatura, e o B/L que já foi faturado encerra o pedido. A falha que persiste aparece como **Efeito de importação bloqueado**, com o motivo "Faturamento automatico do B/L … bloqueado: …" ([6.11](#611-o-que-acontece-depois-da-importação)). Revisão pendente e tabela de cobrança faltando deixam o pedido esperando, sem alerta crítico, e ele termina sozinho quando a causa se resolve.
+- Toda gravação de CE novo ou trocado deixa um pedido de faturamento na fila do que a importação deixou para depois, como rede de segurança. Se a emissão da janela falha, o Vela tenta de novo sozinho por esse pedido. O mesmo pedido repetido não cria segunda fatura, e o B/L que já foi faturado encerra o pedido. A falha que persiste aparece como **Efeito de importação bloqueado**, com o motivo "Faturamento automatico do B/L … bloqueado: …" ([6.11](#611-o-que-acontece-depois-da-importação)). Revisão pendente e tabela de cobrança faltando deixam o pedido esperando, sem alerta crítico, e ele termina sozinho quando a causa se resolve.
 - Depois que o B/L tem CE, a fatura também sai sozinha quando ele recebe ou troca o Cliente, ou quando a conciliação do Cliente termina: o Vela calcula e emite na mesma gravação, se tudo estiver pronto, com a mesma nota interna. Se o cálculo falha, essa gravação é recusada ("Taxas Locais do B/L … não calculadas: …. Nada foi gravado: corrija e grave de novo."). Sem Cliente conciliado, o CE só calcula e a fatura espera o Cliente.
 - Se o B/L tem uma Invoice de Demurrage esperando para sair (todos os containers devolvidos), gravar o CE a põe de novo na fila de emissão (capítulo 9).
 - O B/L passa a aparecer no Portal do Cliente: sem CE, ele não aparece lá ([6.11](#611-o-que-acontece-depois-da-importação)).
@@ -879,7 +879,7 @@ O motivo vai para o Histórico de cada B/L, e a fatura já emitida não muda. An
 3. Escreva o motivo e confirme.
 :::
 
-O CE do B/L com fatura emitida (que não seja rascunho, cancelada ou obsoleta) não pode ser removido: o Vela manda corrigir o número em vez de remover. O passo a passo completo da ficha está no capítulo 7.
+O CE do B/L com fatura emitida (que não seja rascunho, cancelada ou obsoleta) não pode ser removido: o Vela diz quais faturas impedem. Corrija o número ou peça ao {{Administrativo}} para cancelar a fatura antes. O passo a passo completo da ficha está no capítulo 7.
 
 ### Mover o B/L para outro Manifesto ou desvincular
 
@@ -920,8 +920,8 @@ Qualquer usuário ativo grava. O número segue as mesmas regras da planilha de C
 
 <!-- regras: BLR-107 -->
 
-::: aconteceu "O CE Mercante do B/L … não pode ser apagado: há fatura emitida. Corrija o número."
-- **O que o sistema faz:** Recusa **Remover CE** no B/L que tem fatura emitida.
+::: aconteceu "O CE Mercante do B/L \<nº> nao pode ser removido: ha fatura emitida (\<faturas>). O Administrativo precisa cancelar a fatura antes."
+- **O que o sistema faz:** Recusa **Remover CE** no B/L que tem fatura emitida e diz quais faturas impedem. A própria janela de **Remover CE** já avisa: "O B/L volta a aguardar CE. Com fatura viva, a remoção é recusada: o Administrativo cancela a fatura antes."
 - **Por quê:** A fatura emitida depende do CE; o B/L faturado não volta a ficar sem CE.
 - **O que você faz:** Use **Corrigir CE** com o número certo. Se o CE tem de sair mesmo, o {{Administrativo}} cancela a fatura antes.
 :::
@@ -937,7 +937,7 @@ O CE é documento oficial. A troca fica registrada com motivo para qualquer pess
 ::: ficha
 - **Quando usar:** O armador mandou o Baplie da Viagem, ou uma versão nova dele.
 - **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
-- **Antes de começar:** A Viagem precisa ter as escalas de importação planejadas (capítulo 4). Tenha o arquivo .edi, .txt, .edi2 ou .bpl, até 10 MB.
+- **Antes de começar:** Convém que a Viagem tenha as escalas de importação (capítulo 4): é com elas que o Vela confere os portos do arquivo. Tenha o arquivo .edi, .txt, .edi2 ou .bpl, até 10 MB.
 :::
 
 O Baplie é o arquivo do plano de carga do navio (no formato EDIFACT). Ele diz quais containers estão a bordo, cheios ou vazios, para que porto vão e com que marcas: IMO (carga perigosa), OOG (carga fora de medida) e SOC ou COC (container do próprio Cliente ou do armador). No Vela, o Baplie confere a carga física com os B/Ls e leva essas marcas aos containers dos B/Ls; ele não cria B/L nem container de B/L.
@@ -967,7 +967,7 @@ No exemplo, o Baplie traz 7 containers: 5 cheios (um deles IMO, o das baterias d
 
 ### O arquivo e a conferência da Viagem
 
-<!-- regras: CEB-057 CEB-058 CEB-062 VIA-052 -->
+<!-- regras: CEB-057 CEB-058 CEB-062 VIA-052 (só a leitura das escalas ativas de importação; o Baplie não cria escala) -->
 
 O arquivo pode ser .edi, .txt, .edi2 ou .bpl, até 10 MB; o modelo está em **Modelo .edi**. A leitura mostra o progresso e pode ser interrompida (**Interromper leitura**). Conteúdo que não é EDIFACT é recusado ("Arquivo Baplie não reconhecido como EDI."). Nada é gravado antes de você conferir a prévia e confirmar.
 
@@ -1111,7 +1111,7 @@ O Baplie é a fonte da carga física: o que está a bordo e com que marcas. O B/
 O bloco **Conciliação Baplie × B/L** diz a situação da Viagem: **Viagem sem B/L para conferir** (com **Abrir a viagem para importar B/Ls**), **Aguardando B/L das rotas do Baplie**, **Conferindo com os B/Ls…**, **Não foi possível conferir com os B/Ls** (com **Tentar novamente**), **N divergências para resolver** (em âmbar) ou **Baplie e B/Ls conferem**. Embaixo, cada grupo de divergência diz o que a diferença significa e o que fazer. Os números de cada grupo levam à lista do grupo, e os grupos com lista são paginados como a lista (20, 50 ou 100 por página; o rodapé só aparece acima de 20 linhas).
 
 ::: passos
-1. No grupo da divergência, clique em **Ver o container na lista** (com mais de um, **Ver os N containers na lista**). A lista **Containers do Baplie** abre filtrada.
+1. Abra o grupo da divergência. Em **No Baplie, sem B/L**, clique em **Ver o container na lista** (com mais de um, **Ver os N containers na lista**): a lista **Containers do Baplie** abre filtrada. Nos outros grupos, a lista do próprio grupo mostra o container e o B/L, com link para a aba Carga.
 :::
 
 ::: tela baplie-conciliacao
@@ -1157,7 +1157,7 @@ O grupo **No Baplie, sem B/L** não repete a lista: **Ver os N containers na lis
 3. Confirme. Aparece **Divergência encerrada: vale o B/L.**.
 :::
 
-A janela avisa: "Resolve só esta divergência. Um Baplie novo ou uma nova planilha de B/L pode mudar o valor. A resolução fica no Histórico.". A resolução vale para o container em todos os B/Ls ativos da Viagem com o mesmo valor. No perfil IMO/OOG, o valor do B/L passa a ser correção manual. No SOC/COC, fica registrada só a resolução daquele par de valores (um Baplie novo com outro valor volta a divergir), e a origem continua do B/L. O Histórico do B/L registra "Vale o B/L: \<motivo>". Repetir para o mesmo par só atualiza o autor, a data e o motivo.
+No SOC/COC, a janela avisa: "Resolve só esta divergência. Um Baplie novo ou uma nova planilha de B/L pode mudar o valor. A resolução fica no Histórico.". No IMO/OOG, ela avisa: "O valor do B/L passa a correção manual: o próximo Baplie não o troca. A resolução fica no Histórico.". A resolução vale para o container em todos os B/Ls ativos da Viagem com o mesmo valor. No perfil IMO/OOG, o valor do B/L passa a ser correção manual. No SOC/COC, fica registrada só a resolução daquele par de valores (um Baplie novo com outro valor volta a divergir), e a origem continua do B/L. O Histórico do B/L registra "Vale o B/L: \<motivo>". Repetir para o mesmo par só atualiza o autor, a data e o motivo.
 
 ### A lista Containers do Baplie
 
@@ -1253,7 +1253,7 @@ Tire o B/L antigo primeiro, para os containers e o CE não ficarem em dois B/Ls 
 
 ::: passos
 1. Se o B/L antigo **não tem CE Mercante**, peça ao {{Administrativo}} para excluí-lo na lista **BLs** (caixa de seleção da linha e **Excluir**, com motivo).
-2. Se o B/L antigo **tem CE Mercante**, ele não se exclui: é cancelado. Antes, resolva o que impede o cancelamento: fatura em aberto (o {{Administrativo}} cancela a fatura) ou pagamento (o {{Financeiro}} ou o {{Administrativo}} registra a baixa ou a Restituição). Depois, o {{Administrativo}} usa **Mais ações › Cancelar B/L** na ficha, com motivo ("Use quando a carga não embarcou ou o armador reemitiu o documento com outro número."). O cancelamento libera o CE.
+2. Se o B/L antigo **tem CE Mercante**, ele não se exclui: é cancelado. Antes, resolva o que impede o cancelamento: fatura em aberto (o {{Administrativo}} cancela a fatura), Invoice de Demurrage em aberto (capítulo 9) ou pagamento (o {{Financeiro}} ou o {{Administrativo}} registra a baixa ou a Restituição). Depois, o {{Administrativo}} usa **Mais ações › Cancelar B/L** na ficha, com motivo ("Use quando a carga não embarcou ou o armador reemitiu o documento com outro número."). O cancelamento libera o CE.
 3. Importe o arquivo do B/L novo ([6.2](#62-importar-os-bls-de-container) ou [6.4](#64-importar-a-carga-solta-manifesto-bb-e-bl-avulso)).
 4. Importe a planilha de CE Mercante com o CE no B/L novo ([6.5](#65-importar-o-ce-mercante-e-emitir-as-faturas)).
 :::
@@ -1270,10 +1270,10 @@ Na Viagem certa, a importação recusa o B/L: "O B/L \<nº> já está na Viagem 
 3. Se o B/L já tinha CE, importe a planilha de CE de novo, agora na Viagem certa.
 :::
 
-A exclusão só é possível se o B/L não tem CE Mercante nem documento financeiro. Se o B/L na Viagem errada já tem CE, mas nenhuma fatura emitida, remova o CE na ficha (**Remover CE**, com motivo, [6.6](#66-corrigir-o-ce-ou-o-manifesto-de-um-bl)) antes de pedir a exclusão. Por isso, confira a Viagem antes de importar o CE: a fatura só sai depois dele.
+A exclusão só é possível se o B/L não tem CE Mercante, nem fatura (mesmo cancelada), nem Invoice de Demurrage. Comunicado ao Cliente enviado ou pedido de Desbloqueio de CE também impedem a exclusão. Se o B/L na Viagem errada já tem CE e nunca teve fatura, remova o CE na ficha (**Remover CE**, com motivo, [6.6](#66-corrigir-o-ce-ou-o-manifesto-de-um-bl)) antes de pedir a exclusão. Por isso, confira a Viagem antes de importar o CE: a fatura só sai depois dele.
 
-::: aconteceu "Este B/L não pode ser excluído: B/L com CE Mercante"
-- **O que o sistema faz:** Recusa a exclusão e diz o motivo: "B/L com CE Mercante" (cancele em vez de excluir) ou "documento financeiro emitido" (qualquer fatura de Taxas Locais do B/L, mesmo cancelada, ou Invoice de Demurrage).
+::: aconteceu "Este B/L não pode ser excluído:"
+- **O que o sistema faz:** Recusa a exclusão e diz, abaixo, o número do B/L e o motivo: "B/L com CE Mercante" (cancele em vez de excluir) ou "documento financeiro emitido" (qualquer fatura de Taxas Locais do B/L, mesmo cancelada, ou Invoice de Demurrage).
 - **Por quê:** B/L com documento oficial ou financeiro não some do Vela: ele é cancelado e fica no histórico.
 - **O que você faz:** Se o armador reemitiu o B/L, cancele-o (passo 2 acima). Se o B/L foi importado na Viagem errada e já teve fatura, ele não chega mais à Viagem certa pelo Vela: leve o caso ao suporte técnico.
 :::
@@ -1353,9 +1353,9 @@ Outras importações seguem o mesmo molde (**Arquivo · Prévia · Resultado**) 
 | Datas de descarga e devolução dos containers | **Containers** (ou **Demurrage**), **Importar datas** | 9 |
 | Veículos | **Veículos**, **Importar veículos**; ou na Viagem, **Importação rápida › Veículos** | 10 |
 | Vazios de importação | **Vazios IMP**, **Importar planilha**; ou na Viagem, **Importação rápida › Vazios IMP** | 10 |
-| Embarque de vazios | **Vazios EXP**, **Importar planilha** | 10 |
+| Embarque de vazios | **Vazios EXP** (página Embarque de vazios): abra o embarque e, no bloco **Unidades embarcadas**, clique em **Importar planilha** (fica fora com o ADR de Saída fechado); ou na Viagem, aba **Exportação**, **Novo embarque de vazios** | 10 |
 | Granito | **Granito**, **Importar planilha COSCO**; ou na Viagem, aba **Exportação**, **Manifesto Granito** | 10 |
-| Arquivo da ZPT | **Desbloqueio de CE**, **Conciliar com a ZPT** | 12 |
+| Arquivo da ZPT | **Desbloqueio de CE**, **Conciliar com a ZPT** ({{Administrativo}} e {{Documentação}}) | 12 |
 | Base de Clientes | **Clientes**, **Importar base** | 13 |
 
 As datas de descarga e devolução nunca vêm do arquivo de B/L nem do Baplie: elas só mudam por **Editar datas**, pela devolução na ficha do B/L ou pela planilha de **Importar datas**, e valem para todos os B/Ls ativos que dividem o container na Viagem.
