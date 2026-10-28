@@ -220,7 +220,11 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; text-wrap: balance; }
   justify-content: center;
   line-height: 1;
 }
-.passos .n { margin-top: -0.4mm; }
+/* O círculo fica dentro do passo (o texto desce 0,4 mm, em vez de o círculo
+   subir): a sobra acima do passo ficava no pé da página anterior quando o
+   bloco começava página nova. */
+.passos li { break-inside: avoid; }
+.passos li > :not(.n) { padding-top: 0.4mm; }
 .passos .tela-txt { display: block; margin-top: 0.8mm; color: var(--muted); font-size: 8.5pt; }
 
 .tela { margin: 0; display: grid; gap: 1.4mm; }
