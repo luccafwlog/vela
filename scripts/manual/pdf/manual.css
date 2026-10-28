@@ -452,7 +452,7 @@ ol.sum .pag { color: var(--muted); font-variant-numeric: tabular-nums; }
 .abertura .intro p { font-size: 10.5pt; max-width: 155mm; }
 .texto-corrido { display: flow-root; }
 .texto-corrido > * + * { margin-top: 3.6mm; }
-.texto-corrido > h2.secao-titulo { position: relative; margin-top: 8mm; padding-top: 3mm; border-top: 0.8pt solid var(--navy); break-after: avoid; }
+.texto-corrido > h2.secao-titulo { position: relative; margin-top: 8mm; padding-top: 3mm; border-top: 0.8pt solid var(--navy); break-after: avoid; break-inside: avoid; }
 .texto-corrido > h2.secao-titulo:first-child { margin-top: 0; }
 .texto-corrido > h3.sub { font-size: 11pt; color: var(--navy); margin-top: 5mm; break-after: avoid; }
 .texto-corrido p, .texto-corrido li { orphans: 3; widows: 3; }
