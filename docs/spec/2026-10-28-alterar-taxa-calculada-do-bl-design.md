@@ -32,3 +32,19 @@ A **quantidade não se altera**: ela é a quantidade do item de carga do B/L
 (containers, peso, rateio do container compartilhado) e mudá-la à mão teria
 impacto maior no sistema. Para mudar a quantidade, corrige-se o B/L, que já
 recalcula. Valor zero não se digita: para não cobrar, exclui-se a taxa.
+
+### D3 — Permissão: todos os setores; uma regra só no bloco
+
+Todos os setores (Administrativo, Financeiro, Operações, Documentação e
+Equipamentos) alteram o valor e excluem taxas do B/L. A exclusão de cobrança
+manual, hoje só do Administrativo
+([ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md), item 11),
+passa a seguir a mesma regra: uma regra só para as linhas do bloco **Taxas
+Locais**. A autorização fica no banco: quem não é usuário interno ativo é
+recusado mesmo chamando a ação fora da tela. B/L faturado é tratado em decisão
+própria.
+
+**Histórico obrigatório na própria página.** Toda alteração e toda exclusão
+ficam registradas e aparecem no lugar onde são feitas (a ficha do B/L, aba
+**Faturamento**, bloco **Taxas Locais**), não só na aba **Histórico**. O
+conteúdo do registro é detalhado na decisão de rastreio.
