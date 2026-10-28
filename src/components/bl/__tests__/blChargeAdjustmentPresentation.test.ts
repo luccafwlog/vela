@@ -23,6 +23,9 @@ describe('ações da linha de Taxa Local', () => {
     expect(chargeLineActions({ ...thd, source: 'manual', status: 'reviewed' }, false)).toEqual(['editManual', 'alter', 'deleteManual'])
     expect(chargeLineActions({ ...thd, status: 'review_required' }, false)).toEqual([])
     expect(chargeLineActions(thd, true)).toEqual([])
+    // B/L faturado (D8): a cobrança manual muda pelo valor, não pela quantidade.
+    expect(chargeLineActions({ ...thd, source: 'manual', status: 'reviewed' }, false, { billed: true })).toEqual(['alter', 'deleteManual'])
+    expect(chargeLineActions(thd, false, { billed: true })).toEqual(['alter', 'exclude'])
   })
 })
 

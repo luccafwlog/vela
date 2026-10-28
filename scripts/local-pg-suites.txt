@@ -200,3 +200,4 @@ src/integration/comunicadosEClientesAjustes.local-pg.test.ts
 src/integration/desbloqueioCeAjustesDaRevisao.local-pg.test.ts
 src/integration/taxaAlteradaNoBl.local-pg.test.ts
 src/integration/isencaoManualTaxasLocais.local-pg.test.ts
+src/integration/taxaAlteradaFaturada.local-pg.test.ts

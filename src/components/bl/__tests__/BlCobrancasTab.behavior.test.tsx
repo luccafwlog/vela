@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   changeCharge: vi.fn(),
   deleteManual: vi.fn(),
   setExemption: vi.fn(),
+  previewEffect: vi.fn(),
   history: [] as unknown[],
   isAdmin: true,
   lines: vi.fn(),
@@ -41,6 +42,9 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
   useChangeBlCharge: () => ({ mutateAsync: mocks.changeCharge, isPending: false }),
   useBlChargeHistory: () => ({ data: mocks.history, isLoading: false }),
   useSetBlLocalChargeExemption: () => ({ mutateAsync: mocks.setExemption, isPending: false }),
+}))
+vi.mock('../../../services/charges/chargeOperationsService', () => ({
+  previewBlChargeChangeEffect: mocks.previewEffect,
 }))
 vi.mock('../../../services/billing', () => ({
   markBlReadyAndCreateInvoice: mocks.markBlReadyAndCreateInvoice,
@@ -211,5 +215,45 @@ describe('Isentar Taxas Locais (ADR 0111, D12)', () => {
     renderSection({ charge_status: 'exempt', charge_exemption_reason: 'Carga de veiculos / LCL no destino (movement_to=LCL) com taxas pagas na origem' })
     expect(screen.queryByRole('button', { name: 'Isentar Taxas Locais' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Retirar isenção' })).toBeNull()
+  })
+})
+
+describe('B/L faturado (ADR 0111, D8)', () => {
+  const manual = {
+    id: 8, bl_id: 'BL-1', charge_name: 'Armazenagem', source: 'manual', status: 'ready_for_billing', quantity: 1, currency: 'BRL',
+    unit_value_brl: 500, total_value_brl: 500, calculation_key: 'manual:1', table_unit_value_brl: 500, table_total_value_brl: 500,
+  }
+
+  it('as ações passam pela correção: a confirmação traz o efeito na fatura lido do banco', async () => {
+    mocks.lines.mockReturnValue({ data: [manual], isLoading: false })
+    mocks.previewEffect.mockResolvedValueOnce({ situation: 'reissue', message: 'A fatura INV-1 (R$ 500,00) será cancelada e reemitida com número novo, no valor de R$ 0,00.' })
+    mocks.confirmWithReason.mockResolvedValueOnce(null)
+    renderSection({ financial_status: 'invoiced' })
+    expect(screen.getByText(/Alterar, excluir ou isentar passa pela correção da fatura/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Adicionar cobrança manual/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Editar cobrança manual' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Isentar Taxas Locais' }))
+    await waitFor(() => expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Isentar Taxas Locais do B/L', consequence: expect.stringContaining('será cancelada e reemitida'),
+    })))
+    expect(mocks.previewEffect).toHaveBeenCalledWith({ blId: 'BL-1', action: 'exempt' })
+  })
+
+  it('a recusa da prévia aparece antes de pedir a justificativa', async () => {
+    mocks.lines.mockReturnValue({ data: [manual], isLoading: false })
+    mocks.previewEffect.mockRejectedValueOnce({ code: '22023', message: 'B/L já está isento das Taxas Locais.' })
+    renderSection({ financial_status: 'paid' })
+    fireEvent.click(screen.getByRole('button', { name: 'Isentar Taxas Locais' }))
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('isento'), 'error'))
+    expect(mocks.confirmWithReason).not.toHaveBeenCalled()
+  })
+
+  it('B/L sem fatura não consulta a prévia', async () => {
+    mocks.lines.mockReturnValue({ data: [manual], isLoading: false })
+    mocks.confirmWithReason.mockResolvedValueOnce(null)
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Isentar Taxas Locais' }))
+    await waitFor(() => expect(mocks.confirmWithReason).toHaveBeenCalled())
+    expect(mocks.previewEffect).not.toHaveBeenCalled()
   })
 })

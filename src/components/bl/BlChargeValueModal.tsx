@@ -8,6 +8,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import { useChangeBlCharge } from '../../hooks/useLocalCharges'
+import { readInvoiceEffect } from './blChargeInvoiceEffect'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { applicationBasisLabel } from '../billing/conferenciaCalculo'
 import { formatNumber } from '../../pages/blDetalheHelpers'
@@ -24,7 +25,7 @@ import {
 } from './blChargeAdjustmentPresentation'
 
 /** Modal "Alterar valor — <taxa>" (ADR 0111): por unidade ou pelo total, com justificativa interna. */
-export function BlChargeValueModal({ blId, line, onClose }: { blId: string; line: LocalChargeLine; onClose: () => void }) {
+export function BlChargeValueModal({ blId, line, onClose, billed = false }: { blId: string; line: LocalChargeLine; onClose: () => void; billed?: boolean }) {
   const { user } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
@@ -51,6 +52,11 @@ export function BlChargeValueModal({ blId, line, onClose }: { blId: string; line
     setError(null)
     const newUnit = kind === 'unit' ? read.value : Math.round((read.value / Number(line.quantity || 1)) * 100) / 100
     const newTotal = kind === 'unit' ? Math.round(read.value * Number(line.quantity ?? 0) * 100) / 100 : read.value
+    const effect = await readInvoiceEffect(billed, { blId, action: 'alter', lineKey: line.calculation_key, kind, value: read.value })
+    if (!effect.ok) {
+      setError({ field: 'form', message: `Não foi possível alterar a taxa: ${userFacingErrorMessage(effect.error)}` })
+      return
+    }
     const confirmed = await confirm({
       title: 'Alterar valor da taxa',
       message: `Alterar o valor de ${line.charge_name} neste B/L?`,
@@ -58,7 +64,7 @@ export function BlChargeValueModal({ blId, line, onClose }: { blId: string; line
         { field: `${line.charge_name} · ${basis}`, before: money(chargedUnitValue(line)), after: money(newUnit) },
         { field: 'Total', before: money(chargedTotalValue(line)), after: money(newTotal) },
       ],
-      consequence: `O B/L passa a cobrar ${money(newTotal)} por esta taxa. A alteração vale nos próximos recálculos e na fatura; só se perde se o B/L mudar de POD ou de modalidade.`,
+      consequence: effect.message ?? `O B/L passa a cobrar ${money(newTotal)} por esta taxa. A alteração vale nos próximos recálculos e na fatura; só se perde se o B/L mudar de POD ou de modalidade.`,
       reversibility: 'Volte quando quiser com Voltar ao valor da tabela, com justificativa.',
       confirmLabel: 'Alterar valor',
     })

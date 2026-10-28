@@ -622,6 +622,22 @@ vizinhos de container compartilhado, veículos, cancelamento) ou o Cliente; uma
 data de Demurrage não é correção. Ninguém digita valor de correção nem concede
 desconto.
 
+**Taxa alterada à mão no B/L faturado (ADR 0111, D8; migration `493`).**
+Alterar o valor, excluir ou voltar ao valor da tabela uma Taxa Local, excluir
+cobrança manual, isentar e retirar a isenção valem também no B/L faturado. A
+ação grava a decisão nas linhas e chama `apply_invoice_basis_changes` com a
+origem `charge_adjustment`, com o mesmo resultado de qualquer correção: sem
+pagamento, a fatura é cancelada e reemitida com número novo (isentar cancela
+sem sucessora); paga com valor menor, abate o saldo em aberto e o resto vira
+Restituição; paga com valor maior, abre Fatura desatualizada e a diferença se
+cobra por Fatura avulsa; sem poder reemitir (B/L misto com terminais em
+conflito, valor a revisar, trava do Portal), a fatura continua valendo com
+Fatura desatualizada. A confirmação lê o efeito de
+`preview_bl_charge_change_effect` antes de gravar, e o evento do Histórico das
+taxas guarda o efeito real (**Efeito na fatura**). O item emitido de linha
+alterada leva `snapshot_payload.charge_adjustment`: o detalhe da fatura no Vela
+mostra a Origem **Alterado**; o Portal não recebe a chave.
+
 Fatura emitida não oferece edição manual de itens; as RPCs antigas foram
 revogadas para a API pela migration `122`. Não há Cancelar e reemitir nem
 correção digitada: a `128` removeu `cancel_invoice_for_reissue` e

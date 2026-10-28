@@ -4,7 +4,8 @@ Status: aceito — 2026-10-28 (pedido e decisões do dono, D1 a D14, na
 [spec aprovada](../spec/2026-10-28-alterar-taxa-calculada-do-bl-design.md); R1 e
 R2 aprovados no [plano](../plans/2026-10-28-alterar-taxa-calculada-do-bl.md)).
 Implementação em lotes: lote 1 na migration `491` (alterar, excluir, desfazer,
-cobrança manual e Histórico das taxas); lote 2 na `492` (isenção à mão).
+cobrança manual e Histórico das taxas); lote 2 na `492` (isenção à mão); lote 3
+na `493` (B/L faturado).
 
 Supersede o item 11 da [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)
 (excluir cobrança manual era só do Administrativo). Estende a
@@ -57,8 +58,26 @@ porque `charge_calculations` é refeita do zero pelo motor.
    lança. **Retirar isenção** recalcula com as alterações e exclusões que o B/L
    tinha. Estende a regra de isenção, que até aqui só existia com prova
    positiva (veículo com Movement To LCL); a isenção pelo veículo vale primeiro.
-10. **B/L faturado (D8) e aviso pelo tamanho do efeito (D6)** seguem a spec;
-   entram nos lotes seguintes do plano.
+10. **B/L faturado (D8).** Alterar, excluir, voltar ao valor da tabela,
+   excluir cobrança manual, isentar e retirar a isenção valem também no B/L
+   faturado, parcial ou pago. A fatura emitida não é editada: a ação grava a
+   decisão nas linhas e chama a correção automática (origem
+   `charge_adjustment`), que reemite a fatura sem pagamento, abate o saldo e
+   abre Restituição na paga com valor menor, abre **Fatura desatualizada** na
+   paga com valor maior (diferença por Fatura avulsa) ou deixa a correção
+   pendente quando a reemissão não sai. Isentar com fatura sem pagamento cancela
+   sem sucessora; com pagamento, todo o recebido vira Restituição. A
+   confirmação diz o efeito antes de gravar
+   (`preview_bl_charge_change_effect`, a mesma ação numa subtransação
+   desfeita), e o evento do Histórico das taxas guarda o que a correção fez
+   (**Efeito na fatura**). O **Recalcular** e o lançamento ou a edição da
+   quantidade de cobrança manual continuam fechados no B/L faturado.
+11. **Marca no item da fatura (D9).** O item emitido de linha alterada guarda a
+   alteração em `snapshot_payload.charge_adjustment`; o detalhe da fatura no
+   Vela mostra a Origem **Alterado**, e `portal_invoice_details` tira a chave
+   antes de devolver o item ao Cliente.
+12. **Aviso pelo tamanho do efeito (D6)** segue a spec e entra no lote 5 do
+   plano.
 
 ## Consequências
 
@@ -73,6 +92,13 @@ porque `charge_calculations` é refeita do zero pelo motor.
   (`_calculate_bl_local_charges_impl_491`); `_quote_bl_local_charges` devolve
   `exempt` para o B/L isento à mão, e `add_manual_bl_charge` e
   `update_manual_bl_charge` recusam o B/L isento à mão.
+- A 493 tira a recusa "B/L faturado" de `_lock_bl_for_charge_change_491` e
+  marca a transação (`vela.bl_charge_change`); no B/L faturado o cálculo só
+  atualiza as linhas gravadas (`_refresh_billed_bl_charge_lines`), sem apagar
+  linha para a qual a fatura aponta. `_record_bl_charge_event` vira invólucro
+  que aplica a correção (`_apply_bl_charge_change_to_invoice`).
+  `delete_manual_bl_charge` tira a linha da cobrança antes do registro e só a
+  apaga quando nenhum item de fatura aponta para ela.
 - Ceiling conhecido: alterar uma taxa recalcula o B/L inteiro, que volta a
   **Provisório** as linhas que estavam **Pronto** — o mesmo efeito do
   **Recalcular**.

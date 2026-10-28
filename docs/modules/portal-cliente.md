@@ -853,6 +853,8 @@ quando o Portal fica pronto ou o Cliente deixa de ter processo ativo (ver
 
 A correção do B/L em fatura com pagamento mantém o total original e o dinheiro recebido, mas atualiza o saldo a pagar. O detalhe exibe Ajustes por correção com abatimento e restituição por B/L, por leitura escopada ao Cliente. Avulsas com item de tabela aparecem para o Cliente do B/L. Faturas canceladas permanecem acessíveis ao Cliente, mas a lista sem filtro mostra só as em vigor; as canceladas, desfeitas e substituídas aparecem pelo filtro **Cancelada** (migration `128`; a substituída, desde a `361`, com aviso no Portal sem e-mail). Pagamento parcial de uma individual faz a consolidada aberta mostrar o saldo restante com QR novo, e vice-versa (migration `356`). Na aba Operação, a coluna Taxas locais conta o B/L uma vez: com consolidada aberta, ela no lugar da individual (migration `364`). Ver [ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md).
 
+A taxa alterada, excluída ou isenta à mão pelo operador no B/L faturado ([ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md), D8) chega ao Cliente como qualquer correção: fatura nova com aviso, abatimento ou Restituição. O Cliente vê só o valor cobrado; `portal_invoice_details` tira do item a marca da alteração (`snapshot_payload.charge_adjustment`), e o valor da tabela e a justificativa não saem do banco (D9; migration `493`). Prova: `src/integration/taxaAlteradaFaturada.local-pg.test.ts`.
+
 ### B/L que muda de Cliente
 
 Depois da troca de Cliente do B/L, o Cliente anterior continua vendo as próprias

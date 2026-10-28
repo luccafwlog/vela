@@ -551,6 +551,36 @@ export async function setBlLocalChargeExemption(input: { blId: string; exempt: b
   return data as unknown
 }
 
+export type BlChargeChangeAction = 'alter' | 'exclude' | 'restore' | 'delete_manual' | 'exempt' | 'unexempt'
+export type BlChargeChangeEffect = {
+  situation: 'none' | 'unchanged' | 'reissue' | 'cancel' | 'refund' | 'stale' | 'blocked'
+  invoice_number?: string
+  message: string | null
+}
+
+/**
+ * Efeito da ação na fatura do B/L faturado, antes de gravar (ADR 0111, D8):
+ * o banco roda a ação numa subtransação desfeita e devolve a frase da
+ * confirmação. Recusa da ação volta como erro, igual à ação.
+ */
+export async function previewBlChargeChangeEffect(input: {
+  blId: string
+  action: BlChargeChangeAction
+  lineKey?: string | null
+  kind?: 'unit' | 'total' | null
+  value?: number | null
+}) {
+  const { data, error } = await supabase.rpc('preview_bl_charge_change_effect' as never, {
+    p_bl_id: input.blId,
+    p_action: input.action,
+    p_line_key: input.lineKey ?? null,
+    p_kind: input.kind ?? null,
+    p_value: input.value ?? null,
+  } as never)
+  if (error) throw error
+  return data as unknown as BlChargeChangeEffect
+}
+
 export async function listBlChargeHistory(blId: string) {
   const { data, error } = await supabase.rpc('list_bl_charge_history' as never, { p_bl_id: blId } as never)
   if (error) throw error

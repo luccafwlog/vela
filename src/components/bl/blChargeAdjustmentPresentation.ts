@@ -18,11 +18,14 @@ export const isAdjustedLine = (line: AdjustmentMark) =>
 export function chargeLineActions(
   line: AdjustmentMark & { source: string | null; status: string | null },
   readOnly: boolean,
+  { billed = false }: { billed?: boolean } = {},
 ): ChargeLineAction[] {
   if (readOnly || line.status === 'review_required' || line.status === 'exempt') return []
   if (isExcludedLine(line)) return ['reinclude']
   const restore: ChargeLineAction[] = isAdjustedLine(line) ? ['restore'] : []
-  if (line.source === 'manual') return ['editManual', 'alter', ...restore, 'deleteManual']
+  // B/L faturado (D8): a quantidade da cobrança manual é base da fatura; o
+  // valor muda por Alterar valor, que passa pela correção.
+  if (line.source === 'manual') return [...(billed ? [] : ['editManual' as const]), 'alter', ...restore, 'deleteManual']
   return ['alter', ...restore, 'exclude']
 }
 
@@ -146,7 +149,7 @@ export function historyChangePhrase(event: Pick<BlChargeHistoryEvent, 'event' | 
   }
 }
 
-/** Coluna **Efeito na fatura**; até o lote 3 só existe B/L sem fatura. */
+/** Coluna **Efeito na fatura**: o que a correção fez no B/L faturado (migration 493); sem fatura, "Sem fatura". */
 export function historyInvoiceEffect(event: Pick<BlChargeHistoryEvent, 'invoice_effect'>) {
   const effect = event.invoice_effect as { summary?: string } | null
   return effect?.summary ?? 'Sem fatura'

@@ -13,6 +13,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { chargeTableColumns, isUsualLine } from './chargeTableColumns'
 import { BlChargeValueModal } from './BlChargeValueModal'
 import { BlChargeHistory } from './BlChargeHistory'
+import { readInvoiceEffect } from './blChargeInvoiceEffect'
 import {
   adjustmentTooltip,
   chargeLineActions,
@@ -95,8 +96,9 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     }
   }, [localChargeLines])
 
-  // Apos o B/L ser faturado, as taxas viram fonte da fatura emitida — nao podem mais
-  // ser editadas aqui (o RPC tambem bloqueia; a UI apenas evita a tentativa).
+  // B/L faturado: as taxas são a base da fatura emitida. Recalcular, lançar e
+  // editar cobrança manual ficam fechados; alterar, excluir e isentar passam
+  // pela correção da fatura (ADR 0111, D8; migration 493).
   const chargesLocked = isBlFinanciallyLocked(bl.financial_status)
   // B/L cancelado é somente leitura (TAX-D09): sem cálculo, cobrança manual nem emissão.
   const cancelled = Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)
@@ -104,7 +106,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   // B/L isento à mão (D12): as linhas ficam como referência, sem ação, até
   // Retirar isenção. O banco recusa a ação do mesmo jeito (migration 492).
   const manualExempt = bl.charge_status === 'exempt' && isManualExemption(bl.charge_exemption_reason)
-  const linesReadOnly = readOnly || manualExempt
+  const linesReadOnly = cancelled || manualExempt
   const exemptionMutation = useSetBlLocalChargeExemption(bl.id)
   const { data: chargeHistory } = useBlChargeHistory(bl.id)
 
@@ -215,14 +217,24 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     return reason.trim()
   }
 
+  /** Efeito na fatura do B/L faturado; `undefined` quando a ação já foi recusada. */
+  async function invoiceEffect(input: Omit<Parameters<typeof readInvoiceEffect>[1], 'blId'>) {
+    const read = await readInvoiceEffect(chargesLocked, { blId: bl.id, ...input })
+    if (read.ok) return read.message
+    showToast(userFacingErrorMessage(read.error), 'error')
+    return undefined
+  }
+
   async function handleDeleteManualCharge(line: LocalChargeLine) {
     if (!user) return
+    const effect = await invoiceEffect({ action: 'delete_manual', lineKey: line.calculation_key })
+    if (effect === undefined) return
     // Qualquer setor exclui a cobrança manual, com justificativa (ADR 0111,
     // supersede o item 11 da ADR 0071).
     const justification = await askJustification({
       title: 'Excluir cobrança manual',
       message: `Excluir a cobrança manual ${line.charge_name} (${formatChargeMoney(chargedTotalValue(line), line.currency)}) deste B/L?`,
-      consequence: 'A cobrança sai das Taxas Locais do B/L e do próximo faturamento. A ação fica no Histórico das taxas.',
+      consequence: effect ?? 'A cobrança sai das Taxas Locais do B/L e do próximo faturamento. A ação fica no Histórico das taxas.',
       reversibility: 'Lance a cobrança de novo se precisar.',
       tone: 'danger',
       confirmLabel: 'Excluir',
@@ -242,6 +254,8 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
 
   async function handleChargeLineAction(line: LocalChargeLine, action: 'exclude' | 'restore' | 'reinclude') {
     if (!user || !line.calculation_key) return
+    const effect = await invoiceEffect({ action: action === 'exclude' ? 'exclude' : 'restore', lineKey: line.calculation_key })
+    if (effect === undefined) return
     const money = (value: number) => formatChargeMoney(value, line.currency)
     const texts = {
       exclude: {
@@ -275,6 +289,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     const justification = await askJustification({
       title: texts.title,
       message: texts.message,
+      ...(effect ? { consequence: effect } : {}),
       reversibility: texts.reversibility,
       confirmLabel: texts.confirmLabel,
       tone: texts.tone,
@@ -292,15 +307,19 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
 
   async function handleExemption(exempt: boolean) {
     if (!user) return
+    const effect = await invoiceEffect({ action: exempt ? 'exempt' : 'unexempt' })
+    if (effect === undefined) return
     const justification = await askJustification(exempt ? {
       title: 'Isentar Taxas Locais do B/L',
       message: 'Nenhuma taxa deste B/L será cobrada, nem as manuais, e a fatura não será emitida. O B/L sai da fila da Validação e o Desbloqueio de CE considera o Financeiro atendido.',
       reversibility: 'Retirar isenção recalcula as taxas com as alterações que o B/L tinha; a fatura sai pelo Emitir fatura.',
+      ...(effect ? { consequence: effect } : {}),
       confirmLabel: 'Isentar',
       tone: 'danger',
     } : {
       title: 'Retirar isenção',
       message: 'As taxas voltam a ser calculadas, com as alterações e exclusões que o B/L tinha. A fatura não sai sozinha: use Emitir fatura quando o B/L estiver pronto.',
+      ...(effect ? { consequence: effect } : {}),
       confirmLabel: 'Retirar isenção',
       tone: 'primary',
     })
@@ -394,7 +413,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     <Block
       title="Taxas Locais"
       flush
-      aside={readOnly ? null : (
+      aside={cancelled ? null : (
         <span className="flex flex-wrap items-center gap-2">
           {manualExempt ? (
             <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => void handleExemption(false)}
@@ -402,7 +421,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
               Retirar isenção
             </Button>
           ) : null}
-          {manualExempt || manualFormOpen || manualChargeForm.editingChargeCalculationId ? null : (
+          {manualExempt || chargesLocked || manualFormOpen || manualChargeForm.editingChargeCalculationId ? null : (
             <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setManualFormOpen(true)}>
               <Plus size={15} aria-hidden="true" />
               Adicionar cobrança manual
@@ -479,7 +498,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           <p className="app-facts__detail">B/L cancelado: as taxas ficam só para consulta.</p>
         ) : null}
         {chargesLocked ? (
-          <p className="app-facts__detail">Faturado: as taxas são a base da fatura e não se editam aqui. Correções no B/L reemitem ou ajustam a fatura automaticamente.</p>
+          <p className="app-facts__detail">Faturado: as taxas são a base da fatura. Alterar, excluir ou isentar passa pela correção da fatura (reemissão, abatimento ou Restituição).</p>
         ) : null}
       </div>
 
@@ -543,7 +562,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
                   {showActionsColumn ? (
                     <td>
                       <div className="flex items-center justify-center gap-2">
-                        {chargeLineActions(line, linesReadOnly).map((action) => {
+                        {chargeLineActions(line, linesReadOnly, { billed: chargesLocked }).map((action) => {
                           const busy = changeChargeMutation.isPending || deleteManualChargeMutation.isPending
                           switch (action) {
                             case 'editManual':
@@ -583,7 +602,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         </table>
       </div>
 
-      {linesReadOnly || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
+      {linesReadOnly || chargesLocked || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
         <div className="app-block__body">
           <ManualChargeFormFields
             form={manualChargeForm}
@@ -597,7 +616,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           />
         </div>
       )}
-      {valueModalLine ? <BlChargeValueModal blId={bl.id} line={valueModalLine} onClose={() => setValueModalLine(null)} /> : null}
+      {valueModalLine ? <BlChargeValueModal blId={bl.id} billed={chargesLocked} line={valueModalLine} onClose={() => setValueModalLine(null)} /> : null}
     </Block>
     <BlChargeHistory blId={bl.id} />
     </>

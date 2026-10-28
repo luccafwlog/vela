@@ -120,3 +120,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     mão fica Isento em todo recálculo e sem ação nas taxas; o Desbloqueio de
     CE considera o Financeiro atendido (TAX-101 a TAX-104, DCE-011, ACE-128,
     `permissao:isentar-taxas-locais` e as mensagens novas).
+  - Lote 3 (migration `493`): as ações valem no B/L faturado e passam pela
+    correção da fatura (reemissão, abatimento e Restituição, Fatura
+    desatualizada); a confirmação diz o efeito antes de gravar e o Histórico
+    das taxas guarda o efeito; Origem **Alterado** no detalhe da fatura do
+    Vela, sem a marca no Portal (FAT-173 a FAT-176, REC-102, POR-131, TAX-077,
+    TAX-100 e as mensagens novas; saiu a mensagem provisória do B/L faturado).

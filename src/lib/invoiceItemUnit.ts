@@ -11,3 +11,15 @@ export function invoiceItemUnit(item: Pick<InvoiceItem, 'unit_value_brl' | 'unit
   if (item.currency === 'USD' && item.unit_value_usd != null) return formatUSD(item.unit_value_usd)
   return null
 }
+
+/**
+ * Origem da linha no detalhe da fatura do Vela. A linha calculada cujo valor o
+ * operador alterou leva a marca no `snapshot_payload` (ADR 0111, D9; migration
+ * 493) e aparece como Alterado; o Portal não recebe a marca.
+ */
+export function invoiceItemOrigin(item: Pick<InvoiceItem, 'source' | 'snapshot_payload'>): 'Manual' | 'Alterado' | 'Calculado' {
+  if (item.source === 'manual') return 'Manual'
+  const payload = item.snapshot_payload
+  if (payload && typeof payload === 'object' && !Array.isArray(payload) && 'charge_adjustment' in payload) return 'Alterado'
+  return 'Calculado'
+}

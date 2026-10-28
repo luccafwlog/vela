@@ -1575,7 +1575,8 @@ que muda o valor faturado ou o Cliente de uma fatura de Taxas Locais já
 emitida. A fatura nunca é editada: o sistema reemite, abate ou restitui
 sozinho. Corrigir item de tabela já usada ou Condição de Cliente (erro de
 preço, só o Administrativo) também é correção; reajuste se faz com tabela ou
-Condição nova.
+Condição nova. Alterar, excluir ou isentar à mão as Taxas Locais do B/L
+faturado também é correção (ADR 0111, D8).
 → Regra: [Faturamento § Correção após emissão](docs/modules/faturamento.md#correção-após-emissão-adr-0077)
 
 **Reemissão pendente**

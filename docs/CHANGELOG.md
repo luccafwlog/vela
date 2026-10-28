@@ -17,6 +17,11 @@
   **Retirar isenção**, por qualquer setor com justificativa; o B/L fica Isento ("Isenção manual: …") em
   todo recálculo, as linhas ficam como referência e nenhuma taxa muda até retirar a isenção, que
   recalcula com as alterações e exclusões que o B/L tinha; a isenção pelo veículo LCL vale primeiro.
+  Lote 3 (migration `493`): as mesmas ações valem no B/L faturado, parcial ou pago, e passam pela
+  correção automática da fatura (sem pagamento reemite com número novo, isentar cancela sem nova
+  fatura; paga com valor menor abate e restitui; paga com valor maior abre Fatura desatualizada); a
+  confirmação diz o efeito antes de gravar, o Histórico das taxas guarda o efeito, e o detalhe da
+  fatura no Vela mostra a Origem **Alterado**, que o Portal não recebe.
 - **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
   compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
   listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta
