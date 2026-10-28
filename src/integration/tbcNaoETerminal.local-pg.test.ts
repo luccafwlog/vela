@@ -1,7 +1,7 @@
-// Migration 482 (revisão da PR #1070; ADR 0109): TBC não é terminal. A
-// Atracação TBC sai sem a trava de documento do porto, não aceita ATB, ATD
-// nem Restow, e a gravação v1 segue a regra do ATA. Cada cenário roda numa
-// transação desfeita no fim.
+// Migrations 482 e 490 (revisão da PR #1070; ADR 0109): TBC não é terminal. A
+// Atracação TBC sai sem a trava de documento do porto, não aceita ETB, ETD,
+// ATB, ATD nem Restow, e a gravação v1 segue a regra do ATA. Cada cenário roda
+// numa transação desfeita no fim.
 //
 // Namespace exclusivo: Viagem 48200001, usuários 48200000-...-00000000000N.
 import { spawnPsql } from './localPsql'
@@ -40,7 +40,7 @@ function scenario(sql: string): { lines: string[]; stderr: string } {
   return { lines: run.stdout.split('\n').filter((line) => line.startsWith('>')), stderr: run.stderr }
 }
 
-describeLocal('TBC não é terminal (migration 482)', () => {
+describeLocal('TBC não é terminal (migrations 482 e 490)', () => {
   it('porto com B/L com CE: escolher o terminal da frente em TBC grava, a TBC sai e a Viagem conclui', () => {
     const { lines, stderr } = scenario(`
       ${asAdm}
@@ -67,7 +67,16 @@ describeLocal('TBC não é terminal (migration 482)', () => {
       SELECT public.save_voyage_escala_terminal_state_v2(${VOYAGE}, 'BRVIX', 0, ${tbcFront},
         '[{"terminal_id":null,"terminal_atb":"2026-10-20T10:00:00Z","terminal_atd":null,"terminal_rtw":null}]', '${IMPORT_ONLY}', NULL);
     `)
-    expect(stderr).toMatch(/TBC não é terminal: ATB, ATD e Restow/)
+    expect(stderr).toMatch(/TBC não é terminal: ETB, ETD, ATB, ATD e Restow/)
+  })
+
+  it('a Atracação TBC recusa também ETB e ETD estimados (migration 490)', () => {
+    const { stderr } = scenario(`
+      ${asAdm}
+      SELECT public.save_voyage_escala_terminal_state_v2(${VOYAGE}, 'BRVIX', 0, ${tbcFront},
+        '[{"terminal_id":null,"terminal_etb":"2026-10-20T10:00:00Z","terminal_etd":"2026-10-21T10:00:00Z"}]', '${IMPORT_ONLY}', NULL);
+    `)
+    expect(stderr).toMatch(/TBC não é terminal: ETB, ETD, ATB, ATD e Restow/)
   })
 
   it('a gravação v1 também recusa frente em TBC com o ATA registrado', () => {

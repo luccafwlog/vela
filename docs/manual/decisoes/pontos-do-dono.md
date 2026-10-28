@@ -102,7 +102,7 @@ com Clientes reais.
 A revisão da PR #1070 (relatório em
 [`docs/archive/audits/revisao-pr-1070-2026-10-27.md`](../../archive/audits/revisao-pr-1070-2026-10-27.md))
 levantou pontos em que o código escolhia sozinho. O dono decidiu cada um no
-mesmo dia; todos foram executados nas migrations `482` a `488`.
+mesmo dia; todos foram executados nas migrations `482` a `490`.
 
 | # | Ponto | Decisão do dono | Onde ficou |
 |---|---|---|---|
@@ -116,5 +116,5 @@ mesmo dia; todos foram executados nas migrations `482` a `488`.
 | P8 | VIP: B/L que muda de solicitação; solicitações em andamento na troca da regra | Vale o primeiro envio do B/L, contando a solicitação de onde ele saiu; quem já tinha o anual ligado continua coberto | Migration `487`; [ADR 0110](../../adr/0110-vip-cobre-pela-data-da-solicitacao.md) |
 | P9 | Tabela de Taxas Locais usada só por B/L cancelado ou nunca faturado | Continua travada: mudar POD ou modo exige tabela nova | Migration `470` (sem mudança); [Taxas Locais](../../modules/taxas-locais.md) |
 | P10 | O Novo cliente gravava contatos para qualquer setor | Só Administrativo, Documentação e Equipamentos criam pelo Novo cliente; os demais trazem o Cliente pela Base e pela Revisão; o Cliente do manifesto pela ficha do B/L segue para todos | Migration `486`; [Segurança](../../operations/seguranca.md) |
-| P11 | Atracação TBC com ATB e ATD | TBC não é terminal, é só "terminal a confirmar": o banco recusa ATB, ATD e Restow nela, sempre; ETB e ETD seguem | Migration `482`; [ADR 0109](../../adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md) |
+| P11 | Atracação TBC com ATB e ATD | TBC não é terminal, é só "terminal a confirmar": o banco recusa ATB, ATD e Restow nela, sempre; em 2026-10-28 o dono estendeu a ETB e ETD, que também ficam travadas | Migrations `482` e `490`; [ADR 0109](../../adr/0109-frente-de-operacao-exige-terminal-ate-o-ata.md) |
 | P12 | Onde corrigir | Direto na branch da PR #1070 | Commits da PR |

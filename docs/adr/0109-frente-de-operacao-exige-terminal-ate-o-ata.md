@@ -32,13 +32,14 @@ Concluída. Não havia prazo para a frente ganhar terminal.
 3. A Atracação TBC vazia sai assim que nenhuma frente fica em TBC; ela não
    segura a conclusão da escala nem da Viagem. As existentes foram apagadas
    pela migration `477` (afirmação "Data status" do `AGENTS.md`).
-4. **A Atracação TBC não tem datas realizadas** (decisão do dono de
-   2026-10-27, revisão da PR #1070; migration `482`). TBC é só "terminal a
-   confirmar": o banco recusa ATB, ATD e Restow numa Atracação sem terminal,
-   antes ou depois do ATA ("TBC não é terminal: ATB, ATD e Restow só na
-   atracação de um terminal. Escolha o terminal antes de informar as
-   datas."). ETB e ETD estimadas continuam. As TBC que tinham esses campos
-   os perderam na `482`.
+4. **A Atracação TBC não tem datas** (decisões do dono de 2026-10-27 e
+   2026-10-28, revisão da PR #1070; migrations `482` e `490`). TBC é só
+   "terminal a confirmar": o banco recusa ETB, ETD, ATB, ATD e Restow numa
+   Atracação sem terminal, antes ou depois do ATA ("TBC não é terminal: ETB,
+   ETD, ATB, ATD e Restow só na atracação de um terminal. Escolha o terminal
+   antes de informar as datas."). A `482` recusou as datas realizadas e o
+   Restow; a `490`, também a previsão. As TBC que tinham esses campos os
+   perderam nessas migrations.
 5. A Atracação TBC não tem documento próprio: sai sem a trava de CE, fatura
    ou ADR fechado do porto. A regra do ATA e a saída da TBC valem também na
    gravação v1 (`save_voyage_escala_terminal_state`, usada pela declaração de
@@ -46,8 +47,9 @@ Concluída. Não havia prazo para a frente ganhar terminal.
 
 ## Consequências
 
-- Antes do ATA, a frente pode continuar em TBC, e a Atracação TBC guarda só
-  a previsão de berço (ETB e ETD).
+- Antes do ATA, a frente pode continuar em TBC, mas a Atracação TBC não
+  guarda data nenhuma: a previsão de berço (ETB e ETD) entra quando a frente
+  ganha terminal.
 - A conclusão da Viagem depende só das Atracações com terminal.
 - Remover a Atracação TBC na gravação da escala vale para todos os setores e
   não passa pela trava; remover Atracação com terminal continua com Operações

@@ -10,7 +10,7 @@ trabalho, não o manual.
 2026-10-27; faltam o sumário final e a lista "fora do manual".** As 118
 divergências (112 fichas) foram decididas pelo dono e executadas nos lotes 1 a
 11 do [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md),
-com os ajustes da revisão da PR #1070 (migrations `482` a `488`). Os 2.253
+com os ajustes da revisão da PR #1070 (migrations `482` a `490`). Os 2.253
 itens do sistema têm lugar na [matriz de cobertura](../manual/README.md)
 (`npm run manual:coverage` passa contra o banco local), com 1.560 regras
 escritas como o operador as vê e conferidas por uma segunda leitura

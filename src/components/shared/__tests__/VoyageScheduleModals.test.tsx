@@ -215,6 +215,26 @@ describe('EscalaModal', () => {
     expect(screen.getByText(/permanece em TBC/i)).toBeTruthy()
   })
 
+  it('TBC não é terminal: a Atracação TBC não ganha datas e sai no payload sem ETB nem ETD', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala({
+      ...escalaBase,
+      terminalScale: {
+        ...terminalScaleBase,
+        fronts: [terminalScaleBase.fronts[1]],
+        terminals: [{ terminalId: null, etb: '2026-03-01T10:00:00-03:00', etd: '2026-03-02T10:00:00-03:00', atb: null, atd: null, restow: null }],
+      },
+    })
+
+    expect(screen.queryByLabelText('ETB TBC')).toBeNull()
+    expect(screen.queryByLabelText('ETD TBC')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+
+    expect(onSaved.mock.calls[0][0].terminalState.terminals).toEqual([
+      { terminalId: null, etb: null, atb: null, etd: null, atd: null, restow: null },
+    ])
+  })
+
   it('edita a escala existente sem oferecer troca de porto', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala(escalaBase)

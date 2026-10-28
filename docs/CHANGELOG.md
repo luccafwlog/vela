@@ -6,11 +6,12 @@
 
 ## 2026-10
 
-- **Correções da revisão da PR #1070 (2026-10-27):** migrations `482` a `488`, decisões do dono
+- **Correções da revisão da PR #1070 (2026-10-27 e 2026-10-28):** migrations `482` a `490`, decisões do dono
   registradas em [Pontos do dono](manual/decisoes/pontos-do-dono.md) (P1 a P12) e relatório em
   [archive/audits](archive/audits/revisao-pr-1070-2026-10-27.md). Escala: TBC não é terminal — a
   Atracação TBC sai sem a trava de documento do porto (escolher o terminal com B/L com CE no porto
-  deixou de travar a escala) e não aceita ATB, ATD nem Restow (`482`). Pix: dois Pix na mesma
+  deixou de travar a escala) e não aceita data nenhuma: ATB, ATD e Restow (`482`) e, por decisão de
+  2026-10-28, ETB e ETD (`490`); a janela da escala não mostra mais o cartão TBC. Pix: dois Pix na mesma
   cobrança fecham um só, e o outro vira Restituição "Pix em duplicidade" (`483`). Demurrage: a troca
   de CNPJ respeita o gate do novo Cliente e não herda a citação do anterior; a retida volta à fila
   na troca de Cliente; a reemissão por datas sai mesmo com o gate fechado (`484`); o detalhe da
@@ -21,7 +22,8 @@
   conferido só quando muda; o Portal não mostra motivo interno; contato da Revisão com autor
   (`486`). Conta Dev: e-mail e senha só pela própria pessoa. Desbloqueio de CE: primeiro envio do
   B/L, transição sem reabrir e listas com índice (`487`). Selo "Faturamento encerrado" sem B/L
-  sem cálculo e gatilho do Histórico da taxa pela chave (`488`). `npm run manual:coverage` entrou no
+  sem cálculo e gatilho do Histórico da taxa pela chave (`488`); grant do `service_role` na tabela
+  da transição VIP (`489`). `npm run manual:coverage` entrou no
   job `db` do CI.
 - **Desbloqueio de CE decidido pelo dono (2026-10-27):** migration `479`,
   [ADR 0110](adr/0110-vip-cobre-pela-data-da-solicitacao.md), lote 11 do
