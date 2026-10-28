@@ -108,6 +108,6 @@ describe('BlDetalhe - reverter COD com taxa alterada à mão', () => {
   it('confirmado o Gravar mesmo assim, reverte', async () => {
     guard.mockResolvedValue(true)
     revert()
-    await waitFor(() => expect(setTransshipment).toHaveBeenCalledWith({ blId: 'BL-COD-1', omissionId: 77, justification: 'Carga seguiu no transbordo', changedBy: 'u1' }))
+    await waitFor(() => expect(setTransshipment).toHaveBeenCalledWith({ blId: 'BL-COD-1', omissionId: 77, justification: 'Carga seguiu no transbordo', changedBy: 'u1' }, expect.anything()))
   })
 })

@@ -37,12 +37,6 @@
     "src/components/voyages/ManifestoBlsModal.tsx": {
       "cor-tailwind": 1
     },
-    "src/components/voyages/OmitEscalaModal.tsx": {
-      "cor-tailwind": 1
-    },
-    "src/components/voyages/TransshipmentInfoCard.tsx": {
-      "cor-tailwind": 1
-    },
     "src/components/voyages/VoyageCard.tsx": {
       "hex": 1
     },
