@@ -48,3 +48,13 @@ própria.
 ficam registradas e aparecem no lugar onde são feitas (a ficha do B/L, aba
 **Faturamento**, bloco **Taxas Locais**), não só na aba **Histórico**. O
 conteúdo do registro é detalhado na decisão de rastreio.
+
+### D4 — Justificativa obrigatória, sem aprovação
+
+Alterar e excluir exigem justificativa de ao menos 10 caracteres (como o câmbio
+manual do B/L e a Restituição excepcional), conferida na tela e no banco. Não
+há aprovação: a alteração vale na hora. Motivo: a fatura sai sozinha na
+gravação do CE Mercante, e uma aprovação pendente ou seguraria a fatura (o
+Cliente atrasa a retirada da carga) ou a deixaria sair com o valor antigo para
+depois ser corrigida (reemissão ou Restituição). O controle é a justificativa,
+o histórico na página e a marca de taxa alterada.
