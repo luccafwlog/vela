@@ -213,6 +213,13 @@ do container compartilhado.
   linha, a que resolve o motivo** (Recalcular, Vincular na Revisão, Cadastrar
   CE, Abrir Cliente ou Emitir). Cálculo, Vínculo do Cliente e Modo de carga
   saíram da linha.
+- Taxa alterada à mão (ADR 0111; migration `494`): "Mais filtros" traz **Com
+  taxa alterada à mão**; o Exportar ganha a coluna **Taxas alteradas à mão**
+  (a frase de cada taxa, "Isento à mão" na isenção); **Recalcular**,
+  **Recalcular selecionados** e **Emitir** avisam na confirmação quantos B/Ls
+  têm taxa alterada e que a alteração se mantém ou sai na fatura. A fatura
+  consolidada mostra a contagem por B/L. A regra está em
+  [Taxas Locais § Taxa alterada à mão](taxas-locais.md#taxa-alterada-à-mão-adr-0111).
 - **Fila (2026-10-14):** B/L faturado, **parcialmente pago ou pago** sai da fila
   (`getBillingBlock` usa `isBlFinanciallyLocked`; antes só `invoiced` contava e o
   B/L pago voltava como "Cálculo incompleto" oferecendo Emitir). B/L **Pronto

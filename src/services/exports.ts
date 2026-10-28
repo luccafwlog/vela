@@ -27,6 +27,7 @@ import type { CeUnlockItem } from '../types/ceUnlock'
 import { ceStateLabel, ceUnlockZptText } from '../lib/ceUnlockLabels'
 import { ceUnlockDeadline, formatCeUnlockDeadline } from './ceUnlockSla'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
+import { describeChargeAdjustments } from '../lib/chargeAdjustmentSummary'
 
 function toSheet<T extends Record<string, unknown>>(
   XLSX: typeof import('@e965/xlsx'),
@@ -624,6 +625,8 @@ export function buildValidacaoSheetRows(
       Subtotal: Number(Number(row.totals.total_brl ?? 0).toFixed(2)),
       // ADR 0038: o rateio por contêiner tem contraparte em outro B/L da Viagem.
       'Contêiner compartilhado': sharedContainers.get(row.id) ?? '',
+      // ADR 0111: "THD: R$ 1.420,00 → R$ 1.200,00 por container; Taxa X: excluída; Isento à mão".
+      'Taxas alteradas à mão': describeChargeAdjustments(row.adjustments),
       ...charges,
     }
   })

@@ -126,3 +126,8 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     das taxas guarda o efeito; Origem **Alterado** no detalhe da fatura do
     Vela, sem a marca no Portal (FAT-173 a FAT-176, REC-102, POR-131, TAX-077,
     TAX-100 e as mensagens novas; saiu a mensagem provisória do B/L faturado).
+  - Lote 4 (migration `494`): a alteração aparece fora da ficha do B/L:
+    filtro, coluna do Exportar e avisos da Validação, aviso da consolidada e do
+    Recalcular da Revisão, lista **B/Ls com taxa alterada** na ficha do
+    Cliente, Histórico de ações legível e aviso de divergência pela parte do
+    B/L (TAX-105, TAX-106, FAT-177, FAT-178, CLI-108 e a mensagem nova).

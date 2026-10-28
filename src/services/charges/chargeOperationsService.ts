@@ -3,6 +3,7 @@ import { escapeFilterTerm, sanitizeLikeTerm } from '../../lib/utils'
 import { classifyDbError } from '../../lib/errors'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import { tokenIlikeClauses } from '../../lib/searchTerms'
+import type { ChargeAdjustmentSummary } from '../../lib/chargeAdjustmentSummary'
 
 const OPERATIONAL_PAGE_SIZE = 1000
 const LOCAL_CHARGE_BATCH_SIZE = 100
@@ -153,6 +154,8 @@ export type LocalChargeOperationalRow = {
     line_count: number
     review_required_count: number
   }
+  /** Taxas alteradas ou excluídas e isenção à mão do B/L (migration 494); `null` sem nenhuma. */
+  adjustments?: ChargeAdjustmentSummary | null
   trail: {
     last_event_at: string | null
     last_event_by: string | null
@@ -431,8 +434,11 @@ async function loadBlOperationalRows(
     })
   }
 
+  const adjustments = new Map((await listBlChargeAdjustmentSummaries({ blIds })).map((summary) => [summary.bl_id, summary]))
+
   return { rows: rows.map((row) => ({
     ...row,
+    adjustments: adjustments.get(row.id) ?? null,
     totals: totalsMap.get(row.id) ?? { total_brl: 0, total_usd: 0, line_count: 0, review_required_count: 0 },
     trail:
       trailMap.get(row.id) ?? {
@@ -579,6 +585,28 @@ export async function previewBlChargeChangeEffect(input: {
   } as never)
   if (error) throw error
   return data as unknown as BlChargeChangeEffect
+}
+
+/**
+ * Taxas alteradas ou excluídas à mão e isenção à mão, por B/L (ADR 0111;
+ * migration 494). Por B/Ls (em lotes) ou pelo Cliente; só volta B/L com alguma.
+ */
+export async function listBlChargeAdjustmentSummaries(input: { blIds?: string[]; customerId?: number | null }) {
+  if (input.customerId != null) {
+    const { data, error } = await supabase.rpc('list_bl_charge_adjustment_summaries' as never, { p_customer_id: input.customerId } as never)
+    if (error) throw error
+    return (data ?? []) as ChargeAdjustmentSummary[]
+  }
+  const blIds = input.blIds ?? []
+  const out: ChargeAdjustmentSummary[] = []
+  for (let i = 0; i < blIds.length; i += LOCAL_CHARGE_BATCH_SIZE) {
+    const { data, error } = await supabase.rpc('list_bl_charge_adjustment_summaries' as never, {
+      p_bl_ids: blIds.slice(i, i + LOCAL_CHARGE_BATCH_SIZE),
+    } as never)
+    if (error) throw error
+    out.push(...((data ?? []) as ChargeAdjustmentSummary[]))
+  }
+  return out
 }
 
 export async function listBlChargeHistory(blId: string) {

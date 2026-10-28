@@ -130,6 +130,15 @@ it('não anuncia divergência de fatura enquanto as taxas estão indisponíveis'
   expect(screen.queryByText(/As taxas mudaram depois da emissão/)).toBeNull()
 })
 
+it('na consolidada compara só a parte deste B/L, não o total da fatura', () => {
+  mocks.lines.mockReturnValue({ data: [{ total_value_brl: 100 }], isLoading: false })
+  const consolidated = { id: 78, status: 'issued', total_brl: 900, invoice_type: 'consolidated', bl_subtotal_brl: 100 }
+  const { rerender } = render(<MemoryRouter><BlCobrancasSection bl={bl} activeInvoice={consolidated as never} /></MemoryRouter>)
+  expect(screen.queryByText(/As taxas mudaram depois da emissão/)).toBeNull()
+  rerender(<MemoryRouter><BlCobrancasSection bl={bl} activeInvoice={{ ...consolidated, bl_subtotal_brl: 80 } as never} /></MemoryRouter>)
+  expect(screen.getByText(/As taxas mudaram depois da emissão/)).toBeTruthy()
+})
+
 const renderSection = (overrides: Record<string, unknown> = {}) =>
   render(<MemoryRouter><BlCobrancasSection bl={{ ...(bl as object), ...overrides } as never} /></MemoryRouter>)
 

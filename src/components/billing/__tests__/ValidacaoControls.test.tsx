@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 afterEach(cleanup)
 function renderControls(overrides: Partial<React.ComponentProps<typeof ValidacaoControls>> = {}) {
   const onUpdateFilter = vi.fn()
-  render(<QueryClientProvider client={new QueryClient()}><ValidacaoControls filters={{ search: '', cargoMode: '', pod: '', voyageId: '', blockCode: '', includeResolved: false }} truncated={false} onUpdateFilter={onUpdateFilter} {...overrides} /></QueryClientProvider>)
+  render(<QueryClientProvider client={new QueryClient()}><ValidacaoControls filters={{ search: '', cargoMode: '', pod: '', voyageId: '', blockCode: '', includeResolved: false, onlyAdjusted: false }} truncated={false} onUpdateFilter={onUpdateFilter} {...overrides} /></QueryClientProvider>)
   return onUpdateFilter
 }
 
@@ -26,5 +26,11 @@ describe('ValidacaoControls', () => {
     const onUpdateFilter = renderControls()
     fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'pronto' } })
     expect(onUpdateFilter).toHaveBeenCalledWith('blockCode', 'pronto')
+  })
+  it('Com taxa alterada à mão fica em Mais filtros (ADR 0111)', () => {
+    const onUpdateFilter = renderControls()
+    fireEvent.click(screen.getByRole('button', { name: /Mais filtros/ }))
+    fireEvent.click(screen.getByLabelText('Com taxa alterada à mão'))
+    expect(onUpdateFilter).toHaveBeenCalledWith('onlyAdjusted', true)
   })
 })

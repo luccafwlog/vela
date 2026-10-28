@@ -8,7 +8,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useBatchCalculateLocalCharges, useCustomerReconciliationQueue, useLocalChargeOperations } from '../../hooks/useLocalCharges'
 import { queryKeys } from '../../services/queryKeys'
 import { markBlReadyAndCreateInvoice } from '../../services/billing'
-import { getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
+import { adjustedIssueNotice, adjustedRecalcNotice, getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
 import { ValidacaoControls } from './ValidacaoControls'
 import { ValidacaoOperationsTable } from './ValidacaoOperationsTable'
 import type { ReasonEvent } from './validacaoBand'
@@ -21,7 +21,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
   const confirm = useConfirm()
   const queryClient = useQueryClient()
   const [expandedBlId, setExpandedBlId] = useState<string | null>(null)
-  const [opsFilters, setOpsFilters] = useState<OpsFilters>({ search: initialBlSearch ?? '', cargoMode: '', pod: '', voyageId: '', blockCode: initialBlockCode ?? '', includeResolved: false })
+  const [opsFilters, setOpsFilters] = useState<OpsFilters>({ search: initialBlSearch ?? '', cargoMode: '', pod: '', voyageId: '', blockCode: initialBlockCode ?? '', includeResolved: false, onlyAdjusted: false })
   const [selectedOpsRows, setSelectedOpsRows] = useState<string[]>([])
   const [exportingOps, setExportingOps] = useState(false)
   const { data: operationsResult, isLoading: operationsLoading, error: operationsError } = useLocalChargeOperations({ search: opsFilters.search, cargoMode: opsFilters.cargoMode, pod: opsFilters.pod, voyageId: opsFilters.voyageId ? Number(opsFilters.voyageId) : null, includeResolved: opsFilters.includeResolved, limit: 1200 })
@@ -34,9 +34,10 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
       const block = getBillingBlock(row)
       // "Pronto para emitir" fica na fila normal com o botão Emitir (decisão de 2026-10-14).
       if (!opsFilters.includeResolved && (block.code === 'faturado' || block.code === 'isento')) return false
+      if (opsFilters.onlyAdjusted && !row.adjustments) return false
       return !opsFilters.blockCode || block.code === opsFilters.blockCode
     })
-  }, [operationsRows, opsFilters.blockCode, opsFilters.includeResolved])
+  }, [operationsRows, opsFilters.blockCode, opsFilters.includeResolved, opsFilters.onlyAdjusted])
   const selectedRows = useMemo(() => new Set(selectedOpsRows), [selectedOpsRows])
   const areAllOpsRowsSelected = displayedRows.length > 0 && displayedRows.every((row) => selectedRows.has(row.id))
 
@@ -70,7 +71,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
         items: eligibleRows.map((row) => `B/L ${row.id} · ${row.customer?.name ?? 'sem cliente'} · total atual ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.totals.total_brl)}`),
         ...(invoiced.size ? { blocked: [...invoiced].map((id) => ({ label: `B/L ${id}`, reasons: ['já faturado; não será recalculado'] })) } : {}),
       },
-      consequence: 'Atualiza as linhas e o total calculado da Taxa Local e registra o resultado da operação. O recálculo usa o câmbio e o preço fixados quando o B/L entrou; este diálogo mostra o valor vigente, não antecipa o novo cálculo.',
+      consequence: ['Atualiza as linhas e o total calculado da Taxa Local e registra o resultado da operação. O recálculo usa o câmbio e o preço fixados quando o B/L entrou; este diálogo mostra o valor vigente, não antecipa o novo cálculo.', adjustedRecalcNotice(eligibleRows)].filter(Boolean).join(' '),
       reversibility: 'O cálculo pode ser executado novamente enquanto o B/L não estiver faturado. B/Ls já faturados permanecem bloqueados.',
     })
     if (!confirmed) return
@@ -114,7 +115,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
         summary: `B/L ${row.id} · ${row.customer.name ?? 'cliente sem nome'} · ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.totals.total_brl)}`,
         items: [`${row.voyage?.vessel?.name ?? 'Navio não informado'} / ${row.voyage?.voyage_number ?? 'viagem não informada'}`, `${row.totals.line_count} linha(s) de cobrança`, ...(row.totals.total_usd ? [`Total em USD: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(row.totals.total_usd)}`] : [])],
       },
-      consequence: 'Cria e emite a invoice, vincula o B/L e atualiza o recebível do ledger. O B/L passa ao estado faturado e deixa de aceitar recálculo.',
+      consequence: ['Cria e emite a invoice, vincula o B/L e atualiza o recebível do ledger. O B/L passa ao estado faturado e deixa de aceitar recálculo.', adjustedIssueNotice(row.adjustments)].filter(Boolean).join(' '),
       reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o cancelamento é restrito ao perfil Administrativo; com pagamento, use Cancelar baixa ou Restituição no recebimento.',
     })
     if (!confirmed) return

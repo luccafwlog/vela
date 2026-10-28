@@ -2,6 +2,7 @@ import { isCustomerReconciliationResolved } from '../../services/customerReconci
 import { extractReviewReasons } from '../../hooks/useReview'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import type { BillingBlockCode } from './validacaoTypes'
+import type { LocalChargeOperationalRow } from '../../services/charges/chargeOperationsService'
 
 // B/L reconciliado que ainda não é faturável: preso entre a conciliação de cliente
 // e o "pronto faturar" (gate de revisão pendente, taxa em revisão ou apenas
@@ -178,4 +179,23 @@ export function isAwaitingCeMercante(row: {
     row.charge_status !== 'exempt' &&
     row.charge_status !== 'not_calculated'
   )
+}
+
+/**
+ * Aviso no Recalcular (ADR 0111, spec seção 2): "N B/Ls têm taxas alteradas à
+ * mão: as alterações se mantêm no recálculo." Vazio sem nenhum.
+ */
+export function adjustedRecalcNotice(rows: Array<Pick<LocalChargeOperationalRow, 'adjustments'>>) {
+  const count = rows.filter((row) => (row.adjustments?.items.length ?? 0) > 0).length
+  if (count === 0) return ''
+  return count === 1
+    ? '1 B/L tem taxas alteradas à mão: as alterações se mantêm no recálculo.'
+    : `${count} B/Ls têm taxas alteradas à mão: as alterações se mantêm no recálculo.`
+}
+
+/** Aviso no Emitir (ADR 0111, spec seções 2 e 3): "Este B/L tem N taxas alteradas à mão; a fatura sai com os valores alterados." */
+export function adjustedIssueNotice(adjustments: { items: readonly unknown[] } | null | undefined) {
+  const count = adjustments?.items.length ?? 0
+  if (count === 0) return ''
+  return `Este B/L tem ${count === 1 ? '1 taxa alterada' : `${count} taxas alteradas`} à mão; a fatura sai com os valores alterados.`
 }

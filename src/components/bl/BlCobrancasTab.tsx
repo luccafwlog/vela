@@ -14,6 +14,7 @@ import { chargeTableColumns, isUsualLine } from './chargeTableColumns'
 import { BlChargeValueModal } from './BlChargeValueModal'
 import { BlChargeHistory } from './BlChargeHistory'
 import { readInvoiceEffect } from './blChargeInvoiceEffect'
+import { adjustedIssueNotice } from '../billing/validacaoPipeline'
 import {
   adjustmentTooltip,
   chargeLineActions,
@@ -361,7 +362,8 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         summary: `B/L ${bl.id} · ${formatBRL(localChargeSummary.totalBrl)}${localChargeSummary.totalUsd ? ` + ${formatUSD(localChargeSummary.totalUsd)} (convertido pelo câmbio fixado quando o B/L entrou)` : ''}`,
         items: [`${localChargeSummary.lines.length} linha(s) de cobrança`],
       },
-      consequence: 'Cria e emite a fatura, que aparece no Portal do Cliente. O B/L passa a faturado e deixa de aceitar recálculo.',
+      consequence: ['Cria e emite a fatura, que aparece no Portal do Cliente. O B/L passa a faturado e deixa de aceitar recálculo.',
+        adjustedIssueNotice({ items: localChargeSummary.lines.filter((line) => isAdjustedLine(line) || isExcludedLine(line)) })].filter(Boolean).join(' '),
       reversibility: 'A fatura não pode ser apagada. Se o B/L for corrigido depois, a fatura é reemitida automaticamente (sem pagamento) ou ajustada pelo saldo e restituição (com pagamento).',
       confirmLabel: 'Emitir fatura',
     })
@@ -391,11 +393,13 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     }
   }
 
+  // Na consolidada compara só a parte deste B/L (ADR 0111, lote 4), não o total da fatura.
+  const invoicedBrl = activeInvoice?.invoice_type === 'consolidated' ? activeInvoice.bl_subtotal_brl ?? null : activeInvoice?.total_brl ?? null
   const invoiceDiverges = Boolean(
     localChargeLines != null
     && activeInvoice?.status === 'issued'
-    && activeInvoice.total_brl != null
-    && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt' && line.status !== 'excluded').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - activeInvoice.total_brl) > 0.01,
+    && invoicedBrl != null
+    && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt' && line.status !== 'excluded').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - invoicedBrl) > 0.01,
   )
   const lines = localChargeSummary.lines
   const { showOrigin, showSituation, showNotes, showActions: showActionsColumn } = chargeTableColumns(lines, linesReadOnly)

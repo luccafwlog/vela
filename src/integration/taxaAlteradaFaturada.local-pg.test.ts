@@ -147,4 +147,19 @@ describeLocal('493 — taxa alterada no B/L faturado', () => {
     expect(run.stderr).toMatch(/O valor é igual ao atual: nada a alterar/)
     expect(w.invoice(invoice).status).not.toBe('cancelled')
   })
+
+  // 494 (lote 4): a leitura da Validação, da consolidada e da ficha do Cliente.
+  it('o resumo por B/L traz a taxa alterada, a isenção à mão e o autor, por B/L ou por Cliente', () => {
+    const rows = JSON.parse(w.asOk('operacoes', `SELECT coalesce(jsonb_agg(to_jsonb(s.*)), '[]') FROM public.list_bl_charge_adjustment_summaries(NULL, ${w.customerId}) s`)
+      .split('\n').at(-1) ?? '[]') as Array<{ bl_id: string; manual_exempt: boolean; items: Array<Record<string, unknown>>; last_actor_name: string | null }>
+    const byBl = new Map(rows.map((row) => [row.bl_id, row]))
+    expect(byBl.get(w.bl('RE'))?.items).toEqual([expect.objectContaining({ charge_name: expect.any(String), kind: 'unit', excluded: false, unit: 250, table_unit: 300 })])
+    expect(byBl.get(w.bl('IS'))).toMatchObject({ manual_exempt: true })
+    expect(byBl.get(w.bl('RE'))?.last_actor_name).toBeTruthy()
+    // B/L sem alteração não aparece; a lista por B/L só traz os pedidos.
+    expect(byBl.has(w.bl('RC'))).toBe(false)
+    const one = w.asOk('operacoes', `SELECT count(*) FROM public.list_bl_charge_adjustment_summaries(ARRAY['${w.bl('PM')}'], NULL)`)
+    expect(one.split('\n').at(-1)).toBe('1')
+    expect(w.as('operacoes', 'SELECT * FROM public.list_bl_charge_adjustment_summaries(NULL, NULL)').stderr).toMatch(/Informe os B\/Ls ou o Cliente/)
+  })
 })

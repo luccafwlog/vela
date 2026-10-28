@@ -136,6 +136,8 @@ export type InvoiceLinkInfo = {
   balance_brl: number | null
   invoice_type: string | null
   source: 'invoice_bls' | 'invoice_receivable_links'
+  /** Parte deste B/L na fatura (`subtotal_brl` do vínculo); na consolidada difere do total. */
+  bl_subtotal_brl?: number | null
 }
 
 type InvoiceLinksByBl = Record<string, InvoiceLinkInfo[]>
@@ -1175,7 +1177,7 @@ export async function listInvoiceLinksByBls(blIds: string[]) {
   const normalizedIds = Array.from(new Set(blIds.map((value) => value.trim().toUpperCase()).filter(Boolean)))
   if (normalizedIds.length === 0) return {} as InvoiceLinksByBl
 
-  const invoiceSelect = 'bl_id, invoice:invoices(id, invoice_number, status, total_brl, balance_brl, invoice_type)'
+  const invoiceSelect = 'bl_id, subtotal_brl, invoice:invoices(id, invoice_number, status, total_brl, balance_brl, invoice_type)'
   const [individualResult, consolidatedResult] = await Promise.all([
     supabase.from('invoice_bls').select(invoiceSelect).in('bl_id', normalizedIds),
     supabase
@@ -1224,6 +1226,7 @@ export async function listInvoiceLinksByBls(blIds: string[]) {
         balance_brl: invoice.balance_brl ?? null,
         invoice_type: invoice.invoice_type ?? null,
         source: source.source,
+        bl_subtotal_brl: row.subtotal_brl == null ? null : Number(row.subtotal_brl),
       })
     }
   }

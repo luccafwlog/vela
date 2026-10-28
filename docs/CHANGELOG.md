@@ -22,6 +22,11 @@
   fatura; paga com valor menor abate e restitui; paga com valor maior abre Fatura desatualizada); a
   confirmação diz o efeito antes de gravar, o Histórico das taxas guarda o efeito, e o detalhe da
   fatura no Vela mostra a Origem **Alterado**, que o Portal não recebe.
+  Lote 4 (migration `494`): a Validação filtra **Com taxa alterada à mão**, exporta a coluna **Taxas
+  alteradas à mão** e avisa em Recalcular e Emitir; a consolidada e o Recalcular da Revisão avisam; a
+  ficha do Cliente lista os **B/Ls com taxa alterada**; o Histórico de ações e a aba Histórico mostram a
+  alteração e a edição da cobrança manual em frase; o aviso "As taxas mudaram depois da emissão" compara
+  só a parte do B/L na consolidada.
 - **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
   compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
   listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta

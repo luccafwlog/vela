@@ -583,7 +583,31 @@ Invariantes:
 
 Todo evento fica em `bl_charge_adjustment_events` (bloco **Histórico das
 taxas**) e numa linha de `audit_logs` com `field_name = 'charge_adjustment'`,
-que a aba Histórico da ficha mostra na família Taxas com a mesma frase.
+que a aba Histórico da ficha e o **Histórico de ações** da Administração
+mostram com a mesma frase (taxa, antes → depois; justificativa e autor nas
+colunas próprias). A edição da cobrança manual aparece como "Cobrança manual:
+quantidade 2 → 3", sem o código gravado.
+
+**Onde a alteração aparece fora da ficha (migration `494`).** A leitura
+`list_bl_charge_adjustment_summaries(p_bl_ids, p_customer_id)` devolve, por
+B/L, as taxas alteradas ou excluídas à mão, a isenção à mão e o último autor;
+a tela escreve a frase (`src/lib/chargeAdjustmentSummary.ts`). Usam essa
+leitura:
+
+- a Validação: filtro **Com taxa alterada à mão**, coluna **Taxas alteradas à
+  mão** no Exportar e o aviso em **Recalcular**, **Recalcular selecionados** e
+  **Emitir** ("as alterações se mantêm no recálculo"; "a fatura sai com os
+  valores alterados"); a Conferência do cálculo marca **alterada** e
+  **excluída** e o Subtotal não soma a linha excluída;
+- **Emitir fatura** na ficha do B/L e a fatura consolidada (a contagem por B/L
+  e a frase na confirmação);
+- o **Recalcular** da Revisão (o mesmo aviso; depois, o efeito
+  `afterTaxasDoBlAlteradas` atualiza a ficha do B/L);
+- a ficha do Cliente › Financeiro, lista **B/Ls com taxa alterada**.
+
+O aviso "As taxas mudaram depois da emissão" compara o total cobrado com a
+parte deste B/L na fatura (`subtotal_brl` do vínculo); na consolidada, não com
+o total dela.
 
 ### Correção de B/L após faturamento
 

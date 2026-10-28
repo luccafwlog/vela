@@ -200,8 +200,23 @@ describe('exportação da Validação (planilha única)', () => {
       ])],
     ])
     const [sheet] = buildValidacaoSheetRows([{ row, block: { label: 'Pronto para emitir', detail: 'Tudo certo.' } }], { totals, sharedContainers: new Map([['BL-1', 'CSNU1 (2 B/Ls)']]) })
-    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Contêiner compartilhado', 'Lacre', 'THC', 'BL Fee (US$)'])
-    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Contêiner compartilhado': 'CSNU1 (2 B/Ls)' })
+    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Contêiner compartilhado', 'Taxas alteradas à mão', 'Lacre', 'THC', 'BL Fee (US$)'])
+    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Contêiner compartilhado': 'CSNU1 (2 B/Ls)', 'Taxas alteradas à mão': '' })
+  })
+
+  it('coluna Taxas alteradas à mão com a frase da spec (ADR 0111)', async () => {
+    const { buildValidacaoSheetRows } = await import('../exports')
+    const row = {
+      id: 'BL-2', totals: { total_brl: 1200, total_usd: 0, line_count: 2, review_required_count: 0 },
+      adjustments: {
+        bl_id: 'BL-2', manual_exempt: true, items: [
+          { charge_name: 'THD', excluded: false, kind: 'unit', currency: 'BRL', application_basis: 'container_distinct_voyage', table_unit: 1420, unit: 1200 },
+          { charge_name: 'Taxa X', excluded: true, kind: 'excluded', currency: 'BRL', application_basis: 'bl' },
+        ],
+      },
+    } as never
+    const [sheet] = buildValidacaoSheetRows([{ row, block: { label: 'Isento', detail: '' } }], { totals: new Map(), sharedContainers: new Map() })
+    expect(String(sheet['Taxas alteradas à mão']).replace(/\u00a0/g, ' ')).toBe('THD: R$ 1.420,00 → R$ 1.200,00 por container; Taxa X: excluída; Isento à mão')
   })
 })
 

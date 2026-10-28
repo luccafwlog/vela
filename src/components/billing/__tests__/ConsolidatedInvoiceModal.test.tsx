@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   create: vi.fn(),
   error: null as Error | null,
+  summaries: [] as Array<Record<string, unknown>>,
 }))
 
 // Hooks tocam Supabase/React Query no topo do modulo — mockados para isolar a UI.
@@ -24,6 +25,10 @@ vi.mock('../../../services/billing', () => ({
 vi.mock('../../../hooks/useBillingLedger', () => ({
   useConsolidatableReceivables: () => ({ data: mocks.receivables, isLoading: false, error: mocks.error }),
   useCreateConsolidatedInvoice: () => ({ mutateAsync: mocks.create, isPending: false }),
+}))
+
+vi.mock('../../../services/charges/chargeOperationsService', () => ({
+  listBlChargeAdjustmentSummaries: async () => mocks.summaries,
 }))
 
 vi.mock('../../../hooks/useBls', () => ({
@@ -125,6 +130,25 @@ describe('ConsolidatedInvoiceModal — seletor de cliente', () => {
     expect(options.affected.items.map(plain)).toContain('B/L BL-91 · R$ 1.250,00 · Navio Azul V7')
     expect(options.consequence).toContain('recebíveis selecionados')
     expect(mocks.create).not.toHaveBeenCalled()
+  })
+
+  it('avisa por B/L a taxa alterada à mão antes de emitir', async () => {
+    mocks.receivables = [{
+      receivable_id: 92, bl_id: 'BL-92', balance_brl: 900, eligibility_status: 'eligible', receivable_status: 'open',
+      voyage_id: 7, vessel_name: 'Navio Azul', voyage_number: 'V7', individual_invoice_id: null, individual_invoice_number: null,
+    }]
+    mocks.summaries = [{ bl_id: 'BL-92', manual_exempt: false, items: [{ charge_name: 'THD', excluded: false }] }]
+    const user = userEvent.setup()
+    const input = openModal()
+    await chooseCustomer(user, input, 'gol', 'GOLDEN LOGISTICA INTERNACIONAL LTDA')
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-92' }))
+    await user.click(screen.getByRole('button', { name: 'Emitir consolidada' }))
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
+    const options = mocks.confirm.mock.calls[0][0]
+    expect(options.affected.items.join(' ')).toContain('1 taxa alterada à mão')
+    expect(options.consequence).toContain('1 B/L tem taxas alteradas à mão')
+    mocks.summaries = []
   })
 
   it('só emite a consolidada depois da confirmação', async () => {

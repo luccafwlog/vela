@@ -294,6 +294,7 @@ describe('localCharges service', () => {
   })
 
   it('pagina a fila operacional para nao ocultar B/Ls acima de 1000 registros', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
     const rangeCalls: Array<[number, number]> = []
     const operationalRows = Array.from({ length: 1005 }, (_, index) => ({
       id: `BL${String(index + 1).padStart(4, '0')}`,
