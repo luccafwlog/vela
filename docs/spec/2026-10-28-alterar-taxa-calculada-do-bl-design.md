@@ -228,3 +228,26 @@ Difere de propósito do **Desconto** da Demurrage, que a Invoice reemitida para
 o Cliente novo não herda (decisão do dono de 2026-10-22): lá o desconto é a
 única ferramenta e mistura o que é do Cliente e o que é do B/L; aqui o que é do
 Cliente tem a Condição. A ADR nova registra esse porquê.
+
+### D14 — Detalhes aprovados em bloco
+
+1. **Cobrança manual** ganha as mesmas ações das calculadas: **Alterar valor**
+   (por unidade ou total) e **Voltar ao valor da tabela**. O **Editar** de hoje
+   continua (quantidade e observação), porque na manual a quantidade é o
+   operador quem informa. **Excluir** continua apagando a linha, agora para
+   todos os setores (D3) e com justificativa; para voltar, lança-se de novo.
+2. **THD de container IMO e OOG** (a linha "× 2,5") é linha própria e se altera
+   sozinha; alterar o THD Padrão não muda a linha IMO/OOG.
+3. **Container compartilhado:** a alteração vale só para a parte deste B/L; os
+   outros B/Ls que dividem o container não mudam.
+4. **B/L cancelado e reativado:** cancelado, nada se altera (é só consulta). Na
+   reativação voltam as alterações, as exclusões e a isenção à mão das taxas
+   calculadas. A cobrança manual continua se perdendo no cancelamento, como
+   hoje (fora desta mudança).
+5. **Alerta do evento sem ninguém na tela** (D6, nível 4): tipo novo **Taxa
+   alterada à mão mudou**, Normal, setor responsável Administrativo, avisa
+   também o Financeiro (como a Fatura desatualizada); abre o B/L e fecha com
+   **Resolver com justificativa**.
+6. **Taxa em dólar:** o valor alterado é em US$ e converte pelo câmbio fixado
+   do B/L, como toda taxa em dólar.
+7. **Viagem cancelada:** nada se altera, como hoje.
