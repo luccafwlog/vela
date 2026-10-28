@@ -170,3 +170,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   Manifesto BB e do B/L avulso mandam excluir o B/L na outra Viagem e importar
   de novo, como o arquivo de B/L de container, em vez de corrigir a Viagem
   pela ficha (BLR-053 e a mensagem do banco).
+- **Recusa do banco na omissão, no transbordo e no COD** (decisão do dono de
+  2026-10-28, pergunta P4 da situação S4.21; tela, sem migration): **Omitir
+  escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e **Reverter
+  para transbordo** recusados mostram o motivo do banco, pelo mesmo tradutor
+  das outras telas; "Verifique se algum B/L está em COD." só complementa a
+  recusa por B/L em COD (VIA-070, VIA-058, VIA-064 e as mensagens).
