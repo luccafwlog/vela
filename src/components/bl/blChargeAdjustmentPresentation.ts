@@ -117,7 +117,7 @@ const DISCARD_REASON: Record<string, string> = {
 /** Coluna **O que mudou** do Histórico das taxas (spec, "Mensagens"). */
 export function historyChangePhrase(event: Pick<BlChargeHistoryEvent, 'event' | 'before' | 'after'>) {
   const before = event.before as Snapshot | null
-  const after = event.after as (Snapshot & { reason?: string; table_name?: string | null; pod?: string | null }) | null
+  const after = event.after as (Snapshot & { reason?: string; table_name?: string | null; pod?: string | null; removed?: boolean }) | null
   switch (event.event) {
     case 'altered': {
       const kind = after?.kind === 'total' ? 'total' : 'unit'
@@ -143,6 +143,7 @@ export function historyChangePhrase(event: Pick<BlChargeHistoryEvent, 'event' | 
       return `Alteração descartada pelo sistema: o B/L passou para a tabela ${after?.table_name ?? '—'} (${reason}${reason === 'POD' && after?.pod ? ` ${after.pod}` : ''})`
     }
     case 'quantity_changed':
+      if (after?.removed) return `Saiu da cobrança: a quantidade passou de ${qty(before?.quantity)} para 0; o valor total alterado de ${formatChargeMoney(Number(after?.total ?? 0), after?.currency)} ficou guardado`
       return `Quantidade mudou de ${qty(before?.quantity)} para ${qty(after?.quantity)}; valor total alterado mantido em ${formatChargeMoney(Number(after?.total ?? 0), after?.currency)}`
     default:
       return event.event

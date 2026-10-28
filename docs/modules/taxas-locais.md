@@ -562,6 +562,15 @@ Invariantes:
   Condição mantêm a alteração.
 - **Total alterado com quantidade nova (D7):** o total se mantém, o Unitário
   muda e o evento `quantity_changed` entra no histórico.
+- **Quantidade a zero (decisão do dono de 2026-10-28; migration `498`):** a
+  taxa sai da cobrança (a linha some, como qualquer taxa sem quantidade) e a
+  alteração fica guardada, voltando a valer se a taxa voltar ao B/L. Com total
+  alterado, o cálculo grava `quantity_changed` com `removed` ("Saiu da
+  cobrança: …"), a prévia mostra o desfecho `removed` e pede o **Gravar mesmo
+  assim**, e sem aceite abre o alerta. Só conta a taxa cujo item segue ativo na
+  tabela vinculada, no mesmo POD, num B/L sem linha em revisão
+  (`_bl_charge_adjustments_out_of_charge`); item desativado e linha em revisão
+  seguem guardando a alteração sem evento.
 - **Troca de tabela:** a reconciliação (`_reconcile_bl_charge_adjustments`)
   descarta, com o evento `discarded` e o motivo (POD, modalidade ou tabela), a
   alteração cuja tabela saiu do B/L; no B/L misto, só as da tabela que saiu

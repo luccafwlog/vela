@@ -30,7 +30,7 @@ const POD_B = 'R495B'
 const BL = {
   total: 'R495-TOT', unit: 'R495-UNI', pod: 'R495-POD', ack: 'R495-ACK', queue: 'R495-QUE',
   share1: 'R495-SH1', share2: 'R495-SH2', exempt: 'R495-EXE', plain: 'R495-PLN', newShare: 'R495-NSH',
-  soc: 'R495-SOC',
+  soc: 'R495-SOC', gone: 'R495-GON', goneUnit: 'R495-GOU',
 } as const
 const ALL_BLS = Object.values(BL)
 const JUST = 'Acordado com o Cliente pelo comercial'
@@ -173,7 +173,8 @@ describeLocal('495 — prévia, aceite e alerta da taxa alterada à mão', () =>
         (${q(BL.exempt)}, 'RTAU4950009', '22G1'),
         (${q(BL.plain)}, 'RTAU4950010', '22G1'),
         (${q(BL.newShare)}, 'RTAU4950011', '22G1'),
-        (${q(BL.soc)}, 'RTAU4950012', '22G1'), (${q(BL.soc)}, 'RTAU4950013', '22G1');
+        (${q(BL.soc)}, 'RTAU4950012', '22G1'), (${q(BL.soc)}, 'RTAU4950013', '22G1'),
+        (${q(BL.gone)}, 'RTAU4950014', '22G1'), (${q(BL.goneUnit)}, 'RTAU4950015', '22G1');
       UPDATE public.bl_containers SET ownership = 'COC', ownership_source = 'manual'
        WHERE bl_id = ${q(BL.soc)} AND container_number = 'RTAU4950013';
     `)
@@ -186,6 +187,8 @@ describeLocal('495 — prévia, aceite e alerta da taxa alterada à mão', () =>
     alter(BL.share1, thd, 'total', 1000)
     alter(BL.newShare, thd, 'total', 1500)
     alter(BL.soc, dropOff, 'total', 900)
+    alter(BL.gone, thd, 'total', 800)
+    alter(BL.goneUnit, thd, 'unit', 1200)
     alter(BL.exempt, blFee, 'unit', 250)
     ok(USERS.adm, `SELECT public.exempt_bl_local_charges(${q(BL.exempt)}, ${q(JUST)}, '${USERS.adm}'::uuid)`)
   })
@@ -303,6 +306,30 @@ describeLocal('495 — prévia, aceite e alerta da taxa alterada à mão', () =>
     saveAs(USERS.ope, `UPDATE public.bl_containers SET ownership = 'SOC', ownership_source = 'bl' WHERE bl_id = ${q(BL.soc)} AND container_number = 'RTAU4950012'`)
     expect(psql(`SELECT (after->>'quantity')::numeric(12,0) || '|' || (after->>'total') FROM public.bl_charge_adjustment_events
       WHERE bl_id = ${q(BL.soc)} AND event = 'quantity_changed'`)).toBe('1|900.00')
+  })
+
+  // 498 (decisão do dono, opção 1): a quantidade a zero tira a taxa da cobrança;
+  // a alteração fica guardada e volta com a taxa.
+  it('total alterado cuja quantidade vai a zero: a prévia pede confirmação e a gravação registra e alerta', () => {
+    const [entry] = impact([{ bl_id: BL.gone, container_flags: [{ container_number: 'RTAU4950014', is_imo: true }] }])
+    expect(entry.items.find((item) => item.charge_name === 'THD')).toMatchObject({
+      outcome: 'removed', quantity: 1, after_quantity: 0, after_total: null, needs_confirmation: true,
+    })
+    saveAs(USERS.ope, `UPDATE public.bl_containers SET is_imo = true WHERE bl_id = ${q(BL.gone)}`)
+    expect(psql(`SELECT (after->>'quantity')::numeric(12,0) || '|' || (after->>'removed') FROM public.bl_charge_adjustment_events
+      WHERE bl_id = ${q(BL.gone)} AND event = 'quantity_changed'`)).toBe('0|true')
+    expect(activeAdjustments(BL.gone)).toBe('1')
+    expect(alertOf(BL.gone)).toBe(`active|A taxa THD do B/L ${BL.gone} saiu da cobrança: a quantidade passou de 1 para 0. A alteração do total para R$ 800,00 ficou guardada e volta se a taxa voltar ao B/L. Confira se ainda vale.`)
+    // O container volta a ser padrão: a alteração volta a valer.
+    saveAs(USERS.ope, `UPDATE public.bl_containers SET is_imo = false WHERE bl_id = ${q(BL.gone)}`)
+    expect(psql(`SELECT total_value_brl FROM public.charge_calculations WHERE bl_id = ${q(BL.gone)} AND calculation_key = ${q(thd)}`)).toBe('800.00')
+  })
+
+  it('por unidade com quantidade a zero: a prévia diz a quantidade nova, sem confirmação', () => {
+    const [entry] = impact([{ bl_id: BL.goneUnit, container_flags: [{ container_number: 'RTAU4950015', is_imo: true }] }])
+    expect(entry.items.find((item) => item.charge_name === 'THD')).toMatchObject({
+      outcome: 'quantity', quantity: 1, after_quantity: 0, after_total: 0, needs_confirmation: false,
+    })
   })
 
   it('B/L isento à mão aparece como isento', () => {

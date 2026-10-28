@@ -56,5 +56,8 @@ describe('Histórico das taxas', () => {
       .toBe('Alteração descartada pelo sistema: o B/L passou para a tabela Tabela B (POD BRRIO)')
     expect(historyChangePhrase({ event: 'quantity_changed', before: { quantity: 2 }, after: { quantity: 3, total: 2000, currency: 'BRL' } }))
       .toBe('Quantidade mudou de 2 para 3; valor total alterado mantido em R$ 2.000,00')
+    // 498: a quantidade foi a zero e a taxa saiu da cobrança.
+    expect(historyChangePhrase({ event: 'quantity_changed', before: { quantity: 1 }, after: { quantity: 0, total: 800, currency: 'BRL', removed: true } } as never))
+      .toMatch(/^Saiu da cobrança: a quantidade passou de 1 para 0; o valor total alterado de R\$\s800,00 ficou guardado$/)
   })
 })

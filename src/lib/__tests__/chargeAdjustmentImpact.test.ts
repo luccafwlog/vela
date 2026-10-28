@@ -26,6 +26,16 @@ describe('prévia da taxa alterada à mão', () => {
     expect(describeImpact(entries)).toHaveLength(3)
   })
 
+  // 498 (decisão do dono): a taxa com total alterado cuja quantidade vai a zero sai da cobrança.
+  it('total alterado que sai da cobrança pede o Gravar mesmo assim', () => {
+    const entries = [{ bl_id: 'BL5', manual_exempt: false, items: [
+      item({ charge_name: 'THD', kind: 'total', value: 800, quantity: 1, total: 800, outcome: 'removed', after_quantity: 0, after_total: null, needs_confirmation: true }),
+    ] }]
+    expect(impactNeedingConfirmation(entries).map((line) => line.text)).toEqual([
+      'BL5 · THD: sai da cobrança (quantidade 1 → 0); o valor total alterado de R$ 800,00 fica guardado e volta se a taxa voltar ao B/L',
+    ])
+  })
+
   it('B/L isento à mão vira uma linha e não pede confirmação', () => {
     const entries = [{ bl_id: 'BL2', manual_exempt: true, items: [item({ outcome: 'discarded', needs_confirmation: true })] }]
     expect(describeImpact(entries)).toEqual(['BL2: isento à mão — continua isento'])

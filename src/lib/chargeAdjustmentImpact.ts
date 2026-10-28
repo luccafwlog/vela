@@ -22,6 +22,8 @@ export function describeImpactItem(blId: string, item: BlChargeImpactItem) {
     }
     case 'total_kept':
       return `${head}: valor total alterado mantido em ${money(item.total, item.currency)}; a quantidade passa de ${qty(item.quantity)} para ${qty(item.after_quantity)}`
+    case 'removed':
+      return `${head}: sai da cobrança (quantidade ${qty(item.quantity)} → 0); o valor total alterado de ${money(item.total, item.currency)} fica guardado e volta se a taxa voltar ao B/L`
     case 'quantity':
       return `${head}: quantidade muda de ${qty(item.quantity)} para ${qty(item.after_quantity)} — total ${money(item.total, item.currency)} → ${money(item.after_total, item.currency)}`
     case 'remapped':
@@ -43,7 +45,7 @@ export function describeImpact(entries: readonly BlChargeImpact[]) {
   })
 }
 
-/** Linhas que pedem o **Gravar mesmo assim**: descarte e total alterado com quantidade nova. */
+/** Linhas que pedem o **Gravar mesmo assim**: descarte, total alterado com quantidade nova e taxa com total alterado que sai da cobrança. */
 export function impactNeedingConfirmation(entries: readonly BlChargeImpact[]) {
   return entries.flatMap((entry) => (entry.manual_exempt ? [] : entry.items
     .filter((item) => item.needs_confirmation)

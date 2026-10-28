@@ -624,7 +624,8 @@ export type BlChargeImpactChange = {
   move_vehicles?: Array<{ id: number; to_bl_id: string }>
 }
 
-export type BlChargeImpactOutcome = 'kept' | 'quantity' | 'total_kept' | 'remapped' | 'discarded'
+/** `removed`: a quantidade vai a zero e a taxa sai da cobrança; a alteração fica guardada (migration 498). */
+export type BlChargeImpactOutcome = 'kept' | 'quantity' | 'total_kept' | 'removed' | 'remapped' | 'discarded'
 
 export type BlChargeImpactItem = {
   charge_name: string

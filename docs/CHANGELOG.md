@@ -44,6 +44,9 @@
   conferência, e **Voltar** no meio da consulta do efeito não abre a confirmação; o Histórico das
   taxas, a Validação e o saldo do Cliente se atualizam depois de lançar ou editar cobrança manual e
   das gravações que recalculam as taxas.
+  Decisão do dono (migration `498`): a taxa com total alterado cuja quantidade vai a zero (container
+  que vira IMO, por exemplo) sai da cobrança com a alteração guardada; a prévia pede **Gravar mesmo
+  assim** e, sem ele, o Histórico das taxas registra e o alerta abre. Antes a prévia dizia "mantida".
 - **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
   compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
   listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta

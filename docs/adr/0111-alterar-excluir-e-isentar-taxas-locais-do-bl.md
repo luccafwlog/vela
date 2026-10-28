@@ -9,7 +9,8 @@ na `493` (B/L faturado); lote 4 na `494` (leituras fora da ficha); lote 5 na
 `495` (aviso **Gravar mesmo assim**, prévias e alerta); a `496` só repõe a guarda explícita no invólucro de trava;
 a `497` traz as correções da revisão da PR luccafwlog/vela#1080 (prévia do efeito na fatura na mesma ordem
 da correção, guarda antes da leitura na cobrança manual, SOC/COC e container que passa a ser dividido na
-simulação da decisão 12).
+simulação da decisão 12); a `498`, a taxa alterada que sai da cobrança quando
+a quantidade vai a zero (decisão 12).
 
 Supersede o item 11 da [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)
 (excluir cobrança manual era só do Administrativo). Estende a
@@ -92,6 +93,12 @@ porque `charge_calculations` é refeita do zero pelo motor.
    B/L; sem aceite, o mesmo efeito abre o alerta **Taxa alterada à mão mudou**
    (`taxa_alterada_mudou`, Administrativo com aviso ao Financeiro, fecha por
    **Resolver com justificativa**). Migration `495`.
+   Quantidade que vai a zero (decisão do dono de 2026-10-28, na revisão da
+   PR): a taxa sai da cobrança e a alteração fica guardada, voltando se a taxa
+   voltar ao B/L; com total alterado, conta como quantidade nova (pede o
+   **Gravar mesmo assim**; sem aceite, evento no Histórico das taxas e
+   alerta). Exemplo: THD de 1 container alterado pelo total para R$ 800 e o
+   container marcado IMO. Migration `498`.
 
 ## Consequências
 

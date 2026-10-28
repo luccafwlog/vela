@@ -146,3 +146,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     que passa a dividir o container e toda gravação do Baplie (CEB-099), para
     os veículos selecionados de outras páginas (EQU-130) e para **Reverter
     para transbordo** (VIA-145).
+  - Decisão do dono de 2026-10-28 (migration `498`): taxa com total alterado
+    cuja quantidade vai a zero sai da cobrança, com a alteração guardada; a
+    prévia pede o **Gravar mesmo assim** e, sem ele, abre o alerta (BLR-150,
+    ALE-086).
