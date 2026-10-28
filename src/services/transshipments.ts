@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Tables } from '../types/database'
+import { extractErrorText } from '../lib/errors'
 
 const normPod = (value: string) => value.trim().toUpperCase()
 
@@ -111,6 +112,13 @@ export async function revertVoyageOmission(input: {
     p_changed_by: input.changedBy,
   })
   if (error) throw error
+}
+
+// `revert_voyage_omission` (migration 251) recusa com "Nao e possivel reverter
+// a omissao: N B/L(s) afetado(s) estao em COD." (22023); só essa recusa ganha a
+// orientação de conferir os B/Ls em COD.
+export function isOmissionRevertBlockedByCod(error: unknown): boolean {
+  return /\best[aã]o em COD\b/i.test(extractErrorText(error))
 }
 
 export async function setBlCod(input: {

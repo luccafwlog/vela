@@ -27,8 +27,8 @@ describe('TransshipmentInfoCard', () => {
     mutateAsync.mockReset().mockResolvedValue(undefined)
     revertMutateAsync.mockReset().mockResolvedValue(undefined)
     useAuthMock.mockReturnValue({ user: { id: 'user-1' }, isAdmin: false })
-    useUpdateVoyageOmission.mockReturnValue({ mutateAsync, isPending: false, isError: false })
-    useRevertVoyageOmission.mockReturnValue({ mutateAsync: revertMutateAsync, isPending: false, isError: false })
+    useUpdateVoyageOmission.mockReturnValue({ mutateAsync, reset: vi.fn(), isPending: false, isError: false })
+    useRevertVoyageOmission.mockReturnValue({ mutateAsync: revertMutateAsync, reset: vi.fn(), isPending: false, isError: false })
     useVoyageTransshipments.mockReturnValue({
       data: {
         omissions: [{

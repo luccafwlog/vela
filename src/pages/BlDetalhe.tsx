@@ -94,6 +94,8 @@ export function BlDetalhe() {
     if (!bl || !pod) return run()
     void guardCharges([{ bl_id: bl.id, bls: { pod } }], async () => true).then((ok) => { if (ok) run() })
   }
+  // A janela da justificativa já fechou: a recusa do banco vem no aviso.
+  const showDispositionRefusal = (fallback: string) => (error: unknown) => showToast(userFacingErrorMessage(error, fallback), 'error')
 
   async function handleCancelBl() {
     if (!bl) return
@@ -405,13 +407,19 @@ export function BlDetalhe() {
         onCod={canEditVoyages ? (justification) => {
           const omission = cockpitQuery.data?.omission
           if (!user?.id || !bl?.voyage_id || !omission) return
-          withPodGuard(omission.dischargePod, () => setCod.mutate({ blId: bl.id, omissionId: omission.id, justification, changedBy: user.id }))
+          withPodGuard(omission.dischargePod, () => setCod.mutate(
+            { blId: bl.id, omissionId: omission.id, justification, changedBy: user.id },
+            { onError: showDispositionRefusal('Falha ao marcar COD. Tente novamente.') },
+          ))
         } : undefined}
         onRestore={canEditVoyages ? (justification) => {
           const omission = cockpitQuery.data?.omission
           if (!user?.id || !bl?.voyage_id || !omission) return
           // Reverter o COD devolve o POD original (`set_bl_transshipment`).
-          withPodGuard(omission.omittedPod, () => setTransshipment.mutate({ blId: bl.id, omissionId: omission.id, justification, changedBy: user.id }))
+          withPodGuard(omission.omittedPod, () => setTransshipment.mutate(
+            { blId: bl.id, omissionId: omission.id, justification, changedBy: user.id },
+            { onError: showDispositionRefusal('Falha ao reverter para transbordo. Tente novamente.') },
+          ))
         } : undefined}
         portalStatus={portalStatus}
         portalStatusError={portalStatusError}

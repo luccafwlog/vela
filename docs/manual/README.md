@@ -150,3 +150,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     cuja quantidade vai a zero sai da cobrança, com a alteração guardada; a
     prévia pede o **Gravar mesmo assim** e, sem ele, abre o alerta (BLR-150,
     ALE-086).
+- **Recusa do banco na omissão, no transbordo e no COD** (decisão do dono de
+  2026-10-28, pergunta P4 da situação S4.21; tela, sem migration): **Omitir
+  escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e **Reverter
+  para transbordo** recusados mostram o motivo do banco, pelo mesmo tradutor
+  das outras telas; "Verifique se algum B/L está em COD." só complementa a
+  recusa por B/L em COD (VIA-070, VIA-058, VIA-064 e as mensagens).
