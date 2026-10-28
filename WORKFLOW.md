@@ -314,7 +314,7 @@ não presuma que remover uma chave simula todas as Edge Functions. O domínio do
 remetente precisa estar verificado antes de qualquer envio real.
 
 `import-effects-runner` também exige `IMPORT_EFFECTS_RUNNER_ENABLED=true`; sem
-essa variável o endpoint responde `503 paused` e não faz claim. Em banco novo,
+essa variável o endpoint responde `200 paused` e não faz claim. Em banco novo,
 o job de PTAX (`recalc-demurrage-ptax`) não existe até ser agendado à mão,
 depois de validar segredo, Edge e gateway, conforme
 [`segredos-cron.md`](./docs/operations/segredos-cron.md#agendar-o-recálculo-de-ptax).
