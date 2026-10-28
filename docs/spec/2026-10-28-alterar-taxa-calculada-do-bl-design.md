@@ -174,3 +174,13 @@ pedido separado, sem refazer esta mudança.
 | Detalhe da fatura no Vela › **Itens da fatura** | Coluna **Origem** com **Calculado**, **Manual** ou **Alterado** |
 | Ficha do Cliente › **Financeiro** | Lista **B/Ls com taxa alterada**, ao lado de "B/Ls com cobrança manual" |
 | **Histórico de ações** do Administrativo | A ação com autor, antes, depois e justificativa |
+
+### D11 — A alteração vale só para aquele B/L
+
+A alteração e a exclusão valem só para o B/L em que são feitas. Não há atalho
+para virar Condição de Cliente nem aplicação em lote a outros B/Ls. A Condição
+de Cliente continua sendo cadastrada em **Tabelas e condições** (por unidade,
+só item automático, com vigência, valendo para os B/Ls importados depois); a
+lista **B/Ls com taxa alterada** na ficha do Cliente (D10) mostra quando o
+mesmo ajuste se repete. Aplicar a alteração a vários B/Ls de uma vez é um
+pedido separado.
