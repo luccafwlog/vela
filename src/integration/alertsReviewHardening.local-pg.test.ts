@@ -77,7 +77,7 @@ describeLocal('migrations 338 — comportamento real no Postgres', () => {
         '{"milestone":"etb"}'::jsonb, NULL
       );
     `)
-    expect(psql(`SELECT count(*) FROM public.internal_notifications WHERE entity_id = '${scaleEntityId}' AND recipient_id IN ('${opsId}', '${docsId}');`)).toBe('4')
+    expect(psql(`SELECT count(*) FROM public.internal_notifications WHERE entity_id = '${scaleEntityId}' AND recipient_id IN ('${opsId}', '${docsId}');`)).toBe('2') // 476: só Operações, o setor responsável
     expect(psql(`SELECT count(*) FROM public.alert_item_events e JOIN public.alert_items i ON i.id = e.alert_item_id JOIN public.alerts a ON a.id = i.alert_id WHERE a.entity_id = '${scaleEntityId}' AND e.event_type = 'opened';`)).toBe('2')
     expect(psql(`SELECT count(*) FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id = '${scaleEntityId}') AND destination IS NULL;`)).toBe('1')
   })

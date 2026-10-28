@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { fetchUserDisplayNames } from './userNames'
 
 export type BlTimelineFamily = 'edicao' | 'container' | 'veiculo' | 'taxas' | 'fatura' | 'sistema'
 
@@ -49,11 +50,5 @@ export async function fetchFullBlTimeline(blId: string): Promise<BlTimelineEvent
 
 /** Nome de quem fez cada evento, pelo id gravado no histórico. */
 export async function fetchActorNames(ids: Array<string | null | undefined>): Promise<Map<string, string>> {
-  const unique = Array.from(new Set(ids.filter((id): id is string => Boolean(id))))
-  const names = new Map<string, string>()
-  if (!unique.length) return names
-  const { data, error } = await supabase.from('user_profiles').select('id, full_name').in('id', unique)
-  if (error) throw error
-  for (const profile of data ?? []) if (profile.full_name) names.set(profile.id, profile.full_name)
-  return names
+  return fetchUserDisplayNames(ids)
 }

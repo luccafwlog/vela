@@ -1,0 +1,97 @@
+08-desbloqueio-ce|6|corrigida|desbloqueio-ce.md
+08-desbloqueio-ce|7|corrigida|desbloqueio-ce.md
+08-desbloqueio-ce|8|corrigida|desbloqueio-ce.md
+08-desbloqueio-ce|9|corrigida|desbloqueio-ce.md
+08-desbloqueio-ce|10|corrigida|desbloqueio-ce.md
+08-desbloqueio-ce|12|corrigida|desbloqueio-ce.md
+08-desbloqueio-ce|14|corrigida|desbloqueio-ce.md
+08-desbloqueio-ce|16|corrigida|desbloqueio-ce.md
+09b-faturamento|FAT-D01|corrigida|faturamento.md
+09b-faturamento|FAT-D02|parcial|faturamento.md (CONTEXT.md pendente)
+09b-faturamento|FAT-D08|corrigida|manual-financeiro.md
+09b-faturamento|FAT-D14|corrigida|faturamento.md
+10-recebimento|2|corrigida|reconciliacao-pix.md, manual-financeiro.md
+10-recebimento|4|corrigida|reconciliacao-pix.md
+10-recebimento|5|corrigida|reconciliacao-pix.md, manual-financeiro.md
+10-recebimento|6|parcial|reconciliacao-pix.md (seguranca.md pendente)
+10-recebimento|7|nao-corrigida|texto está no código (alertRulesCatalog.ts): vira classe b
+10-recebimento|8|corrigida|manual-financeiro.md
+10-recebimento|9|corrigida|reconciliacao-pix.md, manual-financeiro.md
+10-recebimento|10|corrigida|reconciliacao-pix.md
+03-bl-revisao|BLR-D08|corrigida|manifesto-edi.md
+03-bl-revisao|BLR-D09|corrigida|manifesto-edi.md
+03-bl-revisao|BLR-D10|corrigida|manifesto-edi.md
+04-ce-baplie|CEB-D07|corrigida|manifesto-edi.md
+04-ce-baplie|CEB-D09|corrigida|manifesto-edi.md
+04-ce-baplie|CEB-D11|corrigida|manifesto-edi.md
+05-equipamentos|EQU-D1|corrigida|manifesto-edi.md
+05-equipamentos|EQU-D2|corrigida|manifesto-edi.md
+05-equipamentos|EQU-D3|parcial|granito.md (CONTEXT.md e seguranca.md pendentes)
+05-equipamentos|EQU-D4|parcial|manifesto-edi.md (CONTEXT.md pendente)
+05-equipamentos|EQU-D5|corrigida|manifesto-edi.md
+05-equipamentos|EQU-D6|parcial|manifesto-edi.md (demurrage.md com outra frente)
+05-equipamentos|EQU-D8|corrigida|manifesto-edi.md
+05-equipamentos|EQU-D10|corrigida|manifesto-edi.md
+05-equipamentos|EQU-D13|corrigida|manifesto-edi.md
+02-viagens-adr|12|corrigida|chegadas-saidas.md
+03-bl-revisao|BLR-D11|parcial|clientes.md (CONTEXT.md pendente)
+05-equipamentos|EQU-D6|corrigida|demurrage.md, manifesto-edi.md
+06-clientes-comunicacao|D06|corrigida|clientes.md
+06-clientes-comunicacao|D11|corrigida|clientes.md
+06-clientes-comunicacao|D16|corrigida|clientes.md
+06-clientes-comunicacao|D17|parcial|clientes.md já correto (CONTEXT.md pendente)
+07-portal|POR-D08|corrigida|portal-cliente.md, chegadas-saidas.md
+07-portal|POR-D09|corrigida|portal-cliente.md
+09a-taxas-locais|TAX-D05|corrigida|taxas-locais.md
+09a-taxas-locais|TAX-D06|corrigida|taxas-locais.md
+09a-taxas-locais|TAX-D10|corrigida|taxas-locais.md
+09a-taxas-locais|TAX-D12|corrigida|taxas-locais.md
+11-demurrage|DEM-D02|corrigida|demurrage.md
+11-demurrage|DEM-D03|corrigida|demurrage.md
+11-demurrage|DEM-D04|corrigida|demurrage.md
+11-demurrage|DEM-D07|corrigida|demurrage.md
+11-demurrage|DEM-D10|corrigida|demurrage.md
+11-demurrage|DEM-D11|corrigida|demurrage.md
+02-viagens-adr|1|parcial|CONTEXT.md (viagens.md pendente)
+02-viagens-adr|11|parcial|CONTEXT.md (viagens.md pendente)
+03-bl-revisao|BLR-D11|parcial|CONTEXT.md, clientes.md (regras-de-negocio.md pendente)
+04-ce-baplie|CEB-D08|corrigida|CONTEXT.md
+05-equipamentos|EQU-D4|corrigida|CONTEXT.md, manifesto-edi.md
+05-equipamentos|EQU-D9|corrigida|CONTEXT.md
+06-clientes-comunicacao|D17|parcial|CONTEXT.md, clientes.md (regras-de-negocio.md pendente)
+07-portal|POR-D10|corrigida|CONTEXT.md
+09b-faturamento|FAT-D02|corrigida|CONTEXT.md, faturamento.md
+09b-faturamento|FAT-D03|corrigida|CONTEXT.md
+09b-faturamento|FAT-D04|corrigida|CONTEXT.md
+09b-faturamento|FAT-D05|corrigida|CONTEXT.md
+12-alertas-rotinas|ALE-D15|corrigida|CONTEXT.md
+01-acesso-admin|ACE-D07|corrigida|operacao-suporte.md
+01-acesso-admin|ACE-D09|corrigida|operacao-suporte.md
+01-acesso-admin|ACE-D10|corrigida|operacao-suporte.md
+01-acesso-admin|ACE-D11|corrigida|seguranca.md
+02-viagens-adr|9|corrigida|operacao-suporte.md
+02-viagens-adr|16|corrigida|operacao-suporte.md
+05-equipamentos|EQU-D3|corrigida|granito.md (seguranca.md já estava certo)
+10-recebimento|6|corrigida|reconciliacao-pix.md (seguranca.md já estava certo)
+12-alertas-rotinas|ALE-D01|corrigida|operacao-suporte.md
+12-alertas-rotinas|ALE-D02|corrigida|operacao-suporte.md
+12-alertas-rotinas|ALE-D03|nao-corrigida|texto está no código (alertRulesCatalog.ts)
+12-alertas-rotinas|ALE-D04|nao-corrigida|texto está no código (alertRulesCatalog.ts)
+12-alertas-rotinas|ALE-D10|nao-corrigida|texto está no código (alertRulesCatalog.ts)
+12-alertas-rotinas|ALE-D11|nao-corrigida|texto está no código (alertRulesCatalog.ts)
+12-alertas-rotinas|ALE-D13|nao-corrigida|contagem está no código e no teste (permissionMatrix.ts)
+12-alertas-rotinas|ALE-D16|nao-corrigida|texto está no código (alertRulesCatalog.ts)
+12-alertas-rotinas|ALE-D19|corrigida|operacao-suporte.md
+01-acesso-admin|ACE-D05|corrigida|regras-de-negocio.md
+02-viagens-adr|1|corrigida|CONTEXT.md, viagens.md
+02-viagens-adr|8|corrigida|viagens.md
+02-viagens-adr|11|corrigida|CONTEXT.md (viagens.md já estava certo)
+02-viagens-adr|17|corrigida|viagens.md
+03-bl-revisao|BLR-D11|corrigida|CONTEXT.md, clientes.md (regras-de-negocio.md já estava certo)
+05-equipamentos|EQU-D12|corrigida|regras-de-negocio.md
+06-clientes-comunicacao|D17|corrigida|CONTEXT.md (clientes.md e regras-de-negocio.md já estavam certos)
+08-desbloqueio-ce|15|corrigida|regras-de-negocio.md
+09b-faturamento|FAT-D06|corrigida|regras-de-negocio.md
+09b-faturamento|FAT-D07|corrigida|regras-de-negocio.md
+11-demurrage|DEM-D12|corrigida|regras-de-negocio.md
+12-alertas-rotinas|ALE-D09|corrigida|viagens.md

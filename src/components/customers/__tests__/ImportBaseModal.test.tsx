@@ -86,3 +86,22 @@ it('falha ao gravar fica no modal, com a prévia e o botão para tentar de novo'
   expect(alert.textContent).toContain('Nada foi gravado: Sem conexão com o servidor.')
   expect((screen.getByRole('button', { name: 'Importar 1 Cliente' }) as HTMLButtonElement).disabled).toBe(false)
 })
+
+// D15 de 2026-10-27: a prévia avisa o Cliente desativado e não conta a sugestão como vínculo.
+it('Cliente desativado: avisa, não conta o B/L como vinculado e pede o aceite', () => {
+  renderModal({ rows: [row({ existingCustomerId: 9, deactivated: true, pendingBlIds: ['BL-1'] })], rowErrors: [] })
+  expect(screen.getByText('Cliente desativado: não muda')).toBeTruthy()
+  expect(screen.getByText('Sugestão: BL-1')).toBeTruthy()
+  expect(screen.getByText(/Cliente desativado\. A Base não muda o cadastro nem os contatos, e 1 B\/L fica só com sugestão na Revisão/)).toBeTruthy()
+  const strip = screen.getByLabelText('O que a importação faz')
+  expect(strip.textContent).toMatch(/B\/Ls vinculados\s*0/)
+  expect(strip.textContent).toMatch(/B\/L só com sugestão\s*1/)
+  expect((screen.getByRole('button', { name: 'Importar 1 Cliente' }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+// D10 de 2026-10-27: quem não edita contatos importa só o cadastro.
+it('sem permissão de contatos, avisa que os e-mails não são gravados', () => {
+  renderModal({ rows: [row()], rowErrors: [] }, { canEditContacts: false })
+  expect(screen.getByText('Você importa só o cadastro')).toBeTruthy()
+  expect(screen.getByLabelText('O que a importação faz').textContent).toMatch(/e-mails\s*0/)
+})

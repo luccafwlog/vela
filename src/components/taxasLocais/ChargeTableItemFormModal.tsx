@@ -31,6 +31,7 @@ function formFromItem(tableId: number, item: ChargeItem | null): ChargeTableItem
     id: item.id,
     chargeTableId: String(tableId),
     name: item.name ?? '',
+    // Sem campo no formulário (TAX-D07): a categoria só separa itens repetidos e a edição mantém a gravada.
     category: item.category === 'other_charge' ? 'other_charge' : 'base',
     applicationBasis: (item.application_basis ?? 'bl') as ChargeTableItemForm['applicationBasis'],
     cargoProfile: (item.cargo_profile ?? 'any') as ChargeTableItemForm['cargoProfile'],
@@ -43,7 +44,6 @@ function formFromItem(tableId: number, item: ChargeItem | null): ChargeTableItem
   }
 }
 
-const CATEGORY_LABEL = { base: 'Taxa base', other_charge: 'Outra cobrança' }
 
 function itemChanges(original: ChargeItem, form: ChargeTableItemForm): ChargeChange[] {
   const value = toAmount(form.unitValue)
@@ -58,7 +58,6 @@ function itemChanges(original: ChargeItem, form: ChargeTableItemForm): ChargeCha
       after: Number.isFinite(value) ? formatRate(form.currency, value) : form.unitValue,
     },
     { field: 'Container SOC', before: original.applies_to_soc === false ? 'Não cobra' : 'Cobra', after: form.appliesToSoc ? 'Cobra' : 'Não cobra' },
-    { field: 'Categoria', before: CATEGORY_LABEL[original.category === 'other_charge' ? 'other_charge' : 'base'], after: CATEGORY_LABEL[form.category] },
     { field: 'Ordem de exibição', before: String(Number(original.sort_order ?? 100)), after: form.sortOrder.trim() },
   ].filter((change) => change.before !== change.after)
 }
@@ -205,7 +204,7 @@ export function ChargeTableItemFormModal({
               <span className="app-field__hint">
                 {conditions.data === 1 ? '1 condição de Cliente ativa usa' : `${conditions.data} condições de Cliente ativas usam`} o valor nesta moeda. Para cobrar em outra moeda, cadastre um item novo e recadastre as condições nele.
               </span>
-            ) : form.currency === 'USD' ? <span className="app-field__hint">Convertido em reais pelo ROE na emissão da fatura.</span> : null}
+            ) : form.currency === 'USD' ? <span className="app-field__hint">Convertido em reais pelo câmbio fixado quando o B/L entrou.</span> : null}
           </div>
           <Field label={`Valor unitário (${currencyPrefix(form.currency)})`} required error={errors.unitValue} hint={`Cobrado ${basisUnit(form.applicationBasis)}.`}>
             <MoneyInput
@@ -225,12 +224,6 @@ export function ChargeTableItemFormModal({
               </span>
             </label>
           ) : null}
-          <Field label="Categoria na fatura">
-            <Select value={form.category} onChange={(event) => update('category', event.target.value as ChargeTableItemForm['category'])}>
-              <option value="base">Taxa base</option>
-              <option value="other_charge">Outra cobrança</option>
-            </Select>
-          </Field>
           <Field label="Ordem de exibição" error={errors.sortOrder} hint="Menor aparece primeiro na tabela e na fatura.">
             <Input inputMode="numeric" value={form.sortOrder} onChange={(event) => update('sortOrder', event.target.value)} className="app-rates-code" />
           </Field>

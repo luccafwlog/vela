@@ -151,6 +151,7 @@ function cleanup() {
       OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (${customerId}, ${commsCustomer}));
     DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (${customerId}, ${commsCustomer}));
     DELETE FROM public.customer_portal_accounts WHERE customer_id IN (${customerId}, ${commsCustomer});
+    DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
     DELETE FROM public.customers WHERE id IN (${customerId}, ${commsCustomer});
     DELETE FROM public.user_profiles WHERE id = '${adminId}';
     DELETE FROM auth.users WHERE id = '${adminId}';
@@ -184,12 +185,15 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
         (${voyage.lost}, ${vesselId}, 'R349B', 'active'),
         (${voyage.negotiated}, ${vesselId}, 'R349C', 'active'),
         (${voyage.comms}, ${vesselId}, 'R349D', 'active');
+      -- 469: a Demurrage só sai com CE Mercante e o gate do Portal aberto.
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+      VALUES (${customerId}, 'Fixture R349: gate aberto para a Demurrage', '${adminId}', now() + interval '1 day');
       INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status,
-                              demurrage_roe_manual, demurrage_roe) VALUES
-        ('${bl.full}', ${voyage.full}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5),
-        ('${bl.lostA}', ${voyage.lost}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5),
-        ('${bl.lostB}', ${voyage.lost}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5),
-        ('${bl.negotiated}', ${voyage.negotiated}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5);
+                              demurrage_roe_manual, demurrage_roe, ce_mercante) VALUES
+        ('${bl.full}', ${voyage.full}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5, '993490000000001'),
+        ('${bl.lostA}', ${voyage.lost}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5, '993490000000002'),
+        ('${bl.lostB}', ${voyage.lost}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5, '993490000000003'),
+        ('${bl.negotiated}', ${voyage.negotiated}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5, '993490000000004');
       INSERT INTO public.bl_containers (bl_id, container_number, type, discharge_date, return_date) VALUES
         ('${bl.full}', '${box.full}', '40HC', '${discharge}', '${returned}'),
         ('${bl.lostA}', '${box.lostShared}', '40HC', '${discharge}', '${returned}'),
@@ -230,6 +234,34 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     })])
     // Antes: alerta ativo na Invoice cancelada, sem nada que o fechasse.
     expect(datesAlert(invoiceId)).not.toBe('active')
+    // 472 (DEM-D08): a Invoice reemitida cita a cancelada que ela substitui.
+    expect(psql(`SELECT count(*) FROM public.demurrage_invoices WHERE replaces_invoice_id = ${invoiceId} AND status = 'issued'`)).toBe('1')
+  })
+
+  it('480: reemissão adiada sem CE, emitida depois pela fila, também cita a cancelada', () => {
+    const current = Number(psql(`SELECT id FROM public.demurrage_invoices WHERE bl_id = '${bl.full}' AND status = 'issued'`))
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = NULL WHERE id = '${bl.full}'`)
+    const corrected = adminJson<{ demurrage: { demurrage_invoices: Array<Record<string, unknown>> } }>(
+      `SELECT public.set_container_dates(${containerId(bl.full, box.full)}, '${discharge}', '2026-09-23', 'Terminal corrigiu de novo (480)')`)
+    expect(corrected.demurrage.demurrage_invoices).toEqual([expect.objectContaining({ invoice_id: current, status: 'cancelled' })])
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = '1226501860480' WHERE id = '${bl.full}'`)
+    expect(issue(bl.full).status).toBe('issued')
+    expect(psql(`SELECT count(*) FROM public.demurrage_invoices WHERE replaces_invoice_id = ${current} AND status = 'issued'`)).toBe('1')
+  })
+
+  it('481: Invoice de outra Viagem não cita a cancelada da mesma caixa', () => {
+    const cancelled = Number(psql(`SELECT id FROM public.demurrage_invoices WHERE bl_id = '${bl.full}' AND status = 'cancelled' ORDER BY id LIMIT 1`))
+    // A mesma caixa, cobrada em outra Viagem do Cliente, numa transação desfeita.
+    const out = psql(`BEGIN;
+      SET LOCAL session_replication_role = replica;
+      UPDATE public.demurrage_invoices SET replaces_invoice_id = NULL WHERE replaces_invoice_id = ${cancelled};
+      UPDATE public.bl_containers SET container_number = '${box.full}' WHERE bl_id = '${bl.negotiated}';
+      SET LOCAL session_replication_role = origin;
+      SET LOCAL vela.demurrage_internal = 'on';
+      SELECT public.issue_demurrage_invoice_for_bl('${bl.negotiated}', 'R349-DEM-481')->>'status';
+      SELECT count(*) FROM public.demurrage_invoices WHERE replaces_invoice_id = ${cancelled};
+      ROLLBACK;`).split('\n')
+    expect(out).toEqual(['issued', '0'])
   })
 
   it('P1: caixa sem cobrança abre o alerta, que fecha quando a caixa entra numa Invoice emitida', () => {

@@ -90,3 +90,27 @@ describe('appEnvironmentLabel', () => {
     expect(appEnvironmentLabel({ DEV: false, VITE_SENTRY_ENVIRONMENT: 'staging' })).toBe('Outro ambiente')
   })
 })
+
+describe('ALE-D08: resolução de alerta com justificativa (migration 476)', () => {
+  it('aparece no assunto Alerta com o nome do tipo', () => {
+    expect(auditSubjectLabel('alert_item')).toBe('Alerta')
+    expect(describeAuditLog(log('alert_item', 'status', 'itau_pix_consulta_parada', 'resolved'))).toBe('Alerta resolvido com justificativa: Consulta de Pix do Itaú parada')
+  })
+})
+
+describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
+  it('lê o evento da taxa alterada com taxa, antes e depois', () => {
+    const newValue = JSON.stringify({
+      event: 'altered', charge_name: 'THD',
+      before: { kind: 'unit', unit: 500, total: 1000, currency: 'BRL' },
+      after: { kind: 'unit', unit: 400, total: 800, currency: 'BRL' },
+    })
+    const text = describeAuditLog({ entity_type: 'charge_calculation', field_name: 'charge_adjustment', old_value: null, new_value: newValue })
+    expect(text.replace(/\s/g, ' ')).toBe('THD · Valor por unidade: R$ 500,00 → R$ 400,00')
+  })
+
+  it('a edição da cobrança manual mostra a quantidade, não o código', () => {
+    expect(describeAuditLog({ entity_type: 'charge_calculation', field_name: 'manual_update', old_value: 'qty=2 | note=', new_value: 'qty=3 | note=x' }))
+      .toBe('Cobrança manual: quantidade 2 → 3')
+  })
+})

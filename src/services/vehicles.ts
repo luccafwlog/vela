@@ -1,5 +1,7 @@
 import type { DeleteDependencyReport } from './deleteDependencies'
 import { supabase } from './supabase'
+import { mapChunks } from '../lib/utils'
+import type { BlChargeImpactChange } from './charges/chargeOperationsService'
 
 /**
  * Exclui veículos por id, com motivo, para qualquer usuário ativo e mesmo com
@@ -27,6 +29,27 @@ export async function moveVehiclesToBl(args: { ids: number[]; targetBlId: string
   } as never)
   if (error) throw error
   return data as unknown as MoveVehiclesResult
+}
+
+/**
+ * Mudanças que excluir ou mover veículos fazem nos B/Ls de origem, para a
+ * prévia **Taxas alteradas à mão** (ADR 0111, D6). A seleção da página
+ * Veículos passa das páginas da lista: o B/L de cada veículo vem do banco.
+ */
+export async function vehicleChargeImpactChanges(ids: number[], targetBlId?: string): Promise<BlChargeImpactChange[]> {
+  const rows = await mapChunks(ids, 400, async (chunk) => {
+    const { data, error } = await supabase.from('vehicles').select('id, bl_id').in('id', chunk)
+    if (error) throw error
+    return (data ?? []) as Array<{ id: number; bl_id: string | null }>
+  })
+  const byBl = new Map<string, number[]>()
+  for (const row of rows) {
+    if (!row.bl_id) continue
+    byBl.set(row.bl_id, [...(byBl.get(row.bl_id) ?? []), row.id])
+  }
+  return [...byBl].map(([blId, vehicles]) => (targetBlId
+    ? { bl_id: blId, move_vehicles: vehicles.map((id) => ({ id, to_bl_id: targetBlId })) }
+    : { bl_id: blId, remove_vehicle_ids: vehicles }))
 }
 
 /** Containers do B/L de destino, para escolher quem recebe os veículos. */

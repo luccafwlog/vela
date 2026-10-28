@@ -7,18 +7,23 @@ import { useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { listBlContainersForMove, moveVehiclesToBl } from '../../services/vehicles'
+import { useChargeAdjustmentGuard } from '../../hooks/useChargeAdjustmentGuard'
+import type { BlChargeImpactChange } from '../../services/charges/chargeOperationsService'
 
 /**
  * Mover para outro B/L (página Veículos; ADR 0078, item 23): qualquer usuário,
  * com motivo, mesmo com CE; a cobrança segue a ADR 0077 (migration 184).
  */
-export function MoveVehiclesModal({ open, vehicleIds, onClose, onMoved }: {
+export function MoveVehiclesModal({ open, vehicleIds, impactChanges, onClose, onMoved }: {
   open: boolean
   vehicleIds: number[]
+  /** Prévia da taxa alterada à mão (ADR 0111, D6), montada pela página. */
+  impactChanges?: (targetBlId: string) => Promise<BlChargeImpactChange[]>
   onClose: () => void
   onMoved: () => Promise<void> | void
 }) {
   const confirmWithReason = useConfirmWithReason()
+  const guardCharges = useChargeAdjustmentGuard()
   const { showToast } = useToast()
   const [blId, setBlId] = useState('')
   const [containerId, setContainerId] = useState('')
@@ -41,6 +46,7 @@ export function MoveVehiclesModal({ open, vehicleIds, onClose, onMoved }: {
       confirmLabel: 'Mover',
     })
     if (reason === null) return
+    if (impactChanges && !(await guardCharges(() => impactChanges(target), async () => true))) return
     setSaving(true)
     try {
       const result = await moveVehiclesToBl({ ids: vehicleIds, targetBlId: target, containerId: chosen, reason })

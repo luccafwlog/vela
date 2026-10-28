@@ -43,8 +43,8 @@ export function BreakbulkReimportReview({
       aside="o arquivo corrige só o que traz"
     >
       <p className="app-panel__meta">
-        CE Mercante, Cliente vinculado, Revisão e observações ficam como estão. Valor vazio no arquivo não apaga o
-        valor gravado.
+        CE Mercante e Cliente vinculado ficam como estão. A Revisão é refeita pelas pendências do arquivo; a nota
+        escrita fica. Valor vazio no arquivo não apaga o valor gravado.
       </p>
 
       {check.otherVoyage.length ? (
@@ -77,8 +77,9 @@ export function BreakbulkReimportReview({
             {check.customerChanges.some((change) => change.fileCustomerMissing) ? (
               <p>
                 Consignatário não cadastrado: com a troca confirmada, o B/L sai do Cliente atual e volta para a
-                Reconciliação de Cliente até o novo consignatário ser cadastrado. Com fatura ou recebível a troca é
-                recusada; cadastre o Cliente antes de reimportar.
+                Reconciliação de Cliente até o novo consignatário ser cadastrado. Com o B/L faturado (fatura viva,
+                situação faturado ou pago, ou recebível com baixa) a troca é recusada; cadastre o Cliente antes de
+                reimportar.
               </p>
             ) : null}
           </ImportNotice>

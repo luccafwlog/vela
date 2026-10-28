@@ -82,7 +82,8 @@ describe('fundação transversal de alertas', () => {
     expect(page).not.toContain('Reconhecer')
     expect(page).not.toContain('detectAgencyReportPending')
     expect(page).not.toContain('detectAgencyReportDeadlineMissed')
-    expect(page).toContain('Dispensar')
+    // A dispensa saiu na migration 476 (ADR 0108).
+    expect(page).not.toContain('Dispensar')
   })
 
   it('mantém uma chave única por item no painel financeiro', () => {

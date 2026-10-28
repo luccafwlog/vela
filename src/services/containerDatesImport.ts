@@ -20,30 +20,16 @@ const SPEC: HeaderSpec<DestinationField> = {
 }
 
 /**
- * Teto de B/Ls por planilha de datas: a tela recusa o arquivo na leitura, e a
- * RPC (`apply_container_dates_batch_atomic`, migration 333) recusa acima disso
- * com 22023.
- * ponytail: a RPC grava a planilha inteira numa transação com
- * `statement_timeout = 60s`, e o custo de cada B/L cresce com o tamanho da
- * Viagem (a RPC por B/L trabalha sobre a Viagem a cada chamada). Medido em
- * 20/10/2026 no PG local: uns 25–30 µs por B/L do arquivo × container da
- * Viagem — 300 B/Ls numa Viagem de 900 containers 6,8 s, de 3.000 containers
- * 19 s; 700 B/Ls / 2.100 containers 39 s. Com 300 B/Ls cabe em 60 s até
- * Viagens de uns 6.000 containers; acima disso a chamada é cancelada (57014) e
- * nada é gravado. Upgrade: fazer o trabalho por Viagem uma vez no fim do
- * arquivo em vez de a cada B/L, ou preparo em etapas numa tabela de staging com
- * publicação numa RPC final.
+ * Sem teto de B/Ls (migration 499): a planilha inteira vai numa chamada.
+ * ponytail: o limite que sobra é o `statement_timeout` de 60 s da RPC
+ * (`apply_container_dates_batch_atomic`). Medido em 28/10/2026 no PG local,
+ * uns 4–5 ms por container gravado (3.000 B/Ls / 9.000 containers 39 s), o
+ * que dá uns 12.000 containers por arquivo; acima disso a chamada é cancelada
+ * (57014), nada é gravado e a mensagem abaixo pede para dividir a planilha.
+ * Upgrade: preparo em etapas numa tabela de staging com publicação numa RPC
+ * final.
  */
-export const MAX_CONTAINER_DATES_BLS = 300
-
 const TOO_LARGE_MESSAGE = 'a planilha é grande demais para gravar de uma vez. Divida os B/Ls em planilhas menores e importe cada uma.'
-
-function assertWithinBlCap(rows: Array<{ bl_id: string }>) {
-  const bls = new Set(rows.map((row) => row.bl_id)).size
-  if (bls > MAX_CONTAINER_DATES_BLS) {
-    throw new Error(`A planilha tem ${bls} B/Ls; o limite é ${MAX_CONTAINER_DATES_BLS} por arquivo. Divida em planilhas menores e importe cada uma.`)
-  }
-}
 
 export type ContainerDatesImportRow = {
   bl_id: string
@@ -83,7 +69,6 @@ export async function parseContainerDatesFile(file: File): Promise<ParsedContain
  */
 export async function readContainerDatesFile(file: File): Promise<ParsedContainerDatesImport> {
   const parsed = await parseContainerDatesFile(file)
-  assertWithinBlCap(parsed.rows)
   const preview = annotateContainerDates(parsed.rows, await fetchContainerDatesCurrent(parsed.rows))
   const notFound = preview.rows.filter((row) => !row.found)
   return {
@@ -125,13 +110,12 @@ type ImportableContainerDatesRow = ContainerDatesImportRow
  */
 export async function importContainerDates(rows: ImportableContainerDatesRow[]): Promise<ContainerDatesImportResult> {
   if (!rows.length) return { ok: true, updated: 0, unchanged: 0, errors: [] }
-  assertWithinBlCap(rows)
 
   const blIds = Array.from(new Set(rows.map((r) => r.bl_id)))
 
   type ContainerRow = { id: number; bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; demurrage_status: string | null }
   // Em páginas: o servidor entrega no máximo 1.000 linhas por consulta
-  // (`max_rows`), e 300 B/Ls passam disso; o resto viraria "não encontrado".
+  // (`max_rows`), e uma planilha grande passa disso; o resto viraria "não encontrado".
   const { rows: containers } = await fetchAllPages<ContainerRow>((from, to) => supabase
     .from('bl_containers')
     .select('id, bl_id, container_number, discharge_date, return_date, demurrage_status')
@@ -221,6 +205,8 @@ export type ContainerDatesCurrent = {
   voyage_id: number | null
   discharge_date: string | null
   return_date: string | null
+  /** EQU-D7 (lote 10): B/L cancelado é somente leitura; a linha é recusada na prévia. */
+  bl_cancelled?: boolean
 }
 
 export type AnnotatedContainerDatesRow = ContainerDatesImportRow & {
@@ -241,12 +227,12 @@ export type ContainerDatesPreview = {
 export async function fetchContainerDatesCurrent(rows: ContainerDatesImportRow[]): Promise<ContainerDatesCurrent[]> {
   const blIds = Array.from(new Set(rows.map((row) => row.bl_id)))
   if (!blIds.length) return []
-  type Row = { id: number; bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; bl: { voyage_id: number | null } | null }
+  type Row = { id: number; bl_id: string | null; container_number: string; discharge_date: string | null; return_date: string | null; bl: { voyage_id: number | null; cancelled_at: string | null } | null }
   // Em páginas (`max_rows` = 1.000): sem isso, acima de 1.000 containers o
   // resto aparecia como "não encontrado" e recusava o arquivo inteiro.
   const { rows: saved } = await fetchAllPages<Row>((from, to) => supabase
     .from('bl_containers')
-    .select('id, bl_id, container_number, discharge_date, return_date, bl:bls(voyage_id)')
+    .select('id, bl_id, container_number, discharge_date, return_date, bl:bls(voyage_id, cancelled_at)')
     .in('bl_id', blIds)
     .order('id')
     .range(from, to)
@@ -257,6 +243,7 @@ export async function fetchContainerDatesCurrent(rows: ContainerDatesImportRow[]
     voyage_id: row.bl?.voyage_id ?? null,
     discharge_date: row.discharge_date,
     return_date: row.return_date,
+    bl_cancelled: Boolean(row.bl?.cancelled_at),
   }))
 }
 
@@ -295,14 +282,23 @@ export function annotateContainerDates(rows: ContainerDatesImportRow[], current:
     if (discharges.size > 1 || returns.size > 1) group.forEach((row) => conflicting.add(row))
   }
 
+  const cancelled = new Set(annotated.filter((row) => byKey.get(makeKey(row.bl_id, row.container_number))?.bl_cancelled))
   return {
-    rows: annotated.filter((row) => !conflicting.has(row)),
-    conflicts: annotated.filter((row) => conflicting.has(row)).map((row) => ({
-      row_number: row.row_number,
-      bl_id: row.bl_id,
-      container_number: row.container_number,
-      message: 'O mesmo container aparece com datas diferentes nesta Viagem; corrija o arquivo.',
-    })),
+    rows: annotated.filter((row) => !conflicting.has(row) && !cancelled.has(row)),
+    conflicts: [
+      ...annotated.filter((row) => cancelled.has(row)).map((row) => ({
+        row_number: row.row_number,
+        bl_id: row.bl_id,
+        container_number: row.container_number,
+        message: `B/L ${row.bl_id} cancelado: somente leitura. Reative para corrigir.`,
+      })),
+      ...annotated.filter((row) => conflicting.has(row) && !cancelled.has(row)).map((row) => ({
+        row_number: row.row_number,
+        bl_id: row.bl_id,
+        container_number: row.container_number,
+        message: 'O mesmo container aparece com datas diferentes nesta Viagem; corrija o arquivo.',
+      })),
+    ],
   }
 }
 

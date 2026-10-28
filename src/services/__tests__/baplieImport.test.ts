@@ -120,6 +120,28 @@ describe('reimportBaplie', () => {
     expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
   })
 
+  // ADR 0111, D6: as marcas do Baplie mudam taxa alterada à mão também na
+  // primeira importação e no arquivo sem diferença.
+  it('toda gravação pergunta pelas taxas alteradas à mão com as marcas da prévia; recusar não grava', async () => {
+    const flags = { apply: [{ container: 'AAAU1111111', bl_id: 'BL1', before: 'sem marca', after: 'IMO' }], clear: [], divergent_manual: [] }
+    mocks.rpc.mockImplementation(async (name: string, args: { p_rows: unknown[] }) => (name === 'import_baplie_file_atomic'
+      ? { data: { staged: args.p_rows.length, flags: noFlags, vazios: null }, error: null }
+      : { data: flags, error: null }))
+    const confirmChargeImpact = vi.fn<(value: unknown) => Promise<boolean>>().mockResolvedValue(false)
+    const runGuarded = () => reimportBaplie({ voyageId: 22, containers: [box('AAAU1111111')], pods: ['BRVIX'], file, confirmReplacement, confirmChargeImpact })
+
+    await expect(runGuarded()).resolves.toMatchObject({ status: 'cancelled' })
+    expect(confirmChargeImpact).toHaveBeenCalledWith(expect.objectContaining({ apply: flags.apply }))
+    expect(importCalls()).toEqual([])
+
+    mocks.existing = staged(box('AAAU1111111'))
+    confirmChargeImpact.mockResolvedValue(true)
+    await expect(runGuarded()).resolves.toMatchObject({ status: 'unchanged' })
+    expect(confirmReplacement).not.toHaveBeenCalled()
+    expect(confirmChargeImpact).toHaveBeenCalledTimes(2)
+    expect(importCalls()).toHaveLength(1)
+  })
+
   it('arquivo sem diferença é aceito sem perguntar; a versão lida vai junto', async () => {
     mocks.existing = staged(box('AAAU1111111'), box('BBBU2222222'))
     await expect(run([box('BBBU2222222'), box('AAAU1111111')])).resolves.toMatchObject({ status: 'unchanged', staged: 2, vaziosReplaced: false })

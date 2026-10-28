@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { customerExportEmails, exportCustomerBaseWorkbook, exportFinancialReportWorkbook, exportInvoicesWorkbook, exportOperationalReportWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import { customerExportEmails, exportCustomerBaseWorkbook, exportFinancialReportWorkbook,
+  exportDemurrageReportWorkbook, exportInvoicesWorkbook, exportOperationalReportWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
 import type { PortalOperationBL } from '../portalOperation'
 import { flattenContainers } from '../../lib/portalOperationViews'
 import type { InvoiceListRow } from '../billing'
@@ -199,8 +200,23 @@ describe('exportação da Validação (planilha única)', () => {
       ])],
     ])
     const [sheet] = buildValidacaoSheetRows([{ row, block: { label: 'Pronto para emitir', detail: 'Tudo certo.' } }], { totals, sharedContainers: new Map([['BL-1', 'CSNU1 (2 B/Ls)']]) })
-    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Contêiner compartilhado', 'Lacre', 'THC', 'BL Fee (US$)'])
-    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Contêiner compartilhado': 'CSNU1 (2 B/Ls)' })
+    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Contêiner compartilhado', 'Taxas alteradas à mão', 'Lacre', 'THC', 'BL Fee (US$)'])
+    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Contêiner compartilhado': 'CSNU1 (2 B/Ls)', 'Taxas alteradas à mão': '' })
+  })
+
+  it('coluna Taxas alteradas à mão com a frase da spec (ADR 0111)', async () => {
+    const { buildValidacaoSheetRows } = await import('../exports')
+    const row = {
+      id: 'BL-2', totals: { total_brl: 1200, total_usd: 0, line_count: 2, review_required_count: 0 },
+      adjustments: {
+        bl_id: 'BL-2', manual_exempt: true, items: [
+          { charge_name: 'THD', excluded: false, kind: 'unit', currency: 'BRL', application_basis: 'container_distinct_voyage', table_unit: 1420, unit: 1200 },
+          { charge_name: 'Taxa X', excluded: true, kind: 'excluded', currency: 'BRL', application_basis: 'bl' },
+        ],
+      },
+    } as never
+    const [sheet] = buildValidacaoSheetRows([{ row, block: { label: 'Isento', detail: '' } }], { totals: new Map(), sharedContainers: new Map() })
+    expect(String(sheet['Taxas alteradas à mão']).replace(/\u00a0/g, ' ')).toBe('THD: R$ 1.420,00 → R$ 1.200,00 por container; Taxa X: excluída; Isento à mão')
   })
 })
 
@@ -242,5 +258,14 @@ describe('planilhas de Relatórios', () => {
     const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
     expect(sheetRows[0]).toMatchObject({ Emissão: '02/05/2026', Situação: 'Coberta' })
     expect(sheetRows[0]).not.toHaveProperty('Status')
+  })
+
+  it('Demurrage sai com os rótulos e as datas da tela (ACE-D08)', async () => {
+    await exportDemurrageReportWorkbook([
+      { id: 1, doc_number: 'DEM-2026-0001', bl_id: 'BL1', doc_date: '2026-10-26', due_date: '2026-11-05', total_usd: 100, current_total_brl: 540, status: 'issued', customer: { id: 1, name: 'Cliente', cnpj_cpf: '1' } } as never,
+    ])
+    const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
+    expect(Object.keys(sheetRows[0])).toEqual(['Invoice', 'B/L', 'Cliente', 'CNPJ', 'Emissão', 'Vencimento', 'Total US$', 'Total R$', 'Situação'])
+    expect(sheetRows[0]).toMatchObject({ Emissão: '26/10/2026', Vencimento: '05/11/2026', Situação: 'Faturado' })
   })
 })

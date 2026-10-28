@@ -264,8 +264,8 @@ describe('3.3 — motivo da tentativa traduzido', () => {
     expect(customerCommunicationAttemptReason(null)).toBeNull()
   })
 
-  it('diferencia simulado, aceito e em envio', () => {
-    expect(customerCommunicationAttemptStatusLabel({ status: 'aceito', dispatch_mode: 'simulado', provider_message_id: null })).toBe('Registrado em simulação')
+  it('diferencia redirecionado ao suporte, aceito e em envio', () => {
+    expect(customerCommunicationAttemptStatusLabel({ status: 'aceito', dispatch_mode: 'simulado', provider_message_id: null })).toBe('Redirecionado ao suporte')
     expect(customerCommunicationAttemptStatusLabel({ status: 'aceito', dispatch_mode: 'real', provider_message_id: 'm-1' })).toBe('Aceito pelo provedor')
     expect(customerCommunicationAttemptStatusLabel({ status: 'aceito', dispatch_mode: 'real', provider_message_id: null })).toBe('Em envio')
   })

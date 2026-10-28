@@ -191,18 +191,23 @@ function cleanup() {
       OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
+    DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
     DELETE FROM public.customers WHERE id = ${customerId};
     DELETE FROM public.user_profiles WHERE id = '${adminId}';
     DELETE FROM auth.users WHERE id = '${adminId}';
   `)
 }
 
+// 469: a Demurrage só sai com CE Mercante no B/L (único por B/L) e o gate do
+// Portal aberto (Liberação do Cliente no beforeAll).
+const ceOf = (id: string) => `992140000000${String(Object.values(bl).indexOf(id) + 1).padStart(3, '0')}`
+
 const blRow = (id: string, voyageId: number) =>
-  `('${id}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5)`
+  `('${id}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5, '${ceOf(id)}')`
 
 function insertBls(rows: Array<[string, number]>) {
   psql(`INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status,
-                                demurrage_roe_manual, demurrage_roe)
+                                demurrage_roe_manual, demurrage_roe, ce_mercante)
         VALUES ${rows.map(([id, voyageId]) => blRow(id, voyageId)).join(', ')}`)
 }
 
@@ -220,6 +225,8 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${syntheticCnpj(214001)}', 'R214 CLIENTE');
       INSERT INTO public.customer_demurrage_agreements (customer_id, free_days, p1_usd, p2_usd, valid_from, active)
       VALUES (${customerId}, 5, 100, 200, '2026-01-01', true);
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+      VALUES (${customerId}, 'Fixture R214: gate aberto para a Demurrage', '${adminId}', now() + interval '1 day');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'R214 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'R214 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES

@@ -29,7 +29,7 @@ function isCaptchaRefusal(err: unknown): boolean {
 
 export function Login() {
   const navigate = useNavigate()
-  const { user, loading, signIn } = useAuth()
+  const { user, loading, signIn, accessDenied } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -86,6 +86,12 @@ export function Login() {
       {!isSupabaseConfigured ? (
         <div className="app-callout app-callout--warning">
           Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env antes de autenticar.
+        </div>
+      ) : null}
+
+      {accessDenied && !error ? (
+        <div className="app-callout app-callout--warning" role="alert">
+          Seu acesso ao Vela está desativado ou ainda não foi liberado. Procure o Administrativo.
         </div>
       ) : null}
 

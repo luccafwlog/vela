@@ -35,8 +35,11 @@ Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) =
   // Keep this fail-closed until handlers for physical flags, provisional
   // charges and billing are enabled together. In particular, Demurrage is not
   // emitted automatically before its server-side snapshot contract (S08-B).
+  // Pausado é estado escolhido, não falha: responde 200 para o alerta
+  // `rotina_http_falhou` não abrir a cada chamada. A fila parada continua
+  // vigiada por `import_effects_queue_stalled`.
   if (Deno.env.get('IMPORT_EFFECTS_RUNNER_ENABLED') !== 'true') {
-    return json(503, { status: 'paused', reason: 'consumers_not_activated' })
+    return json(200, { status: 'paused', reason: 'consumers_not_activated' })
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''

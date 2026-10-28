@@ -108,7 +108,7 @@ export function BlManifestoField({
           ) : null}
         </div>
       )}
-      <span className="app-field__hint">Mudar o POD ou a Viagem do B/L desvincula o Manifesto.</span>
+      <span className="app-field__hint">Mudar o POL, o POD ou a Viagem do B/L desvincula o Manifesto.</span>
     </div>
   )
 }

@@ -16,6 +16,13 @@ function sentAtText(value: string): string {
   return `${formatCommunicationDateTime(value).replace(' (horário de Brasília)', '')} (BRT)`
 }
 
+/** "Enviado em", "Redirecionado ao suporte em" (chave desligada, ADR 0104) ou "Parcial em" (D02). */
+function sentPrefix(status: string | null | undefined): string {
+  if (status === 'simulado') return 'Redirecionado ao suporte em'
+  if (status === 'parcial') return 'Parcial em'
+  return 'Enviado em'
+}
+
 /**
  * Uma célula do drill-down: a situação em texto, nunca só em cor. Âmbar só no
  * que pede ação (devido ou bloqueado); na fila e em envio seguem sozinhos.
@@ -23,7 +30,7 @@ function sentAtText(value: string): string {
 export function CoverageCellText({ cell, kind, now }: { cell: CoverageCell; kind: CoverageKind; now: Date }) {
   const sentLink = cell.communicationId != null && cell.sentAt ? (
     <Link className="app-link text-xs" to={`/clientes/comunicacao?tab=historico&communication=${cell.communicationId}`}>
-      {cell.state === 'enviado' ? `Enviado em ${sentAtText(cell.sentAt)}` : `Último envio em ${sentAtText(cell.sentAt)}`}
+      {cell.state === 'enviado' ? `${sentPrefix(cell.sentStatus)} ${sentAtText(cell.sentAt)}` : `Último envio em ${sentAtText(cell.sentAt)}`}
     </Link>
   ) : null
   switch (cell.state) {

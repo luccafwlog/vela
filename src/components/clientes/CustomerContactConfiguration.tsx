@@ -19,7 +19,7 @@ import {
   type PortalContactDraft,
 } from '../../services/customerContactConfiguration'
 import { extractErrorText } from '../../lib/errors'
-import { hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
+import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
 
 function snapshotOf(drafts: PortalContactDraft[]) {
   return JSON.stringify(drafts.map((draft) => [draft.id, draft.name ?? '', draft.email ?? '', draft.phone ?? '', draft.isPrimary, draft.active, [...draft.boxCodes].sort()]))
@@ -93,6 +93,7 @@ export function CustomerContactConfiguration({
         boxCodes: [...c.box_codes],
         suppressionReason: c.suppression_reason,
         sendable: c.sendable,
+        suppressedEmail: c.suppression_reason || c.sendable === false ? c.email : null,
       }))
       let loadedDrafts = toDrafts(data)
       // Caixa sem destinatário: o sistema grava o principal nela, sem pedir
@@ -258,20 +259,22 @@ export function CustomerContactConfiguration({
       }
     }
 
-    for (const box of CUSTOMER_COMMUNICATION_BOXES) {
-      const hasCoverage = activeContacts.some(
-        (d) => d.boxCodes.includes(box.code) && isEligibleContact(d),
-      )
-      if (!hasCoverage) {
-        setErrorMsg(`A caixa "${box.label}" não pode ficar sem nenhum contato ativo e elegível vinculado.`)
-        return
-      }
+    const uncovered = firstBoxWithoutContact(activeContacts)
+    if (uncovered) {
+      setErrorMsg(`A caixa "${uncovered.label}" não pode ficar sem nenhum contato ativo com e-mail vinculado.`)
+      return
     }
+    // D14 de 2026-10-27: caixa só com e-mail devolvido ou bloqueado salva com aviso.
+    const withoutRecipient = boxesWithoutRecipient(activeContacts)
 
     setSaving(true)
     try {
       await internalSaveCustomerContactConfiguration(customerId, drafts, justification)
-      showToast('Configuração de contatos atualizada com sucesso.', 'success')
+      if (withoutRecipient.length) {
+        showToast(`Contatos salvos. ${withoutRecipient.length === 1 ? 'A caixa' : 'As caixas'} ${withoutRecipient.map((box) => `"${box.label}"`).join(', ')} ${withoutRecipient.length === 1 ? 'segue' : 'seguem'} sem e-mail apto a receber (devolvido ou bloqueado): o alerta fica aberto até um e-mail válido ser cadastrado.`, 'info')
+      } else {
+        showToast('Configuração de contatos atualizada com sucesso.', 'success')
+      }
       setJustification('')
       await loadConfig()
       onSaved?.()
@@ -369,7 +372,7 @@ export function CustomerContactConfiguration({
 
       <form onSubmit={handleSubmit} className="app-customer-contacts__form" noValidate>
         {drafts.map((contact, index) => {
-          const suppressionMsg = formatSuppression(contact.suppressionReason)
+          const suppressionMsg = formatSuppression(currentSuppressionReason(contact))
           const legendName = contact.name || contact.email || 'novo contato'
           const disabled = !canEdit || !contact.active
           return (

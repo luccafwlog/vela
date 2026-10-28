@@ -15,6 +15,7 @@ import { formatBRL, formatCnpjCpf } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { useConsolidatableReceivables, useCreateConsolidatedInvoice } from '../../hooks/useBillingLedger'
 import { isReceivableSelectable, summarizeConsolidation } from './consolidatedInvoiceSelection'
+import { listBlChargeAdjustmentSummaries } from '../../services/charges/chargeOperationsService'
 
 const fmtBRL = (value: number | null | undefined) => formatBRL(value)
 
@@ -81,16 +82,29 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
       setError('A seleção mudou. Atualize a lista e selecione novamente os B/Ls elegíveis.')
       return
     }
+    // ADR 0111: o aviso da taxa alterada à mão vai por B/L. A leitura que falha
+    // não segura a emissão; só deixa a confirmação sem o aviso.
+    const adjusted = new Map<string, number>()
+    try {
+      for (const summary of await listBlChargeAdjustmentSummaries({ blIds: selectedRows.map((row) => row.bl_id) })) {
+        if (summary.items.length) adjusted.set(summary.bl_id, summary.items.length)
+      }
+    } catch { /* sem aviso */ }
+    const adjustedNote = (blId: string) => {
+      const count = adjusted.get(blId)
+      return count ? ` · ${count === 1 ? '1 taxa alterada' : `${count} taxas alteradas`} à mão` : ''
+    }
     const confirmed = await confirm({
       title: 'Emitir fatura consolidada',
       message: `Emitir uma fatura consolidada de ${fmtBRL(selectedTotal)} para ${customerName}?`,
       confirmLabel: 'Emitir consolidada',
       affected: {
         summary: `${selectedRows.length} B/L(s) · ${fmtBRL(selectedTotal)} em saldos abertos`,
-        items: selectedRows.map((row) => `B/L ${row.bl_id} · ${fmtBRL(row.balance_brl)} · ${[row.vessel_name, row.voyage_number].filter(Boolean).join(' ') || 'viagem não informada'}`),
+        items: selectedRows.map((row) => `B/L ${row.bl_id} · ${fmtBRL(row.balance_brl)} · ${[row.vessel_name, row.voyage_number].filter(Boolean).join(' ') || 'viagem não informada'}${adjustedNote(row.bl_id)}`),
       },
-      consequence: 'Cria a invoice consolidada, vincula os recebíveis selecionados e registra o evento financeiro na mesma transação. Enquanto estiver ativa, esses saldos não poderão entrar em outra invoice.',
-      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o perfil Administrativo pode cancelá-la; se ficar obsoleta, os recebíveis podem ser consolidados novamente. Pagamentos seguem o fluxo próprio de estorno.',
+      consequence: ['Cria a invoice consolidada, vincula os recebíveis selecionados e registra o evento financeiro na mesma transação. Enquanto estiver ativa, esses saldos não poderão entrar em outra invoice.',
+        adjusted.size ? `${adjusted.size === 1 ? '1 B/L tem' : `${adjusted.size} B/Ls têm`} taxas alteradas à mão; a fatura sai com os valores alterados.` : ''].filter(Boolean).join(' '),
+      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o perfil Administrativo pode cancelá-la; se ficar obsoleta, os recebíveis podem ser consolidados novamente. Com pagamento, use Cancelar baixa ou Restituição no recebimento.',
     })
     if (!confirmed) return
     try {
@@ -181,7 +195,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
             ) : isLoading ? (
               <EmptyState title="Consultando B/Ls…" description="Buscando B/Ls com saldo aberto." />
             ) : rows.length === 0 ? (
-              <EmptyState title="Nenhum B/L para consolidar" description="Este Cliente não tem B/L com saldo aberto e CE Mercante nos filtros atuais." />
+              <EmptyState title="Nenhum B/L para consolidar" description="Este Cliente não tem B/L com saldo aberto nos filtros atuais." />
             ) : (
               <table className="app-table app-table--compact app-invoice-detail__table">
                 <caption className="sr-only">B/Ls do Cliente com saldo aberto</caption>

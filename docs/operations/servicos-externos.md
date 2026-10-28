@@ -451,8 +451,8 @@ wrapper do `pg_cron` terminou; confirme também a chamada HTTP conforme
 ### Jobs agendados (`pg_cron`)
 
 Horários em UTC; Brasília é UTC−3. "Chave global" é
-`app_settings.communications_enabled`: desligada, o envio ao Cliente vira
-`simulado`.
+`app_settings.communications_enabled`: desligada, o e-mail ao Cliente sai para
+`suporte@portalfwlog.com.br` e fica `simulado` ([ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)).
 
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
@@ -534,7 +534,7 @@ COMMIT;
    status `leased`) e o Alerta
    `import_effects_queue_stalled` fechado. Depois desligue
    (`IMPORT_EFFECTS_RUNNER_ENABLED` ausente ou diferente de `true`) e confira que
-   a função responde `503 paused` e a fila para de andar sem perder efeitos.
+   a função responde `200 paused` e a fila para de andar sem perder efeitos.
 2. **Simulação do acumulado em produção (sem gravar).** Com o runner ainda
    desligado, rode a simulação como mostrado acima (`BEGIN`, `SET LOCAL`,
    `SELECT public.simulate_import_effects(NULL, 200);`, `ROLLBACK`). Para cada
@@ -568,7 +568,7 @@ efeito a efeito: o acumulado é processado pelo próprio runner. O agente criou
 `IMPORT_EFFECTS_CRON_SECRET` no Vault com valor gerado pelo banco; o dono
 criou o par e `IMPORT_EFFECTS_RUNNER_ENABLED=true` na Edge Function. Primeiro
 ciclo às 22:03 UTC; até 22:36, 140 efeitos `succeeded`, nenhum em
-`retry_wait` ou `blocked`. O teste de desligamento (`503 paused`) não foi
+`retry_wait` ou `blocked`. O teste de desligamento (`503 paused`, hoje `200 paused`) não foi
 feito. A migration `218` passa o job para cada minuto, faz a importação
 disparar o runner, um runner por vez, e a função trabalhar por orçamento de
 tempo. Em produção desde 2026-10-13: a `218` aplicada e a função nova
@@ -669,17 +669,33 @@ mesmos.
   histórico anterior de mensagens marcadas **Delivered** no Resend sem entrega
   nas caixas foi encerrado; não há ação de TI pendente registrada.
 
+### Caixa do suporte que recebe os testes
+
+Com a chave desligada, todo e-mail dirigido a Cliente sai pelo mesmo provedor e
+remetente (`RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, reply-to de cada tipo), mas
+para `suporte@portalfwlog.com.br`, com "[Teste → e-mail do Cliente]" no assunto
+([ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)). O
+endereço está fixo no código (`REDIRECT_TO_SUPPORT_ADDRESS` em
+`supabase/functions/_shared/email.ts` e `SUPPORT_REDIRECT_ADDRESS` em
+`src/services/customerCommunications.ts`), sem secret. A caixa precisa existir e
+receber: se o provedor a suprimir, os envios de teste falham como recusa comum,
+sem marcar o contato do Cliente. Entrega e devolução dessa caixa chegam pelo
+webhook e fecham sem efeito (o id do provedor da tentativa ganha o prefixo
+`suporte:`, reconhecido por `process_portal_email_event`). **Não verificado:** um
+envio redirecionado chegando à caixa em staging ou produção.
+
 ### Antes de ligar a chave de envio real
 
 A chave `app_settings.communications_enabled` ([Clientes](../modules/clientes.md#chave-de-envio-de-comunicados))
-está desligada. Ligar é decisão do responsável; antes, conferir:
+está desligada. Ligar é decisão do dono, a única conta com a marca Dev
+(migration `469`); antes, conferir:
 
 1. Um envio de teste real de cada tipo chegou a um endereço controlado: NOA,
    NOR, NOB, CE e Taxas, institucional, livre com anexo, Cobrança de Demurrage
    unitária e agrupada, e aviso do Desbloqueio de CE. Para cada um, o evento
    "entregue" voltou pelo webhook, e um bounce provocado suprimiu o endereço e
    abriu o Alerta.
-2. O que ficou `simulado` não sai de novo (D1): os dados de teste foram limpos
+2. O que ficou `simulado` (enviado ao suporte) não sai de novo ao Cliente (D1): os dados de teste foram limpos
    com `supabase/scripts/limpar_dados_teste.sql`, seguindo
    [reset do ambiente](reset-ambiente.md).
 3. Os heartbeats dos jobs de e-mail (tabela de [jobs agendados](#jobs-agendados-pg_cron))
@@ -1004,7 +1020,7 @@ Antes de enviar, reavalia a conclusão das solicitações abertas (`ce_unlock_re
 com a chave global de Comunicados ligada e sem a chave do provedor, o remetente ou o reply-to, responde 503
 e deixa a fila intacta. Cada envio registra tentativa em `portal_email_attempts` (kind
 `ce_unlock_notificacao`), associada pelo webhook de e-mail. Com a chave global desligada,
-registra o aviso como `simulated` e não o envia depois (D11, migration `307`); contato suprimido
+envia o aviso ao suporte, registra como `simulated` e não o envia depois ao Cliente (D11, migration `307`; ADR 0104); contato suprimido
 (bounce ou reclamação) não recebe e o aviso fecha `partial`. Job `ce-unlock-notify-email`
 agendado em produção em 2026-10-07 (`*/5 * * * *`, jobid 23); `CE_UNLOCK_CLEANUP_SECRET` está no
 cofre (`vault.secrets`) e nas secrets das Edge Functions. Ver [segredos e cron](segredos-cron.md).

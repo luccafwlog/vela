@@ -34,12 +34,13 @@ import {
 import { extractErrorText } from '../lib/errors'
 import { canonicalizeValidCnpj, formatCnpj } from '../lib/cnpj'
 import { invalidateReviewQueueCaches } from '../components/review/reviewCaches'
+import { afterTaxasDoBlAlteradas } from '../services/cacheEffects'
+import { adjustedRecalcNotice } from '../components/billing/validacaoPipeline'
 import { ReviewGroupDetail } from '../components/review/ReviewGroupDetail'
 import type { ReviewCustomerOnboardingInput } from '../components/review/ReviewCustomerForm'
 import type { ReviewBlCheckValues } from '../components/review/ReviewBlCheckForm'
 import { ReviewOutcomes, type ReviewOutcome, type ReviewRecalcNotice } from '../components/review/ReviewOutcomes'
-import { calculateBlLocalCharges } from '../services/charges/chargeOperationsService'
-import { queryKeys } from '../services/queryKeys'
+import { calculateBlLocalCharges, listBlChargeAdjustmentSummaries } from '../services/charges/chargeOperationsService'
 import {
   applyInlineBlReviewFix,
   ConcurrentEditError,
@@ -279,22 +280,23 @@ export function Revisao() {
   }
 
   async function handleRecalc(notice: ReviewRecalcNotice) {
+    // ADR 0111: o B/L com taxa alterada à mão avisa que a alteração se mantém. Leitura que falha não bloqueia.
+    const adjustments = await listBlChargeAdjustmentSummaries({ blIds: [notice.id] }).catch(() => [])
+    const adjustedNotice = adjustedRecalcNotice(adjustments.map((summary) => ({ adjustments: summary })))
     const confirmed = await confirm({
       title: 'Recalcular taxas locais',
       message: `Recalcular as taxas do registro ${notice.label}?`,
       confirmLabel: 'Recalcular',
       affected: { summary: `B/L ${notice.label}` },
-      consequence: 'Atualiza o cálculo com a tabela e as regras vigentes e registra o resultado. O novo valor é calculado pelo servidor e não pode ser antecipado neste diálogo.',
+      consequence: ['Atualiza o cálculo com o câmbio e o preço fixados quando o B/L entrou e registra o resultado. O novo valor é calculado pelo servidor e não pode ser antecipado neste diálogo.', adjustedNotice].filter(Boolean).join(' '),
       reversibility: 'É possível executar novo recálculo enquanto o registro não estiver faturado. B/Ls faturados são bloqueados.',
     })
     if (!confirmed) return
     setRecalcingId(notice.id)
     try {
       const result = await calculateBlLocalCharges(notice.id, { actorId: user?.id ?? null, recalculate: true })
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
-        queryClient.invalidateQueries({ queryKey: ['bls'] }),
-      ])
+      // Mesmo efeito das ações nas taxas: lista, detalhe do B/L, Histórico e operações.
+      await afterTaxasDoBlAlteradas(queryClient)
       if (result.status === 'review_required') {
         showToast('Recálculo concluído, mas ainda há pendências de revisão nas taxas locais.', 'info')
       } else {
@@ -305,7 +307,7 @@ export function Revisao() {
       const message = extractErrorText(error)
       showToast(
         message.toLowerCase().includes('ja foi faturado')
-          ? `Fatura já emitida para ${notice.id} — cancele e reemita para corrigir.`
+          ? `Fatura já emitida para ${notice.id} — corrija o dado do B/L; a fatura é reemitida ou ajustada sozinha.`
           : 'Falha ao recalcular as taxas locais.',
         'error',
       )

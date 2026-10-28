@@ -366,7 +366,7 @@ it('assina o departamento apenas quando habilitado e chama a RPC com o payload c
 
   expect(departmentSignoffMutateMock).toHaveBeenCalledWith({
     voyageId: 7, port: 'BRVIX', department: 'equipamentos', signed: true, justification: undefined,
-  })
+  }, expect.objectContaining({ onError: expect.any(Function) }))
 })
 
 it('desabilita assinar o departamento enquanto houver seção pendente', () => {
@@ -411,7 +411,7 @@ it('reabrir um sign-off departamental exige justificativa', () => {
 
   expect(departmentSignoffMutateMock).toHaveBeenCalledWith({
     voyageId: 7, port: 'BRVIX', department: 'operacoes', signed: false, justification: 'Correção necessária',
-  })
+  }, expect.objectContaining({ onError: expect.any(Function) }))
 })
 
 it('fecha o ADR apenas quando os 3 departamentos assinaram e envia o snapshot exibido', () => {
@@ -808,7 +808,7 @@ it('a primeira saída de Pendente só pede confirmação, sem justificativa', ()
 
   expect(signoffMutateMock).toHaveBeenCalledWith({
     voyageId: 7, port: 'BRVIX', section: 'datas', state: 'confirmed', justification: undefined,
-  })
+  }, expect.objectContaining({ onError: expect.any(Function) }))
 })
 
 it('alterar uma decisão já registrada exige justificativa não vazia', () => {
@@ -837,7 +837,7 @@ it('alterar uma decisão já registrada exige justificativa não vazia', () => {
 
   expect(signoffMutateMock).toHaveBeenCalledWith({
     voyageId: 7, port: 'BRVIX', section: 'datas', state: 'nothing_to_declare', justification: 'Correção após revisão',
-  })
+  }, expect.objectContaining({ onError: expect.any(Function) }))
 })
 
 it('sem eventos, não exibe o ícone de histórico', () => {
@@ -985,7 +985,7 @@ it('sobrescrever a Observação confirma a diferença e chama a RPC de Observaç
   expect(screen.queryByLabelText('Justificativa')).toBeNull()
   await waitFor(() => expect(observationMutateMock).toHaveBeenCalledWith({
     voyageId: 7, port: 'BRVIX', section: 'veiculos', observation: 'Nota atualizada',
-  }))
+  }, expect.objectContaining({ onError: expect.any(Function) })))
 })
 
 it('sign-off de Operações não é mais bloqueado por Ocorrências (1 seção: datas)', () => {

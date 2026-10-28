@@ -21,7 +21,7 @@ const blA = 'L333-BL-A'
 const blB = 'L333-BL-B'
 const containerA = 'LAAA3250001'
 const containerB = 'LBBB3250002'
-const containerIds = [99325005, 99325006]
+const containerIds = [99325005, 99325006, 99325007]
 const ownerCnpj = syntheticCnpj(32501)
 const baseCnpjOk = syntheticCnpj(32502)
 const baseCnpjBad = syntheticCnpj(32503)
@@ -74,7 +74,9 @@ describeLocal('Importação com erro não grava nada (migrations 333 e 334)', ()
         ('${blB}', ${voyageId}, ${customerId}, 'container');
       INSERT INTO public.bl_containers (id, bl_id, container_number) VALUES
         (${containerIds[0]}, '${blA}', '${containerA}'),
-        (${containerIds[1]}, '${blB}', '${containerB}');
+        (${containerIds[1]}, '${blB}', '${containerB}'),
+        -- O mesmo container A também no B/L B: irmão na Viagem (trava da 499).
+        (${containerIds[2]}, '${blB}', '${containerA}');
     `)
   })
 
@@ -198,11 +200,32 @@ describeLocal('Importação com erro não grava nada (migrations 333 e 334)', ()
     expect(result.errors[0].message).toMatch(/sem-arroba-1/)
   })
 
-  it('datas: planilha acima de 300 B/Ls é recusada antes de gravar (teto de 60 s)', () => {
-    expect(() => asUser(`
+  // Migration 499: sem teto de B/Ls. Os 301 B/Ls inexistentes chegam à RPC por
+  // B/L (cada um recusado com o motivo), em vez de a chamada parar no teto.
+  it('datas: planilha acima de 300 B/Ls não é recusada pelo tamanho', () => {
+    const result = JSON.parse(asUser(`
       SELECT public.apply_container_dates_batch_atomic(gen_random_uuid(),
-        (SELECT jsonb_agg(jsonb_build_object('bl_id', 'L333-X' || g, 'rows', '[]'::jsonb)) FROM generate_series(1, 301) g),
+        (SELECT jsonb_agg(jsonb_build_object('bl_id', 'L333-X' || g, 'rows',
+          '[{"container_number":"L333NONE","discharge_date":"2026-01-10"}]'::jsonb)) FROM generate_series(1, 301) g),
         '${actorId}'::uuid);
-    `)).toThrow(/mais de 300 B\/Ls/)
+    `)) as { ok: boolean; errors: Array<{ bl_id: string; code: string }> }
+    expect(result.ok).toBe(false)
+    expect(result.errors).toHaveLength(301)
+    expect(result.errors.every((error) => error.code === 'P0002')).toBe(true)
+  })
+
+  // A trava da 499 acha os irmãos pelo número normalizado: o container de mesmo
+  // número noutro B/L da Viagem fica travado, como na 211, e o de outro número
+  // não. A trava de linha grava o xid da transação em `xmax`.
+  it('datas: a trava dos conjuntos alcança o container de mesmo número noutro B/L da Viagem', () => {
+    const locked = asUser(`
+      BEGIN;
+      DO $$ BEGIN PERFORM public._lock_container_date_sets(ARRAY[${containerIds[0]}]::bigint[]); END $$;
+      SELECT string_agg(c.id::text, ',' ORDER BY c.id) FROM public.bl_containers AS c
+      WHERE c.id = ANY(ARRAY[${containerIds.join(',')}]::bigint[])
+        AND c.xmax::text::bigint = txid_current() % 4294967296;
+      ROLLBACK;
+    `)
+    expect(locked).toBe(`${containerIds[0]},${containerIds[2]}`)
   })
 })

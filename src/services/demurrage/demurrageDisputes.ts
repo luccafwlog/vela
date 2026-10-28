@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 
 export type DemurrageDisputeMessage = {
@@ -6,7 +7,27 @@ export type DemurrageDisputeMessage = {
   body: string
   next_responder: 'cliente' | 'equipamentos' | 'ninguem'
   created_at: string
-  attachments?: Array<{ id: number; file_name: string; mime_type: string; storage_path: string }>
+  attachments?: DisputeAttachment[]
+}
+
+export type DisputeAttachment = { id: number; file_name: string; mime_type: string; storage_path: string }
+
+/**
+ * Abre o anexo por um link temporário do Storage (60 s). Quem lê é decidido
+ * pela regra do bucket: equipe interna ativa ou o Cliente dono da pasta
+ * (migration 158). O link só nasce depois da autorização; nenhuma aba abre
+ * antes dela.
+ */
+export async function openDisputeAttachment(client: SupabaseClient, attachment: DisputeAttachment): Promise<void> {
+  const { data, error } = await client.storage
+    .from('demurrage-disputes')
+    .createSignedUrl(attachment.storage_path, 60, attachment.mime_type === 'application/pdf' ? undefined : { download: attachment.file_name })
+  if (error || !data?.signedUrl) throw error ?? new Error('Anexo indisponível.')
+  const link = document.createElement('a')
+  link.href = data.signedUrl
+  link.rel = 'noopener'
+  link.target = '_blank'
+  link.click()
 }
 
 export type DemurrageDispute = {

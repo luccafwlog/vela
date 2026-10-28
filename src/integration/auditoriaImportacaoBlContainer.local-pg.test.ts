@@ -118,6 +118,13 @@ function localPsql(sql: string): string {
   return execPsql(psqlArgs(sql, false), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
+// 469: a Invoice de Demurrage exige CE Mercante no B/L. A fixture grava o CE
+// sem gatilhos (sem a emissão automática de Taxas Locais que a planilha de CE
+// dispararia), para o cenário continuar isolando a trava da Demurrage.
+function setCeWithoutBilling(blId: string, ce: string): void {
+  localPsql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = '${ce}' WHERE id = '${blId}'; SET session_replication_role = origin;`)
+}
+
 /** Papel `authenticated`, como o PostgREST executa a chamada do navegador. */
 function asOperator(sql: string): string {
   return execPsql(psqlArgs(sql, true), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
@@ -701,6 +708,8 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     importContainerDates(blId, [{ container: 'AZCU2020021', discharge: voyageAta, return: '2026-10-05' }])
     // ROE manual do B/L (fixture): a emissão não depende da referência cambial do dia.
     localPsql(`UPDATE public.bls SET demurrage_roe = 5.5, demurrage_roe_manual = true WHERE id = '${blId}';`)
+    // 469: a Demurrage só sai com CE Mercante; gravado sem gatilhos para não emitir as Taxas Locais.
+    setCeWithoutBilling(blId, '202009000000001')
     const [container] = containersOf(blId)
     const issued = JSON.parse(asOperator(`
       SELECT public.create_demurrage_invoice_authoritative('A202-DEM-1', '${blId}', ${alfa.id}, ARRAY[${container.id}]::bigint[]);
@@ -1055,6 +1064,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
       { container: 'AZCU2020112', discharge: voyageAta, return: '2026-10-05' },
     ])
     localPsql(`UPDATE public.bls SET demurrage_roe = 5.5, demurrage_roe_manual = true WHERE id = '${blId}';`)
+    setCeWithoutBilling(blId, '202009000000002')
     const ids = containersOf(blId).map((container) => container.id)
     asOperator(`SELECT public.create_demurrage_invoice_authoritative('A202-DEMX-1', '${blId}', ${alfa.id}, ARRAY[${ids.join(', ')}]::bigint[]);`)
 

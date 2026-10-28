@@ -45,6 +45,7 @@ import { TabList } from '../components/ui/TabList'
 import { ActionMenu, type ActionMenuItem } from '../components/ui/ActionMenu'
 import { formatDate } from '../lib/utils'
 import { blsListHref } from './blsListState'
+import { useChargeAdjustmentGuard } from '../hooks/useChargeAdjustmentGuard'
 import { cargoModeLabel, resolveCargoMode } from './blDetalheHelpers'
 
 export type BlTab = 'visao-geral' | 'carga' | 'detalhes' | 'faturamento' | 'historico'
@@ -79,6 +80,7 @@ export function BlDetalhe() {
   const listHref = blsListHref()
   const { user, profile, isAdmin } = useAuth()
   const confirmWithReason = useConfirmWithReason()
+  const guardCharges = useChargeAdjustmentGuard()
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const canEditVoyages = Boolean(profile || user)
@@ -86,6 +88,12 @@ export function BlDetalhe() {
   const { setTransshipment, setCod } = useSetBlDisposition(bl?.voyage_id ?? 0)
   const cockpitQuery = useBlCockpit(bl)
   const cancelledAt = (bl as { cancelled_at?: string | null } | undefined)?.cancelled_at ?? null
+  // ADR 0111, D6: marcar COD e reverter para transbordo trocam o POD, que pode
+  // descartar ou remapear taxa alterada à mão; o Gravar mesmo assim vem antes.
+  const withPodGuard = (pod: string | null | undefined, run: () => void) => {
+    if (!bl || !pod) return run()
+    void guardCharges([{ bl_id: bl.id, bls: { pod } }], async () => true).then((ok) => { if (ok) run() })
+  }
 
   async function handleCancelBl() {
     if (!bl) return
@@ -345,7 +353,7 @@ export function BlDetalhe() {
       {cancelBlockedReasons && !cancelledAt ? (
         <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
           <span>
-            <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}. O Financeiro cancela ou estorna antes.
+            <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}. Antes, o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição.
           </span>
           <Button variant="secondary" onClick={() => setCancelBlockedReasons(null)}>Fechar aviso</Button>
         </div>
@@ -395,10 +403,15 @@ export function BlDetalhe() {
         disposition={cockpitQuery.data?.transshipment?.disposition}
         savingDisposition={setTransshipment.isPending || setCod.isPending}
         onCod={canEditVoyages ? (justification) => {
-          if (user?.id && bl?.voyage_id && cockpitQuery.data?.omission) setCod.mutate({ blId: bl.id, omissionId: cockpitQuery.data.omission.id, justification, changedBy: user.id })
+          const omission = cockpitQuery.data?.omission
+          if (!user?.id || !bl?.voyage_id || !omission) return
+          withPodGuard(omission.dischargePod, () => setCod.mutate({ blId: bl.id, omissionId: omission.id, justification, changedBy: user.id }))
         } : undefined}
         onRestore={canEditVoyages ? (justification) => {
-          if (user?.id && bl?.voyage_id && cockpitQuery.data?.omission) setTransshipment.mutate({ blId: bl.id, omissionId: cockpitQuery.data.omission.id, justification, changedBy: user.id })
+          const omission = cockpitQuery.data?.omission
+          if (!user?.id || !bl?.voyage_id || !omission) return
+          // Reverter o COD devolve o POD original (`set_bl_transshipment`).
+          withPodGuard(omission.omittedPod, () => setTransshipment.mutate({ blId: bl.id, omissionId: omission.id, justification, changedBy: user.id }))
         } : undefined}
         portalStatus={portalStatus}
         portalStatusError={portalStatusError}

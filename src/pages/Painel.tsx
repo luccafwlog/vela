@@ -21,9 +21,8 @@ const KNOWN_DEPARTMENTS = ['documentacao', 'equipamentos', 'operacoes', 'adminis
 
 function deptCard(department: string, label: string, item: AlertDepartmentSummary | undefined, fallbackDetail?: string) {
   const activeCount = Number(item?.active_count ?? 0)
-  const dismissedCount = Number(item?.dismissed_count ?? 0)
-  const detail = dismissedCount > 0 ? `${dismissedCount} ${dismissedCount === 1 ? 'dispensado' : 'dispensados'}` : fallbackDetail
-  return { department, label, activeCount, dismissedCount, detail }
+  // A dispensa saiu na migration 476 (ADR 0108): o cartão não conta dispensados.
+  return { department, label, activeCount, detail: fallbackDetail }
 }
 
 export function Painel() {
@@ -100,7 +99,7 @@ export function Painel() {
   const deptCards = [
     ...KNOWN_DEPARTMENTS.map((dept) => deptCard(dept, ALERT_DEPARTMENT_LABELS[dept] ?? dept, summaryByDept.get(dept))),
     ...(summaryByDept.has('sem_departamento') ? [deptCard('sem_departamento', 'Sem setor', summaryByDept.get('sem_departamento'), 'anteriores aos setores')] : []),
-  ].filter((card) => card.department !== 'sem_departamento' || card.activeCount > 0 || card.dismissedCount > 0)
+  ].filter((card) => card.department !== 'sem_departamento' || card.activeCount > 0)
 
   return (
     <>
@@ -165,7 +164,7 @@ export function Painel() {
         title="Line Up"
         aside={(
           <span className="flex flex-wrap items-center gap-3">
-            <span>{isLineUpLoading ? '—' : `${rows.length} de ${lineup?.totalVoyages ?? lineup?.rows.length ?? 0} escalas`}</span>
+            <span>{isLineUpLoading ? '—' : lineUpCountLabel(rows.length, lineup)}</span>
             {lineup?.hasMore ? (
               <button type="button" onClick={() => setVoyageWindow((current) => Math.min(current + 60, 500))} className="app-btn app-btn--secondary app-btn--sm">
                 Carregar mais viagens
@@ -218,4 +217,16 @@ function UnassignedMtyNote({ items }: { items: LineUpUnassignedMty[] }) {
       ))}
     </p>
   )
+}
+
+/**
+ * Faixa do Line Up (02-viagens-adr:10): as duas contagens são de escalas. Com
+ * mais Viagens do que a janela carregada, a parte das Viagens vem à parte.
+ */
+function lineUpCountLabel(shown: number, lineup: { rows: Array<{ voyageId: number }>; hasMore?: boolean; totalVoyages?: number } | undefined) {
+  const loaded = lineup?.rows.length ?? 0
+  const label = `${shown} de ${loaded} escalas`
+  if (!lineup?.hasMore || !lineup.totalVoyages) return label
+  const loadedVoyages = new Set(lineup.rows.map((row) => row.voyageId)).size
+  return `${label} · ${loadedVoyages} de ${lineup.totalVoyages} viagens carregadas`
 }

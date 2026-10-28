@@ -5,6 +5,8 @@ export type OpsFilters = {
   voyageId: string
   blockCode: '' | BillingBlockCode
   includeResolved: boolean
+  /** ADR 0111: só B/L com taxa alterada ou excluída, ou isento, à mão. */
+  onlyAdjusted: boolean
 }
 
 export type BillingBlockCode = 'sem_cliente' | 'calculo_incompleto' | 'aguardando_ce' | 'portal_nao_provisionado' | 'faturado' | 'isento' | 'pronto'

@@ -98,6 +98,26 @@ describeLocal('375 — gate, recibo, avulsa e Pix sem baixa', () => {
     expect(w.psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(1)}'`)).not.toBe('review')
   })
 
+  // 471 (10-recebimento:12): na fatura cancelada sem baixa, o recebido é zero; o
+  // lastro da devolução é o próprio Pix, e a confirmação tira o Pix da análise.
+  it('Pix em duplicidade em fatura cancelada sem baixa: a devolução é confirmada pelo lastro do próprio Pix', () => {
+    w.psql(`UPDATE public.app_settings SET pix_provider = 'itau' WHERE id = 1`)
+    let b!: { id: string; invoice: number }
+    try {
+      b = issued('R468')
+    } finally {
+      w.psql(`UPDATE public.app_settings SET pix_provider = 'static' WHERE id = 1`)
+    }
+    const txid = w.psql(`SELECT txid FROM public.itau_pix_charges WHERE invoice_id = ${b.invoice} ORDER BY id DESC LIMIT 1`)
+    w.asOk('administrativo', `SELECT public.cancel_invoice(${b.invoice}, 'Cancelada no teste 468', NULL)`)
+    expect(w.psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_settle('${e2e(4)}', '${txid}', 1000, now())`)).toBe('review')
+    const refund = w.psql(`SELECT id FROM public.invoice_refunds WHERE itau_end_to_end_id = '${e2e(4)}' AND origin = 'pix_duplicate'`)
+    w.asOk('financeiro', `SELECT public.confirm_invoice_refund(${refund}, 'DEV468-1', 'Cliente FF9312', now() - interval '1 minute')`)
+    expect(w.psql(`SELECT status FROM public.itau_pix_receipts WHERE end_to_end_id = '${e2e(4)}'`)).toBe('handled')
+    expect(w.psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
+      AND metadata->>'end_to_end_id' = '${e2e(4)}'`)).toBe('0')
+  })
+
   it('F-38: Pix sem TXID fica gravado uma vez só; desde a 442 (ADR 0100) como recebido, sem Alerta', () => {
     const run = () => w.psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_record_untracked('${e2e(2)}', 123.45, now())`)
     expect(run()).toBe('received')
@@ -152,5 +172,23 @@ describeLocal('375 — gate, recibo, avulsa e Pix sem baixa', () => {
     expect(w.psql(`SELECT i.issued_by FROM public.invoices i JOIN public.invoice_bls ib ON ib.invoice_id = i.id WHERE ib.bl_id = '${id}'`))
       .toBe(w.actors.financeiro)
     expect(w.psql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'customer' AND entity_id = '${w.customerId}' AND field_name = 'held_billing_reprocessed'`)).toBe('1')
+  })
+
+  // 473 (POR-D13): a troca do E-mail de recuperação pela equipe deixa o Portal
+  // pronto e emite as retidas, como a confirmação pelo Cliente.
+  it('a troca do e-mail de recuperação pela equipe emite as faturas retidas', () => {
+    w.closeGate()
+    const id = w.createBl('R470')
+    w.calculate(id)
+    w.psql(`SET request.jwt.claim.role = 'service_role'; DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${id}', '931200000000470', '${w.actors.administrativo}'::uuid); END $$`)
+    expect(w.psql(`SELECT count(*) FROM public.invoice_bls WHERE bl_id = '${id}'`)).toBe('0')
+    w.psql(`INSERT INTO auth.users (id, email) VALUES ('93120000-0000-4000-8000-000000000470', 'portal-470@example.test') ON CONFLICT (id) DO NOTHING;
+      UPDATE public.customer_portal_accounts SET auth_user_id = '93120000-0000-4000-8000-000000000470', active = true, account_situation = 'ativo',
+        recovery_email = 'devolvido-470@example.test', recovery_email_status = 'bounce_permanente' WHERE customer_id = ${w.customerId};
+      UPDATE public.app_settings SET system_billing_actor = '${w.actors.financeiro}' WHERE id = 1`)
+    w.asOk('administrativo', `SELECT public.portal_assisted_email_change(${w.customerId}, 'novo-470@example.test', 'Cliente informou outro endereço')`)
+    expect(w.psql(`SELECT count(*) FROM public.invoice_bls ib JOIN public.invoices i ON i.id = ib.invoice_id WHERE ib.bl_id = '${id}' AND i.status = 'issued'`)).toBe('1')
+    w.psql(`UPDATE public.customer_portal_accounts SET auth_user_id = NULL, active = false, account_situation = 'sem_conta' WHERE customer_id = ${w.customerId};
+      DELETE FROM auth.users WHERE id = '93120000-0000-4000-8000-000000000470'`)
   })
 })

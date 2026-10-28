@@ -66,7 +66,7 @@ export function CeUnlockVipCoveragePanel({
     const reason = await reasonDialog({
       message: enabling ? "Habilitar a condição VIP deste CNPJ?" : "Revogar a condição VIP deste CNPJ?",
       consequence: enabling
-        ? "Os pedidos passam a usar termo e procuração anuais, que precisam estar aprovados e vigentes."
+        ? "Os pedidos passam a usar termo e procuração anuais aprovados, que cobrem os desbloqueios solicitados dentro da vigência deles."
         : "Os próximos pedidos voltam a exigir termo e procuração anexados a cada solicitação.",
       reversibility: "A condição pode ser alterada novamente, com histórico.",
       confirmLabel: enabling ? "Habilitar VIP" : "Revogar VIP",
@@ -201,7 +201,7 @@ export function CeUnlockVipCoveragePanel({
         title={scope ? "Documentos anuais VIP" : "Documentos anuais"}
         headingLevel={scope ? 2 : 3}
         flush
-        aside={scope ? "cobrem todos os pedidos até 31/12 do ano aprovado" : "VIP habilitado"}
+        aside={scope ? "cobrem os desbloqueios solicitados na vigência" : "VIP habilitado"}
       >
         <div className="app-block__body">
           <FactList columns={4}>
@@ -287,7 +287,7 @@ export function CeUnlockVipCoveragePanel({
         <LeadValue
           tone={vip?.enabled ? "default" : "muted"}
           detail={vip?.enabled
-            ? "Termo de devolução e procuração anuais cobrem todos os pedidos deste CNPJ até 31/12 do ano aprovado."
+            ? "Termo de devolução e procuração anuais cobrem todo desbloqueio deste CNPJ solicitado dentro da vigência, mesmo depois de 31/12."
             : "Sem a condição VIP, cada solicitação exige termo de devolução e procuração próprios."}
         >
           {vip?.enabled ? "VIP habilitado" : "Sem condição VIP"}

@@ -1,6 +1,6 @@
 // "O que cada setor pode" (lote 5b, tela Administração, decisão de
 // 2026-10-19: opção A com C). Fonte única da matriz da aba Usuários e da
-// lista "Com este setor, ... pode" das janelas de usuário. As 39 linhas
+// lista "Com este setor, ... pode" das janelas de usuário. As 41 linhas
 // resumem as ações de docs/operations/seguranca.md § "Modelo de permissões
 // por perfil", que diz onde o banco aplica cada uma.
 //
@@ -48,16 +48,18 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
 ]
 
 /**
- * Tipos de alerta que cada setor recebe pela audiência do catálogo de alertas
- * (`alert_type_catalog.audience_departments`, tipos ativos). A bateria confere
- * estes números no banco.
+ * Tipos de alerta que chegam ao sino de cada setor (migration 476, ADR 0107):
+ * os tipos de que ele é o setor responsável (`alert_type_catalog.audience_departments`,
+ * tipos ativos) e, em Operações e Equipamentos, os dois do ADR de Saída da
+ * própria seção (ALE-D13). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
+ * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
   administrativo: 16,
-  financeiro: 4,
-  operacoes: 3,
-  documentacao: 38,
-  equipamentos: 3,
+  financeiro: 5,
+  operacoes: 5,
+  documentacao: 35,
+  equipamentos: 4,
 }
 
 function only(...allowed: Department[]): Record<Department, PermissionCell> {
@@ -79,14 +81,17 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   // Usuários e sistema
   { id: 'abrir-administracao', group: 'usuarios', action: 'Abrir a tela Administração e listar os usuários', can: ADM, proof: ['exceção: Abrir a Administração'] },
   { id: 'gerir-usuarios', group: 'usuarios', action: 'Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha', can: ADM, proof: ['caso: Catálogo: só o Administrativo muda o setor e a situação de um usuário'] },
-  { id: 'envio-real-emails', group: 'usuarios', action: 'Ligar e desligar o envio real de e-mails', can: ADM, proof: ['exceção: Ligar e desligar o envio real de e-mails'] },
+  // Marca Dev (ADR 0104): só a conta do Administrativo com a marca, dada por migration.
+  { id: 'envio-real-emails', group: 'usuarios', action: 'Ligar e desligar o envio real de e-mails', can: { ...only(), administrativo: 'só a conta Dev' }, proof: ['caso: Dev: só a conta Dev liga e desliga o envio real de e-mails'] },
   { id: 'ultimo-administrativo', group: 'usuarios', action: 'Desativar ou rebaixar o último Administrativo ativo', can: only(), proof: ['caso: Catálogo: ninguém desativa nem rebaixa o último Administrativo ativo'] },
 
   // Viagens, B/L e ADR de Saída
   { id: 'editar-viagem', group: 'viagens', action: 'Criar e editar viagem, escala e programação; omitir escala; fechar o ADR', can: ALL, proof: ['todos: Editar viagem', 'todos: Editar escala de exportação', 'todos: Fechar o ADR de Saída'] },
   { id: 'reverter-omissao-reabrir-adr', group: 'viagens', action: 'Reverter omissão de escala e reabrir ADR fechado, com motivo', can: ALL, proof: ['caso: P6:'] },
   { id: 'cancelar-reativar-viagem-bl', group: 'viagens', action: 'Cancelar e reativar Viagem e B/L, com motivo', can: ADM, proof: ['exceção: Cancelar viagem', 'exceção: Reativar viagem', 'exceção: Cancelar B/L', 'exceção: Reativar B/L'] },
-  { id: 'excluir-registros', group: 'viagens', action: 'Excluir viagem, escala, atracação, B/L, container e Cliente', can: ADM, proof: ['exceção: Excluir viagem com Trava', 'exceção: Excluir escala', 'exceção: Excluir Cliente', 'caso: A7: delete_escala segue excluindo'] },
+  { id: 'excluir-registros', group: 'viagens', action: 'Excluir viagem, escala, B/L, container e Cliente', can: ADM, proof: ['exceção: Excluir viagem com Trava', 'exceção: Excluir escala', 'exceção: Excluir Cliente', 'caso: A7: delete_escala segue excluindo'] },
+  // 02-viagens-adr:2 (migration 477): trocar o terminal de uma frente remove a atracação antiga.
+  { id: 'remover-atracacao', group: 'viagens', action: 'Remover atracação (trocar o terminal de uma frente)', can: only('administrativo', 'operacoes'), proof: ['caso: 477: Operações e o Administrativo removem atracação'] },
   {
     id: 'assinar-adr', group: 'viagens', action: 'Assinar e observar a seção do ADR de Saída',
     can: { administrativo: 'Cobre quem faltar', financeiro: false, operacoes: 'Só a própria seção', documentacao: 'Só a própria seção', equipamentos: 'Só a própria seção' },
@@ -104,7 +109,10 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
 
   // Taxas Locais e faturamento
   { id: 'editar-taxas', group: 'taxas', action: 'Criar e editar tabela; incluir e corrigir item de tabela ainda sem uso; criar Condição de Cliente; lançar e editar taxa manual', can: ALL, proof: ['todos: Editar tabela de Taxas Locais', 'caso: Catálogo: item de tabela ainda sem uso', 'todos: Lançar taxa manual'] },
-  { id: 'excluir-taxa-manual', group: 'taxas', action: 'Excluir taxa manual do B/L', can: ADM, proof: ['exceção: Excluir taxa manual do B/L'] },
+  // ADR 0111 (migration 491): qualquer setor altera, exclui e desfaz taxa do B/L, com justificativa.
+  { id: 'excluir-taxa-manual', group: 'taxas', action: 'Alterar o valor e excluir taxa do B/L (calculada ou manual), com justificativa', can: ALL, proof: ['caso: P2: a taxa manual entra e sai pela RPC'] },
+  // ADR 0111, D12 (migration 492): qualquer setor isenta o B/L das Taxas Locais, com justificativa.
+  { id: 'isentar-taxas-locais', group: 'taxas', action: 'Isentar Taxas Locais do B/L e retirar a isenção, com justificativa', can: ALL, proof: ['caso: P2: qualquer Departamento isenta as Taxas Locais'] },
   { id: 'desativar-tarifa', group: 'taxas', action: 'Desativar, reativar e excluir tarifa; corrigir item de tabela já usada e editar Condição de Cliente', can: ADM, proof: ['caso: P9:', 'caso: B13:', 'caso: Catálogo: item de tabela ainda sem uso'] },
   { id: 'emitir-fatura', group: 'taxas', action: 'Emitir fatura (do B/L, na Validação, consolidada, avulsa) e corrigir fatura emitida', can: ALL, proof: ['caso: A9:', 'caso: P4:'] },
   { id: 'autorizar-restituicao', group: 'taxas', action: 'Autorizar restituição excepcional e cancelar a autorização', can: ALL, proof: ['caso: P5: %s lê a Conciliação, autoriza restituição'] },
@@ -125,8 +133,11 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'conciliar', group: 'pix', action: 'Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú', can: ADM_FIN, proof: ['caso: P5: baixa manual e conciliar PIX', 'caso: P5: baixa por TXID só pela confirmação do lote'] },
 
   // Clientes, Comunicação e Portal
-  { id: 'editar-cliente', group: 'clientes', action: 'Criar e editar Cliente; ler o Histórico de Comunicados e o console do Portal', can: ALL, proof: ['todos: Editar Cliente', 'todos: Ler o Histórico de Comunicados', 'caso: A18:'] },
-  { id: 'contatos-comunicados', group: 'clientes', action: 'Editar contatos e Caixas de Comunicação; disparar Comunicado', can: ADM_DOC_EQU, proof: ['exceção: Editar contatos do Cliente', 'exceção: Salvar modelo de Comunicado', 'caso: P3: a tela edita contatos pela RPC'] },
+  { id: 'editar-cliente', group: 'clientes', action: 'Editar Cliente; ler o Histórico de Comunicados e o console do Portal; trazer Cliente pela Base de Clientes e pela Revisão', can: ALL, proof: ['todos: Editar Cliente', 'todos: Ler o Histórico de Comunicados', 'caso: A18:'] },
+  // Decisão do dono de 2026-10-27 (ficha ACE-D01, opção A): todos agem em Comunicação; contatos seguem com três setores.
+  { id: 'disparar-comunicado', group: 'clientes', action: 'Disparar Comunicado e salvar modelo; ler o estado da chave de envio', can: ALL, proof: ['todos: Salvar modelo de Comunicado', 'caso: Dev: todos os setores leem a chave de envio'] },
+  { id: 'contatos-comunicados', group: 'clientes', action: 'Editar contatos e Caixas de Comunicação', can: ADM_DOC_EQU, proof: ['exceção: Editar contatos do Cliente', 'caso: P3: a tela edita contatos pela RPC'] },
+  { id: 'novo-cliente', group: 'clientes', action: 'Criar Cliente pelo Novo cliente (grava os contatos)', can: ADM_DOC_EQU, proof: ['exceção: Criar Cliente pelo Novo cliente'] },
   { id: 'provisionar-portal', group: 'clientes', action: 'Provisionar o Portal: convite (enviar e cancelar), conta, e-mail de recuperação, reabrir análise', can: ADM_DOC, proof: ['exceção: Cancelar convite do Portal', 'exceção: Trocar o e-mail de recuperação do Portal', 'exceção: Liberar e-mail bloqueado do Portal', 'exceção: Reabrir análise do Portal'] },
   { id: 'desativar-cliente', group: 'clientes', action: 'Desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento', can: ADM, proof: ['exceção: Desativar Cliente', 'exceção: Reativar Cliente', 'exceção: Trocar o CNPJ do Portal', 'exceção: Conceder Liberação de faturamento', 'exceção: Revogar Liberação de faturamento'] },
 
@@ -138,8 +149,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   {
     id: 'alertas-do-setor', group: 'alertas', action: 'Recebe os alertas do próprio setor',
     can: {
-      administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)}; também os críticos de setor sem ninguém ativo`,
-      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada)`,
+      administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal da Documentação); também os críticos de setor sem ninguém ativo`,
+      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada, Taxa alterada à mão mudou)`,
       operacoes: alertTypes(ALERT_TYPE_COUNTS.operacoes),
       documentacao: alertTypes(ALERT_TYPE_COUNTS.documentacao),
       equipamentos: alertTypes(ALERT_TYPE_COUNTS.equipamentos),

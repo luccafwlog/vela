@@ -8,6 +8,10 @@
 > confirmou em 2026-10-25 a decisão 5 (com um anual faltando, a solicitação
 > pede os dois documentos) e a fila "Solicitações aguardando análise" com
 > "Enviada em", sem prazo. As demais decisões valem como escritas.
+>
+> Desde 2026-10-27 ([ADR 0110](./0110-vip-cobre-pela-data-da-solicitacao.md),
+> migration `479`), a vigência vale pela data da solicitação do desbloqueio,
+> não pelo vínculo do CE nem pela importação do B/L.
 
 Status: supersedida parcialmente (decisão 4, pela ADR 0102) — aceita em 2026-10-23 (observações do responsável, pontos 10, 11 e 13).
 Implementada nas migrations `448` e `450` (prazo) e `449` (vigência).

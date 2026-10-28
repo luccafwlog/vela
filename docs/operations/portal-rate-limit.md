@@ -24,6 +24,13 @@ sua ação no Redis:
 - ativação: recusas de política de senha, em um balde próprio para não consumir
   as tentativas de login — Supabase bloqueia com 10 recusas em 5 minutos.
 
+Fora desses baldes, a troca do Email de Recuperação pelo Cliente tem um limite
+diário próprio: no máximo 5 pedidos em 24 horas por conta
+(`EMAIL_CHANGE_DAILY_LIMIT` em `portal-recovery-email-change`). O sexto pedido
+recebe `429` com "Limite de pedidos de troca de email atingido. Tente novamente
+amanhã.", que o Perfil mostra como está; o `429` da senha atual errada mantém a
+mensagem do limite do login.
+
 O limite de taxa do próprio Supabase Auth não distingue Clientes: os logins do
 Portal chegam ao Auth pela Edge Function, e o Auth registra o IP de saída dela,
 não o do Cliente (conferido nos logs de produção em 2026-10-22: vários IPs

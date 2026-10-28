@@ -87,6 +87,8 @@ export function resolveChargeLineStatusLabel(status: string | null) {
       return 'Pronto'
     case 'exempt':
       return 'Isento'
+    case 'excluded':
+      return 'Excluída'
     default:
       return 'Pendente'
   }

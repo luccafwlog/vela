@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { formatBRL } from '../../../lib/utils'
-import { fmtBRL, isPtaxWarningEligible } from '../demurragePresentation'
+import { fmtBRL, isPtaxWarningEligible, lastBusinessDayISO } from '../demurragePresentation'
 
 describe('fmtBRL', () => {
   it('preserva o placeholder nullish e delega valores ao formatador canônico', () => {
@@ -12,9 +12,17 @@ describe('fmtBRL', () => {
 })
 
 describe('isPtaxWarningEligible', () => {
-  it('only allows the PTAX warning from 14:00 onward', () => {
-    expect(isPtaxWarningEligible(new Date(2026, 6, 17, 13, 59))).toBe(false)
-    expect(isPtaxWarningEligible(new Date(2026, 6, 17, 14, 0))).toBe(true)
+  it('só vale a partir das 14h de Brasília', () => {
+    expect(isPtaxWarningEligible(new Date('2026-07-17T16:59:00Z'))).toBe(false)
+    expect(isPtaxWarningEligible(new Date('2026-07-17T17:00:00Z'))).toBe(true)
+  })
+})
+
+describe('lastBusinessDayISO (DEM-D05)', () => {
+  it('usa a data de Brasília: às 22h de sexta ainda é sexta, não o sábado UTC', () => {
+    expect(lastBusinessDayISO(new Date('2026-10-24T01:00:00Z'))).toBe('2026-10-23')
+    expect(lastBusinessDayISO(new Date('2026-10-25T15:00:00Z'))).toBe('2026-10-23')
+    expect(lastBusinessDayISO(new Date('2026-10-27T15:00:00Z'))).toBe('2026-10-27')
   })
 })
 

@@ -7,6 +7,7 @@ import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  can: vi.fn((permission: string) => Boolean(permission)),
   navigate: vi.fn(),
   showToast: vi.fn(),
   confirm: vi.fn(),
@@ -34,7 +35,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 })
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
-    can: () => true,
+    can: (permission: string) => mocks.can(permission),
     isAdmin: true,
     user: { id: 'user-1' },
     effectiveRole: 'administrativo',
@@ -127,6 +128,7 @@ function renderPage(initialEntry = '/clientes') {
 describe('Clientes page behaviours', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.can.mockImplementation(() => true)
     mocks.useCustomers.mockImplementation(() => ({
       data: { rows: [customer], totalCount: 101 },
       isLoading: false,
@@ -205,6 +207,13 @@ describe('Clientes page behaviours', () => {
     } finally {
       mocks.portalQuery = { data: [], isLoading: false, isError: false }
     }
+  })
+
+  it('P10: sem a permissão de editar contatos (Financeiro, Operações), não há Novo cliente', () => {
+    mocks.can.mockImplementation((permission: string) => permission !== 'edit_customer_contacts')
+    renderPage()
+    expect(screen.queryByRole('button', { name: /Novo cliente/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Importar base/ })).toBeTruthy()
   })
 
   it('creates a customer, invalidates customer caches, closes and resets the modal', async () => {
@@ -427,6 +436,25 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
 
     expect(screen.getByText('O contato principal precisa de um e-mail válido.')).toBeTruthy()
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.createCustomer).not.toHaveBeenCalled()
+  })
+
+  // D01 de 2026-10-27: o contato adicional sem e-mail sumia depois de salvar; agora a tela recusa.
+  it('contato adicional sem e-mail é recusado na tela, com o motivo', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(screen.getAllByLabelText('Nome')[0], 'Financeiro')
+    await user.type(within(screen.getByRole('dialog')).getAllByLabelText(/^E-mail/)[0], 'novo@example.com')
+    await user.click(screen.getByRole('button', { name: 'Adicionar contato' }))
+    await user.type(screen.getAllByLabelText('Nome')[1], 'João')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    expect(screen.getByText('Todo contato precisa de um e-mail válido. Informe o e-mail ou remova o contato.')).toBeTruthy()
     expect(mocks.confirm).not.toHaveBeenCalled()
     expect(mocks.createCustomer).not.toHaveBeenCalled()
   })

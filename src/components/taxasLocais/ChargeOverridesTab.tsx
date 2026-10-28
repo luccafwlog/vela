@@ -21,7 +21,7 @@ import {
   useSaveCustomerRateOverride,
   useSetCustomerRateOverrideActive,
 } from '../../hooks/useLocalCharges'
-import { extractErrorText } from '../../lib/errors'
+import { userFacingErrorMessage } from '../../lib/errors'
 import { normalizeChargeTablePod, resolveChargeTableStates, type OverridePayload } from '../../pages/taxasLocaisHelpers'
 import type { LocalChargeOverrideItem } from '../../services/charges/chargeRateService'
 import { ChargeOverrideFormModal } from './ChargeOverrideFormModal'
@@ -199,7 +199,7 @@ export function ChargeOverridesTab({
       await setOverrideActive.mutateAsync({ id: row.id, active: nextActive, reason })
       showToast(nextActive ? 'Condição reativada.' : 'Condição desativada.', 'success')
     } catch (error) {
-      showToast(extractErrorText(error) || 'Não foi possível alterar a condição.', 'error')
+      showToast(userFacingErrorMessage(error, 'Não foi possível alterar a condição.'), 'error')
     } finally {
       setBusyId(null)
     }
@@ -220,7 +220,7 @@ export function ChargeOverridesTab({
       await deleteOverride.mutateAsync({ id: row.id, reason })
       showToast('Condição excluída.', 'success')
     } catch (error) {
-      showToast(extractErrorText(error) || 'Não foi possível excluir a condição.', 'error')
+      showToast(userFacingErrorMessage(error, 'Não foi possível excluir a condição.'), 'error')
     } finally {
       setBusyId(null)
     }
@@ -385,7 +385,7 @@ export function ChargeOverridesTab({
       {visible.length > 0 ? (
         <Block
           title="Condições de Cliente"
-          aside="o valor negociado vale quando a chegada do navio no POD cai na vigência"
+          aside="o valor negociado vale quando o dia em que o B/L entrou no Vela cai na vigência"
           flush
         >
           {narrow ? (

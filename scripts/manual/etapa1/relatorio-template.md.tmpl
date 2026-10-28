@@ -1,0 +1,244 @@
+# 2026-10-26 — Mapeamento do sistema para o Manual do Operador
+
+Relatório de execução da Etapa 1 do
+[plano do Manual do Operador](../../plans/2026-10-26-manual-do-operador.md).
+Nasce histórico: registra o que foi lido, conferido e encontrado nesta data. A
+matriz de cobertura viva fica em [`docs/manual/cobertura/`](../../manual/README.md);
+a regra vigente de cada tela continua no documento de módulo.
+
+## 1. Resumo
+
+- **Nada do sistema ficou sem lugar no manual.** Os 2.253 itens que o código e
+  o banco expõem (telas, funções que as telas chamam, regras automáticas,
+  restrições, rotinas, funções de servidor, alertas, e-mails, linhas da matriz
+  de permissões e mensagens de erro) estão citados na matriz de cobertura.
+  `npm run manual:coverage` confere isso contra o banco local e passou.
+- **{{REGRAS}} regras** foram escritas como o operador as vê, cada uma com o
+  destino no manual, os setores envolvidos e o código que a implementa. Mais
+  **{{MENSAGENS}} linhas de mensagens**, com o texto exato e quando aparecem, e
+  **{{CAPTURAS}} imagens** planejadas.
+- **Cada área teve uma conferência independente**: outra leitura do código,
+  sem partir do texto já escrito. Ela corrigiu **250 regras** e acrescentou
+  **38**. Um em cada seis textos da primeira passada estava impreciso, e essa
+  é a medida do valor da segunda leitura.
+- **Quem faz o quê saiu do código** (seção 4), e não de suposição: setor único
+  por usuário, a matriz "O que cada setor pode" conferida linha a linha contra
+  o banco, as restrições que a matriz não mostra, os cartões do Painel e os
+  alertas que cada setor recebe.
+- **{{DIV_TOTAL}} divergências** entre o código e a documentação. As
+  **{{DIV_A}} da classe a** (documento defasado) foram corrigidas nos
+  documentos vivos nesta entrega. As **{{DIV_BC}} das classes b e c** dependem
+  de decisão do dono (seção 6). Doze pontos, destacados na seção 6.1, afetam o
+  Cliente ou a rotina logo na abertura.
+
+O que o dono aprova para fechar a Etapa 1: a lista "fora do manual" (seção 7),
+as decisões das divergências (seção 6) e o sumário final (seção 5).
+
+## 2. Ambiente e método
+
+- **Ponto de partida:** `staging` em `9839364` (2026-10-26, depois do merge da
+  luccafwlog/vela#1065). Branch de trabalho `claude/wonderful-pasteur-ot9ni3`.
+- **Banco:** Postgres 16 local, recriado do zero por
+  `scripts/setup-local-pg.sh --reset` com as 461 migrations da cadeia ativa
+  (a última é a `464`). O estado final de cada regra é a última definição de
+  cada função, gatilho, restrição e política.
+- **Inventário** (`npm run manual:inventory`): rotas de `AppInterno.tsx` e
+  `AppPortal.tsx`; funções de servidor; modelos de e-mail; linhas de
+  `permissionMatrix.ts`; funções executáveis pela tela ou chamadas pelo código;
+  funções de gatilho com as tabelas em que estão ligadas; restrições `CHECK`;
+  índices únicos; políticas de escrita; rotinas de `cron.job`; o catálogo de
+  alertas; parâmetros de `app_settings`; áreas de arquivos; e o texto de cada
+  `RAISE EXCEPTION` literal.
+- **Mapeamento por área:** 13 áreas, cada uma com uma lista fechada de itens.
+  Regra escrita a partir do código; documentação usada só como mapa.
+- **Conferência independente:** uma leitura nova por área, que monta a própria
+  lista do que a área faz antes de comparar com o texto do autor e corrige no
+  lugar.
+- **Correção da documentação:** cada divergência da classe a foi reconferida no
+  código antes de o documento mudar. ADR e arquivo histórico não foram tocados.
+- **Evidência:** **Código** (leitura estática do código e das definições no
+  banco local). Nada foi executado em tela, nenhuma função foi chamada e nada
+  foi gravado no banco. O material antigo de 2026-10-15 serviu só de
+  referência de redação.
+
+## 3. Números
+
+### 3.1 Inventário do sistema
+
+| Item | Quantidade |
+|---|---|
+| Telas com endereço próprio (Vela e Portal) | 63 |
+| Funções do banco que a tela pode chamar | 360 |
+| Regras automáticas (funções de gatilho) | 237 |
+| Restrições de valor | 287 |
+| Regras de "não pode repetir" | 89 |
+| Políticas de quem grava direto | 75 |
+| Rotinas por horário | 16 |
+| Funções de servidor | 24 |
+| Tipos de alerta (50 ativos) | 55 |
+| Modelos de e-mail | 19 |
+| Linhas da matriz "O que cada setor pode" | 39 |
+| Parâmetros do sistema | 7 |
+| Áreas de arquivos | 3 |
+| Mensagens de erro do banco | 979 |
+| **Total** | **2.253** |
+
+### 3.2 Por área
+
+{{TABELA_AREAS}}
+
+## 4. Quem faz o quê, pelo código
+
+O detalhe, com cada linha da matriz conferida contra a guarda do banco, está em
+[Entrada, navegação, usuários e permissões § Quem faz o quê](../../manual/cobertura/01-acesso-admin.md#quem-faz-o-quê).
+
+- **Um setor por usuário.** O banco aceita um único setor: Administrativo,
+  Financeiro, Operações, Documentação, Equipamentos e o antigo Operador, que
+  conta como Documentação. Quem precisa agir como dois setores só consegue com
+  dois usuários ou com o Administrativo, que passa em todas as guardas.
+- **Quase tudo é de qualquer setor.** Criar e editar Viagem, escala e
+  programação, importar arquivos, cadastrar Cliente, emitir e corrigir fatura,
+  gerar Invoice de Demurrage, dar desconto e autorizar restituição são
+  permitidos aos cinco setores. Onde o código não distingue setores, o manual
+  diz "qualquer setor".
+- **As 39 linhas da matriz batem com o banco.** A conferência achou restrições
+  que a matriz não mostra. Exemplo: quem não é do Administrativo não vê o nome
+  de outra pessoa como autor nos históricos do B/L, do Cliente e da Viagem.
+
+| Equipe | Só ela (com o Administrativo) | Assina no ADR de Saída | Recebe |
+|---|---|---|---|
+| Documentação | Provisionar o Portal (convite, conta, suspensão, e-mail de recuperação); gerir o Desbloqueio de CE. Com Equipamentos: contatos, Caixas de Comunicação e Comunicados | Carga descarregada e Vazios descarregados | 38 tipos de alerta no sino; cartão Documentação no Painel; resumo diário do Portal |
+| Equipamentos | Responder, reabrir e anexar na Disputa de Demurrage. Com o Financeiro: Informar PTAX e ROE manual. Com a Documentação: contatos e Comunicados | Carga carregada, Veículos e Embarque de vazios | Disputa de Demurrage, PIX sem conciliação segura e as pendências do ADR da própria seção; cartão Equipamentos |
+| Operações | Nenhuma linha exclusiva na matriz; na atracação, terminal, ATB, ATD e frentes | Escala | Exportação pendente pós-ATD, datas pendentes e as pendências do ADR da seção Escala; cartão Operações |
+| Financeiro | Baixa manual, confirmar restituição, liquidar Ajuste de COD, conciliar Pix. Com Equipamentos: Informar PTAX e ROE manual | Nada | 4 tipos no sino; sem cartão próprio no Painel (contam no cartão Administrativo) |
+| Administrativo | Usuários, cancelar e excluir com motivo, Liberação de faturamento, cancelar fatura e baixa, ligar o envio real de e-mails, corrigir tabela já usada | Qualquer seção (cobre quem faltar) | 16 tipos e os críticos sem destinatário; cartão Administrativo; resumo diário do Portal |
+
+## 5. Sumário final proposto
+
+A matriz de cobertura usa os códigos do sumário do plano (`Op 1` a `Op 17`).
+O volume de regras pede dividir alguns capítulos. A tabela diz de onde vem cada
+capítulo final; os códigos da matriz não mudam.
+
+| Destino na matriz | Regras |
+|---|---|
+{{DESTINOS}}
+
+**Manual do Operador — sumário final proposto**
+
+| Parte | Capítulo | Vem de |
+|---|---|---|
+| I. Entendendo o Vela | 1. O Vela e o Portal Fwlog: entrar, sessão e inatividade, menu, como o Vela fala, rotina diária e Painel, relatórios, quando o sistema falha | `Op 1` |
+| | 2. Equipes, permissões e a quem passar | `Op 2` |
+| | 3. O caminho de uma Viagem, do começo ao fim | `Op 3` |
+| II. Operação | 4. Viagens e Escalas: criar, datas do navio, atracação, omissão, transbordo e COD, cancelar | `Op 4` (área Viagens) |
+| | 5. Programação: Chegadas e Saídas, Line-Up, Tela TV e cadastros de apoio | `Op 4` (Chegadas e Saídas, Line-Up, cadastros) |
+| | 6. Importação da documentação: arquivo de B/L, carga solta, CE Mercante, Manifesto, Baplie e o que acontece depois | `Op 5` |
+| | 7. A ficha do B/L | `Op 6` |
+| | 8. Revisão | `Op 7` |
+| | 9. Containers, datas e a Demurrage na operação | `Op 8` (containers e datas) |
+| | 10. Veículos, Vazios, Embarque de vazios, Locais e Granito | `Op 8` (demais) |
+| | 11. ADR de Saída | `Op 9` |
+| | 12. Desbloqueio de CE | `Op 10` |
+| III. O Cliente | 13. Cadastro do Cliente, contatos e Central de Informações | `Op 11` |
+| | 14. Portal: a conta do Cliente | `Op 12` (conta e acesso) |
+| | 15. Portal: o que o Cliente vê e faz | `Op 12` (telas do Cliente) |
+| | 16. E-mails e Comunicados | `Op 13` |
+| | 17. Suporte ao Cliente | `Op 14` |
+| IV. O sistema sozinho | 18. O que muda sozinho depois de cada ação | `Op 15` (gatilhos) |
+| | 19. Rotinas por horário | `Op 15` (rotinas) |
+| | 20. Alertas e Notificações Internas | `Op 16` |
+| V. Financeiro visto pela operação | 21. Taxas Locais: como o sistema calcula, adicionar e alterar taxa | `Op 17` (Taxas Locais) |
+| | 22. A fatura: o que segura, como sai, como se corrige e se cancela | `Op 17` (Faturamento) |
+| | 23. Demurrage: free time, Invoice, PTAX, desconto e Disputa | `Op 17` (Demurrage) |
+| | 24. Pagamento e restituição: o que a operação precisa saber | `Op 17` (Recebimento) |
+| Apêndices | A. Glossário · B. Mensagens do sistema · C. Status e cores · D. "Quero fazer… → onde fica" · E. Índice remissivo | `Ap. A` a `Ap. D` |
+| À parte | Guia de bolso por equipe | `Op 1`, `Op 2` |
+
+As regras com destino `Fin` e `Adm` ficam para os volumes do Financeiro e do
+Administrativo. O operador as encontra como "quem faz e como pedir" nos
+capítulos 2 e 21 a 24.
+
+## 6. Divergências para decisão do dono
+
+As divergências da classe a já foram corrigidas na documentação (seção 8).
+Aqui estão as das classes **b** (o código diverge da decisão registrada:
+possível defeito ou texto de tela errado) e **c** (os documentos se
+contradizem e o código não resolve). Nenhuma foi corrigida no código: cada
+decisão vira tarefa própria, e o manual descreve o que o sistema faz hoje, com
+o aviso "comportamento em revisão" enquanto a decisão não vem.
+
+### 6.1 As que afetam o Cliente ou a rotina logo na abertura
+
+| Nº | O que acontece hoje | Por que pesa |
+|---|---|---|
+| [Portal POR-D13](../../manual/cobertura/07-portal.md#divergências) | Trocar o e-mail de recuperação pelo atendimento ou **Liberar endereço bloqueado** deixa o Portal pronto, mas não emite as faturas que estavam retidas por falta de Portal. A Validação segue dizendo "Conta do Portal não ativa" | Cliente fica sem fatura sem ninguém perceber |
+| [Demurrage DEM-D13](../../manual/cobertura/11-demurrage.md#divergências) | A Invoice de Demurrage sai sem o gate do Portal e sem CE Mercante, e o Cliente é notificado de uma fatura que não consegue abrir | Contato do Cliente sobre fatura invisível |
+| [Desbloqueio de CE 13](../../manual/cobertura/08-desbloqueio-ce.md#divergências) | Depois que um B/L do pedido vai para a ZPT, ninguém consegue cancelar o pedido; a mensagem manda confirmar um tratamento externo que nenhuma tela registra | Pedido preso sem saída |
+| [Desbloqueio de CE 1](../../manual/cobertura/08-desbloqueio-ce.md#divergências) | A confirmação da entrega do B/L original diz que "o prazo do cliente recomeça a partir de agora"; o prazo não funciona assim | Promessa errada ao Cliente |
+| [Desbloqueio de CE 4](../../manual/cobertura/08-desbloqueio-ce.md#divergências) | A ficha e o Portal dizem que os documentos anuais VIP "cobrem todos os pedidos até 31/12"; a cobertura é por B/L e não retroage | Expectativa errada do Cliente VIP |
+| [Recebimento 11](../../manual/cobertura/10-recebimento.md#divergências) e [12](../../manual/cobertura/10-recebimento.md#divergências) | A baixa pelo extrato não tira da análise o Pix de Taxas Locais; a devolução de Pix pago em duplicidade é recusada quando a fatura não recebeu nada | Financeiro trava em casos reais de pagamento |
+| [B/L BLR-D06](../../manual/cobertura/03-bl-revisao.md#divergências) e [Portal POR-D12](../../manual/cobertura/07-portal.md#divergências) | A ficha do B/L oferece **Enviar convite do Portal** a todos os setores; os que não podem recebem um erro em inglês. Conta Ativa com e-mail devolvido aparece como "Não visível no Portal" | Convite falha na frente da equipe e o estado do Portal engana |
+| [Clientes D02](../../manual/cobertura/06-clientes-comunicacao.md#divergências) e [D03](../../manual/cobertura/06-clientes-comunicacao.md#divergências) | A Cobertura de viagens não conta envio simulado nem parcial e conta B/L cancelado | Quadro de Comunicados mostra pendência que não existe |
+| [Faturamento FAT-D15](../../manual/cobertura/09b-faturamento.md#divergências) | O alerta manda usar **Tentar aplicar correção**, que não existe na fatura sem pagamento | Operador procura um botão que não há |
+| [Taxas Locais TAX-D01](../../manual/cobertura/09a-taxas-locais.md#divergências) e [TAX-D03](../../manual/cobertura/09a-taxas-locais.md#divergências) | Textos de tela dizem que a Condição de Cliente vale pela chegada do navio e que o dólar é convertido na emissão; o sistema fixa os dois na importação do B/L | Explicação errada de preço ao Cliente |
+| [Alertas ALE-D05](../../manual/cobertura/12-alertas-rotinas.md#divergências) e [ALE-D18](../../manual/cobertura/12-alertas-rotinas.md#divergências) | Vários alertas técnicos não têm **Resolver** nem levam a uma tela; dispensar ou resolver mostra só "Falha ao…" sem o motivo | Fila de Alertas sem caminho de solução |
+| [Acesso ACE-D15](../../manual/cobertura/01-acesso-admin.md#divergências) | A inatividade de 8 horas é contada por aba: uma aba esquecida derruba a pessoa enquanto ela trabalha em outra | Saídas inesperadas no dia a dia |
+
+### 6.2 Todas as divergências das classes b e c, por área
+
+{{TABELA_BC}}
+
+### 6.3 Outras perguntas que o código não responde
+
+- **ZPT:** o glossário precisa de uma definição dada pelo dono; o código só
+  mostra a exportação e a aba "Planilha desbloqueio".
+- **Feriados:** o prazo do Desbloqueio de CE não conta feriados (simplificação
+  marcada no código), e o Vela não tem tela de cadastro de feriados; o alerta
+  "Calendário de feriados pendente" manda pedir à equipe técnica.
+- **Mensagens com termo técnico ou sem acento:** várias mensagens que chegam ao
+  operador citam nomes internos (`business_holidays`, `cron.job_run_details`,
+  "Edge Function") ou vêm sem acento ("Usuario sem permissao…"). O manual vai
+  explicá-las como estão; reescrevê-las é decisão do dono.
+- **Exportação de Containers:** a planilha não traz Descarga nem Devolução, e
+  Revisão e Situação financeira saem em códigos internos.
+- **Supressão por reclamação:** nenhuma tela libera o contato de Cliente
+  marcado como spam; hoje o caminho é trocar o e-mail.
+- **Faixas de plausibilidade da planilha de veículos** (300 a 60.000 kg, 1 a
+  300 m³) não foram calibradas com dados reais.
+- **Modelos de planilha sem tela** (`manifesto-bb-modelo`, `imo-oog-modelo`,
+  `vazios-modelo`) e painéis montados no código que nenhuma tela usa: ficam ou
+  saem.
+- **Linha do Tempo da importação:** pela leitura do código, a rota guardada no
+  evento de importação nunca é preenchida (BLR-069); não testado.
+
+## 7. Fora do manual (para aprovação)
+
+Só pode ficar fora o que não tem efeito na operação nem na tela. Cada linha
+abaixo diz o motivo. As mensagens com destino `Fora` são as que nunca chegam a
+uma pessoa (rotina interna, recusa que outra conferência anterior torna
+inalcançável); cada uma tem o motivo no arquivo da área.
+
+{{TABELA_FORA}}
+
+## 8. Documentação corrigida (classe a)
+
+{{DOCFIX}}
+
+## 9. Limitações e próximos passos
+
+- **Leitura, não execução.** Tudo é **Código**: nenhuma tela foi aberta e
+  nenhuma função foi chamada. Achados que só a execução confirma estão marcados
+  nos arquivos de área ("só leitura do código"). As imagens da Etapa 2 vão
+  executar os procedimentos do caminho normal.
+- **O que só existe em produção** não foi visto: duração das sessões e captcha
+  configurados no painel, a cadência das duas rotinas agendadas à mão
+  (`ce-unlock-notify-email` e `ce-unlock-cleanup`), entrega real de e-mail e o
+  webhook do provedor, a consulta do Itaú.
+- **O check de cobertura roda contra o banco local**, como o `rpc:check`, e não
+  junto do `docs:check`, porque o inventário sai do banco com todas as
+  migrations. Entrar no CI é a Etapa 4 do plano.
+- **Mensagens de tela** (textos que não vêm do banco) estão nas seções
+  Mensagens de cada área, mas não são um item do inventário: a completude delas
+  depende da leitura das telas, não do check.
+- **Próximo passo:** com as decisões das seções 5 a 7, a Etapa 2 (projeto
+  gráfico, cenário de demonstração, imagens por script e capítulo-piloto).

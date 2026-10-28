@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { BellOff, ChevronDown, ChevronRight, RotateCcw, Wrench } from 'lucide-react'
+import { ArrowUpRight, RotateCcw, Wrench } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { RowActionButton } from '../components/ui/RowActionButton'
@@ -8,13 +8,12 @@ import { NoValue } from '../components/ui/NoValue'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block, Fact, FactList } from '../components/ui/Block'
 import { MetricCard } from '../components/ui/MetricCard'
-import { Modal } from '../components/ui/Modal'
 import { StatusText } from '../components/ui/StatusText'
-import { Field, Input, Select, Textarea } from '../components/ui/Input'
+import { Field, Input, Select } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
-import { formatDate, formatDateTime } from '../lib/utils'
+import { formatDate } from '../lib/utils'
 import { userFacingErrorMessage } from '../lib/errors'
 import {
   ALERT_DEPARTMENT_LABELS,
@@ -22,8 +21,6 @@ import {
   alertEntityLinkLabel,
   alertRecord,
   canResolveWithJustification,
-  dismissAlertItem,
-  getMaxReviewDateString,
   fetchAlertEntityLabels,
   formatAlertEntity,
   getAlertDepartmentSummary,
@@ -43,20 +40,11 @@ import { queryKeys } from '../services/queryKeys'
 import { retryImportEffect } from '../services/importEffects'
 import { matchesAnyToken } from '../lib/searchTerms'
 
-function getTomorrowDateString(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + 1)
-  return d.toISOString().slice(0, 10)
-}
-
-function getDefaultReviewDateString(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + 7)
-  return d.toISOString().slice(0, 10)
-}
-
-/** Cartões que filtram a fila (lote 5a). Abre em Ativos; não há "Todos". */
-type AlertLens = 'ativos' | 'criticos' | 'dispensados'
+/**
+ * Cartões que filtram a fila (lote 5a). Abre em Ativos; não há "Todos". A
+ * dispensa saiu na migration 476 (ADR 0108): sem o cartão Dispensados.
+ */
+type AlertLens = 'ativos' | 'criticos'
 
 const DEPARTMENT_OPTIONS = [
   { value: 'all', label: 'Todos os setores' },
@@ -88,11 +76,11 @@ const ENTITY_OPTIONS = [
   { value: 'pix_transaction', label: 'Transação PIX' },
 ]
 
-function sumSummary(summary: AlertDepartmentSummary[] | undefined, department: string, field: 'active_count' | 'dismissed_count') {
+function sumSummary(summary: AlertDepartmentSummary[] | undefined, department: string) {
   if (!summary) return null
   return summary
     .filter((row) => department === 'all' || row.department === department)
-    .reduce((total, row) => total + Number(row[field] ?? 0), 0)
+    .reduce((total, row) => total + Number(row.active_count ?? 0), 0)
 }
 
 /**
@@ -115,11 +103,10 @@ export function Alertas() {
   const departmentFilter = DEPARTMENT_OPTIONS.some((opt) => opt.value === rawDept) ? rawDept : 'all'
 
   const [lens, setLens] = useState<AlertLens>('ativos')
-  const statusFilter = lens === 'dispensados' ? 'dismissed' : 'active'
+  const statusFilter = 'active'
   const [searchQuery, setSearchQuery] = useState('')
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [entityFilter, setEntityFilter] = useState<string>('all')
-  const [openDismissedId, setOpenDismissedId] = useState<string | null>(null)
   const narrow = useNarrowViewport()
 
   const [pagination, setPagination] = useState({ department: departmentFilter, page: 0 })
@@ -134,9 +121,6 @@ export function Alertas() {
       }
     })
   }
-  const [dismissTarget, setDismissTarget] = useState<AlertQueueRow | null>(null)
-  const [dismissReason, setDismissReason] = useState('')
-  const [reviewBy, setReviewBy] = useState(() => getDefaultReviewDateString())
 
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -150,8 +134,8 @@ export function Alertas() {
     queryFn: () => listAlerts(statusFilter, undefined, page, activeDepartment),
   })
 
-  // Ativos e Dispensados contam pelo resumo por setor (a fila inteira, não a
-  // página); Críticos conta a página de ativos carregada.
+  // Ativos conta pelo resumo por setor (a fila inteira, não a página);
+  // Críticos conta a página de ativos carregada.
   // ponytail: com mais de 100 ativos, "Críticos" conta só a primeira página;
   // o caminho é devolver a contagem por gravidade no resumo por setor.
   const { data: summary } = useQuery<AlertDepartmentSummary[]>({
@@ -163,8 +147,7 @@ export function Alertas() {
     queryKey: queryKeys.alerts.list('active', 0, departmentFilter),
     queryFn: () => listAlerts('active', undefined, 0, activeDepartment),
   })
-  const activeCount = sumSummary(summary, departmentFilter, 'active_count')
-  const dismissedCount = sumSummary(summary, departmentFilter, 'dismissed_count')
+  const activeCount = sumSummary(summary, departmentFilter)
   const criticalCount = activePage ? activePage.filter((alert) => alert.severity === 'critical').length : null
   // ponytail: o selo "ETA próximo" lê só a primeira página de ativos (100) do
   // setor; com mais que isso, o alerta crítico pode ficar fora e o selo some.
@@ -216,53 +199,6 @@ export function Alertas() {
     return list
   }, [data, lens, severityFilter, entityFilter, searchQuery, entityLabels])
 
-  function closeDismissModal() {
-    setDismissTarget(null)
-    setDismissReason('')
-  }
-
-  const dismissMutation = useMutation({
-    mutationFn: async () => {
-      if (!dismissTarget?.item_id) {
-        throw new Error('Este alerta é anterior à divisão por setor e não pode ser dispensado; ele sai da fila quando a pendência é resolvida.')
-      }
-      const trimmedReason = dismissReason.trim()
-      if (!trimmedReason) {
-        throw new Error('Informe o motivo da dispensa.')
-      }
-      if (!reviewBy) {
-        throw new Error('Informe a data em que o alerta volta para a fila.')
-      }
-      const targetDate = new Date(`${reviewBy}T23:59:59Z`)
-      if (Number.isNaN(targetDate.getTime()) || targetDate <= new Date()) {
-        throw new Error('A data para voltar à fila deve ser futura.')
-      }
-      if (reviewBy > getMaxReviewDateString()) {
-        throw new Error('A dispensa vale por no máximo 30 dias.')
-      }
-      await dismissAlertItem(
-        dismissTarget.item_id,
-        trimmedReason,
-        targetDate.toISOString(),
-      )
-    },
-    onSuccess: async () => {
-      showToast('Alerta dispensado temporariamente', 'success')
-      closeDismissModal()
-      await invalidateAllAlertQueries(queryClient)
-    },
-    onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Falha ao dispensar alerta.'
-      showToast(message, 'error')
-    },
-  })
-
-  const requestDismissal = (alert: AlertQueueRow) => {
-    setDismissReason('')
-    setReviewBy(getDefaultReviewDateString())
-    setDismissTarget(alert)
-  }
-
   // Conferência sem fato de origem (ADR 0083, item 23): resolve de vez, com
   // motivo no histórico do alerta; os demais fecham sozinhos pela origem.
   const resolveMutation = useMutation({
@@ -271,8 +207,9 @@ export function Alertas() {
       showToast('Alerta resolvido com justificativa.', 'success')
       await invalidateAllAlertQueries(queryClient)
     },
+    // ALE-D18: a recusa do banco chega com o motivo (alerta já fechado, sem permissão).
     onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Falha ao resolver o alerta.', 'error')
+      showToast(userFacingErrorMessage(err, 'Falha ao resolver o alerta.'), 'error')
     },
   })
 
@@ -354,16 +291,14 @@ export function Alertas() {
     handleDepartmentChange('all')
   }
 
-  const isMutating = dismissMutation.isPending || resolveMutation.isPending || reprocessMutation.isPending
+  const isMutating = resolveMutation.isPending || reprocessMutation.isPending
   const actions = {
     isMutating,
-    onDismiss: requestDismissal,
     onResolve: (alert: AlertQueueRow) => void requestResolution(alert),
     onReprocess: (alert: AlertQueueRow) => void requestReprocess(alert),
     onNavigate: (to: string) => navigate(to),
   }
-  const isDismissedLens = lens === 'dispensados'
-  const blockTitle = isDismissedLens ? 'Dispensados' : lens === 'criticos' ? 'Alertas críticos' : 'Alertas ativos'
+  const blockTitle = lens === 'criticos' ? 'Alertas críticos' : 'Alertas ativos'
   const pluralAlerts = (count: number) => `${count} ${count === 1 ? 'alerta' : 'alertas'}`
 
   return (
@@ -393,13 +328,6 @@ export function Alertas() {
           detail="entre os ativos"
           onSelect={() => selectLens('criticos')}
           selected={lens === 'criticos'}
-        />
-        <MetricCard
-          label="Dispensados"
-          value={dismissedCount ?? <NoValue label="Carregando" />}
-          detail="voltam na data marcada"
-          onSelect={() => selectLens('dispensados')}
-          selected={lens === 'dispensados'}
         />
       </div>
 
@@ -444,7 +372,7 @@ export function Alertas() {
           <p className="px-4 py-8 text-center text-[var(--app-muted)]">Carregando alertas...</p>
         ) : filteredAlerts.length === 0 ? (
           <p className="px-4 py-8 text-center text-[var(--app-muted)]">
-            {hasActiveFilters ? 'Nenhum alerta corresponde aos filtros aplicados.' : isDismissedLens ? 'Nenhum alerta dispensado.' : 'Nenhum alerta na fila.'}
+            {hasActiveFilters ? 'Nenhum alerta corresponde aos filtros aplicados.' : 'Nenhum alerta na fila.'}
           </p>
         ) : narrow ? (
           <ul className="grid gap-3 p-3" aria-label={blockTitle}>
@@ -454,38 +382,6 @@ export function Alertas() {
               </li>
             ))}
           </ul>
-        ) : isDismissedLens ? (
-          <div className="app-table-scroll">
-            <table className="app-table">
-              <caption className="sr-only">Alertas dispensados</caption>
-              <thead>
-                <tr>
-                  <th scope="col"><span className="sr-only">Abrir</span></th>
-                  <th scope="col" className="app-table__text-head">Alerta</th>
-                  <th scope="col" className="app-table__text-head">Registro</th>
-                  <th scope="col">Dispensado até</th>
-                  <th scope="col">Por</th>
-                  <th scope="col">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAlerts.map((alert) => {
-                  const key = `${alert.id}:${alert.item_id ?? getEffectiveAlertType(alert)}`
-                  const expanded = openDismissedId === key
-                  return (
-                    <DismissedRow
-                      key={key}
-                      alert={alert}
-                      entityLabels={entityLabels}
-                      expanded={expanded}
-                      onToggle={() => setOpenDismissedId(expanded ? null : key)}
-                      {...actions}
-                    />
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
         ) : (
           <div className="app-table-scroll">
             <table className="app-table">
@@ -529,49 +425,20 @@ export function Alertas() {
         </div>
       </div>
 
-      <Modal open={dismissTarget !== null} title="Dispensar alerta" onClose={closeDismissModal} size="sm">
-        {dismissTarget ? (
-          <div className="grid gap-4">
-            <div>
-              <p className="text-base font-bold text-[var(--app-text-strong)]">{getAlertTypeLabel(getEffectiveAlertType(dismissTarget))}</p>
-              <p className="text-[var(--app-muted)]">{alertRecord(dismissTarget, entityLabels)?.label ?? dismissTarget.message}</p>
-            </div>
-            <Field label="Motivo">
-              <Textarea
-                rows={3}
-                value={dismissReason}
-                onChange={(e) => setDismissReason(e.target.value)}
-                placeholder="Ex.: aguardando retorno da agência marítima até sexta."
-              />
-            </Field>
-            <Field label="Volta para a fila em">
-              <Input type="date" min={getTomorrowDateString()} max={getMaxReviewDateString()} value={reviewBy} onChange={(e) => setReviewBy(e.target.value)} />
-            </Field>
-            <p className="text-[var(--app-muted)]">O alerta sai da fila até essa data e volta sozinho se a pendência continuar. A dispensa não resolve a pendência.</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={closeDismissModal} disabled={dismissMutation.isPending}>Voltar</Button>
-              <Button
-                variant="primary"
-                onClick={() => dismissMutation.mutate()}
-                loading={dismissMutation.isPending}
-                disabled={!dismissReason.trim() || !reviewBy}
-              >
-                {reviewBy ? `Dispensar até ${formatDate(`${reviewBy}T12:00:00`).slice(0, 5)}` : 'Dispensar'}
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
     </>
   )
 }
 
 type RowActions = {
   isMutating: boolean
-  onDismiss: (alert: AlertQueueRow) => void
   onResolve: (alert: AlertQueueRow) => void
   onReprocess: (alert: AlertQueueRow) => void
   onNavigate: (to: string) => void
+}
+
+/** ALE-D06: a abertura da ocorrência atual; reaberto, o alerta mostra a data da reabertura. */
+function openedAt(alert: AlertQueueRow) {
+  return alert.opened_at ?? alert.created_at
 }
 
 function Severity({ alert }: { alert: AlertQueueRow }) {
@@ -589,15 +456,14 @@ function Department({ alert }: { alert: AlertQueueRow }) {
 }
 
 /**
- * "Resolver" e "Dispensar", de largura fixa e alinhados em toda linha (lote
- * 5a). "Resolver" leva ao lugar onde a pendência se resolve (o nome do lugar
- * fica no `title`); nos alertas de conferência sem fato de origem (ADR 0083),
- * abre a justificativa. Dispensar só existe para o alerta por item. Na linha
- * da tabela, só os ícones (`iconOnly`, regra 9); no cartão, com texto.
+ * "Resolver", de largura fixa e alinhado em toda linha (lote 5a). Leva ao
+ * lugar onde a pendência se resolve (o nome do lugar fica no `title`); nos
+ * alertas de conferência sem fato de origem (ADR 0083), abre a justificativa.
+ * A dispensa saiu na migration 476 (ADR 0108). Na linha da tabela, só o ícone
+ * (`iconOnly`, regra 9); no cartão, com texto.
  */
-function AlertActions({ alert, isMutating, onDismiss, onResolve, onReprocess, onNavigate, dismissible = true, iconOnly = false, subject }: RowActions & {
+function AlertActions({ alert, isMutating, onResolve, onReprocess, onNavigate, iconOnly = false, subject }: RowActions & {
   alert: AlertQueueRow
-  dismissible?: boolean
   iconOnly?: boolean
   /** Alerta e registro da linha, para o nome do ícone dizer de qual linha é (leitor de tela). */
   subject?: string
@@ -607,7 +473,11 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onReprocess, on
   const reprocess = retryTarget !== null
   const reprocessing = retryTarget?.reprocessing === true
   const byJustification = !reprocess && Boolean(alert.item_id) && canResolveWithJustification(effectiveType, alert.entity_type)
-  const link = byJustification || reprocess ? null : alertEntityLink(alert)
+  const placeLink = reprocess ? null : alertEntityLink(alert)
+  const link = byJustification ? null : placeLink
+  // Tipos com justificativa que também levam a uma tela (Consulta de Pix do
+  // Itaú parada → Conciliação, ALE-D05): o atalho fica ao lado de Resolver.
+  const justifiedPlace = byJustification && placeLink && placeLink !== '/alertas' ? placeLink : null
   if (iconOnly) {
     const of = subject ? ` ${subject}` : ''
     const slot = <span className="app-btn--icon inline-block" aria-hidden="true" />
@@ -616,13 +486,13 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onReprocess, on
         {reprocess ? (
           <RowActionButton label={reprocessing ? `Reprocessando…${of}` : `Reprocessar${of}`} icon={RotateCcw} title={reprocessing ? 'Reprocessando… o alerta fecha quando o efeito concluir' : 'Reprocessar o efeito com justificativa'} onClick={() => onReprocess(alert)} disabled={isMutating || reprocessing} />
         ) : byJustification ? (
-          <RowActionButton label={`Resolver${of}`} icon={Wrench} title="Resolver com justificativa" onClick={() => onResolve(alert)} disabled={isMutating} />
+          <>
+            {justifiedPlace ? <RowActionButton label={`${alertEntityLinkLabel(alert)}${of}`} icon={ArrowUpRight} title={alertEntityLinkLabel(alert)} onClick={() => onNavigate(justifiedPlace)} /> : null}
+            <RowActionButton label={`Resolver${of}`} icon={Wrench} title="Resolver com justificativa" onClick={() => onResolve(alert)} disabled={isMutating} />
+          </>
         ) : link ? (
           <RowActionButton label={`Resolver${of}`} icon={Wrench} title={alertEntityLinkLabel(alert)} onClick={() => onNavigate(link)} />
         ) : slot}
-        {dismissible && alert.item_id ? (
-          <RowActionButton label={`Dispensar${of}`} icon={BellOff} title="Dispensar" onClick={() => onDismiss(alert)} disabled={isMutating} />
-        ) : dismissible ? slot : null}
       </div>
     )
   }
@@ -633,19 +503,21 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onReprocess, on
           {reprocessing ? 'Reprocessando…' : 'Reprocessar'}
         </Button>
       ) : byJustification ? (
-        <Button variant="secondary" className="min-w-24" onClick={() => onResolve(alert)} disabled={isMutating} title="Resolver com justificativa">
-          Resolver
-        </Button>
+        <>
+          {justifiedPlace ? (
+            <Button variant="secondary" onClick={() => onNavigate(justifiedPlace)} title={alertEntityLinkLabel(alert)}>
+              {alertEntityLinkLabel(alert)}
+            </Button>
+          ) : null}
+          <Button variant="secondary" className="min-w-24" onClick={() => onResolve(alert)} disabled={isMutating} title="Resolver com justificativa">
+            Resolver
+          </Button>
+        </>
       ) : link ? (
         <Button variant="secondary" className="min-w-24" onClick={() => onNavigate(link)} title={alertEntityLinkLabel(alert)}>
           Resolver
         </Button>
       ) : <span className="inline-block min-w-24" aria-hidden="true" />}
-      {dismissible && alert.item_id ? (
-        <Button variant="secondary" className="min-w-24" onClick={() => onDismiss(alert)} disabled={isMutating}>
-          Dispensar
-        </Button>
-      ) : dismissible ? <span className="inline-block min-w-24" aria-hidden="true" /> : null}
     </div>
   )
 }
@@ -669,54 +541,22 @@ function AlertRow({ alert, entityLabels, nearEta, ...actions }: RowActions & { a
       <td className="app-table__text"><RecordCell alert={alert} entityLabels={entityLabels} /></td>
       <td className="app-table__text app-table__text--wrap">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</td>
       <td><Department alert={alert} /></td>
-      <td className="whitespace-nowrap">{formatDate(alert.created_at)}</td>
+      <td className="whitespace-nowrap">{formatDate(openedAt(alert))}</td>
       <td><AlertActions alert={alert} iconOnly subject={rowSubject(alert, entityLabels)} {...actions} /></td>
     </tr>
   )
 }
 
-function DismissedRow({ alert, entityLabels, expanded, onToggle, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels; expanded: boolean; onToggle: () => void }) {
-  const label = getAlertTypeLabel(getEffectiveAlertType(alert))
-  return (
-    <>
-      <tr>
-        <td>
-          <button type="button" className="app-table__icon-button" aria-expanded={expanded} aria-label={`${expanded ? 'Recolher' : 'Abrir'} ${label}`} onClick={onToggle}>
-            {expanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
-          </button>
-        </td>
-        <td className="app-table__text">{label}</td>
-        <td className="app-table__text"><RecordCell alert={alert} entityLabels={entityLabels} /></td>
-        <td><StatusText tone="warning">{formatDate(alert.dismissed_until)}</StatusText></td>
-        <td>{alert.dismissed_by_name ?? <NoValue label="Sem autor" />}</td>
-        <td><AlertActions alert={alert} dismissible={false} iconOnly subject={rowSubject(alert, entityLabels)} {...actions} /></td>
-      </tr>
-      {expanded ? (
-        <tr data-row-detail>
-          <td colSpan={6}>
-            <FactList columns={3}>
-              <Fact label="Motivo">{alert.dismissal_reason ?? <NoValue label="Sem motivo" />}</Fact>
-              <Fact label="Dispensado em">{alert.dismissed_at ? formatDateTime(alert.dismissed_at) : <NoValue label="Sem data" />}</Fact>
-              <Fact label="Mensagem">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</Fact>
-            </FactList>
-          </td>
-        </tr>
-      ) : null}
-    </>
-  )
-}
-
 function AlertCard({ alert, entityLabels, nearEta, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels; nearEta?: ReadonlySet<string> }) {
-  const isDismissed = Boolean(alert.dismissed_until && new Date(alert.dismissed_until) > new Date())
   return (
     <Block headingLevel={3} title={<AlertTypeLabel alert={alert} nearEta={nearEta} />} aside={<Severity alert={alert} />}>
       <FactList columns={2}>
         <Fact label="Registro"><RecordCell alert={alert} entityLabels={entityLabels} /></Fact>
         <Fact label="Setor"><Department alert={alert} /></Fact>
         <Fact label="Mensagem">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</Fact>
-        <Fact label={isDismissed ? 'Dispensado até' : 'Aberto em'}>{formatDate(isDismissed ? alert.dismissed_until : alert.created_at)}</Fact>
+        <Fact label="Aberto em">{formatDate(openedAt(alert))}</Fact>
       </FactList>
-      <div className="mt-3"><AlertActions alert={alert} dismissible={!isDismissed} {...actions} /></div>
+      <div className="mt-3"><AlertActions alert={alert} {...actions} /></div>
     </Block>
   )
 }

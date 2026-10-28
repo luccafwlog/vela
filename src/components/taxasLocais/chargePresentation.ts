@@ -45,7 +45,7 @@ export const APPLICATION_BASIS_OPTIONS = [
     value: 'bl',
     label: 'Por B/L',
     unit: 'por B/L',
-    hint: 'Uma vez por B/L. No B/L misto, só do lado container.',
+    hint: 'Uma vez por B/L. No B/L misto vale a do container; sem ela, cobram-se todas as da carga solta.',
   },
   {
     value: 'container_distinct_voyage',

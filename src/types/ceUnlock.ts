@@ -109,6 +109,8 @@ export type CeUnlockReviewRow = {
   sla_started_at: string | null;
   /** Ficha do Cliente: a última exportação, quando todos os B/Ls ativos foram exportados (migration 450). */
   exported_at?: string | null;
+  /** Ficha do Cliente: VIP (`vip_annual`) ou comum (`request`); a ficha lista as duas (migration 479). */
+  source?: "request" | "vip_annual";
   bl_ids: string[];
   termo_status: CeUnlockDocument["status"] | null;
   procuracao_status: CeUnlockDocument["status"] | null;

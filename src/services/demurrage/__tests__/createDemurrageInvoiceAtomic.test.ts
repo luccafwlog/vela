@@ -117,6 +117,11 @@ describe('authoritative Demurrage invoice creation', () => {
     expect(invoiceId).toBe(321)
   })
 
+  it('DEM-D13: B/L sem CE ou com o Portal fechado não emite e mostra o motivo do banco', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: { status: 'blocked', reason: 'B/L BL-1 sem CE Mercante. Cadastre o CE antes de faturar.', anchor_bl_id: 'BL-1' }, error: null })
+    await expect(createInvoiceForBL('BL-1')).rejects.toThrow('B/L BL-1 sem CE Mercante. Cadastre o CE antes de faturar.')
+  })
+
   it('maps database uniqueness violations to the friendly duplicate invoice message', async () => {
     mocks.rpc.mockResolvedValueOnce({
       data: null,

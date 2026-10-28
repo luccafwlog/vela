@@ -6,6 +6,7 @@ import { CopyValue } from '../ui/CopyValue'
 import { Field, Input } from '../ui/Input'
 import { NoValue } from '../ui/NoValue'
 import { InlineFieldEditor } from '../shared/ReviewInlineEditors'
+import { useAuth } from '../../hooks/useAuth'
 import type { ReviewCustomer, ReviewQueueItem } from '../../hooks/useReview'
 import { isDeactivatedCustomerSuggestion } from '../../services/customerReconciliation'
 import { formatCnpjCpf } from '../../lib/utils'
@@ -118,6 +119,8 @@ export function ReviewGroupDetail({
   const [proposedCnpj, setProposedCnpj] = useState<{ cnpj: string; seq: number } | null>(null)
   const [proposedCustomer, setProposedCustomer] = useState<{ customer: ReviewCustomer; seq: number } | null>(null)
   const [formCnpj, setFormCnpj] = useState<string | null>(null)
+  // D10 de 2026-10-27: só Administrativo, Documentação e Equipamentos incluem o e-mail.
+  const canEditContacts = useAuth().can('edit_customer_contacts')
   const [email, setEmail] = useState(() => group.items.find((item) => item.manifest_customer_email)?.manifest_customer_email ?? '')
 
   const blItems: BlItem[] = group.items
@@ -202,6 +205,11 @@ export function ReviewGroupDetail({
       <Block title="Completar o e-mail do cliente" headingLevel={3} aside={linked.name}>
         <div className="grid gap-3">
           <p className="text-[var(--app-muted)]">{summary.nextAction.detail}</p>
+          {!canEditContacts ? (
+            <p className="text-[var(--app-muted)]" role="note">
+              Só Administrativo, Documentação e Equipamentos incluem o e-mail do Cliente. <Link className="app-link" to={`/clientes/${linked.id}`}>Abrir a ficha do Cliente</Link>
+            </p>
+          ) : (
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-0 flex-1">
               <Field label="E-mail principal">
@@ -217,6 +225,7 @@ export function ReviewGroupDetail({
               Adicionar e-mail
             </Button>
           </div>
+          )}
         </div>
       </Block>
     )

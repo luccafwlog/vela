@@ -1,8 +1,9 @@
-import { blFieldLabel, formatBlFieldValue } from '../bl/blTimelinePresentation'
+import { blFieldLabel, describeChargeAdjustmentEvent, describeManualChargeUpdate, formatBlFieldValue } from '../bl/blTimelinePresentation'
 import { CUSTOMER_FIELD_LABELS } from '../../services/customerFicha'
 import { TIMELINE_VOYAGE_FIELD_LABELS } from '../../services/voyageSummaries'
 import { DEPARTMENT_LABELS } from '../../lib/departmentLabel'
 import { splitIsoDateTime } from '../../lib/utils'
+import { getAlertTypeLabel } from '../../services/alerts'
 
 // Histórico de ações legível (lote 5b, Administração): cada linha de
 // `audit_logs` vira assunto, frase e "de → para" em português. Entidade sem
@@ -46,6 +47,8 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'cadastros', label: 'Navio, armador e porto', entityTypes: ['vessels', 'carriers', 'ports'] },
   { id: 'locais', label: 'Local e serviço', entityTypes: ['depots', 'depot_services'] },
   { id: 'usuario', label: 'Usuário', entityTypes: ['user_profile'] },
+  // ALE-D08 (migration 476): a resolução de alerta com justificativa.
+  { id: 'alerta', label: 'Alerta', entityTypes: ['alert_item'] },
   { id: 'sistema', label: 'Configuração do sistema', entityTypes: ['app_settings', 'system_event'] },
 ]
 
@@ -90,6 +93,7 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
   depots: { noun: 'Local', feminine: false },
   depot_services: { noun: 'Serviço do Local', feminine: false },
   user_profile: { noun: 'Usuário', feminine: false },
+  alert_item: { noun: 'Alerta', feminine: false },
 }
 
 /** Rótulos de campo comuns às tabelas sem rótulo próprio. */
@@ -125,6 +129,7 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   dispute_subject: 'Assunto da disputa',
   dispute_reason: 'Motivo da disputa',
   communications_enabled: 'Envio real de e-mails',
+  is_dev: 'Marca Dev',
   password: 'Senha',
   container_number: 'Container',
   pod: 'POD',
@@ -303,11 +308,18 @@ export function describeAuditLog(row: AuditLogLike): string {
   }
   if (REACTIVATED_FIELDS.has(field) || (field === 'active' && row.new_value === 'true')) return participle(noun, 'reativado')
   if (DEACTIVATED_FIELDS.has(field) || (field === 'active' && row.new_value === 'false')) return participle(noun, 'desativado')
+  // ALE-D08: a justificativa vai na coluna própria; o tipo do alerta, no texto.
+  if (row.entity_type === 'alert_item' && field === 'status' && row.new_value === 'resolved') {
+    return `Alerta resolvido com justificativa: ${getAlertTypeLabel(row.old_value ?? '')}`
+  }
   if (field === 'status') {
     const statusSummary = STATUS_SUMMARY_BY_ENTITY[row.entity_type]?.[(row.new_value ?? '').trim()]
     if (statusSummary) return statusSummary
   }
   if (row.entity_type === 'user_profile' && field === 'password') return 'Senha redefinida'
+  // ADR 0111: taxa alterada, excluída ou isenta à mão e edição da cobrança manual.
+  if (row.entity_type === 'charge_calculation' && field === 'charge_adjustment') return describeChargeAdjustmentEvent(row.new_value)
+  if (row.entity_type === 'charge_calculation' && field === 'manual_update') return describeManualChargeUpdate(row.old_value, row.new_value)
   const label = auditFieldLabel(row.entity_type, row.field_name)
   if (!label) return participle(noun, 'alterado')
   const value = formatAuditValue(row.field_name, row.new_value, row.entity_type)

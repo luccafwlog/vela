@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   updateContainerDates: vi.fn(),
   updateContainerReturnDate: vi.fn(),
   confirm: vi.fn(),
+  setContainerOwnership: vi.fn(),
+  guard: vi.fn(),
 }))
 
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
@@ -17,8 +19,9 @@ vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../../services/vaziosNatureza', async (original) => ({
   ...(await original() as object),
   setContainerProfile: mocks.setContainerProfile,
-  setContainerOwnership: vi.fn(),
+  setContainerOwnership: mocks.setContainerOwnership,
 }))
+vi.mock('../../../hooks/useChargeAdjustmentGuard', () => ({ useChargeAdjustmentGuard: () => mocks.guard }))
 vi.mock('../../../services/containerCorrection', async (original) => ({
   ...(await original() as object),
   correctContainerData: mocks.correctContainerData,
@@ -45,6 +48,20 @@ describe('janela Corrigir do container', () => {
     mocks.setContainerProfile.mockResolvedValue({ invoicedBls: [] })
     mocks.correctContainerData.mockResolvedValue(undefined)
     mocks.confirm.mockResolvedValue(true)
+    mocks.setContainerOwnership.mockResolvedValue({ invoicedBls: [] })
+    mocks.guard.mockImplementation(async (_changes: unknown, save: () => Promise<unknown>) => save())
+  })
+
+  // ADR 0111, D6 (migration 497): o SOC tira o container dos itens que não
+  // cobram de SOC; a troca pergunta pelas taxas alteradas à mão como o perfil.
+  it('COC/SOC passa pela prévia das taxas alteradas à mão; recusar não grava', async () => {
+    mocks.guard.mockResolvedValueOnce(undefined)
+    renderModal()
+    fireEvent.change(screen.getByLabelText('COC/SOC'), { target: { value: 'SOC' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar correção' }))
+    await waitFor(() => expect(mocks.guard).toHaveBeenCalledTimes(1))
+    expect(mocks.guard.mock.calls[0][0]).toEqual([{ bl_id: 'BL-1', container_flags: [{ container_number: 'CSNU6012309', ownership: 'SOC' }] }])
+    expect(mocks.setContainerOwnership).not.toHaveBeenCalled()
   })
 
   it('avisa que peso bruto e CBM mudam só neste B/L', async () => {

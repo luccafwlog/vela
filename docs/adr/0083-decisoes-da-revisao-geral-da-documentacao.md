@@ -9,6 +9,14 @@
 > justificado, ele só reabre quando outro Comunicado do Cliente falha (migration
 > `349`). As regras ficam em [Demurrage](../modules/demurrage.md#datas-alteradas-depois-da-emissão)
 > e [Clientes](../modules/clientes.md).
+>
+> **Situação atual (2026-10-27).** O item 24 (audiência é o catálogo mais o
+> setor do item) foi substituído pela [ADR 0107](./0107-sino-so-do-setor-responsavel.md):
+> o sino vai ao setor responsável, com as exceções do Financeiro e do
+> Administrativo registradas no catálogo (migrations `476` e `485`). O item 23
+> foi estendido pela [ADR 0108](./0108-fim-da-dispensa-de-alertas.md): os quatro
+> tipos de origem externa também aceitam "Resolver com justificativa", que os
+> cala por 24 horas enquanto a causa continua.
 
 Status: aceito — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelo
 [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)

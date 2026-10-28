@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReviewQueueItem } from '../../hooks/useReview'
 
 vi.mock('../../hooks/useReview', () => ({ useReviewQueue: vi.fn() }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, isAdmin: true, can: () => true }) }))
+const authState = vi.hoisted(() => ({ canEditContacts: true }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, isAdmin: true, can: (permission: string) => permission !== 'edit_customer_contacts' || authState.canEditContacts }) }))
 vi.mock('../../hooks/useCustomers', () => ({ useCustomerLookup: vi.fn() }))
 vi.mock('../../hooks/useReviewCustomerGroup', () => ({ useReviewCustomerGroup: vi.fn() }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
@@ -26,7 +27,10 @@ vi.mock('../../hooks/usePortalProvisioning', () => ({
   }),
   useSendPortalInvite: () => ({ mutateAsync: mocks.sendInvite, isPending: false }),
 }))
-vi.mock('../../services/charges/chargeOperationsService', () => ({ calculateBlLocalCharges: vi.fn() }))
+vi.mock('../../services/charges/chargeOperationsService', () => ({
+  calculateBlLocalCharges: vi.fn(),
+  listBlChargeAdjustmentSummaries: vi.fn().mockResolvedValue([]),
+}))
 vi.mock('../../services/operationalEvents', () => ({ logOperationalEvent: vi.fn() }))
 vi.mock('../../services/review', async () => {
   const actual = await vi.importActual<typeof import('../../services/review')>('../../services/review')
@@ -46,6 +50,7 @@ import { useReviewQueue } from '../../hooks/useReview'
 import { useReviewCustomerGroup } from '../../hooks/useReviewCustomerGroup'
 import { applyInlineBlReviewFix, saveBlReview } from '../../services/review'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
+import { listBlChargeAdjustmentSummaries } from '../../services/charges/chargeOperationsService'
 import { Revisao } from '../Revisao'
 
 const mockedUseReviewQueue = vi.mocked(useReviewQueue)
@@ -430,6 +435,21 @@ describe('Revisao', () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BLX'], customerId: 7, email: 'novo@cliente.com', changedBy: 'user-1' })))
   })
 
+  // D10 de 2026-10-27: quem não edita contatos não inclui o e-mail pela Revisão.
+  it('sem permissão de contatos, o grupo sem e-mail leva à ficha do Cliente em vez de pedir o e-mail', async () => {
+    const user = userEvent.setup()
+    authState.canEditContacts = false
+    try {
+      mockedUseReviewQueue.mockReturnValue({ data: [makeLinkedBl('BLX')], isLoading: false, error: null } as never)
+      renderPage()
+      await user.click(screen.getByRole('button', { name: /Linked Co/ }))
+      expect(screen.queryByLabelText('E-mail principal')).toBeNull()
+      expect(screen.getByRole('link', { name: 'Abrir a ficha do Cliente' }).getAttribute('href')).toBe('/clientes/7')
+    } finally {
+      authState.canEditContacts = true
+    }
+  })
+
   it('B16: exibe a sugestão por nome do B/L e a leva ao vínculo', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
@@ -551,6 +571,24 @@ describe('Revisao', () => {
     const results = await screen.findByRole('region', { name: 'Resultados recentes' })
     await waitFor(() => expect(results.textContent).toMatch(/B\/L BL1: taxas locais ainda por recalcular/))
     expect(results.textContent).toMatch(/1 fatura emitida automaticamente/)
+  })
+
+  it('Recalcular avisa que a taxa alterada à mão se mantém (ADR 0111)', async () => {
+    const user = userEvent.setup()
+    mockedTryAutoIssueInvoice.mockResolvedValueOnce({ status: 'blocked', reason: 'review:no_table', message: 'Tabela de taxas locais ausente.' } as never)
+    vi.mocked(listBlChargeAdjustmentSummaries).mockResolvedValueOnce([{ bl_id: 'BL1', items: [{ charge_name: 'THD' }], manual_exempt: false }] as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /AC Comercial/ }))
+    await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11222333000181')
+    await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'financeiro@alfa.com')
+    await choosePortalLater(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
+    mocks.confirm.mockResolvedValue(false)
+    await user.click(await screen.findByRole('button', { name: 'Recalcular taxas' }))
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Recalcular taxas locais' })))
+    expect(mocks.confirm.mock.lastCall?.[0].consequence).toContain('1 B/L tem taxas alteradas à mão: as alterações se mantêm no recálculo.')
   })
 
   it('caso E: valida o peso da carga solta junto do campo, sem gravar valor inválido', async () => {

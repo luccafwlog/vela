@@ -118,19 +118,19 @@ function annualGapMessage(vip: CeUnlockVipCoverage): string | null {
         ? `envie ${actionable[0].type === "termo" ? "o termo" : "a procuração"} em Documentos anuais`
         : `envie ${actionable[0].type === "termo" ? "o novo" : "a nova"} em Documentos anuais`;
   const sentence = gaps.map((g) => g.text).join(" e ");
-  // B/L com o CE vinculado na vigência de um anual anterior segue coberto por ele (migration 456).
+  // B/L com o desbloqueio solicitado na vigência de um anual anterior segue coberto por ele (migration 479).
   return `${sentence[0].toUpperCase()}${sentence.slice(1)}: ${action}. Até lá, as solicitações de B/Ls que os documentos anuais não cobrem seguem com termo de devolução e procuração anexados a elas.`;
 }
 
 /**
  * Por que a solicitação de um Cliente VIP pede termo e procuração (ponto 13 de
- * 2026-10-23): o anual faltando, vencido, recusado ou revogado, ou B/L com o CE
- * Mercante vinculado antes da vigência dele (migrations 449 e 456).
+ * 2026-10-23): o anual faltando, vencido, recusado ou revogado, ou desbloqueio
+ * solicitado fora da vigência dele (migration 479).
  */
 function vipFallbackReason(vip: CeUnlockVipCoverage, items: CeUnlockItem[]): string {
   const gaps = annualGaps(vip);
   if (gaps.length) return gaps.map((g) => g.text).join(" e ");
-  if (items.some((i) => i.vip_covered === false)) return "há B/L com o CE Mercante vinculado antes da vigência dos documentos anuais, que não retroage";
+  if (items.some((i) => i.vip_covered === false)) return "há B/L com o desbloqueio solicitado fora da vigência dos documentos anuais";
   return "os documentos anuais não cobriam os B/Ls quando a solicitação foi aberta";
 }
 
@@ -188,7 +188,7 @@ export function PortalDesbloqueioCe() {
   const vip = flow.vip.data;
   const vipEnabled = !!vip?.enabled;
   const vipPending = vipEnabled && (!vip.termo || !vip.procuracao);
-  // B/L com o CE vinculado antes da vigência dos anuais pede o termo comum: o
+  // B/L com o desbloqueio solicitado fora da vigência dos anuais pede o termo comum: o
   // modelo precisa estar à mão também nesse caso.
   const vipHasUncoveredBl = vipEnabled && (flow.list.data ?? []).some((item) => item.vip_covered === false);
   const detail = flow.detail.data;
@@ -229,8 +229,8 @@ export function PortalDesbloqueioCe() {
   };
   const byBl = new Map(allItems.map((i) => [i.bl_id, i]));
   // A seleção nasce VIP só se os anuais cobrem todos os B/Ls. Vale a cobertura de cada B/L que o banco
-  // devolve (`vip_covered`, CE vinculado na vigência, migration 456): em janeiro, sem o anual do ano novo,
-  // o B/L com o CE vinculado no ano que acabou continua coberto pelo anual dele.
+  // devolve (`vip_covered`, desbloqueio solicitado na vigência, migration 479): em janeiro, sem o anual do ano novo,
+  // o B/L com o desbloqueio solicitado no ano que acabou continua coberto pelo anual dele.
   const vipCoversSelection = vipEnabled && selected.every((b) => byBl.get(b)?.vip_covered ?? !vipPending);
   const moves = selected.flatMap((b) => {
     const item = byBl.get(b);
@@ -253,8 +253,8 @@ export function PortalDesbloqueioCe() {
   const vipSource = detail?.source === "vip_annual";
   const pendingItems = detail?.items.filter((i) => !i.confirmed) ?? [];
   // Pedido VIP: vale a cobertura de cada B/L que o banco devolve, a mesma que o envio confere
-  // (migration 456), e não o anual vigente hoje: em janeiro, sem o anual do ano novo, o B/L com o
-  // CE vinculado no ano que acabou continua coberto pelo anual dele e o pedido segue.
+  // (migration 479), e não o anual vigente hoje: em janeiro, sem o anual do ano novo, o B/L com o
+  // desbloqueio solicitado no ano que acabou continua coberto pelo anual dele e o pedido segue.
   const documentsReady = vipSource
     ? !!vip?.enabled && pendingItems.every((i) => i.vip_covered === true)
     : missingDocs.length === 0;

@@ -115,3 +115,43 @@ it('saves only after the user confirms the displayed changes', async () => {
     expect(currentClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [family] })
   }
 })
+
+// ADR 0111, D6 (revisão da PR luccafwlog/vela#1080): no B/L de container sem
+// peso solto, a taxa por tonelada conta o peso de contêiner; mudá-lo muda a
+// quantidade da taxa com total alterado.
+it('o peso de contêiner passa pela prévia das taxas alteradas à mão antes de gravar', async () => {
+  const { result } = renderHook(() => useBlEditForm(bl), { wrapper: makeWrapper() })
+  act(() => {
+    result.current.setField('total_weight_kg', '25000')
+    result.current.setJustification('Correção do documento')
+  })
+
+  let submitted: Promise<void> | undefined
+  act(() => {
+    submitted = result.current.handleSubmit({ preventDefault: vi.fn() } as never)
+  })
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Salvar alterações' }))
+  await act(async () => submitted)
+  expect(mocks.rpc).toHaveBeenCalledWith('preview_bl_charge_adjustment_impact', {
+    p_changes: [{ bl_id: 'bl-1', bls: { total_weight_kg: 25000 } }],
+  })
+  expect(mocks.rpc.mock.calls.map(([name]) => name)).toEqual(['preview_bl_charge_adjustment_impact', 'save_bl_review'])
+})
+
+it('mostra o motivo da recusa do banco em vez da frase genérica (BLR-D07)', async () => {
+  mocks.rpc.mockResolvedValue({ error: { code: 'P0001', message: 'O B/L está cancelado: reative para editar.' } })
+  const { result } = renderHook(() => useBlEditForm(bl), { wrapper: makeWrapper() })
+  act(() => {
+    result.current.setField('shipper', 'Armador novo')
+    result.current.setJustification('Correção do documento')
+  })
+
+  let submitted: Promise<void> | undefined
+  act(() => {
+    submitted = result.current.handleSubmit({ preventDefault: vi.fn() } as never)
+  })
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' }))
+  await act(async () => submitted)
+  expect(mocks.showToast).toHaveBeenCalledWith('O B/L está cancelado: reative para editar.', 'error')
+})

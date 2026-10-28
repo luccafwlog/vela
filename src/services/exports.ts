@@ -27,6 +27,7 @@ import type { CeUnlockItem } from '../types/ceUnlock'
 import { ceStateLabel, ceUnlockZptText } from '../lib/ceUnlockLabels'
 import { ceUnlockDeadline, formatCeUnlockDeadline } from './ceUnlockSla'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
+import { describeChargeAdjustments } from '../lib/chargeAdjustmentSummary'
 
 function toSheet<T extends Record<string, unknown>>(
   XLSX: typeof import('@e965/xlsx'),
@@ -237,7 +238,8 @@ function appendFiltersSheet(XLSX: typeof import('@e965/xlsx'), workbook: import(
 export async function exportOperationalReportWorkbook(rows: OperationalReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
-    BL: row.id,
+    // Rótulos e datas da tela (ACE-D08).
+    'B/L': row.id,
     Modalidade: cargoModeLabel(row.cargo_mode),
     Armador: row.voyage?.vessel?.carrier?.name ?? '',
     Navio: row.voyage?.vessel?.name ?? '',
@@ -247,7 +249,7 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
     Containers: (row.bl_containers ?? []).length,
-    PesoKg: blTotalWeightKg(row),
+    'Peso (kg)': blTotalWeightKg(row),
     CBM: blTotalCbm(row),
     Revisão: reportReviewLabel(row.review_status),
     'Taxas locais': REPORT_LOCAL_CHARGES_STATE_LABELS[reportLocalChargesState(row.charge_status, row.financial_status, row.cancelled_at)],
@@ -263,12 +265,12 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
 export async function exportFinancialReportWorkbook(rows: FinancialReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
-    Invoice: row.invoice_number ?? `INV-${row.id}`,
+    Fatura: row.invoice_number ?? `INV-${row.id}`,
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
     Emissão: row.issued_at ? formatDate(row.issued_at) : '',
-    TotalBRL: Number(row.total_brl ?? 0),
-    SaldoBRL: Number(row.balance_brl ?? 0),
+    'Total (R$)': Number(row.total_brl ?? 0),
+    'Saldo (R$)': Number(row.balance_brl ?? 0),
     Situação: statusLabel(INVOICE_STATUS_LABELS, row.status, ''),
   }))
 
@@ -283,12 +285,12 @@ export async function exportCustomerReportWorkbook(rows: CustomerReportRow[], fi
   const exportRows = rows.map((row) => ({
     Cliente: row.name,
     CNPJ: row.cnpj_cpf,
-    BLs: row.blCount,
-    PesoTotalKg: row.totalWeightKg,
-    CBMTotal: row.totalCbm,
-    Invoices: row.invoiceCount,
-    TotalEmitidoBRL: row.totalIssued,
-    SaldoPendenteBRL: row.totalBalance,
+    'B/Ls': row.blCount,
+    'Peso (kg)': row.totalWeightKg,
+    CBM: row.totalCbm,
+    Faturas: row.invoiceCount,
+    'Emitido (R$)': row.totalIssued,
+    'Em aberto (R$)': row.totalBalance,
   }))
 
   const workbook = XLSX.utils.book_new()
@@ -300,15 +302,15 @@ export async function exportCustomerReportWorkbook(rows: CustomerReportRow[], fi
 export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListItem[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
-    Documento: row.doc_number ?? '',
-    BL: row.bl_id ?? '',
+    Invoice: row.doc_number ?? '',
+    'B/L': row.bl_id ?? '',
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
-    Emissao: row.doc_date ?? '',
-    Vencimento: row.due_date ?? '',
-    TotalUSD: Number(row.total_usd ?? 0),
-    TotalBRL: Number(row.current_total_brl ?? 0),
-    Status: statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, row.status, ''),
+    Emissão: row.doc_date ? formatDate(row.doc_date) : '',
+    Vencimento: row.due_date ? formatDate(row.due_date) : '',
+    'Total US$': Number(row.total_usd ?? 0),
+    'Total R$': Number(row.current_total_brl ?? 0),
+    Situação: statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, row.status, ''),
   }))
 
   const workbook = XLSX.utils.book_new()
@@ -623,6 +625,8 @@ export function buildValidacaoSheetRows(
       Subtotal: Number(Number(row.totals.total_brl ?? 0).toFixed(2)),
       // ADR 0038: o rateio por contêiner tem contraparte em outro B/L da Viagem.
       'Contêiner compartilhado': sharedContainers.get(row.id) ?? '',
+      // ADR 0111: "THD: R$ 1.420,00 → R$ 1.200,00 por container; Taxa X: excluída; Isento à mão".
+      'Taxas alteradas à mão': describeChargeAdjustments(row.adjustments),
       ...charges,
     }
   })

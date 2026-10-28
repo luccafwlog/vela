@@ -21,3 +21,17 @@ export function decideInternalTarget(facts: InternalTargetFacts): InternalTarget
   if (!facts.hasProfile) return NOT_FOUND
   return { ok: true }
 }
+
+// Conta com a marca Dev (ADR 0104): a senha e o e-mail só são trocados pela
+// própria pessoa. Outro Administrativo que redefinisse a senha poderia entrar
+// com ela e ligar a chave de envio (revisão da PR #1070, decisão do dono de
+// 2026-10-27). Desativar e trocar o setor continuam com o Administrativo:
+// nenhum dos dois liga a chave.
+export const DEV_CREDENTIALS_REFUSAL = 'A conta com a marca Dev só tem o e-mail e a senha trocados pela própria pessoa.'
+
+export function decideDevCredentialChange(facts: { targetIsDev: boolean; targetId: string; actorId: string }):
+  | { ok: true }
+  | { ok: false; status: 403; error: string } {
+  if (facts.targetIsDev && facts.targetId !== facts.actorId) return { ok: false, status: 403, error: DEV_CREDENTIALS_REFUSAL }
+  return { ok: true }
+}

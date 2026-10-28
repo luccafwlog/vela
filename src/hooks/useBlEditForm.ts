@@ -6,8 +6,10 @@ import { useToast } from '../components/ui/Toast'
 import { logOperationalEvent } from '../services/operationalEvents'
 import { supabase } from '../services/supabase'
 import { formatNcm } from '../lib/ncm'
+import { userFacingErrorMessage } from '../lib/errors'
 import type { BL, BLDetail, Json } from '../types/database'
 import { useAuth } from './useAuth'
+import { useChargeAdjustmentGuard } from './useChargeAdjustmentGuard'
 
 type BlDocumentFields = {
   place_of_receipt: string | null
@@ -17,6 +19,13 @@ type BlDocumentFields = {
   /** migration 358; array no banco, texto no formulário (ver makeForm) */
   ncm_codes: string[] | null
 }
+
+/**
+ * Campos da ficha que mudam a base das Taxas Locais (prévia da migration 495).
+ * No B/L de container sem peso solto, a taxa por tonelada usa o peso de
+ * contêiner (`total_weight_kg` ÷ 1000).
+ */
+const IMPACT_FIELDS = ['pod', 'bb_weight_ton', 'bb_cbm', 'bb_packages_qty', 'bb_machine_qty', 'total_weight_kg'] as const
 
 type EditableBl = BL & BlDocumentFields
 type JsonObject = { [key: string]: Json | undefined }
@@ -115,6 +124,7 @@ const INVALID_NUMERIC_VALUE = Symbol('INVALID_NUMERIC_VALUE')
 export function useBlEditForm(bl: BLDetail | undefined) {
   const queryClient = useQueryClient()
   const confirm = useConfirm()
+  const guardCharges = useChargeAdjustmentGuard()
   const { user } = useAuth()
   const { showToast } = useToast()
   const [form, setForm] = useState<BlForm | null>(null)
@@ -196,6 +206,15 @@ export function useBlEditForm(bl: BLDetail | undefined) {
     })
     if (!confirmed) return
 
+    // ADR 0111, D6: mudança de base que afeta taxa alterada à mão pede o
+    // **Gravar mesmo assim** antes da gravação.
+    const impactFields = changes.filter((field) => (IMPACT_FIELDS as readonly string[]).includes(field))
+    if (impactFields.length > 0) {
+      const bls = Object.fromEntries(impactFields.map((field) => [field, updatePayload[field] as string | number | null]))
+      const proceed = await guardCharges([{ bl_id: bl.id, bls }], async () => true)
+      if (!proceed) return
+    }
+
     setSaving(true)
     try {
       const { error: rpcError } = await supabase.rpc('save_bl_review', {
@@ -244,8 +263,9 @@ export function useBlEditForm(bl: BLDetail | undefined) {
     } catch (err) {
       // A causa vem do banco com frequência (constraint, trigger de modalidade).
       // Engolir a mensagem deixava o operador sem saber o que corrigir.
-      const detail = err instanceof Error ? err.message : ''
-      showToast(detail ? `Falha ao salvar alterações do B/L: ${detail}` : 'Falha ao salvar alterações do B/L.', 'error')
+      // O erro do PostgREST não é `Error`: sem o classificador, a recusa do
+      // banco (B/L cancelado, Cliente desativado) virava só a frase genérica.
+      showToast(userFacingErrorMessage(err, 'Falha ao salvar alterações do B/L.'), 'error')
     } finally {
       setSaving(false)
     }

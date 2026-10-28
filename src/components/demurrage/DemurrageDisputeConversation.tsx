@@ -11,6 +11,8 @@ import { portalErrorMessage } from '../../lib/portalErrorMessage'
 import { useAuth } from '../../hooks/useAuth'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canAnswerDemurrageDispute } from './demurrageFormRules'
+import { DisputeAttachmentLinks } from './DisputeAttachmentLinks'
+import { supabase } from '../../services/supabase'
 import { afterFaturaDemurrageAlterada } from '../../services/cacheEffects'
 import { addDemurrageDisputeMessage, listDemurrageDisputes, reopenDemurrageDispute, uploadDemurrageDisputeAttachment, type DemurrageDispute } from '../../services/demurrage/demurrageDisputes'
 
@@ -261,7 +263,7 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
                         </div>
                         <p className="app-dem-message__body">{message.body}</p>
                         {message.attachments?.length ? (
-                          <p className="app-dem-meta"><Paperclip size={12} aria-hidden="true" /> {message.attachments.map((attachment) => attachment.file_name).join(', ')}</p>
+                          <p className="app-dem-meta"><DisputeAttachmentLinks attachments={message.attachments} client={supabase} /></p>
                         ) : null}
                       </li>
                     ))}

@@ -19,6 +19,11 @@ export type PortalContactDraft = {
   boxCodes: string[]
   suppressionReason?: string | null
   sendable?: boolean
+  /**
+   * E-mail ao qual a supressão se refere, como veio do banco. Trocar o e-mail
+   * no rascunho libera o contato (D14 de 2026-10-27).
+   */
+  suppressedEmail?: string | null
 }
 
 export type PortalContactItem = {

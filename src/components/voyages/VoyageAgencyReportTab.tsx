@@ -49,6 +49,7 @@ import { normalizePortCode } from '../../services/portCode'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 const DEPARTMENTS: AgencyReportDepartmentKey[] = ['operacoes', 'documentacao', 'equipamentos']
 
@@ -332,6 +333,9 @@ function ContainerNatureTable({ rows }: { rows: Record<string, Record<string, nu
 
 export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods, initialEscala, reportId: initialReportId, terminalCode: initialTerminalCode, readOnly = false }: Props) {
   const { showToast } = useToast()
+  // 02-viagens-adr:7: resolução, observação, assinatura e reabertura recusadas
+  // aparecem para quem tentou, com o motivo do banco (ADR fechado, outro setor).
+  const showRefusal = (error: unknown) => showToast(userFacingErrorMessage(error, 'Não foi possível salvar no ADR. Atualize a aba e tente de novo.'), 'error')
   const confirm = useConfirm()
   const initialPortCode = normalizePortCode(initialEscala)
   const initialPort = initialPortCode && pods.some((entry) => normalizePortCode(entry.pod) === initialPortCode) ? initialPortCode : (normalizePortCode(pods[0]?.pod) ?? null)
@@ -570,10 +574,10 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   }
   const canSignoff = (section: AgencyReportSection) => !readOnly && (isAdmin || effectiveRole === AGENCY_REPORT_SECTIONS[section])
   const updateSignoff = (section: AgencyReportSection, state: SignoffState, justification?: string) => {
-    if (!readOnly && port) signoffMutation.mutate({ voyageId, port, section, state, justification })
+    if (!readOnly && port) signoffMutation.mutate({ voyageId, port, section, state, justification }, { onError: showRefusal })
   }
   const updateObservation = (section: AgencyReportSection, observation: string) => {
-    if (!readOnly && port) observationMutation.mutate({ voyageId, port, section, observation })
+    if (!readOnly && port) observationMutation.mutate({ voyageId, port, section, observation }, { onError: showRefusal })
   }
   const eventsBySection = (section: AgencyReportSection) => (signoffEvents ?? []).filter((event) => event.section === section)
 
@@ -591,7 +595,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   }
   const canSignDepartment = (department: AgencyReportDepartmentKey) => !readOnly && (isAdmin || effectiveRole === department)
   const updateDepartmentSignoff = (department: AgencyReportDepartmentKey, signed: boolean, justification?: string) => {
-    if (!readOnly && port) departmentSignoffMutation.mutate({ voyageId, port, department, signed, justification })
+    if (!readOnly && port) departmentSignoffMutation.mutate({ voyageId, port, department, signed, justification }, { onError: showRefusal })
   }
   async function saveTerminal() {
     if (readOnly || !port) return
@@ -609,7 +613,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     if (!confirmed) return
     terminalMutation.mutate({ voyageId, port, terminal: after }, {
       onSuccess: () => showToast('Terminal do ADR salvo.', 'success'),
-      onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao salvar o terminal do ADR.', 'error'),
+      onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao salvar o terminal do ADR.'), 'error'),
     })
   }
   const signedDepartmentsCount = DEPARTMENTS.filter(isDepartmentSigned).length
@@ -817,7 +821,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             closedByName={ownData?.closed_by_name ?? ownData?.closed_by ?? null}
           />
           <Modal open={printOpen} title="Relatório de Saída do Navio (ADR)" onClose={() => setPrintOpen(false)}><div className="flex justify-end pb-3"><Button variant="secondary" onClick={printClosedReport}>Imprimir</Button></div><AgencyReportDocument snapshot={closedSnapshot} actorNames={actorNames} /></Modal>
-          <Modal open={reopenOpen} title="Reabrir ADR" onClose={() => setReopenOpen(false)}><label className="grid gap-2">Justificativa<textarea value={reopenJustification} onChange={(event) => setReopenJustification(event.target.value)} className="min-h-24 rounded border border-[var(--app-border)] bg-transparent p-2" /></label><Button variant="danger" className="mt-3" disabled={readOnly || !reopenJustification.trim() || reopenMutation.isPending} onClick={() => { if (!readOnly && port) reopenMutation.mutate({ voyageId, port, justification: reopenJustification.trim() }, { onSuccess: () => { setReopenOpen(false); setReopenJustification('') } }) }}>Confirmar reabertura</Button></Modal>
+          <Modal open={reopenOpen} title="Reabrir ADR" onClose={() => setReopenOpen(false)}><label className="grid gap-2">Justificativa<textarea value={reopenJustification} onChange={(event) => setReopenJustification(event.target.value)} className="min-h-24 rounded border border-[var(--app-border)] bg-transparent p-2" /></label><Button variant="danger" className="mt-3" disabled={readOnly || !reopenJustification.trim() || reopenMutation.isPending} onClick={() => { if (!readOnly && port) reopenMutation.mutate({ voyageId, port, justification: reopenJustification.trim() }, { onSuccess: () => { setReopenOpen(false); setReopenJustification('') }, onError: showRefusal }) }}>Confirmar reabertura</Button></Modal>
         </> : <>
           <Block
             title="ADR"
@@ -842,7 +846,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
           </Block>
           <Modal open={closeConfirmOpen} title="Confirmar fechamento do ADR" onClose={() => setCloseConfirmOpen(false)}>
             <p className="text-sm text-[var(--app-text)]">Fechar o ADR de <strong>{voyageLabel}</strong> em <strong>{port ?? 'esta escala'}</strong> congela o retrato atual e libera a impressão.</p>
-            <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setCloseConfirmOpen(false)}>Voltar</Button><Button variant="primary" loading={closeMutation.isPending} disabled={readOnly} onClick={() => { if (!readOnly && port) closeMutation.mutate({ voyageId, port, snapshot: snapshot as unknown as Json }, { onSuccess: () => setCloseConfirmOpen(false), onError: () => showToast('Falha ao fechar o ADR. Tente novamente.', 'error') }) }}>Confirmar fechamento</Button></div>
+            <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setCloseConfirmOpen(false)}>Voltar</Button><Button variant="primary" loading={closeMutation.isPending} disabled={readOnly} onClick={() => { if (!readOnly && port) closeMutation.mutate({ voyageId, port, snapshot: snapshot as unknown as Json }, { onSuccess: () => setCloseConfirmOpen(false), onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao fechar o ADR. Tente novamente.'), 'error') }) }}>Confirmar fechamento</Button></div>
           </Modal>
 
           <Block title="Operações" aside={departmentAside('operacoes', 'Operações')}>

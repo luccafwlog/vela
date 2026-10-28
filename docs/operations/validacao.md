@@ -541,9 +541,10 @@ viagem segue [Saída da Programação](../modules/chegadas-saidas.md#saída-da-p
 - `/admin/usuarios`: crie um usuário de QA (**Novo usuário**), troque e-mail e
   senha (**Editar acesso**), troque o setor (**Alterar setor**) e confirme que
   **Desativar** derruba a sessão aberta dele ([regras](../modules/operacao-suporte.md#admin));
-- `/alertas`: dispense um alerta com motivo e data futura de revisão e confira
-  que volta à fila nessa data; corrija a origem de outro e confira que ele
-  fecha sozinho ([regras](../modules/operacao-suporte.md#ciclo-de-vida-do-alerta));
+- `/alertas`: confira que não há Dispensar; corrija a origem de um alerta e
+  confira que ele fecha sozinho e sai do sino de quem o recebeu; confira que
+  cada setor recebe no sino só os alertas do próprio setor (o Financeiro
+  também os quatro do dinheiro) ([regras](../modules/operacao-suporte.md#ciclo-de-vida-do-alerta));
 - `/relatorios`: testar abas e arquivos exportados;
 - `/line-up-tv/display`: validar legibilidade e atualização; `/line-up-tv`
   mostra "Página não encontrada";
@@ -554,8 +555,8 @@ viagem segue [Saída da Programação](../modules/chegadas-saidas.md#saída-da-p
 Regras em [Clientes § Comunicados ao Cliente](../modules/clientes.md#comunicados-ao-cliente),
 [Régua automática de Comunicados](../modules/clientes.md#régua-automática-de-comunicados)
 e [Demurrage § Régua de Cobrança](../modules/demurrage.md#régua-de-cobrança).
-Valide com a chave de envio desligada (modo de simulação), que registra o
-Comunicado como `simulado` sem chamar o provedor de e-mail
+Valide com a chave de envio desligada, que envia o Comunicado ao suporte
+(`suporte@portalfwlog.com.br`) e o registra como `simulado`
 ([Chave de envio](../modules/clientes.md#chave-de-envio-de-comunicados)):
 
 1. em `/clientes/comunicacao`, monte um disparo manual por carga (NOA, NOR,

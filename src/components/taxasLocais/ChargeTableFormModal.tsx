@@ -46,6 +46,7 @@ export function ChargeTableFormModal({
   open,
   table,
   tables,
+  tableInUse = false,
   onClose,
   onSave,
 }: {
@@ -53,6 +54,8 @@ export function ChargeTableFormModal({
   /** Tabela em edição; `null` cadastra uma nova. */
   table: ChargeTable | null
   tables: ChargeTable[]
+  /** Tabela já usada (vínculo, cálculo ou fatura): POD e modo de carga ficam travados (TAX-D13). */
+  tableInUse?: boolean
   onClose: () => void
   onSave: (input: ChargeTableInput) => Promise<void>
 }) {
@@ -66,6 +69,9 @@ export function ChargeTableFormModal({
   const changes = useMemo(() => (table ? tableChanges(table, form) : []), [table, form])
   const preview = useMemo(() => previewTableState(form, tables), [form, tables])
   const pods = useMemo(() => podOptions(tables), [tables])
+  const scopeLocked = isEdit && tableInUse
+  // Granito não tem Taxa Local (TAX-D04); a tabela antiga de Granito ainda mostra o próprio modo.
+  const modeOptions = CARGO_MODE_OPTIONS.filter((option) => option.value !== 'granito' || table?.cargo_mode === 'granito')
 
   function update<K extends keyof ChargeTableForm>(key: K, value: ChargeTableForm[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -120,8 +126,8 @@ export function ChargeTableFormModal({
             </Field>
           </div>
           <Field label="Modo de carga" required>
-            <Select value={form.cargoMode} onChange={(event) => update('cargoMode', event.target.value as ChargeTableForm['cargoMode'])}>
-              {CARGO_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            <Select value={form.cargoMode} disabled={scopeLocked} onChange={(event) => update('cargoMode', event.target.value as ChargeTableForm['cargoMode'])}>
+              {modeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </Select>
           </Field>
           <Field label="POD" required error={errors.pod} hint="Porto de descarga, em LOCODE (ex.: BRVIX). Grafias do mesmo porto (BRVIT, VITORIA) caem no mesmo escopo.">
@@ -129,6 +135,7 @@ export function ChargeTableFormModal({
               value={form.pod}
               onChange={(event) => update('pod', event.target.value.toUpperCase())}
               list={podListId}
+              disabled={scopeLocked}
               autoComplete="off"
               maxLength={12}
               className="app-rates-code"
@@ -143,6 +150,11 @@ export function ChargeTableFormModal({
           <Field label="Vigência final" error={errors.validTo}>
             <Input type="date" value={form.validTo} onChange={(event) => update('validTo', event.target.value)} />
           </Field>
+          {scopeLocked ? (
+            <p className="app-rates-form__wide app-rates-help">
+              Tabela já usada por B/L: POD e modo de carga não mudam, para não tirar o preço dos B/Ls já calculados. Para outro POD ou modo, cadastre uma tabela nova.
+            </p>
+          ) : null}
           <p className="app-rates-form__wide app-rates-help">
             A vigência é informativa (ADR 0040): não liga nem desliga a tabela. Vale no cálculo a tabela ativa do modo de carga e POD; entre duas ativas, a de vigência inicial mais recente.
           </p>

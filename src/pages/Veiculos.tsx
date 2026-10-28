@@ -33,7 +33,7 @@ import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { STALE_PAGE_CLASS } from '../lib/pagination'
 import { UNPACKING_LOCATION_NONE, cacheUnpackingLocation, useVehicleOptions, useVehicles, useVoyageVehicleDeclaration, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
-import { declareVoyageWithoutVehicles, deleteVehicles, undoVoyageVehicleDeclaration } from '../services/vehicles'
+import { declareVoyageWithoutVehicles, deleteVehicles, undoVoyageVehicleDeclaration, vehicleChargeImpactChanges } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -43,6 +43,7 @@ import { listVoyageEscalaSchedulesByVoyageIds } from '../services/voyageRouteSch
 import { buildVoyageRailItems, type VoyageRailModuleStats } from '../services/voyageSummaries'
 import { VoyageRail } from '../components/voyages/VoyageRail'
 import { isMissingLabel } from './veiculosPresentation'
+import { useChargeAdjustmentGuard } from '../hooks/useChargeAdjustmentGuard'
 import { formatDateTime, voyageLabel } from '../lib/utils'
 
 type DesovaScope = 'selected' | 'all' | 'missing'
@@ -69,6 +70,9 @@ export function Veiculos() {
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
   const confirm = useConfirm()
+  // ADR 0111, D6: a prévia da taxa alterada agrupa os veículos selecionados,
+  // de todas as páginas, pelo B/L de origem (`vehicleChargeImpactChanges`).
+  const guardCharges = useChargeAdjustmentGuard()
   const { user, profile } = useAuth()
   const narrow = useNarrowViewport()
   const canEditVehicles = Boolean(profile || user)
@@ -325,6 +329,7 @@ export function Veiculos() {
       tone: 'danger',
     })
     if (reason === null) return
+    if (!(await guardCharges(() => vehicleChargeImpactChanges(ids), async () => true))) return
 
     setDeleting(true)
     try {
@@ -635,6 +640,7 @@ export function Veiculos() {
       <MoveVehiclesModal
         open={moveOpen}
         vehicleIds={[...selection.selected]}
+        impactChanges={(target) => vehicleChargeImpactChanges([...selection.selected], target)}
         onClose={() => setMoveOpen(false)}
         onMoved={async () => { selection.clear(); await afterCargaAlterada(queryClient) }}
       />

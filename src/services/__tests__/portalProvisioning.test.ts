@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { assistedPortalEmailChange, comparePriority, effectiveSituation, listPortalProvisioningQueue, sendPortalInvite, type QueueRow } from '../portalProvisioning'
+import { assistedPortalEmailChange, comparePriority, effectiveSituation, listPortalProvisioningQueue, sendPortalInvite, suspendPortalAccount, type QueueRow } from '../portalProvisioning'
 
 const rpc = vi.hoisted(() => vi.fn())
 const invoke = vi.hoisted(() => vi.fn())
@@ -91,6 +91,16 @@ describe('sendPortalInvite', () => {
     })
   })
 
+  it('POR-D01: mostra o motivo da recusa do servidor, e o 403 em português', async () => {
+    const refusal = (status: number, body: unknown) => ({ data: null, error: Object.assign(new Error('Edge Function returned a non-2xx status code'), { context: new Response(JSON.stringify(body), { status }) }) })
+    invoke.mockResolvedValueOnce(refusal(422, { error: 'Endereço suprimido por bounce/complaint. Informe outro.' }))
+    await expect(sendPortalInvite(7, 'compras@example.com')).rejects.toThrow('Endereço suprimido por bounce/complaint. Informe outro.')
+    invoke.mockResolvedValueOnce(refusal(409, { error: 'Conta ativa usa recuperação de senha.' }))
+    await expect(sendPortalInvite(7, 'compras@example.com')).rejects.toThrow('Conta ativa usa recuperação de senha.')
+    invoke.mockResolvedValueOnce(refusal(403, { error: 'permission denied' }))
+    await expect(sendPortalInvite(7, 'compras@example.com')).rejects.toThrow('O convite do Portal é enviado pela Documentação ou pelo Administrativo.')
+  })
+
   it('surfaces a provider failure returned as HTTP 200 instead of reporting success', async () => {
     invoke.mockResolvedValueOnce({ data: { situation: 'falha_no_envio' }, error: null })
 
@@ -101,6 +111,14 @@ describe('sendPortalInvite', () => {
     invoke.mockResolvedValueOnce({ data: null, error: null })
 
     await expect(sendPortalInvite(7, 'cliente@example.com')).rejects.toThrow('Não foi possível confirmar o resultado')
+  })
+})
+
+describe('suspendPortalAccount', () => {
+  it('POR-D01: mostra o motivo da recusa do servidor ao suspender', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: Object.assign(new Error('Edge Function returned a non-2xx status code'), { context: new Response(JSON.stringify({ error: 'A conta não está numa situação que permita esta ação.' }), { status: 409 }) }) })
+    await expect(suspendPortalAccount(7, 'suspend', 'pedido do cliente')).rejects.toThrow('A conta não está numa situação que permita esta ação.')
+    expect(invoke).toHaveBeenLastCalledWith('portal-account-suspend', { body: { customer_id: 7, action: 'suspend', reason: 'pedido do cliente' } })
   })
 })
 

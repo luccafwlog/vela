@@ -4,6 +4,7 @@ import { fetchCustomerBls, fetchCustomerInvoices, fetchCustomerDemurrageInvoices
 import type { CustomerContact } from '../types/database'
 import { listCustomerContainers } from '../services/demurrage/customerContainers'
 import { fetchCustomerCadastroChanges } from '../services/customerCadastroChanges'
+import { listBlChargeAdjustmentSummaries } from '../services/charges/chargeOperationsService'
 
 function useFichaQuery<T>(customerId: number | null, key: readonly unknown[], queryFn: () => Promise<T>, enabled = customerId != null) {
   return useQuery({ queryKey: key, enabled, queryFn })
@@ -13,6 +14,8 @@ export function useCustomerReceivables(customerId: number | null) { return useFi
 export function useCustomerPayments(customerId: number | null) { return useFichaQuery(customerId, queryKeys.customerFicha.payments(customerId ?? 0), () => fetchCustomerPayments(customerId!)) }
 export function useCustomerRateOverrides(customerId: number | null) { return useFichaQuery(customerId, queryKeys.customerFicha.rateOverrides(customerId ?? 0), () => fetchCustomerRateOverrides(customerId!)) }
 export function useCustomerManualChargeBls(customerId: number | null) { return useFichaQuery(customerId, queryKeys.customerFicha.manualChargeBls(customerId ?? 0), () => fetchCustomerManualChargeBls(customerId!)) }
+/** ADR 0111: B/Ls do Cliente com taxa alterada, excluída ou isenta à mão. */
+export function useCustomerAdjustedChargeBls(customerId: number | null) { return useFichaQuery(customerId, queryKeys.customerFicha.adjustedChargeBls(customerId ?? 0), () => listBlChargeAdjustmentSummaries({ customerId: customerId! })) }
 export function useCustomerPendingReconciliation(customerId: number | null) { return useFichaQuery(customerId, queryKeys.customerFicha.pendingReconciliation(customerId ?? 0), () => fetchCustomerPendingReconciliation(customerId!)) }
 export function useCustomerRunningDemurrage(customerId: number | null) { return useFichaQuery(customerId, queryKeys.customerFicha.runningDemurrage(customerId ?? 0), () => fetchCustomerRunningDemurrage(customerId!)) }
 export function useCustomerBls(customerId: number | null) { return useFichaQuery(customerId, queryKeys.customerFicha.bls(customerId ?? 0), () => fetchCustomerBls(customerId!)) }

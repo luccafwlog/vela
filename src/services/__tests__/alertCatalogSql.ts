@@ -43,6 +43,7 @@ const CATALOG_MIGRATIONS = [
   '358_baixa_itau_nao_para_em_silencio.sql',
   '396_ce_e_manifesto_mercante.sql',
   '468_alerta_planilha_de_veiculos.sql',
+  '495_eventos_da_taxa_alterada.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto
@@ -63,6 +64,15 @@ const CATALOG_UPDATE_MIGRATIONS = [
   '247_baixa_restituicao_desconto_e_conciliacao_por_perfil.sql',
   '467_fatura_desatualizada_critica.sql',
 ]
+
+// Migration que refaz a audiência de todos os tipos de uma vez (sino só do
+// setor responsável, com a exceção do Financeiro).
+const AUDIENCE_RESET_MIGRATION = '476_alertas_e_sino_decididos_pelo_dono.sql'
+
+// Migrations posteriores ao reset que acrescentam setores avisados a tipos
+// listados (`SET audience_departments = ARRAY[...] WHERE type IN (...)`).
+const AUDIENCE_EXCEPTION_MIGRATIONS = ['485_alertas_ajustes_da_revisao.sql']
+const AUDIENCE_IN_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\]\s+WHERE\s+type\s+IN\s*\(([^)]*)\)/gi
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
 
@@ -118,6 +128,27 @@ export function readSqlAlertCatalog(): SqlAlertCatalogEntry[] {
     for (const match of retired.matchAll(/'([a-z0-9_]+)'/g)) {
       const entry = entries.get(match[1])
       if (entry) entry.active = false
+    }
+  }
+
+  // Migration 476 (ADR 0107): a audiência passa a ser o setor responsável e,
+  // nos tipos que já avisavam o Financeiro, também o Financeiro.
+  if (readMigration(AUDIENCE_RESET_MIGRATION).includes('SET audience_departments = ARRAY[responsible_department]')) {
+    for (const entry of entries.values()) {
+      const keepsFinanceiro = entry.audienceDepartments.includes('financeiro') && entry.responsibleDepartment !== 'financeiro'
+      entry.audienceDepartments = [entry.responsibleDepartment, ...(keepsFinanceiro ? ['financeiro'] : [])]
+    }
+  }
+
+  // Migration 485 (decisão do dono): os quatro críticos da Documentação
+  // avisam também o Administrativo.
+  for (const fileName of AUDIENCE_EXCEPTION_MIGRATIONS) {
+    for (const match of readMigration(fileName).matchAll(AUDIENCE_IN_PATTERN)) {
+      const audience = Array.from(match[1].matchAll(/'([a-z_]+)'/g), (item) => item[1])
+      for (const type of match[2].matchAll(/'([a-z0-9_]+)'/g)) {
+        const entry = entries.get(type[1])
+        if (entry) entry.audienceDepartments = audience
+      }
     }
   }
 

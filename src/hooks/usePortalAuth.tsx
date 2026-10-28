@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/react'
 import { supabasePortal } from '../services/supabase'
 import { signOutSupabaseClient } from '../services/supabaseAuth'
 import { canonicalizeDocument } from '../lib/cnpj'
+import { isPortalTurnstileRejection } from '../lib/portalTurnstileError'
 import { setTelemetrySessionEnded } from '../lib/telemetry'
 import type { PortalSessionOverview } from '../services/portalBilling'
 
@@ -52,6 +53,17 @@ function setPortalTelemetryUser() {
   Sentry.setUser(null)
   Sentry.setTag('area', 'portal')
   setTelemetrySessionEnded(false)
+}
+
+/**
+ * Recusa do login com o motivo que a tela sabe mostrar (POR-D07): verificação de
+ * segurança (403) e falha de rede passam adiante; o resto, inclusive o bloqueio
+ * por tentativas, é a mensagem única de credencial (ADR 0049).
+ */
+function portalLoginFailure(error: unknown): Error {
+  if (isPortalTurnstileRejection(error)) return Object.assign(new Error('Verificação de segurança recusada.'), { code: 'TURNSTILE_REJECTED' })
+  if ((error as { name?: unknown } | null)?.name === 'FunctionsFetchError') return Object.assign(new TypeError('Failed to fetch'), { cause: error })
+  return new Error('CNPJ ou senha inválidos.')
 }
 
 export function PortalAuthProvider({ children }: PropsWithChildren) {
@@ -153,7 +165,8 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
       const payload: Record<string, unknown> = { cnpj: normalized, password }
       if (turnstileToken) payload.turnstile_token = turnstileToken
       const { data, error } = await supabasePortal.functions.invoke('portal-login', { body: payload })
-      if (error || !data?.access_token) throw new Error('CNPJ ou senha inválidos.')
+      if (error) throw portalLoginFailure(error)
+      if (!data?.access_token) throw new Error('CNPJ ou senha inválidos.')
       const { data: sessionData, error: sessionError } = await supabasePortal.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
       if (sessionError) throw new Error('CNPJ ou senha inválidos.')
       sessionUserIdRef.current = sessionData?.session?.user?.id ?? sessionUserIdRef.current

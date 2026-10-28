@@ -104,7 +104,7 @@ async function processRow(deps: NotifyDeps, row: OutboxRow, simulate: boolean, d
   }
   const suppressedNote = suppressed ? `${suppressed} contato(s) suprimido(s) não recebeu(ram)` : undefined
   if (simulate) {
-    await deps.finish(row.id, 'simulated', [...done], suppressedNote ?? 'Canal de envio real desligado; envio simulado')
+    await deps.finish(row.id, 'simulated', [...done], suppressedNote ?? 'Chave de envio desligada; aviso redirecionado ao suporte')
     return 'simulated'
   }
   if (suppressed) {

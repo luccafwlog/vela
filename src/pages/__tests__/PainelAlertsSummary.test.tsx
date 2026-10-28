@@ -59,9 +59,11 @@ describe('Painel — alertas por setor', () => {
   it('mostra um cartão por setor, inclusive o Administrativo (achado A1)', () => {
     renderPainel()
 
-    expect(screen.getByRole('button', { name: /Documentação\s*5 alertas\s*2 dispensados/ })).toBeTruthy()
+    // Sem dispensa (migration 476): o cartão não conta dispensados.
+    expect(screen.getByRole('button', { name: /Documentação\s*5 alertas/ })).toBeTruthy()
+    expect(screen.queryByText(/dispensad/)).toBeNull()
     expect(screen.getByRole('button', { name: /Equipamentos\s*3 alertas/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Operações\s*Nenhum\s*1 dispensado/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Operações\s*Nenhum/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Administrativo\s*2 alertas/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Sem setor\s*1 alerta\s*anteriores aos setores/ })).toBeTruthy()
   })

@@ -1,10 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import {
   createAlert,
-  dismissAlertItem,
   FINANCIAL_ALERT_EVENTS,
   FINANCIAL_ALERT_TYPES,
   alertEntityLink,
+  alertRecord,
+  canResolveWithJustification,
   alertEntityLinkLabel,
   getEffectiveAlertType,
   getAlertTypeLabel,
@@ -16,17 +17,6 @@ const { rpcMock } = vi.hoisted(() => ({ rpcMock: vi.fn() }))
 vi.mock('../supabase', () => ({ supabase: { rpc: rpcMock } }))
 
 beforeEach(() => { rpcMock.mockReset() })
-
-it('envia dispensa temporária ao RPC central com motivo e revisão futura', async () => {
-  rpcMock.mockResolvedValue({ data: { id: 12 }, error: null })
-
-  await expect(dismissAlertItem(12, 'aguardar retorno do armador', '2026-08-22T12:00:00Z')).resolves.toBeUndefined()
-  expect(rpcMock).toHaveBeenCalledWith('dismiss_alert_item', {
-    p_item_id: 12,
-    p_reason: 'aguardar retorno do armador',
-    p_review_at: '2026-08-22T12:00:00Z',
-  })
-})
 
 it('busca cada entidade financeira, deduplica, ordena e exclui Granito/Portal/Demurrage', async () => {
   const rowsByEntityType = {
@@ -125,7 +115,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
       units: ['exchange_rate_reference'],
     },
     pix_unreconciled: {
-      audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'],
+      audience: ['administrativo', 'financeiro'],
       units: ['pix_transaction', 'itau_pix_receipt'],
     },
     portal_dispute_opened: {
@@ -247,4 +237,23 @@ it('usa item_type legado para filtrar um alerta financeiro na fila', async () =>
 it('alerta de Invoice de Demurrage abre a Invoice direto no detalhe', () => {
   expect(alertEntityLink({ type: 'demurrage_invoice_dates_changed', entity_type: 'demurrage_invoice', entity_id: '41' })).toBe('/demurrage?fatura=41')
   expect(alertEntityLink({ type: 'demurrage_invoice_dates_changed', entity_type: 'demurrage_invoice', entity_id: 'abc' })).toBe('/demurrage')
+})
+
+it('ALE-D05: alertas de registro técnico levam à tela que a Regra cita, com o nome legível', () => {
+  const link = (type: string, entity_type: string, entity_id: string) => alertEntityLink({ type, entity_type, entity_id, destination: null })
+  expect(link('usuario_email_devolvido', 'user_profile', 'u-1')).toBe('/admin/usuarios')
+  expect(link('billing_charge_table_missing', 'charge_table_gap', 'BRVIX::CNTR')).toBe('/taxas-locais/tabelas')
+  expect(link('itau_pix_consulta_parada', 'itau_pix_checkpoint', 'itau_pix_polled_until')).toBe('/reconciliacao?tab=pendencias')
+  expect(link('demurrage_ptax_recalc_failed', 'exchange_rate_reference', 'itau-pix-14h')).toBe('/demurrage')
+  expect(link('calendario_feriados_pendente', 'business_holidays', 'itau-pix-calendar')).toBe('/demurrage')
+  expect(alertRecord({ entity_type: 'itau_pix_checkpoint', entity_id: 'itau_pix_polled_until' })?.label).toBe('Consulta de Pix do Itaú')
+  expect(alertRecord({ entity_type: 'business_holidays', entity_id: 'itau-pix-calendar' })?.label).toBe('Feriados do próximo ano')
+  expect(alertRecord({ entity_type: 'user_profile', entity_id: 'u-1' }, { 'user_profile:u-1': 'Ana Souza' })?.label).toBe('Ana Souza')
+})
+
+it('ponto 3 do dono: os tipos de origem externa resolvem com justificativa (migration 476)', () => {
+  for (const type of ['itau_pix_consulta_parada', 'email_retorno_provedor_silencioso', 'rotina_http_falhou', 'import_effects_queue_stalled']) {
+    expect(canResolveWithJustification(type)).toBe(true)
+  }
+  expect(canResolveWithJustification('voyage_ce_mercante_missing')).toBe(false)
 })

@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { recipientKey, sendEmail } from '../../../supabase/functions/_shared/email.ts'
+import { REDIRECT_TO_SUPPORT_ADDRESS, recipientKey, sendEmail } from '../../../supabase/functions/_shared/email.ts'
 
 const baseInput = {
   kind: 'convite',
@@ -21,11 +23,35 @@ afterEach(() => {
 })
 
 describe('sendEmail', () => {
-  it('registra simulação explícita sem chamar o provedor, mesmo com credencial presente', async () => {
+  it('com a chave desligada envia ao suporte, com o e-mail do Cliente no assunto e no topo', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'provider-9' }), { status: 200 }))
+    const updateAttempt = vi.fn()
+    const checkSuppression = vi.fn(async () => ({ suppressed: false }))
+    const result = await sendEmail({
+      ...baseInput, simulate: true, checkSuppression,
+      recordAttempt: async () => ({ id: 42, status: 'aceito' }),
+      updateAttempt, fetchImpl: fetchMock,
+    })
+    expect(result).toEqual({ ok: true })
+    // A supressão conferida é a do Cliente, como no envio real.
+    expect(checkSuppression).toHaveBeenCalledWith('cliente@example.com')
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.to).toEqual([REDIRECT_TO_SUPPORT_ADDRESS])
+    expect(body.subject).toBe('[Teste → cliente@example.com] Assunto')
+    expect(body.html).toContain('Destinatário original: cliente@example.com')
+    expect(body.html).toContain('<p>Mensagem</p>')
+    expect(body.text).toMatch(/^E-mail de teste redirecionado ao suporte\. Destinatário original: cliente@example\.com\n\nMensagem$/)
+    // O id ganha prefixo: o webhook não liga entrega ou bounce do suporte ao contato do Cliente.
+    expect(updateAttempt).toHaveBeenCalledWith(42, {
+      providerMessageId: 'suporte:provider-9', retryCount: 0, status: 'aceito', lastError: undefined,
+    })
+  })
+
+  it('com a chave desligada e sem credencial do provedor só registra a tentativa', async () => {
     const fetchMock = vi.fn()
     const updateAttempt = vi.fn()
     const result = await sendEmail({
-      ...baseInput, simulate: true, from: null, replyTo: null,
+      ...baseInput, simulate: true, resendApiKey: null, from: null, replyTo: null,
       recordAttempt: async () => ({ id: 42, status: 'aceito' }),
       updateAttempt, fetchImpl: fetchMock,
     })
@@ -34,6 +60,33 @@ describe('sendEmail', () => {
     expect(updateAttempt).toHaveBeenCalledWith(42, {
       providerMessageId: null, retryCount: 0, status: 'aceito', lastError: undefined,
     })
+  })
+
+  it('envio redirecionado já aceito não volta ao suporte na rodada seguinte', async () => {
+    const fetchMock = vi.fn()
+    expect(await sendEmail({ ...baseInput, simulate: true, fetchImpl: fetchMock,
+      recordAttempt: async () => ({ id: 42, status: 'aceito', existing: true, providerMessageId: 'suporte:provider-9' }),
+    })).toEqual({ ok: true })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('a tela anuncia o mesmo endereço do suporte para onde o servidor redireciona', () => {
+    const front = readFileSync(resolve(process.cwd(), 'src/services/customerCommunications.ts'), 'utf8')
+    expect(front).toContain(`export const SUPPORT_REDIRECT_ADDRESS = '${REDIRECT_TO_SUPPORT_ADDRESS}'`)
+  })
+
+  it('supressão do endereço do suporte no provedor não grava supressão do Cliente nem vira falha definitiva dele', async () => {
+    const recordProviderSuppression = vi.fn()
+    const updateAttempt = vi.fn()
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'all_recipients_suppressed' }), { status: 422 }))
+    expect(await sendEmail({ ...baseInput, simulate: true, fetchImpl: fetchMock, recordProviderSuppression, updateAttempt,
+      recordAttempt: async () => ({ id: 42, status: 'aceito' }),
+    })).toEqual({ ok: false })
+    expect(recordProviderSuppression).not.toHaveBeenCalled()
+    expect(updateAttempt).toHaveBeenCalledWith(42, expect.objectContaining({
+      status: 'falha_transitoria',
+      lastError: expect.stringMatching(/suporte suprimido no provedor/),
+    }))
   })
 
   it('mantém supressão mesmo em simulação explícita', async () => {

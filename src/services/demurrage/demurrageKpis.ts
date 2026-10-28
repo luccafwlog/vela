@@ -95,18 +95,19 @@ export type DemurrageKPIs = {
 }
 
 /**
- * Data (event_date) do último recálculo registrado em demurrage_invoice_history,
- * ou null se não houver histórico. Usada pelo banner de staleness em /demurrage.
+ * Dia da cotação da última PTAX aplicada pelo recálculo (automático ou
+ * Informar PTAX), ou null sem nenhuma. Usada pelo banner de staleness em
+ * /demurrage. Desconto e baixa também gravam no histórico das Invoices; por
+ * isso a data vem da referência cambial, que só o recálculo grava (DEM-D05).
  */
 export async function fetchLatestRecalcDate(): Promise<string | null> {
   const { data, error } = await supabase
-    .from('demurrage_invoice_history')
-    .select('event_date')
-    .order('event_date', { ascending: false })
-    .limit(1)
+    .from('exchange_rate_reference')
+    .select('quote_date')
+    .eq('id', 1)
     .maybeSingle()
   if (error) throw error
-  return data?.event_date ?? null
+  return data?.quote_date ?? null
 }
 
 /**

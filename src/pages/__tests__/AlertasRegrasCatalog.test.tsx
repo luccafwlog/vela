@@ -31,7 +31,8 @@ describe('Regras de Alertas', () => {
       expect(rule.resolution).toBeTruthy()
       expect(rule.destination.startsWith('/')).toBe(true)
       expect(rule.notifiedDepartments.length).toBeGreaterThan(0)
-      expect(rule.dismissal).toContain('motivo obrigatório')
+      // A dispensa saiu na migration 476 (ADR 0108): a regra não fala dela.
+      expect(JSON.stringify(rule)).not.toMatch(/dispens/i)
     }
   })
 
@@ -82,18 +83,20 @@ describe('Regras de Alertas', () => {
     expect(pending.trigger).toContain('Veículos')
   })
 
-  it('documenta os alertas que chegam a mais de um setor', () => {
+  it('sino só do setor responsável, com o Financeiro avisado nos tipos da exceção (migrations 476 e 495)', () => {
     const pix = ALERT_RULES.find((rule) => rule.type === 'pix_unreconciled')!
     const schedule = ALERT_RULES.find((rule) => rule.type === 'voyage_schedule_date_pending')!
     const terminal = ALERT_RULES.find((rule) => rule.type === 'voyage_terminal_date_pending')!
+    const portal = ALERT_RULES.find((rule) => rule.type === 'review_portal_not_ready')!
 
-    // Migration 247: Financeiro e Administrativo tratam (conciliar é deles);
-    // Documentação e Equipamentos continuam avisados.
-    expect(pix.responsibleDepartments).toEqual(['financeiro', 'administrativo'])
-    expect(pix.notifiedDepartments).toEqual(['documentacao', 'equipamentos', 'financeiro', 'administrativo'])
-    expect(schedule.notifiedDepartments).toEqual(['documentacao', 'operacoes'])
-    expect(terminal.notifiedDepartments).toEqual(['documentacao', 'operacoes'])
-    expect(schedule.responsibleDepartments).toEqual(['operacoes'])
+    // ALE-D03: um setor responsável; o Financeiro só é avisado.
+    expect(pix.responsibleDepartments).toEqual(['administrativo'])
+    expect(pix.notifiedDepartments).toEqual(['financeiro', 'administrativo'])
+    expect(schedule.notifiedDepartments).toEqual(['operacoes'])
+    expect(terminal.notifiedDepartments).toEqual(['operacoes'])
+    expect(portal.notifiedDepartments).toEqual(['documentacao'])
+    expect(ALERT_RULES.filter((rule) => rule.notifiedDepartments.includes('financeiro')).map((rule) => rule.type).sort())
+      .toEqual(['fatura_desatualizada', 'itau_pix_consulta_parada', 'pix_unreconciled', 'restituicao_pendente', 'taxa_alterada_mudou'])
   })
 
   it('filtra o catálogo por setor notificado, não apenas pelo responsável', () => {
@@ -103,15 +106,16 @@ describe('Regras de Alertas', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('51 regras')).toBeTruthy()
+    expect(screen.getByText('52 regras')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
 
-    expect(screen.getByText('5 regras')).toBeTruthy()
+    expect(screen.getByText('4 regras')).toBeTruthy()
     // Planilha de Veículos pendente (migration 468) é de Equipamentos.
     expect(screen.getByRole('button', { name: /Planilha de Veículos pendente/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /ADR — departamento pendente/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /ADR — prazo vencido/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /PIX sem conciliação segura/ })).toBeTruthy()
+    // Desde a migration 476 o Pix não avisa mais Equipamentos.
+    expect(screen.queryByRole('button', { name: /PIX sem conciliação segura/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Disputa de invoice Demurrage/ })).toBeTruthy()
 
     // Filtro específico para regras aplicáveis a todos os setores simultaneamente
@@ -124,7 +128,7 @@ describe('Regras de Alertas', () => {
 
     // Retorna para qualquer setor (sem filtro de setor)
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'all' } })
-    expect(screen.getByText('51 regras')).toBeTruthy()
+    expect(screen.getByText('52 regras')).toBeTruthy()
   })
 
   it('ignora um deep-link para um tipo aposentado e cai na primeira regra viva', () => {
@@ -136,7 +140,7 @@ describe('Regras de Alertas', () => {
 
     expect(screen.queryByRole('heading', { name: 'Cancelamento bloqueado' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancelamento bloqueado/ })).toBeNull()
-    expect(screen.getByText('51 regras')).toBeTruthy()
+    expect(screen.getByText('52 regras')).toBeTruthy()
   })
 
   it('combina filtros no topo e limpa a combinação sem perder a regra selecionada', () => {
@@ -156,7 +160,7 @@ describe('Regras de Alertas', () => {
     expect((clearButton as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(clearButton)
 
-    expect(screen.getByText('51 regras')).toBeTruthy()
+    expect(screen.getByText('52 regras')).toBeTruthy()
     expect((screen.getByRole('combobox', { name: 'Assunto' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('combobox', { name: 'Gravidade' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('button', { name: 'Limpar filtros' }) as HTMLButtonElement).disabled).toBe(true)

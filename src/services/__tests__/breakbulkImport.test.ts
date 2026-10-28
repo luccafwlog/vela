@@ -78,6 +78,9 @@ describe('breakbulkImport', () => {
     expect(manifest.rowErrors).toEqual([
       expect.objectContaining({ row: 2, severity: 'warning', message: expect.stringContaining('Coluna CE ignorada nas linhas 2') }),
     ])
+    // A ficha só corrige ou remove CE existente: o primeiro CE entra só pela planilha (CEB-D12).
+    expect(manifest.rowErrors[0]?.message).toMatch(/o CE entra pela planilha de CE Mercante\.$/)
+    expect(manifest.rowErrors[0]?.message).not.toContain('ficha do B/L')
     expect(hasBlockingRowErrors(manifest.rowErrors)).toBe(false)
   })
 
@@ -558,7 +561,7 @@ describe('breakbulkImport', () => {
     expect(manifest.bls[0]?.bb_machine_qty).toBe(9)
   })
 
-  // O CE Mercante entra pela planilha de CE Mercante ou pela ficha do B/L; o
+  // O CE Mercante entra só pela planilha de CE Mercante; o
   // Manifesto BB e o B/L avulso nunca o enviam (ADR 0078, item 1).
   it('nunca envia CE Mercante e só envia aceite e confirmação quando pedidos', async () => {
     mockRpc.mockImplementation((name: string) =>
@@ -987,5 +990,14 @@ describe('breakbulkImport', () => {
       expect(description.get('EXISTENTE')).toBeNull()
       expect(description.get('NOVO')).toContain('Maquinas: 1')
     })
+  })
+})
+
+describe('describeBreakbulkPending — CE ignorado (CEB-D12)', () => {
+  it('manda o CE só para a planilha de CE Mercante', () => {
+    const lines = describeBreakbulkPending({
+      ceIgnored: ['BB1'], customerChangesIgnored: [], billedRouteChangesIgnored: [], refusedCustomerRelinks: [], billingLocked: [], codPodKept: [], calculationErrors: [],
+    } as unknown as Parameters<typeof describeBreakbulkPending>[0])
+    expect(lines).toContain('CE Mercante ignorado em BB1: informe pela planilha de CE Mercante.')
   })
 })

@@ -37,4 +37,9 @@ describe('runner dos efeitos pós-commit de import', () => {
     expect(migrationSource).toContain("ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET')")
     expect(runnerSource).toContain("Deno.env.get('IMPORT_EFFECTS_RUNNER_ENABLED')")
   })
+
+  it('responde pausado com 2xx para não abrir o alerta de rotina HTTP com erro', () => {
+    expect(runnerSource).toContain("json(200, { status: 'paused', reason: 'consumers_not_activated' })")
+    expect(runnerSource).not.toMatch(/json\(503, \{ status: 'paused'/)
+  })
 })

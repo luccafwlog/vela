@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   invoices: { data: { rows: [], denied: false } as unknown, isLoading: false, isError: false },
   overrides: { data: [] as unknown[], isLoading: false, isError: false },
   manual: { data: [] as unknown[], isLoading: false, isError: false },
+  adjusted: { data: [] as unknown[], isLoading: false, isError: false },
   agreements: { data: [] as unknown[], isLoading: false, isError: false },
   role: 'administrativo' as string | null,
 }))
@@ -22,6 +23,7 @@ vi.mock('../../../hooks/useCustomerFicha', () => ({
   useCustomerInvoices: () => mocks.invoices,
   useCustomerRateOverrides: () => mocks.overrides,
   useCustomerManualChargeBls: () => mocks.manual,
+  useCustomerAdjustedChargeBls: () => mocks.adjusted,
 }))
 
 vi.mock('../../../hooks/useCustomerDemurrageAgreements', () => ({
@@ -50,6 +52,7 @@ afterEach(() => {
   mocks.receivables = { data: undefined, isLoading: false, isError: false }
   mocks.payments = { data: undefined, isLoading: false, isError: false }
   mocks.invoices = { data: { rows: [], denied: false }, isLoading: false, isError: false }
+  mocks.adjusted = { data: [], isLoading: false, isError: false }
 })
 
 describe('FinanceiroTab — estados de carregamento e erro', () => {
@@ -143,5 +146,23 @@ describe('FinanceiroTab — estados de carregamento e erro', () => {
     expect(screen.getByRole('img', { name: 'Consolidada' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Ver saldo por B/L' }))
     expect(screen.getByRole('table', { name: 'Saldo por B/L' }).textContent).toContain('BL-B')
+  })
+})
+
+describe('FinanceiroTab — B/Ls com taxa alterada (ADR 0111)', () => {
+  it('lista o B/L com a frase da alteração, quem e quando, e leva ao B/L', () => {
+    mocks.adjusted = { data: [{
+      bl_id: 'BL-77', manual_exempt: false, last_actor_name: 'Ana', last_at: '2026-10-28T12:00:00Z',
+      items: [{ charge_name: 'THD', source: 'auto', excluded: false, kind: 'unit', currency: 'BRL', application_basis: 'per_container', quantity: 2, table_unit: 500, table_total: 1000, unit: 400, total: 800, adjusted_value: 400 }],
+    }], isLoading: false, isError: false }
+    render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
+    expect(screen.getByRole('link', { name: 'BL-77' }).getAttribute('href')).toBe('/bls/BL-77?tab=faturamento')
+    expect(screen.getByText(/THD: R\$\s500,00 → R\$\s400,00/)).toBeTruthy()
+    expect(screen.getByText(/Ana · 28\/10\/2026/)).toBeTruthy()
+  })
+
+  it('sem alteração, diz que não há', () => {
+    render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
+    expect(screen.getByText('Nenhum B/L com taxa alterada à mão.')).toBeTruthy()
   })
 })

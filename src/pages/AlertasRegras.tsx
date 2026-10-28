@@ -269,9 +269,6 @@ function RuleDetail({ rule }: { rule: AlertRule }) {
         >
           <LeadValue>{rule.resolution}</LeadValue>
           {rule.destinationNote ? <p className="mt-2 text-[var(--app-muted)]">{rule.destinationNote}</p> : null}
-          <FactList columns={1}>
-            <Fact label="Dispensa">{rule.dismissal}</Fact>
-          </FactList>
           {rule.domain === 'Portal' ? (
             <p className="mt-3 text-[var(--app-muted)]">O Portal pode ser a origem do evento, mas este alerta é tratado pela equipe interna na fila de Alertas.</p>
           ) : null}

@@ -11,7 +11,7 @@ vi.mock('../../supabase', () => ({
 
 function builder(result: { data: unknown; error: unknown }) {
   const chain: Record<string, unknown> = {}
-  for (const method of ['select', 'order', 'range', 'eq', 'neq', 'or', 'ilike', 'in', 'limit', 'overrideTypes']) {
+  for (const method of ['select', 'order', 'range', 'eq', 'neq', 'or', 'ilike', 'in', 'is', 'limit', 'overrideTypes']) {
     chain[method] = vi.fn(() => chain)
   }
   chain.then = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve)
@@ -22,6 +22,18 @@ describe('listLocalChargeOperationalRows', () => {
   beforeEach(() => {
     from.mockReset()
     rpc.mockReset()
+    rpc.mockResolvedValue({ data: [], error: null })
+  })
+
+  // ADR 0111 (migration 494): a linha traz o resumo das taxas alteradas à mão.
+  it('anexa o resumo das taxas alteradas à mão a cada B/L', async () => {
+    const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
+    from.mockImplementation((table: string) => builder(table === 'bls' ? { data: [{ id: 'BL1' }, { id: 'BL2' }], error: null } : { data: [], error: null }))
+    const summary = { bl_id: 'BL1', manual_exempt: false, items: [{ charge_name: 'THD', excluded: true }] }
+    rpc.mockResolvedValue({ data: [summary], error: null })
+    const rows = await listLocalChargeOperationalRows({})
+    expect(rpc).toHaveBeenCalledWith('list_bl_charge_adjustment_summaries', { p_bl_ids: ['BL1', 'BL2'] })
+    expect(rows.map((row) => row.adjustments)).toEqual([summary, null])
   })
 
   // O Granito saiu da Validação no lote 5b (2026-10-19): a fila só lê B/Ls.
@@ -33,6 +45,14 @@ describe('listLocalChargeOperationalRows', () => {
     await listLocalChargeOperationalRows({ cargoMode: 'misto' })
     expect(from.mock.calls.map(([table]) => table)).toContain('bls')
     expect(from.mock.calls.map(([table]) => table)).not.toContain('granite_bls')
+  })
+
+  it('tira o B/L cancelado da fila, inclusive com faturados e isentos (FAT-D09)', async () => {
+    const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
+    const chain = builder({ data: [], error: null })
+    from.mockImplementation(() => chain)
+    await listLocalChargeOperationalRows({ includeResolved: true })
+    expect(chain.is).toHaveBeenCalledWith('cancelled_at', null)
   })
 
   it('propaga o erro do banco em vez de devolver lista vazia', async () => {

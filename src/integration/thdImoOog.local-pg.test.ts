@@ -28,7 +28,9 @@ function psql(sql: string): string {
 function migrationApplied() {
   if (!enabled) return false
   try {
-    return psql(`SELECT position(':imo_oog' IN pg_get_functiondef('public.resolve_bl_local_charge_items(text,text)'::regprocedure)) > 0;`) === 't'
+    // Desde a 491, o corpo da tabela vive em _resolve_bl_local_charge_items_table.
+    return psql(`SELECT bool_or(position(':imo_oog' IN prosrc) > 0) FROM pg_proc
+      WHERE proname IN ('resolve_bl_local_charge_items', '_resolve_bl_local_charge_items_table');`) === 't'
   } catch {
     return false
   }

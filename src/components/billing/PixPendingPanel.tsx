@@ -189,6 +189,7 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                 <th scope="col">Recebido em</th>
                 <th scope="col">Valor</th>
                 <th scope="col">Identificador do Pix</th>
+                <th scope="col">Identificador da cobrança</th>
                 <th scope="col" className="app-table__text-head">Motivo</th>
                 <th scope="col"><span className="sr-only">Ação</span></th>
               </tr>
@@ -202,7 +203,9 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                     <tr>
                       <td className="whitespace-nowrap tabular-nums">{cellInstant(receipt.paidAt)}</td>
                       <td className="whitespace-nowrap tabular-nums">{formatBRL(receipt.amount)}</td>
-                      <td className="whitespace-nowrap"><TxidCell txid={receipt.txid} /></td>
+                      {/* O identificador do próprio Pix é o que a baixa manual usa como referência bancária (10-recebimento:1). */}
+                      <td className="whitespace-nowrap"><CopyValue value={receipt.endToEndId} label="identificador do Pix"><TxidCell txid={receipt.endToEndId} /></CopyValue></td>
+                      <td className="whitespace-nowrap"><TxidCell txid={receipt.txid} emptyLabel="Sem identificador da cobrança" /></td>
                       <td className="app-table__text app-table__text--wrap">{receipt.reason?.trim() || <NoValue label="Sem motivo informado" />}</td>
                       <td className="whitespace-nowrap text-right">
                         {canReconcile && !open ? (
@@ -218,7 +221,7 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                     </tr>
                     {open && form ? (
                       <tr data-row-detail>
-                        <td colSpan={5}>
+                        <td colSpan={6}>
                           <div className="grid max-w-xl gap-3">
                             <Field
                               label="Motivo do tratamento"
@@ -635,7 +638,7 @@ function ChargesBlock({ monitor, onOpenInvoice }: { monitor: ItauPixMonitor | un
                         <td colSpan={7}>
                           <FactList columns={3}>
                             <Fact label="Resposta do banco">{charge.lastError?.trim() || (charge.uncertain ? 'Sem resposta; a fila consulta o banco antes de repetir' : 'Nenhum erro')}</Fact>
-                            <Fact label="Identificador do Pix"><span className="font-[var(--app-font-mono)] break-all">{charge.txid}</span></Fact>
+                            <Fact label="Identificador da cobrança"><span className="font-[var(--app-font-mono)] break-all">{charge.txid}</span></Fact>
                             <Fact label="Última tentativa">{cellInstant(charge.updatedAt)}</Fact>
                           </FactList>
                         </td>

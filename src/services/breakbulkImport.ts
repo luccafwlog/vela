@@ -251,7 +251,7 @@ export type BreakbulkImportResult = {
 export function describeBreakbulkPending(result: BreakbulkImportResult): string[] {
   return [
     result.ceIgnored.length
-      ? `CE Mercante ignorado em ${result.ceIgnored.join(', ')}: informe pela planilha de CE Mercante ou pela ficha do B/L.`
+      ? `CE Mercante ignorado em ${result.ceIgnored.join(', ')}: informe pela planilha de CE Mercante.`
       : null,
     ...(result.cancelledIgnored ?? []).map(describeCancelledBl),
     result.customerChangesIgnored.length

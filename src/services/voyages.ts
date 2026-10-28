@@ -160,8 +160,9 @@ async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
     }
     if (byImo?.[0] && normalizeVesselImo(byImo[0].imo) === normalizedImo) {
       const vessel = byImo[0]
-      const updates: { name?: string; imo?: string; carrier_id?: number } = {}
-      if (vessel.name && vessel.name !== canonical) updates.name = canonical
+      // 02-viagens-adr:5 (2026-10-27): achado pelo IMO, o navio mantém o nome
+      // cadastrado; a grafia digitada numa Viagem não renomeia as outras.
+      const updates: { imo?: string; carrier_id?: number } = {}
       if (vessel.carrier_id !== carrierId) updates.carrier_id = carrierId
       if (vessel.imo !== normalizedImo) updates.imo = normalizedImo
       if (Object.keys(updates).length > 0) {
@@ -327,18 +328,35 @@ async function insertVoyageAuditRows(rows: Array<ReturnType<typeof makeVoyageAud
   await recordAuditEntries(payload)
 }
 
+/**
+ * Viagens sem o selo "Faturamento encerrado" (02-viagens-adr:4): com algum B/L
+ * ativo nem quitado nem isento, ou sem nenhum B/L ativo. O `charge_status`
+ * nulo (carga solta ainda sem cálculo) conta como não quitado; B/L cancelado
+ * não segura nem fecha o selo (revisão da PR #1070).
+ */
 export async function fetchVoyagesWithUnpaidBls(voyageIds: number[]): Promise<Set<number>> {
   if (!voyageIds.length) return new Set<number>()
 
+  // ponytail: lê os B/Ls ativos das viagens carregadas até 5.000 linhas; acima
+  // disso, a viagem que ficar de fora fica sem selo (lado seguro). Upgrade:
+  // contagem agregada no banco.
   const { data, error } = await supabase
     .from('bls')
-    .select('voyage_id')
+    .select('voyage_id, charge_status, financial_status')
     .in('voyage_id', voyageIds)
-    .neq('charge_status', 'exempt')
+    .is('cancelled_at', null)
     .limit(5000)
 
   if (error) throw error
-  return new Set((data ?? []).map((row) => Number((row as { voyage_id: number }).voyage_id)).filter(Boolean))
+  const rows = (data ?? []) as Array<{ voyage_id: number; charge_status: string | null; financial_status: string | null }>
+  const withActiveBl = new Set(rows.map((row) => Number(row.voyage_id)))
+  const withoutSeal = new Set(
+    rows
+      .filter((row) => row.charge_status !== 'exempt' && row.financial_status !== 'paid')
+      .map((row) => Number(row.voyage_id)),
+  )
+  for (const voyageId of voyageIds) if (!withActiveBl.has(voyageId)) withoutSeal.add(voyageId)
+  return withoutSeal
 }
 
 /** Devolve a viagem cancelada por engano (ADR 0071, item 8); so o Administrativo. */

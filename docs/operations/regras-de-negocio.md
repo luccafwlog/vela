@@ -7,7 +7,14 @@
 ## Gate de faturamento
 
 A emissão exige cliente reconciliado, cálculo elegível, revisão sem pendências
-bloqueantes, CE Mercante e o Gate de faturamento do Portal aberto.
+bloqueantes, CE Mercante e o Gate de faturamento do Portal aberto. Também
+barram a emissão: terminal de descarga em conflito, B/L sem taxa com valor,
+tabela de cobrança inativa ou incompleta para o POD e o modo de carga, B/L ou
+Viagem cancelados, fatura viva no mesmo B/L, câmbio ausente para taxa em
+dólar, irmão de container compartilhado faturado com rateio que não é mais o
+atual ([Faturamento § Container compartilhado na emissão](../modules/faturamento.md#container-compartilhado-na-emissão))
+e troca de Cliente aguardando a devolução ao Cliente original
+([Faturamento § Troca de Cliente após emissão](../modules/faturamento.md#troca-de-cliente-após-emissão-regra-de-cnpj)).
 `047_bl_documental_gates.sql` guarda a promoção e a emissão
 individual/consolidada; `056` inclui as duas tabelas do B/L misto. O CE também
 participa da liberação documental para leitura no Portal
@@ -18,7 +25,8 @@ Validação, o que ainda impede a emissão aparece na coluna **Motivo**
 ([Faturamento § Motivo de bloqueio de faturamento](../modules/faturamento.md#motivo-de-bloqueio-de-faturamento)).
 
 **O Portal trava toda emissão** — manual, consolidada ou automática pela
-transição do CE ([ADR 0070](../adr/0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md)).
+transição do CE, inclusive a Invoice de Demurrage desde a migration `472`
+([Demurrage § Trava de emissão](../modules/demurrage.md), DEM-D13) ([ADR 0070](../adr/0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md)).
 O gate (`customer_billing_access_ready`, definição vigente na migration `084`)
 passa quando a Conta de Portal do Cliente está pronta — ativa, com acesso
 criado e Email de Recuperação válido, entregável e fora da lista de bloqueio
@@ -27,7 +35,7 @@ ou quando há [Liberação de faturamento sem Portal](#liberação-de-faturament
 vigente. Para Cliente sem gate aberto, o CE calcula e **retém** a fatura no B/L
 (`billing_hold_reason = 'Acesso ao portal nao provisionado'`), sem tratar isso
 como falha; a Validação mostra *Conta do Portal não ativa*. A ativação do Portal e
-a concessão da Liberação reprocessam o Cliente e emitem as retidas pelo mesmo
+a concessão da Liberação (e, desde a migration `473`, a troca assistida do e-mail da equipe e a liberação do endereço suprimido) reprocessam o Cliente e emitem as retidas pelo mesmo
 caminho da transição do CE, com o preço e o câmbio fixados na importação e a
 base atual ([ADR 0094](../adr/0094-preco-fixo-na-importacao.md); [Faturamento §
 Propósito e escopo](../modules/faturamento.md#propósito-e-escopo)).
@@ -93,7 +101,7 @@ permissão, concessão com emissão, revogação, vencimento e ativação do Por
 
 ## Numeração de invoices
 
-A numeração sequencial é atômica no banco, via RPC `assign_invoice_number` sobre `invoice_counters`. Nunca gerar número no cliente — garante unicidade fiscal mesmo sob concorrência. Detalhes em [Faturamento](../modules/faturamento.md).
+A numeração sequencial é atômica no banco: o gatilho `assign_invoice_number` dá o número na gravação da fatura, sobre `invoice_counters`, sem chamada da tela. Nunca gerar número no cliente — garante unicidade fiscal mesmo sob concorrência. Detalhes em [Faturamento](../modules/faturamento.md).
 
 ## Ledger local e ciclo de vida
 
@@ -126,7 +134,7 @@ a retirada do `overdue` é da migration arquivada `157`): a coluna
 
 ## Câmbio (ROE / PTAX)
 
-Cobranças em moeda estrangeira usam o ROE obtido da PTAX Venda do Banco Central (`olinda.bcb.gov.br`) pelo serviço compartilhado `fetchROE`, com markup canônico de `1,065`. O header interno consome esse contrato por `useRoeHeaderRate`; sem ROE/dados fiscais suficientes, a emissão da invoice é bloqueada. Aplica-se a Faturamento e Demurrage. O Recálculo Diário e o congelamento no pagamento da Invoice de Demurrage estão em [Demurrage § Recálculo diário e congelamento no pagamento](../modules/demurrage.md#recálculo-diário-e-congelamento-no-pagamento); a taxa local em dólar, em [Faturamento § Taxa local em dólar](../modules/faturamento.md#taxa-local-em-dólar).
+Cobranças em moeda estrangeira usam o ROE da PTAX Venda do Banco Central (`olinda.bcb.gov.br`) com markup canônico de `1,065`. O header interno mostra esse câmbio pelo serviço compartilhado `fetchROE` (`useRoeHeaderRate`), que só lê; a emissão não usa o câmbio lido pelo navegador. A Invoice de Demurrage usa o ROE manual do B/L ou a referência cambial gravada no servidor pelo recálculo das 14h ou pelo **Informar PTAX**; sem referência gravada, a emissão é recusada ([Demurrage § Emissão da Invoice de Demurrage](../modules/demurrage.md#emissão-da-invoice-de-demurrage)). O Recálculo Diário e o congelamento no pagamento da Invoice de Demurrage estão em [Demurrage § Recálculo diário e congelamento no pagamento](../modules/demurrage.md#recálculo-diário-e-congelamento-no-pagamento); a taxa local em dólar, em [Faturamento § Taxa local em dólar](../modules/faturamento.md#taxa-local-em-dólar).
 
 ## Reconciliação de cliente
 
@@ -135,7 +143,7 @@ O consignatário importado (B/L de container e carga solta) só se vincula sozin
 ## Ações sobre registros
 
 O vocabulário — Excluir, Corrigir, Cancelar, Reativar, Desativar, Remover,
-Revogar, Reverter e Dispensar — está no
+Revogar e Reverter — está no
 [glossário § Ações sobre registros](../../CONTEXT.md#ações-sobre-registros).
 Esta seção diz quem pode, quando se exige motivo, o que trava a exclusão e por
 quanto tempo cada dado fica. A matriz de quem pode cada operação está em
@@ -146,8 +154,10 @@ quanto tempo cada dado fica. A matriz de quem pode cada operação está em
 Nas listas com ação em massa (BLs, Containers, Vazios IMP, Veículos, Clientes e
 Desbloqueio de CE, interno e no Portal), o checkbox do cabeçalho marca **todo o
 resultado filtrado, em todas as páginas**, e não só as linhas visíveis; a barra
-diz "N de M selecionados", e o checkbox fica meio marcado com parte do filtro
-selecionada. A seleção atravessa páginas e é zerada quando o filtro muda (no
+diz "N de M selecionados" (no Desbloqueio de CE, só os selecionados: "N
+selecionados · N aptos para a ZPT · N sem a entrega do B/L original" no Vela e
+"N B/Ls selecionados" no Portal), e o checkbox fica meio marcado com parte do
+filtro selecionada. A seleção atravessa páginas e é zerada quando o filtro muda (no
 Portal, a seleção do pedido continua entre buscas). Dono: `useFilteredSelection`
 e `SelectAllFilteredCheckbox`; as listas paginadas no servidor leem as páginas
 até 10.000 linhas e, acima disso, pedem para refinar o filtro (revisão de
@@ -206,8 +216,10 @@ rótulo de um botão corresponde ao efeito que ele produz.
   que apaga o registro do banco se chama Excluir, não Remover.
 - **Reverter** desfaz, com motivo, uma marcação sobre algo que continua ativo
   (omissão de escala, transbordo).
-- **Dispensar** não muda o dado e só existe em Alertas e Notificações
-  ([Operação e Suporte § Leitura, dispensa e Eco de Tratamento](../modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)).
+- Alerta não se dispensa: a dispensa saiu na migration `476`
+  ([ADR 0108](../adr/0108-fim-da-dispensa-de-alertas.md)); o alerta fecha pela
+  origem ou, nos tipos listados, por "Resolver com justificativa"
+  ([Operação e Suporte § Ciclo de vida do Alerta](../modules/operacao-suporte.md#ciclo-de-vida-do-alerta)).
 - Baixa lançada por engano se cancela (**Cancelar baixa**:
   `reverse_invoice_payment` e `reverse_demurrage_payment`); devolver dinheiro
   ao Cliente é outro ato, com registro próprio (`invoice_refunds` e
@@ -259,8 +271,8 @@ serviço em `/embarquevazios/depots` mostra antes e depois (B31,
 `src/pages/DepotCadastro.tsx`; **Teste:** `DepotCadastro.behavior.test.tsx`).
 
 **Reativar pede motivo (B13, migration `261`).** Reativar tarifa (tabela e
-item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, taxa
-de Granito) e reativar usuário interno dizem "Reativar" e pedem motivo; a
+item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage) e
+reativar usuário interno dizem "Reativar" e pedem motivo; a
 reativação passa pela RPC `reactivate_catalog_row`, do Administrativo, que
 grava o motivo em `audit_logs` (linha `reativado`). Desativar segue sem motivo.
 **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B13, os cinco
@@ -292,8 +304,8 @@ direto pela API nessas tabelas (ver a
 - **Escala e atracação:** `delete_escala` (Administrativo, motivo e trava no
   porto) e a remoção de atracação, que também exige o Administrativo e respeita
   a trava (migration `088`; [Viagens § Catálogo de ações](../modules/viagens.md#catálogo-de-ações)).
-- **Cadastros** (item de taxa, Condição de Cliente, tarifa de Granito, tarifa e
-  acordo de Demurrage, Local, serviço do Local) e linha de serviço de vazios:
+- **Cadastros** (item de taxa, Condição de Cliente, tarifa e acordo de
+  Demurrage, Local, serviço do Local) e linha de serviço de vazios:
   `delete_catalog_row` (migration `096`), que exige o motivo e o grava na
   auditoria; o DELETE direto dessas tabelas saiu da API. Tarifa usada não se
   exclui ([Cadastro usado](#cadastro-usado)).
@@ -389,11 +401,13 @@ se desativa, para que todo valor cobrado mantenha a origem
 são do Administrativo. Desativado, o cadastro sai das listas de escolha e
 continua no histórico e nos documentos que o referenciam.
 
-- **Tarifa** (tabela e item de Taxas Locais, Condição de Cliente, tarifa de
-  Granito, tarifa e acordo de Demurrage): usada é a referenciada por cálculo,
-  item de fatura, versão de regra de preço ou cobrança de Granito. O banco
-  recusa excluí-la ("desative em vez de excluir"), e só o Administrativo muda o
-  estado ativo (migration `091`). Desvio aceito: tarifa e acordo de Demurrage
+- **Tarifa** (tabela e item de Taxas Locais, Condição de Cliente, tarifa e
+  acordo de Demurrage): usada é a referenciada por cálculo, item de fatura ou
+  versão de regra de preço; a tabela de Taxas Locais também conta como usada
+  quando tem B/L vinculado a ela (`charge_table_in_use`). A tarifa de Granito
+  saiu do banco (migration `329`).
+  O banco recusa excluí-la ("desative em vez de excluir"), e só o
+  Administrativo muda o estado ativo (migration `091`). Desvio aceito: tarifa e acordo de Demurrage
   contam como usados quando já entraram em vigor, porque o cálculo não guarda o
   id da tarifa. Telas em [Taxas Locais](../modules/taxas-locais.md) e
   [Demurrage § Tarifa, free time, P1 e P2](../modules/demurrage.md#tarifa-free-time-p1-e-p2).
@@ -578,13 +592,18 @@ componente só, aberto de todas as telas que a oferecem.
 
 ### Rastro das importações
 
-Toda importação deixa no Histórico, em cada registro que cria, altera ou
-exclui, quem fez, a data e a hora, o valor anterior e o novo e o contexto da
+Toda importação deixa no Histórico, em cada registro que altera ou exclui,
+quem fez, a data e a hora, o valor anterior e o novo e o contexto da
 importação ([ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md),
-item 9; migration `189`). O contexto é gravado como justificativa da linha que
-não tem outra, no formato "Importação de <tipo> · Viagem <navio> <número> ·
-Manifesto <Nº>" — por exemplo, "Importação de Vazios de Importação · Viagem
-<navio> <número> · Manifesto <Nº>"; o motivo de uma exclusão, quando há,
+item 9; migration `189`). A inclusão só tem linha própria em parte dos
+registros: container do B/L, veículo e o lote (manifesto) da importação a
+gravam; a unidade embarcada, o vazio de importação, o B/L de Granito, a linha
+de serviço e o próprio Embarque de Vazios entram sem linha de inclusão, e
+deles fica só a criação do lote com o contexto da importação. O contexto é
+gravado como justificativa da linha que não tem outra, no formato "Importação
+de <tipo> · Viagem <navio> <número> · Manifesto <Nº>" — por exemplo,
+"Importação de Vazios de Importação · Viagem <navio> <número> · Manifesto
+<Nº>"; o motivo de uma exclusão, quando há,
 prevalece. Não se guarda o arquivo nem a linha da planilha; do arquivo fica só
 o nome e o hash (abaixo).
 
@@ -644,9 +663,10 @@ o nome e o hash (abaixo).
 
 - Match key: `container_number` + `voyage_id`. `bl_ref` do Baplie é sinal secundário, não critério de bloqueio.
 - **Navio compartilhado e transbordo** ([ADR 0096](../adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md), decisão 3, e [ADR 0095](../adr/0095-importacoes-regras-da-revisao.md), decisão 15; migrations `409` e `403`): não há regra de outro armador, e todo container do Baplie entra na conciliação; container em transbordo (EQD 8249 = 6) aparece na conciliação, marcado, e não leva marcas aos B/Ls. Regra completa em [Manifestos & EDI § Baplie](../modules/manifesto-edi.md#baplie).
+- **B/L cancelado** fica fora da conciliação e do alerta **Cobertura Baplie / B/L**, que se recalcula quando o B/L é cancelado ou reativado (migration `478`).
 - **Gate de cobertura por rota:** uma rota (POL→POD) de containers cheios prevista pelo Baplie só entra na conciliação quando tem pelo menos um B/L **com containers** naquela rota — B/L sem container não cobre rota. O gate é por rota: uma rota ainda sem B/L fica fora da conciliação, sem silenciar as demais rotas da viagem. Em D-7 do primeiro ETA brasileiro todas as rotas são conciliadas, inclusive as sem B/L.
 - Códigos de porto são normalizados antes da comparação, por uma régua só: `public.normalize_port_code` no banco e `normalizeStoredPortCode` (`src/services/portCode.ts`), cópia exata conferida pela suíte `operationalLists.local-pg`, no app sempre que o valor é comparado com o que o banco decide (filtro POL/POD de `/bls` e `/containers`, escopo da tabela de Taxas Locais, PODs do Baplie). `normalizePortCode` é a régua do import: reconhece também o nome do porto dentro de um texto ("SALVADOR, BRAZIL"), e os apelidos exatos do Baplie da COSCO (`CNTCA`, `SEP`, `TAO`…) valem igual nas duas desde a migration `391` (`CNTCG` e `TCG`, outras grafias de Taicang, desde a `465`). **Navegantes (`BRNVT`) e Itajaí (`BRITJ`), Recife (`BRREC`) e Suape (`BRSUA`) são quatro portos e quatro escalas** (ADR 0095, decisão 12; migration `391`): B/L, Baplie, Manifesto Mercante, alertas, Comunicados e tabela de Taxas Locais de um não valem para o outro. Até a `391` o banco juntava cada par. Zhoushan (`CNZOS`/`ZOS`) e Ningbo (`CNNGB`) são o mesmo complexo portuário: o Baplie costuma codificar `CNZOS` onde o B/L declara Ningbo. Variações como `QINDGAO` e `TSINGTAO` resolvem canonicamente para Qingdao (`CNTAO`). Zhuhai (`CNZUH`) é porto próprio, reconhecido pelo código e pelo nome; não é apelido de Nansha nem de Shekou. No import, o nome partido em palavras inteiras ("ZHU HAI", "NING BO") vale como o nome junto.
-- Divergências — de existência (container cheio no Baplie e em nenhum B/L, ou no B/L e ausente do Baplie), SOC/COC e perfil IMO/OOG corrigido à mão — são avisos, sem bloqueio. Os tipos, a única resolução (**Vale o B/L**, com motivo) e a aplicação das marcas físicas do Baplie estão em [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](../modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências). Dados documentais e financeiros vêm do B/L e permanecem protegidos.
+- Divergências — de existência (container cheio no Baplie e em nenhum B/L, ou no B/L e ausente do Baplie), **cheio no B/L, vazio no Baplie** (a bordo, mas o Baplie o traz vazio; divergência própria desde a migration `478`, decisão do dono sobre CEB-D13), SOC/COC e perfil IMO/OOG corrigido à mão — são avisos, sem bloqueio. Os tipos, a única resolução (**Vale o B/L**, com motivo) e a aplicação das marcas físicas do Baplie estão em [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](../modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências). Dados documentais e financeiros vêm do B/L e permanecem protegidos.
 
 Definições em [CONTEXT.md](../../CONTEXT.md).
 
@@ -662,7 +682,7 @@ O Portal do Cliente só expõe dados de B/Ls que tenham `ce_mercante` preenchido
 
 ## Chave de envio e supressão de e-mail
 
-A chave global de envio (`app_settings.communications_enabled`, desligada por padrão e ligada só pelo Administrativo) silencia, além dos Comunicados, a Régua de Cobrança de Demurrage, o aviso de bounce em cascata e o aviso do Desbloqueio de CE; os demais e-mails transacionais do Portal, como convite e recuperação de senha, não dependem dela. O bounce permanente suprime o endereço nos dois canais; a reclamação, só no canal em que aconteceu. Regra completa em [Clientes § Chave de envio de Comunicados](../modules/clientes.md#chave-de-envio-de-comunicados) e [Clientes § Comunicados ao Cliente](../modules/clientes.md#comunicados-ao-cliente).
+A chave global de envio (`app_settings.communications_enabled`, desligada por padrão, mudada só pela conta do Administrativo com a marca Dev) é ferramenta de teste: desligada, todo e-mail dirigido a Cliente — Comunicados, Régua de Cobrança de Demurrage, aviso de bounce em cascata, aviso do Desbloqueio de CE e os e-mails do Portal, como convite e recuperação de senha — sai para `suporte@portalfwlog.com.br`, com o e-mail do Cliente no assunto, e conta como enviado ([ADR 0104](../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md)); e-mail para a equipe não passa por ela. O bounce permanente suprime o endereço nos dois canais; a reclamação, só no canal em que aconteceu. Regra completa em [Clientes § Chave de envio de Comunicados](../modules/clientes.md#chave-de-envio-de-comunicados) e [Clientes § Comunicados ao Cliente](../modules/clientes.md#comunicados-ao-cliente).
 
 ## Permissões internas
 

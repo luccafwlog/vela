@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { classifyDbError } from '../lib/errors'
 import { CUSTOMER_COMMUNICATION_BOXES } from './customerCommunicationBoxes'
 import { CUSTOMER_FIELD_LABELS } from './customerFicha'
+import { fetchUserDisplayNames } from './userNames'
 
 /**
  * Alterações do cadastro do Cliente (aba Cadastro e contatos, lote 1 da
@@ -119,9 +120,7 @@ export async function fetchCustomerCadastroChanges(customerId: number): Promise<
   const ids = [...new Set([...(audit.data ?? []).map((row) => row.changed_by), ...eventRows.map((row) => row.actor_id)].filter((id): id is string => Boolean(id)))]
   const names = new Map<string, string>()
   if (ids.length) {
-    const { data, error } = await supabase.from('user_profiles').select('id, full_name').in('id', ids)
-    if (error && classifyDbError(error).kind !== 'permissao') throw error
-    for (const profile of data ?? []) names.set(profile.id, profile.full_name)
+    for (const [id, name] of await fetchUserDisplayNames(ids)) names.set(id, name)
   }
   return buildCadastroChanges((audit.data ?? []) as AuditRow[], eventRows, names)
 }

@@ -146,6 +146,56 @@ describe('buildVoyageCommunicationCoverage', () => {
     expect(vix).toMatchObject({ customers: 1, noa: { sent: 1, total: 1 }, nob: { sent: 0, total: 0 }, finance: { sent: 1, due: 1 } })
   })
 
+  // D02 de 2026-10-27: a Cobertura conta o redirecionado ao suporte e o parcial, como a régua.
+  it('conta Comunicado redirecionado ao suporte e parcial como feito, e a célula diz qual foi', () => {
+    const [row] = buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [bl('A', 1), bl('B', 2), bl('C', 3)],
+      communications: [
+        { id: 10, customer_id: 1, kind: 'aviso_chegada_noa', status: 'simulado', anchor_voyage_id: 62, anchor_port: 'BRVIX', anchor_atracacao_id: null, created_at: '2026-10-20T10:00:00Z' },
+        { id: 11, customer_id: 2, kind: 'aviso_chegada_noa', status: 'parcial', anchor_voyage_id: 62, anchor_port: 'BRVIX', anchor_atracacao_id: null, created_at: '2026-10-20T10:00:00Z' },
+        { id: 12, customer_id: 3, kind: 'aviso_chegada_noa', status: 'falha', anchor_voyage_id: 62, anchor_port: 'BRVIX', anchor_atracacao_id: null, created_at: '2026-10-20T10:00:00Z' },
+      ],
+      terminalStates: [],
+      readiness: new Map(),
+    })
+    expect(row.noa).toEqual({ sent: 2, total: 3 })
+    const cells = Object.fromEntries(row.details.map((detail) => [detail.customerId, detail.cells.aviso_chegada_noa]))
+    expect(cells[1]).toMatchObject({ state: 'enviado', sentStatus: 'simulado', communicationId: 10 })
+    expect(cells[2]).toMatchObject({ state: 'enviado', sentStatus: 'parcial' })
+    expect(cells[3].state).toBe('nao_devido')
+  })
+
+  // D03 de 2026-10-27: B/L cancelado sai da Cobertura, como da conferência e da régua.
+  it('B/L cancelado não conta o Cliente', () => {
+    const [row] = buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [{ ...bl('A', 1), financial_status: 'pending', cancelled_at: '2026-10-20T10:00:00Z' }, bl('B', 2)],
+      communications: [],
+      terminalStates: [],
+      readiness: new Map([['62:2', true]]),
+    })
+    expect(row).toMatchObject({ customers: 1, finance: { total: 1, pending: 0 } })
+    expect(row.details.map((detail) => detail.customerId)).toEqual([2])
+  })
+
+  // D05 de 2026-10-27: NOA só é devido de D-5 do ETA em diante; NOR só depois da ATA.
+  it('NOA e NOR mostram "—" antes de a janela abrir', () => {
+    const now = new Date('2026-10-01T12:00:00Z')
+    const build = (escala: { eta: string | null; ata: string | null }) => buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [bl('A', 1)],
+      communications: [],
+      terminalStates: [],
+      readiness: new Map(),
+      escalas: new Map([[62, [{ pod: 'BRVIX', eta: escala.eta, etb: null, ata: escala.ata }]]]),
+      now,
+    })[0]
+    expect(build({ eta: '2026-10-21T12:00:00Z', ata: null })).toMatchObject({ noa: { sent: 0, total: 0 }, nor: { sent: 0, total: 0 } })
+    expect(build({ eta: '2026-10-05T12:00:00Z', ata: null })).toMatchObject({ noa: { sent: 0, total: 1 }, nor: { sent: 0, total: 0 } })
+    expect(build({ eta: '2026-09-29T12:00:00Z', ata: '2026-09-29T12:00:00Z' })).toMatchObject({ noa: { sent: 0, total: 1 }, nor: { sent: 0, total: 1 } })
+  })
+
   it('viagem sem B/L com cliente fica numa linha sem porto e sem nada devido', () => {
     const [row] = buildVoyageCommunicationCoverage({ voyages: [voyage], bls: [], communications: [], terminalStates: [], readiness: new Map() })
     expect(row).toMatchObject({ port: null, customers: 0, finance: { sent: 0, due: 0 } })
@@ -189,7 +239,7 @@ describe('buildVoyageCommunicationCoverage — drill-down e fila', () => {
   })
 
   it('enviado leva a data e o Comunicado do histórico', () => {
-    expect(cell('Fortlev', 'aviso_chegada_noa')).toEqual({ state: 'enviado', sentAt: '2026-10-20T19:19:04Z', communicationId: 17, reason: null })
+    expect(cell('Fortlev', 'aviso_chegada_noa')).toEqual({ state: 'enviado', sentAt: '2026-10-20T19:19:04Z', sentStatus: 'enviado', communicationId: 17, reason: null })
     expect(cell('Fortlev', 'aviso_atracacao_nob')).toMatchObject({ state: 'enviado', communicationId: 18 })
   })
 

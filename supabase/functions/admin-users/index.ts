@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-import { decideInternalTarget } from '../_shared/internalUserTarget.ts'
+import { decideDevCredentialChange, decideInternalTarget } from '../_shared/internalUserTarget.ts'
 import { releasePreviousEmailSuppression } from '../_shared/internalUserEmailSuppression.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
@@ -135,6 +135,11 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     const userId = body.user_id ?? ''
     const target = await checkInternalTarget(userId)
     if (!target.ok) return json(target.status, { error: target.error }, origin)
+
+    const { data: targetProfile, error: devError } = await admin.from('user_profiles').select('is_dev').eq('id', userId).maybeSingle()
+    if (devError) throw new Error('Não foi possível conferir o usuário.')
+    const dev = decideDevCredentialChange({ targetIsDev: targetProfile?.is_dev === true, targetId: userId, actorId })
+    if (!dev.ok) return json(dev.status, { error: dev.error }, origin)
 
     const email = body.email?.trim().toLowerCase()
     const password = body.password

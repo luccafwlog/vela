@@ -135,6 +135,22 @@ describe('PortalInvoiceDetailModal', () => {
     expect(onOpenInvoice).toHaveBeenCalledWith(9)
   })
 
+  it('POR-D03: consolidada desfeita pelo Cliente diz isso; a substituída aponta a nova fatura', () => {
+    renderModal(ledgerDetail({
+      id: 8, invoice_number: 'INV-2026-0008', invoice_type: 'consolidated', status: 'obsolete', total_brl: 100, balance_brl: 0,
+      replaced_by_invoice_id: null, replaced_by_invoice_number: null, obsolete_reason: 'Desfeita pelo cliente pelo portal.',
+    }))
+    expect(screen.getByText('Desfeita pelo cliente pelo portal.')).toBeTruthy()
+    expect(screen.queryByText(/Substituída/)).toBeNull()
+    cleanup()
+
+    renderModal(ledgerDetail({
+      id: 8, invoice_number: 'INV-2026-0008', invoice_type: 'consolidated', status: 'obsolete', total_brl: 100, balance_brl: 0,
+      replaced_by_invoice_id: 12, replaced_by_invoice_number: 'INV-2026-0012',
+    }))
+    expect(screen.getByText('pela INV-2026-0012')).toBeTruthy()
+  })
+
   it('individual coberta diz a forma e o dia do pagamento da consolidada que a cobriu', () => {
     renderModal(ledgerDetail({
       id: 7, invoice_number: 'INV-2026-0007', invoice_type: 'individual', status: 'covered',

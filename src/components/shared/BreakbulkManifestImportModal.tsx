@@ -1,4 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
+import { useChargeAdjustmentGuard, useImportChargeImpact } from '../../hooks/useChargeAdjustmentGuard'
+import { IMPORT_CANCELLED_BY_CHARGES } from '../../lib/chargeAdjustmentImpact'
+import type { BlChargeImpactChange } from '../../services/charges/chargeOperationsService'
+import { ChargeAdjustmentImpactSection } from '../bl/ChargeAdjustmentImpactSection'
 import { useQueryClient } from '@tanstack/react-query'
 import { FileImportModal } from './FileImportModal'
 import { ImportContext, ImportGuide, ImportSection, ImportTemplateLinks } from './ImportParts'
@@ -64,6 +68,7 @@ export function BreakbulkManifestImportModal({
   const { user } = useAuth()
   const uploadedBy = userId ?? user?.id ?? null
   const { showToast } = useToast()
+  const guardCharges = useChargeAdjustmentGuard()
   const parseOptions = useMemo<ParseBreakbulkOptions>(
     () => (numberFormat === 'auto' ? {} : { numberFormat }),
     [numberFormat],
@@ -87,6 +92,8 @@ export function BreakbulkManifestImportModal({
       reparseKey={`${numberFormat}:${voyageId}`}
       importer={async (manifest, file) => {
         if (!uploadedBy || !voyageId) throw new Error('Escolha a viagem de destino.')
+        const changes = breakbulkImpactChanges(manifest)
+        if (changes.length && !(await guardCharges(changes, async () => true))) throw new Error(IMPORT_CANCELLED_BY_CHARGES)
         const result = await importBreakbulkManifest({
           filename: file.name,
           voyageId: Number(voyageId),
@@ -147,6 +154,7 @@ export function BreakbulkManifestImportModal({
             onApprovalChange={setApproval}
           />
           <BreakbulkPreview manifest={manifest} />
+          <BreakbulkChargeImpact manifest={manifest} />
         </>
       )}
       templates={<ImportTemplateLinks baseName="carga-solta-modelo" />}
@@ -238,4 +246,25 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
 function formatBBNumber(value: number | null | undefined) {
   if (value === null || value === undefined) return '—'
   return Number(value).toLocaleString('pt-BR')
+}
+
+/** Peso, CBM, quantidades e POD dos B/Ls que o manifesto corrige (ADR 0111, D6). */
+function breakbulkImpactChanges(manifest: ParsedBreakbulkManifest): BlChargeImpactChange[] {
+  const existing = new Set(manifest.reimport?.existing ?? [])
+  return manifest.bls.filter((bl) => existing.has(bl.bl_id)).map((bl) => ({
+    bl_id: bl.bl_id,
+    bls: {
+      ...(bl.pod ? { pod: bl.pod } : {}),
+      bb_weight_ton: bl.bb_weight_ton ?? null,
+      bb_cbm: bl.bb_cbm ?? null,
+      bb_packages_qty: bl.bb_packages_qty ?? null,
+      bb_machine_qty: bl.bb_machine_qty ?? null,
+    },
+  }))
+}
+
+function BreakbulkChargeImpact({ manifest }: { manifest: ParsedBreakbulkManifest }) {
+  const changes = useMemo(() => breakbulkImpactChanges(manifest), [manifest])
+  const impact = useImportChargeImpact(changes)
+  return <ChargeAdjustmentImpactSection impact={impact.data} />
 }

@@ -71,6 +71,8 @@ export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice' | 'payments'> & 
     covered_by_invoice_number?: string | null
     replaced_by_invoice_id?: number | null
     replaced_by_invoice_number?: string | null
+    /** Motivo da consolidada desfeita (migration 473): "Desfeita pelo cliente pelo portal.". */
+    obsolete_reason?: string | null
   }) | null
   containers: PortalInvoiceContainer[]
   payments: PortalInvoicePayment[]
@@ -232,7 +234,8 @@ export type PortalDemurrageInvoice = {
 }
 
 export type PortalDemurrageInvoiceDetail = {
-  invoice: PortalDemurrageInvoice & { customer_name: string; customer_cnpj_cpf: string }
+  /** `replaces_doc_number`: fatura cancelada que esta reemissão substitui (migration 472). */
+  invoice: PortalDemurrageInvoice & { customer_name: string; customer_cnpj_cpf: string; replaces_doc_number?: string | null }
   items: DemurrageInvoiceItem[]
   /**
    * Restituições da Invoice, sem as anotações internas (migration 298), no

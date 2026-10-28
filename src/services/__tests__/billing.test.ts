@@ -465,6 +465,7 @@ describe('listInvoiceLinksByBls', () => {
       data: [
         {
           bl_id: 'BL-1',
+          subtotal_brl: 120,
           invoice: {
             id: 20,
             invoice_number: 'INV-20',
@@ -484,7 +485,7 @@ describe('listInvoiceLinksByBls', () => {
     expect(supabaseMocks.from).toHaveBeenNthCalledWith(1, 'invoice_bls')
     expect(supabaseMocks.from).toHaveBeenNthCalledWith(2, 'invoice_receivable_links')
     expect(individual.select).toHaveBeenCalledWith(
-      'bl_id, invoice:invoices(id, invoice_number, status, total_brl, balance_brl, invoice_type)',
+      'bl_id, subtotal_brl, invoice:invoices(id, invoice_number, status, total_brl, balance_brl, invoice_type)',
     )
     expect(consolidated.eq).toHaveBeenCalledWith('status', 'active')
     expect(result).toEqual({
@@ -497,6 +498,7 @@ describe('listInvoiceLinksByBls', () => {
           balance_brl: 0,
           invoice_type: 'consolidated',
           source: 'invoice_receivable_links',
+          bl_subtotal_brl: 120,
         },
         {
           id: 12,
@@ -506,6 +508,7 @@ describe('listInvoiceLinksByBls', () => {
           balance_brl: 100,
           invoice_type: 'individual',
           source: 'invoice_bls',
+          bl_subtotal_brl: null,
         },
       ],
     })
