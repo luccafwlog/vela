@@ -158,3 +158,19 @@ D8: "Nova fatura emitida" com número novo, e a antiga em **Cancelada** como
 "Substituída pela INV-…"; com pagamento, o Cliente vê o saldo abatido ou a
 restituição. Uma observação para o Cliente na fatura pode entrar depois, como
 pedido separado, sem refazer esta mudança.
+
+### D10 — Rastreio no Vela e como desfazer
+
+| Onde | O que aparece |
+|---|---|
+| Ficha do B/L › **Faturamento** › **Taxas Locais**, linha alterada | Marca **Alterada** ao lado do nome da taxa; ao passar o mouse: "Tabela: R$ 1.420 por container · alterada por Fulano em 28/10/2026 · motivo…" |
+| Mesma tabela, linha excluída | Continua visível, em cinza e riscada, com **Excluída**, fora do total |
+| Ações na linha | **Alterar valor** e **Excluir**; na alterada, também **Voltar ao valor da tabela**; na excluída, **Incluir de novo**. Todas com justificativa (D4) e, em B/L faturado, pela D8 |
+| Bloco **Histórico das taxas**, logo abaixo da tabela | Uma linha por ação: data e hora, quem, taxa, antes → depois ("R$ 1.420/container → R$ 1.200/container", "total R$ 2.840 → R$ 2.000", "excluída", "descartada pelo sistema: o B/L passou para a tabela …"), justificativa e efeito na fatura ("INV-0012 reemitida como INV-0031", "Restituição de R$ 400") |
+| Aba **Histórico** do B/L, família Taxas | As mesmas linhas, com frases legíveis (corrige o texto cru de hoje, como "Taxa: qty=2 \| note=…") |
+| **Validação** › **Conferência do cálculo** | Marca **alterada** na linha (como "tarifa negociada") e a linha excluída listada como **excluída** |
+| **Validação** › **Mais filtros** | Filtro **Com taxa alterada à mão** |
+| **Validação** › **Exportar** | Coluna **Taxas alteradas à mão** ("THD: R$ 1.420 → R$ 1.200; Taxa X: excluída") |
+| Detalhe da fatura no Vela › **Itens da fatura** | Coluna **Origem** com **Calculado**, **Manual** ou **Alterado** |
+| Ficha do Cliente › **Financeiro** | Lista **B/Ls com taxa alterada**, ao lado de "B/Ls com cobrança manual" |
+| **Histórico de ações** do Administrativo | A ação com autor, antes, depois e justificativa |
