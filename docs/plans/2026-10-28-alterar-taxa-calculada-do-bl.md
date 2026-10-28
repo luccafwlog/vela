@@ -4,8 +4,8 @@
 
 Proposto em 2026-10-28, a partir da
 [spec aprovada pelo dono](../spec/2026-10-28-alterar-taxa-calculada-do-bl-design.md)
-(decisões D1 a D14). Nada executado. Duas confirmações do dono sobre a regra
-de descarte (R1 e R2, abaixo) precisam de resposta antes do lote 1.
+(decisões D1 a D14). O dono aprovou no mesmo dia os refinamentos R1 e R2 da
+regra de descarte (registrados na D5 da spec). Execução em andamento.
 
 | Lote | Situação |
 |---|---|
@@ -70,19 +70,15 @@ nova em B/L faturado; a cobrança manual que se perde no cancelamento do B/L.
   `_assert_actor_is_caller`. As tabelas novas não têm INSERT, UPDATE nem DELETE
   para `authenticated`.
 
-## Decisões pendentes do dono (antes do lote 1)
+## Decisões do dono no plano (aprovadas em 2026-10-28)
 
-- **R1 — Mudança de modalidade e descarte.** A D5 diz "mudança de POD ou de
-  modalidade descarta". O motivo dado foi "a taxa alterada era de outra
-  tabela". Na troca de modalidade, nem sempre a tabela muda: um B/L misto que
-  perde a carga solta continua com a mesma tabela de container. Recomendação:
-  descartar só as alterações cuja tabela saiu do B/L (no exemplo, as da carga
-  solta) e manter as da tabela que continua. Mudança de POD descarta todas.
-- **R2 — Refixar o preço na reimportação.** A D5 diz "mantém". O **Passar o
-  B/L … ao preço de hoje** pode trocar a tabela por uma mais nova do mesmo POD
-  e modalidade. Recomendação: a alteração passa para a mesma taxa da tabela
-  nova (mesmo nome, incidência, perfil e moeda); se a tabela nova não tiver a
-  taxa, a alteração é descartada, e a prévia já diz isso antes do aceite.
+- **R1 — Mudança de modalidade descarta só o que mudou de tabela.** Mudança de
+  POD descarta todas as alterações; mudança de modalidade descarta só as da
+  tabela que saiu do B/L (o misto que perde a carga solta mantém as de
+  container).
+- **R2 — Refixar com tabela nova do mesmo escopo remapeia.** A alteração passa
+  para a mesma taxa (nome, incidência, perfil e moeda) da tabela nova; sem ela,
+  é descartada, e a prévia mostra antes do aceite.
 
 ## Desenho
 

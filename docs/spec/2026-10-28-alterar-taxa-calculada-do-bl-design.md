@@ -111,6 +111,18 @@ Tabela nova cadastrada não muda B/L existente (o B/L fica vinculado à tabela d
 primeiro cálculo, [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
 decisão 1); o B/L só troca de tabela quando muda de POD ou de modalidade.
 
+**Refinamentos aprovados pelo dono no plano (2026-10-28):**
+
+- **R1 — Mudança de modalidade descarta só o que mudou de tabela.** Descartam-se
+  as alterações cuja tabela saiu do B/L; as da tabela que continua ficam.
+  Exemplo: o B/L misto que perde a carga solta perde as alterações das taxas
+  de carga solta e mantém as de container. Mudança de POD descarta todas.
+- **R2 — Refixar o preço com tabela nova do mesmo escopo.** Quando **Passar o
+  B/L … ao preço de hoje** troca a tabela por uma mais nova do mesmo POD e
+  modalidade, a alteração passa para a mesma taxa da tabela nova (mesmo nome,
+  incidência, perfil e moeda); sem essa taxa na tabela nova, é descartada, e a
+  prévia da reimportação mostra isso antes do aceite.
+
 ### D6 — Aviso ao operador pelo tamanho do efeito
 
 Quando um evento vai mexer num B/L com taxa alterada à mão, o aviso depende do
