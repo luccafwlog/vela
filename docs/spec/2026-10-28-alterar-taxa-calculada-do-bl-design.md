@@ -107,3 +107,14 @@ alteração se mantém e nada muda nela.
    importação): alteração mantida fica só no histórico da página; descartada
    ou com valor mudado fica no histórico e abre um alerta para os setores do
    faturamento.
+
+### D7 — Valor total alterado mantém o total quando a quantidade muda
+
+Taxa com o **valor total** alterado continua com o total digitado quando a
+quantidade do B/L muda depois (container que entra ou sai, rateio do container
+compartilhado, peso). Exemplo: THD de 2 containers alterado para R$ 2.000
+continua R$ 2.000 com 3 containers. Quem escolhe "total" diz "por esta taxa,
+este B/L paga R$ X"; para acompanhar a quantidade, altera-se o valor por
+unidade (D5). Toda mudança de quantidade numa taxa com total alterado pede a
+confirmação da D6, mesmo sem mudar o valor ("total alterado mantido em R$ 2.000;
+a quantidade passou de 2 para 3"), e fica no histórico da página.
