@@ -36,6 +36,10 @@ const CUSTOMER_FREE = 8700004
 const CUSTOMER_BILLED = 8700005
 const BL_FREE = 'BL087FREE'
 const BL_BILLED = 'BL087BILLED'
+// Migration 501: B/L preso por pedido de Desbloqueio de CE (sem CE gravado,
+// para a trava "B/L com CE Mercante" não responder antes da chave estrangeira).
+const BL_CE_UNLOCK = 'BL501CEUN'
+const CE_REQUEST_ID = '50100000-0000-4000-8000-000000000001'
 
 function as(userId: string, sql: string) {
   const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
@@ -54,11 +58,13 @@ const callDelete = (userId: string, kind: string, ids: string[], dryRun = false)
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
-    DELETE FROM public.audit_logs WHERE entity_id IN ('${BL_FREE}', '${BL_BILLED}', '${CUSTOMER_FREE}', '${CUSTOMER_BILLED}');
+    DELETE FROM public.ce_unlock_request_bls WHERE request_id = '${CE_REQUEST_ID}';
+    DELETE FROM public.ce_unlock_requests WHERE id = '${CE_REQUEST_ID}';
+    DELETE FROM public.audit_logs WHERE entity_id IN ('${BL_FREE}', '${BL_BILLED}', '${BL_CE_UNLOCK}', '${CUSTOMER_FREE}', '${CUSTOMER_BILLED}');
     DELETE FROM public.invoices WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
-    DELETE FROM public.vehicles WHERE bl_id IN ('${BL_FREE}', '${BL_BILLED}');
-    DELETE FROM public.bl_containers WHERE bl_id IN ('${BL_FREE}', '${BL_BILLED}');
-    DELETE FROM public.bls WHERE id IN ('${BL_FREE}', '${BL_BILLED}');
+    DELETE FROM public.vehicles WHERE bl_id IN ('${BL_FREE}', '${BL_BILLED}', '${BL_CE_UNLOCK}');
+    DELETE FROM public.bl_containers WHERE bl_id IN ('${BL_FREE}', '${BL_BILLED}', '${BL_CE_UNLOCK}');
+    DELETE FROM public.bls WHERE id IN ('${BL_FREE}', '${BL_BILLED}', '${BL_CE_UNLOCK}');
     DELETE FROM public.customer_contacts WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
     DELETE FROM public.portal_provisioning_events WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
     DELETE FROM public.portal_notifications WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
@@ -110,6 +116,13 @@ describeLocal('087 — delete_records: exclusão atômica com prévia', () => {
     `)
     seedBl(BL_FREE, false)
     seedBl(BL_BILLED, true)
+    seedBl(BL_CE_UNLOCK, false)
+    psql(`
+      INSERT INTO public.ce_unlock_requests (id, customer_id, source, created_by)
+        VALUES ('${CE_REQUEST_ID}', ${CUSTOMER_BILLED}, 'request', '${ADMIN_ID}');
+      INSERT INTO public.ce_unlock_request_bls (request_id, bl_id, ce_at_request)
+        VALUES ('${CE_REQUEST_ID}', '${BL_CE_UNLOCK}', '151234567890123');
+    `)
   })
 
   afterAll(cleanup)
@@ -152,6 +165,30 @@ describeLocal('087 — delete_records: exclusão atômica com prévia', () => {
     ])
     expect(psql(`SELECT count(*) FROM public.customer_contacts
       WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});`)).toBe('2')
+  })
+
+  // Conferência do Manual do Operador (2026-10-28): a recusa mostrava
+  // "vinculado a ce_unlock_request_bls", o nome técnico da tabela.
+  it('B/L com pedido de Desbloqueio de CE diz o vínculo em português (501)', () => {
+    const run = callDelete(ADMIN_ID, 'bl', [BL_CE_UNLOCK], true)
+    expect(run.status).toBe(0)
+    expect(run.json.deleted).toEqual([])
+    expect(run.json.blocked).toEqual([{ id: BL_CE_UNLOCK, reasons: ['vinculado a pedido de Desbloqueio de CE'] }])
+    expect(psql(`SELECT count(*) FROM public.vehicles WHERE bl_id = '${BL_CE_UNLOCK}';`)).toBe('1')
+  })
+
+  it('toda tabela que segura B/L, container, Cliente ou Viagem tem nome em português (501)', () => {
+    // delete_records apaga veículos, contatos e taxas especiais antes do pai:
+    // essas chaves não chegam a recusar a exclusão.
+    const untranslated = psql(`
+      SELECT string_agg(c.conrelid::regclass::text || ' → ' || public.delete_record_block_reason('23503', '', c.conname), '; ' ORDER BY c.conname)
+      FROM pg_constraint c
+      WHERE c.contype = 'f' AND c.confdeltype IN ('a', 'r')
+        AND c.confrelid IN ('public.bls'::regclass, 'public.bl_containers'::regclass, 'public.customers'::regclass, 'public.voyages'::regclass)
+        AND c.conrelid NOT IN ('public.vehicles'::regclass, 'public.customer_contacts'::regclass, 'public.customer_rate_overrides'::regclass)
+        AND public.delete_record_block_reason('23503', '', c.conname) ~ '[a-z]_[a-z]';
+    `)
+    expect(untranslated).toBe('')
   })
 
   it('id repetido no lote conta uma vez, na prévia e na execução', () => {
