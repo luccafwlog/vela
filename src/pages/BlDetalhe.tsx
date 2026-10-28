@@ -88,6 +88,12 @@ export function BlDetalhe() {
   const { setTransshipment, setCod } = useSetBlDisposition(bl?.voyage_id ?? 0)
   const cockpitQuery = useBlCockpit(bl)
   const cancelledAt = (bl as { cancelled_at?: string | null } | undefined)?.cancelled_at ?? null
+  // ADR 0111, D6: marcar COD e reverter para transbordo trocam o POD, que pode
+  // descartar ou remapear taxa alterada à mão; o Gravar mesmo assim vem antes.
+  const withPodGuard = (pod: string | null | undefined, run: () => void) => {
+    if (!bl || !pod) return run()
+    void guardCharges([{ bl_id: bl.id, bls: { pod } }], async () => true).then((ok) => { if (ok) run() })
+  }
 
   async function handleCancelBl() {
     if (!bl) return
@@ -399,13 +405,13 @@ export function BlDetalhe() {
         onCod={canEditVoyages ? (justification) => {
           const omission = cockpitQuery.data?.omission
           if (!user?.id || !bl?.voyage_id || !omission) return
-          const run = () => setCod.mutate({ blId: bl.id, omissionId: omission.id, justification, changedBy: user.id })
-          // ADR 0111, D6: o COD troca o POD, que pode remapear taxa alterada à mão.
-          if (omission.dischargePod) void guardCharges([{ bl_id: bl.id, bls: { pod: omission.dischargePod } }], async () => true).then((ok) => { if (ok) run() })
-          else run()
+          withPodGuard(omission.dischargePod, () => setCod.mutate({ blId: bl.id, omissionId: omission.id, justification, changedBy: user.id }))
         } : undefined}
         onRestore={canEditVoyages ? (justification) => {
-          if (user?.id && bl?.voyage_id && cockpitQuery.data?.omission) setTransshipment.mutate({ blId: bl.id, omissionId: cockpitQuery.data.omission.id, justification, changedBy: user.id })
+          const omission = cockpitQuery.data?.omission
+          if (!user?.id || !bl?.voyage_id || !omission) return
+          // Reverter o COD devolve o POD original (`set_bl_transshipment`).
+          withPodGuard(omission.omittedPod, () => setTransshipment.mutate({ blId: bl.id, omissionId: omission.id, justification, changedBy: user.id }))
         } : undefined}
         portalStatus={portalStatus}
         portalStatusError={portalStatusError}

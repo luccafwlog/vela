@@ -16,6 +16,8 @@ const USERS = {
   ope: '04920000-0000-4000-8000-0000000000a3',
   doc: '04920000-0000-4000-8000-0000000000a4',
   equ: '04920000-0000-4000-8000-0000000000a5',
+  // Sessão sem perfil interno (como o usuário do Portal).
+  outsider: '04920000-0000-4000-8000-0000000000a6',
 } as const
 const CARRIER = 49200001
 const VESSEL = 49200002
@@ -193,6 +195,21 @@ describeLocal('492 — Isentar Taxas Locais à mão', () => {
     expect(as(USERS.ope, `SELECT public.update_manual_bl_charge(${manualId}, 3, NULL, '${USERS.ope}'::uuid)`).stderr).toMatch(refusal)
     expect(as(USERS.ope, `SELECT public.delete_manual_bl_charge(${manualId}, ${q(JUST)}, '${USERS.ope}'::uuid)`).stderr).toMatch(refusal)
     expect(exempt(USERS.ope, BL.main).stderr).toMatch(/já está isento das Taxas Locais/)
+  })
+
+  // 497: a guarda vem antes de ler o B/L; quem não é usuário interno não
+  // descobre que o B/L de outro Cliente existe e está isento à mão.
+  it('quem não é usuário interno recebe a recusa da guarda, não a da isenção', () => {
+    const manualId = psql(`SELECT id FROM public.charge_calculations WHERE bl_id = ${q(BL.main)} AND source = 'manual'`)
+    for (const sql of [
+      `SELECT public.add_manual_bl_charge(${q(BL.main)}, ${ARMAZ}, 1, NULL, NULL)`,
+      `SELECT public.update_manual_bl_charge(${manualId}, 3, NULL, NULL)`,
+    ]) {
+      const run = as(USERS.outsider, sql)
+      expect(run.status).not.toBe(0)
+      expect(run.stderr).toMatch(/Usuario sem permissao ativa/)
+      expect(run.stderr).not.toMatch(/isento/)
+    }
   })
 
   it('a isenção se mantém no Recalcular e na troca de POD', () => {

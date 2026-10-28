@@ -24,9 +24,10 @@ do manual". A Etapa 2 começa depois.
 
 **Mudança entrada depois da Etapa 1 (2026-10-28): alterar, excluir e isentar
 as Taxas Locais do B/L** ([ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
-migrations `491` a `495`). Já está na matriz, com `npm run manual:coverage`
-passando: as linhas novas e mudadas estão listadas, lote a lote, em
-"Atualizações da matriz" do [README do manual](../manual/README.md). Áreas do
+migrations `491` a `497`; a `497` traz as correções da revisão da PR). Já
+está na matriz, com `npm run manual:coverage` passando: as linhas novas e
+mudadas estão listadas, lote a lote, em "Atualizações da matriz" do
+[README do manual](../manual/README.md). Áreas do
 manual que mudaram: Taxas Locais (09a: alterar, excluir, isentar, Histórico das
 taxas, Validação), Faturamento (09b: B/L faturado, consolidada, Origem
 **Alterado**), Recebimento (10), Portal (07), Clientes (06: **B/Ls com taxa

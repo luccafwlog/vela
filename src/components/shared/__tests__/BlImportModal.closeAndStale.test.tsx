@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     calculationErrors: [] as Array<{ blNumber: string; message: string }>,
   })),
   afterManifestoImportado: vi.fn(() => Promise.resolve()),
+  guard: vi.fn(async (_changes: unknown, save: () => Promise<unknown>) => save()),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -21,7 +22,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../../hooks/useChargeAdjustmentGuard', () => ({
-  useChargeAdjustmentGuard: () => async (_changes: unknown, save: () => Promise<unknown>) => save(),
+  useChargeAdjustmentGuard: () => mocks.guard,
   useImportChargeImpact: () => ({ data: undefined }),
 }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }))
@@ -65,6 +66,7 @@ import { BlImportModal } from '../BlImportModal'
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.afterManifestoImportado.mockResolvedValue(undefined)
+  mocks.guard.mockImplementation(async (_changes: unknown, save: () => Promise<unknown>) => save())
 })
 afterEach(cleanup)
 
@@ -126,4 +128,31 @@ it('não fecha durante a gravação', async () => {
   // Terminada a gravação, a confirmação fica no modal até Concluir.
   fireEvent.click(await screen.findByRole('button', { name: 'Concluir' }))
   expect(onClose).toHaveBeenCalledTimes(1)
+})
+
+// ADR 0111, D6 (revisão da PR #1080): a conferência das taxas alteradas à mão
+// já é a gravação; fechar ou clicar de novo no meio não grava sem tela.
+it('não fecha nem grava duas vezes enquanto confere as taxas alteradas à mão', async () => {
+  mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU123'))
+  const existingRow = { ...previewRow('COSU123'), status: 'updated', existing: true, existingContainerNumbers: [], removedContainers: [], payload: { id: 'COSU123', containers: [] } }
+  mocks.previewBlFreightImport.mockResolvedValue({ ...previewOf('COSU123'), rows: [existingRow] })
+  let release: ((value: unknown) => void) | undefined
+  mocks.guard.mockImplementationOnce(() => new Promise((resolve) => { release = resolve }))
+  const onClose = vi.fn()
+  const { container } = render(<BlImportModal open voyageId={7} voyageLabel="GREEN / 14N" onClose={onClose} />)
+
+  chooseFile(container)
+  const confirm = await screen.findByRole('button', { name: /^Importar 1/ })
+  await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(confirm)
+  await waitFor(() => expect(mocks.guard).toHaveBeenCalledTimes(1))
+
+  fireEvent.click(screen.getByRole('button', { name: /^Importar|Importando/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Fechar modal' }))
+  expect(onClose).not.toHaveBeenCalled()
+  expect(mocks.showToast).toHaveBeenCalledWith('Aguarde: a gravação ainda está em andamento.', 'info')
+
+  release?.(true)
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledTimes(1))
+  expect(mocks.guard).toHaveBeenCalledTimes(1)
 })

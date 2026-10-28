@@ -73,19 +73,12 @@ export function useAddManualBlCharge(blId?: string) {
   return useMutation({
     mutationFn: async (payload: { chargeItemId: number; quantity: number; notes?: string | null; actorId?: string | null }) =>
       addManualBlCharge(blId!, payload),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
-      ])
-    },
+    // ADR 0111: a cobrança manual muda o "a faturar", a Validação e o saldo do Cliente.
+    onSuccess: () => afterTaxasDoBlAlteradas(queryClient),
   })
 }
 
-export function useUpdateManualBlCharge(blId?: string) {
+export function useUpdateManualBlCharge() {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -95,14 +88,8 @@ export function useUpdateManualBlCharge(blId?: string) {
         notes: payload.notes,
         actorId: payload.actorId,
       }),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
-      ])
-    },
+    // A quantidade nova de cobrança manual com total alterado entra no Histórico das taxas (D7).
+    onSuccess: () => afterTaxasDoBlAlteradas(queryClient),
   })
 }
 

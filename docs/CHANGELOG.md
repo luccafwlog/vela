@@ -33,6 +33,17 @@
   alteração é descartada ou o total alterado ganha quantidade nova; sem essa confirmação, o efeito abre
   o alerta **Taxa alterada à mão mudou** (Administrativo, avisa o Financeiro; Resolver com
   justificativa).
+  Revisão da PR luccafwlog/vela#1080 (migration `497`): a confirmação do efeito na fatura passa a
+  dizer o mesmo que a correção faz (abatimento pelo saldo do B/L na consolidada paga em parte;
+  "não pode ser reemitida agora" sem Portal pronto nem Liberação; a fatura individual do B/L e a
+  consolidada que volta ou encerra); quem não é usuário interno deixa de descobrir pelo erro que um
+  B/L está isento à mão; o **Gravar mesmo assim** passa a cobrir o peso de contêiner da ficha, o
+  COC/SOC (correção de container, arquivo de B/L e Baplie), o B/L que passa a dividir um container,
+  toda gravação do Baplie (também a primeira importação), os veículos selecionados de outras páginas
+  e o **Reverter para transbordo**; a importação do B/L não fecha nem grava duas vezes durante a
+  conferência, e **Voltar** no meio da consulta do efeito não abre a confirmação; o Histórico das
+  taxas, a Validação e o saldo do Cliente se atualizam depois de lançar ou editar cobrança manual e
+  das gravações que recalculam as taxas.
 - **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
   compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
   listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta

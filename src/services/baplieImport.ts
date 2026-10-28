@@ -616,12 +616,19 @@ export async function reimportBaplie({
   pods,
   file,
   confirmReplacement,
+  confirmChargeImpact,
 }: {
   voyageId: number
   containers: BaplieContainer[]
   pods: string[]
   file: BaplieFileIdentity
   confirmReplacement: (plan: BaplieReimportPlan) => Promise<boolean>
+  /**
+   * ADR 0111, D6: as marcas IMO/OOG e SOC/COC que o arquivo grava mudam taxa
+   * alterada à mão; recusar não grava. Pergunta em toda gravação, também na
+   * primeira importação e no arquivo sem diferença.
+   */
+  confirmChargeImpact?: (flags: BaplieFlagsPreview | undefined) => Promise<boolean>
 }): Promise<BaplieReimportResult> {
   // O manifesto de vazios lido aqui é o do diálogo e vai junto: recadastro,
   // criação ou exclusão dele por outra sessão faz o servidor recusar (390).
@@ -639,7 +646,12 @@ export async function reimportBaplie({
       vaziosError: null,
     }
   }
-  if (!existingRows.length) return { status: 'imported', ...(await write()) }
+  if (!existingRows.length) {
+    // Prévia das marcas que falha não trava a importação: o alerta cobre.
+    const flags = confirmChargeImpact ? await previewBaplieFlags(voyageId, containers, pods).catch(() => undefined) : undefined
+    if (confirmChargeImpact && !(await confirmChargeImpact(flags))) return { status: 'cancelled' }
+    return { status: 'imported', ...(await write()) }
+  }
 
   const diff = diffBaplieStaging(existingRows, containers)
   const plan: BaplieReimportPlan = {
@@ -656,19 +668,24 @@ export async function reimportBaplie({
     flags: await previewBaplieFlags(voyageId, containers, pods),
   }
   if ((diff.items.length || plan.flags?.clear.length) && !(await confirmReplacement(plan))) return { status: 'cancelled' }
+  if (confirmChargeImpact && !(await confirmChargeImpact(plan.flags))) return { status: 'cancelled' }
 
   return { status: diff.items.length ? 'replaced' : 'unchanged', ...(await write()) }
 }
 
 /**
- * Perfis que o Baplie novo grava, para a prévia **Taxas alteradas à mão**
- * (ADR 0111, D6). Lê o rótulo de `_baplie_flags_label` ("IMO, OOG, SOC").
+ * Perfis e SOC/COC que o Baplie novo grava, para a prévia **Taxas alteradas à
+ * mão** (ADR 0111, D6). Lê o rótulo de `_baplie_flags_label` ("IMO, OOG,
+ * SOC"); sem SOC nem COC no rótulo, o SOC/COC do container fica.
  */
 export function baplieImpactChanges(flags: BaplieFlagsPreview | undefined): BlChargeImpactChange[] {
   const byBl = new Map<string, NonNullable<BlChargeImpactChange['container_flags']>>()
   for (const item of [...(flags?.apply ?? []), ...(flags?.clear ?? [])]) {
     const marks = (item.after ?? '').split(',').map((mark) => mark.trim())
-    byBl.set(item.bl_id, [...(byBl.get(item.bl_id) ?? []), { container_number: item.container, is_imo: marks.includes('IMO'), is_oog: marks.includes('OOG') }])
+    const ownership = marks.includes('SOC') ? 'SOC' : marks.includes('COC') ? 'COC' : null
+    byBl.set(item.bl_id, [...(byBl.get(item.bl_id) ?? []), {
+      container_number: item.container, is_imo: marks.includes('IMO'), is_oog: marks.includes('OOG'), ...(ownership ? { ownership } : {}),
+    }])
   }
   return [...byBl].map(([bl_id, container_flags]) => ({ bl_id, container_flags }))
 }

@@ -18,7 +18,7 @@ export function MoveVehiclesModal({ open, vehicleIds, impactChanges, onClose, on
   open: boolean
   vehicleIds: number[]
   /** Prévia da taxa alterada à mão (ADR 0111, D6), montada pela página. */
-  impactChanges?: (targetBlId: string) => BlChargeImpactChange[]
+  impactChanges?: (targetBlId: string) => Promise<BlChargeImpactChange[]>
   onClose: () => void
   onMoved: () => Promise<void> | void
 }) {
@@ -46,7 +46,7 @@ export function MoveVehiclesModal({ open, vehicleIds, impactChanges, onClose, on
       confirmLabel: 'Mover',
     })
     if (reason === null) return
-    if (impactChanges && !(await guardCharges(impactChanges(target), async () => true))) return
+    if (impactChanges && !(await guardCharges(() => impactChanges(target), async () => true))) return
     setSaving(true)
     try {
       const result = await moveVehiclesToBl({ ids: vehicleIds, targetBlId: target, containerId: chosen, reason })

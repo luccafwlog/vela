@@ -137,3 +137,12 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     Manifesto BB e a pergunta no Baplie; o alerta **Taxa alterada à mão mudou**
     (BLR-150, CEB-099, EQU-130, VIA-145, ALE-086 e a marca interna da
     simulação).
+  - Revisão da PR luccafwlog/vela#1080 (migration `497`): a confirmação do
+    efeito na fatura segue a mesma ordem da correção (consolidada, saldo do
+    B/L, Portal sem Liberação; FAT-175); **Revisar alteração** não repete e
+    **Voltar** no meio não abre a confirmação (TAX-095); o **Gravar mesmo
+    assim** passa a valer também para o peso de contêiner e o COC/SOC da
+    correção de container (BLR-150), para o SOC/COC do arquivo de B/L, o B/L
+    que passa a dividir o container e toda gravação do Baplie (CEB-099), para
+    os veículos selecionados de outras páginas (EQU-130) e para **Reverter
+    para transbordo** (VIA-145).

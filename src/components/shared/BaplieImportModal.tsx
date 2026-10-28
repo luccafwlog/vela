@@ -172,10 +172,11 @@ export function BaplieImportModal({
         pods: markedPods,
         // O número de viagem é informativo: o servidor não o confere (migration 409).
         file: { voyageNumber: parsed?.voyage_number ?? null },
-        confirmReplacement: async (plan) => {
-          if (!(await confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)))) return false
-          // ADR 0111, D6: marca IMO/OOG nova muda taxa alterada à mão.
-          const changes = baplieImpactChanges(plan.flags)
+        confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
+        // ADR 0111, D6: marca IMO/OOG ou SOC/COC nova muda taxa alterada à mão,
+        // também na primeira importação da Viagem.
+        confirmChargeImpact: async (flags) => {
+          const changes = baplieImpactChanges(flags)
           return changes.length === 0 || Boolean(await guardCharges(changes, async () => true))
         },
       })

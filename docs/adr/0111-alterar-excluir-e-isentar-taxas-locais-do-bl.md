@@ -6,7 +6,10 @@ R2 aprovados no [plano](../archive/plans/2026-10-28-alterar-taxa-calculada-do-bl
 Implementação em lotes: lote 1 na migration `491` (alterar, excluir, desfazer,
 cobrança manual e Histórico das taxas); lote 2 na `492` (isenção à mão); lote 3
 na `493` (B/L faturado); lote 4 na `494` (leituras fora da ficha); lote 5 na
-`495` (aviso **Gravar mesmo assim**, prévias e alerta); a `496` só repõe a guarda explícita no invólucro de trava.
+`495` (aviso **Gravar mesmo assim**, prévias e alerta); a `496` só repõe a guarda explícita no invólucro de trava;
+a `497` traz as correções da revisão da PR luccafwlog/vela#1080 (prévia do efeito na fatura na mesma ordem
+da correção, guarda antes da leitura na cobrança manual, SOC/COC e container que passa a ser dividido na
+simulação da decisão 12).
 
 Supersede o item 11 da [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)
 (excluir cobrança manual era só do Administrativo). Estende a

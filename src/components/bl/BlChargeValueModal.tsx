@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Fact, FactList } from '../ui/Block'
@@ -35,6 +35,15 @@ export function BlChargeValueModal({ blId, line, onClose, billed = false }: { bl
   const [value, setValue] = useState('')
   const [justification, setJustification] = useState('')
   const [error, setError] = useState<{ field: 'value' | 'justification' | 'form'; message: string } | null>(null)
+  // No B/L faturado, Revisar alteração consulta o efeito na fatura antes da
+  // confirmação: enquanto consulta, não repete; Voltar no meio fecha de vez,
+  // sem a confirmação aparecer depois.
+  const [checking, setChecking] = useState(false)
+  const closedRef = useRef(false)
+  const close = () => {
+    closedRef.current = true
+    onClose()
+  }
 
   const basis = applicationBasisLabel(line.application_basis) ?? 'por unidade'
   const money = (amount: number) => formatChargeMoney(amount, line.currency)
@@ -43,7 +52,7 @@ export function BlChargeValueModal({ blId, line, onClose, billed = false }: { bl
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!user) return
+    if (!user || checking || mutation.isPending) return
     const read = readChargeValueDraft({ kind, value, justification }, line)
     if (!read.ok) {
       setError({ field: read.field, message: read.message })
@@ -52,7 +61,10 @@ export function BlChargeValueModal({ blId, line, onClose, billed = false }: { bl
     setError(null)
     const newUnit = kind === 'unit' ? read.value : Math.round((read.value / Number(line.quantity || 1)) * 100) / 100
     const newTotal = kind === 'unit' ? Math.round(read.value * Number(line.quantity ?? 0) * 100) / 100 : read.value
+    setChecking(true)
     const effect = await readInvoiceEffect(billed, { blId, action: 'alter', lineKey: line.calculation_key, kind, value: read.value })
+      .finally(() => setChecking(false))
+    if (closedRef.current) return
     if (!effect.ok) {
       setError({ field: 'form', message: `Não foi possível alterar a taxa: ${userFacingErrorMessage(effect.error)}` })
       return
@@ -74,14 +86,14 @@ export function BlChargeValueModal({ blId, line, onClose, billed = false }: { bl
         action: 'alter', lineKey: line.calculation_key ?? '', kind, value: read.value, justification: justification.trim(), actorId: user.id,
       })
       showToast('Valor da taxa alterado.', 'success')
-      onClose()
+      close()
     } catch (failure) {
       setError({ field: 'form', message: `Não foi possível alterar a taxa: ${userFacingErrorMessage(failure)}` })
     }
   }
 
   return (
-    <Modal open title={`Alterar valor — ${line.charge_name}`} onClose={onClose} size="sm">
+    <Modal open title={`Alterar valor — ${line.charge_name}`} onClose={close} size="sm">
       <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
         <FactList columns={2}>
           <Fact label="Quantidade">{formatNumber(line.quantity)} · vem da carga do B/L, não se altera</Fact>
@@ -114,8 +126,8 @@ export function BlChargeValueModal({ blId, line, onClose, billed = false }: { bl
         </Field>
         {error?.field === 'form' ? <p className="app-field__error" role="alert">{error.message}</p> : null}
         <div className="mt-2 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Voltar</Button>
-          <Button type="submit" loading={mutation.isPending} loadingLabel="Alterando…">Revisar alteração</Button>
+          <Button type="button" variant="secondary" onClick={close}>Voltar</Button>
+          <Button type="submit" loading={mutation.isPending || checking} loadingLabel={checking ? 'Conferindo a fatura…' : 'Alterando…'}>Revisar alteração</Button>
         </div>
       </form>
     </Modal>

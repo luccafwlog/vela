@@ -33,7 +33,7 @@ import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { STALE_PAGE_CLASS } from '../lib/pagination'
 import { UNPACKING_LOCATION_NONE, cacheUnpackingLocation, useVehicleOptions, useVehicles, useVoyageVehicleDeclaration, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
-import { declareVoyageWithoutVehicles, deleteVehicles, undoVoyageVehicleDeclaration } from '../services/vehicles'
+import { declareVoyageWithoutVehicles, deleteVehicles, undoVoyageVehicleDeclaration, vehicleChargeImpactChanges } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -44,7 +44,6 @@ import { buildVoyageRailItems, type VoyageRailModuleStats } from '../services/vo
 import { VoyageRail } from '../components/voyages/VoyageRail'
 import { isMissingLabel } from './veiculosPresentation'
 import { useChargeAdjustmentGuard } from '../hooks/useChargeAdjustmentGuard'
-import type { BlChargeImpactChange } from '../services/charges/chargeOperationsService'
 import { formatDateTime, voyageLabel } from '../lib/utils'
 
 type DesovaScope = 'selected' | 'all' | 'missing'
@@ -71,18 +70,9 @@ export function Veiculos() {
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
   const confirm = useConfirm()
+  // ADR 0111, D6: a prévia da taxa alterada agrupa os veículos selecionados,
+  // de todas as páginas, pelo B/L de origem (`vehicleChargeImpactChanges`).
   const guardCharges = useChargeAdjustmentGuard()
-  // ADR 0111, D6: a prévia da taxa alterada agrupa os veículos pelo B/L de origem.
-  const vehicleImpact = (ids: number[], targetBlId?: string): BlChargeImpactChange[] => {
-    const byBl = new Map<string, number[]>()
-    for (const row of data?.rows ?? []) {
-      if (!ids.includes(row.id) || !row.bl?.id) continue
-      byBl.set(row.bl.id, [...(byBl.get(row.bl.id) ?? []), row.id])
-    }
-    return [...byBl].map(([blId, blVehicles]) => targetBlId
-      ? { bl_id: blId, move_vehicles: blVehicles.map((id) => ({ id, to_bl_id: targetBlId })) }
-      : { bl_id: blId, remove_vehicle_ids: blVehicles })
-  }
   const { user, profile } = useAuth()
   const narrow = useNarrowViewport()
   const canEditVehicles = Boolean(profile || user)
@@ -339,7 +329,7 @@ export function Veiculos() {
       tone: 'danger',
     })
     if (reason === null) return
-    if (!(await guardCharges(vehicleImpact(ids), async () => true))) return
+    if (!(await guardCharges(() => vehicleChargeImpactChanges(ids), async () => true))) return
 
     setDeleting(true)
     try {
@@ -650,7 +640,7 @@ export function Veiculos() {
       <MoveVehiclesModal
         open={moveOpen}
         vehicleIds={[...selection.selected]}
-        impactChanges={(target) => vehicleImpact([...selection.selected], target)}
+        impactChanges={(target) => vehicleChargeImpactChanges([...selection.selected], target)}
         onClose={() => setMoveOpen(false)}
         onMoved={async () => { selection.clear(); await afterCargaAlterada(queryClient) }}
       />

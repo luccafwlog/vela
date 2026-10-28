@@ -40,13 +40,15 @@ export function describeConsignee(row: BlFreightImportRow): { document: string |
 /**
  * Mudanças de base que a reimportação faz em B/Ls já gravados, para a prévia
  * **Taxas alteradas à mão** (ADR 0111, D6): POD, containers que saem, entram e
- * mudam de perfil. B/L novo ainda não tem taxa alterada.
+ * mudam de perfil ou de SOC/COC (o banco não troca o SOC/COC corrigido à mão).
+ * B/L novo ainda não tem taxa alterada.
  */
 export function blImportImpactChanges(rows: readonly BlFreightImportRow[]): BlChargeImpactChange[] {
   return rows.flatMap((row) => {
     if (!row.existing || !row.payload || row.status === 'blocked' || row.status === 'skipped' || row.status === 'unchanged') return []
     const existing = new Set((row.existingContainerNumbers ?? []).map((number) => number.toUpperCase()))
-    const containers = (row.payload.containers ?? []).map((container) => ({
+    const fileContainers = row.payload.containers ?? []
+    const containers = fileContainers.map((container) => ({
       container_number: container.container_number,
       type: container.type,
       is_imo: container.is_imo,
@@ -58,6 +60,9 @@ export function blImportImpactChanges(rows: readonly BlFreightImportRow[]): BlCh
       remove_container_numbers: row.removedContainers ?? [],
       add_containers: containers.filter((container) => !existing.has(container.container_number.toUpperCase())),
       container_flags: containers.filter((container) => existing.has(container.container_number.toUpperCase())),
+      container_ownership: fileContainers.flatMap((container) => (container.ownership && existing.has(container.container_number.toUpperCase())
+        ? [{ container_number: container.container_number, ownership: container.ownership }]
+        : [])),
     }]
   })
 }

@@ -32,12 +32,12 @@ describe('prévia da taxa alterada à mão', () => {
     expect(impactNeedingConfirmation(entries)).toEqual([])
   })
 
-  it('reimportação de B/L leva POD e containers que entram, saem e mudam de perfil; B/L novo fica fora', () => {
+  it('reimportação de B/L leva POD, containers que entram, saem e mudam de perfil e o SOC/COC do arquivo; B/L novo fica fora', () => {
     const row = (over: Partial<BlFreightImportRow>) => ({
       blNumber: 'BL3', status: 'updated', existing: true, existingContainerNumbers: ['AAAU1'], removedContainers: ['CCCU3'], pod: 'BRSSZ',
       payload: { containers: [
-        { container_number: 'AAAU1', type: '20DC', is_imo: true, is_oog: false },
-        { container_number: 'BBBU2', type: '40HC', is_imo: false, is_oog: false },
+        { container_number: 'AAAU1', type: '20DC', is_imo: true, is_oog: false, ownership: 'SOC' },
+        { container_number: 'BBBU2', type: '40HC', is_imo: false, is_oog: false, ownership: 'COC' },
       ] },
       ...over,
     }) as unknown as BlFreightImportRow
@@ -47,16 +47,18 @@ describe('prévia da taxa alterada à mão', () => {
       remove_container_numbers: ['CCCU3'],
       add_containers: [{ container_number: 'BBBU2', type: '40HC', is_imo: false, is_oog: false }],
       container_flags: [{ container_number: 'AAAU1', type: '20DC', is_imo: true, is_oog: false }],
+      // Migration 497: o SOC/COC do arquivo vale só no container que já existe.
+      container_ownership: [{ container_number: 'AAAU1', ownership: 'SOC' }],
     }])
   })
 
-  it('Baplie lê o perfil novo do rótulo das marcas', () => {
+  it('Baplie lê o perfil e o SOC/COC novos do rótulo das marcas', () => {
     expect(baplieImpactChanges({
       apply: [{ container: 'AAAU1', bl_id: 'BL4', after: 'IMO, OOG, SOC' }],
       clear: [{ container: 'BBBU2', bl_id: 'BL4', after: 'sem marca' }],
       divergent_manual: [],
     })).toEqual([{ bl_id: 'BL4', container_flags: [
-      { container_number: 'AAAU1', is_imo: true, is_oog: true },
+      { container_number: 'AAAU1', is_imo: true, is_oog: true, ownership: 'SOC' },
       { container_number: 'BBBU2', is_imo: false, is_oog: false },
     ] }])
   })

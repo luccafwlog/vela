@@ -641,7 +641,14 @@ cobra por Fatura avulsa; sem poder reemitir (B/L misto com terminais em
 conflito, valor a revisar, trava do Portal), a fatura continua valendo com
 Fatura desatualizada. A confirmação lê o efeito de
 `preview_bl_charge_change_effect` antes de gravar, e o evento do Histórico das
-taxas guarda o efeito real (**Efeito na fatura**). O item emitido de linha
+taxas guarda o efeito real (**Efeito na fatura**). A prévia segue a mesma ordem
+de decisão de `apply_invoice_basis_changes` (migration `497`): com pagamento, o
+abatimento é o saldo em aberto do recebível deste B/L, como em
+`_register_invoice_correction_core` (na consolidada paga em parte, não o pago
+pelos outros B/Ls); sem Portal pronto nem Liberação de faturamento vigente, a
+reemissão não sai; com consolidada viva, a frase nomeia a fatura individual do
+B/L e diz que a consolidada volta só com os mesmos B/Ls (ou, ao isentar, que
+ela é encerrada sem reemissão). O item emitido de linha
 alterada leva `snapshot_payload.charge_adjustment`: o detalhe da fatura no Vela
 mostra a Origem **Alterado**; o Portal não recebe a chave.
 

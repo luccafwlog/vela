@@ -83,13 +83,15 @@ export function BlContainerCorrectModal({
       reversibility: 'Corrija de novo, com nova justificativa. Reimportar o B/L volta lacre, peso e CBM ao que o arquivo traz.',
     })
     if (!confirmed) return
-    if (plan.profile) {
-      // ADR 0111, D6: o perfil muda a base das taxas de todos os B/Ls do container.
+    if (plan.profile || plan.ownership) {
+      // ADR 0111, D6: perfil e COC/SOC mudam a base das taxas de todos os
+      // B/Ls do container (o SOC tira o container dos itens que não cobram
+      // de SOC; migration 497).
       const profile = plan.profile
       const proceed = await guardCharges([{ bl_id: bl.id, container_flags: [{
         container_number: container.container_number,
-        is_imo: profile === 'imo' || profile === 'imo_oog',
-        is_oog: profile === 'oog' || profile === 'imo_oog',
+        ...(profile ? { is_imo: profile === 'imo' || profile === 'imo_oog', is_oog: profile === 'oog' || profile === 'imo_oog' } : {}),
+        ...(plan.ownership ? { ownership: plan.ownership } : {}),
       }] }], async () => true)
       if (!proceed) return
     }

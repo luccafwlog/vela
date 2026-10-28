@@ -616,7 +616,10 @@ export type BlChargeImpactChange = {
   remove_container_ids?: number[]
   remove_container_numbers?: string[]
   add_containers?: Array<{ container_number: string; type?: string | null; is_imo?: boolean; is_oog?: boolean }>
-  container_flags?: Array<{ container_number: string; type?: string | null; is_imo?: boolean | null; is_oog?: boolean | null }>
+  /** Perfil e SOC/COC no container em todos os B/Ls ativos da Viagem (Part Lot), como a correção de container. */
+  container_flags?: Array<{ container_number: string; type?: string | null; is_imo?: boolean | null; is_oog?: boolean | null; ownership?: 'SOC' | 'COC' | null }>
+  /** SOC/COC do arquivo do B/L: só neste B/L, sem trocar o corrigido à mão (migration 497). */
+  container_ownership?: Array<{ container_number: string; ownership: 'SOC' | 'COC' }>
   remove_vehicle_ids?: number[]
   move_vehicles?: Array<{ id: number; to_bl_id: string }>
 }

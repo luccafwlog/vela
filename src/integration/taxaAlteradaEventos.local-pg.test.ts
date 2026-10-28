@@ -24,16 +24,19 @@ const THD = 49500020
 const BL_FEE = 49500021
 const THD_B = 49500022
 const BL_FEE_B = 49500023
+const DROP_OFF = 49500024
 const POD = 'R495A'
 const POD_B = 'R495B'
 const BL = {
   total: 'R495-TOT', unit: 'R495-UNI', pod: 'R495-POD', ack: 'R495-ACK', queue: 'R495-QUE',
-  share1: 'R495-SH1', share2: 'R495-SH2', exempt: 'R495-EXE', plain: 'R495-PLN',
+  share1: 'R495-SH1', share2: 'R495-SH2', exempt: 'R495-EXE', plain: 'R495-PLN', newShare: 'R495-NSH',
+  soc: 'R495-SOC',
 } as const
 const ALL_BLS = Object.values(BL)
 const JUST = 'Acordado com o Cliente pelo comercial'
 const thd = `auto:item:${THD}`
 const blFee = `auto:item:${BL_FEE}`
+const dropOff = `auto:item:${DROP_OFF}`
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
@@ -155,6 +158,9 @@ describeLocal('495 — prévia, aceite e alerta da taxa alterada à mão', () =>
         (${BL_FEE}, ${T_A}, 'Taxa de B/L', 'bl', 300, 300, NULL, 'bl', 'base', 'any', 'BRL', false),
         (${THD_B}, ${T_B}, 'THD', 'container', 1500, 1500, NULL, 'container_distinct_voyage', 'base', 'standard', 'BRL', false),
         (${BL_FEE_B}, ${T_B}, 'Taxa de B/L', 'bl', 350, 350, NULL, 'bl', 'base', 'any', 'BRL', false);
+      -- Item que não cobra de SOC: só os containers COC contam.
+      INSERT INTO public.charge_table_items (id, charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency, manual_only, applies_to_soc)
+      VALUES (${DROP_OFF}, ${T_A}, 'Drop Off', 'container', 200, 200, 'container_distinct_voyage', 'base', 'any', 'BRL', false, false);
       INSERT INTO public.bls (id, voyage_id, customer_id, pod, cargo_mode, financial_status, charge_status, customer_reconciliation_status)
       VALUES ${ALL_BLS.map(containerBl).join(', ')};
       INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES
@@ -165,7 +171,11 @@ describeLocal('495 — prévia, aceite e alerta da taxa alterada à mão', () =>
         (${q(BL.queue)}, 'RTAU4950007', '22G1'),
         (${q(BL.share1)}, 'RTAU4950008', '22G1'), (${q(BL.share2)}, 'RTAU4950008', '22G1'),
         (${q(BL.exempt)}, 'RTAU4950009', '22G1'),
-        (${q(BL.plain)}, 'RTAU4950010', '22G1');
+        (${q(BL.plain)}, 'RTAU4950010', '22G1'),
+        (${q(BL.newShare)}, 'RTAU4950011', '22G1'),
+        (${q(BL.soc)}, 'RTAU4950012', '22G1'), (${q(BL.soc)}, 'RTAU4950013', '22G1');
+      UPDATE public.bl_containers SET ownership = 'COC', ownership_source = 'manual'
+       WHERE bl_id = ${q(BL.soc)} AND container_number = 'RTAU4950013';
     `)
     for (const id of ALL_BLS) calculate(id)
     alter(BL.total, thd, 'total', 2000)
@@ -174,6 +184,8 @@ describeLocal('495 — prévia, aceite e alerta da taxa alterada à mão', () =>
     alter(BL.ack, blFee, 'unit', 280)
     alter(BL.queue, blFee, 'unit', 280)
     alter(BL.share1, thd, 'total', 1000)
+    alter(BL.newShare, thd, 'total', 1500)
+    alter(BL.soc, dropOff, 'total', 900)
     alter(BL.exempt, blFee, 'unit', 250)
     ok(USERS.adm, `SELECT public.exempt_bl_local_charges(${q(BL.exempt)}, ${q(JUST)}, '${USERS.adm}'::uuid)`)
   })
@@ -261,6 +273,36 @@ describeLocal('495 — prévia, aceite e alerta da taxa alterada à mão', () =>
       SELECT public._apply_bl_charge_simulation_change(${q(JSON.stringify({ bl_id: BL.share2, container_flags: [{ container_number: 'RTAU4950008', is_imo: true }] }))}::jsonb);
       SELECT string_agg(bl_id || '=' || is_imo, ',' ORDER BY bl_id) FROM public.bl_containers WHERE container_number = 'RTAU4950008';
       ROLLBACK;`).split('\n').pop()).toBe(`${BL.share1}=true,${BL.share2}=true`)
+  })
+
+  // 497: o container que entra no B/L e já está em outro B/L da Viagem muda o
+  // rateio do outro, que também entra na prévia, como na gravação.
+  it('container que passa a ser dividido: o B/L que já o tinha entra na prévia, igual ao efeito real', () => {
+    const result = impact([{ bl_id: BL.plain, add_containers: [{ container_number: 'rtau4950011', type: '22G1' }] }])
+    expect(result.map((entry) => entry.bl_id)).toEqual([BL.newShare])
+    expect(result[0].items[0]).toMatchObject({ charge_name: 'THD', outcome: 'total_kept', quantity: 1, after_quantity: 0.5, needs_confirmation: true })
+    saveAs(USERS.ope, `INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES (${q(BL.plain)}, 'RTAU4950011', '22G1')`)
+    expect(psql(`SELECT (after->>'quantity')::numeric(12,1) || '|' || (after->>'total') FROM public.bl_charge_adjustment_events
+      WHERE bl_id = ${q(BL.newShare)} AND event = 'quantity_changed'`)).toBe('0.5|1500.00')
+  })
+
+  // 497: SOC/COC muda a quantidade do item que não cobra de SOC.
+  it('SOC/COC na correção de container: total alterado com quantidade nova pede confirmação', () => {
+    const [entry] = impact([{ bl_id: BL.soc, container_flags: [{ container_number: 'RTAU4950012', ownership: 'SOC' }] }])
+    expect(entry.items.find((item) => item.charge_name === 'Drop Off')).toMatchObject({
+      outcome: 'total_kept', quantity: 2, after_quantity: 1, after_total: 900, needs_confirmation: true,
+    })
+    expect(psql(`SELECT count(*) FROM public.bl_containers WHERE bl_id = ${q(BL.soc)} AND ownership = 'SOC'`)).toBe('0')
+  })
+
+  it('SOC/COC do arquivo do B/L: só no B/L e sem trocar o corrigido à mão, como a reimportação', () => {
+    const [manual] = impact([{ bl_id: BL.soc, container_ownership: [{ container_number: 'rtau4950013', ownership: 'SOC' }] }])
+    expect(manual.items.find((item) => item.charge_name === 'Drop Off')).toMatchObject({ outcome: 'kept', after_quantity: 2 })
+    const [fromFile] = impact([{ bl_id: BL.soc, container_ownership: [{ container_number: 'rtau4950012', ownership: 'SOC' }] }])
+    expect(fromFile.items.find((item) => item.charge_name === 'Drop Off')).toMatchObject({ outcome: 'total_kept', after_quantity: 1 })
+    saveAs(USERS.ope, `UPDATE public.bl_containers SET ownership = 'SOC', ownership_source = 'bl' WHERE bl_id = ${q(BL.soc)} AND container_number = 'RTAU4950012'`)
+    expect(psql(`SELECT (after->>'quantity')::numeric(12,0) || '|' || (after->>'total') FROM public.bl_charge_adjustment_events
+      WHERE bl_id = ${q(BL.soc)} AND event = 'quantity_changed'`)).toBe('1|900.00')
   })
 
   it('B/L isento à mão aparece como isento', () => {

@@ -32,7 +32,7 @@ const alter = (id: string, unit: number) =>
 const preview = (id: string, action: string, extra = 'NULL, NULL, NULL') =>
   w.json<Record<string, unknown>>('operacoes', `SELECT public.preview_bl_charge_change_effect(${q(id)}, ${q(action)}, ${extra}, ${q(JUST)})`)
 const lastEffect = (id: string) => JSON.parse(w.psql(`SELECT coalesce(invoice_effect, 'null'::jsonb) FROM public.bl_charge_adjustment_events
-  WHERE bl_id = ${q(id)} ORDER BY id DESC LIMIT 1`)) as { summary?: string; situation?: string } | null
+  WHERE bl_id = ${q(id)} ORDER BY id DESC LIMIT 1`)) as { summary?: string; situation?: string; result?: Record<string, unknown> } | null
 const PORTAL_USER = '00000000-0000-0000-9493-000000000099'
 const numberOf = (invoice: number) => w.psql(`SELECT invoice_number FROM public.invoices WHERE id = ${invoice}`)
 
@@ -139,6 +139,75 @@ describeLocal('493 — taxa alterada no B/L faturado', () => {
     const paidRun = w.as('operacoes', `SELECT public.exempt_bl_local_charges(${q(paid.id)}, ${q(JUST)}, '${w.actors.operacoes}'::uuid)`)
     expect(paidRun.status, paidRun.stderr).toBe(0)
     expect(lastEffect(paid.id)?.summary).toBe('Restituição de R$ 300,00')
+  })
+
+  // 497: a prévia segue a mesma ordem de decisão da correção automática.
+  it('reemissão travada pelo Portal: a prévia diz o mesmo que a correção', () => {
+    const { id, invoice } = billed('GT')
+    w.psql(`UPDATE public.customer_portal_accounts SET active = false WHERE customer_id = ${w.customerId}`)
+    w.closeGate()
+    try {
+      const p = preview(id, 'alter', `${q(key())}, 'unit', 250`)
+      expect(p).toMatchObject({ situation: 'blocked', invoice_id: invoice })
+      expect(p.message).toMatch(/não pode ser reemitida agora \(Portal do Cliente não está pronto/)
+      const run = alter(id, 250)
+      expect(run.status, run.stderr).toBe(0)
+      expect(w.invoice(invoice).status).not.toBe('cancelled')
+      expect(lastEffect(id)?.summary).toMatch(/^Correção pendente: Portal do Cliente não está pronto/)
+    } finally {
+      w.openGate()
+      w.psql(`UPDATE public.customer_portal_accounts SET active = true WHERE customer_id = ${w.customerId}`)
+    }
+  })
+
+  it('consolidada paga em parte: a prévia abate e restitui o mesmo que a correção', () => {
+    const a = billed('CA')
+    const b = billed('CB')
+    const consolidated = w.consolidate([a.id, b.id])
+    w.pay(consolidated, 400)
+    // O B/L que ainda tem saldo: a correção abate primeiro o saldo dele.
+    const open = [a, b].find((x) => Number(w.psql(`SELECT balance_brl FROM public.bl_receivables
+      WHERE bl_id = ${q(x.id)} AND source = 'local_charges'`)) > 0)!
+    const p = preview(open.id, 'alter', `${q(key())}, 'unit', 50`)
+    const run = alter(open.id, 50)
+    expect(run.status, run.stderr).toBe(0)
+    const real = lastEffect(open.id)?.result as { status: string; offset_brl: number; refund_brl: number }
+    expect(real.status).toBe('corrected')
+    expect(Number(real.offset_brl)).toBeGreaterThan(0)
+    expect(p).toMatchObject({ situation: 'refund', offset_brl: Number(real.offset_brl), refund_brl: Number(real.refund_brl) })
+  })
+
+  it('consolidada sem pagamento: a prévia fala da fatura do B/L e da consolidada que volta', () => {
+    const a = billed('KA')
+    const b = billed('KB')
+    const consolidated = w.consolidate([a.id, b.id])
+    const p = preview(a.id, 'alter', `${q(key())}, 'unit', 250`)
+    expect(p).toMatchObject({ situation: 'reissue', invoice_id: a.invoice, current_brl: 300, new_brl: 250 })
+    expect(p.message).toBe(`A fatura ${numberOf(a.invoice)} (R$ 300,00) será cancelada e reemitida com número novo, no valor de R$ 250,00. `
+      + `A consolidada ${numberOf(consolidated)} volta só com os mesmos B/Ls. O Cliente recebe o aviso no Portal e um Pix novo.`)
+    const run = alter(a.id, 250)
+    expect(run.status, run.stderr).toBe(0)
+    const next = w.successorOf(a.invoice)!
+    expect(w.invoice(next).total).toBe(250)
+    expect(lastEffect(a.id)?.summary).toBe(`${numberOf(a.invoice)} cancelada e reemitida como ${numberOf(next)}`)
+    expect(w.invoice(b.invoice).status).not.toBe('cancelled')
+  })
+
+  it('isentar B/L de consolidada sem pagamento: a prévia diz que a consolidada encerra, como a correção', () => {
+    const a = billed('XA')
+    const b = billed('XB')
+    const consolidated = w.consolidate([a.id, b.id])
+    const p = preview(a.id, 'exempt')
+    expect(p).toMatchObject({ situation: 'cancel', invoice_id: a.invoice })
+    expect(p.message).toBe(`A fatura ${numberOf(a.invoice)} será cancelada, sem nova fatura. A consolidada ${numberOf(consolidated)} `
+      + 'é encerrada sem reemissão; os demais B/Ls seguem pelas individuais. O Cliente vê a fatura em Canceladas no Portal.')
+    const run = w.as('operacoes', `SELECT public.exempt_bl_local_charges(${q(a.id)}, ${q(JUST)}, '${w.actors.operacoes}'::uuid)`)
+    expect(run.status, run.stderr).toBe(0)
+    expect(w.invoice(a.invoice).status).toBe('cancelled')
+    expect(w.successorOf(a.invoice)).toBeNull()
+    expect(w.invoice(consolidated).status).toBe('cancelled')
+    expect(w.successorOf(consolidated)).toBeNull()
+    expect(w.invoice(b.invoice).status).toBe('issued')
   })
 
   it('a prévia mostra a mesma recusa da ação e não toca a fatura', () => {

@@ -20,8 +20,12 @@ type BlDocumentFields = {
   ncm_codes: string[] | null
 }
 
-/** Campos da ficha que mudam a base das Taxas Locais (prévia da migration 495). */
-const IMPACT_FIELDS = ['pod', 'bb_weight_ton', 'bb_cbm', 'bb_packages_qty', 'bb_machine_qty'] as const
+/**
+ * Campos da ficha que mudam a base das Taxas Locais (prévia da migration 495).
+ * No B/L de container sem peso solto, a taxa por tonelada usa o peso de
+ * contêiner (`total_weight_kg` ÷ 1000).
+ */
+const IMPACT_FIELDS = ['pod', 'bb_weight_ton', 'bb_cbm', 'bb_packages_qty', 'bb_machine_qty', 'total_weight_kg'] as const
 
 type EditableBl = BL & BlDocumentFields
 type JsonObject = { [key: string]: Json | undefined }

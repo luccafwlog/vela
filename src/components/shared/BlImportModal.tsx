@@ -109,6 +109,7 @@ export function BlImportModal({
   const chargeImpact = useImportChargeImpact(impactChanges)
   const guardCharges = useChargeAdjustmentGuard()
   const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   // Confirmação de faturamento por B/L (ADR 0078, item 17).
   const [overrideBls, setOverrideBls] = useState<ReadonlySet<string>>(new Set())
   const [confirmCustomerChange, setConfirmCustomerChange] = useState(false)
@@ -236,11 +237,15 @@ export function BlImportModal({
   async function handleConfirm() {
     if (!preview || importableCount === 0) return
     if (!selectedVoyageId) return
-    if (impactChanges?.length && !(await guardCharges(impactChanges, async () => true, chargeImpact.data))) return
-
+    if (submittingRef.current) return
+    // A conferência das taxas alteradas à mão (ADR 0111, D6) já é a gravação
+    // em andamento: fechar o modal ou clicar de novo enquanto ela consulta o
+    // banco não pode deixar a importação seguir sem tela, nem gravar duas vezes.
+    submittingRef.current = true
     setSubmitting(true)
     setConfirmError(null)
     try {
+      if (impactChanges?.length && !(await guardCharges(impactChanges, async () => true, chargeImpact.data))) return
       const result = await confirmBlFreightImport(
         preview,
         user?.id ?? '',
@@ -272,6 +277,7 @@ export function BlImportModal({
         refused: error instanceof BlFreightImportRefused ? error.refused : [],
       })
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }
