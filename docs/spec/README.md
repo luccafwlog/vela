@@ -3,7 +3,9 @@
 Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
 [CONVENCOES.md](../CONVENCOES.md#ciclo-de-vida-de-planos-e-specs).
 
-Nenhuma spec viva no momento.
+| Spec | Estado |
+|---|---|
+| [Alterar as taxas calculadas de um B/L](2026-10-28-alterar-taxa-calculada-do-bl-design.md) | Rascunho em entrevista com o dono; sem código antes da aprovação |
 
 Specs concluídas ficam no [índice das specs arquivadas](../archive/specs/README.md);
 suas regras vigentes estão nos módulos (`docs/modules/`).
