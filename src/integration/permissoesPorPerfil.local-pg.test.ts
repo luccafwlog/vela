@@ -367,6 +367,17 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     expect(psql(`SELECT count(*) FROM public.charge_calculations WHERE id = ${newId};`)).toBe('0')
   })
 
+  it.each(ALL_PROFILES)('P2: qualquer Departamento isenta as Taxas Locais e retira a isenção (ADR 0111, D12) — %s', (profile) => {
+    // Desfeito no fim (a isenção recalcula o B/L e fixaria a tarifa usada nos casos seguintes).
+    const run = runAs(profile, `DO $p2$ BEGIN
+      PERFORM public.exempt_bl_local_charges('${BL}', 'Carga de doação, P2 isenção', NULL);
+      IF (SELECT charge_status FROM public.bls WHERE id = '${BL}') <> 'exempt' THEN RAISE EXCEPTION 'p2-nao-isentou'; END IF;
+      PERFORM public.remove_bl_local_charge_exemption('${BL}', 'Diretoria reviu, P2 isenção', NULL);
+      RAISE EXCEPTION 'p2-ok';
+    END $p2$`)
+    expect(run.error).toMatch(/p2-ok/)
+  })
+
   it('P2: B/L de container sem container abre a linha de revisão pelo gatilho, como dono', () => {
     // Gatilho guard_container_bl_without_containers (SECURITY DEFINER desde a 231).
     psql(`SET session_replication_role = replica; DELETE FROM public.bl_containers WHERE bl_id = '${BL}'; SET session_replication_role = origin;`)

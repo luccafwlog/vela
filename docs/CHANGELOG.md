@@ -13,7 +13,10 @@
   até a tabela da taxa sair do B/L (POD ou modalidade; preço refixado passa a alteração para a taxa
   equivalente). Bloco **Histórico das taxas** na página e o mesmo evento na aba Histórico; excluir
   cobrança manual passa a todos os setores, com justificativa (supersede o item 11 da ADR 0071); as
-  falhas da aba mostram o motivo do banco.
+  falhas da aba mostram o motivo do banco. Lote 2 (migration `492`): **Isentar Taxas Locais** e
+  **Retirar isenção**, por qualquer setor com justificativa; o B/L fica Isento ("Isenção manual: …") em
+  todo recálculo, as linhas ficam como referência e nenhuma taxa muda até retirar a isenção, que
+  recalcula com as alterações e exclusões que o B/L tinha; a isenção pelo veículo LCL vale primeiro.
 - **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
   compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
   listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta

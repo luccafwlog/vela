@@ -911,6 +911,16 @@ ação fica no **Histórico das taxas** da ficha.
 - **Evitar:** "desconto" (é da Demurrage), "override" (é a Condição de Cliente)
 - **Ver também:** Condição de Cliente, Cobrança manual, Taxas Locais
 
+**Isenção à mão**
+Decisão do operador de não cobrar nenhuma Taxa Local de um B/L, com
+justificativa (**Isentar Taxas Locais** na ficha). O B/L fica **Isento**, como
+o isento pelo veículo LCL, mas com o motivo "Isenção manual: …"; vale em todo
+recálculo e se desfaz com **Retirar isenção**.
+→ Regra: [Taxas Locais § Movimento e Isenção](docs/modules/taxas-locais.md#movimento-e-isenção-de-taxas-locais)
+
+- **Evitar:** "zerar as taxas", "excluir todas as taxas"
+- **Ver também:** Taxa alterada à mão, Taxas Locais
+
 **Taxa Local em Dólar**
 Item de Taxa cadastrado em USD, convertido em BRL pelo ROE fixado no primeiro
 cálculo do B/L (Preço Fixado) e congelado na fatura. Difere do Demurrage, que

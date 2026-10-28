@@ -115,3 +115,8 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     recálculos e só se perde com a troca de tabela; excluir cobrança manual
     deixa de ser só do Administrativo (TAX-076, TAX-082, TAX-083, TAX-085,
     TAX-090, TAX-093 a TAX-100, ACE-098 e as mensagens novas).
+  - Lote 2 (migration `492`): **Isentar Taxas Locais** e **Retirar
+    isenção** na ficha, por qualquer setor com justificativa; o B/L isento à
+    mão fica Isento em todo recálculo e sem ação nas taxas; o Desbloqueio de
+    CE considera o Financeiro atendido (TAX-101 a TAX-104, DCE-011, ACE-128,
+    `permissao:isentar-taxas-locais` e as mensagens novas).

@@ -17,6 +17,7 @@ import {
   excludeBlCharge,
   restoreBlCharge,
   listBlChargeHistory,
+  setBlLocalChargeExemption,
 } from '../services/charges/chargeOperationsService'
 import {
   deleteChargeTableItem,
@@ -136,6 +137,16 @@ export function useChangeBlCharge(blId?: string) {
       if (payload.action === 'exclude') return excludeBlCharge(base)
       return restoreBlCharge(base)
     },
+    onSuccess: () => afterTaxasDoBlAlteradas(queryClient),
+  })
+}
+
+export function useSetBlLocalChargeExemption(blId?: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: { exempt: boolean; justification: string; actorId?: string | null }) =>
+      setBlLocalChargeExemption({ blId: blId!, ...payload }),
     onSuccess: () => afterTaxasDoBlAlteradas(queryClient),
   })
 }

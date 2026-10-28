@@ -4,7 +4,7 @@ Status: aceito — 2026-10-28 (pedido e decisões do dono, D1 a D14, na
 [spec aprovada](../spec/2026-10-28-alterar-taxa-calculada-do-bl-design.md); R1 e
 R2 aprovados no [plano](../plans/2026-10-28-alterar-taxa-calculada-do-bl.md)).
 Implementação em lotes: lote 1 na migration `491` (alterar, excluir, desfazer,
-cobrança manual e Histórico das taxas).
+cobrança manual e Histórico das taxas); lote 2 na `492` (isenção à mão).
 
 Supersede o item 11 da [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)
 (excluir cobrança manual era só do Administrativo). Estende a
@@ -48,8 +48,17 @@ porque `charge_calculations` é refeita do zero pelo motor.
    a justificativa não saem do banco para o Portal.
 8. **Vale só para aquele B/L (D11)** e continua com ele na troca de Cliente
    (D13).
-9. **B/L faturado (D8), aviso pelo tamanho do efeito (D6) e isenção à mão
-   (D12)** seguem a spec; entram nos lotes seguintes do plano.
+9. **Isenção à mão (D12).** **Isentar Taxas Locais**, por qualquer setor com
+   justificativa, põe o B/L no estado **Isento** que o sistema já trata, com o
+   motivo "Isenção manual: <justificativa>". A decisão fica em
+   `bl_local_charge_exemptions` e vale em todo recálculo, inclusive na troca de
+   POD ou de modalidade; nada é cobrado, nem as cobranças manuais, e as linhas
+   ficam como referência. Enquanto durar, nenhuma taxa se altera, exclui ou
+   lança. **Retirar isenção** recalcula com as alterações e exclusões que o B/L
+   tinha. Estende a regra de isenção, que até aqui só existia com prova
+   positiva (veículo com Movement To LCL); a isenção pelo veículo vale primeiro.
+10. **B/L faturado (D8) e aviso pelo tamanho do efeito (D6)** seguem a spec;
+   entram nos lotes seguintes do plano.
 
 ## Consequências
 
@@ -59,6 +68,11 @@ porque `charge_calculations` é refeita do zero pelo motor.
   tabela fica em `_resolve_bl_local_charge_items_table`.
 - `delete_manual_bl_charge` troca de assinatura (exige justificativa); a
   antiga perde o `EXECUTE`.
+- `_calculate_bl_local_charges_impl_106` passa a ser um invólucro (492) que
+  aplica a isenção à mão sobre o cálculo da 491
+  (`_calculate_bl_local_charges_impl_491`); `_quote_bl_local_charges` devolve
+  `exempt` para o B/L isento à mão, e `add_manual_bl_charge` e
+  `update_manual_bl_charge` recusam o B/L isento à mão.
 - Ceiling conhecido: alterar uma taxa recalcula o B/L inteiro, que volta a
   **Provisório** as linhas que estavam **Pronto** — o mesmo efeito do
   **Recalcular**.

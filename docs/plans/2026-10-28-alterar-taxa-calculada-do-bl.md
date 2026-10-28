@@ -10,7 +10,7 @@ regra de descarte (registrados na D5 da spec). Execução em andamento.
 | Lote | Situação |
 |---|---|
 | 1 — Alterar e excluir taxa em B/L sem fatura | Feito (migration `491`). Drift mecânico: os eventos da aba Histórico vão para `audit_logs` com `entity_type = 'charge_calculation'` e `field_name = 'charge_adjustment'`, que `bl_timeline` já lê na família Taxas, em vez de um `entity_type` próprio |
-| 2 — Isentar Taxas Locais | A fazer |
+| 2 — Isentar Taxas Locais | Feito (migration `492`). Drift mecânico: o cálculo e a trava das ações viraram invólucros (`_calculate_bl_local_charges_impl_491`, `_lock_bl_for_charge_change_491`) em vez de reescritos; a cobrança manual guarda o valor por unidade durante a isenção e volta como quantidade × unidade (ou o total alterado) |
 | 3 — B/L faturado | A fazer |
 | 4 — Leituras: Validação, fatura, Cliente, Históricos | A fazer |
 | 5 — Eventos: prévias, confirmações e alerta | A fazer |

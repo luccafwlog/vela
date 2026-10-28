@@ -17,20 +17,24 @@ import {
   adjustmentTooltip,
   chargeLineActions,
   chargedTotalValue,
+  exemptionFact,
   formatChargeMoney,
   isAdjustedLine,
   isExcludedLine,
+  isManualExemption,
   tableTotalValue,
   tableUnitValue,
 } from './blChargeAdjustmentPresentation'
 import type { LocalChargeLine } from '../../services/charges/chargeOperationsService'
 import {
   useAddManualBlCharge,
+  useBlChargeHistory,
   useBlLocalChargeLines,
   useCalculateBlLocalCharges,
   useChangeBlCharge,
   useDeleteManualBlCharge,
   useManualChargeItemsForBl,
+  useSetBlLocalChargeExemption,
   useUpdateManualBlCharge,
 } from '../../hooks/useLocalCharges'
 import { formatBRL, formatCountLabel, formatDateTime, formatUSD, normalizeText } from '../../lib/utils'
@@ -97,6 +101,12 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   // B/L cancelado é somente leitura (TAX-D09): sem cálculo, cobrança manual nem emissão.
   const cancelled = Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)
   const readOnly = chargesLocked || cancelled
+  // B/L isento à mão (D12): as linhas ficam como referência, sem ação, até
+  // Retirar isenção. O banco recusa a ação do mesmo jeito (migration 492).
+  const manualExempt = bl.charge_status === 'exempt' && isManualExemption(bl.charge_exemption_reason)
+  const linesReadOnly = readOnly || manualExempt
+  const exemptionMutation = useSetBlLocalChargeExemption(bl.id)
+  const { data: chargeHistory } = useBlChargeHistory(bl.id)
 
   async function handleSaveManualCharge() {
     if (!bl || !user) return
@@ -280,6 +290,29 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     }
   }
 
+  async function handleExemption(exempt: boolean) {
+    if (!user) return
+    const justification = await askJustification(exempt ? {
+      title: 'Isentar Taxas Locais do B/L',
+      message: 'Nenhuma taxa deste B/L será cobrada, nem as manuais, e a fatura não será emitida. O B/L sai da fila da Validação e o Desbloqueio de CE considera o Financeiro atendido.',
+      reversibility: 'Retirar isenção recalcula as taxas com as alterações que o B/L tinha; a fatura sai pelo Emitir fatura.',
+      confirmLabel: 'Isentar',
+      tone: 'danger',
+    } : {
+      title: 'Retirar isenção',
+      message: 'As taxas voltam a ser calculadas, com as alterações e exclusões que o B/L tinha. A fatura não sai sozinha: use Emitir fatura quando o B/L estiver pronto.',
+      confirmLabel: 'Retirar isenção',
+      tone: 'primary',
+    })
+    if (!justification) return
+    try {
+      await exemptionMutation.mutateAsync({ exempt, justification, actorId: user.id })
+      showToast(exempt ? 'B/L isento das Taxas Locais.' : 'Isenção retirada: taxas recalculadas.', 'success')
+    } catch (error) {
+      showToast(`Não foi possível ${exempt ? 'isentar o B/L' : 'retirar a isenção'}: ${userFacingErrorMessage(error)}`, 'error')
+    }
+  }
+
   async function handleCalculateCharges() {
     if (!user) return
     try {
@@ -346,7 +379,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt' && line.status !== 'excluded').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - activeInvoice.total_brl) > 0.01,
   )
   const lines = localChargeSummary.lines
-  const { showOrigin, showSituation, showNotes, showActions: showActionsColumn } = chargeTableColumns(lines, readOnly)
+  const { showOrigin, showSituation, showNotes, showActions: showActionsColumn } = chargeTableColumns(lines, linesReadOnly)
   const reviewPendingCount = lines.filter((line) => line.status === 'review_required').length
   const columnCount = 4 + Number(showOrigin) + Number(showSituation) + Number(showNotes) + Number(showActionsColumn)
   const totalLabel = (
@@ -363,7 +396,13 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
       flush
       aside={readOnly ? null : (
         <span className="flex flex-wrap items-center gap-2">
-          {manualFormOpen || manualChargeForm.editingChargeCalculationId ? null : (
+          {manualExempt ? (
+            <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => void handleExemption(false)}
+              loading={exemptionMutation.isPending} loadingLabel="Retirando…">
+              Retirar isenção
+            </Button>
+          ) : null}
+          {manualExempt || manualFormOpen || manualChargeForm.editingChargeCalculationId ? null : (
             <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setManualFormOpen(true)}>
               <Plus size={15} aria-hidden="true" />
               Adicionar cobrança manual
@@ -382,6 +421,12 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
               Emitir fatura
             </Button>
           ) : null}
+          {bl.charge_status === 'exempt' ? null : (
+            <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => void handleExemption(true)}
+              loading={exemptionMutation.isPending} loadingLabel="Isentando…">
+              Isentar Taxas Locais
+            </Button>
+          )}
         </span>
       )}
     >
@@ -416,7 +461,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           ) : bl.charges_calculated_at ? (
             <Fact label="Cálculo">{formatDateTime(bl.charges_calculated_at)}</Fact>
           ) : null}
-          {bl.charge_exemption_reason ? <Fact label="Isenção">{bl.charge_exemption_reason}</Fact> : null}
+          {bl.charge_exemption_reason ? <Fact label="Isenção">{exemptionFact(bl.charge_exemption_reason, chargeHistory)}</Fact> : null}
           {bl.charge_status === 'exempt' && !bl.charge_exemption_reason ? <Fact label="Situação"><StatusText tone="muted">Isento</StatusText></Fact> : null}
         </FactList>
         {bl.charge_status === 'not_calculated' && !cancelled ? (
@@ -467,7 +512,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
               </tr>
             ) : lines.length ? (
               lines.map((line) => (
-                <tr key={line.id} className={isExcludedLine(line) ? 'text-[var(--app-muted)]' : undefined}>
+                <tr key={line.id} className={isExcludedLine(line) || line.status === 'exempt' ? 'text-[var(--app-muted)]' : undefined}>
                   <td className="app-table__text" title={line.adjustment_id != null ? adjustmentTooltip(line) : line.charge_name ?? undefined}>
                     <span className={isExcludedLine(line) ? 'line-through' : undefined}>{line.charge_name}</span>
                     {isAdjustedLine(line) ? <> <StatusText tone="warning">Alterada</StatusText></> : null}
@@ -498,7 +543,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
                   {showActionsColumn ? (
                     <td>
                       <div className="flex items-center justify-center gap-2">
-                        {chargeLineActions(line, readOnly).map((action) => {
+                        {chargeLineActions(line, linesReadOnly).map((action) => {
                           const busy = changeChargeMutation.isPending || deleteManualChargeMutation.isPending
                           switch (action) {
                             case 'editManual':
@@ -538,7 +583,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         </table>
       </div>
 
-      {readOnly || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
+      {linesReadOnly || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
         <div className="app-block__body">
           <ManualChargeFormFields
             form={manualChargeForm}

@@ -158,7 +158,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
   `MATRIX_GLOBAL`.
 - **Matriz da tela:** "O que cada setor pode", em `/admin/usuarios`, e a lista
   "Com este setor, ... pode" das janelas de usuário vêm do catálogo único
-  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 42 linhas
+  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 43 linhas
   que resumem as ações desta matriz, cada uma citando os casos da bateria que a
   provam. `permissionMatrix.test.ts` falha se uma linha ficar sem caso ou citar
   caso inexistente; a bateria falha se o banco divergir do catálogo. Mudar uma
@@ -188,6 +188,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Remover atracação da escala (tirar o terminal de todas as frentes, inclusive ao mover a frente para outro terminal), com Trava | ✔ | — | ✔ | — | — | Gatilho `guard_terminal_state_removal` (migration `477`: “Somente Operações e o Administrativo removem atracação.”; a Atracação TBC sem terminal sai para todos) | ADR 0071; ficha ACE-D02 / `02-viagens-adr:2` | migration `477` |
 | Excluir Cliente, com motivo | ✔ | — | — | — | — | `delete_records('customer', …)`, com a guarda do Administrativo antes do tipo | ADR 0046; ADR 0071 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Alterar o valor, excluir e desfazer taxa do B/L (calculada ou manual), inclusive excluir cobrança manual | ✔ | ✔ | ✔ | ✔ | ✔ | `alter_bl_charge_value`, `exclude_bl_charge`, `restore_bl_charge`, `delete_manual_bl_charge(id, justificativa, autor)`: usuário interno ativo, autor igual a quem está logado, justificativa de ao menos 10 caracteres; `bl_charge_adjustments` e `bl_charge_adjustment_events` sem escrita pela API; o Portal não lê nenhuma das duas | [ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md) (supersede o item 11 da ADR 0071) | vigente desde a migration `491`; B/L faturado ainda recusado até o lote 3 do [plano](../plans/2026-10-28-alterar-taxa-calculada-do-bl.md) (**Teste** local: `taxaAlteradaNoBl.local-pg.test.ts`; `permissoesPorPerfil.local-pg.test.ts`, P2) |
+| Isentar Taxas Locais do B/L e retirar a isenção | ✔ | ✔ | ✔ | ✔ | ✔ | `exempt_bl_local_charges`, `remove_bl_local_charge_exemption`: mesmas regras de alterar a taxa; `bl_local_charge_exemptions` sem escrita pela API; com o B/L isento à mão, alterar, excluir, desfazer e lançar ou editar cobrança manual são recusados no banco | [ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md), D12 | vigente desde a migration `492` (**Teste** local: `isencaoManualTaxasLocais.local-pg.test.ts`; `permissoesPorPerfil.local-pg.test.ts`, P2) |
 | Reverter omissão de escala, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `revert_voyage_omission` | ADR 0085, D9 | migration `251` |
 | Reabrir ADR de Saída fechado, com motivo no Histórico | ✔ | ✔ | ✔ | ✔ | ✔ | `reopen_agency_departure_report*` | ADR 0085, D8 | migration `251`; a justificativa é obrigatória e vai para o rastro |
 | Assinar e observar seção do ADR de Saída | ✔ | — | dono | dono | dono | `set_agency_report_*signoff*`, `set_agency_report_section_observation*`; terminal legado `set_agency_report_terminal` (Ope e Adm) | ADR 0046; ADR 0085, D13 | vigente |

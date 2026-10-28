@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   confirmWithReason: vi.fn(),
   changeCharge: vi.fn(),
   deleteManual: vi.fn(),
+  setExemption: vi.fn(),
+  history: [] as unknown[],
   isAdmin: true,
   lines: vi.fn(),
 }))
@@ -37,7 +39,8 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
   useDeleteManualBlCharge: () => ({ mutateAsync: mocks.deleteManual, isPending: false }),
   useCalculateBlLocalCharges: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useChangeBlCharge: () => ({ mutateAsync: mocks.changeCharge, isPending: false }),
-  useBlChargeHistory: () => ({ data: [], isLoading: false }),
+  useBlChargeHistory: () => ({ data: mocks.history, isLoading: false }),
+  useSetBlLocalChargeExemption: () => ({ mutateAsync: mocks.setExemption, isPending: false }),
 }))
 vi.mock('../../../services/billing', () => ({
   markBlReadyAndCreateInvoice: mocks.markBlReadyAndCreateInvoice,
@@ -58,6 +61,7 @@ afterEach(cleanup)
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.isAdmin = true
+  mocks.history = []
   mocks.lines.mockReturnValue({ data: [], isLoading: false })
   mocks.confirm.mockResolvedValue(true)
   mocks.markBlReadyAndCreateInvoice.mockRejectedValue({
@@ -122,7 +126,8 @@ it('não anuncia divergência de fatura enquanto as taxas estão indisponíveis'
   expect(screen.queryByText(/As taxas mudaram depois da emissão/)).toBeNull()
 })
 
-const renderSection = () => render(<MemoryRouter><BlCobrancasSection bl={bl} /></MemoryRouter>)
+const renderSection = (overrides: Record<string, unknown> = {}) =>
+  render(<MemoryRouter><BlCobrancasSection bl={{ ...(bl as object), ...overrides } as never} /></MemoryRouter>)
 
 describe('alterar e excluir taxa do B/L (ADR 0111)', () => {
   const thd = {
@@ -164,5 +169,47 @@ describe('alterar e excluir taxa do B/L (ADR 0111)', () => {
     expect(screen.getAllByText('Excluída').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'Incluir taxa de novo' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Alterar valor da taxa' })).toBeNull()
+  })
+})
+
+describe('Isentar Taxas Locais (ADR 0111, D12)', () => {
+  const line = {
+    id: 7, bl_id: 'BL-1', charge_name: 'THD', source: 'auto', status: 'calculated', quantity: 1, currency: 'BRL',
+    unit_value_brl: 1420, total_value_brl: 1420, calculation_key: 'auto:item:1', table_unit_value_brl: 1420, table_total_value_brl: 1420,
+  }
+
+  it('isentar pede justificativa e diz o efeito; o sucesso usa a frase da spec', async () => {
+    mocks.lines.mockReturnValue({ data: [line], isLoading: false })
+    mocks.confirmWithReason.mockResolvedValueOnce('Carga de doação, acordado')
+    mocks.setExemption.mockResolvedValueOnce({})
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Isentar Taxas Locais' }))
+    await waitFor(() => expect(mocks.setExemption).toHaveBeenCalledWith({ exempt: true, justification: 'Carga de doação, acordado', actorId: 'user-1' }))
+    expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Isentar Taxas Locais do B/L', confirmLabel: 'Isentar',
+      message: expect.stringContaining('Nenhuma taxa deste B/L será cobrada, nem as manuais'),
+    }))
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('B/L isento das Taxas Locais.', 'success'))
+  })
+
+  it('B/L isento à mão: linhas sem ação, fato com autor e data, e só Retirar isenção', async () => {
+    mocks.history = [{ id: 1, event: 'exempted', actor_name: 'Fulano', created_at: '2026-10-28T13:00:00Z' }]
+    mocks.lines.mockReturnValue({ data: [{ ...line, status: 'exempt', total_value_brl: 0 }, { ...line, id: 8, status: 'excluded', adjustment_id: 2, adjustment_kind: 'excluded' }], isLoading: false })
+    renderSection({ charge_status: 'exempt', charge_exemption_reason: 'Isenção manual: Carga de doação, acordado' })
+    expect(screen.getByText('Isenção manual: Carga de doação, acordado · por Fulano em 28/10/2026')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Isentar Taxas Locais' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Incluir taxa de novo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Adicionar cobrança manual' })).toBeNull()
+    mocks.confirmWithReason.mockResolvedValueOnce('Diretoria reviu a decisão')
+    mocks.setExemption.mockRejectedValueOnce({ code: 'P0001', message: 'B/L isento das Taxas Locais: retire a isenção para alterar as taxas.' })
+    fireEvent.click(screen.getByRole('button', { name: 'Retirar isenção' }))
+    await waitFor(() => expect(mocks.setExemption).toHaveBeenCalledWith(expect.objectContaining({ exempt: false })))
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringMatching(/^Não foi possível retirar a isenção: /), 'error'))
+  })
+
+  it('B/L isento pelo veículo LCL não mostra Isentar nem Retirar isenção', () => {
+    renderSection({ charge_status: 'exempt', charge_exemption_reason: 'Carga de veiculos / LCL no destino (movement_to=LCL) com taxas pagas na origem' })
+    expect(screen.queryByRole('button', { name: 'Isentar Taxas Locais' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Retirar isenção' })).toBeNull()
   })
 })

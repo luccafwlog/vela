@@ -205,6 +205,7 @@ aceita "1.420,50"; cada erro indica o campo).
 | B/L · excluir cobrança manual | Qualquer setor (ADR 0111, supersede o item 11 da ADR 0071); linha manual existente; justificativa de ao menos 10 caracteres | `BlCobrancasTab` (**Excluir cobrança manual** na linha manual) | `useDeleteManualBlCharge` → `deleteManualBlCharge` | RPC `delete_manual_bl_charge(id, justificativa, autor)` (migration `491`; a assinatura antiga perdeu o `EXECUTE`); evento `manual_deleted` no Histórico das taxas | `afterTaxasDoBlAlteradas` | Recusa linha automática, ausente, B/L faturado ou cancelado e, com outra linha excluída, a última taxa cobrada; o toast mostra o motivo do banco | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/charges/chargeOperationsService.ts` · **Teste local-pg:** `taxaAlteradaNoBl.local-pg.test.ts` |
 | B/L · alterar valor da taxa | Qualquer setor; linha calculada ou manual fora de revisão; B/L não cancelado, de Viagem não cancelada e (até o lote 3) não faturado; valor maior que zero e diferente do atual; justificativa de ao menos 10 caracteres | `BlCobrancasTab` → **Alterar valor da taxa** → modal `BlChargeValueModal` (**Por unidade** ou **Total da taxa**, com a prévia do novo total) → confirmação | `useChangeBlCharge` → `alterBlChargeValue` | RPC `alter_bl_charge_value` grava `bl_charge_adjustments` e recalcula o B/L; a linha manual é atualizada direto; evento `altered` | `afterTaxasDoBlAlteradas` | Modal mostra a recusa do banco ("Esta taxa não está mais no cálculo do B/L; atualize a página.", "Taxa em revisão não se altera…") | **Código:** `src/components/bl/BlChargeValueModal.tsx`, `src/components/bl/blChargeAdjustmentPresentation.ts` · **Teste:** `src/components/bl/__tests__/blChargeAdjustmentPresentation.test.ts`, `BlCobrancasTab.behavior.test.tsx` · **Teste local-pg:** `taxaAlteradaNoBl.local-pg.test.ts` |
 | B/L · excluir taxa, voltar ao valor da tabela, incluir de novo | Mesmas pré-condições; excluir recusa a última taxa cobrada ("use Isentar Taxas Locais") | `BlCobrancasTab` (**Excluir taxa**, **Voltar ao valor da tabela**, **Incluir taxa de novo**), confirmação com justificativa | `useChangeBlCharge` → `excludeBlCharge` / `restoreBlCharge` | RPCs `exclude_bl_charge` e `restore_bl_charge`; eventos `excluded`, `restored` e `reincluded` | `afterTaxasDoBlAlteradas` | Toast "Não foi possível <ação>: <motivo do banco>" | **Código:** `src/components/bl/BlCobrancasTab.tsx` · **Teste local-pg:** `taxaAlteradaNoBl.local-pg.test.ts` |
+| B/L · Isentar Taxas Locais, Retirar isenção | Usuário interno ativo de qualquer setor; B/L e Viagem não cancelados, B/L sem fatura; justificativa de ao menos 10 caracteres; B/L isento pelo veículo LCL não oferece | `BlCobrancasTab` (**Isentar Taxas Locais**, **Retirar isenção**), confirmação com justificativa | `useSetBlLocalChargeExemption` → `setBlLocalChargeExemption` | RPCs `exempt_bl_local_charges` e `remove_bl_local_charge_exemption` (`bl_local_charge_exemptions`); recálculo; eventos `exempted` e `exemption_removed` | `afterTaxasDoBlAlteradas` | Toast "Não foi possível <isentar o B/L / retirar a isenção>: <motivo do banco>" | **Código:** `src/components/bl/BlCobrancasTab.tsx` · **Teste local-pg:** `isencaoManualTaxasLocais.local-pg.test.ts` |
 | B/L · Histórico das taxas | Usuário interno ativo | Bloco `BlChargeHistory` abaixo da tabela | `useBlChargeHistory` → `listBlChargeHistory` | RPC `list_bl_charge_history` (leitura de `bl_charge_adjustment_events`) | Query `bls.chargeHistory(blId)` | Erro com **Tentar novamente** | **Código:** `src/components/bl/BlChargeHistory.tsx` |
 | ~~B/L ou lote · marcar revisado~~ | — | — | — | Removido em 2026-10-01 (ADR 0077, migration `127`): a confirmação do cálculo é o CE Mercante; linha `review_required` se resolve corrigindo o B/L e recalculando. A RPC `mark_bl_charges_reviewed` não tem `EXECUTE` para a API; a ação em lote já não existia na Validação. | — | — | **Teste local-pg:** `invoiceReissue.local-pg.test.ts` |
 | B/L · Emitir fatura (manual) | Qualquer Departamento (migration `246`); B/L com Cliente, CE Mercante, cálculo feito, sem linha `review_required` e ainda não faturado | `BlCobrancasTab` (botão **Emitir fatura**, com confirmação) e Validação (**Emitir** por linha) | `markBlReadyAndCreateInvoice` / `createInvoiceFromBls` | RPC `mark_bl_ready_and_create_invoice` (promove com `mark_bl_ready_for_billing` e emite na mesma transação) | Invalida faturas, detalhe e lista de B/Ls, operações e fila de revisão | Banco aplica CE, Portal, Cliente e gate de revisão. O caminho normal é automático; o manual cobre Reemissão pendente com trava resolvida e falha da emissão automática. “Pronto para faturar” foi removido em 2026-10-01 (ADR 0077). | **Código:** `src/components/bl/BlCobrancasTab.tsx` · **Teste:** `src/components/bl/__tests__/BlCobrancasTab.behavior.test.tsx` |
@@ -509,6 +510,22 @@ gravado no B/L errado é corrigido na página Veículos
 ([Manifestos & EDI](manifesto-edi.md)); o efeito na fatura segue a
 [correção após emissão](faturamento.md#correção-após-emissão-adr-0077).
 
+A **isenção à mão** (ADR 0111, D12; migration `492`) é a outra porta para o
+mesmo estado **Isento**: na ficha do B/L, qualquer setor usa **Isentar Taxas
+Locais**, com justificativa de ao menos 10 caracteres, e o B/L fica Isento com
+o motivo "Isenção manual: <justificativa>" (o fato **Isenção** mostra também
+quem e quando). A decisão fica em `bl_local_charge_exemptions` (uma por B/L) e
+vale em todo recálculo, inclusive na troca de POD ou de modalidade. Nada é
+cobrado, nem as cobranças manuais: as linhas continuam na ficha, em cinza, com
+total zero, e as excluídas continuam excluídas. Com o B/L isento à mão, alterar,
+excluir, desfazer e lançar ou editar cobrança manual são recusados ("B/L isento
+das Taxas Locais: retire a isenção para alterar as taxas."). **Retirar
+isenção**, também com justificativa, recalcula o B/L com as alterações e
+exclusões que ele tinha; a cobrança manual volta ao valor de antes. A fatura
+não sai sozinha: **Emitir fatura**. A isenção pelo veículo LCL vale primeiro
+e continua depois de retirada a isenção à mão; B/L isento pelo veículo não
+mostra nenhum dos dois botões.
+
 ### THD de container IMO e OOG
 
 A tabela guarda o THD por perfil de carga como itens próprios: THD normal
@@ -556,7 +573,7 @@ Invariantes:
   alteração guardada; ela volta quando o item volta ou a revisão se resolve.
 - **Container compartilhado:** a alteração vale só para a parte deste B/L.
 - **Última taxa:** excluir a última taxa cobrada é recusado; para não cobrar
-  nada, isenta-se o B/L (lote 4 do plano).
+  nada, isenta-se o B/L ([isenção à mão](#movimento-e-isenção-de-taxas-locais)).
 - **Ceiling:** alterar recalcula o B/L inteiro, como **Recalcular**.
 
 Todo evento fica em `bl_charge_adjustment_events` (bloco **Histórico das

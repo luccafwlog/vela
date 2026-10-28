@@ -540,6 +540,17 @@ export async function restoreBlCharge(input: { blId: string; lineKey: string; ju
   return data as unknown
 }
 
+/** Isentar Taxas Locais (D12) ou Retirar isenção; o banco recalcula o B/L. */
+export async function setBlLocalChargeExemption(input: { blId: string; exempt: boolean; justification: string; actorId?: string | null }) {
+  const { data, error } = await supabase.rpc((input.exempt ? 'exempt_bl_local_charges' : 'remove_bl_local_charge_exemption') as never, {
+    p_bl_id: input.blId,
+    p_justification: input.justification,
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+  if (error) throw error
+  return data as unknown
+}
+
 export async function listBlChargeHistory(blId: string) {
   const { data, error } = await supabase.rpc('list_bl_charge_history' as never, { p_bl_id: blId } as never)
   if (error) throw error

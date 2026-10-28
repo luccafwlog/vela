@@ -1,5 +1,5 @@
 import { applicationBasisLabel } from '../billing/conferenciaCalculo'
-import { formatBRL, formatDateTime, formatUSD } from '../../lib/utils'
+import { formatBRL, formatDate, formatDateTime, formatUSD } from '../../lib/utils'
 import { toAmount } from '../../pages/taxasLocaisHelpers'
 import type { BlChargeHistoryEvent, LocalChargeLine } from '../../services/charges/chargeOperationsService'
 
@@ -50,6 +50,19 @@ export function adjustmentTooltip(line: LocalChargeLine) {
   }
   if (line.adjustment_justification) parts.push(line.adjustment_justification)
   return parts.join(' · ')
+}
+
+// O banco grava o motivo da isenção à mão com este prefixo (migration 492);
+// a isenção pelo veículo LCL tem outro texto.
+const MANUAL_EXEMPTION_PREFIX = 'Isenção manual:'
+export const isManualExemption = (reason: string | null | undefined) => Boolean(reason?.startsWith(MANUAL_EXEMPTION_PREFIX))
+
+/** Fato **Isenção**: "Isenção manual: <justificativa> · por <nome> em dd/mm/aaaa". */
+export function exemptionFact(reason: string, events: Pick<BlChargeHistoryEvent, 'event' | 'actor_name' | 'created_at'>[] | undefined) {
+  if (!isManualExemption(reason)) return reason
+  const last = events?.find((event) => event.event === 'exempted')
+  if (!last) return reason
+  return `${reason}${last.actor_name ? ` · por ${last.actor_name}` : ''} em ${formatDate(last.created_at)}`
 }
 
 export type ChargeValueDraft = { kind: 'unit' | 'total'; value: string; justification: string }
