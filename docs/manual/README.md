@@ -176,3 +176,14 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   para transbordo** recusados mostram o motivo do banco, pelo mesmo tradutor
   das outras telas; "Verifique se algum B/L está em COD." só complementa a
   recusa por B/L em COD (VIA-070, VIA-058, VIA-064 e as mensagens).
+- **Conferência do capítulo-piloto contra o código** (2026-10-28, sem mudança
+  no sistema): linhas que descreviam outra coisa que o código faz. O Baplie
+  nunca cria escala (VIA-052, desde a migration `418`); todos os setores mudam
+  terminal, ATB, ATD, Restow e frentes da atracação (ACE-085, como a ACE-120);
+  o botão que recusa o diálogo das taxas alteradas à mão é **Voltar** (VIA-145);
+  sem carga solta e sem próxima escala a tela mostra "—" (VIA-008, VIA-009); a
+  conferência do LOCODE e a criação do porto não valem na escala nova só de
+  importação (VIA-033); o resultado do CE lista os Retidos e os Pulados por B/L
+  (CEB-019); **Remover CE** com fatura emitida é recusado pela própria ação
+  (BLR-107); a importação de B/L sem usuário ativo mostra "Usuario sem
+  permissao ativa." (ALE-065).

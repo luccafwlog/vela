@@ -495,11 +495,12 @@ export const CAPTURAS = [
       const dlg = page.getByRole('dialog')
       await page.waitForTimeout(800)
       const clip = await recorteDoElemento(dlg)
+      const concluir = dlg.getByRole('button', { name: 'Concluir' })
       return {
         clip,
-        marks: [],
+        marks: [await marca(6, concluir, clip, { destaque: true })],
         async depois() {
-          await dlg.getByRole('button', { name: 'Concluir' }).click()
+          await concluir.click()
         },
       }
     },
