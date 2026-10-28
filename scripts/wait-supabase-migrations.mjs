@@ -133,6 +133,22 @@ export function appliedCheckConfig(env, versions) {
   return { status: 'ready', token, ref }
 }
 
+/**
+ * Versões novas pela pasta de migrations de cada lado do push, para o compare
+ * truncado (o GitHub lista até 300 arquivos; a #1070 mudou 347). Vê só os
+ * `NNN_*.sql` adicionados: migration existente é protegida e não muda.
+ * @param {Array<{ name: string }>} beforeEntries
+ * @param {Array<{ name: string }>} afterEntries
+ */
+export function addedMigrationVersions(beforeEntries, afterEntries) {
+  const before = new Set(beforeEntries.map((entry) => entry.name))
+  const versions = afterEntries
+    .filter((entry) => !before.has(entry.name))
+    .map((entry) => MIGRATION_FILE.exec(`${MIGRATIONS_PREFIX}${entry.name}`)?.[1])
+    .filter(Boolean)
+  return [...new Set(versions)].sort((a, b) => Number(a) - Number(b))
+}
+
 /** Arquivos fora da lista (compare truncado) contam como migration mudada. */
 export function changesMigrations(files, truncated) {
   return truncated || files.some((file) => file.startsWith(MIGRATIONS_PREFIX))
@@ -174,6 +190,14 @@ export async function main() {
     const truncated = files.length >= 300
     migrationsChanged = changesMigrations(files.map((file) => file.filename), truncated)
     versions = migrationVersions(files, truncated)
+    if (truncated) {
+      // ponytail: a API de conteúdo lista até 1000 arquivos por pasta; a
+      // cadeia ativa passa disso só muito depois da migration 1000.
+      const folder = (ref) => api(`contents/${MIGRATIONS_PREFIX.replace(/\/$/, '')}?ref=${ref}`)
+      const added = addedMigrationVersions(await folder(before), await folder(sha))
+      migrationsChanged = added.length > 0
+      versions = added
+    }
   }
   console.log(`Push ${migrationsChanged ? 'muda' : 'não muda'} ${MIGRATIONS_PREFIX}${versions?.length ? ` (versões ${versions.join(', ')})` : ''}.`)
   const config = appliedCheckConfig(process.env, versions)

@@ -68,15 +68,18 @@ publica a produção.
   as migrations pela sincronização e marca o check do commit como pulado.
   Por isso, no staging, um check `skipped` ou `neutral` num push com migration
   não recusa de cara: o script tira as versões dos `supabase/migrations/NNN_*.sql`
-  adicionados ou alterados no compare do push e confere em
+  adicionados ou alterados no compare do push (com o compare truncado em 300
+  arquivos, das que a pasta `supabase/migrations/` ganhou entre os dois commits,
+  lida pela API de conteúdo do GitHub; push da #1070) e confere em
   `GET /v1/projects/{ref}/database/migrations` da Supabase Management API se
   todas já constam na branch. Repete a conferência a cada 15 s até o prazo
   (`WAIT_SECONDS`, padrão 600). Com todas aplicadas, publica e registra no log
   as versões conferidas. Se faltar alguma no fim do prazo, recusa e diz quais.
   Continua recusando: check terminado com falha (`failure`, `cancelled`,
   `timed_out`, `action_required`), ref igual ao da produção
-  (`fgmkhbzhaeebrsizwccx`), compare truncado (300 arquivos ou mais) ou push que
-  muda a pasta sem nenhum `NNN_*.sql` novo ou alterado. Sem o secret ou a var,
+  (`fgmkhbzhaeebrsizwccx`) ou push que muda a pasta sem nenhum `NNN_*.sql`
+  novo ou alterado. Compare truncado sem migration nova na pasta conta como
+  push sem migration. Sem o secret ou a var,
   a conferência fica desligada, o log diz isso e vale a recusa de antes
   (publicação pelo disparo manual). O token nunca é impresso. A produção não
   recebe esse token e segue a regra sem conferência.
