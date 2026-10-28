@@ -7,7 +7,8 @@ trabalho, não o manual.
 ## Estado
 
 **Etapa 1 executada em 2026-10-26; divergências decididas e corrigidas em
-2026-10-27; faltam o sumário final e a lista "fora do manual".** As 118
+2026-10-27; lista "fora do manual" aprovada em 2026-10-28; falta o sumário
+final.** As 118
 divergências (112 fichas) foram decididas pelo dono e executadas nos lotes 1 a
 11 do [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md),
 com os ajustes da revisão da PR #1070 (migrations `482` a `490`). Os 2.253
@@ -19,8 +20,13 @@ corrigidas nos documentos vivos. O resultado, com a tabela de quem faz o quê,
 o sumário final proposto, a lista "fora do manual" e as 118 divergências que
 dependem de decisão, está no
 [relatório de 2026-10-26](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md).
-Falta, para fechar a Etapa 1, o dono aprovar o sumário final e a lista "fora
-do manual". A Etapa 2 começa depois.
+Em 2026-10-28 o dono aprovou deixar fora do manual o que não aparece para
+ninguém e definiu a direção do conteúdo: o manual explica como o Vela opera e
+o que o usuário faz para alcançar cada objetivo e cumprir cada
+responsabilidade, e cobre as situações mais comuns, inclusive as de borda
+([O manual parte do objetivo de quem usa](#o-manual-parte-do-objetivo-de-quem-usa)).
+Falta, para fechar a Etapa 1, o dono aprovar o sumário final. A Etapa 2
+começa depois.
 
 **Mudança entrada depois da Etapa 1 (2026-10-28): alterar, excluir e isentar
 as Taxas Locais do B/L** ([ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
@@ -54,8 +60,11 @@ guardado como registro histórico e serve só de referência de redação
    [Pontos do dono](../manual/decisoes/pontos-do-dono.md).
 2. **Aprovações que fecham a Etapa 1** (seções 5 e 7 do
    [relatório](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md)):
-   o sumário final proposto (24 capítulos) e a lista "fora do manual". Ainda
-   não respondidas.
+   a lista "fora do manual" foi aprovada pelo dono em 2026-10-28 ("tudo bem
+   deixar de fora aquilo que não aparece para ninguém"); o sumário final
+   proposto (24 capítulos) ainda espera resposta, na página
+   <https://claude.ai/artifact/4VK9aBi787ZSNGWmtNW5FK> (coleção `aprovacoes`,
+   documentos `sumario` e `fora`, campos `decisao`, `nota` e `decididoEm`).
 3. **Ambiente.** `npm ci`, depois `sudo scripts/setup-local-pg.sh --reset`
    (banco `vela_test` com todas as migrations), depois `npm run manual:coverage`
    (precisa terminar com todos os itens com lugar; 2282/2282 em 2026-10-27).
@@ -65,8 +74,8 @@ guardado como registro histórico e serve só de referência de redação
    [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).
 5. **Próximo passo depois das aprovações:** Etapa 2 (projeto gráfico com
    páginas-modelo para o dono aprovar, cenário de demonstração, imagens por
-   script e capítulo-piloto 4 e 5 do sumário original, que no sumário final
-   são os capítulos 4 a 6).
+   script, catálogo de situações e capítulo-piloto 4 e 5 do sumário original,
+   que no sumário final são os capítulos 4 a 6).
 6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
    etapas: o manual se pauta só pelo código; o material antigo é só referência
    de redação; quem faz o quê sai do código (matriz "O que cada setor pode",
@@ -153,6 +162,29 @@ Quando o código e um documento discordam, vale a classificação de
 
 O operador nunca lê no manual uma regra que o sistema não cumpre. Um defeito
 também não vira regra só porque está no código.
+
+### O manual parte do objetivo de quem usa
+
+Decisão do dono em 2026-10-28. O manual explica exatamente como o Vela opera e
+o que o usuário faz para alcançar cada objetivo e cumprir cada
+responsabilidade da sua equipe. A matriz de cobertura garante que nenhuma regra
+fica sem lugar; ela não é a ordem do texto. O texto é organizado pelas
+perguntas de quem está trabalhando:
+
+- **"Quero fazer…"** — cada capítulo abre com os objetivos que ele resolve,
+  por equipe, e cada procedimento tem o nome do objetivo ("Cancelar uma fatura
+  já paga", "Trocar o Cliente de um B/L"), não o nome da tela.
+- **"Aconteceu…"** — as situações mais comuns fora do caminho normal, em
+  especial na importação de arquivos: o que o sistema faz naquele caso, a regra
+  geral que explica o comportamento e o que o usuário faz para chegar ao
+  resultado. Exemplos do dono: cancelar uma fatura já paga, trocar o B/L (ou o
+  Cliente dele), reimportar um arquivo com containers diferentes.
+- As situações saem do [catálogo de situações](#etapa-2--projeto-gráfico-cenário-imagens-e-pdf-capítulo-piloto)
+  (Etapa 2), que liga cada uma às regras da matriz que a respondem.
+
+Fica fora só o que não aparece para ninguém (lista aprovada em 2026-10-28).
+A meta é que a maior parte das situações reais tenha resposta no manual, de
+forma explicativa, e não só as regras listadas.
 
 ### Toda regra tem um lugar, mas nem toda regra vai no corpo do texto
 
@@ -333,7 +365,8 @@ usados na coluna "Onde" do escopo.
 - A. Glossário em linguagem de navegação.
 - B. Mensagens do sistema: o que significa e o que fazer.
 - C. Status e cores: Viagem, B/L, CE, fatura, pedido de desbloqueio, alerta.
-- D. "Quero fazer… → onde fica": índice por tarefa.
+- D. "Quero fazer… / Aconteceu… → onde fica": índice por objetivo e por
+  situação, gerado do catálogo de situações.
 - E. Índice remissivo.
 
 Fora do PDF principal, um **guia de bolso** por equipe (régua visual).
@@ -396,6 +429,9 @@ responder e não é fonte: o manual novo se pauta pelo código.
 - Cada rótulo, caminho de tela e mensagem conferido no código ou na captura.
 - Um exemplo contínuo: o mesmo navio, a mesma Viagem, o mesmo Cliente e os
   mesmos B/Ls fictícios atravessam o manual inteiro.
+- Cada capítulo abre com os objetivos que resolve e traz as situações comuns
+  do catálogo ("Aconteceu…"), cada uma com o que o sistema faz, a regra geral
+  e o que o usuário faz.
 - Fim de capítulo com resumo e um exercício sobre o cenário.
 
 ## Escolhas de rotina (podem ser revistas)
@@ -503,8 +539,9 @@ corrigidos na mesma entrega.
 **Pronto quando** cada item de cada lista tem destino, o check de cobertura
 passa, e o dono aprovou:
 a lista "fora do manual", a lista de divergências e o sumário final.
-Os três primeiros critérios foram cumpridos em 2026-10-26; a aprovação do
-dono está pendente
+Os três primeiros critérios foram cumpridos em 2026-10-26; a lista de
+divergências foi decidida em 2026-10-27 e a lista "fora do manual" aprovada em
+2026-10-28; falta a aprovação do sumário final
 ([relatório](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md)).
 
 ### Etapa 2 — Projeto gráfico, cenário, imagens e PDF; capítulo-piloto
@@ -536,8 +573,19 @@ dono está pendente
    texto impresso, marcas "[confirmar]" e lugares de imagem vazios. As
    marcações numeradas sobre as imagens são desenhadas pelo próprio script de
    captura, a partir da posição real dos botões na tela.
-5. **Capítulo-piloto:** "Criar uma Viagem e importar a documentação"
-   (capítulos 4 e 5) escrito, ilustrado e gerado em PDF no formato final.
+5. **Catálogo de situações** ([O manual parte do objetivo de quem usa](#o-manual-parte-do-objetivo-de-quem-usa)):
+   por capítulo do sumário final, a lista dos objetivos de cada equipe
+   ("Quero fazer…") e das situações comuns fora do caminho normal
+   ("Aconteceu…"), começando pela importação de arquivos (B/L, carga solta,
+   CE Mercante, Manifesto, Baplie, Veículos, planilha de datas). Fontes: as
+   recusas, avisos de prévia, alertas e correções que a matriz já mapeou, e o
+   conhecimento da operação. Cada situação aponta as regras da matriz que a
+   respondem; situação sem regra é pergunta ao código antes de virar texto. O
+   dono confere a lista do piloto e diz o que falta ou o que é raro.
+6. **Capítulo-piloto:** "Criar uma Viagem e importar a documentação"
+   (capítulos 4 a 6 do sumário final) escrito, ilustrado e gerado em PDF no
+   formato final, respondendo todas as situações do catálogo desses
+   capítulos.
 
 **Pronto quando** o piloto cumpre as duas réguas e o dono o aprova: linguagem,
 profundidade, imagens e aparência. Esse é o molde dos demais capítulos.
@@ -554,12 +602,15 @@ profundidade, imagens e aparência. Esse é o molde dos demais capítulos.
 
 Cada lote passa por:
 
-1. redação no modelo de procedimento, regra por regra da matriz de cobertura;
-2. **conferência independente contra o código**: outra leitura, sem o texto do
+1. catálogo de situações dos capítulos do lote, conferido pelo dono;
+2. redação no modelo de procedimento, objetivo por objetivo e situação por
+   situação do catálogo, conferindo que toda regra da matriz do lote ficou
+   escrita;
+3. **conferência independente contra o código**: outra leitura, sem o texto do
    autor como premissa, procura qualquer frase que o código contradiga e
    qualquer regra da matriz que o texto não cobriu;
-3. check de cobertura, check de linguagem e geração do PDF;
-4. revisão do dono.
+4. check de cobertura, check de linguagem e geração do PDF;
+5. revisão do dono.
 
 Os e-mails e impressos ainda estão na migração visual (lote 6b do
 [plano de identidade visual](2026-10-13-identidade-visual-tela-a-tela.md)).
