@@ -558,7 +558,9 @@ Resumo das escolhas que o plano detalha; nada aqui é código ainda.
   as alterações ativas e a isenção à mão. Assim o cálculo e todo recálculo, a
   cotação da correção automática (`_quote_bl_local_charges`), o COD, o
   Desbloqueio de CE e as prévias que simulam o recálculo passam a ver o mesmo
-  valor sem caminho paralelo. Linha excluída fica com total zero e situação
+  valor sem caminho paralelo. Na cobrança manual, que o recálculo já preserva,
+  a alteração vale na própria linha (e a cotação já soma as manuais). Linha
+  excluída fica com total zero e situação
   própria; linha de B/L isento à mão fica Isenta com total zero. As linhas
   guardam também o valor da tabela, para a tela mostrar.
 - **Descarte.** Alteração cuja tabela deixou de ser a do B/L (POD ou modalidade
