@@ -24,26 +24,30 @@ specs só moram em `docs/spec/`:
 
 | Página | Assunto |
 |---|---|
-| 1 | Capa, com o marco do navio Green Guangzhou V.6 |
-| 2 | Boas-vindas, menu do Portal, sumário e como ler os passos |
+| 1 | Capa |
+| 2 | Boas-vindas, menu do Portal, como o acesso funciona, sumário e primeiros passos |
 | 3 | Primeiro acesso pelo convite (48 horas, uso único, reenvio) |
 | 4 | Entrar com CNPJ e senha; Esqueci minha senha |
 | 5 | Painel e Chegadas e saídas |
 | 6 | BLs e Containers (só o próprio CNPJ, B/L depois do CE) |
-| 7 | Desbloqueio de CE Mercante, marcado **[A confirmar se já liberado comercialmente]** |
+| 7 | Desbloqueio de CE Mercante: requisitos, passos e prazo |
 | 8 | Faturas (só emitidas), consolidada e impressão |
-| 9 | Pix: QR, “em preparação”, baixa automática e quando mandar comprovante |
+| 9 | Pagamento por Pix (única forma de pagamento): QR, Copia e Cola, “em preparação” e baixa automática |
 | 10 | Demurrage (US$ fixo, R$ pelo câmbio do dia) e disputa |
 | 11 | Central de Informações e os e-mails que o cliente recebe |
 | 12 | Meu perfil: caixas de comunicados, endereço e e-mail de recuperação |
-| 13 | Contatos, o que o cliente não faz no Portal e checklist inicial |
+| 13 | Contatos e o que fica fora do Portal |
 
-Cada passo segue **Onde → Ação → Efeito**. As telas são desenhos
-esquemáticos, não capturas. Os dados são fictícios: Exemplo Comércio Ltda.,
-CNPJ `12.***.***/0001-90`, B/L `AURU1234567`, fatura `TX-2026-00421` de
-R$ 1.250,00. Também são fictícios os containers `EXMU…`, o CE
-`152605001234567`, a Invoice `DEM-2026-0057`, o câmbio 5,8575, os e-mails
-`@exemplo.com.br` e a conversa da disputa. O QR Code do desenho é um padrão
+O guia é atemporal: não cita data de início nem navio. Cada página traz o
+desenho da tela com pontos numerados, um **passo a passo** curto ligado a esses
+números e um quadro **Bom saber** só com o que não é óbvio (prazos, limites,
+regras). O que a tela já diz sozinha fica de fora.
+
+Para a equipe (o guia não traz esses avisos): as telas são desenhos
+esquemáticos, não capturas, e os dados são fictícios (Exemplo Comércio Ltda.,
+CNPJ `12.***.***/0001-90`, B/L `AURU1234567`, fatura `TX-2026-00421`,
+containers `EXMU…`, Invoice `DEM-2026-0057`). Datas e navios aparecem como
+barras cinza, para o guia não envelhecer. O QR Code do desenho é um padrão
 decorativo, sem dados: nenhum app de banco o lê.
 
 ## Gerar o PDF
@@ -69,22 +73,21 @@ O convite de acesso **não** é um destes textos: ele sai do sistema, sozinho,
 para o e-mail de recuperação do CNPJ, com o assunto “Ative o acesso da
 &lt;razão social&gt; ao Portal do Cliente”.
 
-### 1. Comunicado do novo Portal (anexar o PDF)
+### 1. Apresentação do Portal (anexar o PDF)
 
-**Assunto:** Novo Portal do Cliente Fwlog a partir do Green Guangzhou V.6
+**Assunto:** Portal do Cliente Fwlog: acesso e guia de uso
 
 > Prezado cliente,
 >
-> A partir do navio Green Guangzhou V.6, com previsão de chegada em Vitória em
-> 06/11/2026, os processos da sua empresa passam a ser acompanhados no novo
-> Portal do Cliente Fwlog: portalfwlog.com.br.
+> Os processos da sua empresa com a Fwlog são acompanhados no Portal do
+> Cliente: portalfwlog.com.br.
 >
 > No Portal, você:
 >
 > - consulta as faturas emitidas de Taxas Locais e Demurrage e paga por Pix,
->   com baixa automática, sem precisar enviar comprovante;
+>   pelo QR Code ou pelo código Copia e Cola, com baixa automática;
 > - acompanha os B/Ls da sua empresa, os containers, a devolução e o free time;
-> - pede o desbloqueio do CE Mercante; **[A confirmar se já liberado comercialmente]**
+> - pede o desbloqueio do CE Mercante;
 > - encontra as tabelas de Taxas Locais, os depósitos de devolução, os agentes
 >   por porto e os nossos contatos.
 >
@@ -146,6 +149,8 @@ repositório na `staging` de 2026-10-28; nada foi observado em produção).
 | Regra de senha e mensagem de login recusado | `src/lib/passwordPolicy.ts`, `src/lib/portalCnpjLogin.ts` |
 | Assuntos e textos dos e-mails do acesso | `supabase/functions/_shared/portalEmailTemplates.ts` |
 | Pix: “QR Code Pix em preparação”, baixa em 1 a 5 minutos | `src/components/portal/PortalPixPaymentBlock.tsx`, `PIX_SETTLEMENT_NOTE` em `src/components/shared/InvoiceDocumentKit.tsx`, [Reconciliação PIX](../../docs/modules/reconciliacao-pix.md) |
+| Pix como única forma de pagamento; Desbloqueio de CE liberado ao cliente | Informado no pedido de revisão de 2026-10-28 |
+| “No free time · N dias” conta os dias que faltam | `src/lib/portalOperationViews.ts` |
 | B/L só aparece com CE Mercante | [Regras de negócio § Gate de CE Mercante no Portal](../../docs/operations/regras-de-negocio.md#gate-de-ce-mercante-no-portal) |
 | Desbloqueio de CE: quatro requisitos, prazo, até 100 B/Ls | [Desbloqueio de CE](../../docs/modules/desbloqueio-ce.md) |
 | Demurrage: US$ fixo, R$ pelo câmbio até o pagamento, Régua pausada na disputa, anexos | [Demurrage](../../docs/modules/demurrage.md) e a tabela de disputa em [Portal do Cliente](../../docs/modules/portal-cliente.md) |
@@ -154,28 +159,16 @@ repositório na `staging` de 2026-10-28; nada foi observado em produção).
 | Endereços de contato | `src/config/portalUrl.ts` (suporte), `src/services/customerCommunicationTemplates.ts` (importação e Demurrage) e os quatro endereços do pedido |
 | Número da Invoice de Demurrage (`DEM-AAAA-NNNN`) | migration `294` |
 
-O navio Green Guangzhou V.6 e a data 06/11/2026 vêm do pedido; o repositório
-não tem esse navio.
-
 ## Pontos a confirmar
 
-1. **Desbloqueio de CE para o cliente.** O módulo está publicado em produção,
-   mas o pedido pede marcar se já está liberado comercialmente. A marca aparece
-   no sumário, na página 7 e no comunicado. Retire as três marcas, ou a página
-   inteira, conforme a decisão.
-2. **Para onde vai o comprovante** de TED, depósito ou Pix feito fora da
-   cobrança do Portal (páginas 9 e 13). O sistema não recebe comprovante pelo
-   Portal. Proposta: `importacao@fwlog.com.br` para Taxas Locais e
-   `eqp@fwlog.com.br` para Demurrage.
-3. **Nome do recebedor** que o app do banco mostra no Pix (página 9).
-4. **Processos anteriores ao Green Guangzhou V.6.** O guia não diz onde o
-   cliente acompanha os navios anteriores.
-5. **“Transhipping, titular da cobrança”** (página 8): confirmar se essa é a
-   frase para o cliente sobre a marca dos documentos impressos.
-6. **Quem envia o comunicado** e de qual caixa, e se o guia vai anexo ou por
+1. **Marca Transhipping na fatura impressa** (página 8): confirmar se a frase
+   “A fatura e o recibo impressos saem com a marca Transhipping” deve ir ao
+   cliente.
+2. **Quem envia a apresentação** e de qual caixa, e se o guia vai anexo ou por
    link.
-7. **Aprovação visual** do responsável, como pede a identidade visual para
-   material novo.
+3. **Aprovação visual** do responsável, como pede a identidade visual para
+   material novo. Aprovado o material, sai o “Rascunho para revisão” do rodapé
+   (e a conferência correspondente em `gerar-pdf.mjs`).
 
 ## Verificação feita
 

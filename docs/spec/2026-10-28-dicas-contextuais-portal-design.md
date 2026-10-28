@@ -6,7 +6,7 @@ Estado: **proposta, não aprovada.** Nada aqui está implementado. Nasceu com o
 
 ## Problema
 
-O guia em PDF explica o Portal uma vez, fora dele. Quatro dúvidas que o guia
+O guia em PDF explica o Portal uma vez, fora dele. Três dúvidas que o guia
 responde não têm resposta na própria tela, e o cliente que não leu o guia só
 descobre falando com a equipe:
 
@@ -21,8 +21,6 @@ descobre falando com a equipe:
 3. O valor em reais da Invoice de Demurrage muda nos dias úteis até o
    pagamento ([Demurrage](../modules/demurrage.md)), e o detalhe não diz que o
    QR de outro dia pode cobrar outro valor.
-4. TED, depósito ou Pix fora da cobrança do Portal não dão baixa sozinhos, e o
-   Portal não diz o que fazer com o comprovante.
 
 ## Proposta
 
@@ -37,7 +35,6 @@ as mesmas telas.
 | Detalhe da fatura de Taxas Locais e da avulsa | Sob “Pague com Pix”, no bloco Pagamento | Com o QR na tela | “Pago pelo QR ou pelo código, a baixa é automática em 1 a 5 minutos, sem comprovante. Atualize a página para ver a fatura paga.” |
 | Detalhe da Invoice de Demurrage | Sob “Pague com Pix” | Com o QR na tela | “O valor em reais segue o câmbio dos dias úteis. Pague pelo QR desta tela no dia do pagamento.” |
 | BLs e Containers, aba B/Ls | Descrição do estado vazio | Lista vazia **sem** filtro ativo | “Os B/Ls da sua empresa aparecem aqui depois que o CE Mercante é registrado.” Com filtro ativo, o texto atual continua. |
-| Faturas | Linha de apoio sob a descrição da página | Sempre | “Pagou por TED ou depósito? Envie o comprovante para [endereço a confirmar].” |
 
 A primeira e a segunda linhas reaproveitam o `pixNote` que o bloco já aceita
 (hoje usado só para “o QR cobra o saldo” na parcial); as duas notas precisam
@@ -50,12 +47,10 @@ conviver na parcial.
 - Guardar no navegador quais dicas o cliente já viu, ou gravar isso no banco.
 - Qualquer mudança de regra: as dicas só descrevem o que o sistema já faz.
 
-## Decisões em aberto
+## Decisão em aberto
 
-1. Endereço que recebe comprovante de TED ou depósito (mesma pergunta do guia).
-2. Se a linha de Faturas deve existir enquanto não houver esse endereço.
-3. Aprovação dos textos e do lugar de cada dica, tela a tela, como pede a
-   identidade visual.
+Aprovação dos textos e do lugar de cada dica, tela a tela, como pede a
+identidade visual.
 
 ## Verificação quando implementar
 

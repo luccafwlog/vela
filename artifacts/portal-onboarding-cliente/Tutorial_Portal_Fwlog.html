@@ -113,7 +113,7 @@ h1, h2, h3 { margin: 0; }
 .pf b { color: var(--navy); font-weight: 600; }
 
 /* Tipografia */
-.kicker { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--link); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+
 .title { font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -0.015em; color: var(--navy); }
 .lead { margin-top: 6px; font-size: 14px; line-height: 21px; color: var(--muted); max-width: 158mm; }
 .h2 { font-size: 15px; line-height: 21px; font-weight: 700; color: var(--navy); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
@@ -125,25 +125,11 @@ h1, h2, h3 { margin: 0; }
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 
 /* Referências à interface dentro do texto */
-.ui {
-  display: inline-block;
-  padding: 0 5px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: var(--surface);
-  font-size: 12px;
-  line-height: 17px;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-}
-.ui--primary { background: var(--btn); border-color: var(--btn); color: #fff; }
-.code { font-family: var(--mono); font-size: 12px; background: var(--surface-muted); border-radius: 4px; padding: 0 4px; white-space: nowrap; }
+
 .mail { font-family: var(--sans); font-weight: 600; color: var(--link); white-space: nowrap; }
 .warn { color: var(--warn-fg); font-weight: 600; }
 .ok { color: var(--ok-fg); font-weight: 600; }
 .danger { color: var(--danger-fg); font-weight: 600; }
-.quote { font-style: italic; }
 
 /* Ícones (traço no estilo do app) */
 .i { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.14em; flex-shrink: 0; }
@@ -157,17 +143,7 @@ h1, h2, h3 { margin: 0; }
 .blk__b { padding: 12px; }
 
 /* Onde → Ação → Efeito */
-.oae { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border-soft); border-radius: 10px; overflow: hidden; }
-.oae th { background: var(--navy); color: #fff; font-size: 12px; line-height: 16px; font-weight: 600; text-align: left; padding: 6px 9px; }
-.oae th .i { color: var(--globe); margin-left: 6px; }
-.oae td { padding: 6px 9px; vertical-align: top; border-top: 1px solid var(--border-soft); font-size: 12px; line-height: 17px; }
-.oae tr:first-child td { border-top: 0; }
-.oae td.n { width: 32px; padding-right: 0; }
-.oae td.onde { width: 25%; color: var(--navy); font-weight: 600; }
-.oae td.acao { width: 36%; }
-.oae td.sub { padding: 5px 9px; background: var(--strip); color: var(--navy); font-weight: 700; }
-.oae td.efeito { color: var(--muted); }
-.oae td.efeito strong { color: var(--text); font-weight: 600; }
+
 .num, .pin {
   display: inline-grid;
   place-items: center;
@@ -188,32 +164,8 @@ h1, h2, h3 { margin: 0; }
 .note { display: flex; gap: 10px; padding: 10px 12px; border: 1px solid var(--info-border); border-radius: 10px; background: var(--info-bg); font-size: 12.5px; line-height: 18px; }
 .note > .i { color: var(--btn); width: 18px; height: 18px; margin-top: 1px; }
 .note strong { color: var(--navy); }
-.note--warn { border-color: var(--warn-border); background: var(--warn-bg); }
-.note--warn > .i { color: var(--warn-fg); }
-.note--ok { border-color: var(--ok-border); background: var(--ok-bg); }
-.note--ok > .i { color: var(--ok-fg); }
-.note--plain { border-color: var(--border-soft); background: var(--surface); }
-.note--plain > .i { color: var(--link); }
-.confirm {
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 1px 9px;
-  border: 1px dashed var(--warn-fg);
-  border-radius: 999px;
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-  font-size: 12px;
-  line-height: 18px;
-  font-weight: 600;
-}
 
 /* Fatos-chave em ladrilhos */
-.fact { padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); }
-.fact__v { display: flex; align-items: center; gap: 7px; font-size: 16px; line-height: 22px; font-weight: 700; color: var(--navy); }
-.fact__v .i { color: var(--btn); }
-.fact__l { margin-top: 3px; font-size: 12px; line-height: 17px; color: var(--muted); }
 
 /* ===== Desenhos esquemáticos das telas (dados fictícios) ===== */
 .mock {
@@ -325,7 +277,7 @@ h1, h2, h3 { margin: 0; }
 .qr { fill: var(--text); stroke: none; }
 .m-qr { position: relative; width: 74px; height: 74px; padding: 4px; background: #fff; border: 1px solid var(--border-soft); border-radius: 6px; }
 .m-qr svg { width: 100%; height: 100%; display: block; }
-.m-qr__label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 1px 4px; border-radius: 3px; background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-fg); font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; }
+
 .m-pix { display: flex; gap: 10px; align-items: center; padding-left: 12px; border-left: 1px solid var(--border-soft); }
 .m-pix__code { display: block; max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 3px 0 5px; padding: 1px 5px; border-radius: 4px; background: var(--surface-muted); color: var(--muted); font-family: var(--mono); font-size: 9.5px; }
 .m-lead { font-size: 19px; line-height: 24px; font-weight: 700; }
@@ -346,7 +298,7 @@ h1, h2, h3 { margin: 0; }
 .cover__orbit { position: absolute; top: -250px; right: -250px; width: 640px; height: 640px; }
 .cover__top { position: relative; display: flex; align-items: center; justify-content: space-between; }
 .cover__top img { height: 40px; display: block; }
-.cover__draft { padding: 4px 12px; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; }
+
 .cover__main { position: relative; margin-top: 64mm; max-width: 128mm; }
 .cover__kicker { font-size: 13px; line-height: 18px; font-weight: 600; color: var(--globe); }
 .cover__title { margin-top: 10px; font-size: 50px; line-height: 56px; font-weight: 700; letter-spacing: -0.02em; }
@@ -359,7 +311,7 @@ h1, h2, h3 { margin: 0; }
 .cover__facts { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.16); display: grid; grid-template-columns: repeat(3, auto); gap: 14px; justify-content: start; }
 .cover__facts small { display: block; font-size: 12px; color: rgba(255, 255, 255, 0.66); }
 .cover__facts span { font-size: 13px; font-weight: 600; }
-.cover__facts .code { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
 .cover__features { position: relative; margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding-bottom: 22px; }
 .cover__feature { padding-top: 12px; border-top: 2px solid var(--globe); }
 .cover__feature b { display: flex; align-items: center; gap: 7px; font-size: 14px; line-height: 20px; }
@@ -403,9 +355,6 @@ h1, h2, h3 { margin: 0; }
 .timeline .arrow .i { width: 11px; height: 11px; }
 
 /* Tabelas simples de referência */
-.ref { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border-soft); border-radius: 10px; overflow: hidden; }
-.ref th { background: var(--strip); color: var(--navy); font-size: 12px; line-height: 16px; font-weight: 700; text-align: left; padding: 7px 10px; }
-.ref td { padding: 6px 10px; border-top: 1px solid var(--border-soft); font-size: 12.5px; line-height: 18px; vertical-align: top; }
 
 /* Contatos */
 .contact { padding: 13px 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); }
@@ -421,23 +370,41 @@ h1, h2, h3 { margin: 0; }
 .check li { display: grid; grid-template-columns: 18px 1fr; gap: 8px; padding: 6px 0; font-size: 12.5px; line-height: 18px; border-top: 1px solid var(--border-soft); }
 .check li:first-child { border-top: 0; padding-top: 0; }
 .check .box { width: 14px; height: 14px; margin-top: 2px; border: 1.5px solid var(--btn); border-radius: 4px; }
-.yesno { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.yesno > div { padding: 12px 13px; border-radius: 10px; border: 1px solid; }
-.yesno__no { border-color: var(--ok-border) !important; background: var(--ok-bg); }
-.yesno__yes { border-color: var(--warn-border) !important; background: var(--warn-bg); }
-.yesno small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
-.yesno b { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-size: 15px; line-height: 20px; }
-.yesno__no b { color: var(--ok-fg); }
-.yesno__yes b { color: var(--warn-fg); }
-.yesno p { margin-top: 5px; font-size: 12.5px; line-height: 18px; color: var(--text); }
+
 .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .state { padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); }
-.state small { font-size: 12px; font-weight: 600; color: var(--muted); }
-.state b { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 13.5px; line-height: 19px; }
-.state p { margin-top: 3px; font-size: 12px; line-height: 17px; color: var(--muted); }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; line-height: 18px; }
-.legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.legend em { font-style: normal; color: var(--muted); }
+.state > b { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 13.5px; line-height: 19px; }
+.state > p { margin-top: 3px; font-size: 12px; line-height: 17px; color: var(--muted); }
+
+/* Passo a passo e Bom saber: o que fazer, e só o que não é óbvio. */
+.guide { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; margin-top: 20px; align-items: start; }
+.steps { display: grid; gap: 11px; }
+.steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; }
+.steps b { display: block; font-size: 13.5px; line-height: 20px; font-weight: 600; color: var(--text); }
+.steps p { margin-top: 2px; font-size: 12.5px; line-height: 18px; color: var(--muted); }
+.know { border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.know__h { padding: 8px 12px; background: var(--strip); color: var(--navy); font-size: 13px; line-height: 18px; font-weight: 700; }
+.know ul { display: grid; gap: 8px; padding: 11px 12px 12px; }
+.know ul li { position: relative; padding-left: 14px; font-size: 12.5px; line-height: 18px; }
+.know ul li::before { content: ''; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--globe); }
+.know ul.know--2 { grid-template-columns: 1fr 1fr; column-gap: 22px; }
+.know__p { padding: 10px 12px 0; font-size: 12.5px; line-height: 18px; color: var(--muted); }
+.know__p--foot { padding: 0 12px 12px; }
+.defs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 14px; margin: 0; padding: 11px 12px 12px; font-size: 12.5px; line-height: 18px; }
+.defs dt { font-weight: 600; white-space: nowrap; }
+.defs dd { margin: 0; color: var(--muted); }
+.mails li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--border-soft); }
+.mails li:first-child { border-top: 0; padding-top: 0; }
+.mails b { display: block; font-size: 13px; line-height: 19px; }
+.mails div span { font-size: 12.5px; line-height: 18px; color: var(--muted); }
+.check--2, .nope--2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+.check--2 li, .nope--2 li { border-top: 0; padding: 0; }
+.pair { display: grid; grid-template-columns: 92mm minmax(0, 1fr); gap: 20px; align-items: center; }
+.m-auth__text { font-size: 10.5px; line-height: 15px; color: var(--text); }
+.state__mock { display: flex; align-items: center; gap: 9px; min-height: 76px; margin-bottom: 10px; padding: 9px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border-soft); }
+.state__mt { display: block; font-size: 11px; line-height: 15px; font-weight: 600; color: var(--text); }
+.state__mt.ok { color: var(--ok-fg); }
+.state__mtext { display: block; margin-top: 2px; font-size: 10px; line-height: 14px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -500,34 +467,32 @@ h1, h2, h3 { margin: 0; }
 
   <div class="cover__top">
     <img src="../../public/branding/fwlog-logo-white.png" alt="Fwlog Soluções Logísticas">
-    <span class="cover__draft">Rascunho para revisão</span>
   </div>
 
   <div class="cover__main">
-    <p class="cover__kicker">Guia do cliente · versão 1 · outubro de 2026</p>
+    <p class="cover__kicker">Guia de uso</p>
     <h1 class="cover__title">Portal do Cliente<br><span>Fwlog</span></h1>
-    <p class="cover__sub">Faturas, Pix, B/Ls, containers e Demurrage da sua empresa em um só lugar, com acesso seguro pelo CNPJ.</p>
+    <p class="cover__sub">Faturas, pagamento por Pix, B/Ls, containers e Demurrage da sua empresa, em um só lugar.</p>
   </div>
 
   <div class="cover__anchor">
-    <small>A partir do navio</small>
-    <b>Green Guangzhou V.6</b>
-    <p>Os processos da sua empresa passam a ser acompanhados no novo Portal do Cliente a partir desta viagem.</p>
+    <small>Acesse em</small>
+    <b>portalfwlog.com.br</b>
     <div class="cover__facts">
-      <div><small>Previsão de chegada em Vitória</small><span>06/11/2026</span></div>
-      <div><small>Endereço</small><span class="code">portalfwlog.com.br</span></div>
-      <div><small>Acesso</small><span>Convite por e-mail</span></div>
+      <div><small>Entrada</small><span>CNPJ da empresa e senha</span></div>
+      <div><small>Acesso</small><span>Por convite da Fwlog</span></div>
+      <div><small>Pagamento</small><span>Pix</span></div>
     </div>
   </div>
 
   <div class="cover__features">
     <div class="cover__feature">
       <b><svg class="i i--16"><use href="#i-key"/></svg>Acesso por convite</b>
-      <p>Sem cadastro público. Você ativa pelo convite e entra com o CNPJ e a sua senha.</p>
+      <p>Você ativa o acesso pelo convite e entra com o CNPJ da empresa e a sua senha.</p>
     </div>
     <div class="cover__feature">
-      <b><svg class="i i--16"><use href="#i-qr"/></svg>Faturas e Pix</b>
-      <p>Só faturas emitidas. Pague pelo QR Code: a baixa é automática, sem comprovante.</p>
+      <b><svg class="i i--16"><use href="#i-qr"/></svg>Pagamento por Pix</b>
+      <p>QR Code ou Pix Copia e Cola em cada fatura, com baixa automática.</p>
     </div>
     <div class="cover__feature">
       <b><svg class="i i--16"><use href="#i-ship"/></svg>A operação do seu CNPJ</b>
@@ -542,11 +507,10 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Boas-vindas">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section">Antes de começar</span></header>
 
-  <p class="kicker">Boas-vindas</p>
   <h1 class="title">Bem-vindo ao Portal do Cliente</h1>
-  <p class="lead">O Portal reúne em um só endereço o que a sua empresa acompanha na importação com a Fwlog: faturas emitidas, pagamento por Pix, B/Ls e containers, Demurrage, desbloqueio de CE e as informações de atendimento.</p>
+  <p class="lead">O Portal reúne o que a sua empresa acompanha na importação com a Fwlog: faturas, pagamento por Pix, B/Ls e containers, Demurrage, desbloqueio de CE e as informações de atendimento.</p>
 
-  <div class="stack" style="margin-top:16px">
+  <div class="stack" style="margin-top:18px">
     <div>
       <h2 class="h2">O menu do Portal</h2>
       <div class="menu-map">
@@ -559,28 +523,22 @@ h1, h2, h3 { margin: 0; }
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1.08fr;gap:14px;align-items:start">
-      <div class="stack">
-        <div class="blk">
-          <div class="blk__h">O que muda com o novo Portal</div>
-          <div class="blk__b">
-            <div class="change">
-              <span class="change__icon"><svg class="i i--16"><use href="#i-ship"/></svg></span>
-              <div><b>Quando</b><p>A partir do navio Green Guangzhou V.6, com previsão de chegada em Vitória em 06/11/2026.</p></div>
-            </div>
-            <div class="change">
-              <span class="change__icon"><svg class="i i--16"><use href="#i-globe"/></svg></span>
-              <div><b>Onde</b><p>Em <span class="code">portalfwlog.com.br</span>, pelo navegador do computador ou do celular.</p></div>
-            </div>
-            <div class="change">
-              <span class="change__icon"><svg class="i i--16"><use href="#i-mail"/></svg></span>
-              <div><b>Como entrar</b><p>Não há cadastro público. A Fwlog envia um convite por e-mail; você cria a sua senha e entra com o CNPJ da empresa.</p></div>
-            </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+      <div class="blk">
+        <div class="blk__h">Como o acesso funciona</div>
+        <div class="blk__b">
+          <div class="change">
+            <span class="change__icon"><svg class="i i--16"><use href="#i-mail"/></svg></span>
+            <div><b>Por convite</b><p>Não há cadastro no site. A Fwlog envia o convite ao e-mail de recuperação da sua empresa, e você cria a própria senha.</p></div>
           </div>
-        </div>
-        <div class="note note--plain">
-          <svg class="i"><use href="#i-info"/></svg>
-          <p><strong>Exemplos fictícios.</strong> As telas são desenhos esquemáticos, não capturas do sistema. Os dados são inventados: <b>Exemplo Comércio Ltda.</b>, CNPJ <span class="code">12.***.***/0001-90</span>, B/L <span class="code">AURU1234567</span> e fatura <span class="code">TX-2026-00421</span> de R$ 1.250,00. Containers, CE, Invoice de Demurrage, câmbio e e-mails dos exemplos também.</p>
+          <div class="change">
+            <span class="change__icon"><svg class="i i--16"><use href="#i-building"/></svg></span>
+            <div><b>Um acesso por CNPJ</b><p>Matriz e cada filial entram com o próprio CNPJ e veem só os próprios dados.</p></div>
+          </div>
+          <div class="change">
+            <span class="change__icon"><svg class="i i--16"><use href="#i-qr"/></svg></span>
+            <div><b>Pagamento por Pix</b><p>Taxas Locais e Demurrage são pagas por Pix, pelo QR Code ou pelo código Copia e Cola da fatura.</p></div>
+          </div>
         </div>
       </div>
 
@@ -588,31 +546,33 @@ h1, h2, h3 { margin: 0; }
         <div class="blk__h">Neste guia</div>
         <div class="blk__b">
           <ol class="toc">
-            <li><span class="tn">01</span><span>Primeiro acesso: o convite</span><span class="tp">3</span></li>
+            <li><span class="tn">01</span><span>Primeiro acesso</span><span class="tp">3</span></li>
             <li><span class="tn">02</span><span>Entrar e recuperar a senha</span><span class="tp">4</span></li>
             <li><span class="tn">03</span><span>Painel</span><span class="tp">5</span></li>
             <li><span class="tn">04</span><span>BLs e Containers</span><span class="tp">6</span></li>
-            <li><span class="tn">05</span><span>Desbloqueio de CE Mercante<br><span class="confirm" style="margin-top:4px">[A confirmar se já liberado comercialmente]</span></span><span class="tp">7</span></li>
+            <li><span class="tn">05</span><span>Desbloqueio de CE Mercante</span><span class="tp">7</span></li>
             <li><span class="tn">06</span><span>Faturas</span><span class="tp">8</span></li>
             <li><span class="tn">07</span><span>Pagamento por Pix</span><span class="tp">9</span></li>
             <li><span class="tn">08</span><span>Demurrage e disputa</span><span class="tp">10</span></li>
-            <li><span class="tn">09</span><span>Central de Informações e e-mails</span><span class="tp">11</span></li>
+            <li><span class="tn">09</span><span>Central de Informações</span><span class="tp">11</span></li>
             <li><span class="tn">10</span><span>Meu perfil</span><span class="tp">12</span></li>
-            <li><span class="tn">11</span><span>Contatos e o que fica fora do Portal</span><span class="tp">13</span></li>
+            <li><span class="tn">11</span><span>Fale com a Fwlog</span><span class="tp">13</span></li>
           </ol>
         </div>
       </div>
     </div>
 
-    <div>
-      <h2 class="h2">Como ler os passos</h2>
-      <p class="small muted" style="margin-bottom:8px">Cada passo diz onde você está, o que fazer e o que acontece em seguida. O número liga o passo ao ponto marcado no desenho da tela.</p>
-      <table class="oae">
-        <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-        <tbody>
-          <tr><td class="n"><span class="num">1</span></td><td class="onde">Menu › Faturas</td><td class="acao">Clique no número da fatura <span class="code">TX-2026-00421</span>.</td><td class="efeito">Abre o detalhe, com o <strong>valor a pagar</strong> e o Pix ao lado.</td></tr>
-        </tbody>
-      </table>
+    <div class="blk">
+      <div class="blk__h">Primeiros passos</div>
+      <div class="blk__b">
+        <ul class="check check--2">
+          <li><span class="box"></span><span>Ative o acesso pelo convite em até 48 horas.</span></li>
+          <li><span class="box"></span><span>No Painel, veja o que está em aberto.</span></li>
+          <li><span class="box"></span><span>Em Meu perfil, confira quem recebe cada tipo de comunicado.</span></li>
+          <li><span class="box"></span><span>Em BLs e Containers, confira os seus B/Ls.</span></li>
+          <li><span class="box"></span><span>Confirme que o e-mail de recuperação é de quem cuida do acesso.</span></li>
+                  </ul>
+      </div>
     </div>
   </div>
 
@@ -623,11 +583,10 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Primeiro acesso">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>01</b> Primeiro acesso</span></header>
 
-  <p class="kicker">01 · Primeiro acesso</p>
   <h1 class="title">Ative o acesso pelo convite</h1>
-  <p class="lead">A Fwlog confere o cadastro da sua empresa e envia o convite ao e-mail de recuperação definido para o CNPJ. É por ele que você cria a sua senha.</p>
+  <p class="lead">O acesso começa pelo convite que a Fwlog envia ao e-mail de recuperação da sua empresa. É nele que você cria a sua senha.</p>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px;align-items:start">
     <div class="mock">
       <div class="m-mail">
         <div class="m-mail__meta"><b>Assunto:</b> Ative o acesso da Exemplo Comércio Ltda. ao Portal do Cliente</div>
@@ -663,31 +622,23 @@ h1, h2, h3 { margin: 0; }
     </div>
   </div>
 
-  <div class="grid4" style="margin-top:12px">
-    <div class="fact"><div class="fact__v"><svg class="i i--16"><use href="#i-clock"/></svg>48 horas</div><p class="fact__l">Prazo do convite.</p></div>
-    <div class="fact"><div class="fact__v"><svg class="i i--16"><use href="#i-key"/></svg>Uso único</div><p class="fact__l">Abrir o link não o gasta.</p></div>
-    <div class="fact"><div class="fact__v"><svg class="i i--16"><use href="#i-refresh"/></svg>Reenvio</div><p class="fact__l">Invalida os anteriores.</p></div>
-    <div class="fact"><div class="fact__v"><svg class="i i--16"><use href="#i-lock"/></svg>Sem cadastro</div><p class="fact__l">Só por convite.</p></div>
-  </div>
-
-  <table class="oae" style="margin-top:14px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">E-mail “Ative o acesso da … ao Portal do Cliente”</td><td class="acao">Clique em <span class="ui ui--primary">Ativar acesso</span>.</td><td class="efeito">Abre a tela <strong>Ativar acesso ao Portal</strong>, com o nome da empresa e o CNPJ mascarado.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Tela Ativar acesso ao Portal</td><td class="acao">Confira a empresa e o CNPJ. Crie a senha e repita em <b>Confirmar senha</b>.</td><td class="efeito">A senha precisa de <strong>no mínimo 8 caracteres</strong>, com letra maiúscula, minúscula e número.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Mesma tela</td><td class="acao">Clique em <span class="ui ui--primary">Ativar acesso</span>.</td><td class="efeito">Aparece <strong>Acesso ativado</strong>. O convite foi usado e não vale mais.</td></tr>
-      <tr><td class="n"><span class="num">4</span></td><td class="onde">Tela Acesso ativado</td><td class="acao">Clique em <span class="ui">Ir para o login</span> e entre com o CNPJ e a senha.</td><td class="efeito">A ativação não abre a sessão sozinha: o primeiro login é seu (página 4).</td></tr>
-    </tbody>
-  </table>
-
-  <div class="grid2" style="margin-top:14px">
-    <div class="note note--warn">
-      <svg class="i"><use href="#i-alert"/></svg>
-      <p><strong>“Link inválido ou expirado”?</strong> O convite venceu, já foi usado ou foi trocado por um reenvio. Peça outro a <span class="mail">suporte@portalfwlog.com.br</span> com a razão social e o CNPJ.</p>
+  <div class="guide">
+    <div>
+      <h2 class="h2">Passo a passo</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Abra o convite e clique em Ativar acesso.</b><p>O assunto é “Ative o acesso da [sua empresa] ao Portal do Cliente”.</p></div></li>
+        <li><span class="num">2</span><div><b>Confira a empresa e o CNPJ e crie a sua senha.</b><p>No mínimo 8 caracteres, com letra maiúscula, minúscula e número.</p></div></li>
+        <li><span class="num">3</span><div><b>Clique em Ativar acesso e depois em Ir para o login.</b><p>A ativação não abre a sessão: entre com o CNPJ e a senha que acabou de criar.</p></div></li>
+      </ol>
     </div>
-    <div class="note">
-      <svg class="i"><use href="#i-info"/></svg>
-      <p><strong>Não chegou?</strong> Confira o spam. Se o convite chegou para quem não é a pessoa autorizada pela empresa, não ative: avise o suporte.</p>
+    <div class="know">
+      <div class="know__h">Bom saber</div>
+      <ul>
+        <li>O convite vale por <b>48 horas</b> e serve para <b>uma ativação</b>. Abrir o link não gasta o convite.</li>
+        <li>Um novo convite invalida os anteriores: use sempre o mais recente.</li>
+        <li>Se aparecer “Link inválido ou expirado”, peça um novo convite a <span class="mail">suporte@portalfwlog.com.br</span>, com a razão social e o CNPJ.</li>
+        <li>O convite chegou a quem não é a pessoa autorizada pela empresa? Não ative: avise o suporte.</li>
+      </ul>
     </div>
   </div>
 
@@ -698,11 +649,10 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Entrar e recuperar a senha">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>02</b> Entrar e recuperar a senha</span></header>
 
-  <p class="kicker">02 · Entrar e recuperar a senha</p>
   <h1 class="title">Entre com o CNPJ e a sua senha</h1>
-  <p class="lead">O login usa o CNPJ da empresa, não um nome de usuário. Se esquecer a senha, peça um link de redefinição: ele chega ao e-mail de recuperação da conta.</p>
+  <p class="lead">O login usa o CNPJ da empresa, não um nome de usuário. Se esquecer a senha, peça um link de redefinição.</p>
 
-  <div style="display:grid;grid-template-columns:92mm 1fr;gap:16px;margin-top:16px;align-items:start">
+  <div class="pair" style="margin-top:18px">
     <div class="mock">
       <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br</span></div>
       <div class="m-auth" style="grid-template-columns:31% 69%">
@@ -711,7 +661,7 @@ h1, h2, h3 { margin: 0; }
           <h4>Portal do Cliente</h4>
           <div class="m-field has-pin"><label>CNPJ</label><div class="m-input m-mono">00.000.000/0000-00</div><span class="pin" style="top:-4px;right:-6px">1</span></div>
           <div class="m-field"><label>Senha</label><div class="m-input">••••••••••</div></div>
-          <p class="m-auth__row-link"><span class="pin pin--inline">4</span><u>Esqueci minha senha</u></p>
+          <p class="m-auth__row-link"><span class="pin pin--inline">3</span><u>Esqueci minha senha</u></p>
           <div class="m-turnstile"><span class="m-check"></span>Verificação de segurança</div>
           <span class="m-btn m-btn--primary has-pin">Entrar no Portal<span class="pin" style="top:-9px;right:-9px">2</span></span>
           <p class="m-auth__help">O acesso ao Portal é provisionado pela Fwlog. Problemas para entrar? <u>Fale com o suporte</u>.</p>
@@ -719,29 +669,47 @@ h1, h2, h3 { margin: 0; }
       </div>
     </div>
 
-    <div class="stack">
-      <div class="note note--warn">
-        <svg class="i"><use href="#i-alert"/></svg>
-        <p><strong>Errou a senha?</strong> A tela mostra a mesma mensagem para qualquer erro: <span class="quote">“CNPJ ou senha inválidos. Após várias tentativas, o acesso fica suspenso por 15 minutos.”</span> Se não lembrar a senha, não insista: use <b>Esqueci minha senha</b>.</p>
-      </div>
-      <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-building"/></svg>Um acesso por CNPJ</div><p>Matriz e cada filial têm o próprio login. Um mesmo e-mail pode ser o de recuperação de mais de um CNPJ, depois da análise da Fwlog.</p></div>
-      <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-key"/></svg>Senha só pelo link</div><p>Não há tela de troca de senha dentro do Portal. Para mudar a senha, use <b>Esqueci minha senha</b>.</p></div>
+    <div>
+      <h2 class="h2">Para entrar</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Informe o CNPJ da empresa e a senha.</b><p>O CNPJ pode ir com ou sem pontuação.</p></div></li>
+        <li><span class="num">2</span><div><b>Conclua a verificação de segurança e clique em Entrar no Portal.</b></div></li>
+      </ol>
     </div>
   </div>
 
-  <table class="oae" style="margin-top:16px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td colspan="4" class="sub">Entrar</td></tr>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">portalfwlog.com.br</td><td class="acao">Digite o CNPJ, com ou sem pontuação, e a senha.</td><td class="efeito">CNPJ incompleto é avisado na hora, antes de enviar.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Mesma tela</td><td class="acao">Conclua a <b>verificação de segurança</b>, quando aparecer, e clique em <span class="ui ui--primary">Entrar no Portal</span>.</td><td class="efeito">Abre o <strong>Painel</strong> da sua empresa.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Barra superior</td><td class="acao">Ao terminar, clique em <span class="ui">Sair</span>.</td><td class="efeito">A sessão é encerrada neste navegador.</td></tr>
-      <tr><td colspan="4" class="sub">Esqueci minha senha</td></tr>
-      <tr><td class="n"><span class="num">4</span></td><td class="onde">Login › Esqueci minha senha</td><td class="acao">Informe o CNPJ, conclua a verificação e envie.</td><td class="efeito">Tela <strong>Link enviado</strong>: o link vai ao e-mail de recuperação da conta e <strong>vale por 1 hora</strong>.</td></tr>
-      <tr><td class="n"><span class="num">5</span></td><td class="onde">E-mail “Recuperação de acesso ao Portal do Cliente”</td><td class="acao">Clique em <span class="ui ui--primary">Recuperar acesso</span> e crie a nova senha.</td><td class="efeito">A senha muda e <strong>todas as sessões abertas são encerradas</strong>. Link vencido ou já usado mostra “Link inválido ou expirado.” e o botão <b>Pedir um novo link</b>.</td></tr>
-      <tr><td class="n"><span class="num">6</span></td><td class="onde">E-mail “Sua senha do Portal do Cliente foi alterada”</td><td class="acao">Confira. Se a troca não foi sua, fale com o suporte imediatamente.</td><td class="efeito">É o aviso de segurança da troca, enviado ao e-mail de recuperação.</td></tr>
-    </tbody>
-  </table>
+  <div class="pair" style="margin-top:20px">
+    <div class="mock">
+      <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br/portal/esqueci-senha</span></div>
+      <div class="m-auth" style="grid-template-columns:31% 69%;min-height:0">
+        <div class="m-auth__brand"><img src="../../public/branding/fwlog-logo-white.png" alt="" style="width:70px"><p>Portal do Cliente</p></div>
+        <div class="m-auth__form">
+          <h4>Link enviado</h4>
+          <p class="m-auth__text">Enviamos um link de redefinição para o e-mail cadastrado na conta. O link vale por 1 hora.</p>
+          <p class="m-auth__help" style="margin-top:6px">Não recebeu em alguns minutos? Confira a caixa de spam ou peça de novo.</p>
+          <span class="m-btn m-btn--primary">Voltar para o login</span>
+          <span class="m-btn" style="margin-top:6px">Pedir outro link</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h2 class="h2">Esqueceu a senha?</h2>
+      <ol class="steps">
+        <li><span class="num">3</span><div><b>Clique em Esqueci minha senha e informe o CNPJ.</b><p>O link chega ao e-mail de recuperação da conta e vale por 1 hora.</p></div></li>
+        <li><span class="num">4</span><div><b>No e-mail, clique em Recuperar acesso e crie a nova senha.</b><p>Todas as sessões abertas são encerradas; entre de novo com a senha nova.</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="know" style="margin-top:20px">
+    <div class="know__h">Bom saber</div>
+    <ul class="know--2">
+      <li>Depois de várias tentativas erradas, o acesso fica <b>suspenso por 15 minutos</b>. A mensagem de erro é a mesma para CNPJ e senha.</li>
+      <li>Não há troca de senha dentro do Portal: para mudar a senha, use <b>Esqueci minha senha</b>.</li>
+      <li>A cada troca, chega o aviso “Sua senha do Portal do Cliente foi alterada”. Se não foi você, fale com o suporte na hora.</li>
+      <li>Link vencido ou já usado mostra “Link inválido ou expirado.” e o botão <b>Pedir um novo link</b>.</li>
+    </ul>
+  </div>
 
   <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br · Rascunho para revisão</span><span>4 / 13</span></footer>
 </section>
@@ -750,11 +718,10 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Painel">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>03</b> Painel</span></header>
 
-  <p class="kicker">03 · Painel</p>
-  <h1 class="title">Painel: o que pede atenção hoje</h1>
-  <p class="lead">É a primeira tela depois do login. Os cartões resumem o que está em aberto; os números em âmbar pedem ação.</p>
+  <h1 class="title">Painel: o que pede atenção</h1>
+  <p class="lead">A primeira tela depois do login resume o que está em aberto na sua empresa.</p>
 
-  <div class="mock" style="margin-top:16px">
+  <div class="mock" style="margin-top:18px">
     <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br/portal</span></div>
     <div class="m-bar">
       <img src="../../public/branding/fwlog-logo-white.png" alt="">
@@ -766,7 +733,7 @@ h1, h2, h3 { margin: 0; }
         <span>Informações</span>
         <span>Perfil</span>
       </div>
-      <div class="m-bar__end"><span class="has-pin" style="display:inline-flex"><svg class="i"><use href="#i-bell"/></svg><span class="pin" style="top:-4px;left:15px">5</span></span><span style="margin-left:18px">Exemplo Comércio Ltda.</span><span>Sair</span></div>
+      <div class="m-bar__end"><span class="has-pin" style="display:inline-flex"><svg class="i"><use href="#i-bell"/></svg><span class="pin" style="top:-4px;left:15px">3</span></span><span style="margin-left:18px">Exemplo Comércio Ltda.</span><span>Sair</span></div>
     </div>
     <div class="m-body">
       <div class="m-title"><h4>Painel</h4></div>
@@ -777,42 +744,41 @@ h1, h2, h3 { margin: 0; }
         <div class="m-card"><div class="m-card__l">Desbloqueio de CE em aberto</div><div class="m-card__v">0 solicitações</div></div>
       </div>
       <div class="m-blk">
-        <div class="m-blk__h">Chegadas e saídas<small>Atualizado em 06/11/2026 às 09:12 (horário de Brasília) &nbsp;<span class="m-btn m-btn--ghost has-pin"><svg class="i"><use href="#i-refresh"/></svg>Atualizar<span class="pin" style="top:-12px;right:-13px">2</span></span></small></div>
+        <div class="m-blk__h">Chegadas e saídas<small><span class="m-skel" style="display:inline-block;width:150px;vertical-align:middle"></span> &nbsp;<span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-refresh"/></svg>Atualizar</span></small></div>
         <table class="m-table">
           <thead><tr><th class="l">Navio</th><th>Viagem</th><th>Vitória ETA</th><th>Salvador ETA</th><th>Suape ETA</th><th></th></tr></thead>
           <tbody>
-            <tr><td class="l"><b>Green Guangzhou</b></td><td>V.6</td><td>06/11/2026</td><td class="muted">—</td><td class="muted">—</td><td><span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-pin"/></svg></span> <span class="m-btn m-btn--ghost has-pin"><svg class="i"><use href="#i-package"/></svg><span class="pin" style="top:-9px;right:-12px">3</span></span></td></tr>
-            <tr><td class="l"><div class="m-skel" style="width:70%"></div></td><td><div class="m-skel" style="width:40%;margin:auto"></div></td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td class="muted">—</td><td></td></tr>
+            <tr><td class="l"><div class="m-skel" style="width:70%"></div></td><td><div class="m-skel" style="width:40%;margin:auto"></div></td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td class="muted">—</td><td class="muted">—</td><td><span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-pin"/></svg></span> <span class="m-btn m-btn--ghost has-pin"><svg class="i"><use href="#i-package"/></svg><span class="pin" style="top:-9px;right:-12px">2</span></span></td></tr>
+            <tr><td class="l"><div class="m-skel" style="width:55%"></div></td><td><div class="m-skel" style="width:40%;margin:auto"></div></td><td class="muted">—</td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td class="muted">—</td><td></td></tr>
           </tbody>
         </table>
       </div>
       <div class="m-blk">
         <div class="m-blk__h">Consultas<small>Central de Informações</small></div>
         <div class="m-blk__b" style="display:flex;gap:5px;flex-wrap:wrap">
-          <span class="m-btn has-pin">Taxas Locais<span class="pin" style="top:-13px;left:-13px">4</span></span><span class="m-btn">Depósitos de devolução</span><span class="m-btn">Tarifa de Demurrage</span><span class="m-btn">Agentes por porto</span><span class="m-btn">Contato</span><span class="m-btn">Tracking</span>
+          <span class="m-btn">Taxas Locais</span><span class="m-btn">Depósitos de devolução</span><span class="m-btn">Tarifa de Demurrage</span><span class="m-btn">Agentes por porto</span><span class="m-btn">Contato</span><span class="m-btn">Tracking</span>
         </div>
       </div>
     </div>
   </div>
 
-  <table class="oae" style="margin-top:16px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">Cartões do topo</td><td class="acao">Clique em um cartão.</td><td class="efeito">Abre Faturas, BLs e Containers ou Minhas solicitações <strong>já filtrado</strong> pelo que o cartão conta.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Bloco Chegadas e saídas</td><td class="acao">Clique em <span class="ui">Atualizar</span>.</td><td class="efeito">Relê as datas dos navios. “Atualizado em…” diz quando a tela leu os dados, não quando a data mudou.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Linha do navio, ícone <b>Ver meus B/Ls</b></td><td class="acao">Clique no ícone da caixa. O ícone do mapa mostra o navio num site externo.</td><td class="efeito">Abre os seus B/Ls daquele navio e viagem. O ícone só aparece onde a sua empresa tem B/L.</td></tr>
-      <tr><td class="n"><span class="num">4</span></td><td class="onde">Bloco Consultas</td><td class="acao">Escolha um assunto.</td><td class="efeito">Abre a seção da <strong>Central de Informações</strong> (página 11).</td></tr>
-      <tr><td class="n"><span class="num">5</span></td><td class="onde">Sino, na barra superior</td><td class="acao">Clique para ver as notificações.</td><td class="efeito">Lista os avisos do Portal; clicar num aviso abre o assunto e o marca como lido.</td></tr>
-    </tbody>
-  </table>
-
-  <div class="blk" style="margin-top:12px">
-    <div class="blk__h">Como ler as datas de Chegadas e saídas</div>
-    <div class="blk__b legend">
-      <span><b>06/11/2026</b><em>previsão (ETD na origem, ETA no Brasil)</em></span>
-      <span><b class="ok"><svg class="i"><use href="#i-check"/></svg> 06/11/2026</b><em>data efetiva: o navio saiu ou chegou</em></span>
-      <span><b class="muted">Omitida</b><em>escala omitida pelo armador</em></span>
-      <span><b class="muted">—</b><em>sem data programada</em></span>
+  <div class="guide">
+    <div>
+      <h2 class="h2">O que ver aqui</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Cartões de resumo</b><p>Taxas Locais e Demurrage em aberto, containers sem devolução e pedidos de desbloqueio de CE. Em âmbar, pede ação. Clique para abrir a lista já filtrada.</p></div></li>
+        <li><span class="num">2</span><div><b>Chegadas e saídas</b><p>As datas dos navios. O ícone de caixa aparece nas viagens em que você tem carga e abre os seus B/Ls daquela viagem.</p></div></li>
+        <li><span class="num">3</span><div><b>Avisos</b><p>O sino reúne os avisos do Portal, como um pedido de correção no desbloqueio de CE.</p></div></li>
+      </ol>
+    </div>
+    <div class="know">
+      <div class="know__h">As datas de Chegadas e saídas</div>
+      <dl class="defs">
+        <dt class="m-mono">dd/mm/aaaa</dt><dd>Previsão: ETD na origem, ETA no Brasil.</dd>
+        <dt class="ok"><svg class="i"><use href="#i-check"/></svg> <span class="m-mono">dd/mm/aaaa</span></dt><dd>Data efetiva: o navio saiu ou chegou.</dd>
+        <dt class="muted">Omitida</dt><dd>Escala omitida pelo armador.</dd>
+        <dt class="muted">—</dt><dd>Sem data programada.</dd>
+      </dl>
     </div>
   </div>
 
@@ -823,38 +789,37 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="BLs e Containers">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>04</b> BLs e Containers</span></header>
 
-  <p class="kicker">04 · BLs e Containers</p>
-  <h1 class="title">A operação do seu CNPJ</h1>
-  <p class="lead">Seus B/Ls com CE Mercante, navio, Taxas Locais, pagamento e a situação de cada container.</p>
+  <h1 class="title">BLs e Containers</h1>
+  <p class="lead">Os B/Ls da sua empresa, com CE Mercante, Taxas Locais, pagamento e a situação de cada container.</p>
 
-  <div class="note" style="margin-top:12px">
+  <div class="note" style="margin-top:14px">
     <svg class="i"><use href="#i-shield"/></svg>
-    <p><strong>Só o seu CNPJ.</strong> A lista mostra apenas os B/Ls da empresa com que você entrou. O B/L passa a aparecer no Portal <strong>depois que o CE Mercante dele está registrado</strong>.</p>
+    <p>Você vê apenas os B/Ls do CNPJ com que entrou. Cada B/L passa a aparecer no Portal <strong>depois que o CE Mercante dele é registrado</strong>.</p>
   </div>
 
-  <div class="mock" style="margin-top:14px">
+  <div class="mock" style="margin-top:16px">
     <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br/portal/operacao</span></div>
     <div class="m-body">
-      <div class="m-title"><h4>BLs e Containers</h4><div class="m-actions"><span class="m-btn">Depósitos de devolução</span><span class="m-btn">Tracking do B/L</span><span class="m-btn has-pin">Solicitar desbloqueio de CE<span class="pin" style="top:-13px;right:-12px">5</span></span></div></div>
-      <div class="m-tabs" style="margin:0 0 8px"><span class="m-tab m-tab--on">B/Ls</span><span class="m-tab has-pin">Containers<span class="pin" style="top:-8px;right:-14px">3</span></span></div>
+      <div class="m-title"><h4>BLs e Containers</h4><div class="m-actions"><span class="m-btn">Depósitos de devolução</span><span class="m-btn">Tracking do B/L</span><span class="m-btn">Solicitar desbloqueio de CE</span></div></div>
+      <div class="m-tabs" style="margin:0 0 8px"><span class="m-tab m-tab--on">B/Ls</span><span class="m-tab has-pin">Containers<span class="pin" style="top:-8px;right:-14px">2</span></span></div>
       <div class="m-cards">
         <div class="m-card m-card--sel"><div class="m-card__l">B/Ls</div><div class="m-card__v">1</div></div>
-        <div class="m-card m-card--warn has-pin"><div class="m-card__l">Com container sem devolução</div><div class="m-card__v">1</div><span class="pin" style="top:6px;right:6px">2</span></div>
+        <div class="m-card m-card--warn"><div class="m-card__l">Com container sem devolução</div><div class="m-card__v">1</div></div>
         <div class="m-card"><div class="m-card__l">Com container em demurrage</div><div class="m-card__v">0</div></div>
         <div class="m-card"><div class="m-card__l">Tudo devolvido</div><div class="m-card__v">0</div></div>
       </div>
       <div class="m-blk">
-        <div class="m-blk__h">B/Ls<small>1 B/L &nbsp;<span class="m-btn m-btn--ghost has-pin"><svg class="i"><use href="#i-download"/></svg>Exportar Excel<span class="pin" style="top:-8px;right:-10px">4</span></span></small></div>
+        <div class="m-blk__h">B/Ls<small>1 B/L &nbsp;<span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-download"/></svg>Exportar Excel</span></small></div>
         <table class="m-table">
-          <thead><tr><th>B/L</th><th>CE Mercante</th><th>Navio / Viagem</th><th>Taxas locais</th><th>Pagamento</th><th>Devolução</th><th>Demurrage</th></tr></thead>
+          <thead><tr><th>B/L</th><th>CE Mercante</th><th>Trecho</th><th>Taxas locais</th><th>Pagamento</th><th>Devolução</th><th>Demurrage</th></tr></thead>
           <tbody>
-            <tr class="m-open"><td><span class="pin pin--inline">1</span><span class="m-link">AURU1234567</span><svg class="i m-copy"><use href="#i-copy"/></svg></td><td class="m-mono">152605001234567<svg class="i m-copy"><use href="#i-copy"/></svg></td><td>Green Guangzhou / V.6</td><td>R$ 1.250,00</td><td class="warn">R$ 1.250,00</td><td>0 de 2</td><td class="muted">—</td></tr>
+            <tr class="m-open"><td><span class="pin pin--inline">1</span><span class="m-link">AURU1234567</span><svg class="i m-copy"><use href="#i-copy"/></svg></td><td class="m-mono">152605001234567<svg class="i m-copy"><use href="#i-copy"/></svg></td><td class="m-mono">CNNSA › BRVIX</td><td>R$ 1.250,00</td><td class="warn">R$ 1.250,00</td><td>0 de 2</td><td class="muted">—</td></tr>
             <tr class="m-open"><td colspan="7" style="text-align:left;padding:7px 9px">
               <table class="m-table m-table--nested" style="border:1px solid var(--border-soft)">
                 <thead><tr><th>Container</th><th>Descarga</th><th>Devolução</th><th>Dias de uso</th><th>Free time</th><th>Situação</th></tr></thead>
                 <tbody>
-                  <tr><td class="m-mono">EXMU1234565</td><td>06/11/2026</td><td class="muted">—</td><td>3</td><td>7 dias</td><td class="warn">No free time · 4 dias</td></tr>
-                  <tr><td class="m-mono">EXMU7654321</td><td>06/11/2026</td><td class="muted">—</td><td>3</td><td>7 dias</td><td class="warn">No free time · 4 dias</td></tr>
+                  <tr><td class="m-mono">EXMU1234565</td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td class="muted">—</td><td>3</td><td>7 dias</td><td class="warn">No free time · 4 dias</td></tr>
+                  <tr><td class="m-mono">EXMU7654321</td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td class="muted">—</td><td>3</td><td>7 dias</td><td class="warn">No free time · 4 dias</td></tr>
                 </tbody>
               </table>
             </td></tr>
@@ -863,26 +828,25 @@ h1, h2, h3 { margin: 0; }
       </div>
     </div>
   </div>
-  <p class="small muted" style="margin-top:5px">Desenho com parte das colunas: a tabela real também mostra Trecho e Carga.</p>
 
-  <table class="oae" style="margin-top:8px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">Menu › BLs e Containers › aba B/Ls</td><td class="acao">Clique na linha do B/L. O ícone ao lado do B/L e do CE copia o número.</td><td class="efeito">Abre os containers do B/L e, quando houver, as <strong>Informações de Transbordo</strong>.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Cartões acima da tabela</td><td class="acao">Clique em um cartão, como <b>Com container sem devolução</b>.</td><td class="efeito">Filtra a tabela por aquele recorte.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Aba Containers</td><td class="acao">Consulte uma caixa por linha.</td><td class="efeito">Free time, dias de uso e demurrage por caixa: <span class="warn">no free time</span> em âmbar, <span class="danger">em demurrage</span> em vermelho.</td></tr>
-      <tr><td class="n"><span class="num">4</span></td><td class="onde">Faixa da tabela</td><td class="acao">Clique em <span class="ui">Exportar Excel</span>.</td><td class="efeito">Baixa a planilha com <strong>todas as linhas filtradas</strong>, não só a página.</td></tr>
-      <tr><td class="n"><span class="num">5</span></td><td class="onde">Título da página</td><td class="acao">Use um dos três atalhos do título.</td><td class="efeito">Depósitos de devolução, Tracking do B/L ou Solicitar desbloqueio de CE.</td></tr>
-    </tbody>
-  </table>
-
-  <div class="blk" style="margin-top:12px">
-    <div class="blk__h">Coluna Pagamento: o que cada valor quer dizer</div>
-    <div class="blk__b legend">
-      <span><b class="ok"><svg class="i"><use href="#i-check"/></svg> Pago</b><em>quitado</em></span>
-      <span><b class="warn">R$ 1.250,00</b><em>em aberto</em></span>
-      <span><b>Aguardando fatura</b><em>ainda sem fatura</em></span>
-      <span><b class="muted">—</b><em>sem cobrança</em></span>
+  <div class="guide">
+    <div>
+      <h2 class="h2">O que ver aqui</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Linha do B/L</b><p>Clique para ver os containers e, quando houver, as informações de transbordo. O ícone ao lado do B/L e do CE copia o número.</p></div></li>
+        <li><span class="num">2</span><div><b>Aba Containers</b><p>Uma linha por container, com descarga, devolução, dias de uso e free time.</p></div></li>
+      </ol>
+      <p class="small muted" style="margin-top:12px">Os cartões acima da tabela também filtram a lista.</p>
+    </div>
+    <div class="know">
+      <div class="know__h">Como ler as situações</div>
+      <dl class="defs">
+        <dt class="ok"><svg class="i"><use href="#i-check"/></svg> Pago</dt><dd>Taxas Locais do B/L quitadas.</dd>
+        <dt class="warn">R$ 1.250,00</dt><dd>Saldo em aberto das Taxas Locais.</dd>
+        <dt>Aguardando fatura</dt><dd>As Taxas Locais ainda não foram faturadas.</dd>
+        <dt class="warn">No free time · 4 dias</dt><dd>Sem devolução; faltam 4 dias para começar a demurrage.</dd>
+        <dt class="danger">Em demurrage</dt><dd>O free time acabou e o container não foi devolvido.</dd>
+      </dl>
     </div>
   </div>
 
@@ -893,19 +857,18 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Desbloqueio de CE Mercante">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>05</b> Desbloqueio de CE</span></header>
 
-  <p class="kicker">05 · Desbloqueio de CE Mercante <span class="confirm">[A confirmar se já liberado comercialmente]</span></p>
-  <h1 class="title">Peça o desbloqueio do CE pelo Portal</h1>
-  <p class="lead">Selecione os B/Ls, anexe os documentos e acompanhe cada solicitação até a validação. Um pedido reúne até 100 B/Ls do mesmo CNPJ.</p>
+  <h1 class="title">Desbloqueio de CE Mercante</h1>
+  <p class="lead">Peça o desbloqueio do CE pelo Portal e acompanhe cada solicitação. Um pedido reúne até 100 B/Ls do mesmo CNPJ.</p>
 
-  <h2 class="h2" style="margin-top:14px">O que o desbloqueio pede</h2>
+  <h2 class="h2" style="margin-top:18px">O que o desbloqueio pede</h2>
   <div class="grid4">
-    <div class="tile"><div class="tile__h"><span class="num">1</span>Taxas locais pagas</div><p>Faturas de Taxas Locais do B/L quitadas. Sem isso, o pedido não sai.</p></div>
-    <div class="tile"><div class="tile__h"><span class="num">2</span>Termo de devolução</div><p>Assinado, em PDF. Use <b>Baixar modelo do termo</b>.</p></div>
-    <div class="tile"><div class="tile__h"><span class="num">3</span>Procuração</div><p>Em PDF, anexada à solicitação.</p></div>
-    <div class="tile"><div class="tile__h"><span class="num">4</span>B/L original</div><p>Entregue na agência. Clique em <b>agência</b> para ver os endereços.</p></div>
+    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-file"/></svg>Taxas Locais pagas</div><p>Todas as faturas de Taxas Locais do B/L quitadas.</p></div>
+    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-file"/></svg>Termo de devolução</div><p>Assinado, em PDF. O modelo está em Baixar modelo do termo.</p></div>
+    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-file"/></svg>Procuração</div><p>Em PDF, anexada à solicitação.</p></div>
+    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-file"/></svg>B/L original</div><p>Entregue na agência. Os endereços aparecem ao clicar em agência.</p></div>
   </div>
 
-  <div class="mock" style="margin-top:14px">
+  <div class="mock" style="margin-top:16px">
     <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br/portal/desbloqueio-ce</span></div>
     <div class="m-body">
       <div class="m-title"><h4>Desbloqueio de CE</h4></div>
@@ -913,38 +876,34 @@ h1, h2, h3 { margin: 0; }
       <div class="m-blk" style="margin-top:0">
         <div class="m-blk__h">B/Ls<small>1 selecionado &nbsp;<span class="m-btn m-btn--primary has-pin">Pedir desbloqueio de 1 B/L<span class="pin" style="top:-13px;right:-13px">1</span></span></small></div>
         <table class="m-table">
-          <thead><tr><th></th><th>B/L</th><th>CE Mercante</th><th>Navio / Viagem</th><th>POD</th><th>Taxas locais</th><th>Solicitação</th></tr></thead>
+          <thead><tr><th></th><th>B/L</th><th>CE Mercante</th><th>POD</th><th>Taxas locais</th><th>Solicitação</th></tr></thead>
           <tbody>
-            <tr><td><span class="m-check m-check--on"></span></td><td class="m-link">AURU1234567</td><td class="m-mono">152605001234567</td><td>Green Guangzhou / V.6</td><td class="m-mono">BRVIX</td><td class="ok"><svg class="i"><use href="#i-check"/></svg> Pagas</td><td class="muted">—</td></tr>
+            <tr><td><span class="m-check m-check--on"></span></td><td class="m-link">AURU1234567</td><td class="m-mono">152605001234567</td><td class="m-mono">BRVIX</td><td class="ok"><svg class="i"><use href="#i-check"/></svg> Pagas</td><td class="muted">—</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <table class="oae" style="margin-top:14px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">Menu › Desbloqueio de CE › Nova solicitação</td><td class="acao">Marque os B/Ls e clique em <span class="ui ui--primary">Pedir desbloqueio de N B/Ls</span>.</td><td class="efeito">Cria um <strong>rascunho</strong>, que você ainda pode cancelar.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Detalhe da solicitação</td><td class="acao">Anexe o termo de devolução e a procuração em PDF e clique em <span class="ui ui--primary">Solicitar desbloqueio</span>.</td><td class="efeito">O pedido vai para a análise da Fwlog.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Aba Minhas solicitações</td><td class="acao">Acompanhe a Situação. Em <span class="warn">Correção pedida</span>, leia o motivo e use <span class="ui">Enviar nova versão</span>.</td><td class="efeito">Você é avisado no sino e por e-mail quando a Fwlog pede correção.</td></tr>
-      <tr><td class="n"><span class="num">4</span></td><td class="onde">Coluna Prazo para desbloqueio</td><td class="acao">Confira o prazo.</td><td class="efeito">Só começa quando <strong>os quatro requisitos</strong> estão cumpridos em todos os B/Ls do pedido.</td></tr>
-      <tr><td class="n"><span class="num">5</span></td><td class="onde">Solicitação concluída</td><td class="acao">Consulte o Mercante.</td><td class="efeito">O Portal informa “Documentação validada… consulte o Mercante”.</td></tr>
-    </tbody>
-  </table>
-
-  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-top:12px;align-items:start">
-    <table class="ref">
-      <thead><tr><th>Quatro requisitos cumpridos…</th><th>Prazo para desbloqueio</th></tr></thead>
-      <tbody>
-        <tr><td>em dia útil, até 11h59</td><td><b>17h do mesmo dia útil</b></td></tr>
-        <tr><td>em dia útil, a partir das 12h</td><td><b>12h do próximo dia útil</b></td></tr>
-        <tr><td>no sábado ou no domingo</td><td><b>segunda-feira, 12h</b></td></tr>
-      </tbody>
-    </table>
-    <div class="note note--plain">
-      <svg class="i"><use href="#i-info"/></svg>
-      <p><strong>Documentos anuais.</strong> Com termo e procuração anuais aprovados (aba <b>Documentos anuais</b>), você não os anexa a cada pedido enquanto eles cobrem a solicitação. Dúvidas: <span class="mail">importacao@fwlog.com.br</span>.</p>
+  <div class="guide">
+    <div>
+      <h2 class="h2">Passo a passo</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Em Nova solicitação, marque os B/Ls e clique em Pedir desbloqueio.</b><p>Só podem ser enviados B/Ls com as Taxas Locais pagas.</p></div></li>
+        <li><span class="num">2</span><div><b>Anexe o termo de devolução e a procuração e clique em Solicitar desbloqueio.</b><p>A Fwlog analisa os documentos.</p></div></li>
+        <li><span class="num">3</span><div><b>Acompanhe em Minhas solicitações.</b><p>Se a Fwlog pedir correção, o motivo aparece na situação: envie a nova versão do documento. O aviso também chega pelo sino e por e-mail.</p></div></li>
+        <li><span class="num">4</span><div><b>Com a documentação validada, consulte o Mercante.</b></div></li>
+      </ol>
+    </div>
+    <div class="know">
+      <div class="know__h">Prazo para desbloqueio</div>
+      <p class="know__p">Conta em dias úteis, a partir do momento em que os quatro requisitos estão cumpridos.</p>
+      <dl class="defs">
+        <dt>Até 11h59</dt><dd>Até as 17h do mesmo dia útil.</dd>
+        <dt>A partir das 12h</dt><dd>Até as 12h do próximo dia útil.</dd>
+        <dt>Sábado ou domingo</dt><dd>Até segunda-feira, 12h.</dd>
+      </dl>
+      <p class="know__p know__p--foot">Com termo e procuração anuais aprovados (aba Documentos anuais), não é preciso anexá-los a cada pedido.</p>
     </div>
   </div>
 
@@ -955,64 +914,56 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Faturas">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>06</b> Faturas</span></header>
 
-  <p class="kicker">06 · Faturas</p>
-  <h1 class="title">Faturas: só o que já foi emitido</h1>
-  <p class="lead">Taxas Locais, faturas avulsas e Demurrage da sua empresa, com saldo, situação, impressão e Pix.</p>
+  <h1 class="title">Faturas</h1>
+  <p class="lead">As faturas de Taxas Locais, avulsas e de Demurrage da sua empresa, com saldo, situação, Pix e impressão.</p>
 
-  <div class="note" style="margin-top:12px">
+  <div class="note" style="margin-top:14px">
     <svg class="i"><use href="#i-file"/></svg>
-    <p><strong>Só fatura emitida aparece.</strong> Rascunho e valor de Taxa Local ainda não faturado não aparecem em nenhuma tela do Portal. Enquanto isso, o B/L mostra <b>Aguardando fatura</b> em BLs e Containers.</p>
+    <p><strong>Só fatura emitida aparece no Portal.</strong> Enquanto as Taxas Locais de um B/L não são faturadas, ele aparece como Aguardando fatura em BLs e Containers.</p>
   </div>
 
-  <div class="mock" style="margin-top:14px">
+  <div class="mock" style="margin-top:16px">
     <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br/portal/billing</span></div>
     <div class="m-body">
-      <div class="m-title"><div><h4>Faturas</h4><p>Consulte suas faturas locais e avulsas, pague via PIX e consolide B/Ls em aberto.</p></div><div class="m-actions"><span class="m-btn m-btn--ghost has-pin"><svg class="i"><use href="#i-download"/></svg>Exportar Excel<span class="pin" style="top:-13px;left:-13px">5</span></span><span class="m-btn m-btn--primary has-pin"><svg class="i"><use href="#i-layers"/></svg>Gerar fatura consolidada<span class="pin" style="top:-13px;right:-13px">4</span></span></div></div>
+      <div class="m-title"><div><h4>Faturas</h4><p>Consulte suas faturas locais e avulsas, pague via PIX e consolide B/Ls em aberto.</p></div><div class="m-actions"><span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-download"/></svg>Exportar Excel</span><span class="m-btn m-btn--primary has-pin"><svg class="i"><use href="#i-layers"/></svg>Gerar fatura consolidada<span class="pin" style="top:-13px;right:-13px">2</span></span></div></div>
       <div class="m-cards m-cards--3">
         <div class="m-card"><div class="m-card__l">Saldo pendente</div><div class="m-card__v">R$ 1.250,00</div></div>
         <div class="m-card"><div class="m-card__l">Faturas emitidas</div><div class="m-card__v">1</div></div>
         <div class="m-card"><div class="m-card__l">B/Ls elegíveis</div><div class="m-card__v">1</div></div>
       </div>
       <div class="m-tabs"><span class="m-tab m-tab--on">Taxas Locais</span><span class="m-tab">Demurrage</span></div>
-      <div class="m-filters"><div class="m-input has-pin">Situação<span class="pin" style="top:-13px;left:-13px">1</span></div><div class="m-input">Navio / Viagem</div><div class="m-input">B/L</div><div class="m-input">POD</div><div class="m-input">Emissão</div></div>
+      <div class="m-filters"><div class="m-input">Situação</div><div class="m-input">Navio / Viagem</div><div class="m-input">B/L</div><div class="m-input">POD</div><div class="m-input">Emissão</div></div>
       <div class="m-blk">
         <div class="m-blk__h">Faturas de taxas locais e avulsas<small>2 faturas</small></div>
         <table class="m-table">
-          <thead><tr><th>Fatura</th><th>B/L</th><th>Emissão</th><th>Navio / Viagem</th><th>Total</th><th>Saldo</th><th>Situação</th></tr></thead>
+          <thead><tr><th>Fatura</th><th>B/L</th><th>Emissão</th><th>Total</th><th>Saldo</th><th>Situação</th></tr></thead>
           <tbody>
-            <tr><td><span class="pin pin--inline">2</span><span class="m-link">TX-2026-00421</span></td><td>AURU1234567</td><td>07/11/2026</td><td>Green Guangzhou / V.6</td><td>R$ 1.250,00</td><td class="warn">R$ 1.250,00</td><td>Emitida</td></tr>
-            <tr><td><div class="m-skel" style="width:70%;margin:auto"></div></td><td><div class="m-skel" style="width:70%;margin:auto"></div></td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td><div class="m-skel" style="width:70%;margin:auto"></div></td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td>R$ 0,00</td><td class="ok"><svg class="i"><use href="#i-check"/></svg> Paga</td></tr>
+            <tr><td><span class="pin pin--inline">1</span><span class="m-link">TX-2026-00421</span></td><td>AURU1234567</td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td>R$ 1.250,00</td><td class="warn">R$ 1.250,00</td><td>Emitida</td></tr>
+            <tr><td><div class="m-skel" style="width:70%;margin:auto"></div></td><td><div class="m-skel" style="width:70%;margin:auto"></div></td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td><div class="m-skel" style="width:60%;margin:auto"></div></td><td>R$ 0,00</td><td class="ok"><svg class="i"><use href="#i-check"/></svg> Paga</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <table class="oae" style="margin-top:14px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">Menu › Faturas › aba Taxas Locais</td><td class="acao">Filtre por situação, navio e viagem, B/L, POD ou data de emissão.</td><td class="efeito">A lista mostra as faturas em vigor; as canceladas ficam no filtro <b>Cancelada</b>.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Coluna Fatura</td><td class="acao">Clique em <span class="code">TX-2026-00421</span>.</td><td class="efeito">Abre o detalhe: o bloco Pagamento mostra <strong>R$ 1.250,00 a pagar</strong> e o Pix ao lado (página 9).</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Detalhe da fatura</td><td class="acao">Clique em <span class="ui">Imprimir fatura</span>; depois de paga, em <span class="ui">Imprimir recibo</span>.</td><td class="efeito">Abre a impressão do navegador, onde também dá para salvar em PDF.</td></tr>
-      <tr><td class="n"><span class="num">4</span></td><td class="onde">Topo da página</td><td class="acao">Clique em <span class="ui ui--primary">Gerar fatura consolidada</span>, marque os B/Ls e confirme.</td><td class="efeito">Junta B/Ls com saldo em <strong>uma fatura, com um único Pix</strong>. Sem pagamento, ela pode ser desfeita.</td></tr>
-      <tr><td class="n"><span class="num">5</span></td><td class="onde">Topo da página</td><td class="acao">Clique em <span class="ui">Exportar Excel</span>.</td><td class="efeito">Baixa todas as faturas do filtro atual.</td></tr>
-    </tbody>
-  </table>
-
-  <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:14px;margin-top:12px;align-items:start">
-    <div class="blk">
-      <div class="blk__h">Situação da fatura</div>
-      <div class="blk__b legend">
-        <span><b>Emitida</b><em>a pagar</em></span>
-        <span><b>Parcialmente paga</b><em>o Pix cobra o saldo</em></span>
-        <span><b class="ok"><svg class="i"><use href="#i-check"/></svg> Paga</b><em>com recibo</em></span>
-        <span><b>Coberta</b><em>paga pela consolidada</em></span>
-        <span><b class="muted">Cancelada</b><em>em cinza</em></span>
-      </div>
+  <div class="guide">
+    <div>
+      <h2 class="h2">O que fazer aqui</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Clique no número da fatura</b><p>O detalhe mostra o valor a pagar, o Pix, os itens e os botões Imprimir fatura e, depois do pagamento, Imprimir recibo.</p></div></li>
+        <li><span class="num">2</span><div><b>Gerar fatura consolidada</b><p>Junte vários B/Ls com saldo em uma só fatura e pague tudo com um único Pix. Enquanto não houver pagamento, a consolidada pode ser desfeita.</p></div></li>
+      </ol>
+      <p class="small muted" style="margin-top:12px">A fatura e o recibo impressos saem com a marca Transhipping.</p>
     </div>
-    <div class="note note--plain">
-      <svg class="i"><use href="#i-printer"/></svg>
-      <p><strong>Documento impresso.</strong> A fatura e o recibo impressos saem com a identidade da <b>Transhipping</b>, titular da cobrança.</p>
+    <div class="know">
+      <div class="know__h">Situação da fatura</div>
+      <dl class="defs">
+        <dt>Emitida</dt><dd>A pagar.</dd>
+        <dt>Parcialmente paga</dt><dd>O Pix cobra só o saldo.</dd>
+        <dt class="ok"><svg class="i"><use href="#i-check"/></svg> Paga</dt><dd>Com recibo para imprimir.</dd>
+        <dt>Coberta</dt><dd>Paga pela fatura consolidada.</dd>
+        <dt class="muted">Cancelada</dt><dd>Fica no filtro Cancelada.</dd>
+      </dl>
     </div>
   </div>
 
@@ -1023,30 +974,28 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Pagamento por Pix">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>07</b> Pagamento por Pix</span></header>
 
-  <p class="kicker">07 · Pagamento por Pix</p>
-  <h1 class="title">Pague com Pix: baixa automática, sem comprovante</h1>
-  <p class="lead">Cada fatura emitida traz o próprio QR Code. Pago pelo QR ou pelo código da fatura, o pagamento é reconhecido sozinho e a fatura passa a Paga em poucos minutos.</p>
+  <h1 class="title">Pagamento por Pix</h1>
+  <p class="lead">O Pix é a única forma de pagamento das Taxas Locais e da Demurrage. Cada fatura emitida traz o próprio QR Code e o código Pix Copia e Cola, e a baixa é automática.</p>
 
-  <div class="mock" style="margin-top:16px">
+  <div class="mock" style="margin-top:18px">
     <div class="m-body" style="background:var(--surface)">
       <div class="m-title"><h4>Fatura TX-2026-00421</h4><div class="m-actions"><span class="m-btn"><svg class="i"><use href="#i-printer"/></svg>Imprimir fatura</span></div></div>
       <div class="m-blk" style="margin-top:0">
-        <div class="m-blk__h">Pagamento<small>Taxas Locais · emitida em 07/11/2026 · Emitida</small></div>
+        <div class="m-blk__h">Pagamento<small>Taxas Locais · Emitida</small></div>
         <div class="m-blk__b" style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px">
           <div>
             <div class="m-lead warn">R$ 1.250,00 a pagar</div>
             <div class="m-facts">
               <div><small>B/L</small><b>AURU1234567</b></div>
-              <div><small>Navio / Viagem</small><b>Green Guangzhou / V.6</b></div>
               <div><small>Trecho</small><b class="m-mono">CNNSA › BRVIX</b></div>
             </div>
           </div>
           <div class="m-pix">
-            <div class="m-qr has-pin"><svg aria-label="QR Code de exemplo"><use href="#qr-exemplo" class="qr"/></svg><span class="m-qr__label">EXEMPLO</span><span class="pin" style="top:-10px;left:-10px">1</span></div>
+            <div class="m-qr has-pin"><svg aria-label="QR Code Pix"><use href="#qr-exemplo" class="qr"/></svg><span class="pin" style="top:-10px;left:-10px">1</span></div>
             <div>
               <b style="font-size:11.5px">Pague com Pix</b>
-              <span class="m-pix__code">00020126…EXEMPLO-NAO-PAGAR</span>
-              <span class="m-btn"><svg class="i"><use href="#i-copy"/></svg>Copiar código Pix</span>
+              <span class="m-pix__code">00020126580014br.gov.bcb.pix…</span>
+              <span class="m-btn has-pin"><svg class="i"><use href="#i-copy"/></svg>Copiar código Pix<span class="pin" style="top:-12px;right:-14px">2</span></span>
             </div>
           </div>
         </div>
@@ -1054,44 +1003,39 @@ h1, h2, h3 { margin: 0; }
     </div>
   </div>
 
-  <table class="oae" style="margin-top:14px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">Faturas › TX-2026-00421 › bloco Pagamento</td><td class="acao">Leia o QR Code no app do banco ou clique em <span class="ui">Copiar código Pix</span> e use o Pix Copia e Cola.</td><td class="efeito">O banco mostra o valor da fatura. Na fatura <b>parcialmente paga</b>, o QR cobra só o saldo.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">App do seu banco</td><td class="acao">Confira o recebedor e confirme <strong>sem alterar o valor</strong>.</td><td class="efeito">A baixa é automática, em geral <strong>de 1 a 5 minutos</strong>.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Portal</td><td class="acao">Atualize a página.</td><td class="efeito">A fatura passa a <span class="ok"><svg class="i"><use href="#i-check"/></svg> Paga</span>, com valor e data do recebimento, e libera <b>Imprimir recibo</b>.</td></tr>
-    </tbody>
-  </table>
+  <div class="guide">
+    <div>
+      <h2 class="h2">Passo a passo</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Abra a fatura e leia o QR Code no app do seu banco.</b></div></li>
+        <li><span class="num">2</span><div><b>Ou clique em Copiar código Pix e cole no Pix Copia e Cola.</b></div></li>
+        <li><span class="num">3</span><div><b>Confirme o pagamento no banco sem alterar o valor.</b></div></li>
+        <li><span class="num">4</span><div><b>Depois de 1 a 5 minutos, atualize a página.</b><p>A fatura passa a Paga e o recibo fica disponível. Não é preciso enviar comprovante.</p></div></li>
+      </ol>
+    </div>
+    <div class="know">
+      <div class="know__h">Bom saber</div>
+      <ul>
+        <li>Na fatura parcialmente paga, o QR cobra só o saldo.</li>
+        <li>Pague sempre pelo QR que está na tela no momento do pagamento: quando o valor muda, o QR muda junto.</li>
+        <li>Na Demurrage, o valor em reais é atualizado nos dias úteis pelo câmbio do dia.</li>
+      </ul>
+    </div>
+  </div>
 
-  <h2 class="h2" style="margin-top:14px">O que o bloco Pix pode mostrar</h2>
+  <h2 class="h2" style="margin-top:22px">O que o bloco Pix pode mostrar</h2>
   <div class="states">
-    <div class="state"><small>QR pronto</small><b><svg class="i i--16" style="color:var(--btn)"><use href="#i-qr"/></svg>Pague com Pix</b><p>QR Code, o código numa linha e o botão Copiar código Pix.</p></div>
-    <div class="state"><small>Em preparação</small><b><svg class="i i--16" style="color:var(--warn-fg)"><use href="#i-clock"/></svg>QR em preparação</b><p>“Ele aparece aqui em alguns minutos; atualize a página para conferir.”</p></div>
-    <div class="state"><small>Paga</small><b class="ok"><svg class="i i--16"><use href="#i-check-circle"/></svg>Paga</b><p>“R$ 1.250,00 recebidos em dd/mm/aaaa”, com Imprimir recibo.</p></div>
-  </div>
-
-  <h2 class="h2" style="margin-top:14px">Preciso mandar comprovante?</h2>
-  <div class="yesno">
-    <div class="yesno__no">
-      <small>Pix pelo QR Code ou pelo código da fatura no Portal</small>
-      <b><svg class="i i--18"><use href="#i-check-circle"/></svg>Não</b>
-      <p>A baixa é automática. Não é preciso enviar comprovante.</p>
+    <div class="state">
+      <div class="state__mock"><div class="m-qr" style="width:52px;height:52px;padding:3px"><svg aria-hidden="true"><use href="#qr-exemplo" class="qr"/></svg></div><div><b class="state__mt">Pague com Pix</b><span class="m-btn" style="margin-top:5px"><svg class="i"><use href="#i-copy"/></svg>Copiar código Pix</span></div></div>
+      <b>Pronto para pagar</b><p>O QR Code e o código Copia e Cola na tela.</p>
     </div>
-    <div class="yesno__yes">
-      <small>TED, depósito ou Pix feito fora da cobrança do Portal</small>
-      <b><svg class="i i--18"><use href="#i-mail"/></svg>Sim</b>
-      <p>Envie o comprovante à Fwlog: sem o QR da fatura, a baixa depende de conferência manual.<br><span class="confirm" style="margin-top:5px">[A confirmar: e-mail que recebe comprovantes]</span></p>
+    <div class="state">
+      <div class="state__mock"><div><b class="state__mt">Pague com Pix</b><span class="state__mtext">QR Code Pix em preparação. Ele aparece aqui em alguns minutos; atualize a página para conferir.</span></div></div>
+      <b><svg class="i i--16" style="color:var(--warn-fg)"><use href="#i-clock"/></svg>Em preparação</b><p>O código ainda está sendo gerado. Volte em alguns minutos.</p>
     </div>
-  </div>
-
-  <div class="grid2" style="margin-top:12px">
-    <div class="note note--plain">
-      <svg class="i"><use href="#i-refresh"/></svg>
-      <p><strong>Use o QR da tela no dia do pagamento.</strong> Se o valor da fatura muda, o Portal troca o QR. Não reaproveite QR salvo ou impresso dias antes.</p>
-    </div>
-    <div class="note note--plain">
-      <svg class="i"><use href="#i-shield"/></svg>
-      <p><strong>Confira o recebedor no app do banco</strong> antes de confirmar.<br><span class="confirm" style="margin-top:5px">[A confirmar: nome do recebedor no app]</span></p>
+    <div class="state">
+      <div class="state__mock"><div><b class="state__mt ok"><svg class="i"><use href="#i-check"/></svg> Paga</b><span class="state__mtext">R$ 1.250,00 recebidos</span><span class="m-btn" style="margin-top:5px"><svg class="i"><use href="#i-printer"/></svg>Imprimir recibo</span></div></div>
+      <b class="ok"><svg class="i i--16"><use href="#i-check-circle"/></svg>Paga</b><p>Com o valor e a data do recebimento, e o recibo para imprimir.</p>
     </div>
   </div>
 
@@ -1102,37 +1046,36 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Demurrage e disputa">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>08</b> Demurrage e disputa</span></header>
 
-  <p class="kicker">08 · Demurrage e disputa</p>
-  <h1 class="title">Demurrage: valor em dólar, pagamento em reais</h1>
-  <p class="lead">A Invoice de Demurrage fica na aba Demurrage de Faturas. Se discordar dela, abra uma disputa pelo Portal e converse com a equipe de Equipamentos.</p>
+  <h1 class="title">Demurrage e disputa</h1>
+  <p class="lead">A Invoice de Demurrage fica na aba Demurrage de Faturas. O valor é em dólar; o pagamento é em reais, por Pix.</p>
 
-  <div class="timeline" style="margin-top:14px">
+  <div class="timeline" style="margin-top:18px">
     <div><small>Na emissão</small><b>US$ fixo</b><p>Dias além do free time × diária.</p><span class="arrow"><svg class="i"><use href="#i-arrow"/></svg></span></div>
-    <div><small>Até o pagamento</small><b>R$ acompanha o câmbio</b><p>Atualizado nos dias úteis pelo ROE.</p><span class="arrow"><svg class="i"><use href="#i-arrow"/></svg></span></div>
-    <div><small>No pagamento</small><b>Câmbio do dia registrado</b><p>A Invoice paga guarda o ROE do dia.</p></div>
+    <div><small>Até o pagamento</small><b>R$ acompanha o câmbio</b><p>Atualizado nos dias úteis.</p><span class="arrow"><svg class="i"><use href="#i-arrow"/></svg></span></div>
+    <div><small>No pagamento</small><b>Câmbio do dia registrado</b><p>A Invoice paga guarda o câmbio usado.</p></div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:14px;margin-top:14px;align-items:start">
+  <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:14px;margin-top:16px;align-items:start">
     <div class="mock">
       <div class="m-body">
         <div class="m-tabs" style="margin:0 0 8px"><span class="m-tab">Taxas Locais</span><span class="m-tab m-tab--on">Demurrage</span></div>
         <div class="m-blk" style="margin-top:0">
-          <div class="m-blk__h">Faturas de Demurrage<span class="m-btn has-pin">Disputas · 0 abertas<span class="pin" style="top:-12px;right:-13px">4</span></span></div>
+          <div class="m-blk__h">Faturas de Demurrage<span class="m-btn">Disputas · 0 abertas</span></div>
           <div class="m-blk__b" style="padding:5px 9px;font-size:10px;color:var(--muted)">US$ 840,00 em aberto · ROE de hoje 5,8575</div>
           <table class="m-table">
             <thead><tr><th>Fatura</th><th>Total US$</th><th>Total R$</th><th>Situação</th></tr></thead>
-            <tbody><tr><td><span class="pin pin--inline">1</span><span class="m-link">DEM-2026-0057</span></td><td>US$ 840,00</td><td class="warn">R$ 4.920,30</td><td>Emitida</td></tr></tbody>
+            <tbody><tr><td><span class="m-link">DEM-2026-0057</span></td><td>US$ 840,00</td><td class="warn">R$ 4.920,30</td><td>Emitida</td></tr></tbody>
           </table>
         </div>
         <div class="m-blk">
           <div class="m-blk__h">Pagamento<small>Demurrage · Emitida</small></div>
           <div class="m-blk__b">
-            <div class="m-lead warn" style="font-size:16px">R$ 4.920,30 a pagar hoje</div>
+            <div class="m-lead warn has-pin" style="font-size:16px;display:inline-block">R$ 4.920,30 a pagar hoje<span class="pin" style="top:-2px;right:-28px">1</span></div>
             <div class="m-facts" style="grid-template-columns:repeat(2,auto)">
               <div><small>Total em dólar</small><b>US$ 840,00</b></div>
               <div><small>ROE de hoje</small><b>5,8575</b></div>
             </div>
-            <div style="margin-top:8px"><span class="m-btn has-pin">Abrir disputa<span class="pin" style="top:1px;right:-26px">3</span></span></div>
+            <div style="margin-top:8px"><span class="m-btn has-pin">Abrir disputa<span class="pin" style="top:1px;right:-26px">2</span></span></div>
           </div>
         </div>
       </div>
@@ -1146,70 +1089,59 @@ h1, h2, h3 { margin: 0; }
           <div class="m-msg m-msg--them"><small>Equipamentos · Fwlog</small>Recebemos. Vamos conferir a data com o depósito e retornamos por aqui.</div>
         </div>
         <div class="m-field"><div class="m-input" style="height:34px;align-items:flex-start;padding-top:5px">Responda à conversa…</div></div>
-        <div style="display:flex;gap:5px;justify-content:flex-end;margin-top:6px"><span class="m-btn has-pin"><svg class="i"><use href="#i-clip"/></svg>Anexar arquivo<span class="pin" style="top:0;left:-26px">4</span></span><span class="m-btn m-btn--primary">Enviar</span></div>
+        <div style="display:flex;gap:5px;justify-content:flex-end;margin-top:6px"><span class="m-btn has-pin"><svg class="i"><use href="#i-clip"/></svg>Anexar arquivo<span class="pin" style="top:0;left:-26px">3</span></span><span class="m-btn m-btn--primary">Enviar</span></div>
       </div>
     </div>
   </div>
-  <p class="small muted" style="margin-top:6px">Invoice, valores, câmbio e conversa fictícios.</p>
 
-  <table class="oae" style="margin-top:10px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">Faturas › aba Demurrage</td><td class="acao">Clique no número da Invoice.</td><td class="efeito">Mostra <strong>R$ … a pagar hoje</strong>, o total em dólar, o ROE de hoje e os dias × diária de cada container.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Detalhe › Pix</td><td class="acao">Pague pelo QR da tela no dia do pagamento.</td><td class="efeito">O QR cobra o valor do dia. A baixa é automática, como nas Taxas Locais.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Detalhe da Invoice</td><td class="acao">Clique em <span class="ui">Abrir disputa</span>, descreva o motivo (dias, valores, condições) e confirme.</td><td class="efeito">A situação passa a <span class="warn">Em disputa</span> e a equipe de Equipamentos responde no Portal.</td></tr>
-      <tr><td class="n"><span class="num">4</span></td><td class="onde">Faixa do bloco › Disputas</td><td class="acao">Abra a conversa, responda e use <span class="ui">Anexar arquivo</span>.</td><td class="efeito">Aceita PDF, PNG, JPEG ou TXT de <strong>até 10 MB</strong>. A conversa fica guardada.</td></tr>
-    </tbody>
-  </table>
-
-  <div class="grid3" style="margin-top:12px">
-    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-mail"/></svg>Durante a disputa</div><p>Os e-mails de cobrança ficam pausados. O valor em reais continua seguindo o câmbio.</p></div>
-    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-ban"/></svg>Invoice paga</div><p>Não aceita disputa nova. Abra a disputa antes de pagar.</p></div>
-    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-package"/></svg>Dúvidas</div><p>Devolução, free time e diárias: <span class="mail">eqp@fwlog.com.br</span>.</p></div>
+  <div class="guide">
+    <div>
+      <h2 class="h2">Passo a passo</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Para pagar, abra a Invoice e use o Pix.</b><p>“R$ … a pagar hoje” é o valor do dia, e o QR cobra esse valor.</p></div></li>
+        <li><span class="num">2</span><div><b>Discorda da cobrança? Clique em Abrir disputa antes de pagar.</b><p>Descreva o motivo: dias, valores ou condições.</p></div></li>
+        <li><span class="num">3</span><div><b>Converse com a equipe de Equipamentos pela disputa.</b><p>Responda e anexe documentos em PDF, PNG, JPEG ou TXT, de até 10 MB.</p></div></li>
+      </ol>
+    </div>
+    <div class="know">
+      <div class="know__h">Bom saber</div>
+      <ul>
+        <li>Com a disputa aberta, os e-mails de cobrança ficam pausados. O valor em reais continua acompanhando o câmbio.</li>
+        <li>Invoice paga não aceita disputa nova.</li>
+        <li>Dúvidas sobre devolução, free time e diárias: <span class="mail">eqp@fwlog.com.br</span>.</li>
+      </ul>
+    </div>
   </div>
 
   <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br · Rascunho para revisão</span><span>10 / 13</span></footer>
 </section>
 
-<!-- =================== 11. Central de Informações e e-mails =================== -->
-<section class="page" aria-label="Central de Informações e e-mails">
-  <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>09</b> Central de Informações e e-mails</span></header>
+<!-- =================== 11. Central de Informações =================== -->
+<section class="page" aria-label="Central de Informações">
+  <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>09</b> Central de Informações</span></header>
 
-  <p class="kicker">09 · Central de Informações e e-mails</p>
-  <h1 class="title">Consulte as regras e saiba o que chega por e-mail</h1>
-  <p class="lead">A Central de Informações reúne o que a Fwlog publica para você: tabelas, depósitos, tarifas, agentes, contatos e tracking.</p>
+  <h1 class="title">Central de Informações</h1>
+  <p class="lead">O que a Fwlog publica para você consultar. Abra pelo menu Informações ou pelo bloco Consultas do Painel.</p>
 
-  <div class="grid3" style="margin-top:16px">
+  <div class="grid3" style="margin-top:18px">
     <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-file"/></svg>Taxas Locais</div><p>As tabelas vigentes, por porto, modalidade e vigência.</p></div>
-    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-pin"/></svg>Depósitos de devolução</div><p>Por porto: endereço, e-mail e o link para agendar no site do depósito.</p></div>
+    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-pin"/></svg>Depósitos de devolução</div><p>Devolva em qualquer depósito publicado do porto de descarga. O agendamento é feito no site do depósito.</p></div>
     <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-clock"/></svg>Tarifa de Demurrage</div><p>Dias e valores por tipo de container, e como a contagem funciona.</p></div>
     <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-anchor"/></svg>Agentes por porto</div><p>Quem atende em cada porto, com os e-mails.</p></div>
     <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-message"/></svg>Contato</div><p>Um bloco por área, com e-mail e WhatsApp quando houver.</p></div>
-    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-ship"/></svg>Tracking</div><p>Escolha o B/L e abra o tracking no site do armador.</p></div>
+    <div class="tile"><div class="tile__h"><svg class="i i--16"><use href="#i-ship"/></svg>Tracking</div><p>Escolha o B/L e abra o tracking no site do armador, já com o número preenchido.</p></div>
   </div>
+  <p class="small muted" style="margin-top:8px">Taxas Locais e Depósitos de devolução cobrem Vitória, Salvador e Suape. O Portal não traz tabelas de exportação nem de Detention.</p>
 
-  <table class="oae" style="margin-top:14px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">Menu › Informações, ou Painel › Consultas</td><td class="acao">Escolha a seção nas abas.</td><td class="efeito">Taxas Locais e Depósitos cobrem Vitória, Salvador e Suape.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Seção Depósitos de devolução</td><td class="acao">Filtre pelo porto de descarga (POD) e use <span class="ui">Agendar no site do depósito</span>.</td><td class="efeito">Os containers de um porto podem ser devolvidos em <strong>qualquer depósito publicado daquele porto</strong>.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Seção Tracking</td><td class="acao">Escolha o B/L e clique em <span class="ui">Ver tracking deste B/L na …</span></td><td class="efeito">Abre o tracking no site do armador, já com o número do B/L quando o armador permite.</td></tr>
-    </tbody>
-  </table>
-  <p class="small muted" style="margin-top:6px">O Portal não traz tabelas de exportação nem Detention.</p>
-
-  <h2 class="h2" style="margin-top:16px"><svg class="i i--18" style="color:var(--btn)"><use href="#i-mail"/></svg>E-mails que a sua empresa recebe</h2>
-  <table class="ref">
-    <thead><tr><th>Assunto</th><th>Quando chega</th><th>Dúvidas para</th></tr></thead>
-    <tbody>
-      <tr><td>Convite, recuperação de acesso e senha alterada</td><td>No convite, no reenvio e na troca de senha</td><td class="mail">suporte@portalfwlog.com.br</td></tr>
-      <tr><td>CE Mercante e Taxas Locais disponíveis</td><td>Quando o CE e as Taxas Locais do navio ficam disponíveis</td><td class="mail">importacao@fwlog.com.br</td></tr>
-      <tr><td>Notice of Arrival, Readiness e Berthing</td><td>Chegada prevista, chegada e atracação (NOA, NOR e NOB)</td><td class="mail">importacao@fwlog.com.br</td></tr>
-      <tr><td>Avisos do Desbloqueio de CE</td><td>Correção pedida ou documentação validada</td><td class="mail">importacao@fwlog.com.br</td></tr>
-      <tr><td>Cobrança de Demurrage</td><td>Enquanto a Invoice está em aberto</td><td class="mail">eqp@fwlog.com.br</td></tr>
-    </tbody>
-  </table>
-  <p class="small muted" style="margin-top:6px">Quem recebe cada tipo de comunicado é definido em Meu perfil (página 12).</p>
+  <h2 class="h2" style="margin-top:24px"><svg class="i i--18" style="color:var(--btn)"><use href="#i-mail"/></svg>E-mails que a sua empresa recebe</h2>
+  <ul class="mails">
+    <li><div><b>Convite, recuperação de acesso e senha alterada</b><span>No convite, a cada novo convite e quando a senha é pedida ou trocada.</span></div><span class="mail">suporte@portalfwlog.com.br</span></li>
+    <li><div><b>CE Mercante e Taxas Locais disponíveis</b><span>Quando o CE e as Taxas Locais do navio ficam disponíveis.</span></div><span class="mail">importacao@fwlog.com.br</span></li>
+    <li><div><b>Notice of Arrival, Readiness e Berthing</b><span>Chegada prevista, chegada e atracação do navio.</span></div><span class="mail">importacao@fwlog.com.br</span></li>
+    <li><div><b>Avisos do Desbloqueio de CE</b><span>Correção pedida ou documentação validada.</span></div><span class="mail">importacao@fwlog.com.br</span></li>
+    <li><div><b>Cobrança de Demurrage</b><span>Enquanto a Invoice de Demurrage está em aberto.</span></div><span class="mail">eqp@fwlog.com.br</span></li>
+  </ul>
+  <p class="small muted" style="margin-top:8px">Quem recebe cada tipo de comunicado é definido em Meu perfil (página 12).</p>
 
   <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br · Rascunho para revisão</span><span>11 / 13</span></footer>
 </section>
@@ -1218,11 +1150,10 @@ h1, h2, h3 { margin: 0; }
 <section class="page" aria-label="Meu perfil">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>10</b> Meu perfil</span></header>
 
-  <p class="kicker">10 · Meu perfil</p>
-  <h1 class="title">Meu perfil: quem recebe e como recuperar o acesso</h1>
+  <h1 class="title">Meu perfil</h1>
   <p class="lead">Defina quem recebe cada tipo de comunicado, mantenha o endereço da empresa em dia e cuide do e-mail que recupera a senha.</p>
 
-  <div class="mock" style="margin-top:16px">
+  <div class="mock" style="margin-top:18px">
     <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br/portal/perfil</span></div>
     <div class="m-body">
       <div class="m-title"><div><h4>Meu perfil</h4><p>Contatos que recebem comunicados, endereço da empresa e o e-mail usado para recuperar a senha.</p></div></div>
@@ -1233,7 +1164,7 @@ h1, h2, h3 { margin: 0; }
             <div class="m-sub">
               <div class="m-sub__h">Contato · contato principal</div>
               <div class="m-row" style="margin-top:4px">
-                <div class="m-field" style="margin-top:2px"><label>Nome</label><div class="m-input">Contato Exemplo</div></div>
+                <div class="m-field" style="margin-top:2px"><label>Nome</label><div class="m-input">Financeiro</div></div>
                 <div class="m-field" style="margin-top:2px"><label>E-mail</label><div class="m-input">financeiro@exemplo.com.br</div></div>
               </div>
               <div class="m-boxes"><span><span class="m-check m-check--on"></span> Documentação e Operação</span><span><span class="m-check m-check--on"></span> Financeiro</span><span><span class="m-check m-check--on"></span> Demurrage</span></div>
@@ -1264,84 +1195,55 @@ h1, h2, h3 { margin: 0; }
     </div>
   </div>
 
-  <table class="oae" style="margin-top:14px">
-    <thead><tr><th></th><th>Onde<svg class="i"><use href="#i-arrow"/></svg></th><th>Ação<svg class="i"><use href="#i-arrow"/></svg></th><th>Efeito</th></tr></thead>
-    <tbody>
-      <tr><td class="n"><span class="num">1</span></td><td class="onde">Perfil › Quem recebe os comunicados</td><td class="acao">Edite os contatos, marque as caixas de recebimento e clique em <span class="ui ui--primary">Salvar contatos</span>.</td><td class="efeito">Cada caixa precisa de <strong>pelo menos um contato ativo com e-mail</strong>. O contato principal recebe as três caixas até você delegar.</td></tr>
-      <tr><td class="n"><span class="num">2</span></td><td class="onde">Perfil › Endereço da empresa</td><td class="acao">Corrija o endereço e clique em <span class="ui ui--primary">Salvar endereço</span>.</td><td class="efeito">Depois da confirmação, atualiza o endereço no cadastro da Fwlog.</td></tr>
-      <tr><td class="n"><span class="num">3</span></td><td class="onde">Perfil › E-mail de recuperação</td><td class="acao">Informe a senha atual e o novo e-mail duas vezes; clique em <span class="ui ui--primary">Trocar e-mail de recuperação</span>.</td><td class="efeito">O novo endereço recebe um <strong>link de confirmação (48 horas, uso único)</strong>; o atual vale até a confirmação. Confirmado, as sessões abertas são encerradas.</td></tr>
-    </tbody>
-  </table>
-
-  <div class="grid2" style="margin-top:12px;align-items:start">
-    <table class="ref">
-      <thead><tr><th>Caixa de recebimento</th><th>Recebe</th></tr></thead>
-      <tbody>
-        <tr><td><b>Documentação e Operação</b></td><td>CE e Taxas, NOA, NOR e NOB</td></tr>
-        <tr><td><b>Financeiro</b></td><td>CE e Taxas e Cobranças de Demurrage</td></tr>
-        <tr><td><b>Demurrage</b></td><td>Cobranças de Demurrage</td></tr>
-      </tbody>
-    </table>
-    <div class="note note--warn">
-      <svg class="i"><use href="#i-alert"/></svg>
-      <p><strong>O e-mail de recuperação é o da senha.</strong> Ele recebe convites e links de redefinição; os comunicados seguem as caixas ao lado. Errar a senha atual na troca conta nas tentativas do login.</p>
+  <div class="guide">
+    <div>
+      <h2 class="h2">O que fazer aqui</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><div><b>Quem recebe os comunicados</b><p>Cadastre os contatos e marque as caixas que cada um recebe. Cada caixa precisa de pelo menos um contato ativo com e-mail.</p></div></li>
+        <li><span class="num">2</span><div><b>Endereço da empresa</b><p>O endereço que consta no cadastro da Fwlog.</p></div></li>
+        <li><span class="num">3</span><div><b>E-mail de recuperação</b><p>É o e-mail do acesso: recebe os convites e os links de troca de senha. Para trocá-lo, informe a senha atual; o novo endereço recebe um link de confirmação válido por 48 horas.</p></div></li>
+      </ol>
+    </div>
+    <div class="know">
+      <div class="know__h">Caixas de recebimento</div>
+      <dl class="defs">
+        <dt>Documentação e Operação</dt><dd>CE e Taxas, NOA, NOR e NOB.</dd>
+        <dt>Financeiro</dt><dd>CE e Taxas e Cobranças de Demurrage.</dd>
+        <dt>Demurrage</dt><dd>Cobranças de Demurrage.</dd>
+      </dl>
     </div>
   </div>
 
   <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br · Rascunho para revisão</span><span>12 / 13</span></footer>
 </section>
 
-<!-- =================== 13. Contatos e limites =================== -->
-<section class="page" aria-label="Contatos e o que fica fora do Portal">
+<!-- =================== 13. Contatos =================== -->
+<section class="page" aria-label="Fale com a Fwlog">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section"><b>11</b> Contatos</span></header>
 
-  <p class="kicker">11 · Contatos e o que fica fora do Portal</p>
   <h1 class="title">Fale com a Fwlog</h1>
-  <p class="lead">Ao escrever, informe a razão social, o CNPJ e o número do B/L ou da fatura. Assim a equipe certa responde mais rápido.</p>
+  <p class="lead">Ao escrever, informe a razão social, o CNPJ e o número do B/L ou da fatura.</p>
 
-  <div class="grid2" style="margin-top:16px">
+  <div class="grid2" style="margin-top:18px">
     <div class="contact"><div class="contact__k"><svg class="i i--16"><use href="#i-buoy"/></svg>Acesso ao Portal</div><div class="contact__v">suporte@portalfwlog.com.br</div><p>Convite, login, senha e e-mail de recuperação.</p></div>
     <div class="contact"><div class="contact__k"><svg class="i i--16"><use href="#i-file"/></svg>Importação</div><div class="contact__v">importacao@fwlog.com.br</div><p>CE Mercante, Taxas Locais, documentos e desbloqueio de CE.</p></div>
     <div class="contact"><div class="contact__k"><svg class="i i--16"><use href="#i-package"/></svg>Equipamentos</div><div class="contact__v">eqp@fwlog.com.br</div><p>Containers, devolução, Demurrage e disputas.</p></div>
     <div class="contact"><div class="contact__k"><svg class="i i--16"><use href="#i-building"/></svg>Assuntos gerais</div><div class="contact__v">fwlog@fwlog.com.br</div><p>O que não se encaixa nos assuntos acima.</p></div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:16px;align-items:start">
-    <div class="blk">
-      <div class="blk__h">O que você não faz no Portal</div>
-      <div class="blk__b">
-        <ul class="nope">
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Criar conta ou se cadastrar.</b> <span>O acesso nasce do convite da Fwlog.</span></p></li>
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Trocar o CNPJ de acesso ou a razão social.</b> <span>Peça à Fwlog.</span></p></li>
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Trocar a senha por dentro do Portal.</b> <span>Use Esqueci minha senha.</span></p></li>
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Ver outro CNPJ, mesmo de filial.</b> <span>Cada CNPJ tem o próprio acesso.</span></p></li>
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Ver rascunho ou valor ainda não faturado.</b> <span>Só fatura emitida aparece.</span></p></li>
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Enviar comprovante de TED ou depósito.</b> <span>Envie por e-mail à Fwlog.</span> <span class="confirm">[A confirmar o endereço]</span></p></li>
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Mudar datas, free time ou tarifas de Demurrage.</b> <span>Para contestar uma Invoice, abra uma disputa.</span></p></li>
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Agendar a devolução do container.</b> <span>O Portal mostra o depósito e o link do site dele.</span></p></li>
-          <li><svg class="i"><use href="#i-ban"/></svg><p><b>Consultar exportação ou Detention.</b> <span>O Portal é da importação.</span></p></li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="stack">
-      <div class="blk">
-        <div class="blk__h">Seus primeiros 10 minutos</div>
-        <div class="blk__b">
-          <ul class="check">
-            <li><span class="box"></span><span>Ativar o acesso em até 48 horas depois do convite.</span></li>
-            <li><span class="box"></span><span>Salvar <span class="code">portalfwlog.com.br</span> nos favoritos.</span></li>
-            <li><span class="box"></span><span>Em Meu perfil, conferir quem recebe cada caixa de comunicados.</span></li>
-            <li><span class="box"></span><span>Conferir se o e-mail de recuperação é de quem cuida do acesso.</span></li>
-            <li><span class="box"></span><span>Abrir BLs e Containers e conferir os seus B/Ls.</span></li>
-            <li><span class="box"></span><span>Ver no Painel o que está em aberto.</span></li>
-          </ul>
-        </div>
-      </div>
-      <div class="note note--ok">
-        <svg class="i"><use href="#i-check-circle"/></svg>
-        <p><strong>Boas-vindas ao novo Portal.</strong> Qualquer dúvida no primeiro acesso, escreva para <span class="mail">suporte@portalfwlog.com.br</span>.<br><span class="muted">Equipe Fwlog</span></p>
-      </div>
+  <div class="blk" style="margin-top:20px">
+    <div class="blk__h">O que fica fora do Portal</div>
+    <div class="blk__b">
+      <ul class="nope nope--2">
+        <li><svg class="i"><use href="#i-ban"/></svg><p><b>Cadastro.</b> <span>O acesso começa pelo convite da Fwlog.</span></p></li>
+        <li><svg class="i"><use href="#i-ban"/></svg><p><b>Troca do CNPJ de acesso ou da razão social.</b> <span>Peça à Fwlog.</span></p></li>
+        <li><svg class="i"><use href="#i-ban"/></svg><p><b>Troca de senha dentro do Portal.</b> <span>Use Esqueci minha senha.</span></p></li>
+        <li><svg class="i"><use href="#i-ban"/></svg><p><b>Dados de outro CNPJ, mesmo de filial.</b> <span>Cada CNPJ tem o próprio acesso.</span></p></li>
+        <li><svg class="i"><use href="#i-ban"/></svg><p><b>Mudança de datas, free time ou tarifas de Demurrage.</b> <span>Para contestar uma Invoice, abra uma disputa.</span></p></li>
+        <li><svg class="i"><use href="#i-ban"/></svg><p><b>Agendamento da devolução.</b> <span>É feito no site do depósito.</span></p></li>
+        <li><svg class="i"><use href="#i-ban"/></svg><p><b>Exportação e Detention.</b> <span>O Portal é da importação.</span></p></li>
+        <li><svg class="i"><use href="#i-ban"/></svg><p><b>Outras formas de pagamento.</b> <span>Taxas Locais e Demurrage são pagas só por Pix.</span></p></li>
+      </ul>
     </div>
   </div>
 
