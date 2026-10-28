@@ -6,9 +6,10 @@ trabalho, não o manual.
 
 ## Estado
 
-**Etapa 1 executada em 2026-10-26; divergências decididas e corrigidas em
-2026-10-27; lista "fora do manual" aprovada em 2026-10-28; falta o sumário
-final.** As 118
+**Etapa 1 concluída em 2026-10-28; Etapa 2 em andamento: catálogo de
+situações do capítulo 6 em rascunho, esperando o dono.** Divergências
+decididas e corrigidas em 2026-10-27; lista "fora do manual" e sumário final
+aprovados em 2026-10-28. As 118
 divergências (112 fichas) foram decididas pelo dono e executadas nos lotes 1 a
 11 do [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md),
 com os ajustes da revisão da PR #1070 (migrations `482` a `490`). Os 2.253
@@ -25,8 +26,11 @@ ninguém e definiu a direção do conteúdo: o manual explica como o Vela opera 
 o que o usuário faz para alcançar cada objetivo e cumprir cada
 responsabilidade, e cobre as situações mais comuns, inclusive as de borda
 ([O manual parte do objetivo de quem usa](#o-manual-parte-do-objetivo-de-quem-usa)).
-Falta, para fechar a Etapa 1, o dono aprovar o sumário final. A Etapa 2
-começa depois.
+No mesmo dia o dono aprovou o sumário final (24 capítulos), o que fecha a
+Etapa 1, e pediu para começar a Etapa 2 pela importação de arquivos. O
+[catálogo de situações do capítulo 6](../manual/situacoes/06-importacao.md)
+está em rascunho: 10 objetivos, 35 situações ligadas às regras da matriz e três
+perguntas abertas para o dono (P1 a P3).
 
 **Mudança entrada depois da Etapa 1 (2026-10-28): alterar, excluir e isentar
 as Taxas Locais do B/L** ([ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
@@ -58,11 +62,11 @@ guardado como registro histórico e serve só de referência de redação
    tarefa própria; não corrija o sistema dentro do trabalho do manual. As
    decisões da revisão da PR #1070 estão em
    [Pontos do dono](../manual/decisoes/pontos-do-dono.md).
-2. **Aprovações que fecham a Etapa 1** (seções 5 e 7 do
+2. **Aprovações que fecharam a Etapa 1** (seções 5 e 7 do
    [relatório](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md)):
-   a lista "fora do manual" foi aprovada pelo dono em 2026-10-28 ("tudo bem
-   deixar de fora aquilo que não aparece para ninguém"); o sumário final
-   proposto (24 capítulos) ainda espera resposta, na página
+   a lista "fora do manual" ("tudo bem deixar de fora aquilo que não aparece
+   para ninguém") e o sumário final (24 capítulos), aprovados pelo dono em
+   2026-10-28 na conversa e registrados na página
    <https://claude.ai/artifact/4VK9aBi787ZSNGWmtNW5FK> (coleção `aprovacoes`,
    documentos `sumario` e `fora`, campos `decisao`, `nota` e `decididoEm`).
 3. **Ambiente.** `npm ci`, depois `sudo scripts/setup-local-pg.sh --reset`
@@ -72,10 +76,11 @@ guardado como registro histórico e serve só de referência de redação
 4. **Material de trabalho da Etapa 1** (instruções de mapeamento, conferência,
    correção de documento e fichas de decisão; montagem do relatório):
    [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).
-5. **Próximo passo depois das aprovações:** Etapa 2 (projeto gráfico com
-   páginas-modelo para o dono aprovar, cenário de demonstração, imagens por
-   script, catálogo de situações e capítulo-piloto 4 e 5 do sumário original,
-   que no sumário final são os capítulos 4 a 6).
+5. **Próximo passo (Etapa 2):** o dono confere o
+   [catálogo do capítulo 6](../manual/situacoes/06-importacao.md) e responde
+   as perguntas P1 a P3; em seguida, catálogo dos capítulos 4 e 5, projeto
+   gráfico com páginas-modelo para o dono aprovar, cenário de demonstração,
+   imagens por script e capítulo-piloto (capítulos 4 a 6 do sumário final).
 6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
    etapas: o manual se pauta só pelo código; o material antigo é só referência
    de redação; quem faz o quê sai do código (matriz "O que cada setor pode",
@@ -540,8 +545,8 @@ corrigidos na mesma entrega.
 passa, e o dono aprovou:
 a lista "fora do manual", a lista de divergências e o sumário final.
 Os três primeiros critérios foram cumpridos em 2026-10-26; a lista de
-divergências foi decidida em 2026-10-27 e a lista "fora do manual" aprovada em
-2026-10-28; falta a aprovação do sumário final
+divergências foi decidida em 2026-10-27; a lista "fora do manual" e o sumário
+final foram aprovados em 2026-10-28, o que concluiu a etapa
 ([relatório](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md)).
 
 ### Etapa 2 — Projeto gráfico, cenário, imagens e PDF; capítulo-piloto

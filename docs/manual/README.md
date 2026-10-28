@@ -8,6 +8,13 @@ O mapeamento que deu origem à matriz (números, quem faz o quê pelo código,
 sumário final proposto e divergências) está no
 [relatório de 2026-10-26](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md).
 
+## Catálogo de situações
+
+[`situacoes/`](situacoes/README.md) lista, por capítulo, os objetivos de quem
+usa o Vela ("Quero fazer…") e as situações comuns fora do caminho normal
+("Aconteceu…"), cada uma ligada às regras desta matriz. É a pauta da redação de
+cada capítulo.
+
 ## Matriz de cobertura
 
 [`cobertura/`](cobertura/) liga cada regra de negócio do código ao lugar do
