@@ -210,3 +210,21 @@ vez de um estado novo.
 
 A isenção à mão entra na ADR nova da D8: ela estende a regra atual, em que a
 isenção só existe com prova positiva (veículo com Movement To LCL).
+
+### D13 — Troca de Cliente: a alteração continua com o B/L
+
+Antes e depois da fatura, a troca de Cliente (CNPJ) mantém as taxas alteradas,
+as excluídas e a isenção à mão. O que é do Cliente vai por Condição de Cliente,
+que já segue o Cliente (na troca vale a do Cliente novo); a alteração à mão é,
+por desenho, do B/L (avaria, falha operacional, cobrança que não se aplica
+àquela carga). A confirmação da troca lista as alterações que continuam ("2
+taxas alteradas à mão continuam para o novo Cliente"); se alguma era do Cliente
+anterior, o operador usa **Voltar ao valor da tabela** ou **Retirar isenção**.
+Depois da fatura vale o fluxo atual da troca (sem pagamento, cancela e reemite
+para o Cliente novo; com pagamento, devolve ao original e cobra o novo depois
+da devolução), já com as alterações.
+
+Difere de propósito do **Desconto** da Demurrage, que a Invoice reemitida para
+o Cliente novo não herda (decisão do dono de 2026-10-22): lá o desconto é a
+única ferramenta e mistura o que é do Cliente e o que é do B/L; aqui o que é do
+Cliente tem a Condição. A ADR nova registra esse porquê.
