@@ -184,3 +184,29 @@ só item automático, com vigência, valendo para os B/Ls importados depois); a
 lista **B/Ls com taxa alterada** na ficha do Cliente (D10) mostra quando o
 mesmo ajuste se repete. Aplicar a alteração a vários B/Ls de uma vez é um
 pedido separado.
+
+### D12 — Isentar Taxas Locais à mão
+
+Para não cobrar nada de um B/L, o operador usa o botão **Isentar Taxas
+Locais**, no bloco **Taxas Locais** da ficha. A ideia é do dono: um clique,
+nenhum item cobrado, nenhuma fatura emitida. O B/L passa ao estado **Isento**
+que o sistema já trata em todas as telas (fila da Validação, CE "Nada a
+faturar: B/L isento das Taxas Locais.", Desbloqueio de CE com o Financeiro
+atendido, Portal sem valor, correção automática que cancela sem reemitir), em
+vez de um estado novo.
+
+| Ponto | Como fica |
+|---|---|
+| Quem | Todos os setores, com justificativa de ao menos 10 caracteres (D3, D4) |
+| Efeito | B/L **Isento**, com "Isenção manual: <justificativa>". Nada é cobrado, nem as taxas calculadas nem as cobranças manuais; não sai fatura |
+| As linhas | Continuam visíveis em cinza, com as alterações e exclusões que tinham, como referência |
+| Recálculos | A isenção se mantém em todos, inclusive na troca de POD ou de modalidade (é decisão sobre o B/L); a prévia (D6) diz "B/L isento à mão: continua isento" |
+| B/L faturado sem pagamento | A fatura é cancelada sem sucessora, como hoje com o B/L que fica isento depois da fatura |
+| B/L faturado com pagamento | Todo o recebido vira **Restituição pendente**, confirmada pelo Financeiro (D8) |
+| Desfazer | **Retirar isenção**, com justificativa: o B/L volta a ser calculado com as alterações e exclusões que tinha; a fatura sai pelo **Emitir fatura**, como depois de qualquer fatura cancelada por uma pessoa |
+| Excluir a última taxa | Recusado: "Esta é a última taxa cobrada do B/L. Para não cobrar nada, use Isentar Taxas Locais." Só há um caminho para chegar a zero |
+| Isenção automática (veículo LCL) | Continua como está; o motivo na ficha diferencia as duas |
+| Rastreio | **Isentar** e **Retirar isenção** entram no **Histórico das taxas** da página (D10), no filtro e na planilha da Validação |
+
+A isenção à mão entra na ADR nova da D8: ela estende a regra atual, em que a
+isenção só existe com prova positiva (veículo com Movement To LCL).
