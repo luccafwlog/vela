@@ -150,6 +150,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     cuja quantidade vai a zero sai da cobrança, com a alteração guardada; a
     prévia pede o **Gravar mesmo assim** e, sem ele, abre o alerta (BLR-150,
     ALE-086).
+- **Recusa da carga solta em outra Viagem** (decisão do dono de 2026-10-28,
+  pergunta P1 da situação S6.03; migration `500`): a prévia e a gravação do
+  Manifesto BB e do B/L avulso mandam excluir o B/L na outra Viagem e importar
+  de novo, como o arquivo de B/L de container, em vez de corrigir a Viagem
+  pela ficha (BLR-053 e a mensagem do banco).
 - **Recusa do banco na omissão, no transbordo e no COD** (decisão do dono de
   2026-10-28, pergunta P4 da situação S4.21; tela, sem migration): **Omitir
   escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e **Reverter
