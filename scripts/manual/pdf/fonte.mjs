@@ -3,6 +3,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import GithubSlugger from 'github-slugger'
 import { micromark } from 'micromark'
 import { gfm, gfmHtml } from 'micromark-extension-gfm'
 
@@ -141,12 +142,17 @@ export function capituloHtml(cap) {
     htmlExtensions: [gfmHtml()],
   })
 
+  // A âncora da seção é a do GitHub (o título), para o mesmo link servir no
+  // repositório, no docs:check e no PDF.
+  const ancoras = ancorasDasSecoes(cap.fonte)
   const secoes = []
   html = html.replace(/<h2>(\d+\.\d+)\s+(.+?)<\/h2>/g, (_, num, titulo) => {
-    const id = `s${num.replace('.', '-')}`
+    const id = ancoras.get(num)
     secoes.push({ id, num, titulo })
     return `<h2 class="secao-titulo" id="${id}"><span class="num">${num}</span><span>${titulo}</span></h2>`
   })
+  // Link para outro capítulo (`06-importacao.md#62-…`) vira link interno.
+  html = html.replace(/href="\d{2}-[\w-]+\.md#/g, 'href="#')
   html = html.replace(/<h3>(.+?)<\/h3>/g, (_, titulo) => `<h3 class="sub" id="${cap.numero}-${slug(titulo)}">${titulo}</h3>`)
 
   // Imagem `![legenda](captura/id)` sozinha no parágrafo vira figura marcada.
@@ -159,6 +165,18 @@ export function capituloHtml(cap) {
   const introducao = corte === -1 ? html : html.slice(0, corte)
   const corpo = corte === -1 ? '' : html.slice(corte)
   return { introducao, corpo, secoes }
+}
+
+// Âncora de cada `## N.M Título` do capítulo, pelo algoritmo do GitHub.
+export function ancorasDasSecoes(fonte) {
+  const slugger = new GithubSlugger()
+  const mapa = new Map()
+  for (const m of semComentarios(fonte).matchAll(/^##\s+(.+)$/gm)) {
+    const slug = slugger.slug(m[1].replace(/[*_`]/g, '').trim())
+    const num = m[1].match(/^(\d+\.\d+)\s/)
+    if (num) mapa.set(num[1], slug)
+  }
+  return mapa
 }
 
 // Citações de regras no texto: `<!-- regras: VIA-011 VIA-012 -->` e

@@ -8,6 +8,14 @@ O mapeamento que deu origem à matriz (números, quem faz o quê pelo código,
 sumário final proposto e divergências) está no
 [relatório de 2026-10-26](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md).
 
+## Texto e PDF
+
+[`texto/`](texto/README.md) é o texto do manual: um Markdown por capítulo e o
+`manual.json`, com o formato e as regras de redação. O PDF sai de
+`npm run manual:build` e as telas de `npm run manual:capture`, com o cenário de
+demonstração ([gerador](../../scripts/manual/pdf/README.md));
+`npm run manual:check` confere o texto.
+
 ## Catálogo de situações
 
 [`situacoes/`](situacoes/README.md) lista, por capítulo, os objetivos de quem

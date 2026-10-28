@@ -10,20 +10,83 @@
       "numero": "2",
       "romano": "II",
       "titulo": "Operação",
-      "texto": "Da Viagem cadastrada até o navio sair do último porto: escalas e atracações, a programação que o Cliente vê e a documentação que chega do armador.",
+      "texto": "Da Viagem cadastrada até o navio sair do último porto: escalas e atracações, a programação que o Cliente vê no Portal e a documentação que chega do armador.",
       "capitulos": [
         {
           "numero": 4,
           "titulo": "Viagens e Escalas",
           "resumo": "Cadastrar, datas do navio, atracação, omissão, transbordo e COD, cancelar",
           "arquivo": "04-viagens-escalas.md",
-          "equipes": ["Todas as equipes"],
+          "equipes": [
+            "Todas as equipes"
+          ],
           "algumas": [
-            { "texto": "Remover atracação", "equipes": ["Operações", "Administrativo"] },
-            { "texto": "Cancelar, reativar e excluir", "equipes": ["Administrativo"] }
+            {
+              "texto": "Remover atracação",
+              "equipes": [
+                "Operações",
+                "Administrativo"
+              ]
+            },
+            {
+              "texto": "Cancelar, reativar e excluir",
+              "equipes": [
+                "Administrativo"
+              ]
+            }
           ],
           "leitura": "30 minutos",
-          "antes": "Antes, leia o capítulo 3 (o caminho de uma Viagem)."
+          "antes": "Antes, leia o capítulo 3 (o caminho de uma Viagem).",
+          "matriz": [
+            "Op 4"
+          ]
+        },
+        {
+          "numero": 5,
+          "titulo": "Programação",
+          "resumo": "Chegadas e Saídas, Line Up, Tela TV e cadastros de apoio",
+          "arquivo": "05-programacao.md",
+          "matriz": [
+            "Op 4"
+          ],
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [
+            {
+              "texto": "Desativar e reativar Local ou terminal",
+              "equipes": [
+                "Administrativo"
+              ]
+            }
+          ],
+          "leitura": "15 minutos",
+          "antes": "Antes, leia o capítulo 4 (Viagens e Escalas)."
+        },
+        {
+          "numero": 6,
+          "titulo": "Importação da documentação",
+          "resumo": "Arquivo de B/L, carga solta, CE Mercante, Manifesto e Baplie",
+          "arquivo": "06-importacao.md",
+          "matriz": [
+            "Op 5"
+          ],
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "equipesParte": [
+            "Documentação"
+          ],
+          "algumas": [
+            {
+              "texto": "Excluir, cancelar e reativar B/L",
+              "equipes": [
+                "Administrativo"
+              ]
+            }
+          ],
+          "leitura": "45 minutos",
+          "antes": "Antes, leia o capítulo 4 (Viagens e Escalas)."
         }
       ]
     }

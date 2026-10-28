@@ -224,8 +224,11 @@ scripts/
   provision-preview-admin.mjs  fixture autenticada da Preview Supabase
   perf/                   harness de orçamento de carga das rotas
   design-audit/           bootstrap e seed da auditoria de design
-  manual/                 inventário do sistema e check de cobertura do
-                          Manual do Operador (`npm run manual:coverage`)
+  manual/                 Manual do Operador: inventário do sistema e
+                          check de cobertura (`npm run manual:coverage`),
+                          cenário de demonstração, capturas de tela e
+                          gerador do PDF (`manual:cenario`,
+                          `manual:capture`, `manual:build`, `manual:check`)
 
 supabase/
   migrations/             cadeia ativa do schema
@@ -789,6 +792,16 @@ matriz cita um item que deixou de existir ou quando uma linha usa destino fora
 da lista. `npm run manual:inventory` imprime o inventário em JSON. Mudança que
 cria, remove ou renomeia um desses itens atualiza a matriz na mesma alteração;
 o job `db` do CI roda o check depois do `rpc:check`.
+
+O PDF do Manual do Operador sai de quatro comandos locais, descritos em
+[`scripts/manual/pdf/README.md`](scripts/manual/pdf/README.md):
+`npm run manual:cenario` recria o banco de demonstração `manual_demo` a partir
+do `vela_test` (dados fictícios); `npm run manual:capture` executa os
+procedimentos no Vela local (emulador da auditoria visual e `vite`) e
+fotografa as telas; `npm run manual:build` gera o PDF em `artifacts/manual/`,
+fora do Git; `npm run manual:check` confere o texto (termos técnicos proibidos,
+capturas e regras da matriz citadas) e não precisa de banco. Nenhum deles roda
+no CI por enquanto (Etapa 4 do plano do manual).
 
 Para Supabase completo, carregue no ambiente do processo as variáveis indicadas
 em `.env.example`, inclusive os IDs das fixtures, antes de habilitar a suíte:

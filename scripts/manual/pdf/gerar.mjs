@@ -169,7 +169,7 @@ function paginasCss(m) {
 }
 
 async function imprimir(browser, html, arquivo) {
-  const montado = path.join(OUT, 'manual-montado.html')
+  const montado = SAIDA.replace(/\.pdf$/, '') + '.montado.html'
   fs.writeFileSync(montado, html)
   const page = await browser.newPage()
   await page.goto(pathToFileURL(montado).href, { waitUntil: 'networkidle' })
@@ -213,7 +213,7 @@ ${paginasCss(m)}
   fs.mkdirSync(path.dirname(SAIDA), { recursive: true })
   const browser = await chromium.launch({ executablePath })
   try {
-    const rascunho = path.join(OUT, 'rascunho.pdf')
+    const rascunho = SAIDA.replace(/\.pdf$/, '') + '.rascunho.pdf'
     await imprimir(browser, html1, rascunho)
     const { mapa, total } = await paginasDasMarcas(rascunho)
     const faltando = [...html1.matchAll(/data-alvo="([\w-]+)"/g)].map((x) => x[1]).filter((id) => !mapa[id])
