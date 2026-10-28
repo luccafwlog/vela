@@ -18,3 +18,17 @@ A alteração vale para as Taxas Locais do B/L (as linhas do bloco **Taxas
 Locais** da ficha). A Demurrage fica como está: ela já tem **Desconto** (em %
 ou US$, qualquer setor, com justificativa), free time e diárias P1/P2 por B/L
 e reemissão pelas datas. Se faltar algo na Demurrage, é um pedido separado.
+
+### D2 — Forma: alterar o valor cobrado ou excluir a taxa; quantidade fixa
+
+Em cada taxa do B/L o operador pode:
+
+- **alterar o valor cobrado por unidade** da taxa (o valor unitário), na moeda
+  da taxa (R$ ou US$), abaixo ou acima da tabela. O total passa a ser a
+  quantidade do B/L × o valor alterado;
+- **excluir a taxa** da cobrança do B/L.
+
+A **quantidade não se altera**: ela é a quantidade do item de carga do B/L
+(containers, peso, rateio do container compartilhado) e mudá-la à mão teria
+impacto maior no sistema. Para mudar a quantidade, corrige-se o B/L, que já
+recalcula. Valor zero não se digita: para não cobrar, exclui-se a taxa.
