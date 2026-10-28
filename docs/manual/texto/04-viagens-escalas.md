@@ -117,7 +117,7 @@ Com **Importação + exportação** ou **Somente exportação**, a janela pede o
 
 Declarar a exportação é decisão sua, mesmo sem saber ainda a quantidade. Cada escala tem uma só declaração. Para retirar, volte a **Somente importação**: a janela pede confirmação ("Retirar a exportação desta escala") e, ao salvar, descarta as frentes de exportação, as quantidades e os portos.
 
-O Line Up marca a exportação com Granito pela declaração da escala, e não pela importação do Granito. O Granito importado aparece no painel de Granito da aba **Exportação** da Viagem (manifestos, B/Ls e peso) e na seção **Carga carregada** do ADR de Saída (capítulo 11). Mudar a exportação da escala recalcula na hora o alerta **Exportação pendente pós-ATD** da Viagem.
+O Line Up marca a exportação com Granito pela declaração da escala, e não pela importação do Granito. O Granito importado aparece no painel de Granito da aba **Exportação** da Viagem (manifestos, B/Ls e peso) e na seção **Carga carregada** do ADR de Saída (capítulo 11). Mudar a exportação da escala, ou vincular, desvincular ou mover um manifesto de Granito ou de Embarque de Vazios, recalcula na hora o alerta **Exportação pendente pós-ATD** da Viagem.
 
 ### BLs e CEs, Vinculada e Nº escala
 
@@ -213,7 +213,7 @@ Cada terminal atribuído vira uma **Atracação**: a passagem do navio por aquel
 
 ::: ficha
 - **Quando usar:** Você sabe em que terminal cada operação da escala acontece, ou o navio atracou ou desatracou num terminal.
-- **Quem faz:** {{Qualquer equipe}}. Remover uma Atracação é de {{Operações}} e do {{Administrativo}}.
+- **Quem faz:** {{Qualquer equipe}} · remover uma Atracação: {{Operações}} e {{Administrativo}}
 - **Antes de começar:** A escala precisa existir ([4.2](#s4-2)). Tenha o terminal de cada operação e as datas com hora.
 :::
 
@@ -239,7 +239,7 @@ Qualquer equipe salva a escala inteira de uma vez: ETA, ATA, BLs e CEs, Vinculad
 - Ordena as Atracações pelo ATB (ou pelo ETB, na falta dele) e, no empate, pela sigla do terminal. A ordem não é digitada.
 - Confere que o porto e o terminal batem com o cadastro de portos. A janela preenche esses dados a partir da escala.
 - Liga cada frente à seção do ADR de Saída daquele terminal (capítulo 11): **Carga cheia** e **Carga solta** a **Carga descarregada**; **Vazios** de importação a **Vazios descarregados**; **Veículos** a **Veículos**; **Granito** a **Carga carregada**; **Vazios** de exportação a **Embarque de vazios**.
-- Dá a cada B/L o terminal de descarga da frente do POD dele. Para um B/L descarregar em outro terminal, use **Definir exceção** na ficha do B/L, com justificativa (capítulo 7).
+- Dá a cada B/L o terminal de descarga da frente do POD dele. Para um B/L descarregar em outro terminal, use **Definir exceção** (ou **Alterar exceção**) na ficha do B/L, com justificativa obrigatória: a exceção aparece em âmbar ("Exceção deste B/L, fora da Frente de Operação") e fica no Histórico. **Remover exceção** volta ao terminal herdado, e corrigir o POD tira a exceção do POD anterior (capítulo 7).
 - Recalcula na hora todos os alertas da Viagem quando muda porto, terminal, ETB, ATB, ETD, ATD ou Restow de uma Atracação.
 - Quando um terminal perde todas as frentes, remove a Atracação dele; ela fica no Histórico com as datas que tinha. O ADR de Saída aberto daquele terminal é apagado só se não tiver assinatura, ocorrência, histórico nem alerta; com alerta, ele é preservado.
 - Registra no Histórico o setor de quem gravou, e na Linha do tempo os terminais, as Atracações e o Restow.
@@ -270,12 +270,12 @@ No **Planejamento por escala**:
 - **O que você faz:** Escreva o motivo e salve. Ele aparece na Linha do tempo como "Justificativa: …".
 :::
 
-<!-- regras: VIA-044 VIA-090 ACE-086 -->
+<!-- regras: VIA-044 VIA-090 ACE-085 ACE-086 -->
 
 ::: aconteceu "Alteração bloqueada por ADR fechado (TERMINAL / …). Reabra o ADR antes de continuar."
 - **O que o sistema faz:** Não grava nada quando a mudança afeta um terminal com ADR de Saída fechado: frente, terminal, ATB, ATD, Restow ou exportação. A janela diz "A alteração não foi aplicada porque existe ADR fechado…", e cada bloqueio traz **Reabrir ADR**, que leva à aba **ADR** daquele terminal. ETA, ATA e as previsões da Atracação continuam editáveis.
 - **Por quê:** O ADR fechado é o registro final da operação no terminal. Com ele fechado, o Vela recusa também mudar resolução, observação, assinatura e terminal do ADR ("ADR fechado: reabra antes de alterar …").
-- **O que você faz:** Reabra o ADR com motivo (qualquer equipe pode; sem motivo, o Vela recusa), corrija a escala e feche o ADR de novo (capítulo 11).
+- **O que você faz:** Reabra o ADR com motivo (qualquer equipe pode; sem motivo, o Vela recusa), corrija a escala e feche o ADR de novo, o que qualquer equipe também pode fazer (capítulo 11).
 :::
 
 <!-- regras: VIA-045 VIA-041 -->
@@ -767,8 +767,10 @@ No **transbordo**, a carga segue até o destino original e nada muda na cobranç
 ::: ficha
 - **Quando usar:** A escala foi omitida ([4.7](#s4-7)) e o Cliente de um B/L afetado vai retirar a carga no Porto de Transbordo; ou o COD foi marcado por engano.
 - **Quem faz:** {{Qualquer equipe}}
-- **Antes de começar:** Abra a ficha do B/L afetado (no exemplo, COSU6424000102). Na **Visão geral**, o cartão **Transbordo** diz "Segue em transbordo até …; o destino final e a Taxa Local não mudam." e traz o link **Registro global da omissão**, que leva à Viagem. Os dados do seguimento ficam só para consulta ("A informar" quando faltam).
+- **Antes de começar:** Abra a ficha do B/L afetado (no exemplo, COSU6424000102).
 :::
+
+Na **Visão geral** do B/L afetado, o cartão **Transbordo** diz "Segue em transbordo até …; o destino final e a Taxa Local não mudam." e traz o link **Registro global da omissão**, que leva à Viagem. Os dados do seguimento ficam só para consulta ("A informar" quando faltam).
 
 ::: passos
 1. No cartão **Transbordo**, clique em **Marcar COD**.
@@ -797,7 +799,7 @@ No **transbordo**, a carga segue até o destino original e nada muda na cobranç
 :::
 
 ::: conferir
-Na ficha do B/L, o cartão **COD para BRVIX** e o bloco **Documento Mercante** ("Sem vínculo com Manifesto Mercante"). Na ficha da Viagem, a rota do COD em **Rotas e Manifestos**. Se o B/L já estava faturado, o Ajuste de COD fica com o Financeiro (capítulo 24).
+Na **Visão geral** da ficha do B/L, ao lado dos blocos **Embarque** (Viagem, armador, trecho e terminal de descarga), **Cliente**, **Carga** e **Portal**, ficam o cartão **COD para BRVIX** e o bloco **Documento Mercante** (o CE do B/L, "não muda com COD", e "Sem vínculo com Manifesto Mercante"). Na ficha da Viagem, a rota do COD em **Rotas e Manifestos**. Se o B/L já estava faturado, o Ajuste de COD fica com o Financeiro (capítulo 24).
 :::
 
 <!-- regras: VIA-145 CEB-099 -->

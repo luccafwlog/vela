@@ -13,13 +13,13 @@ A documentação de uma Viagem chega do armador em arquivos: o B/L de cada carga
 
 <!-- regras: BLR-013 VIA-010 CEB-001 -->
 
-Toda importação é feita para uma Viagem. A Viagem de destino é escolhida antes do arquivo, para o Vela comparar o arquivo com ela. Esta seção mostra onde ficam as importações e o que todas têm em comum; as seções seguintes explicam cada arquivo.
-
 ::: ficha
 - **Quando usar:** Antes da primeira importação, e sempre que tiver dúvida sobre o que a janela de importação está mostrando.
 - **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}} importa os B/Ls, o CE Mercante e o Baplie.
 - **Antes de começar:** A Viagem precisa existir no Vela, com as escalas planejadas (capítulo 4).
 :::
+
+Toda importação é feita para uma Viagem. A Viagem de destino é escolhida antes do arquivo, para o Vela comparar o arquivo com ela. Esta seção mostra onde ficam as importações e o que todas têm em comum; as seções seguintes explicam cada arquivo.
 
 Há três caminhos para importar, e eles abrem as mesmas janelas:
 
@@ -89,7 +89,7 @@ O arquivo de B/L de container é a exceção: o Vela lê as células pela posiç
 
 <!-- regras: BLR-068 -->
 
-O Vela guarda uma impressão digital (assinatura) de cada arquivo importado, com o nome dele. Se você escolhe de novo o mesmo arquivo para a mesma Viagem e o mesmo tipo de importação, a prévia avisa **Arquivo já importado**: "Este arquivo já foi importado em <data> por <pessoa>." e "A importação continua permitida; confira se é mesmo para gravar de novo.". Manifesto BB e B/L avulso contam como o mesmo tipo. O aviso não impede a importação.
+O Vela guarda uma impressão digital (assinatura) de cada arquivo importado, com o nome dele. Se você escolhe de novo o mesmo arquivo para a mesma Viagem e o mesmo tipo de importação, a prévia avisa **Arquivo já importado**: "Este arquivo já foi importado em \<data> por \<pessoa>." e "A importação continua permitida; confira se é mesmo para gravar de novo.". Manifesto BB e B/L avulso contam como o mesmo tipo. O aviso não impede a importação.
 
 Se a assinatura não pôde ser calculada, a importação segue. Assinatura com defeito é recusada: "Assinatura do arquivo inválida: escolha o arquivo de novo.".
 
@@ -107,7 +107,7 @@ Na planilha de CE, se a gravação inteira trava com outra, a janela tenta de no
 
 - **Linha do tempo da Viagem** (aba **Visão geral**): cada importação de B/L (de container, Manifesto BB ou B/L avulso) aparece como "N B/Ls importados · POL → POD", ou "· N rotas", com cada rota no detalhe, e com CNTR ou BB e o autor. O registro guarda o nome do arquivo, quem importou, quando, a Viagem e o total de B/Ls.
 - A contagem e a rota do evento são as dos B/Ls que hoje estão ligados àquela importação. O B/L reimportado passa para a importação nova e sai do evento antigo, que fica com o total gravado e o nome do arquivo. Por isso, a rota de um evento antigo mostra os B/Ls de hoje, não os do dia da importação.
-- **Histórico do B/L**: toda linha que a importação cria, altera ou exclui fica com quem, quando, antes → depois e a **Origem** "Importação de <tipo> · Viagem <navio> <número>". O que a importação grava ao criar o B/L aparece como um único "B/L criado".
+- **Histórico do B/L**: toda linha que a importação cria, altera ou exclui fica com quem, quando, antes → depois e a **Origem** "Importação de \<tipo> · Viagem \<navio> \<número>". O que a importação grava ao criar o B/L aparece como um único "B/L criado".
 
 ### As telas se atualizam sozinhas
 
@@ -123,13 +123,13 @@ A prévia existe para nada ser gravado sem alguém conferir. O "tudo ou nada" fa
 
 <!-- regras: BLR-017 EQU-005 -->
 
-O B/L (conhecimento de embarque) é o documento que agrupa a carga de um consignatário, a empresa que recebe a carga. É pelo B/L que o Vela vincula o Cliente, calcula as Taxas Locais (as cobranças do porto de destino) e mostra a carga no Portal. Os containers só entram no Vela por esta importação: o Baplie confere a carga a bordo, mas não cria container no B/L. Por isso, a lista **Containers** sem filtro diz "Nenhum container importado" até o primeiro arquivo de B/L.
-
 ::: ficha
 - **Quando usar:** O armador mandou as planilhas dos B/Ls de container de uma Viagem.
 - **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
 - **Antes de começar:** A Viagem precisa estar no Vela, com as escalas (capítulo 4). Tenha os arquivos .xlsx ou .xls no layout da COSCO, um B/L por arquivo, até 10 MB cada.
 :::
+
+O B/L (conhecimento de embarque) é o documento que agrupa a carga de um consignatário, a empresa que recebe a carga. É pelo B/L que o Vela vincula o Cliente, calcula as Taxas Locais (as cobranças do porto de destino) e mostra a carga no Portal. Os containers só entram no Vela por esta importação: o Baplie confere a carga a bordo, mas não cria container no B/L. Por isso, a lista **Containers** sem filtro diz "Nenhum container importado" até o primeiro arquivo de B/L.
 
 A janela **Importar B/L de container** abre de três lugares: **BLs › Importar › B/L de contêiner (.xlsx)**; a ficha da Viagem, aba **Importação**, **Importação rápida › B/L container** (com a Viagem já escolhida); e a ficha do B/L, **Reimportar B/L** ([6.3](#s6-3)).
 
@@ -178,7 +178,7 @@ Do documento, o Vela lê:
 
 A data de emissão é a Date of Issue ou, sem ela, o Laden on Board. O pagamento do frete vem da linha Ocean Freight.
 
-**Containers.** Só vira container o número no padrão ISO: quatro letras e sete algarismos, sem espaço (por exemplo, CSNU2401010). Cláusula ou texto no meio dos containers é ignorado, e o mesmo container repetido no arquivo conta uma vez. As planilhas põem o número em maiúsculas e tiram os espaços das pontas; o resto é recusado ("formato ISO esperado (XXXX0000000)").
+**Containers.** Só vira container o número no padrão ISO: quatro letras e sete algarismos, sem espaço (por exemplo, CSNU2401018). Cláusula ou texto no meio dos containers é ignorado, e o mesmo container repetido no arquivo conta uma vez. As planilhas põem o número em maiúsculas e tiram os espaços das pontas; o resto é recusado ("formato ISO esperado (XXXX0000000)").
 
 **IMO e OOG.** Classe IMO ou número ONU na descrição marcam os containers do B/L como IMO (carga perigosa). O arquivo nunca marca OOG (carga fora de medida): essa marca vem do Baplie ou da correção manual.
 
@@ -188,7 +188,7 @@ A data de emissão é a Date of Issue ou, sem ela, o Laden on Board. O pagamento
 
 <!-- regras: BLR-098 -->
 
-**NCM.** O NCM é campo próprio do B/L e é exigido na manifestação no Mercante: códigos separados por vírgula, só algarismos, de 4 a 8 por código. Na ficha do B/L, a tela descarta código com menos de 4 algarismos ou repetido e corta o que passa de 8. Quando a descrição da carga declara outro NCM, o botão "Usar <códigos>, que a descrição declara, como NCM do B/L" preenche o campo. NCM vazio quer dizer que ninguém cadastrou e nenhum documento declarou.
+**NCM.** O NCM é campo próprio do B/L e é exigido na manifestação no Mercante: códigos separados por vírgula, só algarismos, de 4 a 8 por código. Na ficha do B/L, a tela descarta código com menos de 4 algarismos ou repetido e corta o que passa de 8. Quando a descrição da carga declara outro NCM, o botão "Usar \<códigos>, que a descrição declara, como NCM do B/L" preenche o campo. NCM vazio quer dizer que ninguém cadastrou e nenhum documento declarou.
 
 ### A prévia
 
@@ -204,7 +204,7 @@ A **Prévia** mostra 10 B/Ls por página, com as colunas:
 
 O resumo no alto conta os novos, os atualizados, os sem mudança, os com erro e os de CNPJ não identificado.
 
-Erro em qualquer B/L recusa o arquivo inteiro: o botão **Importar N B/Ls** fica desligado e o rodapé diz "Com erro no arquivo, nada é importado. Corrija e escolha o arquivo de novo.". Com vários arquivos, um que não pôde ser lido bloqueia todos. A gravação também é uma só: se o Vela recusa qualquer B/L ao gravar, nada fica gravado, a tela diz "Nada foi gravado: <motivo>" e a prévia continua aberta.
+Erro em qualquer B/L recusa o arquivo inteiro: o botão **Importar N B/Ls** fica desligado e o rodapé diz "Com erro no arquivo, nada é importado. Corrija e escolha o arquivo de novo.". Com vários arquivos, um que não pôde ser lido bloqueia todos. A gravação também é uma só: se o Vela recusa qualquer B/L ao gravar, nada fica gravado, a tela diz "Nada foi gravado: \<motivo>" e a prévia continua aberta.
 
 ### O Cliente do B/L
 
@@ -232,7 +232,7 @@ A gravação tem um tempo máximo de 60 segundos, o bastante para uns 7.000 cont
 ::: sozinho
 - Vincula o Cliente pelo CNPJ e marca o vínculo "Conferido por CNPJ".
 - Transforma o e-mail do consignatário em contato do Cliente, só quando o CNPJ do documento é o do Cliente. O endereço novo entra ativo, com a origem "Capturado do B/L": como principal (nas três caixas) se o Cliente não tem contato principal ativo; senão, como adicional, só em Documentação e Operação. Endereço já cadastrado, ativo ou desativado, não é duplicado, reativado nem muda de caixa; se ele está desativado e o Cliente não tem principal ativo, abre o alerta "Cliente sem contato principal". O Histórico do Cliente mostra "Contatos: alteração via B/L".
-- Usa o Laden on Board para o ATD (saída real) do POL da Viagem: vale o menor entre os B/Ls ativos do mesmo POL. ATD corrigido à mão na Viagem não muda, e a prévia avisa: "ATD do POL <porto> corrigido à mão em <data>: o Laden on Board do arquivo é <data> e o ATD não muda.".
+- Usa o Laden on Board para o ATD (saída real) do POL da Viagem: vale o menor entre os B/Ls ativos do mesmo POL. ATD corrigido à mão na Viagem não muda, e a prévia avisa: "ATD do POL \<porto> corrigido à mão em \<data>: o Laden on Board do arquivo é \<data> e o ATD não muda.".
 - Põe o B/L novo cujo POD foi omitido na Viagem como afetado pela omissão, com disposição Transbordo; a prévia avisa, e o Histórico do B/L registra "B/L importado depois da omissão de …: afetado, disposição Transbordo" (capítulo 4).
 - Passa cada B/L sem fatura pela Revisão: com pendência, ele fica **Pendente**, e a linha "Pendencias de importacao: …" vai para o fim das notas, sem apagar o que a pessoa escreveu; sem pendência, fica **Revisado**. O Histórico registra "Gate canonico aplicado apos importacao" ou, quando a segunda passada da gravação muda a situação, "Gate canonico reaplicado apos e-mail importado". Cliente achado só pelo nome deixa o B/L sem Cliente e **Pendente**. B/L faturado não é reavaliado.
 - Registra a importação na **Linha do tempo** da Viagem e cada mudança no Histórico do B/L ([6.1](#s6-1)).
@@ -244,7 +244,7 @@ Em **BLs**, filtre pela Viagem: os B/Ls aparecem com o Cliente (ou sem Cliente v
 
 <!-- regras: BLR-019 -->
 
-::: aconteceu "Arquivo é da viagem <navio / viagem>, mas você apontou <navio / viagem>."
+::: aconteceu "Arquivo é da viagem \<navio / viagem>, mas você apontou \<navio / viagem>."
 - **O que o sistema faz:** Marca o B/L com erro e não deixa importar nada.
 - **Por quê:** A Viagem de destino é escolhida antes do arquivo justamente para o Vela comparar navio e viagem.
 - **O que você faz:** Confira a Viagem de destino. Se escolheu errado, troque a Viagem: a prévia é refeita. Se o arquivo é que está errado, peça o arquivo certo ao armador.
@@ -260,7 +260,7 @@ Em **BLs**, filtre pela Viagem: os B/Ls aparecem com o Cliente (ou sem Cliente v
 
 <!-- regras: BLR-026 -->
 
-::: aconteceu "O B/L <nº> já está na Viagem <navio / viagem>: exclua o B/L lá e importe de novo (cancelar não libera o número)."
+::: aconteceu "O B/L \<nº> já está na Viagem \<navio / viagem>: exclua o B/L lá e importe de novo (cancelar não libera o número)."
 - **O que o sistema faz:** Marca a linha com erro na prévia e recusa o B/L na gravação. A importação nunca muda a Viagem de um B/L. Se ele está cancelado na outra Viagem, a mensagem é "O B/L … está cancelado na Viagem …: o número continua lá. Exclua o B/L na Viagem … e importe de novo.".
 - **Por quê:** O número do B/L existe uma vez só no Vela, mesmo cancelado.
 - **O que você faz:** Siga [6.10](#s6-10): o {{Administrativo}} exclui o B/L na Viagem errada e você importa de novo na certa.
@@ -268,7 +268,7 @@ Em **BLs**, filtre pela Viagem: os B/Ls aparecem com o Cliente (ou sem Cliente v
 
 <!-- regras: BLR-027 -->
 
-::: aconteceu "B/L <nº> está cancelado e não será alterado: para importar, reative o B/L pela ficha (Administrativo) e importe de novo."
+::: aconteceu "B/L \<nº> está cancelado e não será alterado: para importar, reative o B/L pela ficha (Administrativo) e importe de novo."
 - **O que o sistema faz:** Deixa esse B/L de fora, sem tocar nele, e importa o resto. O resultado lista "B/Ls cancelados que ficaram como estavam". A importação nunca reativa um B/L. Arquivo só com B/Ls cancelados não grava nada: "Nada foi gravado: todos os B/Ls do arquivo estão cancelados. Reative pela ficha (Administrativo) e importe de novo.".
 - **Por quê:** B/L cancelado é somente leitura.
 - **O que você faz:** Se o B/L deve voltar, peça ao {{Administrativo}} **Mais ações › Reativar B/L** na ficha e importe de novo. Se o armador reemitiu com outro número, importe o B/L novo ([6.10](#s6-10)).
@@ -284,7 +284,7 @@ Em **BLs**, filtre pela Viagem: os B/Ls aparecem com o Cliente (ou sem Cliente v
 
 <!-- regras: BLR-029 -->
 
-::: aconteceu "POD "<texto>" não está no cadastro de portos: cadastre o porto ou corrija o arquivo."
+::: aconteceu "POD "\<texto>" não está no cadastro de portos: cadastre o porto ou corrija o arquivo."
 - **O que o sistema faz:** Marca a linha com erro. Sem o porto de descarga, a mensagem é "POD ausente no arquivo: informe o porto de descarga.". O POD é reconhecido pelo apelido conhecido ou pelo cadastro de portos (nome ou código); o POL reconhecido pelo cadastro é gravado com o código do porto.
 - **Por quê:** O POD define a tabela de cobrança, o Manifesto e a escala.
 - **O que você faz:** Corrija o arquivo, ou cadastre o porto (capítulo 5), e escolha o arquivo de novo.
@@ -292,7 +292,7 @@ Em **BLs**, filtre pela Viagem: os B/Ls aparecem com o Cliente (ou sem Cliente v
 
 <!-- regras: BLR-034 -->
 
-::: aconteceu "Container <nº> já está no B/L <nº> (<Cliente>): container FCL não é dividido entre Clientes diferentes."
+::: aconteceu "Container \<nº> já está no B/L \<nº> (\<Cliente>): container FCL não é dividido entre Clientes diferentes."
 - **O que o sistema faz:** Marca o erro na prévia e recusa na gravação quando o container FCL já está num B/L ativo de outro Cliente na mesma Viagem.
 - **Por quê:** Container cheio (FCL) é de um Cliente só. Só B/L LCL e container com veículos podem ser divididos entre Clientes.
 - **O que você faz:** Confirme com o armador qual B/L está certo e corrija o arquivo ou o outro B/L.
@@ -365,7 +365,7 @@ O container gravado que o arquivo novo não traz sai do B/L, mas só quando a pr
 
 <!-- regras: BLR-035 BLR-036 -->
 
-O B/L com fatura emitida (faturado, pago ou com fatura viva) não muda a cobrança sem alguém decidir. Quando o arquivo muda algo que afeta a cobrança (quantidade de containers, container dividido com outro B/L, perfil IMO/OOG, SOC/COC, peso de B/L só de carga solta, CNPJ faturado, POL ou POD), a prévia abre o bloco **Faturamento**. Ele mostra o que acontece com cada fatura e traz uma confirmação por B/L, "Confirmar o faturamento do B/L <nº>"; com vários B/Ls, uma caixa marca todos. A confirmação nunca vem marcada.
+O B/L com fatura emitida (faturado, pago ou com fatura viva) não muda a cobrança sem alguém decidir. Quando o arquivo muda algo que afeta a cobrança (quantidade de containers, container dividido com outro B/L, perfil IMO/OOG, SOC/COC, peso de B/L só de carga solta, CNPJ faturado, POL ou POD), a prévia abre o bloco **Faturamento**. Ele mostra o que acontece com cada fatura e traz uma confirmação por B/L, "Confirmar o faturamento do B/L \<nº>"; com vários B/Ls, uma caixa marca todos. A confirmação nunca vem marcada.
 
 - **Sem marcar:** o B/L entra com os demais campos, e containers, peso, cubagem, POL, POD, Place of Delivery e CNPJ, razão social e e-mail do consignatário ficam como estavam. O Histórico registra "Mudança com impacto na fatura não aplicada (sem confirmação)".
 - **Marcado:** a fatura segue a base nova sozinha. Sem pagamento, ela é cancelada e reemitida com o valor novo (com a consolidada que incluir o B/L). Com pagamento, fica desatualizada e segue para restituição ou cobrança avulsa (capítulo 22). O Histórico registra "Mudança com impacto na fatura … aplicada com confirmação".
@@ -376,7 +376,7 @@ O B/L só calculado, ainda sem fatura, recebe a base nova sem pedir confirmaçã
 
 <!-- regras: BLR-037 TAX-053 -->
 
-O preço das Taxas Locais é fixado no dia da importação e só muda pela prévia do arquivo de B/L. Para cada B/L já gravado, da mesma Viagem, não cancelado e sem fatura, a prévia calcula o preço de hoje (tabela de cobrança, Condição de Cliente, câmbio e total). Se ele difere do fixado, a seção **Preço** ("muda em N B/Ls") mostra o preço do dia da importação e o de hoje, com um aceite por B/L: "Passar o B/L <nº> ao preço de hoje".
+O preço das Taxas Locais é fixado no dia da importação e só muda pela prévia do arquivo de B/L. Para cada B/L já gravado, da mesma Viagem, não cancelado e sem fatura, a prévia calcula o preço de hoje (tabela de cobrança, Condição de Cliente, câmbio e total). Se ele difere do fixado, a seção **Preço** ("muda em N B/Ls") mostra o preço do dia da importação e o de hoje, com um aceite por B/L: "Passar o B/L \<nº> ao preço de hoje".
 
 - **Sem marcar:** o preço do dia da importação fica, e só a mudança do arquivo é aplicada.
 - **Marcado:** o B/L passa à tabela de cobrança, à Condição, ao câmbio e à data de hoje. O Histórico do B/L registra o motivo "Reimportação do arquivo de B/L: o operador aceitou o preço de hoje na prévia".
@@ -400,7 +400,7 @@ A troca também pode ser feita na ficha do B/L, por **Trocar Cliente** (capítul
 
 <!-- regras: BLR-045 VIA-069 FAT-135 -->
 
-O B/L em COD (mudança de destino registrada por causa de uma omissão de escala) mantém o POD do COD. A reimportação nunca muda o POD, nem o terminal, de um B/L em COD de omissão vigente; a prévia avisa "B/L em COD: o POD continua <porto> (o arquivo traz <porto>); os demais campos atualizam.". Fora do COD, o POD corrigido pelo arquivo tira a exceção de terminal do POD anterior e desvincula o B/L do Manifesto Mercante.
+O B/L em COD (mudança de destino registrada por causa de uma omissão de escala) mantém o POD do COD. A reimportação nunca muda o POD, nem o terminal, de um B/L em COD de omissão vigente; a prévia avisa "B/L em COD: o POD continua \<porto> (o arquivo traz \<porto>); os demais campos atualizam.". Fora do COD, o POD corrigido pelo arquivo tira a exceção de terminal do POD anterior e desvincula o B/L do Manifesto Mercante.
 
 ### Taxas alteradas à mão
 
@@ -422,13 +422,13 @@ Na ficha do B/L, aba **Histórico**: cada mudança, com antes → depois, e as l
 
 <!-- regras: BLR-030 -->
 
-::: aconteceu "Arquivo contém o B/L <nº>, mas a ficha aberta é a do <nº>."
+::: aconteceu "Arquivo contém o B/L \<nº>, mas a ficha aberta é a do \<nº>."
 - **O que o sistema faz:** Marca o erro e não importa nada.
 - **Por quê:** Pela ficha, a janela só aceita o arquivo do B/L que está aberto.
 - **O que você faz:** Escolha o arquivo certo, ou importe o outro B/L por **BLs › Importar**.
 :::
 
-::: aconteceu "O container <nº> do B/L <nº> sai pelo arquivo, mas tem o veículo <chassi>: mova ou exclua os veículos dele (planilha de Veículos ou ficha) antes de tirar o container."
+::: aconteceu "O container \<nº> do B/L \<nº> sai pelo arquivo, mas tem o veículo \<chassi>: mova ou exclua os veículos dele (planilha de Veículos ou ficha) antes de tirar o container."
 - **O que o sistema faz:** Marca a linha do B/L com erro e não deixa o container sair.
 - **Por quê:** Todo veículo precisa estar num container do B/L.
 - **O que você faz:** Mova ou exclua os veículos desse container, pela planilha de Veículos ou pela ficha (capítulo 10), e importe de novo.
@@ -448,18 +448,18 @@ O arquivo novo do armador é a fonte da lista de containers e dos dados do docum
 
 <!-- regras: BLR-048 EQU-012 -->
 
+::: ficha
+- **Quando usar:** O armador mandou o manifesto ou os B/Ls avulsos da carga solta de uma Viagem.
+- **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
+- **Antes de começar:** A Viagem precisa estar no Vela. Tenha a planilha .xlsx, .xls ou .csv (Manifesto BB) ou os arquivos .pdf ou .docx (B/L avulso).
+:::
+
 A carga solta (BB, de breakbulk) é a carga que viaja sem container, como máquinas e volumes. Ela entra de dois jeitos, e os dois gravam o mesmo B/L de carga solta, sem CE Mercante:
 
 - o **Manifesto de carga solta (BB)**, planilha com vários B/Ls: **BLs › Importar › Manifesto de carga solta (BB)**, ou na Viagem, **Importação rápida › Manifesto BB**. Abre a janela **Importar manifesto BB (carga solta)**, com a **Viagem de destino** escolhida na própria janela;
 - o **B/L de carga solta (.pdf, .docx)**, o B/L avulso do armador, um arquivo por B/L: **BLs › Importar › B/L de carga solta (.pdf, .docx)**, ou **Importação rápida › B/L carga solta**. Abre a janela **Importar B/Ls de carga solta**.
 
 O CE entra depois, pela planilha de CE Mercante, que também vincula o Manifesto Mercante ([6.5](#s6-5)). Cada importação é só de carga solta: o B/L que já tem containers e recebe carga solta passa a **Misto**.
-
-::: ficha
-- **Quando usar:** O armador mandou o manifesto ou os B/Ls avulsos da carga solta de uma Viagem.
-- **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
-- **Antes de começar:** A Viagem precisa estar no Vela. Tenha a planilha .xlsx, .xls ou .csv (Manifesto BB) ou os arquivos .pdf ou .docx (B/L avulso).
-:::
 
 ::: passos
 1. Em **BLs**, clique em **Importar** e em **Manifesto de carga solta (BB)**. A janela **Importar manifesto BB (carga solta)** abre.
@@ -533,7 +533,7 @@ A prévia mostra um arquivo por vez: B/L, Navio / viagem, Rota, Shipper, Consign
 
 - **B/L de outra Viagem** recusa o arquivo inteiro ([6.10](#s6-10)).
 - **B/L cancelado** é aviso: a linha é ignorada e o resto entra. Arquivo só com B/Ls cancelados não é erro: o rodapé diz "Nenhum B/L a importar." e o botão fica desativado.
-- **Reimportar** corrige só o que o arquivo traz. Valor vazio no arquivo não apaga o gravado. CE Mercante, Cliente vinculado e observações não mudam (o resultado avisa "CE Mercante ignorado em …"). A descrição montada a partir das quantidades do layout resumido só vai para B/L novo. O NCM do arquivo substitui o gravado só quando declarado. Os itens são trocados quando mudam; no B/L avulso (um item), o número que o documento não traz fica o do item gravado. O Histórico registra "Carga solta reimportada: <campos>", com a Viagem e a rota.
+- **Reimportar** corrige só o que o arquivo traz. Valor vazio no arquivo não apaga o gravado. CE Mercante, Cliente vinculado e observações não mudam (o resultado avisa "CE Mercante ignorado em …"). A descrição montada a partir das quantidades do layout resumido só vai para B/L novo. O NCM do arquivo substitui o gravado só quando declarado. Os itens são trocados quando mudam; no B/L avulso (um item), o número que o documento não traz fica o do item gravado. O Histórico registra "Carga solta reimportada: \<campos>", com a Viagem e a rota.
 - A importação que tiraria toda a carga solta de um B/L faturado ou pago é recusada inteira, pedindo estorno ou refaturamento antes.
 - A mesma pessoa pode gravar até cinco importações de B/L (de container, BB ou avulso) por minuto; a sexta pede para esperar.
 
@@ -547,7 +547,7 @@ A prévia mostra um arquivo por vez: B/L, Navio / viagem, Rota, Shipper, Consign
 
 No B/L de carga solta faturado (faturado, pago ou com fatura viva), POL, POD, peso, cubagem, volumes, máquinas e itens só mudam com a confirmação "Confirmo a mudança nos B/Ls faturados". Vale também para a carga solta nova num B/L de container faturado. A prévia mostra, por B/L, as faturas e o valor antes → depois, simulados sem gravar: "…, sem mudança de valor", "… → valor a revisar" ou "reemissão bloqueada (…); a fatura não será cancelada".
 
-- **Sem a confirmação:** o B/L faturado mantém os valores gravados, a carga solta nova não entra e o resultado diz, por exemplo, "<B/L>: POL e PESO mantido (B/L faturado, sem confirmação).".
+- **Sem a confirmação:** o B/L faturado mantém os valores gravados, a carga solta nova não entra e o resultado diz, por exemplo, "\<B/L>: POL e PESO mantido (B/L faturado, sem confirmação).".
 - **Com a confirmação:** a fatura sem pagamento só é cancelada e reemitida se o valor mudar (mudar só o POL não reemite). Com pagamento, a diferença segue para restituição ou cobrança avulsa. Se a fatura nova não puder sair, a antiga não é cancelada e abre o alerta **Fatura desatualizada**.
 
 ### Troca de Cliente na carga solta
@@ -559,14 +559,14 @@ O CNPJ de outro Cliente, ou de consignatário não cadastrado diferente do grava
 - **Sem o aceite:** Cliente e consignatário ficam ("Cliente e consignatário mantidos em …: a troca de Cliente não foi confirmada.").
 - **Com o aceite e consignatário não cadastrado:** o B/L sai do Cliente e volta à conciliação de Cliente. A gravação recusa essa troca quando o B/L está faturado (fatura viva, situação faturado ou pago, ou valor a receber com baixa), como a prévia avisa.
 
-O aceite vale só para a troca mostrada: se o B/L mudou depois da prévia, ele não é aplicado. B/L em COD mantém o POD ("POD mantido em <B/L> (B/L em COD).").
+O aceite vale só para a troca mostrada: se o B/L mudou depois da prévia, ele não é aplicado. B/L em COD mantém o POD ("POD mantido em \<B/L> (B/L em COD).").
 
 <!-- regras: BLR-059 BLR-060 -->
 
 ::: sozinho
 - Vincula o Cliente só pelo CNPJ exato (coluna CNPJ ou o lido no consignatário). Casado pelo CNPJ, o consignatário gravado passa a ser a razão social do Cliente. Pelo nome, o Cliente é só sugerido, e o B/L novo sem Cliente entra na Revisão com "Cliente nao vinculado automaticamente".
 - Não cria contato do Cliente: a carga solta não traz e-mail.
-- Calcula na hora as Taxas Locais do B/L novo ou alterado (e do idêntico que ainda não tinha cálculo). A falha recusa o arquivo. Depois a tela calcula de novo, e o que falhar só aparece no resultado ("<B/L> ficou sem cálculo automático: …"), sem desfazer nada.
+- Calcula na hora as Taxas Locais do B/L novo ou alterado (e do idêntico que ainda não tinha cálculo). A falha recusa o arquivo. Depois a tela calcula de novo, e o que falhar só aparece no resultado ("\<B/L> ficou sem cálculo automático: …"), sem desfazer nada.
 - Deixa o pedido de faturamento para o processamento que roda depois da importação ([6.11](#s6-11)), só para B/L novo ou alterado: reimportar o mesmo arquivo não gera trabalho.
 - Refaz a Revisão: com pendência, o B/L fica **Pendente**; sem pendência, o B/L que estava Pendente passa a **Sem pendência**.
 :::
@@ -578,7 +578,7 @@ Em **BLs**, com a lente **Carga solta** ou **Misto**, filtrando pela Viagem. Na 
 <!-- regras: BLR-053 -->
 
 ::: aconteceu "B/L de outra Viagem: o lote será recusado"
-- **O que o sistema faz:** A prévia avisa "O B/L <nº> já está na Viagem <navio / viagem>. A importação é recusada: exclua o B/L lá e importe de novo (cancelar não libera o número).". Na gravação, nenhum B/L do arquivo é gravado.
+- **O que o sistema faz:** A prévia avisa "O B/L \<nº> já está na Viagem \<navio / viagem>. A importação é recusada: exclua o B/L lá e importe de novo (cancelar não libera o número).". Na gravação, nenhum B/L do arquivo é gravado.
 - **Por quê:** A importação nunca muda a Viagem de um B/L, e o número existe uma vez só no Vela, mesmo cancelado.
 - **O que você faz:** Peça ao {{Administrativo}} para excluir o B/L na outra Viagem e importe de novo ([6.10](#s6-10)).
 :::
@@ -629,15 +629,15 @@ Manifesto BB e B/L avulso são duas formas do mesmo documento e gravam o mesmo B
 
 <!-- regras: CEB-003 CEB-022 CEB-023 -->
 
-O CE Mercante é o número de 15 algarismos do conhecimento eletrônico de cada B/L no Mercante. Ele entra só pela planilha de CE Mercante: nenhuma outra importação o grava, e o B/L nunca nasce com CE. Depois, só a ficha do B/L corrige ou remove o CE ([6.6](#s6-6)). Um número de CE só pode estar em um B/L não cancelado, contando também os B/Ls de Granito. O Vela compara o CE só pelas letras e algarismos, sem zeros à esquerda: "0123…" e "123…" são o mesmo CE.
-
-O CE é o que libera a fatura e o B/L no Portal. Por isso, ao gravar a planilha, a própria janela já emite as faturas.
-
 ::: ficha
 - **Quando usar:** O Mercante registrou os CEs dos B/Ls de uma rota e você tem a planilha com B/L e CE e o Nº de Manifesto Mercante.
 - **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
 - **Antes de começar:** Os B/Ls precisam estar importados ([6.2](#s6-2), [6.4](#s6-4)): o CE nunca cria B/L. Uma planilha por Manifesto, com os B/Ls da mesma Viagem e da mesma rota POL → POD.
 :::
+
+O CE Mercante é o número de 15 algarismos do conhecimento eletrônico de cada B/L no Mercante. Ele entra só pela planilha de CE Mercante: nenhuma outra importação o grava, e o B/L nunca nasce com CE. Depois, só a ficha do B/L corrige ou remove o CE ([6.6](#s6-6)). Um número de CE só pode estar em um B/L não cancelado, contando também os B/Ls de Granito. O Vela compara o CE só pelas letras e algarismos, sem zeros à esquerda: "0123…" e "123…" são o mesmo CE.
+
+O CE é o que libera a fatura e o B/L no Portal. Por isso, ao gravar a planilha, a própria janela já emite as faturas.
 
 A planilha se importa em **BLs › Importar › CE Mercante** ou na Viagem, aba **Importação**, **Importação rápida › CE Mercante**. Aberta pela Viagem, ou pela lista BLs filtrada por Viagem, a janela traz o campo **Viagem** já preenchido, e você pode mudá-lo. Pela lista sem filtro, não há campo **Viagem** e o arquivo entra inteiro.
 
@@ -740,7 +740,7 @@ Sem CE Mercante, a fatura de Taxas Locais não sai por nenhum caminho: o Vela re
 
 <!-- regras: CEB-018 CEB-019 FAT-049 -->
 
-Logo depois de gravar, a própria janela emite as faturas em lotes de 25 B/Ls, com o aviso **Emitindo as faturas em lotes. Não feche esta janela.**. Enquanto grava ou emite, o X, a tecla Esc e **Voltar** não fecham ("Aguarde: a gravação ou a emissão das faturas ainda está em andamento."). Terminada a emissão, o botão passa a **Concluir**.
+Logo depois de gravar, a própria janela emite as faturas em lotes de 25 B/Ls (o Vela aceita no máximo 50 por vez), com o aviso **Emitindo as faturas em lotes. Não feche esta janela.**. Enquanto grava ou emite, o X, a tecla Esc e **Voltar** não fecham ("Aguarde: a gravação ou a emissão das faturas ainda está em andamento."). Terminada a emissão, o botão passa a **Concluir**.
 
 O bloco **Resultado: emissão das faturas** conta os **processados** e separa cada B/L assim:
 
@@ -918,13 +918,13 @@ O CE é documento oficial. A troca fica registrada com motivo para qualquer pess
 
 <!-- regras: CEB-004 CEB-057 EQU-005 -->
 
-O Baplie é o arquivo do plano de carga do navio (no formato EDIFACT). Ele diz quais containers estão a bordo, cheios ou vazios, para que porto vão e com que marcas: IMO (carga perigosa), OOG (carga fora de medida) e SOC ou COC (container do próprio Cliente ou do armador). No Vela, o Baplie confere a carga física com os B/Ls e leva essas marcas aos containers dos B/Ls; ele não cria B/L nem container de B/L.
-
 ::: ficha
 - **Quando usar:** O armador mandou o Baplie da Viagem, ou uma versão nova dele.
 - **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
 - **Antes de começar:** A Viagem precisa ter as escalas de importação planejadas (capítulo 4). Tenha o arquivo .edi, .txt, .edi2 ou .bpl, até 10 MB.
 :::
+
+O Baplie é o arquivo do plano de carga do navio (no formato EDIFACT). Ele diz quais containers estão a bordo, cheios ou vazios, para que porto vão e com que marcas: IMO (carga perigosa), OOG (carga fora de medida) e SOC ou COC (container do próprio Cliente ou do armador). No Vela, o Baplie confere a carga física com os B/Ls e leva essas marcas aos containers dos B/Ls; ele não cria B/L nem container de B/L.
 
 O Baplie se importa em **Baplie EDI** (**Importar Baplie EDI** na Viagem sem Baplie, **Reimportar Baplie** na que já tem) ou na Viagem, aba **Importação**, **Importação rápida › Baplie EDI**. A janela **Importar Baplie EDI** é a mesma. Em **Baplie EDI**, a **Viagem de destino** vem com a Viagem da página e pode ser trocada; pela Viagem, ela vem fixa.
 
@@ -1045,7 +1045,7 @@ Se as marcas novas afetam uma taxa alterada ou uma isenção feita à mão, o Ve
 
 <!-- regras: CEB-078 CEB-076 CEB-095 -->
 
-Em **Baplie EDI**, o bloco **Carga física no Baplie** mostra "N containers", **Cheios**, **Vazios**, **IMO**, **OOG** e "importado em <data e hora>". A Viagem sem Baplie mostra **Esta viagem ainda não tem Baplie**, com **Importar Baplie EDI**.
+Em **Baplie EDI**, o bloco **Carga física no Baplie** mostra "N containers", **Cheios**, **Vazios**, **IMO**, **OOG** e "importado em \<data e hora>". A Viagem sem Baplie mostra **Esta viagem ainda não tem Baplie**, com **Importar Baplie EDI**.
 
 - Se algum container de B/L ainda não recebeu as marcas do Baplie, o bloco mostra **IMO/OOG do Baplie ainda não aplicados a N containers de B/L**, com **Aplicar IMO/OOG agora** (aviso "IMO/OOG do Baplie aplicados aos B/Ls."). Sem pendência, a nota diz que os dados estão aplicados. Importar o mesmo arquivo de novo também refaz a aplicação.
 - Hoje a janela não termina com o Baplie gravado e marcas ou vazios pendentes: ou entra tudo, ou nada. A pendência deixada por um Baplie gravado antes disso continua visível, com **Aplicar IMO/OOG agora** e **Atualizar vazios do Baplie** ([6.9](#s6-9)); o aviso de resultado parcial, com **Recadastrar vazios** e **Concluir**, só aparece nesse caso antigo.
@@ -1137,7 +1137,7 @@ O grupo **No Baplie, sem B/L** não repete a lista: **Ver os N containers na lis
 3. Confirme. Aparece **Divergência encerrada: vale o B/L.**.
 :::
 
-A janela avisa: "Resolve só esta divergência. Um Baplie novo ou uma nova planilha de B/L pode mudar o valor. A resolução fica no Histórico.". A resolução vale para o container em todos os B/Ls ativos da Viagem com o mesmo valor. No perfil IMO/OOG, o valor do B/L passa a ser correção manual. No SOC/COC, fica registrada só a resolução daquele par de valores (um Baplie novo com outro valor volta a divergir), e a origem continua do B/L. O Histórico do B/L registra "Vale o B/L: <motivo>". Repetir para o mesmo par só atualiza o autor, a data e o motivo.
+A janela avisa: "Resolve só esta divergência. Um Baplie novo ou uma nova planilha de B/L pode mudar o valor. A resolução fica no Histórico.". A resolução vale para o container em todos os B/Ls ativos da Viagem com o mesmo valor. No perfil IMO/OOG, o valor do B/L passa a ser correção manual. No SOC/COC, fica registrada só a resolução daquele par de valores (um Baplie novo com outro valor volta a divergir), e a origem continua do B/L. O Histórico do B/L registra "Vale o B/L: \<motivo>". Repetir para o mesmo par só atualiza o autor, a data e o motivo.
 
 ### A lista Containers do Baplie
 
@@ -1178,13 +1178,13 @@ A conciliação não muda nada sozinha: ela mostra onde o físico (Baplie) e o d
 
 <!-- regras: CEB-092 CEB-093 -->
 
-Os containers vazios que o navio descarrega (vazios de importação) ficam fora da conciliação com B/L. Eles podem entrar pela planilha de Vazios IMP (capítulo 10) ou pelo próprio Baplie.
-
 ::: ficha
 - **Quando usar:** O Baplie da Viagem trouxe vazios que ainda não estão cadastrados.
 - **Quem faz:** {{Qualquer equipe}}. Na rotina, {{Equipamentos}} cuida dos vazios.
 - **Antes de começar:** Abra **Baplie EDI** e escolha a Viagem. O bloco **Vazios de importação** mostra "N vazios — ainda não cadastrados; entram sem Nº de manifesto Mercante, informado depois em Rotas e Manifestos da viagem".
 :::
+
+Os containers vazios que o navio descarrega (vazios de importação) ficam fora da conciliação com B/L. Eles podem entrar pela planilha de Vazios IMP (capítulo 10) ou pelo próprio Baplie.
 
 ::: passos
 1. No bloco **Vazios de importação**, clique em **Cadastrar N vazios** (no exemplo, **Cadastrar 2 vazios**).
@@ -1198,7 +1198,7 @@ Os containers vazios que o navio descarrega (vazios de importação) ficam fora 
 
 A planilha de Vazios IMP vale sobre o Baplie: o Baplie só cadastra os vazios que nenhuma planilha trouxe. O bloco avisa "N vazios já estão na planilha de Vazios de importação", com "Rota diferente: …" quando a rota não bate. Com todos já na planilha, não há botão. Se o Vela não consegue conferir a planilha, não há ação: "Não foi possível conferir os vazios na planilha", com **Tentar de novo**.
 
-Depois do cadastro, o bloco diz "cadastrados em <data>". Se o cadastro difere dos vazios deste Baplie (containers, rotas ou quantidade), ele fica em âmbar, com **Atualizar vazios do Baplie**, que refaz o cadastro e mantém a natureza digitada (cama ou cover plate). Um Baplie sem nenhum vazio tira da Viagem os vazios do Baplie anterior, com a natureza e o Nº do manifesto Mercante de vazios das rotas que ficam sem container. O link **Abrir Vazios de importação →** leva à tela de vazios.
+Depois do cadastro, o bloco diz "cadastrados em \<data>". Se o cadastro difere dos vazios deste Baplie (containers, rotas ou quantidade), ele fica em âmbar, com **Atualizar vazios do Baplie**, que refaz o cadastro e mantém a natureza digitada (cama ou cover plate). Um Baplie sem nenhum vazio tira da Viagem os vazios do Baplie anterior, com a natureza e o Nº do manifesto Mercante de vazios das rotas que ficam sem container. O link **Abrir Vazios de importação →** leva à tela de vazios.
 
 ::: conferir
 O aviso diz quantos vazios foram cadastrados ("N vazios cadastrados em Vazios de importação; N ficaram com a planilha."). Em **Vazios IMP**, os vazios aparecem na Viagem. Na aba **Rotas e Manifestos**, a linha VAZIOS mostra "A informar" até o Nº de manifesto Mercante ser informado.
@@ -1217,13 +1217,13 @@ A planilha de Vazios IMP é a fonte dos vazios; o Baplie só preenche o que ela 
 
 <!-- regras: BLR-026 CEB-023 -->
 
-O número identifica o B/L no Vela, no Portal e no Mercante, e existe uma vez só no Vela, mesmo cancelado. A importação nunca muda a Viagem de um B/L, e um B/L novo nunca vira o antigo. Por isso, trocar um B/L é sempre tirar o antigo e importar o novo.
-
 ::: ficha
 - **Quando usar:** O armador reemitiu o B/L com outro número, ou um B/L foi importado na Viagem errada.
 - **Quem faz:** {{Administrativo}} exclui ou cancela o B/L antigo; {{Qualquer equipe}} importa o novo e o CE.
 - **Antes de começar:** Na ficha do B/L antigo, veja se ele tem CE Mercante (bloco **Documento Mercante**) e fatura (aba **Faturamento**).
 :::
+
+O número identifica o B/L no Vela, no Portal e no Mercante, e existe uma vez só no Vela, mesmo cancelado. A importação nunca muda a Viagem de um B/L, e um B/L novo nunca vira o antigo. Por isso, trocar um B/L é sempre tirar o antigo e importar o novo.
 
 ### O armador reemitiu o B/L com outro número
 
@@ -1240,7 +1240,7 @@ O CE do B/L cancelado fica livre para o B/L reemitido. Se depois alguém reativa
 
 ### O B/L foi importado na Viagem errada
 
-Na Viagem certa, a importação recusa o B/L: "O B/L <nº> já está na Viagem <navio / viagem>: exclua o B/L lá e importe de novo (cancelar não libera o número).".
+Na Viagem certa, a importação recusa o B/L: "O B/L \<nº> já está na Viagem \<navio / viagem>: exclua o B/L lá e importe de novo (cancelar não libera o número).".
 
 ::: passos
 1. Peça ao {{Administrativo}} para excluir o B/L na Viagem errada (lista **BLs**, caixa de seleção, **Excluir**).
