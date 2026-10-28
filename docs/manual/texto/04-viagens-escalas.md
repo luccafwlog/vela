@@ -717,7 +717,7 @@ A confirmação da omissão, com o aviso de que qualquer setor pode reverter.
 :::
 :::
 
-A confirmação avisa: "Qualquer setor pode reverter a omissão, com justificativa; a reversão mantém o histórico da omissão e também notifica os clientes.". Se a gravação falha, aparece "Falha ao omitir a escala.".
+A confirmação avisa: "Qualquer setor pode reverter a omissão, com justificativa; a reversão mantém o histórico da omissão e também notifica os clientes.". Se o Vela recusa, o motivo aparece na própria janela, que fica aberta ([4.12](#412-situações-comuns)); sem motivo legível, aparece "Falha ao omitir a escala. Tente novamente.".
 
 ::: sozinho
 <!-- regras: VIA-059 VIA-060 VIA-131 VIA-053 POR-083 -->
@@ -755,7 +755,7 @@ A confirmação avisa: "Qualquer setor pode reverter a omissão, com justificati
 <!-- regras: VIA-064 ACE-086 -->
 
 ::: aconteceu "Omiti a escala por engano"
-- **O que o sistema faz:** **Reverter omissão** desfaz a omissão. Qualquer equipe reverte, com justificativa obrigatória. A janela **Reverter omissão de escala** avisa: "Esta ação reverte a omissão para N B/L(s); a omissão e o transbordo ficam no histórico. Clientes com link a um B/L afetado serão notificados da correção.". Revertida, a escala volta a contar para a Próxima escala, para o status da Viagem (recalculado na hora) e para o ADR. Os B/Ls deixam de mostrar o transbordo, o Histórico registra a reversão e cada Cliente vinculado recebe no Portal "Correção de omissão de escala". A reversão é recusada se algum B/L afetado está em COD ("Nao e possivel reverter a omissao: N B/L(s) afetado(s) estao em COD."; a janela diz também "Falha ao reverter a omissão. Verifique se algum B/L está em COD.").
+- **O que o sistema faz:** **Reverter omissão** desfaz a omissão. Qualquer equipe reverte, com justificativa obrigatória. A janela **Reverter omissão de escala** avisa: "Esta ação reverte a omissão para N B/L(s); a omissão e o transbordo ficam no histórico. Clientes com link a um B/L afetado serão notificados da correção.". Revertida, a escala volta a contar para a Próxima escala, para o status da Viagem (recalculado na hora) e para o ADR. Os B/Ls deixam de mostrar o transbordo, o Histórico registra a reversão e cada Cliente vinculado recebe no Portal "Correção de omissão de escala". A reversão é recusada se algum B/L afetado está em COD ("Nao e possivel reverter a omissao: N B/L(s) afetado(s) estao em COD."; a janela mostra essa recusa seguida de "Verifique se algum B/L está em COD.").
 - **Por quê:** A reversão corrige o registro, mas a omissão e o transbordo ficam no histórico, e o Cliente é avisado da correção.
 - **O que você faz:** Se algum B/L está em COD, reverta antes o COD de cada um ([4.8](#48-mudar-o-destino-de-um-bl-afetado-cod-ou-voltar-ao-transbordo)). Depois, no cartão **Informações de Transbordo**, clique em **Reverter omissão**, escreva a **Justificativa** e confirme em **Reverter omissão**.
 :::
