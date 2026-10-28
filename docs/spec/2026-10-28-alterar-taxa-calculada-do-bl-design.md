@@ -145,3 +145,16 @@ Esta decisão pede uma ADR nova, que supersede parcialmente a
 "ninguém digita valor de correção nem concede desconto") e preserva o
 princípio central: fatura emitida nunca é editada; o sistema reemite, abate ou
 restitui.
+
+### D9 — Portal: o Cliente vê só o valor final
+
+Na fatura (Portal, impressão e e-mail) a taxa alterada aparece como qualquer
+outra, com o valor novo; a taxa excluída não aparece. Não há marca, valor da
+tabela nem ajuste à vista do Cliente, como já acontece com a Condição de
+Cliente; a justificativa é interna. Na taxa com valor total alterado, o
+**Unitário** impresso é o total dividido pela quantidade, arredondado (como no
+rateio do container compartilhado), e vale o total. Fatura já emitida segue a
+D8: "Nova fatura emitida" com número novo, e a antiga em **Cancelada** como
+"Substituída pela INV-…"; com pagamento, o Cliente vê o saldo abatido ou a
+restituição. Uma observação para o Cliente na fatura pode entrar depois, como
+pedido separado, sem refazer esta mudança.
