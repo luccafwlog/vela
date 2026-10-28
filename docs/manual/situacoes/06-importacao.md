@@ -57,7 +57,8 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
 
 - **O que o sistema faz:** no arquivo de B/L de container, a linha vira erro:
   "O B/L … já está na Viagem …: exclua o B/L lá e importe de novo (cancelar não
-  libera o número)". Na carga solta, o arquivo inteiro é recusado.
+  libera o número)". Na carga solta, o arquivo inteiro é recusado, com a mesma
+  orientação.
 - **Por quê:** a importação nunca muda a Viagem de um B/L, e o número do B/L
   existe uma vez só no sistema, mesmo cancelado.
 - **O que você faz:** peça ao Administrativo para excluir o B/L na Viagem
@@ -65,11 +66,11 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
   Viagem certa. A exclusão só é possível se o B/L não tem CE Mercante nem
   documento financeiro; veja S6.18.
 - **Regras:** BLR-015, BLR-026, BLR-053.
-- **P1 (decidida em 2026-10-28):** a mensagem da carga solta manda "corrija a
-  Viagem do B/L pela ficha", mas a ficha do B/L não tem como mudar a Viagem
-  (`BlDetalhesTab` e `useBlEditForm` não têm o campo). O dono decidiu que ela
-  dirá o mesmo que a do B/L de container; a correção é tarefa separada. O
-  manual ensina excluir e importar de novo.
+- **P1 (decidida e corrigida em 2026-10-28):** a mensagem da carga solta
+  mandava "corrija a Viagem do B/L pela ficha", mas a ficha do B/L não tem
+  como mudar a Viagem. O dono decidiu que ela diria o mesmo que a do B/L de
+  container; a correção entrou pela PR luccafwlog/vela#1083 (migration `500`).
+  O manual ensina excluir e importar de novo.
 
 #### S6.04 — O B/L do arquivo está cancelado
 
@@ -434,7 +435,7 @@ EQU-033), Base de Clientes (capítulo 13; CLI-014 a CLI-020) e arquivo da ZPT
 | Nº | Situação | Pergunta |
 |---|---|---|
 Todas decididas em 2026-10-28: P1 (S6.03; a mensagem da carga solta passa a
-dizer o mesmo que a do container, em tarefa separada), P2 (S6.18; caso raro:
+dizer o mesmo que a do container, corrigida pela migration `500`), P2 (S6.18; caso raro:
 o manual orienta conferir a Viagem antes do CE e, se acontecer, levar ao
 suporte técnico; o sistema não muda) e P3 (S6.12; container com Demurrage que
 sai do B/L não ocorre na operação).

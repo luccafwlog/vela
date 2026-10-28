@@ -31,8 +31,8 @@ No mesmo dia o dono aprovou o sumário final (24 capítulos), o que fecha a
 Etapa 1, e pediu para começar a Etapa 2 pela importação de arquivos. O
 [catálogo de situações do capítulo 6](../manual/situacoes/06-importacao.md)
 está em rascunho: 10 objetivos e 35 situações ligadas às regras da matriz; as
-três perguntas ao dono (P1 a P3) foram decididas em 2026-10-28 (a correção da
-mensagem da P1 é tarefa separada). Os catálogos dos
+três perguntas ao dono (P1 a P3) foram decididas em 2026-10-28 (a mensagem da
+P1 foi corrigida pela migration `500`, PR luccafwlog/vela#1083). Os catálogos dos
 [capítulos 4](../manual/situacoes/04-viagens-escalas.md) e
 [5](../manual/situacoes/05-programacao.md) também estão em rascunho; a
 pergunta P4 (falhas de COD, transbordo e Complementar sem aviso na tela) foi
