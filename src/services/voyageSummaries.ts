@@ -374,9 +374,14 @@ function getEscalaPort(row: { pod?: string; port?: string }) {
   return row.port ?? row.pod ?? null
 }
 
+/**
+ * O ETA vence ao fim do seu dia. Vale pela parte da data: o ETA com hora vem
+ * como `YYYY-MM-DDTHH:MM:00` (`combineIsoDateTime`) e concatenar `T23:59:59`
+ * nele dava data inválida, nunca vencida.
+ */
 export function isEtaOverdue(eta: string | null, now: Date = new Date()): boolean {
   if (!eta) return false
-  return new Date(`${eta}T23:59:59`) < now
+  return new Date(`${eta.slice(0, 10)}T23:59:59`) < now
 }
 
 // --- Rail (lista master-detail) ----------------------------------------------

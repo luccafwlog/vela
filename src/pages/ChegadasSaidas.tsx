@@ -16,6 +16,7 @@ import { ScheduleLegend, ScheduleTable, ScheduleWidthPage } from '../components/
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { assertUploadSize } from '../lib/fileGuard'
+import { saoPauloTodayIso } from '../lib/dates'
 import { useAuth } from '../hooks/useAuth'
 import { userFacingErrorMessage } from '../lib/errors'
 import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
@@ -50,7 +51,7 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing, saving 
     if (omitted) {
       nextDates[label] = ''
     } else if (!nextDates[label]) {
-      nextDates[label] = new Date().toISOString().slice(0, 10)
+      nextDates[label] = saoPauloTodayIso()
     }
     onChange({
       ...formData,
@@ -131,6 +132,18 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing, saving 
       </div>
     </form>
   )
+}
+
+/**
+ * O que "Não escala" faz com cada escala, pela regra de
+ * `createOrAttachVoyageFromSchedule`: só o Administrativo retira a escala, e só
+ * a sem âncora; os demais só tiram a data.
+ */
+function clearedPodConsequence(cleared: string[], isAdmin: boolean): string {
+  const ports = `Escalas marcadas como “não escala” (${cleared.join(', ')})`
+  return isAdmin
+    ? `${ports}: a data sai do Portal. A escala sem B/L descarregando no porto, ATA, ATD, Vinculada Sim e nunca salva na janela da escala sai da Viagem e do Line-Up; com qualquer um deles, continua na Viagem e só a data sai. Se a escala estiver travada, nada é gravado.`
+    : `${ports}: só a data sai. A escala continua na Viagem; sem mais nada, deixa de aparecer no Line-Up.`
 }
 
 type SchedulePlan = { rows: ScheduleSheetPlanRow[]; issues: ImportIssue[] }
@@ -514,7 +527,7 @@ export function ChegadasSaidas() {
     }
 
     const consequence = cleared.length > 0
-      ? `A programação atualizada será visível publicamente no Portal em Chegadas e Saídas. Escalas marcadas como “não escala” (${cleared.join(', ')}): a escala sai da Viagem e do Line-Up quando não tem B/L, ATA nem manifesto; com vínculo, só a data sai do Portal.`
+      ? `A programação atualizada será visível publicamente no Portal em Chegadas e Saídas. ${clearedPodConsequence(cleared, isAdmin)}`
       : 'A programação atualizada será visível publicamente no Portal em Chegadas e Saídas.'
 
     const saveConfirmed = await confirm({
