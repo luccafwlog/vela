@@ -53,10 +53,9 @@ for (const cap of capitulos) {
     for (const { re, nome } of PROIBIDOS) {
       for (const m of linha.matchAll(re)) erros.push(`${cap.arquivo}:${i + 1}: termo proibido "${m[0]}" (${nome})`)
     }
-    for (const m of linha.matchAll(/\]\(captura\/([\w-]+)\)/g)) {
-      if (!ids.has(m[1])) erros.push(`${cap.arquivo}:${i + 1}: captura "${m[1]}" não está em capturas.mjs`)
-    }
-    if (/!\[[^\]]*\]\(\s*\)/.test(linha)) erros.push(`${cap.arquivo}:${i + 1}: imagem sem captura`)
+    const tela = linha.match(/^:::\s*tela\b\s*(.*)$/)
+    if (tela && !ids.has(tela[1].trim())) erros.push(`${cap.arquivo}:${i + 1}: captura "${tela[1].trim()}" não está em capturas.mjs`)
+    if (/!\[[^\]]*\]\(/.test(linha)) erros.push(`${cap.arquivo}:${i + 1}: imagem fora de "::: tela"`)
   })
   const c = citacoes(cap.fonte)
   for (const id of c.escritas) escritas.set(id, cap.numero)

@@ -101,6 +101,12 @@ function abrirBloco(tipo, resto, onde) {
       return { abre: '<div class="passos-bloco">', fecha: '</div>' }
     case 'lado':
       return { abre: '<div class="colunas-passos">', fecha: '</div>' }
+    case 'tela':
+      if (!/^[\w-]+$/.test(resto)) throw new Error(`${onde}: "tela" sem o id da captura`)
+      return {
+        abre: `<figure class="tela"><div class="tela__quadro" data-captura="${resto}"></div><figcaption>`,
+        fecha: '</figcaption></figure>',
+      }
     case 'aconteceu':
       if (!resto) throw new Error(`${onde}: "aconteceu" sem título`)
       return {
@@ -155,11 +161,10 @@ export function capituloHtml(cap) {
   html = html.replace(/href="\d{2}-[\w-]+\.md#/g, 'href="#')
   html = html.replace(/<h3>(.+?)<\/h3>/g, (_, titulo) => `<h3 class="sub" id="${cap.numero}-${slug(titulo)}">${titulo}</h3>`)
 
-  // Imagem `![legenda](captura/id)` sozinha no parágrafo vira figura marcada.
-  html = html.replace(/<p><img src="captura\/([\w-]+)" alt="([^"]*)" \/><\/p>/g, (_, id, legenda) => {
-    return `<figure class="tela"><div class="tela__quadro" data-captura="${id}"></div>${legenda ? `<figcaption>${legenda}</figcaption>` : ''}</figure>`
-  })
-  if (/src="captura\//.test(html)) throw new Error(`${cap.arquivo}: imagem de captura fora de parágrafo próprio`)
+  // A legenda do `::: tela` é um parágrafo; sem legenda, sem figcaption.
+  html = html
+    .replace(/<figcaption>\s*<p>([\s\S]*?)<\/p>\s*<\/figcaption>/g, '<figcaption>$1</figcaption>')
+    .replace(/<figcaption>\s*<\/figcaption>/g, '')
 
   const corte = html.indexOf('<h2 ')
   const introducao = corte === -1 ? html : html.slice(0, corte)

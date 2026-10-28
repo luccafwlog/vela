@@ -61,12 +61,16 @@ Parágrafo de abertura do capítulo (vai para a página de abertura).
 2. Clique em **Nova Viagem**.
 :::
 
-![Legenda da imagem.](captura/viagens-topo)
+::: tela viagens-topo
+Legenda da imagem.
+:::
 
 ::: lado
 3. Passo ao lado da imagem.
 
-![Legenda.](captura/nova-viagem)
+::: tela nova-viagem
+Legenda.
+:::
 :::
 
 ::: sozinho
@@ -93,7 +97,7 @@ O motivo de negócio.
 - `{{Administrativo}}`, `{{Documentação}}`, `{{Operações}}`,
   `{{Equipamentos}}`, `{{Financeiro}}`, `{{Qualquer equipe}}` e `{{Todas as
   equipes}}` viram a etiqueta colorida da equipe.
-- `![legenda](captura/id)` sozinha no parágrafo vira a imagem marcada. O `id`
+- `::: tela id`, com a legenda dentro, vira a imagem marcada. O `id`
   é uma captura de [`capturas.mjs`](../../../scripts/manual/pdf/capturas.mjs);
   os números marcados na imagem são os números dos passos, então o passo e a
   marca têm o mesmo número. Dentro de `::: lado`, a lista fica à esquerda e a
