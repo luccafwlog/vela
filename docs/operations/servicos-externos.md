@@ -534,7 +534,7 @@ COMMIT;
    status `leased`) e o Alerta
    `import_effects_queue_stalled` fechado. Depois desligue
    (`IMPORT_EFFECTS_RUNNER_ENABLED` ausente ou diferente de `true`) e confira que
-   a função responde `503 paused` e a fila para de andar sem perder efeitos.
+   a função responde `200 paused` e a fila para de andar sem perder efeitos.
 2. **Simulação do acumulado em produção (sem gravar).** Com o runner ainda
    desligado, rode a simulação como mostrado acima (`BEGIN`, `SET LOCAL`,
    `SELECT public.simulate_import_effects(NULL, 200);`, `ROLLBACK`). Para cada
@@ -568,7 +568,7 @@ efeito a efeito: o acumulado é processado pelo próprio runner. O agente criou
 `IMPORT_EFFECTS_CRON_SECRET` no Vault com valor gerado pelo banco; o dono
 criou o par e `IMPORT_EFFECTS_RUNNER_ENABLED=true` na Edge Function. Primeiro
 ciclo às 22:03 UTC; até 22:36, 140 efeitos `succeeded`, nenhum em
-`retry_wait` ou `blocked`. O teste de desligamento (`503 paused`) não foi
+`retry_wait` ou `blocked`. O teste de desligamento (`503 paused`, hoje `200 paused`) não foi
 feito. A migration `218` passa o job para cada minuto, faz a importação
 disparar o runner, um runner por vez, e a função trabalhar por orçamento de
 tempo. Em produção desde 2026-10-13: a `218` aplicada e a função nova
