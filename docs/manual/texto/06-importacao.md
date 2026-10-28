@@ -54,7 +54,7 @@ Na Viagem cancelada, nada disso é aceito: o Vela recusa com "Viagem … cancela
 
 Toda importação segue o mesmo caminho, mostrado no alto da janela em três etapas: **Arquivo · Prévia · Resultado**.
 
-- **Arquivo.** Clique na área do arquivo ou arraste o arquivo para ela. A área diz os formatos aceitos e o limite de 10 MB; enquanto falta a Viagem, ela fica desativada e diz por quê. A janela traz o modelo do arquivo para baixar e o atalho **Como preencher**. Durante a leitura, **Interromper leitura** para tudo. Para usar outro arquivo, clique em **Trocar arquivo**; escolher de novo o mesmo arquivo relê o conteúdo.
+- **Arquivo.** Clique na área do arquivo ou arraste o arquivo para ela. A área diz os formatos aceitos e o limite de 10 MB; enquanto falta a Viagem, ela fica desativada e diz por quê. A janela traz o modelo do arquivo para baixar e o atalho **Como preencher**. Durante a leitura, você pode clicar em **Interromper leitura**. Para usar outro arquivo, clique em **Trocar arquivo**; escolher de novo o mesmo arquivo relê o conteúdo.
 - **Prévia.** O Vela mostra o que vai criar, mudar ou deixar de fora. Nada foi gravado ainda.
 - **Resultado.** Depois que você confirma, o Vela grava e mostra o que entrou e o que pede ação.
 
@@ -368,7 +368,7 @@ O container gravado que o arquivo novo não traz sai do B/L, mas só quando a pr
 O B/L com fatura emitida (faturado, pago ou com fatura viva) não muda a cobrança sem alguém decidir. Quando o arquivo muda algo que afeta a cobrança (quantidade de containers, container dividido com outro B/L, perfil IMO/OOG, SOC/COC, peso de B/L só de carga solta, CNPJ faturado, POL ou POD), a prévia abre o bloco **Faturamento**. Ele mostra o que acontece com cada fatura e traz uma confirmação por B/L, "Confirmar o faturamento do B/L \<nº>"; com vários B/Ls, uma caixa marca todos. A confirmação nunca vem marcada.
 
 - **Sem marcar:** o B/L entra com os demais campos, e containers, peso, cubagem, POL, POD, Place of Delivery e CNPJ, razão social e e-mail do consignatário ficam como estavam. O Histórico registra "Mudança com impacto na fatura não aplicada (sem confirmação)".
-- **Marcado:** a fatura segue a base nova sozinha. Sem pagamento, ela é cancelada e reemitida com o valor novo (com a consolidada que incluir o B/L). Com pagamento, fica desatualizada e segue para restituição ou cobrança avulsa (capítulo 22). O Histórico registra "Mudança com impacto na fatura … aplicada com confirmação".
+- **Marcado:** a fatura segue a base nova sozinha. Sem pagamento, ela é cancelada e reemitida com o valor novo (com a consolidada que incluir o B/L). Com pagamento, fica desatualizada e segue para restituição ou cobrança avulsa (capítulo 22). O Histórico registra "Mudança com impacto na fatura aplicada com confirmação".
 
 O B/L só calculado, ainda sem fatura, recebe a base nova sem pedir confirmação e é recalculado com o preço fixado.
 
@@ -516,7 +516,7 @@ O B/L avulso é um arquivo .pdf ou .docx por B/L; dá para escolher vários de u
 2. Escolha a **Viagem de destino**.
 3. Escolha os arquivos dos B/Ls.
 4. Confira a prévia de cada arquivo. Se houver avisos, marque "Conferi os avisos e quero importar o arquivo".
-5. Clique em **Importar** e, no resultado, em **Concluir**.
+5. Clique em **Importar N B/Ls**.
 :::
 
 A prévia mostra um arquivo por vez: B/L, Navio / viagem, Rota, Shipper, Consignee, Notify, CNPJ do consignatário, Marcas, Máquinas, Frete, Vias originais, NCM, Local e data de emissão, Descrição da carga e Ressalvas do navio.
@@ -1052,7 +1052,7 @@ Em **Baplie EDI**, o bloco **Carga física no Baplie** mostra "N containers", **
 - Falha de leitura mostra **Não foi possível ler o Baplie desta viagem.** ("Isto não significa que a viagem está sem Baplie."), com **Tentar novamente**. Se a releitura falha com dados já na tela, eles ficam, com o aviso **Não foi possível atualizar o Baplie desta viagem** ("Os dados abaixo são da última leitura e podem estar desatualizados.") e **Tentar novamente**.
 
 ::: conferir
-Em **Baplie EDI**, com a Viagem escolhida: o bloco **Carga física no Baplie**, a **Conciliação Baplie × B/L** ([6.8](#s6-8)) e a lista **Containers do Baplie**. Na ficha da Viagem, a **Linha do tempo** registra o Baplie importado ou substituído.
+Em **Baplie EDI**, com a Viagem escolhida: o bloco **Carga física no Baplie**, a **Conciliação Baplie × B/L** ([6.8](#s6-8)) e a lista **Containers do Baplie**. No Histórico da Viagem, a linha "Baplie importado" ou "Baplie substituído (portos …)".
 :::
 
 <!-- regras: CEB-062 -->
@@ -1180,7 +1180,7 @@ A conciliação não muda nada sozinha: ela mostra onde o físico (Baplie) e o d
 
 ::: ficha
 - **Quando usar:** O Baplie da Viagem trouxe vazios que ainda não estão cadastrados.
-- **Quem faz:** {{Qualquer equipe}}. Na rotina, {{Equipamentos}} cuida dos vazios.
+- **Quem faz:** {{Qualquer equipe}}.
 - **Antes de começar:** Abra **Baplie EDI** e escolha a Viagem. O bloco **Vazios de importação** mostra "N vazios — ainda não cadastrados; entram sem Nº de manifesto Mercante, informado depois em Rotas e Manifestos da viagem".
 :::
 
@@ -1284,7 +1284,7 @@ Alguns passos de uma importação ficam para logo depois da gravação: aplicar 
 1. No menu, clique em **Alertas** e abra o alerta **Efeito de importação bloqueado**.
 2. Clique em **Reprocessar**. A janela **Reprocessar efeito de importação** mostra o B/L e o **Motivo do bloqueio**, e avisa "Corrija a causa antes de reprocessar.".
 3. Corrija a causa (por exemplo, a tabela de cobrança ou o câmbio que faltava).
-4. Em **Justificativa (o que foi corrigido)**, escreva o que você corrigiu e confirme.
+4. Em **Justificativa (o que foi corrigido)**, escreva o que você corrigiu e clique em **Reprocessar**.
 :::
 
 Aparece "Efeito reenviado para a fila. O alerta fecha quando o efeito concluir.". O alerta continua aberto, com **Reprocessando…** (desativado), e fecha quando o passo conclui ou é descartado. Se bloquear de novo, o mesmo alerta mostra o novo motivo, sem nova notificação. Qualquer equipe reprocessa.
