@@ -6,8 +6,8 @@ trabalho, não o manual.
 
 ## Estado
 
-**Etapa 1 concluída em 2026-10-28; Etapa 2 em andamento: catálogo de
-situações do capítulo 6 em rascunho, esperando o dono.** Divergências
+**Etapa 1 concluída em 2026-10-28; Etapa 2 em andamento: catálogos de
+situações dos capítulos 4, 5 e 6 (o piloto) em rascunho.** Divergências
 decididas e corrigidas em 2026-10-27; lista "fora do manual" e sumário final
 aprovados em 2026-10-28. As 118
 divergências (112 fichas) foram decididas pelo dono e executadas nos lotes 1 a
@@ -29,10 +29,12 @@ responsabilidade, e cobre as situações mais comuns, inclusive as de borda
 No mesmo dia o dono aprovou o sumário final (24 capítulos), o que fecha a
 Etapa 1, e pediu para começar a Etapa 2 pela importação de arquivos. O
 [catálogo de situações do capítulo 6](../manual/situacoes/06-importacao.md)
-está em rascunho: 10 objetivos e 35 situações ligadas às regras da matriz. Das
-três perguntas ao dono, P1 e P3 foram decididas em 2026-10-28 (a correção da
-mensagem da P1 é tarefa separada); a P2 foi confirmada no banco local e
-espera decisão.
+está em rascunho: 10 objetivos e 35 situações ligadas às regras da matriz; as
+três perguntas ao dono (P1 a P3) foram decididas em 2026-10-28 (a correção da
+mensagem da P1 é tarefa separada). Os catálogos dos
+[capítulos 4](../manual/situacoes/04-viagens-escalas.md) e
+[5](../manual/situacoes/05-programacao.md) também estão em rascunho, com a
+pergunta P4 (falhas de COD, transbordo e Complementar sem aviso na tela).
 
 **Mudança entrada depois da Etapa 1 (2026-10-28): alterar, excluir e isentar
 as Taxas Locais do B/L** ([ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
@@ -78,11 +80,12 @@ guardado como registro histórico e serve só de referência de redação
 4. **Material de trabalho da Etapa 1** (instruções de mapeamento, conferência,
    correção de documento e fichas de decisão; montagem do relatório):
    [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).
-5. **Próximo passo (Etapa 2):** o dono decide a pergunta P2 do
-   [catálogo do capítulo 6](../manual/situacoes/06-importacao.md) (a conferência
-   do catálogo pelo dono pode ficar para o capítulo-piloto); em seguida, catálogo dos capítulos 4 e 5, projeto
-   gráfico com páginas-modelo para o dono aprovar, cenário de demonstração,
-   imagens por script e capítulo-piloto (capítulos 4 a 6 do sumário final).
+5. **Próximo passo (Etapa 2):** o dono decide a pergunta P4 do
+   [catálogo do capítulo 4](../manual/situacoes/04-viagens-escalas.md) (a
+   conferência dos catálogos 4 a 6 pelo dono pode ficar para o
+   capítulo-piloto); em seguida, projeto gráfico com páginas-modelo para o dono
+   aprovar, cenário de demonstração, imagens por script e capítulo-piloto
+   (capítulos 4 a 6 do sumário final).
 6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
    etapas: o manual se pauta só pelo código; o material antigo é só referência
    de redação; quem faz o quê sai do código (matriz "O que cada setor pode",

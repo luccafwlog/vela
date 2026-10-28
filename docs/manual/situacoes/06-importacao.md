@@ -245,9 +245,12 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
   Demurrage).
 - **Por quê:** B/L com documento oficial ou financeiro não some do sistema;
   ele é cancelado e fica no histórico.
-- **O que você faz:** cancele o B/L (S6.17, passo 3).
+- **O que você faz:** cancele o B/L (S6.17, passo 2). Se o B/L foi importado
+  na Viagem errada e já teve fatura, ele não chega mais à Viagem certa:
+  confira a Viagem antes de importar o CE e, se acontecer, leve o caso ao
+  suporte técnico.
 - **Regras:** BLR-015, BLR-102 a BLR-106.
-- **Pergunta aberta P2:** um B/L importado na Viagem errada que já teve fatura
+- **P2 (decidida em 2026-10-28: caso raro, vai ao suporte técnico):** um B/L importado na Viagem errada que já teve fatura
   (mesmo cancelada) não pode ser excluído, e cancelar não libera o número
   (BLR-026). Executado no banco local em 2026-10-28 (dados montados à mão numa
   transação desfeita no fim): B/L com uma fatura cancelada recebe o motivo
@@ -430,8 +433,8 @@ EQU-033), Base de Clientes (capítulo 13; CLI-014 a CLI-020) e arquivo da ZPT
 
 | Nº | Situação | Pergunta |
 |---|---|---|
-| P2 | S6.18 | B/L importado na Viagem errada e que já teve fatura não pode ser excluído, e cancelar não libera o número (confirmado no banco local). Como ele chega à Viagem certa? |
-
-Decididas em 2026-10-28: P1 (S6.03; a mensagem da carga solta passa a dizer o
-mesmo que a do container, em tarefa separada) e P3 (S6.12; container com
-Demurrage que sai do B/L não ocorre na operação).
+Todas decididas em 2026-10-28: P1 (S6.03; a mensagem da carga solta passa a
+dizer o mesmo que a do container, em tarefa separada), P2 (S6.18; caso raro:
+o manual orienta conferir a Viagem antes do CE e, se acontecer, levar ao
+suporte técnico; o sistema não muda) e P3 (S6.12; container com Demurrage que
+sai do B/L não ocorre na operação).

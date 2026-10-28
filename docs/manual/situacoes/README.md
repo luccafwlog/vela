@@ -29,8 +29,9 @@ ambiente local pelos scripts de imagem da Etapa 2.
 
 | Capítulo do sumário final | Arquivo | Situação |
 |---|---|---|
+| 4. Viagens e Escalas | [04-viagens-escalas.md](04-viagens-escalas.md) | Rascunho de 2026-10-28, para o dono conferir |
+| 5. Programação: Chegadas e Saídas, Line-Up, Tela TV e cadastros | [05-programacao.md](05-programacao.md) | Rascunho de 2026-10-28, para o dono conferir |
 | 6. Importação da documentação | [06-importacao.md](06-importacao.md) | Rascunho de 2026-10-28, para o dono conferir |
-| 4. Viagens e Escalas; 5. Programação | — | A fazer (capítulo-piloto) |
 | Demais capítulos | — | Na Etapa 3, lote a lote |
 
 Situações que o dono já citou para outros capítulos: cancelar uma fatura já
