@@ -118,3 +118,30 @@ este B/L paga R$ X"; para acompanhar a quantidade, altera-se o valor por
 unidade (D5). Toda mudança de quantidade numa taxa com total alterado pede a
 confirmação da D6, mesmo sem mudar o valor ("total alterado mantido em R$ 2.000;
 a quantidade passou de 2 para 3"), e fica no histórico da página.
+
+### D8 — B/L faturado: permitido, pela correção automática da fatura
+
+Alterar e excluir taxa também valem para B/L faturado, parcialmente pago ou
+pago, para os mesmos setores (D3) e com justificativa (D4). A fatura emitida
+nunca é editada: a alteração passa pela mesma correção automática que hoje
+trata a correção de item de tabela pelo Administrativo
+([Faturamento § Correção após emissão](../modules/faturamento.md#correção-após-emissão-adr-0077)):
+
+| Situação da fatura | Efeito |
+|---|---|
+| Sem pagamento | Cancela e reemite com número novo, aviso "Nova fatura emitida" no Portal e Pix novo; a antiga fica no filtro **Cancelada** como "Substituída pela INV-…"; Pix pago depois no QR antigo vai para análise e cai na sucessora ou vira Restituição. A consolidada é recriada só com os mesmos B/Ls |
+| Com pagamento, valor menor | Abate primeiro o saldo em aberto; o que passar vira **Restituição pendente**, confirmada pelo Financeiro ou pelo Administrativo com comprovante |
+| Com pagamento, valor maior | **Fatura desatualizada**; a diferença se cobra por **Fatura avulsa**. Enquanto o alerta está aberto, o Desbloqueio de CE marca "Diferença de valor a faturar" |
+| Reemissão travada (Portal não pronto, B/L misto com terminais em conflito) | A fatura continua valendo, com **Fatura desatualizada** e **Tentar aplicar correção** |
+
+A confirmação diz o efeito antes de gravar (por exemplo: "A fatura INV-… será
+cancelada e reemitida com número novo, e o Cliente será avisado no Portal" ou
+"O Cliente já pagou R$ X: a diferença de R$ Y vira Restituição a confirmar pelo
+Financeiro"). Lançar cobrança manual nova em B/L faturado continua recusado,
+como hoje: serviço adicional vai em Fatura avulsa.
+
+Esta decisão pede uma ADR nova, que supersede parcialmente a
+[ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md) (item 2, item 5 e
+"ninguém digita valor de correção nem concede desconto") e preserva o
+princípio central: fatura emitida nunca é editada; o sistema reemite, abate ou
+restitui.
