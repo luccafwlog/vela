@@ -19,19 +19,25 @@ Locais** da ficha). A Demurrage fica como está: ela já tem **Desconto** (em %
 ou US$, qualquer setor, com justificativa), free time e diárias P1/P2 por B/L
 e reemissão pelas datas. Se faltar algo na Demurrage, é um pedido separado.
 
-### D2 — Forma: alterar o valor cobrado ou excluir a taxa; quantidade fixa
+### D2 — Forma: alterar o valor (por unidade ou total) ou excluir a taxa; quantidade fixa
 
 Em cada taxa do B/L o operador pode:
 
-- **alterar o valor cobrado por unidade** da taxa (o valor unitário), na moeda
-  da taxa (R$ ou US$), abaixo ou acima da tabela. O total passa a ser a
-  quantidade do B/L × o valor alterado;
+- **alterar o valor**, na moeda da taxa (R$ ou US$), abaixo ou acima da
+  tabela, de um destes dois jeitos, à escolha dele (a flexibilidade é
+  essencial, decisão do dono):
+  - **valor por unidade** — o total passa a ser a quantidade do B/L × o valor
+    alterado;
+  - **valor total da taxa** — o total digitado é o que se cobra por aquela
+    taxa no B/L;
 - **excluir a taxa** da cobrança do B/L.
 
 A **quantidade não se altera**: ela é a quantidade do item de carga do B/L
 (containers, peso, rateio do container compartilhado) e mudá-la à mão teria
 impacto maior no sistema. Para mudar a quantidade, corrige-se o B/L, que já
-recalcula. Valor zero não se digita: para não cobrar, exclui-se a taxa.
+recalcula. Valor zero não se digita: para não cobrar, exclui-se a taxa. O que
+acontece com o valor total alterado quando a quantidade do B/L muda depois é
+decidido à parte.
 
 ### D3 — Permissão: todos os setores; uma regra só no bloco
 
@@ -58,3 +64,22 @@ gravação do CE Mercante, e uma aprovação pendente ou seguraria a fatura (o
 Cliente atrasa a retirada da carga) ou a deixaria sair com o valor antigo para
 depois ser corrigida (reemissão ou Restituição). O controle é a justificativa,
 o histórico na página e a marca de taxa alterada.
+
+### D5 — Recálculo: a alteração se mantém, salvo troca de tabela
+
+O sistema continua recalculando sozinho nos mesmos momentos de hoje; a
+alteração do operador passa por eles assim:
+
+| O que provoca o recálculo | Valor alterado ou taxa excluída |
+|---|---|
+| Gravação do CE Mercante, **Recalcular** (Validação ou Revisão), importação, B/Ls irmãos de container | Mantém |
+| Mudança na carga (container que entra ou sai, IMO/OOG, SOC, peso, veículos, rateio do container compartilhado) | Mantém o valor por unidade, e a quantidade segue o B/L |
+| Vínculo ou troca de Cliente antes da fatura | Mantém; a Condição do Cliente novo vale só nas taxas não alteradas |
+| Correção de item de tabela ou de Condição pelo Administrativo | Mantém nas taxas alteradas; as demais seguem a correção |
+| Reimportação com **Passar o B/L … ao preço de hoje** | Mantém nas taxas alteradas, e a prévia diz isso |
+| Mudança de **POD** ou de **modalidade** (COD antes da fatura, reimportação com aceite, ficha) | Descarta, com registro no histórico da página ("Alteração descartada: o B/L passou para a tabela …"); a taxa volta ao valor da tabela, sem a marca de alterada |
+| Taxa em revisão (sem preço, peso ausente…) | Não se altera; corrige-se o B/L |
+
+Tabela nova cadastrada não muda B/L existente (o B/L fica vinculado à tabela do
+primeiro cálculo, [ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md),
+decisão 1); o B/L só troca de tabela quando muda de POD ou de modalidade.
