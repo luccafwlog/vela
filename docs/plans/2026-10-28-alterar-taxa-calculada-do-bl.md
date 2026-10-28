@@ -162,6 +162,15 @@ mesma função. Teste em `src/services/__tests__/cacheEffects.test.ts`.
 
 ## Como executar
 
+- **Manual do Operador (pedido do dono, 2026-10-28):** toda mudança deste plano
+  fica registrada no trabalho do manual, para o dono não revisitar nada lá. Em
+  cada lote: as regras novas ou mudadas entram na matriz de cobertura da área
+  (`docs/manual/cobertura/`, com `npm run manual:coverage` passando) e ganham
+  uma linha em [atualizações da matriz](../manual/README.md#atualizações-da-matriz)
+  (lote, regras tocadas, telas e textos novos). No lote 6, o "Estado" do
+  [plano do Manual](2026-10-26-manual-do-operador.md) resume a mudança inteira:
+  áreas e capítulos afetados, regras novas e as que mudaram de texto.
+
 - Tudo na branch `claude/blissful-carson-hpjy4j`; um ou mais commits por lote,
   cada lote fechado com os checks dele. A PR contra a `staging` só abre quando
   o dono pedir.
