@@ -577,7 +577,7 @@ function cancelledRowWarning(blId: string, row: number): ParsedBreakbulkManifest
 
 /** Mensagem de bloqueio do B/L de outra Viagem, a mesma regra da RPC. */
 export function describeOtherVoyage(entry: BreakbulkReimportCheck['otherVoyage'][number]) {
-  return `O B/L ${entry.blId} já está na Viagem ${entry.voyageLabel}. A importação é recusada: confira a Viagem de destino ou corrija a Viagem do B/L pela ficha.`
+  return `O B/L ${entry.blId} já está na Viagem ${entry.voyageLabel}. A importação é recusada: exclua o B/L lá e importe de novo (cancelar não libera o número).`
 }
 
 /**

@@ -192,9 +192,9 @@ describe('userFacingErrorMessage', () => {
 })
 
 describe('recusas de negócio das importações (P000x)', () => {
-  // Mensagens reais das RPCs de importação (migrations 176, 194, 213).
+  // Mensagens reais das RPCs de importação (migrations 176, 194, 213, 500).
   it.each([
-    ['P0005', 'O B/L ABC1 ja esta na Viagem V1 e o arquivo foi importado na Viagem V2. Nenhum B/L do lote foi gravado: confira a Viagem de destino ou corrija a Viagem do B/L pela ficha.'],
+    ['P0005', 'O B/L ABC1 ja esta na Viagem V1 e o arquivo foi importado na Viagem V2. Nenhum B/L do lote foi gravado: exclua o B/L la e importe de novo (cancelar nao libera o numero).'],
     ['P0006', 'O container MSCU1234565 do B/L ABC1 tem a Invoice de Demurrage DEM-1 e não sai por reimportação.'],
     ['P0008', 'O container MSCU1234565 esta no B/L A (Cliente 1) e no B/L B (Cliente 2): container FCL nao e dividido entre Clientes diferentes. Corrija o Cliente ou o container do arquivo.'],
     ['P0003', 'B/L ABC1 sem CE Mercante. Cadastre o CE antes de faturar.'],
