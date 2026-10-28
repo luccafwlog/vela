@@ -106,3 +106,47 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     catálogo de alertas, contagens de ACE-119 e ALE-D13).
   - Telemetria: recusas do banco já explicadas na tela deixam de ir ao Sentry;
     sem efeito na operação.
+- **Alterar, excluir e isentar as Taxas Locais do B/L** (pedido do dono de
+  2026-10-28, [ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
+  [plano](../archive/plans/2026-10-28-alterar-taxa-calculada-do-bl.md)):
+  - Lote 1 (migration `491`): alterar valor por unidade ou total, excluir e
+    desfazer taxa, por qualquer setor com justificativa; marcas **Alterada** e
+    **Excluída**; bloco **Histórico das taxas**; a alteração sobrevive aos
+    recálculos e só se perde com a troca de tabela; excluir cobrança manual
+    deixa de ser só do Administrativo (TAX-076, TAX-082, TAX-083, TAX-085,
+    TAX-090, TAX-093 a TAX-100, ACE-098 e as mensagens novas).
+  - Lote 2 (migration `492`): **Isentar Taxas Locais** e **Retirar
+    isenção** na ficha, por qualquer setor com justificativa; o B/L isento à
+    mão fica Isento em todo recálculo e sem ação nas taxas; o Desbloqueio de
+    CE considera o Financeiro atendido (TAX-101 a TAX-104, DCE-011, ACE-128,
+    `permissao:isentar-taxas-locais` e as mensagens novas).
+  - Lote 3 (migration `493`): as ações valem no B/L faturado e passam pela
+    correção da fatura (reemissão, abatimento e Restituição, Fatura
+    desatualizada); a confirmação diz o efeito antes de gravar e o Histórico
+    das taxas guarda o efeito; Origem **Alterado** no detalhe da fatura do
+    Vela, sem a marca no Portal (FAT-173 a FAT-176, REC-102, POR-131, TAX-077,
+    TAX-100 e as mensagens novas; saiu a mensagem provisória do B/L faturado).
+  - Lote 4 (migration `494`): a alteração aparece fora da ficha do B/L:
+    filtro, coluna do Exportar e avisos da Validação, aviso da consolidada e do
+    Recalcular da Revisão, lista **B/Ls com taxa alterada** na ficha do
+    Cliente, Histórico de ações legível e aviso de divergência pela parte do
+    B/L (TAX-105, TAX-106, FAT-177, FAT-178, CLI-108 e a mensagem nova).
+  - Lote 5 (migration `495`): o diálogo **Taxas alteradas à mão serão
+    afetadas** (**Gravar mesmo assim**) na ficha, na correção de container, no
+    COD e em Veículos; a seção **Taxas alteradas à mão** nas prévias de B/L e
+    Manifesto BB e a pergunta no Baplie; o alerta **Taxa alterada à mão mudou**
+    (BLR-150, CEB-099, EQU-130, VIA-145, ALE-086 e a marca interna da
+    simulação).
+  - Revisão da PR luccafwlog/vela#1080 (migration `497`): a confirmação do
+    efeito na fatura segue a mesma ordem da correção (consolidada, saldo do
+    B/L, Portal sem Liberação; FAT-175); **Revisar alteração** não repete e
+    **Voltar** no meio não abre a confirmação (TAX-095); o **Gravar mesmo
+    assim** passa a valer também para o peso de contêiner e o COC/SOC da
+    correção de container (BLR-150), para o SOC/COC do arquivo de B/L, o B/L
+    que passa a dividir o container e toda gravação do Baplie (CEB-099), para
+    os veículos selecionados de outras páginas (EQU-130) e para **Reverter
+    para transbordo** (VIA-145).
+  - Decisão do dono de 2026-10-28 (migration `498`): taxa com total alterado
+    cuja quantidade vai a zero sai da cobrança, com a alteração guardada; a
+    prévia pede o **Gravar mesmo assim** e, sem ele, abre o alerta (BLR-150,
+    ALE-086).

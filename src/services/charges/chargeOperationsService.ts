@@ -3,6 +3,7 @@ import { escapeFilterTerm, sanitizeLikeTerm } from '../../lib/utils'
 import { classifyDbError } from '../../lib/errors'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import { tokenIlikeClauses } from '../../lib/searchTerms'
+import type { ChargeAdjustmentSummary } from '../../lib/chargeAdjustmentSummary'
 
 const OPERATIONAL_PAGE_SIZE = 1000
 const LOCAL_CHARGE_BATCH_SIZE = 100
@@ -20,7 +21,7 @@ export type LocalChargeLine = {
   charge_table_pod: string | null
   application_basis: string | null
   source: 'auto' | 'manual' | null
-  status: 'calculated' | 'review_required' | 'reviewed' | 'ready_for_billing' | 'exempt' | null
+  status: 'calculated' | 'review_required' | 'reviewed' | 'ready_for_billing' | 'exempt' | 'excluded' | null
   quantity: number | null
   currency: string | null
   unit_value_brl: number | null
@@ -32,6 +33,35 @@ export type LocalChargeLine = {
   notes: string | null
   review_reason: string | null
   calculated_at: string | null
+  // Migration 491 (ADR 0111): alteração à mão em vigor na linha e o valor
+  // da tabela, que a tela mostra ao lado do valor cobrado.
+  adjustment_id?: number | null
+  adjustment_kind?: ChargeAdjustmentKind | null
+  adjustment_value?: number | null
+  adjustment_justification?: string | null
+  adjusted_by?: string | null
+  adjusted_by_name?: string | null
+  adjusted_at?: string | null
+  table_unit_value_brl?: number | null
+  table_unit_value_usd?: number | null
+  table_total_value_brl?: number | null
+  table_total_value_usd?: number | null
+}
+
+export type ChargeAdjustmentKind = 'unit' | 'total' | 'excluded'
+
+export type BlChargeHistoryEvent = {
+  id: number
+  created_at: string
+  event: string
+  line_key: string | null
+  charge_name: string | null
+  before: Record<string, unknown> | null
+  after: Record<string, unknown> | null
+  justification: string | null
+  actor: string | null
+  actor_name: string | null
+  invoice_effect: Record<string, unknown> | null
 }
 
 export type ManualChargeItemForBl = {
@@ -124,6 +154,8 @@ export type LocalChargeOperationalRow = {
     line_count: number
     review_required_count: number
   }
+  /** Taxas alteradas ou excluídas e isenção à mão do B/L (migration 494); `null` sem nenhuma. */
+  adjustments?: ChargeAdjustmentSummary | null
   trail: {
     last_event_at: string | null
     last_event_by: string | null
@@ -402,8 +434,11 @@ async function loadBlOperationalRows(
     })
   }
 
+  const adjustments = new Map((await listBlChargeAdjustmentSummaries({ blIds })).map((summary) => [summary.bl_id, summary]))
+
   return { rows: rows.map((row) => ({
     ...row,
+    adjustments: adjustments.get(row.id) ?? null,
     totals: totalsMap.get(row.id) ?? { total_brl: 0, total_usd: 0, line_count: 0, review_required_count: 0 },
     trail:
       trailMap.get(row.id) ?? {
@@ -455,14 +490,186 @@ export async function updateManualBlCharge(
   return data
 }
 
-export async function deleteManualBlCharge(chargeCalculationId: number, actorId?: string | null) {
-  const { data, error } = await supabase.rpc('delete_manual_bl_charge', {
+export async function deleteManualBlCharge(chargeCalculationId: number, justification: string, actorId?: string | null) {
+  // Migration 491: a exclusão da cobrança manual pede justificativa e entra no
+  // Histórico das taxas; a assinatura antiga ainda está nos tipos gerados.
+  const { data, error } = await supabase.rpc('delete_manual_bl_charge' as never, {
     p_charge_calculation_id: chargeCalculationId,
+    p_justification: justification,
     ...(actorId == null ? {} : { p_actor: actorId }),
-  })
+  } as never)
 
   if (error) throw error
   return data
+}
+
+export async function alterBlChargeValue(input: {
+  blId: string
+  lineKey: string
+  kind: 'unit' | 'total'
+  value: number
+  justification: string
+  actorId?: string | null
+}) {
+  const { data, error } = await supabase.rpc('alter_bl_charge_value' as never, {
+    p_bl_id: input.blId,
+    p_line_key: input.lineKey,
+    p_kind: input.kind,
+    p_value: input.value,
+    p_justification: input.justification,
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+  if (error) throw error
+  return data as unknown
+}
+
+export async function excludeBlCharge(input: { blId: string; lineKey: string; justification: string; actorId?: string | null }) {
+  const { data, error } = await supabase.rpc('exclude_bl_charge' as never, {
+    p_bl_id: input.blId,
+    p_line_key: input.lineKey,
+    p_justification: input.justification,
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+  if (error) throw error
+  return data as unknown
+}
+
+/** Desfaz a alteração ou a exclusão da linha: volta ao valor da tabela. */
+export async function restoreBlCharge(input: { blId: string; lineKey: string; justification: string; actorId?: string | null }) {
+  const { data, error } = await supabase.rpc('restore_bl_charge' as never, {
+    p_bl_id: input.blId,
+    p_line_key: input.lineKey,
+    p_justification: input.justification,
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+  if (error) throw error
+  return data as unknown
+}
+
+/** Isentar Taxas Locais (D12) ou Retirar isenção; o banco recalcula o B/L. */
+export async function setBlLocalChargeExemption(input: { blId: string; exempt: boolean; justification: string; actorId?: string | null }) {
+  const { data, error } = await supabase.rpc((input.exempt ? 'exempt_bl_local_charges' : 'remove_bl_local_charge_exemption') as never, {
+    p_bl_id: input.blId,
+    p_justification: input.justification,
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+  if (error) throw error
+  return data as unknown
+}
+
+export type BlChargeChangeAction = 'alter' | 'exclude' | 'restore' | 'delete_manual' | 'exempt' | 'unexempt'
+export type BlChargeChangeEffect = {
+  situation: 'none' | 'unchanged' | 'reissue' | 'cancel' | 'refund' | 'stale' | 'blocked'
+  invoice_number?: string
+  message: string | null
+}
+
+/**
+ * Efeito da ação na fatura do B/L faturado, antes de gravar (ADR 0111, D8):
+ * o banco roda a ação numa subtransação desfeita e devolve a frase da
+ * confirmação. Recusa da ação volta como erro, igual à ação.
+ */
+export async function previewBlChargeChangeEffect(input: {
+  blId: string
+  action: BlChargeChangeAction
+  lineKey?: string | null
+  kind?: 'unit' | 'total' | null
+  value?: number | null
+}) {
+  const { data, error } = await supabase.rpc('preview_bl_charge_change_effect' as never, {
+    p_bl_id: input.blId,
+    p_action: input.action,
+    p_line_key: input.lineKey ?? null,
+    p_kind: input.kind ?? null,
+    p_value: input.value ?? null,
+  } as never)
+  if (error) throw error
+  return data as unknown as BlChargeChangeEffect
+}
+
+/**
+ * Taxas alteradas ou excluídas à mão e isenção à mão, por B/L (ADR 0111;
+ * migration 494). Por B/Ls (em lotes) ou pelo Cliente; só volta B/L com alguma.
+ */
+export async function listBlChargeAdjustmentSummaries(input: { blIds?: string[]; customerId?: number | null }) {
+  if (input.customerId != null) {
+    const { data, error } = await supabase.rpc('list_bl_charge_adjustment_summaries' as never, { p_customer_id: input.customerId } as never)
+    if (error) throw error
+    return (data ?? []) as ChargeAdjustmentSummary[]
+  }
+  const blIds = input.blIds ?? []
+  const out: ChargeAdjustmentSummary[] = []
+  for (let i = 0; i < blIds.length; i += LOCAL_CHARGE_BATCH_SIZE) {
+    const { data, error } = await supabase.rpc('list_bl_charge_adjustment_summaries' as never, {
+      p_bl_ids: blIds.slice(i, i + LOCAL_CHARGE_BATCH_SIZE),
+    } as never)
+    if (error) throw error
+    out.push(...((data ?? []) as ChargeAdjustmentSummary[]))
+  }
+  return out
+}
+
+/** Mudança de base simulada (migration 495): campos do B/L, containers, marcas e veículos. */
+export type BlChargeImpactChange = {
+  bl_id: string
+  bls?: Partial<Record<'pod' | 'cargo_mode' | 'bb_weight_ton' | 'bb_cbm' | 'bb_packages_qty' | 'bb_machine_qty' | 'total_weight_kg', string | number | null>>
+  remove_container_ids?: number[]
+  remove_container_numbers?: string[]
+  add_containers?: Array<{ container_number: string; type?: string | null; is_imo?: boolean; is_oog?: boolean }>
+  /** Perfil e SOC/COC no container em todos os B/Ls ativos da Viagem (Part Lot), como a correção de container. */
+  container_flags?: Array<{ container_number: string; type?: string | null; is_imo?: boolean | null; is_oog?: boolean | null; ownership?: 'SOC' | 'COC' | null }>
+  /** SOC/COC do arquivo do B/L: só neste B/L, sem trocar o corrigido à mão (migration 497). */
+  container_ownership?: Array<{ container_number: string; ownership: 'SOC' | 'COC' }>
+  remove_vehicle_ids?: number[]
+  move_vehicles?: Array<{ id: number; to_bl_id: string }>
+}
+
+/** `removed`: a quantidade vai a zero e a taxa sai da cobrança; a alteração fica guardada (migration 498). */
+export type BlChargeImpactOutcome = 'kept' | 'quantity' | 'total_kept' | 'removed' | 'remapped' | 'discarded'
+
+export type BlChargeImpactItem = {
+  charge_name: string
+  kind: 'unit' | 'total' | 'excluded'
+  currency: string | null
+  basis: string | null
+  value: number | null
+  quantity: number | null
+  total: number | null
+  outcome: BlChargeImpactOutcome
+  after_quantity: number | null
+  after_total: number | null
+  reason: string | null
+  table_name: string | null
+  pod: string | null
+  needs_confirmation: boolean
+}
+
+export type BlChargeImpact = { bl_id: string; manual_exempt: boolean; items: BlChargeImpactItem[]; error?: string }
+
+/**
+ * O que a mudança de base faz com as taxas alteradas à mão dos B/Ls afetados,
+ * inclusive irmãos de container (ADR 0111, D6; migration 495). Simulação
+ * desfeita no banco; vazio quando nenhum B/L tem alteração à mão.
+ */
+export async function previewBlChargeAdjustmentImpact(changes: BlChargeImpactChange[]) {
+  const relevant = changes.filter((change) => change.bl_id)
+  if (relevant.length === 0) return [] as BlChargeImpact[]
+  const { data, error } = await supabase.rpc('preview_bl_charge_adjustment_impact' as never, { p_changes: relevant } as never)
+  if (error) throw error
+  return ((data ?? []) as BlChargeImpact[]).filter((entry) => !entry.error)
+}
+
+/** Aceite do **Gravar mesmo assim**: a gravação seguinte não abre o alerta (migration 495). */
+export async function ackBlChargeAdjustmentImpact(blIds: string[]) {
+  if (blIds.length === 0) return
+  const { error } = await supabase.rpc('ack_bl_charge_adjustment_impact' as never, { p_bl_ids: blIds } as never)
+  if (error) throw error
+}
+
+export async function listBlChargeHistory(blId: string) {
+  const { data, error } = await supabase.rpc('list_bl_charge_history' as never, { p_bl_id: blId } as never)
+  if (error) throw error
+  return (data ?? []) as BlChargeHistoryEvent[]
 }
 
 export async function calculateLocalChargesBatch(

@@ -207,8 +207,10 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
     expect(mark(ADMIN_ID, 'BRPNG').status).toBe(0)
   })
 
-  it('taxa manual do B/L exige o Administrativo', () => {
-    const run = as(OPS_ID, `SELECT public.delete_manual_bl_charge(1, NULL);`)
-    expect(run.stderr).toMatch(/Somente o Administrativo exclui taxa manual/)
+  it('taxa manual do B/L sai por qualquer setor, com justificativa (ADR 0111)', () => {
+    // A Trava por setor saiu: o setor passa da checagem e cai na linha inexistente.
+    const run = as(OPS_ID, `SELECT public.delete_manual_bl_charge(-1, 'Lançada no B/L errado', NULL);`)
+    expect(run.stderr).toMatch(/Esta taxa não está mais no cálculo do B\/L/)
+    expect(run.stderr).not.toMatch(/Somente o Administrativo/)
   })
 })

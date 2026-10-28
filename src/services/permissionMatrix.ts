@@ -51,12 +51,12 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * Tipos de alerta que chegam ao sino de cada setor (migration 476, ADR 0107):
  * os tipos de que ele é o setor responsável (`alert_type_catalog.audience_departments`,
  * tipos ativos) e, em Operações e Equipamentos, os dois do ADR de Saída da
- * própria seção (ALE-D13). O Financeiro recebe os quatro da exceção do dono.
+ * própria seção (ALE-D13). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 15,
-  financeiro: 4,
+  administrativo: 16,
+  financeiro: 5,
   operacoes: 5,
   documentacao: 35,
   equipamentos: 4,
@@ -109,7 +109,10 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
 
   // Taxas Locais e faturamento
   { id: 'editar-taxas', group: 'taxas', action: 'Criar e editar tabela; incluir e corrigir item de tabela ainda sem uso; criar Condição de Cliente; lançar e editar taxa manual', can: ALL, proof: ['todos: Editar tabela de Taxas Locais', 'caso: Catálogo: item de tabela ainda sem uso', 'todos: Lançar taxa manual'] },
-  { id: 'excluir-taxa-manual', group: 'taxas', action: 'Excluir taxa manual do B/L', can: ADM, proof: ['exceção: Excluir taxa manual do B/L'] },
+  // ADR 0111 (migration 491): qualquer setor altera, exclui e desfaz taxa do B/L, com justificativa.
+  { id: 'excluir-taxa-manual', group: 'taxas', action: 'Alterar o valor e excluir taxa do B/L (calculada ou manual), com justificativa', can: ALL, proof: ['caso: P2: a taxa manual entra e sai pela RPC'] },
+  // ADR 0111, D12 (migration 492): qualquer setor isenta o B/L das Taxas Locais, com justificativa.
+  { id: 'isentar-taxas-locais', group: 'taxas', action: 'Isentar Taxas Locais do B/L e retirar a isenção, com justificativa', can: ALL, proof: ['caso: P2: qualquer Departamento isenta as Taxas Locais'] },
   { id: 'desativar-tarifa', group: 'taxas', action: 'Desativar, reativar e excluir tarifa; corrigir item de tabela já usada e editar Condição de Cliente', can: ADM, proof: ['caso: P9:', 'caso: B13:', 'caso: Catálogo: item de tabela ainda sem uso'] },
   { id: 'emitir-fatura', group: 'taxas', action: 'Emitir fatura (do B/L, na Validação, consolidada, avulsa) e corrigir fatura emitida', can: ALL, proof: ['caso: A9:', 'caso: P4:'] },
   { id: 'autorizar-restituicao', group: 'taxas', action: 'Autorizar restituição excepcional e cancelar a autorização', can: ALL, proof: ['caso: P5: %s lê a Conciliação, autoriza restituição'] },
@@ -147,7 +150,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     id: 'alertas-do-setor', group: 'alertas', action: 'Recebe os alertas do próprio setor',
     can: {
       administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal da Documentação); também os críticos de setor sem ninguém ativo`,
-      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada)`,
+      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada, Taxa alterada à mão mudou)`,
       operacoes: alertTypes(ALERT_TYPE_COUNTS.operacoes),
       documentacao: alertTypes(ALERT_TYPE_COUNTS.documentacao),
       equipamentos: alertTypes(ALERT_TYPE_COUNTS.equipamentos),

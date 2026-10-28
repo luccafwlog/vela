@@ -12,6 +12,8 @@
 > **Situação atual (2026-10-27, lote 9 e revisão da PR #1070).** Pela [ADR 0109](./0109-frente-de-operacao-exige-terminal-ate-o-ata.md) e pela decisão do dono na ficha `02-viagens-adr:2` (migration `477`), remover atracação com terminal deixou de ser só do Administrativo: Operações também remove, ao trocar o terminal de uma frente; a Atracação TBC sai pela gravação da escala para todos (migration `482`). Pela decisão do dono de 2026-10-27 (P3, migration `485`), os quatro críticos de contato e Portal da Documentação avisam também o Administrativo, como os do dinheiro avisam o Financeiro. Pela decisão P10 (migration `486`), o **Novo cliente**, que grava contatos, é de Administrativo, Documentação e Equipamentos; o Cliente do manifesto pela ficha do B/L segue para todos.
 >
 > **Nota de 2026-10-22 (D4, auditoria de segurança run-3).** Desde a migration `306`, o desconto que zera o USD líquido quita a Invoice de Demurrage como isenta (`paid`), então o motivo de D4 ("só altera o valor e não registra baixa") não vale para o desconto integral. O dono decidiu manter o desconto, inclusive o de 100%, com qualquer Departamento, sempre com justificativa e no histórico.
+>
+> **Situação atual (2026-10-28).** Pela [ADR 0111](./0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md) (migration `491`), a linha "Excluir taxa manual do B/L" deixa de ser exceção do Administrativo: qualquer setor exclui a cobrança manual, e também altera o valor e exclui taxa calculada do B/L, sempre com justificativa.
 
 Status: supersedida parcialmente — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelos
 itens P1 a P15 do

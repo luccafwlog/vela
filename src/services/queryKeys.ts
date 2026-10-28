@@ -23,6 +23,8 @@ export const queryKeys = {
     manualChargeItems: (blId?: string) =>
       (blId === undefined ? (['manual-charge-items'] as const) : (['manual-charge-items', blId] as const)),
     timeline: (blId?: string) => (blId === undefined ? (['bl-timeline'] as const) : (['bl-timeline', blId] as const)),
+    chargeHistory: (blId?: string) =>
+      (blId === undefined ? (['bl-charge-history'] as const) : (['bl-charge-history', blId] as const)),
   },
   invoices: {
     all: () => ['invoices'] as const,
@@ -144,6 +146,7 @@ export const queryKeys = {
     payments: (customerId: number) => ['customer-ficha', 'payments', customerId] as const,
     rateOverrides: (customerId: number) => ['customer-ficha', 'rate-overrides', customerId] as const,
     manualChargeBls: (customerId: number) => ['customer-ficha', 'manual-charge-bls', customerId] as const,
+    adjustedChargeBls: (customerId: number) => ['customer-ficha', 'adjusted-charge-bls', customerId] as const,
     pendingReconciliation: (customerId: number) => ['customer-ficha', 'pending-reconciliation', customerId] as const,
     pendingBalance: (customerId: number) => ['customer-ficha', 'pending-balance', customerId] as const,
     runningDemurrage: (customerId: number) => ['customer-ficha', 'running-demurrage', customerId] as const,

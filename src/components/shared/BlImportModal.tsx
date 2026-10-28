@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
+import { useChargeAdjustmentGuard, useImportChargeImpact } from '../../hooks/useChargeAdjustmentGuard'
+import { ChargeAdjustmentImpactSection } from '../bl/ChargeAdjustmentImpactSection'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
 import { useImportFileReceipt } from '../../hooks/useImportFileReceipt'
 import { importFilesSha256 } from '../../services/importFileReceipt'
@@ -38,7 +40,7 @@ import {
   ImportTemplateLinks,
 } from './ImportParts'
 import { plural } from './importPresentation'
-import { BL_PREVIEW_PAGE_SIZE, countContainerChanges, describeConsignee, describeOutcomeTotals } from './blImportPresentation'
+import { BL_PREVIEW_PAGE_SIZE, blImportImpactChanges, countContainerChanges, describeConsignee, describeOutcomeTotals } from './blImportPresentation'
 
 /**
  * O que a confirmação gravou, mostrado no próprio modal (revisão de
@@ -103,7 +105,11 @@ export function BlImportModal({
   const [files, setFiles] = useState<File[]>([])
   const { parsing, progress, readFiles, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseBLFile>>>(parseBLFile)
   const [preview, setPreview] = useState<BlFreightImportPreview | null>(null)
+  const impactChanges = useMemo(() => (preview ? blImportImpactChanges(preview.rows) : null), [preview])
+  const chargeImpact = useImportChargeImpact(impactChanges)
+  const guardCharges = useChargeAdjustmentGuard()
   const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   // Confirmação de faturamento por B/L (ADR 0078, item 17).
   const [overrideBls, setOverrideBls] = useState<ReadonlySet<string>>(new Set())
   const [confirmCustomerChange, setConfirmCustomerChange] = useState(false)
@@ -231,10 +237,15 @@ export function BlImportModal({
   async function handleConfirm() {
     if (!preview || importableCount === 0) return
     if (!selectedVoyageId) return
-
+    if (submittingRef.current) return
+    // A conferência das taxas alteradas à mão (ADR 0111, D6) já é a gravação
+    // em andamento: fechar o modal ou clicar de novo enquanto ela consulta o
+    // banco não pode deixar a importação seguir sem tela, nem gravar duas vezes.
+    submittingRef.current = true
     setSubmitting(true)
     setConfirmError(null)
     try {
+      if (impactChanges?.length && !(await guardCharges(impactChanges, async () => true, chargeImpact.data))) return
       const result = await confirmBlFreightImport(
         preview,
         user?.id ?? '',
@@ -266,6 +277,7 @@ export function BlImportModal({
         refused: error instanceof BlFreightImportRefused ? error.refused : [],
       })
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }
@@ -337,6 +349,7 @@ export function BlImportModal({
         {preview ? <PreviousImportNotice message={receipt.previousImportMessage} /> : null}
 
         {preview ? <BlImportPreview preview={preview} /> : null}
+        {preview ? <ChargeAdjustmentImpactSection impact={chargeImpact.data} /> : null}
 
         {issues.length ? (
           <ImportIssuesPanel

@@ -7,6 +7,8 @@
 > Regra vigente em [Viagens](../modules/viagens.md), seção "Catálogo de ações", em [Regras de negócio](../operations/regras-de-negocio.md), seção "Hard delete controlado", e em [Segurança](../operations/seguranca.md), seção "Modelo de permissões por perfil".
 >
 > **Item 12 supersedido (2026-10-22).** A [ADR 0097](./0097-data-efetiva-confirmada-e-aparicao-na-programacao.md) devolve à Viagem a chave "Aparece em Chegadas e Saídas": a edição pode tirar a viagem da Programação antes do último ATD, com registro no Histórico.
+>
+> **Item 11 supersedido (2026-10-28).** Pela [ADR 0111](./0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md), qualquer setor exclui a cobrança manual do B/L, com justificativa de ao menos 10 caracteres e registro no Histórico das taxas (migration `491`).
 
 Status: supersedida parcialmente — 2026-09-24. Implementado em 2026-09-25 (ver nota).
 

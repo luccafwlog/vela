@@ -12,7 +12,7 @@ import { isConsolidatedInvoice } from '../../services/billing'
 import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
 import { CopyValue } from '../ui/CopyValue'
-import { useCustomerDemurrageInvoices, useCustomerInvoices, useCustomerManualChargeBls, useCustomerPayments, useCustomerRateOverrides, useCustomerReceivables } from '../../hooks/useCustomerFicha'
+import { useCustomerDemurrageInvoices, useCustomerInvoices, useCustomerAdjustedChargeBls, useCustomerManualChargeBls, useCustomerPayments, useCustomerRateOverrides, useCustomerReceivables } from '../../hooks/useCustomerFicha'
 import { useCustomerDemurrageAgreements } from '../../hooks/useCustomerDemurrageAgreements'
 import { formatBRL, formatCountLabel, formatDate, formatUSD } from '../../lib/utils'
 import { CustomerDemurrageAgreementModal } from '../demurrage/CustomerDemurrageAgreementModal'
@@ -29,6 +29,7 @@ import type { CustomerDemurrageAgreementListItem } from '../../types/customerDem
 import { matchesAnyToken } from '../../lib/searchTerms'
 import { conditionPeriodLabel } from '../taxasLocais/chargePresentation'
 import { saoPauloTodayIso } from '../../lib/dates'
+import { describeChargeAdjustments } from '../../lib/chargeAdjustmentSummary'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
 
@@ -115,6 +116,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
   const pay = useCustomerPayments(data.id)
   const overrides = useCustomerRateOverrides(data.id)
   const manual = useCustomerManualChargeBls(data.id)
+  const adjusted = useCustomerAdjustedChargeBls(data.id)
   const agreements = useCustomerDemurrageAgreements({ customerId: data.id })
   const { data: portalRow, isSuccess: portalLoaded } = usePortalProvisioningForCustomer(data.id)
   // Acordo de Demurrage: qualquer Departamento cria e edita (ADR 0085, D6; migration 254).
@@ -484,6 +486,24 @@ export function FinanceiroTab({ data }: { data: Data }) {
                   ))}
                 </ul>
               ) : <Empty>Nenhum B/L com cobrança manual.</Empty>}
+            </QueryBody>
+          </div>
+          <div>
+            <h3 className="app-customer-subsection-title">B/Ls com taxa alterada</h3>
+            <QueryBody query={adjusted}>
+              {adjusted.data?.length ? (
+                <ul className="app-customer-rows">
+                  {adjusted.data.map((row) => (
+                    <li key={row.bl_id}>
+                      <CopyValue value={row.bl_id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}?tab=faturamento`}>{row.bl_id}</Link></CopyValue>
+                      <span>{describeChargeAdjustments(row)}</span>
+                      {row.last_actor_name || row.last_at ? (
+                        <span className="app-customer-muted">{[row.last_actor_name, row.last_at ? formatDate(row.last_at) : null].filter(Boolean).join(' · ')}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : <Empty>Nenhum B/L com taxa alterada à mão.</Empty>}
             </QueryBody>
           </div>
         </div>

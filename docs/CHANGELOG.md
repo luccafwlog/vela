@@ -6,6 +6,47 @@
 
 ## 2026-10
 
+- **Alterar, excluir e isentar as Taxas Locais do B/L (2026-10-28, em lotes):** pedido do dono,
+  [ADR 0111](adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md). Lote 1 (migration `491`): na
+  ficha do B/L, qualquer setor altera o valor de uma taxa (por unidade ou pelo total), exclui a taxa e
+  desfaz, com justificativa; a alteração fica guardada no B/L e o resolvedor a aplica em todo recálculo,
+  até a tabela da taxa sair do B/L (POD ou modalidade; preço refixado passa a alteração para a taxa
+  equivalente). Bloco **Histórico das taxas** na página e o mesmo evento na aba Histórico; excluir
+  cobrança manual passa a todos os setores, com justificativa (supersede o item 11 da ADR 0071); as
+  falhas da aba mostram o motivo do banco. Lote 2 (migration `492`): **Isentar Taxas Locais** e
+  **Retirar isenção**, por qualquer setor com justificativa; o B/L fica Isento ("Isenção manual: …") em
+  todo recálculo, as linhas ficam como referência e nenhuma taxa muda até retirar a isenção, que
+  recalcula com as alterações e exclusões que o B/L tinha; a isenção pelo veículo LCL vale primeiro.
+  Lote 3 (migration `493`): as mesmas ações valem no B/L faturado, parcial ou pago, e passam pela
+  correção automática da fatura (sem pagamento reemite com número novo, isentar cancela sem nova
+  fatura; paga com valor menor abate e restitui; paga com valor maior abre Fatura desatualizada); a
+  confirmação diz o efeito antes de gravar, o Histórico das taxas guarda o efeito, e o detalhe da
+  fatura no Vela mostra a Origem **Alterado**, que o Portal não recebe.
+  Lote 4 (migration `494`): a Validação filtra **Com taxa alterada à mão**, exporta a coluna **Taxas
+  alteradas à mão** e avisa em Recalcular e Emitir; a consolidada e o Recalcular da Revisão avisam; a
+  ficha do Cliente lista os **B/Ls com taxa alterada**; o Histórico de ações e a aba Histórico mostram a
+  alteração e a edição da cobrança manual em frase; o aviso "As taxas mudaram depois da emissão" compara
+  só a parte do B/L na consolidada.
+  Lote 5 (migration `495`): antes de gravar POD, peso, containers, marcas ou veículos de um B/L com
+  taxa alterada à mão, a ficha, a correção de container, o COD, `/veiculos` (mover e excluir) e as
+  importações de B/L, Manifesto BB e Baplie mostram o efeito e pedem **Gravar mesmo assim** quando a
+  alteração é descartada ou o total alterado ganha quantidade nova; sem essa confirmação, o efeito abre
+  o alerta **Taxa alterada à mão mudou** (Administrativo, avisa o Financeiro; Resolver com
+  justificativa).
+  Revisão da PR luccafwlog/vela#1080 (migration `497`): a confirmação do efeito na fatura passa a
+  dizer o mesmo que a correção faz (abatimento pelo saldo do B/L na consolidada paga em parte;
+  "não pode ser reemitida agora" sem Portal pronto nem Liberação; a fatura individual do B/L e a
+  consolidada que volta ou encerra); quem não é usuário interno deixa de descobrir pelo erro que um
+  B/L está isento à mão; o **Gravar mesmo assim** passa a cobrir o peso de contêiner da ficha, o
+  COC/SOC (correção de container, arquivo de B/L e Baplie), o B/L que passa a dividir um container,
+  toda gravação do Baplie (também a primeira importação), os veículos selecionados de outras páginas
+  e o **Reverter para transbordo**; a importação do B/L não fecha nem grava duas vezes durante a
+  conferência, e **Voltar** no meio da consulta do efeito não abre a confirmação; o Histórico das
+  taxas, a Validação e o saldo do Cliente se atualizam depois de lançar ou editar cobrança manual e
+  das gravações que recalculam as taxas.
+  Decisão do dono (migration `498`): a taxa com total alterado cuja quantidade vai a zero (container
+  que vira IMO, por exemplo) sai da cobrança com a alteração guardada; a prévia pede **Gravar mesmo
+  assim** e, sem ele, o Histórico das taxas registra e o alerta abre. Antes a prévia dizia "mantida".
 - **Publicação da staging com push grande (2026-10-28):** o merge da #1070 mudou 347 arquivos, o
   compare do GitHub parou em 300 e `scripts/wait-supabase-migrations.mjs` recusou publicar por não
   listar as migrations. Com o compare truncado, o script agora tira as versões novas da pasta

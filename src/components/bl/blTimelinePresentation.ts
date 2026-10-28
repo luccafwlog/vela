@@ -1,4 +1,5 @@
 import type { BlTimelineEvent, BlTimelineFamily } from '../../services/blTimeline'
+import { historyChangePhrase } from './blChargeAdjustmentPresentation'
 
 const FAMILY_LABEL: Record<BlTimelineFamily, string> = {
   edicao: 'Edição',
@@ -255,6 +256,28 @@ function describeBlMark(field: string, oldValue: string | null, newValue: string
   return null
 }
 
+/** Evento da taxa alterada à mão gravado em JSON (migration 491); também no Histórico de ações. */
+export function describeChargeAdjustmentEvent(value: string | null): string {
+  try {
+    const event = JSON.parse(value ?? '') as { event?: string; charge_name?: string | null; before?: Record<string, unknown> | null; after?: Record<string, unknown> | null }
+    if (!event.event) return 'Taxa alterada à mão'
+    const phrase = historyChangePhrase({ event: event.event, before: event.before ?? null, after: event.after ?? null })
+    return event.charge_name ? `${event.charge_name} · ${phrase}` : phrase
+  } catch {
+    return 'Taxa alterada à mão'
+  }
+}
+
+/** Edição da cobrança manual (`qty=2 | note=...`): a quantidade em frase, sem o código cru. */
+export function describeManualChargeUpdate(oldValue: string | null, newValue: string | null): string {
+  const read = (value: string | null) => /qty=([^|]*)/.exec(value ?? '')?.[1]?.trim() ?? ''
+  const before = read(oldValue)
+  const after = read(newValue)
+  const fmt = (value: string) => Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+  if (!before || !after || before === after) return 'Cobrança manual editada'
+  return `Cobrança manual: quantidade ${fmt(before)} → ${fmt(after)}`
+}
+
 export function describeTimelineEvent(event: BlTimelineEvent): string {
   const { entity_type, field_name, old_value, new_value } = event
   if (entity_type === 'bl' && field_name === 'container_dates') {
@@ -272,6 +295,9 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
   }
   if (entity_type === 'charge_calculation') {
     if (field_name === 'manual_delete') return 'Cobrança manual excluída'
+    // Migration 491: alteração à mão nas taxas grava o evento em JSON.
+    if (field_name === 'charge_adjustment') return describeChargeAdjustmentEvent(new_value)
+    if (field_name === 'manual_update') return describeManualChargeUpdate(old_value, new_value)
     return new_value ? `Taxa: ${new_value}` : 'Taxa alterada'
   }
   if (entity_type === 'bl_container' || entity_type === 'vehicle') {

@@ -5,7 +5,9 @@ const auto = { source: 'automatic', status: 'calculated', review_reason: null, n
 
 describe('colunas da tabela de Taxas Locais do B/L', () => {
   it('só Taxa, Qtd., Unitário e Total quando todas as linhas são automáticas e normais', () => {
-    expect(chargeTableColumns([auto, auto], false)).toEqual({ showOrigin: false, showSituation: false, showNotes: false, showActions: false })
+    expect(chargeTableColumns([auto, auto], false)).toEqual({ showOrigin: false, showSituation: false, showNotes: false, showActions: true })
+    // Taxa calculada também se altera e se exclui (ADR 0111); linha em revisão, não.
+    expect(chargeTableColumns([{ ...auto, status: 'review_required' }], false).showActions).toBe(false)
   })
   it('linha manual traz Origem e Ações; em revisão traz Situação e o motivo traz Observação', () => {
     const cols = chargeTableColumns([auto, { source: 'manual', status: 'calculated', notes: null }, { ...auto, status: 'review_required', review_reason: 'Sem medidas' }], false)

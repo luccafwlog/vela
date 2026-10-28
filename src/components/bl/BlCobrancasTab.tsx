@@ -1,29 +1,49 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Ban, CircleDollarSign, Pencil, Plus, Trash2, Undo2 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { RowActionButton } from '../ui/RowActionButton'
 import { NoValue } from '../ui/NoValue'
 import { Block, Fact, FactList, LeadValue } from '../ui/Block'
-import { useConfirm } from '../ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { ManualChargeFormFields } from '../billing/ManualChargeFormFields'
 import { useAuth } from '../../hooks/useAuth'
 import { chargeTableColumns, isUsualLine } from './chargeTableColumns'
+import { BlChargeValueModal } from './BlChargeValueModal'
+import { BlChargeHistory } from './BlChargeHistory'
+import { readInvoiceEffect } from './blChargeInvoiceEffect'
+import { adjustedIssueNotice } from '../billing/validacaoPipeline'
+import {
+  adjustmentTooltip,
+  chargeLineActions,
+  chargedTotalValue,
+  exemptionFact,
+  formatChargeMoney,
+  isAdjustedLine,
+  isExcludedLine,
+  isManualExemption,
+  tableTotalValue,
+  tableUnitValue,
+} from './blChargeAdjustmentPresentation'
+import type { LocalChargeLine } from '../../services/charges/chargeOperationsService'
 import {
   useAddManualBlCharge,
+  useBlChargeHistory,
   useBlLocalChargeLines,
   useCalculateBlLocalCharges,
+  useChangeBlCharge,
   useDeleteManualBlCharge,
   useManualChargeItemsForBl,
+  useSetBlLocalChargeExemption,
   useUpdateManualBlCharge,
 } from '../../hooks/useLocalCharges'
 import { formatBRL, formatCountLabel, formatDateTime, formatUSD, normalizeText } from '../../lib/utils'
 import { ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { InvoiceSituation } from '../billing/InvoiceSituation'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
-import { classifyDbError } from '../../lib/errors'
+import { classifyDbError, userFacingErrorMessage } from '../../lib/errors'
 import { invoiceTypeLabel, markBlReadyAndCreateInvoice, type InvoiceLinkInfo } from '../../services/billing'
 import {
   formatNumber,
@@ -48,14 +68,17 @@ const EMPTY_MANUAL_CHARGE_FORM: ManualChargeForm = {
 // Taxas Locais do B/L: linhas calculadas, cobranças manuais e fluxo de revisão/faturamento.
 export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail; activeInvoice?: InvoiceLinkInfo | null }) {
   const queryClient = useQueryClient()
-  const { user, isAdmin } = useAuth()
+  const { user } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
+  const changeChargeMutation = useChangeBlCharge(bl.id)
+  const [valueModalLine, setValueModalLine] = useState<LocalChargeLine | null>(null)
   const { data: localChargeLines, isLoading: isLocalChargeLinesLoading, isError: isLocalChargeLinesError, refetch: refetchLocalChargeLines } = useBlLocalChargeLines(bl.id)
   const { data: manualChargeItems, isLoading: isManualChargeItemsLoading } = useManualChargeItemsForBl(bl.id)
   const addManualChargeMutation = useAddManualBlCharge(bl.id)
-  const updateManualChargeMutation = useUpdateManualBlCharge(bl.id)
-  const deleteManualChargeMutation = useDeleteManualBlCharge(bl.id)
+  const updateManualChargeMutation = useUpdateManualBlCharge()
+  const deleteManualChargeMutation = useDeleteManualBlCharge()
   const [issuing, setIssuing] = useState(false)
   const calculateChargesMutation = useCalculateBlLocalCharges(bl.id)
   const [manualChargeForm, setManualChargeForm] = useState<ManualChargeForm>(EMPTY_MANUAL_CHARGE_FORM)
@@ -74,12 +97,19 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     }
   }, [localChargeLines])
 
-  // Apos o B/L ser faturado, as taxas viram fonte da fatura emitida — nao podem mais
-  // ser editadas aqui (o RPC tambem bloqueia; a UI apenas evita a tentativa).
+  // B/L faturado: as taxas são a base da fatura emitida. Recalcular, lançar e
+  // editar cobrança manual ficam fechados; alterar, excluir e isentar passam
+  // pela correção da fatura (ADR 0111, D8; migration 493).
   const chargesLocked = isBlFinanciallyLocked(bl.financial_status)
   // B/L cancelado é somente leitura (TAX-D09): sem cálculo, cobrança manual nem emissão.
   const cancelled = Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)
   const readOnly = chargesLocked || cancelled
+  // B/L isento à mão (D12): as linhas ficam como referência, sem ação, até
+  // Retirar isenção. O banco recusa a ação do mesmo jeito (migration 492).
+  const manualExempt = bl.charge_status === 'exempt' && isManualExemption(bl.charge_exemption_reason)
+  const linesReadOnly = cancelled || manualExempt
+  const exemptionMutation = useSetBlLocalChargeExemption(bl.id)
+  const { data: chargeHistory } = useBlChargeHistory(bl.id)
 
   async function handleSaveManualCharge() {
     if (!bl || !user) return
@@ -156,8 +186,8 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
 
       setManualChargeForm(EMPTY_MANUAL_CHARGE_FORM)
       setManualFormOpen(false)
-    } catch {
-      showToast('Falha ao salvar linha manual de taxa.', 'error')
+    } catch (error) {
+      showToast(`Não foi possível salvar a cobrança manual: ${userFacingErrorMessage(error)}`, 'error')
     }
   }
 
@@ -177,21 +207,129 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     setManualChargeForm(EMPTY_MANUAL_CHARGE_FORM)
   }
 
-  async function handleDeleteManualCharge(lineId: number) {
+  // Justificativa de ao menos 10 caracteres, como no banco (migration 491).
+  async function askJustification(options: Parameters<typeof confirmWithReason>[0]) {
+    const reason = await confirmWithReason({ reasonLabel: 'Justificativa (interna)', ...options })
+    if (reason == null) return null
+    if (reason.trim().length < 10) {
+      showToast('Escreva a justificativa (ao menos 10 caracteres).', 'error')
+      return null
+    }
+    return reason.trim()
+  }
+
+  /** Efeito na fatura do B/L faturado; `undefined` quando a ação já foi recusada. */
+  async function invoiceEffect(input: Omit<Parameters<typeof readInvoiceEffect>[1], 'blId'>) {
+    const read = await readInvoiceEffect(chargesLocked, { blId: bl.id, ...input })
+    if (read.ok) return read.message
+    showToast(userFacingErrorMessage(read.error), 'error')
+    return undefined
+  }
+
+  async function handleDeleteManualCharge(line: LocalChargeLine) {
     if (!user) return
-    if (!(await confirm({ title: 'Excluir taxa manual', message: 'Excluir esta taxa manual do B/L?', consequence: 'A taxa sai das cobranças do B/L e do próximo faturamento.', reversibility: 'Lance a taxa de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    const effect = await invoiceEffect({ action: 'delete_manual', lineKey: line.calculation_key })
+    if (effect === undefined) return
+    // Qualquer setor exclui a cobrança manual, com justificativa (ADR 0111,
+    // supersede o item 11 da ADR 0071).
+    const justification = await askJustification({
+      title: 'Excluir cobrança manual',
+      message: `Excluir a cobrança manual ${line.charge_name} (${formatChargeMoney(chargedTotalValue(line), line.currency)}) deste B/L?`,
+      consequence: effect ?? 'A cobrança sai das Taxas Locais do B/L e do próximo faturamento. A ação fica no Histórico das taxas.',
+      reversibility: 'Lance a cobrança de novo se precisar.',
+      tone: 'danger',
+      confirmLabel: 'Excluir',
+    })
+    if (!justification) return
 
     try {
-      await deleteManualChargeMutation.mutateAsync({
-        chargeCalculationId: lineId,
-        actorId: user.id,
-      })
-      showToast('Linha manual removida.', 'success')
-      if (manualChargeForm.editingChargeCalculationId === lineId) {
+      await deleteManualChargeMutation.mutateAsync({ chargeCalculationId: line.id, justification, actorId: user.id })
+      showToast('Cobrança manual excluída.', 'success')
+      if (manualChargeForm.editingChargeCalculationId === line.id) {
         setManualChargeForm(EMPTY_MANUAL_CHARGE_FORM)
       }
-    } catch {
-      showToast('Falha ao excluir linha manual.', 'error')
+    } catch (error) {
+      showToast(`Não foi possível excluir a cobrança manual: ${userFacingErrorMessage(error)}`, 'error')
+    }
+  }
+
+  async function handleChargeLineAction(line: LocalChargeLine, action: 'exclude' | 'restore' | 'reinclude') {
+    if (!user || !line.calculation_key) return
+    const effect = await invoiceEffect({ action: action === 'exclude' ? 'exclude' : 'restore', lineKey: line.calculation_key })
+    if (effect === undefined) return
+    const money = (value: number) => formatChargeMoney(value, line.currency)
+    const texts = {
+      exclude: {
+        title: 'Excluir taxa',
+        message: `A taxa ${line.charge_name} (${money(chargedTotalValue(line))}) sai da cobrança deste B/L e da fatura. A linha continua na ficha, riscada.`,
+        reversibility: 'Volte com Incluir taxa de novo, com justificativa.',
+        confirmLabel: 'Excluir taxa',
+        tone: 'danger' as const,
+        success: 'Taxa excluída da cobrança.',
+        failure: 'excluir a taxa',
+      },
+      restore: {
+        title: 'Voltar ao valor da tabela',
+        message: `A taxa ${line.charge_name} volta a ${money(tableUnitValue(line))} (tabela), total ${money(tableTotalValue(line))}.`,
+        reversibility: 'Altere o valor de novo quando quiser, com justificativa.',
+        confirmLabel: 'Voltar ao valor da tabela',
+        tone: 'primary' as const,
+        success: 'Taxa de volta ao valor da tabela.',
+        failure: 'voltar a taxa ao valor da tabela',
+      },
+      reinclude: {
+        title: 'Incluir taxa de novo',
+        message: `A taxa ${line.charge_name} volta à cobrança pelo valor da tabela, ${money(tableTotalValue(line))}.`,
+        reversibility: 'Exclua de novo quando quiser, com justificativa.',
+        confirmLabel: 'Incluir taxa de novo',
+        tone: 'primary' as const,
+        success: 'Taxa incluída de novo.',
+        failure: 'incluir a taxa de novo',
+      },
+    }[action]
+    const justification = await askJustification({
+      title: texts.title,
+      message: texts.message,
+      ...(effect ? { consequence: effect } : {}),
+      reversibility: texts.reversibility,
+      confirmLabel: texts.confirmLabel,
+      tone: texts.tone,
+    })
+    if (!justification) return
+    try {
+      await changeChargeMutation.mutateAsync({
+        action: action === 'exclude' ? 'exclude' : 'restore', lineKey: line.calculation_key, justification, actorId: user.id,
+      })
+      showToast(texts.success, 'success')
+    } catch (error) {
+      showToast(`Não foi possível ${texts.failure}: ${userFacingErrorMessage(error)}`, 'error')
+    }
+  }
+
+  async function handleExemption(exempt: boolean) {
+    if (!user) return
+    const effect = await invoiceEffect({ action: exempt ? 'exempt' : 'unexempt' })
+    if (effect === undefined) return
+    const justification = await askJustification(exempt ? {
+      title: 'Isentar Taxas Locais do B/L',
+      message: 'Nenhuma taxa deste B/L será cobrada, nem as manuais, e a fatura não será emitida. O B/L sai da fila da Validação e o Desbloqueio de CE considera o Financeiro atendido.',
+      reversibility: 'Retirar isenção recalcula as taxas com as alterações que o B/L tinha; a fatura sai pelo Emitir fatura.',
+      ...(effect ? { consequence: effect } : {}),
+      confirmLabel: 'Isentar',
+      tone: 'danger',
+    } : {
+      title: 'Retirar isenção',
+      message: 'As taxas voltam a ser calculadas, com as alterações e exclusões que o B/L tinha. A fatura não sai sozinha: use Emitir fatura quando o B/L estiver pronto.',
+      ...(effect ? { consequence: effect } : {}),
+      confirmLabel: 'Retirar isenção',
+      tone: 'primary',
+    })
+    if (!justification) return
+    try {
+      await exemptionMutation.mutateAsync({ exempt, justification, actorId: user.id })
+      showToast(exempt ? 'B/L isento das Taxas Locais.' : 'Isenção retirada: taxas recalculadas.', 'success')
+    } catch (error) {
+      showToast(`Não foi possível ${exempt ? 'isentar o B/L' : 'retirar a isenção'}: ${userFacingErrorMessage(error)}`, 'error')
     }
   }
 
@@ -200,8 +338,8 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     try {
       await calculateChargesMutation.mutateAsync({ actorId: user.id })
       showToast('Taxas locais calculadas.', 'success')
-    } catch {
-      showToast('Falha ao calcular as taxas locais deste B/L.', 'error')
+    } catch (error) {
+      showToast(`Não foi possível calcular as taxas: ${userFacingErrorMessage(error)}`, 'error')
     }
   }
 
@@ -224,7 +362,8 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         summary: `B/L ${bl.id} · ${formatBRL(localChargeSummary.totalBrl)}${localChargeSummary.totalUsd ? ` + ${formatUSD(localChargeSummary.totalUsd)} (convertido pelo câmbio fixado quando o B/L entrou)` : ''}`,
         items: [`${localChargeSummary.lines.length} linha(s) de cobrança`],
       },
-      consequence: 'Cria e emite a fatura, que aparece no Portal do Cliente. O B/L passa a faturado e deixa de aceitar recálculo.',
+      consequence: ['Cria e emite a fatura, que aparece no Portal do Cliente. O B/L passa a faturado e deixa de aceitar recálculo.',
+        adjustedIssueNotice({ items: localChargeSummary.lines.filter((line) => isAdjustedLine(line) || isExcludedLine(line)) })].filter(Boolean).join(' '),
       reversibility: 'A fatura não pode ser apagada. Se o B/L for corrigido depois, a fatura é reemitida automaticamente (sem pagamento) ou ajustada pelo saldo e restituição (com pagamento).',
       confirmLabel: 'Emitir fatura',
     })
@@ -254,14 +393,16 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     }
   }
 
+  // Na consolidada compara só a parte deste B/L (ADR 0111, lote 4), não o total da fatura.
+  const invoicedBrl = activeInvoice?.invoice_type === 'consolidated' ? activeInvoice.bl_subtotal_brl ?? null : activeInvoice?.total_brl ?? null
   const invoiceDiverges = Boolean(
     localChargeLines != null
     && activeInvoice?.status === 'issued'
-    && activeInvoice.total_brl != null
-    && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - activeInvoice.total_brl) > 0.01,
+    && invoicedBrl != null
+    && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt' && line.status !== 'excluded').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - invoicedBrl) > 0.01,
   )
   const lines = localChargeSummary.lines
-  const { showOrigin, showSituation, showNotes, showActions: showActionsColumn } = chargeTableColumns(lines, readOnly)
+  const { showOrigin, showSituation, showNotes, showActions: showActionsColumn } = chargeTableColumns(lines, linesReadOnly)
   const reviewPendingCount = lines.filter((line) => line.status === 'review_required').length
   const columnCount = 4 + Number(showOrigin) + Number(showSituation) + Number(showNotes) + Number(showActionsColumn)
   const totalLabel = (
@@ -272,12 +413,19 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   )
 
   return (
+    <>
     <Block
       title="Taxas Locais"
       flush
-      aside={readOnly ? null : (
+      aside={cancelled ? null : (
         <span className="flex flex-wrap items-center gap-2">
-          {manualFormOpen || manualChargeForm.editingChargeCalculationId ? null : (
+          {manualExempt ? (
+            <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => void handleExemption(false)}
+              loading={exemptionMutation.isPending} loadingLabel="Retirando…">
+              Retirar isenção
+            </Button>
+          ) : null}
+          {manualExempt || chargesLocked || manualFormOpen || manualChargeForm.editingChargeCalculationId ? null : (
             <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setManualFormOpen(true)}>
               <Plus size={15} aria-hidden="true" />
               Adicionar cobrança manual
@@ -296,6 +444,12 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
               Emitir fatura
             </Button>
           ) : null}
+          {bl.charge_status === 'exempt' ? null : (
+            <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => void handleExemption(true)}
+              loading={exemptionMutation.isPending} loadingLabel="Isentando…">
+              Isentar Taxas Locais
+            </Button>
+          )}
         </span>
       )}
     >
@@ -330,7 +484,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           ) : bl.charges_calculated_at ? (
             <Fact label="Cálculo">{formatDateTime(bl.charges_calculated_at)}</Fact>
           ) : null}
-          {bl.charge_exemption_reason ? <Fact label="Isenção">{bl.charge_exemption_reason}</Fact> : null}
+          {bl.charge_exemption_reason ? <Fact label="Isenção">{exemptionFact(bl.charge_exemption_reason, chargeHistory)}</Fact> : null}
           {bl.charge_status === 'exempt' && !bl.charge_exemption_reason ? <Fact label="Situação"><StatusText tone="muted">Isento</StatusText></Fact> : null}
         </FactList>
         {bl.charge_status === 'not_calculated' && !cancelled ? (
@@ -348,7 +502,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           <p className="app-facts__detail">B/L cancelado: as taxas ficam só para consulta.</p>
         ) : null}
         {chargesLocked ? (
-          <p className="app-facts__detail">Faturado: as taxas são a base da fatura e não se editam aqui. Correções no B/L reemitem ou ajustam a fatura automaticamente.</p>
+          <p className="app-facts__detail">Faturado: as taxas são a base da fatura. Alterar, excluir ou isentar passa pela correção da fatura (reemissão, abatimento ou Restituição).</p>
         ) : null}
       </div>
 
@@ -381,13 +535,18 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
               </tr>
             ) : lines.length ? (
               lines.map((line) => (
-                <tr key={line.id}>
-                  <td className="app-table__text" title={line.charge_name ?? undefined}>{line.charge_name}</td>
+                <tr key={line.id} className={isExcludedLine(line) || line.status === 'exempt' ? 'text-[var(--app-muted)]' : undefined}>
+                  <td className="app-table__text" title={line.adjustment_id != null ? adjustmentTooltip(line) : line.charge_name ?? undefined}>
+                    <span className={isExcludedLine(line) ? 'line-through' : undefined}>{line.charge_name}</span>
+                    {isAdjustedLine(line) ? <> <StatusText tone="warning">Alterada</StatusText></> : null}
+                    {isExcludedLine(line) ? <> <StatusText tone="muted">Excluída</StatusText></> : null}
+                  </td>
                   {showOrigin ? <td>{line.source === 'manual' ? 'Manual' : <NoValue label="Automática" />}</td> : null}
                   {showSituation ? (
                     <td className="whitespace-nowrap">
                       {line.status === 'review_required' ? <StatusText tone="warning">Em revisão</StatusText>
                         : line.status === 'exempt' ? <StatusText tone="muted">Isenta</StatusText>
+                        : isExcludedLine(line) ? <StatusText tone="muted">Excluída</StatusText>
                         : isUsualLine(line.status) ? <NoValue label={resolveChargeLineStatusLabel(line.status)} />
                         : resolveChargeLineStatusLabel(line.status)}
                     </td>
@@ -396,23 +555,35 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
                   <td className="whitespace-nowrap tabular-nums">
                     {line.currency === 'USD' ? formatUSD(line.unit_value_usd ?? 0) : formatBRL(line.unit_value_brl ?? 0)}
                   </td>
-                  <td className="whitespace-nowrap tabular-nums">
-                    {line.currency === 'USD' ? formatUSD(line.total_value_usd ?? 0) : formatBRL(line.total_value_brl ?? 0)}
+                  <td className={`whitespace-nowrap tabular-nums ${isExcludedLine(line) ? 'line-through' : ''}`}>
+                    {/* A linha excluída mostra o valor que teria (o da tabela) e não entra no Total. */}
+                    {isExcludedLine(line) ? formatChargeMoney(tableTotalValue(line), line.currency)
+                      : line.currency === 'USD' ? formatUSD(line.total_value_usd ?? 0) : formatBRL(line.total_value_brl ?? 0)}
                   </td>
                   {showNotes ? (
                     <td className="app-table__text app-table__text--wrap">{line.review_reason ?? line.notes ?? <NoValue label="Sem observação" />}</td>
                   ) : null}
                   {showActionsColumn ? (
                     <td>
-                      {line.source === 'manual' ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <RowActionButton label="Editar cobrança manual" icon={Pencil} onClick={() => handleEditManualCharge(line.id)} />
-                          {isAdmin ? (
-                            // Excluir taxa manual é do Administrativo (migration 088; ADR 0071).
-                            <RowActionButton label="Excluir cobrança manual" icon={Trash2} variant="danger" onClick={() => handleDeleteManualCharge(line.id)} disabled={deleteManualChargeMutation.isPending} />
-                          ) : null}
-                        </div>
-                      ) : null}
+                      <div className="flex items-center justify-center gap-2">
+                        {chargeLineActions(line, linesReadOnly, { billed: chargesLocked }).map((action) => {
+                          const busy = changeChargeMutation.isPending || deleteManualChargeMutation.isPending
+                          switch (action) {
+                            case 'editManual':
+                              return <RowActionButton key={action} label="Editar cobrança manual" icon={Pencil} onClick={() => handleEditManualCharge(line.id)} />
+                            case 'alter':
+                              return <RowActionButton key={action} label="Alterar valor da taxa" icon={CircleDollarSign} onClick={() => setValueModalLine(line)} disabled={busy} />
+                            case 'restore':
+                              return <RowActionButton key={action} label="Voltar ao valor da tabela" icon={Undo2} onClick={() => void handleChargeLineAction(line, 'restore')} disabled={busy} />
+                            case 'reinclude':
+                              return <RowActionButton key={action} label="Incluir taxa de novo" icon={Undo2} onClick={() => void handleChargeLineAction(line, 'reinclude')} disabled={busy} />
+                            case 'exclude':
+                              return <RowActionButton key={action} label="Excluir taxa" icon={Ban} variant="danger" onClick={() => void handleChargeLineAction(line, 'exclude')} disabled={busy} />
+                            case 'deleteManual':
+                              return <RowActionButton key={action} label="Excluir cobrança manual" icon={Trash2} variant="danger" onClick={() => void handleDeleteManualCharge(line)} disabled={busy} />
+                          }
+                        })}
+                      </div>
                     </td>
                   ) : null}
                 </tr>
@@ -435,7 +606,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         </table>
       </div>
 
-      {readOnly || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
+      {linesReadOnly || chargesLocked || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
         <div className="app-block__body">
           <ManualChargeFormFields
             form={manualChargeForm}
@@ -449,7 +620,10 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           />
         </div>
       )}
+      {valueModalLine ? <BlChargeValueModal blId={bl.id} billed={chargesLocked} line={valueModalLine} onClose={() => setValueModalLine(null)} /> : null}
     </Block>
+    <BlChargeHistory blId={bl.id} />
+    </>
   )
 }
 

@@ -900,6 +900,27 @@ normalmente.
 
 - **Ver também:** Movimento (FCL/LCL), Taxas Locais
 
+**Taxa alterada à mão**
+Taxa Local de um B/L cujo valor o operador mudou (por unidade ou pelo total)
+ou que ele excluiu da cobrança, com justificativa. Vale só para aquele B/L,
+sobrevive aos recálculos e só se perde quando a tabela da taxa sai do B/L.
+Desfaz-se com **Voltar ao valor da tabela** ou **Incluir taxa de novo**; toda
+ação fica no **Histórico das taxas** da ficha.
+→ Regra: [Taxas Locais § Taxa alterada à mão](docs/modules/taxas-locais.md#taxa-alterada-à-mão-adr-0111)
+
+- **Evitar:** "desconto" (é da Demurrage), "override" (é a Condição de Cliente)
+- **Ver também:** Condição de Cliente, Cobrança manual, Taxas Locais
+
+**Isenção à mão**
+Decisão do operador de não cobrar nenhuma Taxa Local de um B/L, com
+justificativa (**Isentar Taxas Locais** na ficha). O B/L fica **Isento**, como
+o isento pelo veículo LCL, mas com o motivo "Isenção manual: …"; vale em todo
+recálculo e se desfaz com **Retirar isenção**.
+→ Regra: [Taxas Locais § Movimento e Isenção](docs/modules/taxas-locais.md#movimento-e-isenção-de-taxas-locais)
+
+- **Evitar:** "zerar as taxas", "excluir todas as taxas"
+- **Ver também:** Taxa alterada à mão, Taxas Locais
+
 **Taxa Local em Dólar**
 Item de Taxa cadastrado em USD, convertido em BRL pelo ROE fixado no primeiro
 cálculo do B/L (Preço Fixado) e congelado na fatura. Difere do Demurrage, que
@@ -1554,7 +1575,8 @@ que muda o valor faturado ou o Cliente de uma fatura de Taxas Locais já
 emitida. A fatura nunca é editada: o sistema reemite, abate ou restitui
 sozinho. Corrigir item de tabela já usada ou Condição de Cliente (erro de
 preço, só o Administrativo) também é correção; reajuste se faz com tabela ou
-Condição nova.
+Condição nova. Alterar, excluir ou isentar à mão as Taxas Locais do B/L
+faturado também é correção (ADR 0111, D8).
 → Regra: [Faturamento § Correção após emissão](docs/modules/faturamento.md#correção-após-emissão-adr-0077)
 
 **Reemissão pendente**

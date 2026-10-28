@@ -6,6 +6,7 @@ import { formatBRL, formatDateTime, formatUSD } from '../../lib/utils'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import type { LocalChargeLine } from '../../services/charges/chargeOperationsService'
 import { applicationBasisLabel, detectarDivergenciaComFatura, groupChargeLinesByTable, sumChargeLines } from './conferenciaCalculo'
+import { adjustmentTooltip, isAdjustedLine, isExcludedLine } from '../bl/blChargeAdjustmentPresentation'
 
 function formatQuantity(value: number | null): string | null {
   const amount = Number(value ?? 0)
@@ -122,6 +123,9 @@ export function ConferenciaCalculo({
                     <td className="app-table__text app-table__text--wrap">
                       {line.charge_name}
                       {line.override_applied ? <> <StatusText tone="muted">tarifa negociada</StatusText></> : null}
+                      {/* ADR 0111: a taxa alterada mostra o valor da tabela ao passar o mouse; a excluída fica fora do subtotal (total zero). */}
+                      {isExcludedLine(line) ? <> <StatusText tone="muted">excluída</StatusText></>
+                        : isAdjustedLine(line) ? <> <span title={adjustmentTooltip(line)}><StatusText tone="muted">alterada</StatusText></span></> : null}
                       {line.status === 'review_required' ? <> <StatusText tone="warning">{line.review_reason ?? 'em revisão'}</StatusText></> : null}
                     </td>
                     <td className="app-table__text">{applicationBasisLabel(line.application_basis) ?? <NoValue label="Sem base" />}</td>

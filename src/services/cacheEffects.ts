@@ -235,6 +235,21 @@ export async function afterBlInvoiceBasisAlterada(queryClient: QueryInvalidator)
   await invalidate(queryClient, [...INVOICE_BASIS_CACHE_KEYS, queryKeys.ceUnlock.all()])
 }
 
+/**
+ * Alterar, excluir ou desfazer uma Taxa Local do B/L, isentar e lançar ou
+ * editar cobrança manual (ADR 0111) mudam o cálculo, o "a faturar", o
+ * Desbloqueio de CE, o Histórico das taxas e a aba Histórico da ficha. No B/L
+ * faturado a ação passa pela correção da fatura: as mesmas leituras
+ * financeiras da correção do B/L (fatura reemitida, Restituição, Fatura
+ * desatualizada, subtotal do B/L na fatura).
+ */
+export async function afterTaxasDoBlAlteradas(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [
+    ...FINANCIAL_READ_KEYS, queryKeys.bls.chargeHistory(), queryKeys.bls.timeline(),
+    queryKeys.voyages.all(), ['voyage-billing-status'],
+  ])
+}
+
 export async function afterCeUnlockChanged(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [queryKeys.ceUnlock.all(), ['customer-detail'], ['customer-ficha']])
 }

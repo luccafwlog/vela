@@ -1,4 +1,4 @@
-import { blFieldLabel, formatBlFieldValue } from '../bl/blTimelinePresentation'
+import { blFieldLabel, describeChargeAdjustmentEvent, describeManualChargeUpdate, formatBlFieldValue } from '../bl/blTimelinePresentation'
 import { CUSTOMER_FIELD_LABELS } from '../../services/customerFicha'
 import { TIMELINE_VOYAGE_FIELD_LABELS } from '../../services/voyageSummaries'
 import { DEPARTMENT_LABELS } from '../../lib/departmentLabel'
@@ -317,6 +317,9 @@ export function describeAuditLog(row: AuditLogLike): string {
     if (statusSummary) return statusSummary
   }
   if (row.entity_type === 'user_profile' && field === 'password') return 'Senha redefinida'
+  // ADR 0111: taxa alterada, excluída ou isenta à mão e edição da cobrança manual.
+  if (row.entity_type === 'charge_calculation' && field === 'charge_adjustment') return describeChargeAdjustmentEvent(row.new_value)
+  if (row.entity_type === 'charge_calculation' && field === 'manual_update') return describeManualChargeUpdate(row.old_value, row.new_value)
   const label = auditFieldLabel(row.entity_type, row.field_name)
   if (!label) return participle(noun, 'alterado')
   const value = formatAuditValue(row.field_name, row.new_value, row.entity_type)

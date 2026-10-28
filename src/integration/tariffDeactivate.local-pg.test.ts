@@ -109,8 +109,9 @@ describeLocal('091 — tarifa usada só se desativa', () => {
     expect(admin.status).toBe(0)
     expect(psql(`SELECT active FROM public.customer_rate_overrides WHERE customer_id = ${CUSTOMER_ID};`)).toBe('f')
     // A 106 transformou add_manual_bl_charge em envelope; o corpo com o filtro vive na _impl_106.
+    // A 491 fez o mesmo com o resolvedor: o corpo da tabela vive em _resolve_bl_local_charge_items_table.
     expect(psql(`SELECT count(*) FROM pg_proc WHERE proname IN
-      ('resolve_bl_local_charge_items', '_add_manual_bl_charge_impl_106', 'list_manual_charge_items_for_bl')
+      ('_resolve_bl_local_charge_items_table', '_add_manual_bl_charge_impl_106', 'list_manual_charge_items_for_bl')
       AND prosrc LIKE '%WHERE cro.active%';`)).toBe('3')
   })
 

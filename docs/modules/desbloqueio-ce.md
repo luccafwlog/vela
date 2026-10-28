@@ -245,7 +245,8 @@ não financia o novo Cliente. A nova cobrança precisa de liquidação própria.
 Restituição de excedente por redução normal do mesmo Cliente não bloqueia
 aptidão quando o valor corrigido já está coberto. Pagamento
 parcial, ausência de liquidação, nova obrigação de COD ou cancelamento de baixa
-impedem aptidão. B/L com Taxas Locais isentas (`charge_status = 'exempt'`) e
+impedem aptidão. B/L com Taxas Locais isentas (`charge_status = 'exempt'`,
+pelo veículo LCL ou à mão pelo **Isentar Taxas Locais**, ADR 0111, D12) e
 sem recebível vigente não tem o requisito de pagamento: fica apto com termo,
 procuração e entrega, e a planilha ZPT sai "Sim" no pagamento; o Portal mostra "Isentas" no lugar de "Pagas" (`paid_exempt`). Fatura avulsa
 emitida para o B/L e o Cliente atual (`issued`/`partially_paid` com saldo)

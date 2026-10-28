@@ -27,7 +27,10 @@ vi.mock('../../hooks/usePortalProvisioning', () => ({
   }),
   useSendPortalInvite: () => ({ mutateAsync: mocks.sendInvite, isPending: false }),
 }))
-vi.mock('../../services/charges/chargeOperationsService', () => ({ calculateBlLocalCharges: vi.fn() }))
+vi.mock('../../services/charges/chargeOperationsService', () => ({
+  calculateBlLocalCharges: vi.fn(),
+  listBlChargeAdjustmentSummaries: vi.fn().mockResolvedValue([]),
+}))
 vi.mock('../../services/operationalEvents', () => ({ logOperationalEvent: vi.fn() }))
 vi.mock('../../services/review', async () => {
   const actual = await vi.importActual<typeof import('../../services/review')>('../../services/review')
@@ -47,6 +50,7 @@ import { useReviewQueue } from '../../hooks/useReview'
 import { useReviewCustomerGroup } from '../../hooks/useReviewCustomerGroup'
 import { applyInlineBlReviewFix, saveBlReview } from '../../services/review'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
+import { listBlChargeAdjustmentSummaries } from '../../services/charges/chargeOperationsService'
 import { Revisao } from '../Revisao'
 
 const mockedUseReviewQueue = vi.mocked(useReviewQueue)
@@ -567,6 +571,24 @@ describe('Revisao', () => {
     const results = await screen.findByRole('region', { name: 'Resultados recentes' })
     await waitFor(() => expect(results.textContent).toMatch(/B\/L BL1: taxas locais ainda por recalcular/))
     expect(results.textContent).toMatch(/1 fatura emitida automaticamente/)
+  })
+
+  it('Recalcular avisa que a taxa alterada à mão se mantém (ADR 0111)', async () => {
+    const user = userEvent.setup()
+    mockedTryAutoIssueInvoice.mockResolvedValueOnce({ status: 'blocked', reason: 'review:no_table', message: 'Tabela de taxas locais ausente.' } as never)
+    vi.mocked(listBlChargeAdjustmentSummaries).mockResolvedValueOnce([{ bl_id: 'BL1', items: [{ charge_name: 'THD' }], manual_exempt: false }] as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /AC Comercial/ }))
+    await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11222333000181')
+    await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'financeiro@alfa.com')
+    await choosePortalLater(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
+    mocks.confirm.mockResolvedValue(false)
+    await user.click(await screen.findByRole('button', { name: 'Recalcular taxas' }))
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Recalcular taxas locais' })))
+    expect(mocks.confirm.mock.lastCall?.[0].consequence).toContain('1 B/L tem taxas alteradas à mão: as alterações se mantêm no recálculo.')
   })
 
   it('caso E: valida o peso da carga solta junto do campo, sem gravar valor inválido', async () => {

@@ -22,6 +22,20 @@ dependem de decisão, está no
 Falta, para fechar a Etapa 1, o dono aprovar o sumário final e a lista "fora
 do manual". A Etapa 2 começa depois.
 
+**Mudança entrada depois da Etapa 1 (2026-10-28): alterar, excluir e isentar
+as Taxas Locais do B/L** ([ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
+migrations `491` a `498`; a `497` e a `498` vêm da revisão da PR). Já
+está na matriz, com `npm run manual:coverage` passando: as linhas novas e
+mudadas estão listadas, lote a lote, em "Atualizações da matriz" do
+[README do manual](../manual/README.md). Áreas do
+manual que mudaram: Taxas Locais (09a: alterar, excluir, isentar, Histórico das
+taxas, Validação), Faturamento (09b: B/L faturado, consolidada, Origem
+**Alterado**), Recebimento (10), Portal (07), Clientes (06: **B/Ls com taxa
+alterada**), Revisão e ficha do B/L (03), CE e Baplie (04: prévias de
+importação), Equipamentos (05: Veículos), Viagens (02: COD), Alertas (12:
+**Taxa alterada à mão mudou**) e Acesso (01: setores que recebem o alerta).
+Ao escrever esses capítulos, nada precisa ser remapeado.
+
 Diferença mecânica do plano: o check de cobertura roda contra o banco local
 preparado, como o `rpc:check`, e não junto do `docs:check`, porque o
 inventário sai do banco com todas as migrations. O material antigo está

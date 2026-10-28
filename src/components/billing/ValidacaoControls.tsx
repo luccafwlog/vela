@@ -5,7 +5,8 @@ import type { BillingBlockCode, OpsFilters } from './validacaoTypes'
 
 /**
  * Filtros da Validação (lote 1 da identidade): Busca, Motivo e Navio / Viagem
- * abertos; Modo de carga, POD e Incluir resolvidos em "Mais filtros".
+ * abertos; Modo de carga, POD, Incluir resolvidos e Com taxa alterada à mão em
+ * "Mais filtros".
  */
 export function ValidacaoControls({
   filters, truncated, onUpdateFilter,
@@ -14,7 +15,7 @@ export function ValidacaoControls({
   truncated: boolean
   onUpdateFilter: <K extends keyof OpsFilters>(field: K, value: OpsFilters[K]) => void
 }) {
-  const moreCount = [filters.cargoMode, filters.pod, filters.includeResolved ? 'sim' : ''].filter(Boolean).length
+  const moreCount = [filters.cargoMode, filters.pod, filters.includeResolved ? 'sim' : '', filters.onlyAdjusted ? 'sim' : ''].filter(Boolean).length
   return (
     <div className="grid gap-3">
       <div className="app-filter-grid">
@@ -27,6 +28,7 @@ export function ValidacaoControls({
           <Field label="Modo de carga"><Select value={filters.cargoMode} onChange={(e) => onUpdateFilter('cargoMode', e.target.value as OpsFilters['cargoMode'])}><option value="">Todos</option><option value="container">Container</option><option value="carga_solta">Carga Solta</option><option value="misto">Misto</option></Select></Field>
           <Field label="POD"><Input value={filters.pod} onChange={(e) => onUpdateFilter('pod', e.target.value.toUpperCase())} placeholder="BRVIT / BRSSA" /></Field>
           <label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" checked={filters.includeResolved} onChange={(e) => onUpdateFilter('includeResolved', e.target.checked)} /> Incluir faturados e isentos</label>
+          <label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" checked={filters.onlyAdjusted} onChange={(e) => onUpdateFilter('onlyAdjusted', e.target.checked)} /> Com taxa alterada à mão</label>
         </div>
       </FilterBar>
       {truncated ? <p className="app-facts__detail" role="status">Limite de 1200 B/Ls atingido; refine os filtros.</p> : null}
