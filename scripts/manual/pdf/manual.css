@@ -404,3 +404,71 @@ table.quero td.pag { width: 14mm; text-align: right; color: var(--muted); }
 .passar .equipe { font-size: 7.5pt; }
 .corte { position: absolute; left: 0; right: 0; top: 148.5mm; border-top: 0.6pt dashed var(--border-strong, #9aa4b2); z-index: 3; }
 .corte span { position: absolute; left: var(--margin-x); top: -2.2mm; background: var(--paper); padding: 0 1.6mm; font-size: 7.5pt; color: var(--muted); }
+
+/* ======================================================================
+ * Livro: texto corrido paginado pelo Chromium (npm run manual:build).
+ * As páginas fixas (capa e abertura de parte) usam as páginas nomeadas
+ * `capa` e `parte`, sem margem; cada capítulo tem a sua página nomeada
+ * (cabeçalho e aba da parte), gerada pelo gerar.mjs.
+ * ==================================================================== */
+@page {
+  size: A4;
+  margin: 21mm 18mm 18mm 18mm;
+  @top-left { font-family: "DM Sans", sans-serif; font-size: 8pt; color: #4f5868; vertical-align: bottom; padding-bottom: 1.6mm; border-bottom: 0.4pt solid #c3cad5; }
+  @top-right { font-family: "DM Sans", sans-serif; font-size: 8pt; font-weight: 600; color: #152238; vertical-align: bottom; padding-bottom: 1.6mm; border-bottom: 0.4pt solid #c3cad5; }
+  @bottom-left { font-family: "DM Sans", sans-serif; font-size: 8pt; color: #4f5868; vertical-align: top; padding-top: 4mm; }
+  @bottom-right { content: counter(page); font-family: "DM Sans", sans-serif; font-size: 10pt; font-weight: 700; color: #152238; vertical-align: top; padding-top: 3.6mm; }
+  @right-top { background: #152238; color: #ffffff; font-family: "DM Sans", sans-serif; font-size: 8pt; font-weight: 700; writing-mode: vertical-rl; text-align: center; vertical-align: middle; width: 7mm; height: 24mm; margin-left: 11mm; }
+}
+@page capa { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+@page parte { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+
+body.livro { background: #fff; }
+body.livro .pagina { margin: 0; }
+.pagina-fixa { break-before: page; break-after: page; }
+.pagina-fixa:first-child { break-before: auto; }
+.pdf-alvo { position: absolute; top: 0; left: 0; font-size: 2px; line-height: 1; color: #fff; white-space: nowrap; }
+
+/* Sumário */
+.sumario { break-before: page; position: relative; }
+.sumario h1 { font-size: 26pt; color: var(--navy); margin-bottom: 6mm; }
+ol.sum { list-style: none; margin: 0; padding: 0; }
+ol.sum a { display: flex; justify-content: space-between; gap: 4mm; color: var(--text); padding: 1.3mm 0; border-bottom: 0.5pt solid var(--border-soft); }
+ol.sum .pag { color: var(--muted); font-variant-numeric: tabular-nums; }
+.sum-parte a { font-weight: 700; color: var(--gold-strong); font-size: 11pt; padding-top: 5mm; border-bottom: 0.8pt solid var(--navy); }
+.sum-cap a { font-weight: 700; font-size: 10.5pt; color: var(--navy); padding-top: 2.6mm; }
+.sum-cap b { display: inline-block; width: 8mm; }
+.sum-sec a { padding-left: 8mm; font-size: 9.5pt; }
+.sum-sec b { display: inline-block; width: 11mm; color: var(--gold-strong); font-weight: 600; }
+
+/* Capítulo */
+.capitulo { break-before: page; }
+.abertura { position: relative; display: flex; flex-direction: column; gap: 5mm; break-after: page; }
+.abertura .intro { display: grid; gap: 2.4mm; }
+.abertura .intro p { font-size: 10.5pt; max-width: 155mm; }
+.texto-corrido { display: flow-root; }
+.texto-corrido > * + * { margin-top: 3.6mm; }
+.texto-corrido > h2.secao-titulo { position: relative; margin-top: 8mm; padding-top: 3mm; border-top: 0.8pt solid var(--navy); break-after: avoid; }
+.texto-corrido > h2.secao-titulo:first-child { margin-top: 0; }
+.texto-corrido > h3.sub { font-size: 11pt; color: var(--navy); margin-top: 5mm; break-after: avoid; }
+.texto-corrido p, .texto-corrido li { orphans: 3; widows: 3; }
+.texto-corrido ul:not(.checklist) { margin: 0; padding-left: 5mm; display: grid; gap: 1.2mm; }
+.texto-corrido table:not(.quero):not(.tab) { width: 100%; border-collapse: collapse; font-size: 8.75pt; }
+.texto-corrido table:not(.quero):not(.tab) th { background: var(--navy); color: #fff; font-weight: 600; padding: 1.6mm 2.4mm; text-align: center; }
+.texto-corrido table:not(.quero):not(.tab) td { padding: 1.6mm 2.4mm; border-bottom: 0.5pt solid var(--border-soft); text-align: left; vertical-align: top; }
+.bloco, .quadro, .aconteceu, .mensagem, figure.tela, table, .colunas-passos { break-inside: avoid; }
+.passos-bloco + figure.tela, h2 + .bloco { break-before: avoid; }
+.quadro p + p, .bloco .conteudo p + p { margin-top: 1.6mm; }
+.bloco .conteudo > ul, .quadro > ul { margin: 0; padding-left: 4.5mm; display: grid; gap: 1mm; }
+.corpo-card dl { margin: 0; padding: 2.4mm 3.5mm; display: grid; grid-template-columns: 30mm 1fr; gap: 1.6mm 4mm; }
+.corpo-card dt { font-size: 8pt; color: var(--muted); font-weight: 600; padding-top: 0.3mm; }
+.corpo-card dd { margin: 0; }
+.corpo-card dd p { margin: 0; }
+.corpo-card > p { padding: 2.4mm 3.5mm; }
+.ficha .fatos .valor p { margin: 0; }
+
+/* Imagem marcada: largura conforme a captura. */
+figure.tela { break-inside: avoid; }
+.tela__quadro--estreita { max-width: 95mm; }
+.tela__quadro .marca--direita { transform: translate(0, -50%); }
+.colunas-passos figure.tela .tela__quadro { max-width: none; }

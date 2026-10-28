@@ -1,0 +1,31 @@
+{
+  "titulo": "Manual do Operador",
+  "sobre": "Uso interno das equipes",
+  "subtitulo": "Como o Vela opera e o que cada equipe faz para levar uma Viagem do cadastro até a carga liberada, com as situações do dia a dia e o que o sistema faz sozinho.",
+  "versao": "0.2",
+  "situacao": "capítulo-piloto para aprovação",
+  "descreve": "28/10/2026",
+  "partes": [
+    {
+      "numero": "2",
+      "romano": "II",
+      "titulo": "Operação",
+      "texto": "Da Viagem cadastrada até o navio sair do último porto: escalas e atracações, a programação que o Cliente vê e a documentação que chega do armador.",
+      "capitulos": [
+        {
+          "numero": 4,
+          "titulo": "Viagens e Escalas",
+          "resumo": "Cadastrar, datas do navio, atracação, omissão, transbordo e COD, cancelar",
+          "arquivo": "04-viagens-escalas.md",
+          "equipes": ["Todas as equipes"],
+          "algumas": [
+            { "texto": "Remover atracação", "equipes": ["Operações", "Administrativo"] },
+            { "texto": "Cancelar, reativar e excluir", "equipes": ["Administrativo"] }
+          ],
+          "leitura": "30 minutos",
+          "antes": "Antes, leia o capítulo 3 (o caminho de uma Viagem)."
+        }
+      ]
+    }
+  ]
+}
