@@ -83,7 +83,7 @@ Com alguma seção da equipe em **Pendente**, o botão de assinar fica apagado.
 
 **Quem acompanha:** {{Todas as equipes}}; o resumo por período, o {{Administrativo}}
 
-Cada equipe tem até 72 horas corridas depois do ATD do terminal para assinar a sua parte. Sábado, domingo e feriado contam: o navio que sai do TVV na sexta às 18h tem o prazo vencendo na segunda às 18h. O prazo aparece no bloco **ADR**, em **Prazo de conclusão**; enquanto não há ATD, "Aguardando a saída do navio".
+Cada equipe tem até 72 horas corridas depois do ATD do terminal para assinar a sua parte. Sábado, domingo e feriado contam: o navio que sai do TVV na sexta às 18h tem o prazo vencendo na segunda às 18h. O prazo aparece no bloco **ADR**, em **Prazo de conclusão**; enquanto não há ATD, ele mostra "—".
 
 O prazo conta da saída do navio, não da hora em que alguém registrou a saída. Um ATD lançado dois dias depois deixa só um dia para as equipes, e o prazo pode já chegar vencido. Registre o ATD no dia ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)).
 
