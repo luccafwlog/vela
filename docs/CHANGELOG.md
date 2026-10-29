@@ -6,6 +6,15 @@
 
 ## 2026-10
 
+- **Recusa da carga solta em outra Viagem com acento (2026-10-29, migration `511`; revisão da PR
+  luccafwlog/vela#1084):** ao gravar Manifesto BB ou B/L avulso com B/L de outra Viagem, a tela mostrava a
+  recusa da migration `500` sem acento ("exclua o B/L la e importe de novo (cancelar nao libera o
+  numero)"); agora diz "O B/L … já está na Viagem … exclua o B/L lá e importe de novo (cancelar não
+  libera o número).", como a prévia. Só redefine a função.
+- **Carga solta em outra Viagem: a recusa manda excluir o B/L lá (2026-10-28, migration `500`, PR
+  luccafwlog/vela#1083):** a recusa do Manifesto BB e do B/L avulso para B/L que já está em outra Viagem
+  manda excluir o B/L lá e importar de novo, como o arquivo de B/L de container; antes mandava corrigir a
+  Viagem pela ficha, que não muda a Viagem. Ver [Manifestos e EDI](modules/manifesto-edi.md).
 - **Motivo do bloqueio legível no alerta de efeito de importação (2026-10-29, sem migration):** em
   `/alertas`, **Efeito de importação bloqueado** deixa de mostrar o erro cru do banco (ex.: `null value
   in column "customer_id"…`): a linha diz o passo, o registro, o motivo em linguagem de operação e
