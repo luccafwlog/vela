@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Viagens: recusa da omissão e Conciliação sem a contagem (2026-10-29, sem migration; revisão da
+  PR luccafwlog/vela#1084):** na janela **Omitir escala**, voltar depois de uma recusa e confirmar de novo
+  não repete a recusa anterior na confirmação (ela continua no formulário para orientar a correção). A
+  ficha da Viagem diz **Verificando** enquanto a contagem de divergências do Baplie não chega ou falha,
+  como a faixa e a tabela; antes dizia **Conciliada** sem saber das divergências. Ver
+  [Viagens](modules/viagens.md).
 - **Motivo do bloqueio legível no alerta de efeito de importação (2026-10-29, sem migration):** em
   `/alertas`, **Efeito de importação bloqueado** deixa de mostrar o erro cru do banco (ex.: `null value
   in column "customer_id"…`): a linha diz o passo, o registro, o motivo em linguagem de operação e

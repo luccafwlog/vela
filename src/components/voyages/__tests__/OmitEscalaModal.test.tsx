@@ -10,7 +10,7 @@ const { mutateAsync, useAuthMock } = vi.hoisted(() => ({
 
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: useAuthMock }))
 vi.mock('../../../hooks/useTransshipments', () => ({
-  useOmitEscala: () => ({ mutateAsync, isError: false, isPending: false }),
+  useOmitEscala: () => ({ mutateAsync, reset: () => {}, isError: false, isPending: false }),
 }))
 
 import { OmitEscalaModal } from '../OmitEscalaModal'
