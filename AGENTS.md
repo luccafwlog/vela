@@ -104,7 +104,8 @@ DNS, secret name, webhook, scheduled job, hosting, e-mail routing) also updates
 change; record names and locations of secrets, never their values. A change the
 operator can see (label, step, refusal, automatic effect, alert, e-mail, permission)
 also updates the [Manual do Operador](docs/manual/texto/README.md) and its coverage
-matrix in the same change. Read `docs/README.md` before broad
+matrix: in the same change once the manual is in `staging`; while the manual's own
+PR is open, in that PR, after the code change merges. Read `docs/README.md` before broad
 documentation or architecture changes.
 
 Each fact has one owner document ([ADR 0082](docs/adr/0082-governanca-documental-dono-unico-e-adr-historica.md)):

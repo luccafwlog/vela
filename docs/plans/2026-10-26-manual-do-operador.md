@@ -123,6 +123,12 @@ guardado como registro histórico e serve só de referência de redação
    do manual descreve o comportamento de hoje e é ajustado quando a correção
    entra. Antes de criar uma migration, confira o maior número na `staging`
    **e nas PRs abertas**: duas PRs com o mesmo número quebram o CI de ambas.
+   **A PR do manual fica aberta** (decisão do dono de 2026-10-29), viva,
+   enquanto o sistema muda: depois do merge de cada PR de código na `staging`
+   que mude o que o operador vê, a branch do manual recebe a `staging`, o texto
+   e a matriz são ajustados, as capturas da tela afetada são refeitas e o PDF é
+   gerado de novo. Receba a `staging` com frequência, mesmo sem mudança no
+   manual, para a PR não se afastar dela.
 7. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
    etapas: o manual se pauta só pelo código; o material antigo é só referência
    de redação; quem faz o quê sai do código (matriz "O que cada setor pode",
