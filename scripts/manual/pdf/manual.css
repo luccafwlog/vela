@@ -538,9 +538,12 @@ figure.tela { break-inside: avoid; }
 .guia-faixa > div { display: grid; gap: 0.8mm; padding: 2.4mm 3mm; font-size: 9pt; background: var(--surface-soft, #f4f6f9); }
 .guia-faixa > div + div { border-left: 0.6pt solid var(--border); }
 .guia-faixa .rotulo { font-weight: 700; color: var(--gold-strong); font-size: 8pt; }
-body.guia .texto-corrido > * + * { margin-top: 4mm; }
-body.guia .tela__quadro { --altura-max: 108mm; }
-body.guia .texto-corrido > p { font-size: 10pt; }
+body.guia-rapido .texto-corrido > * + * { margin-top: 3.2mm; }
+body.guia-rapido .tela__quadro { --altura-max: 82mm; }
+body.guia-rapido .texto-corrido > p { font-size: 10pt; }
 /* O título curto de uma tabela ("Na chegada") não fica sozinho no pé da página. */
-body.guia .texto-corrido > p:has(+ table) { break-after: avoid; }
-body.guia .texto-corrido > table { break-inside: avoid; }
+body.guia-rapido .texto-corrido > p:has(+ table) { break-after: avoid; }
+/* Tabelas do guia mais compactas: cabem na página da etapa. */
+body.guia-rapido .texto-corrido table:not(.quero):not(.tab) { font-size: 8.4pt; }
+body.guia-rapido .texto-corrido table:not(.quero):not(.tab) th,
+body.guia-rapido .texto-corrido table:not(.quero):not(.tab) td { padding-top: 1.1mm; padding-bottom: 1.1mm; }

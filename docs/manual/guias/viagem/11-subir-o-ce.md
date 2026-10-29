@@ -10,12 +10,9 @@ A planilha de CE de um manifesto.
 :::
 :::
 
-::: lado
+::: passos
 5. Se o B/L já tinha outro CE, confirme a troca com o motivo.
-6. Espere a emissão das faturas e clique em **Concluir**.
-::: tela ce-resultado
-O resultado da emissão.
-:::
+6. Espere a emissão das faturas e clique em **Concluir**. O resultado diz o que saiu:
 :::
 
 | No resultado | O que fazer |

@@ -52,7 +52,7 @@ const equipes = (a) => (a.equipes?.length ? `<span class="equipes">${a.equipes.m
 // nem sempre existe tem a borda tracejada, e o ponto crítico, a borda dourada.
 // Medidas em mm, para a página A4 do livro.
 const RAIAS = ['Operações', 'Documentação', 'Equipamentos']
-const F = { largura: 174, rotulo: 31, topo: 9, passo: 14.6, cartao: 11.6, entreFases: 2.8, margem: 2.4 }
+const F = { largura: 174, rotulo: 31, topo: 9, passo: 13, cartao: 10.6, entreFases: 2.4, margem: 2.4 }
 
 function fluxo(g) {
   const { fases, etapas, setas } = g.fluxo
@@ -181,7 +181,7 @@ function paginasCss(g) {
 <style>
 @page { @bottom-left { content: "${g.titulo} do Vela · versão ${g.versao}"; } }
 ${paginasCss(g)}
-</style></head><body class="livro guia">`
+</style></head><body class="livro guia-rapido">`
   const total = await imprimirComPaginas(`${head}${corpo}</body></html>`, SAIDA)
   console.log(`${total} páginas: ${path.relative(ROOT, SAIDA)}`)
 })().catch((error) => {

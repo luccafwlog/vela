@@ -114,9 +114,9 @@
         "Documentação",
         "Equipamentos"
       ],
-      "quando": "Antes de subir o CE: o momento mais crítico da Viagem.",
+      "quando": "Antes de subir o CE.",
       "onde": "Rotas e Manifestos, Baplie EDI, Revisão, Veículos e Alertas.",
-      "pronto": "A Viagem revisada e conciliada, sem divergência e sem alerta aberto, fora o CE Mercante pendente.",
+      "pronto": "A Viagem revisada e conciliada, sem alerta fora o CE Mercante pendente.",
       "arquivo": "10-conferir-antes-do-ce.md"
     },
     {
