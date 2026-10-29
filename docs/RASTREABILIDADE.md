@@ -506,7 +506,7 @@ Regra: [Demurrage](modules/demurrage.md).
 | `save_bl_demurrage_config` | `blDemurrageConfig.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | — |
 | `set_bl_manual_roe` | `blDemurrageConfig.ts` | `435` | DEFINER · `authenticated` | Financeiro, Administrativo ou Equipamentos; motivo ≥ 10 caracteres | Põe ou tira o ROE manual do B/L, que vale para a próxima Invoice de Demurrage; o histórico do B/L leva o motivo. O UPDATE direto das colunas saiu de `authenticated`. |
 | `save_exchange_rate_reference_v2` | Edge `recalc-demurrage-ptax`; `recalculate_demurrage_invoices` | `018`, `236`, `264` | DEFINER · `service_role` | `service_role` (ou chamada interna como dono) | Só o job do BCB e o Informar PTAX gravam a referência (ADR 0083, item 14). |
-| `set_container_dates` | `demurrage/demurrageContainers.ts` | `211` | DEFINER · `authenticated`, `service_role` | usuário interno ativo | Datas de descarga e devolução do container (ficha do B/L e `/demurrage`). |
+| `set_container_dates` | `demurrage/demurrageContainers.ts` | `211`, `504` (recusa o container de B/L cancelado) | DEFINER · `authenticated`, `service_role` | usuário interno ativo | Datas de descarga e devolução do container (ficha do B/L e `/demurrage`); B/L cancelado é somente leitura ("B/L … cancelado: somente leitura. Reative para corrigir.", `42501`). |
 | `set_demurrage_dunning_interval_days` | `appSettings.ts` | `002` | DEFINER · `authenticated` | Administrativo | — |
 
 #### Conciliação PIX
