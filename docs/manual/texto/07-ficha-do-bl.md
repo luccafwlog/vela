@@ -133,14 +133,14 @@ Corrigir o CE de um B/L cujo Comunicado de CE e Taxas já saiu deixa o Comunicad
 
 A aba **Faturamento** mostra, no bloco **Taxas Locais**, o que o B/L vai pagar ou pagou: o total, a **Fatura** (o número abre a fatura) e uma linha por taxa. O preço é o fixado no dia da importação ([6.2](06-importacao.md#62-importar-os-bls-de-container)). Como cada taxa é calculada está no capítulo 21; a fatura, no capítulo 22.
 
-Enquanto o B/L não está faturado, você pode, daqui:
+Daqui você pode:
 
 - **Calcular taxas**, quando o bloco diz que elas ainda não foram calculadas;
 - **Adicionar cobrança manual**, para um item que só se cobra à mão;
-- alterar o valor de uma taxa, excluí-la ou isentar o B/L inteiro (**Isentar Taxas Locais**), sempre com justificativa (capítulo 21);
+- alterar o valor de uma taxa, excluí-la ou isentar o B/L inteiro (**Isentar Taxas Locais**), sempre com justificativa (capítulo 21). No B/L já faturado, a mudança passa pela correção da fatura (capítulo 22);
 - **Emitir fatura**, quando a fatura não saiu sozinha. O botão aparece com Cliente, CE Mercante e taxas calculadas. Se a última fatura do B/L foi cancelada por uma pessoa, a nova só sai por aqui.
 
-Depois da fatura, as taxas são a base dela e não mudam aqui: a correção passa pela fatura (capítulo 22). Abaixo ficam a **Demurrage** dos containers e as **Condições de Demurrage deste B/L** (capítulos 9 e 23).
+Abaixo ficam a **Demurrage** dos containers e as **Condições de Demurrage deste B/L** (capítulos 9 e 23).
 
 ::: atencao
 Linha **Em revisão** segura a fatura: **Emitir fatura** fica desligado até a causa ser corrigida e as taxas recalculadas (capítulo 21).

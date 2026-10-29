@@ -46,7 +46,7 @@ precisa disto para fazer o trabalho, e a tela não diz?". Se não, sai.
   que aparecem no capítulo.
 - **Linguagem:** segunda pessoa, frases curtas, tom de quem explica. O texto
   impresso não usa termos técnicos (o `manual:check` recusa tabela, fora de
-  "tabela de cobrança" ou "de taxas", banco, RPC, migration, query, trigger,
+  "tabela de cobrança" ou "de taxas" e do nome exato de tela ou botão em negrito, como **Nova tabela**; banco, RPC, migration, query, trigger,
   Edge Function, endpoint, cron, JSON, payload, ID técnico, "[confirmar]" e
   TODO).
 - **Só o que o sistema faz.** Toda afirmação sai do código (a matriz e a

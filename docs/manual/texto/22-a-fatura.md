@@ -45,7 +45,7 @@ O motivo da Validação é uma leitura da tela. Quem decide é o Vela, na hora d
 
 Na rotina, ninguém emite fatura de Taxas Locais: o Vela emite quando o último requisito se cumpre.
 
-- **Ao gravar o CE.** Pela planilha de CE, a própria janela emite as faturas logo depois de gravar ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)); pela ficha do B/L, na mesma gravação.
+- **Ao gravar o CE.** A própria janela da planilha de CE emite as faturas logo depois de gravar ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)).
 - **Quando o B/L com CE sai da Revisão ou ganha o Cliente** ([8.6](08-revisao.md#86-o-que-acontece-quando-o-bl-sai-da-revisão)).
 - **Quando o Portal do Cliente fica pronto ou o {{Administrativo}} concede a Liberação:** as faturas retidas saem na hora ([14.5](14-portal-a-conta.md#145-o-que-deixa-o-portal-pronto-para-faturar)).
 

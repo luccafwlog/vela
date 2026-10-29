@@ -71,7 +71,7 @@ A **Validação** é a fila dos B/Ls que ainda não viraram fatura. Ela fica em 
 |---|---|---|
 | **Sem cliente vinculado** | O B/L não tem Cliente conferido. | **Vincular na Revisão** ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)) |
 | **Cálculo sem linhas**, **Taxa em revisão** ou **Cálculo incompleto** | O cálculo não fechou. | **Recalcular**, depois de corrigir a causa ([21.4](#214-resolver-uma-taxa-em-revisão)) |
-| **Aguardando CE Mercante** | Falta o CE. | **Cadastrar CE**, que abre a ficha do B/L ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)) |
+| **Aguardando CE Mercante** | Falta o CE. | **Cadastrar CE** abre a ficha do B/L; o CE entra pela planilha de CE ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)) |
 | **Conta do Portal não ativa** | O Cliente não tem Portal pronto nem Liberação de faturamento. | **Abrir Cliente** ([14.5](14-portal-a-conta.md#145-o-que-deixa-o-portal-pronto-para-faturar)) |
 | **Pronto para emitir** | Nada segura, e a fatura ainda não saiu sozinha. | **Emitir** ([22.2](22-a-fatura.md#222-como-a-fatura-sai)) |
 

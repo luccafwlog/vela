@@ -11,7 +11,7 @@ import { ROOT, lerManual, semComentarios, citacoes } from './fonte.mjs'
 import { CAPTURAS } from './capturas.mjs'
 
 const PROIBIDOS = [
-  { re: /\btabelas?\b(?! de (cobrança|taxas|Taxas Locais))/gi, nome: 'tabela (fora de "tabela de cobrança/taxas")' },
+  { re: /\btabelas?\b(?![- ]de[- ](cobrança|taxas|Taxas Locais))/gi, nome: 'tabela (fora de "tabela de cobrança/taxas")', foraDeNegrito: true },
   { re: /\bbanco\b/gi, nome: 'banco' },
   { re: /\bRPCs?\b/g, nome: 'RPC' },
   { re: /\bmigrations?\b/gi, nome: 'migration' },
@@ -49,8 +49,10 @@ const adiadas = new Map()
 for (const cap of capitulos) {
   const impresso = semComentarios(cap.fonte)
   impresso.split('\n').forEach((linha, i) => {
-    for (const { re, nome } of PROIBIDOS) {
-      for (const m of linha.matchAll(re)) erros.push(`${cap.arquivo}:${i + 1}: termo proibido "${m[0]}" (${nome})`)
+    for (const { re, nome, foraDeNegrito } of PROIBIDOS) {
+      // O nome exato de botão ou tela, em negrito, vale como está ("**Nova tabela**").
+      const alvo = foraDeNegrito ? linha.replace(/\*\*[^*]+\*\*/g, '') : linha
+      for (const m of alvo.matchAll(re)) erros.push(`${cap.arquivo}:${i + 1}: termo proibido "${m[0]}" (${nome})`)
     }
     const tela = linha.match(/^:::\s*tela\b\s*(.*)$/)
     if (tela && !ids.has(tela[1].trim())) erros.push(`${cap.arquivo}:${i + 1}: captura "${tela[1].trim()}" não está em capturas.mjs`)

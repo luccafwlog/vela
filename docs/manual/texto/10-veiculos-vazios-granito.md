@@ -15,7 +15,7 @@ Nem toda carga é um container cheio com Cliente. Este capítulo cuida do resto 
 
 Os veículos chegam dentro de containers de B/Ls de container. O arquivo do B/L não os traz: eles entram pela planilha de veículos do armador, ligados ao B/L e ao container. Por isso importe os B/Ls antes.
 
-O veículo pesa na cobrança: o B/L de container com veículos cujo **Movement To** é LCL (ou CFS) fica **Isento** das Taxas Locais (capítulo 21). Sem a planilha, ao gravar o CE o Vela emite a fatura cheia desse B/L.
+O veículo pesa na cobrança: o B/L de container com veículos e **Movement To** LCL (ou CFS) fica **Isento** das Taxas Locais (capítulo 21). Sem a planilha, ao gravar o CE o Vela emite a fatura cheia desse B/L.
 
 1. No menu **Importação**, abra **Veículos** e escolha a Viagem na faixa do alto ou em **Buscar viagem**.
 2. Clique em **Importar veículos** e escolha o arquivo (.xlsx, .xls ou .csv).
