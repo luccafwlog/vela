@@ -45,7 +45,7 @@ Quando o CNPJ do B/L não é de nenhum Cliente, alguém decide: o Cliente é nov
 ::: lado
 1. Na linha do Cliente, clique na seta para abrir o grupo.
 2. No bloco **Cadastrar o cliente**, confira o CNPJ lido e escolha **Cadastrar novo cliente** ou **Vincular a um cliente cadastrado**.
-3. Para cadastrar, confira **Razão social**, **CNPJ** e **E-mail principal**, que vêm do B/L. Em **Portal do Cliente**, escolha **Enviar o convite agora** ou **Deixar para depois** ({{Equipamentos}} escolhe **Deixar para depois**).
+3. Para cadastrar, confira **Razão social**, **CNPJ** e **E-mail principal**, que vêm do B/L. Em **Portal do Cliente**, escolha **Enviar o convite agora** ou **Deixar para depois**. {{Equipamentos}} não vê essa escolha: o cadastro sai com o e-mail, e o convite fica com a Documentação ou o Administrativo.
 4. Clique em **Cadastrar e vincular** (ou **Vincular N B/Ls**) e confirme.
 
 ::: tela revisao-cadastrar
