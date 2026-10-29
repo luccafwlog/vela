@@ -12,7 +12,7 @@ Cliente. Nada aqui é importado por `src/` nem muda o Portal.
 
 | Arquivo | O que é |
 |---|---|
-| [Tutorial_Portal_Fwlog.html](Tutorial_Portal_Fwlog.html) | Fonte do guia: 13 páginas A4 prontas para impressão. Abra a partir desta pasta do repositório, porque as fontes e as logos vêm de `public/`. |
+| [Tutorial_Portal_Fwlog.html](Tutorial_Portal_Fwlog.html) | Fonte do guia: 14 páginas A4 prontas para impressão. Abra a partir desta pasta do repositório, porque as fontes e as logos vêm de `public/`. |
 | [Tutorial_Portal_Fwlog.pdf](Tutorial_Portal_Fwlog.pdf) | O guia em PDF, para anexar ao e-mail ou imprimir. É gerado a partir do HTML. |
 | [gerar-pdf.mjs](gerar-pdf.mjs) | Gera o PDF e recusa página que transborda o A4, fonte ou logo que não carregou, rodapé ou numeração errada e qualquer menção ao sistema interno. |
 
@@ -31,17 +31,19 @@ specs só moram em `docs/spec/`:
 | 5 | Painel e Chegadas e saídas |
 | 6 | BLs e Containers (só o próprio CNPJ, B/L depois do CE) |
 | 7 | Desbloqueio de CE Mercante: requisitos, passos e prazo |
-| 8 | Faturas (só emitidas), consolidada e impressão |
-| 9 | Pagamento por Pix (única forma de pagamento): QR, Copia e Cola, “em preparação” e baixa automática |
-| 10 | Demurrage (US$ fixo, R$ pelo câmbio do dia) e disputa |
-| 11 | Central de Informações e os e-mails que o cliente recebe |
-| 12 | Meu perfil: caixas de comunicados, endereço e e-mail de recuperação |
-| 13 | Contatos e o que fica fora do Portal |
+| 8 | Faturas (só emitidas), situação e impressão |
+| 9 | Fatura consolidada: vários B/Ls numa fatura e um Pix, quem entra, Coberta e Refazer consolidada |
+| 10 | Pagamento por Pix (única forma de pagamento): QR, Copia e Cola, “em preparação” e baixa automática |
+| 11 | Demurrage (US$ fixo, R$ pelo câmbio do dia) e disputa |
+| 12 | Central de Informações e os e-mails que o cliente recebe |
+| 13 | Meu perfil: caixas de comunicados, endereço e e-mail de recuperação |
+| 14 | Contatos e o que fica fora do Portal |
 
 O guia é atemporal: não cita data de início nem navio. Cada página traz o
 desenho da tela com pontos numerados, um **passo a passo** curto ligado a esses
 números e um quadro **Bom saber** só com o que não é óbvio (prazos, limites,
-regras). O que a tela já diz sozinha fica de fora.
+regras). O que a tela já diz sozinha fica de fora. O guia não fala de
+pagamento parcial, para não sugerir que a Fwlog o aceita.
 
 Para a equipe (o guia não traz esses avisos): as telas são desenhos
 esquemáticos, não capturas, e os dados são fictícios (Exemplo Comércio Ltda.,
@@ -168,7 +170,7 @@ repositório na `staging` de 2026-10-28; nada foi observado em produção).
 
 ## Verificação feita
 
-- `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: 13 páginas, sem
+- `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: 14 páginas, sem
   transbordo, fontes e logos carregadas, rodapé e numeração certos em todas,
   sem menção ao sistema interno (**Runtime**, Playwright 1.64.1 do repositório
   com o Chromium 1243 do ambiente de nuvem, 2026-10-28). Numa cópia com uma
