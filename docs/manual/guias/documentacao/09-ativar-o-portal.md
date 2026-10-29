@@ -1,4 +1,4 @@
-Sem a conta ativa, a fatura do Cliente fica retida. O convite pode sair da Revisão (etapa 3) ou daqui.
+Sem a conta ativa, a fatura do Cliente fica retida. O convite pode sair da Revisão (etapa 8) ou daqui.
 
 ::: tela portal-fila
 O Provisionamento do Portal.

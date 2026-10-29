@@ -8,7 +8,14 @@
   "mapaTitulo": "O caminho de uma Viagem",
   "apresentacao": "As etapas da Documentação numa Viagem, na ordem em que o trabalho acontece. Cada uma diz quando começa, onde fazer e quando está pronta. O que foge do caminho está no Manual do Operador.",
   "ordemTitulo": "A ordem dos arquivos",
-  "ordem": ["B/Ls de container e carga solta", "Baplie", "Veículos (Equipamentos)", "CE Mercante, sempre por último"],
+  "ordem": [
+    "Baplie",
+    "Vazios do Baplie, se houver",
+    "B/Ls de container",
+    "Manifesto de carga solta, se houver",
+    "Veículos",
+    "CE Mercante, sempre por último"
+  ],
   "areas": [
     {
       "numero": 1,
@@ -20,75 +27,107 @@
     },
     {
       "numero": 2,
-      "titulo": "Subir os B/Ls",
-      "quando": "Chegam os B/Ls do armador.",
-      "onde": "Ficha da Viagem › aba Importação › Importação rápida.",
-      "pronto": "Todos os B/Ls na Viagem; os sem Cliente estão na Revisão.",
-      "arquivo": "02-subir-os-bls.md"
+      "titulo": "Atribuir os terminais",
+      "quando": "Logo depois das escalas, quando o terminal de cada operação é conhecido.",
+      "onde": "Planejamento por escala › lápis da escala › Terminais e atracações.",
+      "pronto": "Toda frente com terminal, nenhuma em TBC, com o ETB e o ETD.",
+      "arquivo": "02-atribuir-os-terminais.md"
     },
     {
       "numero": 3,
-      "titulo": "Limpar a Revisão",
-      "quando": "Logo depois de cada importação de B/L.",
-      "onde": "Importação › Revisão.",
-      "pronto": "Nenhum B/L sem Cliente; os que sobram só esperam o Portal.",
-      "arquivo": "03-limpar-a-revisao.md"
+      "titulo": "Subir o Baplie",
+      "quando": "Chega o plano de carga do navio, antes dos B/Ls.",
+      "onde": "Importação › Baplie EDI.",
+      "pronto": "Os containers a bordo estão na Viagem.",
+      "arquivo": "03-subir-o-baplie.md"
     },
     {
       "numero": 4,
+      "titulo": "Cadastrar os vazios",
+      "quando": "O Baplie traz containers vazios.",
+      "onde": "Baplie EDI › Vazios de importação; ficha da Viagem › Rotas e Manifestos.",
+      "pronto": "Os vazios em Vazios IMP, com o Nº de Manifesto Mercante da rota.",
+      "arquivo": "04-cadastrar-os-vazios.md"
+    },
+    {
+      "numero": 5,
+      "titulo": "Subir os B/Ls de container",
+      "quando": "Chegam os B/Ls do armador.",
+      "onde": "Ficha da Viagem › aba Importação › Importação rápida.",
+      "pronto": "Todos os B/Ls na Viagem e a Conciliação sem divergência.",
+      "arquivo": "05-subir-os-bls.md"
+    },
+    {
+      "numero": 6,
+      "titulo": "Subir a carga solta",
+      "quando": "A Viagem traz carga solta.",
+      "onde": "Importação rápida › Manifesto BB.",
+      "pronto": "Cada B/L de carga solta na Viagem, com o peso.",
+      "arquivo": "06-subir-a-carga-solta.md"
+    },
+    {
+      "numero": 7,
+      "titulo": "Subir os veículos",
+      "quando": "Chega a planilha de veículos, depois dos B/Ls e antes do CE.",
+      "onde": "Importação › Veículos.",
+      "pronto": "Os veículos na Viagem, ou a Viagem declarada sem veículos.",
+      "arquivo": "07-subir-os-veiculos.md"
+    },
+    {
+      "numero": 8,
+      "titulo": "Limpar a Revisão",
+      "quando": "Logo depois dos B/Ls e da carga solta.",
+      "onde": "Importação › Revisão.",
+      "pronto": "Nenhum B/L sem Cliente; os que sobram só esperam o Portal.",
+      "arquivo": "08-limpar-a-revisao.md"
+    },
+    {
+      "numero": 9,
       "titulo": "Ativar o Portal do Cliente",
       "quando": "O Cliente é novo ou ainda não ativou a conta.",
       "onde": "Clientes › Provisionamento do Portal.",
       "pronto": "Conta Ativa: as faturas do Cliente podem sair.",
-      "arquivo": "04-ativar-o-portal.md"
+      "arquivo": "09-ativar-o-portal.md"
     },
     {
-      "numero": 5,
-      "titulo": "Subir o Baplie",
-      "quando": "Chega o plano de carga do navio.",
-      "onde": "Importação › Baplie EDI.",
-      "pronto": "A Viagem fica Conciliada.",
-      "arquivo": "05-subir-o-baplie.md"
-    },
-    {
-      "numero": 6,
+      "numero": 10,
       "titulo": "Subir o CE Mercante",
-      "quando": "O Mercante registra a carga, depois de todos os B/Ls.",
+      "quando": "O Mercante registra a carga, depois dos B/Ls, da carga solta e dos veículos.",
       "onde": "Ficha da Viagem › Importação rápida › CE Mercante.",
       "pronto": "Os B/Ls aparecem como faturados.",
-      "arquivo": "06-subir-o-ce.md"
+      "arquivo": "10-subir-o-ce.md"
     },
     {
-      "numero": 7,
+      "numero": 11,
       "titulo": "Conferir os avisos ao Cliente",
       "quando": "Depois do CE e na semana da chegada do navio.",
       "onde": "Clientes › Comunicação › Cobertura de viagens.",
       "pronto": "NOA, NOR, NOB e CE e Taxas sem âmbar.",
-      "arquivo": "07-conferir-os-avisos.md"
+      "arquivo": "11-conferir-os-avisos.md"
     },
     {
-      "numero": 8,
+      "numero": 12,
       "titulo": "Desbloquear o CE",
       "quando": "O Cliente pede o Desbloqueio pelo Portal.",
       "onde": "Importação › Desbloqueio de CE.",
       "pronto": "O B/L fica Desbloqueado na conciliação com a ZPT.",
-      "arquivo": "08-desbloquear-o-ce.md"
+      "arquivo": "12-desbloquear-o-ce.md"
     },
     {
-      "numero": 9,
+      "numero": 13,
       "titulo": "Assinar o ADR de Saída",
       "quando": "O navio sai do terminal; o prazo é de 72 horas.",
       "onde": "Ficha da Viagem › aba ADR.",
       "pronto": "A Documentação aparece como assinada.",
-      "arquivo": "09-assinar-o-adr.md"
+      "arquivo": "13-assinar-o-adr.md"
     },
     {
-      "numero": 10,
+      "numero": 14,
       "titulo": "A rotina do dia",
       "quando": "Todo dia, ao começar.",
       "onde": "Painel e as filas da equipe.",
       "pronto": "As filas da Documentação sem pendência parada.",
-      "arquivo": "10-a-rotina-do-dia.md"
+      "arquivo": "14-a-rotina-do-dia.md"
     }
   ]
 }

@@ -11,7 +11,7 @@ O grupo de um Cliente novo.
 4. Clique em **Cadastrar e vincular**.
 :::
 
-O B/L passa a **Portal não provisionado** e sai sozinho quando o Cliente ativa a conta (etapa 4). Na carga solta sem peso, digite o peso em **Peso (t)** no próprio grupo.
+O B/L passa a **Portal não provisionado** e sai sozinho quando o Cliente ativa a conta (etapa 9). Na carga solta sem peso, digite o peso em **Peso (t)** no próprio grupo.
 
 ::: atencao
 **Sugestão por nome** nunca vincula sozinha: confira o CNPJ antes de usar.

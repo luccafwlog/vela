@@ -23,9 +23,11 @@ o método de trabalho em etapas, na ordem em que ele acontece, sem os casos de
 borda, que ficam no manual. Cada guia tem um `guia.json` (as etapas, com
 quando começam, onde se fazem e quando estão prontas) e um Markdown por etapa,
 no mesmo formato do texto do manual, com as mesmas capturas. O primeiro é o
-**Guia rápido da Documentação** (`guias/documentacao/`, 12 páginas, da Viagem
-aberta ao CE desbloqueado); o PDF sai de `npm run manual:guia -- documentacao`,
-e o `manual:check` confere também o texto dos guias.
+**Guia rápido da Documentação** (`guias/documentacao/`, 16 páginas e 14 etapas,
+da Viagem aberta, com os terminais das frentes de operação, ao CE desbloqueado;
+o Baplie vem antes dos B/Ls, seguido dos vazios, da carga solta e dos
+veículos); o PDF sai de `npm run manual:guia -- documentacao`, e o
+`manual:check` confere também o texto dos guias.
 
 ## Catálogo de situações
 

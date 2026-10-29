@@ -21,8 +21,8 @@ O resultado da emissão.
 | No resultado | O que fazer |
 |---|---|
 | **faturados** | Nada: a fatura saiu. |
-| **retidos** | Ativar o Portal (etapa 4). A fatura sai sozinha depois. |
-| **aguardando** | Limpar a Revisão (etapa 3). A fatura sai sozinha depois. |
+| **retidos** | Ativar o Portal (etapa 9). A fatura sai sozinha depois. |
+| **aguardando** | Limpar a Revisão (etapa 8). A fatura sai sozinha depois. |
 
 ::: atencao
 No Excel, formate a coluna do CE como texto antes de digitar: senão o CE perde os zeros à esquerda.

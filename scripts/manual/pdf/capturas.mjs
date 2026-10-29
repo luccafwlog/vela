@@ -593,6 +593,25 @@ export const CAPTURAS = [
     },
   },
   {
+    // Guia rápido da Documentação: a rota dos vazios do Baplie, ainda sem o
+    // Nº de Manifesto Mercante (passo 2 da etapa dos vazios). Fica antes da
+    // omissão de Salvador, que muda a primeira rota.
+    id: 'rotas-vazios',
+    capitulo: 10,
+    async fazer({ page, base, cenario }) {
+      await abrirViagem(page, base, cenario, 'Rotas e Manifestos')
+      const bloco = secao(page, 'Rotas da viagem')
+      await bloco.waitFor()
+      await page.waitForTimeout(600)
+      const clip = await recorteDoElemento(bloco)
+      const vazios = bloco.locator('tr').filter({ hasText: 'VAZIOS' }).first()
+      return {
+        clip,
+        marks: [await marca(2, vazios.getByRole('button', { name: /Informar Nº de Manifesto Mercante/ }), clip, { destaque: true })],
+      }
+    },
+  },
+  {
     id: 'editar-rota',
     capitulo: 4,
     async fazer({ page, base, cenario }) {
@@ -1196,6 +1215,32 @@ export const CAPTURAS = [
           await marca(3, cartoes.getByText('Aptos, não exportados'), clip, { posicao: 'direita' }),
           await marca(4, page.getByRole('button', { name: /Exportar .*aptos para a ZPT/ }), clip, { destaque: true }),
           await marca(5, page.getByRole('button', { name: 'Conciliar com a ZPT' }), clip),
+        ],
+      }
+    },
+  },
+  {
+    // Guia rápido da Documentação: Veículos com a Viagem escolhida, antes da
+    // planilha. Só olha: nada é importado nem declarado.
+    id: 'veiculos-viagem',
+    capitulo: 10,
+    async fazer({ page, base, cenario }) {
+      await abrir(page, base, '/veiculos')
+      const viagem = page.getByRole('button', { name: new RegExp(`${cenario.novaViagem.navio} / ${cenario.novaViagem.numero}`) }).first()
+      await viagem.click()
+      await page.waitForLoadState('networkidle')
+      const vazio = page.getByText(/^(Nenhum veículo nesta viagem|Viagem sem veículos)$/).first()
+      await vazio.waitFor()
+      await page.waitForTimeout(600)
+      const semVeiculos = page.getByRole('button', { name: 'Esta viagem não terá veículos' })
+      const importar = page.getByRole('button', { name: 'Importar veículos' }).first()
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Veículos', level: 1 }), importar, viagem, vazio, semVeiculos], 16)
+      return {
+        clip,
+        marks: [
+          await marca(1, viagem, clip, { posicao: 'direita' }),
+          await marca(2, importar, clip, { destaque: true }),
+          await marca(3, semVeiculos, clip, { posicao: 'direita' }),
         ],
       }
     },

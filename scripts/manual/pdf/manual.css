@@ -507,15 +507,15 @@ figure.tela { break-inside: avoid; }
 /* Guia rápido (guia.mjs): método de trabalho. O mapa das etapas abre o guia
    e serve de sumário; cada etapa abre página, com a faixa Quando / Onde /
    Pronto quando, telas maiores que no manual e poucos passos. */
-.guia-mapa .lead { margin-bottom: 6mm; max-width: 165mm; }
-.guia-mapa .etapas { position: relative; display: grid; gap: 2.6mm; }
-.guia-mapa .etapas::before { content: ""; position: absolute; left: 4.6mm; top: 4mm; bottom: 4mm; width: 0.8pt; background: var(--gold); }
-.guia-mapa .etapa { position: relative; display: grid; grid-template-columns: 10mm 1fr 10mm; gap: 4mm; align-items: start; color: var(--text); padding: 1.6mm 0; border-bottom: 0.5pt solid var(--border-soft); break-inside: avoid; }
-.guia-mapa .etapa .n { width: 9.2mm; height: 9.2mm; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 11pt; display: flex; align-items: center; justify-content: center; }
-.guia-mapa .etapa .texto { display: grid; gap: 0.6mm; font-size: 9pt; color: var(--muted); }
-.guia-mapa .etapa .texto b { font-size: 11.5pt; color: var(--navy); }
+.guia-mapa .lead { margin-bottom: 4mm; max-width: 165mm; }
+.guia-mapa .etapas { position: relative; display: grid; gap: 0.8mm; }
+.guia-mapa .etapas::before { content: ""; position: absolute; left: 3.8mm; top: 4mm; bottom: 4mm; width: 0.8pt; background: var(--gold); }
+.guia-mapa .etapa { position: relative; display: grid; grid-template-columns: 10mm 1fr 10mm; gap: 4mm; align-items: start; color: var(--text); padding: 1.1mm 0; border-bottom: 0.5pt solid var(--border-soft); break-inside: avoid; }
+.guia-mapa .etapa .n { width: 7.6mm; height: 7.6mm; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 10pt; display: flex; align-items: center; justify-content: center; }
+.guia-mapa .etapa .texto { display: grid; gap: 0.2mm; font-size: 8.5pt; line-height: 1.3; color: var(--muted); }
+.guia-mapa .etapa .texto b { font-size: 10.5pt; color: var(--navy); }
 .guia-mapa .etapa .texto i { font-style: normal; font-weight: 600; color: var(--gold-strong); }
-.guia-mapa .etapa .pag { text-align: right; font-weight: 700; color: var(--navy); padding-top: 1.6mm; }
+.guia-mapa .etapa .pag { text-align: right; font-weight: 700; color: var(--navy); padding-top: 1mm; }
 .guia-ordem { margin-top: 7mm; padding: 3.5mm 4mm; background: var(--navy); color: #fff; border-radius: 2mm; break-inside: avoid; }
 .guia-ordem .rotulo { color: var(--gold); font-weight: 700; font-size: 8.5pt; letter-spacing: 0.02em; }
 .guia-ordem ol { list-style: none; margin: 2mm 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2mm 3mm; counter-reset: ordem; }
