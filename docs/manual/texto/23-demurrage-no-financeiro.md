@@ -182,16 +182,12 @@ A Invoice volta a **Faturado**, sem data de pagamento, e volta ao recálculo di�
 
 A Invoice emitida não se edita. Quando ela cobra errado e o Vela não corrige sozinho, cancela-se e gera-se outra. Mudar as datas de um container numa Invoice sem pagamento, sem desconto e sem Disputa aberta já cancela e reemite sozinho ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)); a nova diz "Substitui a Invoice …".
 
-1. No detalhe, clique em **Cancelar Invoice…**, escreva o motivo e confirme. Invoice paga precisa antes ter a baixa cancelada ([23.8](#238-cancelar-a-baixa-de-uma-invoice)).
+1. No detalhe, clique em **Cancelar Invoice…**, escreva o motivo e confirme. Invoice paga precisa antes ter a baixa cancelada ([23.8](#238-cancelar-a-baixa-de-uma-invoice)); com Disputa aberta, encerre a pendência antes, porque o cancelamento não a encerra e o Cliente não escreve mais nela.
 2. Em **Demurrage**, aba **Containers**, o B/L volta a **A faturar**. Clique em **Gerar Invoice** no fim da linha ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
 3. Se havia desconto, aplique-o de novo na Invoice nova ([23.5](#235-dar-um-desconto)).
 
-A Invoice cancelada sai da Régua e do Portal e não volta. A nova sai com número novo, calculada de novo, com o câmbio do dia.
+A cancelada sai da Régua e do Portal; a nova sai com número novo e o câmbio do dia.
 
 ### Quando as datas mudam depois da Invoice
 
 Se as datas mudam numa Invoice paga, com desconto ou com Disputa aberta, ela não é reemitida: sai da Régua e abre **Datas mudaram em Invoice de Demurrage emitida** ([20.9](20-alertas.md#209-demurrage)). Com desconto ou Disputa, encerre a Disputa ([9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)), cancele, gere de novo e refaça o desconto. Paga, ela fica como está: devolva a diferença pela restituição excepcional ([24.7](24-pagamento-e-restituicao.md#247-autorizar-uma-restituição-excepcional)) ou cobre-a por fatura avulsa (capítulo 22).
-
-::: atencao
-- Cancelar a Invoice não encerra a Disputa, e o Cliente não escreve mais nela: encerre a pendência antes de cancelar.
-:::
