@@ -3,7 +3,7 @@
   "sobre": "Uso interno das equipes",
   "subtitulo": "Como o Vela funciona e o que cada equipe faz, do cadastro da Viagem até a carga liberada.",
   "versao": "0.3",
-  "situacao": "Partes I, II e IV (em parte) para aprovação",
+  "situacao": "Partes I a IV (em parte) para aprovação",
   "descreve": "29/10/2026",
   "partes": [
     {
@@ -160,6 +160,90 @@
           "algumas": [],
           "leitura": "6 minutos",
           "antes": "Antes, leia o capítulo 7 (A ficha do B/L)."
+        }
+      ]
+    },
+    {
+      "numero": "3",
+      "romano": "III",
+      "titulo": "O Cliente",
+      "texto": "O Cliente no Vela e no Portal: o cadastro, a conta do Portal, o que ele vê, os e-mails que recebe e como atendê-lo.",
+      "capitulos": [
+        {
+          "numero": 13,
+          "titulo": "Cadastro do Cliente",
+          "resumo": "O Cliente, os contatos e a Central de Informações",
+          "arquivo": "13-cadastro-do-cliente.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [
+            {
+              "texto": "Contatos e Novo cliente",
+              "equipes": [
+                "Documentação",
+                "Equipamentos",
+                "Administrativo"
+              ]
+            },
+            {
+              "texto": "Condição de Cliente, Liberação e desativar",
+              "equipes": [
+                "Administrativo"
+              ]
+            }
+          ],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 8 (Revisão)."
+        },
+        {
+          "numero": 14,
+          "titulo": "Portal: a conta do Cliente",
+          "resumo": "Convidar, ativar e cuidar do acesso do Cliente ao Portal",
+          "arquivo": "14-portal-a-conta.md",
+          "equipes": [
+            "Documentação",
+            "Administrativo"
+          ],
+          "algumas": [],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 13."
+        },
+        {
+          "numero": 15,
+          "titulo": "Portal: o que o Cliente vê e faz",
+          "resumo": "As telas do Portal, do ponto de vista de quem atende o Cliente",
+          "arquivo": "15-portal-o-que-o-cliente-ve.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia o capítulo 14."
+        },
+        {
+          "numero": 16,
+          "titulo": "E-mails e Comunicados",
+          "resumo": "Os avisos que o Cliente recebe e como acompanhar a entrega",
+          "arquivo": "16-emails-e-comunicados.md",
+          "equipes": [
+            "Documentação"
+          ],
+          "algumas": [],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 13."
+        },
+        {
+          "numero": 17,
+          "titulo": "Suporte ao Cliente",
+          "resumo": "Quando o Cliente pede ajuda: o que olhar e o que fazer",
+          "arquivo": "17-suporte-ao-cliente.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia os capítulos 14 a 16."
         }
       ]
     },
