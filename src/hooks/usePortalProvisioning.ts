@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listPortalProvisioningEvents, listPortalProvisioningQueue, assistedPortalEmailChange, releaseSuppressedEmail, returnToAnalysis, sendPortalInvite, suspendPortalAccount, type RecoveryEmailSource } from '../services/portalProvisioning'
 import { supabase } from '../services/supabase'
+import { queryKeys } from '../services/queryKeys'
 
 export const PORTAL_PROVISIONING_QUERY_KEY = ['portal-provisioning'] as const
 
@@ -36,6 +37,10 @@ export function useReturnToAnalysis() {
 function invalidatePortalQueries(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: PORTAL_PROVISIONING_QUERY_KEY })
   void queryClient.invalidateQueries({ queryKey: ['customer-detail'] })
+  // A ficha do B/L lê o gate do Portal do status do Portal (migration 501), e a
+  // Revisão mostra a pendência de acesso: a conta mudou, os dois releem.
+  void queryClient.invalidateQueries({ queryKey: queryKeys.portal.blStatus() })
+  void queryClient.invalidateQueries({ queryKey: ['review-queue'] })
 }
 
 export function useSendPortalInvite() {
