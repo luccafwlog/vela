@@ -1,8 +1,8 @@
 // Gera o PDF de um guia rápido a partir de docs/manual/guias/<nome>.
 //
 // Uso: npm run manual:guia -- viagem [--saida artifacts/manual/guia-viagem.pdf]
-// O guia é um método de trabalho: a capa, o mapa das etapas (que serve de
-// sumário, com a equipe de cada etapa) e uma etapa por página, com a faixa
+// O guia é um método de trabalho: a capa, o mapa das etapas (um fluxo em
+// raias por equipe, que serve de sumário) e uma etapa por página, com a faixa
 // "Quando / Onde / Pronto quando" do guia.json, a imagem e poucos passos. Usa as capturas do manual
 // (npm run manual:capture) e o mesmo visual.
 import path from 'node:path'
@@ -45,23 +45,95 @@ function capa(g) {
 
 const equipes = (a) => (a.equipes?.length ? `<span class="equipes">${a.equipes.map(chip).join('')}</span>` : '')
 
-// O mapa: as etapas em ordem, cada uma com a equipe, quando começa e a
-// página. O "Pronto quando" fica na página da etapa. A ordem dos arquivos fica
-// numa faixa embaixo.
-function mapa(g) {
-  const etapas = g.areas
-    .map(
-      (a) => `<a class="etapa" href="#area-${a.numero}">
-  <span class="n">${a.numero}</span>
-  <span class="texto"><span class="titulo"><b>${escapar(a.titulo)}</b>${equipes(a)}</span>${a.quando ? `<span><i>Quando:</i> ${escapar(a.quando)}</span>` : ''}</span>
-  ${pagina(`area-${a.numero}`)}
-</a>`,
-    )
+// O mapa é um fluxo em raias: uma coluna por equipe e o tempo de cima para
+// baixo, em faixas (guia.json › fluxo). Etapas na mesma faixa correm ao
+// mesmo tempo; a seta liga só o que depende do anterior. A etapa das três
+// equipes ocupa as três colunas; a etapa que nem sempre existe tem a borda
+// tracejada. Medidas em mm, para a página A4 do livro.
+const RAIAS = ['Operações', 'Documentação', 'Equipamentos']
+const F = { largura: 174, rotulo: 31, topo: 9, passo: 15.2, cartao: 12, entreFases: 3, margem: 2.4 }
+
+function fluxo(g) {
+  const { fases, etapas, setas } = g.fluxo
+  const xRaias = F.rotulo + 1
+  const raia = (F.largura - xRaias) / RAIAS.length
+  const faseDaLinha = (l) => fases.findIndex((f) => l >= f.linhas[0] && l <= f.linhas[1])
+  const yLinha = (l) => F.topo + l * F.passo + faseDaLinha(l) * F.entreFases
+  const caixa = {}
+  for (const a of g.areas) {
+    const e = etapas[a.numero]
+    if (!e) throw new Error(`fluxo: falta a etapa ${a.numero} no guia.json`)
+    const todas = a.equipes.length === RAIAS.length
+    const col = RAIAS.indexOf(a.equipes[0])
+    if (!todas && col < 0) throw new Error(`fluxo: a etapa ${a.numero} não tem equipe de uma das raias`)
+    const x = todas ? xRaias + F.margem : xRaias + col * raia + F.margem
+    const w = todas ? RAIAS.length * raia - 2 * F.margem : raia - 2 * F.margem
+    const y = yLinha(e.linha) + (F.passo - F.cartao) / 2
+    caixa[a.numero] = { a, e, col: todas ? null : col, x, y, w, h: F.cartao, cx: x + w / 2, cy: y + F.cartao / 2 }
+  }
+  const ultima = Math.max(...fases.map((f) => f.linhas[1]))
+  const altura = yLinha(ultima) + F.passo + 1
+  const n = (v) => v.toFixed(2)
+
+  // Faixas de fundo, alternadas, com o nome do momento à esquerda.
+  const faixas = fases
+    .map((f, i) => {
+      const y = yLinha(f.linhas[0]) - F.entreFases / 2
+      const h = yLinha(f.linhas[1]) + F.passo - yLinha(f.linhas[0]) + F.entreFases
+      return `<rect x="0" y="${n(y)}" width="${F.largura}" height="${n(h)}" rx="1.6" class="fx-faixa${i % 2 ? ' fx-faixa--par' : ''}"/>`
+    })
     .join('')
-  const ordem = g.ordem?.length
-    ? `<div class="guia-ordem"><span class="rotulo">${escapar(g.ordemTitulo || 'A ordem dos arquivos')}</span><ol>${g.ordem.map((o) => `<li>${escapar(o)}</li>`).join('')}</ol></div>`
-    : ''
-  return `<section class="sumario guia-mapa" id="sumario">${alvo('sumario')}<h1>${escapar(g.mapaTitulo || 'O caminho')}</h1>${g.apresentacao ? `<p class="lead">${escapar(g.apresentacao)}</p>` : ''}<nav class="etapas">${etapas}</nav>${ordem}</section>`
+  const rotulos = fases
+    .map((f) => {
+      const y = yLinha(f.linhas[0]) - F.entreFases / 2
+      const h = yLinha(f.linhas[1]) + F.passo - yLinha(f.linhas[0]) + F.entreFases
+      return `<div class="fx-fase" style="top:${n(y)}mm;height:${n(h)}mm;width:${F.rotulo}mm">${escapar(f.titulo)}</div>`
+    })
+    .join('')
+  const cabecalho = RAIAS.map((r, i) => `<div class="fx-raia" style="left:${n(xRaias + i * raia)}mm;width:${n(raia)}mm">${chip(r)}</div>`).join('')
+
+  // Setas: na mesma coluna, reta; "lado" sai da lateral e desce até o topo do
+  // destino; "fundo" desce da origem e entra pela lateral do destino.
+  const caminhos = setas
+    .map(([de, para, via]) => {
+      const o = caixa[de]
+      const d = caixa[para]
+      if (!o || !d) throw new Error(`fluxo: seta ${de} → ${para} sem etapa`)
+      if (via === 'lado') {
+        const dir = d.cx > o.cx
+        return `M${n(dir ? o.x + o.w : o.x)} ${n(o.cy)} H${n(d.cx)} V${n(d.y - 0.4)}`
+      }
+      if (via === 'fundo') {
+        const dir = d.cx < o.cx
+        return `M${n(o.cx)} ${n(o.y + o.h)} V${n(d.cy)} H${n(dir ? d.x + d.w + 0.4 : d.x - 0.4)}`
+      }
+      return `M${n(o.cx)} ${n(o.y + o.h)} V${n(d.y - 0.4)}`
+    })
+    .map((c) => `<path d="${c}" class="fx-seta" marker-end="url(#fx-ponta)"/>`)
+    .join('')
+
+  const cartoes = Object.values(caixa)
+    .map(({ a, e, col, x, y, w, h }) => {
+      const cor = col === null ? 'todas' : ['ope', 'doc', 'equ'][col]
+      return `<a class="fx-cartao fx-cartao--${cor}${e.opcional ? ' fx-cartao--opcional' : ''}" href="#area-${a.numero}" style="left:${n(x)}mm;top:${n(y)}mm;width:${n(w)}mm;height:${n(h)}mm">
+  <span class="fx-n">${a.numero}</span>
+  <span class="fx-texto"><b>${escapar(e.rotulo)}</b>${e.nota ? `<span>${escapar(e.nota)}</span>` : ''}</span>
+  ${pagina(`area-${a.numero}`)}
+</a>`
+    })
+    .join('')
+
+  return `<div class="fx" style="width:${F.largura}mm;height:${n(altura)}mm">
+<svg class="fx-fundo" viewBox="0 0 ${F.largura} ${n(altura)}" width="${F.largura}mm" height="${n(altura)}mm" aria-hidden="true">
+  <defs><marker id="fx-ponta" viewBox="0 0 6 6" refX="5.4" refY="3" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0 L6 3 L0 6 Z" class="fx-ponta"/></marker></defs>
+  ${faixas}${caminhos}
+</svg>
+${cabecalho}${rotulos}${cartoes}
+</div>`
+}
+
+function mapa(g) {
+  return `<section class="sumario guia-mapa" id="sumario">${alvo('sumario')}<h1>${escapar(g.mapaTitulo || 'O caminho')}</h1>${g.apresentacao ? `<p class="lead">${escapar(g.apresentacao)}</p>` : ''}${fluxo(g)}</section>`
 }
 
 function faixa(a) {

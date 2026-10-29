@@ -23,13 +23,15 @@ trabalho em etapas, na ordem em que ele acontece, sem os casos de borda, que
 ficam no manual. Cada guia tem um `guia.json` (as etapas, com a equipe que faz
 cada uma, quando começam, onde se fazem e quando estão prontas) e um Markdown
 por etapa, no mesmo formato do texto do manual, com as mesmas capturas. O
-primeiro é o **Guia rápido da Viagem** (`guias/viagem/`, 19 páginas e 17
-etapas), das equipes de Documentação, Operações e Equipamentos: da Viagem
-aberta e dos terminais das frentes de operação aos arquivos (Baplie, vazios,
-B/Ls, carga solta, veículos e, por último, o CE), à chegada e à saída do
-navio, às datas dos containers, à exportação e ao ADR de Saída. O PDF sai de
-`npm run manual:guia -- viagem`, e o `manual:check` confere também o texto dos
-guias.
+`fluxo` do `guia.json` desenha o mapa da segunda página: uma coluna por equipe,
+o tempo em faixas de cima para baixo e as setas do que depende do passo
+anterior. O primeiro é o **Guia rápido da Viagem** (`guias/viagem/`, 19
+páginas e 17 etapas), das equipes de Documentação, Operações e Equipamentos:
+da Viagem aberta e dos terminais das frentes de operação aos arquivos (Baplie,
+vazios, B/Ls, carga solta, veículos e, por último, o CE), à chegada e à saída
+do navio, às datas dos containers, à exportação e ao ADR de Saída. O PDF sai
+de `npm run manual:guia -- viagem`, e o `manual:check` confere também o texto
+dos guias.
 
 ## Catálogo de situações
 

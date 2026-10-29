@@ -6,16 +6,7 @@
   "situacao": "Rascunho para revisão do dono",
   "descreve": "outubro de 2026",
   "mapaTitulo": "O caminho de uma Viagem",
-  "apresentacao": "As etapas de uma Viagem, na ordem em que o trabalho acontece, com a equipe que faz cada uma. Cada etapa diz quando começa e onde se faz; na página dela, quando está pronta. O que foge do caminho está no Manual do Operador.",
-  "ordemTitulo": "A ordem dos arquivos",
-  "ordem": [
-    "Baplie",
-    "Vazios do Baplie, se houver",
-    "B/Ls de container",
-    "Manifesto de carga solta, se houver",
-    "Veículos",
-    "CE Mercante, sempre por último"
-  ],
+  "apresentacao": "Cada coluna é uma equipe, e o tempo corre de cima para baixo. Etapas na mesma faixa acontecem ao mesmo tempo; a seta liga o que precisa do passo anterior. Borda tracejada: só quando houver. O número no canto é a página da etapa.",
   "areas": [
     {
       "numero": 1,
@@ -208,5 +199,205 @@
       "pronto": "As filas de cada equipe sem pendência parada.",
       "arquivo": "17-a-rotina-do-dia.md"
     }
-  ]
+  ],
+  "fluxo": {
+    "fases": [
+      {
+        "titulo": "O armador avisa o navio",
+        "linhas": [
+          0,
+          1
+        ]
+      },
+      {
+        "titulo": "A documentação chega",
+        "linhas": [
+          2,
+          7
+        ]
+      },
+      {
+        "titulo": "O Mercante registra a carga",
+        "linhas": [
+          8,
+          9
+        ]
+      },
+      {
+        "titulo": "O navio chega ao porto",
+        "linhas": [
+          10,
+          11
+        ]
+      },
+      {
+        "titulo": "O navio sai do terminal",
+        "linhas": [
+          12,
+          12
+        ]
+      },
+      {
+        "titulo": "Todo dia",
+        "linhas": [
+          13,
+          13
+        ]
+      }
+    ],
+    "etapas": {
+      "1": {
+        "rotulo": "Abrir a Viagem",
+        "nota": "e as escalas",
+        "linha": 0
+      },
+      "2": {
+        "rotulo": "Terminais",
+        "nota": "ETB e ETD por frente",
+        "linha": 1
+      },
+      "3": {
+        "rotulo": "Baplie",
+        "nota": "antes dos B/Ls",
+        "linha": 2
+      },
+      "4": {
+        "rotulo": "Vazios do Baplie",
+        "nota": "se o Baplie trouxer",
+        "linha": 3,
+        "opcional": true
+      },
+      "5": {
+        "rotulo": "B/Ls de container",
+        "nota": "",
+        "linha": 4
+      },
+      "6": {
+        "rotulo": "Carga solta",
+        "nota": "Manifesto BB",
+        "linha": 5,
+        "opcional": true
+      },
+      "7": {
+        "rotulo": "Veículos",
+        "nota": "e o local de desova",
+        "linha": 5
+      },
+      "8": {
+        "rotulo": "Revisão",
+        "nota": "o Cliente de cada B/L",
+        "linha": 6
+      },
+      "9": {
+        "rotulo": "Portal do Cliente",
+        "nota": "convite e conta ativa",
+        "linha": 7
+      },
+      "10": {
+        "rotulo": "CE Mercante",
+        "nota": "sempre por último",
+        "linha": 8
+      },
+      "11": {
+        "rotulo": "Avisos ao Cliente",
+        "nota": "NOA, NOR, NOB e CE",
+        "linha": 9
+      },
+      "12": {
+        "rotulo": "Chegada e saída",
+        "nota": "ATA, ATB e ATD",
+        "linha": 10
+      },
+      "13": {
+        "rotulo": "Desbloqueio",
+        "nota": "o Cliente pede",
+        "linha": 10
+      },
+      "14": {
+        "rotulo": "Containers",
+        "nota": "descarga e devolução",
+        "linha": 10
+      },
+      "15": {
+        "rotulo": "Exportação",
+        "nota": "vazios e Granito",
+        "linha": 11,
+        "opcional": true
+      },
+      "16": {
+        "rotulo": "Assinar o ADR de Saída",
+        "nota": "cada equipe a sua parte, em até 72 horas",
+        "linha": 12
+      },
+      "17": {
+        "rotulo": "A rotina do dia",
+        "nota": "o Painel e as filas de cada equipe",
+        "linha": 13
+      }
+    },
+    "setas": [
+      [
+        1,
+        2
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        8,
+        9
+      ],
+      [
+        9,
+        10
+      ],
+      [
+        10,
+        11
+      ],
+      [
+        11,
+        13
+      ],
+      [
+        5,
+        7,
+        "lado"
+      ],
+      [
+        7,
+        10,
+        "fundo"
+      ],
+      [
+        14,
+        15
+      ],
+      [
+        12,
+        16
+      ],
+      [
+        13,
+        16
+      ],
+      [
+        15,
+        16
+      ]
+    ]
+  }
 }

@@ -13,7 +13,7 @@ fora do Git.
 | `impressao.mjs` | Comum ao manual e aos guias: fontes, capturas com as marcações e a impressão em duas passadas. |
 | `pagina.js` | Roda na página antes da impressão: fatos da ficha, passos numerados, cartões e ícones. |
 | `gerar.mjs` | `npm run manual:build`: capa, sumário, aberturas e capítulos, paginados pelo Chromium em duas passadas (a segunda escreve no sumário a página que a primeira leu do PDF). |
-| `guia.mjs` | `npm run manual:guia -- <nome>`: o guia rápido de `docs/manual/guias/<nome>`: capa, o mapa das etapas (que serve de sumário, com a ordem dos arquivos) e uma etapa por página, com a faixa Quando / Onde / Pronto quando, a imagem e os passos; sai em `artifacts/manual/guia-<nome>.pdf`. |
+| `guia.mjs` | `npm run manual:guia -- <nome>`: o guia rápido de `docs/manual/guias/<nome>`: capa, o mapa das etapas (um fluxo em raias por equipe, com o tempo de cima para baixo, desenhado a partir do `fluxo` do `guia.json`; serve de sumário) e uma etapa por página, com a faixa Quando / Onde / Pronto quando, a imagem e os passos; sai em `artifacts/manual/guia-<nome>.pdf`. |
 | `conferir.mjs` | `npm run manual:check`: termos técnicos proibidos, capturas citadas e regras citadas que existem na matriz. Roda também no CI, no job `quality`. |
 | `capturas.mjs` | As telas do manual, em ordem: cada captura executa o procedimento como o operador faria e devolve o recorte e as marcações. |
 | `capturar.mjs` | `npm run manual:capture [-- --so id1,id2]`: roda as capturas e grava `artifacts/manual/imagens/<id>.png` e `<id>.json`. |
