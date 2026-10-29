@@ -8,8 +8,8 @@ trabalho, não o manual.
 
 **Etapas 1 e 2 concluídas; Etapa 3 (redação em lotes) em andamento desde
 2026-10-29: lotes 1 (capítulos 1 a 3) e 2 (capítulos 7, 8, 18 e 19) aprovados
-pelo dono; lote 3 (capítulos 13 a 17) escrito e conferido contra o código,
-esperando a revisão do dono.** O dono aprovou em
+pelo dono; lote 3 (capítulos 13 a 17) aprovado; lote 4 (capítulos 9 a 12 e
+20) escrito e conferido contra o código, esperando a revisão do dono.** O dono aprovou em
 2026-10-29 o capítulo-piloto (capítulos 4 a 6) no padrão enxuto, com a
 paginação corrigida, como molde dos demais. Páginas-modelo aprovadas em
 2026-10-28. O texto está em [`docs/manual/texto/`](../manual/texto/README.md),
