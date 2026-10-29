@@ -53,7 +53,7 @@ A devolução não pode ser anterior à descarga, e não se grava devolução se
 ::: atencao
 - Para trocar ou apagar uma data gravada, veja [7.3](07-ficha-do-bl.md#73-corrigir-um-container).
 - Para o container que entra depois num B/L da Viagem, veja [18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container).
-- Não grave datas pela ficha de um B/L cancelado: a data não fica nele, mas vai para os B/Ls ativos que dividem o container.
+- Na ficha de um B/L cancelado, as datas do container ficam só para leitura. Para corrigi-las, use um B/L ativo que divide o container.
 :::
 
 ## 9.3 Importar as datas por planilha

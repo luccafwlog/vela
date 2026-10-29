@@ -144,7 +144,7 @@ Em **Perfil**, o Cliente cuida de três coisas, cada uma com o próprio botão:
 - **E-mail de recuperação**: o Cliente troca o endereço informando a senha atual e o novo e-mail duas vezes. O novo só vale depois que ele clica no link de confirmação, que chega ao endereço novo e vale por 48 horas. Até lá, o antigo continua valendo e recebe um aviso do pedido.
 
 ::: atencao
-- O endereço que o Cliente grava no Portal muda o cadastro na hora e aparece em **Alterações do cadastro**, na ficha, mas a coluna **Por** mostra "Usuário interno": se ninguém da equipe mexeu, foi o Cliente, pelo Portal.
+- O endereço que o Cliente grava no Portal muda o cadastro na hora e aparece em **Alterações do cadastro**, na ficha, com "Cliente pelo Portal" na coluna **Por**.
 - Contato com endereço bloqueado aparece no Perfil com o aviso "Endereço bloqueado". Ele não recebe Comunicados até o e-mail ser trocado (capítulo 16).
 :::
 
