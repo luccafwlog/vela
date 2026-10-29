@@ -10,7 +10,7 @@ import { Field, Input } from '../ui/Input'
 import { ReviewCustomerOnboarding, type ReviewCustomerOnboardingInput } from '../review/ReviewCustomerOnboarding'
 import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
 import { PORTAL_INVITE_SITUATIONS } from '../../services/blPortalStatus'
-import { useConfirm } from '../ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import { useOverrideCustomers } from '../../hooks/useLocalCharges'
@@ -60,6 +60,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
   const { user, can } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const [picking, setPicking] = useState(false)
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(false)
@@ -164,21 +165,26 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
     }
   }
 
-  function confirmLink(target: { name: string } | null, extra = '') {
-    return confirm({
-      title: target ? 'Vincular cliente' : 'Desvincular cliente',
+  // Devolve a justificativa do Histórico, ou `null` quando a pessoa volta.
+  // Trocar Cliente e Desvincular pedem o motivo (migration 502); o primeiro
+  // vínculo registra um texto padrão.
+  async function confirmLink(target: { name: string } | null, extra = ''): Promise<string | null> {
+    const options = {
+      title: !target ? 'Desvincular cliente' : linked ? 'Trocar Cliente' : 'Vincular cliente',
       message: target ? `Vincular o B/L ${bl.id} a ${target.name}?` : `Desvincular ${linked?.name ?? 'o cliente'} do B/L ${bl.id}?`,
       changes: [{ field: 'Cliente', before: linked?.name ?? 'Sem cliente', after: target?.name ?? 'Sem cliente' }],
       consequence: target
         ? `${extra}O B/L passa a aparecer no Portal deste cliente e entra no faturamento dele.`
         : 'O B/L sai do Portal do cliente, o valor a faturar dele é anulado e volta com o próximo cliente vinculado.',
-      reversibility: 'Pode ser trocado ou desfeito nesta mesma ficha. Fica no histórico.',
+      reversibility: 'Pode ser trocado ou desfeito nesta mesma ficha. Fica no Histórico.',
       confirmLabel: target ? 'Vincular' : 'Desvincular',
-      tone: target ? 'primary' : 'danger',
-    })
+      tone: target ? 'primary' as const : 'danger' as const,
+    }
+    if (linked) return confirmWithReason(options)
+    return (await confirm(options)) ? 'Vinculação manual de cliente na ficha do B/L.' : null
   }
 
-  async function save(customerId: number | null) {
+  async function save(customerId: number | null, justification: string) {
     if (!user) return
     await linkBlCustomer({
       blId: bl.id,
@@ -186,6 +192,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       previousCustomerId: bl.customer_id != null ? Number(bl.customer_id) : null,
       changedBy: user.id,
       expectedUpdatedAt: bl.updated_at ?? null,
+      justification,
     })
     await Promise.all([
       afterCargaAlterada(queryClient),
@@ -200,10 +207,12 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
   }
 
   async function link(target: Candidate | null) {
-    if (!user || !(await confirmLink(target))) return
+    if (!user) return
+    const justification = await confirmLink(target)
+    if (!justification) return
     setSaving(true)
     try {
-      await save(target?.id ?? null)
+      await save(target?.id ?? null, justification)
     } catch (error) {
       await refresh()
       showToast(userFacingErrorMessage(error, 'Falha ao alterar o cliente do B/L.'), 'error')
@@ -226,7 +235,8 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
         return
       }
       const extra = existingId == null ? 'O cliente é cadastrado com o e-mail do manifesto como contato principal. ' : ''
-      if (!(await confirmLink({ name: manifestName }, extra))) return
+      const justification = await confirmLink({ name: manifestName }, extra)
+      if (!justification) return
       let customerId = existingId
       if (customerId == null) {
         try {
@@ -239,7 +249,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
           if (customerId == null) throw error
         }
       }
-      await save(customerId)
+      await save(customerId, justification)
     } catch (error) {
       showToast(userFacingErrorMessage(error, 'Falha ao vincular o cliente do manifesto.'), 'error')
     } finally {
@@ -301,6 +311,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
               onSelectExistingCustomer={() => undefined}
               onSubmit={(input) => void completeCustomer(input)}
               canEditContacts={can('edit_customer_contacts')}
+              canInvitePortal={can('portal_provisioning')}
             />
           ) : showPicker ? (
             <div className={linked ? 'grid gap-3 border-t border-[var(--app-border-soft)] pt-3' : 'grid gap-3'}>

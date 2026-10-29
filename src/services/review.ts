@@ -49,8 +49,10 @@ function parseSaveBlReviewResult(data: unknown): SaveBlReviewResult {
 /**
  * Salva a revisao de um B/L usando a RPC `save_bl_review`.
  *
- * A RPC aplica o UPDATE e os INSERTs de audit_log em uma unica
- * transacao PL/pgSQL, e faz optimistic lock comparando `updated_at`
+ * A RPC aplica o UPDATE em uma unica transacao PL/pgSQL: os gatilhos gravam o
+ * antes e o depois de cada campo no Histórico com a justificativa das linhas de
+ * auditoria (migration 502; o resto da linha do navegador é descartado), e faz
+ * optimistic lock comparando `updated_at`
  * com o valor que o cliente leu (`expectedUpdatedAt`). Se outro
  * usuario alterou o B/L entre o load e o save, a funcao levanta
  * SQLSTATE PT409 (ou 40001 para retrocompatibilidade) e o chamador
@@ -164,7 +166,7 @@ export async function applyInlineBlReviewFix({
   if (!expectedUpdatedAt) {
     throw new Error('Recarregue o B/L antes de salvar: a versão atual não está disponível.')
   }
-  const justification = 'Correcao inline na fila de revisao'
+  const justification = 'Correção na fila da Revisão'
   const updatePayload: JsonObject = {
     [field]: value,
   }
@@ -231,7 +233,8 @@ function toJsonValue(value: unknown): Json {
  * Vincula/desvincula manualmente o cliente de um B/L pela mesma RPC
  * `save_bl_review` (update + audit em uma transacao, optimistic lock).
  * Mantem o contrato historico da ficha do B/L: customer_id trafega como
- * string e desvinculo como string vazia.
+ * string e desvinculo como string vazia. A justificativa vai ao Histórico
+ * (migration 502): Trocar Cliente e Desvincular pedem o motivo a quem faz.
  */
 export async function linkBlCustomer({
   blId,
@@ -239,12 +242,14 @@ export async function linkBlCustomer({
   previousCustomerId,
   changedBy,
   expectedUpdatedAt,
+  justification,
 }: {
   blId: string
   customerId: number | null
   previousCustomerId: number | null
   changedBy: string
   expectedUpdatedAt: string | null
+  justification: string
 }) {
   const { error } = await supabase.rpc('save_bl_review', {
     p_bl_id: blId,
@@ -257,10 +262,7 @@ export async function linkBlCustomer({
         field_name: 'customer_id',
         old_value: previousCustomerId != null ? String(previousCustomerId) : null,
         new_value: customerId != null ? String(customerId) : null,
-        justification:
-          customerId != null
-            ? 'Vinculacao manual de cliente na ficha do B/L.'
-            : 'Desvinculacao manual de cliente na ficha do B/L.',
+        justification,
       },
     ],
     p_changed_by: changedBy,

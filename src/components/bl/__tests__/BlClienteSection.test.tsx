@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
+  confirmWithReason: vi.fn(),
   createCustomerFromBlManifest: vi.fn(),
   findCustomerIdByDocument: vi.fn(),
   linkBlCustomer: vi.fn(),
@@ -22,7 +23,7 @@ vi.mock('../../../hooks/useReviewCustomerGroup', () => ({ useReviewCustomerGroup
 vi.mock('../../../services/reviewCustomerGroup', () => ({ sendReviewPortalInvite: mocks.invite }))
 vi.mock('../../../services/reviewBillingAutomation', () => ({ tryAutoIssueInvoice: mocks.autoInvoice }))
 vi.mock('../../../hooks/useLocalCharges', () => ({ useOverrideCustomers: () => ({ data: [], isFetching: false }) }))
-vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => mocks.confirmWithReason }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../../services/customers', () => ({
   createCustomerFromBlManifest: mocks.createCustomerFromBlManifest,
@@ -160,6 +161,44 @@ it('conta ativa ou setor sem permissão não vê o convite; leva ao Provisioname
   const released = { visibility: { visible: false, reasons: ['Conta do Portal não está ativa'], portalReady: false, billingReady: true, accountSituation: 'suspenso' }, notifications: [], openDisputes: [] }
   render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={released} /></MemoryRouter>)
   expect(screen.getByRole('link', { name: 'Abrir no Provisionamento do Portal' })).toBeTruthy()
+})
+
+// Migration 502: Trocar Cliente e Desvincular pedem o motivo, que vai ao Histórico.
+it('desvincular pede o motivo e o grava; voltar não desvincula', async () => {
+  const linkedBl = { ...bl, review_status: 'ok', customer_id: 42, customer: { id: 42, name: 'ACME', cnpj_cpf: bl.manifest_customer_cnpj_cpf } } as never
+  mocks.confirmWithReason.mockResolvedValueOnce(null)
+  render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={noAccount} /></MemoryRouter>)
+  fireEvent.click(screen.getByRole('button', { name: 'Desvincular' }))
+  await waitFor(() => expect(mocks.confirmWithReason).toHaveBeenCalledTimes(1))
+  expect(mocks.confirm).not.toHaveBeenCalled()
+  expect(mocks.linkBlCustomer).not.toHaveBeenCalled()
+
+  mocks.confirmWithReason.mockResolvedValueOnce('Cliente errado na importação')
+  mocks.linkBlCustomer.mockResolvedValue(undefined)
+  fireEvent.click(screen.getByRole('button', { name: 'Desvincular' }))
+  await waitFor(() => expect(mocks.linkBlCustomer).toHaveBeenCalledWith(expect.objectContaining({
+    blId: 'BL-1', customerId: null, previousCustomerId: 42, justification: 'Cliente errado na importação',
+  })))
+  expect(mocks.confirmWithReason).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Desvincular cliente' }))
+})
+
+it('o primeiro vínculo confirma sem motivo e grava o texto padrão', async () => {
+  mocks.findCustomerIdByDocument.mockResolvedValue(42)
+  mocks.confirm.mockResolvedValue(true)
+  mocks.linkBlCustomer.mockResolvedValue(undefined)
+  clickManifestLink()
+  await waitFor(() => expect(mocks.linkBlCustomer).toHaveBeenCalledWith(expect.objectContaining({
+    customerId: 42, justification: 'Vinculação manual de cliente na ficha do B/L.',
+  })))
+  expect(mocks.confirmWithReason).not.toHaveBeenCalled()
+})
+
+// Equipamentos edita contatos, mas `portal-invite-send` recusa o convite dele.
+it('quem edita contatos sem provisionar o Portal cadastra com e-mail e não vê o convite', () => {
+  mocks.can.mockImplementation((permission: string) => permission === 'edit_customer_contacts')
+  render(<MemoryRouter><BlClienteSection bl={{ ...bl, review_status: 'pending_review' } as never} /></MemoryRouter>)
+  expect(screen.getByLabelText(/E-mail principal do cliente/)).toBeTruthy()
+  expect(screen.queryByRole('checkbox', { name: /Enviar convite do Portal/ })).toBeNull()
 })
 
 it('falha da consulta do Portal mostra erro com Tentar novamente, não "Verificando…" para sempre', () => {
