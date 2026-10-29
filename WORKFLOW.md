@@ -846,8 +846,10 @@ reaberta ou saída de rascunho), em três jobs mais o agregador
 usam a versão 24 e `npm ci --legacy-peer-deps`; o replay de guardas usa Python
 e o de banco requer PostgreSQL 16:
 
-1. `quality` — verificação documental e autotestes, testes dos scripts do CI
-   (`npm run ci:test`), lint, identidade visual, self-check do gerador de
+1. `quality` — verificação documental e autotestes, conferência do texto do
+   Manual do Operador (`npm run manual:check`, nas branches que já trazem o
+   texto e o comando), testes dos scripts do CI (`npm run ci:test`), lint,
+   identidade visual, self-check do gerador de
    squash, declaração de migration destrutiva e autotestes desse checker, lista
    das suítes local-pg (`npm run localpg:check`), contratos de staging e de
    provisionamento do Cloudflare Pages (`npm run cloudflare:stage:test` e
