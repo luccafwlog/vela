@@ -3,7 +3,7 @@
   "sobre": "Uso interno das equipes",
   "subtitulo": "Como o Vela funciona e o que cada equipe faz, do cadastro da Viagem até a carga liberada.",
   "versao": "0.3",
-  "situacao": "Partes II e IV (lote 4) para aprovação",
+  "situacao": "Partes V e VI e apêndices para aprovação",
   "descreve": "29/10/2026",
   "partes": [
     {
@@ -347,6 +347,121 @@
           "antes": "Antes, leia o capítulo 1."
         }
       ]
+    },
+    {
+      "numero": "5",
+      "romano": "V",
+      "titulo": "O financeiro",
+      "texto": "Como o Vela calcula e cobra: as Taxas Locais, a fatura, a Demurrage do lado financeiro e o pagamento, com o que cabe a cada equipe.",
+      "capitulos": [
+        {
+          "numero": 21,
+          "titulo": "Taxas Locais",
+          "resumo": "Como o Vela calcula as Taxas Locais e como alterar, adicionar ou isentar uma taxa",
+          "arquivo": "21-taxas-locais.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [
+            {
+              "texto": "Tabelas de cobrança já usadas e Condição de Cliente",
+              "equipes": [
+                "Administrativo"
+              ]
+            }
+          ],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 6."
+        },
+        {
+          "numero": 22,
+          "titulo": "A fatura",
+          "resumo": "O que segura a fatura, como ela sai, como se corrige e se cancela",
+          "arquivo": "22-a-fatura.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [
+            {
+              "texto": "Cancelar fatura",
+              "equipes": [
+                "Administrativo"
+              ]
+            }
+          ],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 21."
+        },
+        {
+          "numero": 23,
+          "titulo": "Demurrage no financeiro",
+          "resumo": "A Invoice de Demurrage, a PTAX, o desconto, a Régua de Cobrança e o pagamento",
+          "arquivo": "23-demurrage-no-financeiro.md",
+          "equipes": [
+            "Financeiro",
+            "Equipamentos",
+            "Administrativo"
+          ],
+          "algumas": [],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia o capítulo 9."
+        },
+        {
+          "numero": 24,
+          "titulo": "Pagamento e restituição",
+          "resumo": "A baixa do Pix, a Conciliação PIX, o pagamento à mão e a devolução ao Cliente",
+          "arquivo": "24-pagamento-e-restituicao.md",
+          "equipes": [
+            "Financeiro",
+            "Administrativo"
+          ],
+          "algumas": [],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 22."
+        }
+      ]
+    },
+    {
+      "numero": "6",
+      "romano": "VI",
+      "titulo": "Administração",
+      "texto": "O que só o Administrativo faz: usuários, configurações e acompanhamento do sistema.",
+      "capitulos": [
+        {
+          "numero": 25,
+          "titulo": "Administração do Vela",
+          "resumo": "Usuários, configurações e as telas de acompanhamento da Administração",
+          "arquivo": "25-administracao.md",
+          "equipes": [
+            "Administrativo"
+          ],
+          "algumas": [],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia o capítulo 2."
+        }
+      ]
+    }
+  ],
+  "apendices": [
+    {
+      "letra": "A",
+      "titulo": "Glossário",
+      "arquivo": "ap-a-glossario.md"
+    },
+    {
+      "letra": "B",
+      "titulo": "Mensagens do sistema",
+      "arquivo": "ap-b-mensagens.md"
+    },
+    {
+      "letra": "C",
+      "titulo": "Status e cores",
+      "arquivo": "ap-c-status-e-cores.md"
+    },
+    {
+      "letra": "D",
+      "titulo": "Quero fazer… onde fica",
+      "gerado": "objetivos"
     }
   ]
 }
