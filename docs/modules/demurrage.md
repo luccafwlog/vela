@@ -740,7 +740,8 @@ cessa. O câmbio do header é apenas informativo.
   (`create_demurrage_invoice_authoritative`). Por isso, nos outros B/Ls do grupo,
   a ficha não oferece **Definir/Trocar ROE manual…**, mostra o B/L que emite a
   Invoice com link para ele e mantém só **Tirar ROE manual…** para limpar um
-  valor antigo. O banco segue aceitando o ROE manual nesses B/Ls: o valor não
+  valor antigo, que aparece como "sem efeito: a Invoice do grupo sai pelo B/L
+  …" (sem ROE: "a Invoice do grupo segue o câmbio do B/L …"). O banco segue aceitando o ROE manual nesses B/Ls: o valor não
   tem efeito enquanto o grupo dura e passa a valer se o B/L virar âncora
   (âncora cancelado ou container corrigido), e não é fronteira de segurança.
   **Teste local-pg:** `decisoesDoDonoRun3.local-pg.test.ts`; **Teste:**

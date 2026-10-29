@@ -44,6 +44,17 @@ describe('OmitEscalaModal - recusa do banco', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('Voltar e omitir de novo não mostra a recusa anterior na confirmação', async () => {
+    await omitWith({ code: '23505', message: 'A escala da viagem 7 ja foi omitida para o POD BRSSA.', details: null, hint: null })
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: 'Voltar' }))
+    await user.click(screen.getByRole('button', { name: 'Omitir escala' }))
+
+    expect(screen.getByRole('button', { name: 'Confirmar omissão' })).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('falha técnica não expõe o diagnóstico', async () => {
     const { alert } = await omitWith({ code: '42883', message: 'function public.omit_voyage_escala(bigint) does not exist', details: null, hint: null })
 

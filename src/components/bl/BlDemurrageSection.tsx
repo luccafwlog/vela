@@ -162,7 +162,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
           'error',
         )
       } else {
-        showToast('Falha ao salvar as condições de Demurrage.', 'error')
+        showToast(userFacingErrorMessage(error, 'Falha ao salvar as condições de Demurrage.'), 'error')
       }
       return
     } finally {
@@ -388,7 +388,8 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
 
       <Block
         title="Condições de Demurrage deste B/L"
-        aside={editingConditions ? null : <Button variant="secondary" className="app-btn--sm" onClick={() => setEditingConditions(true)}>Definir condição do B/L</Button>}
+        // B/L cancelado é somente leitura (ADR 0094, B4): o banco recusa a condição também.
+        aside={editingConditions || cancelled ? null : <Button variant="secondary" className="app-btn--sm" onClick={() => setEditingConditions(true)}>Definir condição do B/L</Button>}
       >
         <LeadValue detail={hasOverride ? 'substitui o acordo do Cliente e a tabela neste B/L' : agreement ? 'sem condição própria do B/L' : 'sem acordo do Cliente nem condição própria do B/L'}>{conditionSource}</LeadValue>
         {ratesReady ? (

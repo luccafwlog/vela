@@ -206,3 +206,4 @@ src/integration/fichaDoBlJustificativaTerminal.local-pg.test.ts
 src/integration/cadastroPeloPortal.local-pg.test.ts
 src/integration/datasDoBlCancelado.local-pg.test.ts
 src/integration/previaPodComExcecaoDeTerminal.local-pg.test.ts
+src/integration/blPortalStatusComLiberacao.local-pg.test.ts

@@ -94,8 +94,9 @@ export function BlManualRoe({ blId, roe, manual }: { blId: string; roe: number |
   return (
     <>
       <FactList columns={3}>
-        <Fact label="ROE manual" detail={active ? 'a próxima Invoice sai com ele, fora da PTAX' : undefined}>
-          {active ? <span className="tabular-nums">{formatRoe(roe)}</span> : <NoValue label="Sem ROE manual: a Invoice segue a PTAX do dia" />}
+        {/* Fora do âncora, o ROE deste B/L não vale: a Invoice do grupo sai pelo B/L emissor, com o câmbio dele. */}
+        <Fact label="ROE manual" detail={active ? (anchorBlId ? `sem efeito: a Invoice do grupo sai pelo B/L ${anchorBlId}` : 'a próxima Invoice sai com ele, fora da PTAX') : undefined}>
+          {active ? <span className="tabular-nums">{formatRoe(roe)}</span> : <NoValue label={anchorBlId ? `Sem ROE manual: a Invoice do grupo segue o câmbio do B/L ${anchorBlId}` : 'Sem ROE manual: a Invoice segue a PTAX do dia'} />}
         </Fact>
       </FactList>
       {anchorBlId ? (

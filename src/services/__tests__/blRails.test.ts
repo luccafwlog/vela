@@ -243,9 +243,10 @@ describe('B/L rails', () => {
       review_status: 'reviewed',
     }, { portalVisibility: null })
 
+    // Fecha, mas sem afirmar que a conta não está ativa: a situação só não chegou.
     expect(rail.find((stage) => stage.key === 'customer')).toMatchObject({
       state: 'blocked',
-      detail: 'Conta do Portal não está ativa/provisionada',
+      detail: 'Situação do Portal indisponível',
     })
   })
 

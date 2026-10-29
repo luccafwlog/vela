@@ -198,6 +198,8 @@ const SUBJECT_BY_KIND: Record<CustomerTimelineEvent['kind'], CustomerTimelineSub
 
 /** Autor guardado mas sem nome legível (perfil sem acesso ao cadastro de usuários): nunca o id. */
 const UNKNOWN_ACTOR = 'Usuário interno'
+// Login do Portal não tem perfil interno (migration 503), como em Alterações do cadastro.
+const PORTAL_ACTOR = 'Cliente pelo Portal'
 
 export type ContactChangeEventSource = {
   id: number
@@ -272,7 +274,8 @@ function contactChangeSourceLabel(source: string): 'Portal' | 'Equipe' | 'B/L' |
 
 type TimelineSources = {
   customerId?: number
-  auditLogs: Array<{ id: number; field_name: string; old_value: string | null; new_value: string | null; changed_at: string | null; justification: string | null; changed_by: string | null }>
+  /** `changed_by_portal` (migration 503): o autor é o login de uma conta do Portal. */
+  auditLogs: Array<{ id: number; field_name: string; old_value: string | null; new_value: string | null; changed_at: string | null; justification: string | null; changed_by: string | null; changed_by_portal?: boolean | null }>
   portalEvents: Array<{ id: number; new_decision: string | null; new_situation: string | null; reason: string | null; created_at: string; actor_id?: string | null; actor_type?: string | null }>
   contacts: Array<Pick<CustomerContact, 'id' | 'name' | 'created_at'>>
   contactChangeEvents?: ContactChangeEventSource[]
@@ -333,7 +336,7 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
   // (lote 1 da identidade). O motivo de uma pessoa é justificativa e fica.
   const actorName = (id: string | null | undefined) => (id ? sources.actorNames?.get(id) ?? UNKNOWN_ACTOR : null)
   const events: Array<Omit<CustomerTimelineEvent, 'subject' | 'actor'> & { actor?: string | null }> = [
-    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: row.field_name.startsWith('contact_') ? 'contact_configuration_changed' as const : 'cadastro_audit' as const, sourceId: row.field_name.startsWith('contact_') ? `audit:${row.id}` : String(row.id), at: row.changed_at!, ...auditEventText(row), link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null, actor: actorName(row.changed_by) })),
+    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: row.field_name.startsWith('contact_') ? 'contact_configuration_changed' as const : 'cadastro_audit' as const, sourceId: row.field_name.startsWith('contact_') ? `audit:${row.id}` : String(row.id), at: row.changed_at!, ...auditEventText(row), link: null, actorId: row.changed_by_portal ? PORTAL_ACTOR : row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null, actor: row.changed_by_portal ? PORTAL_ACTOR : actorName(row.changed_by) })),
     ...sources.portalEvents.map((row) => ({ kind: 'portal_event' as const, sourceId: String(row.id), at: row.created_at, label: `Portal: ${row.new_decision ? provisioningDecisionLabel(row.new_decision) : row.new_situation ? accountSituationLabel(row.new_situation) : 'evento'}`, detail: row.actor_type === 'system' ? null : row.reason, link: null, actor: row.actor_type === 'system' ? 'Sistema' : actorName(row.actor_id) })),
     ...sources.contacts.filter((row) => row.created_at).map((row) => ({ kind: 'contact_created' as const, sourceId: String(row.id), at: row.created_at!, label: `Contato criado: ${row.name ?? '—'}`, detail: null, link: null })),
     ...contactEvents,

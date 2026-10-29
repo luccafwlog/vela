@@ -66,6 +66,20 @@ describe('buildCustomerTimeline', () => {
     expect(events.find((event) => event.subject === 'Portal')?.detail).toBeNull()
   })
 
+  it('mudança feita pelo Cliente no Perfil do Portal mostra "Cliente pelo Portal" (migration 503)', () => {
+    const events = buildCustomerTimeline({
+      auditLogs: [{ id: 1, field_name: 'address', old_value: 'Rua A', new_value: 'Rua B', changed_at: '2026-10-29T10:00:00Z', justification: null, changed_by: 'portal-login-1', changed_by_portal: true }],
+      portalEvents: [],
+      contacts: [],
+      localInvoices: [],
+      payments: [],
+      demurrageInvoices: [],
+      bls: [],
+      actorNames: new Map(),
+    })
+    expect(events.map((event) => [event.subject, event.actor, event.actorId])).toEqual([['Cadastro', 'Cliente pelo Portal', 'Cliente pelo Portal']])
+  })
+
   it('ordena pela data real mesmo com formatos diferentes e traduz o campo auditado', () => {
     const events = buildCustomerTimeline({
       auditLogs: [{ id: 1, field_name: 'zip', old_value: null, new_value: '11010-000', changed_at: '2026-10-09T03:34:43+00:00', justification: null, changed_by: null }],
