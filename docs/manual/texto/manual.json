@@ -129,6 +129,69 @@
           ],
           "leitura": "15 minutos",
           "antes": "Antes, leia o capítulo 4 (Viagens e Escalas)."
+        },
+        {
+          "numero": 7,
+          "titulo": "A ficha do B/L",
+          "resumo": "Ler o B/L, corrigir dados, Cliente, CE, containers e cancelar",
+          "arquivo": "07-ficha-do-bl.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [
+            {
+              "texto": "Cancelar, reativar e excluir B/L",
+              "equipes": [
+                "Administrativo"
+              ]
+            }
+          ],
+          "leitura": "10 minutos",
+          "antes": "Antes, leia o capítulo 6 (Importação)."
+        },
+        {
+          "numero": 8,
+          "titulo": "Revisão",
+          "resumo": "O que segura o B/L e como resolver cada pendência",
+          "arquivo": "08-revisao.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia o capítulo 7 (A ficha do B/L)."
+        }
+      ]
+    },
+    {
+      "numero": "4",
+      "romano": "IV",
+      "titulo": "O sistema sozinho",
+      "texto": "O que o Vela faz sem ninguém pedir: o que muda depois de cada ação e as rotinas que rodam por horário.",
+      "capitulos": [
+        {
+          "numero": 18,
+          "titulo": "O que muda sozinho",
+          "resumo": "Você faz uma coisa, o Vela faz outras: os efeitos de cada ação",
+          "arquivo": "18-o-que-muda-sozinho.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "10 minutos",
+          "antes": "Antes, leia o capítulo 3 (O caminho de uma Viagem)."
+        },
+        {
+          "numero": 19,
+          "titulo": "Rotinas por horário",
+          "resumo": "O que o Vela faz sozinho a cada minuto, hora ou dia",
+          "arquivo": "19-rotinas-por-horario.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia o capítulo 18."
         }
       ]
     }
