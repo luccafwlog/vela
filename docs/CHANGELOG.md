@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Endereço mudado pelo Cliente no Portal aparece como do Cliente (2026-10-29, migration `502`):**
+  endereço, cidade, UF e CEP gravados no Perfil do Portal apareciam em **Alterações do cadastro**, na
+  ficha do Cliente, com "Usuário interno" em **Por**, porque o login do Portal não tem perfil interno.
+  `customer_audit_timeline` passa a devolver `changed_by_portal`, e a coluna mostra "Cliente pelo
+  Portal", como já fazia nos contatos.
 - **Etapa Cliente da ficha do B/L respeita a Liberação de faturamento (2026-10-29, migration `501`):**
   com Cliente sem conta ativa no Portal, a etapa Cliente do trilho Documental ficava vermelha com
   "Resolver na Revisão" mesmo com Liberação vigente ou B/L já faturado, que não estão na Revisão.

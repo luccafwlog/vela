@@ -39,6 +39,21 @@ describe('Alterações do cadastro do Cliente', () => {
     expect(rows.map((row) => row.by)).toEqual(['Cliente pelo Portal'])
   })
 
+  it('endereço mudado pelo Cliente no Perfil do Portal é do Cliente, não de um "Usuário interno" (502)', () => {
+    const rows = buildCadastroChanges(
+      [
+        { id: 3, field_name: 'address', old_value: 'Rua Velha, 1', new_value: 'Rua Nova, 2', changed_at: '2026-10-29T10:00:00Z', justification: null, changed_by: 'auth-portal-1', changed_by_portal: true },
+        { id: 4, field_name: 'city', old_value: 'Santos', new_value: 'Itajaí', changed_at: '2026-10-29T09:00:00Z', justification: null, changed_by: 'u-sem-nome', changed_by_portal: false },
+      ],
+      [],
+      new Map(),
+    )
+    expect(rows.map(({ what, by }) => [what, by])).toEqual([
+      ['Endereço', 'Cliente pelo Portal'],
+      ['Cidade', 'Usuário interno'],
+    ])
+  })
+
   it('mudança da Base de Clientes aparece com "Origem: Base de Clientes", quem e quando (404, F-24)', () => {
     const rows = buildCadastroChanges(
       [

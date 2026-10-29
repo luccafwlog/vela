@@ -62,7 +62,8 @@ export function diffContactSnapshots(before: unknown, after: unknown): Array<Pic
   return changes
 }
 
-type AuditRow = { id: number; field_name: string; old_value: string | null; new_value: string | null; changed_at: string | null; justification: string | null; changed_by: string | null }
+/** `changed_by_portal` (migration 502): o autor é o login de uma conta do Portal. */
+type AuditRow = { id: number; field_name: string; old_value: string | null; new_value: string | null; changed_at: string | null; justification: string | null; changed_by: string | null; changed_by_portal?: boolean | null }
 type ContactEventRow = { id: number; source: string; actor_id: string | null; before_snapshot: unknown; after_snapshot: unknown; change_summary: { justification?: unknown; action?: unknown } | null; created_at: string }
 
 // E-mails da Base de Clientes, lidos por `customer_audit_timeline` (404).
@@ -79,6 +80,8 @@ function auditJustification(text: string | null) {
   return text
 }
 
+const PORTAL_ACTOR = 'Cliente pelo Portal'
+
 export function buildCadastroChanges(audit: AuditRow[], events: ContactEventRow[], names: ReadonlyMap<string, string>): CadastroChange[] {
   const actor = (id: string | null) => (id ? names.get(id) ?? 'Usuário interno' : null)
   const rows: CadastroChange[] = audit.filter((row) => row.changed_at).map((row) => ({
@@ -87,7 +90,9 @@ export function buildCadastroChanges(audit: AuditRow[], events: ContactEventRow[
     what: row.field_name === 'deactivated' ? 'Situação do Cliente' : AUDIT_CONTACT_LABELS[row.field_name] ?? CUSTOMER_FIELD_LABELS[row.field_name] ?? 'Dado cadastral',
     from: row.field_name === 'deactivated' ? (row.old_value === 'true' ? 'Desativado' : 'Ativo') : row.old_value,
     to: row.field_name === 'deactivated' ? (row.new_value === 'true' ? 'Desativado' : 'Ativo') : row.new_value,
-    by: actor(row.changed_by),
+    // Perfil do Portal (endereço, cidade, UF, CEP): o login do Cliente não tem
+    // perfil interno, como nos contatos abaixo.
+    by: row.changed_by_portal ? PORTAL_ACTOR : actor(row.changed_by),
     justification: auditJustification(row.justification),
   }))
   for (const event of events) {
@@ -98,7 +103,7 @@ export function buildCadastroChanges(audit: AuditRow[], events: ContactEventRow[
     // Conta do Portal não tem perfil interno: a mudança é do Cliente, não de
     // um "Usuário interno" desconhecido.
     const by = event.source === 'portal'
-      ? 'Cliente pelo Portal'
+      ? PORTAL_ACTOR
       : event.actor_id ? actor(event.actor_id) : event.source === 'interno' ? null : 'Feito pelo sistema'
     diffContactSnapshots(event.before_snapshot, event.after_snapshot).forEach((change, index) => {
       rows.push({ id: `contact-${event.id}-${index}`, at: event.created_at, ...change, by, justification })
