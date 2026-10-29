@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { escalaPortCode, normalizePortCode, normalizeStoredPortCode, portCodeVariants, resolvePortCode, storedPortAliases } from '../portCode'
+import { normalizePortCode, normalizeStoredPortCode, portCodeVariants, resolvePortCode, storedPortAliases } from '../portCode'
 
 describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
   const cases: Array<[string, string]> = [
@@ -140,18 +140,4 @@ describe('Navegantes, Itajaí, Recife e Suape são quatro portos', () => {
       expect(normalizeStoredPortCode(alias)).toBe(resolvePortCode(alias).code)
     },
   )
-})
-
-describe('escalaPortCode', () => {
-  it('reconhecido vira o LOCODE; brasileiro válido fora da lista fica como digitado', () => {
-    expect(escalaPortCode('Salvador')).toBe('BRSSA')
-    expect(escalaPortCode(' brxyz ')).toBe('BRXYZ')
-    expect(escalaPortCode('BR123')).toBe('BR123')
-  })
-
-  it('código fora do formato não vira porto', () => {
-    expect(escalaPortCode('BR12')).toBeNull()
-    expect(escalaPortCode('XYZ')).toBeNull()
-    expect(escalaPortCode('')).toBeNull()
-  })
 })

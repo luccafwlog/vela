@@ -99,19 +99,6 @@ export function normalizePortCode(value: string | null | undefined) {
   return resolvePortCode(value).code
 }
 
-/**
- * Código do porto de uma escala: o LOCODE reconhecido ou, fora da lista, o
- * LOCODE brasileiro bem formado (BR + 3 letras ou dígitos) como digitado — o
- * mesmo que `save_voyage_escala_terminal_state` aceita e cadastra. Fora do
- * formato, `null`: a escala não pode ir para o porto "-".
- */
-export function escalaPortCode(value: string | null | undefined): string | null {
-  const known = normalizePortCode(value)
-  if (known) return known
-  const typed = (value ?? '').trim().toUpperCase()
-  return /^BR[A-Z0-9]{3}$/.test(typed) ? typed : null
-}
-
 /** Normaliza sem inventar LOCODE: devolve o código e se foi reconhecido. */
 export function resolvePortCode(value: string | null | undefined): { code: string | null; recognized: boolean } {
   const normalized = (value ?? '').trim().toUpperCase()

@@ -136,10 +136,7 @@ const previewWithDiff = {
       blockedReasons: [],
       billingImpacts: [],
       requiresBillingOverride: false,
-      diffs: [
-        { field: 'bl_freight_lines', label: 'Frete e despesas', from: 'USD 10', to: 'USD 12', billingImpact: false },
-        { field: 'bl_emission_date', label: 'Data de emissao', from: '2026-02-10', to: '2026-02-18', billingImpact: false },
-      ],
+      diffs: [{ field: 'bl_freight_lines', label: 'Frete e despesas', from: 'USD 10', to: 'USD 12', billingImpact: false }],
       payload: { id: 'COSU456' },
     },
   ],
@@ -179,16 +176,11 @@ it('mostra preview consolidado e tabela de diferencas depois do upload', async (
   expect(screen.getByText('GREEN / 14N')).toBeTruthy()
   expect(screen.getByText('COSU123')).toBeTruthy()
   expect(screen.getByText('COSU456')).toBeTruthy()
-  // Conferência do Manual do Operador (2026-10-28): Embarque e as diferenças de
-  // data apareciam em ISO ("2026-02-19"); a tela mostra dd/mm/aaaa como as demais.
-  expect(screen.getByText('19/02/2026')).toBeTruthy()
-  expect(screen.getByText('20/02/2026')).toBeTruthy()
-  expect(screen.queryByText('2026-02-19')).toBeNull()
+  expect(screen.getByText('2026-02-19')).toBeTruthy()
+  expect(screen.getByText('2026-02-20')).toBeTruthy()
   expect(screen.getByText('Frete e despesas')).toBeTruthy()
   expect(screen.getByText('USD 10')).toBeTruthy()
   expect(screen.getByText('USD 12')).toBeTruthy()
-  expect(screen.getByText('10/02/2026')).toBeTruthy()
-  expect(screen.getByText('18/02/2026')).toBeTruthy()
 })
 
 // Revisão de 2026-10-22 (E1): a prévia mostrava só os seis primeiros B/Ls
@@ -611,7 +603,7 @@ it('mostra preço do dia da importação → preço de hoje e envia o aceite por
     target: { files: [new File(['x'], 'bl.xlsx')] },
   })
 
-  await screen.findByText(/Preço do dia da importação \(01\/10\/2026\): TABELA ANTIGA; sem Condição; câmbio 5,1000, R\$ 100,00 → preço de hoje: TABELA NOVA/)
+  await screen.findByText(/Preço do dia da importação \(2026-10-01\): TABELA ANTIGA; sem Condição; câmbio 5,1000, R\$ 100,00 → preço de hoje: TABELA NOVA/)
   fireEvent.click(screen.getByLabelText(/Passar o B\/L COSU456 ao preço de hoje/))
   const confirm = screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement
   fireEvent.click(confirm)

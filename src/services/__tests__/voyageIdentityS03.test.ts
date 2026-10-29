@@ -11,7 +11,6 @@ vi.mock('../supabase', () => {
 })
 
 import { findVoyageByNumberAndVessel } from '../voyages'
-import { userFacingErrorMessage } from '../../lib/errors'
 
 describe('voyage identity S03', () => {
   beforeEach(() => {
@@ -60,19 +59,6 @@ describe('voyage identity S03', () => {
       { id: 2, voyage_number: '14', vessel: { name: 'GREEN SANTOS', imo: null } },
     ]
     await expect(findVoyageByNumberAndVessel('14', '', 'GREEN SANTOS')).rejects.toThrow(/ambígua/)
-  })
-
-  // A recusa chega à tela com o próprio texto (Viagens e Chegadas e Saídas
-  // usam userFacingErrorMessage), não como falha genérica.
-  it('a ambiguidade chega à tela com o motivo', async () => {
-    state.rows = [
-      { id: 1, voyage_number: '14', vessel: { name: 'GREEN SANTOS', imo: null } },
-      { id: 2, voyage_number: '14', vessel: { name: 'GREEN SANTOS', imo: null } },
-    ]
-    const error = await findVoyageByNumberAndVessel('14', '', 'GREEN SANTOS').catch((caught: unknown) => caught)
-    expect(error).toBeInstanceOf(Error)
-    expect((error as Error).message).toBe('Viagem 14 / GREEN SANTOS ambígua: 2 candidatas. Informe o IMO.')
-    expect(userFacingErrorMessage(error, 'Falha ao cadastrar a viagem.')).toBe('Viagem 14 / GREEN SANTOS ambígua: 2 candidatas. Informe o IMO.')
   })
 
   it('não usa fallback sem IMO quando ele conflita com outro cadastro identificado', async () => {

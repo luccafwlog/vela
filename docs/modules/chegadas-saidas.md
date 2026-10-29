@@ -34,12 +34,7 @@ O modal (`Modal` do design system, tamanho `md`) pede navio, VOY, IMO e uma data
 deixa a lane sem data e, portanto, sem schedule. Ao salvar,
 `createOrAttachVoyageFromSchedule` deduplica por VOY + IMO (fallback nome
 canônico), cria ou anexa a viagem, liga `show_on_portal` e grava somente ETD de
-POL e ETA de POD. Ao anexar a uma Viagem existente, **Adicionar navio** grava só
-os portos com data: "não escala" não apaga nada, porque o formulário começa
-vazio e não mostra o que a Viagem já tem (correção de 2026-10-29). Data no mesmo
-dia da gravada não é mudança e mantém a hora (vale também para a planilha), e a
-data de escala só de exportação não a marca como importação. A data sugerida ao
-desmarcar "não escala" é a de hoje em Brasília. O IMO exato prevalece sobre a grafia e um IMO distinto nunca
+POL e ETA de POD. O IMO exato prevalece sobre a grafia e um IMO distinto nunca
 é fundido; sem IMO, mais de uma candidata nominal produz conflito explícito.
 Aliases de armador aceitam pontuação e designações como `M/V` sem tratar
 prefixos maiores, como `CSCL`, como `CS`. ATA, ATD, RTW, CE status, escala e
@@ -54,10 +49,8 @@ Administrativo, ela não tem âncora operacional (manifesto vinculado, ATA/ATD,
 B/L ou edição de terminais salva, `voyage_escala_revision_state.revision > 0`)
 e o porto não está sob a Trava de exclusão; para os demais Departamentos,
 a escala continua sem data (migration `090`, ADR 0071). O texto da confirmação
-muda por equipe e cita essas âncoras. As datas e as retiradas vão numa só
-gravação (`record_audit_entries`): se a trava recusa a retirada ("Escala …
-travada: …"), nenhuma data é gravada e a Viagem não é publicada. O upload em
-lote nunca cancela escalas — células vazias ou "X" são ignoradas.
+cita só "B/L, ATA nem manifesto". O upload em lote nunca cancela escalas — células vazias
+ou "X" são ignoradas.
 
 A tela não tira linhas do quadro. A viagem sai da Programação sozinha ao
 receber o último ATD (passa a Concluída); antes disso, sai por Excluir ou

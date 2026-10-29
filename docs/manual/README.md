@@ -188,7 +188,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   (BLR-107); a importação de B/L sem usuário ativo mostra "Usuario sem
   permissao ativa." (ALE-065).
 - **Defeitos corrigidos depois da conferência do piloto** (decisão do dono de
-  2026-10-29; migration `501`): escala nova só de importação com LOCODE
+  2026-10-29; migration `505`, PR luccafwlog/vela#1092): escala nova só de importação com LOCODE
   brasileiro novo ou fora do formato (VIA-033); **Adicionar navio** não apaga
   datas da Viagem existente (VIA-106); mesmo dia não tira a hora e escala só de
   exportação não vira importação (VIA-107, VIA-113); confirmação de **Não

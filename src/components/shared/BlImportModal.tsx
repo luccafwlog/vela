@@ -7,7 +7,6 @@ import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
 import { useImportFileReceipt } from '../../hooks/useImportFileReceipt'
 import { importFilesSha256 } from '../../services/importFileReceipt'
 import { parseBLFile } from '../../services/blParser'
-import { formatDate } from '../../lib/utils'
 import {
   BlFreightImportRefused,
   confirmBlFreightImport,
@@ -402,7 +401,7 @@ export function BlImportModal({
                 checked={refixBls.has(row.blNumber)}
                 onChange={(checked) => toggleIn(setRefixBls, row.blNumber, checked)}
                 title={`Passar o B/L ${row.blNumber} ao preço de hoje`}
-                hint={`Preço do dia da importação${row.priceRefix!.before.referenceDate ? ` (${formatDate(row.priceRefix!.before.referenceDate)})` : ''}: ${describePrice(row.priceRefix!.before)} → preço de hoje: ${describePrice(row.priceRefix!.after)}.`}
+                hint={`Preço do dia da importação${row.priceRefix!.before.referenceDate ? ` (${row.priceRefix!.before.referenceDate})` : ''}: ${describePrice(row.priceRefix!.before)} → preço de hoje: ${describePrice(row.priceRefix!.after)}.`}
               />
             ))}
           </ImportSection>
@@ -590,7 +589,7 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
                   <td className={statusTone(row)}>{STATUS_LABEL[row.status]}</td>
                   <td>{row.voyageNumber ?? <NoValue label="Sem viagem" />}</td>
                   <td>{row.pol || row.pod ? `${row.pol ?? '—'} → ${row.pod ?? '—'}` : <NoValue label="Sem trecho" />}</td>
-                  <td className="tabular-nums">{row.ladenOnBoard ? formatDate(row.ladenOnBoard) : <NoValue label="Sem data de embarque" />}</td>
+                  <td className="tabular-nums">{row.ladenOnBoard ?? <NoValue label="Sem data de embarque" />}</td>
                   <td>
                     {consignee ? (
                       <span className="app-table__cell-stack">
@@ -651,7 +650,7 @@ function DiffList({ row }: { row: BlFreightImportRow }) {
       {row.diffs.map((diff) => (
         <li key={`${row.blNumber}-${diff.field}`} className={diff.billingImpact ? 'app-import-tone--warning' : undefined}>
           <span>{diff.label}</span>:{' '}
-          <span className="app-import-diff__old">{formatDiffValue(diff.field, diff.from, 'Vazio antes')}</span>{' → '}<span>{formatDiffValue(diff.field, diff.to, 'Vazio depois')}</span>
+          <span className="app-import-diff__old">{formatDiffValue(diff.from, 'Vazio antes')}</span>{' → '}<span>{formatDiffValue(diff.to, 'Vazio depois')}</span>
           {diff.billingImpact ? <span> (faturamento)</span> : null}
         </li>
       ))}
@@ -659,11 +658,7 @@ function DiffList({ row }: { row: BlFreightImportRow }) {
   )
 }
 
-/** Diferenças que são datas: o serviço compara a data ISO; a tela mostra dd/mm/aaaa. */
-const DATE_DIFF_FIELDS = new Set(['bl_emission_date'])
-
-function formatDiffValue(field: string, value: string | number | null, emptyLabel: string) {
+function formatDiffValue(value: string | number | null, emptyLabel: string) {
   if (value === null || value === '') return <NoValue label={emptyLabel} />
-  if (DATE_DIFF_FIELDS.has(field) && typeof value === 'string') return formatDate(value)
   return String(value)
 }

@@ -108,10 +108,18 @@ guardado como registro histórico e serve só de referência de redação
    [Etapa 3](#etapa-3--redação-em-lotes), no padrão enxuto, com conferência
    independente contra o código e revisão do dono por lote. Os defeitos de
    código achados na conferência do piloto foram decididos pelo dono e
-   corrigidos na PR luccafwlog/vela#1087 (migration `501`). Para refazer o PDF:
+   corrigidos na PR luccafwlog/vela#1092 (migration `505`). Para refazer o PDF:
    `npm run manual:cenario`, emulador e Vela (README do gerador),
    `npm run manual:capture`, `manual:check` e `manual:build`.
-6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
+6. **Uma PR só para o manual, sem código** (decisão do dono de 2026-10-29):
+   a PR do Manual do Operador leva só o texto, a matriz, o plano e o gerador
+   do PDF (`docs/manual/`, `scripts/manual/` e os comandos `manual:*`); não
+   toca em `src/` nem em `supabase/`. Defeito de código achado durante a
+   redação ou a conferência vira uma PR própria contra a `staging`; o texto
+   do manual descreve o comportamento de hoje e é ajustado quando a correção
+   entra. Antes de criar uma migration, confira o maior número na `staging`
+   **e nas PRs abertas**: duas PRs com o mesmo número quebram o CI de ambas.
+7. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
    etapas: o manual se pauta só pelo código; o material antigo é só referência
    de redação; quem faz o quê sai do código (matriz "O que cada setor pode",
    guardas do banco, avisos por setor), não de tabela pedida ao dono; as

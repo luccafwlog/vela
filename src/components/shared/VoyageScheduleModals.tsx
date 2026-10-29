@@ -976,10 +976,6 @@ export function EscalaModal({
       setPortError('A escala é de porto brasileiro; portos estrangeiros da rota não são escalas.')
       return
     }
-    if (!/^BR[A-Z0-9]{3}$/.test(normalizedPort)) {
-      setPortError(`LOCODE brasileiro invalido: ${normalizedPort}.`)
-      return
-    }
     setPortError(null)
 
     if (ataDate && !ataTime.trim()) {

@@ -337,27 +337,6 @@ describe('EscalaModal', () => {
     expect(screen.getByRole('alert').textContent).toContain('porto brasileiro')
   })
 
-  it('recusa código brasileiro fora do formato LOCODE ao criar a escala', async () => {
-    const user = userEvent.setup()
-    const onSaved = renderEscala({ ...escalaBase, port: null })
-
-    await user.type(screen.getByLabelText('Porto da escala'), 'BR12')
-    await user.click(screen.getByRole('button', { name: 'Adicionar escala' }))
-
-    expect(onSaved).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert').textContent).toContain('LOCODE brasileiro invalido: BR12.')
-  })
-
-  it('aceita LOCODE brasileiro válido fora da lista conhecida, com o código digitado', async () => {
-    const user = userEvent.setup()
-    const onSaved = renderEscala({ ...escalaBase, port: null })
-
-    await user.type(screen.getByLabelText('Porto da escala'), 'brxyz')
-    await user.click(screen.getByRole('button', { name: 'Adicionar escala' }))
-
-    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ port: 'BRXYZ' }))
-  })
-
   it('declara vazios sem exigir quantidades e envia o planejamento quando informado', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala({ ...escalaBase, port: null })

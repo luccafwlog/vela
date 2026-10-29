@@ -132,18 +132,6 @@ export function deleteVoyage(voyageId: number, reason: string): Promise<DeleteDe
   return deleteRecords('voyage', [voyageId], { reason })
 }
 
-/**
- * Recusa de regra do cadastro de navio/Viagem (IMO conflitante, cadastro
- * ambíguo). Leva o código 22023, o mesmo das recusas de negócio das RPCs:
- * `userFacingErrorMessage` preserva o texto (Viagens e Chegadas e Saídas
- * mostram o motivo, não "Falha ao cadastrar"), a consulta não é repetida e o
- * Sentry não a trata como defeito. A prévia das importações lê `message`, que
- * não muda.
- */
-export function voyageRegistrationRefusal(message: string): Error {
-  return Object.assign(new Error(message), { code: '22023' })
-}
-
 /** Armador da Viagem: pelo SCAC, ou pelo nome sem SCAC. */
 async function getOrCreateCarrier(name: string, scac: string): Promise<number> {
   const query = supabase.from('carriers').select('id').limit(1)
@@ -168,7 +156,7 @@ async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
   if (normalizedImo) {
     const byImo = await findVesselsByNormalizedImo(normalizedImo)
     if (byImo?.length > 1) {
-      throw voyageRegistrationRefusal(`Navio com IMO ${normalizedImo} ambíguo: mais de um cadastro. Corrija antes de importar.`)
+      throw new Error(`Navio com IMO ${normalizedImo} ambíguo: mais de um cadastro. Corrija antes de importar.`)
     }
     if (byImo?.[0] && normalizeVesselImo(byImo[0].imo) === normalizedImo) {
       const vessel = byImo[0]
@@ -193,14 +181,14 @@ async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
 
   if (existingError) throw existingError
   if (existing && existing.length > 1) {
-    throw voyageRegistrationRefusal(`Navio ${canonical} ambíguo: mais de um cadastro sem IMO. Informe o IMO.`)
+    throw new Error(`Navio ${canonical} ambíguo: mais de um cadastro sem IMO. Informe o IMO.`)
   }
   if (existing?.[0]) {
     const vessel = existing[0]
     // IMOs distintos nunca se fundem: nome igual com IMO diferente é conflito explícito.
     const existingImo = normalizeVesselImo(vessel.imo)
     if (normalizedImo && existingImo && existingImo !== normalizedImo) {
-      throw voyageRegistrationRefusal(`Navio ${canonical} com IMO conflitante (${existingImo} vs ${normalizedImo}). Corrija antes de importar.`)
+      throw new Error(`Navio ${canonical} com IMO conflitante (${existingImo} vs ${normalizedImo}). Corrija antes de importar.`)
     }
     const updates: { imo?: string; carrier_id?: number } = {}
     if (normalizedImo && existingImo !== normalizedImo) updates.imo = normalizedImo
@@ -476,7 +464,7 @@ export async function findVoyageByNumberAndVessel(
   if (imo) {
     const exactImoCandidates = voyageCandidates.filter((row) => normalizeVesselImo(row.vessel?.imo) === imo)
     if (exactImoCandidates.length > 1) {
-      throw voyageRegistrationRefusal(`Viagem ${number} / IMO ${imo} ambígua: ${exactImoCandidates.length} candidatas.`)
+      throw new Error(`Viagem ${number} / IMO ${imo} ambígua: ${exactImoCandidates.length} candidatas.`)
     }
     // O identificador forte vence qualquer grafia, inclusive um cadastro
     // nominal sem IMO. Isso evita que o fallback produza ambiguidade falsa.
@@ -492,14 +480,14 @@ export async function findVoyageByNumberAndVessel(
       !normalizeVesselImo(row.vessel?.imo) && canonicalizeVesselName(row.vessel?.name ?? '') === canonical,
     )
     if (nameCandidates.length > 1) {
-      throw voyageRegistrationRefusal(`Viagem ${number} / ${canonical} ambígua: ${nameCandidates.length} candidatas. Informe o IMO.`)
+      throw new Error(`Viagem ${number} / ${canonical} ambígua: ${nameCandidates.length} candidatas. Informe o IMO.`)
     }
     return nameCandidates[0]?.id ?? null
   }
 
   const nameCandidates = voyageCandidates.filter((row) => canonicalizeVesselName(row.vessel?.name ?? '') === canonical)
   if (nameCandidates.length > 1) {
-    throw voyageRegistrationRefusal(`Viagem ${number} / ${canonical} ambígua: ${nameCandidates.length} candidatas. Informe o IMO.`)
+    throw new Error(`Viagem ${number} / ${canonical} ambígua: ${nameCandidates.length} candidatas. Informe o IMO.`)
   }
   return nameCandidates[0]?.id ?? null
 }

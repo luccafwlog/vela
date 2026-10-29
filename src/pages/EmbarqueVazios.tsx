@@ -153,7 +153,7 @@ function plural(count: number, singular: string, pluralForm: string) {
 }
 
 // B10 (ADR 0035): o Porto de embarque é escolhido entre as escalas da viagem
-// (a mesma projeção do Planejamento por escala), inclusive escala planejada sem B/L —
+// (a mesma projeção da aba Escalas), inclusive escala planejada sem B/L —
 // viagem só de embarque de vazios não tem B/L. Os portos dos B/Ls entram como
 // complemento, para escala de B/L ainda não materializada na projeção.
 async function fetchVoyageEscalaPorts(voyageId: number): Promise<string[]> {
@@ -489,7 +489,7 @@ function EmbarquesLista({
                   // Falha de leitura não é "viagem sem escala": não manda cadastrar.
                   ? "Não foi possível carregar as escalas da viagem. Tente de novo; isto não significa que a viagem esteja sem escala."
                   : voyagePortOptions.length === 0
-                    ? "Nenhuma escala brasileira na viagem: cadastre a escala em Adicionar escala, no Planejamento por escala da aba Visão geral da viagem, antes de criar o embarque."
+                    ? "Nenhuma escala brasileira na viagem: cadastre a escala na aba Escalas da viagem antes de criar o embarque."
                     : undefined
             }
           >

@@ -4,8 +4,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-const { createVoyageMock, updateVoyageMock, findDuplicateMock, showOnPortalMock, setShowMock, showToastMock } = vi.hoisted(() => ({
-  showToastMock: vi.fn(),
+const { createVoyageMock, updateVoyageMock, findDuplicateMock, showOnPortalMock, setShowMock } = vi.hoisted(() => ({
   createVoyageMock: vi.fn(),
   updateVoyageMock: vi.fn(),
   findDuplicateMock: vi.fn(),
@@ -27,7 +26,7 @@ vi.mock('../../../hooks/useAuth', () => ({
 }))
 
 vi.mock('../../ui/Toast', () => ({
-  useToast: () => ({ showToast: showToastMock }),
+  useToast: () => ({ showToast: vi.fn() }),
 }))
 
 import { VoyageCreateModal } from '../VoyageCreateModal'
@@ -149,32 +148,6 @@ describe('VoyageCreateModal', () => {
     await user.type(screen.getByLabelText('Numero da viagem'), '11')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
     expect(await screen.findByText(/Reative-a em Viagens/)).toBeTruthy()
-  })
-
-  // Recusa de regra do cadastro do navio (IMO conflitante) chega com o
-  // motivo, não como "Falha ao cadastrar viagem".
-  it('mostra o motivo da recusa do cadastro do navio, não a falha genérica', async () => {
-    const user = userEvent.setup()
-    const { voyageRegistrationRefusal } = await import('../../../services/voyages')
-    createVoyageMock.mockRejectedValue(voyageRegistrationRefusal('Navio GREEN ITAJAI com IMO conflitante (1111111 vs 2222222). Corrija antes de importar.'))
-    renderModal()
-    await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
-    await user.type(screen.getByLabelText('Numero da viagem'), '11')
-    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
-    await waitFor(() => expect(showToastMock).toHaveBeenCalledWith(
-      'Navio GREEN ITAJAI com IMO conflitante (1111111 vs 2222222). Corrija antes de importar.',
-      'error',
-    ))
-  })
-
-  it('falha sem motivo para a tela continua com o texto genérico', async () => {
-    const user = userEvent.setup()
-    createVoyageMock.mockRejectedValue(new Error('fetch failed'))
-    renderModal()
-    await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
-    await user.type(screen.getByLabelText('Numero da viagem'), '11')
-    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
-    await waitFor(() => expect(showToastMock).toHaveBeenCalledWith('Falha ao cadastrar viagem. Revise os dados e tente novamente.', 'error'))
   })
 
   it('na edição, publica a viagem oculta e tira a que já aparece', async () => {

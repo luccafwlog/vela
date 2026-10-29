@@ -693,19 +693,6 @@ describe("EmbarqueVazios", () => {
     expect(within(dialog).queryByText(/Nenhuma escala brasileira/)).toBeNull();
   });
 
-  it("Novo embarque: viagem sem escala brasileira manda ao Planejamento por escala da Visão geral", () => {
-    mocks.voyagePortsData = [];
-    renderPage("/embarquevazios");
-    fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));
-    const dialog = screen.getByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: /Selecionar viagem/i }));
-    const aviso = within(dialog).getByText(/Nenhuma escala brasileira/).textContent ?? "";
-    expect(aviso).toContain("Planejamento por escala");
-    expect(aviso).toContain("Visão geral");
-    expect(aviso).toContain("Adicionar escala");
-    expect(aviso).not.toContain("aba Escalas");
-  });
-
   it("Novo embarque: reabrir volta à viagem do endereço e sem o porto anterior", () => {
     mocks.voyagePortsData = ["BRVIX"];
     renderPage("/embarquevazios?voyage=180");

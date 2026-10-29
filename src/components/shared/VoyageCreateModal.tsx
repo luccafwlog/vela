@@ -8,7 +8,6 @@ import { Modal } from '../ui/Modal'
 import { Switch } from '../ui/Switch'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
-import { userFacingErrorMessage } from '../../lib/errors'
 import {
   initialVoyageFormValues,
   normalizeVoyageFormValues,
@@ -170,14 +169,10 @@ export function VoyageCreateModal({
         setErrors({ voyageNumber: refusal })
         return
       }
-      // Recusa de regra (IMO conflitante, navio ambíguo) mostra o motivo.
       showToast(
-        userFacingErrorMessage(
-          error,
-          voyageId
-            ? 'Falha ao atualizar viagem. Revise os dados e tente novamente.'
-            : 'Falha ao cadastrar viagem. Revise os dados e tente novamente.',
-        ),
+        voyageId
+          ? 'Falha ao atualizar viagem. Revise os dados e tente novamente.'
+          : 'Falha ao cadastrar viagem. Revise os dados e tente novamente.',
         'error',
       )
     } finally {
