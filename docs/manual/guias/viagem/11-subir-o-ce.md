@@ -1,4 +1,4 @@
-O CE libera o B/L: a fatura sai na hora e o Cliente passa a ver o B/L no Portal. Uma planilha por Manifesto Mercante.
+Só com a conferência da etapa 10 completa. O CE libera o B/L: a fatura sai na hora e o Cliente passa a ver o B/L no Portal. Uma planilha por Manifesto Mercante.
 
 ::: lado
 1. Na **Importação rápida**, clique em **CE Mercante**.
@@ -25,5 +25,6 @@ O resultado da emissão.
 | **aguardando** | Limpar a Revisão (etapa 8). A fatura sai sozinha depois. |
 
 ::: atencao
-No Excel, formate a coluna do CE como texto antes de digitar: senão o CE perde os zeros à esquerda.
+- No Excel, formate a coluna do CE como texto antes de digitar: senão o CE perde os zeros à esquerda.
+- CE trocado depois do envio: o Cliente já recebeu o CE e Taxas. Reenvie pelo alerta **Reenviar Comunicado de CE e Taxas**.
 :::

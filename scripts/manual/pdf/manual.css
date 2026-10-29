@@ -524,6 +524,7 @@ figure.tela { break-inside: avoid; }
 .fx-cartao--equ { --cor: var(--team-equ); }
 .fx-cartao--todas { --cor: var(--navy); }
 .fx-cartao--opcional { border: 0.8pt dashed #8b95a7; }
+.fx-cartao--critico { --cor: var(--gold-strong); border: 1.2pt solid var(--gold); background: #fdf5ea; }
 .fx-texto { display: grid; gap: 0.2mm; min-width: 0; line-height: 1.2; }
 .fx-texto b { font-size: 8.6pt; color: var(--navy); }
 .fx-texto span { font-size: 7pt; color: var(--muted); }
@@ -540,3 +541,6 @@ figure.tela { break-inside: avoid; }
 body.guia .texto-corrido > * + * { margin-top: 4mm; }
 body.guia .tela__quadro { --altura-max: 108mm; }
 body.guia .texto-corrido > p { font-size: 10pt; }
+/* O título curto de uma tabela ("Na chegada") não fica sozinho no pé da página. */
+body.guia .texto-corrido > p:has(+ table) { break-after: avoid; }
+body.guia .texto-corrido > table { break-inside: avoid; }

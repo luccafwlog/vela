@@ -6,7 +6,7 @@
   "situacao": "Rascunho para revisão do dono",
   "descreve": "outubro de 2026",
   "mapaTitulo": "O caminho de uma Viagem",
-  "apresentacao": "Cada coluna é uma equipe, e o tempo corre de cima para baixo. Etapas na mesma faixa acontecem ao mesmo tempo; a seta liga o que precisa do passo anterior. Borda tracejada: só quando houver. O número no canto é a página da etapa.",
+  "apresentacao": "Cada coluna é uma equipe, e o tempo corre de cima para baixo. Etapas na mesma faixa acontecem ao mesmo tempo; a seta liga o que precisa do passo anterior. Borda tracejada: só quando houver. Dourado: o ponto crítico. O número no canto é a página da etapa.",
   "areas": [
     {
       "numero": 1,
@@ -109,17 +109,29 @@
     },
     {
       "numero": 10,
+      "titulo": "Conferir a Viagem antes do CE",
+      "equipes": [
+        "Documentação",
+        "Equipamentos"
+      ],
+      "quando": "Antes de subir o CE: o momento mais crítico da Viagem.",
+      "onde": "Rotas e Manifestos, Baplie EDI, Revisão, Veículos e Alertas.",
+      "pronto": "A Viagem revisada e conciliada, sem divergência e sem alerta aberto, fora o CE Mercante pendente.",
+      "arquivo": "10-conferir-antes-do-ce.md"
+    },
+    {
+      "numero": 11,
       "titulo": "Subir o CE Mercante",
       "equipes": [
         "Documentação"
       ],
-      "quando": "O Mercante registra a carga, depois dos B/Ls, da carga solta e dos veículos.",
+      "quando": "Com a conferência da etapa 10 completa.",
       "onde": "Ficha da Viagem › Importação rápida › CE Mercante.",
       "pronto": "Os B/Ls aparecem como faturados.",
-      "arquivo": "10-subir-o-ce.md"
+      "arquivo": "11-subir-o-ce.md"
     },
     {
-      "numero": 11,
+      "numero": 12,
       "titulo": "Conferir os avisos ao Cliente",
       "equipes": [
         "Documentação"
@@ -127,10 +139,10 @@
       "quando": "Depois do CE e na semana da chegada do navio.",
       "onde": "Clientes › Comunicação › Cobertura de viagens.",
       "pronto": "NOA, NOR, NOB e CE e Taxas sem âmbar.",
-      "arquivo": "11-conferir-os-avisos.md"
+      "arquivo": "12-conferir-os-avisos.md"
     },
     {
-      "numero": 12,
+      "numero": 13,
       "titulo": "Registrar a chegada, a atracação e a saída",
       "equipes": [
         "Operações"
@@ -138,10 +150,10 @@
       "quando": "No dia em que o navio chega, atraca e sai.",
       "onde": "Planejamento por escala › lápis da escala.",
       "pronto": "O ATA na escala; o ATB e o ATD em cada terminal.",
-      "arquivo": "12-registrar-chegada-e-saida.md"
+      "arquivo": "13-registrar-chegada-e-saida.md"
     },
     {
-      "numero": 13,
+      "numero": 14,
       "titulo": "Desbloquear o CE",
       "equipes": [
         "Documentação"
@@ -149,10 +161,10 @@
       "quando": "O Cliente pede o Desbloqueio pelo Portal.",
       "onde": "Importação › Desbloqueio de CE.",
       "pronto": "O B/L fica Desbloqueado na conciliação com a ZPT.",
-      "arquivo": "13-desbloquear-o-ce.md"
+      "arquivo": "14-desbloquear-o-ce.md"
     },
     {
-      "numero": 14,
+      "numero": 15,
       "titulo": "Gravar a descarga e a devolução",
       "equipes": [
         "Equipamentos"
@@ -160,10 +172,10 @@
       "quando": "O terminal manda as datas de descarga; depois, as de devolução.",
       "onde": "Importação › Containers › Importar datas.",
       "pronto": "Cada container com a descarga; a Invoice de Demurrage sai sozinha.",
-      "arquivo": "14-gravar-descarga-e-devolucao.md"
+      "arquivo": "15-gravar-descarga-e-devolucao.md"
     },
     {
-      "numero": 15,
+      "numero": 16,
       "titulo": "Lançar a exportação",
       "equipes": [
         "Equipamentos"
@@ -171,10 +183,10 @@
       "quando": "A escala embarca vazios ou Granito.",
       "onde": "Ficha da Viagem › aba Exportação.",
       "pronto": "O embarque com as unidades e os serviços; o Granito na Viagem.",
-      "arquivo": "15-lancar-a-exportacao.md"
+      "arquivo": "16-lancar-a-exportacao.md"
     },
     {
-      "numero": 16,
+      "numero": 17,
       "titulo": "Assinar o ADR de Saída",
       "equipes": [
         "Operações",
@@ -184,10 +196,23 @@
       "quando": "O navio sai do terminal; cada equipe tem 72 horas.",
       "onde": "Ficha da Viagem › aba ADR.",
       "pronto": "As três equipes assinaram e o ADR está fechado.",
-      "arquivo": "16-assinar-o-adr.md"
+      "arquivo": "17-assinar-o-adr.md"
     },
     {
-      "numero": 17,
+      "numero": 18,
+      "titulo": "Os alertas",
+      "equipes": [
+        "Operações",
+        "Documentação",
+        "Equipamentos"
+      ],
+      "quando": "Abrem sozinhos quando algo precisa de uma pessoa.",
+      "onde": "Alertas, ou o cartão da equipe no Painel.",
+      "pronto": "O alerta fecha sozinho quando a causa some.",
+      "arquivo": "18-os-alertas.md"
+    },
+    {
+      "numero": 19,
       "titulo": "A rotina do dia",
       "equipes": [
         "Operações",
@@ -197,7 +222,7 @@
       "quando": "Todo dia, ao começar.",
       "onde": "Painel e as filas da equipe.",
       "pronto": "As filas de cada equipe sem pendência parada.",
-      "arquivo": "17-a-rotina-do-dia.md"
+      "arquivo": "19-a-rotina-do-dia.md"
     }
   ],
   "fluxo": {
@@ -220,28 +245,28 @@
         "titulo": "O Mercante registra a carga",
         "linhas": [
           8,
-          9
+          10
         ]
       },
       {
         "titulo": "O navio chega ao porto",
         "linhas": [
-          10,
-          11
+          11,
+          12
         ]
       },
       {
         "titulo": "O navio sai do terminal",
         "linhas": [
-          12,
-          12
+          13,
+          13
         ]
       },
       {
         "titulo": "Todo dia",
         "linhas": [
-          13,
-          13
+          14,
+          14
         ]
       }
     ],
@@ -294,45 +319,68 @@
         "linha": 7
       },
       "10": {
-        "rotulo": "CE Mercante",
-        "nota": "sempre por último",
-        "linha": 8
+        "rotulo": "Conferir antes do CE",
+        "nota": "Ponto crítico: a Viagem revisada, conciliada, sem divergência e com os veículos lançados",
+        "linha": 8,
+        "colunas": [
+          0,
+          2
+        ],
+        "critico": true
       },
       "11": {
-        "rotulo": "Avisos ao Cliente",
-        "nota": "NOA, NOR, NOB e CE",
+        "rotulo": "CE Mercante",
+        "nota": "sempre por último",
         "linha": 9
       },
       "12": {
-        "rotulo": "Chegada e saída",
-        "nota": "ATA, ATB e ATD",
+        "rotulo": "Avisos ao Cliente",
+        "nota": "NOA, NOR, NOB e CE",
         "linha": 10
       },
       "13": {
-        "rotulo": "Desbloqueio",
-        "nota": "o Cliente pede",
-        "linha": 10
+        "rotulo": "Chegada e saída",
+        "nota": "ATA, ATB e ATD",
+        "linha": 11
       },
       "14": {
-        "rotulo": "Containers",
-        "nota": "descarga e devolução",
-        "linha": 10
+        "rotulo": "Desbloqueio",
+        "nota": "o Cliente pede",
+        "linha": 11
       },
       "15": {
-        "rotulo": "Exportação",
-        "nota": "vazios e Granito",
-        "linha": 11,
-        "opcional": true
+        "rotulo": "Containers",
+        "nota": "descarga e devolução",
+        "linha": 11
       },
       "16": {
-        "rotulo": "Assinar o ADR de Saída",
-        "nota": "cada equipe a sua parte, em até 72 horas",
-        "linha": 12
+        "rotulo": "Exportação",
+        "nota": "vazios e Granito",
+        "linha": 12,
+        "opcional": true
       },
       "17": {
+        "rotulo": "Assinar o ADR de Saída",
+        "nota": "cada equipe a sua parte, em até 72 horas",
+        "linha": 13
+      },
+      "18": {
+        "rotulo": "Os alertas",
+        "nota": "abrem e fecham",
+        "linha": 14,
+        "colunas": [
+          0,
+          0
+        ]
+      },
+      "19": {
         "rotulo": "A rotina do dia",
         "nota": "o Painel e as filas de cada equipe",
-        "linha": 13
+        "linha": 14,
+        "colunas": [
+          1,
+          2
+        ]
       }
     },
     "setas": [
@@ -370,38 +418,41 @@
         10
       ],
       [
-        10,
-        11
-      ],
-      [
-        11,
-        13
-      ],
-      [
         5,
         7,
         "lado"
       ],
       [
         7,
-        10,
-        "fundo"
+        10
       ],
       [
-        14,
-        15
+        10,
+        11
+      ],
+      [
+        11,
+        12
       ],
       [
         12,
-        16
-      ],
-      [
-        13,
-        16
+        14
       ],
       [
         15,
         16
+      ],
+      [
+        13,
+        17
+      ],
+      [
+        14,
+        17
+      ],
+      [
+        16,
+        17
       ]
     ]
   }

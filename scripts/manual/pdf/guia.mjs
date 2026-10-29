@@ -48,10 +48,11 @@ const equipes = (a) => (a.equipes?.length ? `<span class="equipes">${a.equipes.m
 // O mapa é um fluxo em raias: uma coluna por equipe e o tempo de cima para
 // baixo, em faixas (guia.json › fluxo). Etapas na mesma faixa correm ao
 // mesmo tempo; a seta liga só o que depende do anterior. A etapa das três
-// equipes ocupa as três colunas; a etapa que nem sempre existe tem a borda
-// tracejada. Medidas em mm, para a página A4 do livro.
+// equipes ocupa as três colunas (ou as do "colunas" do cartão); a etapa que
+// nem sempre existe tem a borda tracejada, e o ponto crítico, a borda dourada.
+// Medidas em mm, para a página A4 do livro.
 const RAIAS = ['Operações', 'Documentação', 'Equipamentos']
-const F = { largura: 174, rotulo: 31, topo: 9, passo: 15.2, cartao: 12, entreFases: 3, margem: 2.4 }
+const F = { largura: 174, rotulo: 31, topo: 9, passo: 14.6, cartao: 11.6, entreFases: 2.8, margem: 2.4 }
 
 function fluxo(g) {
   const { fases, etapas, setas } = g.fluxo
@@ -63,13 +64,15 @@ function fluxo(g) {
   for (const a of g.areas) {
     const e = etapas[a.numero]
     if (!e) throw new Error(`fluxo: falta a etapa ${a.numero} no guia.json`)
-    const todas = a.equipes.length === RAIAS.length
-    const col = RAIAS.indexOf(a.equipes[0])
-    if (!todas && col < 0) throw new Error(`fluxo: a etapa ${a.numero} não tem equipe de uma das raias`)
-    const x = todas ? xRaias + F.margem : xRaias + col * raia + F.margem
-    const w = todas ? RAIAS.length * raia - 2 * F.margem : raia - 2 * F.margem
+    const [de, ate] = e.colunas ?? (a.equipes.length === RAIAS.length ? [0, RAIAS.length - 1] : [RAIAS.indexOf(a.equipes[0]), RAIAS.indexOf(a.equipes[0])])
+    if (a.equipes.length === 1 && de < 0) throw new Error(`fluxo: a etapa ${a.numero} não tem equipe de uma das raias`)
+    if (de < 0 || ate < de || (a.equipes.length > 1 && a.equipes.length < RAIAS.length && !e.colunas)) throw new Error(`fluxo: a etapa ${a.numero} precisa de "colunas"`)
+    const x = xRaias + de * raia + F.margem
+    const w = (ate - de + 1) * raia - 2 * F.margem
     const y = yLinha(e.linha) + (F.passo - F.cartao) / 2
-    caixa[a.numero] = { a, e, col: todas ? null : col, x, y, w, h: F.cartao, cx: x + w / 2, cy: y + F.cartao / 2 }
+    // A cor é a da equipe só quando o cartão é dela, numa coluna.
+    const cor = a.equipes.length === 1 ? ['ope', 'doc', 'equ'][de] : 'todas'
+    caixa[a.numero] = { a, e, cor, x, y, w, h: F.cartao, cx: x + w / 2, cy: y + F.cartao / 2 }
   }
   const ultima = Math.max(...fases.map((f) => f.linhas[1]))
   const altura = yLinha(ultima) + F.passo + 1
@@ -113,9 +116,8 @@ function fluxo(g) {
     .join('')
 
   const cartoes = Object.values(caixa)
-    .map(({ a, e, col, x, y, w, h }) => {
-      const cor = col === null ? 'todas' : ['ope', 'doc', 'equ'][col]
-      return `<a class="fx-cartao fx-cartao--${cor}${e.opcional ? ' fx-cartao--opcional' : ''}" href="#area-${a.numero}" style="left:${n(x)}mm;top:${n(y)}mm;width:${n(w)}mm;height:${n(h)}mm">
+    .map(({ a, e, cor, x, y, w, h }) => {
+      return `<a class="fx-cartao fx-cartao--${cor}${e.opcional ? ' fx-cartao--opcional' : ''}${e.critico ? ' fx-cartao--critico' : ''}" href="#area-${a.numero}" style="left:${n(x)}mm;top:${n(y)}mm;width:${n(w)}mm;height:${n(h)}mm">
   <span class="fx-n">${a.numero}</span>
   <span class="fx-texto"><b>${escapar(e.rotulo)}</b>${e.nota ? `<span>${escapar(e.nota)}</span>` : ''}</span>
   ${pagina(`area-${a.numero}`)}
