@@ -58,6 +58,9 @@ export function OmitEscalaModal({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!user?.id || !dischargePod) return
+    // A recusa anterior fica no formulário para orientar a correção; a nova
+    // confirmação começa sem ela.
+    omit.reset()
     setIsConfirming(true)
   }
 

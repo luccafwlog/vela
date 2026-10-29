@@ -554,7 +554,12 @@ export function ChegadasSaidas() {
         voyageNumber: formData.voyageNumber,
         lanes,
       }, user?.id ?? null, { mode: 'form', voyageId: editingId ?? undefined, canRemoveEscala: isAdmin })
-      showToast(editingId ? 'Programação atualizada no Portal.' : 'Viagem cadastrada e publicada no Portal.', 'success')
+      showToast(
+        editingId ? 'Programação atualizada no Portal.'
+          : saved.created ? 'Viagem cadastrada e publicada no Portal.'
+            : 'A viagem já estava cadastrada: as datas foram gravadas nela e ela está publicada no Portal.',
+        'success',
+      )
       invalidateSchedules([saved.voyageId])
       closeDialog()
     } catch (error) {

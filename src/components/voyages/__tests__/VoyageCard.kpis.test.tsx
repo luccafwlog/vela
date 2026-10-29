@@ -7,7 +7,10 @@ import { MemoryRouter } from 'react-router-dom'
 vi.mock('../../../services/supabase', () => ({ supabase: {}, isSupabaseConfigured: true }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: false, user: null, profile: null }) }))
 let mockDivergences: unknown[] = []
-vi.mock('../../../hooks/useVoyageReconciliation', () => ({ useVoyageReconciliation: () => ({ data: { items: mockDivergences } }) }))
+let mockReconciliationLoaded = true
+vi.mock('../../../hooks/useVoyageReconciliation', () => ({
+  useVoyageReconciliation: () => ({ data: mockReconciliationLoaded ? { items: mockDivergences } : undefined }),
+}))
 vi.mock('../../../hooks/useAgencyReport', () => ({ useClosedAgencyReportPorts: () => ({ data: [] }) }))
 let mockManifestos: Array<{ pol: string; pod: string; numero: string; natureza: 'carga' | 'vazio' }> = []
 vi.mock('../../../hooks/useManifestosMercante', () => ({
@@ -26,6 +29,7 @@ afterEach(cleanup)
 beforeEach(() => {
   mockManifestos = []
   mockDivergences = []
+  mockReconciliationLoaded = true
 })
 
 function renderCard(voyage: Partial<Voyage>, routeCeMasters?: Map<string, string>) {
@@ -78,6 +82,14 @@ describe('KPIs do cabeçalho da viagem', () => {
     expect(kpiValue('CE Mercante')).toBe('1/2')
     expect(kpiValue('Manifestos Mercante')).toBe('0 · 1 a informar')
     expect(kpiValue('Divergências EDI × B/Ls')).toBe('0')
+  })
+
+  it('sem a contagem de divergências (carregando ou com falha), diz Verificando, como a faixa e a tabela', () => {
+    mockReconciliationLoaded = false
+    renderCard({ bls: [{ id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: '123', bl_containers: [] }] } as unknown as Partial<Voyage>)
+
+    expect(screen.queryByText('Conciliada')).toBeNull()
+    expect(screen.getByText('Verificando')).toBeTruthy()
   })
 
   it('conta Manifestos Mercante do manifesto importado, como a aba Rotas e Manifestos', () => {

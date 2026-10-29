@@ -66,6 +66,8 @@ function reasonDetail(reason: string) {
   if (normalized.includes('no containers')) return 'Containers não encontrados'
   if (normalized.includes('linha') || normalized.includes('calcul') || normalized.includes('invalid')) return 'Linha inválida'
   if (normalized.includes('email') || normalized.includes('e mail')) return 'Cliente sem e-mail cadastrado'
+  // Situação não carregada (ou com falha): o card fica fechado sem afirmar que a conta não está ativa.
+  if (normalized.includes('portal') && normalized.includes('indisponivel')) return 'Situação do Portal indisponível'
   if (normalized.includes('portal')) return 'Conta do Portal não está ativa/provisionada'
   if (normalized.includes('cliente') && normalized.includes('vincul')) return 'Sem cliente vinculado'
   if (normalized.includes('revis') || normalized.includes('review')) return 'Pendência documental'

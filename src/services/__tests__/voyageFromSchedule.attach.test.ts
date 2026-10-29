@@ -10,7 +10,9 @@ const calls = vi.hoisted(() => ({
   blSelect: vi.fn(),
 }))
 
-vi.mock('../voyages', () => ({
+vi.mock('../voyages', async (importOriginal) => ({
+  duplicateVoyageMessage: (await importOriginal<typeof import('../voyages')>()).duplicateVoyageMessage,
+  voyageRegistrationRefusal: (await importOriginal<typeof import('../voyages')>()).voyageRegistrationRefusal,
   createVoyage: calls.createVoyage,
   setVoyageShowOnPortal: calls.setShow,
   findVoyageByNumberAndVessel: calls.findVoyage,
@@ -95,6 +97,23 @@ describe('createOrAttachVoyageFromSchedule', () => {
       '42::BRSSA eta null→2026-01-22',
       '42::BRSSA linked null→false',
     ])
+  })
+
+  it('"Adicionar navio" com o VOY e o navio de uma Viagem cancelada recusa e não grava nada', async () => {
+    calls.findVoyage.mockResolvedValue(24)
+    calls.blSelect.mockImplementation((table: string) => table === 'voyages'
+      ? { select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: { status: 'cancelled' }, error: null }) }) }) }
+      : blQuery([]))
+
+    await expect(createOrAttachVoyageFromSchedule({
+      vesselName: 'GREEN PECEM',
+      vesselImo: '9976501',
+      voyageNumber: '6',
+      lanes: [{ code: 'BRSSA', kind: 'pod', date: '2026-01-22' }],
+    }, 'user-1', { mode: 'form' })).rejects.toThrow('Já existe a viagem GREEN PECEM / 6, cancelada. Reative-a em Viagens em vez de cadastrar outra.')
+
+    expect(calls.record).not.toHaveBeenCalled()
+    expect(calls.setShow).not.toHaveBeenCalled()
   })
 
   it('cria viagem quando nao encontra dedup por VOY+navio', async () => {
@@ -207,6 +226,27 @@ describe('createOrAttachVoyageFromSchedule - modo form (cancelar escala)', () =>
       '42::BRSSA eta null→2026-01-22',
       '42::BRSSA linked null→false',
       '42::BRVIX deleted false→true',
+    ])
+  })
+
+  it('escala que já estava sem data não sai quando o Administrativo edita outro porto', async () => {
+    // A janela mostra o porto sem data como "Não escala" e não pede confirmação
+    // (clearedPodLabels só lista o porto que tinha data): nada a retirar.
+    calls.listPod.mockResolvedValue(new Map([['42::BRVIX', pod('42::BRVIX', { eta: null })]]))
+
+    await createOrAttachVoyageFromSchedule({
+      vesselName: 'GREEN PECEM',
+      vesselImo: '9976501',
+      voyageNumber: '6',
+      lanes: [
+        { code: 'BRSSA', kind: 'pod', date: '2026-01-22' },
+        { code: 'BRVIX', kind: 'pod', date: null },
+      ],
+    }, 'user-1', { mode: 'form', voyageId: 42, canRemoveEscala: true })
+
+    expect(written()).toEqual([
+      '42::BRSSA eta null→2026-01-22',
+      '42::BRSSA linked null→false',
     ])
   })
 
