@@ -65,7 +65,7 @@ describe('TransshipmentInfoCard - recusa do banco', () => {
   })
 
   it('Complementar recusado mostra o motivo e mantém o formulário aberto', async () => {
-    updateVoyageOmission.mockRejectedValue({ code: '42501', message: 'Usuario sem permissao ativa.', details: null, hint: null })
+    updateVoyageOmission.mockRejectedValue({ code: '42501', message: 'Usuário sem permissão ativa.', details: null, hint: null })
     await renderCard()
 
     fireEvent.click(screen.getByRole('button', { name: 'Complementar' }))
@@ -74,7 +74,7 @@ describe('TransshipmentInfoCard - recusa do banco', () => {
     const confirmDialog = await screen.findByRole('dialog', { name: 'Confirmar informações de transbordo' })
     fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Salvar informações' }))
 
-    expect((await screen.findByRole('alert')).textContent).toBe('Usuario sem permissao ativa.')
+    expect((await screen.findByRole('alert')).textContent).toBe('Usuário sem permissão ativa.')
     expect(screen.getByLabelText('Armador de Transbordo')).toBeTruthy()
   })
 

@@ -231,7 +231,7 @@ describe('fetchCustomerReceivables — le via RPC para distinguir vazio de restr
   })
 
   it('marca denied quando a RPC recusa por falta de permissao (42501)', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'Usuario sem permissao ativa.' } })
+    mockRpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'Usuário sem permissão ativa.' } })
 
     const result = await fetchCustomerReceivables(101)
 

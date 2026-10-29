@@ -163,7 +163,7 @@ repositório.
 | `Registro do Histórico sem identificação.` | Gravação no Histórico sem o registro identificado. Não aparece na operação normal; avise o Administrativo. | Ap. B |
 | `Registros demais para o Histórico de uma vez.` | Mais de 100 linhas de Histórico numa gravação só. Não aparece na operação normal; avise o Administrativo. | Ap. B |
 | `Registros do Histórico inválidos.` | Gravação no Histórico em formato errado. Não aparece na operação normal; avise o Administrativo. | Ap. B |
-| `Sessão encerrada: entre de novo.` | A pessoa foi desativada ou teve o e-mail ou a senha trocados e a sessão antiga tentou agir. A maioria das telas mostra `Sua sessao expirou. Entre novamente para continuar.` e o Vela volta à tela de entrada. Entre de novo. | Ap. B |
+| `Sessão encerrada: entre de novo.` | A pessoa foi desativada ou teve o e-mail ou a senha trocados e a sessão antiga tentou agir. A maioria das telas mostra `Sua sessão expirou. Entre novamente para continuar.` e o Vela volta à tela de entrada. Entre de novo. | Ap. B |
 | `Somente o Administrativo pode excluir.` | Exclusão de Viagem, B/L, container, Cliente ou cadastro por quem não é Administrativo. Peça ao Administrativo. | Ap. B |
 | `Somente o Administrativo reativa.` | Reativar cadastro ou usuário por quem não é Administrativo. Peça ao Administrativo. | Ap. B |
 | `Tabela fora da exclusão de cadastro: %.` | Nunca chega a uma pessoa: as telas só pedem a exclusão dos cadastros aceitos; protege contra pedido fora da lista. | Fora |
@@ -185,19 +185,19 @@ repositório.
 | `Erro inesperado` | Erro ao abrir o Vela. Recarregue a página. | Ap. B |
 | `Sem conexão no momento.` | Lista sem rede e sem cópia guardada; não quer dizer lista vazia. | Ap. B |
 | `Você está offline. Exibindo dados salvos — a leitura retoma ao reconectar.` | Sem rede, com dados guardados na tela. | Ap. B |
-| `Sem permissao para esta acao. Solicite acesso administrativo.` | Recusa de permissão sem frase própria do banco (texto sem acentos, como no código). Veja em Op 2 quem pode e passe ao setor certo. | Ap. B |
-| `Sua sessao expirou. Entre novamente para continuar.` | Sessão vencida ou cortada pela revogação do acesso (texto sem acentos, como no código). | Ap. B |
+| `Sem permissão para esta ação.` | Recusa de permissão sem frase própria do banco (texto sem acentos, como no código). Veja em Op 2 quem pode e passe ao setor certo. | Ap. B |
+| `Sua sessão expirou. Entre novamente para continuar.` | Sessão vencida ou cortada pela revogação do acesso (texto sem acentos, como no código). | Ap. B |
 | `Este registro já existe.` | Gravação de algo que não pode repetir; com o valor conhecido vira `Já existe um registro com o valor "...".` | Ap. B |
-| `Conflito de concorrencia. Tente novamente.` | Duas gravações ao mesmo tempo no mesmo registro (sem acentos, como no código). Atualize e refaça. | Ap. B |
+| `Outra pessoa alterou o mesmo registro ao mesmo tempo. Tente novamente.` | Duas gravações ao mesmo tempo no mesmo registro (sem acentos, como no código). Atualize e refaça. | Ap. B |
 | `Outra gravação estava usando os mesmos registros. Tente novamente.` | Duas gravações disputando os mesmos registros. | Ap. B |
 | `O sistema recusou a operação por uma regra de negócio.` | Recusa de regra cujo texto do banco é técnico. Avise o Administrativo com a tela e a ação. | Ap. B |
 | `Operação bloqueada por uma pendência do B/L ou da Viagem.` | Trava de faturamento sem texto próprio legível. Veja a Revisão do B/L. | Ap. B |
 | `A operação não é possível no estado atual do registro.` | Ação recusada pelo estado (Viagem cancelada, fatura já emitida) sem texto próprio legível. | Ap. B |
-| `Registro referenciado nao existe ou ainda esta em uso.` | Gravação que aponta para registro apagado ou que ainda é usado (sem acentos, como no código). | Ap. B |
+| `O registro vinculado não existe mais ou ainda está em uso.` | Gravação que aponta para registro apagado ou que ainda é usado (sem acentos, como no código). | Ap. B |
 | `Dados fora das regras do cadastro.` | Valor recusado por uma regra de cadastro sem texto próprio. | Ap. B |
-| `Valor em formato invalido.` | Campo com formato que o banco não aceita (sem acentos, como no código). | Ap. B |
-| `Dados invalidos para esta operacao.` | Dado recusado sem texto próprio (sem acentos, como no código). | Ap. B |
-| `Registro nao encontrado.` | O registro não existe mais (sem acentos, como no código). | Ap. B |
+| `Valor em formato inválido.` | Campo com formato que o banco não aceita (sem acentos, como no código). | Ap. B |
+| `Dados inválidos para esta operação.` | Dado recusado sem texto próprio (sem acentos, como no código). | Ap. B |
+| `Registro não encontrado.` | O registro não existe mais (sem acentos, como no código). | Ap. B |
 | `Muitas tentativas. Aguarde alguns minutos e tente novamente.` | Limite de tentativas atingido. | Ap. B |
 | `A consulta demorou demais. Reduza o período e tente novamente.` | Consulta longa demais numa tela de lista ou relatório. | Ap. B |
 | `Falha inesperada. Tente novamente.` | Erro sem classificação; em várias telas aparece como `Não foi possível concluir a operação. Tente novamente.` | Ap. B |

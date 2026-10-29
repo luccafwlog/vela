@@ -326,7 +326,7 @@ describe('revisão da etapa 9 (E9)', () => {
   it('sem a Viagem conferida a importação fica bloqueada, com o motivo da falha', () => {
     expect(baplieVoyageContextBlock({ data: undefined, isError: false })).toEqual({ state: 'loading', message: expect.stringMatching(/Conferindo/) })
     expect(baplieVoyageContextBlock({ data: undefined, isError: true, error: { code: '42501', message: 'permission denied for function list_voyage_eligible_pods' } }))
-      .toEqual({ state: 'error', message: 'Não foi possível conferir a Viagem: Sem permissao para esta acao. Solicite acesso administrativo.' })
+      .toEqual({ state: 'error', message: 'Não foi possível conferir a Viagem: Sem permissão para esta ação.' })
     // Falha de refetch com dado antigo também bloqueia: a conferência não está confirmada.
     expect(baplieVoyageContextBlock({ data: context, isError: true, error: new Error('rede') })?.state).toBe('error')
     expect(baplieVoyageContextBlock({ data: context, isError: false })).toBeNull()

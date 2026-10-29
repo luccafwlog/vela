@@ -254,12 +254,12 @@ de Cobrança e Disputa (Vela e Portal).
 | `Um ou mais containers não pertencem ao B/L informado.` | Proteção do cálculo; a emissão pela tela só manda caixas do grupo. | Fora |
 | `Usuario inativo ou nao autenticado.` | Função antiga de datas, sem acesso pela tela. | Fora |
 | `Usuário interno ativo obrigatório para consultar as Disputes.` | Aba **Disputas** com sessão expirada ou usuário desativado. Entre de novo. | Ap. B |
-| `Usuario sem permissao ativa para configurar demurrage.` | Condição de Demurrage do B/L com sessão expirada; a tela mostra no lugar "Falha ao salvar as condições de Demurrage.". | Fora |
-| `Usuario sem permissao para aplicar desconto de Demurrage.` | Desconto com sessão expirada ou usuário desativado. | Ap. B |
-| `Usuario sem permissao para cancelar Demurrage.` | **Cancelar Invoice…** por setor que não é o Administrativo. | Ap. B |
-| `Usuario sem permissao para conciliar Demurrage.` | Proteção; a Conciliação PIX confere o setor antes. | Fora |
-| `Usuario sem permissao para reabrir Demurrage.` | Função antiga de reabrir Invoice, sem acesso pela tela. | Fora |
-| `Usuario sem permissao para registrar baixa de Demurrage.` | **Registrar pagamento** por setor que não é Financeiro nem Administrativo. | Ap. B |
+| `Usuário sem permissão ativa para configurar demurrage.` | Condição de Demurrage do B/L com sessão expirada; a tela mostra no lugar "Falha ao salvar as condições de Demurrage.". | Fora |
+| `Usuário sem permissão para aplicar desconto de Demurrage.` | Desconto com sessão expirada ou usuário desativado. | Ap. B |
+| `Usuário sem permissão para cancelar Demurrage.` | **Cancelar Invoice…** por setor que não é o Administrativo. | Ap. B |
+| `Usuário sem permissão para conciliar Demurrage.` | Proteção; a Conciliação PIX confere o setor antes. | Fora |
+| `Usuário sem permissão para reabrir Demurrage.` | Função antiga de reabrir Invoice, sem acesso pela tela. | Fora |
+| `Usuário sem permissão para registrar baixa de Demurrage.` | **Registrar pagamento** por setor que não é Financeiro nem Administrativo. | Ap. B |
 | `Valor divergente da foto financeira da Demurrage %.` | Baixa de Invoice antiga sem foto de valores quando o valor não bate com o BRL atual. | Ap. B |
 | `Valor divergente das duas ultimas fotos financeiras da Demurrage %.` | Baixa cujo valor pago não bate com nenhuma das duas fotos de valores mais recentes até a data paga. | Ap. B |
 | `Valor pago nao pode ser negativo.` | Proteção; a conciliação ignora lançamento negativo e a baixa manual não manda valor. | Fora |
@@ -283,7 +283,7 @@ de Cobrança e Disputa (Vela e Portal).
 | `Somente o Administrativo desativa ou reativa tarifas.` | Desativar ou reativar tarifa, acordo ou tabela por outro setor. | Ap. B |
 | `Escreva a resposta antes de enviar.` | **Enviar resposta** com o texto vazio. | Ap. B |
 | `Informe o motivo da disputa.` | Portal: **Abrir disputa** sem motivo. | Ap. B |
-| `Limite de tentativas excedido para esta acao. Aguarde % minuto(s) antes de tentar novamente.` | Portal: quarta mensagem ou abertura de Disputa (ou pedido de reabertura) em 30 minutos. | Ap. B |
+| `Limite de tentativas excedido para esta ação. Aguarde % minuto(s) antes de tentar novamente.` | Portal: quarta mensagem ou abertura de Disputa (ou pedido de reabertura) em 30 minutos. | Ap. B |
 | `Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.` | Anexo de tipo ou tamanho fora do permitido, antes do envio. | Ap. B |
 | `Upload de anexo indisponível em Modo Inspeção.` | Anexo tentado pelo Modo Inspeção. | Ap. B |
 | `A resposta foi enviada, mas o anexo não:` | Resposta gravada e anexo recusado; use **Reenviar o anexo**. | Ap. B |
