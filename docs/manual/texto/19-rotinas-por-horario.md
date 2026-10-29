@@ -50,7 +50,7 @@ O alerta de prazo pode aparecer até 15 minutos depois de o prazo vencer.
 
 A importação grava o arquivo e deixa alguns passos para logo depois: aplicar as marcas do Baplie, calcular as Taxas Locais, emitir a fatura pelo CE, emitir a Invoice de Demurrage quando o último container é devolvido e refazer as contas depois dos veículos. Eles rodam em segundos depois da gravação e, de novo, a cada minuto.
 
-O passo que espera alguém não é falha. O B/L em Revisão ou sem tabela de cobrança espera sem o alerta de bloqueio (a falta de tabela de cobrança tem o seu, **Tabela de cobrança faltando**) e sai sozinho quando a Revisão, o Cliente ou a tabela de cobrança mudam.
+O passo que espera alguém não é falha. O B/L em Revisão ou sem tabela de cobrança espera sem o alerta de bloqueio (a falta de tabela de cobrança tem o seu, **Tabela de cobrança faltando**) e sai sozinho quando a Revisão, o Cliente ou o cálculo das taxas mudam. O que espera tabela de cobrança não sai só com o cadastro dela: importe de novo a planilha de CE ou recalcule o B/L na **Validação** ([20.8](20-alertas.md#208-faturamento-e-taxas-locais)).
 
 O passo que falha por um motivo passageiro tenta de novo sozinho; a falha de dado bloqueia na hora. Bloqueado, o passo abre **Efeito de importação bloqueado**, que se resolve com **Reprocessar** ([6.10](06-importacao.md#610-quando-algo-fica-parado-depois-da-importação)).
 

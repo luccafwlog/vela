@@ -165,7 +165,7 @@ O resultado diz o que aconteceu com cada B/L:
 |---|---|---|
 | **faturados** | A fatura saiu. | Nada. |
 | **retidos** | O Cliente ainda não tem o Portal ativo nem Liberação de faturamento. | Peça a ativação do Portal (capítulo 14). A fatura sai sozinha depois. |
-| **aguardando** | Falta conciliar o Cliente, terminar a Revisão ou cadastrar a tabela de cobrança. | Resolva o que o motivo diz. A fatura sai sozinha depois. |
+| **aguardando** | Falta conciliar o Cliente, terminar a Revisão ou cadastrar a tabela de cobrança. | Falta conciliar o Cliente ou terminar a Revisão: a fatura sai sozinha depois. Falta a tabela de cobrança: cadastre-a e importe a mesma planilha de novo ([20.8](20-alertas.md#208-faturamento-e-taxas-locais)). |
 | **nada a faturar** | O B/L não tem taxa a cobrar, ou é isento. | Confira as Taxas Locais, se esperava cobrança. |
 | **bloqueados** | Falha técnica na emissão. | O Vela abre um alerta para a Documentação e tenta de novo sozinho. |
 | **pulados** | Alguém cancelou a última fatura do B/L. | Se a fatura deve sair, use **Emitir** na ficha do B/L. |
@@ -273,7 +273,7 @@ O número do B/L existe uma vez só no Vela, mesmo cancelado, e a importação n
 Alguns passos acontecem logo depois da gravação, sozinhos: aplicar as marcas do Baplie, calcular as Taxas Locais, faturar pelo CE. Normalmente você nem percebe. Quando um deles falha por um motivo técnico, abre o alerta **Efeito de importação bloqueado** (capítulo 20). Para destravar:
 
 1. Em **Alertas**, abra o alerta e clique em **Reprocessar**. A janela mostra o motivo do bloqueio.
-2. Corrija a causa (por exemplo, o câmbio que faltava). A falta de tabela de cobrança não bloqueia: o passo espera e sai sozinho quando a tabela de cobrança é cadastrada ([19.3](19-rotinas-por-horario.md#193-os-passos-depois-da-importação)).
+2. Corrija a causa (por exemplo, o câmbio que faltava). A falta de tabela de cobrança não bloqueia: o passo espera; depois de cadastrar a tabela de cobrança, importe de novo a planilha de CE ([20.8](20-alertas.md#208-faturamento-e-taxas-locais)).
 3. Escreva o que você corrigiu e clique em **Reprocessar**.
 
 O alerta fecha sozinho quando o passo conclui.
