@@ -435,12 +435,9 @@ h1, h2, h3 { margin: 0; }
 .gr__shot { position: relative; z-index: 2; zoom: 1.08; margin: -32mm 9mm 0; }
 .gr__shot .mock { margin: 0 !important; box-shadow: 0 2px 6px rgba(13, 43, 94, 0.12), 0 22px 50px rgba(13, 43, 94, 0.28); }
 .gr__cap { margin: 7px 15mm 0; font-size: 11.5px; line-height: 16px; color: var(--muted); text-align: center; }
-.gr__hl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: auto 15mm 0; }
-.gr__hl div { padding: 20px 12px 19px; border-radius: 12px; background: var(--strip); text-align: center; }
+.gr__start { margin: auto 15mm 0; }
 .gr__ico { width: 40px; height: 40px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--btn); color: #fff; }
 .gr__ico .i { width: 20px; height: 20px; }
-.gr__hl b { display: block; margin-top: 9px; font-size: 14px; line-height: 19px; color: var(--navy); }
-.gr__hl p { margin-top: 3px; font-size: 12px; line-height: 16px; color: var(--muted); }
 .gr .pf { margin: 9mm 15mm 8mm; }
 .gr__sec { font-size: 18px; line-height: 24px; font-weight: 700; color: var(--navy); letter-spacing: -0.01em; }
 .gr__go { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
@@ -472,6 +469,10 @@ h1, h2, h3 { margin: 0; }
 .gr__merge > .i { width: 20px; height: 20px; color: var(--globe); flex-shrink: 0; }
 .gr__one { padding: 8px 12px; border-radius: 10px; background: var(--navy); color: #fff; font-size: 11px; line-height: 15px; text-align: center; }
 .gr__one b { display: block; color: #fff; font-size: 14px; line-height: 19px; }
+.gr__tips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+.gr__tips div { padding: 12px 14px; border-radius: 12px; background: var(--strip); }
+.gr__tips b { display: block; font-size: 13.5px; line-height: 19px; color: var(--navy); }
+.gr__tips p { margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--muted); }
 .gr__help { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 12px; border: 1px solid var(--border-soft); border-radius: 12px; }
 .gr__help div { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-left: 1px solid var(--border-soft); }
 .gr__help div:first-child { border-left: 0; }
@@ -481,7 +482,6 @@ h1, h2, h3 { margin: 0; }
 .gr__cta { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 13px 16px; border-radius: 12px; background: var(--navy); color: #fff; }
 .gr__cta b { display: block; font-size: 15px; line-height: 20px; }
 .gr__cta p { margin-top: 1px; font-size: 12px; line-height: 16px; color: rgba(255, 255, 255, 0.78); }
-.gr__btn { flex-shrink: 0; padding: 7px 12px; border-radius: 8px; background: var(--btn); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -525,7 +525,7 @@ h1, h2, h3 { margin: 0; }
 </svg>
 
 
-<section class="page gr" aria-label="Guia rápido: o Portal">
+<section class="page gr" aria-label="Guia rápido: o Portal e como começar">
   <div class="gr__hero">
     <div class="cover__deco" aria-hidden="true">
     <svg class="cover__orbit" viewBox="0 0 640 640">
@@ -587,29 +587,24 @@ h1, h2, h3 { margin: 0; }
     </div>
   </div>
   </div>
-  <p class="gr__cap">O Painel mostra o que está em aberto e as chegadas dos navios. Imagens ilustrativas.</p>
+  <p class="gr__cap">O Painel mostra o que está em aberto e a programação de navios, com as saídas na origem e as chegadas no Brasil. Imagens ilustrativas.</p>
 
-  <div class="gr__hl">
-    <div><span class="gr__ico"><svg class="i"><use href="#i-qr"/></svg></span><b>Pix com baixa automática</b><p>E o recibo de cada pagamento.</p></div>
-    <div><span class="gr__ico"><svg class="i"><use href="#i-clock"/></svg></span><b>Free time à vista</b><p>Os dias que restam em cada container.</p></div>
-    <div><span class="gr__ico"><svg class="i"><use href="#i-file"/></svg></span><b>Desbloqueio de CE</b><p>Pedido e acompanhamento no Portal.</p></div>
-    <div><span class="gr__ico"><svg class="i"><use href="#i-ship"/></svg></span><b>Navios no radar</b><p>Saídas, chegadas e posição no mapa.</p></div>
+  <div class="gr__start">
+    <h2 class="gr__sec">Comece em 3 passos</h2>
+    <div class="gr__go">
+      <div><span class="gr__ico"><svg class="i"><use href="#i-mail"/></svg></span><b>Receba o convite</b><p>No e-mail de recuperação da empresa. O link vale por 48 horas.</p></div>
+      <div><span class="gr__ico"><svg class="i"><use href="#i-key"/></svg></span><b>Crie a sua senha</b><p>No mínimo 8 caracteres, com letra maiúscula, minúscula e número.</p></div>
+      <div><span class="gr__ico"><svg class="i"><use href="#i-lock"/></svg></span><b>Entre no Portal</b><p>Depois de ativar, entre com o CNPJ da empresa e a senha criada.</p></div>
+    </div>
   </div>
 
   <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br</span><span>1 / 2</span></footer>
 </section>
 
-<section class="page" aria-label="Guia rápido: como começar">
+<section class="page" aria-label="Guia rápido: como funciona">
   <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section">Guia rápido</span></header>
 
-  <h2 class="gr__sec">Comece em 3 passos</h2>
-  <div class="gr__go">
-    <div><span class="gr__ico"><svg class="i"><use href="#i-mail"/></svg></span><b>Receba o convite</b><p>No e-mail de recuperação da empresa. O link vale por 48 horas.</p></div>
-    <div><span class="gr__ico"><svg class="i"><use href="#i-key"/></svg></span><b>Crie a sua senha</b><p>No mínimo 8 caracteres, com letra maiúscula, minúscula e número.</p></div>
-    <div><span class="gr__ico"><svg class="i"><use href="#i-lock"/></svg></span><b>Entre no Portal</b><p>Com o CNPJ da empresa e a senha, em portalfwlog.com.br.</p></div>
-  </div>
-
-  <h2 class="gr__sec" style="margin-top:32px">Veja como funciona</h2>
+  <h2 class="gr__sec">Veja como funciona</h2>
   <div class="gr__how">
     <div class="gr__card">
       <div class="gr__vis"><div class="gr__flow">
@@ -617,7 +612,7 @@ h1, h2, h3 { margin: 0; }
         <svg class="i gr__arrow"><use href="#i-arrow"/></svg>
         <div class="gr__panel gr__mini"><b class="state__mt ok"><svg class="i"><use href="#i-check"/></svg> Paga</b><span class="state__mtext">R$ 1.250,00 recebidos</span><span class="m-btn" style="margin-top:6px"><svg class="i"><use href="#i-printer"/></svg>Imprimir recibo</span></div>
       </div></div>
-      <div><b>Pague com Pix e tenha o recibo</b><p>Taxas Locais e Demurrage são pagas só por Pix, direto na fatura. A baixa é automática e o recibo de cada pagamento fica pronto para imprimir.</p></div>
+      <div><b>Pague com Pix e tenha o recibo</b><p>Taxas Locais e Demurrage são pagas só por Pix, direto na fatura. A baixa é automática e o recibo fica pronto para imprimir.</p></div>
     </div>
     <div class="gr__card">
       <div class="gr__vis"><div class="gr__panel"><div class="gr__rows">
@@ -643,6 +638,13 @@ h1, h2, h3 { margin: 0; }
     </div>
   </div>
 
+  <h2 class="gr__sec" style="margin-top:32px">Bom saber</h2>
+  <div class="gr__tips">
+    <div><b>Um acesso por CNPJ</b><p>Matriz e cada filial entram com o próprio CNPJ e veem só os próprios dados.</p></div>
+    <div><b>Esqueceu a senha?</b><p>Use “Esqueci minha senha” no login. O link chega ao e-mail de recuperação.</p></div>
+    <div><b>Quem recebe os avisos</b><p>Em “Meu perfil”, escolha quem recebe cada tipo de comunicado.</p></div>
+  </div>
+
   <h2 class="gr__sec" style="margin-top:32px">Fale com a Fwlog</h2>
   <div class="gr__help">
     <div><svg class="i"><use href="#i-key"/></svg><span><small>Acesso ao Portal</small><b>suporte@portalfwlog.com.br</b></span></div>
@@ -651,8 +653,7 @@ h1, h2, h3 { margin: 0; }
   </div>
 
   <div class="gr__cta">
-    <div><b>Guia completo do Portal</b><p>O passo a passo de cada tela. Peça ao suporte.</p></div>
-    <span class="gr__btn">suporte@portalfwlog.com.br</span>
+    <div><b>Guia completo do Portal</b><p>O passo a passo de cada tela. Peça pelo e-mail do suporte, acima.</p></div>
   </div>
 
   <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br</span><span>2 / 2</span></footer>
