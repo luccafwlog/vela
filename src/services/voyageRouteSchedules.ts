@@ -1,4 +1,4 @@
-import { normalizePortCode } from './portCode'
+import { escalaPortCode, normalizePortCode } from './portCode'
 import { supabase } from './supabase'
 import { recordAuditEntries } from './auditEntries'
 import { fetchExportSchedulesByVoyageIds } from './voyageExportSchedules'
@@ -159,7 +159,9 @@ export function buildVoyagePolEntityId(voyageId: number, pol: string | null | un
 }
 
 export function buildVoyagePodEntityId(voyageId: number, pod: string | null | undefined) {
-  return `${voyageId}::${normalizePortValue(pod)}`
+  // A escala com LOCODE brasileiro novo (que o servidor cadastra) tem o próprio
+  // código, não "-".
+  return `${voyageId}::${escalaPortCode(pod) ?? '-'}`
 }
 
 export async function listVoyagePolSchedules(entityIds: string[]) {
@@ -538,7 +540,7 @@ export async function saveVoyagePodSchedule({
   ceStatus,
   linked,
   escalaNumber,
-  temImportacao = true,
+  temImportacao,
   changedBy,
 }: {
   justification?: string | null
@@ -592,8 +594,13 @@ type PodScheduleChangeInput = {
 export function buildVoyagePodScheduleChanges(
   entityId: string,
   current: ReturnType<typeof makeEmptyPodSchedule>,
-  { justification, eta, etb, ata, atb, etd, atd, rtw, ceStatus, linked, escalaNumber, temImportacao = true, changedBy }: PodScheduleChangeInput,
+  { justification, eta, etb, ata, atb, etd, atd, rtw, ceStatus, linked, escalaNumber, temImportacao, changedBy }: PodScheduleChangeInput,
 ) {
+  // Sem valor informado (datas por Chegadas e Saídas ou pela planilha), o tipo
+  // da escala não muda: a escala só de exportação não vira importação. A escala
+  // nova nasce importadora (`makeEmptyPodSchedule`).
+  const currentTemImportacao = current.temImportacao !== false
+  const nextTemImportacao = temImportacao ?? currentTemImportacao
   const changes = [
     makeAuditRow(POD_ENTITY_TYPE, entityId, 'eta', current.eta, eta, changedBy, 'Atualizacao manual de ETA por POD'),
     etb === undefined ? null : makeAuditRow(POD_ENTITY_TYPE, entityId, 'etb', current.etb, etb ?? null, changedBy, 'Atualizacao manual de ETB por POD'),
@@ -639,8 +646,8 @@ export function buildVoyagePodScheduleChanges(
       POD_ENTITY_TYPE,
       entityId,
       'tem_importacao',
-      current.temImportacao === false ? 'false' : 'true',
-      temImportacao ? 'true' : 'false',
+      currentTemImportacao ? 'true' : 'false',
+      nextTemImportacao ? 'true' : 'false',
       changedBy,
       'Atualizacao manual do tipo operacional da escala',
     ),
@@ -684,12 +691,18 @@ export async function saveVoyageEscalaSchedule({
   temImportacao: boolean
   changedBy: string | null
 }) {
+  // Mesma recusa de `save_voyage_escala_terminal_state` (caminho com
+  // exportação): sem ela, o código fora do formato virava o porto "-".
+  const pod = escalaPortCode(port)
+  if (!pod?.startsWith('BR')) {
+    throw Object.assign(new Error(`LOCODE brasileiro invalido: ${port.trim().toUpperCase()}.`), { code: '22023' })
+  }
   // ponytail: o entity_type fisico continua `voyage_pod_schedule` por compatibilidade
   // historica; upgrade = promover a escala a tabela propria como previsto na ADR 0027.
   await saveVoyagePodSchedule({
     justification,
     voyageId,
-    pod: normalizePortValue(port),
+    pod,
     eta,
     ata,
     ceStatus,
@@ -714,18 +727,20 @@ export async function deleteVoyagePodSchedule({
   pod: string
   changedBy: string | null
 }) {
-  const entityId = buildVoyagePodEntityId(voyageId, pod)
-  await recordAuditEntries([
-    {
-      entity_type: POD_ENTITY_TYPE,
-      entity_id: entityId,
-      field_name: 'deleted',
-      old_value: 'false',
-      new_value: 'true',
-      changed_by: changedBy,
-      justification: 'Remocao de POD do planejamento',
-    },
-  ])
+  await recordAuditEntries([buildVoyagePodDeleteChange(voyageId, pod, changedBy)])
+}
+
+/** Linha de Histórico que retira o POD do planejamento (sem gravar). */
+export function buildVoyagePodDeleteChange(voyageId: number, pod: string, changedBy: string | null) {
+  return {
+    entity_type: POD_ENTITY_TYPE,
+    entity_id: buildVoyagePodEntityId(voyageId, pod),
+    field_name: 'deleted',
+    old_value: 'false',
+    new_value: 'true',
+    changed_by: changedBy,
+    justification: 'Remocao de POD do planejamento',
+  }
 }
 
 export type EscalaDeleteResult = {
