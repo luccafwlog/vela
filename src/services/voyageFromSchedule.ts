@@ -102,11 +102,13 @@ async function podHasOperationalAnchor(
   if (Number((data as { revision?: number } | null)?.revision ?? 0) > 0) return true
   if (current.ata || current.atd || current.linked) return true
 
+  // B/L com o porto como POD ou POL, como o banco confere (migration 513, a
+  // régua do Excluir escala); o POD escrito de outro jeito o banco ainda pega.
   const { count, error: blError } = await supabase
     .from('bls')
     .select('id', { count: 'exact', head: true })
     .eq('voyage_id', voyageId)
-    .eq('pod', podCode)
+    .or(`pod.eq.${podCode},pol.eq.${podCode}`)
   if (blError) throw blError
   return (count ?? 0) > 0
 }
