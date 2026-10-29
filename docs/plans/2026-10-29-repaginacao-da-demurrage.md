@@ -7,11 +7,13 @@ Proposto em 2026-10-29 a partir das decisões do dono na
 [revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md).
 Nada executado. As seis decisões complementares (P1 a P6) foram respondidas
 pelo dono no mesmo dia (D22 a D27 da ADR) e estão em
-[Decisões complementares](#decisões-complementares).
+[Decisões complementares](#decisões-complementares). As de tipos de container e
+tarifas (D28 a D34) entram no lote 0B.
 
 | Lote | Situação |
 |---|---|
 | 0 — Correções que não esperam a repaginação | A fazer |
+| 0B — Tipos de container e tarifas por grupo | A fazer (antes do lote 1) |
 | 1 — Classificação da cobrança no banco | A fazer |
 | 2 — Aba Containers, cartões e aviso do cabeçalho | A fazer (depende do lote 1) |
 | 3 — B/L cancelado e dispensa da cobrança | A fazer |
@@ -58,6 +60,10 @@ Fora da página Demurrage:
 - **Caixa dividida entre Clientes:** cada um paga uma parte igual (D19).
 - **Container que vira SOC depois de faturado:** segue a regra das datas
   alteradas (D20).
+- **Tarifas e acordos:** mostra uma linha por grupo de tarifa, com os códigos
+  que cada um cobre, e ganha o cadastro **Tipos de container** com os códigos
+  dos B/Ls. Todo container dos B/Ls de hoje acha tarifa, e o tipo novo é
+  avisado na importação (D28 a D34).
 
 **Fora do escopo:**
 
@@ -110,6 +116,22 @@ Fora da página Demurrage:
     - ficha do Cliente em `customerContainers.ts`.
   - **SOC/COC:** `set_bl_container_ownership` (`205`) e a importação do Baplie
     (`194`).
+  - **Tipo do container e tarifa:**
+    - a importação de B/L grava o tipo como vem no arquivo, sem conferir
+      (`parseContainers` em `blParser.ts`);
+    - o grupo de tarifa vem de uma lista fixa de 26 códigos, igual no
+      navegador (`DEMURRAGE_ALIAS_GROUPS` em `demurrageRates.ts`) e no banco
+      (`_demurrage_canonical_type`, `138`);
+    - o cálculo, o status e o Portal usam uma tarifa por grupo
+      (`_active_demurrage_rates`, `138`; `_portal_information_core`, `138`),
+      e a tela `DemurrageRates.tsx` lista todas as linhas;
+    - a tarifa aceita qualquer texto como tipo (`DemurrageRateModal.tsx`).
+- **Dados de produção** (leitura de 2026-10-29, autorizada pelo dono;
+  staging tem os mesmos dados): 867 containers em B/Ls, com os tipos 48FR
+  (347), 40HC (317), 40FM (132), 40FP (55) e 20GP (16). Os 534 de 48FR, 40FM e
+  40FP não acham tarifa; nenhum tinha descarga gravada. As 12 linhas de
+  `demurrage_rates` são as da carga inicial (migration `006`), e o cálculo usa
+  6: 20HC, 20RF, 20FR, 40GP, 40RF e 40OT.
 - **Restrições do repositório** (`AGENTS.md`):
   - Migrations existentes e `src/types/database.ts` são protegidos. RPC nova
     segue o padrão já usado nos serviços de Demurrage (`supabase.rpc('…' as
@@ -172,6 +194,68 @@ Defeitos da revisão que contrariam o ciclo decidido (D3) e não mudam o desenho
 `BlDemurrageSection.tsx`, `BlDetalhe.tsx`, `customerContainers.ts`,
 `demurrageInvoices.ts`, `demurrageKpis.ts` e os testes deles.
 
+### 0B — Tipos de container e tarifas por grupo
+
+Sai antes do lote 1, porque a classificação lê o grupo de tarifa daqui.
+
+- **Cadastro Tipos de container** (D29, D34). Fica em **Tarifas e acordos**,
+  com código, descrição, grupo de tarifa e situação (ativo ou inativo).
+  - Qualquer Departamento inclui e edita; desativar e excluir, só o
+    Administrativo, como nas tarifas.
+  - Tabela nova no banco; o banco recusa código repetido e grupo inexistente.
+- **Carga inicial** (D30, D33).
+  - 20' dry: 20GP e 20HC.
+  - 20' especial: 20OT.
+  - 40' dry: 40HC.
+  - 40' especial: 40FR, 40OT, 40FH, 40FM, 40FP, 40FW, 40EW, 48FR e 48FP.
+  - Os códigos da lista fixa antiga que não estão nos B/Ls (22G1, 45G1, 45R1,
+    20RF, 40RF…) entram também, no mesmo grupo de hoje, para nada que já
+    calculava deixar de calcular. Os grupos de reefer ficam.
+- **Grupo de tarifa vem do cadastro.**
+  - `_demurrage_canonical_type` lê o cadastro no lugar do `CASE`.
+  - O navegador carrega o mesmo cadastro, e a lista `DEMURRAGE_ALIAS_GROUPS`
+    sai de `demurrageRates.ts`.
+  - O tipo fora do cadastro não tem grupo, e portanto não tem tarifa.
+- **Uma tarifa por grupo** (D28).
+  - `demurrage_rates` passa a guardar o grupo, e o banco recusa duas tarifas
+    ativas no mesmo grupo com vigência sobreposta, como já faz com os acordos.
+  - A migration tira as linhas repetidas (20GP, 20RQ, 20OT, 40FR, 40HC e
+    40RQ), mantendo a linha que o cálculo usa hoje, sem mudar nenhum valor.
+    Declara no cabeçalho que depende da linha "Data status" do `AGENTS.md`.
+  - A tela mostra uma linha por grupo, com os códigos que ele cobre. O Portal
+    passa a mostrar o nome do grupo e os códigos, em vez de um código só
+    ("40FR").
+- **Tipo novo na importação** (D31, D32).
+  - A prévia da importação do B/L avisa "tipo … sem tarifa de Demurrage:
+    cadastre o tipo em Tarifas e acordos".
+  - O B/L entra mesmo assim, e o container cai em Travado com Alerta (lotes 1
+    e 2).
+  - 45 pés, tanque e os demais ganham grupo próprio quando aparecerem, com
+    tarifa cadastrada.
+
+**Aceite:**
+
+- No banco local com os dados de produção (tipos 48FR, 40FM, 40FP, 40HC e
+  20GP), todo container acha tarifa: os 534 dos três primeiros cobram como
+  40' especial (US$ 100/140).
+- Editar a tarifa do grupo 40' dry muda o cálculo de um 40HC.
+- Uma segunda tarifa ativa do mesmo grupo na mesma vigência é recusada.
+- Importar um B/L com o tipo 45HC mostra o aviso na prévia e grava o B/L.
+- O Portal mostra os mesmos grupos e valores da tela do Vela.
+
+**Checks:** `npm run migrations:check`, `npm run rpc:check`, gates de aplicação e
+tela; `calculateDemurrage.test.ts` e `DemurrageRates.behavior.test.tsx` refeitos;
+`portalInformation.local-pg.test.ts`, `tariffDeactivate.local-pg.test.ts`,
+`permissoesPorPerfil.local-pg.test.ts` (linha nova na matriz) e
+`demurrageAuthority.local-pg.test.ts`.
+
+**Documentos:**
+- [Demurrage](../modules/demurrage.md): `/demurrage/taxas`, Tarifa, free time,
+  P1 e P2, e aliases ISO;
+- o glossário (`CONTEXT.md`: Tipo de container, Grupo de tarifa);
+- a [matriz de permissões](../operations/seguranca.md#demurrage-e-granito);
+- o Manual do Operador.
+
 ### 1 — Classificação da cobrança no banco
 
 Fundação dos lotes 2, 5 e 6. Cumpre a promessa dos `ponytail:` de
@@ -197,8 +281,9 @@ lida na hora, sem depender do status gravado.
 **Regras da divisão, pela ordem:**
 
 1. **Travado**, para o grupo em que:
-   - alguma caixa tem tipo sem tarifa e nem o B/L nem o acordo dão free time,
-     desde a descarga (D27); ou
+   - alguma caixa tem tipo sem tarifa (fora do cadastro do lote 0B, ou grupo
+     sem tarifa vigente) e nem o B/L nem o acordo dão free time, desde a
+     descarga (D27); ou
    - todas as caixas voltaram e a emissão está travada (`_demurrage_issue_block_reason`:
      sem CE Mercante ou Gate do Portal fechado); ou
    - falta o Cliente; ou
@@ -510,9 +595,11 @@ Disputa não grava mais.
 ## Ordem e dependências
 
 1. O lote 0 sai primeiro e sozinho.
-2. O lote 1 vem antes de 2, 5 e da Exposição do 6.
-3. Os lotes 3, 4 e 7 são independentes entre si e do lote 1.
-4. Os lotes 8 e 9 mexem na emissão e na reconciliação. Ficam depois do 1, um
+2. O lote 0B vem antes do lote 1, que lê o cadastro de tipos e o grupo de
+   tarifa.
+3. O lote 1 vem antes de 2, 5 e da Exposição do 6.
+4. Os lotes 3, 4 e 7 são independentes entre si e do lote 1.
+5. Os lotes 8 e 9 mexem na emissão e na reconciliação. Ficam depois do 1, um
    de cada vez, para não haver duas migrations redefinindo as mesmas funções
    ao mesmo tempo.
 

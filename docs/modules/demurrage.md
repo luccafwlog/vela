@@ -352,7 +352,18 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
 - **Aliases ISO:** o catálogo pode manter somente as linhas canônicas de
   `main`; `demurrageRates` resolve os aliases históricos (`22G1`, `42G1`,
   `45G1`, `20FT`, `40FT`, `45R1` e equivalentes) para a tarifa canônica, sem
-  duplicar essas linhas no banco.
+  duplicar essas linhas no banco. A lista é fixa, igual no navegador
+  (`DEMURRAGE_ALIAS_GROUPS`) e no banco (`_demurrage_canonical_type`, migration
+  `138`): 26 códigos em 6 grupos; o tipo fora dela só acha tarifa com uma linha
+  do mesmo código. O cálculo, o status e o Portal usam uma tarifa por grupo (a
+  de vigência mais recente e, no empate, a de maior id;
+  `_active_demurrage_rates`), enquanto `/demurrage/taxas` lista todas as
+  linhas. Em 2026-10-29, produção e staging tinham as 12 linhas da carga inicial
+  (migration `006`), das quais o cálculo usa 6 (20HC, 20RF, 20FR, 40GP, 40RF e
+  40OT): editar 20GP, 20RQ, 20OT, 40FR, 40HC ou 40RQ não muda nada. Os tipos
+  48FR, 40FM e 40FP dos B/Ls (534 de 867 containers) não acham tarifa (nota
+  editorial de 2026-10-29; decisão na [ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
+  D28 a D34).
 - **Datas:** `bl_containers.discharge_date` e `return_date` são a fonte
   operacional. `demurrage_invoice_items` copia datas, dias, free time, tarifas
   e subtotal no momento de criação da invoice (ver

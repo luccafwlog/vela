@@ -2,7 +2,8 @@
 
 Status: aceito — 2026-10-29 (decisões do dono, D1 a D21, em rodadas de perguntas
 sobre a [revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md),
-e as complementares D22 a D27 no mesmo dia).
+as complementares D22 a D27 e as de tipos de container e tarifas D28 a D34 no
+mesmo dia).
 A implementar pelo [plano da repaginação](../plans/2026-10-29-repaginacao-da-demurrage.md);
 até lá vale o comportamento descrito em [Demurrage](../modules/demurrage.md).
 
@@ -32,7 +33,13 @@ tempo:
   não faturada não aparece em total nenhum;
 - o B/L cancelado depois da devolução perde a cobrança sem aviso;
 - a Disputa de Invoice cancelada fica aberta para sempre;
-- o mesmo container em B/Ls de Clientes diferentes é cobrado cheio de cada um.
+- o mesmo container em B/Ls de Clientes diferentes é cobrado cheio de cada um;
+- o tipo do container vem do arquivo do B/L sem conferência e só acha tarifa se
+  estiver numa lista fixa de 26 códigos. Em 2026-10-29, produção (e staging,
+  com os mesmos dados) tinha 534 de 867 containers com tipo sem tarifa (48FR,
+  40FM e 40FP), que nunca entrariam em atraso. A tela de tarifas mostra 12
+  linhas, mas o cálculo e o Portal usam uma por grupo (6), e editar uma linha
+  ignorada (40HC, 20GP, 40FR…) não muda nada.
 
 O dono decidiu por aba, sem detalhar cada coluna, a partir de perguntas com
 alternativas.
@@ -159,6 +166,37 @@ alternativas.
     descarga, com o motivo "tipo sem tarifa" e **Cadastrar tarifa**, para a
     tarifa existir antes de o free time vencer.
 
+### Tipos de container e tarifas
+
+28. **Uma linha por grupo de tarifa (D28).** A tela **Tarifas e acordos** mostra
+    um grupo por linha (20' dry, 40' dry, 20' especial, 40' especial, 20'
+    reefer, 40' reefer), com os códigos que cada um cobre, igual ao que o
+    cálculo e o Portal usam. As linhas repetidas saem, e o banco recusa uma
+    segunda tarifa ativa no mesmo grupo com vigência sobreposta.
+29. **Os tipos são os códigos dos B/Ls (D29).** O Vela reconhece o tipo pelo
+    código que vem no B/L, por um cadastro **Tipos de container** (código,
+    descrição e grupo de tarifa) em **Tarifas e acordos**, no lugar da lista
+    fixa no código do sistema. A importação de B/L confere o tipo contra esse
+    cadastro.
+30. **Os 13 códigos dos B/Ls (D30).** Grupos de partida do cadastro:
+    - 20' dry: 20GP e 20HC;
+    - 20' especial: 20OT;
+    - 40' dry: 40HC;
+    - 40' especial: 40FR, 40OT, 40FH, 40FM, 40FP, 40FW, 40EW, 48FR e 48FP.
+
+    Os sete códigos que não tinham tarifa (40FH, 40FM, 40FP, 40FW, 40EW, 48FR
+    e 48FP) cobram como 40FR e 40OT.
+31. **45 pés e equipamentos especiais (D31).** Container de 45 pés, tanque,
+    ventilado, granel e qualquer outro equipamento novo ganha grupo próprio, com
+    tarifa cadastrada. Até lá, fica em **Travado** (D27).
+32. **Código fora do cadastro (D32).** A prévia da importação do B/L avisa
+    "tipo … sem tarifa de Demurrage", o B/L entra, e o container fica em
+    **Travado** com Alerta (D25) até o código ser cadastrado.
+33. **Reefer mantido (D33).** Os grupos 20' reefer e 40' reefer continuam
+    cadastrados, para quando aparecer reefer nos B/Ls.
+34. **Quem mantém o cadastro (D34).** Como as tarifas: qualquer Departamento
+    inclui e edita; desativar e excluir, só o Administrativo.
+
 ## Alternativas rejeitadas
 
 - **Aba Containers.** Manter a lista única com as lentes Todos / Em atraso /
@@ -189,6 +227,14 @@ alternativas.
   úteis, ou sem Alerta (D25); aceitar o cancelamento do B/L com container fora,
   parando a cobrança, com ou sem aviso do valor perdido (D26); tipo sem tarifa
   entrar em Travado pelo menor free time da tabela ou só na devolução (D27).
+- **Tipos e tarifas.** Manter uma linha por código cadastrado com aviso na linha
+  ignorada, ou separar a tarifa por código (D28); lista fixa no código do
+  sistema, ampliada ou lida pela regra ISO 6346 (D29); plataformas ou cada um
+  dos sete códigos com tarifa própria (D30); 45 pés como 40 pés, ou especiais
+  na tarifa de flat rack (D31); recusar o B/L com tipo fora do cadastro, ou só
+  travar a cobrança sem avisar na importação (D32); tirar os grupos de reefer
+  (D33); cadastro só do Administrativo, ou de Equipamentos e do Administrativo
+  (D34).
 
 ## Consequências
 
@@ -210,6 +256,11 @@ alternativas.
   das datas alteradas (D20).
 - A Disputa ganha o estado **Cancelada** de fato (hoje existe e nunca é gravado)
   e um Alerta de prazo de resposta.
+- O grupo de tarifa do container passa a vir do cadastro **Tipos de container**
+  no banco e no navegador: saem a lista fixa `DEMURRAGE_ALIAS_GROUPS`
+  (`demurrageRates.ts`) e o `CASE` de `_demurrage_canonical_type` (migration
+  `138`), e `demurrage_rates` passa a ter uma tarifa por grupo e vigência. A
+  limpeza das linhas repetidas depende da linha "Data status" do `AGENTS.md`.
 - As regras passam a viver em [Demurrage](../modules/demurrage.md),
   [Portal do Cliente](../modules/portal-cliente.md) e
   [Operação e Suporte](../modules/operacao-suporte.md) (relatórios) à medida que
