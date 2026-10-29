@@ -117,13 +117,13 @@ As datas do navio não mudam a cobrança. As Taxas Locais usam a data da importa
 
 A lista de **Viagens** mostra os navios na ordem em que chegam: o menor ETA primeiro. Use os filtros de período e de status para ver só o que interessa, como as Viagens que chegam nos próximos 7 dias.
 
-Cada Viagem traz um sinal de **Conciliação**, que resume o que falta de documento:
+Cada Viagem traz um sinal de **Conciliação**, que resume o que falta de documento. A cor muda conforme o lugar:
 
 | Sinal | Quer dizer |
 |---|---|
-| **Conciliado** (verde) | Nada falta. |
+| **Conciliado** (na lista, **Conciliada**) | Nada falta. Verde nos cartões das Viagens; sem cor na ficha e na lista. |
 | **Pendente** (âmbar) | Falta CE Mercante em algum B/L. |
-| **Divergente** (vermelho) | O Baplie e os B/Ls não batem (capítulo 6). |
+| **Divergente** | O Baplie e os B/Ls não batem (capítulo 6). Vermelho nos cartões das Viagens e na ficha; âmbar na lista. |
 
 Clique na Viagem para abrir a ficha. No alto, cinco blocos resumem a Viagem: contêineres, carga solta, exportação, próxima escala e conciliação. Abaixo ficam as abas: **Visão geral** (escalas e Linha do tempo), **Importação** e **Exportação** (a carga e os atalhos de importação), **Rotas e Manifestos** e **ADR**.
 
