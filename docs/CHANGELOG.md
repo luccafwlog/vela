@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Recalcular selecionados deixa de fora B/L com Revisão pendente (2026-10-29, sem migration):** em
+  **Taxas Locais › Validação**, o lote passa a seguir a regra do botão da linha: B/Ls com Revisão
+  pendente (fora a do Portal) não são recalculados, aparecem como bloqueados no diálogo e o aviso diz
+  "N B/Ls com Revisão pendente ficaram de fora: resolva na Revisão.". Se todos estiverem nesse caso,
+  nada é recalculado. Ver [Taxas Locais](modules/taxas-locais.md).
 - **Troca da chave Envio real que falha agora avisa (2026-10-29, sem migration):** em **Clientes ›
   Comunicação**, a recusa de **Envio real ligado/desligado** depois da confirmação sumia sem mensagem e
   a chave continuava como estava. O bloco **Canal de envio** passa a mostrar o motivo do servidor (ou
