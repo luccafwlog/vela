@@ -78,6 +78,24 @@ function renderTable(overrides: Partial<React.ComponentProps<typeof ValidacaoOpe
 }
 
 describe('ValidacaoOperationsTable', () => {
+  it('B/L com Revisão pendente leva à Revisão em vez de oferecer Recalcular', () => {
+    const onRecalculateRow = vi.fn()
+    renderTable({
+      rows: [{ ...row, charge_status: 'calculated', review_status: 'pending_review', notes: 'Pendencias de importacao: peso BB ausente' }],
+      onRecalculateRow,
+    })
+    expect(screen.queryByRole('button', { name: 'Recalcular' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Resolver na Revisão' }).getAttribute('href')).toBe('/revisao?bl=BL-001')
+  })
+
+  it('cálculo incompleto sem Revisão pendente segue oferecendo Recalcular', () => {
+    renderTable({
+      rows: [{ ...row, charge_status: 'review_required', totals: { ...row.totals, review_required_count: 1 } }],
+      onRecalculateRow: vi.fn(),
+    })
+    expect(screen.getByRole('button', { name: 'Recalcular' })).toBeTruthy()
+  })
+
   it('delega a emissão individual com a linha selecionada', async () => {
     const user = userEvent.setup()
     // Emitir é a ação da linha quando o B/L está pronto (tudo certo, com CE).

@@ -389,7 +389,7 @@ export function VoyageCard({
             </FactList>
           </Block>
           <Block title="Conciliação" headingLevel={3}>
-            <LeadValue tone={reconciliationState === 'divergente' ? 'danger' : reconciliationState === 'conciliado' ? 'default' : 'warning'}>
+            <LeadValue tone={reconciliationMeta.textTone}>
               {reconciliationMeta.label}
             </LeadValue>
             <FactList columns={1}>

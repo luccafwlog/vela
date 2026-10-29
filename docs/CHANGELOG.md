@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Troca da chave Envio real que falha agora avisa (2026-10-29, sem migration):** em **Clientes ›
+  Comunicação**, a recusa de **Envio real ligado/desligado** depois da confirmação sumia sem mensagem e
+  a chave continuava como estava. O bloco **Canal de envio** passa a mostrar o motivo do servidor (ou
+  "Não foi possível trocar a chave de envio. Tente novamente." quando não há resposta) e relê a chave
+  depois de toda tentativa, para não mostrar o estado anterior se a gravação chegou a acontecer.
+- **Validação não oferece Recalcular com Revisão pendente (2026-10-29):** o B/L com Revisão pendente
+  (fora a do Portal) mostra **Resolver na Revisão** no lugar de **Recalcular**, na linha e na faixa da
+  linha aberta; a Revisão recalcula ao salvar. Sem migration. Ver
+  [Taxas Locais](modules/taxas-locais.md#superfícies-operacionais-fora-da-rota).
+- **Conciliação da Viagem com o mesmo nome e a mesma cor em toda tela (2026-10-29):** a tabela de
+  `/viagens` passa a mostrar **Divergente** em vermelho, como a faixa e a ficha (antes, âmbar), e o
+  estado sem pendência se chama **Conciliada** em todo lugar (a faixa e a ficha diziam "Conciliado").
+  Tabela e ficha leem o tom de `ESTADO_CONCILIACAO_META`. **Teste:**
+  `src/components/voyages/__tests__/VoyageListTable.test.tsx`.
 - **ROE manual no grupo de Demurrage (2026-10-29, sem migration):** quando B/Ls do mesmo Cliente na
   mesma Viagem dividem containers, a ficha dos B/Ls que não emitem a Invoice deixa de oferecer
   **Definir/Trocar ROE manual…**, que não tinham efeito, e aponta o B/L de menor número, que emite a
