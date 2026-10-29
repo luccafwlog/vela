@@ -57,34 +57,40 @@ export function simNao(value: boolean) {
 // Fonte única de metadados do estado de conciliação. As cores referenciam
 // variáveis CSS (--app-*) para respeitar o tema dark. O campo `badgeTone`
 // permite usar o componente <Badge> diretamente; `color`/`bg` atendem os
-// estilos inline do banner de conciliação do VoyageCard.
+// estilos inline do banner de conciliação do VoyageCard; `textTone` é o tom
+// do texto na tabela de viagens e na ficha (vermelho no Divergente, âmbar no
+// Pendente), o mesmo em todo lugar que mostra o estado (regra 5).
 export const ESTADO_CONCILIACAO_META: Record<
   EstadoConciliacao,
-  { label: string; color: string; bg: string; badgeTone: BadgeTone }
+  { label: string; color: string; bg: string; badgeTone: BadgeTone; textTone: 'default' | 'warning' | 'danger' | 'muted' }
 > = {
   divergente: {
     label: 'Divergente',
     color: 'var(--app-red)',
     bg: 'var(--app-red-soft)',
     badgeTone: 'red',
+    textTone: 'danger',
   },
   incompleto: {
     label: 'Pendente',
     color: 'var(--app-gold)',
     bg: 'var(--app-gold-soft)',
     badgeTone: 'yellow',
+    textTone: 'warning',
   },
   conciliado: {
-    label: 'Conciliado',
+    label: 'Conciliada',
     color: 'var(--app-green)',
     bg: 'var(--app-green-soft)',
     badgeTone: 'green',
+    textTone: 'default',
   },
   verificando: {
     label: 'Verificando',
     color: 'var(--app-muted)',
     bg: 'var(--app-surface-muted)',
     badgeTone: 'slate',
+    textTone: 'muted',
   },
 }
 
