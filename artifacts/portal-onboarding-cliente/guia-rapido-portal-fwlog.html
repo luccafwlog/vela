@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Guia rápido do Portal do Cliente Fwlog</title>
 <!--
-  Guia rápido do Portal do Cliente Fwlog: uma folha A4 para anexar ao e-mail
+  Guia rápido do Portal do Cliente Fwlog: folheto de duas folhas A4 para anexar ao e-mail
   de anúncio. Resume o guia completo (Tutorial_Portal_Fwlog.html), sem fluxo
   que não esteja nele. Abra a partir desta pasta do repositório: as fontes e
   as logos vêm de ../../public. O PDF é gerado por gerar-pdf.mjs.
@@ -418,45 +418,70 @@ h1, h2, h3 { margin: 0; }
 .state__mt.ok { color: var(--ok-fg); }
 .state__mtext { display: block; margin-top: 2px; font-size: 10px; line-height: 14px; color: var(--muted); }
 
-/* Guia rápido: uma folha A4 para anexar ao e-mail de anúncio. */
+/* Guia rápido: duas folhas A4, folheto para o e-mail de anúncio. */
 .gr { padding: 0; }
-.gr__hero { position: relative; overflow: hidden; padding: 10mm 15mm 8mm; background: var(--navy); color: #fff; }
-.gr__hero .cover__deco { inset: 0; }
-.gr__hero .cover__orbit { top: -330px; right: -300px; }
+.gr__hero { position: relative; overflow: hidden; height: 132mm; padding: 11mm 15mm 0; background: var(--navy); color: #fff; }
+.gr__hero .cover__orbit { top: -300px; right: -260px; }
 .gr__top { position: relative; display: flex; align-items: center; justify-content: space-between; }
 .gr__top img { height: 30px; display: block; }
 .gr__top span { font-size: 12px; font-weight: 600; color: var(--globe); }
-.gr__title { position: relative; margin-top: 9mm; font-size: 34px; line-height: 40px; font-weight: 700; letter-spacing: -0.02em; }
+.gr__kicker { position: relative; margin-top: 16mm; font-size: 13px; font-weight: 600; color: var(--globe); }
+.gr__title { position: relative; margin-top: 8px; max-width: 160mm; font-size: 40px; line-height: 46px; font-weight: 700; letter-spacing: -0.02em; }
 .gr__title span { color: var(--globe); }
-.gr__intro { position: relative; margin-top: 8px; max-width: 150mm; font-size: 14px; line-height: 21px; color: rgba(255, 255, 255, 0.86); }
-.gr__url { position: relative; margin-top: 14px; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 12px; background: rgba(255, 255, 255, 0.07); }
+.gr__sub { position: relative; margin-top: 8px; font-size: 15px; line-height: 22px; color: rgba(255, 255, 255, 0.84); }
+.gr__url { position: relative; margin-top: 14px; display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px; border: 1px solid rgba(255, 255, 255, 0.24); border-radius: 12px; background: rgba(255, 255, 255, 0.07); }
 .gr__url small { font-size: 12px; font-weight: 600; color: var(--globe); }
 .gr__url b { font-size: 19px; line-height: 24px; letter-spacing: -0.01em; }
-.gr__body { flex: 1; display: flex; flex-direction: column; padding: 7mm 15mm 6mm; }
-.gr__body > * { flex-shrink: 0; }
-.gr__sec { display: flex; align-items: baseline; gap: 10px; margin-bottom: 9px; font-size: 16px; line-height: 22px; font-weight: 700; color: var(--navy); }
-.gr__sec small { font-size: 12px; font-weight: 600; color: var(--link); }
-.gr__steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.gr__step { padding: 11px 12px 12px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--strip); }
-.gr__step b { display: flex; align-items: center; gap: 8px; font-size: 13.5px; line-height: 19px; color: var(--navy); }
-.gr__step p { margin-top: 5px; font-size: 12px; line-height: 17px; color: var(--muted); }
-.gr__acts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.gr__act { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; padding: 11px 12px; border: 1px solid var(--border-soft); border-radius: 12px; }
-.gr__ico { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--strip); color: var(--btn); }
-.gr__ico .i { width: 16px; height: 16px; }
-.gr__act b { display: block; font-size: 13.5px; line-height: 19px; color: var(--text); }
-.gr__act p { margin-top: 3px; font-size: 12px; line-height: 17px; color: var(--muted); }
-.gr__pix { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--info-border); border-radius: 10px; background: var(--info-bg); font-size: 12.5px; line-height: 18px; }
-.gr__pix .i { flex-shrink: 0; width: 18px; height: 18px; color: var(--btn); margin-top: 1px; }
-.gr__pix strong { color: var(--navy); }
-.gr__help { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.gr__help .contact { padding: 10px 12px; }
-.gr__help .contact__v { font-size: 13.5px; line-height: 18px; }
-.gr__cta { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--navy); color: #fff; }
-.gr__cta b { display: block; font-size: 14.5px; line-height: 20px; }
-.gr__cta p { margin-top: 2px; font-size: 12px; line-height: 17px; color: rgba(255, 255, 255, 0.8); }
-.gr__cta .gr__btn { flex-shrink: 0; padding: 7px 12px; border-radius: 8px; background: var(--btn); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-.gr .pf { margin: 0 15mm 8mm; }
+.gr__shot { position: relative; z-index: 2; zoom: 1.08; margin: -32mm 9mm 0; }
+.gr__shot .mock { margin: 0 !important; box-shadow: 0 2px 6px rgba(13, 43, 94, 0.12), 0 22px 50px rgba(13, 43, 94, 0.28); }
+.gr__cap { margin: 7px 15mm 0; font-size: 11.5px; line-height: 16px; color: var(--muted); text-align: center; }
+.gr__hl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: auto 15mm 0; }
+.gr__hl div { padding: 20px 12px 19px; border-radius: 12px; background: var(--strip); text-align: center; }
+.gr__ico { width: 40px; height: 40px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--btn); color: #fff; }
+.gr__ico .i { width: 20px; height: 20px; }
+.gr__hl b { display: block; margin-top: 9px; font-size: 14px; line-height: 19px; color: var(--navy); }
+.gr__hl p { margin-top: 3px; font-size: 12px; line-height: 16px; color: var(--muted); }
+.gr .pf { margin: 9mm 15mm 8mm; }
+.gr__sec { font-size: 18px; line-height: 24px; font-weight: 700; color: var(--navy); letter-spacing: -0.01em; }
+.gr__go { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.gr__go::before { content: ''; position: absolute; top: 24px; left: 16.6%; right: 16.6%; height: 2px; background: repeating-linear-gradient(90deg, var(--globe) 0 8px, transparent 8px 14px); }
+.gr__go div { position: relative; text-align: center; }
+.gr__go .gr__ico { width: 50px; height: 50px; box-shadow: 0 0 0 6px #fff; }
+.gr__go .gr__ico .i { width: 22px; height: 22px; }
+.gr__go b { display: block; margin-top: 10px; font-size: 14.5px; line-height: 20px; color: var(--navy); }
+.gr__go p { margin: 2px auto 0; max-width: 52mm; font-size: 12px; line-height: 16px; color: var(--muted); }
+.gr__how { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 16px; }
+.gr__card { border: 1px solid var(--border-soft); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.gr__vis { height: 148px; display: grid; place-items: center; padding: 10px 14px; background: var(--bg); border-bottom: 1px solid var(--border-soft); }
+.gr__card > div:last-child { padding: 10px 14px 12px; }
+.gr__card b { display: block; font-size: 14.5px; line-height: 20px; color: var(--navy); }
+.gr__card p { margin-top: 2px; font-size: 12.5px; line-height: 17px; color: var(--muted); }
+.gr__panel { width: 100%; padding: 9px 11px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); box-shadow: 0 6px 16px rgba(13, 43, 94, 0.08); }
+.gr__flow { display: flex; align-items: center; gap: 8px; }
+.gr__mini { width: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 9px 12px; text-align: center; }
+.gr__arrow { width: 20px; height: 20px; color: var(--globe); flex-shrink: 0; }
+.gr__rows { display: grid; gap: 5px; font-size: 11px; line-height: 15px; }
+.gr__rows div { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border-soft); }
+.gr__rows div:last-child { padding-bottom: 0; border-bottom: 0; }
+.gr__reqs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; font-size: 10.5px; line-height: 13px; color: var(--muted); }
+.gr__reqs .m-req { display: grid; width: 22px; height: 22px; margin: 0 auto 5px; border-width: 2px; }
+.gr__reqs .m-req .i { width: 13px; height: 13px; }
+.gr__merge { display: flex; align-items: center; gap: 10px; }
+.gr__merge > div { display: grid; gap: 4px; }
+.gr__chip { padding: 3px 8px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface); font-size: 10.5px; line-height: 14px; white-space: nowrap; }
+.gr__merge > .i { width: 20px; height: 20px; color: var(--globe); flex-shrink: 0; }
+.gr__one { padding: 8px 12px; border-radius: 10px; background: var(--navy); color: #fff; font-size: 11px; line-height: 15px; text-align: center; }
+.gr__one b { display: block; color: #fff; font-size: 14px; line-height: 19px; }
+.gr__help { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 12px; border: 1px solid var(--border-soft); border-radius: 12px; }
+.gr__help div { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-left: 1px solid var(--border-soft); }
+.gr__help div:first-child { border-left: 0; }
+.gr__help .i { flex-shrink: 0; width: 18px; height: 18px; color: var(--btn); }
+.gr__help small { display: block; font-size: 11.5px; line-height: 15px; color: var(--muted); }
+.gr__help b { display: block; font-size: 12.5px; line-height: 17px; color: var(--link); }
+.gr__cta { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 13px 16px; border-radius: 12px; background: var(--navy); color: #fff; }
+.gr__cta b { display: block; font-size: 15px; line-height: 20px; }
+.gr__cta p { margin-top: 1px; font-size: 12px; line-height: 16px; color: rgba(255, 255, 255, 0.78); }
+.gr__btn { flex-shrink: 0; padding: 7px 12px; border-radius: 8px; background: var(--btn); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -500,7 +525,7 @@ h1, h2, h3 { margin: 0; }
 </svg>
 
 
-<section class="page gr" aria-label="Guia rápido">
+<section class="page gr" aria-label="Guia rápido: o Portal">
   <div class="gr__hero">
     <div class="cover__deco" aria-hidden="true">
     <svg class="cover__orbit" viewBox="0 0 640 640">
@@ -514,42 +539,123 @@ h1, h2, h3 { margin: 0; }
     </svg>
     </div>
     <div class="gr__top"><img src="../../public/branding/fwlog-logo-white.png" alt="Fwlog Soluções Logísticas"><span>Guia rápido</span></div>
-    <h1 class="gr__title">Portal do Cliente <span>Fwlog</span></h1>
-    <p class="gr__intro">Num só lugar, o que a sua empresa acompanha na importação com a Fwlog: B/Ls e containers, CE Mercante, faturas de Taxas Locais e Demurrage e pagamento por Pix. Cada empresa vê só os dados do próprio CNPJ.</p>
+    <p class="gr__kicker">Portal do Cliente Fwlog</p>
+    <h1 class="gr__title">Sua importação com a Fwlog, <span>num só lugar.</span></h1>
+    <p class="gr__sub">B/Ls, containers, CE Mercante, faturas e pagamento por Pix.</p>
     <div class="gr__url"><small>Acesse em</small><b>portalfwlog.com.br</b></div>
   </div>
 
-  <div class="gr__body">
-    <h2 class="gr__sec">Primeiro acesso <small>em 3 passos</small></h2>
-    <div class="gr__steps">
-      <div class="gr__step"><b><span class="num">1</span>Abra o convite</b><p>A Fwlog envia o convite ao e-mail de recuperação da sua empresa. O link vale por 48 horas.</p></div>
-      <div class="gr__step"><b><span class="num">2</span>Crie a sua senha</b><p>No mínimo 8 caracteres, com letra maiúscula, minúscula e número.</p></div>
-      <div class="gr__step"><b><span class="num">3</span>Entre no Portal</b><p>Em portalfwlog.com.br, informe o CNPJ da empresa e a senha que você criou.</p></div>
+  <div class="gr__shot">
+    <div class="mock" style="margin-top:18px">
+    <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br/portal</span></div>
+    <div class="m-bar">
+      <img src="../../public/branding/fwlog-logo-white.png" alt="">
+      <div class="m-nav">
+        <span class="on">Painel</span>
+        <span>Faturas</span>
+        <span>BLs e Containers</span>
+        <span>Desbloqueio de CE</span>
+        <span>Informações</span>
+        <span>Perfil</span>
+      </div>
+      <div class="m-bar__end"><span class="has-pin" style="display:inline-flex"><svg class="i"><use href="#i-bell"/></svg></span><span style="margin-left:18px"><span class="m-skel" style="display:inline-block;width:90px;vertical-align:middle;background:rgba(255,255,255,0.3)"></span></span><span>Sair</span></div>
     </div>
-
-    <h2 class="gr__sec" style="margin-top:14px">O que você faz no Portal</h2>
-    <div class="gr__acts">
-      <div class="gr__act"><span class="gr__ico"><svg class="i"><use href="#i-package"/></svg></span><div><b>Consultar B/Ls e containers</b><p>Em BLs e Containers: os B/Ls da sua empresa e a situação de cada container, com free time, devolução e demurrage.</p></div></div>
-      <div class="gr__act"><span class="gr__ico"><svg class="i"><use href="#i-file"/></svg></span><div><b>CE Mercante e desbloqueio</b><p>O número do CE de cada B/L, que aparece no Portal depois do registro. Peça o desbloqueio de CE e acompanhe cada solicitação.</p></div></div>
-      <div class="gr__act"><span class="gr__ico"><svg class="i"><use href="#i-layers"/></svg></span><div><b>Ver as faturas</b><p>Taxas Locais e Demurrage já emitidas, com saldo e situação. Vários B/Ls podem ir numa fatura consolidada.</p></div></div>
-      <div class="gr__act"><span class="gr__ico"><svg class="i"><use href="#i-qr"/></svg></span><div><b>Pagar com Pix</b><p>Cada fatura traz o próprio QR Code e o Pix Copia e Cola. A baixa é automática em poucos minutos, e o recibo fica disponível.</p></div></div>
+    <div class="m-body">
+      <div class="m-title"><h4>Painel</h4></div>
+      <div class="m-cards">
+        <div class="m-card m-card--warn has-pin"><div class="m-card__l">Taxas Locais em aberto</div><div class="m-card__v">R$ 1.250,00</div><div class="m-card__d">1 fatura</div></div>
+        <div class="m-card"><div class="m-card__l">Demurrage em aberto</div><div class="m-card__v">US$ 0,00</div><div class="m-card__d">0 faturas · R$ 0,00 hoje</div></div>
+        <div class="m-card m-card--warn"><div class="m-card__l">Containers sem devolução</div><div class="m-card__v">2</div><div class="m-card__d">0 já em demurrage</div></div>
+        <div class="m-card"><div class="m-card__l">Desbloqueio de CE em aberto</div><div class="m-card__v">0 solicitações</div></div>
+      </div>
+      <div class="m-blk">
+        <div class="m-blk__h">Chegadas e saídas<small><span class="m-skel" style="display:inline-block;width:150px;vertical-align:middle"></span> &nbsp;<span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-refresh"/></svg>Atualizar</span></small></div>
+        <table class="m-table">
+          <thead><tr><th class="l">Navio</th><th>Viagem</th><th>Qingdao ETD</th><th>Shanghai ETD</th><th>Ningbo ETD</th><th>Vitória ETA</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="l"><div class="m-skel" style="width:70%"></div></td><td><div class="m-skel" style="width:50%;margin:auto"></div></td><td class="m-mono"><span class="ok"><svg class="i"><use href="#i-check"/></svg> </span>02/03/2026</td><td class="m-mono"><span class="ok"><svg class="i"><use href="#i-check"/></svg> </span>05/03/2026</td><td class="m-mono"><span class="ok"><svg class="i"><use href="#i-check"/></svg> </span>08/03/2026</td><td class="m-mono">14/04/2026</td><td><span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-pin"/></svg></span> <span class="m-btn m-btn--ghost has-pin"><svg class="i"><use href="#i-package"/></svg></span></td></tr>
+            <tr><td class="l"><div class="m-skel" style="width:55%"></div></td><td><div class="m-skel" style="width:50%;margin:auto"></div></td><td class="m-mono">20/03/2026</td><td class="m-mono">23/03/2026</td><td class="muted">Omitida</td><td class="m-mono">01/05/2026</td><td><span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-pin"/></svg></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="m-blk">
+        <div class="m-blk__h">Consultas<small>Central de Informações</small></div>
+        <div class="m-blk__b" style="display:flex;gap:5px;flex-wrap:wrap">
+          <span class="m-btn">Taxas Locais</span><span class="m-btn">Depósitos de devolução</span><span class="m-btn">Tarifa de Demurrage</span><span class="m-btn">Agentes por porto</span><span class="m-btn">Contato</span><span class="m-btn">Tracking</span>
+        </div>
+      </div>
     </div>
-    <div class="gr__pix"><svg class="i"><use href="#i-info"/></svg><p><strong>Taxas Locais e Demurrage são pagas só por Pix</strong>, pelo QR Code ou pelo código da fatura. Não é preciso enviar comprovante.</p></div>
+  </div>
+  </div>
+  <p class="gr__cap">O Painel mostra o que está em aberto e as chegadas dos navios. Imagens ilustrativas.</p>
 
-    <h2 class="gr__sec" style="margin-top:14px">Precisa de ajuda?</h2>
-    <div class="gr__help">
-      <div class="contact"><div class="contact__k"><svg class="i i--16"><use href="#i-key"/></svg>Acesso ao Portal</div><div class="contact__v">suporte@portalfwlog.com.br</div><p>Convite, login e senha.</p></div>
-      <div class="contact"><div class="contact__k"><svg class="i i--16"><use href="#i-file"/></svg>Importação</div><div class="contact__v">importacao@fwlog.com.br</div><p>CE Mercante, Taxas Locais e desbloqueio de CE.</p></div>
-      <div class="contact"><div class="contact__k"><svg class="i i--16"><use href="#i-package"/></svg>Equipamentos</div><div class="contact__v">eqp@fwlog.com.br</div><p>Containers, devolução e Demurrage.</p></div>
+  <div class="gr__hl">
+    <div><span class="gr__ico"><svg class="i"><use href="#i-qr"/></svg></span><b>Pix com baixa automática</b><p>E o recibo de cada pagamento.</p></div>
+    <div><span class="gr__ico"><svg class="i"><use href="#i-clock"/></svg></span><b>Free time à vista</b><p>Os dias que restam em cada container.</p></div>
+    <div><span class="gr__ico"><svg class="i"><use href="#i-file"/></svg></span><b>Desbloqueio de CE</b><p>Pedido e acompanhamento no Portal.</p></div>
+    <div><span class="gr__ico"><svg class="i"><use href="#i-ship"/></svg></span><b>Navios no radar</b><p>Saídas, chegadas e posição no mapa.</p></div>
+  </div>
+
+  <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br</span><span>1 / 2</span></footer>
+</section>
+
+<section class="page" aria-label="Guia rápido: como começar">
+  <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section">Guia rápido</span></header>
+
+  <h2 class="gr__sec">Comece em 3 passos</h2>
+  <div class="gr__go">
+    <div><span class="gr__ico"><svg class="i"><use href="#i-mail"/></svg></span><b>Receba o convite</b><p>No e-mail de recuperação da empresa. O link vale por 48 horas.</p></div>
+    <div><span class="gr__ico"><svg class="i"><use href="#i-key"/></svg></span><b>Crie a sua senha</b><p>No mínimo 8 caracteres, com letra maiúscula, minúscula e número.</p></div>
+    <div><span class="gr__ico"><svg class="i"><use href="#i-lock"/></svg></span><b>Entre no Portal</b><p>Com o CNPJ da empresa e a senha, em portalfwlog.com.br.</p></div>
+  </div>
+
+  <h2 class="gr__sec" style="margin-top:32px">Veja como funciona</h2>
+  <div class="gr__how">
+    <div class="gr__card">
+      <div class="gr__vis"><div class="gr__flow">
+        <div class="gr__panel gr__mini"><div class="m-qr" style="width:58px;height:58px"><svg aria-label="QR Code Pix"><use href="#qr-exemplo" class="qr"/></svg></div><span class="m-btn"><svg class="i"><use href="#i-copy"/></svg>Copiar código Pix</span></div>
+        <svg class="i gr__arrow"><use href="#i-arrow"/></svg>
+        <div class="gr__panel gr__mini"><b class="state__mt ok"><svg class="i"><use href="#i-check"/></svg> Paga</b><span class="state__mtext">R$ 1.250,00 recebidos</span><span class="m-btn" style="margin-top:6px"><svg class="i"><use href="#i-printer"/></svg>Imprimir recibo</span></div>
+      </div></div>
+      <div><b>Pague com Pix e tenha o recibo</b><p>Taxas Locais e Demurrage são pagas só por Pix, direto na fatura. A baixa é automática e o recibo de cada pagamento fica pronto para imprimir.</p></div>
     </div>
-
-    <div class="gr__cta">
-      <div><b>Quer o passo a passo de cada tela?</b><p>Peça o Guia completo do Portal ao suporte. Tabelas, depósitos de devolução e contatos ficam no Portal, no menu Informações.</p></div>
-      <span class="gr__btn">suporte@portalfwlog.com.br</span>
+    <div class="gr__card">
+      <div class="gr__vis"><div class="gr__panel"><div class="gr__rows">
+        <div><span class="m-mono">EXMU2223334</span><span class="warn">No free time · 4 dias</span></div>
+        <div><span class="m-mono">EXMU1234565</span><span class="danger">Em demurrage</span></div>
+        <div><span class="m-mono">EXMU7654321</span><span>Devolvido</span></div>
+      </div></div></div>
+      <div><b>Acompanhe cada container</b><p>Quantos dias de free time restam e onde devolver.</p></div>
+    </div>
+    <div class="gr__card">
+      <div class="gr__vis"><div class="gr__panel"><div class="gr__reqs">
+        <div><span class="m-req m-req--ok"><svg class="i"><use href="#i-check"/></svg></span>Taxas locais</div><div><span class="m-req m-req--ok"><svg class="i"><use href="#i-check"/></svg></span>Termo de devolução</div><div><span class="m-req m-req--ok"><svg class="i"><use href="#i-check"/></svg></span>Procuração</div><div><span class="m-req"></span>B/L original</div>
+      </div></div></div>
+      <div><b>Peça o desbloqueio de CE</b><p>E veja, B/L a B/L, os quatro requisitos cumpridos.</p></div>
+    </div>
+    <div class="gr__card">
+      <div class="gr__vis"><div class="gr__merge">
+        <div><span class="gr__chip">B/L 1 · R$ 1.250,00</span><span class="gr__chip">B/L 2 · R$ 980,00</span><span class="gr__chip">B/L 3 · R$ 1.410,00</span></div>
+        <svg class="i"><use href="#i-arrow"/></svg>
+        <div class="gr__one">Fatura consolidada<b>R$ 3.640,00</b>um único Pix</div>
+      </div></div>
+      <div><b>Junte vários B/Ls num Pix</b><p>A fatura consolidada soma as Taxas Locais em aberto.</p></div>
     </div>
   </div>
 
-  <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br</span><span>1 / 1</span></footer>
+  <h2 class="gr__sec" style="margin-top:32px">Fale com a Fwlog</h2>
+  <div class="gr__help">
+    <div><svg class="i"><use href="#i-key"/></svg><span><small>Acesso ao Portal</small><b>suporte@portalfwlog.com.br</b></span></div>
+    <div><svg class="i"><use href="#i-file"/></svg><span><small>Importação e CE</small><b>importacao@fwlog.com.br</b></span></div>
+    <div><svg class="i"><use href="#i-package"/></svg><span><small>Containers e Demurrage</small><b>eqp@fwlog.com.br</b></span></div>
+  </div>
+
+  <div class="gr__cta">
+    <div><b>Guia completo do Portal</b><p>O passo a passo de cada tela. Peça ao suporte.</p></div>
+    <span class="gr__btn">suporte@portalfwlog.com.br</span>
+  </div>
+
+  <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br</span><span>2 / 2</span></footer>
 </section>
 
 </body>

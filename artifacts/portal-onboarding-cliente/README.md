@@ -5,7 +5,7 @@
 atualize o guia e gere o PDF de novo.
 
 Material para o cliente final do Portal do Cliente (`portalfwlog.com.br`):
-um guia ilustrado em A4, um guia rápido de uma página para o e-mail de anúncio
+um guia ilustrado em A4, um guia rápido de duas páginas para o e-mail de anúncio
 e os textos dos e-mails que os acompanham. O cliente
 não vê o nome do sistema interno; o guia fala só em Fwlog e Portal do
 Cliente. Nada aqui é importado por `src/` nem muda o Portal.
@@ -16,7 +16,7 @@ Cliente. Nada aqui é importado por `src/` nem muda o Portal.
 |---|---|
 | [Tutorial_Portal_Fwlog.html](Tutorial_Portal_Fwlog.html) | Fonte do guia: 15 páginas A4 prontas para impressão. Abra a partir desta pasta do repositório, porque as fontes e as logos vêm de `public/`. |
 | [Tutorial_Portal_Fwlog.pdf](Tutorial_Portal_Fwlog.pdf) | O guia em PDF, para anexar ao e-mail ou imprimir. É gerado a partir do HTML. |
-| [guia-rapido-portal-fwlog.html](guia-rapido-portal-fwlog.html) | Fonte do guia rápido: uma página A4, com o mesmo visual do guia completo. |
+| [guia-rapido-portal-fwlog.html](guia-rapido-portal-fwlog.html) | Fonte do guia rápido: duas páginas A4 em formato de folheto, com o mesmo visual e os mesmos desenhos de tela do guia completo. |
 | [guia-rapido-portal-fwlog.pdf](guia-rapido-portal-fwlog.pdf) | O guia rápido em PDF, para anexar ao e-mail de anúncio. |
 | [gerar-pdf.mjs](gerar-pdf.mjs) | Gera os dois PDFs e recusa página que transborda o A4, fonte ou logo que não carregou, rodapé ou numeração errada, a marca “Rascunho para revisão” e qualquer menção ao sistema interno. |
 
@@ -61,18 +61,26 @@ decorativo, sem dados: nenhum app de banco o lê.
 
 ### Guia rápido
 
-Uma página para o primeiro contato, anexada ao e-mail de anúncio; não
-substitui o guia completo. Traz:
+Folheto de duas páginas para o primeiro contato, anexado ao e-mail de
+anúncio; não substitui o guia completo. Pouco texto e desenhos de tela:
 
-- o que é o Portal;
-- o primeiro acesso em três passos (convite de 48 horas, senha, CNPJ e senha);
-- quatro ações:
-  - consultar B/Ls e containers;
-  - CE Mercante e desbloqueio;
-  - faturas;
-  - pagar com Pix;
-- três contatos (suporte, Importação e Equipamentos);
-- um convite para pedir o guia completo ao suporte.
+- **Página 1:**
+  - capa com o que é o Portal e o endereço;
+  - o desenho do Painel;
+  - quatro destaques: Pix com baixa automática e recibo, free time à vista,
+    desbloqueio de CE e navios no radar.
+- **Página 2:**
+  - primeiro acesso em três passos;
+  - "Veja como funciona", com quatro desenhos:
+    - Pix até o recibo;
+    - situação dos containers;
+    - os quatro requisitos do desbloqueio de CE;
+    - fatura consolidada;
+  - os três contatos (suporte, Importação e Equipamentos);
+  - convite para pedir o guia completo ao suporte.
+
+Os desenhos repetem os do guia completo. Os valores são de exemplo, e a
+legenda da página 1 avisa que as imagens são ilustrativas.
 
 Tudo vem do guia completo; o que não está nele ficou de fora:
 
@@ -196,8 +204,8 @@ repositório na `staging` de 2026-10-28; nada foi observado em produção).
 
 ## Verificação feita
 
-- `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: guia rápido em uma
-  página A4, com as mesmas conferências e sem Itaú, TED, Transhipping ou
+- `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: guia rápido em duas
+  páginas A4, com as mesmas conferências e sem Itaú, TED, Transhipping ou
   rascunho no texto extraído (`pdftotext`), 2026-10-29.
 - `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: 15 páginas, sem
   transbordo, fontes e logos carregadas, rodapé e numeração certos em todas,
