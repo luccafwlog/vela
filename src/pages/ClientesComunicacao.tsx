@@ -20,6 +20,7 @@ import { StatusText } from '../components/ui/StatusText'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useAppSettings, useSetCommunicationsEnabled } from '../hooks/useAppSettings'
 import { useAuth } from '../hooks/useAuth'
+import { userFacingErrorMessage } from '../lib/errors'
 import { useVoyageOptions } from '../hooks/useBls'
 import { useCustomerCommunicationConference, useCustomerCommunicationHistory, useCustomerCommunicationSavedTemplates, useDispatchCustomerCommunicationBatch, useResendCeMercanteTaxasCommunication, useSaveCustomerCommunicationSavedTemplate, useVoyageCommunicationCoverage } from '../hooks/useCustomerCommunications'
 import {
@@ -317,6 +318,7 @@ export function ClientesComunicacao() {
   // Marca Dev (ADR 0104): o banco recusa os demais, inclusive o Administrativo.
   const canToggleCommunications = isDev
   const setCommunicationsMutation = useSetCommunicationsEnabled()
+  const [communicationsToggleError, setCommunicationsToggleError] = useState<string | null>(null)
 
   const dispatchMode = getCustomerCommunicationDispatchMode(kind)
   const nature = getCustomerCommunicationNature(kind)
@@ -829,7 +831,13 @@ export function ClientesComunicacao() {
                     confirmLabel: 'Desativar envio real',
                     tone: 'danger',
                   })
-                if (confirmed) await setCommunicationsMutation.mutateAsync(next)
+                if (!confirmed) return
+                setCommunicationsToggleError(null)
+                try {
+                  await setCommunicationsMutation.mutateAsync(next)
+                } catch (error) {
+                  setCommunicationsToggleError(userFacingErrorMessage(error, 'Não foi possível trocar a chave de envio. Tente novamente.'))
+                }
               })()
             }}
           >
@@ -849,6 +857,9 @@ export function ClientesComunicacao() {
         ) : (
           <LeadValue tone="warning" detail={`Todo e-mail de Cliente vai para ${SUPPORT_REDIRECT_ADDRESS}, com o e-mail do Cliente no assunto.`}>Redirecionado ao suporte</LeadValue>
         )}
+        {/* A troca recusada ou interrompida diz o motivo; o estado acima é o
+            relido depois da tentativa (useSetCommunicationsEnabled). */}
+        {communicationsToggleError ? <InlineError message={communicationsToggleError} /> : null}
       </Block>
 
       {/* Segundo nível: as abas da página são as de Clientes (ClientesTabs); aqui a vista. */}
