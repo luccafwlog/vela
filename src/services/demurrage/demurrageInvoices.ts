@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { readAllPages } from './demurragePages'
 import type { DemurrageInvoice, DemurrageInvoiceItem } from '../../types/database'
 
 export type DemurrageInvoiceFilters = {
@@ -159,20 +160,22 @@ export async function releaseDemurrageManualRoe(invoiceId: number, reason: strin
 }
 
 export async function listDemurrageInvoices(filters?: DemurrageInvoiceFilters): Promise<DemurrageInvoiceListItem[]> {
-  let query = supabase
-    .from('demurrage_invoices')
-    .select(`*, customer:customers(id,name,cnpj_cpf,address,city,state,zip), bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))`)
-    .order('created_at', { ascending: false })
+  // Todas as páginas: o PostgREST corta em 1000 linhas.
+  return readAllPages<DemurrageInvoiceListItem>((from, to) => {
+    let query = supabase
+      .from('demurrage_invoices')
+      .select(`*, customer:customers(id,name,cnpj_cpf,address,city,state,zip), bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))`)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
 
-  if (filters?.status) query = query.eq('status', filters.status)
-  if (filters?.customerId) query = query.eq('customer_id', filters.customerId)
-  if (filters?.blId) query = query.eq('bl_id', filters.blId)
-  if (filters?.dateFrom) query = query.gte('doc_date', filters.dateFrom)
-  if (filters?.dateTo) query = query.lte('doc_date', filters.dateTo)
+    if (filters?.status) query = query.eq('status', filters.status)
+    if (filters?.customerId) query = query.eq('customer_id', filters.customerId)
+    if (filters?.blId) query = query.eq('bl_id', filters.blId)
+    if (filters?.dateFrom) query = query.gte('doc_date', filters.dateFrom)
+    if (filters?.dateTo) query = query.lte('doc_date', filters.dateTo)
 
-  const { data, error } = await query.overrideTypes<DemurrageInvoiceListItem[], { merge: false }>()
-  if (error) throw error
-  return data ?? []
+    return query.range(from, to).overrideTypes<DemurrageInvoiceListItem[], { merge: false }>()
+  })
 }
 
 export async function getInvoiceDetail(invoiceId: number) {

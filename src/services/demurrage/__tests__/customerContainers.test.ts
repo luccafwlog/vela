@@ -49,4 +49,12 @@ describe('aba Contêineres da ficha do Cliente', () => {
     expect(customerContainerView(row({ ownership: 'SOC' }), '2026-10-14')).toMatchObject({ soc: true, freeTimeDays: null, demurrage: { kind: 'soc' } })
     expect(customerContainerView(row({ ownership: 'SOC', discharge_date: null }), '2026-10-14').days).toBeNull()
   })
+
+  it('container de Viagem cancelada não aparece correndo nem a faturar', () => {
+    __setDemurrageRateGroupsForTest([{ aliases: ['40HC'], freeUntil: 21, p1: { range: [22, 30], usd: 70 }, p2: { range: [31, Infinity], usd: 140 } }])
+    const base = row({})
+    const cancelledVoyage = { ...base.bl!, voyage: { id: 10, voyage_number: '001', status: 'cancelled', vessel: null } } as DemurrageContainerRow['bl']
+    expect(customerContainerView(row({ bl: cancelledVoyage }), '2026-10-14')).toMatchObject({ overFreeTime: false, demurrage: { kind: 'none' } })
+    expect(customerContainerView(row({ bl: cancelledVoyage, return_date: '2026-09-28' }), '2026-10-14').demurrage).toEqual({ kind: 'none' })
+  })
 })

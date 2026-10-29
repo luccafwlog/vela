@@ -389,3 +389,37 @@ export async function updateContainerReturnDate(containerId: number, returnDate:
   } as never)
   if (error) throw error
 }
+
+/**
+ * Invoices vivas (emitidas ou pagas) que cobram as caixas de um B/L, pela chave
+ * do banco (Viagem, Cliente, número; migration 214). Inclui a Invoice do grupo
+ * emitida em outro B/L, que a ficha do B/L não acha pelo `bl_id`. Devolve o
+ * índice por número normalizado do container.
+ */
+export async function listBlDemurrageCoverage(bl: {
+  voyage_id: number | null | undefined
+  customer_id: number | null | undefined
+  bl_containers?: ReadonlyArray<{ container_number: string | null }> | null
+}): Promise<Map<string, DemurrageBilledInvoiceRef[]>> {
+  const coverage = new Map<string, DemurrageBilledInvoiceRef[]>()
+  const numbers = Array.from(new Set((bl.bl_containers ?? [])
+    .map((container) => (container.container_number ?? '').trim())
+    .filter(Boolean)
+    .flatMap((number) => [number, number.toUpperCase()])))
+  if (bl.voyage_id == null || bl.customer_id == null || !numbers.length) return coverage
+  const { data, error } = await supabase
+    .from('demurrage_invoice_items')
+    .select('container_id, container_number, invoice:demurrage_invoices!inner(id, doc_number, status, customer_id, bl_id, bl:bls(voyage_id))')
+    .eq('invoice.customer_id', bl.customer_id)
+    .in('invoice.status', ['issued', 'overdue', 'paid'])
+    .in('container_number', numbers)
+  if (error) throw error
+  const index = indexBilledBoxes((data ?? []) as unknown as BilledItemRow[])
+  for (const container of bl.bl_containers ?? []) {
+    const number = (container.container_number ?? '').trim().toUpperCase()
+    const key = demurrageBoxKey(bl.voyage_id, bl.customer_id, number)
+    const refs = key ? index.get(key) : undefined
+    if (refs?.length) coverage.set(number, [...refs].sort((left, right) => right.id - left.id))
+  }
+  return coverage
+}

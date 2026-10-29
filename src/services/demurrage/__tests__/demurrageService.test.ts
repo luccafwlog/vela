@@ -130,6 +130,5 @@ it('US-031: calcula os KPIs de demurrage', async () => {
   results.demurrage_invoices = { data: [{ total_usd: 50, current_total_brl: 200 }], error: null }
   const kpis = await fetchDemurrageKPIs()
   expect(kpis.overdueContainers).toBe(3)
-  expect(kpis.draftInvoicesTotalUsd).toBe(50)
   expect(kpis.issuedInvoicesTotalBrl).toBe(200)
 })

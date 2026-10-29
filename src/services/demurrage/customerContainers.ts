@@ -4,6 +4,7 @@ import { saoPauloTodayIso } from '../../lib/dates'
 import { ensureDemurrageRatesLoaded } from './demurrageRates'
 import { selectAgreementForDischargeDate } from './customerDemurrageAgreements'
 import { demurrageBoxKey } from './demurrageBoxKey'
+import { readAllPages as readAll } from './demurragePages'
 import { indexBilledBoxes, type DemurrageBilledInvoiceRef, type DemurrageContainerRow } from './demurrageContainers'
 import { containerFreeTimeDays, daysSince, effectiveDemurrage, freeTimeSource, FREE_TIME_SOURCE_LABELS } from './demurragePresentation'
 
@@ -20,22 +21,9 @@ const SELECT = `
     demurrage_rate_override_p1_usd, demurrage_rate_override_p2_usd,
     demurrage_roe_manual, demurrage_roe, voyage_id, customer_id, cancelled_at,
     customer:${CUSTOMER_OF_BL}(id, name, cnpj_cpf),
-    voyage:voyages(id, voyage_number, vessel:vessels(id, name))
+    voyage:voyages(id, voyage_number, status, vessel:vessels(id, name))
   )
 `
-
-const PAGE = 1000
-
-async function readAll<T>(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
-  const rows: T[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await page(from, from + PAGE - 1)
-    if (error) throw error
-    const chunk = (data ?? []) as T[]
-    rows.push(...chunk)
-    if (chunk.length < PAGE) return rows
-  }
-}
 
 export async function listCustomerContainers(customerId: number): Promise<DemurrageContainerRow[]> {
   await ensureDemurrageRatesLoaded()
@@ -106,6 +94,10 @@ export function customerContainerView(row: DemurrageContainerRow, today = saoPau
   // A fatura viva que cobra a caixa vence o valor previsto; a mais recente primeiro.
   const invoice = [...(row.billed_in ?? [])].sort((left, right) => right.id - left.id)[0]
   if (invoice) return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'invoice', invoice } }
+  // Viagem cancelada não cobra Demurrage (gatilho da migration 200): sem
+  // Invoice, a caixa não está "correndo" nem "a faturar".
+  const voyage = row.bl?.voyage as { status?: string | null } | null | undefined
+  if (voyage?.status === 'cancelled') return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime: false, demurrage: { kind: 'none' } }
   let usd: number
   try {
     usd = effectiveDemurrage(row, row.customer_agreement, today)?.total_usd ?? 0

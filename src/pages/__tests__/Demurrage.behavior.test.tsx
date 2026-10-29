@@ -216,7 +216,7 @@ describe('Demurrage page behaviours', () => {
     mocks.cancelInvoice.mockResolvedValue(undefined)
     mocks.updateInvoice.mockResolvedValue(undefined)
     mocks.applyDiscount.mockResolvedValue(undefined)
-    mocks.fetchKpis.mockResolvedValue({ overdueContainers: 1, draftInvoicesTotalUsd: 0, issuedInvoicesTotalBrl: 2200 })
+    mocks.fetchKpis.mockResolvedValue({ overdueContainers: 1, issuedInvoicesTotalBrl: 2200 })
     mocks.fetchLatestRecalcDate.mockResolvedValue('2099-01-01')
     mocks.fetchCustomerSummary.mockResolvedValue(customerSummary)
     mocks.fetchCustomerDetail.mockResolvedValue([{ id: 21, doc_number: 'DEM-001', bl_id: 'BL-001', billed_at: '2026-07-01', total_usd: 400, current_total_brl: 2200, current_roe: 5.5 }])

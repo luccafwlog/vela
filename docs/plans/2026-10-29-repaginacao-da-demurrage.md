@@ -12,7 +12,7 @@ tarifas (D28 a D34) entram no lote 0B.
 
 | Lote | Situação |
 |---|---|
-| 0 — Correções que não esperam a repaginação | A fazer |
+| 0 — Correções que não esperam a repaginação | Feito em 2026-10-29 |
 | 0B — Tipos de container e tarifas por grupo | A fazer (antes do lote 1) |
 | 1 — Classificação da cobrança no banco | A fazer |
 | 2 — Aba Containers, cartões e aviso do cabeçalho | A fazer (depende do lote 1) |
