@@ -6,14 +6,14 @@ trabalho, não o manual.
 
 ## Estado
 
-**Etapas 1 e 2 concluídas; Etapa 3 (redação em lotes) em andamento desde
-2026-10-29: lotes 1 (capítulos 1 a 3) e 2 (capítulos 7, 8, 18 e 19) aprovados
-pelo dono; lotes 3 (capítulos 13 a 17) e 4 (capítulos 9 a 12 e 20)
-aprovados; lote 5 (capítulos 21 a 25 e apêndices A a D) escrito e conferido
-contra o código, esperando a revisão do dono. O manual completo tem 201
-páginas. Por decisão de manual único, entraram também o capítulo 25
-(Administração) e o apêndice D gerado ("Quero fazer… onde fica"), que faz o
-papel do índice remissivo.** O dono aprovou em
+**Etapas 1, 2 e 3 concluídas: o dono aprovou em 2026-10-29 a versão 1.0 do
+Manual do Operador (25 capítulos e apêndices A a D, 201 páginas). Etapa 4 em
+parte: a linha de dono em `docs/CONVENCOES.md` e a regra no `AGENTS.md` entraram
+com a versão 1.0; o check do manual no CI e a decisão sobre o manual financeiro
+e os guias de bolso seguem pendentes (ver "Pendências da versão 1.0").** Por
+decisão de manual único, entraram também o capítulo 25 (Administração) e o
+apêndice D gerado ("Quero fazer… onde fica"), que faz o papel do índice
+remissivo. O dono aprovou em
 2026-10-29 o capítulo-piloto (capítulos 4 a 6) no padrão enxuto, com a
 paginação corrigida, como molde dos demais. Páginas-modelo aprovadas em
 2026-10-28. O texto está em [`docs/manual/texto/`](../manual/texto/README.md),
@@ -713,6 +713,13 @@ manual sai como **versão 1.0**.
 
 ### Etapa 4 — Manter o manual verdadeiro
 
+> **Situação atual (2026-10-29):** a linha de dono em `docs/CONVENCOES.md` e a
+> regra no `AGENTS.md` entraram com a versão 1.0. O check no CI fica para uma PR
+> própria contra a `staging`, porque a PR do manual não toca em código nem em CI
+> (decisão do dono de 2026-10-29). O check de cobertura deixou de exigir texto
+> para cada regra no padrão enxuto; o que vai ao CI é o `manual:check`
+> (linguagem, capturas e citações).
+
 Na mesma entrega da versão 1.0:
 
 - linha nova na [tabela de responsabilidade de cada documento](../CONVENCOES.md#responsabilidade-de-cada-documento):
@@ -725,7 +732,28 @@ Na mesma entrega da versão 1.0:
 - o check de cobertura (1.6) e o de linguagem passam a rodar no CI;
 - os scripts de imagem rodam de novo a cada versão do manual.
 
+## Pendências da versão 1.0
+
+1. **Check do manual no CI:** `npm run manual:check` no job de qualidade, numa
+   PR própria contra a `staging`.
+2. **Manual financeiro:** os capítulos 21 a 24 descrevem o procedimento do
+   Financeiro, que [`docs/CONVENCOES.md`](../CONVENCOES.md) ainda dá como dono ao
+   [manual financeiro](../operations/manual-financeiro.md). O dono decide se ele
+   é absorvido pelo Manual do Operador (e vai para o arquivo histórico) ou fica
+   como referência detalhada do Financeiro, com o manual remetendo a ele.
+3. **Guias de bolso por equipe:** previstos na [régua visual](#régua-visual) e
+   ainda não feitos; o dono decide se ainda são desejados depois do manual
+   único.
+4. **Imagens que o ambiente local não gera:** a lista de usuários da
+   Administração (depende de função do servidor) e as telas do Pix com a
+   cobrança pelo Itaú ligada.
+
 ## Depois do Manual do Operador
+
+> **Situação atual (2026-10-29):** o dono decidiu por um manual único, sem
+> volumes por equipe. Os procedimentos do Financeiro e do Administrativo
+> entraram nos capítulos 21 a 25 da versão 1.0; os itens 1 a 3 abaixo ficam
+> como registro da intenção original.
 
 Com o mesmo mapeamento, o mesmo cenário e o mesmo gerador de PDF, escrevendo as
 regras que a matriz já destinou a cada volume:
