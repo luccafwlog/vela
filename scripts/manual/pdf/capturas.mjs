@@ -1055,4 +1055,81 @@ export const CAPTURAS = [
       }
     },
   },
+  {
+    id: 'containers-lista',
+    capitulo: 9,
+    async fazer({ page, base, cenario }) {
+      await abrir(page, base, '/containers')
+      const tabela = page.getByRole('table').first()
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const nome = `${cenario.novaViagem.navio} / ${cenario.novaViagem.numero}`
+      const busca = page.getByRole('searchbox', { name: 'Buscar' }).or(page.getByPlaceholder(/Container, lacre/)).first()
+      const linhas = tabela.locator('tbody tr')
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Containers', level: 1 }), page.getByRole('button', { name: 'Exportar' }), linhas.nth(3)], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, page.getByText(nome, { exact: true }).first(), clip, { posicao: 'direita' }),
+          await marca(2, busca, clip, { posicao: 'campo' }),
+          await marca(3, linhas.first().getByRole('link').first(), clip, { posicao: 'direita' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'vazios-imp',
+    capitulo: 10,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/vazios-importacao')
+      const tabela = page.getByRole('table').first()
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const titulo = page.getByRole('heading', { name: 'Vazios de importação', level: 1 })
+      const clip = await recorteDe(page, [titulo, page.getByRole('button', { name: 'Importar planilha' }), tabela], 12)
+      return { clip, marks: [] }
+    },
+  },
+  {
+    id: 'adr-terminal',
+    capitulo: 11,
+    async fazer({ page, base, cenario }) {
+      await abrirViagem(page, base, cenario, 'ADR')
+      const resumo = page.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'ADR', exact: true }) }).first()
+      await resumo.waitFor()
+      await page.waitForTimeout(800)
+      const aba = page.getByRole('tab', { name: 'ADR', exact: true })
+      const escala = page.getByRole('button', { name: 'BRVIX', exact: true }).first()
+      const terminal = page.getByRole('button', { name: 'TVV', exact: true }).first()
+      const clip = await recorteDe(page, [aba, resumo], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, aba, clip),
+          await marca(2, escala, clip, { posicao: 'direita' }),
+          await marca(3, terminal, clip, { posicao: 'direita' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'alertas-fila',
+    capitulo: 20,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/alertas')
+      const tabela = page.getByRole('table').first()
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const linhas = tabela.locator('tbody tr')
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Alertas', level: 1 }), page.getByRole('link', { name: 'Regras de alertas' }), linhas.nth(3)], 12)
+      return {
+        clip,
+        marks: [
+          await marca(2, page.getByRole('combobox', { name: 'Setor' }), clip, { posicao: 'campo' }),
+          await marca(3, page.getByRole('searchbox', { name: 'Buscar alertas' }), clip, { posicao: 'campo' }),
+          await marca(4, tabela.getByRole('columnheader', { name: 'Registro' }), clip, { posicao: 'direita' }),
+        ],
+      }
+    },
+  },
 ]

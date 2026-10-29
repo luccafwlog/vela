@@ -18,6 +18,10 @@ Cada terminal da escala tem o seu ADR. Ele nasce quando você atribui o terminal
 2. Em **Escala**, clique no porto.
 3. Em **Terminal**, escolha o terminal.
 
+::: tela adr-terminal
+O ADR do terminal TVV na escala de Vitória, antes de qualquer assinatura.
+:::
+
 No alto, o bloco **ADR** resume o andamento ("2 de 3 departamentos assinados" e quem falta), o **Prazo de conclusão**, a escala e o terminal. Abaixo vêm as seções, agrupadas pela equipe que responde por elas, e no fim a **Linha do tempo do ADR**:
 
 | Equipe | Seções |

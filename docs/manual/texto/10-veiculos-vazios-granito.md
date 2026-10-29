@@ -75,6 +75,10 @@ Há dois jeitos de cadastrá-los:
 - **Pela planilha do armador**, o jeito completo. Em **Vazios IMP**, clique em **Importar planilha**, escolha a **Viagem de destino** e o arquivo, com **Container**, **POL** e **POD** (e, se houver, **Tipo** e **Tara (kg)**). Depois da leitura, informe o **Nº do manifesto Mercante** de cada rota e importe.
 - **Pelo Baplie**, quando a planilha não veio. Na página **Baplie EDI**, o bloco **Vazios de importação** oferece **Cadastrar N vazios** ([6.7](06-importacao.md#67-importar-o-baplie)). Eles entram sem número de manifesto: informe depois em **Rotas e Manifestos** da Viagem ([4.6](04-viagens-escalas.md#46-rotas-e-manifestos)).
 
+::: tela vazios-imp
+Os vazios da COSCO SHIPPING SEREIA / 024E, ainda sem número de manifesto.
+:::
+
 A planilha vale mais que o Baplie: o container que ela traz sai dos vazios do Baplie. Importar a planilha de novo substitui os containers de cada rota que ela traz. Enquanto uma rota de vazios está sem número, a lista mostra **Sem número** em âmbar e a Viagem conta como CE Mercante pendente (capítulo 20).
 
 ### A natureza do vazio

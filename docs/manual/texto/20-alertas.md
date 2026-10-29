@@ -20,6 +20,10 @@ O alerta é uma pendência que o Vela abriu sozinho. A fila é uma só para toda
 4. Leia a linha: **Registro** diz onde está a pendência (o B/L e a Viagem abrem a ficha), **Mensagem** dá o detalhe e **Aberto em** diz desde quando.
 :::
 
+::: tela alertas-fila
+A fila de Alertas, com os críticos no alto.
+:::
+
 Os críticos vêm primeiro e, dentro de cada gravidade, os mais recentes. A fila mostra 100 alertas por página. O cartão e o filtro **Sem setor** juntam alertas antigos, de antes da divisão por equipe: eles não são de nenhuma equipe, e qualquer pessoa pode tratá-los.
 
 O botão **Regras de alertas**, no alto da fila, abre a lista de todos os alertas do Vela, com quando cada um abre, quem recebe e como se resolve. A tela só informa: não resolve nada.

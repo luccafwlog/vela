@@ -19,6 +19,10 @@ Cada container cheio descarregado no Brasil tem duas datas que importam: a **des
 2. Em **Buscar**, digite o container, o lacre, o B/L, o Cliente ou o navio. **Mais filtros** separa por perfil (IMO, OOG), veículos, Revisão e situação financeira do B/L.
 3. Clique no B/L da linha para abrir a ficha.
 
+::: tela containers-lista
+A lista Containers, com os containers da COSCO SHIPPING SEREIA / 024E no alto.
+:::
+
 Os cartões do alto contam o recorte: **Containers**, **B/Ls**, **IMO** e **OOG**. O container que está em dois B/Ls da mesma Viagem (o Part Lot, [7.3](07-ficha-do-bl.md#73-corrigir-um-container)) aparece nas duas linhas e conta uma vez.
 
 A coluna **SOC/COC** diz de quem é o container: **SOC** é do Cliente, **COC** é do armador. Sem a informação, o container é tratado como COC. Passe o mouse no valor para ver de onde ele veio: B/L, Baplie ou correção manual.
