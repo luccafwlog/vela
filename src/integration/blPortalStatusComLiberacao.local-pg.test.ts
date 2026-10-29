@@ -1,18 +1,33 @@
-import { execFileSync } from 'node:child_process'
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
+import { execPsql } from './localPsql'
+import { describeWithProbe } from './localTestData'
 
 // Migration 501: `get_bl_portal_status` devolve `billing_access_ready`, a mesma
 // condição da pendência "Acesso ao portal nao provisionado" da Revisão. Tudo
-// roda numa transação desfeita no fim; nenhuma linha fica no banco.
+// roda numa transação desfeita no fim; nenhuma linha fica no banco. Era um
+// teste de `src/services/__tests__` fora da lista local-pg: o CI não o rodava.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
-const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const userId = '00000000-0000-0000-0000-000000050101'
 
-function psqlRows(sql: string) {
-  const output = execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-F', '|', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
-  return output.trim().split('\n').filter((line) => /^BL-501-/.test(line))
+function psql(sql: string): string {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-F', '|', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
+
+function psqlRows(sql: string) {
+  return psql(sql).split('\n').filter((line) => /^BL-501-/.test(line))
+}
+
+function migration501Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('billing_access_ready' IN pg_get_functiondef('public.get_bl_portal_status(text)'::regprocedure)) > 0;`) === 't'
+  } catch {
+    return false
+  }
+}
+
+const describeLocal = describeWithProbe(migration501Applied, 'migration501Applied (billing_access_ready em get_bl_portal_status)')
 
 describeLocal('migration 501: status do Portal do B/L com a Liberação de faturamento', () => {
   it('responde a mesma condição da Revisão para Liberação vigente, ausente e vencida', () => {
