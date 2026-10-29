@@ -89,6 +89,9 @@ describe('BlManualRoe (migration 435)', () => {
 
     const link = await screen.findByRole('link', { name: 'BL-0' })
     expect(link.getAttribute('href')).toBe('/bls/BL-0?tab=faturamento')
+    // A Invoice do grupo segue o câmbio do B/L emissor, que pode ser manual.
+    expect(screen.queryByText('Sem ROE manual: a Invoice segue a PTAX do dia')).toBeNull()
+    expect(screen.getByText('Sem ROE manual: a Invoice do grupo segue o câmbio do B/L BL-0')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Definir ROE manual…' })).toBeNull()
     expect(mocks.anchor).toHaveBeenCalledWith('BL-1')
   })
@@ -98,6 +101,9 @@ describe('BlManualRoe (migration 435)', () => {
     renderRoe({ roe: 5.9, manual: true })
 
     await screen.findByRole('link', { name: 'BL-0' })
+    // O ROE deste B/L não vale para a Invoice do grupo: a ficha não diz que vale.
+    expect(screen.queryByText('a próxima Invoice sai com ele, fora da PTAX')).toBeNull()
+    expect(screen.getByText('sem efeito: a Invoice do grupo sai pelo B/L BL-0')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Trocar ROE manual…' })).toBeNull()
     expect(await screen.findByRole('button', { name: 'Tirar ROE manual…' })).toBeTruthy()
   })

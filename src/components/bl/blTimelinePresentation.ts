@@ -344,7 +344,9 @@ export function isAudited(event: BlTimelineEvent): boolean {
 
 // Motivo que o próprio banco escreve quando a pessoa não informa um
 // (`save_bl_review`, migration 271): não explica nada a quem lê.
-const SYSTEM_DEFAULT_REASONS = new Set(['Revisao manual'])
+// "Revisão manual" é o padrão da tela da Revisão sem justificativa, que a
+// migration 502 leva a cada campo do Histórico.
+const SYSTEM_DEFAULT_REASONS = new Set(['Revisao manual', 'Revisão manual'])
 
 /**
  * Texto que acompanha o evento na coluna "O que aconteceu": "Motivo: …" para

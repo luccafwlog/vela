@@ -11,6 +11,44 @@
   **Reverter para transbordo** recusados pelo banco mostram o motivo da recusa, pelo mesmo tradutor das
   outras telas (`classifyDbError`), em vez de "Falha ao …"; erro técnico continua com o texto fixo, e
   "Verifique se algum B/L está em COD." só complementa a recusa por B/L em COD. Ver
+- **Prévias com troca de POD no B/L com exceção de terminal (2026-10-29, migration `512`; revisão da PR
+  luccafwlog/vela#1084):** a prévia das taxas alteradas à mão e a da reimportação de carga solta de B/L
+  faturado tiravam o terminal da exceção e deixavam o porto, e o banco recusava a simulação
+  (`bls_terminal_override_pair_check`): ao mudar o POD de um B/L com exceção de terminal e taxa alterada à
+  mão, a ficha gravava sem o diálogo **Gravar mesmo assim**, e a prévia da carga solta mostrava o erro do
+  banco na linha do B/L. As duas prévias tiram terminal e porto juntos, como a gravação. Só redefine
+  funções. **Teste local-pg:** `previaPodComExcecaoDeTerminal.local-pg.test.ts`.
+- **Recusa da carga solta em outra Viagem com acento (2026-10-29, migration `511`; revisão da PR
+  luccafwlog/vela#1084):** ao gravar Manifesto BB ou B/L avulso com B/L de outra Viagem, a tela mostrava a
+  recusa da migration `500` sem acento ("exclua o B/L la e importe de novo (cancelar nao libera o
+  numero)"); agora diz "O B/L … já está na Viagem … exclua o B/L lá e importe de novo (cancelar não
+  libera o número).", como a prévia. Só redefine a função.
+- **Carga solta em outra Viagem: a recusa manda excluir o B/L lá (2026-10-28, migration `500`, PR
+  luccafwlog/vela#1083):** a recusa do Manifesto BB e do B/L avulso para B/L que já está em outra Viagem
+  manda excluir o B/L lá e importar de novo, como o arquivo de B/L de container; antes mandava corrigir a
+  Viagem pela ficha, que não muda a Viagem. Ver [Manifestos e EDI](modules/manifesto-edi.md).
+- **Ficha do B/L e do Cliente: achados da revisão da release (2026-10-29, sem migration; revisão da PR
+  luccafwlog/vela#1084):** no B/L de grupo de Demurrage que não emite a Invoice, o ROE manual antigo
+  aparece "sem efeito: a Invoice do grupo sai pelo B/L …" (antes, "a próxima Invoice sai com ele");
+  o motivo padrão "Revisão manual" da Revisão sem justificativa não aparece em cada campo do Histórico
+  (a migration `502` passou a gravá-lo); o Histórico do Cliente mostra **Cliente pelo Portal** na mudança
+  feita no Perfil do Portal, como as Alterações do cadastro (`503`); o B/L cancelado não oferece
+  **Definir condição do B/L**, e a recusa do banco ao salvar a condição aparece como veio; a etapa
+  Cliente do trilho diz "Situação do Portal indisponível" (não "Conta do Portal não está ativa")
+  enquanto a situação não chega; convite, suspensão e troca do E-mail de recuperação do Portal releem o
+  status do Portal da ficha do B/L e a Revisão.
+- **Chegadas e Saídas: data com hora, escala sem data e Viagem cancelada (2026-10-29, sem migration;
+  revisão da PR luccafwlog/vela#1084):** na edição, a data gravada com hora pela janela da escala aparecia
+  em branco no campo; agora aparece o dia, e salvar o mesmo dia mantém a hora. Salvar outro porto não
+  retira mais, sem confirmação, a escala de chegada que já estava sem data (Administrativo). **Adicionar
+  navio** com o VOY e o navio de uma Viagem cancelada recusa sem gravar nada ("…cancelada. Reative-a em
+  Viagens…"), e o aviso de sucesso diz quando a Viagem já existia. Ver
+  [Chegadas e Saídas](modules/chegadas-saidas.md).
+- **Viagens: recusa da omissão e Conciliação sem a contagem (2026-10-29, sem migration; revisão da
+  PR luccafwlog/vela#1084):** na janela **Omitir escala**, voltar depois de uma recusa e confirmar de novo
+  não repete a recusa anterior na confirmação (ela continua no formulário para orientar a correção). A
+  ficha da Viagem diz **Verificando** enquanto a contagem de divergências do Baplie não chega ou falha,
+  como a faixa e a tabela; antes dizia **Conciliada** sem saber das divergências. Ver
   [Viagens](modules/viagens.md).
 - **Motivo do bloqueio legível no alerta de efeito de importação (2026-10-29, sem migration):** em
   `/alertas`, **Efeito de importação bloqueado** deixa de mostrar o erro cru do banco (ex.: `null value
