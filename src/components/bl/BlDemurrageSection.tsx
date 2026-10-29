@@ -29,7 +29,8 @@ import { demurrageInvoiceHref } from '../../pages/demurrageListState'
 import type { BLDetail } from '../../types/database'
 
 // Seção consolidada de demurrage do B/L: config geral (free time + P1/P2) e
-// tabela por container com devolução editável e demurrage calculado.
+// tabela por container com devolução editável e demurrage calculado. No B/L
+// cancelado a devolução é só leitura: o banco recusa a gravação (migration 503).
 export type BlDemurrageInvoiceSummary = { id: number; doc_number: string | null; status: string | null; total_usd: number | null }
 
 export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: BlDemurrageInvoiceSummary[] }) {
@@ -232,6 +233,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
   }
 
   const containers = bl.bl_containers ?? []
+  const cancelled = Boolean(bl.cancelled_at)
   const today = saoPauloTodayIso()
   const hasOverride = bl.free_time_override != null || bl.demurrage_rate_override_p1_usd != null || bl.demurrage_rate_override_p2_usd != null
   // Acordo do Cliente que vale para a descarga mais antiga do B/L (o mesmo
@@ -301,6 +303,9 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
           ) : (
             <LeadValue detail={invoicesText}>{chargeable.length ? `${chargeable.length} de ${chargeable.length} no free time` : 'Sem contêiner descarregado'}</LeadValue>
           )}
+          {cancelled ? (
+            <p className="app-facts__detail" role="note">B/L cancelado: somente leitura. Reative para corrigir.</p>
+          ) : null}
           {invoices?.length ? (
             <FactList columns={4}>
               {invoices.map((invoice) => (
@@ -335,7 +340,10 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                     <td className="app-bl-code whitespace-nowrap"><CopyValue value={container.container_number} label="número do contêiner" /></td>
                     <td className="whitespace-nowrap tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
                     <td className="whitespace-nowrap">
-                      {line.soc ? <StatusText tone="muted">Não se aplica</StatusText> : (
+                      {line.soc ? <StatusText tone="muted">Não se aplica</StatusText>
+                        : cancelled ? (
+                          <span className="tabular-nums">{container.return_date ? formatDate(container.return_date) : <NoValue label="Sem data de devolução" />}</span>
+                        ) : (
                         <div className="flex items-center justify-center gap-2">
                           <Input
                             type="date"

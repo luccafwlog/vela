@@ -203,3 +203,4 @@ src/integration/isencaoManualTaxasLocais.local-pg.test.ts
 src/integration/taxaAlteradaFaturada.local-pg.test.ts
 src/integration/taxaAlteradaEventos.local-pg.test.ts
 src/integration/fichaDoBlJustificativaTerminal.local-pg.test.ts
+src/integration/datasDoBlCancelado.local-pg.test.ts
