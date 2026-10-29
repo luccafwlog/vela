@@ -939,4 +939,120 @@ export const CAPTURAS = [
       }
     },
   },
+  {
+    id: 'portal-fila',
+    capitulo: 14,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/clientes/portal?filtro=todos')
+      const tabela = page.getByRole('table', { name: 'Fila de acesso ao Portal por Cliente' })
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const aba = page.getByRole('tab', { name: /^Provisionamento do Portal/ })
+      const cartoes = page.getByRole('group', { name: 'Filtros de provisionamento' })
+      const linhas = tabela.locator('tbody tr')
+      const quarta = linhas.nth(Math.min(3, (await linhas.count()) - 1))
+      const clip = await recorteDe(page, [aba, cartoes, quarta], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, aba, clip),
+          await marca(2, cartoes, clip, { posicao: 'esquerda' }),
+          await marca(3, page.getByRole('searchbox', { name: 'Busca' }), clip, { posicao: 'campo' }),
+          await marca(4, linhas.nth(1).getByRole('button', { name: 'Escolher e-mail' }), clip, { posicao: 'esquerda' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'portal-inspecao',
+    capitulo: 15,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/clientes/portal/inspecao/9001?origem=ficha')
+      const resumo = page.getByRole('group', { name: 'Resumo' })
+      await resumo.waitFor()
+      await page.waitForTimeout(600)
+      const faixa = page.getByText('Modo Inspeção', { exact: true }).first()
+      const voltar = page.getByRole('button', { name: 'Voltar à ficha do Cliente' }).or(page.getByRole('link', { name: 'Voltar à ficha do Cliente' })).first()
+      const barra = page.getByRole('link', { name: 'Faturas', exact: true }).first()
+      const clip = await recorteDe(page, [faixa, voltar, resumo], 0)
+      clip.x = 0
+      clip.width = page.viewportSize().width
+      return {
+        clip,
+        marks: [
+          await marca(2, faixa, clip, { posicao: 'direita' }),
+          await marca(3, barra, clip),
+          await marca(4, voltar, clip, { posicao: 'esquerda' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'portal-faturas',
+    capitulo: 15,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/clientes/portal/inspecao/9001/billing?origem=ficha')
+      const titulo = page.getByRole('heading', { name: 'Faturas', level: 1 })
+      await titulo.waitFor()
+      await page.waitForTimeout(800)
+      const linha = page.getByRole('row').filter({ hasText: 'CSC45810A01K00' }).last()
+      await linha.waitFor()
+      const clip = await recorteDe(page, [titulo, page.getByRole('button', { name: /Gerar fatura consolidada/ }), linha], 12)
+      return { clip, marks: [] }
+    },
+  },
+  {
+    id: 'cliente-quem-recebe',
+    capitulo: 13,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/clientes/41823657000136?tab=cadastro')
+      const quadro = bloco(page, 'Quem recebe os Comunicados')
+      await quadro.waitFor()
+      await page.waitForTimeout(400)
+      const clip = await recorteDoElemento(quadro)
+      return { clip, marks: [] }
+    },
+  },
+  {
+    id: 'comunicacao-cobertura',
+    capitulo: 16,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/clientes/comunicacao')
+      const aba = page.getByRole('tab', { name: 'Comunicação', exact: true })
+      const tabela = page.getByRole('table').first()
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const linhas = tabela.locator('tbody tr')
+      const seta = linhas.first().getByRole('button').first()
+      const clip = await recorteDe(page, [aba, linhas.nth(1)], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, aba, clip),
+          await marca(2, page.getByRole('textbox', { name: 'Navio' }).first(), clip, { posicao: 'campo' }),
+          await marca(3, seta, clip, { posicao: 'esquerda' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'clientes-lista',
+    capitulo: 13,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/clientes')
+      const tabela = page.getByRole('table', { name: 'Clientes filtrados' })
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const linhas = tabela.locator('tbody tr')
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Clientes', level: 1 }), page.getByRole('button', { name: 'Novo cliente' }), linhas.nth(2)], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, page.getByRole('searchbox', { name: 'Buscar cliente' }), clip, { posicao: 'campo' }),
+          await marca(2, page.getByRole('combobox', { name: 'B/Ls vinculados' }), clip, { posicao: 'campo' }),
+          await marca(3, page.getByRole('link', { name: 'ATLANTICO IMPORTADORA LTDA' }), clip, { posicao: 'direita' }),
+        ],
+      }
+    },
+  },
 ]

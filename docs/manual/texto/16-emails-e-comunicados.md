@@ -61,6 +61,10 @@ A **Cobertura de viagens** responde "os Clientes desta viagem já foram avisados
 4. Para ver o e-mail que saiu, clique em **Enviado em …**: abre o Histórico desse Cliente na Viagem.
 :::
 
+::: tela comunicacao-cobertura
+A Cobertura de viagens, com a COSCO SHIPPING SEREIA / 024E nos dois portos.
+:::
+
 Na linha aberta, cada aviso de cada Cliente diz em que pé está:
 
 | Situação | Quer dizer |

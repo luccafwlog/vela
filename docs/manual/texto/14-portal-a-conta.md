@@ -25,6 +25,10 @@ A coluna **Conta** diz em que pé está o acesso, e a coluna **Ação** diz o pr
 | **Ativa** | O Cliente entra no Portal. | **Ver conta**, ou **Validar e-mail de recuperação** se o endereço tem problema |
 | **Suspensa** | A equipe cortou o acesso. | **Reativar conta** |
 
+::: tela portal-fila
+A fila do Provisionamento do Portal, com todos os Clientes do exemplo ainda sem conta.
+:::
+
 1. Em **Clientes**, abra a aba **Provisionamento do Portal**. O número ao lado da aba conta os Clientes em **Aguardando análise**.
 2. Os cartões filtram a fila, e a página abre em **Aguardando análise**. **Sem e-mail** reúne quem não tem e-mail de recuperação nem contato com e-mail. Clique de novo no cartão marcado para ver todos.
 3. **Busca** acha pela razão social ou pelo CNPJ; o filtro **Alerta** mostra só quem tem alerta crítico.
@@ -113,9 +117,7 @@ A fatura retida sai sozinha, com o preço fixado na importação, quando:
 
 A **Liberação de faturamento sem Portal** é a decisão de faturar um Cliente enquanto o Portal dele não fica pronto. Ela tem justificativa e uma data de revisão de no máximo 30 dias. O bloco fica no painel da conta e na aba **Financeiro** da ficha do Cliente (capítulo 13), e o botão só aparece quando o Portal não está pronto e não há Liberação vigente.
 
-1. No bloco **Liberação de faturamento sem Portal**, clique em **Conceder liberação** (ou **Conceder nova liberação**, se o Cliente já teve uma).
-2. Preencha **Justificativa** e **Data de revisão** e clique em **Liberar faturamento**.
-3. Confirme em **Liberar e emitir** e leia o resultado: quantas faturas saíram e quantos B/Ls seguem com outro bloqueio.
+Como conceder está no capítulo 13; o resultado diz quantas faturas saíram e quantos B/Ls seguem com outro bloqueio.
 
 No exemplo, a ATLANTICO IMPORTADORA LTDA tem Liberação: o CSC45810A01K00 foi faturado sem que ela tenha conta ativa.
 

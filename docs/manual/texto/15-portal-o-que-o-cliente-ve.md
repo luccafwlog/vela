@@ -19,6 +19,10 @@ O **Modo Inspeção** abre o Portal de um Cliente com os mesmos dados e o mesmo 
 3. Navegue pela barra do Portal: **Painel**, **Faturas**, **BLs e Containers**, **Desbloqueio de CE**, **Informações** e **Perfil**.
 4. Para sair, use o botão da faixa: **Fechar inspeção**, **Voltar à ficha do Cliente** ou **Voltar ao Provisionamento**.
 
+::: tela portal-inspecao
+O Portal da ATLANTICO IMPORTADORA LTDA no Modo Inspeção.
+:::
+
 Tudo o que o Cliente faria fica apagado, com a dica "Ação do cliente — indisponível em Modo Inspeção": consolidar faturas, abrir ou responder disputa, anexar, salvar contatos e endereço, marcar notificações. Você vê, mas não age por ele. Cada abertura da inspeção fica registrada.
 
 ::: atencao
@@ -87,6 +91,10 @@ As datas de descarga e de devolução que {{Equipamentos}} grava aparecem aqui n
 **Quem faz:** o Cliente, no Portal. Quem orienta: {{Qualquer equipe}}; na rotina, o {{Financeiro}}.
 
 Em **Faturas**, a aba **Taxas Locais** lista as faturas de Taxas Locais e as avulsas. Só chega ao Portal a fatura emitida, e só quando todos os B/Ls dela têm CE Mercante; a avulsa aparece sempre. A cancelada fica escondida e só aparece no filtro **Cancelada**. Em cima, os cartões **Saldo pendente**, **Faturas emitidas** e **B/Ls elegíveis** (os que podem entrar numa consolidada).
+
+::: tela portal-faturas
+As faturas da ATLANTICO IMPORTADORA LTDA no Portal: a do CSC45810A01K00, emitida pela Liberação.
+:::
 
 O número da fatura abre o detalhe, com o bloco **Pagamento** primeiro:
 
