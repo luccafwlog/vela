@@ -109,7 +109,7 @@ A aba **Demurrage** de **Faturas** lista as Invoices emitidas ou pagas dos B/Ls 
 
 Se o Cliente discorda de um valor, ele contesta no detalhe da Invoice em aberto, em **Abrir disputa**, e acompanha a conversa em **Disputas**.
 
-A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela Invoice para. Na conversa, a equipe aparece como "Equipe de Containers", e o Cliente só escreve quando é a vez dele. Na Disputa resolvida, o Cliente pode clicar em **Solicitar reabertura**; ela continua resolvida até a equipe decidir. Como a equipe responde e decide está no capítulo 23.
+A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela Invoice para. Na conversa, a equipe aparece como "Equipe de Containers", e o Cliente só escreve quando é a vez dele. Na Disputa resolvida, o Cliente pode clicar em **Solicitar reabertura**; ela continua resolvida até a equipe decidir. Como a equipe responde e decide está no capítulo 9.
 
 ::: atencao
 - Invoice paga não aceita disputa nova. A conversa aberta antes do pagamento continua.
