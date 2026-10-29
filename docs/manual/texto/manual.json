@@ -3,9 +3,60 @@
   "sobre": "Uso interno das equipes",
   "subtitulo": "Como o Vela funciona e o que cada equipe faz, do cadastro da Viagem até a carga liberada.",
   "versao": "0.3",
-  "situacao": "capítulo-piloto no padrão enxuto, para aprovação",
+  "situacao": "Partes I e II para aprovação",
   "descreve": "29/10/2026",
   "partes": [
+    {
+      "numero": "1",
+      "romano": "I",
+      "titulo": "Entendendo o Vela",
+      "texto": "O que todo mundo precisa saber antes das telas: entrar, ler o Painel, reconhecer como o Vela fala, o que cada equipe pode fazer e o caminho de uma Viagem do começo ao fim.",
+      "capitulos": [
+        {
+          "numero": 1,
+          "titulo": "O Vela e o Portal Fwlog",
+          "resumo": "Entrar e sair, menu, Painel, como o Vela fala, listas, Relatórios e o que fazer quando algo dá errado",
+          "arquivo": "01-o-vela.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "10 minutos",
+          "antes": "Leia antes de qualquer outro capítulo."
+        },
+        {
+          "numero": 2,
+          "titulo": "Equipes e permissões",
+          "resumo": "O que é de uma equipe só e a quem passar cada pedido",
+          "arquivo": "02-equipes-e-permissoes.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [
+            {
+              "texto": "Usuários, cancelamentos e exclusões",
+              "equipes": [
+                "Administrativo"
+              ]
+            }
+          ],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia o capítulo 1."
+        },
+        {
+          "numero": 3,
+          "titulo": "O caminho de uma Viagem",
+          "resumo": "Do cadastro à carga liberada e paga, etapa por etapa",
+          "arquivo": "03-o-caminho-de-uma-viagem.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia o capítulo 2."
+        }
+      ]
+    },
     {
       "numero": "2",
       "romano": "II",

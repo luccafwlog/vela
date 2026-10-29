@@ -749,4 +749,78 @@ export const CAPTURAS = [
       return { clip: { x: 0, y: 0, width: vp.width, height: 760 }, marks: [] }
     },
   },
+  // Parte I (capítulos 1 e 2): telas só de leitura, no fim da lista para não
+  // mexer no estado que as capturas anteriores usam.
+  {
+    id: 'entrada',
+    capitulo: 1,
+    async fazer({ base, semSessao }) {
+      const tela = await semSessao()
+      await tela.goto(`${base}/login`, { waitUntil: 'networkidle' })
+      const titulo = tela.getByRole('heading', { name: 'Acesso interno' })
+      await titulo.waitFor()
+      const cartao = tela.locator('form').filter({ has: tela.locator('input[type=password]') }).first()
+      const clip = await recorteDe(tela, [titulo, cartao], 24)
+      return { clip, marks: [], tela }
+    },
+  },
+  {
+    id: 'painel-topo',
+    capitulo: 1,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/')
+      const semSetor = page.getByRole('button', { name: /Sem setor|Administrativo (Nenhum|\d)/ }).last()
+      await semSetor.waitFor()
+      await page.waitForTimeout(800)
+      const clip = await recorteDe(page, [page.locator('header').first(), semSetor], 8)
+      return { clip, marks: [] }
+    },
+  },
+  {
+    id: 'menu-conta',
+    capitulo: 1,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/')
+      const conta = page.getByRole('button', { name: /Ana Ribeiro/ })
+      await conta.click()
+      const menu = page.locator('#app-user-dropdown')
+      await menu.waitFor()
+      await page.waitForTimeout(300)
+      const clip = await recorteDe(page, [conta, menu], 12)
+      return {
+        clip,
+        marks: [],
+        async depois() {
+          await page.keyboard.press('Escape')
+        },
+      }
+    },
+  },
+  {
+    id: 'relatorios',
+    capitulo: 1,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/relatorios')
+      const titulo = page.getByRole('heading', { name: 'Relatórios', exact: true })
+      const tabela = page.getByRole('heading', { name: 'B/Ls', exact: true })
+      await tabela.waitFor()
+      await page.waitForTimeout(800)
+      const clip = await recorteDe(page, [titulo, page.getByRole('tab', { name: 'Demurrage' }), tabela], 12)
+      return { clip, marks: [] }
+    },
+  },
+  {
+    id: 'matriz-setores',
+    capitulo: 2,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/admin')
+      const bloco = secao(page, 'O que cada setor pode')
+      await bloco.waitFor()
+      await page.waitForTimeout(800)
+      // Só o começo da matriz: o capítulo explica as linhas em texto.
+      const caixa = await bloco.boundingBox()
+      const clip = { x: caixa.x - 8, y: caixa.y - 8, width: caixa.width + 16, height: Math.min(caixa.height + 16, 760) }
+      return { clip, marks: [] }
+    },
+  },
 ]

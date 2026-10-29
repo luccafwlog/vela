@@ -37,14 +37,17 @@ async function login(page) {
   const browser = await chromium.launch({ executablePath, args: ['--lang=pt-BR'], env: { ...process.env, LANG: 'pt_BR.UTF-8', LANGUAGE: 'pt_BR' } })
   const falhas = []
   try {
-    const context = await browser.newContext({ viewport: { width: 1200, height: 1700 }, deviceScaleFactor: 2, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+    const opcoes = { viewport: { width: 1200, height: 1700 }, deviceScaleFactor: 2, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' }
+    const context = await browser.newContext(opcoes)
     const page = await context.newPage()
+    // Janela sem sessão, para as telas de antes de entrar (tela de entrada).
+    const semSessao = async () => (await browser.newContext(opcoes)).newPage()
     await login(page)
     for (const captura of CAPTURAS) {
       if (so && !so.has(captura.id)) continue
       try {
-        const { clip, marks, depois } = await captura.fazer({ page, base: BASE, cenario, arquivos: ARQUIVOS })
-        await page.screenshot({ path: path.join(OUT, `${captura.id}.png`), clip, fullPage: true })
+        const { clip, marks, depois, tela = page } = await captura.fazer({ page, base: BASE, cenario, arquivos: ARQUIVOS, semSessao })
+        await tela.screenshot({ path: path.join(OUT, `${captura.id}.png`), clip, fullPage: true })
         fs.writeFileSync(path.join(OUT, `${captura.id}.json`), JSON.stringify({ id: captura.id, width: clip.width, height: clip.height, marks }, null, 2))
         // Depois da foto, o procedimento segue (gravar, confirmar) para o
         // estado servir às capturas seguintes.
