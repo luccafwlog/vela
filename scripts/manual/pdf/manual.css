@@ -504,14 +504,32 @@ figure.tela { break-inside: avoid; }
 .indice-objetivos .item .sec { color: var(--gold-strong); font-weight: 600; }
 .indice-objetivos .item .pag { text-align: right; color: var(--muted); }
 
-/* Guia rápido (guia.mjs): cada área abre página com um título em faixa, sem
-   página de abertura; as telas ficam um pouco mais baixas que no manual. */
-.guia-sumario .lead { margin-bottom: 5mm; }
+/* Guia rápido (guia.mjs): método de trabalho. O mapa das etapas abre o guia
+   e serve de sumário; cada etapa abre página, com a faixa Quando / Onde /
+   Pronto quando, telas maiores que no manual e poucos passos. */
+.guia-mapa .lead { margin-bottom: 6mm; max-width: 165mm; }
+.guia-mapa .etapas { position: relative; display: grid; gap: 2.6mm; }
+.guia-mapa .etapas::before { content: ""; position: absolute; left: 4.6mm; top: 4mm; bottom: 4mm; width: 0.8pt; background: var(--gold); }
+.guia-mapa .etapa { position: relative; display: grid; grid-template-columns: 10mm 1fr 10mm; gap: 4mm; align-items: start; color: var(--text); padding: 1.6mm 0; border-bottom: 0.5pt solid var(--border-soft); break-inside: avoid; }
+.guia-mapa .etapa .n { width: 9.2mm; height: 9.2mm; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 11pt; display: flex; align-items: center; justify-content: center; }
+.guia-mapa .etapa .texto { display: grid; gap: 0.6mm; font-size: 9pt; color: var(--muted); }
+.guia-mapa .etapa .texto b { font-size: 11.5pt; color: var(--navy); }
+.guia-mapa .etapa .texto i { font-style: normal; font-weight: 600; color: var(--gold-strong); }
+.guia-mapa .etapa .pag { text-align: right; font-weight: 700; color: var(--navy); padding-top: 1.6mm; }
+.guia-ordem { margin-top: 7mm; padding: 3.5mm 4mm; background: var(--navy); color: #fff; border-radius: 2mm; break-inside: avoid; }
+.guia-ordem .rotulo { color: var(--gold); font-weight: 700; font-size: 8.5pt; letter-spacing: 0.02em; }
+.guia-ordem ol { list-style: none; margin: 2mm 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2mm 3mm; counter-reset: ordem; }
+.guia-ordem li { counter-increment: ordem; font-weight: 600; font-size: 9.5pt; }
+.guia-ordem li::before { content: counter(ordem); display: inline-flex; align-items: center; justify-content: center; width: 5mm; height: 5mm; margin-right: 1.4mm; border-radius: 50%; background: var(--gold); color: var(--navy); font-size: 8pt; font-weight: 700; }
+.guia-ordem li + li::after { content: none; }
 .guia-area { break-before: page; }
 .guia-area__titulo { position: relative; display: flex; align-items: baseline; gap: 4mm; padding-bottom: 3mm; border-bottom: 1.6pt solid var(--gold); break-after: avoid; }
-.guia-area__titulo .numero { font-family: var(--brand); font-size: 26pt; font-weight: 700; color: var(--gold-strong); line-height: 1; }
-.guia-area__titulo h1 { font-size: 20pt; color: var(--navy); line-height: 1.15; }
-body.guia .tela__quadro { --altura-max: 78mm; }
-.guia-sumario ol.sum { column-count: 2; column-gap: 8mm; }
-.guia-sumario ol.sum li { break-inside: avoid; }
-.guia-sumario .sum-cap a { padding-top: 3.4mm; }
+.guia-area__titulo .numero { font-family: var(--brand); font-size: 28pt; font-weight: 700; color: var(--gold-strong); line-height: 1; }
+.guia-area__titulo h1 { font-size: 21pt; color: var(--navy); line-height: 1.15; }
+.guia-faixa { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border: 0.6pt solid var(--border); border-radius: 2mm; overflow: hidden; break-inside: avoid; }
+.guia-faixa > div { display: grid; gap: 0.8mm; padding: 2.4mm 3mm; font-size: 9pt; background: var(--surface-soft, #f4f6f9); }
+.guia-faixa > div + div { border-left: 0.6pt solid var(--border); }
+.guia-faixa .rotulo { font-weight: 700; color: var(--gold-strong); font-size: 8pt; }
+body.guia .texto-corrido > * + * { margin-top: 4mm; }
+body.guia .tela__quadro { --altura-max: 108mm; }
+body.guia .texto-corrido > p { font-size: 10pt; }

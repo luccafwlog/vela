@@ -749,8 +749,9 @@ Na mesma entrega da versão 1.0:
    como referência detalhada do Financeiro, com o manual remetendo a ele.
 2. **Guias de bolso por equipe:** previstos na [régua visual](#régua-visual).
    O dono pediu em 2026-10-29 o primeiro, o **Guia rápido da Documentação**
-   (`docs/manual/guias/documentacao/`, tela por tela, só o caminho feliz, até
-   20 páginas); os das outras equipes esperam a decisão dele.
+   (`docs/manual/guias/documentacao/`): o método de trabalho numa Viagem, em
+   etapas, só o caminho feliz, mais imagem que texto (revisão do dono de
+   2026-10-29); os das outras equipes esperam a decisão dele.
 3. **Imagens que o ambiente local não gera:** a lista de usuários da
    Administração (depende de função do servidor) e as telas do Pix com a
    cobrança pelo Itaú ligada.

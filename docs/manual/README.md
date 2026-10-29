@@ -19,12 +19,13 @@ demonstração ([gerador](../../scripts/manual/pdf/README.md));
 ## Guias rápidos
 
 [`guias/`](guias/documentacao/guia.json) guarda os guias rápidos por equipe:
-o caminho do dia a dia, tela por tela, sem os casos de borda, que ficam no
-manual. Cada guia tem um `guia.json` e um Markdown por área, no mesmo formato
-do texto do manual, e usa as mesmas capturas. O primeiro é o
-**Guia rápido da Documentação** (`guias/documentacao/`, 19 páginas); o PDF sai
-de `npm run manual:guia -- documentacao`, e o `manual:check` confere também o
-texto dos guias.
+o método de trabalho em etapas, na ordem em que ele acontece, sem os casos de
+borda, que ficam no manual. Cada guia tem um `guia.json` (as etapas, com
+quando começam, onde se fazem e quando estão prontas) e um Markdown por etapa,
+no mesmo formato do texto do manual, com as mesmas capturas. O primeiro é o
+**Guia rápido da Documentação** (`guias/documentacao/`, 12 páginas, da Viagem
+aberta ao CE desbloqueado); o PDF sai de `npm run manual:guia -- documentacao`,
+e o `manual:check` confere também o texto dos guias.
 
 ## Catálogo de situações
 

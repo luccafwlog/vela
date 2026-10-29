@@ -1,19 +1,94 @@
 {
   "titulo": "Guia rápido da Documentação",
   "sobre": "Manual do Operador · Guia rápido",
-  "subtitulo": "Tela por tela, o caminho do dia a dia: subir os arquivos, cadastrar os Clientes, liberar o Portal, avisar o Cliente e desbloquear o CE.",
+  "subtitulo": "O método de trabalho numa Viagem: do primeiro arquivo do armador ao CE desbloqueado.",
   "versao": "1.0",
   "situacao": "Rascunho para revisão do dono",
   "descreve": "outubro de 2026",
-  "apresentacao": "Este guia mostra o caminho que dá certo, na ordem em que a Documentação trabalha. Os casos que fogem dele, as recusas e as regras completas estão no Manual do Operador; cada tela diz em que capítulo procurar.",
+  "mapaTitulo": "O caminho de uma Viagem",
+  "apresentacao": "As etapas da Documentação numa Viagem, na ordem em que o trabalho acontece. Cada uma diz quando começa, onde fazer e quando está pronta. O que foge do caminho está no Manual do Operador.",
+  "ordemTitulo": "A ordem dos arquivos",
+  "ordem": ["B/Ls de container e carga solta", "Baplie", "Veículos (Equipamentos)", "CE Mercante, sempre por último"],
   "areas": [
-    { "numero": 1, "titulo": "Antes de começar", "arquivo": "01-antes-de-comecar.md" },
-    { "numero": 2, "titulo": "Viagens", "arquivo": "02-viagens.md" },
-    { "numero": 3, "titulo": "Subir os arquivos", "arquivo": "03-importacao.md" },
-    { "numero": 4, "titulo": "O B/L e a Revisão", "arquivo": "04-bl-e-revisao.md" },
-    { "numero": 5, "titulo": "Clientes e Portal", "arquivo": "05-clientes-e-portal.md" },
-    { "numero": 6, "titulo": "Comunicação com o Cliente", "arquivo": "06-comunicacao.md" },
-    { "numero": 7, "titulo": "Desbloqueio de CE", "arquivo": "07-desbloqueio-de-ce.md" },
-    { "numero": 8, "titulo": "Alertas e as outras telas", "arquivo": "08-alertas-e-outras-telas.md" }
+    {
+      "numero": 1,
+      "titulo": "Abrir a Viagem",
+      "quando": "O armador avisa o navio.",
+      "onde": "Viagens › Nova Viagem; na ficha, Planejamento por escala.",
+      "pronto": "A Viagem existe, com uma escala e o ETA por porto brasileiro.",
+      "arquivo": "01-abrir-a-viagem.md"
+    },
+    {
+      "numero": 2,
+      "titulo": "Subir os B/Ls",
+      "quando": "Chegam os B/Ls do armador.",
+      "onde": "Ficha da Viagem › aba Importação › Importação rápida.",
+      "pronto": "Todos os B/Ls na Viagem; os sem Cliente estão na Revisão.",
+      "arquivo": "02-subir-os-bls.md"
+    },
+    {
+      "numero": 3,
+      "titulo": "Limpar a Revisão",
+      "quando": "Logo depois de cada importação de B/L.",
+      "onde": "Importação › Revisão.",
+      "pronto": "Nenhum B/L sem Cliente; os que sobram só esperam o Portal.",
+      "arquivo": "03-limpar-a-revisao.md"
+    },
+    {
+      "numero": 4,
+      "titulo": "Ativar o Portal do Cliente",
+      "quando": "O Cliente é novo ou ainda não ativou a conta.",
+      "onde": "Clientes › Provisionamento do Portal.",
+      "pronto": "Conta Ativa: as faturas do Cliente podem sair.",
+      "arquivo": "04-ativar-o-portal.md"
+    },
+    {
+      "numero": 5,
+      "titulo": "Subir o Baplie",
+      "quando": "Chega o plano de carga do navio.",
+      "onde": "Importação › Baplie EDI.",
+      "pronto": "A Viagem fica Conciliada.",
+      "arquivo": "05-subir-o-baplie.md"
+    },
+    {
+      "numero": 6,
+      "titulo": "Subir o CE Mercante",
+      "quando": "O Mercante registra a carga, depois de todos os B/Ls.",
+      "onde": "Ficha da Viagem › Importação rápida › CE Mercante.",
+      "pronto": "Os B/Ls aparecem como faturados.",
+      "arquivo": "06-subir-o-ce.md"
+    },
+    {
+      "numero": 7,
+      "titulo": "Conferir os avisos ao Cliente",
+      "quando": "Depois do CE e na semana da chegada do navio.",
+      "onde": "Clientes › Comunicação › Cobertura de viagens.",
+      "pronto": "NOA, NOR, NOB e CE e Taxas sem âmbar.",
+      "arquivo": "07-conferir-os-avisos.md"
+    },
+    {
+      "numero": 8,
+      "titulo": "Desbloquear o CE",
+      "quando": "O Cliente pede o Desbloqueio pelo Portal.",
+      "onde": "Importação › Desbloqueio de CE.",
+      "pronto": "O B/L fica Desbloqueado na conciliação com a ZPT.",
+      "arquivo": "08-desbloquear-o-ce.md"
+    },
+    {
+      "numero": 9,
+      "titulo": "Assinar o ADR de Saída",
+      "quando": "O navio sai do terminal; o prazo é de 72 horas.",
+      "onde": "Ficha da Viagem › aba ADR.",
+      "pronto": "A Documentação aparece como assinada.",
+      "arquivo": "09-assinar-o-adr.md"
+    },
+    {
+      "numero": 10,
+      "titulo": "A rotina do dia",
+      "quando": "Todo dia, ao começar.",
+      "onde": "Painel e as filas da equipe.",
+      "pronto": "As filas da Documentação sem pendência parada.",
+      "arquivo": "10-a-rotina-do-dia.md"
+    }
   ]
 }

@@ -1188,11 +1188,14 @@ export const CAPTURAS = [
       const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Desbloqueio de CE', level: 1 }), cartoes, ultima], 12)
       return {
         clip,
+        // Na ordem do trabalho: achar o B/L, marcar o original, filtrar os
+        // aptos, exportar e conciliar.
         marks: [
-          await marca(1, cartoes.getByText('Aptos, não exportados'), clip, { posicao: 'direita' }),
-          await marca(2, page.getByPlaceholder('B/L, CE ou Cliente'), clip, { posicao: 'campo' }),
-          await marca(3, page.getByRole('checkbox', { name: /^B\/L original:/ }).first(), clip, { posicao: 'direita' }),
-          await marca(4, page.getByRole('button', { name: 'Conciliar com a ZPT' }), clip, { destaque: true }),
+          await marca(1, page.getByPlaceholder('B/L, CE ou Cliente'), clip, { posicao: 'campo' }),
+          await marca(2, page.getByRole('checkbox', { name: /^B\/L original:/ }).first(), clip, { posicao: 'direita' }),
+          await marca(3, cartoes.getByText('Aptos, não exportados'), clip, { posicao: 'direita' }),
+          await marca(4, page.getByRole('button', { name: /Exportar .*aptos para a ZPT/ }), clip, { destaque: true }),
+          await marca(5, page.getByRole('button', { name: 'Conciliar com a ZPT' }), clip),
         ],
       }
     },

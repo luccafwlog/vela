@@ -1,9 +1,10 @@
 // Gera o PDF de um guia rápido a partir de docs/manual/guias/<nome>.
 //
 // Uso: npm run manual:guia -- documentacao [--saida artifacts/manual/guia-documentacao.pdf]
-// Usa as capturas do manual (npm run manual:capture) e o mesmo visual, mais
-// enxuto: capa, sumário de uma página e as áreas em texto corrido, sem as
-// páginas de abertura de parte e de capítulo.
+// O guia é um método de trabalho: a capa, o mapa das etapas (que serve de
+// sumário) e uma etapa por página, com a faixa "Quando / Onde / Pronto quando"
+// do guia.json, a imagem e poucos passos. Usa as capturas do manual
+// (npm run manual:capture) e o mesmo visual.
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { ROOT, lerGuia, capituloHtml, escapar } from './fonte.mjs'
@@ -42,23 +43,41 @@ function capa(g) {
 </section>`
 }
 
-function sumario(g, areas) {
-  const linhas = []
-  for (const area of g.areas) {
-    linhas.push(`<li class="sum-cap"><a href="#area-${area.numero}"><span><b>${area.numero}</b> ${escapar(area.titulo)}</span>${pagina(`area-${area.numero}`)}</a></li>`)
-    for (const s of areas.get(area.numero).secoes) {
-      linhas.push(`<li class="sum-sec"><a href="#${s.id}"><span><b>${s.num}</b> ${s.titulo}</span>${pagina(s.id)}</a></li>`)
-    }
-  }
-  return `<section class="sumario guia-sumario" id="sumario">${alvo('sumario')}<h1>Sumário</h1>${g.apresentacao ? `<p class="lead">${escapar(g.apresentacao)}</p>` : ''}<ol class="sum">${linhas.join('')}</ol></section>`
+// O mapa: as etapas em ordem, cada uma com quando começa, quando está pronta
+// e a página. A ordem dos arquivos fica numa faixa embaixo.
+function mapa(g) {
+  const etapas = g.areas
+    .map(
+      (a) => `<a class="etapa" href="#area-${a.numero}">
+  <span class="n">${a.numero}</span>
+  <span class="texto"><b>${escapar(a.titulo)}</b>${a.quando ? `<span><i>Quando:</i> ${escapar(a.quando)}</span>` : ''}${a.pronto ? `<span><i>Pronto quando:</i> ${escapar(a.pronto)}</span>` : ''}</span>
+  ${pagina(`area-${a.numero}`)}
+</a>`,
+    )
+    .join('')
+  const ordem = g.ordem?.length
+    ? `<div class="guia-ordem"><span class="rotulo">${escapar(g.ordemTitulo || 'A ordem dos arquivos')}</span><ol>${g.ordem.map((o) => `<li>${escapar(o)}</li>`).join('')}</ol></div>`
+    : ''
+  return `<section class="sumario guia-mapa" id="sumario">${alvo('sumario')}<h1>${escapar(g.mapaTitulo || 'O caminho')}</h1>${g.apresentacao ? `<p class="lead">${escapar(g.apresentacao)}</p>` : ''}<nav class="etapas">${etapas}</nav>${ordem}</section>`
+}
+
+function faixa(a) {
+  const fatos = [
+    ['Quando', a.quando],
+    ['Onde', a.onde],
+    ['Pronto quando', a.pronto],
+  ].filter(([, v]) => v)
+  if (!fatos.length) return ''
+  return `<div class="guia-faixa">${fatos.map(([r, v]) => `<div><span class="rotulo">${r}</span><span>${escapar(v)}</span></div>`).join('')}</div>`
 }
 
 function area(a, { introducao, corpo }) {
   return `<section class="guia-area" id="area-${a.numero}" style="page: area${a.numero}">
   <div class="texto-corrido">
     <header class="guia-area__titulo">${alvo(`area-${a.numero}`)}<span class="numero">${a.numero}</span><h1>${escapar(a.titulo)}</h1></header>
+    ${faixa(a)}
     ${introducao}
-    ${corpo.replace(/(<h2 class="secao-titulo" id="([^"]+)">)/g, (_, h, id) => `${h}${alvo(id)}`)}
+    ${corpo}
   </div>
 </section>`
 }
@@ -76,11 +95,8 @@ function paginasCss(g) {
 
 ;(async () => {
   const g = lerGuia(nome)
-  const areas = new Map()
-  for (const a of g.areas) areas.set(a.numero, capituloHtml(a))
-
-  let corpo = capa(g) + sumario(g, areas)
-  for (const a of g.areas) corpo += area(a, areas.get(a.numero))
+  let corpo = capa(g) + mapa(g)
+  for (const a of g.areas) corpo += area(a, capituloHtml(a))
   corpo = telas(corpo)
   const head = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapar(g.titulo)}</title>
 <style>${fontes()}</style>
