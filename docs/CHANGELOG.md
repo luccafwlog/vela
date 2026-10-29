@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Ficha do B/L: etapa Demurrage avisa a Invoice retida pela trava do Portal (2026-10-29, sem migration;
+  decisão D1 do dono na revisão da PR luccafwlog/vela#1084):** no B/L faturado com container cujo Cliente não
+  tem Portal pronto nem Liberação de faturamento, a etapa **Cliente** do trilho continua concluída ("B/L
+  faturado · Portal não está ativo"), e a etapa **Demurrage** passa a dizer "Retida: Portal não está pronto e
+  sem Liberação de faturamento", com o link para o Provisionamento do Portal: a Invoice de Demurrage passa
+  pela trava do Portal e seria recusada. O aviso não conta como pendência do trilho. Ver
+  [Manifesto e EDI](modules/manifesto-edi.md).
 - **Carga solta com B/L cancelado em outra Viagem: o aviso manda excluir lá (2026-10-29, sem migration;
   decisão D3 do dono na revisão da PR luccafwlog/vela#1084):** no **Manifesto BB** e no **B/L avulso**, o B/L
   do arquivo que está cancelado em outra Viagem continua com a linha ignorada (o resto entra), mas o aviso
