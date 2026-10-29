@@ -23,7 +23,7 @@ A programação é o que o Vela mostra das datas dos navios. Para o Cliente, ela
 
 ### Como o quadro é montado
 
-- Uma linha por Viagem publicada e **Ativa**. Publicada é a Viagem com a chave **Aparece em Chegadas e Saídas** ligada ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem-nova)).
+- Uma linha por Viagem publicada e **Ativa**. Publicada é a Viagem com a chave **Aparece em Chegadas e Saídas** ligada ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem)).
 - A Viagem só entra com ao menos uma previsão: o ETA de uma escala ou o ETD de um porto de origem. Viagem publicada sem nenhuma data não aparece.
 - As colunas são fixas. Primeiro as de saída na origem, com o ETD (a previsão de saída): "Qingdao ETD", "Shanghai ETD", "Taicang ETD", "Ningbo ETD" e "Nansha ETD". Depois as de chegada no Brasil, com o ETA (a previsão de chegada): "Salvador ETA", "Vitória ETA" e "Pecém ETA".
 - Escala em outro porto não aparece no quadro. A Viagem que só tem datas em portos fora do quadro aparece com "—" em todas as colunas.
@@ -37,7 +37,7 @@ Cada célula diz uma coisa:
 | Data com ✓ verde | Data efetiva: a saída registrada (ATD) no porto de origem ou a chegada registrada (ATA) no porto brasileiro. |
 | Data sem marca | Previsão. |
 | Data em âmbar | Previsão que já passou e ainda não tem data efetiva. O âmbar aparece **só no Vela**. |
-| **Omitida**, em cinza | O armador omitiu a escala ([4.7](04-viagens-escalas.md#47-registrar-que-o-armador-omitiu-uma-escala)). |
+| **Omitida**, em cinza | O armador omitiu a escala ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)). |
 | "—" | Porto sem data. |
 
 ::: passos
@@ -109,8 +109,8 @@ Nome do navio e número da viagem são obrigatórios. Pelo menos um porto de **C
 
 ::: sozinho
 - Procura a Viagem pelo número da viagem e pelo IMO. O IMO exato vale mais que a grafia do nome; com IMO diferente, nunca junta duas Viagens.
-- Sem IMO, procura pelo nome padronizado do navio, o mesmo de Nova Viagem ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem-nova)).
-- Achou a Viagem: grava nela só os portos com data e a publica no Portal. Porto deixado em **Não escala** não perde nada: para tirar uma data, use **Editar** ([5.3](#53-corrigir-as-datas-de-um-navio)). É o caso da COSCO SHIPPING SEREIA / 024E do exemplo, já cadastrada em Viagens ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem-nova)): o Vela a acha pelo IMO 9900019 e não cria outra.
+- Sem IMO, procura pelo nome padronizado do navio, o mesmo de Nova Viagem ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem)).
+- Achou a Viagem: grava nela só os portos com data e a publica no Portal. Porto deixado em **Não escala** não perde nada: para tirar uma data, use **Editar** ([5.3](#53-corrigir-as-datas-de-um-navio)). É o caso da COSCO SHIPPING SEREIA / 024E do exemplo, já cadastrada em Viagens ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem)): o Vela a acha pelo IMO 9900019 e não cria outra.
 - Não achou: cria a Viagem já publicada, com o armador padrão (Cosco Shipping Specialized Carriers, SCAC CSSC). A **Linha do tempo** da Viagem mostra "Viagem criada · Origem: Chegadas e Saídas".
 - Se o navio já está cadastrado com outro armador, o armador dele passa a ser o padrão em todas as suas Viagens.
 - Grava só o ETD dos portos de origem e o ETA dos portos de chegada, e só a data, sem hora. A data no mesmo dia da que já está gravada não muda nada, nem a hora.
@@ -141,7 +141,7 @@ O navio aparece no quadro de Chegadas e Saídas, na posição da sua menor ETA. 
 
 ::: aconteceu "Viagem … cancelada: operação selada e somente leitura."
 - **O que o sistema faz:** O Vela achou a Viagem, mas ela está cancelada, e recusa a gravação. O aviso também pode ser "Viagem … cancelada: escala somente leitura.".
-- **O que você faz:** Confira o número da viagem. Se a Viagem deve voltar, peça ao {{Administrativo}} para reativá-la ([4.10](04-viagens-escalas.md#410-cancelar-reativar-ou-excluir-uma-viagem)).
+- **O que você faz:** Confira o número da viagem. Se a Viagem deve voltar, peça ao {{Administrativo}} para reativá-la ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
 :::
 
 ::: porque
@@ -206,12 +206,12 @@ Na linha do navio, em Chegadas e Saídas. Na ficha da Viagem, em **Viagens**, o 
 
 ::: aconteceu "Marquei Não escala num porto que tinha data"
 - **O que o sistema faz:** Pediu confirmação. Para o {{Administrativo}}, a escala sem nada ligado saiu da Viagem; com B/L descarregando, ATA, ATD, **Vinculada** Sim ou já salva na janela da escala, só a data saiu. Para as outras equipes, só a data saiu; a escala sem B/L, datas ou exportação deixa de aparecer no Line Up, mas continua na Viagem.
-- **O que você faz:** Se o navio não vai mais àquele porto e já tem carga para ele, registre a omissão na Viagem ([4.7](04-viagens-escalas.md#47-registrar-que-o-armador-omitiu-uma-escala)): a escala fica como **Omitida** e a carga segue para o porto de transbordo.
+- **O que você faz:** Se o navio não vai mais àquele porto e já tem carga para ele, registre a omissão na Viagem ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)): a escala fica como **Omitida** e a carga segue para o porto de transbordo.
 :::
 
 ::: aconteceu "Escala … travada: …."
 - **O que o sistema faz:** Recusa tirar da Viagem a escala travada (por exemplo, ADR de Saída fechado no porto) e não grava nada da janela. A escala continua com a data, e as outras datas ficam como estavam.
-- **O que você faz:** Se o navio não vai mais ao porto, registre a omissão ([4.7](04-viagens-escalas.md#47-registrar-que-o-armador-omitiu-uma-escala)). Se a data só mudou, informe a nova data em vez de marcar **Não escala**.
+- **O que você faz:** Se o navio não vai mais ao porto, registre a omissão ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)). Se a data só mudou, informe a nova data em vez de marcar **Não escala**.
 :::
 
 ::: porque
@@ -249,8 +249,8 @@ Na célula de chegada em âmbar, o botão abre a janela "Confirmar chegada · NA
 - **Na saída:** a data passa a ser a saída efetiva (ATD) do porto de embarque (POL) da Viagem, mas provisória.
 - O primeiro B/L com **Laden on Board** (a data de embarque que vem no B/L) diferente substitui a data confirmada. As duas datas vão para a **Linha do tempo** da Viagem.
 - Se o **Laden on Board** for do mesmo dia, a data confirmada fica e deixa de ser provisória.
-- A correção feita em **Viagens › Rotas e Manifestos**, no lápis de editar, vale mais que as duas ([4.6](04-viagens-escalas.md#46-conferir-o-atd-do-porto-de-embarque-e-o-nº-de-manifesto-da-rota)).
-- **Na chegada:** grava o ATA da escala, com tudo o que um ATA faz ([4.4](04-viagens-escalas.md#44-atualizar-as-datas-do-navio)): a escala deixa de ser a Próxima escala, o Line Up mostra o ATA com ✓ na coluna ETA e passa a linha para "chegado", o alerta de ETA sem ATA fecha (e abre "ATA registrada; falta o ETB." se nenhuma atracação tem ETB), o Aviso de Chegada (NOR) fica devido e o ADR mostra o ATA na seção Escala.
+- A correção feita em **Viagens › Rotas e Manifestos**, no lápis de editar, vale mais que as duas ([4.6](04-viagens-escalas.md#46-rotas-e-manifestos)).
+- **Na chegada:** grava o ATA da escala, com tudo o que um ATA faz ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)): a escala deixa de ser a Próxima escala, o Line Up mostra o ATA com ✓ na coluna ETA e passa a linha para "chegado", o alerta de ETA sem ATA fecha (e abre "ATA registrada; falta o ETB." se nenhuma atracação tem ETB), o Aviso de Chegada (NOR) fica devido e o ADR mostra o ATA na seção Escala.
 - No Portal, o Cliente vê só a data efetiva com ✓.
 :::
 
@@ -266,7 +266,7 @@ A célula mostra a data com ✓ verde. Na ficha da Viagem, a chegada aparece no 
 
 ::: aconteceu "A saída de … já está registrada; corrija em Viagens → Rotas e Manifestos."
 - **O que o sistema faz:** Recusa porque o porto de embarque já tem saída efetiva, registrada por outra pessoa ou vinda do B/L. Na chegada, o aviso é "A chegada em … já está registrada; corrija na escala, em Viagens.".
-- **O que você faz:** Para corrigir a saída, use **Viagens › Rotas e Manifestos** ([4.6](04-viagens-escalas.md#46-conferir-o-atd-do-porto-de-embarque-e-o-nº-de-manifesto-da-rota)). Para corrigir a chegada, edite a escala na ficha da Viagem ([4.4](04-viagens-escalas.md#44-atualizar-as-datas-do-navio)).
+- **O que você faz:** Para corrigir a saída, use **Viagens › Rotas e Manifestos** ([4.6](04-viagens-escalas.md#46-rotas-e-manifestos)). Para corrigir a chegada, edite a escala na ficha da Viagem ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)).
 :::
 
 ::: aconteceu "O porto … não tem saída programada nesta viagem."
@@ -276,7 +276,7 @@ A célula mostra a data com ✓ verde. Na ficha da Viagem, a chegada aparece no 
 
 ::: aconteceu "Viagem cancelada é somente leitura."
 - **O que o sistema faz:** Recusa confirmar a saída ou a chegada numa Viagem cancelada. Isso acontece quando outra pessoa cancelou a Viagem depois que você abriu a tela.
-- **O que você faz:** Se a Viagem deve voltar, peça ao {{Administrativo}} para reativá-la ([4.10](04-viagens-escalas.md#410-cancelar-reativar-ou-excluir-uma-viagem)).
+- **O que você faz:** Se a Viagem deve voltar, peça ao {{Administrativo}} para reativá-la ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
 :::
 
 ::: porque
@@ -376,14 +376,14 @@ Tudo ou nada evita a programação pela metade, com parte dos navios atualizada 
 
 Chegadas e Saídas não tem botão para tirar uma linha do quadro. A Viagem sai da programação, no Vela e no Portal, de um destes jeitos:
 
-- Sozinha, quando a Viagem fica **Concluída**, no último ATD ([4.9](04-viagens-escalas.md#49-concluir-a-viagem)).
+- Sozinha, quando a Viagem fica **Concluída**, no último ATD ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
 - Antes disso, pela chave **Aparece em Chegadas e Saídas**, desligada na edição da Viagem (passos abaixo).
-- Com **Cancelar viagem** ou **Excluir**, em **Viagens** ([4.10](04-viagens-escalas.md#410-cancelar-reativar-ou-excluir-uma-viagem)).
+- Com **Cancelar viagem** ou **Excluir**, em **Viagens** ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
 
 ::: ficha
 - **Quando usar:** O navio não deve mais aparecer para o Cliente, mas a Viagem continua valendo no Vela.
 - **Quem faz:** {{Qualquer equipe}} desliga a chave. Cancelar e excluir a Viagem são do {{Administrativo}}.
-- **Antes de começar:** Se o navio só deixou de ir a um porto, não tire a Viagem: marque **Não escala** naquele porto ([5.3](#53-corrigir-as-datas-de-um-navio)) ou registre a omissão ([4.7](04-viagens-escalas.md#47-registrar-que-o-armador-omitiu-uma-escala)).
+- **Antes de começar:** Se o navio só deixou de ir a um porto, não tire a Viagem: marque **Não escala** naquele porto ([5.3](#53-corrigir-as-datas-de-um-navio)) ou registre a omissão ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)).
 :::
 
 ::: passos
@@ -497,7 +497,7 @@ Na faixa do alto do bloco, a contagem "N de M escalas" diz quantas linhas os fil
 
 ::: aconteceu "N vazios de importação sem escala no Line Up"
 - **O que o sistema faz:** O vazio de um porto que não tem linha no Line Up, ou sem porto, não é contado em outro porto. Ele aparece abaixo do quadro, com o navio, a viagem e o porto, e um link para **Vazios IMP**.
-- **O que você faz:** Abra o link e confira o porto do vazio. Se o porto está certo, confira a escala desse porto na Viagem ([4.2](04-viagens-escalas.md#42-planejar-as-escalas-da-viagem)).
+- **O que você faz:** Abra o link e confira o porto do vazio. Se o porto está certo, confira a escala desse porto na Viagem ([4.2](04-viagens-escalas.md#42-planejar-as-escalas)).
 :::
 
 ::: aconteceu "Nenhuma escala encontrada."
@@ -599,7 +599,7 @@ Navios, armadores, portos e terminais são cadastros de apoio: as Viagens depend
 
 ### Navios e armadores
 
-Navios e armadores não têm tela nem exclusão. Eles nascem e mudam pela **Nova Viagem** e pelo **Editar** da Viagem ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem-nova)), por Chegadas e Saídas ([5.2](#52-publicar-um-navio-na-programação)) e pela planilha de programação ([5.5](#55-atualizar-vários-navios-por-planilha)). Qualquer usuário ativo faz isso.
+Navios e armadores não têm tela nem exclusão. Eles nascem e mudam pela **Nova Viagem** e pelo **Editar** da Viagem ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem)), por Chegadas e Saídas ([5.2](#52-publicar-um-navio-na-programação)) e pela planilha de programação ([5.5](#55-atualizar-vários-navios-por-planilha)). Qualquer usuário ativo faz isso.
 
 - O cadastro é único. O armador corrigido numa Viagem vale para todas as Viagens do mesmo navio.
 - O nome cadastrado do navio não muda pela edição de uma Viagem. O navio achado pelo IMO mantém o nome que já tinha.
@@ -650,12 +650,12 @@ Onde os terminais aparecem:
 Feriados não têm tela. O calendário de feriados de Vitória/ES é cadastrado pela equipe técnica e só serve aos prazos das cobranças Pix Itaú da Demurrage. A partir de 1º de novembro, sem os feriados do ano seguinte cadastrados, aparece o alerta "Calendário de feriados pendente"; avise a equipe técnica. O prazo do ADR de Saída não usa feriado: são 72 horas corridas.
 
 ::: conferir
-Na escala da Viagem ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais-e-registrar-a-atracação)), o terminal ativo do porto aparece para escolher. Em Locais, o terminal mostra o **Porto** no bloco **Cadastro**.
+Na escala da Viagem ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)), o terminal ativo do porto aparece para escolher. Em Locais, o terminal mostra o **Porto** no bloco **Cadastro**.
 :::
 
 ::: aconteceu "Não acho a tela de navios, armadores ou portos"
 - **O que o sistema faz:** Não há tela própria nem exclusão. Navio e armador nascem e mudam pela Viagem, por Chegadas e Saídas e pela planilha; o porto brasileiro nasce na primeira escala, com o código como nome.
-- **O que você faz:** Corrija pela edição da Viagem, em **Viagens** ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem-nova)).
+- **O que você faz:** Corrija pela edição da Viagem, em **Viagens** ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem)).
 :::
 
 ::: aconteceu "O terminal não aparece para escolher na escala"
