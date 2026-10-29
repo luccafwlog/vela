@@ -1,4 +1,4 @@
-Só quando a escala embarca vazios ou Granito, como declarado na escala (etapa 1).
+Só quando a escala embarca vazios ou Granito, como declarado na escala (etapa 2).
 
 ::: tela viagem-exportacao
 A aba Exportação da Viagem.

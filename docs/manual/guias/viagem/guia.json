@@ -12,10 +12,10 @@
       "numero": 1,
       "titulo": "Abrir a Viagem",
       "equipes": [
-        "Operações"
+        "Documentação"
       ],
-      "quando": "O armador avisa o navio ou manda a programação.",
-      "onde": "Viagens › Nova Viagem; ou Chegadas e Saídas › Importar programação.",
+      "quando": "Chega a programação do armador.",
+      "onde": "Chegadas e Saídas › Importar programação; as exceções, em Viagens › Nova Viagem.",
       "pronto": "A Viagem existe, com uma escala e o ETA por porto brasileiro.",
       "arquivo": "01-abrir-a-viagem.md"
     },
@@ -27,7 +27,7 @@
       ],
       "quando": "Logo depois das escalas, quando o terminal de cada operação é conhecido.",
       "onde": "Planejamento por escala › lápis da escala › Terminais e atracações.",
-      "pronto": "Toda frente com terminal, nenhuma em TBC, com o ETB e o ETD.",
+      "pronto": "Toda frente com terminal, nenhuma em TBC, com o ETB e o ETD; a exportação declarada, se houver.",
       "arquivo": "02-atribuir-os-terminais.md"
     },
     {
@@ -248,7 +248,7 @@
     "etapas": {
       "1": {
         "rotulo": "Abrir a Viagem",
-        "nota": "e as escalas",
+        "nota": "pela programação",
         "linha": 0
       },
       "2": {
@@ -338,7 +338,12 @@
     "setas": [
       [
         1,
-        2
+        2,
+        "lado"
+      ],
+      [
+        1,
+        3
       ],
       [
         3,

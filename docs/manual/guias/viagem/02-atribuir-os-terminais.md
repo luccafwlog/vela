@@ -16,4 +16,6 @@ A frente de carga cheia no terminal TVV, com o ETB e o ETD.
 - A data nova chega ao Line Up, ao Portal e aos avisos ao Cliente.
 :::
 
+Escala que também embarca? Na mesma janela, em **Operação da escala**, escolha **Importação + exportação** e marque **Granito** ou **Embarque de vazios**.
+
 Frente sem terminal fica **TBC** ("terminal a confirmar"); depois do ATA, toda frente precisa de terminal. O **ATB** e o **ATD** vêm quando o navio atracar e sair (etapa 12).
