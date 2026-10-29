@@ -33,12 +33,12 @@ Por isso um efeito pode levar um ou dois minutos para aparecer. Se depois de alg
 A maior parte dos alertas abre e fecha na hora da ação. Alguns dependem só da passagem do tempo: ninguém mexe em nada, e o prazo chega. Esses são abertos pela conferência de 15 minutos, que também fecha o que perdeu a causa e corrige o que a ação deixou passar. São eles:
 
 - o ETA, o ETB ou o ETD que chegou sem a data realizada, no próprio dia;
-- os prazos da documentação: 7 dias antes do primeiro ETA no Brasil, os de B/L esperado e de Baplie; 5 dias antes, o de CE Mercante pendente; 5 dias antes do ETA de cada porto, o de B/L sem Cliente;
+- os prazos da documentação: 7 dias antes do primeiro ETA no Brasil, os de B/L esperado e de Baplie; 5 dias antes, o de CE Mercante pendente e o de Planilha de Veículos; 5 dias antes do ETA de cada porto, o de B/L sem Cliente;
 - o prazo de 72 horas do ADR de Saída, contado do ATD;
 - os avisos ao Cliente que deviam ter saído e não saíram;
 - as contas do Portal do Cliente e os e-mails sem retorno do provedor.
 
-Na mesma frequência, o Vela marca como **Convite expirado** o convite do Portal enviado há mais de 48 horas e não usado. O convite não é reenviado sozinho: reenvie pelo **Provisionamento do Portal** (capítulo 14).
+O convite do Portal que expira (48 horas) não é reenviado sozinho: reenvie pelo **Provisionamento do Portal** (capítulo 14).
 
 ::: atencao
 O alerta de prazo pode aparecer até 15 minutos depois de o prazo vencer.
@@ -48,11 +48,11 @@ O alerta de prazo pode aparecer até 15 minutos depois de o prazo vencer.
 
 **Quem acompanha:** {{Documentação}}
 
-A importação grava o arquivo e deixa alguns passos para logo depois: aplicar as marcas do Baplie, calcular as Taxas Locais, emitir a fatura pelo CE quando a janela da planilha fechou antes, emitir a Invoice de Demurrage quando o último container é devolvido e refazer as contas depois dos veículos. Eles rodam em segundos depois da gravação e, de novo, a cada minuto.
+A importação grava o arquivo e deixa alguns passos para logo depois: aplicar as marcas do Baplie, calcular as Taxas Locais, emitir a fatura pelo CE, emitir a Invoice de Demurrage quando o último container é devolvido e refazer as contas depois dos veículos. Eles rodam em segundos depois da gravação e, de novo, a cada minuto.
 
-O passo que espera alguém não é falha. O B/L em Revisão ou sem tabela de cobrança espera sem alerta e tenta de novo a cada hora e logo que a Revisão, o Cliente ou a tabela de cobrança mudam. O passo que esperava câmbio volta sozinho quando chega a PTAX do dia ([19.5](#195-a-demurrage-pelo-relógio)).
+O passo que espera alguém não é falha. O B/L em Revisão ou sem tabela de cobrança espera sem o alerta de bloqueio (a falta de tabela de cobrança tem o seu, **Tabela de cobrança faltando**) e sai sozinho quando a Revisão, o Cliente ou a tabela de cobrança mudam.
 
-O passo que falha por um motivo passageiro tenta de novo em 1, 5, 15 e 60 minutos; a falha de dado bloqueia na hora. Bloqueado, o passo abre **Efeito de importação bloqueado**, que se resolve com **Reprocessar** ([6.10](06-importacao.md#610-quando-algo-fica-parado-depois-da-importação)).
+O passo que falha por um motivo passageiro tenta de novo sozinho; a falha de dado bloqueia na hora. Bloqueado, o passo abre **Efeito de importação bloqueado**, que se resolve com **Reprocessar** ([6.10](06-importacao.md#610-quando-algo-fica-parado-depois-da-importação)).
 
 ## 19.4 Os Comunicados automáticos
 
@@ -67,7 +67,7 @@ Os avisos ao Cliente saem sozinhos. A cada 2 minutos o Vela confere o que ficou 
 | **NOB · Aviso de Atracação** | Depois do ATB, por até 30 dias, para os B/Ls daquele terminal | Caixa **Documentação e Operação** |
 | **CE e Taxas** | Quando todos os B/Ls do Cliente na Viagem têm CE, estão sem pendência na Revisão e faturados | Caixas **Documentação e Operação** e **Financeiro** |
 
-Cada contato recebe cada aviso uma vez. O NOA, o NOR ou o NOB que você mandou à mão também conta: o contato que já recebeu não recebe de novo. Quando um envio falha, o Vela tenta de novo em 15 minutos, 1 hora e depois a cada 6 horas; a recusa definitiva do endereço só volta depois de 24 horas (capítulo 16).
+Cada contato recebe cada aviso uma vez. O NOA, o NOR ou o NOB que você mandou à mão também conta: o contato que já recebeu não recebe de novo. Quando um envio falha, o Vela tenta de novo e, se não conseguir, abre um alerta (capítulo 20).
 
 ::: atencao
 Enquanto a chave **Envio real** estiver desligada, todo e-mail ao Cliente vai para o suporte, com "[Teste → e-mail do Cliente]" no assunto, e conta como recebido. Ligar a chave depois não reenvia ao Cliente o que foi ao suporte.
@@ -84,7 +84,7 @@ Três rotinas cuidam da Demurrage:
 - **A cada 5 minutos,** a Régua de Cobrança manda por e-mail a cobrança de cada Invoice emitida e não paga, só em dia útil e a partir das 9h. A primeira sai na primeira rodada depois da emissão, dentro desse horário; as seguintes, a cada 7 dias (o intervalo padrão), até o pagamento. As Invoices do mesmo Cliente vão num e-mail só. A Régua pausa a Invoice com Disputa aberta ou com Pix em análise.
 
 ::: atencao
-- Se a PTAX não chega, o último câmbio continua valendo e abre **Falha na atualização da PTAX Demurrage** para a {{Documentação}}. Peça ao {{Financeiro}} ou a {{Equipamentos}} para usar **Informar PTAX**, em **Demurrage**.
+- Se a PTAX não chega, o último câmbio continua valendo, abre um alerta (capítulo 20) e alguém do {{Financeiro}} ou de {{Equipamentos}} usa **Informar PTAX**, em **Demurrage**.
 - Com a cobrança pelo Itaú ligada, a partir de 1º de novembro abre **Calendário de feriados pendente** se os feriados do ano seguinte não estão cadastrados. Sem eles, feriado conta como dia útil na Régua e nos prazos do Pix da Demurrage. Peça o cadastro ao suporte técnico.
 :::
 
@@ -99,7 +99,7 @@ Com a cobrança pelo Itaú ligada, uma rotina a cada minuto cuida do Pix das fat
 - **separa o que não é seguro**: o Pix com valor diferente, ou de uma fatura já paga ou cancelada, vai para **Pix em análise** e abre **PIX sem conciliação segura** para o {{Financeiro}} e o {{Administrativo}} (capítulo 24).
 
 ::: atencao
-Se a consulta não anda há mais de 15 minutos, abre **Consulta de Pix do Itaú parada**: os Pix pagos não estão sendo baixados. Enquanto isso, o {{Financeiro}} usa **Conciliar extrato**, em **Conciliação PIX**, e avisa o suporte técnico.
+Se a consulta para, os Pix pagos deixam de ser baixados e abre um alerta (capítulo 20). Enquanto isso, o {{Financeiro}} usa **Conciliar extrato**, em **Conciliação PIX**.
 :::
 
 ## 19.7 O Desbloqueio de CE
@@ -108,7 +108,7 @@ Se a consulta não anda há mais de 15 minutos, abre **Consulta de Pix do Itaú 
 
 - **Avisos ao Cliente.** Os dois avisos do Desbloqueio de CE (documento recusado e documentação validada) saem por e-mail segundos depois de gravados; a rotina de 5 minutos repete os que ficaram para trás.
 - **Validação.** A mesma rotina de 5 minutos reconfere as solicitações pelo que acontece fora do Desbloqueio, como um pagamento, uma isenção ou a troca de Cliente. Por isso a solicitação pode levar até 5 minutos para passar a **Documentação validada** depois que a fatura é paga.
-- **Limpeza.** Todo dia, às 3h, o Vela remove os arquivos que passaram do prazo de guarda (o registro fica, com "arquivo removido pela regra de retenção") e cancela o rascunho criado há mais de 7 dias, que solta os B/Ls dele.
+- **Limpeza.** Todo dia, às 3h, o Vela remove os arquivos que passaram do prazo de guarda e cancela o rascunho criado há mais de 7 dias que já não tem documento guardado, o que solta os B/Ls dele.
 
 O detalhe de cada prazo está no capítulo 12.
 
@@ -120,7 +120,7 @@ O detalhe de cada prazo está no capítulo 12.
 
 **Entrega de e-mail.** A cada minuto, e logo que o provedor de e-mail avisa, o Vela registra se cada e-mail foi entregue, devolvido ou marcado como spam: é a **Última entrega** que aparece no Provisionamento do Portal. O endereço devolvido em definitivo ou marcado como spam é bloqueado e para de receber. Se ele era o último contato válido do Cliente, abre **Cliente sem contato alternativo**.
 
-**Resumo do Portal.** Às 8h, cada pessoa ativa da {{Documentação}} e do {{Administrativo}} recebe o e-mail **Resumo do Portal**. Em **Pede ação** vêm as falhas de entrega, as exceções críticas de fatura abertas e os convites aguardando ativação; em **Para acompanhar**, o que fechou e a atividade de provisionamento. O resumo não sai quando tudo está em zero; enquanto houver um convite pendente, sai todo dia.
+**Resumo do Portal.** Às 8h, cada pessoa ativa da {{Documentação}} e do {{Administrativo}} recebe o e-mail **Resumo do Portal**, com o que pede ação e o que fechou. Ele não sai quando não há nada a mostrar.
 
 ## 19.9 Quando uma rotina para
 
