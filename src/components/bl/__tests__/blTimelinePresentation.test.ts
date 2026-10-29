@@ -74,6 +74,9 @@ describe('Histórico do B/L: motivo e autor', () => {
   it('esconde o motivo padrão escrito pelo banco e mostra o da pessoa ou a origem da importação', async () => {
     const { timelineEventDetail } = await import('../blTimelinePresentation')
     expect(timelineEventDetail({ justification: 'Revisao manual' })).toBeNull()
+    // Migration 502: a Revisão salva sem justificativa manda o padrão da tela,
+    // com acento, e ele passa a ir a cada campo do Histórico.
+    expect(timelineEventDetail({ justification: 'Revisão manual' })).toBeNull()
     expect(timelineEventDetail({ justification: 'Correção pedida pelo Cliente' })).toBe('Motivo: Correção pedida pelo Cliente')
     expect(timelineEventDetail({ justification: 'Importação de B/L · Viagem NAVIO 001N' })).toBe('Origem: Importação de B/L · Viagem NAVIO 001N')
   })

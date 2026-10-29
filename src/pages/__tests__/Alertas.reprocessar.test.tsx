@@ -52,14 +52,14 @@ it('Reprocessar mostra o B/L e o motivo e reprocessa o efeito com a justificativ
   confirmWithReason.mockResolvedValue('Tabela corrigida')
   render(<MemoryRouter><Alertas /></MemoryRouter>)
 
-  const row = screen.getByText(blocked.message).closest('tr') as HTMLElement
+  const row = screen.getByText(/O faturamento pelo CE do B\/L BL-394 está bloqueado/, { selector: 'td' }).closest('tr') as HTMLElement
   expect(within(row).queryByRole('button', { name: /^Resolver/ })).toBeNull()
   fireEvent.click(within(row).getByRole('button', { name: /^Reprocessar/ }))
 
   await waitFor(() => expect(retryImportEffect).toHaveBeenCalledWith(4242, 'Tabela corrigida'))
   const dialog = confirmWithReason.mock.calls[0][0]
   expect(dialog.message).toContain('BL-394')
-  expect(dialog.affected.items).toEqual(['falha técnica'])
+  expect(dialog.affected.items).toEqual(['Falha técnica ao executar o passo.', 'Detalhe técnico: effect_failed: falha técnica'])
   expect(resolveAlertItemWithJustification).not.toHaveBeenCalled()
 })
 
@@ -67,7 +67,7 @@ it('sem justificativa (diálogo cancelado), nada é reprocessado', async () => {
   confirmWithReason.mockResolvedValue(null)
   render(<MemoryRouter><Alertas /></MemoryRouter>)
 
-  const row = screen.getByText(blocked.message).closest('tr') as HTMLElement
+  const row = screen.getByText(/O faturamento pelo CE do B\/L BL-394 está bloqueado/, { selector: 'td' }).closest('tr') as HTMLElement
   fireEvent.click(within(row).getByRole('button', { name: /^Reprocessar/ }))
   await waitFor(() => expect(confirmWithReason).toHaveBeenCalled())
   expect(retryImportEffect).not.toHaveBeenCalled()
@@ -77,9 +77,43 @@ it('reprocessando: o alerta continua na lista com Reprocessando… e o botão de
   rows.current = { ...blocked, metadata: { ...blocked.metadata, reprocessing: true } } as typeof blocked
   render(<MemoryRouter><Alertas /></MemoryRouter>)
 
-  const row = screen.getByText(blocked.message).closest('tr') as HTMLElement
+  const row = screen.getByText(/O faturamento pelo CE do B\/L BL-394 está bloqueado/, { selector: 'td' }).closest('tr') as HTMLElement
   const button = within(row).getByRole('button', { name: /^Reprocessando…/ })
   expect((button as HTMLButtonElement).disabled).toBe(true)
   fireEvent.click(button)
   expect(confirmWithReason).not.toHaveBeenCalled()
+})
+
+it('motivo técnico do Postgres vira motivo de operação, com o texto cru só em Detalhe técnico', async () => {
+  const raw = 'null value in column "customer_id" of relation "local_charge_invoices" violates not-null constraint'
+  rows.current = {
+    ...blocked,
+    message: `O faturamento pelo CE do B/L BL-394 está bloqueado: ${raw}`,
+    metadata: { ...blocked.metadata, error_code: 'effect_failed', error_message: raw },
+  }
+  confirmWithReason.mockResolvedValue(null)
+  render(<MemoryRouter><Alertas /></MemoryRouter>)
+
+  const cell = screen.getByText(/O faturamento pelo CE do B\/L BL-394 está bloqueado\. Falha técnica ao executar o passo\. Corrija a causa e use Reprocessar\./, { selector: 'td' })
+  const detail = within(cell).getByText('Detalhe técnico').closest('details') as HTMLElement
+  expect(detail.textContent).toContain(raw)
+  expect(cell.firstChild?.textContent).not.toContain('customer_id')
+
+  fireEvent.click(within(cell.closest('tr') as HTMLElement).getByRole('button', { name: /^Reprocessar/ }))
+  await waitFor(() => expect(confirmWithReason).toHaveBeenCalled())
+  const items = confirmWithReason.mock.calls[0][0].affected.items as string[]
+  expect(items[0]).toBe('Falha técnica ao executar o passo.')
+  expect(items[1]).toContain('customer_id')
+})
+
+it('recusa de negócio em português aparece como está, sem Detalhe técnico', () => {
+  const reason = 'Tabela de cobrança incompleta para o POD Santos.'
+  rows.current = {
+    ...blocked,
+    message: `O faturamento pelo CE do B/L BL-394 está bloqueado: ${reason}`,
+    metadata: { ...blocked.metadata, error_code: 'effect_domain_refused', error_message: reason },
+  }
+  render(<MemoryRouter><Alertas /></MemoryRouter>)
+  const cell = screen.getByText(`O faturamento pelo CE do B/L BL-394 está bloqueado. ${reason} Corrija a causa e use Reprocessar.`, { selector: 'td' })
+  expect(within(cell).queryByText('Detalhe técnico')).toBeNull()
 })

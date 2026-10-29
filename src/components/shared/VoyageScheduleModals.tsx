@@ -976,6 +976,10 @@ export function EscalaModal({
       setPortError('A escala é de porto brasileiro; portos estrangeiros da rota não são escalas.')
       return
     }
+    if (!/^BR[A-Z0-9]{3}$/.test(normalizedPort)) {
+      setPortError(`LOCODE brasileiro invalido: ${normalizedPort}.`)
+      return
+    }
     setPortError(null)
 
     if (ataDate && !ataTime.trim()) {
@@ -1261,7 +1265,8 @@ export function EscalaModal({
               ) : null}
               {closedBlockers.map((blocker) => (
                 <div key={`${blocker.reportId ?? 'report'}-${blocker.terminalId ?? 'terminal'}`} className="app-escala-feedback__blocker">
-                  <span>ADR fechado{blocker.terminalCode ? ` · terminal ${blocker.terminalCode}` : ''}{blocker.reportId ? ` · ${blocker.reportId}` : ''}</span>
+                  {/* reportId é o identificador interno do ADR (viagem::porto): fica só na chave e no link de Reabrir ADR. */}
+                  <span>ADR fechado{blocker.terminalCode ? ` · terminal ${blocker.terminalCode}` : ''}</span>
                   <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => onReopenAdr?.(blocker)}>Reabrir ADR</Button>
                 </div>
               ))}

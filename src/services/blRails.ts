@@ -31,10 +31,17 @@ export type RailInvoice = {
   invoice_type?: string | null
 }
 export type RailDemurrageInvoice = { id: number; status: string | null }
-export type RailPortalVisibility = { visible: boolean; reasons: string[] }
+/**
+ * `billingReady`: Portal pronto ou Liberação de faturamento sem Portal vigente,
+ * a condição da pendência "Acesso ao portal nao provisionado" da Revisão.
+ */
+export type RailPortalVisibility = { visible: boolean; reasons: string[]; billingReady?: boolean }
 export type DocumentalSummary = { pendingCount: number; label: string }
 
 const DOCUMENTAL_CORE_KEYS = new Set(['customer', 'charges', 'ce', 'invoice'])
+// O gate da Revisão trava a emissão; não desfaz o que já foi emitido
+// (`recompute_bl_review_status`).
+const INVOICED_FINANCIAL_STATUSES = new Set(['invoiced', 'partially_paid', 'paid'])
 
 function normalizeText(value: string) {
   return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
@@ -59,28 +66,47 @@ function reasonDetail(reason: string) {
   if (normalized.includes('no containers')) return 'Containers não encontrados'
   if (normalized.includes('linha') || normalized.includes('calcul') || normalized.includes('invalid')) return 'Linha inválida'
   if (normalized.includes('email') || normalized.includes('e mail')) return 'Cliente sem e-mail cadastrado'
+  // Situação não carregada (ou com falha): o card fica fechado sem afirmar que a conta não está ativa.
+  if (normalized.includes('portal') && normalized.includes('indisponivel')) return 'Situação do Portal indisponível'
   if (normalized.includes('portal')) return 'Conta do Portal não está ativa/provisionada'
   if (normalized.includes('cliente') && normalized.includes('vincul')) return 'Sem cliente vinculado'
   if (normalized.includes('revis') || normalized.includes('review')) return 'Pendência documental'
   return reason.trim() || 'Pendência documental'
 }
 
+function isPortalAccessReason(reason: string) {
+  return normalizeText(reason).includes('portal') && classifyDocumentalReason(reason) === 'customer'
+}
+
 function documentalReasonMap(input: { bl: RailBl; reviewReasons?: string[]; portalVisibility?: RailPortalVisibility | null }) {
   const missingLooseCargoWeight = isBreakbulkCargoMode(input.bl.cargo_mode)
     && (input.bl.bb_weight_ton == null || Number(input.bl.bb_weight_ton) <= 0)
+  // Conta do Portal não ativa só é pendência do Cliente enquanto segura a
+  // fatura: com Liberação vigente (ou Portal pronto) o gate passa, e B/L
+  // faturado já saiu do gate. Os outros motivos (CE, Cliente) continuam.
+  const portalAccessSettled = input.portalVisibility?.billingReady === true
+    || INVOICED_FINANCIAL_STATUSES.has(input.bl.financial_status ?? '')
+  const portalReasons = input.portalVisibility == null
+    ? ['Status do Portal indisponível']
+    : input.portalVisibility.visible ? [] : input.portalVisibility.reasons
   const reasons = [
     ...(input.reviewReasons ?? []),
-    ...(input.portalVisibility?.visible === false ? input.portalVisibility.reasons : []),
-    ...(input.portalVisibility == null ? ['Status do Portal indisponível'] : []),
+    ...portalReasons,
     ...(input.bl.billing_hold_reason ? [input.bl.billing_hold_reason] : []),
     ...(missingLooseCargoWeight ? ['Peso BB ausente'] : []),
   ]
   const map = new Map<RailStage['key'], string>()
   for (const reason of reasons) {
+    if (portalAccessSettled && isPortalAccessReason(reason)) continue
     const key = classifyDocumentalReason(reason)
     if (!map.has(key)) map.set(key, reasonDetail(reason))
   }
-  return map
+  return {
+    map,
+    // Cliente apto sem Portal ativo: diz por quê, em vez de "Cliente apto" seco.
+    portalAccessWaived: portalAccessSettled && input.portalVisibility?.visible === false
+      && input.portalVisibility.reasons.some(isPortalAccessReason),
+  }
 }
 
 const fmt = (value: string | null | undefined) =>
@@ -136,7 +162,10 @@ export function buildDocumentalRail(input: {
   const { bl, latestInvoice, demurrageInvoices, reviewReasons, portalVisibility } = input
   const fichaFat = `/bls/${bl.id}?tab=faturamento`
   const fichaDet = `/bls/${bl.id}?tab=detalhes`
-  const reasonMap = documentalReasonMap({ bl, reviewReasons, portalVisibility })
+  const { map: reasonMap, portalAccessWaived } = documentalReasonMap({ bl, reviewReasons, portalVisibility })
+  const customerReadyDetail = !portalAccessWaived
+    ? 'Cliente apto'
+    : portalVisibility?.billingReady === true ? 'Cliente apto · Liberação sem Portal' : 'B/L faturado · Portal não está ativo'
 
   const customer: RailStage = !bl.customer_id
     ? { key: 'customer', label: 'Cliente', detail: 'Sem cliente vinculado', state: 'blocked', href: '/revisao?bl=' + encodeURIComponent(bl.id) }
@@ -146,7 +175,7 @@ export function buildDocumentalRail(input: {
         ? { key: 'customer', label: 'Cliente', detail: reasonMap.get('customer')!, state: 'blocked', href: '/revisao?bl=' + encodeURIComponent(bl.id) }
         : bl.review_status === 'pending_review' && !reasonMap.has('charges')
           ? { key: 'customer', label: 'Cliente', detail: 'Pendência documental', state: 'blocked', href: '/revisao?bl=' + encodeURIComponent(bl.id) }
-          : { key: 'customer', label: 'Cliente', detail: 'Cliente apto', state: 'done' }
+          : { key: 'customer', label: 'Cliente', detail: customerReadyDetail, state: 'done' }
 
   const chargeStatus = bl.charge_status ?? 'not_calculated'
   const chargeIssue = reasonMap.get('charges')

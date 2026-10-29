@@ -82,6 +82,34 @@ describe('filterVoyageRailItems', () => {
     expect(result.map((item) => item.id)).toEqual([10])
   })
 
+  it('período compara pela data: ETA com hora entra em "hoje" e no último dia da janela', () => {
+    const today = new Date()
+    const inDays = (days: number) => {
+      const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days)
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    }
+    const comHora: VoyageRailItem[] = [
+      { ...items[0], id: 20, proximaEscala: { pod: 'Santos', eta: `${inDays(0)}T14:00:00`, etb: null } },
+      { ...items[0], id: 21, proximaEscala: { pod: 'Santos', eta: `${inDays(7)}T14:00:00`, etb: null } },
+      { ...items[0], id: 22, proximaEscala: { pod: 'Santos', eta: `${inDays(8)}T00:30:00`, etb: null } },
+    ]
+    const filtro = (periodo: 'hoje' | '7d') =>
+      filterVoyageRailItems(comHora, { search: '', status: 'all', conciliacao: 'all', periodo }).map((item) => item.id)
+
+    expect(filtro('hoje')).toEqual([20])
+    expect(filtro('7d')).toEqual([20, 21])
+  })
+
+  it('período "custom" inclui ETA com hora no dia final', () => {
+    const comHora: VoyageRailItem[] = [
+      { ...items[0], id: 30, proximaEscala: { pod: 'Santos', eta: '2026-06-21T18:00:00', etb: null } },
+    ]
+    const result = filterVoyageRailItems(comHora, {
+      search: '', status: 'all', conciliacao: 'all', periodo: 'custom', dataInicio: '2026-06-21', dataFim: '2026-06-21',
+    })
+    expect(result.map((item) => item.id)).toEqual([30])
+  })
+
   it('ordena por próxima escala (ETA) ascendente, depois por navio/viagem', () => {
     const result = filterVoyageRailItems(items, { search: '', status: 'all', conciliacao: 'all', periodo: 'all' })
     expect(result[0].id).toBe(2) // ETA 2026-06-18 vem antes de 2026-06-20

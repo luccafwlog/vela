@@ -45,7 +45,7 @@ describe('classifyDbError', () => {
   it('extrai code/message de um objeto plano (erro do PostgREST)', () => {
     expect(classifyDbError({ code: 'PGRST301', message: 'JWT expired' })).toEqual({
       kind: 'sessao_expirada',
-      message: 'Sua sessao expirou. Entre novamente para continuar.',
+      message: 'Sua sessão expirou. Entre novamente para continuar.',
     })
   })
 
@@ -67,14 +67,14 @@ describe('classifyDbError', () => {
   it('NAO preserva a mensagem crua para codigos de constraint sem preserveMessage', () => {
     expect(classifyDbError({ code: '23503', message: 'update or delete on table "voyages" violates foreign key constraint "fk_x" on table "bls"' })).toEqual({
       kind: 'validacao',
-      message: 'Registro referenciado nao existe ou ainda esta em uso.',
+      message: 'O registro vinculado não existe mais ou ainda está em uso.',
     })
   })
 
   it('usa a mensagem canonica de 42501 quando o texto cru expõe nome de tabela', () => {
     expect(classifyDbError({ code: '42501', message: 'permission denied for table customers' })).toEqual({
       kind: 'permissao',
-      message: 'Sem permissao para esta acao. Solicite acesso administrativo.',
+      message: 'Sem permissão para esta ação.',
     })
   })
 
@@ -84,7 +84,7 @@ describe('classifyDbError', () => {
       message: 'new row violates row-level security policy for table "invoices"',
     })).toEqual({
       kind: 'permissao',
-      message: 'Sem permissao para esta acao. Solicite acesso administrativo.',
+      message: 'Sem permissão para esta ação.',
     })
   })
 
@@ -98,7 +98,7 @@ describe('classifyDbError', () => {
   it('classifica mensagem generica de permission denied sem code conhecido', () => {
     expect(classifyDbError({ code: '', message: 'permission denied' })).toEqual({
       kind: 'permissao',
-      message: 'Sem permissao para esta acao. Solicite acesso administrativo.',
+      message: 'Sem permissão para esta ação.',
     })
   })
 
@@ -183,7 +183,7 @@ describe('isExpectedUserFacingDbError', () => {
 describe('userFacingErrorMessage', () => {
   it('traduz erros conhecidos e nunca exibe mensagem técnica desconhecida', () => {
     expect(userFacingErrorMessage({ code: '23503', message: 'violates foreign key constraint fk_bls' })).toBe(
-      'Registro referenciado nao existe ou ainda esta em uso.',
+      'O registro vinculado não existe mais ou ainda está em uso.',
     )
     expect(userFacingErrorMessage(new Error('relation internal_table does not exist'), 'Não foi possível excluir.')).toBe(
       'Não foi possível excluir.',
@@ -192,9 +192,9 @@ describe('userFacingErrorMessage', () => {
 })
 
 describe('recusas de negócio das importações (P000x)', () => {
-  // Mensagens reais das RPCs de importação (migrations 176, 194, 213).
+  // Mensagens reais das RPCs de importação (migrations 176, 194, 213, 500, 511).
   it.each([
-    ['P0005', 'O B/L ABC1 ja esta na Viagem V1 e o arquivo foi importado na Viagem V2. Nenhum B/L do lote foi gravado: confira a Viagem de destino ou corrija a Viagem do B/L pela ficha.'],
+    ['P0005', 'O B/L ABC1 já está na Viagem V1 e o arquivo foi importado na Viagem V2. Nenhum B/L do lote foi gravado: exclua o B/L lá e importe de novo (cancelar não libera o número).'],
     ['P0006', 'O container MSCU1234565 do B/L ABC1 tem a Invoice de Demurrage DEM-1 e não sai por reimportação.'],
     ['P0008', 'O container MSCU1234565 esta no B/L A (Cliente 1) e no B/L B (Cliente 2): container FCL nao e dividido entre Clientes diferentes. Corrija o Cliente ou o container do arquivo.'],
     ['P0003', 'B/L ABC1 sem CE Mercante. Cadastre o CE antes de faturar.'],

@@ -8,6 +8,13 @@ O mapeamento que deu origem à matriz (números, quem faz o quê pelo código,
 sumário final proposto e divergências) está no
 [relatório de 2026-10-26](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md).
 
+## Catálogo de situações
+
+[`situacoes/`](situacoes/README.md) lista, por capítulo, os objetivos de quem
+usa o Vela ("Quero fazer…") e as situações comuns fora do caminho normal
+("Aconteceu…"), cada uma ligada às regras desta matriz. É a pauta da redação de
+cada capítulo.
+
 ## Matriz de cobertura
 
 [`cobertura/`](cobertura/) liga cada regra de negócio do código ao lugar do
@@ -150,3 +157,47 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     cuja quantidade vai a zero sai da cobrança, com a alteração guardada; a
     prévia pede o **Gravar mesmo assim** e, sem ele, abre o alerta (BLR-150,
     ALE-086).
+- **Recusa da carga solta em outra Viagem** (decisão do dono de 2026-10-28,
+  pergunta P1 da situação S6.03; migration `500`): a prévia e a gravação do
+  Manifesto BB e do B/L avulso mandam excluir o B/L na outra Viagem e importar
+  de novo, como o arquivo de B/L de container, em vez de corrigir a Viagem
+  pela ficha (BLR-053 e a mensagem do banco).
+- **Recusa do banco na omissão, no transbordo e no COD** (decisão do dono de
+  2026-10-28, pergunta P4 da situação S4.21; tela, sem migration): **Omitir
+  escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e **Reverter
+  para transbordo** recusados mostram o motivo do banco, pelo mesmo tradutor
+  das outras telas; "Verifique se algum B/L está em COD." só complementa a
+  recusa por B/L em COD (VIA-070, VIA-058, VIA-064 e as mensagens).
+- **Conferência do capítulo-piloto contra o código** (2026-10-28, sem mudança
+  no sistema): linhas que descreviam outra coisa que o código faz. O Baplie
+  nunca cria escala (VIA-052, desde a migration `418`); todos os setores mudam
+  terminal, ATB, ATD, Restow e frentes da atracação (ACE-085, como a ACE-120);
+  o botão que recusa o diálogo das taxas alteradas à mão é **Voltar** (VIA-145);
+  sem carga solta e sem próxima escala a tela mostra "—" (VIA-008, VIA-009); a
+  conferência do LOCODE e a criação do porto não valem na escala nova só de
+  importação (VIA-033); o resultado do CE lista os Retidos e os Pulados por B/L
+  (CEB-019); **Remover CE** com fatura emitida é recusado pela própria ação
+  (BLR-107); a importação de B/L sem usuário ativo mostra "Usuario sem
+  permissao ativa." (ALE-065).
+- **Defeitos corrigidos depois da conferência do piloto** (decisão do dono de
+  2026-10-29, PR luccafwlog/vela#1092; telas, e a migration `505` para o
+  motivo da exclusão): escala nova só de importação com LOCODE brasileiro novo
+  ou fora do formato (VIA-033); **Adicionar navio** não apaga datas da Viagem
+  existente (VIA-106); mesmo dia não tira a hora e escala só de exportação não
+  vira importação (VIA-107, VIA-113); confirmação de **Não escala** por equipe
+  e recusa da trava sem gravação parcial (VIA-108); ETA com hora vencido e
+  filtro **Período** pelo dia (VIA-009); motivo da recusa de navio na tela
+  (VIA-011, VIA-106); mensagem dos vazios de exportação (EQU-077); datas da
+  prévia do B/L em dd/mm/aaaa e motivo da exclusão em português
+  (`delete_record_block_reason`).
+- **Efeito de importação que espera tabela de cobrança** (2026-10-29, sem
+  mudança no sistema): o B/L sem tabela de cobrança já tem o cálculo em
+  revisão, e a fatura dele não sai sozinha quando a tabela é cadastrada; sai ao
+  importar de novo a planilha do CE ou ao recalcular o B/L (BLR-138, TAX-015;
+  regra em
+  [manifesto-edi.md](../modules/manifesto-edi.md), item 20 dos efeitos de
+  importação).
+- **Excluir Cliente** (2026-10-29, sem mudança no sistema): a matriz e a
+  [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil) davam
+  a exclusão de Cliente ao Administrativo sem dizer que a Trava de exclusão
+  recusa todo Cliente com CNPJ, que é obrigatório; Cliente se desativa (ACE-088).

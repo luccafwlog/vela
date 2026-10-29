@@ -80,13 +80,15 @@ export type RoutingFailureRow = {
 }
 
 /**
- * Motivo da falha em português de tela: o banco grava a frase técnica
- * (`fanout_alert_item*`, com "fallback"); motivo desconhecido segue como veio.
+ * Motivo da falha em português de tela. O banco grava a frase técnica
+ * (`fanout_alert_item*`, com "fallback", "audiência" ou, nas linhas antigas,
+ * o papel em snake_case) e ela fica em `alert_notification_failures.reason`
+ * para o suporte; a tela nunca a mostra. Toda linha da tabela é alerta sem
+ * destinatário ativo, então o motivo desconhecido também vira a frase do setor.
  */
 export function routingFailureReasonLabel(reason: string): string {
-  if (/fallback/i.test(reason)) return 'Ninguém ativo no setor do alerta nem no Administrativo.'
-  if (/audi[eê]ncia/i.test(reason)) return 'Ninguém ativo no setor do alerta.'
-  return reason
+  if (/fallback|administrativo/i.test(reason)) return 'Ninguém ativo no setor do alerta nem no Administrativo.'
+  return 'Ninguém ativo no setor do alerta.'
 }
 
 export async function fetchRoutingFailures(page = 0): Promise<{ rows: RoutingFailureRow[]; count: number }> {

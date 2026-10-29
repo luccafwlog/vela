@@ -6,6 +6,132 @@
 
 ## 2026-10
 
+- **Omissão, transbordo e COD: a tela mostra o motivo da recusa (2026-10-28, sem migration, PR
+  luccafwlog/vela#1085):** **Omitir escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e
+  **Reverter para transbordo** recusados pelo banco mostram o motivo da recusa, pelo mesmo tradutor das
+  outras telas (`classifyDbError`), em vez de "Falha ao …"; erro técnico continua com o texto fixo, e
+  "Verifique se algum B/L está em COD." só complementa a recusa por B/L em COD. Ver
+- **Prévias com troca de POD no B/L com exceção de terminal (2026-10-29, migration `512`; revisão da PR
+  luccafwlog/vela#1084):** a prévia das taxas alteradas à mão e a da reimportação de carga solta de B/L
+  faturado tiravam o terminal da exceção e deixavam o porto, e o banco recusava a simulação
+  (`bls_terminal_override_pair_check`): ao mudar o POD de um B/L com exceção de terminal e taxa alterada à
+  mão, a ficha gravava sem o diálogo **Gravar mesmo assim**, e a prévia da carga solta mostrava o erro do
+  banco na linha do B/L. As duas prévias tiram terminal e porto juntos, como a gravação. Só redefine
+  funções. **Teste local-pg:** `previaPodComExcecaoDeTerminal.local-pg.test.ts`.
+- **Recusa da carga solta em outra Viagem com acento (2026-10-29, migration `511`; revisão da PR
+  luccafwlog/vela#1084):** ao gravar Manifesto BB ou B/L avulso com B/L de outra Viagem, a tela mostrava a
+  recusa da migration `500` sem acento ("exclua o B/L la e importe de novo (cancelar nao libera o
+  numero)"); agora diz "O B/L … já está na Viagem … exclua o B/L lá e importe de novo (cancelar não
+  libera o número).", como a prévia. Só redefine a função.
+- **Carga solta em outra Viagem: a recusa manda excluir o B/L lá (2026-10-28, migration `500`, PR
+  luccafwlog/vela#1083):** a recusa do Manifesto BB e do B/L avulso para B/L que já está em outra Viagem
+  manda excluir o B/L lá e importar de novo, como o arquivo de B/L de container; antes mandava corrigir a
+  Viagem pela ficha, que não muda a Viagem. Ver [Manifestos e EDI](modules/manifesto-edi.md).
+- **Ficha do B/L e do Cliente: achados da revisão da release (2026-10-29, sem migration; revisão da PR
+  luccafwlog/vela#1084):** no B/L de grupo de Demurrage que não emite a Invoice, o ROE manual antigo
+  aparece "sem efeito: a Invoice do grupo sai pelo B/L …" (antes, "a próxima Invoice sai com ele");
+  o motivo padrão "Revisão manual" da Revisão sem justificativa não aparece em cada campo do Histórico
+  (a migration `502` passou a gravá-lo); o Histórico do Cliente mostra **Cliente pelo Portal** na mudança
+  feita no Perfil do Portal, como as Alterações do cadastro (`503`); o B/L cancelado não oferece
+  **Definir condição do B/L**, e a recusa do banco ao salvar a condição aparece como veio; a etapa
+  Cliente do trilho diz "Situação do Portal indisponível" (não "Conta do Portal não está ativa")
+  enquanto a situação não chega; convite, suspensão e troca do E-mail de recuperação do Portal releem o
+  status do Portal da ficha do B/L e a Revisão.
+- **Chegadas e Saídas: data com hora, escala sem data e Viagem cancelada (2026-10-29, sem migration;
+  revisão da PR luccafwlog/vela#1084):** na edição, a data gravada com hora pela janela da escala aparecia
+  em branco no campo; agora aparece o dia, e salvar o mesmo dia mantém a hora. Salvar outro porto não
+  retira mais, sem confirmação, a escala de chegada que já estava sem data (Administrativo). **Adicionar
+  navio** com o VOY e o navio de uma Viagem cancelada recusa sem gravar nada ("…cancelada. Reative-a em
+  Viagens…"), e o aviso de sucesso diz quando a Viagem já existia. Ver
+  [Chegadas e Saídas](modules/chegadas-saidas.md).
+- **Viagens: recusa da omissão e Conciliação sem a contagem (2026-10-29, sem migration; revisão da
+  PR luccafwlog/vela#1084):** na janela **Omitir escala**, voltar depois de uma recusa e confirmar de novo
+  não repete a recusa anterior na confirmação (ela continua no formulário para orientar a correção). A
+  ficha da Viagem diz **Verificando** enquanto a contagem de divergências do Baplie não chega ou falha,
+  como a faixa e a tabela; antes dizia **Conciliada** sem saber das divergências. Ver
+  [Viagens](modules/viagens.md).
+- **Motivo do bloqueio legível no alerta de efeito de importação (2026-10-29, sem migration):** em
+  `/alertas`, **Efeito de importação bloqueado** deixa de mostrar o erro cru do banco (ex.: `null value
+  in column "customer_id"…`): a linha diz o passo, o registro, o motivo em linguagem de operação e
+  "Corrija a causa e use Reprocessar."; o texto técnico fica recolhido em **Detalhe técnico**, também
+  no diálogo do Reprocessar. Regra em [Manifesto e EDI, item 20](modules/manifesto-edi.md).
+- **Recalcular selecionados deixa de fora B/L com Revisão pendente (2026-10-29, sem migration):** em
+  **Taxas Locais › Validação**, o lote passa a seguir a regra do botão da linha: B/Ls com Revisão
+  pendente (fora a do Portal) não são recalculados, aparecem como bloqueados no diálogo e o aviso diz
+  "N B/Ls com Revisão pendente ficaram de fora: resolva na Revisão.". Se todos estiverem nesse caso,
+  nada é recalculado. Ver [Taxas Locais](modules/taxas-locais.md).
+- **Troca da chave Envio real que falha agora avisa (2026-10-29, sem migration):** em **Clientes ›
+  Comunicação**, a recusa de **Envio real ligado/desligado** depois da confirmação sumia sem mensagem e
+  a chave continuava como estava. O bloco **Canal de envio** passa a mostrar o motivo do servidor (ou
+  "Não foi possível trocar a chave de envio. Tente novamente." quando não há resposta) e relê a chave
+  depois de toda tentativa, para não mostrar o estado anterior se a gravação chegou a acontecer.
+- **Validação não oferece Recalcular com Revisão pendente (2026-10-29):** o B/L com Revisão pendente
+  (fora a do Portal) mostra **Resolver na Revisão** no lugar de **Recalcular**, na linha e na faixa da
+  linha aberta; a Revisão recalcula ao salvar. Sem migration. Ver
+  [Taxas Locais](modules/taxas-locais.md#superfícies-operacionais-fora-da-rota).
+- **Conciliação da Viagem com o mesmo nome e a mesma cor em toda tela (2026-10-29):** a tabela de
+  `/viagens` passa a mostrar **Divergente** em vermelho, como a faixa e a ficha (antes, âmbar), e o
+  estado sem pendência se chama **Conciliada** em todo lugar (a faixa e a ficha diziam "Conciliado").
+  Tabela e ficha leem o tom de `ESTADO_CONCILIACAO_META`. **Teste:**
+  `src/components/voyages/__tests__/VoyageListTable.test.tsx`.
+- **ROE manual no grupo de Demurrage (2026-10-29, sem migration):** quando B/Ls do mesmo Cliente na
+  mesma Viagem dividem containers, a ficha dos B/Ls que não emitem a Invoice deixa de oferecer
+  **Definir/Trocar ROE manual…**, que não tinham efeito, e aponta o B/L de menor número, que emite a
+  Invoice; **Tirar ROE manual…** segue para limpar valor antigo
+  ([Demurrage](modules/demurrage.md)).
+- **Mensagens de recusa com acento e motivo de falha de alerta em linguagem de tela (2026-10-29,
+  migration `509`):** a aba **Falhas de entrega de alertas** (Admin) mostra sempre o **Motivo** em
+  frase de tela ("Ninguém ativo no setor do alerta." ou "… nem no Administrativo."); o texto técnico
+  gravado em `alert_notification_failures.reason` fica só no banco para o suporte. As recusas das
+  RPCs deixam de sair sem acento ou como "Credenciais invalidas": "Usuario sem permissao ativa." vira
+  "Usuário sem permissão ativa.", "Credenciais invalidas para importar frete do BL." vira "Usuário sem
+  permissão para importar o frete do B/L.", "… nao pode ser removido: ha fatura emitida" vira "… não
+  pode ser removido: há fatura emitida", e o mesmo para câmbio (ROE), consolidada aberta, omissão e
+  fatura (lista no cabeçalho da `509`, que só redefine funções). As mensagens fixas de
+  `classifyDbError` ganham acento; "Sem permissao para esta acao. Solicite acesso administrativo." vira
+  "Sem permissão para esta ação." e "Conflito de concorrencia." vira "Outra pessoa alterou o mesmo
+  registro ao mesmo tempo.". O agrupamento no Sentry dessas recusas muda junto com o texto.
+- **Cancelar pedido depois de Reconferir CE e aviso de ADR fechado sem código interno (2026-10-29,
+  migration `510`):** no Desbloqueio de CE, **Cancelar pedido** fica apagado também depois de
+  **Reconferir CE** num B/L que já foi à ZPT; antes o botão voltava ligado e o clique terminava na
+  recusa do banco. Na janela da escala da Viagem e nos avisos de ADR fechado, sai o
+  identificador interno do ADR; fica o código do terminal.
+  ([Desbloqueio de CE](modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt),
+  [Viagens](modules/viagens.md))
+
+- **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
+  programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
+  histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na
+  escala com mensagem clara; a recusa do cadastro de Viagem aparece em português; o "hoje" de Chegadas
+  e Saídas e os filtros de data de Viagens seguem o dia de Brasília; a prévia de B/Ls mostra datas no
+  formato brasileiro. A recusa de exclusão por vínculo (`delete_record_block_reason`) passa a dizer em
+  português também o pedido de Desbloqueio de CE e as tabelas que antes saíam com o nome técnico.
+- **Datas do container de B/L cancelado só para leitura (2026-10-29, migration `504`):** a ficha do B/L
+  cancelado deixava editar a devolução, e `set_container_dates` gravava a data nos B/Ls ativos que
+  dividem o container (ou não gravava nada) enquanto a tela dizia "salva". A ficha mostra a data só
+  para leitura, e o banco recusa a gravação vinda do B/L cancelado ([ADR 0094](adr/0094-preco-fixo-na-importacao.md), B4).
+- **Endereço mudado pelo Cliente no Portal aparece como do Cliente (2026-10-29, migration `503`):**
+  endereço, cidade, UF e CEP gravados no Perfil do Portal apareciam em **Alterações do cadastro**, na
+  ficha do Cliente, com "Usuário interno" em **Por**, porque o login do Portal não tem perfil interno.
+  `customer_audit_timeline` passa a devolver `changed_by_portal`, e a coluna mostra "Cliente pelo
+  Portal", como já fazia nos contatos.
+- **Ficha do B/L e Revisão: conferência do Manual do Operador (2026-10-29, migration `502`):** a
+  justificativa pedida na ficha do B/L, na Revisão e na correção da fila passa a ir ao Histórico de
+  cada campo e da situação da Revisão (antes `save_bl_review` a descartava e o gatilho gravava sem
+  justificativa); **Trocar Cliente** e **Desvincular** pedem o motivo (decisão do dono de 2026-10-29).
+  Corrigir o POD para outro porto tira a exceção de terminal do B/L, com registro no Histórico
+  ([ADR 0068](adr/0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md)). Equipamentos inclui
+  o e-mail do Cliente na Revisão e na ficha, mas não vê mais o convite do Portal, que a Edge Function
+  `portal-invite-send` recusa a quem não é da Documentação ou do Administrativo. Rótulo, campo e ajuda
+  ficam no topo da célula da grade (`.app-field`): o Lacre da janela Corrigir container deixa de esticar
+  no B/L faturado.
+- **Etapa Cliente da ficha do B/L respeita a Liberação de faturamento (2026-10-29, migration `501`):**
+  com Cliente sem conta ativa no Portal, a etapa Cliente do trilho Documental ficava vermelha com
+  "Resolver na Revisão" mesmo com Liberação vigente ou B/L já faturado, que não estão na Revisão.
+  `get_bl_portal_status` passa a devolver `billing_access_ready` (`customer_billing_access_ready`, a
+  condição da pendência da Revisão); a etapa fica "Cliente apto · Liberação sem Portal" ou "B/L
+  faturado · Portal não está ativo", sem Próxima ação, e o bloco Portal diz "Pronto para faturar: Sim,
+  pela Liberação de faturamento sem Portal". O link **Abrir no Provisionamento do Portal** continua.
 - **Alterar, excluir e isentar as Taxas Locais do B/L (2026-10-28, em lotes):** pedido do dono,
   [ADR 0111](adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md). Lote 1 (migration `491`): na
   ficha do B/L, qualquer setor altera o valor de uma taxa (por unidade ou pelo total), exclui a taxa e

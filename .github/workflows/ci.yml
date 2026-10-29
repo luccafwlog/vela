@@ -38,6 +38,10 @@ jobs:
           node scripts/lib/docs-anchors.test.mjs
           node scripts/check-docs.test.mjs
           npm run docs:check
+          # Texto do Manual do Operador: termos técnicos, capturas e regras
+          # citadas. --if-present: o comando chega à staging com o texto (PR
+          # do manual); até lá, roda só nas PRs que o trazem.
+          npm run --if-present manual:check
 
       - name: CI scripts
         run: npm run ci:test

@@ -50,14 +50,15 @@ export function filterVoyageRailItems(
         const ini = filters.dataInicio?.trim() ?? ''
         const fim = filters.dataFim?.trim() ?? ''
         if (ini || fim) {
-          const eta = item.proximaEscala?.eta
+          // Compara pela data: "2026-10-28T14:00:00" > "2026-10-28" no texto.
+          const eta = item.proximaEscala?.eta?.slice(0, 10)
           if (!eta) return false
           if (ini && eta < ini) return false
           if (fim && eta > fim) return false
         }
       } else if (filters.periodo !== 'all') {
         const { min, max } = periodoEtaWindow(filters.periodo)
-        const eta = item.proximaEscala?.eta
+        const eta = item.proximaEscala?.eta?.slice(0, 10)
         if (!eta || eta < min || eta > max) return false
       }
       if (term) {

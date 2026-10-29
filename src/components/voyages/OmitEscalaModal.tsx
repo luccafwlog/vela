@@ -4,6 +4,7 @@ import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import { useOmitEscala } from '../../hooks/useTransshipments'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 type OmitEscalaModalProps = {
   open: boolean
@@ -48,31 +49,44 @@ export function OmitEscalaModal({
     setIsConfirming(false)
   }
 
+  // Reabrir a janela não repete a recusa da tentativa anterior.
+  function close() {
+    omit.reset()
+    onClose()
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!user?.id || !dischargePod) return
+    // A recusa anterior fica no formulário para orientar a correção; a nova
+    // confirmação começa sem ela.
+    omit.reset()
     setIsConfirming(true)
   }
 
   async function handleConfirm() {
     if (!user?.id || !dischargePod) return
-    await omit.mutateAsync({
-      voyageId,
-      omittedPod,
-      dischargePod,
-      reason: reason.trim() || null,
-      onwardVesselName: onwardVesselName.trim() || null,
-      onwardCarrier: onwardCarrier.trim() || null,
-      onwardVoyageNumber: onwardVoyageNumber.trim() || null,
-      onwardEtd: onwardEtd || null,
-      onwardEta: onwardEta || null,
-      changedBy: user.id,
-    })
+    try {
+      await omit.mutateAsync({
+        voyageId,
+        omittedPod,
+        dischargePod,
+        reason: reason.trim() || null,
+        onwardVesselName: onwardVesselName.trim() || null,
+        onwardCarrier: onwardCarrier.trim() || null,
+        onwardVoyageNumber: onwardVoyageNumber.trim() || null,
+        onwardEtd: onwardEtd || null,
+        onwardEta: onwardEta || null,
+        changedBy: user.id,
+      })
+    } catch {
+      return // A recusa do banco aparece na janela (`omit.error`).
+    }
     onClose()
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Omitir escala de ${omittedPod}`} size="md">
+    <Modal open={open} onClose={close} title={`Omitir escala de ${omittedPod}`} size="md">
       <form className="grid gap-4" onSubmit={handleSubmit}>
         {isConfirming ? (
           <>
@@ -158,10 +172,14 @@ export function OmitEscalaModal({
             </Field>
           </>
         )}
-        {omit.isError ? <p className="text-sm text-red-500">Falha ao omitir a escala.</p> : null}
+        {omit.isError ? (
+          <p className="text-sm text-[var(--app-danger-fg)]" role="alert">
+            {userFacingErrorMessage(omit.error, 'Falha ao omitir a escala. Tente novamente.')}
+          </p>
+        ) : null}
         {!isConfirming ? (
           <div className="app-modal__actions">
-            <Button variant="secondary" type="button" onClick={onClose}>
+            <Button variant="secondary" type="button" onClick={close}>
               Voltar
             </Button>
             <Button autoFocus loading={omit.isPending} type="submit" disabled={!dischargePod}>

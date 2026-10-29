@@ -20,7 +20,7 @@ import {
   collectVoyagePorts,
   computeAdrEscalaPods,
   countPlannedPodRows,
-  deriveEstadoConciliacao,
+  estadoConciliacaoComContagem,
   getBlsAffectedByOmittedPod,
   getProximaEscala,
   isEtaOverdue,
@@ -274,11 +274,9 @@ export function VoyageCard({
     ({ row, count }) => count === 0 && (row.blCount > 0 || row.isVazios),
   ).length
   const proximaEscala = getProximaEscala(podRows)
-  const reconciliationState = deriveEstadoConciliacao({
-    hasOpenDivergences: divergenceCount > 0,
-    ceFilled: ceCoverage.filled,
-    ceTotal: ceCoverage.total,
-  })
+  // Sem a contagem (carregando ou com falha) é "Verificando", como na faixa e
+  // na tabela; nunca "Conciliada" sem saber das divergências.
+  const reconciliationState = estadoConciliacaoComContagem(reconciliation ? divergenceCount : null, ceCoverage.filled, ceCoverage.total)
   const reconciliationMeta = ESTADO_CONCILIACAO_META[reconciliationState]
 
   const tabs: Array<{ key: VoyageTabKey; label: string }> = [
@@ -389,7 +387,7 @@ export function VoyageCard({
             </FactList>
           </Block>
           <Block title="Conciliação" headingLevel={3}>
-            <LeadValue tone={reconciliationState === 'divergente' ? 'danger' : reconciliationState === 'conciliado' ? 'default' : 'warning'}>
+            <LeadValue tone={reconciliationMeta.textTone}>
               {reconciliationMeta.label}
             </LeadValue>
             <FactList columns={1}>

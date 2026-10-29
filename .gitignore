@@ -60,3 +60,6 @@ credentials.json
 .dev.vars
 *.dump.enc
 backup-r2.log*
+
+# Manual do Operador: capturas, HTML montado e PDF gerados por scripts/manual/pdf
+artifacts/manual/

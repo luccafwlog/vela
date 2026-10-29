@@ -48,6 +48,19 @@ describe('ReviewCustomerOnboarding', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ email: '', sendPortalInvite: false }))
   })
 
+  // Equipamentos inclui o e-mail, mas o convite é da Documentação e do
+  // Administrativo (`portal-invite-send`): sem a caixa, nada de convite.
+  it('com contatos e sem convite do Portal, salva o e-mail e não oferece o convite', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<ReviewCustomerOnboarding group={group} existingCustomerId={null} existingCustomer={null} initialName="Alfa" initialCnpj="11222333000181" initialEmail="financeiro@alfa.com" saving={false} onSelectExistingCustomer={vi.fn()} onSubmit={onSubmit} canInvitePortal={false} />)
+    expect(screen.getByText('E-mail principal do cliente')).toBeTruthy()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.getByRole('note').textContent).toMatch(/O convite do Portal fica com a Documentação ou o Administrativo/)
+    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 1 b\/l$/i }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ email: 'financeiro@alfa.com', sendPortalInvite: false }))
+  })
+
   it('preenche o e-mail conhecido ao selecionar um cliente existente', async () => {
     const user = userEvent.setup()
     renderForm()

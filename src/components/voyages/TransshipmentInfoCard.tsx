@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useRevertVoyageOmission, useUpdateVoyageOmission, useVoyageTransshipments } from '../../hooks/useTransshipments'
-import type { VoyageOmission } from '../../services/transshipments'
+import { userFacingErrorMessage } from '../../lib/errors'
+import { isOmissionRevertBlockedByCod, type VoyageOmission } from '../../services/transshipments'
 import { Button } from '../ui/Button'
 import { Field, Input, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
@@ -72,27 +73,35 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
       reversibility: 'Edite novamente para corrigir as informações.',
     })
     if (!confirmed) return
-    await update.mutateAsync({
-      omissionId: omission.id,
-      onwardVesselName: vessel.trim() || null,
-      onwardCarrier: carrier.trim() || null,
-      onwardVoyageNumber: voyageNumber.trim() || null,
-      onwardEtd: etd || null,
-      onwardEta: eta || null,
-      reason: reason.trim() || null,
-      changedBy: user.id,
-    })
+    try {
+      await update.mutateAsync({
+        omissionId: omission.id,
+        onwardVesselName: vessel.trim() || null,
+        onwardCarrier: carrier.trim() || null,
+        onwardVoyageNumber: voyageNumber.trim() || null,
+        onwardEtd: etd || null,
+        onwardEta: eta || null,
+        reason: reason.trim() || null,
+        changedBy: user.id,
+      })
+    } catch {
+      return // A recusa do banco aparece no formulário (`update.error`).
+    }
     setEditing(false)
   }
 
   async function submitRevert(event: FormEvent) {
     event.preventDefault()
     if (!user?.id || !revertJustification.trim()) return
-    await revert.mutateAsync({
-      omissionId: omission.id,
-      justification: revertJustification.trim(),
-      changedBy: user.id,
-    })
+    try {
+      await revert.mutateAsync({
+        omissionId: omission.id,
+        justification: revertJustification.trim(),
+        changedBy: user.id,
+      })
+    } catch {
+      return // A recusa do banco aparece na janela (`revert.error`).
+    }
     setRevertOpen(false)
     setRevertJustification('')
   }
@@ -103,8 +112,8 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
         <div className="text-sm font-semibold">{omission.omittedPod} · Porto de Transbordo — {omission.dischargePod}</div>
         {!editing ? (
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" className="app-btn--sm" onClick={() => setEditing(true)}>Complementar</Button>
-            <Button variant="danger" className="app-btn--sm" onClick={() => setRevertOpen(true)}>Reverter omissão</Button>
+            <Button variant="secondary" className="app-btn--sm" onClick={() => { update.reset(); setEditing(true) }}>Complementar</Button>
+            <Button variant="danger" className="app-btn--sm" onClick={() => { revert.reset(); setRevertOpen(true) }}>Reverter omissão</Button>
           </div>
         ) : null}
       </div>
@@ -116,6 +125,11 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
           <Field label="Motivo"><Input value={reason} onChange={(event) => setReason(event.target.value)} /></Field>
           <Field label="ETD de Transbordo"><Input type="date" value={etd} onChange={(event) => setEtd(event.target.value)} /></Field>
           <Field label="ETA de Transbordo"><Input type="date" value={eta} onChange={(event) => setEta(event.target.value)} /></Field>
+          {update.isError ? (
+            <p className="text-sm text-[var(--app-danger-fg)] md:col-span-2" role="alert">
+              {userFacingErrorMessage(update.error, 'Falha ao salvar as informações de transbordo. Tente novamente.')}
+            </p>
+          ) : null}
           <div className="flex gap-2 md:col-span-2">
             <Button type="submit" loading={update.isPending}>Salvar informações</Button>
             <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Voltar</Button>
@@ -145,7 +159,12 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
               rows={4}
             />
           </Field>
-          {revert.isError ? <p className="text-sm text-red-500">Falha ao reverter a omissão. Verifique se algum B/L está em COD.</p> : null}
+          {revert.isError ? (
+            <p className="text-sm text-[var(--app-danger-fg)]" role="alert">
+              {userFacingErrorMessage(revert.error, 'Falha ao reverter a omissão. Tente novamente.')}
+              {isOmissionRevertBlockedByCod(revert.error) ? ' Verifique se algum B/L está em COD.' : null}
+            </p>
+          ) : null}
           <div className="app-modal__actions">
             <Button variant="secondary" type="button" onClick={() => setRevertOpen(false)}>Voltar</Button>
             <Button variant="danger" loading={revert.isPending} type="submit" disabled={!revertJustification.trim()}>Reverter omissão</Button>

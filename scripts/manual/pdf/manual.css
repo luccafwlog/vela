@@ -1,0 +1,406 @@
+/*
+ * Aparência impressa do Manual do Operador (A4). Cores, letra e estados vêm da
+ * identidade visual do Vela (docs/identidade-visual.md); as cores das equipes
+ * são próprias do manual e só marcam a trilha de cada equipe.
+ * Layout: página A4 fixa com cabeçalho corrido, aba de parte na borda externa
+ * e rodapé com fólio; o corpo usa os blocos do Vela (faixa azulada + superfície).
+ */
+:root {
+  --navy: #152238;
+  --navy-2: #1e3050;
+  --strip: #eef2f7;
+  --paper: #ffffff;
+  --panel: #f6f7f9;
+  --text: #121822;
+  --muted: #4f5868;
+  --border: #c3cad5;
+  --border-soft: #e2e6ec;
+  --gold: #d4882e;
+  --gold-strong: #8f4d08;
+  --link: #1d4d88;
+  --success-fg: #157a45;
+  --success-bg: #e6f7ee;
+  --success-border: #86efac;
+  --warning-fg: #8f4d08;
+  --warning-bg: #fdf0dc;
+  --warning-border: #f3c77f;
+  --danger-fg: #b0343a;
+  --danger-bg: #fceaea;
+  --danger-border: #f2b3bb;
+  --info-fg: #1d4d88;
+  --info-bg: #e8f0fb;
+  --info-border: #b9cff0;
+  --neutral-fg: #4f5868;
+  --neutral-bg: #f1f4f8;
+
+  /* Trilhas das equipes (proposta das páginas-modelo). */
+  --team-doc: #0f6e74;
+  --team-ope: #4a4f9c;
+  --team-equ: #66702a;
+  --team-fin: #7a2f55;
+  --team-adm: #3f4a5a;
+
+  --font: "DM Sans", "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --brand: "Syne", "DM Sans", sans-serif;
+
+  --margin-x: 18mm;
+  --margin-top: 21mm;
+  --margin-bottom: 18mm;
+}
+
+@page { size: A4; margin: 0; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #d9dde3; }
+body {
+  font-family: var(--font);
+  font-size: 9.75pt;
+  line-height: 1.45;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+a { color: var(--link); text-decoration: none; }
+p { margin: 0; }
+strong, b { font-weight: 700; }
+.mono { font-family: var(--mono); }
+
+/* ---- Página ---------------------------------------------------------- */
+.pagina {
+  width: 210mm;
+  height: 297mm;
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  margin: 0 auto 8mm;
+  break-after: page;
+}
+.pagina:last-child { break-after: auto; }
+@media print { html, body { background: none; } .pagina { margin: 0; } }
+
+.corpo {
+  position: absolute;
+  inset: var(--margin-top) var(--margin-x) var(--margin-bottom);
+  display: flex;
+  flex-direction: column;
+  gap: 5mm;
+}
+
+.cabeco {
+  position: absolute;
+  top: 9mm;
+  left: var(--margin-x);
+  right: var(--margin-x);
+  display: flex;
+  justify-content: space-between;
+  font-size: 8pt;
+  color: var(--muted);
+  padding-bottom: 1.6mm;
+  border-bottom: 0.4pt solid var(--border);
+}
+.cabeco b { color: var(--navy); font-weight: 600; }
+
+.rodape {
+  position: absolute;
+  bottom: 8mm;
+  left: var(--margin-x);
+  right: var(--margin-x);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 8pt;
+  color: var(--muted);
+}
+.rodape .folio { font-size: 10pt; font-weight: 700; color: var(--navy); }
+
+/* Aba da parte na borda externa: folheando o papel, a parte aparece. */
+.aba {
+  position: absolute;
+  right: 0;
+  width: 7mm;
+  height: 24mm;
+  background: var(--navy);
+  color: #fff;
+  font-size: 8pt;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.04em;
+}
+.aba[data-parte="1"] { top: 34mm; }
+.aba[data-parte="2"] { top: 60mm; }
+.aba[data-parte="3"] { top: 86mm; }
+.aba[data-parte="4"] { top: 112mm; }
+.aba[data-parte="5"] { top: 138mm; }
+.aba[data-parte="ap"] { top: 164mm; background: var(--gold-strong); }
+
+/* Etiqueta só das páginas-modelo, para a conversa de aprovação. */
+.etiqueta-modelo {
+  position: absolute;
+  top: 3.2mm;
+  left: var(--margin-x);
+  font-size: 7.5pt;
+  color: #8a93a2;
+  letter-spacing: 0.02em;
+}
+.pagina--escura .etiqueta-modelo { color: #8d9ab0; }
+
+/* ---- Títulos --------------------------------------------------------- */
+h1, h2, h3, h4 { margin: 0; font-weight: 700; text-wrap: balance; }
+.secao-titulo { display: flex; align-items: baseline; gap: 3mm; }
+.secao-titulo .num { color: var(--gold-strong); font-size: 15pt; font-weight: 700; }
+.secao-titulo h2 { font-size: 15pt; color: var(--navy); line-height: 1.2; }
+.rotulo { font-size: 8pt; color: var(--muted); }
+.lead { font-size: 10.5pt; color: var(--text); max-width: 150mm; }
+
+/* ---- Equipes --------------------------------------------------------- */
+.equipes { display: flex; flex-wrap: wrap; gap: 1.6mm; }
+.equipe {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4mm;
+  font-size: 8pt;
+  font-weight: 600;
+  padding: 0.6mm 2.4mm 0.6mm 1.6mm;
+  border-radius: 99px;
+  background: var(--neutral-bg);
+  color: var(--text);
+}
+.equipe::before {
+  content: "";
+  width: 2.2mm;
+  height: 2.2mm;
+  border-radius: 50%;
+  background: var(--cor, var(--navy));
+}
+.equipe--doc { --cor: var(--team-doc); }
+.equipe--ope { --cor: var(--team-ope); }
+.equipe--equ { --cor: var(--team-equ); }
+.equipe--fin { --cor: var(--team-fin); }
+.equipe--adm { --cor: var(--team-adm); }
+.equipe--todas { --cor: linear-gradient(90deg, var(--team-doc), var(--team-ope), var(--team-equ), var(--team-fin), var(--team-adm)); }
+.equipe--todas::before { background: conic-gradient(var(--team-doc) 0 20%, var(--team-ope) 0 40%, var(--team-equ) 0 60%, var(--team-fin) 0 80%, var(--team-adm) 0); }
+
+/* ---- Bloco (a mesma peça das telas do Vela) -------------------------- */
+.bloco { border: 0.5pt solid var(--border-soft); border-radius: 2mm; background: var(--paper); overflow: hidden; }
+.bloco > .faixa {
+  background: var(--strip);
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 9.5pt;
+  padding: 1.8mm 3.5mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.bloco > .faixa .aside { font-weight: 500; color: var(--muted); font-size: 8pt; }
+.bloco > .conteudo { padding: 3mm 3.5mm; }
+
+.fatos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm 5mm; }
+.fato .rotulo { display: block; margin-bottom: 0.6mm; }
+.fato .valor { font-size: 9.5pt; }
+
+/* ---- Passo a passo e imagem marcada ---------------------------------- */
+.passos { list-style: none; margin: 0; padding: 0; display: grid; gap: 2.4mm; counter-reset: passo; }
+.passos li { display: grid; grid-template-columns: 6.4mm 1fr; gap: 2.4mm; align-items: start; }
+.marca, .passos .n {
+  width: 6mm;
+  height: 6mm;
+  border-radius: 50%;
+  background: var(--navy);
+  color: #fff;
+  font-size: 9pt;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.passos .n { margin-top: -0.4mm; }
+.passos .tela-txt { display: block; margin-top: 0.8mm; color: var(--muted); font-size: 8.5pt; }
+
+.tela { margin: 0; display: grid; gap: 1.4mm; }
+.tela__quadro {
+  position: relative;
+  border: 0.5pt solid var(--border);
+  border-radius: 1.6mm;
+  overflow: visible;
+  background: var(--panel);
+  box-shadow: 0 0.6mm 2mm rgba(15, 23, 42, 0.10);
+}
+.tela__quadro img { display: block; width: 100%; height: auto; border-radius: 1.6mm; }
+.tela__quadro .marca {
+  position: absolute;
+  transform: translate(-55%, -55%);
+  box-shadow: 0 0 0 0.6mm #fff, 0 0.4mm 1.2mm rgba(15, 23, 42, 0.35);
+  z-index: 2;
+}
+.tela__quadro .marca--centro { transform: translate(-50%, -50%); }
+.tela__quadro .marca--esquerda { transform: translate(-100%, -50%); }
+.tela__quadro .destaque {
+  position: absolute;
+  border: 0.7mm solid var(--gold);
+  border-radius: 1.6mm;
+  box-shadow: 0 0 0 0.5mm rgba(255, 255, 255, 0.9);
+  z-index: 1;
+}
+.tela figcaption { font-size: 8pt; color: var(--muted); }
+
+.duas-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; align-items: start; }
+.colunas-passos { display: grid; grid-template-columns: 76mm 1fr; gap: 6mm; align-items: start; }
+
+/* ---- Quadros fixos --------------------------------------------------- */
+.quadro { border-radius: 2mm; padding: 2.6mm 3.5mm; border: 0.5pt solid; display: grid; gap: 1.2mm; }
+.quadro > .titulo { display: flex; align-items: center; gap: 1.6mm; font-weight: 700; font-size: 9pt; }
+.quadro svg { width: 3.8mm; height: 3.8mm; flex: none; }
+.quadro ul { margin: 0; padding-left: 4.5mm; display: grid; gap: 0.8mm; }
+.quadro--atencao { background: var(--warning-bg); border-color: var(--warning-border); }
+.quadro--atencao > .titulo { color: var(--warning-fg); }
+.quadro--nao-faca { background: var(--danger-bg); border-color: var(--danger-border); }
+.quadro--nao-faca > .titulo { color: var(--danger-fg); }
+.quadro--sozinho { background: var(--info-bg); border-color: var(--info-border); }
+.quadro--sozinho > .titulo { color: var(--info-fg); }
+.quadro--porque { background: var(--strip); border-color: var(--border-soft); }
+.quadro--porque > .titulo { color: var(--navy); }
+
+/* ---- Aconteceu… ------------------------------------------------------ */
+.aconteceu { border: 0.5pt solid var(--border); border-radius: 2mm; overflow: hidden; break-inside: avoid; }
+.aconteceu > .faixa {
+  display: flex;
+  align-items: baseline;
+  gap: 2.4mm;
+  padding: 1.8mm 3.5mm;
+  background: var(--strip);
+}
+.aconteceu .tag {
+  font-size: 7.5pt;
+  font-weight: 700;
+  color: #fff;
+  background: var(--navy);
+  border-radius: 99px;
+  padding: 0.3mm 2mm;
+  white-space: nowrap;
+}
+.aconteceu .faixa h3 { font-size: 9.75pt; color: var(--navy); }
+.aconteceu dl { margin: 0; padding: 2.4mm 3.5mm; display: grid; grid-template-columns: 30mm 1fr; gap: 1.6mm 4mm; }
+.aconteceu dt { font-size: 8pt; color: var(--muted); font-weight: 600; padding-top: 0.3mm; }
+.aconteceu dd { margin: 0; }
+.aconteceu .veja { font-size: 8pt; color: var(--muted); padding: 0 3.5mm 2.4mm; }
+
+/* ---- Mensagens (Apêndice B) ------------------------------------------ */
+.mensagens { display: grid; gap: 3.6mm; }
+.mensagem { border: 0.5pt solid var(--border); border-radius: 2mm; overflow: hidden; break-inside: avoid; }
+.mensagem .texto {
+  display: grid;
+  grid-template-columns: 5mm 1fr;
+  gap: 2.4mm;
+  padding: 2.6mm 3.5mm;
+  background: var(--danger-bg);
+  border-bottom: 0.5pt solid var(--danger-border);
+  color: var(--danger-fg);
+  font-weight: 600;
+}
+.mensagem .texto svg { width: 4.2mm; height: 4.2mm; margin-top: 0.3mm; }
+.mensagem dl { margin: 0; padding: 2.4mm 3.5mm; display: grid; grid-template-columns: 30mm 1fr; gap: 1.2mm 4mm; }
+.mensagem dt { font-size: 8pt; color: var(--muted); font-weight: 600; padding-top: 0.3mm; }
+.mensagem dd { margin: 0; }
+
+/* ---- Tabela de referência (tabela padrão do Vela) --------------------- */
+table.tab { width: 100%; border-collapse: collapse; font-size: 8.75pt; }
+table.tab th {
+  background: var(--navy);
+  color: #fff;
+  font-weight: 600;
+  font-size: 8.25pt;
+  padding: 1.6mm 2.4mm;
+  text-align: center;
+}
+table.tab td { padding: 1.6mm 2.4mm; border-bottom: 0.5pt solid var(--border-soft); text-align: center; vertical-align: middle; }
+table.tab td.texto { text-align: left; }
+table.tab tr.grupo td {
+  background: var(--strip);
+  color: var(--navy);
+  font-weight: 700;
+  text-align: left;
+  font-size: 8.5pt;
+}
+.selo { display: inline-block; font-size: 8pt; font-weight: 600; border-radius: 99px; padding: 0.3mm 2.2mm; border: 0.5pt solid; }
+.selo--info { color: var(--info-fg); background: var(--info-bg); border-color: var(--info-border); }
+.selo--ok { color: var(--success-fg); background: var(--success-bg); border-color: var(--success-border); }
+.selo--perigo { color: var(--danger-fg); background: var(--danger-bg); border-color: var(--danger-border); }
+.selo--neutro { color: var(--neutral-fg); background: var(--neutral-bg); border-color: var(--border-soft); }
+.st-aviso { color: var(--warning-fg); font-weight: 600; }
+.st-perigo { color: var(--danger-fg); font-weight: 600; }
+.st-ok { color: var(--success-fg); font-weight: 600; }
+.st-cinza { color: var(--muted); }
+.faixa-verde { display: inline-block; width: 1.2mm; height: 4mm; background: var(--success-fg); vertical-align: middle; margin-right: 1.6mm; border-radius: 0.4mm; }
+
+/* ---- Capa ------------------------------------------------------------ */
+.pagina--escura { background: var(--navy); color: #fff; }
+.capa { position: absolute; inset: 22mm 20mm 20mm; display: flex; flex-direction: column; }
+.capa .marca-vela { display: flex; align-items: center; gap: 3mm; }
+.capa .marca-vela svg { width: 13mm; height: 13mm; }
+.capa .marca-vela span { font-family: var(--brand); font-size: 22pt; font-weight: 700; letter-spacing: -0.01em; }
+.capa .titulo { margin-top: 62mm; display: grid; gap: 5mm; }
+.capa .titulo .sobre { font-size: 11pt; color: var(--gold); font-weight: 600; letter-spacing: 0.02em; }
+.capa h1 { font-size: 44pt; line-height: 1.02; letter-spacing: -0.02em; }
+.capa .titulo p { font-size: 12pt; color: #c9d2e0; max-width: 125mm; }
+.capa .pe { margin-top: auto; display: grid; gap: 7mm; }
+.capa .versao { display: flex; justify-content: space-between; font-size: 9pt; color: #c9d2e0; border-top: 0.5pt solid #3a4a66; padding-top: 3mm; }
+.capa .versao b { color: #fff; }
+.trilhas { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; }
+.trilhas div { font-size: 8pt; font-weight: 600; color: #fff; padding: 2mm 2.4mm; border-radius: 1.4mm; background: var(--cor); }
+
+/* ---- Abertura de parte ----------------------------------------------- */
+.abertura-parte { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 58mm; }
+.abertura-parte .texto { padding: 34mm 12mm 20mm var(--margin-x); display: flex; flex-direction: column; gap: 6mm; }
+.abertura-parte .sobre { color: var(--gold-strong); font-weight: 700; font-size: 10pt; }
+.abertura-parte h1 { font-size: 34pt; color: var(--navy); line-height: 1.05; }
+.abertura-parte .lateral { background: var(--navy); color: var(--gold); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 22mm; }
+.abertura-parte .lateral span { font-size: 96pt; font-weight: 700; line-height: 1; opacity: 0.95; }
+.lista-capitulos { display: grid; gap: 0; border-top: 0.5pt solid var(--border); }
+.lista-capitulos a { display: grid; grid-template-columns: 9mm 1fr auto; gap: 3mm; align-items: center; padding: 2.4mm 0; border-bottom: 0.5pt solid var(--border-soft); color: var(--text); }
+.lista-capitulos .n { font-weight: 700; color: var(--navy); font-size: 12pt; }
+.lista-capitulos .nome { font-weight: 600; }
+.lista-capitulos .nome small { display: block; font-weight: 400; color: var(--muted); font-size: 8.25pt; }
+
+/* ---- Abertura de capítulo -------------------------------------------- */
+.abertura-cap { display: grid; grid-template-columns: 26mm 1fr; gap: 6mm; align-items: end; padding-bottom: 5mm; border-bottom: 0.8pt solid var(--navy); }
+.abertura-cap .numero { font-size: 72pt; font-weight: 700; line-height: 0.85; color: var(--navy); }
+.abertura-cap .sobre { color: var(--gold-strong); font-weight: 700; font-size: 9pt; }
+.abertura-cap h1 { font-size: 26pt; color: var(--navy); line-height: 1.1; }
+.ficha-cap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+.ficha-cap .fato { background: var(--panel); border-radius: 2mm; padding: 2.6mm 3mm; }
+ul.aprende { margin: 0; padding-left: 4.5mm; display: grid; gap: 1.2mm; }
+table.quero { width: 100%; border-collapse: collapse; }
+table.quero td { padding: 1.7mm 0; border-bottom: 0.5pt solid var(--border-soft); vertical-align: top; }
+table.quero td.sec { width: 13mm; font-weight: 700; color: var(--gold-strong); }
+table.quero td.pag { width: 14mm; text-align: right; color: var(--muted); }
+
+/* ---- Desenho --------------------------------------------------------- */
+.desenho { border: 0.5pt solid var(--border-soft); border-radius: 2mm; padding: 4mm; background: var(--paper); }
+.desenho svg { width: 100%; height: auto; display: block; }
+.desenho svg text { font-family: var(--font); }
+
+/* ---- Guia de bolso: meia folha A4 (A5), duas cópias por folha ---------- */
+.guia { position: absolute; left: 0; right: 0; height: 148.5mm; overflow: hidden; }
+.guia--baixo { top: 148.5mm; }
+.guia-topo { height: 23mm; background: var(--team-doc); color: #fff; padding: 6.5mm var(--margin-x) 0; }
+.guia-topo .sobre { font-size: 8pt; font-weight: 600; opacity: 0.85; }
+.guia-topo h1 { font-size: 17pt; margin-top: 0.6mm; }
+.guia-corpo { position: absolute; top: 28mm; left: var(--margin-x); right: var(--margin-x); bottom: 9mm; display: grid; grid-template-columns: 1fr 1fr; gap: 3.6mm 7mm; align-content: start; font-size: 8.5pt; line-height: 1.38; }
+.guia-corpo h2 { font-size: 10pt; color: var(--team-doc); margin-bottom: 1.4mm; }
+.guia-pe { position: absolute; left: var(--margin-x); right: var(--margin-x); bottom: 4.5mm; display: flex; justify-content: space-between; font-size: 7.5pt; color: var(--muted); }
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.4mm; }
+.checklist li { display: grid; grid-template-columns: 4.2mm 1fr; gap: 1.8mm; }
+.checklist li::before { content: ""; width: 3.2mm; height: 3.2mm; border: 0.6pt solid var(--team-doc); border-radius: 0.6mm; margin-top: 0.4mm; }
+.passar { width: 100%; border-collapse: collapse; font-size: 8.25pt; }
+.passar td { padding: 1.1mm 0; border-bottom: 0.5pt solid var(--border-soft); vertical-align: top; }
+.passar td:last-child { text-align: right; white-space: nowrap; padding-left: 3mm; }
+.passar .equipe { font-size: 7.5pt; }
+.corte { position: absolute; left: 0; right: 0; top: 148.5mm; border-top: 0.6pt dashed var(--border-strong, #9aa4b2); z-index: 3; }
+.corte span { position: absolute; left: var(--margin-x); top: -2.2mm; background: var(--paper); padding: 0 1.6mm; font-size: 7.5pt; color: var(--muted); }

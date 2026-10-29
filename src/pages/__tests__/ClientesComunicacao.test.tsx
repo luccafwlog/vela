@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DatabaseError } from '../../lib/errors'
 import type { CustomerCommunicationConference } from '../../services/customerCommunications'
 import { ClientesComunicacao } from '../ClientesComunicacao'
 
@@ -298,6 +299,33 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
     expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.getByText('Redirecionado ao suporte')).toBeTruthy()
+  })
+
+  it('a troca da chave recusada mostra o motivo no bloco Canal de envio', async () => {
+    mockAppSettings = { communications_enabled: false }
+    mockSetCommunicationsMutation.mutateAsync.mockRejectedValueOnce(
+      new DatabaseError('Somente a conta Dev pode ligar ou desligar o envio real de e-mails.', { code: '42501' }),
+    )
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Envio real desligado' }))
+    expect(await screen.findByText('Somente a conta Dev pode ligar ou desligar o envio real de e-mails.')).toBeTruthy()
+    cleanup()
+
+    // Falha sem resposta do servidor: texto de tela, sem o erro técnico.
+    mockSetCommunicationsMutation.mutateAsync.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('switch', { name: 'Envio real desligado' }))
+    expect(await screen.findByText('Não foi possível trocar a chave de envio. Tente novamente.')).toBeTruthy()
+    expect(screen.queryByText(/Failed to fetch/)).toBeNull()
   })
 
   it('exibe o banner de canal ativo quando communications_enabled é true', () => {

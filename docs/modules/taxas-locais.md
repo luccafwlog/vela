@@ -163,7 +163,11 @@ aceita "1.420,50"; cada erro indica o campo).
   não ativa; Pronto para emitir; Faturado e Isento), com **Recalcular selecionados** e **Exportar** (uma planilha XLSX só)
   na faixa do título, o estado das reconciliações com link para a Revisão e uma
   ação por linha, a que resolve o motivo (Recalcular, Vincular na Revisão,
-  Cadastrar CE, Abrir Cliente ou Emitir). Não há funil, métricas nem ações de
+  Cadastrar CE, Abrir Cliente ou Emitir). Com Revisão pendente (fora a do
+  Portal), a ação é **Resolver na Revisão** e não Recalcular: o Recalcular não
+  muda a Revisão e a Revisão recalcula ao salvar (`hasOpenReviewPendency`). Pela mesma regra,
+  **Recalcular selecionados** deixa de fora os B/Ls com Revisão pendente e avisa quantos
+  ("N B/Ls com Revisão pendente ficaram de fora: resolva na Revisão."). Não há funil, métricas nem ações de
   revisão ou liberação em lote. O motivo de bloqueio expõe a pendência canônica
   (ex.: peso BB ausente) via `extractReviewReasons`; a regra dos motivos está em
   [Faturamento](faturamento.md#motivo-de-bloqueio-de-faturamento). Prontidão de

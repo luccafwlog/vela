@@ -316,8 +316,8 @@ export function computeAdrEscalaPods(
 
 // --- Estado de Conciliação da Viagem (ver CONTEXT.md) -----------------------
 
-// 'verificando': só na faixa, enquanto a contagem de divergências do Baplie não
-// chegou (ou falhou) e a cobertura de CE sozinha diria "conciliado".
+// 'verificando': enquanto a contagem de divergências do Baplie não chegou (ou
+// falhou) e a cobertura de CE sozinha diria "conciliado" (faixa, tabela e ficha).
 export type EstadoConciliacao = 'divergente' | 'incompleto' | 'conciliado' | 'verificando'
 
 /** Cobertura de CE Mercante: quantos B/Ls têm ce_mercante preenchido. */
@@ -353,7 +353,8 @@ export function deriveEstadoConciliacao({
   return 'conciliado'
 }
 
-function railEstado(openDivergences: number | null | undefined, ceFilled: number, ceTotal: number): EstadoConciliacao {
+/** Estado com a contagem de divergências ainda desconhecida (`null`): "verificando" no lugar de "conciliado". */
+export function estadoConciliacaoComContagem(openDivergences: number | null | undefined, ceFilled: number, ceTotal: number): EstadoConciliacao {
   const estado = deriveEstadoConciliacao({ hasOpenDivergences: (openDivergences ?? 0) > 0, ceFilled, ceTotal })
   return openDivergences === null && estado === 'conciliado' ? 'verificando' : estado
 }
@@ -374,9 +375,14 @@ function getEscalaPort(row: { pod?: string; port?: string }) {
   return row.port ?? row.pod ?? null
 }
 
+/**
+ * O ETA vence ao fim do seu dia. Vale pela parte da data: o ETA com hora vem
+ * como `YYYY-MM-DDTHH:MM:00` (`combineIsoDateTime`) e concatenar `T23:59:59`
+ * nele dava data inválida, nunca vencida.
+ */
 export function isEtaOverdue(eta: string | null, now: Date = new Date()): boolean {
   if (!eta) return false
-  return new Date(`${eta}T23:59:59`) < now
+  return new Date(`${eta.slice(0, 10)}T23:59:59`) < now
 }
 
 // --- Rail (lista master-detail) ----------------------------------------------
@@ -548,7 +554,7 @@ export function buildVoyageRailItems(
         null,
         escalaRows,
       ),
-      estado: railEstado(openDivergencesByVoyageId.get(voyage.id), filled, total),
+      estado: estadoConciliacaoComContagem(openDivergencesByVoyageId.get(voyage.id), filled, total),
       proximaEscala: getProximaEscala(escalaRows),
       blCount,
       containerCount,

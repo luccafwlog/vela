@@ -40,6 +40,13 @@ function isPortalOnlyPendency(row: { billing_hold_reason: string | null; notes: 
   return reasons.length > 0 && onlyPortalReasons
 }
 
+// A Revisão pendente (fora o Portal) se resolve na Revisão, que recalcula ao
+// salvar (`Revisao.tsx`, `reviewBillingAutomation.ts`); o Recalcular da
+// Validação não muda `review_status` e refaria um cálculo que ainda vai mudar.
+export function hasOpenReviewPendency(row: { review_status: string | null; billing_hold_reason: string | null; notes: string | null }) {
+  return row.review_status === 'pending_review' && !isPortalOnlyPendency(row)
+}
+
 export function getBillingBlockReason(row: {
   charge_status: string | null
   financial_status: string | null

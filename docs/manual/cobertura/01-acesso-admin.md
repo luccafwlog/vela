@@ -100,10 +100,10 @@ repositório.
 | ACE-082 | **Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha**: só o Administrativo. | Op 2; Adm | Adm | `permissao:gerir-usuarios`, `servidor:admin-users`, `politica:user_profiles.user_profiles_update` |
 | ACE-083 | **Ligar e desligar o envio real de e-mails**: só a conta do Administrativo com a marca **Dev**. A marca é dada só por alteração do banco feita pela equipe de desenvolvimento, nunca por tela; a tela de Usuários mostra "Administrativo · Dev". | Op 2; Adm; Op 13 | Adm (Dev) | `permissao:envio-real-emails`, `funcao:is_dev_user` |
 | ACE-084 | **Desativar ou rebaixar o último Administrativo ativo**: nenhum setor. | Op 2; Adm | Adm | `permissao:ultimo-administrativo`, `gatilho:guard_last_active_administrativo` |
-| ACE-085 | **Criar e editar viagem, escala e programação; omitir escala; fechar o ADR**: qualquer setor. Exceção que a matriz não mostra: terminal, ATB, ATD, Restow e frentes da atracação só Operações e Administrativo mudam (ACE-120). | Op 2; Op 4; Op 9 | Todos | `permissao:editar-viagem` |
+| ACE-085 | **Criar e editar viagem, escala e programação; omitir escala; fechar o ADR**: qualquer setor, inclusive terminal, ATB, ATD, Restow e frentes da atracação; remover a atracação é de Operações e do Administrativo (ACE-120). | Op 2; Op 4; Op 9 | Todos | `permissao:editar-viagem` |
 | ACE-086 | **Reverter omissão de escala e reabrir ADR fechado, com motivo**: qualquer setor; sem motivo, o banco recusa. | Op 2; Op 4; Op 9 | Todos | `permissao:reverter-omissao-reabrir-adr` |
 | ACE-087 | **Cancelar e reativar Viagem e B/L, com motivo**: só o Administrativo. | Op 2; Op 4; Op 6; Adm | Adm | `permissao:cancelar-reativar-viagem-bl`, `funcao:is_admin` |
-| ACE-088 | **Excluir viagem, escala, atracação, B/L, container e Cliente**: só o Administrativo, com motivo e respeitando a Trava de exclusão. | Op 2; Adm | Adm | `permissao:excluir-registros`, `funcao:delete_records` |
+| ACE-088 | **Excluir viagem, escala, atracação, B/L, container e Cliente**: só o Administrativo, com motivo e respeitando a Trava de exclusão. O Cliente com CNPJ, que é todo Cliente, é sempre recusado ("desative em vez de excluir"): Cliente se desativa. | Op 2; Adm | Adm | `permissao:excluir-registros`, `funcao:delete_records` |
 | ACE-089 | **Assinar e observar a seção do ADR de Saída**: Operações assina **Escala**; Documentação, **Carga descarregada** e **Vazios descarregados**; Equipamentos, **Carga carregada**, **Veículos** e **Embarque de vazios**; o Administrativo cobre qualquer seção; o Financeiro não assina. | Op 2; Op 9 | Ope + Doc + Equ + Adm | `permissao:assinar-adr` |
 | ACE-090 | **Importar arquivos (B/L, CE, Baplie, veículos, Vazios, Granito, datas, Clientes)**: qualquer setor. | Op 2; Op 5 | Todos | `permissao:importar` |
 | ACE-091 | **Reprocessar efeito de importação, com justificativa**: qualquer setor. | Op 2; Op 5; Op 16 | Todos | `permissao:reprocessar-importacao` |
@@ -163,7 +163,7 @@ repositório.
 | `Registro do Histórico sem identificação.` | Gravação no Histórico sem o registro identificado. Não aparece na operação normal; avise o Administrativo. | Ap. B |
 | `Registros demais para o Histórico de uma vez.` | Mais de 100 linhas de Histórico numa gravação só. Não aparece na operação normal; avise o Administrativo. | Ap. B |
 | `Registros do Histórico inválidos.` | Gravação no Histórico em formato errado. Não aparece na operação normal; avise o Administrativo. | Ap. B |
-| `Sessão encerrada: entre de novo.` | A pessoa foi desativada ou teve o e-mail ou a senha trocados e a sessão antiga tentou agir. A maioria das telas mostra `Sua sessao expirou. Entre novamente para continuar.` e o Vela volta à tela de entrada. Entre de novo. | Ap. B |
+| `Sessão encerrada: entre de novo.` | A pessoa foi desativada ou teve o e-mail ou a senha trocados e a sessão antiga tentou agir. A maioria das telas mostra `Sua sessão expirou. Entre novamente para continuar.` e o Vela volta à tela de entrada. Entre de novo. | Ap. B |
 | `Somente o Administrativo pode excluir.` | Exclusão de Viagem, B/L, container, Cliente ou cadastro por quem não é Administrativo. Peça ao Administrativo. | Ap. B |
 | `Somente o Administrativo reativa.` | Reativar cadastro ou usuário por quem não é Administrativo. Peça ao Administrativo. | Ap. B |
 | `Tabela fora da exclusão de cadastro: %.` | Nunca chega a uma pessoa: as telas só pedem a exclusão dos cadastros aceitos; protege contra pedido fora da lista. | Fora |
@@ -185,19 +185,19 @@ repositório.
 | `Erro inesperado` | Erro ao abrir o Vela. Recarregue a página. | Ap. B |
 | `Sem conexão no momento.` | Lista sem rede e sem cópia guardada; não quer dizer lista vazia. | Ap. B |
 | `Você está offline. Exibindo dados salvos — a leitura retoma ao reconectar.` | Sem rede, com dados guardados na tela. | Ap. B |
-| `Sem permissao para esta acao. Solicite acesso administrativo.` | Recusa de permissão sem frase própria do banco (texto sem acentos, como no código). Veja em Op 2 quem pode e passe ao setor certo. | Ap. B |
-| `Sua sessao expirou. Entre novamente para continuar.` | Sessão vencida ou cortada pela revogação do acesso (texto sem acentos, como no código). | Ap. B |
+| `Sem permissão para esta ação.` | Recusa de permissão sem frase própria do banco (texto sem acentos, como no código). Veja em Op 2 quem pode e passe ao setor certo. | Ap. B |
+| `Sua sessão expirou. Entre novamente para continuar.` | Sessão vencida ou cortada pela revogação do acesso (texto sem acentos, como no código). | Ap. B |
 | `Este registro já existe.` | Gravação de algo que não pode repetir; com o valor conhecido vira `Já existe um registro com o valor "...".` | Ap. B |
-| `Conflito de concorrencia. Tente novamente.` | Duas gravações ao mesmo tempo no mesmo registro (sem acentos, como no código). Atualize e refaça. | Ap. B |
+| `Outra pessoa alterou o mesmo registro ao mesmo tempo. Tente novamente.` | Duas gravações ao mesmo tempo no mesmo registro (sem acentos, como no código). Atualize e refaça. | Ap. B |
 | `Outra gravação estava usando os mesmos registros. Tente novamente.` | Duas gravações disputando os mesmos registros. | Ap. B |
 | `O sistema recusou a operação por uma regra de negócio.` | Recusa de regra cujo texto do banco é técnico. Avise o Administrativo com a tela e a ação. | Ap. B |
 | `Operação bloqueada por uma pendência do B/L ou da Viagem.` | Trava de faturamento sem texto próprio legível. Veja a Revisão do B/L. | Ap. B |
 | `A operação não é possível no estado atual do registro.` | Ação recusada pelo estado (Viagem cancelada, fatura já emitida) sem texto próprio legível. | Ap. B |
-| `Registro referenciado nao existe ou ainda esta em uso.` | Gravação que aponta para registro apagado ou que ainda é usado (sem acentos, como no código). | Ap. B |
+| `O registro vinculado não existe mais ou ainda está em uso.` | Gravação que aponta para registro apagado ou que ainda é usado (sem acentos, como no código). | Ap. B |
 | `Dados fora das regras do cadastro.` | Valor recusado por uma regra de cadastro sem texto próprio. | Ap. B |
-| `Valor em formato invalido.` | Campo com formato que o banco não aceita (sem acentos, como no código). | Ap. B |
-| `Dados invalidos para esta operacao.` | Dado recusado sem texto próprio (sem acentos, como no código). | Ap. B |
-| `Registro nao encontrado.` | O registro não existe mais (sem acentos, como no código). | Ap. B |
+| `Valor em formato inválido.` | Campo com formato que o banco não aceita (sem acentos, como no código). | Ap. B |
+| `Dados inválidos para esta operação.` | Dado recusado sem texto próprio (sem acentos, como no código). | Ap. B |
+| `Registro não encontrado.` | O registro não existe mais (sem acentos, como no código). | Ap. B |
 | `Muitas tentativas. Aguarde alguns minutos e tente novamente.` | Limite de tentativas atingido. | Ap. B |
 | `A consulta demorou demais. Reduza o período e tente novamente.` | Consulta longa demais numa tela de lista ou relatório. | Ap. B |
 | `Falha inesperada. Tente novamente.` | Erro sem classificação; em várias telas aparece como `Não foi possível concluir a operação. Tente novamente.` | Ap. B |
@@ -452,7 +452,7 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
 
 | | O que o código faz |
 |---|---|
-| Só ele | Administração (usuários, falhas de entrega, histórico de ações, sistema, Prazo do ADR); criar, editar acesso, desativar e reativar usuário; ligar o envio real; excluir Viagem, escala, atracação, B/L, container, Cliente e cadastro sem uso; cancelar e reativar Viagem e B/L; excluir taxa manual; desativar, reativar e excluir tarifa, Local e serviço; incluir e corrigir item de tabela já usada e editar Condição de Cliente; cancelar fatura, Invoice de Demurrage e baixa; preparar cancelamento financeiro de B/L; intervalo da Régua; desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento |
+| Só ele | Administração (usuários, falhas de entrega, histórico de ações, sistema, Prazo do ADR); criar, editar acesso, desativar e reativar usuário; ligar o envio real; excluir Viagem, escala, atracação, B/L, container e cadastro sem uso (Cliente, só o sem CNPJ, que na prática não existe: desative); cancelar e reativar Viagem e B/L; excluir taxa manual; desativar, reativar e excluir tarifa, Local e serviço; incluir e corrigir item de tabela já usada e editar Condição de Cliente; cancelar fatura, Invoice de Demurrage e baixa; preparar cancelamento financeiro de B/L; intervalo da Régua; desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento |
 | Também pode | Tudo o que os outros setores fazem, inclusive as exclusivas de Financeiro, Equipamentos e Documentação |
 | Assina no ADR de Saída | Qualquer seção (cobre quem faltar) |
 | Recebe | 15 tipos no sino: os 11 do cartão **Administrativo** (entre eles os 4 do Financeiro) e os quatro críticos de contato e Portal da Documentação (migration `485`), e os críticos sem destinatário no setor (**Entrega alternativa**); resumo diário do Portal por e-mail; a aba Falhas de entrega de alertas |

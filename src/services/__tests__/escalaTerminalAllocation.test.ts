@@ -224,3 +224,13 @@ describe('02-viagens-adr:6: recusa da escala', () => {
     expect(isRevisionConflictError({ code: 'P0001', message: 'Atracação travada: B/L com CE Mercante.' })).toBe(false)
   })
 })
+
+describe('EscalaTerminalBlockedError', () => {
+  it('não mostra o identificador interno do ADR ao operador', () => {
+    const error = new EscalaTerminalBlockedError([
+      { reportId: '10::BRVIX', terminalId: 't1', terminalCode: 'TVV', reason: null },
+      { reportId: '10::BRSSZ', terminalId: null, terminalCode: null, reason: null },
+    ])
+    expect(error.message).toBe('A alteração está bloqueada por ADR fechado: TVV, terminal sem código. Reabra o ADR antes de continuar.')
+  })
+})

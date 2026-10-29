@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia rápido do Portal do Cliente Fwlog</title>
+<!--
+  Guia rápido do Portal do Cliente Fwlog: folheto de duas folhas A4 para anexar ao e-mail
+  de anúncio. Resume o guia completo (Tutorial_Portal_Fwlog.html), sem fluxo
+  que não esteja nele. Abra a partir desta pasta do repositório: as fontes e
+  as logos vêm de ../../public. O PDF desta pasta é impresso deste arquivo.
+-->
+<style>
+/* DM Sans e IBM Plex Mono: os mesmos arquivos do app (src/fonts.css). */
+@font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 100 1000; src: url(../../public/fonts/font-1.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 100 1000; src: url(../../public/fonts/font-2.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; src: url(../../public/fonts/font-7.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; src: url(../../public/fonts/font-12.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; src: url(../../public/fonts/font-17.woff2) format('woff2'); }
+
+/* Cores do Portal Fwlog (docs/identidade-visual.md#cores). Sem dourado. */
+:root {
+  --navy: #0d2b5e;
+  --navy-2: #163a74;
+  --globe: #5aaaf0;
+  --btn: #1d67b3;
+  --link: #1a5aa0;
+  --strip: #edf3fa;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-muted: #f1f4f8;
+  --text: #121822;
+  --muted: #4f5868;
+  --border: #c3cad5;
+  --border-strong: #9aa4b2;
+  --border-soft: #e2e6ec;
+  --warn-fg: #8f4d08;
+  --warn-bg: #fdf0dc;
+  --warn-border: #f3c77f;
+  --ok-fg: #157a45;
+  --ok-bg: #e6f7ee;
+  --ok-border: #86efac;
+  --info-bg: #e8f0fb;
+  --info-border: #bfd3ee;
+  --danger-fg: #b0343a;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 19px;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+h1, h2, h3 { margin: 0; }
+
+/* Página A4 */
+@page { size: A4; margin: 0; }
+.page {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  margin: 28px auto;
+  padding: 12mm 15mm 8mm;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(13, 43, 94, 0.08), 0 14px 44px rgba(13, 43, 94, 0.12);
+  break-after: page;
+}
+.page:last-child { break-after: auto; }
+/* Nada encolhe para caber: conteúdo a mais estoura a página. */
+.page > * { flex-shrink: 0; }
+@media print {
+  body { background: var(--surface); }
+  .page { margin: 0; box-shadow: none; }
+}
+
+/* Cabeçalho e rodapé das páginas internas */
+.ph {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.ph img { height: 22px; display: block; }
+.ph__section { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.ph__section b { color: var(--navy); font-weight: 700; }
+.ph__section::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--globe); }
+.pf {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-soft);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.pf b { color: var(--navy); font-weight: 600; }
+
+/* Tipografia */
+
+.title { font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -0.015em; color: var(--navy); }
+.lead { margin-top: 6px; font-size: 14px; line-height: 21px; color: var(--muted); max-width: 158mm; }
+.h2 { font-size: 15px; line-height: 21px; font-weight: 700; color: var(--navy); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; line-height: 17px; }
+.stack > * + * { margin-top: 14px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+/* Referências à interface dentro do texto */
+
+.mail { font-family: var(--sans); font-weight: 600; color: var(--link); white-space: nowrap; }
+.warn { color: var(--warn-fg); font-weight: 600; }
+.ok { color: var(--ok-fg); font-weight: 600; }
+.danger { color: var(--danger-fg); font-weight: 600; }
+
+/* Ícones (traço no estilo do app) */
+.i { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.14em; flex-shrink: 0; }
+.i--16 { width: 16px; height: 16px; }
+.i--18 { width: 18px; height: 18px; }
+
+/* Bloco: um assunto, um bloco (regra 1) */
+.blk { border: 1px solid var(--border-soft); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.blk__h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: var(--strip); color: var(--navy); font-size: 13px; line-height: 18px; font-weight: 700; }
+.blk__h small { font-size: 12px; font-weight: 500; color: var(--muted); }
+.blk__b { padding: 12px; }
+
+/* Onde → Ação → Efeito */
+
+.num, .pin {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--globe);
+  color: var(--navy);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+}
+.pin { position: absolute; z-index: 3; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(13, 43, 94, 0.28); }
+.has-pin { position: relative; }
+.pin--inline { position: static; vertical-align: middle; margin-right: 4px; box-shadow: none; }
+
+/* Avisos */
+.note { display: flex; gap: 10px; padding: 10px 12px; border: 1px solid var(--info-border); border-radius: 10px; background: var(--info-bg); font-size: 12.5px; line-height: 18px; }
+.note > .i { color: var(--btn); width: 18px; height: 18px; margin-top: 1px; }
+.note strong { color: var(--navy); }
+
+/* Fatos-chave em ladrilhos */
+
+/* ===== Desenhos esquemáticos das telas (dados fictícios) ===== */
+.mock {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+  font-size: 11px;
+  line-height: 15px;
+  box-shadow: 0 1px 2px rgba(13, 43, 94, 0.06), 0 10px 28px rgba(13, 43, 94, 0.10);
+}
+.m-chrome { display: flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; background: var(--surface); border-bottom: 1px solid var(--border-soft); }
+.m-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-soft); }
+.m-url { display: flex; align-items: center; gap: 5px; margin-left: 10px; padding: 0 9px; height: 15px; border-radius: 8px; background: var(--surface-muted); color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+.m-url .i { width: 9px; height: 9px; }
+.m-bar { display: flex; align-items: stretch; gap: 10px; height: 34px; padding: 0 12px; background: var(--navy); color: rgba(255, 255, 255, 0.78); }
+.m-bar img { height: 15px; align-self: center; }
+.m-nav { display: flex; gap: 1px; }
+.m-nav span { position: relative; display: flex; align-items: center; gap: 4px; padding: 0 5px; font-size: 10.5px; white-space: nowrap; }
+.m-nav .on { color: #fff; font-weight: 600; box-shadow: inset 0 -3px 0 var(--globe); }
+.m-bar__end { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 10.5px; white-space: nowrap; }
+.m-bar__end .i { width: 13px; height: 13px; color: #fff; }
+.m-body { padding: 12px 14px 14px; }
+.m-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.m-title h4 { margin: 0; font-size: 15px; line-height: 20px; font-weight: 700; color: var(--text); }
+.m-title p { font-size: 10.5px; color: var(--muted); }
+.m-actions { display: flex; gap: 5px; flex-wrap: nowrap; justify-content: flex-end; flex-shrink: 0; }
+.m-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+.m-grid2 > .m-blk, .m-stack > .m-blk:first-child { margin-top: 0; }
+.m-sub { border: 1px solid var(--border-soft); border-radius: 6px; padding: 7px 8px; }
+.m-sub__h { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: var(--navy); }
+.m-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.m-boxes { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 7px; font-size: 10px; }
+.m-foot { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border-soft); }
+.m-value { font-size: 11px; font-weight: 600; color: var(--text); }
+.m-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.m-cards--3 { grid-template-columns: repeat(3, 1fr); }
+.m-card { padding: 7px 9px; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--surface); }
+.m-card--sel { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); }
+.m-card__l { font-size: 10.5px; color: var(--muted); }
+.m-card__v { font-size: 14px; line-height: 19px; font-weight: 700; color: var(--text); }
+.m-card--warn .m-card__v { color: var(--warn-fg); }
+.m-card__d { font-size: 10px; color: var(--muted); }
+/* overflow-clip-margin deixa o marcador numerado aparecer na borda do bloco. */
+.m-blk { margin-top: 8px; border: 1px solid var(--border-soft); border-radius: 8px; overflow: clip; overflow-clip-margin: 14px; background: var(--surface); }
+.m-blk__h { border-radius: 7px 7px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 9px; background: var(--strip); color: var(--navy); font-size: 11px; font-weight: 700; }
+.m-blk__h small { font-size: 10px; font-weight: 500; color: var(--muted); }
+.m-blk__b { padding: 8px 9px; }
+.m-table { width: 100%; border-collapse: collapse; }
+.m-table th { padding: 5px 5px; background: var(--navy); color: #fff; font-size: 10px; line-height: 13px; font-weight: 600; text-align: center; white-space: nowrap; }
+.m-table td { padding: 6px 5px; border-top: 1px solid var(--border-soft); font-size: 10.5px; line-height: 14px; text-align: center; white-space: nowrap; }
+.m-table td.l, .m-table th.l { text-align: left; }
+.m-table--nested th { background: var(--strip); color: var(--navy); }
+.m-table tr.m-open td { background: #fbfcfe; }
+.m-mono { font-family: var(--mono); font-size: 10px; }
+.m-lead { position: relative; display: grid; gap: 1px; padding: 7px 9px 4px; font-size: 10.5px; }
+.m-lead b { font-size: 12.5px; color: var(--text); }
+.m-lead > span:not(.pin) { font-size: 10.5px; line-height: 14px; font-weight: 400; color: var(--muted); }
+.m-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 4px 9px 8px; font-size: 10.5px; font-weight: 600; }
+.m-facts small { display: block; font-size: 9.5px; font-weight: 500; color: var(--muted); }
+.m-req { display: inline-grid; place-items: center; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--border); vertical-align: middle; }
+.m-req--ok { border-color: var(--ok-fg); background: var(--ok-fg); color: #fff; }
+.m-req .i { width: 8px; height: 8px; }
+.m-link { color: var(--link); font-weight: 600; }
+.m-copy { width: 9px; height: 9px; color: var(--muted); margin-left: 2px; }
+.m-btn { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 10px; font-weight: 600; white-space: nowrap; }
+.m-btn .i { width: 10px; height: 10px; }
+.m-btn--primary { background: var(--btn); border-color: var(--btn); color: #fff; }
+.m-btn--ghost { border-color: var(--border); color: var(--muted); }
+.m-tabs { display: flex; gap: 4px; margin: 9px 0 0; border-bottom: 1px solid var(--border-soft); }
+.m-tab { padding: 4px 10px; border-radius: 6px 6px 0 0; background: var(--strip); color: var(--navy); font-size: 10.5px; font-weight: 600; }
+.m-tab--on { background: var(--navy); color: #fff; }
+.m-filters { display: flex; gap: 6px; margin-top: 8px; }
+.m-input { flex: 1; height: 20px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); display: flex; align-items: center; padding: 0 7px; color: var(--muted); font-size: 10px; }
+.m-skel { height: 6px; border-radius: 3px; background: var(--border-soft); }
+.m-field { margin-top: 8px; }
+.m-field label { display: block; font-size: 10.5px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.m-field .m-input { height: 24px; font-size: 10.5px; }
+.m-hint { margin-top: 3px; font-size: 9.5px; line-height: 13px; color: var(--muted); }
+.m-check { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--border-strong); border-radius: 2px; vertical-align: -1px; }
+.m-check--on { background: var(--btn); border-color: var(--btn); box-shadow: inset 0 0 0 2px #fff; }
+
+/* Tela de acesso (login, ativação): painel da marca e formulário */
+.m-auth { display: grid; grid-template-columns: 38% 62%; min-height: 250px; background: var(--surface); }
+.m-auth__brand { background: var(--navy); padding: 16px 14px; display: flex; flex-direction: column; justify-content: space-between; }
+.m-auth__brand img { width: 92px; }
+.m-auth__brand p { color: rgba(255, 255, 255, 0.72); font-size: 10px; line-height: 14px; }
+.m-auth__form { padding: 16px 16px 14px; }
+.m-auth__form h4 { margin: 0 0 4px; font-size: 16px; line-height: 21px; font-weight: 700; color: var(--text); }
+.m-auth__id { margin-top: 8px; padding: 7px 9px; border-radius: 8px; background: var(--strip); }
+.m-auth__id small { display: block; font-size: 9.5px; color: var(--muted); }
+.m-auth__id b { display: block; font-size: 12px; color: var(--navy); }
+.m-auth__help { margin-top: 9px; font-size: 9.5px; line-height: 13px; color: var(--muted); }
+.m-auth__help u, .m-auth__row-link u { color: var(--link); }
+.m-auth__row-link { margin-top: 5px; text-align: right; font-size: 10px; }
+.m-auth .m-btn { width: 100%; justify-content: center; height: 26px; font-size: 11px; margin-top: 10px; }
+.m-turnstile { margin-top: 8px; height: 26px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-muted); display: flex; align-items: center; gap: 6px; padding: 0 8px; font-size: 10px; color: var(--muted); }
+
+/* E-mail */
+.m-mail { background: var(--surface); }
+.m-mail__meta { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); font-size: 10.5px; line-height: 15px; color: var(--muted); }
+.m-mail__meta b { color: var(--text); font-weight: 600; }
+.m-mail__canvas { padding: 10px; background: var(--bg); }
+.m-mail__card { border-radius: 8px; overflow: hidden; background: var(--surface); border: 1px solid var(--border-soft); }
+.m-mail__top { background: var(--navy); padding: 10px; text-align: center; }
+.m-mail__top img { height: 18px; }
+.m-mail__body { padding: 11px 14px 12px; text-align: center; font-size: 10.5px; line-height: 15px; color: var(--muted); }
+.m-mail__body h5 { margin: 0 0 8px; font-size: 13px; line-height: 17px; color: var(--navy); }
+.m-mail__body p { margin-top: 6px; text-align: left; }
+.m-mail__access { border: 1px solid var(--border-soft); border-radius: 6px; overflow: hidden; text-align: left; }
+.m-mail__access div:first-child { background: var(--strip); color: var(--navy); font-weight: 700; padding: 3px 8px; font-size: 10px; }
+.m-mail__access div:last-child { padding: 5px 8px; color: var(--text); }
+.m-mail__foot { padding: 7px 12px 9px; font-size: 9.5px; line-height: 13px; color: var(--muted); text-align: center; border-top: 1px solid var(--border-soft); }
+
+/* Pix e QR decorativo (não é um QR válido) */
+.qr { fill: var(--text); stroke: none; }
+.m-qr { position: relative; width: 74px; height: 74px; padding: 4px; background: #fff; border: 1px solid var(--border-soft); border-radius: 6px; }
+.m-qr svg { width: 100%; height: 100%; display: block; }
+
+.m-pix { display: flex; gap: 10px; align-items: center; padding-left: 12px; border-left: 1px solid var(--border-soft); }
+.m-pix__code { display: block; max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 3px 0 5px; padding: 1px 5px; border-radius: 4px; background: var(--surface-muted); color: var(--muted); font-family: var(--mono); font-size: 9.5px; }
+.m-lead { font-size: 19px; line-height: 24px; font-weight: 700; }
+.m-facts { display: grid; grid-template-columns: repeat(3, auto); gap: 6px 16px; margin-top: 8px; justify-content: start; }
+.m-facts small { display: block; font-size: 9.5px; color: var(--muted); }
+.m-facts b { font-size: 10.5px; font-weight: 600; }
+
+/* Conversa de disputa */
+.m-msg { max-width: 82%; padding: 6px 8px; border-radius: 8px; font-size: 10.5px; line-height: 14px; }
+.m-msg small { display: block; font-size: 9.5px; color: var(--muted); margin-bottom: 2px; }
+.m-msg--me { margin-left: auto; background: var(--info-bg); border: 1px solid var(--info-border); }
+.m-msg--them { background: var(--surface); border: 1px solid var(--border-soft); }
+.m-attach { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 1px 6px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border-soft); color: var(--link); font-size: 10px; font-weight: 600; }
+
+/* ===== Capa ===== */
+.page--cover { background: var(--navy); color: #fff; padding: 15mm 16mm 9mm; }
+.cover__deco { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.cover__orbit { position: absolute; top: -250px; right: -250px; width: 640px; height: 640px; }
+.cover__top { position: relative; display: flex; align-items: center; justify-content: space-between; }
+.cover__top img { height: 40px; display: block; }
+
+.cover__main { position: relative; margin-top: 64mm; max-width: 128mm; }
+.cover__kicker { font-size: 13px; line-height: 18px; font-weight: 600; color: var(--globe); }
+.cover__title { margin-top: 10px; font-size: 50px; line-height: 56px; font-weight: 700; letter-spacing: -0.02em; }
+.cover__title span { color: var(--globe); }
+.cover__sub { margin-top: 14px; font-size: 17px; line-height: 26px; color: rgba(255, 255, 255, 0.84); }
+.cover__anchor { position: relative; margin-top: 26px; max-width: 128mm; padding: 16px 18px; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 14px; background: rgba(255, 255, 255, 0.06); }
+.cover__anchor small { display: block; font-size: 12px; font-weight: 600; color: var(--globe); }
+.cover__anchor b { display: block; margin-top: 2px; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.01em; }
+.cover__anchor p { margin-top: 6px; font-size: 13.5px; line-height: 20px; color: rgba(255, 255, 255, 0.84); }
+.cover__facts { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.16); display: grid; grid-template-columns: repeat(3, auto); gap: 14px; justify-content: start; }
+.cover__facts small { display: block; font-size: 12px; color: rgba(255, 255, 255, 0.66); }
+.cover__facts span { font-size: 13px; font-weight: 600; }
+
+.cover__features { position: relative; margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding-bottom: 22px; }
+.cover__feature { padding-top: 12px; border-top: 2px solid var(--globe); }
+.cover__feature b { display: flex; align-items: center; gap: 7px; font-size: 14px; line-height: 20px; }
+.cover__feature b .i { color: var(--globe); }
+.cover__feature p { margin-top: 4px; font-size: 12.5px; line-height: 18px; color: rgba(255, 255, 255, 0.76); }
+.page--cover .pf { margin-top: 0; border-top-color: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.66); }
+.page--cover .pf b { color: #fff; }
+
+/* Sumário */
+.toc li { display: grid; grid-template-columns: 26px 1fr auto; align-items: baseline; gap: 6px; padding: 6px 0; border-top: 1px solid var(--border-soft); font-size: 13px; line-height: 18px; }
+.toc li:first-child { border-top: 0; padding-top: 0; }
+.toc .tn { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--link); }
+.toc .tp { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.change { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border-soft); }
+.change:first-child { border-top: 0; padding-top: 0; }
+.change__icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--strip); color: var(--btn); }
+.change b { display: block; font-size: 13px; color: var(--navy); }
+.change p { font-size: 12.5px; line-height: 18px; color: var(--muted); }
+.menu-map { display: grid; grid-template-columns: repeat(6, 1fr); border-radius: 10px; overflow: hidden; border: 1px solid var(--border-soft); }
+.menu-map__item { background: var(--surface); }
+.menu-map__item > div:first-child { display: flex; align-items: center; gap: 5px; height: 34px; padding: 0 9px; background: var(--navy); color: #fff; font-size: 11.5px; font-weight: 600; white-space: nowrap; box-shadow: inset 0 -3px 0 var(--navy-2); }
+.menu-map__item > div:first-child .i { color: var(--globe); width: 13px; height: 13px; }
+.menu-map__item p { padding: 8px 9px 10px; font-size: 12px; line-height: 16px; color: var(--muted); border-right: 1px solid var(--border-soft); height: 100%; }
+.menu-map__item:last-child p { border-right: 0; }
+
+/* Requisitos / seções da Central */
+.tile { padding: 11px 12px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); }
+.tile__h { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 18px; font-weight: 700; color: var(--navy); }
+.tile__h .num { flex-shrink: 0; }
+.tile__h .i { color: var(--btn); }
+.tile p { margin-top: 5px; font-size: 12px; line-height: 17px; color: var(--muted); }
+
+/* Linha do tempo (Demurrage) */
+.timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--border-soft); border-radius: 10px; overflow: hidden; }
+.timeline > div { position: relative; padding: 10px 22px 11px 14px; background: var(--surface); border-left: 1px solid var(--border-soft); }
+.timeline > div:first-child { border-left: 0; }
+.timeline small { display: block; font-size: 12px; font-weight: 600; color: var(--link); }
+.timeline b { display: block; margin-top: 2px; font-size: 14px; line-height: 19px; color: var(--navy); }
+.timeline p { margin-top: 4px; font-size: 12px; line-height: 17px; color: var(--muted); }
+.timeline .arrow { position: absolute; top: 50%; right: -9px; transform: translateY(-50%); z-index: 2; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border-soft); display: grid; place-items: center; color: var(--link); }
+.timeline .arrow .i { width: 11px; height: 11px; }
+
+/* Tabelas simples de referência */
+
+/* Contatos */
+.contact { padding: 13px 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); }
+.contact__k { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.contact__k .i { color: var(--btn); }
+.contact__v { margin-top: 6px; font-size: 15px; line-height: 20px; font-weight: 700; color: var(--link); }
+.contact p { margin-top: 4px; font-size: 12px; line-height: 17px; color: var(--muted); }
+.nope li { display: grid; grid-template-columns: 18px 1fr; gap: 8px; padding: 7px 0; border-top: 1px solid var(--border-soft); font-size: 12.5px; line-height: 18px; }
+.nope li:first-child { border-top: 0; padding-top: 0; }
+.nope .i { color: var(--muted); margin-top: 2px; }
+.nope b { color: var(--text); font-weight: 600; }
+.nope span { color: var(--muted); }
+.check li { display: grid; grid-template-columns: 18px 1fr; gap: 8px; padding: 6px 0; font-size: 12.5px; line-height: 18px; border-top: 1px solid var(--border-soft); }
+.check li:first-child { border-top: 0; padding-top: 0; }
+.check .box { width: 14px; height: 14px; margin-top: 2px; border: 1.5px solid var(--btn); border-radius: 4px; }
+
+.states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.state { padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); }
+.state > b { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 13.5px; line-height: 19px; }
+.state > p { margin-top: 3px; font-size: 12px; line-height: 17px; color: var(--muted); }
+
+/* Passo a passo e Bom saber: o que fazer, e só o que não é óbvio. */
+.guide { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; margin-top: 20px; align-items: start; }
+.steps { display: grid; gap: 11px; }
+.steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; }
+.steps b { display: block; font-size: 13.5px; line-height: 20px; font-weight: 600; color: var(--text); }
+.steps p { margin-top: 2px; font-size: 12.5px; line-height: 18px; color: var(--muted); }
+.know { border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.know__h { padding: 8px 12px; background: var(--strip); color: var(--navy); font-size: 13px; line-height: 18px; font-weight: 700; }
+.know ul { display: grid; gap: 8px; padding: 11px 12px 12px; }
+.know ul li { position: relative; padding-left: 14px; font-size: 12.5px; line-height: 18px; }
+.know ul li::before { content: ''; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--globe); }
+.know ul.know--2 { grid-template-columns: 1fr 1fr; column-gap: 22px; }
+.know__p { padding: 10px 12px 0; font-size: 12.5px; line-height: 18px; color: var(--muted); }
+.know__p--foot { padding: 0 12px 12px; }
+.defs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 14px; margin: 0; padding: 11px 12px 12px; font-size: 12.5px; line-height: 18px; }
+.defs dt { font-weight: 600; white-space: nowrap; }
+.defs dd { margin: 0; color: var(--muted); }
+.defs--stack { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
+.defs--stack dd { margin-bottom: 8px; }
+.defs--stack dd:last-child { margin-bottom: 0; }
+.m-table--dense th, .m-table--dense td { padding-left: 3px; padding-right: 3px; font-size: 9.5px; }
+.m-table--dense .m-mono { font-size: 9px; }
+.mails li { padding: 9px 0; border-top: 1px solid var(--border-soft); }
+.mails li:first-child { border-top: 0; padding-top: 0; }
+.mails b { display: block; font-size: 13px; line-height: 19px; }
+.mails div span { font-size: 12.5px; line-height: 18px; color: var(--muted); }
+.check--2, .nope--2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+.check--2 li, .nope--2 li { border-top: 0; padding: 0; }
+.pair { display: grid; grid-template-columns: 92mm minmax(0, 1fr); gap: 20px; align-items: center; }
+.m-auth__text { font-size: 10.5px; line-height: 15px; color: var(--text); }
+.state__mock { display: flex; align-items: center; gap: 9px; min-height: 76px; margin-bottom: 10px; padding: 9px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border-soft); }
+.state__mt { display: block; font-size: 11px; line-height: 15px; font-weight: 600; color: var(--text); }
+.state__mt.ok { color: var(--ok-fg); }
+.state__mtext { display: block; margin-top: 2px; font-size: 10px; line-height: 14px; color: var(--muted); }
+
+/* Guia rápido: duas folhas A4, folheto para o e-mail de anúncio. */
+.gr { padding: 0; }
+.gr__hero { position: relative; overflow: hidden; height: 132mm; padding: 11mm 15mm 0; background: var(--navy); color: #fff; }
+.gr__hero .cover__orbit { top: -300px; right: -260px; }
+.gr__top { position: relative; display: flex; align-items: center; justify-content: space-between; }
+.gr__top img { height: 30px; display: block; }
+.gr__top span { font-size: 12px; font-weight: 600; color: var(--globe); }
+.gr__kicker { position: relative; margin-top: 16mm; font-size: 13px; font-weight: 600; color: var(--globe); }
+.gr__title { position: relative; margin-top: 8px; max-width: 160mm; font-size: 40px; line-height: 46px; font-weight: 700; letter-spacing: -0.02em; }
+.gr__title span { color: var(--globe); }
+.gr__sub { position: relative; margin-top: 8px; font-size: 15px; line-height: 22px; color: rgba(255, 255, 255, 0.84); }
+.gr__url { position: relative; margin-top: 14px; display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px; border: 1px solid rgba(255, 255, 255, 0.24); border-radius: 12px; background: rgba(255, 255, 255, 0.07); }
+.gr__url small { font-size: 12px; font-weight: 600; color: var(--globe); }
+.gr__url b { font-size: 19px; line-height: 24px; letter-spacing: -0.01em; }
+.gr__shot { position: relative; z-index: 2; zoom: 1.08; margin: -32mm 9mm 0; }
+.gr__shot .mock { margin: 0 !important; box-shadow: 0 2px 6px rgba(13, 43, 94, 0.12), 0 22px 50px rgba(13, 43, 94, 0.28); }
+.gr__cap { margin: 7px 15mm 0; font-size: 11.5px; line-height: 16px; color: var(--muted); text-align: center; }
+.gr__start { margin: auto 15mm 0; }
+.gr__ico { width: 40px; height: 40px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--btn); color: #fff; }
+.gr__ico .i { width: 20px; height: 20px; }
+.gr .pf { margin: 9mm 15mm 8mm; }
+.gr__sec { font-size: 18px; line-height: 24px; font-weight: 700; color: var(--navy); letter-spacing: -0.01em; }
+.gr__go { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.gr__go::before { content: ''; position: absolute; top: 24px; left: 16.6%; right: 16.6%; height: 2px; background: repeating-linear-gradient(90deg, var(--globe) 0 8px, transparent 8px 14px); }
+.gr__go div { position: relative; text-align: center; }
+.gr__go .gr__ico { width: 50px; height: 50px; box-shadow: 0 0 0 6px #fff; }
+.gr__go .gr__ico .i { width: 22px; height: 22px; }
+.gr__go b { display: block; margin-top: 10px; font-size: 14.5px; line-height: 20px; color: var(--navy); }
+.gr__go p { margin: 2px auto 0; max-width: 52mm; font-size: 12px; line-height: 16px; color: var(--muted); }
+.gr__how { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 16px; }
+.gr__card { border: 1px solid var(--border-soft); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.gr__vis { height: 148px; display: grid; place-items: center; padding: 10px 14px; background: var(--bg); border-bottom: 1px solid var(--border-soft); }
+.gr__card > div:last-child { padding: 10px 14px 12px; }
+.gr__card b { display: block; font-size: 14.5px; line-height: 20px; color: var(--navy); }
+.gr__card p { margin-top: 2px; font-size: 12.5px; line-height: 17px; color: var(--muted); }
+.gr__panel { width: 100%; padding: 9px 11px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); box-shadow: 0 6px 16px rgba(13, 43, 94, 0.08); }
+.gr__flow { display: flex; align-items: center; gap: 8px; }
+.gr__mini { width: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 9px 12px; text-align: center; }
+.gr__arrow { width: 20px; height: 20px; color: var(--globe); flex-shrink: 0; }
+.gr__rows { display: grid; gap: 5px; font-size: 11px; line-height: 15px; }
+.gr__rows div { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border-soft); }
+.gr__rows div:last-child { padding-bottom: 0; border-bottom: 0; }
+.gr__reqs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; font-size: 10.5px; line-height: 13px; color: var(--muted); }
+.gr__reqs .m-req { display: grid; width: 22px; height: 22px; margin: 0 auto 5px; border-width: 2px; }
+.gr__reqs .m-req .i { width: 13px; height: 13px; }
+.gr__merge { display: flex; align-items: center; gap: 10px; }
+.gr__merge > div { display: grid; gap: 4px; }
+.gr__chip { padding: 3px 8px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface); font-size: 10.5px; line-height: 14px; white-space: nowrap; }
+.gr__merge > .i { width: 20px; height: 20px; color: var(--globe); flex-shrink: 0; }
+.gr__one { padding: 8px 12px; border-radius: 10px; background: var(--navy); color: #fff; font-size: 11px; line-height: 15px; text-align: center; }
+.gr__one b { display: block; color: #fff; font-size: 14px; line-height: 19px; }
+.gr__tips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+.gr__tips div { padding: 12px 14px; border-radius: 12px; background: var(--strip); }
+.gr__tips b { display: block; font-size: 13.5px; line-height: 19px; color: var(--navy); }
+.gr__tips p { margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--muted); }
+.gr__help { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 12px; border: 1px solid var(--border-soft); border-radius: 12px; }
+.gr__help div { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-left: 1px solid var(--border-soft); }
+.gr__help div:first-child { border-left: 0; }
+.gr__help .i { flex-shrink: 0; width: 18px; height: 18px; color: var(--btn); }
+.gr__help small { display: block; font-size: 11.5px; line-height: 15px; color: var(--muted); }
+.gr__help b { display: block; font-size: 12.5px; line-height: 17px; color: var(--link); }
+.gr__cta { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 13px 16px; border-radius: 12px; background: var(--navy); color: #fff; }
+.gr__cta b { display: block; font-size: 15px; line-height: 20px; }
+.gr__cta p { margin-top: 1px; font-size: 12px; line-height: 16px; color: rgba(255, 255, 255, 0.78); }
+</style>
+</head>
+<body>
+
+<!-- Ícones no traço do app (lucide). -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-package" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-ship" viewBox="0 0 24 24"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M19.38 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/><path d="M12 10v4"/><path d="M12 2v3"/></symbol>
+  <symbol id="i-printer" viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></symbol>
+  <symbol id="i-buoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></symbol>
+  <symbol id="i-anchor" viewBox="0 0 24 24"><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/></symbol>
+  <symbol id="i-pointer" viewBox="0 0 24 24"><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <!-- Padrão decorativo com cara de QR, sem dados: nenhum app de banco lê. -->
+  <symbol id="qr-exemplo" viewBox="0 0 25 25"><path d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM12 0h1v1h-1zM13 0h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM20 0h1v1h-1zM21 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM13 1h1v1h-1zM14 1h1v1h-1zM15 1h1v1h-1zM18 1h1v1h-1zM24 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM12 2h1v1h-1zM13 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM18 2h1v1h-1zM20 2h1v1h-1zM21 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM13 3h1v1h-1zM15 3h1v1h-1zM16 3h1v1h-1zM18 3h1v1h-1zM20 3h1v1h-1zM21 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM15 4h1v1h-1zM16 4h1v1h-1zM18 4h1v1h-1zM20 4h1v1h-1zM21 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM13 5h1v1h-1zM15 5h1v1h-1zM18 5h1v1h-1zM24 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM12 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM19 6h1v1h-1zM20 6h1v1h-1zM21 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM11 7h1v1h-1zM14 7h1v1h-1zM15 7h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM13 8h1v1h-1zM21 8h1v1h-1zM24 8h1v1h-1zM3 9h1v1h-1zM5 9h1v1h-1zM7 9h1v1h-1zM18 9h1v1h-1zM19 9h1v1h-1zM23 9h1v1h-1zM24 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM3 10h1v1h-1zM5 10h1v1h-1zM7 10h1v1h-1zM20 10h1v1h-1zM21 10h1v1h-1zM22 10h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM4 11h1v1h-1zM5 11h1v1h-1zM17 11h1v1h-1zM20 11h1v1h-1zM21 11h1v1h-1zM22 11h1v1h-1zM23 11h1v1h-1zM0 12h1v1h-1zM1 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM17 12h1v1h-1zM19 12h1v1h-1zM21 12h1v1h-1zM22 12h1v1h-1zM24 12h1v1h-1zM0 13h1v1h-1zM3 13h1v1h-1zM5 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM20 13h1v1h-1zM22 13h1v1h-1zM3 14h1v1h-1zM5 14h1v1h-1zM7 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM21 14h1v1h-1zM0 15h1v1h-1zM2 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM19 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM23 15h1v1h-1zM2 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1zM9 16h1v1h-1zM11 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h1v1h-1zM8 17h1v1h-1zM9 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM14 17h1v1h-1zM15 17h1v1h-1zM16 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM21 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM24 17h1v1h-1zM0 18h1v1h-1zM1 18h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM4 18h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM8 18h1v1h-1zM12 18h1v1h-1zM14 18h1v1h-1zM16 18h1v1h-1zM21 18h1v1h-1zM23 18h1v1h-1zM0 19h1v1h-1zM6 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM14 19h1v1h-1zM15 19h1v1h-1zM17 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM24 19h1v1h-1zM0 20h1v1h-1zM2 20h1v1h-1zM3 20h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM8 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM13 20h1v1h-1zM17 20h1v1h-1zM20 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM0 21h1v1h-1zM2 21h1v1h-1zM3 21h1v1h-1zM4 21h1v1h-1zM6 21h1v1h-1zM8 21h1v1h-1zM10 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM18 21h1v1h-1zM21 21h1v1h-1zM0 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM6 22h1v1h-1zM9 22h1v1h-1zM10 22h1v1h-1zM12 22h1v1h-1zM17 22h1v1h-1zM19 22h1v1h-1zM20 22h1v1h-1zM21 22h1v1h-1zM24 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM17 23h1v1h-1zM18 23h1v1h-1zM23 23h1v1h-1zM24 23h1v1h-1zM0 24h1v1h-1zM1 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM5 24h1v1h-1zM6 24h1v1h-1zM9 24h1v1h-1zM10 24h1v1h-1zM12 24h1v1h-1zM18 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1z"/></symbol>
+</svg>
+
+
+<section class="page gr" aria-label="Guia rápido: o Portal e como começar">
+  <div class="gr__hero">
+    <div class="cover__deco" aria-hidden="true">
+    <svg class="cover__orbit" viewBox="0 0 640 640">
+      <g fill="none" stroke-linecap="round">
+        <circle cx="320" cy="320" r="300" stroke="rgba(90,170,240,0.16)" stroke-width="1.5"/>
+        <path d="M320 20 A300 300 0 0 1 620 320" stroke="rgba(90,170,240,0.55)" stroke-width="2.5"/>
+        <circle cx="320" cy="320" r="236" stroke="rgba(90,170,240,0.12)" stroke-width="1.5"/>
+        <path d="M110 430 A236 236 0 0 1 320 84" stroke="rgba(90,170,240,0.42)" stroke-width="2.5"/>
+      </g>
+      <circle cx="110" cy="430" r="6" fill="#5aaaf0"/>
+    </svg>
+    </div>
+    <div class="gr__top"><img src="../../public/branding/fwlog-logo-white.png" alt="Fwlog Soluções Logísticas"><span>Guia rápido</span></div>
+    <p class="gr__kicker">Portal do Cliente Fwlog</p>
+    <h1 class="gr__title">Sua importação com a Fwlog, <span>num só lugar.</span></h1>
+    <p class="gr__sub">B/Ls, containers, CE Mercante, faturas e pagamento por Pix.</p>
+    <div class="gr__url"><small>Acesse em</small><b>portalfwlog.com.br</b></div>
+  </div>
+
+  <div class="gr__shot">
+    <div class="mock" style="margin-top:18px">
+    <div class="m-chrome"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span><span class="m-url"><svg class="i"><use href="#i-lock"/></svg>portalfwlog.com.br/portal</span></div>
+    <div class="m-bar">
+      <img src="../../public/branding/fwlog-logo-white.png" alt="">
+      <div class="m-nav">
+        <span class="on">Painel</span>
+        <span>Faturas</span>
+        <span>BLs e Containers</span>
+        <span>Desbloqueio de CE</span>
+        <span>Informações</span>
+        <span>Perfil</span>
+      </div>
+      <div class="m-bar__end"><span class="has-pin" style="display:inline-flex"><svg class="i"><use href="#i-bell"/></svg></span><span style="margin-left:18px"><span class="m-skel" style="display:inline-block;width:90px;vertical-align:middle;background:rgba(255,255,255,0.3)"></span></span><span>Sair</span></div>
+    </div>
+    <div class="m-body">
+      <div class="m-title"><h4>Painel</h4></div>
+      <div class="m-cards">
+        <div class="m-card m-card--warn has-pin"><div class="m-card__l">Taxas Locais em aberto</div><div class="m-card__v">R$ 1.250,00</div><div class="m-card__d">1 fatura</div></div>
+        <div class="m-card"><div class="m-card__l">Demurrage em aberto</div><div class="m-card__v">US$ 0,00</div><div class="m-card__d">0 faturas · R$ 0,00 hoje</div></div>
+        <div class="m-card m-card--warn"><div class="m-card__l">Containers sem devolução</div><div class="m-card__v">2</div><div class="m-card__d">0 já em demurrage</div></div>
+        <div class="m-card"><div class="m-card__l">Desbloqueio de CE em aberto</div><div class="m-card__v">0 solicitações</div></div>
+      </div>
+      <div class="m-blk">
+        <div class="m-blk__h">Chegadas e saídas<small><span class="m-skel" style="display:inline-block;width:150px;vertical-align:middle"></span> &nbsp;<span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-refresh"/></svg>Atualizar</span></small></div>
+        <table class="m-table">
+          <thead><tr><th class="l">Navio</th><th>Viagem</th><th>Qingdao ETD</th><th>Shanghai ETD</th><th>Ningbo ETD</th><th>Vitória ETA</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="l"><div class="m-skel" style="width:70%"></div></td><td><div class="m-skel" style="width:50%;margin:auto"></div></td><td class="m-mono"><span class="ok"><svg class="i"><use href="#i-check"/></svg> </span>02/03/2026</td><td class="m-mono"><span class="ok"><svg class="i"><use href="#i-check"/></svg> </span>05/03/2026</td><td class="m-mono"><span class="ok"><svg class="i"><use href="#i-check"/></svg> </span>08/03/2026</td><td class="m-mono">14/04/2026</td><td><span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-pin"/></svg></span> <span class="m-btn m-btn--ghost has-pin"><svg class="i"><use href="#i-package"/></svg></span></td></tr>
+            <tr><td class="l"><div class="m-skel" style="width:55%"></div></td><td><div class="m-skel" style="width:50%;margin:auto"></div></td><td class="m-mono">20/03/2026</td><td class="m-mono">23/03/2026</td><td class="muted">Omitida</td><td class="m-mono">01/05/2026</td><td><span class="m-btn m-btn--ghost"><svg class="i"><use href="#i-pin"/></svg></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="m-blk">
+        <div class="m-blk__h">Consultas<small>Central de Informações</small></div>
+        <div class="m-blk__b" style="display:flex;gap:5px;flex-wrap:wrap">
+          <span class="m-btn">Taxas Locais</span><span class="m-btn">Depósitos de devolução</span><span class="m-btn">Tarifa de Demurrage</span><span class="m-btn">Agentes por porto</span><span class="m-btn">Contato</span><span class="m-btn">Tracking</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <p class="gr__cap">O Painel mostra o que está em aberto e a programação de navios, com as saídas na origem e as chegadas no Brasil. Imagens ilustrativas.</p>
+
+  <div class="gr__start">
+    <h2 class="gr__sec">Comece em 3 passos</h2>
+    <div class="gr__go">
+      <div><span class="gr__ico"><svg class="i"><use href="#i-mail"/></svg></span><b>Receba o convite</b><p>No e-mail de recuperação da empresa. O link vale por 48 horas.</p></div>
+      <div><span class="gr__ico"><svg class="i"><use href="#i-key"/></svg></span><b>Crie a sua senha</b><p>No mínimo 8 caracteres, com letra maiúscula, minúscula e número.</p></div>
+      <div><span class="gr__ico"><svg class="i"><use href="#i-lock"/></svg></span><b>Entre no Portal</b><p>Depois de ativar, entre com o CNPJ da empresa e a senha criada.</p></div>
+    </div>
+  </div>
+
+  <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br</span><span>1 / 2</span></footer>
+</section>
+
+<section class="page" aria-label="Guia rápido: como funciona">
+  <header class="ph"><img src="../../public/branding/fwlog-logo.png" alt="Fwlog"><span class="ph__section">Guia rápido</span></header>
+
+  <h2 class="gr__sec">Veja como funciona</h2>
+  <div class="gr__how">
+    <div class="gr__card">
+      <div class="gr__vis"><div class="gr__flow">
+        <div class="gr__panel gr__mini"><div class="m-qr" style="width:58px;height:58px"><svg aria-label="QR Code Pix"><use href="#qr-exemplo" class="qr"/></svg></div><span class="m-btn"><svg class="i"><use href="#i-copy"/></svg>Copiar código Pix</span></div>
+        <svg class="i gr__arrow"><use href="#i-arrow"/></svg>
+        <div class="gr__panel gr__mini"><b class="state__mt ok"><svg class="i"><use href="#i-check"/></svg> Paga</b><span class="state__mtext">R$ 1.250,00 recebidos</span><span class="m-btn" style="margin-top:6px"><svg class="i"><use href="#i-printer"/></svg>Imprimir recibo</span></div>
+      </div></div>
+      <div><b>Pague com Pix e tenha o recibo</b><p>Taxas Locais e Demurrage são pagas só por Pix, direto na fatura. A baixa é automática e o recibo fica pronto para imprimir.</p></div>
+    </div>
+    <div class="gr__card">
+      <div class="gr__vis"><div class="gr__panel"><div class="gr__rows">
+        <div><span class="m-mono">EXMU2223334</span><span class="warn">No free time · 4 dias</span></div>
+        <div><span class="m-mono">EXMU1234565</span><span class="danger">Em demurrage</span></div>
+        <div><span class="m-mono">EXMU7654321</span><span>Devolvido</span></div>
+      </div></div></div>
+      <div><b>Acompanhe cada container</b><p>Quantos dias de free time restam e onde devolver.</p></div>
+    </div>
+    <div class="gr__card">
+      <div class="gr__vis"><div class="gr__panel"><div class="gr__reqs">
+        <div><span class="m-req m-req--ok"><svg class="i"><use href="#i-check"/></svg></span>Taxas locais</div><div><span class="m-req m-req--ok"><svg class="i"><use href="#i-check"/></svg></span>Termo de devolução</div><div><span class="m-req m-req--ok"><svg class="i"><use href="#i-check"/></svg></span>Procuração</div><div><span class="m-req"></span>B/L original</div>
+      </div></div></div>
+      <div><b>Peça o desbloqueio de CE</b><p>E veja, B/L a B/L, os quatro requisitos cumpridos.</p></div>
+    </div>
+    <div class="gr__card">
+      <div class="gr__vis"><div class="gr__merge">
+        <div><span class="gr__chip">B/L 1 · R$ 1.250,00</span><span class="gr__chip">B/L 2 · R$ 980,00</span><span class="gr__chip">B/L 3 · R$ 1.410,00</span></div>
+        <svg class="i"><use href="#i-arrow"/></svg>
+        <div class="gr__one">Fatura consolidada<b>R$ 3.640,00</b>um único Pix</div>
+      </div></div>
+      <div><b>Junte vários B/Ls num Pix</b><p>A fatura consolidada soma as Taxas Locais em aberto.</p></div>
+    </div>
+  </div>
+
+  <h2 class="gr__sec" style="margin-top:32px">Bom saber</h2>
+  <div class="gr__tips">
+    <div><b>Um acesso por CNPJ</b><p>Matriz e cada filial entram com o próprio CNPJ e veem só os próprios dados.</p></div>
+    <div><b>Esqueceu a senha?</b><p>Use “Esqueci minha senha” no login. O link chega ao e-mail de recuperação.</p></div>
+    <div><b>Quem recebe os avisos</b><p>Em “Meu perfil”, escolha quem recebe cada tipo de comunicado.</p></div>
+  </div>
+
+  <h2 class="gr__sec" style="margin-top:32px">Fale com a Fwlog</h2>
+  <div class="gr__help">
+    <div><svg class="i"><use href="#i-key"/></svg><span><small>Acesso ao Portal</small><b>suporte@portalfwlog.com.br</b></span></div>
+    <div><svg class="i"><use href="#i-file"/></svg><span><small>Importação e CE</small><b>importacao@fwlog.com.br</b></span></div>
+    <div><svg class="i"><use href="#i-package"/></svg><span><small>Containers e Demurrage</small><b>eqp@fwlog.com.br</b></span></div>
+  </div>
+
+  <div class="gr__cta">
+    <div><b>Guia completo do Portal</b><p>O passo a passo de cada tela. Peça pelo e-mail do suporte, acima.</p></div>
+  </div>
+
+  <footer class="pf"><span><b>Fwlog</b> · Portal do Cliente · portalfwlog.com.br</span><span>2 / 2</span></footer>
+</section>
+
+</body>
+</html>

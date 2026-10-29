@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   createOrAttach: vi.fn(),
   setShow: vi.fn(),
   effectiveRole: vi.fn(() => 'documentacao'),
+  isAdmin: vi.fn(() => false),
   confirm: vi.fn(),
   confirmEffective: vi.fn(),
 }))
@@ -43,7 +44,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
 }))
 vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 'user-1' }, effectiveRole: mocks.effectiveRole() }),
+  useAuth: () => ({ user: { id: 'user-1' }, effectiveRole: mocks.effectiveRole(), isAdmin: mocks.isAdmin() }),
 }))
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
@@ -83,6 +84,7 @@ describe('ChegadasSaidas user behaviours', () => {
     mocks.createOrAttach.mockResolvedValue({ voyageId: 3, created: true })
     mocks.setShow.mockResolvedValue(undefined)
     mocks.effectiveRole.mockReturnValue('documentacao')
+    mocks.isAdmin.mockReturnValue(false)
     mocks.confirm.mockResolvedValue(true)
   })
 
@@ -101,6 +103,21 @@ describe('ChegadasSaidas user behaviours', () => {
       voyageNumber: '003',
     }), 'user-1', expect.objectContaining({ mode: 'form', voyageId: undefined }))
     await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyage-escala-schedules'] }))
+  })
+
+  it('"Adicionar navio" que achou a Viagem já cadastrada não diz que cadastrou', async () => {
+    mocks.createOrAttach.mockResolvedValue({ voyageId: 3, created: false })
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+
+    await user.click(screen.getByRole('button', { name: /Adicionar navio/ }))
+    await user.type(screen.getByLabelText(/Nome do Navio/), 'GAMMA')
+    await user.type(screen.getByLabelText(/Viagem \(VOY\)/), '003')
+    await user.click(screen.getAllByLabelText('Não escala')[POL_COUNT])
+    await user.click(screen.getByRole('button', { name: 'Adicionar e publicar' }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('A viagem já estava cadastrada: as datas foram gravadas nela e ela está publicada no Portal.', 'success'))
+    expect(mocks.showToast).not.toHaveBeenCalledWith('Viagem cadastrada e publicada no Portal.', 'success')
   })
 
   it('preenche edição a partir da viagem projetada', async () => {
@@ -407,6 +424,54 @@ describe('ChegadasSaidas user behaviours', () => {
       }),
     )
     expect(mocks.createOrAttach).toHaveBeenCalled()
+  })
+
+  async function markSalvadorNaoEscala(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
+    // Vitória ganha data (ao menos um porto de chegada) e Salvador vira "não escala".
+    await user.click(screen.getAllByLabelText('Não escala')[POL_COUNT + 1])
+    await user.click(screen.getAllByLabelText('Não escala')[POL_COUNT])
+    await user.click(screen.getByRole('button', { name: /Salvar/ }))
+    return mocks.confirm.mock.calls[0][0].consequence as string
+  }
+
+  it('"não escala" para o Administrativo explica quando a escala sai da Viagem e a trava', async () => {
+    mocks.effectiveRole.mockReturnValue('administrativo')
+    mocks.isAdmin.mockReturnValue(true)
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+
+    const consequence = await markSalvadorNaoEscala(user)
+
+    expect(consequence).toContain('A escala sem B/L descarregando no porto, ATA, ATD, Vinculada Sim e nunca salva na janela da escala sai da Viagem e do Line-Up')
+    expect(consequence).toContain('Se a escala estiver travada, nada é gravado.')
+    expect(mocks.createOrAttach).toHaveBeenCalledWith(expect.anything(), 'user-1', expect.objectContaining({ voyageId: 1, canRemoveEscala: true }))
+  })
+
+  it('"não escala" para as demais equipes diz que só a data sai e a escala continua na Viagem', async () => {
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+
+    const consequence = await markSalvadorNaoEscala(user)
+
+    expect(consequence).toContain('só a data sai. A escala continua na Viagem; sem mais nada, deixa de aparecer no Line-Up.')
+    expect(consequence).not.toContain('sai da Viagem')
+    expect(mocks.createOrAttach).toHaveBeenCalledWith(expect.anything(), 'user-1', expect.objectContaining({ voyageId: 1, canRemoveEscala: false }))
+  })
+
+  it('a data sugerida ao desmarcar "Não escala" é a de hoje em Brasília, não a de UTC', async () => {
+    // 27/10 às 22h30 em Brasília já é 28/10 em UTC.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-28T01:30:00Z'))
+    try {
+      const user = userEvent.setup()
+      render(<ChegadasSaidas />)
+      await user.click(screen.getByRole('button', { name: /Adicionar navio/ }))
+      await user.click(screen.getAllByLabelText('Não escala')[POL_COUNT])
+      expect((screen.getByLabelText(/Salvador/) as HTMLInputElement).value).toBe('2026-10-27')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   // Revisão de 2026-10-22 (B1, ADR 0097): a célula vencida (âmbar) tem

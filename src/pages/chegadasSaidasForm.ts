@@ -28,14 +28,21 @@ export function buildScheduleLanes(form: ScheduleForm): ScheduleLaneInput[] {
   }))
 }
 
+function dateOnly(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}[T ]/.test(value) ? value.slice(0, 10) : value
+}
+
 export function scheduleFormFromVoyage(voyage: PortalScheduleVoyage): ScheduleForm {
   return {
     vesselName: voyage.vesselName,
     vesselImo: voyage.imoNumber ?? '',
     voyageNumber: voyage.voyage,
+    // Só o dia: a janela da escala grava ETA/ETD com hora, e <input type="date">
+    // mostra em branco o que não é AAAA-MM-DD. Salvar o mesmo dia mantém a hora
+    // gravada (`scheduleDateKeepingTime`).
     dates: Object.fromEntries(PORTAL_SCHEDULE_LANES.map((lane) => [
       lane.label,
-      voyage.forecastDatesByLabel?.[lane.label] ?? voyage.datesByLabel[lane.label] ?? '',
+      dateOnly(voyage.forecastDatesByLabel?.[lane.label] ?? voyage.datesByLabel[lane.label] ?? ''),
     ])),
     omitted: Object.fromEntries(PORTAL_SCHEDULE_LANES.map((lane) => {
       const dateVal = voyage.forecastDatesByLabel?.[lane.label] ?? voyage.datesByLabel[lane.label]
@@ -47,8 +54,9 @@ export function scheduleFormFromVoyage(voyage: PortalScheduleVoyage): ScheduleFo
 
 /**
  * Portos de descarga que tinham data na publicação e passaram a "não escala"
- * na edição. Para cada um, `createOrAttachVoyageFromSchedule` remove a escala
- * da Viagem quando ela não tem B/L, ATA nem manifesto; por isso a tela confirma.
+ * na edição. Para cada um, `createOrAttachVoyageFromSchedule` tira a data e,
+ * para o Administrativo, retira da Viagem a escala sem âncora; por isso a tela
+ * confirma.
  */
 export function clearedPodLabels(original: ScheduleForm, next: ScheduleForm): string[] {
   return PORTAL_SCHEDULE_LANES

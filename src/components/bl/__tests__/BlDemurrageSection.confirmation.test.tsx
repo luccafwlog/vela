@@ -45,6 +45,7 @@ vi.mock('../../../services/demurrage/demurrageRates', () => ({
 }))
 
 vi.mock('../../../services/demurrage/demurrageContainers', () => ({
+  readDemurrageGroupAnchor: async (blId: string) => blId,
   updateContainerReturnDate: (id: number, date: string | null, reason?: string | null) =>
     mocks.updateContainerReturnDate(id, date, ...(reason ? [reason] : [])),
 }))
@@ -222,6 +223,20 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Remover data de devolução' }))
   })
 
+  it('mostra a recusa de negócio do banco ao salvar a condição do B/L, e não um erro genérico', async () => {
+    mocks.saveBlDemurrageConfig.mockRejectedValueOnce({ code: '42501', message: 'Usuário sem permissão para configurar demurrage.' })
+    const user = userEvent.setup()
+    renderComponent()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Definir condição do B/L' }))
+    const freeTimeInput = screen.getByDisplayValue('10')
+    await user.clear(freeTimeInput)
+    await user.type(freeTimeInput, '15')
+    await user.click(screen.getByRole('button', { name: /salvar condições/i }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Usuário sem permissão para configurar demurrage.', 'error'))
+  })
+
   it('mostra a recusa de negócio do banco ao salvar a devolução, e não um erro genérico', async () => {
     mocks.updateContainerReturnDate.mockRejectedValueOnce({ code: '22023', message: 'Devolução anterior à descarga.' })
     renderComponent()
@@ -240,5 +255,30 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
 
     await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Erro ao salvar a data de devolução.', 'error'))
+  })
+})
+
+describe('BlDemurrageSection - B/L cancelado (ADR 0094, B4; migration 504)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('mostra a devolução gravada só para leitura, com o aviso, sem campo nem Salvar', () => {
+    renderComponent({ ...mockBl, cancelled_at: '2026-10-20T12:00:00Z' } as unknown as BLDetail)
+
+    expect(screen.getByText('B/L cancelado: somente leitura. Reative para corrigir.')).toBeTruthy()
+    expect(screen.getByText('10/05/2026')).toBeTruthy()
+    expect(screen.queryByLabelText('Devolução do container MSCU1234567')).toBeNull()
+    expect(screen.queryByDisplayValue('2026-05-10')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Salvar devolução/ })).toBeNull()
+    expect(mocks.updateContainerReturnDate).not.toHaveBeenCalled()
+    // A condição do B/L também é só leitura: o banco recusa (guard_bl_state_and_ce).
+    expect(screen.queryByRole('button', { name: 'Definir condição do B/L' })).toBeNull()
+  })
+
+  it('B/L ativo segue com a devolução editável e sem o aviso', () => {
+    renderComponent({ ...mockBl, cancelled_at: null } as unknown as BLDetail)
+
+    expect(screen.queryByText(/somente leitura/)).toBeNull()
+    expect(screen.getByLabelText('Devolução do container MSCU1234567')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Definir condição do B/L' })).toBeTruthy()
   })
 })

@@ -7,7 +7,7 @@ describe('portalErrorMessage', () => {
       'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
     )
     expect(portalErrorMessage(Object.assign(new Error('raw session'), { code: '28000' }), 'Falha generica.')).toBe(
-      'Sua sessao expirou. Entre novamente para continuar.',
+      'Sua sessão expirou. Entre novamente para continuar.',
     )
     expect(portalErrorMessage(new Error('New password should be different from the old password.'), 'Falha generica.')).toBe(
       'A nova senha deve ser diferente da senha atual.',

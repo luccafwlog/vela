@@ -93,7 +93,7 @@ describe('telemetryContext', () => {
       const err = { code: '42501', message: 'permission denied for table demurrage_invoices' }
       const res = classifyErrorForTelemetry(err)
       expect(res.categoria).toBe('Segurança / Permissão')
-      expect(res.diagnostico).toBe('Sem permissao para esta acao. Solicite acesso administrativo.')
+      expect(res.diagnostico).toBe('Sem permissão para esta ação.')
       expect(res.codigo).toBe('42501')
     })
 

@@ -2,22 +2,23 @@ import { DEFAULT_CARRIER_NAME, DEFAULT_CARRIER_SCAC } from './voyageForm'
 import { supabase } from './supabase'
 import {
   createVoyage,
+  duplicateVoyageMessage,
   findVoyageByNumberAndVessel,
   setVoyageShowOnPortal,
+  voyageRegistrationRefusal,
 } from './voyages'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
+import { recordAuditEntries, type AuditEntry } from './auditEntries'
 import {
+  buildVoyagePodDeleteChange,
   buildVoyagePodEntityId,
   buildVoyagePodScheduleChanges,
   buildVoyagePolEntityId,
   buildVoyagePolScheduleChanges,
-  deleteVoyagePodSchedule,
   listVoyagePodSchedules,
   listVoyagePolSchedules,
   makeEmptyPodSchedule as emptyPod,
   makeEmptyPolSchedule as emptyPol,
-  saveVoyagePodSchedule,
-  saveVoyagePolSchedule,
 } from './voyageRouteSchedules'
 
 export type ScheduleLaneInput = {
@@ -39,7 +40,11 @@ export type ScheduleWriteMode = 'form' | 'bulk'
 
 export type ScheduleWriteOptions = {
   mode?: ScheduleWriteMode
-  /** Viagem alvo conhecida (edicao): pula a deduplicacao por VOY+navio. */
+  /**
+   * Viagem alvo conhecida (edicao): pula a deduplicacao por VOY+navio. No modo
+   * `form`, so com ela "Nao escala" limpa data ou retira escala; sem ela
+   * ("Adicionar navio"), so os portos com data sao gravados.
+   */
   voyageId?: number
   /**
    * "Nao escala" so retira a escala para o Administrativo, e o banco ainda
@@ -59,6 +64,16 @@ export function partitionScheduleLanes(lanes: ScheduleLaneInput[]) {
     else pods.push({ pod: lane.code, eta: date })
   }
   return { pols, pods }
+}
+
+/**
+ * Data informada (só o dia, do formulário ou da planilha) sobre o valor
+ * gravado: o mesmo dia não é mudança, para não regravar a data e perder a hora
+ * (ETA 03/11 08:00 com a planilha em 03/11). Dia diferente grava a data nova.
+ */
+export function scheduleDateKeepingTime(current: string | null | undefined, next: string): string {
+  const stored = (current ?? '').trim()
+  return /^\d{4}-\d{2}-\d{2}$/.test(next) && stored.slice(0, 10) === next ? stored : next
 }
 
 function collectClearedLanes(lanes: ScheduleLaneInput[]) {
@@ -96,43 +111,81 @@ async function podHasOperationalAnchor(
   return (count ?? 0) > 0
 }
 
-async function cancelClearedLanes(
+type ScheduleAuditChange = AuditEntry & { changed_by?: string | null }
+
+/**
+ * Linhas de Histórico da gravação pela tela: as datas informadas e, na edição,
+ * os portos em "Não escala" (`clearsOmitted`). Nada é gravado aqui.
+ */
+async function buildFormScheduleChanges(
   voyageId: number,
   lanes: ScheduleLaneInput[],
   changedBy: string | null,
-  canRemoveEscala: boolean,
-) {
-  const cleared = collectClearedLanes(lanes)
+  { clearsOmitted, canRemoveEscala }: { clearsOmitted: boolean; canRemoveEscala: boolean },
+): Promise<ScheduleAuditChange[]> {
+  const { pols, pods } = partitionScheduleLanes(lanes)
+  const cleared = clearsOmitted ? collectClearedLanes(lanes) : { pols: [], pods: [] }
+  const polIds = [...pols.map((pol) => pol.code), ...cleared.pols].map((code) => buildVoyagePolEntityId(voyageId, code))
+  const podIds = [...pods.map((pod) => pod.pod), ...cleared.pods].map((code) => buildVoyagePodEntityId(voyageId, code))
+  // POD removido entra com o que tinha e volta ao planejamento, como na
+  // planilha (`deleted=false` em `buildVoyagePodScheduleChanges`).
+  const [currentPols, currentPods] = await Promise.all([
+    listVoyagePolSchedules(polIds),
+    listVoyagePodSchedules(podIds, { includeDeleted: true }),
+  ])
+  const changes: ScheduleAuditChange[] = []
 
-  const clearedPolIds = cleared.pols.map((code) => buildVoyagePolEntityId(voyageId, code))
-  const currentPols = await listVoyagePolSchedules(clearedPolIds)
-  await Promise.all(cleared.pols.map((code) => {
-    const current = currentPols.get(buildVoyagePolEntityId(voyageId, code))
-    if (!current?.etd) return Promise.resolve()
-    return saveVoyagePolSchedule({ voyageId, pol: code, etd: null, changedBy })
-  }))
+  for (const pol of pols) {
+    const id = buildVoyagePolEntityId(voyageId, pol.code)
+    const current = currentPols.get(id) ?? emptyPol(id)
+    changes.push(...buildVoyagePolScheduleChanges(id, current, { etd: scheduleDateKeepingTime(current.etd, pol.etd), changedBy }))
+  }
+  for (const pod of pods) {
+    const id = buildVoyagePodEntityId(voyageId, pod.pod)
+    const current = currentPods.get(id) ?? emptyPod(id)
+    changes.push(...buildVoyagePodScheduleChanges(id, current, {
+      eta: scheduleDateKeepingTime(current.eta, pod.eta),
+      ata: current.ata ?? null,
+      ceStatus: current.ceStatus ?? null,
+      linked: current.linked ?? false,
+      changedBy,
+    }))
+  }
 
-  const clearedPodIds = cleared.pods.map((code) => buildVoyagePodEntityId(voyageId, code))
-  const currentPods = await listVoyagePodSchedules(clearedPodIds)
-  await Promise.all(cleared.pods.map(async (code) => {
-    const current = currentPods.get(buildVoyagePodEntityId(voyageId, code))
-    if (!current) return
+  for (const code of cleared.pols) {
+    const id = buildVoyagePolEntityId(voyageId, code)
+    const current = currentPols.get(id)
+    if (current?.etd) changes.push(...buildVoyagePolScheduleChanges(id, current, { etd: null, changedBy }))
+  }
+  for (const code of cleared.pods) {
+    const id = buildVoyagePodEntityId(voyageId, code)
+    const current = currentPods.get(id)
+    if (!current || current.deleted) continue
+    // Sem ETA, a janela já mostrava o porto em "Não escala" e não pediu
+    // confirmação (`clearedPodLabels`): não há o que tirar nem escala a retirar.
+    if (current.eta === null) continue
     const anchored = !canRemoveEscala || await podHasOperationalAnchor(voyageId, code, current)
-    if (anchored) {
-      if (current.eta === null) return
-      await saveVoyagePodSchedule({
-        voyageId,
-        pod: code,
-        eta: null,
-        ata: current.ata ?? null,
-        ceStatus: current.ceStatus ?? null,
-        linked: current.linked ?? false,
-        changedBy,
-      })
-      return
+    if (!anchored) {
+      changes.push(buildVoyagePodDeleteChange(voyageId, code, changedBy))
+      continue
     }
-    await deleteVoyagePodSchedule({ voyageId, pod: code, changedBy })
-  }))
+    changes.push(...buildVoyagePodScheduleChanges(id, current, {
+      eta: null,
+      ata: current.ata ?? null,
+      ceStatus: current.ceStatus ?? null,
+      linked: current.linked ?? false,
+      changedBy,
+    }))
+  }
+  return changes
+}
+
+async function refuseCancelledVoyage(voyageId: number, input: VoyageScheduleInput) {
+  const { data, error } = await supabase.from('voyages').select('status').eq('id', voyageId).maybeSingle()
+  if (error) throw error
+  if ((data as { status?: string } | null)?.status !== 'cancelled') return
+  const label = `${canonicalizeVesselName(input.vesselName) || input.vesselName.trim()} / ${input.voyageNumber.trim().toUpperCase()}`
+  throw voyageRegistrationRefusal(duplicateVoyageMessage({ label, cancelled: true }))
 }
 
 export async function createOrAttachVoyageFromSchedule(
@@ -141,9 +194,11 @@ export async function createOrAttachVoyageFromSchedule(
   options: ScheduleWriteOptions = {},
 ) {
   const mode = options.mode ?? 'bulk'
-  const { pols, pods } = partitionScheduleLanes(input.lanes)
   const existingId = options.voyageId
     ?? await findVoyageByNumberAndVessel(input.voyageNumber, input.vesselImo, input.vesselName)
+  // A Viagem achada pelo VOY e navio pode estar cancelada: a escala dela é só
+  // leitura, e a tela não anexa nem publica (a planilha já recusa na prévia).
+  if (options.voyageId === undefined && existingId !== null) await refuseCancelledVoyage(existingId, input)
   // A Viagem nova já nasce publicada, com a origem na linha do tempo; a
   // existente é publicada aqui (revisão de 2026-10-22, F1).
   const voyageId = existingId ?? (await createVoyage({
@@ -155,34 +210,20 @@ export async function createOrAttachVoyageFromSchedule(
     status: 'active',
   }, changedBy, { origin: 'chegadas_saidas', showOnPortal: true })).id
 
+  // "Não escala" só apaga data ou escala na edição (Viagem conhecida). Em
+  // "Adicionar navio", a Viagem achada pelo VOY e navio recebe só os portos
+  // com data: o formulário começa todo em "Não escala" e não mostra o que a
+  // Viagem já tem.
+  const changes = await buildFormScheduleChanges(voyageId, input.lanes, changedBy, {
+    clearsOmitted: mode === 'form' && options.voyageId !== undefined,
+    canRemoveEscala: options.canRemoveEscala ?? false,
+  })
+  // Uma chamada, uma transação (`record_audit_entries`): se a trava recusa a
+  // retirada de uma escala ("Escala … travada"), nenhuma data é gravada.
+  await recordAuditEntries(changes)
+
+  // Publica depois das datas: a recusa da trava não deixa a Viagem publicada.
   if (existingId !== null) await setVoyageShowOnPortal(voyageId, true)
-
-  await Promise.all(pols.map((pol) => saveVoyagePolSchedule({
-    voyageId,
-    pol: pol.code,
-    etd: pol.etd,
-    changedBy,
-  })))
-
-  const entityIds = pods.map((pod) => buildVoyagePodEntityId(voyageId, pod.pod))
-  const currentSchedules = await listVoyagePodSchedules(entityIds)
-
-  await Promise.all(pods.map((pod) => {
-    const current = currentSchedules.get(buildVoyagePodEntityId(voyageId, pod.pod))
-    return saveVoyagePodSchedule({
-      voyageId,
-      pod: pod.pod,
-      eta: pod.eta,
-      ata: current?.ata ?? null,
-      ceStatus: current?.ceStatus ?? null,
-      linked: current?.linked ?? false,
-      changedBy,
-    })
-  }))
-
-  if (mode === 'form') {
-    await cancelClearedLanes(voyageId, input.lanes, changedBy, options.canRemoveEscala ?? false)
-  }
 
   return { voyageId, created: existingId === null }
 }
@@ -326,13 +367,14 @@ export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: 
       }
       pols.forEach((pol, index) => {
         const id = polIds[index]
-        push(buildVoyagePolScheduleChanges(id, currentPols.get(id) ?? emptyPol(id), { etd: pol.etd, changedBy }))
+        const current = currentPols.get(id) ?? emptyPol(id)
+        push(buildVoyagePolScheduleChanges(id, current, { etd: scheduleDateKeepingTime(current.etd, pol.etd), changedBy }))
       })
       pods.forEach((pod, index) => {
         const id = podIds[index]
         const current = currentPods.get(id) ?? emptyPod(id)
         push(buildVoyagePodScheduleChanges(id, current, {
-          eta: pod.eta, ata: current.ata ?? null, ceStatus: current.ceStatus ?? null, linked: current.linked ?? false, changedBy,
+          eta: scheduleDateKeepingTime(current.eta, pod.eta), ata: current.ata ?? null, ceStatus: current.ceStatus ?? null, linked: current.linked ?? false, changedBy,
         }))
       })
       plan.push({ ...base, voyageId, createsVoyage: voyageId === null, changes, error: null })
