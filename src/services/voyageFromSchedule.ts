@@ -2,8 +2,10 @@ import { DEFAULT_CARRIER_NAME, DEFAULT_CARRIER_SCAC } from './voyageForm'
 import { supabase } from './supabase'
 import {
   createVoyage,
+  duplicateVoyageMessage,
   findVoyageByNumberAndVessel,
   setVoyageShowOnPortal,
+  voyageRegistrationRefusal,
 } from './voyages'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
 import { recordAuditEntries, type AuditEntry } from './auditEntries'
@@ -159,12 +161,14 @@ async function buildFormScheduleChanges(
     const id = buildVoyagePodEntityId(voyageId, code)
     const current = currentPods.get(id)
     if (!current || current.deleted) continue
+    // Sem ETA, a janela já mostrava o porto em "Não escala" e não pediu
+    // confirmação (`clearedPodLabels`): não há o que tirar nem escala a retirar.
+    if (current.eta === null) continue
     const anchored = !canRemoveEscala || await podHasOperationalAnchor(voyageId, code, current)
     if (!anchored) {
       changes.push(buildVoyagePodDeleteChange(voyageId, code, changedBy))
       continue
     }
-    if (current.eta === null) continue
     changes.push(...buildVoyagePodScheduleChanges(id, current, {
       eta: null,
       ata: current.ata ?? null,
@@ -176,6 +180,14 @@ async function buildFormScheduleChanges(
   return changes
 }
 
+async function refuseCancelledVoyage(voyageId: number, input: VoyageScheduleInput) {
+  const { data, error } = await supabase.from('voyages').select('status').eq('id', voyageId).maybeSingle()
+  if (error) throw error
+  if ((data as { status?: string } | null)?.status !== 'cancelled') return
+  const label = `${canonicalizeVesselName(input.vesselName) || input.vesselName.trim()} / ${input.voyageNumber.trim().toUpperCase()}`
+  throw voyageRegistrationRefusal(duplicateVoyageMessage({ label, cancelled: true }))
+}
+
 export async function createOrAttachVoyageFromSchedule(
   input: VoyageScheduleInput,
   changedBy: string | null,
@@ -184,6 +196,9 @@ export async function createOrAttachVoyageFromSchedule(
   const mode = options.mode ?? 'bulk'
   const existingId = options.voyageId
     ?? await findVoyageByNumberAndVessel(input.voyageNumber, input.vesselImo, input.vesselName)
+  // A Viagem achada pelo VOY e navio pode estar cancelada: a escala dela é só
+  // leitura, e a tela não anexa nem publica (a planilha já recusa na prévia).
+  if (options.voyageId === undefined && existingId !== null) await refuseCancelledVoyage(existingId, input)
   // A Viagem nova já nasce publicada, com a origem na linha do tempo; a
   // existente é publicada aqui (revisão de 2026-10-22, F1).
   const voyageId = existingId ?? (await createVoyage({
