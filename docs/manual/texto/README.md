@@ -35,6 +35,9 @@ precisa disto para fazer o trabalho, e a tela não diz?". Se não, sai.
   Situação difícil com um caminho que ninguém adivinha (trocar o B/L, cancelar
   fatura paga) entra como seção curta, em poucos passos.
 - **Cada coisa uma vez,** no lugar dela; nas outras seções, um link.
+- **Alertas no capítulo de alertas.** Cada alerta é explicado uma vez, no
+  capítulo 20 (quando abre, quem recebe, quando fecha, o que fazer). Nos outros
+  capítulos, no máximo uma frase ("abre um alerta para a equipe"), com link.
 - **Os nomes são os da tela,** em negrito e exatamente como aparecem. Termos do
   negócio pelo [glossário](../../../CONTEXT.md), explicados na primeira vez em
   que aparecem no capítulo.

@@ -54,6 +54,10 @@ Repita para cada porto. Nem sempre você precisa: a escala também nasce sozinha
 
 Quando a escala tem exportação, a janela pede o que vai ser embarcado: **Granito**, **Embarque de vazios** ou os dois. Você declara a exportação antes de saber a quantidade, para o terminal e o Line Up já se prepararem.
 
+::: atencao
+A declaração de exportação só sai depois que a carga deixar de existir. Com Granito importado no porto ou um Embarque de vazios aberto na escala, ela fica travada (capítulo 10).
+:::
+
 Na mesma janela ficam três informações do Mercante, que você preenche quando souber:
 
 - **BLs e CEs** diz em que pé está a documentação da escala, de **Aguardando** a **Aprovado**. O Vela atualiza sozinho a cada importação; mudar à mão pede justificativa.
@@ -193,7 +197,8 @@ A janela Marcar COD.
 O destino do B/L passa a ser o Porto de Transbordo e a Taxa Local é recalculada. Se o B/L já foi faturado, a diferença vira um ajuste para o {{Financeiro}} (capítulo 24). Para desfazer, use **Reverter para transbordo** no mesmo cartão.
 
 ::: atencao
-Para reverter a omissão, reverta antes o COD de cada B/L que o tiver.
+- Reverter o COD devolve o destino, mas não devolve o B/L ao Manifesto Mercante, que o COD tirou. Depois de reverter, mova o B/L de volta em **Rotas e Manifestos** › **Ver B/Ls** ([4.6](#46-rotas-e-manifestos)).
+- Para reverter a omissão, reverta antes o COD de cada B/L que o tiver.
 :::
 
 ## 4.8 Encerrar, cancelar ou excluir

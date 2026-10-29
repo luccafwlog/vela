@@ -217,6 +217,12 @@ fazer o trabalho, e a tela não diz?".
 - A matriz de cobertura vira a referência interna completa: o manual não tem
   mais a obrigação de escrever cada regra (o `manual:check` deixou de exigir).
 - Um manual único, sem volumes por equipe; cada capítulo diz quem o usa.
+- Os alertas têm capítulo próprio (capítulo 20 do sumário): cada alerta uma
+  vez só, com quando abre, quem recebe, quando fecha sozinho e o que fazer,
+  agrupado por equipe. Os outros capítulos citam o alerta em uma frase, com
+  link, só onde ele é a consequência natural do que a seção ensina. Motivo: a
+  pessoa chega ao alerta pelo sino, não pelo capítulo da tarefa, e o mesmo
+  alerta nasce de várias áreas (decisão de 2026-10-29).
 - Tamanho esperado: o piloto (capítulos 4 a 6) em 30 a 40 páginas, e o manual
   inteiro em 150 a 200.
 
