@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Omissão, transbordo e COD: a tela mostra o motivo da recusa (2026-10-28, sem migration, PR
+  luccafwlog/vela#1085):** **Omitir escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e
+  **Reverter para transbordo** recusados pelo banco mostram o motivo da recusa, pelo mesmo tradutor das
+  outras telas (`classifyDbError`), em vez de "Falha ao …"; erro técnico continua com o texto fixo, e
+  "Verifique se algum B/L está em COD." só complementa a recusa por B/L em COD. Ver
 - **Prévias com troca de POD no B/L com exceção de terminal (2026-10-29, migration `512`; revisão da PR
   luccafwlog/vela#1084):** a prévia das taxas alteradas à mão e a da reimportação de carga solta de B/L
   faturado tiravam o terminal da exceção e deixavam o porto, e o banco recusava a simulação
