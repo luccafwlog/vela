@@ -1,4 +1,4 @@
--- 502: mudança de cadastro feita pelo Cliente no Perfil do Portal aparece em
+-- 503: mudança de cadastro feita pelo Cliente no Perfil do Portal aparece em
 -- Alterações do cadastro (ficha do Cliente) como "Cliente pelo Portal", não
 -- como "Usuário interno".
 --

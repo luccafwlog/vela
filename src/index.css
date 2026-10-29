@@ -2419,8 +2419,12 @@ button.app-metric-tile[aria-pressed='true'] {
   border-color: var(--app-red);
 }
 
+/* Rótulo, campo e ajuda ficam no topo da célula: numa grade em que um vizinho
+   tem ajuda ou erro, a linha cresce e o campo sem ajuda não estica (Lacre da
+   janela Corrigir container, no B/L faturado). */
 .app-field {
   display: grid;
+  align-content: start;
   gap: 6px;
 }
 

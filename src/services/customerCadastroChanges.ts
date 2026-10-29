@@ -62,7 +62,7 @@ export function diffContactSnapshots(before: unknown, after: unknown): Array<Pic
   return changes
 }
 
-/** `changed_by_portal` (migration 502): o autor é o login de uma conta do Portal. */
+/** `changed_by_portal` (migration 503): o autor é o login de uma conta do Portal. */
 type AuditRow = { id: number; field_name: string; old_value: string | null; new_value: string | null; changed_at: string | null; justification: string | null; changed_by: string | null; changed_by_portal?: boolean | null }
 type ContactEventRow = { id: number; source: string; actor_id: string | null; before_snapshot: unknown; after_snapshot: unknown; change_summary: { justification?: unknown; action?: unknown } | null; created_at: string }
 

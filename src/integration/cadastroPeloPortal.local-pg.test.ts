@@ -1,7 +1,7 @@
 import { execPsql } from './localPsql'
 import { describe, expect, it } from 'vitest'
 
-// Migration 502: endereço mudado pelo Cliente no Perfil do Portal aparece em
+// Migration 503: endereço mudado pelo Cliente no Perfil do Portal aparece em
 // Alterações do cadastro como do Cliente, não de um "Usuário interno". A
 // trilha (`customer_audit_timeline`) diz quando o autor é a conta do Portal.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -30,7 +30,7 @@ const asPortal = `RESET ROLE; SET LOCAL ROLE authenticated; SET LOCAL request.jw
 const asAdmin = `RESET ROLE; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated'; SET LOCAL request.jwt.claim.sub = '${ADM}';`
 const asOwnerByAdmin = `RESET ROLE; SET LOCAL request.jwt.claim.role = 'service_role'; SET LOCAL request.jwt.claim.sub = '${ADM}';`
 
-describeLocal('migration 502 — cadastro mudado pelo Cliente no Portal', () => {
+describeLocal('migration 503 — cadastro mudado pelo Cliente no Portal', () => {
   it('a trilha do Cliente marca a mudança do Perfil do Portal como do Portal, e a do usuário interno não', () => {
     const out = scenario(`
       ${asPortal}
