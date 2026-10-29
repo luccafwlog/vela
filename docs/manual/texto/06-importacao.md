@@ -95,7 +95,7 @@ A ideia é esta: o arquivo novo é a fonte dos dados do documento, mas o que já
 | **Troca de consignatário** | O arquivo aponta outro Cliente. | O Cliente continua o mesmo. |
 | **Taxas alteradas à mão** | A mudança afeta uma taxa que alguém alterou à mão. | Nada é gravado. |
 
-As datas dos containers (descarga e devolução) e as correções feitas à mão no Vela nunca vêm do arquivo: elas ficam.
+As datas dos containers (descarga e devolução) e o perfil e o COC/SOC corrigidos à mão no Vela ficam: o arquivo não os muda. Já o lacre, o peso e o CBM de cada container voltam ao que o arquivo traz.
 
 ::: atencao
 Container que o arquivo novo não traz sai do B/L. A prévia mostra quais saem: confira antes de importar.
