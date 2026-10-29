@@ -119,7 +119,7 @@ export class EscalaTerminalBlockedError extends Error {
   readonly blockers: ClosedAdrBlocker[]
 
   constructor(blockers: ClosedAdrBlocker[]) {
-    const labels = blockers.map((blocker) => blocker.terminalCode ?? blocker.reportId ?? 'terminal sem código')
+    const labels = blockers.map((blocker) => blocker.terminalCode ?? 'terminal sem código')
     super(`A alteração está bloqueada por ADR fechado: ${labels.join(', ')}. Reabra o ADR antes de continuar.`)
     this.name = 'EscalaTerminalBlockedError'
     this.blockers = blockers

@@ -753,6 +753,8 @@ describe('EscalaModal', () => {
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
     expect(screen.getByRole('alert').textContent).toContain('ADR fechado')
     expect(screen.getByText(/terminal T-SUL/)).toBeTruthy()
+    // O identificador interno do ADR (reportId) não é texto para o operador.
+    expect(screen.getByText(/terminal T-SUL/).textContent).not.toContain('adr-1')
     expect(screen.getByRole('button', { name: 'Reabrir ADR' })).toBeTruthy()
   })
 

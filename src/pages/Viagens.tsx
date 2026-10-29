@@ -572,7 +572,7 @@ export function Viagens() {
           } catch (error) {
             if (error instanceof EscalaTerminalBlockedError) {
               const blockers = error.blockers
-                .map((blocker) => [blocker.terminalCode, blocker.reportId].filter(Boolean).join(' / '))
+                .map((blocker) => blocker.terminalCode) // sem o reportId: identificador interno, não é texto para o operador
                 .filter(Boolean)
                 .join(', ')
               showToast(`Alteração bloqueada por ADR fechado${blockers ? ` (${blockers})` : ''}. Reabra o ADR antes de continuar.`, 'error')
@@ -580,7 +580,7 @@ export function Viagens() {
             }
             if (error instanceof VoyageExportScheduleBlockedError) {
               const blockers = error.result.closed_blockers
-                .map((blocker) => [blocker.terminal_code, blocker.report_id].filter(Boolean).join(' / '))
+                .map((blocker) => blocker.terminal_code) // sem o report_id interno
                 .filter(Boolean)
                 .join(', ')
               showToast(`Exportação bloqueada por ADR fechado${blockers ? ` (${blockers})` : ''}. Reabra o ADR antes de alterar a escala.`, 'error')
