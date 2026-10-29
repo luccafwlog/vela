@@ -54,13 +54,13 @@
               ]
             }
           ],
-          "leitura": "15 minutos",
+          "leitura": "8 minutos",
           "antes": "Antes, leia o capítulo 4 (Viagens e Escalas)."
         },
         {
           "numero": 6,
           "titulo": "Importação da documentação",
-          "resumo": "Arquivo de B/L, carga solta, CE Mercante, Manifesto e Baplie",
+          "resumo": "Arquivo de B/L, carga solta, CE Mercante e faturas, Baplie e troca de B/L",
           "arquivo": "06-importacao.md",
           "equipes": [
             "Todas as equipes"
@@ -76,7 +76,7 @@
               ]
             }
           ],
-          "leitura": "45 minutos",
+          "leitura": "15 minutos",
           "antes": "Antes, leia o capítulo 4 (Viagens e Escalas)."
         }
       ]

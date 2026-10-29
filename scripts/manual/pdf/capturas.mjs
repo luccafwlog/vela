@@ -279,8 +279,8 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(1, dlg.getByLabel('Data da saída'), clip, { posicao: 'campo' }),
-          await marca(2, dlg.getByRole('button', { name: 'Confirmar saída' }), clip, { destaque: true }),
+          await marca(2, dlg.getByLabel('Data da saída'), clip, { posicao: 'campo' }),
+          await marca(3, dlg.getByRole('button', { name: 'Confirmar saída' }), clip, { destaque: true }),
         ],
         async depois() {
           await page.keyboard.press('Escape')
@@ -301,8 +301,8 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(1, dlg.getByLabel('Salvador · ETA'), clip, { posicao: 'campo' }),
-          await marca(2, dlg.getByRole('button', { name: 'Salvar alterações' }), clip, { destaque: true }),
+          await marca(2, dlg.getByLabel('Salvador · ETA'), clip, { posicao: 'campo' }),
+          await marca(3, dlg.getByRole('button', { name: 'Salvar alterações' }), clip, { destaque: true }),
         ],
         async depois() {
           await page.keyboard.press('Escape')
@@ -322,11 +322,9 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(1, dlg.getByLabel('Nome do Navio *'), clip, { posicao: 'campo' }),
-          await marca(2, dlg.getByLabel('Viagem (VOY) *'), clip, { posicao: 'campo' }),
-          await marca(3, dlg.getByLabel('Número IMO'), clip, { posicao: 'campo' }),
-          await marca(4, dlg.getByLabel('Salvador · ETA'), clip, { posicao: 'campo' }),
-          await marca(5, dlg.getByRole('button', { name: 'Adicionar e publicar' }), clip, { destaque: true }),
+          await marca(2, dlg.getByLabel('Nome do Navio *'), clip, { posicao: 'campo' }),
+          await marca(3, dlg.getByLabel('Salvador · ETA'), clip, { posicao: 'campo' }),
+          await marca(4, dlg.getByRole('button', { name: 'Adicionar e publicar' }), clip, { destaque: true }),
         ],
         async depois() {
           await page.keyboard.press('Escape')
@@ -384,10 +382,10 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(3, dlg.getByLabel('Navio / Viagem'), clip, { posicao: 'campo' }),
-          await marca(4, dlg.getByText('Trocar arquivo', { exact: true }), clip, { posicao: 'esquerda' }),
-          await marca(5, dlg.getByRole('heading', { name: 'Prévia' }), clip, { posicao: 'esquerda' }),
-          await marca(6, importar, clip, { destaque: true }),
+          await marca(2, dlg.getByLabel('Navio / Viagem'), clip, { posicao: 'campo' }),
+          await marca(3, dlg.getByText('Trocar arquivo', { exact: true }), clip, { posicao: 'esquerda' }),
+          await marca(4, dlg.getByRole('heading', { name: 'Prévia' }), clip, { posicao: 'esquerda' }),
+          await marca(5, importar, clip, { destaque: true }),
         ],
         async depois() {
           await importar.click()
@@ -542,7 +540,8 @@ export const CAPTURAS = [
       await page.waitForTimeout(800)
       const grupo = page.locator('section').filter({ has: page.getByRole('heading', { name: /^No Baplie, sem B\/L/ }) }).last()
       const clip = await recorteDe(page, [secao(page, 'Carga física no Baplie'), conc, grupo], 8)
-      return { clip, marks: [await marca(1, grupo.getByText(/Ver o container na lista|Ver os \d+ containers na lista/), clip, { posicao: 'esquerda' })] }
+      // Imagem de leitura (sem passo): a seção 6.8 explica os grupos em texto.
+      return { clip, marks: [] }
     },
   },
   {
