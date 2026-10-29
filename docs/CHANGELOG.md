@@ -6,6 +6,10 @@
 
 ## 2026-10
 
+- **Validação não oferece Recalcular com Revisão pendente (2026-10-29):** o B/L com Revisão pendente
+  (fora a do Portal) mostra **Resolver na Revisão** no lugar de **Recalcular**, na linha e na faixa da
+  linha aberta; a Revisão recalcula ao salvar. Sem migration. Ver
+  [Taxas Locais](modules/taxas-locais.md#superfícies-operacionais-fora-da-rota).
 - **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
   programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
   histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na
