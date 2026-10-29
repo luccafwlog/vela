@@ -15,21 +15,20 @@ Nem toda carga é um container cheio com Cliente. Este capítulo cuida do resto 
 
 Os veículos chegam dentro de containers de B/Ls de container. O arquivo do B/L não os traz: eles entram pela planilha de veículos do armador, ligados ao B/L e ao container. Por isso importe os B/Ls antes.
 
-O veículo pesa na cobrança: o B/L de container com veículos cujo **Movement To** é LCL (ou CFS) fica **Isento** das Taxas Locais (capítulo 21). Sem a planilha, o CE emite a fatura cheia desse B/L.
+O veículo pesa na cobrança: o B/L de container com veículos cujo **Movement To** é LCL (ou CFS) fica **Isento** das Taxas Locais (capítulo 21). Sem a planilha, ao gravar o CE o Vela emite a fatura cheia desse B/L.
 
 1. No menu **Importação**, abra **Veículos** e escolha a Viagem na faixa do alto ou em **Buscar viagem**.
-2. Clique em **Importar veículos** e escolha o arquivo (.xlsx, .xls ou .csv). Serve o modelo da janela ou o Daily Report do armador, mesmo com cabeçalhos em chinês.
+2. Clique em **Importar veículos** e escolha o arquivo (.xlsx, .xls ou .csv).
 3. Confira a prévia e clique em **Importar N veículos**.
 
-A planilha precisa de **CHASSI**, **MARCA**, **MODELO**, **PESO**, **CUBAGEM**, **CONTAINER**, **TIPO_CONTAINER**, **LACRE** e **BL**; **LOCAL DE DESOVA** é opcional. Ao importar, cada linha é conferida com o que está gravado: o B/L precisa ser da Viagem, o container precisa ser daquele B/L, com o mesmo tipo e o mesmo lacre, e o chassi não pode estar em outra Viagem ativa. Uma linha recusada recusa a planilha inteira, e a janela lista as recusadas.
+Uma linha recusada recusa a planilha inteira, e a janela lista as recusadas.
 
 ### Viagem sem veículos
 
-Cinco dias antes da chegada, a Viagem com B/L de container que ainda não tem veículo abre um alerta para {{Equipamentos}} (capítulo 20). Se a Viagem não traz veículos, declare: na lista vazia, clique em **Esta viagem não terá veículos**. O alerta fecha e a declaração fica na Linha do tempo da Viagem. Se a planilha chegar depois, importe: a declaração se desfaz sozinha.
+Se a Viagem não traz veículos, clique em **Esta viagem não terá veículos** na lista vazia: o alerta da planilha de veículos fecha (capítulo 20). Se a planilha chegar depois, importe: a declaração se desfaz sozinha.
 
 ::: atencao
 - A planilha só acrescenta veículos: o chassi que já está na Viagem é recusado, e com ele a planilha inteira. Numa segunda leva, importe só os veículos novos; para corrigir um veículo, veja [10.3](#103-mover-ou-excluir-um-veículo).
-- O local de desova da planilha só preenche o container sem local. Se ele já tem outro, a janela pergunta: **Trocar pelo da planilha** ou **Manter o gravado**.
 :::
 
 ## 10.2 Definir o local de desova
@@ -43,11 +42,7 @@ O **local de desova** é onde o container é aberto e os veículos saem dele. O 
 3. Em **Aplicar a**, escolha os veículos marcados, todos os do recorte ou só os sem local.
 4. Digite o local e clique em **Aplicar a N containers**.
 
-O campo em branco apaga o local. Se algum container já tem outro local, o Vela lista os afetados e pede confirmação antes de trocar. A troca fica no Histórico de cada B/L.
-
-::: atencao
-O local vale para o container inteiro, inclusive para os veículos que o filtro esconde. Confira na janela quantos veículos, no total, a escolha atinge.
-:::
+A troca fica no Histórico de cada B/L.
 
 ## 10.3 Mover ou excluir um veículo
 
@@ -61,7 +56,7 @@ Nenhuma tela edita um veículo: ele entra pela planilha e muda só por duas aç�
 O motivo fica no Histórico do B/L. As Taxas Locais dos B/Ls sem fatura são recalculadas na hora; o B/L faturado segue a correção da fatura (capítulo 22).
 
 ::: atencao
-O container com veículos não sai do B/L quando o B/L é reimportado sem ele. Mova ou exclua os veículos antes ([6.3](06-importacao.md#63-reimportar-um-bl-que-o-armador-corrigiu)).
+Reimportar o B/L sem um container que tem veículos é recusado na prévia: mova ou exclua os veículos dele antes ([6.3](06-importacao.md#63-reimportar-um-bl-que-o-armador-corrigiu)).
 :::
 
 ## 10.4 Cadastrar os vazios de importação
@@ -79,15 +74,14 @@ Há dois jeitos de cadastrá-los:
 Os vazios da COSCO SHIPPING SEREIA / 024E, ainda sem número de manifesto.
 :::
 
-A planilha vale mais que o Baplie: o container que ela traz sai dos vazios do Baplie. Importar a planilha de novo substitui os containers de cada rota que ela traz. Enquanto uma rota de vazios está sem número, a lista mostra **Sem número** em âmbar e a Viagem conta como CE Mercante pendente (capítulo 20).
+Importar a planilha de novo substitui os containers de cada rota que ela traz. Enquanto uma rota de vazios está sem número, a lista mostra **Sem número** em âmbar e a Viagem conta como CE Mercante pendente (capítulo 20).
 
 ### A natureza do vazio
 
 Alguns vazios têm uma função a bordo: **Cama** é a base de estiva de uma carga OOG; **Cover plate** é a tampa de porão. Para registrar, marque os containers na lista e clique em **Cama**, **Cover plate** ou **Limpar**. A natureza aparece no ADR de Saída, em **Vazios descarregados** (capítulo 11).
 
 ::: atencao
-- Um vazio existe uma vez por Viagem. Se outra planilha já gravou o container numa rota que esta não traz, o arquivo é recusado: traga a rota inteira ou tire o container.
-- Quando o Baplie é reimportado e os vazios mudam, o bloco mostra **Atualizar vazios do Baplie**. A natureza já marcada é mantida.
+- Reimportar o Baplie mantém a natureza já marcada.
 :::
 
 ## 10.5 Registrar o embarque de vazios
@@ -101,11 +95,10 @@ O **Embarque de vazios** registra os containers vazios que o navio embarca num p
 3. Na aba **Unidades embarcadas**, clique em **Importar planilha** ou, para uma unidade só, em **Adicionar unidade**.
 4. Em cada unidade vão o **Container**, o **Local** de onde saiu, a **Condição** (**Vazio** ou **Com material**) e as datas. Saindo de um depot, **Entrada** e **Saída** são obrigatórias; saindo do terminal (embarque direto), elas não existem.
 
-A planilha tem as colunas Container, Tipo, Local (o código do cadastro de Locais), Condição, Entrada, Saída e Embarque; Container, Local e Condição são obrigatórias. Ela não tem prévia: **Importar** confere e grava em seguida, tudo ou nada. Importar de novo substitui a lista da escala, mas mantém as unidades incluídas à mão que o arquivo não traz. O mesmo container só embarca uma vez na Viagem.
+A planilha não tem prévia: grava tudo ou nada, e importar de novo substitui a lista, mas mantém as unidades incluídas à mão. O mesmo container só embarca uma vez na Viagem.
 
 ::: atencao
 - Confira a escala antes de criar o embarque. O embarque não se exclui pela tela e, enquanto ele existe, a declaração de vazios da escala não sai ([4.2](04-viagens-escalas.md#42-planejar-as-escalas)).
-- Com o ADR de Saída do porto fechado, o embarque fica travado: a tela mostra **ADR de Saída fechado** e nada se inclui, edita ou exclui. Reabra o ADR antes (capítulo 11).
 :::
 
 ## 10.6 Lançar os serviços do embarque
@@ -123,10 +116,6 @@ A armazenagem o Vela calcula pela lista de unidades: para cada unidade de depot,
 
 A quantidade da armazenagem acompanha a lista de unidades. Para fixar outro número, marque **Informar a quantidade à mão, no lugar do cálculo**. A linha lançada não se edita, fora a observação: para mudar, exclua a linha (com motivo) e lance de novo.
 
-::: atencao
-Se **Armazenagem a lançar** diz que falta o serviço de armazenagem ou que o local está inativo, o ícone da linha abre o local em Locais: cadastre o serviço ([10.7](#107-cadastrar-depots-terminais-e-serviços)) ou peça ao {{Administrativo}} que reative o local.
-:::
-
 ## 10.7 Cadastrar depots, terminais e serviços
 
 **Quem faz:** {{Qualquer equipe}} · desativar, reativar e excluir: {{Administrativo}}
@@ -134,17 +123,16 @@ Se **Armazenagem a lançar** diz que falta o serviço de armazenagem ou que o lo
 Os **Locais** são de dois tipos:
 
 - **Depot:** o pátio onde o vazio espera antes do embarque. Tem **Free time vazio** e **Free time com material**, em dias, e gera armazenagem.
-- **Terminal portuário:** o terminal da escala, como o TVV. Precisa de **Porto brasileiro**, não tem free time nem armazenagem, mas pode cobrar serviços. É o mesmo terminal que se escolhe nas escalas e nos B/Ls ([5.8](05-programacao.md#58-navios-armadores-portos-e-terminais)).
+- **Terminal portuário:** o terminal da escala, como o TVV ([5.8](05-programacao.md#58-navios-armadores-portos-e-terminais)). Precisa de **Porto brasileiro**, não tem free time nem armazenagem, mas pode cobrar serviços.
 
 1. Em **Vazios EXP**, clique em **Locais (depots e terminais)**.
 2. Clique em **Novo local** e preencha **Código** (único), **Nome**, **Tipo** e o porto ou os free times. Clique em **Cadastrar local**.
 3. Com o local aberto, em **Serviços do catálogo**, clique em **Adicionar serviço**: o nome, a **Natureza** (Armazenagem, Transporte ou Geral), a **Condição** (na armazenagem) ou o **Destino da rota** (no transporte) e o **Valor sugerido (R$)**.
 
-O valor do catálogo é só uma sugestão para as linhas do embarque: não tem vigência, e mudá-lo não muda as linhas já lançadas. Já o free time e o tipo do depot mudam a armazenagem calculada dali em diante.
+O valor do catálogo é só uma sugestão para as linhas do embarque: não tem vigência, e mudá-lo não muda as linhas já lançadas. Já o free time e o tipo do depot refazem a armazenagem de todo embarque com ADR de Saída aberto, inclusive das linhas já lançadas sem quantidade à mão.
 
 ::: atencao
 - Local ou serviço desativado sai das escolhas novas, mas continua onde já foi usado. Só se exclui o que nunca foi usado.
-- O serviço de transporte sem destino ativo não aparece em **Lançar linha**.
 :::
 
 ## 10.8 Importar o Granito
@@ -164,5 +152,5 @@ A planilha sem nenhum B/L em comum com os da Viagem vira outro manifesto. A que 
 ::: atencao
 - O porto de carregamento da planilha precisa ser uma escala da Viagem. Senão, o Granito aparece no ADR de Saída como dado órfão (capítulo 11).
 - Com Granito importado no porto, a declaração de exportação da escala não sai ([4.2](04-viagens-escalas.md#42-planejar-as-escalas)).
-- Se a escala declara exportação e o navio sai do terminal sem o Granito ou os vazios vinculados, abre um alerta para {{Operações}} (capítulo 20).
+- Se o navio sai do terminal sem o Granito ou os vazios que a escala declarou, abre um alerta para {{Operações}} (capítulo 20).
 :::
