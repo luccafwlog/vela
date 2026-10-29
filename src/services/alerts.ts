@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import type { Alert } from '../types/database'
 import { reportBestEffortFailure } from '../lib/telemetry'
+import { classifyDbError } from '../lib/errors'
 import { voyageDisplayName } from '../lib/utils'
 import { queryKeys } from './queryKeys'
 import { fetchUserDisplayNames } from './userNames'
@@ -720,17 +721,75 @@ export function importEffectRetryTarget(alert: {
   entity_type: string | null
   entity_id: string | null
   metadata?: Record<string, unknown> | null
-}): { effectId: number; record: string | null; reason: string | null; reprocessing: boolean } | null {
+}): { effectId: number; record: string | null; reason: string; technicalDetail: string | null; reprocessing: boolean } | null {
   if (getEffectiveAlertType(alert) !== 'import_effect_blocked') return null
   if (alert.entity_type !== 'import_effect' || !/^\d+$/.test(alert.entity_id ?? '')) return null
   const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null)
   return {
     effectId: Number(alert.entity_id),
     record: text(alert.metadata?.bl_id) ?? text(alert.metadata?.entity_id),
-    reason: text(alert.metadata?.error_message) ?? text(alert.metadata?.error_code),
+    ...importEffectBlockedReason(text(alert.metadata?.error_code), text(alert.metadata?.error_message)),
     // Migration 395: depois do Reprocessar o alerta fica aberto até o efeito concluir.
     reprocessing: alert.metadata?.reprocessing === true,
   }
+}
+
+// Motivo, em linguagem de operação, de cada `error_code` que o runner grava
+// ao bloquear um efeito (`run_import_effect_once` e `complete_import_effect`,
+// migration 394). O texto cru fica como "Detalhe técnico" para o suporte.
+const IMPORT_EFFECT_BLOCKED_REASONS: Readonly<Record<string, string>> = {
+  effect_domain_refused: 'O sistema recusou o passo por uma regra de negócio.',
+  effect_domain_missing: 'Um registro de que o passo precisa não foi encontrado; ele pode ter sido excluído.',
+  invalid_effect_payload: 'O passo foi gravado com dados inválidos.',
+  authorization_invalid: 'O passo rodou sem permissão para gravar.',
+  unsupported_effect_kind: 'O sistema não sabe executar este tipo de passo.',
+  dependency_blocked: 'Um passo anterior do mesmo registro está bloqueado; resolva aquele alerta primeiro.',
+  retry_exhausted: 'O passo falhou cinco vezes seguidas e parou de tentar.',
+  lease_expired: 'O processamento parou no meio, sem resposta, várias vezes seguidas.',
+}
+// Códigos vindos de RAISE do próprio domínio (P0xxx, P0002, 22023), cujo texto
+// pode ser uma recusa escrita para a operação. `effect_failed` é erro cru do Postgres.
+const BUSINESS_REFUSAL_CODES: ReadonlySet<string> = new Set(['effect_domain_refused', 'effect_domain_missing', 'invalid_effect_payload'])
+const IMPORT_EFFECT_BLOCKED_FALLBACK = 'Falha técnica ao executar o passo.'
+const IMPORT_EFFECT_BLOCKED_NEXT_STEP = 'Corrija a causa e use Reprocessar.'
+
+/**
+ * Motivo do bloqueio de um efeito de importação para a pessoa operadora. A
+ * recusa de negócio (`RAISE` do domínio com texto em português, sem nome de
+ * coluna ou função) aparece como está, pela mesma régua de `classifyDbError` (P0001);
+ * o resto vira o texto do `error_code`. Devolve também o texto cru, só
+ * quando difere do motivo mostrado.
+ *
+ * ponytail: a tradução é feita na tela; `alerts.message` (e o que o reutiliza,
+ * como a notificação) ainda guarda o motivo cru composto na migration 394.
+ */
+export function importEffectBlockedReason(
+  code: string | null,
+  message: string | null,
+): { reason: string; technicalDetail: string | null } {
+  const business = message && code && BUSINESS_REFUSAL_CODES.has(code)
+    && !/\b(?:query returned|more than one row)\b/i.test(message) // SELECT INTO STRICT (P0002)
+    && classifyDbError({ code: 'P0001', message }).message === message ? message : null
+  const reason = business ?? (code && IMPORT_EFFECT_BLOCKED_REASONS[code]) ?? IMPORT_EFFECT_BLOCKED_FALLBACK
+  const raw = [code, message].filter(Boolean).join(': ')
+  return { reason, technicalDetail: raw && !business ? raw : null }
+}
+
+/**
+ * Texto do alerta "Efeito de importação bloqueado" na fila: a parte de
+ * `alerts.message` que diz o passo e o registro, o motivo traduzido e o que
+ * fazer. Outros tipos devolvem `null` (a tela mostra `message`).
+ */
+export function importEffectBlockedMessage(alert: Parameters<typeof importEffectRetryTarget>[0] & { message?: string | null }): {
+  text: string
+  technicalDetail: string | null
+} | null {
+  const target = importEffectRetryTarget(alert)
+  if (!target) return null
+  const head = (alert.message ?? '').split(' está bloqueado:')[0].trim()
+  const subject = head && head !== alert.message?.trim() ? `${head} está bloqueado` : 'O passo da importação está bloqueado'
+  const reason = /[.!?]$/.test(target.reason) ? target.reason : `${target.reason}.`
+  return { text: `${subject}. ${reason} ${IMPORT_EFFECT_BLOCKED_NEXT_STEP}`, technicalDetail: target.technicalDetail }
 }
 
 export async function resolveAlertItemWithJustification(itemId: number, reason: string): Promise<void> {
