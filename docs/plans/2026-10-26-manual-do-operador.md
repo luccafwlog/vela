@@ -17,8 +17,14 @@ o cenário e as capturas em [`scripts/manual/`](../../scripts/manual/pdf/README.
 e o PDF sai de `npm run manual:build`. Cada capítulo teve conferência
 independente contra o código; as correções estão no texto, e as linhas da
 matriz que descreviam outra coisa foram corrigidas ("Atualizações da matriz"
-no [README do manual](../manual/README.md)). Os defeitos de código que a
-conferência achou esperam decisão do dono (item 5 de "Como retomar").
+no [README do manual](../manual/README.md)). Os quatro defeitos de código que
+a conferência dos capítulos 7 e 8 achou (justificativa fora do Histórico,
+exceção de terminal que ficava ao corrigir o POD, convite do Portal oferecido a
+Equipamentos e o Lacre desalinhado em Corrigir container) foram decididos pelo
+dono em 2026-10-29 e corrigidos na PR luccafwlog/vela#1089 (migration `502`);
+o texto dos capítulos 7 e 8 já descreve o comportamento corrigido. Os demais
+defeitos de código que a conferência achar esperam decisão do dono (item 5 de
+"Como retomar").
 Divergências
 decididas e corrigidas em 2026-10-27; lista "fora do manual" e sumário final
 aprovados em 2026-10-28. As 118

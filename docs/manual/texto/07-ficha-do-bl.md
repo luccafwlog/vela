@@ -1,4 +1,4 @@
-A ficha do B/L reúne tudo o que o Vela sabe de um B/L: o documento, a carga, o Cliente, o CE Mercante, as Taxas Locais e a história de cada mudança. É nela que você confere em que pé o B/L está e corrige o que a importação trouxe errado. Toda correção fica no **Histórico** do B/L, com o antes, o depois e o seu nome. Neste capítulo você lê a ficha, corrige o B/L e os containers, cuida do Cliente e, se é do Administrativo, cancela, reativa ou exclui um B/L.
+A ficha do B/L reúne tudo o que o Vela sabe de um B/L: o documento, a carga, o Cliente, o CE Mercante, as Taxas Locais e a história de cada mudança. É nela que você confere em que pé o B/L está e corrige o que a importação trouxe errado. Toda correção fica no **Histórico** do B/L, com o antes, o depois, o seu nome e a justificativa. Neste capítulo você lê a ficha, corrige o B/L e os containers, cuida do Cliente e, se é do Administrativo, cancela, reativa ou exclui um B/L.
 
 ::: aprende
 - ler a ficha e ver o que ainda falta para o B/L;
@@ -99,9 +99,9 @@ Se a correção libera o B/L e ele já tem CE, a ficha tenta emitir a fatura na 
 
 1. No bloco **Cliente**, clique em **Trocar Cliente**.
 2. Busque o Cliente pela razão social ou pelo CNPJ e clique em **Vincular** na linha dele.
-3. Confira o antes → depois e confirme.
+3. Confira o antes → depois, escreva o **Motivo** e confirme.
 
-O B/L passa a aparecer no Portal do novo Cliente e entra no faturamento dele, com as Taxas Locais recalculadas para ele. **Desvincular** faz o contrário: o B/L sai do Portal do Cliente, o valor a faturar é anulado e o B/L volta para a Revisão.
+O B/L passa a aparecer no Portal do novo Cliente e entra no faturamento dele, com as Taxas Locais recalculadas para ele. **Desvincular** faz o contrário, também com motivo: o B/L sai do Portal do Cliente, o valor a faturar é anulado e o B/L volta para a Revisão. O motivo fica no Histórico.
 
 Ao lado, o bloco **Portal** diz se o Cliente vê o B/L e, se não vê, por quê; dali sai o convite do Portal (capítulo 14).
 
@@ -159,7 +159,7 @@ O B/L descarrega no terminal da frente de operação da escala do POD ([4.3](04-
 A exceção aparece como "Exceção deste B/L, fora da Frente de Operação" e fica no Histórico. Para voltar ao terminal da escala, abra a exceção e use **Remover exceção**, com justificativa.
 
 ::: atencao
-Reimportar o B/L com outro POD ou marcar COD tira a exceção. Corrigir o POD na ficha não tira: confira o terminal e, se preciso, use **Remover exceção**.
+Mudar o POD para outro porto tira a exceção: corrigir o POD na ficha, reimportar o B/L com outro POD ou marcar COD. O B/L volta ao terminal da escala do novo POD, e o Histórico diz "Exceção de terminal removida". Se no porto novo ele também descarrega fora da frente de operação, defina a exceção de novo.
 :::
 
 ## 7.8 Cancelar, reativar ou excluir um B/L
