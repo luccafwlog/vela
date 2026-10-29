@@ -1132,4 +1132,44 @@ export const CAPTURAS = [
       }
     },
   },
+  {
+    id: 'validacao',
+    capitulo: 21,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/taxas-locais?tab=validacao')
+      const tabela = page.getByRole('table', { name: 'B/Ls da operação de taxas locais' })
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const aba = page.getByRole('tab', { name: 'Validação' })
+      const linhas = tabela.locator('tbody tr')
+      const clip = await recorteDe(page, [aba, page.getByRole('button', { name: /^Exportar/ }), linhas.nth(4)], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, aba, clip),
+          await marca(2, page.getByRole('combobox', { name: 'Motivo' }), clip, { posicao: 'campo' }),
+          await marca(3, linhas.first().getByRole('button', { name: /^Expandir detalhes/ }), clip, { posicao: 'esquerda' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'fatura-detalhe',
+    capitulo: 22,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/taxas-locais')
+      await page.getByRole('link', { name: 'INV-2026-0001' }).or(page.getByRole('button', { name: 'INV-2026-0001' })).first().click()
+      const janela = page.getByRole('dialog')
+      await janela.getByText('Itens da fatura').waitFor()
+      await page.waitForTimeout(600)
+      const clip = await recorteDe(page, [janela.getByRole('heading').first(), janela.getByText('Nenhum pagamento registrado.')], 16)
+      return {
+        clip,
+        marks: [],
+        async depois() {
+          await page.keyboard.press('Escape')
+        },
+      }
+    },
+  },
 ]
