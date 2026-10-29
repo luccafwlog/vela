@@ -195,7 +195,7 @@ telas desta área que o inventário não lista.
 | `Container inválido.` | Adicionar ou editar unidade embarcada com número fora do formato de quatro letras e sete algarismos. | Ap. B |
 | `Container nao encontrado` | Gravar veículo sem container ou com container inexistente (a importação confere antes). | Ap. B |
 | `Container obrigatorio no B/L %.` | Planilha de datas com linha sem container (a prévia já recusa); aparece no Resultado. | Ap. B |
-| `Credenciais invalidas ou sem permissao para importar veiculos.` | Nunca chega a uma pessoa: a mesma conferência de usuário ativo é feita antes, com outra mensagem. | Fora |
+| `Usuário sem permissão para importar veículos.` | Nunca chega a uma pessoa: a mesma conferência de usuário ativo é feita antes, com outra mensagem. | Fora |
 | `Credenciais invalidas para importar manifesto Granito.` | Nunca chega a uma pessoa: o sistema confere antes e mostra "Sem permissão para importar o Granito: entre de novo com um usuário ativo.". | Fora |
 | `Data de descarga invalida para % no B/L %.` | Planilha de datas com descarga ilegível (a prévia já recusa); aparece no Resultado. | Ap. B |
 | `Data de devolucao invalida para % no B/L %.` | Planilha de datas com devolução ilegível (idem). | Ap. B |
@@ -261,13 +261,13 @@ telas desta área que o inventário não lista.
 | `Unidade embarcada não encontrada.` | Editar unidade embarcada que outra pessoa já excluiu. | Ap. B |
 | `Usuário interno ativo é obrigatório.` | Corrigir container (perfil, SOC/COC, lacre, peso, CBM) com usuário desativado; também em outras telas que exigem usuário interno ativo. | Ap. B |
 | `Usuário sem permissão ativa para editar unidade.` | Editar unidade embarcada com usuário desativado. | Ap. B |
-| `Usuario sem permissao ativa para excluir unidade.` | Excluir unidade embarcada com usuário desativado. | Ap. B |
-| `Usuario sem permissao ativa para importar unidades.` | Importar unidades embarcadas com usuário desativado. | Ap. B |
-| `Usuario sem permissao ativa para importar vazios.` | Importar Vazios de importação com usuário desativado. | Ap. B |
+| `Usuário sem permissão ativa para excluir unidade.` | Excluir unidade embarcada com usuário desativado. | Ap. B |
+| `Usuário sem permissão ativa para importar unidades.` | Importar unidades embarcadas com usuário desativado. | Ap. B |
+| `Usuário sem permissão ativa para importar vazios.` | Importar Vazios de importação com usuário desativado. | Ap. B |
 | `Usuário sem permissão ativa para incluir unidade.` | Adicionar unidade embarcada com usuário desativado. | Ap. B |
-| `Usuario sem permissao ativa para revisar B/L Granite.` | Nunca chega a uma pessoa: a revisão de Cliente do Granito saiu do sistema. | Fora |
+| `Usuário sem permissão ativa para revisar B/L de Granito.` | Nunca chega a uma pessoa: a revisão de Cliente do Granito saiu do sistema. | Fora |
 | `Viagem % cancelada: o veículo % não sai dela.` | Mover veículo de uma Viagem cancelada. | Ap. B |
-| `Usuario sem permissao ativa.` | Gravar datas (ficha, Demurrage ou planilha) ou importar veículos com usuário desativado. | Ap. B |
+| `Usuário sem permissão ativa.` | Gravar datas (ficha, Demurrage ou planilha) ou importar veículos com usuário desativado. | Ap. B |
 | `B/L % cancelado é somente leitura: reative o B/L pela ficha para alterar containers ou veículos.` | Qualquer mudança em container ou veículo de B/L cancelado (ex.: local de desova). | Ap. B |
 | `ADR de Saída de % fechado: o Embarque de vazios não muda (incluir, editar ou excluir unidade, linha de serviço ou importação). Reabra o ADR de Saída para mudar.` | Incluir ou editar unidade, lançar ou observar linha, ou criar o embarque com o ADR de Saída do porto fechado. | Ap. B |
 | `ADR de Saida fechado: reabra o ADR para excluir a linha de servico de vazios.` | Excluir linha de serviço com o ADR de Saída fechado. | Ap. B |
