@@ -158,9 +158,10 @@ Respondidas pelo dono em 2026-10-29 (D22 a D27 da ADR 0112).
 - **P3 — Quem dispensa a cobrança de uma caixa (lote 3; D24).** Qualquer
   Departamento, com justificativa, como o desconto.
 - **P4 — Alerta de Travado (lote 2; D25).** Abre na hora em que a caixa entra
-  em Travado. Escolha de implementação, a confirmar na revisão do lote 2: setor
-  pelo motivo (sem CE ou sem Cliente, Documentação; sem tarifa e B/L
-  cancelado, Administrativo).
+  em Travado, para o setor do motivo:
+  - Documentação: sem CE, sem Cliente ou Portal fechando o faturamento, como o
+    `review_portal_not_ready`;
+  - Administrativo: tipo sem tarifa ou fora do cadastro, e B/L cancelado.
 - **P5 — B/L cancelado com container ainda fora e em atraso (lote 3; D26).**
   Recusado também, até a devolução e a Invoice, ou a dispensa.
 - **P6 — Tipo sem tarifa (lote 1; D27).** Entra em Travado desde a descarga, com
@@ -230,8 +231,8 @@ Sai antes do lote 1, porque a classificação lê o grupo de tarifa daqui.
     cadastre o tipo em Tarifas e acordos".
   - O B/L entra mesmo assim, e o container cai em Travado com Alerta (lotes 1
     e 2).
-  - 45 pés, tanque e os demais ganham grupo próprio quando aparecerem, com
-    tarifa cadastrada.
+  - Os 13 códigos atuais ficam nos grupos de D30. 45 pés, tanque e os demais
+    ganham grupo próprio quando aparecerem, com tarifa cadastrada.
 
 **Aceite:**
 

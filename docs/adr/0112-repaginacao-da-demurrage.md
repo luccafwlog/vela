@@ -3,7 +3,8 @@
 Status: aceito — 2026-10-29 (decisões do dono, D1 a D21, em rodadas de perguntas
 sobre a [revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md),
 as complementares D22 a D27 e as de tipos de container e tarifas D28 a D34 no
-mesmo dia).
+mesmo dia, com o setor do Alerta de Travado em D25 e o alcance de D30 e D31
+confirmados no fim do dia).
 A implementar pelo [plano da repaginação](../plans/2026-10-29-repaginacao-da-demurrage.md);
 até lá vale o comportamento descrito em [Demurrage](../modules/demurrage.md).
 
@@ -157,8 +158,13 @@ alternativas.
     dois Clientes).
 24. **Dispensar a cobrança (D24).** Qualquer Departamento dispensa a cobrança
     de Demurrage de uma caixa, com justificativa, como já aplica desconto.
-25. **Alerta de Travado na hora (D25).** A caixa que entra em **Travado** abre
-    Alerta na hora.
+25. **Alerta de Travado na hora, para o setor do motivo (D25).** A caixa que
+    entra em **Travado** abre Alerta na hora, para o setor que destrava:
+    - Documentação quando falta CE Mercante ou Cliente, ou o Portal fecha o
+      faturamento (o mesmo setor do `review_portal_not_ready`,
+      [ADR 0107](./0107-sino-so-do-setor-responsavel.md));
+    - Administrativo quando o tipo não tem tarifa ou está fora do cadastro, e
+      quando o B/L foi cancelado.
 26. **Cancelar B/L com container ainda fora e em atraso (D26).** Também é
     recusado, até a devolução e a Invoice, ou a cobrança dispensada.
 27. **Tipo sem tarifa entra em Travado na descarga (D27).** Sem tarifa, e sem
@@ -188,7 +194,9 @@ alternativas.
     e 48FP) cobram como 40FR e 40OT.
 31. **45 pés e equipamentos especiais (D31).** Container de 45 pés, tanque,
     ventilado, granel e qualquer outro equipamento novo ganha grupo próprio, com
-    tarifa cadastrada. Até lá, fica em **Travado** (D27).
+    tarifa cadastrada. Até lá, fica em **Travado** (D27). Os 13 códigos de D30,
+    plataformas e flat racks inclusive, ficam nos grupos de D30; grupo próprio
+    é só para código que ainda não apareceu nos B/Ls.
 32. **Código fora do cadastro (D32).** A prévia da importação do B/L avisa
     "tipo … sem tarifa de Demurrage", o B/L entra, e o container fica em
     **Travado** com Alerta (D25) até o código ser cadastrado.
