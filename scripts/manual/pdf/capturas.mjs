@@ -780,6 +780,9 @@ export const CAPTURAS = [
     id: 'menu-conta',
     capitulo: 1,
     async fazer({ page, base }) {
+      // Entre 1101 e 1279 px o botão da conta mostra só o ícone; o texto cita o nome.
+      const anterior = page.viewportSize()
+      await page.setViewportSize({ width: 1320, height: anterior.height })
       await abrir(page, base, '/')
       const conta = page.getByRole('button', { name: /Ana Ribeiro/ })
       await conta.click()
@@ -792,6 +795,7 @@ export const CAPTURAS = [
         marks: [],
         async depois() {
           await page.keyboard.press('Escape')
+          await page.setViewportSize(anterior)
         },
       }
     },
@@ -821,6 +825,118 @@ export const CAPTURAS = [
       const caixa = await bloco.boundingBox()
       const clip = { x: caixa.x - 8, y: caixa.y - 8, width: caixa.width + 16, height: Math.min(caixa.height + 16, 760) }
       return { clip, marks: [] }
+    },
+  },
+  // Capítulos 7 e 8: telas só de leitura (ou que voltam ao estado anterior),
+  // depois dos B/Ls importados pelas capturas do capítulo 6.
+  {
+    id: 'bl-ficha',
+    capitulo: 7,
+    async fazer({ page, base, cenario }) {
+      const numero = cenario.bls[0].numero
+      await abrir(page, base, `/bls/${numero}`)
+      const abas = page.getByRole('tablist', { name: 'Seções do B/L' })
+      await abas.waitFor()
+      const situacao = page.getByRole('region', { name: 'Situação do B/L' })
+      await situacao.getByRole('heading', { name: 'Documental', exact: true }).waitFor()
+      await page.waitForTimeout(1200)
+      const identidade = page.locator('header.app-identity').first()
+      const proxima = page.getByRole('region', { name: 'Próxima ação' })
+      const temProxima = (await proxima.count()) > 0
+      const clip = await recorteDe(page, [identidade, situacao, abas], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, identidade.getByRole('heading', { name: numero }), clip, { posicao: 'direita' }),
+          ...(temProxima ? [await marca(2, proxima.getByText('Próxima ação', { exact: true }), clip, { posicao: 'esquerda' })] : []),
+          await marca(3, situacao.getByRole('heading', { name: 'Operacional', exact: true }), clip, { posicao: 'direita' }),
+          await marca(4, situacao.getByRole('heading', { name: 'Documental', exact: true }), clip, { posicao: 'direita' }),
+          await marca(5, abas, clip, { posicao: 'esquerda' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'bl-corrigir-container',
+    capitulo: 7,
+    async fazer({ page, base, cenario }) {
+      const bl = cenario.bls[0]
+      const container = bl.containers[0][0]
+      await abrir(page, base, `/bls/${bl.numero}?tab=carga`)
+      await page.getByRole('button', { name: `Corrigir container ${container}` }).click()
+      const dlg = page.getByRole('dialog')
+      const lacre = dlg.getByLabel('Lacre')
+      await lacre.waitFor()
+      await lacre.fill('CS4581077')
+      const just = dlg.getByLabel(/^Justificativa/)
+      await just.fill('Lacre conferido no terminal: o B/L trazia o número de outro container.')
+      const salvar = dlg.getByRole('button', { name: 'Salvar correção' })
+      await page.waitForTimeout(300)
+      const clip = await recorteDoElemento(dlg)
+      return {
+        clip,
+        marks: [
+          await marca(2, lacre, clip, { posicao: 'campo' }),
+          await marca(3, just, clip, { posicao: 'campo' }),
+          await marca(4, salvar, clip, { destaque: true }),
+        ],
+        async depois() {
+          // Só a foto: a janela fecha sem gravar.
+          await dlg.getByRole('button', { name: 'Voltar' }).click()
+        },
+      }
+    },
+  },
+  {
+    id: 'revisao-fila',
+    capitulo: 8,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/revisao')
+      const fila = page.getByRole('region', { name: 'Fila de revisão' })
+      const cartoes = page.getByRole('group', { name: 'Filtrar por causa' })
+      await fila.getByRole('table').waitFor()
+      await page.waitForTimeout(800)
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Revisão', level: 1 }), cartoes, fila], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, cartoes, clip, { posicao: 'esquerda' }),
+          await marca(2, fila.getByLabel('Buscar'), clip, { posicao: 'campo' }),
+          await marca(3, fila.getByRole('button', { name: /^Abrir / }).first(), clip, { posicao: 'esquerda' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'revisao-cadastrar',
+    capitulo: 8,
+    async fazer({ page, base, cenario }) {
+      const nome = cenario.clientes.novaRota.nome
+      await abrir(page, base, '/revisao')
+      const fila = page.getByRole('region', { name: 'Fila de revisão' })
+      const abrirGrupo = fila.getByRole('button', { name: `Abrir ${nome}` })
+      await abrirGrupo.click()
+      const bloco = fila.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'Cadastrar o cliente', exact: true }) }).first()
+      await bloco.waitFor()
+      const portal = bloco.getByRole('group', { name: 'Portal do Cliente' })
+      await portal.getByText('Deixar para depois').click()
+      await page.waitForTimeout(400)
+      const linha = fila.locator('tr', { has: page.getByRole('button', { name: `Recolher ${nome}` }) })
+      const clip = await recorteDe(page, [linha, bloco], 8)
+      return {
+        clip,
+        marks: [
+          await marca(1, page.getByRole('button', { name: `Recolher ${nome}` }), clip, { posicao: 'esquerda' }),
+          await marca(2, bloco.getByRole('radiogroup', { name: 'Cadastrar ou vincular o cliente' }), clip, { posicao: 'esquerda' }),
+          await marca(3, bloco.locator('input[type=email]'), clip, { posicao: 'campo' }),
+          await marca(3, portal, clip, { posicao: 'esquerda' }),
+          await marca(4, bloco.getByRole('button', { name: 'Cadastrar e vincular' }), clip, { destaque: true }),
+        ],
+        async depois() {
+          // Só a foto: o grupo fecha sem gravar.
+          await page.getByRole('button', { name: `Recolher ${nome}` }).click()
+        },
+      }
     },
   },
 ]
