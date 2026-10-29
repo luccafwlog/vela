@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Cancelar pedido depois de Reconferir CE e aviso de ADR fechado sem código interno (2026-10-29,
+  migration `510`):** no Desbloqueio de CE, **Cancelar pedido** fica apagado também depois de
+  **Reconferir CE** num B/L que já foi à ZPT; antes o botão voltava ligado e o clique terminava na
+  recusa do banco. Na janela da escala da Viagem e nos avisos de ADR fechado, sai o
+  identificador interno do ADR; fica o código do terminal.
+  ([Desbloqueio de CE](modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt),
+  [Viagens](modules/viagens.md))
+
 - **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
   programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
   histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na

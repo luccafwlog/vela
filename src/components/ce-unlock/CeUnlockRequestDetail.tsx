@@ -156,7 +156,9 @@ export function CeUnlockRequestDetail({
   const missing = open ? ceUnlockMissing(request) : null;
   // O prazo é medido pela exportação, não pela conclusão da documentação: a concluída continua com o
   // prazo correndo até o último B/L ser exportado (docs/modules/desbloqueio-ce.md, "Prazo").
-  const anyExported = request.items.some((i) => Boolean(i.exported_at))
+  // Mesma trava do banco (export_id ou exported_at): depois de Reconferir CE o B/L volta à fila
+  // (exported_at limpo), mas continua já enviado à ZPT e o pedido não se cancela (migration 510).
+  const anyExported = request.items.some((i) => Boolean(i.sent_to_zpt || i.exported_at));
   const exportedAt =
     request.items.length > 0 && request.items.every((i) => i.exported_at)
       ? request.items.reduce((last, i) => (i.exported_at! > last ? i.exported_at! : last), "")

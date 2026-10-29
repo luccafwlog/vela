@@ -230,3 +230,11 @@ it('08-desbloqueio-ce:13: com B/L exportado para a ZPT, o pedido não pode ser c
   expect((screen.getByRole('button', { name: 'Cancelar pedido' }) as HTMLButtonElement).disabled).toBe(true)
   expect(screen.getByText('A solicitação não pode ser cancelada depois de exportada para a ZPT.')).toBeTruthy()
 })
+
+it('510: depois de Reconferir CE o B/L volta à fila, mas o pedido segue sem cancelamento (já foi à ZPT)', () => {
+  // Reconferir CE limpa exported_at e o pedido volta a Em análise; o banco ainda recusa o cancelamento.
+  const request = base({ state: 'in_review', items: [{ ...item('BL-1', false, false), exported_at: null, sent_to_zpt: true }] as never })
+  render(<CeUnlockRequestDetail request={request} manage onAction={async () => {}} busy={false} />)
+  expect((screen.getByRole('button', { name: 'Cancelar pedido' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(screen.getByText('A solicitação não pode ser cancelada depois de exportada para a ZPT.')).toBeTruthy()
+})
