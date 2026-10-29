@@ -197,3 +197,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   regra em
   [manifesto-edi.md](../modules/manifesto-edi.md), item 20 dos efeitos de
   importação).
+- **Excluir Cliente** (2026-10-29, sem mudança no sistema): a matriz e a
+  [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil) davam
+  a exclusão de Cliente ao Administrativo sem dizer que a Trava de exclusão
+  recusa todo Cliente com CNPJ, que é obrigatório; Cliente se desativa (ACE-088).
