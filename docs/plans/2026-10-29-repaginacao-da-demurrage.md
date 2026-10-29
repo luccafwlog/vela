@@ -5,21 +5,21 @@
 Proposto em 2026-10-29 a partir das decisões do dono na
 [ADR 0112](../adr/0112-repaginacao-da-demurrage.md) (D1 a D21), tomadas sobre a
 [revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md).
-Nada executado. As decisões pendentes estão em
-[Decisões pendentes](#decisões-pendentes); os lotes que dependem delas
-estão marcados.
+Nada executado. As seis decisões complementares (P1 a P6) foram respondidas
+pelo dono no mesmo dia (D22 a D27 da ADR) e estão em
+[Decisões complementares](#decisões-complementares).
 
 | Lote | Situação |
 |---|---|
 | 0 — Correções que não esperam a repaginação | A fazer |
 | 1 — Classificação da cobrança no banco | A fazer |
-| 2 — Aba Containers, cartões e aviso do cabeçalho | A fazer (depende do lote 1; Alerta de Travado depende de P4) |
-| 3 — B/L cancelado e dispensa da cobrança | A fazer (depende de P3 e P5) |
+| 2 — Aba Containers, cartões e aviso do cabeçalho | A fazer (depende do lote 1) |
+| 3 — B/L cancelado e dispensa da cobrança | A fazer |
 | 4 — Faturas, Pagas e Canceladas | A fazer |
 | 5 — Por Cliente e extrato do Cliente | A fazer (depende do lote 1) |
 | 6 — Relatórios | A fazer (Exposição depende do lote 1) |
 | 7 — Disputas | A fazer |
-| 8 — Caixa dividida entre Clientes (rateio) | Bloqueado por P1 e P2 |
+| 8 — Caixa dividida entre Clientes (rateio) | A fazer (depois do lote 1) |
 | 9 — Container que vira SOC depois de faturado | A fazer |
 | 10 — Fechamento | A fazer |
 
@@ -121,35 +121,28 @@ Fora da página Demurrage:
     [Manual do Operador](../manual/README.md) e a matriz de cobertura no mesmo
     PR (ou no PR do manual, enquanto ele estiver aberto).
 
-## Decisões pendentes
+## Decisões complementares
 
-Escolhas que mudam o resultado e são do dono. Cada uma traz a recomendação; os
-lotes marcados não fecham sem a resposta.
+Respondidas pelo dono em 2026-10-29 (D22 a D27 da ADR 0112).
 
-- **P1 — Caixa que passa a ser dividida depois da emissão (lote 8).** O Cliente
-  A já recebeu a Invoice cheia, e depois chega o B/L do Cliente B com a mesma
-  caixa (ou o B/L do Cliente B é cancelado). Recomendação: tratar como datas
-  alteradas. A Invoice sem pagamento é cancelada e reemitida com a parte nova;
-  a paga, com desconto ou em disputa sai da Régua com Alerta para restituir.
-  Alternativa: manter a Invoice já emitida cheia e cobrar só os Clientes novos
-  pela parte deles.
-- **P2 — Condições diferentes entre os Clientes da caixa (lote 8).** Cada
-  Cliente pode ter acordo de free time ou condição do B/L diferente.
-  Recomendação: cada Cliente calcula pela própria condição e paga 1/n do próprio
-  valor. Alternativa: calcular a caixa uma vez (pela tabela) e dividir.
-- **P3 — Quem dispensa a cobrança de uma caixa (lote 3).** Recomendação:
-  Administrativo, com justificativa, como cancelar Invoice. Alternativa:
-  qualquer Departamento, como o desconto.
-- **P4 — Prazo do Alerta de Travado (lote 2).** Recomendação: 2 dias úteis
-  parado em Travado, para o setor do motivo (sem CE ou sem Cliente:
-  Documentação; sem tarifa e B/L cancelado: Administrativo).
-- **P5 — B/L cancelado com container ainda fora e em atraso (lote 3).** Hoje o
-  cancelamento tira o container do atraso, e a sobreestadia corrida se perde.
-  Recomendação: recusar também, como o devolvido, até a devolução e a emissão,
-  ou a dispensa.
-- **P6 — Quando o tipo sem tarifa entra em Travado (lote 1).** Sem tarifa, e sem
-  free time do B/L ou do acordo, não há como saber quando vence. Recomendação:
-  entra em Travado desde a descarga, com o motivo "tipo sem tarifa".
+- **P1 — Caixa que passa a ser dividida depois da emissão (lote 8; D22).** Segue
+  a regra das datas alteradas: a Invoice sem pagamento, desconto ou disputa é
+  cancelada e reemitida com a parte nova; a paga, com desconto ou em disputa
+  sai da Régua com Alerta para restituir ou cobrar a diferença. Vale também
+  quando o B/L de um dos Clientes é cancelado.
+- **P2 — Condições diferentes entre os Clientes da caixa (lote 8; D23).** Cada
+  Cliente calcula a caixa pela própria condição (B/L, acordo ou tabela) e paga
+  a parte igual desse valor.
+- **P3 — Quem dispensa a cobrança de uma caixa (lote 3; D24).** Qualquer
+  Departamento, com justificativa, como o desconto.
+- **P4 — Alerta de Travado (lote 2; D25).** Abre na hora em que a caixa entra
+  em Travado. Escolha de implementação, a confirmar na revisão do lote 2: setor
+  pelo motivo (sem CE ou sem Cliente, Documentação; sem tarifa e B/L
+  cancelado, Administrativo).
+- **P5 — B/L cancelado com container ainda fora e em atraso (lote 3; D26).**
+  Recusado também, até a devolução e a Invoice, ou a dispensa.
+- **P6 — Tipo sem tarifa (lote 1; D27).** Entra em Travado desde a descarga, com
+  o motivo "tipo sem tarifa" e **Cadastrar tarifa**.
 
 ## Lotes
 
@@ -204,8 +197,8 @@ lida na hora, sem depender do status gravado.
 **Regras da divisão, pela ordem:**
 
 1. **Travado**, para o grupo em que:
-   - alguma caixa tem tipo sem tarifa e nem o B/L nem o acordo dão free time
-     (quando entra: P6); ou
+   - alguma caixa tem tipo sem tarifa e nem o B/L nem o acordo dão free time,
+     desde a descarga (D27); ou
    - todas as caixas voltaram e a emissão está travada (`_demurrage_issue_block_reason`:
      sem CE Mercante ou Gate do Portal fechado); ou
    - falta o Cliente; ou
@@ -274,8 +267,9 @@ alguns segundos.
   divisão ou aba dele. O aviso do cabeçalho ("N containers em atraso") conta as
   caixas de Correndo.
 - **Exportar** em cada divisão: a planilha de Exposição do recorte (lote 6).
-- **Alerta de Travado parado** (prazo e setor: P4). Tipo novo no catálogo de
-  Alertas. Fecha pela origem quando a caixa sai de Travado.
+- **Alerta de Travado** (D25). Tipo novo no catálogo de Alertas, que abre na
+  hora em que a caixa entra em Travado, para o setor do motivo (P4), e fecha
+  pela origem quando a caixa sai de Travado.
 - **Sai do navegador:** `buildBillingGroups`, `blBillingState`, o filtro
   `monitored` e a leitura atual de `listDemurrageContainers`. `effectiveDemurrage`
   continua na ficha do B/L.
@@ -295,11 +289,11 @@ e `DemurrageContainersTab.test.tsx` refeitos.
 ### 3 — B/L cancelado e dispensa da cobrança
 
 - `bl_open_financial_reasons` ganha o motivo "Demurrage a faturar". Ele vale para
-  caixa devolvida com sobreestadia sem Invoice viva e sem dispensa, e para o
-  container ainda fora em atraso, se P5 for aceita. **Cancelar B/L** mostra o
-  motivo e o caminho: emitir ou dispensar.
-- **Dispensar cobrança** (permissão: P3). Ação nova na linha Travado e na
-  recusa do cancelamento.
+  caixa devolvida com sobreestadia sem Invoice viva e sem dispensa (D7) e para
+  o container ainda fora e em atraso (D26). **Cancelar B/L** mostra o motivo e o
+  caminho: devolver e emitir, ou dispensar.
+- **Dispensar cobrança** (qualquer Departamento, D24). Ação nova na linha
+  Travado, na linha Correndo e na recusa do cancelamento.
   - Exige justificativa de 10 caracteres ou mais.
   - Grava a dispensa por caixa (Viagem, Cliente, número) com autor e motivo, e
     `audit_logs`.
@@ -311,7 +305,7 @@ e `DemurrageContainersTab.test.tsx` refeitos.
 **Aceite (Teste local-pg):**
 
 - O cancelamento de QV-12C (devolvido com sobreestadia, sem Invoice) é recusado
-  com o motivo.
+  com o motivo, e o de um B/L com container ainda fora em atraso também.
 - Depois da dispensa, o cancelamento passa e a caixa não volta à aba.
 - O B/L com Invoice paga continua cancelável.
 
@@ -455,20 +449,26 @@ Disputa não grava mais.
 
 ### 8 — Caixa dividida entre Clientes (rateio)
 
-Bloqueado por P1 e P2.
-
 - **Emissão.** Para cada caixa, conta os Clientes distintos com B/L ativo e a
   mesma caixa na Viagem (`n`). O item da Invoice de cada Cliente leva a fração
-  `1/n` e o subtotal multiplicado por ela (cálculo por Cliente, se P2 seguir a
-  recomendação).
+  `1/n` e o subtotal, calculado pela condição daquele Cliente (D23),
+  multiplicado por ela.
 - **Item da Invoice.** Ganha a fração (coluna nova em
   `demurrage_invoice_items`).
 - **Onde aparece.** O detalhe, o documento impresso, o detalhe do Portal e o
   relatório Itens por container mostram "1/2 da caixa".
-- **Mudança de `n`.** Segue P1.
+- **Mudança de `n` depois da emissão** (D22). O B/L de outro Cliente que chega
+  com a caixa, ou o B/L cancelado de um dos Clientes, passa por
+  `_reconcile_demurrage_after_dates` como uma data alterada.
 
-**Aceite (Teste local-pg):** QV-18A e QV-18B (mesma caixa, Clientes diferentes)
-recebem US$ 470,00 cada, em vez de US$ 940,00.
+**Aceite (Teste local-pg):**
+
+- QV-18A e QV-18B (mesma caixa, Clientes diferentes, mesma condição) recebem
+  US$ 470,00 cada, em vez de US$ 940,00.
+- Com o Cliente de QV-18A num acordo de 40 dias, a parte dele sai pela conta
+  com 40 dias.
+- A Invoice cheia de QV-18A, sem pagamento, é cancelada e reemitida pela metade
+  quando chega QV-18B; paga, fica fora da Régua com Alerta.
 
 **Checks:** `demurrageCobrancaPorCaixa`, `demurrageAuthority` e
 `demurrageMoney`, mais a suíte nova.
@@ -524,8 +524,8 @@ Cada lote é um PR contra `staging`.
   com os 17 cenários da revisão é a rede.
 - **Volume.** A leitura do lote 1 e os gatilhos do status rodam em tabelas
   grandes. Medir no banco local e manter o job da madrugada.
-- **Rateio** (lote 8). Muda valor cobrado: só depois de P1 e P2, com o
-  `demurrageMoney` verde.
+- **Rateio** (lote 8). Muda o valor cobrado e reemite Invoices: entra só com o
+  `demurrageMoney` e o `demurrageCobrancaPorCaixa` verdes.
 - **Rollback.** Cada migration traz no cabeçalho as definições anteriores a
   reaplicar. A tela de cada lote volta pelo revert do PR. O lote 1 só muda
   leitura e gatilho de status, sem regravar Invoice.

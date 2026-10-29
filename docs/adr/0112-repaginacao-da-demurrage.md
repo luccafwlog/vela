@@ -1,14 +1,17 @@
 # 0112 — Repaginação da Demurrage: o que cada aba mostra e regras de cobrança
 
 Status: aceito — 2026-10-29 (decisões do dono, D1 a D21, em rodadas de perguntas
-sobre a [revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md)).
+sobre a [revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md),
+e as complementares D22 a D27 no mesmo dia).
 A implementar pelo [plano da repaginação](../plans/2026-10-29-repaginacao-da-demurrage.md);
 até lá vale o comportamento descrito em [Demurrage](../modules/demurrage.md).
 
 Estende a cobrança por caixa da [ADR 0080](./0080-decisoes-da-revisao-final-da-pr-929.md)
-(D19, rateio entre Clientes) e a regra de datas alteradas depois da emissão da
-[ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md) (D20, container
-que vira SOC). Mantém a [ADR 0014](./0014-demurrage-recalculo-diario-substitui-roe-congelado.md)
+(D19, D22 e D23, rateio entre Clientes), a regra de datas alteradas depois da
+emissão da [ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md) (D20,
+container que vira SOC) e a matriz de permissões da
+[ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (D24, dispensar a
+cobrança de uma caixa). Mantém a [ADR 0014](./0014-demurrage-recalculo-diario-substitui-roe-congelado.md)
 (Invoice de Demurrage não vence; BRL pela PTAX até o pagamento) e a
 [ADR 0088](./0088-portal-so-mostra-fatura-emitida.md) (o Portal só mostra valor
 de fatura emitida).
@@ -133,6 +136,29 @@ alternativas.
 21. **Portal sem Demurrage antes da Invoice (D21).** O Cliente continua sem ver
     container correndo antes da Invoice ser emitida.
 
+### Decisões complementares
+
+22. **Caixa que passa a ser dividida depois da emissão (D22).** Quando chega o
+    B/L de outro Cliente com a mesma caixa, ou o B/L de um dos Clientes é
+    cancelado, a Invoice que já saiu segue a regra das datas alteradas: sem
+    pagamento, desconto ou disputa, é cancelada e reemitida com a parte nova;
+    paga, com desconto ou em disputa, fica fora da Régua com Alerta para
+    restituir ou cobrar a diferença.
+23. **Cada Cliente pela própria condição (D23).** Na caixa dividida, cada
+    Cliente calcula a caixa pelo próprio free time e diárias (condição do B/L,
+    acordo do Cliente ou tabela) e paga a parte igual desse valor (metade, com
+    dois Clientes).
+24. **Dispensar a cobrança (D24).** Qualquer Departamento dispensa a cobrança
+    de Demurrage de uma caixa, com justificativa, como já aplica desconto.
+25. **Alerta de Travado na hora (D25).** A caixa que entra em **Travado** abre
+    Alerta na hora.
+26. **Cancelar B/L com container ainda fora e em atraso (D26).** Também é
+    recusado, até a devolução e a Invoice, ou a cobrança dispensada.
+27. **Tipo sem tarifa entra em Travado na descarga (D27).** Sem tarifa, e sem
+    free time do B/L ou do acordo, o container entra em **Travado** desde a
+    descarga, com o motivo "tipo sem tarifa" e **Cadastrar tarifa**, para a
+    tarifa existir antes de o free time vencer.
+
 ## Alternativas rejeitadas
 
 - **Aba Containers.** Manter a lista única com as lentes Todos / Em atraso /
@@ -156,6 +182,13 @@ alternativas.
   volume ou percentual informado na emissão; para o SOC faturado, só Alerta ou
   recusar a troca para SOC.
 - **Portal.** Aviso sem valor ou com dias e free time dos containers correndo.
+- **Complementares.** Manter cheia a Invoice que já saiu, ou travar a caixa para
+  decidir à mão (D22); calcular a caixa dividida uma vez, pela tabela ou pela
+  condição do B/L que emite (D23); dispensa só do Administrativo, ou do
+  Financeiro e do Administrativo (D24); Alerta de Travado depois de 2 ou 5 dias
+  úteis, ou sem Alerta (D25); aceitar o cancelamento do B/L com container fora,
+  parando a cobrança, com ou sem aviso do valor perdido (D26); tipo sem tarifa
+  entrar em Travado pelo menor free time da tabela ou só na devolução (D27).
 
 ## Consequências
 
@@ -165,11 +198,14 @@ alternativas.
   passa a ser recalculado também quando muda o free time do B/L, o acordo, a
   tarifa ou o Cliente do B/L. Os cartões e o aviso do cabeçalho leem a mesma
   classificação.
-- `cancel_bl` ganha um motivo de recusa para a sobreestadia sem Invoice, e a
-  Demurrage ganha a ação de dispensar a cobrança de uma caixa, com justificativa
-  e registro.
+- `cancel_bl` ganha um motivo de recusa para a sobreestadia sem Invoice,
+  devolvida ou ainda correndo (D7, D26), e a Demurrage ganha a ação de
+  dispensar a cobrança de uma caixa, com justificativa e registro (D24), que
+  entra na [matriz de permissões](../operations/seguranca.md#demurrage-e-granito).
 - O item da Invoice de Demurrage passa a guardar a fração da caixa cobrada do
-  Cliente (D19), mostrada no detalhe, no documento e no Portal.
+  Cliente (D19, D23), mostrada no detalhe, no documento e no Portal, e a
+  reconciliação das datas alteradas passa a tratar também a mudança do número de
+  Clientes da caixa (D22).
 - A troca SOC/COC de container numa Invoice viva passa pela mesma reconciliação
   das datas alteradas (D20).
 - A Disputa ganha o estado **Cancelada** de fato (hoje existe e nunca é gravado)
@@ -179,6 +215,3 @@ alternativas.
   [Operação e Suporte](../modules/operacao-suporte.md) (relatórios) à medida que
   cada lote do plano é entregue, com o
   [Manual do Operador](../manual/README.md) e a matriz de cobertura.
-- Decisões menores que o dono ainda precisa confirmar (rateio quando a caixa
-  passa a ser dividida depois da emissão, quem dispensa a cobrança, prazo do
-  Alerta de Travado, B/L cancelado com container ainda fora) estão no plano.
