@@ -8,9 +8,9 @@ trabalho, não o manual.
 
 **Etapas 1, 2 e 3 concluídas: o dono aprovou em 2026-10-29 a versão 1.0 do
 Manual do Operador (25 capítulos e apêndices A a D, 201 páginas). Etapa 4 em
-parte: a linha de dono em `docs/CONVENCOES.md` e a regra no `AGENTS.md` entraram
-com a versão 1.0; o check do manual no CI e a decisão sobre o manual financeiro
-e os guias de bolso seguem pendentes (ver "Pendências da versão 1.0").** Por
+parte: a linha de dono em `docs/CONVENCOES.md`, a regra no `AGENTS.md` e o
+check do manual no CI entraram; a decisão sobre o manual financeiro e os guias
+de bolso seguem pendentes (ver "Pendências da versão 1.0").** Por
 decisão de manual único, entraram também o capítulo 25 (Administração) e o
 apêndice D gerado ("Quero fazer… onde fica"), que faz o papel do índice
 remissivo. O dono aprovou em
@@ -720,11 +720,13 @@ manual sai como **versão 1.0**.
 ### Etapa 4 — Manter o manual verdadeiro
 
 > **Situação atual (2026-10-29):** a linha de dono em `docs/CONVENCOES.md` e a
-> regra no `AGENTS.md` entraram com a versão 1.0. O check no CI fica para uma PR
-> própria contra a `staging`, porque a PR do manual não toca em código nem em CI
-> (decisão do dono de 2026-10-29). O check de cobertura deixou de exigir texto
+> regra no `AGENTS.md` entraram com a versão 1.0 (a regra chegou à `staging`
+> pela PR luccafwlog/vela#1093). O check de cobertura deixou de exigir texto
 > para cada regra no padrão enxuto; o que vai ao CI é o `manual:check`
-> (linguagem, capturas e citações).
+> (linguagem, capturas e citações), que entrou no job `quality` por uma PR
+> própria contra a `staging` (luccafwlog/vela#1094), porque a PR do manual não
+> toca em código nem em CI (decisão do dono de 2026-10-29). O passo usa
+> `--if-present`: roda na PR do manual e, depois que ela entrar, em toda PR.
 
 Na mesma entrega da versão 1.0:
 
@@ -740,17 +742,15 @@ Na mesma entrega da versão 1.0:
 
 ## Pendências da versão 1.0
 
-1. **Check do manual no CI:** `npm run manual:check` no job de qualidade, numa
-   PR própria contra a `staging`.
-2. **Manual financeiro:** os capítulos 21 a 24 descrevem o procedimento do
+1. **Manual financeiro:** os capítulos 21 a 24 descrevem o procedimento do
    Financeiro, que [`docs/CONVENCOES.md`](../CONVENCOES.md) ainda dá como dono ao
    [manual financeiro](../operations/manual-financeiro.md). O dono decide se ele
    é absorvido pelo Manual do Operador (e vai para o arquivo histórico) ou fica
    como referência detalhada do Financeiro, com o manual remetendo a ele.
-3. **Guias de bolso por equipe:** previstos na [régua visual](#régua-visual) e
+2. **Guias de bolso por equipe:** previstos na [régua visual](#régua-visual) e
    ainda não feitos; o dono decide se ainda são desejados depois do manual
    único.
-4. **Imagens que o ambiente local não gera:** a lista de usuários da
+3. **Imagens que o ambiente local não gera:** a lista de usuários da
    Administração (depende de função do servidor) e as telas do Pix com a
    cobrança pelo Itaú ligada.
 

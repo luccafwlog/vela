@@ -12,7 +12,7 @@ fora do Git.
 | `fonte.mjs` | Lê o `manual.json` e o Markdown de cada capítulo e apêndice e monta o HTML (blocos `:::`, etiquetas de equipe, imagens marcadas, citações de regras). |
 | `pagina.js` | Roda na página antes da impressão: fatos da ficha, passos numerados, cartões e ícones. |
 | `gerar.mjs` | `npm run manual:build`: capa, sumário, aberturas e capítulos, paginados pelo Chromium em duas passadas (a segunda escreve no sumário a página que a primeira leu do PDF). |
-| `conferir.mjs` | `npm run manual:check`: termos técnicos proibidos, capturas citadas e regras da matriz com lugar no texto. |
+| `conferir.mjs` | `npm run manual:check`: termos técnicos proibidos, capturas citadas e regras citadas que existem na matriz. Roda também no CI, no job `quality`. |
 | `capturas.mjs` | As telas do manual, em ordem: cada captura executa o procedimento como o operador faria e devolve o recorte e as marcações. |
 | `capturar.mjs` | `npm run manual:capture [-- --so id1,id2]`: roda as capturas e grava `artifacts/manual/imagens/<id>.png` e `<id>.json`. |
 

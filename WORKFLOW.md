@@ -800,8 +800,9 @@ do `vela_test` (dados fictícios); `npm run manual:capture` executa os
 procedimentos no Vela local (emulador da auditoria visual e `vite`) e
 fotografa as telas; `npm run manual:build` gera o PDF em `artifacts/manual/`,
 fora do Git; `npm run manual:check` confere o texto (termos técnicos proibidos,
-capturas e regras da matriz citadas) e não precisa de banco. Nenhum deles roda
-no CI por enquanto (Etapa 4 do plano do manual).
+capturas e regras da matriz citadas) e não precisa de banco. Só o
+`manual:check` roda no CI, no job `quality`; os outros três dependem do banco
+local e do navegador e ficam locais.
 
 Para Supabase completo, carregue no ambiente do processo as variáveis indicadas
 em `.env.example`, inclusive os IDs das fixtures, antes de habilitar a suíte:
