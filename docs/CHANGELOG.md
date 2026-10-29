@@ -15,6 +15,11 @@
   (fora a do Portal) mostra **Resolver na Revisão** no lugar de **Recalcular**, na linha e na faixa da
   linha aberta; a Revisão recalcula ao salvar. Sem migration. Ver
   [Taxas Locais](modules/taxas-locais.md#superfícies-operacionais-fora-da-rota).
+- **Conciliação da Viagem com o mesmo nome e a mesma cor em toda tela (2026-10-29):** a tabela de
+  `/viagens` passa a mostrar **Divergente** em vermelho, como a faixa e a ficha (antes, âmbar), e o
+  estado sem pendência se chama **Conciliada** em todo lugar (a faixa e a ficha diziam "Conciliado").
+  Tabela e ficha leem o tom de `ESTADO_CONCILIACAO_META`. **Teste:**
+  `src/components/voyages/__tests__/VoyageListTable.test.tsx`.
 - **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
   programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
   histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na
