@@ -42,6 +42,10 @@ export function BlManualRoe({ blId, roe, manual }: { blId: string; roe: number |
     queryFn: () => readDemurrageGroupAnchor(blId),
   })
   const anchorBlId = anchorQuery.data && anchorQuery.data !== blId ? anchorQuery.data : null
+  // Definir/Trocar só depois de confirmar que este B/L emite a Invoice do grupo
+  // (ou não tem grupo); carregando, com falha ou fora do âncora, não oferece.
+  const canSet = anchorQuery.isSuccess && anchorQuery.data === blId
+  const shownMode = mode === 'set' && !canSet ? 'view' : mode
   const mutation = useMutation({
     mutationFn: (next: number | null) => setBlManualRoe({ blId, roe: next, reason }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId) }),
@@ -56,6 +60,7 @@ export function BlManualRoe({ blId, roe, manual }: { blId: string; roe: number |
 
   async function submit() {
     setError('')
+    if (mode === 'set' && !canSet) return
     const next = mode === 'set' ? parsed : null
     if (mode === 'set' && next == null) {
       setError('Informe o ROE com vírgula ou ponto decimal, por exemplo 5,8123.')
@@ -100,13 +105,16 @@ export function BlManualRoe({ blId, roe, manual }: { blId: string; roe: number |
           , que emite a Invoice de Demurrage do grupo: só o ROE manual dele vale. Ponha o câmbio lá.
         </p>
       ) : null}
-      {canManage && mode === 'view' && (!anchorBlId || active) ? (
+      {anchorQuery.isError ? (
+        <p role="alert" className="text-[var(--app-danger-fg)]">Não foi possível ver qual B/L emite a Invoice de Demurrage do grupo; recarregue para definir ou trocar o ROE manual.</p>
+      ) : null}
+      {canManage && shownMode === 'view' && (canSet || active) ? (
         <div className="flex gap-2">
-          {anchorBlId ? null : <Button variant="secondary" className="app-btn--sm" onClick={() => setMode('set')}>{active ? 'Trocar ROE manual…' : 'Definir ROE manual…'}</Button>}
+          {!canSet ? null : <Button variant="secondary" className="app-btn--sm" onClick={() => setMode('set')}>{active ? 'Trocar ROE manual…' : 'Definir ROE manual…'}</Button>}
           {active ? <Button variant="ghost" className="app-btn--sm" onClick={() => setMode('remove')}>Tirar ROE manual…</Button> : null}
         </div>
       ) : null}
-      {canManage && mode !== 'view' ? (
+      {canManage && shownMode !== 'view' ? (
         <div className="grid gap-3 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] md:items-start">
           {mode === 'set' ? (
             <Field label="ROE manual (R$ por US$)" required>
