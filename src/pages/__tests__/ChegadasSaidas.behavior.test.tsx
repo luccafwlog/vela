@@ -105,6 +105,21 @@ describe('ChegadasSaidas user behaviours', () => {
     await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyage-escala-schedules'] }))
   })
 
+  it('"Adicionar navio" que achou a Viagem já cadastrada não diz que cadastrou', async () => {
+    mocks.createOrAttach.mockResolvedValue({ voyageId: 3, created: false })
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+
+    await user.click(screen.getByRole('button', { name: /Adicionar navio/ }))
+    await user.type(screen.getByLabelText(/Nome do Navio/), 'GAMMA')
+    await user.type(screen.getByLabelText(/Viagem \(VOY\)/), '003')
+    await user.click(screen.getAllByLabelText('Não escala')[POL_COUNT])
+    await user.click(screen.getByRole('button', { name: 'Adicionar e publicar' }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('A viagem já estava cadastrada: as datas foram gravadas nela e ela está publicada no Portal.', 'success'))
+    expect(mocks.showToast).not.toHaveBeenCalledWith('Viagem cadastrada e publicada no Portal.', 'success')
+  })
+
   it('preenche edição a partir da viagem projetada', async () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)

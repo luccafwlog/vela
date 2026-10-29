@@ -16,6 +16,19 @@
   Cliente do trilho diz "Situação do Portal indisponível" (não "Conta do Portal não está ativa")
   enquanto a situação não chega; convite, suspensão e troca do E-mail de recuperação do Portal releem o
   status do Portal da ficha do B/L e a Revisão.
+- **Chegadas e Saídas: data com hora, escala sem data e Viagem cancelada (2026-10-29, sem migration;
+  revisão da PR luccafwlog/vela#1084):** na edição, a data gravada com hora pela janela da escala aparecia
+  em branco no campo; agora aparece o dia, e salvar o mesmo dia mantém a hora. Salvar outro porto não
+  retira mais, sem confirmação, a escala de chegada que já estava sem data (Administrativo). **Adicionar
+  navio** com o VOY e o navio de uma Viagem cancelada recusa sem gravar nada ("…cancelada. Reative-a em
+  Viagens…"), e o aviso de sucesso diz quando a Viagem já existia. Ver
+  [Chegadas e Saídas](modules/chegadas-saidas.md).
+- **Viagens: recusa da omissão e Conciliação sem a contagem (2026-10-29, sem migration; revisão da
+  PR luccafwlog/vela#1084):** na janela **Omitir escala**, voltar depois de uma recusa e confirmar de novo
+  não repete a recusa anterior na confirmação (ela continua no formulário para orientar a correção). A
+  ficha da Viagem diz **Verificando** enquanto a contagem de divergências do Baplie não chega ou falha,
+  como a faixa e a tabela; antes dizia **Conciliada** sem saber das divergências. Ver
+  [Viagens](modules/viagens.md).
 - **Motivo do bloqueio legível no alerta de efeito de importação (2026-10-29, sem migration):** em
   `/alertas`, **Efeito de importação bloqueado** deixa de mostrar o erro cru do banco (ex.: `null value
   in column "customer_id"…`): a linha diz o passo, o registro, o motivo em linguagem de operação e

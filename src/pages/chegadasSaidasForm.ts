@@ -28,14 +28,21 @@ export function buildScheduleLanes(form: ScheduleForm): ScheduleLaneInput[] {
   }))
 }
 
+function dateOnly(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}[T ]/.test(value) ? value.slice(0, 10) : value
+}
+
 export function scheduleFormFromVoyage(voyage: PortalScheduleVoyage): ScheduleForm {
   return {
     vesselName: voyage.vesselName,
     vesselImo: voyage.imoNumber ?? '',
     voyageNumber: voyage.voyage,
+    // Só o dia: a janela da escala grava ETA/ETD com hora, e <input type="date">
+    // mostra em branco o que não é AAAA-MM-DD. Salvar o mesmo dia mantém a hora
+    // gravada (`scheduleDateKeepingTime`).
     dates: Object.fromEntries(PORTAL_SCHEDULE_LANES.map((lane) => [
       lane.label,
-      voyage.forecastDatesByLabel?.[lane.label] ?? voyage.datesByLabel[lane.label] ?? '',
+      dateOnly(voyage.forecastDatesByLabel?.[lane.label] ?? voyage.datesByLabel[lane.label] ?? ''),
     ])),
     omitted: Object.fromEntries(PORTAL_SCHEDULE_LANES.map((lane) => {
       const dateVal = voyage.forecastDatesByLabel?.[lane.label] ?? voyage.datesByLabel[lane.label]
