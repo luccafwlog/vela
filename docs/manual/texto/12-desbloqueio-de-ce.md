@@ -14,7 +14,7 @@ Para retirar a carga, o Cliente precisa do CE Mercante desbloqueado. Quem desblo
 
 **Quem faz:** {{Documentação}} e {{Administrativo}}. As outras equipes consultam tudo, inclusive os documentos, sem os botões de gestão.
 
-O Cliente marca no Portal os B/Ls que quer desbloquear e abre uma **solicitação**, identificada por um protocolo que começa com "CE-". Só entra B/L que já tem CE. Cada B/L precisa de quatro requisitos:
+O Cliente marca no Portal os B/Ls que quer desbloquear e abre uma **solicitação**, identificada por um protocolo que começa com "CE-". Só entra B/L que já tem CE e as Taxas Locais pagas. Cada B/L precisa de quatro requisitos:
 
 | Requisito | Quem cumpre | Como o Vela sabe |
 |---|---|---|
@@ -23,13 +23,13 @@ O Cliente marca no Portal os B/Ls que quer desbloquear e abre uma **solicitaçã
 | **Procuração** | O Cliente anexa | A agência aprova ([12.3](#123-analisar-os-documentos-de-uma-solicitação)). |
 | **B/L original** | O Cliente entrega na agência | A agência marca ([12.4](#124-registrar-a-entrega-do-bl-original)). |
 
-Só o B/L com os quatro vai para a planilha da ZPT. Aprovar os documentos não desbloqueia nada: o CE só é desbloqueado quando a planilha é importada na ZPT.
+Só o B/L com os quatro vai para a planilha da ZPT.
 
 A solicitação passa por estas situações: **Rascunho** (o Cliente ainda não enviou), **Enviado**, **Em análise** ou **Correção solicitada**, e **Documentação validada**, quando todos os B/Ls têm os quatro requisitos. Se um requisito cai depois, a validada volta a **Em análise**. A cancelada fica **Cancelado**.
 
 ::: atencao
 - Taxas pagas quer dizer quitadas por inteiro, com a baixa registrada. Pagamento parcial não basta, e uma fatura avulsa do B/L em aberto também segura o requisito. A Demurrage não entra.
-- O pagamento feito fora do Desbloqueio pode levar até 5 minutos para aparecer no requisito ([19.7](19-rotinas-por-horario.md#197-o-desbloqueio-de-ce)).
+- Com o pagamento feito fora do Desbloqueio, o requisito fica verde na hora, mas a solicitação pode levar até 5 minutos para passar a **Documentação validada** ([19.7](19-rotinas-por-horario.md#197-o-desbloqueio-de-ce)).
 :::
 
 ## 12.2 Ler a tela Desbloqueio de CE
@@ -38,16 +38,11 @@ A solicitação passa por estas situações: **Rascunho** (o Cliente ainda não 
 
 Em **Importação** › **Desbloqueio de CE**, a página tem duas abas.
 
-**Solicitações** traz o bloco **Solicitações aguardando análise**: os pedidos enviados que ainda têm termo de devolução ou procuração por aprovar, o envio mais antigo primeiro. É a fila de trabalho da análise. Quando os dois documentos estão aprovados, a solicitação sai dela; as solicitações VIP nem passam por ela ([12.8](#128-atender-o-cliente-vip)).
+**Solicitações** traz o bloco **Solicitações aguardando análise**: os pedidos enviados que ainda têm termo de devolução ou procuração por aprovar, o envio mais antigo primeiro. É a fila de trabalho da análise. As solicitações VIP nem passam por ela ([12.8](#128-atender-o-cliente-vip)).
 
-**Andamento dos B/Ls** mostra todo B/L com CE, com ou sem solicitação. Os cartões filtram a lista: **Aptos, não exportados**, **Exportados, aguardando a ZPT**, **Divergentes na ZPT**, **Desbloqueados** e **B/Ls com CE**. Em cada linha, um ícone verde por requisito atendido, o **Prazo** ([12.5](#125-o-prazo-do-desbloqueio)) e a coluna **Na ZPT**, que diz em que pé o B/L está:
+**Andamento dos B/Ls** mostra todo B/L com CE, com ou sem solicitação. Os cartões filtram a lista: **Aptos, não exportados**, **Exportados, aguardando a ZPT**, **Divergentes na ZPT**, **Desbloqueados** e **B/Ls com CE**. Em cada linha, um ícone verde por requisito atendido, o **Prazo** ([12.5](#125-o-prazo-do-desbloqueio)) e a coluna **Na ZPT**, que diz em que pé o B/L está: **Apto, não exportado**, **Exportado** com a data, o que a ZPT disse na última conciliação (**Desbloqueado** ou **Divergente**, [12.7](#127-conciliar-com-a-zpt)) ou, em âmbar, um impedimento ([12.10](#1210-quando-algo-muda-depois-do-pedido)).
 
-- **Apto, não exportado**, em negrito: pronto para a planilha;
-- **Exportado** com a data: enviado, esperando a conciliação;
-- **Desbloqueado** ou **Divergente**: o que a ZPT disse na última conciliação ([12.7](#127-conciliar-com-a-zpt));
-- em âmbar, um impedimento que não é requisito, como **CE alterado: reconferir** ([12.10](#1210-quando-algo-muda-depois-do-pedido)).
-
-**Buscar** aceita vários números de B/L ou CE colados de uma vez. **Exportar planilha** baixa a lista do filtro, para qualquer equipe; ela não é a planilha da ZPT. Para mostrar uma solicitação a um colega, copie o endereço da página: ele abre a mesma solicitação.
+**Buscar** aceita vários números de B/L ou CE colados de uma vez. **Exportar planilha** baixa a lista do filtro, para qualquer equipe; ela não é a planilha da ZPT.
 
 ## 12.3 Analisar os documentos de uma solicitação
 
@@ -60,31 +55,27 @@ O termo de devolução e a procuração são da solicitação, não de cada B/L:
 3. Clique em **Abrir** com o nome do arquivo e confira o documento.
 4. Clique em **Aprovar termo de devolução** (ou **Aprovar procuração**) e confirme. Se houver o que corrigir, clique em **Recusar…**, escreva em **O que o cliente precisa corrigir** e clique em **Recusar documento**.
 
-A recusa leva a solicitação a **Correção solicitada**, e o Cliente recebe o motivo no sino do Portal e por e-mail, exatamente como você escreveu ([16.1](16-emails-e-comunicados.md#161-saber-para-quem-vai-cada-e-mail)). Ele anexa a versão nova e reenvia. A solicitação continua na fila, com o último envio em **Enviada em**, e as versões anteriores ficam no pé do bloco **Documentos**.
+A recusa leva a solicitação a **Correção solicitada**, e o Cliente recebe o motivo no sino do Portal e por e-mail, exatamente como você escreveu ([16.1](16-emails-e-comunicados.md#161-saber-para-quem-vai-cada-e-mail)). Ele anexa a versão nova e reenvia.
 
 Aprovou por engano? No menu ⋮ do documento aprovado, use **Recusar aprovação**. É uma recusa como a outra: pede o motivo e avisa o Cliente.
 
 ::: atencao
-"Documento ainda não reenviado pelo cliente" quer dizer que o Cliente anexou a versão nova, mas ainda não clicou em **Solicitar desbloqueio**. Espere o reenvio para analisar.
+"Documento ainda não reenviado pelo cliente" quer dizer que o Cliente anexou a versão nova, mas ainda não clicou em **Reenviar solicitação**. Espere o reenvio para analisar.
 :::
 
 ## 12.4 Registrar a entrega do B/L original
 
 **Quem faz:** {{Documentação}} e {{Administrativo}}
 
-O Cliente entrega o B/L original na agência; os endereços que ele vê no Portal são os contatos **Entrega do B/L original** da Central de Informações ([13.9](13-cadastro-do-cliente.md#139-publicar-a-central-de-informações)). Você marca a entrega no Vela, mesmo antes de existir solicitação.
+O Cliente entrega o B/L original na agência. Você marca a entrega no Vela, mesmo antes de existir solicitação.
 
 1. Em **Andamento dos B/Ls**, busque o B/L.
 2. Marque a caixa na coluna **B/L original**.
 3. Clique em **Registrar entrega**.
 
-Para vários B/Ls, marque-os na primeira coluna e clique em **Registrar entrega de N B/Ls**. O Vela grava um B/L por vez e diz, no fim, em quais não gravou e por quê; esses continuam marcados para você tentar de novo.
+Para vários B/Ls, marque-os na primeira coluna e clique em **Registrar entrega de N B/Ls**. Os que não gravarem continuam marcados, com o motivo.
 
 Para desfazer uma marcação errada, clique de novo na caixa, escreva o motivo e clique em **Desmarcar entrega**. O B/L deixa de estar apto, e a solicitação validada volta a **Em análise**. Desmarcar é sempre um B/L por vez.
-
-::: atencao
-Se a entrega era o último requisito que faltava, o prazo da agência começa nessa hora ([12.5](#125-o-prazo-do-desbloqueio)).
-:::
 
 ## 12.5 O prazo do desbloqueio
 
@@ -102,25 +93,25 @@ O prazo conta só dias úteis, de segunda a sexta:
 
 Se a documentação da ATLANTICO IMPORTADORA LTDA fica completa numa sexta às 15h, o prazo vence na segunda às 12h. O Cliente vê o mesmo prazo no Portal e no aviso de documentação validada.
 
-Na coluna **Prazo**, "Hoje" aparece em âmbar e "Venceu" em vermelho. O prazo se cumpre com a exportação ([12.6](#126-exportar-os-bls-aptos-para-a-zpt)): depois dela, a coluna mostra só a data, e "Exportado no prazo" ou "Exportado fora do prazo" ao passar o mouse.
+O prazo se cumpre com a exportação ([12.6](#126-exportar-os-bls-aptos-para-a-zpt)): depois dela, a coluna mostra só a data, e "Exportado no prazo" ou "Exportado fora do prazo" ao passar o mouse.
 
 ::: atencao
 - Feriado conta como dia útil: o Vela não tem calendário de feriados.
-- Se um requisito cai antes da exportação, o prazo some; quando ele é cumprido de novo, a contagem recomeça. Depois da exportação, o prazo não se move mais.
+- Se um requisito cai antes da exportação, o prazo some; quando ele é cumprido de novo, a contagem recomeça. Depois da exportação, o prazo fica parado; se você reexportar o B/L, a coluna **Prazo** passa a medir pela reexportação, que pode cair fora do prazo.
 :::
 
 ## 12.6 Exportar os B/Ls aptos para a ZPT
 
 **Quem faz:** {{Documentação}} e {{Administrativo}}
 
-Exportar é o registro do envio à ZPT: é o que cumpre o prazo. O desbloqueio em si acontece quando você importa a planilha na ZPT.
+Exportar é o registro do envio à ZPT: é o que cumpre o prazo.
 
 1. Em **Andamento dos B/Ls**, clique no cartão **Aptos, não exportados**.
 2. Marque os B/Ls. A caixa do cabeçalho marca todos os do filtro, em todas as páginas.
 3. Clique em **Exportar N aptos para a ZPT** e confirme. Cabem até 100 B/Ls por planilha.
 4. Importe o arquivo baixado, desbloqueio-ce-zpt.xlsx, na aba "Planilha desbloqueio" da ZPT.
 
-Os B/Ls passam a mostrar "Exportado" com a data. Cada planilha fica guardada em **Planilhas enviadas à ZPT**: **Baixar lote** devolve o arquivo exatamente como foi gerado, e **Reexportar** gera uma planilha nova com os requisitos de agora. O lote gerado não muda; para corrigir, reexporte.
+Os B/Ls passam a mostrar "Exportado" com a data. Cada planilha fica em **Planilhas enviadas à ZPT**; para corrigir, use **Reexportar**, que gera uma planilha nova com os requisitos de agora.
 
 ::: atencao
 - Se um só B/L deixou de estar apto, por exemplo porque a baixa do pagamento foi cancelada, o Vela recusa o lote inteiro e diz qual B/L e por quê. Tire esse B/L e exporte de novo.
@@ -136,7 +127,6 @@ Exportar não prova o desbloqueio. Para saber o que a ZPT fez, traga de volta a 
 1. Na ZPT, use **Exportar Tela** e guarde o arquivo como veio (.xls, .xlsx ou .csv).
 2. Em **Andamento dos B/Ls**, clique em **Conciliar com a ZPT** e escolha o arquivo.
 3. Confira a **Prévia** e clique em **Conciliar N CEs**.
-4. Leia o **Resultado** e clique em **Concluir**.
 
 O CE que a ZPT mostra desbloqueado vira **Desbloqueado**, mesmo que o Vela não o tenha exportado. O B/L exportado que continua bloqueado vira **Divergente**; ao passar o mouse, você vê o que a ZPT diz que está pendente. Resolva o ponto e exporte o B/L de novo, pelo cartão **Divergentes na ZPT**.
 
@@ -176,8 +166,7 @@ O Cliente só cancela a própria solicitação no rascunho ou na correção pedi
 Os B/Ls ficam livres para uma nova solicitação. O Cliente vê a solicitação cancelada, com o motivo, mas não recebe aviso no sino nem por e-mail.
 
 ::: atencao
-- A solicitação com **Documentação validada** ou com algum B/L já exportado para a ZPT não se cancela: o botão fica apagado.
-- Em **Andamento dos B/Ls**, o B/L de uma solicitação cancelada continua mostrando o protocolo dela até entrar em outra, e não aparece na Situação "Sem solicitação". No Portal, ele aparece livre para um novo pedido.
+Na **Documentação validada**, **Cancelar pedido** não aparece; com algum B/L já exportado para a ZPT, ele fica apagado.
 :::
 
 ## 12.10 Quando algo muda depois do pedido
@@ -189,9 +178,9 @@ O Vela reconfere os requisitos sozinho: a baixa de um pagamento marca as taxas, 
 | Na ZPT | O que aconteceu | O que fazer |
 |---|---|---|
 | **CE alterado: reconferir** | O CE do B/L mudou depois do pedido. | Na solicitação, clique em **Reconferir CE** na linha do B/L, escreva **Como o CE foi conferido** e confirme. |
-| **Cliente alterado** | O B/L passou a outro Cliente depois do pedido. | A solicitação antiga não vale mais para ele. Para o Cliente atual pedir, cancele a antiga ([12.9](#129-cancelar-uma-solicitação)). |
+| **Cliente alterado** | O B/L passou a outro Cliente depois do pedido. | A solicitação antiga não vale mais para ele. Para o Cliente atual pedir, cancele a antiga ([12.9](#129-cancelar-uma-solicitação)); se ela já foi exportada para a ZPT, não se cancela, e o Cliente atual não consegue pedir esse B/L. |
 | **Troca de Cliente** | O B/L trocou de Cliente com pagamento, e a troca ainda espera a devolução ao Cliente anterior e a nova cobrança. | Sai quando o {{Financeiro}} confirma a devolução e a fatura do novo Cliente é emitida ([18.4](18-o-que-muda-sozinho.md#184-vincular-ou-trocar-o-cliente-do-bl)). Daí, falta ele pagar. |
 
-Depois de **Reconferir CE**, o termo e a procuração daquele B/L voltam a pendentes, na solicitação comum, e ele volta à fila de exportação. O B/L cancelado mostra "B/L cancelado" e não segue.
+Depois de **Reconferir CE**, na solicitação comum, aprove de novo o termo e a procuração ([12.3](#123-analisar-os-documentos-de-uma-solicitação)); o B/L volta à fila de exportação e precisa ser exportado de novo. O B/L cancelado mostra "B/L cancelado" e não segue.
 
 Trocar ou remover o CE de um B/L que a ZPT já mostrou desbloqueado abre um alerta para a {{Documentação}} (capítulo 20).

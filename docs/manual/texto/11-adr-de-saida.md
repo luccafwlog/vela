@@ -85,13 +85,13 @@ Com alguma seção da equipe em **Pendente**, o botão de assinar fica apagado.
 
 Cada equipe tem até 72 horas corridas depois do ATD do terminal para assinar a sua parte. Sábado, domingo e feriado contam: o navio que sai do TVV na sexta às 18h tem o prazo vencendo na segunda às 18h. O prazo aparece no bloco **ADR**, em **Prazo de conclusão**; enquanto não há ATD, "Aguardando a saída do navio".
 
-O prazo conta da saída do navio, não da hora em que alguém registrou a saída. Um ATD lançado dois dias depois deixa só um dia para as equipes, e o ADR pode nascer vencido. Registre o ATD no dia ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)).
+O prazo conta da saída do navio, não da hora em que alguém registrou a saída. Um ATD lançado dois dias depois deixa só um dia para as equipes, e o prazo pode já chegar vencido. Registre o ATD no dia ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)).
 
 A **Linha do tempo do ADR**, no pé da aba, conta a história: a saída do navio e quando ela foi registrada, o vencimento, cada assinatura e cada reabertura com a justificativa, e o fechamento. Cada equipe aparece como **No prazo**, **Atrasado** ou **Sem prazo**.
 
-Depois do ATD, a equipe com seção pendente recebe um alerta, e outro quando o prazo vence sem assinatura; os dois fecham com a assinatura da equipe ou com o fechamento do ADR (capítulo 20).
+Depois do ATD, a equipe com seção pendente recebe um alerta, e outro quando o prazo vence sem assinatura (capítulo 20).
 
-O {{Administrativo}} acompanha o cumprimento em **Admin** › **Prazo do ADR**: os ADRs fechados no período escolhido em **Fechado de** e **Fechado até** e, por equipe, quantos foram assinados no prazo, quantas horas cada assinatura atrasou e quem **Não assinou**, que conta como fora do prazo. A medida é da equipe, nunca da pessoa.
+O {{Administrativo}} acompanha o cumprimento em **Admin** › **Prazo do ADR**: os ADRs fechados no período escolhido em **Fechado de** e **Fechado até** e, por equipe, quantos foram assinados no prazo e quantas horas cada assinatura atrasou. A medida é da equipe, nunca da pessoa.
 
 ::: atencao
 - O ATD que vale é o da Atracação do terminal. A saída confirmada em **Chegadas e Saídas** é a do porto de origem e não começa o prazo ([18.3](18-o-que-muda-sozinho.md#183-registrar-a-chegada-a-atracação-e-a-saída)).
@@ -114,7 +114,7 @@ Com o ADR fechado, o Vela trava o que mexe nele: o terminal das frentes, o ATB, 
 
 ::: atencao
 - Uma frente em TBC em qualquer ponto da escala impede o fechamento. Atribua o terminal antes ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
-- O Vela deixa fechar antes da saída do navio, mas depois não aceita o ATD daquele terminal sem reabrir. Feche depois de registrar o ATD.
+- O Vela deixa fechar antes da saída do navio, mas depois não aceita o ATD daquele terminal sem reabrir, e o ADR fechado sem ATD fica fora do **Prazo do ADR**. Feche depois de registrar o ATD.
 :::
 
 ## 11.6 Reabrir um ADR fechado
