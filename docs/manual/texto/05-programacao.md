@@ -52,7 +52,7 @@ A janela Adicionar navio à programação.
 :::
 :::
 
-O Vela procura primeiro a Viagem pelo número e pelo IMO. Se ela já existe em **Viagens**, grava as datas nela e a publica; se não existe, cria a Viagem já publicada. Por isso o IMO importa: sem ele, o Vela procura pelo nome do navio, e um nome que casa com mais de uma Viagem é recusado.
+O Vela procura primeiro a Viagem pelo número e pelo IMO. Se ela já existe em **Viagens**, grava as datas nela e a publica; se não existe, cria a Viagem já publicada. Se a Viagem achada está cancelada, nada é gravado: reative-a em **Viagens** antes (capítulo 4). Por isso o IMO importa: sem ele, o Vela procura pelo nome do navio, e um nome que casa com mais de uma Viagem é recusado.
 
 ## 5.3 Corrigir as datas de um navio
 

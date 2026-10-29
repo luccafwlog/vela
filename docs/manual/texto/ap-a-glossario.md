@@ -44,7 +44,7 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **Comunicado**: o e-mail que o Vela manda ao Cliente: NOA, NOR, NOB, CE e Taxas, Cobrança de Demurrage, livre ou Institucional. Capítulo 16.
 
-**Conciliação**: na Viagem, o sinal **Conciliado**, **Pendente** ou **Divergente** do que falta de documento ([4.5](04-viagens-escalas.md#45-acompanhar-a-viagem)). Não é a **Conciliação PIX** (capítulo 24) nem a da ZPT ([12.7](12-desbloqueio-de-ce.md#127-conciliar-com-a-zpt)).
+**Conciliação**: na Viagem, o sinal **Conciliada**, **Pendente** ou **Divergente** do que falta de documento ([4.5](04-viagens-escalas.md#45-acompanhar-a-viagem)). Não é a **Conciliação PIX** (capítulo 24) nem a da ZPT ([12.7](12-desbloqueio-de-ce.md#127-conciliar-com-a-zpt)).
 
 **Condição de Cliente**: o valor negociado com um Cliente para uma taxa. Enquanto vigente, substitui o valor da tabela de cobrança. [13.7](13-cadastro-do-cliente.md#137-as-faturas-e-as-condições-negociadas) e capítulo 21
 

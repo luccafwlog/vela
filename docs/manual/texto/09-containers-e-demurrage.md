@@ -156,7 +156,7 @@ O acordo vale pela data de descarga: mesmo encerrado, ele continua valendo para 
 
 ### A condição de um B/L
 
-Use quando uma negociação vale só para um B/L. Na ficha, aba **Faturamento**, bloco **Condições de Demurrage deste B/L**, **Definir condição do B/L** abre **Free time (dias)**, **Tarifa P1 (USD/dia)** e **Tarifa P2 (USD/dia)**; o campo em branco volta ao acordo ou à tarifa.
+Use quando uma negociação vale só para um B/L. Na ficha, aba **Faturamento**, bloco **Condições de Demurrage deste B/L**, **Definir condição do B/L** abre **Free time (dias)**, **Tarifa P1 (USD/dia)** e **Tarifa P2 (USD/dia)**; o campo em branco volta ao acordo ou à tarifa. O B/L cancelado não oferece **Definir condição do B/L**.
 
 ### A tarifa
 

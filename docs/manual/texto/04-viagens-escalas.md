@@ -125,6 +125,8 @@ Cada Viagem traz um sinal de **Conciliação**, que resume o que falta de docume
 | **Pendente** (âmbar) | Falta CE Mercante em algum B/L. |
 | **Divergente** (vermelho) | O Baplie e os B/Ls não batem (capítulo 6). |
 
+Enquanto o Vela ainda confere as divergências do Baplie, o sinal mostra **Verificando**.
+
 Clique na Viagem para abrir a ficha. No alto, cinco blocos resumem a Viagem: contêineres, carga solta, exportação, próxima escala e conciliação. Abaixo ficam as abas: **Visão geral** (escalas e Linha do tempo), **Importação** e **Exportação** (a carga e os atalhos de importação), **Rotas e Manifestos** e **ADR**.
 
 A **Linha do tempo** conta a história do navio: quando a Viagem foi criada, cada arquivo importado, cada data alterada, com quem fez e a justificativa.

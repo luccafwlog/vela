@@ -755,8 +755,9 @@ Na mesma entrega da versão 1.0:
    Manifesto de carga solta e os veículos. Na terceira, decidiu por um guia só
    para Documentação, Operações e Equipamentos, para não deixar trabalho de
    fora: o **Guia rápido da Viagem** (`docs/manual/guias/viagem/`), com a
-   equipe de cada etapa. Guias do Financeiro e do Administrativo esperam a
-   decisão dele.
+   equipe de cada etapa, o fluxo em raias, a conferência antes do CE e os
+   alertas. Aprovado pelo dono em 2026-10-29, na mesma PR do manual. Guias do
+   Financeiro e do Administrativo esperam a decisão dele.
 3. **Imagens que o ambiente local não gera:** a lista de usuários da
    Administração (depende de função do servidor) e as telas do Pix com a
    cobrança pelo Itaú ligada.

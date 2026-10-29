@@ -238,3 +238,10 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
 - **Motivo do bloqueio legível** (2026-10-29, PR luccafwlog/vela#1103): o
   alerta **Efeito de importação bloqueado** mostra o motivo em linguagem de
   operação, com o texto do sistema em **Detalhe técnico** (capítulos 6 e 20).
+- **Correções da revisão da release #1084** (2026-10-29, PRs
+  luccafwlog/vela#1108 a #1112; migrations `511` e `512`): o sinal
+  **Verificando** da Conciliação na ficha da Viagem (4.5), a recusa do
+  **Adicionar navio** com Viagem cancelada (5.2), o B/L cancelado sem
+  **Definir condição do B/L** (9.7), o ROE manual "sem efeito" fora do B/L que
+  emite a Invoice do grupo (23.4) e **Conciliada** no glossário. A matriz já
+  veio atualizada nas PRs; o resto delas não muda o texto do manual.
