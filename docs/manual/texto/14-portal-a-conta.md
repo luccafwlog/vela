@@ -12,7 +12,7 @@ O Portal Fwlog é onde o Cliente vê os B/Ls, recebe as faturas e paga. Ninguém
 
 **Quem faz:** {{Todas as equipes}} leem. Na rotina, a {{Documentação}}.
 
-Todo Cliente cadastrado no Vela, pelo cadastro, pela Revisão ou pela ficha do B/L, entra na hora nesta fila, com a conta **Sem conta** e **Aguardando análise**. Nada sai sozinho: nenhum convite é enviado sem que alguém autorize. **Aguardando análise** não pede aprovação de ninguém: quer dizer só que o Cliente ainda não foi convidado. Enviar o convite já autoriza a conta.
+Todo Cliente cadastrado no Vela, pelo cadastro, pela Revisão ou pela ficha do B/L, entra na hora nesta fila, com a conta **Sem conta** e **Aguardando análise**. Nenhum convite sai sem alguém enviar; **Aguardando análise** quer dizer só que o Cliente ainda não foi convidado.
 
 A coluna **Conta** diz em que pé está o acesso, e a coluna **Ação** diz o próximo passo:
 
@@ -31,10 +31,10 @@ A fila do Provisionamento do Portal, com todos os Clientes do exemplo ainda sem 
 
 1. Em **Clientes**, abra a aba **Provisionamento do Portal**. O número ao lado da aba conta os Clientes em **Aguardando análise**.
 2. Os cartões filtram a fila, e a página abre em **Aguardando análise**. **Sem e-mail** reúne quem não tem e-mail de recuperação nem contato com e-mail. Clique de novo no cartão marcado para ver todos.
-3. **Busca** acha pela razão social ou pelo CNPJ; o filtro **Alerta** mostra só quem tem alerta crítico.
+3. **Busca** acha pela razão social ou pelo CNPJ.
 4. Clique no nome do Cliente, ou no botão da coluna **Ação**, para abrir a conta ([14.2](#142-abrir-a-conta-de-um-cliente)).
 
-A fila põe no alto quem tem alerta crítico, depois quem tem fatura em aberto ou B/L em andamento. Todo dia, às 8h, a {{Documentação}} e o {{Administrativo}} recebem por e-mail o **Resumo do Portal**, com os convites que esperam ativação e as falhas de entrega ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)).
+Todo dia, às 8h, a {{Documentação}} e o {{Administrativo}} recebem por e-mail o **Resumo do Portal**, com os convites que esperam ativação e as falhas de entrega ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)).
 
 ::: atencao
 O Cliente desativado continua na fila, mas não recebe convite nem entra no Portal. Para devolver o acesso, reative o Cliente na ficha dele (capítulo 13).
@@ -53,7 +53,7 @@ A conta abre na própria fila, embaixo da linha, ou na ficha do Cliente, aba **C
 
 A **Última entrega** fala do último e-mail do Portal para a conta: convite, recuperação de senha ou aviso. **Aceito pelo provedor** quer dizer só que o provedor recebeu o e-mail para enviar; **Entregue** confirma que ele chegou ao servidor de e-mail do Cliente. **Devolvido** e **Reclamação** pedem atenção ([14.7](#147-liberar-um-endereço-bloqueado)).
 
-{{Operações}} vê só o bloco **Contatos com e-mail** e o e-mail de recuperação. {{Financeiro}} e {{Equipamentos}} veem o painel com os botões apagados.
+{{Operações}} vê o painel só para leitura: no lugar do bloco do convite aparece **Contatos com e-mail**. {{Financeiro}} e {{Equipamentos}} veem o painel inteiro com os botões apagados.
 
 ::: atencao
 A coluna **Por** do Histórico mostra a equipe de quem agiu, não a pessoa. Escreva na justificativa o que você conferiu e com quem: é isso que fica para quem ler depois.
@@ -70,7 +70,7 @@ O convite vai para o **e-mail de recuperação**, o endereço da pessoa que o Cl
 3. Clique em **Enviar convite para …** (ou **Reenviar convite para …**).
 4. Na janela **Autorizar e-mail de recuperação**, confirme que o endereço pertence à pessoa autorizada pelo Cliente e clique em **Enviar convite**.
 
-Com "Convite aceito pelo provedor de e-mail.", a conta passa a **Ativação pendente**. O Cliente recebe o e-mail "Ative o acesso da … ao Portal do Cliente", com o botão **Ativar acesso**. O link vale por 48 horas e uma vez só; cada reenvio invalida o link anterior.
+Com "Convite aceito pelo provedor de e-mail.", a conta passa a **Ativação pendente**. O Cliente recebe o e-mail do convite, com o botão **Ativar acesso**. O link vale por 48 horas e uma vez só; cada reenvio invalida o link anterior.
 
 No exemplo, a MAQUINAS HORIZONTE LTDA espera o Portal na Revisão. O convite vai para importacao@maquinas-horizonte.example, o contato principal dela.
 
@@ -85,15 +85,13 @@ O mesmo convite sai da Revisão ([8.3](08-revisao.md#83-convidar-o-cliente-para-
 
 **Quem faz:** {{Documentação}} e {{Administrativo}}
 
-No e-mail, o Cliente clica em **Ativar acesso**. A tela mostra a empresa e o CNPJ, com parte dos números escondida, e pede a **Nova senha** e a **Confirmar senha**: no mínimo 8 caracteres, com letra maiúscula, minúscula e número. Depois de **Ativar acesso**, a tela **Acesso ativado** manda entrar com o CNPJ e a senha; o Cliente não entra sozinho. Na fila, a conta fica **Ativa**, o Histórico registra "Ativação concluída pelo cliente" e as faturas retidas do Cliente saem na hora ([14.5](#145-o-que-deixa-o-portal-pronto-para-faturar)).
+No e-mail, o Cliente clica em **Ativar acesso**. Ele define a senha e depois entra com o CNPJ e a senha; não entra sozinho. Na fila, a conta fica **Ativa**, o Histórico registra "Ativação concluída pelo cliente" e as faturas retidas do Cliente saem na hora ([14.5](#145-o-que-deixa-o-portal-pronto-para-faturar)).
 
 Quando a ativação não acontece:
 
 | Na fila ou no relato do Cliente | O que fazer |
 |---|---|
 | **Ativação pendente** há dias | Peça ao Cliente para procurar o e-mail, também no spam. Se não achar, reenvie. |
-| **Convite expirado** | Reenvie. O Vela marca o convite como expirado depois de 48 horas, mas não reenvia sozinho. |
-| **Falha no envio** | O endereço foi recusado. Confira-o com o Cliente, corrija e clique em **Revisar e-mail e reenviar**. |
 | O Cliente vê **Convite indisponível** | O link venceu, já foi usado ou foi trocado por um reenvio. Peça para usar o e-mail mais recente ou reenvie. |
 
 Se o convite foi para o endereço errado, revogue-o: em **Ações administrativas**, escolha **Revogar o convite** (só na **Ativação pendente**), escreva a justificativa e confirme em **Revogar convite**. O link deixa de funcionar e a conta volta a **Sem conta** e **Aguardando análise**. Para seguir, envie um novo convite.
@@ -124,7 +122,7 @@ No exemplo, a ATLANTICO IMPORTADORA LTDA tem Liberação: o CSC45810A01K00 foi f
 ::: atencao
 - A Liberação não ativa a conta nem dá acesso ao Cliente: sem Portal, alguém da equipe precisa entregar a fatura a ele. Continue o convite.
 - Quando a data de revisão passa, as novas faturas voltam a ficar retidas e os B/Ls ainda não faturados voltam para a Revisão ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)).
-- **Visível no Portal**, no bloco **Portal** da ficha do B/L, pede só a conta ativa, o Cliente e o CE. Com o e-mail de recuperação bloqueado, o Cliente vê o B/L, mas a fatura nova fica retida.
+- No bloco **Portal** da ficha do B/L, **Visível no Portal** e **Pronto para faturar** são coisas separadas: com o e-mail de recuperação bloqueado, o Cliente vê o B/L, mas a fatura nova fica retida.
 :::
 
 ## 14.6 Trocar o e-mail de recuperação
@@ -140,15 +138,14 @@ Troque quando a pessoa que cuidava do acesso saiu da empresa ou o endereço paro
 O endereço novo vale na hora. Os links de recuperação de senha pendentes deixam de valer, o Cliente é desconectado do Portal em todos os aparelhos e o endereço anterior recebe o e-mail "Seu Email de Recuperação foi trocado". Se a troca deixa o Portal pronto, as faturas retidas saem ([14.5](#145-o-que-deixa-o-portal-pronto-para-faturar)).
 
 ::: atencao
-- Avise o Cliente antes: ele vai precisar entrar de novo.
-- Com uma recuperação de senha em andamento, a troca é recusada. Espere o Cliente terminar a redefinição e tente de novo.
+Avise o Cliente antes: ele vai precisar entrar de novo.
 :::
 
 ## 14.7 Liberar um endereço bloqueado
 
 **Quem faz:** {{Documentação}} e {{Administrativo}}
 
-Quando um e-mail do Portal volta como devolvido em definitivo ou marcado como spam, o endereço entra na lista de bloqueio e o Vela para de enviar a ele. O bloqueio nunca vence sozinho. Se o endereço bloqueado é o e-mail de recuperação, o painel avisa em vermelho e a fila mostra **Validar e-mail de recuperação**. O Cliente continua entrando com a senha, mas a recuperação de senha não chega a ele, e o Portal deixa de estar pronto para faturar.
+Quando qualquer e-mail do Vela para esse endereço volta como devolvido em definitivo, ou um e-mail do Portal é marcado como spam, o endereço entra na lista de bloqueio e o Vela para de enviar a ele. O bloqueio nunca vence sozinho. Se o endereço bloqueado é o e-mail de recuperação, o painel avisa em vermelho e, com a conta **Ativa**, a fila mostra **Validar e-mail de recuperação**. O Cliente continua entrando com a senha, mas a recuperação de senha não chega a ele, e o Portal deixa de estar pronto para faturar.
 
 Há duas saídas: trocar para outro endereço ([14.6](#146-trocar-o-e-mail-de-recuperação)) ou, se o Cliente confirma que a caixa voltou a funcionar, liberar o atual.
 

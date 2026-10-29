@@ -1,4 +1,4 @@
-O Cliente não vê o Vela: vê o Portal Fwlog, que lê os mesmos dados. Quando ele liga com uma dúvida, você precisa saber o que está na tela dele. Este capítulo percorre o Portal do ponto de vista de quem atende: o que aparece, quando aparece e o que o Cliente faz sozinho. Duas regras explicam quase tudo: o B/L só aparece para o Cliente depois do CE Mercante, e a fatura só depois de emitida. Como o Cliente ganha o acesso está no capítulo 14; o que fazer quando ele pede ajuda, no capítulo 17.
+O Cliente não vê o Vela: vê o Portal Fwlog, que lê os mesmos dados. Quando ele liga com uma dúvida, você precisa saber o que está na tela dele. Duas regras explicam quase tudo: o B/L só aparece para o Cliente depois do CE Mercante, e a fatura só depois de emitida. Como o Cliente ganha o acesso está no capítulo 14; o que fazer quando ele pede ajuda, no capítulo 17.
 
 ::: aprende
 - ver o Portal de um Cliente como ele vê, pelo Modo Inspeção;
@@ -23,7 +23,7 @@ O **Modo Inspeção** abre o Portal de um Cliente com os mesmos dados e o mesmo 
 O Portal da ATLANTICO IMPORTADORA LTDA no Modo Inspeção.
 :::
 
-Tudo o que o Cliente faria fica apagado, com a dica "Ação do cliente — indisponível em Modo Inspeção": consolidar faturas, abrir ou responder disputa, anexar, salvar contatos e endereço, marcar notificações. Você vê, mas não age por ele. Cada abertura da inspeção fica registrada.
+Tudo o que o Cliente faria fica apagado, com a dica "Ação do cliente — indisponível em Modo Inspeção": consolidar faturas, abrir ou responder disputa, anexar, salvar contatos e endereço, marcar notificações. Você vê, mas não age por ele.
 
 ::: atencao
 Com a conta não ativa, o Cliente não entra no Portal. A inspeção mostra o que ele veria depois de ativar, não o que ele vê hoje.
@@ -33,7 +33,7 @@ Com a conta não ativa, o Cliente não entra no Portal. A inspeção mostra o qu
 
 **Quem faz:** o Cliente, no Portal. Quem orienta: {{Qualquer equipe}}
 
-O acesso é da empresa, não da pessoa: um CNPJ e uma senha. O Portal não tem usuários por pessoa; quem recebe os avisos da Fwlog são os contatos do Cliente ([15.8](#158-o-perfil-contatos-endereço-e-e-mail-de-recuperação)). O Cliente entra em portalfwlog.com.br com o **CNPJ** do cadastro e a **Senha**, e clica em **Entrar no Portal**. CPF e e-mail não servem de login.
+O acesso é da empresa, não da pessoa: o Cliente entra em portalfwlog.com.br com o **CNPJ** do cadastro e uma **Senha**. CPF e e-mail não servem de login.
 
 Qualquer recusa mostra a mesma mensagem: "CNPJ ou senha inválidos. Após várias tentativas, o acesso fica suspenso por 15 minutos.…". Vale para senha errada, CNPJ sem conta, conta não ativa ou suspensa e Cliente desativado. É de propósito: a tela não revela quem tem conta. A causa você confere na fila do Provisionamento (capítulo 14).
 
@@ -42,7 +42,7 @@ Com 5 erros do mesmo CNPJ em 15 minutos, o login fica bloqueado por até 15 minu
 Para trocar uma senha esquecida, o Cliente usa **Esqueci minha senha**, informa o CNPJ e recebe um link no e-mail de recuperação, válido por 1 hora. Ao redefinir, ele é desconectado dos outros aparelhos e o e-mail de recuperação recebe "Sua senha do Portal do Cliente foi alterada".
 
 ::: atencao
-- A tela **Link enviado** aparece sempre, exista ou não a conta. O link só sai de verdade para conta **Ativa**, com e-mail de recuperação gravado e fora da lista de bloqueio, e no máximo um por hora. Se o Cliente não recebeu, confira a conta antes de pedir que ele tente de novo.
+- A tela **Link enviado** aparece exista ou não a conta (só depois de muitos pedidos seguidos ela pede para esperar). O link só sai de verdade para conta **Ativa**, com e-mail de recuperação gravado e fora da lista de bloqueio, e no máximo um por hora. Se o Cliente não recebeu, confira a conta antes de pedir que ele tente de novo.
 - O link vai só para o e-mail de recuperação, nunca para os contatos. Se essa pessoa saiu da empresa, troque o endereço ([14.6](14-portal-a-conta.md#146-trocar-o-e-mail-de-recuperação)).
 :::
 
@@ -50,7 +50,7 @@ Para trocar uma senha esquecida, o Cliente usa **Esqueci minha senha**, informa 
 
 **Quem faz:** {{Todas as equipes}}
 
-O **Painel** é a primeira tela do Cliente. Quatro cartões resumem o que pede atenção e levam à tela de cada assunto: **Taxas Locais em aberto**, **Demurrage em aberto** (em US$, com o valor em R$ de hoje), **Containers sem devolução** e **Desbloqueio de CE em aberto**. O cartão fica em âmbar quando há valor.
+O **Painel** é a primeira tela do Cliente. Quatro cartões resumem o que está em aberto e levam à tela de cada assunto.
 
 Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. **Ver meus B/Ls** aparece na viagem em que ele tem carga e abre os B/Ls daquela viagem. Por último, **Consultas** leva às seções da Central de Informações (capítulo 13).
 
@@ -70,20 +70,12 @@ Na aba **BLs**, cada linha traz a carga, a Viagem e o trecho. A coluna **Pagamen
 
 A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a situação:
 
-| Situação | Quer dizer |
-|---|---|
-| **No free time · N dias** (âmbar) | Ainda no prazo livre; N é o que falta. |
-| **Em demurrage** (vermelho) | O prazo livre acabou e o container não voltou. |
-| **Devolvido** | O container voltou. |
-| **SOC (sem devolução)** | Container do próprio Cliente: sem devolução nem Demurrage. |
-| **Sem descarga** | A descarga ainda não foi registrada. |
-| **Tarifa indisponível** | O Vela não achou o free time oficial do container; o Cliente lê "Consulte o atendimento". |
+Duas situações pedem explicação: **SOC (sem devolução)** é container do próprio Cliente, sem devolução nem Demurrage; **Tarifa indisponível** quer dizer que o Vela não achou o free time oficial do container.
 
 As datas de descarga e de devolução que {{Equipamentos}} grava aparecem aqui na próxima leitura do Cliente (capítulo 9).
 
 ::: atencao
 - Se o Cliente diz que um B/L não aparece, abra o bloco **Portal** da ficha do B/L: ele diz se o B/L está visível e, se não está, por quê ([7.4](07-ficha-do-bl.md#74-vincular-ou-trocar-o-cliente-do-bl)).
-- Quando o B/L muda de Cliente, o anterior continua vendo as faturas que já recebeu daquele B/L, mas não os containers nem a situação atual.
 :::
 
 ## 15.5 As faturas e o Pix
@@ -107,7 +99,6 @@ O Cliente também junta faturas: **Gerar fatura consolidada** escolhe os B/Ls co
 ::: atencao
 - O **Saldo pendente** do Portal não é o da ficha do Cliente no Vela: ele soma só as faturas que o Cliente vê, mais a Demurrage em R$ de hoje. Quando o Cliente questiona o saldo, compare fatura por fatura.
 - O recibo não vai por e-mail: o Cliente o imprime no Portal, na fatura **Paga**. Se ele pedir o recibo a você, imprima pelo Vela (capítulo 24).
-- Logo depois da emissão, o detalhe pode mostrar "QR Code Pix em preparação" no lugar do QR. Ele aparece em alguns minutos; o Cliente atualiza a página.
 :::
 
 ## 15.6 A Demurrage e a Disputa
@@ -116,11 +107,7 @@ O Cliente também junta faturas: **Gerar fatura consolidada** escolhe os B/Ls co
 
 A aba **Demurrage** de **Faturas** lista as Invoices emitidas ou pagas dos B/Ls com CE. A cancelada não chega ao Portal. Cada Invoice mostra o total em US$ e o **Total R$ hoje**: o valor em reais acompanha o câmbio do dia (o ROE de hoje, que a faixa mostra) até o pagamento. Enquanto a Invoice está em aberto, o detalhe traz o Pix.
 
-Se o Cliente discorda de um valor, ele contesta pelo próprio Portal:
-
-1. No detalhe da Invoice em aberto, clica em **Abrir disputa**.
-2. Escreve o **Motivo da disputa** e confirma.
-3. Acompanha a conversa em **Disputas**, na faixa da aba **Demurrage**.
+Se o Cliente discorda de um valor, ele contesta no detalhe da Invoice em aberto, em **Abrir disputa**, e acompanha a conversa em **Disputas**.
 
 A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela Invoice para. Na conversa, a equipe aparece como "Equipe de Containers", e o Cliente só escreve quando é a vez dele. Na Disputa resolvida, o Cliente pode clicar em **Solicitar reabertura**; ela continua resolvida até a equipe decidir. Como a equipe responde e decide está no capítulo 23.
 
@@ -139,7 +126,7 @@ Em **Desbloqueio de CE**, o Cliente pede que a agência libere o CE dos B/Ls del
 2. Na solicitação aberta, anexa o termo de devolução e a procuração em PDF, de até 10 MiB cada. Quando os documentos anuais VIP cobrem todos os B/Ls, o Cliente não anexa nada.
 3. Clica em **Solicitar desbloqueio**.
 
-O Cliente acompanha a situação em **Minhas solicitações**: **Rascunho**, **Enviada**, **Em análise**, **Correção pedida** (com o motivo inteiro, como a agência escreveu), **Documentação validada** ou **Cancelada**. O prazo para desbloqueio só começa quando os quatro requisitos estão cumpridos em todos os B/Ls da solicitação. A análise pela equipe está no capítulo 12.
+O Cliente acompanha a situação em **Minhas solicitações**; na **Correção pedida**, ele vê o motivo inteiro, como a agência escreveu. O prazo para desbloqueio só começa quando os quatro requisitos estão cumpridos em todos os B/Ls da solicitação. A análise pela equipe está no capítulo 12.
 
 ::: atencao
 - O rascunho que o Cliente não envia é cancelado 7 dias depois de criado, e os B/Ls ficam livres de novo.
@@ -157,7 +144,7 @@ Em **Perfil**, o Cliente cuida de três coisas, cada uma com o próprio botão:
 - **E-mail de recuperação**: o Cliente troca o endereço informando a senha atual e o novo e-mail duas vezes. O novo só vale depois que ele clica no link de confirmação, que chega ao endereço novo e vale por 48 horas. Até lá, o antigo continua valendo e recebe um aviso do pedido.
 
 ::: atencao
-- O endereço que o Cliente grava no Portal muda o cadastro no Vela sem registro de quem alterou. Se o endereço da fatura mudou e ninguém da equipe mexeu, foi o Cliente, pelo Portal.
+- O endereço que o Cliente grava no Portal muda o cadastro na hora e aparece em **Alterações do cadastro**, na ficha, mas a coluna **Por** mostra "Usuário interno": se ninguém da equipe mexeu, foi o Cliente, pelo Portal.
 - Contato com endereço bloqueado aparece no Perfil com o aviso "Endereço bloqueado". Ele não recebe Comunicados até o e-mail ser trocado (capítulo 16).
 :::
 

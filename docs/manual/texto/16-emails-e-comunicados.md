@@ -30,7 +30,6 @@ Só recebe o contato ativo, com e-mail válido e endereço que não está bloque
 
 ::: atencao
 - A caixa sem nenhum contato ativo com e-mail aparece com "Nenhum contato com e-mail", em âmbar, e os avisos dela não saem. Ligue um contato a ela (capítulo 13).
-- Os avisos do Desbloqueio de CE também vão ao sino do Portal; sem contato na caixa, ficam só no sino.
 :::
 
 ## 16.2 Saber se os e-mails saem de verdade
@@ -58,7 +57,7 @@ A **Cobertura de viagens** responde "os Clientes desta viagem já foram avisados
 1. Em **Clientes**, abra a aba **Comunicação**. A vista **Cobertura de viagens** abre primeiro.
 2. Se precisa, filtre por **Navio**, **Viagem** ou **Mês** (o mês do ETA). A viagem da escala mais próxima vem no alto.
 3. Clique na seta da linha para ver cada Cliente e a situação de cada aviso.
-4. Para ver o e-mail que saiu, clique em **Enviado em …**: abre o Histórico desse Cliente na Viagem.
+4. Para ver o e-mail que saiu, clique em **Enviado em …**: abre esse Comunicado no Histórico.
 :::
 
 ::: tela comunicacao-cobertura
@@ -77,7 +76,7 @@ Na linha aberta, cada aviso de cada Cliente diz em que pé está:
 
 ::: atencao
 - No NOA, NOR e NOB, **Não devido** aparece também quando a janela do aviso passou sem envio. Para saber se um aviso saiu, confira o **Histórico** ([16.4](#164-conferir-se-um-e-mail-saiu-e-chegou)).
-- "Reenvio pendente", no CE e Taxas, é o Cliente que já recebeu e ganhou na Viagem um B/L que ainda não está pronto. Quando o B/L ficar pronto, o Vela não manda outro CE e Taxas sozinho: reenvie à mão ([16.7](#167-reenviar-o-comunicado-de-ce-e-taxas)).
+- "Reenvio pendente", no CE e Taxas, é o Cliente que já recebeu e ganhou na Viagem um B/L que ainda não está pronto. Quando o B/L fica pronto, a Cobertura volta a mostrar **Enviado em …**, o Vela não manda outro CE e Taxas e nenhum alerta abre: reenvie nesse momento ([16.7](#167-reenviar-o-comunicado-de-ce-e-taxas)).
 :::
 
 ## 16.4 Conferir se um e-mail saiu e chegou
@@ -92,7 +91,7 @@ O **Histórico** da **Comunicação** guarda cada Comunicado enviado ao Cliente,
 3. Clique na seta da linha. Aparecem os B/Ls, os anexos e cada destinatário, com o e-mail usado, o **Envio** (**Real** ou **Ao suporte**), a **Situação** e o **Motivo** da falha.
 :::
 
-A **Situação** da linha resume os destinatários: **Enviado** quando todos saíram, **Parcial** quando parte falhou, **Falha** quando nenhum saiu e **Ao suporte** com a chave desligada. A de cada destinatário diz até onde o e-mail foi:
+A **Situação** da linha resume os destinatários: **Enviado** quando todos saíram, **Parcial** quando parte falhou, **Falha** quando nenhum saiu e **Ao suporte** (ou **Redirecionado ao suporte**) com a chave desligada. A de cada destinatário diz até onde o e-mail foi:
 
 | Situação do destinatário | Quer dizer |
 |---|---|
@@ -118,14 +117,13 @@ Os avisos de chegada e atracação saem sozinhos. Mande à mão quando o automá
 2. Em **Recorte da carga**, informe pelo menos um de **Navio / Viagem**, **POL** ou **POD**, como COSCO SHIPPING SEREIA / 024E e BRVIX. Para um Cliente só, acrescente o **CNPJ do Cliente (opcional)**.
 3. Clique em **Conferir destinatários**. A lista mostra cada Cliente, os B/Ls, os e-mails que vão receber e os que ficaram de fora, com o motivo. Desmarque quem não deve receber; **Ver e-mail** mostra a mensagem daquele Cliente.
 4. Clique em **Disparar para N cliente(s)** e confirme. A confirmação diz se é **Enviar de verdade** ou **Enviar ao suporte**, conforme a chave ([16.2](#162-saber-se-os-e-mails-saem-de-verdade)).
-5. Leia o **Resultado do disparo**: quantos saíram, quantos foram ao suporte e cada falha, com o motivo.
 :::
 
 Para a falha passageira, use **Repetir só as falhas**: sai de novo no mesmo Comunicado, só para quem falhou. A falha marcada "Não adianta repetir; corrija o contato." fica fora: corrija o contato antes ([16.9](#169-corrigir-o-contato-que-não-recebe)). O aviso mandado à mão conta para o automático: quem recebeu pela tela não recebe o mesmo aviso de novo ([19.4](19-rotinas-por-horario.md#194-os-comunicados-automáticos)).
 
 ::: atencao
 - O Cliente que já recebeu aquele aviso na mesma escala aparece com "Reenvio N", e o disparo só libera depois de você marcar **Confirmo o reenvio.** Ele recebe de novo.
-- A linha **Bloqueado** não pode ser marcada; o motivo está em **Situação**. No NOB, o terminal sem sigla bloqueia o Cliente, e a atracação sem frente de operação atribuída não traz carga nenhuma: atribua a frente na escala ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
+- A linha **Bloqueado** não pode ser marcada; o motivo está em **Situação**. No NOB, a atracação sem frente de operação atribuída não traz carga nenhuma: atribua a frente na escala ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
 :::
 
 ## 16.6 Escrever um Comunicado livre ou institucional
@@ -165,7 +163,6 @@ Ele não se dispara pela vista **Disparo**: o reenvio sai pelo **Histórico**. R
 1. Em **Clientes** › **Comunicação**, vista **Histórico**, escolha o **Modelo** **CE Mercante · Taxas Locais** e o **Navio**, ou siga o link do alerta.
 2. Clique na seta do Comunicado mais recente do Cliente naquela Viagem.
 3. Clique em **Reenviar CE e Taxas** e confirme. O e-mail sai com o CE e os valores de agora, para as caixas **Documentação e Operação** e **Financeiro**.
-4. Leia o resultado embaixo do botão: "CE e Taxas reenviado (tentativa N)." ou "Reenvio não feito", com o motivo.
 :::
 
 O reenvio fecha o alerta **Reenviar Comunicado de CE e Taxas** dos B/Ls daquele Cliente na Viagem.
@@ -186,7 +183,6 @@ Comece pela **Cobertura de viagens**: abra a linha da viagem e veja a situação
 | "falta faturar N B/Ls", "falta CE Mercante em N B/Ls" ou "N B/Ls em revisão" | Só no CE e Taxas. Resolva a pendência do B/L (capítulos 6 e 8); o aviso sai sozinho logo depois. |
 | "sem contato ativo na caixa do modelo" | Ligue à caixa um contato com e-mail (capítulo 13). O aviso sai em poucos minutos. |
 | "falha no envio; nova tentativa a partir de …" | Nada: o Vela tenta de novo sozinho. |
-| "recusado na última rodada; volta em até 24 h" | Leia o motivo no alerta, corrija o dado indicado ou avise o suporte técnico. |
 
 Se o aviso aparece como **Enviado**, abra o **Histórico** e veja a situação de cada destinatário ([16.4](#164-conferir-se-um-e-mail-saiu-e-chegou)). Se o NOA, o NOR ou o NOB aparece como **Não devido** e não está no Histórico, a janela passou: mande à mão ([16.5](#165-mandar-um-noa-nor-ou-nob-à-mão)).
 
@@ -200,9 +196,9 @@ Com o **Canal de envio** em **Redirecionado ao suporte**, a Cobertura mostra o a
 
 **Quem faz:** {{Documentação}}, {{Equipamentos}} e {{Administrativo}}
 
-Quando o servidor do Cliente devolve um e-mail porque o endereço não existe, ou quando o Cliente o marca como spam, o Vela bloqueia o endereço. O contato continua no cadastro, com o aviso "Endereço bloqueado: Falha permanente na entrega (Bounce)" ou "Endereço bloqueado: Reclamação registrada", e deixa de receber. O endereço devolvido para de receber os Comunicados e os e-mails do Portal; o marcado como spam, só os Comunicados.
+Quando o servidor do Cliente devolve um e-mail porque o endereço não existe, ou quando o Cliente o marca como spam, o Vela bloqueia o endereço. O contato continua no cadastro, com o aviso "Endereço bloqueado: Falha permanente na entrega (Bounce)" ou "Endereço bloqueado: Reclamação registrada", e deixa de receber. O endereço devolvido para de receber tudo; o marcado como spam para de receber só o canal em que foi marcado: os Comunicados, ou os e-mails do Portal.
 
-O Vela reage sozinho: as caixas que ficaram sem destinatário voltam ao contato principal, e outro contato do Cliente recebe o e-mail "Falha de entrega: atualize o cadastro do cliente", com um botão para **Meu perfil**, no Portal. Se não sobra nenhum contato válido, abre **Cliente sem contato alternativo** para a {{Documentação}} e o {{Administrativo}} (capítulo 20).
+Na devolução, o Vela reage sozinho: as caixas que ficaram sem destinatário voltam ao contato principal, e outro contato do Cliente recebe o e-mail "Falha de entrega: atualize o cadastro do cliente", com um botão para **Meu perfil**, no Portal. Se não sobra nenhum contato válido, abre **Cliente sem contato alternativo** para a {{Documentação}} e o {{Administrativo}} (capítulo 20).
 
 ::: passos
 1. Peça ao Cliente o endereço certo.
@@ -214,5 +210,5 @@ O endereço novo já recebe os próximos e-mails. O próprio Cliente também pod
 
 ::: atencao
 - Nenhuma tela do Vela tira o bloqueio de um contato: o caminho é trocar o e-mail. Digitar de novo o mesmo endereço não libera. O **E-mail de recuperação** da conta do Portal tem caminho próprio, no **Provisionamento do Portal** (capítulo 14).
-- Se uma caixa fica só com endereços bloqueados, o Vela salva os contatos, avisa que a caixa segue sem e-mail apto a receber e abre um alerta (capítulo 20).
+- Se uma caixa fica só com endereços bloqueados, ela segue sem e-mail e abre um alerta (capítulo 20).
 :::
