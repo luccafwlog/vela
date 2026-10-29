@@ -235,6 +235,10 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; text-wrap: balance; }
   overflow: visible;
   background: var(--panel);
   box-shadow: 0 0.6mm 2mm rgba(15, 23, 42, 0.10);
+  /* Altura máxima da tela: janela alta encolhe em vez de empurrar a página
+     inteira para a seguinte e deixar meia página em branco. */
+  --altura-max: 90mm;
+  max-width: min(100%, calc(var(--altura-max) * var(--proporcao, 10)));
 }
 .tela__quadro img { display: block; width: 100%; height: auto; border-radius: 1.6mm; }
 .tela__quadro .marca {
@@ -255,7 +259,13 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; text-wrap: balance; }
 .tela figcaption { font-size: 8pt; color: var(--muted); }
 
 .duas-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; align-items: start; }
-.colunas-passos { display: grid; grid-template-columns: 76mm 1fr; gap: 6mm; align-items: start; }
+/* Passos ao lado da imagem: a imagem flutua à direita (pagina.js a põe antes
+   dos passos) e cada passo se ajusta ao lado dela. */
+.colunas-passos { display: block; }
+.colunas-passos::after { content: ""; display: block; clear: both; }
+.colunas-passos > figure.tela { float: right; width: min(95mm, calc(85mm * var(--proporcao, 10))); margin: 0 0 3mm 6mm; }
+.colunas-passos .passos { display: block; }
+.colunas-passos .passos li + li { margin-top: 2.4mm; }
 
 /* ---- Quadros fixos --------------------------------------------------- */
 .quadro { border-radius: 2mm; padding: 2.6mm 3.5mm; border: 0.5pt solid; display: grid; gap: 1.2mm; }
@@ -460,7 +470,14 @@ ol.sum .pag { color: var(--muted); font-variant-numeric: tabular-nums; }
 .texto-corrido table:not(.quero):not(.tab) { width: 100%; border-collapse: collapse; font-size: 8.75pt; }
 .texto-corrido table:not(.quero):not(.tab) th { background: var(--navy); color: #fff; font-weight: 600; padding: 1.6mm 2.4mm; text-align: center; }
 .texto-corrido table:not(.quero):not(.tab) td { padding: 1.6mm 2.4mm; border-bottom: 0.5pt solid var(--border-soft); text-align: left; vertical-align: top; }
-.bloco, .quadro, .aconteceu, .mensagem, figure.tela, table, .colunas-passos { break-inside: avoid; }
+/* Paginação: só a imagem, o passo e a linha de tabela são indivisíveis. Quadro,
+   tabela e bloco de passos com imagem podem continuar na página seguinte, para
+   não deixar meia página em branco (pedido do dono, 2026-10-29). O título do
+   quadro e o cabeçalho da tabela não ficam sozinhos no pé da página. */
+.bloco, .aconteceu, .mensagem, figure.tela { break-inside: avoid; }
+.quadro > .titulo { break-after: avoid; }
+.texto-corrido table tr { break-inside: avoid; }
+.texto-corrido table thead { display: table-header-group; }
 .passos-bloco + figure.tela, h2 + .bloco { break-before: avoid; }
 .quadro p + p, .bloco .conteudo p + p { margin-top: 1.6mm; }
 .bloco .conteudo > ul, .quadro > ul { margin: 0; padding-left: 4.5mm; display: grid; gap: 1mm; }
@@ -473,6 +490,6 @@ ol.sum .pag { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Imagem marcada: largura conforme a captura. */
 figure.tela { break-inside: avoid; }
-.tela__quadro--estreita { max-width: 95mm; }
+.tela__quadro--estreita { max-width: min(95mm, calc(var(--altura-max) * var(--proporcao, 10))); }
 .tela__quadro .marca--direita { transform: translate(0, -50%); }
 .colunas-passos figure.tela .tela__quadro { max-width: none; }

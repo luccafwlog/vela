@@ -48,7 +48,8 @@ function telas(html) {
     })
     const src = pathToFileURL(path.join(IMAGENS, `${id}.png`)).href
     const largura = Math.round(width) >= 900 ? 'tela__quadro--larga' : width < 520 ? 'tela__quadro--estreita' : ''
-    return `<div class="tela__quadro ${largura}"><img src="${src}" alt="">${partes.join('')}</div>`
+    // A proporção deixa o CSS limitar a altura da tela pela largura.
+    return `<div class="tela__quadro ${largura}" style="--proporcao:${(width / height).toFixed(4)}"><img src="${src}" alt="">${partes.join('')}</div>`
   })
 }
 

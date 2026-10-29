@@ -41,6 +41,18 @@
     lista.replaceWith(dl)
   }
 
+  // Passos ao lado da imagem: a imagem flutua à direita, antes dos passos. Se
+  // não cabe no fim da página, só ela passa à seguinte e os passos continuam
+  // enchendo a página atual (uma grade levava o bloco inteiro e deixava meia
+  // página em branco).
+  for (const bloco of document.querySelectorAll('.colunas-passos')) {
+    const figura = bloco.querySelector(':scope > figure.tela')
+    if (!figura) continue
+    const proporcao = figura.querySelector('.tela__quadro')?.style.getPropertyValue('--proporcao')
+    if (proporcao) figura.style.setProperty('--proporcao', proporcao)
+    bloco.prepend(figura)
+  }
+
   for (const lista of document.querySelectorAll('.passos-bloco ol, .colunas-passos ol')) {
     lista.classList.add('passos')
     let n = Number(lista.getAttribute('start') || 1)

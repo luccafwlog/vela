@@ -63,7 +63,7 @@ A Viagem vem antes do arquivo de propósito: o Vela compara o navio e a viagem d
 
 Ao gravar, acontecem três coisas que você precisa saber:
 
-- **O Cliente é vinculado pelo CNPJ.** Quando o CNPJ do consignatário é de um Cliente do Vela, o vínculo é automático. Quando não é, o B/L entra sem Cliente e vai para a **Revisão** (capítulo 8), onde alguém confere. No exemplo, o COSU6424000103 traz um CNPJ que ainda não é Cliente, e a prévia avisa em âmbar.
+- **O Cliente é vinculado pelo CNPJ.** Quando o CNPJ do consignatário é de um Cliente do Vela, o vínculo é automático. Quando não é, o B/L entra sem Cliente e vai para a **Revisão** (capítulo 8), onde alguém confere. No exemplo, o CSC45810A03K00 traz um CNPJ que ainda não é Cliente, e a prévia avisa em âmbar.
 - **As Taxas Locais são calculadas na hora,** com o preço do dia da importação. Esse preço fica fixo: mudanças posteriores na tabela de cobrança ou no câmbio não mexem nele.
 - **Nenhuma fatura sai ainda.** A fatura só sai depois do CE Mercante ([6.5](#65-importar-o-ce-mercante-e-emitir-as-faturas)).
 
@@ -170,7 +170,7 @@ O resultado diz o que aconteceu com cada B/L:
 | **bloqueados** | Falha técnica na emissão. | O Vela abre um alerta para a Documentação e tenta de novo sozinho. |
 | **pulados** | Alguém cancelou a última fatura do B/L. | Se a fatura deve sair, use **Emitir** na ficha do B/L. |
 
-No exemplo, o COSU6424000101 foi faturado; o COSU6424000201 ficou retido, porque o Cliente ainda não tem o Portal ativo; e o COSU6424000103 ficou aguardando, porque ainda não tem Cliente.
+No exemplo, o CSC45810A01K00 foi faturado; o CSC45810B01K00 ficou retido, porque o Cliente ainda não tem o Portal ativo; e o CSC45810A03K00 ficou aguardando, porque ainda não tem Cliente.
 
 ::: atencao
 - O Excel tira os zeros à esquerda de um número, e o CE perde algarismos. Formate a coluna CE como texto antes de digitar.

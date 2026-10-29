@@ -13,19 +13,19 @@
     "novaRota": { "nome": "NOVA ROTA COMERCIO LTDA", "cnpj": "63.045.879/0001-08", "email": "comex@novarota.example" }
   },
   "bls": [
-    { "numero": "COSU6424000101", "cliente": "atlantico", "pod": "BRVIX", "descricao": "AUTO PARTS, 1450 CARTONS\nNCM : 8708.99.90", "containers": [["CSNU240101", "40HC", 24500, 67], ["CSNU240102", "40HC", 23800, 67]] },
-    { "numero": "COSU6424000102", "cliente": "atlantico", "pod": "BRSSA", "descricao": "LITHIUM ION BATTERIES, 320 CARTONS\nIMO CLASS 9 UN 3171\nNCM : 8507.60.00", "containers": [["CSNU240103", "20GP", 16200, 28]] },
-    { "numero": "COSU6424000103", "cliente": "novaRota", "pod": "BRVIX", "descricao": "CERAMIC TILES, 980 PACKAGES\nNCM : 6907.21.00", "containers": [["CSNU240104", "40HC", 26100, 66]] }
+    { "numero": "CSC45810A01K00", "cliente": "atlantico", "pod": "BRVIX", "descricao": "AUTO PARTS, 1450 CARTONS\nNCM : 8708.99.90", "containers": [["CSNU240101", "40HC", 24500, 67], ["CSNU240102", "40HC", 23800, 67]] },
+    { "numero": "CSC45810A02K00", "cliente": "atlantico", "pod": "BRSSA", "descricao": "LITHIUM ION BATTERIES, 320 CARTONS\nIMO CLASS 9 UN 3171\nNCM : 8507.60.00", "containers": [["CSNU240103", "20GP", 16200, 28]] },
+    { "numero": "CSC45810A03K00", "cliente": "novaRota", "pod": "BRVIX", "descricao": "CERAMIC TILES, 980 PACKAGES\nNCM : 6907.21.00", "containers": [["CSNU240104", "40HC", 26100, 66]] }
   ],
   "cargaSolta": [
-    { "numero": "COSU6424000201", "cliente": "horizonte", "pod": "BRVIX", "maquinas": 2, "packages": 4, "toneladas": "38,500", "cbm": "112,400" }
+    { "numero": "CSC45810B01K00", "cliente": "horizonte", "pod": "BRVIX", "maquinas": 2, "packages": 4, "toneladas": "38,500", "cbm": "112,400" }
   ],
   "baplieExtras": {
     "semBl": [["CSNU240105", "40HC", 22900, "BRVIX"]],
     "vazios": [["CSNU240106", "20GP", "BRVIX"], ["CSNU240107", "20GP", "BRVIX"]]
   },
   "manifestoVitoria": "1326502400017",
-  "ces": { "COSU6424000101": "132605024010011", "COSU6424000103": "132605024010012", "COSU6424000201": "132605024010013" },
+  "ces": { "CSC45810A01K00": "132605024010011", "CSC45810A03K00": "132605024010012", "CSC45810B01K00": "132605024010013" },
   "programacao": [
     { "navio": "COSCO SHIPPING SEREIA", "voy": "024E", "imo": "9900019", "shanghaiEtd": -20, "salvadorEta": 6, "vitoriaEta": 9 },
     { "navio": "COSCO SHIPPING CORAL", "voy": "031E", "imo": "9900021", "shanghaiEtd": 5, "salvadorEta": 36, "vitoriaEta": 39 }
