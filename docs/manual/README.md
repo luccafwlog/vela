@@ -188,12 +188,20 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   (BLR-107); a importação de B/L sem usuário ativo mostra "Usuario sem
   permissao ativa." (ALE-065).
 - **Defeitos corrigidos depois da conferência do piloto** (decisão do dono de
-  2026-10-29; migration `505`, PR luccafwlog/vela#1092): escala nova só de importação com LOCODE
-  brasileiro novo ou fora do formato (VIA-033); **Adicionar navio** não apaga
-  datas da Viagem existente (VIA-106); mesmo dia não tira a hora e escala só de
-  exportação não vira importação (VIA-107, VIA-113); confirmação de **Não
-  escala** por equipe e recusa da trava sem gravação parcial (VIA-108); ETA com
-  hora vencido e filtro **Período** pelo dia (VIA-009); motivo da recusa de
-  navio na tela (VIA-011, VIA-106); mensagem dos vazios de exportação
-  (EQU-077); datas da prévia do B/L em dd/mm/aaaa e motivo da exclusão em
-  português (`delete_record_block_reason`).
+  2026-10-29, PR luccafwlog/vela#1092; telas, e a migration `505` para o
+  motivo da exclusão): escala nova só de importação com LOCODE brasileiro novo
+  ou fora do formato (VIA-033); **Adicionar navio** não apaga datas da Viagem
+  existente (VIA-106); mesmo dia não tira a hora e escala só de exportação não
+  vira importação (VIA-107, VIA-113); confirmação de **Não escala** por equipe
+  e recusa da trava sem gravação parcial (VIA-108); ETA com hora vencido e
+  filtro **Período** pelo dia (VIA-009); motivo da recusa de navio na tela
+  (VIA-011, VIA-106); mensagem dos vazios de exportação (EQU-077); datas da
+  prévia do B/L em dd/mm/aaaa e motivo da exclusão em português
+  (`delete_record_block_reason`).
+- **Efeito de importação que espera tabela de cobrança** (2026-10-29, sem
+  mudança no sistema): o B/L sem tabela de cobrança já tem o cálculo em
+  revisão, e a fatura dele não sai sozinha quando a tabela é cadastrada; sai ao
+  importar de novo a planilha do CE ou ao recalcular o B/L (BLR-138, TAX-015;
+  regra em
+  [manifesto-edi.md](../modules/manifesto-edi.md), item 20 dos efeitos de
+  importação).
