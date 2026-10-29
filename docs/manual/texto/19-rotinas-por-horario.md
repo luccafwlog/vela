@@ -84,7 +84,7 @@ Três rotinas cuidam da Demurrage:
 - **A cada 5 minutos,** a Régua de Cobrança manda por e-mail a cobrança de cada Invoice emitida e não paga, só em dia útil e a partir das 9h. A primeira sai na primeira rodada depois da emissão, dentro desse horário; as seguintes, a cada 7 dias (o intervalo padrão), até o pagamento. As Invoices do mesmo Cliente vão num e-mail só. A Régua pausa a Invoice com Disputa aberta ou com Pix em análise.
 
 ::: atencao
-- Se a PTAX não chega, o último câmbio continua valendo, abre um alerta (capítulo 20) e alguém do {{Financeiro}} ou de {{Equipamentos}} usa **Informar PTAX**, em **Demurrage**.
+- Se a PTAX não chega, o último câmbio continua valendo, abre um alerta (capítulo 20) e alguém do {{Financeiro}}, do {{Administrativo}} ou de {{Equipamentos}} usa **Informar PTAX**, em **Demurrage**.
 - Com a cobrança pelo Itaú ligada, a partir de 1º de novembro abre **Calendário de feriados pendente** se os feriados do ano seguinte não estão cadastrados. Sem eles, feriado conta como dia útil na Régua e nos prazos do Pix da Demurrage. Peça o cadastro ao suporte técnico.
 :::
 
