@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Ficha do B/L e do Cliente: achados da revisão da release (2026-10-29, sem migration; revisão da PR
+  luccafwlog/vela#1084):** no B/L de grupo de Demurrage que não emite a Invoice, o ROE manual antigo
+  aparece "sem efeito: a Invoice do grupo sai pelo B/L …" (antes, "a próxima Invoice sai com ele");
+  o motivo padrão "Revisão manual" da Revisão sem justificativa não aparece em cada campo do Histórico
+  (a migration `502` passou a gravá-lo); o Histórico do Cliente mostra **Cliente pelo Portal** na mudança
+  feita no Perfil do Portal, como as Alterações do cadastro (`503`); o B/L cancelado não oferece
+  **Definir condição do B/L**, e a recusa do banco ao salvar a condição aparece como veio; a etapa
+  Cliente do trilho diz "Situação do Portal indisponível" (não "Conta do Portal não está ativa")
+  enquanto a situação não chega; convite, suspensão e troca do E-mail de recuperação do Portal releem o
+  status do Portal da ficha do B/L e a Revisão.
 - **Motivo do bloqueio legível no alerta de efeito de importação (2026-10-29, sem migration):** em
   `/alertas`, **Efeito de importação bloqueado** deixa de mostrar o erro cru do banco (ex.: `null value
   in column "customer_id"…`): a linha diz o passo, o registro, o motivo em linguagem de operação e
