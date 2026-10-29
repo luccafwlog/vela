@@ -30,7 +30,7 @@ import type { BLDetail } from '../../types/database'
 
 // Seção consolidada de demurrage do B/L: config geral (free time + P1/P2) e
 // tabela por container com devolução editável e demurrage calculado. No B/L
-// cancelado a devolução é só leitura: o banco recusa a gravação (migration 503).
+// cancelado a devolução é só leitura: o banco recusa a gravação (migration 504).
 export type BlDemurrageInvoiceSummary = { id: number; doc_number: string | null; status: string | null; total_usd: number | null }
 
 export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: BlDemurrageInvoiceSummary[] }) {

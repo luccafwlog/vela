@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
 
-// ADR 0094, B4 (migration 503): a ficha do B/L cancelado não grava as datas do
+// ADR 0094, B4 (migration 504): a ficha do B/L cancelado não grava as datas do
 // container. Antes, `set_container_dates` aceitava a chamada, pulava a linha
 // cancelada e gravava a data no mesmo container dos B/Ls irmãos ativos (ou em
 // nenhum), e a tela dizia "Data de devolução salva.".
@@ -14,13 +14,13 @@ const describeLocal = describeWithProbe(() => {
   if (process.env.LOCAL_PG_REPRO === '1') return true
   try {
     return w.psql(`SELECT count(*) FROM pg_proc WHERE proname = 'set_container_dates'
-      AND pg_get_functiondef(oid) LIKE '%503 (ADR 0094, B4)%'`) === '1'
+      AND pg_get_functiondef(oid) LIKE '%504 (ADR 0094, B4)%'`) === '1'
   } catch {
     return false
   }
-}, 'migration 503 aplicada')
+}, 'migration 504 aplicada')
 
-describeLocal('503 — datas do container do B/L cancelado recusadas na ficha', () => {
+describeLocal('504 — datas do container do B/L cancelado recusadas na ficha', () => {
   beforeAll(() => {
     w.setup()
   })

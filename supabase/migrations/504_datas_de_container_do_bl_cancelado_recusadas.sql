@@ -1,4 +1,4 @@
--- 503: as datas do container de B/L cancelado ficam como estão também pela
+-- 504: as datas do container de B/L cancelado ficam como estão também pela
 -- ficha (ADR 0094, B4).
 --
 -- Problema:
@@ -44,7 +44,7 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Container % nao encontrado.', p_container_id USING ERRCODE = 'P0002';
   END IF;
-  -- 503 (ADR 0094, B4): o B/L cancelado é somente leitura. Sem esta recusa, a
+  -- 504 (ADR 0094, B4): o B/L cancelado é somente leitura. Sem esta recusa, a
   -- data ia só aos B/Ls irmãos ativos (380) e a ficha dizia que salvou.
   IF EXISTS (SELECT 1 FROM public.bls WHERE id = v_old.bl_id AND cancelled_at IS NOT NULL) THEN
     RAISE EXCEPTION 'B/L % cancelado: somente leitura. Reative para corrigir.', v_old.bl_id USING ERRCODE = '42501';
