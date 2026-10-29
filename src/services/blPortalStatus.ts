@@ -3,12 +3,15 @@ import { supabase } from './supabase'
 
 /**
  * `visible`: o Cliente vê o B/L (CE Mercante, Cliente vinculado e conta do Portal
- * ativa). `billingReady`: Portal pronto para faturar (conta ativa, acesso criado e
- * e-mail de recuperação válido e entregável). São coisas diferentes (POR-D12):
- * com o e-mail de recuperação devolvido o Cliente entra e vê o B/L, mas a fatura
- * fica retida. `accountSituation` decide se o convite é aceito.
+ * ativa). `portalReady`: Portal pronto (conta ativa, acesso criado e e-mail de
+ * recuperação válido e entregável). São coisas diferentes (POR-D12): com o
+ * e-mail de recuperação devolvido o Cliente entra e vê o B/L, mas a fatura fica
+ * retida. `billingReady`: o gate de emissão deixa faturar o Cliente, com Portal
+ * pronto ou Liberação de faturamento sem Portal vigente; é a mesma condição da
+ * pendência "Acesso ao portal nao provisionado" da Revisão
+ * (`customer_billing_access_ready`). `accountSituation` decide se o convite é aceito.
  */
-export type BlPortalVisibility = { visible: boolean; reasons: string[]; billingReady: boolean; accountSituation: string | null }
+export type BlPortalVisibility = { visible: boolean; reasons: string[]; portalReady: boolean; billingReady: boolean; accountSituation: string | null }
 
 /** Situações em que o servidor aceita o convite (Edge `portal-invite-send`). */
 export const PORTAL_INVITE_SITUATIONS = ['sem_conta', 'convite_pendente', 'convite_expirado', 'falha_no_envio'] as const
@@ -18,15 +21,19 @@ export function computeBlPortalVisibility(input: {
   customerId: number | null
   accountSituation?: string | null
   portalAccessReady?: boolean | null
+  billingAccessReady?: boolean | null
 }): BlPortalVisibility {
   const reasons: string[] = []
   if (!input.ceMercante?.trim()) reasons.push('Sem CE Mercante')
   if (input.customerId == null) reasons.push('Sem cliente vinculado')
   if (input.accountSituation !== 'ativo') reasons.push('Conta do Portal não está ativa')
+  const portalReady = input.accountSituation === 'ativo' && input.portalAccessReady === true
   return {
     visible: reasons.length === 0,
     reasons,
-    billingReady: input.accountSituation === 'ativo' && input.portalAccessReady === true,
+    portalReady,
+    // Resposta sem o campo (RPC anterior à migration 501): só o Portal pronto libera.
+    billingReady: input.billingAccessReady == null ? portalReady : input.billingAccessReady,
     accountSituation: input.accountSituation ?? null,
   }
 }
@@ -38,6 +45,7 @@ const blPortalStatusSchema = z.object({
   customer_id: z.number().nullable(),
   account_situation: z.string().nullable(),
   portal_access_ready: z.boolean().nullable().optional(),
+  billing_access_ready: z.boolean().nullable().optional(),
   notifications: z.array(z.object({
     id: z.number(),
     type: z.string(),
@@ -64,6 +72,7 @@ export async function getBlPortalStatus(input: { blId: string; ceMercante: strin
       customerId: result.customer_id,
       accountSituation: result.account_situation,
       portalAccessReady: result.portal_access_ready ?? null,
+      billingAccessReady: result.billing_access_ready ?? null,
     }),
     notifications: result.notifications ?? [],
     openDisputes: result.open_disputes ?? [],

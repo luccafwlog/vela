@@ -170,6 +170,70 @@ describe('B/L rails', () => {
     expect(pickNextAction(rail)?.key).toBe('charges')
   })
 
+  // Reprodução: Cliente sem conta ativa no Portal, com Liberação vigente; B/L
+  // com CE e fatura emitida. A Revisão não segura esse B/L (mesma condição de
+  // `customer_billing_access_ready`), então a etapa Cliente não pede ação.
+  it('Liberação vigente ou B/L faturado: conta do Portal não ativa não bloqueia a etapa Cliente', () => {
+    const released = { visible: false, reasons: ['Conta do Portal não está ativa'], billingReady: true }
+    const resolvedBl = {
+      ce_mercante: 'CE-1',
+      customer_id: 9,
+      customer_reconciliation_status: 'reconciled',
+      charge_status: 'invoiced',
+      review_status: 'reviewed',
+    }
+    const issued = { id: 55, invoice_number: 'F-55', status: 'issued', total_brl: 100, invoice_type: 'individual' }
+
+    const withRelease = makeDocumental({ ...resolvedBl, financial_status: 'invoiced' }, { latestInvoice: issued, portalVisibility: released })
+    expect(withRelease.find((stage) => stage.key === 'customer')).toMatchObject({ state: 'done', detail: 'Cliente apto · Liberação sem Portal' })
+    expect(pickNextAction(withRelease)).toBeNull()
+    expect(summarizeDocumentalRail(withRelease)).toEqual({ pendingCount: 0, label: 'Sem pendências' })
+
+    // Liberação vigente com B/L ainda não faturado: também apto.
+    expect(makeDocumental({ ...resolvedBl, charge_status: 'calculated' }, { portalVisibility: released })
+      .find((stage) => stage.key === 'customer')).toMatchObject({ state: 'done' })
+
+    // B/L faturado sem Liberação: o gate já passou; a etapa não volta à Revisão.
+    const invoicedOnly = makeDocumental({ ...resolvedBl, financial_status: 'paid' }, {
+      latestInvoice: { ...issued, status: 'paid' },
+      portalVisibility: { visible: false, reasons: ['Conta do Portal não está ativa'], billingReady: false },
+    })
+    expect(invoicedOnly.find((stage) => stage.key === 'customer')).toMatchObject({ state: 'done', detail: 'B/L faturado · Portal não está ativo' })
+    expect(pickNextAction(invoicedOnly)).toBeNull()
+  })
+
+  it('sem Liberação e sem fatura, a conta do Portal não ativa continua pedindo a Revisão', () => {
+    const rail = makeDocumental({
+      ce_mercante: 'CE-1',
+      customer_id: 9,
+      customer_reconciliation_status: 'reconciled',
+      charge_status: 'calculated',
+      review_status: 'pending_review',
+    }, {
+      reviewReasons: ['Acesso ao portal nao provisionado'],
+      portalVisibility: { visible: false, reasons: ['Conta do Portal não está ativa'], billingReady: false },
+    })
+
+    expect(rail.find((stage) => stage.key === 'customer')).toMatchObject({
+      state: 'blocked',
+      detail: 'Conta do Portal não está ativa/provisionada',
+      href: '/revisao?bl=BL1',
+    })
+    expect(pickNextAction(rail)?.key).toBe('customer')
+  })
+
+  it('Liberação não esconde as outras pendências do Portal (CE ausente segue na etapa CE)', () => {
+    const rail = makeDocumental({
+      customer_id: 9,
+      customer_reconciliation_status: 'reconciled',
+      charge_status: 'calculated',
+      review_status: 'reviewed',
+    }, { portalVisibility: { visible: false, reasons: ['Sem CE Mercante', 'Conta do Portal não está ativa'], billingReady: true } })
+
+    expect(rail.find((stage) => stage.key === 'customer')).toMatchObject({ state: 'done' })
+    expect(rail.find((stage) => stage.key === 'ce')).toMatchObject({ state: 'blocked' })
+  })
+
   it('falha fechado no card Cliente enquanto a prontidao do Portal nao foi carregada', () => {
     const rail = makeDocumental({
       ce_mercante: 'CE-1',
