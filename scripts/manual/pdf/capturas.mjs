@@ -1318,7 +1318,8 @@ export const CAPTURAS = [
         clip,
         marks: [
           await marca(1, acoes.getByRole('button', { name: 'Novo embarque de vazios' }), clip, { destaque: true }),
-          await marca(4, acoes.getByRole('button', { name: 'Manifesto Granito' }), clip, { posicao: 'direita' }),
+          // À esquerda: à direita, a marca cobriria a do botão vizinho (passo 1).
+          await marca(4, acoes.getByRole('button', { name: 'Manifesto Granito' }), clip, { posicao: 'esquerda' }),
         ],
       }
     },
