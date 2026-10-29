@@ -272,7 +272,7 @@ O número do B/L existe uma vez só no Vela, mesmo cancelado, e a importação n
 
 Alguns passos acontecem logo depois da gravação, sozinhos: aplicar as marcas do Baplie, calcular as Taxas Locais, faturar pelo CE. Normalmente você nem percebe. Quando um deles falha por um motivo técnico, abre o alerta **Efeito de importação bloqueado** (capítulo 20). Para destravar:
 
-1. Em **Alertas**, abra o alerta e clique em **Reprocessar**. A janela mostra o motivo do bloqueio.
+1. Em **Alertas**, abra o alerta e clique em **Reprocessar**. A janela mostra o motivo do bloqueio. Quando a causa é técnica, ele diz "Falha técnica ao executar o passo." e guarda o texto do sistema em **Detalhe técnico**: copie-o se precisar avisar o suporte técnico.
 2. Corrija a causa (por exemplo, o câmbio que faltava). A falta de tabela de cobrança não bloqueia: o passo espera; depois de cadastrar a tabela de cobrança, importe de novo a planilha de CE ([20.8](20-alertas.md#208-faturamento-e-taxas-locais)).
 3. Escreva o que você corrigiu e clique em **Reprocessar**.
 

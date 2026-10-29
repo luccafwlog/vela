@@ -107,7 +107,7 @@ Sete dias antes do primeiro ETA no Brasil (D−7), o Vela começa a cobrar a doc
 | Alerta | Quando abre | O que fazer |
 |---|---|---|
 | **CE fora do Manifesto da rota** | Um B/L com CE mudou de POL, POD ou Viagem e saiu do Manifesto Mercante. | Inclua o B/L no Manifesto da rota nova ou corrija o CE ([6.6](06-importacao.md#66-corrigir-o-ce-ou-o-manifesto-de-um-bl)). |
-| **Efeito de importação bloqueado** · crítico | Um passo que roda logo depois da importação falhou e parou. A mensagem diz o B/L e o motivo. | Corrija a causa e use **Reprocessar** ([6.10](06-importacao.md#610-quando-algo-fica-parado-depois-da-importação)). |
+| **Efeito de importação bloqueado** · crítico | Um passo que roda logo depois da importação falhou e parou. A mensagem diz o B/L e o motivo; o texto do sistema fica em **Detalhe técnico**. | Corrija a causa e use **Reprocessar** ([6.10](06-importacao.md#610-quando-algo-fica-parado-depois-da-importação)). |
 | **Revisão de B/L — cliente não vinculado** · crítico | Há B/L pendente na Revisão sem Cliente. Um por consignatário. | Vincule o Cliente na Revisão ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)). |
 | **Revisão de B/L — peso BB ausente** · crítico | Há B/L de carga solta na Revisão sem o peso. | Informe o peso ([8.4](08-revisao.md#84-informar-o-peso-da-carga-solta)). |
 | **Revisão de B/L — Portal não provisionado** · crítico | O Cliente tem B/L parado na Revisão ou fatura retida porque o Portal dele não está pronto e não há Liberação de faturamento. | Leve o Portal a pronto ([14.5](14-portal-a-conta.md#145-o-que-deixa-o-portal-pronto-para-faturar)) ou peça ao {{Administrativo}} a Liberação ([13.8](13-cadastro-do-cliente.md#138-liberar-o-faturamento-sem-portal)). |

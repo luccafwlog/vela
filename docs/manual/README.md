@@ -216,3 +216,6 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   **Definir/Trocar ROE manual** só no B/L que emite a Invoice; **Cancelar
   pedido** apagado depois de **Reconferir CE** em B/L já enviado à ZPT
   (migration `510`); recusas com acento (migration `509`).
+- **Motivo do bloqueio legível** (2026-10-29, PR luccafwlog/vela#1103): o
+  alerta **Efeito de importação bloqueado** mostra o motivo em linguagem de
+  operação, com o texto do sistema em **Detalhe técnico** (capítulos 6 e 20).
