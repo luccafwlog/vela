@@ -11,9 +11,11 @@ vi.mock('../supabase', () => ({ supabase: { from: fromMock } }))
 vi.mock('../auditEntries', () => ({ recordAuditEntries: recordAuditEntriesMock }))
 
 import {
+  buildVoyagePodEntityId,
   listVoyagePodSchedules,
   listVoyagePolSchedules,
   projectVoyageEscalaSchedules,
+  saveVoyageEscalaSchedule,
   saveVoyagePodSchedule,
   saveVoyagePolSchedule,
 } from '../voyageRouteSchedules'
@@ -925,4 +927,18 @@ it.each([
   })
 
   expect(insertMock).not.toHaveBeenCalled()
+})
+
+describe('escala com LOCODE brasileiro fora da lista conhecida', () => {
+  it('a identificação da escala guarda o código, não "-"', () => {
+    expect(buildVoyagePodEntityId(7, 'brxyz')).toBe('7::BRXYZ')
+    expect(buildVoyagePodEntityId(7, 'Salvador')).toBe('7::BRSSA')
+  })
+
+  it('código fora do formato é recusado antes de gravar, com o motivo', async () => {
+    await expect(saveVoyageEscalaSchedule({
+      voyageId: 7, port: 'BR12', eta: null, ata: null, linked: false, temImportacao: true, changedBy: 'u1',
+    })).rejects.toMatchObject({ code: '22023', message: 'LOCODE brasileiro invalido: BR12.' })
+    expect(recordAuditEntriesMock).not.toHaveBeenCalled()
+  })
 })

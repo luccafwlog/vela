@@ -6,6 +6,17 @@
 
 ## 2026-10
 
+- **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
+  programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
+  histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na
+  escala com mensagem clara; a recusa do cadastro de Viagem aparece em português; o "hoje" de Chegadas
+  e Saídas e os filtros de data de Viagens seguem o dia de Brasília; a prévia de B/Ls mostra datas no
+  formato brasileiro. A recusa de exclusão por vínculo (`delete_record_block_reason`) passa a dizer em
+  português também o pedido de Desbloqueio de CE e as tabelas que antes saíam com o nome técnico.
+- **Datas do container de B/L cancelado só para leitura (2026-10-29, migration `504`):** a ficha do B/L
+  cancelado deixava editar a devolução, e `set_container_dates` gravava a data nos B/Ls ativos que
+  dividem o container (ou não gravava nada) enquanto a tela dizia "salva". A ficha mostra a data só
+  para leitura, e o banco recusa a gravação vinda do B/L cancelado ([ADR 0094](adr/0094-preco-fixo-na-importacao.md), B4).
 - **Endereço mudado pelo Cliente no Portal aparece como do Cliente (2026-10-29, migration `503`):**
   endereço, cidade, UF e CEP gravados no Perfil do Portal apareciam em **Alterações do cadastro**, na
   ficha do Cliente, com "Usuário interno" em **Por**, porque o login do Portal não tem perfil interno.
