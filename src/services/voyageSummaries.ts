@@ -316,8 +316,8 @@ export function computeAdrEscalaPods(
 
 // --- Estado de Conciliação da Viagem (ver CONTEXT.md) -----------------------
 
-// 'verificando': só na faixa, enquanto a contagem de divergências do Baplie não
-// chegou (ou falhou) e a cobertura de CE sozinha diria "conciliado".
+// 'verificando': enquanto a contagem de divergências do Baplie não chegou (ou
+// falhou) e a cobertura de CE sozinha diria "conciliado" (faixa, tabela e ficha).
 export type EstadoConciliacao = 'divergente' | 'incompleto' | 'conciliado' | 'verificando'
 
 /** Cobertura de CE Mercante: quantos B/Ls têm ce_mercante preenchido. */
@@ -353,7 +353,8 @@ export function deriveEstadoConciliacao({
   return 'conciliado'
 }
 
-function railEstado(openDivergences: number | null | undefined, ceFilled: number, ceTotal: number): EstadoConciliacao {
+/** Estado com a contagem de divergências ainda desconhecida (`null`): "verificando" no lugar de "conciliado". */
+export function estadoConciliacaoComContagem(openDivergences: number | null | undefined, ceFilled: number, ceTotal: number): EstadoConciliacao {
   const estado = deriveEstadoConciliacao({ hasOpenDivergences: (openDivergences ?? 0) > 0, ceFilled, ceTotal })
   return openDivergences === null && estado === 'conciliado' ? 'verificando' : estado
 }
@@ -553,7 +554,7 @@ export function buildVoyageRailItems(
         null,
         escalaRows,
       ),
-      estado: railEstado(openDivergencesByVoyageId.get(voyage.id), filled, total),
+      estado: estadoConciliacaoComContagem(openDivergencesByVoyageId.get(voyage.id), filled, total),
       proximaEscala: getProximaEscala(escalaRows),
       blCount,
       containerCount,

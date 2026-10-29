@@ -32,6 +32,26 @@ describe('buildScheduleLanes', () => {
   })
 })
 
+describe('scheduleFormFromVoyage', () => {
+  it('data gravada com hora (janela da escala) entra no campo de data só com o dia', () => {
+    // <input type="date"> deixa em branco o que não é AAAA-MM-DD: a lane parecia
+    // sem data com "Não escala" desmarcado.
+    const form = scheduleFormFromVoyage({
+      voyageId: 1,
+      vesselName: 'TEST SHIP',
+      voyage: '100',
+      imoNumber: '1234567',
+      datesByLabel: { SALVADOR: '2026-11-03T08:00', QINGDAO: '2026-10-01' },
+      forecastDatesByLabel: { SALVADOR: '2026-11-03T08:00', QINGDAO: '2026-10-01' },
+      earliestEta: '2026-11-03T08:00',
+    })
+
+    expect(form.dates.SALVADOR).toBe('2026-11-03')
+    expect(form.dates.QINGDAO).toBe('2026-10-01')
+    expect(form.omitted?.SALVADOR).toBe(false)
+  })
+})
+
 describe('clearedPodLabels', () => {
   const withDates = (dates: Record<string, string>) => ({ ...emptyScheduleForm, dates: { ...emptyScheduleForm.dates, ...dates } })
 
