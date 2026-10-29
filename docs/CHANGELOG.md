@@ -12,6 +12,19 @@
   reconhecia os portos da lista. A leitura passa a aceitar o mesmo código que a gravação
   (`escalaPortCode`); BRVIT e BRVIX continuam sendo a mesma escala, e as atracações e a exclusão da
   escala ficam na mesma chave. Ver [Viagens](modules/viagens.md).
+- **Ficha do B/L: etapa Demurrage avisa a Invoice retida pela trava do Portal (2026-10-29, sem migration;
+  decisão D1 do dono na revisão da PR luccafwlog/vela#1084):** no B/L faturado com container cujo Cliente não
+  tem Portal pronto nem Liberação de faturamento, a etapa **Cliente** do trilho continua concluída ("B/L
+  faturado · Portal não está ativo"), e a etapa **Demurrage** passa a dizer "Retida: Portal não está pronto e
+  sem Liberação de faturamento", com o link para o Provisionamento do Portal: a Invoice de Demurrage passa
+  pela trava do Portal e seria recusada. O aviso não conta como pendência do trilho. Ver
+  [Manifesto e EDI](modules/manifesto-edi.md).
+- **Carga solta com B/L cancelado em outra Viagem: o aviso manda excluir lá (2026-10-29, sem migration;
+  decisão D3 do dono na revisão da PR luccafwlog/vela#1084):** no **Manifesto BB** e no **B/L avulso**, o B/L
+  do arquivo que está cancelado em outra Viagem continua com a linha ignorada (o resto entra), mas o aviso
+  deixa de mandar reativar pela ficha, o que poria o B/L de volta na outra Viagem, e passa a dizer "O
+  número continua lá: para importar nesta Viagem, exclua o B/L na Viagem … (Administrativo) e importe de
+  novo.", como o arquivo de B/L de container. Ver [Manifesto e EDI](modules/manifesto-edi.md).
 - **Omissão, transbordo e COD: a tela mostra o motivo da recusa (2026-10-28, sem migration, PR
   luccafwlog/vela#1085):** **Omitir escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e
   **Reverter para transbordo** recusados pelo banco mostram o motivo da recusa, pelo mesmo tradutor das
