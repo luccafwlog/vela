@@ -1,7 +1,8 @@
 # Guia do Portal do Cliente Fwlog (onboarding)
 
-**Rascunho para revisão.** Não envie a clientes antes de aprovar o material e
-resolver os [pontos a confirmar](#pontos-a-confirmar).
+**Versão para envio ao cliente**, aprovada por quem pediu o material em
+2026-10-29, página a página. Ao mudar uma tela do Portal que o guia mostra,
+atualize o guia e gere o PDF de novo.
 
 Material para o cliente final do Portal do Cliente (`portalfwlog.com.br`):
 um guia ilustrado em A4 e os textos dos e-mails que o acompanham. O cliente
@@ -14,7 +15,7 @@ Cliente. Nada aqui é importado por `src/` nem muda o Portal.
 |---|---|
 | [Tutorial_Portal_Fwlog.html](Tutorial_Portal_Fwlog.html) | Fonte do guia: 15 páginas A4 prontas para impressão. Abra a partir desta pasta do repositório, porque as fontes e as logos vêm de `public/`. |
 | [Tutorial_Portal_Fwlog.pdf](Tutorial_Portal_Fwlog.pdf) | O guia em PDF, para anexar ao e-mail ou imprimir. É gerado a partir do HTML. |
-| [gerar-pdf.mjs](gerar-pdf.mjs) | Gera o PDF e recusa página que transborda o A4, fonte ou logo que não carregou, rodapé ou numeração errada e qualquer menção ao sistema interno. |
+| [gerar-pdf.mjs](gerar-pdf.mjs) | Gera o PDF e recusa página que transborda o A4, fonte ou logo que não carregou, rodapé ou numeração errada, a marca “Rascunho para revisão” e qualquer menção ao sistema interno. |
 
 As dicas que poderiam aparecer dentro do Portal estão numa spec à parte, porque
 specs só moram em `docs/spec/`:
@@ -165,21 +166,16 @@ repositório na `staging` de 2026-10-28; nada foi observado em produção).
 | Endereços de contato | `src/config/portalUrl.ts` (suporte), `src/services/customerCommunicationTemplates.ts` (importação e Demurrage) e os quatro endereços do pedido |
 | Número da Invoice de Demurrage (`DEM-AAAA-NNNN`) | migration `294` |
 
-## Pontos a confirmar
-
-- **Revisão da PR.** O conteúdo e o visual foram aprovados por quem pediu o
-  material (2026-10-29), página a página no artefato de revisão. Aprovada a
-  PR, sai o “Rascunho para revisão” do rodapé (e a conferência correspondente
-  em `gerar-pdf.mjs`).
-
 ## Verificação feita
 
 - `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: 15 páginas, sem
   transbordo, fontes e logos carregadas, rodapé e numeração certos em todas,
-  sem menção ao sistema interno (**Runtime**, Playwright 1.64.1 do repositório
-  com o Chromium 1243 do ambiente de nuvem, 2026-10-29). Numa cópia com uma
-  página estourada, a numeração errada e o nome interno no texto, o script
-  apontou os três problemas, saiu com erro e não regravou o PDF.
+  sem a marca de rascunho e sem menção ao sistema interno (**Runtime**,
+  Playwright 1.64.1 do repositório com o Chromium 1243 do ambiente de nuvem,
+  2026-10-29). Numa cópia com uma página estourada, a numeração errada e o
+  nome interno no texto, o script apontou os três problemas, saiu com erro e
+  não regravou o PDF; numa cópia com “Rascunho para revisão” no rodapé, fez o
+  mesmo.
 - Revisão visual página a página em capturas do HTML e do PDF rasterizado
   (`pdftoppm`), e extração do texto do PDF (`pdftotext`).
 - `npm run docs:check` e `git diff --check`.

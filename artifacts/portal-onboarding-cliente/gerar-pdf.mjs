@@ -37,11 +37,13 @@ try {
       if (el.scrollHeight > el.clientHeight + 1) problems.push(`página ${index + 1} transborda ${el.scrollHeight - el.clientHeight}px na altura`)
       if (el.scrollWidth > el.clientWidth + 1) problems.push(`página ${index + 1} transborda ${el.scrollWidth - el.clientWidth}px na largura`)
       const footer = el.querySelector('.pf')
-      if (!footer || !footer.textContent.includes('Rascunho para revisão')) problems.push(`página ${index + 1} sem o rodapé de rascunho`)
+      if (!footer || !footer.textContent.includes('portalfwlog.com.br')) problems.push(`página ${index + 1} sem o rodapé do Portal`)
       if (!footer?.textContent.includes(`${index + 1} / ${pages.length}`)) problems.push(`página ${index + 1} com numeração errada`)
     })
     // O cliente nunca vê o nome do sistema interno.
     if (/\bvela\b/i.test(document.body.innerText)) problems.push('o texto cita o sistema interno')
+    // Versão para o cliente: nenhuma marca de rascunho.
+    if (/rascunho para revis/i.test(document.body.innerText)) problems.push('o texto ainda diz "Rascunho para revisão"')
     return { pages: pages.length, problems }
   })
 

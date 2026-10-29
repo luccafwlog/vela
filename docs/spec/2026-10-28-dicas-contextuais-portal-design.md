@@ -2,7 +2,7 @@
 
 Estado: **proposta, não aprovada.** Nada aqui está implementado. Nasceu com o
 [guia de onboarding do cliente](../../artifacts/portal-onboarding-cliente/README.md)
-(rascunho de 2026-10-28) e espera a decisão do responsável antes de virar plano.
+(2026-10-28) e espera a decisão do responsável antes de virar plano.
 
 ## Problema
 
