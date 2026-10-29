@@ -1,4 +1,5 @@
-// Confere o texto do Manual do Operador (docs/manual/texto):
+// Confere o texto do Manual do Operador (docs/manual/texto) e dos guias
+// rápidos (docs/manual/guias):
 // - linguagem: nenhum termo técnico proibido no texto impresso, nenhuma marca
 //   "[confirmar]" e nenhuma imagem sem captura definida;
 // - citações: regra citada num comentário (`<!-- regras: … -->`) existe na
@@ -7,7 +8,7 @@
 // Uso: npm run manual:check
 import fs from 'node:fs'
 import path from 'node:path'
-import { ROOT, lerManual, semComentarios, citacoes } from './fonte.mjs'
+import { ROOT, lerManual, lerGuia, nomesDosGuias, semComentarios, citacoes } from './fonte.mjs'
 import { CAPTURAS } from './capturas.mjs'
 
 const PROIBIDOS = [
@@ -41,7 +42,9 @@ function regrasDaMatriz() {
 
 const erros = []
 const manual = lerManual()
-const capitulos = [...manual.partes.flatMap((p) => p.capitulos), ...(manual.apendices || []).filter((a) => a.fonte)]
+// Os guias rápidos seguem as mesmas regras de linguagem e capturas.
+const guias = nomesDosGuias().flatMap((nome) => lerGuia(nome).areas.map((a) => ({ ...a, arquivo: `guias/${nome}/${a.arquivo}` })))
+const capitulos = [...manual.partes.flatMap((p) => p.capitulos), ...(manual.apendices || []).filter((a) => a.fonte), ...guias]
 const ids = new Set(CAPTURAS.map((c) => c.id))
 const escritas = new Map()
 const adiadas = new Map()
@@ -74,4 +77,4 @@ if (erros.length) {
   console.error(erros.join('\n'))
   process.exit(1)
 }
-console.log('Texto do manual conferido: linguagem e capturas.')
+console.log(`Texto do manual conferido: linguagem e capturas${guias.length ? ', com os guias rápidos' : ''}.`)

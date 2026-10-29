@@ -1,0 +1,19 @@
+{
+  "titulo": "Guia rápido da Documentação",
+  "sobre": "Manual do Operador · Guia rápido",
+  "subtitulo": "Tela por tela, o caminho do dia a dia: subir os arquivos, cadastrar os Clientes, liberar o Portal, avisar o Cliente e desbloquear o CE.",
+  "versao": "1.0",
+  "situacao": "Rascunho para revisão do dono",
+  "descreve": "outubro de 2026",
+  "apresentacao": "Este guia mostra o caminho que dá certo, na ordem em que a Documentação trabalha. Os casos que fogem dele, as recusas e as regras completas estão no Manual do Operador; cada tela diz em que capítulo procurar.",
+  "areas": [
+    { "numero": 1, "titulo": "Antes de começar", "arquivo": "01-antes-de-comecar.md" },
+    { "numero": 2, "titulo": "Viagens", "arquivo": "02-viagens.md" },
+    { "numero": 3, "titulo": "Subir os arquivos", "arquivo": "03-importacao.md" },
+    { "numero": 4, "titulo": "O B/L e a Revisão", "arquivo": "04-bl-e-revisao.md" },
+    { "numero": 5, "titulo": "Clientes e Portal", "arquivo": "05-clientes-e-portal.md" },
+    { "numero": 6, "titulo": "Comunicação com o Cliente", "arquivo": "06-comunicacao.md" },
+    { "numero": 7, "titulo": "Desbloqueio de CE", "arquivo": "07-desbloqueio-de-ce.md" },
+    { "numero": 8, "titulo": "Alertas e as outras telas", "arquivo": "08-alertas-e-outras-telas.md" }
+  ]
+}

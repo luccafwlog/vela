@@ -9,9 +9,11 @@ fora do Git.
 | Arquivo | O que é |
 |---|---|
 | `manual.css` | Aparência impressa (A4) aprovada nas páginas-modelo de 2026-10-28: cores, letra e estados da [identidade visual](../../../docs/identidade-visual.md), cores das equipes, cabeçalho corrido, aba da parte, blocos, quadros fixos, "Aconteceu…", cartões de mensagem, tabela de referência e guia de bolso. |
-| `fonte.mjs` | Lê o `manual.json` e o Markdown de cada capítulo e apêndice e monta o HTML (blocos `:::`, etiquetas de equipe, imagens marcadas, citações de regras). |
+| `fonte.mjs` | Lê o `manual.json` e o Markdown de cada capítulo e apêndice (e o `guia.json` e as áreas de cada guia rápido) e monta o HTML (blocos `:::`, etiquetas de equipe, imagens marcadas, citações de regras). |
+| `impressao.mjs` | Comum ao manual e aos guias: fontes, capturas com as marcações e a impressão em duas passadas. |
 | `pagina.js` | Roda na página antes da impressão: fatos da ficha, passos numerados, cartões e ícones. |
 | `gerar.mjs` | `npm run manual:build`: capa, sumário, aberturas e capítulos, paginados pelo Chromium em duas passadas (a segunda escreve no sumário a página que a primeira leu do PDF). |
+| `guia.mjs` | `npm run manual:guia -- <nome>`: o guia rápido de `docs/manual/guias/<nome>`, com capa, sumário em duas colunas e as áreas em texto corrido, sem páginas de abertura; sai em `artifacts/manual/guia-<nome>.pdf`. |
 | `conferir.mjs` | `npm run manual:check`: termos técnicos proibidos, capturas citadas e regras citadas que existem na matriz. Roda também no CI, no job `quality`. |
 | `capturas.mjs` | As telas do manual, em ordem: cada captura executa o procedimento como o operador faria e devolve o recorte e as marcações. |
 | `capturar.mjs` | `npm run manual:capture [-- --so id1,id2]`: roda as capturas e grava `artifacts/manual/imagens/<id>.png` e `<id>.json`. |
@@ -40,6 +42,7 @@ antes dos procedimentos e o gerador dos arquivos de importação.
    npm run manual:capture
    npm run manual:check
    npm run manual:build
+   npm run manual:guia -- documentacao
    ```
 
 As capturas dependem umas das outras (a Viagem criada na primeira é a das

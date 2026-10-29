@@ -42,6 +42,22 @@ export function lerManual() {
   return manifesto
 }
 
+// Guia rápido (docs/manual/guias/<nome>): guia.json e um Markdown por área,
+// no mesmo formato do texto do manual. As áreas fazem o papel de capítulo.
+export const GUIAS = path.join(ROOT, 'docs/manual/guias')
+
+export function lerGuia(nome) {
+  const dir = path.join(GUIAS, nome)
+  const guia = JSON.parse(fs.readFileSync(path.join(dir, 'guia.json'), 'utf8'))
+  for (const area of guia.areas) area.fonte = fs.readFileSync(path.join(dir, area.arquivo), 'utf8')
+  return guia
+}
+
+export function nomesDosGuias() {
+  if (!fs.existsSync(GUIAS)) return []
+  return fs.readdirSync(GUIAS).filter((n) => fs.existsSync(path.join(GUIAS, n, 'guia.json')))
+}
+
 export function escapar(texto) {
   return String(texto).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 }

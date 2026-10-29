@@ -1172,4 +1172,29 @@ export const CAPTURAS = [
       }
     },
   },
+  {
+    // Guia rápido da Documentação: o Andamento dos B/Ls com os B/Ls que têm CE.
+    id: 'desbloqueio-andamento',
+    capitulo: 12,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/desbloqueio-ce')
+      await page.getByRole('tab', { name: /Andamento dos B\/Ls/ }).click()
+      const tabela = page.getByRole('table').first()
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const cartoes = page.getByRole('group', { name: 'Situação dos B/Ls do recorte' })
+      const linhas = tabela.locator('tbody tr')
+      const ultima = linhas.nth(Math.min(3, (await linhas.count()) - 1))
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Desbloqueio de CE', level: 1 }), cartoes, ultima], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, cartoes.getByText('Aptos, não exportados'), clip, { posicao: 'direita' }),
+          await marca(2, page.getByPlaceholder('B/L, CE ou Cliente'), clip, { posicao: 'campo' }),
+          await marca(3, page.getByRole('checkbox', { name: /^B\/L original:/ }).first(), clip, { posicao: 'direita' }),
+          await marca(4, page.getByRole('button', { name: 'Conciliar com a ZPT' }), clip, { destaque: true }),
+        ],
+      }
+    },
+  },
 ]

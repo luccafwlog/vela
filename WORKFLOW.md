@@ -228,7 +228,8 @@ scripts/
                           check de cobertura (`npm run manual:coverage`),
                           cenário de demonstração, capturas de tela e
                           gerador do PDF (`manual:cenario`,
-                          `manual:capture`, `manual:build`, `manual:check`)
+                          `manual:capture`, `manual:build`, `manual:check`,
+                          `manual:guia`)
 
 supabase/
   migrations/             cadeia ativa do schema
@@ -802,7 +803,8 @@ fotografa as telas; `npm run manual:build` gera o PDF em `artifacts/manual/`,
 fora do Git; `npm run manual:check` confere o texto (termos técnicos proibidos,
 capturas e regras da matriz citadas) e não precisa de banco. Só o
 `manual:check` roda no CI, no job `quality`; os outros três dependem do banco
-local e do navegador e ficam locais.
+local e do navegador e ficam locais. `npm run manual:guia -- <nome>` gera, com
+as mesmas capturas, o PDF de um guia rápido de `docs/manual/guias/<nome>`.
 
 Para Supabase completo, carregue no ambiente do processo as variáveis indicadas
 em `.env.example`, inclusive os IDs das fixtures, antes de habilitar a suíte:
