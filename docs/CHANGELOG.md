@@ -16,6 +16,13 @@
   `portal-invite-send` recusa a quem não é da Documentação ou do Administrativo. Rótulo, campo e ajuda
   ficam no topo da célula da grade (`.app-field`): o Lacre da janela Corrigir container deixa de esticar
   no B/L faturado.
+- **Etapa Cliente da ficha do B/L respeita a Liberação de faturamento (2026-10-29, migration `501`):**
+  com Cliente sem conta ativa no Portal, a etapa Cliente do trilho Documental ficava vermelha com
+  "Resolver na Revisão" mesmo com Liberação vigente ou B/L já faturado, que não estão na Revisão.
+  `get_bl_portal_status` passa a devolver `billing_access_ready` (`customer_billing_access_ready`, a
+  condição da pendência da Revisão); a etapa fica "Cliente apto · Liberação sem Portal" ou "B/L
+  faturado · Portal não está ativo", sem Próxima ação, e o bloco Portal diz "Pronto para faturar: Sim,
+  pela Liberação de faturamento sem Portal". O link **Abrir no Provisionamento do Portal** continua.
 - **Alterar, excluir e isentar as Taxas Locais do B/L (2026-10-28, em lotes):** pedido do dono,
   [ADR 0111](adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md). Lote 1 (migration `491`): na
   ficha do B/L, qualquer setor altera o valor de uma taxa (por unidade ou pelo total), exclui a taxa e

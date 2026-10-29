@@ -389,7 +389,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       ) : linked && inviteAccepted && can('portal_provisioning') && !showOnboarding && !inviteOpen ? (
         // Convite só quando o servidor o aceita e para quem pode enviar (POR-D12, BLR-D06).
         <div><Button type="button" disabled={saving} onClick={() => { setInviteOpen(true); setInviteEmail(customerEmail) }}>Enviar convite do Portal</Button></div>
-      ) : linked && portalStatus && !portalStatus.visibility.billingReady && !inviteOpen ? (
+      ) : linked && portalStatus && !portalStatus.visibility.portalReady && !inviteOpen ? (
         <div><Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${linked.id}`}>Abrir no Provisionamento do Portal</Link></div>
       ) : null}
       {inviteOpen && linked ? (

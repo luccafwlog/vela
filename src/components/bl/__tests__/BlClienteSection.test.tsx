@@ -43,7 +43,7 @@ const bl = {
   manifest_customer_email: 'ops@acme.test',
 }
 
-const noAccount = { visibility: { visible: false, reasons: ['Conta do Portal não está ativa'], billingReady: false, accountSituation: 'sem_conta' }, notifications: [], openDisputes: [] }
+const noAccount = { visibility: { visible: false, reasons: ['Conta do Portal não está ativa'], portalReady: false, billingReady: false, accountSituation: 'sem_conta' }, notifications: [], openDisputes: [] }
 
 afterEach(cleanup)
 beforeEach(() => {
@@ -112,7 +112,7 @@ it('preserva o cadastro concluído e oferece nova tentativa quando o convite fal
 
 it('reúne cliente e situação do Portal na mesma superfície', () => {
   // Seção dentro da superfície da Visão geral: nenhum card próprio.
-  const { container } = render(<MemoryRouter><BlClienteSection bl={bl as never} portalStatus={{ visibility: { visible: false, reasons: ['Sem CE Mercante'], billingReady: false, accountSituation: 'ativo' }, notifications: [], openDisputes: [] }} /></MemoryRouter>)
+  const { container } = render(<MemoryRouter><BlClienteSection bl={bl as never} portalStatus={{ visibility: { visible: false, reasons: ['Sem CE Mercante'], portalReady: false, billingReady: false, accountSituation: 'ativo' }, notifications: [], openDisputes: [] }} /></MemoryRouter>)
   expect(screen.getByRole('heading', { name: 'Cliente' })).toBeTruthy()
   expect(screen.getByRole('heading', { name: 'Portal' })).toBeTruthy()
   expect(screen.getByText('Sem CE Mercante')).toBeTruthy()
@@ -146,7 +146,7 @@ it('permite convidar o cliente de B/L já revisado sem refazer o vínculo', asyn
 // POR-D12 e BLR-D06: o convite só aparece quando o servidor o aceita e para quem pode enviar.
 it('conta ativa ou setor sem permissão não vê o convite; leva ao Provisionamento quando o Portal não está pronto', () => {
   const linkedBl = { ...bl, review_status: 'ok', customer_id: 42, customer: { id: 42, name: 'ACME', cnpj_cpf: bl.manifest_customer_cnpj_cpf } } as never
-  const active = { visibility: { visible: true, reasons: [], billingReady: false, accountSituation: 'ativo' }, notifications: [], openDisputes: [] }
+  const active = { visibility: { visible: true, reasons: [], portalReady: false, billingReady: false, accountSituation: 'ativo' }, notifications: [], openDisputes: [] }
   render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={active} /></MemoryRouter>)
   expect(screen.queryByRole('button', { name: 'Enviar convite do Portal' })).toBeNull()
   expect(screen.getByRole('link', { name: 'Abrir no Provisionamento do Portal' }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
@@ -155,6 +155,12 @@ it('conta ativa ou setor sem permissão não vê o convite; leva ao Provisioname
   mocks.can.mockReturnValue(false)
   render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={noAccount} /></MemoryRouter>)
   expect(screen.queryByRole('button', { name: 'Enviar convite do Portal' })).toBeNull()
+  cleanup()
+
+  // A Liberação de faturamento deixa faturar, mas não provisiona o Portal: o link continua.
+  const released = { visibility: { visible: false, reasons: ['Conta do Portal não está ativa'], portalReady: false, billingReady: true, accountSituation: 'suspenso' }, notifications: [], openDisputes: [] }
+  render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={released} /></MemoryRouter>)
+  expect(screen.getByRole('link', { name: 'Abrir no Provisionamento do Portal' })).toBeTruthy()
 })
 
 // Migration 502: Trocar Cliente e Desvincular pedem o motivo, que vai ao Histórico.
