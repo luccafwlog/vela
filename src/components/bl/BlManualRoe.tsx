@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Fact, FactList } from '../ui/Block'
 import { Field, Input, Textarea } from '../ui/Input'
@@ -9,6 +10,7 @@ import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import { setBlManualRoe } from '../../services/blDemurrageConfig'
 import { queryKeys } from '../../services/queryKeys'
+import { readDemurrageGroupAnchor } from '../../services/demurrage/demurrageContainers'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { canManageManualRoe, parsePtaxInput } from '../demurrage/demurrageFormRules'
 
@@ -19,7 +21,11 @@ function formatRoe(roe: number) {
 // ROE manual do B/L (ADR 0094, B10; migration 435): a próxima Invoice de
 // Demurrage sai com ele, fora do recálculo pela PTAX. Financeiro,
 // Administrativo e Equipamentos põem e tiram, sempre com motivo; o banco
-// recusa os demais setores.
+// recusa os demais setores. Em grupo de container compartilhado, a Invoice
+// sai pelo B/L de menor número e só o ROE manual dele vale: nos outros B/Ls
+// do grupo a tela não oferece definir nem trocar, e aponta o B/L emissor.
+// O banco segue aceitando o valor nesses B/Ls: sem efeito hoje, ele passa a
+// valer se o grupo mudar (âncora cancelado, container corrigido).
 export function BlManualRoe({ blId, roe, manual }: { blId: string; roe: number | null; manual: boolean }) {
   const queryClient = useQueryClient()
   const { effectiveRole } = useAuth()
@@ -31,6 +37,15 @@ export function BlManualRoe({ blId, roe, manual }: { blId: string; roe: number |
   const [error, setError] = useState('')
   const active = manual && roe != null
   const parsed = parsePtaxInput(value)
+  const anchorQuery = useQuery({
+    queryKey: queryKeys.bls.demurrageGroupAnchor(blId),
+    queryFn: () => readDemurrageGroupAnchor(blId),
+  })
+  const anchorBlId = anchorQuery.data && anchorQuery.data !== blId ? anchorQuery.data : null
+  // Definir/Trocar só depois de confirmar que este B/L emite a Invoice do grupo
+  // (ou não tem grupo); carregando, com falha ou fora do âncora, não oferece.
+  const canSet = anchorQuery.isSuccess && anchorQuery.data === blId
+  const shownMode = mode === 'set' && !canSet ? 'view' : mode
   const mutation = useMutation({
     mutationFn: (next: number | null) => setBlManualRoe({ blId, roe: next, reason }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId) }),
@@ -45,6 +60,7 @@ export function BlManualRoe({ blId, roe, manual }: { blId: string; roe: number |
 
   async function submit() {
     setError('')
+    if (mode === 'set' && !canSet) return
     const next = mode === 'set' ? parsed : null
     if (mode === 'set' && next == null) {
       setError('Informe o ROE com vírgula ou ponto decimal, por exemplo 5,8123.')
@@ -82,13 +98,23 @@ export function BlManualRoe({ blId, roe, manual }: { blId: string; roe: number |
           {active ? <span className="tabular-nums">{formatRoe(roe)}</span> : <NoValue label="Sem ROE manual: a Invoice segue a PTAX do dia" />}
         </Fact>
       </FactList>
-      {canManage && mode === 'view' ? (
+      {anchorBlId ? (
+        <p className="text-[var(--app-muted)]">
+          Este B/L divide container com o B/L{' '}
+          <Link className="app-link" to={`/bls/${encodeURIComponent(anchorBlId)}?tab=faturamento`}>{anchorBlId}</Link>
+          , que emite a Invoice de Demurrage do grupo: só o ROE manual dele vale. Ponha o câmbio lá.
+        </p>
+      ) : null}
+      {anchorQuery.isError ? (
+        <p role="alert" className="text-[var(--app-danger-fg)]">Não foi possível ver qual B/L emite a Invoice de Demurrage do grupo; recarregue para definir ou trocar o ROE manual.</p>
+      ) : null}
+      {canManage && shownMode === 'view' && (canSet || active) ? (
         <div className="flex gap-2">
-          <Button variant="secondary" className="app-btn--sm" onClick={() => setMode('set')}>{active ? 'Trocar ROE manual…' : 'Definir ROE manual…'}</Button>
+          {!canSet ? null : <Button variant="secondary" className="app-btn--sm" onClick={() => setMode('set')}>{active ? 'Trocar ROE manual…' : 'Definir ROE manual…'}</Button>}
           {active ? <Button variant="ghost" className="app-btn--sm" onClick={() => setMode('remove')}>Tirar ROE manual…</Button> : null}
         </div>
       ) : null}
-      {canManage && mode !== 'view' ? (
+      {canManage && shownMode !== 'view' ? (
         <div className="grid gap-3 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] md:items-start">
           {mode === 'set' ? (
             <Field label="ROE manual (R$ por US$)" required>

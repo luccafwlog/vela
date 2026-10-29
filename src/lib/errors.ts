@@ -98,11 +98,11 @@ type ErrorTableEntry = ClassifiedDbError & {
 // mensagem fixa mesmo com preserveMessage. 23503/22P02 sao violacoes de
 // constraint cruas do Postgres e NAO preservam.
 const ERROR_TABLE: Readonly<Record<string, ErrorTableEntry>> = {
-  '42501': { kind: 'permissao', message: 'Sem permissao para esta acao. Solicite acesso administrativo.', preserveMessage: true },
-  PGRST301: { kind: 'sessao_expirada', message: 'Sua sessao expirou. Entre novamente para continuar.' },
-  '28000': { kind: 'sessao_expirada', message: 'Sua sessao expirou. Entre novamente para continuar.' },
+  '42501': { kind: 'permissao', message: 'Sem permissão para esta ação.', preserveMessage: true },
+  PGRST301: { kind: 'sessao_expirada', message: 'Sua sessão expirou. Entre novamente para continuar.' },
+  '28000': { kind: 'sessao_expirada', message: 'Sua sessão expirou. Entre novamente para continuar.' },
   '23505': { kind: 'conflito', message: 'Este registro já existe.', preserveMessage: true },
-  '40001': { kind: 'conflito', message: 'Conflito de concorrencia. Tente novamente.' },
+  '40001': { kind: 'conflito', message: 'Outra pessoa alterou o mesmo registro ao mesmo tempo. Tente novamente.' },
   // Duas gravações nos mesmos registros (ex.: duas planilhas da mesma Viagem).
   '40P01': { kind: 'conflito', message: 'Outra gravação estava usando os mesmos registros. Tente novamente.' },
   '55P03': { kind: 'conflito', message: 'Outra gravação estava usando os mesmos registros. Tente novamente.' },
@@ -130,11 +130,11 @@ const ERROR_TABLE: Readonly<Record<string, ErrorTableEntry>> = {
   P0010: { kind: 'conflito', message: 'Este CE Mercante já está em outro B/L.', preserveMessage: true },
   P0011: { kind: 'validacao', message: 'Há fatura emitida para este B/L.', preserveMessage: true },
   P0012: { kind: 'validacao', message: 'Nº de Manifesto Mercante inválido.', preserveMessage: true },
-  '23503': { kind: 'validacao', message: 'Registro referenciado nao existe ou ainda esta em uso.' },
+  '23503': { kind: 'validacao', message: 'O registro vinculado não existe mais ou ainda está em uso.' },
   '23514': { kind: 'validacao', message: 'Dados fora das regras do cadastro.', preserveMessage: true },
-  '22P02': { kind: 'validacao', message: 'Valor em formato invalido.' },
-  '22023': { kind: 'validacao', message: 'Dados invalidos para esta operacao.', preserveMessage: true },
-  P0002: { kind: 'nao_encontrado', message: 'Registro nao encontrado.', preserveMessage: true },
+  '22P02': { kind: 'validacao', message: 'Valor em formato inválido.' },
+  '22023': { kind: 'validacao', message: 'Dados inválidos para esta operação.', preserveMessage: true },
+  P0002: { kind: 'nao_encontrado', message: 'Registro não encontrado.', preserveMessage: true },
   P0429: { kind: 'limite', message: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' },
   // Texto das telas de consulta. Importação usa `importErrorMessage`, que
   // troca a orientação (dividir o arquivo, não reduzir período).

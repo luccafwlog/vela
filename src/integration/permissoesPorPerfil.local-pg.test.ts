@@ -536,7 +536,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     // Usuário autenticado sem perfil interno (como o do Portal): 42501, não a mensagem do Baplie.
     const result = runAsUser('85850000-0000-4000-8000-0000000000ff', `SELECT public.import_baplie_file_atomic(${VOYAGE_ID}, '[]'::jsonb, ARRAY[]::text[], '{}'::jsonb, '{}'::jsonb)`)
     expect(result.ok).toBe(false)
-    expect(result.error).toMatch(/sem permissao para importar Baplie/)
+    expect(result.error).toMatch(/sem permissão para importar Baplie/)
     expect(psql(`SELECT string_agg(container_number, ',') FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe('PCCU8500001')
   })
 
@@ -693,7 +693,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     expect(runAs(profile, `SELECT public.reopen_agency_departure_report(${VOYAGE_ID}, 'SSZ', '  ')`).error).toMatch(/exige justificativa/)
     expect(runAs(profile, `SELECT public.revert_voyage_omission(-1, '', '${user}')`).error).toMatch(/exige justificativa/)
     expect(runAs(profile, `SELECT public.revert_voyage_omission(-1, 'motivo', '${PROFILES.administrativo === user ? PROFILES.financeiro : PROFILES.administrativo}')`).error)
-      .toMatch(/proprio usuario/)
+      .toMatch(/próprio usuário/)
   })
 
   // P7 — reprocessar efeito de importação por qualquer Departamento (ADR 0085, D10; migration 252).

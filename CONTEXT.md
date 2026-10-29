@@ -644,8 +644,7 @@ Resumo de prontidão dos dados da Viagem:
 
 - **Divergente:** há conflito ainda não resolvido;
 - **Pendente:** algum B/L ainda sem CE Mercante (falta de Manifesto não conta);
-- **Conciliada** (**Conciliado** na faixa e na ficha da Viagem): sem
-  divergência aberta e com todos os CEs.
+- **Conciliada:** sem divergência aberta e com todos os CEs.
 
 Na faixa, **Verificando** aparece enquanto a contagem de divergências não chega.
 

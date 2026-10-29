@@ -56,6 +56,8 @@ export type CeUnlockItem = {
   /** Só o desk recebe: o Portal nunca vê envio nem conciliação com a ZPT. */
   export_state?: "not_exported" | "exported" | "confirmed";
   exported_at?: string | null;
+  /** Já foi à ZPT neste pedido, mesmo de volta à fila depois de Reconferir CE: trava o cancelamento (migration 510). */
+  sent_to_zpt?: boolean;
   zpt_status?: "unlocked" | "divergent" | null;
   zpt_description?: string | null;
   zpt_pending?: string[] | null;

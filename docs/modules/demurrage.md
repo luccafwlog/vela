@@ -734,8 +734,17 @@ cessa. O câmbio do header é apenas informativo.
   manual…**). Financeiro, Administrativo e Equipamentos põem e tiram, com motivo
   de 10 caracteres ou mais; o histórico do B/L grava a mudança com o motivo. O
   UPDATE direto dessas colunas saiu de `authenticated`. Vale para a próxima
-  Invoice emitida; a Invoice já emitida segue o ROE dela. **Teste local-pg:**
-  `decisoesDoDonoRun3.local-pg.test.ts`; **Teste:** `BlManualRoe.test.tsx`.
+  Invoice emitida; a Invoice já emitida segue o ROE dela. Em grupo de
+  container compartilhado a Invoice sai pelo B/L-âncora (menor número,
+  `demurrage_group_anchor`) e só o ROE manual dele entra
+  (`create_demurrage_invoice_authoritative`). Por isso, nos outros B/Ls do grupo,
+  a ficha não oferece **Definir/Trocar ROE manual…**, mostra o B/L que emite a
+  Invoice com link para ele e mantém só **Tirar ROE manual…** para limpar um
+  valor antigo. O banco segue aceitando o ROE manual nesses B/Ls: o valor não
+  tem efeito enquanto o grupo dura e passa a valer se o B/L virar âncora
+  (âncora cancelado ou container corrigido), e não é fronteira de segurança.
+  **Teste local-pg:** `decisoesDoDonoRun3.local-pg.test.ts`; **Teste:**
+  `BlManualRoe.test.tsx`.
 - **ROE manual prevalece** (ADR 0094, B10; migration `382`): a Invoice emitida
   com o ROE manual do B/L (`roe_manual`) fica fora do recálculo pela PTAX, e o
   detalhe mostra "ROE manual, fora do recálculo pela PTAX". O Financeiro, o

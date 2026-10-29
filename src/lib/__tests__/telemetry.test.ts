@@ -434,10 +434,10 @@ describe('humanizeDatabaseError', () => {
 
     expect(humanized).not.toBeNull()
     expect(humanized!.title).toBe('[Sessão expirada] PGRST301')
-    expect(humanized!.fingerprint).toEqual(['erro-banco', 'sessao_expirada', 'PGRST301', 'Sua sessao expirou. Entre novamente para continuar.'])
+    expect(humanized!.fingerprint).toEqual(['erro-banco', 'sessao_expirada', 'PGRST301', 'Sua sessão expirou. Entre novamente para continuar.'])
     expect(humanized!.context.tipo).toBe('Sessão expirada')
     expect(humanized!.context.codigo).toBe('PGRST301')
-    expect(humanized!.context.mensagem).toContain('sessao expirou')
+    expect(humanized!.context.mensagem).toContain('sessão expirou')
   })
 
   it('aceita objeto cru do Supabase/PostgREST além da instância', () => {
@@ -447,7 +447,7 @@ describe('humanizeDatabaseError', () => {
     })
 
     expect(humanized!.title).toBe('[Sem permissão] 42501')
-    expect(humanized!.fingerprint).toEqual(['erro-banco', 'permissao', '42501', 'Sem permissao para esta acao. Solicite acesso administrativo.'])
+    expect(humanized!.fingerprint).toEqual(['erro-banco', 'permissao', '42501', 'Sem permissão para esta ação.'])
   })
 
   it('retorna null para erros que não são de banco', () => {

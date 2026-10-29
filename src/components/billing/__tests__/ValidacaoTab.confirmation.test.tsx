@@ -102,6 +102,33 @@ describe('ValidacaoTab — confirmação de gravações financeiras', () => {
     expect(mocks.calculate).not.toHaveBeenCalled()
   })
 
+  it('Recalcular selecionados deixa de fora o B/L com Revisão pendente e avisa', async () => {
+    mocks.rows = [row, { ...row, id: 'BL-REV', review_status: 'pending_review' }]
+    mocks.confirm.mockResolvedValue(true)
+    const user = userEvent.setup()
+    renderTab()
+    await user.click(screen.getByRole('button', { name: 'Selecionar BL-LOCAL-77' }))
+    await user.click(screen.getByRole('button', { name: 'Selecionar BL-REV' }))
+    await user.click(screen.getByRole('button', { name: 'Recalcular selecionados' }))
+
+    await waitFor(() => expect(mocks.calculate).toHaveBeenCalledOnce())
+    expect(mocks.calculate.mock.calls[0][0].blIds).toEqual(['BL-LOCAL-77'])
+    expect(mocks.showToast).toHaveBeenCalledWith('1 B/L com Revisão pendente ficou de fora: resolva na Revisão.', 'info')
+  })
+
+  it('não recalcula nada quando todos os selecionados têm Revisão pendente', async () => {
+    mocks.rows = [{ ...row, review_status: 'pending_review' }]
+    const user = userEvent.setup()
+    renderTab()
+    await user.click(screen.getByRole('button', { name: 'Selecionar BL-LOCAL-77' }))
+    await user.click(screen.getByRole('button', { name: 'Recalcular selecionados' }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Nenhum B/L elegível para recálculo na seleção.', 'info'))
+    expect(mocks.showToast).toHaveBeenCalledWith('1 B/L com Revisão pendente ficou de fora: resolva na Revisão.', 'info')
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.calculate).not.toHaveBeenCalled()
+  })
+
   it('emite a fatura individual somente após confirmar', async () => {
     mocks.confirm.mockResolvedValue(true)
     const user = userEvent.setup()

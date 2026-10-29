@@ -239,6 +239,10 @@ local('desbloqueio CE — matriz SQL de requisitos, filtros e concorrência',()=
     const reconfirmed = command('reconfirm_ce',{request_id:requestId,expected_version:version(requestId),bl_id:'CE600-CORR',reason:'CE corrigido pela ficha',request_key:key()})
     expect(reconfirmed.state).toBe('in_review')
     expect(reconfirmed.items[0]).toMatchObject({termo:false,procuracao:false,can_export:false,export_state:'not_exported'})
+    // 510: de volta à fila, mas já enviado à ZPT: a tela apaga Cancelar pedido e o banco recusa.
+    expect(reconfirmed.items[0].sent_to_zpt).toBe(true)
+    expect(()=>command('cancel',{request_id:requestId,expected_version:version(requestId),reason:'Teste da trava',request_key:key()})).toThrow(/já exportado para a ZPT/)
+    expect(JSON.parse(sql(`SELECT ce_unlock_private.portal_view(ce_unlock_private.item('CE600-CORR','${requestId}'));`))).not.toHaveProperty('sent_to_zpt')
     const queue = JSON.parse(sql("SELECT public.ce_unlock_read('review_queue','{}');", admin)).items
     expect(queue.some((r:{id:string})=>r.id===requestId)).toBe(true)
     review(requestId,'termo','approved')
