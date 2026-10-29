@@ -16,4 +16,4 @@ A frente de carga cheia no terminal TVV, com o ETB e o ETD.
 - A data nova chega ao Line Up, ao Portal e aos avisos ao Cliente.
 :::
 
-Frente sem terminal fica **TBC** ("terminal a confirmar"); depois do ATA, toda frente precisa de terminal. O **ATB** e o **ATD**, quando o navio atracar e sair, ficam com {{Operações}}.
+Frente sem terminal fica **TBC** ("terminal a confirmar"); depois do ATA, toda frente precisa de terminal. O **ATB** e o **ATD** vêm quando o navio atracar e sair (etapa 12).

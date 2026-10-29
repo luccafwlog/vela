@@ -748,13 +748,15 @@ Na mesma entrega da versão 1.0:
    é absorvido pelo Manual do Operador (e vai para o arquivo histórico) ou fica
    como referência detalhada do Financeiro, com o manual remetendo a ele.
 2. **Guias de bolso por equipe:** previstos na [régua visual](#régua-visual).
-   O dono pediu em 2026-10-29 o primeiro, o **Guia rápido da Documentação**
-   (`docs/manual/guias/documentacao/`): o método de trabalho numa Viagem, em
-   etapas, só o caminho feliz, mais imagem que texto (revisão do dono de
-   2026-10-29). Na segunda revisão do mesmo dia, o dono pôs o Baplie antes dos
-   B/Ls e pediu os terminais das frentes de operação, os vazios do Baplie, o
-   Manifesto de carga solta e os veículos; os guias das outras equipes esperam
-   a decisão dele.
+   O dono pediu em 2026-10-29 o primeiro, um guia da Documentação: o método
+   de trabalho numa Viagem, em etapas, só o caminho feliz, mais imagem que
+   texto. Na segunda revisão do mesmo dia, ele pôs o Baplie antes dos B/Ls e
+   pediu os terminais das frentes de operação, os vazios do Baplie, o
+   Manifesto de carga solta e os veículos. Na terceira, decidiu por um guia só
+   para Documentação, Operações e Equipamentos, para não deixar trabalho de
+   fora: o **Guia rápido da Viagem** (`docs/manual/guias/viagem/`), com a
+   equipe de cada etapa. Guias do Financeiro e do Administrativo esperam a
+   decisão dele.
 3. **Imagens que o ambiente local não gera:** a lista de usuários da
    Administração (depende de função do servidor) e as telas do Pix com a
    cobrança pelo Itaú ligada.

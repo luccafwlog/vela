@@ -42,7 +42,7 @@ antes dos procedimentos e o gerador dos arquivos de importação.
    npm run manual:capture
    npm run manual:check
    npm run manual:build
-   npm run manual:guia -- documentacao
+   npm run manual:guia -- viagem
    ```
 
 As capturas dependem umas das outras (a Viagem criada na primeira é a das

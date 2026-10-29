@@ -1,13 +1,13 @@
 // Gera o PDF de um guia rápido a partir de docs/manual/guias/<nome>.
 //
-// Uso: npm run manual:guia -- documentacao [--saida artifacts/manual/guia-documentacao.pdf]
+// Uso: npm run manual:guia -- viagem [--saida artifacts/manual/guia-viagem.pdf]
 // O guia é um método de trabalho: a capa, o mapa das etapas (que serve de
-// sumário) e uma etapa por página, com a faixa "Quando / Onde / Pronto quando"
-// do guia.json, a imagem e poucos passos. Usa as capturas do manual
+// sumário, com a equipe de cada etapa) e uma etapa por página, com a faixa
+// "Quando / Onde / Pronto quando" do guia.json, a imagem e poucos passos. Usa as capturas do manual
 // (npm run manual:capture) e o mesmo visual.
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { ROOT, lerGuia, capituloHtml, escapar } from './fonte.mjs'
+import { ROOT, lerGuia, capituloHtml, escapar, chip } from './fonte.mjs'
 import { fontes, telas, alvo, pagina, imprimirComPaginas } from './impressao.mjs'
 
 const nome = process.argv[2]
@@ -43,14 +43,17 @@ function capa(g) {
 </section>`
 }
 
-// O mapa: as etapas em ordem, cada uma com quando começa, quando está pronta
-// e a página. A ordem dos arquivos fica numa faixa embaixo.
+const equipes = (a) => (a.equipes?.length ? `<span class="equipes">${a.equipes.map(chip).join('')}</span>` : '')
+
+// O mapa: as etapas em ordem, cada uma com a equipe, quando começa e a
+// página. O "Pronto quando" fica na página da etapa. A ordem dos arquivos fica
+// numa faixa embaixo.
 function mapa(g) {
   const etapas = g.areas
     .map(
       (a) => `<a class="etapa" href="#area-${a.numero}">
   <span class="n">${a.numero}</span>
-  <span class="texto"><b>${escapar(a.titulo)}</b>${a.quando ? `<span><i>Quando:</i> ${escapar(a.quando)}</span>` : ''}${a.pronto ? `<span><i>Pronto quando:</i> ${escapar(a.pronto)}</span>` : ''}</span>
+  <span class="texto"><span class="titulo"><b>${escapar(a.titulo)}</b>${equipes(a)}</span>${a.quando ? `<span><i>Quando:</i> ${escapar(a.quando)}</span>` : ''}</span>
   ${pagina(`area-${a.numero}`)}
 </a>`,
     )
@@ -74,7 +77,7 @@ function faixa(a) {
 function area(a, { introducao, corpo }) {
   return `<section class="guia-area" id="area-${a.numero}" style="page: area${a.numero}">
   <div class="texto-corrido">
-    <header class="guia-area__titulo">${alvo(`area-${a.numero}`)}<span class="numero">${a.numero}</span><h1>${escapar(a.titulo)}</h1></header>
+    <header class="guia-area__titulo">${alvo(`area-${a.numero}`)}<span class="numero">${a.numero}</span><h1>${escapar(a.titulo)}</h1>${equipes(a)}</header>
     ${faixa(a)}
     ${introducao}
     ${corpo}

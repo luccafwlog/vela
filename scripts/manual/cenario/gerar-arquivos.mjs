@@ -1,7 +1,7 @@
 // Gera os arquivos de importação do cenário de demonstração (cenario.json):
 // um arquivo de B/L por B/L no layout da COSCO (a partir do modelo do Vela),
-// o Manifesto BB, a planilha de CE Mercante, o Baplie e a planilha de
-// programação. Datas relativas ao dia de hoje.
+// o Manifesto BB, a planilha de CE Mercante, o Baplie, as datas dos
+// containers e a planilha de programação. Datas relativas ao dia de hoje.
 //
 // Saída: artifacts/manual/cenario/
 import fs from 'node:fs'
@@ -119,6 +119,17 @@ function baplie() {
   fs.writeFileSync(path.join(OUT, 'baplie-sereia.edi'), texto)
 }
 
+// Datas de descarga dos containers de Vitória, como o terminal manda depois
+// da descarga (um dia depois do ETA); a devolução ainda não veio.
+function datasContainers() {
+  const vitoria = c.escalas.find((e) => e.porto === 'BRVIX')
+  const linhas = [['B/L', 'Container', 'Descarga', 'Devolução']]
+  for (const bl of c.bls.filter((b) => b.pod === 'BRVIX')) {
+    for (const [base] of bl.containers) linhas.push([bl.numero, container(base), ddmmyyyy(dia(vitoria.etaDias + 1)), ''])
+  }
+  csv('datas-containers.csv', linhas)
+}
+
 function programacao() {
   const linhas = [['VESSEL NAME', 'VOY', 'IMO', 'QINGDAO ETD', 'SHANGHAI ETD', 'TAICANG ETD', 'NINGBO ETD', 'NANSHA ETD', 'SALVADOR ETA', 'VITÓRIA ETA', 'PECÉM ETA']]
   for (const p of c.programacao) {
@@ -132,5 +143,6 @@ for (const bl of c.bls) arquivoBl(bl)
 manifestoBb()
 planilhaCe()
 baplie()
+datasContainers()
 programacao()
 console.log(`Arquivos do cenário em ${path.relative(ROOT, OUT)}: ${fs.readdirSync(OUT).join(', ')}`)

@@ -18,16 +18,18 @@ demonstração ([gerador](../../scripts/manual/pdf/README.md));
 
 ## Guias rápidos
 
-[`guias/`](guias/documentacao/guia.json) guarda os guias rápidos por equipe:
-o método de trabalho em etapas, na ordem em que ele acontece, sem os casos de
-borda, que ficam no manual. Cada guia tem um `guia.json` (as etapas, com
-quando começam, onde se fazem e quando estão prontas) e um Markdown por etapa,
-no mesmo formato do texto do manual, com as mesmas capturas. O primeiro é o
-**Guia rápido da Documentação** (`guias/documentacao/`, 16 páginas e 14 etapas,
-da Viagem aberta, com os terminais das frentes de operação, ao CE desbloqueado;
-o Baplie vem antes dos B/Ls, seguido dos vazios, da carga solta e dos
-veículos); o PDF sai de `npm run manual:guia -- documentacao`, e o
-`manual:check` confere também o texto dos guias.
+[`guias/`](guias/viagem/guia.json) guarda os guias rápidos: o método de
+trabalho em etapas, na ordem em que ele acontece, sem os casos de borda, que
+ficam no manual. Cada guia tem um `guia.json` (as etapas, com a equipe que faz
+cada uma, quando começam, onde se fazem e quando estão prontas) e um Markdown
+por etapa, no mesmo formato do texto do manual, com as mesmas capturas. O
+primeiro é o **Guia rápido da Viagem** (`guias/viagem/`, 19 páginas e 17
+etapas), das equipes de Documentação, Operações e Equipamentos: da Viagem
+aberta e dos terminais das frentes de operação aos arquivos (Baplie, vazios,
+B/Ls, carga solta, veículos e, por último, o CE), à chegada e à saída do
+navio, às datas dos containers, à exportação e ao ADR de Saída. O PDF sai de
+`npm run manual:guia -- viagem`, e o `manual:check` confere também o texto dos
+guias.
 
 ## Catálogo de situações
 

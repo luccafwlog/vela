@@ -1220,6 +1220,110 @@ export const CAPTURAS = [
     },
   },
   {
+    // Guia rápido: a chegada do navio na escala (passo 2, o ATA). Só olha.
+    id: 'escala-chegada',
+    capitulo: 4,
+    async fazer({ page, base, cenario }) {
+      const e = cenario.escalas.find((x) => x.terminal)
+      await abrirViagem(page, base, cenario)
+      await page.getByRole('button', { name: `Editar planejamento da escala ${e.porto}` }).click()
+      const dlg = page.getByRole('dialog')
+      const area = dlg.locator('section.app-escala-section').filter({ has: page.getByRole('heading', { name: 'Chegada ao porto' }) })
+      await area.waitFor()
+      // A janela ainda desliza ao abrir: mede depois da animação, sem o foco
+      // que ela põe no primeiro campo.
+      await page.waitForTimeout(700)
+      await page.evaluate(() => document.activeElement?.blur())
+      const clip = await recorteDoElemento(area)
+      return {
+        clip,
+        marks: [await marca(2, dlg.getByLabel('ATA', { exact: true }), clip, { posicao: 'campo' })],
+        async depois() {
+          await dlg.getByRole('button', { name: 'Voltar' }).click()
+          await dlg.waitFor({ state: 'detached' })
+        },
+      }
+    },
+  },
+  {
+    // Guia rápido: a atracação e a saída no cartão do terminal (passos 3 a 5).
+    // Só olha: a escala não é salva.
+    id: 'escala-atracacao',
+    capitulo: 4,
+    async fazer({ page, base, cenario }) {
+      const e = cenario.escalas.find((x) => x.terminal)
+      await abrirViagem(page, base, cenario)
+      await page.getByRole('button', { name: `Editar planejamento da escala ${e.porto}` }).click()
+      const dlg = page.getByRole('dialog')
+      const cartao = dlg.locator('section.app-escala-section').filter({ has: page.getByRole('heading', { name: 'Terminais e atracações' }) })
+      await cartao.waitFor()
+      const atb = dlg.getByLabel(`ATB ${e.terminal}`, { exact: true })
+      const salvar = dlg.getByRole('button', { name: 'Salvar escala' })
+      await page.waitForTimeout(700)
+      await page.evaluate(() => document.activeElement?.blur())
+      const clip = await recorteDe(page, [atb, dlg.getByText('ETB · previsto').first(), salvar], 14)
+      return {
+        clip,
+        marks: [
+          await marca(3, atb, clip, { posicao: 'campo' }),
+          await marca(4, dlg.getByLabel(`ATD ${e.terminal}`, { exact: true }), clip, { posicao: 'campo' }),
+          await marca(5, salvar, clip, { destaque: true }),
+        ],
+        async depois() {
+          await dlg.getByRole('button', { name: 'Voltar' }).click()
+          await dlg.waitFor({ state: 'detached' })
+        },
+      }
+    },
+  },
+  {
+    // Guia rápido: a prévia das datas de descarga que o terminal mandou. Só
+    // olha: nada é importado.
+    id: 'importar-datas-previa',
+    capitulo: 9,
+    async fazer({ page, base, arquivos }) {
+      await abrir(page, base, '/containers')
+      await page.getByRole('button', { name: 'Importar datas' }).first().click()
+      const dlg = page.getByRole('dialog')
+      await dlg.locator('input[type=file]').setInputFiles(`${arquivos}/datas-containers.csv`)
+      await dlg.getByText('Prévia pronta. Nada foi gravado ainda.').waitFor({ timeout: 60000 })
+      await page.waitForTimeout(400)
+      const importar = dlg.getByRole('button', { name: /^Importar \d+ containers?$/ })
+      const clip = await recorteDoElemento(dlg)
+      return {
+        clip,
+        marks: [
+          await marca(2, dlg.getByText('Trocar arquivo', { exact: true }), clip, { posicao: 'esquerda' }),
+          await marca(3, dlg.getByRole('heading', { name: 'Prévia' }), clip, { posicao: 'esquerda' }),
+          await marca(4, importar, clip, { destaque: true }),
+        ],
+        async depois() {
+          await page.keyboard.press('Escape')
+        },
+      }
+    },
+  },
+  {
+    // Guia rápido: a aba Exportação da Viagem, com os atalhos do embarque de
+    // vazios (passo 1) e do Granito (passo 4).
+    id: 'viagem-exportacao',
+    capitulo: 10,
+    async fazer({ page, base, cenario }) {
+      await abrirViagem(page, base, cenario, 'Exportação')
+      const acoes = page.getByRole('region', { name: 'Ações da exportação' })
+      await acoes.waitFor()
+      await page.waitForTimeout(400)
+      const clip = await recorteDe(page, [page.getByText('Total da viagem'), acoes], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, acoes.getByRole('button', { name: 'Novo embarque de vazios' }), clip, { destaque: true }),
+          await marca(4, acoes.getByRole('button', { name: 'Manifesto Granito' }), clip, { posicao: 'direita' }),
+        ],
+      }
+    },
+  },
+  {
     // Guia rápido da Documentação: Veículos com a Viagem escolhida, antes da
     // planilha. Só olha: nada é importado nem declarado.
     id: 'veiculos-viagem',

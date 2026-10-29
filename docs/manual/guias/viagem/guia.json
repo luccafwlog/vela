@@ -1,12 +1,12 @@
 {
-  "titulo": "Guia rápido da Documentação",
+  "titulo": "Guia rápido da Viagem",
   "sobre": "Manual do Operador · Guia rápido",
-  "subtitulo": "O método de trabalho numa Viagem: do primeiro arquivo do armador ao CE desbloqueado.",
+  "subtitulo": "Documentação, Operações e Equipamentos: o método de trabalho numa Viagem, do aviso do navio ao ADR fechado.",
   "versao": "1.0",
   "situacao": "Rascunho para revisão do dono",
   "descreve": "outubro de 2026",
   "mapaTitulo": "O caminho de uma Viagem",
-  "apresentacao": "As etapas da Documentação numa Viagem, na ordem em que o trabalho acontece. Cada uma diz quando começa, onde fazer e quando está pronta. O que foge do caminho está no Manual do Operador.",
+  "apresentacao": "As etapas de uma Viagem, na ordem em que o trabalho acontece, com a equipe que faz cada uma. Cada etapa diz quando começa e onde se faz; na página dela, quando está pronta. O que foge do caminho está no Manual do Operador.",
   "ordemTitulo": "A ordem dos arquivos",
   "ordem": [
     "Baplie",
@@ -20,14 +20,20 @@
     {
       "numero": 1,
       "titulo": "Abrir a Viagem",
-      "quando": "O armador avisa o navio.",
-      "onde": "Viagens › Nova Viagem; na ficha, Planejamento por escala.",
+      "equipes": [
+        "Operações"
+      ],
+      "quando": "O armador avisa o navio ou manda a programação.",
+      "onde": "Viagens › Nova Viagem; ou Chegadas e Saídas › Importar programação.",
       "pronto": "A Viagem existe, com uma escala e o ETA por porto brasileiro.",
       "arquivo": "01-abrir-a-viagem.md"
     },
     {
       "numero": 2,
       "titulo": "Atribuir os terminais",
+      "equipes": [
+        "Operações"
+      ],
       "quando": "Logo depois das escalas, quando o terminal de cada operação é conhecido.",
       "onde": "Planejamento por escala › lápis da escala › Terminais e atracações.",
       "pronto": "Toda frente com terminal, nenhuma em TBC, com o ETB e o ETD.",
@@ -36,6 +42,9 @@
     {
       "numero": 3,
       "titulo": "Subir o Baplie",
+      "equipes": [
+        "Documentação"
+      ],
       "quando": "Chega o plano de carga do navio, antes dos B/Ls.",
       "onde": "Importação › Baplie EDI.",
       "pronto": "Os containers a bordo estão na Viagem.",
@@ -44,6 +53,9 @@
     {
       "numero": 4,
       "titulo": "Cadastrar os vazios",
+      "equipes": [
+        "Documentação"
+      ],
       "quando": "O Baplie traz containers vazios.",
       "onde": "Baplie EDI › Vazios de importação; ficha da Viagem › Rotas e Manifestos.",
       "pronto": "Os vazios em Vazios IMP, com o Nº de Manifesto Mercante da rota.",
@@ -52,6 +64,9 @@
     {
       "numero": 5,
       "titulo": "Subir os B/Ls de container",
+      "equipes": [
+        "Documentação"
+      ],
       "quando": "Chegam os B/Ls do armador.",
       "onde": "Ficha da Viagem › aba Importação › Importação rápida.",
       "pronto": "Todos os B/Ls na Viagem e a Conciliação sem divergência.",
@@ -60,6 +75,9 @@
     {
       "numero": 6,
       "titulo": "Subir a carga solta",
+      "equipes": [
+        "Documentação"
+      ],
       "quando": "A Viagem traz carga solta.",
       "onde": "Importação rápida › Manifesto BB.",
       "pronto": "Cada B/L de carga solta na Viagem, com o peso.",
@@ -68,14 +86,20 @@
     {
       "numero": 7,
       "titulo": "Subir os veículos",
+      "equipes": [
+        "Equipamentos"
+      ],
       "quando": "Chega a planilha de veículos, depois dos B/Ls e antes do CE.",
       "onde": "Importação › Veículos.",
-      "pronto": "Os veículos na Viagem, ou a Viagem declarada sem veículos.",
+      "pronto": "Os veículos na Viagem, com o local de desova, ou a Viagem declarada sem veículos.",
       "arquivo": "07-subir-os-veiculos.md"
     },
     {
       "numero": 8,
       "titulo": "Limpar a Revisão",
+      "equipes": [
+        "Documentação"
+      ],
       "quando": "Logo depois dos B/Ls e da carga solta.",
       "onde": "Importação › Revisão.",
       "pronto": "Nenhum B/L sem Cliente; os que sobram só esperam o Portal.",
@@ -84,6 +108,9 @@
     {
       "numero": 9,
       "titulo": "Ativar o Portal do Cliente",
+      "equipes": [
+        "Documentação"
+      ],
       "quando": "O Cliente é novo ou ainda não ativou a conta.",
       "onde": "Clientes › Provisionamento do Portal.",
       "pronto": "Conta Ativa: as faturas do Cliente podem sair.",
@@ -92,6 +119,9 @@
     {
       "numero": 10,
       "titulo": "Subir o CE Mercante",
+      "equipes": [
+        "Documentação"
+      ],
       "quando": "O Mercante registra a carga, depois dos B/Ls, da carga solta e dos veículos.",
       "onde": "Ficha da Viagem › Importação rápida › CE Mercante.",
       "pronto": "Os B/Ls aparecem como faturados.",
@@ -100,6 +130,9 @@
     {
       "numero": 11,
       "titulo": "Conferir os avisos ao Cliente",
+      "equipes": [
+        "Documentação"
+      ],
       "quando": "Depois do CE e na semana da chegada do navio.",
       "onde": "Clientes › Comunicação › Cobertura de viagens.",
       "pronto": "NOA, NOR, NOB e CE e Taxas sem âmbar.",
@@ -107,27 +140,73 @@
     },
     {
       "numero": 12,
-      "titulo": "Desbloquear o CE",
-      "quando": "O Cliente pede o Desbloqueio pelo Portal.",
-      "onde": "Importação › Desbloqueio de CE.",
-      "pronto": "O B/L fica Desbloqueado na conciliação com a ZPT.",
-      "arquivo": "12-desbloquear-o-ce.md"
+      "titulo": "Registrar a chegada, a atracação e a saída",
+      "equipes": [
+        "Operações"
+      ],
+      "quando": "No dia em que o navio chega, atraca e sai.",
+      "onde": "Planejamento por escala › lápis da escala.",
+      "pronto": "O ATA na escala; o ATB e o ATD em cada terminal.",
+      "arquivo": "12-registrar-chegada-e-saida.md"
     },
     {
       "numero": 13,
-      "titulo": "Assinar o ADR de Saída",
-      "quando": "O navio sai do terminal; o prazo é de 72 horas.",
-      "onde": "Ficha da Viagem › aba ADR.",
-      "pronto": "A Documentação aparece como assinada.",
-      "arquivo": "13-assinar-o-adr.md"
+      "titulo": "Desbloquear o CE",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "O Cliente pede o Desbloqueio pelo Portal.",
+      "onde": "Importação › Desbloqueio de CE.",
+      "pronto": "O B/L fica Desbloqueado na conciliação com a ZPT.",
+      "arquivo": "13-desbloquear-o-ce.md"
     },
     {
       "numero": 14,
+      "titulo": "Gravar a descarga e a devolução",
+      "equipes": [
+        "Equipamentos"
+      ],
+      "quando": "O terminal manda as datas de descarga; depois, as de devolução.",
+      "onde": "Importação › Containers › Importar datas.",
+      "pronto": "Cada container com a descarga; a Invoice de Demurrage sai sozinha.",
+      "arquivo": "14-gravar-descarga-e-devolucao.md"
+    },
+    {
+      "numero": 15,
+      "titulo": "Lançar a exportação",
+      "equipes": [
+        "Equipamentos"
+      ],
+      "quando": "A escala embarca vazios ou Granito.",
+      "onde": "Ficha da Viagem › aba Exportação.",
+      "pronto": "O embarque com as unidades e os serviços; o Granito na Viagem.",
+      "arquivo": "15-lancar-a-exportacao.md"
+    },
+    {
+      "numero": 16,
+      "titulo": "Assinar o ADR de Saída",
+      "equipes": [
+        "Operações",
+        "Documentação",
+        "Equipamentos"
+      ],
+      "quando": "O navio sai do terminal; cada equipe tem 72 horas.",
+      "onde": "Ficha da Viagem › aba ADR.",
+      "pronto": "As três equipes assinaram e o ADR está fechado.",
+      "arquivo": "16-assinar-o-adr.md"
+    },
+    {
+      "numero": 17,
       "titulo": "A rotina do dia",
+      "equipes": [
+        "Operações",
+        "Documentação",
+        "Equipamentos"
+      ],
       "quando": "Todo dia, ao começar.",
       "onde": "Painel e as filas da equipe.",
-      "pronto": "As filas da Documentação sem pendência parada.",
-      "arquivo": "14-a-rotina-do-dia.md"
+      "pronto": "As filas de cada equipe sem pendência parada.",
+      "arquivo": "17-a-rotina-do-dia.md"
     }
   ]
 }
