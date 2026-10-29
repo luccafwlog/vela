@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Escala com LOCODE brasileiro fora da lista continua no Planejamento (2026-10-29, sem migration):**
+  a escala com porto brasileiro bem formado que o Vela não conhece (por exemplo `BRXYZ`) era gravada,
+  mas sumia do **Planejamento por escala** da ficha da Viagem ao recarregar a página: a leitura só
+  reconhecia os portos da lista. A leitura passa a aceitar o mesmo código que a gravação
+  (`escalaPortCode`); BRVIT e BRVIX continuam sendo a mesma escala, e as atracações e a exclusão da
+  escala ficam na mesma chave. Ver [Viagens](modules/viagens.md).
 - **Omissão, transbordo e COD: a tela mostra o motivo da recusa (2026-10-28, sem migration, PR
   luccafwlog/vela#1085):** **Omitir escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e
   **Reverter para transbordo** recusados pelo banco mostram o motivo da recusa, pelo mesmo tradutor das
