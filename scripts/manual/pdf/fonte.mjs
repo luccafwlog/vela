@@ -191,12 +191,15 @@ export function capituloHtml(cap) {
   return { introducao, corpo, secoes }
 }
 
-// Link para outro capítulo (`06-importacao.md#62-…`) ou apêndice
-// (`ap-b-mensagens.md#viagens`) vira link interno do PDF.
+// Link para outro capítulo (`06-importacao.md#62-…`, ou só `19-….md`) ou
+// apêndice (`ap-b-mensagens.md#viagens`, ou só `ap-b-….md`) vira link
+// interno do PDF.
 function linksInternos(html) {
   return html
     .replace(/href="\d{2}-[\w-]+\.md#/g, 'href="#')
+    .replace(/href="(\d{2})-[\w-]+\.md"/g, (_, n) => `href="#cap-${Number(n)}"`)
     .replace(/href="ap-([a-z])-[\w-]+\.md#/g, (_, letra) => `href="#ap${letra.toUpperCase()}-`)
+    .replace(/href="ap-([a-z])-[\w-]+\.md"/g, (_, letra) => `href="#ap-${letra.toUpperCase()}"`)
 }
 
 // Markdown de um apêndice → { introducao, corpo }. Os títulos `## Assunto`

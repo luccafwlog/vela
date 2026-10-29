@@ -387,6 +387,8 @@ table.tab tr.grupo td {
 .abertura-cap .numero { font-size: 72pt; font-weight: 700; line-height: 0.85; color: var(--navy); }
 .abertura-cap .sobre { color: var(--gold-strong); font-weight: 700; font-size: 9pt; }
 .abertura-cap h1 { font-size: 26pt; color: var(--navy); line-height: 1.1; }
+/* A marca de página do apêndice (.pdf-alvo) se posiciona na abertura dele. */
+.abertura-apendice { position: relative; }
 .ficha-cap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
 .ficha-cap .fato { background: var(--panel); border-radius: 2mm; padding: 2.6mm 3mm; }
 ul.aprende { margin: 0; padding-left: 4.5mm; display: grid; gap: 1.2mm; }

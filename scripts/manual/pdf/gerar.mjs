@@ -138,8 +138,8 @@ function aberturaApendices(m) {
 
 function apendice(ap, { introducao, corpo }) {
   return `<section class="capitulo apendice" id="ap-${ap.letra}">
-  <div class="texto-corrido" style="page: ap${ap.letra}">${alvo(`ap-${ap.letra}`)}
-    <div class="abertura-cap abertura-apendice">
+  <div class="texto-corrido" style="page: ap${ap.letra}">
+    <div class="abertura-cap abertura-apendice">${alvo(`ap-${ap.letra}`)}
       <div class="numero">${ap.letra}</div>
       <div style="display:grid;gap:2mm"><div class="sobre">Apêndice ${ap.letra}</div><h1>${escapar(ap.titulo)}</h1></div>
     </div>
