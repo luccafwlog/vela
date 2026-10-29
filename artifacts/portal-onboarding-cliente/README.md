@@ -12,7 +12,7 @@ Cliente. Nada aqui é importado por `src/` nem muda o Portal.
 
 | Arquivo | O que é |
 |---|---|
-| [Tutorial_Portal_Fwlog.html](Tutorial_Portal_Fwlog.html) | Fonte do guia: 14 páginas A4 prontas para impressão. Abra a partir desta pasta do repositório, porque as fontes e as logos vêm de `public/`. |
+| [Tutorial_Portal_Fwlog.html](Tutorial_Portal_Fwlog.html) | Fonte do guia: 15 páginas A4 prontas para impressão. Abra a partir desta pasta do repositório, porque as fontes e as logos vêm de `public/`. |
 | [Tutorial_Portal_Fwlog.pdf](Tutorial_Portal_Fwlog.pdf) | O guia em PDF, para anexar ao e-mail ou imprimir. É gerado a partir do HTML. |
 | [gerar-pdf.mjs](gerar-pdf.mjs) | Gera o PDF e recusa página que transborda o A4, fonte ou logo que não carregou, rodapé ou numeração errada e qualquer menção ao sistema interno. |
 
@@ -28,16 +28,17 @@ specs só moram em `docs/spec/`:
 | 2 | Boas-vindas, menu do Portal, como o acesso funciona, sumário e primeiros passos |
 | 3 | Primeiro acesso pelo convite (48 horas, uso único, reenvio) |
 | 4 | Entrar com CNPJ e senha; Esqueci minha senha |
-| 5 | Painel e Chegadas e saídas |
-| 6 | BLs e Containers (só o próprio CNPJ, B/L depois do CE) |
+| 5 | Painel: cartões, Chegadas e saídas (datas de origem e de Vitória, Ver no mapa, Ver meus B/Ls) e avisos |
+| 6 | BLs e Containers: as duas abas (só o próprio CNPJ, B/L depois do CE), dias de uso, free time e devolução |
 | 7 | Desbloqueio de CE Mercante: requisitos, passos e prazo |
-| 8 | Faturas (só emitidas), situação e impressão |
-| 9 | Fatura consolidada: vários B/Ls numa fatura e um Pix, quem entra, Coberta e Refazer consolidada |
-| 10 | Pagamento por Pix (única forma de pagamento): QR, Copia e Cola, “em preparação” e baixa automática |
-| 11 | Demurrage (US$ fixo, R$ pelo câmbio do dia) e disputa |
-| 12 | Central de Informações e os e-mails que o cliente recebe |
-| 13 | Meu perfil: caixas de comunicados, endereço e e-mail de recuperação |
-| 14 | Contatos e o que fica fora do Portal |
+| 8 | Acompanhar a solicitação de desbloqueio: os quatro requisitos por B/L e as situações |
+| 9 | Faturas (só emitidas), situação e impressão |
+| 10 | Fatura consolidada: vários B/Ls numa fatura e um Pix, quem entra, Coberta e Refazer consolidada |
+| 11 | Pagamento por Pix (única forma de pagamento): QR, Copia e Cola, “em preparação” e baixa automática |
+| 12 | Demurrage (US$ fixo, R$ pelo câmbio do dia) e disputa |
+| 13 | Central de Informações e os e-mails que o cliente recebe |
+| 14 | Meu perfil: caixas de comunicados, endereço e e-mail de recuperação |
+| 15 | Contatos e o que fica fora do Portal |
 
 O guia é atemporal: não cita data de início nem navio. Cada página traz o
 desenho da tela com pontos numerados, um **passo a passo** curto ligado a esses
@@ -48,8 +49,10 @@ pagamento parcial, para não sugerir que a Fwlog o aceita.
 Para a equipe (o guia não traz esses avisos): as telas são desenhos
 esquemáticos, não capturas, e os dados são fictícios (Exemplo Comércio Ltda.,
 CNPJ `12.***.***/0001-90`, B/L `AURU1234567`, fatura `TX-2026-00421`,
-containers `EXMU…`, Invoice `DEM-2026-0057`). Datas e navios aparecem como
-barras cinza, para o guia não envelhecer. O QR Code do desenho é um padrão
+containers `EXMU…`, Invoice `DEM-2026-0057`). Nomes de navio e viagem, o
+número da solicitação de desbloqueio e a maioria das datas aparecem como barras
+cinza, para o guia não envelhecer; só a tabela Chegadas e saídas do Painel
+mostra datas de exemplo, porque a página explica como lê-las. O QR Code do desenho é um padrão
 decorativo, sem dados: nenhum app de banco o lê.
 
 ## Gerar o PDF
@@ -164,16 +167,17 @@ repositório na `staging` de 2026-10-28; nada foi observado em produção).
 
 ## Pontos a confirmar
 
-- **Aprovação visual** do responsável, como pede a identidade visual para
-  material novo. Aprovado o material, sai o “Rascunho para revisão” do rodapé
-  (e a conferência correspondente em `gerar-pdf.mjs`).
+- **Revisão da PR.** O conteúdo e o visual foram aprovados por quem pediu o
+  material (2026-10-29), página a página no artefato de revisão. Aprovada a
+  PR, sai o “Rascunho para revisão” do rodapé (e a conferência correspondente
+  em `gerar-pdf.mjs`).
 
 ## Verificação feita
 
-- `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: 14 páginas, sem
+- `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: 15 páginas, sem
   transbordo, fontes e logos carregadas, rodapé e numeração certos em todas,
   sem menção ao sistema interno (**Runtime**, Playwright 1.64.1 do repositório
-  com o Chromium 1243 do ambiente de nuvem, 2026-10-28). Numa cópia com uma
+  com o Chromium 1243 do ambiente de nuvem, 2026-10-29). Numa cópia com uma
   página estourada, a numeração errada e o nome interno no texto, o script
   apontou os três problemas, saiu com erro e não regravou o PDF.
 - Revisão visual página a página em capturas do HTML e do PDF rasterizado
