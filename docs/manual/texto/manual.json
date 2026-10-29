@@ -3,7 +3,7 @@
   "sobre": "Uso interno das equipes",
   "subtitulo": "Como o Vela funciona e o que cada equipe faz, do cadastro da Viagem até a carga liberada.",
   "versao": "0.3",
-  "situacao": "Parte III para aprovação",
+  "situacao": "Partes II e IV (lote 4) para aprovação",
   "descreve": "29/10/2026",
   "partes": [
     {
@@ -160,6 +160,63 @@
           "algumas": [],
           "leitura": "6 minutos",
           "antes": "Antes, leia o capítulo 7 (A ficha do B/L)."
+        },
+        {
+          "numero": 9,
+          "titulo": "Containers e Demurrage",
+          "resumo": "As datas de cada container e a Demurrage do lado da operação",
+          "arquivo": "09-containers-e-demurrage.md",
+          "equipes": [
+            "Equipamentos"
+          ],
+          "algumas": [],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 7."
+        },
+        {
+          "numero": 10,
+          "titulo": "Veículos, Vazios e Granito",
+          "resumo": "Veículos, Vazios IMP e EXP, Embarque de vazios, Locais e Granito",
+          "arquivo": "10-veiculos-vazios-granito.md",
+          "equipes": [
+            "Equipamentos",
+            "Operações"
+          ],
+          "algumas": [],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 4."
+        },
+        {
+          "numero": 11,
+          "titulo": "ADR de Saída",
+          "resumo": "O fechamento da escala em cada terminal, seção por seção",
+          "arquivo": "11-adr-de-saida.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "6 minutos",
+          "antes": "Antes, leia o capítulo 4."
+        },
+        {
+          "numero": 12,
+          "titulo": "Desbloqueio de CE",
+          "resumo": "Analisar os pedidos do Cliente e liberar o CE",
+          "arquivo": "12-desbloqueio-de-ce.md",
+          "equipes": [
+            "Documentação"
+          ],
+          "algumas": [
+            {
+              "texto": "Gerir o Desbloqueio de CE",
+              "equipes": [
+                "Documentação",
+                "Administrativo"
+              ]
+            }
+          ],
+          "leitura": "8 minutos",
+          "antes": "Antes, leia o capítulo 15."
         }
       ]
     },
@@ -251,7 +308,7 @@
       "numero": "4",
       "romano": "IV",
       "titulo": "O sistema sozinho",
-      "texto": "O que o Vela faz sem ninguém pedir: o que muda depois de cada ação e as rotinas que rodam por horário.",
+      "texto": "O que o Vela faz sem ninguém pedir: o que muda depois de cada ação, as rotinas que rodam por horário e os alertas que avisam a equipe.",
       "capitulos": [
         {
           "numero": 18,
@@ -276,6 +333,18 @@
           "algumas": [],
           "leitura": "6 minutos",
           "antes": "Antes, leia o capítulo 18."
+        },
+        {
+          "numero": 20,
+          "titulo": "Alertas e Notificações Internas",
+          "resumo": "Cada alerta: quando abre, quem recebe, o que fazer e quando fecha",
+          "arquivo": "20-alertas.md",
+          "equipes": [
+            "Todas as equipes"
+          ],
+          "algumas": [],
+          "leitura": "12 minutos",
+          "antes": "Antes, leia o capítulo 1."
         }
       ]
     }
