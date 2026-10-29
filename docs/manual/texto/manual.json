@@ -1,10 +1,10 @@
 {
   "titulo": "Manual do Operador",
   "sobre": "Uso interno das equipes",
-  "subtitulo": "Como o Vela opera e o que cada equipe faz para levar uma Viagem do cadastro até a carga liberada, com as situações do dia a dia e o que o sistema faz sozinho.",
-  "versao": "0.2",
-  "situacao": "capítulo-piloto para aprovação",
-  "descreve": "28/10/2026",
+  "subtitulo": "Como o Vela funciona e o que cada equipe faz, do cadastro da Viagem até a carga liberada.",
+  "versao": "0.3",
+  "situacao": "capítulo-piloto no padrão enxuto, para aprovação",
+  "descreve": "29/10/2026",
   "partes": [
     {
       "numero": "2",
@@ -15,7 +15,7 @@
         {
           "numero": 4,
           "titulo": "Viagens e Escalas",
-          "resumo": "Cadastrar, datas do navio, atracação, omissão, transbordo e COD, cancelar",
+          "resumo": "Cadastrar, escalas, terminais, datas do navio, omissão e COD, cancelar",
           "arquivo": "04-viagens-escalas.md",
           "equipes": [
             "Todas as equipes"
@@ -35,20 +35,14 @@
               ]
             }
           ],
-          "leitura": "30 minutos",
-          "antes": "Antes, leia o capítulo 3 (o caminho de uma Viagem).",
-          "matriz": [
-            "Op 4"
-          ]
+          "leitura": "10 minutos",
+          "antes": "Antes, leia o capítulo 3 (o caminho de uma Viagem)."
         },
         {
           "numero": 5,
           "titulo": "Programação",
           "resumo": "Chegadas e Saídas, Line Up, Tela TV e cadastros de apoio",
           "arquivo": "05-programacao.md",
-          "matriz": [
-            "Op 4"
-          ],
           "equipes": [
             "Todas as equipes"
           ],
@@ -68,9 +62,6 @@
           "titulo": "Importação da documentação",
           "resumo": "Arquivo de B/L, carga solta, CE Mercante, Manifesto e Baplie",
           "arquivo": "06-importacao.md",
-          "matriz": [
-            "Op 5"
-          ],
           "equipes": [
             "Todas as equipes"
           ],

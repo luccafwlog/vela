@@ -110,12 +110,9 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(3, dlg.getByLabel('Armador'), clip, { posicao: 'campo' }),
-          await marca(4, dlg.getByLabel('Navio'), clip, { posicao: 'campo' }),
-          await marca(5, dlg.getByLabel('IMO'), clip, { posicao: 'campo' }),
-          await marca(6, dlg.getByLabel('Numero da viagem'), clip, { posicao: 'campo' }),
-          await marca(7, chave, clip, { posicao: 'esquerda' }),
-          await marca(8, dlg.getByRole('button', { name: 'Cadastrar viagem' }), clip, { destaque: true }),
+          await marca(2, dlg.getByLabel('Navio'), clip, { posicao: 'campo' }),
+          await marca(3, chave, clip, { posicao: 'esquerda' }),
+          await marca(4, dlg.getByRole('button', { name: 'Cadastrar viagem' }), clip, { destaque: true }),
         ],
         async depois() {
           await dlg.getByRole('button', { name: 'Cadastrar viagem' }).click()
@@ -197,8 +194,7 @@ export const CAPTURAS = [
         marks: [
           await marca(2, terminal, clip, { posicao: 'campo' }),
           await marca(3, dlg.getByLabel(`ETB ${e.terminal}`, { exact: true }), clip, { posicao: 'campo' }),
-          await marca(4, dlg.getByLabel(`ETD ${e.terminal}`, { exact: true }), clip, { posicao: 'campo' }),
-          await marca(5, salvar, clip, { destaque: true }),
+          await marca(4, salvar, clip, { destaque: true }),
         ],
         async depois() {
           await salvar.click()
@@ -591,9 +587,8 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(1, bloco.getByRole('button', { name: /Ver B\/Ls/ }).first(), clip, { posicao: 'esquerda' }),
-          await marca(2, bloco.getByRole('button', { name: /Editar ETD previsto/ }).first(), clip, { posicao: 'direita' }),
-          await marca(3, informar, clip, { posicao: 'direita' }),
+          await marca(1, bloco.getByRole('button', { name: /Editar ETD previsto/ }).first(), clip, { posicao: 'direita' }),
+          await marca(1, informar, clip, { posicao: 'direita' }),
         ],
       }
     },
@@ -611,8 +606,8 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(1, dlg.getByLabel(/ATD/).first(), clip, { posicao: 'campo' }),
-          await marca(2, dlg.getByRole('button', { name: 'Salvar' }), clip, { destaque: true }),
+          await marca(2, dlg.getByLabel(/ATD/).first(), clip, { posicao: 'campo' }),
+          await marca(3, dlg.getByRole('button', { name: 'Salvar' }), clip, { destaque: true }),
         ],
         async depois() {
           await page.keyboard.press('Escape')
@@ -643,10 +638,9 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(3, transbordo, clip, { posicao: 'campo' }),
-          await marca(4, dlg.getByLabel(/Navio de Transbordo/), clip, { posicao: 'campo' }),
-          await marca(5, dlg.getByLabel(/Motivo/), clip, { posicao: 'campo' }),
-          await marca(6, botao, clip, { destaque: true }),
+          await marca(2, transbordo, clip, { posicao: 'campo' }),
+          await marca(3, dlg.getByLabel(/Navio de Transbordo/), clip, { posicao: 'campo' }),
+          await marca(4, botao, clip, { destaque: true }),
         ],
         async depois() {
           await botao.click()
@@ -664,7 +658,7 @@ export const CAPTURAS = [
       const clip = await recorteDoElemento(dlg)
       return {
         clip,
-        marks: [await marca(7, confirmar, clip, { destaque: true })],
+        marks: [await marca(4, confirmar, clip, { destaque: true })],
         async depois() {
           await confirmar.click()
           await page.waitForLoadState('networkidle')

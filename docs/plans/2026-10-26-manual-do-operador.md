@@ -199,7 +199,35 @@ Quando o código e um documento discordam, vale a classificação de
 O operador nunca lê no manual uma regra que o sistema não cumpre. Um defeito
 também não vira regra só porque está no código.
 
+### Padrão enxuto: o manual é uma aula
+
+Decisão do dono em 2026-10-29, depois de ler o piloto de 108 páginas. O manual
+apresenta o Vela como alguém que dá uma aula sobre o sistema: escolhe o que
+detalhar e o que omitir. Cada frase passa no teste "a pessoa precisa disto para
+fazer o trabalho, e a tela não diz?".
+
+- Meia página a uma página por objetivo: quem faz, o conceito quando não é
+  óbvio, de 3 a 5 passos, uma imagem e no máximo dois ou três pontos de
+  atenção (o que causa erro ou retrabalho).
+- Fica de fora: o passo que a tela já explica, as mensagens de erro que a
+  própria tela explica (sem quadros "Aconteceu…"), o "por que é assim" que não
+  muda o trabalho, o que o sistema faz por dentro e as situações raras.
+  Situação difícil com caminho que ninguém adivinha entra como seção curta.
+- Cada coisa é explicada uma vez, no lugar dela.
+- A matriz de cobertura vira a referência interna completa: o manual não tem
+  mais a obrigação de escrever cada regra (o `manual:check` deixou de exigir).
+- Um manual único, sem volumes por equipe; cada capítulo diz quem o usa.
+- Tamanho esperado: o piloto (capítulos 4 a 6) em 30 a 40 páginas, e o manual
+  inteiro em 150 a 200.
+
+O guia de escrita está em [`docs/manual/texto/README.md`](../manual/texto/README.md).
+As seções abaixo sobre objetivos, destinos das regras e modelo de oito partes
+guardam o que valia até 2026-10-28; onde discordam deste padrão, vale este.
+
 ### O manual parte do objetivo de quem usa
+
+> **Situação atual (2026-10-29):** os objetivos ("Quero fazer…") continuam;
+> os quadros "Aconteceu…" saíram pelo [padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula).
 
 Decisão do dono em 2026-10-28. O manual explica exatamente como o Vela opera e
 o que o usuário faz para alcançar cada objetivo e cumprir cada
@@ -223,6 +251,10 @@ A meta é que a maior parte das situações reais tenha resposta no manual, de
 forma explicativa, e não só as regras listadas.
 
 ### Toda regra tem um lugar, mas nem toda regra vai no corpo do texto
+
+> **Situação atual (2026-10-29):** a matriz continua dando um lugar a cada
+> regra, mas como referência interna; o texto escolhe o que ensinar
+> ([padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula)).
 
 O sistema trata muitos casos de borda. Pôr todos no corpo do texto tornaria o
 manual ilegível. Cada regra mapeada recebe um destino:
@@ -252,6 +284,10 @@ manual ilegível. Cada regra mapeada recebe um destino:
   como.
 
 ### Modelo de cada procedimento
+
+> **Situação atual (2026-10-29):** substituído pelo
+> [padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula): quem faz, conceito,
+> passos, imagem e atenção.
 
 Todo procedimento do manual segue a mesma forma:
 
@@ -451,10 +487,8 @@ responder e não é fonte: o manual novo se pauta pelo código.
 
 ### Régua de conteúdo
 
-- Toda regra do mapeamento escrita no destino que recebeu.
-- Cada procedimento no [modelo de oito partes](#modelo-de-cada-procedimento),
-  com o que precisa existir antes, o que o sistema faz sozinho depois e o
-  porquê.
+- Cada seção no [padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula): só o que
+  a pessoa precisa e a tela não diz.
 - As telas são achadas pelo caminho do menu e das abas, como o operador
   navega, não pelo endereço da página.
 - Recursos de consulta: rotina diária por equipe, checklists, o quadro "a quem
@@ -465,9 +499,7 @@ responder e não é fonte: o manual novo se pauta pelo código.
 - Cada rótulo, caminho de tela e mensagem conferido no código ou na captura.
 - Um exemplo contínuo: o mesmo navio, a mesma Viagem, o mesmo Cliente e os
   mesmos B/Ls fictícios atravessam o manual inteiro.
-- Cada capítulo abre com os objetivos que resolve e traz as situações comuns
-  do catálogo ("Aconteceu…"), cada uma com o que o sistema faz, a regra geral
-  e o que o usuário faz.
+- Cada capítulo abre com os objetivos que resolve.
 - Fim de capítulo com resumo e um exercício sobre o cenário.
 
 ## Escolhas de rotina (podem ser revistas)

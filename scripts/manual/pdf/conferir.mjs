@@ -1,9 +1,8 @@
 // Confere o texto do Manual do Operador (docs/manual/texto):
 // - linguagem: nenhum termo técnico proibido no texto impresso, nenhuma marca
 //   "[confirmar]" e nenhuma imagem sem captura definida;
-// - cobertura: toda regra da matriz destinada aos capítulos do manifesto está
-//   citada no texto (`<!-- regras: … -->`) ou adiada para outro capítulo
-//   (`<!-- adiado: … → capítulo N -->`), e toda citação existe na matriz.
+// - citações: regra citada num comentário (`<!-- regras: … -->`) existe na
+//   matriz. O texto não precisa citar todas (padrão enxuto, 2026-10-29).
 //
 // Uso: npm run manual:check
 import fs from 'node:fs'
@@ -62,20 +61,15 @@ for (const cap of capitulos) {
   for (const [id, destino] of c.adiadas) adiadas.set(id, destino)
 }
 
+// Desde 2026-10-29 o manual é enxuto (plano, "Padrão enxuto"): a matriz é a
+// referência interna completa e o texto não precisa escrever cada regra.
+// Citação que sobrar no texto ainda tem de existir na matriz.
 const matriz = regrasDaMatriz()
-const destinos = new Set(capitulos.flatMap((c) => c.matriz || []))
 for (const id of [...escritas.keys(), ...adiadas.keys()]) {
   if (!matriz.has(id)) erros.push(`regra citada não existe na matriz: ${id}`)
 }
-const devidas = [...matriz].filter(([, r]) => r.destinos.some((d) => destinos.has(d)))
-const semLugar = devidas.filter(([id]) => !escritas.has(id) && !adiadas.has(id)).map(([id]) => id)
-if (semLugar.length) erros.push(`${semLugar.length} regras de ${[...destinos].join(', ')} sem lugar no texto: ${semLugar.join(' ')}`)
-
-const escritasDevidas = devidas.filter(([id]) => escritas.has(id)).length
-const adiadasDevidas = devidas.filter(([id]) => adiadas.has(id)).length
-console.log(`Regras de ${[...destinos].join(', ') || 'nenhum destino'}: ${devidas.length}; escritas ${escritasDevidas}; adiadas para outro capítulo ${adiadasDevidas}.`)
 if (erros.length) {
   console.error(erros.join('\n'))
   process.exit(1)
 }
-console.log('Texto do manual conferido: linguagem, capturas e regras.')
+console.log('Texto do manual conferido: linguagem e capturas.')
