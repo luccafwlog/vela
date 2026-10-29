@@ -209,3 +209,10 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil) davam
   a exclusão de Cliente ao Administrativo sem dizer que a Trava de exclusão
   recusa todo Cliente com CNPJ, que é obrigatório; Cliente se desativa (ACE-088).
+- **Correções de 2026-10-29 (PRs luccafwlog/vela#1096 a #1102):** troca do
+  envio real que falha agora avisa (CLI-104); com Revisão pendente, a
+  Validação oferece **Resolver na Revisão** e **Recalcular selecionados**
+  deixa o B/L de fora; a Conciliação tem o mesmo nome e cor em todo lugar;
+  **Definir/Trocar ROE manual** só no B/L que emite a Invoice; **Cancelar
+  pedido** apagado depois de **Reconferir CE** em B/L já enviado à ZPT
+  (migration `510`); recusas com acento (migration `509`).

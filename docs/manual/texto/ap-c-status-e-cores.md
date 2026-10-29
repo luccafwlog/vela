@@ -9,13 +9,13 @@ Cada situação do Vela tem um nome e uma cor, e as cores seguem a regra de [1.4
 | **Cancelada** | vermelho | **Cancelar viagem**, pelo {{Administrativo}} ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)). |
 | **Faturamento encerrado** (selo) | verde | Todo B/L ativo da Viagem está pago ou isento das Taxas Locais. |
 
-A **Conciliação** da Viagem muda de cor conforme o lugar ([4.5](04-viagens-escalas.md#45-acompanhar-a-viagem)):
+A **Conciliação** da Viagem tem o mesmo nome e a mesma cor nos cartões, na lista e na ficha ([4.5](04-viagens-escalas.md#45-acompanhar-a-viagem)):
 
 | Na tela | Cor | O que leva a ela |
 |---|---|---|
-| **Divergente** | vermelho nos cartões das Viagens e na ficha; âmbar na lista | O Baplie e os B/Ls não batem ([6.8](06-importacao.md#68-resolver-as-divergências-entre-baplie-e-bl)). |
+| **Divergente** | vermelho | O Baplie e os B/Ls não batem ([6.8](06-importacao.md#68-resolver-as-divergências-entre-baplie-e-bl)). |
 | **Pendente** | âmbar | Falta CE Mercante em algum B/L. |
-| **Conciliado** (na lista, **Conciliada**) | verde nos cartões das Viagens; sem cor na ficha e na lista | Nada falta. |
+| **Conciliada** | ponto verde nos cartões das Viagens; sem cor na lista e na ficha | Nada falta. |
 
 ## Escala
 

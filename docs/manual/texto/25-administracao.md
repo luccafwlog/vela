@@ -127,7 +127,7 @@ Ninguém altera nem apaga uma linha. O Vela guarda cinco anos: as linhas mais an
 Todo alerta avisa no sino as pessoas ativas da equipe dele ([20.3](20-alertas.md#203-acompanhar-o-sino)); alguns tipos avisam também o {{Financeiro}} ou o {{Administrativo}}. Quando ninguém dessas equipes está ativo, o alerta crítico vai ao {{Administrativo}}, com o selo **Entrega alternativa**. O alerta normal, e o crítico quando nem o {{Administrativo}} tem alguém ativo, não chegam a ninguém e ficam registrados nesta aba. O alerta em si continua na fila de **Alertas**: o que falhou foi o aviso.
 
 1. Em **Admin**, abra **Falhas de entrega de alertas**.
-2. Leia o **Setor sem destinatário** e o **Motivo**.
+2. Leia o **Setor sem destinatário** e o **Motivo**: "Ninguém ativo no setor do alerta." ou "Ninguém ativo no setor do alerta nem no Administrativo.".
 3. Em **Usuários**, ative ou crie alguém dessa equipe ([25.2](#252-criar-um-usuário) e [25.5](#255-desativar-ou-reativar-um-usuário)).
 4. Use **Abrir alerta** para ir à pendência e tratá-la.
 
@@ -165,5 +165,5 @@ A marca Dev é dada pela equipe de desenvolvimento, nunca pela tela; na lista de
 O resto não tem tela: a cobrança do Pix pelo Itaú, a conta que dá a baixa automática e o calendário de feriados de Vitória/ES ficam com o suporte técnico. Quando faltam os feriados do ano seguinte, abre um alerta ([20.9](20-alertas.md#209-demurrage)). A aba **Sistema** da Administração só mostra a versão do Vela, o ambiente e as datas da última Viagem criada e da última fatura emitida.
 
 ::: atencao
-- Depois de ligar ou desligar o envio real, confira se o bloco **Canal de envio** passou a **Envio real** ou a **Redirecionado ao suporte**: se a troca falha, a tela não avisa.
+- Se a troca do envio real falha, o bloco **Canal de envio** diz o motivo e continua mostrando o estado de verdade, **Envio real** ou **Redirecionado ao suporte**.
 :::

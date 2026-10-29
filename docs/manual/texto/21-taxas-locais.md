@@ -66,7 +66,7 @@ A **Validação** é a fila dos B/Ls que ainda não viraram fatura. Ela fica em 
 | Motivo | Quer dizer | Ação da linha |
 |---|---|---|
 | **Sem cliente vinculado** | O B/L não tem Cliente conferido. | **Vincular na Revisão** ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)) |
-| **Cálculo sem linhas**, **Taxa em revisão** ou **Cálculo incompleto** | O cálculo não fechou, ou o B/L tem pendência na Revisão (a faixa diz "Revisão pendente: …"). | **Recalcular**, depois de corrigir a causa ([21.4](#214-resolver-uma-taxa-em-revisão)); a pendência da Revisão se resolve lá (capítulo 8). |
+| **Cálculo sem linhas**, **Taxa em revisão** ou **Cálculo incompleto** | O cálculo não fechou, ou o B/L tem pendência na Revisão (a faixa diz "Revisão pendente: …"). | **Recalcular**, depois de corrigir a causa ([21.4](#214-resolver-uma-taxa-em-revisão)). Com pendência na Revisão, a linha traz **Resolver na Revisão**, que abre o B/L na Revisão (capítulo 8): ao gravar lá, o B/L é recalculado sozinho. |
 | **Aguardando CE Mercante** | Falta o CE. | **Cadastrar CE** só abre a ficha do B/L; o CE entra pela planilha de CE ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)) |
 | **Conta do Portal não ativa** | O Cliente não tem Portal pronto nem Liberação de faturamento. | **Abrir Cliente** ([14.5](14-portal-a-conta.md#145-o-que-deixa-o-portal-pronto-para-faturar)) |
 | **Pronto para emitir** | Nada segura, e a fatura ainda não saiu sozinha. | **Emitir** ([22.2](22-a-fatura.md#222-como-a-fatura-sai)) |
@@ -115,7 +115,7 @@ Depois de corrigir:
 A correção na ficha do B/L (container, peso, POD) já recalcula ao gravar.
 
 ::: atencao
-O B/L faturado não é recalculado, e a Validação o tira da seleção. Corrija o dado do B/L: a fatura é corrigida sozinha ([22.7](22-a-fatura.md#227-quando-o-bl-muda-depois-da-fatura)).
+O B/L faturado não é recalculado, e a Validação o tira da seleção. **Recalcular selecionados** também deixa de fora o B/L com Revisão pendente e diz quantos ficaram fora: resolva-os na Revisão. Corrija o dado do B/L: a fatura é corrigida sozinha ([22.7](22-a-fatura.md#227-quando-o-bl-muda-depois-da-fatura)).
 :::
 
 ## 21.5 Alterar, excluir ou isentar uma taxa do B/L

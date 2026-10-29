@@ -7,7 +7,7 @@ Quando o Vela recusa uma ação, a mensagem quase sempre diz o motivo com as pal
 | "Credenciais inválidas ou usuário sem permissão ativa." | O e-mail ou a senha não conferem. | Confira o e-mail. Se esqueceu a senha, peça uma nova ao {{Administrativo}} ([25.4](25-administracao.md#254-redefinir-a-senha-ou-corrigir-o-e-mail)). |
 | "Seu acesso ao Vela está desativado ou ainda não foi liberado. Procure o Administrativo." ou **Acesso ainda não liberado** | O seu usuário existe, mas não está ativo no Vela. | Peça ao {{Administrativo}} ([1.6](01-o-vela.md#16-quando-algo-dá-errado) e [25.5](25-administracao.md#255-desativar-ou-reativar-um-usuário)). |
 | "Não foi possível validar a segurança. Atualize a verificação e tente novamente." | A verificação de segurança da tela de entrada venceu ou foi recusada. | Refaça a verificação: cada tentativa de entrar pede uma nova. |
-| "Sua sessao expirou. Entre novamente para continuar." | A sua sessão não vale mais: venceu, ou a sua senha, o seu e-mail ou o seu acesso mudaram. No Portal, o Cliente vê a mesma frase também quando foi desativado no Vela. | Entre de novo e refaça o que não foi gravado ([1.1](01-o-vela.md#11-entrar-e-sair); no Portal, [17.2](17-suporte-ao-cliente.md#172-o-cliente-não-consegue-entrar)). |
+| "Sua sessão expirou. Entre novamente para continuar." | A sua sessão não vale mais: venceu, ou a sua senha, o seu e-mail ou o seu acesso mudaram. No Portal, o Cliente vê a mesma frase também quando foi desativado no Vela. | Entre de novo e refaça o que não foi gravado ([1.1](01-o-vela.md#11-entrar-e-sair); no Portal, [17.2](17-suporte-ao-cliente.md#172-o-cliente-não-consegue-entrar)). |
 
 ## Telas e conexão
 
@@ -19,7 +19,7 @@ Quando o Vela recusa uma ação, a mensagem quase sempre diz o motivo com as pal
 |---|---|---|
 | "Somente o Administrativo …", como "Somente o Administrativo cancela viagem." | A ação é reservada a outra equipe. | Peça a quem pode ([2.3](02-equipes-e-permissoes.md#23-a-quem-passar-cada-pedido)). |
 | "Somente Operações e o Administrativo removem atracação." | Tirar um terminal de todas as frentes da escala remove a Atracação dele. | Peça a {{Operações}} ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)). |
-| "Sem permissao para esta acao. Solicite acesso administrativo." | O Vela recusou pela equipe, sem uma frase própria para o caso. Não quer dizer que você precisa ser do {{Administrativo}}. | Veja em [2.2](02-equipes-e-permissoes.md#22-o-que-é-reservado-a-algumas-equipes) quem faz a ação e passe o pedido. |
+| "Sem permissão para esta ação." | O Vela recusou pela equipe, sem uma frase própria para o caso. | Veja em [2.2](02-equipes-e-permissoes.md#22-o-que-é-reservado-a-algumas-equipes) quem faz a ação e passe o pedido. |
 
 ## Duas pessoas ao mesmo tempo
 
@@ -27,7 +27,7 @@ Quando o Vela recusa uma ação, a mensagem quase sempre diz o motivo com as pal
 |---|---|---|
 | "Outro usuário alterou este B/L. A fila foi recarregada; confira os dados e salve de novo." ou "Outro usuário alterou este grupo. A fila foi recarregada; confira e tente de novo." | Na Revisão, outra pessoa mexeu no mesmo B/L ou grupo antes de você; nada foi gravado. | Confira a fila: o caso pode já estar resolvido ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)). |
 | "Preview obsoleto para … no B/L …: recarregue e reconfira." | Na planilha de datas, alguém mudou as datas do container depois da prévia; nada do arquivo foi gravado. | Escolha o arquivo de novo e confira a prévia ([9.3](09-containers-e-demurrage.md#93-importar-as-datas-por-planilha)). |
-| "Conflito de concorrencia. Tente novamente." ou "Outra gravação estava usando os mesmos registros. Tente novamente." | Duas gravações nos mesmos registros ao mesmo tempo; a sua não entrou. | Tente de novo. |
+| "Outra pessoa alterou o mesmo registro ao mesmo tempo. Tente novamente." ou "Outra gravação estava usando os mesmos registros. Tente novamente." | Duas gravações nos mesmos registros ao mesmo tempo; a sua não entrou. | Tente de novo. |
 
 ## Importação
 
@@ -64,7 +64,7 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 | "ADR de Saída fechado", "Granito com CE Mercante ou faturado", "comunicado enviado ao cliente" ou "viagem cancelada fica retida" | A Viagem já tem algo oficial ligado a ela, ou já foi cancelada. | Não se exclui: cancele a Viagem; a cancelada fica no Vela ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)). |
 | "vinculado a …", como "vinculado a pedido de Desbloqueio de CE" | Outro registro depende deste. | Resolva o vínculo ou cancele em vez de excluir. |
 | "Não é possível excluir esta escala: existem B/Ls vinculados." | A escala tem B/L para aquele porto, mesmo cancelado. | Se o navio só deixou de ir ao porto, registre a omissão ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)). |
-| "cliente com CNPJ: desative em vez de excluir", "Esta tarifa já foi usada (ou já está em vigor): desative em vez de excluir.", "Registro referenciado nao existe ou ainda esta em uso." ou "Este local ainda está em uso em outros registros e não pode ser excluído." | O cadastro já entrou num cálculo, está em vigor ou outro registro depende dele; Cliente nunca se exclui. | Peça ao {{Administrativo}} que o desative ([9.7](09-containers-e-demurrage.md#97-cadastrar-tarifas-e-acordos-de-demurrage), [10.7](10-veiculos-vazios-granito.md#107-cadastrar-depots-terminais-e-serviços), [13.10](13-cadastro-do-cliente.md#1310-desativar-ou-reativar-um-cliente) e capítulo 21). |
+| "cliente com CNPJ: desative em vez de excluir", "Esta tarifa já foi usada (ou já está em vigor): desative em vez de excluir.", "O registro vinculado não existe mais ou ainda está em uso." ou "Este local ainda está em uso em outros registros e não pode ser excluído." | O cadastro já entrou num cálculo, está em vigor ou outro registro depende dele; Cliente nunca se exclui. | Peça ao {{Administrativo}} que o desative ([9.7](09-containers-e-demurrage.md#97-cadastrar-tarifas-e-acordos-de-demurrage), [10.7](10-veiculos-vazios-granito.md#107-cadastrar-depots-terminais-e-serviços), [13.10](13-cadastro-do-cliente.md#1310-desativar-ou-reativar-um-cliente) e capítulo 21). |
 | "Nada foi excluído: você não tem permissão para excluir este registro, ou ele já não existe." | Ou a exclusão não é da sua equipe, ou outra pessoa já excluiu. | Recarregue a lista; se o registro continua lá, peça ao {{Administrativo}}. |
 | "A Viagem tem fatura viva ou baixa: …. Resolva cada B/L antes de cancelar a Viagem." | Algum B/L da Viagem tem fatura ou pagamento. | [4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir) e capítulos 22 a 24 |
 | "O cliente não pode ser desativado: …. O Financeiro quita ou cancela antes." | O Cliente tem fatura, valor a receber ou Invoice de Demurrage em aberto. | [13.10](13-cadastro-do-cliente.md#1310-desativar-ou-reativar-um-cliente) |
@@ -111,5 +111,5 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 | Mensagem | O que quer dizer | O que fazer |
 |---|---|---|
 | "O sistema recusou a operação por uma regra de negócio.", "Operação bloqueada por uma pendência do B/L ou da Viagem." ou "A operação não é possível no estado atual do registro." | O Vela recusou, mas o motivo veio num formato que a tela não mostra. | Avise o suporte técnico com a tela, a hora e a versão do Vela ([1.6](01-o-vela.md#16-quando-algo-dá-errado)). |
-| "Registro nao encontrado." | O registro não existe mais: foi excluído, ou o link é antigo. | Recarregue a lista e procure de novo. |
+| "Registro não encontrado." | O registro não existe mais: foi excluído, ou o link é antigo. | Recarregue a lista e procure de novo. |
 | "Falha inesperada. Tente novamente." ou "Não foi possível concluir a operação. Tente novamente." | A ação falhou sem um motivo conhecido. | Tente de novo. Se repetir, avise o suporte técnico. |

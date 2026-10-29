@@ -166,7 +166,7 @@ O Cliente só cancela a própria solicitação no rascunho ou na correção pedi
 Os B/Ls ficam livres para uma nova solicitação. O Cliente vê a solicitação cancelada, com o motivo, mas não recebe aviso no sino nem por e-mail.
 
 ::: atencao
-Na **Documentação validada**, **Cancelar pedido** não aparece; com algum B/L já exportado para a ZPT, ele fica apagado.
+Na **Documentação validada**, **Cancelar pedido** não aparece; com algum B/L já exportado para a ZPT, ele fica apagado, mesmo que o B/L tenha voltado à fila por **Reconferir CE** ("A solicitação não pode ser cancelada depois de exportada para a ZPT.").
 :::
 
 ## 12.10 Quando algo muda depois do pedido

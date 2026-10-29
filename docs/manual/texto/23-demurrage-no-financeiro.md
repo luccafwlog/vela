@@ -80,7 +80,7 @@ No mesmo bloco, **Trocar ROE manual…** e **Tirar ROE manual…** mudam o câmb
 Para devolver ao câmbio do dia uma Invoice já emitida com ROE manual, use **Tirar ROE manual…** no detalhe dela, com motivo.
 
 ::: atencao
-- Quando B/Ls do mesmo Cliente na mesma Viagem dividem containers, a Invoice sai pelo B/L de menor número ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)) e só o ROE manual dele vale; o dos outros B/Ls do grupo é ignorado, mesmo que a ficha deles o mostre. Ponha o câmbio nesse B/L.
+- Quando B/Ls do mesmo Cliente na mesma Viagem dividem containers, a Invoice sai pelo B/L de menor número ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)) e só o ROE manual dele vale. Na ficha dos outros B/Ls do grupo, **Definir** e **Trocar ROE manual…** não aparecem: o bloco diz qual B/L emite a Invoice, com o link para ele. Ponha o câmbio lá.
 - Para uma Invoice já emitida, o ROE manual do B/L só entra se ela for cancelada e gerada de novo ([23.9](#239-cancelar-uma-invoice-e-gerar-outra)).
 :::
 
