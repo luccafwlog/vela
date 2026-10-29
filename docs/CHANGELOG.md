@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Troca da chave Envio real que falha agora avisa (2026-10-29, sem migration):** em **Clientes ›
+  Comunicação**, a recusa de **Envio real ligado/desligado** depois da confirmação sumia sem mensagem e
+  a chave continuava como estava. O bloco **Canal de envio** passa a mostrar o motivo do servidor (ou
+  "Não foi possível trocar a chave de envio. Tente novamente." quando não há resposta) e relê a chave
+  depois de toda tentativa, para não mostrar o estado anterior se a gravação chegou a acontecer.
 - **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
   programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
   histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na
