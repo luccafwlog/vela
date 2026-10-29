@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Chegadas e Saídas: data com hora, escala sem data e Viagem cancelada (2026-10-29, sem migration;
+  revisão da PR luccafwlog/vela#1084):** na edição, a data gravada com hora pela janela da escala aparecia
+  em branco no campo; agora aparece o dia, e salvar o mesmo dia mantém a hora. Salvar outro porto não
+  retira mais, sem confirmação, a escala de chegada que já estava sem data (Administrativo). **Adicionar
+  navio** com o VOY e o navio de uma Viagem cancelada recusa sem gravar nada ("…cancelada. Reative-a em
+  Viagens…"), e o aviso de sucesso diz quando a Viagem já existia. Ver
+  [Chegadas e Saídas](modules/chegadas-saidas.md).
 - **Viagens: recusa da omissão e Conciliação sem a contagem (2026-10-29, sem migration; revisão da
   PR luccafwlog/vela#1084):** na janela **Omitir escala**, voltar depois de uma recusa e confirmar de novo
   não repete a recusa anterior na confirmação (ela continua no formulário para orientar a correção). A
