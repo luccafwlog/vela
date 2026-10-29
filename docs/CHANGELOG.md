@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Motivo do bloqueio legível no alerta de efeito de importação (2026-10-29, sem migration):** em
+  `/alertas`, **Efeito de importação bloqueado** deixa de mostrar o erro cru do banco (ex.: `null value
+  in column "customer_id"…`): a linha diz o passo, o registro, o motivo em linguagem de operação e
+  "Corrija a causa e use Reprocessar."; o texto técnico fica recolhido em **Detalhe técnico**, também
+  no diálogo do Reprocessar. Regra em [Manifesto e EDI, item 20](modules/manifesto-edi.md).
 - **Recalcular selecionados deixa de fora B/L com Revisão pendente (2026-10-29, sem migration):** em
   **Taxas Locais › Validação**, o lote passa a seguir a regra do botão da linha: B/Ls com Revisão
   pendente (fora a do Portal) não são recalculados, aparecem como bloqueados no diálogo e o aviso diz

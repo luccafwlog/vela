@@ -28,6 +28,7 @@ import {
   consigneesNearEta,
   hasNearEtaMark,
   getEffectiveAlertType,
+  importEffectBlockedMessage,
   importEffectRetryTarget,
   invalidateAllAlertQueries,
   listAlerts,
@@ -253,7 +254,7 @@ export function Alertas() {
       message: `Reprocessar o efeito bloqueado${target.record ? ` de ${target.record}` : ''}?`,
       affected: {
         summary: 'Motivo do bloqueio:',
-        items: [target.reason ?? 'Motivo não informado'],
+        items: [target.reason, ...(target.technicalDetail ? [`Detalhe técnico: ${target.technicalDetail}`] : [])],
       },
       consequence: 'O efeito volta para a fila e roda de novo na próxima passada. Corrija a causa antes de reprocessar.',
       reversibility: 'Se falhar de novo, o efeito volta a ficar bloqueado e o alerta mostra o novo motivo.',
@@ -533,13 +534,34 @@ function AlertTypeLabel({ alert, nearEta }: { alert: AlertQueueRow; nearEta?: Re
   return <>{label} · <StatusText tone="warning">ETA próximo</StatusText></>
 }
 
+/**
+ * Mensagem do alerta. "Efeito de importação bloqueado" mostra o motivo em
+ * linguagem de operação e o que fazer; o texto cru do banco fica recolhido em
+ * "Detalhe técnico", para o suporte.
+ */
+function AlertMessage({ alert }: { alert: AlertQueueRow }) {
+  const blocked = importEffectBlockedMessage(alert)
+  if (!blocked) return alert.message?.trim() ? <>{alert.message}</> : <NoValue label="Sem detalhe" />
+  return (
+    <>
+      {blocked.text}
+      {blocked.technicalDetail ? (
+        <details className="app-status-panel__details mt-1">
+          <summary>Detalhe técnico</summary>
+          <pre>{blocked.technicalDetail}</pre>
+        </details>
+      ) : null}
+    </>
+  )
+}
+
 function AlertRow({ alert, entityLabels, nearEta, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels; nearEta?: ReadonlySet<string> }) {
   return (
     <tr>
       <td><Severity alert={alert} /></td>
       <td className="app-table__text"><AlertTypeLabel alert={alert} nearEta={nearEta} /></td>
       <td className="app-table__text"><RecordCell alert={alert} entityLabels={entityLabels} /></td>
-      <td className="app-table__text app-table__text--wrap">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</td>
+      <td className="app-table__text app-table__text--wrap"><AlertMessage alert={alert} /></td>
       <td><Department alert={alert} /></td>
       <td className="whitespace-nowrap">{formatDate(openedAt(alert))}</td>
       <td><AlertActions alert={alert} iconOnly subject={rowSubject(alert, entityLabels)} {...actions} /></td>
@@ -553,7 +575,7 @@ function AlertCard({ alert, entityLabels, nearEta, ...actions }: RowActions & { 
       <FactList columns={2}>
         <Fact label="Registro"><RecordCell alert={alert} entityLabels={entityLabels} /></Fact>
         <Fact label="Setor"><Department alert={alert} /></Fact>
-        <Fact label="Mensagem">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</Fact>
+        <Fact label="Mensagem"><AlertMessage alert={alert} /></Fact>
         <Fact label="Aberto em">{formatDate(openedAt(alert))}</Fact>
       </FactList>
       <div className="mt-3"><AlertActions alert={alert} {...actions} /></div>
