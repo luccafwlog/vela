@@ -97,7 +97,7 @@ Em **Chegadas e Saídas**, clique em **Adicionar navio**. Abre a janela **Adicio
 1. Em **Nome do Navio**, digite o nome do navio. No exemplo, COSCO SHIPPING SEREIA.
 2. Em **Viagem (VOY)**, digite o número da viagem. No exemplo, 024E.
 3. Em **Número IMO**, digite os 7 dígitos do navio. No exemplo, 9900019. O IMO não é obrigatório, mas é ele que garante achar o navio certo.
-4. Em cada porto que o navio faz, desmarque **Não escala**. O campo já vem com a data de hoje: troque pela data prevista. No exemplo: **Shanghai · ETD** 08/10/2026, **Salvador · ETA** 03/11/2026 e **Vitória · ETA** 06/11/2026.
+4. Em cada porto que o navio faz, desmarque **Não escala**. O campo já vem com a data de hoje: troque pela data prevista. No exemplo, **Shanghai · ETD**, **Salvador · ETA** e **Vitória · ETA**.
 5. Clique em **Adicionar e publicar**. A confirmação "Publicar programação da viagem" avisa que a programação vai ficar visível no Portal. Clique em **Publicar viagem**. Aparece "Viagem cadastrada e publicada no Portal.".
 
 ::: tela adicionar-navio
@@ -338,7 +338,7 @@ Como o Vela lê cada célula:
 No quadro de Chegadas e Saídas, logo depois de importar. Para cada Viagem criada, abra a ficha em **Viagens** e confira o armador e as escalas.
 :::
 
-A planilha traz só a data. Se a escala já tem o ETA com hora no mesmo dia, nada muda e a hora fica: no exemplo, Salvador está em 03/11/2026 às 08:00 e a planilha traz 03/11/2026. Dia diferente grava a data nova, sem hora; confira a hora em **Viagens** depois de importar.
+A planilha traz só a data. Se a escala já tem o ETA com hora no mesmo dia, nada muda e a hora fica: no exemplo, Salvador e Vitória já têm o ETA com hora, a planilha traz os mesmos dias, e a prévia mostra só a mudança do ETD de Shanghai. Dia diferente grava a data nova, sem hora; confira a hora em **Viagens** depois de importar.
 
 ::: aconteceu "Com erro na planilha, nada é importado."
 - **O que o sistema faz:** Lista os problemas abaixo da prévia, sob "N linhas com erro impedem a importação", e não deixa importar nenhuma linha. A data ilegível aparece só nessa lista ("…: data ilegível em SALVADOR ETA."); os outros erros também marcam **Erro** na coluna **Situação**. São erro: data ilegível; Viagem ambígua ("Viagem … ambígua: N candidatas. Informe o IMO."); Viagem cancelada ("Viagem … cancelada: a programação dela não muda. Retire a linha da planilha."); navio com dois cadastros ("Navio … ambíguo: mais de um cadastro. Corrija antes de importar."); IMO conflitante ("Navio … com IMO conflitante (… vs …). Corrija antes de importar."); o mesmo navio novo com IMOs diferentes no arquivo; a mesma Viagem e o mesmo porto em linhas com datas diferentes.
