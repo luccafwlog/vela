@@ -15,7 +15,9 @@ export function useSetCommunicationsEnabled() {
 
   return useMutation({
     mutationFn: (enabled: boolean) => setCommunicationsEnabled(enabled),
-    onSuccess: () => {
+    // Também na falha: a resposta perdida depois da gravação deixaria a tela
+    // mostrando o estado anterior.
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.appSettings() })
     },
   })
