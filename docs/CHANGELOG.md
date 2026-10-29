@@ -20,6 +20,11 @@
   estado sem pendência se chama **Conciliada** em todo lugar (a faixa e a ficha diziam "Conciliado").
   Tabela e ficha leem o tom de `ESTADO_CONCILIACAO_META`. **Teste:**
   `src/components/voyages/__tests__/VoyageListTable.test.tsx`.
+- **ROE manual no grupo de Demurrage (2026-10-29, sem migration):** quando B/Ls do mesmo Cliente na
+  mesma Viagem dividem containers, a ficha dos B/Ls que não emitem a Invoice deixa de oferecer
+  **Definir/Trocar ROE manual…**, que não tinham efeito, e aponta o B/L de menor número, que emite a
+  Invoice; **Tirar ROE manual…** segue para limpar valor antigo
+  ([Demurrage](modules/demurrage.md)).
 - **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
   programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
   histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na
