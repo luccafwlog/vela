@@ -23,12 +23,11 @@ A tela de entrada do Vela.
 
 Não existe cadastro aberto nem "esqueci a senha" no Vela: quem cria os usuários e redefine senhas é o {{Administrativo}}. A senha precisa ter pelo menos 8 caracteres, com letra maiúscula, minúscula e número; você mesmo a troca em **Meu perfil**.
 
-Para sair, use **Sair** no menu da conta, no canto direito do alto. A saída vale para todas as suas sessões: as outras abas saem na hora, e outros computadores em até uma hora.
+Para sair, use **Sair** no menu da conta (no canto direito do alto ou, com o menu na lateral, no pé dele). A saída vale para todas as suas sessões: as outras abas saem na hora, e outros computadores em até uma hora.
 
 O Vela também pede para entrar de novo sozinho:
 
-- depois de **8 horas** sem ninguém mexer no Vela naquele navegador;
-- no máximo **12 horas** depois da entrada, mesmo com uso;
+- depois de **8 horas** sem ninguém mexer no Vela numa aba aberta daquele navegador. Como no **Sair**, essa saída vale também para os outros computadores: uma aba esquecida aberta derruba a sua sessão em outro lugar;
 - quando o {{Administrativo}} desativa o seu usuário ou troca o seu e-mail ou a sua senha.
 
 ::: atencao
@@ -39,9 +38,9 @@ O Vela e o Portal Fwlog são sistemas separados, com entradas separadas. Você p
 
 **Quem faz:** {{Todas as equipes}}
 
-O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens**, **Importação** (Baplie, BLs, Desbloqueio de CE, Containers, Veículos, Vazios de importação, Revisão), **Exportação** (Granito, Vazios de exportação), **Clientes**, **Alertas**, **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê.
+O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens**, **Importação** (Baplie EDI, BLs, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP), **Clientes**, **Alertas**, **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê.
 
-O número ao lado de um item conta o que espera por você: os alertas ativos, os B/Ls pendentes de Revisão, os B/Ls com taxa em revisão. O de **Alertas** se atualiza sozinho a cada minuto; os outros, quando você mexe no assunto ou recarrega a página.
+O número ao lado de um item conta o que está pendente no Vela inteiro, de todas as equipes: os alertas ativos, os B/Ls pendentes de Revisão, os B/Ls com taxa em revisão. O de **Alertas** se atualiza sozinho a cada minuto; os outros, quando você mexe no assunto ou recarrega a página.
 
 Na barra do alto ficam também:
 
@@ -65,7 +64,7 @@ O Vela abre no **Painel**. Ele responde às duas perguntas do começo do dia: o 
 O Painel: os atalhos no alto e um cartão de alertas por setor.
 :::
 
-- **Os cartões por setor** (Documentação, Equipamentos, Operações e Administrativo) mostram quantos alertas cada equipe tem abertos. Clique no da sua equipe para ver a lista (capítulo 20).
+- **Os cartões por setor** (Documentação, Equipamentos, Operações e Administrativo) mostram quantos alertas cada equipe tem abertos. Clique no da sua equipe para ver a lista (capítulo 20). O {{Financeiro}} não tem cartão próprio: os alertas dele contam no do {{Administrativo}} e chegam pelo sino. Um cartão **Sem setor** junta os alertas antigos, de antes da divisão por equipe.
 - **O Line Up**, logo abaixo, mostra os navios atracados, os que estão chegando e a carga de cada porto (capítulo 5).
 - **Chegadas e Saídas** e **Tela TV** abrem a programação dos navios (capítulo 5).
 
@@ -81,7 +80,7 @@ O Vela usa as mesmas cores e as mesmas janelas em todas as telas. Conhecendo-as,
 |---|---|
 | Âmbar | Pede ação: algo pendente, aguardando ou em aberto. |
 | Vermelho | Venceu, falhou ou bloqueia. |
-| Verde | Concluído ou pago, com ✓. |
+| Verde | Concluído ou pago (**Paga** vem com ✓). |
 | Cinza | Encerrado sem efeito: cancelado, isento, inativo. |
 | Azul | Só informa. |
 
@@ -114,8 +113,8 @@ As listas do Vela (B/Ls, Containers, Clientes, faturas) funcionam do mesmo jeito
 
 - **Os filtros ficam no endereço da página.** Copie o link e mande a um colega: ele abre a mesma lista, com os mesmos filtros.
 - **A busca aceita vários números de uma vez.** Cole uma coluna de B/Ls ou de containers, e a lista traz todos.
-- **A caixa do cabeçalho seleciona tudo o que o filtro achou,** em todas as páginas, não só a página da tela.
-- **Exportar** baixa uma planilha com tudo o que o filtro achou.
+- **A caixa do cabeçalho seleciona tudo o que o filtro achou,** em todas as páginas, não só a página da tela. Há seleção em Veículos, Vazios IMP e Desbloqueio de CE e, para o {{Administrativo}}, em B/Ls, Containers e Clientes.
+- **Exportar** (em Clientes, **Exportar base**) baixa uma planilha com tudo o que o filtro achou.
 
 ### Relatórios
 
@@ -139,7 +138,7 @@ Relatórios, na aba Operacional.
 | **Não foi possível exibir esta tela** | Um erro nessa tela. O resto do Vela continua funcionando: recarregue a página. |
 | **Acesso ainda não liberado** | O seu usuário está desativado ou ainda não foi liberado. Procure o {{Administrativo}}. |
 
-O Vela não sincroniza as telas entre as pessoas. O que você grava aparece na hora na sua tela; o que um colega gravou aparece quando você reabre ou recarrega a página.
+Fora o Painel, o número de Alertas e o sino, o Vela não atualiza as telas sozinho. O que você grava aparece na hora na sua tela; o que um colega gravou aparece quando você reabre ou recarrega a página.
 
 ::: atencao
 Se o problema continuar, leve ao suporte técnico o que aparece na tela e a versão do Vela, copiada no menu da conta ([1.2](#12-o-menu-e-a-barra-do-alto)).

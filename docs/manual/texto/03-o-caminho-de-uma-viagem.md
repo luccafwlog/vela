@@ -14,7 +14,7 @@ Antes de entrar nas telas, vale ver o caminho inteiro. Uma Viagem passa por vár
 **A documentação chega.** O armador manda os B/Ls, um por carga. A {{Documentação}} os importa (capítulo 6). Nesse momento:
 
 - o Vela liga cada B/L ao Cliente pelo CNPJ. O B/L cujo Cliente não foi reconhecido vai para a **Revisão**, onde alguém confere (capítulo 8);
-- as Taxas Locais são calculadas, ainda de forma provisória, com o preço do dia;
+- as Taxas Locais são calculadas com os preços do dia da importação, que ficam fixados para esse B/L. O valor ainda é provisório porque os containers e a divisão entre B/Ls podem mudar até o CE;
 - o B/L ainda não aparece para o Cliente no Portal.
 
 Depois vem o **Baplie**, o plano de carga do navio. Ele confere se o que está a bordo bate com os B/Ls e marca os containers de carga perigosa ou fora de medida (capítulo 6).
@@ -32,7 +32,7 @@ Ao gravar o CE, o Vela emite sozinho a fatura de cada B/L que estiver pronto. Os
 
 O que faltar segura a fatura daquele B/L, e o resultado da importação diz exatamente o quê (capítulo 6). Quando a pendência se resolve, a fatura sai sozinha.
 
-Com o CE, o B/L aparece no Portal. O Cliente vê a carga, a fatura e paga pelo Pix (capítulo 15). O pagamento volta ao Vela sozinho, pela conciliação com o Itaú; o que não puder ser conferido automaticamente fica com o {{Financeiro}} (capítulo 24).
+Com o CE, o B/L aparece no Portal do Cliente vinculado. O Cliente vê a carga, a fatura e paga pelo Pix (capítulo 15). O pagamento volta ao Vela sozinho, pela conciliação com o Itaú; o que não puder ser conferido automaticamente fica com o {{Financeiro}} (capítulo 24).
 
 ## 3.3 Do porto à Viagem concluída
 
@@ -58,5 +58,5 @@ Com o CE, o B/L aparece no Portal. O Cliente vê a carga, a fatura e paga pelo P
 | Assinar o ADR de Saída | cada equipe, a sua parte | O fechamento da Viagem no porto | 11 |
 
 ::: atencao
-A ordem importa em um ponto: importe todos os B/Ls que dividem um container antes do CE. A fatura sai logo depois do CE, e um B/L que chega depois muda a divisão da cobrança do container e obriga a corrigir a fatura já emitida.
+A ordem importa em um ponto: importe todos os B/Ls que dividem um container antes do CE. A fatura sai logo depois do CE, e um B/L que chega depois muda a divisão da cobrança do container: o Vela refaz a fatura já emitida (ou gera um abatimento, se ela já foi paga), e o Cliente recebe a cobrança de novo.
 :::

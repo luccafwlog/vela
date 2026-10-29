@@ -1,8 +1,8 @@
-No Vela, cada pessoa pertence a uma equipe, e a equipe decide o que ela pode fazer. A regra geral é generosa: quase tudo da operação é de qualquer equipe. O que é de uma equipe só é pouco, e tem um motivo: mexe em dinheiro, apaga algo oficial ou fala com o Cliente em nome da Fwlog. Este capítulo mostra essas exceções e a quem pedir quando o botão não aparece para você.
+No Vela, cada pessoa pertence a uma equipe, e a equipe decide o que ela pode fazer. A regra geral é generosa: quase tudo da operação é de qualquer equipe. O que fica reservado a algumas equipes é pouco, e tem um motivo: mexe em dinheiro, apaga algo oficial ou fala com o Cliente em nome da Fwlog. Este capítulo mostra essas exceções e a quem pedir quando o botão não aparece para você.
 
 ::: aprende
 - quais são as equipes do Vela e o que quase todas podem fazer;
-- o que é de uma equipe só, e por quê;
+- o que é reservado a algumas equipes, e por quê;
 - a quem passar cada pedido;
 - como o Vela registra quem fez o quê.
 :::
@@ -22,10 +22,10 @@ O Vela tem cinco equipes, e cada pessoa pertence a uma só:
 A coluna da direita é a rotina, não uma trava: o Vela deixa qualquer equipe importar arquivos, cadastrar Viagens, editar escalas, emitir faturas e muito mais. Quem cria os usuários e escolhe a equipe de cada um é o {{Administrativo}}.
 
 ::: atencao
-Quem ainda aparece como "Operador", um setor antigo, vale como Documentação em tudo, mas não recebe o resumo diário do Portal. O {{Administrativo}} troca essas pessoas para Documentação em **Admin** › **Usuários**.
+Quem aparece em **Usuários** como "Documentação · setor antigo Operador" vale como Documentação em tudo, mas não recebe o resumo diário do Portal. O {{Administrativo}} troca essas pessoas para Documentação em **Admin** › **Usuários**.
 :::
 
-## 2.2 O que é de uma equipe só
+## 2.2 O que é reservado a algumas equipes
 
 **Quem faz:** a equipe indicada em cada ação
 
@@ -34,7 +34,7 @@ Estas são as ações que o Vela reserva. Para as outras equipes, o botão não 
 | Ação | Quem faz |
 |---|---|
 | Criar usuários, mudar a equipe, ativar e desativar | {{Administrativo}} |
-| Cancelar, reativar e excluir Viagem, B/L, container e Cliente | {{Administrativo}} |
+| Cancelar e reativar Viagem e B/L; excluir Viagem, B/L, container e Cliente | {{Administrativo}} |
 | Cancelar fatura e cancelar pagamento registrado | {{Administrativo}} |
 | Corrigir tabela de cobrança já usada; editar Condição de Cliente | {{Administrativo}} |
 | Desativar e reativar cadastros (tabela de cobrança, Local, serviço, tarifa) | {{Administrativo}} |
@@ -44,12 +44,12 @@ Estas são as ações que o Vela reserva. Para as outras equipes, o botão não 
 | Responder ao Cliente na Disputa de Demurrage | {{Equipamentos}} e {{Administrativo}} |
 | Convidar o Cliente para o Portal e cuidar da conta dele | {{Documentação}} e {{Administrativo}} |
 | Gerir o Desbloqueio de CE | {{Documentação}} e {{Administrativo}} |
-| Editar contatos do Cliente; cadastrar Cliente novo | {{Documentação}}, {{Equipamentos}} e {{Administrativo}} |
-| Remover uma atracação | {{Operações}} e {{Administrativo}} |
+| Editar contatos do Cliente; cadastrar Cliente pelo **Novo cliente** | {{Documentação}}, {{Equipamentos}} e {{Administrativo}} |
+| Remover uma atracação ou trocar o terminal dela | {{Operações}} e {{Administrativo}} |
 
 No ADR de Saída, cada equipe assina a sua parte: {{Operações}} a escala, {{Documentação}} a carga e os vazios descarregados, {{Equipamentos}} a carga carregada, os veículos e o embarque de vazios. O {{Administrativo}} pode assinar por qualquer uma (capítulo 11).
 
-O {{Administrativo}} vê a lista completa, ação por ação, em **Admin** › **Usuários**, no quadro **O que cada setor pode**.
+As outras equipes trazem o Cliente pela base de Clientes ou pela Revisão. O {{Administrativo}} vê a lista ação por ação em **Admin** › **Usuários**, no quadro **O que cada setor pode** (escolha **Todas as ações** para ver todas).
 
 ::: tela matriz-setores
 O quadro O que cada setor pode, na Administração.
@@ -67,7 +67,7 @@ Quando o botão não aparece para você, ou o Vela diz que a ação é de outra 
 
 | Você precisa… | Peça a |
 |---|---|
-| cancelar ou excluir uma Viagem, um B/L ou um container | {{Administrativo}} |
+| cancelar uma Viagem ou um B/L, ou excluir uma Viagem, um B/L ou um container | {{Administrativo}} |
 | cancelar uma fatura | {{Administrativo}} |
 | registrar que um pagamento chegou | {{Financeiro}} |
 | devolver dinheiro ao Cliente | {{Financeiro}} |
