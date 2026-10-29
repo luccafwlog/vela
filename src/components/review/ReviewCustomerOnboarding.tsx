@@ -29,6 +29,7 @@ export function ReviewCustomerOnboarding({
   onSelectExistingCustomer,
   onSubmit,
   canEditContacts = true,
+  canInvitePortal = true,
 }: {
   group: ReviewGroup
   existingCustomerId: number | null
@@ -48,6 +49,8 @@ export function ReviewCustomerOnboarding({
   onSubmit: (input: ReviewCustomerOnboardingInput) => void
   /** Só Administrativo, Documentação e Equipamentos incluem contatos (D10 de 2026-10-27). */
   canEditContacts?: boolean
+  /** Só Documentação e Administrativo convidam para o Portal (`portal-invite-send`). */
+  canInvitePortal?: boolean
 }) {
   const [name, setName] = useState(initialName)
   const [cnpj, setCnpj] = useState(initialCnpj)
@@ -158,6 +161,7 @@ export function ReviewCustomerOnboarding({
       <Field label="E-mail principal do cliente" required hint={email.trim() ? 'Será salvo como contato do cliente. Nenhum e-mail é enviado por esta ação.' : 'O cliente precisa ter pelo menos um e-mail cadastrado.'}>
         <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="financeiro@cliente.com.br" />
       </Field>
+      {canInvitePortal ? (
       <label className="review-onboarding__invite">
         <input className="review-onboarding__checkbox" type="checkbox" checked={sendPortalInvite} onChange={(event) => setSendPortalInvite(event.target.checked)} />
         <span>
@@ -165,6 +169,9 @@ export function ReviewCustomerOnboarding({
           <span className="review-onboarding__invite-hint">{sendPortalInvite ? `O convite será enviado para ${email.trim().toLowerCase() || 'o e-mail informado acima'} depois do cadastro.` : 'Opcional — você poderá iniciar o convite depois em Provisionamento do Portal.'}</span>
         </span>
       </label>
+      ) : (
+        <p className="review-onboarding__intro" role="note">O convite do Portal fica com a Documentação ou o Administrativo, em Provisionamento do Portal.</p>
+      )}
       </>
       ) : (
         <p className="review-onboarding__intro" role="note">Só Administrativo, Documentação e Equipamentos incluem o e-mail do Cliente: o cadastro sai sem contato, e o convite do Portal fica com a Documentação ou o Administrativo.</p>
@@ -180,7 +187,7 @@ export function ReviewCustomerOnboarding({
             loading={saving}
             loadingLabel="Salvando…"
             aria-describedby={blockReason ? blockId : undefined}
-            onClick={() => onSubmit({ customerId: selectedId, cnpjCpf: validCnpj!, name: name.trim(), email: canEditContacts ? email.trim().toLowerCase() : '', sendPortalInvite: canEditContacts && sendPortalInvite })}
+            onClick={() => onSubmit({ customerId: selectedId, cnpjCpf: validCnpj!, name: name.trim(), email: canEditContacts ? email.trim().toLowerCase() : '', sendPortalInvite: canEditContacts && canInvitePortal && sendPortalInvite })}
           >
             {selectedId ? (canEditContacts ? `Adicionar e-mail e vincular ${targetLabel}` : `Vincular ${targetLabel}`) : `Criar cliente e vincular ${targetLabel}`}
           </Button>

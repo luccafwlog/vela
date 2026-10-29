@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Ficha do B/L e Revisão: conferência do Manual do Operador (2026-10-29, migration `502`):** a
+  justificativa pedida na ficha do B/L, na Revisão e na correção da fila passa a ir ao Histórico de
+  cada campo e da situação da Revisão (antes `save_bl_review` a descartava e o gatilho gravava sem
+  justificativa); **Trocar Cliente** e **Desvincular** pedem o motivo (decisão do dono de 2026-10-29).
+  Corrigir o POD para outro porto tira a exceção de terminal do B/L, com registro no Histórico
+  ([ADR 0068](adr/0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md)). Equipamentos inclui
+  o e-mail do Cliente na Revisão e na ficha, mas não vê mais o convite do Portal, que a Edge Function
+  `portal-invite-send` recusa a quem não é da Documentação ou do Administrativo. Rótulo, campo e ajuda
+  ficam no topo da célula da grade (`.app-field`): o Lacre da janela Corrigir container deixa de esticar
+  no B/L faturado.
 - **Alterar, excluir e isentar as Taxas Locais do B/L (2026-10-28, em lotes):** pedido do dono,
   [ADR 0111](adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md). Lote 1 (migration `491`): na
   ficha do B/L, qualquer setor altera o valor de uma taxa (por unidade ou pelo total), exclui a taxa e
