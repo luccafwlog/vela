@@ -68,7 +68,8 @@ letra com menos nitidez em tela.
 
 ## Textos prontos para e-mail
 
-São mensagens enviadas pela equipe, à mão, a partir de uma caixa da Fwlog.
+São mensagens enviadas pela equipe, à mão, de qualquer caixa da Fwlog: as
+dúvidas vão sempre para `suporte@portalfwlog.com.br`.
 O convite de acesso **não** é um destes textos: ele sai do sistema, sozinho,
 para o e-mail de recuperação do CNPJ, com o assunto “Ative o acesso da
 &lt;razão social&gt; ao Portal do Cliente”.
@@ -161,14 +162,9 @@ repositório na `staging` de 2026-10-28; nada foi observado em produção).
 
 ## Pontos a confirmar
 
-1. **Marca Transhipping na fatura impressa** (página 8): confirmar se a frase
-   “A fatura e o recibo impressos saem com a marca Transhipping” deve ir ao
-   cliente.
-2. **Quem envia a apresentação** e de qual caixa, e se o guia vai anexo ou por
-   link.
-3. **Aprovação visual** do responsável, como pede a identidade visual para
-   material novo. Aprovado o material, sai o “Rascunho para revisão” do rodapé
-   (e a conferência correspondente em `gerar-pdf.mjs`).
+- **Aprovação visual** do responsável, como pede a identidade visual para
+  material novo. Aprovado o material, sai o “Rascunho para revisão” do rodapé
+  (e a conferência correspondente em `gerar-pdf.mjs`).
 
 ## Verificação feita
 
