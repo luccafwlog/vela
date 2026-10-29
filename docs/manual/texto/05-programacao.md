@@ -97,7 +97,7 @@ Em **Chegadas e Saídas**, clique em **Adicionar navio**. Abre a janela **Adicio
 1. Em **Nome do Navio**, digite o nome do navio. No exemplo, COSCO SHIPPING SEREIA.
 2. Em **Viagem (VOY)**, digite o número da viagem. No exemplo, 024E.
 3. Em **Número IMO**, digite os 7 dígitos do navio. No exemplo, 9900019. O IMO não é obrigatório, mas é ele que garante achar o navio certo.
-4. Em cada porto que o navio faz, desmarque **Não escala**. O campo já vem preenchido: troque pela data prevista. No exemplo: **Shanghai · ETD** 08/10/2026, **Salvador · ETA** 03/11/2026 e **Vitória · ETA** 06/11/2026.
+4. Em cada porto que o navio faz, desmarque **Não escala**. O campo já vem com a data de hoje: troque pela data prevista. No exemplo: **Shanghai · ETD** 08/10/2026, **Salvador · ETA** 03/11/2026 e **Vitória · ETA** 06/11/2026.
 5. Clique em **Adicionar e publicar**. A confirmação "Publicar programação da viagem" avisa que a programação vai ficar visível no Portal. Clique em **Publicar viagem**. Aparece "Viagem cadastrada e publicada no Portal.".
 
 ::: tela adicionar-navio
@@ -107,21 +107,14 @@ A janela Adicionar navio à programação, com todos os portos ainda em Não esc
 
 Nome do navio e número da viagem são obrigatórios. Pelo menos um porto de **Chegada no Brasil (ETA)** precisa ter data; os portos de origem são opcionais.
 
-::: atencao
-Se a Viagem já existe, o Vela grava nela a programação da janela inteira. Um porto que tinha data e ficou em **Não escala** perde a data. Para o {{Administrativo}}, a escala sem nada ligado a ela sai da Viagem. A confirmação não avisa isso. Para só mudar datas de um navio que já está no quadro, use **Editar** ([5.3](#53-corrigir-as-datas-de-um-navio)).
-:::
-
-::: atencao
-Gravar a data de uma escala só de exportação a marca como escala com importação. Depois de gravar, confira a escala em **Viagens**.
-:::
-
 ::: sozinho
 - Procura a Viagem pelo número da viagem e pelo IMO. O IMO exato vale mais que a grafia do nome; com IMO diferente, nunca junta duas Viagens.
 - Sem IMO, procura pelo nome padronizado do navio, o mesmo de Nova Viagem ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem-nova)).
-- Achou a Viagem: grava as datas nela e a publica no Portal. É o caso da COSCO SHIPPING SEREIA / 024E do exemplo, já cadastrada em Viagens ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem-nova)): o Vela a acha pelo IMO 9900019 e não cria outra.
+- Achou a Viagem: grava nela só os portos com data e a publica no Portal. Porto deixado em **Não escala** não perde nada: para tirar uma data, use **Editar** ([5.3](#53-corrigir-as-datas-de-um-navio)). É o caso da COSCO SHIPPING SEREIA / 024E do exemplo, já cadastrada em Viagens ([4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem-nova)): o Vela a acha pelo IMO 9900019 e não cria outra.
 - Não achou: cria a Viagem já publicada, com o armador padrão (Cosco Shipping Specialized Carriers, SCAC CSSC). A **Linha do tempo** da Viagem mostra "Viagem criada · Origem: Chegadas e Saídas".
 - Se o navio já está cadastrado com outro armador, o armador dele passa a ser o padrão em todas as suas Viagens.
-- Grava só o ETD dos portos de origem e o ETA dos portos de chegada, e só a data, sem hora.
+- Grava só o ETD dos portos de origem e o ETA dos portos de chegada, e só a data, sem hora. A data no mesmo dia da que já está gravada não muda nada, nem a hora.
+- Não muda o tipo da escala: a escala só de exportação continua só de exportação.
 - Não toca em ATA, ATD, Restow, **BLs e CEs**, **Vinculada** nem **Nº Escala** das escalas.
 - O ETA gravado aqui é o mesmo ETA da escala na ficha da Viagem: não existe uma data "do Portal" separada.
 :::
@@ -140,10 +133,10 @@ O navio aparece no quadro de Chegadas e Saídas, na posição da sua menor ETA. 
 - **O que você faz:** Desmarque **Não escala** em pelo menos um porto de **Chegada no Brasil (ETA)** e informe a data.
 :::
 
-::: aconteceu "Falha ao cadastrar a viagem."
-- **O que o sistema faz:** Não gravou nada. A causa mais comum é o nome do navio, sem IMO, casar com mais de uma Viagem, ou casar com um navio já cadastrado com outro IMO. O Vela não junta nem cria nada.
+::: aconteceu "Viagem … ambígua: N candidatas. Informe o IMO."
+- **O que o sistema faz:** Não grava nada quando o nome do navio, sem IMO, casa com mais de uma Viagem. O mesmo vale para o navio já cadastrado com outro IMO ("Navio … com IMO conflitante (… vs …). Corrija antes de importar."). O Vela não junta nem cria nada. Sem motivo legível, o aviso é "Falha ao cadastrar a viagem.".
 - **Por quê:** Escolher uma das Viagens por conta própria poderia gravar as datas no navio errado.
-- **O que você faz:** Digite o IMO de 7 dígitos e clique de novo em **Adicionar e publicar**. Se continuar, confira o IMO do navio com o armador e na edição da Viagem, em **Viagens** ([5.9](#59-cadastros-de-apoio-navios-armadores-portos-e-terminais)). A prévia da planilha ([5.5](#55-atualizar-vários-navios-por-planilha)) mostra o motivo exato ("Viagem … ambígua: N candidatas. Informe o IMO." ou "Navio … com IMO conflitante (… vs …). Corrija antes de importar.").
+- **O que você faz:** Digite o IMO de 7 dígitos e clique de novo em **Adicionar e publicar**. Se continuar, confira o IMO do navio com o armador e na edição da Viagem, em **Viagens** ([5.9](#59-cadastros-de-apoio-navios-armadores-portos-e-terminais)).
 :::
 
 ::: aconteceu "Viagem … cancelada: operação selada e somente leitura."
@@ -181,7 +174,7 @@ A janela Editar programação: navio, viagem e IMO aparecem apagados; só as dat
 ### Quando você marca "Não escala"
 
 - **Num porto de origem:** só o ETD daquele porto sai.
-- **Num porto de chegada que tinha data:** a confirmação fica em vermelho e diz que a escala sai da Viagem e do Line-Up quando não tem B/L, ATA nem manifesto. Isso só acontece para o {{Administrativo}}. O que acontece de fato depende de quem marca e do que a escala já tem:
+- **Num porto de chegada que tinha data:** a confirmação fica em vermelho e diz o que vai acontecer, conforme quem marca e o que a escala já tem:
 
 | Quem marca | Escala sem nada ligado a ela | Escala com B/L descarregando no porto, ATA, ATD, **Vinculada** Sim, ou já salva alguma vez na janela da escala em Viagens |
 |---|---|---|
@@ -190,7 +183,7 @@ A janela Editar programação: navio, viagem e IMO aparecem apagados; só as dat
 
 Ao salvar, o {{Administrativo}} também tira escalas que já estavam sem data e sem nada ligado, nos portos marcados **Não escala**, mesmo sem ter mexido nelas.
 
-A escala também fica na Viagem quando está travada (por exemplo, ADR de Saída fechado no porto). Nesse caso aparece "Escala … travada: …." e a escala continua com a data. As outras datas que você mudou na mesma janela já foram gravadas: clique em **Voltar**, reabra Chegadas e Saídas e confira.
+Quando a escala está travada (por exemplo, ADR de Saída fechado no porto), o Vela recusa com "Escala … travada: …." e não grava nada da janela: nem a retirada, nem as outras datas.
 
 ::: sozinho
 - Grava as datas só com o dia, sem hora: o ETD dos portos de origem e o ETA dos portos de chegada.
@@ -212,13 +205,13 @@ Na linha do navio, em Chegadas e Saídas. Na ficha da Viagem, em **Viagens**, o 
 :::
 
 ::: aconteceu "Marquei Não escala num porto que tinha data"
-- **O que o sistema faz:** Pediu confirmação. A confirmação diz que a escala sai da Viagem, mas isso só acontece para o {{Administrativo}}, e só sem nada ligado à escala. Nos outros casos, só a data saiu; a escala sem B/L, datas ou exportação deixa de aparecer no Line Up, mas continua na Viagem.
+- **O que o sistema faz:** Pediu confirmação. Para o {{Administrativo}}, a escala sem nada ligado saiu da Viagem; com B/L descarregando, ATA, ATD, **Vinculada** Sim ou já salva na janela da escala, só a data saiu. Para as outras equipes, só a data saiu; a escala sem B/L, datas ou exportação deixa de aparecer no Line Up, mas continua na Viagem.
 - **O que você faz:** Se o navio não vai mais àquele porto e já tem carga para ele, registre a omissão na Viagem ([4.7](04-viagens-escalas.md#47-registrar-que-o-armador-omitiu-uma-escala)): a escala fica como **Omitida** e a carga segue para o porto de transbordo.
 :::
 
 ::: aconteceu "Escala … travada: …."
-- **O que o sistema faz:** Recusa tirar da Viagem a escala travada (por exemplo, ADR de Saída fechado no porto). A escala continua com a data. As outras datas que você mudou na mesma janela já foram gravadas.
-- **O que você faz:** Clique em **Voltar**, reabra Chegadas e Saídas e confira as datas. Se o navio não vai mais ao porto, registre a omissão ([4.7](04-viagens-escalas.md#47-registrar-que-o-armador-omitiu-uma-escala)). Se a data só mudou, informe a nova data em vez de marcar **Não escala**.
+- **O que o sistema faz:** Recusa tirar da Viagem a escala travada (por exemplo, ADR de Saída fechado no porto) e não grava nada da janela. A escala continua com a data, e as outras datas ficam como estavam.
+- **O que você faz:** Se o navio não vai mais ao porto, registre a omissão ([4.7](04-viagens-escalas.md#47-registrar-que-o-armador-omitiu-uma-escala)). Se a data só mudou, informe a nova data em vez de marcar **Não escala**.
 :::
 
 ::: porque
@@ -337,20 +330,15 @@ Como o Vela lê cada célula:
 - Publica no Portal toda Viagem da planilha, inclusive a que estava fora da programação.
 - O navio sem IMO, achado pelo nome, recebe o IMO que veio no arquivo.
 - Um porto que tinha sido tirado da Viagem volta ao planejamento.
-- Grava só o ETD e o ETA, e só a data, sem hora.
+- Grava só o ETD e o ETA, e só a data, sem hora. A data no mesmo dia da que já está gravada não muda nada, nem a hora.
+- Não muda o tipo da escala: a escala só de exportação continua só de exportação.
 :::
 
 ::: conferir
 No quadro de Chegadas e Saídas, logo depois de importar. Para cada Viagem criada, abra a ficha em **Viagens** e confira o armador e as escalas.
 :::
 
-::: atencao
-A planilha grava só a data, sem hora. Se a escala já tinha o ETA com hora e a planilha traz o mesmo dia, a prévia mostra a viagem como **Atualiza**, com a mesma data dos dois lados. No exemplo, Salvador estava em 03/11/2026 às 08:00 e a prévia mostra "BRSSA ETA: 03/11/2026 → 03/11/2026". Depois de importar, a escala fica só com a data, sem a hora. Se a hora importa, deixe vazia a célula desse porto, ou confira a escala em **Viagens** depois de importar.
-:::
-
-::: atencao
-Gravar a data de uma escala só de exportação a marca como escala com importação. Na prévia, essa viagem pode aparecer como **Atualiza** com "Nenhuma data muda". Depois de importar, confira a escala em **Viagens**.
-:::
+A planilha traz só a data. Se a escala já tem o ETA com hora no mesmo dia, nada muda e a hora fica: no exemplo, Salvador está em 03/11/2026 às 08:00 e a planilha traz 03/11/2026. Dia diferente grava a data nova, sem hora; confira a hora em **Viagens** depois de importar.
 
 ::: aconteceu "Com erro na planilha, nada é importado."
 - **O que o sistema faz:** Lista os problemas abaixo da prévia, sob "N linhas com erro impedem a importação", e não deixa importar nenhuma linha. A data ilegível aparece só nessa lista ("…: data ilegível em SALVADOR ETA."); os outros erros também marcam **Erro** na coluna **Situação**. São erro: data ilegível; Viagem ambígua ("Viagem … ambígua: N candidatas. Informe o IMO."); Viagem cancelada ("Viagem … cancelada: a programação dela não muda. Retire a linha da planilha."); navio com dois cadastros ("Navio … ambíguo: mais de um cadastro. Corrija antes de importar."); IMO conflitante ("Navio … com IMO conflitante (… vs …). Corrija antes de importar."); o mesmo navio novo com IMOs diferentes no arquivo; a mesma Viagem e o mesmo porto em linhas com datas diferentes.

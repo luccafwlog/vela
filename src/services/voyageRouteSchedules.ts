@@ -1,4 +1,4 @@
-import { normalizePortCode } from './portCode'
+import { escalaPortCode, normalizePortCode } from './portCode'
 import { supabase } from './supabase'
 import { recordAuditEntries } from './auditEntries'
 import { fetchExportSchedulesByVoyageIds } from './voyageExportSchedules'
@@ -159,7 +159,9 @@ export function buildVoyagePolEntityId(voyageId: number, pol: string | null | un
 }
 
 export function buildVoyagePodEntityId(voyageId: number, pod: string | null | undefined) {
-  return `${voyageId}::${normalizePortValue(pod)}`
+  // A escala com LOCODE brasileiro novo (que o servidor cadastra) tem o próprio
+  // código, não "-".
+  return `${voyageId}::${escalaPortCode(pod) ?? '-'}`
 }
 
 export async function listVoyagePolSchedules(entityIds: string[]) {
@@ -689,12 +691,18 @@ export async function saveVoyageEscalaSchedule({
   temImportacao: boolean
   changedBy: string | null
 }) {
+  // Mesma recusa de `save_voyage_escala_terminal_state` (caminho com
+  // exportação): sem ela, o código fora do formato virava o porto "-".
+  const pod = escalaPortCode(port)
+  if (!pod?.startsWith('BR')) {
+    throw Object.assign(new Error(`LOCODE brasileiro invalido: ${port.trim().toUpperCase()}.`), { code: '22023' })
+  }
   // ponytail: o entity_type fisico continua `voyage_pod_schedule` por compatibilidade
   // historica; upgrade = promover a escala a tabela propria como previsto na ADR 0027.
   await saveVoyagePodSchedule({
     justification,
     voyageId,
-    pod: normalizePortValue(port),
+    pod,
     eta,
     ata,
     ceStatus,

@@ -1270,7 +1270,7 @@ Na Viagem certa, a importação recusa o B/L: "O B/L \<nº> já está na Viagem 
 3. Se o B/L já tinha CE, importe a planilha de CE de novo, agora na Viagem certa.
 :::
 
-A exclusão só é possível se o B/L não tem CE Mercante, nem fatura (mesmo cancelada), nem Invoice de Demurrage. Comunicado ao Cliente enviado ou pedido de Desbloqueio de CE também impedem a exclusão. Se o B/L na Viagem errada já tem CE e nunca teve fatura, remova o CE na ficha (**Remover CE**, com motivo, [6.6](#66-corrigir-o-ce-ou-o-manifesto-de-um-bl)) antes de pedir a exclusão. Por isso, confira a Viagem antes de importar o CE: a fatura só sai depois dele.
+A exclusão só é possível se o B/L não tem CE Mercante, nem fatura (mesmo cancelada), nem Invoice de Demurrage. Comunicado ao Cliente enviado ou pedido de Desbloqueio de CE também impedem a exclusão. O aviso diz qual vínculo impede, como "vinculado a pedido de Desbloqueio de CE". Se o B/L na Viagem errada já tem CE e nunca teve fatura, remova o CE na ficha (**Remover CE**, com motivo, [6.6](#66-corrigir-o-ce-ou-o-manifesto-de-um-bl)) antes de pedir a exclusão. Por isso, confira a Viagem antes de importar o CE: a fatura só sai depois dele.
 
 ::: aconteceu "Este B/L não pode ser excluído:"
 - **O que o sistema faz:** Recusa a exclusão e diz, abaixo, o número do B/L e o motivo: "B/L com CE Mercante" (cancele em vez de excluir) ou "documento financeiro emitido" (qualquer fatura de Taxas Locais do B/L, mesmo cancelada, ou Invoice de Demurrage).

@@ -61,10 +61,10 @@ Em **Viagens**, a Viagem aparece na faixa de cartões do alto e no quadro, orden
 - **O que você faz:** Abra a Viagem existente. Se ela está cancelada e deve voltar, peça ao {{Administrativo}} para usar **Reativar viagem** ([4.10](#410-cancelar-reativar-ou-excluir-uma-viagem)).
 :::
 
-::: aconteceu "Falha ao cadastrar viagem. Revise os dados e tente novamente."
-- **O que o sistema faz:** Recusa quando o nome é de um navio já cadastrado com outro IMO, ou quando há dois navios com o mesmo nome e sem IMO. Na Nova Viagem, a recusa aparece só com este aviso geral; na edição, com "Falha ao atualizar viagem. Revise os dados e tente novamente.". O motivo ("Navio … com IMO conflitante (… vs …). Corrija antes de importar.") aparece nas importações.
+::: aconteceu "Navio … com IMO conflitante (… vs …). Corrija antes de importar."
+- **O que o sistema faz:** Recusa quando o nome é de um navio já cadastrado com outro IMO. Dois navios com o mesmo nome e sem IMO também recusam ("Navio … ambíguo: mais de um cadastro sem IMO. Informe o IMO."). Sem motivo legível, o aviso é "Falha ao cadastrar viagem. Revise os dados e tente novamente." (na edição, "Falha ao atualizar viagem. Revise os dados e tente novamente.").
 - **Por quê:** O IMO identifica o navio; nome parecido não junta navios diferentes.
-- **O que você faz:** Confira os campos e o IMO com o armador, digite o certo e tente de novo.
+- **O que você faz:** Confira o IMO com o armador, digite o certo e tente de novo.
 :::
 
 ::: aconteceu "Armador obrigatorio (min. 2 caracteres)"
@@ -113,10 +113,6 @@ A janela Adicionar escala com o porto de Salvador.
 
 Repita para cada porto. No exemplo, a Viagem 024E tem duas escalas: Salvador (BRSSA) e Vitória (BRVIX). A janela de uma escala nova não mostra os terminais: você os atribui depois, na edição da escala ([4.3](#43-atribuir-os-terminais-e-registrar-a-atracação)).
 
-::: atencao
-Na escala nova só de importação, escolha o porto entre as sugestões do campo. Um código que o Vela não conhece não vira escala, mesmo com o aviso "Escala salva com sucesso.".
-:::
-
 ### Exportação na escala
 
 <!-- regras: VIA-035 EQU-115 ALE-045 -->
@@ -162,7 +158,7 @@ O menor ETA das escalas de importação marca o 1º porto brasileiro, de onde co
 
 ::: sozinho
 <!-- regras: VIA-033 VIA-134 VIA-141 CEB-038 CEB-039 -->
-- Grava o porto pelo código, em maiúsculas. Na edição da escala e na escala nova com exportação, o porto brasileiro que ainda não existe no cadastro é criado sozinho, com o próprio código como nome.
+- Grava o porto pelo código, em maiúsculas. O código brasileiro que o Vela ainda não conhece vale como digitado; o porto entra no cadastro, com o próprio código como nome, quando a escala recebe exportação ou terminal.
 - A escala nova nasce importadora.
 - Guarda cada gravação no Histórico da escala (ETA, ATA, terminal, Atracação, frente, exportação, BLs e CEs, Vinculada, Nº escala, remoção e omissão), com autor, setor, momento e justificativa. Nada é apagado; a tela mostra sempre a gravação mais recente.
 - No fim de toda gravação que mexe em B/L, container de B/L, Baplie, Granito ou exportação, recalcula o **BLs e CEs** de cada escala brasileira:
@@ -178,7 +174,7 @@ No **Planejamento por escala**, cada escala tem uma linha: **Porto**, **Opera** 
 :::
 
 ::: aconteceu "A escala é de porto brasileiro; portos estrangeiros da rota não são escalas."
-- **O que o sistema faz:** Não adiciona a escala de porto estrangeiro. Com o campo vazio, avisa "Informe o porto da escala.". Na edição da escala e na escala nova com exportação, código fora do formato brasileiro (BR e mais três letras ou dígitos) é recusado com "LOCODE brasileiro invalido: …".
+- **O que o sistema faz:** Não adiciona a escala de porto estrangeiro. Com o campo vazio, avisa "Informe o porto da escala.". Código fora do formato brasileiro (BR e mais três letras ou dígitos) é recusado com "LOCODE brasileiro invalido: …".
 - **Por quê:** Escala é só a passagem por um porto brasileiro. O porto de embarque estrangeiro aparece na rota dos B/Ls ([4.6](#46-conferir-o-atd-do-porto-de-embarque-e-o-nº-de-manifesto-da-rota)).
 - **O que você faz:** Digite o código brasileiro do porto, como BRSSA ou BRVIX.
 :::
@@ -201,7 +197,7 @@ No **Planejamento por escala**, cada escala tem uma linha: **Porto**, **Opera** 
 
 <!-- regras: EQU-077 -->
 
-::: aconteceu "Nenhuma escala brasileira na viagem: cadastre a escala na aba Escalas da viagem antes de criar o embarque."
+::: aconteceu "Nenhuma escala brasileira na viagem: cadastre a escala em Adicionar escala, no Planejamento por escala da aba Visão geral da viagem, antes de criar o embarque."
 - **O que o sistema faz:** **Novo embarque** de vazios pede **Viagem** e **Porto de embarque**, escolhido entre as escalas brasileiras ativas da Viagem (sem as excluídas e as omitidas) e os portos de POL e POD dos B/Ls. Sem nenhum, aparece esta mensagem. Falha de leitura não é falta de escala. **Criar embarque** abre o embarque criado ("Embarque criado.") ou, se a escala já tem um, abre o existente ("Este embarque já existia e foi aberto."). Vindo da Viagem, pela ação **Novo embarque de vazios**, a Viagem já vem escolhida.
 - **O que você faz:** Planeje a escala no **Planejamento por escala** da aba **Visão geral** e crie o embarque de novo (capítulo 10).
 :::
@@ -433,7 +429,7 @@ Para os prazos contarem de um porto anterior às escalas de importação, indiqu
 <!-- regras: VIA-009 VIA-127 VIA-128 -->
 
 ::: aconteceu "ETA de … passou sem ATA registrada."
-- **O que o sistema faz:** A escala continua como Próxima escala até o ATA ser registrado. O alerta abre já no próprio dia do ETA.
+- **O que o sistema faz:** A escala continua como Próxima escala até o ATA ser registrado: o bloco mostra o ETA com "· vencido" em âmbar e **Status** "ETA vencido" (antes disso, "Pendente"). O ETA vence no fim do próprio dia. O alerta abre já no dia do ETA.
 - **Por quê:** Só o ATA passa a vez à escala seguinte. ETA que já passou não tira a escala dessa posição.
 - **O que você faz:** Se o navio chegou, registre o **ATA** com hora. Se atrasou, atualize o **ETA**.
 :::
@@ -486,7 +482,7 @@ A ordem é a da próxima escala no Brasil: o menor ETA primeiro (no empate, a ET
 Os filtros ficam sempre abertos:
 
 - **Buscar**: navio, viagem, armador e portos de origem e destino.
-- **Período**: **Qualquer**, **Hoje**, **Próximos 7 dias**, **Próximos 30 dias** ou **Entre datas**, sempre pelo ETA da próxima escala. A Viagem sem próxima escala sai do recorte; em **Hoje**, **Próximos 7 dias** e **Próximos 30 dias**, sai também a Viagem com o ETA vencido.
+- **Período**: **Qualquer**, **Hoje**, **Próximos 7 dias**, **Próximos 30 dias** ou **Entre datas**, sempre pelo dia do ETA da próxima escala: **Hoje** traz o ETA de hoje, a qualquer hora. A Viagem sem próxima escala sai do recorte; em **Hoje**, **Próximos 7 dias** e **Próximos 30 dias**, sai também a Viagem com o ETA vencido.
 - **Status**: **Todas**, **Ativas**, **Concluídas** ou **Canceladas**. Começa em **Todas**.
 - **Conciliação**: **Todas**, **Conciliada** ou **Pendente**. No filtro, **Pendente** traz as Viagens Pendentes e Divergentes.
 
