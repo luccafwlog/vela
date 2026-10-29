@@ -5,7 +5,8 @@
 atualize o guia e gere o PDF de novo.
 
 Material para o cliente final do Portal do Cliente (`portalfwlog.com.br`):
-um guia ilustrado em A4 e os textos dos e-mails que o acompanham. O cliente
+um guia ilustrado em A4, um guia rápido de uma página para o e-mail de anúncio
+e os textos dos e-mails que os acompanham. O cliente
 não vê o nome do sistema interno; o guia fala só em Fwlog e Portal do
 Cliente. Nada aqui é importado por `src/` nem muda o Portal.
 
@@ -15,7 +16,9 @@ Cliente. Nada aqui é importado por `src/` nem muda o Portal.
 |---|---|
 | [Tutorial_Portal_Fwlog.html](Tutorial_Portal_Fwlog.html) | Fonte do guia: 15 páginas A4 prontas para impressão. Abra a partir desta pasta do repositório, porque as fontes e as logos vêm de `public/`. |
 | [Tutorial_Portal_Fwlog.pdf](Tutorial_Portal_Fwlog.pdf) | O guia em PDF, para anexar ao e-mail ou imprimir. É gerado a partir do HTML. |
-| [gerar-pdf.mjs](gerar-pdf.mjs) | Gera o PDF e recusa página que transborda o A4, fonte ou logo que não carregou, rodapé ou numeração errada, a marca “Rascunho para revisão” e qualquer menção ao sistema interno. |
+| [guia-rapido-portal-fwlog.html](guia-rapido-portal-fwlog.html) | Fonte do guia rápido: uma página A4, com o mesmo visual do guia completo. |
+| [guia-rapido-portal-fwlog.pdf](guia-rapido-portal-fwlog.pdf) | O guia rápido em PDF, para anexar ao e-mail de anúncio. |
+| [gerar-pdf.mjs](gerar-pdf.mjs) | Gera os dois PDFs e recusa página que transborda o A4, fonte ou logo que não carregou, rodapé ou numeração errada, a marca “Rascunho para revisão” e qualquer menção ao sistema interno. |
 
 As dicas que poderiam aparecer dentro do Portal estão numa spec à parte, porque
 specs só moram em `docs/spec/`:
@@ -56,9 +59,34 @@ cinza, para o guia não envelhecer; só a tabela Chegadas e saídas do Painel
 mostra datas de exemplo, porque a página explica como lê-las. O QR Code do desenho é um padrão
 decorativo, sem dados: nenhum app de banco o lê.
 
-## Gerar o PDF
+### Guia rápido
 
-Depois de mudar o HTML, rode na raiz do repositório:
+Uma página para o primeiro contato, anexada ao e-mail de anúncio; não
+substitui o guia completo. Traz:
+
+- o que é o Portal;
+- o primeiro acesso em três passos (convite de 48 horas, senha, CNPJ e senha);
+- quatro ações:
+  - consultar B/Ls e containers;
+  - CE Mercante e desbloqueio;
+  - faturas;
+  - pagar com Pix;
+- três contatos (suporte, Importação e Equipamentos);
+- um convite para pedir o guia completo ao suporte.
+
+Tudo vem do guia completo; o que não está nele ficou de fora:
+
+- **Itaú, TED e comprovante.** O guia completo diz que Taxas Locais e
+  Demurrage são pagas só por Pix e que não é preciso enviar comprovante. O
+  nome do banco só aparece em comentários do código, nunca ao cliente.
+- **Transhipping.** O guia completo não cita a marca (decisão de 2026-10-28).
+- **Link do guia completo no Portal.** O guia não está publicado no Portal
+  nem na Central de Informações. Por isso o convite final pede o guia ao
+  suporte e indica o menu Informações para tabelas, depósitos e contatos.
+
+## Gerar os PDFs
+
+Depois de mudar um dos HTMLs, rode na raiz do repositório:
 
 ```bash
 node artifacts/portal-onboarding-cliente/gerar-pdf.mjs
@@ -67,8 +95,8 @@ node artifacts/portal-onboarding-cliente/gerar-pdf.mjs
 Usa o Playwright das dependências de desenvolvimento (`npm ci` antes, se a
 pasta `node_modules` não existir). Sem o navegador do Playwright instalado,
 aponte outro Chromium em `PDF_BROWSER_EXECUTABLE_PATH`, como os scripts de
-`scripts/perf/` fazem com `PERF_BROWSER_EXECUTABLE_PATH`. O PDF só é gravado se
-todas as conferências passarem. A DM Sans é uma fonte variável e entra no PDF como Type 3: o texto
+`scripts/perf/` fazem com `PERF_BROWSER_EXECUTABLE_PATH`. Cada PDF só é gravado se
+todas as conferências do seu HTML passarem. A DM Sans é uma fonte variável e entra no PDF como Type 3: o texto
 continua selecionável e pesquisável, mas alguns leitores antigos desenham a
 letra com menos nitidez em tela.
 
@@ -168,6 +196,9 @@ repositório na `staging` de 2026-10-28; nada foi observado em produção).
 
 ## Verificação feita
 
+- `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: guia rápido em uma
+  página A4, com as mesmas conferências e sem Itaú, TED, Transhipping ou
+  rascunho no texto extraído (`pdftotext`), 2026-10-29.
 - `node artifacts/portal-onboarding-cliente/gerar-pdf.mjs`: 15 páginas, sem
   transbordo, fontes e logos carregadas, rodapé e numeração certos em todas,
   sem a marca de rascunho e sem menção ao sistema interno (**Runtime**,

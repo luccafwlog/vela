@@ -1,4 +1,5 @@
-// Gera Tutorial_Portal_Fwlog.pdf a partir do HTML desta pasta e confere o
+// Gera os PDFs do guia completo (Tutorial_Portal_Fwlog) e do guia rápido
+// (guia-rapido-portal-fwlog) a partir do HTML desta pasta e confere o
 // que um PDF quebrado esconderia: página que transborda o A4, fonte ou logo
 // que não carregou, o nome interno do sistema no texto ao cliente e a
 // contagem de páginas.
@@ -14,13 +15,24 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const htmlPath = path.join(here, 'Tutorial_Portal_Fwlog.html')
-const pdfPath = path.join(here, 'Tutorial_Portal_Fwlog.pdf')
+// Cada documento é gerado à parte: um com problema não impede o outro.
+const documents = ['Tutorial_Portal_Fwlog', 'guia-rapido-portal-fwlog']
 
 const browser = await chromium.launch({ executablePath: process.env.PDF_BROWSER_EXECUTABLE_PATH || undefined })
 try {
+  for (const name of documents) await generate(name)
+} finally {
+  await browser.close()
+}
+
+async function generate(name) {
+  const htmlPath = path.join(here, `${name}.html`)
+  const pdfPath = path.join(here, `${name}.pdf`)
   const page = await browser.newPage()
   await page.goto(pathToFileURL(htmlPath).href, { waitUntil: 'load' })
+  // O navegador só baixa a fonte que a página usa; carregar as duas confere
+  // que os arquivos existem mesmo no guia rápido, que não usa a mono.
+  await page.evaluate(() => Promise.all([document.fonts.load('700 16px "DM Sans"'), document.fonts.load('400 12px "IBM Plex Mono"')]))
   await page.evaluate(() => document.fonts.ready)
 
   const report = await page.evaluate(() => {
@@ -48,7 +60,7 @@ try {
   })
 
   if (report.problems.length > 0) {
-    console.error(`Tutorial com problemas:\n- ${report.problems.join('\n- ')}`)
+    console.error(`${name}.html com problemas:\n- ${report.problems.join('\n- ')}`)
     process.exitCode = 1
   } else {
     await page.pdf({ path: pdfPath, preferCSSPageSize: true, printBackground: true })
@@ -60,9 +72,8 @@ try {
       console.error(`O PDF saiu com ${pdfPages} páginas; o HTML tem ${report.pages}.`)
       process.exitCode = 1
     } else {
-      console.log(`PDF gerado: ${path.relative(process.cwd(), pdfPath)} (${pdfPages} páginas A4).`)
+      console.log(`PDF gerado: ${path.relative(process.cwd(), pdfPath)} (${pdfPages} ${pdfPages === 1 ? 'página' : 'páginas'} A4).`)
     }
   }
-} finally {
-  await browser.close()
+  await page.close()
 }
