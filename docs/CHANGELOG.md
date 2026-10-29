@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **"Não escala" do Administrativo respeita a âncora da escala também no banco (2026-10-29, migration `513`;
+  decisão D2 do dono na revisão da PR luccafwlog/vela#1084):** em **Chegadas e Saídas**, a escala com B/L (POD
+  ou POL), ATA, ATD, Vinculada ou terminais salvos não sai da Viagem pelo "Não escala": a tela já tirava só a
+  data prevista, mas a conferência era só dela. O gatilho `guard_pod_schedule_removal_mark` passa a recusar
+  com "Escala … travada: …", e a tela conta o B/L que tem o porto como POL. O **Excluir escala** segue com a
+  régua dele. Ver [Chegadas e Saídas](modules/chegadas-saidas.md). **Teste local-pg:**
+  `naoEscalaComAncora.local-pg.test.ts`.
 - **Omissão, transbordo e COD: a tela mostra o motivo da recusa (2026-10-28, sem migration, PR
   luccafwlog/vela#1085):** **Omitir escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e
   **Reverter para transbordo** recusados pelo banco mostram o motivo da recusa, pelo mesmo tradutor das

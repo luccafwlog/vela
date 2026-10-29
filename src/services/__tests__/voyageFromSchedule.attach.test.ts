@@ -59,6 +59,7 @@ function blQuery(rows: Array<{ id: string }>, revision: number | null = null) {
   const builder = {
     select: () => builder,
     eq: () => builder,
+    or: () => builder,
     limit: () => result,
     maybeSingle: () => Promise.resolve({ data: revision == null ? null : { revision }, error: null }),
   }
@@ -287,6 +288,33 @@ describe('createOrAttachVoyageFromSchedule - modo form (cancelar escala)', () =>
       lanes: [{ code: 'BRVIX', kind: 'pod', date: null }],
     }, 'user-1', { mode: 'form', voyageId: 42 })
 
+    expect(written()).toEqual(['42::BRVIX eta 2026-01-25→null'])
+  })
+
+  it('B/L com o porto como POL também ancora: só o ETA sai, sem soft-delete (D2, migration 513)', async () => {
+    const orFilters: string[] = []
+    calls.blSelect.mockImplementation((table: string) => {
+      if (table !== 'bls') return blQuery([])
+      const builder = {
+        select: () => builder,
+        eq: () => builder,
+        or: (filter: string) => {
+          orFilters.push(filter)
+          return Promise.resolve({ count: filter.includes('pol.eq.BRVIX') ? 1 : 0, error: null })
+        },
+      }
+      return builder
+    })
+    calls.listPod.mockResolvedValue(new Map([['42::BRVIX', pod('42::BRVIX', { eta: '2026-01-25' })]]))
+
+    await createOrAttachVoyageFromSchedule({
+      vesselName: 'GREEN PECEM',
+      vesselImo: '9976501',
+      voyageNumber: '6',
+      lanes: [{ code: 'BRVIX', kind: 'pod', date: null }],
+    }, 'user-1', { mode: 'form', voyageId: 42, canRemoveEscala: true })
+
+    expect(orFilters).toEqual(['pod.eq.BRVIX,pol.eq.BRVIX'])
     expect(written()).toEqual(['42::BRVIX eta 2026-01-25→null'])
   })
 
