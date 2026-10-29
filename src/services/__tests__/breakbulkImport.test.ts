@@ -949,6 +949,44 @@ describe('breakbulkImport', () => {
       })])
     })
 
+    // D3 da revisão da PR #1084: cancelado em OUTRA Viagem, reativar põe o B/L
+    // de volta na Viagem errada; o número só sai excluindo o B/L lá.
+    it('B/L cancelado em outra Viagem: o aviso manda excluir o B/L lá e importar de novo', async () => {
+      mockExisting([
+        { id: 'OUTRAVIAGEM', voyage_id: 77, customer_id: 2, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', cancelled_at: '2026-10-01T00:00:00Z', customer: { name: 'BETA LTDA' }, voyage: voyage('V77') },
+      ])
+
+      const checked = await withBreakbulkReimportCheck(
+        { layout: 'summary', rowErrors: [], bls: [line('OUTRAVIAGEM', { rowNumber: 3 }), line('NOVO', { rowNumber: 4 })] },
+        10,
+      )
+
+      expect(checked.bls.map((bl) => bl.bl_id)).toEqual(['NOVO'])
+      expect(hasBlockingRowErrors(checked.rowErrors)).toBe(false)
+      expect(checked.rowErrors).toEqual([expect.objectContaining({
+        row: 3,
+        severity: 'warning',
+        message: 'B/L OUTRAVIAGEM está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, exclua o B/L na Viagem NAVIO / V77 (Administrativo) e importe de novo.',
+      })])
+    })
+
+    it('na gravação, B/L cancelado em outra Viagem volta com a mesma orientação', async () => {
+      mockExisting([{ id: 'OUTRAVIAGEM', voyage_id: 77, cancelled_at: '2026-10-01T00:00:00Z', voyage: voyage('V77') }])
+      mockRpc.mockImplementation((name: string) => Promise.resolve(name === 'import_breakbulk_manifest_transactional'
+        ? { data: { batch_id: 7, inserted_bl_ids: ['NOVO'] }, error: null }
+        : { data: { status: 'calculated' }, error: null }))
+
+      const result = await importBreakbulkManifest({
+        filename: 'bb.xlsx',
+        voyageId: 10,
+        uploadedBy: 'user-1',
+        manifest: { layout: 'summary', rowErrors: [], bls: [line('NOVO'), line('OUTRAVIAGEM', { rowNumber: 5 })] },
+      })
+
+      expect(result.cancelledIgnored).toEqual(['OUTRAVIAGEM'])
+      expect(describeBreakbulkPending(result)).toContain('B/L OUTRAVIAGEM está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, exclua o B/L na Viagem NAVIO / V77 (Administrativo) e importe de novo.')
+    })
+
     it('na gravação, B/L cancelado fica fora do lote e volta como pendência', async () => {
       mockExisting([{ id: 'CANCELADO', cancelled_at: '2026-10-01T00:00:00Z' }])
       mockRpc.mockImplementation((name: string) => Promise.resolve(name === 'import_breakbulk_manifest_transactional'
