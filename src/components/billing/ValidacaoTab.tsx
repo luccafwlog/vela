@@ -8,7 +8,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useBatchCalculateLocalCharges, useCustomerReconciliationQueue, useLocalChargeOperations } from '../../hooks/useLocalCharges'
 import { queryKeys } from '../../services/queryKeys'
 import { markBlReadyAndCreateInvoice } from '../../services/billing'
-import { adjustedIssueNotice, adjustedRecalcNotice, getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
+import { adjustedIssueNotice, adjustedRecalcNotice, getBillingBlock, hasOpenReviewPendency, isBlLockedForRecalc } from './validacaoPipeline'
 import { ValidacaoControls } from './ValidacaoControls'
 import { ValidacaoOperationsTable } from './ValidacaoOperationsTable'
 import type { ReasonEvent } from './validacaoBand'
@@ -52,9 +52,13 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
     const ids = explicitIds ?? selectedOpsRows
     if (!ids.length) return
     const invoiced = new Set((operationsRows ?? []).filter((row) => ids.includes(row.id) && isBlLockedForRecalc(row.financial_status)).map((row) => row.id))
-    const eligible = ids.filter((id) => !invoiced.has(id))
+    // Revisão pendente se resolve na Revisão, que recalcula ao salvar (mesma regra do botão da linha).
+    const inReview = new Set((operationsRows ?? []).filter((row) => ids.includes(row.id) && !invoiced.has(row.id) && hasOpenReviewPendency(row)).map((row) => row.id))
+    const reviewNotice = inReview.size === 1 ? '1 B/L com Revisão pendente ficou de fora: resolva na Revisão.' : inReview.size ? `${inReview.size} B/Ls com Revisão pendente ficaram de fora: resolva na Revisão.` : ''
+    const eligible = ids.filter((id) => !invoiced.has(id) && !inReview.has(id))
     if (!eligible.length) {
       if (invoiced.size) showToast(`${invoiced.size} ignorado(s) (já faturados).`, 'info')
+      if (reviewNotice) showToast(reviewNotice, 'info')
       showToast('Nenhum B/L elegível para recálculo na seleção.', 'info')
       return
     }
@@ -67,9 +71,12 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
       message: `Recalcular o cálculo de ${eligible.length} B/L(s) selecionado(s)?`,
       confirmLabel: 'Recalcular',
       affected: {
-        summary: `${eligible.length} B/L(s) serão recalculados${invoiced.size ? ` · ${invoiced.size} faturado(s) serão ignorados` : ''}`,
+        summary: `${eligible.length} B/L(s) serão recalculados${invoiced.size ? ` · ${invoiced.size} faturado(s) serão ignorados` : ''}${inReview.size ? ` · ${inReview.size} com Revisão pendente ficam de fora` : ''}`,
         items: eligibleRows.map((row) => `B/L ${row.id} · ${row.customer?.name ?? 'sem cliente'} · total atual ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.totals.total_brl)}`),
-        ...(invoiced.size ? { blocked: [...invoiced].map((id) => ({ label: `B/L ${id}`, reasons: ['já faturado; não será recalculado'] })) } : {}),
+        ...(invoiced.size || inReview.size ? { blocked: [
+          ...[...invoiced].map((id) => ({ label: `B/L ${id}`, reasons: ['já faturado; não será recalculado'] })),
+          ...[...inReview].map((id) => ({ label: `B/L ${id}`, reasons: ['Revisão pendente; resolva na Revisão'] })),
+        ] } : {}),
       },
       consequence: ['Atualiza as linhas e o total calculado da Taxa Local e registra o resultado da operação. O recálculo usa o câmbio e o preço fixados quando o B/L entrou; este diálogo mostra o valor vigente, não antecipa o novo cálculo.', adjustedRecalcNotice(eligibleRows)].filter(Boolean).join(' '),
       reversibility: 'O cálculo pode ser executado novamente enquanto o B/L não estiver faturado. B/Ls já faturados permanecem bloqueados.',
@@ -81,6 +88,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
       const tone: 'success' | 'error' | 'info' = result.errorCount === 0 ? 'success' : result.successCount === 0 ? 'error' : 'info'
       showToast(`${result.successCount} B/L(s) recalculado(s).${result.errorCount ? ` ${result.errorCount} falharam${firstError}.` : ''}`, tone)
       if (invoiced.size) showToast(`${invoiced.size} ignorado(s) (já faturados).`, 'info')
+      if (reviewNotice) showToast(reviewNotice, 'info')
       setSelectedOpsRows([])
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Falha ao recalcular B/L(s).', 'error')

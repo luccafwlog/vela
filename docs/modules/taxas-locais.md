@@ -165,7 +165,9 @@ aceita "1.420,50"; cada erro indica o campo).
   ação por linha, a que resolve o motivo (Recalcular, Vincular na Revisão,
   Cadastrar CE, Abrir Cliente ou Emitir). Com Revisão pendente (fora a do
   Portal), a ação é **Resolver na Revisão** e não Recalcular: o Recalcular não
-  muda a Revisão e a Revisão recalcula ao salvar (`hasOpenReviewPendency`). Não há funil, métricas nem ações de
+  muda a Revisão e a Revisão recalcula ao salvar (`hasOpenReviewPendency`). Pela mesma regra,
+  **Recalcular selecionados** deixa de fora os B/Ls com Revisão pendente e avisa quantos
+  ("N B/Ls com Revisão pendente ficaram de fora: resolva na Revisão."). Não há funil, métricas nem ações de
   revisão ou liberação em lote. O motivo de bloqueio expõe a pendência canônica
   (ex.: peso BB ausente) via `extractReviewReasons`; a regra dos motivos está em
   [Faturamento](faturamento.md#motivo-de-bloqueio-de-faturamento). Prontidão de
