@@ -215,7 +215,7 @@ describeLocal('396 — CE e Manifesto Mercante', () => {
       const messages = (result.errors ?? []).map((e) => e.message)
       expect(messages.length).toBeGreaterThan(0)
       for (const message of messages) {
-        expect(message).toMatch(/^Taxas Locais do B\/L FF9396-USD(OK)? não calculadas: Cambio \(ROE\) nao configurado.*Nada foi gravado: corrija e grave de novo\.$/)
+        expect(message).toMatch(/^Taxas Locais do B\/L FF9396-USD(OK)? não calculadas: Câmbio \(ROE\) não configurado.*Nada foi gravado: corrija e grave de novo\.$/)
       }
       // Tudo ou nada: nenhum CE gravado, nenhum vínculo.
       expect(w.psql(`SELECT count(*) FROM public.bls WHERE id IN ('${ok}', '${usd}') AND (ce_mercante IS NOT NULL OR manifesto_mercante_id IS NOT NULL)`)).toBe('0')

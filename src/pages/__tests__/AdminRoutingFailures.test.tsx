@@ -64,8 +64,10 @@ describe('Admin — Falhas de entrega de alertas', () => {
     expect(screen.getByText('Setor sem destinatário')).toBeTruthy()
     expect(screen.getByText('Baplie ausente')).toBeTruthy()
     expect(screen.getByText('Documentação')).toBeTruthy()
-    const reason = screen.getByText('Nenhum usuário ativo com papel documentacao encontrado')
+    // Motivo gravado com o papel técnico (linha antiga): a tela mostra a frase do setor.
+    const reason = screen.getByText('Ninguém ativo no setor do alerta.')
     expect(reason.className).toContain('app-table__text--wrap')
+    expect(screen.queryByText(/papel documentacao/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Abrir alerta' })).toBeTruthy()
     expect(screen.getByText('Para resolver: ativar alguém do setor na aba Usuários.')).toBeTruthy()
   })

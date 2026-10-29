@@ -169,7 +169,7 @@ describe('revisão da etapa 9 na página Baplie', () => {
       const view = renderPage(client, '24')
       fireEvent.click(await screen.findByRole('button', { name: /Importar Baplie/ }))
       fireEvent.change(screen.getByLabelText(/^Arquivo \(/), { target: { files: [new File(['edi'], 'novo.edi', { type: 'text/plain' })] } })
-      expect(await screen.findByText('Não foi possível conferir a Viagem: Sem permissao para esta acao. Solicite acesso administrativo.')).toBeTruthy()
+      expect(await screen.findByText('Não foi possível conferir a Viagem: Sem permissão para esta ação.')).toBeTruthy()
       expect(await screen.findByText('Importação bloqueada até a Viagem ser conferida.')).toBeTruthy()
       expect((screen.getByRole('button', { name: 'Importar containers' }) as HTMLButtonElement).disabled).toBe(true)
       fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fetchAuditLogs, fetchSystemMetrics } from '../adminObservability'
+import { fetchAuditLogs, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
 
 const { fromMock, rpcMock, supabaseMock } = vi.hoisted(() => {
   const supabaseMock = { from: vi.fn(), rpc: vi.fn() }
@@ -28,6 +28,16 @@ function builder(result: { data: unknown; error: unknown; count?: number | null 
 beforeEach(() => {
   fromMock.mockReset()
   rpcMock.mockReset()
+})
+
+it('motivo da falha de entrega de alerta nunca mostra o texto técnico gravado', () => {
+  expect(routingFailureReasonLabel('Nenhum destinatário ativo no fallback Administrativo.'))
+    .toBe('Ninguém ativo no setor do alerta nem no Administrativo.')
+  expect(routingFailureReasonLabel('Nenhum destinatário ativo na audiência do item.'))
+    .toBe('Ninguém ativo no setor do alerta.')
+  for (const raw of ['Nenhum usuário ativo com papel documentacao encontrado', 'no_active_recipient', 'ERROR: 42501']) {
+    expect(routingFailureReasonLabel(raw)).toBe('Ninguém ativo no setor do alerta.')
+  }
 })
 
 it('propaga falha de qualquer leitura das metricas', async () => {

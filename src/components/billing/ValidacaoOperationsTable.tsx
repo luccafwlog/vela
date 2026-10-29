@@ -16,7 +16,7 @@ import { formatPortDisplayName } from '../../lib/voyageFormat'
 import { isCustomerReconciliationResolved } from '../../services/customerReconciliation'
 import type { LocalChargeOperationalRow } from '../../services/charges/chargeOperationsService'
 import { ConferenciaCalculo } from './ConferenciaCalculo.tsx'
-import { getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
+import { getBillingBlock, hasOpenReviewPendency, isBlLockedForRecalc } from './validacaoPipeline'
 
 type ReconciliationQueueItem = {
   id: number
@@ -173,7 +173,8 @@ export function ValidacaoOperationsTable({
 }
 
 /**
- * Uma ação por linha, a que resolve o motivo: Recalcular, Vincular na Revisão,
+ * Uma ação por linha, a que resolve o motivo: Recalcular (ou Resolver na
+ * Revisão, com Revisão pendente), Vincular na Revisão,
  * Cadastrar CE, Abrir Cliente ou Emitir (lote 1 da identidade). Na linha da
  * tabela, só o ícone (`iconOnly`, regra 9); na faixa da linha aberta, com texto.
  */
@@ -208,6 +209,10 @@ function ResolveAction({
     // Conhecer o bloqueio não é o mesmo que poder resolvê-lo: a ficha aplica a própria permissão.
     if (!row.customer?.cnpj_cpf) return null
     return link(`/clientes/${encodeURIComponent(row.customer.cnpj_cpf)}`, 'Abrir Cliente', UserRound)
+  }
+  // Revisão pendente: a ação é resolvê-la na Revisão, não recalcular antes.
+  if (code === 'calculo_incompleto' && hasOpenReviewPendency(row)) {
+    return link(`/revisao?bl=${encodeURIComponent(row.id)}`, 'Resolver na Revisão', ArrowRight)
   }
   if (code === 'calculo_incompleto' && !isBlLockedForRecalc(row.financial_status)) {
     return iconOnly

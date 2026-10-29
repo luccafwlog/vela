@@ -227,7 +227,7 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
       BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
       SET LOCAL request.jwt.claim.sub = '00000000-0000-0000-0000-000000190999';
       SELECT count(*) FROM public.list_voyage_eligible_pods(${voyageId}); COMMIT;`)
-    expect(portalLike.stderr).toMatch(/sem permissao/i)
+    expect(portalLike.stderr).toMatch(/sem permissão/i)
   })
 
   it('a ATA da Viagem não preenche a descarga dos containers', () => {

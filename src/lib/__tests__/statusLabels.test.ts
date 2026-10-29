@@ -5,7 +5,7 @@ describe('ESTADO_CONCILIACAO_META', () => {
   it('tem entradas para divergente, incompleto e conciliado', () => {
     expect(ESTADO_CONCILIACAO_META.divergente.label).toBe('Divergente')
     expect(ESTADO_CONCILIACAO_META.incompleto.label).toBe('Pendente')
-    expect(ESTADO_CONCILIACAO_META.conciliado.label).toBe('Conciliado')
+    expect(ESTADO_CONCILIACAO_META.conciliado.label).toBe('Conciliada')
   })
 
   it('usa variáveis CSS (var(--app-*)) para cor e fundo, nunca hex', () => {

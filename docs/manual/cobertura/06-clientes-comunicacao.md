@@ -166,8 +166,8 @@ Leitura do código e das definições do banco; nada foi executado.
 | `Configuração global não encontrada.` | Nunca chega a uma pessoa: a falha na troca da chave **Envio real** não aparece na tela, que fica como estava (CLI-104); só a telemetria registra. | Fora |
 | `Contato % não pertence ao cliente %.` | Ao salvar contatos com um contato de outro Cliente (tela desatualizada). Recarregue a ficha. | Ap. B |
 | `Contato adicional ativo deve ter ao menos uma caixa vinculada.` | Nunca chega a uma pessoa: as duas telas de contatos recusam antes, com o nome do contato ("O contato "…" deve estar vinculado a pelo menos uma caixa."). | Fora |
-| `Credenciais invalidas para criar cliente.` | Ao cadastrar Cliente com sessão de usuário inativo ou expirada. Entre de novo. | Ap. B |
-| `Credenciais invalidas para editar cliente.` | Ao salvar os Dados cadastrais com sessão inativa ou expirada. Entre de novo. | Ap. B |
+| `Usuário sem permissão para criar cliente.` | Ao cadastrar Cliente com sessão de usuário inativo ou expirada. Entre de novo. | Ap. B |
+| `Usuário sem permissão para editar o Cliente.` | Ao salvar os Dados cadastrais com sessão inativa ou expirada. Entre de novo. | Ap. B |
 | `Criação de cliente exige ao menos um contato principal com e-mail válido.` | Nunca chega a uma pessoa: o **Novo cliente** recusa antes, com regra mais estrita ("O contato principal precisa de um e-mail válido."). | Fora |
 | `E-mail % já cadastrado para o contato "%" (ID %).` | Ao salvar contatos quando outro contato com o mesmo e-mail foi criado depois que a tela abriu (pelo B/L, pela Base ou pelo Portal). Recarregue a ficha e confira os contatos. | Ap. B |
 | `E-mail duplicado no envio: %` | Ao salvar contatos com um e-mail que já é de outro contato do Cliente na lista, inclusive desativado (reative aquele contato em vez de criar outro). Na Base de Clientes não aparece: a leitura já junta os e-mails repetidos. | Ap. B |
@@ -190,7 +190,7 @@ Leitura do código e das definições do banco; nada foi executado.
 | `O ator informado deve ser o usuario autenticado.` | Nunca chega a uma pessoa: a checagem anterior do mesmo caminho recusa primeiro. | Fora |
 | `O B/L % contém CNPJs conflitantes nas evidências.` | Na Revisão, ao vincular um grupo em que o B/L % traz mais de um CNPJ. Vincule esse B/L sozinho. | Ap. B |
 | `O B/L % já está vinculado a outro cliente; corrija o vínculo individualmente.` | Na Revisão, quando um B/L do grupo já tem outro Cliente. Corrija na ficha do B/L. | Ap. B |
-| `O B/L % ja foi faturado: nao se desvincula o Cliente. Use Trocar Cliente.` | Ao tirar o Cliente de um B/L faturado. Use **Trocar Cliente** na seção Cliente da ficha do B/L. | Ap. B |
+| `O B/L % já foi faturado: não se desvincula o Cliente. Use Trocar Cliente.` | Ao tirar o Cliente de um B/L faturado. Use **Trocar Cliente** na seção Cliente da ficha do B/L. | Ap. B |
 | `O B/L % não possui CNPJ ou consignatário suficiente para validar o grupo.` | Na Revisão, grupo com B/L sem CNPJ e sem nome de consignatário. Vincule o B/L sozinho. | Ap. B |
 | `O cliente deve ter exatamente um contato principal ativo.` | Ao salvar contatos sem principal ativo ou com mais de um (a tela avisa antes). | Ap. B |
 | `O CNPJ do B/L % não corresponde ao grupo informado.` | Na Revisão, quando o CNPJ lido no B/L % é diferente do CNPJ do grupo. | Ap. B |
@@ -213,8 +213,8 @@ Leitura do código e das definições do banco; nada foi executado.
 | `Use deactivate_customer ou reactivate_customer.` | Nunca chega a uma pessoa: protege a desativação contra gravação fora dos botões **Desativar/Reativar cliente**. | Fora |
 | `Usuário sem permissão ativa para concluir o grupo.` | Na Revisão, ao cadastrar ou vincular o Cliente do grupo com sessão inativa. Entre de novo. | Ap. B |
 | `Usuário sem permissão para atualizar a fila de reconciliação.` | Nunca chega a uma pessoa: nenhuma tela chama essa atualização. | Fora |
-| `Usuario sem permissao para consultar saldos.` | Na lista ou na ficha do Cliente, quando a sessão não é de usuário interno ativo; o saldo não carrega. | Ap. B |
-| `Usuario sem permissao para editar cliente.` | Nunca chega a uma pessoa: a checagem de sessão anterior recusa primeiro ("Credenciais invalidas para editar cliente."). | Fora |
+| `Usuário sem permissão para consultar saldos.` | Na lista ou na ficha do Cliente, quando a sessão não é de usuário interno ativo; o saldo não carrega. | Ap. B |
+| `Usuário sem permissão para editar cliente.` | Nunca chega a uma pessoa: a checagem de sessão anterior recusa primeiro ("Usuário sem permissão para editar o Cliente."). | Fora |
 | `Informe o motivo da reativação.` | Ao confirmar **Reativar cliente** sem motivo. | Ap. B |
 | `Informe portos brasileiros pelo código LOCODE.` | Em **Informações do Portal**, ao gravar porto fora do formato BR + três letras; a tela mostra "Não foi possível salvar. Revise os dados e tente novamente." | Ap. B |
 | "Informe um CNPJ de 14 posições válido" (tela) | **Novo cliente** com CNPJ inválido. | Ap. B |

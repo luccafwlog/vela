@@ -101,7 +101,7 @@ describeLocal('077 — Baplie importado por qualquer Departamento ativo', () => 
   it('usuário inativo continua recusado', () => {
     const result = importBaplie(INACTIVE_SUB, baplieRow)
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('sem permissao para importar Baplie')
+    expect(result.stderr).toContain('sem permissão para importar Baplie')
   })
 })
 
