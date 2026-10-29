@@ -6,6 +6,39 @@
 
 ## 2026-10
 
+- **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
+  programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
+  histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na
+  escala com mensagem clara; a recusa do cadastro de Viagem aparece em português; o "hoje" de Chegadas
+  e Saídas e os filtros de data de Viagens seguem o dia de Brasília; a prévia de B/Ls mostra datas no
+  formato brasileiro. A recusa de exclusão por vínculo (`delete_record_block_reason`) passa a dizer em
+  português também o pedido de Desbloqueio de CE e as tabelas que antes saíam com o nome técnico.
+- **Datas do container de B/L cancelado só para leitura (2026-10-29, migration `504`):** a ficha do B/L
+  cancelado deixava editar a devolução, e `set_container_dates` gravava a data nos B/Ls ativos que
+  dividem o container (ou não gravava nada) enquanto a tela dizia "salva". A ficha mostra a data só
+  para leitura, e o banco recusa a gravação vinda do B/L cancelado ([ADR 0094](adr/0094-preco-fixo-na-importacao.md), B4).
+- **Endereço mudado pelo Cliente no Portal aparece como do Cliente (2026-10-29, migration `503`):**
+  endereço, cidade, UF e CEP gravados no Perfil do Portal apareciam em **Alterações do cadastro**, na
+  ficha do Cliente, com "Usuário interno" em **Por**, porque o login do Portal não tem perfil interno.
+  `customer_audit_timeline` passa a devolver `changed_by_portal`, e a coluna mostra "Cliente pelo
+  Portal", como já fazia nos contatos.
+- **Ficha do B/L e Revisão: conferência do Manual do Operador (2026-10-29, migration `502`):** a
+  justificativa pedida na ficha do B/L, na Revisão e na correção da fila passa a ir ao Histórico de
+  cada campo e da situação da Revisão (antes `save_bl_review` a descartava e o gatilho gravava sem
+  justificativa); **Trocar Cliente** e **Desvincular** pedem o motivo (decisão do dono de 2026-10-29).
+  Corrigir o POD para outro porto tira a exceção de terminal do B/L, com registro no Histórico
+  ([ADR 0068](adr/0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md)). Equipamentos inclui
+  o e-mail do Cliente na Revisão e na ficha, mas não vê mais o convite do Portal, que a Edge Function
+  `portal-invite-send` recusa a quem não é da Documentação ou do Administrativo. Rótulo, campo e ajuda
+  ficam no topo da célula da grade (`.app-field`): o Lacre da janela Corrigir container deixa de esticar
+  no B/L faturado.
+- **Etapa Cliente da ficha do B/L respeita a Liberação de faturamento (2026-10-29, migration `501`):**
+  com Cliente sem conta ativa no Portal, a etapa Cliente do trilho Documental ficava vermelha com
+  "Resolver na Revisão" mesmo com Liberação vigente ou B/L já faturado, que não estão na Revisão.
+  `get_bl_portal_status` passa a devolver `billing_access_ready` (`customer_billing_access_ready`, a
+  condição da pendência da Revisão); a etapa fica "Cliente apto · Liberação sem Portal" ou "B/L
+  faturado · Portal não está ativo", sem Próxima ação, e o bloco Portal diz "Pronto para faturar: Sim,
+  pela Liberação de faturamento sem Portal". O link **Abrir no Provisionamento do Portal** continua.
 - **Alterar, excluir e isentar as Taxas Locais do B/L (2026-10-28, em lotes):** pedido do dono,
   [ADR 0111](adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md). Lote 1 (migration `491`): na
   ficha do B/L, qualquer setor altera o valor de uma taxa (por unidade ou pelo total), exclui a taxa e

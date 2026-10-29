@@ -48,6 +48,14 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-btn\s*\{[^}]*position:\s*relative/s)
   })
 
+  // Conferência do Manual (captura bl-corrigir-container): no B/L faturado,
+  // Perfil e COC/SOC têm ajuda embaixo e a linha da grade cresce. Com o
+  // `align-content` padrão, o campo Lacre esticava (71px contra 44px no
+  // Chromium) e descia 27px. O jsdom não faz layout: a medida foi no navegador.
+  it('mantém rótulo, campo e ajuda no topo da célula quando o vizinho tem ajuda', () => {
+    expect(css).toMatch(/\n\.app-field\s*\{[^}]*align-content:\s*start/s)
+  })
+
   it('usa superfícies temáticas nos campos e aliases semânticos nas tags', () => {
     expect(css).toMatch(/\.app-input\s*\{[^}]*background:\s*var\(--app-surface-strong\)/s)
     for (const role of ['success', 'warning', 'danger', 'info', 'neutral']) {

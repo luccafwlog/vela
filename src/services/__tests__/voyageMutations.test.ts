@@ -5,6 +5,7 @@ vi.mock('../supabase', () => ({ supabase: { from: fromMock, rpc: rpcMock } }))
 
 import { cancelVoyage, createVoyage, deleteVoyage, fetchVoyagesWithUnpaidBls, previewVoyageDeletion, updateVoyage } from '../voyages'
 import { deleteVoyagePodSchedule } from '../voyageRouteSchedules'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 beforeEach(() => {
   fromMock.mockReset()
@@ -224,4 +225,47 @@ it('02-viagens-adr:4: "Faturamento encerrado" só com todo B/L ativo quitado ou 
 
   await expect(fetchVoyagesWithUnpaidBls([5, 6, 7])).resolves.toEqual(new Set([6, 7]))
   expect(calls).toContainEqual(['is', 'cancelled_at', null])
+})
+
+// Recusas de regra do cadastro do navio chegam à tela com o motivo.
+it('navio com IMO conflitante: a recusa chega à tela com o motivo', async () => {
+  fromMock.mockImplementation((table: string) => {
+    if (table === 'carriers') return { select: () => ({ limit: () => ({ eq: () => Promise.resolve({ data: [{ id: 7 }], error: null }) }) }) }
+    if (table === 'vessels') {
+      return {
+        select: () => ({
+          eq: (column: string) => ({
+            limit: () => Promise.resolve(column === 'imo'
+              ? { data: [], error: null }
+              : { data: [{ id: 9, imo: '1111111', name: 'GREEN SANTOS', carrier_id: 7 }], error: null }),
+          }),
+          ilike: () => ({ limit: () => Promise.resolve({ data: [], error: null }) }),
+        }),
+      }
+    }
+    throw new Error(`Tabela nao mockada: ${table}`)
+  })
+
+  const error = await createVoyage({
+    carrierName: 'COSCO', carrierScac: 'COSU', vesselName: 'GREEN SANTOS', vesselImo: '2222222', voyageNumber: '40', status: 'active',
+  }, 'user-1').catch((caught: unknown) => caught)
+
+  expect((error as Error).message).toBe('Navio GREEN SANTOS com IMO conflitante (1111111 vs 2222222). Corrija antes de importar.')
+  expect(userFacingErrorMessage(error, 'Falha ao cadastrar a viagem.')).toBe('Navio GREEN SANTOS com IMO conflitante (1111111 vs 2222222). Corrija antes de importar.')
+})
+
+it('dois navios com o mesmo nome sem IMO: a recusa chega à tela com o motivo', async () => {
+  fromMock.mockImplementation((table: string) => {
+    if (table === 'carriers') return { select: () => ({ limit: () => ({ eq: () => Promise.resolve({ data: [{ id: 7 }], error: null }) }) }) }
+    if (table === 'vessels') {
+      return { select: () => ({ eq: () => ({ limit: () => Promise.resolve({ data: [{ id: 9, imo: null, carrier_id: 7 }, { id: 10, imo: null, carrier_id: 7 }], error: null }) }) }) }
+    }
+    throw new Error(`Tabela nao mockada: ${table}`)
+  })
+
+  const error = await createVoyage({
+    carrierName: 'COSCO', carrierScac: 'COSU', vesselName: 'GREEN SANTOS', vesselImo: '', voyageNumber: '40', status: 'active',
+  }, 'user-1').catch((caught: unknown) => caught)
+
+  expect(userFacingErrorMessage(error, 'Falha ao cadastrar a viagem.')).toBe('Navio GREEN SANTOS ambíguo: mais de um cadastro sem IMO. Informe o IMO.')
 })

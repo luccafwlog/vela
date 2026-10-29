@@ -210,6 +210,8 @@ export async function afterLiberacaoFaturamentoPortal(
     // Conceder ou revogar reavalia a Revisão dos B/Ls do Cliente (migration 167).
     ['review-queue'],
     ['portal-provisioning'],
+    // A ficha do B/L lê o gate (Portal pronto ou Liberação) do status do Portal (migration 501).
+    queryKeys.portal.blStatus(),
     ['invoices'],
     ['bls'],
     ['bl-summary'],

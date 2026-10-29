@@ -74,7 +74,12 @@ export function ReviewCustomerForm({
   const [linkTarget, setLinkTarget] = useState<ReviewCustomer | null>(proposedCustomer?.customer ?? null)
   const blockId = useId()
   // D10 de 2026-10-27: só Administrativo, Documentação e Equipamentos incluem o e-mail.
-  const canEditContacts = useAuth().can('edit_customer_contacts')
+  const { can } = useAuth()
+  const canEditContacts = can('edit_customer_contacts')
+  // O convite do Portal é da Documentação e do Administrativo: a Edge Function
+  // `portal-invite-send` recusa os outros. Equipamentos inclui o e-mail, mas
+  // não vê a opção de convidar (conferência do Manual, capítulo 8).
+  const canInvitePortal = canEditContacts && can('portal_provisioning')
 
   // Escolhas feitas fora do formulário ajustam o estado durante o render
   // (padrão "adjusting state when props change").
@@ -118,7 +123,7 @@ export function ReviewCustomerForm({
             ? 'O CNPJ precisa ser um dos lidos no B/L.'
             : !validEmail
               ? 'Informe um e-mail válido.'
-              : canEditContacts && !portal
+              : canInvitePortal && !portal
                 ? 'Escolha o que fazer com o Portal do Cliente para continuar.'
                 : null
   const linkBlock = saving ? null : !linkTarget ? 'Escolha o cliente cadastrado.' : null
@@ -127,7 +132,7 @@ export function ReviewCustomerForm({
   const summary = mode === 'cadastrar'
     ? portal === 'convidar'
       ? <>Vai cadastrar <strong>{name.trim() || 'o cliente'}</strong>, vincular <strong>{target}</strong> e enviar o convite do Portal para <strong>{email.trim().toLowerCase() || 'o e-mail principal'}</strong>.</>
-      : portal === 'depois' || !canEditContacts
+      : portal === 'depois' || !canInvitePortal
         ? <>Vai cadastrar <strong>{name.trim() || 'o cliente'}</strong> e vincular <strong>{target}</strong>. {blCount === 1 ? 'O B/L continua' : 'Os B/Ls continuam'} na Revisão até o Portal ficar ativo.</>
         : null
     : linkTarget
@@ -145,7 +150,7 @@ export function ReviewCustomerForm({
       cnpjCpf: validCnpj!,
       name: name.trim(),
       email: canEditContacts ? email.trim().toLowerCase() : '',
-      sendPortalInvite: canEditContacts && portal === 'convidar',
+      sendPortalInvite: canInvitePortal && portal === 'convidar',
     })
   }
 
@@ -178,7 +183,7 @@ export function ReviewCustomerForm({
               </Field>
             ) : null}
           </div>
-          {canEditContacts ? (
+          {canInvitePortal ? (
           <ChoiceCards
             label="Portal do Cliente"
             value={portal}
@@ -196,6 +201,8 @@ export function ReviewCustomerForm({
               },
             ]}
           />
+          ) : canEditContacts ? (
+            <p className="text-[var(--app-muted)]" role="note">O convite do Portal fica com a Documentação ou o Administrativo: o cadastro sai com o e-mail como contato, e o B/L continua na Revisão até o Portal ficar ativo.</p>
           ) : (
             <p className="text-[var(--app-muted)]" role="note">Só Administrativo, Documentação e Equipamentos incluem o e-mail do Cliente: o cadastro sai sem contato, e o convite do Portal fica com a Documentação ou o Administrativo.</p>
           )}

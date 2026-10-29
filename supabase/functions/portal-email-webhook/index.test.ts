@@ -2,7 +2,7 @@
 // biblioteca e o banco simulado por fetch falso (plano de correção dos
 // e-mails, 5.4). O corpo segue o evento real de 14/10/2026 (portal_email_events
 // id 99, "email.delivered" da MillionSend), com o endereço trocado.
-import { Webhook } from "https://esm.sh/svix@1.99.1";
+import { Webhook } from "npm:svix@1.99.1";
 
 let handler: (req: Request) => Promise<Response>;
 const serve = Deno.serve;
