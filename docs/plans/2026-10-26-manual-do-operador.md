@@ -7,11 +7,12 @@ trabalho, não o manual.
 ## Estado
 
 **Etapas 1 e 2 concluídas; Etapa 3 (redação em lotes) em andamento desde
-2026-10-29, pelo lote 1.** O dono aprovou em 2026-10-29 o capítulo-piloto
-(capítulos 4 a 6) no padrão enxuto, com a paginação corrigida, como molde dos
-demais. Páginas-modelo aprovadas em
+2026-10-29: lotes 1 (capítulos 1 a 3) e 2 (capítulos 7, 8, 18 e 19) escritos e
+conferidos contra o código, esperando a revisão do dono.** O dono aprovou em
+2026-10-29 o capítulo-piloto (capítulos 4 a 6) no padrão enxuto, com a
+paginação corrigida, como molde dos demais. Páginas-modelo aprovadas em
 2026-10-28. O texto está em [`docs/manual/texto/`](../manual/texto/README.md),
-o cenário e as 32 capturas em [`scripts/manual/`](../../scripts/manual/pdf/README.md),
+o cenário e as capturas em [`scripts/manual/`](../../scripts/manual/pdf/README.md),
 e o PDF sai de `npm run manual:build`. Cada capítulo teve conferência
 independente contra o código; as correções estão no texto, e as linhas da
 matriz que descreviam outra coisa foram corrigidas ("Atualizações da matriz"

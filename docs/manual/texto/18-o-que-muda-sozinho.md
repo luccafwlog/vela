@@ -175,8 +175,4 @@ A fatura de Taxas Locais normalmente sai sozinha com o CE ([18.1](#181-vincular-
 | | Avisa o Cliente com o número e o valor. Com a cobrança pelo Itaú ligada, o QR do Pix sai segundos depois ([19.6](19-rotinas-por-horario.md#196-o-pix-do-itaú)). | Portal: "Nova fatura emitida" |
 | | Se era o último B/L do Cliente na Viagem que faltava, manda o Comunicado de CE e Taxas. | E-mail ao Cliente |
 | Cancela a fatura | Deixa de cobrar o saldo e invalida o Pix. No Portal, a fatura só aparece no filtro de canceladas. | **Taxas Locais**; Portal |
-| | Devolve o B/L a não faturado: ele reaparece na **Validação**. Fecha o alerta **Fatura desatualizada** da fatura. | **Taxas Locais** › **Validação** |
-
-::: atencao
-Depois de um cancelamento feito por uma pessoa, nada emite de novo aquele B/L sozinho: nem o CE, nem a ativação do Portal, nem a Liberação. A nova fatura sai só pelo **Emitir**.
-:::
+| | Devolve o B/L a não faturado: ele reaparece na **Validação**. Depois disso, nada emite aquele B/L sozinho, nem o CE, nem a ativação do Portal, nem a Liberação: a nova fatura sai só pelo **Emitir**. | **Taxas Locais** › **Validação** |

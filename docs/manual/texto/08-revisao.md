@@ -17,16 +17,16 @@ O B/L entra na Revisão com uma destas três pendências:
 | Pendência | Quer dizer | Onde se resolve |
 |---|---|---|
 | **Sem cliente vinculado** | A importação não achou um Cliente com o CNPJ do consignatário. | [8.2](#82-cadastrar-ou-vincular-o-cliente) |
-| **Portal não provisionado** | O Cliente não tem conta ativa no Portal nem Liberação de faturamento sem Portal. | [8.3](#83-convidar-o-cliente-para-o-portal) |
+| **Portal não provisionado** | O Cliente não tem o Portal pronto para faturar (conta ativa e e-mail de recuperação válido) nem Liberação de faturamento sem Portal. | [8.3](#83-convidar-o-cliente-para-o-portal) |
 | **Peso da carga solta ausente** | O B/L de carga solta ou misto está sem peso. | [8.4](#84-informar-o-peso-da-carga-solta) |
 
-Nada mais segura o B/L aqui. O CE Mercante e o cálculo das Taxas Locais também seguram a fatura, mas se resolvem fora da Revisão (capítulos 6 e 21).
+Fora delas, só o B/L faturado cuja carga mudou volta para cá ([8.5](#85-quando-a-pendência-não-é-uma-das-três)). O CE Mercante e o cálculo das Taxas Locais também seguram a fatura, mas se resolvem fora da Revisão (capítulos 6 e 21).
 
 ::: tela revisao-fila
 A Revisão com cinco Clientes, entre eles a NOVA ROTA, ainda sem cadastro, e a MAQUINAS HORIZONTE, esperando o Portal.
 :::
 
-1. Os cartões contam as pendências e filtram a fila ao toque; o segundo toque tira o filtro. **Outras pendências** reúne o que não é nenhuma das três ([8.5](#85-quando-a-pendência-não-é-uma-das-três)).
+1. Os cartões contam as pendências e filtram a fila ao toque. **Outras pendências** reúne o que não é nenhuma das três ([8.5](#85-quando-a-pendência-não-é-uma-das-três)).
 2. **Buscar** acha pelo B/L, Cliente, consignatário ou CNPJ; **Navio / viagem** recorta por Viagem.
 3. Cada linha é um Cliente, com os seus B/Ls e a **Próxima ação**. A seta abre o grupo.
 
@@ -38,14 +38,14 @@ O número ao lado de **Revisão**, no menu, não se atualiza sozinho: o que outr
 
 ## 8.2 Cadastrar ou vincular o Cliente
 
-**Quem faz:** {{Qualquer equipe}} · e-mail do Cliente: {{Administrativo}}, {{Documentação}} e {{Equipamentos}}
+**Quem faz:** {{Qualquer equipe}} · e-mail do Cliente: {{Administrativo}}, {{Documentação}} e {{Equipamentos}} · convite do Portal: {{Documentação}} e {{Administrativo}}
 
 Quando o CNPJ do B/L não é de nenhum Cliente, alguém decide: o Cliente é novo e precisa de cadastro, ou ele já existe com outro nome. O CNPJ lido no B/L manda: o Vela só cadastra com um dos CNPJs que o B/L traz.
 
 ::: lado
 1. Na linha do Cliente, clique na seta para abrir o grupo.
 2. No bloco **Cadastrar o cliente**, confira o CNPJ lido e escolha **Cadastrar novo cliente** ou **Vincular a um cliente cadastrado**.
-3. Para cadastrar, confira **Razão social**, **CNPJ** e **E-mail principal**, que vêm do B/L. Em **Portal do Cliente**, escolha **Enviar o convite agora** ou **Deixar para depois**.
+3. Para cadastrar, confira **Razão social**, **CNPJ** e **E-mail principal**, que vêm do B/L. Em **Portal do Cliente**, escolha **Enviar o convite agora** ou **Deixar para depois** ({{Equipamentos}} escolhe **Deixar para depois**).
 4. Clique em **Cadastrar e vincular** (ou **Vincular N B/Ls**) e confirme.
 
 ::: tela revisao-cadastrar
@@ -80,7 +80,7 @@ A fatura só sai para o Cliente com o Portal ativo, porque é no Portal que ele 
 2. Se o e-mail não é o certo, clique em **Usar outro e-mail** e digite o novo.
 3. Clique em **Autorizar e enviar convite** (ou **Reenviar convite** ou **Enviar novo convite**, conforme a situação) e confirme em **Enviar convite**.
 
-As outras equipes veem o bloco, mas não os botões. Quando a conta está suspensa ou não aceita convite, o bloco leva a **Abrir no Provisionamento do Portal** (capítulo 14). A Liberação fica em **Liberação na ficha do Cliente**.
+Quando a conta está suspensa ou não aceita convite, o bloco leva a **Abrir no Provisionamento do Portal** (capítulo 14). A Liberação fica em **Liberação na ficha do Cliente**.
 
 ::: atencao
 A Liberação de faturamento sem Portal tem data de revisão. Quando ela vence, os B/Ls ainda não faturados do Cliente voltam para a Revisão.
@@ -127,9 +127,10 @@ Cada ação deixa um resultado no alto da tela:
 | "Continua em revisão: …" | Resolva a pendência que sobrou. |
 | "Saiu da revisão, mas o faturamento automático não concluiu: …" | Leia o motivo. "Aguardando cadastro do CE Mercante" é o caminho normal: a fatura sai depois da planilha de CE. Os outros motivos costumam ser do cálculo das Taxas Locais (capítulo 21). |
 
-Quando as Taxas Locais ainda precisam de recálculo, aparece também o aviso "taxas locais ainda por recalcular", com **Recalcular taxas**.
+No cadastro ou vínculo do grupo, o resultado resume o grupo: quantos B/Ls saíram, quantas faturas foram emitidas e o que continua em revisão.
+
+O aviso "taxas locais ainda por recalcular", com **Recalcular taxas**, aparece sempre que a fatura não sai, também por falta de CE. Nesse caso não precisa recalcular: a fatura sai com a planilha de CE.
 
 ::: atencao
-- Se outra pessoa mexeu no B/L ou no grupo enquanto você trabalhava, nada é gravado e a fila recarrega. Confira e faça de novo.
 - Se a última fatura do B/L foi cancelada por uma pessoa, a Revisão não emite outra: a nova sai só pelo **Emitir fatura** da ficha ([7.6](07-ficha-do-bl.md#76-as-taxas-locais-na-ficha)).
 :::

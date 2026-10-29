@@ -1,4 +1,4 @@
-A ficha do B/L reúne tudo o que o Vela sabe de um B/L: o documento, a carga, o Cliente, o CE Mercante, as Taxas Locais e a história de cada mudança. É nela que você confere em que pé o B/L está e corrige o que a importação trouxe errado. Toda correção pede uma justificativa e fica no **Histórico** do B/L, com o seu nome. Neste capítulo você lê a ficha, corrige o B/L e os containers, cuida do Cliente e, se é do Administrativo, cancela, reativa ou exclui um B/L.
+A ficha do B/L reúne tudo o que o Vela sabe de um B/L: o documento, a carga, o Cliente, o CE Mercante, as Taxas Locais e a história de cada mudança. É nela que você confere em que pé o B/L está e corrige o que a importação trouxe errado. Toda correção fica no **Histórico** do B/L, com o antes, o depois e o seu nome. Neste capítulo você lê a ficha, corrige o B/L e os containers, cuida do Cliente e, se é do Administrativo, cancela, reativa ou exclui um B/L.
 
 ::: aprende
 - ler a ficha e ver o que ainda falta para o B/L;
@@ -19,13 +19,13 @@ A ficha abre pelo número do B/L, em **BLs**, na **Revisão** ou em qualquer tel
 A ficha do CSC45810A01K00, já faturado.
 :::
 
-1. O cabeçalho diz a modalidade (**Container**, **Carga solta** ou **Misto**, que o Vela calcula pela carga do B/L), a Viagem, o trecho, o CE Mercante e o Cliente. **Reimportar B/L** fica aqui ([6.3](06-importacao.md#63-reimportar-um-bl-que-o-armador-corrigiu)).
+1. O cabeçalho diz a modalidade (**Container**, **Carga solta** ou **Misto**), a Viagem, o trecho, o CE Mercante e o Cliente. **Reimportar B/L**, no B/L de container ou misto, fica aqui ([6.3](06-importacao.md#63-reimportar-um-bl-que-o-armador-corrigiu)).
 2. A **Próxima ação** só aparece quando falta alguma etapa documental. Ela diz qual e leva aonde ela se resolve.
 3. O trilho **Operacional** acompanha o navio e a carga: saída do POL, chegada ao POD, descarga e devolução dos containers.
 4. O trilho **Documental** mostra as etapas até a fatura: **Cliente**, **Taxas Locais**, **CE Mercante** e **Fatura**, com o número de pendências.
 5. As abas: **Visão geral** (Embarque, **Documento Mercante**, **Cliente**, um resumo da **Carga** e o **Portal**), **Carga** (containers, carga solta e veículos), **Detalhes do B/L** (o documento), **Faturamento** (Taxas Locais e Demurrage) e **Histórico**.
 
-O **Histórico** conta tudo o que mudou no B/L: cada campo, com antes e depois, quem mudou e a justificativa, e também os Comunicados enviados ao Cliente. O que veio de uma importação aparece com a **Origem**. Use os filtros (**Edição**, **Contêiner**, **Taxas**, **Fatura**, **Comunicado**) para achar uma mudança.
+O **Histórico** conta tudo o que mudou no B/L: cada campo, com antes e depois, quem mudou e a justificativa, e também os Comunicados enviados ao Cliente. O que veio de uma importação aparece com a **Origem**. Use os filtros por assunto para achar uma mudança.
 
 ::: atencao
 A etapa **Cliente** do trilho fica vermelha enquanto a conta do Portal do Cliente não está ativa, mesmo quando a fatura já saiu pela Liberação de faturamento sem Portal, como no exemplo. Confira na etapa **Fatura** se ela foi emitida.
@@ -39,7 +39,7 @@ A aba **Detalhes do B/L** é o documento como o Vela o guarda: as partes (shippe
 
 1. Na ficha, abra a aba **Detalhes do B/L** e corrija os campos.
 2. Em **Justificativa da alteração**, escreva por que mudou.
-3. Clique em **Salvar alterações**. Ao lado, o Vela conta os campos alterados.
+3. Clique em **Salvar alterações**.
 4. Confira o antes → depois de cada campo e confirme.
 
 O CE Mercante e o Manifesto ficam no alto da aba, no bloco **Documento Mercante**, e não entram no **Salvar alterações**: cada um tem a sua ação ([7.5](#75-o-ce-e-o-manifesto-pela-ficha)). A Viagem do B/L não muda pela ficha ([6.9](06-importacao.md#69-trocar-o-bl)).
@@ -51,9 +51,8 @@ Ao salvar, o Vela refaz sozinho o que depende do que você mudou:
 - A Revisão do B/L é refeita: se a correção resolve a pendência, o B/L sai da Revisão (capítulo 8).
 
 ::: atencao
-- No B/L já faturado, a fatura não é editada: a mudança passa pela correção da fatura (capítulo 22). Mudar o peso ou a carga devolve o B/L à Revisão até a fatura ser corrigida.
-- Se o B/L tem taxa com valor alterado à mão e a mudança mexe nela, abre a janela **Taxas alteradas à mão serão afetadas**. Leia o que acontece com cada taxa antes de clicar em **Gravar mesmo assim**; **Cancelar** não grava nada.
-- Se outra pessoa salvou o B/L enquanto você editava, o Vela não grava e recarrega a ficha. Refaça a correção sobre os dados novos.
+- No B/L faturado, a fatura não é editada aqui: ao salvar POD, pesos ou Movement To, o Vela reemite a fatura sem pagamento ou leva a fatura paga à correção (capítulo 22).
+- Se o B/L tem taxa com valor alterado à mão e a mudança mexe nela, abre a janela **Taxas alteradas à mão serão afetadas**. Leia o que acontece com cada taxa antes de clicar em **Gravar mesmo assim**.
 :::
 
 ## 7.3 Corrigir um container
@@ -76,7 +75,6 @@ Correção do lacre de um container do CSC45810A01K00. Como o B/L está faturado
 Perfil e COC/SOC recalculam as Taxas Locais; as datas recalculam a Demurrage (capítulo 9).
 
 ::: atencao
-- Com o B/L faturado, **Perfil** e **COC/SOC** ficam travados. Para mudá-los, reimporte o B/L ou aplique o Baplie: a fatura é tratada sozinha.
 - O perfil e o COC/SOC corrigidos à mão valem mais que o Baplie e que a reimportação. Já o lacre, o peso e o CBM voltam ao que o arquivo traz quando o B/L é reimportado.
 - A descarga gravada só se troca, nunca se apaga. Para apagar a devolução, deixe o campo vazio: a justificativa vale como motivo.
 :::
@@ -105,10 +103,10 @@ Se a correção libera o B/L e ele já tem CE, a ficha tenta emitir a fatura na 
 
 O B/L passa a aparecer no Portal do novo Cliente e entra no faturamento dele, com as Taxas Locais recalculadas para ele. **Desvincular** faz o contrário: o B/L sai do Portal do Cliente, o valor a faturar é anulado e o B/L volta para a Revisão.
 
-Ao lado, o bloco **Portal** diz se o Cliente vê o B/L e, se não vê, por quê: **Sem CE Mercante**, **Sem cliente vinculado** ou **Conta do Portal não está ativa**. Dali, a Documentação e o Administrativo enviam o convite (**Enviar convite do Portal**); a conta do Cliente é o capítulo 14.
+Ao lado, o bloco **Portal** diz se o Cliente vê o B/L e, se não vê, por quê; dali sai o convite do Portal (capítulo 14).
 
 ::: atencao
-- B/L faturado não fica sem Cliente: não há **Desvincular**, só **Trocar Cliente**. Sem pagamento, a troca cancela a fatura e a emite de novo para o novo Cliente; os outros casos estão no capítulo 22. Se o Cliente anterior já pagou Demurrage ou fatura avulsa do B/L, a troca espera a devolução desse valor.
+- B/L faturado não fica sem Cliente: não há **Desvincular**, só **Trocar Cliente**. Sem pagamento, a troca cancela a fatura e a emite para o novo Cliente, se ele tem Portal pronto ou Liberação; senão, a fatura antiga continua valendo e o B/L vai para a Revisão. Se o Cliente anterior pagou Demurrage ou fatura avulsa do B/L, a troca é recusada até a Restituição desse valor ser confirmada.
 - Quando o bloco avisa "O manifesto declara outro cliente", o documento cita outro CNPJ. Confirme com o armador antes de trocar.
 - Cliente desativado não recebe B/L. Reative-o antes, na ficha do Cliente (capítulo 13).
 :::
@@ -120,7 +118,7 @@ Ao lado, o bloco **Portal** diz se o Cliente vê o B/L e, se não vê, por quê:
 O CE e o Manifesto ficam na aba **Detalhes do B/L**, no bloco **Documento Mercante**. **Corrigir CE** e **Remover CE** estão em [6.6](06-importacao.md#66-corrigir-o-ce-ou-o-manifesto-de-um-bl). O que você precisa saber a mais:
 
 - **Mover para um manifesto** põe o B/L num Manifesto Mercante: digite os 13 caracteres do número, clique em **Mover** e escreva o motivo. Se o número é novo, ele é cadastrado na rota. Só B/L com CE entra em Manifesto.
-- **Desvincular** deixa o B/L sem Manifesto. O número continua cadastrado na rota.
+- **Desvincular** deixa o B/L sem Manifesto.
 - Mudar o POL, o POD ou a Viagem do B/L o tira do Manifesto sozinho.
 
 Remover o CE desfaz mais do que parece: o B/L sai do Manifesto, deixa de aparecer no Portal e volta a contar como CE pendente. O CE só volta pela planilha de CE ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)).
@@ -140,7 +138,7 @@ Enquanto o B/L não está faturado, você pode, daqui:
 - **Calcular taxas**, quando o bloco diz que elas ainda não foram calculadas;
 - **Adicionar cobrança manual**, para um item que só se cobra à mão;
 - alterar o valor de uma taxa, excluí-la ou isentar o B/L inteiro (**Isentar Taxas Locais**), sempre com justificativa (capítulo 21);
-- **Emitir fatura**, quando a fatura não saiu sozinha. O botão aparece com Cliente, CE Mercante e taxas calculadas. Se a última fatura do B/L foi cancelada, a nova só sai por aqui.
+- **Emitir fatura**, quando a fatura não saiu sozinha. O botão aparece com Cliente, CE Mercante e taxas calculadas. Se a última fatura do B/L foi cancelada por uma pessoa, a nova só sai por aqui.
 
 Depois da fatura, as taxas são a base dela e não mudam aqui: a correção passa pela fatura (capítulo 22). Abaixo ficam a **Demurrage** dos containers e as **Condições de Demurrage deste B/L** (capítulos 9 e 23).
 
@@ -155,13 +153,13 @@ Linha **Em revisão** segura a fatura: **Emitir fatura** fica desligado até a c
 O B/L descarrega no terminal da frente de operação da escala do POD ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)). Quando um B/L descarrega em outro terminal do mesmo porto, você registra uma exceção só para ele. É o terminal do B/L que decide em que ADR de Saída e em que Aviso de Atracação ele conta (capítulos 11 e 16).
 
 1. Na **Visão geral**, bloco **Embarque**, em **Terminal de descarga**, clique em **Definir exceção** (ou **Alterar exceção**).
-2. Em **Terminal aplicado**, escolha o terminal. Só valem os terminais do porto do POD.
+2. Em **Terminal aplicado**, escolha um terminal do porto do POD. A lista mostra todos, e o Vela recusa o de outro porto.
 3. Escreva a **Justificativa** e clique em **Salvar exceção**.
 
 A exceção aparece como "Exceção deste B/L, fora da Frente de Operação" e fica no Histórico. Para voltar ao terminal da escala, abra a exceção e use **Remover exceção**, com justificativa.
 
 ::: atencao
-Corrigir o POD do B/L ou marcar COD tira a exceção: confira o terminal depois.
+Reimportar o B/L com outro POD ou marcar COD tira a exceção. Corrigir o POD na ficha não tira: confira o terminal e, se preciso, use **Remover exceção**.
 :::
 
 ## 7.8 Cancelar, reativar ou excluir um B/L
@@ -179,7 +177,7 @@ O número do B/L existe uma vez só no Vela. O caminho para tirar um B/L do jogo
 ### Cancelar
 
 1. Na ficha, clique em **Mais ações** (o botão de três pontos) › **Cancelar B/L**.
-2. Se a ficha avisa que o B/L "não pode ser cancelado agora", resolva o que o aviso lista: a fatura em aberto é cancelada pelo Administrativo; o pagamento recebido pede a baixa ou a Restituição, pelo Financeiro ou pelo Administrativo; e a Invoice de Demurrage em aberto também segura.
+2. Se a ficha avisa que o B/L "não pode ser cancelado agora", resolva o que o aviso lista. A Invoice de Demurrage em aberto também segura.
 3. Escreva o motivo e confirme.
 
 O B/L cancelado continua na lista, somente leitura, com a faixa "B/L cancelado em…" e o motivo. Ele sai do faturamento e do Manifesto Mercante, aparece como Cancelado no Portal e libera o CE para o B/L reemitido. As importações o deixam de fora.
@@ -190,8 +188,8 @@ Em **Mais ações** › **Reativar B/L**, com motivo. O B/L volta a ser editáve
 
 ### Excluir
 
-1. Na lista **BLs**, marque a caixa da linha do B/L. Só o Administrativo vê as caixas.
-2. Clique em **Excluir selecionados**. O Vela confere antes e diz quais B/Ls não podem sair e por quê.
+1. Na lista **BLs**, marque a caixa da linha do B/L.
+2. Clique em **Excluir selecionados**.
 3. Escreva o motivo e confirme em **Excluir**.
 
 ::: atencao
