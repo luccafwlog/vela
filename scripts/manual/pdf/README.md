@@ -9,7 +9,7 @@ fora do Git.
 | Arquivo | O que é |
 |---|---|
 | `manual.css` | Aparência impressa (A4) aprovada nas páginas-modelo de 2026-10-28: cores, letra e estados da [identidade visual](../../../docs/identidade-visual.md), cores das equipes, cabeçalho corrido, aba da parte, blocos, quadros fixos, "Aconteceu…", cartões de mensagem, tabela de referência e guia de bolso. |
-| `fonte.mjs` | Lê o `manual.json` e o Markdown de cada capítulo e monta o HTML (blocos `:::`, etiquetas de equipe, imagens marcadas, citações de regras). |
+| `fonte.mjs` | Lê o `manual.json` e o Markdown de cada capítulo e apêndice e monta o HTML (blocos `:::`, etiquetas de equipe, imagens marcadas, citações de regras). |
 | `pagina.js` | Roda na página antes da impressão: fatos da ficha, passos numerados, cartões e ícones. |
 | `gerar.mjs` | `npm run manual:build`: capa, sumário, aberturas e capítulos, paginados pelo Chromium em duas passadas (a segunda escreve no sumário a página que a primeira leu do PDF). |
 | `conferir.mjs` | `npm run manual:check`: termos técnicos proibidos, capturas citadas e regras da matriz com lugar no texto. |

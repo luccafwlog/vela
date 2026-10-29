@@ -11,7 +11,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import { ROOT, lerManual, capituloHtml, escapar, chip } from './fonte.mjs'
+import { ROOT, lerManual, capituloHtml, apendiceHtml, escapar, chip } from './fonte.mjs'
 
 const OUT = path.join(ROOT, 'artifacts/manual')
 const IMAGENS = path.join(OUT, 'imagens')
@@ -100,6 +100,12 @@ function sumario(m, caps) {
       }
     }
   }
+  if (m.apendices?.length) {
+    linhas.push(`<li class="sum-parte"><a href="#apendices"><span>Apêndices</span>${pagina('apendices')}</a></li>`)
+    for (const ap of m.apendices) {
+      linhas.push(`<li class="sum-cap"><a href="#ap-${ap.letra}"><span><b>${ap.letra}</b> ${escapar(ap.titulo)}</span>${pagina(`ap-${ap.letra}`)}</a></li>`)
+    }
+  }
   return `<section class="sumario" id="sumario">${alvo('sumario')}<h1>Sumário</h1><ol class="sum">${linhas.join('')}</ol></section>`
 }
 
@@ -152,6 +158,63 @@ function capitulo(cap, { introducao, corpo, secoes }) {
 </section>`
 }
 
+function aberturaApendices(m) {
+  const itens = m.apendices
+    .map((ap) => `<a href="#ap-${ap.letra}"><span class="n">${ap.letra}</span><span class="nome">${escapar(ap.titulo)}</span><span class="equipes"></span></a>`)
+    .join('')
+  return `<section class="pagina pagina-fixa" style="page: parte" id="apendices">${alvo('apendices')}
+  <div class="abertura-parte">
+    <div class="texto">
+      <div class="sobre">Apêndices</div>
+      <h1>Para consultar</h1>
+      <p class="lead">Os termos do Vela, as mensagens que pedem explicação, as cores de cada situação e, por objetivo, onde cada assunto está no manual.</p>
+      <nav class="lista-capitulos">${itens}</nav>
+    </div>
+    <div class="lateral"><span>A–${m.apendices.at(-1).letra}</span></div>
+  </div>
+</section>`
+}
+
+function apendice(ap, { introducao, corpo }) {
+  return `<section class="capitulo apendice" id="ap-${ap.letra}">
+  <div class="texto-corrido" style="page: ap${ap.letra}">${alvo(`ap-${ap.letra}`)}
+    <div class="abertura-cap abertura-apendice">
+      <div class="numero">${ap.letra}</div>
+      <div style="display:grid;gap:2mm"><div class="sobre">Apêndice ${ap.letra}</div><h1>${escapar(ap.titulo)}</h1></div>
+    </div>
+    ${introducao}
+    ${corpo}
+  </div>
+</section>`
+}
+
+// Apêndice D: todas as seções do manual, em ordem alfabética do objetivo.
+function indiceDeObjetivos(m, caps) {
+  const semAcento = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const itens = []
+  for (const parte of m.partes) {
+    for (const cap of parte.capitulos) {
+      // O artigo do começo não conta na ordem: "Os B/Ls e os containers" fica no B.
+      for (const s of caps.get(cap.numero).secoes) {
+        itens.push({ ...s, texto: s.titulo.replace(/<[^>]+>/g, '').replace(/^(o|a|os|as|um|uma) /i, '') })
+      }
+    }
+  }
+  itens.sort((a, b) => semAcento(a.texto).localeCompare(semAcento(b.texto), 'pt-BR'))
+  let letra = ''
+  const linhas = []
+  for (const it of itens) {
+    const inicial = semAcento(it.texto)[0].toUpperCase()
+    if (inicial !== letra) {
+      letra = inicial
+      linhas.push(`<div class="letra">${letra}</div>`)
+    }
+    linhas.push(`<a class="item" href="#${it.id}"><span class="nome">${it.titulo}</span><span class="sec">${it.num}</span>${pagina(it.id)}</a>`)
+  }
+  const introducao = '<p>Todas as seções do manual, em ordem alfabética do que você quer fazer. O número em dourado é a seção; o da direita, a página.</p>'
+  return { introducao, corpo: `<div class="indice-objetivos">${linhas.join('')}</div>` }
+}
+
 function paginasCss(m) {
   const regras = []
   m.partes.forEach((parte) => {
@@ -166,6 +229,13 @@ function paginasCss(m) {
 }`)
     }
   })
+  for (const ap of m.apendices || []) {
+    regras.push(`@page ap${ap.letra} {
+  @top-left { content: "Apêndices"; }
+  @top-right { content: "Apêndice ${ap.letra} · ${ap.titulo}"; }
+  @right-top { content: "APÊNDICES"; margin-top: ${13 + m.partes.length * 26}mm; }
+}`)
+  }
   return regras.join('\n')
 }
 
@@ -200,6 +270,13 @@ async function paginasDasMarcas(arquivo) {
   for (const parte of m.partes) {
     corpo += aberturaParte(parte)
     for (const cap of parte.capitulos) corpo += capitulo(cap, caps.get(cap.numero))
+  }
+  if (m.apendices?.length) {
+    corpo += aberturaApendices(m)
+    for (const ap of m.apendices) {
+      const conteudo = ap.gerado === 'objetivos' ? indiceDeObjetivos(m, caps) : apendiceHtml(ap)
+      corpo += apendice(ap, conteudo)
+    }
   }
   corpo = telas(corpo)
   const head = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapar(m.titulo)}</title>

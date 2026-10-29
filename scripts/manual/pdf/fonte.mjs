@@ -35,6 +35,10 @@ export function lerManual() {
       cap.fonte = fs.readFileSync(path.join(TEXTO, cap.arquivo), 'utf8')
     }
   }
+  // Apêndice escrito (`arquivo`) ou gerado do próprio manual (`gerado`).
+  for (const ap of manifesto.apendices || []) {
+    if (ap.arquivo) ap.fonte = fs.readFileSync(path.join(TEXTO, ap.arquivo), 'utf8')
+  }
   return manifesto
 }
 
@@ -157,8 +161,7 @@ export function capituloHtml(cap) {
     secoes.push({ id, num, titulo })
     return `<h2 class="secao-titulo" id="${id}"><span class="num">${num}</span><span>${titulo}</span></h2>`
   })
-  // Link para outro capítulo (`06-importacao.md#62-…`) vira link interno.
-  html = html.replace(/href="\d{2}-[\w-]+\.md#/g, 'href="#')
+  html = linksInternos(html)
   html = html.replace(/<h3>(.+?)<\/h3>/g, (_, titulo) => `<h3 class="sub" id="${cap.numero}-${slug(titulo)}">${titulo}</h3>`)
 
   // A legenda do `::: tela` é um parágrafo; sem legenda, sem figcaption.
@@ -170,6 +173,31 @@ export function capituloHtml(cap) {
   const introducao = corte === -1 ? html : html.slice(0, corte)
   const corpo = corte === -1 ? '' : html.slice(corte)
   return { introducao, corpo, secoes }
+}
+
+// Link para outro capítulo (`06-importacao.md#62-…`) ou apêndice
+// (`ap-b-mensagens.md#viagens`) vira link interno do PDF.
+function linksInternos(html) {
+  return html
+    .replace(/href="\d{2}-[\w-]+\.md#/g, 'href="#')
+    .replace(/href="ap-([a-z])-[\w-]+\.md#/g, (_, letra) => `href="#ap${letra.toUpperCase()}-`)
+}
+
+// Markdown de um apêndice → { introducao, corpo }. Os títulos `## Assunto`
+// não têm número; a âncora é a do GitHub com o prefixo do apêndice.
+export function apendiceHtml(ap) {
+  let fonte = semComentarios(ap.fonte)
+  fonte = fonte.replace(/\{\{([^}]+)\}\}/g, (_, nome) => chip(nome.trim()))
+  fonte = blocos(fonte, ap.arquivo)
+  let html = micromark(fonte, { allowDangerousHtml: true, extensions: [gfm()], htmlExtensions: [gfmHtml()] })
+  const slugger = new GithubSlugger()
+  html = html.replace(/<h2>(.+?)<\/h2>/g, (_, titulo) => {
+    const id = `ap${ap.letra}-${slugger.slug(titulo.replace(/<[^>]+>/g, '').trim())}`
+    return `<h2 class="secao-titulo" id="${id}"><span>${titulo}</span></h2>`
+  })
+  html = linksInternos(html)
+  const corte = html.indexOf('<h2 ')
+  return { introducao: corte === -1 ? html : html.slice(0, corte), corpo: corte === -1 ? '' : html.slice(corte) }
 }
 
 // Âncora de cada `## N.M Título` do capítulo, pelo algoritmo do GitHub.

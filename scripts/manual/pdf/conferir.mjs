@@ -41,7 +41,7 @@ function regrasDaMatriz() {
 
 const erros = []
 const manual = lerManual()
-const capitulos = manual.partes.flatMap((p) => p.capitulos)
+const capitulos = [...manual.partes.flatMap((p) => p.capitulos), ...(manual.apendices || []).filter((a) => a.fonte)]
 const ids = new Set(CAPTURAS.map((c) => c.id))
 const escritas = new Map()
 const adiadas = new Map()

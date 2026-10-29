@@ -2,7 +2,10 @@
 
 Fonte do Manual do Operador: um arquivo Markdown por capítulo e o
 [`manual.json`](manual.json), que diz as partes, os capítulos e a ficha de
-cada capítulo. O PDF sai de `npm run manual:build`
+cada capítulo, e os apêndices. Um apêndice escrito tem `arquivo` (os títulos
+`## Assunto` não levam número); o apêndice "Quero fazer… onde fica" tem
+`"gerado": "objetivos"` e sai sozinho dos títulos das seções, em ordem
+alfabética, com a página. O PDF sai de `npm run manual:build`
 ([gerador](../../../scripts/manual/pdf/README.md)); `npm run manual:check`
 confere o texto. A [matriz de cobertura](../cobertura/) é a referência interna
 completa do que o sistema faz; o manual escolhe o que ensinar.
