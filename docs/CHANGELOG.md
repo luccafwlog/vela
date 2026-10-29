@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Prévias com troca de POD no B/L com exceção de terminal (2026-10-29, migration `512`; revisão da PR
+  luccafwlog/vela#1084):** a prévia das taxas alteradas à mão e a da reimportação de carga solta de B/L
+  faturado tiravam o terminal da exceção e deixavam o porto, e o banco recusava a simulação
+  (`bls_terminal_override_pair_check`): ao mudar o POD de um B/L com exceção de terminal e taxa alterada à
+  mão, a ficha gravava sem o diálogo **Gravar mesmo assim**, e a prévia da carga solta mostrava o erro do
+  banco na linha do B/L. As duas prévias tiram terminal e porto juntos, como a gravação. Só redefine
+  funções. **Teste local-pg:** `previaPodComExcecaoDeTerminal.local-pg.test.ts`.
 - **Motivo do bloqueio legível no alerta de efeito de importação (2026-10-29, sem migration):** em
   `/alertas`, **Efeito de importação bloqueado** deixa de mostrar o erro cru do banco (ex.: `null value
   in column "customer_id"…`): a linha diz o passo, o registro, o motivo em linguagem de operação e
