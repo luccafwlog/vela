@@ -206,9 +206,4 @@ Na devolução, o Vela reage sozinho: as caixas que ficaram sem destinatário vo
 3. Clique em **Salvar contatos**.
 :::
 
-O endereço novo já recebe os próximos e-mails. O próprio Cliente também pode corrigir os contatos em **Meu perfil**, no Portal (capítulo 15).
-
-::: atencao
-- Nenhuma tela do Vela tira o bloqueio de um contato: o caminho é trocar o e-mail. Digitar de novo o mesmo endereço não libera. O **E-mail de recuperação** da conta do Portal tem caminho próprio, no **Provisionamento do Portal** (capítulo 14).
-- Se uma caixa fica só com endereços bloqueados, ela segue sem e-mail e abre um alerta (capítulo 20).
-:::
+O endereço novo já recebe os próximos e-mails; digitar de novo o mesmo endereço não libera o bloqueio. O próprio Cliente também pode corrigir os contatos em **Meu perfil**, no Portal (capítulo 15).

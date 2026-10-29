@@ -33,7 +33,7 @@ Com a conta **Ativa**:
 
 1. Confirme que o Cliente usa o CNPJ do cadastro; a pontuação não importa. Se o {{Administrativo}} trocou o CNPJ, vale o novo.
 2. Veja se o Cliente está desativado na ficha (capítulo 13). Desativado não entra.
-3. Se a coluna **Alerta** mostra **Crítico**, procure em **Alertas** o **Portal do Cliente — abuso de login**: foram cinco senhas erradas em 15 minutos, e o CNPJ fica bloqueado por até 15 minutos. Não há botão para desbloquear; peça que o Cliente espere e tente de novo. O alerta fica aberto até a {{Documentação}} resolvê-lo (capítulo 20).
+3. Se a coluna **Alerta** mostra **Crítico**, veja em **Alertas** se é o **Portal do Cliente — abuso de login** (capítulo 20): cinco entradas recusadas em 15 minutos bloqueiam o CNPJ por até 15 minutos, e não há botão para desbloquear; peça que o Cliente espere e tente de novo.
 4. Se nada disso, a senha está errada: oriente o Cliente a usar **Esqueci minha senha** ([17.4](#174-o-cliente-esqueceu-a-senha)).
 
 ::: atencao
@@ -54,7 +54,7 @@ O convite vale 48 horas e uma vez só, e cada reenvio invalida os anteriores. Qu
 
 **Quem faz:** orientar, {{Qualquer equipe}} · cuidar da conta, {{Documentação}} e {{Administrativo}}
 
-O próprio Cliente recupera a senha: na tela de entrada do Portal, em **Esqueci minha senha**, com o CNPJ. O link vai para o e-mail de recuperação da conta e vale 1 hora, uma vez. A tela sempre diz que o link foi enviado, exista ou não a conta. Por isso, quando o link não chega, confira no Vela:
+O próprio Cliente recupera a senha: na tela de entrada do Portal, em **Esqueci minha senha**, com o CNPJ. O link vai para o e-mail de recuperação da conta e vale 1 hora, uma vez. A tela diz que o link foi enviado, exista ou não a conta; só pede para esperar quando há muitos pedidos seguidos. Por isso, quando o link não chega, confira no Vela:
 
 - o link só sai para conta **Ativa** e com o e-mail de recuperação fora da lista de bloqueio ([17.5](#175-o-e-mail-não-chegou));
 - dentro de 1 hora não sai outro link: o primeiro continua valendo. Peça que o Cliente procure esse e-mail, também no spam;
@@ -68,7 +68,7 @@ Se o Cliente não consegue redefinir a senha nem com um link novo, a recuperaç�
 
 **Quem faz:** {{Documentação}} e {{Administrativo}}
 
-Primeiro, saiba qual e-mail. O convite e a recuperação de senha vão para o **e-mail de recuperação** da conta do Portal. Os Comunicados (CE e Taxas, NOA, NOR, NOB e cobranças de Demurrage) vão para os contatos do Cliente, conforme a caixa de cada um (capítulo 13).
+Primeiro, saiba qual e-mail. O convite e a recuperação de senha vão para o **e-mail de recuperação** da conta do Portal. Os Comunicados vão para os contatos do Cliente, conforme a caixa de cada um ([13.6](13-cadastro-do-cliente.md#136-cuidar-dos-contatos-do-cliente)).
 
 Para o convite ou a recuperação de senha:
 
@@ -110,14 +110,14 @@ Confira o resultado pela **Espiadinha** ([17.1](#171-ver-o-portal-como-o-cliente
 
 **Quem faz:** orientar, {{Qualquer equipe}} · conferir o pagamento, {{Financeiro}}
 
-A baixa do Pix é automática e costuma levar cerca de um minuto; a fatura impressa avisa que pode levar de 1 a 5 minutos ([19.6](19-rotinas-por-horario.md#196-o-pix-do-itaú)). No Portal, o detalhe da fatura aberto se atualiza sozinho a cada 20 segundos.
+A baixa do Pix é automática e costuma levar cerca de um minuto ([19.6](19-rotinas-por-horario.md#196-o-pix-do-itaú)). No Portal, o detalhe da fatura aberto se atualiza sozinho a cada 20 segundos.
 
 1. Peça que o Cliente atualize a página do Portal depois de alguns minutos.
 2. Se a fatura continuar em aberto, passe ao {{Financeiro}}, que confere em **Conciliação PIX** (capítulo 24). O Pix com valor diferente do da fatura não baixa sozinho.
 
 O recibo não vai por e-mail: no Portal, a fatura **Paga** tem **Imprimir recibo**. O detalhe da fatura no Vela também imprime.
 
-Quando o Cliente diz que o valor do Portal é diferente do Vela, os dois saldos contam coisas diferentes. O **Saldo pendente** do Portal soma só as faturas que ele vê em aberto e a Demurrage em reais pela cotação de hoje. O da ficha do Cliente soma também o que ainda vai ser faturado (capítulo 13). E a Demurrage em reais muda com a cotação do dia até o pagamento.
+Quando o Cliente diz que o valor do Portal é diferente do Vela, os dois saldos contam coisas diferentes ([13.2](13-cadastro-do-cliente.md#132-ler-a-ficha-do-cliente)); a Demurrage em reais ainda muda com a cotação do dia até o pagamento.
 
 ## 17.9 O Cliente contesta a Demurrage
 

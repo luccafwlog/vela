@@ -7,7 +7,7 @@ O Cliente é a empresa, identificada pelo CNPJ, que recebe a carga do B/L, vê o
 - onde ficam as faturas e as condições negociadas do Cliente;
 - liberar o faturamento de um Cliente que ainda não tem Portal;
 - publicar a Central de Informações do Portal;
-- desativar, reativar ou excluir um Cliente.
+- desativar ou reativar um Cliente.
 :::
 
 ## 13.1 Encontrar um Cliente
@@ -24,7 +24,7 @@ A lista de Clientes, com a busca e os filtros.
 2. Se precisar, recorte pelos filtros: **E-mail do contato**, **B/Ls vinculados**, **Saldo pendente** e **E-mails de contato**.
 3. Clique no nome do Cliente para abrir a ficha.
 
-Os cartões do alto somam o recorte inteiro, não só a página. **Saldo pendente** e **Sem e-mail de contato** ficam em âmbar quando há algo e, ao clique, filtram a lista. Na lista, a coluna **Portal** diz em que pé está a conta do Cliente, e o **Saldo pendente** em âmbar abre as faturas dele em **Taxas Locais**. Cliente desativado continua na lista, em cinza.
+Os cartões do alto somam o recorte inteiro, não só a página. **Saldo pendente** e **Sem e-mail de contato** filtram a lista ao clique. Na lista, a coluna **Portal** diz em que pé está a conta do Cliente, e o **Saldo pendente** em âmbar abre as faturas dele em **Taxas Locais**. Cliente desativado continua na lista, em cinza.
 
 A busca e os filtros ficam no endereço da página: o link copiado abre o mesmo recorte para um colega. **Exportar base** leva o recorte para uma planilha no formato da importação ([13.4](#134-importar-a-base-de-clientes)).
 
@@ -56,9 +56,9 @@ O CNPJ é a identidade do Cliente: um Cliente por CNPJ, numérico ou alfanuméri
 A ficha do novo Cliente abre. Ele já pode ser vinculado a B/Ls, e o B/L importado depois com o CNPJ dele se vincula sozinho (capítulo 6). No **Provisionamento do Portal**, ele aparece como **Aguardando análise**: nenhum convite sai sem alguém enviar (capítulo 14).
 
 ::: atencao
-- O Vela não aceita dois Clientes com o mesmo CNPJ. Se o CNPJ é de um Cliente desativado, peça ao {{Administrativo}} que o reative ([13.10](#1310-desativar-reativar-ou-excluir-um-cliente)).
+- O Vela não aceita dois Clientes com o mesmo CNPJ. Se o CNPJ é de um Cliente desativado, peça ao {{Administrativo}} que o reative ([13.10](#1310-desativar-ou-reativar-um-cliente)).
 - Os B/Ls que já esperavam na Revisão com esse CNPJ não se vinculam sozinhos ao novo cadastro: vincule-os na Revisão ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)).
-- Todo contato precisa de nome e de e-mail válido. Contato que você não vai preencher, remova antes de cadastrar.
+- Todo contato preenchido precisa de nome e de e-mail válido; o que ficou todo em branco é ignorado.
 :::
 
 ## 13.4 Importar a base de Clientes
@@ -72,7 +72,7 @@ A base é uma planilha com um Cliente por linha. **CNPJ**, **Razão Social** e *
 3. Se há avisos, leia cada um e marque **Conferi os avisos e quero importar o arquivo**.
 4. Clique em **Importar**; o botão diz quantos Clientes entram.
 
-A razão social passa a ser a da planilha; os outros campos só mudam quando vêm preenchidos. O e-mail novo vira contato do Cliente, e o que já existe não se repete. Os B/Ls que esperavam na Revisão por um Cliente com aquele CNPJ são vinculados na hora.
+A razão social passa a ser a da planilha; os outros campos só mudam quando vêm preenchidos. O e-mail novo vira contato do Cliente, e o que já existe não se repete. Os B/Ls que esperavam na Revisão por um Cliente com aquele CNPJ são vinculados na hora, menos o B/L rejeitado na Revisão, que a prévia aponta.
 
 ::: atencao
 - Uma linha sem CNPJ válido, sem Razão Social ou sem e-mail recusa a base inteira: nada é gravado. Corrija a planilha e escolha o arquivo de novo.
@@ -102,7 +102,7 @@ Os **Comunicados** são os e-mails que o Vela manda ao Cliente: o CE e Taxas, os
 O quadro Quem recebe os Comunicados da ATLANTICO IMPORTADORA LTDA: o contato principal está nas três caixas.
 :::
 
-O **contato principal** é um só e precisa de e-mail. Contato não é acesso ao Portal: o e-mail de recuperação da conta recebe só o convite e a recuperação de senha, nunca Comunicados nem faturas (capítulo 14).
+O **contato principal** é um só e precisa de e-mail. Contato não é acesso ao Portal: o e-mail de recuperação da conta recebe só os e-mails da conta (convite, recuperação e avisos de senha ou e-mail trocados), nunca Comunicados nem faturas (capítulo 14).
 
 1. Na ficha, abra **Cadastro e contatos**. O bloco **Quem recebe os Comunicados** mostra quem está em cada caixa.
 2. No bloco **Contatos**, corrija **Nome**, **E-mail** ou **Telefone / WhatsApp**, ou clique em **Adicionar contato**.
@@ -113,7 +113,7 @@ O Cliente também muda os contatos pelo Portal (capítulo 15). Cada contato most
 
 ::: atencao
 - Toda caixa precisa de pelo menos um contato ativo com e-mail. Para tirar o principal de uma caixa, ponha antes outro contato nela; para desativá-lo, eleja antes outro principal.
-- O contato com "Endereço bloqueado" não recebe os Comunicados: o e-mail voltou em definitivo ou foi marcado como spam. Nenhum botão desbloqueia: troque o e-mail do contato pelo endereço novo que o Cliente informar.
+- O contato com "Endereço bloqueado" não recebe os Comunicados: o e-mail voltou em definitivo ou foi marcado como spam. Na ficha, nenhum botão desbloqueia: troque o e-mail do contato pelo endereço novo que o Cliente informar.
 :::
 
 ## 13.7 As faturas e as condições negociadas
@@ -168,7 +168,7 @@ O que cada seção guarda:
 - Os portos vão pelo código, como BRVIX, BRSSA ou BRSUA. As Taxas Locais e a devolução aparecem no Portal só para Vitória, Salvador e Suape.
 :::
 
-## 13.10 Desativar, reativar ou excluir um Cliente
+## 13.10 Desativar ou reativar um Cliente
 
 **Quem faz:** {{Administrativo}}
 
@@ -179,9 +179,9 @@ Desativar é para o Cliente que não deve mais receber B/L. Ele sai das listas d
 
 A ficha passa a mostrar o selo **Desativado** e o motivo. Para desfazer, use **Mais ações** › **Reativar cliente**, também com motivo: o Cliente volta às listas e ao Portal e pode receber B/L de novo.
 
-Excluir é só para o Cliente cadastrado por engano, que ainda não tem nada: nem B/L, nem fatura, nem Comunicado. Na lista **Clientes**, marque o Cliente e clique em **Excluir selecionados**. O Vela mostra antes quem não pode sair e por quê. A exclusão apaga junto os contatos e as Condições de Cliente e não se desfaz.
+Excluir não serve para Cliente: todo Cliente tem CNPJ, e o Vela recusa a exclusão ("desative em vez de excluir"). Para tirar um Cliente das listas, desative-o.
 
 ::: atencao
-- O Vela não desativa Cliente com fatura, valor a receber ou Invoice de Demurrage em aberto. O {{Financeiro}} quita ou cancela antes.
+- O Vela não desativa Cliente com fatura (mesmo em rascunho), valor a receber ou Invoice de Demurrage em aberto. O {{Financeiro}} quita ou cancela antes.
 - Cliente desativado não recebe B/L nem fatura avulsa. Para vincular um B/L a ele, reative-o antes.
 :::

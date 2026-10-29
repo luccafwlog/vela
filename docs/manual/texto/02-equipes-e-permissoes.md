@@ -34,7 +34,7 @@ Estas são as ações que o Vela reserva. Para as outras equipes, o botão não 
 | Ação | Quem faz |
 |---|---|
 | Criar usuários, mudar a equipe, ativar e desativar | {{Administrativo}} |
-| Cancelar e reativar Viagem e B/L; excluir Viagem, B/L, container e Cliente | {{Administrativo}} |
+| Cancelar e reativar Viagem e B/L; excluir Viagem, B/L e container | {{Administrativo}} |
 | Cancelar fatura e cancelar pagamento registrado | {{Administrativo}} |
 | Corrigir tabela de cobrança já usada; editar Condição de Cliente | {{Administrativo}} |
 | Desativar e reativar cadastros (tabela de cobrança, Local, serviço, tarifa) | {{Administrativo}} |
