@@ -130,6 +130,7 @@ describe('cache effects', () => {
     expect(keys()).toEqual(expect.arrayContaining(keySet([
       ['customer-ficha', 'billing-portal-release', 7], ['invoices'], ['bls'], ['local-charge-operations'], ['alerts'], ['portal-provisioning'],
       ['review-queue'], ['customers'], ['customers-summary'], ['customer-ficha', 'timeline', 7],
+      ['bl-portal-status'],
     ])))
   })
 })
