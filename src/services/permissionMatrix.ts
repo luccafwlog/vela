@@ -113,7 +113,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'excluir-taxa-manual', group: 'taxas', action: 'Alterar o valor e excluir taxa do B/L (calculada ou manual), com justificativa', can: ALL, proof: ['caso: P2: a taxa manual entra e sai pela RPC'] },
   // ADR 0111, D12 (migration 492): qualquer setor isenta o B/L das Taxas Locais, com justificativa.
   { id: 'isentar-taxas-locais', group: 'taxas', action: 'Isentar Taxas Locais do B/L e retirar a isenção, com justificativa', can: ALL, proof: ['caso: P2: qualquer Departamento isenta as Taxas Locais'] },
-  { id: 'desativar-tarifa', group: 'taxas', action: 'Desativar, reativar e excluir tarifa; corrigir item de tabela já usada e editar Condição de Cliente', can: ADM, proof: ['caso: P9:', 'caso: B13:', 'caso: Catálogo: item de tabela ainda sem uso'] },
+  { id: 'desativar-tarifa', group: 'taxas', action: 'Desativar, reativar e excluir tarifa e tipo de container; corrigir item de tabela já usada e editar Condição de Cliente', can: ADM, proof: ['caso: P9:', 'caso: P9T:', 'caso: B13:', 'caso: Catálogo: item de tabela ainda sem uso'] },
   { id: 'emitir-fatura', group: 'taxas', action: 'Emitir fatura (do B/L, na Validação, consolidada, avulsa) e corrigir fatura emitida', can: ALL, proof: ['caso: A9:', 'caso: P4:'] },
   { id: 'autorizar-restituicao', group: 'taxas', action: 'Autorizar restituição excepcional e cancelar a autorização', can: ALL, proof: ['caso: P5: %s lê a Conciliação, autoriza restituição'] },
   { id: 'baixa-restituicao', group: 'taxas', action: 'Registrar pagamento (baixa manual) e confirmar Restituição', can: ADM_FIN, proof: ['caso: P5: baixa manual e conciliar PIX', 'exceção: Registrar a Restituição (fatura)', 'exceção: Registrar a Restituição (Demurrage)'] },
@@ -121,7 +121,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'cancelar-fatura', group: 'taxas', action: 'Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L', can: ADM, proof: ['exceção: Cancelar fatura', 'exceção: Cancelar fatura consolidada', 'exceção: Cancelar baixa', 'exceção: Preparar cancelamento financeiro de B/L'] },
 
   // Demurrage
-  { id: 'gerar-invoice', group: 'demurrage', action: 'Gerar Invoice e complementar; aplicar desconto; editar tarifa, acordo e condição de Demurrage do B/L', can: ALL, proof: ['caso: P4:', 'caso: P5: %s lê a Conciliação, autoriza restituição e aplica desconto', 'caso: P9:', 'todos: Condição de Demurrage do B/L'] },
+  { id: 'gerar-invoice', group: 'demurrage', action: 'Gerar Invoice e complementar; aplicar desconto; editar tarifa, tipo de container, acordo e condição de Demurrage do B/L', can: ALL, proof: ['caso: P4:', 'caso: P5: %s lê a Conciliação, autoriza restituição e aplica desconto', 'caso: P9:', 'caso: P9T:', 'todos: Condição de Demurrage do B/L'] },
   { id: 'disputas', group: 'demurrage', action: 'Ver Disputas e editar os dados da disputa e o vencimento', can: ALL, proof: ['caso: P12: %s lê o Desbloqueio de CE com os documentos, as Disputas', 'todos: Editar os dados da disputa'] },
   { id: 'baixa-invoice', group: 'demurrage', action: 'Registrar pagamento de Invoice', can: ADM_FIN, proof: ['exceção: Baixa de Invoice de Demurrage'] },
   { id: 'informar-ptax', group: 'demurrage', action: 'Informar PTAX; pôr e tirar o ROE manual do B/L e tirar o da Invoice, com motivo', can: ADM_FIN_EQU, proof: ['exceção: Informar PTAX', 'exceção: Pôr e tirar o ROE manual do B/L', 'exceção: Tirar o ROE manual da Invoice de Demurrage'] },

@@ -1025,10 +1025,23 @@ travado; o BRL segue o Recálculo Diário. Distinta da fatura de Taxas Locais.
 → Regra: [Demurrage § Emissão da Invoice de Demurrage](docs/modules/demurrage.md#emissão-da-invoice-de-demurrage) e [§ Grupo de Demurrage e cobrança por caixa](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)
 
 **Tarifa de Demurrage (Rate)**
-Tabela geral do armador, por tipo de container, com free time, faixas P1/P2,
+Tabela geral do armador, uma por Grupo de tarifa, com free time, faixas P1/P2,
 diárias em USD e vigência. É a última fonte da precedência: override do B/L,
 depois Acordo de Demurrage do Cliente, depois a Tarifa.
-- **Ver também:** P1, P2, Free Time, Free Time Override, Acordo de Demurrage do Cliente
+- **Ver também:** P1, P2, Free Time, Free Time Override, Acordo de Demurrage do Cliente, Grupo de tarifa
+→ Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
+
+**Tipo de container**
+Código do equipamento como vem no B/L (20GP, 40HC, 48FR…), no cadastro Tipos
+de container de Tarifas e acordos, com descrição e Grupo de tarifa. Tipo fora
+do cadastro, ou inativo, não tem Tarifa de Demurrage.
+- **Ver também:** Grupo de tarifa, Tarifa de Demurrage (Rate)
+→ Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
+
+**Grupo de tarifa**
+Conjunto de Tipos de container que cobram pela mesma Tarifa de Demurrage:
+20' dry, 40' dry, 20' especial, 40' especial, 20' reefer e 40' reefer.
+- **Ver também:** Tipo de container, Tarifa de Demurrage (Rate)
 → Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
 
 **Acordo de Demurrage do Cliente**

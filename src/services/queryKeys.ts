@@ -184,6 +184,8 @@ export const queryKeys = {
   },
   demurrage: {
     rates: () => ['demurrage-rates'] as const,
+    rateGroups: () => ['demurrage-rates', 'groups'] as const,
+    containerTypes: () => ['demurrage-rates', 'container-types'] as const,
     customerAgreements: (filters?: unknown) =>
       filters === undefined ? (['customer-demurrage-agreements'] as const) : (['customer-demurrage-agreements', filters] as const),
     invoices: (filters?: unknown) => (filters === undefined ? (['demurrage-invoices'] as const) : (['demurrage-invoices', filters] as const)),

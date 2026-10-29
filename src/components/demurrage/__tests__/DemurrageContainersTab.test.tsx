@@ -11,7 +11,7 @@ import type { DemurrageBillingGroup, DemurrageContainerRow } from '../../../serv
 vi.mock('../../../services/demurrage/demurrageRates', () => ({
   demurrageFreeTimeDays: (_type: string, override?: number | null, agreement?: { free_days?: number | null } | null) => override ?? agreement?.free_days ?? 10,
   calculateDemurrage: (type: string, _discharge: string, _end: string, override?: number | null, _p1?: unknown, _p2?: unknown, agreement?: { free_days?: number | null } | null) => {
-    if (type === 'XXXX') throw new Error('Tipo de container "XXXX" sem tarifa de Demurrage cadastrada.')
+    if (type === 'XXXX') throw new Error('Tipo de container "XXXX" sem tarifa de Demurrage: confira o cadastro do tipo e a tarifa do grupo em Tarifas e acordos.')
     return ({
     total_days: 40,
     free_days: override ?? agreement?.free_days ?? 10,
@@ -171,7 +171,7 @@ describe('DemurrageContainersTab', () => {
   it('container devolvido que não se calcula continua visível, com o erro e a edição de datas', async () => {
     renderTab([{ ...row('BL-009', 9, { returned: true }), type: 'XXXX' } as DemurrageContainerRow])
     await openBl('BL-009')
-    expect(screen.getByText(/sem tarifa de Demurrage cadastrada/)).toBeTruthy()
+    expect(screen.getByText(/sem tarifa de Demurrage/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Editar datas de MSCU9000000' })).toBeTruthy()
     expect(screen.queryByText('Nenhum container em Demurrage')).toBeNull()
   })

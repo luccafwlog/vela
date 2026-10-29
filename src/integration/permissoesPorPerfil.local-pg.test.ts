@@ -717,6 +717,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   // (ADR 0085, D6; ADR 0073, item 4; migration 254).
   it.each(ALL_PROFILES)('P9: %s cria e edita tarifa e acordo de Demurrage pela API; a troca de ativa é do Administrativo', (profile) => {
     const note = `p9-${profile}`
+    // Tarifa é uma por grupo (migration 513): grupo só deste teste.
+    psql(`INSERT INTO public.demurrage_rate_groups (code, name) VALUES ('P9X', 'Teste P9') ON CONFLICT DO NOTHING;`)
     try {
       const rate = runAs(profile, `INSERT INTO public.demurrage_rates (container_type, free_days, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, notes)
         VALUES ('P9X', 7, 8, 14, 10, 15, 20, '2099-01-01', '${note}') RETURNING id`)
@@ -732,13 +734,30 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
         expectDenied(profile, `DELETE FROM public.${table} WHERE notes = '${note}'`)
       }
     } finally {
-      psql(`DELETE FROM public.customer_demurrage_agreements WHERE notes = '${note}'; DELETE FROM public.demurrage_rates WHERE notes = '${note}';`)
+      psql(`DELETE FROM public.customer_demurrage_agreements WHERE notes = '${note}'; DELETE FROM public.demurrage_rates WHERE notes = '${note}'; DELETE FROM public.demurrage_rate_groups WHERE code = 'P9X';`)
+    }
+  })
+
+  // P9T — tipo de container (ADR 0112, D34; migration 513): qualquer Departamento inclui e
+  // edita; desativar e excluir só o Administrativo, como as tarifas.
+  it.each(ALL_PROFILES)('P9T: %s inclui e edita tipo de container; a troca de ativa é do Administrativo', (profile) => {
+    const code = `T${profile.slice(0, 3).toUpperCase()}9`
+    try {
+      expect(runAs(profile, `INSERT INTO public.container_types (code, description, rate_group) VALUES ('${code}', 'p9t', '40FR') RETURNING id`).error).toBe('')
+      expect(runAs(profile, `UPDATE public.container_types SET description = 'p9t editado' WHERE code = '${code}'`).error).toBe('')
+      const toggle = runAs(profile, `UPDATE public.container_types SET active = false WHERE code = '${code}'`)
+      if (profile === 'administrativo') expect(toggle.error).toBe('')
+      else expect(toggle.error).toMatch(/Somente o Administrativo desativa ou reativa tipos de container/)
+      expectDenied(profile, `DELETE FROM public.container_types WHERE code = '${code}'`)
+    } finally {
+      psql(`DELETE FROM public.container_types WHERE code = '${code}';`)
     }
   })
 
   // B13 — reativar cadastro pede motivo, gravado no rastro; segue do Administrativo (ADR 0072; ADR 0073, item 4; migration 261).
   it.each(ALL_PROFILES)('B13: %s reativa tarifa só como Administrativo e com motivo', (profile) => {
     const note = `b13-${profile}`
+    psql(`INSERT INTO public.demurrage_rate_groups (code, name) VALUES ('B13X', 'Teste B13') ON CONFLICT DO NOTHING;`)
     const id = psql(`INSERT INTO public.demurrage_rates (container_type, free_days, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, notes, active)
       VALUES ('B13X', 7, 8, 14, 10, 15, 20, '2099-01-01', '${note}', false) RETURNING id;`)
     try {
@@ -753,7 +772,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type = 'demurrage_rates' AND entity_id = '${id}' AND field_name = 'reativado';`))
         .toBe('cliente voltou a operar')
     } finally {
-      psql(`DELETE FROM public.audit_logs WHERE entity_type = 'demurrage_rates' AND entity_id = '${id}'; DELETE FROM public.demurrage_rates WHERE id = ${id};`)
+      psql(`DELETE FROM public.audit_logs WHERE entity_type = 'demurrage_rates' AND entity_id = '${id}'; DELETE FROM public.demurrage_rates WHERE id = ${id}; DELETE FROM public.demurrage_rate_groups WHERE code = 'B13X';`)
     }
   })
 

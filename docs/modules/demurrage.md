@@ -269,9 +269,13 @@ está **correndo** (ainda fora), com a contagem de cobradas.
 
 ### `/demurrage/taxas`
 
-[`src/pages/DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx) lista
-`demurrage_rates` em tabela limpa (lote 2 da identidade, 2026-10-16): Tipo,
-Free time, 1º período, Diária 1º, 2º período, Diária 2º, Vigência, Situação em
+[`src/pages/DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx) tem as
+abas **Tabela padrão**, **Acordos de Clientes** e **Tipos de container**
+(`?tab=acordos`, `?tab=tipos`; `?tipo=CÓDIGO` abre o cadastro do tipo já
+preenchido, [`ContainerTypesTab`](../../src/components/demurrage/ContainerTypesTab.tsx)).
+A Tabela padrão lista `demurrage_rates`, uma tarifa por grupo, em tabela limpa
+(lote 2 da identidade, 2026-10-16): Grupo, Tipos que cobre (os códigos ativos
+do cadastro), Free time, 1º período, Diária 1º, 2º período, Diária 2º, Vigência, Situação em
 texto e Observações, cada dado na sua coluna. A aba fica na URL (`?tab=acordos`)
 e a ordem de aplicação, no cabeçalho. Tarifa inativa e acordo encerrado ou
 inativo ficam escondidos por padrão; **Mostrar inativas** (e, nos Acordos,
@@ -332,9 +336,10 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
 | `/demurrage` · visão por consignatário | Aba `Por Cliente` | `DemurrageCustomersTab` + `fetchCustomerDemurrageSummary`/`fetchCustomerDemurrageDetail` | Agrega faturas `issued` não pagas por cliente, lendo todas as páginas (USD a cobrar, líquido do desconto como em Faturas, + BRL do último recálculo, já líquido) | SELECT em `demurrage_invoices` + `customers` | Queries `['demurrage-customer-summary']` e `['demurrage-customer-detail', id]` | Erro rejeita a leitura; vazio mostra `EmptyState` | **Código:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`DemurrageCustomersTab.tsx`](../../src/components/demurrage/DemurrageCustomersTab.tsx), [`demurrageKpis.ts`](../../src/services/demurrage/demurrageKpis.ts), [`CustomerSummaryReport.tsx`](../../src/components/demurrage/CustomerSummaryReport.tsx) |
 | `/demurrage` · imprimir relatório por cliente | Aba `Por Cliente` com dados | Botão `Imprimir` → `CustomerReportModal` | Render React → `window.print()` | Sem escrita | Relatório imprimível com totais USD/BRL por consignatário (desde o lote 6b: logo Transhipping escura, CNPJ com máscara, dólar "US$ 2.760,00" e "Emitido em DD/MM/AAAA" no canto do número) | Popup/print dependem do navegador | **Código:** [`CustomerReportModal.tsx`](../../src/components/demurrage/CustomerReportModal.tsx), [`CustomerSummaryReport.tsx`](../../src/components/demurrage/CustomerSummaryReport.tsx) |
 | `/demurrage/taxas` · listar | Usuário interno ativo | Query da página | `listDemurrageRates` | SELECT em `demurrage_rates` | Query `['demurrage-rates']` | Erro mostra `InlineError` | **Código:** [`DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx) |
-| `/demurrage/taxas` · criar/editar tarifa | Qualquer Departamento (migration `254`); **Desativar**/**Reativar** e **Excluir** só ao Administrativo; tipo de container, diárias, faixas P1/P2 e vigência válidos (`demurrageFormRules`, a mesma regra de `demurrage_rates_intrinsic_sanity_chk`); ao editar, vigência inicial obrigatória | `handleSave` → `DemurrageRateModal`; confirmação com antes/depois (ou resumo da tarifa nova) | `upsertDemurrageRate` | UPSERT em `demurrage_rates` (policies `demurrage_rates_insert_active_global` e `demurrage_rates_update_active_global`, migration `254`) | Limpa o cache em memória; invalida `['demurrage-rates']` e `afterReferenciaDemurrageAlterada` (previsão da aba `Containers` e Informações do Portal); Invoices emitidas não mudam | Erro de validação junto do campo; recusa do banco no formulário por `classifyDbError`; "nada mudou" fecha com aviso, sem gravar | **Código/Teste:** [`DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx), [`demurrageRates.ts`](../../src/services/demurrage/demurrageRates.ts), [`demurrageFormRules.ts`](../../src/components/demurrage/demurrageFormRules.ts), `demurrageFormRules.test.ts`, `DemurrageRates.behavior.test.tsx` |
+| `/demurrage/taxas` · criar/editar tarifa | Qualquer Departamento (migration `254`); **Desativar**/**Reativar** e **Excluir** só ao Administrativo; grupo de tarifa (lista de `demurrage_rate_groups`; uma tarifa ativa por grupo na vigência, migration `513`), diárias, faixas P1/P2 e vigência válidos (`demurrageFormRules`, a mesma regra de `demurrage_rates_intrinsic_sanity_chk`); ao editar, vigência inicial obrigatória | `handleSave` → `DemurrageRateModal`; confirmação com antes/depois (ou resumo da tarifa nova) | `upsertDemurrageRate` | UPSERT em `demurrage_rates` (policies `demurrage_rates_insert_active_global` e `demurrage_rates_update_active_global`, migration `254`) | Limpa o cache em memória; invalida `['demurrage-rates']` e `afterReferenciaDemurrageAlterada` (previsão da aba `Containers` e Informações do Portal); Invoices emitidas não mudam | Erro de validação junto do campo; recusa do banco no formulário por `classifyDbError`; "nada mudou" fecha com aviso, sem gravar | **Código/Teste:** [`DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx), [`demurrageRates.ts`](../../src/services/demurrage/demurrageRates.ts), [`demurrageFormRules.ts`](../../src/components/demurrage/demurrageFormRules.ts), `demurrageFormRules.test.ts`, `DemurrageRates.behavior.test.tsx` |
 | `/demurrage/taxas` · **Desativar** / **Reativar** tarifa | Administrativo; confirmação com a situação antes/depois | `handleToggleActive` (menu ⋮) | `toggleDemurrageRateActive` | UPDATE de `active` em `demurrage_rates`, conferido pelo gatilho `guard_tariff_active_change` (migration `091`) | Limpa o cache em memória; invalida `['demurrage-rates']` e `afterReferenciaDemurrageAlterada` | Recusa do banco em toast, por `classifyDbError` | **Código:** [`DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx), [`demurrageRates.ts`](../../src/services/demurrage/demurrageRates.ts) |
 | `/demurrage/taxas` · **Excluir tarifa** | Administrativo; tarifa que ainda não entrou em vigor (só então o menu oferece a ação); motivo digitado na confirmação | `handleDelete` (menu ⋮) com `confirmWithReason` | `deleteDemurrageRate` → `deleteOneById` | RPC `delete_catalog_row` com o motivo (migration `096`); o banco recusa tarifa já usada (`guard_used_tariff_delete`, migration `091`) | Limpa o cache em memória; invalida `['demurrage-rates']` e `afterReferenciaDemurrageAlterada` | Recusa do banco em toast, por `classifyDbError`; cancelar a confirmação não escreve | **Código:** [`DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx), [`demurrageRates.ts`](../../src/services/demurrage/demurrageRates.ts) |
+| `/demurrage/taxas?tab=tipos` · **Novo tipo**, **Editar**, desativar/reativar e **Excluir tipo** | Incluir e editar: qualquer Departamento; desativar, reativar (com motivo) e excluir: Administrativo (gatilho `guard_container_type_active_change`); código só letras e números, sem repetir; grupo obrigatório; tipo usado em B/L não se exclui | `ContainerTypesTab` (confirmação com antes/depois) | `saveContainerType`, `toggleContainerTypeActive` (reativar por `reactivate_catalog_row`), `deleteContainerType` → `delete_catalog_row` | INSERT/UPDATE em `container_types` (migration `513`); `audit_logs` pelo gatilho de auditoria | Limpa o cache de tarifas em memória; invalida `['demurrage-rates']` e `afterReferenciaDemurrageAlterada` | Código repetido: "O tipo … já está cadastrado."; demais recusas por `classifyDbError` | **Código/Teste:** [`ContainerTypesTab.tsx`](../../src/components/demurrage/ContainerTypesTab.tsx), [`containerTypes.ts`](../../src/services/demurrage/containerTypes.ts), `DemurrageRates.behavior.test.tsx`; **Teste local-pg:** `tiposDeContainer.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts` (P9T) |
 | `/demurrage/taxas?tab=acordos` e aba Financeiro da ficha do Cliente · **Novo acordo**, **Editar**, ativar/desativar e **Excluir acordo** | Criar e editar: qualquer Departamento (migration `254`); ativar, desativar e excluir: Administrativo (gatilho `guard_tariff_active_change`, migration `091`; o formulário só mostra **Acordo ativo** ao Administrativo; a ficha oferece só Novo acordo e Editar); Cliente, free time de 0 a 365 dias e início da vigência; sem outro acordo ativo do Cliente com vigência sobreposta; excluir só antes da vigência e com motivo | `CustomerDemurrageAgreementsTab` e `CustomerDemurrageAgreementModal` (confirmação com antes/depois) | `useSaveCustomerDemurrageAgreement` → `saveCustomerDemurrageAgreement`; `toggleCustomerDemurrageAgreementActive`; `deleteCustomerDemurrageAgreement` → `deleteOneById` | UPSERT e UPDATE em `customer_demurrage_agreements`; exclusão pela RPC `delete_catalog_row` com motivo (migration `096`) | Invalida a lista de acordos, os acordos da ficha do Cliente e `afterReferenciaDemurrageAlterada` (previsão da aba `Containers`); Invoices emitidas não mudam | Vigência sobreposta: "Ja existe um acordo ativo para este cliente com vigencia sobreposta."; demais recusas por `classifyDbError` | **Código/Teste:** [`customerDemurrageAgreements.ts`](../../src/services/demurrage/customerDemurrageAgreements.ts), [`useCustomerDemurrageAgreements.ts`](../../src/hooks/useCustomerDemurrageAgreements.ts), `CustomerDemurrageAgreementConfirmation.test.tsx`, `customerDemurrageAgreements.test.ts`; **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (P9) |
 
 ## Estado e dados
@@ -357,21 +362,25 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
   um carregamento válido, preserva o último cache vindo do banco. Sem cache
   válido ou sem linha vigente para o tipo de container, o cálculo falha com
   mensagem explícita ao operador.
-- **Aliases ISO:** o catálogo pode manter somente as linhas canônicas de
-  `main`; `demurrageRates` resolve os aliases históricos (`22G1`, `42G1`,
-  `45G1`, `20FT`, `40FT`, `45R1` e equivalentes) para a tarifa canônica, sem
-  duplicar essas linhas no banco. A lista é fixa, igual no navegador
-  (`DEMURRAGE_ALIAS_GROUPS`) e no banco (`_demurrage_canonical_type`, migration
-  `138`): 26 códigos em 6 grupos; o tipo fora dela só acha tarifa com uma linha
-  do mesmo código. O cálculo, o status e o Portal usam uma tarifa por grupo (a
-  de vigência mais recente e, no empate, a de maior id;
-  `_active_demurrage_rates`), enquanto `/demurrage/taxas` lista todas as
-  linhas. Em 2026-10-29, produção e staging tinham as 12 linhas da carga inicial
-  (migration `006`), das quais o cálculo usa 6 (20HC, 20RF, 20FR, 40GP, 40RF e
-  40OT): editar 20GP, 20RQ, 20OT, 40FR, 40HC ou 40RQ não muda nada. Os tipos
-  48FR, 40FM e 40FP dos B/Ls (534 de 867 containers) não acham tarifa (nota
-  editorial de 2026-10-29; decisão na [ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
-  D28 a D34).
+- **Tipos de container e grupo de tarifa** (migration `513`, [ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
+  D28 a D34): o tipo do container acha a tarifa pelo cadastro
+  `container_types` (código como vem no B/L, descrição, grupo e situação), no
+  banco (`_demurrage_canonical_type`) e no navegador (`ensureDemurrageRatesLoaded`
+  lê o mesmo cadastro). Os grupos são `demurrage_rate_groups`: 20' dry (20GP),
+  40' dry (40GP), 20' especial (20FR), 40' especial (40FR), 20' reefer (20RF) e
+  40' reefer (40RF). Carga inicial: os 13 códigos dos B/Ls (20GP e 20HC em 20'
+  dry; 20OT em 20' especial; 40HC em 40' dry; 40FR, 40OT, 40FH, 40FM, 40FP,
+  40FW, 40EW, 48FR e 48FP em 40' especial) e os códigos da lista fixa antiga no
+  mesmo grupo de antes. Tipo inativo ou fora do cadastro não tem grupo e,
+  portanto, não tem tarifa (até o lote 1, nunca entra em atraso). A tarifa
+  guarda o código do grupo em `demurrage_rates.container_type` (FK), uma por
+  grupo: o banco recusa a segunda tarifa ativa do grupo com vigência
+  sobreposta (`demurrage_rates_one_per_group`). A migration tirou as linhas
+  repetidas, mantendo a que o cálculo usava, sem mudar valor. Cadastro: qualquer
+  Departamento inclui e edita; desativar, reativar e excluir são do
+  Administrativo, e tipo usado em B/L só se desativa. Antes da `513`, o grupo
+  vinha de uma lista fixa de 26 códigos e produção tinha 534 de 867 containers
+  (48FR, 40FM e 40FP) sem tarifa.
 - **Datas:** `bl_containers.discharge_date` e `return_date` são a fonte
   operacional. `demurrage_invoice_items` copia datas, dias, free time, tarifas
   e subtotal no momento de criação da invoice (ver

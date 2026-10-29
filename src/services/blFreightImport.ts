@@ -340,6 +340,12 @@ export type BuildBlFreightPreviewArgs = {
    * (ADR 0095, decisão 23; migration 401).
    */
   manualPolAtds?: Map<string, string> | null
+  /**
+   * Códigos ativos do cadastro Tipos de container (migration 513). Presente,
+   * o container de tipo fora dele é aviso: o B/L entra, e a caixa fica sem
+   * tarifa de Demurrage até o tipo ser cadastrado (ADR 0112, D32).
+   */
+  knownContainerTypes?: Set<string> | null
 }
 
 export type ContainerRemovalBlockers = {
@@ -373,13 +379,14 @@ export async function previewBlFreightImport(args: {
   // with a unique one (same count) still changes container_distinct_voyage billing.
   const existingContainerNumbers = existingBls.flatMap((bl) => (bl.bl_containers ?? []).map((container) => container.container_number))
   const sharedContainerNumbers = await fetchSharedContainerNumbers(blNumbers, [...containerNumbers, ...existingContainerNumbers])
-  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods, manualPolAtds] = await Promise.all([
+  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods, manualPolAtds, knownContainerTypes] = await Promise.all([
     fetchSelectedVoyage(args.voyageId),
     fetchPortCatalog(),
     fetchContainerSiblings(args.voyageId, blNumbers, containerNumbers),
     fetchCodBlIds([...existingIds]),
     fetchOmittedPods(args.voyageId),
     fetchManualPolAtds(args.voyageId),
+    fetchKnownContainerTypes(),
   ])
   if (!selectedVoyage) throw new Error('Viagem selecionada não encontrada.')
 
@@ -429,7 +436,18 @@ export async function previewBlFreightImport(args: {
     omittedPods,
     containerRemovalBlockers,
     manualPolAtds,
+    knownContainerTypes,
   })
+}
+
+/** Códigos ativos do cadastro Tipos de container (migration 513). */
+async function fetchKnownContainerTypes(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('container_types' as never)
+    .select('code')
+    .eq('active', true)
+  if (error) throw error
+  return new Set(((data ?? []) as Array<{ code: string }>).map((row) => row.code.trim().toUpperCase()))
 }
 
 export function buildBlFreightPreview({
@@ -450,6 +468,7 @@ export function buildBlFreightPreview({
   omittedPods = null,
   containerRemovalBlockers = null,
   manualPolAtds = null,
+  knownContainerTypes = null,
 }: BuildBlFreightPreviewArgs): BlFreightImportPreview {
   const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
   const earliestLadenByPol = new Map<string, string>()
@@ -551,6 +570,17 @@ export function buildBlFreightPreview({
       ? describeManualPolAtdDivergence(rowPol, rowLaden, manualPolAtds)
       : null
     if (manualAtdWarning) warnings.push(manualAtdWarning)
+    // ADR 0112, D32: tipo fora do cadastro avisa e o B/L entra; a caixa fica
+    // sem tarifa de Demurrage até o tipo ser cadastrado.
+    if (payload && knownContainerTypes) {
+      const unknownTypes = [...new Set(payload.containers
+        .filter((container) => container.ownership !== 'SOC')
+        .map((container) => (container.type ?? '').trim().toUpperCase())
+        .filter((type) => !knownContainerTypes.has(type)))]
+      for (const type of unknownTypes) {
+        warnings.push(`Tipo ${type || '(vazio)'} sem tarifa de Demurrage: cadastre o tipo em Tarifas e acordos.`)
+      }
+    }
 
     const consigneeDocumentMatches = payload && existing?.manifest_customer_cnpj_cpf
       ? canonicalizeDocument(existing.manifest_customer_cnpj_cpf) === canonicalizeDocument(payload.manifest_customer_cnpj_cpf)

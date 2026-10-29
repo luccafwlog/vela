@@ -55,6 +55,7 @@ function cleanup() {
     DELETE FROM public.bls WHERE id LIKE 'INFO134-%';
     DELETE FROM public.customer_demurrage_agreements WHERE customer_id IN (${customer},${customerOther});
     DELETE FROM public.demurrage_rates WHERE id=9134001;
+    DELETE FROM public.demurrage_rate_groups WHERE code='20DV';
     DELETE FROM public.customer_portal_accounts WHERE customer_id=${customer};
     DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN (${customer},${customerOther})));
     DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN (${customer},${customerOther})) OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN (${customer},${customerOther})));
@@ -88,6 +89,8 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
        (${unit},'INFO134-A','INFU1340001','20DV','2026-09-01','COC'),(${shared},'INFO134-SHARED','INFU1340001','20DV','2026-09-01','COC'),
        (${foreign},'INFO134-SHARED','INFU1340003','20DV','2026-09-01','COC'),(${unreleased},'INFO134-HIDDEN','INFU1340004','20DV','2026-09-01','COC'),
        (${soc},'INFO134-A','INFU1340005','20DV','2026-09-01','SOC'),(${noRate},'INFO134-A','INFU1340006','45HC','2026-09-01','COC');
+      -- Tarifa é uma por grupo (migration 513): grupo só deste teste.
+      INSERT INTO public.demurrage_rate_groups(code,name) VALUES('20DV','Teste 20DV');
       INSERT INTO public.demurrage_rates(id,container_type,free_days,p1_day_from,p1_day_to,p1_usd,p2_day_from,p2_usd,valid_from,notes)
        VALUES(9134001,'20DV',7,8,14,20,15,40,'2026-01-01','nota interna tarifa');
       INSERT INTO public.customer_demurrage_agreements(customer_id,free_days,valid_from,notes) VALUES(${customer},31,'2026-01-01','nota interna acordo');
@@ -176,7 +179,7 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
     expect(as(inactive, 'SELECT public.internal_get_portal_information();').status).not.toBe(0)
   })
 
-  it('canonical tariff families choose their newest row consistently in Portal and authoritative calculation', () => {
+  it('the group tariff in force is the same in Portal, operation and authoritative calculation', () => {
     const result = rollbackRead<{ operation: Array<{ bl_id: string; containers: Array<{ id: number; free_time_days: number | null }> }>; catalog: PortalInformation; financial: { items: Array<{ free_days: number }> } }>(`
       SET LOCAL session_replication_role=replica;
       UPDATE public.demurrage_rates SET active=false;
@@ -184,7 +187,11 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
       UPDATE public.bls SET free_time_override=NULL WHERE id='INFO134-A';
       UPDATE public.bl_containers SET type='40HC',discharge_date=CURRENT_DATE-25,return_date=CURRENT_DATE,demurrage_status='returned' WHERE id=${unit};
       INSERT INTO public.demurrage_rates(id,container_type,free_days,p1_day_from,p1_day_to,p1_usd,p2_day_from,p2_usd,valid_from,active)
-        VALUES(9234001,'40GP',7,8,14,20,15,40,CURRENT_DATE-60,true),(9234002,'40HC',15,16,30,25,31,50,CURRENT_DATE-30,true);
+        VALUES(9234001,'40GP',7,8,14,20,15,40,CURRENT_DATE-60,true);
+      -- Vigências encadeadas: o banco recusa duas tarifas do grupo sobrepostas (513).
+      UPDATE public.demurrage_rates SET valid_to=CURRENT_DATE-31 WHERE id=9234001;
+      INSERT INTO public.demurrage_rates(id,container_type,free_days,p1_day_from,p1_day_to,p1_usd,p2_day_from,p2_usd,valid_from,active)
+        VALUES(9234002,'40GP',15,16,30,25,31,50,CURRENT_DATE-30,true);
       SET LOCAL session_replication_role=origin;
       SELECT jsonb_build_object('operation',public._portal_list_operation_bls_without_transshipment_core(${customer}),
         'catalog',public._portal_information_core(false),
@@ -195,15 +202,15 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
     expect(result.catalog.demurrage_rates[0].free_days).toBe(15)
     expect(result.financial.items[0].free_days).toBe(15)
   })
-  it('alias-only tariffs remain available to canonical and alias containers', () => {
+  it('the group tariff covers every active type of the Tipos de container cadastro (ADR 0112, D30)', () => {
     const result = rollbackRead<Array<{ bl_id: string; containers: Array<{ id: number; free_time_days: number | null }> }>>(`
       SET LOCAL session_replication_role=replica;
       UPDATE public.demurrage_rates SET active=false;
       UPDATE public.customer_demurrage_agreements SET active=false WHERE customer_id=${customer};
       UPDATE public.bls SET free_time_override=NULL WHERE id='INFO134-A';
-      UPDATE public.bl_containers SET type='40GP' WHERE id=${unit};
+      UPDATE public.bl_containers SET type='48FR' WHERE id=${unit};
       INSERT INTO public.demurrage_rates(id,container_type,free_days,p1_day_from,p1_day_to,p1_usd,p2_day_from,p2_usd,valid_from,active)
-        VALUES(9234002,'40HC',15,16,30,25,31,50,CURRENT_DATE-30,true);
+        VALUES(9234002,'40FR',15,16,30,25,31,50,CURRENT_DATE-30,true);
       SET LOCAL session_replication_role=origin;
       SELECT public._portal_list_operation_bls_without_transshipment_core(${customer});
     `)
