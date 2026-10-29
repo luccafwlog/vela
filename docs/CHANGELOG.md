@@ -6,6 +6,19 @@
 
 ## 2026-10
 
+- **Mensagens de recusa com acento e motivo de falha de alerta em linguagem de tela (2026-10-29,
+  migration `509`):** a aba **Falhas de entrega de alertas** (Admin) mostra sempre o **Motivo** em
+  frase de tela ("Ninguém ativo no setor do alerta." ou "… nem no Administrativo."); o texto técnico
+  gravado em `alert_notification_failures.reason` fica só no banco para o suporte. As recusas das
+  RPCs deixam de sair sem acento ou como "Credenciais invalidas": "Usuario sem permissao ativa." vira
+  "Usuário sem permissão ativa.", "Credenciais invalidas para importar frete do BL." vira "Usuário sem
+  permissão para importar o frete do B/L.", "… nao pode ser removido: ha fatura emitida" vira "… não
+  pode ser removido: há fatura emitida", e o mesmo para câmbio (ROE), consolidada aberta, omissão e
+  fatura (lista no cabeçalho da `509`, que só redefine funções). As mensagens fixas de
+  `classifyDbError` ganham acento; "Sem permissao para esta acao. Solicite acesso administrativo." vira
+  "Sem permissão para esta ação." e "Conflito de concorrencia." vira "Outra pessoa alterou o mesmo
+  registro ao mesmo tempo.". O agrupamento no Sentry dessas recusas muda junto com o texto.
+
 - **Conferência do Manual do Operador, capítulos 4 a 6 (2026-10-29, migration `505`):** a importação da
   programação na Viagem deixa de mexer no ATA e no ATD já registrados, grava cada mudança uma vez no
   histórico e só tira uma escala quando a planilha é dela; o LOCODE brasileiro inválido é recusado na

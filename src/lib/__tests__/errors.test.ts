@@ -45,7 +45,7 @@ describe('classifyDbError', () => {
   it('extrai code/message de um objeto plano (erro do PostgREST)', () => {
     expect(classifyDbError({ code: 'PGRST301', message: 'JWT expired' })).toEqual({
       kind: 'sessao_expirada',
-      message: 'Sua sessao expirou. Entre novamente para continuar.',
+      message: 'Sua sessão expirou. Entre novamente para continuar.',
     })
   })
 
@@ -67,14 +67,14 @@ describe('classifyDbError', () => {
   it('NAO preserva a mensagem crua para codigos de constraint sem preserveMessage', () => {
     expect(classifyDbError({ code: '23503', message: 'update or delete on table "voyages" violates foreign key constraint "fk_x" on table "bls"' })).toEqual({
       kind: 'validacao',
-      message: 'Registro referenciado nao existe ou ainda esta em uso.',
+      message: 'O registro vinculado não existe mais ou ainda está em uso.',
     })
   })
 
   it('usa a mensagem canonica de 42501 quando o texto cru expõe nome de tabela', () => {
     expect(classifyDbError({ code: '42501', message: 'permission denied for table customers' })).toEqual({
       kind: 'permissao',
-      message: 'Sem permissao para esta acao. Solicite acesso administrativo.',
+      message: 'Sem permissão para esta ação.',
     })
   })
 
@@ -84,7 +84,7 @@ describe('classifyDbError', () => {
       message: 'new row violates row-level security policy for table "invoices"',
     })).toEqual({
       kind: 'permissao',
-      message: 'Sem permissao para esta acao. Solicite acesso administrativo.',
+      message: 'Sem permissão para esta ação.',
     })
   })
 
@@ -98,7 +98,7 @@ describe('classifyDbError', () => {
   it('classifica mensagem generica de permission denied sem code conhecido', () => {
     expect(classifyDbError({ code: '', message: 'permission denied' })).toEqual({
       kind: 'permissao',
-      message: 'Sem permissao para esta acao. Solicite acesso administrativo.',
+      message: 'Sem permissão para esta ação.',
     })
   })
 
@@ -183,7 +183,7 @@ describe('isExpectedUserFacingDbError', () => {
 describe('userFacingErrorMessage', () => {
   it('traduz erros conhecidos e nunca exibe mensagem técnica desconhecida', () => {
     expect(userFacingErrorMessage({ code: '23503', message: 'violates foreign key constraint fk_bls' })).toBe(
-      'Registro referenciado nao existe ou ainda esta em uso.',
+      'O registro vinculado não existe mais ou ainda está em uso.',
     )
     expect(userFacingErrorMessage(new Error('relation internal_table does not exist'), 'Não foi possível excluir.')).toBe(
       'Não foi possível excluir.',

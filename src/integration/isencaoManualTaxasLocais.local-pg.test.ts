@@ -207,7 +207,7 @@ describeLocal('492 — Isentar Taxas Locais à mão', () => {
     ]) {
       const run = as(USERS.outsider, sql)
       expect(run.status).not.toBe(0)
-      expect(run.stderr).toMatch(/Usuario sem permissao ativa/)
+      expect(run.stderr).toMatch(/Usuário sem permissão ativa/)
       expect(run.stderr).not.toMatch(/isento/)
     }
   })
