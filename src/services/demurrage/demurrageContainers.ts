@@ -244,6 +244,17 @@ async function readGroupBoxes(listedBlIds: readonly string[]): Promise<GroupBoxR
   return boxes
 }
 
+/**
+ * B/L do grupo de Demurrage que emite a Invoice (`demurrage_group_anchor`,
+ * migration 179/191). O banco não expõe a função a `authenticated` (190),
+ * então a tela monta o grupo com a mesma leitura da aba Demurrage. Só o ROE
+ * manual do âncora entra na Invoice do grupo (`create_demurrage_invoice_authoritative`).
+ */
+export async function readDemurrageGroupAnchor(blId: string): Promise<string> {
+  const groups = buildBillingGroups(await readGroupBoxes([blId]), new Map())
+  return groups.get(blId)?.anchorBlId ?? blId
+}
+
 export async function listDemurrageContainers(filters?: DemurrageContainerFilters): Promise<DemurrageContainerRow[]> {
   await ensureDemurrageRatesLoaded()
 

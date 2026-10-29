@@ -45,6 +45,7 @@ vi.mock('../../../services/demurrage/demurrageRates', () => ({
 }))
 
 vi.mock('../../../services/demurrage/demurrageContainers', () => ({
+  readDemurrageGroupAnchor: async (blId: string) => blId,
   updateContainerReturnDate: (id: number, date: string | null, reason?: string | null) =>
     mocks.updateContainerReturnDate(id, date, ...(reason ? [reason] : [])),
 }))

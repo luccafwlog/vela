@@ -5,14 +5,8 @@ import { RowActionButton } from '../ui/RowActionButton'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
 import { formatDate } from '../../lib/utils'
+import { ESTADO_CONCILIACAO_META } from '../../lib/statusLabels'
 import type { VoyageRailItem } from '../../services/voyageSummaries'
-
-const CONCILIACAO_LABEL: Record<VoyageRailItem['estado'], string> = {
-  conciliado: 'Conciliada',
-  incompleto: 'Pendente',
-  divergente: 'Divergente',
-  verificando: 'Verificando',
-}
 
 function shortDate(iso: string | null | undefined) {
   return iso ? formatDate(iso).slice(0, 5) : null
@@ -74,7 +68,7 @@ export function VoyageListTable({ items, breakbulkTons, breakbulkError = false, 
                     : <NoValue label={breakbulkTons ? 'Sem carga solta' : breakbulkError ? 'Toneladas de carga solta não carregadas' : 'Carregando toneladas de carga solta'} />}</td>
                   <td className="tabular-nums">{vehicles.toLocaleString('pt-BR')}</td>
                   <td className="tabular-nums">{ce && ce.total > 0 ? (ce.filled < ce.total ? <StatusText tone="warning">{ce.filled} de {ce.total}</StatusText> : `${ce.filled} de ${ce.total}`) : <NoValue label="Sem B/L" />}</td>
-                  <td className="app-table__text">{item.estado === 'conciliado' ? CONCILIACAO_LABEL[item.estado] : item.estado === 'verificando' ? <StatusText tone="muted">{CONCILIACAO_LABEL[item.estado]}</StatusText> : <StatusText tone="warning">{CONCILIACAO_LABEL[item.estado]}</StatusText>}</td>
+                  <td className="app-table__text"><StatusText tone={ESTADO_CONCILIACAO_META[item.estado].textTone}>{ESTADO_CONCILIACAO_META[item.estado].label}</StatusText></td>
                   {onEdit ? (
                     <td>{item.status === 'cancelled' ? null : <RowActionButton label={`Editar viagem ${item.vesselName} / ${item.voyageNumber}`} icon={Pencil} onClick={() => onEdit(item.id)} />}</td>
                   ) : null}

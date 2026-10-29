@@ -37,6 +37,7 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirmWithReason: () => mocks.confirmWithReason,
 }))
 vi.mock('../../services/demurrage/demurrageContainers', () => ({
+  readDemurrageGroupAnchor: async (blId: string) => blId,
   listDemurrageContainers: mocks.listContainers,
   updateContainerDates: mocks.updateContainerDates,
 }))
