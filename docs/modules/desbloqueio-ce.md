@@ -63,7 +63,7 @@ Manifesto Mercante é regra de
   motivo inteiro logo abaixo, sem corte), B/Ls da solicitação, Histórico
   fechado em tabela e a faixa de reenvio no pé; "Cancelar solicitação" no topo, enquanto o pedido
   está em rascunho ou com correção solicitada. Com tudo atendido, "Documentação validada… consulte o
-  SISCARGA para verificar o desbloqueio" (migration `466`). Não mostra envio, ZPT nem desbloqueio (**Código:** `src/pages/PortalDesbloqueioCe.tsx`).
+  Mercante". Não mostra envio, ZPT nem desbloqueio (**Código:** `src/pages/PortalDesbloqueioCe.tsx`).
   Modo Inspeção (`/clientes/portal/inspecao/:customerId/desbloqueio-ce`)
   é somente leitura (aviso global da inspeção) e mostra a todos os setores os documentos da
   solicitação e os anuais, com datas e motivos, como no Vela (migration `479`; ADR 0085, D16).

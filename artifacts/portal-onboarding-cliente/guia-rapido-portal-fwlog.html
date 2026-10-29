@@ -8,7 +8,7 @@
   Guia rápido do Portal do Cliente Fwlog: folheto de duas folhas A4 para anexar ao e-mail
   de anúncio. Resume o guia completo (Tutorial_Portal_Fwlog.html), sem fluxo
   que não esteja nele. Abra a partir desta pasta do repositório: as fontes e
-  as logos vêm de ../../public. O PDF é gerado por gerar-pdf.mjs.
+  as logos vêm de ../../public. O PDF desta pasta é impresso deste arquivo.
 -->
 <style>
 /* DM Sans e IBM Plex Mono: os mesmos arquivos do app (src/fonts.css). */
@@ -79,7 +79,7 @@ h1, h2, h3 { margin: 0; }
   break-after: page;
 }
 .page:last-child { break-after: auto; }
-/* Nada encolhe para caber: conteúdo a mais estoura a página e o gerar-pdf.mjs recusa. */
+/* Nada encolhe para caber: conteúdo a mais estoura a página. */
 .page > * { flex-shrink: 0; }
 @media print {
   body { background: var(--surface); }

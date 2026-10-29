@@ -8,7 +8,7 @@
   Tutorial de onboarding do Portal do Cliente Fwlog, em páginas A4.
   Abra a partir desta pasta do repositório: as fontes e as logos vêm de
   ../../public (donos únicos dos assets da marca). O PDF desta pasta é a
-  versão para enviar; ele é gerado por gerar-pdf.mjs a partir deste arquivo.
+  versão para enviar, impressa a partir deste arquivo.
   Telas são desenhos esquemáticos com dados fictícios, não capturas.
 -->
 <style>
@@ -80,7 +80,7 @@ h1, h2, h3 { margin: 0; }
   break-after: page;
 }
 .page:last-child { break-after: auto; }
-/* Nada encolhe para caber: conteúdo a mais estoura a página e o gerar-pdf.mjs recusa. */
+/* Nada encolhe para caber: conteúdo a mais estoura a página. */
 .page > * { flex-shrink: 0; }
 @media print {
   body { background: var(--surface); }

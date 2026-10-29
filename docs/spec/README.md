@@ -5,7 +5,6 @@ Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
 
 | Spec | Estado |
 |---|---|
-| [Dicas contextuais no Portal do Cliente](2026-10-28-dicas-contextuais-portal-design.md) | Proposta, aguarda decisão do responsável |
 
 Specs concluídas ficam no [índice das specs arquivadas](../archive/specs/README.md);
 suas regras vigentes estão nos módulos (`docs/modules/`).
