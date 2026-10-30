@@ -50,6 +50,7 @@ export type CatalogDeleteTable =
   | 'customer_demurrage_agreements'
   | 'customer_rate_overrides'
   | 'charge_table_items'
+  | 'container_types'
 
 /**
  * Exclui uma linha de cadastro (taxas, locais, servicos, linhas de vazios)
@@ -81,6 +82,7 @@ export type CatalogReactivateTable =
   | 'user_profiles'
   | 'depots'
   | 'depot_services'
+  | 'container_types'
 
 /**
  * B13 (ADR 0072; ADR 0073, item 4): reativa um cadastro pela RPC

@@ -260,12 +260,17 @@ describe('planilhas de Relatórios', () => {
     expect(sheetRows[0]).not.toHaveProperty('Status')
   })
 
-  it('Demurrage sai com os rótulos e as datas da tela (ACE-D08)', async () => {
-    await exportDemurrageReportWorkbook([
-      { id: 1, doc_number: 'DEM-2026-0001', bl_id: 'BL1', doc_date: '2026-10-26', due_date: '2026-11-05', total_usd: 100, current_total_brl: 540, status: 'issued', customer: { id: 1, name: 'Cliente', cnpj_cpf: '1' } } as never,
-    ])
-    const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
-    expect(Object.keys(sheetRows[0])).toEqual(['Invoice', 'B/L', 'Cliente', 'CNPJ', 'Emissão', 'Vencimento', 'Total US$', 'Total R$', 'Situação'])
-    expect(sheetRows[0]).toMatchObject({ Emissão: '26/10/2026', Vencimento: '05/11/2026', Situação: 'Faturado' })
+  it('Demurrage sai com uma aba por recorte, mais Filtros, com os rótulos da tela (D14)', async () => {
+    await exportDemurrageReportWorkbook({
+      exposure: [{ division: 'correndo', reason: null, customer_name: 'Cliente', voyage_label: 'NAVIO / 1', bl_id: 'BL1', container_number: 'MSCU1', type: '40HC', discharge_date: '2026-09-01', return_date: null, total_days: 40, free_days: 21, usd: 1140, state: 'running' } as never],
+      invoices: [{ id: 1, doc_number: 'DEM-2026-0001', bl_id: 'BL1', billed_at: '2026-10-26T12:00:00Z', total_usd: 100, current_total_brl: 540, status: 'issued', net_usd: 100, discount_usd: 0, kind: { label: 'Normal', doc: null }, customer: { id: 1, name: 'Cliente', cnpj_cpf: '1' } } as never],
+      items: [],
+    }, [{ Filtro: 'Recorte', Valor: 'Invoices' }])
+    expect(bookAppendSheet.mock.calls.map((call) => call[2])).toEqual(['Exposição', 'Invoices', 'Itens por container', 'Filtros'])
+    const [exposureRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
+    expect(exposureRows[0]).toMatchObject({ Divisão: 'Correndo', Devolução: 'Fora', 'US$ previsto': 1140 })
+    const [invoiceRows] = jsonToSheet.mock.calls[1] as unknown as [Array<Record<string, unknown>>]
+    expect(Object.keys(invoiceRows[0])).toEqual(['Invoice', 'Tipo', 'B/L', 'Navio / Viagem', 'Cliente', 'CNPJ', 'Emissão', 'USD líquido', 'Desconto US$', 'R$ hoje', 'R$ pago', 'Paga em', 'Disputa', 'Situação'])
+    expect(invoiceRows[0]).toMatchObject({ Emissão: '26/10/2026', 'R$ hoje': 540, 'R$ pago': '', Situação: 'Faturado' })
   })
 })

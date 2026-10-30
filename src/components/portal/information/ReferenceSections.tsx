@@ -70,7 +70,7 @@ export function DemurrageSection({ information, showNotes = true }: { informatio
         <th scope="col">US$ por dia<span className="sr-only"> no 2º período</span></th>
         {sharedValidity ? null : <th scope="col">Vigência</th>}
       </tr></thead><tbody>{rates.map((rate) => <tr key={rate.id}>
-        <td>{rate.container_type}</td>
+        <td>{rate.group_name ?? rate.container_type}{rate.codes?.length ? <span className="block text-[var(--app-muted)]">{rate.codes.join(', ')}</span> : null}</td>
         <td className="whitespace-nowrap">{rate.free_days} dias</td>
         <td className="whitespace-nowrap">dias {rate.p1_day_from} a {rate.p1_day_to}</td>
         <td className="tabular-nums">{usdPerDay(rate.p1_usd)}</td>

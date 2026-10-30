@@ -145,6 +145,7 @@ function cleanup() {
       OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
+    DELETE FROM public.demurrage_box_waivers WHERE customer_id = ${customerId};
     DELETE FROM public.customers WHERE id = ${customerId};
     DELETE FROM public.user_profiles WHERE id = '${adminId}';
     DELETE FROM auth.users WHERE id = '${adminId}';
@@ -400,6 +401,12 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
     expect(status('RVCU2000001')).toBe('overdue')
 
     // Cancelar o B/L tira o container do atraso na hora; reativar devolve.
+    // Desde a migration 517 (ADR 0112, D7 e D26), B/L com sobreestadia sem
+    // Invoice só se cancela com a cobrança das caixas dispensada.
+    for (const box of ['RVCU1970001', 'RVCU1970002']) {
+      const waived = asAdmin(`SELECT public.waive_demurrage_box('${bl.overdue}', '${box}', 'B/L substituído antes da cobrança (R200)')`)
+      expect(waived.status, waived.stderr).toBe(0)
+    }
     const cancelledBl = asAdmin(`SELECT public.cancel_bl('${bl.overdue}', 'B/L substituído (R200)', false)`)
     expect(cancelledBl.status, cancelledBl.stderr).toBe(0)
     expect(status('RVCU1970002')).toBe('within_free_time')

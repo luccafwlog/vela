@@ -86,7 +86,7 @@ describe('calculateDemurrage', () => {
   })
 
   it('tipo desconhecido falha sem cair em tarifa arbitrária', () => {
-    expect(() => calculateDemurrage('XXX9', '2026-01-01', '2026-01-26')).toThrow(/sem tarifa de Demurrage cadastrada/)
+    expect(() => calculateDemurrage('XXX9', '2026-01-01', '2026-01-26')).toThrow(/sem tarifa de Demurrage/)
   })
 
   it('override de free time recalcula P1 a partir de freeUntil+1', () => {
@@ -171,27 +171,35 @@ describe('calculateDemurrage', () => {
     expect(mocks.reportBestEffortFailure).toHaveBeenCalled()
   })
 
-  it('resolve aliases ISO históricos a partir das linhas canônicas do banco', async () => {
+  it('o grupo da tarifa cobre os tipos do cadastro Tipos de container (ADR 0112, D29)', async () => {
     __setDemurrageRateGroupsForTest(null)
-    mocks.from.mockReturnValue(createRatesQuery({
-      data: [
-        { id: 1, container_type: '20GP', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 30, p2_day_from: 31, p2_usd: 50 },
-        { id: 2, container_type: '40GP', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 60, p2_day_from: 31, p2_usd: 80 },
-        { id: 3, container_type: '20RF', free_days: 10, p1_day_from: 11, p1_day_to: 19, p1_usd: 95, p2_day_from: 20, p2_usd: 110 },
-        { id: 4, container_type: '40RF', free_days: 10, p1_day_from: 11, p1_day_to: 19, p1_usd: 190, p2_day_from: 20, p2_usd: 220 },
-        { id: 5, container_type: '20FR', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 50, p2_day_from: 31, p2_usd: 80 },
-        { id: 6, container_type: '40FR', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 100, p2_day_from: 31, p2_usd: 140 },
-      ],
-      error: null,
-    }))
+    const rates = [
+      { id: 1, container_type: '20GP', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 30, p2_day_from: 31, p2_usd: 50 },
+      { id: 2, container_type: '40GP', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 60, p2_day_from: 31, p2_usd: 80 },
+      { id: 4, container_type: '40RF', free_days: 10, p1_day_from: 11, p1_day_to: 19, p1_usd: 190, p2_day_from: 20, p2_usd: 220 },
+      { id: 6, container_type: '40FR', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 100, p2_day_from: 31, p2_usd: 140 },
+    ]
+    const types = [
+      { code: '22G1', rate_group: '20GP', active: true },
+      { code: '40HC', rate_group: '40GP', active: true },
+      { code: '45R1', rate_group: '40RF', active: true },
+      { code: '48FR', rate_group: '40FR', active: true },
+      { code: '40FM', rate_group: '40FR', active: true },
+      { code: '40FP', rate_group: '40FR', active: false },
+    ]
+    mocks.from.mockImplementation((table: string) => createRatesQuery({ data: table === 'container_types' ? types : rates, error: null }))
 
     await ensureDemurrageRatesLoaded(true)
 
     expect(calculateDemurrage('22G1', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 30)
-    expect(calculateDemurrage('42G1', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 60)
+    expect(calculateDemurrage('40HC', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 60)
     expect(calculateDemurrage('45R1', '2026-01-01', '2026-01-13').total_usd).toBe(2 * 190)
-    expect(calculateDemurrage('20FT', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 50)
-    expect(calculateDemurrage('40FT', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 100)
+    // Os tipos dos B/Ls que não achavam tarifa cobram como 40' especial (D30).
+    expect(calculateDemurrage('48FR', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 100)
+    expect(calculateDemurrage(' 40fm ', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 100)
+    // Tipo inativo ou fora do cadastro não tem tarifa.
+    expect(() => calculateDemurrage('40FP', '2026-01-01', '2026-01-26')).toThrow(/sem tarifa de Demurrage/)
+    expect(() => calculateDemurrage('45HC', '2026-01-01', '2026-01-26')).toThrow(/sem tarifa de Demurrage/)
   })
 
   describe('hierarquia com acordos customizados do cliente', () => {
