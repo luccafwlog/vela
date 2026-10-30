@@ -8,10 +8,11 @@ import { SummaryStrip } from '../ui/SummaryStrip'
 import { QueryStateGate } from '../shared/QueryStateGate'
 import { fmtBRL, fmtUSD } from '../../services/demurrage/demurragePresentation'
 import { formatCnpjCpf, formatDate } from '../../lib/utils'
-import type { CustomerDemurrageDetailItem, CustomerDemurrageSummary } from '../../services/demurrage/demurrageKpis'
+import type { CustomerDemurrageDetailItem } from '../../services/demurrage/demurrageKpis'
+import type { CustomerExposureRow } from '../../services/demurrage/demurrageCustomerExposure'
 
 type Props = {
-  summary: CustomerDemurrageSummary[] | undefined
+  summary: CustomerExposureRow[] | undefined
   loading: boolean
   error: unknown
   onRetry: () => void
@@ -24,7 +25,10 @@ type Props = {
   onOpenInvoice: (invoiceId: number) => void
 }
 
-/** Saldo de Demurrage em aberto por Cliente: Invoices emitidas e não pagas. */
+/**
+ * Por Cliente (ADR 0112, D11): o que corre, falta emitir ou está travado (da
+ * classificação do banco) e o faturado em aberto, por Cliente.
+ */
 export function DemurrageCustomersTab({
   summary,
   loading,
@@ -39,7 +43,14 @@ export function DemurrageCustomersTab({
   onOpenInvoice,
 }: Props) {
   const rows = summary ?? []
-  const totals = rows.reduce((sum, row) => ({ usd: sum.usd + row.total_usd, brl: sum.brl + row.total_brl, count: sum.count + row.invoice_count }), { usd: 0, brl: 0, count: 0 })
+  const totals = rows.reduce((sum, row) => ({
+    correndo: sum.correndo + row.correndo_usd,
+    aEmitir: sum.aEmitir + row.a_emitir_usd,
+    travado: sum.travado + row.travado_usd,
+    usd: sum.usd + row.open_usd,
+    brl: sum.brl + row.open_brl,
+    count: sum.count + row.invoice_count,
+  }), { correndo: 0, aEmitir: 0, travado: 0, usd: 0, brl: 0, count: 0 })
 
   return (
     <div className="app-dem-tab">
@@ -56,9 +67,11 @@ export function DemurrageCustomersTab({
             label="Resumo por Cliente"
             items={[
               { label: rows.length === 1 ? 'Cliente' : 'Clientes', value: String(rows.length) },
+              { label: 'Correndo', value: fmtUSD(totals.correndo) },
+              { label: 'A emitir', value: fmtUSD(totals.aEmitir) },
+              { label: 'Travado', value: fmtUSD(totals.travado) },
               { label: totals.count === 1 ? 'Invoice em aberto' : 'Invoices em aberto', value: String(totals.count) },
-              { label: 'USD', value: fmtUSD(totals.usd) },
-              { label: 'BRL hoje', value: fmtBRL(totals.brl) },
+              { label: 'Faturado em aberto', value: `${fmtUSD(totals.usd)} · ${fmtBRL(totals.brl)}` },
             ]}
           />
           <Button variant="secondary" disabled={!rows.length} onClick={onOpenReport}>
@@ -67,7 +80,7 @@ export function DemurrageCustomersTab({
           </Button>
         </div>
         {!rows.length ? (
-          <EmptyState icon={FileText} title="Nada em aberto" description="Nenhuma Invoice de Demurrage emitida e não paga." />
+          <EmptyState icon={FileText} title="Nada em aberto" description="Nenhum Cliente com Demurrage correndo, a emitir, travada ou faturada em aberto." />
         ) : (
           <div className="app-surface app-dem-table-surface">
             <div className="app-table-scroll">
@@ -76,9 +89,12 @@ export function DemurrageCustomersTab({
                 <thead>
                   <tr>
                     <th scope="col" className="app-table__text-head">Cliente</th>
-                    <th scope="col" className="app-dem-num">Invoices</th>
-                    <th scope="col" className="app-dem-num">USD</th>
-                    <th scope="col" className="app-dem-num">BRL hoje</th>
+                    <th scope="col" className="app-dem-num">Correndo</th>
+                    <th scope="col" className="app-dem-num">A emitir</th>
+                    <th scope="col" className="app-dem-num">Travado</th>
+                    <th scope="col" className="app-dem-num">Invoices em aberto</th>
+                    <th scope="col" className="app-dem-num">Faturado em aberto (USD)</th>
+                    <th scope="col" className="app-dem-num">Faturado em aberto (BRL hoje)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -103,15 +119,19 @@ export function DemurrageCustomersTab({
                               </button>
                             </div>
                           </td>
+                          <td className="app-dem-num">{fmtUSD(customer.correndo_usd)}</td>
+                          <td className="app-dem-num">{fmtUSD(customer.a_emitir_usd)}</td>
+                          <td className="app-dem-num">{fmtUSD(customer.travado_usd)}</td>
                           <td className="app-dem-num">{customer.invoice_count}</td>
-                          <td className="app-dem-num app-dem-amount">{fmtUSD(customer.total_usd)}</td>
-                          <td className="app-dem-num">{fmtBRL(customer.total_brl)}</td>
+                          <td className="app-dem-num app-dem-amount">{fmtUSD(customer.open_usd)}</td>
+                          <td className="app-dem-num">{fmtBRL(customer.open_brl)}</td>
                         </tr>
                         {isExpanded ? (
                           <tr className="app-dem-subrow">
-                            <td colSpan={4} id={panelId}>
+                            <td colSpan={7} id={panelId}>
                               {detailError ? <InlineError message="Não foi possível carregar as Invoices deste Cliente." /> : null}
                               {detailLoading ? <p className="app-dem-meta" role="status">Carregando Invoices…</p> : null}
+                              {detail && !detail.length && !detailLoading ? <p className="app-dem-meta">Nenhuma Invoice em aberto; o que corre está na aba Containers.</p> : null}
                               {detail?.length ? (
                                 <table className="app-dem-subtable">
                                   <caption className="sr-only">Invoices de Demurrage em aberto de {customer.customer_name}</caption>

@@ -288,7 +288,10 @@ describe('Demurrage page behaviours', () => {
     expect(document.getElementById('demurrage-customer-panel-7')).not.toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'Imprimir relatório' }))
-    const report = screen.getByRole('dialog', { name: 'Demurrage em aberto por consignatário' })
+    // D12 da ADR 0112: o relatório é o extrato do Cliente escolhido.
+    const report = screen.getByRole('dialog', { name: 'Extrato de Demurrage do Cliente' })
+    expect((within(report).getByLabelText('Cliente') as HTMLSelectElement).value).toBe('7')
+    expect(await within(report).findByText('EXTRATO DE DEMURRAGE')).toBeTruthy()
     await user.click(within(report).getByRole('button', { name: 'Imprimir' }))
     expect(mocks.print).toHaveBeenCalled()
   })

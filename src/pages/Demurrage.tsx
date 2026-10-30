@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { NoValue } from '../components/ui/NoValue'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -14,6 +14,7 @@ import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { ImportNotice } from '../components/shared/ImportParts'
 import { ContainerDatesImportModal } from '../components/shared/ContainerDatesImportModal'
 import { CustomerReportModal } from '../components/demurrage/CustomerReportModal'
+import { buildCustomerExposure } from '../services/demurrage/demurrageCustomerExposure'
 import { DemurrageContainersTab } from '../components/demurrage/DemurrageContainersTab'
 import { DemurrageContainerDatesModal } from '../components/demurrage/DemurrageContainerDatesModal'
 import { canAnswerDemurrageDispute, canManageManualRoe, type ContainerDatesInput } from '../components/demurrage/demurrageFormRules'
@@ -172,6 +173,11 @@ export function Demurrage() {
     staleTime: 60_000,
     enabled: activeTab === 'clientes',
   })
+  // Por Cliente (ADR 0112, D11): a classificação do banco junto com as Invoices em aberto.
+  const customerExposure = useMemo(
+    () => (boardQuery.data && customerSummaryQuery.data ? buildCustomerExposure(boardQuery.data, customerSummaryQuery.data) : undefined),
+    [boardQuery.data, customerSummaryQuery.data],
+  )
   const customerDetailQuery = useQuery({
     queryKey: ['demurrage-customer-detail', expandedCustomer],
     queryFn: () => fetchCustomerDemurrageDetail(expandedCustomer!),
@@ -558,10 +564,10 @@ export function Demurrage() {
         ) : null}
         {activeTab === 'clientes' ? (
           <DemurrageCustomersTab
-            summary={customerSummaryQuery.data}
-            loading={customerSummaryQuery.isLoading}
-            error={customerSummaryQuery.error}
-            onRetry={() => void customerSummaryQuery.refetch()}
+            summary={customerExposure}
+            loading={customerSummaryQuery.isLoading || boardQuery.isLoading}
+            error={customerSummaryQuery.error ?? boardQuery.error}
+            onRetry={() => { void customerSummaryQuery.refetch(); void boardQuery.refetch() }}
             detail={customerDetailQuery.data}
             detailLoading={customerDetailQuery.isLoading}
             detailError={customerDetailQuery.error}
@@ -676,7 +682,7 @@ export function Demurrage() {
           ) : null}
         </Modal>
       ) : null}
-      {customerReportOpen && customerSummaryQuery.data ? <CustomerReportModal open rows={customerSummaryQuery.data} onClose={() => setCustomerReportOpen(false)} /> : null}
+      {customerReportOpen && customerExposure?.length ? <CustomerReportModal open rows={customerExposure} groups={boardQuery.data ?? []} initialCustomerId={expandedCustomer} onClose={() => setCustomerReportOpen(false)} /> : null}
       <DemurrageDunningSettingsModal open={dunningModalOpen} onClose={() => setDunningModalOpen(false)} />
     </div>
   )
