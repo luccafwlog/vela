@@ -239,7 +239,7 @@ function DetailBody({
         <p className="app-invoice-detail__note">
           Substitui a Invoice{' '}
           <button type="button" className="app-invoice-detail__link app-invoice-detail__code" onClick={() => { if (invoice.replaces) onOpenInvoice(invoice.replaces.id) }}>{invoice.replaces.doc_number}</button>
-          , cancelada para reemissão automática quando as datas dos containers mudaram.
+          , cancelada para reemissão automática quando as datas, o SOC/COC ou a divisão de uma caixa mudaram depois da emissão.
         </p>
       ) : null}
 

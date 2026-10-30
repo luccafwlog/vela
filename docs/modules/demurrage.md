@@ -225,7 +225,18 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
     `replaces_invoice_id` igual a esta, cobrada noutra Invoice viva do mesmo
     Cliente na Viagem, dispensada, ou aguardando nova Invoice. O ROE, o motivo,
     o autor e o destino vêm de `list_demurrage_invoice_details` (migration
-    `519`, usuário interno ativo). O CNPJ fica no detalhe e na busca, e o ROE comum ao recorte, no
+    `519`, usuário interno ativo). Desde a migration `550`, o motivo da
+    reemissão automática diz a causa ("Datas de container alteradas",
+    "Container passou a SOC" ou "Divisão da caixa entre Clientes alterada",
+    seguido de ": cancelada para reemissão automática."; antes era sempre o
+    das datas), e `_demurrage_auto_reissue_reason` reconhece as três como
+    cancelamento automático (não espera **Gerar Invoice**, a Invoice nova cita
+    a cancelada e o Portal recebe o texto próprio). A caixa reemitida pela
+    troca de CNPJ, na Invoice do Cliente novo, aparece "reemitida na DEM-…"
+    (Invoice viva com item do mesmo container, sem exigir o mesmo Cliente;
+    antes aparecia aguardando), e a caixa que passou a SOC sai do destino,
+    porque não volta a ser cobrada. **Teste local-pg:**
+    `abasDeInvoiceDemurrage.local-pg.test.ts`. O CNPJ fica no detalhe e na busca, e o ROE comum ao recorte, no
   resumo. O detalhe abre com um bloco de dado principal ("US$ … a cobrar") e os
   fatos (BRL, ROE e origem, Situação, Tipo Normal ou Complementar, Cliente,
   CNPJ, B/L, Navio / Viagem, Emitida em, Itens, Desconto), sem selos; os avisos de
