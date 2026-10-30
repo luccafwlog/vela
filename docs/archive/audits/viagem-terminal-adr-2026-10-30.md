@@ -64,7 +64,14 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    `escalaTerminalAllocation.test.ts`, `VoyageScheduleModals.test.tsx`,
    `adrFrenteDerivadaSemTerminal.local-pg.test.ts`). Pedido do dono na mesma
    data.
-4. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
+4. **Exceção de terminal do B/L sem frente da seção.** O B/L com exceção para
+   um terminal sem frente daquela seção saía do ADR do terminal da frente e não
+   aparecia no da exceção, porque a seção dele ficava escondida. Valia para a
+   Carga descarregada desde a ADR 0068 e passou a valer para os veículos com o
+   recorte desta mudança (achado da revisão do Codex na PR). Agora a seção
+   aparece no terminal da exceção com o que ela trouxe (**Teste:**
+   `VoyageAgencyReportTab.test.tsx`).
+5. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
    (`['agency-report-terminal-state']`); a aba podia mostrar a frente antiga por
    até 30 s. Entrou nos efeitos de carga (**Teste:** `cacheEffects.test.ts`).
 
@@ -75,9 +82,6 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
   no porto omitido), nenhuma frente nasce dessa carga, salvo a marcação "tem
   importação" (carga cheia): carga solta e veículos em transbordo não chegam ao
   ADR por terminal (**Código**).
-- **Exceção de terminal sem frente.** O B/L com exceção para um terminal que não
-  tem frente daquela seção não aparece em nenhum ADR; a pendência
-  `review:bl_terminal_sem_frente` (ADR 0068) é o sinal hoje (**Código**).
 - A trava do banco cobre as frentes de importação e a de Granito; a de
   Embarque de vazios derivada da declaração e ainda não gravada é bloqueada só
   pela tela (**Código**).

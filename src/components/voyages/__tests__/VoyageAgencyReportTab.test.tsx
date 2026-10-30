@@ -789,6 +789,66 @@ it('mostra os veículos no ADR do terminal da frente de Veículos, salvo exceç�
   expect.objectContaining({ onError: expect.any(Function) }))
 })
 
+// Revisão da PR #1121: o veículo com exceção de terminal no B/L saía do ADR
+// do terminal da frente e a seção do terminal da exceção ficava escondida.
+it('leva veículos e carga do B/L com exceção ao ADR do terminal da exceção, mesmo sem frente da seção ali', () => {
+  useAgencyReportTerminalStateMock.mockReturnValue({
+    data: {
+      fronts: [
+        { sentido: 'importacao', modalidade: 'veiculo', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'veiculos' },
+        { sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'carga_descarregada' },
+        { sentido: 'exportacao', modalidade: 'granito', terminalId: 'vbr', source: 'export_declaration', hasData: true, section: 'carga_carregada' },
+      ],
+      tbcFronts: [],
+      agencyReports: [{ reportId: 'report-vbr', voyageId: 7, port: 'BRVIX', terminalId: 'vbr', terminalCode: 'VBR', terminal: 'VBR', status: 'open', sections: [
+        { section: 'carga_carregada', state: 'operated', fronts: ['granito'], frontKeys: ['exportacao:granito'] },
+        { section: 'veiculos', state: 'nothing_operated', fronts: [], frontKeys: [] },
+        { section: 'carga_descarregada', state: 'nothing_operated', fronts: [], frontKeys: [] },
+      ] }],
+    },
+    isLoading: false,
+    error: null,
+  })
+  useAgencyReportDerivedMock.mockReturnValue({
+    data: {
+      vaziosImp: [], granite: [], vaziosExp: [], storage: { containers: 0, days: 0 }, operation: {},
+      containers: [
+        { container_number: 'TSTU0000002', size_type: '40HC', is_imo: false, is_oog: false, is_transshipment: false, category: 'carga_geral', blTerminals: [{ terminal_id: 'vbr', cargo_mode: 'container' }] },
+        { container_number: 'TSTU0000003', size_type: '20DV', is_imo: false, is_oog: false, is_transshipment: false, category: 'carga_geral', blTerminals: [{ terminal_id: null, cargo_mode: 'container' }] },
+      ],
+      vehicles: [
+        { brand: 'BYD', model: 'DOLPHIN', bl_id: 'bl-1', chassis: 'vin-1', blTerminalId: null, container: { container_number: 'TSTU0000001', type: '40HC', unpacking_location: 'Pátio Alfa' } },
+        { brand: 'GWM', model: 'HAVAL', bl_id: 'bl-2', chassis: 'vin-2', blTerminalId: 'vbr', container: { container_number: 'TSTU0000002', type: '40HC', unpacking_location: 'Pátio Beta' } },
+      ],
+    },
+    isLoading: false,
+    error: null,
+  })
+  useAgencyReportOwnMock.mockReturnValue({
+    data: { status: 'open', terminal: 'VBR', signoffs: allSectionsSignoffs(), departmentSignoffs: allDepartmentsSigned(), occurrences: [] },
+  })
+
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+
+  const vehicleSection = screen.getByRole('heading', { name: 'Veículos', level: 3 }).closest('section')!
+  expect(within(vehicleSection).getByText('GWM')).toBeTruthy()
+  expect(within(vehicleSection).queryByText('BYD')).toBeNull()
+  expect(within(vehicleSection).queryByText('Não há frente atribuída a este terminal.')).toBeNull()
+  confirmAgencyReportClose()
+  expect(closeMutateMock).toHaveBeenCalledWith(expect.objectContaining({
+    snapshot: expect.objectContaining({
+      header: expect.objectContaining({
+        terminalScope: expect.objectContaining({ veiculos: { assigned: true }, carga_descarregada: { assigned: true } }),
+      }),
+      sections: expect.objectContaining({
+        vehicleLocations: { GWM: ['Pátio Beta'] },
+        cargaDescarregada: expect.objectContaining({ totals: { carga_geral: 1 } }),
+      }),
+    }),
+  }),
+  expect.objectContaining({ onError: expect.any(Function) }))
+})
+
 it('exibe o autor resolvido e o documento estruturado quando o ADR está fechado', () => {
   useAgencyReportOwnMock.mockReturnValue({
     data: {
