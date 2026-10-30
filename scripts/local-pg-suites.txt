@@ -47,6 +47,12 @@ src/integration/deleteRecords.local-pg.test.ts
 src/integration/deleteLock.local-pg.test.ts
 src/integration/blCancel.local-pg.test.ts
 src/integration/tariffDeactivate.local-pg.test.ts
+src/integration/tiposDeContainer.local-pg.test.ts
+src/integration/classificacaoDemurrage.local-pg.test.ts
+src/integration/abasDeInvoiceDemurrage.local-pg.test.ts
+src/integration/disputasDemurrage.local-pg.test.ts
+src/integration/rateioDemurrage.local-pg.test.ts
+src/integration/socDepoisDeFaturado.local-pg.test.ts
 src/integration/customerDeactivate.local-pg.test.ts
 src/integration/dataRetention.local-pg.test.ts
 src/integration/catalogDeleteReason.local-pg.test.ts

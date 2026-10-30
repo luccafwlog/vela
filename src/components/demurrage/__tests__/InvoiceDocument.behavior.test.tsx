@@ -156,3 +156,13 @@ it('lote 6b: Pix com aviso da baixa, sem repetir o valor, código em 12px; ROE e
   })
   expect(tiny).toEqual([])
 })
+
+it('caixa dividida entre Clientes: o documento diz a parte do Cliente (ADR 0112, D19)', () => {
+  render(<InvoiceDocument detail={{ ...detail, items: [{ ...detail.items[0], box_share_count: 2 }] }} type="invoice" />)
+  expect(screen.getByText('TCLU1234567 (1/2 da caixa)')).toBeTruthy()
+})
+
+it('caixa de um Cliente só não ganha a marca da parte', () => {
+  render(<InvoiceDocument detail={{ ...detail, items: [{ ...detail.items[0], box_share_count: 1 }] }} type="invoice" />)
+  expect(screen.queryByText(/da caixa/)).toBeNull()
+})

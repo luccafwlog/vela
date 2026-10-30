@@ -6,6 +6,7 @@ import {
   defaultDemurragePeriod,
   type CustomerReportFilters,
   type DemurrageReportFilters,
+  type DemurrageReportSlice,
   type FinancialReportFilters,
   type LocalChargesFilter,
   type OperationalReportFilters,
@@ -13,6 +14,7 @@ import {
   type ReviewFilter,
   type YesNoFilter,
 } from '../services/reports'
+import { DEMURRAGE_DIVISIONS } from '../services/demurrage/demurrageDivisions'
 
 export type ReportView = 'operacional' | 'financeiro' | 'por-cliente' | 'demurrage'
 
@@ -29,7 +31,7 @@ const SCOPE_KEYS = ['de', 'ate', 'viagem', 'cliente', 'clienteNome'] as const
 export type ReportParam =
   | (typeof SCOPE_KEYS)[number]
   | 'pol' | 'pod' | 'modalidade' | 'revisao' | 'taxas'
-  | 'situacao' | 'consolidada' | 'saldo' | 'disputa' | 'vencidas'
+  | 'situacao' | 'consolidada' | 'saldo' | 'disputa' | 'recorte' | 'divisao'
 
 export function reportViewFromSearch(params: URLSearchParams): ReportView {
   const value = params.get('visao')
@@ -145,8 +147,10 @@ export function demurrageFiltersFromSearch(params: URLSearchParams, now = new Da
   return {
     ...scope,
     ...period,
-    status: oneOf(params.get('situacao'), ['draft', 'issued', 'paid', 'cancelled'] as const),
+    // Recorte (ADR 0112, D13): Invoices é o padrão, o de antes.
+    slice: (oneOf(params.get('recorte'), ['exposicao', 'itens'] as const) || 'invoices') as DemurrageReportSlice,
+    status: oneOf(params.get('situacao'), ['issued', 'paid', 'cancelled'] as const),
     dispute: oneOf<Exclude<YesNoFilter, ''>>(params.get('disputa'), ['sim', 'nao']),
-    overdue: oneOf(params.get('vencidas'), ['sim'] as const),
+    division: oneOf(params.get('divisao'), DEMURRAGE_DIVISIONS),
   }
 }

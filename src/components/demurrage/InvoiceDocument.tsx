@@ -1,6 +1,7 @@
 import type { FinancialRefundSummary } from '../../services/financialRefunds'
 import { QRCodeSVG } from 'qrcode.react'
 import { COMPANY } from '../../config/company'
+import { boxShareLabel } from '../../services/demurrage/demurragePresentation'
 import { cell, DOC_BORDER, DOC_NAVY, DOC_SUBTOTAL, documentRoot, fmtBRL, fmtCNPJ, fmtDecimal, labelCell } from '../shared/invoiceFormat'
 import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle, InvoiceTotalBox, InvoiceTotalLine, PIX_SETTLEMENT_NOTE, PixCopyPaste, PixPreparingNotice } from '../shared/InvoiceDocumentKit'
 
@@ -17,6 +18,8 @@ export type DemurrageInvoiceDocumentItem = {
   discharge_date: string | null
   return_date: string | null
   subtotal_brl?: number | null
+  /** Clientes que dividem a caixa (migration 521): o item cobra 1/n. */
+  box_share_count?: number | null
 }
 
 export type DemurrageInvoiceDocumentDetail = {
@@ -132,7 +135,7 @@ export function InvoiceDocument({ detail, type }: Props) {
         <tbody>
           {itemsWithBRL.map((item, idx) => (
             <tr key={item.id} style={{ background: idx % 2 === 0 ? '#f9fafb' : 'white', borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '8px 7px', fontWeight: 600 }}>{item.container_number}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.container_type}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.free_days ?? '—'}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p1}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDecimal(item.rate_p1_usd)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p2}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDecimal(item.rate_p2_usd)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.discharge_date)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.return_date)}</td><td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.subtotal_brl == null ? '—' : fmtBRL(item.subtotal_brl)}</td>
+              <td style={{ padding: '8px 7px', fontWeight: 600 }}>{item.container_number}{boxShareLabel(item.box_share_count) ? ` (${boxShareLabel(item.box_share_count)})` : ''}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.container_type}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.free_days ?? '—'}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p1}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDecimal(item.rate_p1_usd)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p2}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDecimal(item.rate_p2_usd)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.discharge_date)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.return_date)}</td><td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.subtotal_brl == null ? '—' : fmtBRL(item.subtotal_brl)}</td>
             </tr>
           ))}
           {hasDiscount && <>

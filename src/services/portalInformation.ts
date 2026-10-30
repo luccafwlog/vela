@@ -12,7 +12,7 @@ export type PortalContact = { key: string; title: string; description: string; e
 export type CarrierTracking = { carrier_id: number; name: string; tracking_url: string | null }
 export type LocalReferenceItem = { id: number; name: string; currency: string; unit_value_brl: number | null; unit_value_usd: number | null; application_basis: string; cargo_profile: string; manual_only: boolean; applies_to_soc: boolean }
 export type LocalReferenceTable = { id: number; name: string; pod: string; cargo_mode: string; valid_from: string; valid_to: string | null; items: LocalReferenceItem[] }
-export type InformationDemurrageRate = { id: number; container_type: string; free_days: number; p1_day_from: number; p1_day_to: number; p1_usd: number; p2_day_from: number; p2_usd: number; valid_from: string; valid_to: string | null }
+export type InformationDemurrageRate = { id: number; container_type: string; /** Nome do grupo de tarifa e os códigos que ele cobre (migration 514). */ group_name?: string | null; codes?: string[] | null; free_days: number; p1_day_from: number; p1_day_to: number; p1_usd: number; p2_day_from: number; p2_usd: number; valid_from: string; valid_to: string | null }
 export type PortalInformation = {
   depots: PortalDepot[]; agents: PortAgent[]; contacts: PortalContact[];
   carriers: CarrierTracking[]; local_tables: LocalReferenceTable[];

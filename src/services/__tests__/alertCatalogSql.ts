@@ -44,6 +44,8 @@ const CATALOG_MIGRATIONS = [
   '396_ce_e_manifesto_mercante.sql',
   '468_alerta_planilha_de_veiculos.sql',
   '495_eventos_da_taxa_alterada.sql',
+  '516_alerta_de_demurrage_travada.sql',
+  '520_disputas_de_demurrage_repaginadas.sql',
   '535_retorno_de_email_nao_aplicado.sql',
 ]
 

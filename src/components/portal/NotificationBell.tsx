@@ -196,7 +196,7 @@ export function NotificationBell() {
                       }}
                     >
                       <span className="app-notifications__icon" aria-hidden="true">
-                        {n.type === 'invoice_issued' || n.type === 'demurrage_issued' ? <FileText size={18} /> : n.type === 'dispute_responded' ? <MessageSquare size={18} /> : <Bell size={18} />}
+                        {n.type === 'invoice_issued' || n.type === 'demurrage_issued' ? <FileText size={18} /> : n.type === 'dispute_responded' || n.type === 'dispute_cancelled' ? <MessageSquare size={18} /> : <Bell size={18} />}
                       </span>
                       <div className="app-notifications__body">
                         <span className="app-notifications__item-title">{n.title}</span>

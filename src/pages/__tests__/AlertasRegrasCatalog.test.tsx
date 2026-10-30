@@ -106,11 +106,13 @@ describe('Regras de Alertas', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('53 regras')).toBeTruthy()
+    expect(screen.getByText('55 regras')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
 
-    expect(screen.getByText('4 regras')).toBeTruthy()
-    // Planilha de Veículos pendente (migration 468) é de Equipamentos.
+    expect(screen.getByText('5 regras')).toBeTruthy()
+    // Planilha de Veículos pendente (migration 468) e o prazo da Disputa de
+    // Demurrage (migration 520) são de Equipamentos.
+    expect(screen.getByRole('button', { name: /Disputa de Demurrage sem resposta no prazo/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Planilha de Veículos pendente/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /ADR — departamento pendente/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /ADR — prazo vencido/ })).toBeTruthy()
@@ -128,7 +130,7 @@ describe('Regras de Alertas', () => {
 
     // Retorna para qualquer setor (sem filtro de setor)
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'all' } })
-    expect(screen.getByText('53 regras')).toBeTruthy()
+    expect(screen.getByText('55 regras')).toBeTruthy()
   })
 
   it('ignora um deep-link para um tipo aposentado e cai na primeira regra viva', () => {
@@ -140,7 +142,7 @@ describe('Regras de Alertas', () => {
 
     expect(screen.queryByRole('heading', { name: 'Cancelamento bloqueado' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancelamento bloqueado/ })).toBeNull()
-    expect(screen.getByText('53 regras')).toBeTruthy()
+    expect(screen.getByText('55 regras')).toBeTruthy()
   })
 
   it('combina filtros no topo e limpa a combinação sem perder a regra selecionada', () => {
@@ -160,7 +162,7 @@ describe('Regras de Alertas', () => {
     expect((clearButton as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(clearButton)
 
-    expect(screen.getByText('53 regras')).toBeTruthy()
+    expect(screen.getByText('55 regras')).toBeTruthy()
     expect((screen.getByRole('combobox', { name: 'Assunto' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('combobox', { name: 'Gravidade' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('button', { name: 'Limpar filtros' }) as HTMLButtonElement).disabled).toBe(true)

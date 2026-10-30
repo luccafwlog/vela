@@ -227,6 +227,25 @@ describe('blFreightImport', () => {
     expect(preview.rows[0].payload).not.toHaveProperty('vehicles')
   })
 
+  it('tipo de container fora do cadastro avisa e o B/L entra (ADR 0112, D32)', () => {
+    const doc = parsedBL()
+    doc.containers = [
+      { ...doc.containers[0], type: '45HC' },
+      { ...doc.containers[0], containerNumber: 'TCLU7654321', type: '40HC' },
+      // SOC não cobra Demurrage: não avisa.
+      { ...doc.containers[0], containerNumber: 'TCLU1111111', type: '20XX', ownership: 'SOC' },
+    ]
+    const preview = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      knownContainerTypes: new Set(['40HC', '48FR']),
+    })
+    expect(preview.rows[0].status).toBe('new')
+    expect((preview.rows[0].warnings ?? []).filter((warning) => warning.includes('sem tarifa de Demurrage'))).toEqual([
+      'Tipo 45HC sem tarifa de Demurrage: cadastre o tipo em Tarifas e acordos.',
+    ])
+  })
+
   it('bloqueia o B/L com numero ambiguo e avisa o numero descartado (F-30)', () => {
     const doc = parsedBL()
     doc.numberIssues = [

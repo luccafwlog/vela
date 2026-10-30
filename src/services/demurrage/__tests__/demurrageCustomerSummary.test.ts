@@ -4,7 +4,7 @@ const rows = vi.hoisted(() => ({ data: [] as unknown[] }))
 
 vi.mock('../../supabase', () => {
   const builder: Record<string, unknown> = {}
-  for (const method of ['select', 'eq', 'is', 'order']) builder[method] = () => builder
+  for (const method of ['select', 'eq', 'is', 'order', 'range']) builder[method] = () => builder
   builder.then = (resolve: (value: unknown) => unknown) => resolve({ data: rows.data, error: null })
   return { supabase: { from: () => builder } }
 })

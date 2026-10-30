@@ -381,9 +381,12 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
     const invoiceId = Number(first.invoice_id)
     expect(boxesOf(invoiceId)).toBe(`${box.lostShared},${box.lostGone}`)
 
-    // A caixa própria do B/L B passa a SOC (não gera Demurrage); a outra tem a
-    // devolução corrigida. A reemissão não pode cobrar a SOC: alguém confere.
-    psql(`UPDATE public.bl_containers SET ownership = 'SOC' WHERE bl_id = '${bl.lostB}' AND container_number = '${box.lostGone}'`)
+    // O B/L B, dono da outra caixa, fica cancelado (dado antigo, sem passar
+    // pela recusa do cancel_bl); a caixa compartilhada tem a devolução
+    // corrigida. A reemissão não pode cobrar a caixa do B/L cancelado: alguém
+    // confere. Desde a 522 (ADR 0112, D20), a caixa que vira SOC sai da
+    // cobrança e não é mais o exemplo de caixa perdida.
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = now() WHERE id = '${bl.lostB}'`)
     const corrected = adminJson<{ demurrage: { demurrage_invoices: Array<Record<string, unknown>> } }>(
       `SELECT public.set_container_dates(${containerId(bl.lostA, box.lostShared)}, '${discharge}', '2026-09-22', 'Terminal corrigiu a devolução (R214)')`)
     expect(corrected.demurrage.demurrage_invoices).toEqual([expect.objectContaining({

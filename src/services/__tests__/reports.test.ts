@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { divisionTotals } from '../demurrage/demurrageBoard'
 import {
   brasiliaEndOfDay,
   brasiliaStartOfDay,
@@ -6,6 +7,7 @@ import {
   defaultDemurragePeriod,
   fetchAllPages,
   fetchCustomerReport,
+  demurrageExposureRows,
   fetchDemurrageReport,
   fetchFinancialReport,
   fetchOperationalReport,
@@ -318,11 +320,61 @@ describe('recorte de periodo em horario de Brasilia (R4)', () => {
     expect(defaultDemurragePeriod(new Date('2026-10-19T15:00:00Z'))).toEqual({ dateFrom: '2026-01-01', dateTo: '2026-10-19' })
   })
 
-  it('"Vencidas" no Demurrage compara o vencimento com o hoje de Brasilia', async () => {
+  it('Invoices de Demurrage: emissão pelo dia de Brasília em billed_at, sem rascunho (D13)', async () => {
     const builders = installReportMocks({ demurrage: [] })
-    await fetchDemurrageReport({ ...NO_SCOPE, status: '', dispute: '', overdue: 'sim' }, { today: '2026-10-19' })
-    expect(callsOf(builders.demurrage_invoices[0], 'lt')).toEqual([['due_date', '2026-10-19']])
-    expect(callsOf(builders.demurrage_invoices[0], 'in')).toEqual([['status', ['issued', 'overdue']]])
+    await fetchDemurrageReport({ ...NO_SCOPE, dateFrom: '2026-10-01', dateTo: '2026-10-19', slice: 'invoices', status: '', dispute: '', division: '' })
+    const first = builders.demurrage_invoices[0]
+    expect(callsOf(first, 'gte')).toEqual([['billed_at', '2026-10-01T00:00:00-03:00']])
+    expect(callsOf(first, 'lte')).toEqual([['billed_at', '2026-10-19T23:59:59.999-03:00']])
+    expect(callsOf(first, 'neq')).toEqual([['status', 'draft']])
+    expect(callsOf(first, 'order')[0]).toEqual(['billed_at', { ascending: false, nullsFirst: false }])
+  })
+
+  it('Invoices de Demurrage: USD líquido, tipo e cartões sem as canceladas', async () => {
+    const base = { bl_id: 'BL1', customer_id: 10, customer: customerAlfa, discount_mode: null, discount_value: null, replaces_invoice_id: null }
+    installReportMocks({
+      demurrage: [
+        { ...base, id: 3, doc_number: 'DEM-3', status: 'issued', created_at: '2026-10-03', total_usd: 500, discount_mode: 'fixed', discount_value: 100, current_total_brl: 2200, replaces_invoice_id: 2 },
+        { ...base, id: 2, doc_number: 'DEM-2', status: 'cancelled', created_at: '2026-10-02', total_usd: 500, current_total_brl: 2750 },
+        { ...base, id: 1, doc_number: 'DEM-1', status: 'paid', created_at: '2026-10-01', total_usd: 300, current_total_brl: 1650 },
+        { ...base, id: 4, doc_number: 'DEM-4', status: 'issued', created_at: '2026-10-04', total_usd: 100, current_total_brl: 550 },
+      ],
+    })
+    const result = await fetchDemurrageReport({ ...NO_SCOPE, slice: 'invoices', status: '', dispute: '', division: '' })
+    const byDoc = Object.fromEntries(result.rows.map((row) => [row.doc_number, row]))
+    expect(byDoc['DEM-3'].kind).toEqual({ label: 'Substitui', doc: 'DEM-2' })
+    expect(byDoc['DEM-3'].net_usd).toBe(400)
+    expect(byDoc['DEM-3'].discount_usd).toBe(100)
+    expect(byDoc['DEM-1'].kind.label).toBe('Normal')
+    expect(byDoc['DEM-4'].kind.label).toBe('Complementar')
+    expect(result.kpis).toEqual({ netUsd: 800, invoices: 3, openBrl: 2750, paidBrl: 1650 })
+  })
+})
+
+describe('Exposição de Demurrage (D13)', () => {
+  const box = (number: string, state: string, usd: number | null) => ({ container_id: number.length + usd!, bl_id: 'BL', container_number: number, state, usd })
+  const group = (division: string, usd: number, boxes: unknown[], customer: number | null = 10) => ({
+    anchor_bl_id: 'BL', bl_ids: ['BL'], voyage_id: 1, voyage_label: 'NAVIO / 1', customer_id: customer, customer_name: customer ? 'Cliente Alfa' : null,
+    customer_cnpj: null, division, reason_code: null, reason: null, warning: null, no_rate_types: null, usd, boxes,
+  }) as never
+
+  it('uma linha por caixa sem Invoice, e o US$ por divisão bate com o da aba Containers', () => {
+    const groups = [
+      group('correndo', 300, [box('A', 'running', 300), box('B', 'in_free_time', null), box('C', 'covered', null)]),
+      group('a_emitir', 200, [box('D', 'returned_overstay', 120), box('E', 'returned_overstay', 80), box('F', 'waived', null)]),
+      group('travado', 0, [box('G', 'no_rate', null)], null),
+    ]
+    const result = demurrageExposureRows(groups)
+    expect(result.rows.map((row) => row.container_number)).toEqual(['A', 'D', 'E', 'G'])
+    const totals = divisionTotals(groups)
+    for (const division of ['correndo', 'a_emitir', 'esperando', 'travado'] as const) {
+      expect(result.byDivision[division].usd).toBe(totals[division].usd)
+    }
+    expect(result.byCustomer).toEqual([
+      { customer_id: 10, customer_name: 'Cliente Alfa', boxes: 3, usd: 500 },
+      { customer_id: null, customer_name: 'Sem Cliente', boxes: 1, usd: 0 },
+    ])
+    expect(demurrageExposureRows(groups, 'a_emitir').rows).toHaveLength(2)
   })
 })
 
