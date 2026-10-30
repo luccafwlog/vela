@@ -642,9 +642,10 @@ mesmos.
   chegaram, no mesmo segundo, à branch Supabase `staging`. Desde a migration
   `514`, aviso de entrega desses e-mails fecha sem alerta; devolução ou spam
   abre **Retorno do provedor de e-mail não aplicado** para o Administrativo
-  ([Portal](../modules/portal-cliente.md)). Um sistema que use a mesma conta
-  faz o Vela receber os avisos dele: para isolar, ele precisa de outra conta ou
-  de um webhook que não aponte para o Vela.
+  ([Portal](../modules/portal-cliente.md)). No mesmo dia o dono decidiu que o
+  site da Fwlog deixa de enviar pela MillionSend. Outro sistema que passe a usar
+  esta conta faz o Vela receber os avisos dele: para isolar, ele precisa de outra
+  conta ou de um webhook que não aponte para o Vela.
 - **Trocar o segredo do webhook** (vazamento ou webhook recriado), nesta ordem:
   1. Na MillionSend, no webhook de `portal-email-webhook`, gere o segredo novo
      (ou recrie o webhook com os mesmos três eventos) e copie o valor
