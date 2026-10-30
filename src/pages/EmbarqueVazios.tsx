@@ -66,6 +66,7 @@ import { formatBRL, formatDate, normalizeText, voyageLabel } from "../lib/utils"
 import { condicaoLabel, diasLabel, naturezaServicoLabel } from "../lib/vaziosLabels";
 import { classifyDbError, importErrorMessage } from "../lib/errors";
 import { invalidateAgencyReportForVoyage } from "../services/agencyReportInvalidation";
+import { afterEmbarqueVaziosNaEscala } from "../services/cacheEffects";
 import { invalidateEscalaTerminalQueries } from "../services/escalaTerminalAllocation";
 
 type Tab = "unidades" | "servicos";
@@ -374,9 +375,12 @@ function EmbarquesLista({
     if (!voyageId || !embarkPort || (!frontTerminal && !terminalId)) return;
     setCreating(true);
     try {
-      const result = await createVaziosExportOperation({ voyageId, embarkPort, terminalId: frontTerminal ? null : terminalId });
+      // Manda o terminal que a janela mostrou: se a frente voltou para TBC
+      // depois, a RPC grava esse; se mudou de terminal, recusa com o motivo.
+      const result = await createVaziosExportOperation({ voyageId, embarkPort, terminalId: frontTerminal?.id ?? terminalId });
       // O terminal escolhido grava a frente, a Atracação e o ADR da escala.
       invalidateEscalaTerminalQueries(queryClient, voyageId, embarkPort);
+      await afterEmbarqueVaziosNaEscala(queryClient, { voyageId });
       await onCreated();
       closeNew();
       // V4: o embarque que já existia é aberto, com a mensagem certa.
@@ -384,6 +388,8 @@ function EmbarquesLista({
       onOpen(result.id);
     } catch (error) {
       showToast(classifyDbError(error).message, "error");
+      // A frente pode ter mudado em outra tela: a janela relê o terminal dela.
+      void terminalChoice.refetch();
     } finally {
       setCreating(false);
     }
@@ -696,6 +702,7 @@ function EmbarqueDetalhe({
     const ok = await notify(async () => {
       await createVaziosExportOperation({ voyageId: ref.voyage_id, embarkPort: ref.embark_port, terminalId: terminalDraft });
       invalidateEscalaTerminalQueries(queryClient, ref.voyage_id, ref.embark_port);
+      await afterEmbarqueVaziosNaEscala(queryClient, { voyageId: ref.voyage_id });
       await terminal.refetch();
     }, "Terminal definido.");
     if (ok) setTerminalDraft("");

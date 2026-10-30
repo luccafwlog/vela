@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterTaxasDoBlAlteradas, afterViagemAlterada } from '../cacheEffects'
+import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEmbarqueVaziosNaEscala, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterTaxasDoBlAlteradas, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -50,6 +50,16 @@ describe('cache effects', () => {
       ['voyage-timeline', '24'], ['voyages'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
       // As escalas mudam a conferência do Baplie (TDT e portos da Viagem).
       ['baplie-voyage-context', 24],
+    ])))
+  })
+
+  it('embarque de vazios na escala relê a escala inteira e os portos do Embarque', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterEmbarqueVaziosNaEscala(client, { voyageId: 24 })
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
+      // A Visão geral lê "Somente importação" da exportação da escala.
+      ['voyage-export-schedules'], ['voyage-escala-schedules'], ['voyage-detail', 24], ['voyages'],
+      ['voyage-vazios-export-ports', 24],
     ])))
   })
 

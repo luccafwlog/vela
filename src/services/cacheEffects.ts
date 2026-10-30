@@ -100,6 +100,17 @@ export async function afterEscalaAlterada(queryClient: QueryInvalidator, options
   await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], queryKeys.baplie.voyageContext(Number(options.voyageId)), ['bl-cockpit'], ['agency-report'], ...LINEUP_KEYS])
 }
 
+/**
+ * Embarque de vazios criado, ou terminal definido no embarque antigo (ADR 0113,
+ * migration 520): sem terminal na frente Vazios EXP, a RPC grava a escala pela
+ * gravação v2 (frente, Atracação e ADR do terminal). Muda a escala inteira —
+ * Visão geral, Editar escala, cartões e portos do Embarque —, não só o ADR.
+ */
+export async function afterEmbarqueVaziosNaEscala(queryClient: QueryInvalidator, options: { voyageId: number }): Promise<void> {
+  await afterEscalaAlterada(queryClient, options)
+  await invalidate(queryClient, [queryKeys.voyages.vaziosExportPorts(options.voyageId)])
+}
+
 export async function afterRotaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
   await invalidate(queryClient, [queryKeys.voyages.detail(Number(options.voyageId)), ...CARD_SCHEDULE_KEYS, ['voyage-route-ce-masters'], ['voyage-pol-schedules'], ['voyage-pod-schedules'], ['voyage-escala-schedules'], voyageTimelineKey(options.voyageId), ['voyages'], ...LINEUP_KEYS])
 }

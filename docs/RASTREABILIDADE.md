@@ -297,7 +297,7 @@ Regra: [Viagens](modules/viagens.md).
 | `cancel_voyage` | `voyages.ts` | `178`, `363` | DEFINER · `authenticated` | Administrativo ativo; ator = sessão | Cancela com motivo e encerra efeitos pendentes da fila de importação. |
 | `close_agency_departure_report` | `agencyDepartureReport.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `close_agency_departure_report_by_report_id` | `agencyDepartureReport.ts`; variante de `portalRpcContracts.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | Exige os três sign-offs departamentais; congela `closed_snapshot`. |
-| `delete_escala` | `voyageRouteSchedules.ts` | `088`, `235` | DEFINER · `authenticated` | Administrativo ativo | Marca o POD como removido e apaga a escala de exportação do porto, com motivo; `p_dry_run` devolve só a trava. Recusa escala com B/L, com ou sem CE (`235`). |
+| `delete_escala` | `voyageRouteSchedules.ts` | `088`, `235`, `520` | DEFINER · `authenticated` | Administrativo ativo | Marca o POD como removido e apaga a escala de exportação do porto, com motivo; `p_dry_run` devolve só a trava. Recusa escala com B/L, com ou sem CE (`235`), e escala com Embarque de vazios ("Embarque de vazios na escala", `520`). |
 | `get_agency_report_actor_names` | `agencyDepartureReport.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_user_display_names` | `userNames.ts` (Históricos do B/L, da Viagem, do Cliente e de ações) | `475` | DEFINER · `authenticated` | usuário interno ativo | Só id e nome do autor; até 500 por chamada ([ADR 0106](adr/0106-nome-do-autor-no-historico-para-todos.md)). |
 | `get_agency_report_actor_names_by_report_id` | `agencyDepartureReport.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |

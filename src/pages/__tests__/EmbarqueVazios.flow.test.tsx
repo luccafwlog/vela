@@ -597,7 +597,9 @@ describe("EmbarqueVazios", () => {
     expect(terminalSelect.value).toBe("terminal-1");
     expect(within(dialog).getByText(/Para trocar, edite a escala na viagem/)).toBeTruthy();
     fireEvent.click(within(dialog).getByRole("button", { name: "Criar embarque" }));
-    await waitFor(() => expect(mocks.createOperation).toHaveBeenCalledWith({ voyageId: 179, embarkPort: "BRVIX", terminalId: null }));
+    // A janela manda o terminal que mostrou: se a frente voltou para TBC em outra
+    // tela, a RPC grava esse; se mudou de terminal, recusa com o motivo.
+    await waitFor(() => expect(mocks.createOperation).toHaveBeenCalledWith({ voyageId: 179, embarkPort: "BRVIX", terminalId: "terminal-1" }));
   });
 
   it("porto sem terminal portuário ativo: diz onde cadastrar e não cria", () => {
