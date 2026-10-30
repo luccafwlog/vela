@@ -17,9 +17,10 @@ describe('Por Cliente (ADR 0112, D11)', () => {
   ]
   const invoices = [{ customer_id: 2, customer_name: 'Cliente 2', cnpj_cpf: null, invoice_count: 2, total_usd: 1000, total_brl: 5500 }]
 
-  it('entra o Cliente só com sobreestadia não faturada; o sem Cliente fica fora', () => {
+  it('entra o Cliente só com sobreestadia não faturada, inclusive só Esperando; o sem Cliente fica fora', () => {
     const rows = buildCustomerExposure(groups, invoices)
-    expect(rows.map((row) => row.customer_id)).toEqual([2, 1, 3])
+    expect(rows.map((row) => row.customer_id)).toEqual([2, 1, 3, 4])
+    expect(rows.find((row) => row.customer_id === 4)).toMatchObject({ esperando_usd: 70 })
     expect(rows.find((row) => row.customer_id === 1)).toMatchObject({ correndo_usd: 300, a_emitir_usd: 200, travado_usd: 0, invoice_count: 0 })
     expect(rows.find((row) => row.customer_id === 2)).toMatchObject({ travado_usd: 50, invoice_count: 2, open_usd: 1000, open_brl: 5500 })
   })

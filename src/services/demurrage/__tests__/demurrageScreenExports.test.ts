@@ -23,7 +23,7 @@ describe('Exportar das abas da central de Demurrage', () => {
   })
 
   it('Por Cliente traz as colunas da tela', () => {
-    expect(Object.keys(customerTabSheetRows([{ customer_id: 1, customer_name: 'C', cnpj_cpf: null, correndo_usd: 1, a_emitir_usd: 2, travado_usd: 3, invoice_count: 1, open_usd: 4, open_brl: 5 }])[0]))
-      .toEqual(['Cliente', 'CNPJ', 'Correndo (US$)', 'A emitir (US$)', 'Travado (US$)', 'Invoices em aberto', 'Faturado em aberto (USD)', 'Faturado em aberto (BRL hoje)'])
+    expect(Object.keys(customerTabSheetRows([{ customer_id: 1, customer_name: 'C', cnpj_cpf: null, correndo_usd: 1, a_emitir_usd: 2, esperando_usd: 6, travado_usd: 3, invoice_count: 1, open_usd: 4, open_brl: 5 }])[0]))
+      .toEqual(['Cliente', 'CNPJ', 'Correndo (US$)', 'A emitir (US$)', 'Esperando (US$)', 'Travado (US$)', 'Invoices em aberto', 'Faturado em aberto (USD)', 'Faturado em aberto (BRL hoje)'])
   })
 })

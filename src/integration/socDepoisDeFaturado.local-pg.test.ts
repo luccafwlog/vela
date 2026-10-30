@@ -180,7 +180,7 @@ describeLocal('Caixa dividida entre Clientes (migration 522)', () => {
     asAdmin(`SELECT public.register_demurrage_payment(gen_random_uuid(), ${paid}, ${day(0)}, NULL, ${brl}, NULL)`)
     toSoc('RQCU5220003')
     expect(psql(`SELECT status || '|' || dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${paid}`))
-      .toBe('paid|Datas de container alteradas depois do pagamento; conferir a diferença.')
+      .toBe('paid|Container passou a SOC depois do pagamento; conferir a diferença.')
     expect(psql(`SELECT i.message FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'demurrage_invoice_dates_changed' AND i.status = 'active' AND a.entity_id = '${paid}'`))
       .toMatch(/^Container da Invoice de Demurrage .* passou a SOC depois da emissão e sai da cobrança e ela já tem pagamento/)

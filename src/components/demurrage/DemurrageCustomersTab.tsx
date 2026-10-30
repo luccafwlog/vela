@@ -49,11 +49,12 @@ export function DemurrageCustomersTab({
   const totals = rows.reduce((sum, row) => ({
     correndo: sum.correndo + row.correndo_usd,
     aEmitir: sum.aEmitir + row.a_emitir_usd,
+    esperando: sum.esperando + row.esperando_usd,
     travado: sum.travado + row.travado_usd,
     usd: sum.usd + row.open_usd,
     brl: sum.brl + row.open_brl,
     count: sum.count + row.invoice_count,
-  }), { correndo: 0, aEmitir: 0, travado: 0, usd: 0, brl: 0, count: 0 })
+  }), { correndo: 0, aEmitir: 0, esperando: 0, travado: 0, usd: 0, brl: 0, count: 0 })
 
   return (
     <div className="app-dem-tab">
@@ -72,6 +73,7 @@ export function DemurrageCustomersTab({
               { label: rows.length === 1 ? 'Cliente' : 'Clientes', value: String(rows.length) },
               { label: 'Correndo', value: fmtUSD(totals.correndo) },
               { label: 'A emitir', value: fmtUSD(totals.aEmitir) },
+              { label: 'Esperando', value: fmtUSD(totals.esperando) },
               { label: 'Travado', value: fmtUSD(totals.travado) },
               { label: totals.count === 1 ? 'Invoice em aberto' : 'Invoices em aberto', value: String(totals.count) },
               { label: 'Faturado em aberto', value: `${fmtUSD(totals.usd)} · ${fmtBRL(totals.brl)}` },
@@ -100,6 +102,7 @@ export function DemurrageCustomersTab({
                     <th scope="col" className="app-table__text-head">Cliente</th>
                     <th scope="col" className="app-dem-num">Correndo</th>
                     <th scope="col" className="app-dem-num">A emitir</th>
+                    <th scope="col" className="app-dem-num">Esperando</th>
                     <th scope="col" className="app-dem-num">Travado</th>
                     <th scope="col" className="app-dem-num">Invoices em aberto</th>
                     <th scope="col" className="app-dem-num">Faturado em aberto (USD)</th>
@@ -130,6 +133,7 @@ export function DemurrageCustomersTab({
                           </td>
                           <td className="app-dem-num">{fmtUSD(customer.correndo_usd)}</td>
                           <td className="app-dem-num">{fmtUSD(customer.a_emitir_usd)}</td>
+                          <td className="app-dem-num">{fmtUSD(customer.esperando_usd)}</td>
                           <td className="app-dem-num">{fmtUSD(customer.travado_usd)}</td>
                           <td className="app-dem-num">{customer.invoice_count}</td>
                           <td className="app-dem-num app-dem-amount">{fmtUSD(customer.open_usd)}</td>
@@ -137,7 +141,7 @@ export function DemurrageCustomersTab({
                         </tr>
                         {isExpanded ? (
                           <tr className="app-dem-subrow">
-                            <td colSpan={7} id={panelId}>
+                            <td colSpan={8} id={panelId}>
                               {detailError ? <InlineError message="Não foi possível carregar as Invoices deste Cliente." /> : null}
                               {detailLoading ? <p className="app-dem-meta" role="status">Carregando Invoices…</p> : null}
                               {detail && !detail.length && !detailLoading ? <p className="app-dem-meta">Nenhuma Invoice em aberto; o que corre está na aba Containers.</p> : null}

@@ -95,6 +95,7 @@ export function customerTabSheetRows(rows: readonly CustomerExposureRow[]) {
     CNPJ: row.cnpj_cpf ?? '',
     'Correndo (US$)': row.correndo_usd,
     'A emitir (US$)': row.a_emitir_usd,
+    'Esperando (US$)': row.esperando_usd,
     'Travado (US$)': row.travado_usd,
     'Invoices em aberto': row.invoice_count,
     'Faturado em aberto (USD)': row.open_usd,

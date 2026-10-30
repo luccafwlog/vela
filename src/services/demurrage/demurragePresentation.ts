@@ -5,6 +5,7 @@ import { calculateDemurrage, demurrageFreeTimeDays } from './demurrageRates'
 import { parseImportNumber } from '../../lib/importNumber'
 import { discountFromValue, invoiceNetUsd, type DiscountPreview } from './demurrageNetUsd'
 import type { DemurrageContainerRow } from './demurrageContainers'
+import { staleSuspensionCause } from './demurrageSuspension'
 
 export function fmtUSD(value: number | null | undefined) {
   if (value == null) return '---'
@@ -93,8 +94,9 @@ export const FREE_TIME_SOURCE_LABELS: Record<FreeTimeSource, string> = {
 
 export type DemurrageInvoiceRow = DemurrageInvoice & { dunning_suspended_reason?: string | null }
 
-export const DATES_CHANGED_PAID_PREFIX = 'Datas de container alteradas depois do pagamento'
-export const DATES_CHANGED_NEGOTIATED_PREFIX = 'Datas de container alteradas em Invoice com desconto ou disputa'
+export { STALE_NEGOTIATED_SUFFIX, STALE_PAID_SUFFIX, staleSuspensionCause } from './demurrageSuspension'
+
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
 
 /**
  * Invoice paga suspensa porque as datas do container mudaram depois do
@@ -103,7 +105,7 @@ export const DATES_CHANGED_NEGOTIATED_PREFIX = 'Datas de container alteradas em 
  * pelo cancelamento de baixa em Demurrage e na Conciliação PIX.
  */
 export function reversalDatesNotice(invoice: { dunning_suspended_reason?: string | null; discount_value?: number | null; dispute_open?: boolean | null }): { negotiated: boolean } | null {
-  if (!invoice.dunning_suspended_reason?.startsWith(DATES_CHANGED_PAID_PREFIX)) return null
+  if (!staleSuspensionCause(invoice.dunning_suspended_reason)?.paid) return null
   return { negotiated: Number(invoice.discount_value ?? 0) > 0 || Boolean(invoice.dispute_open) }
 }
 
@@ -118,19 +120,20 @@ export function demurrageInvoiceNotices(invoice: Pick<DemurrageInvoiceRow, 'stat
   const notices: InvoiceNotice[] = []
   const reason = invoice.dunning_suspended_reason?.trim()
   if (invoice.status !== 'cancelled' && reason) {
-    if (reason.startsWith(DATES_CHANGED_PAID_PREFIX)) {
+    const stale = staleSuspensionCause(reason)
+    if (stale?.paid) {
       notices.push({
         key: 'dates-paid',
         tone: 'warning',
-        title: 'Fora da Régua: as datas do container mudaram depois do pagamento',
-        text: 'Os itens não batem mais com as datas atuais. Confira a diferença e trate pela restituição de Demurrage ou por uma fatura avulsa. O alerta "Datas mudaram em Invoice de Demurrage emitida" fecha quando os itens voltarem a bater com as datas.',
+        title: `Fora da Régua: ${lowerFirst(stale.cause)} depois do pagamento`,
+        text: 'Os itens não batem mais com o que vale hoje. Confira a diferença e trate pela restituição de Demurrage ou por uma fatura avulsa. O alerta "Datas mudaram em Invoice de Demurrage emitida" diz a causa e fecha quando os itens voltarem a bater.',
       })
-    } else if (reason.startsWith(DATES_CHANGED_NEGOTIATED_PREFIX)) {
+    } else if (stale) {
       notices.push({
         key: 'dates-negotiated',
         tone: 'warning',
-        title: 'Fora da Régua: datas alteradas numa Invoice com desconto ou disputa',
-        text: 'Esta Invoice não é reemitida sozinha. Cancele, gere de novo pela aba Containers e refaça o desconto ou responda a disputa. Se as datas voltarem às faturadas, a suspensão sai.',
+        title: `Fora da Régua: ${lowerFirst(stale.cause)} numa Invoice com desconto ou disputa`,
+        text: 'Esta Invoice não é reemitida sozinha. Cancele, gere de novo pela aba Containers e refaça o desconto ou responda a disputa. Se os itens voltarem a bater, a suspensão sai.',
       })
     } else {
       notices.push({ key: 'suspended', tone: 'warning', title: 'Fora da Régua', text: reason })

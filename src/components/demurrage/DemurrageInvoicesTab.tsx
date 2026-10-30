@@ -76,7 +76,7 @@ function matchesSearch(invoice: DemurrageInvoiceListItem, query: string) {
 function rowFlags(invoice: DemurrageInvoiceRow): string[] {
   const flags: string[] = demurrageInvoiceNotices(invoice)
     .filter((notice) => notice.key !== 'roe-cache')
-    .map((notice) => (notice.key === 'dispute' ? 'Disputa aberta' : notice.key === 'suspended' ? 'Fora da Régua' : 'Fora da Régua: datas alteradas'))
+    .map((notice) => (notice.key === 'dispute' ? 'Disputa aberta' : notice.key === 'suspended' ? 'Fora da Régua' : notice.title))
   if (Number(invoice.discount_value ?? 0) > 0) flags.push('Com desconto')
   return flags
 }

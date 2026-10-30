@@ -244,13 +244,14 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
 - **Por Cliente** mostra só o nome (o CNPJ fica no extrato do Cliente e ao
   passar o mouse). Desde o lote 5 da repaginação
   ([ADR 0112](../adr/0112-repaginacao-da-demurrage.md), D11), as colunas são
-  **Correndo**, **A emitir** e **Travado** (US$ de hoje, somados dos grupos
-  da classificação do banco, a mesma da aba Containers), **Invoices em
-  aberto** e **Faturado em aberto** (USD líquido e BRL hoje das Invoices
-  emitidas e não pagas). Entra o Cliente só com sobreestadia ainda não
-  faturada; o grupo sem Cliente fica de fora (está em Travado na aba
-  Containers), e a divisão Esperando não tem coluna (D11 nomeia as três). A
-  ordem é a do maior US$ somado. **Imprimir relatório** (D12) abre o
+  **Correndo**, **A emitir**, **Esperando** e **Travado** (US$ de hoje,
+  somados dos grupos da classificação do banco, a mesma da aba Containers;
+  Esperando por decisão do dono de 2026-10-30, além das três de D11, para o
+  total bater com a aba Containers), **Invoices em aberto** e **Faturado em
+  aberto** (USD líquido e BRL hoje das Invoices emitidas e não pagas). Entra
+  o Cliente só com sobreestadia ainda não faturada, inclusive só em
+  Esperando; o grupo sem Cliente fica de fora (está em Travado na aba
+  Containers). A ordem é a do maior US$ somado. **Imprimir relatório** (D12) abre o
   **Extrato de Demurrage do Cliente**: escolhe-se o Cliente (o da linha
   aberta vem escolhido) e o extrato traz as Invoices em aberto (USD líquido,
   BRL hoje) e as caixas ainda sem Invoice (B/L, container, descarga,
@@ -749,7 +750,8 @@ impresso, o detalhe do Portal e o relatório Itens por container mostram
 "1/2 da caixa"; a classificação da aba Containers e a Exposição já preveem a
 parte. Item emitido antes da `521` fica com a coluna vazia: foi cobrado cheio
 e a divisão não o revisa; se as datas dele mudarem, a reemissão já sai
-pela parte do Cliente. Se `n` muda depois da emissão (chega o B/L de outro Cliente
+pela parte do Cliente. Essa é a decisão do dono de 2026-10-30: o que já foi emitido não
+muda sozinho. Se `n` muda depois da emissão (chega o B/L de outro Cliente
 com a caixa, a caixa sai de um B/L, um B/L é cancelado ou troca de Cliente ou
 de Viagem), os gatilhos `trg_bl_containers_box_share_*` e `trg_bls_box_share`
 levam as Invoices vivas da caixa a `_reconcile_demurrage_after_dates`, que
@@ -759,6 +761,18 @@ nova; paga, com desconto ou em disputa, sai da Régua com o Alerta
 `demurrage_invoice_dates_changed` ("A divisão das caixas entre Clientes da
 Invoice de Demurrage … mudou depois da emissão"), para restituir ou cobrar a
 diferença. Excluir o B/L de um dos Clientes também conta (migration `523`). Desde a `523`, o gatilho só reconcilia quando muda número, B/L ou SOC/COC; a Invoice paga ou negociada cuja diferença já tem Alerta (aberto ou resolvido) não é reconciliada de novo pela caixa; e a falha da reconciliação não desfaz a gravação do B/L ou do container (fica um aviso no log). **Teste local-pg:** `rateioDemurrage.local-pg.test.ts`.
+
+**Motivo de a Invoice estar fora da Régua** (migration `524`, decisão do
+dono de 2026-10-30). Quando a Invoice paga, com desconto ou em disputa sai da
+Régua porque os itens não batem mais com o que vale hoje, o motivo
+(`dunning_suspended_reason`) começa pela causa — "Datas de container
+alteradas", "Container passou a SOC" ou "Divisão da caixa entre Clientes
+alterada" (as datas primeiro) — e termina em "depois do pagamento; conferir a
+diferença." ou "em Invoice com desconto ou disputa; reemitir à mão."
+(`_demurrage_stale_reason`). O aviso do detalhe e a coluna da Régua dizem a
+mesma causa; o banco e a tela reconhecem o motivo pelo fim do texto
+(`_demurrage_is_stale_suspension`, `staleSuspensionCause`), então a Invoice
+suspensa antes da `524` continua reconhecida.
 
 **Container que vira SOC depois de faturado** (migration `522`, [ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
 D20). A troca para SOC de uma caixa que está em Invoice viva (ficha do B/L,
@@ -1312,7 +1326,7 @@ está em [Estado e dados](#estado-e-dados).
 
 ## Notas e divergências
 
-- **Repaginação implementada ([ADR 0112](../adr/0112-repaginacao-da-demurrage.md), PR luccafwlog/vela#1113, migrations `514` a `523`):** aba `Containers` em Correndo, A emitir, Esperando e Travado, Faturas, Pagas e Canceladas com as colunas e filtros novos, Por Cliente com o que ainda não foi faturado e o extrato do Cliente, os relatórios Exposição, Invoices e Itens por container, as Disputas em tabela com prazo de 1 dia útil, e as regras de B/L cancelado, dispensa da cobrança, rateio da caixa dividida entre Clientes e SOC depois de faturado, descritas nas seções acima (migrations `514` a `523`). O [plano](../archive/plans/2026-10-29-repaginacao-da-demurrage.md) está arquivado.
+- **Repaginação implementada ([ADR 0112](../adr/0112-repaginacao-da-demurrage.md), PR luccafwlog/vela#1113, migrations `514` a `524`):** aba `Containers` em Correndo, A emitir, Esperando e Travado, Faturas, Pagas e Canceladas com as colunas e filtros novos, Por Cliente com o que ainda não foi faturado e o extrato do Cliente, os relatórios Exposição, Invoices e Itens por container, as Disputas em tabela com prazo de 1 dia útil, e as regras de B/L cancelado, dispensa da cobrança, rateio da caixa dividida entre Clientes e SOC depois de faturado, descritas nas seções acima (migrations `514` a `524`). O [plano](../archive/plans/2026-10-29-repaginacao-da-demurrage.md) está arquivado.
 
 - **Demurrage não vence na ficha do Cliente (B29):** a coluna `demurrage_invoices.due_date` segue no banco, mas a ficha do Cliente não conta nem mostra Invoice de Demurrage vencida: sai o aviso "faturas de Demurrage vencidas" da Visão geral, a coluna Vencimento e a situação Vencida da aba Financeiro, e o "vencida" da aba Conteineres; o estado legado `overdue` aparece como em aberto e segue no saldo (ADR 0014; [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26). **Teste:** `fichaOverview.test.ts`, `FinanceiroTab.test.tsx` (B29).
 

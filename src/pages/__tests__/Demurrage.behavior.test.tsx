@@ -485,7 +485,7 @@ describe('Demurrage page behaviours', () => {
     const user = userEvent.setup()
     renderPage()
     const detail = await openIssuedDetail(user)
-    expect(within(detail).getByText('Fora da Régua: datas alteradas numa Invoice com desconto ou disputa')).toBeTruthy()
+    expect(within(detail).getByText('Fora da Régua: datas de container alteradas numa Invoice com desconto ou disputa')).toBeTruthy()
     expect(within(detail).getByText(/Cancele, gere de novo pela aba Containers/)).toBeTruthy()
   })
 
