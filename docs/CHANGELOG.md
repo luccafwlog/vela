@@ -6,6 +6,27 @@
 
 ## 2026-10
 
+- **Revisão final da release luccafwlog/vela#1117 (2026-10-30, migrations `545` a `550`):** achados da revisão
+  da PR `staging` → `main`, cada um com teste que falhava na staging
+  ([relatório](archive/audits/revisao-pr-1117-2026-10-30.md)).
+  - **Chegadas e Saídas:** no **Não escala** do Administrativo, a tela e o banco leem as âncoras da escala do
+    mesmo lugar (`escala_removal_anchor_reasons`, `549`). O B/L com o porto gravado por apelido (VITORIA) passou a
+    segurar a escala também na tela, que antes mandava retirá-la e via o banco recusar a gravação inteira, com as
+    datas dos outros portos; o Embarque de vazios segura a escala, como no **Excluir escala**.
+  - **Consulta de container pública:** o B/L sem Cliente vinculado fica de fora (`545`): ele não está no Portal
+    de ninguém, e o site mostrava o free time da tabela.
+  - **Demurrage:** **Dispensar cobrança** no grupo sem Cliente e no cartão abaixo de 640 px; a ficha do Cliente
+    mostra a caixa dispensada como "Cobrança dispensada", fora do total e da planilha; o tipo desativado com
+    código de grupo (20GP, 40FR) fica sem tarifa e vai para Travado; a Invoice cancelada à mão não volta sozinha
+    na troca de Cliente nem na reemissão por datas de outra caixa; o B/L duplicado do mesmo Cliente se cancela sem
+    apagar a cobrança do verdadeiro; desfazer a dispensa da caixa só de B/L cancelado é recusado; reabrir a
+    Disputa não abre o Alerta de prazo vencido; o aviso de **Cancelar B/L** reconhece "Demurrage travada" (`546`,
+    `548`).
+  - **ADR por terminal:** a carga em transbordo com exceção de terminal do porto omitido volta ao ADR do porto
+    de descarga, e o Embarque de vazios anterior à `541`, sem frente, vira frente TBC (`547`).
+  - **Portal e telas:** o anexo da Disputa confere a extensão como a Edge Function; a etapa Demurrage da ficha
+    do B/L só diz "Retida" com container que não é SOC; os Comunicados dizem quando a Viagem está cancelada; a
+    regra do Alerta de rotina diz que ele fecha também sem resposta 401 ou 403.
 - **Embarque de vazios vazio se exclui (2026-10-30, migration `544`; decisão do dono na revisão da PR
   luccafwlog/vela#1122, PR luccafwlog/vela#1128):** desde a `541`, criar o embarque grava na escala a frente
   Vazios EXP, a Atracação e o ADR do terminal, e o embarque trava a frente e a exclusão da escala; o embarque
