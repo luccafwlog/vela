@@ -86,12 +86,12 @@ describeLocal('392 — arquivo de B/L com as regras no servidor', () => {
     const container = containersOf(id)
     const result = importFile([{ ...line(id, [container]), voyage_id: otherVoyageId }])
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain(`O B/L ${id} já está na Viagem Vessel FF9392 FF9392: exclua o B/L lá e importe de novo (cancelar não libera o número).`)
+    expect(result.stderr).toContain(`O B/L ${id} já está na Viagem Vessel FF9392 FF9392: exclua o B/L lá (se tiver CE Mercante, tire o CE antes) e importe de novo (cancelar não libera o número).`)
     expect(blField(id, 'voyage_id')).toBe(String(w.voyageId))
 
     w.cancelBl(id)
     const cancelled = importFile([{ ...line(id, [container]), voyage_id: otherVoyageId }])
-    expect(cancelled.stderr).toContain(`O B/L ${id} está cancelado na Viagem Vessel FF9392 FF9392: o número continua lá. Exclua o B/L na Viagem`)
+    expect(cancelled.stderr).toContain(`O B/L ${id} está cancelado na Viagem Vessel FF9392 FF9392: o número continua lá. Reative o B/L na Viagem Vessel FF9392 FF9392, tire o CE Mercante, exclua o B/L e importe de novo.`)
   })
 
   it('decisão 8: B/L cancelado fica de fora com aviso e o resto do arquivo entra', () => {

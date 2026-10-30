@@ -189,4 +189,28 @@ describeLocal('514 — Tipos de container e uma tarifa por grupo', () => {
       SELECT coalesce(public._container_free_days('SEM-BL-514', '40HC', current_date)::text, 'sem');
       ROLLBACK;`)).toBe('sem')
   })
+
+  it('tipo com código de grupo desativado também deixa de achar tarifa, e os outros tipos do grupo seguem (546)', () => {
+    const dry20 = psql(`SELECT free_days FROM public.demurrage_rates WHERE container_type = '20GP' AND active;`)
+    expect(psql(`
+      BEGIN;
+      UPDATE public.container_types SET active = false WHERE code = '20GP';
+      SELECT coalesce(public._container_free_days('SEM-BL-514', '20GP', current_date)::text, 'sem')
+        || ',' || coalesce(public._container_free_days('SEM-BL-514', '20HC', current_date)::text, 'sem');
+      ROLLBACK;`)).toBe(`sem,${dry20}`)
+  })
+
+  it('o código de grupo só se cadastra no próprio grupo (546)', () => {
+    // Excluído sem uso e cadastrado de novo noutro grupo, o 20RF cobraria pela tarifa errada.
+    const recreate = (group: string) => psql(`
+      BEGIN;
+      SET LOCAL session_replication_role = replica;
+      DELETE FROM public.container_types WHERE code = '20RF';
+      SET LOCAL session_replication_role = origin;
+      INSERT INTO public.container_types (code, description, rate_group) VALUES ('20RF', 'teste 546', '${group}');
+      SELECT 'ok';
+      ROLLBACK;`)
+    expect(() => recreate('40GP')).toThrow(/é o código do grupo de tarifa/)
+    expect(recreate('20RF')).toBe('ok')
+  })
 })

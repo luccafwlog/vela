@@ -23,12 +23,14 @@ const INV_RESOLVED = 520021
 const INV_LATE = 520022
 const INV_PAID = 520023
 const INV_AUTO = 520024
+const INV_REOPEN = 520025
 const DISP_CANCEL = 520030
 const DISP_RESOLVED = 520031
 const DISP_LATE = 520032
 const DISP_PAID = 520033
 const DISP_AUTO = 520034
-const INVOICES = [INV_CANCEL, INV_RESOLVED, INV_LATE, INV_PAID, INV_AUTO]
+const DISP_REOPEN = 520035
+const INVOICES = [INV_CANCEL, INV_RESOLVED, INV_LATE, INV_PAID, INV_AUTO, INV_REOPEN]
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
@@ -110,23 +112,27 @@ describeLocal('520 — Disputas de Demurrage', () => {
       INSERT INTO public.bls (id, voyage_id, customer_id, ce_mercante) VALUES
         ('R520-A', ${VOYAGE}, ${CUSTOMER}, 'CE520A'), ('R520-B', ${VOYAGE}, ${CUSTOMER}, 'CE520B'),
         ('R520-C', ${VOYAGE}, ${CUSTOMER}, 'CE520C'), ('R520-D', ${VOYAGE}, ${CUSTOMER}, 'CE520D'),
-        ('R520-E', ${VOYAGE}, ${CUSTOMER}, 'CE520E');
+        ('R520-E', ${VOYAGE}, ${CUSTOMER}, 'CE520E'), ('R520-F', ${VOYAGE}, ${CUSTOMER}, 'CE520F');
       INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, total_usd, status, dispute_open, dispute_status) VALUES
         (${INV_CANCEL}, 'DEM-R520-1', 'R520-A', ${CUSTOMER}, 100, 'issued', true, 'aberto'),
         (${INV_RESOLVED}, 'DEM-R520-2', 'R520-B', ${CUSTOMER}, 100, 'issued', false, 'resolvido'),
         (${INV_LATE}, 'DEM-R520-3', 'R520-C', ${CUSTOMER}, 100, 'issued', true, 'aberto'),
         (${INV_PAID}, 'DEM-R520-4', 'R520-D', ${CUSTOMER}, 100, 'issued', false, 'resolvido'),
-        (${INV_AUTO}, 'DEM-R520-5', 'R520-E', ${CUSTOMER}, 100, 'issued', true, 'aberto');
+        (${INV_AUTO}, 'DEM-R520-5', 'R520-E', ${CUSTOMER}, 100, 'issued', true, 'aberto'),
+        (${INV_REOPEN}, 'DEM-R520-6', 'R520-F', ${CUSTOMER}, 100, 'issued', false, 'resolvido');
       INSERT INTO public.demurrage_disputes (id, demurrage_invoice_id, customer_id, state, next_responder, subject, opened_by, created_at) VALUES
         (${DISP_CANCEL}, ${INV_CANCEL}, ${CUSTOMER}, 'aberta', 'equipamentos', 'Cancelar junto', 'cliente', now()),
         (${DISP_RESOLVED}, ${INV_RESOLVED}, ${CUSTOMER}, 'resolvida', 'ninguem', 'Resolvida', 'cliente', now()),
         (${DISP_LATE}, ${INV_LATE}, ${CUSTOMER}, 'aberta', 'equipamentos', 'Sem resposta', 'cliente', now() - interval '10 days'),
         (${DISP_PAID}, ${INV_PAID}, ${CUSTOMER}, 'resolvida', 'ninguem', 'Resolvida, Invoice cancelada', 'cliente', now()),
-        (${DISP_AUTO}, ${INV_AUTO}, ${CUSTOMER}, 'aberta', 'equipamentos', 'Troca de CNPJ', 'cliente', now());
+        (${DISP_AUTO}, ${INV_AUTO}, ${CUSTOMER}, 'aberta', 'equipamentos', 'Troca de CNPJ', 'cliente', now()),
+        (${DISP_REOPEN}, ${INV_REOPEN}, ${CUSTOMER}, 'resolvida', 'ninguem', 'Resolvida há 8 dias', 'cliente', now() - interval '10 days');
       INSERT INTO public.demurrage_dispute_messages (dispute_id, author_id, author_type, body, next_responder, created_at) VALUES
         (${DISP_LATE}, '${EQUIP}', 'equipamentos', 'Pedimos o comprovante.', 'cliente', now() - interval '10 days'),
         (${DISP_LATE}, '${PORTAL}', 'cliente', 'Segue o comprovante.', 'equipamentos', now() - interval '6 days'),
-        (${DISP_LATE}, '${PORTAL}', 'cliente', 'Alguma novidade?', 'equipamentos', now() - interval '5 days');
+        (${DISP_LATE}, '${PORTAL}', 'cliente', 'Alguma novidade?', 'equipamentos', now() - interval '5 days'),
+        (${DISP_REOPEN}, '${PORTAL}', 'cliente', 'Contesto os dias.', 'equipamentos', now() - interval '10 days'),
+        (${DISP_REOPEN}, '${EQUIP}', 'equipamentos', 'Segue a conta; encerrada.', 'ninguem', now() - interval '8 days');
     `)
   })
 
@@ -186,6 +192,17 @@ describeLocal('520 — Disputas de Demurrage', () => {
 
     it('espera desde a primeira mensagem do Cliente depois da nossa última', () => {
       expect(psql(`SELECT public._demurrage_dispute_waiting_since(${DISP_LATE}) = (SELECT min(created_at) FROM public.demurrage_dispute_messages WHERE dispute_id = ${DISP_LATE} AND author_type = 'cliente')`)).toBe('t')
+    })
+
+    it('reabrir a Disputa resolvida conta a espera da reabertura: sem Alerta de prazo vencido nem sino (548)', () => {
+      const reopened = as(EQUIP, `SELECT public.reopen_demurrage_dispute(${DISP_REOPEN}, 'Cliente trouxe o comprovante do terminal')`)
+      expect(reopened.error).toBe('')
+      expect(psql(`SELECT state || '|' || next_responder FROM public.demurrage_disputes WHERE id = ${DISP_REOPEN}`)).toBe('aberta|equipamentos')
+      // Antes da 548 a Disputa voltava a `aberta` sem a mensagem, e a espera
+      // contava desde a abertura de 10 dias atrás: Alerta vencido e sino na hora.
+      expect(psql(`SELECT public._demurrage_dispute_waiting_since(${DISP_REOPEN}) > now() - interval '1 minute'`)).toBe('t')
+      expect(activeAlert('demurrage_disputa_prazo', INV_REOPEN)).toBe('0')
+      expect(psql(`SELECT count(*) FROM public.internal_notifications WHERE item_type = 'demurrage_disputa_prazo' AND entity_id = '${INV_REOPEN}'`)).toBe('0')
     })
 
     it('vencido, abre o Alerta para Equipamentos; a resposta da equipe fecha', () => {

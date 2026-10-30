@@ -9,6 +9,8 @@ const voyageId = 9514001
 const carrierId = 9514001
 const vesselId = 9514001
 const terminalId = '00000000-0000-0000-0000-000000951401'
+// Terminal do porto omitido (BRSSZ), para a exceção de terminal do B/L em transbordo.
+const omittedPortTerminalId = '00000000-0000-0000-0000-000000951405'
 const reportId = '00000000-0000-0000-0000-000000951402'
 const manifestId = '00000000-0000-0000-0000-000000951403'
 const graniteManifestId = '00000000-0000-0000-0000-000000951404'
@@ -48,7 +50,7 @@ const resetScenario = `
   DELETE FROM public.voyages WHERE id = ${voyageId};
   DELETE FROM public.vessels WHERE id = ${vesselId};
   DELETE FROM public.carriers WHERE id = ${carrierId};
-  DELETE FROM public.depots WHERE id = '${terminalId}';
+  DELETE FROM public.depots WHERE id IN ('${terminalId}', '${omittedPortTerminalId}');
 `
 // As exclusões acima disparam a reconciliação dos alertas, que grava eventos
 // com o autor da sessão: eles saem antes do usuário.
@@ -126,6 +128,29 @@ describeLocal('migrations 537 a 540 — frente derivada dos dados sem terminal i
 
     // Omissão revertida: o B/L deixa de ser transbordo e volta ao porto dele.
     psql(`UPDATE public.voyage_omissions SET reverted_at = now() WHERE id = ${omissionId};`)
+    expect(assertReadyToClose().status).toBe(0)
+  })
+
+  // 547 (revisão da release #1117): a exceção de terminal que o B/L em
+  // transbordo guarda do porto omitido não decide nada no porto de descarga.
+  // Ele continua criando a frente de lá, e o fechamento a exige com terminal.
+  it('exige a frente do porto de descarga mesmo com a exceção de terminal do porto omitido', () => {
+    psql(`
+      INSERT INTO public.depots (id, code, name, tipo, port_id)
+      SELECT '${omittedPortTerminalId}', 'SSZ537', 'Terminal 537 Santos', 'terminal_portuario', id FROM public.ports WHERE locode = 'BRSSZ';
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode, terminal_id, pod_port_id)
+      SELECT 'BL-537-X', ${voyageId}, 'BRSSZ', 'carga_solta', '${omittedPortTerminalId}', id FROM public.ports WHERE locode = 'BRSSZ';
+      INSERT INTO public.voyage_omissions (id, voyage_id, omitted_pod, discharge_pod, omitted_by)
+      VALUES (${omissionId}, ${voyageId}, 'BRSSZ', 'BRVIX', '${adminId}');
+      INSERT INTO public.bl_transshipments (bl_id, omission_id, disposition) VALUES ('BL-537-X', ${omissionId}, 'transshipment');
+    `)
+
+    expect(psql(`SELECT public._escala_fronts_without_terminal(${voyageId}, 'BRVIX');`)).toBe('{importacao:carga_solta}')
+    expect(assertReadyToClose().stderr).toContain('Frente TBC impede o fechamento do ADR: carga solta.')
+    // A exceção continua gravada: reverter a omissão devolve o B/L ao terminal dela.
+    expect(psql(`SELECT terminal_id FROM public.bls WHERE id = 'BL-537-X';`)).toBe(omittedPortTerminalId)
+
+    persistFront('carga_solta')
     expect(assertReadyToClose().status).toBe(0)
   })
 

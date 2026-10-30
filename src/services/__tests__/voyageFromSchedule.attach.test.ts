@@ -8,6 +8,7 @@ const calls = vi.hoisted(() => ({
   listPod: vi.fn(),
   listPol: vi.fn(),
   blSelect: vi.fn(),
+  anchors: vi.fn(),
 }))
 
 vi.mock('../voyages', async (importOriginal) => ({
@@ -31,7 +32,14 @@ vi.mock('../auditEntries', () => ({
 }))
 
 vi.mock('../supabase', () => ({
-  supabase: { from: (...args: unknown[]) => calls.blSelect(...args) },
+  supabase: {
+    from: (...args: unknown[]) => calls.blSelect(...args),
+    // Âncoras da escala pelo dono do banco (`escala_removal_anchor_reasons`, 549).
+    rpc: (name: string, args: Record<string, unknown>) => {
+      expect(name).toBe('escala_removal_anchor_reasons')
+      return Promise.resolve({ data: calls.anchors(args), error: null })
+    },
+  },
 }))
 
 import { createOrAttachVoyageFromSchedule } from '../voyageFromSchedule'
@@ -72,6 +80,7 @@ function reset() {
   calls.listPol.mockResolvedValue(new Map())
   calls.record.mockResolvedValue(undefined)
   calls.blSelect.mockReturnValue(blQuery([]))
+  calls.anchors.mockReturnValue([])
 }
 
 describe('createOrAttachVoyageFromSchedule', () => {
@@ -291,35 +300,34 @@ describe('createOrAttachVoyageFromSchedule - modo form (cancelar escala)', () =>
     expect(written()).toEqual(['42::BRVIX eta 2026-01-25→null'])
   })
 
-  it('B/L com o porto como POL também ancora: só o ETA sai, sem soft-delete (D2, migration 513)', async () => {
-    const orFilters: string[] = []
-    calls.blSelect.mockImplementation((table: string) => {
-      if (table !== 'bls') return blQuery([])
-      const builder = {
-        select: () => builder,
-        eq: () => builder,
-        or: (filter: string) => {
-          orFilters.push(filter)
-          return Promise.resolve({ count: filter.includes('pol.eq.BRVIX') ? 1 : 0, error: null })
-        },
-      }
-      return builder
-    })
-    calls.listPod.mockResolvedValue(new Map([['42::BRVIX', pod('42::BRVIX', { eta: '2026-01-25' })]]))
+  it('com âncora no banco (B/L pelo POL, por apelido, Embarque de vazios…), só o ETA sai, sem soft-delete (D2, migrations 513 e 549)', async () => {
+    // O B/L gravado como VITORIA: a tela não compara porto, pergunta ao banco.
+    calls.anchors.mockImplementation(({ p_port }: { p_port: string }) => p_port === 'BRVIX' ? ['B/L vinculado à escala'] : [])
+    calls.listPod.mockResolvedValue(new Map([
+      ['42::BRVIX', pod('42::BRVIX', { eta: '2026-01-25' })],
+      ['42::BRSSA', pod('42::BRSSA', { eta: '2026-01-20' })],
+    ]))
 
     await createOrAttachVoyageFromSchedule({
       vesselName: 'GREEN PECEM',
       vesselImo: '9976501',
       voyageNumber: '6',
-      lanes: [{ code: 'BRVIX', kind: 'pod', date: null }],
+      lanes: [
+        { code: 'BRSSA', kind: 'pod', date: '2026-01-22' },
+        { code: 'BRVIX', kind: 'pod', date: null },
+      ],
     }, 'user-1', { mode: 'form', voyageId: 42, canRemoveEscala: true })
 
-    expect(orFilters).toEqual(['pod.eq.BRVIX,pol.eq.BRVIX'])
-    expect(written()).toEqual(['42::BRVIX eta 2026-01-25→null'])
+    expect(calls.anchors).toHaveBeenCalledWith({ p_voyage_id: 42, p_port: 'BRVIX' })
+    // A data do outro porto vai junto; a escala ancorada só perde o ETA.
+    expect(written()).toEqual([
+      '42::BRSSA eta 2026-01-20→2026-01-22',
+      '42::BRVIX eta 2026-01-25→null',
+    ])
   })
 
   it('POD com ancora (linked) so zera o ETA publicado, sem soft-delete', async () => {
-    calls.blSelect.mockImplementation((table: string) => table === 'voyage_escala_revision_state' ? blQuery([], 1) : blQuery([]))
+    calls.anchors.mockReturnValue(['escala Vinculada'])
     calls.listPod.mockResolvedValue(new Map([['42::BRSSA', pod('42::BRSSA', { eta: '2026-01-22', linked: true })]]))
 
     await createOrAttachVoyageFromSchedule({

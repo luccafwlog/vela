@@ -129,7 +129,7 @@ it('B/L cancelado em outra Viagem: o aviso manda excluir o B/L lá e importar de
     target: { files: [new File(['b'], 'BLCAN002.pdf')] },
   })
 
-  expect(await screen.findByText('B/L BLCAN002 está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, exclua o B/L na Viagem NAVIO / V77 (Administrativo) e importe de novo.')).toBeTruthy()
+  expect(await screen.findByText('B/L BLCAN002 está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, reative o B/L na Viagem NAVIO / V77, tire o CE Mercante, exclua o B/L (Administrativo) e importe de novo.')).toBeTruthy()
   expect(screen.queryByText(/reative-o pela ficha/)).toBeNull()
 })
 

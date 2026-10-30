@@ -60,6 +60,8 @@ describe('cache effects', () => {
       // A Visão geral lê "Somente importação" da exportação da escala.
       ['voyage-export-schedules'], ['voyage-escala-schedules'], ['voyage-detail', 24], ['voyages'],
       ['voyage-vazios-export-ports', 24],
+      // 547: o embarque é fonte da frente Vazios EXP da aba ADR.
+      ['agency-report-terminal-state'],
     ])))
   })
 

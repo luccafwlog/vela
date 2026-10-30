@@ -116,10 +116,10 @@ it('DEM-D08: Invoice que não substitui outra fica sem a citação', async () =>
   expect(fromMock.mock.calls.filter(([table]) => table === 'demurrage_invoices')).toHaveLength(1)
 })
 
-it('US-031: calcula os KPIs de demurrage', async () => {
-  results.bl_containers = { data: [], count: 3, error: null }
+it('US-031: calcula os KPIs de demurrage sem contar o status gravado que nenhum cartão mostra', async () => {
   results.demurrage_invoices = { data: [{ total_usd: 50, current_total_brl: 200 }], error: null }
   const kpis = await fetchDemurrageKPIs()
-  expect(kpis.overdueContainers).toBe(3)
-  expect(kpis.issuedInvoicesTotalBrl).toBe(200)
+  expect(kpis).toEqual({ issuedInvoicesTotalBrl: 200 })
+  // Correndo vem da classificação do banco (ADR 0112, D6): `bl_containers` não é lido aqui.
+  expect(fromMock).not.toHaveBeenCalledWith('bl_containers')
 })

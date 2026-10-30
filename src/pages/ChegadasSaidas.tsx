@@ -142,7 +142,7 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing, saving 
 function clearedPodConsequence(cleared: string[], isAdmin: boolean): string {
   const ports = `Escalas marcadas como “não escala” (${cleared.join(', ')})`
   return isAdmin
-    ? `${ports}: a data sai do Portal. A escala sem B/L descarregando no porto, ATA, ATD, Vinculada Sim e nunca salva na janela da escala sai da Viagem e do Line-Up; com qualquer um deles, continua na Viagem e só a data sai. Se a escala estiver travada, nada é gravado.`
+    ? `${ports}: a data sai do Portal. A escala sem B/L no porto (embarque ou descarga), ATA, ATD, Vinculada Sim, Embarque de vazios e nunca salva na janela da escala sai da Viagem e do Line-Up; com qualquer um deles, continua na Viagem e só a data sai. Se a escala estiver travada, nada é gravado.`
     : `${ports}: só a data sai. A escala continua na Viagem; sem mais nada, deixa de aparecer no Line-Up.`
 }
 

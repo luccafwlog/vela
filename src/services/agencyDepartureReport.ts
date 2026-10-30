@@ -628,6 +628,21 @@ export function blBelongsToTerminal(bl: AgencyReportBlTerminal, fronts: readonly
 }
 
 /**
+ * Exceção de terminal do B/L que vale no ADR desta escala. A exceção é sempre
+ * um terminal do POD do B/L (par `terminal_id`/`pod_port_id` com chave em
+ * `depots`, `set_bl_terminal_override`; trocar o POD a limpa). O B/L em
+ * transbordo mantém o POD do porto omitido e descarrega aqui: a exceção dele é
+ * de outro porto e não vale nesta escala, e ele segue a frente da sua
+ * modalidade aqui. A exceção continua gravada no B/L (a omissão pode ser
+ * revertida). Revisão da release luccafwlog/vela#1117 (migration 547).
+ */
+export function escalaBlTerminalException(bl: { pod?: string | null; terminal_id?: string | null } | null | undefined, escalaPort: string): string | null {
+  if (!bl?.terminal_id) return null
+  const blPort = normalizePortCode(bl.pod ?? null)
+  return blPort === null || blPort === normalizePortCode(escalaPort) ? bl.terminal_id : null
+}
+
+/**
  * Destino do container descarregado. Natureza (IMO/OOG/carga geral) e destino
  * são eixos independentes desde que `is_transshipment` virou flag própria; a
  * categoria `'transbordo'` só aparece em snapshots fechados antes disso e
@@ -783,6 +798,7 @@ export function summarizeVehiclesByContainerTypeAndModel(
 type BreakbulkAgencyReportBl = {
   cargo_mode?: string | null
   terminal_id?: string | null
+  pod?: string | null
   bb_machine_qty: number | null
   bb_packages_qty: number | null
   bb_weight_ton: number | null
@@ -792,7 +808,7 @@ type BreakbulkAgencyReportBl = {
 
 
 const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, profile_source, bl:bls!inner(voyage_id, pod, cargo_mode, terminal_id, transshipments:bl_transshipments(disposition))'
-const BREAKBULK_SELECT = 'cargo_mode, terminal_id, bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
+const BREAKBULK_SELECT = 'cargo_mode, terminal_id, pod, bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
 const VEHICLES_SELECT = 'brand, model, bl_id, chassis, container_id, container:bl_containers(container_number, type, unpacking_location)'
 
 const SUPABASE_PAGE_SIZE = 1000
@@ -971,7 +987,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
       : Promise.resolve(emptyResult),
     transshipmentBlIds.length
       ? fetchAllRows((from, to) =>
-          supabase.from('vehicles').select(`${VEHICLES_SELECT}, bl:bls!inner(terminal_id)`).in('bl_id', transshipmentBlIds).range(from, to),
+          supabase.from('vehicles').select(`${VEHICLES_SELECT}, bl:bls!inner(pod, terminal_id)`).in('bl_id', transshipmentBlIds).range(from, to),
         )
       : Promise.resolve(emptyResult),
   ])
@@ -998,13 +1014,14 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     /** Exceção de terminal do B/L do veículo, para recortar por terminal como a carga (ADR 0068). */
     blTerminalId: string | null
   }
-  type AgencyReportVehicleRow = Omit<AgencyReportVehicle, 'isTransshipment' | 'blTerminalId'> & { bl?: { terminal_id?: string | null } | null }
+  type AgencyReportVehicleRow = Omit<AgencyReportVehicle, 'isTransshipment' | 'blTerminalId'> & { bl?: { pod?: string | null; terminal_id?: string | null } | null }
   const ownVehicles = (vehiclesRes.data ?? []) as unknown as AgencyReportVehicleRow[]
   const transshipmentVehicles = (transshipmentVehiclesRes.data ?? []) as unknown as AgencyReportVehicleRow[]
   const toReportVehicle = ({ bl, ...vehicle }: AgencyReportVehicleRow, isTransshipment: boolean): AgencyReportVehicle => ({
     ...vehicle,
     isTransshipment,
-    blTerminalId: bl?.terminal_id ?? null,
+    // A exceção de terminal de outro porto (B/L em transbordo) não vale aqui.
+    blTerminalId: escalaBlTerminalException(bl, portCode),
   })
   // bls.pod nunca é o mesmo entre o porto da escala e o porto omitido de uma
   // mesma viagem, então as duas listas nunca se sobrepõem — concatena sem
@@ -1107,7 +1124,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     is_imo: boolean | null
     is_oog: boolean | null
     profile_source?: string | null
-    bl: { cargo_mode?: string | null; terminal_id?: string | null; transshipments: Array<{ disposition: string }> | null } | null
+    bl: { pod?: string | null; cargo_mode?: string | null; terminal_id?: string | null; transshipments: Array<{ disposition: string }> | null } | null
   }
   // Idem: containers do porto da escala e containers em transbordo (bls.pod
   // apontando para o porto omitido) nunca se sobrepõem.
@@ -1139,7 +1156,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
 
     const key = normalizeContainerNumber(container.container_number)
     const existing = dischargeByContainerNumber.get(key)
-    const blTerminal: AgencyReportBlTerminal = { terminal_id: container.bl?.terminal_id ?? null, cargo_mode: container.bl?.cargo_mode ?? null }
+    const blTerminal: AgencyReportBlTerminal = { terminal_id: escalaBlTerminalException(container.bl, portCode), cargo_mode: container.bl?.cargo_mode ?? null }
     if (!existing) {
       dischargeByContainerNumber.set(key, {
         container_number: container.container_number,
@@ -1196,8 +1213,10 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     diverges: baplieEmptyCount !== vaziosModuleCount,
   }
 
-  const breakbulk = (breakbulkRes.data ?? []) as BreakbulkAgencyReportBl[]
-  const transshipmentBreakbulk = (transshipmentBreakbulkRes.data ?? []) as BreakbulkAgencyReportBl[]
+  // A exceção de terminal do B/L em transbordo é de outro porto: não vale aqui.
+  const withEscalaException = (bl: BreakbulkAgencyReportBl): BreakbulkAgencyReportBl => ({ ...bl, terminal_id: escalaBlTerminalException(bl, portCode) })
+  const breakbulk = ((breakbulkRes.data ?? []) as BreakbulkAgencyReportBl[]).map(withEscalaException)
+  const transshipmentBreakbulk = ((transshipmentBreakbulkRes.data ?? []) as BreakbulkAgencyReportBl[]).map(withEscalaException)
   const units = vaziosExp.map((booking) => ({ ...booking, container_number: booking.container_number, local_id: booking.local_id, condition: booking.condition }))
   const serviceLines = rawServiceLines.map((row) => {
     const service = servicesById.get(row.service_id) ?? null

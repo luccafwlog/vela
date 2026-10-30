@@ -182,4 +182,43 @@ describeLocal('Embarque de vazios exige terminal (migration 541)', () => {
       ${asUser} ${create(TERMINAL)}`)
     expect(stderr).toMatch(/ADR de Saída de T541 fechado: a escala não muda/)
   })
+
+  // 547 (revisão da release #1117): o embarque anterior à 541, sem frente Vazios
+  // EXP, é frente TBC do ADR por terminal; antes o ADR fechava sem ele e a
+  // trava do ADR fechado não o alcançava.
+  describe('embarque anterior à 541 sem frente Vazios EXP', () => {
+    const cargoInOtherTerminal = `
+      SELECT public.save_voyage_escala_terminal_state_v2(${VOYAGE}, 'BRVIX', 0,
+        '[{"sentido":"importacao","modalidade":"carga_cheia","terminal_id":"${OTHER_TERMINAL}","source":"operational_data"}]',
+        '[{"terminal_id":"${OTHER_TERMINAL}"}]', '${IMPORT_ONLY}', NULL) IS NOT NULL;`
+    const legacyEmbarque = (port: string) => `
+      RESET ROLE;
+      SET LOCAL session_replication_role = replica;
+      INSERT INTO public.vazios_export_operations (voyage_id, embark_port) VALUES (${VOYAGE}, '${port}');
+      SET LOCAL session_replication_role = origin;`
+    // Como o fechamento chama: dono da função, com o usuário da sessão.
+    const assertClose = `RESET ROLE;
+      SELECT '>fechamento=aceito' FROM (SELECT public.assert_voyage_escala_ready_for_report_close(${VOYAGE}, 'BRVIX',
+        (SELECT id FROM public.agency_departure_reports WHERE voyage_id = ${VOYAGE} AND terminal_id = '${OTHER_TERMINAL}'))) AS x;`
+
+    it('vira frente TBC: o ADR por terminal da escala não fecha e o ADR legado não nasce', () => {
+      const { lines, stderr } = scenario(`${asUser} ${cargoInOtherTerminal} ${legacyEmbarque('BRVIT')} ${legacyEmbarque('BRSUA')}
+        SELECT '>sem terminal=' || public._escala_fronts_without_terminal(${VOYAGE}, 'BRVIX')::text;
+        SELECT '>legado BRSUA recusado=' || public._escala_has_operation_fronts(${VOYAGE}, 'BRSUA');`)
+      expect(stderr).toBe('')
+      expect(lines).toEqual(['>sem terminal={exportacao:vazio}', '>legado BRSUA recusado=true'])
+
+      const refused = scenario(`${asUser} ${cargoInOtherTerminal} ${legacyEmbarque('BRVIT')} ${asUser} ${assertClose}`)
+      expect(refused.stderr).toMatch(/Frente TBC impede o fechamento do ADR: embarque de vazios\./)
+    })
+
+    it('Definir terminal no embarque tira a frente da lista e o ADR fecha', () => {
+      const { lines, stderr } = scenario(`${asUser} ${cargoInOtherTerminal} ${legacyEmbarque('BRVIT')} ${asUser} ${create(TERMINAL)}
+        RESET ROLE;
+        SELECT '>sem terminal=' || public._escala_fronts_without_terminal(${VOYAGE}, 'BRVIX')::text;
+        ${asUser} ${assertClose}`)
+      expect(stderr).toBe('')
+      expect(lines).toEqual([`>created=false terminal=${TERMINAL}`, '>sem terminal={}', '>fechamento=aceito'])
+    })
+  })
 })
