@@ -193,7 +193,7 @@ reconciliação que leia `net._http_response` e redispare uma vez. Desde a
 migration `310`, o job SQL `http-job-failures` (a cada 15 min) lê
 `net._http_response` e abre o Alerta `rotina_http_falhou` para duas ou mais
 respostas fora de 2xx ou sem status na última hora (uma isolada não abre desde
-a migration `533`; tempo esgotado só a partir de 10, desde a `316`); ele avisa,
+a migration `533`; uma única 401 ou 403 abre, desde a `534`; tempo esgotado só a partir de 10, desde a `316`); ele avisa,
 não redispara
 ([observabilidade](observabilidade.md#respostas-de-erro-das-rotinas-http)).
 

@@ -72,8 +72,8 @@ describeLocal('310 — rotinas HTTP com erro', () => {
   // quando a hora volta a ter no máximo uma.
   // ponytail: o limiar soma as respostas de todas as rotinas da hora, porque
   // `net._http_response` não guarda qual job chamou; rotina que roda menos de
-  // duas vezes por hora (`ce-unlock-cleanup`, `recalc-demurrage-ptax`) não
-  // abre o Alerta sozinha, mesmo falhando todo dia. Melhoria: o dispatcher
+  // duas vezes por hora (`ce-unlock-cleanup`, `recalc-demurrage-ptax`) só abre
+  // o Alerta sozinha com 401/403 (534); outro erro diário não. Melhoria: o dispatcher
   // gravar o job de cada pedido e o limiar passar a ser por job.
   it('uma resposta de erro na hora não abre; duas abrem; de volta a uma, fecha', () => {
     const output = psql(`
@@ -100,6 +100,29 @@ describeLocal('310 — rotinas HTTP com erro', () => {
     expect(lines).toContain('run2={"queued": 0, "failures": 2, "timeouts": 0, "responses": 3}')
     expect(lines).toContain('run3={"queued": 0, "failures": 1, "timeouts": 0, "responses": 2}')
     expect(lines.filter((line) => line.startsWith('status='))).toEqual(['status=none', 'status=active', 'status=resolved'])
+  })
+
+  // Migration 534 (decisão do dono de 2026-10-30): 401/403 é segredo divergente
+  // e não se resolve sozinho; uma basta, também na rotina diária.
+  it('uma resposta 401 ou 403 na hora abre; um 500 isolado continua sem abrir', () => {
+    const output = psql(`
+      BEGIN;
+      CREATE TABLE net._http_response (
+        id bigint, status_code integer, content_type text, headers jsonb, content text,
+        timed_out boolean, error_msg text, created timestamptz NOT NULL DEFAULT now()
+      );
+      INSERT INTO net._http_response (id, status_code, timed_out, created) VALUES (1, 500, false, now() - interval '3 minutes');
+      SELECT 'run1=' || public.reconcile_http_job_failures_alert()::text;
+      ${alertStatus}
+      DELETE FROM net._http_response;
+      INSERT INTO net._http_response (id, status_code, timed_out, created) VALUES (2, 403, false, now() - interval '3 minutes');
+      SELECT 'run2=' || public.reconcile_http_job_failures_alert()::text;
+      ${alertStatus}
+      ROLLBACK;
+    `)
+    const lines = output.split('\n')
+    expect(lines).toContain('run2={"queued": 0, "failures": 1, "timeouts": 0, "responses": 1}')
+    expect(lines.filter((line) => line.startsWith('status='))).toEqual(['status=none', 'status=active'])
   })
 
   // Migration 316: o pg_net desiste aos 30 s, mas a rodada longa do runner continua.

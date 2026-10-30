@@ -122,10 +122,12 @@ esgotado; ele fecha sozinho quando a hora fica limpa. Desde a migration `533`
 (decisão do dono de 2026-10-30), uma falha isolada não abre: a `itau-pix`, de
 minuto, falhava sozinha uma ou duas vezes por dia e acertava na rodada seguinte.
 O limiar soma as respostas de todas as rotinas da hora, porque o `pg_net` não
-guarda qual job chamou: rotina que roda menos de duas vezes por hora
-(`ce-unlock-cleanup`, `recalc-demurrage-ptax`) não abre o Alerta sozinha, mesmo
-falhando todo dia; a melhoria é o dispatcher gravar o job de cada pedido e o
-limiar passar a ser por job. Desde a migration `316`, tempo esgotado
+guarda qual job chamou. Por isso, desde a migration `534` (decisão do dono de
+2026-10-30), uma única resposta 401 ou 403 abre: é segredo divergente, que não
+se resolve sozinho, e a rotina diária (`ce-unlock-cleanup`,
+`recalc-demurrage-ptax`) nunca chegaria a duas. Outro erro isolado de rotina
+diária ainda não abre; a melhoria é o dispatcher gravar o job de cada pedido e
+o limiar passar a ser por job. Desde a migration `316`, tempo esgotado
 isolado não abre o Alerta: o `pg_net` desiste aos 30 s, mas a Edge Function
 continua a rodada, e o runner dos Comunicados e a Régua de Cobrança passam
 disso num lote grande. Abrem o Alerta 10 ou mais tempos esgotados na hora (só
