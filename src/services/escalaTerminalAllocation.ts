@@ -283,7 +283,7 @@ function makeFront(
 export type DeriveOperationFrontInput = {
   existing?: Array<Pick<OperationFront, 'id' | 'sentido' | 'modalidade' | 'terminalId' | 'source'>>
   importKinds?: Iterable<Exclude<OperationFrontKind, 'granito'>>
-  /** Carga de exportação já gravada no porto (Granito importado), com ou sem declaração. */
+  /** Carga de exportação já gravada no porto (Granito importado, Embarque de vazios), com ou sem declaração. */
   exportKinds?: Iterable<'granito' | 'vazio'>
   exportSchedule?: Pick<VoyageExportSchedule, 'temExportacao' | 'hasGranite' | 'hasEmpty'> | null
 }
@@ -500,6 +500,15 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
       typeof manifest?.loading_port === 'string' ? manifest.loading_port : null,
     ) === normalizedPort
   })) exportKinds.add('granito')
+  // Embarque de vazios anterior à 541 (ADR 0113) pode estar sem a frente
+  // Vazios EXP: ele cria a frente, em TBC até ganhar terminal, como no
+  // fechamento (`_escala_fronts_without_terminal`, migration 547).
+  const embarques = await table('vazios_export_operations')
+    .select('id')
+    .eq('voyage_id', voyageId)
+    .in('embark_port', portCodeVariants(normalizedPort))
+  if (embarques.error) throw embarques.error
+  if (Array.isArray(embarques.data) && embarques.data.length) exportKinds.add('vazio')
 
   const fronts = deriveOperationFronts({ existing: existingFronts, importKinds, exportKinds, exportSchedule })
   const depotRows = depots as unknown as Array<{ id: string; code: string; name: string | null; active: boolean; tipo: string; port_id?: number | null }>

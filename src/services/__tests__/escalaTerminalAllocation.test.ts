@@ -170,6 +170,42 @@ describe('escalaTerminalAllocation', () => {
     expect(state.tbcFronts[0]).toMatchObject({ source: 'export_declaration', section: 'carga_carregada', terminalId: null })
   })
 
+  // 547 (revisão da release #1117): o Embarque de vazios anterior à 541, sem
+  // frente Vazios EXP, cria a frente em TBC; antes a aba não a via e o ADR do
+  // terminal fechava sem o embarque.
+  it('deriva a frente Vazios EXP do Embarque de vazios do porto, mesmo sem a declaração', async () => {
+    const embarkPortFilters: unknown[] = []
+    const makeQuery = (tableName: string) => {
+      const query: Record<string, unknown> = {}
+      query.select = () => query
+      query.eq = () => query
+      query.in = (column: string, values: unknown) => {
+        if (tableName === 'vazios_export_operations' && column === 'embark_port') embarkPortFilters.push(values)
+        return query
+      }
+      query.order = () => query
+      query.is = () => query
+      query.range = () => query
+      query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
+      query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
+        tableName === 'ports'
+          ? { data: [{ id: 99, locode: 'BRVIX' }], error: null }
+          : tableName === 'vazios_export_operations'
+            ? { data: [{ id: 'op-antigo' }], error: null }
+            : { data: [], error: null },
+      ).then(resolve)
+      return query
+    }
+    fromMock.mockImplementation((tableName: string) => makeQuery(tableName))
+
+    const state = await fetchEscalaTerminalState(12, 'BRVIX')
+
+    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['exportacao:vazio'])
+    expect(state.tbcFronts[0]).toMatchObject({ source: 'export_declaration', section: 'vazios_embarcados', terminalId: null })
+    // Embarque antigo gravado com a grafia BRVIT também conta.
+    expect(embarkPortFilters[0]).toEqual(expect.arrayContaining(['BRVIX', 'BRVIT']))
+  })
+
   // Revisão da PR #1121: a janela da escala declarava o Granito pelo porto do
   // manifesto, e a frente nascia pelo porto de cada B/L.
   it('marca como porto com Granito o do manifesto e o efetivo de cada B/L', () => {

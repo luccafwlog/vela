@@ -6,6 +6,13 @@ atrelar qual terminal ele está sendo operado. E isso tem que conversar
 diretamente com a frente de operação e com a ADR. Isso é obrigatório.").
 Implementada na migration `541`.
 
+> **Situação atual (2026-10-30).** A decisão vale. A migration `547` completa a
+> primeira consequência para o embarque anterior à `541` sem a frente Vazios
+> EXP: ele cria essa frente em TBC (na aba ADR, em Editar escala e no
+> fechamento), e o ADR por terminal da escala não fecha até o terminal ser
+> definido em **Definir terminal** ou em Editar escala. Antes, o ADR fechava sem
+> o embarque, e a trava do ADR fechado não o alcançava.
+
 Estende a [ADR 0109](./0109-frente-de-operacao-exige-terminal-ate-o-ata.md)
 (o terminal é da frente de operação) e a
 [ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md)

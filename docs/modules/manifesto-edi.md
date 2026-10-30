@@ -488,7 +488,13 @@ por `is_active_user()`).
   `require_vazios_export_front_terminal`), inclusive a primeira importação de
   planilha numa escala sem embarque. Embarque anterior à `541` sem terminal
   mostra **Sem terminal** e o aviso **Embarque sem terminal**, com
-  **Terminal** e **Definir terminal**, que usa a mesma RPC. **Teste
+  **Terminal** e **Definir terminal**, que usa a mesma RPC. Enquanto não tem
+  terminal, ele é frente Vazios EXP em TBC da escala: o ADR por terminal avisa
+  "Sem terminal (TBC)" e não fecha ("Frente TBC impede o fechamento do ADR:
+  embarque de vazios."), e Editar escala abre com **Embarque de vazios**
+  declarado (migration `547`; antes o ADR fechava sem ele e a trava do ADR
+  fechado não o alcançava; regra em
+  [Viagens](viagens.md#agency-departure-report-adr)). **Teste
   local-pg:** `embarqueVaziosTerminal.local-pg.test.ts`; **Teste:**
   `EmbarqueVazios.flow.test.tsx`, `vaziosExportTerminal.test.ts`.
 - **Unidade Embarcada.** Container vazio efetivamente embarcado na escala, com
