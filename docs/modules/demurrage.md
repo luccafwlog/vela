@@ -759,6 +759,18 @@ nova; paga, com desconto ou em disputa, sai da Régua com o Alerta
 Invoice de Demurrage … mudou depois da emissão"), para restituir ou cobrar a
 diferença. **Teste local-pg:** `rateioDemurrage.local-pg.test.ts`.
 
+**Container que vira SOC depois de faturado** (migration `522`, [ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
+D20). A troca para SOC de uma caixa que está em Invoice viva (ficha do B/L,
+`set_bl_container_ownership`, ou gravação de SOC pelo Baplie) segue a regra
+das datas alteradas: o gatilho da caixa em `bl_containers` chama
+`_reconcile_demurrage_after_dates`, e `_demurrage_item_stale` conta o item SOC
+como diferença. Sem pagamento, desconto ou disputa, a Invoice é cancelada e
+reemitida sem a caixa (a caixa SOC não entra na reemissão nem é tratada como
+cobrança perdida); paga, com desconto ou em disputa, sai da Régua com o Alerta
+`demurrage_invoice_dates_changed` ("Container da Invoice de Demurrage … passou a
+SOC depois da emissão e sai da cobrança"), para restituir à mão. **Teste
+local-pg:** `socDepoisDeFaturado.local-pg.test.ts`.
+
 ### Datas alteradas depois da emissão
 
 **Trava de emissão (DEM-D13, migration `472`).** A Invoice de Demurrage segue

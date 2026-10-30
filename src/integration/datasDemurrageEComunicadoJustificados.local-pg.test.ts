@@ -269,8 +269,10 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     expect(first).toMatchObject({ status: 'issued', anchor_bl_id: bl.lostA })
     const invoiceId = Number(first.invoice_id)
 
-    // A caixa própria do B/L B vira SOC: a reemissão não a cobra.
-    psql(`UPDATE public.bl_containers SET ownership = 'SOC' WHERE bl_id = '${bl.lostB}' AND container_number = '${box.lostGone}'`)
+    // O B/L B, dono da outra caixa, fica cancelado (dado antigo, sem passar
+    // pela recusa do cancel_bl): a reemissão não a cobra. Desde a 522 (ADR
+    // 0112, D20), a caixa que vira SOC sai da cobrança, sem alerta.
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = now() WHERE id = '${bl.lostB}'`)
     const corrected = adminJson<{ demurrage: { demurrage_invoices: Array<Record<string, unknown>> } }>(
       `SELECT public.set_container_dates(${containerId(bl.lostA, box.lostShared)}, '${discharge}', '2026-09-22', 'Terminal corrigiu a devolução (R349)')`)
     expect(corrected.demurrage.demurrage_invoices).toEqual([expect.objectContaining({
@@ -278,8 +280,8 @@ describeLocal('349 — datas da Demurrage fecham com a cobrança; justificativa 
     })])
     expect(datesAlert(invoiceId)).toBe('active')
 
-    // A conferência desfaz o SOC e a Demurrage da caixa é emitida.
-    psql(`UPDATE public.bl_containers SET ownership = NULL WHERE bl_id = '${bl.lostB}' AND container_number = '${box.lostGone}'`)
+    // A conferência reativa o B/L e a Demurrage da caixa é emitida.
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = NULL WHERE id = '${bl.lostB}'`)
     expect(issue(bl.lostB)).toMatchObject({ status: 'issued', complementary: true })
     expect(datesAlert(invoiceId)).toBe('resolved')
     expect(psql(`SELECT e.metadata->>'resolution' FROM public.alert_item_events AS e
