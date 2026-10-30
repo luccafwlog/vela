@@ -1,4 +1,4 @@
-// Quadro "Chegadas e saídas" público do fwlog.com.br (ADR 0112). Sem sessão:
+// Quadro "Chegadas e saídas" público do fwlog.com.br (ADR 0114). Sem sessão:
 // Turnstile, limite por IP e cache no Upstash, todos fail-closed; regras em
 // ../_shared/publicFwlog.ts.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'

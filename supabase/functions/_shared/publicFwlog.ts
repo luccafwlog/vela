@@ -1,5 +1,5 @@
 // Quadro "Chegadas e saídas" e Consulta de container públicos do fwlog.com.br
-// (ADR 0112). As duas Edge Functions (`public-ship-schedule` e
+// (ADR 0114). As duas Edge Functions (`public-ship-schedule` e
 // `public-container-lookup`) são finas: leem o ambiente, montam o cliente
 // `service_role` e chamam os handlers daqui, que recebem tudo por `deps` para
 // o teste rodar sem rede, sem Upstash e sem banco.
@@ -19,7 +19,7 @@ import { readBoundedJsonBody } from './boundedBody.ts'
 import { parseConfiguredOrigins } from './cors.ts'
 import { requestIp } from './portalLoginRateLimit.ts'
 
-// --- Limites (ADR 0112) ----------------------------------------------------
+// --- Limites (ADR 0114) ----------------------------------------------------
 
 /** Quadro: aberturas e "Atualizar" por IP a cada 10 minutos. */
 export const SCHEDULE_IP_LIMIT = 30
@@ -51,7 +51,7 @@ export const PUBLIC_BODY_MAX_BYTES = 4 * 1024
 /** Teto de Viagens no quadro, o mesmo da função SQL. */
 export const SCHEDULE_MAX_VOYAGES = 100
 
-// Mesmas listas da migration 514 e do front (testes de paridade em
+// Mesmas listas da migration 542 e do front (testes de paridade em
 // src/services/__tests__/publicFwlogEdge.test.ts).
 export const PUBLIC_SCHEDULE_PORT_CODES = ['CNTAO', 'CNSHA', 'CNTAC', 'CNNGB', 'CNNSA', 'BRSSA', 'BRVIX', 'BRPEC', 'BRSUA'] as const
 export const PUBLIC_LOOKUP_PORT_CODES = ['BRSSA', 'BRVIX', 'BRPEC', 'BRSUA'] as const
@@ -298,7 +298,7 @@ function scheduleDate(value: unknown): string | null {
 
 /**
  * Lista positiva do quadro: agrupa pela chave opaca do SQL e copia só os
- * campos da ADR 0112. Porto fora do quadro, tipo desconhecido e IMO fora do
+ * campos da ADR 0114. Porto fora do quadro, tipo desconhecido e IMO fora do
  * formato não passam, mesmo que o SQL mude.
  */
 export function projectPublicSchedule(rows: unknown, updatedAt: string): PublicScheduleResponse {
@@ -433,7 +433,7 @@ const ISO_LETTER_VALUES: Record<string, number> = {
 
 /**
  * Mesma regra de `parsePublicContainerNumber` (src/lib/containerNumber.ts) e
- * de `_iso6346_check_digit_valid` (migration 514): o teste compara as três.
+ * de `_iso6346_check_digit_valid` (migration 542): o teste compara as três.
  */
 export function normalizePublicContainerNumber(value: unknown): string | null {
   if (typeof value !== 'string' || value.length > 64) return null

@@ -28,7 +28,7 @@ A página lista viagens com `show_on_portal = true` por
 `fetchInternalScheduleVoyages()`, que chama a RPC com a sessão interna (o
 Portal usa `fetchPortalScheduleVoyages()` com a sessão do Cliente), projetando cada viagem na grade fixa de lanes
 `PORTAL_SCHEDULE_LANES`: Qingdao, Shanghai, Taicang, Ningbo, Nansha, Salvador,
-Vitória, Pecém e Suape (Suape desde a [ADR 0112](../adr/0112-chegadas-e-consulta-de-container-publicas-no-fwlog.md),
+Vitória, Pecém e Suape (Suape desde a [ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md),
 que também ganhou a coluna **SUAPE ETA** no modelo da planilha). A mesma
 programação aparece no Portal e, sem login, no quadro público do fwlog.com.br
 (`public_ship_schedule()`, só os portos destas lanes, filtrados no servidor).

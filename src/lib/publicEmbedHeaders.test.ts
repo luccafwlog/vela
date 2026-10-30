@@ -9,7 +9,7 @@ import {
   securityHeaders,
 } from '../../scripts/cloudflare-security-headers.mjs'
 
-// ADR 0112: só /portal/publico/* pode ir para iframe, e só no fwlog.com.br.
+// ADR 0114: só /portal/publico/* pode ir para iframe, e só no fwlog.com.br.
 const PAGE = '<html>portal</html>'
 const html = (body = PAGE) => new Response(body, { headers: { 'content-type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY' } })
 const jsonFile = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })

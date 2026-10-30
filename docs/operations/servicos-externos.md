@@ -165,7 +165,7 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   em `/assets/*`; cada requisição de `/assets/*` conta na cota de invocações de
   Functions do plano. O que ela responde e como é conferida estão em
   [deploy.md](../setup/deploy.md#headers-rotas-e-cors).
-- **Pages Function `functions/portal/publico/[[path]].ts`** (ADR 0112): serve
+- **Pages Function `functions/portal/publico/[[path]].ts`** (ADR 0114): serve
   `/portal/publico/*`, as duas páginas que o fwlog.com.br põe em iframe, com
   `frame-ancestors https://fwlog.com.br https://www.fwlog.com.br` e sem
   `X-Frame-Options`, lendo os headers de `public-embed-headers.json` que o
@@ -315,7 +315,7 @@ As 24 funções do repositório estão publicadas e `ACTIVE` em produção:
 `portal-password-reset`, `portal-recovery-email-change`,
 `recalc-demurrage-ptax` e `send-customer-communication`. Duas funções novas
 estão no repositório e ainda **não** foram publicadas: `public-ship-schedule`
-e `public-container-lookup` (ADR 0112, migration `514`); antes da publicação
+e `public-container-lookup` (ADR 0114, migration `542`); antes da publicação
 os secrets da linha "Widgets públicos do fwlog.com.br" abaixo precisam existir,
 senão as duas respondem 503 ou 403 a todo pedido (fail-closed). A Edge Function
 antiga de aviso de fatura emitida, que a
@@ -423,7 +423,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 | Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
 | Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6, todos gravados; os dois últimos, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
-| Widgets públicos do fwlog.com.br ([ADR 0112](../adr/0112-chegadas-e-consulta-de-container-publicas-no-fwlog.md)) | `TURNSTILE_PUBLIC_SECRET_KEY`, `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` (widget próprio, separado do login), `PUBLIC_FWLOG_ALLOWED_ORIGINS` (origens HTTPS exatas do iframe; em produção `https://portalfwlog.com.br`); reaproveitam `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e `PORTAL_RATE_LIMIT_HMAC_SECRET`. Sem qualquer um, recusa. Ainda não cadastrados | Cloudflare Turnstile, Upstash |
+| Widgets públicos do fwlog.com.br ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)) | `TURNSTILE_PUBLIC_SECRET_KEY`, `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` (widget próprio, separado do login), `PUBLIC_FWLOG_ALLOWED_ORIGINS` (origens HTTPS exatas do iframe; em produção `https://portalfwlog.com.br`); reaproveitam `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e `PORTAL_RATE_LIMIT_HMAC_SECRET`. Sem qualquer um, recusa. Ainda não cadastrados | Cloudflare Turnstile, Upstash |
 
 `PORTAL_PASSWORD_PEPPER` (≥ 32 caracteres aleatórios) é a chave do
 `HMAC(pepper, senha)` que o GoTrue guarda para as contas do Portal (auditoria
@@ -777,7 +777,7 @@ a verificação de segurança vazia e o servidor responde 403.
 
 ### Turnstile dos widgets públicos (fwlog.com.br)
 
-Widget **novo**, ainda não criado ([ADR 0112](../adr/0112-chegadas-e-consulta-de-container-publicas-no-fwlog.md)):
+Widget **novo**, ainda não criado ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)):
 modo Managed, hostnames `portalfwlog.com.br` (onde o iframe roda) e, para o
 teste, `staging.vela-portal.pages.dev` num widget de staging à parte, como o
 do login. O iframe roda na origem do Portal, então `fwlog.com.br` não precisa
@@ -802,7 +802,7 @@ trava que decide é a do Supabase (5 erros em 15 min por CNPJ, ADR 0049). Se o
 Upstash cair, o login continua funcionando com a trava do Supabase.
 Detalhes: [portal-rate-limit.md](portal-rate-limit.md).
 
-O mesmo database guarda, desde a ADR 0112, os contadores e o cache dos
+O mesmo database guarda, desde a ADR 0114, os contadores e o cache dos
 widgets públicos do fwlog.com.br (chaves `vela:portal-rate:public_*`,
 `vela:public-rate:<projeto>:*` e `vela:public-cache:<projeto>:schedule:v1:*`).
 `<projeto>` é o host do projeto Supabase da Edge, e o mesmo host entra no HMAC
@@ -838,7 +838,7 @@ Mais: [sentry-configuracao.md](sentry-configuracao.md), [observabilidade.md](obs
 ### PostHog (eventos de produto)
 
 Região **EU**. Só o Portal envia eventos: `invoice_viewed`, na tela de faturas
-(fatura local e Demurrage), e, nas páginas públicas do fwlog.com.br (ADR 0112),
+(fatura local e Demurrage), e, nas páginas públicas do fwlog.com.br (ADR 0114),
 `public_schedule_viewed` e `public_container_lookup` (só o resultado da
 consulta em `lookup_outcome`, nunca o número do container); `invoice_paid` e `dispute_opened` estão declarados
 em `src/lib/featureFlags.ts`, mas não são enviados. Sem URL, CNPJ ou e-mail; captura

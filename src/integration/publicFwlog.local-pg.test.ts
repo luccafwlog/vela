@@ -5,7 +5,7 @@ import { PORTAL_SCHEDULE_LANES, portalLaneCode } from '../services/portalSchedul
 import { PUBLIC_LOOKUP_PORTS } from '../services/publicLookupPorts'
 import { computeIsoContainerCheckDigit } from '../lib/containerNumber'
 
-// Migration 514 (ADR 0112): quadro e consulta públicos do fwlog.com.br. As
+// Migration 542 (ADR 0114): quadro e consulta públicos do fwlog.com.br. As
 // funções só atendem `service_role` (as Edge Functions públicas); o quadro é
 // o mesmo do Portal, e a consulta devolve no máximo uma linha, com a mesma
 // resposta vazia para todos os motivos de "não encontrado".
@@ -45,17 +45,17 @@ const BOX_UNKNOWN = containerNumber(51409) // formato e dígito válidos, sem re
 const BOX_WAITING = containerNumber(51410) // sem descarga, ETA futura
 
 const BLS = {
-  found: 'BL-514-FOUND',
-  old: 'BL-514-OLD',
-  sharedA: 'BL-514-SH-A',
-  sharedB: 'BL-514-SH-B',
-  cancelled: 'BL-514-CANC',
-  cancelledVoyage: 'BL-514-CV',
-  santos: 'BL-514-SSZ',
-  out: 'BL-514-OUT',
-  waiting: 'BL-514-WAIT',
-  pecem: 'BL-514-PEC',
-  noCe: 'BL-514-NOCE',
+  found: 'BL-542-FOUND',
+  old: 'BL-542-OLD',
+  sharedA: 'BL-542-SH-A',
+  sharedB: 'BL-542-SH-B',
+  cancelled: 'BL-542-CANC',
+  cancelledVoyage: 'BL-542-CV',
+  santos: 'BL-542-SSZ',
+  out: 'BL-542-OUT',
+  waiting: 'BL-542-WAIT',
+  pecem: 'BL-542-PEC',
+  noCe: 'BL-542-NOCE',
 }
 
 function psql(sql: string): string {
@@ -82,7 +82,7 @@ function lookupRow(number: string): Record<string, unknown> {
   return JSON.parse(output) as Record<string, unknown>
 }
 
-function migration514Applied(): boolean {
+function migration542Applied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT to_regprocedure('public.public_container_lookup(text)') IS NOT NULL;`) === 't'
@@ -107,53 +107,53 @@ function cleanup() {
   `)
 }
 
-const describeLocal = describeWithProbe(migration514Applied, 'migration514Applied (funções públicas do fwlog.com.br)')
+const describeLocal = describeWithProbe(migration542Applied, 'migration542Applied (funções públicas do fwlog.com.br)')
 
-describeLocal('514 — quadro e consulta de container públicos', () => {
+describeLocal('542 — quadro e consulta de container públicos', () => {
   beforeAll(() => {
     cleanup()
     psql(`
-      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${CUSTOMER}, '${CUSTOMER_CNPJ}', 'Cliente 514');
-      INSERT INTO public.carriers (id, name) VALUES (${CARRIER}, 'Carrier 514');
+      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${CUSTOMER}, '${CUSTOMER_CNPJ}', 'Cliente 542');
+      INSERT INTO public.carriers (id, name) VALUES (${CARRIER}, 'Carrier 542');
       INSERT INTO public.vessels (id, name, carrier_id, imo) VALUES
-        (${VESSEL_A}, 'NAVIO 514 A', ${CARRIER}, '9514001'),
-        (${VESSEL_B}, 'NAVIO 514 B', ${CARRIER}, NULL);
+        (${VESSEL_A}, 'NAVIO 542 A', ${CARRIER}, '9514001'),
+        (${VESSEL_B}, 'NAVIO 542 B', ${CARRIER}, NULL);
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status, show_on_portal, eta) VALUES
-        (${V_PUBLIC}, ${VESSEL_A}, '514A', 'active', true, now() - interval '12 days'),
-        (${V_HIDDEN}, ${VESSEL_B}, '514H', 'active', false, now()),
-        (${V_CANCELLED}, ${VESSEL_B}, '514C', 'active', true, now()),
-        (${V_OLD}, ${VESSEL_B}, '514O', 'active', true, now() - interval '60 days'),
-        (${V_OUT}, ${VESSEL_B}, '514X', 'active', false, now() - interval '200 days');
+        (${V_PUBLIC}, ${VESSEL_A}, '542A', 'active', true, now() - interval '12 days'),
+        (${V_HIDDEN}, ${VESSEL_B}, '542H', 'active', false, now()),
+        (${V_CANCELLED}, ${VESSEL_B}, '542C', 'active', true, now()),
+        (${V_OLD}, ${VESSEL_B}, '542O', 'active', true, now() - interval '60 days'),
+        (${V_OUT}, ${VESSEL_B}, '542X', 'active', false, now() - interval '200 days');
 
       -- Escalas: POL Shanghai com ETD e ATD; Suape e Salvador com ETA (Salvador
       -- com ATA); Santos fora do quadro; Vitória retirada; Pecém omitida.
       INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification) VALUES
-        ('voyage_pol_schedule', '${V_PUBLIC}::CNSHA', 'etd', NULL, '2026-09-01', NULL, 'teste 514'),
-        ('voyage_pol_schedule', '${V_PUBLIC}::CNSHA', 'atd', NULL, '2026-09-02', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_PUBLIC}::BRSUA', 'eta', NULL, '2026-10-20', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_PUBLIC}::BRSSA', 'eta', NULL, '2026-10-18', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_PUBLIC}::BRSSA', 'ata', NULL, '2026-10-19T08:00', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_PUBLIC}::BRSSZ', 'eta', NULL, '2026-10-25', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_PUBLIC}::BRVIX', 'eta', NULL, '2026-10-22', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_PUBLIC}::BRVIX', 'deleted', NULL, 'true', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_PUBLIC}::BRPEC', 'omitted', NULL, 'true', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_HIDDEN}::BRSSA', 'eta', NULL, '2026-11-01', NULL, 'teste 514'),
-        ('voyage_pod_schedule', '${V_CANCELLED}::BRSSA', 'eta', NULL, '2026-11-02', NULL, 'teste 514');
+        ('voyage_pol_schedule', '${V_PUBLIC}::CNSHA', 'etd', NULL, '2026-09-01', NULL, 'teste 542'),
+        ('voyage_pol_schedule', '${V_PUBLIC}::CNSHA', 'atd', NULL, '2026-09-02', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_PUBLIC}::BRSUA', 'eta', NULL, '2026-10-20', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_PUBLIC}::BRSSA', 'eta', NULL, '2026-10-18', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_PUBLIC}::BRSSA', 'ata', NULL, '2026-10-19T08:00', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_PUBLIC}::BRSSZ', 'eta', NULL, '2026-10-25', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_PUBLIC}::BRVIX', 'eta', NULL, '2026-10-22', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_PUBLIC}::BRVIX', 'deleted', NULL, 'true', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_PUBLIC}::BRPEC', 'omitted', NULL, 'true', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_HIDDEN}::BRSSA', 'eta', NULL, '2026-11-01', NULL, 'teste 542'),
+        ('voyage_pod_schedule', '${V_CANCELLED}::BRSSA', 'eta', NULL, '2026-11-02', NULL, 'teste 542');
 
       INSERT INTO public.customer_demurrage_agreements (customer_id, free_days, valid_from, notes)
-        VALUES (${CUSTOMER}, 14, ${TODAY} - 400, 'teste 514');
+        VALUES (${CUSTOMER}, 14, ${TODAY} - 400, 'teste 542');
 
       INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, pod, ce_mercante) VALUES
-        ('${BLS.found}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'SALVADOR', 'CE514FOUND'),
-        ('${BLS.old}', ${V_OLD}, ${CUSTOMER}, 'container', 'BRSSA', 'CE514OLD'),
-        ('${BLS.sharedA}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSUA', 'CE514SHA'),
-        ('${BLS.sharedB}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSUA', 'CE514SHB'),
-        ('${BLS.cancelled}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSA', 'CE514CANC'),
-        ('${BLS.cancelledVoyage}', ${V_CANCELLED}, ${CUSTOMER}, 'container', 'BRSSA', 'CE514CV'),
-        ('${BLS.santos}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSZ', 'CE514SSZ'),
-        ('${BLS.out}', ${V_OUT}, ${CUSTOMER}, 'container', 'BRSSA', 'CE514OUT'),
-        ('${BLS.waiting}', ${V_HIDDEN}, ${CUSTOMER}, 'container', 'BRVIX', 'CE514WAIT'),
-        ('${BLS.pecem}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'PECEM', 'CE514PEC'),
+        ('${BLS.found}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'SALVADOR', 'CE542FOUND'),
+        ('${BLS.old}', ${V_OLD}, ${CUSTOMER}, 'container', 'BRSSA', 'CE542OLD'),
+        ('${BLS.sharedA}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSUA', 'CE542SHA'),
+        ('${BLS.sharedB}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSUA', 'CE542SHB'),
+        ('${BLS.cancelled}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSA', 'CE542CANC'),
+        ('${BLS.cancelledVoyage}', ${V_CANCELLED}, ${CUSTOMER}, 'container', 'BRSSA', 'CE542CV'),
+        ('${BLS.santos}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSZ', 'CE542SSZ'),
+        ('${BLS.out}', ${V_OUT}, ${CUSTOMER}, 'container', 'BRSSA', 'CE542OUT'),
+        ('${BLS.waiting}', ${V_HIDDEN}, ${CUSTOMER}, 'container', 'BRVIX', 'CE542WAIT'),
+        ('${BLS.pecem}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'PECEM', 'CE542PEC'),
         ('${BLS.noCe}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSA', NULL);
       -- O B/L irmão tem free time próprio: a resposta tem de seguir o âncora.
       UPDATE public.bls SET free_time_override = 30 WHERE id = '${BLS.sharedB}';
@@ -228,12 +228,12 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
 
   it('Viagem fora do Portal, cancelada e escala retirada não aparecem; Suape e a omitida aparecem', () => {
     const rows = asRole('service_role', `SELECT voyage || ':' || port_code || ':' || kind || ':' || COALESCE(date_value, '') || ':' || COALESCE(actual_value, '') || ':' || omitted
-      FROM public.public_ship_schedule() WHERE voyage IN ('514A', '514H', '514C') ORDER BY 1`).output.split('\n')
+      FROM public.public_ship_schedule() WHERE voyage IN ('542A', '542H', '542C') ORDER BY 1`).output.split('\n')
     expect(rows).toEqual([
-      '514A:BRPEC:pod:::true',
-      '514A:BRSSA:pod:2026-10-18:2026-10-19T08:00:false',
-      '514A:BRSUA:pod:2026-10-20::false',
-      '514A:CNSHA:pol:2026-09-01:2026-09-02:false',
+      '542A:BRPEC:pod:::true',
+      '542A:BRSSA:pod:2026-10-18:2026-10-19T08:00:false',
+      '542A:BRSUA:pod:2026-10-20::false',
+      '542A:CNSHA:pol:2026-09-01:2026-09-02:false',
     ])
   })
 
@@ -241,7 +241,7 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
     const row = lookupRow(` ${BOX_FOUND.toLowerCase().slice(0, 4)}-${BOX_FOUND.slice(4)} `)
     expect(Object.keys(row).sort()).toEqual(['container_number', 'container_type', 'discharge_date', 'discharge_port', 'free_time_days', 'free_time_until', 'return_date', 'situation', 'vessel_name', 'voyage'])
     expect(row).toMatchObject({
-      container_number: BOX_FOUND, container_type: '40HC', vessel_name: 'NAVIO 514 A', voyage: '514A',
+      container_number: BOX_FOUND, container_type: '40HC', vessel_name: 'NAVIO 542 A', voyage: '542A',
       discharge_port: 'BRSSA', return_date: null, free_time_days: 14, situation: 'no_prazo',
     })
     expect(row.free_time_until).toBe(psql(`SELECT (${TODAY} - 10 + 14)::text`))
@@ -255,7 +255,7 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
   })
 
   it('número repetido em duas Viagens: só a mais recente', () => {
-    expect(lookupRow(BOX_REPEATED)).toMatchObject({ voyage: '514A', container_type: '40HC', return_date: null })
+    expect(lookupRow(BOX_REPEATED)).toMatchObject({ voyage: '542A', container_type: '40HC', return_date: null })
   })
 
   it('container rateado entre B/Ls do Cliente: a resposta é a do B/L-âncora, sempre a mesma', () => {
@@ -265,7 +265,7 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
   })
 
   it('sem devolução e descarregado há mais de 90 dias: aparece, com o prazo vencido', () => {
-    expect(lookupRow(BOX_STILL_OUT)).toMatchObject({ voyage: '514X', return_date: null, free_time_days: 14, situation: 'prazo_vencido' })
+    expect(lookupRow(BOX_STILL_OUT)).toMatchObject({ voyage: '542X', return_date: null, free_time_days: 14, situation: 'prazo_vencido' })
   })
 
   it('Pecém é porto da consulta', () => {

@@ -102,7 +102,7 @@ export async function stagePagesSite({ app, input, output, portalOrigin, supabas
 
   await writeFile(path.join(outputDir, '_headers'), headersFile(supabaseOrigin))
   await writeFile(path.join(outputDir, '_redirects'), redirectsFile(app, resolvedPortalOrigin))
-  // Só o Portal tem páginas embedáveis (ADR 0112): sem este arquivo, a Function
+  // Só o Portal tem páginas embedáveis (ADR 0114): sem este arquivo, a Function
   // de /portal/publico/* responde 404 com os headers que negam iframe.
   if (app === 'portal') {
     await writeFile(path.join(outputDir, PUBLIC_EMBED_HEADERS_FILE), `${JSON.stringify(publicEmbedSecurityHeaders(supabaseOrigin), null, 2)}\n`)

@@ -61,11 +61,11 @@ export function isValidIsoContainerNumber(value: string | null | undefined): boo
 }
 
 /**
- * Número digitado na consulta pública de container (ADR 0112): tira espaço,
+ * Número digitado na consulta pública de container (ADR 0114): tira espaço,
  * hífen e outros símbolos, põe em maiúsculas e exige o formato ISO 6346 de
  * contêiner de carga (categoria U, J ou Z) com o dígito verificador. `null`
  * para o resto. O servidor repete a conferência
- * (`public._iso6346_check_digit_valid`, migration 514); aqui é só para avisar
+ * (`public._iso6346_check_digit_valid`, migration 542); aqui é só para avisar
  * o erro de digitação antes de gastar uma consulta.
  */
 export function parsePublicContainerNumber(value: string | null | undefined): string | null {

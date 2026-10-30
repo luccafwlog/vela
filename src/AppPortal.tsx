@@ -19,7 +19,7 @@ const PortalAtivacao = lazyPage(() => import('./pages/PortalAtivacao'), 'PortalA
 const PortalConfirmarEmail = lazyPage(() => import('./pages/PortalConfirmarEmail'), 'PortalConfirmarEmail')
 const PortalInformation = lazyPage(() => import('./pages/PortalInformation'), 'PortalInformation')
 const PortalProfile = lazyPage(() => import('./pages/PortalProfile'), 'PortalProfile')
-// Páginas públicas que o fwlog.com.br põe em iframe (ADR 0112): sem sessão.
+// Páginas públicas que o fwlog.com.br põe em iframe (ADR 0114): sem sessão.
 const PublicChegadasSaidas = lazyPage(() => import('./pages/PublicChegadasSaidas'), 'PublicChegadasSaidas')
 const PublicConsultaContainer = lazyPage(() => import('./pages/PublicConsultaContainer'), 'PublicConsultaContainer')
 
@@ -80,7 +80,7 @@ export default function AppPortal() {
         <Route path="/portal/recuperar-senha" element={withSuspense(<PortalResetPassword />)} />
         <Route path="/portal/ativar" element={withSuspense(<PortalAtivacao />)} />
         <Route path="/portal/confirmar-email" element={withSuspense(<PortalConfirmarEmail />)} />
-        {/* Fora de PortalProtectedRoute: abertas sem login, em iframe no fwlog.com.br (ADR 0112). */}
+        {/* Fora de PortalProtectedRoute: abertas sem login, em iframe no fwlog.com.br (ADR 0114). */}
         <Route path="/portal/publico/chegadas-saidas" element={withSuspense(<PublicChegadasSaidas />)} />
         <Route path="/portal/publico/consulta-container" element={withSuspense(<PublicConsultaContainer />)} />
         <Route element={<PortalProtectedRoute />}>

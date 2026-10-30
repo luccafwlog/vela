@@ -1,7 +1,7 @@
 import { projectPortalScheduleRows, type PortalScheduleRpcRow, type PortalScheduleVoyage } from './portalScheduleVoyages'
 
 // Chamadas do quadro "Chegadas e saídas" e da Consulta de container públicos
-// (ADR 0112). Vão direto às Edge Functions, sem sessão e sem a chave do
+// (ADR 0114). Vão direto às Edge Functions, sem sessão e sem a chave do
 // Supabase: a Edge confere origem, Turnstile e limite, e lê o banco com
 // `service_role`. A resposta já vem pela lista positiva da Edge.
 

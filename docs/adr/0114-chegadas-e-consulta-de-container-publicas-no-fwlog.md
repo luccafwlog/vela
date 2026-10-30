@@ -1,7 +1,7 @@
-# 0112 — Chegadas e saídas e Consulta de container públicas no fwlog.com.br
+# 0114 — Chegadas e saídas e Consulta de container públicas no fwlog.com.br
 
 Status: aceito — 2026-10-30 (decisões do dono de 2026-10-29, A1 a A5 e B1 a B5,
-no pedido da tarefa). Implementada na migration `514`, nas Edge Functions
+no pedido da tarefa). Implementada na migration `542`, nas Edge Functions
 `public-ship-schedule` e `public-container-lookup` (módulo comum
 `supabase/functions/_shared/publicFwlog.ts`), nas páginas
 `/portal/publico/chegadas-saidas` e `/portal/publico/consulta-container` do

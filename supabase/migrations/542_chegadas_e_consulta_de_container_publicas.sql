@@ -1,11 +1,11 @@
--- 514: Chegadas e saídas e Consulta de container públicas no fwlog.com.br
--- (ADR 0112; supersede em parte a ADR 0090).
+-- 542: Chegadas e saídas e Consulta de container públicas no fwlog.com.br
+-- (ADR 0114; supersede em parte a ADR 0090).
 --
 -- Problema:
 --   O site institucional fwlog.com.br vai mostrar, sem login, o quadro
 --   "Chegadas e saídas" do Portal e uma consulta por número de container para
 --   as transportadoras do Cliente, que não têm conta. A ADR 0090 proíbe
---   leitura pré-login no banco; a ADR 0112 mantém isso (nenhuma função para
+--   leitura pré-login no banco; a ADR 0114 mantém isso (nenhuma função para
 --   `anon`) e abre a leitura só por duas Edge Functions com `service_role`,
 --   Turnstile e limite de tentativas.
 --
@@ -33,7 +33,7 @@
 --      fora da lista, container SOC e fora da janela não voltam (janela: data
 --      de referência nos últimos 90 dias, ou container descarregado e ainda
 --      sem devolução, decisão do dono de 2026-10-30);
---      no máximo uma linha, com a projeção fechada da ADR 0112.
+--      no máximo uma linha, com a projeção fechada da ADR 0114.
 --
 -- Não reescreve nem apaga linhas.
 -- Rollback: `DROP FUNCTION` das cinco funções novas e recriar
@@ -176,7 +176,7 @@ CREATE OR REPLACE FUNCTION public.public_ship_schedule()
  SECURITY DEFINER
  SET search_path = public, pg_temp
 AS $function$
-  -- Lista positiva da ADR 0112: sem `voyage_id`. `voyage_key` é a posição da
+  -- Lista positiva da ADR 0114: sem `voyage_id`. `voyage_key` é a posição da
   -- Viagem nesta resposta (a mais nova primeiro) e só agrupa as escalas; não
   -- identifica nada fora dela. Porto fora do quadro sai aqui, não no navegador.
   -- ponytail: teto fixo de 100 Viagens (hoje são 16 navios); acima disso as
@@ -263,7 +263,7 @@ DECLARE
 BEGIN
   -- Formato e dígito verificador antes de qualquer tabela: o que não é número
   -- de container não chega ao índice. Sem linha = "não encontrado", igual para
-  -- todos os motivos (ADR 0112).
+  -- todos os motivos (ADR 0114).
   IF length(COALESCE(p_number, '')) > 64 OR NOT public._iso6346_check_digit_valid(v_number) THEN
     RETURN;
   END IF;

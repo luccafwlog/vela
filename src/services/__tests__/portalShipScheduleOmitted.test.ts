@@ -9,7 +9,7 @@ it('portal_ship_schedule devolve POD omitido marcado e continua ocultando POD de
     .filter((f) => f.endsWith('.sql'))
     .map((f) => fs.readFileSync(path.join(dir, f), 'utf8'))
     .join('\n')
-  // Desde a migration 514 (ADR 0112) o corpo mora em `_ship_schedule_core()`,
+  // Desde a migration 542 (ADR 0114) o corpo mora em `_ship_schedule_core()`,
   // lido também pelo quadro público; `portal_ship_schedule()` só guarda o chamador.
   const portalDef = sql.slice(sql.lastIndexOf('CREATE OR REPLACE FUNCTION public.portal_ship_schedule'))
   expect(portalDef).toMatch(/RETURN QUERY SELECT \* FROM public\._ship_schedule_core\(\)/)

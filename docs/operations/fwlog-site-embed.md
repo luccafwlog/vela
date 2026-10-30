@@ -1,7 +1,7 @@
 # Chegadas e saídas e Consulta de container no fwlog.com.br
 
 Para quem cuida do site institucional (WordPress). Regra e campos na
-[ADR 0112](../adr/0112-chegadas-e-consulta-de-container-publicas-no-fwlog.md);
+[ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md);
 segredos e widget em [Serviços externos](servicos-externos.md#turnstile-dos-widgets-públicos-fwlogcombr).
 
 O site recebe **só dois `<iframe>`**. Nenhum script, chave, token ou endereço
@@ -11,7 +11,7 @@ do Supabase vai para o WordPress: as páginas rodam no domínio do Portal
 
 ## Antes de colar (equipe técnica)
 
-1. Migration `514` aplicada e Edge Functions `public-ship-schedule` e
+1. Migration `542` aplicada e Edge Functions `public-ship-schedule` e
    `public-container-lookup` publicadas.
 2. Widget Turnstile dos widgets públicos criado, com a Site Key em
    `VITE_TURNSTILE_PUBLIC_SITE_KEY` (build do Portal) e os secrets

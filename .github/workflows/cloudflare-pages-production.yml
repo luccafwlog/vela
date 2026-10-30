@@ -79,7 +79,7 @@ jobs:
           VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
           VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
-          # Widget próprio do quadro e da consulta públicos (ADR 0112).
+          # Widget próprio do quadro e da consulta públicos (ADR 0114).
           VITE_TURNSTILE_PUBLIC_SITE_KEY: ${{ vars.VITE_TURNSTILE_PUBLIC_SITE_KEY }}
           VITE_APP_COMMIT_SHA: ${{ github.sha }}
 

@@ -1,5 +1,5 @@
 // As três primeiras são do Portal (CNPJ + IP). As `public_*` são dos widgets
-// públicos do fwlog.com.br (ADR 0112, `publicFwlog.ts`), só por IP e sempre
+// públicos do fwlog.com.br (ADR 0114, `publicFwlog.ts`), só por IP e sempre
 // fail-closed: lá `unavailable` recusa, nunca libera.
 export type RateLimitAction =
   | 'login'

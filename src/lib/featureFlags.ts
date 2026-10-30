@@ -10,7 +10,7 @@ export const PRODUCT_EVENTS = {
   INVOICE_VIEWED: 'invoice_viewed',
   INVOICE_PAID: 'invoice_paid',
   DISPUTE_OPENED: 'dispute_opened',
-  // Widgets públicos do fwlog.com.br (ADR 0112): volume e resultado, nunca o
+  // Widgets públicos do fwlog.com.br (ADR 0114): volume e resultado, nunca o
   // número do container nem dado de quem consulta.
   PUBLIC_SCHEDULE_VIEWED: 'public_schedule_viewed',
   PUBLIC_CONTAINER_LOOKUP: 'public_container_lookup',

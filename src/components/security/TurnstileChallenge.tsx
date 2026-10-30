@@ -23,7 +23,7 @@ declare global {
 
 type TurnstileChallengeProps = {
   action: string
-  /** Widget próprio (quadro e consulta públicos, ADR 0112); sem ela, o do login. */
+  /** Widget próprio (quadro e consulta públicos, ADR 0114); sem ela, o do login. */
   siteKey?: string
   resetKey?: number
   onToken: (token: string) => void

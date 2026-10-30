@@ -110,7 +110,7 @@ tem outra tela de troca de senha.
 
 ### Páginas públicas do fwlog.com.br
 
-Regra e lista de campos na [ADR 0112](../adr/0112-chegadas-e-consulta-de-container-publicas-no-fwlog.md);
+Regra e lista de campos na [ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md);
 o passo a passo de colar no WordPress em
 [fwlog-site-embed.md](../operations/fwlog-site-embed.md). As duas rotas ficam
 fora de `PortalProtectedRoute`, sem sessão, sem menu do Portal
@@ -128,7 +128,7 @@ sem chave do Supabase, com o token do Turnstile do widget público
   banco que a Edge guardou no cache de 90 s) e o botão do MarineTraffic só com
   IMO. Sem **Ver meus B/Ls** e sem nenhuma leitura de B/L. Abrir e **Atualizar**
   passam cada um por uma verificação do Turnstile (`action` `schedule`) e pela
-  Edge `public-ship-schedule` (`public_ship_schedule()`, migration `514`).
+  Edge `public-ship-schedule` (`public_ship_schedule()`, migration `542`).
   Limite atingido: "Muitas atualizações seguidas. Aguarde alguns minutos e
   tente de novo."
 - **`/portal/publico/consulta-container`** (`PublicConsultaContainer`): campo
@@ -148,7 +148,7 @@ sem chave do Supabase, com o token do Turnstile do widget público
   (nunca o número), e o quadro, `public_schedule_viewed`.
 
 Suape (BRSUA) entrou nas colunas do quadro do Portal e de Chegadas e Saídas
-do Vela na mesma mudança (`PORTAL_SCHEDULE_LANES`, decisão A5 da ADR 0112). A
+do Vela na mesma mudança (`PORTAL_SCHEDULE_LANES`, decisão A5 da ADR 0114). A
 chave **Aparece em Chegadas e Saídas** da Viagem (`show_on_portal`) vale para o
 Portal e para o fwlog.com.br.
 

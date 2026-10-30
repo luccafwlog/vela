@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-// ADR 0112: as páginas públicas não usam sessão nem o cliente do Supabase.
+// ADR 0114: as páginas públicas não usam sessão nem o cliente do Supabase.
 const { supabaseRpc } = vi.hoisted(() => ({ supabaseRpc: vi.fn() }))
 vi.mock('../../services/supabase', () => ({
   supabase: { rpc: supabaseRpc },

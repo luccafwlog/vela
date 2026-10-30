@@ -65,7 +65,7 @@ test('stages separate internal and Portal Pages sites with SPA routing and secur
     assert.match(portalRedirects, /^\/\*\s+\/index\.html\s+200/m)
     assert.deepEqual((await readdir(portalOutput)).sort(), ['_headers', '_redirects', 'assets', 'branding', 'favicon.svg', 'fonts', 'index.html', 'public-embed-headers.json', 'templates'])
 
-    // ADR 0112: o `_headers` dos dois sites nega iframe em toda rota; só o
+    // ADR 0114: o `_headers` dos dois sites nega iframe em toda rota; só o
     // arquivo da Function de /portal/publico/* libera, e só para o fwlog.com.br.
     const portalHeaders = await readFile(path.join(portalOutput, '_headers'), 'utf8')
     for (const file of [headers, portalHeaders]) {

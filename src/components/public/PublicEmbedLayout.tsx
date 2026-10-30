@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /**
- * Moldura das páginas públicas que o fwlog.com.br põe em iframe (ADR 0112):
+ * Moldura das páginas públicas que o fwlog.com.br põe em iframe (ADR 0114):
  * sem menu, sem login e sem nada do Portal logado. Identidade Fwlog pelos
  * tokens do Portal; o nome do sistema interno nunca aparece aqui.
  */

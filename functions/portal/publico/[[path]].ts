@@ -1,4 +1,4 @@
-// Pages Function das páginas públicas embedáveis (ADR 0112): o quadro
+// Pages Function das páginas públicas embedáveis (ADR 0114): o quadro
 // "Chegadas e saídas" e a Consulta de container que o fwlog.com.br põe em
 // iframe. `_headers` mandaria `X-Frame-Options: DENY` e `frame-ancestors
 // 'none'` (como em todo o site) e não se aplica a respostas de Function, então

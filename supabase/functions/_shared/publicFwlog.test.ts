@@ -1,4 +1,4 @@
-// Contrato das Edge Functions públicas do fwlog.com.br (ADR 0112) contra
+// Contrato das Edge Functions públicas do fwlog.com.br (ADR 0114) contra
 // Turnstile, Upstash e banco falsos: sem rede. Roda no passo Deno do CI
 // (`deno test --config supabase/functions/deno.json`).
 import {

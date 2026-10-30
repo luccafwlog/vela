@@ -13,7 +13,7 @@ const FAILURE_MESSAGE: Record<PublicFailure, string> = {
 }
 
 /**
- * Quadro "Chegadas e saídas" público, em iframe no fwlog.com.br (ADR 0112):
+ * Quadro "Chegadas e saídas" público, em iframe no fwlog.com.br (ADR 0114):
  * o mesmo bloco do Painel do Portal, sem "Meus B/Ls" e sem sessão. Cada
  * leitura (abrir e Atualizar) passa por uma verificação do Turnstile; a Edge
  * devolve a mesma resposta em cache para todos.

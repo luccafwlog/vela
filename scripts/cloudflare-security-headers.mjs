@@ -10,7 +10,7 @@ export const STATIC_SECURITY_HEADERS = Object.freeze({
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
 })
 
-// Únicas páginas que outro site pode pôr em iframe (ADR 0112): o quadro e a
+// Únicas páginas que outro site pode pôr em iframe (ADR 0114): o quadro e a
 // consulta de container públicos, só dentro do fwlog.com.br. Todo o resto dos
 // dois sites continua com `X-Frame-Options: DENY` e `frame-ancestors 'none'`.
 export const PUBLIC_EMBED_PATH_PREFIX = '/portal/publico/'

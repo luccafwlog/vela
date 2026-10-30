@@ -197,7 +197,7 @@ e desde a `337` recusa conta `authenticated` sem perfil interno ativo nem conta
 ativa do Portal. A leitura sem login do quadro "Chegadas e saídas" e da
 consulta de container no fwlog.com.br passa por Edge Function com
 `service_role` (`public-ship-schedule` e `public-container-lookup`), não por
-`anon` ([ADR 0112](./docs/adr/0112-chegadas-e-consulta-de-container-publicas-no-fwlog.md)).
+`anon` ([ADR 0114](./docs/adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)).
 
 ## 3. Estrutura do repositório
 
@@ -612,7 +612,7 @@ cada uma no seu build.
 
 Rotas autenticadas do Portal ficam sob `PortalProtectedRoute`,
 `PortalScopeProvider` e `PortalLayout`; login, ativação e recuperação são públicas,
-e as duas páginas `/portal/publico/*` (ADR 0112) também, sem sessão e as únicas
+e as duas páginas `/portal/publico/*` (ADR 0114) também, sem sessão e as únicas
 que outro site pode pôr em iframe.
 Rotas internas usam `ProtectedRoute`; a maioria usa `AppLayout`, mas TV e
 inspeção do Portal têm composição própria. Toda a árvore `/admin` usa

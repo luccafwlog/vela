@@ -8,8 +8,8 @@ import { PORTAL_SCHEDULE_LANES, portalLaneCode } from '../portalScheduleLanes'
 import { PUBLIC_LOOKUP_PORTS } from '../publicLookupPorts'
 import { computeIsoContainerCheckDigit, parsePublicContainerNumber } from '../../lib/containerNumber'
 
-// ADR 0112: a Edge repete as listas do front porque o Deno não importa
-// `portCode.ts`; a migration 514 repete as mesmas no SQL
+// ADR 0114: a Edge repete as listas do front porque o Deno não importa
+// `portCode.ts`; a migration 542 repete as mesmas no SQL
 // (`publicFwlog.local-pg.test.ts`). Divergência aqui derruba o CI.
 describe('widgets públicos: listas e número de container iguais em Edge e front', () => {
   it('portos do quadro são os do Portal, com Suape', () => {

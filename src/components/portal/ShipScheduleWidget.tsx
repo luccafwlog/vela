@@ -15,7 +15,7 @@ import { ShipScheduleBlock } from './ShipScheduleView'
  * Atalho para os B/Ls do Cliente nesta viagem (ponto 2 de 2026-10-23): só na
  * viagem em que ele tem carga, ao lado do mapa. Leva à aba BLs filtrada pelo
  * navio e pela viagem, com o filtro na URL. Só no Portal logado: o quadro
- * público do fwlog.com.br não tem este atalho (ADR 0112).
+ * público do fwlog.com.br não tem este atalho (ADR 0114).
  */
 function CustomerCargoLink({ voyage, to, withText = false }: { voyage: PortalScheduleVoyage; to: string; withText?: boolean }) {
   const label = `Ver meus B/Ls no ${voyage.vesselName}, viagem ${voyage.voyage}`

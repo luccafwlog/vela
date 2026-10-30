@@ -15,7 +15,7 @@ import { StatusText } from '../ui/StatusText'
 
 // Parte visual de Chegadas e saídas, sem dado remoto: o Painel do Portal
 // (`ShipScheduleWidget`), Chegadas e Saídas do Vela e o quadro público do
-// fwlog.com.br (ADR 0112) compõem estas peças. Nada aqui importa hook de B/L
+// fwlog.com.br (ADR 0114) compõem estas peças. Nada aqui importa hook de B/L
 // ou de sessão, para a página pública não carregar o Portal logado.
 
 /** Nome do bloco no Painel do Portal (ponto 1 de 2026-10-23; antes "Programação de navios"). */
@@ -71,7 +71,7 @@ export function ScheduleDate({ voyage, lane, audience = 'portal' }: { voyage: Po
  * texto, sem ocupar a largura do cartão.
  */
 export function VesselMapButton({ voyage, withText = false }: { voyage: PortalScheduleVoyage; withText?: boolean }) {
-  // No quadro público a Edge só repassa IMO de 7 dígitos (ADR 0112).
+  // No quadro público a Edge só repassa IMO de 7 dígitos (ADR 0114).
   if (!voyage.imoNumber) return null
   const href = `https://www.marinetraffic.com/en/ais/details/ships/imo:${voyage.imoNumber}`
   const label = `Ver ${voyage.vesselName} no mapa (MarineTraffic, abre em nova aba)`

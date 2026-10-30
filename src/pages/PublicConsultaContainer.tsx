@@ -42,7 +42,7 @@ const SITUATION: Record<PublicContainerSituation, { label: string; tone: 'defaul
   devolvido: { label: 'Devolvido', tone: 'muted' },
 }
 
-/** Volume e resultado no PostHog (ADR 0112); o número nunca vai junto. */
+/** Volume e resultado no PostHog (ADR 0114); o número nunca vai junto. */
 function trackLookup(outcome: PublicLookupOutcome) {
   featureFlags.capture(PRODUCT_EVENTS.PUBLIC_CONTAINER_LOOKUP, { surface: 'public', lookup_outcome: outcome })
 }
@@ -56,7 +56,7 @@ function date(value: string | null) {
 }
 
 /**
- * Consulta de container pública, em iframe no fwlog.com.br (ADR 0112), para as
+ * Consulta de container pública, em iframe no fwlog.com.br (ADR 0114), para as
  * transportadoras do Cliente: só o número, uma verificação do Turnstile por
  * consulta e, na resposta, só os campos da lista positiva. "Não encontrado" é
  * uma mensagem só, qualquer que seja o motivo.

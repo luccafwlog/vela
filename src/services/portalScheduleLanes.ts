@@ -21,7 +21,7 @@ export const PORTAL_SCHEDULE_LANES: readonly PortalScheduleLane[] = [
   { label: 'VITÓRIA', kind: 'pod' },
   { label: 'PECÉM', kind: 'pod' },
   // Suape entra no Portal e no quadro público (decisão A5 do dono de
-  // 2026-10-29, ADR 0112); a migration 514 repete a lista no servidor.
+  // 2026-10-29, ADR 0114); a migration 542 repete a lista no servidor.
   { label: 'SUAPE', kind: 'pod' },
 ]
 
