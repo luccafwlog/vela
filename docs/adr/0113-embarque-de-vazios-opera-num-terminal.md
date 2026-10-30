@@ -4,7 +4,7 @@ Status: aceito — 2026-10-30 (decisão do dono: "Cada embarque de vazios tem um
 terminal onde ele vai operar. É preciso, na hora de criar o embarque de vazios,
 atrelar qual terminal ele está sendo operado. E isso tem que conversar
 diretamente com a frente de operação e com a ADR. Isso é obrigatório.").
-Implementada na migration `520`.
+Implementada na migration `541`.
 
 Estende a [ADR 0109](./0109-frente-de-operacao-exige-terminal-ate-o-ata.md)
 (o terminal é da frente de operação) e a

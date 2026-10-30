@@ -99,7 +99,7 @@ describeLocal('Embarque de vazios: local e serviço inativos recusados (migratio
         (${depotId(inactiveDepot)}, 'A326 HANDLING INATIVO', 'geral', 10, true);
       INSERT INTO public.depot_services (depot_id, name, natureza, rate_brl, active, route_destino_id) VALUES
         (${depotId(activeDepot)}, 'A326 TRANSPORTE', 'transporte', 10, true, ${depotId(destination)});
-      -- 520: o Embarque de vazios nasce com o terminal da frente Vazios EXP.
+      -- 541: o Embarque de vazios nasce com o terminal da frente Vazios EXP.
       INSERT INTO public.depots (code, active, tipo, port_id)
         SELECT 'A326VIX', true, 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' ORDER BY id LIMIT 1;
       INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)

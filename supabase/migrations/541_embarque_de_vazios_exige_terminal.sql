@@ -1,4 +1,4 @@
--- 520: o Embarque de vazios opera num terminal (decisão do dono de
+-- 541: o Embarque de vazios opera num terminal (decisão do dono de
 -- 2026-10-30; ADR 0113).
 --
 -- Problema: o Embarque de vazios (`vazios_export_operations`, um por Viagem e
@@ -277,7 +277,7 @@ DECLARE
 $s$;
   v_new text := $s$    v_lock := array_prepend('B/L vinculado à escala', v_lock);
   END IF;
-  -- 520 (ADR 0113): o embarque opera na frente Vazios EXP da escala.
+  -- 541 (ADR 0113): o embarque opera na frente Vazios EXP da escala.
   IF EXISTS (
     SELECT 1 FROM public.vazios_export_operations AS o
     WHERE o.voyage_id = p_voyage_id
@@ -288,14 +288,14 @@ $s$;
 $s$;
 BEGIN
   v_def := pg_get_functiondef('public.delete_escala(bigint,text,boolean,text)'::regprocedure);
-  IF position('520 (ADR 0113)' IN v_def) > 0 THEN
+  IF position('541 (ADR 0113)' IN v_def) > 0 THEN
     RETURN;
   END IF;
   IF position(v_old IN v_def) = 0 THEN
-    RAISE EXCEPTION '520: trecho não encontrado em delete_escala';
+    RAISE EXCEPTION '541: trecho não encontrado em delete_escala';
   END IF;
   IF position(v_old IN substr(v_def, position(v_old IN v_def) + 1)) > 0 THEN
-    RAISE EXCEPTION '520: trecho repetido em delete_escala';
+    RAISE EXCEPTION '541: trecho repetido em delete_escala';
   END IF;
   EXECUTE replace(v_def, v_old, v_new);
 END;

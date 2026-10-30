@@ -696,7 +696,7 @@ function EmbarqueDetalhe({
       setSaving(false);
     }
   }
-  // Embarque criado antes da 520: o terminal escolhido vai para a frente pela
+  // Embarque criado antes da 541: o terminal escolhido vai para a frente pela
   // mesma RPC de criação, que abre o embarque existente.
   async function defineTerminal() {
     const ok = await notify(async () => {

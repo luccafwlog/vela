@@ -102,7 +102,7 @@ export async function afterEscalaAlterada(queryClient: QueryInvalidator, options
 
 /**
  * Embarque de vazios criado, ou terminal definido no embarque antigo (ADR 0113,
- * migration 520): sem terminal na frente Vazios EXP, a RPC grava a escala pela
+ * migration 541): sem terminal na frente Vazios EXP, a RPC grava a escala pela
  * gravação v2 (frente, Atracação e ADR do terminal). Muda a escala inteira —
  * Visão geral, Editar escala, cartões e portos do Embarque —, não só o ADR.
  */

@@ -1,4 +1,4 @@
-// Migration 520 (ADR 0113): o Embarque de vazios opera num terminal. Criar o
+// Migration 541 (ADR 0113): o Embarque de vazios opera num terminal. Criar o
 // embarque grava o terminal na frente Vazios EXP pela gravação da escala (frente,
 // Atracação e ADR do terminal); sem terminal o banco recusa; com embarque, a
 // frente não volta para TBC nem sai, e a escala não se exclui. Cada cenário roda
@@ -22,17 +22,17 @@ const EMPTY_EXPORT = '{"tem_exportacao":true,"granito":false,"vazios":true,"has_
 
 const FIXTURES = `
   SET LOCAL session_replication_role = replica;
-  INSERT INTO auth.users(id, email) VALUES ('${USER}', 'e520-equip@test.local');
-  INSERT INTO public.user_profiles(id, full_name, role, active) VALUES ('${USER}', 'E520 Eva', 'equipamentos', true);
-  INSERT INTO auth.users(id, email) VALUES ('${ADM}', 'e520-adm@test.local');
-  INSERT INTO public.user_profiles(id, full_name, role, active) VALUES ('${ADM}', 'E520 Ana', 'administrativo', true);
-  INSERT INTO public.carriers(id, name) VALUES (${VOYAGE}, 'E520');
-  INSERT INTO public.vessels(id, carrier_id, name) VALUES (${VOYAGE}, ${VOYAGE}, 'E520 VESSEL');
-  INSERT INTO public.voyages(id, vessel_id, voyage_number) VALUES (${VOYAGE}, ${VOYAGE}, '520A');
+  INSERT INTO auth.users(id, email) VALUES ('${USER}', 'e541-equip@test.local');
+  INSERT INTO public.user_profiles(id, full_name, role, active) VALUES ('${USER}', 'E541 Eva', 'equipamentos', true);
+  INSERT INTO auth.users(id, email) VALUES ('${ADM}', 'e541-adm@test.local');
+  INSERT INTO public.user_profiles(id, full_name, role, active) VALUES ('${ADM}', 'E541 Ana', 'administrativo', true);
+  INSERT INTO public.carriers(id, name) VALUES (${VOYAGE}, 'E541');
+  INSERT INTO public.vessels(id, carrier_id, name) VALUES (${VOYAGE}, ${VOYAGE}, 'E541 VESSEL');
+  INSERT INTO public.voyages(id, vessel_id, voyage_number) VALUES (${VOYAGE}, ${VOYAGE}, '541A');
   INSERT INTO public.depots(id, code, name, tipo, port_id)
-    SELECT '${TERMINAL}', 'T520', 'Terminal 520', 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' LIMIT 1;
+    SELECT '${TERMINAL}', 'T541', 'Terminal 541', 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' LIMIT 1;
   INSERT INTO public.depots(id, code, name, tipo, port_id)
-    SELECT '${OTHER_TERMINAL}', 'U520', 'Terminal 520 B', 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' LIMIT 1;
+    SELECT '${OTHER_TERMINAL}', 'U541', 'Terminal 541 B', 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' LIMIT 1;
   SET LOCAL session_replication_role = origin;
 `
 
@@ -57,7 +57,7 @@ function scenario(sql: string): { lines: string[]; stderr: string } {
   return { lines: run.stdout.split('\n').filter((line) => line.startsWith('>')), stderr: run.stderr }
 }
 
-describeLocal('Embarque de vazios exige terminal (migration 520)', () => {
+describeLocal('Embarque de vazios exige terminal (migration 541)', () => {
   it('sem terminal, nem a RPC nem a escrita direta criam o embarque', () => {
     const rpc = scenario(`${asUser} ${create(null)}`)
     expect(rpc.stderr).toMatch(/Escolha o terminal onde o embarque de vazios de BRVIX opera/)
@@ -94,7 +94,7 @@ describeLocal('Embarque de vazios exige terminal (migration 520)', () => {
     ])
 
     const other = scenario(`${asUser} ${create(TERMINAL)} ${create(OTHER_TERMINAL)}`)
-    expect(other.stderr).toMatch(/A frente Vazios EXP de BRVIX já opera no terminal T520: o embarque usa esse terminal/)
+    expect(other.stderr).toMatch(/A frente Vazios EXP de BRVIX já opera no terminal T541: o embarque usa esse terminal/)
   })
 
   it('embarque antigo gravado com apelido do porto (BRVIT) sem terminal: recebe o terminal e é aberto, sem outro', () => {
@@ -180,6 +180,6 @@ describeLocal('Embarque de vazios exige terminal (migration 520)', () => {
         SELECT ${VOYAGE}, 'BRVIX', '${TERMINAL}', port_id, 'closed', now() FROM public.depots WHERE id = '${TERMINAL}';
       SET LOCAL session_replication_role = origin;
       ${asUser} ${create(TERMINAL)}`)
-    expect(stderr).toMatch(/ADR de Saída de T520 fechado: a escala não muda/)
+    expect(stderr).toMatch(/ADR de Saída de T541 fechado: a escala não muda/)
   })
 })

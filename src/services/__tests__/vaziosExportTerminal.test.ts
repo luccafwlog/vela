@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ADR 0113 (migration 520): o embarque de vazios opera no terminal da frente
+// ADR 0113 (migration 541): o embarque de vazios opera no terminal da frente
 // Vazios EXP da escala.
 const db = vi.hoisted(() => ({
   rows: {} as Record<string, unknown[]>,

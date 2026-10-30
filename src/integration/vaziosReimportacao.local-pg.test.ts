@@ -89,7 +89,7 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A234 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'A234', 'active');
       INSERT INTO public.depots (code, active, tipo) VALUES ('${depotCode}', true, 'depot');
-      -- 520: o Embarque de vazios nasce com o terminal da frente Vazios EXP.
+      -- 541: o Embarque de vazios nasce com o terminal da frente Vazios EXP.
       INSERT INTO public.depots (code, active, tipo, port_id)
         SELECT '${terminalCode}', true, 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' ORDER BY id LIMIT 1;
       INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)

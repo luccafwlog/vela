@@ -267,7 +267,7 @@ export async function listVaziosExportEmbarkPorts(voyageId: number): Promise<str
 
 /**
  * Abre o embarque da escala (Viagem + porto) ou o cria, com o terminal onde ele
- * opera (ADR 0113, migration 520). O terminal é da frente Vazios EXP da escala:
+ * opera (ADR 0113, migration 541). O terminal é da frente Vazios EXP da escala:
  * sem terminal nela, a RPC grava o escolhido pela gravação da escala (frente,
  * Atracação e ADR do terminal); com terminal, o embarque usa esse e `terminalId`
  * pode ir vazio. `created` diz se o embarque nasceu agora ou já existia (V4).
