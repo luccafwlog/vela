@@ -456,7 +456,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
-| `portal-email-events-runner` | a cada minuto; desde a migration `458` também chamado assim que o webhook grava o evento ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
+| `portal-email-events-runner` | a cada minuto; desde a migration `458` também chamado assim que o webhook grava o evento ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; aviso de entrega de e-mail que não é do Vela fecha sem alerta na 6ª tentativa (migration `514`); os demais que esgotam as 6 tentativas ou são ambíguos vão para investigação e abrem `email_retorno_nao_aplicado`, do Administrativo (migrations `309` e `514`; até a `514`, `portal_reprocessamento_falhou` da Documentação) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
 | `itau-pix-queue` | a cada minuto (criado à mão em 07/10, jobid 25; recriado pela migration `358`, `ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10; jobid 35 desde a recriação da migration `438`); desde a migration `458` também chamado assim que o aviso é gravado na fila ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
@@ -634,6 +634,17 @@ mesmos.
   evento recebido na fila de processamento. A assinatura segue o padrão Svix
   e é recusada com mais de 5 minutos de diferença; o handler é testado com
   assinatura gerada no CI (`supabase/functions/portal-email-webhook/index.test.ts`).
+- **Avisos de e-mails que não são do Vela:** o webhook recebe o aviso de todo
+  e-mail que sai pela conta `FWLOG`, também de outro sistema que use a mesma
+  conta. Em 2026-10-30 chegaram dois avisos de entrega para
+  `suporte@portalfwlog.com.br` que nem a produção nem o staging enviaram (pelo
+  dono, o formulário do site da Fwlog em desenvolvimento), e os mesmos avisos
+  chegaram, no mesmo segundo, à branch Supabase `staging`. Desde a migration
+  `514`, aviso de entrega desses e-mails fecha sem alerta; devolução ou spam
+  abre **Retorno do provedor de e-mail não aplicado** para o Administrativo
+  ([Portal](../modules/portal-cliente.md)). Um sistema que use a mesma conta
+  faz o Vela receber os avisos dele: para isolar, ele precisa de outra conta ou
+  de um webhook que não aponte para o Vela.
 - **Trocar o segredo do webhook** (vazamento ou webhook recriado), nesta ordem:
   1. Na MillionSend, no webhook de `portal-email-webhook`, gere o segredo novo
      (ou recrie o webhook com os mesmos três eventos) e copie o valor

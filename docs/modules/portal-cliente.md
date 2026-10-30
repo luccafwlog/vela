@@ -329,9 +329,11 @@ As pendências do Portal aparecem para a equipe interna no console, na central
 `/alertas` e no sino de Notificação Interna, nunca para o Cliente. Pelo catálogo
 de alertas, todas têm Documentação como responsável: `portal_pendencia_geral`,
 `portal_convite_expirado`, `portal_falha_envio`, `portal_email_suprimido`,
-`portal_reprocessamento_falhou` e `portal_abuso_login` avisam só Documentação
-(o `portal_reprocessamento_falhou` de um evento do provedor de e-mail em
-investigação não tem B/L nem Cliente e abre os Alertas);
+`portal_reprocessamento_falhou` (o do B/L) e `portal_abuso_login` avisam só
+Documentação. O retorno do provedor de e-mail que vai para investigação não
+tem B/L nem Cliente: desde a migration `514` abre `email_retorno_nao_aplicado`,
+do Administrativo (ver o webhook, abaixo), e não mais
+`portal_reprocessamento_falhou`;
 `portal_excecao_critica_fatura` avisa também o Administrativo (exceção do
 dono, migration `485`; `review_portal_not_ready` avisa só Documentação desde a
 `476`, [ADR 0107](../adr/0107-sino-so-do-setor-responsavel.md)). Operações não recebe pendências do Portal, e o Financeiro
@@ -532,7 +534,18 @@ efeitos de entrega, bounce ou complaint. Receber o webhook não significa que o
 histórico já foi atualizado: `portal-email-events-runner` aplica os eventos às
 tentativas, chamado assim que o evento é gravado (gatilho em `portal_email_events`,
 migration `458`) e pelo job a cada minuto (migration `107`), que fica para as novas
-tentativas. `portal-daily-digest`
+tentativas. O aviso que não acha o envio correspondente é tentado de novo em 1,
+5, 15, 60 e 360 minutos, porque pode chegar antes de o envio gravar o id do
+provedor. A conta da MillionSend avisa todo e-mail dela, também os que saem de
+outro sistema por ela (o formulário do site da Fwlog, que escreve para
+`suporte@portalfwlog.com.br`); o Vela não acha esses envios. Desde a migration
+`514`, aviso de entrega ainda sem envio do Vela na 6ª tentativa fecha sem alerta
+(`ignored_unknown_delivery`): não há contato nem tentativa a atualizar. Devolução
+ou spam sem envio do Vela, aviso que corresponde a mais de um envio e aviso que
+falha 6 vezes vão para investigação e abrem **Retorno do provedor de e-mail não
+aplicado** (`email_retorno_nao_aplicado`, normal, Administrativo), com o
+destinatário mascarado em Registro e o que fazer na mensagem; nenhuma rotina o
+fecha, e ele resolve com justificativa. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
 `RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave do provedor

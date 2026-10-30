@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertEntityLink, alertEntityLinkLabel, formatAlertEntity } from '../alerts'
+import { alertEntityLink, alertEntityLinkLabel, alertRecord, fetchAlertEntityLabels, formatAlertEntity } from '../alerts'
 
 describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compartilhado', () => {
   it('roteia entidade customer para o portal do cliente', () => {
@@ -130,6 +130,17 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     // O mesmo tipo por B/L continua abrindo o faturamento do B/L.
     expect(alertEntityLink({ type: 'portal_reprocessamento_falhou', entity_type: 'bl', entity_id: 'BL-1' }))
       .toBe('/bls/BL-1?tab=faturamento')
+  })
+
+  it('retorno de e-mail não aplicado (514) mostra o destinatário mascarado em Registro, não o id do evento', async () => {
+    const alert = { type: 'email_retorno_nao_aplicado', entity_type: 'portal_email_event', entity_id: '180' }
+    expect(alertEntityLink(alert)).toBe('/alertas')
+
+    const labels = await fetchAlertEntityLabels([{ ...alert, metadata: { recipient_masked: 's***@p***.br' } }])
+    expect(alertRecord(alert, labels)).toEqual({ label: 's***@p***.br', href: null })
+    expect(formatAlertEntity('portal_email_event', '180', labels)).toBe('E-mail s***@p***.br')
+    // Alerta anterior à 514 não gravou o destinatário: fica o id.
+    expect(alertRecord(alert, await fetchAlertEntityLabels([alert]))).toEqual({ label: '180', href: null })
   })
 
   it('rebaixa destination a fallback quando o roteador não deriva rota', () => {

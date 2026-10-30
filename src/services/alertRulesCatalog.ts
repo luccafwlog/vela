@@ -569,8 +569,8 @@ const ALERT_RULES_BASE = [
     destination: '/bls',
     destinationLabel: 'Abrir B/Ls',
     destinationNote: 'Quando o B/L estiver identificado, o alerta abre diretamente `/bls/{id}?tab=faturamento`; este link leva à lista para localizar o B/L afetado.',
-    routingNote: 'O mesmo tipo avisa o evento de e-mail do provedor que foi para investigação (sem tentativa vinculada, ambíguo ou depois de 6 tentativas; migrations 109 e 309). Esse alerta não tem B/L nem Cliente: o link fica nos Alertas, e o motivo está na mensagem. Documentação continua responsável, como no restante do tipo.',
-    afterResolution: `${derivedResolution} O alerta do evento de e-mail em investigação não tem rotina que o feche: depois de conferir o envio no provedor, use Resolver na fila com justificativa (migration 316).`,
+    routingNote: 'Até a migration 514, o mesmo tipo avisava a Documentação do retorno do provedor de e-mail que ia para investigação; esse caso passou a ser Retorno do provedor de e-mail não aplicado, do Administrativo. Alerta antigo desse caso ainda aberto resolve com justificativa (migration 316).',
+    afterResolution: derivedResolution,
   },
   {
     type: 'voyage_bl_expected',
@@ -847,6 +847,16 @@ const ALERT_RULES_BASE = [
     resolution: 'Conferir na MillionSend se o webhook está ativo e entregando, e se o segredo RESEND_WEBHOOK_SECRET do Supabase é o do webhook (manual de serviços externos).',
     destination: '/alertas', destinationLabel: 'Abrir Alertas',
     afterResolution: heldResolution,
+  },
+  {
+    type: 'email_retorno_nao_aplicado', domain: 'Portal', responsible: 'administrativo',
+    catalogAudience: ['administrativo'], entityType: 'portal_email_event', severity: 'normal',
+    summary: 'A MillionSend avisou que um e-mail foi devolvido, marcado como spam ou entregue, e o Vela não conseguiu aplicar o aviso a nenhum envio dele. Registro mostra o destinatário mascarado.',
+    trigger: 'O aviso do provedor vai para investigação: devolução ou spam de e-mail que não está entre os enviados pelo Vela depois de 6 tentativas (1, 5, 15, 60 e 360 minutos, cerca de 7 h 20), aviso que corresponde a mais de um envio do Vela ou aviso que falha 6 vezes (migration 514). A conta da MillionSend avisa todo e-mail dela, inclusive os do site da Fwlog; aviso de entrega de e-mail que não é do Vela fecha sem alerta.',
+    timing: 'Abre quando o aviso entra em investigação; nenhuma rotina o tira de lá.',
+    resolution: 'Procurar o e-mail na MillionSend pelo destinatário e pelo horário da mensagem. Se saiu de outro sistema da mesma conta (o site, por exemplo), não há nada a mudar no Vela. Se saiu do Vela, conferir o contato do Cliente: devolução permanente pede outro endereço.',
+    destination: '/alertas', destinationLabel: 'Abrir Alertas',
+    afterResolution: justifiedResolution,
   },
   {
     type: 'usuario_email_devolvido', domain: 'Portal', responsible: 'administrativo',

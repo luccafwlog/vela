@@ -6,7 +6,8 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 
 // Migrations 309, 312 e 314 (plano dos e-mails, 2.1, 2.4 e 2.8): provedor sem retorno,
 // evento de e-mail que esgota as tentativas ou é ambíguo, e usuário interno
-// com e-mail devolvido abrem Alerta; o detector fecha quando a causa some.
+// com e-mail devolvido abrem Alerta; o detector fecha quando a causa some. O
+// alerta do evento é "Retorno do provedor de e-mail não aplicado" desde a 514.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const adminId = '00000000-0000-4000-8000-000000310001'
@@ -127,11 +128,11 @@ describeLocal('309 — monitoramento dos e-mails', () => {
       VALUES ('r310-evt-sexta', 'email.delivered', '{}'::jsonb, 'processing', 6, 'r310-w', now() + interval '5 minutes') RETURNING id;`)
 
     expect(JSON.parse(psql(`SELECT public.complete_portal_email_event(${fifth}, 'r310-w', 'retry_wait', 'runner_error', 'falha');`)).status).toBe('retry_wait')
-    expect(alertStatus('portal_reprocessamento_falhou', 'portal_email_event', fifth)).toBe('none')
+    expect(alertStatus('email_retorno_nao_aplicado', 'portal_email_event', fifth)).toBe('none')
 
     expect(JSON.parse(psql(`SELECT public.complete_portal_email_event(${sixth}, 'r310-w', 'retry_wait', 'runner_error', 'falha');`)).status).toBe('investigate')
     expect(psql(`SELECT status || ':' || (process_after IS NULL) FROM public.portal_email_events WHERE id = ${sixth};`)).toBe('investigate:true')
-    expect(alertStatus('portal_reprocessamento_falhou', 'portal_email_event', sixth)).toBe('active')
+    expect(alertStatus('email_retorno_nao_aplicado', 'portal_email_event', sixth)).toBe('active')
   })
 
   it('2.4 — evento ambíguo (id do provedor em duas tentativas) abre o alerta', () => {
@@ -141,9 +142,9 @@ describeLocal('309 — monitoramento dos e-mails', () => {
     const id = psql(`INSERT INTO public.portal_email_events (provider_event_id, provider_message_id, event_type, payload, status, attempt_count, leased_by, lease_until)
       VALUES ('r310-evt-amb', 'r310-msg-amb', 'email.delivered', '{"type":"email.delivered"}'::jsonb, 'processing', 1, 'r310-w', now() + interval '5 minutes') RETURNING id;`)
     expect(JSON.parse(psql(`SELECT public.process_portal_email_event(${id}, 'r310-w');`)).status).toBe('investigate')
-    expect(alertStatus('portal_reprocessamento_falhou', 'portal_email_event', id)).toBe('active')
+    expect(alertStatus('email_retorno_nao_aplicado', 'portal_email_event', id)).toBe('active')
     expect(psql(`SELECT i.message FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
-      WHERE a.entity_type = 'portal_email_event' AND a.entity_id = '${id}';`)).toContain('mais de uma tentativa')
+      WHERE a.entity_type = 'portal_email_event' AND a.entity_id = '${id}';`)).toContain('mais de um envio do Vela')
   })
 
   it('2.8 — usuário interno com e-mail devolvido abre o alerta, aparece em Admin › Usuários e fecha ao liberar', () => {

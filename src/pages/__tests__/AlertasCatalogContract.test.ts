@@ -8,8 +8,9 @@ describe('Contrato do catálogo de alertas e tipos de entidade', () => {
 
     // 56 com a Planilha de Veículos pendente (migration 468).
     // 57 com a Taxa alterada à mão mudou (migration 495).
-    expect(catalog).toHaveLength(57)
-    expect(catalog.filter((entry) => entry.active)).toHaveLength(52)
+    // 58 com o Retorno do provedor de e-mail não aplicado (migration 514).
+    expect(catalog).toHaveLength(58)
+    expect(catalog.filter((entry) => entry.active)).toHaveLength(53)
 
     for (const entry of catalog) {
       expect(TYPE_LABELS[entry.type], `Tipo catalogado ${entry.type} não possui rótulo em TYPE_LABELS`).toBeDefined()
