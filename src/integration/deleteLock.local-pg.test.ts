@@ -194,7 +194,7 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
     expect(adminTerminal.stderr).toMatch(/Atracação travada: B\/L com CE Mercante/)
   })
 
-  it('"não escala" (marca de POD removido) segue a regra de Excluir escala (migration 090)', () => {
+  it('"não escala" (marca de POD removido) segue a Trava e as âncoras da escala (migrations 090 e 513)', () => {
     // A tela grava a marca pela RPC `record_audit_entries` (404; INSERT direto fechado).
     const entry = (port: string, value: string) => `SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"${V_LOCKED}::${port}","field_name":"deleted","old_value":"false","new_value":"${value}","justification":"não escala"}]'::jsonb);`
     const mark = (userId: string, port: string) => as(userId, entry(port, 'true'))
@@ -204,7 +204,10 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
     // A tela lê a marca normalizada; 'TRUE' não escapa da regra.
     const upper = as(OPS_ID, entry('BRSSZ', ' TRUE'))
     expect(upper.stderr).toMatch(/Somente o Administrativo retira escala/)
-    expect(mark(ADMIN_ID, 'BRPNG').status).toBe(0)
+    // 513 (decisão D2 do dono): o B/L BL088PNG ancora a escala de BRPNG; o
+    // "Não escala" não a tira da Viagem (só a data prevista sai, pela tela).
+    // A escala sem âncora continua saindo (naoEscalaComAncora.local-pg).
+    expect(mark(ADMIN_ID, 'BRPNG').stderr).toMatch(/Escala BRPNG travada: B\/L vinculado à escala/)
   })
 
   it('taxa manual do B/L sai por qualquer setor, com justificativa (ADR 0111)', () => {

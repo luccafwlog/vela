@@ -211,7 +211,25 @@ export function buildDocumentalRail(input: {
     : { key: 'invoice', label: 'Fatura', detail: 'Não emitida', state: 'pending', href: fichaFat }
 
   const rail = [customer, charges, ce, invoice]
-  if (demurrageInvoices.length > 0) {
+  // D1 (decisão do dono na revisão da PR #1084): a Invoice de Demurrage passa
+  // pela trava do Portal (`portal_billing_gate`, migration 472) mesmo depois da
+  // fatura de Taxas Locais. Com o B/L faturado e a trava fechada, a etapa
+  // Cliente fica concluída e o aviso vem aqui, com o caminho para o Portal.
+  // Não conta como pendência do trilho (DOCUMENTAL_CORE_KEYS).
+  const demurrageHeld = portalVisibility?.billingReady === false
+    && INVOICED_FINANCIAL_STATUSES.has(bl.financial_status ?? '')
+    && bl.cargo_mode !== 'carga_solta'
+    && Boolean(bl.customer_id)
+  if (demurrageHeld) {
+    const held = 'Portal não está pronto e sem Liberação de faturamento'
+    rail.push({
+      key: 'demurrage',
+      label: 'Demurrage',
+      detail: demurrageInvoices.length > 0 ? `${demurrageInvoices.length} invoice(s) · nova Invoice retida: ${held}` : `Retida: ${held}`,
+      state: 'blocked',
+      href: `/clientes/portal?cliente=${bl.customer_id}`,
+    })
+  } else if (demurrageInvoices.length > 0) {
     const allPaid = demurrageInvoices.every((d) => d.status === 'paid')
     rail.push({ key: 'demurrage', label: 'Demurrage', detail: `${demurrageInvoices.length} invoice(s)${allPaid ? ' pagas' : ''}`, state: allPaid ? 'done' : 'pending', href: fichaFat })
   }
