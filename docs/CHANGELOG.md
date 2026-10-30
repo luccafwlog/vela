@@ -6,6 +6,77 @@
 
 ## 2026-10
 
+- **Veículos, vazios de importação, Granito e carga em transbordo chegam ao ADR por terminal (2026-10-30,
+  migrations `537` a `540`):** no teste do dono em BRVIX, os veículos e os vazios de importação estavam nos
+  cards do porto da aba Importação e não no ADR do terminal. A seção Veículos dependia de uma frente de Veículos
+  que nunca nascia; pela regra do dono, veículo não tem frente própria (viaja em container) e a seção passa a
+  seguir a frente de Carga cheia, salvo exceção de terminal do B/L. A frente derivada dos dados e ainda sem
+  terminal (o vazio importado depois da última gravação da escala, por exemplo) deixava a seção dizendo "Não há
+  frente atribuída a este terminal." e o ADR fechava sem o dado: agora a seção e o bloco ADR avisam "Sem
+  terminal (TBC)", **Fechar ADR** fica desabilitado e o banco recusa o fechamento. A frente de Granito nasce
+  também do Granito importado no porto, e **Editar escala** abre com o Granito declarado nesse caso; a carga em
+  transbordo de escala omitida cria as frentes do porto onde descarrega; o B/L com exceção de terminal leva a
+  carga e os veículos dele ao ADR do terminal da exceção; e a escala com carga só em transbordo ou só de Granito
+  não abre mais ADR legado sem terminal pela API. Mapa completo em
+  [archive/audits/viagem-terminal-adr-2026-10-30.md](archive/audits/viagem-terminal-adr-2026-10-30.md); regra em
+  [Viagens](modules/viagens.md#agency-departure-report-adr). **Teste local-pg:**
+  `adrFrenteDerivadaSemTerminal.local-pg.test.ts`.
+- **Repaginação da Demurrage (2026-10-29 a 2026-10-30, migrations `514` a `531`; [ADR 0112](adr/0112-repaginacao-da-demurrage.md),
+  PR luccafwlog/vela#1113):** cadastro **Tipos de container** e uma tarifa por grupo; a aba **Containers** se
+  divide em Correndo, A emitir, Esperando e Travado, pela classificação do banco, com o Alerta **Demurrage
+  travada**; cancelar B/L com sobreestadia sem Invoice é recusado e qualquer setor dispensa a cobrança de uma
+  caixa; **Faturas**, **Pagas** (meio de pagamento, ROE do pagamento, dias até pagar) e **Canceladas** (motivo,
+  quem cancelou, destino das caixas) ganham colunas e filtros; **Por Cliente** soma o que não foi faturado e
+  **Imprimir relatório** vira o extrato do Cliente; `/relatorios` tem Exposição, Invoices corrigido e Itens por
+  container, e cada aba exporta o que mostra; **Disputas** em tabela, canceladas com a Invoice, uma conversa
+  por Invoice e prazo de 1 dia útil com Alerta; caixa dividida entre Clientes rateada em partes iguais; container
+  que vira SOC depois de faturado segue a regra das datas alteradas. Ver [Demurrage](modules/demurrage.md).
+  Na revisão final (migrations `526` a `531`): a emissão automática de A emitir passou a emitir de fato e sem
+  repetição; o Alerta de Travado deixou de deixar as planilhas de datas, CE e Base de Clientes lentas; a tarifa
+  não depende mais do cadastro de tipos; e as decisões do dono sobre B/L cancelado de quem já pagou a parte,
+  Invoice cancelada à mão, dispensa na troca de Cliente e cancelamento de B/L sem Cliente.
+- **Disparo de Comunicados parte de uma Viagem escolhida (2026-10-30, sem migration; revisão da comunicação
+  manual pedida pelo dono):** em `/clientes/comunicacao` › **Disparo**, **Navio / Viagem** passa a ser a peça
+  comum `VoyageCombobox` (escolha pelo id, como em BLs e Revisão) e é obrigatório no modo Carga; **POL** e
+  **POD** viram listas com **Todos** e os portos da carga da Viagem, comparados normalizados. Antes o campo era
+  texto casado por trecho — a viagem "6" trazia também a 16 e a 26 do mesmo navio, sem a tabela mostrar de que
+  viagem era cada linha — e um POD sozinho alcançava toda viagem já feita para o porto. A conferência mostra o
+  **Porto** de cada linha, avisa os B/Ls da Viagem sem Cliente e, vazia, diz o motivo ("Nenhum dos N B/Ls ativos
+  da Viagem tem Cliente vinculado…", escala sem ETA, ATA ou ATB) em vez de "Nenhuma carga atende aos critérios
+  informados."; o lote conta "Enviando N de M…" e fechar a página no meio pede confirmação. Na **Cobertura de
+  viagens**, a coluna **Sem Cliente** passa a contar os B/Ls ativos sem Cliente vinculado, por porto e por
+  consignatário do manifesto, como pendência (nenhum Comunicado sai para eles); antes a Viagem só com B/Ls sem
+  Cliente aparecia como "nada devido". A Cobertura fica só com o resumo, e o navio/viagem abre a nova página
+  **Comunicados da viagem** (`/clientes/comunicacao/viagens/:voyageId`): B/Ls sem Cliente por consignatário com
+  **Vincular na Revisão**, um bloco por porto com cada Cliente e a situação de cada Comunicado, o histórico da
+  viagem e **Disparar**, que abre o Disparo com a Viagem e o porto já escolhidos. Ver
+  [Clientes](modules/clientes.md#clientescomunicacaoviagensvoyageid).
+- **Escala com LOCODE brasileiro fora da lista continua no Planejamento (2026-10-29, sem migration):**
+  a escala com porto brasileiro bem formado que o Vela não conhece (por exemplo `BRXYZ`) era gravada,
+  mas sumia do **Planejamento por escala** da ficha da Viagem ao recarregar a página: a leitura só
+  reconhecia os portos da lista. A leitura passa a aceitar o mesmo código que a gravação
+  (`escalaPortCode`); BRVIT e BRVIX continuam sendo a mesma escala, e as atracações e a exclusão da
+  escala ficam na mesma chave. Ver [Viagens](modules/viagens.md).
+- **"Não escala" do Administrativo respeita a âncora da escala também no banco (2026-10-29, migration `513`;
+  decisão D2 do dono na revisão da PR luccafwlog/vela#1084):** em **Chegadas e Saídas**, a escala com B/L (POD
+  ou POL), ATA, ATD, Vinculada ou terminais salvos não sai da Viagem pelo "Não escala": a tela já tirava só a
+  data prevista, mas a conferência era só dela. O gatilho `guard_pod_schedule_removal_mark` passa a recusar
+  com "Escala … travada: …", e a tela conta o B/L que tem o porto como POL. O **Excluir escala** segue com a
+  régua dele. Ver [Chegadas e Saídas](modules/chegadas-saidas.md). **Teste local-pg:**
+  `naoEscalaComAncora.local-pg.test.ts`.
+- **Ficha do B/L: etapa Demurrage avisa a Invoice retida pela trava do Portal (2026-10-29, sem migration;
+  decisão D1 do dono na revisão da PR luccafwlog/vela#1084):** no B/L faturado com container cujo Cliente não
+  tem Portal pronto nem Liberação de faturamento, a etapa **Cliente** do trilho continua concluída ("B/L
+  faturado · Portal não está ativo"), e a etapa **Demurrage** passa a dizer "Retida: Portal não está pronto e
+  sem Liberação de faturamento", com o link para o Provisionamento do Portal: a Invoice de Demurrage passa
+  pela trava do Portal e seria recusada. O aviso não conta como pendência do trilho. Ver
+  [Manifesto e EDI](modules/manifesto-edi.md).
+- **Carga solta com B/L cancelado em outra Viagem: o aviso manda excluir lá (2026-10-29, sem migration;
+  decisão D3 do dono na revisão da PR luccafwlog/vela#1084):** no **Manifesto BB** e no **B/L avulso**, o B/L
+  do arquivo que está cancelado em outra Viagem continua com a linha ignorada (o resto entra), mas o aviso
+  deixa de mandar reativar pela ficha, o que poria o B/L de volta na outra Viagem, e passa a dizer "O
+  número continua lá: para importar nesta Viagem, exclua o B/L na Viagem … (Administrativo) e importe de
+  novo.", como o arquivo de B/L de container. Ver [Manifesto e EDI](modules/manifesto-edi.md).
 - **Omissão, transbordo e COD: a tela mostra o motivo da recusa (2026-10-28, sem migration, PR
   luccafwlog/vela#1085):** **Omitir escala**, **Complementar**, **Reverter omissão**, **Marcar COD** e
   **Reverter para transbordo** recusados pelo banco mostram o motivo da recusa, pelo mesmo tradutor das

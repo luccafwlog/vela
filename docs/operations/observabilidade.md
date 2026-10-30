@@ -11,7 +11,7 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   valores aninhados e URLs, usada pelo browser e pelas Edge Functions;
 - `src/lib/telemetry.ts` captura erros de browser em builds de produção,
   remove query strings e redige CNPJ, CPF e e-mail;
-- catorze Edge Functions têm wrapper repository-side (`instrumentEdgeHandler`) que reporta exceções não
+- dezesseis Edge Functions têm wrapper repository-side (`instrumentEdgeHandler`) que reporta exceções não
   tratadas e respostas HTTP 5xx apenas se `SENTRY_DSN` estiver configurado;
   erros brutos, corpo/resposta HTTP, usuário e headers não são enviados;
 - o helper Edge carrega o SDK Sentry sob demanda e fica em no-op sem `SENTRY_DSN`;
@@ -117,8 +117,17 @@ enfileirar o POST no `pg_net`, não quando a Edge Function responde bem. A
 resposta fica em `net._http_response` por cerca de 6 horas. Desde a migration
 `310`, o job SQL `http-job-failures` (a cada 15 min) lê essa tabela e abre o
 Alerta crítico `rotina_http_falhou` (Administrativo) quando, na última hora, há
-resposta fora de 2xx ou falha sem resposta que não seja tempo esgotado; ele
-fecha sozinho quando a hora fica limpa. Desde a migration `316`, tempo esgotado
+duas ou mais respostas fora de 2xx ou falhas sem resposta que não sejam tempo
+esgotado; ele fecha sozinho quando a hora fica limpa. Desde a migration `533`
+(decisão do dono de 2026-10-30), uma falha isolada não abre: a `itau-pix`, de
+minuto, falhava sozinha uma ou duas vezes por dia e acertava na rodada seguinte.
+O limiar soma as respostas de todas as rotinas da hora, porque o `pg_net` não
+guarda qual job chamou. Por isso, desde a migration `534` (decisão do dono de
+2026-10-30), uma única resposta 401 ou 403 abre: é segredo divergente, que não
+se resolve sozinho, e a rotina diária (`ce-unlock-cleanup`,
+`recalc-demurrage-ptax`) nunca chegaria a duas. Outro erro isolado de rotina
+diária ainda não abre; a melhoria é o dispatcher gravar o job de cada pedido e
+o limiar passar a ser por job. Desde a migration `316`, tempo esgotado
 isolado não abre o Alerta: o `pg_net` desiste aos 30 s, mas a Edge Function
 continua a rodada, e o runner dos Comunicados e a Régua de Cobrança passam
 disso num lote grande. Abrem o Alerta 10 ou mais tempos esgotados na hora (só
@@ -162,7 +171,12 @@ falha com exceção não
 tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
 `portal-password-recovery`, `portal-recovery-email-change`,
 `send-customer-communication`, `portal-email-webhook`, `demurrage-dunning`,
-`ce-unlock-notify-email`, `itau-pix` e seis runners. Em `portal-password-recovery`, o envio roda depois da resposta
+`ce-unlock-notify-email`, `itau-pix`, seis runners e, desde a
+[ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md),
+os widgets públicos `public-ship-schedule` e `public-container-lookup`. Nos
+widgets, recusa esperada não é 5xx: limite por IP e disjuntor global da busca
+respondem 429 e não viram evento; o 503 fica para Upstash, banco ou
+configuração em falta. Em `portal-password-recovery`, o envio roda depois da resposta
 (`EdgeRuntime.waitUntil`); a falha desse trabalho em segundo plano é enviada
 direto por `captureEdgeException`. Cada evento leva o fingerprint
 `['edge', função, status]` (`_shared/telemetryScope.ts`), para o Sentry não
@@ -185,15 +199,19 @@ correção, toda rodada boa respondia 500 sem log nem evento
 Cada falha da rotina vira uma linha JSON no log da função, com `function`,
 `step` (`charges`, `receipts` ou, quando a chamada inteira falha, a ação pedida:
 `routine` no job, `process_charges` no disparo da fila ou a de diagnóstico) e
-`error`.
+`error`. Quando a manutenção dos prazos (`itau_pix_maintain`) falha, sai antes
+uma linha `maintenance` com a mensagem do banco em `error` e o código em
+`detail.code`; a resposta 500 continua com a mensagem genérica.
 As falhas que a rotina absorve sem mudar o status vão direto por
 `captureEdgeException`, um issue por etapa: `runner_release` (devolução da vez),
 `charges_renew` (renovação da vez) e `charges_release` (liberação das reservas
 não chamadas). `supabase/functions/itau-pix/index.test.ts` confere o status, o
 log e o envelope enviado a um Sentry falso.
-As catorze entradas em `supabase/config.toml` apontam para o manifesto Deno
+As dezesseis entradas em `supabase/config.toml` apontam para o manifesto Deno
 compartilhado em `supabase/functions/deno.json`; a configuração não altera
-`verify_jwt` nem os contratos HTTP.
+`verify_jwt` nem os contratos HTTP. `edgeTelemetryConfiguration.test.ts` tira
+a lista das `supabase/functions/*/index.ts` que chamam `instrumentEdgeHandler`,
+então função nova com o wrapper e sem o import map derruba o teste.
 
 O segredo server-side `SENTRY_DSN` e `SENTRY_ENVIRONMENT=production` foram
 configurados no Supabase de produção em 2026-09-24. O SDK Deno não faz escopo

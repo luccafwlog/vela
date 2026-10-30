@@ -14,6 +14,7 @@ import {
   buildVoyagePodEntityId,
   listVoyagePodSchedules,
   listVoyagePolSchedules,
+  makeEmptyPodSchedule,
   projectVoyageEscalaSchedules,
   saveVoyageEscalaSchedule,
   saveVoyagePodSchedule,
@@ -940,5 +941,35 @@ describe('escala com LOCODE brasileiro fora da lista conhecida', () => {
       voyageId: 7, port: 'BR12', eta: null, ata: null, linked: false, temImportacao: true, changedBy: 'u1',
     })).rejects.toMatchObject({ code: '22023', message: 'LOCODE brasileiro invalido: BR12.' })
     expect(recordAuditEntriesMock).not.toHaveBeenCalled()
+  })
+
+  // A leitura aceita o que a gravação aceita: sem isto a escala BRXYZ era
+  // gravada e sumia do Planejamento por escala ao recarregar.
+  it('a escala gravada continua na projeção, com a atracação e a exclusão na mesma chave', () => {
+    const gravada = { ...makeEmptyPodSchedule(buildVoyagePodEntityId(7, 'BRXYZ')), eta: '2026-11-01T08:00:00Z' }
+    const atracacao = {
+      voyageId: 7, port: 'brxyz', stateId: 's1', terminalId: 't1', terminalCode: 'T1',
+      terminalEtb: null, terminalAtb: '2026-11-01T10:00:00Z', terminalEtd: null,
+      terminalAtd: null, terminalRtw: null, revision: 0,
+    }
+    const escalas = projectVoyageEscalaSchedules({ podSchedules: [gravada], terminalStates: [atracacao] })
+    expect(escalas).toEqual([expect.objectContaining({ voyageId: 7, port: 'BRXYZ', eta: '2026-11-01T08:00:00Z' })])
+    expect(escalas[0].atracacoes).toHaveLength(1)
+
+    expect(projectVoyageEscalaSchedules({
+      podSchedules: [
+        { ...gravada, lastChangedAt: '2026-10-19T09:00:00Z' },
+        { ...gravada, deleted: true, lastChangedAt: '2026-10-19T10:00:00Z' },
+      ],
+    })).toEqual([])
+  })
+
+  it('código fora do formato brasileiro continua fora da projeção', () => {
+    expect(projectVoyageEscalaSchedules({
+      podSchedules: [
+        { ...makeEmptyPodSchedule('7::USXYZ'), eta: '2026-11-01T08:00:00Z' },
+        { ...makeEmptyPodSchedule('7::BR12'), eta: '2026-11-01T08:00:00Z' },
+      ],
+    })).toEqual([])
   })
 })

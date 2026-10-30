@@ -1,14 +1,19 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button'
-import { Field, Input } from '../ui/Input'
+import { Field, Input, Select } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import type { DemurrageRate } from '../../types/database'
 import type { DemurrageRateUpsertInput } from '../../services/demurrage/demurrageRateUpsertPayload'
+import type { DemurrageRateGroup } from '../../services/demurrage/containerTypes'
 import { toDraftFromRate, validateRateDraft, type RateDraft, type RateErrors } from './demurrageFormRules'
 
 type Props = {
   open: boolean
   rate: DemurrageRate | null
+  /** Grupos de tarifa (uma tarifa por grupo, ADR 0112 D28). */
+  groups: DemurrageRateGroup[]
+  /** Códigos ativos de cada grupo, para dizer o que a tarifa cobre. */
+  codesByGroup?: Map<string, string[]>
   saving: boolean
   error?: string | null
   /** Qualquer edição apaga a recusa da gravação anterior. */
@@ -17,7 +22,7 @@ type Props = {
   onSubmit: (input: Omit<DemurrageRateUpsertInput, 'id' | 'active'>) => void
 }
 
-function RateForm({ rate, saving, error, onDraftChange, onClose, onSubmit }: Omit<Props, 'open'>) {
+function RateForm({ rate, groups, codesByGroup, saving, error, onDraftChange, onClose, onSubmit }: Omit<Props, 'open'>) {
   const [draft, setDraft] = useState<RateDraft>(() => toDraftFromRate(rate))
   const [errors, setErrors] = useState<RateErrors>({})
 
@@ -39,8 +44,11 @@ function RateForm({ rate, saving, error, onDraftChange, onClose, onSubmit }: Omi
   return (
     <form className="app-dem-form" noValidate onSubmit={(event) => { event.preventDefault(); submit() }}>
       <div className="app-dem-form__grid">
-        <Field label="Tipo de container" required error={errors.container_type} hint="Código ISO ou grupo, como 20GP, 40HC ou 40RF.">
-          <Input value={draft.container_type} onChange={(event) => set('container_type', event.target.value.toUpperCase())} placeholder="20GP" className="app-dem-code" />
+        <Field label="Grupo de tarifa" required error={errors.container_type} hint={draft.container_type && codesByGroup?.get(draft.container_type)?.length ? `Cobre ${codesByGroup.get(draft.container_type)!.join(', ')}.` : 'Os tipos de cada grupo ficam em Tipos de container.'}>
+          <Select value={draft.container_type} onChange={(event) => set('container_type', event.target.value)}>
+            <option value="">Escolha o grupo</option>
+            {groups.map((group) => <option key={group.code} value={group.code}>{group.name}</option>)}
+          </Select>
         </Field>
         <Field label="Free time (dias)" required error={errors.free_days}>
           <Input inputMode="numeric" value={draft.free_days} onChange={(event) => set('free_days', event.target.value)} />
@@ -94,7 +102,7 @@ function RateForm({ rate, saving, error, onDraftChange, onClose, onSubmit }: Omi
 
 export function DemurrageRateModal({ open, rate, ...props }: Props) {
   return (
-    <Modal open={open} onClose={() => { if (!props.saving) props.onClose() }} title={rate ? `Tarifa ${rate.container_type}` : 'Nova tarifa de Demurrage'} size="md">
+    <Modal open={open} onClose={() => { if (!props.saving) props.onClose() }} title={rate ? `Tarifa ${props.groups.find((group) => group.code === rate.container_type)?.name ?? rate.container_type}` : 'Nova tarifa de Demurrage'} size="md">
       {open ? <RateForm key={rate?.id ?? 'new'} rate={rate} {...props} /> : null}
     </Modal>
   )

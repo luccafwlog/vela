@@ -4,7 +4,9 @@ import { saoPauloTodayIso } from '../../lib/dates'
 import { ensureDemurrageRatesLoaded } from './demurrageRates'
 import { selectAgreementForDischargeDate } from './customerDemurrageAgreements'
 import { demurrageBoxKey } from './demurrageBoxKey'
+import { readAllPages as readAll } from './demurragePages'
 import { indexBilledBoxes, type DemurrageBilledInvoiceRef, type DemurrageContainerRow } from './demurrageContainers'
+import { listDemurrageBillingBoard } from './demurrageBoard'
 import { containerFreeTimeDays, daysSince, effectiveDemurrage, freeTimeSource, FREE_TIME_SOURCE_LABELS } from './demurragePresentation'
 
 /**
@@ -20,26 +22,13 @@ const SELECT = `
     demurrage_rate_override_p1_usd, demurrage_rate_override_p2_usd,
     demurrage_roe_manual, demurrage_roe, voyage_id, customer_id, cancelled_at,
     customer:${CUSTOMER_OF_BL}(id, name, cnpj_cpf),
-    voyage:voyages(id, voyage_number, vessel:vessels(id, name))
+    voyage:voyages(id, voyage_number, status, vessel:vessels(id, name))
   )
 `
 
-const PAGE = 1000
-
-async function readAll<T>(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
-  const rows: T[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await page(from, from + PAGE - 1)
-    if (error) throw error
-    const chunk = (data ?? []) as T[]
-    rows.push(...chunk)
-    if (chunk.length < PAGE) return rows
-  }
-}
-
 export async function listCustomerContainers(customerId: number): Promise<DemurrageContainerRow[]> {
   await ensureDemurrageRatesLoaded()
-  const [containers, items, agreements] = await Promise.all([
+  const [containers, items, agreements, board] = await Promise.all([
     readAll<DemurrageContainerRow & { bl: { customer_id: number | null; cancelled_at: string | null } | null }>((from, to) => supabase
       .from('bl_containers')
       .select(SELECT)
@@ -63,8 +52,12 @@ export async function listCustomerContainers(customerId: number): Promise<Demurr
       .order('valid_from', { ascending: false })
       .order('id', { ascending: false })
       .range(from, to)),
+    // Caixa dividida entre Clientes (D19, migration 521): a parte do Cliente vem da classificação.
+    listDemurrageBillingBoard({ customerId }),
   ])
   const billed = indexBilledBoxes(items)
+  const shares = new Map<string, number>(board.flatMap((group) => group.boxes.map((box) =>
+    [`${group.voyage_id}|${box.container_number.trim().toUpperCase()}`, Math.max(1, Number(box.box_share_count ?? 1))] as [string, number])))
   return containers.map((row) => {
     const agreement = selectAgreementForDischargeDate(agreements, row.discharge_date)
     const key = demurrageBoxKey(row.bl?.voyage_id, customerId, row.container_number)
@@ -72,6 +65,7 @@ export async function listCustomerContainers(customerId: number): Promise<Demurr
       ...row,
       customer_agreement: agreement ? { id: agreement.id, free_days: agreement.free_days, p1_usd: agreement.p1_usd, p2_usd: agreement.p2_usd } : null,
       billed_in: key ? billed.get(key) ?? [] : [],
+      box_share_count: shares.get(`${row.bl?.voyage_id}|${(row.container_number ?? '').trim().toUpperCase()}`) ?? 1,
     }
   })
 }
@@ -106,9 +100,14 @@ export function customerContainerView(row: DemurrageContainerRow, today = saoPau
   // A fatura viva que cobra a caixa vence o valor previsto; a mais recente primeiro.
   const invoice = [...(row.billed_in ?? [])].sort((left, right) => right.id - left.id)[0]
   if (invoice) return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'invoice', invoice } }
+  // Viagem cancelada não cobra Demurrage (gatilho da migration 200): sem
+  // Invoice, a caixa não está "correndo" nem "a faturar".
+  const voyage = row.bl?.voyage as { status?: string | null } | null | undefined
+  if (voyage?.status === 'cancelled') return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime: false, demurrage: { kind: 'none' } }
   let usd: number
   try {
-    usd = effectiveDemurrage(row, row.customer_agreement, today)?.total_usd ?? 0
+    const share = Math.max(1, row.box_share_count ?? 1)
+    usd = Math.round(((effectiveDemurrage(row, row.customer_agreement, today)?.total_usd ?? 0) / share) * 100) / 100
   } catch (error) {
     return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'error', message: error instanceof Error ? error.message : String(error) } }
   }

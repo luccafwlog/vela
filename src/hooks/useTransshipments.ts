@@ -66,6 +66,9 @@ function invalidateVoyageOmissionCaches(
   queryClient.invalidateQueries({ queryKey: queryKeys.voyages.escalaSchedules() })
   queryClient.invalidateQueries({ queryKey: queryKeys.voyages.escalaTerminalAll() })
   queryClient.invalidateQueries({ queryKey: queryKeys.agencyReports.all() })
+  // O B/L em transbordo cria as frentes do porto onde descarrega: omitir a
+  // escala, mudar o transbordo ou reverter a omissão muda as frentes do ADR.
+  queryClient.invalidateQueries({ queryKey: ['agency-report-terminal-state'] })
   queryClient.invalidateQueries({ queryKey: ['voyage-timeline'] })
   queryClient.invalidateQueries({ queryKey: ['voyages'] })
   queryClient.invalidateQueries({ queryKey: ['bls'] })

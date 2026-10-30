@@ -27,6 +27,8 @@ export type ActiveAlertType =
   | 'import_effects_queue_stalled'
   | 'itau_pix_consulta_parada'
   | 'demurrage_invoice_dates_changed'
+  | 'demurrage_travado'
+  | 'demurrage_disputa_prazo'
   | 'cobranca_demurrage_recusada'
   | 'ce_trocado_com_desbloqueio'
   | 'ce_fora_do_manifesto_da_rota'
@@ -51,6 +53,7 @@ export type ActiveAlertType =
   | 'comunicado_recusado'
   | 'desbloqueio_ce_aviso_nao_enviado'
   | 'email_retorno_provedor_silencioso'
+  | 'email_retorno_nao_aplicado'
   | 'usuario_email_devolvido'
   | 'rotina_http_falhou'
   | 'agency_report_department_pending'
@@ -91,6 +94,8 @@ export const TYPE_LABELS: Record<string, string> = {
   import_effects_queue_stalled: 'Fila de efeitos de importação parada',
   itau_pix_consulta_parada: 'Consulta de Pix do Itaú parada',
   demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
+  demurrage_travado: 'Demurrage travada',
+  demurrage_disputa_prazo: 'Disputa de Demurrage sem resposta no prazo',
   cobranca_demurrage_recusada: 'Cobrança de Demurrage recusada',
   ce_trocado_com_desbloqueio: 'CE trocado depois do Desbloqueio conferido',
   ce_fora_do_manifesto_da_rota: 'CE fora do Manifesto da rota',
@@ -111,6 +116,7 @@ export const TYPE_LABELS: Record<string, string> = {
   comunicado_nob_pendente: 'Comunicado NOB pendente',
   comunicado_recusado: 'Comunicado automático recusado',
   email_retorno_provedor_silencioso: 'Provedor de e-mail sem retorno',
+  email_retorno_nao_aplicado: 'Retorno do provedor de e-mail não aplicado',
   usuario_email_devolvido: 'Usuário interno com e-mail devolvido',
   rotina_http_falhou: 'Rotina agendada com resposta de erro',
   desbloqueio_ce_aviso_nao_enviado: 'Aviso do Desbloqueio de CE não enviado',
@@ -158,7 +164,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   email_provider: 'Provedor de e-mail',
   user_profile: 'Usuário interno',
   cron_http: 'Rotinas agendadas',
-  portal_email_event: 'Evento de e-mail',
+  portal_email_event: 'E-mail',
 }
 
 export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
@@ -281,7 +287,11 @@ export function formatAlertEntity(
   }
   const label = ENTITY_TYPE_LABELS[entityType]
   if (label) {
-    return `${label} ${resolveEntityLabel(labels, entityType, entityId) ?? entityId}`
+    const resolved = resolveEntityLabel(labels, entityType, entityId)
+    // Alerta anterior à migration 535 não gravou o destinatário: "E-mail 180"
+    // parecia o número do e-mail, mas o id é o do evento do provedor.
+    if (!resolved && entityType === 'portal_email_event') return `Evento de e-mail ${entityId}`
+    return `${label} ${resolved ?? entityId}`
   }
   return null
 }
@@ -438,11 +448,11 @@ function alertEntityLinkRaw(alert: {
   }
 
   if (alert.entity_type === 'pix_transaction' || alert.entity_type === 'itau_pix_receipt') return PIX_PENDING_HREF
-  // Evento do provedor de e-mail que foi para investigação (migrations 109 e
-  // 309): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
+  // Evento do provedor de e-mail que foi para investigação (migrations 109, 309
+  // e 535): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
   // mostra o evento. O alerta fica na fila, com o motivo na mensagem.
   if (alert.entity_type === 'portal_email_event') return '/alertas'
-  if (effectiveType === 'portal_dispute_opened' && alert.entity_type === 'demurrage_invoice') {
+  if ((effectiveType === 'portal_dispute_opened' || effectiveType === 'demurrage_disputa_prazo') && alert.entity_type === 'demurrage_invoice') {
     const disputeId = alert.metadata?.dispute_id
     return typeof disputeId === 'string' || typeof disputeId === 'number'
       ? `/demurrage?dispute=${encodeURIComponent(String(disputeId))}`
@@ -499,6 +509,8 @@ function alertEntityLinkRaw(alert: {
   }
   if (alert.entity_type === 'invoice') return invoiceLink(alert)
   if (alert.entity_type === 'container') return `/demurrage?busca=${encodeURIComponent(alert.entity_id)}`
+  // Demurrage travada (migration 516): a divisão Travado já buscando o B/L do grupo.
+  if (effectiveType === 'demurrage_travado') return `/demurrage?divisao=travado&busca=${encodeURIComponent(alert.entity_id)}`
   if (alert.entity_type === 'bl') return `/bls/${encodeURIComponent(alert.entity_id)}`
   if (alert.entity_type === 'granite_bl') return '/granito'
   // A Invoice abre direto no detalhe de /demurrage (etapa 11).
@@ -573,6 +585,8 @@ export function alertEntityLinkLabel(alert: {
   if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType)) return 'Abrir Cliente'
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
   if (effectiveType === 'voyage_vehicle_sheet_pending') return 'Abrir Veículos'
+  if (effectiveType === 'demurrage_travado') return 'Abrir Demurrage'
+  if (effectiveType === 'demurrage_disputa_prazo') return 'Abrir Disputa'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'
   }
@@ -691,6 +705,8 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'comunicado_recusado',
   // Conferência da taxa alterada à mão que uma mudança de base afetou (migration 495).
   'taxa_alterada_mudou',
+  // Retorno do provedor de e-mail que nenhuma rotina tira da investigação (migration 535).
+  'email_retorno_nao_aplicado',
   // Origem fora do alcance da equipe pela tela (migration 476, ponto 3 do dono):
   // depois da justificativa, só reabrem se a causa sumir e voltar.
   'itau_pix_consulta_parada',
@@ -962,6 +978,13 @@ function pixLabelFromMetadata(metadata: Record<string, unknown> | null | undefin
   return null
 }
 
+// O id do evento do provedor não diz nada à equipe: o Registro mostra o
+// destinatário mascarado que o alerta grava desde a migration 535.
+function emailEventLabelFromMetadata(metadata: Record<string, unknown> | null | undefined): string | null {
+  const recipient = metadata?.recipient_masked
+  return typeof recipient === 'string' && recipient.trim().length > 0 ? recipient.trim() : null
+}
+
 /**
  * Busca em lote os rótulos humanos das entidades citadas na página de alertas.
  * ponytail: uma consulta por tabela envolvida, no máximo uma página de 100
@@ -973,9 +996,11 @@ export async function fetchAlertEntityLabels(rows: AlertEntityRef[]): Promise<Al
   if (rows.length === 0) return labels
 
   for (const row of rows) {
-    if (row.entity_type !== 'pix_transaction' || !row.entity_id) continue
-    const label = pixLabelFromMetadata(row.metadata)
-    if (label) labels[`pix_transaction:${row.entity_id}`] = label
+    if (!row.entity_id) continue
+    const label = row.entity_type === 'pix_transaction' ? pixLabelFromMetadata(row.metadata)
+      : row.entity_type === 'portal_email_event' ? emailEventLabelFromMetadata(row.metadata)
+      : null
+    if (label) labels[`${row.entity_type}:${row.entity_id}`] = label
   }
 
   const voyageIds = Array.from(new Set(rows.map(voyageIdOf).filter((id): id is string => id !== null)))

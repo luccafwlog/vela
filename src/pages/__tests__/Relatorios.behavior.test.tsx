@@ -63,10 +63,10 @@ beforeEach(() => {
   queryState['demurrage-report'] = {
     data: {
       load: { loaded: 2, total: 2 },
-      kpis: { totalUsd: 100, billedBrl: 500, paidBrl: 0 },
+      kpis: { netUsd: 100, invoices: 1, openBrl: 500, paidBrl: 0 },
       rows: [
-        { id: 1, doc_number: 'DEM-1', bl_id: 'BL-9', status: 'issued', total_usd: 100, current_total_brl: 500, doc_date: '2026-05-10', due_date: null, customer: { name: 'Cliente Dem' } },
-        { id: 2, doc_number: 'DEM-2', bl_id: 'BL-8', status: 'cancelled', total_usd: 900, current_total_brl: 4500, doc_date: '2026-05-11', due_date: null, customer: { name: 'Cliente Cancelado' } },
+        { id: 1, doc_number: 'DEM-1', bl_id: 'BL-9', status: 'issued', total_usd: 100, net_usd: 100, discount_usd: 0, kind: { label: 'Normal', doc: null }, current_total_brl: 500, billed_at: '2026-05-10T12:00:00Z', customer: { name: 'Cliente Dem' } },
+        { id: 2, doc_number: 'DEM-2', bl_id: 'BL-8', status: 'cancelled', total_usd: 900, net_usd: 900, discount_usd: 0, kind: { label: 'Substitui', doc: 'DEM-0' }, current_total_brl: 4500, billed_at: '2026-05-11T12:00:00Z', customer: { name: 'Cliente Cancelado' } },
       ],
     },
   }
@@ -120,24 +120,45 @@ it('abre a visão e os filtros do endereço, e a troca de aba mantém período, 
   renderPage('/relatorios?visao=demurrage&de=2026-05-01&ate=2026-05-31&cliente=7&clienteNome=ACME&situacao=paid')
 
   expect(screen.getByRole('tab', { name: 'Demurrage' }).getAttribute('aria-selected')).toBe('true')
-  expect((screen.getByLabelText('Data do documento de') as HTMLInputElement).value).toBe('2026-05-01')
+  expect((screen.getByLabelText('Emissão de') as HTMLInputElement).value).toBe('2026-05-01')
   expect(screen.getByText(/Filtros ativos: .*Cliente ACME.*Situação Pago/)).toBeTruthy()
 
   fireEvent.click(screen.getByRole('tab', { name: 'Operacional' }))
   expect(screen.getByTestId('location').textContent).toBe('?de=2026-05-01&ate=2026-05-31&cliente=7&clienteNome=ACME')
 })
 
-it('US-142: Demurrage lista as invoices com link e totais sem as canceladas', () => {
+it('US-142: Demurrage lista as invoices com link e totais sem as canceladas (D13)', () => {
   renderPage('/relatorios?visao=demurrage')
 
+  expect(screen.getByRole('radio', { name: 'Invoices' }).getAttribute('aria-checked')).toBe('true')
   expect(screen.getByRole('link', { name: 'DEM-1' }).getAttribute('href')).toBe('/demurrage?fatura=1')
   expect(screen.getByRole('link', { name: 'BL-9' })).toBeTruthy()
   expect(screen.getByText('Cliente Dem')).toBeTruthy()
-  expect(screen.getByRole('columnheader', { name: 'Total US$' })).toBeTruthy()
-  expect(screen.getByText('DEM-2')).toBeTruthy()
-  expect(screen.getByText('Total US$ (exceto canceladas)').nextSibling?.textContent).toContain('100,00')
-  expect(screen.getByText('Faturado (R$)').nextSibling?.textContent).toContain('500,00')
-  expect(screen.getByText('Recebido (R$)').nextSibling?.textContent).toContain('0,00')
+  expect(screen.getByRole('columnheader', { name: 'USD líquido' })).toBeTruthy()
+  expect(screen.queryByRole('columnheader', { name: 'Vencimento' })).toBeNull()
+  expect(screen.getByText('Substitui DEM-0')).toBeTruthy()
+  expect(screen.getByText('USD líquido (exceto canceladas)').nextSibling?.textContent).toContain('100,00')
+  expect(screen.getByText('Faturas (exceto canceladas)').nextSibling?.textContent).toBe('1')
+  expect(screen.getByText('Em aberto (R$ hoje)').nextSibling?.textContent).toContain('500,00')
+  expect(screen.queryByLabelText('Vencidas')).toBeNull()
+})
+
+it('Exposição: uma linha por caixa sem Invoice e o total por divisão (D13)', () => {
+  queryState['demurrage-report'] = {
+    data: {
+      rows: [{ container_id: 1, division: 'travado', reason: 'Tipo 48FR sem tarifa.', customer_name: 'Cliente X', voyage_label: 'NAVIO / 1', bl_id: 'BL-5', container_number: 'MSCU1', state: 'no_rate', usd: null, discharge_date: '2026-10-01', return_date: null, total_days: 29, free_days: null }],
+      byDivision: { correndo: { boxes: 0, usd: 0 }, a_emitir: { boxes: 0, usd: 0 }, esperando: { boxes: 0, usd: 0 }, travado: { boxes: 1, usd: 0 } },
+      byCustomer: [{ customer_id: 3, customer_name: 'Cliente X', boxes: 1, usd: 0 }],
+    },
+  }
+  renderPage('/relatorios?visao=demurrage&recorte=exposicao')
+
+  expect(screen.getByRole('radio', { name: 'Exposição' }).getAttribute('aria-checked')).toBe('true')
+  expect(screen.getByText('Travado (US$)')).toBeTruthy()
+  expect(screen.getByText('MSCU1')).toBeTruthy()
+  expect(screen.getByText('Tipo sem tarifa')).toBeTruthy()
+  expect(screen.getByText('Fora')).toBeTruthy()
+  expect(screen.getByText(/o período não se aplica/)).toBeTruthy()
 })
 
 it('R2: aviso âmbar diz quantas linhas faltam e que a planilha traz todas', () => {

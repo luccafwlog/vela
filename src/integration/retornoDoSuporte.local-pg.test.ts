@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 // retorno do provedor para essa mensagem (entrega ou devolução da caixa do
 // suporte) fecha o evento na primeira rodada, sem mudar a tentativa, sem
 // suprimir o endereço do Cliente e sem cair em "tentativa não encontrada"
-// (que, depois de seis rodadas, abriria "Portal do Cliente — falha no reprocessamento").
+// (que, depois de seis rodadas, abriria "Retorno do provedor de e-mail não
+// aplicado", migration 535).
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -30,7 +31,7 @@ describeLocal('migration 469 — retorno do provedor para o e-mail enviado ao su
         public.process_portal_email_event((SELECT id FROM public.portal_email_events WHERE provider_event_id = 'r466-ev'), 'r466-worker')->>'ignored_redirected_to_support',
         (SELECT status FROM public.portal_email_attempts WHERE idempotency_key = 'r466-attempt'),
         (SELECT count(*) FROM public.portal_suppressed_emails WHERE email = 'suporte@portalfwlog.com.br'),
-        (SELECT count(*) FROM public.alert_items WHERE item_type = 'portal_reprocessamento_falhou' AND metadata->>'provider_message_id' = 'r466-msg'));
+        (SELECT count(*) FROM public.alert_items WHERE item_type = 'email_retorno_nao_aplicado' AND metadata->>'provider_message_id' = 'r466-msg'));
       ROLLBACK;
     `)
     expect(result.split('\n').at(-1)).toBe('true|aceito|0|0')

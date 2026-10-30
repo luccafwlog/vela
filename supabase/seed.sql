@@ -108,9 +108,9 @@ BEGIN
 END;
 $charge_assert$;
 
--- O catálogo de demurrage é uma tabela única. Em uma branch nova ela pode
--- conter as 37 linhas legadas das migrations 048/279; elas são substituídas
--- integralmente pelo estado atual de main.
+-- O catálogo de demurrage é uma tabela única, uma linha por grupo de tarifa
+-- (migration 514). Em uma branch nova ela pode conter linhas antigas; elas são
+-- substituídas integralmente pelo estado atual.
 -- Tarifa vigente conta como usada (migration 091); o seed liga a marca de
 -- catálogo para poder substituí-las num banco novo.
 SET vela.seed_catalog = 'on';
@@ -122,25 +122,21 @@ INSERT INTO public.demurrage_rates (
   p2_day_from, p2_usd, valid_from, valid_to, active, notes
 )
 VALUES
-  ('40FR', 21, 22, 30, 100, 31, 140, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('20RQ', 10, 11, 19, 95, 20, 110, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
+  -- Uma tarifa por grupo (migration 514, ADR 0112 D28); os códigos de cada
+  -- grupo estão no cadastro Tipos de container.
   ('20GP', 21, 22, 30, 30, 31, 50, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('20RF', 10, 11, 19, 95, 20, 110, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('40RQ', 10, 11, 19, 190, 20, 220, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('20OT', 21, 22, 30, 50, 31, 80, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('40HC', 21, 22, 30, 60, 31, 80, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
   ('40GP', 21, 22, 30, 60, 31, 80, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('40OT', 21, 22, 30, 100, 31, 140, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('40RF', 10, 11, 19, 190, 20, 220, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('20HC', 21, 22, 30, 30, 31, 50, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
-  ('20FR', 21, 22, 30, 50, 31, 80, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos');
+  ('20FR', 21, 22, 30, 50, 31, 80, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
+  ('40FR', 21, 22, 30, 100, 31, 140, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
+  ('20RF', 10, 11, 19, 95, 20, 110, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
+  ('40RF', 10, 11, 19, 190, 20, 220, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos');
 
 DO $demurrage_assert$
 DECLARE
   v_rows INTEGER;
 BEGIN
   SELECT count(*) INTO v_rows FROM public.demurrage_rates;
-  IF v_rows <> 12 THEN
+  IF v_rows <> 6 THEN
     RAISE EXCEPTION 'Catálogo de demurrage incompleto: % linhas.', v_rows;
   END IF;
 END;

@@ -214,6 +214,9 @@ export function PortalBilling() {
   const openDisputeCount = (disputes ?? []).filter((item) => item.state === 'aberta').length
   const demurrageDetail = demurrageDetailQuery.data
   const selectedDemurrageDispute = (disputes ?? []).find((item) => item.demurrage_invoice_id === selectedDemurrageId && item.state === 'aberta') ?? null
+  // Uma conversa por Invoice (ADR 0112, D17): depois da resolvida, só a reabertura.
+  const selectedResolvedDispute = selectedDemurrageDispute ? null
+    : (disputes ?? []).find((item) => item.demurrage_invoice_id === selectedDemurrageId && item.state === 'resolvida') ?? null
   const demurrageComplementOf = demurrageDetail?.invoice ? complements.complementOf(demurrageDetail.invoice) : undefined
   // A Invoice e o recibo dizem de qual Invoice esta completa: enquanto isso
   // não se sabe (ou a consulta falhou), o documento não é impresso.
@@ -232,13 +235,14 @@ export function PortalBilling() {
         detail={demurrageDetail}
         loading={demurrageDetailQuery.isLoading}
         dispute={selectedDemurrageDispute}
+        resolvedDispute={selectedResolvedDispute}
         complementOf={demurrageComplementOf}
         onClose={() => setSelectedDemurrageId(null)}
         onPrint={() => setDemurragePrint(demurrageDetail?.invoice.status === 'paid' || demurrageDetail?.invoice.status === 'covered' ? 'receipt' : 'invoice')}
         onDispute={(id: number, doc: string) => { setSelectedDemurrageId(null); setDisputeInvoiceId(id); setDisputeDocNumber(doc) }}
         onShowDispute={() => {
           setSelectedDemurrageId(null)
-          showDisputes(selectedDemurrageDispute?.id ?? null)
+          showDisputes(selectedDemurrageDispute?.id ?? selectedResolvedDispute?.id ?? null)
         }}
         onOpenInvoice={setSelectedDemurrageId}
       />

@@ -112,7 +112,7 @@ export type VoyageGraniteManifest = {
   discharge_port: string | null
   total_bls: number | null
   total_weight_kg: number | null
-  granite_bls?: Array<{ id: string }> | null
+  granite_bls?: Array<{ id: string; loading_port?: string | null }> | null
 }
 
 export type VoyageVaziosManifest = {

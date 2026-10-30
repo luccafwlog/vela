@@ -40,6 +40,11 @@ describeLocal('442 — Pix recebidos', () => {
     w.json<Listing>(role, `SELECT public.list_itau_pix_receipts(${args || 'p_search => \'E9442\''})`)
   const row = (n: number, role: 'financeiro' | 'operacoes' = 'financeiro') =>
     list(role, `p_search => '${e2e(n)}'`).rows.find((r) => r.end_to_end_id === e2e(n))
+  // Dia de Brasília anterior ao Pix mais antigo do prefixo. O fixture grava
+  // minutos antes de now(): logo depois da meia-noite de Brasília esses Pix
+  // caem no dia anterior, e "hoje menos 1" deixaria de ser um período vazio.
+  const dayBeforeFirst = (prefix: string) => w.psql(`SELECT (min(paid_at) AT TIME ZONE 'America/Sao_Paulo')::date - 1
+    FROM public.itau_pix_receipts WHERE end_to_end_id LIKE '${prefix}%'`)
 
   beforeAll(() => {
     w.setup()
@@ -114,8 +119,22 @@ describeLocal('442 — Pix recebidos', () => {
     expect(list('financeiro', `p_search => 'E9442', p_origin => 'other'`).rows.map((r) => r.end_to_end_id)).toEqual([e2e(2)])
     expect(list('financeiro', `p_search => 'E9442', p_situation => 'review'`).rows.map((r) => r.end_to_end_id)).toEqual([e2e(4)])
     expect(list('financeiro', `p_search => 'E9442', p_amount_brl => 50`).rows.map((r) => r.end_to_end_id)).toEqual([e2e(2)])
-    expect(list('financeiro', `p_search => 'E9442', p_to => (now() AT TIME ZONE 'America/Sao_Paulo')::date - 1`).total).toBe(0)
+    expect(list('financeiro', `p_search => 'E9442', p_to => '${dayBeforeFirst('E9442')}'::date`).total).toBe(0)
     expect(w.as('financeiro', `SELECT public.list_itau_pix_receipts(p_situation => 'qualquer')`).stderr).toMatch(/Situação desconhecida/)
+  })
+
+  it('o período de Brasília do teste acima não depende da hora: Pix gravados logo depois da meia-noite', () => {
+    // O fixture acima rodando às 00:03 de Brasília: Pix de 1 a 5 minutos antes.
+    const at = `timestamptz '2026-03-10 00:03:00-03'`
+    for (let n = 21; n <= 25; n += 1) {
+      w.psql(`SELECT public.itau_pix_receive('${e2e(n)}', '', 1, ${at} - interval '${n - 20} minutes', '${raw(n)}'::jsonb)`)
+    }
+    const prefix = e2e(20).slice(0, -1) // E9442…2: só os Pix 20 a 29
+    const ids = (args: string) => list('financeiro', `p_search => '${prefix}', ${args}`).rows.map((r) => r.end_to_end_id).sort()
+    // "Hoje menos 1" ainda pega os Pix de 23:58 e 23:59 do dia anterior.
+    expect(ids(`p_to => (${at} AT TIME ZONE 'America/Sao_Paulo')::date - 1`)).toEqual([e2e(24), e2e(25)])
+    expect(ids(`p_to => '${dayBeforeFirst(prefix)}'::date`)).toEqual([])
+    expect(ids(`p_from => '2026-03-10'`)).toEqual([e2e(21), e2e(22), e2e(23)])
   })
 
   it('baixa opcional numa fatura de Taxas Locais: sugere pelo valor e pelo documento do pagador e grava o endToEndId', () => {

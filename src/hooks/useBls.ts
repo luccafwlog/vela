@@ -38,7 +38,7 @@ const voyageDetailSelect = `
     discharge_port,
     total_bls,
     total_weight_kg,
-    granite_bls(id)
+    granite_bls(id, loading_port)
   ),
   vazios_manifests(
     id,

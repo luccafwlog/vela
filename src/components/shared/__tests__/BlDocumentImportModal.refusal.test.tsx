@@ -118,6 +118,21 @@ it('todos os B/Ls cancelados: Importar desativado com "Nenhum B/L a importar"', 
   expect(importBlDocuments).not.toHaveBeenCalled()
 })
 
+// D3 da revisão da PR #1084: cancelado em outra Viagem, a orientação é excluir lá.
+it('B/L cancelado em outra Viagem: o aviso manda excluir o B/L lá e importar de novo', async () => {
+  parseBlDocumentFile.mockImplementation(async (file: File) => document(file.name.replace(/\.pdf$/, '')))
+  checkBreakbulkReimport.mockImplementation(async (_voyageId: number, manifest: { bls: Array<{ bl_id: string }> }) => (
+    { ...noReimport, cancelled: [manifest.bls[0].bl_id], cancelledElsewhere: { [manifest.bls[0].bl_id]: 'NAVIO / V77' } }
+  ))
+  const { container } = renderModal()
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['b'], 'BLCAN002.pdf')] },
+  })
+
+  expect(await screen.findByText('B/L BLCAN002 está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, exclua o B/L na Viagem NAVIO / V77 (Administrativo) e importe de novo.')).toBeTruthy()
+  expect(screen.queryByText(/reative-o pela ficha/)).toBeNull()
+})
+
 it('oferece o B/L de exemplo em .docx para baixar', () => {
   renderModal()
   const link = screen.getByRole('link', { name: 'Baixar modelo .docx' })

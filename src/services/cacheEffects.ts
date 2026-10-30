@@ -28,6 +28,9 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   // O contexto do Baplie lista os containers dos B/Ls da Viagem (ADR 0079, decisão 6).
   ['baplie-bls-exist'], ['baplie-reconciliation'], ['baplie-voyage-context'], ['bl-timeline'], ['voyage-timeline'],
   ['agency-report'], ['review-queue'], ['op-count'], ['report-operational'],
+  // As frentes do ADR por terminal nascem da carga (B/L, veículo, vazio):
+  // importar uma frente nova precisa aparecer no ADR e em Editar escala.
+  ['agency-report-terminal-state'],
   ['customer-detail'], ['customer-ficha'], ['customers-summary'],
   ['customer-communications'], queryKeys.dashboard(),
   ['demurrage-containers'], ['demurrage-invoices'], ['demurrage-invoice-detail'],
@@ -98,6 +101,17 @@ export async function afterViagemAlterada(queryClient: QueryInvalidator, options
 
 export async function afterEscalaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
   await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], queryKeys.baplie.voyageContext(Number(options.voyageId)), ['bl-cockpit'], ['agency-report'], ...LINEUP_KEYS])
+}
+
+/**
+ * Embarque de vazios criado, ou terminal definido no embarque antigo (ADR 0113,
+ * migration 541): sem terminal na frente Vazios EXP, a RPC grava a escala pela
+ * gravação v2 (frente, Atracação e ADR do terminal). Muda a escala inteira —
+ * Visão geral, Editar escala, cartões e portos do Embarque —, não só o ADR.
+ */
+export async function afterEmbarqueVaziosNaEscala(queryClient: QueryInvalidator, options: { voyageId: number }): Promise<void> {
+  await afterEscalaAlterada(queryClient, options)
+  await invalidate(queryClient, [queryKeys.voyages.vaziosExportPorts(options.voyageId)])
 }
 
 export async function afterRotaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
@@ -184,6 +198,7 @@ export async function afterCustomerCommunicationBatchDispatched(
   await invalidate(queryClient, [
     queryKeys.customerCommunications.history(),
     ['customer-communications', 'coverage'],
+    ['customer-communications', 'voyage-detail'],
     ['customer-communications', 'bl'],
     ...(options.customerIds ?? []).map((customerId) => ['customer-ficha', 'timeline', customerId] as const),
     ...[...new Set(options.blIds ?? [])].map((blId) => ['bl-timeline', blId] as const),
@@ -278,7 +293,10 @@ export async function afterReferenciaPortalAlterada(queryClient: QueryInvalidato
 /** Tarifas e acordos mudam o free time e o status calculados na operação. */
 export async function afterReferenciaDemurrageAlterada(queryClient: QueryInvalidator): Promise<void> {
   // A aba Containers de /demurrage prevê a sobreestadia com o acordo vigente na descarga.
-  await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls'], ['demurrage-containers']])
+  // Desde a 516, tarifa, tipo e acordo também tiram ou põem grupos em Travado
+  // na hora: o aviso do cabeçalho, os Alertas, o relatório e as fichas mudam junto.
+  await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls'], ['demurrage-containers'],
+    ['header-alert'], ['alerts'], ['demurrage-report'], ['customer-ficha'], ['bl-detail']])
 }
 
 const DEMURRAGE_INVOICE_KEYS: readonly (readonly unknown[])[] = [

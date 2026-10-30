@@ -355,7 +355,10 @@ export function BlDetalhe() {
       {cancelBlockedReasons && !cancelledAt ? (
         <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
           <span>
-            <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}. Antes, o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição.
+            <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}.
+            {cancelBlockedReasons.some((reason) => !reason.startsWith('Demurrage a faturar')) ? ' Antes, o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição.' : null}
+            {/* ADR 0112, D7 e D26: a sobreestadia sem Invoice segura o cancelamento até a emissão ou a dispensa. */}
+            {cancelBlockedReasons.some((reason) => reason.startsWith('Demurrage a faturar')) ? <> <Link className="app-link" to={`/demurrage?busca=${encodeURIComponent(bl.id)}`}>Abrir em Demurrage</Link></> : null}
           </span>
           <Button variant="secondary" onClick={() => setCancelBlockedReasons(null)}>Fechar aviso</Button>
         </div>

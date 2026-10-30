@@ -5,6 +5,7 @@ import { assertUploadFile } from '../../lib/fileGuard'
 import type { PixTransaction } from '../../types/database'
 import { readSheet } from '../importCore'
 import { invoiceNetUsd } from './demurragePresentation'
+import { readAllPages } from './demurragePages'
 
 // A cotação (PTAX/ROE) mora em ./demurrageRoe: o cabeçalho de todas as telas
 // a consulta, e este módulo traz o leitor de planilha junto. Reexportada aqui
@@ -38,12 +39,13 @@ export type CustomerDemurrageDetailItem = {
  * recálculo, que o banco já calcula sem o desconto). Usado pela aba "Por Cliente".
  */
 export async function fetchCustomerDemurrageSummary(): Promise<CustomerDemurrageSummary[]> {
-  const { data, error } = await supabase
+  const data = await readAllPages<unknown>((from, to) => supabase
     .from('demurrage_invoices')
-    .select('customer_id, total_usd, discount_mode, discount_value, current_total_brl, customer:customers(id,name,cnpj_cpf)')
+    .select('id, customer_id, total_usd, discount_mode, discount_value, current_total_brl, customer:customers(id,name,cnpj_cpf)')
     .eq('status', 'issued')
     .is('paid_at', null)
-  if (error) throw error
+    .order('id')
+    .range(from, to))
 
   const byCustomer = new Map<number, CustomerDemurrageSummary>()
   for (const row of (data ?? []) as unknown as Array<{
@@ -73,14 +75,15 @@ export async function fetchCustomerDemurrageSummary(): Promise<CustomerDemurrage
 
 /** Faturas emitidas e não pagas de um consignatário, para o accordion/relatório. */
 export async function fetchCustomerDemurrageDetail(customerId: number): Promise<CustomerDemurrageDetailItem[]> {
-  const { data, error } = await supabase
+  const data = await readAllPages<unknown>((from, to) => supabase
     .from('demurrage_invoices')
     .select('id, doc_number, bl_id, billed_at, total_usd, discount_mode, discount_value, current_total_brl, current_roe')
     .eq('status', 'issued')
     .is('paid_at', null)
     .eq('customer_id', customerId)
     .order('billed_at', { ascending: false })
-  if (error) throw error
+    .order('id', { ascending: false })
+    .range(from, to))
   type Row = CustomerDemurrageDetailItem & { discount_mode: string | null; discount_value: number | null }
   return ((data ?? []) as unknown as Row[]).map(({ discount_mode, discount_value, ...row }) => ({
     ...row,
@@ -90,7 +93,6 @@ export async function fetchCustomerDemurrageDetail(customerId: number): Promise<
 
 export type DemurrageKPIs = {
   overdueContainers: number
-  draftInvoicesTotalUsd: number
   issuedInvoicesTotalBrl: number
 }
 
@@ -123,18 +125,20 @@ export async function recalculateInvoicesManual(ptax: number): Promise<{ updated
 }
 
 export async function fetchDemurrageKPIs(): Promise<DemurrageKPIs> {
-  const [contRes, draftRes, issuedRes] = await Promise.all([
+  const [contRes, issued] = await Promise.all([
     supabase.from('bl_containers').select('id', { count: 'exact', head: true }).eq('demurrage_status', 'overdue'),
-    supabase.from('demurrage_invoices').select('total_usd').eq('status', 'draft'),
-    supabase.from('demurrage_invoices').select('current_total_brl').eq('status', 'issued'),
+    // Todas as páginas: o cartão Aguardando pagamento não pode parar em 1000 Invoices.
+    readAllPages<{ current_total_brl: number | null }>((from, to) => supabase
+      .from('demurrage_invoices')
+      .select('id, current_total_brl')
+      .eq('status', 'issued')
+      .order('id')
+      .range(from, to)),
   ])
-  for (const res of [contRes, draftRes, issuedRes]) {
-    if (res.error) throw res.error
-  }
+  if (contRes.error) throw contRes.error
   return {
     overdueContainers: contRes.count ?? 0,
-    draftInvoicesTotalUsd: (draftRes.data ?? []).reduce((s, r) => s + (r.total_usd ?? 0), 0),
-    issuedInvoicesTotalBrl: (issuedRes.data ?? []).reduce((s, r) => s + (r.current_total_brl ?? 0), 0),
+    issuedInvoicesTotalBrl: issued.reduce((s, r) => s + (r.current_total_brl ?? 0), 0),
   }
 }
 

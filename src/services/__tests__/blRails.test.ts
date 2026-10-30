@@ -202,6 +202,44 @@ describe('B/L rails', () => {
     expect(pickNextAction(invoicedOnly)).toBeNull()
   })
 
+  // D1 da revisão da PR #1084 (decisão do dono): a Invoice de Demurrage passa
+  // pela trava do Portal (`portal_billing_gate`). Com o B/L faturado e a trava
+  // fechada, a etapa Cliente fica concluída e a etapa Demurrage avisa.
+  it('B/L faturado sem Portal e sem Liberação: a etapa Demurrage avisa que a Invoice está retida', () => {
+    const closed = { visible: false, reasons: ['Conta do Portal não está ativa'], billingReady: false }
+    const invoicedBl = {
+      ce_mercante: 'CE-1',
+      customer_id: 9,
+      customer_reconciliation_status: 'reconciled',
+      charge_status: 'invoiced',
+      review_status: 'reviewed',
+      financial_status: 'invoiced',
+    }
+    const issued = { id: 55, invoice_number: 'F-55', status: 'issued', total_brl: 100, invoice_type: 'individual' }
+
+    const rail = makeDocumental(invoicedBl, { latestInvoice: issued, portalVisibility: closed })
+    expect(rail.find((stage) => stage.key === 'customer')).toMatchObject({ state: 'done', detail: 'B/L faturado · Portal não está ativo' })
+    expect(rail.find((stage) => stage.key === 'demurrage')).toMatchObject({
+      state: 'blocked',
+      detail: 'Retida: Portal não está pronto e sem Liberação de faturamento',
+      href: '/clientes/portal?cliente=9',
+    })
+    // Não vira pendência do trilho nem próxima ação: o aviso é da Demurrage.
+    expect(summarizeDocumentalRail(rail)).toEqual({ pendingCount: 0, label: 'Sem pendências' })
+    expect(pickNextAction(rail)).toBeNull()
+
+    // Com Invoice já emitida, a contagem continua e o aviso vem junto.
+    expect(makeDocumental(invoicedBl, { latestInvoice: issued, portalVisibility: closed, demurrageInvoices: [{ id: 1, status: 'issued' }] })
+      .find((stage) => stage.key === 'demurrage')).toMatchObject({ state: 'blocked', detail: '1 invoice(s) · nova Invoice retida: Portal não está pronto e sem Liberação de faturamento' })
+
+    // Liberação vigente: a trava está aberta, sem aviso.
+    expect(makeDocumental(invoicedBl, { latestInvoice: issued, portalVisibility: { ...closed, billingReady: true } })
+      .find((stage) => stage.key === 'demurrage')).toBeUndefined()
+    // Carga solta não tem Demurrage.
+    expect(makeDocumental({ ...invoicedBl, cargo_mode: 'carga_solta' }, { latestInvoice: issued, portalVisibility: closed })
+      .find((stage) => stage.key === 'demurrage')).toBeUndefined()
+  })
+
   it('sem Liberação e sem fatura, a conta do Portal não ativa continua pedindo a Revisão', () => {
     const rail = makeDocumental({
       ce_mercante: 'CE-1',
