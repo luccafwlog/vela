@@ -791,8 +791,11 @@ export function EscalaModal({
     setLinked(escala.linked ? 'true' : 'false')
     setEscalaNumber(escala.escalaNumber ?? '')
     setTemImportacao(escala.temImportacao)
-    setTemExportacao(escala.temExportacao)
-    setHasGranite(escala.hasGranite)
+    // Granito importado no porto já é carga vinculada (a declaração trava): a
+    // janela abre com ele declarado para a frente de Granito ser gravada com
+    // terminal e o Granito chegar ao ADR do terminal.
+    setTemExportacao(escala.temExportacao || Boolean(escala.graniteLocked))
+    setHasGranite(escala.hasGranite || Boolean(escala.graniteLocked))
     setHasEmpty(escala.hasEmpty)
     setContainersQty(escala.containersQty === null ? '' : String(escala.containersQty))
     setMovementsQty(escala.movementsQty === null ? '' : String(escala.movementsQty))

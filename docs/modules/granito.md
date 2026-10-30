@@ -115,7 +115,11 @@ de `/granito`, com a viagem fixa (lote 6a); a regra de erro é a mesma. A ação
 
 - O ADR de Saída (seção **Carga carregada**), a aba Exportação e o card da
   Viagem leem B/Ls, blocos e peso de `granite_manifests` e `granite_bls`; a
-  Line Up marca a exportação com Granito pela declaração da escala. O painel
+  Line Up marca a exportação com Granito pela declaração da escala. No ADR por
+  terminal, o Granito aparece no terminal da frente de Granito, que nasce do
+  Granito importado no porto mesmo sem a declaração; enquanto ela não tem
+  terminal, o ADR avisa e não fecha ([Viagens](viagens.md#identidade-e-escopo),
+  migration `515`). O painel
   de Granito da aba Exportação mostra só Manifestos e B/Ls, com o peso em
   destaque (`summarizeExportByEmbarkPort`); "Prontos" e "Faturados", contados
   de `charge_status`, saíram em 2026-10-20.

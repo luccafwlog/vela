@@ -112,6 +112,36 @@ describe('escalaTerminalAllocation', () => {
     expect(state.tbcFronts.find((front) => front.modalidade === 'veiculo')).toMatchObject({ section: 'veiculos', terminalId: null })
   })
 
+  it('deriva a frente de Granito do Granito importado no porto, sem a declaração de exportação', async () => {
+    const makeQuery = (tableName: string) => {
+      const query: Record<string, unknown> = {}
+      query.select = () => query
+      query.eq = () => query
+      query.in = () => query
+      query.order = () => query
+      query.range = () => query
+      query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
+      query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
+        tableName === 'ports'
+          ? { data: [{ id: 99, locode: 'BRVIX' }], error: null }
+          : tableName === 'granite_bls'
+            ? { data: [
+                // Porto do B/L vence o do manifesto; sem ele, vale o do manifesto.
+                { id: 'g1', loading_port: 'BRSSZ', manifest: { voyage_id: 12, loading_port: 'BRVIX' } },
+                { id: 'g2', loading_port: null, manifest: { voyage_id: 12, loading_port: 'BRVIT' } },
+              ], error: null }
+            : { data: [], error: null },
+      ).then(resolve)
+      return query
+    }
+    fromMock.mockImplementation((tableName: string) => makeQuery(tableName))
+
+    const state = await fetchEscalaTerminalState(12, 'BRVIX')
+
+    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['exportacao:granito'])
+    expect(state.tbcFronts[0]).toMatchObject({ source: 'export_declaration', section: 'carga_carregada', terminalId: null })
+  })
+
   it('preserva frente persistida mesmo quando a fonte operacional deixou de aparecer', () => {
     const fronts = deriveOperationFronts({
       existing: [{ id: 'front-1', sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data' }],

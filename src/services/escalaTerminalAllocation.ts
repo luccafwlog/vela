@@ -238,6 +238,8 @@ function makeFront(
 export type DeriveOperationFrontInput = {
   existing?: Array<Pick<OperationFront, 'id' | 'sentido' | 'modalidade' | 'terminalId' | 'source'>>
   importKinds?: Iterable<Exclude<OperationFrontKind, 'granito'>>
+  /** Carga de exportação já gravada no porto (Granito importado), com ou sem declaração. */
+  exportKinds?: Iterable<'granito' | 'vazio'>
   exportSchedule?: Pick<VoyageExportSchedule, 'temExportacao' | 'hasGranite' | 'hasEmpty'> | null
 }
 
@@ -254,6 +256,13 @@ export function deriveOperationFronts(input: DeriveOperationFrontInput): Operati
   for (const kind of new Set(input.importKinds ?? [])) {
     const key = frontKey({ sentido: 'importacao', modalidade: kind })
     if (!fronts.has(key)) fronts.set(key, makeFront('importacao', kind, null, 'operational_data', true))
+  }
+  // A carga de exportação gravada cria a frente mesmo sem a declaração: sem
+  // ela, o Granito importado ficava fora do ADR por terminal. A origem segue
+  // 'export_declaration', a única que o banco aceita para exportação.
+  for (const kind of new Set(input.exportKinds ?? [])) {
+    const key = frontKey({ sentido: 'exportacao', modalidade: kind })
+    if (!fronts.has(key)) fronts.set(key, makeFront('exportacao', kind, null, 'export_declaration', true))
   }
   const exportSchedule = input.exportSchedule
   if (exportSchedule?.temExportacao) {
@@ -428,8 +437,24 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
     .range(0, 0)
   if (vehicleImports.error) throw vehicleImports.error
   if (Array.isArray(vehicleImports.data) && vehicleImports.data.length) importKinds.add('veiculo')
+  // Granito casa pelo porto de carregamento do B/L, com o do manifesto na
+  // falta dele — a mesma regra do ADR (`getAgencyReportDerivedData`).
+  const graniteBls = await fetchAllRows<JsonRecord>((from, to) =>
+    table('granite_bls')
+      .select('id, loading_port, manifest:granite_manifests!inner(voyage_id, loading_port)')
+      .eq('manifest.voyage_id', voyageId)
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
+  if (graniteBls.error) throw graniteBls.error
+  const exportKinds = new Set<'granito' | 'vazio'>()
+  if (graniteBls.data.some((row) => {
+    const manifest = row.manifest && typeof row.manifest === 'object' ? row.manifest as JsonRecord : null
+    const loadingPort = typeof row.loading_port === 'string' ? row.loading_port : typeof manifest?.loading_port === 'string' ? manifest.loading_port : null
+    return normalizePortCode(loadingPort) === normalizedPort
+  })) exportKinds.add('granito')
 
-  const fronts = deriveOperationFronts({ existing: existingFronts, importKinds, exportSchedule })
+  const fronts = deriveOperationFronts({ existing: existingFronts, importKinds, exportKinds, exportSchedule })
   const depotRows = depots as unknown as Array<{ id: string; code: string; name: string | null; active: boolean; tipo: string; port_id?: number | null }>
   const stateRows = (terminalsResult.data ?? []) as JsonRecord[]
   const historicalIds = new Set(stateRows.flatMap((row) => typeof row.terminal_id === 'string' ? [row.terminal_id] : []))

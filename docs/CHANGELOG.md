@@ -6,14 +6,16 @@
 
 ## 2026-10
 
-- **Veículos e vazios de importação chegam ao ADR por terminal (2026-10-30, migration `514`):** no teste do
+- **Veículos, vazios de importação e Granito chegam ao ADR por terminal (2026-10-30, migrations `514` e `515`):** no teste do
   dono em BRVIX, os veículos e os vazios de importação estavam nos cards do porto da aba Importação e não no
   ADR do terminal. A frente de Veículos nunca nascia (era derivada de `cargo_mode = 'veiculo'`, valor que não
   existe); agora nasce do veículo gravado num B/L da escala, aparece em **Editar escala** para receber o
   terminal e leva os veículos ao ADR desse terminal, salvo exceção de terminal do B/L. A frente derivada dos
   dados e ainda sem terminal (o vazio importado depois da última gravação da escala, por exemplo) deixava a
   seção dizendo "Não há frente atribuída a este terminal." e o ADR fechava sem o dado: agora a seção e o bloco
-  ADR avisam "Sem terminal (TBC)", **Fechar ADR** fica desabilitado e o banco recusa o fechamento. Mapa
+  ADR avisam "Sem terminal (TBC)", **Fechar ADR** fica desabilitado e o banco recusa o fechamento. A frente
+  de Granito, que só nascia da declaração de exportação, passa a nascer também do Granito importado no porto, e
+  **Editar escala** abre com o Granito declarado nesse caso, para a frente ser gravada com terminal. Mapa
   completo e lacunas em [archive/audits/viagem-terminal-adr-2026-10-30.md](archive/audits/viagem-terminal-adr-2026-10-30.md);
   regra em [Viagens](modules/viagens.md#agency-departure-report-adr). **Teste local-pg:**
   `adrFrenteDerivadaSemTerminal.local-pg.test.ts`.

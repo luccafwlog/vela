@@ -34,7 +34,7 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
 | Vazios de importação | `vazios_importacao_containers.pod` | Vazios IMP, derivada | Vazios descarregados | Frente inteira | **Defeito: derivada TBC sumia do ADR e o ADR fechava sem ela.** Corrigido |
 | Vazios do Baplie | `baplie_containers.pod` | — | Vazios descarregados (contagem e divergência) | Segue a seção | Chega (**Código**) |
 | Local de desova | container do veículo | — | Veículos | Segue o veículo | Chega com os veículos (**Código**) |
-| Granito | `granite_bls.loading_port` (normalizado) | Granito, **só da declaração de exportação** | Carga carregada | Frente inteira | Lacuna, abaixo |
+| Granito | `granite_bls.loading_port` (normalizado) | Granito, **só da declaração de exportação** | Carga carregada | Frente inteira | **Defeito: Granito sem declaração não chegava ao ADR por terminal.** Corrigido |
 | Embarque de vazios | `vazios_export_operations.embark_port` | Vazios EXP, só da declaração | Embarque de vazios | Frente inteira | Em correção em outra sessão (dono, 2026-10-30) |
 
 ## Defeitos corrigidos nesta mudança
@@ -54,17 +54,22 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    "Sem terminal (TBC)", **Fechar ADR** fica desabilitado e o banco recusa o
    fechamento (migration `514`) (**Teste:** `adrFrenteDerivadaSemTerminal.local-pg.test.ts`,
    Postgres 16 local descartável).
-3. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
+3. **Granito.** A frente de Granito só nascia da declaração de exportação
+   ("tem exportação" + Granito), e a importação do Granito não mexe nela
+   (`import_granite_manifest_transactional`). Agora a frente nasce também do
+   Granito importado no porto (B/L pelo porto de carregamento, com o do
+   manifesto na falta dele), Editar escala abre com o Granito declarado nesse
+   caso (sem a declaração a janela descartava a frente ao gravar) e o banco
+   confere a frente dele no fechamento (migration `515`) (**Teste:**
+   `escalaTerminalAllocation.test.ts`, `VoyageScheduleModals.test.tsx`,
+   `adrFrenteDerivadaSemTerminal.local-pg.test.ts`). Pedido do dono na mesma
+   data.
+4. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
    (`['agency-report-terminal-state']`); a aba podia mostrar a frente antiga por
    até 30 s. Entrou nos efeitos de carga (**Teste:** `cacheEffects.test.ts`).
 
 ## Lacunas que ficam
 
-- **Granito sem declaração.** A frente de Granito só nasce de "tem exportação" +
-  Granito na declaração da escala, não do Granito importado. Granito importado
-  num porto sem essa declaração não aparece no ADR por terminal. É o mesmo
-  mecanismo do Embarque de vazios, em correção na outra sessão (**Código**;
-  **Suspeita** quanto a o importador permitir Granito sem a declaração).
 - **Carga só em transbordo.** As frentes de importação são derivadas dos B/Ls
   com POD no porto. Numa escala que só recebe carga em transbordo (B/L com POD
   no porto omitido), nenhuma frente nasce dessa carga, salvo a marcação "tem
@@ -73,13 +78,14 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
 - **Exceção de terminal sem frente.** O B/L com exceção para um terminal que não
   tem frente daquela seção não aparece em nenhum ADR; a pendência
   `review:bl_terminal_sem_frente` (ADR 0068) é o sinal hoje (**Código**).
-- A trava do banco cobre as frentes de importação; as de exportação derivadas
-  da declaração e ainda não gravadas são bloqueadas só pela tela (**Código**).
+- A trava do banco cobre as frentes de importação e a de Granito; a de
+  Embarque de vazios derivada da declaração e ainda não gravada é bloqueada só
+  pela tela (**Código**).
 
 ## Evidência e limites
 
-Leitura estática do código e das migrations; testes Vitest; a migration `514`
-aplicada e executada no Postgres 16 local descartável (`setup-local-pg.sh`).
+Leitura estática do código e das migrations; testes Vitest; as migrations `514`
+e `515` aplicadas e executada no Postgres 16 local descartável (`setup-local-pg.sh`).
 Consulta somente leitura ao projeto Supabase de produção em 2026-10-30: a Viagem
 169 (BRVIX) tem 1.896 veículos e 22 vazios de importação, nenhuma frente gravada
 e nenhum ADR; o banco inteiro não tinha frente gravada, então o caso exato do
