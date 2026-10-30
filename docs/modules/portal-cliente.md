@@ -331,7 +331,7 @@ de alertas, todas têm Documentação como responsável: `portal_pendencia_geral
 `portal_convite_expirado`, `portal_falha_envio`, `portal_email_suprimido`,
 `portal_reprocessamento_falhou` (o do B/L) e `portal_abuso_login` avisam só
 Documentação. O retorno do provedor de e-mail que vai para investigação não
-tem B/L nem Cliente: desde a migration `514` abre `email_retorno_nao_aplicado`,
+tem B/L nem Cliente: desde a migration `535` abre `email_retorno_nao_aplicado`,
 do Administrativo (ver o webhook, abaixo), e não mais
 `portal_reprocessamento_falhou`;
 `portal_excecao_critica_fatura` avisa também o Administrativo (exceção do
@@ -539,7 +539,7 @@ tentativas. O aviso que não acha o envio correspondente é tentado de novo em 1
 provedor. A conta da MillionSend avisa todo e-mail dela, também os que saem de
 outro sistema por ela (o formulário do site da Fwlog, que escreve para
 `suporte@portalfwlog.com.br`); o Vela não acha esses envios. Desde a migration
-`514`, aviso de entrega ainda sem envio do Vela na 6ª tentativa fecha sem alerta
+`535`, aviso de entrega ainda sem envio do Vela na 6ª tentativa fecha sem alerta
 (`ignored_unknown_delivery`): não há contato nem tentativa a atualizar. Devolução
 ou spam sem envio do Vela, aviso que corresponde a mais de um envio e aviso que
 falha 6 vezes vão para investigação e abrem **Retorno do provedor de e-mail não

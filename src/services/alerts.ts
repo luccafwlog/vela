@@ -441,7 +441,7 @@ function alertEntityLinkRaw(alert: {
 
   if (alert.entity_type === 'pix_transaction' || alert.entity_type === 'itau_pix_receipt') return PIX_PENDING_HREF
   // Evento do provedor de e-mail que foi para investigação (migrations 109, 309
-  // e 514): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
+  // e 535): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
   // mostra o evento. O alerta fica na fila, com o motivo na mensagem.
   if (alert.entity_type === 'portal_email_event') return '/alertas'
   if (effectiveType === 'portal_dispute_opened' && alert.entity_type === 'demurrage_invoice') {
@@ -693,7 +693,7 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'comunicado_recusado',
   // Conferência da taxa alterada à mão que uma mudança de base afetou (migration 495).
   'taxa_alterada_mudou',
-  // Retorno do provedor de e-mail que nenhuma rotina tira da investigação (migration 514).
+  // Retorno do provedor de e-mail que nenhuma rotina tira da investigação (migration 535).
   'email_retorno_nao_aplicado',
   // Origem fora do alcance da equipe pela tela (migration 476, ponto 3 do dono):
   // depois da justificativa, só reabrem se a causa sumir e voltar.
@@ -967,7 +967,7 @@ function pixLabelFromMetadata(metadata: Record<string, unknown> | null | undefin
 }
 
 // O id do evento do provedor não diz nada à equipe: o Registro mostra o
-// destinatário mascarado que o alerta grava desde a migration 514.
+// destinatário mascarado que o alerta grava desde a migration 535.
 function emailEventLabelFromMetadata(metadata: Record<string, unknown> | null | undefined): string | null {
   const recipient = metadata?.recipient_masked
   return typeof recipient === 'string' && recipient.trim().length > 0 ? recipient.trim() : null

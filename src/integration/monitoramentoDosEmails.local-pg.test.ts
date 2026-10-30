@@ -7,7 +7,7 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 // Migrations 309, 312 e 314 (plano dos e-mails, 2.1, 2.4 e 2.8): provedor sem retorno,
 // evento de e-mail que esgota as tentativas ou é ambíguo, e usuário interno
 // com e-mail devolvido abrem Alerta; o detector fecha quando a causa some. O
-// alerta do evento é "Retorno do provedor de e-mail não aplicado" desde a 514.
+// alerta do evento é "Retorno do provedor de e-mail não aplicado" desde a 535.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const adminId = '00000000-0000-4000-8000-000000310001'

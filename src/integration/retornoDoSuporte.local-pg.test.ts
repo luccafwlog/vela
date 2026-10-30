@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 // suporte) fecha o evento na primeira rodada, sem mudar a tentativa, sem
 // suprimir o endereço do Cliente e sem cair em "tentativa não encontrada"
 // (que, depois de seis rodadas, abriria "Retorno do provedor de e-mail não
-// aplicado", migration 514).
+// aplicado", migration 535).
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'

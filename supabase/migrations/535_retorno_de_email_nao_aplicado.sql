@@ -1,4 +1,4 @@
--- 514: aviso do provedor de e-mail que o Vela não aplica deixa de virar
+-- 535: aviso do provedor de e-mail que o Vela não aplica deixa de virar
 -- "Portal do Cliente — falha no reprocessamento" da Documentação.
 --
 -- Problema (produção, 30/10/2026): a conta da MillionSend avisa o webhook de
@@ -244,7 +244,7 @@ BEGIN
   END IF;
 
   IF v_portal_attempt_id IS NULL AND v_communication_attempt_id IS NULL THEN
-    -- 514: a conta da MillionSend avisa o webhook de todo e-mail dela, também
+    -- 535: a conta da MillionSend avisa o webhook de todo e-mail dela, também
     -- dos que saem de outro sistema (o formulário do site da Fwlog). Entrega
     -- que continua sem envio do Vela depois das 6 tentativas fecha sem alerta:
     -- não há contato nem tentativa a atualizar. As tentativas continuam porque
@@ -298,7 +298,7 @@ BEGIN
       v_event.id, v_event.attempt_count, v_worker_id, v_retry_status,
       'attempt_unresolved', 'Tentativa ainda não possui provider_message_id vinculado.', v_result
     );
-    -- 514: a entrada em 'investigate' abre o alerta pelo gatilho
+    -- 535: a entrada em 'investigate' abre o alerta pelo gatilho
     -- portal_email_events_investigate_alert, como nos demais casos.
     RETURN v_result;
   END IF;
@@ -515,13 +515,13 @@ AS $function$
     'demurrage_invoice_dates_changed', 'comunicado_recusado',
     -- 495 (ADR 0111, D6): conferência da taxa alterada à mão.
     'taxa_alterada_mudou',
-    -- 514: retorno do provedor de e-mail que nenhuma rotina tira da investigação.
+    -- 535: retorno do provedor de e-mail que nenhuma rotina tira da investigação.
     'email_retorno_nao_aplicado']::text[]
     || public._alert_types_held_after_justification();
 $function$;
 
 -- Item 5: aviso de entrega que já estava em investigação por envio não achado.
-DO $entregas_514$
+DO $entregas_535$
 DECLARE
   v_event_id bigint;
   v_previous_role text := current_setting('request.jwt.claim.role', true);
@@ -542,9 +542,9 @@ BEGIN
              || jsonb_build_object('status', 'processed', 'ignored_unknown_delivery', true),
            updated_at = now()
      WHERE id = v_event_id;
-    PERFORM public.resolve_alert_item('portal_reprocessamento_falhou', 'portal_email_event', v_event_id::text, 'migration_514',
-      jsonb_build_object('note', 'Aviso de entrega de e-mail que não é do Vela fecha sem alerta (migration 514).'));
+    PERFORM public.resolve_alert_item('portal_reprocessamento_falhou', 'portal_email_event', v_event_id::text, 'migration_535',
+      jsonb_build_object('note', 'Aviso de entrega de e-mail que não é do Vela fecha sem alerta (migration 535).'));
   END LOOP;
   PERFORM set_config('request.jwt.claim.role', coalesce(v_previous_role, ''), true);
 END;
-$entregas_514$;
+$entregas_535$;

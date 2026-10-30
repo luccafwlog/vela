@@ -202,7 +202,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   a exclusão de Cliente ao Administrativo sem dizer que a Trava de exclusão
   recusa todo Cliente com CNPJ, que é obrigatório; Cliente se desativa (ACE-088).
 - **Retorno do provedor de e-mail não aplicado** (decisão do dono de
-  2026-10-30, migration `514`): a MillionSend avisa todo e-mail da conta,
+  2026-10-30, migration `535`): a MillionSend avisa todo e-mail da conta,
   também os do site da Fwlog, e o aviso que o Vela não acha abria
   **Portal do Cliente — falha no reprocessamento** crítico para a
   Documentação, com o número do evento em Registro. O aviso de entrega que não
