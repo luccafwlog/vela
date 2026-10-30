@@ -20,7 +20,8 @@ const carrierId = 99514003
 const vesselId = 99514004
 const CASES = ['inside', 'border', 'running', 'override', 'toIssue', 'noCe', 'portal', 'waiting', 'covered', 'cancelledInv',
   'soc', 'noCustomer', 'noRate', 'agreement', 'blCancelled', 'voyageCancelled', 'returnedFree',
-  'autoIssue', 'autoFail', 'noRateFree', 'cancelledHeld', 'waiverMove', 'noRateCancel'] as const
+  'autoIssue', 'autoFail', 'noRateFree', 'cancelledHeld', 'waiverMove', 'noRateCancel',
+  'waivedOutIssue', 'waivedOutCron', 'cancelledOther'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99514100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -224,6 +225,15 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
     // 530 — dispensa que acompanha a troca de Cliente; tipo sem tarifa e sem free time.
     bl('WMOVE', 'waiverMove'); box('WMOVE', 'RQCU5140211', { discharge: 40 })
     bl('NRCANC', 'noRateCancel'); box('NRCANC', 'RQCU5140221', { discharge: 5, type: 'R7ZZ' })
+    // 531 — caixa dispensada ainda fora (Gerar Invoice e rotina); B/L cancelado
+    // com a caixa num B/L ativo de outro Cliente (D22).
+    for (const [id, name, base] of [['WOUTI', 'waivedOutIssue', 231], ['WOUTC', 'waivedOutCron', 241]] as const) {
+      bl(id, name); box(id, `RQCU5140${base}`, { discharge: 40, returned: 5 }); box(id, `RQCU5140${base + 1}`, { discharge: 40 })
+    }
+    bl('OTHA', 'cancelledOther'); box('OTHA', 'RQCU5140251', { discharge: 60 })
+    bl('OTHB', 'cancelledOther', { customer: customerClosed }); box('OTHB', 'RQCU5140251', { discharge: 60 })
+    // Cancelado (como no free time, sem a recusa da 517); outro Cliente segura a caixa (D22).
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = now() WHERE id = '${blPrefix}OTHA'`)
   })
 
   afterAll(cleanup)
@@ -562,6 +572,42 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
     it('caixa do B/L cancelado que um B/L ativo do mesmo Cliente segura aparece só no ativo', () => {
       const groups = board(voyageOf('cancelledHeld'))
       expect(groups.map((group) => [group.anchor_bl_id, group.division])).toEqual([[`${blPrefix}HELDA`, 'correndo']])
+    })
+
+    const waiveOut = (blId: string, number: string) => {
+      const result = run(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+        SET LOCAL request.jwt.claim.sub = '${adminId}';
+        SELECT public.waive_demurrage_box('${blPrefix}${blId}', '${number}', 'Container extraviado no terminal'); COMMIT;`)
+      expect(result.status, result.stderr).toBe(0)
+    }
+
+    it('caixa dispensada ainda fora: Gerar Invoice emite com COMMIT real (531)', () => {
+      waiveOut('WOUTI', 'RQCU5140232')
+      expect(board(voyageOf('waivedOutIssue'))[0]).toMatchObject({ division: 'a_emitir' })
+      const result = run(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+        SET LOCAL request.jwt.claim.sub = '${adminId}';
+        SELECT public.issue_demurrage_invoice_for_bl('${blPrefix}WOUTI')->>'status'; COMMIT;`)
+      expect(result.status, result.stderr).toBe(0)
+      expect(psql(`SELECT string_agg(item.container_number, ',') FROM public.demurrage_invoices di
+        JOIN public.demurrage_invoice_items item ON item.invoice_id = di.id
+        WHERE di.bl_id = '${blPrefix}WOUTI' AND di.status = 'issued'`)).toBe('RQCU5140231')
+    })
+
+    it('caixa dispensada ainda fora: a rotina enfileira e o executor emite com COMMIT real (531)', () => {
+      waiveOut('WOUTC', 'RQCU5140242')
+      psql(`DELETE FROM public.import_pending_effects WHERE entity_id = '${blPrefix}WOUTC' AND effect_kind = 'demurrage_billing'`)
+      cron('waivedOutCron')
+      expect(effects('WOUTC')).toBe('pending:true')
+      expect(processEffect('WOUTC')).toBe('succeeded')
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}WOUTC'`)).toBe('issued')
+      expect(psql(`SELECT count(*) FROM public.import_pending_effects WHERE entity_id = '${blPrefix}WOUTC' AND status = 'blocked'`)).toBe('0')
+    })
+
+    it('B/L cancelado cuja caixa um B/L ativo de outro Cliente tem: só o ativo aparece, sem Alerta de Travado (531, D22)', () => {
+      expect(board(voyageOf('cancelledOther')).map((group) => group.anchor_bl_id)).toEqual([`${blPrefix}OTHB`])
+      psql(`SELECT public.reconcile_demurrage_travado_alerts(${voyageOf('cancelledOther')})`)
+      expect(psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+        WHERE i.item_type = 'demurrage_travado' AND i.status = 'active' AND a.entity_id = '${blPrefix}OTHA'`)).toBe('0')
     })
   })
 

@@ -19,7 +19,7 @@ const customerC = 99521003 // acordo de 40 dias
 const customers = [customerA, customerB, customerC]
 const carrierId = 99521010
 const vesselId = 99521011
-const CASES = ['split', 'agreement', 'arrives', 'paid', 'cancelled', 'deleted', 'payerCancelled', 'realert', 'goesBack', 'sweep'] as const
+const CASES = ['split', 'agreement', 'arrives', 'paid', 'cancelled', 'deleted', 'payerCancelled', 'realert', 'goesBack', 'sweep', 'sweepAudit', 'waiverDup'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99521100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -84,7 +84,7 @@ function cleanup() {
     DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (SELECT id FROM r521_invoices);
     DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM r521_invoices);
     DELETE FROM public.demurrage_invoices WHERE id IN (SELECT id FROM r521_invoices);
-    DELETE FROM public.demurrage_box_waivers WHERE customer_id IN (${customers.join(', ')});
+    DELETE FROM public.demurrage_box_waivers WHERE customer_id IN (${customers.join(', ')}) OR bl_id IN (SELECT id FROM r521_bls);
     DELETE FROM public.customer_demurrage_agreements WHERE customer_id IN (${customers.join(', ')});
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM r521_bls);
     DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM r521_bls);
@@ -293,6 +293,35 @@ describeLocal('Caixa dividida entre Clientes (migration 521)', () => {
       psql(`SELECT public.reconcile_demurrage_travado_alerts(${voyageOf('sweep')}, 'demurrage-travado-alerts')`)
       expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${first}`)).toBe('cancelled')
       expect(liveInvoice('SWA')[2]).toBe(String(first))
+    })
+
+    it('a varredura não regrava a Invoice paga com o Alerta ainda aberto (531)', () => {
+      bl('SAA', 'sweepAudit', customerA); box('SAA', 'RQCU5210011')
+      const paid = issue('SAA')
+      pay(paid)
+      psql(`SET session_replication_role = replica; UPDATE public.bl_containers SET return_date = ${day(-3)} WHERE container_number = 'RQCU5210011'`)
+      const sweep = () => psql(`SELECT public.reconcile_demurrage_travado_alerts(${voyageOf('sweepAudit')}, 'demurrage-travado-alerts')`)
+      const history = () => psql(`SELECT count(*) || '|' || max(changed_at) FROM public.audit_logs
+        WHERE entity_type = 'demurrage_invoices' AND entity_id = '${paid}'`)
+      sweep()
+      expect(activeAlert(paid)).toMatch(/As datas de container/)
+      const before = history()
+      for (let pass = 0; pass < 3; pass += 1) sweep()
+      expect(history()).toBe(before)
+      expect(activeAlert(paid)).toMatch(/As datas de container/)
+    })
+
+    it('a dispensa do B/L sem Cliente não passa ao Cliente vinculado depois, nem dispensa a caixa do B/L dele (531)', () => {
+      psql(`INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status, ce_mercante, demurrage_roe_manual, demurrage_roe)
+            VALUES ('${blPrefix}DUP', ${voyageOf('waiverDup')}, NULL, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', 'CE521DUP', true, 5.5)`)
+      bl('REAL', 'waiverDup', customerA)
+      box('REAL', 'RQCU5210012', 40, 0); box('DUP', 'RQCU5210012', 40, 0)
+      psql(`UPDATE public.bl_containers SET return_date = NULL WHERE container_number = 'RQCU5210012'`)
+      asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}DUP', 'RQCU5210012', 'B/L importado em duplicidade, sem Cliente')`)
+      psql(`UPDATE public.bls SET customer_id = ${customerA} WHERE id = '${blPrefix}DUP'`)
+      expect(psql(`SELECT coalesce(customer_id::text, 'sem') FROM public.demurrage_box_waivers WHERE container_key = 'RQCU5210012' AND revoked_at IS NULL`)).toBe('sem')
+      const board = JSON.parse(asAdmin(`SELECT public.list_demurrage_billing_board(NULL, ${voyageOf('waiverDup')})`)) as Array<{ division: string; boxes: Array<{ state: string }> }>
+      expect(board.map((group) => [group.division, group.boxes[0].state])).toEqual([['correndo', 'running']])
     })
   })
 })
