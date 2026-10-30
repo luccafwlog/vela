@@ -90,6 +90,15 @@ export type EscalaModalPayload = {
   }
 }
 
+/**
+ * ADR por terminal já fechado na escala: a gravação que mudar a declaração de
+ * exportação é recusada (migration 477), então o Granito importado depois do
+ * fechamento não é pré-marcado (decisão do dono de 2026-10-30).
+ */
+export function hasClosedTerminalAdr(state: Pick<TerminalScaleState, 'agencyReports'> | null | undefined): boolean {
+  return (state?.agencyReports ?? []).some((report) => Boolean(report.terminalId) && report.status === 'closed')
+}
+
 export type EscalaModalTerminalScale = TerminalScaleState & {
   loading?: boolean
   error?: string | null
@@ -793,9 +802,11 @@ export function EscalaModal({
     setTemImportacao(escala.temImportacao)
     // Granito importado no porto já é carga vinculada (a declaração trava): a
     // janela abre com ele declarado para a frente de Granito ser gravada com
-    // terminal e o Granito chegar ao ADR do terminal.
-    setTemExportacao(escala.temExportacao || Boolean(escala.graniteLocked))
-    setHasGranite(escala.hasGranite || Boolean(escala.graniteLocked))
+    // terminal e o Granito chegar ao ADR do terminal. Com ADR por terminal
+    // fechado, não: marcar mudaria a declaração e a gravação seria recusada.
+    const preMarkGranite = Boolean(escala.graniteLocked) && !hasClosedTerminalAdr(escala.terminalScale)
+    setTemExportacao(escala.temExportacao || preMarkGranite)
+    setHasGranite(escala.hasGranite || preMarkGranite)
     setHasEmpty(escala.hasEmpty)
     setContainersQty(escala.containersQty === null ? '' : String(escala.containersQty))
     setMovementsQty(escala.movementsQty === null ? '' : String(escala.movementsQty))
@@ -836,6 +847,11 @@ export function EscalaModal({
       }
       setTerminalFronts(hydratedFronts)
       setTerminalDates(hydratedDates)
+      // A pré-marcação do Granito foi feita antes de saber dos ADRs fechados.
+      if (escala.graniteLocked && !escala.hasGranite && hasClosedTerminalAdr(terminalScale)) {
+        setHasGranite(false)
+        setTemExportacao(escala.temExportacao)
+      }
     }
   }
 
@@ -1156,6 +1172,9 @@ export function EscalaModal({
               ))}
             </div>
 
+            {escala.graniteLocked && !escala.hasGranite && hasClosedTerminalAdr(terminalScale ?? escala.terminalScale) ? (
+              <p className="app-escala-note" role="status"><Lock size={13} aria-hidden="true" />Granito importado depois do fechamento do ADR de Saída: reabra o ADR para incluí-lo na escala.</p>
+            ) : null}
             {temExportacao ? (
               <div className="app-escala-export-block">
                 <div className="app-escala-subsection-title">Carga de exportação</div>

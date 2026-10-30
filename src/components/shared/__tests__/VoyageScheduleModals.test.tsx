@@ -471,6 +471,22 @@ describe('EscalaModal', () => {
     expect(graniteToggle.getAttribute('aria-pressed')).toBe('false')
   })
 
+  // Decisão do dono de 2026-10-30: com ADR por terminal fechado, marcar o
+  // Granito mudaria a declaração e a gravação seria recusada; a janela avisa.
+  it('com ADR por terminal fechado, não pré-marca o Granito importado e avisa para reabrir o ADR', () => {
+    renderEscala({
+      ...escalaBase,
+      graniteLocked: true,
+      exportLocked: true,
+      terminalScale: {
+        ...terminalScaleBase,
+        agencyReports: [{ reportId: 'r1', voyageId: 1, port: 'BRVIX', terminalId: 't-norte', terminal: 'TVV', status: 'closed', sections: [] }],
+      },
+    })
+    expect(screen.queryByRole('button', { name: 'Granito' })).toBeNull()
+    expect(screen.getByText(/Granito importado depois do fechamento do ADR de Saída/)).toBeTruthy()
+  })
+
   // Mapeamento de 2026-10-30: Granito importado sem a declaração ficava sem
   // frente e fora do ADR por terminal.
   it('abre com Granito declarado e grava a frente dele quando há Granito importado no porto', async () => {
