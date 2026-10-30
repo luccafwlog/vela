@@ -101,8 +101,8 @@ verdade é feito numa página **rascunho/privada** do WordPress em
 2. O quadro tem "Atualizado em …" e o botão **Atualizar** funciona.
 3. Um navio com IMO cadastrado tem o ícone do mapa, que abre o MarineTraffic
    em nova aba.
-4. A consulta de um container conhecido (descarregado nos últimos 90 dias em
-   Salvador, Vitória ou Suape) mostra a situação e a data limite; um número
+4. A consulta de um container conhecido (de Salvador, Vitória, Pecém ou
+   Suape, descarregado nos últimos 90 dias ou ainda não devolvido) mostra a situação e a data limite; um número
    com o último algarismo trocado mostra "Confira o número…".
 5. Nenhuma das páginas mostra cliente, B/L, valores ou o nome do sistema
    interno.

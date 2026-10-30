@@ -54,7 +54,7 @@ export const SCHEDULE_MAX_VOYAGES = 100
 // Mesmas listas da migration 514 e do front (testes de paridade em
 // src/services/__tests__/publicFwlogEdge.test.ts).
 export const PUBLIC_SCHEDULE_PORT_CODES = ['CNTAO', 'CNSHA', 'CNTAC', 'CNNGB', 'CNNSA', 'BRSSA', 'BRVIX', 'BRPEC', 'BRSUA'] as const
-export const PUBLIC_LOOKUP_PORT_CODES = ['BRVIX', 'BRSSA', 'BRSUA'] as const
+export const PUBLIC_LOOKUP_PORT_CODES = ['BRSSA', 'BRVIX', 'BRPEC', 'BRSUA'] as const
 export const PUBLIC_LOOKUP_SITUATIONS = ['aguardando_descarga', 'no_prazo', 'prazo_vencido', 'prazo_a_confirmar', 'devolvido'] as const
 
 export const TURNSTILE_ACTION = { schedule: 'schedule', lookup: 'lookup' } as const

@@ -9,7 +9,7 @@ import { Field, Input } from '../components/ui/Input'
 import { NoValue } from '../components/ui/NoValue'
 import { parsePublicContainerNumber } from '../lib/containerNumber'
 import { formatBrasiliaDateTime } from '../lib/dates'
-import { portalServicePorts } from '../services/informationPort'
+import { PUBLIC_LOOKUP_PORTS } from '../services/publicLookupPorts'
 import { formatScheduleDate } from '../services/portalScheduleLanes'
 import {
   PublicRequestError,
@@ -20,11 +20,12 @@ import {
   type PublicLookupResult,
 } from '../services/publicFwlog'
 
-const PORTS = portalServicePorts.map((port) => port.name).join(', ').replace(/, ([^,]*)$/, ' e $1')
+const PORTS = PUBLIC_LOOKUP_PORTS.map((port) => port.name).join(', ').replace(/, ([^,]*)$/, ' e $1')
 
 const NUMBER_HINT = '4 letras e 7 algarismos, como está na porta do container (ex.: ABCU1234567).'
 const INVALID_NUMBER = 'Confira o número: 4 letras e 7 algarismos, com o último algarismo (dígito verificador) correto.'
-const NOT_FOUND = `Não encontramos este container nos últimos 90 dias em ${PORTS}. Confira o número ou fale com a Fwlog.`
+const COVERAGE = `Containers de ${PORTS}: descarregados ou previstos nos últimos 90 dias e os que ainda não foram devolvidos.`
+const NOT_FOUND = `Não encontramos este container. ${COVERAGE} Confira o número ou fale com a Fwlog.`
 
 const FAILURE_MESSAGE: Record<PublicFailure, string> = {
   challenge: 'A verificação de segurança não foi aceita. Faça a verificação de novo e consulte.',
@@ -41,7 +42,7 @@ const SITUATION: Record<PublicContainerSituation, { label: string; tone: 'defaul
 }
 
 function portName(code: string | null) {
-  return portalServicePorts.find((port) => port.code === code)?.name ?? code
+  return PUBLIC_LOOKUP_PORTS.find((port) => port.code === code)?.name ?? code
 }
 
 function date(value: string | null) {
@@ -125,7 +126,7 @@ export function PublicConsultaContainer() {
             </Button>
           </div>
           <p className="app-schedule-legend">
-            Containers descarregados ou previstos nos últimos 90 dias em {PORTS}. Para outros portos ou períodos, fale com a Fwlog.
+            {COVERAGE} Para outros portos ou períodos, fale com a Fwlog.
           </p>
         </form>
       </Block>

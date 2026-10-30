@@ -141,7 +141,7 @@ it('consulta: encontrado mostra só os campos da lista positiva; o token vale um
 
   fetchMock.mockResolvedValueOnce(json({ found: false }))
   await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
-  expect(await screen.findByText(/Não encontramos este container nos últimos 90 dias em Vitória, Salvador e Suape/)).toBeTruthy()
+  expect(await screen.findByText(/Não encontramos este container\. Containers de Salvador, Vitória, Pecém e Suape: descarregados ou previstos nos últimos 90 dias e os que ainda não foram devolvidos\./)).toBeTruthy()
   expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body)).turnstile_token).toBe('lookup-chave-publica-1')
   expect(supabaseRpc).not.toHaveBeenCalled()
 })

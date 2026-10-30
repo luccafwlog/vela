@@ -61,12 +61,13 @@ do sistema vai para o WordPress).
    Brasília) é de hoje menos 90 dias em diante. A data de referência é a
    descarga; sem ela, a ATA e depois a ETA da escala do POD
    (`pod_schedule_snapshot`); sem escala, a ATA e a ETA gerais da Viagem.
-   Container sem nenhuma dessas datas fica fora. Container sem devolução com
-   descarga há mais de 90 dias também fica fora (caminho mais fechado; ver
-   perguntas da PR).
-5. Portos atendidos: os da consulta de Devolução do Portal
-   (`portalServicePorts`: Salvador, Vitória e Suape). Pecém não entra
-   (caminho mais fechado; pergunta aberta na PR).
+   Container sem nenhuma dessas datas fica fora. Container já descarregado e
+   ainda sem devolução entra **qualquer que seja a idade** da descarga
+   (decisão do dono de 2026-10-30): é o caso que mais interessa à
+   transportadora (free time vencido).
+5. Portos da consulta: Salvador, Vitória, Pecém e Suape (`PUBLIC_LOOKUP_PORTS`;
+   Pecém por decisão do dono de 2026-10-30). Lista própria, separada da dos
+   portos da Central de Informações do Portal (`portalServicePorts`).
 6. O free time em dias pode refletir o acordo comercial do Cliente
    (`customer_demurrage_agreements`) ou o free time do B/L. É decisão
    consciente do dono: a planilha atual já expõe isso. O valor sai da mesma
@@ -143,11 +144,15 @@ internos; autor e hora das mudanças na trilha (`audit_logs`), notas, alertas;
 ## Consequências
 
 - Uma pessoa sem conta lê a programação publicada e, por número exato, um
-  container dos portos atendidos nos últimos 90 dias. É menos do que a
+  container dos portos da consulta dos últimos 90 dias ou ainda não
+  devolvido. É menos do que a
   planilha pública atual expõe (aba oculta com 9.119 containers).
 - Reabrir mais campos, portos, janela ou outra forma de busca exige nova ADR.
 - Adicionar porto ao quadro muda três listas que os testes comparam:
-  `PORTAL_SCHEDULE_LANES`, `_public_schedule_port_codes()` e a da Edge.
+  `PORTAL_SCHEDULE_LANES`, `_public_schedule_port_codes()` e a da Edge; à
+  consulta, `PUBLIC_LOOKUP_PORTS`, `_public_lookup_port_codes()` e a da Edge.
+- O limite global de 300 "não encontrado" por hora foi confirmado pelo dono
+  em 2026-10-30.
 - Configuração externa necessária antes de usar: widget Turnstile novo,
   secrets das Edges, variável de build da Site Key e origens do CORS
   ([Serviços externos](../operations/servicos-externos.md)); o passo a passo

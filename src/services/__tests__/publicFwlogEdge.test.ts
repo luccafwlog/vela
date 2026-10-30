@@ -5,7 +5,7 @@ import {
   normalizePublicContainerNumber,
 } from '../../../supabase/functions/_shared/publicFwlog.ts'
 import { PORTAL_SCHEDULE_LANES, portalLaneCode } from '../portalScheduleLanes'
-import { portalServicePorts } from '../informationPort'
+import { PUBLIC_LOOKUP_PORTS } from '../publicLookupPorts'
 import { computeIsoContainerCheckDigit, parsePublicContainerNumber } from '../../lib/containerNumber'
 
 // ADR 0112: a Edge repete as listas do front porque o Deno não importa
@@ -16,8 +16,8 @@ describe('widgets públicos: listas e número de container iguais em Edge e fron
     expect([...PUBLIC_SCHEDULE_PORT_CODES]).toEqual(PORTAL_SCHEDULE_LANES.map(portalLaneCode))
   })
 
-  it('portos da consulta são os atendidos do Portal', () => {
-    expect([...PUBLIC_LOOKUP_PORT_CODES].sort()).toEqual(portalServicePorts.map((port) => port.code).sort())
+  it('portos da consulta: Salvador, Vitória, Pecém e Suape', () => {
+    expect([...PUBLIC_LOOKUP_PORT_CODES]).toEqual(PUBLIC_LOOKUP_PORTS.map((port) => port.code))
   })
 
   it('o validador do navegador e o da Edge aceitam e recusam os mesmos números', () => {

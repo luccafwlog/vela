@@ -22,14 +22,16 @@
 --      servidor pelos portos do quadro, sem `voyage_id` (chave opaca
 --      `voyage_key`, a posição da viagem nesta resposta) e com teto de 100
 --      viagens.
---   4. `_public_lookup_port_codes()`: portos atendidos da consulta, os mesmos
---      de `portalServicePorts` (src/services/informationPort.ts): Salvador,
---      Vitória e Suape.
+--   4. `_public_lookup_port_codes()`: portos da consulta, os de
+--      `PUBLIC_LOOKUP_PORTS` (src/services/publicLookupPorts.ts): Salvador,
+--      Vitória, Pecém e Suape (Pecém por decisão do dono de 2026-10-30).
 --   5. `_iso6346_check_digit_valid(text)` e `public_container_lookup(text)`:
 --      só `service_role`. Número normalizado, formato ISO 6346 e dígito
 --      verificador conferidos antes de ler tabela; igualdade exata no número
 --      normalizado (índice da 163); B/L cancelado, Viagem cancelada, porto
---      fora da lista, container SOC e fora da janela de 90 dias não voltam;
+--      fora da lista, container SOC e fora da janela não voltam (janela: data
+--      de referência nos últimos 90 dias, ou container descarregado e ainda
+--      sem devolução, decisão do dono de 2026-10-30);
 --      no máximo uma linha, com a projeção fechada da ADR 0112.
 --
 -- Não reescreve nem apaga linhas.
@@ -205,9 +207,8 @@ CREATE OR REPLACE FUNCTION public._public_lookup_port_codes()
  IMMUTABLE
  SET search_path = ''
 AS $function$
-  -- Mesmos portos de `portalServicePorts` (informationPort.ts), os atendidos
-  -- nas consultas de Taxas Locais e Devolução do Portal; o teste compara.
-  SELECT ARRAY['BRVIX', 'BRSSA', 'BRSUA']::text[];
+  -- Mesmos portos de `PUBLIC_LOOKUP_PORTS` (publicLookupPorts.ts); o teste compara.
+  SELECT ARRAY['BRSSA', 'BRVIX', 'BRPEC', 'BRSUA']::text[];
 $function$;
 
 REVOKE ALL ON FUNCTION public._public_lookup_port_codes() FROM PUBLIC, anon, authenticated;
@@ -310,7 +311,10 @@ BEGIN
     SELECT candidates.*
     FROM candidates
     WHERE candidates.pod_code = ANY (public._public_lookup_port_codes())
-      AND candidates.reference_date >= v_today - 90
+      -- Janela: referência nos últimos 90 dias (ou futura), ou container já
+      -- descarregado que ainda não voltou, qualquer que seja a idade.
+      AND (candidates.reference_date >= v_today - 90
+           OR (candidates.discharge_date IS NOT NULL AND candidates.return_date IS NULL))
   ),
   picked AS (
     -- Viagem mais recente; na mesma Viagem, o B/L de menor número e depois o

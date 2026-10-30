@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 import { PORTAL_SCHEDULE_LANES, portalLaneCode } from '../services/portalScheduleLanes'
-import { portalServicePorts } from '../services/informationPort'
+import { PUBLIC_LOOKUP_PORTS } from '../services/publicLookupPorts'
 import { computeIsoContainerCheckDigit } from '../lib/containerNumber'
 
 // Migration 514 (ADR 0112): quadro e consulta públicos do fwlog.com.br. As
@@ -20,7 +20,7 @@ const V_PUBLIC = NS // ativa, no Portal
 const V_HIDDEN = NS + 1 // ativa, fora do Portal
 const V_CANCELLED = NS + 2 // cancelada, marcada no Portal
 const V_OLD = NS + 3 // ativa, mais antiga, para o número repetido
-const V_OUT = NS + 4 // ativa, fora da janela de 90 dias
+const V_OUT = NS + 4 // ativa, mais de 90 dias atrás
 const CUSTOMER = NS
 const CUSTOMER_CNPJ = syntheticCnpj(51401)
 const TODAY = "(now() AT TIME ZONE 'America/Sao_Paulo')::date"
@@ -36,7 +36,9 @@ const BOX_SHARED = containerNumber(51403) // rateado entre dois B/Ls do Cliente
 const BOX_CANCELLED_BL = containerNumber(51404)
 const BOX_CANCELLED_VOYAGE = containerNumber(51405)
 const BOX_UNSERVED_PORT = containerNumber(51406) // POD Santos
-const BOX_OUT_OF_WINDOW = containerNumber(51407)
+const BOX_OUT_OF_WINDOW = containerNumber(51407) // devolvido, descarga há 120 dias
+const BOX_STILL_OUT = containerNumber(51411) // sem devolução, descarga há 120 dias
+const BOX_PECEM = containerNumber(51412)
 const BOX_SOC = containerNumber(51408)
 const BOX_UNKNOWN = containerNumber(51409) // formato e dígito válidos, sem registro
 const BOX_WAITING = containerNumber(51410) // sem descarga, ETA futura
@@ -51,6 +53,7 @@ const BLS = {
   santos: 'BL-514-SSZ',
   out: 'BL-514-OUT',
   waiting: 'BL-514-WAIT',
+  pecem: 'BL-514-PEC',
 }
 
 function psql(sql: string): string {
@@ -147,7 +150,8 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
         ('${BLS.cancelledVoyage}', ${V_CANCELLED}, ${CUSTOMER}, 'container', 'BRSSA', NULL),
         ('${BLS.santos}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSZ', NULL),
         ('${BLS.out}', ${V_OUT}, ${CUSTOMER}, 'container', 'BRSSA', NULL),
-        ('${BLS.waiting}', ${V_HIDDEN}, ${CUSTOMER}, 'container', 'BRVIX', NULL);
+        ('${BLS.waiting}', ${V_HIDDEN}, ${CUSTOMER}, 'container', 'BRVIX', NULL),
+        ('${BLS.pecem}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'PECEM', NULL);
       -- O B/L irmão tem free time próprio: a resposta tem de seguir o âncora.
       UPDATE public.bls SET free_time_override = 30 WHERE id = '${BLS.sharedB}';
 
@@ -160,7 +164,9 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
         ('${BLS.cancelled}', '${BOX_CANCELLED_BL}', '40HC', ${TODAY} - 10, NULL, 'COC'),
         ('${BLS.cancelledVoyage}', '${BOX_CANCELLED_VOYAGE}', '40HC', ${TODAY} - 10, NULL, 'COC'),
         ('${BLS.santos}', '${BOX_UNSERVED_PORT}', '40HC', ${TODAY} - 10, NULL, 'COC'),
-        ('${BLS.out}', '${BOX_OUT_OF_WINDOW}', '40HC', ${TODAY} - 120, NULL, 'COC'),
+        ('${BLS.out}', '${BOX_OUT_OF_WINDOW}', '40HC', ${TODAY} - 120, ${TODAY} - 100, 'COC'),
+        ('${BLS.out}', '${BOX_STILL_OUT}', '40HC', ${TODAY} - 120, NULL, 'COC'),
+        ('${BLS.pecem}', '${BOX_PECEM}', '20DV', ${TODAY} - 5, NULL, 'COC'),
         ('${BLS.found}', '${BOX_SOC}', '40HC', ${TODAY} - 10, NULL, 'SOC'),
         ('${BLS.waiting}', '${BOX_WAITING}', '20DV', NULL, NULL, 'COC');
       -- Cancelamentos direto na tabela, sem os gatilhos (fixture): a escala de
@@ -190,8 +196,8 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
   it('os portos do servidor são os do quadro do Portal (com Suape) e os atendidos do Portal', () => {
     expect(psql(`SELECT array_to_string(public._public_schedule_port_codes(), ',');`)).toBe(PORTAL_SCHEDULE_LANES.map(portalLaneCode).join(','))
     expect(PORTAL_SCHEDULE_LANES.map(portalLaneCode)).toContain('BRSUA')
-    expect(psql(`SELECT array_to_string(public._public_lookup_port_codes(), ',');`).split(',').sort())
-      .toEqual(portalServicePorts.map((port) => port.code).sort())
+    expect(psql(`SELECT array_to_string(public._public_lookup_port_codes(), ',');`))
+      .toBe(PUBLIC_LOOKUP_PORTS.map((port) => port.code).join(','))
   })
 
   it('paridade: o quadro público é o do Portal nos portos do quadro, sem voyage_id', () => {
@@ -254,11 +260,19 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
     expect(lookup(BOX_SHARED)).toBe(first)
   })
 
+  it('sem devolução e descarregado há mais de 90 dias: aparece, com o prazo vencido', () => {
+    expect(lookupRow(BOX_STILL_OUT)).toMatchObject({ voyage: '514X', return_date: null, free_time_days: 14, situation: 'prazo_vencido' })
+  })
+
+  it('Pecém é porto da consulta', () => {
+    expect(lookupRow(BOX_PECEM)).toMatchObject({ discharge_port: 'BRPEC', situation: 'no_prazo' })
+  })
+
   it('sem descarga: aguardando descarga, sem free time nem data limite', () => {
     expect(lookupRow(BOX_WAITING)).toMatchObject({ situation: 'aguardando_descarga', free_time_days: null, free_time_until: null, discharge_port: 'BRVIX' })
   })
 
-  it('dígito inválido, inexistente, fora da janela, cancelado, porto não atendido e SOC: a mesma resposta vazia', () => {
+  it('dígito inválido, inexistente, devolvido fora da janela, cancelado, porto não atendido e SOC: a mesma resposta vazia', () => {
     const wrongDigit = `${BOX_FOUND.slice(0, 10)}${(Number(BOX_FOUND[10]) + 1) % 10}`
     for (const number of [wrongDigit, BOX_UNKNOWN, BOX_OUT_OF_WINDOW, BOX_CANCELLED_BL, BOX_CANCELLED_VOYAGE, BOX_UNSERVED_PORT, BOX_SOC, 'ZQPU51401', "ZQPU' OR 1=1 --", BOX_FOUND.slice(0, 6), '']) {
       expect(lookup(number), number).toBe('')
