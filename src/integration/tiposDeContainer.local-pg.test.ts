@@ -148,6 +148,40 @@ describeLocal('514 — Tipos de container e uma tarifa por grupo', () => {
       ROLLBACK;`)).toThrow(/já usado em B\/L: desative em vez de excluir/)
   })
 
+  it('o tipo com código de grupo não muda de grupo, e a tarifa de cada grupo fica com ele (528)', () => {
+    expect(as(OPS_ID, `UPDATE public.container_types SET rate_group = '40GP' WHERE code = '40FR';`).stderr)
+      .toMatch(/é o código do grupo de tarifa: o grupo e o código dele não mudam/)
+    expect(as(ADMIN_ID, `UPDATE public.container_types SET code = '40FX' WHERE code = '40FR';`).stderr)
+      .toMatch(/é o código do grupo de tarifa/)
+    // Mesmo com o cadastro contrariando o grupo (gravado sem a guarda), a tarifa de cada grupo é a dele.
+    const special = psql(`SELECT free_days FROM public.demurrage_rates WHERE container_type = '40FR' AND active;`)
+    const dry = psql(`SELECT free_days FROM public.demurrage_rates WHERE container_type = '40GP' AND active;`)
+    expect(psql(`
+      BEGIN;
+      SET LOCAL session_replication_role = replica;
+      UPDATE public.container_types SET rate_group = '40GP' WHERE code = '40FR';
+      UPDATE public.demurrage_rates SET free_days = free_days + 1 WHERE container_type = '40FR' AND active;
+      SELECT public._container_free_days('SEM-BL-514', '48FR', current_date) || ',' || public._container_free_days('SEM-BL-514', '40HC', current_date);
+      ROLLBACK;`)).toBe(`${Number(special) + 1},${dry}`)
+  })
+
+  it('código de tipo usado em B/L não muda; o sem uso muda (528)', () => {
+    // Fixture como superusuário; a troca de código como Operações, na mesma transação.
+    const used = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+      BEGIN;
+      SET LOCAL session_replication_role = replica;
+      INSERT INTO public.bls (id, voyage_id, cargo_mode) VALUES ('BL-528-USO', -528, 'container');
+      INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('BL-528-USO', 'TEST5280001', '40HC');
+      SET LOCAL session_replication_role = origin;
+      SELECT set_config('request.jwt.claims', '{"sub":"${OPS_ID}","role":"authenticated"}', true);
+      SET LOCAL ROLE authenticated;
+      UPDATE public.container_types SET code = '40HX' WHERE code = '40HC';
+      ROLLBACK;`], { encoding: 'utf8' })
+    expect(used.stderr).toMatch(/Tipo de container 40HC já usado em B\/L: o código não muda/)
+    expect(as(OPS_ID, `INSERT INTO public.container_types (code, description, rate_group) VALUES ('45HC', 'x', '40GP');
+      UPDATE public.container_types SET code = '45HX' WHERE code = '45HC';`).status).toBe(0)
+  })
+
   it('tipo desativado deixa de achar tarifa', () => {
     expect(psql(`
       BEGIN;
