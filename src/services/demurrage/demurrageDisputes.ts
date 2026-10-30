@@ -42,6 +42,19 @@ export type DemurrageDispute = {
   created_at: string
   updated_at: string
   messages: DemurrageDisputeMessage[]
+  /** Desde a migration 520 (ADR 0112, D15 e D18). */
+  resolved_at?: string | null
+  cancelled_at?: string | null
+  invoice_status?: string | null
+  invoice_total_usd?: number | null
+  invoice_discount_mode?: string | null
+  invoice_discount_value?: number | null
+  invoice_current_total_brl?: number | null
+  /** Desde quando aguarda Equipamentos; nulo quando a vez não é nossa. */
+  waiting_since?: string | null
+  /** 1 dia útil depois de `waiting_since`, pelo calendário do Vela. */
+  due_at?: string | null
+  overdue?: boolean
 }
 
 const disputeRpc = supabase as unknown as {

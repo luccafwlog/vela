@@ -1171,9 +1171,35 @@ interna).
   `portal_dispute_opened`; o Administrativo responde e reabre como cobertura
   (migration `081`). A mensagem grava quem respondeu (`author_type`
   `equipamentos` ou `administrativo`), e o Portal mostra isso ao Cliente. Na
-  aba **Disputas** de `/demurrage`, só para esses dois perfis, **Enviar
-  resposta** pede o próximo responsável (Cliente, ou Ninguém, que resolve a
-  Disputa) e **Reabrir Disputa** exige justificativa.
+  aba **Disputas** de `/demurrage`, só para esses dois perfis, **Responder**
+  (só com a vez nossa) pede o próximo responsável (Cliente, ou Ninguém, que
+  resolve a Disputa) e **Reabrir Disputa** (só em Invoice emitida ou paga)
+  exige justificativa.
+- **Tabela** (desde a migration `520`, [ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
+  D15): uma linha por Disputa com Invoice, situação da Invoice, Cliente, valor
+  em disputa (USD líquido e BRL hoje), aberta há e a vez; a conversa abre
+  embaixo da linha. Filtros Abertas, Resolvidas, Canceladas e Todas; as que
+  aguardam a nossa resposta primeiro. `list_demurrage_disputes_internal`
+  devolve a situação e os valores da Invoice, `waiting_since`, `due_at` e
+  `overdue`.
+- **Invoice cancelada** (D16): todo cancelamento da Invoice (à mão, reemissão
+  por datas, troca de CNPJ) cancela a Disputa aberta no fim da transação
+  (gatilho adiado `trg_demurrage_invoice_cancel_dispute`): mensagem de
+  sistema com o motivo de `audit_logs`, `dispute_status` `cancelado`, Disputa
+  `cancelada`, notificação `dispute_cancelled` ao Cliente e os Alertas da
+  Disputa fechados.
+- **Uma conversa por Invoice** (D17): `portal_add_dispute_message` recusa
+  Disputa nova quando a Invoice já teve uma resolvida e indica Solicitar
+  reabertura; `reopen_demurrage_dispute` recusa Invoice cancelada.
+- **Prazo de 1 dia útil** (D18): a Disputa aberta que aguarda Equipamentos
+  vence no mesmo horário do dia útil seguinte ao início da espera
+  (`_demurrage_dispute_due_at`, calendário `business_holidays`, o do Pix
+  Itaú); a espera começa na primeira mensagem do Cliente depois da nossa
+  última (`_demurrage_dispute_waiting_since`). Vencida, a linha fica em âmbar e
+  abre o Alerta `demurrage_disputa_prazo` para Equipamentos, pela rotina
+  `demurrage-disputa-prazo` (a cada 15 minutos); a resposta, a resolução e o
+  cancelamento fecham na hora (gatilho `trg_demurrage_dispute_deadline_alert`).
+  **Teste local-pg:** `disputasDemurrage.local-pg.test.ts`.
 - **Efeitos na cobrança:** Disputa aberta pausa a
   [Régua de Cobrança](#régua-de-cobrança), não impede o Recálculo Diário
   (migration `066`) e, se as datas mudarem depois da emissão, deixa a Invoice

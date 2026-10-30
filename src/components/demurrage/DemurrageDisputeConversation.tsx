@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { MessageSquare, Paperclip, Send } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { ChevronDown, ChevronRight, MessageSquare, Paperclip, Send } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
 import { EmptyState, InlineError } from '../ui/Card'
+import { NoValue } from '../ui/NoValue'
 import { Textarea } from '../ui/Input'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { formatDateTime } from '../../lib/utils'
+import { saoPauloTodayIso } from '../../lib/dates'
+import { InvoiceStatusBadge } from './DemurrageBadges'
+import { fmtBRL, fmtUSD } from '../../services/demurrage/demurragePresentation'
+import { invoiceNetUsd } from '../../services/demurrage/demurrageNetUsd'
 import { portalErrorMessage } from '../../lib/portalErrorMessage'
 import { useAuth } from '../../hooks/useAuth'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -35,7 +40,21 @@ const NEXT_LABELS: Record<DemurrageDispute['next_responder'], string> = {
   ninguem: 'Sem pendência de resposta',
 }
 
-type Filter = 'abertas' | 'resolvidas' | 'todas'
+type Filter = 'abertas' | 'resolvidas' | 'canceladas' | 'todas'
+
+const FILTER_STATE: Record<Exclude<Filter, 'todas'>, DemurrageDispute['state']> = { abertas: 'aberta', resolvidas: 'resolvida', canceladas: 'cancelada' }
+
+/** Aberta há: dias de calendário de Brasília desde a abertura. */
+function openedDays(createdAt: string, now = new Date()): number {
+  const from = saoPauloTodayIso(new Date(createdAt))
+  const to = saoPauloTodayIso(now)
+  return Math.max(0, Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000))
+}
+
+/** Reabrir só em Invoice emitida ou paga (D17). */
+function canReopen(dispute: DemurrageDispute) {
+  return dispute.state === 'resolvida' && ['issued', 'overdue', 'paid'].includes(dispute.invoice_status ?? 'issued')
+}
 
 type Props = {
   /** Disputa em foco (alerta "Disputa aberta no Portal" manda `?dispute=`). */
@@ -87,6 +106,7 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
   const counts = {
     abertas: disputes.filter((dispute) => dispute.state === 'aberta').length,
     resolvidas: disputes.filter((dispute) => dispute.state === 'resolvida').length,
+    canceladas: disputes.filter((dispute) => dispute.state === 'cancelada').length,
     todas: disputes.length,
   }
   // Começa nas abertas quando há alguma; a Disputa em foco fora delas abre em Todas.
@@ -94,7 +114,7 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
   const effectiveFilter: Filter = filter ?? defaultFilter
   // A que espera a nossa resposta vem primeiro; depois, a atualizada mais recente.
   const visible = disputes
-    .filter((dispute) => effectiveFilter === 'todas' || (effectiveFilter === 'abertas' ? dispute.state === 'aberta' : dispute.state === 'resolvida'))
+    .filter((dispute) => effectiveFilter === 'todas' || dispute.state === FILTER_STATE[effectiveFilter])
     .slice()
     .sort((left, right) => {
       const waitLeft = left.state === 'aberta' && left.next_responder === 'equipamentos' ? 0 : 1
@@ -104,6 +124,10 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
 
   // Rola só quando a Disputa em foco muda, não a cada releitura da lista.
   const focusedId = focused?.id ?? null
+  // A conversa em foco abre embaixo da linha; a que aguarda a nossa resposta
+  // e a escolhida pelo operador também.
+  const [openRows, setOpenRows] = useState<Record<number, boolean>>({})
+  const isOpen = (dispute: DemurrageDispute) => openRows[dispute.id] ?? dispute.id === focusedId
   useEffect(() => {
     if (focusedId == null) return
     document.getElementById(`dispute-${focusedId}`)?.scrollIntoView?.({ block: 'start' })
@@ -187,6 +211,95 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
     }
   }
 
+  function renderConversation(dispute: DemurrageDispute) {
+    const messages = dispute.messages ?? []
+    const showAll = expanded[dispute.id] || messages.length <= 3
+    const shown = showAll ? messages : messages.slice(-3)
+    const waiting = dispute.state === 'aberta' && dispute.next_responder === 'equipamentos'
+    // Responder só com a vez nossa; Reabrir só em Invoice emitida ou paga (D15, D17).
+    const canAct = canAnswer && (waiting || canReopen(dispute))
+    return (
+      <div className="grid gap-3">
+        {messages.length ? (
+          <ol className="app-dem-messages" aria-label={`Conversa da Disputa ${dispute.doc_number}`}>
+            {!showAll ? (
+              <li className="app-dem-messages__more">
+                <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setExpanded((current) => ({ ...current, [dispute.id]: true }))}>
+                  Ver {messages.length - 3} {messages.length - 3 === 1 ? 'mensagem anterior' : 'mensagens anteriores'}
+                </Button>
+              </li>
+            ) : null}
+            {shown.map((message) => (
+              <li key={message.id} className={`app-dem-message${message.author_type === 'cliente' ? ' app-dem-message--customer' : ''}`}>
+                <div className="app-dem-message__meta">
+                  <span className="app-dem-strong">{DISPUTE_AUTHOR_LABELS[message.author_type] ?? message.author_type}</span>
+                  <span>{formatDateTime(message.created_at)}</span>
+                </div>
+                <p className="app-dem-message__body">{message.body}</p>
+                {message.attachments?.length ? (
+                  <p className="app-dem-meta"><DisputeAttachmentLinks attachments={message.attachments} client={supabase} /></p>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        ) : <p className="app-dem-meta">Sem mensagens.</p>}
+
+        {(waiting || canReopen(dispute)) && !canAnswer ? (
+          <p className="app-dem-meta">Responder, reabrir e anexar são de Equipamentos e do Administrativo.</p>
+        ) : null}
+        {dispute.state === 'aberta' && !waiting ? <p className="app-dem-meta">A vez é do Cliente: a resposta volta a aparecer quando ele escrever.</p> : null}
+        {dispute.state === 'resolvida' && !canReopen(dispute) ? <p className="app-dem-meta">A Invoice desta disputa está cancelada: a disputa não reabre.</p> : null}
+        {canAct ? (
+          <div className="app-dem-dispute__reply">
+            <label className="app-field__label" htmlFor={`dispute-${dispute.id}-body`}>{dispute.state === 'resolvida' ? 'Justificativa da reabertura' : 'Resposta ao Cliente'}</label>
+            <Textarea
+              id={`dispute-${dispute.id}-body`}
+              rows={2}
+              value={drafts[dispute.id] ?? ''}
+              aria-invalid={errors[dispute.id] ? true : undefined}
+              onChange={(event) => setDrafts((current) => ({ ...current, [dispute.id]: event.target.value }))}
+              placeholder={dispute.state === 'resolvida' ? 'Justifique a reabertura...' : 'Responder ao cliente...'}
+            />
+            {dispute.state === 'aberta' ? (
+              <div className="app-dem-dispute__options">
+                <label className="app-dem-file">
+                  <span className="app-field__label">Anexo (PDF, JPG, PNG ou TXT até 10 MB)</span>
+                  <input key={fileInputKeys[dispute.id] ?? 0} type="file" accept="application/pdf,image/jpeg,image/png,text/plain" onChange={(event) => setAttachments((current) => ({ ...current, [dispute.id]: event.target.files?.[0] ?? null }))} aria-label="Anexo da Disputa" />
+                </label>
+                <label className="app-dem-file">
+                  <span className="app-field__label">Depois de enviar</span>
+                  <select
+                    aria-label="Próxima ação"
+                    className="app-input app-select"
+                    value={nextResponders[dispute.id] ?? 'cliente'}
+                    onChange={(event) => setNextResponders((current) => ({ ...current, [dispute.id]: event.target.value as 'cliente' | 'ninguem' }))}
+                  >
+                    <option value="cliente">Aguardar Cliente</option>
+                    <option value="ninguem">Encerrar pendência (Ninguém)</option>
+                  </select>
+                </label>
+              </div>
+            ) : null}
+            {errors[dispute.id] ? <InlineError message={errors[dispute.id]} /> : null}
+            {failedUploads[dispute.id] ? (
+              <Button variant="secondary" className="app-btn--sm" loading={pendingId === dispute.id} loadingLabel="Enviando anexo…" onClick={() => void retryUpload(dispute)}>
+                <Paperclip size={14} aria-hidden="true" />
+                Reenviar o anexo {failedUploads[dispute.id]!.file.name}
+              </Button>
+            ) : null}
+            {sentId === dispute.id && !errors[dispute.id] ? <p className="app-dem-state app-dem-state--success" role="status">{dispute.state === 'aberta' ? 'Resposta registrada.' : 'Disputa atualizada.'}</p> : null}
+            <div className="app-dem-form__actions">
+              <Button loading={pendingId === dispute.id} loadingLabel="Enviando…" disabled={pendingId != null && pendingId !== dispute.id} onClick={() => void submit(dispute)}>
+                <Send size={14} aria-hidden="true" />
+                {dispute.state === 'resolvida' ? 'Reabrir Disputa' : 'Responder'}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   if (isLoading) return <p className="app-dem-meta" role="status">Carregando Disputas…</p>
   if (error) {
     return (
@@ -207,6 +320,7 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
           options={[
             { value: 'abertas', label: `Abertas (${counts.abertas})` },
             { value: 'resolvidas', label: `Resolvidas (${counts.resolvidas})` },
+            { value: 'canceladas', label: `Canceladas (${counts.canceladas})` },
             { value: 'todas', label: `Todas (${counts.todas})` },
           ]}
         />
@@ -215,114 +329,80 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
       {!visible.length ? (
         <EmptyState icon={MessageSquare} title={disputes.length ? 'Nenhuma Disputa nesta situação' : 'Nenhuma Disputa'} description={disputes.length ? undefined : 'As contestações abertas pelo Cliente no Portal aparecem aqui.'} />
       ) : (
-        <div className="app-dem-disputes">
-          {visible.map((dispute) => {
-            const messages = dispute.messages ?? []
-            const showAll = expanded[dispute.id] || messages.length <= 3
-            const shown = showAll ? messages : messages.slice(-3)
-            const waiting = dispute.state === 'aberta' && dispute.next_responder === 'equipamentos'
-            return (
-              <article
-                key={dispute.id}
-                id={`dispute-${dispute.id}`}
-                className={`app-dem-dispute${focused?.id === dispute.id ? ' app-dem-dispute--focused' : ''}`}
-                aria-labelledby={`dispute-${dispute.id}-title`}
-              >
-                <header className="app-dem-dispute__head">
-                  <div className="app-table__cell-stack">
-                    <h3 id={`dispute-${dispute.id}-title`} className="app-dem-dispute__title">
-                      {onOpenInvoice ? (
-                        <button type="button" className="app-dem-link app-dem-code" onClick={() => onOpenInvoice(dispute.demurrage_invoice_id)}>{dispute.doc_number}</button>
-                      ) : <span className="app-dem-code">{dispute.doc_number}</span>}
-                      {' '}<span>· {dispute.customer_name}</span>
-                    </h3>
-                    {dispute.subject ? <span className="app-dem-dispute__subject">{dispute.subject}</span> : null}
-                    <span className="app-dem-meta">Atualizada em {formatDateTime(dispute.updated_at)}</span>
-                  </div>
-                  <div className="app-dem-dispute__state">
-                    {/* Situação em texto (regra 5): âmbar só quando a resposta é nossa. */}
-                    <StatusText tone={dispute.state === 'cancelada' ? 'muted' : 'default'}>{STATE_LABELS[dispute.state] ?? dispute.state}</StatusText>
-                    {dispute.state === 'aberta' ? <StatusText tone={waiting ? 'warning' : 'muted'}>{NEXT_LABELS[dispute.next_responder] ?? dispute.next_responder}</StatusText> : null}
-                  </div>
-                </header>
-
-                {messages.length ? (
-                  <ol className="app-dem-messages" aria-label={`Conversa da Disputa ${dispute.doc_number}`}>
-                    {!showAll ? (
-                      <li className="app-dem-messages__more">
-                        <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setExpanded((current) => ({ ...current, [dispute.id]: true }))}>
-                          Ver {messages.length - 3} {messages.length - 3 === 1 ? 'mensagem anterior' : 'mensagens anteriores'}
-                        </Button>
-                      </li>
-                    ) : null}
-                    {shown.map((message) => (
-                      <li key={message.id} className={`app-dem-message${message.author_type === 'cliente' ? ' app-dem-message--customer' : ''}`}>
-                        <div className="app-dem-message__meta">
-                          <span className="app-dem-strong">{DISPUTE_AUTHOR_LABELS[message.author_type] ?? message.author_type}</span>
-                          <span>{formatDateTime(message.created_at)}</span>
-                        </div>
-                        <p className="app-dem-message__body">{message.body}</p>
-                        {message.attachments?.length ? (
-                          <p className="app-dem-meta"><DisputeAttachmentLinks attachments={message.attachments} client={supabase} /></p>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ol>
-                ) : <p className="app-dem-meta">Sem mensagens.</p>}
-
-                {dispute.state !== 'cancelada' && !canAnswer ? (
-                  <p className="app-dem-meta">Responder, reabrir e anexar são de Equipamentos e do Administrativo.</p>
-                ) : null}
-                {dispute.state !== 'cancelada' && canAnswer ? (
-                  <div className="app-dem-dispute__reply">
-                    <label className="app-field__label" htmlFor={`dispute-${dispute.id}-body`}>{dispute.state === 'resolvida' ? 'Justificativa da reabertura' : 'Resposta ao Cliente'}</label>
-                    <Textarea
-                      id={`dispute-${dispute.id}-body`}
-                      rows={2}
-                      value={drafts[dispute.id] ?? ''}
-                      aria-invalid={errors[dispute.id] ? true : undefined}
-                      onChange={(event) => setDrafts((current) => ({ ...current, [dispute.id]: event.target.value }))}
-                      placeholder={dispute.state === 'resolvida' ? 'Justifique a reabertura...' : 'Responder ao cliente...'}
-                    />
-                    {dispute.state === 'aberta' ? (
-                      <div className="app-dem-dispute__options">
-                        <label className="app-dem-file">
-                          <span className="app-field__label">Anexo (PDF, JPG, PNG ou TXT até 10 MB)</span>
-                          <input key={fileInputKeys[dispute.id] ?? 0} type="file" accept="application/pdf,image/jpeg,image/png,text/plain" onChange={(event) => setAttachments((current) => ({ ...current, [dispute.id]: event.target.files?.[0] ?? null }))} aria-label="Anexo da Disputa" />
-                        </label>
-                        <label className="app-dem-file">
-                          <span className="app-field__label">Depois de enviar</span>
-                          <select
-                            aria-label="Próxima ação"
-                            className="app-input app-select"
-                            value={nextResponders[dispute.id] ?? 'cliente'}
-                            onChange={(event) => setNextResponders((current) => ({ ...current, [dispute.id]: event.target.value as 'cliente' | 'ninguem' }))}
-                          >
-                            <option value="cliente">Aguardar Cliente</option>
-                            <option value="ninguem">Encerrar pendência (Ninguém)</option>
-                          </select>
-                        </label>
-                      </div>
-                    ) : null}
-                    {errors[dispute.id] ? <InlineError message={errors[dispute.id]} /> : null}
-                    {failedUploads[dispute.id] ? (
-                      <Button variant="secondary" className="app-btn--sm" loading={pendingId === dispute.id} loadingLabel="Enviando anexo…" onClick={() => void retryUpload(dispute)}>
-                        <Paperclip size={14} aria-hidden="true" />
-                        Reenviar o anexo {failedUploads[dispute.id]!.file.name}
-                      </Button>
-                    ) : null}
-                    {sentId === dispute.id && !errors[dispute.id] ? <p className="app-dem-state app-dem-state--success" role="status">{dispute.state === 'aberta' ? 'Resposta registrada.' : 'Disputa atualizada.'}</p> : null}
-                    <div className="app-dem-form__actions">
-                      <Button loading={pendingId === dispute.id} loadingLabel="Enviando…" disabled={pendingId != null && pendingId !== dispute.id} onClick={() => void submit(dispute)}>
-                        <Send size={14} aria-hidden="true" />
-                        {dispute.state === 'resolvida' ? 'Reabrir Disputa' : 'Enviar resposta'}
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-              </article>
-            )
-          })}
+        <div className="app-surface app-dem-table-surface">
+          <div className="app-table-scroll">
+            <table className="app-table app-table--compact app-dem-table">
+              <caption className="sr-only">Disputas de Demurrage</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Invoice</th>
+                  <th scope="col">Situação da Invoice</th>
+                  <th scope="col" className="app-table__text-head">Cliente</th>
+                  <th scope="col" className="app-dem-num">Em disputa</th>
+                  <th scope="col">Aberta há</th>
+                  <th scope="col" className="app-table__text-head">Disputa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((dispute) => {
+                  const waiting = dispute.state === 'aberta' && dispute.next_responder === 'equipamentos'
+                  const open = isOpen(dispute)
+                  const panelId = `dispute-${dispute.id}-conversation`
+                  const net = invoiceNetUsd({ total_usd: dispute.invoice_total_usd ?? 0, discount_mode: dispute.invoice_discount_mode, discount_value: dispute.invoice_discount_value })
+                  const days = openedDays(dispute.created_at)
+                  return (
+                    <Fragment key={dispute.id}>
+                      <tr id={`dispute-${dispute.id}`} className={dispute.overdue ? 'app-dem-row--late' : dispute.state === 'cancelada' ? 'app-table__row--muted' : undefined}>
+                        <td>
+                          <div className="app-table__cell-stack">
+                            <button
+                              type="button"
+                              className="app-dem-disclosure"
+                              aria-expanded={open}
+                              aria-controls={panelId}
+                              onClick={() => setOpenRows((current) => ({ ...current, [dispute.id]: !open }))}
+                            >
+                              {open ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+                              <span className="app-dem-code app-dem-strong">{dispute.doc_number}</span>
+                              <span className="sr-only">{open ? ' — fechar a conversa' : ' — abrir a conversa'}</span>
+                            </button>
+                            {onOpenInvoice ? <button type="button" className="app-dem-link app-dem-meta" onClick={() => onOpenInvoice(dispute.demurrage_invoice_id)}>Abrir a Invoice</button> : null}
+                          </div>
+                        </td>
+                        <td>{dispute.invoice_status ? <InvoiceStatusBadge status={dispute.invoice_status} /> : <NoValue label="Sem situação" />}</td>
+                        <td className="app-table__text" title={dispute.customer_name}>{dispute.customer_name}</td>
+                        <td className="app-dem-num">
+                          <div className="app-table__cell-stack">
+                            <span className="app-dem-amount">{fmtUSD(net.netUsd)}</span>
+                            <span className="app-dem-meta">{fmtBRL(dispute.invoice_current_total_brl)}</span>
+                          </div>
+                        </td>
+                        <td className="tabular-nums">{days === 1 ? '1 dia' : `${days} dias`}</td>
+                        <td className="app-table__text">
+                          <div className="app-table__cell-stack">
+                            {/* Situação em texto (regra 5): âmbar só quando a resposta é nossa. */}
+                            <StatusText tone={dispute.state === 'cancelada' ? 'muted' : 'default'}>{STATE_LABELS[dispute.state] ?? dispute.state}</StatusText>
+                            {dispute.state === 'aberta' ? <StatusText tone={waiting ? 'warning' : 'muted'}>{NEXT_LABELS[dispute.next_responder] ?? dispute.next_responder}</StatusText> : null}
+                            {waiting && dispute.due_at ? (
+                              <span className="app-dem-meta">{dispute.overdue ? 'Prazo venceu em ' : 'Responder até '}{formatDateTime(dispute.due_at)}</span>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                      {open ? (
+                        <tr className="app-dem-subrow">
+                          <td colSpan={6} id={panelId}>
+                            {dispute.subject ? <p className="app-dem-meta">Assunto: {dispute.subject}</p> : null}
+                            {renderConversation(dispute)}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

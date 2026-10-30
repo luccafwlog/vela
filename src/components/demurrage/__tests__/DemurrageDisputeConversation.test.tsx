@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { cleanup, render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
+
+afterEach(cleanup)
 import { DemurrageDisputeConversation } from '../DemurrageDisputeConversation'
 import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
 
@@ -18,16 +20,25 @@ const mockDispute = {
   created_at: '2023-01-01T00:00:00Z',
   updated_at: '2023-01-01T00:00:00Z',
   messages: [],
+  invoice_status: 'issued',
+  invoice_total_usd: 1000,
+  invoice_discount_mode: 'fixed',
+  invoice_discount_value: 100,
+  invoice_current_total_brl: 4950,
+  waiting_since: '2023-01-01T00:00:00Z',
+  due_at: '2023-01-02T00:00:00Z',
+  overdue: false,
 }
 
 let mockState = 'aberta'
+let mockOverrides: Record<string, unknown> = {}
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: vi.fn(() => ({
     invalidateQueries: vi.fn(),
   })),
   useQuery: vi.fn(() => ({
-    data: [{ ...mockDispute, state: mockState }],
+    data: [{ ...mockDispute, state: mockState, ...mockOverrides }],
     isLoading: false,
     error: null,
   })),
@@ -48,59 +59,94 @@ vi.mock('../../../hooks/useAuth', () => ({
 }))
 
 describe('DemurrageDisputeConversation', () => {
-  function renderConversation() {
-    return render(<ConfirmDialogProvider><DemurrageDisputeConversation /></ConfirmDialogProvider>)
+  function renderConversation(props: Parameters<typeof DemurrageDisputeConversation>[0] = {}) {
+    return render(<ConfirmDialogProvider><DemurrageDisputeConversation {...props} /></ConfirmDialogProvider>)
+  }
+  function openConversation() {
+    fireEvent.click(screen.getByRole('button', { name: /DEM-123/ }))
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
     authState.mutateAsync.mockReset().mockResolvedValue({ message_id: 12 })
     mockState = 'aberta'
+    mockOverrides = {}
     authState.role = 'equipamentos'
   })
 
-  it('renders the dispute subject and status', () => {
+  it('uma linha por Disputa: Invoice, situação da Invoice, Cliente, valor em disputa, aberta há e a vez (D15)', () => {
     renderConversation()
-    expect(screen.getByRole('heading', { name: 'DEM-123 · Test Customer' })).toBeTruthy()
-    expect(screen.getByText('Aberta')).toBeTruthy()
-    expect(screen.getByText('Aguarda a nossa resposta')).toBeTruthy()
+    const table = screen.getByRole('table', { name: 'Disputas de Demurrage' })
+    const [row] = within(table).getAllByRole('row').slice(1)
+    expect(within(row).getByText('DEM-123')).toBeTruthy()
+    expect(within(row).getByText('Test Customer')).toBeTruthy()
+    expect(within(row).getByText('US$ 900,00')).toBeTruthy()
+    expect(within(row).getByText(/4\.950,00/)).toBeTruthy()
+    expect(within(row).getByText('Aberta')).toBeTruthy()
+    expect(within(row).getByText('Aguarda a nossa resposta')).toBeTruthy()
+    expect(within(row).getByText(/Responder até/)).toBeTruthy()
+    expect(screen.getByRole('radio', { name: /Canceladas/ })).toBeTruthy()
   })
 
-  it('renders a form for new messages when state is aberta', () => {
+  it('a conversa abre embaixo da linha, com Responder quando a vez é nossa', () => {
     renderConversation()
+    expect(screen.queryByPlaceholderText('Responder ao cliente...')).toBeNull()
+    openConversation()
     expect(screen.getByPlaceholderText('Responder ao cliente...')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Enviar resposta/ })).toBeTruthy()
-    // ensure fireEvent is used so TS doesn't complain
-    fireEvent.change(screen.getByPlaceholderText('Responder ao cliente...'), { target: { value: 'Test' } })
     expect(screen.getByRole('combobox', { name: 'Próxima ação' })).toBeTruthy()
     expect(screen.getByRole('option', { name: 'Encerrar pendência (Ninguém)' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Enviar resposta/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Responder/ })).toBeTruthy()
   })
 
-  it('renders a reopen form when state is resolvida', () => {
+  it('sem a vez nossa não há Responder nem campo de resposta', () => {
+    mockOverrides = { next_responder: 'cliente', waiting_since: null, due_at: null }
+    renderConversation()
+    openConversation()
+    expect(screen.queryByPlaceholderText('Responder ao cliente...')).toBeNull()
+    expect(screen.getByText('A vez é do Cliente: a resposta volta a aparecer quando ele escrever.')).toBeTruthy()
+  })
+
+  it('Reabrir só em Invoice emitida ou paga (D17)', () => {
     mockState = 'resolvida'
     renderConversation()
+    openConversation()
     expect(screen.getByPlaceholderText('Justifique a reabertura...')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Reabrir Disputa/ })).toBeTruthy()
+    cleanup()
+    mockOverrides = { invoice_status: 'cancelled' }
+    renderConversation()
+    openConversation()
+    expect(screen.queryByRole('button', { name: /Reabrir Disputa/ })).toBeNull()
+    expect(screen.getByText('A Invoice desta disputa está cancelada: a disputa não reabre.')).toBeTruthy()
+  })
+
+  it('prazo vencido deixa a linha em âmbar e diz quando venceu (D18)', () => {
+    mockOverrides = { overdue: true }
+    renderConversation()
+    expect(document.getElementById('dispute-1')?.className).toContain('app-dem-row--late')
+    expect(screen.getByText(/Prazo venceu em/)).toBeTruthy()
   })
 
   it('mostra a conversa a qualquer Departamento, sem responder, reabrir ou anexar (ADR 0085, D12)', async () => {
     authState.role = 'documentacao'
     renderConversation()
+    openConversation()
     expect(await screen.findByText('Responder, reabrir e anexar são de Equipamentos e do Administrativo.')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Enviar/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Responder$/ })).toBeNull()
   })
 
   it('mostra a conversa ao Administrativo, que responde como cobertura (migration 081)', () => {
     authState.role = 'administrativo'
     renderConversation()
-    expect(screen.getByRole('button', { name: /Enviar/ })).toBeTruthy()
+    openConversation()
+    expect(screen.getByRole('button', { name: 'Responder' })).toBeTruthy()
   })
 
-  it('confirms the response and recipient state before recording a message', async () => {
+  it('confirma a resposta e o próximo responsável antes de gravar', async () => {
     renderConversation()
+    openConversation()
     fireEvent.change(screen.getByPlaceholderText('Responder ao cliente...'), { target: { value: 'Documento corrigido.' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Confirmar resposta ao cliente' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ver lista (4)' }))
@@ -109,34 +155,29 @@ describe('DemurrageDisputeConversation', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar resposta' }))
     await waitFor(() => expect(authState.mutateAsync).toHaveBeenCalledWith({ id: 1, body: 'Documento corrigido.', nextResponder: 'cliente' }))
   })
-})
 
-describe('DemurrageDisputeConversation — foco e andamento', () => {
-  beforeEach(() => {
-    authState.mutateAsync.mockReset().mockResolvedValue({ message_id: 12 })
-    mockState = 'aberta'
-    authState.role = 'equipamentos'
-  })
-
-  it('destaca a Disputa aberta pelo alerta (?dispute=)', () => {
-    render(<ConfirmDialogProvider><DemurrageDisputeConversation focusDisputeId={1} /></ConfirmDialogProvider>)
-    expect(document.getElementById('dispute-1')?.className).toContain('app-dem-dispute--focused')
+  it('a Disputa do alerta (?dispute=) abre com a conversa', () => {
+    renderConversation({ focusDisputeId: 1 })
+    expect(screen.getByRole('button', { name: /DEM-123/ }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByPlaceholderText('Responder ao cliente...')).toBeTruthy()
   })
 
   it('pede a resposta junto do campo antes de confirmar', () => {
-    render(<ConfirmDialogProvider><DemurrageDisputeConversation /></ConfirmDialogProvider>)
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta' }))
+    renderConversation()
+    openConversation()
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
     expect(screen.getByRole('alert').textContent).toContain('Escreva a resposta antes de enviar.')
     expect(authState.mutateAsync).not.toHaveBeenCalled()
   })
 
   it('anexo que falhou depois da mensagem gravada pode ser reenviado sozinho', async () => {
     authState.upload.mockReset().mockRejectedValueOnce(new Error('rede')).mockResolvedValueOnce(undefined)
-    render(<ConfirmDialogProvider><DemurrageDisputeConversation /></ConfirmDialogProvider>)
+    renderConversation()
+    openConversation()
     fireEvent.change(screen.getByPlaceholderText('Responder ao cliente...'), { target: { value: 'Segue o comprovante.' } })
     const file = new File(['x'], 'comprovante.pdf', { type: 'application/pdf' })
     fireEvent.change(screen.getByLabelText('Anexo da Disputa'), { target: { files: [file] } })
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
     const dialog = await screen.findByRole('dialog', { name: 'Confirmar resposta ao cliente' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar resposta' }))
 

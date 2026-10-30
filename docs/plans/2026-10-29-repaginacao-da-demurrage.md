@@ -20,7 +20,7 @@ tarifas (D28 a D34) entram no lote 0B.
 | 4 — Faturas, Pagas e Canceladas | Feito em 2026-10-30 (migration `519`; a `518` completa o lote 3) |
 | 5 — Por Cliente e extrato do Cliente | Feito em 2026-10-30 (sem migration; Esperando sem coluna, como em D11) |
 | 6 — Relatórios | Feito em 2026-10-30 (sem migration; Exportar em cada aba da central) |
-| 7 — Disputas | A fazer |
+| 7 — Disputas | Feito em 2026-10-30 (migration `520`) |
 | 8 — Caixa dividida entre Clientes (rateio) | A fazer (depois do lote 1) |
 | 9 — Container que vira SOC depois de faturado | A fazer |
 | 10 — Fechamento | A fazer |

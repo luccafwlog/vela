@@ -28,6 +28,7 @@ export type ActiveAlertType =
   | 'itau_pix_consulta_parada'
   | 'demurrage_invoice_dates_changed'
   | 'demurrage_travado'
+  | 'demurrage_disputa_prazo'
   | 'cobranca_demurrage_recusada'
   | 'ce_trocado_com_desbloqueio'
   | 'ce_fora_do_manifesto_da_rota'
@@ -93,6 +94,7 @@ export const TYPE_LABELS: Record<string, string> = {
   itau_pix_consulta_parada: 'Consulta de Pix do Itaú parada',
   demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
   demurrage_travado: 'Demurrage travada',
+  demurrage_disputa_prazo: 'Disputa de Demurrage sem resposta no prazo',
   cobranca_demurrage_recusada: 'Cobrança de Demurrage recusada',
   ce_trocado_com_desbloqueio: 'CE trocado depois do Desbloqueio conferido',
   ce_fora_do_manifesto_da_rota: 'CE fora do Manifesto da rota',
@@ -444,7 +446,7 @@ function alertEntityLinkRaw(alert: {
   // 309): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
   // mostra o evento. O alerta fica na fila, com o motivo na mensagem.
   if (alert.entity_type === 'portal_email_event') return '/alertas'
-  if (effectiveType === 'portal_dispute_opened' && alert.entity_type === 'demurrage_invoice') {
+  if ((effectiveType === 'portal_dispute_opened' || effectiveType === 'demurrage_disputa_prazo') && alert.entity_type === 'demurrage_invoice') {
     const disputeId = alert.metadata?.dispute_id
     return typeof disputeId === 'string' || typeof disputeId === 'number'
       ? `/demurrage?dispute=${encodeURIComponent(String(disputeId))}`
@@ -578,6 +580,7 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
   if (effectiveType === 'voyage_vehicle_sheet_pending') return 'Abrir Veículos'
   if (effectiveType === 'demurrage_travado') return 'Abrir Demurrage'
+  if (effectiveType === 'demurrage_disputa_prazo') return 'Abrir Disputa'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'
   }

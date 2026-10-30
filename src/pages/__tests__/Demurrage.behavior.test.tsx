@@ -537,8 +537,9 @@ describe('Demurrage page behaviours', () => {
     }])
     renderPage(['/demurrage?dispute=5'])
     expect((await screen.findByRole('tab', { name: /Disputas/ })).getAttribute('aria-selected')).toBe('true')
-    expect(await screen.findByRole('heading', { name: 'DEM-001 · Cliente Teste' })).toBeTruthy()
-    expect(document.getElementById('dispute-5')?.className).toContain('app-dem-dispute--focused')
+    // Disputas em tabela (ADR 0112, D15): a do alerta abre com a conversa.
+    expect((await screen.findByRole('button', { name: /DEM-001/ })).getAttribute('aria-expanded')).toBe('true')
+    expect(document.getElementById('dispute-5')).not.toBeNull()
   })
 
   it('qualquer Departamento abre a aba Disputas para ler (ADR 0085, D12)', () => {
