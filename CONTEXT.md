@@ -1102,7 +1102,10 @@ avulsa ou Invoice de Demurrage), com TXID próprio (`VELA…`) e valor que
 acompanha a fatura; o Pix pago é consultado no banco e baixado sozinho.
 Enquanto o banco não confirma a cobrança, Vela e Portal mostram "QR em
 preparação". Distinta do **QR estático**, montado pelo Vela sem registro no
-banco, cujo pagamento só é baixado pelo extrato ou por Registrar pagamento.
+banco, com o número da fatura (ou `VP…`) como TXID; o Pix dele aparece em Pix
+recebidos como **QR estático do Vela** e só dá baixa sozinho no ambiente que
+mostra o QR estático (o staging); nos demais casos, pelo extrato ou por
+Registrar pagamento.
 → Regra: [Reconciliação PIX § Cobrança dinâmica Itaú](docs/modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151)
 
 **TXID**
@@ -1122,8 +1125,10 @@ Pendências, até a fatura ficar paga ou alguém marcá-lo como tratado.
 
 **Baixa**
 Registro, na fatura, de um pagamento recebido: quita ou reduz o saldo e aparece
-no Histórico de baixas. Vem da baixa automática do Itaú, do extrato (plano B)
-ou de **Registrar pagamento** no detalhe. Desfazer uma baixa lançada por engano
+no Histórico de baixas, uma linha por B/L que ela liquidou. A **forma da baixa**
+diz de onde veio: automática pela consulta do Itaú, pelo extrato (plano B),
+manual (**Registrar pagamento** no detalhe ou a baixa de um Pix recebido
+escolhida pelo operador) ou isenção da Invoice de Demurrage. Desfazer uma baixa lançada por engano
 é **Cancelar baixa**, que não devolve dinheiro ao Cliente.
 → Regra: [Reconciliação PIX § Cancelar baixa](docs/modules/reconciliacao-pix.md#cancelar-baixa);
 pagamento no detalhe em [Faturamento § Pagamento, saldo e restituição](docs/modules/faturamento.md#pagamento-saldo-e-restituição)

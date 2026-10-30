@@ -113,6 +113,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     catálogo de alertas, contagens de ACE-119 e ALE-D13).
   - Telemetria: recusas do banco já explicadas na tela deixam de ir ao Sentry;
     sem efeito na operação.
+- **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
+  2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
+  migrations `552` e `553`): o Pix do QR estático deixa de aparecer como ZPT
+  (origem **QR estático do Vela**) e dá baixa automática onde o QR estático está
+  ligado; o Histórico de baixas passa a ter uma linha por baixa e B/L, com
+  **Forma da baixa** (coluna e filtro) e o valor que a baixa pôs no B/L
+  (REC-017, REC-065 a REC-068 e REC-103).
 - **Alterar, excluir e isentar as Taxas Locais do B/L** (pedido do dono de
   2026-10-28, [ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
   [plano](../archive/plans/2026-10-28-alterar-taxa-calculada-do-bl.md)):
