@@ -88,16 +88,20 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    (migration `516`) (**Teste:** `escalaTerminalAllocation.test.ts`,
    `adrFrenteDerivadaSemTerminal.local-pg.test.ts`). Pedido do dono na mesma
    data.
-6. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
+6. **ADR legado com só transbordo ou só Granito.** A recusa do ADR legado por
+   porto (`_escala_has_operation_fronts`, migration 273) espelhava as fontes de
+   frente da aba antes desta mudança. A escala cuja carga vinha só de
+   transbordo ou de Granito importado sem declaração mostrava as frentes TBC na
+   aba, mas ainda abria ADR legado sem terminal pela API. A função passa a
+   contar as duas fontes (migration `517`) (**Teste:**
+   `adrFrenteDerivadaSemTerminal.local-pg.test.ts`, falha sem a migration).
+   Pedido do dono na mesma data.
+7. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
    (`['agency-report-terminal-state']`); a aba podia mostrar a frente antiga por
    até 30 s. Entrou nos efeitos de carga (**Teste:** `cacheEffects.test.ts`).
 
 ## Lacunas que ficam
 
-- **ADR legado com só transbordo.** A recusa do ADR legado por porto
-  (`_escala_has_operation_fronts`, migration 273) não conta o transbordo: a
-  escala que só recebe carga em transbordo, sem nenhum outro dado, ainda abre
-  ADR legado pela API (**Código**).
 - A trava do banco cobre as frentes de importação e a de Granito; a de
   Embarque de vazios derivada da declaração e ainda não gravada é bloqueada só
   pela tela (**Código**).
@@ -105,7 +109,7 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
 ## Evidência e limites
 
 Leitura estática do código e das migrations; testes Vitest; as migrations `514`
-a `516` aplicadas e executadas no Postgres 16 local descartável (`setup-local-pg.sh`).
+a `517` aplicadas e executadas no Postgres 16 local descartável (`setup-local-pg.sh`).
 Consulta somente leitura ao projeto Supabase de produção em 2026-10-30: a Viagem
 169 (BRVIX) tem 1.896 veículos e 22 vazios de importação, nenhuma frente gravada
 e nenhum ADR; o banco inteiro não tinha frente gravada, então o caso exato do

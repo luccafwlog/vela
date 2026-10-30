@@ -7,7 +7,7 @@
 ## 2026-10
 
 - **Veículos, vazios de importação, Granito e carga em transbordo chegam ao ADR por terminal (2026-10-30,
-  migrations `514` a `516`):** no teste do dono em BRVIX, os veículos e os vazios de importação estavam nos
+  migrations `514` a `517`):** no teste do dono em BRVIX, os veículos e os vazios de importação estavam nos
   cards do porto da aba Importação e não no ADR do terminal. A seção Veículos dependia de uma frente de Veículos
   que nunca nascia; pela regra do dono, veículo não tem frente própria (viaja em container) e a seção passa a
   seguir a frente de Carga cheia, salvo exceção de terminal do B/L. A frente derivada dos dados e ainda sem
@@ -15,8 +15,9 @@
   frente atribuída a este terminal." e o ADR fechava sem o dado: agora a seção e o bloco ADR avisam "Sem
   terminal (TBC)", **Fechar ADR** fica desabilitado e o banco recusa o fechamento. A frente de Granito nasce
   também do Granito importado no porto, e **Editar escala** abre com o Granito declarado nesse caso; a carga em
-  transbordo de escala omitida cria as frentes do porto onde descarrega; e o B/L com exceção de terminal leva a
-  carga e os veículos dele ao ADR do terminal da exceção. Mapa completo em
+  transbordo de escala omitida cria as frentes do porto onde descarrega; o B/L com exceção de terminal leva a
+  carga e os veículos dele ao ADR do terminal da exceção; e a escala com carga só em transbordo ou só de Granito
+  não abre mais ADR legado sem terminal pela API. Mapa completo em
   [archive/audits/viagem-terminal-adr-2026-10-30.md](archive/audits/viagem-terminal-adr-2026-10-30.md); regra em
   [Viagens](modules/viagens.md#agency-departure-report-adr). **Teste local-pg:**
   `adrFrenteDerivadaSemTerminal.local-pg.test.ts`.

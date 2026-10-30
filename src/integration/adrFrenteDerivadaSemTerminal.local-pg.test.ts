@@ -62,7 +62,7 @@ const removeUser = `
 // Teste do dono em BRVIX (2026-10-30): veículos e vazios de importação da
 // escala sumiam do ADR por terminal porque a frente deles não tinha terminal
 // gravado, e o fechamento só recusava a frente TBC gravada.
-describeLocal('migrations 514 a 516 — frente derivada dos dados sem terminal impede fechar o ADR', () => {
+describeLocal('migrations 514 a 517 — frente derivada dos dados sem terminal impede fechar o ADR', () => {
   beforeAll(() => {
     psql(`
       ${resetScenario}
@@ -157,6 +157,38 @@ describeLocal('migrations 514 a 516 — frente derivada dos dados sem terminal i
 
     persistFront('granito', 'exportacao')
     expect(assertReadyToClose().status).toBe(0)
+  })
+
+  // 517: a escala cuja carga vem só de transbordo ou de Granito importado tem
+  // frente na aba (TBC) e não abre ADR legado por porto pela API.
+  it('não cria ADR legado sem terminal para escala com só transbordo ou só Granito', () => {
+    const signLegacy = (port: string) => spawnPsql([
+      '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${adminId}'; SET LOCAL request.jwt.claim.role = 'authenticated';
+       SELECT public.set_agency_report_signoff(${voyageId}, '${port}', 'datas', 'confirmed', NULL); COMMIT;`,
+    ], { encoding: 'utf8' })
+    psql(`
+      -- Só transbordo em BRPNG: o B/L tem POD no porto omitido (BRSSZ).
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-514-T', ${voyageId}, 'BRSSZ', 'carga_solta');
+      INSERT INTO public.voyage_omissions (id, voyage_id, omitted_pod, discharge_pod, omitted_by)
+      VALUES (${omissionId}, ${voyageId}, 'BRSSZ', 'BRPNG', '${adminId}');
+      INSERT INTO public.bl_transshipments (bl_id, omission_id, disposition) VALUES ('BL-514-T', ${omissionId}, 'transshipment');
+      -- Só Granito em BRITJ, sem declaração de exportação.
+      INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage, loading_port)
+      VALUES ('${graniteManifestId}', ${voyageId}, 'VESSEL 514', 'BRITJ');
+      INSERT INTO public.granite_bls (manifest_id, bl_number) VALUES ('${graniteManifestId}', 'GRN-514-2');
+    `)
+
+    for (const port of ['BRPNG', 'BRITJ']) {
+      const refused = signLegacy(port)
+      expect(refused.status, port).not.toBe(0)
+      expect(refused.stderr).toMatch(/atribua o terminal/)
+      expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = '${port}';`)).toBe('0')
+    }
+
+    // Escala sem frente gravada nem dado operacional: o legado por porto segue.
+    expect(signLegacy('BRSUA').stderr).toBe('')
+    expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = 'BRSUA' AND terminal_id IS NULL;`)).toBe('1')
   })
 
   it('fica fechado para o usuário do app: só o banco consulta as frentes sem terminal', () => {
