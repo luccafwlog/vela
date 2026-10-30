@@ -14,7 +14,10 @@
   viagem era cada linha — e um POD sozinho alcançava toda viagem já feita para o porto. A conferência mostra o
   **Porto** de cada linha, avisa os B/Ls da Viagem sem Cliente e, vazia, diz o motivo ("Nenhum dos N B/Ls ativos
   da Viagem tem Cliente vinculado…", escala sem ETA, ATA ou ATB) em vez de "Nenhuma carga atende aos critérios
-  informados."; o lote conta "Enviando N de M…" e fechar a página no meio pede confirmação. Ver
+  informados."; o lote conta "Enviando N de M…" e fechar a página no meio pede confirmação. Na **Cobertura de
+  viagens**, a coluna **Sem Cliente** passa a contar os B/Ls ativos sem Cliente vinculado, por porto e por
+  consignatário do manifesto, como pendência (nenhum Comunicado sai para eles), com **Vincular na Revisão** no
+  detalhe da linha; antes a Viagem só com B/Ls sem Cliente aparecia como "nada devido". Ver
   [Clientes](modules/clientes.md#clientescomunicacao).
 - **Escala com LOCODE brasileiro fora da lista continua no Planejamento (2026-10-29, sem migration):**
   a escala com porto brasileiro bem formado que o Vela não conhece (por exemplo `BRXYZ`) era gravada,

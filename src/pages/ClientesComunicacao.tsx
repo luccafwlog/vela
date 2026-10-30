@@ -45,6 +45,7 @@ import {
   type CustomerCommunicationDispatchMode,
   type CustomerCommunicationFilters,
   type CustomerCommunicationHistoryItem,
+  type VoyageCommunicationCoverageSummary,
 } from '../services/customerCommunications'
 import {
   mergeCustomerCommunicationBatchRetry,
@@ -127,6 +128,13 @@ function conferenceRowPorts(row: CustomerCommunicationConferenceRow): string {
   return [...new Set(row.sourceBls.map((bl) => communicationPortCode(bl.pod)).filter(Boolean))].join(', ')
 }
 
+/** "12 linhas · 133 B/Ls sem Cliente": o total da pendência que a coluna mostra linha a linha. */
+function coverageAside(rows: readonly VoyageCommunicationCoverageSummary[]): string {
+  const unlinked = rows.reduce((total, row) => total + row.unlinked.bls, 0)
+  const linhas = plural(rows.length, 'linha', 'linhas')
+  return unlinked ? `${linhas} · ${plural(unlinked, 'B/L sem Cliente', 'B/Ls sem Cliente')}` : linhas
+}
+
 /** Status do Histórico, na ordem do filtro; "Em envio" é o `pendente` da migration 302. */
 const HISTORY_STATUS_OPTIONS = ['pendente', 'enviado', 'simulado', 'parcial', 'falha'] as const
 
@@ -184,6 +192,20 @@ function CoverageCount({ sent, total, queued = 0, now }: { sent: number; total: 
 function QueuedNote({ queued, now }: { queued: number; now: Date }) {
   if (queued <= 0) return null
   return <span className="text-xs text-[var(--app-muted)]" title={queuedLabel(now)}>{queued} na fila · {formatBrasiliaTime(nextAutoRunnerRun(now))}</span>
+}
+
+/**
+ * B/Ls do porto sem Cliente: pendência, porque nenhum Comunicado sai para eles.
+ * Âmbar com a contagem e quantos consignatários do manifesto deixam de ser avisados.
+ */
+function UnlinkedCount({ bls, consignees }: { bls: number; consignees: number }) {
+  if (bls === 0) return <NoValue label="Todos com Cliente" />
+  return (
+    <span className="inline-flex flex-col">
+      <StatusText tone="warning">{plural(bls, 'B/L', 'B/Ls')}</StatusText>
+      <span className="text-xs text-[var(--app-muted)]">{plural(consignees, 'consignatário', 'consignatários')}</span>
+    </span>
+  )
 }
 
 /** CE e Taxas: enviados em dia de devidos, e quem precisa de reenvio. */
@@ -895,7 +917,7 @@ export function ClientesComunicacao() {
           {coverageQuery.isError ? <InlineError message="Não foi possível carregar a cobertura." /> : null}
           <Block
             title="Cobertura por viagem e porto"
-            aside={coverageQuery.data ? plural(coverageQuery.data.length, 'linha', 'linhas') : null}
+            aside={coverageQuery.data ? coverageAside(coverageQuery.data) : null}
             flush
           >
             {coverageQuery.isLoading ? <p className="px-4 py-6 text-[var(--app-muted)]">Carregando cobertura...</p> : (
@@ -908,6 +930,7 @@ export function ClientesComunicacao() {
                       <th scope="col" className="app-table__text-head">Navio / Viagem</th>
                       <th scope="col" className="app-table__text-head">Porto</th>
                       <th scope="col">Clientes</th>
+                      <th scope="col">Sem Cliente</th>
                       <th scope="col">CE e Taxas enviados</th>
                       <th scope="col">Sem CE ou fatura</th>
                       <th scope="col">NOA</th>
@@ -925,7 +948,7 @@ export function ClientesComunicacao() {
                         <Fragment key={rowKey}>
                           <tr>
                             <td>
-                              {row.details.length ? (
+                              {row.details.length || row.unlinked.bls ? (
                                 <button
                                   type="button"
                                   className="app-table__icon-button"
@@ -941,6 +964,7 @@ export function ClientesComunicacao() {
                             <td className="app-table__text"><Link className="app-link" to={`/viagens/${row.voyageId}`}>{row.vesselName} / {row.voyageNumber}</Link></td>
                             <td className="app-table__text">{row.port ?? <NoValue label="Sem porto" />}</td>
                             <td>{row.customers === 0 ? 'Nenhum' : row.customers}</td>
+                            <td><UnlinkedCount bls={row.unlinked.bls} consignees={row.unlinked.consignees.length} /></td>
                             <td><FinanceCoverageCount sent={row.finance.sent} due={row.finance.due} resend={row.finance.resend} queued={row.queued.ce_mercante_taxas} now={coverageNow} /></td>
                             <td>{row.customers === 0 ? <NoValue label="Nada devido" /> : row.finance.pending}</td>
                             <td><CoverageCount sent={row.noa.sent} total={row.noa.total} queued={row.queued.aviso_chegada_noa} now={coverageNow} /></td>
@@ -949,7 +973,7 @@ export function ClientesComunicacao() {
                           </tr>
                           {expanded ? (
                             <tr data-row-detail>
-                              <td colSpan={9} className="p-0">
+                              <td colSpan={10} className="p-0">
                                 <CoverageDrilldown row={row} now={coverageNow} id={detailId} />
                               </td>
                             </tr>
@@ -957,13 +981,13 @@ export function ClientesComunicacao() {
                         </Fragment>
                       )
                     })}
-                    {!coverageQuery.data?.length ? <tr><td colSpan={9} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}
+                    {!coverageQuery.data?.length ? <tr><td colSpan={10} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}
                   </tbody>
                 </table>
               </div>
             )}
             <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
-              Uma linha por navio/viagem e porto de descarga; a seta abre os Clientes da linha e a situação de cada Comunicado. "0 de 2": enviados de devidos (contam também o redirecionado ao suporte e o parcial, como a régua). "N na fila · HH:MM": a próxima rodada automática (a cada 2 minutos e logo após o evento, horário de Brasília) envia. Âmbar enquanto falta enviar. "Reenvio pendente": Cliente que já recebeu o CE e Taxas e ganhou B/L novo ainda não pronto; conta como devido, não como enviado. "Sem CE ou fatura": Clientes do porto que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
+              Uma linha por navio/viagem e porto de descarga; a seta abre os Clientes da linha e a situação de cada Comunicado. "Sem Cliente": B/Ls do porto ainda sem Cliente vinculado, e de quantos consignatários do manifesto; nenhum Comunicado sai para eles até o vínculo, e eles não entram no "N de M" das outras colunas. "0 de 2": enviados de devidos (contam também o redirecionado ao suporte e o parcial, como a régua). "N na fila · HH:MM": a próxima rodada automática (a cada 2 minutos e logo após o evento, horário de Brasília) envia. Âmbar enquanto falta enviar. "Reenvio pendente": Cliente que já recebeu o CE e Taxas e ganhou B/L novo ainda não pronto; conta como devido, não como enviado. "Sem CE ou fatura": Clientes do porto que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
             </p>
           </Block>
         </>

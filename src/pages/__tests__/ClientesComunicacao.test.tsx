@@ -52,6 +52,13 @@ const mockCoverage = [
     nob: { sent: 1, total: 2 },
     finance: { sent: 2, due: 3, resend: 1, ready: 2, total: 3, pending: 1 },
     queued: { ce_mercante_taxas: 0, aviso_chegada_noa: 0, aviso_prontidao_nor: 1, aviso_atracacao_nob: 0 },
+    unlinked: {
+      bls: 3,
+      consignees: [
+        { key: '12345678000195', name: 'ABF COMERCIO LTDA', document: '12345678000195', blIds: ['BL-SC1', 'BL-SC2'] },
+        { key: 'nome:SEM CNPJ', name: 'SEM CNPJ IMPORTADORA', document: null, blIds: ['BL-SC3'] },
+      ],
+    },
     details: [
       {
         customerId: 1,
@@ -450,6 +457,30 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.queryByRole('table', { name: /Comunicados por Cliente/ })).toBeNull()
   })
 
+  it('B/Ls sem Cliente aparecem como pendência na linha, no total do bloco e no detalhe, com o atalho da Revisão', () => {
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('1 linha · 3 B/Ls sem Cliente')).toBeTruthy()
+    const linha = screen.getByRole('link', { name: 'COSCO SHIPPING XING WANG / 2401E' }).closest('tr') as HTMLElement
+    expect(within(linha).getByText('3 B/Ls').className).toContain('app-status-text--warning')
+    expect(within(linha).getByText('2 consignatários')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir os Clientes de COSCO SHIPPING XING WANG / 2401E, BRVIX' }))
+    const semCliente = screen.getByRole('table', { name: /B\/Ls sem Cliente — COSCO SHIPPING XING WANG \/ 2401E, BRVIX/ })
+    const abf = within(semCliente).getByRole('row', { name: /ABF COMERCIO LTDA/ })
+    expect(within(abf).getByText('12.345.678/0001-95')).toBeTruthy()
+    expect(within(abf).getByText('BL-SC1, BL-SC2')).toBeTruthy()
+    expect(within(abf).getByRole('link', { name: 'Vincular na Revisão' }).getAttribute('href')).toBe('/revisao?voyage=101&busca=12345678000195')
+    // Sem CNPJ no manifesto, a busca da Revisão vai pelo B/L.
+    const semCnpj = within(semCliente).getByRole('row', { name: /SEM CNPJ IMPORTADORA/ })
+    expect(within(semCnpj).getByRole('link', { name: 'Vincular na Revisão' }).getAttribute('href')).toBe('/revisao?voyage=101&busca=BL-SC3')
+    expect(screen.getByText(/nenhum Comunicado \(CE e Taxas, NOA, NOR, NOB\) sai para eles até o vínculo/)).toBeTruthy()
+  })
+
   it('mantém a matriz de cobertura na ordem operacional documentada', () => {
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
@@ -458,7 +489,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.trim())).toEqual([
-      'Abrir', 'Navio / Viagem', 'Porto', 'Clientes', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
+      'Abrir', 'Navio / Viagem', 'Porto', 'Clientes', 'Sem Cliente', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
     ])
   })
 

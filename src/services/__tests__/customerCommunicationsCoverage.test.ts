@@ -196,9 +196,43 @@ describe('buildVoyageCommunicationCoverage', () => {
     expect(build({ eta: '2026-09-29T12:00:00Z', ata: '2026-09-29T12:00:00Z' })).toMatchObject({ noa: { sent: 0, total: 1 }, nor: { sent: 0, total: 1 } })
   })
 
-  it('viagem sem B/L com cliente fica numa linha sem porto e sem nada devido', () => {
+  it('viagem sem B/L ativo fica numa linha sem porto e sem nada devido', () => {
     const [row] = buildVoyageCommunicationCoverage({ voyages: [voyage], bls: [], communications: [], terminalStates: [], readiness: new Map() })
-    expect(row).toMatchObject({ port: null, customers: 0, finance: { sent: 0, due: 0 } })
+    expect(row).toMatchObject({ port: null, customers: 0, finance: { sent: 0, due: 0 }, unlinked: { bls: 0, consignees: [] } })
+  })
+
+  // Pedido do dono de 2026-10-30: o B/L sem Cliente não é "nada devido", é
+  // carga que nenhum Comunicado alcança.
+  it('B/L sem Cliente é pendência do porto, agrupado pelo consignatário do manifesto', () => {
+    const semCliente = (id: string, pod: string, name: string | null, document: string | null) => ({
+      id, voyage_id: 62, customer_id: null, pod, ce_mercante: null, financial_status: 'pending',
+      manifest_customer_name: name, manifest_customer_cnpj_cpf: document,
+    })
+    const rows = buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [
+        bl('A', 1, 'BRVIX'),
+        semCliente('B', 'BRVIT', 'ABF COMERCIO LTDA', '12.345.678/0001-95'),
+        semCliente('C', 'BRVIX', 'ABF COMERCIO LTDA', '12345678000195'),
+        semCliente('D', 'BRVIX', 'SEM CNPJ IMPORTADORA', null),
+        // Cancelado não é pendência.
+        { ...semCliente('E', 'BRVIX', 'OUTRO', '98765432000110'), cancelled_at: '2026-10-20T10:00:00Z' },
+        // Porto só com carga sem Cliente também vira linha.
+        semCliente('F', 'BRSSZ', 'XPTO', '11222333000181'),
+      ],
+      communications: [],
+      terminalStates: [],
+      readiness: new Map(),
+    })
+    const byPort = new Map(rows.map((row) => [row.port, row]))
+    // BRVIT e BRVIX são o mesmo porto; o mesmo CNPJ com e sem máscara é o mesmo consignatário.
+    expect(byPort.get('BRVIX')).toMatchObject({ customers: 1, unlinked: { bls: 3 } })
+    expect(byPort.get('BRVIX')?.unlinked.consignees.map((item) => [item.name, item.blIds])).toEqual([
+      ['ABF COMERCIO LTDA', ['B', 'C']],
+      ['SEM CNPJ IMPORTADORA', ['D']],
+    ])
+    // Sem Cliente vinculado, nada é "devido" nas colunas por Cliente; a pendência fica na coluna própria.
+    expect(byPort.get('BRSSZ')).toMatchObject({ customers: 0, noa: { total: 0 }, finance: { due: 0 }, details: [], unlinked: { bls: 1 } })
   })
 })
 

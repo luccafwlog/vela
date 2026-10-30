@@ -1157,6 +1157,21 @@ export type VoyageCommunicationCoverageSummary = {
   queued: Record<CoverageKind, number>
   /** Drill-down da linha: cada Cliente do porto e a situação de cada modelo. */
   details: CoverageCustomerDetail[]
+  /**
+   * B/Ls ativos do porto sem Cliente vinculado: nenhum Comunicado sai para eles
+   * (NOA, NOR, NOB nem CE e Taxas) até o vínculo. Agrupados pelo consignatário
+   * do manifesto, que é quem deixaria de ser avisado.
+   */
+  unlinked: { bls: number; consignees: CoverageUnlinkedConsignee[] }
+}
+
+export type CoverageUnlinkedConsignee = {
+  key: string
+  /** Nome do consignatário como veio no manifesto; nulo quando o B/L não trouxe. */
+  name: string | null
+  /** CNPJ/CPF do consignatário no manifesto, quando veio. */
+  document: string | null
+  blIds: string[]
 }
 
 export type CoverageKind = 'ce_mercante_taxas' | 'aviso_chegada_noa' | 'aviso_prontidao_nor' | 'aviso_atracacao_nob'
@@ -1237,7 +1252,18 @@ function coverageCell(state: CoverageCellState, sent: CoverageCommunicationRow |
 }
 
 export type CoverageVoyageRow = { id: number; voyage_number: string; vessel: { name: string } | null }
-export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null; cancelled_at?: string | null }
+export type CoverageBlRow = {
+  id: string
+  voyage_id: number
+  customer_id: number | null
+  pod: string | null
+  ce_mercante: string | null
+  financial_status: string | null
+  cancelled_at?: string | null
+  /** Consignatário do manifesto: identifica o B/L ainda sem Cliente. */
+  manifest_customer_name?: string | null
+  manifest_customer_cnpj_cpf?: string | null
+}
 
 /**
  * Situações que a régua conta como Comunicado feito (D02 de 2026-10-27): o
@@ -1246,9 +1272,34 @@ export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number
  */
 export const COVERAGE_DONE_STATUSES: readonly string[] = ['enviado', 'simulado', 'parcial']
 
-/** B/L que entra na Cobertura: com Cliente, sem cancelamento do B/L nem da situação financeira (D03). */
+/** B/L ativo: sem cancelamento do B/L nem da situação financeira (D03). */
+function coverageBlActive(bl: CoverageBlRow): boolean {
+  return bl.financial_status !== 'cancelled' && !bl.cancelled_at
+}
+
+/** B/L que conta nos Comunicados da Cobertura: ativo e com Cliente. */
 function coverageBlCounts(bl: CoverageBlRow): boolean {
-  return bl.customer_id != null && bl.financial_status !== 'cancelled' && !bl.cancelled_at
+  return bl.customer_id != null && coverageBlActive(bl)
+}
+
+/**
+ * Consignatários dos B/Ls sem Cliente, pelo documento do manifesto (ou, sem
+ * ele, pelo nome): é a mesma chave que o vínculo por documento usaria.
+ */
+function groupUnlinkedConsignees(bls: readonly CoverageBlRow[]): CoverageUnlinkedConsignee[] {
+  const groups = new Map<string, CoverageUnlinkedConsignee>()
+  for (const bl of bls) {
+    const document = bl.manifest_customer_cnpj_cpf?.trim() || null
+    const name = bl.manifest_customer_name?.trim() || null
+    const key = (document && canonicalizeDocument(document)) || (name ? `nome:${name.toUpperCase()}` : 'sem-identificacao')
+    const group = groups.get(key) ?? { key, name, document, blIds: [] }
+    group.name ??= name
+    group.blIds.push(bl.id)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+    .map((group) => ({ ...group, blIds: [...group.blIds].sort() }))
+    .sort((left, right) => right.blIds.length - left.blIds.length || (left.name ?? '\uffff').localeCompare(right.name ?? '\uffff', 'pt-BR'))
 }
 
 /**
@@ -1327,18 +1378,22 @@ export function buildVoyageCommunicationCoverage(input: {
   const noQueue: Record<CoverageKind, number> = { ce_mercante_taxas: 0, aviso_chegada_noa: 0, aviso_prontidao_nor: 0, aviso_atracacao_nob: 0 }
   const result: VoyageCommunicationCoverageSummary[] = []
   for (const voyage of input.voyages) {
-    const voyageBls = input.bls.filter((bl) => bl.voyage_id === voyage.id && coverageBlCounts(bl))
-    const ports = Array.from(new Set(voyageBls.map((bl) => communicationPortCode(bl.pod) ?? ''))).sort()
+    const activeBls = input.bls.filter((bl) => bl.voyage_id === voyage.id && coverageBlActive(bl))
+    const voyageBls = activeBls.filter(coverageBlCounts)
+    // O porto do B/L sem Cliente também vira linha: a carga existe e ninguém
+    // foi avisado dela.
+    const ports = Array.from(new Set(activeBls.map((bl) => communicationPortCode(bl.pod) ?? ''))).sort()
     const base = { voyageId: voyage.id, vesselName: voyage.vessel?.name ?? '—', voyageNumber: voyage.voyage_number }
     if (!ports.length) {
       const none = { sent: 0, total: 0 }
-      result.push({ ...base, port: null, customers: 0, noa: none, nor: none, nob: none, finance: { sent: 0, due: 0, resend: 0, ready: 0, total: 0, pending: 0 }, queued: noQueue, details: [] })
+      result.push({ ...base, port: null, customers: 0, noa: none, nor: none, nob: none, finance: { sent: 0, due: 0, resend: 0, ready: 0, total: 0, pending: 0 }, queued: noQueue, details: [], unlinked: { bls: 0, consignees: [] } })
       continue
     }
     const voyageComms = input.communications.filter((comm) => comm.anchor_voyage_id === voyage.id && COVERAGE_DONE_STATUSES.includes(comm.status) && comm.customer_id != null)
     const voyageEscalas = input.escalas ? (input.escalas.get(voyage.id) ?? []) : undefined
     for (const port of ports) {
       const rows = voyageBls.filter((bl) => (communicationPortCode(bl.pod) ?? '') === port)
+      const unlinkedBls = activeBls.filter((bl) => bl.customer_id == null && (communicationPortCode(bl.pod) ?? '') === port)
       const customers = new Set(rows.map((row) => row.customer_id!))
       const portComms = voyageComms.filter((comm) => customers.has(comm.customer_id!) && (communicationPortCode(comm.anchor_port) ?? '') === port)
       const nobTargetKeys = new Set(input.terminalStates
@@ -1408,6 +1463,7 @@ export function buildVoyageCommunicationCoverage(input: {
           aviso_atracacao_nob: queuedCount('aviso_atracacao_nob'),
         },
         details,
+        unlinked: { bls: unlinkedBls.length, consignees: groupUnlinkedConsignees(unlinkedBls) },
       })
     }
   }
@@ -1556,7 +1612,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
     fetchCoverageRows((from, to) =>
       supabase
         .from('bls')
-        .select('id, voyage_id, customer_id, pod, ce_mercante, financial_status, cancelled_at')
+        .select('id, voyage_id, customer_id, pod, ce_mercante, financial_status, cancelled_at, manifest_customer_name, manifest_customer_cnpj_cpf')
         .in('voyage_id', voyageIds)
         .order('id', { ascending: false })
         .range(from, to)
