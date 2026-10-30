@@ -965,8 +965,11 @@ function changedAtValue(value: string | null | undefined) {
   return Number.isNaN(time) ? 0 : time
 }
 
+// A leitura aceita o mesmo código que a gravação (`escalaPortCode`): o LOCODE
+// conhecido normalizado (BRVIT vira BRVIX) ou o brasileiro bem formado fora da
+// lista. Com `normalizePortCode`, a escala BRXYZ era gravada e sumia da tela.
 function normalizeBrazilianPortCode(value: string | null | undefined) {
-  const normalized = normalizePortCode(value)
+  const normalized = escalaPortCode(value)
   return normalized && /^BR[A-Z0-9]{3}$/.test(normalized) ? normalized : null
 }
 
