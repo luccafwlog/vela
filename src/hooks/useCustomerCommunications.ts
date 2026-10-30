@@ -5,6 +5,7 @@ import {
   fetchCustomerCommunicationConference,
   fetchCustomerCommunicationHistory,
   fetchVoyageCommunicationCoverage,
+  fetchVoyageCommunicationDetail,
   type CustomerCommunicationHistoryFilters,
   fetchCustomerCommunicationSavedTemplates,
   saveCustomerCommunicationSavedTemplate,
@@ -67,6 +68,19 @@ export function useVoyageCommunicationCoverage(filters?: { vessel?: string; voya
     enabled: options.enabled ?? true,
     queryFn: () => fetchVoyageCommunicationCoverage(filters),
     refetchInterval: (query) => coverageRefetchDelay(query.state.data, new Date()),
+  })
+}
+
+/**
+ * Página de Comunicados de uma viagem: as linhas da Cobertura só dela, com as
+ * escalas. Relê depois da rodada como a Cobertura quando há algo na fila.
+ */
+export function useVoyageCommunicationDetail(voyageId: number | null) {
+  return useQuery({
+    queryKey: [...queryKeys.customerCommunications.all(), 'voyage-detail', voyageId],
+    enabled: voyageId != null,
+    queryFn: () => fetchVoyageCommunicationDetail(voyageId!),
+    refetchInterval: (query) => coverageRefetchDelay(query.state.data?.rows, new Date()),
   })
 }
 

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { formatCnpjCpf } from '../../lib/utils'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
 import { queuedLabel } from '../../lib/communicationAutoRunner'
@@ -57,79 +56,34 @@ export function CoverageCellText({ cell, kind, now }: { cell: CoverageCell; kind
 }
 
 /**
- * B/Ls do porto sem Cliente, por consignatário do manifesto: nenhum Comunicado
- * sai para eles, e o atalho leva à Revisão, onde o vínculo se resolve.
+ * Os Clientes de um porto da viagem e a situação de cada modelo (CE e Taxas,
+ * NOA, NOR, NOB): o bloco do porto na página de Comunicados da Viagem.
  */
-function UnlinkedConsignees({ row }: { row: VoyageCommunicationCoverageSummary }) {
-  return (
-    <div className="border-t border-[var(--app-border-soft)]">
-      <p className="px-4 pt-3">
-        <StatusText tone="warning">{row.unlinked.bls === 1 ? '1 B/L sem Cliente vinculado' : `${row.unlinked.bls} B/Ls sem Cliente vinculado`}</StatusText>
-        <span className="text-[var(--app-muted)]">: nenhum Comunicado (CE e Taxas, NOA, NOR, NOB) sai para eles até o vínculo. Importe a Base de Clientes ou vincule na Revisão.</span>
-      </p>
-      <div className="app-table-scroll">
-        <table className="app-table">
-          <caption className="sr-only">{`B/Ls sem Cliente — ${row.vesselName} / ${row.voyageNumber}${row.port ? `, ${row.port}` : ''}`}</caption>
-          <thead>
-            <tr>
-              <th scope="col" className="app-table__text-head">Consignatário no manifesto</th>
-              <th scope="col">CNPJ/CPF</th>
-              <th scope="col" className="app-table__text-head">B/Ls</th>
-              <th scope="col"><span className="sr-only">Vincular</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {row.unlinked.consignees.map((consignee) => (
-              <tr key={consignee.key}>
-                <th scope="row" className="app-table__text">{consignee.name ?? <NoValue label="Sem nome no manifesto" />}</th>
-                <td className="font-mono">{consignee.document ? formatCnpjCpf(consignee.document) : <NoValue label="Sem CNPJ no manifesto" />}</td>
-                <td className="app-table__text app-table__text--wrap font-mono text-xs">{consignee.blIds.join(', ')}</td>
-                <td>
-                  <Link className="app-link text-xs" to={`/revisao?voyage=${row.voyageId}&busca=${encodeURIComponent(consignee.document ?? consignee.blIds[0] ?? '')}`}>
-                    Vincular na Revisão
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-/** Os Clientes de uma linha da Cobertura (viagem × porto), a situação de cada modelo e os B/Ls sem Cliente. */
-export function CoverageDrilldown({ row, now, id }: { row: VoyageCommunicationCoverageSummary; now: Date; id: string }) {
-  const label = `Comunicados por Cliente — ${row.vesselName} / ${row.voyageNumber}${row.port ? `, ${row.port}` : ''}`
-  if (!row.details.length && !row.unlinked.bls) {
-    return <p id={id} className="px-4 py-3 text-[var(--app-muted)]">Nenhum Cliente com B/L nesta linha.</p>
+export function CoverageCustomerTable({ row, now }: { row: VoyageCommunicationCoverageSummary; now: Date }) {
+  if (!row.details.length) {
+    return <p className="px-4 py-3 text-[var(--app-muted)]">Nenhum Cliente vinculado neste porto.</p>
   }
   return (
-    <div id={id}>
-      {row.details.length ? (
-        <div className="app-table-scroll">
-          <table className="app-table">
-            <caption className="sr-only">{label}</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="app-table__text-head">Cliente</th>
-                {COVERAGE_KINDS.map((kind) => <th key={kind} scope="col" className="app-table__text-head">{KIND_HEADERS[kind]}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {row.details.map((detail) => (
-                <tr key={detail.customerId}>
-                  <th scope="row" className="app-table__text">{detail.customerName}</th>
-                  {COVERAGE_KINDS.map((kind) => (
-                    <td key={kind} className="app-table__text"><CoverageCellText cell={detail.cells[kind]} kind={kind} now={now} /></td>
-                  ))}
-                </tr>
+    <div className="app-table-scroll">
+      <table className="app-table">
+        <caption className="sr-only">{`Comunicados por Cliente — ${row.vesselName} / ${row.voyageNumber}${row.port ? `, ${row.port}` : ''}`}</caption>
+        <thead>
+          <tr>
+            <th scope="col" className="app-table__text-head">Cliente</th>
+            {COVERAGE_KINDS.map((kind) => <th key={kind} scope="col" className="app-table__text-head">{KIND_HEADERS[kind]}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {row.details.map((detail) => (
+            <tr key={detail.customerId}>
+              <th scope="row" className="app-table__text">{detail.customerName}</th>
+              {COVERAGE_KINDS.map((kind) => (
+                <td key={kind} className="app-table__text"><CoverageCellText cell={detail.cells[kind]} kind={kind} now={now} /></td>
               ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-      {row.unlinked.bls ? <UnlinkedConsignees row={row} /> : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

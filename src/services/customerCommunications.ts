@@ -1606,6 +1606,38 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
   }
 
   if (!voyages.length) return []
+  const { rows, escalas } = await loadVoyageCoverage(voyages)
+  return orderCoverageByEscala(rows, escalas)
+}
+
+export type VoyageCommunicationDetail = {
+  voyage: CoverageVoyageRow
+  /** Uma linha por porto de descarga, na ordem da escala (ETA). */
+  rows: VoyageCommunicationCoverageSummary[]
+  /** Escalas da viagem: ETA, ATA e a última ATB de cada porto. */
+  escalas: CoverageEscalaRow[]
+}
+
+/**
+ * Comunicados de uma viagem, para a página dela em
+ * `/clientes/comunicacao/viagens/:voyageId`: as mesmas linhas da Cobertura, só
+ * desta viagem, com as escalas para a faixa do topo. `null` quando a viagem não existe.
+ */
+export async function fetchVoyageCommunicationDetail(voyageId: number): Promise<VoyageCommunicationDetail | null> {
+  const { data, error } = await supabase
+    .from('voyages')
+    .select('id, voyage_number, vessel:vessels(name)')
+    .eq('id', voyageId)
+    .maybeSingle()
+    .overrideTypes<CoverageVoyageRow | null, { merge: false }>()
+  if (error) throw toError(error)
+  if (!data) return null
+  const { rows, escalas } = await loadVoyageCoverage([data])
+  const voyageEscalas = escalas.get(voyageId) ?? []
+  return { voyage: data, rows: orderCoverageByEscala(rows, escalas), escalas: voyageEscalas }
+}
+
+async function loadVoyageCoverage(voyages: readonly CoverageVoyageRow[]): Promise<{ rows: VoyageCommunicationCoverageSummary[]; escalas: Map<number, CoverageEscalaRow[]> }> {
   const voyageIds = voyages.map((v) => v.id)
 
   const [bls, communications, terminalStates, schedulesByVoyage] = await Promise.all([
@@ -1682,7 +1714,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
     escalas.set(voyageId, schedules.filter((schedule) => !schedule.deleted)
       .map((schedule) => ({ pod: schedule.port, eta: schedule.eta, etb: null, ata: schedule.ata, atb: lastAtbByEscala.get(`${voyageId}:${communicationPortCode(schedule.port)}`) ?? null, omitted: schedule.omitted })))
   }
-  return orderCoverageByEscala(buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames, escalas }), escalas)
+  return { rows: buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness, readinessDetails, queue, customerNames, escalas }), escalas }
 }
 
 /**

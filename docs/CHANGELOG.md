@@ -16,9 +16,12 @@
   da Viagem tem Cliente vinculado…", escala sem ETA, ATA ou ATB) em vez de "Nenhuma carga atende aos critérios
   informados."; o lote conta "Enviando N de M…" e fechar a página no meio pede confirmação. Na **Cobertura de
   viagens**, a coluna **Sem Cliente** passa a contar os B/Ls ativos sem Cliente vinculado, por porto e por
-  consignatário do manifesto, como pendência (nenhum Comunicado sai para eles), com **Vincular na Revisão** no
-  detalhe da linha; antes a Viagem só com B/Ls sem Cliente aparecia como "nada devido". Ver
-  [Clientes](modules/clientes.md#clientescomunicacao).
+  consignatário do manifesto, como pendência (nenhum Comunicado sai para eles); antes a Viagem só com B/Ls sem
+  Cliente aparecia como "nada devido". A Cobertura fica só com o resumo, e o navio/viagem abre a nova página
+  **Comunicados da viagem** (`/clientes/comunicacao/viagens/:voyageId`): B/Ls sem Cliente por consignatário com
+  **Vincular na Revisão**, um bloco por porto com cada Cliente e a situação de cada Comunicado, o histórico da
+  viagem e **Disparar**, que abre o Disparo com a Viagem e o porto já escolhidos. Ver
+  [Clientes](modules/clientes.md#clientescomunicacaoviagensvoyageid).
 - **Escala com LOCODE brasileiro fora da lista continua no Planejamento (2026-10-29, sem migration):**
   a escala com porto brasileiro bem formado que o Vela não conhece (por exemplo `BRXYZ`) era gravada,
   mas sumia do **Planejamento por escala** da ficha da Viagem ao recarregar a página: a leitura só

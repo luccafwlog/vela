@@ -1,8 +1,7 @@
 import { formatCnpjCpf, formatDateTime } from '../lib/utils'
 import { Fragment, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CoverageDrilldown } from '../components/customers/CoverageDrilldown'
-import { formatBrasiliaTime, nextAutoRunnerRun, queuedLabel } from '../lib/communicationAutoRunner'
+import { CoverageCount, FinanceCoverageCount, UnlinkedCount } from '../components/customers/CoverageCounts'
 import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Eye, History, Info, Paperclip, Pencil, RotateCcw, Send, Ship, Users } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -128,6 +127,23 @@ function conferenceRowPorts(row: CustomerCommunicationConferenceRow): string {
   return [...new Set(row.sourceBls.map((bl) => communicationPortCode(bl.pod)).filter(Boolean))].join(', ')
 }
 
+/**
+ * Portos da Viagem para o select, com o já escolhido mesmo antes de a lista
+ * chegar: o POD vindo da página da viagem não aparece como "Todos" enquanto carrega.
+ */
+function portOptions(ports: readonly string[] | undefined, selected: string): string[] {
+  const list = [...(ports ?? [])]
+  if (selected && !list.includes(selected)) list.push(selected)
+  return list
+}
+
+/** Recorte inicial do Disparo pelo endereço (`?voyage=&pod=`), vindo da página da viagem. */
+function disparoFiltersFromUrl(params: URLSearchParams): CustomerCommunicationFilters {
+  const voyageId = Number(params.get('voyage'))
+  if (!Number.isInteger(voyageId) || voyageId <= 0) return DEFAULT_CUSTOMER_COMMUNICATION_FILTERS
+  return { ...DEFAULT_CUSTOMER_COMMUNICATION_FILTERS, voyageId, pod: communicationPortCode(params.get('pod')) ?? '' }
+}
+
 /** "12 linhas · 133 B/Ls sem Cliente": o total da pendência que a coluna mostra linha a linha. */
 function coverageAside(rows: readonly VoyageCommunicationCoverageSummary[]): string {
   const unlinked = rows.reduce((total, row) => total + row.unlinked.bls, 0)
@@ -175,49 +191,6 @@ function linkedCommunicationNotice(items: CustomerCommunicationHistoryItem[] | u
   if (linked.anchor_voyage_id == null) return `O Comunicado do link não tem viagem: a lista mostra todos os Comunicados de ${customer}; o do link está aberto.`
   const voyage = [linked.vessel_name, linked.voyage_number].filter(Boolean).join(' / ')
   return `Todos os Comunicados de ${customer} ${voyage ? `na viagem ${voyage}` : 'na mesma viagem'}; o do link está aberto.`
-}
-
-/** "0 de 3", âmbar enquanto falta enviar; "—" quando nada é devido (lote 5a). */
-function CoverageCount({ sent, total, queued = 0, now }: { sent: number; total: number; queued?: number; now: Date }) {
-  if (total === 0) return <NoValue label="Nada devido" />
-  return (
-    <span className="inline-flex flex-col">
-      <StatusText tone={sent < total ? 'warning' : 'default'}>{sent} de {total}</StatusText>
-      <QueuedNote queued={queued} now={now} />
-    </span>
-  )
-}
-
-/** "1 na fila · 16:07": a próxima rodada automática envia (migration 345). */
-function QueuedNote({ queued, now }: { queued: number; now: Date }) {
-  if (queued <= 0) return null
-  return <span className="text-xs text-[var(--app-muted)]" title={queuedLabel(now)}>{queued} na fila · {formatBrasiliaTime(nextAutoRunnerRun(now))}</span>
-}
-
-/**
- * B/Ls do porto sem Cliente: pendência, porque nenhum Comunicado sai para eles.
- * Âmbar com a contagem e quantos consignatários do manifesto deixam de ser avisados.
- */
-function UnlinkedCount({ bls, consignees }: { bls: number; consignees: number }) {
-  if (bls === 0) return <NoValue label="Todos com Cliente" />
-  return (
-    <span className="inline-flex flex-col">
-      <StatusText tone="warning">{plural(bls, 'B/L', 'B/Ls')}</StatusText>
-      <span className="text-xs text-[var(--app-muted)]">{plural(consignees, 'consignatário', 'consignatários')}</span>
-    </span>
-  )
-}
-
-/** CE e Taxas: enviados em dia de devidos, e quem precisa de reenvio. */
-function FinanceCoverageCount({ sent, due, resend, queued, now }: { sent: number; due: number; resend: number; queued: number; now: Date }) {
-  if (due === 0) return <NoValue label="Nada devido" />
-  return (
-    <span className="inline-flex flex-col">
-      <StatusText tone={sent < due ? 'warning' : 'default'}>{sent} de {due}</StatusText>
-      {resend > 0 ? <span className="text-xs text-[var(--app-muted)]">{resend === 1 ? '1 reenvio pendente' : `${resend} reenvios pendentes`}</span> : null}
-      <QueuedNote queued={queued} now={now} />
-    </span>
-  )
 }
 
 function plural(count: number, singular: string, pluralWord: string) {
@@ -292,7 +265,8 @@ export function ClientesComunicacao() {
   const [kind, setKind] = useState<CustomerCommunicationKind>('aviso_chegada_noa')
   // `filters.mode` nunca é lido: o modo do disparo é sempre derivado do modelo em
   // `dispatchFilters`, para Modo e Modelo não poderem apontar para universos diferentes.
-  const [filters, setFilters] = useState<CustomerCommunicationFilters>(DEFAULT_CUSTOMER_COMMUNICATION_FILTERS)
+  // `?voyage=` e `?pod=` vêm do Disparar da página da viagem: o recorte já chega preenchido.
+  const [filters, setFilters] = useState<CustomerCommunicationFilters>(() => disparoFiltersFromUrl(searchParams))
   const [conferenceRequested, setConferenceRequested] = useState(false)
   const [selectionState, setSelectionState] = useState<{ scope: string | undefined; keys: Set<string> }>({ scope: undefined, keys: new Set() })
   const [institutionalSubject, setInstitutionalSubject] = useState('')
@@ -380,7 +354,6 @@ export function ClientesComunicacao() {
   )
   // A Cobertura consulta a prontidão de cada Cliente × Viagem: só na aba dela (3.7).
   const coverageQuery = useVoyageCommunicationCoverage(coverageFilters, { enabled: tab === 'cobertura' })
-  const [expandedCoverageRow, setExpandedCoverageRow] = useState<string | null>(null)
   // A próxima rodada é calculada no momento da leitura; a releitura depois da
   // rodada (useVoyageCommunicationCoverage) atualiza os dois juntos.
   const coverageNow = useMemo(() => new Date(coverageQuery.dataUpdatedAt || Date.now()), [coverageQuery.dataUpdatedAt])
@@ -926,7 +899,6 @@ export function ClientesComunicacao() {
                   <caption className="sr-only">Cobertura de comunicados por viagem e porto</caption>
                   <thead>
                     <tr>
-                      <th scope="col"><span className="sr-only">Abrir</span></th>
                       <th scope="col" className="app-table__text-head">Navio / Viagem</th>
                       <th scope="col" className="app-table__text-head">Porto</th>
                       <th scope="col">Clientes</th>
@@ -939,55 +911,28 @@ export function ClientesComunicacao() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(coverageQuery.data ?? []).map((row) => {
-                      const rowKey = `${row.voyageId}:${row.port ?? ''}`
-                      const expanded = expandedCoverageRow === rowKey
-                      const detailId = `cobertura-${row.voyageId}-${row.port ?? 'sem-porto'}`
-                      const label = `${row.vesselName} / ${row.voyageNumber}${row.port ? `, ${row.port}` : ''}`
-                      return (
-                        <Fragment key={rowKey}>
-                          <tr>
-                            <td>
-                              {row.details.length || row.unlinked.bls ? (
-                                <button
-                                  type="button"
-                                  className="app-table__icon-button"
-                                  aria-expanded={expanded}
-                                  aria-controls={expanded ? detailId : undefined}
-                                  aria-label={`${expanded ? 'Recolher' : 'Abrir'} os Clientes de ${label}`}
-                                  onClick={() => setExpandedCoverageRow(expanded ? null : rowKey)}
-                                >
-                                  {expanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
-                                </button>
-                              ) : null}
-                            </td>
-                            <td className="app-table__text"><Link className="app-link" to={`/viagens/${row.voyageId}`}>{row.vesselName} / {row.voyageNumber}</Link></td>
-                            <td className="app-table__text">{row.port ?? <NoValue label="Sem porto" />}</td>
-                            <td>{row.customers === 0 ? 'Nenhum' : row.customers}</td>
-                            <td><UnlinkedCount bls={row.unlinked.bls} consignees={row.unlinked.consignees.length} /></td>
-                            <td><FinanceCoverageCount sent={row.finance.sent} due={row.finance.due} resend={row.finance.resend} queued={row.queued.ce_mercante_taxas} now={coverageNow} /></td>
-                            <td>{row.customers === 0 ? <NoValue label="Nada devido" /> : row.finance.pending}</td>
-                            <td><CoverageCount sent={row.noa.sent} total={row.noa.total} queued={row.queued.aviso_chegada_noa} now={coverageNow} /></td>
-                            <td><CoverageCount sent={row.nor.sent} total={row.nor.total} queued={row.queued.aviso_prontidao_nor} now={coverageNow} /></td>
-                            <td><CoverageCount sent={row.nob.sent} total={row.nob.total} queued={row.queued.aviso_atracacao_nob} now={coverageNow} /></td>
-                          </tr>
-                          {expanded ? (
-                            <tr data-row-detail>
-                              <td colSpan={10} className="p-0">
-                                <CoverageDrilldown row={row} now={coverageNow} id={detailId} />
-                              </td>
-                            </tr>
-                          ) : null}
-                        </Fragment>
-                      )
-                    })}
-                    {!coverageQuery.data?.length ? <tr><td colSpan={10} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}
+                    {(coverageQuery.data ?? []).map((row) => (
+                      <tr key={`${row.voyageId}:${row.port ?? ''}`}>
+                        {/* A viagem abre a página dela, com os Clientes de cada porto,
+                            os B/Ls sem Cliente e o histórico (pedido do dono de 2026-10-30). */}
+                        <td className="app-table__text"><Link className="app-link" to={`/clientes/comunicacao/viagens/${row.voyageId}`}>{row.vesselName} / {row.voyageNumber}</Link></td>
+                        <td className="app-table__text">{row.port ?? <NoValue label="Sem porto" />}</td>
+                        <td>{row.customers === 0 ? 'Nenhum' : row.customers}</td>
+                        <td><UnlinkedCount bls={row.unlinked.bls} consignees={row.unlinked.consignees.length} /></td>
+                        <td><FinanceCoverageCount sent={row.finance.sent} due={row.finance.due} resend={row.finance.resend} queued={row.queued.ce_mercante_taxas} now={coverageNow} /></td>
+                        <td>{row.customers === 0 ? <NoValue label="Nada devido" /> : row.finance.pending}</td>
+                        <td><CoverageCount sent={row.noa.sent} total={row.noa.total} queued={row.queued.aviso_chegada_noa} now={coverageNow} /></td>
+                        <td><CoverageCount sent={row.nor.sent} total={row.nor.total} queued={row.queued.aviso_prontidao_nor} now={coverageNow} /></td>
+                        <td><CoverageCount sent={row.nob.sent} total={row.nob.total} queued={row.queued.aviso_atracacao_nob} now={coverageNow} /></td>
+                      </tr>
+                    ))}
+                    {!coverageQuery.data?.length ? <tr><td colSpan={9} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}
                   </tbody>
                 </table>
               </div>
             )}
             <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
-              Uma linha por navio/viagem e porto de descarga; a seta abre os Clientes da linha e a situação de cada Comunicado. "Sem Cliente": B/Ls do porto ainda sem Cliente vinculado, e de quantos consignatários do manifesto; nenhum Comunicado sai para eles até o vínculo, e eles não entram no "N de M" das outras colunas. "0 de 2": enviados de devidos (contam também o redirecionado ao suporte e o parcial, como a régua). "N na fila · HH:MM": a próxima rodada automática (a cada 2 minutos e logo após o evento, horário de Brasília) envia. Âmbar enquanto falta enviar. "Reenvio pendente": Cliente que já recebeu o CE e Taxas e ganhou B/L novo ainda não pronto; conta como devido, não como enviado. "Sem CE ou fatura": Clientes do porto que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
+              Uma linha por navio/viagem e porto de descarga; o navio/viagem abre a página dos Comunicados da viagem, com cada Cliente, os B/Ls sem Cliente e o histórico. "Sem Cliente": B/Ls do porto ainda sem Cliente vinculado, e de quantos consignatários do manifesto; nenhum Comunicado sai para eles até o vínculo, e eles não entram no "N de M" das outras colunas. "0 de 2": enviados de devidos (contam também o redirecionado ao suporte e o parcial, como a régua). "N na fila · HH:MM": a próxima rodada automática (a cada 2 minutos e logo após o evento, horário de Brasília) envia. Âmbar enquanto falta enviar. "Reenvio pendente": Cliente que já recebeu o CE e Taxas e ganhou B/L novo ainda não pronto; conta como devido, não como enviado. "Sem CE ou fatura": Clientes do porto que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
             </p>
           </Block>
         </>
@@ -1198,7 +1143,7 @@ export function ClientesComunicacao() {
                         <Field label="POL">
                           <Select value={filters.pol} disabled={filters.voyageId == null} onChange={(event) => updateFilter('pol', event.target.value)}>
                             <option value="">Todos</option>
-                            {(voyagePortsQuery.data?.pols ?? []).map((port) => <option key={port} value={port}>{port}</option>)}
+                            {portOptions(voyagePortsQuery.data?.pols, filters.pol).map((port) => <option key={port} value={port}>{port}</option>)}
                           </Select>
                         </Field>
                       </div>
@@ -1206,7 +1151,7 @@ export function ClientesComunicacao() {
                         <Field label="POD">
                           <Select value={filters.pod} disabled={filters.voyageId == null} onChange={(event) => updateFilter('pod', event.target.value)}>
                             <option value="">Todos</option>
-                            {(voyagePortsQuery.data?.pods ?? []).map((port) => <option key={port} value={port}>{port}</option>)}
+                            {portOptions(voyagePortsQuery.data?.pods, filters.pod).map((port) => <option key={port} value={port}>{port}</option>)}
                           </Select>
                         </Field>
                       </div>

@@ -163,8 +163,10 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   **Todos**, a conferência mostra o Porto, os B/Ls sem Cliente e o motivo da
   lista vazia, e o lote conta "Enviando N de M…" (CLI-059, CLI-066, CLI-068 e
   a mensagem da tela). Na **Cobertura de viagens**, a coluna **Sem Cliente**
-  mostra os B/Ls sem Cliente como pendência, com os consignatários e o atalho
-  para a Revisão no detalhe da linha (CLI-080).
+  mostra os B/Ls sem Cliente como pendência (CLI-080), e o navio/viagem abre a
+  página **Comunicados da viagem**, com os B/Ls sem Cliente por consignatário,
+  cada porto com os Clientes e o histórico da viagem (CLI-081, CLI-107,
+  CLI-109, captura C14).
 - **Recusa da carga solta em outra Viagem** (decisão do dono de 2026-10-28,
   pergunta P1 da situação S6.03; migration `500`): a prévia e a gravação do
   Manifesto BB e do B/L avulso mandam excluir o B/L na outra Viagem e importar

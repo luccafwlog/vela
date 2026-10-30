@@ -2,11 +2,12 @@
 import { cleanup, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DatabaseError } from '../../lib/errors'
 import type { CustomerCommunicationConference } from '../../services/customerCommunications'
 import { ClientesComunicacao } from '../ClientesComunicacao'
+import { ClientesComunicacaoViagem } from '../ClientesComunicacaoViagem'
 
 // O disparo em lote e o reenvio do CE usam os hooks reais; só o envio à Edge
 // e o reenvio do CE (serviços) são falsos.
@@ -185,7 +186,7 @@ vi.mock('../../hooks/useAppSettings', () => ({
 }))
 
 vi.mock('../../hooks/useBls', () => ({
-  useVoyageOptions: () => ({ data: [{ id: 1, voyage_number: '123', vessel: { name: 'COSCO SHIPPING XING WANG' } }] }),
+  useVoyageOptions: () => ({ data: [{ id: 1, voyage_number: '123', vessel: { name: 'COSCO SHIPPING XING WANG' } }, { id: 101, voyage_number: '2401E', vessel: { name: 'COSCO SHIPPING XING WANG' } }] }),
 }))
 // A escolha da Viagem é a peça comum (`VoyageCombobox`); aqui, um select com a
 // mesma saída: o id da Viagem ou null.
@@ -196,6 +197,7 @@ vi.mock('../../components/shared/VoyageCombobox', () => ({
       <select value={selectedVoyageId ?? ''} onChange={(event) => onSelect(event.target.value ? Number(event.target.value) : null)}>
         <option value="">Nenhuma</option>
         <option value="1">COSCO SHIPPING XING WANG / 123</option>
+        <option value="101">COSCO SHIPPING XING WANG / 2401E</option>
       </select>
     </label>
   ),
@@ -234,6 +236,18 @@ vi.mock('../../hooks/useCustomerCommunications', async () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useVoyageCommunicationDetail: (voyageId: number | null) => ({
+    data: voyageId === 101
+      ? {
+        voyage: { id: 101, voyage_number: '2401E', vessel: { name: 'COSCO SHIPPING XING WANG' } },
+        rows: mockCoverage,
+        escalas: [{ pod: 'BRVIX', eta: '2026-10-18T12:00:00Z', etb: null, ata: '2026-10-20T12:00:00Z', atb: null }],
+      }
+      : voyageId == null ? undefined : null,
+    dataUpdatedAt: Date.now(),
+    isError: false,
+    refetch: vi.fn(),
+  }),
   useCommunicationVoyagePorts: (voyageId: number | null) => ({
     data: voyageId == null ? undefined : { pols: ['CNTAO'], pods: ['BRSSZ', 'BRVIX'] },
   }),
@@ -246,6 +260,23 @@ vi.mock('../../hooks/useCustomerCommunications', async () => ({
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => mockConfirm,
 }))
+
+/** A Comunicação e a página de uma viagem, com o endereço à vista para os testes de navegação. */
+function renderComunicacao(initialEntry: string) {
+  function Endereco() {
+    const location = useLocation()
+    return <output aria-label="Endereço">{location.pathname}{location.search}</output>
+  }
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route path="/clientes/comunicacao" element={<ClientesComunicacao />} />
+        <Route path="/clientes/comunicacao/viagens/:voyageId" element={<ClientesComunicacaoViagem />} />
+      </Routes>
+      <Endereco />
+    </MemoryRouter>,
+  )
+}
 
 /** O modo e o modelo viraram escolhas visíveis: rádios, não selects. */
 // O Histórico é uma tabela (lote 5a): os destinatários e o reenvio do CE
@@ -427,58 +458,77 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(scroll?.classList.contains('overflow-hidden')).toBe(false)
   })
 
-  // Melhorias 9 e 10 (sessão de testes de 2026-10-20).
-  it('abre os Clientes da linha pelo teclado, com a situação de cada Comunicado', () => {
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
+  // Pedido do dono de 2026-10-30: a Cobertura é só o resumo; o navio/viagem abre
+  // a página da viagem, com os Clientes de cada porto (melhorias 9 e 10 de 2026-10-20).
+  it('o navio/viagem abre a página da viagem, com cada Cliente do porto e a situação de cada Comunicado', () => {
+    renderComunicacao('/clientes/comunicacao?tab=cobertura')
 
     expect(screen.getByText(/^1 na fila · \d{2}:\d{2}$/)).toBeTruthy()
-    const toggle = screen.getByRole('button', { name: 'Abrir os Clientes de COSCO SHIPPING XING WANG / 2401E, BRVIX' })
-    expect(toggle.getAttribute('aria-expanded')).toBe('false')
-    toggle.focus()
-    expect(document.activeElement).toBe(toggle)
-    // Botão nativo: Enter e Espaço disparam o clique.
-    fireEvent.click(toggle)
-    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    // Sem seta na linha: o detalhe mora na página da viagem.
+    expect(screen.queryByRole('button', { name: /Abrir os Clientes de/ })).toBeNull()
+    fireEvent.click(screen.getByRole('link', { name: 'COSCO SHIPPING XING WANG / 2401E' }))
 
+    expect(screen.getByLabelText('Endereço').textContent).toBe('/clientes/comunicacao/viagens/101')
+    expect(screen.getByRole('heading', { level: 1, name: 'COSCO SHIPPING XING WANG / 2401E' })).toBeTruthy()
+    expect(screen.getByText(/BRVIX — ETA .* · ATA /)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Porto BRVIX' })).toBeTruthy()
     const detail = screen.getByRole('table', { name: /Comunicados por Cliente — COSCO SHIPPING XING WANG \/ 2401E, BRVIX/ })
-    expect(toggle.getAttribute('aria-controls')).toBe(detail.closest('[id]')?.id)
     const row = within(detail).getByRole('row', { name: /Cliente Alfa/ })
     expect(within(row).getByText('Bloqueado')).toBeTruthy()
     expect(within(row).getByText('reenvio pendente: falta faturar 4 B/Ls')).toBeTruthy()
     expect(within(row).getByRole('link', { name: 'Enviado em 20/10/2026 às 16:19 (BRT)' }).getAttribute('href')).toBe('/clientes/comunicacao?tab=historico&communication=17')
     expect(within(row).getByText(/^Na fila · próxima rodada às \d{2}:\d{2} \(BRT\)$/)).toBeTruthy()
     expect(within(row).getByText('Sem atracação devida')).toBeTruthy()
-
-    fireEvent.click(toggle)
-    expect(screen.queryByRole('table', { name: /Comunicados por Cliente/ })).toBeNull()
+    // O histórico da viagem fica na mesma página.
+    expect(screen.getByRole('heading', { name: 'Histórico da viagem' })).toBeTruthy()
+    expect(historyCalls.at(-1)?.filters).toEqual({ voyageId: 101 })
   })
 
-  it('B/Ls sem Cliente aparecem como pendência na linha, no total do bloco e no detalhe, com o atalho da Revisão', () => {
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
+  it('Disparar da página da viagem abre o Disparo com a viagem e o porto já escolhidos', () => {
+    renderComunicacao('/clientes/comunicacao/viagens/101')
+
+    expect(screen.getByRole('link', { name: /^Disparar Comunicado$/ }).getAttribute('href')).toBe('/clientes/comunicacao?tab=disparo&voyage=101')
+    fireEvent.click(screen.getByRole('link', { name: /Disparar para BRVIX/ }))
+
+    expect(screen.getByLabelText('Endereço').textContent).toBe('/clientes/comunicacao?tab=disparo&voyage=101&pod=BRVIX')
+    expect((screen.getByLabelText('Navio / Viagem') as HTMLSelectElement).value).toBe('101')
+    expect(screen.getByText('COSCO SHIPPING XING WANG / 2401E', { selector: 'strong' })).toBeTruthy()
+    expect((screen.getByLabelText('POD') as HTMLSelectElement).value).toBe('BRVIX')
+  })
+
+  it('quem não dispara vê a página da viagem sem os botões de Disparar', () => {
+    authState.canSend = false
+    renderComunicacao('/clientes/comunicacao/viagens/101')
+    expect(screen.queryByRole('link', { name: /Disparar/ })).toBeNull()
+    expect(screen.getByRole('link', { name: /Abrir a Viagem/ }).getAttribute('href')).toBe('/viagens/101')
+  })
+
+  it('viagem inexistente diz que não foi encontrada, com o caminho de volta', () => {
+    renderComunicacao('/clientes/comunicacao/viagens/999')
+    expect(screen.getByRole('heading', { name: 'Viagem não encontrada' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Voltar para a Cobertura de viagens' }).getAttribute('href')).toBe('/clientes/comunicacao?tab=cobertura')
+  })
+
+  it('B/Ls sem Cliente aparecem como pendência na linha e no total da Cobertura, e na página da viagem por consignatário', () => {
+    renderComunicacao('/clientes/comunicacao?tab=cobertura')
 
     expect(screen.getByText('1 linha · 3 B/Ls sem Cliente')).toBeTruthy()
     const linha = screen.getByRole('link', { name: 'COSCO SHIPPING XING WANG / 2401E' }).closest('tr') as HTMLElement
     expect(within(linha).getByText('3 B/Ls').className).toContain('app-status-text--warning')
     expect(within(linha).getByText('2 consignatários')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir os Clientes de COSCO SHIPPING XING WANG / 2401E, BRVIX' }))
-    const semCliente = screen.getByRole('table', { name: /B\/Ls sem Cliente — COSCO SHIPPING XING WANG \/ 2401E, BRVIX/ })
+    fireEvent.click(screen.getByRole('link', { name: 'COSCO SHIPPING XING WANG / 2401E' }))
+    expect(screen.getByText('3 B/Ls sem Cliente')).toBeTruthy()
+    expect(screen.getByText(/Nenhum Comunicado \(CE e Taxas, NOA, NOR, NOB\) sai para eles até o Cliente ser vinculado/)).toBeTruthy()
+    const semCliente = screen.getByRole('table', { name: 'B/Ls sem Cliente, por consignatário do manifesto' })
     const abf = within(semCliente).getByRole('row', { name: /ABF COMERCIO LTDA/ })
     expect(within(abf).getByText('12.345.678/0001-95')).toBeTruthy()
+    expect(within(abf).getByText('BRVIX')).toBeTruthy()
     expect(within(abf).getByText('BL-SC1, BL-SC2')).toBeTruthy()
-    expect(within(abf).getByRole('link', { name: 'Vincular na Revisão' }).getAttribute('href')).toBe('/revisao?voyage=101&busca=12345678000195')
+    expect(within(abf).getByRole('link', { name: /Vincular na Revisão/ }).getAttribute('href')).toBe('/revisao?voyage=101&busca=12345678000195')
     // Sem CNPJ no manifesto, a busca da Revisão vai pelo B/L.
     const semCnpj = within(semCliente).getByRole('row', { name: /SEM CNPJ IMPORTADORA/ })
-    expect(within(semCnpj).getByRole('link', { name: 'Vincular na Revisão' }).getAttribute('href')).toBe('/revisao?voyage=101&busca=BL-SC3')
-    expect(screen.getByText(/nenhum Comunicado \(CE e Taxas, NOA, NOR, NOB\) sai para eles até o vínculo/)).toBeTruthy()
+    expect(within(semCnpj).getByRole('link', { name: /Vincular na Revisão/ }).getAttribute('href')).toBe('/revisao?voyage=101&busca=BL-SC3')
   })
 
   it('mantém a matriz de cobertura na ordem operacional documentada', () => {
@@ -489,7 +539,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.trim())).toEqual([
-      'Abrir', 'Navio / Viagem', 'Porto', 'Clientes', 'Sem Cliente', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
+      'Navio / Viagem', 'Porto', 'Clientes', 'Sem Cliente', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
     ])
   })
 
@@ -1228,31 +1278,22 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
 
   // Revisão da PR #1059: o link "Enviado em" da Cobertura troca o endereço na
   // mesma tela, sem remontar; o Comunicado do link tem de abrir mesmo assim.
-  it('da Cobertura para o Histórico sem remontar, o Comunicado do link abre; "Ver todos" tira o recorte do endereço', () => {
+  it('da página da viagem para o Histórico, o Comunicado do link abre; "Ver todos" tira o recorte do endereço', () => {
     const attempt = { recipient_masked: 'c***@a***.com', recipient_email: 'contato@acme.com', dispatch_mode: 'real', status: 'aceito', retry_count: 0, provider_message_id: null, last_error: null, created_at: '2026-10-20T19:19:00Z', updated_at: '' }
     mockHistory = [
       { ...defaultHistory[0], id: 18, anchor_voyage_id: 101, created_at: '2026-10-21T10:00:00Z', attempts: [{ ...attempt, id: 2 }] },
       { ...defaultHistory[0], id: 17, anchor_voyage_id: 101, created_at: '2026-10-20T19:19:00Z', attempts: [{ ...attempt, id: 1 }] },
     ]
-    function Endereco() {
-      return <output aria-label="Endereço">{useLocation().search}</output>
-    }
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
-        <ClientesComunicacao />
-        <Endereco />
-      </MemoryRouter>,
-    )
+    renderComunicacao('/clientes/comunicacao/viagens/101')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir os Clientes de COSCO SHIPPING XING WANG / 2401E, BRVIX' }))
     fireEvent.click(screen.getByRole('link', { name: 'Enviado em 20/10/2026 às 16:19 (BRT)' }))
 
-    expect(screen.getByLabelText('Endereço').textContent).toBe('?tab=historico&communication=17')
+    expect(screen.getByLabelText('Endereço').textContent).toBe('/clientes/comunicacao?tab=historico&communication=17')
     expect(screen.getByRole('table', { name: 'Destinatários do Comunicado 17' })).toBeTruthy()
     expect(screen.queryByRole('table', { name: 'Destinatários do Comunicado 18' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver todos' }))
-    expect(screen.getByLabelText('Endereço').textContent).toBe('?tab=historico')
+    expect(screen.getByLabelText('Endereço').textContent).toBe('/clientes/comunicacao?tab=historico')
     expect(screen.queryByRole('button', { name: 'Ver todos' })).toBeNull()
   })
 
