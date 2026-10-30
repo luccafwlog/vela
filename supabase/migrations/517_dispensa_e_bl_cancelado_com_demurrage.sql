@@ -1,4 +1,4 @@
--- 516: B/L cancelado com Demurrage sem Invoice e dispensa da cobrança de uma
+-- 517: B/L cancelado com Demurrage sem Invoice e dispensa da cobrança de uma
 -- caixa (lote 3 do plano da repaginação da Demurrage; ADR 0112, D7, D24 e D26).
 --
 -- 1. `demurrage_box_waivers`: dispensa da cobrança de Demurrage de uma caixa
@@ -13,7 +13,7 @@
 --    a fila da emissão e a reconciliação de datas param de cobrá-la.
 --    `issue_demurrage_invoice_for_bl` não espera a caixa dispensada ainda fora
 --    e não conta a dispensa como Invoice que cobre o grupo. A classificação da
---    514 marca a caixa como `waived`, fora das divisões.
+--    515 marca a caixa como `waived`, fora das divisões.
 -- 4. `bl_open_financial_reasons` ganha "Demurrage a faturar" (D7, D26): caixa
 --    do B/L com sobreestadia sem Invoice nem dispensa, devolvida ou ainda fora
 --    e passada do free time, que nenhum outro B/L ativo do mesmo Cliente na
@@ -23,7 +23,7 @@
 --
 -- Rollback: recriar `_demurrage_billed_container_keys` (214),
 -- `issue_demurrage_invoice_for_bl` (509), `bl_open_financial_reasons` (362) e
--- `_demurrage_billing_board_core` (514); apagar `waive_demurrage_box`,
+-- `_demurrage_billing_board_core` (515); apagar `waive_demurrage_box`,
 -- `revoke_demurrage_box_waiver`, `_demurrage_waived_container_keys` e a tabela
 -- `demurrage_box_waivers`.
 
@@ -81,7 +81,7 @@ AS $function$
     AND b.voyage_id = p_voyage_id
     AND di.id IS DISTINCT FROM p_exclude_invoice_id
     AND NULLIF(btrim(item.container_number), '') IS NOT NULL
-  -- 516 (ADR 0112, D24): a caixa dispensada conta como coberta, sem Invoice.
+  -- 517 (ADR 0112, D24): a caixa dispensada conta como coberta, sem Invoice.
   UNION
   SELECT waived.container_key, NULL::bigint
   FROM public._demurrage_waived_container_keys(p_voyage_id, p_customer_id) AS waived;
@@ -217,7 +217,7 @@ BEGIN
     SELECT * FROM public._demurrage_billed_container_keys(v_voyage_id, v_customer_id)
   )
   SELECT
-    -- 516: a caixa dispensada conta como coberta, sem Invoice (invoice_id nulo).
+    -- 517: a caixa dispensada conta como coberta, sem Invoice (invoice_id nulo).
     (SELECT array_agg(DISTINCT billed.invoice_id ORDER BY billed.invoice_id)
        FROM billed JOIN boxes USING (container_key) WHERE billed.invoice_id IS NOT NULL),
     (SELECT count(*) FROM boxes
@@ -229,7 +229,7 @@ BEGIN
       'invoice_ids', to_jsonb(v_covering), 'anchor_bl_id', v_anchor, 'idempotent', true);
   END IF;
 
-  -- 516: a caixa dispensada ainda fora não segura o grupo.
+  -- 517: a caixa dispensada ainda fora não segura o grupo.
   IF EXISTS (
     SELECT 1 FROM public.bl_containers AS c
     WHERE c.bl_id = ANY(v_group) AND c.ownership IS DISTINCT FROM 'SOC' AND c.return_date IS NULL
@@ -355,7 +355,7 @@ BEGIN
          ORDER BY a.valid_from DESC, a.id DESC
          LIMIT 1
       ) AS agreement ON true
-      -- 516: dispensa da cobrança da caixa (Viagem, Cliente, número).
+      -- 517: dispensa da cobrança da caixa (Viagem, Cliente, número).
       LEFT JOIN LATERAL (
         SELECT w.id FROM public.demurrage_box_waivers AS w
          WHERE gr.customer_id IS NOT NULL AND w.revoked_at IS NULL
@@ -528,7 +528,7 @@ BEGIN
   ) THEN
     v_reasons := array_append(v_reasons, 'fatura de Demurrage em aberto');
   END IF;
-  -- 516 (ADR 0112, D7 e D26): caixa do B/L com sobreestadia sem Invoice viva
+  -- 517 (ADR 0112, D7 e D26): caixa do B/L com sobreestadia sem Invoice viva
   -- nem dispensa, devolvida ou ainda fora e passada do free time, que nenhum
   -- outro B/L ativo do mesmo Cliente na Viagem segura: cancelar perderia a
   -- cobrança. Sai com a Invoice emitida ou com a dispensa.

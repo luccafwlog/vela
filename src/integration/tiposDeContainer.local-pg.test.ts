@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 513 (ADR 0112, D28 a D34; lote 0B do plano da repaginação da
+// Migration 514 (ADR 0112, D28 a D34; lote 0B do plano da repaginação da
 // Demurrage): cadastro Tipos de container, grupo de tarifa lido do cadastro e
 // uma tarifa por grupo.
 
@@ -41,7 +41,7 @@ function as(userId: string, sql: string) {
 
 /** Free time e situação pelas mesmas funções do gatilho de status (211), sem B/L. */
 function freeDays(type: string) {
-  return psql(`SELECT public._container_free_days('SEM-BL-513', '${type}', current_date);`)
+  return psql(`SELECT public._container_free_days('SEM-BL-514', '${type}', current_date);`)
 }
 
 function cleanup() {
@@ -51,16 +51,16 @@ function cleanup() {
   `)
 }
 
-describeLocal('513 — Tipos de container e uma tarifa por grupo', () => {
+describeLocal('514 — Tipos de container e uma tarifa por grupo', () => {
   beforeAll(() => {
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email, aud, role) VALUES
-        ('${ADMIN_ID}', 'adm513@test.local', 'authenticated', 'authenticated'),
-        ('${OPS_ID}', 'ops513@test.local', 'authenticated', 'authenticated');
+        ('${ADMIN_ID}', 'adm514@test.local', 'authenticated', 'authenticated'),
+        ('${OPS_ID}', 'ops514@test.local', 'authenticated', 'authenticated');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${ADMIN_ID}', 'Administrativo 513', 'administrativo', true),
-        ('${OPS_ID}', 'Operações 513', 'operacoes', true)
+        ('${ADMIN_ID}', 'Administrativo 514', 'administrativo', true),
+        ('${OPS_ID}', 'Operações 514', 'operacoes', true)
         ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true;
     `)
   })
@@ -80,15 +80,15 @@ describeLocal('513 — Tipos de container e uma tarifa por grupo', () => {
     for (const type of ['48FR', '40FM', '40fp ']) expect(freeDays(type)).toBe(special)
     expect(freeDays('45HC')).toBe('')
     // Sem free time, o container nunca entra em atraso (até o lote 1 levá-lo a Travado).
-    expect(psql(`SELECT public._container_demurrage_status('SEM-BL-513', '45HC', current_date - 90, NULL, 'COC');`)).toBe('within_free_time')
-    expect(psql(`SELECT public._container_demurrage_status('SEM-BL-513', '48FR', current_date - 90, NULL, 'COC');`)).toBe('overdue')
+    expect(psql(`SELECT public._container_demurrage_status('SEM-BL-514', '45HC', current_date - 90, NULL, 'COC');`)).toBe('within_free_time')
+    expect(psql(`SELECT public._container_demurrage_status('SEM-BL-514', '48FR', current_date - 90, NULL, 'COC');`)).toBe('overdue')
   })
 
   it('editar a tarifa do grupo 40\' dry muda o cálculo de um 40HC', () => {
     expect(psql(`
       BEGIN;
       UPDATE public.demurrage_rates SET free_days = 5 WHERE container_type = '40GP' AND active;
-      SELECT public._container_free_days('SEM-BL-513', '40HC', current_date);
+      SELECT public._container_free_days('SEM-BL-514', '40HC', current_date);
       ROLLBACK;`)).toBe('5')
   })
 
@@ -141,8 +141,8 @@ describeLocal('513 — Tipos de container e uma tarifa por grupo', () => {
     expect(() => psql(`
       BEGIN;
       SET LOCAL session_replication_role = replica;
-      INSERT INTO public.bls (id, voyage_id, cargo_mode) VALUES ('BL-513-USO', -513, 'container');
-      INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('BL-513-USO', 'TEST5130001', '48FP');
+      INSERT INTO public.bls (id, voyage_id, cargo_mode) VALUES ('BL-514-USO', -514, 'container');
+      INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('BL-514-USO', 'TEST5130001', '48FP');
       SET LOCAL session_replication_role = origin;
       DELETE FROM public.container_types WHERE code = '48FP';
       ROLLBACK;`)).toThrow(/já usado em B\/L: desative em vez de excluir/)
@@ -152,7 +152,7 @@ describeLocal('513 — Tipos de container e uma tarifa por grupo', () => {
     expect(psql(`
       BEGIN;
       UPDATE public.container_types SET active = false WHERE code = '40HC';
-      SELECT coalesce(public._container_free_days('SEM-BL-513', '40HC', current_date)::text, 'sem');
+      SELECT coalesce(public._container_free_days('SEM-BL-514', '40HC', current_date)::text, 'sem');
       ROLLBACK;`)).toBe('sem')
   })
 })

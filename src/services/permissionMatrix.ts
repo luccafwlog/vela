@@ -52,7 +52,7 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * os tipos de que ele é o setor responsável (`alert_type_catalog.audience_departments`,
  * tipos ativos) e, em Operações e Equipamentos, os dois do ADR de Saída da
  * própria seção (ALE-D13); a Documentação, a Demurrage travada pelos motivos dela
- * (CE, Cliente, Portal; migration 515). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
+ * (CE, Cliente, Portal; migration 516). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {

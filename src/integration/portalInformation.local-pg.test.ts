@@ -89,7 +89,7 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
        (${unit},'INFO134-A','INFU1340001','20DV','2026-09-01','COC'),(${shared},'INFO134-SHARED','INFU1340001','20DV','2026-09-01','COC'),
        (${foreign},'INFO134-SHARED','INFU1340003','20DV','2026-09-01','COC'),(${unreleased},'INFO134-HIDDEN','INFU1340004','20DV','2026-09-01','COC'),
        (${soc},'INFO134-A','INFU1340005','20DV','2026-09-01','SOC'),(${noRate},'INFO134-A','INFU1340006','45HC','2026-09-01','COC');
-      -- Tarifa é uma por grupo (migration 513): grupo só deste teste.
+      -- Tarifa é uma por grupo (migration 514): grupo só deste teste.
       INSERT INTO public.demurrage_rate_groups(code,name) VALUES('20DV','Teste 20DV');
       INSERT INTO public.demurrage_rates(id,container_type,free_days,p1_day_from,p1_day_to,p1_usd,p2_day_from,p2_usd,valid_from,notes)
        VALUES(9134001,'20DV',7,8,14,20,15,40,'2026-01-01','nota interna tarifa');
@@ -188,7 +188,7 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
       UPDATE public.bl_containers SET type='40HC',discharge_date=CURRENT_DATE-25,return_date=CURRENT_DATE,demurrage_status='returned' WHERE id=${unit};
       INSERT INTO public.demurrage_rates(id,container_type,free_days,p1_day_from,p1_day_to,p1_usd,p2_day_from,p2_usd,valid_from,active)
         VALUES(9234001,'40GP',7,8,14,20,15,40,CURRENT_DATE-60,true);
-      -- Vigências encadeadas: o banco recusa duas tarifas do grupo sobrepostas (513).
+      -- Vigências encadeadas: o banco recusa duas tarifas do grupo sobrepostas (514).
       UPDATE public.demurrage_rates SET valid_to=CURRENT_DATE-31 WHERE id=9234001;
       INSERT INTO public.demurrage_rates(id,container_type,free_days,p1_day_from,p1_day_to,p1_usd,p2_day_from,p2_usd,valid_from,active)
         VALUES(9234002,'40GP',15,16,30,25,31,50,CURRENT_DATE-30,true);

@@ -2,7 +2,7 @@ import { supabase } from '../supabase'
 import { deleteOneById, reactivateCatalogRow } from '../deleteRecords'
 
 /**
- * Cadastro Tipos de container (migration 513, ADR 0112 D29): o código como vem
+ * Cadastro Tipos de container (migration 514, ADR 0112 D29): o código como vem
  * no B/L e o grupo de tarifa que ele cobra. A tarifa de Demurrage é uma por
  * grupo; tipo fora do cadastro, ou inativo, não tem tarifa.
  * As tabelas são posteriores aos tipos gerados (`src/types/database.ts`).

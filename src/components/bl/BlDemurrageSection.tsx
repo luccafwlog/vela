@@ -57,7 +57,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
     queryFn: () => listBlDemurrageCoverage(bl),
   })
 
-  // Dispensas da cobrança das caixas (ADR 0112, D24; migration 516).
+  // Dispensas da cobrança das caixas (ADR 0112, D24; migration 517).
   const { data: waivers } = useQuery({
     queryKey: ['demurrage-containers', 'waivers', bl.id, bl.customer_id, bl.voyage_id],
     queryFn: () => listBlDemurrageWaivers(bl),

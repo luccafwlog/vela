@@ -717,7 +717,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   // (ADR 0085, D6; ADR 0073, item 4; migration 254).
   it.each(ALL_PROFILES)('P9: %s cria e edita tarifa e acordo de Demurrage pela API; a troca de ativa é do Administrativo', (profile) => {
     const note = `p9-${profile}`
-    // Tarifa é uma por grupo (migration 513): grupo só deste teste.
+    // Tarifa é uma por grupo (migration 514): grupo só deste teste.
     psql(`INSERT INTO public.demurrage_rate_groups (code, name) VALUES ('P9X', 'Teste P9') ON CONFLICT DO NOTHING;`)
     try {
       const rate = runAs(profile, `INSERT INTO public.demurrage_rates (container_type, free_days, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, notes)
@@ -738,7 +738,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     }
   })
 
-  // P9T — tipo de container (ADR 0112, D34; migration 513): qualquer Departamento inclui e
+  // P9T — tipo de container (ADR 0112, D34; migration 514): qualquer Departamento inclui e
   // edita; desativar e excluir só o Administrativo, como as tarifas.
   it.each(ALL_PROFILES)('P9T: %s inclui e edita tipo de container; a troca de ativa é do Administrativo', (profile) => {
     const code = `T${profile.slice(0, 3).toUpperCase()}9`
@@ -1053,7 +1053,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     const adrTypes = Number(psql(`SELECT count(*) FROM public.alert_type_catalog WHERE active AND type LIKE 'agency_report_%';`))
     counts.operacoes += adrTypes
     counts.equipamentos += adrTypes
-    // ADR 0112, D25 (migration 515): a Demurrage travada vai à Documentação
+    // ADR 0112, D25 (migration 516): a Demurrage travada vai à Documentação
     // pelo setor gravado no item quando o motivo é CE, Cliente ou Portal.
     counts.documentacao += Number(psql(`SELECT count(*) FROM public.alert_type_catalog WHERE active AND type = 'demurrage_travado';`))
     expect(counts).toEqual(ALERT_TYPE_COUNTS)

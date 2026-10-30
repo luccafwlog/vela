@@ -631,7 +631,7 @@ as páginas FWLOG de onde devolver, agentes, contato e Demurrage; não importa
 planilhas. A página de taxas lê `charge_tables`/`charge_table_items`, pelo
 resolver oficial de importação. Demurrage lê `demurrage_rates`, uma linha por
 grupo de tarifa com o nome do grupo e os tipos de container que ele cobre
-(migration `513`, ADR 0112, D28); free time em
+(migration `514`, ADR 0112, D28); free time em
 Operação segue exceção do B/L, acordo do cliente vigente na descarga e tarifa
 geral. Sem referência oficial, exibe tarifa indisponível, sem número fixo.
 Não inclui tabelas de exportação nem Detention. Devolução e Taxas Locais

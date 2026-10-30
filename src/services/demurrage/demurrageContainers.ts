@@ -314,7 +314,7 @@ export async function listBlDemurrageCoverage(bl: {
 export type DemurrageBoxWaiver = { id: number; container_key: string; reason: string; created_at: string }
 
 /**
- * Dispensas vivas das caixas de um B/L (migration 516), pela mesma chave da
+ * Dispensas vivas das caixas de um B/L (migration 517), pela mesma chave da
  * cobrança (Viagem, Cliente, número). Índice pelo número normalizado.
  */
 export async function listBlDemurrageWaivers(bl: {

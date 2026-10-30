@@ -82,7 +82,7 @@ describeLocal('091 — tarifa usada só se desativa', () => {
       SET session_replication_role = origin;
       INSERT INTO public.customer_rate_overrides (customer_id, charge_item_id, override_value) VALUES
         (${CUSTOMER_ID}, ${ITEM_USED}, 8);
-      -- Tarifa é uma por grupo (migration 513): grupos só deste teste.
+      -- Tarifa é uma por grupo (migration 514): grupos só deste teste.
       INSERT INTO public.demurrage_rate_groups (code, name) VALUES ('T091V', 'Teste 091 vigente'), ('T091F', 'Teste 091 futura');
       INSERT INTO public.demurrage_rates (container_type, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from) VALUES
         ('T091V', 1, 5, 10, 6, 20, current_date - 1),

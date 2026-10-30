@@ -1,9 +1,9 @@
-// Migration 514 (ADR 0112, D1 a D5 e D27; lote 1 do plano da repaginação da
+// Migration 515 (ADR 0112, D1 a D5 e D27; lote 1 do plano da repaginação da
 // Demurrage): a aba Containers lê a classificação do banco
 // (`list_demurrage_billing_board`), e o status gravado muda na hora em que o
 // free time muda. Os casos seguem a tabela A12 da revisão de 2026-10-29.
 //
-// Namespace exclusivo: ids 99514xxx, B/Ls 'R514-*', containers 'RQCU514xxxx',
+// Namespace exclusivo: ids 99514xxx, B/Ls 'R515-*', containers 'RQCU515xxxx',
 // usuário ...000000514001. Uma Viagem por caso, para os grupos não se
 // misturarem; a leitura filtra pela Viagem.
 import { execPsql, spawnPsql } from './localPsql'
@@ -23,7 +23,7 @@ const CASES = ['inside', 'border', 'running', 'override', 'toIssue', 'noCe', 'po
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99514100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
-const blPrefix = 'R514-'
+const blPrefix = 'R515-'
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -94,47 +94,47 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = describeWithProbe(migrationApplied, 'migration 514 (list_demurrage_billing_board)')
+const describeLocal = describeWithProbe(migrationApplied, 'migration 515 (list_demurrage_billing_board)')
 
 function cleanup() {
   psql(`
     DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id IN ('${customerOpen}', '${customerClosed}');
     SET session_replication_role = replica;
-    CREATE TEMP TABLE r514_bls AS SELECT id FROM public.bls WHERE id LIKE '${blPrefix}%';
-    CREATE TEMP TABLE r514_invoices AS SELECT id FROM public.demurrage_invoices WHERE bl_id IN (SELECT id FROM r514_bls);
-    CREATE TEMP TABLE r514_effects AS SELECT id FROM public.import_pending_effects WHERE entity_id IN (SELECT id FROM r514_bls);
-    CREATE TEMP TABLE r514_alerts AS SELECT id FROM public.alerts
-      WHERE (entity_type = 'demurrage_invoice' AND entity_id IN (SELECT id::text FROM r514_invoices))
-         OR (entity_type = 'import_effect' AND entity_id IN (SELECT id::text FROM r514_effects))
-         OR (entity_type = 'bl' AND entity_id IN (SELECT id FROM r514_bls));
-    CREATE TEMP TABLE r514_items AS SELECT id FROM public.alert_items
-      WHERE alert_id IN (SELECT id FROM r514_alerts) OR metadata->>'bl_id' LIKE '${blPrefix}%'
-         OR metadata->>'effect_id' IN (SELECT id::text FROM r514_effects);
-    DELETE FROM public.internal_notifications WHERE alert_item_id IN (SELECT id FROM r514_items) OR alert_id IN (SELECT id FROM r514_alerts);
-    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM r514_items);
-    DELETE FROM public.alert_item_dismissals WHERE alert_item_id IN (SELECT id FROM r514_items);
-    DELETE FROM public.alert_notification_failures WHERE alert_item_id IN (SELECT id FROM r514_items) OR alert_id IN (SELECT id FROM r514_alerts);
-    DELETE FROM public.alert_items WHERE id IN (SELECT id FROM r514_items);
-    DELETE FROM public.alerts WHERE id IN (SELECT id FROM r514_alerts);
-    DELETE FROM public.import_effect_attempts WHERE effect_id IN (SELECT id FROM r514_effects);
-    DELETE FROM public.import_pending_effects WHERE id IN (SELECT id FROM r514_effects);
-    DELETE FROM public.portal_notifications WHERE customer_id IN (${customerOpen}, ${customerClosed}) OR bl_id IN (SELECT id FROM r514_bls);
-    DELETE FROM public.itau_pix_charges WHERE demurrage_invoice_id IN (SELECT id FROM r514_invoices);
-    DELETE FROM public.demurrage_calculation_snapshots WHERE demurrage_invoice_id IN (SELECT id FROM r514_invoices);
-    DELETE FROM public.demurrage_mutation_requests WHERE invoice_id IN (SELECT id FROM r514_invoices);
-    DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id IN (SELECT id FROM r514_invoices);
-    DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (SELECT id FROM r514_invoices);
-    DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM r514_invoices);
-    DELETE FROM public.demurrage_invoices WHERE id IN (SELECT id FROM r514_invoices);
+    CREATE TEMP TABLE r515_bls AS SELECT id FROM public.bls WHERE id LIKE '${blPrefix}%';
+    CREATE TEMP TABLE r515_invoices AS SELECT id FROM public.demurrage_invoices WHERE bl_id IN (SELECT id FROM r515_bls);
+    CREATE TEMP TABLE r515_effects AS SELECT id FROM public.import_pending_effects WHERE entity_id IN (SELECT id FROM r515_bls);
+    CREATE TEMP TABLE r515_alerts AS SELECT id FROM public.alerts
+      WHERE (entity_type = 'demurrage_invoice' AND entity_id IN (SELECT id::text FROM r515_invoices))
+         OR (entity_type = 'import_effect' AND entity_id IN (SELECT id::text FROM r515_effects))
+         OR (entity_type = 'bl' AND entity_id IN (SELECT id FROM r515_bls));
+    CREATE TEMP TABLE r515_items AS SELECT id FROM public.alert_items
+      WHERE alert_id IN (SELECT id FROM r515_alerts) OR metadata->>'bl_id' LIKE '${blPrefix}%'
+         OR metadata->>'effect_id' IN (SELECT id::text FROM r515_effects);
+    DELETE FROM public.internal_notifications WHERE alert_item_id IN (SELECT id FROM r515_items) OR alert_id IN (SELECT id FROM r515_alerts);
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM r515_items);
+    DELETE FROM public.alert_item_dismissals WHERE alert_item_id IN (SELECT id FROM r515_items);
+    DELETE FROM public.alert_notification_failures WHERE alert_item_id IN (SELECT id FROM r515_items) OR alert_id IN (SELECT id FROM r515_alerts);
+    DELETE FROM public.alert_items WHERE id IN (SELECT id FROM r515_items);
+    DELETE FROM public.alerts WHERE id IN (SELECT id FROM r515_alerts);
+    DELETE FROM public.import_effect_attempts WHERE effect_id IN (SELECT id FROM r515_effects);
+    DELETE FROM public.import_pending_effects WHERE id IN (SELECT id FROM r515_effects);
+    DELETE FROM public.portal_notifications WHERE customer_id IN (${customerOpen}, ${customerClosed}) OR bl_id IN (SELECT id FROM r515_bls);
+    DELETE FROM public.itau_pix_charges WHERE demurrage_invoice_id IN (SELECT id FROM r515_invoices);
+    DELETE FROM public.demurrage_calculation_snapshots WHERE demurrage_invoice_id IN (SELECT id FROM r515_invoices);
+    DELETE FROM public.demurrage_mutation_requests WHERE invoice_id IN (SELECT id FROM r515_invoices);
+    DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id IN (SELECT id FROM r515_invoices);
+    DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (SELECT id FROM r515_invoices);
+    DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM r515_invoices);
+    DELETE FROM public.demurrage_invoices WHERE id IN (SELECT id FROM r515_invoices);
     DELETE FROM public.demurrage_box_waivers WHERE customer_id IN (${customerOpen}, ${customerClosed});
     DELETE FROM public.customer_demurrage_agreements WHERE customer_id IN (${customerOpen}, ${customerClosed});
-    DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM r514_bls);
-    DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM r514_bls);
-    DELETE FROM public.bls WHERE id IN (SELECT id FROM r514_bls);
+    DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM r515_bls);
+    DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM r515_bls);
+    DELETE FROM public.bls WHERE id IN (SELECT id FROM r515_bls);
     DELETE FROM public.voyage_documental_pending WHERE voyage_id IN (${voyageIds});
     DELETE FROM public.voyage_documental_state WHERE voyage_id IN (${voyageIds});
-    DELETE FROM public.audit_logs WHERE changed_by = '${adminId}' OR entity_id IN (SELECT id FROM r514_bls)
-      OR (entity_type IN ('demurrage_invoice', 'demurrage_invoices') AND entity_id IN (SELECT id::text FROM r514_invoices));
+    DELETE FROM public.audit_logs WHERE changed_by = '${adminId}' OR entity_id IN (SELECT id FROM r515_bls)
+      OR (entity_type IN ('demurrage_invoice', 'demurrage_invoices') AND entity_id IN (SELECT id::text FROM r515_invoices));
     DELETE FROM public.voyages WHERE id IN (${voyageIds});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
@@ -152,23 +152,23 @@ function cleanup() {
   `)
 }
 
-describeLocal('Classificação da cobrança de Demurrage (migration 514)', () => {
+describeLocal('Classificação da cobrança de Demurrage (migration 515)', () => {
   beforeAll(() => {
     cleanup()
     const rate = psql(`SELECT free_days || ',' || p1_usd || ',' || p2_usd || ',' || p1_day_to FROM public.demurrage_rates WHERE container_type = '40GP' AND active ORDER BY valid_from DESC LIMIT 1`).split(',')
     ;[tableFree, p1, p2, p1To] = rate.map(Number)
     psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'r514-admin@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'R514 Administrativo', 'administrativo', true);
+      INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'r515-admin@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'R515 Administrativo', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
-        (${customerOpen}, '${syntheticCnpj(514001)}', 'R514 CLIENTE ABERTO'),
-        (${customerClosed}, '${syntheticCnpj(514002)}', 'R514 CLIENTE SEM PORTAL');
+        (${customerOpen}, '${syntheticCnpj(514001)}', 'R515 CLIENTE ABERTO'),
+        (${customerClosed}, '${syntheticCnpj(514002)}', 'R515 CLIENTE SEM PORTAL');
       INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
-      VALUES (${customerOpen}, 'Fixture R514: gate aberto para a Demurrage', '${adminId}', now() + interval '1 day');
-      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'R514 Carrier');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'R514 NAVIO', ${carrierId});
+      VALUES (${customerOpen}, 'Fixture R515: gate aberto para a Demurrage', '${adminId}', now() + interval '1 day');
+      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'R515 Carrier');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'R515 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
-        ${CASES.map((name) => `(${voyageOf(name)}, ${vesselId}, 'R514-${name}', 'active')`).join(',\n        ')};
+        ${CASES.map((name) => `(${voyageOf(name)}, ${vesselId}, 'R515-${name}', 'active')`).join(',\n        ')};
     `)
     // 1 — fora no free time; 1b — borda.
     bl('INSIDE', 'inside'); box('INSIDE', 'RQCU5140001', { discharge: 10 })
@@ -198,7 +198,7 @@ describeLocal('Classificação da cobrança de Demurrage (migration 514)', () =>
     bl('NORATE', 'noRate'); box('NORATE', 'RQCU5140121', { discharge: 3, type: 'R5HC' })
     // 15 — acordo de 40 dias contra a tabela.
     psql(`INSERT INTO public.customer_demurrage_agreements (customer_id, free_days, valid_from, active, notes)
-          VALUES (${customerClosed}, 40, '2026-01-01', true, 'R514 acordo')`)
+          VALUES (${customerClosed}, 40, '2026-01-01', true, 'R515 acordo')`)
     bl('AGREE', 'agreement', { customer: customerClosed }); box('AGREE', 'RQCU5140131', { discharge: 30 })
     // 12 — B/L cancelado com caixa devolvida com sobreestadia; Viagem cancelada.
     bl('BLCANC', 'blCancelled'); box('BLCANC', 'RQCU5140141', { discharge: 40, returned: 5 })
@@ -250,12 +250,12 @@ describeLocal('Classificação da cobrança de Demurrage (migration 514)', () =>
     })
 
     it('acordo desativado põe o container em Correndo na hora (D2)', () => {
-      psql(`UPDATE public.customer_demurrage_agreements SET active = false WHERE notes = 'R514 acordo'`)
+      psql(`UPDATE public.customer_demurrage_agreements SET active = false WHERE notes = 'R515 acordo'`)
       try {
         expect(status('RQCU5140131')).toBe('overdue')
         expect(board(voyageOf('agreement'))[0].division).toBe('correndo')
       } finally {
-        psql(`UPDATE public.customer_demurrage_agreements SET active = true WHERE notes = 'R514 acordo'`)
+        psql(`UPDATE public.customer_demurrage_agreements SET active = true WHERE notes = 'R515 acordo'`)
       }
       expect(status('RQCU5140131')).toBe('within_free_time')
     })
@@ -310,7 +310,7 @@ describeLocal('Classificação da cobrança de Demurrage (migration 514)', () =>
       expect(board(voyageOf('noRate'))[0]).toMatchObject({ division: 'travado', reason_code: 'sem_tarifa', reason: 'Tipo R5HC sem tarifa de Demurrage.' })
       psql(`UPDATE public.bl_containers SET discharge_date = ${day(-30)} WHERE container_number = 'RQCU5140121'`)
       expect(status('RQCU5140121')).toBe('within_free_time')
-      psql(`INSERT INTO public.container_types (code, description, rate_group) VALUES ('R5HC', 'teste 514', '40GP')`)
+      psql(`INSERT INTO public.container_types (code, description, rate_group) VALUES ('R5HC', 'teste 515', '40GP')`)
       expect(status('RQCU5140121')).toBe('overdue')
       expect(board(voyageOf('noRate'))[0]).toMatchObject({ division: 'correndo', usd: expectedUsd(30) })
       // O Alerta do tipo sem tarifa (Administrativo) fecha pelo gatilho do cadastro.
@@ -319,7 +319,7 @@ describeLocal('Classificação da cobrança de Demurrage (migration 514)', () =>
     })
   })
 
-  describe('Alerta de Travado (migration 515; D25)', () => {
+  describe('Alerta de Travado (migration 516; D25)', () => {
     const activeAlert = (blId: string) => psql(`SELECT string_agg(i.department, ',' ORDER BY i.id) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'demurrage_travado' AND i.status = 'active' AND a.entity_type = 'bl' AND a.entity_id = '${blPrefix}${blId}'`)
 
@@ -355,7 +355,7 @@ describeLocal('Classificação da cobrança de Demurrage (migration 514)', () =>
     expect(total).toBeGreaterThanOrEqual(own)
   })
 
-  describe('B/L cancelado e dispensa da cobrança (migration 516; D7, D24, D26)', () => {
+  describe('B/L cancelado e dispensa da cobrança (migration 517; D7, D24, D26)', () => {
     function asAdmin(sql: string) {
       const result = run(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
         SET LOCAL request.jwt.claim.sub = '${adminId}'; ${sql}; COMMIT;`)

@@ -1,9 +1,9 @@
--- 515: Alerta "Demurrage travada" e contagem do aviso do cabeçalho (lote 2 do
+-- 516: Alerta "Demurrage travada" e contagem do aviso do cabeçalho (lote 2 do
 -- plano da repaginação da Demurrage; ADR 0112, D4, D6 e D25).
 --
 -- 1. Tipo `demurrage_travado`, um por grupo de cobrança (entidade `bl`, o B/L
 --    âncora), aberto na hora em que o grupo entra em Travado na classificação
---    da 514 e fechado pela origem quando sai. O setor é o do motivo (D25):
+--    da 515 e fechado pela origem quando sai. O setor é o do motivo (D25):
 --    Documentação para CE Mercante, Cliente e Portal (o mesmo setor do
 --    `review_portal_not_ready`, ADR 0107); Administrativo para tipo sem tarifa
 --    e B/L cancelado. Trocar de motivo troca o setor: o item do setor antigo
@@ -201,16 +201,16 @@ $function$;
 REVOKE ALL ON FUNCTION public.count_demurrage_running_boxes() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.count_demurrage_running_boxes() TO authenticated;
 
-DO $schedule_515$
+DO $schedule_516$
 BEGIN
   IF to_regclass('cron.job') IS NULL THEN
-    RAISE WARNING '515: pg_cron ausente; agende demurrage-travado-alerts no ambiente de produção.';
+    RAISE WARNING '516: pg_cron ausente; agende demurrage-travado-alerts no ambiente de produção.';
     RETURN;
   END IF;
   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'demurrage-travado-alerts') THEN
     PERFORM cron.unschedule('demurrage-travado-alerts');
   END IF;
   PERFORM cron.schedule('demurrage-travado-alerts', '4-59/15 * * * *',
-    $cmd_515$SELECT public.reconcile_demurrage_travado_alerts(NULL, 'demurrage-travado-alerts');$cmd_515$);
+    $cmd_516$SELECT public.reconcile_demurrage_travado_alerts(NULL, 'demurrage-travado-alerts');$cmd_516$);
 END;
-$schedule_515$;
+$schedule_516$;

@@ -44,7 +44,7 @@ function resolveActiveRateGroups(): RateGroup[] {
 }
 
 /**
- * Uma tarifa por grupo (migration 513, ADR 0112 D28): a linha guarda o código
+ * Uma tarifa por grupo (migration 514, ADR 0112 D28): a linha guarda o código
  * do grupo, e os tipos que o grupo cobre vêm do cadastro Tipos de container,
  * como no banco (`_demurrage_canonical_type`). Tipo inativo ou fora do cadastro
  * não acha grupo. As linhas chegam pela vigência mais recente: a primeira de

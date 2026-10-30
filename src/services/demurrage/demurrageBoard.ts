@@ -4,7 +4,7 @@ import { DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS, type DemurrageDivision 
 
 /**
  * Classificação da cobrança de Demurrage feita pelo banco
- * (`list_demurrage_billing_board`, migration 514; ADR 0112, D1 a D5): um grupo
+ * (`list_demurrage_billing_board`, migration 515; ADR 0112, D1 a D5): um grupo
  * de cobrança por linha, com a divisão, o motivo e as caixas não-SOC com o
  * cálculo de hoje. A tela só apresenta; não recalcula nem decide.
  */
@@ -35,7 +35,7 @@ export type BoardBox = {
   state: BoardBoxState
   covered_by: number | null
   covered_doc: string | null
-  /** Dispensa da cobrança da caixa (migration 516). */
+  /** Dispensa da cobrança da caixa (migration 517). */
   waiver_id?: number | null
 }
 
@@ -68,7 +68,7 @@ export async function listDemurrageBillingBoard(filters: DemurrageBoardFilters =
   return ((data ?? []) as BoardGroup[]).map((group) => ({ ...group, usd: Number(group.usd ?? 0) }))
 }
 
-/** Caixas de Correndo, para o aviso do cabeçalho (migration 515). */
+/** Caixas de Correndo, para o aviso do cabeçalho (migration 516). */
 export async function countDemurrageRunningBoxes(): Promise<number> {
   const { data, error } = await supabase.rpc('count_demurrage_running_boxes' as never)
   if (error) throw error
@@ -156,7 +156,7 @@ export function canWaiveBox(box: BoardBox): boolean {
 }
 
 /**
- * Dispensa a cobrança de Demurrage de uma caixa (migration 516): qualquer
+ * Dispensa a cobrança de Demurrage de uma caixa (migration 517): qualquer
  * Departamento, com justificativa de 10 ou mais caracteres. A caixa conta como
  * coberta: sai da aba Containers e da emissão.
  */

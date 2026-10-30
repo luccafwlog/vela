@@ -156,7 +156,7 @@ export function Demurrage() {
   const [customerReportOpen, setCustomerReportOpen] = useState(false)
   const [focusInvoiceId, setFocusInvoiceId] = useState<number | null>(null)
 
-  // Classificação do banco (migration 514): alimenta a aba Containers e os
+  // Classificação do banco (migration 515): alimenta a aba Containers e os
   // cartões do topo, por isso fica ligada em todas as abas.
   const boardQuery = useQuery({
     queryKey: ['demurrage-containers', 'board'],
@@ -278,7 +278,7 @@ export function Demurrage() {
     },
     onError: (error: Error) => setDatesError(extractErrorText(error)),
   })
-  // ADR 0112, D24 (migration 516): dispensa da cobrança de uma caixa, com justificativa.
+  // ADR 0112, D24 (migration 517): dispensa da cobrança de uma caixa, com justificativa.
   const waiveMutation = useMutation({
     mutationFn: ({ box, reason }: { box: BoardBox; reason: string }) => waiveDemurrageBox(box.bl_id, box.container_number, reason),
     onSuccess: async () => {

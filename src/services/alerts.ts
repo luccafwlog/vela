@@ -501,7 +501,7 @@ function alertEntityLinkRaw(alert: {
   }
   if (alert.entity_type === 'invoice') return invoiceLink(alert)
   if (alert.entity_type === 'container') return `/demurrage?busca=${encodeURIComponent(alert.entity_id)}`
-  // Demurrage travada (migration 515): a divisão Travado já buscando o B/L do grupo.
+  // Demurrage travada (migration 516): a divisão Travado já buscando o B/L do grupo.
   if (effectiveType === 'demurrage_travado') return `/demurrage?divisao=travado&busca=${encodeURIComponent(alert.entity_id)}`
   if (alert.entity_type === 'bl') return `/bls/${encodeURIComponent(alert.entity_id)}`
   if (alert.entity_type === 'granite_bl') return '/granito'

@@ -23,7 +23,7 @@ CASCADE` num único comando, exceto a lista `v_preservar` do script:
 - catálogos e modelos de Comunicados (`customer_communication_kinds`,
   `customer_communication_boxes`, `customer_communication_templates`);
 - cadastro base: `charge_tables`, `charge_table_items`, `demurrage_rates`,
-  `demurrage_rate_groups`, `container_types` (migration `513`), `depots`,
+  `demurrage_rate_groups`, `container_types` (migration `514`), `depots`,
   `depot_services`, `carriers`, `ports`.
 
 Travas, todas antes de apagar qualquer coisa:

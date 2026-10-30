@@ -225,7 +225,7 @@ function cleanup329() {
   `)
 }
 
-// Tarifa é uma por grupo, sem vigências ativas sobrepostas (migration 513):
+// Tarifa é uma por grupo, sem vigências ativas sobrepostas (migration 514):
 // grupos só deste teste; a em vigor termina antes da futura começar.
 function demurrageRate(note: string, validFrom: string, active = true, validTo = 'NULL', group = 'A329'): string {
   psql(`INSERT INTO public.demurrage_rate_groups (code, name) VALUES ('${group}', 'Teste ${group}') ON CONFLICT DO NOTHING;`)

@@ -109,7 +109,7 @@ END;
 $charge_assert$;
 
 -- O catálogo de demurrage é uma tabela única, uma linha por grupo de tarifa
--- (migration 513). Em uma branch nova ela pode conter linhas antigas; elas são
+-- (migration 514). Em uma branch nova ela pode conter linhas antigas; elas são
 -- substituídas integralmente pelo estado atual.
 -- Tarifa vigente conta como usada (migration 091); o seed liga a marca de
 -- catálogo para poder substituí-las num banco novo.
@@ -122,7 +122,7 @@ INSERT INTO public.demurrage_rates (
   p2_day_from, p2_usd, valid_from, valid_to, active, notes
 )
 VALUES
-  -- Uma tarifa por grupo (migration 513, ADR 0112 D28); os códigos de cada
+  -- Uma tarifa por grupo (migration 514, ADR 0112 D28); os códigos de cada
   -- grupo estão no cadastro Tipos de container.
   ('20GP', 21, 22, 30, 30, 31, 50, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),
   ('40GP', 21, 22, 30, 60, 31, 80, DATE '2026-08-09', NULL, TRUE, 'Brasil — dias corridos'),

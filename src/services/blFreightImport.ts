@@ -341,7 +341,7 @@ export type BuildBlFreightPreviewArgs = {
    */
   manualPolAtds?: Map<string, string> | null
   /**
-   * Códigos ativos do cadastro Tipos de container (migration 513). Presente,
+   * Códigos ativos do cadastro Tipos de container (migration 514). Presente,
    * o container de tipo fora dele é aviso: o B/L entra, e a caixa fica sem
    * tarifa de Demurrage até o tipo ser cadastrado (ADR 0112, D32).
    */
@@ -440,7 +440,7 @@ export async function previewBlFreightImport(args: {
   })
 }
 
-/** Códigos ativos do cadastro Tipos de container (migration 513). */
+/** Códigos ativos do cadastro Tipos de container (migration 514). */
 async function fetchKnownContainerTypes(): Promise<Set<string>> {
   const { data, error } = await supabase
     .from('container_types' as never)
