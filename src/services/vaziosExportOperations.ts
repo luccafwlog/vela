@@ -5,7 +5,7 @@ import type {
   VaziosExportServiceLine,
 } from "../types/database";
 import { supabase } from "./supabase";
-import { normalizePortCode, storedPortAliases } from "./portCode";
+import { normalizePortCode, portCodeVariants } from "./portCode";
 import { armazenagemALancar, diasCobraveis, totalEmbarque, type StorageDepot } from "./vaziosCusto";
 import { deleteOneById } from "./deleteRecords";
 
@@ -209,27 +209,6 @@ export async function getVaziosExportOperation(
     | null;
 }
 
-export async function upsertVaziosExportOperation(input: {
-  voyageId: number;
-  embarkPort: string;
-  osNumber?: string | null;
-}) {
-  const { data, error } = await supabase
-    .from("vazios_export_operations")
-    .upsert(
-      {
-        voyage_id: input.voyageId,
-        embark_port: input.embarkPort,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "voyage_id,embark_port" },
-    )
-    .select("id")
-    .single();
-  if (error) throw error;
-  return data as { id: string };
-}
-
 export async function upsertServiceLine(
   input: Omit<TablesInsert<"vazios_export_service_lines">, "id" | "created_at" | "updated_at"> & {
     id?: string;
@@ -287,28 +266,87 @@ export async function listVaziosExportEmbarkPorts(voyageId: number): Promise<str
 }
 
 /**
- * Abre o embarque da escala (Viagem + porto) ou o cria. `created` diz qual
- * dos dois aconteceu, para a tela não anunciar "Embarque criado." quando ele
- * já existia (achado V4 do lote 5b). Um embarque por escala e porto.
+ * Abre o embarque da escala (Viagem + porto) ou o cria, com o terminal onde ele
+ * opera (ADR 0113, migration 541). O terminal é da frente Vazios EXP da escala:
+ * sem terminal nela, a RPC grava o escolhido pela gravação da escala (frente,
+ * Atracação e ADR do terminal); com terminal, o embarque usa esse e `terminalId`
+ * pode ir vazio. `created` diz se o embarque nasceu agora ou já existia (V4).
  */
-export async function openOrCreateVaziosExportOperation(input: {
+export async function createVaziosExportOperation(input: {
   voyageId: number;
   embarkPort: string;
-}): Promise<{ id: string; created: boolean }> {
-  const { data, error } = await supabase
-    .from("vazios_export_operations")
-    .select("id")
-    .eq("voyage_id", input.voyageId)
-    // Embarque legado pode ter o porto em outra grafia (BRVIT); o mesmo porto
-    // não ganha um segundo embarque. O mais antigo vence se houver dois.
-    .in("embark_port", storedPortAliases(input.embarkPort))
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  terminalId: string | null;
+}): Promise<{ id: string; created: boolean; terminalId: string | null }> {
+  const { data, error } = await supabase.rpc(
+    "create_vazios_export_operation" as never,
+    { p_voyage_id: input.voyageId, p_port: input.embarkPort, p_terminal_id: input.terminalId } as never,
+  );
   if (error) throw error;
-  if (data) return { id: (data as { id: string }).id, created: false };
-  const created = await upsertVaziosExportOperation(input);
-  return { id: created.id, created: true };
+  const result = (data ?? {}) as { id?: unknown; created?: unknown; terminal_id?: unknown };
+  if (typeof result.id !== "string") throw new Error("Resposta inválida ao criar o embarque de vazios.");
+  return {
+    id: result.id,
+    created: result.created === true,
+    terminalId: typeof result.terminal_id === "string" ? result.terminal_id : null,
+  };
+}
+
+export type VaziosExportTerminalOption = { id: string; code: string; name: string | null };
+
+export type VaziosExportTerminalChoice = {
+  /** Terminal da frente Vazios EXP da escala; null sem a frente ou com ela em TBC. */
+  frontTerminal: VaziosExportTerminalOption | null;
+  /** Terminais portuários ativos do porto, para escolher quando a frente não tem terminal. */
+  options: VaziosExportTerminalOption[];
+};
+
+/**
+ * Terminal do embarque de vazios de uma escala: o da frente Vazios EXP, e os
+ * terminais portuários ativos do porto para a escolha (ADR 0113).
+ */
+export async function fetchVaziosExportTerminalChoice(voyageId: number, port: string): Promise<VaziosExportTerminalChoice> {
+  const normalized = normalizePortCode(port) ?? port.trim().toUpperCase();
+  const [fronts, ports] = await Promise.all([
+    supabase
+      .from("voyage_escala_operation_fronts")
+      .select("terminal_id")
+      .eq("voyage_id", voyageId)
+      .in("port", portCodeVariants(normalized))
+      .eq("sentido", "exportacao")
+      .eq("modalidade", "vazio"),
+    supabase.from("ports").select("id").eq("locode", normalized),
+  ]);
+  if (fronts.error) throw fronts.error;
+  if (ports.error) throw ports.error;
+  const frontTerminalId = ((fronts.data ?? []) as Array<{ terminal_id: string | null }>)
+    .map((row) => row.terminal_id)
+    .find((id): id is string => typeof id === "string") ?? null;
+  const portIds = ((ports.data ?? []) as Array<{ id: number }>).map((row) => row.id);
+  // O terminal da frente entra mesmo inativo ou de outro cadastro de porto, para
+  // a tela dizer qual é.
+  const filters = [
+    ...(portIds.length > 0 ? [`port_id.in.(${portIds.join(",")})`] : []),
+    ...(frontTerminalId ? [`id.eq.${frontTerminalId}`] : []),
+  ];
+  let terminals: Array<VaziosExportTerminalOption & { active: boolean; port_id: number | null }> = [];
+  if (filters.length > 0) {
+    const { data, error } = await supabase
+      .from("depots")
+      .select("id, code, name, active, port_id")
+      .eq("tipo", "terminal_portuario")
+      .or(filters.join(","))
+      .order("code");
+    if (error) throw error;
+    terminals = (data ?? []) as typeof terminals;
+  }
+  const toOption = ({ id, code, name }: VaziosExportTerminalOption): VaziosExportTerminalOption => ({ id, code, name });
+  const front = frontTerminalId ? terminals.find((item) => item.id === frontTerminalId) : undefined;
+  return {
+    frontTerminal: frontTerminalId ? (front ? toOption(front) : { id: frontTerminalId, code: frontTerminalId, name: null }) : null,
+    options: terminals
+      .filter((item) => item.active && item.port_id != null && portIds.includes(item.port_id))
+      .map(toOption),
+  };
 }
 
 export type VaziosOperationListRow = {

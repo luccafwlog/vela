@@ -124,6 +124,8 @@ export const queryKeys = {
     byReportId: (reportId: string) => ['agency-report', 'report', reportId] as const,
     /** ADR 0095, decisão 22: ADR de Saída fechado trava o Embarque de vazios; sob ['agency-report', voyageId]. */
     vaziosExportLock: (voyageId: number, port: string) => ['agency-report', voyageId, port, 'vazios-lock'] as const,
+    /** ADR 0113: terminal da frente Vazios EXP do Embarque de vazios; sob ['agency-report'], que a gravação da escala invalida. */
+    vaziosExportTerminal: (voyageId: number, port: string) => ['agency-report', voyageId, port, 'vazios-terminal'] as const,
     signoffEvents: (voyageId: number, port: string) => ['agency-report-signoff-events', voyageId, port] as const,
     departmentSignoffEvents: (voyageId: number, port: string) => ['agency-report-department-signoff-events', voyageId, port] as const,
     /** B8: sob ['agency-report', voyageId], coberta por invalidateAgencyReportForVoyage; o ATD na chave refaz a busca quando ele muda. */

@@ -375,10 +375,11 @@ serviço performado.
 **Embarque de Vazios (EXP)**
 Registro operacional do embarque de containers vazios de exportação de uma
 Escala, de responsabilidade de Equipamentos (qualquer Departamento ativo pode
-criá-lo e lançar unidade e linha); existe um por escala. Reúne a Lista de
-Unidades Embarcadas (o fato) e as Linhas de Serviço do Embarque (o custo); o
-grão não é o container.
-- **Ver também:** Unidade Embarcada, Linha de Serviço do Embarque, Operação de Pátio
+criá-lo e lançar unidade e linha); existe um por escala. Opera num terminal,
+obrigatório na criação: o da Frente de Operação Vazios EXP da escala. Reúne a
+Lista de Unidades Embarcadas (o fato) e as Linhas de Serviço do Embarque (o
+custo); o grão não é o container.
+- **Ver também:** Unidade Embarcada, Linha de Serviço do Embarque, Operação de Pátio, Frente de Operação
 → Regra: [Manifestos & EDI § `/embarquevazios`](docs/modules/manifesto-edi.md#embarquevazios)
 
 **Unidade Embarcada**

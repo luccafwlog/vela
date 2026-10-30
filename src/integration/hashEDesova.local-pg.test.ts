@@ -34,7 +34,8 @@ function cleanupExtra() {
     DELETE FROM public.vazios_bookings WHERE manifest_id IN (SELECT id FROM public.vazios_manifests WHERE voyage_id = ${w.voyageId});
     DELETE FROM public.vazios_manifests WHERE voyage_id = ${w.voyageId};
     DELETE FROM public.vazios_export_operations WHERE voyage_id = ${w.voyageId};
-    DELETE FROM public.depots WHERE code = 'FF9410DEP';
+    DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${w.voyageId} AND sentido = 'exportacao' AND modalidade = 'vazio';
+    DELETE FROM public.depots WHERE code IN ('FF9410DEP', 'FF9410TER');
     DELETE FROM public.manifestos_mercante WHERE voyage_id = ${w.voyageId};
     DELETE FROM public.voyage_route_ce_master WHERE voyage_id = ${w.voyageId};
     DELETE FROM public.vazios_importacao_containers WHERE manifest_id IN (SELECT id FROM public.vazios_importacao_manifests WHERE voyage_id = ${w.voyageId});
@@ -118,6 +119,12 @@ describeLocal('405/406 — hash do arquivo importado e desova por container fís
   it('Vazios de exportação, Vazios de importação, Granito e Manifesto BB gravam nome e hash no lote', () => {
     const actor = w.actors.operacoes
     w.psql(`INSERT INTO public.depots (code, name, tipo) VALUES ('FF9410DEP', 'Depot FF9410', 'depot')`)
+    // 541: o Embarque de vazios nasce com o terminal da frente Vazios EXP.
+    w.psql(`INSERT INTO public.depots (code, name, tipo, port_id)
+        SELECT 'FF9410TER', 'Terminal FF9410', 'terminal_portuario', id FROM public.ports WHERE locode = 'BRSSZ' ORDER BY id LIMIT 1;
+      INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)
+        SELECT ${w.voyageId}, 'BRSSZ', d.port_id, 'exportacao', 'vazio', d.id, 'export_declaration'
+        FROM public.depots AS d WHERE d.code = 'FF9410TER'`)
     const bookings = [{ container_number: 'FFVZ9410001', container_type: '40HC', local_code: 'FF9410DEP', condition: 'vazio', hand_in_date: '2026-10-01', hand_out_date: '2026-10-05' }]
     w.asOk('operacoes', `SELECT public.import_vazios_bookings_transactional(${w.voyageId}, 'BRSSZ', '${actor}'::uuid, '${JSON.stringify(bookings)}'::jsonb, 'vazios.xlsx', '${HASH_B}')`)
     expect(w.psql(`SELECT filename || '|' || file_hash || '|' || imported_by FROM public.vazios_manifests WHERE voyage_id = ${w.voyageId}`))
