@@ -89,6 +89,7 @@ function cleanup() {
     -- A troca SOC/COC recalcula as taxas locais do B/L (recebíveis e cálculos).
     DELETE FROM public.bl_receivables WHERE bl_id IN (SELECT id FROM r522_bls) OR customer_id IN (${customers.join(', ')});
     DELETE FROM public.charge_calculations WHERE bl_id IN (SELECT id FROM r522_bls);
+    DELETE FROM public.pricing_rule_versions WHERE ${customers.map((id) => `version_key LIKE '%|customer:${id}|%'`).join(' OR ')};
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM r522_bls);
     DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM r522_bls);
     DELETE FROM public.bls WHERE id IN (SELECT id FROM r522_bls);
