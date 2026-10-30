@@ -887,7 +887,7 @@ const ALERT_RULES_BASE = [
     summary: 'A MillionSend avisou que um e-mail foi devolvido, marcado como spam ou entregue, e o Vela não conseguiu aplicar o aviso a nenhum envio dele. Registro mostra o destinatário mascarado.',
     trigger: 'O aviso do provedor vai para investigação: devolução ou spam de e-mail que não está entre os enviados pelo Vela depois de 6 tentativas (1, 5, 15, 60 e 360 minutos, cerca de 7 h 20), aviso que corresponde a mais de um envio do Vela ou aviso que falha 6 vezes (migration 535). A conta da MillionSend avisa todo e-mail dela, inclusive os do site da Fwlog; aviso de entrega de e-mail que não é do Vela fecha sem alerta.',
     timing: 'Abre quando o aviso entra em investigação; nenhuma rotina o tira de lá.',
-    resolution: 'Procurar o e-mail na MillionSend pelo destinatário e pelo horário da mensagem. Se saiu de outro sistema da mesma conta (o site, por exemplo), não há nada a mudar no Vela. Se saiu do Vela, conferir o contato do Cliente: devolução permanente pede outro endereço.',
+    resolution: 'Acionar o suporte com o destinatário e o horário do alerta (migration 536). Se o e-mail saiu de outro sistema da mesma conta (o site, por exemplo), não há nada a mudar no Vela. Se saiu do Vela, conferir o contato do Cliente: devolução permanente pede outro endereço.',
     destination: '/alertas', destinationLabel: 'Abrir Alertas',
     afterResolution: justifiedResolution,
   },

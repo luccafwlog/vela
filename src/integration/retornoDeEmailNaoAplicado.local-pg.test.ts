@@ -86,7 +86,7 @@ describeLocal('535 — retorno do provedor de e-mail que o Vela não aplica', ()
     expect(recipient).toBe('s***@p***.br')
     expect(message).toBe('A MillionSend avisou em 29/10/2026 às 23:59 que o e-mail para s***@p***.br foi devolvido, '
       + 'mas esse e-mail não está entre os enviados pelo Vela. Se ele saiu de outro sistema da mesma conta da MillionSend, '
-      + 'como o site, resolva com justificativa; se saiu do Vela, procure o envio na MillionSend e confira o contato do Cliente.')
+      + 'como o site, resolva com justificativa; se saiu do Vela, acione o suporte com o destinatário e o horário deste alerta e confira o contato do Cliente.')
     expect(message).not.toContain('suporte@')
   })
 
