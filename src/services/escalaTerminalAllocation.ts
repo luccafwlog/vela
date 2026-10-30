@@ -196,6 +196,35 @@ export function operationFrontKindsForCargoMode(
   return kind == null ? [] : [kind]
 }
 
+/**
+ * Porto de carregamento efetivo de um B/L de Granito: o do B/L, ou o do
+ * manifesto na falta dele. É a régua da frente de Granito, do conteúdo do ADR
+ * e do fechamento (migration 515).
+ */
+export function graniteBlLoadingPort(blLoadingPort: string | null | undefined, manifestLoadingPort: string | null | undefined) {
+  return normalizePortCode(blLoadingPort ?? manifestLoadingPort ?? null)
+}
+
+/**
+ * Portos com Granito importado na Viagem: o efetivo de cada B/L (onde a frente
+ * de Granito nasce) e o do manifesto, que o banco usa para travar a retirada
+ * da declaração (migration 066).
+ */
+export function graniteLoadingPorts(
+  manifests: ReadonlyArray<{ loading_port: string | null; granite_bls?: ReadonlyArray<{ loading_port?: string | null }> | null }>,
+) {
+  const ports = new Set<string>()
+  for (const manifest of manifests) {
+    const manifestPort = normalizePortCode(manifest.loading_port)
+    if (manifestPort) ports.add(manifestPort)
+    for (const bl of manifest.granite_bls ?? []) {
+      const blPort = graniteBlLoadingPort(bl.loading_port, manifest.loading_port)
+      if (blPort) ports.add(blPort)
+    }
+  }
+  return ports
+}
+
 const IMPORT_SECTION_BY_KIND: Record<Exclude<OperationFrontKind, 'granito'>, OperationFront['section']> = {
   carga_cheia: 'carga_descarregada',
   carga_solta: 'carga_descarregada',
@@ -437,8 +466,8 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
     .range(0, 0)
   if (vehicleImports.error) throw vehicleImports.error
   if (Array.isArray(vehicleImports.data) && vehicleImports.data.length) importKinds.add('veiculo')
-  // Granito casa pelo porto de carregamento do B/L, com o do manifesto na
-  // falta dele — a mesma regra do ADR (`getAgencyReportDerivedData`).
+  // Granito casa pelo porto de carregamento efetivo do B/L, a mesma régua do
+  // conteúdo do ADR (`graniteBlLoadingPort`).
   const graniteBls = await fetchAllRows<JsonRecord>((from, to) =>
     table('granite_bls')
       .select('id, loading_port, manifest:granite_manifests!inner(voyage_id, loading_port)')
@@ -450,8 +479,10 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
   const exportKinds = new Set<'granito' | 'vazio'>()
   if (graniteBls.data.some((row) => {
     const manifest = row.manifest && typeof row.manifest === 'object' ? row.manifest as JsonRecord : null
-    const loadingPort = typeof row.loading_port === 'string' ? row.loading_port : typeof manifest?.loading_port === 'string' ? manifest.loading_port : null
-    return normalizePortCode(loadingPort) === normalizedPort
+    return graniteBlLoadingPort(
+      typeof row.loading_port === 'string' ? row.loading_port : null,
+      typeof manifest?.loading_port === 'string' ? manifest.loading_port : null,
+    ) === normalizedPort
   })) exportKinds.add('granito')
 
   const fronts = deriveOperationFronts({ existing: existingFronts, importKinds, exportKinds, exportSchedule })

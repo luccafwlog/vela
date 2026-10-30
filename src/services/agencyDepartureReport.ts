@@ -20,7 +20,7 @@ import { quantidadeEfetiva, totalEmbarque, totalLinha } from './vaziosCusto'
 import { buildVoyagePodEntityId, listVoyageEscalaSchedulesByVoyageIds, listVoyagePodSchedules } from './voyageRouteSchedules'
 import { listVoyageRoutePorts } from './operationalLists'
 import { normalizePortCode, portCodeVariants } from './portCode'
-import type { AgencyReportByTerminal, OperationFront, OperationFrontKind } from './escalaTerminalAllocation'
+import { graniteBlLoadingPort, type AgencyReportByTerminal, type OperationFront, type OperationFrontKind } from './escalaTerminalAllocation'
 
 // Seções e rótulos moram em ./agencyReportLabels: o sino de notificações, em
 // toda tela, precisa só deles, sem carregar o relatório inteiro.
@@ -1105,7 +1105,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   // Task 6 (ADR 2026-07-31): casa pelo porto normalizado, usando o
   // loading_port do manifesto quando o B/L não trouxer o seu (fallback).
   const granite: Pick<GraniteBl, 'real_weight_kg' | 'blocks_qty' | 'loading_port'>[] = graniteRows
-    .filter((bl) => normalizePortCode(bl.loading_port ?? bl.manifest?.loading_port ?? null) === portCode)
+    .filter((bl) => graniteBlLoadingPort(bl.loading_port, bl.manifest?.loading_port) === portCode)
     .map((bl) => ({ real_weight_kg: bl.real_weight_kg, blocks_qty: bl.blocks_qty, loading_port: bl.loading_port }))
   // Task 10 (ADR 2026-07-31): granito num porto que não é escala nenhuma da
   // viagem (nem esta, nem outra) — dado órfão, provável porto digitado/
@@ -1113,7 +1113,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   // não entra aqui — aparece normalmente no ADR daquela escala.
   const orphanGraniteByPort = new Map<string, number>()
   for (const bl of graniteRows) {
-    const normalized = normalizePortCode(bl.loading_port ?? bl.manifest?.loading_port ?? null)
+    const normalized = graniteBlLoadingPort(bl.loading_port, bl.manifest?.loading_port)
     if (!normalized || normalized === portCode || escalaPorts.has(normalized)) continue
     orphanGraniteByPort.set(normalized, (orphanGraniteByPort.get(normalized) ?? 0) + 1)
   }

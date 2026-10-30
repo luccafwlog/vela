@@ -5,6 +5,7 @@ import {
   EscalaTerminalBlockedError,
   fetchEscalaTerminalState,
   fetchEscalaTerminalRevision,
+  graniteLoadingPorts,
   groupAgencyReportsByTerminal,
   saveEscalaTerminalState,
 } from '../escalaTerminalAllocation'
@@ -140,6 +141,17 @@ describe('escalaTerminalAllocation', () => {
 
     expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['exportacao:granito'])
     expect(state.tbcFronts[0]).toMatchObject({ source: 'export_declaration', section: 'carga_carregada', terminalId: null })
+  })
+
+  // Revisão da PR #1121: a janela da escala declarava o Granito pelo porto do
+  // manifesto, e a frente nascia pelo porto de cada B/L.
+  it('marca como porto com Granito o do manifesto e o efetivo de cada B/L', () => {
+    const ports = graniteLoadingPorts([
+      { loading_port: 'BRSSZ', granite_bls: [{ loading_port: 'Vitoria, Brazil' }, { loading_port: null }] },
+      { loading_port: 'BRVIT', granite_bls: null },
+    ])
+
+    expect([...ports].sort()).toEqual(['BRSSZ', 'BRVIX'])
   })
 
   it('preserva frente persistida mesmo quando a fonte operacional deixou de aparecer', () => {

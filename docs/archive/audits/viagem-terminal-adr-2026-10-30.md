@@ -59,7 +59,9 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    (`import_granite_manifest_transactional`). Agora a frente nasce também do
    Granito importado no porto (B/L pelo porto de carregamento, com o do
    manifesto na falta dele), Editar escala abre com o Granito declarado nesse
-   caso (sem a declaração a janela descartava a frente ao gravar) e o banco
+   caso (sem a declaração a janela descartava a frente ao gravar), pela mesma
+   régua de porto da frente (`graniteLoadingPorts`; a revisão do Codex achou a
+   janela olhando só o porto do manifesto) e o banco
    confere a frente dele no fechamento (migration `515`) (**Teste:**
    `escalaTerminalAllocation.test.ts`, `VoyageScheduleModals.test.tsx`,
    `adrFrenteDerivadaSemTerminal.local-pg.test.ts`). Pedido do dono na mesma
