@@ -1053,6 +1053,9 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     const adrTypes = Number(psql(`SELECT count(*) FROM public.alert_type_catalog WHERE active AND type LIKE 'agency_report_%';`))
     counts.operacoes += adrTypes
     counts.equipamentos += adrTypes
+    // ADR 0112, D25 (migration 515): a Demurrage travada vai à Documentação
+    // pelo setor gravado no item quando o motivo é CE, Cliente ou Portal.
+    counts.documentacao += Number(psql(`SELECT count(*) FROM public.alert_type_catalog WHERE active AND type = 'demurrage_travado';`))
     expect(counts).toEqual(ALERT_TYPE_COUNTS)
   })
 

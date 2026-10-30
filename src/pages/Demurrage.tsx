@@ -32,7 +32,8 @@ import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
 import { useDemurrageComplementOf } from '../hooks/useDemurrageComplementOf'
 import { useAuth } from '../hooks/useAuth'
 import { afterDatasContainerAlteradas, afterFaturaDemurrageAlterada } from '../services/cacheEffects'
-import { listDemurrageContainers, updateContainerDates, type DemurrageContainerRow } from '../services/demurrage/demurrageContainers'
+import { updateContainerDates, type DemurrageContainerRow } from '../services/demurrage/demurrageContainers'
+import { divisionTotals, listDemurrageBillingBoard, waiveDemurrageBox, type BoardBox, type BoardGroup, type DemurrageDivision } from '../services/demurrage/demurrageBoard'
 import {
   applyDemurrageDiscount,
   cancelDemurrageInvoice,
@@ -55,6 +56,7 @@ import { EMPTY_DISCOUNT, EMPTY_DISPUTE, type DiscountForm, type DisputeForm } fr
 import {
   discountPreview,
   fmtBRL,
+  fmtUSD,
   invoiceNetUsd,
   isPtaxWarningEligible,
   lastBusinessDayISO,
@@ -65,7 +67,7 @@ import { demurrageDiscountSchema } from '../services/financialValidation'
 import { extractErrorText } from '../lib/errors'
 import { saoPauloTodayIso } from '../lib/dates'
 import { printDocumentElement } from '../lib/printDocument'
-import { demurrageStateFromSearch, withDemurrageParam, withDemurrageTab, type ContainerLens, type DemurrageTab } from './demurrageListState'
+import { demurrageStateFromSearch, withDemurrageParam, withDemurrageTab, type DemurrageTab } from './demurrageListState'
 
 type InvoiceTab = (typeof DEMURRAGE_INVOICE_TABS)[number]['key']
 
@@ -77,6 +79,21 @@ function isInvoiceTab(tab: DemurrageTab): tab is InvoiceTab {
 }
 
 const todayIso = () => saoPauloTodayIso()
+
+/** Caixa da classificação no formato do formulário Editar datas. */
+function boxAsContainer(box: BoardBox, group: BoardGroup): DemurrageContainerRow {
+  return {
+    id: box.container_id,
+    bl_id: box.bl_id,
+    container_number: box.container_number,
+    type: box.type,
+    discharge_date: box.discharge_date,
+    return_date: box.return_date,
+    demurrage_status: box.return_date ? 'returned' : box.state === 'running' ? 'overdue' : 'within_free_time',
+    billed_in: box.covered_by != null ? [{ id: box.covered_by, doc_number: box.covered_doc ?? `#${box.covered_by}`, status: 'issued', bl_id: group.anchor_bl_id }] : [],
+    bl: { id: box.bl_id, customer: group.customer_name ? { id: group.customer_id ?? 0, name: group.customer_name, cnpj_cpf: group.customer_cnpj ?? '' } : null } as DemurrageContainerRow['bl'],
+  } as DemurrageContainerRow
+}
 
 /** Erros de validação do desconto por campo, com a mensagem da tela. */
 function discountErrors(form: DiscountForm): DiscountFieldErrors {
@@ -99,7 +116,7 @@ export function Demurrage() {
   const confirmWithReason = useConfirmWithReason()
   const [searchParams, setSearchParams] = useSearchParams()
   const state = demurrageStateFromSearch(searchParams)
-  const { tab, search, lens } = state
+  const { tab, search, division } = state
 
   // Permissões das RPCs, para a tela não oferecer o que o banco recusa.
   const canIssue = effectiveRole != null // issue_demurrage_invoice_for_bl: qualquer Departamento (ADR 0085, D3; migration 246)
@@ -139,12 +156,14 @@ export function Demurrage() {
   const [customerReportOpen, setCustomerReportOpen] = useState(false)
   const [focusInvoiceId, setFocusInvoiceId] = useState<number | null>(null)
 
-  const containersQuery = useQuery({
-    queryKey: ['demurrage-containers'],
-    queryFn: () => listDemurrageContainers(),
+  // Classificação do banco (migration 514): alimenta a aba Containers e os
+  // cartões do topo, por isso fica ligada em todas as abas.
+  const boardQuery = useQuery({
+    queryKey: ['demurrage-containers', 'board'],
+    queryFn: () => listDemurrageBillingBoard(),
     staleTime: 60_000,
-    enabled: activeTab === 'containers',
   })
+  const boardTotals = boardQuery.data ? divisionTotals(boardQuery.data) : null
   const kpisQuery = useQuery({ queryKey: ['demurrage-kpis'], queryFn: fetchDemurrageKPIs, staleTime: 60_000 })
   const kpis = kpisQuery.data
   const customerSummaryQuery = useQuery({
@@ -177,7 +196,7 @@ export function Demurrage() {
 
   // Link direto (`?fatura=`) vindo de fora (ficha, Alerta): abre também a aba
   // da situação da Invoice. A Invoice aberta por esta tela fica na aba atual
-  // (Containers não tem `tab` na URL, e trocar de aba apagaria a lente).
+  // (Containers não tem `tab` na URL, e trocar de aba apagaria a divisão).
   const [openedHere, setOpenedHere] = useState<number | null>(null)
   const linkedInvoiceId = state.invoiceId != null && !searchParams.has('tab') && openedHere !== state.invoiceId ? state.invoiceId : null
   const linkedDetailQuery = useQuery({
@@ -209,7 +228,8 @@ export function Demurrage() {
   }
   const selectTab = (next: DemurrageTab) => updateParams((params) => withDemurrageTab(params, next))
   const setSearch = (value: string) => updateParams((params) => withDemurrageParam(params, 'busca', value))
-  const setLens = (value: ContainerLens) => updateParams((params) => withDemurrageParam(params, 'lente', value))
+  const setDivision = (value: DemurrageDivision) => updateParams((params) => withDemurrageParam(params, 'divisao', value))
+  const openDivision = (value: DemurrageDivision) => updateParams((params) => withDemurrageParam(withDemurrageTab(params, 'containers'), 'divisao', value))
   const openInvoice = (invoiceId: number) => {
     setOpenedHere(invoiceId)
     updateParams((params) => withDemurrageParam(params, 'fatura', invoiceId))
@@ -258,6 +278,28 @@ export function Demurrage() {
     },
     onError: (error: Error) => setDatesError(extractErrorText(error)),
   })
+  // ADR 0112, D24 (migration 516): dispensa da cobrança de uma caixa, com justificativa.
+  const waiveMutation = useMutation({
+    mutationFn: ({ box, reason }: { box: BoardBox; reason: string }) => waiveDemurrageBox(box.bl_id, box.container_number, reason),
+    onSuccess: async () => {
+      await afterDatasContainerAlteradas(queryClient)
+      showToast('Cobrança da caixa dispensada.', 'success')
+    },
+    onError: (error: Error) => showToast(extractErrorText(error), 'error'),
+  })
+  async function handleWaiveBox(box: BoardBox, group: BoardGroup) {
+    const reason = await confirmWithReason({
+      title: `Dispensar a cobrança de ${box.container_number}`,
+      message: `Dispensar a cobrança de Demurrage do container ${box.container_number} (B/L ${box.bl_id}, ${group.customer_name ?? 'Cliente'})?`,
+      confirmLabel: 'Dispensar cobrança',
+      tone: 'danger',
+      reasonLabel: 'Justificativa (mínimo de 10 caracteres)',
+      consequence: 'A caixa sai da aba Containers e de qualquer Invoice nova do grupo; o B/L deixa de ser segurado no cancelamento por ela.',
+      reversibility: 'Desfaça a dispensa na ficha do B/L, também com justificativa.',
+    })
+    if (reason === null) return
+    waiveMutation.mutate({ box, reason })
+  }
   const generateMutation = useMutation({
     mutationFn: (blId: string) => createInvoiceForBL(blId),
     onSuccess: async (invoiceId) => {
@@ -430,13 +472,21 @@ export function Demurrage() {
       ) : null}
 
       <div className="app-dem-metrics">
-        <MetricCard
-          label="Containers em atraso"
-          value={kpisQuery.error ? <NoValue label="Não carregado" /> : kpis ? String(kpis.overdueContainers) : '…'}
-          tone={kpis && kpis.overdueContainers > 0 ? 'primary' : 'secondary'}
-          selected={activeTab === 'containers' && lens === 'atraso'}
-          onSelect={() => updateParams((params) => withDemurrageParam(withDemurrageTab(params, 'containers'), 'lente', 'atraso'))}
-        />
+        {(['correndo', 'a_emitir', 'travado'] as const).map((value) => {
+          const total = boardTotals?.[value]
+          const label = value === 'correndo' ? 'Correndo' : value === 'a_emitir' ? 'A emitir' : 'Travado'
+          return (
+            <MetricCard
+              key={value}
+              label={`${label} (US$)`}
+              value={boardQuery.error ? <NoValue label="Não carregado" /> : total ? fmtUSD(total.usd) : '…'}
+              detail={total ? `${total.boxes} ${total.boxes === 1 ? 'container' : 'containers'}` : undefined}
+              tone={total && total.groups > 0 ? 'primary' : 'secondary'}
+              selected={activeTab === 'containers' && division === value}
+              onSelect={() => openDivision(value)}
+            />
+          )
+        })}
         <MetricCard
           label="Aguardando pagamento (BRL hoje)"
           value={kpisQuery.error ? <NoValue label="Não carregado" /> : kpis ? fmtBRL(kpis.issuedInvoicesTotalBrl) : '…'}
@@ -477,20 +527,21 @@ export function Demurrage() {
       <div id={panelId} role="tabpanel" aria-labelledby={`dem-tab-${activeTab}`}>
         {activeTab === 'containers' ? (
           <DemurrageContainersTab
-            containers={containersQuery.data}
+            groups={boardQuery.data}
             search={search}
-            lens={lens}
-            loading={containersQuery.isLoading}
-            error={containersQuery.error}
+            division={division}
+            loading={boardQuery.isLoading}
+            error={boardQuery.error}
             canIssue={canIssue}
             generatingBl={generatingBl}
             generateError={generateError}
-            onRetry={() => void containersQuery.refetch()}
+            onRetry={() => void boardQuery.refetch()}
             onSearchChange={setSearch}
-            onLensChange={setLens}
+            onDivisionChange={setDivision}
             onGenerateInvoice={(blId) => { setGenerateError(null); setGeneratingBl(blId); generateMutation.mutate(blId) }}
-            onEditContainer={(container) => { setDatesError(null); setEditingContainer(container) }}
+            onEditContainer={(box, group) => { setDatesError(null); setEditingContainer(boxAsContainer(box, group)) }}
             onOpenInvoice={openInvoice}
+            onWaiveBox={canIssue ? (box, group) => void handleWaiveBox(box, group) : undefined}
           />
         ) : null}
         {isInvoiceTab(activeTab) ? (

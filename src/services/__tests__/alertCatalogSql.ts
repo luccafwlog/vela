@@ -44,6 +44,7 @@ const CATALOG_MIGRATIONS = [
   '396_ce_e_manifesto_mercante.sql',
   '468_alerta_planilha_de_veiculos.sql',
   '495_eventos_da_taxa_alterada.sql',
+  '515_alerta_de_demurrage_travada.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

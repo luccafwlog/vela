@@ -3,9 +3,8 @@ import { formatBRL, formatUSD } from '../../lib/utils'
 import { saoPauloTodayIso } from '../../lib/dates'
 import { calculateDemurrage, demurrageFreeTimeDays } from './demurrageRates'
 import { parseImportNumber } from '../../lib/importNumber'
-import { demurrageBoxKey } from './demurrageBoxKey'
 import { discountFromValue, invoiceNetUsd, type DiscountPreview } from './demurrageNetUsd'
-import type { DemurrageBilledInvoiceRef, DemurrageBillingGroup, DemurrageContainerRow } from './demurrageContainers'
+import type { DemurrageContainerRow } from './demurrageContainers'
 
 export function fmtUSD(value: number | null | undefined) {
   if (value == null) return '---'
@@ -33,16 +32,6 @@ export function isPtaxWarningEligible(date = new Date()): boolean {
 export function fmtBRL(value: number | null | undefined) {
   // ponytail: canonical Intl currency spacing may differ from the former print formatter.
   return value == null ? '---' : formatBRL(value)
-}
-
-export function groupByBl<T extends Pick<DemurrageContainerListItem, 'bl_id'>>(containers: readonly T[]): Map<string, T[]> {
-  const map = new Map<string, T[]>()
-  for (const container of containers) {
-    const blId = container.bl_id ?? 'unknown'
-    if (!map.has(blId)) map.set(blId, [])
-    map.get(blId)!.push(container)
-  }
-  return map
 }
 
 function containerBlRates(container: DemurrageContainerListItem) {
@@ -102,73 +91,6 @@ export const FREE_TIME_SOURCE_LABELS: Record<FreeTimeSource, string> = {
   tabela: 'tabela',
 }
 
-export type BlBillingState = {
-  /** Invoices vivas que já cobram alguma caixa do grupo (sem repetição). */
-  invoices: DemurrageBilledInvoiceRef[]
-  /** Caixas listadas do grupo ainda sem Invoice viva (uma por número). */
-  uncovered: DemurrageContainerRow[]
-  /** Caixas não-SOC do grupo ainda fora, inclusive as que a lista não mostra. */
-  stillOut: number
-  /** USD previsto das caixas ainda sem Invoice. */
-  uncoveredUsd: number
-  /**
-   * `generate`: primeira Invoice do grupo; `complement`: Invoice complementar
-   * só com as caixas ainda não cobradas (migration 214); `waiting`: há caixa
-   * fora; `covered`: todas cobradas; `none`: nada a cobrar.
-   */
-  action: 'generate' | 'complement' | 'waiting' | 'covered' | 'none'
-}
-
-function boxKey(container: DemurrageContainerRow): string {
-  return demurrageBoxKey(container.bl?.voyage_id, container.bl?.customer?.id, container.container_number) ?? `id:${container.id}`
-}
-
-/** Uma linha por caixa: o container compartilhado aparece em cada B/L do grupo. */
-export function distinctBoxes<T extends DemurrageContainerRow>(containers: readonly T[]): T[] {
-  const seen = new Set<string>()
-  return containers.filter((container) => {
-    const key = boxKey(container)
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
-/**
- * Estado de cobrança do grupo do B/L na aba Containers, na ordem de
- * `issue_demurrage_invoice_for_bl` (214): todas as caixas cobertas →
- * `existing`; caixa não-SOC fora → `waiting_return`; senão emite (a
- * complementar quando o grupo já tem Invoice). Recebe TODAS as caixas listadas
- * do grupo, nunca só as que a busca ou a lente deixaram visíveis; as contagens
- * do grupo vêm de `billing_group`, que inclui as caixas fora da lista. Sem o
- * grupo (B/L cancelado ou leitura antiga), cai nas caixas recebidas.
- */
-export function blBillingState(containers: readonly DemurrageContainerRow[], group?: DemurrageBillingGroup | null): BlBillingState {
-  const boxes = distinctBoxes(containers)
-  const invoices: DemurrageBilledInvoiceRef[] = [...(group?.invoices ?? [])]
-  for (const ref of boxes.flatMap((container) => container.billed_in ?? [])) {
-    if (!invoices.some((existing) => existing.id === ref.id)) invoices.push(ref)
-  }
-  const uncovered = boxes.filter((container) => !(container.billed_in?.length))
-  const stillOut = group ? group.stillOut : boxes.filter((container) => !container.return_date).length
-  const uncoveredCount = group ? group.uncovered : uncovered.length
-  const uncoveredUsd = uncovered.reduce((sum, container) => sum + safeTotalUsd(container), 0)
-  let action: BlBillingState['action'] = 'none'
-  if ((group ? group.boxes : boxes.length) && invoices.length && !uncoveredCount) action = 'covered'
-  else if (stillOut > 0) action = uncoveredCount ? 'waiting' : 'covered'
-  else if (uncoveredUsd > 0) action = invoices.length ? 'complement' : 'generate'
-  return { invoices, uncovered, stillOut, uncoveredUsd, action }
-}
-
-function safeTotalUsd(container: DemurrageContainerRow): number {
-  try {
-    return effectiveDemurrage(container)?.total_usd ?? 0
-  } catch {
-    return 0
-  }
-}
-
-/** Colunas que a listagem lê com `select('*')` e que o tipo gerado ainda não traz. */
 export type DemurrageInvoiceRow = DemurrageInvoice & { dunning_suspended_reason?: string | null }
 
 export const DATES_CHANGED_PAID_PREFIX = 'Datas de container alteradas depois do pagamento'

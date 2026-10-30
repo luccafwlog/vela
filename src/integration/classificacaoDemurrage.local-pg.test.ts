@@ -126,6 +126,7 @@ function cleanup() {
     DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (SELECT id FROM r514_invoices);
     DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM r514_invoices);
     DELETE FROM public.demurrage_invoices WHERE id IN (SELECT id FROM r514_invoices);
+    DELETE FROM public.demurrage_box_waivers WHERE customer_id IN (${customerOpen}, ${customerClosed});
     DELETE FROM public.customer_demurrage_agreements WHERE customer_id IN (${customerOpen}, ${customerClosed});
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM r514_bls);
     DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM r514_bls);
@@ -312,6 +313,113 @@ describeLocal('Classificação da cobrança de Demurrage (migration 514)', () =>
       psql(`INSERT INTO public.container_types (code, description, rate_group) VALUES ('R5HC', 'teste 514', '40GP')`)
       expect(status('RQCU5140121')).toBe('overdue')
       expect(board(voyageOf('noRate'))[0]).toMatchObject({ division: 'correndo', usd: expectedUsd(30) })
+      // O Alerta do tipo sem tarifa (Administrativo) fecha pelo gatilho do cadastro.
+      expect(psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+        WHERE i.item_type = 'demurrage_travado' AND i.status = 'active' AND a.entity_id = '${blPrefix}NORATE'`)).toBe('0')
+    })
+  })
+
+  describe('Alerta de Travado (migration 515; D25)', () => {
+    const activeAlert = (blId: string) => psql(`SELECT string_agg(i.department, ',' ORDER BY i.id) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'demurrage_travado' AND i.status = 'active' AND a.entity_type = 'bl' AND a.entity_id = '${blPrefix}${blId}'`)
+
+    it('abre para o setor do motivo: Documentação (CE, Cliente, Portal) e Administrativo (B/L cancelado)', () => {
+      // A rotina de 15 minutos cobre o que não passou por gatilho (aqui, o B/L cancelado sem gatilho).
+      psql(`SELECT public.reconcile_demurrage_travado_alerts()`)
+      expect(activeAlert('NOCE')).toBe('documentacao')
+      expect(activeAlert('NOCUST')).toBe('documentacao')
+      expect(activeAlert('PORTAL')).toBe('documentacao')
+      expect(activeAlert('BLCANC')).toBe('administrativo')
+      expect(activeAlert('TOISSUE')).toBe('')
+    })
+
+    it('gravar o CE fecha o Alerta na hora, pelo gatilho do B/L', () => {
+      psql(`UPDATE public.bls SET ce_mercante = '995149999999999' WHERE id = '${blPrefix}NOCE'`)
+      try {
+        expect(activeAlert('NOCE')).toBe('')
+        expect(board(voyageOf('noCe'))[0].division).toBe('a_emitir')
+      } finally {
+        psql(`UPDATE public.bls SET ce_mercante = NULL WHERE id = '${blPrefix}NOCE'`)
+      }
+      expect(activeAlert('NOCE')).toBe('documentacao')
+    })
+  })
+
+  it('o aviso do cabeçalho conta as caixas de Correndo', () => {
+    const result = run(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+      SET LOCAL request.jwt.claim.sub = '${adminId}'; SELECT public.count_demurrage_running_boxes(); ROLLBACK;`)
+    expect(result.status, result.stderr).toBe(0)
+    const total = Number(result.stdout.trim().split('\n').filter(Boolean).at(-1))
+    const own = CASES.flatMap((name) => board(voyageOf(name))).flatMap((group) => group.boxes).filter((item) => item.state === 'running').length
+    expect(own).toBeGreaterThan(0)
+    expect(total).toBeGreaterThanOrEqual(own)
+  })
+
+  describe('B/L cancelado e dispensa da cobrança (migration 516; D7, D24, D26)', () => {
+    function asAdmin(sql: string) {
+      const result = run(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+        SET LOCAL request.jwt.claim.sub = '${adminId}'; ${sql}; COMMIT;`)
+      return { ...result, last: result.stdout.trim().split('\n').filter(Boolean).at(-1) ?? '' }
+    }
+    const cancelReasons = (blId: string) => {
+      const result = asAdmin(`SELECT public.cancel_bl('${blPrefix}${blId}', '', true)`)
+      expect(result.status, result.stderr).toBe(0)
+      return (JSON.parse(result.last) as { reasons: string[] }).reasons
+    }
+
+    it('cancelar B/L com caixa devolvida com sobreestadia sem Invoice, ou ainda fora em atraso, é recusado com o caminho', () => {
+      expect(cancelReasons('TOISSUE')).toEqual([expect.stringMatching(/^Demurrage a faturar: devolva o container e emita a Invoice, ou dispense/)])
+      expect(cancelReasons('RUNNING')).toEqual([expect.stringMatching(/^Demurrage a faturar/)])
+      // No free time e devolvido no free time não seguram.
+      expect(cancelReasons('INSIDE')).toEqual([])
+      expect(cancelReasons('RETFREE')).toEqual([])
+    })
+
+    it('dispensar a caixa solta o cancelamento e tira a caixa da aba; desfazer devolve', () => {
+      const waived = asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}TOISSUE', 'rqcu5140041', 'Cliente isento por acordo comercial')`)
+      expect(waived.status, waived.stderr).toBe(0)
+      const waiverId = (JSON.parse(waived.last) as { waiver_id: number }).waiver_id
+      try {
+        expect(cancelReasons('TOISSUE')).toEqual([])
+        expect(board(voyageOf('toIssue'))).toEqual([])
+        expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = '${blPrefix}TOISSUE' AND field_name = 'demurrage_dispensa'`)).toBe('1')
+        // A emissão não cobra a caixa dispensada.
+        expect((JSON.parse(psql(`SET vela.demurrage_internal = 'on'; SELECT public.issue_demurrage_invoice_for_bl('${blPrefix}TOISSUE')`)) as { status: string }).status).toBe('existing')
+        // Justificativa curta é recusada; a dispensa repetida também.
+        expect(asAdmin(`SELECT public.revoke_demurrage_box_waiver(${waiverId}, 'curta')`).stderr).toMatch(/mínimo de 10 caracteres/)
+        expect(asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}TOISSUE', 'RQCU5140041', 'Cliente isento por acordo comercial')`).stderr).toMatch(/já está numa Invoice de Demurrage ou com a cobrança dispensada/)
+      } finally {
+        const revoked = asAdmin(`SELECT public.revoke_demurrage_box_waiver(${waiverId}, 'Acordo comercial não foi fechado')`)
+        expect(revoked.status, revoked.stderr).toBe(0)
+      }
+      expect(board(voyageOf('toIssue'))[0]).toMatchObject({ division: 'a_emitir' })
+      expect(cancelReasons('TOISSUE')).toEqual([expect.stringMatching(/^Demurrage a faturar/)])
+    })
+
+    it('a caixa dispensada ainda fora não segura o grupo: Esperando vira A emitir', () => {
+      const waived = asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}WAITB', 'RQCU5140072', 'Caixa devolvida ao armador por outra via')`)
+      expect(waived.status, waived.stderr).toBe(0)
+      const waiverId = (JSON.parse(waived.last) as { waiver_id: number }).waiver_id
+      try {
+        const [group] = board(voyageOf('waiting'))
+        expect(group.division).toBe('a_emitir')
+        expect(group.boxes.find((item) => item.container_number === 'RQCU5140072')?.state).toBe('waived')
+      } finally {
+        asAdmin(`SELECT public.revoke_demurrage_box_waiver(${waiverId}, 'Caixa ainda está com o Cliente')`)
+      }
+      expect(board(voyageOf('waiting'))[0].division).toBe('esperando')
+    })
+
+    it('caixa já numa Invoice viva não se dispensa; o B/L com Invoice paga segue cancelável', () => {
+      expect(asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}COVERED', 'RQCU5140081', 'Tentativa de dispensa indevida')`).stderr)
+        .toMatch(/já está numa Invoice de Demurrage/)
+      expect(cancelReasons('COVERED')).toEqual(['fatura de Demurrage em aberto'])
+      psql(`SET session_replication_role = replica; UPDATE public.demurrage_invoices SET status = 'paid', paid_at = now() WHERE bl_id = '${blPrefix}COVERED'`)
+      try {
+        expect(cancelReasons('COVERED')).toEqual([])
+      } finally {
+        psql(`SET session_replication_role = replica; UPDATE public.demurrage_invoices SET status = 'issued', paid_at = NULL WHERE bl_id = '${blPrefix}COVERED'`)
+      }
     })
   })
 

@@ -20,6 +20,7 @@ vi.mock('../../../services/demurrage/demurrageContainers', () => ({
   readDemurrageGroupAnchor: async (blId: string) => blId,
   updateContainerReturnDate: vi.fn(),
   listBlDemurrageCoverage: async () => coverage.map,
+  listBlDemurrageWaivers: async () => new Map(),
 }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))

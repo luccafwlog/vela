@@ -129,57 +129,46 @@ Cliente, Portal e alertas.
 As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
 [Fluxos e invariantes](#fluxos-e-invariantes).
 
-- A aba `Containers` é **monitoramento operacional** (ADR 0014): mostra
-  containers ainda fora (`overdue`, demurrage correndo até hoje), devolvidos com
-  demurrage > 0 e as caixas já cobradas numa Invoice viva. Devolvidos dentro do
-  free time e sem Invoice são excluídos no frontend. Aceita `?busca=` (container,
-  B/L, Cliente ou número da Invoice) e `?lente=`, agrupa por B/L e deriva free
-  time (com a origem: do B/L, acordo do Cliente ou tabela), P1/P2 e USD com
-  `calculateDemurrage` (devolução ou hoje, quando ainda fora). A previsão usa o
-  acordo do Cliente vigente na descarga, que `listDemurrageContainers` anexa a
-  cada linha, na mesma ordem do banco. Cada caixa diz em qual Invoice viva foi
-  cobrada (`billed_in`): a listagem casa os itens das Invoices `issued`,
-  `overdue` e `paid` pela mesma chave de `_demurrage_billed_container_keys`
-  (Viagem do B/L da Invoice, Cliente da Invoice e número do container), então a
-  caixa do B/L irmão aparece cobrada mesmo com outro `container_id`. A listagem
-  também monta o grupo de cobrança de cada B/L (`billing_group`, com a regra de
-  `demurrage_group_bl_ids`: B/Ls ativos da mesma Viagem e do mesmo Cliente
-  ligados por container compartilhado; âncora é o menor id) lendo todas as
-  caixas desses B/Ls, inclusive as ainda fora no free time que a aba não lista.
-  Desde o lote 2 da identidade (2026-10-16), a tabela tem **uma linha por
-  B/L** (B/L, Cliente, Navio / Viagem, Containers como "x de y devolvidos",
-  US$ e Situação, com a ação na ponta) e a seta abre os contêineres embaixo, em
-  tabela de cabeçalho claro, com as colunas da fatura do Portal: Dias (âmbar
-  quando passa do free time), Free time (a origem ao passar o mouse), 1º e 2º
-  período como "dias × diária", US$ e **Editar datas**. A Situação do B/L, em
-  texto, segue a ordem de `issue_demurrage_invoice_for_bl` sobre o grupo
-  inteiro (nunca só sobre o que a busca ou a lente deixaram visível): as
-  Invoices que cobrem o grupo com a situação de cada uma (`existing`),
-  "Aguarda devolução de N containers" (alguma caixa não-SOC do grupo sem
-  devolução: `waiting_return`), "N caixas sem Invoice" com **Gerar
-  complementar** (o grupo já tem Invoice; só as caixas ainda não cobradas,
-  migration `214`) ou "A faturar" com **Gerar Invoice**. Em grupo com container compartilhado, a ação aparece uma vez, no
-  primeiro B/L do grupo na lista; os outros dizem "cobrança junto com o B/L X",
-  e o resumo conta o container compartilhado uma vez. A recusa do banco fica na
-  linha do B/L que pediu a emissão e sai quando as datas são editadas. As
-  leituras são paginadas (o PostgREST corta em 1000 linhas) e os ids de Invoice
-  vão em lotes. O grupo só é lido para B/L com alguma caixa listada ainda sem
-  Invoice (todo devolvido fica `returned` para sempre). ponytail: B/L com todas
-  as caixas listadas já cobradas fica sem grupo, e o irmão ainda no free time
-  fora da lista só aparece quando entrar em atraso ou voltar; o irmão do grupo é
-  achado pelo número do container
-  gravado igual (o banco compara `upper(btrim())`) e a ordem do âncora é a do
-  JavaScript; upgrade: RPC de leitura com o estado do grupo. O free time
-  mostrado é o prazo (B/L > acordo > tabela, `demurrageFreeTimeDays`), não o dia
-  corrido; o USD da caixa já cobrada é o recalculado hoje, e o cobrado é o da
-  Invoice (dito ao passar o mouse no valor).
-- Os cartões do topo mostram **Containers em atraso** (contagem lida de
-  `demurrage_status = 'overdue'`, gravado pelo banco), **Aguardando
-  pagamento (BRL hoje)** e, para Equipamentos e Administrativo, que respondem,
-  **Disputas aguardando resposta**; nenhum cartão traz USD. O resumo da aba
-  Containers traz, para a lista filtrada, containers, B/Ls e os totais em
-  USD "correndo até hoje" e "a faturar (previsto)". **Código:**
-  `src/pages/Demurrage.tsx`, `src/components/demurrage/DemurrageContainersTab.tsx`.
+- A aba `Containers` (`DemurrageContainersTab`, desde o lote 2 da
+  [repaginação](../plans/2026-10-29-repaginacao-da-demurrage.md); ADR 0112, D1
+  a D5) lê a classificação do banco (`list_demurrage_billing_board`, ver
+  [Classificação da cobrança](#classificação-da-cobrança-migration-514)), um
+  grupo de cobrança por linha, nas divisões **Correndo**, **A emitir**,
+  **Esperando** e **Travado**, cada uma com o número de grupos. A divisão fica
+  em `?divisao=` (padrão Correndo; o link antigo `?lente=atraso` abre
+  Correndo) e a busca em `?busca=` (container, B/L, Cliente, Navio / Viagem ou
+  Invoice; filtra as divisões e as contagens juntas). A linha mostra B/L (o
+  âncora, com "+ N B/L do grupo"), Cliente ("Cliente não vinculado" em âmbar),
+  Navio / Viagem, Containers ("fora · devolvidos · total do grupo"), **US$
+  previsto hoje** e **Próximo passo / motivo**: **Gerar Invoice** (ou **Gerar
+  complementar**, quando o grupo já tem Invoice) só em A emitir; "Aguarda
+  <container> até <último dia livre>" em Esperando; as caixas que correm e, em
+  âmbar, o que vai travar a emissão (sem CE, Portal) em Correndo; o motivo e o
+  atalho que destrava em Travado (**Cadastrar CE** e **Vincular Cliente**
+  abrem a ficha do B/L, **Cadastrar tipo** abre `/demurrage/taxas?tab=tipos`
+  com o código, **Abrir Cliente** abre a ficha do Cliente para o Portal). A
+  seta abre as caixas do grupo com B/L, tipo, descarga, devolução, dias (âmbar
+  quando passa do free time), free time (a origem ao passar o mouse), 1º e 2º
+  período, US$ ("cobrada em DEM-…" abre a Invoice; "no free time até …";
+  "Tipo sem tarifa") e **Editar datas**. A recusa do banco ao gerar fica na
+  linha do B/L. Saíram do navegador `listDemurrageContainers`,
+  `blBillingState`, `groupByBl`, `distinctBoxes` e o filtro `monitored`.
+- Os cartões do topo (D6) são **Correndo (US$)**, **A emitir (US$)** e
+  **Travado (US$)**, somados da mesma classificação, com o número de
+  containers, cada um abrindo a divisão; **Aguardando pagamento (BRL hoje)**; e,
+  para Equipamentos e Administrativo, **Disputas aguardando resposta**. O aviso
+  do cabeçalho "N containers em atraso" conta as caixas de Correndo
+  (`count_demurrage_running_boxes`, migration `515`) e abre a divisão Correndo.
+  O alerta **Demurrage travada** (`demurrage_travado`, migration `515`) abre um
+  por grupo na hora em que ele entra em Travado, para o setor do motivo
+  (Documentação: CE, Cliente, Portal; Administrativo: tipo sem tarifa, B/L
+  cancelado), e fecha pela origem; gatilhos de containers, B/L, tarifa e
+  cadastro de tipos, e a rotina `demurrage-travado-alerts` a cada 15 minutos.
+  **Código:** `src/pages/Demurrage.tsx`,
+  `src/components/demurrage/DemurrageContainersTab.tsx`,
+  `src/services/demurrage/demurrageBoard.ts`. **Teste:**
+  `DemurrageContainersTab.test.tsx`, `Demurrage.behavior.test.tsx`;
+  **Teste local-pg:** `classificacaoDemurrage.local-pg.test.ts`.
 - `Importar datas` abre
   [`src/components/shared/ContainerDatesImportModal.tsx`](../../src/components/shared/ContainerDatesImportModal.tsx):
   parseia planilha, mostra preview e erros, exibe progresso/cancelamento da

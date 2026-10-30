@@ -202,6 +202,7 @@ BEGIN
                              WHERE vo.id = cl.voyage_id),
            'customer_id', cl.customer_id,
            'customer_name', (SELECT cu.name FROM public.customers AS cu WHERE cu.id = cl.customer_id),
+           'customer_cnpj', (SELECT cu.cnpj_cpf FROM public.customers AS cu WHERE cu.id = cl.customer_id),
            'division', cl.division,
            'reason_code', cl.reason_code,
            'reason', CASE cl.reason_code

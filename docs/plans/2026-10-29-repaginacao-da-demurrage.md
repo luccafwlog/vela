@@ -15,8 +15,8 @@ tarifas (D28 a D34) entram no lote 0B.
 | 0 — Correções que não esperam a repaginação | Feito em 2026-10-29 |
 | 0B — Tipos de container e tarifas por grupo | Feito em 2026-10-29 (migration `513`) |
 | 1 — Classificação da cobrança no banco | Feito em 2026-10-29 (migration `514`) |
-| 2 — Aba Containers, cartões e aviso do cabeçalho | A fazer (depende do lote 1) |
-| 3 — B/L cancelado e dispensa da cobrança | A fazer |
+| 2 — Aba Containers, cartões e aviso do cabeçalho | Feito em 2026-10-30 (migration `515`; Exportar entra no lote 6) |
+| 3 — B/L cancelado e dispensa da cobrança | Feito em 2026-10-30 (migration `516`) |
 | 4 — Faturas, Pagas e Canceladas | A fazer |
 | 5 — Por Cliente e extrato do Cliente | A fazer (depende do lote 1) |
 | 6 — Relatórios | A fazer (Exposição depende do lote 1) |

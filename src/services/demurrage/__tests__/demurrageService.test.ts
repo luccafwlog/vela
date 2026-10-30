@@ -15,7 +15,6 @@ import {
   updateDemurrageInvoice,
   getInvoiceDetail,
 } from '../demurrageInvoices'
-import { listDemurrageContainers } from '../demurrageContainers'
 import { fetchDemurrageKPIs } from '../demurrageKpis'
 
 type Result = { data?: unknown; error: unknown; count?: number }
@@ -115,14 +114,6 @@ it('DEM-D08: Invoice que não substitui outra fica sem a citação', async () =>
   const detail = await getInvoiceDetail(5)
   expect(detail.invoice.replaces).toBeNull()
   expect(fromMock.mock.calls.filter(([table]) => table === 'demurrage_invoices')).toHaveLength(1)
-})
-
-it('US-030: lista os containers em tracking e filtra por cliente', async () => {
-  results.bl_containers = { data: [{ id: 1, bl: { customer: { id: 9 }, voyage_id: 2 } }, { id: 2, bl: { customer: { id: 7 }, voyage_id: 3 } }], error: null }
-  const all = await listDemurrageContainers()
-  expect(all).toHaveLength(2)
-  const filtered = await listDemurrageContainers({ customerId: 9 })
-  expect(filtered).toHaveLength(1)
 })
 
 it('US-031: calcula os KPIs de demurrage', async () => {

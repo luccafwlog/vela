@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
-import { Save } from 'lucide-react'
+import { Save, Undo2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { RowActionButton } from '../ui/RowActionButton'
@@ -19,7 +19,8 @@ import { saveBlDemurrageConfig } from '../../services/blDemurrageConfig'
 import { calculateDemurrage, demurrageFreeTimeDays, demurrageRateFor, ensureDemurrageRatesLoaded } from '../../services/demurrage/demurrageRates'
 import { daysSince } from '../../services/demurrage/demurragePresentation'
 import { saoPauloTodayIso } from '../../lib/dates'
-import { listBlDemurrageCoverage, updateContainerReturnDate } from '../../services/demurrage/demurrageContainers'
+import { listBlDemurrageCoverage, listBlDemurrageWaivers, updateContainerReturnDate } from '../../services/demurrage/demurrageContainers'
+import { revokeDemurrageBoxWaiver } from '../../services/demurrage/demurrageBoard'
 import { queryKeys } from '../../services/queryKeys'
 import { formatDate, formatUSD } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
@@ -55,6 +56,13 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
     queryKey: queryKeys.demurrage.invoices({ blCoverage: bl.id, customerId: bl.customer_id, voyageId: bl.voyage_id }),
     queryFn: () => listBlDemurrageCoverage(bl),
   })
+
+  // Dispensas da cobrança das caixas (ADR 0112, D24; migration 516).
+  const { data: waivers } = useQuery({
+    queryKey: ['demurrage-containers', 'waivers', bl.id, bl.customer_id, bl.voyage_id],
+    queryFn: () => listBlDemurrageWaivers(bl),
+  })
+  const [revokingWaiver, setRevokingWaiver] = useState<number | null>(null)
 
   // --- Config form state ---
   const [freeTime, setFreeTime] = useState<string>(
@@ -177,6 +185,28 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
     }
   }
 
+  async function handleRevokeWaiver(waiverId: number, containerNumber: string) {
+    const reason = await confirmWithReason({
+      title: 'Desfazer dispensa da cobrança',
+      message: `Voltar a cobrar a Demurrage do container ${containerNumber}?`,
+      confirmLabel: 'Desfazer dispensa',
+      reasonLabel: 'Justificativa (mínimo de 10 caracteres)',
+      consequence: 'A caixa volta para a aba Containers e entra na próxima Invoice do grupo.',
+      reversibility: 'A cobrança pode ser dispensada de novo na Demurrage.',
+    })
+    if (reason === null) return
+    setRevokingWaiver(waiverId)
+    try {
+      await revokeDemurrageBoxWaiver(waiverId, reason)
+      await afterDatasContainerAlteradas(queryClient)
+      showToast('Dispensa desfeita.', 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao desfazer a dispensa.'), 'error')
+    } finally {
+      setRevokingWaiver(null)
+    }
+  }
+
   async function handleSaveReturnDate(containerId: number) {
     const returnDate = returnDates[containerId] ?? null
     const container = bl.bl_containers?.find((c) => c.id === containerId)
@@ -285,17 +315,19 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
       }
     }
     const days = container.discharge_date ? daysSince(container.discharge_date, returnDateVal || today) : null
-    const billedIn = soc ? undefined : coverage?.get((container.container_number ?? '').trim().toUpperCase())?.[0]
-    return { container, soc, returnDateVal, returnDateChanged: returnDateVal !== (container.return_date ?? ''), calc, freeTimeDays, days, error, billedIn }
+    const key = (container.container_number ?? '').trim().toUpperCase()
+    const billedIn = soc ? undefined : coverage?.get(key)?.[0]
+    const waiver = soc || billedIn ? undefined : waivers?.get(key)
+    return { container, soc, returnDateVal, returnDateChanged: returnDateVal !== (container.return_date ?? ''), calc, freeTimeDays, days, error, billedIn, waiver }
   })
   const chargeable = lines.filter((line) => !line.soc && line.container.discharge_date)
   // A caixa já cobrada mostra a Invoice; só a sem Invoice é "a emitir" (devolvida)
   // ou "correndo" (ainda fora).
   const billed = chargeable.filter((line) => line.billedIn)
-  const overdue = chargeable.filter((line) => !line.billedIn && line.calc?.status === 'overdue')
+  const overdue = chargeable.filter((line) => !line.billedIn && !line.waiver && line.calc?.status === 'overdue')
   const toIssue = overdue.filter((line) => line.returnDateVal)
   const running = overdue.filter((line) => !line.returnDateVal)
-  const notCalculated = chargeable.filter((line) => !line.billedIn && (line.error || !line.calc))
+  const notCalculated = chargeable.filter((line) => !line.billedIn && !line.waiver && (line.error || !line.calc))
   const sumUsd = (group: typeof lines) => group.reduce((sum, line) => sum + (line.calc?.total_usd ?? 0), 0)
   const allInvoices: BlDemurrageInvoiceSummary[] = [...(invoices ?? [])]
   for (const line of billed) {
@@ -397,6 +429,19 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                     <td className="whitespace-nowrap tabular-nums" title={line.freeTimeDays != null ? conditionSource : undefined}>{line.freeTimeDays ?? <NoValue label={line.soc ? 'Não se aplica (SOC)' : 'Sem tarifa de Demurrage'} />}</td>
                     <td className="whitespace-nowrap tabular-nums">
                       {line.soc ? <StatusText tone="muted">Não se aplica (SOC)</StatusText>
+                        : line.waiver ? (
+                          <span className="inline-flex items-center gap-2" title={line.waiver.reason}>
+                            <StatusText tone="muted">Cobrança dispensada</StatusText>
+                            {!cancelled ? (
+                              <RowActionButton
+                                label={`Desfazer dispensa do container ${container.container_number}`}
+                                icon={Undo2}
+                                loading={revokingWaiver === line.waiver.id}
+                                onClick={() => void handleRevokeWaiver(line.waiver!.id, container.container_number)}
+                              />
+                            ) : null}
+                          </span>
+                        )
                         : line.billedIn ? (
                           <span>
                             <Link className="app-link" to={demurrageInvoiceHref(line.billedIn.id)}>{line.billedIn.doc_number}</Link>{' '}

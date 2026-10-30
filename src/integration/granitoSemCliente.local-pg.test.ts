@@ -216,6 +216,7 @@ function cleanup329() {
     DELETE FROM public.granite_bls WHERE id = '${a329BlId}';
     DELETE FROM public.granite_manifests WHERE id = '${a329ManifestId}';
     DELETE FROM public.demurrage_rates WHERE notes LIKE 'A329%';
+    DELETE FROM public.demurrage_rate_groups WHERE code IN ('A329', 'A329I');
     DELETE FROM public.depots WHERE id = '${a329DepotId}';
     DELETE FROM public.audit_logs WHERE changed_by = '${adminId}' OR entity_id = '${a329DepotId}';
     DELETE FROM public.user_profiles WHERE id = '${adminId}';
@@ -224,9 +225,12 @@ function cleanup329() {
   `)
 }
 
-function demurrageRate(note: string, validFrom: string, active = true): string {
-  return psql(`INSERT INTO public.demurrage_rates (container_type, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, active, notes)
-    VALUES ('A329', 1, 5, 10, 6, 20, ${validFrom}, ${active}, '${note}') RETURNING id;`)
+// Tarifa é uma por grupo, sem vigências ativas sobrepostas (migration 513):
+// grupos só deste teste; a em vigor termina antes da futura começar.
+function demurrageRate(note: string, validFrom: string, active = true, validTo = 'NULL', group = 'A329'): string {
+  psql(`INSERT INTO public.demurrage_rate_groups (code, name) VALUES ('${group}', 'Teste ${group}') ON CONFLICT DO NOTHING;`)
+  return psql(`INSERT INTO public.demurrage_rates (container_type, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, valid_to, active, notes)
+    VALUES ('${group}', 1, 5, 10, 6, 20, ${validFrom}, ${validTo}, ${active}, '${note}') RETURNING id;`)
 }
 
 describeLocal('Granito sem tarifas nem cálculo no banco (migration 329)', () => {
@@ -274,14 +278,14 @@ describeLocal('Granito sem tarifas nem cálculo no banco (migration 329)', () =>
 
   it('a exclusão e a reativação de cadastro seguem valendo para os outros cadastros', () => {
     // Tarifa de Demurrage em vigor: a trava de tarifa usada continua.
-    const inForce = demurrageRate('A329 em vigor', 'CURRENT_DATE - 1')
+    const inForce = demurrageRate('A329 em vigor', 'CURRENT_DATE - 1', true, 'CURRENT_DATE + 29')
     expect(asAdmin(`SELECT public.delete_catalog_row('demurrage_rates', '${inForce}', 'Teste A329')`).stderr).toContain('já foi usada')
     // Tarifa futura: exclui com motivo.
     const future = demurrageRate('A329 futura', 'CURRENT_DATE + 30')
     expect(asAdmin(`SELECT public.delete_catalog_row('demurrage_rates', '${future}', 'Teste A329')`).stderr).toBe('')
     expect(psql(`SELECT count(*) FROM public.demurrage_rates WHERE id = ${future};`)).toBe('0')
     // Reativação de tarifa e de Local inativos.
-    const inactive = demurrageRate('A329 inativa', 'CURRENT_DATE - 1', false)
+    const inactive = demurrageRate('A329 inativa', 'CURRENT_DATE - 1', false, 'NULL', 'A329I')
     expect(asAdmin(`SELECT public.reactivate_catalog_row('demurrage_rates', '${inactive}', 'Volta A329')`).stderr).toBe('')
     expect(psql(`SELECT active FROM public.demurrage_rates WHERE id = ${inactive};`)).toBe('t')
     psql(`INSERT INTO public.depots (id, code, name, active) VALUES ('${a329DepotId}', 'A329', 'A329 Local', false);`)
