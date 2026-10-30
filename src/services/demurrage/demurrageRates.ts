@@ -47,8 +47,9 @@ function resolveActiveRateGroups(): RateGroup[] {
  * Uma tarifa por grupo (migration 514, ADR 0112 D28): a linha guarda o código
  * do grupo, e os tipos que o grupo cobre vêm do cadastro Tipos de container,
  * como no banco (`_demurrage_canonical_type`). Tipo inativo ou fora do cadastro
- * não acha grupo. As linhas chegam pela vigência mais recente: a primeira de
- * cada grupo vale, como em `_active_demurrage_rates`.
+ * não acha grupo, também o que tem o código de um grupo, como o 20GP (migration
+ * 546). As linhas chegam pela vigência mais recente: a primeira de cada grupo
+ * vale, como em `_active_demurrage_rates`.
  */
 function toRateGroups(rows: DemurrageRate[], types: ReadonlyArray<{ code: string; rate_group: string; active: boolean }>): RateGroup[] {
   const grouped = new Map<string, DemurrageRate>()
@@ -59,7 +60,7 @@ function toRateGroups(rows: DemurrageRate[], types: ReadonlyArray<{ code: string
 
   const groups: RateGroup[] = []
   for (const [group, row] of grouped) {
-    const aliases = new Set<string>([group])
+    const aliases = new Set<string>()
     for (const type of types) {
       if (type.active && normalizeContainerType(type.rate_group) === group) aliases.add(normalizeContainerType(type.code))
     }
@@ -168,8 +169,31 @@ export async function listDemurrageRates(): Promise<DemurrageRate[]> {
   return (data ?? []) as DemurrageRate[]
 }
 
+/**
+ * 23P01 de `demurrage_rates_one_per_group` (migration 514, ADR 0112 D28): o
+ * banco recusa a segunda tarifa ativa do grupo com vigência sobreposta. O texto
+ * do Postgres é técnico e em inglês; a tela recebe o caminho, como no acordo.
+ */
+function isRateGroupOverlap(error: unknown): boolean {
+  const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown }
+  return code === '23P01' || (typeof message === 'string' && message.includes('demurrage_rates_one_per_group'))
+}
+
+/** Nome do grupo de tarifa ("40' dry"); sem ele, o próprio código. */
+async function rateGroupLabel(code: string): Promise<string> {
+  const { data } = await supabase
+    .from('demurrage_rate_groups' as never)
+    .select('name')
+    .eq('code', code)
+    .maybeSingle()
+  return (data as { name?: string } | null)?.name?.trim() || code
+}
+
 export async function upsertDemurrageRate(rate: DemurrageRateUpsertInput) {
   const { error } = await supabase.from('demurrage_rates').upsert(buildDemurrageRateUpsertPayload(rate))
+  if (isRateGroupOverlap(error)) {
+    throw new Error(`Já existe tarifa vigente para o grupo ${await rateGroupLabel(rate.container_type)}: feche a vigência da atual antes.`)
+  }
   if (error) throw error
   invalidateDemurrageRatesCache()
 }
@@ -182,8 +206,16 @@ export async function deleteDemurrageRate(id: number, reason: string) {
 
 export async function toggleDemurrageRateActive(id: number, active: boolean, reason?: string) {
   // B13: reativar pede motivo e passa pela RPC do Administrativo (migration 261).
-  if (active) await reactivateCatalogRow('demurrage_rates', id, reason ?? '')
-  else {
+  if (active) {
+    try {
+      await reactivateCatalogRow('demurrage_rates', id, reason ?? '')
+    } catch (error) {
+      if (isRateGroupOverlap(error)) {
+        throw new Error('Já existe tarifa vigente para o mesmo grupo nesse período: feche a vigência da atual antes de reativar esta.', { cause: error })
+      }
+      throw error
+    }
+  } else {
     const { error } = await supabase.from('demurrage_rates').update({ active }).eq('id', id)
     if (error) throw error
   }

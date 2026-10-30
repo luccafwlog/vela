@@ -28,6 +28,18 @@
 > uma vez por Viagem no fim da transação, a tarifa deixou de depender do
 > cadastro de tipos, e o atalho do tipo sem tarifa segue a causa (**Cadastrar
 > tipo**, **Reativar tipo** ou **Cadastrar tarifa**, D4 e D27).
+>
+> Na revisão da release luccafwlog/vela#1117 (2026-10-30, migrations `546` e
+> `548`), sem regra nova, a implementação passou a cumprir o que estas decisões
+> já diziam: o tipo desativado cujo código é também o de um grupo (20GP, 40FR)
+> fica sem tarifa (o grupo vem só do cadastro ativo e a tarifa casa pelo código
+> do grupo; D4, D27 e D28); a Invoice cancelada à mão espera **Gerar Invoice**
+> também na troca de Cliente e na reemissão por datas de outra caixa do grupo, e
+> a já atendida pelo **Gerar Invoice** não segura mais o grupo (D10); o B/L
+> duplicado do mesmo Cliente com tipo sem tarifa se cancela sem dispensa (D7,
+> D26); desfazer a dispensa da caixa só de B/L cancelado é recusado (D7, D24);
+> reabrir a Disputa não abre o Alerta de prazo (D18); e o Alerta de Travado por
+> tarifa ou tipo é reconciliado no commit.
 
 Status: aceito — 2026-10-29 (decisões do dono, D1 a D21, em rodadas de perguntas
 sobre a [revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md),

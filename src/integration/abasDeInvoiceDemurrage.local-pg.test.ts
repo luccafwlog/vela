@@ -170,6 +170,10 @@ describeLocal('Meio de pagamento e destino das caixas da Demurrage (migration 51
       asAdmin(`SELECT public.confirm_demurrage_pix_matches(jsonb_build_array(jsonb_build_object(
         'invoice_id', ${ids.extrato}, 'paid_at', ${day(0)}, 'pix_txid', 'R519EXTRATO01', 'total_brl', ${brl(ids.extrato)})))`)
       expect(method(ids.extrato)).toBe('extrato')
+      // 548: a recusa da lista inválida chega à tela com acento.
+      const refused = run(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+        SET LOCAL request.jwt.claim.sub = '${adminId}'; SELECT public.confirm_demurrage_pix_matches('{}'::jsonb); ROLLBACK;`)
+      expect(refused.stderr).toContain('Lista de conciliação inválida.')
     })
 
     it('desconto integral é isenção', () => {

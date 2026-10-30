@@ -21,7 +21,8 @@ const vesselId = 99514004
 const CASES = ['inside', 'border', 'running', 'override', 'toIssue', 'noCe', 'portal', 'waiting', 'covered', 'cancelledInv',
   'soc', 'noCustomer', 'noRate', 'agreement', 'blCancelled', 'voyageCancelled', 'returnedFree',
   'autoIssue', 'autoFail', 'noRateFree', 'cancelledHeld', 'waiverMove', 'noRateCancel',
-  'waivedOutIssue', 'waivedOutCron', 'cancelledOther'] as const
+  'waivedOutIssue', 'waivedOutCron', 'cancelledOther',
+  'inactiveGroup', 'cancelledSwap', 'cancelledDates', 'dupNoRate', 'cancelledReplaced'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99514100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -234,6 +235,33 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
     bl('OTHB', 'cancelledOther', { customer: customerClosed }); box('OTHB', 'RQCU5140251', { discharge: 60 })
     // Cancelado (como no free time, sem a recusa da 517); outro Cliente segura a caixa (D22).
     psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = now() WHERE id = '${blPrefix}OTHA'`)
+    // 546 — tipo com código de grupo (20GP) desativado; Invoice cancelada à mão e a
+    // troca de Cliente; a mesma e a data de outra caixa do grupo; B/L duplicado com
+    // tipo sem tarifa; cancelada à mão que o Gerar Invoice já substituiu.
+    const issue = (id: string) => (JSON.parse(psql(`SET vela.demurrage_internal = 'on'; SELECT public.issue_demurrage_invoice_for_bl('${blPrefix}${id}')`)) as { status: string }).status
+    // Sem registro de cancelamento automático: conta como cancelada à mão (530).
+    const cancelByHand = (where: string) => psql(`SET session_replication_role = replica; UPDATE public.demurrage_invoices SET status = 'cancelled' WHERE ${where}`)
+    const lastInvoice = (id: string) => `(SELECT max(id) FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}${id}')`
+    bl('INACTGP', 'inactiveGroup'); box('INACTGP', 'RQCU5140261', { discharge: 40, returned: 5, type: '20GP' })
+    // Além do acordo de 40 dias do Cliente sem Portal, para quem o B/L passa.
+    bl('SWAP', 'cancelledSwap'); box('SWAP', 'RQCU5140271', { discharge: 60, returned: 5 })
+    expect(issue('SWAP')).toBe('issued')
+    cancelByHand(`bl_id = '${blPrefix}SWAP'`)
+    bl('DATES', 'cancelledDates'); box('DATES', 'RQCU5140281', { discharge: 40, returned: 5 })
+    expect(issue('DATES')).toBe('issued')
+    box('DATES', 'RQCU5140282', { discharge: 40, returned: 6 }) // chega depois: Invoice complementar
+    expect(issue('DATES')).toBe('issued')
+    cancelByHand(`id = ${lastInvoice('DATES')}`)
+    bl('DUPA', 'dupNoRate'); bl('DUPB', 'dupNoRate')
+    box('DUPA', 'RQCU5140291', { discharge: 5, type: 'R7ZY' }); box('DUPB', 'RQCU5140291', { discharge: 5, type: 'R7ZY' })
+    bl('REPL', 'cancelledReplaced'); box('REPL', 'RQCU5140301', { discharge: 40, returned: 5 })
+    expect(issue('REPL')).toBe('issued')
+    cancelByHand(`bl_id = '${blPrefix}REPL'`)
+    expect(issue('REPL')).toBe('issued') // Gerar Invoice
+    psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, justification)
+          SELECT 'demurrage_invoice', ${lastInvoice('REPL')}::text, 'status', 'issued', 'cancelled',
+                 'Datas de container alteradas: cancelada para reemissão automática.'`)
+    cancelByHand(`id = ${lastInvoice('REPL')}`)
   })
 
   afterAll(cleanup)
@@ -429,8 +457,10 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
         expect(cancelReasons('TOISSUE')).toEqual([])
         expect(board(voyageOf('toIssue'))).toEqual([])
         expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = '${blPrefix}TOISSUE' AND field_name = 'demurrage_dispensa'`)).toBe('1')
-        // A emissão não cobra a caixa dispensada.
-        expect((JSON.parse(psql(`SET vela.demurrage_internal = 'on'; SELECT public.issue_demurrage_invoice_for_bl('${blPrefix}TOISSUE')`)) as { status: string }).status).toBe('existing')
+        // A emissão não cobra a caixa dispensada; o grupo todo dispensado não
+        // é uma Invoice existente (548; antes, `existing` sem Invoice).
+        expect(JSON.parse(psql(`SET vela.demurrage_internal = 'on'; SELECT public.issue_demurrage_invoice_for_bl('${blPrefix}TOISSUE')`)))
+          .toMatchObject({ status: 'waived', anchor_bl_id: `${blPrefix}TOISSUE` })
         // Justificativa curta é recusada; a dispensa repetida também.
         expect(asAdmin(`SELECT public.revoke_demurrage_box_waiver(${waiverId}, 'curta')`).stderr).toMatch(/mínimo de 10 caracteres/)
         expect(asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}TOISSUE', 'RQCU5140041', 'Cliente isento por acordo comercial')`).stderr).toMatch(/já está numa Invoice de Demurrage ou com a cobrança dispensada/)
@@ -440,6 +470,28 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       }
       expect(board(voyageOf('toIssue'))[0]).toMatchObject({ division: 'a_emitir' })
       expect(cancelReasons('TOISSUE')).toEqual([expect.stringMatching(/^Demurrage a faturar/)])
+    })
+
+    it('desfazer a dispensa da caixa que só está em B/L cancelado é recusado; com B/L ativo do Cliente, aceito (548, D7)', () => {
+      const scenario = (sql: string) => run(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+        SET LOCAL request.jwt.claim.sub = '${adminId}'; ${sql}; ROLLBACK;`)
+      const revokeOf = (blId: string) => `SELECT public.revoke_demurrage_box_waiver(
+        (SELECT id FROM public.demurrage_box_waivers WHERE bl_id = '${blPrefix}${blId}' AND revoked_at IS NULL), 'Acordo comercial desfeito pelo Comercial')`
+      // Dispensa, cancela o B/L (aceito pela dispensa) e tenta desfazer: a
+      // caixa voltaria a ser cobrada num B/L cancelado, sem Invoice possível.
+      const refused = scenario(`
+        SELECT public.waive_demurrage_box('${blPrefix}TOISSUE', 'RQCU5140041', 'Cliente isento por acordo comercial');
+        SELECT public.cancel_bl('${blPrefix}TOISSUE', 'B/L duplicado pelo armador')->>'cancelled';
+        ${revokeOf('TOISSUE')}`)
+      expect(refused.status).not.toBe(0)
+      expect(refused.stdout, refused.stderr).toMatch(/^true$/m)
+      expect(refused.stderr).toContain(`O container RQCU5140041 só está no B/L ${blPrefix}TOISSUE cancelado. Reative o B/L antes de desfazer a dispensa.`)
+      // A caixa do B/L cancelado que um B/L ativo do mesmo Cliente tem: desfazer volta a cobrar pelo ativo.
+      const accepted = scenario(`
+        SELECT public.waive_demurrage_box('${blPrefix}HELDB', 'RQCU5140201', 'Container extraviado no terminal');
+        ${revokeOf('HELDB')}->>'revoked'`)
+      expect(accepted.status, accepted.stderr).toBe(0)
+      expect(accepted.stdout.trim().split('\n').at(-1)).toBe('true')
     })
 
     it('a caixa dispensada ainda fora não segura o grupo: Esperando vira A emitir', () => {
@@ -464,6 +516,14 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       expect(waived.status, waived.stderr).toBe(0)
       expect(cancelReasons('NOCUST')).toEqual([])
       expect(board(voyageOf('noCustomer'))).toEqual([])
+    })
+
+    it('B/L duplicado do mesmo Cliente com tipo sem tarifa se cancela sem dispensar a caixa do outro (546)', () => {
+      // A dispensa vale para a caixa do Cliente na Viagem: dispensar no duplicado
+      // tiraria a cobrança do B/L verdadeiro. O outro B/L ativo segura a caixa, como na 517.
+      expect(board(voyageOf('dupNoRate'))[0]).toMatchObject({ division: 'travado', reason_code: 'sem_tarifa' })
+      expect(cancelReasons('DUPB')).toEqual([])
+      expect(cancelReasons('NRCANC')).toEqual([expect.stringMatching(/^Demurrage travada/)])
     })
 
     it('a dispensa acompanha a troca de Cliente do B/L (530)', () => {
@@ -629,6 +689,94 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       ROLLBACK;`)
     expect(result.status, result.stderr).toBe(0)
     expect(result.stdout.split('\n').filter((line) => line.startsWith('calls|'))).toEqual(['calls|0', 'calls|1'])
+  })
+
+  describe('revisão da release (migration 546)', () => {
+    const lines = (stdout: string) => stdout.trim().split('\n').filter(Boolean)
+
+    it('tipo com código de grupo desativado também fica sem tarifa: Travado e a emissão recusa', () => {
+      expect(board(voyageOf('inactiveGroup'))[0]).toMatchObject({ division: 'a_emitir' })
+      const result = run(`
+        BEGIN;
+        UPDATE public.container_types SET active = false WHERE code = '20GP';
+        SELECT public._demurrage_billing_board_core(NULL, ${voyageOf('inactiveGroup')});
+        SET LOCAL vela.demurrage_internal = 'on';
+        SELECT public.issue_demurrage_invoice_for_bl('${blPrefix}INACTGP');
+        ROLLBACK;`)
+      const [group] = JSON.parse(lines(result.stdout)[0] ?? '[]') as Group[]
+      expect(group).toMatchObject({ division: 'travado', reason_code: 'sem_tarifa', no_rate_kind: 'tipo_inativo' })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toMatch(/Dados insuficientes ou tarifa inválida/)
+    })
+
+    it('Invoice cancelada à mão: a troca de Cliente do B/L não emite a nova sozinha (D10)', () => {
+      expect(board(voyageOf('cancelledSwap'))[0]).toMatchObject({ division: 'a_emitir', cancelled_doc: expect.stringMatching(/^DEM-/) })
+      const result = run(`
+        BEGIN;
+        INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+        VALUES (${customerClosed}, 'Fixture 546: gate aberto na troca de Cliente', '${adminId}', now() + interval '1 day');
+        SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+        SET LOCAL request.jwt.claim.sub = '${adminId}';
+        UPDATE public.bls SET customer_id = ${customerClosed} WHERE id = '${blPrefix}SWAP';
+        RESET ROLE;
+        SELECT COALESCE(public._demurrage_billing_board_core(${customerClosed}, ${voyageOf('cancelledSwap')})->0->>'cancelled_doc', '(nenhuma)');
+        SELECT public._run_import_effect_demurrage(NULL, '${blPrefix}SWAP', '${adminId}')->>'status';
+        ROLLBACK;`)
+      expect(result.status, result.stderr).toBe(0)
+      const [cancelledDoc, status] = lines(result.stdout)
+      expect(cancelledDoc).toMatch(/^DEM-/)
+      expect(status).toBe('awaiting_manual_issue')
+    })
+
+    it('a reemissão pela data de outra caixa do grupo não recobra a caixa cancelada à mão (D10)', () => {
+      expect(board(voyageOf('cancelledDates'))[0]).toMatchObject({ division: 'a_emitir', cancelled_doc: expect.stringMatching(/^DEM-/) })
+      const firstInvoice = psql(`SELECT min(id) FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}DATES'`)
+      const result = run(`
+        BEGIN;
+        SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+        SET LOCAL request.jwt.claim.sub = '${adminId}';
+        SELECT public.set_container_dates((SELECT id FROM public.bl_containers WHERE container_number = 'RQCU5140281'),
+          ${day(-40)}, ${day(-4)}, 'Correção do EIR do container', false)->'demurrage'->'demurrage_invoices'->0->'reissue'->>'status';
+        RESET ROLE;
+        SELECT count(*) FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}DATES' AND status IN ('issued', 'overdue', 'paid');
+        SELECT i.message FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+         WHERE i.item_type = 'demurrage_invoice_dates_changed' AND a.entity_type = 'demurrage_invoice' AND a.entity_id = '${firstInvoice}';
+        ROLLBACK;`)
+      expect(result.status, result.stderr).toBe(0)
+      const [reissue, live, message] = lines(result.stdout)
+      expect(reissue).toBe('awaiting_manual_issue')
+      expect(live).toBe('0')
+      // O Alerta é da Invoice cancelada pelas datas (caixa 281); a 282 segue na cancelada à mão.
+      expect(message).toMatch(/não cobrou o\(s\) container\(s\) RQCU5140281: a Invoice DEM-\S+ foi cancelada à mão e o grupo espera o Gerar Invoice/)
+    })
+
+    it('a cancelada à mão que o Gerar Invoice já substituiu não segura a reemissão automática', () => {
+      expect(board(voyageOf('cancelledReplaced'))[0]).toMatchObject({ division: 'a_emitir', cancelled_doc: null })
+    })
+
+    it('o executor da fila recusa B/L inexistente com o texto acentuado', () => {
+      expect(run(`SELECT public._run_import_effect_demurrage(NULL, 'R546-INEXISTENTE', NULL)`).stderr)
+        .toMatch(/B\/L R546-INEXISTENTE não encontrado/)
+    })
+
+    it('mudar tarifa ou tipo reconcilia o Alerta de Travado uma vez, no fim da transação', () => {
+      const calls = `SELECT 'calls', COALESCE((SELECT calls FROM pg_stat_xact_user_functions WHERE funcname = 'reconcile_demurrage_travado_alerts'), 0);`
+      const result = run(`
+        BEGIN;
+        SET LOCAL track_functions = 'all';
+        ${calls}
+        UPDATE public.container_types SET description = description WHERE code = '40HC';
+        UPDATE public.demurrage_rates SET free_days = free_days WHERE container_type = '40GP' AND active;
+        ${calls}
+        SET CONSTRAINTS ALL IMMEDIATE;
+        ${calls}
+        ROLLBACK;`)
+      expect(result.status, result.stderr).toBe(0)
+      // A conexão reaproveitada (localPsql) pode trazer contagem pendente de antes: compara a diferença.
+      const [before, afterUpdates, atCommit] = result.stdout.split('\n').filter((line) => line.startsWith('calls|'))
+        .map((line) => Number(line.split('|')[1]))
+      expect([afterUpdates - before, atCommit - afterUpdates]).toEqual([0, 1])
+    })
   })
 
   it('usuário fora do Vela não lê a classificação', () => {
