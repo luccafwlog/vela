@@ -803,8 +803,11 @@ Upstash cair, o login continua funcionando com a trava do Supabase.
 Detalhes: [portal-rate-limit.md](portal-rate-limit.md).
 
 O mesmo database guarda, desde a ADR 0112, os contadores e o cache dos
-widgets públicos do fwlog.com.br (chaves `vela:portal-rate:public_*` e
-`vela:public-cache:schedule:v1:*`). Para eles o Upstash é a **única** trava e é
+widgets públicos do fwlog.com.br (chaves `vela:portal-rate:public_*`,
+`vela:public-rate:<projeto>:*` e `vela:public-cache:<projeto>:schedule:v1:*`).
+`<projeto>` é o host do projeto Supabase da Edge, e o mesmo host entra no HMAC
+dos contadores por IP: staging e produção podem dividir o database sem dividir
+cache, contadores nem disjuntor. Para eles o Upstash é a **única** trava e é
 fail-closed: se cair, o quadro e a consulta públicos ficam indisponíveis (503),
 o login do Portal não.
 

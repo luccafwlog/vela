@@ -158,7 +158,21 @@ export async function verifyPublicTurnstile(req: Request, token: unknown, action
 
 // --- Upstash ---------------------------------------------------------------
 
-type UpstashConfig = { url: string; token: string; hmacSecret: string }
+type UpstashConfig = { url: string; token: string; hmacSecret: string; scope: string }
+
+/**
+ * Projeto Supabase das chaves no Redis: staging e produção podem usar o mesmo
+ * database Upstash (portal-rate-limit.md), e sem o projeto na chave o cache do
+ * quadro de um serviria o outro (achado da revisão da PR #1119). O host do
+ * projeto não é segredo.
+ */
+export function publicKeyScope(supabaseUrl: string | undefined): string {
+  try {
+    return new URL(supabaseUrl ?? '').hostname.toLowerCase().replace(/[^a-z0-9.-]/g, '') || 'sem-projeto'
+  } catch {
+    return 'sem-projeto'
+  }
+}
 
 function upstashConfig(env: PublicFwlogDeps['env']): UpstashConfig | null {
   const url = env('UPSTASH_REDIS_REST_URL')?.trim().replace(/\/+$/, '')
@@ -166,7 +180,7 @@ function upstashConfig(env: PublicFwlogDeps['env']): UpstashConfig | null {
   const hmacSecret = env('PORTAL_RATE_LIMIT_HMAC_SECRET')?.trim()
   // `PORTAL_RATE_LIMIT_ENABLED=false` não desliga a trava pública: sem ela
   // não há widget.
-  return url && token && hmacSecret ? { url, token, hmacSecret } : null
+  return url && token && hmacSecret ? { url, token, hmacSecret, scope: publicKeyScope(env('SUPABASE_URL')) } : null
 }
 
 class UpstashUnavailable extends Error {}
@@ -206,7 +220,8 @@ function counterValue(value: unknown): number {
 }
 
 async function ipKey(config: UpstashConfig, action: RateLimitAction, ip: string): Promise<string> {
-  return buildRateLimitKey(config.hmacSecret, { action, ip })
+  // O projeto entra no valor do HMAC: contadores de staging e produção separados.
+  return buildRateLimitKey(config.hmacSecret, { action, ip: `${config.scope}|${ip}` })
 }
 
 /** Prefixo do HMAC do IP para log: correlaciona pedidos sem guardar o IP. */
@@ -216,9 +231,9 @@ async function ipTag(config: UpstashConfig | null, ip: string): Promise<string> 
   return key.split(':')[3]?.slice(0, 12) ?? 'sem-hmac'
 }
 
-function globalMissKey(now: number): string {
+export function globalMissKey(scope: string, now: number): string {
   const hour = new Date(now).toISOString().slice(0, 13).replace(/[-T]/g, '')
-  return `vela:public-rate:public_lookup_miss_global:${hour}`
+  return `vela:public-rate:${scope}:public_lookup_miss_global:${hour}`
 }
 
 // --- Pedido comum ----------------------------------------------------------
@@ -316,9 +331,10 @@ export function projectPublicSchedule(rows: unknown, updatedAt: string): PublicS
   return { voyages: [...byKey.values()], updated_at: updatedAt }
 }
 
-const SCHEDULE_FRESH_KEY = 'vela:public-cache:schedule:v1:fresh'
-const SCHEDULE_STALE_KEY = 'vela:public-cache:schedule:v1:stale'
-const SCHEDULE_LOCK_KEY = 'vela:public-cache:schedule:v1:lock'
+/** Chaves do cache do quadro, por projeto Supabase. */
+export function scheduleCacheKey(scope: string, part: 'fresh' | 'stale' | 'lock'): string {
+  return `vela:public-cache:${scope}:schedule:v1:${part}`
+}
 
 export async function handlePublicSchedule(req: Request, deps: PublicFwlogDeps): Promise<Response> {
   const event = 'public_schedule'
@@ -340,7 +356,7 @@ export async function handlePublicSchedule(req: Request, deps: PublicFwlogDeps):
       return json(403, REFUSAL.challenge, cors)
     }
 
-    const [fresh] = await upstash(config, deps, [['GET', SCHEDULE_FRESH_KEY]])
+    const [fresh] = await upstash(config, deps, [['GET', scheduleCacheKey(config.scope, 'fresh')]])
     if (typeof fresh === 'string') {
       deps.log(event, { outcome: 'served', source: 'cache' })
       return json(200, JSON.parse(fresh), cors)
@@ -348,7 +364,7 @@ export async function handlePublicSchedule(req: Request, deps: PublicFwlogDeps):
 
     // Só quem pega a trava lê o banco; a trava vive o mesmo tempo do cache,
     // então o banco é lido no máximo uma vez por janela, com sucesso ou não.
-    const [lock] = await upstash(config, deps, [['SET', SCHEDULE_LOCK_KEY, '1', 'NX', 'EX', String(SCHEDULE_CACHE_SECONDS)]])
+    const [lock] = await upstash(config, deps, [['SET', scheduleCacheKey(config.scope, 'lock'), '1', 'NX', 'EX', String(SCHEDULE_CACHE_SECONDS)]])
     if (lock === 'OK') {
       const { data, error } = await deps.rpc('public_ship_schedule')
       if (error) {
@@ -357,8 +373,8 @@ export async function handlePublicSchedule(req: Request, deps: PublicFwlogDeps):
       }
       const payload = JSON.stringify(projectPublicSchedule(data, new Date(deps.now()).toISOString()))
       await upstash(config, deps, [
-        ['SET', SCHEDULE_FRESH_KEY, payload, 'EX', String(SCHEDULE_CACHE_SECONDS)],
-        ['SET', SCHEDULE_STALE_KEY, payload, 'EX', String(SCHEDULE_STALE_SECONDS)],
+        ['SET', scheduleCacheKey(config.scope, 'fresh'), payload, 'EX', String(SCHEDULE_CACHE_SECONDS)],
+        ['SET', scheduleCacheKey(config.scope, 'stale'), payload, 'EX', String(SCHEDULE_STALE_SECONDS)],
       ])
       deps.log(event, { outcome: 'served', source: 'database' })
       return json(200, JSON.parse(payload), cors)
@@ -368,7 +384,7 @@ export async function handlePublicSchedule(req: Request, deps: PublicFwlogDeps):
     // devolve a cópia anterior.
     for (let attempt = 0; attempt < 3; attempt++) {
       await deps.sleep(300)
-      const [again] = await upstash(config, deps, [['GET', SCHEDULE_FRESH_KEY]])
+      const [again] = await upstash(config, deps, [['GET', scheduleCacheKey(config.scope, 'fresh')]])
       if (typeof again === 'string') {
         deps.log(event, { outcome: 'served', source: 'cache' })
         return json(200, JSON.parse(again), cors)
@@ -382,7 +398,7 @@ export async function handlePublicSchedule(req: Request, deps: PublicFwlogDeps):
 }
 
 async function serveStaleOr503(config: UpstashConfig, deps: PublicFwlogDeps, cors: Record<string, string>, event: string): Promise<Response> {
-  const [stale] = await upstash(config, deps, [['GET', SCHEDULE_STALE_KEY]])
+  const [stale] = await upstash(config, deps, [['GET', scheduleCacheKey(config.scope, 'stale')]])
   if (typeof stale === 'string') {
     deps.log(event, { outcome: 'served', source: 'stale' })
     return json(200, JSON.parse(stale), cors)
@@ -475,7 +491,7 @@ export async function handlePublicContainerLookup(req: Request, deps: PublicFwlo
       ['EVAL', INCREMENT_SCRIPT, '1', await ipKey(config, 'public_lookup', ip), String(LOOKUP_IP_WINDOW_SECONDS)],
       ['EVAL', INCREMENT_SCRIPT, '1', await ipKey(config, 'public_lookup_day', ip), String(LOOKUP_IP_DAILY_WINDOW_SECONDS)],
       ['EVAL', CHECK_SCRIPT, '1', await ipKey(config, 'public_lookup_miss', ip)],
-      ['EVAL', CHECK_SCRIPT, '1', globalMissKey(now)],
+      ['EVAL', CHECK_SCRIPT, '1', globalMissKey(config.scope, now)],
     ])
     if (counterValue(globalMisses) >= LOOKUP_MISS_GLOBAL_HOURLY_LIMIT) {
       deps.log(event, { outcome: 'breaker_open' })
@@ -508,7 +524,7 @@ export async function handlePublicContainerLookup(req: Request, deps: PublicFwlo
       // atendido ou SOC: a mesma resposta, o mesmo status e o mesmo tempo.
       await upstash(config, deps, [
         ['EVAL', INCREMENT_SCRIPT, '1', await ipKey(config, 'public_lookup_miss', ip), String(LOOKUP_MISS_IP_WINDOW_SECONDS)],
-        ['EVAL', INCREMENT_SCRIPT, '1', globalMissKey(now), '3600'],
+        ['EVAL', INCREMENT_SCRIPT, '1', globalMissKey(config.scope, now), '3600'],
       ])
       await padResponseTime(deps, now)
       deps.log(event, { outcome: 'not_found', ip: await ipTag(config, ip) })

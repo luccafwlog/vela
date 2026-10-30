@@ -11,6 +11,8 @@ import {
   LOOKUP_MISS_GLOBAL_HOURLY_LIMIT,
   LOOKUP_MISS_IP_LIMIT,
   SCHEDULE_IP_LIMIT,
+  globalMissKey,
+  scheduleCacheKey,
   handlePublicContainerLookup,
   handlePublicSchedule,
   normalizePublicContainerNumber,
@@ -45,6 +47,7 @@ function harness(options: {
   upstashDown?: boolean
   rows?: unknown
   rpcError?: boolean
+  store?: Map<string, string>
 } = {}) {
   const env: Record<string, string | undefined> = {
     PUBLIC_FWLOG_ALLOWED_ORIGINS: ORIGIN,
@@ -56,7 +59,7 @@ function harness(options: {
     SUPABASE_URL: 'https://projeto.supabase.co',
     ...options.env,
   }
-  const store = new Map<string, string>()
+  const store = options.store ?? new Map<string, string>()
   const rpcCalls: Array<{ fn: string; args?: Record<string, unknown> }> = []
   const logs: string[] = []
   const siteverify: unknown[] = []
@@ -181,11 +184,25 @@ Deno.test('quadro: o banco é lido uma vez por janela, qualquer que seja o tráf
   assertEquals(h.rpcCalls.length, 1)
 })
 
+Deno.test('quadro: staging e produção no mesmo Upstash não dividem cache nem disjuntor', async () => {
+  const shared = new Map<string, string>()
+  const staging = harness({ store: shared, rows: [{ ...SCHEDULE_ROWS[0], vessel_name: 'NAVIO DE TESTE' }], env: { SUPABASE_URL: 'https://staging.supabase.co' } })
+  const production = harness({ store: shared, rows: SCHEDULE_ROWS })
+  await handlePublicSchedule(request({ turnstile_token: 'schedule' }), staging.deps)
+  const response = await handlePublicSchedule(request({ turnstile_token: 'schedule' }), production.deps)
+  assertEquals(production.rpcCalls.length, 1)
+  assert(!JSON.stringify(await body(response)).includes('NAVIO DE TESTE'), 'produção recebeu o cache do staging')
+
+  shared.set(globalMissKey('staging.supabase.co', production.clock), String(LOOKUP_MISS_GLOBAL_HOURLY_LIMIT))
+  const lookup = harness({ store: shared, rows: [FOUND_ROW] })
+  assertEquals((await handlePublicContainerLookup(request({ turnstile_token: 'lookup', container_number: FOUND }), lookup.deps)).status, 200)
+})
+
 Deno.test('quadro: outra instância com a trava e sem cache serve a cópia anterior; sem ela, 503', async () => {
   const h = harness({ rows: SCHEDULE_ROWS })
-  h.store.set('vela:public-cache:schedule:v1:lock', '1')
+  h.store.set(scheduleCacheKey('projeto.supabase.co', 'lock'), '1')
   assertEquals((await handlePublicSchedule(request({ turnstile_token: 'schedule' }), h.deps)).status, 503)
-  h.store.set('vela:public-cache:schedule:v1:stale', JSON.stringify({ voyages: [], updated_at: 'x' }))
+  h.store.set(scheduleCacheKey('projeto.supabase.co', 'stale'), JSON.stringify({ voyages: [], updated_at: 'x' }))
   assertEquals((await handlePublicSchedule(request({ turnstile_token: 'schedule' }, { ip: '198.51.100.9' }), h.deps)).status, 200)
   assertEquals(h.rpcCalls.length, 0)
 })
@@ -309,8 +326,7 @@ Deno.test('busca: limite por IP, teto de "não encontrado" por IP e disjuntor gl
   assertEquals((await handlePublicContainerLookup(request({ turnstile_token: 'lookup', container_number: FOUND }), misses.deps)).status, 429)
 
   const breaker = harness({ rows: [] })
-  const hour = new Date(breaker.clock).toISOString().slice(0, 13).replace(/[-T]/g, '')
-  breaker.store.set(`vela:public-rate:public_lookup_miss_global:${hour}`, String(LOOKUP_MISS_GLOBAL_HOURLY_LIMIT))
+  breaker.store.set(globalMissKey('projeto.supabase.co', breaker.clock), String(LOOKUP_MISS_GLOBAL_HOURLY_LIMIT))
   const response = await handlePublicContainerLookup(request({ turnstile_token: 'lookup', container_number: FOUND }, { ip: '192.0.2.1' }), breaker.deps)
   assertEquals(response.status, 503)
   assertEquals(breaker.rpcCalls.length, 0)
