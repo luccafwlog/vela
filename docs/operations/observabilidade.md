@@ -185,7 +185,9 @@ correção, toda rodada boa respondia 500 sem log nem evento
 Cada falha da rotina vira uma linha JSON no log da função, com `function`,
 `step` (`charges`, `receipts` ou, quando a chamada inteira falha, a ação pedida:
 `routine` no job, `process_charges` no disparo da fila ou a de diagnóstico) e
-`error`.
+`error`. Quando a manutenção dos prazos (`itau_pix_maintain`) falha, sai antes
+uma linha `maintenance` com a mensagem do banco em `error` e o código em
+`detail.code`; a resposta 500 continua com a mensagem genérica.
 As falhas que a rotina absorve sem mudar o status vão direto por
 `captureEdgeException`, um issue por etapa: `runner_release` (devolução da vez),
 `charges_renew` (renovação da vez) e `charges_release` (liberação das reservas

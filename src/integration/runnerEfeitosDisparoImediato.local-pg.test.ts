@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
@@ -9,6 +10,7 @@ import { describeWithProbe } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
+const MIGRATION_514 = readFileSync(new URL('../../supabase/migrations/514_runners_ausentes_na_branch_staging.sql', import.meta.url), 'utf8')
 
 function psql(sql: string) {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl], {
@@ -149,6 +151,30 @@ describeLocal('218 — runner de efeitos disparado pela importação', () => {
     expect(job).toBe(
       "* * * * *|true|SELECT ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET');",
     )
+  })
+
+  // Migration 514: a branch staging nasceu sem os dois jobs (a 107 rodou antes
+  // do dispatcher existir ali). A 514 os agenda onde faltam e não mexe no que
+  // já existe.
+  it('514 agenda os runners ausentes e preserva o job que já existe', () => {
+    const out = psql(`
+      BEGIN;
+      SELECT cron.unschedule('import-effects-runner');
+      SELECT cron.alter_job(jobid, schedule := '5 5 * * *', active := false)
+        FROM cron.job WHERE jobname = 'portal-email-events-runner';
+      CREATE TEMP TABLE a514_antes AS
+        SELECT jobid FROM cron.job WHERE jobname = 'portal-email-events-runner';
+      ${MIGRATION_514}
+      SELECT string_agg(jobname || '|' || schedule || '|' || active || '|' || command
+               || '|' || (jobid IN (SELECT jobid FROM pg_temp.a514_antes)), E'\\n' ORDER BY jobname)
+        FROM cron.job WHERE jobname IN ('import-effects-runner', 'portal-email-events-runner');
+      ROLLBACK;
+    `)
+    expect(out.split('\n').slice(-2)).toEqual([
+      "import-effects-runner|* * * * *|true|SELECT ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET');|false",
+      'portal-email-events-runner|5 5 * * *|false|'
+        + "SELECT ops.dispatch_edge_job('portal-email-events-runner', 'PORTAL_EMAIL_EVENTS_CRON_SECRET');|true",
+    ])
   })
 
   it('quem importa não alcança o dispatcher diretamente', () => {

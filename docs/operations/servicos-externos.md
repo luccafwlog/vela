@@ -241,6 +241,19 @@ foram reparadas com `supabase/scripts/reparo_schema_migrations_007_135.sql`
 (backup em `supabase_migrations.schema_migrations_bkp_007_135`), para branches
 novas não falharem na `165`.
 
+Conferência de 2026-10-30 (leitura de `vault.secrets` e `cron.job` da branch):
+o Vault tem, desde 2026-10-26, os nomes da tabela de
+[segredos-cron](segredos-cron.md#onde-os-valores-moram-hoje), com
+`ITAU_PIX_CRON_SECRET` e sem `ITAU_PIX_ADMIN_SECRET`. Jobs `alerts-foundation-detectors`,
+`customer-communication-auto-runner`, `demurrage-dunning` e
+`portal-daily-digest` existem e estão inativos; `ce-unlock-cleanup` e
+`ce-unlock-notify-email` não estão agendados; `import-effects-runner` e
+`portal-email-events-runner` faltavam porque a branch nasceu antes do reparo da
+`007` e são agendados pela migration `514`. Os valores dos Edge Function Secrets
+da branch, inclusive `IMPORT_EFFECTS_RUNNER_ENABLED`, não foram conferidos: sem
+`true`, o `import-effects-runner` responde `200 paused` e a fila de efeitos não
+anda.
+
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
   O environment GitHub `supabase-branches` guarda, além de
