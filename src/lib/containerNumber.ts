@@ -59,3 +59,17 @@ export function isValidIsoContainerNumber(value: string | null | undefined): boo
   const expected = computeIsoContainerCheckDigit(normalized.slice(0, 10))
   return expected !== null && expected === Number(normalized[10])
 }
+
+/**
+ * Número digitado na consulta pública de container (ADR 0112): tira espaço,
+ * hífen e outros símbolos, põe em maiúsculas e exige o formato ISO 6346 de
+ * contêiner de carga (categoria U, J ou Z) com o dígito verificador. `null`
+ * para o resto. O servidor repete a conferência
+ * (`public._iso6346_check_digit_valid`, migration 514); aqui é só para avisar
+ * o erro de digitação antes de gastar uma consulta.
+ */
+export function parsePublicContainerNumber(value: string | null | undefined): string | null {
+  const normalized = String(value ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+  if (!/^[A-Z]{3}[UJZ]\d{7}$/.test(normalized)) return null
+  return computeIsoContainerCheckDigit(normalized.slice(0, 10)) === Number(normalized[10]) ? normalized : null
+}

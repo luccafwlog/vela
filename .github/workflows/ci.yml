@@ -120,6 +120,25 @@ jobs:
           npx --yes deno@2.9.6 check $deno_flags --cached-only $files
           npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net supabase/functions/itau-pix/index.test.ts
 
+      - name: Public fwlog Edge Functions type check and contract
+        # ADR 0112: quadro e consulta de container públicos. O teste roda os
+        # handlers contra Turnstile, Upstash e banco falsos (sem rede) e falha
+        # se a resposta ganhar chave fora da lista positiva. Mesmo manifesto,
+        # lock e download com nova tentativa dos passos anteriores.
+        env:
+          DENO_NO_PACKAGE_JSON: "1"
+        run: |
+          deno_flags="--config supabase/functions/deno.json --frozen"
+          files="supabase/functions/public-ship-schedule/index.ts supabase/functions/public-container-lookup/index.ts supabase/functions/_shared/publicFwlog.test.ts"
+          for attempt in 1 2 3; do
+            npx --yes deno@2.9.6 cache $deno_flags $files && break
+            [ "$attempt" = 3 ] && exit 1
+            echo "Download das dependências falhou ($attempt/3); nova tentativa em 10 s."
+            sleep 10
+          done
+          npx --yes deno@2.9.6 check $deno_flags --cached-only $files
+          npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net supabase/functions/_shared/publicFwlog.test.ts
+
       - name: Squash generator self-check
         run: node scripts/build-squash-migrations.mjs --self-check
 

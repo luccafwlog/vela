@@ -9,7 +9,12 @@ it('portal_ship_schedule devolve POD omitido marcado e continua ocultando POD de
     .filter((f) => f.endsWith('.sql'))
     .map((f) => fs.readFileSync(path.join(dir, f), 'utf8'))
     .join('\n')
-  const lastDef = sql.slice(sql.lastIndexOf('CREATE OR REPLACE FUNCTION public.portal_ship_schedule'))
+  // Desde a migration 514 (ADR 0112) o corpo mora em `_ship_schedule_core()`,
+  // lido também pelo quadro público; `portal_ship_schedule()` só guarda o chamador.
+  const portalDef = sql.slice(sql.lastIndexOf('CREATE OR REPLACE FUNCTION public.portal_ship_schedule'))
+  expect(portalDef).toMatch(/RETURN QUERY SELECT \* FROM public\._ship_schedule_core\(\)/)
+  const coreStart = sql.lastIndexOf('CREATE OR REPLACE FUNCTION public._ship_schedule_core')
+  const lastDef = sql.slice(coreStart, sql.indexOf('$function$;', coreStart))
   expect(lastDef).toMatch(/omitted_pods/i)
   expect(lastDef).toMatch(/field_name\s*=\s*'omitted'/i)
   expect(lastDef).toMatch(/omitted\s+boolean/i)

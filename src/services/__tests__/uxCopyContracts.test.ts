@@ -3,7 +3,8 @@ import { resolve } from 'node:path'
 import { expect, it } from 'vitest'
 
 it('does not promise unsupported schedule confirmation or update times', () => {
-  const source = readFileSync(resolve(process.cwd(), 'src/components/portal/ShipScheduleWidget.tsx'), 'utf8')
+  // A parte visual do quadro mora em ShipScheduleView desde a ADR 0112.
+  const source = readFileSync(resolve(process.cwd(), 'src/components/portal/ShipScheduleView.tsx'), 'utf8')
   expect(source).not.toContain('Evento confirmado')
   expect(source).not.toContain('Atualização diária às 09:00')
   // A data efetiva é a registrada (ATD/ATA), não "a data alcançada": a

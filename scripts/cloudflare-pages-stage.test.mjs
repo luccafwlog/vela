@@ -63,7 +63,23 @@ test('stages separate internal and Portal Pages sites with SPA routing and secur
     const portalRedirects = await readFile(path.join(portalOutput, '_redirects'), 'utf8')
     assert.match(portalRedirects, /^\/\s+\/portal\s+302/m)
     assert.match(portalRedirects, /^\/\*\s+\/index\.html\s+200/m)
-    assert.deepEqual((await readdir(portalOutput)).sort(), ['_headers', '_redirects', 'assets', 'branding', 'favicon.svg', 'fonts', 'index.html', 'templates'])
+    assert.deepEqual((await readdir(portalOutput)).sort(), ['_headers', '_redirects', 'assets', 'branding', 'favicon.svg', 'fonts', 'index.html', 'public-embed-headers.json', 'templates'])
+
+    // ADR 0112: o `_headers` dos dois sites nega iframe em toda rota; só o
+    // arquivo da Function de /portal/publico/* libera, e só para o fwlog.com.br.
+    const portalHeaders = await readFile(path.join(portalOutput, '_headers'), 'utf8')
+    for (const file of [headers, portalHeaders]) {
+      assert.equal((file.match(/frame-ancestors/g) ?? []).length, 1)
+      assert.match(file, /frame-ancestors 'none'; /)
+      assert.match(file, /^\/\*\n(?:  .*\n)*  X-Frame-Options: DENY/m)
+      assert.ok(!file.includes('fwlog.com.br'))
+      assert.ok(!file.includes('! X-Frame-Options'))
+    }
+    const embed = JSON.parse(await readFile(path.join(portalOutput, 'public-embed-headers.json'), 'utf8'))
+    assert.equal(embed['X-Frame-Options'], undefined)
+    assert.match(embed['Content-Security-Policy'], /frame-ancestors https:\/\/fwlog\.com\.br https:\/\/www\.fwlog\.com\.br; /)
+    assert.ok(embed['Content-Security-Policy'].includes("connect-src 'self' https://abcdefgh.supabase.co "))
+    assert.ok(!(await readdir(internalOutput)).includes('public-embed-headers.json'))
   } finally {
     await rm(root, { recursive: true, force: true })
   }

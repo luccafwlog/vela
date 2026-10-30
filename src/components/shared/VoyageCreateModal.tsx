@@ -249,8 +249,8 @@ export function VoyageCreateModal({
           </Switch>
           <div className="app-panel__meta">
             {showOnPortal
-              ? 'A viagem fica na programação de Chegadas e Saídas e do Portal até o último ATD. Desligue para tirá-la antes.'
-              : 'Ligada, a viagem entra na programação de Chegadas e Saídas e do Portal; as datas são as das escalas.'}
+              ? 'A viagem fica na programação de Chegadas e Saídas, do Portal e do site fwlog.com.br (aberto, sem login) até o último ATD. Desligue para tirá-la antes.'
+              : 'Ligada, a viagem entra na programação de Chegadas e Saídas, do Portal e do site fwlog.com.br (aberto, sem login); as datas são as das escalas.'}
           </div>
         </div>
 

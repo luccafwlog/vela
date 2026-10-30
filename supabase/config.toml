@@ -50,6 +50,14 @@ import_map = "./functions/deno.json"
 [functions.portal-login]
 verify_jwt = false
 
+# Widgets públicos do fwlog.com.br (ADR 0112): sem sessão; Turnstile próprio
+# e limite no Upstash, fail-closed, em _shared/publicFwlog.ts.
+[functions.public-ship-schedule]
+verify_jwt = false
+
+[functions.public-container-lookup]
+verify_jwt = false
+
 [functions.portal-password-recovery]
 verify_jwt = false
 import_map = "./functions/deno.json"
