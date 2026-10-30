@@ -5,6 +5,7 @@ import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
 import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { Button } from '../components/ui/Button'
 import { InlineError } from '../components/ui/Card'
+import { CopyValue } from '../components/ui/CopyValue'
 import { IdentityBand } from '../components/ui/IdentityBand'
 import { NoValue } from '../components/ui/NoValue'
 import { RowActionLink } from '../components/ui/RowActionLink'
@@ -164,7 +165,7 @@ export function ClientesComunicacaoViagem() {
           row={row}
           escala={escalaForPort(detail.escalas, row.port)}
           now={now}
-          disparoHref={canSend ? disparoHref(row.port) : null}
+          disparoHref={canSend && row.customers > 0 ? disparoHref(row.port) : null}
         />
       ))}
 
@@ -258,9 +259,13 @@ function UnlinkedBlock({ voyageId, bls, consigneesCount, consignees }: {
             {consignees.map((consignee) => (
               <tr key={`${consignee.port ?? ''}:${consignee.key}`}>
                 <th scope="row" className="app-table__text">{consignee.name ?? <NoValue label="Sem nome no manifesto" />}</th>
-                <td className="font-mono">{consignee.document ? formatCnpjCpf(consignee.document) : <NoValue label="Sem CNPJ no manifesto" />}</td>
+                <td className="font-mono">{consignee.document ? <CopyValue value={formatCnpjCpf(consignee.document)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ no manifesto" />}</td>
                 <td>{consignee.port ?? <NoValue label="Sem porto" />}</td>
-                <td className="app-table__text app-table__text--wrap font-mono text-xs">{consignee.blIds.join(', ')}</td>
+                <td className="app-table__text app-table__text--wrap font-mono text-xs">
+                  {consignee.blIds.map((blId, index) => (
+                    <span key={blId}>{index ? ', ' : null}<CopyValue value={blId} label="número do B/L" /></span>
+                  ))}
+                </td>
                 <td>
                   <RowActionLink
                     label={`Vincular na Revisão: ${consignee.name ?? consignee.blIds[0] ?? 'consignatário'}`}

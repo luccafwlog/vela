@@ -155,11 +155,13 @@ describe('3.7 — recorte dos B/Ls no servidor', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
-  it('as opções de POL e POD são os portos da carga da Viagem, normalizados e sem repetição', async () => {
+  it('as opções de POL e POD são os portos da carga ativa da Viagem, normalizados e sem repetição', async () => {
     const bls = queryResult([
       { pol: 'CNTAO', pod: 'BRVIT' },
       { pol: 'cnngb', pod: 'BRVIX' },
       { pol: 'CNTAO', pod: null },
+      // Situação financeira cancelada não é B/L ativo (D03): o porto dela não vira opção.
+      { pol: 'CNXMN', pod: 'BRPEC', financial_status: 'cancelled' },
     ])
     mockFrom.mockImplementation(() => bls)
 
@@ -183,14 +185,41 @@ describe('3.7 — recorte dos B/Ls no servidor', () => {
     expect(conference.emptyReason).toBe('Nenhum dos 2 B/Ls ativos da Viagem tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.')
   })
 
+  it('porto escolhido só com B/L sem Cliente: o motivo cita o porto, e B/L de outro porto ou cancelado não entra na conta', async () => {
+    const semCliente = { customer_id: null, customer: null }
+    const bls = queryResult([
+      raw({ id: 'BL-1', pod: 'BRSSZ' }),
+      raw({ id: 'BL-2', pod: 'BRVIX', ...semCliente }),
+      raw({ id: 'BL-3', pod: 'BRVIT', ...semCliente }),
+      raw({ id: 'BL-4', pod: 'BRVIX', financial_status: 'cancelled', ...semCliente }),
+      raw({ id: 'BL-5', pod: 'BRPEC', ...semCliente }),
+    ])
+    mockFrom.mockImplementation((table: string) => (table === 'bls' ? bls : queryResult([])))
+
+    const conference = await fetchCustomerCommunicationConference({
+      filters: { mode: 'carga', voyageId: 7, pol: '', pod: 'BRVIX', cnpj: '' },
+      kind: 'aviso_chegada_noa',
+    })
+
+    expect(conference.rows).toEqual([])
+    // BL-2 e BL-3 (BRVIT é BRVIX); nem o BL-5 de outro porto nem o BL-4 cancelado.
+    expect(conference.blsWithoutCustomer).toBe(2)
+    expect(conference.emptyReason).toBe('Nenhum dos 2 B/Ls ativos da Viagem com o POL ou POD escolhido tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.')
+  })
+
   it('a conferência vazia diz por quê, na ordem em que o B/L cai fora', () => {
     const base = { kind: 'aviso_chegada_noa' as const, activeBls: 133, blsWithoutCustomer: 0, eligibleBls: 133, blsInScope: 133, portFiltered: false }
     expect(describeEmptyCargoConference({ ...base, activeBls: 0 })).toBe('A Viagem não tem B/L ativo.')
+    expect(describeEmptyCargoConference({ ...base, activeBls: 0, portFiltered: true })).toBe('Nenhum B/L ativo da Viagem tem o POL ou POD escolhido.')
     // A Viagem importada antes da Base de Clientes: nenhum B/L tem Cliente.
     expect(describeEmptyCargoConference({ ...base, blsWithoutCustomer: 133, eligibleBls: 0, blsInScope: 0 }))
       .toBe('Nenhum dos 133 B/Ls ativos da Viagem tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.')
+    expect(describeEmptyCargoConference({ ...base, activeBls: 1, blsWithoutCustomer: 1, eligibleBls: 0, blsInScope: 0, portFiltered: true }))
+      .toBe('O único B/L ativo da Viagem com o POL ou POD escolhido não tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.')
     expect(describeEmptyCargoConference({ ...base, blsWithoutCustomer: 3, eligibleBls: 0, blsInScope: 0 })).toMatch(/^Nenhum B\/L da Viagem pode receber Comunicado/)
-    expect(describeEmptyCargoConference({ ...base, blsInScope: 0, portFiltered: true })).toMatch(/POL, POD ou CNPJ escolhido/)
+    expect(describeEmptyCargoConference({ ...base, blsWithoutCustomer: 3, eligibleBls: 0, blsInScope: 0, portFiltered: true })).toMatch(/^Nenhum B\/L da Viagem com o POL ou POD escolhido pode receber Comunicado/)
+    // Com o porto já nas contagens, o que sobra para esvaziar é o CNPJ.
+    expect(describeEmptyCargoConference({ ...base, blsInScope: 0, portFiltered: true })).toBe('Nenhum B/L com Cliente nesta Viagem atende ao CNPJ escolhido.')
     expect(describeEmptyCargoConference(base)).toMatch(/não tem ETA registrada/)
     expect(describeEmptyCargoConference({ ...base, kind: 'aviso_prontidao_nor' })).toMatch(/ainda não tem ATA registrada/)
     expect(describeEmptyCargoConference({ ...base, kind: 'aviso_atracacao_nob' })).toBe('Nenhuma Atracação da escala tem ATB registrado.')

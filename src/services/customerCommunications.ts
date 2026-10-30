@@ -864,20 +864,25 @@ export type CommunicationVoyagePorts = {
   pods: string[]
 }
 
-/** Opções de POL e POD da Viagem escolhida no disparo: só os portos que a carga dela tem. */
+/**
+ * Opções de POL e POD da Viagem escolhida no disparo: só os portos que a carga
+ * ativa dela tem. A situação financeira cancelada sai no navegador, como na
+ * Cobertura (D03): `.neq` no banco descartaria também o `NULL`.
+ */
 export async function fetchCommunicationVoyagePorts(voyageId: number): Promise<CommunicationVoyagePorts> {
   const pols = new Set<string>()
   const pods = new Set<string>()
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from('bls')
-      .select('pol, pod')
+      .select('pol, pod, financial_status')
       .eq('voyage_id', voyageId)
       .is('cancelled_at', null)
       .order('id', { ascending: true })
       .range(from, from + 999)
     if (error) throw error
-    for (const row of (data ?? []) as Array<{ pol: string | null; pod: string | null }>) {
+    for (const row of (data ?? []) as Array<{ pol: string | null; pod: string | null; financial_status?: string | null }>) {
+      if (row.financial_status === 'cancelled') continue
       const pol = communicationPortCode(row.pol)
       const pod = communicationPortCode(row.pod)
       if (pol) pols.add(pol)
@@ -895,22 +900,28 @@ export async function fetchCommunicationVoyagePorts(voyageId: number): Promise<C
  */
 export function describeEmptyCargoConference(input: {
   kind: CustomerCommunicationKind
+  /** B/Ls ativos da Viagem no POL e POD escolhidos (todos, sem porto escolhido). */
   activeBls: number
+  /** Dos ativos acima, os sem Cliente vinculado. */
   blsWithoutCustomer: number
+  /** Elegíveis no POL e POD escolhidos, antes do CNPJ. */
   eligibleBls: number
+  /** Elegíveis depois do CNPJ. */
   blsInScope: number
   portFiltered: boolean
 }): string {
-  if (input.activeBls === 0) return 'A Viagem não tem B/L ativo.'
+  // O recorte de porto entra nas contagens: contar a Viagem inteira mandava
+  // trocar de filtro quando o porto escolhido só tinha B/L sem Cliente.
+  const scope = input.portFiltered ? ' com o POL ou POD escolhido' : ''
+  if (input.activeBls === 0) return input.portFiltered ? 'Nenhum B/L ativo da Viagem tem o POL ou POD escolhido.' : 'A Viagem não tem B/L ativo.'
   if (input.blsWithoutCustomer === input.activeBls) {
-    return `Nenhum dos ${input.activeBls} B/Ls ativos da Viagem tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.`
+    const subject = input.activeBls === 1
+      ? `O único B/L ativo da Viagem${scope} não tem`
+      : `Nenhum dos ${input.activeBls} B/Ls ativos da Viagem${scope} tem`
+    return `${subject} Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.`
   }
-  if (input.eligibleBls === 0) return 'Nenhum B/L da Viagem pode receber Comunicado: sem Cliente, sem POD, de Cliente desativado ou de Viagem cancelada.'
-  if (input.blsInScope === 0) {
-    return input.portFiltered
-      ? 'Nenhum B/L com Cliente nesta Viagem atende ao POL, POD ou CNPJ escolhido.'
-      : 'Nenhum B/L com Cliente nesta Viagem atende ao CNPJ escolhido.'
-  }
+  if (input.eligibleBls === 0) return `Nenhum B/L da Viagem${scope} pode receber Comunicado: sem Cliente, sem POD, de Cliente desativado ou de Viagem cancelada.`
+  if (input.blsInScope === 0) return 'Nenhum B/L com Cliente nesta Viagem atende ao CNPJ escolhido.'
   if (input.kind === 'aviso_chegada_noa') return 'A escala do porto de descarga não tem ETA registrada, foi excluída ou omitida.'
   if (input.kind === 'aviso_prontidao_nor') return 'A escala do porto de descarga ainda não tem ATA registrada (ou foi excluída ou omitida).'
   if (input.kind === 'aviso_atracacao_nob') return 'Nenhuma Atracação da escala tem ATB registrado.'
@@ -1008,7 +1019,14 @@ export async function fetchCustomerCommunicationConference(input: {
     }
   }
   const cargo = input.filters.mode === 'carga'
-  const blsWithoutCustomer = cargo ? rawRows.filter((row) => !row.customer_id || !row.customer).length : 0
+  // Motivo e aviso contam o recorte escolhido (POL e POD) e o B/L ativo da
+  // Cobertura (D03: sem cancelamento do B/L nem da situação financeira).
+  const scopeRows = cargo
+    ? rawRows.filter((row) => row.financial_status !== 'cancelled'
+      && matchesPortFilter(row.pol, input.filters.pol)
+      && matchesPortFilter(row.pod, input.filters.pod))
+    : []
+  const blsWithoutCustomer = scopeRows.filter((row) => !row.customer_id || !row.customer).length
   const customerIds = [...new Set(filtered.map((row) => row.customerId))]
   const [{ contactsByCustomer, boxLinks }, boxKinds] = await Promise.all([
     fetchCommunicationContacts(customerIds),
@@ -1062,9 +1080,9 @@ export async function fetchCustomerCommunicationConference(input: {
     blsWithoutCustomer,
     emptyReason: conference.rows.length || unassignedOperationFronts ? null : describeEmptyCargoConference({
       kind: input.kind,
-      activeBls: rawRows.length,
+      activeBls: scopeRows.length,
       blsWithoutCustomer,
-      eligibleBls: baseRows.length,
+      eligibleBls: filterCustomerCommunicationBls(baseRows, { ...input.filters, cnpj: '' }).length,
       blsInScope: inScope.length,
       portFiltered: Boolean(cleanFilter(input.filters.pol) || cleanFilter(input.filters.pod)),
     }),

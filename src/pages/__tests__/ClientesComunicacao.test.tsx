@@ -503,6 +503,19 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByRole('link', { name: /Abrir a Viagem/ }).getAttribute('href')).toBe('/viagens/101')
   })
 
+  it('porto sem Cliente vinculado não tem Disparar para o porto: a conferência dele voltaria vazia', () => {
+    mockCoverage.push({ ...mockCoverage[0], port: 'BRSSZ', customers: 0, unlinked: { bls: 0, consignees: [] }, details: [] })
+    try {
+      renderComunicacao('/clientes/comunicacao/viagens/101')
+      expect(screen.getByRole('heading', { name: 'Porto BRSSZ' })).toBeTruthy()
+      expect(screen.getByText('Nenhum Cliente vinculado')).toBeTruthy()
+      expect(screen.queryByRole('link', { name: /Disparar para BRSSZ/ })).toBeNull()
+      expect(screen.getByRole('link', { name: /Disparar para BRVIX/ })).toBeTruthy()
+    } finally {
+      mockCoverage.pop()
+    }
+  })
+
   it('viagem inexistente diz que não foi encontrada, com o caminho de volta', () => {
     renderComunicacao('/clientes/comunicacao/viagens/999')
     expect(screen.getByRole('heading', { name: 'Viagem não encontrada' })).toBeTruthy()
@@ -524,7 +537,11 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     const abf = within(semCliente).getByRole('row', { name: /ABF COMERCIO LTDA/ })
     expect(within(abf).getByText('12.345.678/0001-95')).toBeTruthy()
     expect(within(abf).getByText('BRVIX')).toBeTruthy()
-    expect(within(abf).getByText('BL-SC1, BL-SC2')).toBeTruthy()
+    expect(within(abf).getByText('BL-SC1')).toBeTruthy()
+    expect(within(abf).getByText('BL-SC2')).toBeTruthy()
+    // Regra 9 da identidade visual: B/L e CNPJ exibidos como valor levam o ícone de copiar.
+    expect(within(abf).getByRole('button', { name: 'Copiar número do B/L BL-SC2' })).toBeTruthy()
+    expect(within(abf).getByRole('button', { name: 'Copiar CNPJ/CPF 12.345.678/0001-95' })).toBeTruthy()
     expect(within(abf).getByRole('link', { name: /Vincular na Revisão/ }).getAttribute('href')).toBe('/revisao?voyage=101&busca=12345678000195')
     // Sem CNPJ no manifesto, a busca da Revisão vai pelo B/L.
     const semCnpj = within(semCliente).getByRole('row', { name: /SEM CNPJ IMPORTADORA/ })
