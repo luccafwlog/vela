@@ -184,6 +184,7 @@ export async function afterCustomerCommunicationBatchDispatched(
   await invalidate(queryClient, [
     queryKeys.customerCommunications.history(),
     ['customer-communications', 'coverage'],
+    ['customer-communications', 'voyage-detail'],
     ['customer-communications', 'bl'],
     ...(options.customerIds ?? []).map((customerId) => ['customer-ficha', 'timeline', customerId] as const),
     ...[...new Set(options.blIds ?? [])].map((blId) => ['bl-timeline', blId] as const),

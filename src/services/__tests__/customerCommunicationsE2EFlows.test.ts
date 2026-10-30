@@ -88,20 +88,20 @@ describe('Revisão Completa E2E: Módulo de Comunicação com o Cliente', () => 
   })
 
   describe('2. Ações de Recorte, Destinatários e Conferência', () => {
-    it('invariante 3: modo carga exige ao menos um filtro de carga para evitar disparos acidentais à base inteira', () => {
+    it('invariante 3: modo carga exige a Viagem para evitar disparos acidentais à base inteira', () => {
       const emptyValidation = validateCustomerCommunicationFilters({
         mode: 'carga',
-        vesselVoyage: '',
+        voyageId: null,
         pol: '',
         pod: '',
         cnpj: '',
       })
       expect(emptyValidation.valid).toBe(false)
-      expect(emptyValidation.message).toContain('filtro operacional')
+      expect(emptyValidation.message).toContain('Navio / Viagem')
 
       const cnpjOnlyValidation = validateCustomerCommunicationFilters({
         mode: 'carga',
-        vesselVoyage: '',
+        voyageId: null,
         pol: '',
         pod: '',
         cnpj: '12.345.678/0001-90',
@@ -110,7 +110,7 @@ describe('Revisão Completa E2E: Módulo de Comunicação com o Cliente', () => 
 
       const validValidation = validateCustomerCommunicationFilters({
         mode: 'carga',
-        vesselVoyage: '2401E',
+        voyageId: 7,
         pol: '',
         pod: '',
         cnpj: '',
@@ -121,7 +121,7 @@ describe('Revisão Completa E2E: Módulo de Comunicação com o Cliente', () => 
     it('modo institucional permite conferência sobre o conjunto de Clientes Comunicáveis', () => {
       const instValidation = validateCustomerCommunicationFilters({
         mode: 'institucional',
-        vesselVoyage: '',
+        voyageId: null,
         pol: '',
         pod: '',
         cnpj: '',
