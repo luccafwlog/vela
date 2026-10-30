@@ -525,6 +525,26 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
     })
   })
 
+  it('o Alerta de Travado reconcilia uma vez por Viagem no fim da transação, e o lacre não reconcilia (527)', () => {
+    const calls = `SELECT 'calls', COALESCE((SELECT calls FROM pg_stat_xact_user_functions WHERE funcname = 'reconcile_demurrage_travado_alerts'), 0);`
+    const result = run(`
+      BEGIN;
+      SET LOCAL track_functions = 'all';
+      UPDATE public.bl_containers SET seal_number = 'R527' WHERE bl_id = '${blPrefix}WAITA';
+      SET CONSTRAINTS ALL IMMEDIATE;
+      ${calls}
+      -- IMMEDIATE vale até o fim da transação; volta ao adiado, como no uso real.
+      SET CONSTRAINTS ALL DEFERRED;
+      UPDATE public.bl_containers SET return_date = ${day(-4)} WHERE container_number = 'RQCU5140071';
+      UPDATE public.bl_containers SET return_date = ${day(-3)} WHERE container_number = 'RQCU5140072';
+      UPDATE public.bls SET free_time_override = 25 WHERE id = '${blPrefix}WAITA';
+      SET CONSTRAINTS ALL IMMEDIATE;
+      ${calls}
+      ROLLBACK;`)
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout.split('\n').filter((line) => line.startsWith('calls|'))).toEqual(['calls|0', 'calls|1'])
+  })
+
   it('usuário fora do Vela não lê a classificação', () => {
     const result = run(`BEGIN; SET LOCAL ROLE anon; SELECT public.list_demurrage_billing_board(); ROLLBACK;`)
     expect(result.status).not.toBe(0)
