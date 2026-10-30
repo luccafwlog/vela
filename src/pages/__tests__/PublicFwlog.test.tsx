@@ -17,9 +17,13 @@ vi.mock('../../hooks/usePortalOperation', () => ({
 }))
 
 // Turnstile falso: cada rodada (`resetKey`) entrega um token novo.
+const challenge = vi.hoisted(() => ({ failRounds: new Set<number>() }))
 vi.mock('../../components/security/TurnstileChallenge', () => ({
-  TurnstileChallenge: ({ onToken, resetKey = 0, action, siteKey }: { onToken: (token: string) => void; resetKey?: number; action: string; siteKey?: string }) => {
-    useEffect(() => { onToken(`${action}-${siteKey}-${resetKey}`) }, [action, siteKey, resetKey, onToken])
+  TurnstileChallenge: ({ onToken, onError, resetKey = 0, action, siteKey }: { onToken: (token: string) => void; onError: (message: string) => void; resetKey?: number; action: string; siteKey?: string }) => {
+    useEffect(() => {
+      if (challenge.failRounds.has(resetKey)) onError('Não foi possível validar a segurança.')
+      else onToken(`${action}-${siteKey}-${resetKey}`)
+    }, [action, siteKey, resetKey, onToken, onError])
     return null
   },
 }))
@@ -35,6 +39,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
   fetchMock.mockReset()
   supabaseRpc.mockReset()
+  challenge.failRounds.clear()
 })
 
 afterEach(() => {
@@ -139,4 +144,28 @@ it('consulta: encontrado mostra só os campos da lista positiva; o token vale um
   expect(await screen.findByText(/Não encontramos este container nos últimos 90 dias em Vitória, Salvador e Suape/)).toBeTruthy()
   expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body)).turnstile_token).toBe('lookup-chave-publica-1')
   expect(supabaseRpc).not.toHaveBeenCalled()
+})
+
+it('quadro público: verificação que falha sai do carregando e Tentar novamente pede outra', async () => {
+  challenge.failRounds.add(0)
+  fetchMock.mockResolvedValue(json(SCHEDULE))
+  renderPage(<PublicChegadasSaidas />)
+  expect(await screen.findByText('Não foi possível validar a segurança.')).toBeTruthy()
+  expect(fetchMock).not.toHaveBeenCalled()
+  await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+  expect(await screen.findByRole('table')).toBeTruthy()
+  expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ turnstile_token: 'schedule-chave-publica-1' })
+})
+
+it('consulta: verificação que falhou é refeita ao tentar consultar', async () => {
+  challenge.failRounds.add(0)
+  fetchMock.mockResolvedValue(json({ found: false }))
+  renderPage(<PublicConsultaContainer />)
+  await userEvent.type(screen.getByLabelText(/Número do container/), 'CSQU3054383')
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
+  expect(screen.getByText('Não foi possível validar a segurança.')).toBeTruthy()
+  expect(fetchMock).not.toHaveBeenCalled()
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+  expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).turnstile_token).toBe('lookup-chave-publica-1')
 })

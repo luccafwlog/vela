@@ -77,6 +77,11 @@ export function PublicConsultaContainer() {
     if (!siteKey) return
     if (!token) {
       setFieldError(challengeError || 'Faça a verificação de segurança antes de consultar.')
+      // Verificação que falhou: pede outra, sem recarregar a página.
+      if (challengeError) {
+        setChallengeError('')
+        setResetKey((current) => current + 1)
+      }
       return
     }
     setSubmitting(true)

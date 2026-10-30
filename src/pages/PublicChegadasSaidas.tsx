@@ -41,6 +41,15 @@ export function PublicChegadasSaidas() {
       })
   }, [])
 
+  // Desafio que falha sem token encerra a tentativa: a tela sai do
+  // carregando e Atualizar / Tentar novamente pedem uma verificação nova.
+  const handleChallengeError = useCallback((message: string) => {
+    setChallengeError(message)
+    if (!message) return
+    setLoading(false)
+    setRefreshing(false)
+  }, [])
+
   function reload() {
     setRefreshing(true)
     setChallengeError('')
@@ -53,7 +62,7 @@ export function PublicChegadasSaidas() {
         <ShipScheduleBlock
           vessels={schedule?.vessels}
           isLoading={loading}
-          isError={failure !== null}
+          isError={failure !== null || challengeError !== ''}
           isFetching={refreshing}
           dataUpdatedAt={schedule?.updatedAt ?? 0}
           refreshing={refreshing}
@@ -64,7 +73,7 @@ export function PublicChegadasSaidas() {
         {failure ? <InlineError message={FAILURE_MESSAGE[failure]} /> : null}
         {challengeError ? <InlineError message={challengeError} /> : null}
         {siteKey ? (
-          <TurnstileChallenge siteKey={siteKey} action="schedule" resetKey={round} onToken={handleToken} onError={setChallengeError} />
+          <TurnstileChallenge siteKey={siteKey} action="schedule" resetKey={round} onToken={handleToken} onError={handleChallengeError} />
         ) : null}
       </ScheduleWidthPage>
     </PublicEmbedLayout>
