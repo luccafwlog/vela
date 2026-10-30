@@ -110,7 +110,11 @@ if (typeof Deno !== "undefined")
         if (chargesOnly) return Response.json({ charges: await runCharges() });
         // Prazos (vencimento, renovação, PTAX do dia e Alerta das 14h) antes da fila.
         const { data: maintenance, error: maintenanceError } = await admin.rpc("itau_pix_maintain", {});
-        if (maintenanceError) throw new Error("Falha na manutenção dos prazos Itaú.");
+        if (maintenanceError) {
+          // Sem o código e a mensagem do banco, o 500 isolado da staging (30/10, 08:09) não tinha causa legível.
+          logFailure("maintenance", maintenanceError.message, { code: maintenanceError.code });
+          throw new Error("Falha na manutenção dos prazos Itaú.");
+        }
         // Etapas que falharam nesta rodada, contadas onde a falha é capturada.
         const failedSteps: string[] = [];
         // A fila falha isolada (vez, reserva, registro): os recebimentos seguem neste minuto.

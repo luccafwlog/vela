@@ -894,9 +894,9 @@ const ALERT_RULES_BASE = [
   {
     type: 'rotina_http_falhou', domain: 'Operação', responsible: 'administrativo',
     catalogAudience: ['administrativo'], entityType: 'cron_http', severity: 'critical',
-    summary: 'Uma chamada de rotina a uma Edge Function, agendada ou pelo evento (migration 458), terminou com erro, sem resposta ou com tempo esgotado.',
-    trigger: 'A verificação a cada 15 min (pg_cron) encontra em net._http_response, na última hora, resposta fora de 2xx ou falha sem resposta (migration 310); tempo esgotado só conta a partir de 10 na hora, porque a rodada longa continua depois de o pg_net desistir aos 30 s, e 30 ou mais chamadas paradas na fila do pg_net também abrem (migration 316).',
-    timing: 'A cada 15 min; fecha sozinho quando a última hora não tem falha.',
+    summary: 'Chamadas de rotina a uma Edge Function, agendadas ou pelo evento (migration 458), terminaram com erro, sem resposta ou com tempo esgotado.',
+    trigger: 'A verificação a cada 15 min (pg_cron) encontra em net._http_response, na última hora, duas ou mais respostas fora de 2xx ou falhas sem resposta (migration 310; uma isolada não abre desde a migration 533, decisão do dono de 2026-10-30), ou uma única resposta 401 ou 403, de segredo divergente (migration 534); tempo esgotado só conta a partir de 10 na hora, porque a rodada longa continua depois de o pg_net desistir aos 30 s, e 30 ou mais chamadas paradas na fila do pg_net também abrem (migration 316).',
+    timing: 'A cada 15 min; fecha sozinho quando a última hora volta a ter no máximo uma falha, menos de 10 tempos esgotados e menos de 30 chamadas na fila.',
     resolution: 'Pelo horário no alerta, achar a rotina em cron.job_run_details ou, na chamada pelo evento, pelo id do pedido em ops.edge_job_kicks (last_request_id), e conferir o segredo dela no Vault e na Edge Function (segredos do cron).',
     destination: '/alertas', destinationLabel: 'Abrir Alertas',
     destinationNote: 'O pg_net não guarda qual rotina fez a chamada: o alerta mostra horário e status, não o nome do job.',
