@@ -1,4 +1,14 @@
-export type RateLimitAction = 'login' | 'recovery' | 'activation'
+// As três primeiras são do Portal (CNPJ + IP). As `public_*` são dos widgets
+// públicos do fwlog.com.br (ADR 0114, `publicFwlog.ts`), só por IP e sempre
+// fail-closed: lá `unavailable` recusa, nunca libera.
+export type RateLimitAction =
+  | 'login'
+  | 'recovery'
+  | 'activation'
+  | 'public_schedule'
+  | 'public_lookup'
+  | 'public_lookup_day'
+  | 'public_lookup_miss'
 
 export type RateLimitIdentity = {
   action: RateLimitAction
@@ -35,13 +45,13 @@ export type DistributedRateLimiter = {
   registerSuccess(identity: RateLimitIdentity): Promise<void>
 }
 
-const CHECK_SCRIPT = `
+export const CHECK_SCRIPT = `
 local value = redis.call('GET', KEYS[1])
 if not value then return {0, 0} end
 return {tonumber(value), redis.call('TTL', KEYS[1])}
 `
 
-const INCREMENT_SCRIPT = `
+export const INCREMENT_SCRIPT = `
 local count = redis.call('INCR', KEYS[1])
 if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
 return {count, redis.call('TTL', KEYS[1])}

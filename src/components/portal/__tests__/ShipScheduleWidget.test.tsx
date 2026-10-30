@@ -39,7 +39,8 @@ function render(ui: ReactElement) {
   )
 }
 
-import { ScheduleLegend, ScheduleTable, ShipScheduleWidget } from '../ShipScheduleWidget'
+import { ShipScheduleWidget } from '../ShipScheduleWidget'
+import { ScheduleLegend, ScheduleTable } from '../ShipScheduleView'
 import { scheduleCellState } from '../shipScheduleCells'
 
 const ALPHA: PortalScheduleVoyage = {

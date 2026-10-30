@@ -165,6 +165,14 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   em `/assets/*`; cada requisição de `/assets/*` conta na cota de invocações de
   Functions do plano. O que ela responde e como é conferida estão em
   [deploy.md](../setup/deploy.md#headers-rotas-e-cors).
+- **Pages Function `functions/portal/publico/[[path]].ts`** (ADR 0114): atende
+  `/portal/publico/*` e serve só as duas páginas que o fwlog.com.br põe em
+  iframe (`/portal/publico/chegadas-saidas` e `/portal/publico/consulta-container`),
+  com `frame-ancestors https://fwlog.com.br https://www.fwlog.com.br` e sem
+  `X-Frame-Options`, lendo os headers de `public-embed-headers.json` que o
+  stage grava só no `vela-portal`. Outro caminho sob `/portal/publico/` e todo
+  o `vela-internal` respondem 404 que nega iframe. Cada abertura dessas
+  páginas conta na cota de invocações de Functions.
 - **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
   `cloudflare-pages`, `cloudflare-production` e `staging`. O valor é o User API Token
   `GitHub Actions — Vela e Portal Fwlog Pages` (Cloudflare Pages: Edit, uma
@@ -323,7 +331,11 @@ As 24 funções do repositório estão publicadas e `ACTIVE` em produção:
 `portal-email-events-runner`, `portal-email-webhook`, `portal-invite-activate`,
 `portal-invite-send`, `portal-login`, `portal-password-recovery`,
 `portal-password-reset`, `portal-recovery-email-change`,
-`recalc-demurrage-ptax` e `send-customer-communication`. A Edge Function
+`recalc-demurrage-ptax` e `send-customer-communication`. Duas funções novas
+estão no repositório e ainda **não** foram publicadas: `public-ship-schedule`
+e `public-container-lookup` (ADR 0114, migration `542`); antes da publicação
+os secrets da linha "Widgets públicos do fwlog.com.br" abaixo precisam existir,
+senão as duas respondem 503 ou 403 a todo pedido (fail-closed). A Edge Function
 antiga de aviso de fatura emitida, que a
 [ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou apagar (o nome
 está na ADR), foi apagada pelo dono no painel em 2026-10-14
@@ -429,6 +441,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 | Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
 | Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6, todos gravados; os dois últimos, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
+| Widgets públicos do fwlog.com.br ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)) | `TURNSTILE_PUBLIC_SECRET_KEY`, `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` (widget próprio, separado do login), `PUBLIC_FWLOG_ALLOWED_ORIGINS` (origens HTTPS exatas do iframe; em produção `https://portalfwlog.com.br`); reaproveitam `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e `PORTAL_RATE_LIMIT_HMAC_SECRET`. Sem qualquer um, recusa. Ainda não cadastrados | Cloudflare Turnstile, Upstash |
 
 `PORTAL_PASSWORD_PEPPER` (≥ 32 caracteres aleatórios) é a chave do
 `HMAC(pepper, senha)` que o GoTrue guarda para as contas do Portal (auditoria
@@ -794,6 +807,25 @@ staging a passa ao build no mesmo padrão da produção. Na branch Supabase
 `portal-login` exigir o token. Sem a Site Key no bundle, a tela de login mostra
 a verificação de segurança vazia e o servidor responde 403.
 
+### Turnstile dos widgets públicos (fwlog.com.br)
+
+Widget **novo**, ainda não criado ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)):
+modo Managed, hostnames `portalfwlog.com.br` (onde o iframe roda) e, para o
+teste, `staging.vela-portal.pages.dev` num widget de staging à parte, como o
+do login. O iframe roda na origem do Portal, então `fwlog.com.br` não precisa
+constar; pôr não abre nada a mais. Ações `schedule` (quadro) e `lookup`
+(consulta).
+
+- **Site Key** (pública): variável `VITE_TURNSTILE_PUBLIC_SITE_KEY` nos
+  environments GitHub `cloudflare-production` e `staging` (os workflows de
+  produção e staging já a passam ao build). Sem ela, as páginas públicas
+  dizem "indisponível".
+- **Secret Key:** `TURNSTILE_PUBLIC_SECRET_KEY` e
+  `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` nos secrets das Edge Functions do
+  projeto (e da branch `staging`). Não reaproveitam o par do login.
+- Ordem: Site Key e secrets antes de colar os iframes no site; o passo a passo
+  está em [fwlog-site-embed.md](fwlog-site-embed.md).
+
 ### Upstash (segunda trava de tentativas)
 
 Database Redis `vela-rate-limit` (`sa-east-1`), acessado só pelas Edge Functions
@@ -801,6 +833,15 @@ do Portal. Conta erros por IP+CNPJ (10 em 5 min) e só **acrescenta** bloqueio; 
 trava que decide é a do Supabase (5 erros em 15 min por CNPJ, ADR 0049). Se o
 Upstash cair, o login continua funcionando com a trava do Supabase.
 Detalhes: [portal-rate-limit.md](portal-rate-limit.md).
+
+O mesmo database guarda, desde a ADR 0114, os contadores e o cache dos
+widgets públicos do fwlog.com.br (chaves `vela:portal-rate:public_*`,
+`vela:public-rate:<projeto>:*` e `vela:public-cache:<projeto>:schedule:v1:*`).
+`<projeto>` é o host do projeto Supabase da Edge, e o mesmo host entra no HMAC
+dos contadores por IP: staging e produção podem dividir o database sem dividir
+cache, contadores nem disjuntor. Para eles o Upstash é a **única** trava e é
+fail-closed: se cair, o quadro e a consulta públicos ficam indisponíveis (503),
+o login do Portal não.
 
 ---
 
@@ -829,7 +870,9 @@ Mais: [sentry-configuracao.md](sentry-configuracao.md), [observabilidade.md](obs
 ### PostHog (eventos de produto)
 
 Região **EU**. Só o Portal envia eventos: `invoice_viewed`, na tela de faturas
-(fatura local e Demurrage); `invoice_paid` e `dispute_opened` estão declarados
+(fatura local e Demurrage), e, nas páginas públicas do fwlog.com.br (ADR 0114),
+`public_schedule_viewed` e `public_container_lookup` (só o resultado da
+consulta em `lookup_outcome`, nunca o número do container); `invoice_paid` e `dispute_opened` estão declarados
 em `src/lib/featureFlags.ts`, mas não são enviados. Sem URL, CNPJ ou e-mail; captura
 automática, gravação de sessão e cookies desligados (`src/lib/featureFlags.ts`).
 No Pages, o Vela também carrega a chave, mas não envia eventos.

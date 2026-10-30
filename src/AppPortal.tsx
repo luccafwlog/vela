@@ -19,6 +19,10 @@ const PortalAtivacao = lazyPage(() => import('./pages/PortalAtivacao'), 'PortalA
 const PortalConfirmarEmail = lazyPage(() => import('./pages/PortalConfirmarEmail'), 'PortalConfirmarEmail')
 const PortalInformation = lazyPage(() => import('./pages/PortalInformation'), 'PortalInformation')
 const PortalProfile = lazyPage(() => import('./pages/PortalProfile'), 'PortalProfile')
+// Páginas públicas que o fwlog.com.br põe em iframe (ADR 0114): sem sessão.
+const PublicChegadasSaidas = lazyPage(() => import('./pages/PublicChegadasSaidas'), 'PublicChegadasSaidas')
+const PublicConsultaContainer = lazyPage(() => import('./pages/PublicConsultaContainer'), 'PublicConsultaContainer')
+const PublicNaoEncontrada = lazyPage(() => import('./pages/PublicNaoEncontrada'), 'PublicNaoEncontrada')
 
 function RouteLoading() {
   return (
@@ -50,7 +54,11 @@ const routePreloads: RoutePreloadTable = [
   ['/portal/confirmar-email', PortalConfirmarEmail.preload], ['/portal', PortalDashboard.preload],
   ['/portal/billing', PortalBilling.preload], ['/portal/operacao', PortalOperacao.preload],
   ['/portal/informacoes/:section', PortalInformation.preload], ['/portal/informacoes', PortalInformation.preload],
-  ['/portal/desbloqueio-ce', PortalDesbloqueioCe.preload], ['/portal/perfil', PortalProfile.preload], ['*', defaultPreload],
+  ['/portal/desbloqueio-ce', PortalDesbloqueioCe.preload], ['/portal/perfil', PortalProfile.preload],
+  ['/portal/publico/chegadas-saidas', PublicChegadasSaidas.preload], ['/portal/publico/consulta-container', PublicConsultaContainer.preload],
+  // Caminho público desconhecido não carrega o Painel do Portal no iframe.
+  ['/portal/publico/*', PublicNaoEncontrada.preload],
+  ['*', defaultPreload],
 ]
 
 function RoutePreloader() {
@@ -75,6 +83,11 @@ export default function AppPortal() {
         <Route path="/portal/recuperar-senha" element={withSuspense(<PortalResetPassword />)} />
         <Route path="/portal/ativar" element={withSuspense(<PortalAtivacao />)} />
         <Route path="/portal/confirmar-email" element={withSuspense(<PortalConfirmarEmail />)} />
+        {/* Fora de PortalProtectedRoute: abertas sem login, em iframe no fwlog.com.br (ADR 0114). */}
+        <Route path="/portal/publico/chegadas-saidas" element={withSuspense(<PublicChegadasSaidas />)} />
+        <Route path="/portal/publico/consulta-container" element={withSuspense(<PublicConsultaContainer />)} />
+        {/* Outro caminho público fica na moldura pública: o `*` abaixo levaria o iframe ao login do Portal. */}
+        <Route path="/portal/publico/*" element={withSuspense(<PublicNaoEncontrada />)} />
         <Route element={<PortalProtectedRoute />}>
           <Route element={<PortalScopeProvider />}>
             <Route element={<PortalLayout />}>

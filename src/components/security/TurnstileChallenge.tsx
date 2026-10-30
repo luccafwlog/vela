@@ -23,6 +23,8 @@ declare global {
 
 type TurnstileChallengeProps = {
   action: string
+  /** Widget próprio (quadro e consulta públicos, ADR 0114); sem ela, o do login. */
+  siteKey?: string
   resetKey?: number
   onToken: (token: string) => void
   onError: (message: string) => void
@@ -49,7 +51,7 @@ function loadTurnstileScript(): Promise<void> {
   })
 }
 
-export function TurnstileChallenge({ action, resetKey = 0, onToken, onError }: TurnstileChallengeProps) {
+export function TurnstileChallenge({ action, siteKey: siteKeyProp, resetKey = 0, onToken, onError }: TurnstileChallengeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const onTokenRef = useRef(onToken)
   const onErrorRef = useRef(onError)
@@ -60,7 +62,7 @@ export function TurnstileChallenge({ action, resetKey = 0, onToken, onError }: T
   useEffect(() => {
     let cancelled = false
     let widgetId: string | null = null
-    const siteKey = String(import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '').trim()
+    const siteKey = (siteKeyProp ?? String(import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '')).trim()
     onTokenRef.current('')
 
     if (!siteKey) {
@@ -93,7 +95,7 @@ export function TurnstileChallenge({ action, resetKey = 0, onToken, onError }: T
       cancelled = true
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId)
     }
-  }, [action, resetKey])
+  }, [action, siteKeyProp, resetKey])
 
   return <div ref={containerRef} role="group" aria-label="Verificação de segurança" />
 }

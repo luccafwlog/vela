@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate, portalLaneCode } from '../portalScheduleLanes'
 
 describe('portas-vitrine do Portal', () => {
-  it('lista os 8 portos do servico na ordem das colunas', () => {
+  it('lista os 9 portos do servico na ordem das colunas (Suape desde a ADR 0114)', () => {
     expect(PORTAL_SCHEDULE_LANES.map((lane) => lane.label)).toEqual([
       'QINGDAO',
       'SHANGHAI',
@@ -12,6 +12,7 @@ describe('portas-vitrine do Portal', () => {
       'SALVADOR',
       'VITÓRIA',
       'PECÉM',
+      'SUAPE',
     ])
   })
 
@@ -24,6 +25,7 @@ describe('portas-vitrine do Portal', () => {
   it('deriva o code canonico via normalizePortCode', () => {
     expect(portalLaneCode(PORTAL_SCHEDULE_LANES[0])).toBe('CNTAO')
     expect(portalLaneCode(PORTAL_SCHEDULE_LANES[5])).toBe('BRSSA')
+    expect(portalLaneCode(PORTAL_SCHEDULE_LANES[8])).toBe('BRSUA')
   })
 })
 

@@ -217,3 +217,4 @@ src/integration/naoEscalaComAncora.local-pg.test.ts
 src/integration/retornoDeEmailNaoAplicado.local-pg.test.ts
 src/integration/adrFrenteDerivadaSemTerminal.local-pg.test.ts
 src/integration/embarqueVaziosTerminal.local-pg.test.ts
+src/integration/publicFwlog.local-pg.test.ts
