@@ -160,6 +160,8 @@ recibo (076 a 078), **como fazer uma restituição** e confirmar a devolução
 | `Falha ao criar invoice para B/Ls.` | Conferência interna da emissão; a emissão sempre devolve a fatura ou recusa antes com o motivo. | Fora |
 | `Fatura avulsa em cancelamento com devolução integral: não aceita baixa. Cancele a autorização antes.` | Registrar pagamento numa avulsa com cancelamento integral autorizado (REC-062). | Ap. B |
 | `Fatura avulsa não está disponível para receber pagamento.` | Registrar pagamento numa avulsa cancelada ou mudada enquanto o detalhe estava aberto (recarregue); também motivo de Pix em análise quando o Pix do QR de uma avulsa chega depois de ela ser cancelada (REC-100). | Ap. B |
+| `Valor recebido difere do saldo da fatura avulsa.` | Pix do QR estático de uma avulsa com valor diferente do saldo: fica Sem baixa em Pix recebidos, com o motivo (REC-103). | Ap. B |
+| `Sem permissão para consultar o histórico de baixas.` | Histórico de baixas aberto sem sessão interna ativa (REC-065). | Ap. B |
 | `Identificador do import PIX invalido.` | A tela sempre gera o identificador do arquivo; conferência interna. | Fora |
 | `Informe a justificativa para cancelar a baixa.` | Nas duas telas o botão **Cancelar baixa** fica desativado sem justificativa, e a baixa de Taxas Locais recusa antes com outra mensagem; não chega a uma pessoa. | Fora |
 | `Informe a referência do recebimento bancário.` | A tela recusa antes, com "Informe a referência do recebimento no extrato bancário."; esta conferência interna não chega a uma pessoa. | Fora |
