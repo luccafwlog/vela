@@ -95,7 +95,7 @@ export type EscalaModalPayload = {
  * exportação é recusada (migration 477), então o Granito importado depois do
  * fechamento não é pré-marcado (decisão do dono de 2026-10-30).
  */
-export function hasClosedTerminalAdr(state: Pick<TerminalScaleState, 'agencyReports'> | null | undefined): boolean {
+function hasClosedTerminalAdr(state: Pick<TerminalScaleState, 'agencyReports'> | null | undefined): boolean {
   return (state?.agencyReports ?? []).some((report) => Boolean(report.terminalId) && report.status === 'closed')
 }
 
