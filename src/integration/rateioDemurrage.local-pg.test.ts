@@ -6,7 +6,7 @@
 // Namespace exclusivo: ids 99521xxx, B/Ls 'R521-*', containers 'RQCU521xxxx',
 // usuário ...000000521001. Uma Viagem por caso.
 import { execPsql, spawnPsql } from './localPsql'
-import { afterAll, beforeAll, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -19,7 +19,7 @@ const customerC = 99521003 // acordo de 40 dias
 const customers = [customerA, customerB, customerC]
 const carrierId = 99521010
 const vesselId = 99521011
-const CASES = ['split', 'agreement', 'arrives', 'paid', 'cancelled', 'deleted'] as const
+const CASES = ['split', 'agreement', 'arrives', 'paid', 'cancelled', 'deleted', 'payerCancelled', 'realert', 'goesBack', 'sweep'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99521100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -230,5 +230,69 @@ describeLocal('Caixa dividida entre Clientes (migration 521)', () => {
     expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${half}`)).toBe('cancelled')
     const [replacement] = liveInvoice('DELA')
     expect(item(Number(replacement))).toEqual({ share: '1', subtotal: fullUsd(60) })
+  })
+
+  describe('revisão final (migration 529)', () => {
+    const activeAlert = (invoiceId: number) => psql(`SELECT coalesce(string_agg(i.message, ' / '), '') FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'demurrage_invoice_dates_changed' AND i.status = 'active' AND a.entity_type = 'demurrage_invoice' AND a.entity_id = '${invoiceId}'`)
+    const pay = (invoiceId: number) => {
+      const brl = psql(`SELECT current_total_brl FROM public.demurrage_invoices WHERE id = ${invoiceId}`)
+      asAdmin(`SELECT public.register_demurrage_payment(gen_random_uuid(), ${invoiceId}, ${day(0)}, NULL, ${brl}, NULL)`)
+    }
+    const resolveAlert = (invoiceId: number) => psql(`SET request.jwt.claim.role = 'service_role';
+      SELECT public.resolve_alert_item('demurrage_invoice_dates_changed', 'demurrage_invoice', '${invoiceId}', 'r529', '{}'::jsonb)`)
+
+    it('B/L cancelado de quem já pagou a parte: o outro paga a caixa inteira e a paga abre Alerta para restituir (decisão do dono)', () => {
+      bl('PCA', 'payerCancelled', customerA); box('PCA', 'RQCU5210007')
+      bl('PCB', 'payerCancelled', customerB); box('PCB', 'RQCU5210007')
+      const halfA = issue('PCA')
+      const halfB = issue('PCB')
+      pay(halfB)
+      expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('${blPrefix}PCB', 'B/L emitido em duplicidade', false)`)).cancelled).toBe(true)
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${halfA}`)).toBe('cancelled')
+      expect(item(Number(liveInvoice('PCA')[0]))).toEqual({ share: '1', subtotal: fullUsd(60) })
+      expect(psql(`SELECT status || '|' || dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${halfB}`))
+        .toBe('paid|Divisão da caixa entre Clientes alterada depois do pagamento; conferir a diferença.')
+      expect(activeAlert(halfB)).toMatch(/^O B\/L da Invoice de Demurrage .* foi cancelado depois da emissão e a caixa passou a ser cobrada só dos outros Clientes e ela já tem pagamento/)
+    })
+
+    it('Alerta resolvido não reabre pela mesma diferença, mas reabre por diferença nova', () => {
+      bl('RAA', 'realert', customerA); box('RAA', 'RQCU5210008')
+      const paid = issue('RAA')
+      pay(paid)
+      // A data muda como no caminho das datas, que reconcilia depois de gravar.
+      psql(`UPDATE public.bl_containers SET return_date = ${day(-4)} WHERE container_number = 'RQCU5210008';
+            SET request.jwt.claim.role = 'service_role'; SELECT public._reconcile_demurrage_after_dates(ARRAY['${blPrefix}RAA'], NULL)`)
+      expect(activeAlert(paid)).toMatch(/As datas de container/)
+      resolveAlert(paid)
+      psql(`SET request.jwt.claim.role = 'service_role'; SELECT public._reconcile_demurrage_after_dates(ARRAY['${blPrefix}RAA'], NULL)`)
+      expect(activeAlert(paid)).toBe('')
+      bl('RAB', 'realert', customerB); box('RAB', 'RQCU5210008')
+      expect(activeAlert(paid)).not.toBe('')
+    })
+
+    it('a diferença que some tira a suspensão da Invoice em disputa e fecha o Alerta', () => {
+      bl('GBA', 'goesBack', customerA); box('GBA', 'RQCU5210009')
+      bl('GBB', 'goesBack', customerB); box('GBB', 'RQCU5210009')
+      const disputed = issue('GBA')
+      psql(`SET session_replication_role = replica; UPDATE public.demurrage_invoices SET dispute_open = true WHERE id = ${disputed}`)
+      bl('GBC', 'goesBack', customerC); box('GBC', 'RQCU5210009')
+      expect(psql(`SELECT dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${disputed}`)).toMatch(/^Divisão da caixa/)
+      expect(activeAlert(disputed)).not.toBe('')
+      psql(`DELETE FROM public.bls WHERE id = '${blPrefix}GBC'`)
+      expect(psql(`SELECT coalesce(dunning_suspended_reason, '') FROM public.demurrage_invoices WHERE id = ${disputed}`)).toBe('')
+      expect(activeAlert(disputed)).toBe('')
+    })
+
+    it('a rotina refaz a reconciliação que o gatilho não fez', () => {
+      bl('SWA', 'sweep', customerA); box('SWA', 'RQCU5210010')
+      const first = issue('SWA')
+      // Data gravada sem os gatilhos: a Invoice fica diferente sem reconciliação.
+      psql(`SET session_replication_role = replica; UPDATE public.bl_containers SET return_date = ${day(-3)} WHERE container_number = 'RQCU5210010'`)
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${first}`)).toBe('issued')
+      psql(`SELECT public.reconcile_demurrage_travado_alerts(${voyageOf('sweep')}, 'demurrage-travado-alerts')`)
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${first}`)).toBe('cancelled')
+      expect(liveInvoice('SWA')[2]).toBe(String(first))
+    })
   })
 })
