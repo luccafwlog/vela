@@ -10,7 +10,10 @@ import {
   expandCandidatesForKind,
   customerCommunicationAttemptReason,
   customerCommunicationAttemptStatusLabel,
+  describeEmptyCargoConference,
   fetchCommunicationBlRows,
+  fetchCommunicationVoyagePorts,
+  fetchCustomerCommunicationConference,
   fetchCustomerCommunicationHistory,
   fetchVoyageCommunicationCoverage,
   toBaseCandidate,
@@ -132,26 +135,65 @@ describe('3.4 — conferência manual com a elegibilidade da régua', () => {
 describe('3.7 — recorte dos B/Ls no servidor', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('no modo carga, filtra B/L cancelado, viagens do navio e POD na consulta', async () => {
-    const voyages = queryResult([
-      { id: 7, voyage_number: '2401E', vessel: { name: 'XING WANG' } },
-      { id: 8, voyage_number: '2402E', vessel: { name: 'CMA VEGA' } },
-    ])
+  it('no modo carga, lê só os B/Ls ativos da Viagem escolhida, pelo id', async () => {
     const bls = queryResult([raw()])
-    mockFrom.mockImplementation((table: string) => (table === 'voyages' ? voyages : bls))
+    mockFrom.mockImplementation(() => bls)
 
-    const rows = await fetchCommunicationBlRows({ mode: 'carga', vesselVoyage: 'xing wang', pol: '', pod: ' BR%SSZ ', cnpj: '' })
+    const rows = await fetchCommunicationBlRows({ mode: 'carga', voyageId: 7, pol: '', pod: 'BRSSZ', cnpj: '' })
 
     expect(rows).toHaveLength(1)
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(mockFrom).toHaveBeenCalledWith('bls')
     expect(bls.is).toHaveBeenCalledWith('cancelled_at', null)
-    expect(bls.in).toHaveBeenCalledWith('voyage_id', [7])
-    expect(bls.ilike).toHaveBeenCalledWith('pod', '%BRSSZ%')
+    expect(bls.eq).toHaveBeenCalledWith('voyage_id', 7)
+    // O porto é comparado normalizado no navegador, não por trecho no banco.
+    expect(bls.ilike).not.toHaveBeenCalled()
   })
 
-  it('sem viagem que case com o navio, não lê B/Ls', async () => {
-    mockFrom.mockImplementation(() => queryResult([{ id: 8, voyage_number: '2402E', vessel: { name: 'CMA VEGA' } }]))
-    expect(await fetchCommunicationBlRows({ mode: 'carga', vesselVoyage: 'XING', pol: '', pod: '', cnpj: '' })).toEqual([])
-    expect(mockFrom).toHaveBeenCalledTimes(1)
+  it('sem Viagem escolhida, não lê B/L nenhum', async () => {
+    expect(await fetchCommunicationBlRows({ mode: 'carga', voyageId: null, pol: '', pod: 'BRVIX', cnpj: '' })).toEqual([])
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('as opções de POL e POD são os portos da carga da Viagem, normalizados e sem repetição', async () => {
+    const bls = queryResult([
+      { pol: 'CNTAO', pod: 'BRVIT' },
+      { pol: 'cnngb', pod: 'BRVIX' },
+      { pol: 'CNTAO', pod: null },
+    ])
+    mockFrom.mockImplementation(() => bls)
+
+    expect(await fetchCommunicationVoyagePorts(169)).toEqual({ pols: ['CNNGB', 'CNTAO'], pods: ['BRVIX'] })
+    expect(bls.eq).toHaveBeenCalledWith('voyage_id', 169)
+    expect(bls.is).toHaveBeenCalledWith('cancelled_at', null)
+  })
+
+  it('Viagem cujos B/Ls não têm Cliente: a conferência volta vazia com o motivo, sem pedir mais filtro', async () => {
+    const semCliente = { customer_id: null, customer: null }
+    const bls = queryResult([raw({ id: 'BL-1', ...semCliente }), raw({ id: 'BL-2', ...semCliente })])
+    mockFrom.mockImplementation((table: string) => (table === 'bls' ? bls : queryResult([])))
+
+    const conference = await fetchCustomerCommunicationConference({
+      filters: { mode: 'carga', voyageId: 7, pol: '', pod: '', cnpj: '' },
+      kind: 'aviso_chegada_noa',
+    })
+
+    expect(conference.rows).toEqual([])
+    expect(conference.blsWithoutCustomer).toBe(2)
+    expect(conference.emptyReason).toBe('Nenhum dos 2 B/Ls ativos da Viagem tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.')
+  })
+
+  it('a conferência vazia diz por quê, na ordem em que o B/L cai fora', () => {
+    const base = { kind: 'aviso_chegada_noa' as const, activeBls: 133, blsWithoutCustomer: 0, eligibleBls: 133, blsInScope: 133, portFiltered: false }
+    expect(describeEmptyCargoConference({ ...base, activeBls: 0 })).toBe('A Viagem não tem B/L ativo.')
+    // A Viagem importada antes da Base de Clientes: nenhum B/L tem Cliente.
+    expect(describeEmptyCargoConference({ ...base, blsWithoutCustomer: 133, eligibleBls: 0, blsInScope: 0 }))
+      .toBe('Nenhum dos 133 B/Ls ativos da Viagem tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.')
+    expect(describeEmptyCargoConference({ ...base, blsWithoutCustomer: 3, eligibleBls: 0, blsInScope: 0 })).toMatch(/^Nenhum B\/L da Viagem pode receber Comunicado/)
+    expect(describeEmptyCargoConference({ ...base, blsInScope: 0, portFiltered: true })).toMatch(/POL, POD ou CNPJ escolhido/)
+    expect(describeEmptyCargoConference(base)).toMatch(/não tem ETA registrada/)
+    expect(describeEmptyCargoConference({ ...base, kind: 'aviso_prontidao_nor' })).toMatch(/ainda não tem ATA registrada/)
+    expect(describeEmptyCargoConference({ ...base, kind: 'aviso_atracacao_nob' })).toBe('Nenhuma Atracação da escala tem ATB registrado.')
   })
 })
 
@@ -226,6 +268,16 @@ describe('3.2 — lote que continua depois de um erro', () => {
     expect(dispatch.mock.calls[3][0]).toBe(dispatch.mock.calls[1][0])
     const merged = summarizeCustomerCommunicationBatch(mergeCustomerCommunicationBatchRetry(outcomes, retried))
     expect([merged.sent, merged.simulated, merged.failed]).toEqual([2, 1, []])
+  })
+
+  it('conta o progresso por destinatário concluído, inclusive o que falhou', async () => {
+    const dispatch = vi.fn()
+      .mockResolvedValueOnce({ communicationId: 1, status: 'enviado' })
+      .mockRejectedValueOnce(new Error('Falha de rede.'))
+      .mockResolvedValueOnce({ communicationId: 1, status: 'enviado' })
+    const progress: Array<[number, number]> = []
+    await runCustomerCommunicationBatch([item('a'), item('b'), item('c')], dispatch, (done, total) => progress.push([done, total]))
+    expect(progress).toEqual([[0, 3], [1, 3], [2, 3], [3, 3]])
   })
 
   it('destinatário simulado conta como simulado mesmo com o Comunicado "parcial" por outro destinatário', async () => {

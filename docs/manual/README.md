@@ -157,6 +157,12 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     cuja quantidade vai a zero sai da cobrança, com a alteração guardada; a
     prévia pede o **Gravar mesmo assim** e, sem ele, abre o alerta (BLR-150,
     ALE-086).
+- **Disparo de Comunicados por Viagem escolhida** (revisão da comunicação
+  manual de 2026-10-30; tela, sem migration): Navio / Viagem passa a ser a
+  Viagem escolhida na lista e obrigatória, POL e POD viram listas com
+  **Todos**, a conferência mostra o Porto, os B/Ls sem Cliente e o motivo da
+  lista vazia, e o lote conta "Enviando N de M…" (CLI-059, CLI-066, CLI-068 e
+  a mensagem da tela).
 - **Recusa da carga solta em outra Viagem** (decisão do dono de 2026-10-28,
   pergunta P1 da situação S6.03; migration `500`): a prévia e a gravação do
   Manifesto BB e do B/L avulso mandam excluir o B/L na outra Viagem e importar

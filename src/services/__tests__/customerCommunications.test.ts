@@ -151,39 +151,43 @@ function candidate(overrides: Partial<CustomerCommunicationBlCandidate> = {}): C
 }
 
 describe('recorte e conferência de Comunicados', () => {
-  it('não permite conferência de carga sem filtro operacional, mesmo com CNPJ', () => {
+  it('não permite conferência de carga sem Viagem escolhida, mesmo com CNPJ ou porto', () => {
     expect(validateCustomerCommunicationFilters({
-      mode: 'carga', vesselVoyage: '', pol: '', pod: '', cnpj: '12.345.678/0001-95',
+      mode: 'carga', voyageId: null, pol: '', pod: '', cnpj: '12.345.678/0001-95',
     }).valid).toBe(false)
+    // POD sozinho alcançava toda viagem já feita para o porto.
     expect(validateCustomerCommunicationFilters({
-      mode: 'carga', vesselVoyage: 'Navio', pol: '', pod: '', cnpj: '',
+      mode: 'carga', voyageId: null, pol: '', pod: 'BRVIX', cnpj: '',
+    })).toEqual({ valid: false, message: 'No modo carga, escolha o Navio / Viagem.' })
+    expect(validateCustomerCommunicationFilters({
+      mode: 'carga', voyageId: 7, pol: '', pod: '', cnpj: '',
     }).valid).toBe(true)
   })
 
-  it('navio e viagem num campo só: cada termo digitado precisa aparecer', () => {
+  it('a Viagem é a escolhida, pelo id: a viagem 6 não traz a 16 nem a 26 do mesmo navio', () => {
     const rows = [
-      candidate({ id: 'BL-1', vesselName: 'COSCO SHIPPING XING WANG', voyageNumber: '2401E' }),
-      candidate({ id: 'BL-2', vesselName: 'COSCO SHIPPING XING WANG', voyageNumber: '2402E' }),
-      candidate({ id: 'BL-3', vesselName: 'CMA VEGA', voyageNumber: '2401E' }),
+      candidate({ id: 'BL-6', voyageId: 6, vesselName: 'GREEN GUANGZHOU', voyageNumber: '6' }),
+      candidate({ id: 'BL-16', voyageId: 16, vesselName: 'GREEN GUANGZHOU', voyageNumber: '16' }),
+      candidate({ id: 'BL-26', voyageId: 26, vesselName: 'GREEN GUANGZHOU', voyageNumber: '26' }),
     ]
-    const recorte = (vesselVoyage: string) =>
-      filterCustomerCommunicationBls(rows, { mode: 'carga', vesselVoyage, pol: '', pod: '', cnpj: '' }).map((row) => row.id)
+    expect(filterCustomerCommunicationBls(rows, { mode: 'carga', voyageId: 6, pol: '', pod: '', cnpj: '' }).map((row) => row.id)).toEqual(['BL-6'])
+  })
 
-    // Só o navio: todas as viagens dele.
-    expect(recorte('xing wang')).toEqual(['BL-1', 'BL-2'])
-    // Só a viagem: o número em qualquer navio — é o que se espera de uma busca só.
-    expect(recorte('2401E')).toEqual(['BL-1', 'BL-3'])
-    // Os dois juntos, na ordem natural de quem digita.
-    expect(recorte('XING WANG 2401E')).toEqual(['BL-1'])
-    // E fora de ordem, porque a busca casa termos e não a frase inteira.
-    expect(recorte('2401e xing wang')).toEqual(['BL-1'])
-    // Tolera barra, vírgula e hífen como separadores (ex.: rótulo "Navio / Viagem").
-    expect(recorte('XING WANG / 2401E')).toEqual(['BL-1'])
-    expect(recorte('XING WANG/2401E')).toEqual(['BL-1'])
-    expect(recorte('XING WANG, 2401E')).toEqual(['BL-1'])
-    expect(recorte('COSCO SHIPPING XING WANG - 2401E')).toEqual(['BL-1'])
-    // Um termo que não existe zera o recorte em vez de ignorar o excedente.
-    expect(recorte('XING WANG 9999')).toEqual([])
+  it('POL e POD vazios são a Viagem inteira; escolhidos, casam pelo porto normalizado', () => {
+    const rows = [
+      candidate({ id: 'BL-VIT', pol: 'CNTAO', pod: 'BRVIT' }),
+      candidate({ id: 'BL-VIX', pol: 'CNNGB', pod: 'BRVIX' }),
+      candidate({ id: 'BL-SSZ', pol: 'CNTAO', pod: 'BRSSZ' }),
+    ]
+    const recorte = (pol: string, pod: string) =>
+      filterCustomerCommunicationBls(rows, { mode: 'carga', voyageId: 7, pol, pod, cnpj: '' }).map((row) => row.id)
+    expect(recorte('', '')).toEqual(['BL-VIT', 'BL-VIX', 'BL-SSZ'])
+    // BRVIT e BRVIX são o mesmo porto, como na régua.
+    expect(recorte('', 'BRVIX')).toEqual(['BL-VIT', 'BL-VIX'])
+    expect(recorte('CNTAO', '')).toEqual(['BL-VIT', 'BL-SSZ'])
+    expect(recorte('CNTAO', 'BRVIX')).toEqual(['BL-VIT'])
+    // Código é comparado inteiro, não por trecho: "BRV" não é porto.
+    expect(recorte('', 'BRV')).toEqual([])
   })
 
   it('aplica CNPJ como restrição e normaliza pontuação', () => {
@@ -191,14 +195,14 @@ describe('recorte e conferência de Comunicados', () => {
       candidate({ id: 'BL-1' }),
       candidate({ id: 'BL-2', customerId: 100, customerCnpj: '98.765.432/0001-10' }),
     ], {
-      mode: 'carga', vesselVoyage: '', pol: '', pod: '', cnpj: '12.345.678000195',
+      mode: 'carga', voyageId: 7, pol: '', pod: '', cnpj: '12.345.678000195',
     })
     expect(rows.map((row) => row.id)).toEqual(['BL-1'])
   })
 
   it('não reaplica filtros operacionais antigos no modo institucional', () => {
     const rows = filterCustomerCommunicationBls([candidate()], {
-      mode: 'institucional', vesselVoyage: 'Outro navio V999', pol: 'BRYYY', pod: 'BRXXX', cnpj: '',
+      mode: 'institucional', voyageId: 999, pol: 'BRYYY', pod: 'BRXXX', cnpj: '',
     })
     expect(rows.map((row) => row.id)).toEqual(['BL-1'])
   })
@@ -316,9 +320,9 @@ describe('Contrato entre modo, modelo e público do disparo', () => {
     expect(isUserWrittenCustomerCommunicationKind('aviso_chegada_noa')).toBe(false)
     expect(getCustomerCommunicationDispatchMode('livre')).toBe('carga')
     expect(MANUAL_CUSTOMER_COMMUNICATION_KINDS_BY_MODE.carga).toContain('livre')
-    // O modo carga exige filtro operacional; isso vale também para o livre.
+    // O modo carga exige a Viagem; isso vale também para o livre.
     expect(validateCustomerCommunicationFilters({
-      mode: 'carga', vesselVoyage: '', pol: '', pod: '', cnpj: '',
+      mode: 'carga', voyageId: null, pol: '', pod: '', cnpj: '',
     }).valid).toBe(false)
   })
 

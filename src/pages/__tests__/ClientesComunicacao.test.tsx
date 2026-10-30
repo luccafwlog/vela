@@ -180,6 +180,19 @@ vi.mock('../../hooks/useAppSettings', () => ({
 vi.mock('../../hooks/useBls', () => ({
   useVoyageOptions: () => ({ data: [{ id: 1, voyage_number: '123', vessel: { name: 'COSCO SHIPPING XING WANG' } }] }),
 }))
+// A escolha da Viagem é a peça comum (`VoyageCombobox`); aqui, um select com a
+// mesma saída: o id da Viagem ou null.
+vi.mock('../../components/shared/VoyageCombobox', () => ({
+  VoyageCombobox: ({ selectedVoyageId, onSelect }: { selectedVoyageId: number | null; onSelect: (id: number | null) => void }) => (
+    <label>
+      Navio / Viagem
+      <select value={selectedVoyageId ?? ''} onChange={(event) => onSelect(event.target.value ? Number(event.target.value) : null)}>
+        <option value="">Nenhuma</option>
+        <option value="1">COSCO SHIPPING XING WANG / 123</option>
+      </select>
+    </label>
+  ),
+}))
 
 const authState = vi.hoisted(() => ({ canSend: true, isDev: true }))
 vi.mock('../../hooks/useAuth', () => ({
@@ -213,6 +226,9 @@ vi.mock('../../hooks/useCustomerCommunications', async () => ({
   useSaveCustomerCommunicationSavedTemplate: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
+  }),
+  useCommunicationVoyagePorts: (voyageId: number | null) => ({
+    data: voyageId == null ? undefined : { pols: ['CNTAO'], pods: ['BRSSZ', 'BRVIX'] },
   }),
   useVoyageCommunicationCoverage: (_filters: unknown, options?: { enabled?: boolean }) => (coverageEnabled.push(options?.enabled), {
     data: mockCoverage,
@@ -456,7 +472,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByText('O que será enviado')).toBeTruthy()
     expect(screen.getAllByText('NOA · Chegada Próxima').length).toBeGreaterThanOrEqual(1)
 
-    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: /Conferir destinatários/i }))
 
     // Detalhes da conferência renderizada
@@ -575,7 +591,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     ])
   })
 
-  it('bloqueia a conferência do modo carga enquanto nenhum filtro operacional for informado', () => {
+  it('bloqueia a conferência do modo carga enquanto nenhuma Viagem for escolhida', () => {
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
         <ClientesComunicacao />
@@ -585,7 +601,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     const conferir = screen.getByRole('button', { name: /Conferir destinatários/i }) as HTMLButtonElement
     expect(conferir.disabled).toBe(true)
 
-    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
     expect((screen.getByRole('button', { name: /Conferir destinatários/i }) as HTMLButtonElement).disabled).toBe(false)
   })
 
@@ -598,9 +614,10 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
 
     fireEvent.change(screen.getByLabelText(/^CNPJ do Cliente/), { target: { value: '12.345.678/0001-90' } })
 
-    // `validateCustomerCommunicationFilters` aceita só navio/viagem, POL ou POD.
+    // `validateCustomerCommunicationFilters` exige a Viagem.
     expect((screen.getByRole('button', { name: /Conferir destinatários/i }) as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText(/informe navio\/viagem, POL ou POD/i)).toBeTruthy()
+    expect(screen.getByText(/escolha o Navio \/ Viagem$/)).toBeTruthy()
+    expect(screen.getByText('No modo carga, escolha o Navio / Viagem.')).toBeTruthy()
   })
 
   it('não deixa conferir sem mensagem, porque a conferência desmonta o editor', () => {
@@ -611,7 +628,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     escolher(/Comunicado livre/)
-    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
 
     const conferir = () => screen.getByRole('button', { name: /Conferir destinatários/i }) as HTMLButtonElement
     expect(conferir().disabled).toBe(true)
@@ -636,31 +653,72 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.queryByText(/atinge a base inteira/i)).toBeNull()
   })
 
-  it('cabe numa linha: um campo de navio/viagem, POL, POD e CNPJ', () => {
+  it('a Viagem é escolhida na lista, e POL e POD são opções dela, "Todos" por padrão', () => {
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
         <ClientesComunicacao />
       </MemoryRouter>,
     )
 
-    // Navio e viagem viraram um campo só, como no Line-up.
+    // Navio e viagem num campo só, a peça comum do sistema.
     expect(screen.queryByLabelText('Navio')).toBeNull()
     expect(screen.queryByLabelText('Viagem')).toBeNull()
-    expect(screen.getByLabelText('Navio / Viagem')).toBeTruthy()
+    const pol = () => screen.getByLabelText('POL') as HTMLSelectElement
+    const pod = () => screen.getByLabelText('POD') as HTMLSelectElement
+    // Sem Viagem, os portos não têm de onde vir.
+    expect([pol().disabled, pod().disabled]).toEqual([true, true])
+    expect(screen.getByText(/escolha o Navio \/ Viagem$/)).toBeTruthy()
 
-    // POL antes de POD, sem o rótulo por extenso e com os placeholders corretos.
-    const rotulos = screen.getAllByText(/^(POL|POD)$/).map((el) => el.textContent)
-    expect(rotulos).toEqual(['POL', 'POD'])
-    expect(screen.getByPlaceholderText('CNSHA')).toBeTruthy()
-    expect(screen.getByPlaceholderText('BRSSZ')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
+    expect([pol().value, pod().value]).toEqual(['', ''])
+    expect([...pol().options].map((option) => option.text)).toEqual(['Todos', 'CNTAO'])
+    expect([...pod().options].map((option) => option.text)).toEqual(['Todos', 'BRSSZ', 'BRVIX'])
+    // Com "Todos" a Viagem inteira já pode ser conferida.
+    expect((screen.getByRole('button', { name: /Conferir destinatários/i }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getAllByText('COSCO SHIPPING XING WANG / 123').length).toBeGreaterThanOrEqual(1)
 
-    // O painel da direita nomeia o recorte em vez de repetir a lista de campos.
-    expect(screen.getByText(/informe navio\/viagem, POL ou POD/i)).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
-    expect(screen.getByText('COSCO SHIPPING XING WANG')).toBeTruthy()
+    fireEvent.change(pod(), { target: { value: 'BRVIX' } })
+    expect(screen.getByText('BRVIX', { selector: 'strong' })).toBeTruthy()
+    // Outra Viagem volta os portos para "Todos".
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
+    expect(pod().value).toBe('')
 
     // O filtro de escala saiu de vez.
     expect(screen.queryByLabelText(/Escala/)).toBeNull()
+  })
+
+  it('conferência vazia mostra o motivo (ex.: B/Ls sem Cliente), não "critérios informados"', () => {
+    activeMockConference = {
+      ...conferenceOf('aviso_chegada_noa', []),
+      blsWithoutCustomer: 133,
+      emptyReason: 'Nenhum dos 133 B/Ls ativos da Viagem tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.',
+    }
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+
+    expect(screen.getByText(/Nenhum dos 133 B\/Ls ativos da Viagem tem Cliente vinculado/)).toBeTruthy()
+    expect(screen.queryByText('Nenhuma carga atende aos critérios informados.')).toBeNull()
+  })
+
+  it('a conferência da carga mostra o porto de cada linha e avisa os B/Ls sem Cliente que ficaram fora', () => {
+    activeMockConference = { ...conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com'])]), blsWithoutCustomer: 4 }
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+
+    const tabela = screen.getByRole('table', { name: 'Clientes na conferência do Comunicado' })
+    expect(within(tabela).getByRole('columnheader', { name: 'Porto' })).toBeTruthy()
+    const linha = within(tabela).getByText('ACME Importadora').closest('tr') as HTMLElement
+    expect(within(linha).getByText('BRSSZ')).toBeTruthy()
+    expect(screen.getByText('4 B/Ls da Viagem não têm Cliente vinculado e ficaram fora.')).toBeTruthy()
   })
 
   it('exibe mensagem explicativa quando a conferência de NOB é vazia por falta de Frente de Operação', () => {
@@ -689,7 +747,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     escolher(/NOB · Aviso de Atracação/)
-    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: /Conferir destinatários/i }))
 
     expect(screen.getByText('Nenhuma carga disponível para envio de NOB')).toBeTruthy()
@@ -703,7 +761,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: /Conferir destinatários/i }))
 
     // A lista assume a tela: o formulário que a produziu vira uma linha só.
@@ -715,7 +773,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Editar composição/i }))
 
     // E volta inteiro, com o filtro preservado — sair da conferência não é refazer.
-    expect((screen.getByLabelText('Navio / Viagem') as HTMLInputElement).value).toBe('COSCO SHIPPING XING WANG')
+    expect((screen.getByLabelText('Navio / Viagem') as HTMLSelectElement).value).toBe('1')
     expect(screen.queryByText('Destinatários conferidos')).toBeNull()
     expect(screen.getByText('O que será enviado')).toBeTruthy()
   })
@@ -727,7 +785,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: /Conferir destinatários/i }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Desmarcar' }))
@@ -796,7 +854,7 @@ function conferenceOf(kind: string, rows: unknown[]) {
 }
 
 function conferir() {
-  fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
+  fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
   fireEvent.click(screen.getByRole('button', { name: /Conferir destinatários/i }))
 }
 
@@ -854,6 +912,36 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     expect(mockDispatch).toHaveBeenCalledTimes(4)
     expect(mockDispatch.mock.calls[3][0]).toEqual(mockDispatch.mock.calls[1][0])
     expect(within(painel).getByText(/nenhuma falha/)).toBeTruthy()
+  })
+
+  it('enquanto o lote sai, o botão conta os destinatários e sair da página pede confirmação', async () => {
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com'])])
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    let release: (value: unknown) => void = () => undefined
+    mockDispatch
+      .mockResolvedValueOnce({ communicationId: 1, status: 'simulado' })
+      .mockImplementationOnce(() => new Promise((resolve) => { release = resolve }))
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+
+    expect(await screen.findByText('Enviando 1 de 2…')).toBeTruthy()
+    expect(screen.getByText(/Não feche nem recarregue a página/)).toBeTruthy()
+    const saindo = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(saindo)
+    expect(saindo.defaultPrevented).toBe(true)
+
+    release({ communicationId: 1, status: 'simulado' })
+    await screen.findByText('Resultado do disparo')
+    expect(screen.queryByText(/Enviando \d+ de/)).toBeNull()
+    const depois = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(depois)
+    expect(depois.defaultPrevented).toBe(false)
   })
 
   it('"Repetir só as falhas" relê a chave e confirma de novo: simulação que vira envio real avisa antes', async () => {

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   fetchBlCommunicationHistory,
+  fetchCommunicationVoyagePorts,
   fetchCustomerCommunicationConference,
   fetchCustomerCommunicationHistory,
   fetchVoyageCommunicationCoverage,
@@ -34,6 +35,15 @@ export function useCustomerCommunicationConference(input: {
     queryKey: queryKeys.customerCommunications.conference(input.filters, input.kind, input.nature, input.audience),
     enabled: input.enabled ?? true,
     queryFn: () => fetchCustomerCommunicationConference({ filters: input.filters, kind: input.kind, nature: input.nature, audience: input.audience }),
+  })
+}
+
+/** POL e POD da Viagem escolhida no Disparo: as opções dos dois selects do recorte. */
+export function useCommunicationVoyagePorts(voyageId: number | null) {
+  return useQuery({
+    queryKey: [...queryKeys.customerCommunications.all(), 'voyage-ports', voyageId],
+    enabled: voyageId != null,
+    queryFn: () => fetchCommunicationVoyagePorts(voyageId!),
   })
 }
 
@@ -94,12 +104,13 @@ export function useBlCommunicationHistory(blId?: string) {
 /**
  * Disparo em lote da conferência: segue depois de uma falha e invalida o cache
  * uma vez, no fim (plano dos e-mails, 3.2). Repetir as falhas passa os mesmos
- * itens de volta.
+ * itens de volta. `onProgress` conta cada destinatário concluído, para a tela
+ * dizer "Enviando N de M" num lote que leva minutos.
  */
-export function useDispatchCustomerCommunicationBatch() {
+export function useDispatchCustomerCommunicationBatch(options: { onProgress?: (done: number, total: number) => void } = {}) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (items: readonly CustomerCommunicationBatchItem[]) => runCustomerCommunicationBatch(items, dispatchCustomerCommunication),
+    mutationFn: (items: readonly CustomerCommunicationBatchItem[]) => runCustomerCommunicationBatch(items, dispatchCustomerCommunication, options.onProgress),
     onSettled: async (_outcomes, _error, items) => {
       await afterCustomerCommunicationBatchDispatched(queryClient, {
         customerIds: [...new Set(items.map((item) => item.input.customerId))],

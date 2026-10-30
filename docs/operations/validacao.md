@@ -562,7 +562,10 @@ Valide com a chave de envio desligada, que envia o Comunicado ao suporte
 1. em `/clientes/comunicacao`, monte um disparo manual por carga (NOA, NOR,
    NOB ou livre) e um institucional, passe pela conferência e confirme um
    registro por Cliente e destinatário no histórico;
-2. confirme que filtro sem navio/viagem, POL ou POD não libera a conferência;
+2. confirme que, sem Navio / Viagem escolhido, POL e POD ficam desabilitados e
+   a conferência não libera; com a Viagem e POL e POD em **Todos**, a
+   conferência traz os Clientes da Viagem inteira, com o Porto de cada linha;
+   numa Viagem sem Cliente vinculado, a lista vazia diz o motivo;
 3. reenvie um modelo ancorado em carga e confira o novo discriminador;
 4. deixe a régua automática rodar (NOA, NOR, NOB e CE e Taxas) e confira que
    um Comunicado `simulado` barra o automático da mesma âncora;

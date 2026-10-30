@@ -185,22 +185,26 @@ export type CustomerCommunicationDispatchMode = 'carga' | 'institucional'
 
 export type CustomerCommunicationFilters = {
   mode: CustomerCommunicationDispatchMode
-  /** Navio e viagem num campo só, como no Line-up. Ver `matchesVesselVoyage`. */
-  vesselVoyage: string
+  /**
+   * Viagem escolhida no `VoyageCombobox`, pelo id, como no resto do sistema.
+   * Obrigatória no modo carga: até 2026-10-30 o campo era texto casado por
+   * trecho, e "6" trazia também as viagens 16 e 26 do mesmo navio.
+   */
+  voyageId: number | null
+  /** Porto de embarque; vazio = todos os da Viagem. Comparado normalizado. */
   pol: string
+  /** Porto de descarga; vazio = todos os da Viagem. Comparado normalizado. */
   pod: string
   cnpj: string
 }
 
 export const DEFAULT_CUSTOMER_COMMUNICATION_FILTERS: CustomerCommunicationFilters = {
   mode: 'carga',
-  vesselVoyage: '',
+  voyageId: null,
   pol: '',
   pod: '',
   cnpj: '',
 }
-
-export const OPERATIONAL_CUSTOMER_COMMUNICATION_FILTERS = ['vesselVoyage', 'pol', 'pod'] as const
 
 /**
  * Modelos que o operador pode disparar manualmente em `/clientes/comunicacao`,
@@ -348,6 +352,10 @@ export type CustomerCommunicationConference = {
   blockedCustomers: CustomerCommunicationConferenceRow[]
   excludedReasonCounts: Record<CustomerCommunicationExcludedReason, number>
   unassignedOperationFronts?: boolean
+  /** Modo carga: B/Ls ativos da Viagem sem Cliente vinculado, que ficam fora da lista. */
+  blsWithoutCustomer?: number
+  /** Modo carga com a lista vazia: o motivo, em português (`describeEmptyCargoConference`). */
+  emptyReason?: string | null
 }
 
 export type CommunicationFilterValidation = {
@@ -361,29 +369,6 @@ function cleanFilter(value: string | null | undefined): string {
 
 function normalizedUpper(value: string | null | undefined): string {
   return cleanFilter(value).toUpperCase()
-}
-
-function matchesFilter(value: string | null | undefined, filter: string): boolean {
-  const normalizedFilter = normalizedUpper(filter)
-  if (!normalizedFilter) return true
-  return normalizedUpper(value).includes(normalizedFilter)
-}
-
-/**
- * Navio e viagem casam contra "NAVIO VIAGEM" concatenado, e cada termo digitado
- * precisa aparecer. Assim "XING WANG 2401E" acha a viagem 2401E do COSCO SHIPPING XING WANG,
- * "XING WANG" sozinho acha todas as dela e "2401E" sozinho acha a viagem em
- * qualquer navio — que é o que o operador espera de uma busca só.
- */
-function matchesVesselVoyage(vessel: string | null | undefined, voyage: string | null | undefined, filter: string): boolean {
-  const terms = normalizedUpper(filter)
-    .replace(/[/,]/g, ' ')
-    .replace(/\s+-\s+/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
-  if (!terms.length) return true
-  const haystack = `${normalizedUpper(vessel)} ${normalizedUpper(voyage)}`
-  return terms.every((term) => haystack.includes(term))
 }
 
 /**
@@ -400,12 +385,26 @@ function samePort(left: string | null | undefined, right: string | null | undefi
   return Boolean(a && b && a === b)
 }
 
+function hasCargoVoyage(filters: CustomerCommunicationFilters): filters is CustomerCommunicationFilters & { voyageId: number } {
+  return Number.isInteger(filters.voyageId) && Number(filters.voyageId) > 0
+}
+
+/**
+ * O modo carga parte sempre de uma Viagem: POL e POD só estreitam dentro dela.
+ * Sem Viagem, um POD sozinho alcançava os Clientes de toda viagem já feita
+ * para aquele porto.
+ */
 export function validateCustomerCommunicationFilters(filters: CustomerCommunicationFilters): CommunicationFilterValidation {
   if (filters.mode === 'institucional') return { valid: true, message: null }
-  const hasOperationalFilter = OPERATIONAL_CUSTOMER_COMMUNICATION_FILTERS.some((key) => Boolean(cleanFilter(filters[key])))
-  return hasOperationalFilter
+  return hasCargoVoyage(filters)
     ? { valid: true, message: null }
-    : { valid: false, message: 'No modo carga, informe ao menos um filtro operacional: navio/viagem, POL ou POD.' }
+    : { valid: false, message: 'No modo carga, escolha o Navio / Viagem.' }
+}
+
+/** POL ou POD vazio é "todos os portos da Viagem"; preenchido, casa pelo código normalizado. */
+function matchesPortFilter(value: string | null | undefined, filter: string): boolean {
+  if (!cleanFilter(filter)) return true
+  return samePort(value, filter)
 }
 
 export function filterCustomerCommunicationBls(
@@ -414,9 +413,9 @@ export function filterCustomerCommunicationBls(
 ): CustomerCommunicationBlCandidate[] {
   return rows.filter((row) => {
     if (filters.mode === 'carga') {
-      if (!matchesVesselVoyage(row.vesselName, row.voyageNumber, filters.vesselVoyage)) return false
-      if (!matchesFilter(row.pol, filters.pol)) return false
-      if (!matchesFilter(row.pod, filters.pod)) return false
+      if (hasCargoVoyage(filters) && row.voyageId !== filters.voyageId) return false
+      if (!matchesPortFilter(row.pol, filters.pol)) return false
+      if (!matchesPortFilter(row.pod, filters.pod)) return false
     }
     if (cleanFilter(filters.cnpj) && canonicalizeDocument(row.customerCnpj) !== canonicalizeDocument(filters.cnpj)) return false
     return true
@@ -829,65 +828,93 @@ export function expandCandidatesForKind(
 
 const COMMUNICATION_BL_SELECT = 'id, voyage_id, customer_id, pod, pol, cargo_mode, terminal_id, cancelled_at, financial_status, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf, deactivated_at), voyage:voyages(id, voyage_number, eta, ata, status, vessel:vessels(name))'
 
-/**
- * Viagens cujo "NAVIO VIAGEM" casa com o filtro de navio/viagem. A lista de
- * viagens é muito menor que a de B/Ls; com ela o recorte da carga sai do
- * servidor em vez de ler todos os B/Ls (plano dos e-mails, 3.7).
- */
-async function fetchVoyageIdsMatching(filter: string): Promise<number[]> {
-  const ids: number[] = []
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase
-      .from('voyages')
-      .select('id, voyage_number, vessel:vessels(name)')
-      .order('id', { ascending: true })
-      .range(from, from + 999)
-      .overrideTypes<Array<{ id: number; voyage_number: string; vessel: { name: string } | null }>, { merge: false }>()
-    if (error) throw error
-    for (const voyage of data ?? []) {
-      if (matchesVesselVoyage(voyage.vessel?.name, voyage.voyage_number, filter)) ids.push(voyage.id)
-    }
-    if (!data || data.length < 1000) break
-  }
-  return ids
-}
-
-// ponytail: o recorte por navio/viagem, POL e POD sai do servidor; o CNPJ e a
-// regra fina (`filterCustomerCommunicationBls`) continuam no navegador. O modo
+// ponytail: no modo carga a consulta lê só os B/Ls da Viagem escolhida; POL,
+// POD, CNPJ e a regra fina (`filterCustomerCommunicationBls`) ficam no
+// navegador, porque a comparação de porto é normalizada (BRVIT é BRVIX). O modo
 // institucional ainda lê todos os B/Ls ativos — o Cliente Comunicável depende
 // do ETA da escala; o próximo passo seria uma RPC com essa regra.
 export async function fetchCommunicationBlRows(filters?: CustomerCommunicationFilters): Promise<RawCommunicationBlRow[]> {
-  const cargo = filters?.mode === 'carga'
-  let voyageIds: number[] | null = null
-  if (cargo && cleanFilter(filters.vesselVoyage)) {
-    voyageIds = await fetchVoyageIdsMatching(filters.vesselVoyage)
-    if (!voyageIds.length) return []
+  let voyageId: number | null = null
+  if (filters?.mode === 'carga') {
+    if (!hasCargoVoyage(filters)) return []
+    voyageId = filters.voyageId
   }
-  const voyageChunks = voyageIds ? Array.from({ length: Math.ceil(voyageIds.length / 100) }, (_, index) => voyageIds!.slice(index * 100, index * 100 + 100)) : [null]
   const rows: RawCommunicationBlRow[] = []
-  for (const chunk of voyageChunks) {
-    for (let from = 0; ; from += 500) {
-      let query = supabase
-        .from('bls')
-        .select(COMMUNICATION_BL_SELECT)
-        .is('cancelled_at', null)
-      if (chunk) query = query.in('voyage_id', chunk)
-      if (cargo) {
-        const pol = sanitizeLikeTerm(filters.pol)
-        const pod = sanitizeLikeTerm(filters.pod)
-        if (pol) query = query.ilike('pol', `%${pol}%`)
-        if (pod) query = query.ilike('pod', `%${pod}%`)
-      }
-      const { data, error } = await query
-        .order('id', { ascending: true })
-        .range(from, from + 499)
-        .overrideTypes<RawCommunicationBlRow[], { merge: false }>()
-      if (error) throw error
-      rows.push(...(data ?? []))
-      if (!data || data.length < 500) break
-    }
+  for (let from = 0; ; from += 500) {
+    let query = supabase
+      .from('bls')
+      .select(COMMUNICATION_BL_SELECT)
+      .is('cancelled_at', null)
+    if (voyageId !== null) query = query.eq('voyage_id', voyageId)
+    const { data, error } = await query
+      .order('id', { ascending: true })
+      .range(from, from + 499)
+      .overrideTypes<RawCommunicationBlRow[], { merge: false }>()
+    if (error) throw error
+    rows.push(...(data ?? []))
+    if (!data || data.length < 500) break
   }
   return rows
+}
+
+export type CommunicationVoyagePorts = {
+  /** Portos de embarque dos B/Ls ativos da Viagem, normalizados e em ordem. */
+  pols: string[]
+  /** Portos de descarga dos B/Ls ativos da Viagem, normalizados e em ordem. */
+  pods: string[]
+}
+
+/** Opções de POL e POD da Viagem escolhida no disparo: só os portos que a carga dela tem. */
+export async function fetchCommunicationVoyagePorts(voyageId: number): Promise<CommunicationVoyagePorts> {
+  const pols = new Set<string>()
+  const pods = new Set<string>()
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('bls')
+      .select('pol, pod')
+      .eq('voyage_id', voyageId)
+      .is('cancelled_at', null)
+      .order('id', { ascending: true })
+      .range(from, from + 999)
+    if (error) throw error
+    for (const row of (data ?? []) as Array<{ pol: string | null; pod: string | null }>) {
+      const pol = communicationPortCode(row.pol)
+      const pod = communicationPortCode(row.pod)
+      if (pol) pols.add(pol)
+      if (pod) pods.add(pod)
+    }
+    if (!data || data.length < 1000) break
+  }
+  return { pols: [...pols].sort(), pods: [...pods].sort() }
+}
+
+/**
+ * Por que a conferência da carga voltou vazia, na ordem em que o B/L cai fora.
+ * Sem isto a tela dizia só "Nenhuma carga atende aos critérios informados", e a
+ * Viagem cujos B/Ls ainda não têm Cliente parecia pedir mais filtros.
+ */
+export function describeEmptyCargoConference(input: {
+  kind: CustomerCommunicationKind
+  activeBls: number
+  blsWithoutCustomer: number
+  eligibleBls: number
+  blsInScope: number
+  portFiltered: boolean
+}): string {
+  if (input.activeBls === 0) return 'A Viagem não tem B/L ativo.'
+  if (input.blsWithoutCustomer === input.activeBls) {
+    return `Nenhum dos ${input.activeBls} B/Ls ativos da Viagem tem Cliente vinculado. Vincule os Clientes (Base de Clientes ou Revisão) antes de comunicar.`
+  }
+  if (input.eligibleBls === 0) return 'Nenhum B/L da Viagem pode receber Comunicado: sem Cliente, sem POD, de Cliente desativado ou de Viagem cancelada.'
+  if (input.blsInScope === 0) {
+    return input.portFiltered
+      ? 'Nenhum B/L com Cliente nesta Viagem atende ao POL, POD ou CNPJ escolhido.'
+      : 'Nenhum B/L com Cliente nesta Viagem atende ao CNPJ escolhido.'
+  }
+  if (input.kind === 'aviso_chegada_noa') return 'A escala do porto de descarga não tem ETA registrada, foi excluída ou omitida.'
+  if (input.kind === 'aviso_prontidao_nor') return 'A escala do porto de descarga ainda não tem ATA registrada (ou foi excluída ou omitida).'
+  if (input.kind === 'aviso_atracacao_nob') return 'Nenhuma Atracação da escala tem ATB registrado.'
+  return 'A escala do porto de descarga foi excluída ou omitida.'
 }
 
 async function fetchCommunicationContacts(customerIds: readonly number[]): Promise<{
@@ -962,7 +989,10 @@ export async function fetchCustomerCommunicationConference(input: {
     const candidate = toBaseCandidate(row)
     return candidate ? [candidate] : []
   })
-  const voyageIds = [...new Set(baseRows.map((row) => row.voyageId))]
+  // O recorte (Viagem, POL, POD, CNPJ) não depende da escala: aplicado antes,
+  // a escala só é lida para as Viagens que ficaram.
+  const inScope = filterCustomerCommunicationBls(baseRows, input.filters)
+  const voyageIds = [...new Set(inScope.map((row) => row.voyageId))]
   const schedulesByVoyage = input.kind === 'institucional' || input.kind === 'livre' || input.kind === 'aviso_chegada_noa' || input.kind === 'aviso_prontidao_nor' || input.kind === 'aviso_atracacao_nob'
     ? await listVoyageEscalaSchedulesByVoyageIds(voyageIds)
     : new Map<number, VoyageEscalaSchedule[]>()
@@ -970,16 +1000,15 @@ export async function fetchCustomerCommunicationConference(input: {
   const assignedFrontKeys = operationalKind === 'aviso_atracacao_nob'
     ? await fetchAssignedOperationFrontKeys(voyageIds)
     : undefined
-  const expanded = expandCandidatesForKind(baseRows, schedulesByVoyage, operationalKind, assignedFrontKeys)
-  const filtered = filterCustomerCommunicationBls(expanded, input.filters)
+  const filtered = expandCandidatesForKind(inScope, schedulesByVoyage, operationalKind, assignedFrontKeys)
   let unassignedOperationFronts = false
   if (operationalKind === 'aviso_atracacao_nob' && filtered.length === 0) {
-    const unassignedExpanded = expandCandidatesForKind(baseRows, schedulesByVoyage, operationalKind, undefined)
-    const unassignedFiltered = filterCustomerCommunicationBls(unassignedExpanded, input.filters)
-    if (unassignedFiltered.length > 0) {
+    if (expandCandidatesForKind(inScope, schedulesByVoyage, operationalKind, undefined).length > 0) {
       unassignedOperationFronts = true
     }
   }
+  const cargo = input.filters.mode === 'carga'
+  const blsWithoutCustomer = cargo ? rawRows.filter((row) => !row.customer_id || !row.customer).length : 0
   const customerIds = [...new Set(filtered.map((row) => row.customerId))]
   const [{ contactsByCustomer, boxLinks }, boxKinds] = await Promise.all([
     fetchCommunicationContacts(customerIds),
@@ -1012,7 +1041,7 @@ export async function fetchCustomerCommunicationConference(input: {
   ])
   const history = await fetchCommunicationHistory(customerIds, input.kind)
 
-  return buildCustomerCommunicationConference({
+  const conference = buildCustomerCommunicationConference({
     kind: input.kind,
     nature: input.nature,
     mode: input.filters.mode,
@@ -1027,6 +1056,19 @@ export async function fetchCustomerCommunicationConference(input: {
     unassignedOperationFronts,
     now: input.now,
   })
+  if (!cargo) return conference
+  return {
+    ...conference,
+    blsWithoutCustomer,
+    emptyReason: conference.rows.length || unassignedOperationFronts ? null : describeEmptyCargoConference({
+      kind: input.kind,
+      activeBls: rawRows.length,
+      blsWithoutCustomer,
+      eligibleBls: baseRows.length,
+      blsInScope: inScope.length,
+      portFiltered: Boolean(cleanFilter(input.filters.pol) || cleanFilter(input.filters.pod)),
+    }),
+  }
 }
 
 export type CustomerCommunicationAttemptHistory = {

@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Disparo de Comunicados parte de uma Viagem escolhida (2026-10-30, sem migration; revisão da comunicação
+  manual pedida pelo dono):** em `/clientes/comunicacao` › **Disparo**, **Navio / Viagem** passa a ser a peça
+  comum `VoyageCombobox` (escolha pelo id, como em BLs e Revisão) e é obrigatório no modo Carga; **POL** e
+  **POD** viram listas com **Todos** e os portos da carga da Viagem, comparados normalizados. Antes o campo era
+  texto casado por trecho — a viagem "6" trazia também a 16 e a 26 do mesmo navio, sem a tabela mostrar de que
+  viagem era cada linha — e um POD sozinho alcançava toda viagem já feita para o porto. A conferência mostra o
+  **Porto** de cada linha, avisa os B/Ls da Viagem sem Cliente e, vazia, diz o motivo ("Nenhum dos N B/Ls ativos
+  da Viagem tem Cliente vinculado…", escala sem ETA, ATA ou ATB) em vez de "Nenhuma carga atende aos critérios
+  informados."; o lote conta "Enviando N de M…" e fechar a página no meio pede confirmação. Ver
+  [Clientes](modules/clientes.md#clientescomunicacao).
 - **Escala com LOCODE brasileiro fora da lista continua no Planejamento (2026-10-29, sem migration):**
   a escala com porto brasileiro bem formado que o Vela não conhece (por exemplo `BRXYZ`) era gravada,
   mas sumia do **Planejamento por escala** da ficha da Viagem ao recarregar a página: a leitura só

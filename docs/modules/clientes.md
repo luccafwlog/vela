@@ -58,13 +58,11 @@ Loading com skeleton cobre a página inteira antes de qualquer aba montar. Docum
 A aba **Disparo** tem duas colunas: à esquerda o operador compõe, à direita o
 painel **O que será enviado** responde "quem vai receber isto?" desde o primeiro
 segundo, com a frase do disparo, as quatro métricas do recorte, os anexos e os
-botões de ação. A frase é montada por `describeCargoScope` a partir dos filtros
-informados e, sem recorte operacional, diz o que falta em vez de mentir um
-alcance — no modo carga, filtro vazio nunca significa todos os clientes. O CNPJ
-aparece na frase, mas não a completa sozinho: como
-`validateCustomerCommunicationFilters` não o aceita como recorte, uma frase que se
-declarasse pronta com ele contradiria o botão de conferência, que seguiria
-travado.
+botões de ação. A frase é montada por `describeCargoScope` a partir da Viagem
+escolhida e dos filtros informados e, sem Viagem, diz o que falta ("escolha o
+Navio / Viagem") em vez de mentir um alcance — no modo carga, filtro vazio nunca
+significa todos os clientes. POL, POD e CNPJ só aparecem na frase quando
+escolhidos; sem eles, a frase fala da Viagem inteira.
 
 A coluna da composição encadeia três perguntas, separadas por divisórias e sem
 numeração (a numeração 1·2·3 prometia um wizard que a tela não tem):
@@ -91,15 +89,21 @@ numeração (a numeração 1·2·3 prometia um wizard que a tela não tem):
    mantê-lo obrigava a repetir na tela o que o Modo já tinha dito. Em lugar deles
    fica uma frase que declara o que o modo resolveu.
 2. **Recorte** — no modo Carga, quatro filtros numa linha só: **Navio / Viagem**,
-   **POL**, **POD** e CNPJ, com trilhas desiguais de propósito (texto longo nos
-   dois extremos, sigla de cinco letras no meio). Exige ao menos um filtro
-   operacional (`OPERATIONAL_CUSTOMER_COMMUNICATION_FILTERS`: navio/viagem, POL ou
-   POD), validado por `validateCustomerCommunicationFilters`, que também desabilita
-   o botão de conferência; CNPJ é restrição adicional, nunca o recorte em si — daí
-   o rótulo do grupo nomear os três campos que valem. Navio e viagem são um campo
-   só, como no Line-up: `matchesVesselVoyage` casa contra `NAVIO VIAGEM`
-   concatenado e exige cada termo digitado, então `ALTAIR 2401E`, `ALTAIR` e
-   `2401E` recortam o que o operador espera. O filtro por **Nº da Escala do
+   **POL**, **POD** e CNPJ. Navio / Viagem é a peça comum `VoyageCombobox`, a
+   mesma de BLs, Revisão, Baplie e Relatórios: o operador busca e escolhe uma
+   Viagem da lista, e o recorte usa o id dela (`filters.voyageId`). É
+   obrigatório (`validateCustomerCommunicationFilters`: "No modo carga, escolha o
+   Navio / Viagem."), e o botão de conferência fica desabilitado sem ele. **POL**
+   e **POD** são selects com **Todos** por padrão e só os portos que a carga
+   ativa da Viagem tem (`fetchCommunicationVoyagePorts`, normalizados); com
+   **Todos** o disparo vai para a Viagem inteira, e trocar de Viagem volta os dois
+   para **Todos**. O porto escolhido casa pelo código normalizado
+   (`communicationPortCode`: BRVIT e BRVIX são o mesmo porto), nunca por trecho do
+   texto. CNPJ é restrição adicional dentro da Viagem. Até 2026-10-30 Navio /
+   Viagem era texto livre casado por trecho (`matchesVesselVoyage`) e bastava
+   navio/viagem, POL ou POD: a viagem "6" trazia também as viagens 16 e 26 do
+   mesmo navio, sem a tabela mostrar de que viagem era cada linha, e um POD
+   sozinho alcançava os Clientes de toda viagem já feita para o porto. O filtro por **Nº da Escala do
    Mercante** não existe mais — era preenchido à mão e, em branco no cadastro,
    zerava o recorte em silêncio; desde o ADR 0067 o NOB é automático e ancorado na
    Atracação, então desambiguar dois terminais deixou de depender dele. No modo
@@ -120,8 +124,10 @@ numeração (a numeração 1·2·3 prometia um wizard que a tela não tem):
 
 Conferir troca a tela: a composição colapsa numa faixa-resumo de uma linha com
 **Editar composição**, e a lista de destinatários assume a coluna principal como
-tabela (Cliente, com o CNPJ e o ícone de copiar; B/Ls; Destinatários; Situação,
-com **Ver e-mail** para a prévia da linha), em vez dos cartões empilhados que obrigavam a
+tabela (Cliente, com o CNPJ e o ícone de copiar; no modo Carga, **Porto** de
+descarga da linha, porque a Viagem com dois portos dá duas linhas do mesmo
+Cliente; B/Ls; Destinatários; Situação, com **Ver e-mail** para a prévia da
+linha), em vez dos cartões empilhados que obrigavam a
 rolar o formulário inteiro para chegar em quem recebe. `showConference` é estado de
 tela e não `conferenceQuery.data`: voltar pelo Editar não muda a chave da query,
 então derivar a vista do cache deixaria a lista montada depois do pedido de voltar.
@@ -133,7 +139,7 @@ institucionais, que não vinculam nenhum, ela diz `Sem vínculo` e mostra à par
 quantas cargas provaram que o cliente é comunicável (`sourceBls`) — somar os dois
 sob o mesmo número prometeria um vínculo que o envio não cria.
 
-A conferência segue a mesma elegibilidade da régua automática: B/L cancelado (`cancelled_at` ou `financial_status = 'cancelled'`), Cliente desativado e Viagem cancelada não entram (`toBaseCandidate`); o POD do B/L casa com a Escala pelo porto normalizado (`communicationPortCode`, BRVIT e BRVIX são o mesmo porto, como o `normalize_port_code` da régua), a Escala excluída segue a mesma regra das grafias da [Escala única](#régua-automática-de-comunicados) (`projectVoyageEscalaSchedules`), e a Escala com POD excluído que segue viva por POL, exportação ou Atracação não gera NOA, NOR nem NOB (`expandCandidatesForKind`); o disparo grava o porto normalizado na âncora, a mesma identidade do envio automático (migration `318`). O recorte da carga sai do servidor — viagens que casam com Navio / Viagem, POL e POD por `ilike`, B/L cancelado fora (`fetchCommunicationBlRows`; o CNPJ e o institucional seguem filtrados no navegador). O NOB de Atracação cujo terminal não tem sigla aparece **Bloqueado**, com o motivo, em vez de falhar no disparo. O **Comunicado livre** sai um por Cliente e Viagem (D15): o Cliente com carga em duas viagens recebe dois e-mails, cada um com o bloco "Sua carga" (Navio / Viagem e B/Ls, escapado) depois da mensagem, e a Viagem entra na âncora do Comunicado; a Edge recusa em definitivo o livre com B/Ls sem a Viagem. Enquanto a conferência (Clientes, destinatários, B/Ls e discriminadores) e o texto não mudam, a seleção, o `dispatchId` e o resultado do lote continuam valendo, mesmo que a consulta devolva outro objeto. Antes de cada disparo a tela reconfere: se mudou o destinatário de um Cliente selecionado, ou qualquer parte da conferência — o que sempre acontece depois de um lote, porque os Comunicados dele mudam os discriminadores —, o disparo é recusado com "Há Comunicados novos desde a conferência. Confira de novo." Sem isso, disparar com a conferência velha cairia nas mesmas tentativas e o resumo contaria enviados sem e-mail ter saído. Para completar um lote, **Repetir só as falhas** reenvia os itens guardados, no mesmo Comunicado; a recusa definitiva (o provedor recusou o endereço, `permanent` da Edge, ou endereço suprimido) aparece com "Não adianta repetir; corrija o contato." e fica fora da repetição. Antes de repetir, a tela relê a chave de envio e confirma de novo (real ou simulação), porque a Edge usa a chave atual; o reenvio do CE e Taxas faz o mesmo. O motivo de cada falha vem do corpo da resposta da Edge: no 502 do provedor, o `reason` com o `last_error` da tentativa, traduzido como no Histórico. O rodapé dos Comunicados leva `importacao@fwlog.com.br`, o mesmo endereço do reply-to (D20, `COMMUNICATIONS_CONTACT_EMAIL`).
+A conferência segue a mesma elegibilidade da régua automática: B/L cancelado (`cancelled_at` ou `financial_status = 'cancelled'`), Cliente desativado e Viagem cancelada não entram (`toBaseCandidate`); o POD do B/L casa com a Escala pelo porto normalizado (`communicationPortCode`, BRVIT e BRVIX são o mesmo porto, como o `normalize_port_code` da régua), a Escala excluída segue a mesma regra das grafias da [Escala única](#régua-automática-de-comunicados) (`projectVoyageEscalaSchedules`), e a Escala com POD excluído que segue viva por POL, exportação ou Atracação não gera NOA, NOR nem NOB (`expandCandidatesForKind`); o disparo grava o porto normalizado na âncora, a mesma identidade do envio automático (migration `318`). O recorte da carga lê do servidor só os B/Ls ativos da Viagem escolhida (`fetchCommunicationBlRows`, por `voyage_id`, B/L cancelado fora); POL, POD e CNPJ são aplicados no navegador, antes de ler as escalas, porque a comparação de porto é normalizada (o institucional segue lendo todos os B/Ls ativos). A conferência vazia diz o motivo, na ordem em que o B/L cai fora (`describeEmptyCargoConference`): a Viagem sem B/L ativo; "Nenhum dos N B/Ls ativos da Viagem tem Cliente vinculado…" (a Viagem importada antes da Base de Clientes); B/L sem POD, de Cliente desativado ou de Viagem cancelada; nenhum B/L no POL, POD ou CNPJ escolhido; ou o marco que falta na escala (ETA no NOA, ATA no NOR, Atracação com ATB no NOB). Antes dizia só "Nenhuma carga atende aos critérios informados.", e a Viagem sem Cliente parecia pedir mais filtros. Com a lista cheia, os B/Ls ativos da Viagem sem Cliente aparecem num aviso acima da tabela ("N B/Ls da Viagem não têm Cliente vinculado e ficaram fora."). O NOB de Atracação cujo terminal não tem sigla aparece **Bloqueado**, com o motivo, em vez de falhar no disparo. O **Comunicado livre** sai um por Cliente e Viagem (D15): o Cliente com carga em duas viagens recebe dois e-mails, cada um com o bloco "Sua carga" (Navio / Viagem e B/Ls, escapado) depois da mensagem, e a Viagem entra na âncora do Comunicado; a Edge recusa em definitivo o livre com B/Ls sem a Viagem. Enquanto a conferência (Clientes, destinatários, B/Ls e discriminadores) e o texto não mudam, a seleção, o `dispatchId` e o resultado do lote continuam valendo, mesmo que a consulta devolva outro objeto. Antes de cada disparo a tela reconfere: se mudou o destinatário de um Cliente selecionado, ou qualquer parte da conferência — o que sempre acontece depois de um lote, porque os Comunicados dele mudam os discriminadores —, o disparo é recusado com "Há Comunicados novos desde a conferência. Confira de novo." Sem isso, disparar com a conferência velha cairia nas mesmas tentativas e o resumo contaria enviados sem e-mail ter saído. O lote sai do navegador, um destinatário por vez (sem rajada no provedor): o botão diz "Conferindo…" enquanto a tela reconfere e depois "Enviando N de M…" a cada destinatário concluído (`runCustomerCommunicationBatch` com `onProgress`), com o aviso "Não feche nem recarregue a página até terminar."; enquanto envia, sair ou recarregar a página pede confirmação do navegador, porque o que faltava enviar não sairia. Para completar um lote, **Repetir só as falhas** reenvia os itens guardados, no mesmo Comunicado; a recusa definitiva (o provedor recusou o endereço, `permanent` da Edge, ou endereço suprimido) aparece com "Não adianta repetir; corrija o contato." e fica fora da repetição. Antes de repetir, a tela relê a chave de envio e confirma de novo (real ou simulação), porque a Edge usa a chave atual; o reenvio do CE e Taxas faz o mesmo. O motivo de cada falha vem do corpo da resposta da Edge: no 502 do provedor, o `reason` com o `last_error` da tentativa, traduzido como no Histórico. O rodapé dos Comunicados leva `importacao@fwlog.com.br`, o mesmo endereço do reply-to (D20, `COMMUNICATIONS_CONTACT_EMAIL`).
 
 A conferência agrupa B/Ls por cliente, calcula elegíveis, excluídos e motivos de bloqueio, permite desmarcar destinatários e exige confirmação explícita de reenvio apenas para os modelos ancorados em carga (`requiresResendConfirmation`). Institucional e livre recebem um `dispatch_id` novo a cada conferência e texto (repetir o mesmo disparo reaproveita o mesmo) — cada envio é uma mensagem diferente, não o reenvio do mesmo Comunicado —, então o disparo anterior vira informação no painel ("N envio(s) anterior(es)": por Cliente no institucional, por Cliente e Viagem no livre) e não trava a operação. O discriminador desses dois modelos continua contado por Cliente.
 

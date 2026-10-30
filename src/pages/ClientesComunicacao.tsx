@@ -1,5 +1,5 @@
 import { formatCnpjCpf, formatDateTime } from '../lib/utils'
-import { Fragment, useMemo, useState, type ChangeEvent } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CoverageDrilldown } from '../components/customers/CoverageDrilldown'
 import { formatBrasiliaTime, nextAutoRunnerRun, queuedLabel } from '../lib/communicationAutoRunner'
@@ -10,6 +10,7 @@ import { RowActionButton } from '../components/ui/RowActionButton'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
 import { Switch } from '../components/ui/Switch'
+import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { CopyValue } from '../components/ui/CopyValue'
@@ -22,7 +23,7 @@ import { useAppSettings, useSetCommunicationsEnabled } from '../hooks/useAppSett
 import { useAuth } from '../hooks/useAuth'
 import { userFacingErrorMessage } from '../lib/errors'
 import { useVoyageOptions } from '../hooks/useBls'
-import { useCustomerCommunicationConference, useCustomerCommunicationHistory, useCustomerCommunicationSavedTemplates, useDispatchCustomerCommunicationBatch, useResendCeMercanteTaxasCommunication, useSaveCustomerCommunicationSavedTemplate, useVoyageCommunicationCoverage } from '../hooks/useCustomerCommunications'
+import { useCommunicationVoyagePorts, useCustomerCommunicationConference, useCustomerCommunicationHistory, useCustomerCommunicationSavedTemplates, useDispatchCustomerCommunicationBatch, useResendCeMercanteTaxasCommunication, useSaveCustomerCommunicationSavedTemplate, useVoyageCommunicationCoverage } from '../hooks/useCustomerCommunications'
 import {
   DEFAULT_CUSTOMER_COMMUNICATION_FILTERS,
   communicationPortCode,
@@ -106,30 +107,24 @@ function audienceLabel(audience: CustomerCommunicationAudience): string {
 
 /**
  * Descreve o recorte da carga em português, listando só os filtros informados.
- * Sem recorte operacional a frase diz o que falta em vez de mentir um alcance: no
- * modo carga, filtro vazio nunca significa todos os clientes.
- *
- * O CNPJ não conta como recorte completo porque
- * `validateCustomerCommunicationFilters` não o aceita sozinho — ele restringe um
- * universo, não o define. Uma frase que se declarasse pronta só com o CNPJ
- * contradiria o botão "Conferir destinatários", que continuaria desabilitado.
+ * Sem Viagem a frase diz o que falta em vez de mentir um alcance: no modo carga,
+ * filtro vazio nunca significa todos os clientes. POL e POD vazios são "todos
+ * os portos da Viagem", então a frase só os cita quando escolhidos.
  */
-function describeCargoScope(filters: CustomerCommunicationFilters): React.ReactNode {
-  const partes: React.ReactNode[] = []
-  if (filters.vesselVoyage.trim()) partes.push(<>com carga em <strong key="nv" className="font-bold">{filters.vesselVoyage.trim()}</strong></>)
+function describeCargoScope(filters: CustomerCommunicationFilters, voyageLabel: string | null): React.ReactNode {
+  if (!voyageLabel) {
+    return <span className="text-[var(--app-gold-strong)]">— escolha o Navio / Viagem</span>
+  }
+  const partes: React.ReactNode[] = [<>com carga em <strong key="nv" className="font-bold">{voyageLabel}</strong></>]
   if (filters.pol.trim()) partes.push(<>embarcada em <strong key="pol" className="font-bold">{filters.pol.trim()}</strong></>)
   if (filters.pod.trim()) partes.push(<>destinada a <strong key="pod" className="font-bold">{filters.pod.trim()}</strong></>)
-  if (!partes.length) {
-    const cnpj = filters.cnpj.trim()
-    return (
-      <span className="text-[var(--app-gold-strong)]">
-        {cnpj ? <>do CNPJ <strong className="font-bold">{cnpj}</strong> — </> : '— '}
-        informe navio/viagem, POL ou POD
-      </span>
-    )
-  }
   if (filters.cnpj.trim()) partes.push(<>do CNPJ <strong key="cnpj" className="font-bold">{filters.cnpj.trim()}</strong></>)
   return partes.map((parte, index) => <span key={index}>{index ? ', ' : ''}{parte}</span>)
+}
+
+/** Portos de descarga da linha da conferência (o livre junta os portos do Cliente na Viagem). */
+function conferenceRowPorts(row: CustomerCommunicationConferenceRow): string {
+  return [...new Set(row.sourceBls.map((bl) => communicationPortCode(bl.pod)).filter(Boolean))].join(', ')
 }
 
 /** Status do Histórico, na ordem do filtro; "Em envio" é o `pendente` da migration 302. */
@@ -294,11 +289,11 @@ export function ClientesComunicacao() {
   const [templateName, setTemplateName] = useState('')
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
   const [customPreviewRow, setCustomPreviewRow] = useState<CustomerCommunicationConferenceRow | null>(null)
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null)
   const { data: voyageOptions } = useVoyageOptions()
-  const vesselVoyageSuggestions = useMemo(
-    () => [...new Set((voyageOptions ?? []).map((voyage) => [voyage.vessel?.name, voyage.voyage_number].filter(Boolean).join(' / ')).filter(Boolean))],
-    [voyageOptions],
-  )
+  const selectedVoyage = filters.voyageId == null ? undefined : voyageOptions?.find((voyage) => voyage.id === filters.voyageId)
+  const selectedVoyageLabel = selectedVoyage ? [selectedVoyage.vessel?.name, selectedVoyage.voyage_number].filter(Boolean).join(' / ') : null
+  const voyagePortsQuery = useCommunicationVoyagePorts(filters.voyageId)
   const [coverageFilters, setCoverageFilters] = useState({ vessel: '', voyage: '', month: '' })
   // `?kind=` vem do link do alerta de reenvio do CE; só um modelo conhecido vira filtro.
   const [historyFilters, setHistoryFilters] = useState(() => {
@@ -369,11 +364,20 @@ export function ClientesComunicacao() {
   const coverageNow = useMemo(() => new Date(coverageQuery.dataUpdatedAt || Date.now()), [coverageQuery.dataUpdatedAt])
   const savedTemplatesQuery = useCustomerCommunicationSavedTemplates()
   const saveTemplateMutation = useSaveCustomerCommunicationSavedTemplate()
-  const batchMutation = useDispatchCustomerCommunicationBatch()
+  const batchMutation = useDispatchCustomerCommunicationBatch({ onProgress: (done, total) => setBatchProgress({ done, total }) })
   const ceResendMutation = useResendCeMercanteTaxasCommunication()
   const conference = conferenceQuery.data
   const signature = useMemo(() => conferenceSignature(conference), [conference])
   const historyFailures = (historyQuery.data ?? []).filter((item) => item.status === 'falha').length
+
+  // O lote sai do navegador, um destinatário por vez: fechar a aba no meio
+  // deixa o resto sem envio. O navegador pede confirmação antes de sair.
+  useEffect(() => {
+    if (!sending) return
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault() }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [sending])
 
   const defaultSelectedKeys = useMemo(
     () => new Set((conference?.rows ?? []).filter((row) => row.selected).map((row) => row.key)),
@@ -455,13 +459,16 @@ export function ClientesComunicacao() {
       : <strong className="font-bold">{customerCommunicationKindLabel(kind)}</strong>
     return (
       <>
-        {modelo} para {audience.mode === 'caixa' ? <>a caixa {publico}</> : publico} dos clientes {describeCargoScope(filters)}.
+        {modelo} para {audience.mode === 'caixa' ? <>a caixa {publico}</> : publico} dos clientes {describeCargoScope(filters, selectedVoyageLabel)}.
       </>
     )
   })()
 
   function updateFilter<K extends keyof CustomerCommunicationFilters>(field: K, value: CustomerCommunicationFilters[K]) {
-    setFilters((current) => ({ ...current, [field]: value }))
+    // POL e POD são opções da Viagem: outra Viagem volta para "Todos".
+    setFilters((current) => (field === 'voyageId' && value !== current.voyageId
+      ? { ...current, voyageId: value as number | null, pol: '', pod: '' }
+      : { ...current, [field]: value }))
     setConferenceRequested(false)
     setDispatchMessage(null)
   }
@@ -691,6 +698,7 @@ export function ClientesComunicacao() {
       setDispatchError(error instanceof Error ? error.message : 'Falha ao disparar os comunicados.')
     } finally {
       setSending(false)
+      setBatchProgress(null)
     }
   }
 
@@ -741,6 +749,7 @@ export function ClientesComunicacao() {
       setDispatchError(error instanceof Error ? error.message : 'Falha ao repetir os envios.')
     } finally {
       setSending(false)
+      setBatchProgress(null)
     }
   }
 
@@ -994,16 +1003,24 @@ export function ClientesComunicacao() {
                 )}
               >
                 <p className="px-4 pt-3 text-[var(--app-muted)]">Desmarque quem não deve receber. A seleção vale só para esta conferência.</p>
+                {conference?.rows.length && conference.blsWithoutCustomer ? (
+                  <p className="px-4 pt-1">
+                    <StatusText tone="warning">
+                      {conference.blsWithoutCustomer === 1 ? '1 B/L da Viagem não tem Cliente vinculado e ficou fora.' : `${conference.blsWithoutCustomer} B/Ls da Viagem não têm Cliente vinculado e ficaram fora.`}
+                    </StatusText>
+                  </p>
+                ) : null}
 
                 {conference?.rows.length ? (
                   <>
                     <div className="app-table-scroll">
-                      <table className="app-table"><caption className="sr-only">Invoices na conferência de comunicação</caption>
+                      <table className="app-table"><caption className="sr-only">Clientes na conferência do Comunicado</caption>
                         <thead>
                           <tr>
                             <th scope="col" className="w-12"><span className="sr-only">Selecionar</span></th>
                             <th scope="col" className="app-table__text-head">Cliente</th>
                             <th scope="col">CNPJ</th>
+                            {dispatchMode === 'carga' ? <th scope="col">Porto</th> : null}
                             <th scope="col">B/Ls</th>
                             <th scope="col" className="app-table__text-head">Destinatários</th>
                             <th scope="col">Situação</th>
@@ -1016,6 +1033,7 @@ export function ClientesComunicacao() {
                               key={row.key}
                               row={row}
                               selected={selectedKeys.has(row.key)}
+                              showPort={dispatchMode === 'carga'}
                               resendLabel={previousDispatches(row) > 0 ? (resendGateApplies ? `Reenvio ${row.nextAttemptDiscriminator}` : `${previousDispatches(row)} envio(s) anterior(es)`) : null}
                               onToggle={() => toggleRow(row.key)}
                               onPreview={() => {
@@ -1039,7 +1057,7 @@ export function ClientesComunicacao() {
                   <div className="px-5 pb-8 text-center text-sm text-[var(--app-muted)]">
                     {dispatchMode === 'institucional'
                       ? 'Nenhum Cliente Comunicável: é preciso ter contato com e-mail e ao menos um B/L com ETA nos últimos 12 meses (ou em viagem futura).'
-                      : 'Nenhuma carga atende aos critérios informados.'}
+                      : conference?.emptyReason ?? 'Nenhuma carga atende aos critérios informados.'}
                   </div>
                 )}
               </Block>
@@ -1137,39 +1155,39 @@ export function ClientesComunicacao() {
                 <Block
                   title={dispatchMode === 'carga' ? 'Recorte da carga' : 'Recorte dos clientes'}
                   headingLevel={2}
-                  aside={dispatchMode === 'carga' ? 'Navio / Viagem, POL ou POD: ao menos um' : undefined}
+                  aside={dispatchMode === 'carga' ? 'Navio / Viagem obrigatório; portos e CNPJ estreitam' : undefined}
                 >
                 {dispatchMode === 'carga' ? (
                   <>
-                    {/* Quatro filtros numa linha só. As trilhas não são iguais de
-                        propósito: navio/viagem e CNPJ recebem texto longo, POL e POD
-                        recebem uma sigla de cinco letras. */}
+                    {/* A Viagem é escolhida na lista, como no resto do sistema (pelo
+                        id, nunca por trecho do texto). POL e POD são as opções que a
+                        carga dela tem; "Todos" envia para a Viagem inteira. */}
                     <div className="comunicacao-filtros grid gap-3 sm:grid-cols-12">
                       <div className="sm:col-span-4">
-                        <Field label="Navio / Viagem">
-                          <Input
-                            value={filters.vesselVoyage}
-                            onChange={(event) => updateFilter('vesselVoyage', event.target.value)}
-                            placeholder="Busque por navio ou viagem"
-                            list="comunicacao-navios-viagens"
-                          />
-                          <datalist id="comunicacao-navios-viagens">
-                            {vesselVoyageSuggestions.map((label) => <option key={label} value={label} />)}
-                          </datalist>
-                        </Field>
+                        <VoyageCombobox
+                          clearable
+                          selectedVoyageId={filters.voyageId}
+                          onSelect={(voyageId) => updateFilter('voyageId', voyageId)}
+                        />
                       </div>
                       <div className="sm:col-span-2">
                         <Field label="POL">
-                          <Input value={filters.pol} onChange={(event) => updateFilter('pol', event.target.value)} placeholder="CNSHA" />
+                          <Select value={filters.pol} disabled={filters.voyageId == null} onChange={(event) => updateFilter('pol', event.target.value)}>
+                            <option value="">Todos</option>
+                            {(voyagePortsQuery.data?.pols ?? []).map((port) => <option key={port} value={port}>{port}</option>)}
+                          </Select>
                         </Field>
                       </div>
                       <div className="sm:col-span-2">
                         <Field label="POD">
-                          <Input value={filters.pod} onChange={(event) => updateFilter('pod', event.target.value)} placeholder="BRSSZ" />
+                          <Select value={filters.pod} disabled={filters.voyageId == null} onChange={(event) => updateFilter('pod', event.target.value)}>
+                            <option value="">Todos</option>
+                            {(voyagePortsQuery.data?.pods ?? []).map((port) => <option key={port} value={port}>{port}</option>)}
+                          </Select>
                         </Field>
                       </div>
                       <div className="sm:col-span-4">
-                        <Field label="CNPJ do Cliente (opcional)" hint="Restringe o recorte; não substitui os três campos acima.">
+                        <Field label="CNPJ do Cliente (opcional)" hint="Restringe a Viagem a um Cliente.">
                           <Input value={filters.cnpj} onChange={(event) => updateFilter('cnpj', event.target.value)} placeholder="Filtrar por CNPJ específico" />
                         </Field>
                       </div>
@@ -1382,10 +1400,17 @@ export function ClientesComunicacao() {
                       className="w-full justify-center"
                       onClick={() => void handleDispatch()}
                       loading={sending}
+                      // Antes do lote a tela confere tudo de novo; depois, conta os destinatários.
+                      loadingLabel={batchProgress ? `Enviando ${batchProgress.done} de ${batchProgress.total}…` : 'Conferindo…'}
                       disabled={sending || !selectedRows.length || messageMissing || (hasResend && !resendConfirmed)}
                     >
                       <Send size={16} /> Disparar para {selectedRows.length} cliente(s)
                     </Button>
+                    {batchProgress ? (
+                      <p role="status" className="-mt-1 text-center text-xs text-[var(--app-muted)]">
+                        Um destinatário por vez. Não feche nem recarregue a página até terminar.
+                      </p>
+                    ) : null}
                     {dispatchBlockReason ? (
                       <p className="-mt-1 text-center text-xs text-[var(--app-gold-strong)]">{dispatchBlockReason}</p>
                     ) : null}
@@ -1715,12 +1740,14 @@ function ChoiceOption({
 function ConferenceRow({
   row,
   selected,
+  showPort,
   resendLabel,
   onToggle,
   onPreview,
 }: {
   row: CustomerCommunicationConferenceRow
   selected: boolean
+  showPort: boolean
   resendLabel: string | null
   onToggle: () => void
   onPreview: () => void
@@ -1746,6 +1773,7 @@ function ConferenceRow({
         {row.terminalName ? <span className="text-[var(--app-muted)]"> · {row.terminalName}</span> : null}
       </td>
       <td className="font-mono">{row.customerCnpj ? <CopyValue value={formatCnpjCpf(row.customerCnpj)} label="CNPJ/CPF" /> : <NoValue label="CNPJ não informado" />}</td>
+      {showPort ? <td className="font-mono">{conferenceRowPorts(row) || <NoValue label="Sem porto" />}</td> : null}
       <td>
         {/* Comunicado institucional não vincula B/L: `bls` vem vazio e `sourceBls`
             só comprova que o cliente é comunicável. Somar um no outro faria a
