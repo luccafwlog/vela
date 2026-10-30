@@ -28,8 +28,10 @@ DECLARE
     -- Taxas locais gerais
     'charge_tables',
     'charge_table_items',
-    -- Taxas de demurrage
+    -- Taxas de demurrage, grupos de tarifa e tipos de container (migration 514)
     'demurrage_rates',
+    'demurrage_rate_groups',
+    'container_types',
     -- Terminais portuários e depots
     'depots',
     'depot_services',

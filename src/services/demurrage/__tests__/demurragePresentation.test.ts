@@ -29,7 +29,6 @@ describe('lastBusinessDayISO (DEM-D05)', () => {
 import { vi } from 'vitest'
 import {
   agreementSituation,
-  blBillingState,
   demurrageInvoiceNotices,
   discountPreview,
   freeTimeSource,
@@ -58,36 +57,6 @@ function box(id: number, options: { returned?: string | null; billed?: number[] 
     bl: { id: 'BL-1', free_time_override: null } as never,
   } as DemurrageContainerRow
 }
-
-describe('blBillingState (Invoice por caixa, migration 214)', () => {
-  it('primeira emissão quando nenhuma caixa tem Invoice e há sobreestadia', () => {
-    expect(blBillingState([box(1), box(2)]).action).toBe('generate')
-  })
-
-  it('complementar só com as caixas ainda não cobradas', () => {
-    const state = blBillingState([box(1, { billed: [9] }), box(2)])
-    expect(state.action).toBe('complement')
-    expect(state.uncovered.map((container) => container.container_number)).toEqual(['BOX2'])
-    expect(state.invoices.map((ref) => ref.doc_number)).toEqual(['DEM-9'])
-    expect(state.uncoveredUsd).toBe(200)
-  })
-
-  it('todas cobradas: nada a emitir, ainda que haja mais de uma Invoice', () => {
-    const state = blBillingState([box(1, { billed: [9] }), box(2, { billed: [10] })])
-    expect(state.action).toBe('covered')
-    expect(state.invoices).toHaveLength(2)
-  })
-
-  it('caixa ainda fora espera a devolução', () => {
-    const state = blBillingState([box(1), box(2, { returned: null })])
-    expect(state.action).toBe('waiting')
-    expect(state.stillOut).toBe(1)
-  })
-
-  it('devolvido no free time não tem o que faturar', () => {
-    expect(blBillingState([box(1, { returned: '2026-06-05' })]).action).toBe('none')
-  })
-})
 
 describe('freeTimeSource', () => {
   it('B/L vence o acordo, que vence a tabela (mesma ordem do banco)', () => {

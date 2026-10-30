@@ -5,6 +5,7 @@ import {
   type CustomerContactBoxLink,
 } from './customerCommunicationBoxes'
 import { supabase } from './supabase'
+import { staleSuspensionCause } from './demurrage/demurrageSuspension'
 
 export type DemurrageDunningAttempt = {
   attemptDiscriminator: number
@@ -84,7 +85,13 @@ export function demurrageDunningPauseReason(invoice: DunningInvoiceFields, hasVa
   // container alteradas depois do pagamento ou com desconto/disputa aberta.
   const suspended = invoice.dunning_suspended_reason?.trim()
   if (suspended) {
-    if (suspended.startsWith('Datas de container alteradas')) return 'datas alteradas, aguarda tratamento'
+    // Desde a migration 524 o motivo começa pela causa (datas, SOC ou divisão da caixa).
+    const stale = staleSuspensionCause(suspended)
+    if (stale) {
+      if (stale.cause.startsWith('Datas')) return 'datas alteradas, aguarda tratamento'
+      if (stale.cause.includes('SOC')) return 'container passou a SOC, aguarda tratamento'
+      return 'divisão da caixa alterada, aguarda tratamento'
+    }
     // Recusa definitiva do provedor (migration 305): resolver o alerta retoma.
     if (suspended.startsWith('Cobrança recusada pelo provedor')) return 'e-mail recusado pelo provedor, corrija o contato e resolva o alerta'
     return 'suspensa, aguarda tratamento'

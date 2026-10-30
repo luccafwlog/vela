@@ -40,7 +40,7 @@ function makeDetail(overrides: Partial<PortalDemurrageInvoiceDetail['invoice']> 
     } as PortalDemurrageInvoiceDetail
 }
 
-function renderModal(detail: PortalDemurrageInvoiceDetail, extra: { dispute?: PortalDispute | null; complementOf?: Array<{ id: number; doc_number: string }> } = {}) {
+function renderModal(detail: PortalDemurrageInvoiceDetail, extra: { dispute?: PortalDispute | null; resolvedDispute?: PortalDispute | null; complementOf?: Array<{ id: number; doc_number: string }> } = {}) {
   const handlers = { onDispute: vi.fn(), onShowDispute: vi.fn(), onOpenInvoice: vi.fn(), onPrint: vi.fn() }
   render(
     <PortalDemurrageDetailModal
@@ -49,6 +49,7 @@ function renderModal(detail: PortalDemurrageInvoiceDetail, extra: { dispute?: Po
       detail={detail}
       loading={false}
       dispute={extra.dispute}
+      resolvedDispute={extra.resolvedDispute}
       complementOf={extra.complementOf}
       onClose={vi.fn()}
       {...handlers}
@@ -104,6 +105,14 @@ describe('PortalDemurrageDetailModal', () => {
     expect(screen.getByText('se discordar de algum valor')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Abrir disputa' }))
     expect(handlers.onDispute).toHaveBeenCalledWith(1, 'DEM-001')
+  })
+
+  it('com disputa já resolvida, troca Abrir disputa por Solicitar reabertura (ADR 0112, D17)', () => {
+    const resolvedDispute = { id: 8, demurrage_invoice_id: 1, doc_number: 'DEM-001', state: 'resolvida', next_responder: 'ninguem', subject: null, created_at: '2026-09-22T10:00:00Z', updated_at: '2026-09-22T10:00:00Z', messages: [] } as PortalDispute
+    const handlers = renderModal(makeDetail(), { resolvedDispute })
+    expect(screen.queryByRole('button', { name: 'Abrir disputa' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitar reabertura' }))
+    expect(handlers.onShowDispute).toHaveBeenCalled()
   })
 
   it('com disputa aberta, mostra o bloco Disputa e leva à conversa', () => {

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePortalAuth } from './usePortalAuth'
 import { usePortalScope } from './usePortalScope'
-import { portalAddDisputeMessage, portalListDisputes, portalOpenDemurrageDispute, portalRequestDisputeReopen } from '../services/portalBilling'
+import { portalAddDisputeMessage, portalListDisputes, portalOpenDemurrageDispute, portalRequestDisputeReopen, portalUploadDisputeAttachment } from '../services/portalBilling'
 import { isPortalReadOnly } from '../services/portalScope'
 
 export function usePortalDisputes() {
@@ -48,6 +48,17 @@ export function usePortalRequestDisputeReopen() {
   const scope = usePortalScope()
   return useMutation({
     mutationFn: (input: { disputeId: number; body: string }) => portalRequestDisputeReopen(input.disputeId, input.body, scope),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['portal-disputes'] }),
+  })
+}
+
+/** Anexo numa mensagem já gravada do Cliente; a conversa relida mostra o nome do arquivo. */
+export function usePortalUploadDisputeAttachment() {
+  const queryClient = useQueryClient()
+  const scope = usePortalScope()
+  return useMutation({
+    mutationFn: (input: { messageId: number; disputeId: number; file: File }) =>
+      portalUploadDisputeAttachment(input.messageId, input.disputeId, input.file, scope),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['portal-disputes'] }),
   })
 }

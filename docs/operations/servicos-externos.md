@@ -241,6 +241,22 @@ foram reparadas com `supabase/scripts/reparo_schema_migrations_007_135.sql`
 (backup em `supabase_migrations.schema_migrations_bkp_007_135`), para branches
 novas não falharem na `165`.
 
+Conferência de 2026-10-30 (leitura de `vault.secrets` e `cron.job` da branch):
+o Vault tem, desde 2026-10-26, os nomes da tabela de
+[segredos-cron](segredos-cron.md#onde-os-valores-moram-hoje), com
+`ITAU_PIX_CRON_SECRET` e sem `ITAU_PIX_ADMIN_SECRET`. Jobs `alerts-foundation-detectors`,
+`customer-communication-auto-runner`, `demurrage-dunning` e
+`portal-daily-digest` existem e estão inativos; `ce-unlock-cleanup` e
+`ce-unlock-notify-email` não estão agendados; `import-effects-runner` e
+`portal-email-events-runner` faltavam porque a branch nasceu antes do reparo da
+`007`. No mesmo dia, o dono gravou `IMPORT_EFFECTS_RUNNER_ENABLED=true` nos Edge
+Function Secrets da branch (sem ele, o `import-effects-runner` responde `200
+paused` e a fila de efeitos não anda, nem pelo disparo da importação) e agendou
+`import-effects-runner` à mão (jobid 24); às 12:02 UTC os 15 efeitos pendentes
+concluíram em 13 s. A migration `532` agenda o que ainda faltar (na staging,
+`portal-email-events-runner`) e não toca no job que já existe. Os demais valores
+dos Edge Function Secrets da branch não foram conferidos.
+
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
   O environment GitHub `supabase-branches` guarda, além de
@@ -456,7 +472,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
-| `portal-email-events-runner` | a cada minuto; desde a migration `458` também chamado assim que o webhook grava o evento ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
+| `portal-email-events-runner` | a cada minuto; desde a migration `458` também chamado assim que o webhook grava o evento ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; aviso de entrega de e-mail que não é do Vela fecha sem alerta na 6ª tentativa (migration `535`); os demais que esgotam as 6 tentativas ou são ambíguos vão para investigação e abrem `email_retorno_nao_aplicado`, do Administrativo (migrations `309` e `535`; até a `535`, `portal_reprocessamento_falhou` da Documentação) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
 | `itau-pix-queue` | a cada minuto (criado à mão em 07/10, jobid 25; recriado pela migration `358`, `ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10; jobid 35 desde a recriação da migration `438`); desde a migration `458` também chamado assim que o aviso é gravado na fila ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
@@ -469,7 +485,9 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
 | `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
-| `http-job-failures` | a cada 15 min, em :09/:24/:39/:54 (`9-59/15 * * * *`, migration `310`) | `reconcile_http_job_failures_alert()`: abre o Alerta crítico `rotina_http_falhou` (Administrativo) quando `net._http_response` tem, na última hora, resposta fora de 2xx ou falha sem resposta que não seja tempo esgotado, 10 ou mais tempos esgotados, ou quando há 30 ou mais chamadas paradas na fila do `pg_net` (migration `316`), e o fecha quando a hora fica limpa; SQL puro, sem Vault nem Edge Function | — |
+| `demurrage-travado-alerts` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `516`) | `reconcile_demurrage_travado_alerts()`: abre o Alerta `demurrage_travado` para o grupo de cobrança que entrou em Travado sem passar por um gatilho (Portal do Cliente fechado, virada do dia) e fecha o que saiu; setor pelo motivo (Documentação ou Administrativo, ADR 0112, D25); desde a migration `525`, põe na fila de emissão (`demurrage_billing`) o grupo de A emitir parado, menos o que espera Invoice cancelada à mão, com o iniciador do sistema e uma vez para as mesmas caixas (migration `526`); desde a `529`, refaz a reconciliação das Invoices que ficaram diferentes (datas, SOC, divisão da caixa) quando o gatilho falhou (`reconcile_demurrage_stale_invoices`); SQL puro, sem Vault nem Edge Function | — |
+| `demurrage-disputa-prazo` | a cada 15 min, em :07/:22/:37/:52 (`7-59/15 * * * *`, migration `520`) | `reconcile_demurrage_dispute_deadline_alerts()`: abre o Alerta `demurrage_disputa_prazo` para a Disputa de Demurrage que passou de 1 dia útil aguardando Equipamentos e fecha o que deixou de valer (ADR 0112, D18); SQL puro, sem Vault nem Edge Function | — |
+| `http-job-failures` | a cada 15 min, em :09/:24/:39/:54 (`9-59/15 * * * *`, migration `310`) | `reconcile_http_job_failures_alert()`: abre o Alerta crítico `rotina_http_falhou` (Administrativo) quando `net._http_response` tem, na última hora, duas ou mais respostas fora de 2xx ou falhas sem resposta que não sejam tempo esgotado (uma isolada não abre desde a migration `533`), uma única resposta 401 ou 403 (segredo divergente, migration `534`), 10 ou mais tempos esgotados, ou quando há 30 ou mais chamadas paradas na fila do `pg_net` (migration `316`), e o fecha quando a hora fica limpa; SQL puro, sem Vault nem Edge Function | — |
 | `itau-pix-checkpoint-health` | a cada 5 min, em :01/:06/… (`1-59/5 * * * *`, migration `358`) | `reconcile_itau_pix_checkpoint_alert()`: com `pix_provider = 'itau'`, abre o Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro) quando o checkpoint da consulta Itaú está parado há mais de 15 minutos e o fecha quando anda; SQL puro, não depende da Edge | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação, sem a conta de integração (migration `440`; inclui a exceção crítica de fatura) | `portal-daily-digest` |
@@ -634,6 +652,18 @@ mesmos.
   evento recebido na fila de processamento. A assinatura segue o padrão Svix
   e é recusada com mais de 5 minutos de diferença; o handler é testado com
   assinatura gerada no CI (`supabase/functions/portal-email-webhook/index.test.ts`).
+- **Avisos de e-mails que não são do Vela:** o webhook recebe o aviso de todo
+  e-mail que sai pela conta `FWLOG`, também de outro sistema que use a mesma
+  conta. Em 2026-10-30 chegaram dois avisos de entrega para
+  `suporte@portalfwlog.com.br` que nem a produção nem o staging enviaram (pelo
+  dono, o formulário do site da Fwlog em desenvolvimento), e os mesmos avisos
+  chegaram, no mesmo segundo, à branch Supabase `staging`. Desde a migration
+  `535`, aviso de entrega desses e-mails fecha sem alerta; devolução ou spam
+  abre **Retorno do provedor de e-mail não aplicado** para o Administrativo
+  ([Portal](../modules/portal-cliente.md)). No mesmo dia o dono decidiu que o
+  site da Fwlog deixa de enviar pela MillionSend. Outro sistema que passe a usar
+  esta conta faz o Vela receber os avisos dele: para isolar, ele precisa de outra
+  conta ou de um webhook que não aponte para o Vela.
 - **Trocar o segredo do webhook** (vazamento ou webhook recriado), nesta ordem:
   1. Na MillionSend, no webhook de `portal-email-webhook`, gere o segredo novo
      (ou recrie o webhook com os mesmos três eventos) e copie o valor
@@ -1117,8 +1147,8 @@ chegar à `main`, confira:
    `supabase/functions/deno.json`.
 2. As chamadas seguintes da `itau-pix` em `function_edge_logs` respondem 200.
 3. O checkpoint da consulta (`itau_pix_checkpoint`) continua andando.
-4. O Alerta `rotina_http_falhou` fecha sozinho quando a última hora fica sem
-   resposta fora de 2xx.
+4. O Alerta `rotina_http_falhou` fecha sozinho quando a última hora volta a ter
+   no máximo uma resposta fora de 2xx (migration `533`).
 
 Na branch Supabase `staging` a função também é republicada no merge, mas o job
 não a chama: nenhuma chamada da `itau-pix` nas 24 h até 11 h UTC de 23/10
