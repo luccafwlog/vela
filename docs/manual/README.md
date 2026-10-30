@@ -251,3 +251,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   com B/L cancelado em outra Viagem manda excluir lá (6.4) e a etapa
   **Demurrage** do trilho avisa a Invoice retida pelo Portal (9.6). A matriz
   veio atualizada nas PRs.
+- **Escala com LOCODE fora da lista** (2026-10-30, PR luccafwlog/vela#1118,
+  sem migration): a escala de porto brasileiro que o Vela não conhece continua
+  no **Planejamento por escala** depois de recarregar. O texto do manual já
+  dizia isso (5.8) e não muda; a matriz (VIA-033) veio na PR.
