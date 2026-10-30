@@ -21,7 +21,8 @@
     na troca de Cliente nem na reemissão por datas de outra caixa; o B/L duplicado do mesmo Cliente se cancela sem
     apagar a cobrança do verdadeiro; desfazer a dispensa da caixa só de B/L cancelado é recusado; reabrir a
     Disputa não abre o Alerta de prazo vencido; o aviso de **Cancelar B/L** reconhece "Demurrage travada" (`546`,
-    `548`).
+    `548`); a aba **Canceladas** diz a causa da reemissão automática (datas, container que passou a SOC ou divisão
+    da caixa) e mostra "reemitida" a caixa que foi para o Cliente novo na troca de CNPJ (`550`).
   - **ADR por terminal:** a carga em transbordo com exceção de terminal do porto omitido volta ao ADR do porto
     de descarga, e o Embarque de vazios anterior à `541`, sem frente, vira frente TBC (`547`).
   - **Portal e telas:** o anexo da Disputa confere a extensão como a Edge Function; a etapa Demurrage da ficha
