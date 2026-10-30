@@ -43,7 +43,8 @@ describeLocal('310 — rotinas HTTP com erro', () => {
         (1, 200, false, NULL, now() - interval '5 minutes'),
         (2, 401, false, NULL, now() - interval '10 minutes'),
         (3, NULL, true, 'Timeout of 30000 ms reached', now() - interval '20 minutes'),
-        (4, 500, false, NULL, now() - interval '3 hours');
+        (4, 500, false, NULL, now() - interval '3 hours'),
+        (5, 401, false, NULL, now() - interval '12 minutes');
       SELECT 'run1=' || public.reconcile_http_job_failures_alert()::text;
       ${alertStatus}
       SELECT 'message=' || i.message FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
@@ -56,10 +57,10 @@ describeLocal('310 — rotinas HTTP com erro', () => {
       ROLLBACK;
     `)
     const lines = output.split('\n')
-    expect(lines).toContain('run1={"queued": 0, "failures": 1, "timeouts": 1, "responses": 3}')
+    expect(lines).toContain('run1={"queued": 0, "failures": 2, "timeouts": 1, "responses": 4}')
     expect(lines).toContain('department=administrativo')
     const message = lines.find((line) => line.startsWith('message=')) ?? ''
-    expect(message).toContain('2 de 3 chamada(s)')
+    expect(message).toContain('3 de 4 chamada(s)')
     expect(message).toContain('HTTP 401')
     expect(message).toContain('tempo esgotado')
     expect(lines.filter((line) => line.startsWith('status='))).toEqual(['status=active', 'status=resolved'])
@@ -67,6 +68,31 @@ describeLocal('310 — rotinas HTTP com erro', () => {
   })
 
   // Migration 316: o pg_net desiste aos 30 s, mas a rodada longa do runner continua.
+  // Migration 515: falha isolada de rotina de minuto (a itau-pix acerta na
+  // rodada seguinte) não abre; a segunda na mesma hora abre.
+  it('uma resposta de erro na hora não abre; duas abrem', () => {
+    const output = psql(`
+      BEGIN;
+      CREATE TABLE net._http_response (
+        id bigint, status_code integer, content_type text, headers jsonb, content text,
+        timed_out boolean, error_msg text, created timestamptz NOT NULL DEFAULT now()
+      );
+      INSERT INTO net._http_response (id, status_code, timed_out, created) VALUES
+        (1, 200, false, now() - interval '2 minutes'),
+        (2, 500, false, now() - interval '10 minutes');
+      SELECT 'run1=' || public.reconcile_http_job_failures_alert()::text;
+      ${alertStatus}
+      INSERT INTO net._http_response (id, status_code, timed_out, created) VALUES (3, 500, false, now() - interval '5 minutes');
+      SELECT 'run2=' || public.reconcile_http_job_failures_alert()::text;
+      ${alertStatus}
+      ROLLBACK;
+    `)
+    const lines = output.split('\n')
+    expect(lines).toContain('run1={"queued": 0, "failures": 1, "timeouts": 0, "responses": 2}')
+    expect(lines).toContain('run2={"queued": 0, "failures": 2, "timeouts": 0, "responses": 3}')
+    expect(lines.filter((line) => line.startsWith('status='))).toEqual(['status=none', 'status=active'])
+  })
+
   it('tempo esgotado isolado de uma rodada longa não abre; dez na hora (rotina de minuto travada) abrem', () => {
     const output = psql(`
       BEGIN;
