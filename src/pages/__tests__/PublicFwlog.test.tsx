@@ -153,6 +153,21 @@ it('consulta: encontrado mostra só os campos da lista positiva; o token vale um
   expect(supabaseRpc).not.toHaveBeenCalled()
 })
 
+it('consulta: disjuntor global aberto (429 "indisponivel") mostra indisponível, não limite de quem consulta', async () => {
+  fetchMock.mockResolvedValueOnce(json({ error: 'indisponivel' }, 429))
+  renderPage(<PublicConsultaContainer />)
+  await userEvent.type(screen.getByLabelText(/Número do container/), 'CSQU3054383')
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
+  expect(await screen.findByText('Consulta indisponível no momento. Tente mais tarde.')).toBeTruthy()
+  expect(screen.queryByText(/Muitas consultas seguidas/)).toBeNull()
+  expect(capture).toHaveBeenCalledWith('public_container_lookup', { surface: 'public', lookup_outcome: 'unavailable' })
+
+  // O 429 do limite de quem consulta continua sendo "muitas consultas".
+  fetchMock.mockResolvedValueOnce(json({ error: 'limite_atingido' }, 429))
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
+  expect(await screen.findByText('Muitas consultas seguidas. Aguarde alguns minutos e tente de novo.')).toBeTruthy()
+})
+
 it('quadro público: verificação que falha sai do carregando e Tentar novamente pede outra', async () => {
   challenge.failRounds.add(0)
   fetchMock.mockResolvedValue(json(SCHEDULE))

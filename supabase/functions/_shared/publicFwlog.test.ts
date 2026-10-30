@@ -16,8 +16,10 @@ import {
   handlePublicContainerLookup,
   handlePublicSchedule,
   normalizePublicContainerNumber,
+  secondsUntilNextHour,
   type PublicFwlogDeps,
 } from './publicFwlog.ts'
+import { instrumentHttpHandler, type EdgeTelemetryContext } from '../../../src/lib/telemetryContract.ts'
 
 function assert(condition: unknown, message = 'falhou'): asserts condition {
   if (!condition) throw new Error(message)
@@ -328,8 +330,46 @@ Deno.test('busca: limite por IP, teto de "não encontrado" por IP e disjuntor gl
   const breaker = harness({ rows: [] })
   breaker.store.set(globalMissKey('projeto.supabase.co', breaker.clock), String(LOOKUP_MISS_GLOBAL_HOURLY_LIMIT))
   const response = await handlePublicContainerLookup(request({ turnstile_token: 'lookup', container_number: FOUND }, { ip: '192.0.2.1' }), breaker.deps)
-  assertEquals(response.status, 503)
+  assertEquals(response.status, 429)
+  assertEquals(await body(response), { error: 'indisponivel' })
+  assertEquals(response.headers.get('Retry-After'), String(secondsUntilNextHour(breaker.clock)))
   assertEquals(breaker.rpcCalls.length, 0)
+  assertEquals(breaker.siteverify.length, 0)
+})
+
+Deno.test('busca: disjuntor aberto não vai ao Sentry e não passa por cima do limite por IP', async () => {
+  // O mesmo wrapper das Edges (`instrumentEdgeHandler`), com um Sentry falso.
+  const reported: EdgeTelemetryContext[] = []
+  const report = (_error: unknown, context: EdgeTelemetryContext) => { reported.push(context); return Promise.resolve() }
+
+  const h = harness({ rows: [FOUND_ROW] })
+  h.store.set(globalMissKey('projeto.supabase.co', h.clock), String(LOOKUP_MISS_GLOBAL_HOURLY_LIMIT))
+  const handler = instrumentHttpHandler('public-container-lookup', (req) => handlePublicContainerLookup(req, h.deps), report)
+  const answers: string[] = []
+  for (let i = 0; i <= LOOKUP_IP_LIMIT; i++) {
+    const response = await handler(request({ turnstile_token: 'lookup', container_number: FOUND }))
+    answers.push(`${response.status} ${(await body(response)).error}`)
+  }
+  // Dentro do limite do IP, "indisponível"; quem insiste passa ao próprio limite.
+  assertEquals(answers.slice(0, LOOKUP_IP_LIMIT), Array(LOOKUP_IP_LIMIT).fill('429 indisponivel'))
+  assertEquals(answers[LOOKUP_IP_LIMIT], '429 limite_atingido')
+  assertEquals(reported, [])
+  assertEquals(h.rpcCalls.length, 0)
+  assertEquals(h.siteverify.length, 0)
+
+  // Controle: falha de verdade (Upstash fora do ar) continua indo ao Sentry.
+  const down = harness({ upstashDown: true, rows: [FOUND_ROW] })
+  const failing = instrumentHttpHandler('public-container-lookup', (req) => handlePublicContainerLookup(req, down.deps), report)
+  assertEquals((await failing(request({ turnstile_token: 'lookup', container_number: FOUND }))).status, 503)
+  assertEquals(reported.map((context) => context.status), ['http_503'])
+})
+
+Deno.test('disjuntor: Retry-After até a hora UTC virar', () => {
+  const hour = 3_600_000
+  assertEquals(secondsUntilNextHour(500_000 * hour), 3600)
+  assertEquals(secondsUntilNextHour(500_000 * hour + 1), 3600)
+  assertEquals(secondsUntilNextHour(500_000 * hour + hour - 1000), 1)
+  assertEquals(secondsUntilNextHour(500_000 * hour + hour - 1), 1)
 })
 
 Deno.test('busca: falha do banco é indisponibilidade, não "não encontrado"', async () => {

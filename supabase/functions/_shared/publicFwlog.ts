@@ -39,7 +39,9 @@ export const LOOKUP_MISS_IP_WINDOW_SECONDS = 3600
 /**
  * Disjuntor global: "não encontrado" de todos os IPs na hora cheia. Acima
  * disso a busca fica indisponível para todos até a hora virar; protege contra
- * varredura distribuída por muitos IPs.
+ * varredura distribuída por muitos IPs. Aberto, responde 429 `indisponivel`
+ * (recusa esperada, fora do 5xx que vai ao Sentry) e só depois dos limites
+ * por IP, que continuam valendo.
  * ponytail: valor fixo pensado para dezenas de transportadoras; se o uso real
  * passar disso, subir por constante com base no log de volume.
  */
@@ -234,6 +236,12 @@ async function ipTag(config: UpstashConfig | null, ip: string): Promise<string> 
 export function globalMissKey(scope: string, now: number): string {
   const hour = new Date(now).toISOString().slice(0, 13).replace(/[-T]/g, '')
   return `vela:public-rate:${scope}:public_lookup_miss_global:${hour}`
+}
+
+/** Segundos até a hora UTC virar, quando o contador do disjuntor recomeça. */
+export function secondsUntilNextHour(now: number): number {
+  const hourMs = 3_600_000
+  return Math.max(1, Math.ceil((hourMs - (now % hourMs)) / 1000))
 }
 
 // --- Pedido comum ----------------------------------------------------------
@@ -493,13 +501,19 @@ export async function handlePublicContainerLookup(req: Request, deps: PublicFwlo
       ['EVAL', CHECK_SCRIPT, '1', await ipKey(config, 'public_lookup_miss', ip)],
       ['EVAL', CHECK_SCRIPT, '1', globalMissKey(config.scope, now)],
     ])
-    if (counterValue(globalMisses) >= LOOKUP_MISS_GLOBAL_HOURLY_LIMIT) {
-      deps.log(event, { outcome: 'breaker_open' })
-      return json(503, REFUSAL.unavailable, cors, { 'Retry-After': '3600' })
-    }
+    // Limites por IP antes do disjuntor: aberto, ele não pode virar um caminho
+    // sem limite para quem insiste.
     if (counterValue(minute) > LOOKUP_IP_LIMIT || counterValue(day) > LOOKUP_IP_DAILY_LIMIT || counterValue(misses) >= LOOKUP_MISS_IP_LIMIT) {
       deps.log(event, { outcome: 'limited', ip: await ipTag(config, ip) })
       return json(429, REFUSAL.limit, cors, { 'Retry-After': String(LOOKUP_IP_WINDOW_SECONDS) })
+    }
+    // Disjuntor aberto é recusa esperada, não falha do servidor: 429 com
+    // `indisponivel` (o navegador mostra "indisponível"), fora do 5xx que o
+    // `instrumentEdgeHandler` manda ao Sentry. Com 503, cada pedido de quem
+    // abriu o disjuntor viraria um evento (revisão da PR #1119).
+    if (counterValue(globalMisses) >= LOOKUP_MISS_GLOBAL_HOURLY_LIMIT) {
+      deps.log(event, { outcome: 'breaker_open' })
+      return json(429, REFUSAL.unavailable, cors, { 'Retry-After': String(secondsUntilNextHour(now)) })
     }
 
     // Turnstile por consulta: cada token vale uma vez no Siteverify.

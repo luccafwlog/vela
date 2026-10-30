@@ -26,6 +26,15 @@ function functionUrl(name: string): string {
   return `${base}/functions/v1/${name}`
 }
 
+async function refusalCode(response: Response): Promise<string | null> {
+  try {
+    const data = await response.json() as { error?: unknown } | null
+    return typeof data?.error === 'string' ? data.error : null
+  } catch {
+    return null
+  }
+}
+
 async function post(name: string, body: Record<string, string>): Promise<unknown> {
   let response: Response
   try {
@@ -40,7 +49,9 @@ async function post(name: string, body: Record<string, string>): Promise<unknown
     throw new PublicRequestError('unavailable')
   }
   if (response.status === 403) throw new PublicRequestError('challenge')
-  if (response.status === 429) throw new PublicRequestError('limit')
+  // 429 é o limite de quem consulta ou, com `indisponivel`, o disjuntor global
+  // da busca, que vale para todos até a hora virar.
+  if (response.status === 429) throw new PublicRequestError(await refusalCode(response) === 'indisponivel' ? 'unavailable' : 'limit')
   if (!response.ok) throw new PublicRequestError('unavailable')
   try {
     return await response.json()
