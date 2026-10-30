@@ -28,6 +28,8 @@ const expectedSharedKeys = [
   ['bl-timeline'],
   ['bl-portal-status'],
   ['portal-operation-bls'],
+  // Frentes do ADR por terminal: o transbordo cria frente no porto de descarga.
+  ['agency-report-terminal-state'],
 ]
 
 function createWrapper() {

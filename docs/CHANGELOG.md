@@ -6,6 +6,21 @@
 
 ## 2026-10
 
+- **Veículos, vazios de importação, Granito e carga em transbordo chegam ao ADR por terminal (2026-10-30,
+  migrations `537` a `540`):** no teste do dono em BRVIX, os veículos e os vazios de importação estavam nos
+  cards do porto da aba Importação e não no ADR do terminal. A seção Veículos dependia de uma frente de Veículos
+  que nunca nascia; pela regra do dono, veículo não tem frente própria (viaja em container) e a seção passa a
+  seguir a frente de Carga cheia, salvo exceção de terminal do B/L. A frente derivada dos dados e ainda sem
+  terminal (o vazio importado depois da última gravação da escala, por exemplo) deixava a seção dizendo "Não há
+  frente atribuída a este terminal." e o ADR fechava sem o dado: agora a seção e o bloco ADR avisam "Sem
+  terminal (TBC)", **Fechar ADR** fica desabilitado e o banco recusa o fechamento. A frente de Granito nasce
+  também do Granito importado no porto, e **Editar escala** abre com o Granito declarado nesse caso; a carga em
+  transbordo de escala omitida cria as frentes do porto onde descarrega; o B/L com exceção de terminal leva a
+  carga e os veículos dele ao ADR do terminal da exceção; e a escala com carga só em transbordo ou só de Granito
+  não abre mais ADR legado sem terminal pela API. Mapa completo em
+  [archive/audits/viagem-terminal-adr-2026-10-30.md](archive/audits/viagem-terminal-adr-2026-10-30.md); regra em
+  [Viagens](modules/viagens.md#agency-departure-report-adr). **Teste local-pg:**
+  `adrFrenteDerivadaSemTerminal.local-pg.test.ts`.
 - **Repaginação da Demurrage (2026-10-29 a 2026-10-30, migrations `514` a `531`; [ADR 0112](adr/0112-repaginacao-da-demurrage.md),
   PR luccafwlog/vela#1113):** cadastro **Tipos de container** e uma tarifa por grupo; a aba **Containers** se
   divide em Correndo, A emitir, Esperando e Travado, pela classificação do banco, com o Alerta **Demurrage

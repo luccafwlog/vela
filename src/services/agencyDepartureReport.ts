@@ -19,8 +19,9 @@ import { listDepots } from './depots'
 import { quantidadeEfetiva, totalEmbarque, totalLinha } from './vaziosCusto'
 import { buildVoyagePodEntityId, listVoyageEscalaSchedulesByVoyageIds, listVoyagePodSchedules } from './voyageRouteSchedules'
 import { listVoyageRoutePorts } from './operationalLists'
+import { listTransshipmentBlIds } from './transshipments'
 import { normalizePortCode, portCodeVariants } from './portCode'
-import type { AgencyReportByTerminal, OperationFront, OperationFrontKind } from './escalaTerminalAllocation'
+import { frontServesSection, graniteBlLoadingPort, type AgencyReportByTerminal, type OperationFront, type OperationFrontKind } from './escalaTerminalAllocation'
 
 // Seções e rótulos moram em ./agencyReportLabels: o sino de notificações, em
 // toda tela, precisa só deles, sem carregar o relatório inteiro.
@@ -195,7 +196,7 @@ export function deriveAgencyReportByTerminal(
   fronts: OperationFront[],
 ): AgencyReportByTerminal {
   const sections = ['datas', 'carga_descarregada', 'carga_carregada', 'veiculos', 'vazios_embarcados', 'vazios_descarregados'].map((section) => {
-    const assigned = fronts.filter((front) => front.terminalId === (report.terminal_id ?? null) && front.section === section)
+    const assigned = fronts.filter((front) => front.terminalId === (report.terminal_id ?? null) && frontServesSection(front, section))
     return {
       section,
       state: assigned.some((front) => front.hasData) ? 'operated' as const : 'nothing_operated' as const,
@@ -789,30 +790,6 @@ type BreakbulkAgencyReportBl = {
   bb_cbm: number | null
 }
 
-// ADR 0022/0025: bls.pod nunca é reescrito para disposição 'transshipment'
-// (só COD reescreve). A carga de um B/L em transbordo continua com pod no
-// porto omitido, então a escala do porto de descarga real precisa buscá-la
-// à parte via voyage_omissions → bl_transshipments, sem tocar em bls.pod.
-async function listTransshipmentBlIds(voyageId: number, port: string): Promise<string[]> {
-  const omissionsRes = await supabase
-    .from('voyage_omissions')
-    .select('id')
-    .eq('voyage_id', voyageId)
-    .in('discharge_pod', portCodeVariants(port))
-    // A8: omissão revertida não trata mais os B/Ls como transbordo.
-    .is('reverted_at', null)
-  if (omissionsRes.error) throw omissionsRes.error
-  const omissionIds = (omissionsRes.data ?? []).map((row) => row.id)
-  if (!omissionIds.length) return []
-
-  const blTransshipmentsRes = await supabase
-    .from('bl_transshipments')
-    .select('bl_id')
-    .in('omission_id', omissionIds)
-    .eq('disposition', 'transshipment')
-  if (blTransshipmentsRes.error) throw blTransshipmentsRes.error
-  return [...new Set((blTransshipmentsRes.data ?? []).map((row) => row.bl_id))]
-}
 
 const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, profile_source, bl:bls!inner(voyage_id, pod, cargo_mode, terminal_id, transshipments:bl_transshipments(disposition))'
 const BREAKBULK_SELECT = 'cargo_mode, terminal_id, bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
@@ -912,7 +889,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     fetchAllRows((from, to) =>
       supabase
         .from('vehicles')
-        .select(`${VEHICLES_SELECT}, bl:bls!inner(voyage_id, pod)`)
+        .select(`${VEHICLES_SELECT}, bl:bls!inner(voyage_id, pod, terminal_id)`)
         .eq('bl.voyage_id', voyageId)
         // P0-3: igualdade crua contra `port` perdia veiculos de B/Ls gravados
         // com a forma legada do porto (ex. 'BRVIT' antes de 'BRVIX' virar
@@ -994,7 +971,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
       : Promise.resolve(emptyResult),
     transshipmentBlIds.length
       ? fetchAllRows((from, to) =>
-          supabase.from('vehicles').select(VEHICLES_SELECT).in('bl_id', transshipmentBlIds).range(from, to),
+          supabase.from('vehicles').select(`${VEHICLES_SELECT}, bl:bls!inner(terminal_id)`).in('bl_id', transshipmentBlIds).range(from, to),
         )
       : Promise.resolve(emptyResult),
   ])
@@ -1018,15 +995,23 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   type AgencyReportVehicle = Pick<Vehicle, 'brand' | 'model' | 'bl_id' | 'chassis' | 'container_id'> & {
     container: { container_number: string | null; type: string | null; unpacking_location: string | null } | null
     isTransshipment: boolean
+    /** Exceção de terminal do B/L do veículo, para recortar por terminal como a carga (ADR 0068). */
+    blTerminalId: string | null
   }
-  const ownVehicles = (vehiclesRes.data ?? []) as unknown as Array<Omit<AgencyReportVehicle, 'isTransshipment'>>
-  const transshipmentVehicles = (transshipmentVehiclesRes.data ?? []) as unknown as Array<Omit<AgencyReportVehicle, 'isTransshipment'>>
+  type AgencyReportVehicleRow = Omit<AgencyReportVehicle, 'isTransshipment' | 'blTerminalId'> & { bl?: { terminal_id?: string | null } | null }
+  const ownVehicles = (vehiclesRes.data ?? []) as unknown as AgencyReportVehicleRow[]
+  const transshipmentVehicles = (transshipmentVehiclesRes.data ?? []) as unknown as AgencyReportVehicleRow[]
+  const toReportVehicle = ({ bl, ...vehicle }: AgencyReportVehicleRow, isTransshipment: boolean): AgencyReportVehicle => ({
+    ...vehicle,
+    isTransshipment,
+    blTerminalId: bl?.terminal_id ?? null,
+  })
   // bls.pod nunca é o mesmo entre o porto da escala e o porto omitido de uma
   // mesma viagem, então as duas listas nunca se sobrepõem — concatena sem
   // deduplicar (ver listTransshipmentBlIds).
   const vehicles: AgencyReportVehicle[] = [
-    ...ownVehicles.map((vehicle) => ({ ...vehicle, isTransshipment: false })),
-    ...transshipmentVehicles.map((vehicle) => ({ ...vehicle, isTransshipment: true })),
+    ...ownVehicles.map((vehicle) => toReportVehicle(vehicle, false)),
+    ...transshipmentVehicles.map((vehicle) => toReportVehicle(vehicle, true)),
   ]
   const operation = operationRes.data as VaziosExportOperation | null
   const allDepots = operation ? await listDepots() : []
@@ -1097,7 +1082,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   // Task 6 (ADR 2026-07-31): casa pelo porto normalizado, usando o
   // loading_port do manifesto quando o B/L não trouxer o seu (fallback).
   const granite: Pick<GraniteBl, 'real_weight_kg' | 'blocks_qty' | 'loading_port'>[] = graniteRows
-    .filter((bl) => normalizePortCode(bl.loading_port ?? bl.manifest?.loading_port ?? null) === portCode)
+    .filter((bl) => graniteBlLoadingPort(bl.loading_port, bl.manifest?.loading_port) === portCode)
     .map((bl) => ({ real_weight_kg: bl.real_weight_kg, blocks_qty: bl.blocks_qty, loading_port: bl.loading_port }))
   // Task 10 (ADR 2026-07-31): granito num porto que não é escala nenhuma da
   // viagem (nem esta, nem outra) — dado órfão, provável porto digitado/
@@ -1105,7 +1090,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   // não entra aqui — aparece normalmente no ADR daquela escala.
   const orphanGraniteByPort = new Map<string, number>()
   for (const bl of graniteRows) {
-    const normalized = normalizePortCode(bl.loading_port ?? bl.manifest?.loading_port ?? null)
+    const normalized = graniteBlLoadingPort(bl.loading_port, bl.manifest?.loading_port)
     if (!normalized || normalized === portCode || escalaPorts.has(normalized)) continue
     orphanGraniteByPort.set(normalized, (orphanGraniteByPort.get(normalized) ?? 0) + 1)
   }

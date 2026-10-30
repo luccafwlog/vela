@@ -471,6 +471,47 @@ describe('EscalaModal', () => {
     expect(graniteToggle.getAttribute('aria-pressed')).toBe('false')
   })
 
+  // Decisão do dono de 2026-10-30: com ADR por terminal fechado, marcar o
+  // Granito mudaria a declaração e a gravação seria recusada; a janela avisa.
+  it('com ADR por terminal fechado, não pré-marca o Granito importado e avisa para reabrir o ADR', () => {
+    renderEscala({
+      ...escalaBase,
+      graniteLocked: true,
+      exportLocked: true,
+      terminalScale: {
+        ...terminalScaleBase,
+        agencyReports: [{ reportId: 'r1', voyageId: 1, port: 'BRVIX', terminalId: 't-norte', terminal: 'TVV', status: 'closed', sections: [] }],
+      },
+    })
+    expect(screen.queryByRole('button', { name: 'Granito' })).toBeNull()
+    expect(screen.getByText(/Granito importado depois do fechamento do ADR de Saída/)).toBeTruthy()
+  })
+
+  // Mapeamento de 2026-10-30: Granito importado sem a declaração ficava sem
+  // frente e fora do ADR por terminal.
+  it('abre com Granito declarado e grava a frente dele quando há Granito importado no porto', async () => {
+    const user = userEvent.setup()
+    const granitoDerivado = { id: null, sentido: 'exportacao' as const, modalidade: 'granito' as const, terminalId: null, source: 'export_declaration' as const, hasData: true, section: 'carga_carregada' as const }
+    const onSaved = renderEscala({
+      ...escalaBase,
+      graniteLocked: true,
+      exportLocked: true,
+      terminalScale: { ...terminalScaleBase, fronts: [terminalScaleBase.fronts[0], granitoDerivado] },
+    })
+
+    const graniteToggle = screen.getByRole('button', { name: 'Granito' }) as HTMLButtonElement
+    expect(graniteToggle.getAttribute('aria-pressed')).toBe('true')
+    expect(graniteToggle.disabled).toBe(true)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Terminal da operação Exportação Granito' }), 't-sul')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+
+    const terminalState = onSaved.mock.lastCall?.[0].terminalState
+    expect(terminalState.exportExpectation).toMatchObject({ tem_exportacao: true, granito: true })
+    expect(terminalState.fronts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sentido: 'exportacao', modalidade: 'granito', terminalId: 't-sul' }),
+    ]))
+  })
+
   it('permite escala somente de exportação com ETA e atracação', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala({
