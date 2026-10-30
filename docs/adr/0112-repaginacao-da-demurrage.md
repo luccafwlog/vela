@@ -1,7 +1,7 @@
 # 0112 — Repaginação da Demurrage: o que cada aba mostra e regras de cobrança
 
 > **Situação atual (2026-10-30):** implementada na PR luccafwlog/vela#1113,
-> migrations `514` a `524`, pelo [plano da repaginação](../archive/plans/2026-10-29-repaginacao-da-demurrage.md)
+> migrations `514` a `525`, pelo [plano da repaginação](../archive/plans/2026-10-29-repaginacao-da-demurrage.md)
 > (lotes 0 a 10). As regras vigentes estão em [Demurrage](../modules/demurrage.md),
 > [Portal do Cliente](../modules/portal-cliente.md) e [Operação e Suporte](../modules/operacao-suporte.md).
 > Três pontos que a decisão não detalhava foram decididos pelo dono em
@@ -9,7 +9,10 @@
 > migration `521`) fica cobrado cheio e não é revisto sozinho; a aba Por
 > Cliente ganha também a coluna Esperando, além das três de D11; e o motivo de
 > a Invoice estar fora da Régua diz a causa (datas, SOC ou divisão da caixa,
-> migration `524`). O meio de pagamento (D9) é gravado na baixa por gatilho,
+> migration `524`). Também em 2026-10-30, A emitir deixou de esperar o botão
+> quando o grupo fica pronto sem gravação de data (free time, acordo, tarifa,
+> dispensa desfeita): a emissão entra na fila sozinha (migration `525`); só a
+> Invoice cancelada à mão continua esperando **Gerar Invoice** (D10). O meio de pagamento (D9) é gravado na baixa por gatilho,
 > para todo caminho de baixa.
 
 Status: aceito — 2026-10-29 (decisões do dono, D1 a D21, em rodadas de perguntas

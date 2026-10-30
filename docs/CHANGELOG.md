@@ -6,7 +6,7 @@
 
 ## 2026-10
 
-- **Repaginação da Demurrage (2026-10-29 a 2026-10-30, migrations `514` a `524`; [ADR 0112](adr/0112-repaginacao-da-demurrage.md),
+- **Repaginação da Demurrage (2026-10-29 a 2026-10-30, migrations `514` a `525`; [ADR 0112](adr/0112-repaginacao-da-demurrage.md),
   PR luccafwlog/vela#1113):** cadastro **Tipos de container** e uma tarifa por grupo; a aba **Containers** se
   divide em Correndo, A emitir, Esperando e Travado, pela classificação do banco, com o Alerta **Demurrage
   travada**; cancelar B/L com sobreestadia sem Invoice é recusado e qualquer setor dispensa a cobrança de uma

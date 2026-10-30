@@ -270,6 +270,27 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       expect(board(voyageOf('cancelledInv'))[0]).toMatchObject({ division: 'a_emitir' })
     })
 
+    it('A emitir parado entra sozinho na fila de emissão; o que espera Invoice cancelada à mão, não (525)', () => {
+      const queued = (blId: string) => psql(`SELECT count(*) FROM public.import_pending_effects
+        WHERE effect_kind = 'demurrage_billing' AND entity_id = '${blPrefix}${blId}' AND status = 'pending'`)
+      // A gravação das datas dos casos já enfileirou pelo caminho próprio; parte da fila vazia.
+      psql(`DELETE FROM public.import_pending_effects WHERE entity_id IN ('${blPrefix}TOISSUE', '${blPrefix}CANCINV') AND effect_kind = 'demurrage_billing'`)
+      expect(board(voyageOf('toIssue'))[0]).toMatchObject({ cancelled_doc: null, issue_queued: false })
+      const cancelledDoc = psql(`SELECT doc_number FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}CANCINV'`)
+      expect(board(voyageOf('cancelledInv'))[0]).toMatchObject({ cancelled_doc: cancelledDoc })
+
+      for (const name of ['toIssue', 'cancelledInv'] as const) {
+        psql(`SELECT public.reconcile_demurrage_travado_alerts(${voyageOf(name)}, 'demurrage-travado-alerts')`)
+      }
+      expect(queued('TOISSUE')).toBe('1')
+      expect(queued('CANCINV')).toBe('0')
+      expect(board(voyageOf('toIssue'))[0]).toMatchObject({ issue_queued: true })
+      // Já na fila, a passada seguinte não enfileira de novo.
+      psql(`SELECT public.reconcile_demurrage_travado_alerts(${voyageOf('toIssue')}, 'demurrage-travado-alerts')`)
+      expect(queued('TOISSUE')).toBe('1')
+      psql(`DELETE FROM public.import_pending_effects WHERE entity_id = '${blPrefix}TOISSUE' AND effect_kind = 'demurrage_billing'`)
+    })
+
     it('caixa devolvida com sobreestadia esperando outra caixa do grupo: Esperando, nomeando a que falta', () => {
       const [group] = board(voyageOf('waiting'))
       expect(group.division).toBe('esperando')

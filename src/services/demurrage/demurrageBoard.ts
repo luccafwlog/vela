@@ -53,6 +53,10 @@ export type BoardGroup = {
   /** Em Correndo e Esperando: o que vai travar a emissão (sem CE, Portal). */
   warning: string | null
   no_rate_types: string | null
+  /** Em A emitir (migration 525): Invoice cancelada à mão que as caixas esperam (D10). */
+  cancelled_doc?: string | null
+  /** Em A emitir (migration 525): a emissão automática já está na fila. */
+  issue_queued?: boolean
   usd: number
   boxes: BoardBox[]
 }
@@ -109,14 +113,21 @@ export function matchesBoardSearch(group: BoardGroup, query: string): boolean {
  * destrava ou a espera. Gerar Invoice só em A emitir.
  */
 export type NextStep =
-  | { kind: 'generate'; complement: boolean }
+  | { kind: 'generate'; complement: boolean; cancelledDoc: string | null; queued: boolean }
   | { kind: 'link'; label: string; href: string; note: string }
   | { kind: 'wait'; text: string }
   | { kind: 'running'; text: string }
   | { kind: 'note'; text: string }
 
 export function nextStep(group: BoardGroup): NextStep {
-  if (group.division === 'a_emitir') return { kind: 'generate', complement: group.boxes.some((box) => box.state === 'covered') }
+  if (group.division === 'a_emitir') {
+    return {
+      kind: 'generate',
+      complement: group.boxes.some((box) => box.state === 'covered'),
+      cancelledDoc: group.cancelled_doc ?? null,
+      queued: Boolean(group.issue_queued),
+    }
+  }
   if (group.division === 'travado') {
     const note = group.reason ?? 'A cobrança está travada.'
     const bl = encodeURIComponent(group.anchor_bl_id)

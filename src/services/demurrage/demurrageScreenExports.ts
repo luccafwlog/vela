@@ -17,7 +17,7 @@ const date = (value: string | null | undefined) => (value ? formatDate(value) : 
 function stepText(group: BoardGroup): string {
   const step = nextStep(group)
   switch (step.kind) {
-    case 'generate': return step.complement ? 'Gerar Invoice complementar' : 'Gerar Invoice'
+    case 'generate': return step.cancelledDoc ? `Invoice anterior ${step.cancelledDoc} cancelada à mão: gere a nova` : step.queued ? 'Emissão automática em andamento' : step.complement ? 'Gerar Invoice complementar' : 'Gerar Invoice'
     case 'link': return `${step.note} (${step.label})`
     default: return step.text
   }

@@ -133,6 +133,18 @@ describe('aba Containers por divisão (ADR 0112, D1 a D5)', () => {
     expect(screen.getByText('+ 1 B/L do grupo')).toBeTruthy()
   })
 
+  it('A emitir diz por que a linha espera: Invoice cancelada à mão ou emissão já na fila (525)', () => {
+    const groups = [
+      group('QV-30', 'a_emitir', { cancelled_doc: 'DEM-2026-0030' }),
+      group('QV-31', 'a_emitir', { issue_queued: true }),
+    ]
+    renderTab('a_emitir', { groups })
+    expect(screen.getByText('Invoice anterior DEM-2026-0030 cancelada à mão: gere a nova')).toBeTruthy()
+    expect(screen.getByText('Emissão automática em andamento')).toBeTruthy()
+    // Gerar Invoice continua disponível nas duas.
+    expect(screen.getByRole('button', { name: 'Gerar Invoice do B/L QV-30' })).toBeTruthy()
+  })
+
   it('a caixa já cobrada diz em qual Invoice; o grupo conta fora, devolvidos e total', async () => {
     const handlers = renderTab('a_emitir')
     const row = screen.getByRole('link', { name: 'QV-09A' }).closest('tr')!
