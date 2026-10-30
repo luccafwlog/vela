@@ -10,7 +10,7 @@ import { describeWithProbe } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
-const MIGRATION_514 = readFileSync(new URL('../../supabase/migrations/514_runners_ausentes_na_branch_staging.sql', import.meta.url), 'utf8')
+const MIGRATION_532 = readFileSync(new URL('../../supabase/migrations/532_runners_ausentes_na_branch_staging.sql', import.meta.url), 'utf8')
 
 function psql(sql: string) {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl], {
@@ -153,20 +153,20 @@ describeLocal('218 — runner de efeitos disparado pela importação', () => {
     )
   })
 
-  // Migration 514: a branch staging nasceu sem os dois jobs (a 107 rodou antes
-  // do dispatcher existir ali). A 514 os agenda onde faltam e não mexe no que
+  // Migration 532: a branch staging nasceu sem os dois jobs (a 107 rodou antes
+  // do dispatcher existir ali). A 532 os agenda onde faltam e não mexe no que
   // já existe.
-  it('514 agenda os runners ausentes e preserva o job que já existe', () => {
+  it('532 agenda os runners ausentes e preserva o job que já existe', () => {
     const out = psql(`
       BEGIN;
       SELECT cron.unschedule('import-effects-runner');
       SELECT cron.alter_job(jobid, schedule := '5 5 * * *', active := false)
         FROM cron.job WHERE jobname = 'portal-email-events-runner';
-      CREATE TEMP TABLE a514_antes AS
+      CREATE TEMP TABLE a532_antes AS
         SELECT jobid FROM cron.job WHERE jobname = 'portal-email-events-runner';
-      ${MIGRATION_514}
+      ${MIGRATION_532}
       SELECT string_agg(jobname || '|' || schedule || '|' || active || '|' || command
-               || '|' || (jobid IN (SELECT jobid FROM pg_temp.a514_antes)), E'\\n' ORDER BY jobname)
+               || '|' || (jobid IN (SELECT jobid FROM pg_temp.a532_antes)), E'\\n' ORDER BY jobname)
         FROM cron.job WHERE jobname IN ('import-effects-runner', 'portal-email-events-runner');
       ROLLBACK;
     `)

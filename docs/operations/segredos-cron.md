@@ -520,7 +520,7 @@ Mesmo com o Vault preenchido, `import-effects-runner` exige
 `IMPORT_EFFECTS_RUNNER_ENABLED=true` (ligado em produção em 2026-10-12).
 Na branch `staging`, criada antes do reparo da linha `007` do histórico, a
 `107` rodou sem o dispatcher e os jobs `import-effects-runner` e
-`portal-email-events-runner` não existiam; a migration `514` os agenda onde o
+`portal-email-events-runner` não existiam; a migration `532` os agenda onde o
 nome falta, sem tocar no job que já existe. Sem eles, a fila de efeitos da
 staging só andava pelo disparo da importação, e o Alerta **Fila de efeitos de
 importação parada** abriu em 2026-10-29. Além do

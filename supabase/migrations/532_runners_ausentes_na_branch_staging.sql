@@ -1,4 +1,4 @@
--- 514: agenda `import-effects-runner` e `portal-email-events-runner` onde eles
+-- 532: agenda `import-effects-runner` e `portal-email-events-runner` onde eles
 -- não existem (branch Supabase `staging`, ref `uvgqfpleiyfythkhutlj`).
 --
 -- Sintoma (staging, 2026-10-29 e 30): Alerta crítico "Fila de efeitos de
@@ -28,15 +28,15 @@
 -- (docs/operations/segredos-cron.md).
 --
 -- Não reescreve nem apaga linhas.
--- Rollback (só onde a 514 criou o job):
+-- Rollback (só onde a 532 criou o job):
 --   SELECT cron.unschedule('import-effects-runner');
 --   SELECT cron.unschedule('portal-email-events-runner');
 
-DO $schedule_514$
+DO $schedule_532$
 BEGIN
   IF to_regclass('cron.job') IS NULL
      OR to_regprocedure('ops.dispatch_edge_job(text,text,text,text)') IS NULL THEN
-    RAISE WARNING '514: pg_cron/ops.dispatch_edge_job ausente; import-effects-runner e portal-email-events-runner não agendados.';
+    RAISE WARNING '532: pg_cron/ops.dispatch_edge_job ausente; import-effects-runner e portal-email-events-runner não agendados.';
     RETURN;
   END IF;
 
@@ -44,7 +44,7 @@ BEGIN
     PERFORM cron.schedule(
       'import-effects-runner',
       '* * * * *',
-      $job_514a$SELECT ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET');$job_514a$
+      $job_532a$SELECT ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET');$job_532a$
     );
   END IF;
 
@@ -52,8 +52,8 @@ BEGIN
     PERFORM cron.schedule(
       'portal-email-events-runner',
       '* * * * *',
-      $job_514b$SELECT ops.dispatch_edge_job('portal-email-events-runner', 'PORTAL_EMAIL_EVENTS_CRON_SECRET');$job_514b$
+      $job_532b$SELECT ops.dispatch_edge_job('portal-email-events-runner', 'PORTAL_EMAIL_EVENTS_CRON_SECRET');$job_532b$
     );
   END IF;
 END;
-$schedule_514$;
+$schedule_532$;

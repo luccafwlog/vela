@@ -68,7 +68,7 @@ describeLocal('310 — rotinas HTTP com erro', () => {
   })
 
   // Migration 316: o pg_net desiste aos 30 s, mas a rodada longa do runner continua.
-  // Migration 515: falha isolada de rotina de minuto (a itau-pix acerta na
+  // Migration 533: falha isolada de rotina de minuto (a itau-pix acerta na
   // rodada seguinte) não abre; a segunda na mesma hora abre.
   it('uma resposta de erro na hora não abre; duas abrem', () => {
     const output = psql(`

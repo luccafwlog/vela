@@ -1,4 +1,4 @@
--- 515: o Alerta "Rotina agendada com resposta de erro" (`rotina_http_falhou`)
+-- 533: o Alerta "Rotina agendada com resposta de erro" (`rotina_http_falhou`)
 -- abre com 2 ou mais respostas de erro na última hora, não com uma.
 --
 -- Decisão do dono de 2026-10-30. Evidência: a `itau-pix` roda a cada minuto
@@ -22,7 +22,7 @@ AS $function$
 DECLARE
   c_min_timeouts CONSTANT integer := 10;
   c_min_queued CONSTANT integer := 30;
-  -- 515: uma falha isolada de rotina de minuto se resolve na rodada seguinte.
+  -- 533: uma falha isolada de rotina de minuto se resolve na rodada seguinte.
   c_min_failures CONSTANT integer := 2;
   v_window interval := COALESCE(p_window, interval '1 hour');
   v_failures integer := 0;

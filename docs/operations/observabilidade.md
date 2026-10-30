@@ -118,7 +118,7 @@ resposta fica em `net._http_response` por cerca de 6 horas. Desde a migration
 `310`, o job SQL `http-job-failures` (a cada 15 min) lê essa tabela e abre o
 Alerta crítico `rotina_http_falhou` (Administrativo) quando, na última hora, há
 duas ou mais respostas fora de 2xx ou falhas sem resposta que não sejam tempo
-esgotado; ele fecha sozinho quando a hora fica limpa. Desde a migration `515`
+esgotado; ele fecha sozinho quando a hora fica limpa. Desde a migration `533`
 (decisão do dono de 2026-10-30), uma falha isolada não abre: a `itau-pix`, de
 minuto, falhava sozinha uma ou duas vezes por dia e acertava na rodada seguinte. Desde a migration `316`, tempo esgotado
 isolado não abre o Alerta: o `pg_net` desiste aos 30 s, mas a Edge Function

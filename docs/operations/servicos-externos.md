@@ -249,7 +249,7 @@ o Vault tem, desde 2026-10-26, os nomes da tabela de
 `portal-daily-digest` existem e estão inativos; `ce-unlock-cleanup` e
 `ce-unlock-notify-email` não estão agendados; `import-effects-runner` e
 `portal-email-events-runner` faltavam porque a branch nasceu antes do reparo da
-`007` e são agendados pela migration `514`. Os valores dos Edge Function Secrets
+`007` e são agendados pela migration `532`. Os valores dos Edge Function Secrets
 da branch, inclusive `IMPORT_EFFECTS_RUNNER_ENABLED`, não foram conferidos: sem
 `true`, o `import-effects-runner` responde `200 paused` e a fila de efeitos não
 anda.
