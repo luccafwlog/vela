@@ -105,6 +105,11 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
 - A trava do banco cobre as frentes de importação e a de Granito; a de
   Embarque de vazios derivada da declaração e ainda não gravada é bloqueada só
   pela tela (**Código**).
+- O porto do B/L de Granito é normalizado de um jeito na tela
+  (`normalizePortCode`, que reconhece texto livre como "Vitoria, Brazil") e de
+  outro no banco (`normalize_port_code`, só o apelido exato). Para B/L antigo
+  com porto em texto livre, a tela cria a frente TBC e desabilita o Fechar ADR,
+  e a API não recusa; a tela é a mais restrita (**Código**).
 
 ## Evidência e limites
 

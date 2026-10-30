@@ -316,7 +316,7 @@ independente sobre a escala (143 e 144).
 | `Falha ao fechar o ADR. Tente novamente.` | Recusa ao fechar o ADR sem motivo legível; as demais mostram o motivo do banco. | Ap. B |
 | `Nenhum terminal atribuído às frentes desta escala (TBC). Atribua o terminal na edição da escala para abrir o ADR do terminal.` | Aba ADR de escala com frentes ainda TBC. | Ap. B |
 | `Não há frente atribuída a este terminal.` | Seção do ADR por terminal sem frente daquele terminal. | Ap. B |
-| `: atribua o terminal em Editar escala para trazer estes dados ao ADR. O ADR não fecha enquanto houver frente sem terminal.` | Aviso "Sem terminal (TBC)" do ADR por terminal, precedido das frentes sem terminal (Veículos, Vazios IMP…), na seção e no bloco ADR. | Ap. B |
+| `: atribua o terminal em Editar escala para trazer estes dados ao ADR. O ADR não fecha enquanto houver frente sem terminal.` | Aviso "Sem terminal (TBC)" do ADR por terminal, precedido das frentes sem terminal (Carga solta, Vazios IMP…), na seção e no bloco ADR. | Ap. B |
 | `Atribua o terminal das frentes sem terminal (TBC) em Editar escala.` | **Fechar ADR** desabilitado com frente sem terminal na escala. | Ap. B |
 | `Falha ao omitir a escala. Tente novamente.` | Recusa ao confirmar a omissão sem motivo legível; as demais mostram o motivo do banco na janela. | Ap. B |
 | `Falha ao salvar as informações de transbordo. Tente novamente.` | Recusa ao **Complementar** sem motivo legível; as demais mostram o motivo do banco no formulário. | Ap. B |

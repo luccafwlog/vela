@@ -202,6 +202,11 @@ export function operationFrontKindsForCargoMode(
  * manifesto na falta dele. É a régua da frente de Granito, do conteúdo do ADR
  * e do fechamento (migration 515).
  */
+// ponytail: a tela normaliza com `normalizePortCode`, que também reconhece texto
+// livre ("Vitoria, Brazil"); o banco (`normalize_port_code`, migrations 515 e
+// 517) só aceita o apelido exato. B/L de Granito antigo com porto em texto livre
+// cria a frente TBC na tela e o Fechar ADR fica desabilitado, mas a API não
+// recusa. A tela é a mais restrita; a melhoria é uma tabela de apelidos só.
 export function graniteBlLoadingPort(blLoadingPort: string | null | undefined, manifestLoadingPort: string | null | undefined) {
   return normalizePortCode(blLoadingPort ?? manifestLoadingPort ?? null)
 }

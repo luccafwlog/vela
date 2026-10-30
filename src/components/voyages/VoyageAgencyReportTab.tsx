@@ -308,8 +308,8 @@ function OrphanDataWarning({ entries, label }: { entries: Array<{ port: string; 
   return <div className="app-callout app-callout--warning flex items-start gap-2 text-xs leading-5"><span aria-hidden="true">!</span><span><strong>Dado órfão</strong> — {text}</span></div>
 }
 
-// Frente sem terminal (TBC) na escala: o que ela traz (veículos, vazios,
-// carga) não pertence a nenhum ADR por terminal até ganhar terminal em
+// Frente sem terminal (TBC) na escala: o que ela traz (vazios, carga solta,
+// Granito; veículo segue a Carga cheia) não pertence a nenhum ADR por terminal até ganhar terminal em
 // Editar escala, e o fechamento é recusado enquanto ela existir. Sem este
 // aviso a seção dizia "Não há frente atribuída a este terminal." e os dados
 // sumiam do ADR em silêncio.
@@ -372,8 +372,8 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const resolvedReportId = selectedTerminalReport?.terminalId ? selectedTerminalReport.reportId : null
   const resolvedTerminalCode = selectedTerminalReport?.terminalCode ?? initialTerminalCode ?? null
   const resolvedTerminalName = selectedTerminalReport?.terminal ?? null
-  // Frentes da escala ainda sem terminal: derivadas dos dados (veículos,
-  // vazios, B/Ls) depois da última gravação de Editar escala, ou gravadas TBC.
+  // Frentes da escala ainda sem terminal: derivadas dos dados (vazios, B/Ls,
+  // Granito) depois da última gravação de Editar escala, ou gravadas TBC.
   const unassignedFronts = resolvedReportId ? (terminalState?.tbcFronts ?? []) : []
   const unassignedFrontLabels = unassignedFronts.map((front) => operationFrontLabel(`${front.sentido}:${front.modalidade}`))
   const terminalViewFor = (section: AgencyReportSection) => {
