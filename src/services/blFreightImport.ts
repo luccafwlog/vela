@@ -506,8 +506,8 @@ export function buildBlFreightPreview({
     if (state && selectedVoyage && state.voyageId !== selectedVoyage.id) {
       const label = state.voyageLabel ?? String(state.voyageId ?? '')
       blockedReasons.push(state.cancelled
-        ? `O B/L ${doc.blNumber} está cancelado na Viagem ${label}: o número continua lá. Exclua o B/L na Viagem ${label} e importe de novo.`
-        : `O B/L ${doc.blNumber} já está na Viagem ${label}: exclua o B/L lá e importe de novo (cancelar não libera o número).`)
+        ? `O B/L ${doc.blNumber} está cancelado na Viagem ${label}: o número continua lá. Reative o B/L na Viagem ${label}, tire o CE Mercante, exclua o B/L e importe de novo.`
+        : `O B/L ${doc.blNumber} já está na Viagem ${label}: exclua o B/L lá (se tiver CE Mercante, tire o CE antes) e importe de novo (cancelar não libera o número).`)
     }
     // ADR 0095, decisão 8: B/L cancelado é aviso, não é tocado, e o resto entra.
     const skippedCancelled = Boolean(state?.cancelled && !blockedReasons.length)

@@ -86,7 +86,7 @@ export type BreakbulkImportManifest = ParsedBreakbulkManifest
  */
 export function describeCancelledBl(blId: string, otherVoyageLabel?: string | null) {
   if (otherVoyageLabel) {
-    return `B/L ${blId} está cancelado na Viagem ${otherVoyageLabel}: a linha é ignorada. O número continua lá: para importar nesta Viagem, exclua o B/L na Viagem ${otherVoyageLabel} (Administrativo) e importe de novo.`
+    return `B/L ${blId} está cancelado na Viagem ${otherVoyageLabel}: a linha é ignorada. O número continua lá: para importar nesta Viagem, reative o B/L na Viagem ${otherVoyageLabel}, tire o CE Mercante, exclua o B/L (Administrativo) e importe de novo.`
   }
   return `B/L ${blId} cancelado: a linha é ignorada. B/L cancelado é somente leitura; reative-o pela ficha para corrigir.`
 }
@@ -604,7 +604,7 @@ function cancelledRowWarning(blId: string, row: number, otherVoyageLabel?: strin
 
 /** Mensagem de bloqueio do B/L de outra Viagem, a mesma regra da RPC. */
 export function describeOtherVoyage(entry: BreakbulkReimportCheck['otherVoyage'][number]) {
-  return `O B/L ${entry.blId} já está na Viagem ${entry.voyageLabel}. A importação é recusada: exclua o B/L lá e importe de novo (cancelar não libera o número).`
+  return `O B/L ${entry.blId} já está na Viagem ${entry.voyageLabel}. A importação é recusada: exclua o B/L lá (se tiver CE Mercante, tire o CE antes) e importe de novo (cancelar não libera o número).`
 }
 
 /**

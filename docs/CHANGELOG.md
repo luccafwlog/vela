@@ -6,7 +6,7 @@
 
 ## 2026-10
 
-- **Revisão final da release luccafwlog/vela#1117 (2026-10-30, migrations `545` a `550`):** achados da revisão
+- **Revisão final da release luccafwlog/vela#1117 (2026-10-30, migrations `545` a `551`):** achados da revisão
   da PR `staging` → `main`, cada um com teste que falhava na staging
   ([relatório](archive/audits/revisao-pr-1117-2026-10-30.md)).
   - **Chegadas e Saídas:** no **Não escala** do Administrativo, a tela e o banco leem as âncoras da escala do
@@ -25,6 +25,10 @@
     da caixa) e mostra "reemitida" a caixa que foi para o Cliente novo na troca de CNPJ (`550`).
   - **ADR por terminal:** a carga em transbordo com exceção de terminal do porto omitido volta ao ADR do porto
     de descarga, e o Embarque de vazios anterior à `541`, sem frente, vira frente TBC (`547`).
+  - **B/L em outra Viagem (decisão do dono):** a recusa do arquivo de B/L e da carga solta diz o caminho que
+    funciona com CE Mercante: no B/L cancelado lá, "reative o B/L na Viagem …, tire o CE Mercante, exclua o B/L e
+    importe de novo"; no ativo, "exclua o B/L lá (se tiver CE Mercante, tire o CE antes)" (`551`). Antes a
+    orientação parava na trava do CE.
   - **Portal e telas:** o anexo da Disputa confere a extensão como a Edge Function; a etapa Demurrage da ficha
     do B/L só diz "Retida" com container que não é SOC; os Comunicados dizem quando a Viagem está cancelada; a
     regra do Alerta de rotina diz que ele fecha também sem resposta 401 ou 403.
