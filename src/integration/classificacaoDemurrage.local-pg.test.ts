@@ -19,7 +19,8 @@ const customerClosed = 99514002 // sem Portal nem Liberação
 const carrierId = 99514003
 const vesselId = 99514004
 const CASES = ['inside', 'border', 'running', 'override', 'toIssue', 'noCe', 'portal', 'waiting', 'covered', 'cancelledInv',
-  'soc', 'noCustomer', 'noRate', 'agreement', 'blCancelled', 'voyageCancelled', 'returnedFree'] as const
+  'soc', 'noCustomer', 'noRate', 'agreement', 'blCancelled', 'voyageCancelled', 'returnedFree',
+  'autoIssue', 'autoFail', 'noRateFree', 'cancelledHeld'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99514100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -35,7 +36,7 @@ function run(sql: string) {
 }
 
 type Box = { container_number: string; state: string; usd: number | null; last_free_day: string | null; covered_doc: string | null }
-type Group = { anchor_bl_id: string; bl_ids: string[]; division: string; reason_code: string | null; reason: string | null; warning: string | null; usd: number; boxes: Box[] }
+type Group = { anchor_bl_id: string; bl_ids: string[]; division: string; reason_code: string | null; reason: string | null; warning: string | null; usd: number; no_rate_kind?: string | null; boxes: Box[] }
 
 function board(voyageId: number): Group[] {
   const result = run(`
@@ -138,7 +139,8 @@ function cleanup() {
     DELETE FROM public.voyages WHERE id IN (${voyageIds});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
-    DELETE FROM public.container_types WHERE code = 'R5HC';
+    DELETE FROM public.container_types WHERE code IN ('R5HC', 'R6ZZ');
+    DELETE FROM public.demurrage_rate_groups WHERE code = 'R6GR';
     SET session_replication_role = origin;
     SET vela.retention = 'on';
     DELETE FROM public.portal_provisioning_events WHERE customer_id IN (${customerOpen}, ${customerClosed})
@@ -211,6 +213,14 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       expect(issued.status).toBe('issued')
     }
     psql(`SET session_replication_role = replica; UPDATE public.demurrage_invoices SET status = 'cancelled' WHERE bl_id = '${blPrefix}CANCINV'`)
+    // 526 — emissão automática processada; grupo que a emissão recusa; sem
+    // tarifa devolvida no free time; B/L cancelado com a caixa segura por outro.
+    bl('AUTO', 'autoIssue'); box('AUTO', 'RQCU5140171', { discharge: 40, returned: 5 })
+    bl('AUTOFAIL', 'autoFail'); box('AUTOFAIL', 'RQCU5140181', { discharge: 40, returned: 5 }); box('AUTOFAIL', 'RQCU5140182', { discharge: null, returned: 5 })
+    bl('NRFREE', 'noRateFree', { freeTime: 10 }); box('NRFREE', 'RQCU5140191', { discharge: 40, returned: 5 }); box('NRFREE', 'RQCU5140192', { discharge: 10, returned: 5, type: 'R6ZZ' })
+    bl('HELDA', 'cancelledHeld'); bl('HELDB', 'cancelledHeld')
+    box('HELDA', 'RQCU5140201', { discharge: 40 }); box('HELDB', 'RQCU5140201', { discharge: 40 })
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = now() WHERE id = '${blPrefix}HELDB'`)
   })
 
   afterAll(cleanup)
@@ -371,7 +381,9 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       SET LOCAL request.jwt.claim.sub = '${adminId}'; SELECT public.count_demurrage_running_boxes(); ROLLBACK;`)
     expect(result.status, result.stderr).toBe(0)
     const total = Number(result.stdout.trim().split('\n').filter(Boolean).at(-1))
-    const own = CASES.flatMap((name) => board(voyageOf(name))).flatMap((group) => group.boxes).filter((item) => item.state === 'running').length
+    // 526: as caixas com sobreestadia da divisão Correndo, como o cartão.
+    const own = CASES.flatMap((name) => board(voyageOf(name))).filter((group) => group.division === 'correndo')
+      .flatMap((group) => group.boxes).filter((item) => ['running', 'returned_overstay', 'no_rate'].includes(item.state)).length
     expect(own).toBeGreaterThan(0)
     expect(total).toBeGreaterThanOrEqual(own)
   })
@@ -441,6 +453,75 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       } finally {
         psql(`SET session_replication_role = replica; UPDATE public.demurrage_invoices SET status = 'issued', paid_at = NULL WHERE bl_id = '${blPrefix}COVERED'`)
       }
+    })
+  })
+
+  describe('revisão final (migration 526)', () => {
+    const effects = (blId: string) => psql(`SELECT COALESCE(string_agg(status || ':' || (created_by IS NOT NULL), ',' ORDER BY id), '')
+      FROM public.import_pending_effects WHERE effect_kind = 'demurrage_billing' AND entity_id = '${blPrefix}${blId}'`)
+    const cron = (name: Case) => psql(`SELECT public.reconcile_demurrage_travado_alerts(${voyageOf(name)}, 'demurrage-travado-alerts')`)
+    /** Processa o efeito pendente do B/L como o `import-effects-runner`, sem disputar a fila das outras suítes. */
+    function processEffect(blId: string) {
+      const result = run(`
+        UPDATE public.import_pending_effects SET status = 'running', leased_by = 'r526-worker', lease_until = now() + interval '1 minute',
+               attempts = attempts + 1
+         WHERE effect_kind = 'demurrage_billing' AND entity_id = '${blPrefix}${blId}' AND status = 'pending';
+        BEGIN;
+        SET LOCAL request.jwt.claim.role = 'service_role';
+        SELECT public.process_import_effect(id, 'r526-worker')->'effect'->>'status'
+          FROM public.import_pending_effects WHERE effect_kind = 'demurrage_billing' AND entity_id = '${blPrefix}${blId}' AND status = 'running';
+        COMMIT;`)
+      expect(result.status, result.stderr).toBe(0)
+      return result.stdout.trim().split('\n').filter(Boolean).at(-1)
+    }
+
+    it('A emitir parado: a rotina enfileira com iniciador, o executor emite, e a passada seguinte não repete', () => {
+      psql(`DELETE FROM public.import_pending_effects WHERE entity_id = '${blPrefix}AUTO' AND effect_kind = 'demurrage_billing'`)
+      expect(board(voyageOf('autoIssue'))[0]).toMatchObject({ division: 'a_emitir' })
+      cron('autoIssue')
+      expect(effects('AUTO')).toBe('pending:true')
+      expect(processEffect('AUTO')).toBe('succeeded')
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}AUTO'`)).toBe('issued')
+      expect(board(voyageOf('autoIssue'))).toEqual([])
+      cron('autoIssue')
+      expect(effects('AUTO')).toBe('succeeded:true')
+    })
+
+    it('grupo que a emissão recusa não volta à fila a cada passada; mudar a caixa é tentativa nova', () => {
+      psql(`DELETE FROM public.import_pending_effects WHERE entity_id = '${blPrefix}AUTOFAIL' AND effect_kind = 'demurrage_billing'`)
+      expect(board(voyageOf('autoFail'))[0]).toMatchObject({ division: 'a_emitir' })
+      cron('autoFail')
+      expect(processEffect('AUTOFAIL')).not.toBe('succeeded')
+      const after = effects('AUTOFAIL')
+      cron('autoFail')
+      cron('autoFail')
+      expect(effects('AUTOFAIL')).toBe(after)
+      // A data de descarga gravada muda as caixas: a emissão entra de novo (pelo caminho das datas ou pela rotina).
+      psql(`UPDATE public.bl_containers SET discharge_date = ${day(-40)} WHERE container_number = 'RQCU5140182'`)
+      cron('autoFail')
+      expect(effects('AUTOFAIL').split(',').length).toBeGreaterThan(after.split(',').length)
+    })
+
+    it('caixa sem tarifa devolvida no free time trava o grupo, com o tipo fora do cadastro (D32)', () => {
+      expect(board(voyageOf('noRateFree'))[0]).toMatchObject({ division: 'travado', reason_code: 'sem_tarifa', no_rate_kind: 'tipo_novo', reason: 'Tipo R6ZZ sem tarifa de Demurrage.' })
+    })
+
+    it('o "sem tarifa" diz se falta o tipo, se ele está desativado ou se falta a tarifa', () => {
+      psql(`INSERT INTO public.container_types (code, description, rate_group, active) VALUES ('R6ZZ', 'teste 526', '40GP', false)`)
+      try {
+        expect(board(voyageOf('noRateFree'))[0]).toMatchObject({ no_rate_kind: 'tipo_inativo' })
+        // Tipo ativo num grupo sem tarifa (grupo da suíte, para não tocar nas tarifas das outras).
+        psql(`INSERT INTO public.demurrage_rate_groups (code, name, sort_order) VALUES ('R6GR', 'R526 grupo sem tarifa', 99);
+              SET session_replication_role = replica; UPDATE public.container_types SET active = true, rate_group = 'R6GR' WHERE code = 'R6ZZ'`)
+        expect(board(voyageOf('noRateFree'))[0]).toMatchObject({ division: 'travado', no_rate_kind: 'tarifa' })
+      } finally {
+        psql(`SET session_replication_role = replica; DELETE FROM public.container_types WHERE code = 'R6ZZ'; DELETE FROM public.demurrage_rate_groups WHERE code = 'R6GR'`)
+      }
+    })
+
+    it('caixa do B/L cancelado que um B/L ativo do mesmo Cliente segura aparece só no ativo', () => {
+      const groups = board(voyageOf('cancelledHeld'))
+      expect(groups.map((group) => [group.anchor_bl_id, group.division])).toEqual([[`${blPrefix}HELDA`, 'correndo']])
     })
   })
 
