@@ -194,12 +194,32 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   fica no modal.
 - As abas de invoice consultam um status exato por vez (`issued`, `paid` ou
   `cancelled`). Em tabela limpa (2026-10-16): Invoice (abre o detalhe), B/L,
-  Emissão, Pagamento (só em Pagas), Cliente, USD a cobrar (total dos itens menos
-  o desconto, que a RPC aplica em USD; o desconto aparece ao passar o mouse),
-  BRL e Situação em texto ("Em disputa" em âmbar quando há disputa aberta); em
-  Faturas, a Régua por último, com o que pausa a cobrança; em Pagas e
-  Canceladas, "Fora da Régua" ao lado da situação. Canceladas ficam com a linha
-  em cinza. O CNPJ fica no detalhe e na busca, e o ROE comum ao recorte, no
+  Emissão, Cliente, o USD líquido (total dos itens menos o desconto, que a RPC
+  aplica em USD; o desconto aparece ao passar o mouse), BRL e Situação em texto
+  ("Em disputa" em âmbar quando há disputa aberta); em Faturas, a Régua por
+  último, com o que pausa a cobrança; em Pagas, "Fora da Régua" ao lado da
+  situação. Canceladas ficam com a linha em cinza. O rótulo do USD é "USD a
+  cobrar" só em Faturas; "USD pago" em Pagas e "USD cancelado" em Canceladas
+  (lote 4 da repaginação, [ADR 0112](../adr/0112-repaginacao-da-demurrage.md)):
+  - **Faturas** (D8): **Em aberto há** (dias desde `billed_at`, pelo dia de
+    Brasília) e **Desconto** (US$, motivo ao passar o mouse). Filtros rápidos
+    **Em disputa** (`dispute_open`), **Fora da Régua** (`dunning_suspended_reason`
+    ou a Régua pausada agora, menos liquidada e cancelada) e **Com desconto**,
+    mais **Cliente** e **Navio / Viagem**; os filtros recortam a lista e o
+    resumo juntos e não vão para o endereço.
+  - **Pagas** (D9): **Pagamento**, **Dias até pagar** (`paid_at` menos o dia
+    de Brasília de `billed_at`), **ROE do pagamento** (a foto
+    `source='payment'` de `demurrage_invoice_history`) e **Meio de pagamento**
+    (`demurrage_invoices.payment_method`, ver
+    [Meio de pagamento](#meio-de-pagamento-migration-519)).
+  - **Canceladas** (D10): **Motivo** e **Cancelada por** (a linha `status` →
+    `cancelled` de `audit_logs`, gravada pelo cancelamento à mão, pela
+    reemissão por datas e pela troca de CNPJ; sem autor, "Sistema") e
+    **Destino das caixas**, por caixa: reemitida na Invoice que tem
+    `replaces_invoice_id` igual a esta, cobrada noutra Invoice viva do mesmo
+    Cliente na Viagem, dispensada, ou aguardando nova Invoice. O ROE, o motivo,
+    o autor e o destino vêm de `list_demurrage_invoice_details` (migration
+    `519`, usuário interno ativo). O CNPJ fica no detalhe e na busca, e o ROE comum ao recorte, no
   resumo. O detalhe abre com um bloco de dado principal ("US$ … a cobrar") e os
   fatos (BRL, ROE e origem, Situação, Tipo Normal ou Complementar, Cliente,
   CNPJ, B/L, Navio / Viagem, Emitida em, Itens, Desconto), sem selos; os avisos de
@@ -338,7 +358,7 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
 | B/L · salvar free time e P1/P2 | Usuário ativo; B/L carregado com `updated_at` esperado; valores vazios ou numéricos | `BlDemurrageSection` → `saveBlDemurrageConfig` | RPC `save_bl_demurrage_config` grava os três campos com optimistic lock e uma linha de auditoria por campo, na mesma transação | UPDATE de `bls.free_time_override`, `bls.demurrage_rate_override_p1_usd`, `bls.demurrage_rate_override_p2_usd`; INSERT em `audit_logs` | Invalida só `queryKeys.bls.detail(bl.id)` (`BlDemurrageSection.tsx`); a aba `Containers` relê no fim do `staleTime`; o status gravado do container é refeito na mesma transação pelo gatilho `trg_bls_refresh_demurrage_status` (migration `515`) | Conflito concorrente (`B/L foi alterado por outro usuario`) recarrega o detalhe; valor não numérico é bloqueado antes da chamada | **Código:** [`BlDemurrageSection.tsx`](../../src/components/bl/BlDemurrageSection.tsx), [`blDemurrageConfig.ts`](../../src/services/blDemurrageConfig.ts), `save_bl_demurrage_config` em [`002_business_logic_and_security.sql`](../../supabase/migrations/002_business_logic_and_security.sql) |
 | Derivar free time, P1/P2 e status | Tipo, descarga e devolução válidos; tarifas do banco carregadas | Previsão na aba `Containers` (`effectiveDemurrage`) e na seção Demurrage do B/L (`BlDemurrageSection`); a emissão calcula no banco (`_calculate_demurrage_invoice_authoritative`) | `ensureDemurrageRatesLoaded` carrega `demurrage_rates`; `calculateDemurrage` resolve tarifa e calcula dias inclusivos de P1/P2 | Sem escrita; lê cache em memória de tarifas vindas do banco | Resultado `within_free_time` ou `overdue`, usado só na tela (o status gravado é calculado pelo banco, migration `197`); falha de refresh preserva o último cache válido do banco | String vazia/data inválida, devolução anterior, tipo sem tarifa cadastrada ou ausência de tarifa vigente do banco lança erro | **Código/Teste:** [`demurrageRates.ts`](../../src/services/demurrage/demurrageRates.ts), [`calculateDemurrage.test.ts`](../../src/services/demurrage/__tests__/calculateDemurrage.test.ts) |
 | `/demurrage` · criar invoice para B/L (nasce `issued`) | Qualquer Departamento (migration `246`, P4); Cliente vinculado; todos os containers não-SOC do grupo devolvidos; sobreestadia nas caixas a cobrar; alguma caixa não-SOC do grupo ainda sem Invoice viva da mesma Viagem e do mesmo Cliente | Botão `Gerar Invoice` ou `Gerar complementar` na linha do B/L devolvido com sobreestadia e caixa sem Invoice; B/L cujo grupo tem caixa não-SOC ainda fora (listada ou não) mostra "Aguarda devolução"; grupo com container compartilhado tem uma só ação; `generateMutation` abre o detalhe da Invoice emitida | `createInvoiceForBL` → RPC `issue_demurrage_invoice_for_bl` (migrations `179` e `191`): grupo de B/Ls do mesmo Cliente que dividem container na Viagem, uma caixa por número, emissão pelo B/L-âncora em `create_demurrage_invoice_authoritative`; container no free time entra com valor zero; B/L cancelado é recusado com o motivo; a completude do grupo é conferida só na emissão; desde a migration `214`, cobrança por caixa: só as caixas sem Invoice viva da Viagem e do Cliente entram, e o grupo já com Invoice recebe a complementar no âncora atual | RPC: INSERT em `demurrage_invoices` (`status='issued'`, `current_roe`/`current_total_brl`/`pix_payload`), itens e a foto inicial em `demurrage_invoice_history` | `afterFaturaDemurrageAlterada` | Grupo com todas as caixas já cobradas devolve `existing` e a tela avisa que já existe Invoice (não duplica); caixa já cobrada pedida direto em `create_demurrage_invoice_authoritative` é recusada (23505); PTAX indisponível sem cache rejeita | **Código:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts), definição vigente na migration `214` (nasce `issued` desde a migration arquivada [`156`](../../supabase/migrations_archive/156_demurrage_create_invoice_issued.sql)) · **Teste:** `demurrageCobrancaPorCaixa.local-pg.test.ts` |
-| `/demurrage` · listar invoices e acompanhar Régua | Aba `Faturas` (`issued`), `Pagas` ou `Canceladas` | Query da página; `DemurrageInvoicesTab` | `listDemurrageInvoices({status})` (todas as páginas, sem o corte de 1000 do PostgREST) + `fetchDemurrageDunningStatuses` → `getDemurrageDunningDisplay` | SELECT em `demurrage_invoices`, `customers`, `bls`, `voyages`, `vessels`, claims da régua, contatos, preferências e supressões | Queries `['demurrage-invoices', status]` e `['demurrage-invoices', 'dunning', invoiceIds]`; mostra tentativa seguinte, data, último envio ou pausa | Erro da invoice mostra `InlineError`; falha da régua mostra `Régua indisponível` | **Código:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`DemurrageInvoicesTab.tsx`](../../src/components/demurrage/DemurrageInvoicesTab.tsx), [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts), [`demurrageDunning.ts`](../../src/services/demurrageDunning.ts) · **Teste:** `DemurrageDunningStatus.test.tsx` |
+| `/demurrage` · listar invoices e acompanhar Régua | Aba `Faturas` (`issued`), `Pagas` ou `Canceladas` | Query da página; `DemurrageInvoicesTab` | `listDemurrageInvoices({status})` (todas as páginas, sem o corte de 1000 do PostgREST) + `fetchDemurrageDunningStatuses` → `getDemurrageDunningDisplay`; em Pagas e Canceladas, `fetchDemurrageInvoiceDetails` → RPC `list_demurrage_invoice_details` (migration `519`) | SELECT em `demurrage_invoices`, `customers`, `bls`, `voyages`, `vessels`, claims da régua, contatos, preferências e supressões | Queries `['demurrage-invoices', status]`, `['demurrage-invoices', 'dunning', invoiceIds]` e `['demurrage-invoices', 'details', invoiceIds]`; mostra tentativa seguinte, data, último envio ou pausa | Erro da invoice mostra `InlineError`; falha da régua mostra `Régua indisponível` | **Código:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`DemurrageInvoicesTab.tsx`](../../src/components/demurrage/DemurrageInvoicesTab.tsx), [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts), [`demurrageDunning.ts`](../../src/services/demurrageDunning.ts) · **Teste:** `DemurrageDunningStatus.test.tsx` |
 | `/demurrage` · abrir detalhe/breakdown | Invoice selecionada | Número da Invoice nas listas, `?fatura=<id>` (ficha do B/L, ficha do Cliente, alerta de Invoice de Demurrage) | `getInvoiceDetail` carrega cabeçalho e itens em paralelo | SELECT em `demurrage_invoices` e `demurrage_invoice_items` | Query `['demurrage-invoice-detail', id]` | Erro da invoice ou dos itens rejeita a leitura | **Código:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts) |
 | `/demurrage` · marcar pago manualmente | Financeiro/Administrativo; invoice `issued`; data entre a emissão e hoje (conferida junto do campo) | `PaymentModal`; `payMutation`; falha fica no modal | `markInvoicePaid` → `register_demurrage_payment`, com request UUID | RPC valida e bloqueia invoice, congela valores e registra histórico | `afterFaturaDemurrageAlterada` | Estado/valor/data incompatíveis rejeitam; não é UPDATE direto do navegador | **Código/Teste:** [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts), `demurrageMoney.local-pg.test.ts` |
 | `/demurrage` · **Cancelar baixa…** | Administrativo ativo; Invoice `paid`; justificativa digitada | Botão `Cancelar baixa…` no detalhe → `DemurragePaymentReversalModal` (avisa quando as datas do container mudaram depois do pagamento e diz o que o cancelamento fará); `unpayMutation` | `reverseDemurragePayment(id, justificativa)` → RPC `reverse_demurrage_payment` | RPC volta a Invoice a `issued`, limpa `paid_at`, `pix_txid` e `conciliated_by_extract` e grava `audit_logs` `payment_reversed` com a justificativa; Pix do Itaú que deu a baixa volta a Pix em análise com Alerta (migration `446`); Invoice suspensa por datas alteradas é cancelada e reemitida, segue suspensa ou perde a suspensão (gatilho `trg_reconcile_demurrage_after_payment_reversal`, migration `191`) | `afterFaturaDemurrageAlterada`; relê o detalhe antes de voltar a ele | Sem permissão (`42501`), Invoice não paga ou justificativa vazia; restituição de Demurrage não cancelada faz o banco recusar (`guard_demurrage_payment_after_refund`, migration `136`); a recusa fica no modal e a baixa continua registrada; cancelar a baixa não devolve dinheiro | **Código/Teste:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`DemurragePaymentReversalModal.tsx`](../../src/components/demurrage/DemurragePaymentReversalModal.tsx), `DemurragePaymentReversalModal.test.tsx`, `Demurrage.behavior.test.tsx`, `auditoriaFaturasDemurrageComunicado.local-pg.test.ts` (cancelamento da baixa de Invoice suspensa) |
@@ -879,6 +899,28 @@ mesmo jeito, na data do último desconto. Antes, a Invoice ficava emitida com
 valor zero, não podia ser baixada (`register_demurrage_payment` exige valor
 positivo) e a Régua a recusava em loop. **Teste local-pg:**
 `reguaCobrancaDemurrage.local-pg.test.ts`.
+
+### Meio de pagamento (migration `519`)
+
+Desde a migration `519` ([ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
+D9), `demurrage_invoices.payment_method` guarda como a Invoice foi quitada:
+`pix_itau`, `extrato`, `manual` ou `isencao`. Quem grava é o gatilho
+`trg_demurrage_invoice_payment_method`, na hora em que a Invoice vira `paid`,
+seja qual for o caminho:
+
+- `confirm_demurrage_pix_matches` (conciliação pelo extrato) avisa o gatilho
+  por `vela.demurrage_payment_method` e grava `extrato`, mesmo quando o TXID é
+  de uma cobrança do Itaú;
+- sem esse aviso, TXID ou end-to-end que está em `itau_pix_charges` ou
+  `itau_pix_receipts` é `pix_itau` (baixa automática do Itaú e baixa manual do
+  Pix recebido); outro TXID é `extrato`;
+- sem TXID, BRL zero com desconto é `isencao` (o desconto integral de
+  `apply_demurrage_discount`); o resto é `manual` (**Registrar pagamento**).
+
+Cancelar a baixa apaga o meio. As Invoices pagas antes da `519` receberam o
+meio pela origem conhecida: Pix do Itaú, `discount_exemption` em `audit_logs`,
+`conciliated_by_extract`, e o resto como manual. **Teste local-pg:**
+`abasDeInvoiceDemurrage.local-pg.test.ts`.
 
 ### Baixa, cancelamento da baixa e restituição
 

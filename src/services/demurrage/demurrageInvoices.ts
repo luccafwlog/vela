@@ -15,6 +15,8 @@ export type DemurrageInvoiceListItem = DemurrageInvoice & {
   bl?: { id: string; pol: string | null; pod: string | null; voyage?: { id: number; voyage_number: string; vessel?: { id: number; name: string } | null } | null } | null
   /** Coluna da migration 472 (DEM-D08), ainda fora dos tipos gerados. */
   replaces_invoice_id?: number | null
+  /** Meio da baixa (migration 519, ADR 0112 D9): pix_itau, extrato, manual ou isencao. */
+  payment_method?: string | null
   /** Invoice cancelada que esta reemissão substitui (migration 472, DEM-D08); só no detalhe. */
   replaces?: { id: number; doc_number: string } | null
 }

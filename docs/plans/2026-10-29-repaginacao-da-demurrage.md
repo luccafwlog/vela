@@ -17,7 +17,7 @@ tarifas (D28 a D34) entram no lote 0B.
 | 1 — Classificação da cobrança no banco | Feito em 2026-10-29 (migration `515`) |
 | 2 — Aba Containers, cartões e aviso do cabeçalho | Feito em 2026-10-30 (migration `516`; Exportar entra no lote 6) |
 | 3 — B/L cancelado e dispensa da cobrança | Feito em 2026-10-30 (migration `517`) |
-| 4 — Faturas, Pagas e Canceladas | A fazer |
+| 4 — Faturas, Pagas e Canceladas | Feito em 2026-10-30 (migration `519`; a `518` completa o lote 3) |
 | 5 — Por Cliente e extrato do Cliente | A fazer (depende do lote 1) |
 | 6 — Relatórios | A fazer (Exposição depende do lote 1) |
 | 7 — Disputas | A fazer |

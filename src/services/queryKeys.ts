@@ -190,6 +190,7 @@ export const queryKeys = {
       filters === undefined ? (['customer-demurrage-agreements'] as const) : (['customer-demurrage-agreements', filters] as const),
     invoices: (filters?: unknown) => (filters === undefined ? (['demurrage-invoices'] as const) : (['demurrage-invoices', filters] as const)),
     dunning: (invoiceIds: number[]) => ['demurrage-invoices', 'dunning', invoiceIds.slice().sort((a, b) => a - b)] as const,
+    invoiceDetails: (invoiceIds: readonly number[]) => ['demurrage-invoices', 'details', invoiceIds.slice().sort((a, b) => a - b)] as const,
   },
   financialRefunds: {
     byInvoice: (source: string, invoiceId?: number | null) => ['financial-refunds', source, invoiceId] as const,

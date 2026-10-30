@@ -417,7 +417,7 @@ export function Demurrage() {
     const reason = await confirmWithReason({
       title: `Cancelar Invoice ${invoice.doc_number}`,
       message: `Cancelar a Invoice de Demurrage ${invoice.doc_number} do B/L ${invoice.bl_id}?`,
-      consequence: 'A Invoice sai da Régua e do Portal e não aceita mais baixa. As caixas dela voltam a ficar sem Invoice e podem ser cobradas de novo pela aba Containers.',
+      consequence: 'A Invoice sai da Régua e do Portal e não aceita mais baixa. As caixas dela voltam para A emitir na aba Containers, sem Invoice nova automática.',
       reversibility: 'Invoice cancelada não volta: para cobrar de novo, gere outra Invoice.',
       reasonLabel: 'Motivo do cancelamento (obrigatório)',
       confirmLabel: 'Cancelar Invoice',
