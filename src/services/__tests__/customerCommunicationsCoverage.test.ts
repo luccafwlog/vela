@@ -16,7 +16,7 @@ vi.mock('../supabase', () => ({
   supabase: { from: mockFrom, rpc: mockRpc },
 }))
 
-import { buildVoyageCommunicationCoverage, fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage, orderCoverageByEscala } from '../customerCommunications'
+import { buildVoyageCommunicationCoverage, fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage, fetchVoyageCommunicationDetail, orderCoverageByEscala } from '../customerCommunications'
 
 function queryResult(data: unknown, error: unknown = null) {
   const chain: Record<string, unknown> = {}
@@ -74,6 +74,38 @@ describe('fetchVoyageCommunicationCoverage', () => {
     expect(rowV10?.finance.ready).toBe(1)
     expect(rowV10?.finance.pending).toBe(1)
     expect(rowV10?.finance.sent).toBe(1)
+  })
+
+  it('a página de uma viagem lê só ela, com as linhas por porto e as escalas', async () => {
+    const voyageMock = queryResult({ id: 10, voyage_number: 'V10', vessel: { name: 'Vessel 10' } })
+    voyageMock.maybeSingle = vi.fn(() => voyageMock)
+    const blsMock = queryResult([
+      { id: 'BL-1', voyage_id: 10, customer_id: 1, pod: 'BRSSZ', ce_mercante: '1', financial_status: 'invoiced' },
+      { id: 'BL-2', voyage_id: 10, customer_id: null, pod: 'BRVIX', ce_mercante: null, financial_status: 'pending', manifest_customer_name: 'SEM CADASTRO LTDA', manifest_customer_cnpj_cpf: '11222333000181' },
+    ])
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'voyages') return voyageMock
+      if (table === 'bls') return blsMock
+      if (table === 'customers') return queryResult([{ id: 1, name: 'Cliente 1' }])
+      return queryResult([])
+    })
+    mockRpc.mockImplementation((name: string) => Promise.resolve({ data: name === 'customer_communication_queue_preview' ? [] : { ready: true }, error: null }))
+    mockEscalas.mockResolvedValueOnce(new Map([[10, [{ port: 'BRSSZ', eta: '2026-10-24T10:00:00Z', ata: null, deleted: false, omitted: false }]]]))
+
+    const detail = await fetchVoyageCommunicationDetail(10)
+
+    expect(voyageMock.eq).toHaveBeenCalledWith('id', 10)
+    expect(blsMock.in).toHaveBeenCalledWith('voyage_id', [10])
+    expect(detail?.rows.map((row) => [row.port, row.customers, row.unlinked.bls])).toEqual([['BRSSZ', 1, 0], ['BRVIX', 0, 1]])
+    expect(detail?.escalas).toEqual([expect.objectContaining({ pod: 'BRSSZ', eta: '2026-10-24T10:00:00Z' })])
+  })
+
+  it('viagem inexistente devolve null sem ler B/Ls', async () => {
+    const voyageMock = queryResult(null)
+    voyageMock.maybeSingle = vi.fn(() => voyageMock)
+    mockFrom.mockImplementation(() => voyageMock)
+    expect(await fetchVoyageCommunicationDetail(999)).toBeNull()
+    expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 
   it('retorna vazio sem disparar consultas adicionais quando nenhuma viagem é encontrada', async () => {
@@ -196,9 +228,43 @@ describe('buildVoyageCommunicationCoverage', () => {
     expect(build({ eta: '2026-09-29T12:00:00Z', ata: '2026-09-29T12:00:00Z' })).toMatchObject({ noa: { sent: 0, total: 1 }, nor: { sent: 0, total: 1 } })
   })
 
-  it('viagem sem B/L com cliente fica numa linha sem porto e sem nada devido', () => {
+  it('viagem sem B/L ativo fica numa linha sem porto e sem nada devido', () => {
     const [row] = buildVoyageCommunicationCoverage({ voyages: [voyage], bls: [], communications: [], terminalStates: [], readiness: new Map() })
-    expect(row).toMatchObject({ port: null, customers: 0, finance: { sent: 0, due: 0 } })
+    expect(row).toMatchObject({ port: null, customers: 0, finance: { sent: 0, due: 0 }, unlinked: { bls: 0, consignees: [] } })
+  })
+
+  // Pedido do dono de 2026-10-30: o B/L sem Cliente não é "nada devido", é
+  // carga que nenhum Comunicado alcança.
+  it('B/L sem Cliente é pendência do porto, agrupado pelo consignatário do manifesto', () => {
+    const semCliente = (id: string, pod: string, name: string | null, document: string | null) => ({
+      id, voyage_id: 62, customer_id: null, pod, ce_mercante: null, financial_status: 'pending',
+      manifest_customer_name: name, manifest_customer_cnpj_cpf: document,
+    })
+    const rows = buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [
+        bl('A', 1, 'BRVIX'),
+        semCliente('B', 'BRVIT', 'ABF COMERCIO LTDA', '12.345.678/0001-95'),
+        semCliente('C', 'BRVIX', 'ABF COMERCIO LTDA', '12345678000195'),
+        semCliente('D', 'BRVIX', 'SEM CNPJ IMPORTADORA', null),
+        // Cancelado não é pendência.
+        { ...semCliente('E', 'BRVIX', 'OUTRO', '98765432000110'), cancelled_at: '2026-10-20T10:00:00Z' },
+        // Porto só com carga sem Cliente também vira linha.
+        semCliente('F', 'BRSSZ', 'XPTO', '11222333000181'),
+      ],
+      communications: [],
+      terminalStates: [],
+      readiness: new Map(),
+    })
+    const byPort = new Map(rows.map((row) => [row.port, row]))
+    // BRVIT e BRVIX são o mesmo porto; o mesmo CNPJ com e sem máscara é o mesmo consignatário.
+    expect(byPort.get('BRVIX')).toMatchObject({ customers: 1, unlinked: { bls: 3 } })
+    expect(byPort.get('BRVIX')?.unlinked.consignees.map((item) => [item.name, item.blIds])).toEqual([
+      ['ABF COMERCIO LTDA', ['B', 'C']],
+      ['SEM CNPJ IMPORTADORA', ['D']],
+    ])
+    // Sem Cliente vinculado, nada é "devido" nas colunas por Cliente; a pendência fica na coluna própria.
+    expect(byPort.get('BRSSZ')).toMatchObject({ customers: 0, noa: { total: 0 }, finance: { due: 0 }, details: [], unlinked: { bls: 1 } })
   })
 })
 

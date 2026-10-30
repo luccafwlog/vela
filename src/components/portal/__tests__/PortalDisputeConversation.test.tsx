@@ -24,7 +24,8 @@ vi.mock('../../../hooks/usePortalDisputes', () => ({
   })),
 }))
 
-vi.mock('../../../services/portalBilling', () => ({
+vi.mock('../../../services/portalBilling', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/portalBilling')>()),
   portalCheckDisputeAttachmentEligibility: (...args: unknown[]) => checkEligibilityMock(...args),
   portalUploadDisputeAttachment: (...args: unknown[]) => uploadAttachmentMock(...args),
 }))

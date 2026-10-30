@@ -163,7 +163,10 @@ Deno.test("falha na manutenção dos prazos responde 500 e registra no log e no 
   const run = await routineRun({ failRpc: "itau_pix_maintain" });
   assert(run.status === 500, `Falha na manutenção respondeu ${run.status}`);
   assert(run.body.error === "Falha na manutenção dos prazos Itaú.", `Corpo: ${JSON.stringify(run.body)}`);
-  assert(loggedSteps(run.logs).join() === "routine", `Etapas no log: ${loggedSteps(run.logs)}`);
+  assert(loggedSteps(run.logs).join() === "maintenance,routine", `Etapas no log: ${loggedSteps(run.logs)}`);
+  // A causa do banco fica no log: sem ela, o 500 isolado não se explica.
+  const [maintenance] = loggedLines(run.logs);
+  assert(maintenance.error === "falha simulada do banco" && maintenance.detail?.code === "XX000", `Log: ${JSON.stringify(maintenance)}`);
   assertSentryEvent(run.sentry, "http_500");
 });
 

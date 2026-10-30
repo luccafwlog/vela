@@ -3,9 +3,9 @@ import { formatBRL, formatUSD } from '../../lib/utils'
 import { saoPauloTodayIso } from '../../lib/dates'
 import { calculateDemurrage, demurrageFreeTimeDays } from './demurrageRates'
 import { parseImportNumber } from '../../lib/importNumber'
-import { demurrageBoxKey } from './demurrageBoxKey'
 import { discountFromValue, invoiceNetUsd, type DiscountPreview } from './demurrageNetUsd'
-import type { DemurrageBilledInvoiceRef, DemurrageBillingGroup, DemurrageContainerRow } from './demurrageContainers'
+import type { DemurrageContainerRow } from './demurrageContainers'
+import { staleSuspensionCause } from './demurrageSuspension'
 
 export function fmtUSD(value: number | null | undefined) {
   if (value == null) return '---'
@@ -33,16 +33,6 @@ export function isPtaxWarningEligible(date = new Date()): boolean {
 export function fmtBRL(value: number | null | undefined) {
   // ponytail: canonical Intl currency spacing may differ from the former print formatter.
   return value == null ? '---' : formatBRL(value)
-}
-
-export function groupByBl<T extends Pick<DemurrageContainerListItem, 'bl_id'>>(containers: readonly T[]): Map<string, T[]> {
-  const map = new Map<string, T[]>()
-  for (const container of containers) {
-    const blId = container.bl_id ?? 'unknown'
-    if (!map.has(blId)) map.set(blId, [])
-    map.get(blId)!.push(container)
-  }
-  return map
 }
 
 function containerBlRates(container: DemurrageContainerListItem) {
@@ -102,77 +92,11 @@ export const FREE_TIME_SOURCE_LABELS: Record<FreeTimeSource, string> = {
   tabela: 'tabela',
 }
 
-export type BlBillingState = {
-  /** Invoices vivas que já cobram alguma caixa do grupo (sem repetição). */
-  invoices: DemurrageBilledInvoiceRef[]
-  /** Caixas listadas do grupo ainda sem Invoice viva (uma por número). */
-  uncovered: DemurrageContainerRow[]
-  /** Caixas não-SOC do grupo ainda fora, inclusive as que a lista não mostra. */
-  stillOut: number
-  /** USD previsto das caixas ainda sem Invoice. */
-  uncoveredUsd: number
-  /**
-   * `generate`: primeira Invoice do grupo; `complement`: Invoice complementar
-   * só com as caixas ainda não cobradas (migration 214); `waiting`: há caixa
-   * fora; `covered`: todas cobradas; `none`: nada a cobrar.
-   */
-  action: 'generate' | 'complement' | 'waiting' | 'covered' | 'none'
-}
-
-function boxKey(container: DemurrageContainerRow): string {
-  return demurrageBoxKey(container.bl?.voyage_id, container.bl?.customer?.id, container.container_number) ?? `id:${container.id}`
-}
-
-/** Uma linha por caixa: o container compartilhado aparece em cada B/L do grupo. */
-export function distinctBoxes<T extends DemurrageContainerRow>(containers: readonly T[]): T[] {
-  const seen = new Set<string>()
-  return containers.filter((container) => {
-    const key = boxKey(container)
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
-/**
- * Estado de cobrança do grupo do B/L na aba Containers, na ordem de
- * `issue_demurrage_invoice_for_bl` (214): todas as caixas cobertas →
- * `existing`; caixa não-SOC fora → `waiting_return`; senão emite (a
- * complementar quando o grupo já tem Invoice). Recebe TODAS as caixas listadas
- * do grupo, nunca só as que a busca ou a lente deixaram visíveis; as contagens
- * do grupo vêm de `billing_group`, que inclui as caixas fora da lista. Sem o
- * grupo (B/L cancelado ou leitura antiga), cai nas caixas recebidas.
- */
-export function blBillingState(containers: readonly DemurrageContainerRow[], group?: DemurrageBillingGroup | null): BlBillingState {
-  const boxes = distinctBoxes(containers)
-  const invoices: DemurrageBilledInvoiceRef[] = [...(group?.invoices ?? [])]
-  for (const ref of boxes.flatMap((container) => container.billed_in ?? [])) {
-    if (!invoices.some((existing) => existing.id === ref.id)) invoices.push(ref)
-  }
-  const uncovered = boxes.filter((container) => !(container.billed_in?.length))
-  const stillOut = group ? group.stillOut : boxes.filter((container) => !container.return_date).length
-  const uncoveredCount = group ? group.uncovered : uncovered.length
-  const uncoveredUsd = uncovered.reduce((sum, container) => sum + safeTotalUsd(container), 0)
-  let action: BlBillingState['action'] = 'none'
-  if ((group ? group.boxes : boxes.length) && invoices.length && !uncoveredCount) action = 'covered'
-  else if (stillOut > 0) action = uncoveredCount ? 'waiting' : 'covered'
-  else if (uncoveredUsd > 0) action = invoices.length ? 'complement' : 'generate'
-  return { invoices, uncovered, stillOut, uncoveredUsd, action }
-}
-
-function safeTotalUsd(container: DemurrageContainerRow): number {
-  try {
-    return effectiveDemurrage(container)?.total_usd ?? 0
-  } catch {
-    return 0
-  }
-}
-
-/** Colunas que a listagem lê com `select('*')` e que o tipo gerado ainda não traz. */
 export type DemurrageInvoiceRow = DemurrageInvoice & { dunning_suspended_reason?: string | null }
 
-export const DATES_CHANGED_PAID_PREFIX = 'Datas de container alteradas depois do pagamento'
-export const DATES_CHANGED_NEGOTIATED_PREFIX = 'Datas de container alteradas em Invoice com desconto ou disputa'
+export { STALE_NEGOTIATED_SUFFIX, STALE_PAID_SUFFIX, staleSuspensionCause } from './demurrageSuspension'
+
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
 
 /**
  * Invoice paga suspensa porque as datas do container mudaram depois do
@@ -181,7 +105,7 @@ export const DATES_CHANGED_NEGOTIATED_PREFIX = 'Datas de container alteradas em 
  * pelo cancelamento de baixa em Demurrage e na Conciliação PIX.
  */
 export function reversalDatesNotice(invoice: { dunning_suspended_reason?: string | null; discount_value?: number | null; dispute_open?: boolean | null }): { negotiated: boolean } | null {
-  if (!invoice.dunning_suspended_reason?.startsWith(DATES_CHANGED_PAID_PREFIX)) return null
+  if (!staleSuspensionCause(invoice.dunning_suspended_reason)?.paid) return null
   return { negotiated: Number(invoice.discount_value ?? 0) > 0 || Boolean(invoice.dispute_open) }
 }
 
@@ -196,19 +120,20 @@ export function demurrageInvoiceNotices(invoice: Pick<DemurrageInvoiceRow, 'stat
   const notices: InvoiceNotice[] = []
   const reason = invoice.dunning_suspended_reason?.trim()
   if (invoice.status !== 'cancelled' && reason) {
-    if (reason.startsWith(DATES_CHANGED_PAID_PREFIX)) {
+    const stale = staleSuspensionCause(reason)
+    if (stale?.paid) {
       notices.push({
         key: 'dates-paid',
         tone: 'warning',
-        title: 'Fora da Régua: as datas do container mudaram depois do pagamento',
-        text: 'Os itens não batem mais com as datas atuais. Confira a diferença e trate pela restituição de Demurrage ou por uma fatura avulsa. O alerta "Datas mudaram em Invoice de Demurrage emitida" fecha quando os itens voltarem a bater com as datas.',
+        title: `Fora da Régua: ${lowerFirst(stale.cause)} depois do pagamento`,
+        text: 'Os itens não batem mais com o que vale hoje. Confira a diferença e trate pela restituição de Demurrage ou por uma fatura avulsa. O alerta "Datas mudaram em Invoice de Demurrage emitida" diz a causa e fecha quando os itens voltarem a bater.',
       })
-    } else if (reason.startsWith(DATES_CHANGED_NEGOTIATED_PREFIX)) {
+    } else if (stale) {
       notices.push({
         key: 'dates-negotiated',
         tone: 'warning',
-        title: 'Fora da Régua: datas alteradas numa Invoice com desconto ou disputa',
-        text: 'Esta Invoice não é reemitida sozinha. Cancele, gere de novo pela aba Containers e refaça o desconto ou responda a disputa. Se as datas voltarem às faturadas, a suspensão sai.',
+        title: `Fora da Régua: ${lowerFirst(stale.cause)} numa Invoice com desconto ou disputa`,
+        text: 'Esta Invoice não é reemitida sozinha. Cancele, gere de novo pela aba Containers e refaça o desconto ou responda a disputa. Se os itens voltarem a bater, a suspensão sai.',
       })
     } else {
       notices.push({ key: 'suspended', tone: 'warning', title: 'Fora da Régua', text: reason })
@@ -303,4 +228,13 @@ export function daysSince(fromIso: string, toIso: string): number {
   const to = Date.parse(`${toIso.slice(0, 10)}T12:00:00Z`)
   if (!Number.isFinite(from) || !Number.isFinite(to)) return 0
   return Math.max(0, Math.round((to - from) / 86_400_000))
+}
+
+/**
+ * Parte da caixa dividida entre Clientes (migration 521, ADR 0112, D19): "1/2
+ * da caixa". Nulo na caixa de um Cliente só e no item emitido antes da 521.
+ */
+export function boxShareLabel(count: number | null | undefined): string | null {
+  const n = Number(count ?? 1)
+  return Number.isInteger(n) && n > 1 ? `1/${n} da caixa` : null
 }

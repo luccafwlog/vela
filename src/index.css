@@ -11409,53 +11409,9 @@ td.app-cargo-num {
   margin-bottom: 8px;
 }
 
-/* Disputas: uma conversa por Invoice, a que espera resposta primeiro. */
-.app-dem-disputes {
-  display: grid;
-  gap: 12px;
-}
-
-.app-dem-dispute {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  padding: 12px 16px;
-  scroll-margin-top: 96px;
-}
-
-.app-dem-dispute--focused {
-  border-color: var(--app-link);
-  box-shadow: 0 0 0 1px var(--app-link);
-}
-
-.app-dem-dispute__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px 16px;
-}
-
-.app-dem-dispute__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-section);
-  font-weight: 600;
-  line-height: 24px;
-  overflow-wrap: anywhere;
-}
-
-.app-dem-dispute__subject {
-  color: var(--app-text);
-}
-
-.app-dem-dispute__state {
-  display: grid;
-  justify-items: end;
-  gap: 4px;
+/* Disputas em tabela (ADR 0112, D15): a linha que passou do prazo fica em âmbar. */
+.app-dem-row--late > td {
+  background: var(--app-warning-bg);
 }
 
 .app-dem-messages {
@@ -11534,10 +11490,6 @@ td.app-cargo-num {
   .app-dem-form__grid,
   .app-dem-dispute__options {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .app-dem-dispute__state {
-    justify-items: start;
   }
 }
 

@@ -14,11 +14,14 @@ import { useToast } from '../components/ui/Toast'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { CustomerDemurrageAgreementsTab } from '../components/demurrage/CustomerDemurrageAgreementsTab'
 import { DemurrageRateModal } from '../components/demurrage/DemurrageRateModal'
+import { ContainerTypesTab } from '../components/demurrage/ContainerTypesTab'
 import { ShowInactiveToggle } from '../components/demurrage/ShowInactiveToggle'
 import { useShowInactive } from '../hooks/useShowInactive'
 import { useAuth } from '../hooks/useAuth'
 import {
+  useContainerTypes,
   useDeleteDemurrageRate,
+  useDemurrageRateGroups,
   useDemurrageRates,
   useSaveDemurrageRate,
   useToggleDemurrageRateActive,
@@ -29,7 +32,7 @@ import { classifyDbError } from '../lib/errors'
 import { saoPauloTodayIso } from '../lib/dates'
 import { formatDate, formatUSD } from '../lib/utils'
 
-type RatesTab = 'padrao' | 'acordos'
+type RatesTab = 'padrao' | 'acordos' | 'tipos'
 
 function rateVigencia(rate: DemurrageRate) {
   const from = rate.valid_from ? formatDate(rate.valid_from) : 'sem início'
@@ -49,11 +52,21 @@ export function DemurrageRates() {
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab: RatesTab = searchParams.get('tab') === 'acordos' ? 'acordos' : 'padrao'
+  const tabParam = searchParams.get('tab')
+  const tab: RatesTab = tabParam === 'acordos' || tabParam === 'tipos' ? tabParam : 'padrao'
   const [editing, setEditing] = useState<{ rate: DemurrageRate | null } | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const ratesQuery = useDemurrageRates()
+  const groupsQuery = useDemurrageRateGroups()
+  const typesQuery = useContainerTypes()
+  const groups = groupsQuery.data ?? []
+  // Uma tarifa por grupo (ADR 0112, D28): a linha diz o grupo e os tipos que ele cobre.
+  const codesByGroup = new Map<string, string[]>()
+  for (const type of typesQuery.data ?? []) {
+    if (type.active) codesByGroup.set(type.rate_group, [...(codesByGroup.get(type.rate_group) ?? []), type.code])
+  }
+  const groupLabel = (code: string) => groups.find((group) => group.code === code)?.name ?? code
   const [showInactive, setShowInactive] = useShowInactive()
   const allRates = ratesQuery.data
   const inactiveCount = allRates?.filter((rate) => !rate.active).length ?? 0
@@ -65,11 +78,10 @@ export function DemurrageRates() {
   function selectTab(next: RatesTab) {
     setSearchParams((params) => {
       const updated = new URLSearchParams(params)
-      if (next === 'acordos') updated.set('tab', 'acordos')
-      else {
-        updated.delete('tab')
-        updated.delete('cliente')
-      }
+      if (next === 'padrao') updated.delete('tab')
+      else updated.set('tab', next)
+      if (next !== 'acordos') updated.delete('cliente')
+      if (next !== 'tipos') updated.delete('tipo')
       return updated
     }, { replace: true })
   }
@@ -83,7 +95,7 @@ export function DemurrageRates() {
     const original = editing?.rate ?? null
     const changes = original
       ? [
-          { field: 'Tipo de container', before: original.container_type, after: input.container_type },
+          { field: 'Grupo de tarifa', before: groupLabel(original.container_type), after: groupLabel(input.container_type) },
           { field: 'Free time', before: `${original.free_days} dias`, after: `${input.free_days} dias` },
           { field: 'Faixa P1 (dias)', before: `${original.p1_day_from} a ${original.p1_day_to}`, after: `${input.p1_day_from} a ${input.p1_day_to}` },
           { field: 'Diária P1', before: formatUSD(original.p1_usd), after: formatUSD(input.p1_usd) },
@@ -103,14 +115,14 @@ export function DemurrageRates() {
     const confirmed = await confirm({
       title: original ? 'Salvar tarifa de Demurrage' : 'Cadastrar tarifa de Demurrage',
       message: original
-        ? `Salvar as alterações da tarifa padrão do container ${input.container_type}?`
-        : `Cadastrar a tarifa padrão do container ${input.container_type}?`,
+        ? `Salvar as alterações da tarifa padrão do grupo ${groupLabel(input.container_type)}?`
+        : `Cadastrar a tarifa padrão do grupo ${groupLabel(input.container_type)}?`,
       confirmLabel: original ? 'Salvar alterações' : 'Cadastrar tarifa',
       changes: original ? changes : undefined,
       affected: !original
-        ? { summary: `${input.container_type} · Free time ${input.free_days} dias · P1 ${formatUSD(input.p1_usd)}/dia · P2 ${formatUSD(input.p2_usd)}/dia` }
+        ? { summary: `${groupLabel(input.container_type)} · Free time ${input.free_days} dias · P1 ${formatUSD(input.p1_usd)}/dia · P2 ${formatUSD(input.p2_usd)}/dia` }
         : undefined,
-      consequence: 'Vale para os cálculos novos deste tipo de container quando o B/L não tem condição própria e o Cliente não tem acordo vigente na descarga. Invoices já emitidas não mudam.',
+      consequence: 'Vale para os cálculos novos dos tipos de container deste grupo quando o B/L não tem condição própria e o Cliente não tem acordo vigente na descarga. Invoices já emitidas não mudam.',
       reversibility: 'A tarifa pode ser editada ou desativada no cadastro.',
     })
     if (!confirmed) return
@@ -127,8 +139,8 @@ export function DemurrageRates() {
 
   async function handleDelete(rate: DemurrageRate) {
     const reason = await confirmWithReason({
-      title: `Excluir tarifa ${rate.container_type}`,
-      message: `Excluir a tarifa padrão de Demurrage do container ${rate.container_type}?`,
+      title: `Excluir tarifa ${groupLabel(rate.container_type)}`,
+      message: `Excluir a tarifa padrão de Demurrage do grupo ${groupLabel(rate.container_type)}?`,
       consequence: 'A tarifa ainda não entrou em vigor: sai do cadastro antes de valer para qualquer cálculo.',
       reversibility: 'Não é possível desfazer; cadastre de novo se precisar. Para parar de usar sem apagar, desative.',
       tone: 'danger',
@@ -145,10 +157,10 @@ export function DemurrageRates() {
     const nextActive = !rate.active
     // B13: reativar pede motivo (ADR 0072), gravado pela RPC reactivate_catalog_row (migration 261).
     const confirmOptions = {
-      title: nextActive ? `Reativar tarifa ${rate.container_type}` : `Desativar tarifa ${rate.container_type}`,
+      title: nextActive ? `Reativar tarifa ${groupLabel(rate.container_type)}` : `Desativar tarifa ${groupLabel(rate.container_type)}`,
       message: nextActive
-        ? `Reativar a tarifa padrão do container ${rate.container_type}?`
-        : `Desativar a tarifa padrão do container ${rate.container_type}?`,
+        ? `Reativar a tarifa padrão do grupo ${groupLabel(rate.container_type)}?`
+        : `Desativar a tarifa padrão do grupo ${groupLabel(rate.container_type)}?`,
       confirmLabel: nextActive ? 'Reativar' : 'Desativar',
       tone: nextActive ? ('primary' as const) : ('danger' as const),
       changes: [{ field: 'Situação', before: rate.active ? 'Ativa' : 'Inativa', after: nextActive ? 'Ativa' : 'Inativa' }],
@@ -173,7 +185,7 @@ export function DemurrageRates() {
       <Link className="app-fin-link app-dem-back" to="/demurrage"><ArrowLeft size={14} aria-hidden="true" />Demurrage</Link>
       <PageHeader
         title="Tarifas de Demurrage"
-        description={`Ordem de aplicação em cada container: condição do B/L, depois o acordo do Cliente vigente na data de descarga, depois a tabela padrão.${isAdmin ? '' : ' Ativar, desativar e excluir tarifas e acordos é do Administrativo.'}`}
+        description={`Ordem de aplicação em cada container: condição do B/L, depois o acordo do Cliente vigente na data de descarga, depois a tabela padrão, uma tarifa por grupo de tipos de container.${isAdmin ? '' : ' Ativar, desativar e excluir tarifas e acordos é do Administrativo.'}`}
         action={canEdit && tab === 'padrao' ? (
           <Button onClick={() => openRate(null)}>
             <Plus size={16} aria-hidden="true" />
@@ -184,11 +196,14 @@ export function DemurrageRates() {
       <TabList label="Tarifas de Demurrage" className="app-dem-tabs">
         <TabButton id="dem-rates-tab-padrao" controls="dem-rates-panel" active={tab === 'padrao'} label="Tabela padrão" onClick={() => selectTab('padrao')} />
         <TabButton id="dem-rates-tab-acordos" controls="dem-rates-panel" active={tab === 'acordos'} label="Acordos de Clientes" onClick={() => selectTab('acordos')} />
+        <TabButton id="dem-rates-tab-tipos" controls="dem-rates-panel" active={tab === 'tipos'} label="Tipos de container" onClick={() => selectTab('tipos')} />
       </TabList>
 
       <div id="dem-rates-panel" role="tabpanel" aria-labelledby={`dem-rates-tab-${tab}`}>
         {tab === 'acordos' ? (
           <CustomerDemurrageAgreementsTab canEdit={canEdit} canManage={isAdmin} />
+        ) : tab === 'tipos' ? (
+          <ContainerTypesTab groups={groups} canEdit={canEdit} canManage={isAdmin} initialCode={searchParams.get('tipo')} />
         ) : (
           <QueryStateGate
             isLoading={ratesQuery.isLoading}
@@ -214,7 +229,8 @@ export function DemurrageRates() {
                     <caption className="sr-only">Tabela padrão de tarifas de Demurrage</caption>
                     <thead>
                       <tr>
-                        <th scope="col">Tipo</th>
+                        <th scope="col">Grupo</th>
+                        <th scope="col" className="app-table__text-head">Tipos que cobre</th>
                         <th scope="col">Free time</th>
                         <th scope="col">1º período</th>
                         <th scope="col">Diária 1º</th>
@@ -229,7 +245,8 @@ export function DemurrageRates() {
                     <tbody>
                       {rates.map((rate) => (
                         <tr key={rate.id} className={rate.active ? undefined : 'app-table__row--muted'}>
-                          <td className="app-dem-code app-dem-strong">{rate.container_type}</td>
+                          <td className="app-dem-strong">{groupLabel(rate.container_type)}</td>
+                          <td className="app-table__text app-table__text--wrap app-dem-code">{codesByGroup.get(rate.container_type)?.join(', ') || <NoValue label="Nenhum tipo ativo neste grupo" />}</td>
                           <td className="tabular-nums">{rate.free_days} dias</td>
                           <td className="tabular-nums">dias {rate.p1_day_from} a {rate.p1_day_to}</td>
                           <td className="tabular-nums">{formatUSD(rate.p1_usd ?? 0)}</td>
@@ -241,9 +258,9 @@ export function DemurrageRates() {
                           {canEdit ? (
                             <td className="app-dem-row-action">
                               <div className="app-dem-row-buttons">
-                                <RowActionButton variant="ghost" label={`Editar tarifa ${rate.container_type}`} icon={Pencil} onClick={() => openRate(rate)} />
+                                <RowActionButton variant="ghost" label={`Editar tarifa ${groupLabel(rate.container_type)}`} icon={Pencil} onClick={() => openRate(rate)} />
                                 {isAdmin ? <ActionMenu
-                                  label={`Mais ações da tarifa ${rate.container_type}`}
+                                  label={`Mais ações da tarifa ${groupLabel(rate.container_type)}`}
                                   triggerClassName="app-btn app-btn--ghost app-btn--icon"
                                   trigger={<MoreVertical size={15} aria-hidden="true" />}
                                   items={[
@@ -271,6 +288,8 @@ export function DemurrageRates() {
       <DemurrageRateModal
         open={editing != null}
         rate={editing?.rate ?? null}
+        groups={groups}
+        codesByGroup={codesByGroup}
         saving={saveMutation.isPending}
         error={saveError}
         onClose={() => setEditing(null)}

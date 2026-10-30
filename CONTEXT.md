@@ -268,7 +268,8 @@ Recorte da escala por sentido e modalidade. A atribuição de terminal liga a
 carga à Atracação correspondente; frente sem terminal é **TBC**, que não é
 terminal: com o ATA da escala registrado, toda frente precisa de terminal. Em B/L misto,
 carga cheia e carga solta são frentes distintas do mesmo documento, não dois
-B/Ls.
+B/Ls. Veículo não tem frente própria: viaja em container e segue a frente de
+Carga cheia.
 → Regra: [Viagens § Escala, Atracação e datas](docs/modules/viagens.md#escala-atracação-e-datas)
 
 **Atracação**
@@ -374,10 +375,11 @@ serviço performado.
 **Embarque de Vazios (EXP)**
 Registro operacional do embarque de containers vazios de exportação de uma
 Escala, de responsabilidade de Equipamentos (qualquer Departamento ativo pode
-criá-lo e lançar unidade e linha); existe um por escala. Reúne a Lista de
-Unidades Embarcadas (o fato) e as Linhas de Serviço do Embarque (o custo); o
-grão não é o container.
-- **Ver também:** Unidade Embarcada, Linha de Serviço do Embarque, Operação de Pátio
+criá-lo e lançar unidade e linha); existe um por escala. Opera num terminal,
+obrigatório na criação: o da Frente de Operação Vazios EXP da escala. Reúne a
+Lista de Unidades Embarcadas (o fato) e as Linhas de Serviço do Embarque (o
+custo); o grão não é o container.
+- **Ver também:** Unidade Embarcada, Linha de Serviço do Embarque, Operação de Pátio, Frente de Operação
 → Regra: [Manifestos & EDI § `/embarquevazios`](docs/modules/manifesto-edi.md#embarquevazios)
 
 **Unidade Embarcada**
@@ -1025,11 +1027,56 @@ travado; o BRL segue o Recálculo Diário. Distinta da fatura de Taxas Locais.
 → Regra: [Demurrage § Emissão da Invoice de Demurrage](docs/modules/demurrage.md#emissão-da-invoice-de-demurrage) e [§ Grupo de Demurrage e cobrança por caixa](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)
 
 **Tarifa de Demurrage (Rate)**
-Tabela geral do armador, por tipo de container, com free time, faixas P1/P2,
+Tabela geral do armador, uma por Grupo de tarifa, com free time, faixas P1/P2,
 diárias em USD e vigência. É a última fonte da precedência: override do B/L,
 depois Acordo de Demurrage do Cliente, depois a Tarifa.
-- **Ver também:** P1, P2, Free Time, Free Time Override, Acordo de Demurrage do Cliente
+- **Ver também:** P1, P2, Free Time, Free Time Override, Acordo de Demurrage do Cliente, Grupo de tarifa
 → Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
+
+**Tipo de container**
+Código do equipamento como vem no B/L (20GP, 40HC, 48FR…), no cadastro Tipos
+de container de Tarifas e acordos, com descrição e Grupo de tarifa. Tipo fora
+do cadastro, ou inativo, não tem Tarifa de Demurrage.
+- **Ver também:** Grupo de tarifa, Tarifa de Demurrage (Rate)
+→ Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
+
+**Grupo de tarifa**
+Conjunto de Tipos de container que cobram pela mesma Tarifa de Demurrage:
+20' dry, 40' dry, 20' especial, 40' especial, 20' reefer e 40' reefer.
+- **Ver também:** Tipo de container, Tarifa de Demurrage (Rate)
+→ Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
+
+**Correndo, A emitir, Esperando, Travado**
+As quatro divisões da aba Containers de Demurrage, cada caixa com sobreestadia
+ainda sem Invoice num lugar só: **Correndo** (fora e passada do free time),
+**A emitir** (todas as caixas do grupo devolvidas, pronta para Gerar Invoice),
+**Esperando** (há caixa devolvida com sobreestadia, mas outra do grupo ainda
+fora no free time) e **Travado** (o sistema não consegue cobrar: tipo sem
+tarifa, B/L sem Cliente, B/L cancelado, sem CE Mercante ou Portal fechando o
+faturamento). A divisão vem do banco; a caixa sai dela quando a Invoice é
+emitida.
+- **Evitar:** "em atraso" para a divisão (é o status do container), "a faturar"
+- **Ver também:** Invoice de Demurrage, Dispensa da cobrança
+→ Regra: [Demurrage § Classificação da cobrança](docs/modules/demurrage.md#classificação-da-cobrança-migration-515)
+
+**Dispensa da cobrança**
+Decisão, com justificativa, de não cobrar a Demurrage de uma caixa (Viagem,
+Cliente e número). Qualquer Departamento dispensa e desfaz; a caixa dispensada
+conta como coberta e sai das divisões e da emissão. Distinta do desconto, que
+é da Invoice.
+- **Evitar:** "isenção" (é o desconto integral da Invoice)
+- **Ver também:** Correndo, A emitir, Esperando, Travado
+→ Regra: [Demurrage § Estado e dados](docs/modules/demurrage.md#estado-e-dados)
+
+**Rateio da caixa**
+Divisão em partes iguais da Demurrage de um container que está em B/Ls de
+Clientes diferentes na mesma Viagem: cada Cliente calcula a caixa pela própria
+condição e paga 1/n ("1/2 da caixa" com dois Clientes). Se o número de
+Clientes muda depois da emissão, vale a regra das datas alteradas.
+- **Evitar:** "caixa compartilhada" para Clientes diferentes (o grupo de
+  Demurrage é do mesmo Cliente)
+- **Ver também:** Invoice de Demurrage
+→ Regra: [Demurrage § Grupo de Demurrage e cobrança por caixa](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)
 
 **Acordo de Demurrage do Cliente**
 Condições negociadas com um Cliente: free time e, opcionalmente, diárias P1/P2,

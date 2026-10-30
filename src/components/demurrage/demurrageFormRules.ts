@@ -185,7 +185,7 @@ export function validateRateDraft(draft: RateDraft): { errors: RateErrors; input
   const p2From = wholeNumber(draft.p2_day_from)
   const p1Usd = money(draft.p1_usd)
   const p2Usd = money(draft.p2_usd)
-  if (!draft.container_type.trim()) errors.container_type = 'Informe o tipo de container.'
+  if (!draft.container_type.trim()) errors.container_type = 'Escolha o grupo de tarifa.'
   if (freeDays == null) errors.free_days = 'Informe os dias de free time (número inteiro).'
   if (p1From == null) errors.p1_day_from = 'Informe o dia de início de P1.'
   else if (p1From < 1) errors.p1_day_from = 'P1 começa no dia 1 ou depois.'

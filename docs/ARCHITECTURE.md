@@ -933,6 +933,7 @@ tabelas abaixo; o gate documental confere essa cobertura.
 | `/clientes/informacoes` | Cadastros internos e publicação da Central de Informações |
 | `/clientes/portal` | Console interno de provisionamento sob `ProtectedRoute` |
 | `/clientes/comunicacao` | Conferência, simulação/envio e histórico de Comunicados ao Cliente |
+| `/clientes/comunicacao/viagens/:voyageId` | Comunicados de uma viagem: B/Ls sem Cliente, cada porto com os Clientes e a situação de cada modelo, histórico da viagem e atalho para o Disparo filtrado |
 | `/clientes/:cnpj` | Ficha do cliente (hub em abas via `?tab=`) |
 | `/clientes/portal/inspecao/:customerId/*` | Inspeção interna somente leitura do Portal, fora do `AppLayout`, sob `ProtectedRoute` |
 | `/clientes/portal/inspecao/:customerId` | Visão geral do Portal em Modo Inspeção (monta `PortalDashboard`) |

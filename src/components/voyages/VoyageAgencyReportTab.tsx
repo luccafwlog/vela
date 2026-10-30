@@ -46,6 +46,7 @@ import type { AgencyReportDepartmentKey, Json } from '../../types/database'
 import type { AdrEscalaPod } from '../../services/voyageSummaries'
 import { formatBRL, formatDate, formatDateTimeBR } from '../../lib/utils'
 import { normalizePortCode } from '../../services/portCode'
+import { frontServesSection } from '../../services/escalaTerminalAllocation'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -118,7 +119,7 @@ function ReportSection({
   onSignoff?: (section: AgencyReportSection, state: SignoffState, justification?: string) => void
   observation?: string | null
   onObservationChange?: (section: AgencyReportSection, observation: string) => void
-  terminalView?: { assigned: boolean; state: 'operated' | 'nothing_operated'; fronts?: string[] }
+  terminalView?: { assigned: boolean; state: 'operated' | 'nothing_operated'; fronts?: string[]; unassigned?: string[] }
   children: ReactNode
 }) {
   const showTerminalContent = !terminalView || (terminalView.assigned && terminalView.state === 'operated')
@@ -155,7 +156,8 @@ function ReportSection({
       </span>}
     >
       <div className="grid gap-3">
-        {showTerminalContent ? children : <NadaOperado>{terminalView?.assigned ? 'Nada operado nesta frente.' : 'Não há frente atribuída a este terminal.'}</NadaOperado>}
+        {terminalView?.unassigned?.length ? <UnassignedFrontWarning fronts={terminalView.unassigned} /> : null}
+        {showTerminalContent ? children : terminalView?.unassigned?.length ? null : <NadaOperado>{terminalView?.assigned ? 'Nada operado nesta frente.' : 'Não há frente atribuída a este terminal.'}</NadaOperado>}
         {section ? <SectionObservation observation={observation} /> : null}
       </div>
     </Block>
@@ -306,6 +308,16 @@ function OrphanDataWarning({ entries, label }: { entries: Array<{ port: string; 
   return <div className="app-callout app-callout--warning flex items-start gap-2 text-xs leading-5"><span aria-hidden="true">!</span><span><strong>Dado órfão</strong> — {text}</span></div>
 }
 
+// Frente sem terminal (TBC) na escala: o que ela traz (vazios, carga solta,
+// Granito; veículo segue a Carga cheia) não pertence a nenhum ADR por terminal até ganhar terminal em
+// Editar escala, e o fechamento é recusado enquanto ela existir. Sem este
+// aviso a seção dizia "Não há frente atribuída a este terminal." e os dados
+// sumiam do ADR em silêncio.
+function UnassignedFrontWarning({ fronts }: { fronts: string[] }) {
+  const list = new Intl.ListFormat('pt-BR', { type: 'conjunction' }).format(fronts)
+  return <div className="app-callout app-callout--warning flex items-start gap-2 text-xs leading-5" role="status"><span aria-hidden="true">!</span><span><strong>Sem terminal (TBC)</strong> — {list}: atribua o terminal em Editar escala para trazer estes dados ao ADR. O ADR não fecha enquanto houver frente sem terminal.</span></div>
+}
+
 function ContainerNatureTable({ rows }: { rows: Record<string, Record<string, number>> }) {
   const natureKeys = ['carga_geral', 'imo', 'oog']
   const labels: Record<string, string> = { carga_geral: 'Carga geral', imo: 'IMO', oog: 'OOG' }
@@ -360,6 +372,10 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const resolvedReportId = selectedTerminalReport?.terminalId ? selectedTerminalReport.reportId : null
   const resolvedTerminalCode = selectedTerminalReport?.terminalCode ?? initialTerminalCode ?? null
   const resolvedTerminalName = selectedTerminalReport?.terminal ?? null
+  // Frentes da escala ainda sem terminal: derivadas dos dados (vazios, B/Ls,
+  // Granito) depois da última gravação de Editar escala, ou gravadas TBC.
+  const unassignedFronts = resolvedReportId ? (terminalState?.tbcFronts ?? []) : []
+  const unassignedFrontLabels = unassignedFronts.map((front) => operationFrontLabel(`${front.sentido}:${front.modalidade}`))
   const terminalViewFor = (section: AgencyReportSection) => {
     if (!resolvedReportId) return undefined
     const selected = selectedTerminalReport?.sections.find((item) => item.section === section)
@@ -369,6 +385,9 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       fronts: selected?.frontKeys?.length
         ? selected.frontKeys.map(operationFrontLabel)
         : (selected?.fronts ?? []).map((front) => operationFrontLabel(front)),
+      unassigned: unassignedFronts
+        .filter((front) => frontServesSection(front, section))
+        .map((front) => operationFrontLabel(`${front.sentido}:${front.modalidade}`)),
     }
   }
   const selectedSectionFronts = (section: AgencyReportSection) => {
@@ -467,10 +486,21 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   // deste terminal — a exceção de terminal do B/L vence a frente.
   const cargoTerminalId = resolvedReportId ? selectedTerminalReport?.terminalId ?? null : null
   const belongsHere = (bl: AgencyReportBlTerminal) => !cargoTerminalId || blBelongsToTerminal(bl, terminalState.fronts ?? [], cargoTerminalId)
-  const containers = sectionIsVisible('carga_descarregada')
+  // O B/L com exceção para este terminal traz a carga e os veículos dele para
+  // cá mesmo sem frente da seção neste terminal; sem isso, o recorte os
+  // tirava do terminal da frente e a seção daqui ficava escondida.
+  const blExceptionReachesHere = (section: AgencyReportSection) => {
+    if (!cargoTerminalId) return false
+    if (section === 'veiculos') return (data?.vehicles ?? []).some((vehicle) => vehicle.blTerminalId === cargoTerminalId)
+    if (section !== 'carga_descarregada') return false
+    return (data?.containers ?? []).some((container) => (container.blTerminals ?? []).some((bl) => bl.terminal_id === cargoTerminalId))
+      || [...(data?.cargaSoltaBls?.finalDestination ?? []), ...(data?.cargaSoltaBls?.transshipment ?? [])].some((bl) => bl.terminal_id === cargoTerminalId)
+  }
+  const sectionShowsHere = (section: AgencyReportSection) => sectionIsVisible(section) || blExceptionReachesHere(section)
+  const containers = sectionShowsHere('carga_descarregada')
     ? (data?.containers ?? []).filter((container) => !cargoTerminalId || (container.blTerminals ?? []).some(belongsHere))
     : []
-  const cargaSolta = !sectionIsVisible('carga_descarregada') ? undefined
+  const cargaSolta = !sectionShowsHere('carga_descarregada') ? undefined
     : cargoTerminalId && data?.cargaSoltaBls
       ? {
           ...summarizeBreakbulk(data.cargaSoltaBls.finalDestination.filter((bl) => belongsHere({ terminal_id: bl.terminal_id ?? null, cargo_mode: bl.cargo_mode ?? null }))),
@@ -479,7 +509,11 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       : data?.cargaSolta
   const vaziosImp = sectionIsVisible('vazios_descarregados') ? (data?.vaziosImp ?? []) : []
   const vaziosExp = sectionIsVisible('vazios_embarcados') ? (data?.vaziosExp ?? []) : []
-  const vehiclesData = sectionIsVisible('veiculos') ? (data?.vehicles ?? []) : []
+  // Veículo viaja em container: segue a frente de Carga cheia do terminal, e
+  // a exceção de terminal do seu B/L vence a frente, como na carga (ADR 0068).
+  const vehiclesData = sectionShowsHere('veiculos')
+    ? (data?.vehicles ?? []).filter((vehicle) => belongsHere({ terminal_id: vehicle.blTerminalId ?? null, cargo_mode: 'container' }))
+    : []
   const graniteData = sectionIsVisible('carga_carregada') ? (data?.granite ?? []) : []
   const imoCount = containers.filter((container) => container.is_imo).length
   const dischargeMatrix = buildContainerTypeMatrix(containers.map((container) => ({
@@ -660,7 +694,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       terminalScope: resolvedReportId
         ? Object.fromEntries(AGENCY_REPORT_SECTION_ORDER.map((section) => [
             section,
-            { assigned: section === 'datas' || selectedSectionFronts(section).length > 0 },
+            { assigned: section === 'datas' || selectedSectionFronts(section).length > 0 || blExceptionReachesHere(section) },
           ]))
         : null,
       schedule: {
@@ -748,6 +782,8 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       </span>
     )
   }
+  const withBlException = (section: AgencyReportSection, view: ReturnType<typeof terminalViewFor>) =>
+    view && blExceptionReachesHere(section) ? { ...view, assigned: true, state: 'operated' as const } : view
   const sectionProps = (section: AgencyReportSection) => ({
     section,
     state: sectionState(section),
@@ -759,7 +795,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     onSignoff: updateSignoff,
     observation: signoffRows.get(section)?.observation,
     onObservationChange: updateObservation,
-    terminalView: section === 'datas' ? undefined : terminalViewFor(section),
+    terminalView: section === 'datas' ? undefined : withBlException(section, terminalViewFor(section)),
   })
   const formatTon = (value: number) => value.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
   const vehicleContainerTotal = vehicleBreakdown.containersByType.reduce((total, item) => total + item.count, 0)
@@ -827,13 +863,13 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             title="ADR"
             aside={<span className="flex gap-2">
               <Button variant="secondary" className="app-btn--sm" disabled title="A impressão fica disponível depois do fechamento.">Imprimir</Button>
-              <Button variant="primary" className="app-btn--sm" disabled={readOnly || signedDepartmentsCount !== 3 || !departmentSignoffEvents || closeMutation.isPending || !port} title={signedDepartmentsCount !== 3 ? 'Assine os 3 departamentos para fechar o ADR.' : !departmentSignoffEvents ? 'Aguardando o histórico de reaberturas.' : undefined} onClick={() => setCloseConfirmOpen(true)}>Fechar ADR</Button>
+              <Button variant="primary" className="app-btn--sm" disabled={readOnly || signedDepartmentsCount !== 3 || unassignedFronts.length > 0 || !departmentSignoffEvents || closeMutation.isPending || !port} title={signedDepartmentsCount !== 3 ? 'Assine os 3 departamentos para fechar o ADR.' : unassignedFronts.length ? 'Atribua o terminal das frentes sem terminal (TBC) em Editar escala.' : !departmentSignoffEvents ? 'Aguardando o histórico de reaberturas.' : undefined} onClick={() => setCloseConfirmOpen(true)}>Fechar ADR</Button>
             </span>}
           >
             <div className="grid gap-4">
               <LeadValue
                 tone={signedDepartmentsCount === 3 ? 'default' : 'warning'}
-                detail={missingDepartmentLabels.length ? `Falta ${new Intl.ListFormat('pt-BR', { type: 'conjunction' }).format(missingDepartmentLabels)} assinar` : 'Pronto para fechar'}
+                detail={missingDepartmentLabels.length ? `Falta ${new Intl.ListFormat('pt-BR', { type: 'conjunction' }).format(missingDepartmentLabels)} assinar` : unassignedFronts.length ? 'Frente sem terminal impede o fechamento' : 'Pronto para fechar'}
               >
                 {signedDepartmentsCount} de 3 departamentos assinados
               </LeadValue>
@@ -842,6 +878,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                 <Fact label="Escala">{port ?? <NoValue />}</Fact>
                 <Fact label="Terminal">{terminalLabel ?? <NoValue label="Sem terminal" />}</Fact>
               </FactList>
+              {unassignedFrontLabels.length ? <UnassignedFrontWarning fronts={unassignedFrontLabels} /> : null}
             </div>
           </Block>
           <Modal open={closeConfirmOpen} title="Confirmar fechamento do ADR" onClose={() => setCloseConfirmOpen(false)}>

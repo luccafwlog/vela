@@ -23,8 +23,13 @@ const mocks = vi.hoisted(() => ({
   depotsData: [] as unknown[],
   // Estado de leitura forçado por chave (carregando ou falha), sem dado.
   queryOverrides: {} as Record<string, { isLoading?: boolean; error?: unknown }>,
-  openOrCreate: vi.fn(() => Promise.resolve({ id: "operation-new", created: true })),
+  createOperation: vi.fn(() => Promise.resolve({ id: "operation-new", created: true, terminalId: "terminal-1" })),
   adrLocked: false,
+  // ADR 0113: terminal da frente Vazios EXP da escala e os terminais do porto.
+  terminalChoice: {
+    frontTerminal: { id: "terminal-1", code: "TVV", name: "Terminal Vitória" },
+    options: [{ id: "terminal-1", code: "TVV", name: "Terminal Vitória" }],
+  } as { frontTerminal: { id: string; code: string; name: string | null } | null; options: Array<{ id: string; code: string; name: string | null }> },
 }));
 
 const queryFns = new Map<string, (() => unknown) | undefined>();
@@ -81,7 +86,9 @@ vi.mock("@tanstack/react-query", () => ({
                   ? mocks.voyagePortsData
                   : key === "agency-report" && queryKey[3] === "vazios-lock"
                     ? mocks.adrLocked
-                    : [];
+                    : key === "agency-report" && queryKey[3] === "vazios-terminal"
+                      ? mocks.terminalChoice
+                      : [];
     const override = mocks.queryOverrides[String(key)];
     if (override) {
       return { data: undefined, isLoading: Boolean(override.isLoading), error: override.error ?? null, fetchStatus: "idle", refetch: mocks.refetch };
@@ -133,7 +140,8 @@ vi.mock("../../services/vaziosExportOperations", async (importOriginal) => {
     updateManualVaziosBooking: vi.fn(),
     updateServiceLineObservation: vi.fn(),
     upsertServiceLine: mocks.upsertServiceLine,
-    openOrCreateVaziosExportOperation: mocks.openOrCreate,
+    createVaziosExportOperation: mocks.createOperation,
+    fetchVaziosExportTerminalChoice: vi.fn(),
     isVaziosExportLockedByAdr: vi.fn(),
   };
 });
@@ -157,8 +165,12 @@ beforeEach(() => {
   mocks.depotsData = DEPOTS;
   mocks.queryOverrides = {};
   mocks.refetch.mockClear();
-  mocks.openOrCreate.mockClear();
+  mocks.createOperation.mockClear();
   mocks.adrLocked = false;
+  mocks.terminalChoice = {
+    frontTerminal: { id: "terminal-1", code: "TVV", name: "Terminal Vitória" },
+    options: [{ id: "terminal-1", code: "TVV", name: "Terminal Vitória" }],
+  };
 });
 
 const OPENED = "/embarquevazios?embarque=operation-1";
@@ -547,8 +559,9 @@ describe("EmbarqueVazios", () => {
     expect(screen.queryByRole("region", { name: "Armazenagem a lançar" })).toBeNull();
   });
 
-  it("lista as escalas brasileiras da viagem escolhida e grava o código normalizado ao criar", async () => {
+  it("lista as escalas brasileiras da viagem escolhida e grava o código normalizado e o terminal ao criar", async () => {
     mocks.voyagePortsData = ["BRSSA", "BRVIX"];
+    mocks.terminalChoice = { frontTerminal: null, options: [{ id: "terminal-1", code: "TVV", name: "Terminal Vitória" }] };
     renderPage("/embarquevazios");
 
     fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));
@@ -559,15 +572,67 @@ describe("EmbarqueVazios", () => {
     expect([...portSelect.options].map((option) => option.value)).toEqual(["", "BRSSA", "BRVIX"]);
 
     fireEvent.change(portSelect, { target: { value: "BRVIX" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Criar embarque" }));
+    // ADR 0113: sem terminal na frente Vazios EXP, o terminal é obrigatório.
+    const create = within(dialog).getByRole("button", { name: "Criar embarque" }) as HTMLButtonElement;
+    expect(create.disabled).toBe(true);
+    const terminalSelect = within(dialog).getByLabelText(/^Terminal/) as HTMLSelectElement;
+    expect([...terminalSelect.options].map((option) => option.textContent)).toEqual(["Selecione", "TVV · Terminal Vitória"]);
+    fireEvent.change(terminalSelect, { target: { value: "terminal-1" } });
+    fireEvent.click(create);
 
-    await waitFor(() => expect(mocks.openOrCreate).toHaveBeenCalledWith({ voyageId: 179, embarkPort: "BRVIX" }));
+    await waitFor(() => expect(mocks.createOperation).toHaveBeenCalledWith({ voyageId: 179, embarkPort: "BRVIX", terminalId: "terminal-1" }));
     await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith("Embarque criado.", "success"));
+  });
+
+  it("frente Vazios EXP com terminal: o embarque usa esse terminal, sem outra escolha", async () => {
+    mocks.voyagePortsData = ["BRVIX"];
+    renderPage("/embarquevazios");
+    fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Selecionar viagem/i }));
+    fireEvent.change(within(dialog).getByLabelText(/Porto de embarque/), { target: { value: "BRVIX" } });
+
+    const terminalSelect = within(dialog).getByLabelText(/^Terminal/) as HTMLSelectElement;
+    expect(terminalSelect.disabled).toBe(true);
+    expect(terminalSelect.value).toBe("terminal-1");
+    expect(within(dialog).getByText(/Para trocar, edite a escala na viagem/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Criar embarque" }));
+    // A janela manda o terminal que mostrou: se a frente voltou para TBC em outra
+    // tela, a RPC grava esse; se mudou de terminal, recusa com o motivo.
+    await waitFor(() => expect(mocks.createOperation).toHaveBeenCalledWith({ voyageId: 179, embarkPort: "BRVIX", terminalId: "terminal-1" }));
+  });
+
+  it("porto sem terminal portuário ativo: diz onde cadastrar e não cria", () => {
+    mocks.voyagePortsData = ["BRVIX"];
+    mocks.terminalChoice = { frontTerminal: null, options: [] };
+    renderPage("/embarquevazios");
+    fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Selecionar viagem/i }));
+    fireEvent.change(within(dialog).getByLabelText(/Porto de embarque/), { target: { value: "BRVIX" } });
+
+    expect(within(dialog).getByText(/Nenhum terminal portuário ativo em BRVIX: cadastre o terminal em Locais/)).toBeTruthy();
+    expect((within(dialog).getByRole("button", { name: "Criar embarque" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("o embarque mostra o terminal; o embarque antigo sem terminal pede o terminal e grava pela mesma criação", async () => {
+    renderPage();
+    expect(screen.getByText("TVV · Terminal Vitória")).toBeTruthy();
+    cleanup();
+
+    mocks.terminalChoice = { frontTerminal: null, options: [{ id: "terminal-1", code: "TVV", name: "Terminal Vitória" }] };
+    renderPage();
+    expect(screen.getByText("Sem terminal")).toBeTruthy();
+    expect(screen.getByText("Embarque sem terminal")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/^Terminal/), { target: { value: "terminal-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Definir terminal" }));
+    await waitFor(() => expect(mocks.createOperation).toHaveBeenCalledWith({ voyageId: 179, embarkPort: "BRVIX", terminalId: "terminal-1" }));
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith("Terminal definido.", "success"));
   });
 
   it("V4: criar um embarque que já existe abre o existente e diz isso", async () => {
     mocks.voyagePortsData = ["BRVIX"];
-    mocks.openOrCreate.mockResolvedValueOnce({ id: "operation-1", created: false });
+    mocks.createOperation.mockResolvedValueOnce({ id: "operation-1", created: false, terminalId: "terminal-1" });
     renderPage("/embarquevazios");
 
     fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));

@@ -1,5 +1,7 @@
 # Planos históricos (archive)
 
+- [2026-10-29 — Repaginação da Demurrage](2026-10-29-repaginacao-da-demurrage.md) — executado e arquivado em 2026-10-30 na PR luccafwlog/vela#1113: lotes 0 a 10 da [ADR 0112](../../adr/0112-repaginacao-da-demurrage.md) (migrations `514` a `525`) e a revisão final com as decisões do dono de 2026-10-30 (migrations `526` a `530`). Regra vigente em [Demurrage](../../modules/demurrage.md).
+
 - [2026-10-28 — Alterar, excluir e isentar as Taxas Locais do B/L](2026-10-28-alterar-taxa-calculada-do-bl.md) — executado e arquivado em 2026-10-28, um lote por commit (migrations `491` a `495`). Regra vigente em [Taxas Locais](../../modules/taxas-locais.md#taxa-alterada-à-mão-adr-0111) e na [ADR 0111](../../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md).
 
 - [2026-10-27 — Correções decididas pelo dono](2026-10-27-correcoes-decididas-pelo-dono.md) — executado e arquivado em 2026-10-27, um lote por commit: as 112 fichas de divergência do mapeamento do Manual do Operador e os quatro pontos do dono, em 11 lotes (migrations `469` a `479`; ADRs [0104](../../adr/0104-marca-dev-e-chave-de-envio-pelo-suporte.md) a [0110](../../adr/0110-vip-cobre-pela-data-da-solicitacao.md)). Cada lote foi conferido no Postgres local e nos testes de tela; o que falta conferir em staging, lote a lote, está no Estado do plano, e o Administrativo ainda passa os usuários Operador para Documentação (ACE-D13).

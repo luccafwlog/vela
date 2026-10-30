@@ -55,16 +55,18 @@ export function CoverageCellText({ cell, kind, now }: { cell: CoverageCell; kind
   }
 }
 
-/** Os Clientes de uma linha da Cobertura (viagem × porto) e a situação de cada modelo. */
-export function CoverageDrilldown({ row, now, id }: { row: VoyageCommunicationCoverageSummary; now: Date; id: string }) {
-  const label = `Comunicados por Cliente — ${row.vesselName} / ${row.voyageNumber}${row.port ? `, ${row.port}` : ''}`
+/**
+ * Os Clientes de um porto da viagem e a situação de cada modelo (CE e Taxas,
+ * NOA, NOR, NOB): o bloco do porto na página de Comunicados da Viagem.
+ */
+export function CoverageCustomerTable({ row, now }: { row: VoyageCommunicationCoverageSummary; now: Date }) {
   if (!row.details.length) {
-    return <p id={id} className="px-4 py-3 text-[var(--app-muted)]">Nenhum Cliente com B/L nesta linha.</p>
+    return <p className="px-4 py-3 text-[var(--app-muted)]">Nenhum Cliente vinculado neste porto.</p>
   }
   return (
-    <div id={id} className="app-table-scroll">
+    <div className="app-table-scroll">
       <table className="app-table">
-        <caption className="sr-only">{label}</caption>
+        <caption className="sr-only">{`Comunicados por Cliente — ${row.vesselName} / ${row.voyageNumber}${row.port ? `, ${row.port}` : ''}`}</caption>
         <thead>
           <tr>
             <th scope="col" className="app-table__text-head">Cliente</th>

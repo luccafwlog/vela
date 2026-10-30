@@ -191,8 +191,10 @@ recriados pela cadeia, com o mesmo nome e corpo.
 travada) ainda perde a rodada. Se reaparecer, o próximo passo é um job de
 reconciliação que leia `net._http_response` e redispare uma vez. Desde a
 migration `310`, o job SQL `http-job-failures` (a cada 15 min) lê
-`net._http_response` e abre o Alerta `rotina_http_falhou` para resposta fora de
-2xx, sem status ou com tempo esgotado na última hora; ele avisa, não redispara
+`net._http_response` e abre o Alerta `rotina_http_falhou` para duas ou mais
+respostas fora de 2xx ou sem status na última hora (uma isolada não abre desde
+a migration `533`; uma única 401 ou 403 abre, desde a `534`; tempo esgotado só a partir de 10, desde a `316`); ele avisa,
+não redispara
 ([observabilidade](observabilidade.md#respostas-de-erro-das-rotinas-http)).
 
 **Verificar depois de aplicar:** nenhuma linha recente com `timed_out` nos
@@ -517,7 +519,17 @@ SELECT vault.create_secret('<valor>', 'PORTAL_DIGEST_SECRET',
 
 Até lá, os jobs ficam agendados e inertes, com `WARNING` no log a cada execução.
 Mesmo com o Vault preenchido, `import-effects-runner` exige
-`IMPORT_EFFECTS_RUNNER_ENABLED=true` (ligado em produção em 2026-10-12). Além do
+`IMPORT_EFFECTS_RUNNER_ENABLED=true` (ligado em produção em 2026-10-12).
+Na branch `staging`, criada antes do reparo da linha `007` do histórico, a
+`107` rodou sem o dispatcher e os jobs `import-effects-runner` e
+`portal-email-events-runner` não existiam; a migration `532` os agenda onde o
+nome falta, sem tocar no job que já existe. Sem eles, a fila de efeitos da
+staging só andava pelo disparo da importação, e nem ele: a Edge Function da
+branch estava sem `IMPORT_EFFECTS_RUNNER_ENABLED=true` e respondia `200
+paused`, e o Alerta **Fila de efeitos de importação parada** abriu em
+2026-10-29. Em 2026-10-30 o dono ligou a chave na branch e agendou
+`import-effects-runner` à mão (jobid 24); a `532` agenda lá só o
+`portal-email-events-runner`. Além do
 job, a migration `218` dispara o runner a cada transação que grava efeito
 pendente, por `ops.kick_import_effects_runner()`; sem o par no Vault esse
 disparo não acontece e não gera `WARNING`. Só um runner trabalha por vez
