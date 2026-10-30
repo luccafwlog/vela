@@ -43,6 +43,13 @@ const BOX_NO_CE = containerNumber(51413) // B/L sem CE Mercante: só no Vela, fo
 const BOX_SOC = containerNumber(51408)
 const BOX_UNKNOWN = containerNumber(51409) // formato e dígito válidos, sem registro
 const BOX_WAITING = containerNumber(51410) // sem descarga, ETA futura
+// Migration 543 (revisão da PR #1119): a resposta é a da Viagem mais recente do
+// número; se ela não pode aparecer, "não encontrado", nunca a Viagem anterior.
+const BOX_NEWEST_OUT_OF_WINDOW = containerNumber(51414) // A: V_OUT sem devolução gravada; V_OLD devolvida há 95 dias
+const BOX_NEWEST_WITHOUT_CE = containerNumber(51415) // B: V_OLD devolvida; V_PUBLIC com B/L sem CE Mercante
+const BOX_NEWEST_UNSERVED_PORT = containerNumber(51416) // C: V_OUT em Salvador sem devolução; V_PUBLIC em Santos
+const BOX_NEWEST_SOC = containerNumber(51417) // V_OLD devolvida; V_PUBLIC como SOC
+const BOX_NEWEST_CANCELLED_BL = containerNumber(51418) // V_OLD sem devolução; V_PUBLIC em B/L cancelado
 
 const BLS = {
   found: 'BL-542-FOUND',
@@ -172,7 +179,17 @@ describeLocal('542 — quadro e consulta de container públicos', () => {
         ('${BLS.pecem}', '${BOX_PECEM}', '20DV', ${TODAY} - 5, NULL, 'COC'),
         ('${BLS.noCe}', '${BOX_NO_CE}', '40HC', ${TODAY} - 10, NULL, 'COC'),
         ('${BLS.found}', '${BOX_SOC}', '40HC', ${TODAY} - 10, NULL, 'SOC'),
-        ('${BLS.waiting}', '${BOX_WAITING}', '20DV', NULL, NULL, 'COC');
+        ('${BLS.waiting}', '${BOX_WAITING}', '20DV', NULL, NULL, 'COC'),
+        ('${BLS.out}', '${BOX_NEWEST_OUT_OF_WINDOW}', '40HC', ${TODAY} - 200, NULL, 'COC'),
+        ('${BLS.old}', '${BOX_NEWEST_OUT_OF_WINDOW}', '40HC', ${TODAY} - 100, ${TODAY} - 95, 'COC'),
+        ('${BLS.old}', '${BOX_NEWEST_WITHOUT_CE}', '40HC', ${TODAY} - 50, ${TODAY} - 30, 'COC'),
+        ('${BLS.noCe}', '${BOX_NEWEST_WITHOUT_CE}', '40HC', ${TODAY} - 5, NULL, 'COC'),
+        ('${BLS.out}', '${BOX_NEWEST_UNSERVED_PORT}', '40HC', ${TODAY} - 150, NULL, 'COC'),
+        ('${BLS.santos}', '${BOX_NEWEST_UNSERVED_PORT}', '40HC', ${TODAY} - 10, NULL, 'COC'),
+        ('${BLS.old}', '${BOX_NEWEST_SOC}', '40HC', ${TODAY} - 50, ${TODAY} - 30, 'COC'),
+        ('${BLS.found}', '${BOX_NEWEST_SOC}', '40HC', ${TODAY} - 3, NULL, 'SOC'),
+        ('${BLS.old}', '${BOX_NEWEST_CANCELLED_BL}', '40HC', ${TODAY} - 50, NULL, 'COC'),
+        ('${BLS.cancelled}', '${BOX_NEWEST_CANCELLED_BL}', '40HC', ${TODAY} - 10, NULL, 'COC');
       -- Cancelamentos direto na tabela, sem os gatilhos (fixture): a escala de
       -- Viagem cancelada é somente leitura e o B/L cancela por cancel_bl.
       SET session_replication_role = replica;
@@ -256,6 +273,18 @@ describeLocal('542 — quadro e consulta de container públicos', () => {
 
   it('número repetido em duas Viagens: só a mais recente', () => {
     expect(lookupRow(BOX_REPEATED)).toMatchObject({ voyage: '542A', container_type: '40HC', return_date: null })
+  })
+
+  it('a Viagem mais recente que não pode aparecer dá "não encontrado", nunca a anterior (543)', () => {
+    // A: a mais nova foi devolvida há 95 dias; a antiga, sem devolução gravada,
+    // não vira "Free time vencido". B: a mais nova tem B/L ainda sem CE
+    // Mercante; a anterior, devolvida, não responde. C: a mais nova é em Santos;
+    // a anterior, em Salvador, não responde. A mais nova SOC, idem.
+    for (const number of [BOX_NEWEST_OUT_OF_WINDOW, BOX_NEWEST_WITHOUT_CE, BOX_NEWEST_UNSERVED_PORT, BOX_NEWEST_SOC]) {
+      expect(lookup(number), number).toBe('')
+    }
+    // B/L cancelado não é viagem feita: a anterior continua a mais recente.
+    expect(lookupRow(BOX_NEWEST_CANCELLED_BL)).toMatchObject({ voyage: '542O', return_date: null, situation: 'prazo_vencido' })
   })
 
   it('container rateado entre B/Ls do Cliente: a resposta é a do B/L-âncora, sempre a mesma', () => {
