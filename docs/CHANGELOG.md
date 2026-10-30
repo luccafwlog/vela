@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Repaginação da Demurrage (2026-10-29 a 2026-10-30, migrations `514` a `531`; [ADR 0112](adr/0112-repaginacao-da-demurrage.md),
+  PR luccafwlog/vela#1113):** cadastro **Tipos de container** e uma tarifa por grupo; a aba **Containers** se
+  divide em Correndo, A emitir, Esperando e Travado, pela classificação do banco, com o Alerta **Demurrage
+  travada**; cancelar B/L com sobreestadia sem Invoice é recusado e qualquer setor dispensa a cobrança de uma
+  caixa; **Faturas**, **Pagas** (meio de pagamento, ROE do pagamento, dias até pagar) e **Canceladas** (motivo,
+  quem cancelou, destino das caixas) ganham colunas e filtros; **Por Cliente** soma o que não foi faturado e
+  **Imprimir relatório** vira o extrato do Cliente; `/relatorios` tem Exposição, Invoices corrigido e Itens por
+  container, e cada aba exporta o que mostra; **Disputas** em tabela, canceladas com a Invoice, uma conversa
+  por Invoice e prazo de 1 dia útil com Alerta; caixa dividida entre Clientes rateada em partes iguais; container
+  que vira SOC depois de faturado segue a regra das datas alteradas. Ver [Demurrage](modules/demurrage.md).
+  Na revisão final (migrations `526` a `531`): a emissão automática de A emitir passou a emitir de fato e sem
+  repetição; o Alerta de Travado deixou de deixar as planilhas de datas, CE e Base de Clientes lentas; a tarifa
+  não depende mais do cadastro de tipos; e as decisões do dono sobre B/L cancelado de quem já pagou a parte,
+  Invoice cancelada à mão, dispensa na troca de Cliente e cancelamento de B/L sem Cliente.
 - **Disparo de Comunicados parte de uma Viagem escolhida (2026-10-30, sem migration; revisão da comunicação
   manual pedida pelo dono):** em `/clientes/comunicacao` › **Disparo**, **Navio / Viagem** passa a ser a peça
   comum `VoyageCombobox` (escolha pelo id, como em BLs e Revisão) e é obrigatório no modo Carga; **POL** e

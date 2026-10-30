@@ -237,7 +237,7 @@ BEGIN
   -- consulta antes de qualquer seed de desenvolvimento.
   IF (SELECT COUNT(*) FROM public.charge_tables) < 3
      OR (SELECT COUNT(*) FROM public.charge_table_items) < 24
-     OR (SELECT COUNT(*) FROM public.demurrage_rates) < 12
+     OR (SELECT COUNT(*) FROM public.demurrage_rates) < 6  -- uma tarifa ativa por grupo e vigência (migration 514, ADR 0112)
      OR (SELECT COUNT(*) FROM public.depots) < 9
      OR (SELECT COUNT(*) FROM public.depot_services) < 50 THEN
     RAISE EXCEPTION 'Catalogos operacionais incompletos apos migrations: charge_tables=%, items=%, rates=%, depots=%, services=%',

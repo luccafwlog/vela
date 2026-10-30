@@ -166,10 +166,12 @@ it('gravação em Invoice de Demurrage atualiza lista, detalhe, caixas cobradas,
   ])))
 })
 
-it('tarifa ou acordo alterado refaz a previsão da aba Containers', async () => {
+it('tarifa, tipo ou acordo alterado refaz a aba Containers, o aviso, os Alertas, o relatório e as fichas', async () => {
   const { client, keys } = fakeQueryClient()
   await afterReferenciaDemurrageAlterada(client)
-  expect(keys()).toEqual(expect.arrayContaining(keySet([['demurrage-containers']])))
+  expect(keys()).toEqual(expect.arrayContaining(keySet([
+    ['demurrage-containers'], ['header-alert'], ['alerts'], ['demurrage-report'], ['customer-ficha'], ['bl-detail'],
+  ])))
 })
 
 it('baixa por Pix na Conciliação atualiza fatura local, Demurrage, histórico, exceções, monitor Itaú e Pix recebidos uma vez cada', async () => {
