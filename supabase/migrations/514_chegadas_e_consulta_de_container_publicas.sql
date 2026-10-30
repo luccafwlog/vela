@@ -28,7 +28,8 @@
 --   5. `_iso6346_check_digit_valid(text)` e `public_container_lookup(text)`:
 --      só `service_role`. Número normalizado, formato ISO 6346 e dígito
 --      verificador conferidos antes de ler tabela; igualdade exata no número
---      normalizado (índice da 163); B/L cancelado, Viagem cancelada, porto
+--      normalizado (índice da 163); B/L sem CE Mercante (o mesmo recorte do
+--      Portal, `bl_has_portal_release`), B/L cancelado, Viagem cancelada, porto
 --      fora da lista, container SOC e fora da janela não voltam (janela: data
 --      de referência nos últimos 90 dias, ou container descarregado e ainda
 --      sem devolução, decisão do dono de 2026-10-30);
@@ -304,6 +305,10 @@ BEGIN
     -- Igualdade exata no número normalizado (índice da 163); nunca prefixo.
     WHERE upper(btrim(c.container_number)) = v_number
       AND b.cancelled_at IS NULL
+      -- Só B/L liberado no Portal (com CE Mercante, `bl_has_portal_release`):
+      -- o site nunca mostra carga que o próprio Cliente ainda não vê
+      -- (decisão do dono de 2026-10-30).
+      AND public.bl_has_portal_release(b.id)
       AND v.status IS DISTINCT FROM 'cancelled'
       AND upper(COALESCE(c.ownership, '')) <> 'SOC'
   ),

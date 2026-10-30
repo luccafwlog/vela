@@ -139,6 +139,7 @@ sem chave do Supabase, com o token do Turnstile do widget público
   descarga, Dentro do free time, Free time vencido, Free time a confirmar com a
   Fwlog, Devolvido), data limite de devolução, tipo, navio, viagem, porto de
   descarga, descarga, free time em dias e devolução, com "Consultado em".
+  Só B/L com CE Mercante, o mesmo recorte do Portal (`bl_has_portal_release`).
   Cobre Salvador, Vitória, Pecém e Suape: containers descarregados ou
   previstos nos últimos 90 dias e os que ainda não foram devolvidos, qualquer
   que seja a idade da descarga. Qualquer "não encontrado" tem a mesma frase

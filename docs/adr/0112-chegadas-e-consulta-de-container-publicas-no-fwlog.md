@@ -74,8 +74,11 @@ do sistema vai para o WordPress).
    regra do Portal e da Invoice (`_container_free_days`).
 7. Fora da resposta, sempre com a mesma resposta vazia: número com formato
    ou dígito verificador ISO 6346 inválido, número inexistente, fora da
-   janela, B/L cancelado, Viagem cancelada, porto não atendido e container
-   SOC (SOC/COC está na lista do que nunca sai).
+   janela, B/L sem CE Mercante, B/L cancelado, Viagem cancelada, porto não
+   atendido e container SOC (SOC/COC está na lista do que nunca sai). O
+   recorte do CE é o mesmo do Portal (`bl_has_portal_release`): o site nunca
+   mostra carga que o próprio Cliente ainda não vê (decisão do dono de
+   2026-10-30).
 
 ### Nunca sai, em nenhum dos dois
 
@@ -133,7 +136,7 @@ internos; autor e hora das mudanças na trilha (`audit_logs`), notas, alertas;
 - local-pg (`publicFwlog.local-pg.test.ts`): grants; paridade
   `portal_ship_schedule` × `public_ship_schedule`; Viagem fora do Portal,
   cancelada e escala retirada fora; Suape dentro; dígito inválido,
-  inexistente, fora da janela, cancelado, porto não atendido e SOC
+  inexistente, fora da janela, sem CE Mercante, cancelado, porto não atendido e SOC
   indistinguíveis; número repetido → só a mais recente; rateio → resposta
   única; free time igual ao do Portal. `advisorFuncoesFechadas` sem exceção
   nova.

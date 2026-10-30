@@ -485,7 +485,7 @@ sem decompor no navegador o fator comercial da cotação.
   lista positiva na Edge (o teste Deno falha se ganhar chave). A busca devolve
   `{found:false}`, 200, `no-store` e o mesmo tempo mínimo para todo "não
   encontrado" (formato ou dígito inválido, inexistente, fora da janela,
-  cancelado, porto não atendido, SOC). Logs com o evento e o prefixo do HMAC do
+  sem CE Mercante, cancelado, porto não atendido, SOC). Logs com o evento e o prefixo do HMAC do
   IP, nunca o IP nem o número do container.
 - **`recalc-demurrage-ptax`** — só `POST` (o job chama por `net.http_post`);
   outro método recebe 405 antes da conferência do segredo.

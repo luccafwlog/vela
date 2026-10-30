@@ -39,6 +39,7 @@ const BOX_UNSERVED_PORT = containerNumber(51406) // POD Santos
 const BOX_OUT_OF_WINDOW = containerNumber(51407) // devolvido, descarga há 120 dias
 const BOX_STILL_OUT = containerNumber(51411) // sem devolução, descarga há 120 dias
 const BOX_PECEM = containerNumber(51412)
+const BOX_NO_CE = containerNumber(51413) // B/L sem CE Mercante: só no Vela, fora do Portal
 const BOX_SOC = containerNumber(51408)
 const BOX_UNKNOWN = containerNumber(51409) // formato e dígito válidos, sem registro
 const BOX_WAITING = containerNumber(51410) // sem descarga, ETA futura
@@ -54,6 +55,7 @@ const BLS = {
   out: 'BL-514-OUT',
   waiting: 'BL-514-WAIT',
   pecem: 'BL-514-PEC',
+  noCe: 'BL-514-NOCE',
 }
 
 function psql(sql: string): string {
@@ -146,12 +148,13 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
         ('${BLS.old}', ${V_OLD}, ${CUSTOMER}, 'container', 'BRSSA', 'CE514OLD'),
         ('${BLS.sharedA}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSUA', 'CE514SHA'),
         ('${BLS.sharedB}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSUA', 'CE514SHB'),
-        ('${BLS.cancelled}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSA', NULL),
-        ('${BLS.cancelledVoyage}', ${V_CANCELLED}, ${CUSTOMER}, 'container', 'BRSSA', NULL),
-        ('${BLS.santos}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSZ', NULL),
-        ('${BLS.out}', ${V_OUT}, ${CUSTOMER}, 'container', 'BRSSA', NULL),
-        ('${BLS.waiting}', ${V_HIDDEN}, ${CUSTOMER}, 'container', 'BRVIX', NULL),
-        ('${BLS.pecem}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'PECEM', NULL);
+        ('${BLS.cancelled}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSA', 'CE514CANC'),
+        ('${BLS.cancelledVoyage}', ${V_CANCELLED}, ${CUSTOMER}, 'container', 'BRSSA', 'CE514CV'),
+        ('${BLS.santos}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSZ', 'CE514SSZ'),
+        ('${BLS.out}', ${V_OUT}, ${CUSTOMER}, 'container', 'BRSSA', 'CE514OUT'),
+        ('${BLS.waiting}', ${V_HIDDEN}, ${CUSTOMER}, 'container', 'BRVIX', 'CE514WAIT'),
+        ('${BLS.pecem}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'PECEM', 'CE514PEC'),
+        ('${BLS.noCe}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSA', NULL);
       -- O B/L irmão tem free time próprio: a resposta tem de seguir o âncora.
       UPDATE public.bls SET free_time_override = 30 WHERE id = '${BLS.sharedB}';
 
@@ -167,6 +170,7 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
         ('${BLS.out}', '${BOX_OUT_OF_WINDOW}', '40HC', ${TODAY} - 120, ${TODAY} - 100, 'COC'),
         ('${BLS.out}', '${BOX_STILL_OUT}', '40HC', ${TODAY} - 120, NULL, 'COC'),
         ('${BLS.pecem}', '${BOX_PECEM}', '20DV', ${TODAY} - 5, NULL, 'COC'),
+        ('${BLS.noCe}', '${BOX_NO_CE}', '40HC', ${TODAY} - 10, NULL, 'COC'),
         ('${BLS.found}', '${BOX_SOC}', '40HC', ${TODAY} - 10, NULL, 'SOC'),
         ('${BLS.waiting}', '${BOX_WAITING}', '20DV', NULL, NULL, 'COC');
       -- Cancelamentos direto na tabela, sem os gatilhos (fixture): a escala de
@@ -272,9 +276,9 @@ describeLocal('514 — quadro e consulta de container públicos', () => {
     expect(lookupRow(BOX_WAITING)).toMatchObject({ situation: 'aguardando_descarga', free_time_days: null, free_time_until: null, discharge_port: 'BRVIX' })
   })
 
-  it('dígito inválido, inexistente, devolvido fora da janela, cancelado, porto não atendido e SOC: a mesma resposta vazia', () => {
+  it('dígito inválido, inexistente, devolvido fora da janela, sem CE Mercante, cancelado, porto não atendido e SOC: a mesma resposta vazia', () => {
     const wrongDigit = `${BOX_FOUND.slice(0, 10)}${(Number(BOX_FOUND[10]) + 1) % 10}`
-    for (const number of [wrongDigit, BOX_UNKNOWN, BOX_OUT_OF_WINDOW, BOX_CANCELLED_BL, BOX_CANCELLED_VOYAGE, BOX_UNSERVED_PORT, BOX_SOC, 'ZQPU51401', "ZQPU' OR 1=1 --", BOX_FOUND.slice(0, 6), '']) {
+    for (const number of [wrongDigit, BOX_UNKNOWN, BOX_OUT_OF_WINDOW, BOX_CANCELLED_BL, BOX_CANCELLED_VOYAGE, BOX_UNSERVED_PORT, BOX_SOC, BOX_NO_CE, 'ZQPU51401', "ZQPU' OR 1=1 --", BOX_FOUND.slice(0, 6), '']) {
       expect(lookup(number), number).toBe('')
     }
   })
