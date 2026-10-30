@@ -64,3 +64,21 @@ describe('aba Contêineres da ficha do Cliente', () => {
     expect(customerContainerView(row({ bl: cancelledVoyage, return_date: '2026-09-28' }), '2026-10-14').demurrage).toEqual({ kind: 'none' })
   })
 })
+
+describe('caixa com a cobrança dispensada (ADR 0112, D24)', () => {
+  it('não aparece em curso nem a faturar: a dispensa vence o valor previsto', () => {
+    __setDemurrageRateGroupsForTest([{ aliases: ['40HC'], freeUntil: 21, p1: { range: [22, 30], usd: 70 }, p2: { range: [31, Infinity], usd: 140 } }])
+    // Devolvida e fora, ambas passadas do free time: sem a dispensa, seriam "a faturar" e "em curso".
+    const returned = customerContainerView(row({ return_date: '2026-09-28', waived: true }), '2026-10-14')
+    const running = customerContainerView(row({ waived: true }), '2026-10-14')
+    expect(returned.demurrage).toEqual({ kind: 'waived' })
+    expect(running.demurrage).toEqual({ kind: 'waived' })
+    // Os dias continuam os de fato: a dispensa não muda a sobreestadia, só a cobrança.
+    expect(running).toMatchObject({ days: 43, overFreeTime: true })
+  })
+
+  it('a Invoice viva continua acima da dispensa', () => {
+    const invoice = { id: 4, doc_number: 'DEM-2026-0004', status: 'paid', bl_id: 'BL-1' }
+    expect(customerContainerView(row({ return_date: '2026-09-28', waived: true, billed_in: [invoice] }), '2026-10-14').demurrage).toEqual({ kind: 'invoice', invoice })
+  })
+})

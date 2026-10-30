@@ -22,7 +22,11 @@ KNOWN_BUILDS=(
 )
 
 current="$lock"
-for attempt in 1 2 3; do
+# Três falhas de download no máximo. Trocar para o lock do outro build conferido
+# não conta como falha e tenta de novo na hora, inclusive depois da 3ª tentativa;
+# o teto de 6 rodadas evita laço se a borda alternar os dois builds.
+failures=0
+for _round in 1 2 3 4 5 6; do
   if output=$(npx --yes deno@2.9.6 cache --lock="$current" --frozen "$@" 2>&1); then
     echo "$output" >&2
     echo "$current"
@@ -42,8 +46,9 @@ for attempt in 1 2 3; do
       continue 2
     fi
   done
-  [ "$attempt" = 3 ] && exit 1
-  echo "Download das dependências falhou ($attempt/3); nova tentativa em 10 s." >&2
-  sleep 10
+  failures=$((failures + 1))
+  [ "$failures" -ge 3 ] && exit 1
+  echo "Download das dependências falhou ($failures/3); nova tentativa em ${DENO_CACHE_RETRY_DELAY:-10} s." >&2
+  sleep "${DENO_CACHE_RETRY_DELAY:-10}"
 done
 exit 1

@@ -1,7 +1,7 @@
 # 0112 — Repaginação da Demurrage: o que cada aba mostra e regras de cobrança
 
 > **Situação atual (2026-10-30):** implementada na PR luccafwlog/vela#1113,
-> migrations `514` a `530`, pelo [plano da repaginação](../archive/plans/2026-10-29-repaginacao-da-demurrage.md)
+> migrations `514` a `531`, pelo [plano da repaginação](../archive/plans/2026-10-29-repaginacao-da-demurrage.md)
 > (lotes 0 a 10). As regras vigentes estão em [Demurrage](../modules/demurrage.md),
 > [Portal do Cliente](../modules/portal-cliente.md) e [Operação e Suporte](../modules/operacao-suporte.md).
 > Três pontos que a decisão não detalhava foram decididos pelo dono em

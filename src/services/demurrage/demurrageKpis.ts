@@ -92,7 +92,6 @@ export async function fetchCustomerDemurrageDetail(customerId: number): Promise<
 }
 
 export type DemurrageKPIs = {
-  overdueContainers: number
   issuedInvoicesTotalBrl: number
 }
 
@@ -124,20 +123,20 @@ export async function recalculateInvoicesManual(ptax: number): Promise<{ updated
   return { updated }
 }
 
+/**
+ * Cartão Aguardando pagamento (BRL hoje). Os cartões Correndo, A emitir e
+ * Travado leem a classificação do banco (`list_demurrage_billing_board`): a
+ * contagem de `demurrage_status = 'overdue'` saiu, porque nada a mostrava.
+ */
 export async function fetchDemurrageKPIs(): Promise<DemurrageKPIs> {
-  const [contRes, issued] = await Promise.all([
-    supabase.from('bl_containers').select('id', { count: 'exact', head: true }).eq('demurrage_status', 'overdue'),
-    // Todas as páginas: o cartão Aguardando pagamento não pode parar em 1000 Invoices.
-    readAllPages<{ current_total_brl: number | null }>((from, to) => supabase
-      .from('demurrage_invoices')
-      .select('id, current_total_brl')
-      .eq('status', 'issued')
-      .order('id')
-      .range(from, to)),
-  ])
-  if (contRes.error) throw contRes.error
+  // Todas as páginas: o cartão Aguardando pagamento não pode parar em 1000 Invoices.
+  const issued = await readAllPages<{ current_total_brl: number | null }>((from, to) => supabase
+    .from('demurrage_invoices')
+    .select('id, current_total_brl')
+    .eq('status', 'issued')
+    .order('id')
+    .range(from, to))
   return {
-    overdueContainers: contRes.count ?? 0,
     issuedInvoicesTotalBrl: issued.reduce((s, r) => s + (r.current_total_brl ?? 0), 0),
   }
 }

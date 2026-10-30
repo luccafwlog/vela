@@ -203,6 +203,7 @@ function DemurrageCell({ view }: { view: CustomerContainerView }) {
   if (d.kind === 'soc') return <NoValue label="Não se aplica (SOC)" />
   if (d.kind === 'none') return <NoValue label="Sem Demurrage" />
   if (d.kind === 'error') return <span className="app-status-text app-status-text--muted" title={d.message}>Sem tarifa</span>
+  if (d.kind === 'waived') return <StatusText tone="muted">Cobrança dispensada</StatusText>
   if (d.kind === 'invoice') {
     const status = INVOICE_STATUS_TEXT[d.invoice.status] ?? d.invoice.status
     return (

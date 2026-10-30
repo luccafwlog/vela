@@ -124,6 +124,27 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     expect(mocks.saveBlDemurrageConfig).toHaveBeenCalled()
   })
 
+  // ADR 0112, D2 (migration 516): o free time do B/L muda a divisão da caixa na
+  // hora; a aba Containers, o aviso do cabeçalho e as fichas releem junto.
+  it('salvar a condição do B/L relê a classificação da Demurrage, não só a ficha', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    const user = userEvent.setup()
+    try {
+      render(<QueryClientProvider client={client}><MemoryRouter><BlDemurrageSection bl={mockBl} /></MemoryRouter></QueryClientProvider>)
+      fireEvent.click(screen.getByRole('button', { name: 'Definir condição do B/L' }))
+      const freeTimeInput = screen.getByDisplayValue('10')
+      await user.clear(freeTimeInput)
+      await user.type(freeTimeInput, '15')
+      await user.click(screen.getByRole('button', { name: /salvar condições/i }))
+      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Condições de Demurrage salvas.', 'success'))
+      const keys = invalidate.mock.calls.map(([filters]) => JSON.stringify(filters?.queryKey))
+      for (const key of [['bl-detail', 'bl-123'], ['demurrage-containers'], ['header-alert'], ['customer-ficha'], ['demurrage-report']]) {
+        expect(keys).toContain(JSON.stringify(key))
+      }
+    } finally { client.clear() }
+  })
+
   it('não executa saveBlDemurrageConfig se o usuário fechar no Voltar', async () => {
     mocks.confirm.mockResolvedValue(false)
     const user = userEvent.setup()

@@ -56,6 +56,8 @@ export type DemurrageContainerRow = DemurrageContainerListItem & {
   billing_group?: DemurrageBillingGroup | null
   /** Clientes que dividem a caixa na Viagem (D19, migration 521); a previsão é a parte do Cliente. */
   box_share_count?: number
+  /** Cobrança da caixa dispensada (migration 517): nem correndo nem a faturar. */
+  waived?: boolean
 }
 
 type BilledItemRow = {
@@ -317,7 +319,8 @@ export type DemurrageBoxWaiver = { id: number; container_key: string; reason: st
 
 /**
  * Dispensas vivas das caixas de um B/L (migration 517), pela mesma chave da
- * cobrança (Viagem, Cliente, número). Índice pelo número normalizado.
+ * cobrança (Viagem, Cliente, número). Índice pelo número normalizado. O B/L
+ * sem Cliente lê a dispensa sem Cliente (migration 530: `customer_id` vazio).
  */
 export async function listBlDemurrageWaivers(bl: {
   voyage_id: number | null | undefined
@@ -325,12 +328,12 @@ export async function listBlDemurrageWaivers(bl: {
   bl_containers?: ReadonlyArray<{ container_number: string | null }> | null
 }): Promise<Map<string, DemurrageBoxWaiver>> {
   const keys = Array.from(new Set((bl.bl_containers ?? []).map((container) => (container.container_number ?? '').trim().toUpperCase()).filter(Boolean)))
-  if (bl.voyage_id == null || bl.customer_id == null || !keys.length) return new Map()
-  const { data, error } = await supabase
+  if (bl.voyage_id == null || !keys.length) return new Map()
+  const base = supabase
     .from('demurrage_box_waivers' as never)
     .select('id, container_key, reason, created_at')
     .eq('voyage_id', bl.voyage_id)
-    .eq('customer_id', bl.customer_id)
+  const { data, error } = await (bl.customer_id == null ? base.is('customer_id', null) : base.eq('customer_id', bl.customer_id))
     .is('revoked_at', null)
     .in('container_key', keys)
   if (error) throw error

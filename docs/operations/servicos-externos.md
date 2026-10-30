@@ -263,7 +263,12 @@ paused` e a fila de efeitos não anda, nem pelo disparo da importação) e agend
 `import-effects-runner` à mão (jobid 24); às 12:02 UTC os 15 efeitos pendentes
 concluíram em 13 s. A migration `532` agenda o que ainda faltar (na staging,
 `portal-email-events-runner`) e não toca no job que já existe. Os demais valores
-dos Edge Function Secrets da branch não foram conferidos.
+dos Edge Function Secrets da branch não foram conferidos. Pendente (revisão da
+release luccafwlog/vela#1117): esse runner da staging roda a cada minuto e, a
+cada chamada autorizada, avisa o heartbeat `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`;
+conferir que o segredo da branch não tem a URL do heartbeat da produção, que
+continuaria Up com a produção parada. Se tiver, apagar o segredo da branch ou
+pausar o job lá (`cron.alter_job(<jobid>, active := false)`).
 
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
@@ -1191,7 +1196,8 @@ chegar à `main`, confira:
 2. As chamadas seguintes da `itau-pix` em `function_edge_logs` respondem 200.
 3. O checkpoint da consulta (`itau_pix_checkpoint`) continua andando.
 4. O Alerta `rotina_http_falhou` fecha sozinho quando a última hora volta a ter
-   no máximo uma resposta fora de 2xx (migration `533`).
+   no máximo uma resposta fora de 2xx (migration `533`) e nenhuma 401 ou 403
+   (migration `534`).
 
 Na branch Supabase `staging` a função também é republicada no merge, mas o job
 não a chama: nenhuma chamada da `itau-pix` nas 24 h até 11 h UTC de 23/10

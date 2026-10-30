@@ -99,6 +99,17 @@ describe('DemurrageDisputeConversation', () => {
     expect(screen.getByRole('button', { name: /Responder/ })).toBeTruthy()
   })
 
+  it('o botão da linha só aponta para a conversa quando ela está aberta (aria-controls)', () => {
+    renderConversation()
+    const toggle = screen.getByRole('button', { name: /DEM-123/ })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.hasAttribute('aria-controls')).toBe(false)
+    openConversation()
+    const panelId = toggle.getAttribute('aria-controls')
+    expect(panelId).toBeTruthy()
+    expect(document.getElementById(panelId!)).toBeTruthy()
+  })
+
   it('sem a vez nossa não há Responder nem campo de resposta', () => {
     mockOverrides = { next_responder: 'cliente', waiting_since: null, due_at: null }
     renderConversation()

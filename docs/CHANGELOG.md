@@ -6,6 +6,33 @@
 
 ## 2026-10
 
+- **Embarque de vazios vazio se exclui (2026-10-30, migration `544`; decisão do dono na revisão da PR
+  luccafwlog/vela#1122, PR luccafwlog/vela#1128):** desde a `541`, criar o embarque grava na escala a frente
+  Vazios EXP, a Atracação e o ADR do terminal, e o embarque trava a frente e a exclusão da escala; o embarque
+  criado na escala errada só saía com a exclusão da Viagem. O Administrativo passa a **Excluir embarque**, com
+  confirmação e motivo, quando ele não tem unidade nem linha de serviço e o ADR de Saída do porto está aberto
+  (RPC `delete_vazios_export_operation`); a frente, a Atracação e o ADR ficam na escala. Ver
+  [Manifestos & EDI](modules/manifesto-edi.md). **Teste local-pg:** `embarqueVaziosExclusao.local-pg.test.ts`.
+- **Chegadas e saídas e Consulta de container públicas no fwlog.com.br (2026-10-30, migrations `542` e `543`;
+  [ADR 0114](adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md), PR luccafwlog/vela#1119):** o
+  site da Fwlog põe em iframe, sem login, o quadro **Chegadas e saídas** do Portal
+  (`/portal/publico/chegadas-saidas`) e a **Consulta de container** (`/portal/publico/consulta-container`): a
+  transportadora digita o número e vê uma linha, a da Viagem mais recente, com situação, data limite de
+  devolução, navio, viagem, porto, descarga, free time e devolução (só Salvador, Vitória, Pecém e Suape; B/L
+  com CE Mercante; nunca Cliente, B/L, valores ou SOC/COC). Nenhuma função do banco é aberta a `anon`: as
+  Edge Functions `public-ship-schedule` e `public-container-lookup` chamam o banco com `service_role`, depois
+  de origem, Turnstile e limites por IP (Upstash), e montam a resposta por lista positiva; a Pages Function só
+  deixa esses dois caminhos em iframe. As Edge Functions são publicadas à mão depois do merge
+  ([roteiro](operations/fwlog-site-embed.md)). Ver [Portal do Cliente](modules/portal-cliente.md#páginas-públicas-do-fwlogcombr).
+  **Teste local-pg:** `publicFwlog.local-pg.test.ts`.
+- **Embarque de vazios opera num terminal (2026-10-30, migration `541`;
+  [ADR 0113](adr/0113-embarque-de-vazios-opera-num-terminal.md), PR luccafwlog/vela#1122):** criar o
+  Embarque de vazios pede o terminal, que é o da frente Vazios EXP da escala: sem terminal na frente, o
+  escolhido vai para ela pela gravação da escala (frente, Atracação e ADR de Saída do terminal); com
+  terminal, o embarque usa esse. O banco recusa embarque novo sem a frente com terminal e, enquanto houver
+  embarque, não deixa a frente voltar para TBC ou sair nem a escala ser excluída. O embarque antigo, sem
+  terminal, ganha **Definir terminal**. Ver [Manifestos & EDI](modules/manifesto-edi.md). **Teste local-pg:**
+  `embarqueVaziosTerminal.local-pg.test.ts`.
 - **Veículos, vazios de importação, Granito e carga em transbordo chegam ao ADR por terminal (2026-10-30,
   migrations `537` a `540`):** no teste do dono em BRVIX, os veículos e os vazios de importação estavam nos
   cards do porto da aba Importação e não no ADR do terminal. A seção Veículos dependia de uma frente de Veículos
@@ -21,6 +48,21 @@
   [archive/audits/viagem-terminal-adr-2026-10-30.md](archive/audits/viagem-terminal-adr-2026-10-30.md); regra em
   [Viagens](modules/viagens.md#agency-departure-report-adr). **Teste local-pg:**
   `adrFrenteDerivadaSemTerminal.local-pg.test.ts`.
+- **Retorno de e-mail que não é do Vela sai da Documentação (2026-10-30, migrations `535` e `536`; PR
+  luccafwlog/vela#1126):** a conta da MillionSend avisa o webhook de todo e-mail dela, também os do site da
+  Fwlog, e o aviso que o Vela não achava abria "Portal do Cliente — falha no reprocessamento" crítico para a
+  Documentação, com texto técnico. O aviso de entrega sem envio do Vela fecha sem alerta na 6ª tentativa;
+  devolução, spam, aviso ambíguo ou que falha 6 vezes abrem o tipo novo **Retorno do provedor de e-mail não
+  aplicado** (Administrativo, normal), com o destinatário mascarado em Registro, a orientação de acionar o
+  suporte (`536`) e resolução com justificativa. Ver [Operação e Suporte](modules/operacao-suporte.md).
+- **Rotina agendada: alerta com duas falhas na hora ou uma resposta 401/403, e runners da staging (2026-10-30,
+  migrations `532` a `534`; decisões do dono, PR luccafwlog/vela#1125):** o Alerta **Rotina agendada com
+  resposta de erro** passa a abrir com duas ou mais respostas de erro na hora (`533`; a falha isolada da
+  `itau-pix` se resolvia na rodada seguinte e abria o alerta crítico por uma hora) ou com uma única resposta
+  401 ou 403, de segredo divergente (`534`); ele fecha quando a hora volta a ter no máximo uma falha e nenhuma
+  401/403. A `532` agenda, onde o nome falta, o `import-effects-runner` e o `portal-email-events-runner` (na
+  branch staging, que nasceu sem eles; na produção não muda nada), e a `itau-pix` registra a causa da falha da
+  manutenção dos prazos. Ver [Observabilidade](operations/observabilidade.md).
 - **Repaginação da Demurrage (2026-10-29 a 2026-10-30, migrations `514` a `531`; [ADR 0112](adr/0112-repaginacao-da-demurrage.md),
   PR luccafwlog/vela#1113):** cadastro **Tipos de container** e uma tarifa por grupo; a aba **Containers** se
   divide em Correndo, A emitir, Esperando e Travado, pela classificação do banco, com o Alerta **Demurrage
@@ -51,6 +93,10 @@
   **Vincular na Revisão**, um bloco por porto com cada Cliente e a situação de cada Comunicado, o histórico da
   viagem e **Disparar**, que abre o Disparo com a Viagem e o porto já escolhidos. Ver
   [Clientes](modules/clientes.md#clientescomunicacaoviagensvoyageid).
+- **Anexo na abertura da Disputa de Demurrage pelo Portal (2026-10-29, sem migration; PR
+  luccafwlog/vela#1120):** o modal **Disputar** da Invoice ganha **Anexar arquivo** (PDF, JPG, PNG ou TXT, até
+  10 MB); o arquivo vai na primeira mensagem da Disputa. Se a cota ou o limite diário recusarem o anexo, a
+  Disputa fica aberta e o modal oferece **Reenviar anexo**. Ver [Portal do Cliente](modules/portal-cliente.md).
 - **Escala com LOCODE brasileiro fora da lista continua no Planejamento (2026-10-29, sem migration):**
   a escala com porto brasileiro bem formado que o Vela não conhece (por exemplo `BRXYZ`) era gravada,
   mas sumia do **Planejamento por escala** da ficha da Viagem ao recarregar a página: a leitura só

@@ -11,8 +11,8 @@ do Supabase vai para o WordPress: as páginas rodam no domínio do Portal
 
 ## Antes de colar (equipe técnica)
 
-1. Migration `542` aplicada e Edge Functions `public-ship-schedule` e
-   `public-container-lookup` publicadas.
+1. Migrations `542`, `543` e `545` aplicadas e Edge Functions
+   `public-ship-schedule` e `public-container-lookup` publicadas.
 2. Widget Turnstile dos widgets públicos criado, com a Site Key em
    `VITE_TURNSTILE_PUBLIC_SITE_KEY` (build do Portal) e os secrets
    `TURNSTILE_PUBLIC_SECRET_KEY`, `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` e

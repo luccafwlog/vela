@@ -309,9 +309,11 @@ export function Demurrage() {
     onError: (error: Error) => showToast(extractErrorText(error), 'error'),
   })
   async function handleWaiveBox(box: BoardBox, group: BoardGroup) {
+    if (waiveMutation.isPending) return
     const reason = await confirmWithReason({
       title: `Dispensar a cobrança de ${box.container_number}`,
-      message: `Dispensar a cobrança de Demurrage do container ${box.container_number} (B/L ${box.bl_id}, ${group.customer_name ?? 'Cliente'})?`,
+      // 530: o B/L sem Cliente também dispensa (o importado por engano só se cancela assim).
+      message: `Dispensar a cobrança de Demurrage do container ${box.container_number} (B/L ${box.bl_id}, ${group.customer_name ?? 'sem Cliente'})?`,
       confirmLabel: 'Dispensar cobrança',
       tone: 'danger',
       reasonLabel: 'Justificativa (mínimo de 10 caracteres)',
@@ -565,6 +567,7 @@ export function Demurrage() {
             onEditContainer={(box, group) => { setDatesError(null); setEditingContainer(boxAsContainer(box, group)) }}
             onOpenInvoice={openInvoice}
             onWaiveBox={canIssue ? (box, group) => void handleWaiveBox(box, group) : undefined}
+            waivingBoxId={waiveMutation.isPending ? waiveMutation.variables?.box.container_id ?? null : null}
             onExport={(groups, selected) => void exportScreen(`Containers ${DEMURRAGE_DIVISION_LABELS[selected]}`, `containers-${selected}`, containerTabSheetRows(groups, selected))}
           />
         ) : null}

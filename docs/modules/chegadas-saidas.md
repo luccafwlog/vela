@@ -55,14 +55,21 @@ cancela aquela escala — quando é porto de descarga que tinha data, a tela ped
 confirmação antes (`clearedPodLabels`): o ETD/ETA publicado é removido. A
 escala só é retirada também de Viagens e do Line-Up quando quem salva é o
 Administrativo, ela não tem âncora operacional (manifesto vinculado, ATA/ATD,
-B/L ou edição de terminais salva, `voyage_escala_revision_state.revision > 0`)
-e o porto não está sob a Trava de exclusão; para os demais Departamentos,
+B/L, edição de terminais salva, `voyage_escala_revision_state.revision > 0`, ou
+Embarque de vazios) e o porto não está sob a Trava de exclusão; para os demais Departamentos,
 a escala continua sem data (migration `090`, ADR 0071). Desde a migration `513`
 (decisão do dono de 2026-10-29) o banco confere as mesmas âncoras na marca de
 retirada (`guard_pod_schedule_removal_mark`): B/L com o porto como POD ou POL
 (como o Excluir escala), ATA, ATD, Vinculada e terminais salvos recusam com
 "Escala … travada: …"; antes a conferência era só da tela. O Excluir escala
-(`delete_escala`) mantém a régua dele. Porto de descarga que
+(`delete_escala`) mantém a régua dele. Desde a migration `549` (revisão da
+release luccafwlog/vela#1117) as âncoras têm um dono só,
+`escala_removal_anchor_reasons(viagem, porto)`, lido pelo gatilho e pela tela
+antes de montar a gravação: o B/L com o porto gravado por apelido (`VITORIA`
+para BRVIX) passou a ancorar também na tela, que antes comparava o código
+exato, mandava retirar a escala e via o banco recusar a gravação inteira; e o
+Embarque de vazios na escala ancora, como no Excluir escala desde a `541`.
+Porto de descarga que
 já estava sem data não é tocado quando se salva outro porto. O texto da confirmação
 muda por equipe e cita essas âncoras. As datas e as retiradas vão numa só
 gravação (`record_audit_entries`): se a trava recusa a retirada ("Escala …

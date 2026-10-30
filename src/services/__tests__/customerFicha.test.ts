@@ -4,7 +4,7 @@ import type { FichaInvoiceRow } from '../customerFicha'
 const { mockFrom, mockRpc } = vi.hoisted(() => ({ mockFrom: vi.fn(), mockRpc: vi.fn() }))
 vi.mock('../supabase', () => ({ supabase: { from: mockFrom, rpc: mockRpc } }))
 
-const { buildConsolidatedBalance, buildCustomerTimeline, differingConsignee, fetchCustomerPendingReconciliation, fetchCustomerReceivables, buildCustomerInvoiceLines, filterCustomerInvoiceLines } = await import('../customerFicha')
+const { buildConsolidatedBalance, buildCustomerTimeline, differingConsignee, fetchCustomerPendingReconciliation, fetchCustomerReceivables, fetchCustomerRunningDemurrage, buildCustomerInvoiceLines, filterCustomerInvoiceLines } = await import('../customerFicha')
 
 describe('buildConsolidatedBalance', () => {
   it('soma local emitido não pago (emitida e parcial) + demurrage não pago', () => {
@@ -327,5 +327,30 @@ describe('Histórico do Cliente: Base de Clientes (migration 404, F-24)', () => 
     expect(address).toMatchObject({ subject: 'Cadastro', actor: 'Ana Ribeiro', at: '2026-10-22T10:00:00Z', detail: 'Rua A → Rua Nova, 100 · Origem: Base de Clientes' })
     const email = events.find((event) => event.label === 'E-mail incluído')
     expect(email).toMatchObject({ subject: 'Contatos', actor: 'Ana Ribeiro', detail: 'operacao@cliente.test · Origem: Base de Clientes' })
+  })
+})
+
+// Visão Geral da ficha: os containers com Demurrage correndo são os do cartão
+// Correndo da Demurrage (ADR 0112, D6), sem a caixa dispensada nem a cobrada.
+describe('fetchCustomerRunningDemurrage', () => {
+  const box = (container_id: number, state: string, return_date: string | null = null) => ({
+    container_id, bl_id: 'BL-1', container_number: `MSCU${container_id}`, discharge_date: '2026-09-01', return_date, state,
+  })
+
+  it('conta a classificação do banco do Cliente: caixas com sobreestadia dos grupos em Correndo', async () => {
+    mockFrom.mockReset()
+    mockRpc.mockReset()
+    mockRpc.mockResolvedValue({
+      data: [
+        { anchor_bl_id: 'BL-1', division: 'correndo', usd: 1, boxes: [box(1, 'running'), box(2, 'waived'), box(3, 'returned_overstay', '2026-10-20'), box(4, 'covered', '2026-10-01'), box(5, 'in_free_time')] },
+        { anchor_bl_id: 'BL-2', division: 'a_emitir', usd: 1, boxes: [box(6, 'returned_overstay', '2026-10-20')] },
+      ],
+      error: null,
+    })
+    const rows = await fetchCustomerRunningDemurrage(101)
+    expect(rows.map((row) => row.container_id)).toEqual([1, 3])
+    expect(mockRpc).toHaveBeenCalledWith('list_demurrage_billing_board', { p_customer_id: 101, p_voyage_id: null })
+    // O status gravado não sabe da dispensa: não é mais lido.
+    expect(mockFrom).not.toHaveBeenCalledWith('bl_containers')
   })
 })

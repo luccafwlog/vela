@@ -44,8 +44,14 @@ type Props = {
   onGenerateInvoice: (blId: string) => void
   onEditContainer: (box: BoardBox, group: BoardGroup) => void
   onOpenInvoice: (invoiceId: number) => void
-  /** Dispensar a cobrança da caixa (ADR 0112, D24); ausente, a ação não aparece. */
+  /**
+   * Dispensar a cobrança da caixa (ADR 0112, D24); ausente, a ação não aparece.
+   * Vale também para o grupo sem Cliente (migration 530: o B/L importado por
+   * engano só se cancela depois da dispensa).
+   */
   onWaiveBox?: (box: BoardBox, group: BoardGroup) => void
+  /** Caixa (`container_id`) cuja dispensa está gravando: o botão dela gira e os outros esperam. */
+  waivingBoxId?: number | null
   /** Planilha de Exposição do recorte da tela (lote 6). */
   onExport?: (groups: BoardGroup[], division: DemurrageDivision) => void
 }
@@ -79,8 +85,11 @@ export function DemurrageContainersTab({
   onEditContainer,
   onOpenInvoice,
   onWaiveBox,
+  waivingBoxId = null,
   onExport,
 }: Props) {
+  // Uma dispensa por vez: o segundo clique na mesma caixa voltaria recusado (23505).
+  const waiveDisabled = (box: BoardBox, blId: string) => generatingBl === blId || (waivingBoxId != null && waivingBoxId !== box.container_id)
   const narrow = useNarrowViewport()
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   function toggle(blId: string) {
@@ -177,9 +186,25 @@ export function DemurrageContainersTab({
                       <div className="app-dem-card__head">
                         <span className="app-dem-code app-dem-strong"><CopyValue value={box.container_number} label="número do contêiner" /></span>
                         <span className="app-dem-meta">{box.type ?? <NoValue label="Sem tipo" />}</span>
-                        <Button type="button" variant="secondary" className="app-btn--sm" aria-label={`Editar datas de ${box.container_number}`} onClick={() => onEditContainer(box, group)}>
-                          Editar datas
-                        </Button>
+                        <span className="app-dem-row-buttons">
+                          <Button type="button" variant="secondary" className="app-btn--sm" aria-label={`Editar datas de ${box.container_number}`} onClick={() => onEditContainer(box, group)}>
+                            Editar datas
+                          </Button>
+                          {/* Abaixo de 640 px a caixa também se dispensa (ADR 0112, D24). */}
+                          {onWaiveBox && canWaiveBox(box) ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="app-btn--sm"
+                              aria-label={`Dispensar cobrança de ${box.container_number}`}
+                              loading={waivingBoxId === box.container_id}
+                              disabled={waiveDisabled(box, group.anchor_bl_id)}
+                              onClick={() => onWaiveBox(box, group)}
+                            >
+                              Dispensar cobrança
+                            </Button>
+                          ) : null}
+                        </span>
                       </div>
                       <p className="app-dem-meta">
                         Descarga {box.discharge_date ? formatDate(box.discharge_date) : <NoValue label="Sem data de descarga" />} · Devolução {box.return_date ? formatDate(box.return_date) : 'pendente'}
@@ -294,11 +319,12 @@ export function DemurrageContainersTab({
                                             disabled={generatingBl === blId}
                                             onClick={() => onEditContainer(box, group)}
                                           />
-                                          {onWaiveBox && canWaiveBox(box) && group.customer_id != null ? (
+                                          {onWaiveBox && canWaiveBox(box) ? (
                                             <RowActionButton
                                               label={`Dispensar cobrança de ${box.container_number}`}
                                               icon={Ban}
-                                              disabled={generatingBl === blId}
+                                              loading={waivingBoxId === box.container_id}
+                                              disabled={waiveDisabled(box, blId)}
                                               onClick={() => onWaiveBox(box, group)}
                                             />
                                           ) : null}

@@ -492,7 +492,8 @@ sem decompor no navegador o fator comercial da cotação.
   lista positiva na Edge (o teste Deno falha se ganhar chave). A busca devolve
   `{found:false}`, 200, `no-store` e o mesmo tempo mínimo para todo "não
   encontrado" (formato ou dígito inválido, inexistente, fora da janela,
-  sem CE Mercante, cancelado, porto não atendido, SOC). Desde a migration
+  sem CE Mercante, sem Cliente vinculado desde a migration `545`, cancelado,
+  porto não atendido, SOC). Desde a migration
   `543`, esses recortes valem para a Viagem mais recente do número: se ela não
   pode aparecer, a resposta é "não encontrado", nunca a Viagem anterior. Logs com o evento e o prefixo do HMAC do
   IP, nunca o IP nem o número do container.

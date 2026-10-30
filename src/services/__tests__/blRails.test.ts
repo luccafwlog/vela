@@ -238,6 +238,12 @@ describe('B/L rails', () => {
     // Carga solta não tem Demurrage.
     expect(makeDocumental({ ...invoicedBl, cargo_mode: 'carga_solta' }, { latestInvoice: issued, portalVisibility: closed })
       .find((stage) => stage.key === 'demurrage')).toBeUndefined()
+    // Só SOC também não (revisão da release #1117); com uma caixa COC, avisa.
+    const soc = { container_number: 'SOCU1234565', discharge_date: '2026-10-01', return_date: null, ownership: 'SOC' }
+    expect(makeDocumental(invoicedBl, { latestInvoice: issued, portalVisibility: closed, containers: [soc] })
+      .find((stage) => stage.key === 'demurrage')).toBeUndefined()
+    expect(makeDocumental(invoicedBl, { latestInvoice: issued, portalVisibility: closed, containers: [soc, { ...soc, container_number: 'COCU1234560', ownership: 'COC' }] })
+      .find((stage) => stage.key === 'demurrage')).toMatchObject({ state: 'blocked' })
   })
 
   it('sem Liberação e sem fatura, a conta do Portal não ativa continua pedindo a Revisão', () => {
