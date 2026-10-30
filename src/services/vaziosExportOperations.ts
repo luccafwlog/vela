@@ -121,6 +121,20 @@ export async function deleteManualVaziosBooking(id: string, reason: string) {
   if (error) throw error;
 }
 
+/**
+ * Migration 544: o Administrativo exclui, com motivo, o embarque sem unidade,
+ * sem linha de serviço e com o ADR de Saída aberto. Recusa traz os motivos.
+ */
+export async function deleteVaziosExportOperation(operationId: string, reason: string) {
+  const { data, error } = await supabase.rpc(
+    "delete_vazios_export_operation" as never,
+    { p_operation_id: operationId, p_dry_run: false, p_reason: reason } as never,
+  );
+  if (error) throw error;
+  const result = data as unknown as { deleted: boolean; reasons: string[] };
+  if (!result.deleted) throw new Error(`O embarque não pode ser excluído: ${result.reasons.join("; ")}.`);
+}
+
 export async function listVaziosBookingsForOperation(operationId: string) {
   const rows: VaziosBooking[] = [];
   let page = 1;
