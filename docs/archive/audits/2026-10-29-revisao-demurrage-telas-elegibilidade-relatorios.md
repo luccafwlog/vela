@@ -1,6 +1,6 @@
 # Revisão de Demurrage: telas, elegibilidade e relatórios
 
-> Registro histórico de 2026-10-29: descreve a `staging` em `8e0ce0b` e não é a regra vigente. As decisões do dono sobre estes achados estão na [ADR 0112](../../adr/0112-repaginacao-da-demurrage.md), com o [plano](../../plans/2026-10-29-repaginacao-da-demurrage.md).
+> Registro histórico de 2026-10-29: descreve a `staging` em `8e0ce0b` e não é a regra vigente. As decisões do dono sobre estes achados estão na [ADR 0112](../../adr/0112-repaginacao-da-demurrage.md), com o [plano](../../archive/plans/2026-10-29-repaginacao-da-demurrage.md).
 
 **Data:** 29/10/2026
 **Base:** `staging` em `8e0ce0b` (`claude/magical-curie-cl20fl` = ponta da staging), por pedido do Lucca no meio da revisão. Comparei com a `main` em `4ff344e`.

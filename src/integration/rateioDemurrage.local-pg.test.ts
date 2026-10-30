@@ -19,7 +19,7 @@ const customerC = 99521003 // acordo de 40 dias
 const customers = [customerA, customerB, customerC]
 const carrierId = 99521010
 const vesselId = 99521011
-const CASES = ['split', 'agreement', 'arrives', 'paid', 'cancelled'] as const
+const CASES = ['split', 'agreement', 'arrives', 'paid', 'cancelled', 'deleted'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99521100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -219,6 +219,16 @@ describeLocal('Caixa dividida entre Clientes (migration 521)', () => {
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('${blPrefix}CANB', 'B/L emitido em duplicidade', false)`)).cancelled).toBe(true)
     expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${half}`)).toBe('cancelled')
     const [replacement] = liveInvoice('CANA')
+    expect(item(Number(replacement))).toEqual({ share: '1', subtotal: fullUsd(60) })
+  })
+  it('excluir o B/L de um dos Clientes também devolve a caixa inteira ao outro (523)', () => {
+    bl('DELA', 'deleted', customerA); box('DELA', 'RQCU5210006')
+    bl('DELB', 'deleted', customerB); box('DELB', 'RQCU5210006')
+    const half = issue('DELA')
+    expect(item(half).share).toBe('2')
+    psql(`DELETE FROM public.bls WHERE id = '${blPrefix}DELB'`)
+    expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${half}`)).toBe('cancelled')
+    const [replacement] = liveInvoice('DELA')
     expect(item(Number(replacement))).toEqual({ share: '1', subtotal: fullUsd(60) })
   })
 })

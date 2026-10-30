@@ -3,9 +3,9 @@
 ## Estado
 
 Proposto em 2026-10-29 a partir das decisões do dono na
-[ADR 0112](../adr/0112-repaginacao-da-demurrage.md) (D1 a D21), tomadas sobre a
-[revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md).
-Nada executado. As seis decisões complementares (P1 a P6) foram respondidas
+[ADR 0112](../../adr/0112-repaginacao-da-demurrage.md) (D1 a D21), tomadas sobre a
+[revisão de Demurrage de 2026-10-29](../../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md).
+Executado de 2026-10-29 a 2026-10-30 na PR luccafwlog/vela#1113. As seis decisões complementares (P1 a P6) foram respondidas
 pelo dono no mesmo dia (D22 a D27 da ADR) e estão em
 [Decisões complementares](#decisões-complementares). As de tipos de container e
 tarifas (D28 a D34) entram no lote 0B.
@@ -23,7 +23,7 @@ tarifas (D28 a D34) entram no lote 0B.
 | 7 — Disputas | Feito em 2026-10-30 (migration `520`) |
 | 8 — Caixa dividida entre Clientes (rateio) | Feito em 2026-10-30 (migration `521`; item emitido antes fica cheio) |
 | 9 — Container que vira SOC depois de faturado | Feito em 2026-10-30 (migration `522`) |
-| 10 — Fechamento | A fazer |
+| 10 — Fechamento | Feito em 2026-10-30 (revisão independente; migration `523` corrige os gatilhos do rateio) |
 
 ## Resultado pretendido
 
@@ -77,10 +77,10 @@ Fora da página Demurrage:
 
 ## Fontes de verdade e restrições
 
-- **Regra vigente.** [Demurrage](../modules/demurrage.md),
-  [Portal do Cliente](../modules/portal-cliente.md) (Disputas),
-  [Operação e Suporte](../modules/operacao-suporte.md) (`/relatorios`) e a
-  [matriz de permissões](../operations/seguranca.md#demurrage-e-granito).
+- **Regra vigente.** [Demurrage](../../modules/demurrage.md),
+  [Portal do Cliente](../../modules/portal-cliente.md) (Disputas),
+  [Operação e Suporte](../../modules/operacao-suporte.md) (`/relatorios`) e a
+  [matriz de permissões](../../operations/seguranca.md#demurrage-e-granito).
   Decisões nas ADRs 0014, 0079, 0080, 0085, 0088 e 0112.
 - **Código que manda hoje.** As definições vigentes estão na `staging`.
   - **Classificação da aba Containers:** feita no navegador.
@@ -140,7 +140,7 @@ Fora da página Demurrage:
     da linha "Data status" do `AGENTS.md`.
   - PR de cada lote contra `staging`.
   - Toda mudança visível ao operador atualiza o
-    [Manual do Operador](../manual/README.md) e a matriz de cobertura no mesmo
+    [Manual do Operador](../../manual/README.md) e a matriz de cobertura no mesmo
     PR (ou no PR do manual, enquanto ele estiver aberto).
 
 ## Decisões complementares
@@ -251,10 +251,10 @@ tela; `calculateDemurrage.test.ts` e `DemurrageRates.behavior.test.tsx` refeitos
 `demurrageAuthority.local-pg.test.ts`.
 
 **Documentos:**
-- [Demurrage](../modules/demurrage.md): `/demurrage/taxas`, Tarifa, free time,
+- [Demurrage](../../modules/demurrage.md): `/demurrage/taxas`, Tarifa, free time,
   P1 e P2, e aliases ISO;
 - o glossário (`CONTEXT.md`: Tipo de container, Grupo de tarifa);
-- a [matriz de permissões](../operations/seguranca.md#demurrage-e-granito);
+- a [matriz de permissões](../../operations/seguranca.md#demurrage-e-granito);
 - o Manual do Operador.
 
 ### 1 — Classificação da cobrança no banco
@@ -319,7 +319,7 @@ a ficha do Cliente passam a concordar com a aba.
 
 **Aceite (Teste local-pg, suíte nova):**
 
-- Cada cenário da [revisão](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md)
+- Cada cenário da [revisão](../../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md)
   (A12, casos 1 a 17) cai na divisão esperada.
 - O free time do B/L reduzido, o acordo desativado e a tarifa criada põem o
   container em Correndo na mesma transação.
@@ -476,7 +476,7 @@ refeito.
     dias, free time, 1º e 2º período e US$.
 - **Planilha** (D14): uma aba por recorte, mais **Filtros**. O **Exportar** de
   cada aba da central exporta o recorte da tela com as mesmas colunas.
-- **Documentos.** [Operação e Suporte](../modules/operacao-suporte.md) (tabela
+- **Documentos.** [Operação e Suporte](../../modules/operacao-suporte.md) (tabela
   de filtros e cartões) e os itens do Manual do Operador sobre "Vencidas"
   mudam junto.
 
@@ -528,7 +528,7 @@ refeito.
 
 **Checks:** gates de aplicação e tela; `DemurrageDisputeConversation.test.tsx`
 refeito; suítes local-pg de Disputa e de Portal; o
-[Portal do Cliente](../modules/portal-cliente.md) atualizado, corrigindo
+[Portal do Cliente](../../modules/portal-cliente.md) atualizado, corrigindo
 também os dois trechos que a revisão achou desatualizados: o que diz que o CE
 não define a emissão interna (vale desde a `472`) e o prefixo `[Portal]` que a
 Disputa não grava mais.
@@ -582,13 +582,13 @@ Disputa não grava mais.
 
 ### 10 — Fechamento
 
-- **Documentos:** [Demurrage](../modules/demurrage.md) (Anatomia das telas,
-  Catálogo de ações, Fluxos e invariantes), [Portal do Cliente](../modules/portal-cliente.md),
-  [Operação e Suporte](../modules/operacao-suporte.md), a
-  [rastreabilidade](../RASTREABILIDADE.md), o glossário (`CONTEXT.md`: Correndo,
+- **Documentos:** [Demurrage](../../modules/demurrage.md) (Anatomia das telas,
+  Catálogo de ações, Fluxos e invariantes), [Portal do Cliente](../../modules/portal-cliente.md),
+  [Operação e Suporte](../../modules/operacao-suporte.md), a
+  [rastreabilidade](../../RASTREABILIDADE.md), o glossário (`CONTEXT.md`: Correndo,
   A emitir, Esperando, Travado, Dispensa da cobrança, rateio da caixa), o Manual
   do Operador e a matriz de cobertura, e o `CHANGELOG`.
-- **ADR.** O índice da [ADR 0112](../adr/0112-repaginacao-da-demurrage.md)
+- **ADR.** O índice da [ADR 0112](../../adr/0112-repaginacao-da-demurrage.md)
   passa a "implementada".
 - **Revisão independente** (`vela-code-review`) antes do PR final.
 - **Arquivo.** O plano vai para `docs/archive/plans/`.

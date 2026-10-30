@@ -1,11 +1,21 @@
 # 0112 — Repaginação da Demurrage: o que cada aba mostra e regras de cobrança
 
+> **Situação atual (2026-10-30):** implementada na PR luccafwlog/vela#1113,
+> migrations `514` a `523`, pelo [plano da repaginação](../archive/plans/2026-10-29-repaginacao-da-demurrage.md)
+> (lotes 0 a 10). As regras vigentes estão em [Demurrage](../modules/demurrage.md),
+> [Portal do Cliente](../modules/portal-cliente.md) e [Operação e Suporte](../modules/operacao-suporte.md).
+> Escolhas de implementação que a decisão não detalhou: o item de Invoice
+> emitido antes do rateio (D19, migration `521`) fica cobrado cheio e não é
+> revisto; a aba Por Cliente segue as três colunas de D11 e não soma a divisão
+> Esperando (que aparece na aba Containers e na Exposição); o meio de
+> pagamento (D9) é gravado na baixa por gatilho, para todo caminho de baixa.
+
 Status: aceito — 2026-10-29 (decisões do dono, D1 a D21, em rodadas de perguntas
 sobre a [revisão de Demurrage de 2026-10-29](../archive/audits/2026-10-29-revisao-demurrage-telas-elegibilidade-relatorios.md),
 as complementares D22 a D27 e as de tipos de container e tarifas D28 a D34 no
 mesmo dia, com o setor do Alerta de Travado em D25 e o alcance de D30 e D31
 confirmados no fim do dia).
-A implementar pelo [plano da repaginação](../plans/2026-10-29-repaginacao-da-demurrage.md);
+A implementar pelo [plano da repaginação](../archive/plans/2026-10-29-repaginacao-da-demurrage.md);
 até lá vale o comportamento descrito em [Demurrage](../modules/demurrage.md).
 
 Estende a cobrança por caixa da [ADR 0080](./0080-decisoes-da-revisao-final-da-pr-929.md)
