@@ -3,6 +3,7 @@ import { PublicEmbedLayout } from '../components/public/PublicEmbedLayout'
 import { ScheduleWidthPage, ShipScheduleBlock } from '../components/portal/ShipScheduleView'
 import { TurnstileChallenge } from '../components/security/TurnstileChallenge'
 import { InlineError } from '../components/ui/Card'
+import { PRODUCT_EVENTS, featureFlags } from '../lib/featureFlags'
 import { PublicRequestError, fetchPublicSchedule, publicTurnstileSiteKey, type PublicFailure, type PublicSchedule } from '../services/publicFwlog'
 
 const FAILURE_MESSAGE: Record<PublicFailure, string> = {
@@ -33,6 +34,7 @@ export function PublicChegadasSaidas() {
       .then((result) => {
         setSchedule(result)
         setFailure(null)
+        featureFlags.capture(PRODUCT_EVENTS.PUBLIC_SCHEDULE_VIEWED, { surface: 'public' })
       })
       .catch((error: unknown) => setFailure(error instanceof PublicRequestError ? error.reason : 'unavailable'))
       .finally(() => {

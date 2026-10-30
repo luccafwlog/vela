@@ -143,7 +143,8 @@ sem chave do Supabase, com o token do Turnstile do widget público
   previstos nos últimos 90 dias e os que ainda não foram devolvidos, qualquer
   que seja a idade da descarga. Qualquer "não encontrado" tem a mesma frase
   ("Não encontramos este container. Containers de Salvador, Vitória, Pecém e
-  Suape: …").
+  Suape: …"). O PostHog recebe `public_container_lookup` só com o resultado
+  (nunca o número), e o quadro, `public_schedule_viewed`.
 
 Suape (BRSUA) entrou nas colunas do quadro do Portal e de Chegadas e Saídas
 do Vela na mesma mudança (`PORTAL_SCHEDULE_LANES`, decisão A5 da ADR 0112). A

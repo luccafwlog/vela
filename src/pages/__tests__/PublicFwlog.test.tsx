@@ -16,6 +16,12 @@ vi.mock('../../hooks/usePortalOperation', () => ({
   usePortalOperationBls: () => { throw new Error('a página pública não pode ler os B/Ls do Portal') },
 }))
 
+const { capture } = vi.hoisted(() => ({ capture: vi.fn() }))
+vi.mock('../../lib/featureFlags', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../lib/featureFlags')>()
+  return { ...original, featureFlags: { isEnabled: () => false, capture } }
+})
+
 // Turnstile falso: cada rodada (`resetKey`) entrega um token novo.
 const challenge = vi.hoisted(() => ({ failRounds: new Set<number>() }))
 vi.mock('../../components/security/TurnstileChallenge', () => ({
@@ -40,6 +46,7 @@ beforeEach(() => {
   fetchMock.mockReset()
   supabaseRpc.mockReset()
   challenge.failRounds.clear()
+  capture.mockReset()
 })
 
 afterEach(() => {
@@ -168,4 +175,26 @@ it('consulta: verificação que falhou é refeita ao tentar consultar', async ()
   await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
   expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).turnstile_token).toBe('lookup-chave-publica-1')
+})
+
+it('PostHog: quadro aberto e resultado da consulta, sem o número do container', async () => {
+  fetchMock.mockResolvedValueOnce(json(SCHEDULE))
+  const schedule = renderPage(<PublicChegadasSaidas />)
+  await screen.findByRole('table')
+  expect(capture).toHaveBeenCalledWith('public_schedule_viewed', { surface: 'public' })
+  schedule.unmount()
+
+  fetchMock.mockResolvedValueOnce(json({ found: false }))
+  renderPage(<PublicConsultaContainer />)
+  await userEvent.type(screen.getByLabelText(/Número do container/), 'CSQU3054384')
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
+  await userEvent.clear(screen.getByLabelText(/Número do container/))
+  await userEvent.type(screen.getByLabelText(/Número do container/), 'CSQU3054383')
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
+  await screen.findByText(/Não encontramos este container/)
+  expect(capture.mock.calls.slice(1)).toEqual([
+    ['public_container_lookup', { surface: 'public', lookup_outcome: 'invalid_number' }],
+    ['public_container_lookup', { surface: 'public', lookup_outcome: 'not_found' }],
+  ])
+  expect(JSON.stringify(capture.mock.calls)).not.toContain('CSQU')
 })

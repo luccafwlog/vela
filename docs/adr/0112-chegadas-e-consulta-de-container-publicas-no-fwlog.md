@@ -121,7 +121,12 @@ internos; autor e hora das mudanças na trilha (`audit_logs`), notas, alertas;
    que o stage grava só no Portal, a Function responde 404 que nega iframe.
 8. Logs sem número de container nem IP em claro; volume e taxa de "não
    encontrado" pelo evento estruturado de cada pedido nos logs da Edge, e 5xx
-   no Sentry pelo `instrumentEdgeHandler`.
+   no Sentry pelo `instrumentEdgeHandler`. No navegador, dois eventos no
+   PostHog (decisão do dono de 2026-10-30): `public_schedule_viewed` (quadro
+   lido) e `public_container_lookup` com só o resultado (`lookup_outcome`:
+   achou, não achou, número inválido, limite, verificação recusada,
+   indisponível), nunca o número; a mesma barreira de `featureFlags.ts` corta
+   URL, aparelho e qualquer outra propriedade.
 
 ## Testes exigidos
 

@@ -9,6 +9,7 @@ import { Field, Input } from '../components/ui/Input'
 import { NoValue } from '../components/ui/NoValue'
 import { parsePublicContainerNumber } from '../lib/containerNumber'
 import { formatBrasiliaDateTime } from '../lib/dates'
+import { PRODUCT_EVENTS, featureFlags, type PublicLookupOutcome } from '../lib/featureFlags'
 import { PUBLIC_LOOKUP_PORTS } from '../services/publicLookupPorts'
 import { formatScheduleDate } from '../services/portalScheduleLanes'
 import {
@@ -39,6 +40,11 @@ const SITUATION: Record<PublicContainerSituation, { label: string; tone: 'defaul
   prazo_vencido: { label: 'Free time vencido', tone: 'danger' },
   prazo_a_confirmar: { label: 'Free time a confirmar com a Fwlog', tone: 'warning' },
   devolvido: { label: 'Devolvido', tone: 'muted' },
+}
+
+/** Volume e resultado no PostHog (ADR 0112); o número nunca vai junto. */
+function trackLookup(outcome: PublicLookupOutcome) {
+  featureFlags.capture(PRODUCT_EVENTS.PUBLIC_CONTAINER_LOOKUP, { surface: 'public', lookup_outcome: outcome })
 }
 
 function portName(code: string | null) {
@@ -73,6 +79,7 @@ export function PublicConsultaContainer() {
     const normalized = parsePublicContainerNumber(number)
     if (!normalized) {
       setFieldError(INVALID_NUMBER)
+      trackLookup('invalid_number')
       return
     }
     if (!siteKey) return
@@ -88,10 +95,14 @@ export function PublicConsultaContainer() {
     setSubmitting(true)
     setResult(null)
     try {
-      setResult(await lookupPublicContainer(normalized, token))
+      const found = await lookupPublicContainer(normalized, token)
+      setResult(found)
       setFailure(null)
+      trackLookup(found.found ? 'found' : 'not_found')
     } catch (error) {
-      setFailure(error instanceof PublicRequestError ? error.reason : 'unavailable')
+      const reason = error instanceof PublicRequestError ? error.reason : 'unavailable'
+      setFailure(reason)
+      trackLookup(reason)
     } finally {
       // O token vale uma consulta.
       setToken('')

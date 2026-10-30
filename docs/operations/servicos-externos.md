@@ -838,7 +838,9 @@ Mais: [sentry-configuracao.md](sentry-configuracao.md), [observabilidade.md](obs
 ### PostHog (eventos de produto)
 
 Região **EU**. Só o Portal envia eventos: `invoice_viewed`, na tela de faturas
-(fatura local e Demurrage); `invoice_paid` e `dispute_opened` estão declarados
+(fatura local e Demurrage), e, nas páginas públicas do fwlog.com.br (ADR 0112),
+`public_schedule_viewed` e `public_container_lookup` (só o resultado da
+consulta em `lookup_outcome`, nunca o número do container); `invoice_paid` e `dispute_opened` estão declarados
 em `src/lib/featureFlags.ts`, mas não são enviados. Sem URL, CNPJ ou e-mail; captura
 automática, gravação de sessão e cookies desligados (`src/lib/featureFlags.ts`).
 No Pages, o Vela também carrega a chave, mas não envia eventos.
