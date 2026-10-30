@@ -67,10 +67,15 @@ describeLocal('310 — rotinas HTTP com erro', () => {
     expect(lines).toContain('run2={"queued": 0, "failures": 0, "timeouts": 0, "responses": 1}')
   })
 
-  // Migration 316: o pg_net desiste aos 30 s, mas a rodada longa do runner continua.
   // Migration 533: falha isolada de rotina de minuto (a itau-pix acerta na
-  // rodada seguinte) não abre; a segunda na mesma hora abre.
-  it('uma resposta de erro na hora não abre; duas abrem', () => {
+  // rodada seguinte) não abre; a segunda na mesma hora abre, e o Alerta fecha
+  // quando a hora volta a ter no máximo uma.
+  // ponytail: o limiar soma as respostas de todas as rotinas da hora, porque
+  // `net._http_response` não guarda qual job chamou; rotina que roda menos de
+  // duas vezes por hora (`ce-unlock-cleanup`, `recalc-demurrage-ptax`) não
+  // abre o Alerta sozinha, mesmo falhando todo dia. Melhoria: o dispatcher
+  // gravar o job de cada pedido e o limiar passar a ser por job.
+  it('uma resposta de erro na hora não abre; duas abrem; de volta a uma, fecha', () => {
     const output = psql(`
       BEGIN;
       CREATE TABLE net._http_response (
@@ -85,14 +90,19 @@ describeLocal('310 — rotinas HTTP com erro', () => {
       INSERT INTO net._http_response (id, status_code, timed_out, created) VALUES (3, 500, false, now() - interval '5 minutes');
       SELECT 'run2=' || public.reconcile_http_job_failures_alert()::text;
       ${alertStatus}
+      DELETE FROM net._http_response WHERE id = 2;
+      SELECT 'run3=' || public.reconcile_http_job_failures_alert()::text;
+      ${alertStatus}
       ROLLBACK;
     `)
     const lines = output.split('\n')
     expect(lines).toContain('run1={"queued": 0, "failures": 1, "timeouts": 0, "responses": 2}')
     expect(lines).toContain('run2={"queued": 0, "failures": 2, "timeouts": 0, "responses": 3}')
-    expect(lines.filter((line) => line.startsWith('status='))).toEqual(['status=none', 'status=active'])
+    expect(lines).toContain('run3={"queued": 0, "failures": 1, "timeouts": 0, "responses": 2}')
+    expect(lines.filter((line) => line.startsWith('status='))).toEqual(['status=none', 'status=active', 'status=resolved'])
   })
 
+  // Migration 316: o pg_net desiste aos 30 s, mas a rodada longa do runner continua.
   it('tempo esgotado isolado de uma rodada longa não abre; dez na hora (rotina de minuto travada) abrem', () => {
     const output = psql(`
       BEGIN;
