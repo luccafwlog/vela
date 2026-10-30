@@ -165,12 +165,14 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   em `/assets/*`; cada requisição de `/assets/*` conta na cota de invocações de
   Functions do plano. O que ela responde e como é conferida estão em
   [deploy.md](../setup/deploy.md#headers-rotas-e-cors).
-- **Pages Function `functions/portal/publico/[[path]].ts`** (ADR 0114): serve
-  `/portal/publico/*`, as duas páginas que o fwlog.com.br põe em iframe, com
-  `frame-ancestors https://fwlog.com.br https://www.fwlog.com.br` e sem
+- **Pages Function `functions/portal/publico/[[path]].ts`** (ADR 0114): atende
+  `/portal/publico/*` e serve só as duas páginas que o fwlog.com.br põe em
+  iframe (`/portal/publico/chegadas-saidas` e `/portal/publico/consulta-container`),
+  com `frame-ancestors https://fwlog.com.br https://www.fwlog.com.br` e sem
   `X-Frame-Options`, lendo os headers de `public-embed-headers.json` que o
-  stage grava só no `vela-portal`. No `vela-internal` responde 404. Cada
-  abertura dessas páginas conta na cota de invocações de Functions.
+  stage grava só no `vela-portal`. Outro caminho sob `/portal/publico/` e todo
+  o `vela-internal` respondem 404 que nega iframe. Cada abertura dessas
+  páginas conta na cota de invocações de Functions.
 - **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
   `cloudflare-pages`, `cloudflare-production` e `staging`. O valor é o User API Token
   `GitHub Actions — Vela e Portal Fwlog Pages` (Cloudflare Pages: Edit, uma

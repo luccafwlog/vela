@@ -8,10 +8,13 @@
 // Os headers vêm do arquivo que o stage grava só no site do Portal (com a
 // origem do Supabase do build no connect-src). Sem ele (site interno, build
 // sem stage) ou com ele fora do esperado, a resposta é 404 com os headers que
-// negam iframe: nunca há página embedável por engano.
+// negam iframe: nunca há página embedável por engano. O mesmo 404 vale para
+// qualquer caminho sob /portal/publico/ fora dos dois de `PUBLIC_EMBED_PATHS`:
+// a SPA levaria o caminho desconhecido ao login do Portal, dentro do iframe.
 import {
   PUBLIC_EMBED_FRAME_ANCESTORS,
   PUBLIC_EMBED_HEADERS_FILE,
+  isPublicEmbedPath,
   securityHeaders,
 } from '../../../scripts/cloudflare-security-headers.mjs'
 
@@ -54,6 +57,7 @@ async function embedHeaders(request: Request, env: Context['env']): Promise<Reco
 
 export async function onRequest({ request, env }: Context): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return notFound()
+  if (!isPublicEmbedPath(new URL(request.url).pathname)) return notFound()
   const headers = await embedHeaders(request, env)
   if (!headers) return notFound()
   // A entrada da SPA do Portal; o roteador do navegador abre a página pública.

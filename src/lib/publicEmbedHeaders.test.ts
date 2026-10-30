@@ -4,12 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { onRequest, parseEmbedHeaders } from '../../functions/portal/publico/[[path]]'
 import {
   PUBLIC_EMBED_HEADERS_FILE,
+  PUBLIC_EMBED_PATHS,
   STATIC_SECURITY_HEADERS,
   publicEmbedSecurityHeaders,
   securityHeaders,
 } from '../../scripts/cloudflare-security-headers.mjs'
 
-// ADR 0114: só /portal/publico/* pode ir para iframe, e só no fwlog.com.br.
+// ADR 0114: só as duas páginas de /portal/publico/ podem ir para iframe, e só
+// no fwlog.com.br.
 const PAGE = '<html>portal</html>'
 const html = (body = PAGE) => new Response(body, { headers: { 'content-type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY' } })
 const jsonFile = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })
@@ -31,7 +33,7 @@ function site(embedFile: Response | null) {
   }
 }
 
-const request = (method = 'GET') => new Request('https://portalfwlog.com.br/portal/publico/chegadas-saidas', { method })
+const request = (method = 'GET', path = '/portal/publico/chegadas-saidas') => new Request(`https://portalfwlog.com.br${path}`, { method })
 
 function expectDeniesFraming(response: Response) {
   expect(response.status).toBe(404)
@@ -72,6 +74,39 @@ describe('Pages Function /portal/publico/*', () => {
       expectDeniesFraming(await onRequest({ request: request(), env: site(file).env }))
     }
     expect(parseEmbedHeaders(publicEmbedSecurityHeaders(null))).not.toBeNull()
+  })
+
+  it('só os dois caminhos exatos (com ou sem barra final) saem embedáveis; outro caminho público é 404 que nega iframe', async () => {
+    for (const path of ['/portal/publico/chegadas-saidas', '/portal/publico/consulta-container', '/portal/publico/consulta-container/']) {
+      // Um site por pedido: o corpo do arquivo falso só pode ser lido uma vez.
+      const portal = site(jsonFile(publicEmbedSecurityHeaders('https://abcd.supabase.co')))
+      const response = await onRequest({ request: request('GET', path), env: portal.env })
+      expect(response.status, path).toBe(200)
+      expect(response.headers.get('X-Frame-Options'), path).toBeNull()
+    }
+    // Abertos pela SPA, cairiam no `*` do Portal e no login, dentro do iframe.
+    const denied = site(jsonFile(publicEmbedSecurityHeaders('https://abcd.supabase.co')))
+    for (const path of [
+      '/portal/publico',
+      '/portal/publico/',
+      '/portal/publico/xyz',
+      '/portal/publico/chegadas-e-saidas',
+      '/portal/publico/chegadas-saidas/outra',
+      '/portal/publico/chegadas-saidas//',
+      '/portal/publico/CHEGADAS-SAIDAS',
+      '/portal/publico/chegadas%2Dsaidas',
+    ]) {
+      expectDeniesFraming(await onRequest({ request: request('GET', path), env: denied.env }))
+    }
+    expect(denied.requested).toEqual([])
+  })
+
+  it('a lista exata da Function é a das rotas públicas da SPA (AppPortal)', () => {
+    const source = readFileSync(join(process.cwd(), 'src/AppPortal.tsx'), 'utf8')
+    const routes = [...source.matchAll(/<Route path="(\/portal\/publico\/[^"]*)"/g)].map((match) => match[1])
+    expect(routes.filter((path) => path !== '/portal/publico/*').sort()).toEqual([...PUBLIC_EMBED_PATHS].sort())
+    // O resto de /portal/publico/ fica numa página própria, nunca no `*` do Portal.
+    expect(routes).toContain('/portal/publico/*')
   })
 
   it('só GET e HEAD', async () => {

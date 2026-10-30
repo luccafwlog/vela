@@ -896,6 +896,7 @@ tabelas abaixo; o gate documental confere essa cobertura.
 | `/portal/confirmar-email` | Confirmação do novo Email de Recuperação por token, sem login |
 | `/portal/publico/chegadas-saidas` | Quadro Chegadas e saídas público, em iframe no fwlog.com.br (ADR 0114) |
 | `/portal/publico/consulta-container` | Consulta de container pública, em iframe no fwlog.com.br (ADR 0114) |
+| `/portal/publico/*` | Outro caminho público: "Página não encontrada" na moldura pública, sem ir ao `*` do Portal (o Pages responde 404 que nega iframe) |
 
 ### Portal autenticado
 

@@ -11,13 +11,22 @@ export const STATIC_SECURITY_HEADERS = Object.freeze({
 })
 
 // Únicas páginas que outro site pode pôr em iframe (ADR 0114): o quadro e a
-// consulta de container públicos, só dentro do fwlog.com.br. Todo o resto dos
-// dois sites continua com `X-Frame-Options: DENY` e `frame-ancestors 'none'`.
-export const PUBLIC_EMBED_PATH_PREFIX = '/portal/publico/'
+// consulta de container públicos, só dentro do fwlog.com.br e só nestes dois
+// caminhos exatos (com ou sem a barra final). Outro caminho sob
+// /portal/publico/ responde 404 que nega iframe: aberto pela SPA, ele cairia no
+// `*` do Portal e levaria o iframe ao login (revisão da PR #1119). Todo o resto
+// dos dois sites continua com `X-Frame-Options: DENY` e `frame-ancestors 'none'`.
+export const PUBLIC_EMBED_PATHS = Object.freeze(['/portal/publico/chegadas-saidas', '/portal/publico/consulta-container'])
 export const PUBLIC_EMBED_FRAME_ANCESTORS = Object.freeze(['https://fwlog.com.br', 'https://www.fwlog.com.br'])
 // Arquivo que o stage grava só no site do Portal; a Pages Function de
 // /portal/publico/* lê os headers dele e, sem ele, recusa.
 export const PUBLIC_EMBED_HEADERS_FILE = 'public-embed-headers.json'
+
+/** Um dos dois caminhos embedáveis, com ou sem uma barra final; o resto, não. */
+export function isPublicEmbedPath(pathname) {
+  const path = typeof pathname === 'string' && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+  return PUBLIC_EMBED_PATHS.includes(path)
+}
 
 // Sem `supabaseOrigin`, connect-src fica sem o projeto Supabase: é a política
 // das respostas de /assets, que não fazem chamada ao Supabase.

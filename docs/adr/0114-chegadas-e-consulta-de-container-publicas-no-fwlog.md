@@ -117,9 +117,12 @@ internos; autor e hora das mudanças na trilha (`audit_logs`), notas, alertas;
 6. **CORS** só para as origens de `PUBLIC_FWLOG_ALLOWED_ORIGINS`. O iframe roda
    na origem do Portal, então é ela que chama a Edge; o fwlog.com.br não
    precisa constar.
-7. **Iframe só nas rotas públicas.** `/portal/publico/*` sai pela Pages
-   Function com `frame-ancestors https://fwlog.com.br https://www.fwlog.com.br`
-   e sem `X-Frame-Options`; todas as demais rotas dos dois sites continuam com
+7. **Iframe só nas rotas públicas.** As duas rotas públicas
+   (`/portal/publico/chegadas-saidas` e `/portal/publico/consulta-container`)
+   saem pela Pages Function de `/portal/publico/*` com
+   `frame-ancestors https://fwlog.com.br https://www.fwlog.com.br`
+   e sem `X-Frame-Options`; todas as demais rotas dos dois sites, inclusive
+   outro caminho sob `/portal/publico/`, continuam com
    `X-Frame-Options: DENY` e `frame-ancestors 'none'`. Sem o arquivo de headers
    que o stage grava só no Portal, a Function responde 404 que nega iframe.
 8. Logs sem número de container nem IP em claro; volume e taxa de "não
