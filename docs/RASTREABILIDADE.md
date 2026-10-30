@@ -698,7 +698,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `portal_recovery_register_failure` | Edge `_shared/portalLoginRateLimit.ts` | `002` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `portal_revoke_sessions` | Edge `_shared/revokePortalSessions.ts` | `132` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `process_import_effect` | Edge `import-effects-runner` | `211` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
-| `process_portal_email_event` | Edge `_shared/portalEmailEventProcessor.ts` | `109` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Resolve a tentativa, grava supressões, repara Caixas e sinaliza a cascata (`109`). |
+| `process_portal_email_event` | Edge `_shared/portalEmailEventProcessor.ts` | `535` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Resolve a tentativa, grava supressões, repara Caixas e sinaliza a cascata (`109`). |
 | `recalculate_demurrage_invoices` | Edge `recalc-demurrage-ptax` | `066`, `382`, `402` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `reconcile_client_portal_alerts` | Edge `portal-invite-activate` | `002`, `324` | DEFINER · `service_role` | usuário interno ativo ou `service_role` | — |
 | `refresh_customer_communication_status` | Edge `demurrage-dunning`; Edge `send-customer-communication` | `039` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |

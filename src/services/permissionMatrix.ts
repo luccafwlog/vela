@@ -54,10 +54,11 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * própria seção (ALE-D13); a Documentação, a Demurrage travada pelos motivos dela
  * (CE, Cliente, Portal; migration 516). Equipamentos recebe também o prazo da Disputa
  * de Demurrage (migration 520). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
+ * O Administrativo recebe também o Retorno do provedor de e-mail não aplicado (migration 535).
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 17,
+  administrativo: 18,
   financeiro: 5,
   operacoes: 5,
   documentacao: 36,

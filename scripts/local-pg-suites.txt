@@ -214,3 +214,4 @@ src/integration/datasDoBlCancelado.local-pg.test.ts
 src/integration/previaPodComExcecaoDeTerminal.local-pg.test.ts
 src/integration/blPortalStatusComLiberacao.local-pg.test.ts
 src/integration/naoEscalaComAncora.local-pg.test.ts
+src/integration/retornoDeEmailNaoAplicado.local-pg.test.ts
