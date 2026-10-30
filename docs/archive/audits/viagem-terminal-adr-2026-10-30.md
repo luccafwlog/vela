@@ -29,8 +29,8 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
 | ATB, ATD, Restow | Atracação do terminal | — | Escala | Atracação do terminal do ADR | Chega (**Código**) |
 | Containers cheios do B/L | `bls.pod` (todas as grafias do porto) | Carga cheia, de `cargo_mode` `container`/`misto` | Carga descarregada | Exceção de terminal do B/L ou frente da modalidade (ADR 0068) | Chega com a frente com terminal (**Código**) |
 | Carga solta | `bls.pod` | Carga solta, de `carga_solta`/`misto` | Carga descarregada | Idem | Chega com a frente com terminal (**Código**) |
-| Carga em transbordo (escala omitida) | `voyage_omissions.discharge_pod` → `bl_transshipments` | Nenhuma derivada (o B/L tem POD no porto omitido) | Carga descarregada / Veículos | Pela frente da escala de descarga | Lacuna, abaixo |
-| Veículos | `vehicles` → B/L com `bls.pod` | **Veículos: nunca nascia** | Veículos | Frente de Veículos (nenhuma) | **Defeito: não chegava a nenhum ADR por terminal.** Corrigido |
+| Carga em transbordo (escala omitida) | `voyage_omissions.discharge_pod` → `bl_transshipments` | **Nenhuma derivada** (o B/L tem POD no porto omitido) | Carga descarregada / Veículos | Pela frente da escala de descarga | **Defeito: carga solta que só chegava em transbordo ficava escondida.** Corrigido |
+| Veículos | `vehicles` → container → B/L com `bls.pod` | **A seção dependia de uma frente de Veículos que nunca nascia**; pela regra do dono, é a de Carga cheia | Veículos | Frente de Carga cheia, ou exceção de terminal do B/L | **Defeito: não chegava a nenhum ADR por terminal.** Corrigido |
 | Vazios de importação | `vazios_importacao_containers.pod` | Vazios IMP, derivada | Vazios descarregados | Frente inteira | **Defeito: derivada TBC sumia do ADR e o ADR fechava sem ela.** Corrigido |
 | Vazios do Baplie | `baplie_containers.pod` | — | Vazios descarregados (contagem e divergência) | Segue a seção | Chega (**Código**) |
 | Local de desova | container do veículo | — | Veículos | Segue o veículo | Chega com os veículos (**Código**) |
@@ -39,13 +39,18 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
 
 ## Defeitos corrigidos nesta mudança
 
-1. **Veículos.** A frente de Veículos era derivada de `bls.cargo_mode = 'veiculo'`,
-   valor que não existe: o B/L é `container`, `carga_solta` ou `misto`, e o
-   veículo viaja em container. Sem frente, a seção Veículos de todo ADR por
-   terminal ficava sem dado, e a janela Editar escala nunca oferecia o terminal
-   dessa frente. Agora a frente nasce do veículo gravado num B/L da escala, e o
-   veículo fica no ADR do terminal dela, salvo exceção de terminal do B/L
-   (**Teste:** `escalaTerminalAllocation.test.ts`, `VoyageAgencyReportTab.test.tsx`).
+1. **Veículos.** A seção Veículos do ADR por terminal dependia de uma frente
+   `importacao:veiculo`, derivada de `bls.cargo_mode = 'veiculo'`, valor que
+   não existe: o B/L é `container`, `carga_solta` ou `misto`. A seção ficava sem
+   dado em todo ADR por terminal. Regra do dono (2026-10-30): o veículo viaja
+   em container, a planilha de veículos já o liga ao container, e **veículo não
+   tem frente própria**: segue a frente de Carga cheia. A seção Veículos passa a
+   ser atendida pela Carga cheia (`frontServesSection`), e o veículo fica no ADR
+   do terminal dela, salvo exceção de terminal do B/L. Uma primeira versão desta
+   correção criava uma frente de Veículos própria, com terminal escolhido em
+   Editar escala; saiu pela regra do dono (migration `516`) (**Teste:**
+   `escalaTerminalAllocation.test.ts`, `VoyageAgencyReportTab.test.tsx`,
+   `adrFrenteDerivadaSemTerminal.local-pg.test.ts`).
 2. **Frente derivada sem terminal.** Uma frente que nasce dos dados depois da
    última gravação de Editar escala (o vazio importado depois, por exemplo) fica
    `TBC`. A seção dizia "Não há frente atribuída a este terminal.", nada
@@ -73,17 +78,26 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    recorte desta mudança (achado da revisão do Codex na PR). Agora a seção
    aparece no terminal da exceção com o que ela trouxe (**Teste:**
    `VoyageAgencyReportTab.test.tsx`).
-5. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
+5. **Carga em transbordo.** Na Omissão de Escala, o B/L em transbordo mantém o
+   POD do porto omitido (só o COD o reescreve). O conteúdo do ADR do porto de
+   transbordo já somava a carga dele, mas as frentes vinham só dos B/Ls com POD
+   no porto: carga solta (ou, sem a marcação "tem importação", carga cheia) que
+   só chegava em transbordo ficava sem frente, escondida no ADR por terminal, e
+   o fechamento não travava. Agora os B/Ls em transbordo (omissão não
+   revertida) derivam frentes na escala de descarga, na tela e no banco
+   (migration `516`) (**Teste:** `escalaTerminalAllocation.test.ts`,
+   `adrFrenteDerivadaSemTerminal.local-pg.test.ts`). Pedido do dono na mesma
+   data.
+6. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
    (`['agency-report-terminal-state']`); a aba podia mostrar a frente antiga por
    até 30 s. Entrou nos efeitos de carga (**Teste:** `cacheEffects.test.ts`).
 
 ## Lacunas que ficam
 
-- **Carga só em transbordo.** As frentes de importação são derivadas dos B/Ls
-  com POD no porto. Numa escala que só recebe carga em transbordo (B/L com POD
-  no porto omitido), nenhuma frente nasce dessa carga, salvo a marcação "tem
-  importação" (carga cheia): carga solta e veículos em transbordo não chegam ao
-  ADR por terminal (**Código**).
+- **ADR legado com só transbordo.** A recusa do ADR legado por porto
+  (`_escala_has_operation_fronts`, migration 273) não conta o transbordo: a
+  escala que só recebe carga em transbordo, sem nenhum outro dado, ainda abre
+  ADR legado pela API (**Código**).
 - A trava do banco cobre as frentes de importação e a de Granito; a de
   Embarque de vazios derivada da declaração e ainda não gravada é bloqueada só
   pela tela (**Código**).
@@ -91,7 +105,7 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
 ## Evidência e limites
 
 Leitura estática do código e das migrations; testes Vitest; as migrations `514`
-e `515` aplicadas e executada no Postgres 16 local descartável (`setup-local-pg.sh`).
+a `516` aplicadas e executadas no Postgres 16 local descartável (`setup-local-pg.sh`).
 Consulta somente leitura ao projeto Supabase de produção em 2026-10-30: a Viagem
 169 (BRVIX) tem 1.896 veículos e 22 vazios de importação, nenhuma frente gravada
 e nenhum ADR; o banco inteiro não tinha frente gravada, então o caso exato do

@@ -663,7 +663,7 @@ it('Exportação reúne Granito e Embarque de vazios, com pátio como subseção
 it('congela locais de desova, depots e embarques diretos no snapshot', () => {
   useAgencyReportTerminalStateMock.mockReturnValue({
     data: {
-      fronts: [{ sentido: 'importacao', modalidade: 'veiculo', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'veiculos' }],
+      fronts: [{ sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'carga_descarregada' }],
       tbcFronts: [],
       agencyReports: [{ reportId: 'report-tvv', voyageId: 7, port: 'BRVIX', terminalId: 'tvv', terminalCode: 'TVV', terminal: 'TVV', status: 'open', sections: ALL_SECTIONS.map((section) => ({ section, state: 'operated', fronts: [], frontKeys: ['importacao:vazio'] })) }],
     },
@@ -709,16 +709,18 @@ it('congela locais de desova, depots e embarques diretos no snapshot', () => {
 // Teste do dono em BRVIX (2026-10-30): veículos e vazios da escala estavam
 // nos cards do porto e não no ADR do terminal.
 it('avisa a frente sem terminal na seção e no ADR, e não deixa fechar', () => {
-  const veiculoTbc = { sentido: 'importacao', modalidade: 'veiculo', terminalId: null, source: 'operational_data', hasData: true, section: 'veiculos' }
+  // Carga cheia sem terminal: também deixa os veículos, que viajam nos
+  // containers dela, fora de qualquer ADR.
+  const cargaCheiaTbc = { sentido: 'importacao', modalidade: 'carga_cheia', terminalId: null, source: 'operational_data', hasData: true, section: 'carga_descarregada' }
   useAgencyReportTerminalStateMock.mockReturnValue({
     data: {
       fronts: [
-        { sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'carga_descarregada' },
-        veiculoTbc,
+        { sentido: 'importacao', modalidade: 'vazio', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'vazios_descarregados' },
+        cargaCheiaTbc,
       ],
-      tbcFronts: [veiculoTbc],
+      tbcFronts: [cargaCheiaTbc],
       agencyReports: [{ reportId: 'report-tvv', voyageId: 7, port: 'BRVIX', terminalId: 'tvv', terminalCode: 'TVV', terminal: 'TVV', status: 'open', sections: [
-        { section: 'carga_descarregada', state: 'operated', fronts: ['carga_cheia'], frontKeys: ['importacao:carga_cheia'] },
+        { section: 'vazios_descarregados', state: 'operated', fronts: ['vazio'], frontKeys: ['importacao:vazio'] },
         { section: 'veiculos', state: 'nothing_operated', fronts: [], frontKeys: [] },
       ] }],
     },
@@ -739,9 +741,10 @@ it('avisa a frente sem terminal na seção e no ADR, e não deixa fechar', () =>
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  expect(screen.getAllByText(/Veículos: atribua o terminal em Editar escala/)).toHaveLength(2)
+  // Carga descarregada, Veículos e o bloco ADR.
+  expect(screen.getAllByText(/Carga cheia: atribua o terminal em Editar escala/)).toHaveLength(3)
   const vehicleSection = screen.getByRole('heading', { name: 'Veículos', level: 3 }).closest('section')!
-  expect(within(vehicleSection).getByText(/Veículos: atribua o terminal em Editar escala/)).toBeTruthy()
+  expect(within(vehicleSection).getByText(/Carga cheia: atribua o terminal em Editar escala/)).toBeTruthy()
   expect(within(vehicleSection).queryByText('Não há frente atribuída a este terminal.')).toBeNull()
   expect(screen.getByText('Frente sem terminal impede o fechamento')).toBeTruthy()
   const close = screen.getByRole('button', { name: 'Fechar ADR' })
@@ -749,13 +752,15 @@ it('avisa a frente sem terminal na seção e no ADR, e não deixa fechar', () =>
   expect(close.getAttribute('title')).toBe('Atribua o terminal das frentes sem terminal (TBC) em Editar escala.')
 })
 
-it('mostra os veículos no ADR do terminal da frente de Veículos, salvo exceção de terminal do B/L', () => {
+// Decisão do dono (2026-10-30): o veículo viaja em container e segue a frente
+// de Carga cheia; não há frente de veículo.
+it('mostra os veículos no ADR do terminal da Carga cheia, salvo exceção de terminal do B/L', () => {
   useAgencyReportTerminalStateMock.mockReturnValue({
     data: {
-      fronts: [{ sentido: 'importacao', modalidade: 'veiculo', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'veiculos' }],
+      fronts: [{ sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'carga_descarregada' }],
       tbcFronts: [],
       agencyReports: [{ reportId: 'report-tvv', voyageId: 7, port: 'BRVIX', terminalId: 'tvv', terminalCode: 'TVV', terminal: 'TVV', status: 'open', sections: [
-        { section: 'veiculos', state: 'operated', fronts: ['veiculo'], frontKeys: ['importacao:veiculo'] },
+        { section: 'veiculos', state: 'operated', fronts: ['carga_cheia'], frontKeys: ['importacao:carga_cheia'] },
       ] }],
     },
     isLoading: false,
@@ -795,7 +800,6 @@ it('leva veículos e carga do B/L com exceção ao ADR do terminal da exceção,
   useAgencyReportTerminalStateMock.mockReturnValue({
     data: {
       fronts: [
-        { sentido: 'importacao', modalidade: 'veiculo', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'veiculos' },
         { sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data', hasData: true, section: 'carga_descarregada' },
         { sentido: 'exportacao', modalidade: 'granito', terminalId: 'vbr', source: 'export_declaration', hasData: true, section: 'carga_carregada' },
       ],

@@ -5,6 +5,7 @@ import { listDepots } from './depots'
 import { normalizePortCode, portCodeVariants } from './portCode'
 import { queryKeys } from './queryKeys'
 import { listVoyageEscalaSchedulesByVoyageIds } from './voyageRouteSchedules'
+import { listTransshipmentBlIds } from './transshipments'
 import { supabase } from './supabase'
 
 export type OperationFrontKind =
@@ -237,6 +238,16 @@ const EXPORT_SECTION_BY_KIND: Record<'granito' | 'vazio', OperationFront['sectio
   vazio: 'vazios_embarcados',
 }
 
+/**
+ * Seção do ADR que a frente atende. O veículo viaja dentro de container: a
+ * seção Veículos é atendida pela frente de Carga cheia, e veículo não tem
+ * frente própria nem terminal à parte (decisão do dono de 2026-10-30).
+ */
+export function frontServesSection(front: Pick<OperationFront, 'sentido' | 'modalidade' | 'section'>, section: string) {
+  if (front.section === section) return true
+  return section === 'veiculos' && front.sentido === 'importacao' && front.modalidade === 'carga_cheia'
+}
+
 function normalizePort(port: string) {
   return normalizePortCode(port) ?? port.trim().toUpperCase()
 }
@@ -362,19 +373,21 @@ async function readAgencyReports(voyageId: number, port: string): Promise<JsonRe
 function reportSections(fronts: OperationFront[], terminalId: string | null): AgencyReportByTerminal['sections'] {
   const bySection = new Map<string, OperationFrontKind[]>()
   const assigned = fronts.filter((item) => item.terminalId === terminalId)
-  for (const front of assigned) {
-    if (!front.section) continue
-    const kinds = bySection.get(front.section) ?? []
-    if (!kinds.includes(front.modalidade)) kinds.push(front.modalidade)
-    bySection.set(front.section, kinds)
-  }
   const sections = ['datas', 'carga_descarregada', 'carga_carregada', 'veiculos', 'vazios_embarcados', 'vazios_descarregados']
+  for (const front of assigned) {
+    for (const section of sections) {
+      if (!frontServesSection(front, section)) continue
+      const kinds = bySection.get(section) ?? []
+      if (!kinds.includes(front.modalidade)) kinds.push(front.modalidade)
+      bySection.set(section, kinds)
+    }
+  }
   return sections.map((section) => ({
     section,
-    state: assigned.some((front) => front.section === section && front.hasData) ? 'operated' : 'nothing_operated',
+    state: assigned.some((front) => frontServesSection(front, section) && front.hasData) ? 'operated' : 'nothing_operated',
     fronts: (bySection.get(section) ?? []).sort((left, right) => left.localeCompare(right, 'pt-BR')),
     frontKeys: assigned
-      .filter((front) => front.section === section)
+      .filter((front) => frontServesSection(front, section))
       .map((front) => frontKey(front))
       .sort((left, right) => left.localeCompare(right, 'pt-BR')),
   }))
@@ -440,7 +453,16 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
     table('bls').select('id, cargo_mode, pod').eq('voyage_id', voyageId).in('pod', portCodeVariants(normalizedPort)).order('id', { ascending: true }).range(from, to),
   )
   if (bls.error) throw bls.error
-  for (const row of bls.data) {
+  // B/L em transbordo de uma escala omitida mantém o POD do porto omitido
+  // (só o COD o reescreve) e descarrega aqui: a carga dele também cria as
+  // frentes desta escala, como o conteúdo do ADR já a soma.
+  const transshipmentBlIds = await listTransshipmentBlIds(voyageId, normalizedPort)
+  const transshipmentBls = transshipmentBlIds.length
+    ? await table('bls').select('id, cargo_mode').in('id', transshipmentBlIds)
+    : { data: [], error: null }
+  if (transshipmentBls.error) throw transshipmentBls.error
+  const transshipmentRows = Array.isArray(transshipmentBls.data) ? transshipmentBls.data as JsonRecord[] : []
+  for (const row of [...bls.data, ...transshipmentRows]) {
     for (const kind of operationFrontKindsForCargoMode(typeof row.cargo_mode === 'string' ? row.cargo_mode : null)) {
       importKinds.add(kind)
     }
@@ -455,17 +477,6 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
   )
   if (emptyImports.error) throw emptyImports.error
   if (emptyImports.data.length) importKinds.add('vazio')
-  // Veículo vem dentro de container de B/L `container`/`misto`: o `cargo_mode`
-  // nunca é 'veiculo', então a frente de Veículos nasce do veículo gravado
-  // nos B/Ls da escala. Sem ela, a seção Veículos do ADR por terminal ficava
-  // sem frente e escondia os veículos.
-  const vehicleImports = await table('vehicles')
-    .select('id, bl:bls!inner(voyage_id, pod)')
-    .eq('bl.voyage_id', voyageId)
-    .in('bl.pod', portCodeVariants(normalizedPort))
-    .range(0, 0)
-  if (vehicleImports.error) throw vehicleImports.error
-  if (Array.isArray(vehicleImports.data) && vehicleImports.data.length) importKinds.add('veiculo')
   // Granito casa pelo porto de carregamento efetivo do B/L, a mesma régua do
   // conteúdo do ADR (`graniteBlLoadingPort`).
   const graniteBls = await fetchAllRows<JsonRecord>((from, to) =>

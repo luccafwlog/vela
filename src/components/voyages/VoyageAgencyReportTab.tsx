@@ -46,6 +46,7 @@ import type { AgencyReportDepartmentKey, Json } from '../../types/database'
 import type { AdrEscalaPod } from '../../services/voyageSummaries'
 import { formatBRL, formatDate, formatDateTimeBR } from '../../lib/utils'
 import { normalizePortCode } from '../../services/portCode'
+import { frontServesSection } from '../../services/escalaTerminalAllocation'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -385,7 +386,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
         ? selected.frontKeys.map(operationFrontLabel)
         : (selected?.fronts ?? []).map((front) => operationFrontLabel(front)),
       unassigned: unassignedFronts
-        .filter((front) => front.section === section)
+        .filter((front) => frontServesSection(front, section))
         .map((front) => operationFrontLabel(`${front.sentido}:${front.modalidade}`)),
     }
   }
@@ -508,10 +509,10 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       : data?.cargaSolta
   const vaziosImp = sectionIsVisible('vazios_descarregados') ? (data?.vaziosImp ?? []) : []
   const vaziosExp = sectionIsVisible('vazios_embarcados') ? (data?.vaziosExp ?? []) : []
-  // Veículo segue a frente de Veículos do terminal; a exceção de terminal do
-  // seu B/L vence a frente, como na carga (ADR 0068).
+  // Veículo viaja em container: segue a frente de Carga cheia do terminal, e
+  // a exceção de terminal do seu B/L vence a frente, como na carga (ADR 0068).
   const vehiclesData = sectionShowsHere('veiculos')
-    ? (data?.vehicles ?? []).filter((vehicle) => belongsHere({ terminal_id: vehicle.blTerminalId ?? null, cargo_mode: 'veiculo' }))
+    ? (data?.vehicles ?? []).filter((vehicle) => belongsHere({ terminal_id: vehicle.blTerminalId ?? null, cargo_mode: 'container' }))
     : []
   const graniteData = sectionIsVisible('carga_carregada') ? (data?.granite ?? []) : []
   const imoCount = containers.filter((container) => container.is_imo).length

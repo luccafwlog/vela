@@ -268,7 +268,8 @@ Recorte da escala por sentido e modalidade. A atribuição de terminal liga a
 carga à Atracação correspondente; frente sem terminal é **TBC**, que não é
 terminal: com o ATA da escala registrado, toda frente precisa de terminal. Em B/L misto,
 carga cheia e carga solta são frentes distintas do mesmo documento, não dois
-B/Ls.
+B/Ls. Veículo não tem frente própria: viaja em container e segue a frente de
+Carga cheia.
 → Regra: [Viagens § Escala, Atracação e datas](docs/modules/viagens.md#escala-atracação-e-datas)
 
 **Atracação**

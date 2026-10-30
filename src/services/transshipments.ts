@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import type { Tables } from '../types/database'
 import { extractErrorText } from '../lib/errors'
+import { portCodeVariants } from './portCode'
 
 const normPod = (value: string) => value.trim().toUpperCase()
 
@@ -134,6 +135,32 @@ export async function setBlCod(input: {
     p_changed_by: input.changedBy,
   })
   if (error) throw error
+}
+
+// ADR 0022/0025: bls.pod nunca é reescrito para disposição 'transshipment'
+// (só COD reescreve). A carga de um B/L em transbordo continua com pod no
+// porto omitido, então a escala do porto de descarga real precisa buscá-la
+// à parte via voyage_omissions → bl_transshipments, sem tocar em bls.pod.
+// Usada pelo conteúdo do ADR e pelas frentes da escala de descarga.
+export async function listTransshipmentBlIds(voyageId: number, port: string): Promise<string[]> {
+  const omissionsRes = await supabase
+    .from('voyage_omissions')
+    .select('id')
+    .eq('voyage_id', voyageId)
+    .in('discharge_pod', portCodeVariants(port))
+    // A8: omissão revertida não trata mais os B/Ls como transbordo.
+    .is('reverted_at', null)
+  if (omissionsRes.error) throw omissionsRes.error
+  const omissionIds = (omissionsRes.data ?? []).map((row) => row.id)
+  if (!omissionIds.length) return []
+
+  const blTransshipmentsRes = await supabase
+    .from('bl_transshipments')
+    .select('bl_id')
+    .in('omission_id', omissionIds)
+    .eq('disposition', 'transshipment')
+  if (blTransshipmentsRes.error) throw blTransshipmentsRes.error
+  return [...new Set((blTransshipmentsRes.data ?? []).map((row) => row.bl_id))]
 }
 
 export async function listVoyageOmissions(voyageId: number): Promise<VoyageOmission[]> {

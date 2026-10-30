@@ -19,8 +19,9 @@ import { listDepots } from './depots'
 import { quantidadeEfetiva, totalEmbarque, totalLinha } from './vaziosCusto'
 import { buildVoyagePodEntityId, listVoyageEscalaSchedulesByVoyageIds, listVoyagePodSchedules } from './voyageRouteSchedules'
 import { listVoyageRoutePorts } from './operationalLists'
+import { listTransshipmentBlIds } from './transshipments'
 import { normalizePortCode, portCodeVariants } from './portCode'
-import { graniteBlLoadingPort, type AgencyReportByTerminal, type OperationFront, type OperationFrontKind } from './escalaTerminalAllocation'
+import { frontServesSection, graniteBlLoadingPort, type AgencyReportByTerminal, type OperationFront, type OperationFrontKind } from './escalaTerminalAllocation'
 
 // Seções e rótulos moram em ./agencyReportLabels: o sino de notificações, em
 // toda tela, precisa só deles, sem carregar o relatório inteiro.
@@ -195,7 +196,7 @@ export function deriveAgencyReportByTerminal(
   fronts: OperationFront[],
 ): AgencyReportByTerminal {
   const sections = ['datas', 'carga_descarregada', 'carga_carregada', 'veiculos', 'vazios_embarcados', 'vazios_descarregados'].map((section) => {
-    const assigned = fronts.filter((front) => front.terminalId === (report.terminal_id ?? null) && front.section === section)
+    const assigned = fronts.filter((front) => front.terminalId === (report.terminal_id ?? null) && frontServesSection(front, section))
     return {
       section,
       state: assigned.some((front) => front.hasData) ? 'operated' as const : 'nothing_operated' as const,
@@ -789,30 +790,6 @@ type BreakbulkAgencyReportBl = {
   bb_cbm: number | null
 }
 
-// ADR 0022/0025: bls.pod nunca é reescrito para disposição 'transshipment'
-// (só COD reescreve). A carga de um B/L em transbordo continua com pod no
-// porto omitido, então a escala do porto de descarga real precisa buscá-la
-// à parte via voyage_omissions → bl_transshipments, sem tocar em bls.pod.
-async function listTransshipmentBlIds(voyageId: number, port: string): Promise<string[]> {
-  const omissionsRes = await supabase
-    .from('voyage_omissions')
-    .select('id')
-    .eq('voyage_id', voyageId)
-    .in('discharge_pod', portCodeVariants(port))
-    // A8: omissão revertida não trata mais os B/Ls como transbordo.
-    .is('reverted_at', null)
-  if (omissionsRes.error) throw omissionsRes.error
-  const omissionIds = (omissionsRes.data ?? []).map((row) => row.id)
-  if (!omissionIds.length) return []
-
-  const blTransshipmentsRes = await supabase
-    .from('bl_transshipments')
-    .select('bl_id')
-    .in('omission_id', omissionIds)
-    .eq('disposition', 'transshipment')
-  if (blTransshipmentsRes.error) throw blTransshipmentsRes.error
-  return [...new Set((blTransshipmentsRes.data ?? []).map((row) => row.bl_id))]
-}
 
 const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, profile_source, bl:bls!inner(voyage_id, pod, cargo_mode, terminal_id, transshipments:bl_transshipments(disposition))'
 const BREAKBULK_SELECT = 'cargo_mode, terminal_id, bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'

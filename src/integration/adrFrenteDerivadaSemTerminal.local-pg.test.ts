@@ -12,6 +12,7 @@ const terminalId = '00000000-0000-0000-0000-000000951401'
 const reportId = '00000000-0000-0000-0000-000000951402'
 const manifestId = '00000000-0000-0000-0000-000000951403'
 const graniteManifestId = '00000000-0000-0000-0000-000000951404'
+const omissionId = 9514001
 const adminId = '00000000-0000-0000-0000-000000951411'
 const session = `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${adminId}';`
 
@@ -33,6 +34,8 @@ function persistFront(modalidade: string, sentido: 'importacao' | 'exportacao' =
 }
 
 const resetScenario = `
+  DELETE FROM public.bl_transshipments WHERE omission_id = ${omissionId};
+  DELETE FROM public.voyage_omissions WHERE id = ${omissionId};
   DELETE FROM public.vehicles WHERE voyage_id = ${voyageId};
   DELETE FROM public.bl_containers WHERE bl_id LIKE 'BL-514-%';
   DELETE FROM public.bls WHERE voyage_id = ${voyageId};
@@ -59,7 +62,7 @@ const removeUser = `
 // Teste do dono em BRVIX (2026-10-30): veículos e vazios de importação da
 // escala sumiam do ADR por terminal porque a frente deles não tinha terminal
 // gravado, e o fechamento só recusava a frente TBC gravada.
-describeLocal('migrations 514 e 515 — frente derivada dos dados sem terminal impede fechar o ADR', () => {
+describeLocal('migrations 514 a 516 — frente derivada dos dados sem terminal impede fechar o ADR', () => {
   beforeAll(() => {
     psql(`
       ${resetScenario}
@@ -94,18 +97,35 @@ describeLocal('migrations 514 e 515 — frente derivada dos dados sem terminal i
     expect(assertReadyToClose().status).toBe(0)
   })
 
-  it('recusa enquanto os veículos da escala não têm frente com terminal, e aceita depois', () => {
+  // Decisão do dono (2026-10-30): o veículo viaja em container e segue a
+  // frente de Carga cheia; não há frente nem terminal próprio de veículo.
+  it('não pede frente de veículo: o veículo segue a Carga cheia dos containers', () => {
     psql(`
       INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('BL-514-A', 'TSTU5140001', '40HC');
       INSERT INTO public.vehicles (bl_id, container_id, voyage_id, brand, model, chassis, cbm, weight_kg)
       SELECT 'BL-514-A', id, ${voyageId}, 'MARCA', 'MODELO', 'CHASSI514', 1, 1000 FROM public.bl_containers WHERE bl_id = 'BL-514-A';
     `)
 
+    expect(psql(`SELECT public._escala_import_fronts_without_terminal(${voyageId}, 'BRVIX');`)).toBe('{}')
+    expect(assertReadyToClose().status).toBe(0)
+  })
+
+  it('recusa a carga em transbordo de escala omitida sem frente com terminal no porto de descarga', () => {
+    psql(`
+      -- O B/L mantém o POD do porto omitido e descarrega em BRVIX.
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-514-T', ${voyageId}, 'BRSSZ', 'carga_solta');
+      INSERT INTO public.voyage_omissions (id, voyage_id, omitted_pod, discharge_pod, omitted_by)
+      VALUES (${omissionId}, ${voyageId}, 'BRSSZ', 'BRVIX', '${adminId}');
+      INSERT INTO public.bl_transshipments (bl_id, omission_id, disposition) VALUES ('BL-514-T', ${omissionId}, 'transshipment');
+    `)
+
+    expect(psql(`SELECT public._escala_import_fronts_without_terminal(${voyageId}, 'BRVIX');`)).toBe('{carga_solta}')
     const refused = assertReadyToClose()
     expect(refused.status).not.toBe(0)
-    expect(refused.stderr).toContain('Frente TBC impede o fechamento do ADR: veículos.')
+    expect(refused.stderr).toContain('Frente TBC impede o fechamento do ADR: carga solta.')
 
-    persistFront('veiculo')
+    // Omissão revertida: o B/L deixa de ser transbordo e volta ao porto dele.
+    psql(`UPDATE public.voyage_omissions SET reverted_at = now() WHERE id = ${omissionId};`)
     expect(assertReadyToClose().status).toBe(0)
   })
 

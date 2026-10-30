@@ -55,6 +55,7 @@ describe('escalaTerminalAllocation', () => {
       query.eq = () => query
       query.in = () => query
       query.order = () => query
+      query.is = () => query
       query.range = (_from: number, to: number) => {
         query.page = to >= 1000 ? 1000 : 0
         return query
@@ -85,23 +86,48 @@ describe('escalaTerminalAllocation', () => {
     expect(state.fronts.map((front) => front.modalidade)).toEqual(expect.arrayContaining(['carga_cheia', 'carga_solta']))
   })
 
-  it('deriva a frente de Veículos dos veículos dos B/Ls da escala, que são sempre de container', async () => {
+  // Decisão do dono (2026-10-30): o veículo viaja em container e segue a
+  // frente de Carga cheia; não há frente nem terminal próprio de veículo.
+  it('não cria frente de Veículos: a seção Veículos é atendida pela Carga cheia', () => {
+    const fronts = deriveOperationFronts({
+      existing: [{ id: 'f1', sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data' }],
+      importKinds: ['carga_cheia'],
+    })
+    const [report] = groupAgencyReportsByTerminal([
+      { reportId: 'adr-tvv', voyageId: 9, port: 'BRVIX', terminalId: 'tvv', terminal: 'TVV', status: 'open' },
+    ], fronts)
+
+    expect(fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['importacao:carga_cheia'])
+    expect(report.sections.find((section) => section.section === 'veiculos')).toMatchObject({
+      state: 'operated', fronts: ['carga_cheia'], frontKeys: ['importacao:carga_cheia'],
+    })
+  })
+
+  it('deriva as frentes da escala de descarga também dos B/Ls em transbordo de escala omitida', async () => {
     const makeQuery = (tableName: string) => {
-      const query: Record<string, unknown> = {}
+      const query: Record<string, unknown> & { byId?: boolean } = {}
       query.select = () => query
       query.eq = () => query
-      query.in = () => query
+      query.in = (column: string) => {
+        if (column === 'id') query.byId = true
+        return query
+      }
       query.order = () => query
+      query.is = () => query
       query.range = () => query
       query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
       query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
         tableName === 'ports'
           ? { data: [{ id: 99, locode: 'BRVIX' }], error: null }
-          : tableName === 'bls'
-            ? { data: [{ id: 'BL-1', cargo_mode: 'container', pod: 'BRVIX' }], error: null }
-            : tableName === 'vehicles'
-              ? { data: [{ id: 1 }], error: null }
-              : { data: [], error: null },
+          : tableName === 'voyage_omissions'
+            ? { data: [{ id: 5 }], error: null }
+            : tableName === 'bl_transshipments'
+              ? { data: [{ bl_id: 'BL-T' }], error: null }
+              // O B/L em transbordo mantém o POD do porto omitido: só a
+              // consulta por id o encontra.
+              : tableName === 'bls' && query.byId
+                ? { data: [{ id: 'BL-T', cargo_mode: 'carga_solta' }], error: null }
+                : { data: [], error: null },
       ).then(resolve)
       return query
     }
@@ -109,8 +135,8 @@ describe('escalaTerminalAllocation', () => {
 
     const state = await fetchEscalaTerminalState(12, 'BRVIX')
 
-    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['importacao:carga_cheia', 'importacao:veiculo'])
-    expect(state.tbcFronts.find((front) => front.modalidade === 'veiculo')).toMatchObject({ section: 'veiculos', terminalId: null })
+    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['importacao:carga_solta'])
+    expect(state.tbcFronts[0]).toMatchObject({ section: 'carga_descarregada', terminalId: null })
   })
 
   it('deriva a frente de Granito do Granito importado no porto, sem a declaração de exportação', async () => {
@@ -120,6 +146,7 @@ describe('escalaTerminalAllocation', () => {
       query.eq = () => query
       query.in = () => query
       query.order = () => query
+      query.is = () => query
       query.range = () => query
       query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
       query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
