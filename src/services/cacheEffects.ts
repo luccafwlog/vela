@@ -28,6 +28,9 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   // O contexto do Baplie lista os containers dos B/Ls da Viagem (ADR 0079, decisão 6).
   ['baplie-bls-exist'], ['baplie-reconciliation'], ['baplie-voyage-context'], ['bl-timeline'], ['voyage-timeline'],
   ['agency-report'], ['review-queue'], ['op-count'], ['report-operational'],
+  // As frentes do ADR por terminal nascem da carga (B/L, veículo, vazio):
+  // importar uma frente nova precisa aparecer no ADR e em Editar escala.
+  ['agency-report-terminal-state'],
   ['customer-detail'], ['customer-ficha'], ['customers-summary'],
   ['customer-communications'], queryKeys.dashboard(),
   ['demurrage-containers'], ['demurrage-invoices'], ['demurrage-invoice-detail'],

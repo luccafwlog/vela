@@ -417,6 +417,17 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
   )
   if (emptyImports.error) throw emptyImports.error
   if (emptyImports.data.length) importKinds.add('vazio')
+  // Veículo vem dentro de container de B/L `container`/`misto`: o `cargo_mode`
+  // nunca é 'veiculo', então a frente de Veículos nasce do veículo gravado
+  // nos B/Ls da escala. Sem ela, a seção Veículos do ADR por terminal ficava
+  // sem frente e escondia os veículos.
+  const vehicleImports = await table('vehicles')
+    .select('id, bl:bls!inner(voyage_id, pod)')
+    .eq('bl.voyage_id', voyageId)
+    .in('bl.pod', portCodeVariants(normalizedPort))
+    .range(0, 0)
+  if (vehicleImports.error) throw vehicleImports.error
+  if (Array.isArray(vehicleImports.data) && vehicleImports.data.length) importKinds.add('veiculo')
 
   const fronts = deriveOperationFronts({ existing: existingFronts, importKinds, exportSchedule })
   const depotRows = depots as unknown as Array<{ id: string; code: string; name: string | null; active: boolean; tipo: string; port_id?: number | null }>

@@ -912,7 +912,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     fetchAllRows((from, to) =>
       supabase
         .from('vehicles')
-        .select(`${VEHICLES_SELECT}, bl:bls!inner(voyage_id, pod)`)
+        .select(`${VEHICLES_SELECT}, bl:bls!inner(voyage_id, pod, terminal_id)`)
         .eq('bl.voyage_id', voyageId)
         // P0-3: igualdade crua contra `port` perdia veiculos de B/Ls gravados
         // com a forma legada do porto (ex. 'BRVIT' antes de 'BRVIX' virar
@@ -994,7 +994,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
       : Promise.resolve(emptyResult),
     transshipmentBlIds.length
       ? fetchAllRows((from, to) =>
-          supabase.from('vehicles').select(VEHICLES_SELECT).in('bl_id', transshipmentBlIds).range(from, to),
+          supabase.from('vehicles').select(`${VEHICLES_SELECT}, bl:bls!inner(terminal_id)`).in('bl_id', transshipmentBlIds).range(from, to),
         )
       : Promise.resolve(emptyResult),
   ])
@@ -1018,15 +1018,23 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   type AgencyReportVehicle = Pick<Vehicle, 'brand' | 'model' | 'bl_id' | 'chassis' | 'container_id'> & {
     container: { container_number: string | null; type: string | null; unpacking_location: string | null } | null
     isTransshipment: boolean
+    /** Exceção de terminal do B/L do veículo, para recortar por terminal como a carga (ADR 0068). */
+    blTerminalId: string | null
   }
-  const ownVehicles = (vehiclesRes.data ?? []) as unknown as Array<Omit<AgencyReportVehicle, 'isTransshipment'>>
-  const transshipmentVehicles = (transshipmentVehiclesRes.data ?? []) as unknown as Array<Omit<AgencyReportVehicle, 'isTransshipment'>>
+  type AgencyReportVehicleRow = Omit<AgencyReportVehicle, 'isTransshipment' | 'blTerminalId'> & { bl?: { terminal_id?: string | null } | null }
+  const ownVehicles = (vehiclesRes.data ?? []) as unknown as AgencyReportVehicleRow[]
+  const transshipmentVehicles = (transshipmentVehiclesRes.data ?? []) as unknown as AgencyReportVehicleRow[]
+  const toReportVehicle = ({ bl, ...vehicle }: AgencyReportVehicleRow, isTransshipment: boolean): AgencyReportVehicle => ({
+    ...vehicle,
+    isTransshipment,
+    blTerminalId: bl?.terminal_id ?? null,
+  })
   // bls.pod nunca é o mesmo entre o porto da escala e o porto omitido de uma
   // mesma viagem, então as duas listas nunca se sobrepõem — concatena sem
   // deduplicar (ver listTransshipmentBlIds).
   const vehicles: AgencyReportVehicle[] = [
-    ...ownVehicles.map((vehicle) => ({ ...vehicle, isTransshipment: false })),
-    ...transshipmentVehicles.map((vehicle) => ({ ...vehicle, isTransshipment: true })),
+    ...ownVehicles.map((vehicle) => toReportVehicle(vehicle, false)),
+    ...transshipmentVehicles.map((vehicle) => toReportVehicle(vehicle, true)),
   ]
   const operation = operationRes.data as VaziosExportOperation | null
   const allDepots = operation ? await listDepots() : []

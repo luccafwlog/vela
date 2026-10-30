@@ -84,6 +84,34 @@ describe('escalaTerminalAllocation', () => {
     expect(state.fronts.map((front) => front.modalidade)).toEqual(expect.arrayContaining(['carga_cheia', 'carga_solta']))
   })
 
+  it('deriva a frente de Veículos dos veículos dos B/Ls da escala, que são sempre de container', async () => {
+    const makeQuery = (tableName: string) => {
+      const query: Record<string, unknown> = {}
+      query.select = () => query
+      query.eq = () => query
+      query.in = () => query
+      query.order = () => query
+      query.range = () => query
+      query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
+      query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
+        tableName === 'ports'
+          ? { data: [{ id: 99, locode: 'BRVIX' }], error: null }
+          : tableName === 'bls'
+            ? { data: [{ id: 'BL-1', cargo_mode: 'container', pod: 'BRVIX' }], error: null }
+            : tableName === 'vehicles'
+              ? { data: [{ id: 1 }], error: null }
+              : { data: [], error: null },
+      ).then(resolve)
+      return query
+    }
+    fromMock.mockImplementation((tableName: string) => makeQuery(tableName))
+
+    const state = await fetchEscalaTerminalState(12, 'BRVIX')
+
+    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['importacao:carga_cheia', 'importacao:veiculo'])
+    expect(state.tbcFronts.find((front) => front.modalidade === 'veiculo')).toMatchObject({ section: 'veiculos', terminalId: null })
+  })
+
   it('preserva frente persistida mesmo quando a fonte operacional deixou de aparecer', () => {
     const fronts = deriveOperationFronts({
       existing: [{ id: 'front-1', sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data' }],

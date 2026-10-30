@@ -74,6 +74,8 @@ describe('cache effects', () => {
       ['baplie-reconciliation'], ['baplie-staging'],
       ['local-charge-operations'], ['customer-reconciliation-queue'], ['bl-local-charge-lines'],
       ['agency-report'],
+      // Frentes do ADR por terminal: veículo e vazio importados criam a frente.
+      ['agency-report-terminal-state'],
       ['voyage-pol-schedules'], ['voyage-escala-schedules'], ['voyage-timeline'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
     ])))
   })
