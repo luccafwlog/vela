@@ -62,17 +62,15 @@ jobs:
         # O deno.lock da raiz cobre só os imports remotos desse teste: sem
         # package.json nem deno.json, uma atualização de dependência npm ou do
         # import map das funções não invalida o lock (`--frozen`).
+        # `scripts/deno-cache.sh` faz o download e devolve o lock a usar: o esm.sh
+        # serve dois builds do tslib conforme a borda (2026-10-30), e só os
+        # builds conferidos no script passam.
         env:
           DENO_NO_PACKAGE_JSON: "1"
         run: |
-          deno_lock="--no-config --lock=deno.lock --frozen"
           for dir in supabase/functions/portal-ce-unlock-document supabase/functions/ce-unlock-cleanup; do
-            for attempt in 1 2 3; do
-              npx --yes deno@2.9.6 cache $deno_lock "$dir/index.ts" "$dir/index.test.ts" && break
-              [ "$attempt" = 3 ] && exit 1
-              echo "Download das dependências falhou ($attempt/3); nova tentativa em 10 s."
-              sleep 10
-            done
+            lock=$(scripts/deno-cache.sh deno.lock --no-config "$dir/index.ts" "$dir/index.test.ts") || exit 1
+            deno_lock="--no-config --lock=$lock --frozen"
             npx --yes deno@2.9.6 test $deno_lock --cached-only --allow-env --allow-net "$dir/index.test.ts"
           done
 
@@ -85,7 +83,6 @@ jobs:
         env:
           DENO_NO_PACKAGE_JSON: "1"
         run: |
-          deno_flags="--config supabase/functions/deno.json --frozen"
           files=""
           for fn in portal-email-webhook portal-email-events-runner portal-invite-send portal-password-recovery \
                     portal-recovery-email-change portal-daily-digest ce-unlock-notify-email admin-users portal-password-reset \
@@ -93,12 +90,8 @@ jobs:
             files="$files supabase/functions/$fn/index.ts"
           done
           webhook_test=supabase/functions/portal-email-webhook/index.test.ts
-          for attempt in 1 2 3; do
-            npx --yes deno@2.9.6 cache $deno_flags $files $webhook_test && break
-            [ "$attempt" = 3 ] && exit 1
-            echo "Download das dependências falhou ($attempt/3); nova tentativa em 10 s."
-            sleep 10
-          done
+          lock=$(scripts/deno-cache.sh supabase/functions/deno.lock --config supabase/functions/deno.json $files $webhook_test) || exit 1
+          deno_flags="--config supabase/functions/deno.json --lock=$lock --frozen"
           npx --yes deno@2.9.6 check $deno_flags --cached-only $files
           npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net $webhook_test
 
@@ -109,14 +102,9 @@ jobs:
         env:
           DENO_NO_PACKAGE_JSON: "1"
         run: |
-          deno_flags="--config supabase/functions/deno.json --frozen"
           files="supabase/functions/itau-pix/index.ts supabase/functions/itau-pix/index.test.ts"
-          for attempt in 1 2 3; do
-            npx --yes deno@2.9.6 cache $deno_flags $files && break
-            [ "$attempt" = 3 ] && exit 1
-            echo "Download das dependências falhou ($attempt/3); nova tentativa em 10 s."
-            sleep 10
-          done
+          lock=$(scripts/deno-cache.sh supabase/functions/deno.lock --config supabase/functions/deno.json $files) || exit 1
+          deno_flags="--config supabase/functions/deno.json --lock=$lock --frozen"
           npx --yes deno@2.9.6 check $deno_flags --cached-only $files
           npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net supabase/functions/itau-pix/index.test.ts
 

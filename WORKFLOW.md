@@ -852,7 +852,10 @@ e o de banco requer PostgreSQL 16:
    staging dos dois sites Pages (`npm run cloudflare:build:sites`, que exige
    `VITE_SUPABASE_URL` para o `connect-src` da CSP) e orçamento de bundle;
    inclui os contratos de upload e de expurgo CE em Deno 2.9.6, com HTTP simulado e
-   dependências remotas verificadas por `deno.lock` (`--frozen`); o lock da raiz
+   dependências remotas verificadas por `deno.lock` (`--frozen`); o download passa
+   por `scripts/deno-cache.sh`, que aceita só os builds do esm.sh conferidos nele
+   (o CDN serve dois builds do `tslib` conforme a borda, e o lock guarda um hash
+   por URL); o lock da raiz
    cobre só esses imports remotos (`--no-config` e `DENO_NO_PACKAGE_JSON=1`),
    então atualizações npm não o invalidam;
 2. `test` — suíte Vitest dividida em 2 shards (`--shard=N/2`);
