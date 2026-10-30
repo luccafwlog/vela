@@ -245,3 +245,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   **Definir condição do B/L** (9.7), o ROE manual "sem efeito" fora do B/L que
   emite a Invoice do grupo (23.4) e **Conciliada** no glossário. A matriz já
   veio atualizada nas PRs; o resto delas não muda o texto do manual.
+- **Decisões D1 a D3 do dono na revisão da #1084** (2026-10-29, PRs
+  luccafwlog/vela#1114 a #1116; migration `513`): o **Não escala** do
+  Administrativo conta também o B/L que embarca no porto (5.3), a carga solta
+  com B/L cancelado em outra Viagem manda excluir lá (6.4) e a etapa
+  **Demurrage** do trilho avisa a Invoice retida pelo Portal (9.6). A matriz
+  veio atualizada nas PRs.

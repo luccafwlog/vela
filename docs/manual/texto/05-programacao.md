@@ -70,7 +70,7 @@ A janela de edição: só as datas mudam aqui.
 
 A data que você salva aqui é a mesma da escala na ficha da Viagem. Nome do navio, viagem e IMO não mudam aqui: corrija em **Viagens** › **Editar**.
 
-Para dizer que o navio não vai mais a um porto, marque **Não escala** nele. Para a maioria das equipes, só a data sai. O {{Administrativo}} vai além: se a escala ainda não tem nada ligado a ela (B/L para aquele porto, chegada ou saída registrada, manifesto vinculado, terminais salvos), ela sai da Viagem. A confirmação diz qual dos dois casos vai acontecer.
+Para dizer que o navio não vai mais a um porto, marque **Não escala** nele. Para a maioria das equipes, só a data sai. O {{Administrativo}} vai além: se a escala ainda não tem nada ligado a ela (B/L que descarrega ou embarca naquele porto, chegada ou saída registrada, manifesto vinculado, terminais salvos), ela sai da Viagem. A confirmação diz qual dos dois casos vai acontecer.
 
 ::: atencao
 - Se o navio deixou de ir ao porto e já tem carga para ele, não marque **Não escala**: registre a omissão da escala ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)).

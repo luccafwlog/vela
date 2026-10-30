@@ -129,6 +129,7 @@ Na carga solta, o peso é o que mais pesa na cobrança. Por isso o Vela é rigor
 ::: atencao
 - O B/L de carga solta já faturado só muda peso, volumes ou rota com a sua confirmação na prévia.
 - O CE Mercante não entra por aqui, mesmo que a planilha tenha a coluna: ele vem pela planilha de CE ([6.5](#65-importar-o-ce-mercante-e-emitir-as-faturas)).
+- O B/L do arquivo que está cancelado em outra Viagem fica de fora, e o resto entra. Para importá-lo nesta Viagem, o {{Administrativo}} exclui o B/L na outra Viagem e você importa de novo ([6.9](#69-trocar-o-bl)).
 :::
 
 ## 6.5 Importar o CE Mercante e emitir as faturas

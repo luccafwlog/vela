@@ -118,7 +118,7 @@ Ela sai quando três coisas se juntam:
 
 - todos os containers do grupo, menos os SOC, foram devolvidos;
 - algum deles passou do free time;
-- o B/L tem CE Mercante e o Portal do Cliente está pronto para faturar, ou o Cliente tem a Liberação de faturamento sem Portal (capítulos 13 e 14).
+- o B/L tem CE Mercante e o Portal do Cliente está pronto para faturar, ou o Cliente tem a Liberação de faturamento sem Portal (capítulos 13 e 14). Sem isso, a etapa **Demurrage** do trilho da ficha do B/L diz "Retida: Portal não está pronto e sem Liberação de faturamento", com o link para o Provisionamento do Portal.
 
 Com isso, a Invoice sai sozinha logo depois da última devolução gravada ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). Ela nasce emitida, em dólar, com o valor em reais pelo câmbio do dia (ou pelo ROE manual do B/L); o Cliente a vê no Portal e a Régua de Cobrança começa (capítulo 23). O container devolvido no free time entra nela com valor zero.
 
