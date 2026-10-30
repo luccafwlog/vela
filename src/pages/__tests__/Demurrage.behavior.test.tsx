@@ -64,7 +64,8 @@ vi.mock('../../services/demurrage/demurrageKpis', () => ({
 vi.mock('../../services/demurrage/demurrageRates', () => ({
   calculateDemurrage: () => ({ total_days: 40, free_days: 10, days_p1: 20, rate_p1_usd: 10, days_p2: 10, rate_p2_usd: 20, total_usd: 400, status: 'overdue' }),
 }))
-vi.mock('../../services/demurrage/demurrageDisputes', () => ({
+vi.mock('../../services/demurrage/demurrageDisputes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/demurrage/demurrageDisputes')>()),
   listDemurrageDisputes: mocks.listDisputes,
   addDemurrageDisputeMessage: vi.fn(),
   reopenDemurrageDispute: vi.fn(),
@@ -456,6 +457,18 @@ describe('Demurrage page behaviours', () => {
     expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Cancelar Invoice DEM-001', tone: 'danger', confirmLabel: 'Cancelar Invoice' }))
     await waitFor(() => expect(mocks.cancelInvoice).toHaveBeenCalledWith(21, 'Valor contestado e acordado'))
     expect(invalidated(invalidateQueries, 'demurrage-invoices')).toBe(true)
+  })
+
+  it('cancelar a Invoice com Disputa aberta avisa que o Cliente vê o motivo no Portal (D16)', async () => {
+    detailOverrides = { 21: { dispute_open: true } }
+    const user = userEvent.setup()
+    renderPage()
+    const detail = await openIssuedDetail(user)
+    await user.click(within(detail).getByRole('button', { name: 'Cancelar Invoice…' }))
+    expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
+      consequence: expect.stringContaining('o Cliente vê este motivo no Portal'),
+      reasonLabel: 'Motivo do cancelamento (obrigatório; o Cliente vê no Portal)',
+    }))
   })
 
   it('desistir da confirmação não cancela', async () => {

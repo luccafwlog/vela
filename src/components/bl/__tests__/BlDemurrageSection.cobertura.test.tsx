@@ -22,10 +22,18 @@ vi.mock('../../../services/demurrage/demurrageContainers', () => ({
   listBlDemurrageCoverage: async () => coverage.map,
   listBlDemurrageWaivers: async () => new Map(),
 }))
+const board = vi.hoisted(() => ({ shares: [] as Array<{ container_number: string; box_share_count: number }> }))
+vi.mock('../../../services/demurrage/demurrageBoard', async (original) => ({
+  ...(await original() as object),
+  listDemurrageBillingBoard: async () => [{ boxes: board.shares }],
+}))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 
-afterEach(() => __setDemurrageRateGroupsForTest(null))
+afterEach(() => {
+  __setDemurrageRateGroupsForTest(null)
+  board.shares = []
+})
 
 // B/L que não é o âncora do grupo: a Invoice do grupo nasceu no outro B/L
 // (bl_id diferente) e cobre a caixa paga; a outra caixa voltou e falta emitir.
@@ -61,5 +69,12 @@ describe('ficha do B/L › Demurrage com a Invoice do grupo', () => {
     expect(screen.getByText(/1 cobrado · 1 a emitir de 2/)).toBeTruthy()
     // A Invoice do grupo aparece nas faturas do B/L, mesmo emitida no outro B/L.
     expect(screen.getByText('Fatura de Demurrage')).toBeTruthy()
+  })
+
+  it('a caixa dividida entre Clientes prevê a parte do Cliente, como a Invoice (D19)', async () => {
+    board.shares = [{ container_number: 'MSCU0000002', box_share_count: 2 }]
+    renderSection()
+    expect(await screen.findByText('US$ 125,00 a emitir')).toBeTruthy()
+    expect(screen.getByText(/1\/2 da caixa/)).toBeTruthy()
   })
 })

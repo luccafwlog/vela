@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { containerTabSheetRows, customerTabSheetRows, invoiceTabSheetRows } from '../demurrageScreenExports'
+import { containerTabSheetRows, customerTabSheetRows, disputeTabSheetRows, invoiceTabSheetRows } from '../demurrageScreenExports'
 
 // ADR 0112, D14: o Exportar de cada aba traz o que a tela mostra.
 describe('Exportar das abas da central de Demurrage', () => {
@@ -23,7 +23,18 @@ describe('Exportar das abas da central de Demurrage', () => {
   })
 
   it('Por Cliente traz as colunas da tela', () => {
-    expect(Object.keys(customerTabSheetRows([{ customer_id: 1, customer_name: 'C', cnpj_cpf: null, correndo_usd: 1, a_emitir_usd: 2, esperando_usd: 6, travado_usd: 3, invoice_count: 1, open_usd: 4, open_brl: 5 }])[0]))
-      .toEqual(['Cliente', 'CNPJ', 'Correndo (US$)', 'A emitir (US$)', 'Esperando (US$)', 'Travado (US$)', 'Invoices em aberto', 'Faturado em aberto (USD)', 'Faturado em aberto (BRL hoje)'])
+    expect(Object.keys(customerTabSheetRows([{ customer_id: 1, customer_name: 'C', cnpj_cpf: null, correndo_usd: 1, a_emitir_usd: 2, esperando_usd: 6, travado_usd: 3, travado_sem_valor: 0, invoice_count: 1, open_usd: 4, open_brl: 5 }])[0]))
+      .toEqual(['Cliente', 'CNPJ', 'Correndo (US$)', 'A emitir (US$)', 'Esperando (US$)', 'Travado (US$)', 'Travado sem valor (grupos)', 'Invoices em aberto', 'Faturado em aberto (USD)', 'Faturado em aberto (BRL hoje)'])
+  })
+
+  it('Disputas trazem a Invoice, o valor líquido, a vez e o prazo de resposta', () => {
+    const [row] = disputeTabSheetRows([{
+      id: 1, demurrage_invoice_id: 2, doc_number: 'DEM-2026-0001', customer_id: 3, customer_name: 'ACME', state: 'aberta',
+      next_responder: 'equipamentos', subject: null, created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', messages: [],
+      invoice_status: 'issued', invoice_total_usd: 1000, invoice_discount_mode: 'amount', invoice_discount_value: 100,
+      invoice_current_total_brl: 4950, due_at: '2026-10-29T12:00:00Z', overdue: true,
+    }])
+    expect(row).toMatchObject({ Invoice: 'DEM-2026-0001', Cliente: 'ACME', 'USD em disputa': 900, 'BRL hoje': 4950,
+      Disputa: 'Aberta', Vez: 'Aguarda a nossa resposta', 'Fora do prazo': 'Sim' })
   })
 })

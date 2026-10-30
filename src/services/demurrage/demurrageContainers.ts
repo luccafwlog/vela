@@ -54,6 +54,8 @@ export type DemurrageContainerRow = DemurrageContainerListItem & {
   billed_in?: DemurrageBilledInvoiceRef[]
   /** Grupo de cobrança do B/L da caixa (ausente quando não se pôde montar). */
   billing_group?: DemurrageBillingGroup | null
+  /** Clientes que dividem a caixa na Viagem (D19, migration 521); a previsão é a parte do Cliente. */
+  box_share_count?: number
 }
 
 type BilledItemRow = {

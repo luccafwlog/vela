@@ -37,7 +37,12 @@ export type BoardBox = {
   covered_doc: string | null
   /** Dispensa da cobrança da caixa (migration 517). */
   waiver_id?: number | null
+  /** Clientes que dividem a caixa na Viagem (migration 521); o US$ já é a parte do Cliente. */
+  box_share_count?: number | null
 }
+
+/** O que destrava o "sem tarifa" (migration 526): tipo fora do cadastro, tipo desativado ou tarifa do grupo. */
+export type NoRateKind = 'tipo_novo' | 'tipo_inativo' | 'tarifa'
 
 export type BoardGroup = {
   anchor_bl_id: string
@@ -53,6 +58,7 @@ export type BoardGroup = {
   /** Em Correndo e Esperando: o que vai travar a emissão (sem CE, Portal). */
   warning: string | null
   no_rate_types: string | null
+  no_rate_kind?: NoRateKind | null
   /** Em A emitir (migration 525): Invoice cancelada à mão que as caixas esperam (D10). */
   cancelled_doc?: string | null
   /** Em A emitir (migration 525): a emissão automática já está na fila. */
@@ -81,13 +87,16 @@ export async function countDemurrageRunningBoxes(): Promise<number> {
 
 export type DivisionTotals = Record<DemurrageDivision, { groups: number; boxes: number; usd: number }>
 
-/** Contagem e US$ por divisão: caixas sem Invoice que contam na divisão. */
+/** Caixa com sobreestadia sem Invoice: a que a divisão conta (a mesma do aviso do cabeçalho e da Exposição). */
+export const OVERSTAY_STATES: ReadonlySet<BoardBoxState> = new Set(['running', 'returned_overstay', 'no_rate'])
+
+/** Contagem e US$ por divisão: caixas com sobreestadia sem Invoice. */
 export function divisionTotals(groups: readonly BoardGroup[]): DivisionTotals {
   const totals = Object.fromEntries(DEMURRAGE_DIVISIONS.map((division) => [division, { groups: 0, boxes: 0, usd: 0 }])) as DivisionTotals
   for (const group of groups) {
     const total = totals[group.division]
     total.groups += 1
-    total.boxes += group.boxes.filter((box) => box.state !== 'covered' && box.state !== 'waived').length
+    total.boxes += group.boxes.filter((box) => OVERSTAY_STATES.has(box.state)).length
     total.usd += group.usd
   }
   return totals
@@ -135,8 +144,13 @@ export function nextStep(group: BoardGroup): NextStep {
       case 'sem_ce': return { kind: 'link', label: 'Cadastrar CE', href: `/bls/${bl}`, note }
       case 'sem_cliente': return { kind: 'link', label: 'Vincular Cliente', href: `/bls/${bl}`, note }
       case 'sem_tarifa': {
+        // O atalho segue a causa (migration 526): tipo fora do cadastro, tipo
+        // desativado (reativar é do Administrativo) ou grupo sem tarifa vigente.
+        if (group.no_rate_kind === 'tarifa') return { kind: 'link', label: 'Cadastrar tarifa', href: '/demurrage/taxas', note }
         const type = (group.no_rate_types ?? '').split(',')[0]?.trim()
-        return { kind: 'link', label: 'Cadastrar tipo', href: `/demurrage/taxas?tab=tipos${type && type !== '(vazio)' ? `&tipo=${encodeURIComponent(type)}` : ''}`, note }
+        const query = type && type !== '(vazio)' ? `&tipo=${encodeURIComponent(type)}` : ''
+        const label = group.no_rate_kind === 'tipo_inativo' ? 'Reativar tipo' : 'Cadastrar tipo'
+        return { kind: 'link', label, href: `/demurrage/taxas?tab=tipos${query}`, note }
       }
       case 'portal': return group.customer_cnpj
         ? { kind: 'link', label: 'Abrir Cliente', href: `/clientes/${encodeURIComponent(group.customer_cnpj)}`, note }
@@ -145,7 +159,7 @@ export function nextStep(group: BoardGroup): NextStep {
     }
   }
   if (group.division === 'esperando') {
-    const waiting = group.boxes.filter((box) => !box.return_date && box.state !== 'covered')
+    const waiting = group.boxes.filter((box) => !box.return_date && box.state !== 'covered' && box.state !== 'waived')
     const first = waiting[0]
     if (!first) return { kind: 'wait', text: 'Aguarda a devolução das caixas do grupo' }
     const until = first.last_free_day ? ` até ${formatShort(first.last_free_day)}` : ''

@@ -47,7 +47,8 @@ vi.mock('@tanstack/react-query', () => ({
     isPending: false,
   })),
 }))
-vi.mock('../../../services/demurrage/demurrageDisputes', () => ({
+vi.mock('../../../services/demurrage/demurrageDisputes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/demurrage/demurrageDisputes')>()),
   listDemurrageDisputes: vi.fn(),
   addDemurrageDisputeMessage: vi.fn(),
   reopenDemurrageDispute: vi.fn(),

@@ -33,7 +33,11 @@ export function ContainerTypesTab({ groups, canEdit, canManage, initialCode }: {
   groups: DemurrageRateGroup[]
   canEdit: boolean
   canManage: boolean
-  /** Código vindo de "Cadastrar tipo" (`?tipo=`): abre o cadastro já preenchido. */
+  /**
+   * Código vindo do atalho do Travado (`?tipo=`): fora do cadastro, abre o
+   * cadastro já preenchido; já cadastrado e desativado, mostra os desativados
+   * para o Administrativo reativar.
+   */
   initialCode?: string | null
 }) {
   const { showToast } = useToast()
@@ -45,12 +49,22 @@ export function ContainerTypesTab({ groups, canEdit, canManage, initialCode }: {
   const deleteMutation = useDeleteContainerType()
   const [showInactive, setShowInactive] = useShowInactive()
   const initial = normalizeContainerTypeCode(initialCode)
-  const [editing, setEditing] = useState<{ type: ContainerType | null; draft: Draft } | null>(
-    () => (initial && canEdit ? { type: null, draft: { code: initial, description: '', rate_group: '' } } : null),
-  )
+  const [editing, setEditing] = useState<{ type: ContainerType | null; draft: Draft } | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
   const allTypes = typesQuery.data
+  // Ajuste de estado no render ("adjusting state when props change"), uma vez,
+  // quando o cadastro carrega.
+  const [handledInitial, setHandledInitial] = useState(false)
+  if (initial && allTypes && !handledInitial) {
+    setHandledInitial(true)
+    const existing = allTypes.find((type) => type.code === initial)
+    if (existing) {
+      if (!existing.active) setShowInactive(true)
+    } else if (canEdit) {
+      setEditing({ type: null, draft: { code: initial, description: '', rate_group: '' } })
+    }
+  }
   const inactiveCount = allTypes?.filter((type) => !type.active).length ?? 0
   const types = showInactive ? allTypes : allTypes?.filter((type) => type.active)
   const groupName = (code: string) => groups.find((group) => group.code === code)?.name ?? code
@@ -221,11 +235,12 @@ export function ContainerTypesTab({ groups, canEdit, canManage, initialCode }: {
         {editing ? (
           <form className="app-dem-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit() }}>
             <div className="app-dem-form__grid">
-              <Field label="Código" required hint="Como vem no B/L, por exemplo 45HC.">
-                <Input value={editing.draft.code} onChange={(event) => setDraft({ code: event.target.value.toUpperCase() })} className="app-dem-code" />
+              {/* O código de tipo cadastrado não muda (migration 528): cadastre o novo e desative este. */}
+              <Field label="Código" required hint={editing.type ? 'O código não muda: cadastre o novo e desative este.' : 'Como vem no B/L, por exemplo 45HC.'}>
+                <Input value={editing.draft.code} readOnly={Boolean(editing.type)} onChange={(event) => setDraft({ code: event.target.value.toUpperCase() })} className="app-dem-code" />
               </Field>
-              <Field label="Grupo de tarifa" required>
-                <Select value={editing.draft.rate_group} onChange={(event) => setDraft({ rate_group: event.target.value })}>
+              <Field label="Grupo de tarifa" required hint={editing.type && groups.some((group) => group.code === editing.type?.code) ? 'É o código do grupo: o grupo dele não muda.' : undefined}>
+                <Select value={editing.draft.rate_group} disabled={Boolean(editing.type && groups.some((group) => group.code === editing.type?.code))} onChange={(event) => setDraft({ rate_group: event.target.value })}>
                   <option value="">Escolha o grupo</option>
                   {groups.map((group) => <option key={group.code} value={group.code}>{group.name}</option>)}
                 </Select>

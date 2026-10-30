@@ -315,7 +315,7 @@ const ALERT_RULES_BASE = [
     summary: 'Um grupo de B/L tem sobreestadia que o sistema não consegue cobrar: tipo de container sem tarifa, B/L sem Cliente, B/L cancelado, sem CE Mercante ou Portal fechando o faturamento.',
     trigger: 'O grupo entra na divisão Travado da aba Containers (migration 515): na gravação de datas, tipo, CE, Cliente, cancelamento do B/L, tarifa ou cadastro de tipos, e na verificação a cada 15 minutos (pg_cron, migration 516).',
     timing: 'Na hora em que o grupo trava; um por grupo (B/L âncora). O setor é o do motivo (ADR 0112, D25): Documentação para CE Mercante, Cliente e Portal; Administrativo para tipo sem tarifa e B/L cancelado.',
-    resolution: 'Abra a divisão Travado e use o atalho da linha: Cadastrar CE ou Vincular Cliente na ficha do B/L, Cadastrar tipo em Tarifas e acordos, ou Abrir Cliente para o Portal.',
+    resolution: 'Abra a divisão Travado e use o atalho da linha: Cadastrar CE ou Vincular Cliente na ficha do B/L; Cadastrar tipo, Reativar tipo ou Cadastrar tarifa em Tarifas e acordos, conforme o que falta; ou Abrir Cliente para o Portal.',
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
     destinationNote: 'O alerta abre a divisão Travado já buscando o B/L (`/demurrage?divisao=travado&busca={B/L}`).',

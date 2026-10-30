@@ -20,7 +20,7 @@ import { calculateDemurrage, demurrageFreeTimeDays, demurrageRateFor, ensureDemu
 import { daysSince } from '../../services/demurrage/demurragePresentation'
 import { saoPauloTodayIso } from '../../lib/dates'
 import { listBlDemurrageCoverage, listBlDemurrageWaivers, updateContainerReturnDate } from '../../services/demurrage/demurrageContainers'
-import { revokeDemurrageBoxWaiver } from '../../services/demurrage/demurrageBoard'
+import { listDemurrageBillingBoard, revokeDemurrageBoxWaiver } from '../../services/demurrage/demurrageBoard'
 import { queryKeys } from '../../services/queryKeys'
 import { formatDate, formatUSD } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
@@ -63,6 +63,18 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
     queryFn: () => listBlDemurrageWaivers(bl),
   })
   const [revokingWaiver, setRevokingWaiver] = useState<number | null>(null)
+
+  // Caixa dividida entre Clientes (D19, D23; migration 521): a parte do Cliente
+  // vem da classificação do banco, como na aba Containers e na Invoice.
+  const { data: shares } = useQuery({
+    queryKey: ['demurrage-containers', 'board', 'shares', bl.customer_id, bl.voyage_id],
+    queryFn: async () => {
+      const groups = await listDemurrageBillingBoard({ customerId: bl.customer_id, voyageId: bl.voyage_id })
+      return new Map(groups.flatMap((group) => group.boxes)
+        .map((box) => [box.container_number.trim().toUpperCase(), Math.max(1, Number(box.box_share_count ?? 1))] as const))
+    },
+    enabled: bl.customer_id != null && bl.voyage_id != null,
+  })
 
   // --- Config form state ---
   const [freeTime, setFreeTime] = useState<string>(
@@ -318,7 +330,9 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
     const key = (container.container_number ?? '').trim().toUpperCase()
     const billedIn = soc ? undefined : coverage?.get(key)?.[0]
     const waiver = soc || billedIn ? undefined : waivers?.get(key)
-    return { container, soc, returnDateVal, returnDateChanged: returnDateVal !== (container.return_date ?? ''), calc, freeTimeDays, days, error, billedIn, waiver }
+    const share = shares?.get(key) ?? 1
+    const usd = calc ? Math.round((calc.total_usd / share) * 100) / 100 : null
+    return { container, soc, returnDateVal, returnDateChanged: returnDateVal !== (container.return_date ?? ''), calc, usd, share, freeTimeDays, days, error, billedIn, waiver }
   })
   const chargeable = lines.filter((line) => !line.soc && line.container.discharge_date)
   // A caixa já cobrada mostra a Invoice; só a sem Invoice é "a emitir" (devolvida)
@@ -328,7 +342,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
   const toIssue = overdue.filter((line) => line.returnDateVal)
   const running = overdue.filter((line) => !line.returnDateVal)
   const notCalculated = chargeable.filter((line) => !line.billedIn && !line.waiver && (line.error || !line.calc))
-  const sumUsd = (group: typeof lines) => group.reduce((sum, line) => sum + (line.calc?.total_usd ?? 0), 0)
+  const sumUsd = (group: typeof lines) => group.reduce((sum, line) => sum + (line.usd ?? 0), 0)
   const allInvoices: BlDemurrageInvoiceSummary[] = [...(invoices ?? [])]
   for (const line of billed) {
     const ref = line.billedIn!
@@ -451,7 +465,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                         : line.error ? <span className="text-[var(--app-danger-fg)]">{line.error}</span>
                         : over && calc ? (
                           <span title={`1º período: ${calc.days_p1} d × ${formatUSD(calc.rate_p1_usd)} · 2º período: ${calc.days_p2} d × ${formatUSD(calc.rate_p2_usd)}`}>
-                            <StatusText tone="warning">{formatUSD(calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{line.returnDateVal ? 'a faturar' : 'em curso'}</span>
+                            <StatusText tone="warning">{formatUSD(line.usd ?? calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{line.returnDateVal ? 'a faturar' : 'em curso'}{line.share > 1 ? ` · 1/${line.share} da caixa` : ''}</span>
                           </span>
                         ) : <NoValue label="Sem cobrança" />}
                     </td>

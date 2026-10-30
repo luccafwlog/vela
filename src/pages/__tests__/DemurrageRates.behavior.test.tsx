@@ -221,7 +221,7 @@ it('abre os acordos filtrados pelo Cliente vindo da ficha', async () => {
   expect((screen.getByLabelText('Buscar acordo por Cliente ou CNPJ') as HTMLInputElement).value).toBe('ACME')
 })
 
-it('aba Tipos de container lista o cadastro e abre o tipo vindo de Cadastrar tarifa (ADR 0112, D29)', async () => {
+it('aba Tipos de container lista o cadastro e abre o tipo vindo de Cadastrar tipo (ADR 0112, D29)', async () => {
   const user = userEvent.setup()
   renderPage(['/demurrage/taxas?tab=tipos&tipo=45hc'])
   // O tipo do link abre o cadastro já preenchido; falta escolher o grupo.
@@ -235,4 +235,18 @@ it('aba Tipos de container lista o cadastro e abre o tipo vindo de Cadastrar tar
   // Inativo fica escondido até Mostrar inativos.
   expect(await screen.findByText('40HC')).toBeTruthy()
   expect(screen.queryByText('40G1')).toBeNull()
+})
+
+it('o tipo do atalho já cadastrado e desativado não abre o cadastro novo: mostra os desativados (526)', async () => {
+  renderPage(['/demurrage/taxas?tab=tipos&tipo=40G1'])
+  expect(await screen.findByText('40G1')).toBeTruthy()
+  expect(screen.queryByText('Novo tipo de container')).toBeNull()
+})
+
+it('editar um tipo não muda o código; o tipo com código de grupo não muda de grupo (528)', async () => {
+  const user = userEvent.setup()
+  renderPage(['/demurrage/taxas?tab=tipos'])
+  await screen.findByText('40HC')
+  await user.click(screen.getByRole('button', { name: 'Editar tipo 40HC' }))
+  expect((screen.getByDisplayValue('40HC') as HTMLInputElement).readOnly).toBe(true)
 })

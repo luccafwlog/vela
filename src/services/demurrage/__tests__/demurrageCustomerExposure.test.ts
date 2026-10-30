@@ -25,6 +25,11 @@ describe('Por Cliente (ADR 0112, D11)', () => {
     expect(rows.find((row) => row.customer_id === 2)).toMatchObject({ travado_usd: 50, invoice_count: 2, open_usd: 1000, open_brl: 5500 })
   })
 
+  it('o Cliente travado só por tipo sem tarifa (sem valor) também aparece (D11)', () => {
+    const rows = buildCustomerExposure([group(5, 'travado', 0)], [])
+    expect(rows).toEqual([expect.objectContaining({ customer_id: 5, travado_usd: 0, travado_sem_valor: 1 })])
+  })
+
   it('a soma da coluna Correndo bate com o cartão Correndo quando todo grupo tem Cliente', () => {
     const withCustomer = groups.filter((item) => (item as { customer_id: number | null }).customer_id != null)
     const rows = buildCustomerExposure(withCustomer, [])

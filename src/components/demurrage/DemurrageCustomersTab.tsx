@@ -134,7 +134,11 @@ export function DemurrageCustomersTab({
                           <td className="app-dem-num">{fmtUSD(customer.correndo_usd)}</td>
                           <td className="app-dem-num">{fmtUSD(customer.a_emitir_usd)}</td>
                           <td className="app-dem-num">{fmtUSD(customer.esperando_usd)}</td>
-                          <td className="app-dem-num">{fmtUSD(customer.travado_usd)}</td>
+                          <td className="app-dem-num">
+                            {customer.travado_usd === 0 && customer.travado_sem_valor > 0
+                              ? <NoValue label="Sem valor: tipo sem tarifa" />
+                              : fmtUSD(customer.travado_usd)}
+                          </td>
                           <td className="app-dem-num">{customer.invoice_count}</td>
                           <td className="app-dem-num app-dem-amount">{fmtUSD(customer.open_usd)}</td>
                           <td className="app-dem-num">{fmtBRL(customer.open_brl)}</td>

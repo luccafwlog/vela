@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, MessageSquare, Paperclip, Send } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, MessageSquare, Paperclip, Send } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
@@ -19,7 +19,7 @@ import { canAnswerDemurrageDispute } from './demurrageFormRules'
 import { DisputeAttachmentLinks } from './DisputeAttachmentLinks'
 import { supabase } from '../../services/supabase'
 import { afterFaturaDemurrageAlterada } from '../../services/cacheEffects'
-import { addDemurrageDisputeMessage, listDemurrageDisputes, reopenDemurrageDispute, uploadDemurrageDisputeAttachment, type DemurrageDispute } from '../../services/demurrage/demurrageDisputes'
+import { DISPUTE_NEXT_LABELS, DISPUTE_STATE_LABELS, addDemurrageDisputeMessage, listDemurrageDisputes, reopenDemurrageDispute, uploadDemurrageDisputeAttachment, type DemurrageDispute } from '../../services/demurrage/demurrageDisputes'
 
 const DISPUTE_AUTHOR_LABELS: Record<string, string> = {
   cliente: 'Cliente',
@@ -28,17 +28,8 @@ const DISPUTE_AUTHOR_LABELS: Record<string, string> = {
   sistema: 'Sistema',
 }
 
-const STATE_LABELS: Record<DemurrageDispute['state'], string> = {
-  aberta: 'Aberta',
-  resolvida: 'Resolvida',
-  cancelada: 'Cancelada',
-}
-
-const NEXT_LABELS: Record<DemurrageDispute['next_responder'], string> = {
-  equipamentos: 'Aguarda a nossa resposta',
-  cliente: 'Aguarda o Cliente',
-  ninguem: 'Sem pendência de resposta',
-}
+const STATE_LABELS = DISPUTE_STATE_LABELS
+const NEXT_LABELS = DISPUTE_NEXT_LABELS
 
 type Filter = 'abertas' | 'resolvidas' | 'canceladas' | 'todas'
 
@@ -62,6 +53,8 @@ type Props = {
   /** Invoice cuja conversa foi pedida no detalhe. */
   focusInvoiceId?: number | null
   onOpenInvoice?: (invoiceId: number) => void
+  /** Exportar (D14): as Disputas do filtro da tela. */
+  onExport?: (disputes: DemurrageDispute[]) => void
 }
 
 // Ler as Disputas é de todos os Departamentos; responder, reabrir e anexar
@@ -72,7 +65,7 @@ export function DemurrageDisputeConversation(props: Props) {
   return <DemurrageDisputeConversationContent {...props} canAnswer={canAnswerDemurrageDispute(effectiveRole)} />
 }
 
-function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoiceId = null, onOpenInvoice, canAnswer }: Props & { canAnswer: boolean }) {
+function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoiceId = null, onOpenInvoice, onExport, canAnswer }: Props & { canAnswer: boolean }) {
   const queryClient = useQueryClient()
   const confirm = useConfirm()
   const [drafts, setDrafts] = useState<Record<number, string>>({})
@@ -325,6 +318,12 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
           ]}
         />
         <p className="app-dem-note">Cada resposta fica visível ao Cliente no Portal e define quem age em seguida.</p>
+        {onExport && visible.length ? (
+          <Button variant="secondary" className="app-btn--sm" onClick={() => onExport(visible)}>
+            <Download size={14} aria-hidden="true" />
+            Exportar
+          </Button>
+        ) : null}
       </div>
       {!visible.length ? (
         <EmptyState icon={MessageSquare} title={disputes.length ? 'Nenhuma Disputa nesta situação' : 'Nenhuma Disputa'} description={disputes.length ? undefined : 'As contestações abertas pelo Cliente no Portal aparecem aqui.'} />

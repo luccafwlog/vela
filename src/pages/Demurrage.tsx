@@ -16,7 +16,7 @@ import { ContainerDatesImportModal } from '../components/shared/ContainerDatesIm
 import { CustomerReportModal } from '../components/demurrage/CustomerReportModal'
 import { userFacingErrorMessage } from '../lib/errors'
 import { buildCustomerExposure } from '../services/demurrage/demurrageCustomerExposure'
-import { containerTabSheetRows, customerTabSheetRows, invoiceTabSheetRows } from '../services/demurrage/demurrageScreenExports'
+import { containerTabSheetRows, customerTabSheetRows, disputeTabSheetRows, invoiceTabSheetRows } from '../services/demurrage/demurrageScreenExports'
 import { DEMURRAGE_DIVISION_LABELS } from '../services/demurrage/demurrageDivisions'
 import { DemurrageContainersTab } from '../components/demurrage/DemurrageContainersTab'
 import { DemurrageContainerDatesModal } from '../components/demurrage/DemurrageContainerDatesModal'
@@ -438,9 +438,11 @@ export function Demurrage() {
     const reason = await confirmWithReason({
       title: `Cancelar Invoice ${invoice.doc_number}`,
       message: `Cancelar a Invoice de Demurrage ${invoice.doc_number} do B/L ${invoice.bl_id}?`,
-      consequence: 'A Invoice sai da Régua e do Portal e não aceita mais baixa. As caixas dela voltam para A emitir na aba Containers, sem Invoice nova automática.',
+      consequence: 'A Invoice sai da Régua e do Portal e não aceita mais baixa. As caixas dela voltam para A emitir na aba Containers, sem Invoice nova automática.'
+        // D16: a Disputa aberta é encerrada junto, e o Cliente lê este motivo no Portal.
+        + (invoice.dispute_open ? ' A Disputa aberta é encerrada junto, e o Cliente vê este motivo no Portal.' : ''),
       reversibility: 'Invoice cancelada não volta: para cobrar de novo, gere outra Invoice.',
-      reasonLabel: 'Motivo do cancelamento (obrigatório)',
+      reasonLabel: invoice.dispute_open ? 'Motivo do cancelamento (obrigatório; o Cliente vê no Portal)' : 'Motivo do cancelamento (obrigatório)',
       confirmLabel: 'Cancelar Invoice',
       tone: 'danger',
     })
@@ -596,7 +598,8 @@ export function Demurrage() {
           />
         ) : null}
         {activeTab === 'disputas' ? (
-          <DemurrageDisputeConversation focusDisputeId={state.disputeId} focusInvoiceId={focusInvoiceId} onOpenInvoice={openInvoice} />
+          <DemurrageDisputeConversation focusDisputeId={state.disputeId} focusInvoiceId={focusInvoiceId} onOpenInvoice={openInvoice}
+            onExport={(rows) => void exportScreen('Disputas', 'disputas', disputeTabSheetRows(rows))} />
         ) : null}
       </div>
 

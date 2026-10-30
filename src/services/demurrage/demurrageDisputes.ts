@@ -57,6 +57,19 @@ export type DemurrageDispute = {
   overdue?: boolean
 }
 
+/** Rótulos da situação e da vez na aba Disputas e no Exportar dela. */
+export const DISPUTE_STATE_LABELS: Record<DemurrageDispute['state'], string> = {
+  aberta: 'Aberta',
+  resolvida: 'Resolvida',
+  cancelada: 'Cancelada',
+}
+
+export const DISPUTE_NEXT_LABELS: Record<DemurrageDispute['next_responder'], string> = {
+  equipamentos: 'Aguarda a nossa resposta',
+  cliente: 'Aguarda o Cliente',
+  ninguem: 'Sem pendência de resposta',
+}
+
 const disputeRpc = supabase as unknown as {
   rpc: (name: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }>
 }
