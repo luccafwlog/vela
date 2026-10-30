@@ -22,11 +22,13 @@ const INV_CANCEL = 520020
 const INV_RESOLVED = 520021
 const INV_LATE = 520022
 const INV_PAID = 520023
+const INV_AUTO = 520024
 const DISP_CANCEL = 520030
 const DISP_RESOLVED = 520031
 const DISP_LATE = 520032
 const DISP_PAID = 520033
-const INVOICES = [INV_CANCEL, INV_RESOLVED, INV_LATE, INV_PAID]
+const DISP_AUTO = 520034
+const INVOICES = [INV_CANCEL, INV_RESOLVED, INV_LATE, INV_PAID, INV_AUTO]
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
@@ -107,17 +109,20 @@ describeLocal('520 — Disputas de Demurrage', () => {
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE}, ${VESSEL}, 'V520', 'active');
       INSERT INTO public.bls (id, voyage_id, customer_id, ce_mercante) VALUES
         ('R520-A', ${VOYAGE}, ${CUSTOMER}, 'CE520A'), ('R520-B', ${VOYAGE}, ${CUSTOMER}, 'CE520B'),
-        ('R520-C', ${VOYAGE}, ${CUSTOMER}, 'CE520C'), ('R520-D', ${VOYAGE}, ${CUSTOMER}, 'CE520D');
+        ('R520-C', ${VOYAGE}, ${CUSTOMER}, 'CE520C'), ('R520-D', ${VOYAGE}, ${CUSTOMER}, 'CE520D'),
+        ('R520-E', ${VOYAGE}, ${CUSTOMER}, 'CE520E');
       INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, total_usd, status, dispute_open, dispute_status) VALUES
         (${INV_CANCEL}, 'DEM-R520-1', 'R520-A', ${CUSTOMER}, 100, 'issued', true, 'aberto'),
         (${INV_RESOLVED}, 'DEM-R520-2', 'R520-B', ${CUSTOMER}, 100, 'issued', false, 'resolvido'),
         (${INV_LATE}, 'DEM-R520-3', 'R520-C', ${CUSTOMER}, 100, 'issued', true, 'aberto'),
-        (${INV_PAID}, 'DEM-R520-4', 'R520-D', ${CUSTOMER}, 100, 'issued', false, 'resolvido');
+        (${INV_PAID}, 'DEM-R520-4', 'R520-D', ${CUSTOMER}, 100, 'issued', false, 'resolvido'),
+        (${INV_AUTO}, 'DEM-R520-5', 'R520-E', ${CUSTOMER}, 100, 'issued', true, 'aberto');
       INSERT INTO public.demurrage_disputes (id, demurrage_invoice_id, customer_id, state, next_responder, subject, opened_by, created_at) VALUES
         (${DISP_CANCEL}, ${INV_CANCEL}, ${CUSTOMER}, 'aberta', 'equipamentos', 'Cancelar junto', 'cliente', now()),
         (${DISP_RESOLVED}, ${INV_RESOLVED}, ${CUSTOMER}, 'resolvida', 'ninguem', 'Resolvida', 'cliente', now()),
         (${DISP_LATE}, ${INV_LATE}, ${CUSTOMER}, 'aberta', 'equipamentos', 'Sem resposta', 'cliente', now() - interval '10 days'),
-        (${DISP_PAID}, ${INV_PAID}, ${CUSTOMER}, 'resolvida', 'ninguem', 'Resolvida, Invoice cancelada', 'cliente', now());
+        (${DISP_PAID}, ${INV_PAID}, ${CUSTOMER}, 'resolvida', 'ninguem', 'Resolvida, Invoice cancelada', 'cliente', now()),
+        (${DISP_AUTO}, ${INV_AUTO}, ${CUSTOMER}, 'aberta', 'equipamentos', 'Troca de CNPJ', 'cliente', now());
       INSERT INTO public.demurrage_dispute_messages (dispute_id, author_id, author_type, body, next_responder, created_at) VALUES
         (${DISP_LATE}, '${EQUIP}', 'equipamentos', 'Pedimos o comprovante.', 'cliente', now() - interval '10 days'),
         (${DISP_LATE}, '${PORTAL}', 'cliente', 'Segue o comprovante.', 'equipamentos', now() - interval '6 days'),
@@ -141,6 +146,18 @@ describeLocal('520 — Disputas de Demurrage', () => {
         .toBe(`Disputa encerrada|A Invoice de Demurrage DEM-R520-1 foi cancelada e a disputa foi encerrada. Motivo: Valor errado na emissão|/portal/billing?tab=demurrage&disputas=1&disputa=${DISP_CANCEL}`)
       expect(activeAlert('portal_dispute_opened', INV_CANCEL)).toBe('0')
     })
+  })
+
+  it('cancelamento automático manda ao Cliente um texto próprio, não o motivo interno (530)', () => {
+    // A troca de CNPJ com o Portal do Cliente novo fechado grava este motivo (484).
+    psql(`
+      UPDATE public.demurrage_invoices SET status = 'cancelled' WHERE id = ${INV_AUTO};
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, justification)
+      VALUES ('demurrage_invoice', '${INV_AUTO}', 'status', 'issued', 'cancelled',
+        'Troca de CNPJ do B/L R520-E: a Invoice do novo Cliente fica retida até o faturamento abrir (Email de recuperação suprimido).');`)
+    const notice = psql(`SELECT message FROM public.portal_notifications WHERE customer_id = ${CUSTOMER} AND type = 'dispute_cancelled' AND link LIKE '%disputa=${DISP_AUTO}'`)
+    expect(notice).toBe('A Invoice de Demurrage DEM-R520-5 foi cancelada e a disputa foi encerrada. Motivo: o B/L passou a outro Cliente.')
+    expect(psql(`SELECT body FROM public.demurrage_dispute_messages WHERE dispute_id = ${DISP_AUTO} ORDER BY id DESC LIMIT 1`)).not.toMatch(/recuperação/)
   })
 
   describe('Uma conversa por Invoice (D17)', () => {

@@ -20,7 +20,7 @@ const carrierId = 99514003
 const vesselId = 99514004
 const CASES = ['inside', 'border', 'running', 'override', 'toIssue', 'noCe', 'portal', 'waiting', 'covered', 'cancelledInv',
   'soc', 'noCustomer', 'noRate', 'agreement', 'blCancelled', 'voyageCancelled', 'returnedFree',
-  'autoIssue', 'autoFail', 'noRateFree', 'cancelledHeld'] as const
+  'autoIssue', 'autoFail', 'noRateFree', 'cancelledHeld', 'waiverMove', 'noRateCancel'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99514100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -127,7 +127,7 @@ function cleanup() {
     DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (SELECT id FROM r515_invoices);
     DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM r515_invoices);
     DELETE FROM public.demurrage_invoices WHERE id IN (SELECT id FROM r515_invoices);
-    DELETE FROM public.demurrage_box_waivers WHERE customer_id IN (${customerOpen}, ${customerClosed});
+    DELETE FROM public.demurrage_box_waivers WHERE customer_id IN (${customerOpen}, ${customerClosed}) OR bl_id IN (SELECT id FROM r515_bls);
     DELETE FROM public.customer_demurrage_agreements WHERE customer_id IN (${customerOpen}, ${customerClosed});
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM r515_bls);
     DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM r515_bls);
@@ -221,6 +221,9 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
     bl('HELDA', 'cancelledHeld'); bl('HELDB', 'cancelledHeld')
     box('HELDA', 'RQCU5140201', { discharge: 40 }); box('HELDB', 'RQCU5140201', { discharge: 40 })
     psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = now() WHERE id = '${blPrefix}HELDB'`)
+    // 530 — dispensa que acompanha a troca de Cliente; tipo sem tarifa e sem free time.
+    bl('WMOVE', 'waiverMove'); box('WMOVE', 'RQCU5140211', { discharge: 40 })
+    bl('NRCANC', 'noRateCancel'); box('NRCANC', 'RQCU5140221', { discharge: 5, type: 'R7ZZ' })
   })
 
   afterAll(cleanup)
@@ -443,6 +446,24 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       expect(board(voyageOf('waiting'))[0].division).toBe('esperando')
     })
 
+    it('B/L sem Cliente, ou com tipo sem tarifa e sem free time, não se cancela; a dispensa sem Cliente solta (530)', () => {
+      const travada = /^Demurrage travada: vincule o Cliente ou cadastre a tarifa/
+      expect(cancelReasons('NOCUST')).toEqual([expect.stringMatching(travada)])
+      expect(cancelReasons('NRCANC')).toEqual([expect.stringMatching(travada)])
+      const waived = asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}NOCUST', 'RQCU5140111', 'B/L importado por engano, sem Cliente')`)
+      expect(waived.status, waived.stderr).toBe(0)
+      expect(cancelReasons('NOCUST')).toEqual([])
+      expect(board(voyageOf('noCustomer'))).toEqual([])
+    })
+
+    it('a dispensa acompanha a troca de Cliente do B/L (530)', () => {
+      const waived = asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}WMOVE', 'RQCU5140211', 'Avaria no terminal, sem cobrança')`)
+      expect(waived.status, waived.stderr).toBe(0)
+      psql(`UPDATE public.bls SET customer_id = ${customerClosed} WHERE id = '${blPrefix}WMOVE'`)
+      expect(psql(`SELECT customer_id FROM public.demurrage_box_waivers WHERE container_key = 'RQCU5140211' AND revoked_at IS NULL`)).toBe(String(customerClosed))
+      expect(board(voyageOf('waiverMove'))).toEqual([])
+    })
+
     it('caixa já numa Invoice viva não se dispensa; o B/L com Invoice paga segue cancelável', () => {
       expect(asAdmin(`SELECT public.waive_demurrage_box('${blPrefix}COVERED', 'RQCU5140081', 'Tentativa de dispensa indevida')`).stderr)
         .toMatch(/já está numa Invoice de Demurrage/)
@@ -516,6 +537,25 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
         expect(board(voyageOf('noRateFree'))[0]).toMatchObject({ division: 'travado', no_rate_kind: 'tarifa' })
       } finally {
         psql(`SET session_replication_role = replica; DELETE FROM public.container_types WHERE code = 'R6ZZ'; DELETE FROM public.demurrage_rate_groups WHERE code = 'R6GR'`)
+      }
+    })
+
+    it('Invoice cancelada à mão: o efeito da fila não emite; cancelada pela reemissão automática não conta como à mão (530)', () => {
+      const cancelledId = psql(`SELECT id FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}CANCINV'`)
+      const actor = psql(`SELECT public._import_effect_system_actor()`)
+      psql(`DELETE FROM public.import_pending_effects WHERE entity_id = '${blPrefix}CANCINV' AND effect_kind = 'demurrage_billing';
+            INSERT INTO public.import_pending_effects (source_action_id, effect_kind, entity_id, created_by)
+            VALUES (gen_random_uuid(), 'demurrage_billing', '${blPrefix}CANCINV', '${actor}')`)
+      expect(processEffect('CANCINV')).toBe('succeeded')
+      expect(psql(`SELECT result->>'status' FROM public.import_pending_effects WHERE entity_id = '${blPrefix}CANCINV' AND effect_kind = 'demurrage_billing'`))
+        .toBe('awaiting_manual_issue')
+      expect(psql(`SELECT count(*) FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}CANCINV' AND status = 'issued'`)).toBe('0')
+      psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, justification)
+            VALUES ('demurrage_invoice', '${cancelledId}', 'status', 'issued', 'cancelled', 'Datas de container alteradas: cancelada para reemissão automática.')`)
+      try {
+        expect(board(voyageOf('cancelledInv'))[0]).toMatchObject({ division: 'a_emitir', cancelled_doc: null })
+      } finally {
+        psql(`DELETE FROM public.audit_logs WHERE entity_type = 'demurrage_invoice' AND entity_id = '${cancelledId}' AND justification LIKE 'Datas de container alteradas%'`)
       }
     })
 
