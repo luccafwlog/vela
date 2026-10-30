@@ -201,6 +201,11 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   situação. Canceladas ficam com a linha em cinza. O rótulo do USD é "USD a
   cobrar" só em Faturas; "USD pago" em Pagas e "USD cancelado" em Canceladas
   (lote 4 da repaginação, [ADR 0112](../adr/0112-repaginacao-da-demurrage.md)):
+  - **Exportar** (D14), em cada aba (a divisão aberta de Containers, Faturas,
+    Pagas, Canceladas e Por Cliente), gera a planilha do recorte da tela com as
+    colunas da tela (`demurrageScreenExports.ts` →
+    `exportDemurrageScreenWorkbook`); a visão completa, com filtros, é
+    `/relatorios?visao=demurrage` ([Operação e Suporte](operacao-suporte.md#relatorios)).
   - **Faturas** (D8): **Em aberto há** (dias desde `billed_at`, pelo dia de
     Brasília) e **Desconto** (US$, motivo ao passar o mouse). Filtros rápidos
     **Em disputa** (`dispute_open`), **Fora da Régua** (`dunning_suspended_reason`

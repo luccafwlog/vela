@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { ChevronDown, ChevronRight, FileText, Printer } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, FileText, Printer } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
@@ -23,6 +23,8 @@ type Props = {
   onExpandedCustomerChange: (customerId: number) => void
   onOpenReport: () => void
   onOpenInvoice: (invoiceId: number) => void
+  /** Exportar (ADR 0112, D14): as linhas da tela. */
+  onExport?: (rows: CustomerExposureRow[]) => void
 }
 
 /**
@@ -41,6 +43,7 @@ export function DemurrageCustomersTab({
   onExpandedCustomerChange,
   onOpenReport,
   onOpenInvoice,
+  onExport,
 }: Props) {
   const rows = summary ?? []
   const totals = rows.reduce((sum, row) => ({
@@ -74,6 +77,12 @@ export function DemurrageCustomersTab({
               { label: 'Faturado em aberto', value: `${fmtUSD(totals.usd)} · ${fmtBRL(totals.brl)}` },
             ]}
           />
+          {onExport && rows.length ? (
+            <Button variant="secondary" onClick={() => onExport(rows)}>
+              <Download size={15} aria-hidden="true" />
+              Exportar
+            </Button>
+          ) : null}
           <Button variant="secondary" disabled={!rows.length} onClick={onOpenReport}>
             <Printer size={15} aria-hidden="true" />
             Imprimir relatório

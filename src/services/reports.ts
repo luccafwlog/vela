@@ -4,6 +4,9 @@ import { blTotalCbm, blTotalWeightKg } from '../lib/cargoMode'
 import { saoPauloTodayIso } from '../lib/dates'
 import { storedPortAliases } from './portCode'
 import type { DemurrageInvoiceListItem } from './demurrage/demurrageInvoices'
+import { listDemurrageBillingBoard, type BoardBox, type BoardGroup } from './demurrage/demurrageBoard'
+import { DEMURRAGE_DIVISIONS, type DemurrageDivision } from './demurrage/demurrageDivisions'
+import { invoiceNetUsd } from './demurrage/demurrageNetUsd'
 
 // ─── Leitura em páginas (achado R2 do lote 5b) ────────────────────────────
 // O servidor entrega no máximo 1.000 linhas por consulta (`max_rows` em
@@ -136,10 +139,15 @@ export type FinancialReportFilters = ReportScope & {
 
 export type CustomerReportFilters = ReportScope
 
+/** Recortes de Demurrage em `/relatorios` (ADR 0112, D13). */
+export type DemurrageReportSlice = 'exposicao' | 'invoices' | 'itens'
+
 export type DemurrageReportFilters = ReportScope & {
-  status: '' | 'draft' | 'issued' | 'paid' | 'cancelled'
+  slice: DemurrageReportSlice
+  status: '' | 'issued' | 'paid' | 'cancelled'
   dispute: YesNoFilter
-  overdue: '' | 'sim'
+  /** Exposição: divisão da aba Containers. */
+  division: '' | DemurrageDivision
 }
 
 type ReportOptions = { ceiling?: number }
@@ -673,18 +681,126 @@ export async function fetchCustomerReport(filters: CustomerReportFilters, option
 }
 
 // ─── Demurrage ────────────────────────────────────────────────────────────
-
-export type DemurrageReportResult = {
-  rows: DemurrageInvoiceListItem[]
-  kpis: { totalUsd: number; billedBrl: number; paidBrl: number }
-  load: ReportLoad
-}
+// Três recortes (ADR 0112, D13): Exposição (caixas sem Invoice, da
+// classificação do banco), Invoices (líquidas, pela emissão de Brasília) e
+// Itens por container (cada caixa cobrada em Invoice viva).
 
 const DEMURRAGE_SELECT = 'customer:customers(id,name,cnpj_cpf,address,city,state,zip)'
 
-export async function fetchDemurrageReport(filters: DemurrageReportFilters, options: ReportOptions & { today?: string } = {}): Promise<DemurrageReportResult> {
+/** Caixa com Demurrage sem Invoice: correndo, devolvida com sobreestadia ou de tipo sem tarifa. */
+const EXPOSURE_STATES = new Set<BoardBox['state']>(['running', 'returned_overstay', 'no_rate'])
+
+export type DemurrageExposureRow = BoardBox & {
+  division: DemurrageDivision
+  reason: string | null
+  anchor_bl_id: string
+  customer_id: number | null
+  customer_name: string | null
+  voyage_label: string | null
+}
+
+export type DemurrageExposureResult = {
+  rows: DemurrageExposureRow[]
+  byDivision: Record<DemurrageDivision, { boxes: number; usd: number }>
+  byCustomer: Array<{ customer_id: number | null; customer_name: string; boxes: number; usd: number }>
+}
+
+export function demurrageExposureRows(groups: readonly BoardGroup[], division: DemurrageReportFilters['division'] = ''): DemurrageExposureResult {
+  const rows = groups
+    .filter((group) => !division || group.division === division)
+    .flatMap((group) => group.boxes.filter((box) => EXPOSURE_STATES.has(box.state)).map((box): DemurrageExposureRow => ({
+      ...box,
+      usd: box.usd == null ? null : Number(box.usd),
+      division: group.division,
+      reason: group.reason,
+      anchor_bl_id: group.anchor_bl_id,
+      customer_id: group.customer_id,
+      customer_name: group.customer_name,
+      voyage_label: group.voyage_label,
+    })))
+    .sort((left, right) => DEMURRAGE_DIVISIONS.indexOf(left.division) - DEMURRAGE_DIVISIONS.indexOf(right.division)
+      || Number(right.usd ?? 0) - Number(left.usd ?? 0)
+      || left.container_number.localeCompare(right.container_number))
+  const byDivision = Object.fromEntries(DEMURRAGE_DIVISIONS.map((item) => [item, { boxes: 0, usd: 0 }])) as DemurrageExposureResult['byDivision']
+  const customers = new Map<string, DemurrageExposureResult['byCustomer'][number]>()
+  for (const row of rows) {
+    byDivision[row.division].boxes += 1
+    byDivision[row.division].usd += Number(row.usd ?? 0)
+    const key = String(row.customer_id ?? 'sem')
+    const customer = customers.get(key) ?? { customer_id: row.customer_id, customer_name: row.customer_name ?? 'Sem Cliente', boxes: 0, usd: 0 }
+    customer.boxes += 1
+    customer.usd += Number(row.usd ?? 0)
+    customers.set(key, customer)
+  }
+  return { rows, byDivision, byCustomer: Array.from(customers.values()).sort((left, right) => right.usd - left.usd) }
+}
+
+/** Exposição: o estado de hoje, sem período; Cliente e Navio / Viagem vão ao banco. */
+export async function fetchDemurrageExposure(filters: DemurrageReportFilters): Promise<DemurrageExposureResult> {
+  const groups = await listDemurrageBillingBoard({ customerId: positiveId(filters.customerId), voyageId: positiveId(filters.voyageId) })
+  return demurrageExposureRows(groups, filters.division)
+}
+
+export type DemurrageInvoiceKind = { label: 'Normal' | 'Complementar' | 'Substitui'; doc: string | null }
+
+export type DemurrageReportRow = DemurrageInvoiceListItem & {
+  kind: DemurrageInvoiceKind
+  net_usd: number
+  discount_usd: number
+}
+
+export type DemurrageReportResult = {
+  rows: DemurrageReportRow[]
+  kpis: { netUsd: number; invoices: number; openBrl: number; paidBrl: number }
+  load: ReportLoad
+}
+
+const LIVE_DEMURRAGE = new Set(['issued', 'overdue', 'paid'])
+
+type SiblingInvoice = { id: number; bl_id: string; doc_number: string; status: string | null; created_at: string | null }
+
+/**
+ * Tipo da Invoice, a mesma regra do detalhe: substitui a cancelada de
+ * `replaces_invoice_id`; complementar quando outra Invoice viva do mesmo B/L
+ * foi criada antes; senão Normal.
+ */
+export function demurrageInvoiceKind(invoice: Pick<DemurrageInvoiceListItem, 'id' | 'bl_id' | 'created_at' | 'replaces_invoice_id'>, siblings: readonly SiblingInvoice[]): DemurrageInvoiceKind {
+  if (invoice.replaces_invoice_id != null) {
+    return { label: 'Substitui', doc: siblings.find((other) => other.id === invoice.replaces_invoice_id)?.doc_number ?? null }
+  }
+  const earlier = siblings.some((other) => other.bl_id === invoice.bl_id && other.id !== invoice.id && LIVE_DEMURRAGE.has(other.status ?? '')
+    && ((other.created_at ?? '') < (invoice.created_at ?? '') || ((other.created_at ?? '') === (invoice.created_at ?? '') && other.id < invoice.id)))
+  return { label: earlier ? 'Complementar' : 'Normal', doc: null }
+}
+
+// ponytail: ids em lotes de 200 para a URL não estourar.
+const SIBLING_BATCH = 200
+
+async function fetchSiblingInvoices(rows: readonly DemurrageInvoiceListItem[]): Promise<SiblingInvoice[]> {
+  const blIds = Array.from(new Set(rows.map((row) => row.bl_id).filter(Boolean)))
+  const replaced = Array.from(new Set(rows.map((row) => row.replaces_invoice_id).filter((id): id is number => id != null)))
+  const siblings: SiblingInvoice[] = []
+  for (let start = 0; start < blIds.length; start += SIBLING_BATCH) {
+    const { data, error } = await supabase.from('demurrage_invoices').select('id, bl_id, doc_number, status, created_at').in('bl_id', blIds.slice(start, start + SIBLING_BATCH))
+    if (error) throw error
+    siblings.push(...((data ?? []) as SiblingInvoice[]))
+  }
+  const missing = replaced.filter((id) => !siblings.some((other) => other.id === id))
+  for (let start = 0; start < missing.length; start += SIBLING_BATCH) {
+    const { data, error } = await supabase.from('demurrage_invoices').select('id, bl_id, doc_number, status, created_at').in('id', missing.slice(start, start + SIBLING_BATCH))
+    if (error) throw error
+    siblings.push(...((data ?? []) as SiblingInvoice[]))
+  }
+  return siblings
+}
+
+/**
+ * Invoices de Demurrage: emissão por `billed_at` no dia de Brasília (filtro,
+ * coluna e ordem), USD líquido do desconto, BRL de hoje das em aberto separado
+ * do BRL pago. Sem a situação Rascunho nem o filtro Vencidas (D13).
+ */
+export async function fetchDemurrageReport(filters: DemurrageReportFilters, options: ReportOptions = {}): Promise<DemurrageReportResult> {
   const ceiling = options.ceiling ?? REPORT_SCREEN_CEILING
-  const today = options.today ?? saoPauloTodayIso()
   const voyageId = positiveId(filters.voyageId)
   const customerId = positiveId(filters.customerId)
 
@@ -696,36 +812,84 @@ export async function fetchDemurrageReport(filters: DemurrageReportFilters, opti
     let query = supabase
       .from('demurrage_invoices')
       .select(`*, ${DEMURRAGE_SELECT}, ${bl}`, reportSelectOptions(from))
-      .order('created_at', { ascending: false })
+      .neq('status', 'draft')
+      .order('billed_at', { ascending: false, nullsFirst: false })
       .order('id', { ascending: false })
-    // doc_date é DATE (calendário), comparado com a data crua.
-    if (filters.dateFrom) query = query.gte('doc_date', filters.dateFrom)
-    if (filters.dateTo) query = query.lte('doc_date', filters.dateTo)
+    if (filters.dateFrom) query = query.gte('billed_at', brasiliaStartOfDay(filters.dateFrom))
+    if (filters.dateTo) query = query.lte('billed_at', brasiliaEndOfDay(filters.dateTo))
     if (voyageId) query = query.eq('bl.voyage_id', voyageId)
     if (customerId) query = query.eq('customer_id', customerId)
-    if (filters.status) query = query.eq('status', filters.status)
+    if (filters.status === 'issued') query = query.in('status', ['issued', 'overdue'])
+    else if (filters.status) query = query.eq('status', filters.status)
     if (filters.dispute === 'sim') query = query.eq('dispute_open', true)
     else if (filters.dispute === 'nao') query = query.or('dispute_open.is.null,dispute_open.eq.false')
-    if (filters.overdue === 'sim') query = query.in('status', ['issued', 'overdue']).lt('due_date', today)
     return query.range(from, to).overrideTypes<DemurrageInvoiceListItem[], { merge: false }>()
   }, { ceiling })
 
-  // Faturas canceladas continuam listadas (o operador precisa vê-las), mas somá-las
-  // inflaria os totais. Cada indicador declara no rótulo o recorte que agrega.
-  const active = rows.filter((invoice) => invoice.status !== 'cancelled')
+  const siblings = await fetchSiblingInvoices(rows)
+  const reportRows = rows.map((invoice): DemurrageReportRow => {
+    const net = invoiceNetUsd(invoice)
+    return { ...invoice, kind: demurrageInvoiceKind(invoice, siblings), net_usd: net.netUsd, discount_usd: net.discountUsd }
+  })
+  // Canceladas continuam listadas, mas nenhum cartão as soma.
+  const live = reportRows.filter((invoice) => invoice.status !== 'cancelled')
   return {
-    rows,
+    rows: reportRows,
     kpis: {
-      totalUsd: active.reduce((sum, invoice) => sum + Number(invoice.total_usd ?? 0), 0),
-      billedBrl: active
-        .filter((invoice) => invoice.status === 'issued' || invoice.status === 'overdue' || invoice.status === 'paid')
-        .reduce((sum, invoice) => sum + Number(invoice.current_total_brl ?? 0), 0),
-      paidBrl: rows
-        .filter((invoice) => invoice.status === 'paid')
-        .reduce((sum, invoice) => sum + Number(invoice.current_total_brl ?? 0), 0),
+      netUsd: live.reduce((sum, invoice) => sum + invoice.net_usd, 0),
+      invoices: live.length,
+      openBrl: live.filter((invoice) => invoice.status !== 'paid').reduce((sum, invoice) => sum + Number(invoice.current_total_brl ?? 0), 0),
+      paidBrl: live.filter((invoice) => invoice.status === 'paid').reduce((sum, invoice) => sum + Number(invoice.current_total_brl ?? 0), 0),
     },
     load,
   }
+}
+
+export type DemurrageItemReportRow = {
+  id: number
+  container_number: string
+  container_type: string | null
+  discharge_date: string | null
+  return_date: string | null
+  total_days: number | null
+  free_days: number | null
+  days_p1: number | null
+  rate_p1_usd: number | null
+  days_p2: number | null
+  rate_p2_usd: number | null
+  subtotal_usd: number | null
+  invoice: {
+    id: number
+    doc_number: string
+    status: string | null
+    billed_at: string | null
+    bl_id: string
+    customer: { id: number; name: string } | null
+    bl: { voyage_id: number | null; voyage: { voyage_number: string; vessel: { name: string } | null } | null } | null
+  }
+}
+
+/** Itens por container: cada caixa de Invoice viva (emitida ou paga), pela emissão da Invoice. */
+export async function fetchDemurrageItemsReport(filters: DemurrageReportFilters, options: ReportOptions = {}): Promise<PagedRows<DemurrageItemReportRow>> {
+  const ceiling = options.ceiling ?? REPORT_SCREEN_CEILING
+  const voyageId = positiveId(filters.voyageId)
+  const customerId = positiveId(filters.customerId)
+  return fetchAllPages<DemurrageItemReportRow>((from, to) => {
+    const bl = voyageId ? 'bl:bls!inner(voyage_id,voyage:voyages(voyage_number,vessel:vessels(name)))' : 'bl:bls(voyage_id,voyage:voyages(voyage_number,vessel:vessels(name)))'
+    let query = supabase
+      .from('demurrage_invoice_items')
+      .select(`id, container_number, container_type, discharge_date, return_date, total_days, free_days, days_p1, rate_p1_usd, days_p2, rate_p2_usd, subtotal_usd,
+        invoice:demurrage_invoices!inner(id, doc_number, status, billed_at, bl_id, customer_id, customer:customers(id,name), ${bl})`, reportSelectOptions(from))
+      .in('invoice.status', ['issued', 'overdue', 'paid'])
+      .order('invoice_id', { ascending: false })
+      .order('container_number')
+      .order('id')
+    if (filters.dateFrom) query = query.gte('invoice.billed_at', brasiliaStartOfDay(filters.dateFrom))
+    if (filters.dateTo) query = query.lte('invoice.billed_at', brasiliaEndOfDay(filters.dateTo))
+    if (customerId) query = query.eq('invoice.customer_id', customerId)
+    if (voyageId) query = query.eq('invoice.bl.voyage_id', voyageId)
+    return query.range(from, to).overrideTypes<DemurrageItemReportRow[], { merge: false }>()
+  }, { ceiling })
 }
 
 // ─── Recebíveis das faturas de Taxas Locais ───────────────────────────────

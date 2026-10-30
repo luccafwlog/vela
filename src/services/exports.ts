@@ -13,7 +13,8 @@ import { REPORT_LOCAL_CHARGES_STATE_LABELS, reportLocalChargesState } from '../l
 import { getInvoiceBls, getInvoicePaymentDate, invoiceTypeLabel, type InvoiceListRow } from './billing'
 import { invoiceStatusLabel } from '../pages/faturamentoInvoiceStatus'
 import { DEMURRAGE_INVOICE_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
-import type { DemurrageInvoiceListItem } from './demurrage/demurrageInvoices'
+import type { DemurrageExposureRow, DemurrageItemReportRow, DemurrageReportRow } from './reports'
+import { DEMURRAGE_DIVISION_LABELS } from './demurrage/demurrageDivisions'
 import { formatDate } from '../lib/utils'
 import { arrivalDisplay } from '../lib/escalaState'
 import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
@@ -299,24 +300,88 @@ export async function exportCustomerReportWorkbook(rows: CustomerReportRow[], fi
   XLSX.writeFile(workbook, `relatorio-clientes-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListItem[], filters: ReportFilterLine[] = []) {
-  const XLSX = await import('@e965/xlsx')
-  const exportRows = rows.map((row) => ({
+const usdCell = (value: number | string | null | undefined) => (value == null ? '' : Number(value))
+const dateCell = (value: string | null | undefined) => (value ? formatDate(value) : '')
+
+/** Colunas da Exposição (ADR 0112, D13): a mesma da tela e da aba Containers. */
+export function demurrageExposureSheetRows(rows: readonly DemurrageExposureRow[]) {
+  return rows.map((row) => ({
+    Divisão: DEMURRAGE_DIVISION_LABELS[row.division],
+    Motivo: row.division === 'travado' ? row.reason ?? '' : '',
+    Cliente: row.customer_name ?? 'Sem Cliente',
+    'Navio / Viagem': row.voyage_label ?? '',
+    'B/L': row.bl_id,
+    Container: row.container_number,
+    Tipo: row.type ?? '',
+    Descarga: dateCell(row.discharge_date),
+    Devolução: row.return_date ? dateCell(row.return_date) : 'Fora',
+    Dias: row.total_days ?? '',
+    'Free time': row.free_days ?? '',
+    'US$ previsto': row.state === 'no_rate' ? 'Tipo sem tarifa' : usdCell(row.usd),
+  }))
+}
+
+export function demurrageInvoiceSheetRows(rows: readonly DemurrageReportRow[]) {
+  return rows.map((row) => ({
     Invoice: row.doc_number ?? '',
+    Tipo: row.kind.doc ? `${row.kind.label} ${row.kind.doc}` : row.kind.label,
     'B/L': row.bl_id ?? '',
+    'Navio / Viagem': [row.bl?.voyage?.vessel?.name, row.bl?.voyage?.voyage_number].filter(Boolean).join(' / '),
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
-    Emissão: row.doc_date ? formatDate(row.doc_date) : '',
-    Vencimento: row.due_date ? formatDate(row.due_date) : '',
-    'Total US$': Number(row.total_usd ?? 0),
-    'Total R$': Number(row.current_total_brl ?? 0),
+    Emissão: dateCell(row.billed_at),
+    'USD líquido': row.net_usd,
+    'Desconto US$': row.discount_usd,
+    'R$ hoje': row.status === 'issued' || row.status === 'overdue' ? Number(row.current_total_brl ?? 0) : '',
+    'R$ pago': row.status === 'paid' ? Number(row.current_total_brl ?? 0) : '',
+    'Paga em': dateCell(row.paid_at),
+    Disputa: row.dispute_open ? 'Aberta' : '',
     Situação: statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, row.status, ''),
   }))
+}
 
+export function demurrageItemSheetRows(rows: readonly DemurrageItemReportRow[]) {
+  return rows.map((row) => ({
+    Invoice: row.invoice.doc_number,
+    Situação: statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, row.invoice.status, ''),
+    Emissão: dateCell(row.invoice.billed_at),
+    Cliente: row.invoice.customer?.name ?? '',
+    'Navio / Viagem': [row.invoice.bl?.voyage?.vessel?.name, row.invoice.bl?.voyage?.voyage_number].filter(Boolean).join(' / '),
+    'B/L': row.invoice.bl_id,
+    Container: row.container_number,
+    Tipo: row.container_type ?? '',
+    Descarga: dateCell(row.discharge_date),
+    Devolução: dateCell(row.return_date),
+    Dias: row.total_days ?? '',
+    'Free time': row.free_days ?? '',
+    '1º período (dias)': row.days_p1 ?? '',
+    '1º período (US$/dia)': usdCell(row.rate_p1_usd),
+    '2º período (dias)': row.days_p2 ?? '',
+    '2º período (US$/dia)': usdCell(row.rate_p2_usd),
+    US$: usdCell(row.subtotal_usd),
+  }))
+}
+
+/** Planilha de Demurrage de /relatorios (D14): uma aba por recorte, mais Filtros. */
+export async function exportDemurrageReportWorkbook(
+  report: { exposure: readonly DemurrageExposureRow[]; invoices: readonly DemurrageReportRow[]; items: readonly DemurrageItemReportRow[] },
+  filters: ReportFilterLine[] = [],
+) {
+  const XLSX = await import('@e965/xlsx')
   const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Demurrage')
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, demurrageExposureSheetRows(report.exposure)), 'Exposição')
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, demurrageInvoiceSheetRows(report.invoices)), 'Invoices')
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, demurrageItemSheetRows(report.items)), 'Itens por container')
   appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-demurrage-${makeTimestamp()}.xlsx`)
+}
+
+/** Exportar de uma aba da central de Demurrage (D14): o que está na tela, com as colunas da tela. */
+export async function exportDemurrageScreenWorkbook(sheetName: string, fileSlug: string, rows: Array<Record<string, unknown>>) {
+  const XLSX = await import('@e965/xlsx')
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, rows), sheetName.slice(0, 31))
+  XLSX.writeFile(workbook, `demurrage-${fileSlug}-${makeTimestamp()}.xlsx`)
 }
 
 /** Planilha comum do recorte inteiro do Desbloqueio de CE (aba Andamento dos B/Ls); a planilha da ZPT é outra. */

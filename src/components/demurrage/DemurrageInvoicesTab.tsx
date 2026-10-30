@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { FileText } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
@@ -46,6 +46,8 @@ type Props = {
   onRetry: () => void
   onSearchChange: (value: string) => void
   onOpenDetail: (invoiceId: number) => void
+  /** Exportar (ADR 0112, D14): as Invoices da tela, com o que a tela leu delas. */
+  onExport?: (invoices: DemurrageInvoiceListItem[], details: ReadonlyMap<number, DemurrageInvoiceDetails>) => void
 }
 
 const EMPTY_TEXT: Record<InvoiceTab, { title: string; description: string }> = {
@@ -141,7 +143,7 @@ function CancelledBy({ details }: { details: DemurrageInvoiceDetails | undefined
   return <>{details.cancelledBy}{details.cancelledAt ? <span className="app-dem-meta"> · {formatDate(details.cancelledAt)}</span> : null}</>
 }
 
-export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, onRetry, onSearchChange, onOpenDetail }: Props) {
+export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, onRetry, onSearchChange, onOpenDetail, onExport }: Props) {
   const narrow = useNarrowViewport()
   const [filters, setFilters] = useState<InvoiceQuickFilters>(EMPTY_INVOICE_FILTERS)
   // A Régua é lida para a aba inteira, não para o recorte da busca: digitar
@@ -244,6 +246,12 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
               ...(roe && tab === 'emitidas' ? [{ label: 'ROE', value: fmtRoe(roe)! }] : []),
             ]}
           />
+          {onExport && visible.length ? (
+            <Button variant="secondary" className="app-btn--sm" onClick={() => onExport(visible, details)}>
+              <Download size={14} aria-hidden="true" />
+              Exportar
+            </Button>
+          ) : null}
           {tab === 'emitidas' ? <p className="app-dem-note">O USD fica travado na emissão; o BRL acompanha a PTAX até o pagamento.</p> : null}
           {needsDetails && detailsQuery.error ? <p className="app-dem-note app-dem-note--warning" role="status">Não foi possível carregar {tab === 'pagas' ? 'o ROE do pagamento' : 'o motivo e o destino das caixas'}.</p> : null}
         </div>

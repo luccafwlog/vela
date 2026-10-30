@@ -56,3 +56,13 @@ describe('valores do endereço em /relatorios', () => {
     expect(demurrageFiltersFromSearch(search('de=2026-03-01'), now)).toMatchObject({ dateFrom: '2026-03-01', dateTo: '' })
   })
 })
+
+// ADR 0112, D13: recorte de Demurrage e divisão da Exposição no endereço.
+describe('recorte de Demurrage', () => {
+  it('Invoices é o padrão; recorte e divisão desconhecidos saem; Rascunho não é mais situação', () => {
+    expect(demurrageFiltersFromSearch(search('')).slice).toBe('invoices')
+    expect(demurrageFiltersFromSearch(search('recorte=exposicao&divisao=travado'))).toMatchObject({ slice: 'exposicao', division: 'travado' })
+    expect(demurrageFiltersFromSearch(search('recorte=xyz&divisao=paga'))).toMatchObject({ slice: 'invoices', division: '' })
+    expect(demurrageFiltersFromSearch(search('situacao=draft')).status).toBe('')
+  })
+})

@@ -14,7 +14,10 @@ import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { ImportNotice } from '../components/shared/ImportParts'
 import { ContainerDatesImportModal } from '../components/shared/ContainerDatesImportModal'
 import { CustomerReportModal } from '../components/demurrage/CustomerReportModal'
+import { userFacingErrorMessage } from '../lib/errors'
 import { buildCustomerExposure } from '../services/demurrage/demurrageCustomerExposure'
+import { containerTabSheetRows, customerTabSheetRows, invoiceTabSheetRows } from '../services/demurrage/demurrageScreenExports'
+import { DEMURRAGE_DIVISION_LABELS } from '../services/demurrage/demurrageDivisions'
 import { DemurrageContainersTab } from '../components/demurrage/DemurrageContainersTab'
 import { DemurrageContainerDatesModal } from '../components/demurrage/DemurrageContainerDatesModal'
 import { canAnswerDemurrageDispute, canManageManualRoe, type ContainerDatesInput } from '../components/demurrage/demurrageFormRules'
@@ -73,6 +76,7 @@ import { demurrageStateFromSearch, withDemurrageParam, withDemurrageTab, type De
 type InvoiceTab = (typeof DEMURRAGE_INVOICE_TABS)[number]['key']
 
 const STATUS_BY_TAB = Object.fromEntries(DEMURRAGE_INVOICE_TABS.map(({ key, status }) => [key, status])) as Record<InvoiceTab, string>
+const TAB_LABEL = Object.fromEntries(DEMURRAGE_INVOICE_TABS.map(({ key, label }) => [key, label])) as Record<InvoiceTab, string>
 const TAB_BY_STATUS: Record<string, InvoiceTab> = { issued: 'emitidas', overdue: 'emitidas', paid: 'pagas', cancelled: 'canceladas' }
 
 function isInvoiceTab(tab: DemurrageTab): tab is InvoiceTab {
@@ -241,6 +245,17 @@ export function Demurrage() {
     updateParams((params) => withDemurrageParam(params, 'fatura', invoiceId))
   }
   const closeInvoice = () => updateParams((params) => withDemurrageParam(params, 'fatura', null))
+
+  // Exportar de cada aba (ADR 0112, D14): o recorte da tela, com as colunas da tela.
+  async function exportScreen(sheet: string, slug: string, rows: Array<Record<string, unknown>>) {
+    try {
+      const { exportDemurrageScreenWorkbook } = await import('../services/exports')
+      await exportDemurrageScreenWorkbook(sheet, slug, rows)
+      showToast(`Planilha exportada (${rows.length.toLocaleString('pt-BR')} linhas).`, 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Não foi possível exportar a planilha.'), 'error')
+    }
+  }
 
   /** Ação aberta a partir do detalhe: o formulário toma o lugar do diálogo e volta para ele. */
   function fromDetail(action: () => void) {
@@ -548,6 +563,7 @@ export function Demurrage() {
             onEditContainer={(box, group) => { setDatesError(null); setEditingContainer(boxAsContainer(box, group)) }}
             onOpenInvoice={openInvoice}
             onWaiveBox={canIssue ? (box, group) => void handleWaiveBox(box, group) : undefined}
+            onExport={(groups, selected) => void exportScreen(`Containers ${DEMURRAGE_DIVISION_LABELS[selected]}`, `containers-${selected}`, containerTabSheetRows(groups, selected))}
           />
         ) : null}
         {isInvoiceTab(activeTab) ? (
@@ -560,6 +576,7 @@ export function Demurrage() {
             onRetry={() => void invoicesQuery.refetch()}
             onSearchChange={setSearch}
             onOpenDetail={openInvoice}
+            onExport={(rows, details) => void exportScreen(TAB_LABEL[activeTab], activeTab, invoiceTabSheetRows(activeTab, rows, details))}
           />
         ) : null}
         {activeTab === 'clientes' ? (
@@ -574,6 +591,7 @@ export function Demurrage() {
             expandedCustomer={expandedCustomer}
             onExpandedCustomerChange={(customerId) => setExpandedCustomer((id) => (id === customerId ? null : customerId))}
             onOpenReport={() => setCustomerReportOpen(true)}
+            onExport={(rows) => void exportScreen('Por Cliente', 'por-cliente', customerTabSheetRows(rows))}
             onOpenInvoice={openInvoice}
           />
         ) : null}
