@@ -737,6 +737,28 @@ cancelar um B/L cujo container está numa Invoice de Demurrage viva do grupo é
 recusado como "fatura de Demurrage em aberto"; linha antiga com devolução
 gravada entra no cálculo pela data, não pelo status.
 
+**Caixa dividida entre Clientes** (migration `521`, [ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
+D19, D22 e D23). Quando o mesmo container (número normalizado, não-SOC) está
+em B/Ls ativos de Clientes diferentes na mesma Viagem, cada Cliente paga uma
+parte igual: com `n` Clientes (`_demurrage_box_share_count`, contando o da
+Invoice mesmo com o B/L dele cancelado), o item de cada um é o valor da caixa
+pela condição daquele Cliente (B/L, acordo ou tabela) dividido por `n`
+(`_calculate_demurrage_invoice_authoritative`), e
+`demurrage_invoice_items.box_share_count` guarda `n`. O detalhe, o documento
+impresso, o detalhe do Portal e o relatório Itens por container mostram
+"1/2 da caixa"; a classificação da aba Containers e a Exposição já preveem a
+parte. Item emitido antes da `521` fica com a coluna vazia: foi cobrado cheio
+e não é revisto. Se `n` muda depois da emissão (chega o B/L de outro Cliente
+com a caixa, a caixa sai de um B/L, um B/L é cancelado ou troca de Cliente ou
+de Viagem), os gatilhos `trg_bl_containers_box_share_*` e `trg_bls_box_share`
+levam as Invoices vivas da caixa a `_reconcile_demurrage_after_dates`, que
+trata a diferença como data alterada (`_demurrage_item_stale`): sem
+pagamento, desconto ou disputa, a Invoice é cancelada e reemitida com a parte
+nova; paga, com desconto ou em disputa, sai da Régua com o Alerta
+`demurrage_invoice_dates_changed` ("A divisão das caixas entre Clientes da
+Invoice de Demurrage … mudou depois da emissão"), para restituir ou cobrar a
+diferença. **Teste local-pg:** `rateioDemurrage.local-pg.test.ts`.
+
 ### Datas alteradas depois da emissão
 
 **Trava de emissão (DEM-D13, migration `472`).** A Invoice de Demurrage segue

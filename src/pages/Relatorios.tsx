@@ -46,6 +46,7 @@ import {
 } from '../services/reports'
 import { DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS } from '../services/demurrage/demurrageDivisions'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { boxShareLabel } from '../services/demurrage/demurragePresentation'
 import {
   REPORT_VIEWS,
   customerFiltersFromSearch,
@@ -986,7 +987,7 @@ function DemurrageReportView(props: ViewProps) {
                 <td>{item.free_days ?? <NoValue label="Sem free time" />}</td>
                 <td>{item.days_p1 ? `${item.days_p1} × ${formatUSD(Number(item.rate_p1_usd ?? 0))}` : '0'}</td>
                 <td>{item.days_p2 ? `${item.days_p2} × ${formatUSD(Number(item.rate_p2_usd ?? 0))}` : '0'}</td>
-                <td>{formatUSD(Number(item.subtotal_usd ?? 0))}</td>
+                <td>{formatUSD(Number(item.subtotal_usd ?? 0))}{boxShareLabel(item.box_share_count) ? <span className="text-[var(--app-muted)]"> · {boxShareLabel(item.box_share_count)}</span> : null}</td>
               </tr>
             ))}
           </ReportTable>

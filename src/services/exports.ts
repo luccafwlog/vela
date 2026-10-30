@@ -15,6 +15,7 @@ import { invoiceStatusLabel } from '../pages/faturamentoInvoiceStatus'
 import { DEMURRAGE_INVOICE_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
 import type { DemurrageExposureRow, DemurrageItemReportRow, DemurrageReportRow } from './reports'
 import { DEMURRAGE_DIVISION_LABELS } from './demurrage/demurrageDivisions'
+import { boxShareLabel } from './demurrage/demurragePresentation'
 import { formatDate } from '../lib/utils'
 import { arrivalDisplay } from '../lib/escalaState'
 import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
@@ -359,6 +360,7 @@ export function demurrageItemSheetRows(rows: readonly DemurrageItemReportRow[]) 
     '2º período (dias)': row.days_p2 ?? '',
     '2º período (US$/dia)': usdCell(row.rate_p2_usd),
     US$: usdCell(row.subtotal_usd),
+    'Parte da caixa': boxShareLabel(row.box_share_count) ?? '',
   }))
 }
 

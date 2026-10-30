@@ -7,7 +7,7 @@ import { ComplementMark, StatusText } from '../ui/StatusText'
 import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
 import { formatBRL, formatDate } from '../../lib/utils'
 import { joinDemurrageDocNumbers, type PortalDemurrageInvoice, type PortalDemurrageInvoiceDetail, type PortalDispute } from '../../services/portalBilling'
-import { invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
+import { boxShareLabel, invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
 import { PortalPaymentBlock } from './PortalPixPaymentBlock'
 import { DisputeSummary } from './PortalDisputeConversation'
 import { Button } from '../ui/Button'
@@ -232,7 +232,10 @@ export function PortalDemurrageDetailModal({
                         <td className="px-3 py-2 tabular-nums">{item.free_days}</td>
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{periodValue(item.days_p1, item.rate_p1_usd)}</td>
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{periodValue(item.days_p2, item.rate_p2_usd)}</td>
-                        <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatUsd(item.subtotal_usd)}</td>
+                        <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                          {formatUsd(item.subtotal_usd)}
+                          {boxShareLabel((item as { box_share_count?: number | null }).box_share_count) ? <span className="text-[var(--app-muted)]"> · {boxShareLabel((item as { box_share_count?: number | null }).box_share_count)}</span> : null}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -226,3 +226,12 @@ export function daysSince(fromIso: string, toIso: string): number {
   if (!Number.isFinite(from) || !Number.isFinite(to)) return 0
   return Math.max(0, Math.round((to - from) / 86_400_000))
 }
+
+/**
+ * Parte da caixa dividida entre Clientes (migration 521, ADR 0112, D19): "1/2
+ * da caixa". Nulo na caixa de um Cliente só e no item emitido antes da 521.
+ */
+export function boxShareLabel(count: number | null | undefined): string | null {
+  const n = Number(count ?? 1)
+  return Number.isInteger(n) && n > 1 ? `1/${n} da caixa` : null
+}

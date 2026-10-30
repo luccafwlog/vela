@@ -858,6 +858,8 @@ export type DemurrageItemReportRow = {
   days_p2: number | null
   rate_p2_usd: number | null
   subtotal_usd: number | null
+  /** Migration 521: Clientes que dividem a caixa; o item cobra 1/n. */
+  box_share_count: number | null
   invoice: {
     id: number
     doc_number: string
@@ -878,7 +880,7 @@ export async function fetchDemurrageItemsReport(filters: DemurrageReportFilters,
     const bl = voyageId ? 'bl:bls!inner(voyage_id,voyage:voyages(voyage_number,vessel:vessels(name)))' : 'bl:bls(voyage_id,voyage:voyages(voyage_number,vessel:vessels(name)))'
     let query = supabase
       .from('demurrage_invoice_items')
-      .select(`id, container_number, container_type, discharge_date, return_date, total_days, free_days, days_p1, rate_p1_usd, days_p2, rate_p2_usd, subtotal_usd,
+      .select(`id, container_number, container_type, discharge_date, return_date, total_days, free_days, days_p1, rate_p1_usd, days_p2, rate_p2_usd, subtotal_usd, box_share_count,
         invoice:demurrage_invoices!inner(id, doc_number, status, billed_at, bl_id, customer_id, customer:customers(id,name), ${bl})`, reportSelectOptions(from))
       .in('invoice.status', ['issued', 'overdue', 'paid'])
       .order('invoice_id', { ascending: false })
