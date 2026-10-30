@@ -7,7 +7,7 @@ import { ComplementMark, StatusText } from '../ui/StatusText'
 import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
 import { formatBRL, formatDate } from '../../lib/utils'
 import { joinDemurrageDocNumbers, type PortalDemurrageInvoice, type PortalDemurrageInvoiceDetail, type PortalDispute } from '../../services/portalBilling'
-import { invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
+import { boxShareLabel, invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
 import { PortalPaymentBlock } from './PortalPixPaymentBlock'
 import { DisputeSummary } from './PortalDisputeConversation'
 import { Button } from '../ui/Button'
@@ -19,6 +19,8 @@ type PortalDemurrageDetailModalProps = {
   loading: boolean
   /** Disputa aberta desta fatura, quando houver. */
   dispute?: PortalDispute | null
+  /** Disputa já resolvida desta Invoice: no lugar de Abrir disputa, a reabertura (ADR 0112, D17). */
+  resolvedDispute?: PortalDispute | null
   /** Invoices anteriores do mesmo B/L que esta completa (Invoice complementar). */
   complementOf?: Array<Pick<PortalDemurrageInvoice, 'id' | 'doc_number'>>
   onClose: () => void
@@ -54,7 +56,8 @@ function containersPhrase(numbers: string[]) {
  * trecho e o Pix; na paga, "✓ Paga" com o valor e o dia), depois a Disputa
  * aberta com "Ver conversa", as Restituições, o aviso de Invoice complementar
  * e os contêineres. "Abrir disputa" fica no fim enquanto a Invoice está em
- * aberto e sem disputa.
+ * aberto e sem disputa; com uma disputa já resolvida, o lugar é de "Solicitar
+ * reabertura" (uma conversa por Invoice, ADR 0112, D17).
  */
 export function PortalDemurrageDetailModal({
   open,
@@ -62,6 +65,7 @@ export function PortalDemurrageDetailModal({
   detail,
   loading,
   dispute,
+  resolvedDispute = null,
   complementOf = [],
   onClose,
   onPrint,
@@ -228,7 +232,10 @@ export function PortalDemurrageDetailModal({
                         <td className="px-3 py-2 tabular-nums">{item.free_days}</td>
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{periodValue(item.days_p1, item.rate_p1_usd)}</td>
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{periodValue(item.days_p2, item.rate_p2_usd)}</td>
-                        <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatUsd(item.subtotal_usd)}</td>
+                        <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                          {formatUsd(item.subtotal_usd)}
+                          {boxShareLabel((item as { box_share_count?: number | null }).box_share_count) ? <span className="text-[var(--app-muted)]"> · {boxShareLabel((item as { box_share_count?: number | null }).box_share_count)}</span> : null}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -236,7 +243,13 @@ export function PortalDemurrageDetailModal({
               </div>
             </Block>
 
-            {payable && !hasDispute ? (
+            {payable && !hasDispute && resolvedDispute ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="secondary" className="app-btn--sm" onClick={onShowDispute}>Solicitar reabertura</Button>
+                <span className="text-sm text-[var(--app-muted)]">a disputa desta Invoice já foi resolvida; para contestar de novo, peça a reabertura na conversa</span>
+              </div>
+            ) : null}
+            {payable && !hasDispute && !resolvedDispute ? (
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="secondary" className="app-btn--sm" onClick={() => onDispute(invoice.id, invoice.doc_number)}>Abrir disputa</Button>
                 <span className="text-sm text-[var(--app-muted)]">se discordar de algum valor</span>

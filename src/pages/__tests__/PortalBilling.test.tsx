@@ -233,6 +233,7 @@ vi.mock('../../services/portalBilling', () => ({
   portalListInvoicesForExport: (...args: unknown[]) => portalExport.local(...args),
   portalListDemurrageInvoicesForExport: (...args: unknown[]) => portalExport.demurrage(...args),
   joinDemurrageDocNumbers: (numbers: string[]) => numbers.join(' e a '),
+  PORTAL_DISPUTE_ATTACHMENT_TYPES: ['application/pdf'],
 }))
 
 import { PortalBilling } from '../PortalBilling'

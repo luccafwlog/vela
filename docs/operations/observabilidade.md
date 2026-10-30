@@ -117,8 +117,17 @@ enfileirar o POST no `pg_net`, não quando a Edge Function responde bem. A
 resposta fica em `net._http_response` por cerca de 6 horas. Desde a migration
 `310`, o job SQL `http-job-failures` (a cada 15 min) lê essa tabela e abre o
 Alerta crítico `rotina_http_falhou` (Administrativo) quando, na última hora, há
-resposta fora de 2xx ou falha sem resposta que não seja tempo esgotado; ele
-fecha sozinho quando a hora fica limpa. Desde a migration `316`, tempo esgotado
+duas ou mais respostas fora de 2xx ou falhas sem resposta que não sejam tempo
+esgotado; ele fecha sozinho quando a hora fica limpa. Desde a migration `533`
+(decisão do dono de 2026-10-30), uma falha isolada não abre: a `itau-pix`, de
+minuto, falhava sozinha uma ou duas vezes por dia e acertava na rodada seguinte.
+O limiar soma as respostas de todas as rotinas da hora, porque o `pg_net` não
+guarda qual job chamou. Por isso, desde a migration `534` (decisão do dono de
+2026-10-30), uma única resposta 401 ou 403 abre: é segredo divergente, que não
+se resolve sozinho, e a rotina diária (`ce-unlock-cleanup`,
+`recalc-demurrage-ptax`) nunca chegaria a duas. Outro erro isolado de rotina
+diária ainda não abre; a melhoria é o dispatcher gravar o job de cada pedido e
+o limiar passar a ser por job. Desde a migration `316`, tempo esgotado
 isolado não abre o Alerta: o `pg_net` desiste aos 30 s, mas a Edge Function
 continua a rodada, e o runner dos Comunicados e a Régua de Cobrança passam
 disso num lote grande. Abrem o Alerta 10 ou mais tempos esgotados na hora (só
@@ -185,7 +194,9 @@ correção, toda rodada boa respondia 500 sem log nem evento
 Cada falha da rotina vira uma linha JSON no log da função, com `function`,
 `step` (`charges`, `receipts` ou, quando a chamada inteira falha, a ação pedida:
 `routine` no job, `process_charges` no disparo da fila ou a de diagnóstico) e
-`error`.
+`error`. Quando a manutenção dos prazos (`itau_pix_maintain`) falha, sai antes
+uma linha `maintenance` com a mensagem do banco em `error` e o código em
+`detail.code`; a resposta 500 continua com a mensagem genérica.
 As falhas que a rotina absorve sem mudar o status vão direto por
 `captureEdgeException`, um issue por etapa: `runner_release` (devolução da vez),
 `charges_renew` (renovação da vez) e `charges_release` (liberação das reservas

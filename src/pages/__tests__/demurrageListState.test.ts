@@ -3,8 +3,15 @@ import { demurrageInvoiceHref, demurrageStateFromSearch, withDemurrageParam, wit
 
 describe('estado de /demurrage na URL', () => {
   it('padrão limpo e valores inválidos', () => {
-    expect(demurrageStateFromSearch(new URLSearchParams(''))).toEqual({ tab: 'containers', search: '', lens: 'todos', invoiceId: null, disputeId: null })
-    expect(demurrageStateFromSearch(new URLSearchParams('tab=xyz&lente=abc&fatura=-1'))).toMatchObject({ tab: 'containers', lens: 'todos', invoiceId: null })
+    expect(demurrageStateFromSearch(new URLSearchParams(''))).toEqual({ tab: 'containers', search: '', division: 'correndo', invoiceId: null, disputeId: null })
+    expect(demurrageStateFromSearch(new URLSearchParams('tab=xyz&divisao=abc&fatura=-1'))).toMatchObject({ tab: 'containers', division: 'correndo', invoiceId: null })
+  })
+
+  it('divisão da aba Containers na URL; o link antigo ?lente=atraso abre Correndo (ADR 0112, D1)', () => {
+    expect(demurrageStateFromSearch(new URLSearchParams('divisao=travado'))).toMatchObject({ division: 'travado' })
+    expect(demurrageStateFromSearch(new URLSearchParams('lente=atraso'))).toMatchObject({ division: 'correndo' })
+    expect(withDemurrageParam(new URLSearchParams('lente=atraso'), 'divisao', 'a_emitir').toString()).toBe('divisao=a_emitir')
+    expect(withDemurrageParam(new URLSearchParams('divisao=a_emitir'), 'divisao', 'correndo').toString()).toBe('')
   })
 
   it('aba Faturas, Invoice aberta e Disputa do alerta', () => {
@@ -13,10 +20,9 @@ describe('estado de /demurrage na URL', () => {
   })
 
   it('trocar de aba limpa o que só vale para a outra e preserva a busca', () => {
-    const params = new URLSearchParams('lente=atraso&busca=BL1&dispute=5')
+    const params = new URLSearchParams('divisao=travado&busca=BL1&dispute=5')
     expect(withDemurrageTab(params, 'pagas').toString()).toBe('busca=BL1&tab=pagas')
     expect(withDemurrageTab(new URLSearchParams('tab=pagas'), 'containers').toString()).toBe('')
-    expect(withDemurrageParam(new URLSearchParams('lente=atraso'), 'lente', 'todos').toString()).toBe('')
   })
 
   it('a busca guarda o espaço digitado entre as palavras', () => {

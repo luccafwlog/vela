@@ -187,6 +187,7 @@ export async function afterCustomerCommunicationBatchDispatched(
   await invalidate(queryClient, [
     queryKeys.customerCommunications.history(),
     ['customer-communications', 'coverage'],
+    ['customer-communications', 'voyage-detail'],
     ['customer-communications', 'bl'],
     ...(options.customerIds ?? []).map((customerId) => ['customer-ficha', 'timeline', customerId] as const),
     ...[...new Set(options.blIds ?? [])].map((blId) => ['bl-timeline', blId] as const),
@@ -281,7 +282,10 @@ export async function afterReferenciaPortalAlterada(queryClient: QueryInvalidato
 /** Tarifas e acordos mudam o free time e o status calculados na operação. */
 export async function afterReferenciaDemurrageAlterada(queryClient: QueryInvalidator): Promise<void> {
   // A aba Containers de /demurrage prevê a sobreestadia com o acordo vigente na descarga.
-  await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls'], ['demurrage-containers']])
+  // Desde a 516, tarifa, tipo e acordo também tiram ou põem grupos em Travado
+  // na hora: o aviso do cabeçalho, os Alertas, o relatório e as fichas mudam junto.
+  await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls'], ['demurrage-containers'],
+    ['header-alert'], ['alerts'], ['demurrage-report'], ['customer-ficha'], ['bl-detail']])
 }
 
 const DEMURRAGE_INVOICE_KEYS: readonly (readonly unknown[])[] = [

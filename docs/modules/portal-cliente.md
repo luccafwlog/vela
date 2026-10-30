@@ -329,9 +329,11 @@ As pendências do Portal aparecem para a equipe interna no console, na central
 `/alertas` e no sino de Notificação Interna, nunca para o Cliente. Pelo catálogo
 de alertas, todas têm Documentação como responsável: `portal_pendencia_geral`,
 `portal_convite_expirado`, `portal_falha_envio`, `portal_email_suprimido`,
-`portal_reprocessamento_falhou` e `portal_abuso_login` avisam só Documentação
-(o `portal_reprocessamento_falhou` de um evento do provedor de e-mail em
-investigação não tem B/L nem Cliente e abre os Alertas);
+`portal_reprocessamento_falhou` (o do B/L) e `portal_abuso_login` avisam só
+Documentação. O retorno do provedor de e-mail que vai para investigação não
+tem B/L nem Cliente: desde a migration `535` abre `email_retorno_nao_aplicado`,
+do Administrativo (ver o webhook, abaixo), e não mais
+`portal_reprocessamento_falhou`;
 `portal_excecao_critica_fatura` avisa também o Administrativo (exceção do
 dono, migration `485`; `review_portal_not_ready` avisa só Documentação desde a
 `476`, [ADR 0107](../adr/0107-sino-so-do-setor-responsavel.md)). Operações não recebe pendências do Portal, e o Financeiro
@@ -532,7 +534,22 @@ efeitos de entrega, bounce ou complaint. Receber o webhook não significa que o
 histórico já foi atualizado: `portal-email-events-runner` aplica os eventos às
 tentativas, chamado assim que o evento é gravado (gatilho em `portal_email_events`,
 migration `458`) e pelo job a cada minuto (migration `107`), que fica para as novas
-tentativas. `portal-daily-digest`
+tentativas. O aviso que não acha o envio correspondente é tentado de novo em 1,
+5, 15, 60 e 360 minutos, porque pode chegar antes de o envio gravar o id do
+provedor. A conta da MillionSend avisa todo e-mail dela, também os que saem de
+outro sistema por ela (o formulário do site da Fwlog, que escreve para
+`suporte@portalfwlog.com.br`); o Vela não acha esses envios. Desde a migration
+`535`, aviso de entrega ainda sem envio do Vela na 6ª tentativa fecha sem alerta
+(`ignored_unknown_delivery`): não há contato nem tentativa a atualizar. O limite
+é conhecido: envio do Vela cuja tentativa não gravou o id do provedor também
+fecha calado na entrega e fica "aceito" (o **Provedor de e-mail sem retorno** só
+olha tentativas com id); a melhoria é marcar os envios do Vela (tag ou
+remetente) e ler essa marca no aviso do webhook. Devolução
+ou spam sem envio do Vela, aviso que corresponde a mais de um envio e aviso que
+falha 6 vezes vão para investigação e abrem **Retorno do provedor de e-mail não
+aplicado** (`email_retorno_nao_aplicado`, normal, Administrativo), com o
+destinatário mascarado em Registro e o que fazer na mensagem; nenhuma rotina o
+fecha, e ele resolve com justificativa. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
 `RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave do provedor
@@ -629,7 +646,9 @@ A migration `137_portal_information.sql` acrescenta complementos dos depots e
 armadores, agentes por porto, contatos e observações. O cadastro inicial usa
 as páginas FWLOG de onde devolver, agentes, contato e Demurrage; não importa
 planilhas. A página de taxas lê `charge_tables`/`charge_table_items`, pelo
-resolver oficial de importação. Demurrage lê `demurrage_rates`; free time em
+resolver oficial de importação. Demurrage lê `demurrage_rates`, uma linha por
+grupo de tarifa com o nome do grupo e os tipos de container que ele cobre
+(migration `514`, ADR 0112, D28); free time em
 Operação segue exceção do B/L, acordo do cliente vigente na descarga e tarifa
 geral. Sem referência oficial, exibe tarifa indisponível, sem número fixo.
 Não inclui tabelas de exportação nem Detention. Devolução e Taxas Locais
@@ -771,7 +790,7 @@ reconferido aqui). O uso real pelo Cliente em produção não foi conferido.
 | `/portal/billing` — carregar recebíveis consolidáveis | Sessão autenticada | Métrica e `PortalConsolidatedModal` | `usePortalConsolidatableReceivables`; `isReceivableSelectable` | RPC `portal_list_consolidatable_receivables` (core vigente na migration `298`: só B/L com fatura visível não cancelada); `bl_receivables`, links e invoices | Query `['portal-consolidatable-receivables']`; status `eligible`, `paid`, `no_balance`, `open_consolidated` | Só os elegíveis têm seleção; os não elegíveis com saldo ficam no bloco fechado "Com saldo, mas não podem entrar" e o pago não aparece; falha da consulta mostra erro na janela | **Teste de contrato SQL:** `src/services/__tests__/portalCeMercanteGateMigration.test.ts`; **Código:** `src/components/portal/PortalConsolidatedModal.tsx` |
 | `/portal/billing` — criar consolidada | Ao menos um recebível selecionado e elegível; posse do cliente; CE em todos os B/Ls; rate limit | `PortalConsolidatedModal.submit` | `usePortalCreateConsolidation` → `portalCreateConsolidation` → core transacional | RPC `portal_create_consolidation` (definição vigente na migration `298`, que recusa B/L fora da lista consolidável); core `create_local_consolidated_invoice_core`; INSERT `portal_notifications` | Invalida recebíveis e invoices; `refreshOverview`; abre detalhe retornado | 3 tentativas/10 min, outro cliente, sem CE, inelegibilidade/core ou transporte | **Teste de contrato SQL:** `src/services/__tests__/portalCreateConsolidationJsonbMigration.test.ts`, `src/services/__tests__/portalCeMercanteGateMigration.test.ts`; **Código:** componente/hook |
 | `/portal/billing` — desfazer consolidada | Invoice `consolidated`, status `issued/partially_paid/overdue`, sem pagamentos; confirmação; rate limit | Detalhe local, `handleObsolete` | `usePortalObsoleteConsolidation` → `portalObsoleteConsolidation` | RPC `portal_obsolete_consolidation` (definição vigente na migration `109`); UPDATE invoice e links; INSERT lifecycle e notificação | Invalida recebíveis/invoices; `refreshOverview`; fecha detalhe | 3 tentativas/15 min, invoice alheia/não consolidada/fora de `issued/partially_paid/overdue` (inclusive rascunho, migration `428`), com pagamento ou com PIX da fatura em conciliação | **Código:** `src/pages/PortalBilling.tsx`, migrations `109` e `428`; **Teste local-pg:** `portalRegrasDocumentadas.local-pg.test.ts` |
-| `/portal/billing` — abrir disputa de demurrage | Invoice não paga/cancelada e sem disputa na UI; o banco também recusa Dispute nova em Invoice paga (migration `434`); motivo não vazio; rate limit | Botão "Abrir disputa" no detalhe (`PortalDemurrageDetailModal`) → `DisputeModal` → `usePortalOpenDispute` | `portalOpenDemurrageDispute` | RPC `portal_open_demurrage_dispute`; UPDATE `demurrage_invoices`; INSERT `portal_notifications` e `alerts` | Invalida `['portal-demurrage-invoices']`; notificação aparece no polling/refetch próprio | 3 tentativas/30 min, motivo vazio, invoice alheia/inexistente ou disputa já aberta | **Código:** `src/components/portal/DisputeModal.tsx`, `src/hooks/usePortalDisputes.ts`; **Teste:** `PortalDemurrageDetailModal.test.tsx` (onde a disputa aparece), `PortalDisputeConversation.test.tsx` (tela Disputas de Demurrage, `?tab=demurrage&disputas=1`); **Runtime não executado** |
+| `/portal/billing` — abrir disputa de demurrage | Invoice não paga/cancelada, sem disputa e sem disputa já resolvida na UI (com a resolvida, o botão é **Solicitar reabertura**); o banco também recusa Dispute nova em Invoice paga (migration `434`) e em Invoice que já teve uma resolvida (migration `520`); motivo não vazio; rate limit | Botão "Abrir disputa" no detalhe (`PortalDemurrageDetailModal`) → `DisputeModal` (motivo e "Anexar arquivo" opcional) → `usePortalOpenDispute`; com arquivo, `usePortalUploadDisputeAttachment` na mensagem devolvida pela abertura | `portalOpenDemurrageDispute` (devolve `dispute_id` e `message_id`); `portalUploadDisputeAttachment` | RPC `portal_open_demurrage_dispute`; UPDATE `demurrage_invoices`; INSERT `portal_notifications` e `alerts`; anexo pela Edge Function `portal-dispute-attachment` | Invalida `['portal-demurrage-invoices']` e `['portal-disputes']`, de novo depois do anexo; notificação aparece no polling/refetch próprio | 3 tentativas/30 min, motivo vazio, invoice alheia/inexistente ou disputa já aberta; tipo ou tamanho do arquivo recusado antes de abrir; cota ou limite diário recusam o anexo só depois da abertura, e o modal oferece "Reenviar anexo" | **Código:** `src/components/portal/DisputeModal.tsx`, `src/hooks/usePortalDisputes.ts`; **Teste:** `DisputeModal.test.tsx` (anexo na abertura e reenvio), `PortalDemurrageDetailModal.test.tsx` (onde a disputa aparece), `PortalDisputeConversation.test.tsx` (tela Disputas de Demurrage, `?tab=demurrage&disputas=1`); **Runtime não executado** |
 | `/portal/billing` — anexar documento em disputa | Sessão Portal autenticada; mensagem de disputa pertencente ao cliente (`author_type='cliente'`); arquivo <= 10 MB (PDF, PNG, JPEG, TXT); cota <= 100 MB; limite diário <= 20 uploads | `portalUploadDisputeAttachment`, `portalCheckDisputeAttachmentEligibility` | Pré-validação via RPC `portal_check_dispute_attachment_eligibility`; Edge Function `portal-dispute-attachment` (valida sessão, arquivo, magic bytes, cota, taxa e mensagem); upload via `service_role` em `demurrage-disputes`; RPC `add_demurrage_dispute_attachment` vincula anexo | Storage bucket `demurrage-disputes`; `demurrage_dispute_attachments`; `demurrage_dispute_messages` | Atualiza lista de anexos da mensagem na disputa | Cota excedida, limite diário atingido, extensão inválida, arquivo corrompido, mensagem inexistente ou de outro cliente | **Código:** `supabase/functions/portal-dispute-attachment/index.ts`, `supabase/migrations/074_portal_dispute_attachments_security.sql`; **Teste:** `src/services/__tests__/portalDisputeAttachmentsService.test.ts`, `src/services/__tests__/portalDisputeAttachmentsSecurityMigration.test.ts`, `src/components/portal/__tests__/PortalDisputeConversation.test.tsx` |
 
 ### Operação
@@ -932,10 +951,10 @@ sequenceDiagram
 - **Sessões isoladas:** `supabase` e `supabasePortal` têm storages distintos. Logout do Portal não deve derrubar o usuário interno.
 - **Ciclo de sessão do Portal:** `PortalAuthProvider` escuta `onAuthStateChange`; `SIGNED_OUT` limpa overview e remove queries `portal-*`, enquanto `SIGNED_IN`/`TOKEN_REFRESHED` reidratam o overview quando ele não está carregado. Quando o evento traz outro usuário do Auth (login de outro Cliente em outra aba), o overview e as queries `portal-*` são descartados e o overview do novo Cliente substitui o anterior (**Teste:** `src/hooks/__tests__/usePortalAuthHydrate.behavior.test.tsx`).
 - **Telemetria mínima:** queries e mutations globais reportam erro ao Sentry com `queryKey`/`mutationKey`; o Portal marca só a tag `area=portal` e mantém o usuário do Sentry nulo, sem identificador do Cliente.
-- **CE Mercante:** `bl_has_portal_release` exige `trim(coalesce(ce_mercante,'')) <> ''`. O gate vale para visibilidade e ações self-service no Portal; não define elegibilidade de cálculo/emissão no sistema interno.
+- **CE Mercante:** `bl_has_portal_release` exige `trim(coalesce(ce_mercante,'')) <> ''`. O gate vale para visibilidade e ações self-service no Portal e, desde a migration `472` (DEM-D13), também trava a emissão interna da Invoice de Demurrage: sem CE Mercante, `issue_demurrage_invoice_for_bl` devolve `blocked` e o grupo fica em Travado na aba Containers ([Demurrage](demurrage.md)).
 - **Consolidação:** somente recebíveis do cliente, liberados por CE e com fatura visível não cancelada entram (migration `298`); o core decide elegibilidade financeira. Criação tem limite 3/10 min; desfazimento 3/15 min e exige consolidada aberta sem pagamento.
-- **Disputa:** limite 3/30 min; atualiza a invoice de demurrage com prefixo `[Portal]`, cria confirmação em `portal_notifications` e alerta interno. O trigger `notify_dispute_responded` notifica quando o status muda para `resolvido`.
-- **Notificações:** triggers criam `invoice_issued`, `demurrage_issued` e `dispute_responded`; ações do Portal também criam `dispute_opened` e `system`. O fluxo interno de omissão de escala/COD também cria `type='transshipment'`.
+- **Disputa:** limite 3/30 min; grava a mensagem do Cliente na conversa (`demurrage_dispute_messages`, `author_type='cliente'`, sem prefixo no texto) e marca a Invoice com `dispute_open`, cria confirmação em `portal_notifications` e alerta interno. O trigger `notify_dispute_responded` notifica quando o status muda para `resolvido`. Desde a migration `520` ([ADR 0112](../adr/0112-repaginacao-da-demurrage.md), D16 e D17): uma conversa por Invoice (depois de resolvida, o Cliente contesta só por **Solicitar reabertura**; o detalhe troca **Abrir disputa** por esse botão e o banco recusa a disputa nova), e a Invoice cancelada encerra a Disputa aberta, com a mensagem de sistema e o motivo na conversa e a notificação `dispute_cancelled` ("Disputa encerrada"). No cancelamento automático, o Cliente lê um texto próprio no lugar do motivo interno (migration `530`): "a Invoice foi recalculada e substituída por uma nova." ou, na troca de CNPJ, "o B/L passou a outro Cliente."; antes, o motivo interno da troca de CNPJ citava a situação do Portal do Cliente novo.
+- **Notificações:** triggers criam `invoice_issued`, `demurrage_issued`, `dispute_responded` e, desde a migration `520`, `dispute_cancelled` (Invoice cancelada com Disputa aberta); ações do Portal também criam `dispute_opened` e `system`. O fluxo interno de omissão de escala/COD também cria `type='transshipment'`.
 - **Perfil:** os únicos campos graváveis pelo RPC são email de contato, telefone, endereço, cidade, UF e CEP. Não altera email técnico de Auth, CNPJ/CPF, razão social, status da conta ou permissões.
 
 ## Testes e validação

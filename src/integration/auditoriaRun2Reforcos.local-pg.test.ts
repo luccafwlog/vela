@@ -55,9 +55,11 @@ const FIXTURES = `
   -- A fatura exige CE na emissão e o gatilho impede apagá-lo depois; a trava
   -- do Portal é defesa em profundidade, então o cenário desliga o gatilho
   -- dentro da transação descartada.
-  ALTER TABLE public.bls DISABLE TRIGGER trg_guard_bl_state_and_ce;
+  -- (Sem gatilhos: os gatilhos adiados de bls, como o do Alerta de Travado
+  -- da 527, deixam evento pendente e impedem o ALTER TABLE.)
+  SET LOCAL session_replication_role = replica;
   UPDATE public.bls SET ce_mercante = NULL WHERE id = '${BL_NO_RELEASE}';
-  ALTER TABLE public.bls ENABLE TRIGGER trg_guard_bl_state_and_ce;
+  SET LOCAL session_replication_role = origin;
   CREATE FUNCTION pg_temp.try(q text) RETURNS text LANGUAGE plpgsql AS $f$
   BEGIN EXECUTE q; RETURN 'ok';
   EXCEPTION WHEN OTHERS THEN RETURN SQLSTATE; END $f$;
