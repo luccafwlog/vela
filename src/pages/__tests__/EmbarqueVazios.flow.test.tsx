@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   deleteManualVaziosBooking: vi.fn(() => Promise.resolve()),
+  deleteOperation: vi.fn(() => Promise.resolve()),
+  isAdmin: false,
   createManualVaziosBooking: vi.fn(() => Promise.resolve()),
   invalidateQueries: vi.fn(() => Promise.resolve()),
   refetch: vi.fn(() => Promise.resolve()),
@@ -104,7 +106,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("../../hooks/useAuth", () => ({
-  useAuth: () => ({ user: { id: "user-1" }, can: () => true }),
+  useAuth: () => ({ user: { id: "user-1" }, can: () => true, isAdmin: mocks.isAdmin }),
 }));
 vi.mock("../../components/ui/Toast", () => ({ useToast: () => ({ showToast: mocks.showToast }) }));
 vi.mock("../../components/ui/ConfirmDialog", () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (o: unknown) => ((await mocks.confirm(o)) ? "motivo" : null) }));
@@ -134,6 +136,7 @@ vi.mock("../../services/vaziosExportOperations", async (importOriginal) => {
     listVaziosExportOperationsWithUnits: vi.fn(),
     createManualVaziosBooking: mocks.createManualVaziosBooking,
     deleteManualVaziosBooking: mocks.deleteManualVaziosBooking,
+    deleteVaziosExportOperation: mocks.deleteOperation,
     deleteServiceLine: vi.fn(),
     getVaziosExportOperation: vi.fn(),
     listVaziosBookingsForOperation: vi.fn(),
@@ -397,6 +400,36 @@ describe("EmbarqueVazios", () => {
 
     await waitFor(() => expect(mocks.operationRefetch).toHaveBeenCalledTimes(1));
     expect(mocks.setQueryData).not.toHaveBeenCalled();
+  });
+
+  // Migration 544: o embarque criado na escala errada sai pelo Administrativo, com motivo.
+  it("Excluir embarque: só o Administrativo, no embarque vazio, depois da confirmação", async () => {
+    mocks.deleteOperation.mockClear();
+    mocks.isAdmin = false;
+    const { unmount } = renderPage();
+    expect(screen.queryByRole("button", { name: "Excluir embarque" })).toBeNull();
+    unmount();
+
+    mocks.isAdmin = true;
+    mocks.confirm.mockResolvedValueOnce(true);
+    try {
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Excluir embarque" }));
+      await waitFor(() => expect(mocks.deleteOperation).toHaveBeenCalledWith("operation-1", "motivo"));
+    } finally {
+      mocks.isAdmin = false;
+    }
+  });
+
+  it("Excluir embarque some quando o embarque tem unidade", () => {
+    mocks.isAdmin = true;
+    mocks.unitsData = { rows: [{ id: "u1", container_number: "MSCU7654321", local_id: "depot-1", condition: "vazio" }], count: 1 };
+    try {
+      renderPage();
+      expect(screen.queryByRole("button", { name: "Excluir embarque" })).toBeNull();
+    } finally {
+      mocks.isAdmin = false;
+    }
   });
 
   it("só exclui a unidade depois da confirmação (ADR 0072)", async () => {

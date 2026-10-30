@@ -37,6 +37,7 @@ import {
   createManualVaziosBooking,
   updateManualVaziosBooking,
   deleteManualVaziosBooking,
+  deleteVaziosExportOperation,
   isVaziosExportLockedByAdr,
   type VaziosOperationSummary,
 } from "../services/vaziosExportOperations";
@@ -596,7 +597,7 @@ function EmbarqueDetalhe({
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const confirmWithReason = useConfirmWithReason();
@@ -792,6 +793,28 @@ function EmbarqueDetalhe({
       },
       unit.id ? "Unidade atualizada." : "Unidade incluída.",
     );
+  }
+  // Migration 544: o embarque criado na escala errada sai pelo Administrativo,
+  // com motivo, enquanto não tem unidade nem linha e o ADR de Saída está aberto.
+  const canDeleteEmbarque = isAdmin && canEdit && units.data !== undefined && unitRows.length === 0
+    && operation.data !== undefined && operationLines.length === 0;
+  async function deleteEmbarque() {
+    const reason = await confirmWithReason({
+      title: "Excluir embarque",
+      message: `Excluir o Embarque de vazios de ${ref.embark_port} desta Viagem?`,
+      consequence:
+        "O embarque sai da Viagem. A frente Vazios EXP, a Atracação e o ADR do terminal ficam na escala; sem o embarque, Editar escala volta a poder mudá-los.",
+      reversibility: "Crie o embarque de novo se precisar.",
+      confirmLabel: "Excluir",
+      tone: "danger",
+    });
+    if (reason === null) return;
+    const ok = await notify(async () => {
+      await deleteVaziosExportOperation(ref.id, reason);
+      await afterEmbarqueVaziosNaEscala(queryClient, { voyageId: ref.voyage_id });
+      await onChanged();
+    }, "Embarque excluído.");
+    if (ok) onBack();
   }
   async function removeUnit(item: VaziosBooking) {
     // B14: Excluir pede motivo (ADR 0072); o banco recusa com o ADR de Saída fechado.
@@ -1000,7 +1023,14 @@ function EmbarqueDetalhe({
           { label: "Unidades", value: unitCount.toLocaleString("pt-BR") },
           { label: "Serviços", value: formatBRL(shipmentTotal) },
         ]}
-        actions={<Button variant="ghost" onClick={onBack}>Todos os embarques</Button>}
+        actions={(
+          <>
+            {canDeleteEmbarque ? (
+              <Button variant="danger" disabled={saving} onClick={() => void deleteEmbarque()}>Excluir embarque</Button>
+            ) : null}
+            <Button variant="ghost" onClick={onBack}>Todos os embarques</Button>
+          </>
+        )}
       />
 
       {adrLocked ? (
