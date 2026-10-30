@@ -18,6 +18,7 @@ const carrierId = 99398001
 const vesselId = 99398002
 const voyageId = 99398003
 const depotCode = 'V398DEP'
+const terminalCode = 'V398TER'
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -56,7 +57,8 @@ function cleanup() {
     DELETE FROM public.manifestos_mercante WHERE voyage_id = ${voyageId};
     DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
     DELETE FROM public.import_batches WHERE voyage_id = ${voyageId};
-    DELETE FROM public.depots WHERE code = '${depotCode}';
+    DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
+    DELETE FROM public.depots WHERE code IN ('${depotCode}', '${terminalCode}');
     DELETE FROM public.audit_logs WHERE changed_by = '${userId}';
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
@@ -122,6 +124,12 @@ describeLocal('398 — vazio de importação uma vez por Viagem; ADR de Saída f
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'V398 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'V398', 'active');
       INSERT INTO public.depots (code, active, tipo) VALUES ('${depotCode}', true, 'depot');
+      -- 520: o Embarque de vazios nasce com o terminal da frente Vazios EXP.
+      INSERT INTO public.depots (code, active, tipo, port_id)
+        SELECT '${terminalCode}', true, 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' ORDER BY id LIMIT 1;
+      INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)
+        SELECT ${voyageId}, 'BRVIX', d.port_id, 'exportacao', 'vazio', d.id, 'export_declaration'
+        FROM public.depots AS d WHERE d.code = '${terminalCode}';
     `)
   })
 

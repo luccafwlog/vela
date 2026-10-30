@@ -50,6 +50,7 @@ function cleanup() {
     DELETE FROM public.vazios_manifests WHERE voyage_id = ${voyageId};
     DELETE FROM public.vazios_export_service_lines WHERE operation_id IN (SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId});
     DELETE FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};
+    DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
     DELETE FROM public.depot_services WHERE depot_id IN (SELECT id FROM public.depots WHERE code LIKE 'A326%');
     DELETE FROM public.depots WHERE code LIKE 'A326%';
     DELETE FROM public.audit_logs WHERE changed_by = '${userId}';
@@ -98,6 +99,12 @@ describeLocal('Embarque de vazios: local e serviço inativos recusados (migratio
         (${depotId(inactiveDepot)}, 'A326 HANDLING INATIVO', 'geral', 10, true);
       INSERT INTO public.depot_services (depot_id, name, natureza, rate_brl, active, route_destino_id) VALUES
         (${depotId(activeDepot)}, 'A326 TRANSPORTE', 'transporte', 10, true, ${depotId(destination)});
+      -- 520: o Embarque de vazios nasce com o terminal da frente Vazios EXP.
+      INSERT INTO public.depots (code, active, tipo, port_id)
+        SELECT 'A326VIX', true, 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' ORDER BY id LIMIT 1;
+      INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)
+        SELECT ${voyageId}, 'BRVIX', d.port_id, 'exportacao', 'vazio', d.id, 'export_declaration'
+        FROM public.depots AS d WHERE d.code = 'A326VIX';
       INSERT INTO public.vazios_export_operations (voyage_id, embark_port) VALUES (${voyageId}, 'BRVIX');
     `)
   })
