@@ -7,7 +7,7 @@
 ## 2026-10
 
 - **Veículos, vazios de importação, Granito e carga em transbordo chegam ao ADR por terminal (2026-10-30,
-  migrations `514` a `517`):** no teste do dono em BRVIX, os veículos e os vazios de importação estavam nos
+  migrations `537` a `540`):** no teste do dono em BRVIX, os veículos e os vazios de importação estavam nos
   cards do porto da aba Importação e não no ADR do terminal. A seção Veículos dependia de uma frente de Veículos
   que nunca nascia; pela regra do dono, veículo não tem frente própria (viaja em container) e a seção passa a
   seguir a frente de Carga cheia, salvo exceção de terminal do B/L. A frente derivada dos dados e ainda sem

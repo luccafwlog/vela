@@ -37,7 +37,7 @@ const resetScenario = `
   DELETE FROM public.bl_transshipments WHERE omission_id = ${omissionId};
   DELETE FROM public.voyage_omissions WHERE id = ${omissionId};
   DELETE FROM public.vehicles WHERE voyage_id = ${voyageId};
-  DELETE FROM public.bl_containers WHERE bl_id LIKE 'BL-514-%';
+  DELETE FROM public.bl_containers WHERE bl_id LIKE 'BL-537-%';
   DELETE FROM public.bls WHERE voyage_id = ${voyageId};
   DELETE FROM public.vazios_importacao_containers WHERE manifest_id = '${manifestId}';
   DELETE FROM public.vazios_importacao_manifests WHERE id = '${manifestId}';
@@ -62,28 +62,28 @@ const removeUser = `
 // Teste do dono em BRVIX (2026-10-30): veículos e vazios de importação da
 // escala sumiam do ADR por terminal porque a frente deles não tinha terminal
 // gravado, e o fechamento só recusava a frente TBC gravada.
-describeLocal('migrations 514 a 517 — frente derivada dos dados sem terminal impede fechar o ADR', () => {
+describeLocal('migrations 537 a 540 — frente derivada dos dados sem terminal impede fechar o ADR', () => {
   beforeAll(() => {
     psql(`
       ${resetScenario}
       ${removeUser}
-      INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'admin-514@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'Admin 514', 'administrativo', true);
+      INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'admin-537@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'Admin 537', 'administrativo', true);
     `)
   })
 
   beforeEach(() => {
     psql(`
       ${resetScenario}
-      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 514');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 514', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number) VALUES (${voyageId}, ${vesselId}, 'VOY-514');
+      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 537');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 537', ${carrierId});
+      INSERT INTO public.voyages (id, vessel_id, voyage_number) VALUES (${voyageId}, ${vesselId}, 'VOY-537');
       INSERT INTO public.depots (id, code, name, tipo, port_id)
-      SELECT '${terminalId}', 'TST514', 'Terminal 514', 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX';
+      SELECT '${terminalId}', 'TST537', 'Terminal 537', 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX';
       INSERT INTO public.agency_departure_reports (id, voyage_id, port, terminal_id, terminal_port_id)
       SELECT '${reportId}', ${voyageId}, 'BRVIX', '${terminalId}', id FROM public.ports WHERE locode = 'BRVIX';
       -- B/L com o POD na grafia antiga: a escala é BRVIX.
-      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-514-A', ${voyageId}, 'BRVIT', 'container');
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-537-A', ${voyageId}, 'BRVIT', 'container');
     `)
     persistFront('carga_cheia')
   })
@@ -101,9 +101,9 @@ describeLocal('migrations 514 a 517 — frente derivada dos dados sem terminal i
   // frente de Carga cheia; não há frente nem terminal próprio de veículo.
   it('não pede frente de veículo: o veículo segue a Carga cheia dos containers', () => {
     psql(`
-      INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('BL-514-A', 'TSTU5140001', '40HC');
+      INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('BL-537-A', 'TSTU5140001', '40HC');
       INSERT INTO public.vehicles (bl_id, container_id, voyage_id, brand, model, chassis, cbm, weight_kg)
-      SELECT 'BL-514-A', id, ${voyageId}, 'MARCA', 'MODELO', 'CHASSI514', 1, 1000 FROM public.bl_containers WHERE bl_id = 'BL-514-A';
+      SELECT 'BL-537-A', id, ${voyageId}, 'MARCA', 'MODELO', 'CHASSI537', 1, 1000 FROM public.bl_containers WHERE bl_id = 'BL-537-A';
     `)
 
     expect(psql(`SELECT public._escala_import_fronts_without_terminal(${voyageId}, 'BRVIX');`)).toBe('{}')
@@ -113,10 +113,10 @@ describeLocal('migrations 514 a 517 — frente derivada dos dados sem terminal i
   it('recusa a carga em transbordo de escala omitida sem frente com terminal no porto de descarga', () => {
     psql(`
       -- O B/L mantém o POD do porto omitido e descarrega em BRVIX.
-      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-514-T', ${voyageId}, 'BRSSZ', 'carga_solta');
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-537-T', ${voyageId}, 'BRSSZ', 'carga_solta');
       INSERT INTO public.voyage_omissions (id, voyage_id, omitted_pod, discharge_pod, omitted_by)
       VALUES (${omissionId}, ${voyageId}, 'BRSSZ', 'BRVIX', '${adminId}');
-      INSERT INTO public.bl_transshipments (bl_id, omission_id, disposition) VALUES ('BL-514-T', ${omissionId}, 'transshipment');
+      INSERT INTO public.bl_transshipments (bl_id, omission_id, disposition) VALUES ('BL-537-T', ${omissionId}, 'transshipment');
     `)
 
     expect(psql(`SELECT public._escala_import_fronts_without_terminal(${voyageId}, 'BRVIX');`)).toBe('{carga_solta}')
@@ -133,7 +133,7 @@ describeLocal('migrations 514 a 517 — frente derivada dos dados sem terminal i
     psql(`
       INSERT INTO public.vazios_importacao_manifests (id, voyage_id, source) VALUES ('${manifestId}', ${voyageId}, 'baplie');
       INSERT INTO public.vazios_importacao_containers (manifest_id, container_number, pol, pod) VALUES ('${manifestId}', 'TSTU5140002', 'CNSHA', 'BRVIX');
-      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-514-M', ${voyageId}, 'BRVIX', 'misto');
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-537-M', ${voyageId}, 'BRVIX', 'misto');
     `)
 
     expect(psql(`SELECT public._escala_import_fronts_without_terminal(${voyageId}, 'BRVIX');`)).toBe('{carga_solta,vazio}')
@@ -145,9 +145,9 @@ describeLocal('migrations 514 a 517 — frente derivada dos dados sem terminal i
   it('recusa o Granito importado no porto, mesmo sem declaração de exportação, até a frente ganhar terminal', () => {
     psql(`
       INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage, loading_port)
-      VALUES ('${graniteManifestId}', ${voyageId}, 'VESSEL 514', 'BRVIT');
+      VALUES ('${graniteManifestId}', ${voyageId}, 'VESSEL 537', 'BRVIT');
       -- Sem porto no B/L: vale o do manifesto, na grafia antiga de Vitória.
-      INSERT INTO public.granite_bls (manifest_id, bl_number) VALUES ('${graniteManifestId}', 'GRN-514-1');
+      INSERT INTO public.granite_bls (manifest_id, bl_number) VALUES ('${graniteManifestId}', 'GRN-537-1');
     `)
 
     expect(psql(`SELECT public._escala_fronts_without_terminal(${voyageId}, 'BRVIX');`)).toBe('{exportacao:granito}')
@@ -159,7 +159,7 @@ describeLocal('migrations 514 a 517 — frente derivada dos dados sem terminal i
     expect(assertReadyToClose().status).toBe(0)
   })
 
-  // 517: a escala cuja carga vem só de transbordo ou de Granito importado tem
+  // 540: a escala cuja carga vem só de transbordo ou de Granito importado tem
   // frente na aba (TBC) e não abre ADR legado por porto pela API.
   it('não cria ADR legado sem terminal para escala com só transbordo ou só Granito', () => {
     const signLegacy = (port: string) => spawnPsql([
@@ -169,14 +169,14 @@ describeLocal('migrations 514 a 517 — frente derivada dos dados sem terminal i
     ], { encoding: 'utf8' })
     psql(`
       -- Só transbordo em BRPNG: o B/L tem POD no porto omitido (BRSSZ).
-      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-514-T', ${voyageId}, 'BRSSZ', 'carga_solta');
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('BL-537-T', ${voyageId}, 'BRSSZ', 'carga_solta');
       INSERT INTO public.voyage_omissions (id, voyage_id, omitted_pod, discharge_pod, omitted_by)
       VALUES (${omissionId}, ${voyageId}, 'BRSSZ', 'BRPNG', '${adminId}');
-      INSERT INTO public.bl_transshipments (bl_id, omission_id, disposition) VALUES ('BL-514-T', ${omissionId}, 'transshipment');
+      INSERT INTO public.bl_transshipments (bl_id, omission_id, disposition) VALUES ('BL-537-T', ${omissionId}, 'transshipment');
       -- Só Granito em BRITJ, sem declaração de exportação.
       INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage, loading_port)
-      VALUES ('${graniteManifestId}', ${voyageId}, 'VESSEL 514', 'BRITJ');
-      INSERT INTO public.granite_bls (manifest_id, bl_number) VALUES ('${graniteManifestId}', 'GRN-514-2');
+      VALUES ('${graniteManifestId}', ${voyageId}, 'VESSEL 537', 'BRITJ');
+      INSERT INTO public.granite_bls (manifest_id, bl_number) VALUES ('${graniteManifestId}', 'GRN-537-2');
     `)
 
     for (const port of ['BRPNG', 'BRITJ']) {

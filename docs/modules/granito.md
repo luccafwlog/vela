@@ -119,7 +119,7 @@ de `/granito`, com a viagem fixa (lote 6a); a regra de erro é a mesma. A ação
   terminal, o Granito aparece no terminal da frente de Granito, que nasce do
   Granito importado no porto mesmo sem a declaração; enquanto ela não tem
   terminal, o ADR avisa e não fecha ([Viagens](viagens.md#identidade-e-escopo),
-  migration `515`). O painel
+  migration `538`). O painel
   de Granito da aba Exportação mostra só Manifestos e B/Ls, com o peso em
   destaque (`summarizeExportByEmbarkPort`); "Prontos" e "Faturados", contados
   de `charge_status`, saíram em 2026-10-20.

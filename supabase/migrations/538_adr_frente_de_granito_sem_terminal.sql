@@ -1,5 +1,5 @@
--- 515: o Granito importado entra no ADR por terminal, e o fechamento confere
--- a frente dele como confere as de importação (514).
+-- 538: o Granito importado entra no ADR por terminal, e o fechamento confere
+-- a frente dele como confere as de importação (537).
 --
 -- Problema (mapeamento de 2026-10-30, docs/archive/audits/
 -- viagem-terminal-adr-2026-10-30.md): a frente `exportacao:granito` só nascia
@@ -12,7 +12,7 @@
 --
 -- Mudança: `_escala_fronts_without_terminal` devolve, como 'sentido:modalidade',
 -- as frentes que a tela deriva dos dados sem frente gravada com terminal — as
--- de importação da 514 e a de Granito (B/L pelo porto de carregamento, com o
+-- de importação da 537 e a de Granito (B/L pelo porto de carregamento, com o
 -- do manifesto na falta dele, a régua do ADR e da migration 412) —, e
 -- `assert_voyage_escala_ready_for_report_close` passa a usá-la. A mensagem
 -- lista as frentes ("Frente TBC impede o fechamento do ADR: granito, veículos.").
@@ -21,7 +21,7 @@
 -- entra nesta função e em `fetchEscalaTerminalState`, nos dois lados.
 --
 -- Só cria e redefine funções; não reescreve nem apaga linhas.
--- Rollback: reaplicar `assert_voyage_escala_ready_for_report_close` da 514 e
+-- Rollback: reaplicar `assert_voyage_escala_ready_for_report_close` da 537 e
 -- apagar `_escala_fronts_without_terminal`.
 
 CREATE OR REPLACE FUNCTION public._escala_fronts_without_terminal(p_voyage_id bigint, p_port text)
@@ -133,7 +133,7 @@ BEGIN
       USING ERRCODE = '23514', DETAIL = 'Atribua todas as frentes a um terminal antes do fechamento.';
   END IF;
 
-  -- 514/515: a frente que a aba deriva dos dados (B/L, veículo, vazio de
+  -- 537/538: a frente que a aba deriva dos dados (B/L, veículo, vazio de
   -- importação, Granito) e que ainda não foi gravada com terminal também é TBC.
   v_sem_terminal := public._escala_fronts_without_terminal(p_voyage_id, v_port);
   IF cardinality(v_sem_terminal) > 0 THEN

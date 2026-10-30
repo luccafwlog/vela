@@ -1,4 +1,4 @@
--- 514: o ADR por terminal não fecha enquanto a escala tiver frente de
+-- 537: o ADR por terminal não fecha enquanto a escala tiver frente de
 -- importação derivada dos dados e ainda sem terminal (veículos, vazios, carga).
 --
 -- Problema (teste do dono em BRVIX, 2026-10-30): veículos e vazios de
@@ -160,7 +160,7 @@ BEGIN
       USING ERRCODE = '23514', DETAIL = 'Atribua todas as frentes a um terminal antes do fechamento.';
   END IF;
 
-  -- 514: a frente que a aba deriva dos dados (veículos, vazios, B/Ls) e que
+  -- 537: a frente que a aba deriva dos dados (veículos, vazios, B/Ls) e que
   -- ainda não foi gravada com terminal também é TBC.
   v_sem_terminal := public._escala_import_fronts_without_terminal(p_voyage_id, v_port);
   IF cardinality(v_sem_terminal) > 0 THEN

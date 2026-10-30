@@ -1,4 +1,4 @@
--- 517: o ADR legado por porto também é recusado quando a frente da escala vem
+-- 540: o ADR legado por porto também é recusado quando a frente da escala vem
 -- de carga em transbordo ou do Granito importado no porto.
 --
 -- Problema: a 273 fez `ensure_agency_departure_report` recusar o ADR legado
@@ -7,9 +7,9 @@
 -- Nesta mudança a aba passou a derivar frentes de mais duas fontes
 -- (`fetchEscalaTerminalState`, `src/services/escalaTerminalAllocation.ts`):
 --   1. B/L em transbordo de escala omitida que descarrega no porto (omissão
---      não revertida; o B/L mantém o POD do porto omitido, migration 516);
+--      não revertida; o B/L mantém o POD do porto omitido, migration 539);
 --   2. Granito importado no porto, pelo porto de carregamento do B/L ou do
---      manifesto na falta dele, mesmo sem a declaração de exportação (515).
+--      manifesto na falta dele, mesmo sem a declaração de exportação (538).
 -- Numa escala cuja carga vinha só dessas fontes, a aba mostrava "Nenhum
 -- terminal atribuído às frentes desta escala (TBC)", mas assinar uma seção
 -- pela API ainda criava o ADR legado sem terminal, fora da trava das frentes.

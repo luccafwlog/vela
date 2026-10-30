@@ -1,10 +1,10 @@
--- 516: veículo não tem frente própria, e a carga em transbordo cria as frentes
+-- 539: veículo não tem frente própria, e a carga em transbordo cria as frentes
 -- da escala onde descarrega. Redefine a lista de frentes de importação sem
--- terminal que trava o fechamento do ADR (514, usada pela 515).
+-- terminal que trava o fechamento do ADR (537, usada pela 538).
 --
 -- 1. Veículo segue a Carga cheia (decisão do dono de 2026-10-30). O veículo
 --    viaja dentro de container do B/L, e a planilha de veículos já o liga ao
---    container: a frente dele é sempre a dos containers. A 514 derivava uma
+--    container: a frente dele é sempre a dos containers. A 537 derivava uma
 --    frente `importacao:veiculo` do veículo gravado e exigia terminal para
 --    ela; sai. O B/L do veículo já deriva a Carga cheia, e a seção Veículos do
 --    ADR é atendida por essa frente (`frontServesSection`,
@@ -23,7 +23,7 @@
 -- dado ainda abre ADR legado pela API. Espelhar ali é o caminho se importar.
 --
 -- Só redefine uma função; não reescreve nem apaga linhas.
--- Rollback: reaplicar `_escala_import_fronts_without_terminal` da 514.
+-- Rollback: reaplicar `_escala_import_fronts_without_terminal` da 537.
 
 CREATE OR REPLACE FUNCTION public._escala_import_fronts_without_terminal(p_voyage_id bigint, p_port text)
 RETURNS text[]

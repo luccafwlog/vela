@@ -48,7 +48,7 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    ser atendida pela Carga cheia (`frontServesSection`), e o veículo fica no ADR
    do terminal dela, salvo exceção de terminal do B/L. Uma primeira versão desta
    correção criava uma frente de Veículos própria, com terminal escolhido em
-   Editar escala; saiu pela regra do dono (migration `516`) (**Teste:**
+   Editar escala; saiu pela regra do dono (migration `539`) (**Teste:**
    `escalaTerminalAllocation.test.ts`, `VoyageAgencyReportTab.test.tsx`,
    `adrFrenteDerivadaSemTerminal.local-pg.test.ts`).
 2. **Frente derivada sem terminal.** Uma frente que nasce dos dados depois da
@@ -57,7 +57,7 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    avisava, e o banco só recusava o fechamento com frente `TBC` gravada: o ADR
    fechava e congelava o retrato sem o dado. Agora a seção e o bloco ADR mostram
    "Sem terminal (TBC)", **Fechar ADR** fica desabilitado e o banco recusa o
-   fechamento (migration `514`) (**Teste:** `adrFrenteDerivadaSemTerminal.local-pg.test.ts`,
+   fechamento (migration `537`) (**Teste:** `adrFrenteDerivadaSemTerminal.local-pg.test.ts`,
    Postgres 16 local descartável).
 3. **Granito.** A frente de Granito só nascia da declaração de exportação
    ("tem exportação" + Granito), e a importação do Granito não mexe nela
@@ -67,7 +67,7 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    caso (sem a declaração a janela descartava a frente ao gravar), pela mesma
    régua de porto da frente (`graniteLoadingPorts`; a revisão do Codex achou a
    janela olhando só o porto do manifesto) e o banco
-   confere a frente dele no fechamento (migration `515`) (**Teste:**
+   confere a frente dele no fechamento (migration `538`) (**Teste:**
    `escalaTerminalAllocation.test.ts`, `VoyageScheduleModals.test.tsx`,
    `adrFrenteDerivadaSemTerminal.local-pg.test.ts`). Pedido do dono na mesma
    data.
@@ -85,7 +85,7 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    só chegava em transbordo ficava sem frente, escondida no ADR por terminal, e
    o fechamento não travava. Agora os B/Ls em transbordo (omissão não
    revertida) derivam frentes na escala de descarga, na tela e no banco
-   (migration `516`) (**Teste:** `escalaTerminalAllocation.test.ts`,
+   (migration `539`) (**Teste:** `escalaTerminalAllocation.test.ts`,
    `adrFrenteDerivadaSemTerminal.local-pg.test.ts`). Pedido do dono na mesma
    data.
 6. **ADR legado com só transbordo ou só Granito.** A recusa do ADR legado por
@@ -93,7 +93,7 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
    frente da aba antes desta mudança. A escala cuja carga vinha só de
    transbordo ou de Granito importado sem declaração mostrava as frentes TBC na
    aba, mas ainda abria ADR legado sem terminal pela API. A função passa a
-   contar as duas fontes (migration `517`) (**Teste:**
+   contar as duas fontes (migration `540`) (**Teste:**
    `adrFrenteDerivadaSemTerminal.local-pg.test.ts`, falha sem a migration).
    Pedido do dono na mesma data.
 7. **Cache.** Importar veículos, vazios ou B/Ls não relia as frentes do ADR
@@ -113,8 +113,8 @@ no card do porto e não tem frente com terminal some do ADR (**Código**).
 
 ## Evidência e limites
 
-Leitura estática do código e das migrations; testes Vitest; as migrations `514`
-a `517` aplicadas e executadas no Postgres 16 local descartável (`setup-local-pg.sh`).
+Leitura estática do código e das migrations; testes Vitest; as migrations `537`
+a `540` aplicadas e executadas no Postgres 16 local descartável (`setup-local-pg.sh`).
 Consulta somente leitura ao projeto Supabase de produção em 2026-10-30: a Viagem
 169 (BRVIX) tem 1.896 veículos e 22 vazios de importação, nenhuma frente gravada
 e nenhum ADR; o banco inteiro não tinha frente gravada, então o caso exato do
