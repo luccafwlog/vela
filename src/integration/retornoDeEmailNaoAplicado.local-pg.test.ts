@@ -58,6 +58,10 @@ describeLocal('535 — retorno do provedor de e-mail que o Vela não aplica', ()
   beforeAll(cleanup)
   afterAll(cleanup)
 
+  // ponytail: entrega sem envio do Vela é tratada como e-mail de outro sistema.
+  // Envio do Vela cuja tentativa não gravou o id do provedor também fecha calado
+  // aqui e fica "aceito"; melhoria: marcar os envios do Vela (tag ou remetente)
+  // e ler essa marca no aviso do webhook.
   it('aviso de entrega sem envio do Vela tenta de novo até a 6ª vez e então fecha sem alerta', () => {
     const fifth = insertEvent('r535-entrega-5', 'email.delivered', 5)
     expect(JSON.parse(psql(`SELECT public.process_portal_email_event(${fifth}, '${worker}');`)).status).toBe('retry_wait')

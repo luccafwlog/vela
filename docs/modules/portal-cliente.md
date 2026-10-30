@@ -540,7 +540,11 @@ provedor. A conta da MillionSend avisa todo e-mail dela, também os que saem de
 outro sistema por ela (o formulário do site da Fwlog, que escreve para
 `suporte@portalfwlog.com.br`); o Vela não acha esses envios. Desde a migration
 `535`, aviso de entrega ainda sem envio do Vela na 6ª tentativa fecha sem alerta
-(`ignored_unknown_delivery`): não há contato nem tentativa a atualizar. Devolução
+(`ignored_unknown_delivery`): não há contato nem tentativa a atualizar. O limite
+é conhecido: envio do Vela cuja tentativa não gravou o id do provedor também
+fecha calado na entrega e fica "aceito" (o **Provedor de e-mail sem retorno** só
+olha tentativas com id); a melhoria é marcar os envios do Vela (tag ou
+remetente) e ler essa marca no aviso do webhook. Devolução
 ou spam sem envio do Vela, aviso que corresponde a mais de um envio e aviso que
 falha 6 vezes vão para investigação e abrem **Retorno do provedor de e-mail não
 aplicado** (`email_retorno_nao_aplicado`, normal, Administrativo), com o

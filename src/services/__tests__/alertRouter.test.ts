@@ -139,8 +139,9 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     const labels = await fetchAlertEntityLabels([{ ...alert, metadata: { recipient_masked: 's***@p***.br' } }])
     expect(alertRecord(alert, labels)).toEqual({ label: 's***@p***.br', href: null })
     expect(formatAlertEntity('portal_email_event', '180', labels)).toBe('E-mail s***@p***.br')
-    // Alerta anterior à 535 não gravou o destinatário: fica o id.
+    // Alerta anterior à 535 não gravou o destinatário: fica o id, dito como id do evento.
     expect(alertRecord(alert, await fetchAlertEntityLabels([alert]))).toEqual({ label: '180', href: null })
+    expect(formatAlertEntity('portal_email_event', '180')).toBe('Evento de e-mail 180')
   })
 
   it('rebaixa destination a fallback quando o roteador não deriva rota', () => {

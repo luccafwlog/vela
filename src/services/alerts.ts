@@ -287,7 +287,11 @@ export function formatAlertEntity(
   }
   const label = ENTITY_TYPE_LABELS[entityType]
   if (label) {
-    return `${label} ${resolveEntityLabel(labels, entityType, entityId) ?? entityId}`
+    const resolved = resolveEntityLabel(labels, entityType, entityId)
+    // Alerta anterior à migration 535 não gravou o destinatário: "E-mail 180"
+    // parecia o número do e-mail, mas o id é o do evento do provedor.
+    if (!resolved && entityType === 'portal_email_event') return `Evento de e-mail ${entityId}`
+    return `${label} ${resolved ?? entityId}`
   }
   return null
 }
