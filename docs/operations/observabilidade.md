@@ -11,7 +11,7 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   valores aninhados e URLs, usada pelo browser e pelas Edge Functions;
 - `src/lib/telemetry.ts` captura erros de browser em builds de produção,
   remove query strings e redige CNPJ, CPF e e-mail;
-- catorze Edge Functions têm wrapper repository-side (`instrumentEdgeHandler`) que reporta exceções não
+- dezesseis Edge Functions têm wrapper repository-side (`instrumentEdgeHandler`) que reporta exceções não
   tratadas e respostas HTTP 5xx apenas se `SENTRY_DSN` estiver configurado;
   erros brutos, corpo/resposta HTTP, usuário e headers não são enviados;
 - o helper Edge carrega o SDK Sentry sob demanda e fica em no-op sem `SENTRY_DSN`;
@@ -162,7 +162,12 @@ falha com exceção não
 tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
 `portal-password-recovery`, `portal-recovery-email-change`,
 `send-customer-communication`, `portal-email-webhook`, `demurrage-dunning`,
-`ce-unlock-notify-email`, `itau-pix` e seis runners. Em `portal-password-recovery`, o envio roda depois da resposta
+`ce-unlock-notify-email`, `itau-pix`, seis runners e, desde a
+[ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md),
+os widgets públicos `public-ship-schedule` e `public-container-lookup`. Nos
+widgets, recusa esperada não é 5xx: limite por IP e disjuntor global da busca
+respondem 429 e não viram evento; o 503 fica para Upstash, banco ou
+configuração em falta. Em `portal-password-recovery`, o envio roda depois da resposta
 (`EdgeRuntime.waitUntil`); a falha desse trabalho em segundo plano é enviada
 direto por `captureEdgeException`. Cada evento leva o fingerprint
 `['edge', função, status]` (`_shared/telemetryScope.ts`), para o Sentry não
@@ -191,9 +196,11 @@ As falhas que a rotina absorve sem mudar o status vão direto por
 `charges_renew` (renovação da vez) e `charges_release` (liberação das reservas
 não chamadas). `supabase/functions/itau-pix/index.test.ts` confere o status, o
 log e o envelope enviado a um Sentry falso.
-As catorze entradas em `supabase/config.toml` apontam para o manifesto Deno
+As dezesseis entradas em `supabase/config.toml` apontam para o manifesto Deno
 compartilhado em `supabase/functions/deno.json`; a configuração não altera
-`verify_jwt` nem os contratos HTTP.
+`verify_jwt` nem os contratos HTTP. `edgeTelemetryConfiguration.test.ts` tira
+a lista das `supabase/functions/*/index.ts` que chamam `instrumentEdgeHandler`,
+então função nova com o wrapper e sem o import map derruba o teste.
 
 O segredo server-side `SENTRY_DSN` e `SENTRY_ENVIRONMENT=production` foram
 configurados no Supabase de produção em 2026-09-24. O SDK Deno não faz escopo

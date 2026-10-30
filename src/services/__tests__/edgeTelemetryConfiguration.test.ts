@@ -5,27 +5,27 @@ const config = readFileSync('supabase/config.toml', 'utf8')
 const deno = JSON.parse(readFileSync('supabase/functions/deno.json', 'utf8')) as {
   imports?: Record<string, string>
 }
-const instrumentedFunctions = [
-  'alerts-detector',
-  'portal-daily-digest',
-  'portal-email-webhook',
-  'portal-email-events-runner',
-  'portal-invite-send',
-  'ce-unlock-notify-email',
-  'portal-password-recovery',
-  'portal-recovery-email-change',
-  'send-customer-communication',
-  'demurrage-dunning',
-  'customer-communication-auto-runner',
-  'import-effects-runner',
-  'recalc-demurrage-ptax',
-  'itau-pix',
-]
+// Lista derivada do código, não escrita à mão: a função nova com o wrapper
+// entra sozinha na conferência (as duas públicas da ADR 0114 ficaram sem o
+// import map porque a lista fixa não as tinha; revisão da PR #1119).
+const instrumentedFunctions = readdirSync('supabase/functions', { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
+  .map((entry) => entry.name)
+  .filter((name) => {
+    try {
+      return readFileSync(`supabase/functions/${name}/index.ts`, 'utf8').includes('instrumentEdgeHandler(')
+    } catch {
+      return false
+    }
+  })
+  .sort()
 
 describe('Edge telemetry configuration', () => {
   it('points every instrumented function at the shared Deno dependency manifest', () => {
+    // Piso contra uma busca que não acha nada e passa vazia.
+    expect(instrumentedFunctions).toEqual(expect.arrayContaining(['itau-pix', 'portal-password-recovery', 'public-container-lookup', 'public-ship-schedule']))
     for (const functionName of instrumentedFunctions) {
-      expect(config).toContain(`[functions.${functionName}]\nverify_jwt = false\nimport_map = "./functions/deno.json"`)
+      expect(config, functionName).toContain(`[functions.${functionName}]\nverify_jwt = false\nimport_map = "./functions/deno.json"`)
     }
     expect(deno.imports?.['@sentry/deno']).toMatch(/^npm:@sentry\/deno@\d+\.\d+\.\d+$/)
   })
