@@ -174,7 +174,7 @@ telas desta área que o inventário não lista.
 | `A planilha não tem B/L de Granito válido para gravar.` | Importar Granito com arquivo sem B/L válido (a tela já impede com "Nenhum B/L no arquivo."). | Ap. B |
 | `A rota % recebeu mais de um Nº de manifesto Mercante (o mesmo porto aparece com códigos diferentes na planilha): informe um só.` | Importar Vazios de importação quando a planilha escreve o mesmo porto com códigos diferentes e cada um recebeu um número. | Ap. B |
 | `A unidade deve pertencer a um embarque da mesma viagem.` | Incluir ou gravar unidade embarcada cujo embarque não é da Viagem informada (a tela não deixa; aparece só com dado incoerente). | Ap. B |
-| `ADR de Saida fechado: reabra o ADR para excluir a unidade.` | Excluir unidade embarcada com o ADR de Saída da escala fechado. | Ap. B |
+| `ADR de Saída fechado: reabra o ADR para excluir a unidade.` | Excluir unidade embarcada com o ADR de Saída da escala fechado. | Ap. B |
 | `Armazenagem exige depot e a condição da linha (a do serviço, quando ele tem uma), sem tipo, rota ou percentual.` | Lançar linha de armazenagem em terminal, sem condição, com condição diferente da do serviço ou com tipo, rota ou percentual. | Ap. B |
 | `B/L % aparece mais de uma vez no arquivo.` | Reimportar Granito com o mesmo B/L em duas linhas (a prévia já aponta o repetido). | Ap. B |
 | `B/L % cancelado: somente leitura. Reative para corrigir.` | Corrigir perfil, SOC/COC, lacre, peso ou CBM de container de B/L cancelado, editar qualquer dado de B/L cancelado ou gravar a planilha de datas com linha de B/L cancelado (a prévia já recusa a linha com o mesmo texto). | Ap. B |
@@ -283,7 +283,7 @@ telas desta área que o inventário não lista.
 | `Informe o motivo da exclusão do embarque de vazios.` | Excluir embarque sem motivo (EQU-133). | Ap. B |
 | `Embarque de vazios não encontrado.` | Excluir embarque que outra pessoa já excluiu (EQU-133). | Ap. B |
 | `Usuário sem permissão ativa para criar o embarque de vazios.` | **Criar embarque** ou **Definir terminal** com usuário desativado. | Ap. B |
-| `ADR de Saida fechado: reabra o ADR para excluir a linha de servico de vazios.` | Excluir linha de serviço com o ADR de Saída fechado. | Ap. B |
+| `ADR de Saída fechado: reabra o ADR para excluir a linha de serviço de vazios.` | Excluir linha de serviço com o ADR de Saída fechado. | Ap. B |
 | `B/L % não encontrado na Viagem ou cancelado.` | Importar veículos com B/L fora da Viagem ou cancelado (a prévia já aponta). | Ap. B |
 | `Chassi % já cadastrado na Viagem %.` | Importar veículo cujo chassi está em outra Viagem ativa. | Ap. B |
 | `Local de desova diferente para o container % no mesmo arquivo.` | Importar veículos com o mesmo container e locais de desova diferentes. | Ap. B |

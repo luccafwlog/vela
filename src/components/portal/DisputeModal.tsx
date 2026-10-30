@@ -81,6 +81,11 @@ function DisputeModalContent({ demurrageInvoiceId, docNumber, onClose }: { demur
         setError('Escolha o arquivo a anexar ou feche: a disputa já foi aberta.')
         return
       }
+      const retryProblem = portalDisputeAttachmentProblem(file)
+      if (retryProblem) {
+        setError(retryProblem)
+        return
+      }
       setError('')
       await retryAttachment(opened, file)
       return
@@ -118,6 +123,11 @@ function DisputeModalContent({ demurrageInvoiceId, docNumber, onClose }: { demur
       result = await openDispute.mutateAsync({ demurrageInvoiceId, reason: reason.trim() })
     } catch (err: unknown) {
       setError(portalErrorMessage(err, 'Falha ao abrir disputa. Tente novamente em instantes.'))
+      return
+    }
+    if (file && !(result?.message_id && result.dispute_id)) {
+      // Sem os ids não há onde pendurar o anexo: avisa em vez de descartá-lo.
+      setError('A disputa foi aberta, mas o anexo não pôde ser enviado. Anexe depois pela conversa da disputa.')
       return
     }
     if (file && result?.message_id && result.dispute_id) {

@@ -358,7 +358,8 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
                               type="button"
                               className="app-dem-disclosure"
                               aria-expanded={open}
-                              aria-controls={panelId}
+                              // O painel só existe aberto: apontar para id ausente confunde o leitor de tela.
+                              aria-controls={open ? panelId : undefined}
                               onClick={() => setOpenRows((current) => ({ ...current, [dispute.id]: !open }))}
                             >
                               {open ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}

@@ -56,16 +56,23 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
 #### S6.03 — O B/L já está em outra Viagem (importei na Viagem errada)
 
 - **O que o sistema faz:** no arquivo de B/L de container, a linha vira erro:
-  "O B/L … já está na Viagem …: exclua o B/L lá e importe de novo (cancelar não
-  libera o número)". Na carga solta, o arquivo inteiro é recusado, com a mesma
-  orientação.
+  "O B/L … já está na Viagem …: exclua o B/L lá (se tiver CE Mercante, tire o CE
+  antes) e importe de novo (cancelar não libera o número)". Na carga solta, o
+  arquivo inteiro é recusado, com a mesma orientação. Se o B/L está cancelado na
+  outra Viagem, a mensagem manda reativá-lo lá, tirar o CE Mercante, excluí-lo e
+  importar de novo.
 - **Por quê:** a importação nunca muda a Viagem de um B/L, e o número do B/L
   existe uma vez só no sistema, mesmo cancelado.
 - **O que você faz:** peça ao Administrativo para excluir o B/L na Viagem
   errada (lista BLs, caixa de seleção, **Excluir**) e importe de novo na
   Viagem certa. A exclusão só é possível se o B/L não tem CE Mercante nem
-  documento financeiro; veja S6.18.
+  documento financeiro; veja S6.18. Com CE Mercante, tire o CE antes (B/L
+  cancelado: reative-o primeiro, porque o cancelado é somente leitura).
 - **Regras:** BLR-015, BLR-026, BLR-053.
+- **P2 (decidida em 2026-10-30):** a orientação "exclua o B/L lá" parava na
+  trava do CE, e o B/L cancelado quase sempre tem CE. O dono decidiu que a
+  mensagem diz o caminho inteiro (migration `551`, revisão da release
+  luccafwlog/vela#1117).
 - **P1 (decidida e corrigida em 2026-10-28):** a mensagem da carga solta
   mandava "corrija a Viagem do B/L pela ficha", mas a ficha do B/L não tem
   como mudar a Viagem. O dono decidiu que ela diria o mesmo que a do B/L de

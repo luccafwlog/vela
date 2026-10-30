@@ -443,11 +443,24 @@ export async function portalAddDisputeMessage(demurrageInvoiceId: number, body: 
 export const PORTAL_DISPUTE_ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'text/plain']
 export const PORTAL_DISPUTE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
 
+// Extensões aceitas por tipo, as mesmas da Edge Function
+// (`supabase/functions/_shared/fileSignature.ts`): um `.jfif` image/jpeg
+// passava aqui, a disputa abria e o anexo era recusado lá.
+const PORTAL_DISPUTE_ATTACHMENT_EXTENSIONS: Record<string, readonly string[]> = {
+  'application/pdf': ['pdf'],
+  'image/jpeg': ['jpg', 'jpeg'],
+  'image/png': ['png'],
+  'text/plain': ['txt'],
+}
+
 /** Mensagem de recusa do arquivo escolhido, ou null quando ele pode seguir. */
 export function portalDisputeAttachmentProblem(file: File): string | null {
   if (file.size <= 0) return 'O anexo está vazio. Escolha outro arquivo.'
   if (file.size > PORTAL_DISPUTE_ATTACHMENT_MAX_BYTES) return 'O anexo excede o limite de 10 MB.'
-  if (!PORTAL_DISPUTE_ATTACHMENT_TYPES.includes(file.type)) return 'Tipo de anexo não permitido. Use PDF, JPG, PNG ou TXT.'
+  const extension = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]
+  if (!PORTAL_DISPUTE_ATTACHMENT_TYPES.includes(file.type) || !extension || !PORTAL_DISPUTE_ATTACHMENT_EXTENSIONS[file.type]?.includes(extension)) {
+    return 'Tipo de anexo não permitido. Use PDF, JPG, PNG ou TXT.'
+  }
   return null
 }
 

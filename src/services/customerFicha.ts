@@ -8,6 +8,7 @@ import { fetchPaymentRegistrarNames } from './billing'
 import { fetchCustomerCommunicationHistory, customerCommunicationKindLabel, customerCommunicationStatusLabel, type CustomerCommunicationHistoryItem } from './customerCommunications'
 import { matchesAnyToken } from '../lib/searchTerms'
 import { fetchUserDisplayNames } from './userNames'
+import { listDemurrageBillingBoard, OVERSTAY_STATES } from './demurrage/demurrageBoard'
 
 export type FichaLocalInvoiceRow = {
   id: number
@@ -437,12 +438,18 @@ export async function fetchCustomerPendingReconciliation(customerId: number) {
   return rows.filter((row) => !isCustomerReconciliationResolved(row.customer_reconciliation_status))
 }
 
+/**
+ * Containers com Demurrage correndo do Cliente: os mesmos do cartão Correndo
+ * da Demurrage (caixas com sobreestadia sem Invoice nem dispensa dos grupos em
+ * Correndo, `list_demurrage_billing_board`; ADR 0112, D1 e D6). Antes lia
+ * `bl_containers.demurrage_status`, que a dispensa da cobrança não muda.
+ */
 export async function fetchCustomerRunningDemurrage(customerId: number) {
-  const { rows: data, error } = await fetchAllRows<{ id: number; container_number: string | null; bl_id: string; discharge_date: string }>((from, to) =>
-    supabase.from('bl_containers').select('id, container_number, bl_id, discharge_date, return_date, bl:bls!inner(customer_id)').eq('bl.customer_id', customerId).eq('demurrage_status', 'overdue').not('discharge_date', 'is', null).is('return_date', null).range(from, to).overrideTypes<Array<{ id: number; container_number: string | null; bl_id: string; discharge_date: string }>, { merge: false }>(),
-  )
-  if (error) throw error
-  return (data ?? []).map((row) => ({ container_id: row.id, container_number: row.container_number, bl_id: row.bl_id, discharge_date: row.discharge_date }))
+  const groups = await listDemurrageBillingBoard({ customerId })
+  return groups
+    .filter((group) => group.division === 'correndo')
+    .flatMap((group) => group.boxes.filter((box) => OVERSTAY_STATES.has(box.state)))
+    .map((box) => ({ container_id: box.container_id, container_number: box.container_number, bl_id: box.bl_id, discharge_date: box.discharge_date }))
 }
 
 export async function fetchCustomerTimelineSources(customerId: number, contacts: Array<Pick<CustomerContact, 'id' | 'name' | 'created_at'>>, bls: Array<{ id: string; created_at: string | null }>) {

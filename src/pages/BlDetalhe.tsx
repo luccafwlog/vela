@@ -64,6 +64,23 @@ export const BL_TABS: { key: BlTab; label: string }[] = [
   { key: 'historico', label: 'Histórico' },
 ]
 
+// Motivos de Demurrage de `bl_open_financial_reasons` (migrations 517 e 530):
+// saem pela emissão da Invoice ou pela dispensa na Demurrage, não pela fatura.
+const DEMURRAGE_TO_BILL_REASON = 'Demurrage a faturar'
+const DEMURRAGE_LOCKED_REASON = 'Demurrage travada'
+
+function isDemurrageCancelReason(reason: string) {
+  return reason.startsWith(DEMURRAGE_TO_BILL_REASON) || reason.startsWith(DEMURRAGE_LOCKED_REASON)
+}
+
+/** A travada (B/L sem Cliente, tipo sem tarifa) abre a divisão Travado; a outra, a busca. */
+function demurrageCancelHref(blId: string, reasons: readonly string[]) {
+  const search = encodeURIComponent(blId)
+  return reasons.some((reason) => reason.startsWith(DEMURRAGE_LOCKED_REASON))
+    ? `/demurrage?divisao=travado&busca=${search}`
+    : `/demurrage?busca=${search}`
+}
+
 export function isBlTab(value: string | null): value is BlTab {
   return (BL_TAB_KEYS as string[]).includes(value ?? '')
 }
@@ -215,7 +232,8 @@ export function BlDetalhe() {
     demurrageInvoices: (demurrageInvoices ?? []).map((invoice) => ({ id: invoice.id, status: invoice.status })),
     reviewReasons,
     portalVisibility: portalStatus?.visibility ?? null,
-  }) : [], [bl, demurrageInvoices, latestInvoice, portalStatus?.visibility, reviewReasons])
+    containers: railContainers,
+  }) : [], [bl, demurrageInvoices, latestInvoice, portalStatus?.visibility, reviewReasons, railContainers])
   const documentalSummary = useMemo(() => summarizeDocumentalRail(documental), [documental])
   const blDivergenceCount = useMemo(() => {
     if (!reconciliation || !bl) return 0
@@ -356,9 +374,9 @@ export function BlDetalhe() {
         <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
           <span>
             <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}.
-            {cancelBlockedReasons.some((reason) => !reason.startsWith('Demurrage a faturar')) ? ' Antes, o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição.' : null}
+            {cancelBlockedReasons.some((reason) => !isDemurrageCancelReason(reason)) ? ' Antes, o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição.' : null}
             {/* ADR 0112, D7 e D26: a sobreestadia sem Invoice segura o cancelamento até a emissão ou a dispensa. */}
-            {cancelBlockedReasons.some((reason) => reason.startsWith('Demurrage a faturar')) ? <> <Link className="app-link" to={`/demurrage?busca=${encodeURIComponent(bl.id)}`}>Abrir em Demurrage</Link></> : null}
+            {cancelBlockedReasons.some(isDemurrageCancelReason) ? <> <Link className="app-link" to={demurrageCancelHref(bl.id, cancelBlockedReasons)}>Abrir em Demurrage</Link></> : null}
           </span>
           <Button variant="secondary" onClick={() => setCancelBlockedReasons(null)}>Fechar aviso</Button>
         </div>

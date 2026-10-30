@@ -123,7 +123,7 @@ export function DemurrageCustomersTab({
                                 className="app-dem-disclosure"
                                 onClick={() => onExpandedCustomerChange(customer.customer_id)}
                                 aria-expanded={isExpanded}
-                                aria-controls={panelId}
+                                aria-controls={isExpanded ? panelId : undefined}
                               >
                                 {isExpanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
                                 {/* Tabela limpa: o CNPJ fica no relatório do Cliente e na busca. */}

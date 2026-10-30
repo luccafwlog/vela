@@ -50,6 +50,10 @@ const BOX_NEWEST_WITHOUT_CE = containerNumber(51415) // B: V_OLD devolvida; V_PU
 const BOX_NEWEST_UNSERVED_PORT = containerNumber(51416) // C: V_OUT em Salvador sem devolução; V_PUBLIC em Santos
 const BOX_NEWEST_SOC = containerNumber(51417) // V_OLD devolvida; V_PUBLIC como SOC
 const BOX_NEWEST_CANCELLED_BL = containerNumber(51418) // V_OLD sem devolução; V_PUBLIC em B/L cancelado
+// Migration 545 (revisão da release #1117): B/L com CE Mercante e sem Cliente
+// vinculado não está no Portal de ninguém; o site também não o mostra.
+const BOX_NO_CUSTOMER = containerNumber(51419)
+const BOX_NEWEST_WITHOUT_CUSTOMER = containerNumber(51420) // V_OLD devolvida; V_PUBLIC em B/L sem Cliente
 
 const BLS = {
   found: 'BL-542-FOUND',
@@ -63,6 +67,7 @@ const BLS = {
   waiting: 'BL-542-WAIT',
   pecem: 'BL-542-PEC',
   noCe: 'BL-542-NOCE',
+  noCustomer: 'BL-545-NOCUST',
 }
 
 function psql(sql: string): string {
@@ -161,7 +166,8 @@ describeLocal('542 — quadro e consulta de container públicos', () => {
         ('${BLS.out}', ${V_OUT}, ${CUSTOMER}, 'container', 'BRSSA', 'CE542OUT'),
         ('${BLS.waiting}', ${V_HIDDEN}, ${CUSTOMER}, 'container', 'BRVIX', 'CE542WAIT'),
         ('${BLS.pecem}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'PECEM', 'CE542PEC'),
-        ('${BLS.noCe}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSA', NULL);
+        ('${BLS.noCe}', ${V_PUBLIC}, ${CUSTOMER}, 'container', 'BRSSA', NULL),
+        ('${BLS.noCustomer}', ${V_PUBLIC}, NULL, 'container', 'BRSSA', 'CE545NOCUST');
       -- O B/L irmão tem free time próprio: a resposta tem de seguir o âncora.
       UPDATE public.bls SET free_time_override = 30 WHERE id = '${BLS.sharedB}';
 
@@ -189,7 +195,10 @@ describeLocal('542 — quadro e consulta de container públicos', () => {
         ('${BLS.old}', '${BOX_NEWEST_SOC}', '40HC', ${TODAY} - 50, ${TODAY} - 30, 'COC'),
         ('${BLS.found}', '${BOX_NEWEST_SOC}', '40HC', ${TODAY} - 3, NULL, 'SOC'),
         ('${BLS.old}', '${BOX_NEWEST_CANCELLED_BL}', '40HC', ${TODAY} - 50, NULL, 'COC'),
-        ('${BLS.cancelled}', '${BOX_NEWEST_CANCELLED_BL}', '40HC', ${TODAY} - 10, NULL, 'COC');
+        ('${BLS.cancelled}', '${BOX_NEWEST_CANCELLED_BL}', '40HC', ${TODAY} - 10, NULL, 'COC'),
+        ('${BLS.noCustomer}', '${BOX_NO_CUSTOMER}', '40HC', ${TODAY} - 10, NULL, 'COC'),
+        ('${BLS.old}', '${BOX_NEWEST_WITHOUT_CUSTOMER}', '40HC', ${TODAY} - 50, ${TODAY} - 30, 'COC'),
+        ('${BLS.noCustomer}', '${BOX_NEWEST_WITHOUT_CUSTOMER}', '40HC', ${TODAY} - 5, NULL, 'COC');
       -- Cancelamentos direto na tabela, sem os gatilhos (fixture): a escala de
       -- Viagem cancelada é somente leitura e o B/L cancela por cancel_bl.
       SET session_replication_role = replica;
@@ -280,7 +289,7 @@ describeLocal('542 — quadro e consulta de container públicos', () => {
     // não vira "Free time vencido". B: a mais nova tem B/L ainda sem CE
     // Mercante; a anterior, devolvida, não responde. C: a mais nova é em Santos;
     // a anterior, em Salvador, não responde. A mais nova SOC, idem.
-    for (const number of [BOX_NEWEST_OUT_OF_WINDOW, BOX_NEWEST_WITHOUT_CE, BOX_NEWEST_UNSERVED_PORT, BOX_NEWEST_SOC]) {
+    for (const number of [BOX_NEWEST_OUT_OF_WINDOW, BOX_NEWEST_WITHOUT_CE, BOX_NEWEST_UNSERVED_PORT, BOX_NEWEST_SOC, BOX_NEWEST_WITHOUT_CUSTOMER]) {
       expect(lookup(number), number).toBe('')
     }
     // B/L cancelado não é viagem feita: a anterior continua a mais recente.
@@ -305,9 +314,9 @@ describeLocal('542 — quadro e consulta de container públicos', () => {
     expect(lookupRow(BOX_WAITING)).toMatchObject({ situation: 'aguardando_descarga', free_time_days: null, free_time_until: null, discharge_port: 'BRVIX' })
   })
 
-  it('dígito inválido, inexistente, devolvido fora da janela, sem CE Mercante, cancelado, porto não atendido e SOC: a mesma resposta vazia', () => {
+  it('dígito inválido, inexistente, devolvido fora da janela, sem CE Mercante, sem Cliente, cancelado, porto não atendido e SOC: a mesma resposta vazia', () => {
     const wrongDigit = `${BOX_FOUND.slice(0, 10)}${(Number(BOX_FOUND[10]) + 1) % 10}`
-    for (const number of [wrongDigit, BOX_UNKNOWN, BOX_OUT_OF_WINDOW, BOX_CANCELLED_BL, BOX_CANCELLED_VOYAGE, BOX_UNSERVED_PORT, BOX_SOC, BOX_NO_CE, 'ZQPU51401', "ZQPU' OR 1=1 --", BOX_FOUND.slice(0, 6), '']) {
+    for (const number of [wrongDigit, BOX_UNKNOWN, BOX_OUT_OF_WINDOW, BOX_CANCELLED_BL, BOX_CANCELLED_VOYAGE, BOX_UNSERVED_PORT, BOX_SOC, BOX_NO_CE, BOX_NO_CUSTOMER, 'ZQPU51401', "ZQPU' OR 1=1 --", BOX_FOUND.slice(0, 6), '']) {
       expect(lookup(number), number).toBe('')
     }
   })

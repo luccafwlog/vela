@@ -1,4 +1,4 @@
--- 546: o Histórico de baixas lista cada baixa, com a forma (automática pelo
+-- 553: o Histórico de baixas lista cada baixa, com a forma (automática pelo
 -- Itaú, pelo extrato, manual ou isenção) e o valor que ela pôs em cada B/L
 -- (ADR 0115, decisões 4 a 6).
 --

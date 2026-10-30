@@ -150,7 +150,7 @@ repositório.
 | Mensagem | Quando aparece | Destino |
 |---|---|---|
 | `% é o último usuário Administrativo ativo. Antes de mudar o setor ou desativar, ative ou cadastre outro usuário Administrativo.` | Admin › Usuários, ao desativar ou trocar o setor da última pessoa Administrativa ativa; o % é o nome dela. Cadastre ou ative outro Administrativo antes. | Ap. B |
-| `ADR de Saida fechado: reabra o ADR para excluir a linha de servico de vazios.` | Embarque de Vazios, ao excluir uma linha de serviço com o ADR de Saída da escala fechado. Reabra o ADR (com motivo) ou deixe a linha. | Ap. B |
+| `ADR de Saída fechado: reabra o ADR para excluir a linha de serviço de vazios.` | Embarque de Vazios, ao excluir uma linha de serviço com o ADR de Saída da escala fechado. Reabra o ADR (com motivo) ou deixe a linha. | Ap. B |
 | `Apenas administradores podem listar usuários.` | Admin › Usuários ou Histórico de ações, quando quem abriu a tela deixou de ser Administrativo durante a sessão. Recarregue a página. | Ap. B |
 | `Autor informado difere do usuário da sessão.` | Qualquer gravação que chegue com outro autor que não o da sessão (por exemplo, aba antiga aberta com outro usuário). Recarregue a página e refaça. | Ap. B |
 | `Fatura % coberta por outro documento pago: o B/L ja foi pago e ela nao pode ser cancelada.` | Taxas Locais, ao cancelar (Administrativo) uma fatura individual **Coberta** por uma consolidada paga. | Ap. B |

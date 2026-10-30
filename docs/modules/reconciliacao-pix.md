@@ -143,7 +143,7 @@ chave e o de teste. Nada aqui abre Alerta; só o Pix de cobrança do Vela em
 análise pede ação, e ela é feita em Pendências.
 
 **QR estático do Vela** ([ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
-migration `545`): o identificador do QR estático é o número da fatura ou da
+migration `552`): o identificador do QR estático é o número da fatura ou da
 Invoice de Demurrage sem pontuação (`INV20260005`, `DEM20260001`) ou uma
 versão de cobrança da fatura (`VP` + 23 hexadecimais); até 2026-10-30 esse Pix
 caía em "ZPT". Com o QR estático ligado no ambiente
@@ -166,7 +166,7 @@ jeito, então o motivo diz que o QR pode ser do staging.
   baixa, Em análise, Tratado), Origem (Cobrança do Vela, QR estático do Vela,
   Sem identificador, ZPT, Teste do Vela; "ZPT" é o Pix gerado pelo sistema da
   ZPT que cobra na mesma chave, até 2026-10-23 "Outro sistema", só o rótulo
-  mudou; "QR estático do Vela" desde a migration `545`), Valor e Buscar (mensagem do pagador,
+  mudou; "QR estático do Vela" desde a migration `552`), Valor e Buscar (mensagem do pagador,
   identificador do Pix, da cobrança ou número da fatura; também nome e
   documento do pagador, se o Itaú os mandar). Valor ilegível avisa no campo e não consulta.
 - **Bloco Pix recebidos**, com "N Pix · R$ X" do recorte na faixa e a tabela
@@ -312,7 +312,7 @@ prometer a baixa. As linhas que não entraram apontam para Pendências (botão *
 
 `src/components/billing/ReconciliationHistoryTable.tsx` (aba **Histórico de
 baixas**) lista **cada baixa** e B/L, pela RPC `list_payment_history` (migration
-`546`, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md);
+`553`, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md);
 até 2026-10-30 era uma linha por fatura e B/L com a baixa mais recente, e as
 baixas anteriores, inclusive as parciais de uma fatura depois coberta pela
 consolidada, não apareciam):
@@ -390,7 +390,7 @@ consolidada, não apareciam):
 | RPC unificada · conciliar item local | `source = local`, data presente, TXID resolve uma única cobrança local pagável e o valor é exatamente o dessa cobrança | `confirm_unified_pix_matches` | `reconcile_invoice_payment_by_txid` → `register_ledger_invoice_payment` | `payments`, `ledger_settlements`, `bl_receivables`, links, invoice, B/Ls e eventos | Item `{source: local, status: ok}`; transação inteira aborta se um item falhar | Sem match, ambíguo no domínio local, já conciliado ou valor inexato gera falha do lote | **Código:** `confirm_unified_pix_matches` na migration `002` (SECURITY DEFINER desde a `329`) e `reconcile_invoice_payment_by_txid` na migration `130` (sem EXECUTE para `authenticated` desde a `329`; definições vigentes; origem nas migrations arquivadas `103` e `111`) |
 | RPC unificada · conciliar item Demurrage | `source = demurrage`, invoice existente e valor na janela das duas PTAX (`event_date <= pagamento`, tol. `0,01`) | Mesma RPC | Valida pela janela (`get_demurrage_recent_values`, ADR 0015), congela o valor casado e acumula lote para `confirm_demurrage_pix_matches` → `register_demurrage_payment` | `UPDATE demurrage_invoices`: `paid`, `paid_at`, `pix_txid`, `conciliated_by_extract`, `current_total_brl` casado + foto `source='payment'` no histórico | Item `{source: demurrage, status: ok}` | Documento ausente, valor fora da janela ou contagem atualizada diferente aborta o lote | **Código:** migrations `002` (`confirm_unified_pix_matches`), `012` (`confirm_demurrage_pix_matches`) e `027` (`register_demurrage_payment`); origem da janela na migration arquivada `158` |
 | Resultado · exibir retorno por fonte/item | Confirmação concluída | `confirmMutation.onSuccess` | `describeConfirmation` completa cada item devolvido com o que foi enviado | Sem nova persistência | Lista só os itens devolvidos, conta os enviados que não voltaram e aponta as exceções para Pendências | Shape sem itens vira array vazio e a tela diz que nenhuma baixa voltou | **Código:** `src/components/billing/PixExtractPanel.tsx`, `pixReconciliationPresentation.ts` · **Teste:** `pixReconciliationPresentation.test.ts` |
-| Histórico · listar/filtrar/ordenar/paginar | Sessão interna | `ReconciliationHistoryTable`; estado na URL por `reconciliacaoState.ts` | `useQuery` → `listReconciliationHistory` → RPC `list_payment_history` (migration `546`) | Uma linha por baixa e B/L, com a forma da baixa decidida no banco; Cliente na RPC, demais filtros, ordenação e página no cliente | Query `['reconciliation-history', filters]`, `staleTime` 15 s; data, valor e `paymentId` são da baixa da linha | Erro da RPC falha a tabela inteira, com Tentar novamente e sem lista vazia; sem sessão interna ativa a RPC recusa | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts`, migration `546` · **Teste:** `reconciliationHistoryPagination.test.ts`, `reconciliationHistorySummary.test.ts`, `ReconciliationHistoryTable.behavior.test.tsx` · **Teste local-pg:** `baixaDoQrEstatico.local-pg.test.ts` |
+| Histórico · listar/filtrar/ordenar/paginar | Sessão interna | `ReconciliationHistoryTable`; estado na URL por `reconciliacaoState.ts` | `useQuery` → `listReconciliationHistory` → RPC `list_payment_history` (migration `553`) | Uma linha por baixa e B/L, com a forma da baixa decidida no banco; Cliente na RPC, demais filtros, ordenação e página no cliente | Query `['reconciliation-history', filters]`, `staleTime` 15 s; data, valor e `paymentId` são da baixa da linha | Erro da RPC falha a tabela inteira, com Tentar novamente e sem lista vazia; sem sessão interna ativa a RPC recusa | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts`, migration `553` · **Teste:** `reconciliationHistoryPagination.test.ts`, `reconciliationHistorySummary.test.ts`, `ReconciliationHistoryTable.behavior.test.tsx` · **Teste local-pg:** `baixaDoQrEstatico.local-pg.test.ts` |
 | Histórico · exportar | Filtros atuais e ao menos um registro | Botão “Exportar planilha” | `exportReconciliationHistoryExcel` consulta com página única ampla e carrega `@e965/xlsx` | Arquivo local `conciliacao-<timestamp>.xlsx` | Sem invalidação; neutraliza prefixos de fórmula em strings | Falha exibe toast dedicado e encerra o estado de processamento | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts` |
 | Histórico · abrir detalhe local | Linha local; invoice/payment IDs disponíveis | `onSelectLocalInvoice` | `InvoiceDetailModal` → `useInvoiceDetail`/`useInvoiceRefunds`, com a baixa da linha escolhida | Leituras do faturamento | Queries de detalhe/refund | `paymentId = null` permite detalhe, mas não cancelamento da baixa | **Código:** `src/pages/Reconciliacao.tsx`, `src/components/billing/ReconciliationHistoryTable.tsx` |
 | Histórico · abrir detalhe Demurrage | Linha Demurrage | `onSelectDemurrageInvoice` | `DemurrageInvoiceDetailModal` (etapa 11) | Leitura de invoice, itens, outras Invoices do B/L e restituições | Query `['demurrage-invoice-detail', id]`, a mesma de `/demurrage` | Erro mostra falha no modal com Tentar novamente | **Código:** `src/pages/Reconciliacao.tsx`, `src/components/demurrage/DemurrageInvoiceDetailModal.tsx` |
@@ -398,7 +398,7 @@ consolidada, não apareciam):
 | Detalhe Demurrage · cancelar baixa | Admin, invoice paga e justificativa | `reversalMutation` | `DemurragePaymentReversalModal` → `reverseDemurragePayment` | RPC `reverse_demurrage_payment` volta status a `issued`, limpa data, TXID e `conciliated_by_extract` e audita; Invoice suspensa por datas alteradas é cancelada e reemitida pelo cálculo atual, ou segue suspensa ([Cancelar baixa](#cancelar-baixa)) | `afterFaturaDemurrageAlterada`; relê o detalhe e volta a ele | UI e RPC exigem justificativa; com restituição de Demurrage não cancelada o banco recusa; recusa fica no formulário (“A baixa continua registrada”) | **Código:** `src/pages/Reconciliacao.tsx`, `src/services/reconciliacao.ts`, migrations `446` (`reverse_demurrage_payment`; Pix do Itaú volta a análise), `191` (`trg_reconcile_demurrage_after_payment_reversal`) e `136` (`guard_demurrage_payment_after_refund`) · **Teste:** `Reconciliacao.behavior.test.tsx` |
 | `/reconciliacao?tab=recebidos` · listar Pix recebidos | Usuário interno ativo; Itaú ligado gravando a consulta | `PixReceivedPanel` | `useQuery` → `listItauPixReceipts` → RPC `list_itau_pix_receipts` (filtros e página no servidor) | Nenhuma | Query `['itau-pix-receipts', filtros]`, relida a cada minuto; filtros, página e tamanho na URL com prefixo `pix` | Erro mostra "Não foi possível carregar os Pix recebidos" com Tentar novamente; valor ilegível avisa no campo sem consultar; pagador, mensagem e retorno do banco para todos | **Código:** migrations `442`, `444` e `445`, `src/components/billing/PixReceivedPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `Reconciliacao.behavior.test.tsx`, `reconciliacaoState.test.ts`, `pixReconciliationPresentation.test.ts` · **Teste local-pg:** `pixRecebidos.local-pg.test.ts` |
 | Pix recebidos · baixar numa fatura (opcional) | Financeiro ou Administrativo; Pix `received` (não é de cobrança do Vela) e sem baixa com o identificador dele | Linha aberta → `SettleReceipt` | `list_itau_pix_receipt_candidates` (mesmo valor, documento do pagador ou número procurado) → `itau_pix_settle_received` → `register_verified_invoice_payment` (local e avulsa) ou `register_demurrage_payment` (Demurrage, janela das duas PTAX) | `payments` com o identificador do Pix em `bank_reference`, ledger e fatura; ou Invoice de Demurrage paga com ele em `pix_txid` | `afterPixConciliado` (faturas, Demurrage, histórico, monitor, Pix recebidos e as sugestões) | Fatura não aberta, Pix já baixado, valor fora da janela da Demurrage ou Pix de cobrança do Vela: recusa na linha ("Nenhuma baixa foi gravada: …") | **Código:** migrations `442` e `443`, `PixReceivedPanel.tsx` · **Teste:** `Reconciliacao.behavior.test.tsx` · **Teste local-pg:** `pixRecebidos.local-pg.test.ts` (inclui nova baixa depois de cancelada) |
-| Edge `itau-pix` · gravar cada Pix da consulta | Job `itau-pix-queue` (1 min) | `pollItauPixReceipts` | `itau_pix_receive` com o retorno do Itaú: TXID `VELA…` segue para a baixa automática; o do QR estático do Vela (`INV…`, `DEM…`, `VP…`) para `_itau_pix_settle_static`, que só baixa com o QR estático ligado no ambiente (migration `545`); o resto fica `received` | `itau_pix_receipts` (`status`, `raw`) | Sem cache de tela; a aba relê a cada minuto | Falha passageira segue a regra das três tentativas (`itau_pix_receipt_failed`); Pix sem endToEndId ou valor válidos fica de fora (`skipped`) | **Código:** `supabase/functions/_shared/itauPix.ts`, `supabase/functions/itau-pix/index.ts` · **Teste:** `itauPix.test.ts`, `supabase/functions/itau-pix/index.test.ts` (Deno) · **Teste local-pg:** `baixaDoQrEstatico.local-pg.test.ts` (QR estático) |
+| Edge `itau-pix` · gravar cada Pix da consulta | Job `itau-pix-queue` (1 min) | `pollItauPixReceipts` | `itau_pix_receive` com o retorno do Itaú: TXID `VELA…` segue para a baixa automática; o do QR estático do Vela (`INV…`, `DEM…`, `VP…`) para `_itau_pix_settle_static`, que só baixa com o QR estático ligado no ambiente (migration `552`); o resto fica `received` | `itau_pix_receipts` (`status`, `raw`) | Sem cache de tela; a aba relê a cada minuto | Falha passageira segue a regra das três tentativas (`itau_pix_receipt_failed`); Pix sem endToEndId ou valor válidos fica de fora (`skipped`) | **Código:** `supabase/functions/_shared/itauPix.ts`, `supabase/functions/itau-pix/index.ts` · **Teste:** `itauPix.test.ts`, `supabase/functions/itau-pix/index.test.ts` (Deno) · **Teste local-pg:** `baixaDoQrEstatico.local-pg.test.ts` (QR estático) |
 
 ## Estado e dados
 
@@ -429,7 +429,7 @@ equivalente.
 
 ### Histórico
 
-`listReconciliationHistory` lê `list_payment_history` (migration `546`, leitura
+`listReconciliationHistory` lê `list_payment_history` (migration `553`, leitura
 de todo usuário interno ativo), que devolve uma linha por baixa e B/L com a
 forma da baixa; o Cliente vai para a RPC e os demais filtros, a ordenação e a
 página são aplicados em memória sobre a lista inteira (ponytail na migration).
@@ -605,7 +605,7 @@ ia para análise com Alerta pela decisão 16 da ADR 0093 e o de outro sistema
 era ignorado pela B11 da ADR 0094). O Pix do QR estático do Vela tem caminho
 próprio: baixa automática com o QR estático ligado, sem baixa e sem Alerta com
 a cobrança Itaú ligada ([QR estático do Vela](#pix-recebidos), migration
-`545`). Sem endToEndId ou valor válidos, o Pix
+`552`). Sem endToEndId ou valor válidos, o Pix
 fica de fora e é contado em `skipped` no resumo da função; o horário que não se
 lê ou se afasta mais de 1 h do minuto do endToEndId é trocado por esse minuto,
 sem parar a consulta. A baixa
@@ -743,8 +743,8 @@ sem isso ficam em `skip`.
   (idempotente pelo `endToEndId`), Pix em análise sem usuário de baixa ou com
   TXID desconhecido, prazos (14h30 do próximo dia útil, calendário de feriados, renovação),
   monitoramento e **Marcar como tratado**, e o disparo da fila na emissão.
-- `src/integration/baixaDoQrEstatico.local-pg.test.ts`: migrations `545` e
-  `546`, a partir do caso do staging de 2026-10-30. Origem pelo identificador
+- `src/integration/baixaDoQrEstatico.local-pg.test.ts`: migrations `552` e
+  `553`, a partir do caso do staging de 2026-10-30. Origem pelo identificador
   (QR estático do Vela, ZPT, cobrança Itaú); baixas manuais parciais nos dois
   B/Ls e a consolidada paga pelo QR estático com baixa automática; segundo Pix
   no mesmo QR, valor diferente e cobrança Itaú ligada ficam sem baixa, com o

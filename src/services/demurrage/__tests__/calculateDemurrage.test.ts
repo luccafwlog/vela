@@ -202,6 +202,26 @@ describe('calculateDemurrage', () => {
     expect(() => calculateDemurrage('45HC', '2026-01-01', '2026-01-26')).toThrow(/sem tarifa de Demurrage/)
   })
 
+  it('tipo com código de grupo desativado também fica sem tarifa; os outros tipos do grupo seguem (migration 546)', async () => {
+    __setDemurrageRateGroupsForTest(null)
+    const rates = [
+      { id: 1, container_type: '20GP', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 30, p2_day_from: 31, p2_usd: 50 },
+      { id: 6, container_type: '40FR', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 100, p2_day_from: 31, p2_usd: 140 },
+    ]
+    const types = [
+      { code: '20GP', rate_group: '20GP', active: false },
+      { code: '20HC', rate_group: '20GP', active: true },
+      { code: '40FR', rate_group: '40FR', active: true },
+    ]
+    mocks.from.mockImplementation((table: string) => createRatesQuery({ data: table === 'container_types' ? types : rates, error: null }))
+
+    await ensureDemurrageRatesLoaded(true)
+
+    expect(() => calculateDemurrage('20GP', '2026-01-01', '2026-01-26')).toThrow(/sem tarifa de Demurrage/)
+    expect(calculateDemurrage('20HC', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 30)
+    expect(calculateDemurrage('40FR', '2026-01-01', '2026-01-26').total_usd).toBe(4 * 100)
+  })
+
   describe('hierarquia com acordos customizados do cliente', () => {
     it('aplica free time customizado do acordo do cliente quando B/L não tem override', () => {
       // Acordo: 28 dias free time. Sem taxas personalizadas (herda P1/P2 padrão).

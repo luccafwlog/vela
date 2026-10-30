@@ -397,7 +397,7 @@ export async function confirmUnifiedPixReconciliation(matches: UnifiedPixMatch[]
 // ========== Reconciliation History ==========
 
 /**
- * Forma da baixa (ADR 0115, migration 546): automática pela consulta do Itaú,
+ * Forma da baixa (ADR 0115, migration 553): automática pela consulta do Itaú,
  * pelo extrato (plano B), registrada à mão (inclusive a baixa de um Pix
  * recebido escolhida pelo operador) ou isenção da Invoice de Demurrage.
  */
@@ -575,7 +575,7 @@ export async function listReconciliationHistory(
   const filters: ReconciliationFilters = { ...DEFAULT_HISTORY_FILTERS, ...userFilters }
 
   // Uma linha por baixa e B/L, com a forma da baixa decidida no banco
-  // (`list_payment_history`, migration 546): o navegador não lê os
+  // (`list_payment_history`, migration 553): o navegador não lê os
   // recebimentos do Itaú nem a conta da baixa automática.
   const { data, error } = await callPixRpc('list_payment_history', {
     p_customer_id: filters.customerId ? Number(filters.customerId) : null,
@@ -774,7 +774,7 @@ export async function markItauPixReceiptHandled(endToEndId: string, note: string
 // Pix recebidos (ADR 0100, migration 442): todo Pix que o Itaú informou na
 // consulta. O de cobrança do Vela tem a baixa automática, e o do QR estático
 // do Vela também quando este ambiente cobra pelo QR estático (ADR 0115,
-// migration 545); o resto fica gravado sem baixa e sem Alerta, e o operador
+// migration 552); o resto fica gravado sem baixa e sem Alerta, e o operador
 // pode dar a baixa numa fatura se quiser.
 
 export type ItauPixReceiptOrigin = 'vela' | 'static' | 'none' | 'other' | 'test'

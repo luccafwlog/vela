@@ -805,9 +805,12 @@ export function EscalaModal({
     // terminal e o Granito chegar ao ADR do terminal. Com ADR por terminal
     // fechado, não: marcar mudaria a declaração e a gravação seria recusada.
     const preMarkGranite = Boolean(escala.graniteLocked) && !hasClosedTerminalAdr(escala.terminalScale)
-    setTemExportacao(escala.temExportacao || preMarkGranite)
+    // Idem para o Embarque de vazios anterior à 541 sem a declaração: a frente
+    // Vazios EXP dele é TBC no ADR (migration 547) e só grava com vazios declarados.
+    const preMarkEmpty = Boolean(escala.emptyLocked) && !hasClosedTerminalAdr(escala.terminalScale)
+    setTemExportacao(escala.temExportacao || preMarkGranite || preMarkEmpty)
     setHasGranite(escala.hasGranite || preMarkGranite)
-    setHasEmpty(escala.hasEmpty)
+    setHasEmpty(escala.hasEmpty || preMarkEmpty)
     setContainersQty(escala.containersQty === null ? '' : String(escala.containersQty))
     setMovementsQty(escala.movementsQty === null ? '' : String(escala.movementsQty))
     setDischargePorts(escala.dischargePorts.join(', '))
@@ -847,10 +850,13 @@ export function EscalaModal({
       }
       setTerminalFronts(hydratedFronts)
       setTerminalDates(hydratedDates)
-      // A pré-marcação do Granito foi feita antes de saber dos ADRs fechados.
-      if (escala.graniteLocked && !escala.hasGranite && hasClosedTerminalAdr(terminalScale)) {
-        setHasGranite(false)
-        setTemExportacao(escala.temExportacao)
+      // A pré-marcação do Granito e dos vazios foi feita antes de saber dos ADRs fechados.
+      if (hasClosedTerminalAdr(terminalScale)) {
+        const unmarkGranite = Boolean(escala.graniteLocked) && !escala.hasGranite
+        const unmarkEmpty = Boolean(escala.emptyLocked) && !escala.hasEmpty
+        if (unmarkGranite) setHasGranite(false)
+        if (unmarkEmpty) setHasEmpty(false)
+        if (unmarkGranite || unmarkEmpty) setTemExportacao(escala.temExportacao)
       }
     }
   }
@@ -1174,6 +1180,9 @@ export function EscalaModal({
 
             {escala.graniteLocked && !escala.hasGranite && hasClosedTerminalAdr(terminalScale ?? escala.terminalScale) ? (
               <p className="app-escala-note" role="status"><Lock size={13} aria-hidden="true" />Granito importado depois do fechamento do ADR de Saída: reabra o ADR para incluí-lo na escala.</p>
+            ) : null}
+            {escala.emptyLocked && !escala.hasEmpty && hasClosedTerminalAdr(terminalScale ?? escala.terminalScale) ? (
+              <p className="app-escala-note" role="status"><Lock size={13} aria-hidden="true" />Embarque de vazios sem a declaração e com o ADR de Saída fechado: reabra o ADR para incluí-lo na escala.</p>
             ) : null}
             {temExportacao ? (
               <div className="app-escala-export-block">

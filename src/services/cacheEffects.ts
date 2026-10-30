@@ -111,7 +111,9 @@ export async function afterEscalaAlterada(queryClient: QueryInvalidator, options
  */
 export async function afterEmbarqueVaziosNaEscala(queryClient: QueryInvalidator, options: { voyageId: number }): Promise<void> {
   await afterEscalaAlterada(queryClient, options)
-  await invalidate(queryClient, [queryKeys.voyages.vaziosExportPorts(options.voyageId)])
+  // O embarque cria a frente Vazios EXP do ADR por terminal (migration 547):
+  // criá-lo, definir o terminal ou excluí-lo muda as frentes da aba ADR.
+  await invalidate(queryClient, [queryKeys.voyages.vaziosExportPorts(options.voyageId), ['agency-report-terminal-state']])
 }
 
 export async function afterRotaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {

@@ -250,7 +250,7 @@ export function countPixPending(monitor: Pick<ItauPixMonitor, 'receipts' | 'char
 const RECEIPT_ORIGIN: Record<ItauPixReceiptOrigin, string> = {
   vela: 'Cobrança do Vela',
   // QR estático do Vela: identificador é o número da fatura ou uma versão de
-  // cobrança (ADR 0115, migration 545); antes caía em "ZPT".
+  // cobrança (ADR 0115, migration 552); antes caía em "ZPT".
   static: 'QR estático do Vela',
   none: 'Sem identificador',
   // Pix pela API do Itaú gerado pelo sistema da ZPT, que cobra na mesma chave

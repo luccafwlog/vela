@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   AGENCY_REPORT_SECTIONS,
+  blBelongsToTerminal,
   buildContainerTypeMatrix,
   groupEmptyEmbarkBookings,
   groupVehiclesByBrand,
@@ -565,6 +566,62 @@ describe('getAgencyReportDerivedData', () => {
         expect.objectContaining({ bl_id: 'BL-OWN', isTransshipment: false }),
         expect.objectContaining({ bl_id: 'BL-T1', isTransshipment: true }),
       ])
+    })
+
+    // Revisão da release #1117: o B/L em transbordo guarda a exceção de
+    // terminal do porto omitido (S53, de BRSSZ). Na escala de descarga ela não
+    // vale: sem isso a carga e os veículos dele sumiam de todos os ADRs de
+    // BRVIX. A exceção de um B/L da própria escala continua valendo.
+    it('ignora, na escala de descarga, a exceção de terminal do porto omitido do B/L em transbordo', async () => {
+      let blContainersCall = 0
+      let vehiclesCall = 0
+      let blsCall = 0
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'voyage_omissions') return queryBuilder([{ id: 42 }])
+        if (table === 'bl_transshipments') return queryBuilder([{ bl_id: 'BL-T1' }])
+        if (table === 'bl_containers') {
+          blContainersCall += 1
+          if (blContainersCall === 1) {
+            return queryBuilder([
+              { id: 1, container_number: 'OWN0000001', type: '40HC', is_imo: false, bl: { pod: 'BRVIX', cargo_mode: 'container', terminal_id: 'tvix-exc', transshipments: [] } },
+            ])
+          }
+          return queryBuilder([
+            { id: 2, container_number: 'TRB0000001', type: '20GP', is_imo: false, bl: { pod: 'BRSSZ', cargo_mode: 'container', terminal_id: 's53', transshipments: [{ disposition: 'transshipment' }] } },
+          ])
+        }
+        if (table === 'bls') {
+          blsCall += 1
+          if (blsCall === 1) return queryBuilder([])
+          if (blsCall === 2) return queryBuilder([])
+          return queryBuilder([{ cargo_mode: 'carga_solta', pod: 'BRSSZ', terminal_id: 's53', bb_machine_qty: 1, bb_packages_qty: 1, bb_weight_ton: 1, total_weight_kg: null, bb_cbm: 1 }])
+        }
+        if (table === 'vehicles') {
+          vehiclesCall += 1
+          if (vehiclesCall === 1) return queryBuilder([])
+          return queryBuilder([{ brand: 'GWM', bl_id: 'BL-T1', chassis: 'trb-1', container_id: null, bl: { pod: 'BRSSZ', terminal_id: 's53' } }])
+        }
+        if (table === 'vazios_export_operations') return singleQueryBuilder(null)
+        return queryBuilder()
+      })
+      schedulesMock.mockResolvedValue(new Map())
+
+      const result = await getAgencyReportDerivedData(179, 'BRVIX')
+
+      const byNumber = new Map(result.containers.map((container) => [container.container_number, container]))
+      expect(byNumber.get('OWN0000001')?.blTerminals).toEqual([{ terminal_id: 'tvix-exc', cargo_mode: 'container' }])
+      expect(byNumber.get('TRB0000001')?.blTerminals).toEqual([{ terminal_id: null, cargo_mode: 'container' }])
+      expect(result.cargaSoltaBls.transshipment).toEqual([expect.objectContaining({ terminal_id: null })])
+      expect(result.vehicles).toEqual([expect.objectContaining({ bl_id: 'BL-T1', isTransshipment: true, blTerminalId: null })])
+
+      // O recorte do ADR de T1 (Carga cheia e Carga solta de BRVIX em T1) leva a carga em transbordo.
+      const fronts = [
+        { sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'T1' },
+        { sentido: 'importacao', modalidade: 'carga_solta', terminalId: 'T1' },
+      ]
+      expect(blBelongsToTerminal(byNumber.get('TRB0000001')!.blTerminals![0], fronts, 'T1')).toBe(true)
+      expect(blBelongsToTerminal({ terminal_id: result.vehicles[0].blTerminalId, cargo_mode: 'container' }, fronts, 'T1')).toBe(true)
+      expect(blBelongsToTerminal(byNumber.get('OWN0000001')!.blTerminals![0], fronts, 'T1')).toBe(false)
     })
 
     it('não dispara consultas extras nem altera o resultado quando a escala não possui omissão', async () => {

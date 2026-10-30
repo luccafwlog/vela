@@ -7,7 +7,7 @@ vi.mock('../supabase', () => ({
   supabase: { rpc: mockRpc },
 }))
 
-// Linha como `list_payment_history` (migration 546) devolve: uma por baixa e B/L.
+// Linha como `list_payment_history` (migration 553) devolve: uma por baixa e B/L.
 function rpcRow(patch: Record<string, unknown>) {
   return {
     source: 'local', invoice_id: 1, doc_number: 'INV-1', invoice_type: 'individual', invoice_status: 'paid',

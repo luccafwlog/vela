@@ -64,7 +64,8 @@ const agreementSvc = vi.hoisted(() => ({
 
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, effectiveRole: 'administrativo' }) }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(() => Promise.resolve(true)), useConfirmWithReason: () => vi.fn(() => Promise.resolve('motivo')) }))
+const dialogs = vi.hoisted(() => ({ confirm: vi.fn<(options: unknown) => Promise<boolean>>(() => Promise.resolve(true)) }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => dialogs.confirm, useConfirmWithReason: () => vi.fn(() => Promise.resolve('motivo')) }))
 vi.mock('../../services/demurrage/demurrageRates', () => svc)
 vi.mock('../../services/demurrage/customerDemurrageAgreements', () => agreementSvc)
 vi.mock('../../services/demurrage/containerTypes', () => typesSvc)
@@ -249,4 +250,22 @@ it('editar um tipo não muda o código; o tipo com código de grupo não muda de
   await screen.findByText('40HC')
   await user.click(screen.getByRole('button', { name: 'Editar tipo 40HC' }))
   expect((screen.getByDisplayValue('40HC') as HTMLInputElement).readOnly).toBe(true)
+})
+
+it('desativar um tipo avisa que o grupo vai para Travado, com Alerta (526)', async () => {
+  const user = userEvent.setup()
+  renderPage(['/demurrage/taxas?tab=tipos'])
+  await user.click(await screen.findByRole('button', { name: 'Mais ações do tipo 40HC' }))
+  await user.click(screen.getByRole('menuitem', { name: 'Desativar tipo' }))
+  await waitFor(() => expect(typesSvc.toggleContainerTypeActive).toHaveBeenCalledWith(3, false, ''))
+  const [options] = dialogs.confirm.mock.calls.at(-1) as unknown as [{ consequence: string }]
+  expect(options.consequence).toMatch(/Travado/)
+  expect(options.consequence).not.toMatch(/não entram em atraso/)
+})
+
+it('sem os grupos de tarifa, a tela diz por que não há grupo para escolher', async () => {
+  typesSvc.listDemurrageRateGroups.mockRejectedValueOnce(new Error('rede'))
+  renderPage(['/demurrage/taxas?tab=tipos'])
+  expect((await screen.findByRole('alert')).textContent).toMatch(/Não foi possível carregar os grupos de tarifa/)
+  expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeTruthy()
 })

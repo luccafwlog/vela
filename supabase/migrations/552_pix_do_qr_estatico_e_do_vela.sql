@@ -1,4 +1,4 @@
--- 545: o Pix pago no QR estático do Vela é do Vela, não da ZPT, e dá baixa
+-- 552: o Pix pago no QR estático do Vela é do Vela, não da ZPT, e dá baixa
 -- automática no ambiente que emitiu o QR (ADR 0115, decisões 1 a 3).
 --
 -- Problema (staging, 2026-10-30):

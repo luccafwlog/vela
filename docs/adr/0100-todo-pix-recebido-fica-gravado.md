@@ -14,7 +14,7 @@
 > estático do Vela (identificador `INV…`, `DEM…` ou `VP…`), que caía em "TXID
 > de outro sistema" e aparecia como "ZPT": pela
 > [ADR 0115](./0115-qr-estatico-do-vela-e-historico-por-baixa.md) (migration
-> `545`), ele tem a origem **QR estático do Vela** e dá baixa automática no
+> `552`), ele tem a origem **QR estático do Vela** e dá baixa automática no
 > ambiente que cobra pelo QR estático; com a cobrança Itaú ligada, fica sem
 > baixa e sem Alerta, como os demais. Regra vigente em
 > [Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos).

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
+import { afterDatasContainerAlteradas, afterReferenciaDemurrageAlterada } from '../../services/cacheEffects'
 import { Save, Undo2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
@@ -174,7 +174,13 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         p2: p2Val,
         changedBy: user.id,
       })
-      await queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl.id) })
+      // O free time do B/L muda a divisão da caixa na hora (ADR 0112, D2;
+      // migration 516): a aba Containers, o aviso do cabeçalho, as fichas, os
+      // Alertas e o relatório leem junto com a ficha deste B/L.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl.id) }),
+        afterReferenciaDemurrageAlterada(queryClient),
+      ])
       showToast('Condições de Demurrage salvas.', 'success')
       setEditingConditions(false)
       return

@@ -133,9 +133,10 @@ export function ContainerTypesTab({ groups, canEdit, canManage, initialCode }: {
       confirmLabel: nextActive ? 'Reativar' : 'Desativar',
       tone: nextActive ? ('primary' as const) : ('danger' as const),
       changes: [{ field: 'Situação', before: type.active ? 'Ativo' : 'Inativo', after: nextActive ? 'Ativo' : 'Inativo' }],
+      // 526 (ADR 0112, D27 e D32): tipo desativado não acha tarifa e trava a cobrança.
       consequence: nextActive
-        ? 'Os containers deste tipo voltam a achar a tarifa do grupo.'
-        : 'Os containers deste tipo ficam sem tarifa de Demurrage e não entram em atraso até o tipo voltar; Invoices já emitidas não mudam.',
+        ? 'Os containers deste tipo voltam a achar a tarifa do grupo e saem de Travado.'
+        : 'Os containers deste tipo ficam sem tarifa de Demurrage: o grupo com container descarregado deste tipo vai para Travado na aba Containers, com Alerta ao Administrativo, até o tipo ser reativado (o que ainda está fora no free time do B/L ou do acordo trava quando ele vence). Invoices já emitidas não mudam.',
       reversibility: nextActive ? 'Desative de novo se precisar.' : 'Reative o tipo quando precisar.',
     }
     const reason = nextActive ? await confirmWithReason(options) : (await confirm(options)) ? '' : null

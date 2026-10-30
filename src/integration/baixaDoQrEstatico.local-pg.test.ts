@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
 
-// Migrations 545 e 546 (ADR 0115), a partir do caso do staging de 2026-10-30:
+// Migrations 552 e 553 (ADR 0115), a partir do caso do staging de 2026-10-30:
 // duas baixas manuais parciais, uma em cada B/L, a consolidada do que sobrou
 // paga pelo QR estático no Portal. O Pix ficou como "ZPT" e sem baixa, e o
 // Histórico de baixas escondeu as duas baixas manuais e repetiu o valor da
@@ -19,7 +19,7 @@ const describeLocal = describeWithProbe(() => {
   } catch {
     return false
   }
-}, 'migrations 545 e 546 aplicadas')
+}, 'migrations 552 e 553 aplicadas')
 
 type ReceiptRow = { end_to_end_id: string; origin: string; situation: string; settled_by: string | null
   settled_source: string | null; settled_doc_number: string | null; reason: string | null }
@@ -27,7 +27,7 @@ type HistoryRow = { source: string; invoice_id: number; doc_number: string; invo
   paid_at: string; method: string; bank_reference: string | null; bl_id: string | null; bl_count: number
   bl_amount_brl: number; amount_brl: number; payment_amount_brl: number }
 
-describeLocal('545 e 546 — Pix do QR estático e Histórico de baixas', () => {
+describeLocal('552 e 553 — Pix do QR estático e Histórico de baixas', () => {
   const e2e = (n: number) => `E9545${String(n).padStart(27, '0')}`
   let previousSettings = ''
   let ce = 0

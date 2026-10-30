@@ -2,7 +2,7 @@
 
 Status: aceito — 2026-10-30 (pedido do responsável ao achar, no staging, um
 Pix do Portal rotulado como ZPT e as baixas manuais fora do Histórico de
-baixas). Implementada nas migrations `545` e `546`, na aba **Pix recebidos** e
+baixas). Implementada nas migrations `552` e `553`, na aba **Pix recebidos** e
 na aba **Histórico de baixas** da Conciliação PIX.
 
 Estende a [ADR 0100](./0100-todo-pix-recebido-fica-gravado.md): o Pix do QR
@@ -82,7 +82,7 @@ Itaú ou registrada à mão.
   como QR estático do Vela; só ganha baixa se casar uma única fatura aberta
   deste ambiente, com o valor exato, e só com o QR estático ligado. Separar de
   vez exige identificador por ambiente no QR estático ou contas Itaú distintas
-  (ponytail na migration `545`).
+  (ponytail na migration `552`).
 - O staging com a cobrança Itaú ligada emitiria cobranças `VELA…` reais na
   conta da produção, e cada Pix delas iria para análise com Alerta na
   produção ("TXID do Vela sem cobrança"). Ligar o Itaú no staging é decisão do
@@ -91,6 +91,6 @@ Itaú ou registrada à mão.
   baixa tem uma linha por B/L, e cada baixa parcial tem a sua. A planilha ganha
   **Forma da baixa**, **Referência bancária** e **Valor da baixa**.
 - A leitura do histórico passa a ser uma RPC; filtro, ordem e página continuam
-  no navegador sobre a lista inteira (ponytail na migration `546`).
+  no navegador sobre a lista inteira (ponytail na migration `553`).
 
 Regra vigente em [Reconciliação PIX](../modules/reconciliacao-pix.md).

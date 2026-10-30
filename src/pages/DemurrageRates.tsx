@@ -4,7 +4,7 @@ import { ArrowLeft, MoreVertical, Pencil, Plus } from 'lucide-react'
 import { ActionMenu } from '../components/ui/ActionMenu'
 import { Button } from '../components/ui/Button'
 import { RowActionButton } from '../components/ui/RowActionButton'
-import { EmptyState, PageHeader } from '../components/ui/Card'
+import { EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { NoValue } from '../components/ui/NoValue'
 import { StatusText } from '../components/ui/StatusText'
 import { TabButton } from '../components/ui/TabButton'
@@ -200,6 +200,13 @@ export function DemurrageRates() {
       </TabList>
 
       <div id="dem-rates-panel" role="tabpanel" aria-labelledby={`dem-rates-tab-${tab}`}>
+        {/* Sem os grupos, a tarifa e o tipo não têm grupo para escolher (ADR 0112, D28). */}
+        {groupsQuery.error && tab !== 'acordos' ? (
+          <div className="app-dem-toolbar mb-3">
+            <InlineError message="Não foi possível carregar os grupos de tarifa: os grupos aparecem pelo código, e cadastrar ou editar tarifa e tipo de container fica sem grupo para escolher até recarregar." />
+            <Button variant="secondary" className="app-btn--sm" onClick={() => void groupsQuery.refetch()}>Tentar novamente</Button>
+          </div>
+        ) : null}
         {tab === 'acordos' ? (
           <CustomerDemurrageAgreementsTab canEdit={canEdit} canManage={isAdmin} />
         ) : tab === 'tipos' ? (
