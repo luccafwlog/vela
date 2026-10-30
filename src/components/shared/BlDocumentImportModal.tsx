@@ -270,7 +270,7 @@ function BlDocumentPreview({
       {cancelled.length ? (
         <ImportNotice tone="warning" title="B/L cancelado: este arquivo não é tocado">
           <ul className="app-import-notice__list">
-            {cancelled.map((blId) => <li key={blId}>{describeCancelledBl(blId)}</li>)}
+            {cancelled.map((blId) => <li key={blId}>{describeCancelledBl(blId, document.reimport?.cancelledElsewhere?.[blId])}</li>)}
           </ul>
         </ImportNotice>
       ) : null}
