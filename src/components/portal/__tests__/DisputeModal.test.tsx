@@ -117,3 +117,16 @@ it('com a disputa aberta e o anexo recusado, reenvia só o anexo', async () => {
   expect(uploadAttachment).toHaveBeenLastCalledWith({ disputeId: 7, messageId: 70, file })
   expect(onClose).toHaveBeenCalled()
 })
+
+it('recusa arquivo vazio antes de abrir a disputa', async () => {
+  const user = userEvent.setup()
+  openDispute.mockReset()
+  render(<ConfirmDialogProvider><DisputeModal demurrageInvoiceId={1} docNumber="DEM-A" onClose={vi.fn()} /></ConfirmDialogProvider>)
+
+  chooseFile(new File([], 'vazio.txt', { type: 'text/plain' }))
+  await user.type(screen.getByLabelText('Motivo da disputa'), 'Dias a mais')
+  await user.click(screen.getByRole('button', { name: 'Abrir disputa' }))
+
+  expect(screen.getByText('O anexo está vazio. Escolha outro arquivo.')).toBeTruthy()
+  expect(openDispute).not.toHaveBeenCalled()
+})

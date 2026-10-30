@@ -445,6 +445,7 @@ export const PORTAL_DISPUTE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
 
 /** Mensagem de recusa do arquivo escolhido, ou null quando ele pode seguir. */
 export function portalDisputeAttachmentProblem(file: File): string | null {
+  if (file.size <= 0) return 'O anexo está vazio. Escolha outro arquivo.'
   if (file.size > PORTAL_DISPUTE_ATTACHMENT_MAX_BYTES) return 'O anexo excede o limite de 10 MB.'
   if (!PORTAL_DISPUTE_ATTACHMENT_TYPES.includes(file.type)) return 'Tipo de anexo não permitido. Use PDF, JPG, PNG ou TXT.'
   return null
