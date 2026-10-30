@@ -392,7 +392,11 @@ Financeiro antes de travar os B/Ls. Prova:
   10 min e cache compartilhado de 90 s (o banco é lido no máximo uma vez por
   janela). Busca: 20 por IP a cada 10 min, 100 por dia, 10 "não encontrado" por
   hora e disjuntor global de 300 "não encontrado" por hora, que deixa a busca
-  indisponível para todos até a hora virar. Constantes em
+  indisponível para todos até a hora virar. Os limites por IP são conferidos
+  antes do disjuntor (aberto, ele não vira caminho sem limite), e o disjuntor
+  responde 429 com `{"error":"indisponivel"}` e `Retry-After` até a hora virar:
+  recusa esperada, fora do 5xx que o `instrumentEdgeHandler` manda ao Sentry
+  (o navegador mostra "indisponível"). Constantes em
   `supabase/functions/_shared/publicFwlog.ts`.
 - **Ações self-service do Portal:** consolidar, desfazer consolidada e abrir
   disputa usam `check_portal_rate_limit` sobre `portal_rate_limits` (3 tentativas
@@ -485,7 +489,9 @@ sem decompor no navegador o fator comercial da cotação.
   lista positiva na Edge (o teste Deno falha se ganhar chave). A busca devolve
   `{found:false}`, 200, `no-store` e o mesmo tempo mínimo para todo "não
   encontrado" (formato ou dígito inválido, inexistente, fora da janela,
-  sem CE Mercante, cancelado, porto não atendido, SOC). Logs com o evento e o prefixo do HMAC do
+  sem CE Mercante, cancelado, porto não atendido, SOC). Desde a migration
+  `543`, esses recortes valem para a Viagem mais recente do número: se ela não
+  pode aparecer, a resposta é "não encontrado", nunca a Viagem anterior. Logs com o evento e o prefixo do HMAC do
   IP, nunca o IP nem o número do container.
 - **`recalc-demurrage-ptax`** — só `POST` (o job chama por `net.http_post`);
   outro método recebe 405 antes da conferência do segredo.
@@ -503,12 +509,17 @@ Function:
 
 - `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy`
 - **Única exceção de iframe** ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)):
-  `/portal/publico/*` no site do Portal sai pela Pages Function
+  as duas páginas `/portal/publico/chegadas-saidas` e
+  `/portal/publico/consulta-container` (`PUBLIC_EMBED_PATHS`, com ou sem a
+  barra final) no site do Portal saem pela Pages Function
   `functions/portal/publico/[[path]].ts`, com os mesmos headers, sem
   `X-Frame-Options` e com `frame-ancestors https://fwlog.com.br https://www.fwlog.com.br`.
   Os headers vêm de `public-embed-headers.json`, que o stage grava só no site
-  do Portal; sem ele (site interno) ou fora do contrato, a Function responde
-  404 com os headers que negam iframe. `src/lib/publicEmbedHeaders.test.ts` e
+  do Portal; sem ele (site interno), fora do contrato ou em qualquer outro
+  caminho sob `/portal/publico/`, a Function responde 404 com os headers que
+  negam iframe. Na SPA, `/portal/publico/*` desconhecido mostra "Página não
+  encontrada" na moldura pública, em vez de cair no `*` do Portal, que levaria
+  o iframe ao login. `src/lib/publicEmbedHeaders.test.ts` e
   `scripts/cloudflare-pages-stage.test.mjs` falham se outra rota ou outra
   Function ficar embedável.
 - **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog; `form-action 'self'` e `frame-ancestors 'none'`. O browser não chama o provedor de e-mail (MillionSend) diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).

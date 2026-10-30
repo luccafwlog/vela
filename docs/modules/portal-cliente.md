@@ -2,13 +2,13 @@
 
 > **Rotas internas:** `/clientes/portal` (Provisionamento do Portal) e `/clientes/portal/inspecao/:customerId/*` (Modo Inspeção)
 
-> **Status:** ativo · **Atualizado:** 2026-10-30 · **Rotas:** `/portal/publico/chegadas-saidas`, `/portal/publico/consulta-container`, `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce`, `/portal/informacoes`, `/portal/informacoes/:section`, `/portal/perfil`
+> **Status:** ativo · **Atualizado:** 2026-10-30 · **Rotas:** `/portal/publico/chegadas-saidas`, `/portal/publico/consulta-container`, `/portal/publico/*`, `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce`, `/portal/informacoes`, `/portal/informacoes/:section`, `/portal/perfil`
 
 ## Propósito e escopo
 
 O Portal é a superfície externa para autenticação, consulta financeira e operacional, consolidação de recebíveis, disputas de demurrage, notificações e atualização limitada de perfil. Não existe cadastro público nem sessão alternativa por token próprio: CNPJ e senha são os **dados visíveis de entrada**; a Edge Function `portal-login` resolve a identidade técnica no servidor e o Supabase Auth continua sendo o único **mecanismo de autenticação e sessão**.
 
-São públicas as cinco rotas de login, recuperação, redefinição, ativação e confirmação de email (`/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`). Também são públicas, sem sessão, as duas [páginas do fwlog.com.br](#páginas-públicas-do-fwlogcombr) (`/portal/publico/chegadas-saidas` e `/portal/publico/consulta-container`), as únicas que outro site pode pôr em iframe. As sete rotas do Portal autenticado — `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce` (regra em [Desbloqueio de CE](desbloqueio-ce.md)), `/portal/informacoes`, `/portal/informacoes/:section` e `/portal/perfil` — ficam sob `PortalProtectedRoute` › `PortalScopeProvider` › `PortalLayout` em `src/AppPortal.tsx`; qualquer outro caminho volta para `/portal`. O navegador usa `supabasePortal`, com `storageKey: 'td-portal-auth'` e `detectSessionInUrl:false`, separado da sessão interna (`src/services/supabase.ts`).
+São públicas as cinco rotas de login, recuperação, redefinição, ativação e confirmação de email (`/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`). Também são públicas, sem sessão, as duas [páginas do fwlog.com.br](#páginas-públicas-do-fwlogcombr) (`/portal/publico/chegadas-saidas` e `/portal/publico/consulta-container`), as únicas que outro site pode pôr em iframe. As sete rotas do Portal autenticado — `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce` (regra em [Desbloqueio de CE](desbloqueio-ce.md)), `/portal/informacoes`, `/portal/informacoes/:section` e `/portal/perfil` — ficam sob `PortalProtectedRoute` › `PortalScopeProvider` › `PortalLayout` em `src/AppPortal.tsx`; qualquer outro caminho volta para `/portal`, menos os de `/portal/publico/*`, que mostram "Página não encontrada" na moldura pública. O navegador usa `supabasePortal`, com `storageKey: 'td-portal-auth'` e `detectSessionInUrl:false`, separado da sessão interna (`src/services/supabase.ts`).
 
 Este módulo também é dono do lado interno do Portal: o console **Provisionamento do Portal** (`/clientes/portal`), o painel **Revisão do Portal**, a ativação do convite e o Modo Inspeção. A ficha do Cliente ([Clientes](clientes.md)) mantém a seção **Acesso ao Portal** com o resumo e o atalho **Gerenciar aqui**, que abre o mesmo painel.
 
@@ -142,10 +142,22 @@ sem chave do Supabase, com o token do Turnstile do widget público
   Só B/L com CE Mercante, o mesmo recorte do Portal (`bl_has_portal_release`).
   Cobre Salvador, Vitória, Pecém e Suape: containers descarregados ou
   previstos nos últimos 90 dias e os que ainda não foram devolvidos, qualquer
-  que seja a idade da descarga. Qualquer "não encontrado" tem a mesma frase
-  ("Não encontramos este container. Containers de Salvador, Vitória, Pecém e
-  Suape: …"). O PostHog recebe `public_container_lookup` só com o resultado
+  que seja a idade da descarga. A resposta é sempre a da Viagem mais recente
+  do número (B/L e Viagem cancelados não contam): se ela não pode aparecer
+  (B/L ainda sem CE Mercante, SOC, porto fora da consulta ou fora da janela),
+  é "não encontrado", nunca a Viagem anterior (migration `543`). Qualquer "não
+  encontrado" tem a mesma frase ("Não encontramos este container. Containers
+  de Salvador, Vitória, Pecém e Suape: …"). Muitas consultas do mesmo
+  endereço: "Muitas consultas seguidas. Aguarde alguns minutos e tente de
+  novo."; com o disjuntor global aberto (300 "não encontrado" na hora, de
+  todos), "Consulta indisponível no momento. Tente mais tarde." até a hora
+  virar. O PostHog recebe `public_container_lookup` só com o resultado
   (nunca o número), e o quadro, `public_schedule_viewed`.
+- **Qualquer outro caminho sob `/portal/publico/`** (`PublicNaoEncontrada`):
+  "Página não encontrada" na mesma moldura pública, sem `Navigate` para o
+  Portal (o `*` do Portal levaria o iframe ao login). Em produção a Pages
+  Function já responde 404 que nega iframe a esses caminhos; a tela cobre a
+  navegação dentro da SPA.
 
 Suape (BRSUA) entrou nas colunas do quadro do Portal e de Chegadas e Saídas
 do Vela na mesma mudança (`PORTAL_SCHEDULE_LANES`, decisão A5 da ADR 0114). A
@@ -153,10 +165,11 @@ chave **Aparece em Chegadas e Saídas** da Viagem (`show_on_portal`) vale para o
 Portal e para o fwlog.com.br.
 
 **Código:** `src/pages/PublicChegadasSaidas.tsx`, `src/pages/PublicConsultaContainer.tsx`,
+`src/pages/PublicNaoEncontrada.tsx`,
 `src/components/public/PublicEmbedLayout.tsx`, `src/components/portal/ShipScheduleView.tsx`,
 `src/services/publicFwlog.ts`, `supabase/functions/_shared/publicFwlog.ts`,
 `functions/portal/publico/[[path]].ts`. **Teste:** `PublicFwlog.test.tsx`,
-`publicFwlogEdge.test.ts`, `publicEmbedHeaders.test.ts`,
+`rotasPublicasDoPortal.test.tsx`, `publicFwlogEdge.test.ts`, `publicEmbedHeaders.test.ts`,
 `supabase/functions/_shared/publicFwlog.test.ts` (Deno),
 `publicFwlog.local-pg.test.ts`.
 

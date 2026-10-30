@@ -89,8 +89,10 @@ verdade é feito numa página **rascunho/privada** do WordPress em
   Excel: a planilha atual tem uma aba oculta (`Planilha2`) com 9.119
   containers legíveis por qualquer um e deve sair do site depois do período em
   paralelo (abaixo).
-- Nenhum outro caminho do Portal em iframe: só os dois acima são aceitos; os
-  demais recusam (`frame-ancestors 'none'`).
+- Nenhum outro caminho do Portal em iframe: só os dois acima são aceitos,
+  exatamente como estão (a barra no fim também vale). Qualquer outro endereço,
+  inclusive um erro de digitação em `/portal/publico/…`, recusa o iframe
+  (`frame-ancestors 'none'`) e o bloco fica vazio no site: confira o `src`.
 
 ## Depois de publicar: conferir
 
@@ -103,7 +105,10 @@ verdade é feito numa página **rascunho/privada** do WordPress em
    em nova aba.
 4. A consulta de um container conhecido (de Salvador, Vitória, Pecém ou
    Suape, descarregado nos últimos 90 dias ou ainda não devolvido) mostra a situação e a data limite; um número
-   com o último algarismo trocado mostra "Confira o número…".
+   com o último algarismo trocado mostra "Confira o número…". A resposta é
+   sempre a da Viagem mais recente do número: se ela ainda não pode aparecer
+   (B/L sem CE Mercante, porto fora da consulta), a consulta diz "não
+   encontrado", sem voltar para uma viagem anterior.
 5. Nenhuma das páginas mostra cliente, B/L, valores ou o nome do sistema
    interno.
 6. Aberta direto num endereço de outro site (por exemplo, um teste local em
