@@ -1226,6 +1226,21 @@ trouxe `pagador` nem `devedor`**: a consulta de recebimentos segue o padrão do
 Banco Central, sem nome nem CPF/CNPJ de quem pagou. A aba Pix recebidos mostra
 o que vem ([Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos)).
 
+**Staging e produção leem a mesma conta (conferido em 2026-10-30).** A branch
+Supabase `staging` (`uvgqfpleiyfythkhutlj`) roda a `itau-pix` e o job de
+recebimentos com a mesma conta e a mesma chave (`06352972000121`) da produção:
+o Pix de R$ 1,50 pago no Portal do staging (endToEndId
+`E18236120202610301817s102a1a7d74`) ficou gravado nos dois bancos, e todo Pix
+real da conta aparece também em Pix recebidos do staging. O staging está com
+`pix_provider = 'static'` (QR estático, sem cobrança Itaú); a produção, com
+`itau`. Por isso o Pix do QR estático só dá baixa automática no ambiente com o
+QR estático ligado; na produção fica "QR estático do Vela", sem baixa
+([ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md), migration
+`545`). Ligar a cobrança Itaú no staging emitiria cobranças `VELA…` reais nesta
+conta, e cada Pix delas iria para análise com Alerta na produção ("TXID do Vela
+sem cobrança"); é decisão do dono, com contas ou identificadores separados por
+ambiente.
+
 **Sandbox (só testes, desde 2026-10-06).** Aplicação de sandbox criada pelo
 dono no [Itaú for Developers](https://devportal.itau.com.br), na conta dele.
 A credencial (client_id e client_secret de sandbox) fica nessa aplicação do

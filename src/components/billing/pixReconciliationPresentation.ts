@@ -1,4 +1,5 @@
 import { parseImportNumber } from '../../lib/importNumber'
+import { INVOICE_STATUS_LABELS } from '../../lib/statusLabels'
 import { formatBRL } from '../../lib/utils'
 import type {
   ItauPixMonitor,
@@ -227,12 +228,15 @@ export function pluralize(count: number, singular: string, plural: string): stri
   return `${count.toLocaleString('pt-BR')} ${count === 1 ? singular : plural}`
 }
 
-/** Situação gravada da fatura na baixa mais recente; parcial e coberta não são "paga". */
+/**
+ * Situação atual da fatura da baixa; parcial e coberta não são "paga". A
+ * baixa continua no histórico com a fatura cancelada ou substituída depois.
+ */
 export function historyRowStatus(row: Pick<ReconciliationHistoryRow, 'source' | 'status'>): { label: string; kind: 'paid' | 'partial' | 'covered' | 'other' } {
   if (row.status === 'paid') return { label: 'Paga', kind: 'paid' }
   if (row.status === 'partially_paid') return { label: 'Parcialmente paga', kind: 'partial' }
   if (row.status === 'covered') return { label: 'Coberta pela consolidada', kind: 'covered' }
-  return { label: row.status || '—', kind: 'other' }
+  return { label: INVOICE_STATUS_LABELS[row.status] ?? (row.status || '—'), kind: 'other' }
 }
 
 /** O que a aba Pendências conta: só o que pede uma decisão de quem opera. */
@@ -245,6 +249,9 @@ export function countPixPending(monitor: Pick<ItauPixMonitor, 'receipts' | 'char
 
 const RECEIPT_ORIGIN: Record<ItauPixReceiptOrigin, string> = {
   vela: 'Cobrança do Vela',
+  // QR estático do Vela: identificador é o número da fatura ou uma versão de
+  // cobrança (ADR 0115, migration 545); antes caía em "ZPT".
+  static: 'QR estático do Vela',
   none: 'Sem identificador',
   // Pix pela API do Itaú gerado pelo sistema da ZPT, que cobra na mesma chave
   // (ponto 12 de 2026-10-23; antes "Outro sistema"). Só o rótulo: a
@@ -253,7 +260,7 @@ const RECEIPT_ORIGIN: Record<ItauPixReceiptOrigin, string> = {
   test: 'Teste do Vela',
 }
 
-/** De onde veio o Pix, pelo identificador: QR do Vela, chave digitada (sem identificador), QR da ZPT na mesma chave ou teste. */
+/** De onde veio o Pix, pelo identificador: cobrança Itaú ou QR estático do Vela, chave digitada (sem identificador), QR da ZPT na mesma chave ou teste. */
 export function receiptOriginLabel(origin: ItauPixReceiptOrigin): string {
   return RECEIPT_ORIGIN[origin] ?? origin
 }

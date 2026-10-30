@@ -10,7 +10,16 @@
 > vierem. Regra vigente em
 > [Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos).
 
-Status: aceito — 2026-10-23 (pedido do responsável, ao saber que a consulta da
+> **Situação atual (2026-10-30).** A decisão 2 não vale mais para o Pix do QR
+> estático do Vela (identificador `INV…`, `DEM…` ou `VP…`), que caía em "TXID
+> de outro sistema" e aparecia como "ZPT": pela
+> [ADR 0115](./0115-qr-estatico-do-vela-e-historico-por-baixa.md) (migration
+> `545`), ele tem a origem **QR estático do Vela** e dá baixa automática no
+> ambiente que cobra pelo QR estático; com a cobrança Itaú ligada, fica sem
+> baixa e sem Alerta, como os demais. Regra vigente em
+> [Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos).
+
+Status: supersedida parcialmente (decisão 2, no Pix do QR estático, pela ADR 0115) — aceita em 2026-10-23 (pedido do responsável, ao saber que a consulta da
 API Pix Recebimentos traz também transferências que não vieram de uma cobrança
 do Vela). Implementada nas migrations `442` a `446`, na Edge `itau-pix` e na
 aba **Pix recebidos** da Conciliação PIX.
