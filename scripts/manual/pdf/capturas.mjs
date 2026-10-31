@@ -1042,14 +1042,15 @@ export const CAPTURAS = [
       await tabela.waitFor()
       await page.waitForTimeout(600)
       const linhas = tabela.locator('tbody tr')
-      const seta = linhas.first().getByRole('button').first()
+      // O navio/viagem da linha abre a página Comunicados da viagem.
+      const viagem = linhas.first().getByRole('link').first()
       const clip = await recorteDe(page, [aba, linhas.nth(1)], 12)
       return {
         clip,
         marks: [
           await marca(1, aba, clip),
           await marca(2, page.getByRole('textbox', { name: 'Navio' }).first(), clip, { posicao: 'campo' }),
-          await marca(3, seta, clip, { posicao: 'esquerda' }),
+          await marca(3, viagem, clip, { posicao: 'direita' }),
         ],
       }
     },
