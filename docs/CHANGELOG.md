@@ -13,6 +13,19 @@
   A gravação é a mesma de Chegadas e Saídas. Navio, IMO, número e status vão para o topo; armador
   e SCAC ficam numa linha com **Alterar armador**; a chave pequena diz só **Chegadas e Saídas**; o 1º porto
   brasileiro sai do cadastro (fica na edição). Porto fora dos nove da programação não aparece em Chegadas e Saídas.
+- **Pedidos do dono de 2026-10-31 (migration `557`):**
+  - **Disparo:** o modo Carga oferece o CE Mercante · Taxas Locais ao lado de NOA, NOR e NOB, completando os
+    quatro e-mails automáticos da carga. Um por Cliente e Viagem, para Documentação e Operação e Financeiro, sem
+    anexo; o Cliente sem prontidão aparece bloqueado com o motivo, e a Edge recalcula CEs e valores no envio.
+  - **Prévia do e-mail:** a logo da Fwlog aparece; a política de segurança do Vela bloqueava a imagem do domínio
+    do Portal só na prévia (o e-mail enviado sempre a levou, conferido no navegador).
+  - **Contatos:** o contato capturado do B/L fica sem nome, no Vela e no Portal, em vez de "Contato manifesto";
+    os contatos com esse nome foram limpos.
+- **Pix Itaú: token com C200 isolado não derruba a rodada (2026-10-31):** as 11
+  ocorrências do Sentry VELA-26 foram a consulta de recebimentos recebendo 403
+  "Certificado inválido" (`codigo_erro` C200) do STS, com o certificado válido e
+  a rodada seguinte autenticando. O cliente pede o token de novo uma vez; a
+  segunda recusa continua 500 e vai ao Sentry. Prova: `itauPix.test.ts`.
 - **Achados da revisão do Manual do Operador (2026-10-31, migrations `555` e `556`):** cinco defeitos achados na
   revisão da PR luccafwlog/vela#1087, cada um com teste que falhava antes.
   - **Auditoria visual:** `scripts/design-audit/seed_audit.sql` ajusta as tarifas de Demurrage 20GP e 40GP que o

@@ -90,6 +90,37 @@ describe('cliente Itaú Pix', () => {
     expect(fetchMtls).toHaveBeenCalledTimes(2)
   })
 
+  it('repete uma vez o token quando o STS recusa o certificado com C200', async () => {
+    const refused = () => Response.json({ mensagem: 'Certificado inválido.', codigo_erro: 'C200' }, { status: 403 })
+    const fetchMtls = vi.fn()
+      .mockResolvedValueOnce(refused())
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(Response.json({ pix: [], parametros: { paginacao: { quantidadeTotalDeItens: 0 } } }))
+    await createItauPixClient(config, fetchMtls).listPix('2026-10-06T00:00:00Z', '2026-10-07T00:00:00Z')
+    expect(fetchMtls).toHaveBeenCalledTimes(3)
+    expect(fetchMtls.mock.calls[0][0]).toBe(config.tokenUrl)
+    expect(fetchMtls.mock.calls[1][0]).toBe(config.tokenUrl)
+  })
+
+  it('não pede o token uma terceira vez quando o C200 se repete', async () => {
+    const refused = () => Response.json({ mensagem: 'Certificado inválido.', codigo_erro: 'C200' }, { status: 403 })
+    const fetchMtls = vi.fn().mockImplementation(refused)
+    const error = await createItauPixClient(config, fetchMtls).tokenInfo().catch((e) => e)
+    expect(error).toMatchObject({ status: 403, body: { codigo_erro: 'C200' } })
+    expect(fetchMtls).toHaveBeenCalledTimes(2)
+    expect(JSON.stringify(error)).not.toContain('segredo-ficticio')
+  })
+
+  it('não repete autenticação recusada por outro código ou outro status', async () => {
+    const once = (status: number, codigo_erro: string) => vi.fn().mockResolvedValue(Response.json({ codigo_erro }, { status }))
+    const unauthorized = once(401, 'C200')
+    await expect(createItauPixClient(config, unauthorized).tokenInfo()).rejects.toMatchObject({ status: 401 })
+    expect(unauthorized).toHaveBeenCalledTimes(1)
+    const other = once(403, 'C100')
+    await expect(createItauPixClient(config, other).tokenInfo()).rejects.toMatchObject({ status: 403 })
+    expect(other).toHaveBeenCalledTimes(1)
+  })
+
   it('devolve o corpo de erro do Itaú e nunca o token', async () => {
     const client = createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse())
       .mockResolvedValueOnce(Response.json({ title: 'Cobrança inválida', violacoes: [] }, { status: 400 })))

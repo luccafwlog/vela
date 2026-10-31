@@ -47,7 +47,7 @@ describe('fronteiras dos builds Vela e Fwlog', () => {
     expect(read('.env.example')).toContain('VITE_PORTAL_BILLING_URL=https://portalfwlog.com.br/portal/billing')
     // Configuração única do endereço do Portal (ponto 4 de 2026-10-23): todo gerador de e-mail passa por ela.
     expect(read('src/config/portalUrl.ts')).toContain("export const PORTAL_ORIGIN = 'https://portalfwlog.com.br'")
-    expect(read('src/services/customerFinanceCommunications.ts')).toContain("portalPageUrl('billing', configured)")
+    expect(read('src/services/ceMercanteTaxasInput.ts')).toContain("portalPageUrl('billing', configured)")
     expect(read('src/services/customerCommunicationTemplates.ts')).toContain("portalPageUrl('billing', input.portalUrl)")
     expect(read('src/services/emailLayout.ts')).toContain('return portalOrigin(url)')
     expect(read('supabase/functions/_shared/portalUrls.ts')).toContain("from '../../../src/config/portalUrl.ts'")

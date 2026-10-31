@@ -17,6 +17,8 @@ import {
   type CustomerCommunicationBlCandidate,
 } from '../customerCommunications'
 import type { CustomerContact } from '../../types/database'
+import { communicationBoxKindsFromMigrations } from './communicationBoxKindsSql'
+import { renderCustomerCommunicationTemplate } from '../customerCommunicationTemplates'
 
 function contact(id: number, email: string | null, purpose = 'demurrage'): CustomerContact {
   return {
@@ -383,5 +385,76 @@ describe('NOB: regra única de quem entra na Atracação (B3, migration 243)', (
   it('a exceção de terminal do B/L vence a frente', () => {
     expect(nob({ id: 'EXC', terminalOverrideId: T1 }, [key(T2, 'carga_cheia')])).toEqual(['EXC'])
     expect(nob({ id: 'EXC', terminalOverrideId: T2 }, [key(T1, 'carga_cheia')])).toEqual([])
+  })
+})
+
+describe('CE e Taxas no Disparo (pedido do dono, 2026-10-31)', () => {
+  const boxKinds = communicationBoxKindsFromMigrations()
+  const docs = { ...contact(1, 'docs@cliente.com'), customer_id: 99 }
+  const fin = { ...contact(2, 'fin@cliente.com'), customer_id: 99, is_primary: false }
+  const dem = { ...contact(3, 'dem@cliente.com'), customer_id: 99, is_primary: false }
+  const boxLinks = [
+    { contact_id: 1, box_code: 'documentacao_operacao' },
+    { contact_id: 2, box_code: 'financeiro' },
+    { contact_id: 3, box_code: 'demurrage' },
+  ]
+  const ready = {
+    ready: true,
+    reason: null,
+    renderInput: {
+      customerId: 99, customerName: 'Cliente 99', vesselName: 'Navio 7', voyageNumber: 'V7', port: 'BRSSZ', milestoneAt: '',
+      bls: [{ id: 'BL-SSZ', customerId: 99 }, { id: 'BL-VIX', customerId: 99 }],
+      ceMercanteRows: [{ blId: 'BL-SSZ', ceMercante: '152605000001', totalBrl: 100 }, { blId: 'BL-VIX', ceMercante: '152605000002', totalBrl: 50 }],
+    },
+  }
+  function conference(ceData: typeof ready | { ready: false; reason: string; renderInput: null } | null, history: Parameters<typeof buildCustomerCommunicationConference>[0]['history'] = []) {
+    const kind = 'ce_mercante_taxas' as const
+    return buildCustomerCommunicationConference({
+      kind,
+      mode: 'carga',
+      audience: getCustomerCommunicationAudienceRule(kind).audience,
+      candidates: [candidate({ id: 'BL-SSZ', pod: 'BRSSZ' }), candidate({ id: 'BL-VIX', pod: 'BRVIX' })],
+      contactsByCustomer: new Map([[99, [docs, fin, dem]]]),
+      boxLinks,
+      boxKinds,
+      history,
+      ceMercante: ceData ? new Map([['99:7', ceData]]) : new Map(),
+    })
+  }
+
+  it('o modo Carga oferece os quatro e-mails automáticos da carga e o livre', () => {
+    expect(MANUAL_CUSTOMER_COMMUNICATION_KINDS_BY_MODE.carga).toEqual(['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob', 'ce_mercante_taxas', 'livre'])
+    expect(getCustomerCommunicationDispatchMode('ce_mercante_taxas')).toBe('carga')
+    expect(isUserWrittenCustomerCommunicationKind('ce_mercante_taxas')).toBe(false)
+    expect(requiresResendConfirmation('ce_mercante_taxas')).toBe(true)
+    expect(getCustomerCommunicationAudienceRule('ce_mercante_taxas')).toMatchObject({ editable: false, label: 'Documentação e Operação e Financeiro' })
+  })
+
+  it('uma linha por Cliente e Viagem, com os B/Ls dos dois portos, para Documentação e Operação e Financeiro', () => {
+    const result = conference(ready)
+    expect(result.rows).toHaveLength(1)
+    const [row] = result.rows
+    expect(row!.bls.map((bl) => bl.id)).toEqual(['BL-SSZ', 'BL-VIX'])
+    // Demurrage não recebe o CE e Taxas; Financeiro recebe, como na Edge.
+    expect(row!.eligibleRecipients.map((recipient) => recipient.email).sort()).toEqual(['docs@cliente.com', 'fin@cliente.com'])
+    expect(row!.blocked).toBe(false)
+    expect(row!.nextAttemptDiscriminator).toBe(0)
+    // A prévia sai com os CEs e valores lidos para a conferência.
+    const rendered = renderCustomerCommunicationTemplate('ce_mercante_taxas', row!.renderInput)
+    expect(rendered.text).toContain('152605000002')
+  })
+
+  it('o Cliente sem prontidão fica bloqueado, com o motivo, e fora da seleção', () => {
+    const [row] = conference({ ready: false, reason: 'CE Mercante ausente', renderInput: null }).rows
+    expect(row).toMatchObject({ blocked: true, selected: false, blockedReason: 'CE Mercante ausente' })
+    // Prontidão que não pôde ser lida também não deixa enviar.
+    expect(conference(null).rows[0]).toMatchObject({ blocked: true, blockedReason: 'Não foi possível conferir a prontidão do CE e Taxas.' })
+  })
+
+  it('o envio anterior conta pelo Cliente e Viagem, sem porto (o CE grava porto nulo)', () => {
+    const history = [{ customerId: 99, kind: 'ce_mercante_taxas', anchorVoyageId: 7, anchorPort: null, anchorAtracacaoId: null, anchorInvoiceId: null, attemptDiscriminator: 0 }]
+    expect(conference(ready, history).rows[0]!.nextAttemptDiscriminator).toBe(1)
+    // Outra Viagem não conta.
+    expect(conference(ready, [{ ...history[0]!, anchorVoyageId: 8 }]).rows[0]!.nextAttemptDiscriminator).toBe(0)
   })
 })
