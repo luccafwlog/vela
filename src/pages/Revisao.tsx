@@ -306,7 +306,8 @@ export function Revisao() {
     } catch (error) {
       const message = extractErrorText(error)
       showToast(
-        message.toLowerCase().includes('ja foi faturado')
+        // A tela (chargeOperationsService) diz "já"; o banco ainda diz "ja".
+        /j[aá] foi faturado/i.test(message)
           ? `Fatura já emitida para ${notice.id} — corrija o dado do B/L; a fatura é reemitida ou ajustada sozinha.`
           : 'Falha ao recalcular as taxas locais.',
         'error',

@@ -1002,7 +1002,7 @@ export function EscalaModal({
       return
     }
     if (!/^BR[A-Z0-9]{3}$/.test(normalizedPort)) {
-      setPortError(`LOCODE brasileiro invalido: ${normalizedPort}.`)
+      setPortError(`LOCODE brasileiro inválido: ${normalizedPort}.`)
       return
     }
     setPortError(null)

@@ -174,6 +174,38 @@ describeLocal('Caixa dividida entre Clientes (migration 522)', () => {
       WHERE i.item_type = 'demurrage_invoice_dates_changed' AND i.status = 'active' AND a.entity_id = '${first}'`)).toBe('0')
   })
 
+  it('555: o Portal recebe a causa da reemissão em código, sem o motivo interno', () => {
+    // B/L próprio: não depende da ordem dos casos.
+    bl('555', 'reissue', customerA); box('555', 'RQCU5220005'); box('555', 'RQCU5220006')
+    issue('555')
+    toSoc('RQCU5220006')
+    const replacement = liveInvoice('555')[0]
+    const detail = JSON.parse(psql(`SELECT public._portal_get_demurrage_invoice_detail_core(${customerA}, ${replacement})`)) as { invoice: Record<string, unknown> }
+    expect(detail.invoice.replaces_doc_number).toBeTruthy()
+    expect(detail.invoice.replaces_cause).toBe('soc')
+    expect(JSON.stringify(detail)).not.toMatch(/cancelada para reemissão/)
+  })
+
+  it('555: cada motivo de reemissão automática vira um código; o resto, nenhum', () => {
+    // Ids negativos: não existem em demurrage_invoices; as linhas saem no fim.
+    const reasons = [
+      'Datas de container alteradas: cancelada para reemissão automática.',
+      'Container passou a SOC: cancelada para reemissão automática.',
+      'Divisão da caixa entre Clientes alterada: cancelada para reemissão automática.',
+      'Troca de CNPJ do B/L R522-X: cancelada.',
+      'Cliente pediu cancelamento por telefone.',
+    ]
+    try {
+      reasons.forEach((reason, index) => psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, justification)
+        VALUES ('demurrage_invoice', '-9952290${index}', 'status', 'issued', 'cancelled', '${reason}')`))
+      expect(reasons.map((_, index) => psql(`SELECT coalesce(public._demurrage_replaced_cause(-9952290${index}), '-')`)))
+        .toEqual(['datas', 'soc', 'divisao', '-', '-'])
+      expect(psql(`SELECT coalesce(public._demurrage_replaced_cause(-99522999), '-')`)).toBe('-')
+    } finally {
+      psql(`DELETE FROM public.audit_logs WHERE entity_type = 'demurrage_invoice' AND entity_id LIKE '-995229%'`)
+    }
+  })
+
   it('a versão paga fica fora da Régua com o Alerta da caixa SOC', () => {
     bl('PAID', 'paid', customerA); box('PAID', 'RQCU5220003')
     const paid = issue('PAID')
