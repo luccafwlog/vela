@@ -6,9 +6,30 @@ trabalho, não o manual.
 
 ## Estado
 
-**Etapa 1 concluída em 2026-10-28; Etapa 2 em andamento: catálogos de
-situações dos capítulos 4, 5 e 6 (o piloto) em rascunho e páginas-modelo
-esperando a aprovação do dono.** Divergências
+**Etapas 1, 2 e 3 concluídas: o dono aprovou em 2026-10-29 a versão 1.0 do
+Manual do Operador (25 capítulos e apêndices A a D, 201 páginas). Etapa 4 em
+parte: a linha de dono em `docs/CONVENCOES.md`, a regra no `AGENTS.md` e o
+check do manual no CI entraram; a decisão sobre o manual financeiro e os guias
+de bolso seguem pendentes (ver "Pendências da versão 1.0").** Por
+decisão de manual único, entraram também o capítulo 25 (Administração) e o
+apêndice D gerado ("Quero fazer… onde fica"), que faz o papel do índice
+remissivo. O dono aprovou em
+2026-10-29 o capítulo-piloto (capítulos 4 a 6) no padrão enxuto, com a
+paginação corrigida, como molde dos demais. Páginas-modelo aprovadas em
+2026-10-28. O texto está em [`docs/manual/texto/`](../manual/texto/README.md),
+o cenário e as capturas em [`scripts/manual/`](../../scripts/manual/pdf/README.md),
+e o PDF sai de `npm run manual:build`. Cada capítulo teve conferência
+independente contra o código; as correções estão no texto, e as linhas da
+matriz que descreviam outra coisa foram corrigidas ("Atualizações da matriz"
+no [README do manual](../manual/README.md)). Os quatro defeitos de código que
+a conferência dos capítulos 7 e 8 achou (justificativa fora do Histórico,
+exceção de terminal que ficava ao corrigir o POD, convite do Portal oferecido a
+Equipamentos e o Lacre desalinhado em Corrigir container) foram decididos pelo
+dono em 2026-10-29 e corrigidos na PR luccafwlog/vela#1089 (migration `502`);
+o texto dos capítulos 7 e 8 já descreve o comportamento corrigido. Os demais
+defeitos de código que a conferência achar esperam decisão do dono (item 5 de
+"Como retomar").
+Divergências
 decididas e corrigidas em 2026-10-27; lista "fora do manual" e sumário final
 aprovados em 2026-10-28. As 118
 divergências (112 fichas) foram decididas pelo dono e executadas nos lotes 1 a
@@ -30,11 +51,11 @@ responsabilidade, e cobre as situações mais comuns, inclusive as de borda
 No mesmo dia o dono aprovou o sumário final (24 capítulos), o que fecha a
 Etapa 1, e pediu para começar a Etapa 2 pela importação de arquivos. O
 [catálogo de situações do capítulo 6](../manual/situacoes/06-importacao.md)
-está em rascunho: 10 objetivos e 35 situações ligadas às regras da matriz; as
+foi respondido no texto do piloto: 10 objetivos e 35 situações ligadas às regras da matriz; as
 três perguntas ao dono (P1 a P3) foram decididas em 2026-10-28 (a mensagem da
 P1 foi corrigida pela migration `500`, PR luccafwlog/vela#1083). Os catálogos dos
 [capítulos 4](../manual/situacoes/04-viagens-escalas.md) e
-[5](../manual/situacoes/05-programacao.md) também estão em rascunho; a
+[5](../manual/situacoes/05-programacao.md) também foram respondidos no piloto; a
 pergunta P4 (falhas de COD, transbordo e Complementar sem aviso na tela) foi
 decidida em 2026-10-28 e corrigida na PR luccafwlog/vela#1085; S4.21 já
 descreve a tela nova. As nove páginas-modelo
@@ -87,13 +108,28 @@ guardado como registro histórico e serve só de referência de redação
 4. **Material de trabalho da Etapa 1** (instruções de mapeamento, conferência,
    correção de documento e fichas de decisão; montagem do relatório):
    [`scripts/manual/etapa1/`](../../scripts/manual/etapa1/README.md).
-5. **Próximo passo (Etapa 2):** o dono aprova as páginas-modelo (PDF gerado
-   por [`scripts/manual/pdf/`](../../scripts/manual/pdf/README.md); a
-   conferência dos catálogos 4 a 6 pode ficar para o capítulo-piloto); em
-   seguida, cenário de demonstração, imagens por script, gerador do manual
-   inteiro (texto corrido paginado, `manual:capture` e `manual:build`) e
-   capítulo-piloto (capítulos 4 a 6 do sumário final).
-6. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
+5. **Próximo passo (Etapa 3):** redigir os lotes na ordem da
+   [Etapa 3](#etapa-3--redação-em-lotes), no padrão enxuto, com conferência
+   independente contra o código e revisão do dono por lote. Os defeitos de
+   código achados na conferência do piloto foram decididos pelo dono e
+   corrigidos na PR luccafwlog/vela#1092 (migration `505`). Para refazer o PDF:
+   `npm run manual:cenario`, emulador e Vela (README do gerador),
+   `npm run manual:capture`, `manual:check` e `manual:build`.
+6. **Uma PR só para o manual, sem código** (decisão do dono de 2026-10-29):
+   a PR do Manual do Operador leva só o texto, a matriz, o plano e o gerador
+   do PDF (`docs/manual/`, `scripts/manual/` e os comandos `manual:*`); não
+   toca em `src/` nem em `supabase/`. Defeito de código achado durante a
+   redação ou a conferência vira uma PR própria contra a `staging`; o texto
+   do manual descreve o comportamento de hoje e é ajustado quando a correção
+   entra. Antes de criar uma migration, confira o maior número na `staging`
+   **e nas PRs abertas**: duas PRs com o mesmo número quebram o CI de ambas.
+   **A PR do manual fica aberta** (decisão do dono de 2026-10-29), viva,
+   enquanto o sistema muda: depois do merge de cada PR de código na `staging`
+   que mude o que o operador vê, a branch do manual recebe a `staging`, o texto
+   e a matriz são ajustados, as capturas da tela afetada são refeitas e o PDF é
+   gerado de novo. Receba a `staging` com frequência, mesmo sem mudança no
+   manual, para a PR não se afastar dela.
+7. **Decisões do dono já tomadas nesta conversa**, que valem para as próximas
    etapas: o manual se pauta só pelo código; o material antigo é só referência
    de redação; quem faz o quê sai do código (matriz "O que cada setor pode",
    guardas do banco, avisos por setor), não de tabela pedida ao dono; as
@@ -180,7 +216,41 @@ Quando o código e um documento discordam, vale a classificação de
 O operador nunca lê no manual uma regra que o sistema não cumpre. Um defeito
 também não vira regra só porque está no código.
 
+### Padrão enxuto: o manual é uma aula
+
+Decisão do dono em 2026-10-29, depois de ler o piloto de 108 páginas. O manual
+apresenta o Vela como alguém que dá uma aula sobre o sistema: escolhe o que
+detalhar e o que omitir. Cada frase passa no teste "a pessoa precisa disto para
+fazer o trabalho, e a tela não diz?".
+
+- Meia página a uma página por objetivo: quem faz, o conceito quando não é
+  óbvio, de 3 a 5 passos, uma imagem e no máximo dois ou três pontos de
+  atenção (o que causa erro ou retrabalho).
+- Fica de fora: o passo que a tela já explica, as mensagens de erro que a
+  própria tela explica (sem quadros "Aconteceu…"), o "por que é assim" que não
+  muda o trabalho, o que o sistema faz por dentro e as situações raras.
+  Situação difícil com caminho que ninguém adivinha entra como seção curta.
+- Cada coisa é explicada uma vez, no lugar dela.
+- A matriz de cobertura vira a referência interna completa: o manual não tem
+  mais a obrigação de escrever cada regra (o `manual:check` deixou de exigir).
+- Um manual único, sem volumes por equipe; cada capítulo diz quem o usa.
+- Os alertas têm capítulo próprio (capítulo 20 do sumário): cada alerta uma
+  vez só, com quando abre, quem recebe, quando fecha sozinho e o que fazer,
+  agrupado por equipe. Os outros capítulos citam o alerta em uma frase, com
+  link, só onde ele é a consequência natural do que a seção ensina. Motivo: a
+  pessoa chega ao alerta pelo sino, não pelo capítulo da tarefa, e o mesmo
+  alerta nasce de várias áreas (decisão de 2026-10-29).
+- Tamanho esperado: o piloto (capítulos 4 a 6) em 30 a 40 páginas, e o manual
+  inteiro em 150 a 200.
+
+O guia de escrita está em [`docs/manual/texto/README.md`](../manual/texto/README.md).
+As seções abaixo sobre objetivos, destinos das regras e modelo de oito partes
+guardam o que valia até 2026-10-28; onde discordam deste padrão, vale este.
+
 ### O manual parte do objetivo de quem usa
+
+> **Situação atual (2026-10-29):** os objetivos ("Quero fazer…") continuam;
+> os quadros "Aconteceu…" saíram pelo [padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula).
 
 Decisão do dono em 2026-10-28. O manual explica exatamente como o Vela opera e
 o que o usuário faz para alcançar cada objetivo e cumprir cada
@@ -204,6 +274,10 @@ A meta é que a maior parte das situações reais tenha resposta no manual, de
 forma explicativa, e não só as regras listadas.
 
 ### Toda regra tem um lugar, mas nem toda regra vai no corpo do texto
+
+> **Situação atual (2026-10-29):** a matriz continua dando um lugar a cada
+> regra, mas como referência interna; o texto escolhe o que ensinar
+> ([padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula)).
 
 O sistema trata muitos casos de borda. Pôr todos no corpo do texto tornaria o
 manual ilegível. Cada regra mapeada recebe um destino:
@@ -233,6 +307,10 @@ manual ilegível. Cada regra mapeada recebe um destino:
   como.
 
 ### Modelo de cada procedimento
+
+> **Situação atual (2026-10-29):** substituído pelo
+> [padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula): quem faz, conceito,
+> passos, imagem e atenção.
 
 Todo procedimento do manual segue a mesma forma:
 
@@ -432,10 +510,8 @@ responder e não é fonte: o manual novo se pauta pelo código.
 
 ### Régua de conteúdo
 
-- Toda regra do mapeamento escrita no destino que recebeu.
-- Cada procedimento no [modelo de oito partes](#modelo-de-cada-procedimento),
-  com o que precisa existir antes, o que o sistema faz sozinho depois e o
-  porquê.
+- Cada seção no [padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula): só o que
+  a pessoa precisa e a tela não diz.
 - As telas são achadas pelo caminho do menu e das abas, como o operador
   navega, não pelo endereço da página.
 - Recursos de consulta: rotina diária por equipe, checklists, o quadro "a quem
@@ -446,9 +522,7 @@ responder e não é fonte: o manual novo se pauta pelo código.
 - Cada rótulo, caminho de tela e mensagem conferido no código ou na captura.
 - Um exemplo contínuo: o mesmo navio, a mesma Viagem, o mesmo Cliente e os
   mesmos B/Ls fictícios atravessam o manual inteiro.
-- Cada capítulo abre com os objetivos que resolve e traz as situações comuns
-  do catálogo ("Aconteceu…"), cada uma com o que o sistema faz, a regra geral
-  e o que o usuário faz.
+- Cada capítulo abre com os objetivos que resolve.
 - Fim de capítulo com resumo e um exercício sobre o cenário.
 
 ## Escolhas de rotina (podem ser revistas)
@@ -609,39 +683,50 @@ profundidade, imagens e aparência. Esse é o molde dos demais capítulos.
 
 ### Etapa 3 — Redação em lotes
 
+Números do [sumário final](../archive/reports/2026-10-26-mapeamento-manual-do-operador.md#5-sumário-final-proposto)
+(o piloto aprovado já cobre os capítulos 4 a 6). Situação atual: lotes
+reescritos em 2026-10-29 para o sumário final e o
+[padrão enxuto](#padrão-enxuto-o-manual-é-uma-aula).
+
 | Lote | Capítulos | Por quê nesta ordem |
 |---|---|---|
-| 1 | Parte I (1 a 3) | Base para todo o resto; usa a tabela de quem faz o quê (1.4) |
-| 2 | 6, 7 e 15 (gatilhos ligados ao B/L e ao CE) | Completa o fluxo do piloto |
-| 3 | 11 a 14 (Cliente, Portal, e-mails, suporte) | Crítico para a abertura aos Clientes |
-| 4 | 8 a 10 e 16 (Equipamentos, ADR de Saída, Desbloqueio de CE, alertas) | Rotina das equipes |
-| 5 | 17 e apêndices | Fecham o manual |
+| 1 | 1 a 3 (Parte I: o Vela, equipes e permissões, o caminho de uma Viagem) | Base para todo o resto |
+| 2 | 7, 8, 18 e 19 (ficha do B/L, Revisão, o que muda sozinho, rotinas) | Completa o fluxo do piloto |
+| 3 | 13 a 17 (Cliente, Portal, e-mails, suporte) | Crítico para a abertura aos Clientes |
+| 4 | 9 a 12 e 20 (Equipamentos, ADR de Saída, Desbloqueio de CE, alertas) | Rotina das equipes |
+| 5 | 21 a 24 e apêndices | Fecham o manual |
 
 Cada lote passa por:
 
-1. catálogo de situações dos capítulos do lote, conferido pelo dono;
-2. redação no modelo de procedimento, objetivo por objetivo e situação por
-   situação do catálogo, conferindo que toda regra da matriz do lote ficou
-   escrita;
-3. **conferência independente contra o código**: outra leitura, sem o texto do
-   autor como premissa, procura qualquer frase que o código contradiga e
-   qualquer regra da matriz que o texto não cobriu;
-4. check de cobertura, check de linguagem e geração do PDF;
-5. revisão do dono.
+1. redação no padrão enxuto, a partir da matriz e do código: os objetivos de
+   cada equipe e só as situações difíceis cujo caminho ninguém adivinha (o
+   catálogo de situações da Etapa 2 deixou de ser aprovado à parte: o dono
+   confere o texto pronto);
+2. **conferência independente contra o código**: outra leitura, sem o texto do
+   autor como premissa, procura qualquer frase que o código contradiga;
+3. capturas, check de linguagem e geração do PDF, com a paginação medida;
+4. revisão do dono.
 
 Os e-mails e impressos ainda estão na migração visual (lote 6b do
 [plano de identidade visual](2026-10-13-identidade-visual-tela-a-tela.md)).
-As imagens de e-mail do capítulo 13 são feitas por último ou refeitas depois do
+As imagens de e-mail do capítulo 16 são feitas por último ou refeitas depois do
 lote 6b.
 
-**Pronto quando** o PDF completo do Manual do Operador, os três PDFs por
-equipe e os guias de bolso são gerados sem erro, cumprem a
-[régua visual](#régua-visual) e a [régua de conteúdo](#régua-de-conteúdo),
-toda regra da matriz destinada ao volume do operador está escrita e o dono
-aprovou o último lote. O manual sai como
-**versão 1.0**.
+**Pronto quando** o PDF completo do Manual do Operador e os guias de bolso são
+gerados sem erro, cumprem a [régua visual](#régua-visual) e a
+[régua de conteúdo](#régua-de-conteúdo) e o dono aprovou o último lote. O
+manual sai como **versão 1.0**.
 
 ### Etapa 4 — Manter o manual verdadeiro
+
+> **Situação atual (2026-10-29):** a linha de dono em `docs/CONVENCOES.md` e a
+> regra no `AGENTS.md` entraram com a versão 1.0 (a regra chegou à `staging`
+> pela PR luccafwlog/vela#1093). O check de cobertura deixou de exigir texto
+> para cada regra no padrão enxuto; o que vai ao CI é o `manual:check`
+> (linguagem, capturas e citações), que entrou no job `quality` por uma PR
+> própria contra a `staging` (luccafwlog/vela#1094), porque a PR do manual não
+> toca em código nem em CI (decisão do dono de 2026-10-29). O passo usa
+> `--if-present`: roda na PR do manual e, depois que ela entrar, em toda PR.
 
 Na mesma entrega da versão 1.0:
 
@@ -655,7 +740,43 @@ Na mesma entrega da versão 1.0:
 - o check de cobertura (1.6) e o de linguagem passam a rodar no CI;
 - os scripts de imagem rodam de novo a cada versão do manual.
 
+## Pendências da versão 1.0
+
+1. **Manual financeiro:** os capítulos 21 a 24 descrevem o procedimento do
+   Financeiro, que [`docs/CONVENCOES.md`](../CONVENCOES.md) ainda dá como dono ao
+   [manual financeiro](../operations/manual-financeiro.md). O dono decide se ele
+   é absorvido pelo Manual do Operador (e vai para o arquivo histórico) ou fica
+   como referência detalhada do Financeiro, com o manual remetendo a ele.
+2. **Guias de bolso por equipe:** previstos na [régua visual](#régua-visual).
+   O dono pediu em 2026-10-29 o primeiro, um guia da Documentação: o método
+   de trabalho numa Viagem, em etapas, só o caminho feliz, mais imagem que
+   texto. Na segunda revisão do mesmo dia, ele pôs o Baplie antes dos B/Ls e
+   pediu os terminais das frentes de operação, os vazios do Baplie, o
+   Manifesto de carga solta e os veículos. Na terceira, decidiu por um guia só
+   para Documentação, Operações e Equipamentos, para não deixar trabalho de
+   fora: o **Guia rápido da Viagem** (`docs/manual/guias/viagem/`), com a
+   equipe de cada etapa, o fluxo em raias, a conferência antes do CE e os
+   alertas. Aprovado pelo dono em 2026-10-29, na mesma PR do manual. Guias do
+   Financeiro e do Administrativo esperam a decisão dele.
+3. **Imagens que o ambiente local não gera:** a lista de usuários da
+   Administração (depende de função do servidor) e as telas do Pix com a
+   cobrança pelo Itaú ligada.
+4. **Cenário das capturas quebrado pela repaginação da Demurrage**
+   (achado na sincronização de 2026-10-31): `npm run manual:cenario` roda o
+   `scripts/design-audit/seed_audit.sql`, que grava tarifas de Demurrage para
+   20GP e 40HC. Desde a migration `514` (PR luccafwlog/vela#1113), o banco já
+   nasce com uma tarifa por grupo, e o 40HC deixou de ser grupo: o seed para
+   com a regra de uma tarifa ativa por grupo. A correção é do seed da auditoria
+   visual e vai numa PR própria contra a `staging`; até lá, as capturas saem
+   de um banco local com o seed ajustado à mão (as duas tarifas viram ajuste
+   das tarifas de 20' dry e 40' dry).
+
 ## Depois do Manual do Operador
+
+> **Situação atual (2026-10-29):** o dono decidiu por um manual único, sem
+> volumes por equipe. Os procedimentos do Financeiro e do Administrativo
+> entraram nos capítulos 21 a 25 da versão 1.0; os itens 1 a 3 abaixo ficam
+> como registro da intenção original.
 
 Com o mesmo mapeamento, o mesmo cenário e o mesmo gerador de PDF, escrevendo as
 regras que a matriz já destinou a cada volume:

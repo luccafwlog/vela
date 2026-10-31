@@ -220,7 +220,11 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; text-wrap: balance; }
   justify-content: center;
   line-height: 1;
 }
-.passos .n { margin-top: -0.4mm; }
+/* O círculo fica dentro do passo (o texto desce 0,4 mm, em vez de o círculo
+   subir): a sobra acima do passo ficava no pé da página anterior quando o
+   bloco começava página nova. */
+.passos li { break-inside: avoid; }
+.passos li > :not(.n) { padding-top: 0.4mm; }
 .passos .tela-txt { display: block; margin-top: 0.8mm; color: var(--muted); font-size: 8.5pt; }
 
 .tela { margin: 0; display: grid; gap: 1.4mm; }
@@ -231,6 +235,10 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; text-wrap: balance; }
   overflow: visible;
   background: var(--panel);
   box-shadow: 0 0.6mm 2mm rgba(15, 23, 42, 0.10);
+  /* Altura máxima da tela: janela alta encolhe em vez de empurrar a página
+     inteira para a seguinte e deixar meia página em branco. */
+  --altura-max: 90mm;
+  max-width: min(100%, calc(var(--altura-max) * var(--proporcao, 10)));
 }
 .tela__quadro img { display: block; width: 100%; height: auto; border-radius: 1.6mm; }
 .tela__quadro .marca {
@@ -251,7 +259,13 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; text-wrap: balance; }
 .tela figcaption { font-size: 8pt; color: var(--muted); }
 
 .duas-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; align-items: start; }
-.colunas-passos { display: grid; grid-template-columns: 76mm 1fr; gap: 6mm; align-items: start; }
+/* Passos ao lado da imagem: a imagem flutua à direita (pagina.js a põe antes
+   dos passos) e cada passo se ajusta ao lado dela. */
+.colunas-passos { display: block; }
+.colunas-passos::after { content: ""; display: block; clear: both; }
+.colunas-passos > figure.tela { float: right; width: min(95mm, calc(85mm * var(--proporcao, 10))); margin: 0 0 3mm 6mm; }
+.colunas-passos .passos { display: block; }
+.colunas-passos .passos li + li { margin-top: 2.4mm; }
 
 /* ---- Quadros fixos --------------------------------------------------- */
 .quadro { border-radius: 2mm; padding: 2.6mm 3.5mm; border: 0.5pt solid; display: grid; gap: 1.2mm; }
@@ -373,6 +387,8 @@ table.tab tr.grupo td {
 .abertura-cap .numero { font-size: 72pt; font-weight: 700; line-height: 0.85; color: var(--navy); }
 .abertura-cap .sobre { color: var(--gold-strong); font-weight: 700; font-size: 9pt; }
 .abertura-cap h1 { font-size: 26pt; color: var(--navy); line-height: 1.1; }
+/* A marca de página do apêndice (.pdf-alvo) se posiciona na abertura dele. */
+.abertura-apendice { position: relative; }
 .ficha-cap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
 .ficha-cap .fato { background: var(--panel); border-radius: 2mm; padding: 2.6mm 3mm; }
 ul.aprende { margin: 0; padding-left: 4.5mm; display: grid; gap: 1.2mm; }
@@ -404,3 +420,132 @@ table.quero td.pag { width: 14mm; text-align: right; color: var(--muted); }
 .passar .equipe { font-size: 7.5pt; }
 .corte { position: absolute; left: 0; right: 0; top: 148.5mm; border-top: 0.6pt dashed var(--border-strong, #9aa4b2); z-index: 3; }
 .corte span { position: absolute; left: var(--margin-x); top: -2.2mm; background: var(--paper); padding: 0 1.6mm; font-size: 7.5pt; color: var(--muted); }
+
+/* ======================================================================
+ * Livro: texto corrido paginado pelo Chromium (npm run manual:build).
+ * As páginas fixas (capa e abertura de parte) usam as páginas nomeadas
+ * `capa` e `parte`, sem margem; cada capítulo tem a sua página nomeada
+ * (cabeçalho e aba da parte), gerada pelo gerar.mjs.
+ * ==================================================================== */
+@page {
+  size: A4;
+  margin: 21mm 18mm 18mm 18mm;
+  @top-left { font-family: "DM Sans", sans-serif; font-size: 8pt; color: #4f5868; vertical-align: bottom; padding-bottom: 1.6mm; border-bottom: 0.4pt solid #c3cad5; }
+  @top-right { font-family: "DM Sans", sans-serif; font-size: 8pt; font-weight: 600; color: #152238; vertical-align: bottom; padding-bottom: 1.6mm; border-bottom: 0.4pt solid #c3cad5; }
+  @bottom-left { font-family: "DM Sans", sans-serif; font-size: 8pt; color: #4f5868; vertical-align: top; padding-top: 4mm; }
+  @bottom-right { content: counter(page); font-family: "DM Sans", sans-serif; font-size: 10pt; font-weight: 700; color: #152238; vertical-align: top; padding-top: 3.6mm; }
+  @right-top { background: #152238; color: #ffffff; font-family: "DM Sans", sans-serif; font-size: 8pt; font-weight: 700; writing-mode: vertical-rl; text-align: center; vertical-align: middle; width: 7mm; height: 24mm; margin-left: 11mm; }
+}
+@page capa { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+@page parte { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+
+body.livro { background: #fff; }
+body.livro .pagina { margin: 0; }
+.pagina-fixa { break-before: page; break-after: page; }
+.pagina-fixa:first-child { break-before: auto; }
+.pdf-alvo { position: absolute; top: 0; left: 0; font-size: 2px; line-height: 1; color: #fff; white-space: nowrap; }
+
+/* Sumário */
+.sumario { break-before: page; position: relative; }
+.sumario h1 { font-size: 26pt; color: var(--navy); margin-bottom: 6mm; }
+ol.sum { list-style: none; margin: 0; padding: 0; }
+ol.sum a { display: flex; justify-content: space-between; gap: 4mm; color: var(--text); padding: 1.3mm 0; border-bottom: 0.5pt solid var(--border-soft); }
+ol.sum .pag { color: var(--muted); font-variant-numeric: tabular-nums; }
+.sum-parte a { font-weight: 700; color: var(--gold-strong); font-size: 11pt; padding-top: 5mm; border-bottom: 0.8pt solid var(--navy); }
+.sum-cap a { font-weight: 700; font-size: 10.5pt; color: var(--navy); padding-top: 2.6mm; }
+.sum-cap b { display: inline-block; width: 8mm; }
+.sum-sec a { padding-left: 8mm; font-size: 9.5pt; }
+.sum-sec b { display: inline-block; width: 11mm; color: var(--gold-strong); font-weight: 600; }
+
+/* Capítulo */
+.capitulo { break-before: page; }
+.abertura { position: relative; display: flex; flex-direction: column; gap: 5mm; break-after: page; }
+.abertura .intro { display: grid; gap: 2.4mm; }
+.abertura .intro p { font-size: 10.5pt; max-width: 155mm; }
+.texto-corrido { display: flow-root; }
+.texto-corrido > * + * { margin-top: 3.6mm; }
+.texto-corrido > h2.secao-titulo { position: relative; margin-top: 8mm; padding-top: 3mm; border-top: 0.8pt solid var(--navy); break-after: avoid; break-inside: avoid; }
+.texto-corrido > h2.secao-titulo:first-child { margin-top: 0; }
+.texto-corrido > h3.sub { font-size: 11pt; color: var(--navy); margin-top: 5mm; break-after: avoid; }
+.texto-corrido p, .texto-corrido li { orphans: 3; widows: 3; }
+.texto-corrido ul:not(.checklist) { margin: 0; padding-left: 5mm; display: grid; gap: 1.2mm; }
+.texto-corrido table:not(.quero):not(.tab) { width: 100%; border-collapse: collapse; font-size: 8.75pt; }
+.texto-corrido table:not(.quero):not(.tab) th { background: var(--navy); color: #fff; font-weight: 600; padding: 1.6mm 2.4mm; text-align: center; }
+.texto-corrido table:not(.quero):not(.tab) td { padding: 1.6mm 2.4mm; border-bottom: 0.5pt solid var(--border-soft); text-align: left; vertical-align: top; }
+/* Paginação: só a imagem, o passo e a linha de tabela são indivisíveis. Quadro,
+   tabela e bloco de passos com imagem podem continuar na página seguinte, para
+   não deixar meia página em branco (pedido do dono, 2026-10-29). O título do
+   quadro e o cabeçalho da tabela não ficam sozinhos no pé da página. */
+.bloco, .aconteceu, .mensagem, figure.tela { break-inside: avoid; }
+.quadro > .titulo { break-after: avoid; }
+.texto-corrido table tr { break-inside: avoid; }
+.texto-corrido table thead { display: table-header-group; }
+.passos-bloco + figure.tela, h2 + .bloco { break-before: avoid; }
+.quadro p + p, .bloco .conteudo p + p { margin-top: 1.6mm; }
+.bloco .conteudo > ul, .quadro > ul { margin: 0; padding-left: 4.5mm; display: grid; gap: 1mm; }
+.corpo-card dl { margin: 0; padding: 2.4mm 3.5mm; display: grid; grid-template-columns: 30mm 1fr; gap: 1.6mm 4mm; }
+.corpo-card dt { font-size: 8pt; color: var(--muted); font-weight: 600; padding-top: 0.3mm; }
+.corpo-card dd { margin: 0; }
+.corpo-card dd p { margin: 0; }
+.corpo-card > p { padding: 2.4mm 3.5mm; }
+.ficha .fatos .valor p { margin: 0; }
+
+/* Imagem marcada: largura conforme a captura. */
+figure.tela { break-inside: avoid; }
+.tela__quadro--estreita { max-width: min(95mm, calc(var(--altura-max) * var(--proporcao, 10))); }
+.tela__quadro .marca--direita { transform: translate(0, -50%); }
+.colunas-passos figure.tela .tela__quadro { max-width: none; }
+
+/* Apêndices: cabeçalho curto no topo do texto, sem página de abertura própria. */
+.abertura-apendice { margin-bottom: 6mm; }
+.texto-corrido > .abertura-apendice + * { margin-top: 0; }
+.indice-objetivos { column-count: 2; column-gap: 8mm; font-size: 8.75pt; }
+.indice-objetivos .letra { font-weight: 700; color: var(--navy); font-size: 11pt; border-bottom: 0.8pt solid var(--navy); margin-top: 3mm; break-after: avoid; }
+.indice-objetivos .letra:first-child { margin-top: 0; }
+.indice-objetivos .item { display: grid; grid-template-columns: 1fr auto 8mm; gap: 2mm; padding: 0.8mm 0; border-bottom: 0.4pt solid var(--border-soft); color: inherit; text-decoration: none; break-inside: avoid; }
+.indice-objetivos .item .sec { color: var(--gold-strong); font-weight: 600; }
+.indice-objetivos .item .pag { text-align: right; color: var(--muted); }
+
+/* Guia rápido (guia.mjs): método de trabalho. O mapa das etapas abre o guia
+   e serve de sumário; cada etapa abre página, com a faixa Quando / Onde /
+   Pronto quando, telas maiores que no manual e poucos passos. */
+.guia-mapa .lead { margin-bottom: 4mm; max-width: 165mm; }
+/* O fluxo em raias do mapa (guia.mjs › fluxo). */
+.fx { position: relative; break-inside: avoid; }
+.fx-fundo { position: absolute; inset: 0; overflow: visible; }
+.fx-faixa { fill: #eef2f6; }
+.fx-faixa--par { fill: #f7f9fb; }
+.fx-seta { fill: none; stroke: #8b95a7; stroke-width: 0.35; stroke-linejoin: round; }
+.fx-ponta { fill: #8b95a7; }
+.fx-raia { position: absolute; top: 0; height: 7mm; display: flex; align-items: center; justify-content: center; }
+.fx-fase { position: absolute; left: 0; display: flex; align-items: center; padding: 0 2mm 0 2.6mm; font-size: 8.4pt; font-weight: 700; line-height: 1.25; color: var(--navy); text-wrap: balance; }
+.fx-cartao { position: absolute; display: grid; grid-template-columns: 6mm 1fr auto; align-items: center; gap: 2mm; padding: 0 2.2mm 0 1.8mm; background: #fff; border: 0.5pt solid var(--border); border-radius: 1.6mm; color: var(--text); text-decoration: none; }
+.fx-n { width: 6mm; height: 6mm; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 7.5pt; font-weight: 700; background: var(--cor, var(--navy)); }
+.fx-cartao--ope { --cor: var(--team-ope); }
+.fx-cartao--doc { --cor: var(--team-doc); }
+.fx-cartao--equ { --cor: var(--team-equ); }
+.fx-cartao--todas { --cor: var(--navy); }
+.fx-cartao--opcional { border: 0.8pt dashed #8b95a7; }
+.fx-cartao--critico { --cor: var(--gold-strong); border: 1.2pt solid var(--gold); background: #fdf5ea; }
+.fx-texto { display: grid; gap: 0.2mm; min-width: 0; line-height: 1.2; }
+.fx-texto b { font-size: 8.6pt; color: var(--navy); }
+.fx-texto span { font-size: 7pt; color: var(--muted); }
+.fx-cartao .pag { font-size: 7pt; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.guia-area { break-before: page; }
+.guia-area__titulo { position: relative; display: flex; align-items: baseline; gap: 4mm; padding-bottom: 3mm; border-bottom: 1.6pt solid var(--gold); break-after: avoid; }
+.guia-area__titulo .numero { font-family: var(--brand); font-size: 28pt; font-weight: 700; color: var(--gold-strong); line-height: 1; }
+.guia-area__titulo h1 { font-size: 21pt; color: var(--navy); line-height: 1.15; }
+.guia-area__titulo .equipes { margin-left: auto; align-self: center; }
+.guia-faixa { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border: 0.6pt solid var(--border); border-radius: 2mm; overflow: hidden; break-inside: avoid; }
+.guia-faixa > div { display: grid; gap: 0.8mm; padding: 2.4mm 3mm; font-size: 9pt; background: var(--surface-soft, #f4f6f9); }
+.guia-faixa > div + div { border-left: 0.6pt solid var(--border); }
+.guia-faixa .rotulo { font-weight: 700; color: var(--gold-strong); font-size: 8pt; }
+body.guia-rapido .texto-corrido > * + * { margin-top: 3.2mm; }
+body.guia-rapido .tela__quadro { --altura-max: 82mm; }
+body.guia-rapido .texto-corrido > p { font-size: 10pt; }
+/* O título curto de uma tabela ("Na chegada") não fica sozinho no pé da página. */
+body.guia-rapido .texto-corrido > p:has(+ table) { break-after: avoid; }
+/* Tabelas do guia mais compactas: cabem na página da etapa. */
+body.guia-rapido .texto-corrido table:not(.quero):not(.tab) { font-size: 8.4pt; }
+body.guia-rapido .texto-corrido table:not(.quero):not(.tab) th,
+body.guia-rapido .texto-corrido table:not(.quero):not(.tab) td { padding-top: 1.1mm; padding-bottom: 1.1mm; }

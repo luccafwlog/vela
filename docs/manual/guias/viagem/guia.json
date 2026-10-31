@@ -1,0 +1,459 @@
+{
+  "titulo": "Guia rápido da Viagem",
+  "sobre": "Manual do Operador · Guia rápido",
+  "subtitulo": "Documentação, Operações e Equipamentos: o método de trabalho numa Viagem, do aviso do navio ao ADR fechado.",
+  "versao": "1.0",
+  "situacao": "aprovada pelo dono em 29/10/2026",
+  "descreve": "outubro de 2026",
+  "mapaTitulo": "O caminho de uma Viagem",
+  "apresentacao": "Cada coluna é uma equipe, e o tempo corre de cima para baixo. Etapas na mesma faixa acontecem ao mesmo tempo; a seta liga o que precisa do passo anterior. Borda tracejada: só quando houver. Dourado: o ponto crítico. O número no canto é a página da etapa.",
+  "areas": [
+    {
+      "numero": 1,
+      "titulo": "Abrir a Viagem",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "Chega a programação do armador.",
+      "onde": "Chegadas e Saídas › Importar programação; as exceções, em Viagens › Nova Viagem.",
+      "pronto": "A Viagem existe, com uma escala e o ETA por porto brasileiro.",
+      "arquivo": "01-abrir-a-viagem.md"
+    },
+    {
+      "numero": 2,
+      "titulo": "Atribuir os terminais",
+      "equipes": [
+        "Operações"
+      ],
+      "quando": "Logo depois das escalas; de novo quando chega carga que cria frente nova.",
+      "onde": "Planejamento por escala › lápis da escala › Terminais e atracações.",
+      "pronto": "Toda frente com terminal, também a que nasce depois, com o ETB e o ETD; a exportação declarada, se houver.",
+      "arquivo": "02-atribuir-os-terminais.md"
+    },
+    {
+      "numero": 3,
+      "titulo": "Subir o Baplie",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "Chega o plano de carga do navio, antes dos B/Ls.",
+      "onde": "Importação › Baplie EDI.",
+      "pronto": "Os containers a bordo estão na Viagem.",
+      "arquivo": "03-subir-o-baplie.md"
+    },
+    {
+      "numero": 4,
+      "titulo": "Cadastrar os vazios",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "O Baplie traz containers vazios.",
+      "onde": "Baplie EDI › Vazios de importação; ficha da Viagem › Rotas e Manifestos.",
+      "pronto": "Os vazios em Vazios IMP, com o Nº de Manifesto Mercante da rota e a frente de vazios com terminal.",
+      "arquivo": "04-cadastrar-os-vazios.md"
+    },
+    {
+      "numero": 5,
+      "titulo": "Subir os B/Ls de container",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "Chegam os B/Ls do armador.",
+      "onde": "Ficha da Viagem › aba Importação › Importação rápida.",
+      "pronto": "Todos os B/Ls na Viagem e a Conciliação sem divergência.",
+      "arquivo": "05-subir-os-bls.md"
+    },
+    {
+      "numero": 6,
+      "titulo": "Subir a carga solta",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "A Viagem traz carga solta.",
+      "onde": "Importação rápida › Manifesto BB.",
+      "pronto": "Cada B/L de carga solta na Viagem, com o peso, e a frente de carga solta com terminal.",
+      "arquivo": "06-subir-a-carga-solta.md"
+    },
+    {
+      "numero": 7,
+      "titulo": "Subir os veículos",
+      "equipes": [
+        "Equipamentos"
+      ],
+      "quando": "Chega a planilha de veículos, depois dos B/Ls e antes do CE.",
+      "onde": "Importação › Veículos.",
+      "pronto": "Os veículos na Viagem, com o local de desova, ou a Viagem declarada sem veículos.",
+      "arquivo": "07-subir-os-veiculos.md"
+    },
+    {
+      "numero": 8,
+      "titulo": "Limpar a Revisão",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "Logo depois dos B/Ls e da carga solta.",
+      "onde": "Importação › Revisão.",
+      "pronto": "Nenhum B/L sem Cliente; os que sobram só esperam o Portal.",
+      "arquivo": "08-limpar-a-revisao.md"
+    },
+    {
+      "numero": 9,
+      "titulo": "Ativar o Portal do Cliente",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "O Cliente é novo ou ainda não ativou a conta.",
+      "onde": "Clientes › Provisionamento do Portal.",
+      "pronto": "Conta Ativa: as faturas do Cliente podem sair.",
+      "arquivo": "09-ativar-o-portal.md"
+    },
+    {
+      "numero": 10,
+      "titulo": "Conferir a Viagem antes do CE",
+      "equipes": [
+        "Documentação",
+        "Equipamentos"
+      ],
+      "quando": "Antes de subir o CE.",
+      "onde": "Rotas e Manifestos, Baplie EDI, Revisão, Veículos e Alertas.",
+      "pronto": "A Viagem revisada e conciliada, sem alerta fora o CE Mercante pendente.",
+      "arquivo": "10-conferir-antes-do-ce.md"
+    },
+    {
+      "numero": 11,
+      "titulo": "Subir o CE Mercante",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "Com a conferência da etapa 10 completa.",
+      "onde": "Ficha da Viagem › Importação rápida › CE Mercante.",
+      "pronto": "Os B/Ls aparecem como faturados.",
+      "arquivo": "11-subir-o-ce.md"
+    },
+    {
+      "numero": 12,
+      "titulo": "Conferir os avisos ao Cliente",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "Depois do CE e na semana da chegada do navio.",
+      "onde": "Clientes › Comunicação › Cobertura de viagens.",
+      "pronto": "NOA, NOR, NOB e CE e Taxas sem âmbar, e nenhum B/L sem Cliente.",
+      "arquivo": "12-conferir-os-avisos.md"
+    },
+    {
+      "numero": 13,
+      "titulo": "Registrar a chegada, a atracação e a saída",
+      "equipes": [
+        "Operações"
+      ],
+      "quando": "No dia em que o navio chega, atraca e sai.",
+      "onde": "Planejamento por escala › lápis da escala.",
+      "pronto": "O ATA na escala; o ATB e o ATD em cada terminal.",
+      "arquivo": "13-registrar-chegada-e-saida.md"
+    },
+    {
+      "numero": 14,
+      "titulo": "Desbloquear o CE",
+      "equipes": [
+        "Documentação"
+      ],
+      "quando": "O Cliente pede o Desbloqueio pelo Portal.",
+      "onde": "Importação › Desbloqueio de CE.",
+      "pronto": "O B/L fica Desbloqueado na conciliação com a ZPT.",
+      "arquivo": "14-desbloquear-o-ce.md"
+    },
+    {
+      "numero": 15,
+      "titulo": "Gravar a descarga e a devolução",
+      "equipes": [
+        "Equipamentos"
+      ],
+      "quando": "O terminal manda as datas de descarga; depois, as de devolução.",
+      "onde": "Importação › Containers › Importar datas.",
+      "pronto": "Cada container com a descarga; a Invoice de Demurrage sai sozinha.",
+      "arquivo": "15-gravar-descarga-e-devolucao.md"
+    },
+    {
+      "numero": 16,
+      "titulo": "Lançar a exportação",
+      "equipes": [
+        "Equipamentos"
+      ],
+      "quando": "A escala embarca vazios ou Granito.",
+      "onde": "Ficha da Viagem › aba Exportação.",
+      "pronto": "O embarque no terminal da escala, com as unidades e os serviços; o Granito na Viagem, com terminal na frente dele.",
+      "arquivo": "16-lancar-a-exportacao.md"
+    },
+    {
+      "numero": 17,
+      "titulo": "Assinar o ADR de Saída",
+      "equipes": [
+        "Operações",
+        "Documentação",
+        "Equipamentos"
+      ],
+      "quando": "O navio sai do terminal; cada equipe tem 72 horas.",
+      "onde": "Ficha da Viagem › aba ADR.",
+      "pronto": "As três equipes assinaram e o ADR está fechado.",
+      "arquivo": "17-assinar-o-adr.md"
+    },
+    {
+      "numero": 18,
+      "titulo": "Os alertas",
+      "equipes": [
+        "Operações",
+        "Documentação",
+        "Equipamentos"
+      ],
+      "quando": "Abrem sozinhos quando algo precisa de uma pessoa.",
+      "onde": "Alertas, ou o cartão da equipe no Painel.",
+      "pronto": "O alerta fecha sozinho quando a causa some.",
+      "arquivo": "18-os-alertas.md"
+    },
+    {
+      "numero": 19,
+      "titulo": "A rotina do dia",
+      "equipes": [
+        "Operações",
+        "Documentação",
+        "Equipamentos"
+      ],
+      "quando": "Todo dia, ao começar.",
+      "onde": "Painel e as filas da equipe.",
+      "pronto": "As filas de cada equipe sem pendência parada.",
+      "arquivo": "19-a-rotina-do-dia.md"
+    }
+  ],
+  "fluxo": {
+    "fases": [
+      {
+        "titulo": "O armador avisa o navio",
+        "linhas": [
+          0,
+          1
+        ]
+      },
+      {
+        "titulo": "A documentação chega",
+        "linhas": [
+          2,
+          7
+        ]
+      },
+      {
+        "titulo": "O Mercante registra a carga",
+        "linhas": [
+          8,
+          10
+        ]
+      },
+      {
+        "titulo": "O navio chega ao porto",
+        "linhas": [
+          11,
+          12
+        ]
+      },
+      {
+        "titulo": "O navio sai do terminal",
+        "linhas": [
+          13,
+          13
+        ]
+      },
+      {
+        "titulo": "Todo dia",
+        "linhas": [
+          14,
+          14
+        ]
+      }
+    ],
+    "etapas": {
+      "1": {
+        "rotulo": "Abrir a Viagem",
+        "nota": "pela programação",
+        "linha": 0
+      },
+      "2": {
+        "rotulo": "Terminais",
+        "nota": "ETB e ETD por frente, também a que nasce depois",
+        "linha": 1
+      },
+      "3": {
+        "rotulo": "Baplie",
+        "nota": "antes dos B/Ls",
+        "linha": 2
+      },
+      "4": {
+        "rotulo": "Vazios do Baplie",
+        "nota": "se o Baplie trouxer",
+        "linha": 3,
+        "opcional": true
+      },
+      "5": {
+        "rotulo": "B/Ls de container",
+        "nota": "",
+        "linha": 4
+      },
+      "6": {
+        "rotulo": "Carga solta",
+        "nota": "Manifesto BB",
+        "linha": 5,
+        "opcional": true
+      },
+      "7": {
+        "rotulo": "Veículos",
+        "nota": "e o local de desova",
+        "linha": 5
+      },
+      "8": {
+        "rotulo": "Revisão",
+        "nota": "o Cliente de cada B/L",
+        "linha": 6
+      },
+      "9": {
+        "rotulo": "Portal do Cliente",
+        "nota": "convite e conta ativa",
+        "linha": 7
+      },
+      "10": {
+        "rotulo": "Conferir antes do CE",
+        "nota": "Ponto crítico: a Viagem revisada, conciliada, sem divergência e com os veículos lançados",
+        "linha": 8,
+        "colunas": [
+          0,
+          2
+        ],
+        "critico": true
+      },
+      "11": {
+        "rotulo": "CE Mercante",
+        "nota": "sempre por último",
+        "linha": 9
+      },
+      "12": {
+        "rotulo": "Avisos ao Cliente",
+        "nota": "NOA, NOR, NOB e CE",
+        "linha": 10
+      },
+      "13": {
+        "rotulo": "Chegada e saída",
+        "nota": "ATA, ATB e ATD",
+        "linha": 11
+      },
+      "14": {
+        "rotulo": "Desbloqueio",
+        "nota": "o Cliente pede",
+        "linha": 11
+      },
+      "15": {
+        "rotulo": "Containers",
+        "nota": "descarga e devolução",
+        "linha": 11
+      },
+      "16": {
+        "rotulo": "Exportação",
+        "nota": "vazios e Granito",
+        "linha": 12,
+        "opcional": true
+      },
+      "17": {
+        "rotulo": "Assinar o ADR de Saída",
+        "nota": "cada equipe a sua parte, em até 72 horas",
+        "linha": 13
+      },
+      "18": {
+        "rotulo": "Os alertas",
+        "nota": "abrem e fecham",
+        "linha": 14,
+        "colunas": [
+          0,
+          0
+        ]
+      },
+      "19": {
+        "rotulo": "A rotina do dia",
+        "nota": "o Painel e as filas de cada equipe",
+        "linha": 14,
+        "colunas": [
+          1,
+          2
+        ]
+      }
+    },
+    "setas": [
+      [
+        1,
+        2,
+        "lado"
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        8,
+        9
+      ],
+      [
+        9,
+        10
+      ],
+      [
+        5,
+        7,
+        "lado"
+      ],
+      [
+        7,
+        10
+      ],
+      [
+        10,
+        11
+      ],
+      [
+        11,
+        12
+      ],
+      [
+        12,
+        14
+      ],
+      [
+        15,
+        16
+      ],
+      [
+        13,
+        17
+      ],
+      [
+        14,
+        17
+      ],
+      [
+        16,
+        17
+      ]
+    ]
+  }
+}
