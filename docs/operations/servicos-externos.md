@@ -1342,7 +1342,13 @@ de Vitória/ES do ano seguinte antes de 1º/11; a partir dessa data o Alerta
 suspendem o prazo, então a cobrança pode vencer às 14h30 de um feriado. A Demurrage também depende do job
 `recalc-demurrage-ptax` estar agendado ([segredos e cron](segredos-cron.md)).
 
-Renovar o certificado 30 dias antes do vencimento. Documentação:
+Renovar o certificado 30 dias antes do vencimento. Uma resposta isolada 403
+com `codigo_erro` C200 ("Certificado inválido") na troca do token não encerra
+a rodada: o cliente pede o token de novo uma vez. As duas recusas seguidas
+continuam 500, com a linha da etapa que precisou do token no log da função.
+Foi a causa das 11 ocorrências do Sentry VELA-26 (23–30/10/2026), todas na
+etapa `receipts`; a rodada seguinte autenticou com o mesmo certificado.
+Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
 Função e job Itaú publicados; webhook não cadastrado na conferência de 07/10.
 
