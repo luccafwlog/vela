@@ -43,15 +43,15 @@ function formatRoe(roe: number) {
   return `R$ ${roe.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
 }
 
-/** "o contêiner X" ou "os contêineres X e Y". */
-/** Por que a fatura anterior foi cancelada e reemitida (migration 555). */
+/** Por que a fatura anterior foi cancelada e reemitida (migration 555), no vocabulário do Portal. */
 function replacedCauseText(cause: PortalDemurrageReplacedCause | null | undefined) {
-  if (cause === 'datas') return 'cancelada porque as datas dos containers mudaram.'
-  if (cause === 'soc') return 'cancelada porque um container passou a SOC e saiu da cobrança.'
-  if (cause === 'divisao') return 'cancelada porque mudou a divisão de um container entre Clientes.'
+  if (cause === 'datas') return 'cancelada porque as datas dos contêineres mudaram.'
+  if (cause === 'soc') return 'cancelada porque um contêiner passou a SOC e saiu da cobrança.'
+  if (cause === 'divisao') return 'cancelada porque mudou a divisão de uma caixa entre Clientes.'
   return 'cancelada e substituída por esta.'
 }
 
+/** "o contêiner X" ou "os contêineres X e Y". */
 function containersPhrase(numbers: string[]) {
   if (numbers.length === 0) return 'só os contêineres que ainda não tinham sido cobrados neste B/L'
   if (numbers.length === 1) return `o contêiner ${numbers[0]}, que entrou no B/L depois`

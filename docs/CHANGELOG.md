@@ -16,8 +16,8 @@
   - **O que cada setor pode:** a linha de exclusões cita o Embarque de vazios (só o Administrativo), e
     **Dispensar cobrança**/desfazer a dispensa da Demurrage ganha linha própria (todos os setores, justificativa de
     ao menos 10 caracteres). O quadro passa a 44 linhas.
-  - **Portal:** a Invoice de Demurrage reemitida diz a causa certa: datas dos containers, container que passou a
-    SOC ou mudança da divisão de um container entre Clientes (`555`); o Portal recebe só um código, nunca o motivo
+  - **Portal:** a Invoice de Demurrage reemitida diz a causa certa: datas dos contêineres, contêiner que passou a
+    SOC ou mudança da divisão de uma caixa entre Clientes (`555`); o Portal recebe só um código, nunca o motivo
     interno do cancelamento.
   - **Recusas com acento:** "LOCODE brasileiro inválido: …" na tela, no serviço e no banco (`556`) e "B/L … já foi
     faturado (status financeiro=…); recálculo bloqueado." no recálculo das Taxas Locais.

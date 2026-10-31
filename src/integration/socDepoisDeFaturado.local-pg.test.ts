@@ -175,7 +175,11 @@ describeLocal('Caixa dividida entre Clientes (migration 522)', () => {
   })
 
   it('555: o Portal recebe a causa da reemissão em código, sem o motivo interno', () => {
-    const replacement = liveInvoice('06B')[0]
+    // B/L próprio: não depende da ordem dos casos.
+    bl('555', 'reissue', customerA); box('555', 'RQCU5220005'); box('555', 'RQCU5220006')
+    issue('555')
+    toSoc('RQCU5220006')
+    const replacement = liveInvoice('555')[0]
     const detail = JSON.parse(psql(`SELECT public._portal_get_demurrage_invoice_detail_core(${customerA}, ${replacement})`)) as { invoice: Record<string, unknown> }
     expect(detail.invoice.replaces_doc_number).toBeTruthy()
     expect(detail.invoice.replaces_cause).toBe('soc')

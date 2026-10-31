@@ -15,6 +15,11 @@
 --    Disputa) e devolve só um código: `datas`, `soc` ou `divisao`; NULL para
 --    qualquer outro motivo (cancelamento à mão, troca de CNPJ). Linhas antigas
 --    com "Datas de container alteradas" continuam `datas`.
+--    ponytail: entre a 522 e a 550 o cancelamento por SOC ou por divisão da
+--    caixa também gravava "Datas de container alteradas"; essas linhas dão
+--    `datas` (texto errado no Portal). Como os dados de hoje são de teste, não
+--    há reclassificação; se algum dia importar, ler a causa pela
+--    `_demurrage_stale_cause` da época, que não é recuperável depois.
 -- 2. `_portal_get_demurrage_invoice_detail_core` (corpo da 521) devolve
 --    `replaces_cause` ao lado de `replaces_doc_number`. A frase é da tela.
 --

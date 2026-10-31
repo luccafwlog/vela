@@ -87,9 +87,9 @@ describe('PortalDemurrageDetailModal', () => {
   })
 
   it.each([
-    ['datas', 'cancelada porque as datas dos containers mudaram.'],
-    ['soc', 'cancelada porque um container passou a SOC e saiu da cobrança.'],
-    ['divisao', 'cancelada porque mudou a divisão de um container entre Clientes.'],
+    ['datas', 'cancelada porque as datas dos contêineres mudaram.'],
+    ['soc', 'cancelada porque um contêiner passou a SOC e saiu da cobrança.'],
+    ['divisao', 'cancelada porque mudou a divisão de uma caixa entre Clientes.'],
     [null, 'cancelada e substituída por esta.'],
   ] as const)('Invoice reemitida diz a causa da substituição (%s, migration 555)', (cause, text) => {
     renderModal(makeDetail({ replaces_doc_number: 'DEM-2026-0007', replaces_cause: cause }))

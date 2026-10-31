@@ -971,12 +971,14 @@ Alerta diz o motivo e que a nova Invoice sai sozinha quando ele for resolvido
 (migration `472`). A Invoice reemitida guarda qual cancelada substitui
 (`replaces_invoice_id`, DEM-D08): o detalhe no Vela diz "Substitui a Invoice
 …, cancelada para reemissão automática…" com link, e o Portal "Substitui a
-fatura …" com a causa: as datas dos containers mudaram, um container passou a
-SOC e saiu da cobrança, ou mudou a divisão de um container entre Clientes. A
+fatura …" com a causa: as datas dos contêineres mudaram, um contêiner passou a
+SOC e saiu da cobrança, ou mudou a divisão de uma caixa entre Clientes. A
 causa chega ao Portal só como código (`replaces_cause`: `datas`, `soc`,
 `divisao`, migration `555`), lido do motivo do cancelamento; o motivo gravado,
 texto interno, não sai (migration `530`). Outro motivo dá "cancelada e
-substituída por esta". A reemissão que esperou a trava e saiu depois pela fila também
+substituída por esta". Cancelamento automático gravado entre as migrations
+`522` e `550` dizia sempre "Datas de container alteradas", mesmo por SOC ou
+divisão; essas linhas antigas dão `datas`. A reemissão que esperou a trava e saiu depois pela fila também
 cita a cancelada: a primeira caixa da nova Invoice a liga à cancelada mais
 recente do Cliente com essa caixa na mesma Viagem (migrations `480` e `481`). O Alerta fecha sozinho quando todas essas caixas entram
 numa Invoice emitida da mesma Viagem e do mesmo Cliente (gatilho na emissão,
