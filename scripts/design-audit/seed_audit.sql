@@ -111,9 +111,14 @@ insert into public.charge_table_items (charge_table_id, name, applies_to, contai
   (10,'ISPS — Segurança','container','any','any',55.00,'BRL','base','container_distinct_voyage',55.00,true,3),
   (10,'Logística OOG','container','any','oog',2100.00,'BRL','other_charge','container_distinct_voyage',2100.00,true,4);
 
-insert into public.demurrage_rates (container_type, free_days, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, active) values
-  ('20GP',10,1,10,95.00,11,190.00,'2026-01-01',true),
-  ('40HC',10,1,10,120.00,11,240.00,'2026-01-01',true);
+-- Desde a migration 514 o banco já nasce com uma tarifa ativa por grupo
+-- (`demurrage_rates_one_per_group`) e 40HC não é grupo (fica no 40GP): o seed
+-- ajusta as tarifas ativas de 20GP e 40GP em vez de inserir outras.
+update public.demurrage_rates r
+   set free_days = 10, p1_day_from = 1, p1_day_to = 10, p1_usd = v.p1_usd,
+       p2_day_from = 11, p2_usd = v.p2_usd, valid_from = '2026-01-01'
+  from (values ('20GP', 95.00, 190.00), ('40GP', 120.00, 240.00)) as v(container_type, p1_usd, p2_usd)
+ where r.container_type = v.container_type and r.active;
 
 -- invoices
 -- Taxa local não tem vencimento praticado (ADR 0055): sem due_date, sem 'overdue'.
