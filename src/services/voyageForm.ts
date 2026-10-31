@@ -1,3 +1,4 @@
+import { normalizeVesselImo } from '../lib/vesselAlias'
 import { z } from 'zod'
 import { listVoyageEscalaSchedulesByVoyageIds } from './voyageRouteSchedules'
 
@@ -36,6 +37,14 @@ export const voyageFormSchema = z.object({
   indicatedFirstBrazilianPort: z.string().nullable().optional(),
   indicatedFirstBrazilianEta: z.string().nullable().optional(),
 }).superRefine((data, ctx) => {
+  const imo = normalizeVesselImo(data.vesselImo)
+  if (imo && !/^\d{7}$/.test(imo)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['vesselImo'],
+      message: 'IMO deve ter 7 dígitos',
+    })
+  }
   const hasIndicatedPort = Boolean(data.indicatedFirstBrazilianPort?.trim())
   const hasIndicatedEta = Boolean(data.indicatedFirstBrazilianEta?.trim())
 

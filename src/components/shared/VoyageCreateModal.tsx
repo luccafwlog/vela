@@ -212,7 +212,7 @@ export function VoyageCreateModal({
               onChange={(event) => setForm((current) => ({ ...current, vesselName: event.target.value.toUpperCase() }))}
             />
           </Field>
-          <Field label="IMO">
+          <Field label="IMO" error={errors.vesselImo}>
             <Input
               value={form.vesselImo}
               onChange={(event) => setForm((current) => ({ ...current, vesselImo: event.target.value }))}
