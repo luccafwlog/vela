@@ -8,6 +8,7 @@ import { NoValue } from '../components/ui/NoValue'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block, Fact, FactList } from '../components/ui/Block'
 import { MetricCard } from '../components/ui/MetricCard'
+import { AlertDepartmentCards } from '../components/alerts/AlertDepartmentCards'
 import { StatusText } from '../components/ui/StatusText'
 import { Field, Input, Select } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
@@ -331,6 +332,12 @@ export function Alertas() {
           selected={lens === 'criticos'}
         />
       </div>
+
+      <AlertDepartmentCards
+        summary={summary}
+        selectedDepartment={departmentFilter}
+        onSelect={(department) => handleDepartmentChange(department === departmentFilter ? 'all' : department)}
+      />
 
       <div className="app-filter-grid mb-4">
         <Field label="Busca">
