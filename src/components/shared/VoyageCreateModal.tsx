@@ -259,14 +259,21 @@ export function VoyageCreateModal({
         </div>
 
         {isNew ? (
-          <section className="grid gap-3" aria-labelledby="nova-viagem-portos">
+          <section className="grid gap-4" aria-labelledby="nova-viagem-portos">
             <div className="grid gap-1">
               <h3 id="nova-viagem-portos" className="app-panel__title">Portos e datas</h3>
-              <p className="app-panel__meta">
-                Opcional. Porto no Brasil vira escala da viagem com o ETA; porto de origem grava o ETD.
-              </p>
+              <p className="app-panel__meta">Opcional. Sem porto, as escalas são planejadas depois na ficha.</p>
             </div>
-            <VoyagePortsPicker stops={lanes} onChange={setLanes} />
+            {(['pol', 'pod'] as const).map((kind) => (
+              <VoyagePortsPicker
+                key={kind}
+                kind={kind}
+                stops={lanes.filter((stop) => stop.kind === kind)}
+                takenCodes={lanes.map((stop) => stop.code)}
+                onAdd={(stop) => setLanes((current) => [...current, stop])}
+                onRemove={(code) => setLanes((current) => current.filter((stop) => stop.code !== code))}
+              />
+            ))}
           </section>
         ) : null}
 

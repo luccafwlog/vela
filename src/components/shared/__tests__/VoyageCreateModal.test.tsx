@@ -74,8 +74,13 @@ describe('VoyageCreateModal', () => {
     expect(screen.getByLabelText('Navio')).toBeTruthy()
     expect(screen.getByLabelText('Numero da viagem')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Portos e datas' })).toBeTruthy()
-    // Nenhum porto listado até o operador adicionar.
-    expect(screen.queryByRole('list', { name: 'Portos adicionados' })).toBeNull()
+    // Dois seletores, cada um com o lado e o efeito escritos; nenhum porto
+    // listado até o operador adicionar.
+    expect(screen.getByRole('heading', { name: 'Origem' })).toBeTruthy()
+    expect(screen.getByText('Saída do navio no exterior (ETD). Vai para Chegadas e Saídas.')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Destino' })).toBeTruthy()
+    expect(screen.getByText('Chegada no Brasil (ETA). Cria uma escala da viagem.')).toBeTruthy()
+    expect(screen.queryByRole('listitem')).toBeNull()
     expect(screen.queryByLabelText('Armador')).toBeNull()
     expect(screen.getByText('Armador: Cosco Shipping Specialized Carriers · SCAC CSSC')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Alterar armador' }))
@@ -92,30 +97,31 @@ describe('VoyageCreateModal', () => {
     expect((screen.getByLabelText(FIRST_PORT) as HTMLInputElement).disabled).toBe(false)
   })
 
-  it('adiciona portos pelo seletor, inclusive fora de Chegadas e Saídas, e grava as datas', async () => {
+  it('adiciona origem e destino nos seus seletores, inclusive fora de Chegadas e Saídas, e grava as datas', async () => {
     const user = userEvent.setup()
     const onSaved = vi.fn()
     renderModal({ onSaved })
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
     await user.type(screen.getByLabelText('Numero da viagem'), '77N')
-    async function add(port: string, date: string) {
-      await user.clear(screen.getByLabelText('Porto'))
-      await user.type(screen.getByLabelText('Porto'), port)
-      fireEvent.change(screen.getByLabelText('Data (ETD ou ETA)'), { target: { value: date } })
-      await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    async function add(side: 'origem' | 'destino', port: string, date: string) {
+      const portField = screen.getByLabelText(`Porto de ${side}`)
+      await user.clear(portField)
+      await user.type(portField, port)
+      fireEvent.change(screen.getByLabelText(side === 'origem' ? 'ETD' : 'ETA'), { target: { value: date } })
+      await user.click(screen.getByRole('button', { name: `Adicionar porto de ${side}` }))
     }
-    await add('santos', '2026-12-12')
-    await add('qingdao', '2026-11-04')
-    await add('BRSSZ', '2026-12-20')
+    await add('destino', 'santos', '2026-12-12')
+    await add('origem', 'qingdao', '2026-11-04')
+    // Lado errado: a tela diz para onde vai.
+    await add('origem', 'salvador', '2026-12-15')
+    expect(screen.getByText('Porto brasileiro vai em Destino: ele cria a escala da viagem.')).toBeTruthy()
+    await add('destino', 'BRSSZ', '2026-12-20')
     expect(screen.getByText('BRSSZ já foi adicionado.')).toBeTruthy()
-    await add('KRPUS', '2026-11-08')
-    expect(screen.getByText(/fora da lista de portos do sistema/)).toBeTruthy()
 
-    const list = screen.getByRole('list', { name: 'Portos adicionados' })
-    expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Qingdao (CNTAO) · Saída na origem · ETD 04/11/2026',
-      'Santos (BRSSZ) · Chegada no Brasil · ETA 12/12/2026',
-    ])
+    const origins = screen.getByRole('list', { name: 'Portos de origem adicionados' })
+    expect(within(origins).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Qingdao (CNTAO) · ETD 04/11/2026'])
+    const destinations = screen.getByRole('list', { name: 'Portos de destino adicionados' })
+    expect(within(destinations).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Santos (BRSSZ) · ETA 12/12/2026'])
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
 
     await waitFor(() => expect(recordDatesMock).toHaveBeenCalledTimes(1))
@@ -130,13 +136,13 @@ describe('VoyageCreateModal', () => {
   it('pede a data antes de adicionar e remove o porto adicionado', async () => {
     const user = userEvent.setup()
     renderModal()
-    await user.type(screen.getByLabelText('Porto'), 'salvador')
-    await user.click(screen.getByRole('button', { name: 'Adicionar' }))
-    expect(screen.getByText('Informe a data.')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Data (ETD ou ETA)'), { target: { value: '2026-12-15' } })
-    await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    await user.type(screen.getByLabelText('Porto de destino'), 'salvador')
+    await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
+    expect(screen.getByText('Informe o ETA.')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-15' } })
+    await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
     await user.click(screen.getByRole('button', { name: 'Remover BRSSA' }))
-    expect(screen.queryByRole('list', { name: 'Portos adicionados' })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Portos de destino adicionados' })).toBeNull()
   })
 
   it('sem porto adicionado, não grava datas', async () => {
@@ -156,9 +162,9 @@ describe('VoyageCreateModal', () => {
     renderModal({ onSaved })
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
     await user.type(screen.getByLabelText('Numero da viagem'), '77N')
-    await user.type(screen.getByLabelText('Porto'), 'salvador')
-    fireEvent.change(screen.getByLabelText('Data (ETD ou ETA)'), { target: { value: '2026-12-15' } })
-    await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    await user.type(screen.getByLabelText('Porto de destino'), 'salvador')
+    fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-15' } })
+    await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
     await waitFor(() => expect(showToastMock).toHaveBeenCalledWith(
       'Viagem cadastrada, mas as datas dos portos não foram gravadas (falha na gravação das datas). Informe-as nas escalas da ficha da viagem.',

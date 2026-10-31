@@ -7,9 +7,10 @@
 ## 2026-10
 
 - **Nova Viagem com portos e datas (2026-10-31):** o cadastro de **Nova Viagem** ganha **Portos e datas**,
-  opcional: o operador digita o porto, a data e **Adicionar**, e só os portos adicionados aparecem. Porto brasileiro
-  (qualquer LOCODE BR, inclusive fora de Chegadas e Saídas) vira escala com o ETA; porto de origem da lista do
-  sistema grava o ETD, pela mesma gravação de Chegadas e Saídas. Navio, IMO, número e status vão para o topo; armador
+  opcional, com dois seletores: **Origem** (ETD, vai para Chegadas e Saídas) e **Destino** (ETA, cria a escala). Em
+  cada um o operador digita o porto, a data e **Adicionar**, e só os portos adicionados aparecem. O destino aceita
+  qualquer porto brasileiro, inclusive fora de Chegadas e Saídas; a origem, porto do exterior da lista do sistema.
+  A gravação é a mesma de Chegadas e Saídas. Navio, IMO, número e status vão para o topo; armador
   e SCAC ficam numa linha com **Alterar armador**; a chave pequena diz só **Chegadas e Saídas**; o 1º porto
   brasileiro sai do cadastro (fica na edição). Porto fora dos nove da programação não aparece em Chegadas e Saídas.
 - **Achados da revisão do Manual do Operador (2026-10-31, migrations `555` e `556`):** cinco defeitos achados na
