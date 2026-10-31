@@ -86,6 +86,16 @@ describe('PortalDemurrageDetailModal', () => {
     expect(screen.getByText(/Substitui a fatura/).textContent).toContain('DEM-2026-0007')
   })
 
+  it.each([
+    ['datas', 'cancelada porque as datas dos containers mudaram.'],
+    ['soc', 'cancelada porque um container passou a SOC e saiu da cobrança.'],
+    ['divisao', 'cancelada porque mudou a divisão de um container entre Clientes.'],
+    [null, 'cancelada e substituída por esta.'],
+  ] as const)('Invoice reemitida diz a causa da substituição (%s, migration 554)', (cause, text) => {
+    renderModal(makeDetail({ replaces_doc_number: 'DEM-2026-0007', replaces_cause: cause }))
+    expect(screen.getByText(/Substitui a fatura/).textContent).toBe(`Substitui a fatura DEM-2026-0007, ${text}`)
+  })
+
   it('B30: mostra cada período (P1/P2) numa linha, dias × diária, sem Dias cobrados', () => {
     const detail = makeDetail()
     detail.items = [{

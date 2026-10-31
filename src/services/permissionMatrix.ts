@@ -1,6 +1,6 @@
 // "O que cada setor pode" (lote 5b, tela Administração, decisão de
 // 2026-10-19: opção A com C). Fonte única da matriz da aba Usuários e da
-// lista "Com este setor, ... pode" das janelas de usuário. As 41 linhas
+// lista "Com este setor, ... pode" das janelas de usuário. As 44 linhas
 // resumem as ações de docs/operations/seguranca.md § "Modelo de permissões
 // por perfil", que diz onde o banco aplica cada uma.
 //
@@ -92,7 +92,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'editar-viagem', group: 'viagens', action: 'Criar e editar viagem, escala e programação; omitir escala; fechar o ADR', can: ALL, proof: ['todos: Editar viagem', 'todos: Editar escala de exportação', 'todos: Fechar o ADR de Saída'] },
   { id: 'reverter-omissao-reabrir-adr', group: 'viagens', action: 'Reverter omissão de escala e reabrir ADR fechado, com motivo', can: ALL, proof: ['caso: P6:'] },
   { id: 'cancelar-reativar-viagem-bl', group: 'viagens', action: 'Cancelar e reativar Viagem e B/L, com motivo', can: ADM, proof: ['exceção: Cancelar viagem', 'exceção: Reativar viagem', 'exceção: Cancelar B/L', 'exceção: Reativar B/L'] },
-  { id: 'excluir-registros', group: 'viagens', action: 'Excluir viagem, escala, B/L, container e Cliente', can: ADM, proof: ['exceção: Excluir viagem com Trava', 'exceção: Excluir escala', 'exceção: Excluir Cliente', 'caso: A7: delete_escala segue excluindo'] },
+  // Migration 544: o Embarque de vazios sem unidade, sem linha de serviço e com o ADR aberto.
+  { id: 'excluir-registros', group: 'viagens', action: 'Excluir viagem, escala, B/L, container, Embarque de vazios e Cliente', can: ADM, proof: ['exceção: Excluir viagem com Trava', 'exceção: Excluir escala', 'exceção: Excluir Cliente', 'exceção: Excluir Embarque de vazios', 'caso: A7: delete_escala segue excluindo'] },
   // 02-viagens-adr:2 (migration 477): trocar o terminal de uma frente remove a atracação antiga.
   { id: 'remover-atracacao', group: 'viagens', action: 'Remover atracação (trocar o terminal de uma frente)', can: only('administrativo', 'operacoes'), proof: ['caso: 477: Operações e o Administrativo removem atracação'] },
   {
@@ -126,6 +127,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   // Demurrage
   { id: 'gerar-invoice', group: 'demurrage', action: 'Gerar Invoice e complementar; aplicar desconto; editar tarifa, tipo de container, acordo e condição de Demurrage do B/L', can: ALL, proof: ['caso: P4:', 'caso: P5: %s lê a Conciliação, autoriza restituição e aplica desconto', 'caso: P9:', 'caso: P9T:', 'todos: Condição de Demurrage do B/L'] },
   { id: 'disputas', group: 'demurrage', action: 'Ver Disputas e editar os dados da disputa e o vencimento', can: ALL, proof: ['caso: P12: %s lê o Desbloqueio de CE com os documentos, as Disputas', 'todos: Editar os dados da disputa'] },
+  // ADR 0112, D24 (migrations 517 e 530): qualquer setor, justificativa de ao menos 10 caracteres.
+  { id: 'dispensar-cobranca', group: 'demurrage', action: 'Dispensar a cobrança de Demurrage de uma caixa e desfazer a dispensa, com justificativa', can: ALL, proof: ['todos: Dispensar a cobrança de Demurrage', 'todos: Desfazer a dispensa de Demurrage'] },
   { id: 'baixa-invoice', group: 'demurrage', action: 'Registrar pagamento de Invoice', can: ADM_FIN, proof: ['exceção: Baixa de Invoice de Demurrage'] },
   { id: 'informar-ptax', group: 'demurrage', action: 'Informar PTAX; pôr e tirar o ROE manual do B/L e tirar o da Invoice, com motivo', can: ADM_FIN_EQU, proof: ['exceção: Informar PTAX', 'exceção: Pôr e tirar o ROE manual do B/L', 'exceção: Tirar o ROE manual da Invoice de Demurrage'] },
   { id: 'responder-disputa', group: 'demurrage', action: 'Responder, reabrir e anexar na Disputa', can: only('administrativo', 'equipamentos'), proof: ['exceção: Responder Disputa', 'exceção: Reabrir Disputa'] },

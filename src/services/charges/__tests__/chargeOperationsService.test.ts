@@ -100,7 +100,7 @@ describe('calculateLocalChargesBatch', () => {
     expect(result.total).toBe(1)
     expect(result.successCount).toBe(0)
     expect(result.errorCount).toBe(1)
-    expect(result.errors[0].message).toContain('ja foi faturado')
+    expect(result.errors[0].message).toBe('B/L BL-PAID já foi faturado (status financeiro=paid); recálculo bloqueado.')
     expect(rpc).not.toHaveBeenCalled()
   })
 
