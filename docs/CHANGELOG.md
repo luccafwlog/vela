@@ -14,6 +14,11 @@
     do Portal só na prévia (o e-mail enviado sempre a levou, conferido no navegador).
   - **Contatos:** o contato capturado do B/L fica sem nome, no Vela e no Portal, em vez de "Contato manifesto";
     os contatos com esse nome foram limpos.
+- **Pix Itaú: token com C200 isolado não derruba a rodada (2026-10-31):** as 11
+  ocorrências do Sentry VELA-26 foram a consulta de recebimentos recebendo 403
+  "Certificado inválido" (`codigo_erro` C200) do STS, com o certificado válido e
+  a rodada seguinte autenticando. O cliente pede o token de novo uma vez; a
+  segunda recusa continua 500 e vai ao Sentry. Prova: `itauPix.test.ts`.
 - **Achados da revisão do Manual do Operador (2026-10-31, migrations `555` e `556`):** cinco defeitos achados na
   revisão da PR luccafwlog/vela#1087, cada um com teste que falhava antes.
   - **Auditoria visual:** `scripts/design-audit/seed_audit.sql` ajusta as tarifas de Demurrage 20GP e 40GP que o

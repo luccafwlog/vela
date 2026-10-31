@@ -202,6 +202,12 @@ Cada falha da rotina vira uma linha JSON no log da função, com `function`,
 `error`. Quando a manutenção dos prazos (`itau_pix_maintain`) falha, sai antes
 uma linha `maintenance` com a mensagem do banco em `error` e o código em
 `detail.code`; a resposta 500 continua com a mensagem genérica.
+O Sentry VELA-26 (11 eventos, 23–30/10/2026) foi essa mensagem genérica para
+um 500 da etapa `receipts`: o STS respondeu 403 com `codigo_erro` C200 e o
+certificado válido, e a rodada seguinte autenticou. O cliente pede o token de
+novo uma vez nesse caso; a segunda recusa seguida continua 500, com a mesma
+linha `receipts` no log e o mesmo evento (`function_name=itau-pix`,
+`status=http_500`).
 As falhas que a rotina absorve sem mudar o status vão direto por
 `captureEdgeException`, um issue por etapa: `runner_release` (devolução da vez),
 `charges_renew` (renovação da vez) e `charges_release` (liberação das reservas

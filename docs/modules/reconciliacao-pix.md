@@ -631,7 +631,10 @@ Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro), que
 fecha quando a consulta anda (migration `358`). Período com mais de 50 páginas
 encolhe a janela até 5 min em vez de travar; horário inesperado de Pix de
 terceiro não derruba a consulta; a função responde fora de 2xx quando a fila ou
-a consulta falha, o que alimenta `rotina_http_falhou`. Rodada sem falha responde
+a consulta falha, o que alimenta `rotina_http_falhou`. Uma recusa isolada do
+token com código C200 (o Itaú responde 403 "Certificado inválido" e a rodada
+seguinte autentica) é pedida de novo uma vez na mesma execução; a segunda
+recusa continua fora de 2xx. Rodada sem falha responde
 200 mesmo com cobrança recusada pelo Itaú: esse erro fica gravado na cobrança e
 só soma no contador `error` do resumo da fila. Cada falha da rotina vai ao log da
 função e ao Sentry ([observabilidade](../operations/observabilidade.md#erros-das-edge-functions)). Os jobs `itau-pix-queue`
@@ -694,7 +697,7 @@ cancelamento de baixa de Demurrage.
   data obrigatória e lote Demurrage. A resolução do TXID (Invoice de Demurrage e
   avulsa pelo QR estático ou Itaú) é do servidor e tem teste local-pg
   (`planoBExtratoPix.local-pg.test.ts`).
-- `src/services/__tests__/itauPix.test.ts`: cliente Itaú (token, criação da
+- `src/services/__tests__/itauPix.test.ts`: cliente Itaú (token, uma repetição do 403 C200, criação da
   COB, resposta perdida vira incerteza sem repetir a escrita), fila (blocos de
   5, orçamento de 20 s, teto de 60, parada no 429 e no Itaú sem resposta, vez
   do runner) e consulta de recebimentos (janela em Brasília, travas de fuso,
