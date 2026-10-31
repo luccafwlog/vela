@@ -178,6 +178,29 @@ it('sincroniza o filtro de setor a partir da URL e faz fallback para valores des
   expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('all')
 })
 
+it('cartões por setor filtram a fila ali mesmo e, clicados de novo, tiram o filtro', () => {
+  renderAlertas()
+  const cards = within(screen.getByRole('group', { name: 'Alertas por setor' }))
+  const documentacao = cards.getByRole('button', { name: /Documentação\s*4 alertas/ })
+  expect(cards.getByRole('button', { name: /Administrativo\s*Nenhum/ })).toBeTruthy()
+  expect(cards.getByRole('button', { name: /Sem setor\s*2 alertas/ })).toBeTruthy()
+  expect(documentacao.getAttribute('aria-pressed')).toBe('false')
+
+  fireEvent.click(documentacao)
+  expect(documentacao.getAttribute('aria-pressed')).toBe('true')
+  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('documentacao')
+
+  fireEvent.click(documentacao)
+  expect(documentacao.getAttribute('aria-pressed')).toBe('false')
+  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('all')
+})
+
+it('o link do Painel abre com o cartão do setor marcado', () => {
+  renderAlertas(['/alertas?departamento=operacoes'])
+  const cards = within(screen.getByRole('group', { name: 'Alertas por setor' }))
+  expect(cards.getByRole('button', { name: /Operações/ }).getAttribute('aria-pressed')).toBe('true')
+})
+
 it('filtra por busca, gravidade e registro, e limpa os filtros', () => {
   renderAlertas()
 
