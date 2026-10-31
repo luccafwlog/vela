@@ -44,7 +44,7 @@ function formatRoe(roe: number) {
 }
 
 /** "o contêiner X" ou "os contêineres X e Y". */
-/** Por que a fatura anterior foi cancelada e reemitida (migration 554). */
+/** Por que a fatura anterior foi cancelada e reemitida (migration 555). */
 function replacedCauseText(cause: PortalDemurrageReplacedCause | null | undefined) {
   if (cause === 'datas') return 'cancelada porque as datas dos containers mudaram.'
   if (cause === 'soc') return 'cancelada porque um container passou a SOC e saiu da cobrança.'
@@ -185,7 +185,7 @@ export function PortalDemurrageDetailModal({
 
             {invoice.replaces_doc_number ? (
               // DEM-D08 (migration 472): a cancelada não aparece no Portal; só o número.
-              // A causa vem em código (554); o motivo gravado é interno (530).
+              // A causa vem em código (555); o motivo gravado é interno (530).
               <p className="text-sm text-[var(--app-muted)]">
                 Substitui a fatura <strong className="text-[var(--app-text-strong)]">{invoice.replaces_doc_number}</strong>, {replacedCauseText(invoice.replaces_cause)}
               </p>

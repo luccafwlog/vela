@@ -974,7 +974,7 @@ Alerta diz o motivo e que a nova Invoice sai sozinha quando ele for resolvido
 fatura …" com a causa: as datas dos containers mudaram, um container passou a
 SOC e saiu da cobrança, ou mudou a divisão de um container entre Clientes. A
 causa chega ao Portal só como código (`replaces_cause`: `datas`, `soc`,
-`divisao`, migration `554`), lido do motivo do cancelamento; o motivo gravado,
+`divisao`, migration `555`), lido do motivo do cancelamento; o motivo gravado,
 texto interno, não sai (migration `530`). Outro motivo dá "cancelada e
 substituída por esta". A reemissão que esperou a trava e saiu depois pela fila também
 cita a cancelada: a primeira caixa da nova Invoice a liga à cancelada mais

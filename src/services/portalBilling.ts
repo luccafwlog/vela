@@ -238,7 +238,7 @@ export type PortalDemurrageReplacedCause = 'datas' | 'soc' | 'divisao'
 export type PortalDemurrageInvoiceDetail = {
   /**
    * `replaces_doc_number`: fatura cancelada que esta reemissão substitui (migration 472).
-   * `replaces_cause`: por que ela foi reemitida, em código (migration 554); NULL
+   * `replaces_cause`: por que ela foi reemitida, em código (migration 555); NULL
    * quando o motivo não é uma reemissão automática.
    */
   invoice: PortalDemurrageInvoice & {

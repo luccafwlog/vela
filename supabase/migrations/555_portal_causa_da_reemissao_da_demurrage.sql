@@ -1,4 +1,4 @@
--- 554: o Portal diz por que a Invoice de Demurrage foi substituída.
+-- 555: o Portal diz por que a Invoice de Demurrage foi substituída.
 --
 -- Achado da revisão do Manual do Operador de 2026-10-31 (PR #1087, "Achados
 -- desta revisão"). O detalhe da Invoice no Portal dizia sempre "Substitui a
@@ -90,7 +90,7 @@ BEGIN
     'replaces_doc_number', (SELECT prev.doc_number FROM public.demurrage_invoices cur
       JOIN public.demurrage_invoices prev ON prev.id = cur.replaces_invoice_id
       WHERE cur.id = (v_raw #>> '{invoice,id}')::bigint),
-    -- 554: a causa da reemissão, em código; o motivo gravado não sai (530).
+    -- 555: a causa da reemissão, em código; o motivo gravado não sai (530).
     'replaces_cause', (SELECT public._demurrage_replaced_cause(cur.replaces_invoice_id)
       FROM public.demurrage_invoices cur
       WHERE cur.id = (v_raw #>> '{invoice,id}')::bigint)

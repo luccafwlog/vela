@@ -1,4 +1,4 @@
--- 555: "LOCODE brasileiro inválido", com acento, na gravação da escala.
+-- 556: "LOCODE brasileiro inválido", com acento, na gravação da escala.
 --
 -- Achado da revisão do Manual do Operador de 2026-10-31 (PR #1087, "Achados
 -- desta revisão"). Ficha da Viagem › Planejamento por escala › Adicionar
@@ -122,7 +122,7 @@ BEGIN
   END IF;
 
   IF v_port !~ '^BR[A-Z0-9]{3}$' THEN
-    -- 555: com acento.
+    -- 556: com acento.
     RAISE EXCEPTION 'LOCODE brasileiro inválido: %.', v_port USING ERRCODE = '22023';
   END IF;
 

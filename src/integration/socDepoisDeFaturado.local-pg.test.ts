@@ -174,7 +174,7 @@ describeLocal('Caixa dividida entre Clientes (migration 522)', () => {
       WHERE i.item_type = 'demurrage_invoice_dates_changed' AND i.status = 'active' AND a.entity_id = '${first}'`)).toBe('0')
   })
 
-  it('554: o Portal recebe a causa da reemissão em código, sem o motivo interno', () => {
+  it('555: o Portal recebe a causa da reemissão em código, sem o motivo interno', () => {
     const replacement = liveInvoice('06B')[0]
     const detail = JSON.parse(psql(`SELECT public._portal_get_demurrage_invoice_detail_core(${customerA}, ${replacement})`)) as { invoice: Record<string, unknown> }
     expect(detail.invoice.replaces_doc_number).toBeTruthy()
@@ -182,7 +182,7 @@ describeLocal('Caixa dividida entre Clientes (migration 522)', () => {
     expect(JSON.stringify(detail)).not.toMatch(/cancelada para reemissão/)
   })
 
-  it('554: cada motivo de reemissão automática vira um código; o resto, nenhum', () => {
+  it('555: cada motivo de reemissão automática vira um código; o resto, nenhum', () => {
     // Ids negativos: não existem em demurrage_invoices; as linhas saem no fim.
     const reasons = [
       'Datas de container alteradas: cancelada para reemissão automática.',
