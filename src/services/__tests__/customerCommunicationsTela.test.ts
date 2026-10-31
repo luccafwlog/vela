@@ -223,6 +223,9 @@ describe('3.7 — recorte dos B/Ls no servidor', () => {
     expect(describeEmptyCargoConference(base)).toMatch(/não tem ETA registrada/)
     expect(describeEmptyCargoConference({ ...base, kind: 'aviso_prontidao_nor' })).toMatch(/ainda não tem ATA registrada/)
     expect(describeEmptyCargoConference({ ...base, kind: 'aviso_atracacao_nob' })).toBe('Nenhuma Atracação da escala tem ATB registrado.')
+    // Viagem cancelada: vincular Cliente não resolve, e o motivo vem primeiro.
+    expect(describeEmptyCargoConference({ ...base, blsWithoutCustomer: 133, eligibleBls: 0, blsInScope: 0, voyageCancelled: true }))
+      .toBe('A Viagem está cancelada: Viagem cancelada não recebe Comunicado.')
   })
 })
 

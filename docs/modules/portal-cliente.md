@@ -139,12 +139,15 @@ sem chave do Supabase, com o token do Turnstile do widget público
   descarga, Dentro do free time, Free time vencido, Free time a confirmar com a
   Fwlog, Devolvido), data limite de devolução, tipo, navio, viagem, porto de
   descarga, descarga, free time em dias e devolução, com "Consultado em".
-  Só B/L com CE Mercante, o mesmo recorte do Portal (`bl_has_portal_release`).
+  Só B/L com CE Mercante, o mesmo recorte do Portal (`bl_has_portal_release`),
+  e com Cliente vinculado (migration `545`): o B/L sem Cliente não está no
+  Portal de ninguém, e o free time dele seria o da tabela, não o do acordo.
   Cobre Salvador, Vitória, Pecém e Suape: containers descarregados ou
   previstos nos últimos 90 dias e os que ainda não foram devolvidos, qualquer
   que seja a idade da descarga. A resposta é sempre a da Viagem mais recente
   do número (B/L e Viagem cancelados não contam): se ela não pode aparecer
-  (B/L ainda sem CE Mercante, SOC, porto fora da consulta ou fora da janela),
+  (B/L ainda sem CE Mercante ou sem Cliente, SOC, porto fora da consulta ou
+  fora da janela),
   é "não encontrado", nunca a Viagem anterior (migration `543`). Qualquer "não
   encontrado" tem a mesma frase ("Não encontramos este container. Containers
   de Salvador, Vitória, Pecém e Suape: …"). Muitas consultas do mesmo

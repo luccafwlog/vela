@@ -536,7 +536,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
   it('a recusa manda excluir o B/L na outra Viagem e importar de novo, como o arquivo de B/L de container — regra: migrations 500 e 511, BLR-026, BLR-053', () => {
     // 511: com acento, como a prévia ("exclua o B/L lá"; antes "la").
     expect(otherVoyage?.error).toContain('O B/L A201-BB5 já está na Viagem')
-    expect(otherVoyage?.error).toContain('Nenhum B/L do lote foi gravado: exclua o B/L lá e importe de novo (cancelar não libera o número).')
+    expect(otherVoyage?.error).toContain('Nenhum B/L do lote foi gravado: exclua o B/L lá (se tiver CE Mercante, tire o CE antes) e importe de novo (cancelar não libera o número).')
     expect(otherVoyage?.error).not.toContain('pela ficha')
   })
 

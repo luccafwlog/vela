@@ -7,6 +7,14 @@ no pedido da tarefa). Implementada na migration `542`, nas Edge Functions
 `/portal/publico/chegadas-saidas` e `/portal/publico/consulta-container` do
 Portal e na Pages Function `functions/portal/publico/[[path]].ts`.
 
+> **Situação atual (2026-10-30):** a migration `543` (revisão da PR
+> luccafwlog/vela#1119) faz a consulta responder só pela Viagem mais recente
+> do número (decisão 3); se ela não pode aparecer, a resposta é "não
+> encontrado". A `545` (revisão da release luccafwlog/vela#1117) tira da
+> consulta também o B/L sem Cliente vinculado, pela regra da decisão 7: o B/L
+> sem Cliente não está no Portal de ninguém, e o free time dele seria o da
+> tabela, não o do acordo do Cliente.
+
 Supersede parcialmente a [ADR 0090](./0090-programacao-de-navios-so-com-sessao.md)
 só no ponto "nenhuma leitura pré-login": a programação e a consulta por
 container passam a ser lidas sem login, **por Edge Function com

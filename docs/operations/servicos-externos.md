@@ -263,7 +263,12 @@ paused` e a fila de efeitos não anda, nem pelo disparo da importação) e agend
 `import-effects-runner` à mão (jobid 24); às 12:02 UTC os 15 efeitos pendentes
 concluíram em 13 s. A migration `532` agenda o que ainda faltar (na staging,
 `portal-email-events-runner`) e não toca no job que já existe. Os demais valores
-dos Edge Function Secrets da branch não foram conferidos.
+dos Edge Function Secrets da branch não foram conferidos. Pendente (revisão da
+release luccafwlog/vela#1117): esse runner da staging roda a cada minuto e, a
+cada chamada autorizada, avisa o heartbeat `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`;
+conferir que o segredo da branch não tem a URL do heartbeat da produção, que
+continuaria Up com a produção parada. Se tiver, apagar o segredo da branch ou
+pausar o job lá (`cron.alter_job(<jobid>, active := false)`).
 
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
@@ -1191,7 +1196,8 @@ chegar à `main`, confira:
 2. As chamadas seguintes da `itau-pix` em `function_edge_logs` respondem 200.
 3. O checkpoint da consulta (`itau_pix_checkpoint`) continua andando.
 4. O Alerta `rotina_http_falhou` fecha sozinho quando a última hora volta a ter
-   no máximo uma resposta fora de 2xx (migration `533`).
+   no máximo uma resposta fora de 2xx (migration `533`) e nenhuma 401 ou 403
+   (migration `534`).
 
 Na branch Supabase `staging` a função também é republicada no merge, mas o job
 não a chama: nenhuma chamada da `itau-pix` nas 24 h até 11 h UTC de 23/10
@@ -1225,6 +1231,21 @@ retorno, o Itaú mandou `endToEndId`, `valor` e `horario` em todos,
 trouxe `pagador` nem `devedor`**: a consulta de recebimentos segue o padrão do
 Banco Central, sem nome nem CPF/CNPJ de quem pagou. A aba Pix recebidos mostra
 o que vem ([Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos)).
+
+**Staging e produção leem a mesma conta (conferido em 2026-10-30).** A branch
+Supabase `staging` (`uvgqfpleiyfythkhutlj`) roda a `itau-pix` e o job de
+recebimentos com a mesma conta e a mesma chave (`06352972000121`) da produção:
+o Pix de R$ 1,50 pago no Portal do staging (endToEndId
+`E18236120202610301817s102a1a7d74`) ficou gravado nos dois bancos, e todo Pix
+real da conta aparece também em Pix recebidos do staging. O staging está com
+`pix_provider = 'static'` (QR estático, sem cobrança Itaú); a produção, com
+`itau`. Por isso o Pix do QR estático só dá baixa automática no ambiente com o
+QR estático ligado; na produção fica "QR estático do Vela", sem baixa
+([ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md), migration
+`552`). Ligar a cobrança Itaú no staging emitiria cobranças `VELA…` reais nesta
+conta, e cada Pix delas iria para análise com Alerta na produção ("TXID do Vela
+sem cobrança"); é decisão do dono, com contas ou identificadores separados por
+ambiente.
 
 **Sandbox (só testes, desde 2026-10-06).** Aplicação de sandbox criada pelo
 dono no [Itaú for Developers](https://devportal.itau.com.br), na conta dele.

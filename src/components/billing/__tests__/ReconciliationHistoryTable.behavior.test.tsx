@@ -15,9 +15,13 @@ const baseRow = {
   invoiceType: 'individual',
   customerName: 'Cliente',
   customerCnpj: '12345678000190',
+  blCount: 1,
   blAmount: 10,
   totalAmount: 10,
-  totalPaid: 10,
+  amount: 10,
+  paymentAmount: 10,
+  method: 'itau',
+  bankReference: 'E1823612020261030',
   balance: 0,
   vesselName: 'Navio',
   voyageNumber: 'V1',
@@ -34,7 +38,7 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   lastQuery: null as null | { queryKey: unknown[] },
   queryState: {
-    data: null as null | { rows: unknown[]; totalCount: number; summary?: { invoices: number; received: number } },
+    data: null as null | { rows: unknown[]; totalCount: number; summary?: { payments: number; received: number } },
     isLoading: false,
     error: null as Error | null,
   },
@@ -51,8 +55,9 @@ vi.mock('../../../services/reconciliacao', async (importOriginal) => {
   return {
     listReconciliationHistory: vi.fn(),
     exportReconciliationHistoryExcel: mocks.exportExcel,
-    historyPaidAmount: actual.historyPaidAmount,
     historyBalance: actual.historyBalance,
+    paymentMethodLabel: actual.paymentMethodLabel,
+    PAYMENT_METHODS: actual.PAYMENT_METHODS,
   }
 })
 vi.mock('../../../services/billing', () => ({
@@ -88,11 +93,11 @@ beforeEach(() => {
   mocks.queryState.data = {
     rows: [
       baseRow,
-      { ...baseRow, id: 'local-2', invoiceId: 12, paymentId: 22, docNumber: 'INV-12', blId: 'BL2', status: 'partially_paid', blAmount: 300, totalAmount: 500, totalPaid: 200, balance: 300, invoiceType: 'consolidated' },
-      { ...baseRow, id: 'demurrage-31', source: 'demurrage', invoiceId: 31, paymentId: null, docNumber: 'DEM-31', invoiceType: null },
+      { ...baseRow, id: 'local-2', invoiceId: 12, paymentId: 22, docNumber: 'INV-12', blId: 'BL2', status: 'partially_paid', blAmount: 300, totalAmount: 500, amount: 200, paymentAmount: 200, method: 'manual', bankReference: 'TED 123', balance: 300, invoiceType: 'consolidated' },
+      { ...baseRow, id: 'demurrage-31', source: 'demurrage', invoiceId: 31, paymentId: null, docNumber: 'DEM-31', invoiceType: null, method: 'extract' },
     ],
     totalCount: 3,
-    summary: { invoices: 3, received: 220 },
+    summary: { payments: 3, received: 220 },
   }
   mocks.queryState.isLoading = false
   mocks.queryState.error = null
@@ -124,13 +129,17 @@ it('o número da fatura abre o detalhe da baixa escolhida, local ou de Demurrage
   expect(screen.queryByTitle('Detalhes')).toBeNull()
 })
 
-it('tabela limpa: colunas da tela, valor pago, saldo em âmbar e situação em texto', () => {
+it('tabela limpa: colunas da tela, forma da baixa, valor pago, saldo em âmbar e situação em texto', () => {
   renderTable()
   const headers = screen.getAllByRole('columnheader').map((th) => th.textContent)
-  expect(headers).toEqual(['Fatura', 'Origem', 'B/L', 'Cliente', 'Navio / Viagem', 'Pago em', 'Valor do B/L', 'Valor pago', 'Saldo', 'Situação'])
+  expect(headers).toEqual(['Fatura', 'Origem', 'B/L', 'Cliente', 'Navio / Viagem', 'Pago em', 'Forma da baixa', 'Valor do B/L', 'Valor pago', 'Saldo', 'Situação'])
   const partial = screen.getByRole('button', { name: 'INV-12' }).closest('tr')!
   const cells = Array.from(partial.querySelectorAll('td')).map((td) => td.textContent?.replace(/\s/g, ' '))
-  expect(cells).toEqual(['INV-12', 'Taxas Locais', 'BL2', 'Cliente', 'Navio / V1', '23/06/2026', 'R$ 300,00', 'R$ 200,00', 'R$ 300,00', 'Parcialmente paga'])
+  expect(cells).toEqual(['INV-12', 'Taxas Locais', 'BL2', 'Cliente', 'Navio / V1', '23/06/2026', 'Manual', 'R$ 300,00', 'R$ 200,00', 'R$ 300,00', 'Parcialmente paga'])
+  // A forma diz se a baixa foi automática pelo Itaú, pelo extrato ou à mão; a referência fica no título.
+  expect(screen.getByRole('button', { name: 'INV-11' }).closest('tr')!.textContent).toContain('Automática (Itaú)')
+  expect(screen.getByRole('button', { name: 'DEM-31' }).closest('tr')!.textContent).toContain('Pelo extrato')
+  expect(screen.getByTitle('Referência bancária: TED 123').textContent).toBe('Manual')
   // Saldo a receber em âmbar; consolidada com o ícone de pilha.
   expect(partial.querySelector('.app-status-text--warning')?.textContent?.replace(/\s/g, ' ')).toBe('R$ 300,00')
   expect(partial.querySelector('[aria-label="Consolidada"]')).toBeTruthy()
@@ -140,7 +149,7 @@ it('tabela limpa: colunas da tela, valor pago, saldo em âmbar e situação em t
   expect(screen.queryByText(/na fatura/)).toBeNull()
   expect(screen.queryByText('12.345.678/0001-90')).toBeNull()
   // Resumo do recorte na faixa do bloco.
-  expect(screen.getByText((text) => text.replace(/\s/g, ' ') === '3 faturas · R$ 220,00 pagos')).toBeTruthy()
+  expect(screen.getByText((text) => text.replace(/\s/g, ' ') === '3 baixas · R$ 220,00 pagos')).toBeTruthy()
   expect(screen.getByText('Exibindo 1–3 de 3')).toBeTruthy()
 })
 
@@ -181,6 +190,41 @@ it('trocar a Origem para Demurrage tira o Tipo de fatura em vez de prendê-lo no
   expect(lastFilters()).toEqual(expect.objectContaining({ source: 'demurrage', invoiceTypeFilter: '' }))
 })
 
+it('caso do staging: as baixas manuais da coberta aparecem e a consolidada mostra o valor de cada B/L', () => {
+  const consolidated = { ...baseRow, invoiceId: 20, paymentId: 11, docNumber: 'INV-2026-0005', invoiceType: 'consolidated', paymentAmount: 1.5, method: 'manual', bankReference: 'E18236120202610301817s102a1a7d74' }
+  const covered = { ...baseRow, invoiceType: 'individual', status: 'covered', method: 'manual', blAmount: 2470, totalAmount: 2470 }
+  mocks.queryState.data = {
+    rows: [
+      { ...consolidated, id: 'local-11-A', blId: 'CSC45630405Z00', blAmount: 1, totalAmount: 1.5, amount: 1 },
+      { ...consolidated, id: 'local-11-B', blId: 'CSC45630406300', blAmount: 0.5, totalAmount: 1.5, amount: 0.5 },
+      { ...covered, id: 'local-9-A', invoiceId: 17, paymentId: 9, docNumber: 'INV-2026-0002', blId: 'CSC45630405Z00', amount: 2469, paymentAmount: 2469, bankReference: 'TESTE COM O FINANCEIRO' },
+      { ...covered, id: 'local-10-B', invoiceId: 18, paymentId: 10, docNumber: 'INV-2026-0003', blId: 'CSC45630406300', amount: 2469.5, paymentAmount: 2469.5, bankReference: 'TESTE' },
+    ],
+    totalCount: 4,
+    summary: { payments: 3, received: 4940 },
+  }
+  renderTable()
+  const cells = (doc: string, bl: string) => Array.from(screen.getAllByRole('button', { name: doc })
+    .map((button) => button.closest('tr')!)
+    .find((tr) => tr.textContent!.includes(bl))!
+    .querySelectorAll('td')).map((td) => td.textContent?.replace(/\s/g, ' '))
+  expect(cells('INV-2026-0002', 'CSC45630405Z00').slice(6)).toEqual(['Manual', 'R$ 2.470,00', 'R$ 2.469,00', 'R$ 0,00', 'Coberta pela consolidada'])
+  expect(cells('INV-2026-0003', 'CSC45630406300').slice(6)).toEqual(['Manual', 'R$ 2.470,00', 'R$ 2.469,50', 'R$ 0,00', 'Coberta pela consolidada'])
+  expect(cells('INV-2026-0005', 'CSC45630405Z00').slice(6)).toEqual(['Manual', 'R$ 1,00', 'R$ 1,00', 'R$ 0,00', 'Paga'])
+  expect(cells('INV-2026-0005', 'CSC45630406300').slice(6)).toEqual(['Manual', 'R$ 0,50', 'R$ 0,50', 'R$ 0,00', 'Paga'])
+  expect(screen.getAllByTitle('Baixa de R$ 1,50 na fatura')).toHaveLength(2)
+  expect(screen.getByText((text) => text.replace(/\s/g, ' ') === '3 baixas · R$ 4.940,00 pagos')).toBeTruthy()
+})
+
+it('Forma da baixa fica em Mais filtros e vai para a URL', async () => {
+  const user = userEvent.setup()
+  renderTable()
+  await user.click(screen.getByRole('button', { name: /Mais filtros/ }))
+  await user.selectOptions(screen.getByLabelText('Forma da baixa'), 'itau')
+  expect(screen.getByTestId('search').textContent).toBe('?tab=historico&forma=itau')
+  expect(lastFilters()).toEqual(expect.objectContaining({ method: 'itau', page: 1 }))
+})
+
 it('página além do fim vai para a última existente sem dizer que não há baixas', () => {
   renderTable('/reconciliacao?tab=historico&pagina=999')
 
@@ -204,7 +248,7 @@ it('erro de consulta não vira lista vazia nem "Nenhum registro"', async () => {
 })
 
 it('vazio com filtro oferece Limpar filtros; sem filtro explica o que aparece aqui', async () => {
-  mocks.queryState.data = { rows: [], totalCount: 0, summary: { invoices: 0, received: 0 } }
+  mocks.queryState.data = { rows: [], totalCount: 0, summary: { payments: 0, received: 0 } }
   const user = userEvent.setup()
   const { unmount } = renderTable('/reconciliacao?tab=historico&bl=XX')
   expect(screen.getByText('Nenhuma baixa neste recorte')).toBeTruthy()

@@ -1,4 +1,4 @@
-import type { ItauPixReceiptOrigin, ItauPixReceiptSituation, ReconciliationFilters } from '../services/reconciliacao'
+import { PAYMENT_METHODS, type ItauPixReceiptOrigin, type ItauPixReceiptSituation, type PaymentMethod, type ReconciliationFilters } from '../services/reconciliacao'
 
 // Estado de /reconciliacao na URL: aba, filtros do histórico de baixas e da
 // aba Pix recebidos. Sem `tab`, a tela abre no Histórico de baixas (lote 3 da
@@ -15,11 +15,11 @@ export function reconciliacaoTabFromSearch(params: URLSearchParams): Reconciliac
   return RECONCILIACAO_TABS.includes(tab as ReconciliacaoTab) ? (tab as ReconciliacaoTab) : 'historico'
 }
 
-export type HistorySortField = 'paidAt' | 'docNumber' | 'customerName' | 'blAmount' | 'totalAmount' | 'blId'
+export type HistorySortField = 'paidAt' | 'docNumber' | 'customerName' | 'blAmount' | 'amount' | 'totalAmount' | 'blId'
 
 export type HistoryUrlState = Pick<
   ReconciliationFilters,
-  'paidFrom' | 'paidTo' | 'source' | 'invoiceTypeFilter' | 'customerId' | 'blSearch' | 'vesselSearch' | 'voyageSearch' | 'pod' | 'page' | 'pageSize'
+  'paidFrom' | 'paidTo' | 'source' | 'method' | 'invoiceTypeFilter' | 'customerId' | 'blSearch' | 'vesselSearch' | 'voyageSearch' | 'pod' | 'page' | 'pageSize'
 > & {
   /** Nome exibido no campo de Cliente; o filtro é pelo id. */
   customerName: string
@@ -35,6 +35,7 @@ const PARAM = {
   paidFrom: 'de',
   paidTo: 'ate',
   source: 'origem',
+  method: 'forma',
   invoiceTypeFilter: 'tipo',
   customerId: 'cliente',
   customerName: 'clienteNome',
@@ -52,10 +53,10 @@ export type HistoryFilterKey = Exclude<keyof HistoryUrlState, 'page' | 'pageSize
 
 /** Filtros que contam como "ativos" na barra (o nome do Cliente vem junto do id). */
 export const HISTORY_FILTER_KEYS: readonly HistoryFilterKey[] = [
-  'paidFrom', 'paidTo', 'source', 'invoiceTypeFilter', 'customerId', 'blSearch', 'vesselSearch', 'voyageSearch', 'pod',
+  'paidFrom', 'paidTo', 'source', 'method', 'invoiceTypeFilter', 'customerId', 'blSearch', 'vesselSearch', 'voyageSearch', 'pod',
 ]
 
-const SORTS: readonly HistorySortField[] = ['paidAt', 'docNumber', 'customerName', 'blAmount', 'totalAmount', 'blId']
+const SORTS: readonly HistorySortField[] = ['paidAt', 'docNumber', 'customerName', 'blAmount', 'amount', 'totalAmount', 'blId']
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 function positiveInt(value: string | null): number | null {
@@ -65,6 +66,7 @@ function positiveInt(value: string | null): number | null {
 
 export function historyStateFromSearch(params: URLSearchParams): HistoryUrlState {
   const source = params.get(PARAM.source)
+  const method = params.get(PARAM.method)
   const type = params.get(PARAM.invoiceTypeFilter)
   const size = positiveInt(params.get(PARAM.pageSize))
   const sort = params.get(PARAM.sort)
@@ -80,6 +82,7 @@ export function historyStateFromSearch(params: URLSearchParams): HistoryUrlState
     paidFrom: date('paidFrom'),
     paidTo: date('paidTo'),
     source: source === 'local' || demurrage ? source : '',
+    method: PAYMENT_METHODS.includes(method as PaymentMethod) ? (method as PaymentMethod) : '',
     invoiceTypeFilter: !demurrage && (type === 'consolidated' || type === 'single' || type === 'manual') ? type : '',
     customerId: customerId ? String(customerId) : '',
     customerName: customerId ? params.get(PARAM.customerName) ?? '' : '',
@@ -194,7 +197,7 @@ const RECEIVED_PARAM = {
 
 export const RECEIVED_FILTER_KEYS: readonly ReceivedFilterKey[] = ['from', 'to', 'situation', 'origin', 'amount', 'search']
 const SITUATIONS: readonly ItauPixReceiptSituation[] = ['settled', 'received', 'review', 'handled']
-const ORIGINS: readonly ItauPixReceiptOrigin[] = ['vela', 'none', 'other', 'test']
+const ORIGINS: readonly ItauPixReceiptOrigin[] = ['vela', 'static', 'none', 'other', 'test']
 
 export function receivedStateFromSearch(params: URLSearchParams): ReceivedUrlState {
   const date = (key: 'from' | 'to') => {

@@ -1,125 +1,72 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { listReconciliationHistory } from '../reconciliacao'
 
-const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }))
+const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
 
 vi.mock('../supabase', () => ({
-  supabase: { from: mockFrom },
+  supabase: { rpc: mockRpc },
 }))
 
-function localInvoice(id: number, blId: string) {
+// Linha como `list_payment_history` (migration 553) devolve: uma por baixa e B/L.
+function rpcRow(patch: Record<string, unknown>) {
   return {
-    id,
-    invoice_number: `INV-${id}`,
-    customer_id: 1,
-    total_brl: 100,
-    status: 'paid',
-    invoice_type: 'individual',
-    total_paid_brl: 100,
-    balance_brl: 0,
-    created_at: '2026-01-01T00:00:00Z',
-    customer: { id: 1, name: 'Cliente', cnpj_cpf: '123' },
-    invoice_bls: [{
-      id,
-      bl_id: blId,
-      subtotal_brl: 100,
-      bl: { pod: 'BRVIT', voyage: { voyage_number: 'V1', vessel: { name: 'Navio' } } },
-    }],
-    invoice_receivable_links: [],
-    payments: [{ id, paid_at: '2026-01-01T10:00:00Z' }],
-  }
-}
-
-function manualInvoice() {
-  return {
-    id: 42,
-    invoice_number: 'INV-AV-42',
-    customer_id: 1,
-    bl_id: null,
-    voyage_id: 42,
-    issued_at: '2026-01-02T00:00:00Z',
-    total_brl: 250,
-    status: 'paid',
-    invoice_type: 'manual',
-    total_paid_brl: 250,
-    balance_brl: 0,
-    created_at: '2026-01-02T00:00:00Z',
-    customer: { id: 1, name: 'Cliente', cnpj_cpf: '123' },
-    voyage: { id: 42, voyage_number: '42N', vessel: { name: 'Navio Manual' } },
-    invoice_bls: [],
-    invoice_receivable_links: [],
-    payments: [{ id: 42, paid_at: '2026-01-02T10:00:00Z' }],
+    source: 'local', invoice_id: 1, doc_number: 'INV-1', invoice_type: 'individual', invoice_status: 'paid',
+    invoice_total_brl: 100, invoice_balance_brl: 0, customer_name: 'Cliente', customer_cnpj: '123',
+    payment_id: 1, paid_at: '2026-01-01T10:00:00+00:00', payment_amount_brl: 100, method: 'manual', bank_reference: null,
+    bl_id: 'BL-1', bl_count: 1, bl_amount_brl: 100, amount_brl: 100, pod: 'BRVIT', voyage_number: 'V1', vessel_name: 'Navio',
+    ...patch,
   }
 }
 
 beforeEach(() => {
-  mockFrom.mockReset()
+  mockRpc.mockReset()
 })
 
-it('pagina toda a fonte antes de aplicar filtros do histórico', async () => {
-  const firstLocalPage = Array.from({ length: 1000 }, (_, index) => localInvoice(index + 1, `OTHER-${index}`))
-  const finalLocalPage = [localInvoice(2001, 'TARGET-BL')]
-  const ranges = new Map<string, number>()
+it('lê as baixas pela RPC, com o Cliente no servidor e os demais filtros sobre a lista inteira', async () => {
+  const many = Array.from({ length: 1200 }, (_, index) => rpcRow({ payment_id: index + 1, bl_id: `OTHER-${index}` }))
+  mockRpc.mockResolvedValue({ data: [...many, rpcRow({ payment_id: 5000, bl_id: 'TARGET-BL' })], error: null })
 
-  mockFrom.mockImplementation((table: string) => {
-    let start = 0
-    const builder = {
-      select: vi.fn(() => builder),
-      in: vi.fn(() => builder),
-      eq: vi.fn(() => builder),
-      order: vi.fn(() => builder),
-      limit: vi.fn(() => builder),
-      range: vi.fn((from: number) => {
-        start = from
-        ranges.set(table, (ranges.get(table) ?? 0) + 1)
-        return builder
-      }),
-      overrideTypes: vi.fn(() => builder),
-      then: (resolve: (value: unknown) => unknown) => Promise.resolve({
-        data: table === 'invoices'
-          ? start === 0 ? firstLocalPage : finalLocalPage
-          : [],
-        error: null,
-      }).then(resolve),
-    }
-    return builder
-  })
+  const result = await listReconciliationHistory({ blSearch: 'TARGET', customerId: '7', page: 1, pageSize: 50 })
 
-  const result = await listReconciliationHistory({
-    blSearch: 'TARGET',
-    page: 1,
-    pageSize: 50,
-  })
-
-  expect(result.rows).toHaveLength(1)
-  expect(result.rows[0]?.blId).toBe('TARGET-BL')
-  expect(ranges.get('invoices')).toBe(2)
+  expect(mockRpc).toHaveBeenCalledWith('list_payment_history', { p_customer_id: 7 })
+  expect(result.rows.map((r) => r.blId)).toEqual(['TARGET-BL'])
+  expect(result.totalCount).toBe(1)
 })
 
-it('lista fatura avulsa paga sem B/L e preserva seu navio e viagem diretos', async () => {
-  mockFrom.mockImplementation((table: string) => {
-    const builder = {
-      select: vi.fn(() => builder),
-      in: vi.fn(() => builder),
-      eq: vi.fn(() => builder),
-      order: vi.fn(() => builder),
-      range: vi.fn(() => builder),
-      overrideTypes: vi.fn(() => builder),
-      then: (resolve: (value: unknown) => unknown) => Promise.resolve({
-        data: table === 'invoices' ? [manualInvoice()] : [],
-        error: null,
-      }).then(resolve),
-    }
-    return builder
+it('lista a avulsa sem B/L com o navio e a viagem dela e a forma da baixa', async () => {
+  mockRpc.mockResolvedValue({
+    data: [rpcRow({ invoice_id: 42, doc_number: 'INV-AV-42', invoice_type: 'manual', bl_id: null, bl_count: 0,
+      voyage_number: '42N', vessel_name: 'Navio Manual', method: 'itau', bank_reference: 'E42' })],
+    error: null,
   })
 
   const result = await listReconciliationHistory({ invoiceTypeFilter: 'manual' })
 
   expect(result.rows).toHaveLength(1)
-  expect(result.rows[0]).toMatchObject({
-    invoiceType: 'manual',
-    blId: '-',
-    vesselName: 'Navio Manual',
-    voyageNumber: '42N',
+  expect(result.rows[0]).toMatchObject({ invoiceType: 'manual', blId: '-', blCount: 0, vesselName: 'Navio Manual', voyageNumber: '42N',
+    method: 'itau', bankReference: 'E42' })
+})
+
+it('filtra pela forma da baixa e mantém juntas as linhas de B/L da mesma baixa', async () => {
+  mockRpc.mockResolvedValue({
+    data: [
+      rpcRow({ payment_id: 11, invoice_id: 20, bl_id: 'B', amount_brl: 0.5, payment_amount_brl: 1.5, method: 'itau', paid_at: '2026-10-30T18:18:15+00:00' }),
+      rpcRow({ payment_id: 9, invoice_id: 17, bl_id: 'A', amount_brl: 2469, method: 'manual', paid_at: '2026-10-30T15:00:00+00:00' }),
+      rpcRow({ payment_id: 11, invoice_id: 20, bl_id: 'A', amount_brl: 1, payment_amount_brl: 1.5, method: 'itau', paid_at: '2026-10-30T18:18:15+00:00' }),
+    ],
+    error: null,
   })
+
+  const all = await listReconciliationHistory({})
+  expect(all.rows.map((r) => `${r.paymentId}-${r.blId}`)).toEqual(['11-A', '11-B', '9-A'])
+  expect(all.summary).toEqual({ payments: 2, received: 2470.5 })
+
+  const itau = await listReconciliationHistory({ method: 'itau' })
+  expect(itau.rows.map((r) => r.amount)).toEqual([1, 0.5])
+  expect(itau.summary).toEqual({ payments: 1, received: 1.5 })
+})
+
+it('erro da RPC falha a leitura em vez de devolver lista vazia', async () => {
+  mockRpc.mockResolvedValue({ data: null, error: { message: 'Sem permissão para consultar o histórico de baixas.' } })
+  await expect(listReconciliationHistory({})).rejects.toMatchObject({ message: 'Sem permissão para consultar o histórico de baixas.' })
 })

@@ -134,6 +134,8 @@ describe('Pix recebidos (ADR 0100)', () => {
     expect(receiptOriginLabel('none')).toBe('Sem identificador')
     // Ponto 12 de 2026-10-23: o Pix de outro sistema na mesma chave é o da ZPT.
     expect(receiptOriginLabel('other')).toBe('ZPT')
+    // ADR 0115: o QR estático do Vela não é da ZPT.
+    expect(receiptOriginLabel('static')).toBe('QR estático do Vela')
   })
 
   it('fatura da linha: a da baixa e, sem baixa, a da cobrança do Vela', () => {

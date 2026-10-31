@@ -14,9 +14,10 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 
 const adminId = '00000000-0000-0000-0000-000000519001'
 const customerId = 99519001
+const otherCustomerId = 99519002 // troca de CNPJ e caixa dividida (550)
 const carrierId = 99519003
 const vesselId = 99519004
-const CASES = ['manual', 'itau', 'extrato', 'isencao', 'reversed', 'waiting', 'billed', 'reissued'] as const
+const CASES = ['manual', 'itau', 'extrato', 'isencao', 'reversed', 'waiting', 'billed', 'reissued', 'soc', 'cnpj', 'split'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99519100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -65,7 +66,7 @@ function cleanup() {
     CREATE TEMP TABLE r519_alerts AS SELECT id FROM public.alerts
       WHERE (entity_type = 'demurrage_invoice' AND entity_id IN (SELECT id::text FROM r519_invoices))
          OR (entity_type = 'bl' AND entity_id IN (SELECT id FROM r519_bls))
-         OR (entity_type = 'customer' AND entity_id = '${customerId}');
+         OR (entity_type = 'customer' AND entity_id IN ('${customerId}', '${otherCustomerId}'));
     CREATE TEMP TABLE r519_items AS SELECT id FROM public.alert_items
       WHERE alert_id IN (SELECT id FROM r519_alerts) OR metadata->>'bl_id' LIKE '${blPrefix}%';
     DELETE FROM public.internal_notifications WHERE alert_item_id IN (SELECT id FROM r519_items) OR alert_id IN (SELECT id FROM r519_alerts);
@@ -74,7 +75,7 @@ function cleanup() {
     DELETE FROM public.alert_notification_failures WHERE alert_item_id IN (SELECT id FROM r519_items) OR alert_id IN (SELECT id FROM r519_alerts);
     DELETE FROM public.alert_items WHERE id IN (SELECT id FROM r519_items);
     DELETE FROM public.alerts WHERE id IN (SELECT id FROM r519_alerts);
-    DELETE FROM public.portal_notifications WHERE customer_id = ${customerId} OR bl_id IN (SELECT id FROM r519_bls);
+    DELETE FROM public.portal_notifications WHERE customer_id IN (${customerId}, ${otherCustomerId}) OR bl_id IN (SELECT id FROM r519_bls);
     DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'R519%';
     DELETE FROM public.itau_pix_charges WHERE demurrage_invoice_id IN (SELECT id FROM r519_invoices);
     DELETE FROM public.demurrage_calculation_snapshots WHERE demurrage_invoice_id IN (SELECT id FROM r519_invoices);
@@ -83,8 +84,12 @@ function cleanup() {
     DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (SELECT id FROM r519_invoices);
     DELETE FROM public.demurrage_invoice_items WHERE invoice_id IN (SELECT id FROM r519_invoices);
     DELETE FROM public.demurrage_invoices WHERE id IN (SELECT id FROM r519_invoices);
-    DELETE FROM public.demurrage_box_waivers WHERE customer_id = ${customerId};
+    DELETE FROM public.demurrage_box_waivers WHERE customer_id IN (${customerId}, ${otherCustomerId});
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM r519_bls);
+    -- 550: a troca de SOC e de Cliente recalcula as Taxas Locais do B/L.
+    DELETE FROM public.bl_receivables WHERE bl_id IN (SELECT id FROM r519_bls) OR customer_id IN (${customerId}, ${otherCustomerId});
+    DELETE FROM public.charge_calculations WHERE bl_id IN (SELECT id FROM r519_bls);
+    DELETE FROM public.pricing_rule_versions WHERE version_key LIKE '%|customer:${customerId}|%' OR version_key LIKE '%|customer:${otherCustomerId}|%';
     DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM r519_bls);
     DELETE FROM public.bls WHERE id IN (SELECT id FROM r519_bls);
     DELETE FROM public.voyage_documental_pending WHERE voyage_id IN (${voyageIds});
@@ -96,8 +101,8 @@ function cleanup() {
     DELETE FROM public.carriers WHERE id = ${carrierId};
     SET session_replication_role = origin;
     SET vela.retention = 'on';
-    DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
-    DELETE FROM public.customers WHERE id = ${customerId};
+    DELETE FROM public.customer_billing_portal_releases WHERE customer_id IN (${customerId}, ${otherCustomerId});
+    DELETE FROM public.customers WHERE id IN (${customerId}, ${otherCustomerId});
     DELETE FROM public.user_profiles WHERE id = '${adminId}';
     DELETE FROM auth.users WHERE id = '${adminId}';
   `)
@@ -110,6 +115,11 @@ function issued(name: Case, container: string): number {
                 '9951900000${CASES.indexOf(name)}', true, 5.5)`)
   psql(`INSERT INTO public.bl_containers (bl_id, container_number, type, discharge_date, return_date, ownership)
         VALUES ('${blOf(name)}', '${container}', '40HC', ${day(-40)}, ${day(-5)}, 'COC')`)
+  // 550: no caso SOC, a Invoice cobra duas caixas e uma delas passa a SOC.
+  if (name === 'soc') {
+    psql(`INSERT INTO public.bl_containers (bl_id, container_number, type, discharge_date, return_date, ownership)
+          VALUES ('${blOf(name)}', 'RQCU5199901', '40HC', ${day(-40)}, ${day(-5)}, 'COC')`)
+  }
   const result = JSON.parse(psql(`SET vela.demurrage_internal = 'on'; SELECT public.issue_demurrage_invoice_for_bl('${blOf(name)}')`)) as { status: string; invoice_id: number }
   expect(result.status).toBe('issued')
   return result.invoice_id
@@ -139,9 +149,12 @@ describeLocal('Meio de pagamento e destino das caixas da Demurrage (migration 51
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'r519-admin@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'R519 Administrativo', 'administrativo', true);
-      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${syntheticCnpj(519001)}', 'R519 CLIENTE');
-      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
-      VALUES (${customerId}, 'Fixture R519: gate aberto para a Demurrage', '${adminId}', now() + interval '1 day');
+      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
+        (${customerId}, '${syntheticCnpj(519001)}', 'R519 CLIENTE'),
+        (${otherCustomerId}, '${syntheticCnpj(519002)}', 'R519 OUTRO CLIENTE');
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at) VALUES
+        (${customerId}, 'Fixture R519: gate aberto para a Demurrage', '${adminId}', now() + interval '1 day'),
+        (${otherCustomerId}, 'Fixture R519: gate aberto para a Demurrage', '${adminId}', now() + interval '1 day');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'R519 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'R519 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
@@ -170,6 +183,10 @@ describeLocal('Meio de pagamento e destino das caixas da Demurrage (migration 51
       asAdmin(`SELECT public.confirm_demurrage_pix_matches(jsonb_build_array(jsonb_build_object(
         'invoice_id', ${ids.extrato}, 'paid_at', ${day(0)}, 'pix_txid', 'R519EXTRATO01', 'total_brl', ${brl(ids.extrato)})))`)
       expect(method(ids.extrato)).toBe('extrato')
+      // 548: a recusa da lista inválida chega à tela com acento.
+      const refused = run(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated';
+        SET LOCAL request.jwt.claim.sub = '${adminId}'; SELECT public.confirm_demurrage_pix_matches('{}'::jsonb); ROLLBACK;`)
+      expect(refused.stderr).toContain('Lista de conciliação inválida.')
     })
 
     it('desconto integral é isenção', () => {
@@ -211,8 +228,49 @@ describeLocal('Meio de pagamento e destino das caixas da Demurrage (migration 51
       expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${ids.reissued}`)).toBe('cancelled')
       const replacement = psql(`SELECT id || '|' || doc_number FROM public.demurrage_invoices WHERE replaces_invoice_id = ${ids.reissued}`).split('|')
       const detail = details(ids.reissued)
-      expect(detail.cancel_reason).toMatch(/reemissão automática/)
+      expect(detail.cancel_reason).toBe('Datas de container alteradas: cancelada para reemissão automática.')
       expect(detail.box_destinations).toEqual([{ kind: 'reemitida', invoice_id: Number(replacement[0]), doc_number: replacement[1], containers: ['RQCU5190007'] }])
+    })
+  })
+
+  describe('motivo pela causa e destino das caixas (550)', () => {
+    const replacementOf = (invoiceId: number) => psql(`SELECT id || '|' || doc_number FROM public.demurrage_invoices
+      WHERE status = 'issued' AND bl_id = (SELECT bl_id FROM public.demurrage_invoices WHERE id = ${invoiceId}) AND id <> ${invoiceId}
+      ORDER BY id DESC LIMIT 1`).split('|')
+
+    it('container que passa a SOC: o motivo diz SOC, a caixa SOC sai do destino e a outra é reemitida', () => {
+      const socId = psql(`SELECT id FROM public.bl_containers WHERE container_number = 'RQCU5199901'`)
+      asAdmin(`SELECT public.set_bl_container_ownership(${socId}, 'SOC', 'Container do embarcador, não do armador', '${adminId}')`)
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${ids.soc}`)).toBe('cancelled')
+      const [replacementId, replacementDoc] = replacementOf(ids.soc)
+      // A reemissão saiu sozinha: a cancelada pela causa nova não conta como à mão (530).
+      expect(psql(`SELECT replaces_invoice_id FROM public.demurrage_invoices WHERE id = ${replacementId}`)).toBe(String(ids.soc))
+      const detail = details(ids.soc)
+      expect(detail.cancel_reason).toBe('Container passou a SOC: cancelada para reemissão automática.')
+      expect(detail.box_destinations).toEqual([{ kind: 'reemitida', invoice_id: Number(replacementId), doc_number: replacementDoc, containers: ['RQCU5190008'] }])
+    })
+
+    it('troca de CNPJ do B/L: a caixa aparece reemitida na Invoice do Cliente novo', () => {
+      asAdmin(`UPDATE public.bls SET customer_id = ${otherCustomerId} WHERE id = '${blOf('cnpj')}'`)
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${ids.cnpj}`)).toBe('cancelled')
+      const [replacementId, replacementDoc] = replacementOf(ids.cnpj)
+      expect(psql(`SELECT customer_id FROM public.demurrage_invoices WHERE id = ${replacementId}`)).toBe(String(otherCustomerId))
+      const detail = details(ids.cnpj)
+      expect(detail.cancel_reason).toMatch(/^Troca de CNPJ do B\/L R519-CNPJ/)
+      expect(detail.box_destinations).toEqual([{ kind: 'reemitida', invoice_id: Number(replacementId), doc_number: replacementDoc, containers: ['RQCU5190009'] }])
+    })
+
+    it('caixa que passa a ser dividida com outro Cliente: o motivo diz a divisão (D22)', () => {
+      psql(`INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status, ce_mercante, demurrage_roe_manual, demurrage_roe)
+            VALUES ('${blPrefix}SPLIT-B', ${voyageOf('split')}, ${otherCustomerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', '9951900099', true, 5.5)`)
+      psql(`INSERT INTO public.bl_containers (bl_id, container_number, type, discharge_date, return_date, ownership)
+            VALUES ('${blPrefix}SPLIT-B', 'RQCU5190010', '40HC', ${day(-40)}, ${day(-5)}, 'COC')`)
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${ids.split}`)).toBe('cancelled')
+      const [replacementId] = replacementOf(ids.split)
+      expect(psql(`SELECT box_share_count FROM public.demurrage_invoice_items WHERE invoice_id = ${replacementId}`)).toBe('2')
+      const detail = details(ids.split)
+      expect(detail.cancel_reason).toBe('Divisão da caixa entre Clientes alterada: cancelada para reemissão automática.')
+      expect(detail.box_destinations.map((item) => item.kind)).toEqual(['reemitida'])
     })
   })
 

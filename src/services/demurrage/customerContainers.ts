@@ -28,7 +28,7 @@ const SELECT = `
 
 export async function listCustomerContainers(customerId: number): Promise<DemurrageContainerRow[]> {
   await ensureDemurrageRatesLoaded()
-  const [containers, items, agreements, board] = await Promise.all([
+  const [containers, items, agreements, board, waivers] = await Promise.all([
     readAll<DemurrageContainerRow & { bl: { customer_id: number | null; cancelled_at: string | null } | null }>((from, to) => supabase
       .from('bl_containers')
       .select(SELECT)
@@ -54,10 +54,21 @@ export async function listCustomerContainers(customerId: number): Promise<Demurr
       .range(from, to)),
     // Caixa dividida entre Clientes (D19, migration 521): a parte do Cliente vem da classificação.
     listDemurrageBillingBoard({ customerId }),
+    // Dispensas vivas do Cliente (migration 517): a classificação nem devolve o
+    // grupo todo dispensado, então a ficha lê a dispensa direto.
+    readAll<{ voyage_id: number; container_key: string }>((from, to) => supabase
+      .from('demurrage_box_waivers' as never)
+      .select('voyage_id, container_key')
+      .eq('customer_id', customerId)
+      .is('revoked_at', null)
+      .order('id')
+      .range(from, to)),
   ])
   const billed = indexBilledBoxes(items)
+  const boxKey = (voyageId: number | null | undefined, number: string | null | undefined) => `${voyageId}|${(number ?? '').trim().toUpperCase()}`
   const shares = new Map<string, number>(board.flatMap((group) => group.boxes.map((box) =>
-    [`${group.voyage_id}|${box.container_number.trim().toUpperCase()}`, Math.max(1, Number(box.box_share_count ?? 1))] as [string, number])))
+    [boxKey(group.voyage_id, box.container_number), Math.max(1, Number(box.box_share_count ?? 1))] as [string, number])))
+  const waived = new Set(waivers.map((waiver) => boxKey(waiver.voyage_id, waiver.container_key)))
   return containers.map((row) => {
     const agreement = selectAgreementForDischargeDate(agreements, row.discharge_date)
     const key = demurrageBoxKey(row.bl?.voyage_id, customerId, row.container_number)
@@ -65,7 +76,8 @@ export async function listCustomerContainers(customerId: number): Promise<Demurr
       ...row,
       customer_agreement: agreement ? { id: agreement.id, free_days: agreement.free_days, p1_usd: agreement.p1_usd, p2_usd: agreement.p2_usd } : null,
       billed_in: key ? billed.get(key) ?? [] : [],
-      box_share_count: shares.get(`${row.bl?.voyage_id}|${(row.container_number ?? '').trim().toUpperCase()}`) ?? 1,
+      box_share_count: shares.get(boxKey(row.bl?.voyage_id, row.container_number)) ?? 1,
+      waived: waived.has(boxKey(row.bl?.voyage_id, row.container_number)),
     }
   })
 }
@@ -76,6 +88,8 @@ export type CustomerContainerDemurrage =
   | { kind: 'running'; usd: number }
   | { kind: 'to_bill'; usd: number }
   | { kind: 'invoice'; invoice: DemurrageBilledInvoiceRef }
+  /** Cobrança dispensada na Demurrage (ADR 0112, D24): fora de "em curso" e "a faturar". */
+  | { kind: 'waived' }
   | { kind: 'error'; message: string }
 
 export type CustomerContainerView = {
@@ -100,6 +114,8 @@ export function customerContainerView(row: DemurrageContainerRow, today = saoPau
   // A fatura viva que cobra a caixa vence o valor previsto; a mais recente primeiro.
   const invoice = [...(row.billed_in ?? [])].sort((left, right) => right.id - left.id)[0]
   if (invoice) return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'invoice', invoice } }
+  // A dispensa conta como coberta (migration 517): sem valor previsto, como na aba Containers.
+  if (row.waived) return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'waived' } }
   // Viagem cancelada não cobra Demurrage (gatilho da migration 200): sem
   // Invoice, a caixa não está "correndo" nem "a faturar".
   const voyage = row.bl?.voyage as { status?: string | null } | null | undefined

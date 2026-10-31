@@ -93,6 +93,38 @@ it('recusa o tipo de arquivo antes de abrir a disputa', async () => {
   expect(openDispute).not.toHaveBeenCalled()
 })
 
+it('recusa a extensão que a Edge Function recusaria antes de abrir a disputa', async () => {
+  const user = userEvent.setup()
+  openDispute.mockReset()
+  render(<ConfirmDialogProvider><DisputeModal demurrageInvoiceId={1} docNumber="DEM-A" onClose={vi.fn()} /></ConfirmDialogProvider>)
+
+  // image/jpeg com nome .jfif: o tipo passa, a extensão não (fileSignature.ts).
+  chooseFile(new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'foto.jfif', { type: 'image/jpeg' }))
+  await user.type(screen.getByLabelText('Motivo da disputa'), 'Dias a mais')
+  await user.click(screen.getByRole('button', { name: 'Abrir disputa' }))
+
+  expect(screen.getByText('Tipo de anexo não permitido. Use PDF, JPG, PNG ou TXT.')).toBeTruthy()
+  expect(openDispute).not.toHaveBeenCalled()
+})
+
+it('sem os ids da disputa aberta, avisa que o anexo não foi enviado em vez de fechar', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  openDispute.mockReset()
+  uploadAttachment.mockReset()
+  openDispute.mockResolvedValue(null)
+  render(<ConfirmDialogProvider><DisputeModal demurrageInvoiceId={1} docNumber="DEM-A" onClose={onClose} /></ConfirmDialogProvider>)
+
+  chooseFile(new File(['%PDF'], 'eir.pdf', { type: 'application/pdf' }))
+  await user.type(screen.getByLabelText('Motivo da disputa'), 'Dias a mais')
+  await user.click(screen.getByRole('button', { name: 'Abrir disputa' }))
+  await user.click(within(screen.getByRole('dialog', { name: 'Confirmar abertura da disputa' })).getByRole('button', { name: 'Abrir disputa' }))
+
+  expect(await screen.findByText(/a disputa foi aberta, mas o anexo não pôde ser enviado/i)).toBeTruthy()
+  expect(uploadAttachment).not.toHaveBeenCalled()
+  expect(onClose).not.toHaveBeenCalled()
+})
+
 it('com a disputa aberta e o anexo recusado, reenvia só o anexo', async () => {
   const user = userEvent.setup()
   const onClose = vi.fn()

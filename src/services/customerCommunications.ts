@@ -909,7 +909,12 @@ export function describeEmptyCargoConference(input: {
   /** Elegíveis depois do CNPJ. */
   blsInScope: number
   portFiltered: boolean
+  /** A Viagem escolhida está cancelada: nenhum B/L dela recebe Comunicado. */
+  voyageCancelled?: boolean
 }): string {
+  // Vem antes dos outros motivos: vincular Cliente ou trocar o porto não
+  // resolve a Viagem cancelada (revisão da release #1117).
+  if (input.voyageCancelled) return 'A Viagem está cancelada: Viagem cancelada não recebe Comunicado.'
   // O recorte de porto entra nas contagens: contar a Viagem inteira mandava
   // trocar de filtro quando o porto escolhido só tinha B/L sem Cliente.
   const scope = input.portFiltered ? ' com o POL ou POD escolhido' : ''
@@ -1085,6 +1090,7 @@ export async function fetchCustomerCommunicationConference(input: {
       eligibleBls: filterCustomerCommunicationBls(baseRows, { ...input.filters, cnpj: '' }).length,
       blsInScope: inScope.length,
       portFiltered: Boolean(cleanFilter(input.filters.pol) || cleanFilter(input.filters.pod)),
+      voyageCancelled: rawRows.some((row) => row.voyage?.status === 'cancelled'),
     }),
   }
 }

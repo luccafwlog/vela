@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -225,5 +225,31 @@ describe('BlDetalhe - cancelamento bloqueado', () => {
     expect(alert.textContent).toContain('não pode ser cancelado agora')
     expect(alert.textContent).toContain('fatura em aberto')
     expect(cancelBlMock).toHaveBeenCalledWith('BL-BLOQ-1', '', { dryRun: true })
+  })
+
+  // Migration 530: B/L sem Cliente (ou tipo sem tarifa e sem free time) com
+  // sobreestadia; sai pela dispensa na Demurrage, não pela fatura.
+  it('Demurrage travada leva à divisão Travado, sem mandar cancelar fatura', async () => {
+    cleanup()
+    cancelBlMock.mockResolvedValue({ cancelled: false, reasons: ['Demurrage travada: vincule o Cliente ou cadastre a tarifa e emita a Invoice, ou dispense a cobrança na Demurrage'] })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls/BL-BLOQ-1']}>
+          <Routes>
+            <Route path="/bls/:blId" element={<BlDetalhe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mais ações do B/L' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Cancelar B\/L/ }))
+
+    // A ficha pode ter outro aviso (situação do Portal): o do cancelamento é o que diz o motivo.
+    const alert = (await screen.findByText(/não pode ser cancelado agora/)).closest('[role="alert"]') as HTMLElement
+    expect(alert.textContent).toContain('Demurrage travada')
+    expect(alert.textContent).not.toContain('Administrativo cancela a fatura')
+    expect(within(alert).getByRole('link', { name: 'Abrir em Demurrage' }).getAttribute('href')).toBe('/demurrage?divisao=travado&busca=BL-BLOQ-1')
   })
 })

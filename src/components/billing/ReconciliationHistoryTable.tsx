@@ -21,10 +21,11 @@ import { invoiceTypeLabel, listBillingCustomers } from '../../services/billing'
 import { historyRowStatus, pluralize } from './pixReconciliationPresentation'
 import { queryKeys } from '../../services/queryKeys'
 import {
+  PAYMENT_METHODS,
   exportReconciliationHistoryExcel,
   historyBalance,
-  historyPaidAmount,
   listReconciliationHistory,
+  paymentMethodLabel,
   type ReconciliationFilters,
   type ReconciliationHistoryRow,
 } from '../../services/reconciliacao'
@@ -55,7 +56,7 @@ function shipLine(row: ReconciliationHistoryRow): string | null {
 }
 
 /** Filtros que ficam em "Mais filtros"; os demais ficam abertos. */
-const MORE_FILTER_KEYS: readonly HistoryFilterKey[] = ['invoiceTypeFilter', 'vesselSearch', 'voyageSearch', 'pod']
+const MORE_FILTER_KEYS: readonly HistoryFilterKey[] = ['method', 'invoiceTypeFilter', 'vesselSearch', 'voyageSearch', 'pod']
 
 function countMoreFilters(state: HistoryUrlState) {
   return MORE_FILTER_KEYS.filter((key) => String(state[key] ?? '').trim() !== '').length
@@ -68,9 +69,10 @@ function HistoryStatus({ row }: { row: ReconciliationHistoryRow }) {
   return <>{status.label}</>
 }
 
+/** O que esta baixa pôs no B/L; na consolidada, a baixa inteira fica no título. */
 function PaidAmount({ row }: { row: ReconciliationHistoryRow }) {
-  const paid = historyPaidAmount(row)
-  return paid == null ? <NoValue label="Pago pela consolidada" /> : <>{formatBRL(paid)}</>
+  const split = Math.abs(row.paymentAmount - row.amount) > 0.005
+  return <span title={split ? `Baixa de ${formatBRL(row.paymentAmount)} na fatura` : undefined}>{formatBRL(row.amount)}</span>
 }
 
 /** Saldo maior que zero em âmbar: ainda há o que receber. */
@@ -84,10 +86,13 @@ function isConsolidated(row: ReconciliationHistoryRow) {
 }
 
 /**
- * Histórico de baixas confirmadas (Taxas Locais e Demurrage), seja pelo Itaú,
- * pelo extrato ou pelo registro manual. Filtros, ordenação e página ficam na
- * URL; o número da fatura abre o detalhe, onde a baixa pode ser cancelada.
- * Tabela limpa (lote 3 da identidade): nada escrito embaixo da célula.
+ * Histórico de baixas confirmadas (Taxas Locais e Demurrage): uma linha por
+ * baixa e B/L, com a forma da baixa (automática pelo Itaú, pelo extrato,
+ * manual ou isenção) e o valor que ela pôs no B/L (ADR 0115). A fatura coberta
+ * pela consolidada continua com as baixas que recebeu antes. Filtros,
+ * ordenação e página ficam na URL; o número da fatura abre o detalhe com a
+ * baixa da linha, que pode ser cancelada lá. Tabela limpa (lote 3 da
+ * identidade): nada escrito embaixo da célula.
  */
 export function ReconciliationHistoryTable({
   onSelectLocalInvoice,
@@ -103,6 +108,7 @@ export function ReconciliationHistoryTable({
     paidFrom: state.paidFrom,
     paidTo: state.paidTo,
     source: state.source,
+    method: state.method,
     customerId: state.customerId,
     blSearch: state.blSearch.trim(),
     vesselSearch: state.vesselSearch.trim(),
@@ -169,7 +175,7 @@ export function ReconciliationHistoryTable({
     )
   }
 
-  const columns = 10
+  const columns = 11
   const empty = !query.isLoading && !failed && !pastEnd && rows.length === 0
   const emptyState = activeCount > 0 ? (
     <EmptyState
@@ -187,8 +193,10 @@ export function ReconciliationHistoryTable({
       {isConsolidated(row) ? <ConsolidatedMark /> : null}
     </>
   )
-  const blValue = (row: ReconciliationHistoryRow) =>
-    row.blId === '-' || !row.blId ? <NoValue label="Sem B/L" /> : <CopyValue value={row.blId} label="número do B/L" />
+  const blValue = (row: ReconciliationHistoryRow) => {
+    if (row.blId !== '-' && row.blId) return <CopyValue value={row.blId} label="número do B/L" />
+    return row.blCount > 1 ? <>{pluralize(row.blCount, 'B/L', 'B/Ls')}</> : <NoValue label="Sem B/L" />
+  }
 
   return (
     <div className="grid min-w-0 gap-4">
@@ -229,6 +237,12 @@ export function ReconciliationHistoryTable({
         </div>
         <FilterBar title="Mais filtros" activeCount={moreCount} onClear={() => update(withoutHistoryFilters)}>
           <div className="app-filter-grid">
+            <Field label="Forma da baixa">
+              <Select value={state.method} onChange={(e) => setFilter('method', e.target.value)}>
+                <option value="">Todas</option>
+                {PAYMENT_METHODS.map((method) => <option key={method} value={method}>{paymentMethodLabel(method)}</option>)}
+              </Select>
+            </Field>
             <Field label="Tipo de fatura" hint={state.source === 'demurrage' ? 'Só vale para Taxas Locais.' : undefined}>
               <Select value={state.invoiceTypeFilter} disabled={state.source === 'demurrage'} onChange={(e) => setFilter('invoiceTypeFilter', e.target.value)}>
                 <option value="">Todos</option>
@@ -257,7 +271,7 @@ export function ReconciliationHistoryTable({
           <>
             <span aria-live="polite">
               {summary && !failed
-                ? `${pluralize(summary.invoices, 'fatura', 'faturas')} · ${formatBRL(summary.received)} pagos${activeCount ? ' no recorte' : ''}`
+                ? `${pluralize(summary.payments, 'baixa', 'baixas')} · ${formatBRL(summary.received)} pagos${activeCount ? ' no recorte' : ''}`
                 : failed ? 'Histórico indisponível' : 'Carregando…'}
             </span>
             <Button
@@ -296,7 +310,7 @@ export function ReconciliationHistoryTable({
                   Pago <PaidAmount row={row} /> · Saldo <Balance row={row} />
                 </div>
                 <div>{row.customerName || <NoValue label="Sem Cliente" />}</div>
-                <p className="app-invoices__meta">{sourceLabel(row)} · pago em {row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</p>
+                <p className="app-invoices__meta">{sourceLabel(row)} · {paymentMethodLabel(row.method)} · pago em {row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</p>
                 <div>{blValue(row)}</div>
               </article>
             ))}
@@ -313,8 +327,9 @@ export function ReconciliationHistoryTable({
                   {sortHeader('customerName', 'Cliente', 'app-table__text-head')}
                   <th scope="col" className="app-table__text-head">Navio / Viagem</th>
                   {sortHeader('paidAt', 'Pago em')}
+                  <th scope="col">Forma da baixa</th>
                   {sortHeader('blAmount', 'Valor do B/L')}
-                  <th scope="col">Valor pago</th>
+                  {sortHeader('amount', 'Valor pago')}
                   <th scope="col">Saldo</th>
                   <th scope="col">Situação</th>
                 </tr>
@@ -334,6 +349,7 @@ export function ReconciliationHistoryTable({
                       <td className="app-table__text" title={row.customerName || undefined}>{row.customerName || <NoValue label="Sem Cliente" />}</td>
                       <td className="app-table__text" title={ship ?? undefined}>{ship ?? <NoValue label="Sem navio e viagem" />}</td>
                       <td className="whitespace-nowrap tabular-nums">{row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</td>
+                      <td className="whitespace-nowrap" title={row.bankReference ? `Referência bancária: ${row.bankReference}` : undefined}>{paymentMethodLabel(row.method)}</td>
                       <td className="whitespace-nowrap tabular-nums">{formatBRL(row.blAmount)}</td>
                       <td className="whitespace-nowrap tabular-nums"><PaidAmount row={row} /></td>
                       <td className="whitespace-nowrap tabular-nums"><Balance row={row} /></td>

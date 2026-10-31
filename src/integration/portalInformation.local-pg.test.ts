@@ -55,6 +55,7 @@ function cleanup() {
     DELETE FROM public.bls WHERE id LIKE 'INFO134-%';
     DELETE FROM public.customer_demurrage_agreements WHERE customer_id IN (${customer},${customerOther});
     DELETE FROM public.demurrage_rates WHERE id=9134001;
+    DELETE FROM public.container_types WHERE code='20DV';
     DELETE FROM public.demurrage_rate_groups WHERE code='20DV';
     DELETE FROM public.customer_portal_accounts WHERE customer_id=${customer};
     DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN (${customer},${customerOther})));
@@ -91,6 +92,8 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
        (${soc},'INFO134-A','INFU1340005','20DV','2026-09-01','SOC'),(${noRate},'INFO134-A','INFU1340006','45HC','2026-09-01','COC');
       -- Tarifa é uma por grupo (migration 514): grupo só deste teste.
       INSERT INTO public.demurrage_rate_groups(code,name) VALUES('20DV','Teste 20DV');
+      -- O grupo do container vem só do cadastro de tipos ativo (migration 546).
+      INSERT INTO public.container_types(code,description,rate_group) VALUES('20DV','Teste 20DV','20DV');
       INSERT INTO public.demurrage_rates(id,container_type,free_days,p1_day_from,p1_day_to,p1_usd,p2_day_from,p2_usd,valid_from,notes)
        VALUES(9134001,'20DV',7,8,14,20,15,40,'2026-01-01','nota interna tarifa');
       INSERT INTO public.customer_demurrage_agreements(customer_id,free_days,valid_from,notes) VALUES(${customer},31,'2026-01-01','nota interna acordo');

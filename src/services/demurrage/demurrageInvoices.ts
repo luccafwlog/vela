@@ -41,7 +41,8 @@ export function applyDemurrageUsdDiscount(
 }
 
 type IssueDemurrageResult = {
-  status: 'issued' | 'existing' | 'waiting_return' | 'no_overstay' | 'no_containers' | 'blocked'
+  /** `waived` (migration 548): todas as caixas do grupo com a cobrança dispensada, nenhuma em Invoice. */
+  status: 'issued' | 'existing' | 'waived' | 'waiting_return' | 'no_overstay' | 'no_containers' | 'blocked'
   invoice_id?: number
   /** `blocked` (migration 472, DEM-D13): CE Mercante ou Gate de faturamento do Portal. */
   reason?: string
@@ -83,6 +84,7 @@ export async function createInvoiceForBL(blId: string): Promise<number> {
   if (result.status === 'issued' && result.invoice_id) return result.invoice_id
   const group = result.anchor_bl_id && result.anchor_bl_id !== blId ? ` (grupo do B/L ${result.anchor_bl_id})` : ''
   if (result.status === 'existing') throw new Error(`Todos os containers deste B/L${group} já estão em Invoice de Demurrage emitida ou paga.`)
+  if (result.status === 'waived') throw new Error(`A cobrança de todos os containers deste B/L${group} foi dispensada: não há Invoice a emitir.`)
   if (result.status === 'waiting_return') throw new Error(`Aguardando a devolução de todos os containers do B/L${group}.`)
   if (result.status === 'no_overstay') throw new Error(`Nenhum container com sobreestadia para este B/L${group}.`)
   if (result.status === 'blocked') throw new Error(result.reason?.trim() || `A Invoice deste B/L${group} aguarda o CE Mercante e o Portal do Cliente.`)

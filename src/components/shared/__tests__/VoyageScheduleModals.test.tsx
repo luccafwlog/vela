@@ -512,6 +512,46 @@ describe('EscalaModal', () => {
     ]))
   })
 
+  // 547 (revisão da release #1117): o Embarque de vazios anterior à 541 sem a
+  // declaração é frente Vazios EXP em TBC no ADR; a janela abre com os vazios
+  // declarados para a frente gravar com terminal (antes a gravação a descartava).
+  it('abre com Embarque de vazios declarado e grava a frente Vazios EXP quando há embarque sem a declaração', async () => {
+    const user = userEvent.setup()
+    const vaziosDerivado = { id: null, sentido: 'exportacao' as const, modalidade: 'vazio' as const, terminalId: null, source: 'export_declaration' as const, hasData: true, section: 'vazios_embarcados' as const }
+    const onSaved = renderEscala({
+      ...escalaBase,
+      emptyLocked: true,
+      exportLocked: true,
+      terminalScale: { ...terminalScaleBase, fronts: [terminalScaleBase.fronts[0], vaziosDerivado] },
+    })
+
+    const emptyToggle = screen.getByRole('button', { name: 'Embarque de vazios' }) as HTMLButtonElement
+    expect(emptyToggle.getAttribute('aria-pressed')).toBe('true')
+    expect(emptyToggle.disabled).toBe(true)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Terminal da operação Exportação Vazios' }), 't-sul')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+
+    const terminalState = onSaved.mock.lastCall?.[0].terminalState
+    expect(terminalState.exportExpectation).toMatchObject({ tem_exportacao: true, has_empty: true })
+    expect(terminalState.fronts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sentido: 'exportacao', modalidade: 'vazio', terminalId: 't-sul' }),
+    ]))
+  })
+
+  it('com ADR por terminal fechado, não pré-marca o Embarque de vazios sem a declaração e avisa para reabrir o ADR', () => {
+    renderEscala({
+      ...escalaBase,
+      emptyLocked: true,
+      exportLocked: true,
+      terminalScale: {
+        ...terminalScaleBase,
+        agencyReports: [{ reportId: 'r1', voyageId: 1, port: 'BRVIX', terminalId: 't-norte', terminal: 'TVV', status: 'closed', sections: [] }],
+      },
+    })
+    expect(screen.queryByRole('button', { name: 'Embarque de vazios' })).toBeNull()
+    expect(screen.getByText(/Embarque de vazios sem a declaração e com o ADR de Saída fechado/)).toBeTruthy()
+  })
+
   it('permite escala somente de exportação com ETA e atracação', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala({

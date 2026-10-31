@@ -87,30 +87,20 @@ function collectClearedLanes(lanes: ScheduleLaneInput[]) {
   return { pols, pods }
 }
 
-async function podHasOperationalAnchor(
-  voyageId: number,
-  podCode: string,
-  current: { ata: string | null; atd: string | null; linked: boolean | null },
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('voyage_escala_revision_state')
-    .select('revision')
-    .eq('voyage_id', voyageId)
-    .eq('port', podCode)
-    .maybeSingle()
+/**
+ * Âncoras da escala pelo dono do banco (`escala_removal_anchor_reasons`,
+ * migration 549), as mesmas do gatilho que recusa a retirada: B/L com o porto
+ * como POD ou POL (também gravado por apelido, como VITORIA), ATA, ATD,
+ * Vinculada, terminais salvos e Embarque de vazios. Com âncora, só a data sai.
+ */
+async function podHasOperationalAnchor(voyageId: number, podCode: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc(
+    'escala_removal_anchor_reasons' as never,
+    { p_voyage_id: voyageId, p_port: podCode } as never,
+  )
   if (error) throw error
-  if (Number((data as { revision?: number } | null)?.revision ?? 0) > 0) return true
-  if (current.ata || current.atd || current.linked) return true
-
-  // B/L com o porto como POD ou POL, como o banco confere (migration 513, a
-  // régua do Excluir escala); o POD escrito de outro jeito o banco ainda pega.
-  const { count, error: blError } = await supabase
-    .from('bls')
-    .select('id', { count: 'exact', head: true })
-    .eq('voyage_id', voyageId)
-    .or(`pod.eq.${podCode},pol.eq.${podCode}`)
-  if (blError) throw blError
-  return (count ?? 0) > 0
+  const anchors: unknown = data
+  return Array.isArray(anchors) && anchors.length > 0
 }
 
 type ScheduleAuditChange = AuditEntry & { changed_by?: string | null }
@@ -166,7 +156,7 @@ async function buildFormScheduleChanges(
     // Sem ETA, a janela já mostrava o porto em "Não escala" e não pediu
     // confirmação (`clearedPodLabels`): não há o que tirar nem escala a retirar.
     if (current.eta === null) continue
-    const anchored = !canRemoveEscala || await podHasOperationalAnchor(voyageId, code, current)
+    const anchored = !canRemoveEscala || await podHasOperationalAnchor(voyageId, code)
     if (!anchored) {
       changes.push(buildVoyagePodDeleteChange(voyageId, code, changedBy))
       continue

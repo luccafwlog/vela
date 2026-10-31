@@ -7,7 +7,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DemurrageContainersTab } from '../DemurrageContainersTab'
 import type { BoardBox, BoardGroup, DemurrageDivision } from '../../../services/demurrage/demurrageBoard'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 function box(number: string, overrides: Partial<BoardBox> = {}): BoardBox {
   return {
@@ -182,5 +185,54 @@ describe('aba Containers por divisão (ADR 0112, D1 a D5)', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Abrir os containers do B/L QV-07A' }))
     await userEvent.setup().click(screen.getByRole('button', { name: 'Editar datas de TGHU0700002' }))
     expect(handlers.onEditContainer).toHaveBeenCalledWith(expect.objectContaining({ container_number: 'TGHU0700002' }), expect.objectContaining({ anchor_bl_id: 'QV-07A' }))
+  })
+})
+
+// Dispensar a cobrança da caixa (ADR 0112, D24).
+describe('Dispensar cobrança na aba Containers', () => {
+  // B/L importado por engano, sem Cliente: o banco aceita a dispensa (migration 530),
+  // e só depois dela o B/L se cancela.
+  const withoutCustomer = group('QV-13', 'travado', {
+    customer_id: null, customer_name: null, customer_cnpj: null, reason_code: 'sem_cliente', reason: 'B/L QV-13 sem Cliente vinculado.',
+    usd: 1100, boxes: [box('MSCU1300001', { bl_id: 'QV-13', state: 'returned_overstay', return_date: '2026-10-24', usd: 1100 })],
+  })
+
+  function narrowViewport() {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => undefined, removeEventListener: () => undefined }))
+  }
+
+  it('o grupo sem Cliente também dispensa a caixa (migration 530)', async () => {
+    const onWaiveBox = vi.fn()
+    renderTab('travado', { groups: [withoutCustomer], onWaiveBox })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Abrir os containers do B/L QV-13' }))
+    await user.click(screen.getByRole('button', { name: 'Dispensar cobrança de MSCU1300001' }))
+    expect(onWaiveBox).toHaveBeenCalledWith(expect.objectContaining({ container_number: 'MSCU1300001' }), expect.objectContaining({ anchor_bl_id: 'QV-13', customer_id: null }))
+  })
+
+  it('abaixo de 640 px o cartão da caixa também oferece Dispensar cobrança', async () => {
+    narrowViewport()
+    const onWaiveBox = vi.fn()
+    renderTab('correndo', { onWaiveBox })
+    expect(screen.getByRole('article', { name: 'B/L QV-02' })).toBeTruthy()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Dispensar cobrança de MSCU0200001' }))
+    expect(onWaiveBox).toHaveBeenCalledWith(expect.objectContaining({ container_number: 'MSCU0200001' }), expect.objectContaining({ anchor_bl_id: 'QV-02' }))
+  })
+
+  it('enquanto uma dispensa grava, o botão dela gira e o das outras caixas espera', async () => {
+    const twoBoxes = group('QV-20', 'a_emitir', {
+      usd: 2200,
+      boxes: [
+        box('MSCU2000001', { bl_id: 'QV-20', state: 'returned_overstay', return_date: '2026-10-24', usd: 1100 }),
+        box('MSCU2000002', { bl_id: 'QV-20', state: 'returned_overstay', return_date: '2026-10-24', usd: 1100 }),
+      ],
+    })
+    renderTab('a_emitir', { groups: [twoBoxes], onWaiveBox: vi.fn(), waivingBoxId: twoBoxes.boxes[0].container_id })
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Abrir os containers do B/L QV-20' }))
+    const waiving = screen.getByRole('button', { name: 'Dispensar cobrança de MSCU2000001' }) as HTMLButtonElement
+    const other = screen.getByRole('button', { name: 'Dispensar cobrança de MSCU2000002' }) as HTMLButtonElement
+    expect(waiving.getAttribute('aria-busy')).toBe('true')
+    expect(waiving.disabled).toBe(true)
+    expect(other.disabled).toBe(true)
   })
 })

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { customerExportEmails, exportCustomerBaseWorkbook, exportFinancialReportWorkbook,
+import { customerExportEmails, exportCustomerBaseWorkbook, exportCustomerContainersWorkbook, exportFinancialReportWorkbook,
   exportDemurrageReportWorkbook, exportInvoicesWorkbook, exportOperationalReportWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
 import type { PortalOperationBL } from '../portalOperation'
 import { flattenContainers } from '../../lib/portalOperationViews'
@@ -272,5 +272,24 @@ describe('planilhas de Relatórios', () => {
     const [invoiceRows] = jsonToSheet.mock.calls[1] as unknown as [Array<Record<string, unknown>>]
     expect(Object.keys(invoiceRows[0])).toEqual(['Invoice', 'Tipo', 'B/L', 'Navio / Viagem', 'Cliente', 'CNPJ', 'Emissão', 'USD líquido', 'Desconto US$', 'R$ hoje', 'R$ pago', 'Paga em', 'Disputa', 'Situação'])
     expect(invoiceRows[0]).toMatchObject({ Emissão: '26/10/2026', 'R$ hoje': 540, 'R$ pago': '', Situação: 'Faturado' })
+  })
+})
+
+// ADR 0112, D24: a planilha da aba Contêineres da ficha do Cliente diz o mesmo que a tela.
+describe('exportCustomerContainersWorkbook', () => {
+  beforeEach(() => {
+    jsonToSheet.mockClear()
+    writeFile.mockClear()
+  })
+
+  it('a caixa com a cobrança dispensada sai sem US$ e como "Cobrança dispensada"', async () => {
+    const row = { id: 1, bl_id: 'BL-1', container_number: 'MSCU1234565', type: '40HC', ownership: 'COC', discharge_date: '2026-09-01', return_date: '2026-09-28', bl: null } as never
+    await exportCustomerContainersWorkbook('ACME', [
+      { row, view: { soc: false, days: 27, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true, demurrage: { kind: 'waived' } } },
+      { row, view: { soc: false, days: 27, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true, demurrage: { kind: 'to_bill', usd: 420 } } },
+    ])
+    const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
+    expect(sheetRows[0]).toMatchObject({ Demurrage: 'Cobrança dispensada', 'Demurrage (US$)': '' })
+    expect(sheetRows[1]).toMatchObject({ Demurrage: 'A faturar', 'Demurrage (US$)': 420 })
   })
 })

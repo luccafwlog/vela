@@ -255,8 +255,8 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
     const line = psql(`SELECT l.id FROM public.vazios_export_service_lines l JOIN public.depot_services s ON s.id = l.service_id WHERE s.name = 'B14 handling';`)
 
     expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', ' ')`).stderr).toMatch(/Informe o motivo/)
-    expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toMatch(/ADR de Saida fechado/)
-    expect(asUser(`SELECT public.delete_catalog_row('vazios_export_service_lines', '${line}', 'custo errado')`).stderr).toMatch(/ADR de Saida fechado/)
+    expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toContain('ADR de Saída fechado: reabra o ADR para excluir a unidade.')
+    expect(asUser(`SELECT public.delete_catalog_row('vazios_export_service_lines', '${line}', 'custo errado')`).stderr).toContain('ADR de Saída fechado: reabra o ADR para excluir a linha de serviço de vazios.')
     // 274: a reimportação da planilha também não muda as unidades com o ADR fechado.
     const before = psql(`SELECT count(*) FROM public.vazios_bookings WHERE voyage_id = ${voyageId};`)
     expect(bookings([{ container: 'AZCU2349992', date: '2026-09-03' }]).stderr).toMatch(/ADR de Saída deste porto está fechado/)
