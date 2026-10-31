@@ -33,6 +33,26 @@ const svc = vi.hoisted(() => ({
   upsertDemurrageRate: vi.fn(() => Promise.resolve()),
   deleteDemurrageRate: vi.fn(() => Promise.resolve()),
   toggleDemurrageRateActive: vi.fn(() => Promise.resolve()),
+  invalidateDemurrageRatesCache: vi.fn(),
+}))
+
+// Uma tarifa por grupo (ADR 0112, D28): a linha mostra o grupo e os tipos que ele cobre.
+const typesSvc = vi.hoisted(() => ({
+  listDemurrageRateGroups: vi.fn(() => Promise.resolve([
+    { code: '20GP', name: "20' dry", sort_order: 1 },
+    { code: '40GP', name: "40' dry", sort_order: 2 },
+    { code: '40RF', name: "40' reefer", sort_order: 6 },
+  ])),
+  listContainerTypes: vi.fn(() => Promise.resolve([
+    { id: 1, code: '20GP', description: "20' dry", rate_group: '20GP', active: true },
+    { id: 2, code: '20HC', description: "20' high cube", rate_group: '20GP', active: true },
+    { id: 3, code: '40HC', description: "40' high cube", rate_group: '40GP', active: true },
+    { id: 4, code: '40G1', description: "40' dry", rate_group: '40GP', active: false },
+  ])),
+  saveContainerType: vi.fn(() => Promise.resolve()),
+  toggleContainerTypeActive: vi.fn(() => Promise.resolve()),
+  deleteContainerType: vi.fn(() => Promise.resolve()),
+  normalizeContainerTypeCode: (value: unknown) => String(value ?? '').trim().toUpperCase(),
 }))
 
 const agreementSvc = vi.hoisted(() => ({
@@ -44,9 +64,11 @@ const agreementSvc = vi.hoisted(() => ({
 
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, effectiveRole: 'administrativo' }) }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(() => Promise.resolve(true)), useConfirmWithReason: () => vi.fn(() => Promise.resolve('motivo')) }))
+const dialogs = vi.hoisted(() => ({ confirm: vi.fn<(options: unknown) => Promise<boolean>>(() => Promise.resolve(true)) }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => dialogs.confirm, useConfirmWithReason: () => vi.fn(() => Promise.resolve('motivo')) }))
 vi.mock('../../services/demurrage/demurrageRates', () => svc)
 vi.mock('../../services/demurrage/customerDemurrageAgreements', () => agreementSvc)
+vi.mock('../../services/demurrage/containerTypes', () => typesSvc)
 
 import { DemurrageRates } from '../DemurrageRates'
 
@@ -66,7 +88,9 @@ afterEach(cleanup)
 
 it('US-051: lista as tarifas de demurrage', async () => {
   renderPage()
-  expect(await screen.findByText('20GP')).toBeTruthy()
+  expect(await screen.findByText("20' dry")).toBeTruthy()
+  // Os tipos ativos que cada grupo cobre aparecem na linha.
+  expect(await screen.findByText('20GP, 20HC')).toBeTruthy()
   expect(screen.getAllByText('Ativa')).toHaveLength(2)
   expect(screen.getAllByText('dias 22 a 30').length).toBeGreaterThan(0)
   expect(screen.getAllByText('a partir do dia 31').length).toBeGreaterThan(0)
@@ -77,14 +101,14 @@ it('US-052: cria uma nova tarifa pelo modal', async () => {
   renderPage()
 
   await user.click(screen.getByRole('button', { name: /Nova tarifa/ }))
-  await user.type(screen.getByPlaceholderText('20GP'), '40HC')
+  await user.selectOptions(await screen.findByRole('combobox', { name: /Grupo de tarifa/ }), '40GP')
   const [p1Usd, p2Usd] = screen.getAllByLabelText(/Diária \(USD\)/)
   await user.type(p1Usd, '75,50')
   await user.type(p2Usd, '150')
   await user.click(screen.getByRole('button', { name: 'Cadastrar tarifa' }))
 
   await waitFor(() => expect(svc.upsertDemurrageRate).toHaveBeenCalled())
-  expect((svc.upsertDemurrageRate.mock.calls[0] as unknown[])[0]).toMatchObject({ container_type: '40HC', p1_usd: 75.5, p2_usd: 150, free_days: 21, active: true })
+  expect((svc.upsertDemurrageRate.mock.calls[0] as unknown[])[0]).toMatchObject({ container_type: '40GP', p1_usd: 75.5, p2_usd: 150, free_days: 21, active: true })
 })
 
 it('mostra o erro junto do campo e não grava a tarifa sem diária', async () => {
@@ -92,7 +116,7 @@ it('mostra o erro junto do campo e não grava a tarifa sem diária', async () =>
   renderPage()
 
   await user.click(screen.getByRole('button', { name: /Nova tarifa/ }))
-  await user.type(screen.getByPlaceholderText('20GP'), '40HC')
+  await user.selectOptions(await screen.findByRole('combobox', { name: /Grupo de tarifa/ }), '40GP')
   await user.click(screen.getByRole('button', { name: 'Cadastrar tarifa' }))
 
   expect(screen.getAllByRole('alert').map((node) => node.textContent)).toContain('Informe a diária de P1 em USD.')
@@ -103,7 +127,7 @@ it('US-053: ativa/desativa a tarifa pelo menu da linha', async () => {
   const user = userEvent.setup()
   renderPage()
 
-  await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 20GP' }))
+  await user.click(await screen.findByRole('button', { name: "Mais ações da tarifa 20' dry" }))
   await user.click(screen.getByRole('menuitem', { name: 'Desativar tarifa' }))
 
   await waitFor(() => expect(svc.toggleDemurrageRateActive).toHaveBeenCalledWith(1, false, ''))
@@ -114,11 +138,11 @@ it('B13: reativar a tarifa pede motivo e diz Reativar', async () => {
   renderPage()
 
   // A tarifa inativa só aparece com "Mostrar inativas" (decisão de 2026-10-16), em cinza.
-  await screen.findByRole('button', { name: 'Mais ações da tarifa 20GP' })
-  expect(screen.queryByRole('button', { name: 'Mais ações da tarifa 40RF' })).toBeNull()
+  await screen.findByRole('button', { name: "Mais ações da tarifa 20' dry" })
+  expect(screen.queryByRole('button', { name: "Mais ações da tarifa 40' reefer" })).toBeNull()
   await user.click(screen.getByRole('checkbox', { name: /Mostrar inativas/ }))
-  expect(screen.getByText('40RF').closest('tr')!.className).toContain('app-table__row--muted')
-  await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 40RF' }))
+  expect(screen.getByText("40' reefer").closest('tr')!.className).toContain('app-table__row--muted')
+  await user.click(await screen.findByRole('button', { name: "Mais ações da tarifa 40' reefer" }))
   await user.click(screen.getByRole('menuitem', { name: 'Reativar tarifa' }))
 
   await waitFor(() => expect(svc.toggleDemurrageRateActive).toHaveBeenCalledWith(3, true, 'motivo'))
@@ -138,7 +162,7 @@ it('tarifa em vigor não oferece excluir, que o banco sempre recusa (migration 0
   const user = userEvent.setup()
   renderPage()
 
-  await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 20GP' }))
+  await user.click(await screen.findByRole('button', { name: "Mais ações da tarifa 20' dry" }))
   const item = screen.getByRole('menuitem', { name: 'Excluir tarifa (já em vigor: desative)' })
   expect(item.hasAttribute('disabled') || item.getAttribute('aria-disabled') === 'true').toBe(true)
   await user.click(item)
@@ -150,7 +174,7 @@ it('P2 começando dentro de P1 é recusado junto do campo, como a constraint do 
   renderPage()
 
   await user.click(screen.getByRole('button', { name: /Nova tarifa/ }))
-  await user.type(screen.getByPlaceholderText('20GP'), '40HC')
+  await user.selectOptions(await screen.findByRole('combobox', { name: /Grupo de tarifa/ }), '40GP')
   const [p1Usd, p2Usd] = screen.getAllByLabelText(/Diária \(USD\)/)
   await user.type(p1Usd, '75')
   await user.type(p2Usd, '150')
@@ -169,7 +193,7 @@ it('recusa de constraint do banco aparece legível, sem o texto cru do Postgres'
   renderPage()
 
   await user.click(screen.getByRole('button', { name: /Nova tarifa/ }))
-  await user.type(screen.getByPlaceholderText('20GP'), '40HC')
+  await user.selectOptions(await screen.findByRole('combobox', { name: /Grupo de tarifa/ }), '40GP')
   const [p1Usd, p2Usd] = screen.getAllByLabelText(/Diária \(USD\)/)
   await user.type(p1Usd, '75')
   await user.type(p2Usd, '150')
@@ -196,4 +220,52 @@ it('abre os acordos filtrados pelo Cliente vindo da ficha', async () => {
   renderPage(['/demurrage/taxas?tab=acordos&cliente=ACME'])
   expect(await screen.findByText('ACME LOGISTICA')).toBeTruthy()
   expect((screen.getByLabelText('Buscar acordo por Cliente ou CNPJ') as HTMLInputElement).value).toBe('ACME')
+})
+
+it('aba Tipos de container lista o cadastro e abre o tipo vindo de Cadastrar tipo (ADR 0112, D29)', async () => {
+  const user = userEvent.setup()
+  renderPage(['/demurrage/taxas?tab=tipos&tipo=45hc'])
+  // O tipo do link abre o cadastro já preenchido; falta escolher o grupo.
+  expect(await screen.findByDisplayValue('45HC')).toBeTruthy()
+  await screen.findByRole('option', { name: "40' dry" })
+  await user.selectOptions(screen.getByRole('combobox', { name: /Grupo de tarifa/ }), '40GP')
+  await user.type(screen.getByLabelText('Descrição'), "45' high cube")
+  await user.click(screen.getByRole('button', { name: 'Cadastrar tipo' }))
+  await waitFor(() => expect(typesSvc.saveContainerType).toHaveBeenCalledWith({ id: undefined, code: '45HC', description: "45' high cube", rate_group: '40GP' }))
+
+  // Inativo fica escondido até Mostrar inativos.
+  expect(await screen.findByText('40HC')).toBeTruthy()
+  expect(screen.queryByText('40G1')).toBeNull()
+})
+
+it('o tipo do atalho já cadastrado e desativado não abre o cadastro novo: mostra os desativados (526)', async () => {
+  renderPage(['/demurrage/taxas?tab=tipos&tipo=40G1'])
+  expect(await screen.findByText('40G1')).toBeTruthy()
+  expect(screen.queryByText('Novo tipo de container')).toBeNull()
+})
+
+it('editar um tipo não muda o código; o tipo com código de grupo não muda de grupo (528)', async () => {
+  const user = userEvent.setup()
+  renderPage(['/demurrage/taxas?tab=tipos'])
+  await screen.findByText('40HC')
+  await user.click(screen.getByRole('button', { name: 'Editar tipo 40HC' }))
+  expect((screen.getByDisplayValue('40HC') as HTMLInputElement).readOnly).toBe(true)
+})
+
+it('desativar um tipo avisa que o grupo vai para Travado, com Alerta (526)', async () => {
+  const user = userEvent.setup()
+  renderPage(['/demurrage/taxas?tab=tipos'])
+  await user.click(await screen.findByRole('button', { name: 'Mais ações do tipo 40HC' }))
+  await user.click(screen.getByRole('menuitem', { name: 'Desativar tipo' }))
+  await waitFor(() => expect(typesSvc.toggleContainerTypeActive).toHaveBeenCalledWith(3, false, ''))
+  const [options] = dialogs.confirm.mock.calls.at(-1) as unknown as [{ consequence: string }]
+  expect(options.consequence).toMatch(/Travado/)
+  expect(options.consequence).not.toMatch(/não entram em atraso/)
+})
+
+it('sem os grupos de tarifa, a tela diz por que não há grupo para escolher', async () => {
+  typesSvc.listDemurrageRateGroups.mockRejectedValueOnce(new Error('rede'))
+  renderPage(['/demurrage/taxas?tab=tipos'])
+  expect((await screen.findByRole('alert')).textContent).toMatch(/Não foi possível carregar os grupos de tarifa/)
+  expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeTruthy()
 })

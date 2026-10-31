@@ -192,8 +192,9 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
       block: 'saldo',
       tone: 'warning',
       title: `${plural(input.runningDemurrage, 'container com Demurrage correndo', 'containers com Demurrage correndo')}`,
-      detail: 'Descarregados, sem devolução e fora do free time.',
-      actions: [{ label: 'Abrir em Demurrage', to: `/demurrage?lente=atraso&busca=${encodeURIComponent(input.customerName)}` }],
+      // Os mesmos do cartão Correndo da Demurrage (sem Invoice nem dispensa).
+      detail: 'Os do cartão Correndo da Demurrage: sobreestadia sem Invoice nem cobrança dispensada, com container do grupo ainda fora.',
+      actions: [{ label: 'Abrir em Demurrage', to: `/demurrage?busca=${encodeURIComponent(input.customerName)}` }],
     })
   }
 

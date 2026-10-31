@@ -38,8 +38,11 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
 }))
 vi.mock('../../services/demurrage/demurrageContainers', () => ({
   readDemurrageGroupAnchor: async (blId: string) => blId,
-  listDemurrageContainers: mocks.listContainers,
   updateContainerDates: mocks.updateContainerDates,
+}))
+vi.mock('../../services/demurrage/demurrageBoard', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/demurrage/demurrageBoard')>()),
+  listDemurrageBillingBoard: mocks.listContainers,
 }))
 vi.mock('../../services/demurrage/demurrageInvoices', () => ({
   createInvoiceForBL: mocks.createInvoice,
@@ -61,7 +64,8 @@ vi.mock('../../services/demurrage/demurrageKpis', () => ({
 vi.mock('../../services/demurrage/demurrageRates', () => ({
   calculateDemurrage: () => ({ total_days: 40, free_days: 10, days_p1: 20, rate_p1_usd: 10, days_p2: 10, rate_p2_usd: 20, total_usd: 400, status: 'overdue' }),
 }))
-vi.mock('../../services/demurrage/demurrageDisputes', () => ({
+vi.mock('../../services/demurrage/demurrageDisputes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/demurrage/demurrageDisputes')>()),
   listDemurrageDisputes: mocks.listDisputes,
   addDemurrageDisputeMessage: vi.fn(),
   reopenDemurrageDispute: vi.fn(),
@@ -203,7 +207,16 @@ describe('Demurrage page behaviours', () => {
     Object.defineProperty(window, 'print', { configurable: true, value: mocks.print })
     mocks.confirm.mockResolvedValue(true)
     mocks.confirmWithReason.mockResolvedValue('Valor contestado e acordado')
-    mocks.listContainers.mockResolvedValue([returnedContainer])
+    // Classificação do banco (migration 515): o B/L devolvido com sobreestadia está em A emitir.
+    mocks.listContainers.mockResolvedValue([{
+      anchor_bl_id: 'BL-001', bl_ids: ['BL-001'], voyage_id: 3, voyage_label: 'Navio / 001E', customer_id: 7,
+      customer_name: 'Cliente Teste', customer_cnpj: '11222333000181', division: 'a_emitir', reason_code: null, reason: null,
+      warning: null, no_rate_types: null, usd: 400,
+      boxes: [{ container_id: returnedContainer.id, bl_id: 'BL-001', container_number: returnedContainer.container_number, type: '40HC',
+        rate_group: '40GP', discharge_date: returnedContainer.discharge_date, return_date: returnedContainer.return_date, total_days: 40,
+        free_days: 10, free_source: 'tabela', last_free_day: null, days_p1: 20, rate_p1_usd: 10, days_p2: 10, rate_p2_usd: 20, usd: 400,
+        state: 'returned_overstay', covered_by: null, covered_doc: null }],
+    }])
     mocks.createInvoice.mockResolvedValue(21)
     mocks.listInvoices.mockImplementation(({ status, blId }: { status?: string; blId?: string }) => Promise.resolve(
       blId ? [issuedInvoice] : status === 'issued' ? [issuedInvoice] : status === 'paid' ? [paidInvoice] : [],
@@ -216,7 +229,7 @@ describe('Demurrage page behaviours', () => {
     mocks.cancelInvoice.mockResolvedValue(undefined)
     mocks.updateInvoice.mockResolvedValue(undefined)
     mocks.applyDiscount.mockResolvedValue(undefined)
-    mocks.fetchKpis.mockResolvedValue({ overdueContainers: 1, draftInvoicesTotalUsd: 0, issuedInvoicesTotalBrl: 2200 })
+    mocks.fetchKpis.mockResolvedValue({ issuedInvoicesTotalBrl: 2200 })
     mocks.fetchLatestRecalcDate.mockResolvedValue('2099-01-01')
     mocks.fetchCustomerSummary.mockResolvedValue(customerSummary)
     mocks.fetchCustomerDetail.mockResolvedValue([{ id: 21, doc_number: 'DEM-001', bl_id: 'BL-001', billed_at: '2026-07-01', total_usd: 400, current_total_brl: 2200, current_roe: 5.5 }])
@@ -229,7 +242,7 @@ describe('Demurrage page behaviours', () => {
 
   it('gera a Invoice, atualiza as telas que a leem e abre o detalhe da Invoice emitida', async () => {
     const user = userEvent.setup()
-    const { invalidateQueries } = renderPage()
+    const { invalidateQueries } = renderPage(['/demurrage?divisao=a_emitir'])
 
     await user.click(await screen.findByRole('button', { name: 'Gerar Invoice do B/L BL-001' }))
 
@@ -243,21 +256,23 @@ describe('Demurrage page behaviours', () => {
   it('mostra a recusa da emissão na linha do B/L, não só em aviso passageiro', async () => {
     mocks.createInvoice.mockRejectedValue(new Error('Aguardando a devolução de todos os containers do B/L (grupo do B/L BL-000).'))
     const user = userEvent.setup()
-    renderPage()
+    renderPage(['/demurrage?divisao=a_emitir'])
 
     await user.click(await screen.findByRole('button', { name: 'Gerar Invoice do B/L BL-001' }))
     expect((await screen.findByRole('alert')).textContent).toContain('grupo do B/L BL-000')
     expect(mocks.showToast).not.toHaveBeenCalledWith(expect.anything(), 'error')
   })
 
-  it('o card Containers em atraso aplica a lente e a reflete na aba', async () => {
+  it('os cartões Correndo, A emitir e Travado somam a classificação e abrem a divisão (ADR 0112, D6)', async () => {
     const user = userEvent.setup()
-    renderPage()
+    renderPage(['/demurrage?tab=faturas'])
 
-    const card = await screen.findByRole('button', { name: /Containers em atraso/ })
+    const card = await screen.findByRole('button', { name: /A emitir \(US\$\)/ })
+    await waitFor(() => expect(card.textContent).toMatch(/US\$\s400,00/))
     await user.click(card)
     expect(card.getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('radio', { name: /Em atraso/ }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByRole('tab', { name: 'Containers' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('radio', { name: /A emitir/ }).getAttribute('aria-checked')).toBe('true')
   })
 
   it('expande o Cliente e abre o relatório imprimível', async () => {
@@ -274,7 +289,10 @@ describe('Demurrage page behaviours', () => {
     expect(document.getElementById('demurrage-customer-panel-7')).not.toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'Imprimir relatório' }))
-    const report = screen.getByRole('dialog', { name: 'Demurrage em aberto por consignatário' })
+    // D12 da ADR 0112: o relatório é o extrato do Cliente escolhido.
+    const report = screen.getByRole('dialog', { name: 'Extrato de Demurrage do Cliente' })
+    expect((within(report).getByLabelText('Cliente') as HTMLSelectElement).value).toBe('7')
+    expect(await within(report).findByText('EXTRATO DE DEMURRAGE')).toBeTruthy()
     await user.click(within(report).getByRole('button', { name: 'Imprimir' }))
     expect(mocks.print).toHaveBeenCalled()
   })
@@ -441,6 +459,18 @@ describe('Demurrage page behaviours', () => {
     expect(invalidated(invalidateQueries, 'demurrage-invoices')).toBe(true)
   })
 
+  it('cancelar a Invoice com Disputa aberta avisa que o Cliente vê o motivo no Portal (D16)', async () => {
+    detailOverrides = { 21: { dispute_open: true } }
+    const user = userEvent.setup()
+    renderPage()
+    const detail = await openIssuedDetail(user)
+    await user.click(within(detail).getByRole('button', { name: 'Cancelar Invoice…' }))
+    expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
+      consequence: expect.stringContaining('o Cliente vê este motivo no Portal'),
+      reasonLabel: 'Motivo do cancelamento (obrigatório; o Cliente vê no Portal)',
+    }))
+  })
+
   it('desistir da confirmação não cancela', async () => {
     mocks.confirmWithReason.mockResolvedValue(null)
     const user = userEvent.setup()
@@ -468,7 +498,7 @@ describe('Demurrage page behaviours', () => {
     const user = userEvent.setup()
     renderPage()
     const detail = await openIssuedDetail(user)
-    expect(within(detail).getByText('Fora da Régua: datas alteradas numa Invoice com desconto ou disputa')).toBeTruthy()
+    expect(within(detail).getByText('Fora da Régua: datas de container alteradas numa Invoice com desconto ou disputa')).toBeTruthy()
     expect(within(detail).getByText(/Cancele, gere de novo pela aba Containers/)).toBeTruthy()
   })
 
@@ -497,15 +527,15 @@ describe('Demurrage page behaviours', () => {
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Pagas' }).getAttribute('aria-selected')).toBe('true'))
   })
 
-  it('Invoice aberta a partir de Containers fica na aba Containers e preserva a lente', async () => {
+  it('Invoice aberta a partir de Containers fica na aba Containers e preserva a divisão', async () => {
     const user = userEvent.setup()
-    renderPage(['/demurrage?lente=devolvidos'])
+    renderPage(['/demurrage?divisao=a_emitir'])
     await user.click(await screen.findByRole('button', { name: 'Gerar Invoice do B/L BL-001' }))
     expect(await screen.findByRole('dialog', { name: 'Invoice de Demurrage DEM-001' })).toBeTruthy()
     // O detalhe já carregou a situação (emitida); nada pode levar a Faturas.
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.getByRole('tab', { name: 'Containers' }).getAttribute('aria-selected')).toBe('true')
-    expect(screen.getByRole('radio', { name: /Devolvidos/ }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByRole('radio', { name: /A emitir/ }).getAttribute('aria-checked')).toBe('true')
   })
 
   it('a busca da URL também filtra as Invoices', async () => {
@@ -520,8 +550,9 @@ describe('Demurrage page behaviours', () => {
     }])
     renderPage(['/demurrage?dispute=5'])
     expect((await screen.findByRole('tab', { name: /Disputas/ })).getAttribute('aria-selected')).toBe('true')
-    expect(await screen.findByRole('heading', { name: 'DEM-001 · Cliente Teste' })).toBeTruthy()
-    expect(document.getElementById('dispute-5')?.className).toContain('app-dem-dispute--focused')
+    // Disputas em tabela (ADR 0112, D15): a do alerta abre com a conversa.
+    expect((await screen.findByRole('button', { name: /DEM-001/ })).getAttribute('aria-expanded')).toBe('true')
+    expect(document.getElementById('dispute-5')).not.toBeNull()
   })
 
   it('qualquer Departamento abre a aba Disputas para ler (ADR 0085, D12)', () => {

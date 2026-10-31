@@ -47,6 +47,22 @@ describe('feature flags', () => {
     })
   })
 
+  it('widgets públicos: só o resultado da consulta, nunca o número do container', () => {
+    const capture = vi.fn()
+    const adapter = createPostHogAdapter({ isFeatureEnabled: vi.fn(), capture })
+    adapter.capture(PRODUCT_EVENTS.PUBLIC_CONTAINER_LOOKUP, {
+      surface: 'public',
+      lookup_outcome: 'not_found',
+      container_number: 'CSQU3054383',
+      lookup_outcome_extra: 'x',
+    } as never)
+    adapter.capture(PRODUCT_EVENTS.PUBLIC_CONTAINER_LOOKUP, { surface: 'public', lookup_outcome: 'CSQU3054383' } as never)
+    expect(capture.mock.calls).toEqual([
+      [PRODUCT_EVENTS.PUBLIC_CONTAINER_LOOKUP, { surface: 'public', lookup_outcome: 'not_found' }],
+      [PRODUCT_EVENTS.PUBLIC_CONTAINER_LOOKUP, { surface: 'public' }],
+    ])
+  })
+
   it('removes default URL/device properties at the final provider boundary', () => {
     const event = redactPostHogEvent({
       uuid: 'event-id',

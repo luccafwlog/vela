@@ -24,6 +24,7 @@ import type { VoyageExportSchedule } from '../../services/voyageExportSchedules'
 import { listVaziosExportEmbarkPorts } from '../../services/vaziosExportOperations'
 import { queryKeys } from '../../services/queryKeys'
 import { afterEscalaAlterada } from '../../services/cacheEffects'
+import { graniteLoadingPorts } from '../../services/escalaTerminalAllocation'
 import {
   renderCeStatusLabel,
   renderEscalaNumber,
@@ -112,16 +113,9 @@ export function VoyageVisaoTab({
   })
 
   // A declaração de exportação não pode ser retirada de uma escala que já tem
-  // carga: granito pelo porto de carregamento do manifesto, vazios pelo porto
-  // de embarque da operação.
-  const granitePorts = useMemo(() => {
-    const ports = new Set<string>()
-    for (const manifest of voyage.granite_manifests ?? []) {
-      const normalized = normalizePortCode(manifest.loading_port)
-      if (normalized) ports.add(normalized)
-    }
-    return ports
-  }, [voyage.granite_manifests])
+  // carga: granito pelo porto de carregamento do manifesto e de cada B/L (a
+  // régua da frente de Granito), vazios pelo porto de embarque da operação.
+  const granitePorts = useMemo(() => graniteLoadingPorts(voyage.granite_manifests ?? []), [voyage.granite_manifests])
 
   const emptyPorts = useMemo(() => {
     const ports = new Set<string>()

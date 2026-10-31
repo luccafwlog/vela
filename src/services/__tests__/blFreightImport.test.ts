@@ -227,6 +227,25 @@ describe('blFreightImport', () => {
     expect(preview.rows[0].payload).not.toHaveProperty('vehicles')
   })
 
+  it('tipo de container fora do cadastro avisa e o B/L entra (ADR 0112, D32)', () => {
+    const doc = parsedBL()
+    doc.containers = [
+      { ...doc.containers[0], type: '45HC' },
+      { ...doc.containers[0], containerNumber: 'TCLU7654321', type: '40HC' },
+      // SOC não cobra Demurrage: não avisa.
+      { ...doc.containers[0], containerNumber: 'TCLU1111111', type: '20XX', ownership: 'SOC' },
+    ]
+    const preview = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      knownContainerTypes: new Set(['40HC', '48FR']),
+    })
+    expect(preview.rows[0].status).toBe('new')
+    expect((preview.rows[0].warnings ?? []).filter((warning) => warning.includes('sem tarifa de Demurrage'))).toEqual([
+      'Tipo 45HC sem tarifa de Demurrage: cadastre o tipo em Tarifas e acordos.',
+    ])
+  })
+
   it('bloqueia o B/L com numero ambiguo e avisa o numero descartado (F-30)', () => {
     const doc = parsedBL()
     doc.numberIssues = [
@@ -884,7 +903,7 @@ describe('blFreightImport', () => {
 
     // Regra do servidor (outra Viagem, migration 392): nada foi gravado, com o motivo.
     mockRpc.mockReset()
-    mockRpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'O B/L BL1 já está na Viagem NAVIO 1: exclua o B/L lá e importe de novo (cancelar não libera o número).' } })
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'O B/L BL1 já está na Viagem NAVIO 1: exclua o B/L lá (se tiver CE Mercante, tire o CE antes) e importe de novo (cancelar não libera o número).' } })
     await expect(confirmBlFreightImport(preview, 'user-1')).rejects.toThrow(/^Nada foi gravado: .*já está na Viagem NAVIO 1/)
   })
 
@@ -1753,7 +1772,17 @@ describe('blFreightImport', () => {
         importStates: new Map([['CSC45250E02Y00', state({ voyageId: 3, voyageLabel: 'OUTRO NAVIO 9' })]]),
       })
       expect(preview.rows[0]?.status).toBe('blocked')
-      expect(preview.rows[0]?.blockedReasons).toContain('O B/L CSC45250E02Y00 já está na Viagem OUTRO NAVIO 9: exclua o B/L lá e importe de novo (cancelar não libera o número).')
+      expect(preview.rows[0]?.blockedReasons).toContain('O B/L CSC45250E02Y00 já está na Viagem OUTRO NAVIO 9: exclua o B/L lá (se tiver CE Mercante, tire o CE antes) e importe de novo (cancelar não libera o número).')
+    })
+
+    it('D1 da revisão da release #1117: B/L cancelado em outra Viagem manda reativar, tirar o CE e excluir lá', () => {
+      const preview = buildBlFreightPreview({
+        documents: [parsedBL()],
+        selectedVoyage: voyage,
+        existingBls: [{ ...existingBl(), voyage_id: 3 }],
+        importStates: new Map([['CSC45250E02Y00', state({ voyageId: 3, voyageLabel: 'OUTRO NAVIO 9', cancelled: true })]]),
+      })
+      expect(preview.rows[0]?.blockedReasons).toContain('O B/L CSC45250E02Y00 está cancelado na Viagem OUTRO NAVIO 9: o número continua lá. Reative o B/L na Viagem OUTRO NAVIO 9, tire o CE Mercante, exclua o B/L e importe de novo.')
     })
 
     it('decisão 8: B/L cancelado fica de fora com aviso e o resto do arquivo entra', async () => {

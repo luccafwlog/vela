@@ -10,13 +10,21 @@ export const PRODUCT_EVENTS = {
   INVOICE_VIEWED: 'invoice_viewed',
   INVOICE_PAID: 'invoice_paid',
   DISPUTE_OPENED: 'dispute_opened',
+  // Widgets públicos do fwlog.com.br (ADR 0114): volume e resultado, nunca o
+  // número do container nem dado de quem consulta.
+  PUBLIC_SCHEDULE_VIEWED: 'public_schedule_viewed',
+  PUBLIC_CONTAINER_LOOKUP: 'public_container_lookup',
 } as const
+
+export const PUBLIC_LOOKUP_OUTCOMES = ['found', 'not_found', 'invalid_number', 'limit', 'challenge', 'unavailable'] as const
+export type PublicLookupOutcome = (typeof PUBLIC_LOOKUP_OUTCOMES)[number]
 
 export type ProductEventName = (typeof PRODUCT_EVENTS)[keyof typeof PRODUCT_EVENTS]
 
 export type ProductEventProperties = Readonly<{
-  surface?: 'portal' | 'internal'
+  surface?: 'portal' | 'internal' | 'public'
   invoice_type?: 'local' | 'demurrage'
+  lookup_outcome?: PublicLookupOutcome
   customer_id_hash?: string
   voyage_id_hash?: string
 }>
@@ -48,7 +56,10 @@ function sanitizeProperties(properties: Record<string, unknown> | undefined): Re
   if (!properties) return {}
 
   const safe: Record<string, string> = {}
-  if (properties.surface === 'portal' || properties.surface === 'internal') safe.surface = properties.surface
+  if (properties.surface === 'portal' || properties.surface === 'internal' || properties.surface === 'public') safe.surface = properties.surface
+  if (typeof properties.lookup_outcome === 'string' && (PUBLIC_LOOKUP_OUTCOMES as readonly string[]).includes(properties.lookup_outcome)) {
+    safe.lookup_outcome = properties.lookup_outcome
+  }
   if (properties.invoice_type === 'local' || properties.invoice_type === 'demurrage') {
     safe.invoice_type = properties.invoice_type
   }

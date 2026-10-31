@@ -4,6 +4,8 @@
 >
 > **Situação atual (2026-10-22).** O item 1 ganhou uma exceção: desde a migration `419` ([ADR 0099](./0099-corte-do-token-interno-na-revogacao.md)), `check_internal_token_cutoff()` é executável por `anon`, porque o PostgREST a chama antes de toda requisição, com o papel da requisição. Ela não lê nem devolve dado; sem sessão, não faz nada. A suíte local-pg aceita só essa função na varredura de `anon`.
 
+> **Situação atual (2026-10-30).** A consequência "uma página pública futura com a programação precisa de outro caminho" virou a [ADR 0114](./0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md): o quadro "Chegadas e saídas" e a consulta por número de container são lidos sem login no fwlog.com.br, pelas Edge Functions `public-ship-schedule` e `public-container-lookup`, com `service_role`, Turnstile, limite e lista positiva de campos (migration `542`). O item 1 continua: nenhuma função nova é executável por `anon`; `public_ship_schedule()` e `public_container_lookup(text)` só por `service_role`, e a suíte `advisorFuncoesFechadas` não ganhou exceção.
+
 Status: supersedida parcialmente — 2026-10-19 (pedido do responsável a partir do advisor de
 segurança do Supabase de 19/10/2026). Implementada na migration `320`, com a
 suíte `src/integration/advisorFuncoesFechadas.local-pg.test.ts`.

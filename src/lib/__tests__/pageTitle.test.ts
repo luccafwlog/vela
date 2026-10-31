@@ -30,6 +30,13 @@ describe('routeTitle (WCAG 2.4.2 — título por rota)', () => {
     expect(portalRouteTitle('/portal/billing')).toBe('Portal · Faturas · Fwlog')
   })
 
+  it('páginas públicas do fwlog.com.br: só os dois caminhos têm título de página (ADR 0114)', () => {
+    expect(portalRouteTitle('/portal/publico/chegadas-saidas')).toBe('Chegadas e saídas · Fwlog')
+    expect(portalRouteTitle('/portal/publico/consulta-container/')).toBe('Consulta de container · Fwlog')
+    expect(portalRouteTitle('/portal/publico/chegadas-saidas/outra')).toBe('Página não encontrada · Fwlog')
+    expect(portalRouteTitle('/portal/publico/xyz')).toBe('Página não encontrada · Fwlog')
+  })
+
   it('cai no nome do produto para rota desconhecida', () => {
     expect(routeTitle('/rota-inexistente')).toBe('Vela')
     expect(portalRouteTitle('/rota-inexistente')).toBe('Fwlog')

@@ -7,6 +7,7 @@ import { supabase } from './supabase'
 import { invoiceTypeLabel } from './billing'
 import type { PixTransaction } from '../types/database'
 import { matchesAnyToken } from '../lib/searchTerms'
+import { INVOICE_STATUS_LABELS } from '../lib/statusLabels'
 
 export type UnifiedPixMatch = {
   transaction: PixTransaction
@@ -395,6 +396,18 @@ export async function confirmUnifiedPixReconciliation(matches: UnifiedPixMatch[]
 
 // ========== Reconciliation History ==========
 
+/**
+ * Forma da baixa (ADR 0115, migration 553): automática pela consulta do Itaú,
+ * pelo extrato (plano B), registrada à mão (inclusive a baixa de um Pix
+ * recebido escolhida pelo operador) ou isenção da Invoice de Demurrage.
+ */
+export type PaymentMethod = 'itau' | 'extract' | 'manual' | 'exemption'
+
+/**
+ * Uma baixa num B/L. A consolidada paga por uma baixa tem uma linha por B/L,
+ * cada uma com o que a baixa liquidou nele; a fatura coberta pela consolidada
+ * mostra as baixas que recebeu antes. Situação e saldo são os atuais da fatura.
+ */
 export type ReconciliationHistoryRow = {
   id: string
   source: 'local' | 'demurrage'
@@ -403,16 +416,26 @@ export type ReconciliationHistoryRow = {
   invoiceType: string | null
   customerName: string
   customerCnpj: string
+  /** `-` quando a baixa não é de um B/L só (avulsa sem B/L ou com vários). */
   blId: string
+  /** B/Ls da fatura quando a baixa não foi rateada por B/L (avulsa). */
+  blCount: number
   vesselName: string | null
   voyageNumber: string | null
   pod: string | null
+  /** Valor do B/L na fatura (a fatura inteira quando não há B/L). */
   blAmount: number
   totalAmount: number
   paymentId: number | null
-  totalPaid: number | null
-  balance: number | null
   paidAt: string | null
+  /** Quanto esta baixa pôs neste B/L. */
+  amount: number
+  /** Valor da baixa inteira (repete nas linhas de B/L da mesma baixa). */
+  paymentAmount: number
+  method: PaymentMethod
+  /** Referência bancária da baixa (identificador do Pix, TXID ou o que foi digitado). */
+  bankReference: string | null
+  balance: number | null
   status: string
 }
 
@@ -420,6 +443,7 @@ export type ReconciliationFilters = {
   paidFrom: string
   paidTo: string
   source: '' | 'local' | 'demurrage'
+  method: '' | PaymentMethod
   customerId: string
   blSearch: string
   vesselSearch: string
@@ -436,6 +460,7 @@ const DEFAULT_HISTORY_FILTERS: ReconciliationFilters = {
   paidFrom: '',
   paidTo: '',
   source: '',
+  method: '',
   customerId: '',
   blSearch: '',
   vesselSearch: '',
@@ -454,87 +479,17 @@ export function normalizeReconciliationInvoiceTypeFilter(
   return filter === 'single' ? 'individual' : filter
 }
 
-export function selectLatestPayment(
-  payments: Array<{ id: number; paid_at: string | null }>,
-): { id: number; paid_at: string } | null {
-  return payments
-    .filter((payment): payment is { id: number; paid_at: string } => Boolean(payment.paid_at))
-    .reduce<{ id: number; paid_at: string } | null>(
-      (latest, payment) => !latest || payment.paid_at > latest.paid_at ? payment : latest,
-      null,
-    )
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  itau: 'Automática (Itaú)',
+  extract: 'Pelo extrato',
+  manual: 'Manual',
+  exemption: 'Isenção',
 }
 
-const HISTORY_LOCAL_SELECT = `
-  id, invoice_number, customer_id, bl_id, voyage_id, issued_at, total_brl, status, invoice_type,
-  total_paid_brl, balance_brl, created_at,
-  voyage:voyages(id,voyage_number,vessel:vessels(name)),
-  bl:bls(id,pod,voyage:voyages(id,voyage_number,vessel:vessels(name))),
-  customer:customers(id,name,cnpj_cpf),
-  invoice_bls(id,bl_id,subtotal_brl,subtotal_usd,bl:bls(pod,voyage:voyages(voyage_number,vessel:vessels(name)))),
-  invoice_receivable_links(id,bl_id,subtotal_brl,bl:bls(pod,voyage:voyages(voyage_number,vessel:vessels(name)))),
-  payments(id,paid_at)
-`
+export const PAYMENT_METHODS = Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]
 
-const HISTORY_DEMURRAGE_SELECT = `
-  *, customer:customers(id,name,cnpj_cpf),
-  bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))
-`
-
-type FlatBl = { blId: string; pod: string | null; voyageNumber: string | null; vesselName: string | null; subtotalBrl: number | null }
-
-function flattenBls(inv: Record<string, unknown>): FlatBl[] {
-  const invoiceBls = (inv.invoice_bls as Array<Record<string, unknown>> | null) ?? []
-  const receivableLinks = (inv.invoice_receivable_links as Array<Record<string, unknown>> | null) ?? []
-  const links = invoiceBls.length > 0 ? invoiceBls : receivableLinks
-  const out = links
-    .map((link: Record<string, unknown>) => {
-      const bl = link.bl as Record<string, unknown> | null
-      const voyage = bl?.voyage as Record<string, unknown> | null
-      return {
-        blId: String(link.bl_id ?? '').trim(),
-        pod: (bl?.pod as string | null) ?? null,
-        voyageNumber: (voyage?.voyage_number as string | null) ?? null,
-        vesselName: ((voyage?.vessel as Record<string, unknown> | null)?.name as string | null) ?? null,
-        subtotalBrl: (link.subtotal_brl as number | null) ?? null,
-      }
-    })
-    .filter((bl) => bl.blId.length > 0)
-  if (out.length > 0) return out
-
-  const directBl = inv.bl as Record<string, unknown> | null
-  const directBlId = String(inv.bl_id ?? directBl?.id ?? '').trim()
-  const directVoyage = (directBl?.voyage as Record<string, unknown> | null)
-    ?? (inv.voyage as Record<string, unknown> | null)
-  const directVessel = directVoyage?.vessel as Record<string, unknown> | null
-  if (directBlId) {
-    return [{
-      blId: directBlId,
-      pod: (directBl?.pod as string | null) ?? null,
-      voyageNumber: (directVoyage?.voyage_number as string | null) ?? null,
-      vesselName: (directVessel?.name as string | null) ?? null,
-      subtotalBrl: null,
-    }]
-  }
-
-  return [{
-    blId: '-',
-    pod: null,
-    voyageNumber: (directVoyage?.voyage_number as string | null) ?? null,
-    vesselName: (directVessel?.name as string | null) ?? null,
-    subtotalBrl: null,
-  }]
-}
-
-/**
- * Valor pago da fatura na linha do histórico. Demurrage só entra paga e
- * inteira; Taxas Locais usa o total pago gravado. Coberta pela consolidada não
- * recebeu nada: o dinheiro entrou na consolidada (null).
- */
-export function historyPaidAmount(row: Pick<ReconciliationHistoryRow, 'source' | 'status' | 'totalPaid' | 'totalAmount'>): number | null {
-  if (row.status === 'covered') return null
-  if (row.source === 'demurrage') return row.totalAmount
-  return row.totalPaid ?? (row.status === 'paid' ? row.totalAmount : null)
+export function paymentMethodLabel(method: PaymentMethod): string {
+  return PAYMENT_METHOD_LABELS[method] ?? method
 }
 
 /** Saldo da fatura; Demurrage paga não tem saldo. */
@@ -543,130 +498,91 @@ export function historyBalance(row: Pick<ReconciliationHistoryRow, 'source' | 'b
 }
 
 export type ReconciliationHistorySummary = {
-  /** Faturas distintas no recorte (a consolidada tem uma linha por B/L). */
-  invoices: number
-  /** Soma do valor pago dessas faturas; coberta pela consolidada não soma. */
+  /** Baixas distintas no recorte (a da consolidada tem uma linha por B/L). */
+  payments: number
+  /** Soma do que as baixas do recorte puseram nos B/Ls. */
   received: number
 }
 
-/** Resumo do recorte inteiro, não só da página: cada fatura conta uma vez. */
+const paymentKey = (row: Pick<ReconciliationHistoryRow, 'source' | 'paymentId' | 'invoiceId'>) =>
+  row.source === 'local' ? `local-${row.paymentId}` : `demurrage-${row.invoiceId}`
+
+/** Resumo do recorte inteiro, não só da página: cada baixa conta uma vez. */
 export function summarizeReconciliationHistory(rows: readonly ReconciliationHistoryRow[]): ReconciliationHistorySummary {
-  const seen = new Set<string>()
-  let received = 0
-  for (const row of rows) {
-    const key = `${row.source}-${row.invoiceId}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    received += historyPaidAmount(row) ?? 0
+  const payments = new Set(rows.map(paymentKey))
+  const received = rows.reduce((sum, row) => sum + row.amount, 0)
+  return { payments: payments.size, received: Math.round(received * 100) / 100 }
+}
+
+type PaymentHistoryRpcRow = {
+  source: 'local' | 'demurrage'
+  invoice_id: number | string
+  doc_number: string | null
+  invoice_type: string | null
+  invoice_status: string | null
+  invoice_total_brl: number | string | null
+  invoice_balance_brl: number | string | null
+  customer_name: string | null
+  customer_cnpj: string | null
+  payment_id: number | string | null
+  paid_at: string | null
+  payment_amount_brl: number | string | null
+  method: PaymentMethod
+  bank_reference: string | null
+  bl_id: string | null
+  bl_count: number | null
+  bl_amount_brl: number | string | null
+  amount_brl: number | string | null
+  pod: string | null
+  voyage_number: string | null
+  vessel_name: string | null
+}
+
+const toNumber = (value: number | string | null | undefined) => Number(value ?? 0)
+
+export function toReconciliationHistoryRow(r: PaymentHistoryRpcRow): ReconciliationHistoryRow {
+  const blId = (r.bl_id ?? '').trim() || '-'
+  const paymentId = r.payment_id == null ? null : Number(r.payment_id)
+  return {
+    id: r.source === 'local' ? `local-${paymentId}-${blId}` : `demurrage-${r.invoice_id}`,
+    source: r.source,
+    invoiceId: Number(r.invoice_id),
+    docNumber: r.doc_number ?? `INV-${r.invoice_id}`,
+    invoiceType: r.invoice_type,
+    customerName: r.customer_name ?? '',
+    customerCnpj: r.customer_cnpj ?? '',
+    blId,
+    blCount: Number(r.bl_count ?? 0),
+    vesselName: r.vessel_name,
+    voyageNumber: r.voyage_number,
+    pod: r.pod,
+    blAmount: toNumber(r.bl_amount_brl),
+    totalAmount: toNumber(r.invoice_total_brl),
+    paymentId,
+    paidAt: r.paid_at,
+    amount: toNumber(r.amount_brl),
+    paymentAmount: toNumber(r.payment_amount_brl),
+    method: r.method,
+    bankReference: r.bank_reference,
+    balance: r.invoice_balance_brl == null ? null : Number(r.invoice_balance_brl),
+    status: r.invoice_status ?? '',
   }
-  return { invoices: seen.size, received: Math.round(received * 100) / 100 }
 }
 
 export async function listReconciliationHistory(
   userFilters: Partial<ReconciliationFilters>,
 ): Promise<{ rows: ReconciliationHistoryRow[]; totalCount: number; summary: ReconciliationHistorySummary }> {
   const filters: ReconciliationFilters = { ...DEFAULT_HISTORY_FILTERS, ...userFilters }
-  const pageSize = 1000
 
-  async function loadLocalRows() {
-    const rows: Record<string, unknown>[] = []
-    for (let from = 0; ; from += pageSize) {
-      let q = supabase
-        .from('invoices')
-        .select(HISTORY_LOCAL_SELECT)
-        .in('status', ['paid', 'covered', 'partially_paid'])
-        .order('created_at', { ascending: false })
-        .range(from, from + pageSize - 1)
-      if (filters.customerId) q = q.eq('customer_id', Number(filters.customerId))
-      const result = await q.overrideTypes<Record<string, unknown>[]>()
-      if (result.error) throw result.error
-      rows.push(...(result.data ?? []))
-      if ((result.data?.length ?? 0) < pageSize) break
-    }
-    return rows
-  }
+  // Uma linha por baixa e B/L, com a forma da baixa decidida no banco
+  // (`list_payment_history`, migration 553): o navegador não lê os
+  // recebimentos do Itaú nem a conta da baixa automática.
+  const { data, error } = await callPixRpc('list_payment_history', {
+    p_customer_id: filters.customerId ? Number(filters.customerId) : null,
+  })
+  if (error) throw error
 
-  async function loadDemurrageRows() {
-    const rows: Record<string, unknown>[] = []
-    for (let from = 0; ; from += pageSize) {
-      let q = supabase
-        .from('demurrage_invoices')
-        .select(HISTORY_DEMURRAGE_SELECT)
-        .eq('status', 'paid')
-        .order('created_at', { ascending: false })
-        .range(from, from + pageSize - 1)
-      if (filters.customerId) q = q.eq('customer_id', Number(filters.customerId))
-      const result = await q.overrideTypes<Record<string, unknown>[]>()
-      if (result.error) throw result.error
-      rows.push(...(result.data ?? []))
-      if ((result.data?.length ?? 0) < pageSize) break
-    }
-    return rows
-  }
-
-  const [localSourceRows, demurrageSourceRows] = await Promise.all([
-    loadLocalRows(),
-    loadDemurrageRows(),
-  ])
-
-  const localRows: ReconciliationHistoryRow[] = []
-  for (const inv of localSourceRows) {
-    const bls = flattenBls(inv)
-    const paymentsArr = (inv.payments as Array<{ id: number; paid_at: string | null }> | null) ?? []
-    const latestPayment = selectLatestPayment(paymentsArr)
-    const paymentDate = latestPayment?.paid_at ?? null
-    const invTotal = Number(inv.total_brl ?? 0)
-    for (const bl of bls) {
-      localRows.push({
-        id: `local-${inv.id}-${bl.blId}`,
-        source: 'local',
-        invoiceId: Number(inv.id),
-        docNumber: (inv.invoice_number as string | null) ?? `INV-${inv.id}`,
-        invoiceType: (inv.invoice_type as string | null) ?? null,
-        customerName: ((inv.customer as Record<string, unknown> | null)?.name as string) ?? '',
-        customerCnpj: ((inv.customer as Record<string, unknown> | null)?.cnpj_cpf as string) ?? '',
-        blId: bl.blId,
-        vesselName: bl.vesselName,
-        voyageNumber: bl.voyageNumber,
-        pod: bl.pod,
-        blAmount: bl.subtotalBrl ?? invTotal,
-        totalAmount: invTotal,
-        totalPaid: inv.total_paid_brl != null ? Number(inv.total_paid_brl) : null,
-        balance: inv.balance_brl != null ? Number(inv.balance_brl) : null,
-        paidAt: paymentDate,
-        status: (inv.status as string) ?? '',
-        paymentId: latestPayment?.id ?? null,
-      })
-    }
-  }
-
-  const demurrageRows: ReconciliationHistoryRow[] = []
-  for (const inv of demurrageSourceRows) {
-    const voyage = (inv.bl as Record<string, unknown> | null)?.voyage as Record<string, unknown> | null
-    const invTotal = Number(inv.current_total_brl ?? 0)
-    demurrageRows.push({
-      id: `demurrage-${inv.id}`,
-      source: 'demurrage',
-      invoiceId: Number(inv.id),
-      docNumber: (inv.doc_number as string) ?? '',
-      invoiceType: null,
-      customerName: ((inv.customer as Record<string, unknown> | null)?.name as string) ?? '',
-      customerCnpj: ((inv.customer as Record<string, unknown> | null)?.cnpj_cpf as string) ?? '',
-      blId: (inv.bl_id as string) ?? '',
-      vesselName: (voyage?.vessel as Record<string, unknown> | null)?.name as string | null ?? null,
-      voyageNumber: voyage?.voyage_number as string | null ?? null,
-      pod: ((inv.bl as Record<string, unknown> | null)?.pod as string | null) ?? null,
-      blAmount: invTotal,
-      totalAmount: invTotal,
-      totalPaid: null,
-      balance: null,
-      paidAt: (inv.paid_at as string | null) ?? null,
-      status: (inv.status as string) ?? '',
-      paymentId: null,
-    })
-  }
-
-  let all = [...localRows, ...demurrageRows]
+  let all = ((data ?? []) as PaymentHistoryRpcRow[]).map(toReconciliationHistoryRow)
 
   // Only show rows with a payment date — data de pagamento é obrigatória
   all = all.filter((r) => r.paidAt !== null)
@@ -674,6 +590,7 @@ export async function listReconciliationHistory(
   if (filters.paidFrom) all = all.filter((r) => r.paidAt! >= filters.paidFrom)
   if (filters.paidTo) all = all.filter((r) => r.paidAt! <= `${filters.paidTo}T23:59:59`)
   if (filters.source) all = all.filter((r) => r.source === filters.source)
+  if (filters.method) all = all.filter((r) => r.method === filters.method)
   if (filters.blSearch) {
     const term = filters.blSearch.toUpperCase()
     all = all.filter((r) => r.blId.toUpperCase().includes(term) || matchesAnyToken(term, [r.blId]))
@@ -703,9 +620,12 @@ export async function listReconciliationHistory(
     else if (sf === 'docNumber') cmp = a.docNumber.localeCompare(b.docNumber)
     else if (sf === 'customerName') cmp = a.customerName.localeCompare(b.customerName)
     else if (sf === 'blAmount') cmp = a.blAmount - b.blAmount
+    else if (sf === 'amount') cmp = a.amount - b.amount
     else if (sf === 'totalAmount') cmp = a.totalAmount - b.totalAmount
     else if (sf === 'blId') cmp = a.blId.localeCompare(b.blId)
-    return sd === 'desc' ? -cmp : cmp
+    // Empate: a baixa mais nova primeiro e as linhas dela juntas, na ordem do B/L.
+    return (sd === 'desc' ? -cmp : cmp)
+      || (b.paymentId ?? 0) - (a.paymentId ?? 0) || a.docNumber.localeCompare(b.docNumber) || a.blId.localeCompare(b.blId)
   })
 
   const totalCount = all.length
@@ -723,27 +643,28 @@ export async function exportReconciliationHistoryExcel(filters: Partial<Reconcil
 
   const XLSX = await import('@e965/xlsx')
 
-  // Cabeçalhos com os nomes das colunas da tela (lote 3 da identidade).
-  const data = rows.map((r) => {
-    const paid = historyPaidAmount(r)
-    return {
-      Fatura: r.docNumber,
-      Origem: r.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais',
-      'Tipo de fatura': r.source === 'demurrage' ? '' : invoiceTypeLabel(r.invoiceType),
-      'B/L': r.blId === '-' ? '' : r.blId,
-      Cliente: r.customerName,
-      CNPJ: r.customerCnpj,
-      Navio: r.vesselName ?? '',
-      Viagem: r.voyageNumber ?? '',
-      POD: r.pod ?? '',
-      'Pago em': r.paidAt ? formatDate(r.paidAt) : '',
-      'Valor do B/L': r.blAmount,
-      'Valor da fatura': r.totalAmount,
-      'Valor pago': paid ?? '',
-      Saldo: historyBalance(r),
-      Situação: r.status === 'paid' ? 'Paga' : r.status === 'covered' ? 'Coberta pela consolidada' : r.status === 'partially_paid' ? 'Parcialmente paga' : r.status,
-    }
-  })
+  // Cabeçalhos com os nomes das colunas da tela (lote 3 da identidade), uma
+  // linha por baixa e B/L como na tela (ADR 0115).
+  const data = rows.map((r) => ({
+    Fatura: r.docNumber,
+    Origem: r.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais',
+    'Tipo de fatura': r.source === 'demurrage' ? '' : invoiceTypeLabel(r.invoiceType),
+    'B/L': r.blId === '-' ? '' : r.blId,
+    Cliente: r.customerName,
+    CNPJ: r.customerCnpj,
+    Navio: r.vesselName ?? '',
+    Viagem: r.voyageNumber ?? '',
+    POD: r.pod ?? '',
+    'Pago em': r.paidAt ? formatDate(r.paidAt) : '',
+    'Forma da baixa': paymentMethodLabel(r.method),
+    'Referência bancária': r.bankReference ?? '',
+    'Valor do B/L': r.blAmount,
+    'Valor da fatura': r.totalAmount,
+    'Valor pago': r.amount,
+    'Valor da baixa': r.paymentAmount,
+    Saldo: historyBalance(r),
+    Situação: r.status === 'paid' ? 'Paga' : r.status === 'covered' ? 'Coberta pela consolidada' : r.status === 'partially_paid' ? 'Parcialmente paga' : INVOICE_STATUS_LABELS[r.status] ?? r.status,
+  }))
 
   const safeRows = sanitizeSheetRows(data)
 
@@ -851,10 +772,12 @@ export async function markItauPixReceiptHandled(endToEndId: string, note: string
 }
 
 // Pix recebidos (ADR 0100, migration 442): todo Pix que o Itaú informou na
-// consulta. O de cobrança do Vela tem a baixa automática; o resto fica gravado
-// sem baixa e sem Alerta, e o operador pode dar a baixa numa fatura se quiser.
+// consulta. O de cobrança do Vela tem a baixa automática, e o do QR estático
+// do Vela também quando este ambiente cobra pelo QR estático (ADR 0115,
+// migration 552); o resto fica gravado sem baixa e sem Alerta, e o operador
+// pode dar a baixa numa fatura se quiser.
 
-export type ItauPixReceiptOrigin = 'vela' | 'none' | 'other' | 'test'
+export type ItauPixReceiptOrigin = 'vela' | 'static' | 'none' | 'other' | 'test'
 export type ItauPixReceiptSituation = 'settled' | 'received' | 'review' | 'handled'
 type InvoiceRef = { source: 'local' | 'demurrage'; invoiceId: number; docNumber: string | null }
 

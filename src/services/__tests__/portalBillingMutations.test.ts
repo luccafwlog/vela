@@ -28,10 +28,10 @@ it('US-167: propaga erro do RPC ao desfazer a consolidada', async () => {
   await expect(portalObsoleteConsolidation(55)).rejects.toThrow('nao permitido')
 })
 
-it('US-168: abre disputa de demurrage com motivo', async () => {
-  rpcMock.mockResolvedValue({ data: null, error: null })
+it('US-168: abre disputa de demurrage com motivo e devolve a mensagem para o anexo', async () => {
+  rpcMock.mockResolvedValue({ data: { dispute_id: 4, message_id: 40 }, error: null })
 
-  await portalOpenDemurrageDispute(9, 'cobranca indevida')
+  await expect(portalOpenDemurrageDispute(9, 'cobranca indevida')).resolves.toEqual({ dispute_id: 4, message_id: 40 })
   expect(rpcMock).toHaveBeenCalledWith('portal_open_demurrage_dispute', {
     p_demurrage_invoice_id: 9,
     p_reason: 'cobranca indevida',

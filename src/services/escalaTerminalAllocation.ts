@@ -5,6 +5,7 @@ import { listDepots } from './depots'
 import { normalizePortCode, portCodeVariants } from './portCode'
 import { queryKeys } from './queryKeys'
 import { listVoyageEscalaSchedulesByVoyageIds } from './voyageRouteSchedules'
+import { listTransshipmentBlIds } from './transshipments'
 import { supabase } from './supabase'
 
 export type OperationFrontKind =
@@ -196,6 +197,40 @@ export function operationFrontKindsForCargoMode(
   return kind == null ? [] : [kind]
 }
 
+/**
+ * Porto de carregamento efetivo de um B/L de Granito: o do B/L, ou o do
+ * manifesto na falta dele. É a régua da frente de Granito, do conteúdo do ADR
+ * e do fechamento (migration 538).
+ */
+// ponytail: a tela normaliza com `normalizePortCode`, que também reconhece texto
+// livre ("Vitoria, Brazil"); o banco (`normalize_port_code`, migrations 538 e
+// 540) só aceita o apelido exato. B/L de Granito antigo com porto em texto livre
+// cria a frente TBC na tela e o Fechar ADR fica desabilitado, mas a API não
+// recusa. A tela é a mais restrita; a melhoria é uma tabela de apelidos só.
+export function graniteBlLoadingPort(blLoadingPort: string | null | undefined, manifestLoadingPort: string | null | undefined) {
+  return normalizePortCode(blLoadingPort ?? manifestLoadingPort ?? null)
+}
+
+/**
+ * Portos com Granito importado na Viagem: o efetivo de cada B/L (onde a frente
+ * de Granito nasce) e o do manifesto, que o banco usa para travar a retirada
+ * da declaração (migration 066).
+ */
+export function graniteLoadingPorts(
+  manifests: ReadonlyArray<{ loading_port: string | null; granite_bls?: ReadonlyArray<{ loading_port?: string | null }> | null }>,
+) {
+  const ports = new Set<string>()
+  for (const manifest of manifests) {
+    const manifestPort = normalizePortCode(manifest.loading_port)
+    if (manifestPort) ports.add(manifestPort)
+    for (const bl of manifest.granite_bls ?? []) {
+      const blPort = graniteBlLoadingPort(bl.loading_port, manifest.loading_port)
+      if (blPort) ports.add(blPort)
+    }
+  }
+  return ports
+}
+
 const IMPORT_SECTION_BY_KIND: Record<Exclude<OperationFrontKind, 'granito'>, OperationFront['section']> = {
   carga_cheia: 'carga_descarregada',
   carga_solta: 'carga_descarregada',
@@ -206,6 +241,16 @@ const IMPORT_SECTION_BY_KIND: Record<Exclude<OperationFrontKind, 'granito'>, Ope
 const EXPORT_SECTION_BY_KIND: Record<'granito' | 'vazio', OperationFront['section']> = {
   granito: 'carga_carregada',
   vazio: 'vazios_embarcados',
+}
+
+/**
+ * Seção do ADR que a frente atende. O veículo viaja dentro de container: a
+ * seção Veículos é atendida pela frente de Carga cheia, e veículo não tem
+ * frente própria nem terminal à parte (decisão do dono de 2026-10-30).
+ */
+export function frontServesSection(front: Pick<OperationFront, 'sentido' | 'modalidade' | 'section'>, section: string) {
+  if (front.section === section) return true
+  return section === 'veiculos' && front.sentido === 'importacao' && front.modalidade === 'carga_cheia'
 }
 
 function normalizePort(port: string) {
@@ -238,6 +283,8 @@ function makeFront(
 export type DeriveOperationFrontInput = {
   existing?: Array<Pick<OperationFront, 'id' | 'sentido' | 'modalidade' | 'terminalId' | 'source'>>
   importKinds?: Iterable<Exclude<OperationFrontKind, 'granito'>>
+  /** Carga de exportação já gravada no porto (Granito importado, Embarque de vazios), com ou sem declaração. */
+  exportKinds?: Iterable<'granito' | 'vazio'>
   exportSchedule?: Pick<VoyageExportSchedule, 'temExportacao' | 'hasGranite' | 'hasEmpty'> | null
 }
 
@@ -254,6 +301,13 @@ export function deriveOperationFronts(input: DeriveOperationFrontInput): Operati
   for (const kind of new Set(input.importKinds ?? [])) {
     const key = frontKey({ sentido: 'importacao', modalidade: kind })
     if (!fronts.has(key)) fronts.set(key, makeFront('importacao', kind, null, 'operational_data', true))
+  }
+  // A carga de exportação gravada cria a frente mesmo sem a declaração: sem
+  // ela, o Granito importado ficava fora do ADR por terminal. A origem segue
+  // 'export_declaration', a única que o banco aceita para exportação.
+  for (const kind of new Set(input.exportKinds ?? [])) {
+    const key = frontKey({ sentido: 'exportacao', modalidade: kind })
+    if (!fronts.has(key)) fronts.set(key, makeFront('exportacao', kind, null, 'export_declaration', true))
   }
   const exportSchedule = input.exportSchedule
   if (exportSchedule?.temExportacao) {
@@ -324,19 +378,21 @@ async function readAgencyReports(voyageId: number, port: string): Promise<JsonRe
 function reportSections(fronts: OperationFront[], terminalId: string | null): AgencyReportByTerminal['sections'] {
   const bySection = new Map<string, OperationFrontKind[]>()
   const assigned = fronts.filter((item) => item.terminalId === terminalId)
-  for (const front of assigned) {
-    if (!front.section) continue
-    const kinds = bySection.get(front.section) ?? []
-    if (!kinds.includes(front.modalidade)) kinds.push(front.modalidade)
-    bySection.set(front.section, kinds)
-  }
   const sections = ['datas', 'carga_descarregada', 'carga_carregada', 'veiculos', 'vazios_embarcados', 'vazios_descarregados']
+  for (const front of assigned) {
+    for (const section of sections) {
+      if (!frontServesSection(front, section)) continue
+      const kinds = bySection.get(section) ?? []
+      if (!kinds.includes(front.modalidade)) kinds.push(front.modalidade)
+      bySection.set(section, kinds)
+    }
+  }
   return sections.map((section) => ({
     section,
-    state: assigned.some((front) => front.section === section && front.hasData) ? 'operated' : 'nothing_operated',
+    state: assigned.some((front) => frontServesSection(front, section) && front.hasData) ? 'operated' : 'nothing_operated',
     fronts: (bySection.get(section) ?? []).sort((left, right) => left.localeCompare(right, 'pt-BR')),
     frontKeys: assigned
-      .filter((front) => front.section === section)
+      .filter((front) => frontServesSection(front, section))
       .map((front) => frontKey(front))
       .sort((left, right) => left.localeCompare(right, 'pt-BR')),
   }))
@@ -402,7 +458,16 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
     table('bls').select('id, cargo_mode, pod').eq('voyage_id', voyageId).in('pod', portCodeVariants(normalizedPort)).order('id', { ascending: true }).range(from, to),
   )
   if (bls.error) throw bls.error
-  for (const row of bls.data) {
+  // B/L em transbordo de uma escala omitida mantém o POD do porto omitido
+  // (só o COD o reescreve) e descarrega aqui: a carga dele também cria as
+  // frentes desta escala, como o conteúdo do ADR já a soma.
+  const transshipmentBlIds = await listTransshipmentBlIds(voyageId, normalizedPort)
+  const transshipmentBls = transshipmentBlIds.length
+    ? await table('bls').select('id, cargo_mode').in('id', transshipmentBlIds)
+    : { data: [], error: null }
+  if (transshipmentBls.error) throw transshipmentBls.error
+  const transshipmentRows = Array.isArray(transshipmentBls.data) ? transshipmentBls.data as JsonRecord[] : []
+  for (const row of [...bls.data, ...transshipmentRows]) {
     for (const kind of operationFrontKindsForCargoMode(typeof row.cargo_mode === 'string' ? row.cargo_mode : null)) {
       importKinds.add(kind)
     }
@@ -417,8 +482,35 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
   )
   if (emptyImports.error) throw emptyImports.error
   if (emptyImports.data.length) importKinds.add('vazio')
+  // Granito casa pelo porto de carregamento efetivo do B/L, a mesma régua do
+  // conteúdo do ADR (`graniteBlLoadingPort`).
+  const graniteBls = await fetchAllRows<JsonRecord>((from, to) =>
+    table('granite_bls')
+      .select('id, loading_port, manifest:granite_manifests!inner(voyage_id, loading_port)')
+      .eq('manifest.voyage_id', voyageId)
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
+  if (graniteBls.error) throw graniteBls.error
+  const exportKinds = new Set<'granito' | 'vazio'>()
+  if (graniteBls.data.some((row) => {
+    const manifest = row.manifest && typeof row.manifest === 'object' ? row.manifest as JsonRecord : null
+    return graniteBlLoadingPort(
+      typeof row.loading_port === 'string' ? row.loading_port : null,
+      typeof manifest?.loading_port === 'string' ? manifest.loading_port : null,
+    ) === normalizedPort
+  })) exportKinds.add('granito')
+  // Embarque de vazios anterior à 541 (ADR 0113) pode estar sem a frente
+  // Vazios EXP: ele cria a frente, em TBC até ganhar terminal, como no
+  // fechamento (`_escala_fronts_without_terminal`, migration 547).
+  const embarques = await table('vazios_export_operations')
+    .select('id')
+    .eq('voyage_id', voyageId)
+    .in('embark_port', portCodeVariants(normalizedPort))
+  if (embarques.error) throw embarques.error
+  if (Array.isArray(embarques.data) && embarques.data.length) exportKinds.add('vazio')
 
-  const fronts = deriveOperationFronts({ existing: existingFronts, importKinds, exportSchedule })
+  const fronts = deriveOperationFronts({ existing: existingFronts, importKinds, exportKinds, exportSchedule })
   const depotRows = depots as unknown as Array<{ id: string; code: string; name: string | null; active: boolean; tipo: string; port_id?: number | null }>
   const stateRows = (terminalsResult.data ?? []) as JsonRecord[]
   const historicalIds = new Set(stateRows.flatMap((row) => typeof row.terminal_id === 'string' ? [row.terminal_id] : []))

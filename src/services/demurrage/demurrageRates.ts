@@ -3,6 +3,7 @@ import { buildDemurrageRateUpsertPayload, type DemurrageRateUpsertInput } from '
 import { reportBestEffortFailure } from '../../lib/telemetry'
 import type { DemurrageCalcResult, DemurrageRate } from '../../types/database'
 import { deleteOneById, reactivateCatalogRow } from '../deleteRecords'
+import { saoPauloTodayIso } from '../../lib/dates'
 
 export type RateGroup = {
   aliases: string[]
@@ -24,24 +25,6 @@ let dynamicRateGroupsLoadedAt = 0
 let dynamicRateGroupsLastError: string | null = null
 let dynamicRateGroupsLastErrorAt = 0
 
-// O catálogo atual de main guarda apenas uma linha por tipo canônico. Estes
-// aliases permanecem aceitos porque aparecem em B/Ls e nas migrations legadas.
-const DEMURRAGE_ALIAS_GROUPS = [
-  { canonical: '20GP', aliases: ['20GP', '20G0', '20HC', '20HQ', '22G1', '20G1'] },
-  { canonical: '40GP', aliases: ['40GP', '40G0', '40HC', '40HQ', '40G1', '42G1', '45G1'] },
-  { canonical: '20FR', aliases: ['20FR', '20OT', '20FT'] },
-  { canonical: '40FR', aliases: ['40FR', '40OT', '40FT'] },
-  { canonical: '20RF', aliases: ['20RF', '20RQ', '20R1'] },
-  { canonical: '40RF', aliases: ['40RF', '40RQ', '40R1', '45R1'] },
-] as const
-
-const DEMURRAGE_ALIAS_TO_CANONICAL: Map<string, string> = new Map(
-  DEMURRAGE_ALIAS_GROUPS.flatMap(({ canonical, aliases }) => aliases.map((alias) => [alias, canonical] as const)),
-)
-const DEMURRAGE_ALIASES_BY_CANONICAL: Map<string, readonly string[]> = new Map(
-  DEMURRAGE_ALIAS_GROUPS.map(({ canonical, aliases }) => [canonical, aliases] as const),
-)
-
 function normalizeContainerType(value: unknown): string {
   return String(value ?? '').trim().toUpperCase()
 }
@@ -60,26 +43,27 @@ function resolveActiveRateGroups(): RateGroup[] {
   throw new Error(RATES_UNAVAILABLE_MESSAGE)
 }
 
-function toRateGroups(rows: DemurrageRate[]): RateGroup[] {
-  const grouped = new Map<string, { row: DemurrageRate; aliases: Set<string> }>()
+/**
+ * Uma tarifa por grupo (migration 514, ADR 0112 D28): a linha guarda o código
+ * do grupo, e os tipos que o grupo cobre vêm do cadastro Tipos de container,
+ * como no banco (`_demurrage_canonical_type`). Tipo inativo ou fora do cadastro
+ * não acha grupo, também o que tem o código de um grupo, como o 20GP (migration
+ * 546). As linhas chegam pela vigência mais recente: a primeira de cada grupo
+ * vale, como em `_active_demurrage_rates`.
+ */
+function toRateGroups(rows: DemurrageRate[], types: ReadonlyArray<{ code: string; rate_group: string; active: boolean }>): RateGroup[] {
+  const grouped = new Map<string, DemurrageRate>()
   for (const row of rows) {
-    const rowType = normalizeContainerType(row.container_type)
-    if (!rowType) continue
-
-    const canonicalType = DEMURRAGE_ALIAS_TO_CANONICAL.get(rowType) ?? rowType
-    const existing = grouped.get(canonicalType)
-    if (existing) {
-      existing.aliases.add(rowType)
-      continue
-    }
-
-    const aliases = new Set<string>(DEMURRAGE_ALIASES_BY_CANONICAL.get(canonicalType) ?? [rowType])
-    aliases.add(rowType)
-    grouped.set(canonicalType, { row, aliases })
+    const group = normalizeContainerType(row.container_type)
+    if (group && !grouped.has(group)) grouped.set(group, row)
   }
 
   const groups: RateGroup[] = []
-  for (const { row, aliases } of grouped.values()) {
+  for (const [group, row] of grouped) {
+    const aliases = new Set<string>()
+    for (const type of types) {
+      if (type.active && normalizeContainerType(type.rate_group) === group) aliases.add(normalizeContainerType(type.code))
+    }
     groups.push({
       aliases: [...aliases],
       freeUntil: Number(row.free_days ?? 0),
@@ -102,17 +86,25 @@ export async function ensureDemurrageRatesLoaded(force = false) {
     return
   }
 
-  const today = new Date().toISOString().slice(0, 10)
-  const { data, error } = await supabase
-    .from('demurrage_rates')
-    .select('*')
-    .eq('active', true)
-    .lte('valid_from', today)
-    .or(`valid_to.is.null,valid_to.gte.${today}`)
-    .order('valid_from', { ascending: false })
-    .order('id', { ascending: false })
+  // Vigência pelo dia de Brasília, como o banco (`_active_demurrage_rates`).
+  const today = saoPauloTodayIso()
+  const [ratesRes, typesRes] = await Promise.all([
+    supabase
+      .from('demurrage_rates')
+      .select('*')
+      .eq('active', true)
+      .lte('valid_from', today)
+      .or(`valid_to.is.null,valid_to.gte.${today}`)
+      .order('valid_from', { ascending: false })
+      .order('id', { ascending: false }),
+    supabase
+      .from('container_types' as never)
+      .select('code, rate_group, active'),
+  ])
+  const data = ratesRes.data
+  const error = ratesRes.error ?? typesRes.error
 
-  const resolved = error ? [] : toRateGroups((data ?? []) as DemurrageRate[])
+  const resolved = error ? [] : toRateGroups((data ?? []) as DemurrageRate[], (typesRes.data ?? []) as Array<{ code: string; rate_group: string; active: boolean }>)
   if (error || resolved.length === 0) {
     dynamicRateGroupsLastError = error?.message ?? 'demurrage_rates vazia'
     dynamicRateGroupsLastErrorAt = now
@@ -172,12 +164,36 @@ export async function listDemurrageRates(): Promise<DemurrageRate[]> {
     .from('demurrage_rates')
     .select('*')
     .order('container_type', { ascending: true })
+    .order('valid_from', { ascending: false })
   if (error) throw error
   return (data ?? []) as DemurrageRate[]
 }
 
+/**
+ * 23P01 de `demurrage_rates_one_per_group` (migration 514, ADR 0112 D28): o
+ * banco recusa a segunda tarifa ativa do grupo com vigência sobreposta. O texto
+ * do Postgres é técnico e em inglês; a tela recebe o caminho, como no acordo.
+ */
+function isRateGroupOverlap(error: unknown): boolean {
+  const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown }
+  return code === '23P01' || (typeof message === 'string' && message.includes('demurrage_rates_one_per_group'))
+}
+
+/** Nome do grupo de tarifa ("40' dry"); sem ele, o próprio código. */
+async function rateGroupLabel(code: string): Promise<string> {
+  const { data } = await supabase
+    .from('demurrage_rate_groups' as never)
+    .select('name')
+    .eq('code', code)
+    .maybeSingle()
+  return (data as { name?: string } | null)?.name?.trim() || code
+}
+
 export async function upsertDemurrageRate(rate: DemurrageRateUpsertInput) {
   const { error } = await supabase.from('demurrage_rates').upsert(buildDemurrageRateUpsertPayload(rate))
+  if (isRateGroupOverlap(error)) {
+    throw new Error(`Já existe tarifa vigente para o grupo ${await rateGroupLabel(rate.container_type)}: feche a vigência da atual antes.`)
+  }
   if (error) throw error
   invalidateDemurrageRatesCache()
 }
@@ -190,8 +206,16 @@ export async function deleteDemurrageRate(id: number, reason: string) {
 
 export async function toggleDemurrageRateActive(id: number, active: boolean, reason?: string) {
   // B13: reativar pede motivo e passa pela RPC do Administrativo (migration 261).
-  if (active) await reactivateCatalogRow('demurrage_rates', id, reason ?? '')
-  else {
+  if (active) {
+    try {
+      await reactivateCatalogRow('demurrage_rates', id, reason ?? '')
+    } catch (error) {
+      if (isRateGroupOverlap(error)) {
+        throw new Error('Já existe tarifa vigente para o mesmo grupo nesse período: feche a vigência da atual antes de reativar esta.', { cause: error })
+      }
+      throw error
+    }
+  } else {
     const { error } = await supabase.from('demurrage_rates').update({ active }).eq('id', id)
     if (error) throw error
   }
@@ -215,7 +239,7 @@ function getRate(
   const groups = resolveActiveRateGroups()
   const group = groups.find((g) => g.aliases.includes(type))
   if (!group) {
-    throw new Error(`Tipo de container "${type || '(vazio)'}" sem tarifa de Demurrage cadastrada. Cadastre a tarifa em Tarifas de Demurrage antes de calcular.`)
+    throw new Error(`Tipo de container "${type || '(vazio)'}" sem tarifa de Demurrage: confira o cadastro do tipo e a tarifa do grupo em Tarifas e acordos.`)
   }
 
   const freeUntil = freeTimeOverride != null

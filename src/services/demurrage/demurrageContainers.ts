@@ -1,7 +1,4 @@
 import { supabase } from '../supabase'
-import { ensureDemurrageRatesLoaded } from './demurrageRates'
-import { selectAgreementForDischargeDate } from './customerDemurrageAgreements'
-import { CUSTOMER_OF_BL } from '../../lib/supabaseEmbeds'
 import type { DemurrageContainerListItem } from '../../types/database'
 import { demurrageBoxKey } from './demurrageBoxKey'
 
@@ -57,6 +54,10 @@ export type DemurrageContainerRow = DemurrageContainerListItem & {
   billed_in?: DemurrageBilledInvoiceRef[]
   /** Grupo de cobrança do B/L da caixa (ausente quando não se pôde montar). */
   billing_group?: DemurrageBillingGroup | null
+  /** Clientes que dividem a caixa na Viagem (D19, migration 521); a previsão é a parte do Cliente. */
+  box_share_count?: number
+  /** Cobrança da caixa dispensada (migration 517): nem correndo nem a faturar. */
+  waived?: boolean
 }
 
 type BilledItemRow = {
@@ -185,16 +186,6 @@ function chunks<T>(values: readonly T[], size = IN_CHUNK): T[][] {
   return out
 }
 
-const CONTAINER_SELECT = `
-      id, bl_id, container_number, type, discharge_date, return_date, demurrage_status, ownership,
-      bl:bls(
-        id, pol, pod, free_time_override,
-        demurrage_rate_override_p1_usd, demurrage_rate_override_p2_usd,
-        demurrage_roe_manual, demurrage_roe, voyage_id,
-        customer:${CUSTOMER_OF_BL}(id, name, cnpj_cpf),
-        voyage:voyages(id, voyage_number, vessel:vessels(id, name))
-      )
-    `
 const GROUP_BOX_SELECT = 'bl_id, container_number, ownership, return_date, bl:bls(voyage_id, customer_id, cancelled_at)'
 
 async function readGroupBoxesOfBls(blIds: readonly string[]): Promise<GroupBoxRow[]> {
@@ -255,106 +246,6 @@ export async function readDemurrageGroupAnchor(blId: string): Promise<string> {
   return groups.get(blId)?.anchorBlId ?? blId
 }
 
-export async function listDemurrageContainers(filters?: DemurrageContainerFilters): Promise<DemurrageContainerRow[]> {
-  await ensureDemurrageRatesLoaded()
-
-  const [activeInvoiceItems, agreements] = await Promise.all([
-    readAllPages<BilledItemRow>((from, to) => supabase
-      .from('demurrage_invoice_items')
-      .select('container_id, container_number, invoice:demurrage_invoices!inner(id, doc_number, status, customer_id, bl_id, bl:bls(voyage_id))')
-      .in('invoice.status', ['issued', 'overdue', 'paid'])
-      .order('id')
-      .range(from, to) as unknown as PageResult<BilledItemRow>),
-    readAllPages<AgreementRow>((from, to) => supabase
-      .from('customer_demurrage_agreements')
-      .select('id, customer_id, free_days, p1_usd, p2_usd, valid_from, valid_to')
-      .eq('active', true)
-      .order('valid_from', { ascending: false })
-      .order('id', { ascending: false })
-      .range(from, to) as unknown as PageResult<AgreementRow>),
-  ])
-
-  const billedIndex = indexBilledBoxes(activeInvoiceItems)
-  const invoicedContainerIds = new Set(activeInvoiceItems
-    .map((item) => item.container_id)
-    .filter((id): id is number => typeof id === 'number'))
-
-  const agreementsByCustomer = new Map<number, AgreementRow[]>()
-  for (const agreement of agreements) {
-    agreementsByCustomer.set(agreement.customer_id, [...(agreementsByCustomer.get(agreement.customer_id) ?? []), agreement])
-  }
-
-  // Em atraso ou devolvidos, mais os que já estão congelados numa Invoice viva
-  // (rastreabilidade: a Invoice existe e a caixa não pode sumir da lista). Os
-  // ids das Invoices vão em lotes para a URL não crescer com o histórico.
-  const statusRows = await readAllPages<DemurrageContainerRow>((from, to) => {
-    let query = supabase
-      .from('bl_containers')
-      .select(CONTAINER_SELECT)
-      .not('discharge_date', 'is', null)
-      .in('demurrage_status', ['overdue', 'returned'])
-    if (filters?.blId) query = query.eq('bl_id', filters.blId)
-    return query.order('discharge_date', { ascending: false }).order('id').range(from, to) as unknown as PageResult<DemurrageContainerRow>
-  })
-  const listedIds = new Set(statusRows.map((row) => row.id))
-  const missingInvoiced = [...invoicedContainerIds].filter((id) => !listedIds.has(id))
-  const invoicedRows = (await Promise.all(chunks(missingInvoiced).map((ids) => readAllPages<DemurrageContainerRow>((from, to) => {
-    let query = supabase
-      .from('bl_containers')
-      .select(CONTAINER_SELECT)
-      .not('discharge_date', 'is', null)
-      .in('id', ids)
-    if (filters?.blId) query = query.eq('bl_id', filters.blId)
-    return query.order('id').range(from, to) as unknown as PageResult<DemurrageContainerRow>
-  })))).flat()
-
-  // SOC é do cliente e não volta ao estoque: fica fora da Demurrage, salvo se
-  // já estiver congelado numa fatura ativa (rastreabilidade acima).
-  let rows = [...statusRows, ...invoicedRows]
-    .filter((r) => r.ownership !== 'SOC' || invoicedContainerIds.has(r.id))
-    .sort((left, right) => (right.discharge_date ?? '').localeCompare(left.discharge_date ?? '') || left.id - right.id)
-
-  if (filters?.customerId) {
-    rows = rows.filter((r) => r.bl?.customer?.id === filters.customerId)
-  }
-  if (filters?.voyageId) {
-    rows = rows.filter((r) => r.bl?.voyage_id === filters.voyageId)
-  }
-
-  // O grupo só é lido onde a ação pode mudar: B/L com alguma caixa listada
-  // ainda sem Invoice viva. Todo devolvido fica `returned` para sempre, e ler o
-  // grupo de todo o histórico cresceria sem limite.
-  // ponytail: B/L com todas as caixas listadas já cobradas fica sem
-  // `billing_group` (a tela diz "Todas as caixas cobradas"), mesmo que um irmão
-  // ainda no free time e fora da lista esteja sem Invoice; ele aparece quando
-  // entrar em atraso ou voltar. Upgrade: a mesma RPC de leitura do grupo.
-  const pendingBlIds = [...new Set(rows
-    .filter((row) => {
-      const key = demurrageBoxKey(row.bl?.voyage_id, row.bl?.customer?.id, row.container_number)
-      return Boolean(row.bl_id) && !(key && billedIndex.get(key)?.length)
-    })
-    .map((row) => row.bl_id))]
-  const groups = pendingBlIds.length ? buildBillingGroups(await readGroupBoxes(pendingBlIds), billedIndex) : new Map<string, DemurrageBillingGroup>()
-
-  return rows.map((row) => {
-    const customerId = row.bl?.customer?.id
-    const agreement = customerId != null
-      ? selectAgreementForDischargeDate(agreementsByCustomer.get(customerId) ?? [], row.discharge_date)
-      : null
-    const key = demurrageBoxKey(row.bl?.voyage_id, customerId, row.container_number)
-    return {
-      ...row,
-      customer_agreement: agreement
-        ? { id: agreement.id, free_days: agreement.free_days, p1_usd: agreement.p1_usd, p2_usd: agreement.p2_usd }
-        : null,
-      billed_in: key ? billedIndex.get(key) ?? [] : [],
-      billing_group: groups.get(row.bl_id) ?? null,
-    }
-  })
-}
-
-type AgreementRow = DemurrageContainerAgreement & { customer_id: number; valid_from: string; valid_to: string | null }
-
 // Datas do container passam pela RPC `set_container_dates` (migration 179): a
 // data vale para todos os B/Ls ativos que dividem o container na Viagem, o
 // status de Demurrage segue a devolução, a Invoice de Demurrage emitida é
@@ -388,4 +279,63 @@ export async function updateContainerReturnDate(containerId: number, returnDate:
     p_keep_discharge: true,
   } as never)
   if (error) throw error
+}
+
+/**
+ * Invoices vivas (emitidas ou pagas) que cobram as caixas de um B/L, pela chave
+ * do banco (Viagem, Cliente, número; migration 214). Inclui a Invoice do grupo
+ * emitida em outro B/L, que a ficha do B/L não acha pelo `bl_id`. Devolve o
+ * índice por número normalizado do container.
+ */
+export async function listBlDemurrageCoverage(bl: {
+  voyage_id: number | null | undefined
+  customer_id: number | null | undefined
+  bl_containers?: ReadonlyArray<{ container_number: string | null }> | null
+}): Promise<Map<string, DemurrageBilledInvoiceRef[]>> {
+  const coverage = new Map<string, DemurrageBilledInvoiceRef[]>()
+  const numbers = Array.from(new Set((bl.bl_containers ?? [])
+    .map((container) => (container.container_number ?? '').trim())
+    .filter(Boolean)
+    .flatMap((number) => [number, number.toUpperCase()])))
+  if (bl.voyage_id == null || bl.customer_id == null || !numbers.length) return coverage
+  const { data, error } = await supabase
+    .from('demurrage_invoice_items')
+    .select('container_id, container_number, invoice:demurrage_invoices!inner(id, doc_number, status, customer_id, bl_id, bl:bls(voyage_id))')
+    .eq('invoice.customer_id', bl.customer_id)
+    .in('invoice.status', ['issued', 'overdue', 'paid'])
+    .in('container_number', numbers)
+  if (error) throw error
+  const index = indexBilledBoxes((data ?? []) as unknown as BilledItemRow[])
+  for (const container of bl.bl_containers ?? []) {
+    const number = (container.container_number ?? '').trim().toUpperCase()
+    const key = demurrageBoxKey(bl.voyage_id, bl.customer_id, number)
+    const refs = key ? index.get(key) : undefined
+    if (refs?.length) coverage.set(number, [...refs].sort((left, right) => right.id - left.id))
+  }
+  return coverage
+}
+
+export type DemurrageBoxWaiver = { id: number; container_key: string; reason: string; created_at: string }
+
+/**
+ * Dispensas vivas das caixas de um B/L (migration 517), pela mesma chave da
+ * cobrança (Viagem, Cliente, número). Índice pelo número normalizado. O B/L
+ * sem Cliente lê a dispensa sem Cliente (migration 530: `customer_id` vazio).
+ */
+export async function listBlDemurrageWaivers(bl: {
+  voyage_id: number | null | undefined
+  customer_id: number | null | undefined
+  bl_containers?: ReadonlyArray<{ container_number: string | null }> | null
+}): Promise<Map<string, DemurrageBoxWaiver>> {
+  const keys = Array.from(new Set((bl.bl_containers ?? []).map((container) => (container.container_number ?? '').trim().toUpperCase()).filter(Boolean)))
+  if (bl.voyage_id == null || !keys.length) return new Map()
+  const base = supabase
+    .from('demurrage_box_waivers' as never)
+    .select('id, container_key, reason, created_at')
+    .eq('voyage_id', bl.voyage_id)
+  const { data, error } = await (bl.customer_id == null ? base.is('customer_id', null) : base.eq('customer_id', bl.customer_id))
+    .is('revoked_at', null)
+    .in('container_key', keys)
+  if (error) throw error
+  return new Map(((data ?? []) as DemurrageBoxWaiver[]).map((waiver) => [waiver.container_key, waiver]))
 }

@@ -145,6 +145,7 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
             <Select value={state.origin} onChange={(e) => setFilter('origin', e.target.value)}>
               <option value="">Todas</option>
               <option value="vela">{receiptOriginLabel('vela')}</option>
+              <option value="static">{receiptOriginLabel('static')}</option>
               <option value="none">{receiptOriginLabel('none')}</option>
               <option value="other">{receiptOriginLabel('other')}</option>
               <option value="test">{receiptOriginLabel('test')}</option>
@@ -307,7 +308,9 @@ function ReceiptDetail({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; on
         {receipt.charge?.docNumber && receipt.charge.docNumber !== receipt.settled?.docNumber ? (
           <Fact label="Cobrança do Vela">{receipt.charge.docNumber} ({sourceLabel(receipt.charge.source)})</Fact>
         ) : null}
-        {receipt.reason ? <Fact label="Motivo da análise">{receipt.reason}</Fact> : null}
+        {receipt.reason ? (
+          <Fact label={receipt.situation === 'review' || receipt.situation === 'handled' ? 'Motivo da análise' : 'Motivo'}>{receipt.reason}</Fact>
+        ) : null}
         {receipt.handledNote ? <Fact label="Tratamento">{receipt.handledNote}</Fact> : null}
         {extra.map((field) => <Fact key={field.label} label={field.label}>{field.value}</Fact>)}
       </FactList>

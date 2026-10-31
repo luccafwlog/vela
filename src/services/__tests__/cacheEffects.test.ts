@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterTaxasDoBlAlteradas, afterViagemAlterada } from '../cacheEffects'
+import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEmbarqueVaziosNaEscala, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterTaxasDoBlAlteradas, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -53,6 +53,18 @@ describe('cache effects', () => {
     ])))
   })
 
+  it('embarque de vazios na escala relê a escala inteira e os portos do Embarque', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterEmbarqueVaziosNaEscala(client, { voyageId: 24 })
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
+      // A Visão geral lê "Somente importação" da exportação da escala.
+      ['voyage-export-schedules'], ['voyage-escala-schedules'], ['voyage-detail', 24], ['voyages'],
+      ['voyage-vazios-export-ports', 24],
+      // 547: o embarque é fonte da frente Vazios EXP da aba ADR.
+      ['agency-report-terminal-state'],
+    ])))
+  })
+
   it('invalidates the route effect set', async () => {
     const { client, keys } = fakeQueryClient()
     await afterRotaAlterada(client, { voyageId: 24 })
@@ -74,6 +86,8 @@ describe('cache effects', () => {
       ['baplie-reconciliation'], ['baplie-staging'],
       ['local-charge-operations'], ['customer-reconciliation-queue'], ['bl-local-charge-lines'],
       ['agency-report'],
+      // Frentes do ADR por terminal: veículo e vazio importados criam a frente.
+      ['agency-report-terminal-state'],
       ['voyage-pol-schedules'], ['voyage-escala-schedules'], ['voyage-timeline'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
     ])))
   })
@@ -166,10 +180,12 @@ it('gravação em Invoice de Demurrage atualiza lista, detalhe, caixas cobradas,
   ])))
 })
 
-it('tarifa ou acordo alterado refaz a previsão da aba Containers', async () => {
+it('tarifa, tipo ou acordo alterado refaz a aba Containers, o aviso, os Alertas, o relatório e as fichas', async () => {
   const { client, keys } = fakeQueryClient()
   await afterReferenciaDemurrageAlterada(client)
-  expect(keys()).toEqual(expect.arrayContaining(keySet([['demurrage-containers']])))
+  expect(keys()).toEqual(expect.arrayContaining(keySet([
+    ['demurrage-containers'], ['header-alert'], ['alerts'], ['demurrage-report'], ['customer-ficha'], ['bl-detail'],
+  ])))
 })
 
 it('baixa por Pix na Conciliação atualiza fatura local, Demurrage, histórico, exceções, monitor Itaú e Pix recebidos uma vez cada', async () => {

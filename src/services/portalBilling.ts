@@ -398,8 +398,12 @@ export async function portalMarkAllNotificationsRead(scope: PortalScope = client
   await callPortalRpc(scope, 'portal_mark_all_notifications_read')
 }
 
-export async function portalOpenDemurrageDispute(demurrageInvoiceId: number, reason: string, scope: PortalScope = clientPortalScope): Promise<void> {
-  await callPortalRpc(scope, 'portal_open_demurrage_dispute', { p_demurrage_invoice_id: demurrageInvoiceId, p_reason: reason })
+/** A abertura grava o motivo como a primeira mensagem; os ids servem ao anexo dela. */
+export async function portalOpenDemurrageDispute(demurrageInvoiceId: number, reason: string, scope: PortalScope = clientPortalScope) {
+  return callPortalRpc<{ dispute_id: number; message_id: number } | null>(scope, 'portal_open_demurrage_dispute', {
+    p_demurrage_invoice_id: demurrageInvoiceId,
+    p_reason: reason,
+  })
 }
 
 export type PortalDisputeMessage = {
@@ -435,6 +439,31 @@ export async function portalAddDisputeMessage(demurrageInvoiceId: number, body: 
   })
 }
 
+/** Tipos e teto do anexo do Cliente; a Edge Function `portal-dispute-attachment` confere de novo. */
+export const PORTAL_DISPUTE_ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'text/plain']
+export const PORTAL_DISPUTE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+
+// Extensões aceitas por tipo, as mesmas da Edge Function
+// (`supabase/functions/_shared/fileSignature.ts`): um `.jfif` image/jpeg
+// passava aqui, a disputa abria e o anexo era recusado lá.
+const PORTAL_DISPUTE_ATTACHMENT_EXTENSIONS: Record<string, readonly string[]> = {
+  'application/pdf': ['pdf'],
+  'image/jpeg': ['jpg', 'jpeg'],
+  'image/png': ['png'],
+  'text/plain': ['txt'],
+}
+
+/** Mensagem de recusa do arquivo escolhido, ou null quando ele pode seguir. */
+export function portalDisputeAttachmentProblem(file: File): string | null {
+  if (file.size <= 0) return 'O anexo está vazio. Escolha outro arquivo.'
+  if (file.size > PORTAL_DISPUTE_ATTACHMENT_MAX_BYTES) return 'O anexo excede o limite de 10 MB.'
+  const extension = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]
+  if (!PORTAL_DISPUTE_ATTACHMENT_TYPES.includes(file.type) || !extension || !PORTAL_DISPUTE_ATTACHMENT_EXTENSIONS[file.type]?.includes(extension)) {
+    return 'Tipo de anexo não permitido. Use PDF, JPG, PNG ou TXT.'
+  }
+  return null
+}
+
 export async function portalUploadDisputeAttachment(
   messageId: number,
   disputeId: number,
@@ -444,8 +473,7 @@ export async function portalUploadDisputeAttachment(
   if (isPortalReadOnly(scope)) {
     throw new Error('Upload de anexo indisponível em Modo Inspeção.')
   }
-  const allowed = new Set(['application/pdf', 'image/jpeg', 'image/png', 'text/plain'])
-  if (!allowed.has(file.type) || file.size <= 0 || file.size > 10 * 1024 * 1024) {
+  if (!PORTAL_DISPUTE_ATTACHMENT_TYPES.includes(file.type) || file.size <= 0 || file.size > PORTAL_DISPUTE_ATTACHMENT_MAX_BYTES) {
     throw new Error('Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.')
   }
 

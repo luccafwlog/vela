@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { readAllPages } from './demurragePages'
 import type { DemurrageInvoice, DemurrageInvoiceItem } from '../../types/database'
 
 export type DemurrageInvoiceFilters = {
@@ -14,6 +15,8 @@ export type DemurrageInvoiceListItem = DemurrageInvoice & {
   bl?: { id: string; pol: string | null; pod: string | null; voyage?: { id: number; voyage_number: string; vessel?: { id: number; name: string } | null } | null } | null
   /** Coluna da migration 472 (DEM-D08), ainda fora dos tipos gerados. */
   replaces_invoice_id?: number | null
+  /** Meio da baixa (migration 519, ADR 0112 D9): pix_itau, extrato, manual ou isencao. */
+  payment_method?: string | null
   /** Invoice cancelada que esta reemissão substitui (migration 472, DEM-D08); só no detalhe. */
   replaces?: { id: number; doc_number: string } | null
 }
@@ -38,7 +41,8 @@ export function applyDemurrageUsdDiscount(
 }
 
 type IssueDemurrageResult = {
-  status: 'issued' | 'existing' | 'waiting_return' | 'no_overstay' | 'no_containers' | 'blocked'
+  /** `waived` (migration 548): todas as caixas do grupo com a cobrança dispensada, nenhuma em Invoice. */
+  status: 'issued' | 'existing' | 'waived' | 'waiting_return' | 'no_overstay' | 'no_containers' | 'blocked'
   invoice_id?: number
   /** `blocked` (migration 472, DEM-D13): CE Mercante ou Gate de faturamento do Portal. */
   reason?: string
@@ -80,6 +84,7 @@ export async function createInvoiceForBL(blId: string): Promise<number> {
   if (result.status === 'issued' && result.invoice_id) return result.invoice_id
   const group = result.anchor_bl_id && result.anchor_bl_id !== blId ? ` (grupo do B/L ${result.anchor_bl_id})` : ''
   if (result.status === 'existing') throw new Error(`Todos os containers deste B/L${group} já estão em Invoice de Demurrage emitida ou paga.`)
+  if (result.status === 'waived') throw new Error(`A cobrança de todos os containers deste B/L${group} foi dispensada: não há Invoice a emitir.`)
   if (result.status === 'waiting_return') throw new Error(`Aguardando a devolução de todos os containers do B/L${group}.`)
   if (result.status === 'no_overstay') throw new Error(`Nenhum container com sobreestadia para este B/L${group}.`)
   if (result.status === 'blocked') throw new Error(result.reason?.trim() || `A Invoice deste B/L${group} aguarda o CE Mercante e o Portal do Cliente.`)
@@ -159,20 +164,22 @@ export async function releaseDemurrageManualRoe(invoiceId: number, reason: strin
 }
 
 export async function listDemurrageInvoices(filters?: DemurrageInvoiceFilters): Promise<DemurrageInvoiceListItem[]> {
-  let query = supabase
-    .from('demurrage_invoices')
-    .select(`*, customer:customers(id,name,cnpj_cpf,address,city,state,zip), bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))`)
-    .order('created_at', { ascending: false })
+  // Todas as páginas: o PostgREST corta em 1000 linhas.
+  return readAllPages<DemurrageInvoiceListItem>((from, to) => {
+    let query = supabase
+      .from('demurrage_invoices')
+      .select(`*, customer:customers(id,name,cnpj_cpf,address,city,state,zip), bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))`)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
 
-  if (filters?.status) query = query.eq('status', filters.status)
-  if (filters?.customerId) query = query.eq('customer_id', filters.customerId)
-  if (filters?.blId) query = query.eq('bl_id', filters.blId)
-  if (filters?.dateFrom) query = query.gte('doc_date', filters.dateFrom)
-  if (filters?.dateTo) query = query.lte('doc_date', filters.dateTo)
+    if (filters?.status) query = query.eq('status', filters.status)
+    if (filters?.customerId) query = query.eq('customer_id', filters.customerId)
+    if (filters?.blId) query = query.eq('bl_id', filters.blId)
+    if (filters?.dateFrom) query = query.gte('doc_date', filters.dateFrom)
+    if (filters?.dateTo) query = query.lte('doc_date', filters.dateTo)
 
-  const { data, error } = await query.overrideTypes<DemurrageInvoiceListItem[], { merge: false }>()
-  if (error) throw error
-  return data ?? []
+    return query.range(from, to).overrideTypes<DemurrageInvoiceListItem[], { merge: false }>()
+  })
 }
 
 export async function getInvoiceDetail(invoiceId: number) {

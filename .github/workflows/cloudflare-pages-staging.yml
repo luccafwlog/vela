@@ -103,6 +103,8 @@ jobs:
           VITE_PORTAL_BILLING_URL: https://staging.vela-portal.pages.dev/portal/billing
           VITE_SENTRY_ENVIRONMENT: staging
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          # Widget próprio do quadro e da consulta públicos (ADR 0114).
+          VITE_TURNSTILE_PUBLIC_SITE_KEY: ${{ vars.VITE_TURNSTILE_PUBLIC_SITE_KEY }}
           VITE_APP_COMMIT_SHA: ${{ github.sha }}
 
       - name: Refuse a bundle that still points to production Supabase

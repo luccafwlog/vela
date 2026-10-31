@@ -27,7 +27,8 @@ import { useConfirm, useConfirmWithReason } from "../components/ui/ConfirmDialog
 import {
   getVaziosExportOperation,
   upsertServiceLine,
-  openOrCreateVaziosExportOperation,
+  createVaziosExportOperation,
+  fetchVaziosExportTerminalChoice,
   deleteServiceLine,
   updateServiceLineObservation,
   listVaziosBookingsForOperation,
@@ -36,6 +37,7 @@ import {
   createManualVaziosBooking,
   updateManualVaziosBooking,
   deleteManualVaziosBooking,
+  deleteVaziosExportOperation,
   isVaziosExportLockedByAdr,
   type VaziosOperationSummary,
 } from "../services/vaziosExportOperations";
@@ -65,6 +67,8 @@ import { formatBRL, formatDate, normalizeText, voyageLabel } from "../lib/utils"
 import { condicaoLabel, diasLabel, naturezaServicoLabel } from "../lib/vaziosLabels";
 import { classifyDbError, importErrorMessage } from "../lib/errors";
 import { invalidateAgencyReportForVoyage } from "../services/agencyReportInvalidation";
+import { afterEmbarqueVaziosNaEscala } from "../services/cacheEffects";
+import { invalidateEscalaTerminalQueries } from "../services/escalaTerminalAllocation";
 
 type Tab = "unidades" | "servicos";
 
@@ -133,6 +137,10 @@ function hiddenUnitsQuestion(hidden: ParsedVaziosManifest["hidden"]): string | n
     );
   }
   return parts.length ? `${parts.join(" ")} Continuar?` : null;
+}
+
+function terminalLabel(item: { code: string; name: string | null }): string {
+  return item.name ? `${item.code} · ${item.name}` : item.code;
 }
 
 /** "40HC 4 · 40FR 2", do mais frequente para o menos. */
@@ -302,12 +310,14 @@ function EmbarquesLista({
   openHref: (id: string) => string;
   onCreated: () => Promise<unknown>;
 }) {
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [portFilter, setPortFilter] = useState("");
   const [newOpen, setNewOpen] = useState(false);
   const [voyageId, setVoyageId] = useState<number | null>(contextVoyageId);
   const [port, setPort] = useState("");
+  const [terminalId, setTerminalId] = useState("");
   const [creating, setCreating] = useState(false);
 
   const voyagePorts = useQuery({
@@ -316,6 +326,14 @@ function EmbarquesLista({
     enabled: Boolean(voyageId && newOpen),
   });
   const voyagePortOptions = Array.isArray(voyagePorts.data) ? voyagePorts.data : [];
+  // ADR 0113: o embarque opera num terminal, o da frente Vazios EXP da escala.
+  const terminalChoice = useQuery({
+    queryKey: queryKeys.agencyReports.vaziosExportTerminal(voyageId ?? 0, port),
+    queryFn: () => fetchVaziosExportTerminalChoice(voyageId!, port),
+    enabled: Boolean(newOpen && voyageId && port),
+  });
+  const frontTerminal = terminalChoice.data?.frontTerminal ?? null;
+  const terminalOptions = terminalChoice.data?.options ?? [];
 
   const portOptions = [...new Set(summaries.map((item) => item.embark_port))].sort();
   const term = normalizeText(search);
@@ -342,21 +360,28 @@ function EmbarquesLista({
   function openNew() {
     setVoyageId(contextVoyageId);
     setPort("");
+    setTerminalId("");
     setNewOpen(true);
   }
 
   function closeNew() {
     setNewOpen(false);
     setPort("");
+    setTerminalId("");
   }
 
   async function createOperation() {
     // Gravar sempre normalizado, mesmo vindo da lista de escalas já normalizadas.
     const embarkPort = normalizePortCode(port);
-    if (!voyageId || !embarkPort) return;
+    if (!voyageId || !embarkPort || (!frontTerminal && !terminalId)) return;
     setCreating(true);
     try {
-      const result = await openOrCreateVaziosExportOperation({ voyageId, embarkPort });
+      // Manda o terminal que a janela mostrou: se a frente voltou para TBC
+      // depois, a RPC grava esse; se mudou de terminal, recusa com o motivo.
+      const result = await createVaziosExportOperation({ voyageId, embarkPort, terminalId: frontTerminal?.id ?? terminalId });
+      // O terminal escolhido grava a frente, a Atracação e o ADR da escala.
+      invalidateEscalaTerminalQueries(queryClient, voyageId, embarkPort);
+      await afterEmbarqueVaziosNaEscala(queryClient, { voyageId });
       await onCreated();
       closeNew();
       // V4: o embarque que já existia é aberto, com a mensagem certa.
@@ -364,6 +389,8 @@ function EmbarquesLista({
       onOpen(result.id);
     } catch (error) {
       showToast(classifyDbError(error).message, "error");
+      // A frente pode ter mudado em outra tela: a janela relê o terminal dela.
+      void terminalChoice.refetch();
     } finally {
       setCreating(false);
     }
@@ -476,6 +503,7 @@ function EmbarquesLista({
             onSelect={(id) => {
               setVoyageId(id);
               setPort("");
+              setTerminalId("");
             }}
           />
           <Field
@@ -493,14 +521,54 @@ function EmbarquesLista({
                     : undefined
             }
           >
-            <Select value={port} onChange={(event) => setPort(event.target.value)} disabled={!voyageId}>
+            <Select
+              value={port}
+              onChange={(event) => {
+                setPort(event.target.value);
+                setTerminalId("");
+              }}
+              disabled={!voyageId}
+            >
               <option value="">Selecione</option>
               {voyagePortOptions.map((code) => <option key={code} value={code}>{code}</option>)}
             </Select>
           </Field>
+          <Field
+            label="Terminal"
+            required
+            hint={
+              frontTerminal
+                ? "Terminal da frente Vazios EXP da escala. Para trocar, edite a escala na viagem."
+                : "O terminal vai para a frente Vazios EXP da escala, e o embarque entra no ADR de Saída desse terminal."
+            }
+            error={
+              !port || terminalChoice.isLoading
+                ? undefined
+                : terminalChoice.error
+                  ? "Não foi possível carregar os terminais do porto. Tente de novo."
+                  : !frontTerminal && terminalOptions.length === 0
+                    ? `Nenhum terminal portuário ativo em ${port}: cadastre o terminal em Locais (depots e terminais).`
+                    : undefined
+            }
+          >
+            <Select
+              value={frontTerminal ? frontTerminal.id : terminalId}
+              onChange={(event) => setTerminalId(event.target.value)}
+              disabled={!port || terminalChoice.data === undefined || Boolean(frontTerminal)}
+            >
+              {frontTerminal ? (
+                <option value={frontTerminal.id}>{terminalLabel(frontTerminal)}</option>
+              ) : (
+                <>
+                  <option value="">{port ? "Selecione" : "Escolha o porto primeiro"}</option>
+                  {terminalOptions.map((item) => <option key={item.id} value={item.id}>{terminalLabel(item)}</option>)}
+                </>
+              )}
+            </Select>
+          </Field>
           <div className="app-modal__actions">
             <Button variant="secondary" onClick={closeNew}>Voltar</Button>
-            <Button loading={creating} disabled={!canEdit || !voyageId || !port} onClick={() => void createOperation()}>
+            <Button loading={creating} disabled={!canEdit || !voyageId || !port || (!frontTerminal && !terminalId)} onClick={() => void createOperation()}>
               Criar embarque
             </Button>
           </div>
@@ -529,7 +597,7 @@ function EmbarqueDetalhe({
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const confirmWithReason = useConfirmWithReason();
@@ -555,6 +623,13 @@ function EmbarqueDetalhe({
   // Enquanto a trava carrega ou se a leitura falhar, as ações ficam fora:
   // só o "não travado" explícito do banco libera a edição.
   const canEdit = canEditProfile && adrLock.data === false;
+  // ADR 0113: o terminal do embarque é o da frente Vazios EXP da escala.
+  const terminal = useQuery({
+    queryKey: queryKeys.agencyReports.vaziosExportTerminal(ref.voyage_id, ref.embark_port),
+    queryFn: () => fetchVaziosExportTerminalChoice(ref.voyage_id, ref.embark_port),
+  });
+  const embarqueTerminal = terminal.data?.frontTerminal ?? null;
+  const [terminalDraft, setTerminalDraft] = useState("");
   const units = useQuery({
     queryKey: ["embarque-vazios-units", ref.id],
     queryFn: () => listVaziosBookingsForOperation(ref.id),
@@ -622,6 +697,18 @@ function EmbarqueDetalhe({
       setSaving(false);
     }
   }
+  // Embarque criado antes da 541: o terminal escolhido vai para a frente pela
+  // mesma RPC de criação, que abre o embarque existente.
+  async function defineTerminal() {
+    const ok = await notify(async () => {
+      await createVaziosExportOperation({ voyageId: ref.voyage_id, embarkPort: ref.embark_port, terminalId: terminalDraft });
+      invalidateEscalaTerminalQueries(queryClient, ref.voyage_id, ref.embark_port);
+      await afterEmbarqueVaziosNaEscala(queryClient, { voyageId: ref.voyage_id });
+      await terminal.refetch();
+    }, "Terminal definido.");
+    if (ok) setTerminalDraft("");
+  }
+
   async function importUnits() {
     if (!file || !user?.id) return;
     let parsed: ParsedVaziosManifest;
@@ -706,6 +793,28 @@ function EmbarqueDetalhe({
       },
       unit.id ? "Unidade atualizada." : "Unidade incluída.",
     );
+  }
+  // Migration 544: o embarque criado na escala errada sai pelo Administrativo,
+  // com motivo, enquanto não tem unidade nem linha e o ADR de Saída está aberto.
+  const canDeleteEmbarque = isAdmin && canEdit && units.data !== undefined && unitRows.length === 0
+    && operation.data !== undefined && operationLines.length === 0;
+  async function deleteEmbarque() {
+    const reason = await confirmWithReason({
+      title: "Excluir embarque",
+      message: `Excluir o Embarque de vazios de ${ref.embark_port} desta Viagem?`,
+      consequence:
+        "O embarque sai da Viagem. A frente Vazios EXP, a Atracação e o ADR do terminal ficam na escala; sem o embarque, Editar escala volta a poder mudá-los.",
+      reversibility: "Crie o embarque de novo se precisar.",
+      confirmLabel: "Excluir",
+      tone: "danger",
+    });
+    if (reason === null) return;
+    const ok = await notify(async () => {
+      await deleteVaziosExportOperation(ref.id, reason);
+      await afterEmbarqueVaziosNaEscala(queryClient, { voyageId: ref.voyage_id });
+      await onChanged();
+    }, "Embarque excluído.");
+    if (ok) onBack();
   }
   async function removeUnit(item: VaziosBooking) {
     // B14: Excluir pede motivo (ADR 0072); o banco recusa com o ADR de Saída fechado.
@@ -903,10 +1012,25 @@ function EmbarqueDetalhe({
         title={operationLabel(selectedOperation)}
         facts={[
           { label: "Porto", value: ref.embark_port },
+          {
+            label: "Terminal",
+            value: embarqueTerminal
+              ? terminalLabel(embarqueTerminal)
+              : terminal.data
+                ? <StatusText tone="warning">Sem terminal</StatusText>
+                : terminal.error ? "Não foi possível carregar" : "Carregando",
+          },
           { label: "Unidades", value: unitCount.toLocaleString("pt-BR") },
           { label: "Serviços", value: formatBRL(shipmentTotal) },
         ]}
-        actions={<Button variant="ghost" onClick={onBack}>Todos os embarques</Button>}
+        actions={(
+          <>
+            {canDeleteEmbarque ? (
+              <Button variant="danger" disabled={saving} onClick={() => void deleteEmbarque()}>Excluir embarque</Button>
+            ) : null}
+            <Button variant="ghost" onClick={onBack}>Todos os embarques</Button>
+          </>
+        )}
       />
 
       {adrLocked ? (
@@ -917,6 +1041,26 @@ function EmbarqueDetalhe({
         <ImportNotice tone="warning" role="alert" title="Não foi possível conferir o ADR de Saída">
           <p>As ações do Embarque de vazios ficam travadas até conferir se o ADR de Saída de {ref.embark_port} está fechado.</p>
           <Button variant="secondary" onClick={() => void adrLock.refetch()}>Tentar de novo</Button>
+        </ImportNotice>
+      ) : null}
+
+      {terminal.data && !embarqueTerminal ? (
+        <ImportNotice tone="warning" role="status" title="Embarque sem terminal">
+          <p>Este embarque foi criado antes de o terminal ser obrigatório. Escolha o terminal onde ele opera: ele vai para a frente Vazios EXP de {ref.embark_port}, e o embarque entra no ADR de Saída desse terminal.</p>
+          {canEdit ? (
+            <div className="flex flex-wrap items-end gap-2">
+              <Field
+                label="Terminal"
+                error={terminal.data.options.length === 0 ? `Nenhum terminal portuário ativo em ${ref.embark_port}: cadastre o terminal em Locais (depots e terminais).` : undefined}
+              >
+                <Select value={terminalDraft} onChange={(event) => setTerminalDraft(event.target.value)}>
+                  <option value="">Selecione</option>
+                  {terminal.data.options.map((item) => <option key={item.id} value={item.id}>{terminalLabel(item)}</option>)}
+                </Select>
+              </Field>
+              <Button loading={saving} disabled={!terminalDraft} onClick={() => void defineTerminal()}>Definir terminal</Button>
+            </div>
+          ) : null}
         </ImportNotice>
       ) : null}
 

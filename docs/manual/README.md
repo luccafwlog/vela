@@ -140,6 +140,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     catálogo de alertas, contagens de ACE-119 e ALE-D13).
   - Telemetria: recusas do banco já explicadas na tela deixam de ir ao Sentry;
     sem efeito na operação.
+- **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
+  2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
+  migrations `552` e `553`): o Pix do QR estático deixa de aparecer como ZPT
+  (origem **QR estático do Vela**) e dá baixa automática onde o QR estático está
+  ligado; o Histórico de baixas passa a ter uma linha por baixa e B/L, com
+  **Forma da baixa** (coluna e filtro) e o valor que a baixa pôs no B/L
+  (REC-017, REC-065 a REC-068 e REC-103).
 - **Alterar, excluir e isentar as Taxas Locais do B/L** (pedido do dono de
   2026-10-28, [ADR 0111](../adr/0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md),
   [plano](../archive/plans/2026-10-28-alterar-taxa-calculada-do-bl.md)):
@@ -184,6 +191,16 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     cuja quantidade vai a zero sai da cobrança, com a alteração guardada; a
     prévia pede o **Gravar mesmo assim** e, sem ele, abre o alerta (BLR-150,
     ALE-086).
+- **Disparo de Comunicados por Viagem escolhida** (revisão da comunicação
+  manual de 2026-10-30; tela, sem migration): Navio / Viagem passa a ser a
+  Viagem escolhida na lista e obrigatória, POL e POD viram listas com
+  **Todos**, a conferência mostra o Porto, os B/Ls sem Cliente e o motivo da
+  lista vazia, e o lote conta "Enviando N de M…" (CLI-059, CLI-066, CLI-068 e
+  a mensagem da tela). Na **Cobertura de viagens**, a coluna **Sem Cliente**
+  mostra os B/Ls sem Cliente como pendência (CLI-080), e o navio/viagem abre a
+  página **Comunicados da viagem**, com os B/Ls sem Cliente por consignatário,
+  cada porto com os Clientes e o histórico da viagem (CLI-081, CLI-107,
+  CLI-109, captura C14).
 - **Recusa da carga solta em outra Viagem** (decisão do dono de 2026-10-28,
   pergunta P1 da situação S6.03; migration `500`): a prévia e a gravação do
   Manifesto BB e do B/L avulso mandam excluir o B/L na outra Viagem e importar
@@ -255,3 +272,12 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   sem migration): a escala de porto brasileiro que o Vela não conhece continua
   no **Planejamento por escala** depois de recarregar. O texto do manual já
   dizia isso (5.8) e não muda; a matriz (VIA-033) veio na PR.
+- **Retorno do provedor de e-mail não aplicado** (decisão do dono de
+  2026-10-30, migration `535`): a MillionSend avisa todo e-mail da conta,
+  também os do site da Fwlog, e o aviso que o Vela não acha abria
+  **Portal do Cliente — falha no reprocessamento** crítico para a
+  Documentação, com o número do evento em Registro. O aviso de entrega que não
+  é do Vela passa a fechar sem alerta; devolução, spam, aviso ambíguo ou que
+  falha 6 vezes abrem o tipo novo **Retorno do provedor de e-mail não
+  aplicado**, normal, do Administrativo, com o destinatário mascarado em
+  Registro (POR-105, ALE-058, catálogo de alertas).

@@ -46,7 +46,7 @@ export function HeaderInfoBar() {
             <button
               type="button"
               className="hib-alert-btn"
-              onClick={() => navigate('/demurrage?lente=atraso')}
+              onClick={() => navigate('/demurrage')}
               title={`${overdueLabel} de devolução — abrir na Demurrage`}
             >
               <AlertTriangle size={14} aria-hidden="true" />

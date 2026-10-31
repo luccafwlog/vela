@@ -158,8 +158,10 @@ export function buildDocumentalRail(input: {
   demurrageInvoices: RailDemurrageInvoice[]
   reviewReasons?: string[]
   portalVisibility?: RailPortalVisibility | null
+  /** Containers do B/L: o aviso de Invoice retida só vale com caixa que gera Demurrage. */
+  containers?: RailContainer[]
 }): RailStage[] {
-  const { bl, latestInvoice, demurrageInvoices, reviewReasons, portalVisibility } = input
+  const { bl, latestInvoice, demurrageInvoices, reviewReasons, portalVisibility, containers } = input
   const fichaFat = `/bls/${bl.id}?tab=faturamento`
   const fichaDet = `/bls/${bl.id}?tab=detalhes`
   const { map: reasonMap, portalAccessWaived } = documentalReasonMap({ bl, reviewReasons, portalVisibility })
@@ -220,6 +222,8 @@ export function buildDocumentalRail(input: {
     && INVOICED_FINANCIAL_STATUSES.has(bl.financial_status ?? '')
     && bl.cargo_mode !== 'carga_solta'
     && Boolean(bl.customer_id)
+    // B/L só com SOC não tem Demurrage a reter (revisão da release #1117).
+    && (containers === undefined || containers.some((container) => container.ownership !== 'SOC'))
   if (demurrageHeld) {
     const held = 'Portal não está pronto e sem Liberação de faturamento'
     rail.push({

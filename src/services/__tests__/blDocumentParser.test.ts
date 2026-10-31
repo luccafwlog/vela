@@ -17,8 +17,13 @@ async function readFixtureBuffer(filename: string) {
 // Os dois modelos são B/Ls reais recebidos da agência, reduzidos apenas no
 // peso do arquivo (fonte embutida, imagem do formulário e o desenho base64 do
 // fallback do Word). O texto e a estrutura são os do documento original.
+// O primeiro PDF da suíte carrega o pdf.js do zero (cerca de 2 s numa máquina
+// livre; passou de 5 s no runner do CI em 2026-10-30). Os seguintes levam
+// milissegundos: a folga vale só para o primeiro.
+const FIRST_PDF_TIMEOUT_MS = 20_000
+
 describe('parseBlDocumentFile — B/L do armador', () => {
-  it('lê o modelo em PDF pelos rótulos numerados do formulário', async () => {
+  it('lê o modelo em PDF pelos rótulos numerados do formulário', { timeout: FIRST_PDF_TIMEOUT_MS }, async () => {
     const document = await parseBlDocumentBuffer(await readFixtureBuffer('bl-cosco-especializado.pdf'), 'pdf')
 
     expect(document.layout).toBe('labeled')

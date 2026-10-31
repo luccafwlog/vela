@@ -21,6 +21,7 @@ roteadores. Diretrizes canônicas em [AGENTS.md](../AGENTS.md). Cada fato tem um
 | Entender uma regra que atravessa módulos | [operations/regras-de-negocio.md](operations/regras-de-negocio.md) |
 | Entender segurança (RLS, auth, CSP) | [operations/seguranca.md](operations/seguranca.md) |
 | Saber quais serviços externos o sistema usa, onde estão as contas e os segredos | [operations/servicos-externos.md](operations/servicos-externos.md) |
+| Pôr Chegadas e saídas e a Consulta de container no site fwlog.com.br | [operations/fwlog-site-embed.md](operations/fwlog-site-embed.md) |
 | Validar um fluxo manualmente | [operations/validacao.md](operations/validacao.md) |
 | Resolver faturamento, baixa, restituição, cancelamento ou correção de B/L | [Manual financeiro](operations/manual-financeiro.md) |
 | Saber por que algo foi decidido | [adr/](adr/README.md) |
@@ -74,7 +75,7 @@ as rotas de cadastro, de Comunicados, do console e da Inspeção do Portal, é o
   [regras de negócio transversais](operations/regras-de-negocio.md), [segurança](operations/seguranca.md),
   [manual financeiro](operations/manual-financeiro.md), [validação manual](operations/validacao.md),
   [limpeza dos dados de teste](operations/reset-ambiente.md), [backup lógico cifrado em R2](operations/backup-r2.md),
-  [rate limit do Portal](operations/portal-rate-limit.md), [segredos dos jobs `pg_cron`](operations/segredos-cron.md),
+  [rate limit do Portal](operations/portal-rate-limit.md), [iframes do fwlog.com.br](operations/fwlog-site-embed.md), [segredos dos jobs `pg_cron`](operations/segredos-cron.md),
   [observabilidade (Better Stack e Sentry)](operations/observabilidade.md), [configuração do Sentry](operations/sentry-configuracao.md)
   e [deploy do schema consolidado v1.0](operations/squash-schema-v1-deploy.md).
 - [agents/](agents/linguagem-do-sistema.md) — [contrato de comunicação dos agentes](agents/linguagem-do-sistema.md)

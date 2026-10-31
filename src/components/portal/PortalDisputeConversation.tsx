@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { ArrowLeft, Paperclip, Send, X } from 'lucide-react'
 import { usePortalAddDisputeMessage, usePortalRequestDisputeReopen } from '../../hooks/usePortalDisputes'
-import { portalCheckDisputeAttachmentEligibility, portalUploadDisputeAttachment } from '../../services/portalBilling'
+import { PORTAL_DISPUTE_ATTACHMENT_TYPES, portalCheckDisputeAttachmentEligibility, portalDisputeAttachmentProblem, portalUploadDisputeAttachment } from '../../services/portalBilling'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import type { PortalDemurrageInvoice, PortalDispute, PortalDisputeMessage } from '../../services/portalBilling'
 import { formatDate } from '../../lib/utils'
@@ -17,9 +17,6 @@ import { isPortalReadOnly } from '../../services/portalScope'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { DisputeAttachmentLinks } from '../demurrage/DisputeAttachmentLinks'
 import { supabase, supabasePortal } from '../../services/supabase'
-
-const ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'text/plain']
-const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
 
 // Equipamentos é a equipe de Containers para o Cliente (Central de Informações).
 const AUTHOR_LABELS: Record<PortalDisputeMessage['author_type'], string> = {
@@ -307,12 +304,9 @@ export function PortalDisputeConversation({ dispute }: { dispute: PortalDispute 
     setError('')
 
     if (file) {
-      if (file.size > ATTACHMENT_MAX_BYTES) {
-        setError('O anexo excede o limite de 10 MB.')
-        return
-      }
-      if (!ATTACHMENT_TYPES.includes(file.type)) {
-        setError('Tipo de anexo não permitido. Use PDF, JPG, PNG ou TXT.')
+      const problem = portalDisputeAttachmentProblem(file)
+      if (problem) {
+        setError(problem)
         return
       }
 
@@ -422,7 +416,7 @@ export function PortalDisputeConversation({ dispute }: { dispute: PortalDispute 
                   ref={fileInput}
                   type="file"
                   className="hidden"
-                  accept={ATTACHMENT_TYPES.join(',')}
+                  accept={PORTAL_DISPUTE_ATTACHMENT_TYPES.join(',')}
                   onChange={(event) => {
                     setFile(event.target.files?.[0] ?? null)
                     setPendingMessageId(null)

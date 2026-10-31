@@ -12,6 +12,7 @@ import { StatusText } from '../ui/StatusText'
 import { InvoiceStatusBadge } from './DemurrageBadges'
 import { ManualRoeRelease } from './ManualRoeRelease'
 import {
+  boxShareLabel,
   demurrageInvoiceNotices,
   fmtBRL,
   fmtUSD,
@@ -238,7 +239,7 @@ function DetailBody({
         <p className="app-invoice-detail__note">
           Substitui a Invoice{' '}
           <button type="button" className="app-invoice-detail__link app-invoice-detail__code" onClick={() => { if (invoice.replaces) onOpenInvoice(invoice.replaces.id) }}>{invoice.replaces.doc_number}</button>
-          , cancelada para reemissão automática quando as datas dos containers mudaram.
+          , cancelada para reemissão automática quando as datas, o SOC/COC ou a divisão de uma caixa mudaram depois da emissão.
         </p>
       ) : null}
 
@@ -297,7 +298,10 @@ function DetailBody({
                   <td className="app-invoice-detail__num">{item.free_days}</td>
                   <td className="app-invoice-detail__num">{periodValue(item.days_p1, item.rate_p1_usd)}</td>
                   <td className="app-invoice-detail__num">{periodValue(item.days_p2, item.rate_p2_usd)}</td>
-                  <td className="app-invoice-detail__num">{fmtUSD(item.subtotal_usd)}</td>
+                  <td className="app-invoice-detail__num">
+                    {fmtUSD(item.subtotal_usd)}
+                    {boxShareLabel((item as { box_share_count?: number | null }).box_share_count) ? <span className="app-dem-meta"> · {boxShareLabel((item as { box_share_count?: number | null }).box_share_count)}</span> : null}
+                  </td>
                 </tr>
               )) : (
                 <tr><td colSpan={9} className="app-invoice-detail__empty">Nenhum container nesta Invoice.</td></tr>

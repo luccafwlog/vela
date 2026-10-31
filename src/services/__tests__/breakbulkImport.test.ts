@@ -966,7 +966,7 @@ describe('breakbulkImport', () => {
       expect(checked.rowErrors).toEqual([expect.objectContaining({
         row: 3,
         severity: 'warning',
-        message: 'B/L OUTRAVIAGEM está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, exclua o B/L na Viagem NAVIO / V77 (Administrativo) e importe de novo.',
+        message: 'B/L OUTRAVIAGEM está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, reative o B/L na Viagem NAVIO / V77, tire o CE Mercante, exclua o B/L (Administrativo) e importe de novo.',
       })])
     })
 
@@ -984,7 +984,7 @@ describe('breakbulkImport', () => {
       })
 
       expect(result.cancelledIgnored).toEqual(['OUTRAVIAGEM'])
-      expect(describeBreakbulkPending(result)).toContain('B/L OUTRAVIAGEM está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, exclua o B/L na Viagem NAVIO / V77 (Administrativo) e importe de novo.')
+      expect(describeBreakbulkPending(result)).toContain('B/L OUTRAVIAGEM está cancelado na Viagem NAVIO / V77: a linha é ignorada. O número continua lá: para importar nesta Viagem, reative o B/L na Viagem NAVIO / V77, tire o CE Mercante, exclua o B/L (Administrativo) e importe de novo.')
     })
 
     it('na gravação, B/L cancelado fica fora do lote e volta como pendência', async () => {

@@ -443,7 +443,7 @@ describe('ChegadasSaidas user behaviours', () => {
 
     const consequence = await markSalvadorNaoEscala(user)
 
-    expect(consequence).toContain('A escala sem B/L descarregando no porto, ATA, ATD, Vinculada Sim e nunca salva na janela da escala sai da Viagem e do Line-Up')
+    expect(consequence).toContain('A escala sem B/L no porto (embarque ou descarga), ATA, ATD, Vinculada Sim, Embarque de vazios e nunca salva na janela da escala sai da Viagem e do Line-Up')
     expect(consequence).toContain('Se a escala estiver travada, nada é gravado.')
     expect(mocks.createOrAttach).toHaveBeenCalledWith(expect.anything(), 'user-1', expect.objectContaining({ voyageId: 1, canRemoveEscala: true }))
   })

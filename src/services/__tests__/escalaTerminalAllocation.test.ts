@@ -5,6 +5,7 @@ import {
   EscalaTerminalBlockedError,
   fetchEscalaTerminalState,
   fetchEscalaTerminalRevision,
+  graniteLoadingPorts,
   groupAgencyReportsByTerminal,
   saveEscalaTerminalState,
 } from '../escalaTerminalAllocation'
@@ -54,6 +55,7 @@ describe('escalaTerminalAllocation', () => {
       query.eq = () => query
       query.in = () => query
       query.order = () => query
+      query.is = () => query
       query.range = (_from: number, to: number) => {
         query.page = to >= 1000 ? 1000 : 0
         return query
@@ -82,6 +84,137 @@ describe('escalaTerminalAllocation', () => {
     const state = await fetchEscalaTerminalState(12, 'BRSSZ')
 
     expect(state.fronts.map((front) => front.modalidade)).toEqual(expect.arrayContaining(['carga_cheia', 'carga_solta']))
+  })
+
+  // Decisão do dono (2026-10-30): o veículo viaja em container e segue a
+  // frente de Carga cheia; não há frente nem terminal próprio de veículo.
+  it('não cria frente de Veículos: a seção Veículos é atendida pela Carga cheia', () => {
+    const fronts = deriveOperationFronts({
+      existing: [{ id: 'f1', sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv', source: 'operational_data' }],
+      importKinds: ['carga_cheia'],
+    })
+    const [report] = groupAgencyReportsByTerminal([
+      { reportId: 'adr-tvv', voyageId: 9, port: 'BRVIX', terminalId: 'tvv', terminal: 'TVV', status: 'open' },
+    ], fronts)
+
+    expect(fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['importacao:carga_cheia'])
+    expect(report.sections.find((section) => section.section === 'veiculos')).toMatchObject({
+      state: 'operated', fronts: ['carga_cheia'], frontKeys: ['importacao:carga_cheia'],
+    })
+  })
+
+  it('deriva as frentes da escala de descarga também dos B/Ls em transbordo de escala omitida', async () => {
+    const makeQuery = (tableName: string) => {
+      const query: Record<string, unknown> & { byId?: boolean } = {}
+      query.select = () => query
+      query.eq = () => query
+      query.in = (column: string) => {
+        if (column === 'id') query.byId = true
+        return query
+      }
+      query.order = () => query
+      query.is = () => query
+      query.range = () => query
+      query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
+      query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
+        tableName === 'ports'
+          ? { data: [{ id: 99, locode: 'BRVIX' }], error: null }
+          : tableName === 'voyage_omissions'
+            ? { data: [{ id: 5 }], error: null }
+            : tableName === 'bl_transshipments'
+              ? { data: [{ bl_id: 'BL-T' }], error: null }
+              // O B/L em transbordo mantém o POD do porto omitido: só a
+              // consulta por id o encontra.
+              : tableName === 'bls' && query.byId
+                ? { data: [{ id: 'BL-T', cargo_mode: 'carga_solta' }], error: null }
+                : { data: [], error: null },
+      ).then(resolve)
+      return query
+    }
+    fromMock.mockImplementation((tableName: string) => makeQuery(tableName))
+
+    const state = await fetchEscalaTerminalState(12, 'BRVIX')
+
+    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['importacao:carga_solta'])
+    expect(state.tbcFronts[0]).toMatchObject({ section: 'carga_descarregada', terminalId: null })
+  })
+
+  it('deriva a frente de Granito do Granito importado no porto, sem a declaração de exportação', async () => {
+    const makeQuery = (tableName: string) => {
+      const query: Record<string, unknown> = {}
+      query.select = () => query
+      query.eq = () => query
+      query.in = () => query
+      query.order = () => query
+      query.is = () => query
+      query.range = () => query
+      query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
+      query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
+        tableName === 'ports'
+          ? { data: [{ id: 99, locode: 'BRVIX' }], error: null }
+          : tableName === 'granite_bls'
+            ? { data: [
+                // Porto do B/L vence o do manifesto; sem ele, vale o do manifesto.
+                { id: 'g1', loading_port: 'BRSSZ', manifest: { voyage_id: 12, loading_port: 'BRVIX' } },
+                { id: 'g2', loading_port: null, manifest: { voyage_id: 12, loading_port: 'BRVIT' } },
+              ], error: null }
+            : { data: [], error: null },
+      ).then(resolve)
+      return query
+    }
+    fromMock.mockImplementation((tableName: string) => makeQuery(tableName))
+
+    const state = await fetchEscalaTerminalState(12, 'BRVIX')
+
+    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['exportacao:granito'])
+    expect(state.tbcFronts[0]).toMatchObject({ source: 'export_declaration', section: 'carga_carregada', terminalId: null })
+  })
+
+  // 547 (revisão da release #1117): o Embarque de vazios anterior à 541, sem
+  // frente Vazios EXP, cria a frente em TBC; antes a aba não a via e o ADR do
+  // terminal fechava sem o embarque.
+  it('deriva a frente Vazios EXP do Embarque de vazios do porto, mesmo sem a declaração', async () => {
+    const embarkPortFilters: unknown[] = []
+    const makeQuery = (tableName: string) => {
+      const query: Record<string, unknown> = {}
+      query.select = () => query
+      query.eq = () => query
+      query.in = (column: string, values: unknown) => {
+        if (tableName === 'vazios_export_operations' && column === 'embark_port') embarkPortFilters.push(values)
+        return query
+      }
+      query.order = () => query
+      query.is = () => query
+      query.range = () => query
+      query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
+      query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
+        tableName === 'ports'
+          ? { data: [{ id: 99, locode: 'BRVIX' }], error: null }
+          : tableName === 'vazios_export_operations'
+            ? { data: [{ id: 'op-antigo' }], error: null }
+            : { data: [], error: null },
+      ).then(resolve)
+      return query
+    }
+    fromMock.mockImplementation((tableName: string) => makeQuery(tableName))
+
+    const state = await fetchEscalaTerminalState(12, 'BRVIX')
+
+    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['exportacao:vazio'])
+    expect(state.tbcFronts[0]).toMatchObject({ source: 'export_declaration', section: 'vazios_embarcados', terminalId: null })
+    // Embarque antigo gravado com a grafia BRVIT também conta.
+    expect(embarkPortFilters[0]).toEqual(expect.arrayContaining(['BRVIX', 'BRVIT']))
+  })
+
+  // Revisão da PR #1121: a janela da escala declarava o Granito pelo porto do
+  // manifesto, e a frente nascia pelo porto de cada B/L.
+  it('marca como porto com Granito o do manifesto e o efetivo de cada B/L', () => {
+    const ports = graniteLoadingPorts([
+      { loading_port: 'BRSSZ', granite_bls: [{ loading_port: 'Vitoria, Brazil' }, { loading_port: null }] },
+      { loading_port: 'BRVIT', granite_bls: null },
+    ])
+
+    expect([...ports].sort()).toEqual(['BRSSZ', 'BRVIX'])
   })
 
   it('preserva frente persistida mesmo quando a fonte operacional deixou de aparecer', () => {

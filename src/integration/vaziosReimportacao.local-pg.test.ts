@@ -21,6 +21,7 @@ const carrierId = 99234001
 const vesselId = 99234002
 const voyageId = 99234003
 const depotCode = 'A234DEP'
+const terminalCode = 'A234TER'
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -49,7 +50,8 @@ function cleanup() {
     DELETE FROM public.voyage_route_ce_master WHERE voyage_id = ${voyageId};
     DELETE FROM public.manifestos_mercante WHERE voyage_id = ${voyageId} OR numero = '1226A23409999';
     DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
-    DELETE FROM public.depots WHERE code = '${depotCode}';
+    DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
+    DELETE FROM public.depots WHERE code IN ('${depotCode}', '${terminalCode}');
     DELETE FROM public.audit_logs WHERE changed_by = '${userId}';
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
@@ -87,6 +89,12 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A234 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'A234', 'active');
       INSERT INTO public.depots (code, active, tipo) VALUES ('${depotCode}', true, 'depot');
+      -- 541: o Embarque de vazios nasce com o terminal da frente Vazios EXP.
+      INSERT INTO public.depots (code, active, tipo, port_id)
+        SELECT '${terminalCode}', true, 'terminal_portuario', id FROM public.ports WHERE locode = 'BRVIX' ORDER BY id LIMIT 1;
+      INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)
+        SELECT ${voyageId}, 'BRVIX', d.port_id, 'exportacao', 'vazio', d.id, 'export_declaration'
+        FROM public.depots AS d WHERE d.code = '${terminalCode}';
     `)
   })
 
@@ -247,8 +255,8 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
     const line = psql(`SELECT l.id FROM public.vazios_export_service_lines l JOIN public.depot_services s ON s.id = l.service_id WHERE s.name = 'B14 handling';`)
 
     expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', ' ')`).stderr).toMatch(/Informe o motivo/)
-    expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toMatch(/ADR de Saida fechado/)
-    expect(asUser(`SELECT public.delete_catalog_row('vazios_export_service_lines', '${line}', 'custo errado')`).stderr).toMatch(/ADR de Saida fechado/)
+    expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toContain('ADR de Saída fechado: reabra o ADR para excluir a unidade.')
+    expect(asUser(`SELECT public.delete_catalog_row('vazios_export_service_lines', '${line}', 'custo errado')`).stderr).toContain('ADR de Saída fechado: reabra o ADR para excluir a linha de serviço de vazios.')
     // 274: a reimportação da planilha também não muda as unidades com o ADR fechado.
     const before = psql(`SELECT count(*) FROM public.vazios_bookings WHERE voyage_id = ${voyageId};`)
     expect(bookings([{ container: 'AZCU2349992', date: '2026-09-03' }]).stderr).toMatch(/ADR de Saída deste porto está fechado/)

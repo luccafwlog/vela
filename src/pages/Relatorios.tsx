@@ -33,14 +33,20 @@ import { listBillingCustomers } from '../services/billing'
 import type { ReportFilterLine } from '../services/exports'
 import {
   fetchCustomerReport,
+  fetchDemurrageExposure,
+  fetchDemurrageItemsReport,
   fetchDemurrageReport,
   fetchFinancialReport,
   fetchOperationalReport,
   isReportComplete,
   reportReviewLabel,
+  type DemurrageReportSlice,
   type ReportLoad,
   type ReportScope,
 } from '../services/reports'
+import { DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS } from '../services/demurrage/demurrageDivisions'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { boxShareLabel } from '../services/demurrage/demurragePresentation'
 import {
   REPORT_VIEWS,
   customerFiltersFromSearch,
@@ -722,7 +728,13 @@ function CustomerReportView(props: ViewProps) {
 
 // ---------- Demurrage ----------
 
-const DEMURRAGE_STATUS_FILTER_OPTIONS = ['draft', 'issued', 'paid', 'cancelled'] as const
+// Três recortes (ADR 0112, D13); a planilha traz os três, um por aba (D14).
+const DEMURRAGE_SLICES: Array<{ value: DemurrageReportSlice; label: string }> = [
+  { value: 'exposicao', label: 'Exposição' },
+  { value: 'invoices', label: 'Invoices' },
+  { value: 'itens', label: 'Itens por container' },
+]
+const DEMURRAGE_STATUS_FILTER_OPTIONS = ['issued', 'paid', 'cancelled'] as const
 
 function DemurrageReportView(props: ViewProps) {
   const { params, setParam, setParams } = props
@@ -732,49 +744,76 @@ function DemurrageReportView(props: ViewProps) {
   const { data: voyages } = useVoyageOptions()
   const exporter = useExport()
 
-  const query = useQuery({
-    queryKey: ['demurrage-report', filters],
+  const exposureQuery = useQuery({
+    queryKey: ['demurrage-report', 'exposicao', filters.customerId, filters.voyageId, filters.division],
+    queryFn: () => fetchDemurrageExposure(filters),
+    staleTime: 60_000,
+    enabled: filters.slice === 'exposicao',
+  })
+  const invoicesQuery = useQuery({
+    queryKey: ['demurrage-report', 'invoices', filters],
     queryFn: () => fetchDemurrageReport(filters),
     staleTime: 60_000,
+    enabled: filters.slice === 'invoices',
   })
-  const { data } = query
-  const page = useReportPage(data?.rows)
+  const itemsQuery = useQuery({
+    queryKey: ['demurrage-report', 'itens', filters.dateFrom, filters.dateTo, filters.customerId, filters.voyageId],
+    queryFn: () => fetchDemurrageItemsReport(filters),
+    staleTime: 60_000,
+    enabled: filters.slice === 'itens',
+  })
+  const exposurePage = useReportPage(exposureQuery.data?.rows)
+  const invoicesPage = useReportPage(invoicesQuery.data?.rows)
+  const itemsPage = useReportPage(itemsQuery.data?.rows)
 
+  const sliceLine: ReportFilterLine = { Filtro: 'Recorte', Valor: DEMURRAGE_SLICES.find((item) => item.value === filters.slice)?.label ?? '' }
   const moreLines: ReportFilterLine[] = [
     { Filtro: 'Situação', Valor: filters.status ? statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, filters.status) : '' },
     { Filtro: 'Em disputa', Valor: filters.dispute === 'sim' ? 'Sim' : filters.dispute === 'nao' ? 'Não' : '' },
-    { Filtro: 'Vencidas', Valor: filters.overdue === 'sim' ? 'Só vencidas' : '' },
+    { Filtro: 'Divisão', Valor: filters.division ? DEMURRAGE_DIVISION_LABELS[filters.division] : '' },
   ]
-  const lines = activeLines([...scopeFilterLines(filters, 'Data do documento', voyageLabel(voyages, filters.voyageId), customerName), ...moreLines])
+  const lines = activeLines([sliceLine, ...scopeFilterLines(filters, 'Emissão', voyageLabel(voyages, filters.voyageId), customerName), ...moreLines])
   const moreCount = activeLines(moreLines).length
 
   function clearMore() {
     let next = params
-    for (const key of ['situacao', 'disputa', 'vencidas'] as const) next = withReportParam(next, key, '')
+    for (const key of ['situacao', 'disputa', 'divisao'] as const) next = withReportParam(next, key, '')
     setParams(next)
   }
 
   const exportReport = () => exporter.run(async () => {
-    const { rows } = await fetchDemurrageReport(filters, EXPORT_ALL)
+    const [exposure, invoices, items] = await Promise.all([
+      fetchDemurrageExposure(filters),
+      fetchDemurrageReport(filters, EXPORT_ALL),
+      fetchDemurrageItemsReport(filters, EXPORT_ALL),
+    ])
     const { exportDemurrageReportWorkbook } = await import('../services/exports')
-    await exportDemurrageReportWorkbook(rows, lines)
-    return rows.length
+    await exportDemurrageReportWorkbook({ exposure: exposure.rows, invoices: invoices.rows, items: items.rows }, lines)
+    return exposure.rows.length + invoices.rows.length + items.rows.length
   })
+  const current = filters.slice === 'exposicao' ? exposureQuery.data?.rows : filters.slice === 'itens' ? itemsQuery.data?.rows : invoicesQuery.data?.rows
 
   return (
     <>
+      <SegmentedControl
+        label="Recorte de Demurrage"
+        className="mb-4"
+        value={filters.slice}
+        onChange={(value) => setParam('recorte', value === 'invoices' ? '' : value)}
+        options={DEMURRAGE_SLICES}
+      />
       <ScopeFilters
         scope={filters}
         customerName={customerName}
-        periodLabel="Data do documento"
+        periodLabel="Emissão"
         {...handlers}
         exporting={exporter.exporting}
-        canExport={Boolean(data?.rows.length)}
+        canExport={Boolean(current?.length)}
         onExport={() => void exportReport()}
       />
       <FilterBar title="Mais filtros" activeCount={moreCount} onClear={clearMore}>
         <div className="app-filter-grid">
-          <Field label="Situação">
+          <Field label="Situação (Invoices)">
             <Select value={filters.status} onChange={(event) => setParam('situacao', event.target.value)}>
               <option value="">Todas</option>
               {DEMURRAGE_STATUS_FILTER_OPTIONS.map((status) => (
@@ -782,64 +821,178 @@ function DemurrageReportView(props: ViewProps) {
               ))}
             </Select>
           </Field>
-          <Field label="Em disputa">
+          <Field label="Em disputa (Invoices)">
             <Select value={filters.dispute} onChange={(event) => setParam('disputa', event.target.value)}>
               <option value="">Todas</option>
               <option value="sim">Sim</option>
               <option value="nao">Não</option>
             </Select>
           </Field>
-          <Field label="Vencidas">
-            <Select value={filters.overdue} onChange={(event) => setParam('vencidas', event.target.value)}>
+          <Field label="Divisão (Exposição)">
+            <Select value={filters.division} onChange={(event) => setParam('divisao', event.target.value)}>
               <option value="">Todas</option>
-              <option value="sim">Só vencidas</option>
+              {DEMURRAGE_DIVISIONS.map((division) => <option key={division} value={division}>{DEMURRAGE_DIVISION_LABELS[division]}</option>)}
             </Select>
           </Field>
         </div>
       </FilterBar>
       <ActiveFiltersNote lines={lines} />
 
-      <div className="app-metric-row" role="group" aria-label="Totais do recorte">
-        <MetricCard label="Total US$ (exceto canceladas)" value={formatUSD(data?.kpis.totalUsd ?? 0)} />
-        <MetricCard label="Faturas" value={(data?.rows.length ?? 0).toLocaleString('pt-BR')} />
-        <MetricCard label="Faturado (R$)" value={formatBRL(data?.kpis.billedBrl ?? 0)} />
-        <MetricCard label="Recebido (R$)" value={formatBRL(data?.kpis.paidBrl ?? 0)} />
-      </div>
+      {filters.slice === 'exposicao' ? (
+        <>
+          <p className="mb-1 text-xs text-[var(--app-muted)]">A Exposição é o que corre hoje, sem Invoice: o período não se aplica. A planilha traz também Invoices e Itens por container.</p>
+          <div className="app-metric-row" role="group" aria-label="Totais da Exposição por divisão">
+            {DEMURRAGE_DIVISIONS.map((division) => (
+              <MetricCard
+                key={division}
+                label={`${DEMURRAGE_DIVISION_LABELS[division]} (US$)`}
+                value={formatUSD(exposureQuery.data?.byDivision[division].usd ?? 0)}
+                detail={`${(exposureQuery.data?.byDivision[division].boxes ?? 0).toLocaleString('pt-BR')} containers`}
+              />
+            ))}
+          </div>
+          <ReportTable
+            title="Exposição"
+            aside={`${formatResultCount(exposureQuery.data?.rows.length ?? 0, 'container', 'containers')} · por divisão, maior US$ primeiro`}
+            columns={['Divisão', 'Cliente', 'Navio / Viagem', 'B/L', 'Container', 'Descarga', 'Devolução', 'Dias', 'Free time', 'US$ previsto']}
+            minWidth="min-w-[1100px]"
+            caption="Containers com Demurrage sem Invoice"
+            isLoading={exposureQuery.isLoading}
+            error={exposureQuery.error}
+            errorMessage="Não foi possível carregar a Exposição de Demurrage."
+            onRetry={() => void exposureQuery.refetch()}
+            hasData={exposureQuery.data !== undefined}
+            isEmpty={!exposureQuery.data?.rows.length}
+            emptyTitle="Nenhum container com Demurrage sem Invoice."
+            pagination={exposurePage.pagination}
+          >
+            {exposurePage.rows.map((row) => (
+              <tr key={row.container_id}>
+                <td title={row.division === 'travado' ? row.reason ?? undefined : undefined}>
+                  {row.division === 'travado' ? <StatusText tone="warning">{DEMURRAGE_DIVISION_LABELS[row.division]}</StatusText> : DEMURRAGE_DIVISION_LABELS[row.division]}
+                </td>
+                <td className="app-table__text" title={row.customer_name ?? undefined}>{row.customer_name ?? <NoValue label="Sem Cliente" />}</td>
+                <td>{row.voyage_label ?? <NoValue label="Sem Viagem" />}</td>
+                <td><CopyValue value={row.bl_id} label="número do B/L"><Link className="app-link" to={`/bls/${encodeURIComponent(row.bl_id)}`}>{row.bl_id}</Link></CopyValue></td>
+                <td>{row.container_number}</td>
+                <td>{row.discharge_date ? formatDate(row.discharge_date) : <NoValue label="Sem descarga" />}</td>
+                <td>{row.return_date ? formatDate(row.return_date) : 'Fora'}</td>
+                <td>{row.total_days ?? <NoValue label="Sem dias" />}</td>
+                <td>{row.free_days ?? <NoValue label="Sem free time" />}</td>
+                <td>{row.state === 'no_rate' ? <StatusText tone="warning">Tipo sem tarifa</StatusText> : formatUSD(row.usd ?? 0)}</td>
+              </tr>
+            ))}
+          </ReportTable>
+          {exposureQuery.data?.byCustomer.length ? (
+            <Block title="Totais por Cliente" flush>
+              <div className="app-table-scroll">
+                <table className="app-table app-table--compact text-sm">
+                  <caption className="sr-only">Exposição de Demurrage por Cliente</caption>
+                  <thead><tr><th scope="col" className="app-table__text-head">Cliente</th><th scope="col">Containers</th><th scope="col">US$ previsto</th></tr></thead>
+                  <tbody>
+                    {exposureQuery.data.byCustomer.map((row) => (
+                      <tr key={String(row.customer_id ?? 'sem')}>
+                        <td className="app-table__text">{row.customer_name}</td>
+                        <td>{row.boxes}</td>
+                        <td>{formatUSD(row.usd)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Block>
+          ) : null}
+        </>
+      ) : null}
 
-      <LoadNotice sources={[{ load: data?.load, noun: 'Invoices' }]} />
+      {filters.slice === 'invoices' ? (
+        <>
+          <div className="app-metric-row" role="group" aria-label="Totais do recorte">
+            <MetricCard label="USD líquido (exceto canceladas)" value={formatUSD(invoicesQuery.data?.kpis.netUsd ?? 0)} />
+            <MetricCard label="Faturas (exceto canceladas)" value={(invoicesQuery.data?.kpis.invoices ?? 0).toLocaleString('pt-BR')} />
+            <MetricCard label="Em aberto (R$ hoje)" value={formatBRL(invoicesQuery.data?.kpis.openBrl ?? 0)} />
+            <MetricCard label="Recebido (R$ pago)" value={formatBRL(invoicesQuery.data?.kpis.paidBrl ?? 0)} />
+          </div>
+          <LoadNotice sources={[{ load: invoicesQuery.data?.load, noun: 'Invoices' }]} />
+          <ReportTable
+            title="Invoices de Demurrage"
+            aside={`${formatResultCount(invoicesQuery.data?.rows.length ?? 0, 'Invoice', 'Invoices')} · emissão mais recente primeiro`}
+            columns={['Invoice', 'Tipo', 'B/L', 'Navio / Viagem', 'Cliente', 'Emissão', 'USD líquido', 'Desconto', 'R$ hoje', 'R$ pago', 'Paga em', 'Disputa', 'Situação']}
+            minWidth="min-w-[1400px]"
+            caption="Invoices do relatório de Demurrage"
+            isLoading={invoicesQuery.isLoading}
+            error={invoicesQuery.error}
+            errorMessage="Não foi possível carregar o relatório de Demurrage."
+            onRetry={() => void invoicesQuery.refetch()}
+            hasData={invoicesQuery.data !== undefined}
+            isEmpty={!invoicesQuery.data?.rows.length}
+            emptyTitle="Nenhuma Invoice no período."
+            pagination={invoicesPage.pagination}
+          >
+            {invoicesPage.rows.map((invoice) => {
+              const open = invoice.status === 'issued' || invoice.status === 'overdue'
+              return (
+                <tr key={invoice.id} className={invoice.status === 'cancelled' ? 'app-table__row--muted' : undefined}>
+                  <td><Link className="app-link" to={demurrageInvoiceHref(invoice.id)}>{invoice.doc_number}</Link></td>
+                  <td>{invoice.kind.doc ? `${invoice.kind.label} ${invoice.kind.doc}` : invoice.kind.label}</td>
+                  <td>
+                    {invoice.bl_id
+                      ? <CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-link" to={`/bls/${encodeURIComponent(invoice.bl_id)}`}>{invoice.bl_id}</Link></CopyValue>
+                      : <NoValue label="Sem B/L" />}
+                  </td>
+                  <td>{invoice.bl?.voyage ? `${invoice.bl.voyage.vessel?.name ?? 'Navio'} / ${invoice.bl.voyage.voyage_number}` : <NoValue label="Sem Viagem" />}</td>
+                  <td className="app-table__text" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+                  <td>{invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}</td>
+                  <td>{formatUSD(invoice.net_usd)}</td>
+                  <td title={invoice.discount_justification ?? undefined}>{invoice.discount_usd > 0 ? formatUSD(invoice.discount_usd) : <NoValue label="Sem desconto" />}</td>
+                  <td>{open ? formatBRL(invoice.current_total_brl ?? 0) : <NoValue label="Não se aplica" />}</td>
+                  <td>{invoice.status === 'paid' ? formatBRL(invoice.current_total_brl ?? 0) : <NoValue label="Não se aplica" />}</td>
+                  <td>{invoice.paid_at ? formatDate(invoice.paid_at) : <NoValue label="Sem pagamento" />}</td>
+                  <td>{invoice.dispute_open ? <StatusText tone="warning">Aberta</StatusText> : <NoValue label="Sem disputa aberta" />}</td>
+                  <td><InvoiceStatusBadge status={invoice.status} /></td>
+                </tr>
+              )
+            })}
+          </ReportTable>
+        </>
+      ) : null}
 
-      <ReportTable
-        title="Invoices de Demurrage"
-        aside={`${formatResultCount(data?.rows.length ?? 0, 'Invoice', 'Invoices')} · criação mais recente primeiro`}
-        columns={['Invoice', 'B/L', 'Cliente', 'Emissão', 'Vencimento', 'Total US$', 'Total R$', 'Situação']}
-        minWidth="min-w-[900px]"
-        caption="Invoices do relatório de Demurrage"
-        isLoading={query.isLoading}
-        error={query.error}
-        errorMessage="Não foi possível carregar o relatório de Demurrage."
-        onRetry={() => void query.refetch()}
-        hasData={data !== undefined}
-        isEmpty={!data?.rows.length}
-        emptyTitle="Nenhuma Invoice no período."
-        pagination={page.pagination}
-      >
-        {page.rows.map((invoice) => (
-          <tr key={invoice.id} className={invoice.status === 'cancelled' ? 'app-table__row--muted' : undefined}>
-            <td><Link className="app-link" to={demurrageInvoiceHref(invoice.id)}>{invoice.doc_number}</Link></td>
-            <td>
-              {invoice.bl_id
-                ? <CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-link" to={`/bls/${encodeURIComponent(invoice.bl_id)}`}>{invoice.bl_id}</Link></CopyValue>
-                : <NoValue label="Sem B/L" />}
-            </td>
-            <td className="app-table__text" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
-            <td>{invoice.doc_date ? formatDate(invoice.doc_date) : <NoValue label="Sem data de emissão" />}</td>
-            <td>{invoice.due_date ? formatDate(invoice.due_date) : <NoValue label="Sem vencimento" />}</td>
-            <td>{formatUSD(invoice.total_usd ?? 0)}</td>
-            <td>{formatBRL(invoice.current_total_brl ?? 0)}</td>
-            <td><InvoiceStatusBadge status={invoice.status} /></td>
-          </tr>
-        ))}
-      </ReportTable>
+      {filters.slice === 'itens' ? (
+        <>
+          <LoadNotice sources={[{ load: itemsQuery.data?.load, noun: 'itens' }]} />
+          <ReportTable
+            title="Itens por container"
+            aside={`${formatResultCount(itemsQuery.data?.rows.length ?? 0, 'item', 'itens')} · Invoices emitidas ou pagas, pela emissão`}
+            columns={['Invoice', 'Cliente', 'B/L', 'Container', 'Descarga', 'Devolução', 'Dias', 'Free time', '1º período', '2º período', 'US$']}
+            minWidth="min-w-[1300px]"
+            caption="Itens das Invoices de Demurrage por container"
+            isLoading={itemsQuery.isLoading}
+            error={itemsQuery.error}
+            errorMessage="Não foi possível carregar os itens das Invoices de Demurrage."
+            onRetry={() => void itemsQuery.refetch()}
+            hasData={itemsQuery.data !== undefined}
+            isEmpty={!itemsQuery.data?.rows.length}
+            emptyTitle="Nenhum item de Invoice no período."
+            pagination={itemsPage.pagination}
+          >
+            {itemsPage.rows.map((item) => (
+              <tr key={item.id}>
+                <td><Link className="app-link" to={demurrageInvoiceHref(item.invoice.id)}>{item.invoice.doc_number}</Link></td>
+                <td className="app-table__text" title={item.invoice.customer?.name ?? undefined}>{item.invoice.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+                <td>{item.invoice.bl_id}</td>
+                <td>{item.container_number}</td>
+                <td>{item.discharge_date ? formatDate(item.discharge_date) : <NoValue label="Sem descarga" />}</td>
+                <td>{item.return_date ? formatDate(item.return_date) : <NoValue label="Sem devolução" />}</td>
+                <td>{item.total_days ?? <NoValue label="Sem dias" />}</td>
+                <td>{item.free_days ?? <NoValue label="Sem free time" />}</td>
+                <td>{item.days_p1 ? `${item.days_p1} × ${formatUSD(Number(item.rate_p1_usd ?? 0))}` : '0'}</td>
+                <td>{item.days_p2 ? `${item.days_p2} × ${formatUSD(Number(item.rate_p2_usd ?? 0))}` : '0'}</td>
+                <td>{formatUSD(Number(item.subtotal_usd ?? 0))}{boxShareLabel(item.box_share_count) ? <span className="text-[var(--app-muted)]"> · {boxShareLabel(item.box_share_count)}</span> : null}</td>
+              </tr>
+            ))}
+          </ReportTable>
+        </>
+      ) : null}
     </>
   )
 }
