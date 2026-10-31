@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Pedidos do dono de 2026-10-31 (migration `557`):**
+  - **Disparo:** o modo Carga oferece o CE Mercante · Taxas Locais ao lado de NOA, NOR e NOB, completando os
+    quatro e-mails automáticos da carga. Um por Cliente e Viagem, para Documentação e Operação e Financeiro, sem
+    anexo; o Cliente sem prontidão aparece bloqueado com o motivo, e a Edge recalcula CEs e valores no envio.
+  - **Prévia do e-mail:** a logo da Fwlog aparece; a política de segurança do Vela bloqueava a imagem do domínio
+    do Portal só na prévia (o e-mail enviado sempre a levou, conferido no navegador).
+  - **Contatos:** o contato capturado do B/L fica sem nome, no Vela e no Portal, em vez de "Contato manifesto";
+    os contatos com esse nome foram limpos.
 - **Achados da revisão do Manual do Operador (2026-10-31, migrations `555` e `556`):** cinco defeitos achados na
   revisão da PR luccafwlog/vela#1087, cada um com teste que falhava antes.
   - **Auditoria visual:** `scripts/design-audit/seed_audit.sql` ajusta as tarifas de Demurrage 20GP e 40GP que o
