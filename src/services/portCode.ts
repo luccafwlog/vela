@@ -75,6 +75,24 @@ const KNOWN_PORT_CODES = new Set([
   'BRSLZ', 'BRSFS', 'ITGOA', 'NLRTM',
 ])
 
+/**
+ * Portos que o sistema reconhece, um por LOCODE, com o primeiro nome da lista
+ * (ou só o código, para os que não têm nome): as sugestões de um seletor de
+ * porto. Porto de origem fora daqui não é gravado (vira "-").
+ */
+export function knownPorts(): Array<{ code: string; name: string | null }> {
+  const names = new Map<string, string>()
+  for (const [name, code] of PORT_NAME_TO_LOCODE) {
+    if (!names.has(code) && /\s|[a-z]{4,}/.test(name)) {
+      names.set(code, name.replace(/(^|\s)\p{L}/gu, (letter) => letter.toUpperCase()))
+    }
+  }
+  return [...KNOWN_PORT_CODES]
+    .filter((code) => code !== 'BRVIT')
+    .sort()
+    .map((code) => ({ code, name: names.get(code) ?? null }))
+}
+
 // Códigos de 3 letras (sem prefixo de país) e LOCODEs alternativos que o Baplie
 // da COSCO usa em LOC+6/LOC+12. Só casam com o valor inteiro: como substring
 // ("sep", "vix") capturariam texto livre de manifesto.

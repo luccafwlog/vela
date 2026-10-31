@@ -9,6 +9,8 @@ import { Switch } from '../ui/Switch'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import { userFacingErrorMessage } from '../../lib/errors'
+import { recordScheduleDates } from '../../services/voyageFromSchedule'
+import { VoyagePortsPicker } from './VoyagePortsPicker'
 import {
   initialVoyageFormValues,
   normalizeVoyageFormValues,
@@ -16,6 +18,7 @@ import {
   voyageFormSchema,
   type VoyageFormErrors,
   type VoyageFormValues,
+  type VoyagePortStop,
 } from '../../services/voyageForm'
 import {
   createVoyage,
@@ -48,11 +51,17 @@ export function VoyageCreateModal({
   const { showToast } = useToast()
   const { user } = useAuth()
   const confirm = useConfirm()
+  const isNew = voyageId == null
   const [form, setForm] = useState<VoyageFormValues>(initialVoyageFormValues)
   const [hasIndicatedFirstPort, setHasIndicatedFirstPort] = useState(false)
+  // Portos e datas só no cadastro: na edição, as datas são das escalas da
+  // ficha (e de Chegadas e Saídas), que tratam "Não escala" com as âncoras.
+  const [lanes, setLanes] = useState<VoyagePortStop[]>([])
+  const [carrierOpen, setCarrierOpen] = useState(false)
   const [pristine, setPristine] = useState({
     form: initialVoyageFormValues,
     hasIndicatedFirstPort: false,
+    lanes: [] as VoyagePortStop[],
   })
   const [errors, setErrors] = useState<VoyageFormErrors>({})
   const [saving, setSaving] = useState(false)
@@ -85,16 +94,19 @@ export function VoyageCreateModal({
         indicatedFirstBrazilianEta: indicatedEta,
       }
       const nextHasIndicatedFirstPort = Boolean(indicatedPort || indicatedEta)
+      const nextLanes: VoyagePortStop[] = []
       setForm(nextForm)
       setHasIndicatedFirstPort(nextHasIndicatedFirstPort)
-      setPristine({ form: nextForm, hasIndicatedFirstPort: nextHasIndicatedFirstPort })
+      setLanes(nextLanes)
+      setCarrierOpen(false)
+      setPristine({ form: nextForm, hasIndicatedFirstPort: nextHasIndicatedFirstPort, lanes: nextLanes })
       setPortalChoice(null)
       setErrors({})
     }
   }
 
   const isDirty =
-    JSON.stringify({ form, hasIndicatedFirstPort }) !== JSON.stringify(pristine) || portalChoice !== null
+    JSON.stringify({ form, hasIndicatedFirstPort, lanes }) !== JSON.stringify(pristine) || portalChoice !== null
 
   async function handleClose() {
     if (!isDirty) {
@@ -157,13 +169,33 @@ export function VoyageCreateModal({
         : await createVoyage(normalizedForm, user?.id ?? null, { origin: 'viagens', showOnPortal })
       if (voyageId && showOnPortal !== currentlyShown) await setVoyageShowOnPortal(voyageId, showOnPortal)
 
+      // Portos e datas da Viagem nova: as mesmas escalas (ETA) e ETD do POL
+      // que Chegadas e Saídas grava, só dos portos com data.
+      // ponytail: duas gravações, não uma transação — se as datas forem
+      // recusadas, a Viagem fica cadastrada sem elas e a tela diz isso; o
+      // upgrade é uma RPC que cria a Viagem e as datas juntas.
+      const scheduleLanes = isNew ? lanes : []
+      let datesFailure: string | null = null
+      if (scheduleLanes.length) {
+        try {
+          await recordScheduleDates(saved.id, scheduleLanes, user?.id ?? null)
+        } catch (error) {
+          datesFailure = userFacingErrorMessage(error, 'falha na gravação das datas').replace(/\.$/, '')
+        }
+      }
+
       await afterViagemAlterada(queryClient, { voyageId: saved.id })
       void queryClient.invalidateQueries({ queryKey: ['voyage-show-on-portal'] })
 
-      showToast(voyageId ? 'Viagem atualizada com sucesso.' : 'Viagem cadastrada com sucesso.', 'success')
+      if (datesFailure) {
+        showToast(`Viagem cadastrada, mas as datas dos portos não foram gravadas (${datesFailure}). Informe-as nas escalas da ficha da viagem.`, 'error')
+      } else {
+        showToast(voyageId ? 'Viagem atualizada com sucesso.' : 'Viagem cadastrada com sucesso.', 'success')
+      }
       onSaved?.(saved.id)
       onClose()
       setForm(initialVoyageFormValues)
+      setLanes([])
     } catch (error) {
       const refusal = duplicateVoyageRefusal(error)
       if (refusal) {
@@ -185,27 +217,15 @@ export function VoyageCreateModal({
     }
   }
 
+  const noteText = note ?? (isNew ? null : 'As datas por porto, chegadas e atracações se editam nas escalas da ficha da viagem.')
+  const showCarrierFields = carrierOpen || Boolean(errors.carrierName)
+
   return (
     <Modal open={open} onClose={handleClose} title={title} size="md">
-      <form className="grid gap-4" onSubmit={handleSubmit}>
-        <div className="app-panel app-panel--padded text-sm">
-          {note ??
-            'Cadastre a viagem. As escalas, chegadas e atracações são planejadas no modal da própria viagem.'}
-        </div>
+      <form className="grid gap-5" onSubmit={handleSubmit}>
+        {noteText ? <p className="app-panel__meta">{noteText}</p> : null}
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Armador" error={errors.carrierName}>
-            <Input
-              value={form.carrierName}
-              onChange={(event) => setForm((current) => ({ ...current, carrierName: event.target.value }))}
-            />
-          </Field>
-          <Field label="SCAC">
-            <Input
-              value={form.carrierScac}
-              onChange={(event) => setForm((current) => ({ ...current, carrierScac: event.target.value.toUpperCase() }))}
-            />
-          </Field>
           <Field label="Navio" error={errors.vesselName}>
             <Input
               value={form.vesselName}
@@ -238,81 +258,118 @@ export function VoyageCreateModal({
           </Field>
         </div>
 
-        <div className="app-panel app-panel--padded grid gap-2">
-          <div className="app-panel__title">Chegadas e Saídas</div>
-          <Switch
-            checked={showOnPortal}
-            disabled={portalLocked}
-            onChange={(next) => setPortalChoice(next === currentlyShown ? null : next)}
-          >
-            {showOnPortal ? 'Aparece em Chegadas e Saídas' : 'Não aparece em Chegadas e Saídas'}
-          </Switch>
-          <div className="app-panel__meta">
-            {showOnPortal
-              ? 'A viagem fica na programação de Chegadas e Saídas, do Portal e do site fwlog.com.br (aberto, sem login) até o último ATD. Desligue para tirá-la antes.'
-              : 'Ligada, a viagem entra na programação de Chegadas e Saídas, do Portal e do site fwlog.com.br (aberto, sem login); as datas são as das escalas.'}
-          </div>
-        </div>
-
-        <div className="app-panel app-panel--padded grid gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="app-panel__title">1º Porto Brasileiro (Âncora D−7 / D−5)</div>
-              <div className="app-panel__meta">
-                Por padrão, a âncora de prazos é o menor ETA das escalas próprias. Ative para indicar outro 1º porto brasileiro com ETA anterior.
-              </div>
+        {isNew ? (
+          <section className="grid gap-4" aria-labelledby="nova-viagem-portos">
+            <div className="grid gap-1">
+              <h3 id="nova-viagem-portos" className="app-panel__title">Portos e datas</h3>
+              <p className="app-panel__meta">Opcional. Sem porto, as escalas são planejadas depois na ficha.</p>
             </div>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--app-text)] font-medium">
-              <input
-                type="checkbox"
-                checked={hasIndicatedFirstPort}
-                disabled={!voyageId}
-                onChange={(event) => {
-                  const checked = event.target.checked
-                  setHasIndicatedFirstPort(checked)
-                  if (!checked) {
-                    setForm((current) => ({
-                      ...current,
-                      indicatedFirstBrazilianPort: null,
-                      indicatedFirstBrazilianEta: null,
-                    }))
-                  }
-                }}
-                className="h-4 w-4 rounded border-slate-500 accent-amber-500"
+            {(['pol', 'pod'] as const).map((kind) => (
+              <VoyagePortsPicker
+                key={kind}
+                kind={kind}
+                stops={lanes.filter((stop) => stop.kind === kind)}
+                takenCodes={lanes.map((stop) => stop.code)}
+                onAdd={(stop) => setLanes((current) => [...current, stop])}
+                onRemove={(code) => setLanes((current) => current.filter((stop) => stop.code !== code))}
               />
-              Indicar outro 1º porto brasileiro
-            </label>
-            {!voyageId ? <div className="text-xs text-[var(--app-muted)]">Disponível depois que a viagem tiver ao menos uma escala.</div> : null}
+            ))}
+          </section>
+        ) : null}
+
+        <div className="grid gap-3 border-t border-[var(--app-border)] pt-4">
+          <div className="grid gap-1">
+            <Switch
+              size="sm"
+              checked={showOnPortal}
+              disabled={portalLocked}
+              onChange={(next) => setPortalChoice(next === currentlyShown ? null : next)}
+            >
+              Chegadas e Saídas
+            </Switch>
+            <p className="app-field__hint">
+              Ligada, a viagem aparece na programação de Chegadas e Saídas, do Portal e do site fwlog.com.br.
+            </p>
           </div>
 
-          {hasIndicatedFirstPort ? (
-            <div className="grid gap-3 md:grid-cols-2 pt-2 border-t border-[var(--app-border)]">
-              <Field label="Porto indicado" error={errors.indicatedFirstBrazilianPort}>
+          {showCarrierFields ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Armador" error={errors.carrierName}>
                 <Input
-                  value={form.indicatedFirstBrazilianPort ?? ''}
-                  placeholder="Ex.: BRSSZ"
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      indicatedFirstBrazilianPort: event.target.value.toUpperCase(),
-                    }))
-                  }
+                  value={form.carrierName}
+                  onChange={(event) => setForm((current) => ({ ...current, carrierName: event.target.value }))}
                 />
               </Field>
-              <Field label="ETA indicado" error={errors.indicatedFirstBrazilianEta}>
+              <Field label="SCAC">
                 <Input
-                  type="date"
-                  value={form.indicatedFirstBrazilianEta ?? ''}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      indicatedFirstBrazilianEta: event.target.value,
-                    }))
-                  }
+                  value={form.carrierScac}
+                  onChange={(event) => setForm((current) => ({ ...current, carrierScac: event.target.value.toUpperCase() }))}
                 />
               </Field>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="app-field__hint">
+                Armador: {form.carrierName || 'não informado'}{form.carrierScac ? ` · SCAC ${form.carrierScac}` : ''}
+              </p>
+              <Button variant="ghost" className="app-btn--sm" type="button" onClick={() => setCarrierOpen(true)}>
+                Alterar armador
+              </Button>
+            </div>
+          )}
+
+          {isNew ? null : (
+            <div className="grid gap-2">
+              <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-[var(--app-text)]">
+                <input
+                  type="checkbox"
+                  checked={hasIndicatedFirstPort}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setHasIndicatedFirstPort(checked)
+                    if (!checked) {
+                      setForm((current) => ({
+                        ...current,
+                        indicatedFirstBrazilianPort: null,
+                        indicatedFirstBrazilianEta: null,
+                      }))
+                    }
+                  }}
+                  className="h-4 w-4 accent-[var(--app-blue-btn)]"
+                />
+                Indicar outro 1º porto brasileiro (âncora D−7 / D−5)
+              </label>
+
+              {hasIndicatedFirstPort ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Porto indicado" error={errors.indicatedFirstBrazilianPort}>
+                    <Input
+                      value={form.indicatedFirstBrazilianPort ?? ''}
+                      placeholder="Ex.: BRSSZ"
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          indicatedFirstBrazilianPort: event.target.value.toUpperCase(),
+                        }))
+                      }
+                    />
+                  </Field>
+                  <Field label="ETA indicado" error={errors.indicatedFirstBrazilianEta}>
+                    <Input
+                      type="date"
+                      value={form.indicatedFirstBrazilianEta ?? ''}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          indicatedFirstBrazilianEta: event.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div className="app-modal__actions">

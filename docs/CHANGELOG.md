@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Nova Viagem com portos e datas (2026-10-31):** o cadastro de **Nova Viagem** ganha **Portos e datas**,
+  opcional, com dois seletores: **Origem** (ETD, vai para Chegadas e Saídas) e **Destino** (ETA, cria a escala). Em
+  cada um o operador digita o porto, a data e **Adicionar**, e só os portos adicionados aparecem. O destino aceita
+  qualquer porto brasileiro, inclusive fora de Chegadas e Saídas; a origem, porto do exterior da lista do sistema.
+  A gravação é a mesma de Chegadas e Saídas. Navio, IMO, número e status vão para o topo; armador
+  e SCAC ficam numa linha com **Alterar armador**; a chave pequena diz só **Chegadas e Saídas**; o 1º porto
+  brasileiro sai do cadastro (fica na edição). Porto fora dos nove da programação não aparece em Chegadas e Saídas.
 - **Pedidos do dono de 2026-10-31 (migration `557`):**
   - **Disparo:** o modo Carga oferece o CE Mercante · Taxas Locais ao lado de NOA, NOR e NOB, completando os
     quatro e-mails automáticos da carga. Um por Cliente e Viagem, para Documentação e Operação e Financeiro, sem

@@ -1,4 +1,5 @@
 import { normalizeVesselImo } from '../lib/vesselAlias'
+import { escalaPortCode, knownPorts, normalizePortCode } from './portCode'
 import { z } from 'zod'
 import { listVoyageEscalaSchedulesByVoyageIds } from './voyageRouteSchedules'
 
@@ -96,4 +97,56 @@ export async function validateIndicatedFirstBrazilianPort(values: VoyageFormValu
   const minEta = [...etas].sort()[0]
   if (eta >= minEta) return `O ETA indicado (${eta}) deve ser anterior ao menor ETA das escalas próprias (${minEta})`
   return null
+}
+
+/**
+ * Porto adicionado na Nova Viagem. Origem (`pol`) grava o ETD do POL, que
+ * aparece em Chegadas e Saídas; destino (`pod`) cria a escala da Viagem com o
+ * ETA (a escala é sempre num porto brasileiro).
+ */
+export type VoyagePortStop = {
+  code: string
+  kind: 'pol' | 'pod'
+  /** Data ISO (AAAA-MM-DD). */
+  date: string
+}
+
+const KNOWN_PORTS = knownPorts()
+
+/** Sugestões de cada seletor: portos do exterior na origem, do Brasil no destino. */
+export const VOYAGE_PORT_SUGGESTIONS: Record<VoyagePortStop['kind'], Array<{ code: string; name: string | null }>> = {
+  pol: KNOWN_PORTS.filter((port) => !port.code.startsWith('BR')),
+  pod: KNOWN_PORTS.filter((port) => port.code.startsWith('BR')),
+}
+
+/** Nome e LOCODE do porto ("Qingdao (CNTAO)"), ou só o código sem nome. */
+export function voyagePortLabel(code: string): string {
+  const name = KNOWN_PORTS.find((port) => port.code === code)?.name
+  return name ? `${name} (${code})` : code
+}
+
+/**
+ * Porto digitado num dos seletores da Nova Viagem, conferido contra o lado
+ * escolhido pelo operador. Destino: porto brasileiro, conhecido ou qualquer
+ * LOCODE BR bem formado (`escalaPortCode`, a regra do modal da Escala; o
+ * servidor cadastra o porto novo). Origem: porto do exterior que o sistema
+ * reconhece, porque LOCODE de origem desconhecido não é gravado.
+ * ponytail: a lista de origens é a de `portCode.ts`; porto novo (Busan, por
+ * exemplo) entra nela, e o upgrade é um cadastro de LOCODE completo.
+ */
+export function resolveVoyagePortStop(value: string, kind: VoyagePortStop['kind']): { code: string } | { error: string } {
+  const typed = value.trim().toUpperCase()
+  if (!typed) return { error: 'Informe o porto.' }
+  const brazilian = escalaPortCode(typed)
+  const known = normalizePortCode(typed)
+  if (kind === 'pod') {
+    if (brazilian?.startsWith('BR')) return { code: brazilian }
+    if (known) return { error: `${known} não é porto brasileiro. O destino cria a escala, que é sempre no Brasil; porto do exterior vai em Origem.` }
+    return { error: 'Porto brasileiro não reconhecido: use o nome ou o LOCODE com BR e mais 3 caracteres (ex.: SALVADOR, BRSSZ).' }
+  }
+  if (brazilian?.startsWith('BR') || known?.startsWith('BR')) {
+    return { error: 'Porto brasileiro vai em Destino: ele cria a escala da viagem.' }
+  }
+  if (known) return { code: known }
+  return { error: 'Porto de origem fora da lista de portos do sistema. Escolha um dos sugeridos (ex.: QINGDAO, CNTAO).' }
 }
