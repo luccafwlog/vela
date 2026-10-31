@@ -1,4 +1,4 @@
-O Vela é o sistema interno da Fwlog: é nele que as equipes cadastram as Viagens, recebem a documentação do armador, cobram as Taxas Locais e acompanham cada navio até a carga ser liberada. O Cliente usa outro sistema, o Portal Fwlog, que lê os mesmos dados. Este capítulo mostra como entrar, como o Vela se organiza e como ele fala com você: as cores, os avisos e as janelas que aparecem em todas as telas.
+O Vela é o sistema interno da Fwlog: é nele que as equipes cadastram as Viagens, recebem a documentação do armador, cobram as Taxas Locais e acompanham cada navio até a carga ser liberada. O Cliente usa outro sistema, o Portal Fwlog, que lê os mesmos dados; duas páginas dele, a programação dos navios e a consulta de container, aparecem também no site da Fwlog, sem login ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)). Este capítulo mostra como entrar, como o Vela se organiza e como ele fala com você: as cores, os avisos e as janelas que aparecem em todas as telas.
 
 ::: aprende
 - entrar e sair do Vela, e entender quando ele pede para entrar de novo;
@@ -118,7 +118,7 @@ As listas do Vela (B/Ls, Containers, Clientes, faturas) funcionam do mesmo jeito
 
 ### Relatórios
 
-**Relatórios**, no menu, reúne os números da operação em quatro abas: **Operacional** (B/Ls, containers, peso), **Financeiro** (faturas emitidas e pagas), **Por Cliente** e **Demurrage**. O período, a Viagem e o Cliente valem para todas as abas.
+**Relatórios**, no menu, reúne os números da operação em quatro abas: **Operacional** (B/Ls, containers, peso), **Financeiro** (faturas emitidas e pagas), **Por Cliente** e **Demurrage** (a **Exposição** do que corre sem Invoice, as **Invoices** e os **Itens por container**). O período, a Viagem e o Cliente valem para todas as abas; a **Exposição** é o retrato de hoje e não usa o período.
 
 ::: tela relatorios
 Relatórios, na aba Operacional.

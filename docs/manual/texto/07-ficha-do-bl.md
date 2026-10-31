@@ -16,19 +16,19 @@ A ficha do B/L reúne tudo o que o Vela sabe de um B/L: o documento, a carga, o 
 A ficha abre pelo número do B/L, em **BLs**, na **Revisão** ou em qualquer tela que mostre o B/L.
 
 ::: tela bl-ficha
-A ficha do CSC45810A01K00, já faturado.
+A ficha do CSC45810A01K00, faturado pela Liberação de faturamento sem Portal: sem pendência, a **Próxima ação** não aparece.
 :::
 
 1. O cabeçalho diz a modalidade (**Container**, **Carga solta** ou **Misto**), a Viagem, o trecho, o CE Mercante e o Cliente. **Reimportar B/L**, no B/L de container ou misto, fica aqui ([6.3](06-importacao.md#63-reimportar-um-bl-que-o-armador-corrigiu)).
 2. A **Próxima ação** só aparece quando falta alguma etapa documental. Ela diz qual e leva aonde ela se resolve.
 3. O trilho **Operacional** acompanha o navio e a carga: saída do POL, chegada ao POD, descarga e devolução dos containers.
-4. O trilho **Documental** mostra as etapas até a fatura: **Cliente**, **Taxas Locais**, **CE Mercante** e **Fatura**, com o número de pendências.
+4. O trilho **Documental** mostra as etapas até a fatura: **Cliente**, **Taxas Locais**, **CE Mercante** e **Fatura**, com o número de pendências. **Demurrage** aparece quando o B/L tem Invoice de Demurrage ou quando ela está retida pelo Portal ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
 5. As abas: **Visão geral** (Embarque, **Documento Mercante**, **Cliente**, um resumo da **Carga** e o **Portal**), **Carga** (containers, carga solta e veículos), **Detalhes do B/L** (o documento), **Faturamento** (Taxas Locais e Demurrage) e **Histórico**.
 
 O **Histórico** conta tudo o que mudou no B/L: cada campo, com antes e depois, quem mudou e a justificativa, e também os Comunicados enviados ao Cliente. O que veio de uma importação aparece com a **Origem**. Use os filtros por assunto para achar uma mudança.
 
 ::: atencao
-A etapa **Cliente** do trilho fica vermelha enquanto a conta do Portal do Cliente não está ativa, mesmo quando a fatura já saiu pela Liberação de faturamento sem Portal, como no exemplo. Confira na etapa **Fatura** se ela foi emitida.
+A conta do Portal só deixa a etapa **Cliente** vermelha enquanto segura a fatura. Com a Liberação de faturamento sem Portal, a etapa diz "Cliente apto · Liberação sem Portal", como no exemplo; no B/L já faturado sem Liberação, "B/L faturado · Portal não está ativo". Nos dois casos o Cliente ainda não entra no Portal: continue o convite (capítulo 14).
 :::
 
 ## 7.2 Corrigir os dados do B/L
@@ -72,7 +72,7 @@ Correção do lacre de um container do CSC45810A01K00. Como o B/L está faturado
 :::
 :::
 
-Perfil e COC/SOC recalculam as Taxas Locais; as datas recalculam a Demurrage (capítulo 9).
+Perfil e COC/SOC recalculam as Taxas Locais; as datas e o COC/SOC recalculam a Demurrage (capítulo 9). O container que passa a SOC sai da cobrança de Demurrage, mesmo da Invoice já emitida ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)).
 
 ::: atencao
 - O perfil e o COC/SOC corrigidos à mão valem mais que o Baplie e que a reimportação. Já o lacre, o peso e o CBM voltam ao que o arquivo traz quando o B/L é reimportado.
@@ -140,7 +140,7 @@ Daqui você pode:
 - alterar o valor de uma taxa, excluí-la ou isentar o B/L inteiro (**Isentar Taxas Locais**), sempre com justificativa (capítulo 21). No B/L já faturado, a mudança passa pela correção da fatura (capítulo 22);
 - **Emitir fatura**, quando a fatura não saiu sozinha. O botão aparece com Cliente, CE Mercante e taxas calculadas. Se a última fatura do B/L foi cancelada por uma pessoa, a nova só sai por aqui.
 
-Abaixo ficam a **Demurrage** dos containers e as **Condições de Demurrage deste B/L** (capítulos 9 e 23).
+Abaixo ficam a **Demurrage** dos containers, com o valor de cada um, a Invoice que já o cobra ou a dispensa da cobrança ([9.4](09-containers-e-demurrage.md#94-ler-a-situação-de-demurrage)), e as **Condições de Demurrage deste B/L** (capítulos 9 e 23).
 
 ::: atencao
 Linha **Em revisão** segura a fatura: **Emitir fatura** fica desligado até a causa ser corrigida e as taxas recalculadas (capítulo 21).
@@ -177,8 +177,10 @@ O número do B/L existe uma vez só no Vela. O caminho para tirar um B/L do jogo
 ### Cancelar
 
 1. Na ficha, clique em **Mais ações** (o botão de três pontos) › **Cancelar B/L**.
-2. Se a ficha avisa que o B/L "não pode ser cancelado agora", resolva o que o aviso lista. A Invoice de Demurrage em aberto também segura.
+2. Se a ficha avisa que o B/L "não pode ser cancelado agora", resolva o que o aviso lista. A Invoice de Demurrage em aberto também segura, e a Demurrage ainda sem Invoice ("Demurrage a faturar" ou "Demurrage travada"): emita a Invoice ou dispense a cobrança do container ([9.11](09-containers-e-demurrage.md#911-dispensar-a-cobrança-de-um-container)). **Abrir em Demurrage**, no aviso, leva ao B/L.
 3. Escreva o motivo e confirme.
+
+Quando o container também está em outro B/L ativo do mesmo Cliente na Viagem, como no B/L reemitido, a Demurrage dele fica com o outro B/L e não segura o cancelamento.
 
 O B/L cancelado continua na lista, somente leitura, com a faixa "B/L cancelado em…" e o motivo. Ele sai do faturamento e do Manifesto Mercante, aparece como Cancelado no Portal e libera o CE para o B/L reemitido. As importações o deixam de fora.
 

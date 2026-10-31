@@ -17,7 +17,7 @@ Antes de cadastrar, procure a viagem em **Viagens**: ela pode já existir, criad
 ::: lado
 1. Em **Viagens**, clique em **Nova Viagem**.
 2. Preencha **Navio**, **IMO** e **Numero da viagem**. O armador já vem como Cosco Shipping Specialized Carriers (CSSC); troque só se a viagem for de outro armador.
-3. Se os Clientes devem ver a viagem na programação do Portal, ligue **Aparece em Chegadas e Saídas**.
+3. Se a viagem deve aparecer na programação do Portal e do site fwlog.com.br, ligue **Aparece em Chegadas e Saídas**.
 4. Clique em **Cadastrar viagem**.
 
 ::: tela nova-viagem
@@ -68,7 +68,7 @@ Na mesma janela ficam três informações do Mercante, que você preenche quando
 
 **Quem faz:** {{Qualquer equipe}} · remover uma atracação: {{Operações}} e {{Administrativo}}
 
-Um porto pode ter vários terminais, e cada operação da escala acontece num deles. Por isso a escala se divide em **frentes de operação**: carga cheia, carga solta, vazios e veículos na importação; Granito e vazios na exportação. Cada frente recebe o seu terminal.
+Um porto pode ter vários terminais, e cada operação da escala acontece num deles. Por isso a escala se divide em **frentes de operação**: carga cheia, carga solta e vazios na importação; Granito e vazios na exportação. Cada frente recebe o seu terminal. Os veículos viajam nos containers e seguem o terminal da carga cheia: não têm frente própria.
 
 Cada terminal escolhido vira uma **Atracação**, a passagem do navio por aquele terminal, com as datas do berço: **ETB** e **ATB** (atracação prevista e realizada) e **ETD** e **ATD** (desatracação prevista e realizada).
 
@@ -83,7 +83,9 @@ A frente de carga cheia no terminal TVV, com as previsões do berço.
 :::
 :::
 
-A frente ainda sem terminal fica como **TBC** ("terminal a confirmar"). Pode ficar assim enquanto o navio não chegou; depois do ATA, toda frente precisa de terminal.
+A frente ainda sem terminal fica como **TBC** ("terminal a confirmar"). Pode ficar assim enquanto o navio não chegou; depois do ATA, a escala só grava com terminal em toda frente.
+
+As frentes nascem do que a escala tem: a importação e a exportação declaradas, os B/Ls (inclusive os que chegam em transbordo de uma escala omitida), os vazios de importação, o Granito importado e o Embarque de vazios. A carga que chega depois que os terminais foram escolhidos, como a carga solta ou os vazios importados mais tarde, cria a frente dela em TBC: volte à escala e escolha o terminal. Enquanto houver frente em TBC, o que ela traz fica fora do ADR de Saída, e nenhum ADR da escala fecha (capítulo 11).
 
 ::: atencao
 - Depois que a escala foi salva, mudar o que já aconteceu (terminal de uma frente, ATB, ATD) pede uma justificativa. Ela fica no histórico.
@@ -101,7 +103,7 @@ As datas mudam o tempo todo: o armador atrasa o navio, o navio chega, atraca, sa
 2. Mude o **ETA** ou, quando o navio chegar, informe o **ATA**. Atracação e saída vão no cartão do terminal ([4.3](#43-atribuir-os-terminais)).
 3. Clique em **Salvar escala**.
 
-Você não precisa avisar ninguém: a data nova chega sozinha ao Line Up, a Chegadas e Saídas, ao Portal do Cliente (se a Viagem está publicada) e aos avisos de chegada e atracação que o Vela manda ao Cliente. E o Vela cobra o que falta: quando o ETA passa sem o ATA registrado, ou o ETB passa sem o ATB, abre um alerta para a equipe.
+Você não precisa avisar ninguém: a data nova chega sozinha ao Line Up, a Chegadas e Saídas, ao Portal do Cliente e ao site fwlog.com.br (se a Viagem está publicada) e aos avisos de chegada e atracação que o Vela manda ao Cliente. E o Vela cobra o que falta: quando o ETA passa sem o ATA registrado, ou o ETB passa sem o ATB, abre um alerta para a equipe.
 
 A **Próxima escala**, no alto da ficha, é a escala de menor ETA que ainda não teve chegada. Ela só passa a vez quando você registra o ATA: um ETA vencido continua ali, marcado "· vencido", para lembrar que falta registrar a chegada.
 
@@ -182,6 +184,8 @@ A omissão de Salvador, com Vitória como Porto de Transbordo.
 
 Todos os B/Ls daquele porto passam a **Transbordo**, e cada Cliente vê no Portal que a escala foi omitida e para onde a carga foi. Se você omitiu por engano, use **Reverter omissão** no cartão **Informações de Transbordo**; os Clientes recebem a correção.
 
+A carga em transbordo entra no ADR de Saída do Porto de Transbordo, pelo terminal da frente dela. Se a escala de lá ainda não tinha essa frente (a de carga solta, por exemplo), ela aparece em TBC na janela da escala: escolha o terminal ([4.3](#43-atribuir-os-terminais)).
+
 ### Mudar o destino de um B/L (COD)
 
 O COD é decidido B/L a B/L, porque cada Cliente pode escolher um caminho.
@@ -218,5 +222,5 @@ As outras três ações são do {{Administrativo}}:
 ::: atencao
 - Para cancelar, nenhum B/L da Viagem pode ter fatura ou pagamento. O {{Financeiro}} resolve B/L a B/L antes (capítulos 22 a 24).
 - Para excluir, a Viagem não pode ter nada oficial: CE Mercante, fatura, ADR fechado ou Comunicado enviado. Nesse caso, cancele.
-- Para tirar uma escala cadastrada por engano, o Administrativo usa **Excluir escala**, na janela da escala. Se o navio só deixou de ir ao porto, registre a omissão ([4.7](#47-quando-o-armador-omite-uma-escala)).
+- Para tirar uma escala cadastrada por engano, o Administrativo usa **Excluir escala**, na janela da escala. Com B/L ou Embarque de vazios no porto, ela não se exclui: exclua antes o B/L ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)) ou o embarque ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)). Se o navio só deixou de ir ao porto, registre a omissão ([4.7](#47-quando-o-armador-omite-uma-escala)).
 :::

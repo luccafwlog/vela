@@ -212,8 +212,8 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   para transbordo** recusados mostram o motivo do banco, pelo mesmo tradutor
   das outras telas; "Verifique se algum B/L está em COD." só complementa a
   recusa por B/L em COD (VIA-070, VIA-058, VIA-064 e as mensagens).
-- **Conferência do capítulo-piloto contra o código** (2026-10-28, sem mudança
-  no sistema): linhas que descreviam outra coisa que o código faz. O Baplie
+- **Conferência do capítulo-piloto contra o código** (2026-10-28, PR
+  luccafwlog/vela#1093, sem mudança no sistema): linhas que descreviam outra coisa que o código faz. O Baplie
   nunca cria escala (VIA-052, desde a migration `418`); todos os setores mudam
   terminal, ATB, ATD, Restow e frentes da atracação (ACE-085, como a ACE-120);
   o botão que recusa o diálogo das taxas alteradas à mão é **Voltar** (VIA-145);
@@ -223,6 +223,15 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   (CEB-019); **Remover CE** com fatura emitida é recusado pela própria ação
   (BLR-107); a importação de B/L sem usuário ativo mostra "Usuario sem
   permissao ativa." (ALE-065).
+- **Ficha do B/L e Revisão** (2026-10-29, PRs luccafwlog/vela#1088 e #1089;
+  migrations `501` e `502`): a etapa **Cliente** do trilho e o **Pronto para
+  faturar** do bloco Portal seguem a Liberação de faturamento sem Portal e o B/L
+  já faturado (7.1; BLR-078, POR-041, POR-129); a justificativa da ficha e da
+  Revisão vai ao Histórico de cada campo, **Trocar Cliente** e **Desvincular**
+  pedem motivo (7.4), corrigir o POD para outro porto tira a exceção de
+  terminal (7.7) e só a Documentação e o Administrativo veem o convite do Portal
+  (8.2; BLR-083, BLR-085, BLR-120). Entrada acrescentada pela conferência de
+  2026-10-31, que corrigiu também o quadro de atenção de 7.1.
 - **Defeitos corrigidos depois da conferência do piloto** (decisão do dono de
   2026-10-29, PR luccafwlog/vela#1092; telas, e a migration `505` para o
   motivo da exclusão): escala nova só de importação com LOCODE brasileiro novo
@@ -234,14 +243,21 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   (VIA-011, VIA-106); mensagem dos vazios de exportação (EQU-077); datas da
   prévia do B/L em dd/mm/aaaa e motivo da exclusão em português
   (`delete_record_block_reason`).
-- **Efeito de importação que espera tabela de cobrança** (2026-10-29, sem
-  mudança no sistema): o B/L sem tabela de cobrança já tem o cálculo em
+- **Endereço pelo Portal e datas do B/L cancelado** (2026-10-29, PR
+  luccafwlog/vela#1092, que reúne as #1090 e #1091; migrations `503` e `504`):
+  o endereço gravado no Perfil do Portal aparece em **Alterações do cadastro**
+  com "Cliente pelo Portal" (15.8; CLI-045, POR-088), e a ficha do B/L
+  cancelado mostra as datas do container só para leitura, que o Vela também
+  recusa gravar por ele (9.2; EQU-026).
+- **Efeito de importação que espera tabela de cobrança** (2026-10-29, PR
+  luccafwlog/vela#1093, sem mudança no sistema): o B/L sem tabela de cobrança já tem o cálculo em
   revisão, e a fatura dele não sai sozinha quando a tabela é cadastrada; sai ao
   importar de novo a planilha do CE ou ao recalcular o B/L (BLR-138, TAX-015;
   regra em
   [manifesto-edi.md](../modules/manifesto-edi.md), item 20 dos efeitos de
   importação).
-- **Excluir Cliente** (2026-10-29, sem mudança no sistema): a matriz e a
+- **Excluir Cliente** (2026-10-29, PR luccafwlog/vela#1095, sem mudança no
+  sistema): a matriz e a
   [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil) davam
   a exclusão de Cliente ao Administrativo sem dizer que a Trava de exclusão
   recusa todo Cliente com CNPJ, que é obrigatório; Cliente se desativa (ACE-088).
@@ -256,19 +272,23 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   alerta **Efeito de importação bloqueado** mostra o motivo em linguagem de
   operação, com o texto do sistema em **Detalhe técnico** (capítulos 6 e 20).
 - **Correções da revisão da release #1084** (2026-10-29, PRs
-  luccafwlog/vela#1108 a #1112; migrations `511` e `512`): o sinal
-  **Verificando** da Conciliação na ficha da Viagem (4.5), a recusa do
-  **Adicionar navio** com Viagem cancelada (5.2), o B/L cancelado sem
-  **Definir condição do B/L** (9.7), o ROE manual "sem efeito" fora do B/L que
-  emite a Invoice do grupo (23.4) e **Conciliada** no glossário. A matriz já
-  veio atualizada nas PRs; o resto delas não muda o texto do manual.
+  luccafwlog/vela#1105 a #1108 e #1110; migrations `511` e `512`): o sinal
+  **Verificando** da Conciliação na ficha da Viagem (4.5 e Ap. C, #1105), a
+  recusa do **Adicionar navio** com Viagem cancelada (5.2) e o dia sem a hora na
+  edição de Chegadas e Saídas (5.3), os dois da #1106, o B/L cancelado sem
+  **Definir condição do B/L** (9.7) e o ROE manual "sem efeito" fora do B/L que
+  emite a Invoice do grupo (23.4), os dois da #1107. **Conciliada** no glossário
+  acompanha a #1098. A matriz já veio atualizada nas PRs; a #1108 (acento da
+  recusa da carga solta em outra Viagem) e a #1110 (prévias com troca de POD)
+  não mudam o texto do manual. Esta entrada citava antes "#1108 a #1112";
+  a conferência de 2026-10-31 corrigiu a faixa.
 - **Decisões D1 a D3 do dono na revisão da #1084** (2026-10-29, PRs
   luccafwlog/vela#1114 a #1116; migration `513`): o **Não escala** do
   Administrativo conta também o B/L que embarca no porto (5.3), a carga solta
   com B/L cancelado em outra Viagem manda excluir lá (6.4) e a etapa
   **Demurrage** do trilho avisa a Invoice retida pelo Portal (9.6). A matriz
   veio atualizada nas PRs.
-- **Escala com LOCODE fora da lista** (2026-10-30, PR luccafwlog/vela#1118,
+- **Escala com LOCODE fora da lista** (2026-10-29, PR luccafwlog/vela#1118,
   sem migration): a escala de porto brasileiro que o Vela não conhece continua
   no **Planejamento por escala** depois de recarregar. O texto do manual já
   dizia isso (5.8) e não muda; a matriz (VIA-033) veio na PR.
@@ -281,3 +301,49 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   falha 6 vezes abrem o tipo novo **Retorno do provedor de e-mail não
   aplicado**, normal, do Administrativo, com o destinatário mascarado em
   Registro (POR-105, ALE-058, catálogo de alertas).
+- **Sincronização de 2026-10-31** (PRs luccafwlog/vela#1113 e #1119 a #1130;
+  migrations `514` a `553`). A matriz veio atualizada nas PRs; o texto do
+  manual e do guia passou a descrever:
+  - **Demurrage** (#1113, #1120 e a parte de Demurrage da #1129;
+    [ADR 0112](../adr/0112-repaginacao-da-demurrage.md)): as divisões
+    **Correndo**, **A emitir**, **Esperando** e **Travado** da aba Containers
+    (9.5); a Invoice que sai sozinha em até 15 minutos sem data nova, a cancelada
+    à mão que espera **Gerar Invoice** e o rateio da caixa entre Clientes, "1/2
+    da caixa" (9.6); uma tarifa por grupo (9.7) e as seções novas **9.10
+    Cadastrar um tipo de container** e **9.11 Dispensar a cobrança de um
+    container**; Disputas com prazo de 1 dia útil, encerradas com a Invoice
+    cancelada (9.8, 9.9); as abas Faturas, Pagas, Canceladas e Por Cliente, o
+    Extrato de Demurrage do Cliente, **Exportar** e Relatórios (23.2, 1.5); SOC e
+    divisão da caixa depois da Invoice (18.8, 23.6, 23.9); as rotinas de 15
+    minutos (19.5); o anexo na abertura da Disputa e "Disputa encerrada" no
+    Portal (15.6); a recusa de **Cancelar B/L** com Demurrage sem Invoice (7.8,
+    6.9); os alertas **Demurrage travada** e **Disputa de Demurrage sem resposta
+    no prazo** (20.9), e os verbetes e status novos (Ap. A, B e C).
+  - **Viagens, ADR e vazios** (#1121, #1122, #1128 e as correções da #1129):
+    veículo sem frente própria e frente nova em TBC, que deixa a carga fora do
+    ADR e trava o fechamento (4.3, 11.2, 11.5); o transbordo no ADR do porto de
+    transbordo (4.7); o Embarque de vazios com **Terminal**, **Definir
+    terminal** e **Excluir embarque** (10.5); a escala com Embarque de vazios que
+    não se exclui (4.8, 5.3); a recusa do B/L em outra Viagem com o caminho do CE
+    Mercante (6.4, 6.9); Suape e a coluna **SUAPE ETA** (5.1, 5.5).
+  - **Portal, Comunicados, alertas e Pix** (#1119, #1124, #1125, #1126 e
+    #1130): as páginas públicas do site fwlog.com.br (17.11 nova; menções em 1,
+    3, 4, 5, 15.3 e 18); a coluna **Sem Cliente** da Cobertura de viagens, a
+    página **Comunicados da viagem** e o Disparo pela Viagem escolhida (16.3,
+    16.5, 16.8, 20.7); o alerta **Retorno do provedor de e-mail não aplicado** e
+    a rotina que abre só com duas ou mais falhas ou com 401/403 (20.6, 20.13);
+    o **QR estático do Vela** e o **Histórico de baixas** com uma linha por
+    baixa e a **Forma da baixa** (24.1, 24.3 a 24.5, 19.6, 20.10, 23.7).
+  - **Guia rápido da Viagem**: etapas 2, 4, 6, 7, 12, 13, 15, 16, 17, 18 e 19
+    e o `guia.json`, inclusive a volta à etapa 2 quando a carga solta, os vazios
+    ou o Granito criam frente nova.
+  - **Conferência independente das PRs de 29/10**: o quadro de atenção de 7.1
+    (#1088), **Verificando** e a etapa **Demurrage** no Ap. C (#1105, #1115), o
+    dia sem a hora na edição de Chegadas e Saídas (5.3, #1106) e as correções
+    das entradas desta lista.
+  - **Matriz corrigida na conferência desta sincronização**: POR-105 cita as
+    mensagens da migration `536`, que trocaram as da `535`; POR-134 diz que o
+    endereço público errado fica em branco no site (404 que nega iframe), e não
+    **Página não encontrada**; VIA-088 diz que "Frente sem terminal impede o
+    fechamento" só aparece com as três assinaturas.
+  - A #1123 e a #1127 só mexem em testes; a #1117 é a release.

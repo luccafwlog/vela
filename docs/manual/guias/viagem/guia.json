@@ -25,9 +25,9 @@
       "equipes": [
         "Operações"
       ],
-      "quando": "Logo depois das escalas, quando o terminal de cada operação é conhecido.",
+      "quando": "Logo depois das escalas; de novo quando chega carga que cria frente nova.",
       "onde": "Planejamento por escala › lápis da escala › Terminais e atracações.",
-      "pronto": "Toda frente com terminal, nenhuma em TBC, com o ETB e o ETD; a exportação declarada, se houver.",
+      "pronto": "Toda frente com terminal, também a que nasce depois, com o ETB e o ETD; a exportação declarada, se houver.",
       "arquivo": "02-atribuir-os-terminais.md"
     },
     {
@@ -49,7 +49,7 @@
       ],
       "quando": "O Baplie traz containers vazios.",
       "onde": "Baplie EDI › Vazios de importação; ficha da Viagem › Rotas e Manifestos.",
-      "pronto": "Os vazios em Vazios IMP, com o Nº de Manifesto Mercante da rota.",
+      "pronto": "Os vazios em Vazios IMP, com o Nº de Manifesto Mercante da rota e a frente de vazios com terminal.",
       "arquivo": "04-cadastrar-os-vazios.md"
     },
     {
@@ -71,7 +71,7 @@
       ],
       "quando": "A Viagem traz carga solta.",
       "onde": "Importação rápida › Manifesto BB.",
-      "pronto": "Cada B/L de carga solta na Viagem, com o peso.",
+      "pronto": "Cada B/L de carga solta na Viagem, com o peso, e a frente de carga solta com terminal.",
       "arquivo": "06-subir-a-carga-solta.md"
     },
     {
@@ -138,7 +138,7 @@
       ],
       "quando": "Depois do CE e na semana da chegada do navio.",
       "onde": "Clientes › Comunicação › Cobertura de viagens.",
-      "pronto": "NOA, NOR, NOB e CE e Taxas sem âmbar.",
+      "pronto": "NOA, NOR, NOB e CE e Taxas sem âmbar, e nenhum B/L sem Cliente.",
       "arquivo": "12-conferir-os-avisos.md"
     },
     {
@@ -182,7 +182,7 @@
       ],
       "quando": "A escala embarca vazios ou Granito.",
       "onde": "Ficha da Viagem › aba Exportação.",
-      "pronto": "O embarque com as unidades e os serviços; o Granito na Viagem.",
+      "pronto": "O embarque no terminal da escala, com as unidades e os serviços; o Granito na Viagem, com terminal na frente dele.",
       "arquivo": "16-lancar-a-exportacao.md"
     },
     {
@@ -278,7 +278,7 @@
       },
       "2": {
         "rotulo": "Terminais",
-        "nota": "ETB e ETD por frente",
+        "nota": "ETB e ETD por frente, também a que nasce depois",
         "linha": 1
       },
       "3": {

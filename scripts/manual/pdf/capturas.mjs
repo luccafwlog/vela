@@ -1114,6 +1114,19 @@ export const CAPTURAS = [
     id: 'adr-terminal',
     capitulo: 11,
     async fazer({ page, base, cenario }) {
+      // Caminho feliz do guia (etapa 2): a carga solta e os vazios entraram
+      // depois dos terminais e criaram frentes em TBC, que travam o ADR.
+      const e = cenario.escalas.find((x) => x.terminal)
+      await abrirViagem(page, base, cenario)
+      await page.getByRole('button', { name: `Editar planejamento da escala ${e.porto}` }).click()
+      const dlg = page.getByRole('dialog')
+      await dlg.getByRole('heading', { name: 'Terminais e atracações' }).waitFor()
+      for (const frente of ['Carga solta', 'Vazios']) {
+        const campo = dlg.getByLabel(`Terminal da operação Importação ${frente}`)
+        if (await campo.count()) await campo.selectOption({ label: e.terminal })
+      }
+      await dlg.getByRole('button', { name: 'Salvar escala' }).click()
+      await dlg.waitFor({ state: 'detached' })
       await abrirViagem(page, base, cenario, 'ADR')
       const resumo = page.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'ADR', exact: true }) }).first()
       await resumo.waitFor()

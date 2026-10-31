@@ -13,6 +13,8 @@ A prévia do Manifesto BB.
 
 B/L de carga solta avulso, em .pdf ou .docx? O mesmo caminho, por **B/L carga solta**.
 
+A carga solta precisa da frente **Carga solta** da escala com terminal. Se ela chega depois da etapa 2, a frente nasce em **TBC — pendente**: escolha o terminal dela no lápis da escala, em **Terminais e atracações**, ou avise {{Operações}}. Sem terminal, a carga solta fica fora do ADR de Saída e o **Fechar ADR** fica travado.
+
 ::: atencao
 Peso ausente é erro. Um peso como "259.312", que pode ser milhar ou decimal, é recusado até você dizer no passo 3 se o arquivo usa vírgula ou ponto decimal.
 :::

@@ -761,6 +761,15 @@ Na mesma entrega da versão 1.0:
 3. **Imagens que o ambiente local não gera:** a lista de usuários da
    Administração (depende de função do servidor) e as telas do Pix com a
    cobrança pelo Itaú ligada.
+4. **Cenário das capturas quebrado pela repaginação da Demurrage**
+   (achado na sincronização de 2026-10-31): `npm run manual:cenario` roda o
+   `scripts/design-audit/seed_audit.sql`, que grava tarifas de Demurrage para
+   20GP e 40HC. Desde a migration `514` (PR luccafwlog/vela#1113), o banco já
+   nasce com uma tarifa por grupo, e o 40HC deixou de ser grupo: o seed para
+   com a regra de uma tarifa ativa por grupo. A correção é do seed da auditoria
+   visual e vai numa PR própria contra a `staging`; até lá, as capturas saem
+   de um banco local com o seed ajustado à mão (as duas tarifas viram ajuste
+   das tarifas de 20' dry e 40' dry).
 
 ## Depois do Manual do Operador
 

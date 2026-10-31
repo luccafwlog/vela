@@ -11,6 +11,8 @@ Veículos, com a Viagem escolhida e ainda sem a planilha.
 4. Com os veículos na lista, clique em **Definir local de desova**, digite o local e clique em **Aplicar a N containers**. O local vale para o container inteiro e vai para o ADR.
 :::
 
+Os veículos não têm terminal próprio: entram no ADR de Saída pelo terminal da carga cheia da escala (etapa 2).
+
 ::: atencao
 Sem a planilha antes do CE, o B/L com veículos que seria **Isento** sai com a fatura cheia.
 :::

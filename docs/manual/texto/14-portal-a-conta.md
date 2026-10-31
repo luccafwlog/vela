@@ -122,7 +122,7 @@ No exemplo, a ATLANTICO IMPORTADORA LTDA tem Liberação: o CSC45810A01K00 foi f
 ::: atencao
 - A Liberação não ativa a conta nem dá acesso ao Cliente: sem Portal, alguém da equipe precisa entregar a fatura a ele. Continue o convite.
 - Quando a data de revisão passa, as novas faturas voltam a ficar retidas e os B/Ls ainda não faturados voltam para a Revisão ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)).
-- No bloco **Portal** da ficha do B/L, **Visível no Portal** e **Pronto para faturar** são coisas separadas: com o e-mail de recuperação bloqueado, o Cliente vê o B/L, mas a fatura nova fica retida.
+- No bloco **Portal** da ficha do B/L, **Visível no Portal** e **Pronto para faturar** são coisas separadas: com o e-mail de recuperação bloqueado e sem Liberação, o Cliente vê o B/L, mas a fatura nova fica retida. Com a Liberação, **Pronto para faturar** diz "Sim, pela Liberação de faturamento sem Portal".
 :::
 
 ## 14.6 Trocar o e-mail de recuperação

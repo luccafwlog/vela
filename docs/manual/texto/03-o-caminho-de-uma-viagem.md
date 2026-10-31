@@ -9,7 +9,7 @@ Antes de entrar nas telas, vale ver o caminho inteiro. Uma Viagem passa por vár
 
 ## 3.1 Do cadastro à chegada do navio
 
-**Antes do navio.** O armador avisa que a SEREIA vem ao Brasil e passa por Salvador e Vitória. Alguém cadastra a Viagem e as escalas, com a chegada prevista em cada porto (capítulo 4). Se a Viagem é publicada, os Clientes já veem as datas em Chegadas e Saídas, no Portal (capítulo 5).
+**Antes do navio.** O armador avisa que a SEREIA vem ao Brasil e passa por Salvador e Vitória. Alguém cadastra a Viagem e as escalas, com a chegada prevista em cada porto (capítulo 4). Se a Viagem é publicada, as datas já aparecem em Chegadas e Saídas, no Portal e no site fwlog.com.br (capítulo 5).
 
 **A documentação chega.** O armador manda os B/Ls, um por carga. A {{Documentação}} os importa (capítulo 6). Nesse momento:
 
@@ -40,7 +40,7 @@ Com o CE, o B/L aparece no Portal do Cliente vinculado. O Cliente vê a carga, a
 
 **Os containers.** Depois da descarga, {{Equipamentos}} acompanha a devolução de cada container vazio. Quem devolve depois do prazo livre paga a Demurrage (capítulo 9).
 
-**O fechamento.** Quando o navio sai de um terminal, começa o prazo do ADR de Saída daquele terminal: cada equipe confere e assina a sua parte (capítulo 11). Quando o navio sai do último terminal, a Viagem fica **Concluída** e sai da programação.
+**O fechamento.** Quando o navio sai de um terminal, começa o prazo do ADR de Saída daquele terminal: cada equipe confere e assina a sua parte (capítulo 11). O ADR só fecha com terminal em toda frente da escala, inclusive as que nasceram depois, com a carga solta, os vazios ou o Granito importados (capítulo 4). Quando o navio sai do último terminal, a Viagem fica **Concluída** e sai da programação.
 
 ## 3.4 O caminho num quadro
 

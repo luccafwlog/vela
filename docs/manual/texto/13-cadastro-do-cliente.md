@@ -40,6 +40,8 @@ O **Saldo pendente** soma duas partes: o **Faturado em aberto** e o **A faturar*
 
 Duas pendências da **Visão geral** pedem atenção. **Faturas retidas**, no bloco **Portal**, quer dizer que o Portal do Cliente não está pronto e as faturas dele esperam a conta ser ativada (capítulo 14) ou a Liberação ([13.8](#138-liberar-o-faturamento-sem-portal)). **Sem contato principal com e-mail** quer dizer que os Comunicados não chegam ao Cliente, embora a fatura continue saindo ([13.6](#136-cuidar-dos-contatos-do-cliente)).
 
+A Demurrage do Cliente aparece em dois lugares. Na **Visão geral**, a pendência de containers com Demurrage correndo conta os mesmos containers que o cartão **Correndo (US$)** da página **Demurrage** ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers)). Na aba **Contêineres**, a coluna **Demurrage** mostra o valor de cada container, "em curso" (ainda fora) ou "a faturar" (devolvido, sem Invoice), a Invoice que já o cobra ou "Cobrança dispensada", que fica fora do total e sem valor na planilha ([9.11](09-containers-e-demurrage.md#911-dispensar-a-cobrança-de-um-container)). No container dividido com outro Cliente, o valor já é a parte deste.
+
 O **Histórico** conta tudo o que aconteceu com o Cliente: cadastro, contatos, Portal, faturas, pagamentos, B/Ls e Comunicados, com quem fez. Use o filtro por assunto para achar um evento. As mudanças do cadastro e dos contatos, com o antes e o depois, ficam também no bloco **Alterações do cadastro**, na aba **Cadastro e contatos**.
 
 ## 13.3 Cadastrar um Cliente

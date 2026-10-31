@@ -34,10 +34,10 @@ Estas são as ações que o Vela reserva. Para as outras equipes, o botão não 
 | Ação | Quem faz |
 |---|---|
 | Criar usuários, mudar a equipe, ativar e desativar | {{Administrativo}} |
-| Cancelar e reativar Viagem e B/L; excluir Viagem, B/L e container | {{Administrativo}} |
+| Cancelar e reativar Viagem e B/L; excluir Viagem, escala, B/L, container e Embarque de vazios | {{Administrativo}} |
 | Cancelar fatura e cancelar pagamento registrado | {{Administrativo}} |
 | Corrigir tabela de cobrança já usada; editar Condição de Cliente | {{Administrativo}} |
-| Desativar e reativar cadastros (tabela de cobrança, Local, serviço, tarifa) | {{Administrativo}} |
+| Desativar e reativar cadastros (tabela de cobrança, Local, serviço, tarifa, tipo de container) | {{Administrativo}} |
 | Liberação de faturamento sem Portal; desativar Cliente | {{Administrativo}} |
 | Registrar pagamento, confirmar restituição, conciliar o Pix | {{Financeiro}} e {{Administrativo}} |
 | Informar a cotação do dólar (PTAX) | {{Financeiro}}, {{Equipamentos}} e {{Administrativo}} |
@@ -67,7 +67,7 @@ Quando o botão não aparece para você, ou o Vela diz que a ação é de outra 
 
 | Você precisa… | Peça a |
 |---|---|
-| cancelar uma Viagem ou um B/L, ou excluir uma Viagem, um B/L ou um container | {{Administrativo}} |
+| cancelar uma Viagem ou um B/L, ou excluir uma Viagem, um B/L, um container ou um Embarque de vazios | {{Administrativo}} |
 | cancelar uma fatura | {{Administrativo}} |
 | registrar que um pagamento chegou | {{Financeiro}} |
 | devolver dinheiro ao Cliente | {{Financeiro}} |

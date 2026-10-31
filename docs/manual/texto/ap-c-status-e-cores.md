@@ -16,6 +16,7 @@ A **Conciliação** da Viagem tem o mesmo nome e a mesma cor nos cartões, na li
 | **Divergente** | vermelho | O Baplie e os B/Ls não batem ([6.8](06-importacao.md#68-resolver-as-divergências-entre-baplie-e-bl)). |
 | **Pendente** | âmbar | Falta CE Mercante em algum B/L. |
 | **Conciliada** | ponto verde nos cartões das Viagens; sem cor na lista e na ficha | Nada falta. |
+| **Verificando** | cinza | A Viagem tem todos os CEs, mas o Vela ainda confere as divergências do Baplie; depois, vira **Conciliada** ou **Divergente**. |
 
 ## Escala
 
@@ -24,6 +25,7 @@ A **Conciliação** da Viagem tem o mesmo nome e a mesma cor nos cartões, na li
 | Faixa verde no Line Up (**Atracado**, no cartão da tela estreita) | verde | O ATB de um terminal, enquanto falta o ATD dele. |
 | **Omitida** | âmbar na ficha da Viagem; cinza no Line Up e em Chegadas e Saídas | **Omitir escala** ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)); **Reverter omissão** desfaz. |
 | Data em âmbar | âmbar | A previsão passou e ninguém confirmou; só no Vela, o Cliente vê uma previsão comum. |
+| **TBC — pendente** (frente em **Editar escala**) e "N em TBC" | âmbar | Frente sem terminal ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); com todas atribuídas, "Todas atribuídas", em verde. |
 
 ## B/L
 
@@ -31,7 +33,7 @@ A **Conciliação** da Viagem tem o mesmo nome e a mesma cor nos cartões, na li
 |---|---|---|
 | **Cancelado** (selo na ficha) | vermelho | **Cancelar B/L**, pelo {{Administrativo}}; **Reativar B/L** desfaz ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)). |
 | **Sem cliente vinculado** (coluna **Cliente** da lista) | âmbar | A importação não achou Cliente com o CNPJ do consignatário; sai com o vínculo ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)). |
-| Etapa vermelha no trilho **Documental** da ficha | vermelho | O que bloqueia a fatura: Cliente, Taxas Locais ou CE; e a etapa **Fatura**, quando a última foi cancelada ([7.1](07-ficha-do-bl.md#71-ler-a-ficha-do-bl)). |
+| Etapa vermelha no trilho **Documental** da ficha | vermelho | O que bloqueia a fatura: Cliente, Taxas Locais ou CE; a etapa **Fatura**, quando a última foi cancelada ([7.1](07-ficha-do-bl.md#71-ler-a-ficha-do-bl)); e a etapa **Demurrage**, quando a Invoice de Demurrage do B/L já faturado espera o Portal do Cliente ficar pronto ou a Liberação ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)). |
 
 Nas listas de **BLs**, de **Containers** e na ficha do Cliente, a coluna **Taxas locais** resume a cobrança do B/L:
 
@@ -71,8 +73,8 @@ Na escala, **BLs e CEs** diz em que pé está a documentação no Mercante ([4.2
 | **Faturado** | sem cor | A Invoice nasce assim, quando o último container do grupo volta ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)). |
 | **Em disputa** | âmbar | O Cliente abriu uma Disputa no Portal; volta a **Faturado** quando ela é resolvida ([9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)). |
 | **Pago** | ✓ verde | A baixa do Pix ou o pagamento registrado (capítulo 23). |
-| **Cancelado** | cinza | O cancelamento pelo {{Administrativo}}, ou a reemissão quando as datas mudam ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). |
-| **Fora da Régua** (ao lado da situação) | âmbar | As datas mudaram numa Invoice com pagamento, desconto ou Disputa aberta ([9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)). |
+| **Cancelado** | cinza | O cancelamento pelo {{Administrativo}}, ou a reemissão quando as datas, o SOC/COC ou a divisão de um container mudam, ou quando o Cliente do B/L muda ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). |
+| **Fora da Régua** (ao lado da situação) | âmbar | As datas, o SOC/COC ou a divisão de um container mudaram numa Invoice com pagamento, desconto ou Disputa aberta ([23.9](23-demurrage-no-financeiro.md#239-cancelar-uma-invoice-e-gerar-outra)). |
 
 ## Container na Demurrage
 
@@ -84,6 +86,25 @@ Na escala, **BLs e CEs** diz em que pé está a documentação no Mercante ([4.2
 | **Não se aplica (SOC)** | cinza | Container do Cliente: não volta ao armador. |
 
 Na **Visão geral** da ficha do B/L, a mesma situação aparece num selo colorido: **No free time** em verde, **Em atraso** em vermelho e **Devolvido** em cinza.
+
+## Divisão da Demurrage
+
+| Na tela | Cor | O que leva a ela |
+|---|---|---|
+| **Correndo** | US$ em âmbar | Container do grupo fora e passado do free time ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers)). |
+| **A emitir** | US$ em âmbar | Todos voltaram e há Demurrage sem Invoice. |
+| **Esperando** | US$ em âmbar | Container devolvido com Demurrage espera outro do grupo, ainda no free time. |
+| **Travado** | US$ em vermelho | O Vela não tem como cobrar: tipo sem tarifa, B/L sem Cliente ou cancelado, sem CE Mercante ou com o Portal segurando o faturamento. |
+
+## Disputa de Demurrage
+
+| Na tela | Cor | O que leva a ela |
+|---|---|---|
+| **Aberta** | sem cor | O Cliente abriu no Portal, ou a equipe reabriu ([9.8](09-containers-e-demurrage.md#98-responder-a-uma-disputa)). |
+| "Aguarda a nossa resposta" | âmbar | A vez é da equipe. Vencido o prazo de 1 dia útil, a linha inteira fica âmbar, com "Prazo venceu em …". |
+| "Aguarda o Cliente" | cinza | A equipe respondeu e escolheu **Aguardar Cliente**. |
+| **Resolvida** | sem cor | A equipe escolheu **Encerrar pendência (Ninguém)** ([9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)). |
+| **Cancelada** | cinza | A Invoice foi cancelada, e a Disputa foi encerrada junto. |
 
 ## Conta do Portal
 
@@ -136,3 +157,4 @@ Na tela do Desbloqueio, a coluna **Na ZPT** diz em que pé está cada B/L ([12.2
 | Seção **Pendente** | âmbar | Toda seção começa assim, e volta a ela se alguém a reabre ([11.2](11-adr-de-saida.md#112-conferir-as-seções-da-sua-equipe)). |
 | Seção **Confirmado** ou **Nada a declarar** | sem cor | A equipe dona resolveu a seção. |
 | "N de 3 departamentos assinados" | âmbar até as três | Cada assinatura de equipe ([11.3](11-adr-de-saida.md#113-assinar-pela-equipe)). |
+| **Sem terminal (TBC)** (aviso na seção e no bloco **ADR**) | âmbar | Frente da escala sem terminal, inclusive a que nasceu depois; o ADR não fecha até ela ganhar terminal ([11.5](11-adr-de-saida.md#115-fechar-e-imprimir-o-adr)). |

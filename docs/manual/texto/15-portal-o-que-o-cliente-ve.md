@@ -52,7 +52,7 @@ Para trocar uma senha esquecida, o Cliente usa **Esqueci minha senha**, informa 
 
 O **Painel** é a primeira tela do Cliente. Quatro cartões resumem o que está em aberto e levam à tela de cada assunto.
 
-Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. **Ver meus B/Ls** aparece na viagem em que ele tem carga e abre os B/Ls daquela viagem. Por último, **Consultas** leva às seções da Central de Informações (capítulo 13).
+Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. **Ver meus B/Ls** aparece na viagem em que ele tem carga e abre os B/Ls daquela viagem. Por último, **Consultas** leva às seções da Central de Informações (capítulo 13). O mesmo quadro, sem **Ver meus B/Ls**, aparece a qualquer pessoa no site da Fwlog ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)).
 
 As telas do Portal leem os dados quando o Cliente as abre; elas não se atualizam sozinhas. Uma data que você grava aparece para ele na próxima leitura, ou quando ele clica em **Atualizar** em **Chegadas e saídas**.
 
@@ -105,15 +105,16 @@ O Cliente também junta faturas: **Gerar fatura consolidada** escolhe os B/Ls co
 
 **Quem faz:** o Cliente, no Portal. Quem responde à Disputa: {{Equipamentos}}
 
-A aba **Demurrage** de **Faturas** lista as Invoices emitidas ou pagas dos B/Ls com CE. A cancelada não chega ao Portal. Cada Invoice mostra o total em US$ e o **Total R$ hoje**: o valor em reais acompanha o câmbio do dia (o ROE de hoje, que a faixa mostra) até o pagamento. Enquanto a Invoice está em aberto, o detalhe traz o Pix.
+A aba **Demurrage** de **Faturas** lista as Invoices emitidas ou pagas dos B/Ls com CE. A cancelada não chega ao Portal, e o container que ainda está correndo não tem valor no Portal antes da Invoice ([23.2](23-demurrage-no-financeiro.md#232-achar-as-invoices-em-aberto-pagas-e-canceladas)). Cada Invoice mostra o total em US$ e o **Total R$ hoje**: o valor em reais acompanha o câmbio do dia (o ROE de hoje, que a faixa mostra) até o pagamento. Enquanto a Invoice está em aberto, o detalhe traz o Pix. O container dividido com outro Cliente aparece com "1/2 da caixa": cada um paga a sua parte ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
 
-Se o Cliente discorda de um valor, ele contesta no detalhe da Invoice em aberto, em **Abrir disputa**, e acompanha a conversa em **Disputas**.
+Se o Cliente discorda de um valor, ele contesta no detalhe da Invoice em aberto, em **Abrir disputa**: escreve o **Motivo da disputa** e, se quiser, usa **Anexar arquivo** (PDF, JPG, PNG ou TXT, até 10 MB). Ele acompanha a conversa em **Disputas**.
 
-A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela Invoice para. Na conversa, a equipe aparece como "Equipe de Containers", e o Cliente só escreve quando é a vez dele. Na Disputa resolvida, o Cliente pode clicar em **Solicitar reabertura**; ela continua resolvida até a equipe decidir. Como a equipe responde e decide está no capítulo 9.
+A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela Invoice para. Na conversa, a equipe aparece como "Equipe de Containers", e o Cliente só escreve quando é a vez dele. Cada Invoice tem uma conversa só: depois da Disputa resolvida, o detalhe oferece **Solicitar reabertura** no lugar de **Abrir disputa**, e ela continua resolvida até a equipe decidir. Se a Invoice é cancelada, a Disputa é encerrada junto e o Cliente recebe "Disputa encerrada", com o motivo. Como a equipe responde e decide está no capítulo 9.
 
 ::: atencao
 - Invoice paga não aceita disputa nova. A conversa aberta antes do pagamento continua.
 - O Cliente abre no máximo 3 disputas ou mensagens a cada 30 minutos. Se ele diz que o Portal recusou a mensagem, peça que espere um pouco.
+- Se o anexo é recusado depois de a Disputa abrir (mais de 20 anexos em 24 horas, ou mais de 100 MB somando as Disputas abertas), a Disputa fica aberta e a janela oferece **Reenviar anexo**; o Cliente também pode anexar depois, na conversa.
 :::
 
 ## 15.7 O Desbloqueio de CE pelo Portal
@@ -156,7 +157,7 @@ O sino, no alto do Portal, mostra as notificações do Cliente, com o número da
 
 - "Nova fatura emitida" e "Nova fatura de demurrage", uma por fatura;
 - a consolidada criada, desfeita ou substituída;
-- "Disputa registrada" e "Disputa respondida";
+- "Disputa registrada", "Disputa respondida" e "Disputa encerrada";
 - a escala omitida e o destino alterado (COD), e as correções deles;
 - os avisos do Desbloqueio de CE.
 

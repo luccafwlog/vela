@@ -40,7 +40,7 @@ O ETA, a chegada prevista, é a data que mais mexe no Vela, porque os prazos da 
 | Você faz | O Vela faz | Onde aparece |
 |---|---|---|
 | Muda o ETA | Reordena a **Próxima escala**, a lista de Viagens e o Line Up. | Viagens; Line Up |
-| | Leva a data nova à programação. | **Chegadas e Saídas**; Portal, se a Viagem está publicada e Ativa |
+| | Leva a data nova à programação. | **Chegadas e Saídas**; Portal e site fwlog.com.br, se a Viagem está publicada e Ativa |
 | | Refaz os prazos da documentação. Sete dias antes do primeiro ETA no Brasil abrem **B/L esperado pendente** e **Baplie ausente**; cinco dias antes, **CE Mercante pendente** e, para {{Equipamentos}}, **Planilha de Veículos pendente**. O alerta de B/L sem Cliente conta do ETA de cada porto, cinco dias antes. | **Alertas** da {{Documentação}} |
 | | Move a janela do aviso de chegada (NOA), que sai aos Clientes a partir de cinco dias antes do ETA. | E-mail ao Cliente |
 | Deixa o ETA chegar sem o ATA | No próprio dia do ETA, abre **Data da escala pendente**. | **Alertas** |
@@ -61,7 +61,7 @@ O ETA, a chegada prevista, é a data que mais mexe no Vela, porque os prazos da 
 | | Encerra a janela do NOA e manda o NOR (Aviso de Chegada) a cada Cliente que tem B/L ativo para aquele porto. | E-mail ao Cliente |
 | Registra o ATB (atracação) | Mostra o navio atracado (faixa verde) no Painel e na Tela TV e manda o NOB (Aviso de Atracação) aos Clientes daquele terminal. Sem ETD, abre **Data de terminal pendente**. | Painel; Tela TV; e-mail ao Cliente |
 | Registra o ATD (saída) | Começa o prazo de 72 horas do ADR de Saída do terminal e abre o alerta de cada equipe que ainda tem seção pendente nele. | **ADR**; **Alertas** (capítulo 11) |
-| | Quando todos os terminais da escala têm ATD, a linha sai da Tela TV e a escala é concluída; quando todas as escalas estão concluídas, a Viagem fica **Concluída** e sai de Chegadas e Saídas e do Portal. | Tela TV; Viagens; Portal |
+| | Quando todos os terminais da escala têm ATD, a linha sai da Tela TV e a escala é concluída; quando todas as escalas estão concluídas, a Viagem fica **Concluída** e sai de Chegadas e Saídas, do Portal e do site fwlog.com.br. | Tela TV; Viagens; Portal |
 | | Se a escala declarou exportação de Granito ou de vazios e ela ainda não foi lançada, abre **Exportação pendente pós-ATD** para {{Operações}}. | **Alertas** |
 
 Confirmar a chegada em **Chegadas e Saídas** grava o ATA da escala, com os mesmos efeitos ([5.4](05-programacao.md#54-confirmar-a-saída-ou-a-chegada)).
@@ -82,7 +82,7 @@ O Cliente é quem vê o B/L no Portal e quem recebe a fatura. Mudar o Cliente le
 | | Põe o B/L no Portal desse Cliente (se já tem CE) e nos avisos automáticos: se o navio já está na janela, o Cliente recebe o NOA, o NOR ou o NOB na rodada seguinte. | Portal; e-mail ao Cliente |
 | | Fecha o alerta de B/L sem Cliente perto do ETA quando não sobra nenhum. | **Alertas** |
 | Desvincula o Cliente | Anula o valor a receber que ainda não tinha fatura e tira o B/L do Portal dele. | Saldo do Cliente; Portal |
-| Troca o Cliente de um B/L faturado, sem pagamento | Cancela a fatura e a reemite para o novo Cliente, com o câmbio da importação. Faz o mesmo com a fatura avulsa e a Invoice de Demurrage do B/L; a nova Invoice sai sem o desconto e sem a Disputa do Cliente anterior. | **Taxas Locais**; Portal dos dois Clientes |
+| Troca o Cliente de um B/L faturado, sem pagamento | Cancela a fatura e a reemite para o novo Cliente, com o câmbio da importação. Faz o mesmo com a fatura avulsa e a Invoice de Demurrage do B/L; a nova Invoice sai sem o desconto, e a Disputa aberta do Cliente anterior é encerrada. A dispensa de cobrança de um container passa ao novo Cliente. | **Taxas Locais**; Portal dos dois Clientes |
 | Troca o Cliente de um B/L com pagamento | Não emite para o novo Cliente até o {{Financeiro}} confirmar a devolução ao Cliente original. Se a Invoice de Demurrage ou a fatura avulsa já foi paga, a troca é recusada até essa devolução. | Detalhe da fatura, em **Ajustes pela correção do B/L** |
 | O Cliente ativa o Portal, ou o {{Administrativo}} concede a Liberação de faturamento | Emite na hora as faturas que estavam retidas, com o preço da importação, manda à fila as Invoices de Demurrage retidas e tira os B/Ls da Revisão pelo motivo do Portal. | **Taxas Locais**; Portal: "Nova fatura emitida" |
 
@@ -137,6 +137,7 @@ A fatura emitida nunca é editada. Quando a correção muda o valor ou o Cliente
 | Cancela o B/L | Tira o B/L do faturamento: anula o valor a receber sem fatura e apaga o cálculo, inclusive as taxas manuais. | **Taxas Locais** |
 | | Mostra o B/L como **Cancelado** no Portal, tira-o do Manifesto Mercante e libera o CE para o B/L reemitido. | Portal; **Rotas e Manifestos** |
 | | Deixa de contar o B/L na saída do porto de origem e nos alertas da Revisão. Os containers dele saem do atraso da Demurrage. | Ficha da Viagem; **Demurrage** |
+| | Se um container dele também está no B/L de outro Cliente, a Demurrage do container passa a ser cobrada só do outro ([18.8](#188-mudar-as-datas-de-um-container)). | **Demurrage** |
 | Reativa o B/L | Recalcula as taxas automáticas, devolve o B/L ao Manifesto (se ele ainda serve à rota) e o atraso dos containers volta a contar. | Ficha do B/L |
 | Exclui o B/L | Apaga o B/L com os containers, os cálculos e os alertas dele, e recalcula a saída do porto de origem. | Lista **BLs** |
 
@@ -148,17 +149,21 @@ Reativar não traz de volta a taxa lançada à mão: ela precisa ser lançada de
 
 **Quem faz:** {{Qualquer equipe}}. Na rotina, {{Equipamentos}} (capítulo 9).
 
-A descarga e a devolução são do container físico, e é por elas que corre a Demurrage.
+A descarga e a devolução são do container físico, e é por elas que corre a Demurrage. O dono do container (SOC ou COC) e a divisão dele entre Clientes também mudam a cobrança, com a mesma regra das datas.
 
 | Você faz | O Vela faz | Onde aparece |
 |---|---|---|
 | Grava a descarga ou a devolução | Leva a mesma data a todos os B/Ls ativos da Viagem que dividem o container. | Ficha de cada B/L |
-| | Recalcula a situação de Demurrage: **No free time**, **Em atraso** ou **Devolvido**. | **Demurrage**; aba Carga do B/L |
-| Grava a última devolução de um grupo (os B/Ls do mesmo Cliente na Viagem que dividem containers) | Se algum container passou do free time, emite sozinho a Invoice de Demurrage do grupo, em cerca de um minuto. Sem CE ou sem Portal pronto (nem Liberação), ela espera e sai sozinha quando o CE chega, o Portal é ativado ou a Liberação é concedida. O Cliente é avisado e a Régua de Cobrança começa ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). | **Demurrage**; Portal: "Nova fatura de demurrage" |
+| | Recalcula a situação de Demurrage (**No free time**, **Em atraso** ou **Devolvido**) e a divisão do grupo na página **Demurrage** ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers)). | **Demurrage**; aba Carga do B/L |
+| Grava a última devolução de um grupo (os B/Ls do mesmo Cliente na Viagem que dividem containers) | Se algum container passou do free time, emite sozinho a Invoice de Demurrage do grupo, em cerca de um minuto. Sem CE ou sem Portal pronto (nem Liberação), o grupo fica em **Travado** e a Invoice sai sozinha quando o CE chega, o Portal é ativado ou a Liberação é concedida. O Cliente é avisado e a Régua de Cobrança começa ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). | **Demurrage**; Portal: "Nova fatura de demurrage" |
+| Muda o free time de um grupo já devolvido (condição do B/L, acordo, tarifa ou cadastro de tipos) ou desfaz uma dispensa | Se o grupo passa a ter Demurrage a cobrar, emite a Invoice sozinho, em até 15 minutos. | **Demurrage**; Portal: "Nova fatura de demurrage" |
 | Muda a data de um container já cobrado, sem pagamento, desconto ou Disputa | Cancela a Invoice e a reemite com as datas novas. | **Demurrage** |
-| O mesmo, com pagamento, desconto ou Disputa aberta | Não reemite: suspende a Régua de Cobrança daquela Invoice e abre **Datas mudaram em Invoice de Demurrage emitida** para o {{Administrativo}}. | **Alertas** |
+| Passa a SOC um container já cobrado, na ficha ou pelo Baplie | Cancela a Invoice e a reemite sem ele. | **Demurrage** |
+| Importa, cancela ou exclui o B/L de outro Cliente com o mesmo container na Viagem | Refaz a divisão do container entre os Clientes ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)): a Invoice já emitida é cancelada e reemitida com a parte nova. | **Demurrage** |
+| Qualquer uma dessas mudanças numa Invoice com pagamento, desconto ou Disputa aberta | Não reemite: suspende a Régua de Cobrança daquela Invoice e abre **Datas mudaram em Invoice de Demurrage emitida** para o {{Administrativo}}, com a causa. | **Alertas** |
 
 ::: atencao
+- A Invoice cancelada à mão não volta sozinha: nenhuma data, CE ou troca de Cliente a emite de novo. Use **Gerar Invoice** ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
 - O container que entra depois num B/L da Viagem nasce sem datas, mesmo que já tenha datas em outro B/L. Grave as datas pelo B/L novo.
 - As datas do container não mudam as Taxas Locais nem devolvem o B/L à Revisão.
 :::

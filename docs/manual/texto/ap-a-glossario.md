@@ -20,7 +20,7 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **B/L cancelado**: o B/L com CE Mercante que não vai seguir, porque a carga não embarcou ou o armador o reemitiu com outro número. Fica no Vela, somente leitura; o B/L sem CE não se cancela, se exclui. [7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)
 
-**Baixa**: o registro, na fatura, de um pagamento recebido. Desfazer uma baixa lançada por engano é **Cancelar baixa**, que não devolve dinheiro ao Cliente. Capítulo 24.
+**Baixa**: o registro, na fatura, de um pagamento recebido. A **Forma da baixa** diz de onde ele veio: **Automática (Itaú)**, **Pelo extrato**, **Manual** ou **Isenção**. Desfazer uma baixa lançada por engano é **Cancelar baixa**, que não devolve dinheiro ao Cliente. Capítulo 24.
 
 **Baplie**: o plano de carga do navio: os containers a bordo, cheios ou vazios, o porto de destino e as marcas (IMO, OOG, SOC ou COC). É a fonte da carga física; o B/L, a documental. [6.7](06-importacao.md#67-importar-o-baplie)
 
@@ -52,6 +52,8 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **Consolidada** (fatura): a fatura que junta B/Ls do mesmo Cliente. Quando ela é paga, as faturas individuais desses B/Ls ficam **Cobertas**. Capítulo 22.
 
+**Correndo**, **A emitir**, **Esperando** e **Travado**: as quatro divisões da aba **Containers** da Demurrage, pela situação da cobrança de cada grupo de B/Ls com Demurrage ainda sem Invoice. [9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers)
+
 ## D
 
 **Demurrage**: a sobreestadia do container cheio: os dias além do free time entre a descarga e a devolução, cobrados em dólar numa Invoice de Demurrage. Capítulos 9 e 23.
@@ -62,7 +64,9 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **Descarga** e **devolução**: as duas datas de cada container cheio: quando ele sai do navio no terminal e quando o Cliente o entrega vazio de volta ao armador. [9.2](09-containers-e-demurrage.md#92-gravar-a-descarga-e-a-devolução)
 
-**Disputa**: a contestação de uma Invoice de Demurrage, aberta pelo Cliente no Portal. Enquanto está aberta, a Régua de Cobrança daquela Invoice para. [9.8](09-containers-e-demurrage.md#98-responder-a-uma-disputa)
+**Dispensa da cobrança**: a decisão, com justificativa, de não cobrar a Demurrage de um container. Diferente do desconto, que é da Invoice emitida. [9.11](09-containers-e-demurrage.md#911-dispensar-a-cobrança-de-um-container)
+
+**Disputa**: a contestação de uma Invoice de Demurrage, aberta pelo Cliente no Portal. Enquanto está aberta, a Régua de Cobrança daquela Invoice para. Cada Invoice tem uma conversa só, e a equipe tem 1 dia útil para responder. [9.8](09-containers-e-demurrage.md#98-responder-a-uma-disputa)
 
 ## E
 
@@ -80,13 +84,15 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **FCL** e **LCL**: como a carga é entregue no destino, pelo **Movement To** do B/L: FCL (ou CY), o container inteiro de um consignatário; LCL (ou CFS), a carga de vários no mesmo container. O B/L de container com veículo em LCL fica isento das Taxas Locais. [10.1](10-veiculos-vazios-granito.md#101-importar-os-veículos) e capítulo 21
 
-**Free time**: os dias depois da descarga em que o Cliente fica com o container sem pagar Demurrage; vem da condição do B/L, do acordo do Cliente ou da tarifa, nessa ordem. O depot tem outro, o da armazenagem. [9.4](09-containers-e-demurrage.md#94-ler-a-situação-de-demurrage) e [10.7](10-veiculos-vazios-granito.md#107-cadastrar-depots-terminais-e-serviços)
+**Free time**: os dias depois da descarga em que o Cliente fica com o container sem pagar Demurrage; vem da condição do B/L, do acordo do Cliente ou da tarifa do grupo do tipo de container, nessa ordem. O depot tem outro, o da armazenagem. [9.4](09-containers-e-demurrage.md#94-ler-a-situação-de-demurrage) e [10.7](10-veiculos-vazios-granito.md#107-cadastrar-depots-terminais-e-serviços)
 
-**Frente de operação**: o recorte da escala por tipo de carga: carga cheia, carga solta, vazios e veículos na importação; Granito e vazios na exportação. Cada frente recebe o seu terminal. [4.3](04-viagens-escalas.md#43-atribuir-os-terminais)
+**Frente de operação**: o recorte da escala por tipo de carga: carga cheia, carga solta e vazios na importação; Granito e vazios na exportação. Cada frente recebe o seu terminal; o veículo viaja no container e segue a carga cheia. [4.3](04-viagens-escalas.md#43-atribuir-os-terminais)
 
 ## G
 
 **Granito**: carga de exportação, blocos de pedra embarcados num porto brasileiro. No Vela ele só é totalizado: o B/L de Granito não tem Cliente, taxa nem fatura. [10.8](10-veiculos-vazios-granito.md#108-importar-o-granito)
+
+**Grupo de tarifa**: os tipos de container que cobram pela mesma tarifa de Demurrage: 20' dry, 40' dry, 20' especial, 40' especial, 20' reefer e 40' reefer. [9.7](09-containers-e-demurrage.md#97-cadastrar-tarifas-e-acordos-de-demurrage)
 
 ## I
 
@@ -130,7 +136,7 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **POD** e **POL**: o porto de descarga (Port of Discharge) e o porto de embarque (Port of Loading) do B/L. [4.6](04-viagens-escalas.md#46-rotas-e-manifestos)
 
-**Portal Fwlog** (Portal do Cliente): o sistema do Cliente, com os mesmos dados do Vela: B/Ls, faturas, Pix, Disputa e Desbloqueio de CE. Capítulos 14 e 15.
+**Portal Fwlog** (Portal do Cliente): o sistema do Cliente, com os mesmos dados do Vela: B/Ls, faturas, Pix, Disputa e Desbloqueio de CE. Duas páginas dele, Chegadas e saídas e a Consulta de container, aparecem sem login no site da Fwlog ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)). Capítulos 14 e 15.
 
 **Portal pronto**: a conta do Portal **Ativa**, com o e-mail de recuperação válido e fora da lista de bloqueio. Sem ele, a fatura de Taxas Locais e a Invoice de Demurrage ficam retidas, salvo com a Liberação. [14.5](14-portal-a-conta.md#145-o-que-deixa-o-portal-pronto-para-faturar)
 
@@ -140,7 +146,13 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **PTAX**: a cotação oficial do dólar, que o Vela busca de segunda a sexta, às 14h. É a base do ROE. [19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio) e capítulo 23
 
+## Q
+
+**QR estático**: o QR do Pix que o Vela monta sozinho, com o número da fatura, quando a cobrança pelo Itaú está desligada. O Pix pago nele aparece em **Pix recebidos** como **QR estático do Vela**. [24.1](24-pagamento-e-restituicao.md#241-acompanhar-a-baixa-automática-do-pix)
+
 ## R
+
+**Rateio da caixa**: a divisão em partes iguais da Demurrage do container que está em B/Ls de Clientes diferentes na mesma Viagem; com dois Clientes, "1/2 da caixa". [9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)
 
 **Régua de Cobrança**: os e-mails de cobrança que o Vela manda sozinho enquanto a Invoice de Demurrage está em aberto, a cada 7 dias se o {{Administrativo}} não mudou o intervalo. [19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio) e capítulo 23
 
@@ -158,13 +170,15 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **Taxas Locais**: as cobranças do B/L no porto de destino, calculadas pela tabela de cobrança do POD e do tipo de carga. Ficam devidas com o CE Mercante. Capítulo 21.
 
-**TBC** ("terminal a confirmar"): a frente de operação que ainda não tem terminal. [4.3](04-viagens-escalas.md#43-atribuir-os-terminais)
+**TBC** ("terminal a confirmar"): a frente de operação que ainda não tem terminal. O que ela traz fica fora do ADR de Saída, e nenhum ADR da escala fecha enquanto ela existir. [4.3](04-viagens-escalas.md#43-atribuir-os-terminais)
+
+**Tipo de container**: o código do container como vem no B/L (40HC, 48FR), no cadastro **Tipos de container**; o tipo fora do cadastro, ou desativado, não tem tarifa de Demurrage. [9.10](09-containers-e-demurrage.md#910-cadastrar-um-tipo-de-container)
 
 **Transbordo**: veja Omissão.
 
 ## V
 
-**Vazios** (IMP e EXP): os containers vazios que o navio descarrega (Vazios IMP) ou embarca (Vazios EXP) numa escala. Não têm B/L nem Cliente. [10.4](10-veiculos-vazios-granito.md#104-cadastrar-os-vazios-de-importação) e [10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)
+**Vazios** (IMP e EXP): os containers vazios que o navio descarrega (Vazios IMP) ou embarca (Vazios EXP) numa escala. Não têm B/L nem Cliente. O Embarque de vazios opera num terminal, o da frente de vazios da exportação da escala. [10.4](10-veiculos-vazios-granito.md#104-cadastrar-os-vazios-de-importação) e [10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)
 
 **Viagem**: a passagem de um navio pelos portos brasileiros, identificada pelo navio e pelo número, como COSCO SHIPPING SEREIA 024E. Tudo no Vela se pendura nela. [4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem)
 

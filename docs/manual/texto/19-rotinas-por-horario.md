@@ -16,8 +16,10 @@ Algumas coisas o Vela faz pelo relógio, sem que ninguém clique em nada: confer
 | Comunicados automáticos | A cada 2 minutos e logo depois do fato | NOA, NOR, NOB e CE e Taxas aos Clientes |
 | Régua de Cobrança da Demurrage | A cada 5 minutos; envia em dia útil, a partir das 9h | E-mail de cobrança das Invoices em aberto |
 | Situação da Demurrage | Todo dia, às 00h17 | Marca **Em atraso** os containers que venceram o free time |
+| Demurrage travada e A emitir | A cada 15 minutos | Abre e fecha o alerta **Demurrage travada** e põe na fila a Invoice do grupo que ficou pronto sem uma data nova |
+| Prazo das Disputas de Demurrage | A cada 15 minutos | Abre o alerta da Disputa que espera a nossa resposta há mais de 1 dia útil |
 | PTAX e recálculo da Demurrage | De segunda a sexta, às 14h | Câmbio do dia e novo valor em reais das Invoices |
-| Pix do Itaú | A cada minuto, com a cobrança pelo Itaú ligada | QR das faturas e baixa dos Pix pagos |
+| Pix do Itaú | A cada minuto | QR das faturas, com a cobrança pelo Itaú ligada, e baixa dos Pix pagos |
 | Desbloqueio de CE | Logo depois do fato e a cada 5 minutos; limpeza às 3h | Avisos ao Cliente, validação das solicitações, documentos vencidos |
 | Liberação vencida | Todo dia, às 00h13 | Devolve à Revisão os B/Ls do Cliente sem Portal |
 | Convites do Portal | A cada 15 minutos | Marca como expirado o convite com mais de 48 horas |
@@ -35,6 +37,7 @@ A maior parte dos alertas abre e fecha na hora da ação. Alguns dependem só da
 - o ETA, o ETB ou o ETD que chegou sem a data realizada, no próprio dia;
 - os prazos da documentação: 7 dias antes do primeiro ETA no Brasil, os de B/L esperado e de Baplie; 5 dias antes, o de CE Mercante pendente e o de Planilha de Veículos; 5 dias antes do ETA de cada porto, o de B/L sem Cliente;
 - o prazo de 72 horas do ADR de Saída, contado do ATD;
+- o prazo de 1 dia útil para responder à Disputa de Demurrage e a Demurrage que trava com a virada do dia ([19.5](#195-a-demurrage-pelo-relógio));
 - os avisos ao Cliente que deviam ter saído e não saíram;
 - as contas do Portal do Cliente e os e-mails sem retorno do provedor.
 
@@ -77,26 +80,28 @@ Enquanto a chave **Envio real** estiver desligada, todo e-mail ao Cliente vai pa
 
 **Quem acompanha:** {{Equipamentos}}
 
-Três rotinas cuidam da Demurrage:
+Cinco rotinas cuidam da Demurrage:
 
 - **Todo dia, às 00h17,** o Vela marca **Em atraso** os containers não devolvidos que venceram o free time. Gravar uma data já recalcula na hora; esta rotina cuida da passagem do dia.
 - **De segunda a sexta, às 14h,** busca a PTAX, a cotação oficial do dólar, e grava o câmbio do dia. Com ele, recalcula em reais as Invoices emitidas e não pagas, com Pix novo; o valor em dólar não muda, e a Invoice com câmbio informado à mão fica como está. Em feriado vale a última PTAX divulgada. Esse câmbio é também o que as Taxas Locais em dólar fixam no primeiro cálculo.
 - **A cada 5 minutos,** a Régua de Cobrança manda por e-mail a cobrança de cada Invoice emitida e não paga, só em dia útil e a partir das 9h. A primeira sai na primeira rodada depois da emissão, dentro desse horário; as seguintes, a cada 7 dias (o intervalo padrão), até o pagamento. As Invoices do mesmo Cliente vão num e-mail só. A Régua pausa a Invoice com Disputa aberta ou com Pix em análise.
+- **A cada 15 minutos,** o Vela confere a divisão **Travado** da página **Demurrage**: abre o alerta **Demurrage travada** do grupo que travou sem passar por uma gravação, como o do Cliente cujo Portal deixou de estar pronto, e fecha o que destravou. Na mesma passada, põe na fila a Invoice do grupo de **A emitir** que ficou pronto sem uma data nova (free time, acordo, tarifa ou tipo mudados, dispensa desfeita), menos o que espera **Gerar Invoice** por uma Invoice cancelada à mão ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
+- **A cada 15 minutos,** também, abre o alerta **Disputa de Demurrage sem resposta no prazo** para a Disputa que espera a nossa resposta há mais de 1 dia útil ([9.8](09-containers-e-demurrage.md#98-responder-a-uma-disputa)).
 
 ::: atencao
 - Se a PTAX não chega, o último câmbio continua valendo, abre um alerta (capítulo 20) e alguém do {{Financeiro}}, do {{Administrativo}} ou de {{Equipamentos}} usa **Informar PTAX**, em **Demurrage**.
-- Com a cobrança pelo Itaú ligada, a partir de 1º de novembro abre **Calendário de feriados pendente** se os feriados do ano seguinte não estão cadastrados. Sem eles, feriado conta como dia útil na Régua e nos prazos do Pix da Demurrage. Peça o cadastro ao suporte técnico.
+- Com a cobrança pelo Itaú ligada, a partir de 1º de novembro abre **Calendário de feriados pendente** se os feriados do ano seguinte não estão cadastrados. Sem eles, feriado conta como dia útil na Régua, nos prazos do Pix da Demurrage e no prazo de resposta da Disputa. Peça o cadastro ao suporte técnico.
 :::
 
 ## 19.6 O Pix do Itaú
 
 **Quem acompanha:** {{Financeiro}}
 
-Com a cobrança pelo Itaú ligada, uma rotina a cada minuto cuida do Pix das faturas:
+Uma rotina a cada minuto cuida do Pix das faturas:
 
-- **gera o QR** segundos depois da emissão e o refaz quando o saldo muda. Até lá, a fatura impressa diz "QR Code em preparação". O QR da Demurrage vale até 14h30 do dia útil seguinte e acompanha a PTAX;
-- **consulta os Pix recebidos** na conta e dá a baixa automática do Pix de cobrança do Vela que tem o valor exato. A fatura fica **Paga** no Vela e no Portal, com o recibo;
-- **separa o que não é seguro**: o Pix com valor diferente, ou de uma fatura já paga ou cancelada, vai para **Pix em análise** e abre **PIX sem conciliação segura** para o {{Financeiro}} e o {{Administrativo}} (capítulo 24).
+- **gera o QR**, com a cobrança pelo Itaú ligada, segundos depois da emissão e o refaz quando o saldo muda. Até lá, a fatura impressa diz "QR Code em preparação". O QR da Demurrage vale até 14h30 do dia útil seguinte e acompanha a PTAX;
+- **consulta os Pix recebidos** na conta e dá a baixa automática do Pix de cobrança do Vela que tem o valor exato; com a cobrança pelo Itaú desligada, também a do Pix pago no QR estático ([24.1](24-pagamento-e-restituicao.md#241-acompanhar-a-baixa-automática-do-pix)). A fatura fica **Paga** no Vela e no Portal, com o recibo;
+- **separa o que não é seguro**: o Pix com valor diferente, ou de uma fatura já paga ou cancelada, vai para **Pix em análise** e abre **PIX sem conciliação segura** para o {{Financeiro}} e o {{Administrativo}} (capítulo 24). O do QR estático que não pode ser baixado fica **Sem baixa**, sem alerta.
 
 ::: atencao
 Se a consulta para, os Pix pagos deixam de ser baixados e abre um alerta (capítulo 20). Enquanto isso, o {{Financeiro}} usa **Conciliar extrato**, em **Conciliação PIX**.
@@ -129,5 +134,5 @@ O detalhe de cada prazo está no capítulo 12.
 Uma rotina parada não trava a tela: a gravação acontece, e o que a rotina faria fica esperando. Por isso o aviso vem pelos **Alertas**: cada rotina tem o seu, e ele chega à equipe que pode agir. Quase sempre o caminho é corrigir o dado que o alerta aponta (um contato do Cliente, a PTAX do dia) ou avisar o suporte técnico. Cada um desses alertas está no capítulo 20.
 
 ::: atencao
-A situação da Demurrage (00h17) e a Liberação vencida (00h13) não têm alerta próprio quando falham. Se um container que venceu o free time continua **No free time** no dia seguinte, avise o suporte técnico.
+A situação da Demurrage (00h17), as duas rotinas de 15 minutos da Demurrage e a Liberação vencida (00h13) não têm alerta próprio quando falham. Se um container que venceu o free time continua **No free time** no dia seguinte, avise o suporte técnico.
 :::

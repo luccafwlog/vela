@@ -108,7 +108,7 @@ O quadro descreve o que o Vela confere a cada gravação, não só o que a tela 
 
 **Quem faz:** {{Administrativo}}
 
-O **Histórico de ações** junta numa lista só tudo o que se gravou no Vela, com quem fez e quando. Para a história de uma Viagem, de um B/L ou de um Cliente, a ficha de cada um é mais fácil de ler (capítulos 4, 7 e 13). Aqui ficam também as mudanças que não têm ficha: usuários, configurações, tabelas de cobrança e Condições de Cliente, tarifas e acordos de Demurrage, os alertas resolvidos com justificativa e cada **Reprocessar** da importação.
+O **Histórico de ações** junta numa lista só tudo o que se gravou no Vela, com quem fez e quando. Para a história de uma Viagem, de um B/L ou de um Cliente, a ficha de cada um é mais fácil de ler (capítulos 4, 7 e 13). Aqui ficam também as mudanças que não têm ficha: usuários, configurações, tabelas de cobrança e Condições de Cliente, tarifas, acordos e tipos de container de Demurrage, os alertas resolvidos com justificativa e cada **Reprocessar** da importação.
 
 1. Em **Admin**, abra **Histórico de ações**.
 2. Recorte por **Assunto** (Viagem, B/L, Fatura, Usuário, Alerta, Configuração do sistema e outros), por **Por** (**Qualquer pessoa**, **Sistema** ou uma pessoa) e pelos dias em **De** e **Até**.

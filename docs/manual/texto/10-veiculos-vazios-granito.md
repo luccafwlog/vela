@@ -76,6 +76,8 @@ Os vazios da COSCO SHIPPING SEREIA / 024E, ainda sem número de manifesto.
 
 Importar a planilha de novo substitui os containers de cada rota que ela traz. Enquanto uma rota de vazios está sem número, a lista mostra **Sem número** em âmbar e a Viagem conta como CE Mercante pendente (capítulo 20).
 
+Os vazios também criam a frente de vazios da escala. Se os terminais da escala já foram escolhidos, escolha o dessa frente, que nasce em TBC ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)): sem ele, os vazios ficam fora do ADR de Saída, e o ADR não fecha.
+
 ### A natureza do vazio
 
 Alguns vazios têm uma função a bordo: **Cama** é a base de estiva de uma carga OOG; **Cover plate** é a tampa de porão. Para registrar, marque os containers na lista e clique em **Cama**, **Cover plate** ou **Limpar**. A natureza aparece no ADR de Saída, em **Vazios descarregados** (capítulo 11).
@@ -86,20 +88,34 @@ Alguns vazios têm uma função a bordo: **Cama** é a base de estiva de uma car
 
 ## 10.5 Registrar o embarque de vazios
 
-**Quem faz:** {{Qualquer equipe}}. Na rotina, {{Equipamentos}}.
+**Quem faz:** {{Qualquer equipe}}; na rotina, {{Equipamentos}} · excluir o embarque: {{Administrativo}}
 
-O **Embarque de vazios** registra os containers vazios que o navio embarca num porto brasileiro. Cada escala tem um embarque, com duas partes: as **unidades embarcadas**, o que embarcou e de onde saiu, e os **serviços**, o custo da operação ([10.6](#106-lançar-os-serviços-do-embarque)).
+O **Embarque de vazios** registra os containers vazios que o navio embarca num porto brasileiro. Cada escala tem um embarque, e ele opera num terminal: o da frente de vazios da exportação da escala, que decide em que ADR de Saída o embarque entra. O embarque tem duas partes: as **unidades embarcadas**, o que embarcou e de onde saiu, e os **serviços**, o custo da operação ([10.6](#106-lançar-os-serviços-do-embarque)).
 
 1. No menu **Exportação**, abra **Vazios EXP** e clique em **Novo embarque**. Da ficha da Viagem, a ação **Novo embarque de vazios** já traz a Viagem.
-2. Escolha a **Viagem** e o **Porto de embarque**, entre as escalas da Viagem, e clique em **Criar embarque**. Se a escala já tem embarque, o Vela abre o existente.
-3. Na aba **Unidades embarcadas**, clique em **Importar planilha** ou, para uma unidade só, em **Adicionar unidade**.
-4. Em cada unidade vão o **Container**, o **Local** de onde saiu, a **Condição** (**Vazio** ou **Com material**) e as datas. Saindo de um depot, **Entrada** e **Saída** são obrigatórias; saindo do terminal (embarque direto), elas não existem.
+2. Escolha a **Viagem**, o **Porto de embarque**, entre as escalas da Viagem, e o **Terminal**. Se a escala já tem terminal para os vazios, ele vem escolhido e não muda aqui: para trocar, edite a escala ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
+3. Clique em **Criar embarque**. Se a escala já tem embarque, o Vela abre o existente.
+4. Na aba **Unidades embarcadas**, clique em **Importar planilha** ou, para uma unidade só, em **Adicionar unidade**.
+5. Em cada unidade vão o **Container**, o **Local** de onde saiu, a **Condição** (**Vazio** ou **Com material**) e as datas. Saindo de um depot, **Entrada** e **Saída** são obrigatórias; saindo do terminal (embarque direto), elas não existem.
+
+O terminal escolhido vai para a escala, como se você o escolhesse na janela dela: a escala passa a declarar o Embarque de vazios, a frente de vazios ganha o terminal e, se ele ainda não estava na escala, nascem a Atracação e o ADR de Saída dele. A faixa do embarque mostra o **Terminal**.
 
 A planilha não tem prévia: grava tudo ou nada, e importar de novo substitui a lista, mas mantém as unidades incluídas à mão. O mesmo container só embarca uma vez na Viagem.
 
 ::: atencao
-- Confira a escala antes de criar o embarque. O embarque não se exclui pela tela e, enquanto ele existe, a declaração de vazios da escala não sai ([4.2](04-viagens-escalas.md#42-planejar-as-escalas)).
+- Confira a escala e o terminal antes de criar o embarque. Enquanto ele existe, a frente de vazios não volta para TBC, a declaração de vazios não sai e a escala não se exclui. Trocar o terminal da frente na escala continua valendo: o embarque e o ADR vão junto.
+- Porto sem terminal portuário ativo não recebe embarque: o terminal precisa estar em **Locais (depots e terminais)** ([10.7](#107-cadastrar-depots-terminais-e-serviços)).
+- O embarque criado antes de o terminal ser obrigatório mostra **Sem terminal** e o aviso **Embarque sem terminal**: escolha o **Terminal** e clique em **Definir terminal**. Até lá, nenhum ADR de Saída da escala fecha.
 :::
+
+### Excluir um embarque criado por engano
+
+Só o {{Administrativo}} exclui, e só o embarque ainda vazio: sem unidade, sem linha de serviço e com o ADR de Saída aberto. Fora disso, **Excluir embarque** não aparece.
+
+1. Abra o embarque e clique em **Excluir embarque**, no alto.
+2. Escreva o motivo e confirme em **Excluir**.
+
+A frente de vazios, a Atracação e o ADR do terminal ficam na escala. Sem o embarque, a janela da escala volta a poder mudá-los ou tirá-los.
 
 ## 10.6 Lançar os serviços do embarque
 
@@ -151,6 +167,7 @@ A planilha sem nenhum B/L em comum com os da Viagem vira outro manifesto. A que 
 
 ::: atencao
 - O porto de carregamento da planilha precisa ser uma escala da Viagem. Senão, o Granito aparece no ADR de Saída como dado órfão (capítulo 11).
+- O Granito importado entra no ADR de Saída pelo terminal da frente de Granito da escala. Se a escala ainda não declarava o Granito, a frente nasce em TBC e a janela da escala já abre com a exportação e o **Granito** marcados: escolha o terminal da frente e clique em **Salvar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)). Sem isso, o Granito fica fora do ADR, e o ADR não fecha.
 - Com Granito importado no porto, a declaração de exportação da escala não sai ([4.2](04-viagens-escalas.md#42-planejar-as-escalas)).
 - Se o navio sai do terminal sem o Granito ou os vazios que a escala declarou, abre um alerta para {{Operações}} (capítulo 20).
 :::

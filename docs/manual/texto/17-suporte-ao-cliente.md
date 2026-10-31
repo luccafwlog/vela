@@ -5,7 +5,8 @@ Quando o Cliente pede ajuda, quase sempre é uma destas coisas: não consegue en
 - resolver o acesso: entrada, convite, senha, e-mail de recuperação e CNPJ;
 - descobrir por que um e-mail não chegou;
 - explicar o B/L ou a fatura que não aparece, o Pix que não baixou e o saldo diferente;
-- a quem passar cada pedido.
+- a quem passar cada pedido;
+- responder sobre a programação e a consulta de container do site da Fwlog.
 :::
 
 ## 17.1 Ver o Portal como o Cliente vê
@@ -125,8 +126,8 @@ Quando o Cliente diz que o valor do Portal é diferente do Vela, os dois saldos 
 
 A contestação de uma Invoice de Demurrage é a **Disputa**, e só o Cliente a abre: no Portal, no detalhe da Invoice em aberto, em **Abrir disputa**. O Vela não abre Disputa pelo Cliente. Aberta, ela chega a {{Equipamentos}} com um alerta e pausa a cobrança automática da Invoice.
 
-1. Oriente o Cliente a abrir a Disputa pelo Portal, explicando o motivo.
-2. Responda em **Demurrage**, aba **Disputas**, com **Enviar resposta** (capítulo 9). A resposta aparece para o Cliente no Portal.
+1. Oriente o Cliente a abrir a Disputa pelo Portal, explicando o motivo. Se a Invoice já teve uma Disputa resolvida, ele pede a reabertura nela, em **Solicitar reabertura** ([15.6](15-portal-o-que-o-cliente-ve.md#156-a-demurrage-e-a-disputa)).
+2. Responda em **Demurrage**, aba **Disputas**, com **Responder** (capítulo 9). A resposta aparece para o Cliente no Portal.
 
 ## 17.10 Outros pedidos
 
@@ -140,3 +141,27 @@ A contestação de uma Invoice de Demurrage é a **Disputa**, e só o Cliente a 
 | liberar o CE para retirar a carga | Desbloqueio de CE (capítulo 12) |
 | onde devolver o container, o tracking ou o contato da agência | Central de Informações do Portal (capítulo 13) |
 | entender um aviso que recebeu por e-mail | E-mails e Comunicados (capítulo 16) |
+| como a transportadora acompanha um container sem entrar no Portal | Consulta de container do site da Fwlog ([17.11](#1711-responder-sobre-o-site-da-fwlog)) |
+
+## 17.11 Responder sobre o site da Fwlog
+
+**Quem faz:** {{Qualquer equipe}}
+
+O site da Fwlog, fwlog.com.br, mostra duas páginas do Portal a qualquer pessoa, sem login: servem a quem não tem conta, como a transportadora do Cliente. As duas leem os dados do Vela, e nenhuma mostra Cliente, B/L, CE Mercante, valores, Pix ou contatos.
+
+- **Chegadas e saídas** é o quadro do Painel do Portal ([15.3](15-portal-o-que-o-cliente-ve.md#153-o-painel-e-a-programação-dos-navios)), sem **Ver meus B/Ls**: as mesmas Viagens, com a chave **Aparece em Chegadas e Saídas** ligada ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)), e as mesmas datas, que chegam ao site em até um minuto e meio. O mapa do navio só aparece quando ele tem **IMO**. Desligar a chave tira a Viagem do Portal e do site juntos.
+- **Consulta de container**: a pessoa digita só o número do container e vê a situação, a data limite de devolução (a descarga mais o free time), o tipo, o navio, a viagem, o porto de descarga, a descarga, o free time e a devolução. A resposta é a da Viagem mais recente do container. Entram Salvador, Vitória, Pecém e Suape: os containers descarregados ou previstos nos últimos 90 dias e os que ainda não foram devolvidos.
+
+O free time e a data limite são os mesmos do Portal e da Invoice de Demurrage. Quando a consulta não bate com o que a pessoa espera, confira no Vela:
+
+| A consulta mostra | O que conferir no Vela |
+|---|---|
+| **Aguardando descarga** | A descarga do container ([9.2](09-containers-e-demurrage.md#92-gravar-a-descarga-e-a-devolução)). |
+| **Free time vencido**, mas o container já voltou | A devolução: sem ela gravada, o container continua contando como fora ([9.2](09-containers-e-demurrage.md#92-gravar-a-descarga-e-a-devolução)). |
+| **Free time a confirmar com a Fwlog** | Nenhum free time foi achado para o container: confira o acordo do Cliente e a tarifa do grupo do tipo dele ([9.7](09-containers-e-demurrage.md#97-cadastrar-tarifas-e-acordos-de-demurrage)), e se o tipo está cadastrado e ativo ([9.10](09-containers-e-demurrage.md#910-cadastrar-um-tipo-de-container)). |
+| "Não encontramos este container…" | Na Viagem mais recente do container: se o B/L tem CE Mercante e Cliente vinculado, se não é SOC e se o porto de descarga e as datas estão gravados. |
+
+::: atencao
+- Só aparece o container de B/L com CE Mercante e Cliente vinculado. Se a Viagem mais recente do container ainda não pode aparecer, a resposta é "não encontrado", nunca a Viagem anterior.
+- "Consulta indisponível no momento. Tente mais tarde." costuma passar na virada da hora. Se continuar, ou se a página no site aparece em branco ou como **Página não encontrada**, avise o suporte técnico: o endereço colado no site pode estar errado.
+:::

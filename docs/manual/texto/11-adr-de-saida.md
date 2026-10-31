@@ -50,11 +50,13 @@ O ADR mostra só o que aconteceu, sem linha zerada, e cada container conta uma v
 
 O que cada seção traz e onde se corrige:
 
-- **Carga descarregada** conta os containers cheios dos B/Ls do terminal, por tipo e natureza (**Carga geral**, **IMO**, **OOG**), com o destino final separado do transbordo, e a carga solta num quadro próprio. A fonte é o B/L: container cheio que está no Baplie sem B/L não entra e aparece como **Divergência** ([6.8](06-importacao.md#68-resolver-as-divergências-entre-baplie-e-bl)). O B/L com exceção de terminal conta no terminal da exceção ([7.7](07-ficha-do-bl.md#77-mudar-o-terminal-de-descarga-de-um-bl)).
+- **Carga descarregada** conta os containers cheios dos B/Ls do terminal, por tipo e natureza (**Carga geral**, **IMO**, **OOG**), com o destino final separado do transbordo, e a carga solta num quadro próprio. A fonte é o B/L: container cheio que está no Baplie sem B/L não entra e aparece como **Divergência** ([6.8](06-importacao.md#68-resolver-as-divergências-entre-baplie-e-bl)). O B/L com exceção de terminal leva a carga e os veículos dele ao terminal da exceção ([7.7](07-ficha-do-bl.md#77-mudar-o-terminal-de-descarga-de-um-bl)). O B/L em transbordo de uma escala omitida segue a frente do Porto de Transbordo, mesmo com exceção: a exceção dele é do porto omitido.
 - **Vazios descarregados** compara os vazios do Baplie com os de **Vazios IMP**, onde se marca cama e cover plate (capítulo 10).
-- **Veículos**, **Carga carregada** e **Embarque de vazios** mostram o que foi lançado em **Veículos**, **Granito** e no Embarque de vazios (capítulo 10). Granito ou embarque lançado num porto que não é escala da Viagem aparece como **Dado órfão**.
+- **Veículos**, **Carga carregada** e **Embarque de vazios** mostram o que foi lançado em **Veículos**, **Granito** e no Embarque de vazios (capítulo 10). Os veículos ficam no ADR do terminal da carga cheia. Granito ou embarque lançado num porto que não é escala da Viagem aparece como **Dado órfão**.
 
-No exemplo, a Carga descarregada do TVV mostra os containers dos B/Ls CSC45810A01K00 e CSC45810A03K00 e, no quadro da carga solta, o CSC45810B01K00. O CSNU240105, que está no Baplie sem B/L, aparece como Divergência.
+Quando uma frente da escala está sem terminal, a seção dela mostra **Sem terminal (TBC)** com as frentes que faltam, e o bloco **ADR** repete o aviso. O que essas frentes trazem não entra em nenhum ADR até ganharem terminal; a carga cheia sem terminal deixa de fora também os veículos. Escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
+
+No exemplo, com a carga cheia e a carga solta no TVV, a Carga descarregada do TVV mostra os containers dos B/Ls CSC45810A01K00 e CSC45810A03K00 e, no quadro da carga solta, o CSC45810B01K00. O CSNU240105, que está no Baplie sem B/L, aparece como Divergência.
 
 ::: atencao
 - Seção sem dado mostra "Nada operado nesta escala." e continua pedindo resolução: o vazio não é conclusão.
@@ -113,7 +115,7 @@ O ADR passa a mostrar "Fechado em … por …" e os alertas dele fecham. O impre
 Com o ADR fechado, o Vela trava o que mexe nele: o terminal das frentes, o ATB, o ATD e o Restow da Atracação, a declaração de exportação e o Embarque de vazios daquela escala (capítulo 10). Para mudar qualquer um, reabra o ADR ([11.6](#116-reabrir-um-adr-fechado)).
 
 ::: atencao
-- Uma frente em TBC em qualquer ponto da escala impede o fechamento. Atribua o terminal antes ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
+- Uma frente em TBC em qualquer ponto da escala impede o fechamento, também a que nasceu depois de os terminais serem escolhidos (carga solta, vazios, Granito, carga em transbordo). O bloco **ADR** mostra o aviso **Sem terminal (TBC)**, **Fechar ADR** fica apagado e, com as três assinaturas, o bloco diz "Frente sem terminal impede o fechamento" no lugar de "Pronto para fechar". Escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); no Embarque de vazios antigo, em **Definir terminal** ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)).
 - O Vela deixa fechar antes da saída do navio, mas depois não aceita o ATD daquele terminal sem reabrir, e o ADR fechado sem ATD fica fora do **Prazo do ADR**. Feche depois de registrar o ATD.
 :::
 

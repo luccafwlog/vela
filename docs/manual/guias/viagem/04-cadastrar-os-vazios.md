@@ -20,6 +20,8 @@ Vazio que é cama de OOG ou tampa de porão? Em **Vazios IMP**, marque o contain
 
 Veio a planilha de vazios do armador? Ela vale sobre o Baplie: suba por **Vazios IMP** › **Importar planilha**, que já pede o Nº do manifesto de cada rota.
 
+Os vazios precisam da frente **Vazios** da escala com terminal. Se eles chegam depois da etapa 2, a frente nasce em **TBC — pendente**: escolha o terminal dela no lápis da escala, em **Terminais e atracações**, ou avise {{Operações}}. Sem terminal, os vazios ficam fora do ADR de Saída e o **Fechar ADR** fica travado.
+
 ::: atencao
 Rota de vazios sem número conta como CE Mercante pendente na Viagem.
 :::

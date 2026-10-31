@@ -1,4 +1,4 @@
-A programação é o que o Vela mostra das datas dos navios. O Cliente a vê em Chegadas e Saídas, no Portal; as equipes, no Line Up do Painel e na Tela TV. Nenhum desses quadros tem datas próprias: todos leem as Viagens do capítulo 4. Por isso a regra deste capítulo é simples: a data é uma só, e mudá-la em qualquer lugar muda em todos.
+A programação é o que o Vela mostra das datas dos navios. O Cliente a vê em Chegadas e Saídas, no Portal, e qualquer pessoa, no site fwlog.com.br; as equipes, no Line Up do Painel e na Tela TV. Nenhum desses quadros tem datas próprias: todos leem as Viagens do capítulo 4. Por isso a regra deste capítulo é simples: a data é uma só, e mudá-la em qualquer lugar muda em todos.
 
 ::: aprende
 - ler a programação que o Cliente vê e publicar nela um navio;
@@ -12,7 +12,7 @@ A programação é o que o Vela mostra das datas dos navios. O Cliente a vê em 
 
 **Quem faz:** {{Todas as equipes}}
 
-**Chegadas e Saídas** (atalho no alto do **Painel** e de **Viagens**) é a programação publicada no Portal: para cada navio, quando ele sai da origem e quando chega a cada porto brasileiro. Cada linha é uma Viagem com a chave **Aparece em Chegadas e Saídas** ligada, e o navio que chega primeiro fica no alto.
+**Chegadas e Saídas** (atalho no alto do **Painel** e de **Viagens**) é a programação publicada no Portal e no site fwlog.com.br ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)): para cada navio, quando ele sai da origem e quando chega a cada porto brasileiro. Cada linha é uma Viagem com a chave **Aparece em Chegadas e Saídas** ligada, e o navio que chega primeiro fica no alto.
 
 ::: tela chegadas-saidas
 Chegadas e Saídas: a saída de Shanghai já passou e aparece em âmbar, com o botão de confirmar.
@@ -29,10 +29,10 @@ Chegadas e Saídas: a saída de Shanghai já passou e aparece em âmbar, com o b
 | Data em âmbar | A previsão passou e ninguém confirmou. O âmbar aparece só no Vela; o Cliente vê uma previsão comum. |
 | **Omitida** | O armador omitiu a escala ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)). |
 
-O quadro mostra só oito portos: Qingdao, Shanghai, Taicang, Ningbo e Nansha na origem, e Salvador, Vitória e Pecém no Brasil.
+O quadro mostra só nove portos: Qingdao, Shanghai, Taicang, Ningbo e Nansha na origem, e Salvador, Vitória, Pecém e Suape no Brasil.
 
 ::: atencao
-Se um navio não aparece, confira na Viagem se a chave **Aparece em Chegadas e Saídas** está ligada, se ela está **Ativa** e se tem pelo menos uma data num desses oito portos.
+Se um navio não aparece, confira na Viagem se a chave **Aparece em Chegadas e Saídas** está ligada, se ela está **Ativa** e se tem pelo menos uma data num desses nove portos.
 :::
 
 ## 5.2 Publicar um navio
@@ -68,9 +68,9 @@ A janela de edição: só as datas mudam aqui.
 :::
 :::
 
-A data que você salva aqui é a mesma da escala na ficha da Viagem. Nome do navio, viagem e IMO não mudam aqui: corrija em **Viagens** › **Editar**.
+A data que você salva aqui é a mesma da escala na ficha da Viagem. Como na planilha ([5.5](#55-atualizar-vários-navios-por-planilha)), aqui só há o dia: se ele não muda, a hora gravada na escala fica; se muda, confira a hora na Viagem depois. Nome do navio, viagem e IMO não mudam aqui: corrija em **Viagens** › **Editar**.
 
-Para dizer que o navio não vai mais a um porto, marque **Não escala** nele. Para a maioria das equipes, só a data sai. O {{Administrativo}} vai além: se a escala ainda não tem nada ligado a ela (B/L que descarrega ou embarca naquele porto, chegada ou saída registrada, manifesto vinculado, terminais salvos), ela sai da Viagem. A confirmação diz qual dos dois casos vai acontecer.
+Para dizer que o navio não vai mais a um porto, marque **Não escala** nele. Para a maioria das equipes, só a data sai. O {{Administrativo}} vai além: se a escala ainda não tem nada ligado a ela (B/L que descarrega ou embarca naquele porto, chegada ou saída registrada, manifesto vinculado, terminais salvos, Embarque de vazios), ela sai da Viagem. A confirmação diz o que acontece com a escala para a sua equipe.
 
 ::: atencao
 - Se o navio deixou de ir ao porto e já tem carga para ele, não marque **Não escala**: registre a omissão da escala ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)).
@@ -101,7 +101,7 @@ A **saída** confirmada é provisória. A data real de saída vem do B/L, pela d
 
 **Quem faz:** {{Qualquer equipe}}
 
-Quando o armador manda a programação de vários navios de uma vez, use a planilha. Baixe o modelo na própria janela: uma linha por viagem, com **VESSEL NAME**, **VOY**, **IMO** e uma coluna por porto.
+Quando o armador manda a programação de vários navios de uma vez, use a planilha. Baixe o modelo na própria janela: uma linha por viagem, com **VESSEL NAME**, **VOY**, **IMO** e uma coluna por porto do quadro, de **QINGDAO ETD** a **SUAPE ETA**.
 
 ::: passos
 1. Em **Chegadas e Saídas**, abaixo do quadro, clique em **Importar programação**.
@@ -130,7 +130,7 @@ O navio sai do quadro sozinho quando a Viagem é concluída, no último ATD. Par
 1. Em **Viagens**, abra a Viagem e clique em **Editar**.
 2. Desligue **Aparece em Chegadas e Saídas** e clique em **Salvar viagem**.
 
-O navio some de Chegadas e Saídas e do Portal, mas continua no Line Up, que é das equipes. Para publicar de novo, ligue a chave.
+O navio some de Chegadas e Saídas, do Portal e do site fwlog.com.br, mas continua no Line Up, que é das equipes. Para publicar de novo, ligue a chave.
 
 ## 5.7 Acompanhar o Line Up e a Tela TV
 
@@ -168,8 +168,8 @@ Esses são os cadastros de apoio das Viagens. Só os terminais têm tela própri
 
 - **Navios e armadores** nascem e mudam pelas Viagens, em **Nova Viagem** e **Editar** (capítulo 4), por Chegadas e Saídas e pela planilha. O armador corrigido numa Viagem vale para todas as Viagens do mesmo navio.
 - **Portos** nascem sozinhos na primeira escala com o código deles. O Vela entende grafias diferentes do mesmo porto, como BRVIT e BRVIX para Vitória.
-- **Terminais** ficam na tela de Locais, junto com os depots: no menu, em **Exportação**, clique em **Vazios EXP** e depois em **Locais (depots e terminais)**. O terminal precisa estar ligado ao porto para aparecer na escala.
+- **Terminais** ficam na tela de Locais, junto com os depots: no menu, em **Exportação**, clique em **Vazios EXP** e depois em **Locais (depots e terminais)**. O terminal precisa estar ligado ao porto para aparecer na escala e no Embarque de vazios.
 
 ::: atencao
-Se o terminal não aparece para escolher na escala, confira em Locais se ele é **Terminal portuário**, se o **Porto** é o da escala e se está ativo. Para reativar, peça ao {{Administrativo}}.
+Se o terminal não aparece para escolher na escala ou no **Novo embarque**, confira em Locais se ele é **Terminal portuário**, se o **Porto** é o da escala e se está ativo. Para reativar, peça ao {{Administrativo}}.
 :::

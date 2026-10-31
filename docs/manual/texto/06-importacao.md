@@ -71,6 +71,7 @@ Ao gravar, acontecem três coisas que você precisa saber:
 - Se o B/L já está em outra Viagem, ele é recusado: a importação nunca muda a Viagem de um B/L. Veja [6.9](#69-trocar-o-bl).
 - O B/L cancelado fica de fora, sem ser tocado; o resto do arquivo entra.
 - Peso ou tara escritos de um jeito ambíguo, como "3,800", são recusados: o Vela não adivinha um número que muda a cobrança. Corrija no arquivo.
+- Container de tipo fora do cadastro **Tipos de container** traz o aviso "Tipo … sem tarifa de Demurrage: cadastre o tipo em Tarifas e acordos.". O B/L entra, mas a Demurrage desse container fica travada até o tipo ser cadastrado ([9.10](09-containers-e-demurrage.md#910-cadastrar-um-tipo-de-container)).
 :::
 
 ## 6.3 Reimportar um B/L que o armador corrigiu
@@ -129,7 +130,8 @@ Na carga solta, o peso é o que mais pesa na cobrança. Por isso o Vela é rigor
 ::: atencao
 - O B/L de carga solta já faturado só muda peso, volumes ou rota com a sua confirmação na prévia.
 - O CE Mercante não entra por aqui, mesmo que a planilha tenha a coluna: ele vem pela planilha de CE ([6.5](#65-importar-o-ce-mercante-e-emitir-as-faturas)).
-- O B/L do arquivo que está cancelado em outra Viagem fica de fora, e o resto entra. Para importá-lo nesta Viagem, o {{Administrativo}} exclui o B/L na outra Viagem e você importa de novo ([6.9](#69-trocar-o-bl)).
+- O B/L do arquivo que já está ativo em outra Viagem recusa o arquivo inteiro; o que está cancelado em outra Viagem fica de fora, e o resto entra. Para trazê-lo a esta Viagem, veja [6.9](#69-trocar-o-bl).
+- A carga solta tem frente própria na escala. Se os terminais da escala já foram escolhidos, escolha também o da frente de carga solta, que nasce em TBC ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)): sem ele, a carga solta fica fora do ADR de Saída.
 :::
 
 ## 6.5 Importar o CE Mercante e emitir as faturas
@@ -169,7 +171,7 @@ O resultado diz o que aconteceu com cada B/L:
 | **aguardando** | Falta conciliar o Cliente, terminar a Revisão ou cadastrar a tabela de cobrança. | Falta conciliar o Cliente ou terminar a Revisão: a fatura sai sozinha depois. Falta a tabela de cobrança: cadastre-a e importe a mesma planilha de novo ([20.8](20-alertas.md#208-faturamento-e-taxas-locais)). |
 | **nada a faturar** | O B/L não tem taxa a cobrar, ou é isento. | Confira as Taxas Locais, se esperava cobrança. |
 | **bloqueados** | Falha técnica na emissão. | O Vela abre um alerta para a Documentação e tenta de novo sozinho. |
-| **pulados** | Alguém cancelou a última fatura do B/L. | Se a fatura deve sair, use **Emitir** na ficha do B/L. |
+| **pulados** | Alguém cancelou a última fatura do B/L, ou o B/L está cancelado ou sem CE. A lista diz o motivo de cada um. | Fatura cancelada: se ela deve sair, use **Emitir** na ficha do B/L. |
 
 No exemplo, o CSC45810A01K00 foi faturado; o CSC45810B01K00 ficou retido, porque o Cliente ainda não tem o Portal ativo; e o CSC45810A03K00 ficou aguardando, porque ainda não tem Cliente.
 
@@ -247,20 +249,24 @@ A conciliação da Viagem 024E: um container cheio a bordo sem B/L.
 
 ## 6.9 Trocar o B/L
 
-**Quem faz:** {{Administrativo}} exclui ou cancela o B/L antigo; {{Qualquer equipe}} importa o novo.
+**Quem faz:** {{Administrativo}} exclui, cancela ou reativa o B/L antigo; {{Qualquer equipe}} tira o CE e importa o novo.
 
 O número do B/L existe uma vez só no Vela, mesmo cancelado, e a importação nunca muda a Viagem de um B/L. Por isso, trocar um B/L é sempre tirar o antigo e importar o novo.
 
 ### O armador reemitiu o B/L com outro número
 
 1. Se o B/L antigo **não tem CE**, o {{Administrativo}} o exclui na lista **BLs**.
-2. Se ele **tem CE**, não se exclui: o {{Administrativo}} o cancela, em **Mais ações › Cancelar B/L** na ficha. Antes, resolva a fatura ou o pagamento em aberto. O cancelamento libera o CE para o B/L novo.
+2. Se ele **tem CE**, não se exclui: o {{Administrativo}} o cancela, em **Mais ações › Cancelar B/L** na ficha. Antes, resolva a fatura, o pagamento ou a Invoice de Demurrage em aberto. A Demurrage ainda sem Invoice também segura, a menos que um B/L ativo do mesmo Cliente já tenha os containers: importe antes o B/L novo ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)). O cancelamento libera o CE para o B/L novo.
 3. Importe o B/L novo ([6.2](#62-importar-os-bls-de-container)) e depois a planilha de CE com o CE nele ([6.5](#65-importar-o-ce-mercante-e-emitir-as-faturas)).
 
 ### O B/L foi importado na Viagem errada
 
-1. O {{Administrativo}} exclui o B/L na Viagem errada.
-2. Importe o arquivo de novo na Viagem certa e, se ele já tinha CE, a planilha de CE também.
+Na Viagem certa, a importação não aceita o B/L, e a mensagem diz o caminho:
+
+1. Se o B/L está cancelado na Viagem errada, o {{Administrativo}} o reativa ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)): o cancelado é somente leitura, inclusive o CE.
+2. Se ele tem CE, tire o CE na ficha, com **Remover CE** ([6.6](#66-corrigir-o-ce-ou-o-manifesto-de-um-bl)).
+3. O {{Administrativo}} exclui o B/L na Viagem errada.
+4. Importe o arquivo de novo na Viagem certa e, se ele tinha CE, a planilha de CE também.
 
 ::: atencao
 - Cancelar não libera o número: para importar o B/L em outra Viagem, ele precisa ser excluído.
@@ -273,7 +279,7 @@ O número do B/L existe uma vez só no Vela, mesmo cancelado, e a importação n
 
 Alguns passos acontecem logo depois da gravação, sozinhos: aplicar as marcas do Baplie, calcular as Taxas Locais, faturar pelo CE. Normalmente você nem percebe. Quando um deles falha por um motivo técnico, abre o alerta **Efeito de importação bloqueado** (capítulo 20). Para destravar:
 
-1. Em **Alertas**, abra o alerta e clique em **Reprocessar**. A janela mostra o motivo do bloqueio. Quando a causa é técnica, ele diz "Falha técnica ao executar o passo." e guarda o texto do sistema em **Detalhe técnico**: copie-o se precisar avisar o suporte técnico.
+1. Em **Alertas**, abra o alerta e clique em **Reprocessar**. A janela mostra o motivo do bloqueio. Quando a causa é técnica, ele diz numa frase o que houve, como "Falha técnica ao executar o passo.", e guarda o texto do sistema em **Detalhe técnico**: copie-o se precisar avisar o suporte técnico.
 2. Corrija a causa (por exemplo, o câmbio que faltava). A falta de tabela de cobrança não bloqueia: o passo espera; depois de cadastrar a tabela de cobrança, importe de novo a planilha de CE ([20.8](20-alertas.md#208-faturamento-e-taxas-locais)).
 3. Escreva o que você corrigiu e clique em **Reprocessar**.
 

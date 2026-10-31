@@ -4,7 +4,7 @@
   "subtitulo": "Como o Vela funciona e o que cada equipe faz, do cadastro da Viagem até a carga liberada.",
   "versao": "1.0",
   "situacao": "aprovada pelo dono em 29/10/2026",
-  "descreve": "29/10/2026",
+  "descreve": "31/10/2026",
   "partes": [
     {
       "numero": "1",
@@ -170,7 +170,7 @@
             "Equipamentos"
           ],
           "algumas": [],
-          "leitura": "8 minutos",
+          "leitura": "12 minutos",
           "antes": "Antes, leia o capítulo 7."
         },
         {
@@ -183,7 +183,7 @@
             "Operações"
           ],
           "algumas": [],
-          "leitura": "8 minutos",
+          "leitura": "10 minutos",
           "antes": "Antes, leia o capítulo 4."
         },
         {
@@ -299,7 +299,7 @@
             "Todas as equipes"
           ],
           "algumas": [],
-          "leitura": "6 minutos",
+          "leitura": "8 minutos",
           "antes": "Antes, leia os capítulos 14 a 16."
         }
       ]

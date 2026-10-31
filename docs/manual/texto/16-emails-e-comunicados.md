@@ -3,7 +3,7 @@ O Vela escreve ao Cliente por e-mail: avisa que o navio vai chegar, que chegou e
 ::: aprende
 - para quais contatos do Cliente vai cada e-mail;
 - como saber se os e-mails estão saindo de verdade ou indo para o suporte;
-- acompanhar, viagem por viagem, os avisos que já saíram;
+- acompanhar, viagem por viagem, os avisos que já saíram e os B/Ls que ainda não têm Cliente;
 - conferir se um e-mail chegou;
 - mandar à mão um NOA, NOR ou NOB, ou um texto seu;
 - reenviar o Comunicado de CE e Taxas;
@@ -51,12 +51,12 @@ A chave só aparece para quem a equipe de desenvolvimento autorizou, no próprio
 
 **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
 
-A **Cobertura de viagens** responde "os Clientes desta viagem já foram avisados?". Cada linha é um navio e viagem num porto de descarga: a COSCO SHIPPING SEREIA / 024E tem uma linha para Salvador (BRSSA) e outra para Vitória (BRVIX). Nas colunas **NOA**, **NOR** e **NOB**, "2 de 3" quer dizer dois Clientes avisados de três devidos, em âmbar enquanto falta algum; "—", que nada é devido ainda (o NOA conta a partir de 5 dias antes do ETA, o NOR depois do ATA). **CE e Taxas enviados** conta os Clientes que receberam, dos que já podem receber; **Sem CE ou fatura**, os que ainda não podem.
+A **Cobertura de viagens** responde "os Clientes desta viagem já foram avisados?". Cada linha é um navio e viagem num porto de descarga: a COSCO SHIPPING SEREIA / 024E tem uma linha para Salvador (BRSSA) e outra para Vitória (BRVIX). Nas colunas **NOA**, **NOR** e **NOB**, "2 de 3" quer dizer dois Clientes avisados de três devidos, em âmbar enquanto falta algum; "—", que nada é devido ainda (o NOA conta a partir de 5 dias antes do ETA, o NOR depois do ATA). **CE e Taxas enviados** conta os Clientes que receberam, dos que já podem receber; **Sem CE ou fatura**, os que ainda não podem. **Sem Cliente**, em âmbar, conta os B/Ls do porto ainda sem Cliente vinculado: nenhum aviso sai para eles, e eles não entram nas outras colunas.
 
 ::: passos
 1. Em **Clientes**, abra a aba **Comunicação**. A vista **Cobertura de viagens** abre primeiro.
 2. Se precisa, filtre por **Navio**, **Viagem** ou **Mês** (o mês do ETA). A viagem da escala mais próxima vem no alto.
-3. Clique na seta da linha para ver cada Cliente e a situação de cada aviso.
+3. Clique no navio e viagem da linha: abre a página **Comunicados da viagem**.
 4. Para ver o e-mail que saiu, clique em **Enviado em …**: abre esse Comunicado no Histórico.
 :::
 
@@ -64,7 +64,9 @@ A **Cobertura de viagens** responde "os Clientes desta viagem já foram avisados
 A Cobertura de viagens, com a COSCO SHIPPING SEREIA / 024E nos dois portos.
 :::
 
-Na linha aberta, cada aviso de cada Cliente diz em que pé está:
+A página **Comunicados da viagem** junta tudo o que a viagem tem de aviso ao Cliente. O bloco **B/Ls sem Cliente** lista esses B/Ls por consignatário do manifesto, com **Vincular na Revisão**. Cada porto de descarga tem um bloco com os Clientes e a situação de cada aviso, e o **Histórico da viagem** traz os Comunicados que já saíram. **Disparar Comunicado** e **Disparar para …** (o porto) levam ao Disparo ([16.5](#165-mandar-um-noa-nor-ou-nob-à-mão)).
+
+No bloco do porto, cada aviso de cada Cliente diz em que pé está:
 
 | Situação | Quer dizer |
 |---|---|
@@ -114,14 +116,17 @@ Os avisos de chegada e atracação saem sozinhos. Mande à mão quando o automá
 
 ::: passos
 1. Em **Clientes** › **Comunicação**, abra a vista **Disparo**. Em **Modo**, deixe **Carga** e escolha o modelo: **NOA · Chegada Próxima**, **NOR · Aviso de Chegada** ou **NOB · Aviso de Atracação**.
-2. Em **Recorte da carga**, informe pelo menos um de **Navio / Viagem**, **POL** ou **POD**, como COSCO SHIPPING SEREIA / 024E e BRVIX. Para um Cliente só, acrescente o **CNPJ do Cliente (opcional)**.
-3. Clique em **Conferir destinatários**. A lista mostra cada Cliente, os B/Ls, os e-mails que vão receber e os que ficaram de fora, com o motivo. Desmarque quem não deve receber; **Ver e-mail** mostra a mensagem daquele Cliente.
+2. Em **Recorte da carga**, escolha a Viagem na lista de **Navio / Viagem**, como COSCO SHIPPING SEREIA / 024E. **POL** e **POD** começam em **Todos**, a Viagem inteira; para mandar a um porto só, escolha-o em **POD**, como BRVIX. Para um Cliente só, acrescente o **CNPJ do Cliente (opcional)**.
+3. Clique em **Conferir destinatários**. A lista mostra cada Cliente, o **Porto**, os B/Ls, os e-mails que vão receber e os que ficaram de fora, com o motivo. Desmarque quem não deve receber; **Ver e-mail** mostra a mensagem daquele Cliente.
 4. Clique em **Disparar para N cliente(s)** e confirme. A confirmação diz se é **Enviar de verdade** ou **Enviar ao suporte**, conforme a chave ([16.2](#162-saber-se-os-e-mails-saem-de-verdade)).
 :::
 
-Para a falha passageira, use **Repetir só as falhas**: sai de novo no mesmo Comunicado, só para quem falhou. A falha marcada "Não adianta repetir; corrija o contato." fica fora: corrija o contato antes ([16.9](#169-corrigir-o-contato-que-não-recebe)). O aviso mandado à mão conta para o automático: quem recebeu pela tela não recebe o mesmo aviso de novo ([19.4](19-rotinas-por-horario.md#194-os-comunicados-automáticos)).
+Pela página **Comunicados da viagem**, **Disparar Comunicado** abre esta vista com a Viagem já escolhida, e **Disparar para …**, com a Viagem e o porto ([16.3](#163-acompanhar-a-cobertura-de-viagens)). Os B/Ls da Viagem sem Cliente vinculado ficam fora, e a conferência avisa quantos; se a lista volta vazia, ela diz o motivo, como os B/Ls ainda sem Cliente ou a escala sem a data do aviso.
+
+Os e-mails saem um destinatário por vez, e o botão conta "Enviando N de M…" até o último. Para a falha passageira, use **Repetir só as falhas**: sai de novo no mesmo Comunicado, só para quem falhou. A falha marcada "Não adianta repetir; corrija o contato." fica fora: corrija o contato antes ([16.9](#169-corrigir-o-contato-que-não-recebe)). O aviso mandado à mão conta para o automático: quem recebeu pela tela não recebe o mesmo aviso de novo ([19.4](19-rotinas-por-horario.md#194-os-comunicados-automáticos)).
 
 ::: atencao
+- Não feche nem recarregue a página enquanto o botão conta "Enviando N de M…": o que falta não sai. O navegador pede confirmação antes de sair; se saiu, confira no **Histórico** quem recebeu.
 - O Cliente que já recebeu aquele aviso na mesma escala aparece com "Reenvio N", e o disparo só libera depois de você marcar **Confirmo o reenvio.** Ele recebe de novo.
 - A linha **Bloqueado** não pode ser marcada; o motivo está em **Situação**. No NOB, a atracação sem frente de operação atribuída não traz carga nenhuma: atribua a frente na escala ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
 :::
@@ -136,7 +141,7 @@ Há dois jeitos de mandar um texto seu:
 - O **Institucional** (modo **Institucional**) não fala de carga e vai para todos os contatos de cada **Cliente Comunicável**: o Cliente com contato com e-mail e com B/L numa escala que teve ETA nos últimos 12 meses (viagem futura também conta).
 
 ::: passos
-1. Em **Disparo**, escolha o **Modo**. No livre, escolha **Comunicado livre**, informe o recorte da carga e o **Público**; no institucional, informe o **CNPJ do Cliente (opcional)** se o texto é para um Cliente só.
+1. Em **Disparo**, escolha o **Modo**. No livre, escolha **Comunicado livre**, a Viagem em **Recorte da carga**, como em [16.5](#165-mandar-um-noa-nor-ou-nob-à-mão), e o **Público**; no institucional, informe o **CNPJ do Cliente (opcional)** se o texto é para um Cliente só.
 2. Escreva **Assunto** e **Mensagem**. A saudação e a assinatura entram sozinhas. Para usar um texto guardado, escolha-o em **Reaproveitar modelo salvo...**; para guardar este, dê um **Nome do modelo** e clique em **Salvar este texto**.
 3. Se precisa de anexo, use **Adicionar**, em **Anexos**.
 4. Clique em **Conferir destinatários**, confira a lista e dispare, como em [16.5](#165-mandar-um-noa-nor-ou-nob-à-mão).
@@ -176,7 +181,7 @@ O reenvio fecha o alerta **Reenviar Comunicado de CE e Taxas** dos B/Ls daquele 
 
 **Quem faz:** {{Documentação}}
 
-Comece pela **Cobertura de viagens**: abra a linha da viagem e veja a situação do Cliente ([16.3](#163-acompanhar-a-cobertura-de-viagens)). Quando o aviso está **Bloqueado**, o motivo diz o que fazer:
+Comece pela página **Comunicados da viagem**: na **Cobertura de viagens**, clique no navio e viagem e veja a situação do Cliente no bloco do porto dele ([16.3](#163-acompanhar-a-cobertura-de-viagens)). Se o B/L ainda não tem Cliente, ele está no bloco **B/Ls sem Cliente**: nenhum aviso sai para ele, nem aparece como devido. Vincule o Cliente com **Vincular na Revisão** ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)). Quando o aviso está **Bloqueado**, o motivo diz o que fazer:
 
 | O motivo diz | O que fazer |
 |---|---|

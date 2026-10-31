@@ -47,4 +47,6 @@ A fila de Alertas.
 | **Exportação pendente pós-ATD** | {{Operações}} | ATD numa escala com exportação declarada e não lançada | A exportação é lançada ou a declaração, corrigida |
 | **ADR — departamento pendente** | as três | Depois do ATD, com seção da equipe em **Pendente** | A última seção da equipe sai de **Pendente** |
 | **ADR — prazo vencido** · crítico | as três | 72 horas depois do ATD, sem a assinatura da equipe | A equipe assina |
-| **Disputa de invoice Demurrage** | {{Equipamentos}} | O Cliente abre ou responde uma Disputa no Portal | A vez passa ao Cliente ou a Disputa é resolvida |
+| **Disputa de invoice Demurrage** | {{Equipamentos}} | O Cliente abre ou responde uma Disputa no Portal | A vez passa ao Cliente, a Disputa é resolvida ou a Invoice é cancelada |
+| **Disputa de Demurrage sem resposta no prazo** | {{Equipamentos}} | A Disputa espera a nossa resposta há mais de 1 dia útil | A equipe responde, a Disputa é resolvida ou a Invoice é cancelada |
+| **Demurrage travada** | {{Documentação}} ou {{Administrativo}} | A Demurrage de um grupo não tem como ser cobrada: sem CE, sem Cliente ou Portal (Documentação); tipo sem tarifa ou B/L cancelado (Administrativo) | A causa é resolvida ou a cobrança é dispensada |

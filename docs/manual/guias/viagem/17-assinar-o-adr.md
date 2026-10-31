@@ -13,6 +13,8 @@ O ADR de um terminal.
 6. Com as três assinaturas e o ATD registrado, clique em **Fechar ADR** e confirme.
 :::
 
+**Fechar ADR** apagado, com o aviso **Sem terminal (TBC)**? Uma frente da escala está sem terminal, quase sempre a carga solta ou os vazios que chegaram depois da etapa 2. Escolha o terminal dela no lápis da escala (etapa 2) e volte. No Embarque de vazios antigo, use **Definir terminal**, dentro do embarque.
+
 | Equipe | Seções |
 |---|---|
 | {{Operações}} | **Escala**: ATA, ATB, ATD e Restow |
