@@ -345,7 +345,7 @@ describe('EscalaModal', () => {
     await user.click(screen.getByRole('button', { name: 'Adicionar escala' }))
 
     expect(onSaved).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert').textContent).toContain('LOCODE brasileiro invalido: BR12.')
+    expect(screen.getByRole('alert').textContent).toContain('LOCODE brasileiro inválido: BR12.')
   })
 
   it('aceita LOCODE brasileiro válido fora da lista conhecida, com o código digitado', async () => {

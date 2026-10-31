@@ -199,7 +199,10 @@ async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
     const vessel = existing[0]
     // IMOs distintos nunca se fundem: nome igual com IMO diferente é conflito explícito.
     const existingImo = normalizeVesselImo(vessel.imo)
-    if (normalizedImo && existingImo && existingImo !== normalizedImo) {
+    // Um IMO gravado fora do formato (7 dígitos) foi erro de digitação, como o
+    // nome do navio no campo IMO: não bloqueia a correção, é substituído.
+    const existingImoValid = existingImo !== null && /^\d{7}$/.test(existingImo)
+    if (normalizedImo && existingImoValid && existingImo !== normalizedImo) {
       throw voyageRegistrationRefusal(`Navio ${canonical} com IMO conflitante (${existingImo} vs ${normalizedImo}). Corrija antes de importar.`)
     }
     const updates: { imo?: string; carrier_id?: number } = {}

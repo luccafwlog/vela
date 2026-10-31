@@ -6,6 +6,21 @@
 
 ## 2026-10
 
+- **Achados da revisão do Manual do Operador (2026-10-31, migrations `555` e `556`):** cinco defeitos achados na
+  revisão da PR luccafwlog/vela#1087, cada um com teste que falhava antes.
+  - **Auditoria visual:** `scripts/design-audit/seed_audit.sql` ajusta as tarifas de Demurrage 20GP e 40GP que o
+    banco já traz desde a `514`, em vez de inserir outras (a restrição `demurrage_rates_one_per_group` recusava o
+    20GP, e 40HC não é grupo); o cenário do manual volta a subir.
+  - **Histórico de ações:** a exclusão do Embarque de vazios (`544`) aparece como "Embarque de vazios excluído" no
+    assunto **Vazios**; antes era "Outro registro" e não saía no filtro.
+  - **O que cada setor pode:** a linha de exclusões cita o Embarque de vazios (só o Administrativo), e
+    **Dispensar cobrança**/desfazer a dispensa da Demurrage ganha linha própria (todos os setores, justificativa de
+    ao menos 10 caracteres). O quadro passa a 44 linhas.
+  - **Portal:** a Invoice de Demurrage reemitida diz a causa certa: datas dos contêineres, contêiner que passou a
+    SOC ou mudança da divisão de uma caixa entre Clientes (`555`); o Portal recebe só um código, nunca o motivo
+    interno do cancelamento.
+  - **Recusas com acento:** "LOCODE brasileiro inválido: …" na tela, no serviço e no banco (`556`) e "B/L … já foi
+    faturado (status financeiro=…); recálculo bloqueado." no recálculo das Taxas Locais.
 - **Revisão final da release luccafwlog/vela#1117 (2026-10-30, migrations `545` a `551`):** achados da revisão
   da PR `staging` → `main`, cada um com teste que falhava na staging
   ([relatório](archive/audits/revisao-pr-1117-2026-10-30.md)).

@@ -6,7 +6,7 @@ import { Modal } from '../ui/Modal'
 import { ComplementMark, StatusText } from '../ui/StatusText'
 import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
 import { formatBRL, formatDate } from '../../lib/utils'
-import { joinDemurrageDocNumbers, type PortalDemurrageInvoice, type PortalDemurrageInvoiceDetail, type PortalDispute } from '../../services/portalBilling'
+import { joinDemurrageDocNumbers, type PortalDemurrageInvoice, type PortalDemurrageInvoiceDetail, type PortalDemurrageReplacedCause, type PortalDispute } from '../../services/portalBilling'
 import { boxShareLabel, invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
 import { PortalPaymentBlock } from './PortalPixPaymentBlock'
 import { DisputeSummary } from './PortalDisputeConversation'
@@ -41,6 +41,14 @@ function periodValue(days: number | null | undefined, rate: number | null | unde
 /** ROE com quatro casas: "R$ 5,7734". */
 function formatRoe(roe: number) {
   return `R$ ${roe.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
+}
+
+/** Por que a fatura anterior foi cancelada e reemitida (migration 555), no vocabulário do Portal. */
+function replacedCauseText(cause: PortalDemurrageReplacedCause | null | undefined) {
+  if (cause === 'datas') return 'cancelada porque as datas dos contêineres mudaram.'
+  if (cause === 'soc') return 'cancelada porque um contêiner passou a SOC e saiu da cobrança.'
+  if (cause === 'divisao') return 'cancelada porque mudou a divisão de uma caixa entre Clientes.'
+  return 'cancelada e substituída por esta.'
 }
 
 /** "o contêiner X" ou "os contêineres X e Y". */
@@ -177,8 +185,9 @@ export function PortalDemurrageDetailModal({
 
             {invoice.replaces_doc_number ? (
               // DEM-D08 (migration 472): a cancelada não aparece no Portal; só o número.
+              // A causa vem em código (555); o motivo gravado é interno (530).
               <p className="text-sm text-[var(--app-muted)]">
-                Substitui a fatura <strong className="text-[var(--app-text-strong)]">{invoice.replaces_doc_number}</strong>, cancelada porque as datas dos containers mudaram.
+                Substitui a fatura <strong className="text-[var(--app-text-strong)]">{invoice.replaces_doc_number}</strong>, {replacedCauseText(invoice.replaces_cause)}
               </p>
             ) : null}
 

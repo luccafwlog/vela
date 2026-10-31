@@ -25,6 +25,13 @@ describe('Histórico de ações legível', () => {
     expect(new Set(entities).size).toBe(entities.length)
   })
 
+  it('mostra a exclusão do Embarque de vazios (migration 544) no assunto Vazios', () => {
+    // A 544 grava `vazios_export_operation` (singular); o filtro consulta por entityTypes.
+    expect(auditSubjectLabel('vazios_export_operation')).toBe('Vazios')
+    expect(AUDIT_SUBJECTS.find((subject) => subject.id === 'vazios')?.entityTypes).toContain('vazios_export_operation')
+    expect(describeAuditLog(log('vazios_export_operation', 'deleted', 'false', 'true'))).toBe('Embarque de vazios excluído')
+  })
+
   it('escreve a criação, a exclusão e a troca de situação com o nome do registro', () => {
     expect(describeAuditLog(log('granite_rates', 'criado', null, '{"id": 7, "description": "THC Granito"}'))).toBe('Tarifa criada: THC Granito')
     expect(describeAuditLog(log('charge_table_items', 'excluido', '{"id": 3, "name": "THD"}', null))).toBe('Item excluído: THD')

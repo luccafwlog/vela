@@ -20,6 +20,8 @@ import { formatDate } from '../lib/utils'
 import { arrivalDisplay } from '../lib/escalaState'
 import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
 import type { LineUpRow } from './lineup'
+import type { PortalScheduleVoyage } from './portalScheduleVoyages'
+import { scheduleExportRows, scheduleTemplateColumns } from './portalScheduleBulkImport'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from './portalBilling'
 import type { PortalOperationBL } from './portalOperation'
 import { localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
@@ -110,6 +112,14 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, containerRows), 'Containers')
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, breakbulkRows), 'CargaSolta')
   XLSX.writeFile(workbook, `manifestos-${makeTimestamp()}.xlsx`)
+}
+
+export async function exportScheduleWorkbook(voyages: PortalScheduleVoyage[]): Promise<void> {
+  const XLSX = await import('@e965/xlsx')
+  const workbook = XLSX.utils.book_new()
+  const sheet = XLSX.utils.json_to_sheet(sanitizeSheetRows(scheduleExportRows(voyages)), { header: scheduleTemplateColumns() })
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Programacao')
+  XLSX.writeFile(workbook, `programacao-navios-${makeTimestamp()}.xlsx`)
 }
 
 export async function exportPortalProvisioningWorkbook(rows: QueueRow[]): Promise<void> {

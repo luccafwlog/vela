@@ -1,5 +1,6 @@
 import { importDateOrNull } from '../lib/importDate'
-import { PORTAL_SCHEDULE_LANES, portalLaneCode, type PortalScheduleLaneKind } from './portalScheduleLanes'
+import { PORTAL_SCHEDULE_LANES, formatScheduleDate, portalLaneCode, type PortalScheduleLaneKind } from './portalScheduleLanes'
+import type { PortalScheduleVoyage } from './portalScheduleVoyages'
 import type { ImportIssue } from './importValidation'
 import type { ScheduleLaneInput, ScheduleSheetPlanRow } from './voyageFromSchedule'
 
@@ -31,6 +32,29 @@ function readCell(row: Record<string, unknown>, column: string) {
 
 export function scheduleTemplateColumns(): string[] {
   return ['VESSEL NAME', 'VOY', 'IMO', ...PORTAL_SCHEDULE_LANES.map((lane) => laneColumn(lane.label, lane.kind))]
+}
+
+/**
+ * Planilha exportada de Chegadas e Saídas no mesmo molde da importação: dá
+ * para editar e reimportar. Sai a data planejada (a que a importação grava),
+ * não a efetiva; porto em "Não escala" sai "X", que na volta deixa o porto
+ * como está.
+ */
+export function scheduleExportRows(voyages: readonly PortalScheduleVoyage[]): Array<Record<string, string>> {
+  return voyages.map((voyage) => {
+    const row: Record<string, string> = {
+      'VESSEL NAME': voyage.vesselName,
+      VOY: voyage.voyage,
+      IMO: voyage.imoNumber ?? '',
+    }
+    for (const lane of PORTAL_SCHEDULE_LANES) {
+      const planned = voyage.forecastDatesByLabel?.[lane.label]
+      row[laneColumn(lane.label, lane.kind)] = planned
+        ? formatScheduleDate(planned)
+        : voyage.omittedByLabel?.[lane.label] ? 'X' : ''
+    }
+    return row
+  })
 }
 
 // Data civil única dos imports (src/lib/importDate.ts). "X" marca escala sem data.

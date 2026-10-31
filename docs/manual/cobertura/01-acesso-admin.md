@@ -103,7 +103,7 @@ repositório.
 | ACE-085 | **Criar e editar viagem, escala e programação; omitir escala; fechar o ADR**: qualquer setor, inclusive terminal, ATB, ATD, Restow e frentes da atracação; remover a atracação é de Operações e do Administrativo (ACE-120). | Op 2; Op 4; Op 9 | Todos | `permissao:editar-viagem` |
 | ACE-086 | **Reverter omissão de escala e reabrir ADR fechado, com motivo**: qualquer setor; sem motivo, o banco recusa. | Op 2; Op 4; Op 9 | Todos | `permissao:reverter-omissao-reabrir-adr` |
 | ACE-087 | **Cancelar e reativar Viagem e B/L, com motivo**: só o Administrativo. | Op 2; Op 4; Op 6; Adm | Adm | `permissao:cancelar-reativar-viagem-bl`, `funcao:is_admin` |
-| ACE-088 | **Excluir viagem, escala, atracação, B/L, container e Cliente**: só o Administrativo, com motivo e respeitando a Trava de exclusão. O Cliente com CNPJ, que é todo Cliente, é sempre recusado ("desative em vez de excluir"): Cliente se desativa. | Op 2; Adm | Adm | `permissao:excluir-registros`, `funcao:delete_records` |
+| ACE-088 | **Excluir viagem, escala, atracação, B/L, container, Embarque de vazios e Cliente**: só o Administrativo, com motivo e respeitando a Trava de exclusão (o Embarque de vazios, desde a migration `544`, só sem unidade, sem linha de serviço e com o ADR de Saída aberto). O Cliente com CNPJ, que é todo Cliente, é sempre recusado ("desative em vez de excluir"): Cliente se desativa. | Op 2; Adm | Adm | `permissao:excluir-registros`, `funcao:delete_records` |
 | ACE-089 | **Assinar e observar a seção do ADR de Saída**: Operações assina **Escala**; Documentação, **Carga descarregada** e **Vazios descarregados**; Equipamentos, **Carga carregada**, **Veículos** e **Embarque de vazios**; o Administrativo cobre qualquer seção; o Financeiro não assina. | Op 2; Op 9 | Ope + Doc + Equ + Adm | `permissao:assinar-adr` |
 | ACE-090 | **Importar arquivos (B/L, CE, Baplie, veículos, Vazios, Granito, datas, Clientes)**: qualquer setor. | Op 2; Op 5 | Todos | `permissao:importar` |
 | ACE-091 | **Reprocessar efeito de importação, com justificativa**: qualquer setor. | Op 2; Op 5; Op 16 | Todos | `permissao:reprocessar-importacao` |
@@ -123,6 +123,7 @@ repositório.
 | ACE-104 | **Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L**: só o Administrativo. | Op 2; Op 17; Fin | Adm | `permissao:cancelar-fatura` |
 | ACE-105 | **Gerar Invoice e complementar; aplicar desconto; editar tarifa, acordo e condição de Demurrage do B/L**: qualquer setor. | Op 2; Op 8; Op 17 | Todos | `permissao:gerar-invoice` |
 | ACE-106 | **Ver Disputas e editar os dados da disputa e o vencimento**: qualquer setor. | Op 2; Op 8 | Todos | `permissao:disputas` |
+| ACE-129 | **Dispensar a cobrança de Demurrage de uma caixa e desfazer a dispensa, com justificativa**: qualquer setor; justificativa de ao menos 10 caracteres (migrations `517` e `530`). | Op 2; Op 8 | Todos | `permissao:dispensar-cobranca` |
 | ACE-107 | **Registrar pagamento de Invoice**: Financeiro e Administrativo. | Op 2; Op 17; Fin | Fin + Adm | `permissao:baixa-invoice` |
 | ACE-108 | **Informar PTAX; pôr e tirar o ROE manual do B/L e tirar o da Invoice, com motivo**: Financeiro, Administrativo e Equipamentos. | Op 2; Op 8; Op 17 | Fin + Adm + Equ | `permissao:informar-ptax` |
 | ACE-109 | **Responder, reabrir e anexar na Disputa**: Equipamentos e Administrativo. | Op 2; Op 8 | Equ + Adm | `permissao:responder-disputa` |
@@ -283,7 +284,7 @@ repositório.
 Lido no código e nas definições vigentes do banco local. O banco decide; a
 tela só esconde botões e telas.
 
-### 1. As 41 linhas da matriz "O que cada setor pode" contra o banco
+### 1. As 44 linhas da matriz "O que cada setor pode" contra o banco
 
 Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 
@@ -297,7 +298,7 @@ Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 | `permissao:editar-viagem` | ✓ / ✓ / ✓ / ✓ / ✓ | Viagem, escala de exportação e programação: gravação de qualquer usuário ativo; `omit_voyage_escala` e `close_agency_departure_report` (ativo) | Bate, com exceção que a linha não mostra: terminal, ATB, ATD, Restow e frentes da atracação só Ope e Adm (seção 2) |
 | `permissao:reverter-omissao-reabrir-adr` | ✓ / ✓ / ✓ / ✓ / ✓ | `revert_voyage_omission` e `reopen_agency_departure_report` (ativo, motivo obrigatório, autor da sessão) | Bate |
 | `permissao:cancelar-reativar-viagem-bl` | ✓ / ○ / ○ / ○ / ○ | `cancel_voyage`, `reactivate_voyage`, `cancel_bl`, `reactivate_bl` (Administrativo) | Bate |
-| `permissao:excluir-registros` | ✓ / ○ / ○ / ○ / ○ | `delete_records`, `delete_escala`, `voyage_delete_preview`; gatilho "Somente o Administrativo retira escala da viagem."; a remoção de atracação tem linha própria (`permissao:remover-atracacao`) | Bate |
+| `permissao:excluir-registros` | ✓ / ○ / ○ / ○ / ○ | `delete_records`, `delete_escala`, `voyage_delete_preview`, `delete_vazios_export_operation` (migration `544`); gatilho "Somente o Administrativo retira escala da viagem."; a remoção de atracação tem linha própria (`permissao:remover-atracacao`) | Bate |
 | `permissao:remover-atracacao` | ✓ / ○ / ✓ / ○ / ○ | `guard_terminal_state_removal` ("Somente Operações e o Administrativo removem atracação.", migration `477`), com a trava por CE, documento financeiro e ADR fechado | Bate |
 | `permissao:assinar-adr` | cobre quem faltar / ○ / própria seção / própria seção / própria seção | `set_agency_report_department_signoff`, `set_agency_report_section_observation`, `set_agency_report_signoff` aceitam o Administrativo ou o dono da seção (`agency_report_section_owner`); o Financeiro é recusado | Bate |
 | `permissao:importar` | ✓ / ✓ / ✓ / ✓ / ✓ | Funções de importação sem guarda de setor (usuário ativo); conferido em Baplie, arquivo de B/L, CE Mercante, carga solta, veículos, Vazios, Granito, programação e base de Clientes | Bate; a base de Clientes também acrescenta e reativa contatos de Cliente já cadastrado, o que a linha de contatos reserva a três setores (seção 2) |
@@ -318,6 +319,7 @@ Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 | `permissao:cancelar-fatura` | ✓ / ○ / ○ / ○ / ○ | `cancel_invoice`, `obsolete_consolidated_invoice`, `reverse_invoice_payment`, `prepare_bl_financial_cancellation` (Administrativo) | Bate |
 | `permissao:gerar-invoice` | ✓ / ✓ / ✓ / ✓ / ✓ | `issue_demurrage_invoice_for_bl`, `apply_demurrage_discount`, `save_bl_demurrage_config` (ativo); tarifa e acordo gravados por qualquer ativo | Bate; ativar e desativar tarifa ou acordo segue do Administrativo |
 | `permissao:disputas` | ✓ / ✓ / ✓ / ✓ / ✓ | `list_demurrage_disputes_internal` (os cinco setores); dados da disputa e vencimento abertos a qualquer ativo | Bate |
+| `permissao:dispensar-cobranca` | ✓ / ✓ / ✓ / ✓ / ✓ | `waive_demurrage_box` e `revoke_demurrage_box_waiver` (`is_active_user()`, justificativa de ao menos 10 caracteres; migrations `517`, `530` e `548`) | Bate |
 | `permissao:baixa-invoice` | ✓ / ✓ / ○ / ○ / ○ | `register_demurrage_payment` (`is_financeiro_user`) | Bate |
 | `permissao:informar-ptax` | ✓ / ✓ / ○ / ○ / ✓ | `recalculate_demurrage_invoices_manual`, `set_bl_manual_roe`, `release_demurrage_invoice_manual_roe` (Financeiro, Administrativo, Equipamentos) | Bate |
 | `permissao:responder-disputa` | ✓ / ○ / ○ / ○ / ✓ | `add_demurrage_dispute_message`, `reopen_demurrage_dispute`, `add_demurrage_dispute_attachment` (Equipamentos ou Administrativo) | Bate |

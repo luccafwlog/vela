@@ -189,7 +189,7 @@ export async function calculateBlLocalCharges(
     financialStatus = bl?.financial_status
   }
   if (isBlFinanciallyLocked(financialStatus)) {
-    throw new Error(`B/L ${blId} ja foi faturado (status financeiro=${financialStatus}); recalculo bloqueado.`)
+    throw new Error(formatLockedBlError(blId, financialStatus))
   }
 
   const { data, error } = await supabase.rpc('calculate_bl_local_charges', {
@@ -864,7 +864,7 @@ function extractBlIdFromChargeAuditMessage(message: string, candidates: string[]
 }
 
 function formatLockedBlError(blId: string, financialStatus: string | null | undefined) {
-  return `B/L ${blId} ja foi faturado (status financeiro=${financialStatus}); recalculo bloqueado.`
+  return `B/L ${blId} já foi faturado (status financeiro=${financialStatus}); recálculo bloqueado.`
 }
 
 async function runBatch<T>(blIds: string[], worker: (blId: string) => Promise<T>) {

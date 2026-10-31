@@ -28,7 +28,8 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'container', label: 'Container', entityTypes: ['bl_container', 'bl_containers', 'container'] },
   { id: 'veiculo', label: 'Veículo', entityTypes: ['vehicle', 'vehicles'] },
   { id: 'importacao', label: 'Importação', entityTypes: ['import_batches', 'import_batch', 'import_effect'] },
-  { id: 'vazios', label: 'Vazios', entityTypes: ['vazios_bookings', 'vazios_export_operations', 'vazios_export_service_lines', 'vazios_importacao_containers', 'vazios_importacao_manifests', 'vazios_manifests'] },
+  // `vazios_export_operation` (singular): exclusão do Embarque de vazios (migration 544).
+  { id: 'vazios', label: 'Vazios', entityTypes: ['vazios_bookings', 'vazios_export_operation', 'vazios_export_operations', 'vazios_export_service_lines', 'vazios_importacao_containers', 'vazios_importacao_manifests', 'vazios_manifests'] },
   { id: 'granito', label: 'Granito', entityTypes: ['granite_bl', 'granite_bls', 'granite_manifests', 'granite_bl_charges'] },
   { id: 'tarifa-granito', label: 'Tarifa do Granito', entityTypes: ['granite_rates'] },
   { id: 'taxas-locais', label: 'Tabela de Taxas Locais', entityTypes: ['charge_tables', 'charge_table_items'] },
@@ -63,6 +64,8 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
   voyage_export_schedules: { noun: 'Escala de exportação', feminine: true },
   vessel_schedules: { noun: 'Programação', feminine: true },
   voyage_omissions: { noun: 'Omissão de escala', feminine: true },
+  vazios_export_operation: { noun: 'Embarque de vazios', feminine: false },
+  vazios_export_operations: { noun: 'Embarque de vazios', feminine: false },
   agency_departure_report: { noun: 'ADR de Saída', feminine: false },
   bl: { noun: 'B/L', feminine: false },
   bls: { noun: 'B/L', feminine: false },
