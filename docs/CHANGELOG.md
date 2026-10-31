@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Pedidos do dono de 2026-10-31 (migration `557`):**
+  - **Disparo:** o modo Carga oferece o CE Mercante · Taxas Locais ao lado de NOA, NOR e NOB, completando os
+    quatro e-mails automáticos da carga. Um por Cliente e Viagem, para Documentação e Operação e Financeiro, sem
+    anexo; o Cliente sem prontidão aparece bloqueado com o motivo, e a Edge recalcula CEs e valores no envio.
+  - **Prévia do e-mail:** a logo da Fwlog aparece; a política de segurança do Vela bloqueava a imagem do domínio
+    do Portal só na prévia (o e-mail enviado sempre a levou, conferido no navegador).
+  - **Contatos:** o contato capturado do B/L fica sem nome, no Vela e no Portal, em vez de "Contato manifesto";
+    os contatos com esse nome foram limpos.
 - **Pix Itaú: token com C200 isolado não derruba a rodada (2026-10-31):** as 11
   ocorrências do Sentry VELA-26 foram a consulta de recebimentos recebendo 403
   "Certificado inválido" (`codigo_erro` C200) do STS, com o certificado válido e

@@ -15,6 +15,7 @@ import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { CopyValue } from '../components/ui/CopyValue'
 import { Field, Input, Select } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
+import { emailPreviewHtml } from '../services/emailLayout'
 import { NoValue } from '../components/ui/NoValue'
 import { StatusText } from '../components/ui/StatusText'
 import { useConfirm } from '../components/ui/ConfirmDialog'
@@ -86,6 +87,7 @@ const KIND_OPTIONS: Array<{ value: CustomerCommunicationKind; title: string; hin
   { value: 'aviso_chegada_noa', title: customerCommunicationKindLabel('aviso_chegada_noa'), hint: 'Texto fixo, enviado 5 dias antes do ETA da escala.' },
   { value: 'aviso_prontidao_nor', title: customerCommunicationKindLabel('aviso_prontidao_nor'), hint: 'Texto fixo, enviado quando o ATA da escala é registrado.' },
   { value: 'aviso_atracacao_nob', title: customerCommunicationKindLabel('aviso_atracacao_nob'), hint: 'Texto fixo, enviado quando o ATB da atracação é registrado.' },
+  { value: 'ce_mercante_taxas', title: customerCommunicationKindLabel('ce_mercante_taxas'), hint: 'Texto fixo com os CEs e as Taxas Locais, enviado quando todos os B/Ls do cliente na viagem têm CE e faturamento concluído. Sem anexo.' },
   { value: 'livre', title: customerCommunicationKindLabel('livre'), hint: 'Você escreve assunto e mensagem, para os clientes da viagem.' },
   { value: 'institucional', title: customerCommunicationKindLabel('institucional'), hint: 'Você escreve assunto e mensagem, sem vínculo com carga.' },
 ]
@@ -98,6 +100,11 @@ const MODE_OPTIONS: Array<{ value: CustomerCommunicationDispatchMode; title: str
 function kindOptionsForMode(mode: CustomerCommunicationDispatchMode) {
   const allowed = MANUAL_CUSTOMER_COMMUNICATION_KINDS_BY_MODE[mode]
   return KIND_OPTIONS.filter((option) => allowed.includes(option.value))
+}
+
+/** O CE e Taxas não leva anexo (`validateCommunicationAttachments`). */
+function attachmentsAllowedFor(kind: CustomerCommunicationKind): boolean {
+  return kind !== 'ce_mercante_taxas'
 }
 
 function audienceLabel(audience: CustomerCommunicationAudience): string {
@@ -257,6 +264,10 @@ function getSamplePreviewInput(subject: string, body: string, kind: CustomerComm
     ),
     subject: subject.trim() || undefined,
     body: body.trim() || undefined,
+    // O CE e Taxas de exemplo precisa das linhas de CE e valores para renderizar.
+    ...(kind === 'ce_mercante_taxas'
+      ? { ceMercanteRows: SAMPLE_COMMUNICATION_CANDIDATES.map((bl, index) => ({ blId: bl.id, ceMercante: `15260500000${index + 1}`, totalBrl: 1850 + index * 420 })) }
+      : {}),
   }
 }
 
@@ -315,6 +326,8 @@ export function ClientesComunicacao() {
   const nature = getCustomerCommunicationNature(kind)
   const audienceRule = getCustomerCommunicationAudienceRule(kind)
   const audience = audienceRule.editable ? freeAudience : audienceRule.audience
+  // O CE e Taxas vai a duas caixas: o nome vem da regra, não de uma caixa só.
+  const audienceText = audienceRule.label ?? audienceLabel(audience)
   const userWritten = isUserWrittenCustomerCommunicationKind(kind)
   const availableKindOptions = kindOptionsForMode(dispatchMode)
   const activeModeOption = MODE_OPTIONS.find((option) => option.value === dispatchMode)
@@ -438,7 +451,7 @@ export function ClientesComunicacao() {
    * nomeia o modelo, o público e o recorte, nessa ordem.
    */
   const dispatchSentence = ((): React.ReactNode => {
-    const publico = <strong className="font-bold">{audienceLabel(audience)}</strong>
+    const publico = <strong className="font-bold">{audienceText}</strong>
     if (dispatchMode === 'institucional') {
       return (
         <>
@@ -454,7 +467,7 @@ export function ClientesComunicacao() {
       : <strong className="font-bold">{customerCommunicationKindLabel(kind)}</strong>
     return (
       <>
-        {modelo} para {audience.mode === 'caixa' ? <>a caixa {publico}</> : publico} dos clientes {describeCargoScope(filters, selectedVoyageLabel)}.
+        {modelo} para {audienceRule.label ? <>as caixas {publico}</> : audience.mode === 'caixa' ? <>a caixa {publico}</> : publico} dos clientes {describeCargoScope(filters, selectedVoyageLabel)}.
       </>
     )
   })()
@@ -473,6 +486,12 @@ export function ClientesComunicacao() {
    * do próprio modelo, e a lista de modelos já vem filtrada pelo modo corrente.
    */
   function handleKindChange(nextKind: CustomerCommunicationKind) {
+    // O CE e Taxas não aceita anexo (a Edge recusa): o anexo escolhido em outro
+    // modelo não pode seguir junto.
+    if (!attachmentsAllowedFor(nextKind)) {
+      setAttachments([])
+      setAttachmentError(null)
+    }
     setKind(nextKind)
     setFreeAudience(getCustomerCommunicationAudienceRule(nextKind).audience)
     setConferenceRequested(false)
@@ -568,6 +587,7 @@ export function ClientesComunicacao() {
       const rendered = renderCustomerCommunicationTemplate(kind, input)
       for (const contact of row.eligibleRecipients) {
         const recipient = contact.email!.trim()
+        const ce = kind === 'ce_mercante_taxas'
         items.push({
           key: `${row.key}::${recipient.toLowerCase()}`,
           customerName: row.customerName,
@@ -575,7 +595,10 @@ export function ClientesComunicacao() {
             customerId: row.customerId,
             kind,
             nature,
-            audience,
+            // O CE e Taxas grava a caixa do próprio contato, como o reenvio do
+            // Histórico (`dispatchCeMercanteTaxasCommunication`); a Edge resolve
+            // as caixas pelo modelo.
+            audience: ce ? { mode: 'caixa', boxCode: contact.matchedBoxCodes?.[0] ?? 'documentacao_operacao' } : audience,
             recipient,
             subject: rendered.subject,
             html: rendered.html,
@@ -588,14 +611,15 @@ export function ClientesComunicacao() {
             anchorVoyageId: kind === 'institucional' ? null : row.sourceBls[0]?.voyageId ?? null,
             // Porto normalizado, como a régua grava (BRVIT → BRVIX): uma
             // identidade só para o mesmo Comunicado.
-            anchorPort: userWritten ? null : communicationPortCode(row.sourceBls[0]?.pod),
+            // O CE e Taxas é Cliente × Viagem, sem porto (migration 315).
+            anchorPort: userWritten || ce ? null : communicationPortCode(row.sourceBls[0]?.pod),
             anchorAtracacaoId: kind === 'aviso_atracacao_nob' ? row.sourceBls[0]?.terminalStateId ?? null : null,
             attemptDiscriminator: row.nextAttemptDiscriminator,
             dispatchId,
             vesselName: input.vesselName,
             voyageNumber: input.voyageNumber,
             terminalName: input.terminalName,
-            attachments,
+            attachments: ce ? [] : attachments,
           },
         })
       }
@@ -1109,7 +1133,7 @@ export function ClientesComunicacao() {
                         </>
                       ) : (
                         <>
-                          <strong className="text-sm font-semibold text-[var(--app-text-strong)]">{audienceLabel(audience)}</strong>
+                          <strong className="text-sm font-semibold text-[var(--app-text-strong)]">{audienceText}</strong>
                           <span className="text-xs text-[var(--app-muted)]">— definido pelo modelo</span>
                           <Badge tone="slate" className="ml-auto">Fixo</Badge>
                         </>
@@ -1317,10 +1341,12 @@ export function ClientesComunicacao() {
                   <Paperclip size={16} className="text-[var(--app-muted)]" aria-hidden="true" />
                   Anexos
                   <span className="text-xs text-[var(--app-muted)]">
-                    {attachments.length ? `${attachments.length} arquivo(s) · ${formatAttachmentSize(attachmentsSize)}` : 'nenhum'}
+                    {!attachmentsAllowedFor(kind)
+                      ? 'este modelo não leva anexo'
+                      : attachments.length ? `${attachments.length} arquivo(s) · ${formatAttachmentSize(attachmentsSize)}` : 'nenhum'}
                   </span>
                 </span>
-                <label className="app-btn app-btn--secondary min-h-9 cursor-pointer px-3 py-1.5 text-xs">
+                {attachmentsAllowedFor(kind) ? <label className="app-btn app-btn--secondary min-h-9 cursor-pointer px-3 py-1.5 text-xs">
                   {attachments.length ? 'Trocar' : 'Adicionar'}
                   <input
                     type="file"
@@ -1330,7 +1356,7 @@ export function ClientesComunicacao() {
                     aria-label="Anexos (opcional)"
                     onChange={(event) => void handleAttachments(event)}
                   />
-                </label>
+                </label> : null}
               </div>
 
               {showConference && hasResend ? (
@@ -1612,13 +1638,18 @@ export function ClientesComunicacao() {
               <div
                 className="prose prose-sm max-w-none text-slate-800"
                 dangerouslySetInnerHTML={{
-                  __html: activePreview.html.match(/<main[^>]*>([\s\S]*?)<\/main>/i)?.[1] ?? activePreview.html,
+                  // A logo vem do próprio Vela na prévia (`emailPreviewHtml`); o e-mail enviado
+                  // continua com o endereço absoluto do Portal.
+                  __html: emailPreviewHtml(activePreview.html.match(/<main[^>]*>([\s\S]*?)<\/main>/i)?.[1] ?? activePreview.html),
                 }}
               />
             </div>
           ) : (
             <div className="py-12 text-center text-sm text-[var(--app-muted)]">
-              Não foi possível renderizar a prévia deste comunicado.
+              {/* O CE e Taxas bloqueado não tem os CEs e valores para a prévia: diz o motivo. */}
+              {activePreviewRow?.blockedReason
+                ? `Sem prévia: ${activePreviewRow.blockedReason.replace(/\.$/, '')}.`
+                : 'Não foi possível renderizar a prévia deste comunicado.'}
             </div>
           )}
 
