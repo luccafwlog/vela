@@ -1,4 +1,5 @@
 import { normalizeVesselImo } from '../lib/vesselAlias'
+import { escalaPortCode, knownPorts, normalizePortCode } from './portCode'
 import { z } from 'zod'
 import { listVoyageEscalaSchedulesByVoyageIds } from './voyageRouteSchedules'
 
@@ -96,4 +97,41 @@ export async function validateIndicatedFirstBrazilianPort(values: VoyageFormValu
   const minEta = [...etas].sort()[0]
   if (eta >= minEta) return `O ETA indicado (${eta}) deve ser anterior ao menor ETA das escalas próprias (${minEta})`
   return null
+}
+
+/** Porto adicionado na Nova Viagem: origem grava o ETD do POL; Brasil vira escala com o ETA. */
+export type VoyagePortStop = {
+  code: string
+  kind: 'pol' | 'pod'
+  /** Data ISO (AAAA-MM-DD). */
+  date: string
+}
+
+/** Sugestões do seletor: os portos que o sistema reconhece. */
+export const VOYAGE_PORT_SUGGESTIONS = knownPorts()
+
+/** Nome e LOCODE do porto ("Qingdao (CNTAO)"), ou só o código sem nome. */
+export function voyagePortLabel(code: string): string {
+  const name = VOYAGE_PORT_SUGGESTIONS.find((port) => port.code === code)?.name
+  return name ? `${name} (${code})` : code
+}
+
+/**
+ * Porto digitado no seletor da Nova Viagem. Porto brasileiro é chegada no
+ * Brasil (escala com ETA): nome ou LOCODE conhecido, ou qualquer LOCODE BR bem
+ * formado, pela mesma regra de `escalaPortCode` (o servidor cadastra o porto
+ * novo). Os demais são saída na origem (ETD do POL) e precisam estar entre os
+ * portos que o sistema reconhece: LOCODE de origem desconhecido não é gravado.
+ * ponytail: a lista de origens é a de `portCode.ts`; porto novo (Busan, por
+ * exemplo) entra nela, e o upgrade é um cadastro de LOCODE completo.
+ */
+export function resolveVoyagePortStop(value: string): { code: string; kind: 'pol' | 'pod' } | { error: string } {
+  const typed = value.trim().toUpperCase()
+  if (!typed) return { error: 'Informe o porto.' }
+  const brazilian = escalaPortCode(typed)
+  if (brazilian?.startsWith('BR')) return { code: brazilian, kind: 'pod' }
+  const known = normalizePortCode(typed)
+  if (known && !known.startsWith('BR')) return { code: known, kind: 'pol' }
+  if (/^BR/.test(typed)) return { error: 'Porto brasileiro inválido: use o LOCODE com BR e mais 3 caracteres (ex.: BRSSZ).' }
+  return { error: 'Porto de origem fora da lista de portos do sistema. Escolha um dos sugeridos (ex.: QINGDAO, CNTAO).' }
 }

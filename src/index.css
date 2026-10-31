@@ -6431,6 +6431,32 @@ button.app-metric-tile[aria-pressed='true'] {
   opacity: 0.55;
 }
 
+/* Chave discreta (`size="sm"`): opção secundária de um formulário, que não
+   compete com os campos principais (aparição em Chegadas e Saídas na Nova
+   Viagem). No toque, --app-control-h-sm mantém o alvo de 44 px. */
+.app-switch--sm {
+  gap: 8px;
+  min-height: var(--app-control-h-sm);
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  font-weight: 500;
+}
+
+.app-switch--sm .app-switch__track {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+}
+
+.app-switch--sm .app-switch__track::after {
+  width: 12px;
+  height: 12px;
+}
+
+.app-switch--sm[aria-checked='true'] .app-switch__track::after {
+  transform: translateX(14px);
+}
+
 .app-summary-strip {
   display: flex;
   flex-wrap: wrap;

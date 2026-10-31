@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-const { createVoyageMock, updateVoyageMock, findDuplicateMock, showOnPortalMock, setShowMock, showToastMock } = vi.hoisted(() => ({
+const { createVoyageMock, updateVoyageMock, findDuplicateMock, showOnPortalMock, setShowMock, showToastMock, recordDatesMock } = vi.hoisted(() => ({
+  recordDatesMock: vi.fn(),
   showToastMock: vi.fn(),
   createVoyageMock: vi.fn(),
   updateVoyageMock: vi.fn(),
@@ -22,6 +23,11 @@ vi.mock('../../../services/voyages', async (importOriginal) => ({
   setVoyageShowOnPortal: setShowMock,
 }))
 
+vi.mock('../../../services/voyageFromSchedule', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/voyageFromSchedule')>()),
+  recordScheduleDates: recordDatesMock,
+}))
+
 vi.mock('../../../hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }))
@@ -32,6 +38,8 @@ vi.mock('../../ui/Toast', () => ({
 
 import { VoyageCreateModal } from '../VoyageCreateModal'
 import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
+
+const FIRST_PORT = 'Indicar outro 1º porto brasileiro (âncora D−7 / D−5)'
 
 function renderModal(props: Partial<Parameters<typeof VoyageCreateModal>[0]> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -57,23 +65,106 @@ describe('VoyageCreateModal', () => {
     findDuplicateMock.mockResolvedValue(null)
     showOnPortalMock.mockResolvedValue(false)
     setShowMock.mockResolvedValue(undefined)
+    recordDatesMock.mockResolvedValue(undefined)
   })
 
-  it('renderiza o formulário padrão com indicação desativada', () => {
+  it('abre com navio, número e o seletor de portos; armador fica numa linha', async () => {
+    const user = userEvent.setup()
     renderModal()
-    expect(screen.getByLabelText('Armador')).toBeTruthy()
     expect(screen.getByLabelText('Navio')).toBeTruthy()
     expect(screen.getByLabelText('Numero da viagem')).toBeTruthy()
-    const checkbox = screen.getByLabelText('Indicar outro 1º porto brasileiro') as HTMLInputElement
-    expect(checkbox.checked).toBe(false)
-    expect(screen.queryByLabelText('Porto indicado')).toBeNull()
-    expect(screen.queryByLabelText('ETA indicado')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Portos e datas' })).toBeTruthy()
+    // Nenhum porto listado até o operador adicionar.
+    expect(screen.queryByRole('list', { name: 'Portos adicionados' })).toBeNull()
+    expect(screen.queryByLabelText('Armador')).toBeNull()
+    expect(screen.getByText('Armador: Cosco Shipping Specialized Carriers · SCAC CSSC')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Alterar armador' }))
+    expect((screen.getByLabelText('Armador') as HTMLInputElement).value).toBe('Cosco Shipping Specialized Carriers')
+    // A chave diz só o assunto; o estado é o da chave.
+    expect(screen.getByRole('switch', { name: 'Chegadas e Saídas' }).getAttribute('aria-checked')).toBe('false')
+    // Na criação o 1º porto brasileiro não aparece: a indicação é da edição.
+    expect(screen.queryByLabelText(/Indicar outro 1º porto brasileiro/)).toBeNull()
   })
 
-  it('mantém o toggle de 1º porto desabilitado na criação', () => {
+  it('na edição não mostra os portos e oferece o 1º porto indicado', () => {
+    renderModal({ voyageId: 101, initialValues: { vesselName: 'GREEN ITAJAI', voyageNumber: '11' } })
+    expect(screen.queryByRole('heading', { name: 'Portos e datas' })).toBeNull()
+    expect((screen.getByLabelText(FIRST_PORT) as HTMLInputElement).disabled).toBe(false)
+  })
+
+  it('adiciona portos pelo seletor, inclusive fora de Chegadas e Saídas, e grava as datas', async () => {
+    const user = userEvent.setup()
+    const onSaved = vi.fn()
+    renderModal({ onSaved })
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    async function add(port: string, date: string) {
+      await user.clear(screen.getByLabelText('Porto'))
+      await user.type(screen.getByLabelText('Porto'), port)
+      fireEvent.change(screen.getByLabelText('Data (ETD ou ETA)'), { target: { value: date } })
+      await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    }
+    await add('santos', '2026-12-12')
+    await add('qingdao', '2026-11-04')
+    await add('BRSSZ', '2026-12-20')
+    expect(screen.getByText('BRSSZ já foi adicionado.')).toBeTruthy()
+    await add('KRPUS', '2026-11-08')
+    expect(screen.getByText(/fora da lista de portos do sistema/)).toBeTruthy()
+
+    const list = screen.getByRole('list', { name: 'Portos adicionados' })
+    expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Qingdao (CNTAO) · Saída na origem · ETD 04/11/2026',
+      'Santos (BRSSZ) · Chegada no Brasil · ETA 12/12/2026',
+    ])
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+
+    await waitFor(() => expect(recordDatesMock).toHaveBeenCalledTimes(1))
+    expect(recordDatesMock).toHaveBeenCalledWith(101, [
+      { code: 'BRSSZ', kind: 'pod', date: '2026-12-12' },
+      { code: 'CNTAO', kind: 'pol', date: '2026-11-04' },
+    ], 'user-1')
+    expect(showToastMock).toHaveBeenCalledWith('Viagem cadastrada com sucesso.', 'success')
+    expect(onSaved).toHaveBeenCalledWith(101)
+  })
+
+  it('pede a data antes de adicionar e remove o porto adicionado', async () => {
+    const user = userEvent.setup()
     renderModal()
-    expect((screen.getByLabelText('Indicar outro 1º porto brasileiro') as HTMLInputElement).disabled).toBe(true)
-    expect(screen.getByText('Disponível depois que a viagem tiver ao menos uma escala.')).toBeTruthy()
+    await user.type(screen.getByLabelText('Porto'), 'salvador')
+    await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    expect(screen.getByText('Informe a data.')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Data (ETD ou ETA)'), { target: { value: '2026-12-15' } })
+    await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    await user.click(screen.getByRole('button', { name: 'Remover BRSSA' }))
+    expect(screen.queryByRole('list', { name: 'Portos adicionados' })).toBeNull()
+  })
+
+  it('sem porto adicionado, não grava datas', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    await waitFor(() => expect(createVoyageMock).toHaveBeenCalled())
+    expect(recordDatesMock).not.toHaveBeenCalled()
+  })
+
+  it('datas recusadas: a viagem fica cadastrada e a tela diz que as datas não foram gravadas', async () => {
+    const user = userEvent.setup()
+    const onSaved = vi.fn()
+    recordDatesMock.mockRejectedValue(new Error('fetch failed'))
+    renderModal({ onSaved })
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Porto'), 'salvador')
+    fireEvent.change(screen.getByLabelText('Data (ETD ou ETA)'), { target: { value: '2026-12-15' } })
+    await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    await waitFor(() => expect(showToastMock).toHaveBeenCalledWith(
+      'Viagem cadastrada, mas as datas dos portos não foram gravadas (falha na gravação das datas). Informe-as nas escalas da ficha da viagem.',
+      'error',
+    ))
+    expect(onSaved).toHaveBeenCalledWith(101)
   })
 
   it('limpa os campos indicados ao desativar o toggle', async () => {
@@ -86,7 +177,7 @@ describe('VoyageCreateModal', () => {
       },
     })
 
-    const checkbox = screen.getByLabelText('Indicar outro 1º porto brasileiro') as HTMLInputElement
+    const checkbox = screen.getByLabelText(FIRST_PORT) as HTMLInputElement
     expect(checkbox.checked).toBe(true)
     expect((screen.getByLabelText('Porto indicado') as HTMLInputElement).value).toBe('BRSSZ')
 
@@ -121,9 +212,9 @@ describe('VoyageCreateModal', () => {
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
     await user.type(screen.getByLabelText('Numero da viagem'), '11')
-    const toggle = screen.getByRole('switch', { name: 'Não aparece em Chegadas e Saídas' })
+    const toggle = screen.getByRole('switch', { name: 'Chegadas e Saídas' })
     await user.click(toggle)
-    expect(screen.getByRole('switch', { name: 'Aparece em Chegadas e Saídas' }).getAttribute('aria-checked')).toBe('true')
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
     expect(createVoyageMock).toHaveBeenCalledWith(expect.objectContaining({ voyageNumber: '11' }), 'user-1', { origin: 'viagens', showOnPortal: true })
   })
@@ -180,7 +271,7 @@ describe('VoyageCreateModal', () => {
   it('na edição, publica a viagem oculta e tira a que já aparece', async () => {
     const user = userEvent.setup()
     renderModal({ voyageId: 101, initialValues: { vesselName: 'GREEN ITAJAI', voyageNumber: '11' } })
-    const toggle = await screen.findByRole('switch', { name: 'Não aparece em Chegadas e Saídas' })
+    const toggle = await screen.findByRole('switch', { name: 'Chegadas e Saídas' })
     await waitFor(() => expect((toggle as HTMLButtonElement).disabled).toBe(false))
     await user.click(toggle)
     await user.click(screen.getByRole('button', { name: 'Salvar viagem' }))
@@ -191,7 +282,8 @@ describe('VoyageCreateModal', () => {
     cleanup()
     showOnPortalMock.mockResolvedValue(true)
     renderModal({ voyageId: 101, initialValues: { vesselName: 'GREEN ITAJAI', voyageNumber: '11' } })
-    const shown = await screen.findByRole('switch', { name: 'Aparece em Chegadas e Saídas' })
+    const shown = await screen.findByRole('switch', { name: 'Chegadas e Saídas' })
+    await waitFor(() => expect(shown.getAttribute('aria-checked')).toBe('true'))
     await waitFor(() => expect((shown as HTMLButtonElement).disabled).toBe(false))
     setShowMock.mockClear()
     await user.click(shown)
