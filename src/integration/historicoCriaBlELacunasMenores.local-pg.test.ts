@@ -67,7 +67,7 @@ function cleanup() {
 function migration560Applied(): boolean {
   if (!enabled) return false
   try {
-    return psql(`SELECT count(*) FROM pg_proc WHERE proname = 'audit_bl_created';`) === '1'
+    return psql(`SELECT count(*) FROM pg_trigger WHERE tgname = 'audit_bls_created';`) === '1'
   } catch {
     return false
   }

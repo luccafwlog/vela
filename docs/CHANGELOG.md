@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Lacunas baixas da revisão da release (2026-11-01, migration `564`; decisões do dono):** o registro de "B/L
+  criado" no Histórico passa a um gatilho por comando (2.000 B/Ls num INSERT: 1,89 s → 1,45 s no Postgres local); a
+  reabertura do ADR sem terminal grava na chave do próprio ADR, e fechar e reabrir ficam no mesmo registro do Histórico
+  de ações; contato novo sem nome pela configuração de contatos fica em branco, não "Contato".
 - **Régua do CE e Taxas conta o envio manual (2026-11-01, migration `563`; decisão do dono na revisão da release):**
   o CE entregue pelo Disparo ou pelo **Reenviar CE e Taxas** fecha o Cliente × Viagem para a régua, como já acontecia
   no NOA, NOR e NOB. Antes só a tentativa da régua contava, e o CE mandado à mão depois de uma falha saía de novo.
