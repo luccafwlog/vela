@@ -43,6 +43,20 @@ it('US-048: imprime o recibo de quitacao quando type=receipt', () => {
   expect(screen.getByTestId('demurrage-total').textContent).toContain('PAGO EM:25/06/2026')
 })
 
+it('recibo certifica só o valor recebido, uma vez, sem linhas de devolução ou restituição', () => {
+  render(<InvoiceDocument detail={{ ...detail, refund_summary: { received_brl: 500, refunds: [] } }} type="receipt" />)
+  const box = screen.getByTestId('demurrage-total')
+  expect(box.textContent).toContain('VALOR RECEBIDO:R$ 500,00')
+  expect(screen.queryByText(/Valor recebido:|Devolvido ao Cliente|Restituição pendente|líquido recebido/)).toBeNull()
+  expect(screen.getAllByText('R$ 500,00')).toHaveLength(1)
+  cleanup()
+  // Devolução já feita: o recibo mostra o que ficou recebido, ainda num valor só.
+  render(<InvoiceDocument detail={{ ...detail, refund_summary: { received_brl: 500, refunds: [
+    { id: 1, amount_brl: 100, status: 'settled', notes: null, purpose: 'correction', bank_reference: 'X', beneficiary: 'Y', settled_at: '2026-06-26' },
+  ] } }} type="receipt" />)
+  expect(screen.getByTestId('demurrage-total').textContent).toContain('VALOR RECEBIDO:R$ 400,00')
+})
+
 it('US-048: exibe QR Pix e codigo copia e cola na fatura em aberto', () => {
   render(<InvoiceDocument detail={{ ...detail, paid_at: null, status: 'issued' }} type="invoice" />)
 

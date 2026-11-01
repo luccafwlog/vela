@@ -425,10 +425,15 @@ cabeçalho "MISTO (CNTR + CARGA SOLTA)"); a consolidada mantém o subtotal por
 B/L. Vale para individual, consolidada, avulsa e recibos. O TOTAL sai da faixa
 âmbar na largura da tabela e vira caixa âmbar compacta à direita, logo abaixo
 dela, e na impressão não começa uma página sozinha (leva junto a última linha
-da tabela); no recibo, a última linha da tabela é o total emitido e a caixa traz o
-valor líquido recebido, com "Pago em" embaixo. Quantidade usa vírgula decimal
+da tabela); no recibo, a caixa traz o valor recebido, com "Pago em" embaixo. Quantidade usa vírgula decimal
 ("15,4"; inteiro sem casas), o rótulo é "Navio / Viagem:" e nada fica abaixo
-de 12px. No Pix, a frase do QR Code é seguida de "Depois do pagamento, a baixa
+de 12px. Desde 2026-11-01 o recibo só certifica o que foi recebido: o valor
+aparece uma vez, na caixa "Valor recebido:" (na individual coberta,
+"Recebido pela consolidada INV-…:"), com "Pago em". Saíram da tabela as linhas
+"Total da fatura emitida", "Valor recebido", "Abatido do saldo", "Devolvido ao
+Cliente", "Restituição pendente" e a nota "Quitação pela fatura consolidada";
+abatimento e restituição continuam no detalhe da fatura. O valor da caixa é o
+recebido menos a devolução já feita (`net_received_brl`). No Pix, a frase do QR Code é seguida de "Depois do pagamento, a baixa
 da fatura pode levar de 1 a 5 minutos. Para ver a fatura como paga, atualize a
 página no Portal do Cliente."; "Saldo a pagar" só aparece quando a fatura está
 parcialmente paga, e o código Copia e Cola quebra em várias linhas.

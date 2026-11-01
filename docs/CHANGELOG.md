@@ -15,11 +15,17 @@
   - **"Container", nunca "caixa":** os textos das telas da Demurrage, da ficha do B/L, do detalhe da Invoice no
     Portal, da Matriz de permissões e das planilhas trocam "caixa" por "container" ("Destino dos containers",
     "1/2 do container", "Cobrança do container dispensada", "divisão do container alterada"…). Os textos que o
-    banco grava (motivo de cancelamento e de pausa da Régua, mensagens de alerta e de recusa) seguem como estão.
+    banco grava (motivo de cancelamento e de pausa da Régua, mensagens de alerta e de recusa) também trocam (migration `565`).
   - **Portal › B/Ls e containers:** a coluna **Demurrage** separa "N em demurrage" (sem devolução, em vermelho) de
     "N devolvido(s) com demurrage", e diz "Sem demurrage" quando não há nenhum; antes dizia "Nenhum" com o B/L todo
     devolvido depois do free time. A planilha ganha **Devolvidos com demurrage**.
-
+- **Lacunas baixas da revisão da release (2026-11-01, migration `564`; decisões do dono):** o registro de "B/L
+  criado" no Histórico passa a um gatilho por comando (2.000 B/Ls num INSERT: 1,89 s → 1,45 s no Postgres local); a
+  reabertura do ADR sem terminal grava na chave do próprio ADR, e fechar e reabrir ficam no mesmo registro do Histórico
+  de ações; contato novo sem nome pela configuração de contatos fica em branco, não "Contato".
+- **Régua do CE e Taxas conta o envio manual (2026-11-01, migration `563`; decisão do dono na revisão da release):**
+  o CE entregue pelo Disparo ou pelo **Reenviar CE e Taxas** fecha o Cliente × Viagem para a régua, como já acontecia
+  no NOA, NOR e NOB. Antes só a tentativa da régua contava, e o CE mandado à mão depois de uma falha saía de novo.
 - **Histórico de ações lê as trilhas próprias (2026-11-01, migration `561`; decisão do dono):** a aba Admin ›
   Histórico de ações mostra também o andamento do Desbloqueio de CE, as decisões e a situação das contas do Portal,
   os Comunicados enviados e as mensagens e anexos das disputas de Demurrage, lidos na hora de cada trilha, sem gravar
