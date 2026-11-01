@@ -131,8 +131,8 @@ describe('ClienteFicha user behaviours', () => {
 
     expect(screen.getByRole('heading', { name: 'Saldo pendente' })).toBeTruthy()
     expect(screen.getByText(/B\/L vinculado por nome, aguardando confirmação/)).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: /Ver os B\/Ls na aba BLs/ }))
-    expect(screen.getByRole('tab', { name: /^BLs/ }).getAttribute('aria-selected')).toBe('true')
+    await user.click(screen.getByRole('button', { name: /Ver os B\/Ls na aba B\/Ls/ }))
+    expect(screen.getByRole('tab', { name: /^B\/Ls/ }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('renders CustomerContactConfiguration and invalidates customer detail on save', async () => {
@@ -199,7 +199,7 @@ describe('ClienteFicha user behaviours', () => {
     expect(screen.queryByRole('link', { name: /Voltar para clientes/i })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Mais ações do Cliente' }))
     expect(screen.getByRole('menuitem', { name: 'Ver faturas em Taxas Locais' }).getAttribute('href')).toContain('/taxas-locais?tab=invoices&customer=42')
-    expect(screen.getByRole('menuitem', { name: 'Ver os B/Ls na lista de BLs' }).getAttribute('href')).toBe('/bls?q=12345678000195')
+    expect(screen.getByRole('menuitem', { name: 'Ver na lista de B/Ls' }).getAttribute('href')).toBe('/bls?q=12345678000195')
     // A cópia do CNPJ saiu do menu e virou o ícone ao lado do número, que copia formatado.
     expect(screen.queryByRole('menuitem', { name: /Copiar CNPJ/ })).toBeNull()
     await user.keyboard('{Escape}')

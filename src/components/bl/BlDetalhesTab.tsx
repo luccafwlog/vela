@@ -5,7 +5,7 @@ import type { BlForm } from '../../hooks/useBlEditForm'
 import type { CargoMode } from '../../pages/blDetalheHelpers'
 import type { BLDetail } from '../../types/database'
 
-// Formulário de edição manual e frete. O conteúdo de carga (contêineres, resumo
+// Formulário de edição manual e frete. O conteúdo de carga (containers, resumo
 // de carga solta, itens e veículos) saiu daqui para a aba própria `Carga`.
 export function BlDetalhesTab(props: {
   active: boolean

@@ -1038,7 +1038,7 @@ export function EscalaModal({
       return
     }
     if (documentalAltered && !justification.trim()) {
-      setTerminalError('Informe a justificativa para alterar BLs e CEs.')
+      setTerminalError('Informe a justificativa para alterar B/Ls e CEs.')
       return
     }
 
@@ -1235,9 +1235,9 @@ export function EscalaModal({
             {exportError ? <p role="alert" className="app-escala-error">{exportError}</p> : null}
           </EscalaSection>
 
-          <EscalaSection aria-label="BLs e CEs" icon={<FileText size={16} />} title="BLs e CEs" description="Status atualizado pela conciliação documental. Alterações manuais exigem justificativa.">
+          <EscalaSection aria-label="B/Ls e CEs" icon={<FileText size={16} />} title="B/Ls e CEs" description="Status atualizado pela conciliação documental. Alterações manuais exigem justificativa.">
             <div className="app-escala-field-grid app-escala-field-grid--two">
-              <Field label="BLs e CEs">
+              <Field label="B/Ls e CEs">
                 <Select value={ceStatus} onChange={(event) => setCeStatus(event.target.value as EditableVoyagePodCeStatus)}>
                   {POD_CE_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -1280,7 +1280,7 @@ export function EscalaModal({
               <Field
                 label="Justificativa da alteração"
                 required={needsJustification}
-                hint={needsJustification ? 'Obrigatória: você alterou BLs e CEs, terminal, data ou exportação já registrados nesta escala.' : undefined}
+                hint={needsJustification ? 'Obrigatória: você alterou B/Ls e CEs, terminal, data ou exportação já registrados nesta escala.' : undefined}
               >
                 {/* required={false}: a validação nativa do navegador atropelaria o
                     alerta do modal, que diz por que a justificativa é exigida. */}

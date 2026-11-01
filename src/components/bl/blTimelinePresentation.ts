@@ -3,7 +3,7 @@ import { historyChangePhrase } from './blChargeAdjustmentPresentation'
 
 const FAMILY_LABEL: Record<BlTimelineFamily, string> = {
   edicao: 'Edição',
-  container: 'Contêiner',
+  container: 'Container',
   veiculo: 'Veículo',
   taxas: 'Taxas',
   fatura: 'Fatura',
@@ -56,8 +56,8 @@ const FIELD_LABELS: Record<string, string> = {
   bb_packages_total: 'Total de packages',
   bb_weight_ton: 'Peso (Ton)',
   bb_cbm: 'CBM carga solta',
-  total_weight_kg: 'Peso contêiner (kg)',
-  total_cbm: 'CBM contêiner (m³)',
+  total_weight_kg: 'Peso container (kg)',
+  total_cbm: 'CBM container (m³)',
   discharge_date: 'Descarga',
   return_date: 'Devolução',
   is_imo: 'IMO',

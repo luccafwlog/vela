@@ -1,7 +1,7 @@
-// Busca por vários B/Ls ou contêineres de uma vez (ponto 9 de 2026-10-23).
+// Busca por vários B/Ls ou containers de uma vez (ponto 9 de 2026-10-23).
 // O texto inteiro continua casando como sempre; além disso, quando o usuário
 // cola dois ou mais números separados por espaço, vírgula, ponto e vírgula ou
-// quebra de linha, basta um deles casar o número do B/L ou do contêiner.
+// quebra de linha, basta um deles casar o número do B/L ou do container.
 // Só conta como termo da lista o que tem cara de número: pelo menos 4
 // caracteres e pelo menos um dígito. Assim um nome de várias palavras
 // ("IMPORTACAO E EXPORTACAO", "ACME 2") não vira lista e não traz todo B/L
@@ -26,7 +26,7 @@ const MIN_TERM_LENGTH = 4
 // O `\s` do banco depende do locale; enumerar deixa os dois lados iguais.
 const SEPARATORS = /[ \t\n\v\f\r\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff,;]+/
 
-/** Termo com cara de número de B/L, contêiner ou CE: 4+ caracteres e algum dígito. */
+/** Termo com cara de número de B/L, container ou CE: 4+ caracteres e algum dígito. */
 function isNumberLike(term: string) {
   return term.length >= MIN_TERM_LENGTH && /[0-9]/.test(term)
 }
@@ -51,7 +51,7 @@ function cachedTokens(query: string): readonly string[] {
   return lastTokens
 }
 
-/** Algum termo da lista colada aparece em algum dos números (B/L, contêiner). */
+/** Algum termo da lista colada aparece em algum dos números (B/L, container). */
 export function matchesAnyToken(query: string, ids: Array<string | null | undefined>): boolean {
   const tokens = cachedTokens(query)
   if (!tokens.length) return false

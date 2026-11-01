@@ -577,7 +577,7 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
   mostra **Desfazer dispensa** também ali. O aviso de **Cancelar B/L** trata
   "Demurrage travada" como motivo de Demurrage: sem o texto da fatura e com
   **Abrir em Demurrage** na divisão Travado (`/demurrage?divisao=travado&busca=<B/L>`).
-  Na ficha do Cliente, a aba Contêineres mostra a caixa dispensada como
+  Na ficha do Cliente, a aba Containers mostra a caixa dispensada como
   "Cobrança dispensada", fora de "em curso", "a faturar", do total e da
   planilha ([Clientes](clientes.md)).
 - **Datas:** `bl_containers.discharge_date` e `return_date` são a fonte

@@ -4,7 +4,7 @@ import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { Modal } from '../ui/Modal'
 import { ComplementMark, StatusText } from '../ui/StatusText'
-import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
+import { demurrageInvoiceShowsPix, demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
 import { formatBRL, formatDate } from '../../lib/utils'
 import { joinDemurrageDocNumbers, type PortalDemurrageInvoice, type PortalDemurrageInvoiceDetail, type PortalDemurrageReplacedCause, type PortalDispute } from '../../services/portalBilling'
 import { boxShareLabel, invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
@@ -31,7 +31,7 @@ type PortalDemurrageDetailModalProps = {
   onOpenInvoice: (invoiceId: number) => void
 }
 
-/** Período (P1 ou P2) do contêiner numa linha: dias × diária (tabela limpa, 2026-10-15); o valor fica na coluna US$. */
+/** Período (P1 ou P2) do container numa linha: dias × diária (tabela limpa, 2026-10-15); o valor fica na coluna US$. */
 function periodValue(days: number | null | undefined, rate: number | null | undefined) {
   const count = Number(days ?? 0)
   if (count <= 0) return <NoValue label="Sem dias neste período" />
@@ -45,17 +45,17 @@ function formatRoe(roe: number) {
 
 /** Por que a fatura anterior foi cancelada e reemitida (migration 555), no vocabulário do Portal. */
 function replacedCauseText(cause: PortalDemurrageReplacedCause | null | undefined) {
-  if (cause === 'datas') return 'cancelada porque as datas dos contêineres mudaram.'
-  if (cause === 'soc') return 'cancelada porque um contêiner passou a SOC e saiu da cobrança.'
+  if (cause === 'datas') return 'cancelada porque as datas dos containers mudaram.'
+  if (cause === 'soc') return 'cancelada porque um container passou a SOC e saiu da cobrança.'
   if (cause === 'divisao') return 'cancelada porque mudou a divisão de uma caixa entre Clientes.'
   return 'cancelada e substituída por esta.'
 }
 
-/** "o contêiner X" ou "os contêineres X e Y". */
+/** "o container X" ou "os containers X e Y". */
 function containersPhrase(numbers: string[]) {
-  if (numbers.length === 0) return 'só os contêineres que ainda não tinham sido cobrados neste B/L'
-  if (numbers.length === 1) return `o contêiner ${numbers[0]}, que entrou no B/L depois`
-  return `os contêineres ${numbers.slice(0, -1).join(', ')} e ${numbers[numbers.length - 1]}, que entraram no B/L depois`
+  if (numbers.length === 0) return 'só os containers que ainda não tinham sido cobrados neste B/L'
+  if (numbers.length === 1) return `o container ${numbers[0]}, que entrou no B/L depois`
+  return `os containers ${numbers.slice(0, -1).join(', ')} e ${numbers[numbers.length - 1]}, que entraram no B/L depois`
 }
 
 /**
@@ -63,7 +63,7 @@ function containersPhrase(numbers: string[]) {
  * Pagamento primeiro ("R$ X a pagar hoje", o dólar, o ROE de hoje, o B/L, o
  * trecho e o Pix; na paga, "✓ Paga" com o valor e o dia), depois a Disputa
  * aberta com "Ver conversa", as Restituições, o aviso de Invoice complementar
- * e os contêineres. "Abrir disputa" fica no fim enquanto a Invoice está em
+ * e os containers. "Abrir disputa" fica no fim enquanto a Invoice está em
  * aberto e sem disputa; com uma disputa já resolvida, o lugar é de "Solicitar
  * reabertura" (uma conversa por Invoice, ADR 0112, D17).
  */
@@ -99,7 +99,7 @@ export function PortalDemurrageDetailModal({
           const paid = situation.tone === 'paid'
           // O código Pix guardado continua na fatura depois do pagamento (Pix
           // estático): só aparece enquanto a fatura pede pagamento.
-          const showPix = payable && (Boolean(invoice.pix_payload) || (['issued', 'overdue'].includes(invoice.status) && Number(invoice.current_total_brl) > 0))
+          const showPix = demurrageInvoiceShowsPix(invoice)
           const brl = invoice.current_total_brl
           const roe = invoice.current_roe != null ? Number(invoice.current_roe) : null
           const issuedOn = invoice.billed_at ?? invoice.doc_date
@@ -213,13 +213,13 @@ export function PortalDemurrageDetailModal({
               </Block>
             ) : null}
 
-            <Block title="Contêineres" aside={detail.items.length} headingLevel={3} flush>
+            <Block title="Containers" aside={detail.items.length} headingLevel={3} flush>
               <div className="app-table-scroll">
                 <table className="app-table app-table--compact text-sm">
-                  <caption className="sr-only">Contêineres e valores da Invoice de Demurrage</caption>
+                  <caption className="sr-only">Containers e valores da Invoice de Demurrage</caption>
                   <thead>
                     <tr>
-                      <th scope="col" className="px-3 py-2">Contêiner</th>
+                      <th scope="col" className="px-3 py-2">Container</th>
                       <th scope="col" className="px-3 py-2">Tipo</th>
                       <th scope="col" className="px-3 py-2">Descarga</th>
                       <th scope="col" className="px-3 py-2">Devolução</th>
@@ -233,7 +233,7 @@ export function PortalDemurrageDetailModal({
                   <tbody>
                     {detail.items.map((item) => (
                       <tr key={item.id}>
-                        <td className="whitespace-nowrap px-3 py-2 font-semibold"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                        <td className="whitespace-nowrap px-3 py-2 font-semibold"><CopyValue value={item.container_number} label="número do container" /></td>
                         <td className="px-3 py-2">{item.container_type}</td>
                         <td className="whitespace-nowrap px-3 py-2">{item.discharge_date ? formatDate(item.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
                         <td className="whitespace-nowrap px-3 py-2">{item.return_date ? formatDate(item.return_date) : <NoValue label="Sem data de devolução" />}</td>
