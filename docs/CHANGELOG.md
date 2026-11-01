@@ -19,6 +19,24 @@
   - **Menu:** Chegadas e Saídas e Line Up TV em Viagens; Provisionamento do Portal, Comunicação e Informações
     do Portal em Clientes; Regras de alertas em Alertas; Tabelas de Taxas Locais e Tarifas de Demurrage no
     Financeiro; Locais em Exportação.
+- **Históricos por tela sem número interno (2026-11-01):** o Histórico do B/L mostra "Recebível do B/L cancelado
+  com a fatura", "Faturas reemitidas automaticamente" e "Chassi … passou para o B/L …" em vez do JSON com ids; a
+  ficha do Cliente mostra "Faturamento retido reprocessado" e "Fatura emitida (sem número)" em vez de JSON e
+  `INV-<id>`; o ADR (linha do tempo, "Fechado em … por …" e impressão) mostra "Pessoa sem cadastro" em vez do
+  identificador do autor; a linha do tempo da Viagem mostra a justificativa das edições da Viagem, do Nº de Manifesto
+  Mercante, da reversão de omissão e do transbordo, e a origem de uma importação só pelo tipo.
+- **Histórico de ações legível (2026-11-01, migration `558`):** a aba Admin › **Histórico de ações** mostra cada
+  registro pelo nome (a Viagem como "Navio / Nº", com o porto da escala; B/L, Cliente, Fatura; o registro apagado
+  pelo nome que tinha), e não mais pelo número gravado. Campos que apontam para outro cadastro (Navio, Cliente,
+  Armador, Terminal) aparecem pelo nome em De e Para. **Por** distingue **Sistema** e **Cliente pelo Portal**, com o
+  e-mail e o setor do autor ao passar o mouse e na linha aberta; a justificativa ganha a coluna **Motivo**; filtro
+  novo **Ação** (Criou, Alterou, Excluiu). Leitura pela RPC `admin_action_history`, só do Administrativo.
+  Diagnóstico em [archive/audits/historico-de-acoes-2026-11-01.md](archive/audits/historico-de-acoes-2026-11-01.md).
+- **Histórico cobre escritas que não deixavam rastro (2026-11-01, migration `559`):** passam a aparecer no Histórico
+  de ações a Liberação de faturamento no Portal (com a justificativa), o fechamento e a troca de terminal do ADR de
+  Saída, "Marcar como tratado" do Pix Itaú (com o motivo), as exceções de Pix (assunto novo **Conciliação PIX**) e a
+  criação do Embarque de vazios e da linha de serviço. Motivo escrito numa coluna da própria linha (revogação da
+  liberação, por exemplo) vira a justificativa do Histórico.
 
 ## 2026-10
 
