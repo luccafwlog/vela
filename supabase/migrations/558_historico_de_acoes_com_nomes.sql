@@ -256,6 +256,10 @@ BEGIN
   IF p_table <> 'voyages' AND p_row ? 'voyage_id' THEN
     v_voyage := public._audit_voyage_label(p_row ->> 'voyage_id');
   END IF;
+  -- ADR por terminal: o terminal identifica qual dos ADRs do porto.
+  IF p_table = 'agency_departure_reports' AND NULLIF(p_row ->> 'terminal_id', '') IS NOT NULL THEN
+    v_main := COALESCE(v_main, public._audit_value_label('terminal_id', p_row ->> 'terminal_id'));
+  END IF;
   v_port := COALESCE(
     CASE WHEN p_table = 'voyage_route_ce_master' THEN concat_ws(' → ', p_row ->> 'pol', p_row ->> 'pod') END,
     NULLIF(p_row ->> 'port', ''), NULLIF(p_row ->> 'embark_port', ''),
@@ -271,6 +275,9 @@ BEGIN
     v_invoice := public._audit_value_label('invoice_id', p_row ->> 'invoice_id');
   END IF;
 
+  IF p_table = 'agency_departure_reports' THEN
+    RETURN NULLIF(concat_ws(' · ', v_voyage, v_port, v_main), '');
+  END IF;
   RETURN NULLIF(concat_ws(' · ', v_main, v_voyage, v_port, v_bl, v_invoice, v_customer), '');
 EXCEPTION WHEN OTHERS THEN
   RETURN NULL;
