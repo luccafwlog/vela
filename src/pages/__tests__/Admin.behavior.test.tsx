@@ -517,7 +517,7 @@ it('Histórico de ações: ADR reaberto em português, com a Viagem pelo nome', 
 it('Histórico de ações: nunca mostra o número interno de um cadastro (Navio, Cliente)', () => {
   mocks.dataByKey = {
     'admin-audit-logs': {
-      count: 3,
+      count: 4,
       rows: [
         historyRow({ id: 4, field_name: 'vessel_id', old_value: '37', new_value: '41', entity_label: 'Santos / 012S', old_label: 'Rio de Janeiro 2', new_label: 'Santos' }),
         historyRow({ id: 5, entity_type: 'bls', field_name: 'customer_id', old_value: '12', new_value: '13', entity_label: 'B/L MEDU1' }),
@@ -542,6 +542,12 @@ it('Histórico de ações: nunca mostra o número interno de um cadastro (Navio,
     expect(Array.from(document.querySelectorAll('td')).some((cell) => cell.textContent?.trim() === raw)).toBe(false)
   }
   expect(document.body.textContent).not.toMatch(/Navio: 41|Cliente: 1[23]|Armador: 9\b/)
+})
+
+it('Histórico de ações: contagem acima do teto diz "Mais de 10.000 registros"', () => {
+  mocks.dataByKey = { 'admin-audit-logs': { count: 10_000, capped: true, rows: [historyRow({ id: 8, field_name: 'voyage_number', old_value: '011S', new_value: '012S', entity_label: 'Santos / 012S' })] } }
+  renderAdmin('historico')
+  expect(screen.getByText('Mais de 10.000 registros')).toBeTruthy()
 })
 
 it('"O que cada setor pode": grupo e ação são cabeçalhos da linha', () => {

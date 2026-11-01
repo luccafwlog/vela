@@ -56,7 +56,10 @@ export type ActionHistoryFilters = {
 
 type ActionHistoryRpcRow = ActionHistoryRow & { total_count: number | string | null }
 
-export async function fetchActionHistory(filters: ActionHistoryFilters): Promise<{ rows: ActionHistoryRow[]; count: number }> {
+/** A contagem da busca para aqui (migration `558`): acima disso a tela diz "mais de 10.000". */
+export const ACTION_HISTORY_COUNT_CAP = 10_000
+
+export async function fetchActionHistory(filters: ActionHistoryFilters): Promise<{ rows: ActionHistoryRow[]; count: number; capped: boolean }> {
   const { data, error } = await supabase.rpc('admin_action_history' as never, {
     p_entity_types: filters.entityTypes.length ? [...filters.entityTypes] : null,
     p_actor: filters.changedBy || null,
@@ -70,8 +73,11 @@ export async function fetchActionHistory(filters: ActionHistoryFilters): Promise
   const raw = (data ?? []) as ActionHistoryRpcRow[]
   // O total vem em cada linha (a contagem da busca, antes da página); página
   // vazia depois da última não sabe o total e devolve 0.
-  const count = raw.length ? Number(raw[0].total_count ?? 0) : 0
+  const total = raw.length ? Number(raw[0].total_count ?? 0) : 0
+  const capped = total > ACTION_HISTORY_COUNT_CAP
+  const count = Math.min(total, ACTION_HISTORY_COUNT_CAP)
   return {
+    capped,
     rows: raw.map((rpcRow) => {
       const row: ActionHistoryRow & { total_count?: unknown } = { ...rpcRow, value_labels: rpcRow.value_labels ?? null }
       delete row.total_count

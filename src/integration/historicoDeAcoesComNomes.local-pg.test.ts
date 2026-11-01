@@ -18,6 +18,8 @@ const CUSTOMER_ID = 99558011
 const GONE_CUSTOMER_ID = 99558012
 const PORTAL_ACCOUNT_ID = 99558021
 const DAY = '2031-05-08'
+const EDGE_DAY = '2031-05-09'
+const VOLUME_DAY = '2031-05-10'
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
@@ -44,7 +46,7 @@ function history(filters = ''): string[] {
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
-    DELETE FROM public.audit_logs WHERE changed_at::date BETWEEN '${DAY}'::date - 1 AND '${DAY}'::date + 1;
+    DELETE FROM public.audit_logs WHERE changed_at::date BETWEEN '${DAY}'::date - 1 AND '${VOLUME_DAY}'::date + 1;
     DELETE FROM public.customer_portal_accounts WHERE id = ${PORTAL_ACCOUNT_ID};
     DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};
     DELETE FROM public.vessels WHERE id IN (${VESSEL_A}, ${VESSEL_B});
@@ -137,5 +139,42 @@ describeLocal('558 — Histórico de ações com nomes, não números', () => {
   it('recusa filtro de ação ou autor desconhecido', () => {
     expect(asUser(ADMIN_ID, `SELECT count(*) FROM public.admin_action_history(p_action => 'apagou')`).error).toMatch(/Ação desconhecida/)
     expect(asUser(ADMIN_ID, `SELECT count(*) FROM public.admin_action_history(p_actor => '37')`).error).toMatch(/Autor desconhecido/)
+  })
+
+  it('texto livre que parece JSON, tabela desconhecida e id que não é número não derrubam a página', () => {
+    psql(`
+      SET session_replication_role = replica;
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at) VALUES
+        ('customers', '${CUSTOMER_ID}', 'notes', NULL, '{urgente} ligar ao cliente', '${OPERATOR_ID}', '${EDGE_DAY} 09:00-03'),
+        ('customers', '${GONE_CUSTOMER_ID}', 'excluido', '{"id": quebrado', NULL, NULL, '${EDGE_DAY} 09:01-03'),
+        ('tabela_que_nao_existe', 'abc', 'criado', NULL, '{"name": "Registro avulso"}', NULL, '${EDGE_DAY} 09:02-03'),
+        ('voyages', 'não-é-número', 'status', 'active', 'completed', NULL, '${EDGE_DAY} 09:03-03'),
+        ('voyage_pod_schedule', '${VOYAGE_ID}::BRSSZ', 'deleted', 'true', 'false', '${OPERATOR_ID}', '${EDGE_DAY} 09:04-03');
+      SET session_replication_role = origin;
+    `)
+    const result = asUser(ADMIN_ID, `SELECT action, coalesce(entity_label, '-'), coalesce(value_labels::text, '-')
+      FROM public.admin_action_history(p_date_from => '${EDGE_DAY}', p_date_to => '${EDGE_DAY}')`)
+    expect(result.error).toBe('')
+    expect(result.output.split('\n')).toEqual([
+      // `deleted` false é a restauração da escala, não exclusão.
+      'alterou|Santos 558 / V558 · BRSSZ|-',
+      'alterou|-|-',
+      'criou|Registro avulso|-',
+      'excluiu|-|-',
+      'alterou|CLIENTE 558 LTDA|-',
+    ])
+  })
+
+  it('o total da busca para em 10.001 (a tela diz "mais de 10.000")', () => {
+    psql(`
+      SET session_replication_role = replica;
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value, changed_at)
+      SELECT 'app_settings', '1', 'teste_volume', g::text, '${VOLUME_DAY} 12:00-03'::timestamptz + g * interval '1 second'
+      FROM generate_series(1, 10050) g;
+      SET session_replication_role = origin;
+    `)
+    const result = asUser(ADMIN_ID, `SELECT DISTINCT total_count FROM public.admin_action_history(p_date_from => '${VOLUME_DAY}', p_date_to => '${VOLUME_DAY}', p_limit => 5)`)
+    expect(result.error).toBe('')
+    expect(result.output).toBe('10001')
   })
 })

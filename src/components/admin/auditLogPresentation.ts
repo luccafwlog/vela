@@ -242,6 +242,16 @@ function nounOf(entityType: string): Noun {
   return NOUN_BY_ENTITY[entityType] ?? { noun: subject?.label ?? 'Registro', feminine: false }
 }
 
+/** Rótulos femininos e plurais de campo, para a frase "<campo> alterada(s)". */
+const FEMININE_FIELD_LABELS = new Set(['Viagem', 'Fatura', 'Tabela', 'Situação', 'Moeda', 'Cobrança', 'Descrição', 'Senha', 'Justificativa', 'Observação do tratamento', 'Vigência desde', 'Vigência até'])
+const PLURAL_FIELD_LABELS = new Set(['Observações', 'Notas da disputa'])
+
+/** "Navio alterado", "Viagem alterada", "Observações alteradas". */
+function fieldChanged(label: string): string {
+  if (PLURAL_FIELD_LABELS.has(label)) return `${label} alteradas`
+  return `${label} ${FEMININE_FIELD_LABELS.has(label) ? 'alterada' : 'alterado'}`
+}
+
 function participle(noun: Noun, masculine: string) {
   return `${noun.noun} ${noun.feminine ? `${masculine.slice(0, -1)}a` : masculine}`
 }
@@ -386,8 +396,10 @@ export function describeAuditLog(row: AuditLogLike): string {
   if (row.entity_type === 'charge_calculation' && field === 'manual_update') return describeManualChargeUpdate(row.old_value, row.new_value)
   const label = auditFieldLabel(row.entity_type, row.field_name)
   if (!label) return participle(noun, 'alterado')
-  if (isReferenceField(row.field_name) && !row.new_label) return `${label} alterado`
+  if (isReferenceField(row.field_name) && !row.new_label) return fieldChanged(label)
+  // O cadastro apontado já foi apagado: "Cliente: cadastro excluído", não "Cliente: Cliente excluído".
+  if (row.new_label && /\bexcluíd[oa]$/.test(row.new_label)) return `${label}: cadastro excluído`
   const value = displayAuditValue(row.field_name, row.new_value, row.entity_type, row.new_label)
-  if (parseJsonObject(row.new_value) || value.length > 60) return `${label} alterado`
+  if (parseJsonObject(row.new_value) || value.length > 60) return fieldChanged(label)
   return `${label}: ${value}`
 }

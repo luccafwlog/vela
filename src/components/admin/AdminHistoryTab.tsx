@@ -64,6 +64,7 @@ export function AdminHistoryTab() {
   const people = [...(usersQuery.data ?? [])].sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt-BR'))
   const rows = query.data?.rows ?? []
   const total = query.data?.count ?? 0
+  const capped = query.data?.capped ?? false
   const hasFilters = Boolean(filters.subject || filters.changedBy || filters.action || filters.dateFrom || filters.dateTo)
   const update = (patch: Partial<HistoryFilters>) => setFilters((current) => ({ ...current, ...patch, page: 0 }))
 
@@ -101,7 +102,7 @@ export function AdminHistoryTab() {
         ) : null}
       </div>
 
-      <Block title="Histórico de ações" aside={query.data ? `${total} ${total === 1 ? 'registro' : 'registros'}` : null} flush>
+      <Block title="Histórico de ações" aside={query.data ? (capped ? 'Mais de 10.000 registros' : `${total} ${total === 1 ? 'registro' : 'registros'}`) : null} flush>
         <QueryStateGate
           isLoading={query.isLoading}
           isError={Boolean(query.error)}
@@ -110,7 +111,13 @@ export function AdminHistoryTab() {
           onRetry={() => void query.refetch?.()}
           loadingLabel="Carregando o histórico…"
         >
-          {rows.length === 0 ? (
+          {rows.length === 0 && filters.page > 0 ? (
+            // A página passou do fim (linhas apagadas pela retenção enquanto a tela estava aberta).
+            <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-[var(--app-muted)]">
+              <p>Esta página não tem mais ações.</p>
+              <Button variant="secondary" onClick={() => setFilters((current) => ({ ...current, page: 0 }))}>Voltar à primeira página</Button>
+            </div>
+          ) : rows.length === 0 ? (
             <p className="px-4 py-8 text-center text-[var(--app-muted)]">
               {hasFilters ? 'Nenhuma ação com estes filtros.' : 'Nenhuma ação registrada.'}
             </p>

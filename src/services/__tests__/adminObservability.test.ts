@@ -133,6 +133,9 @@ it('Histórico de ações com nomes: filtros vão para a RPC e o total vem da bu
     p_offset: 100,
   })
   expect(count).toBe(120)
+  rpcMock.mockResolvedValueOnce({ data: [{ id: 1, total_count: 10001 }], error: null })
+  await expect(fetchActionHistory({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '', page: 0 }))
+    .resolves.toMatchObject({ count: 10_000, capped: true })
   expect(rows[0]).not.toHaveProperty('total_count')
   expect(rows[0]).toMatchObject({ entity_label: 'Santos / V12', old_label: 'Rio de Janeiro', new_label: 'Santos' })
 })

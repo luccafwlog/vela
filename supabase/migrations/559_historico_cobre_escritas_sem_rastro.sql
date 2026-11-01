@@ -17,17 +17,21 @@
 --      `vazios_export_operations` e `vazios_export_service_lines` registram a
 --      criação.
 --   4. ADR de Saída: o fechamento (aberto → fechado) e a troca de terminal
---      gravam linha `agency_departure_report` (chave `viagem::PORTO`, a mesma
---      da reabertura), com o autor da sessão. A reabertura já gravava (509).
+--      gravam linha `agency_departure_report` com o id do ADR (a mesma chave
+--      da reabertura pela tela, `*_by_report_id`; uma escala pode ter um ADR
+--      por terminal), com o autor da sessão. A reabertura já gravava (509).
 --   5. Pix: "Marcar como tratado" (`itau_pix_receipts`, motivo em
---      `handled_note`) e as exceções de Pix (`pix_reconciliation_exceptions`:
---      criada, vinculada, resolvida) entram no Histórico.
+--      `handled_note`; a volta à análise pelo cancelamento da baixa, motivo em
+--      `reason`) e as exceções de Pix (`pix_reconciliation_exceptions`:
+--      criada, vinculada, resolvida) entram no Histórico. A reimportação do
+--      extrato, que só renova `updated_at` da exceção, não grava linha.
 --
 -- Rollback: reaplicar `audit_row_changes` da 404; recriar os gatilhos de
 -- `customer_billing_portal_releases`, `vazios_export_operations` e
 -- `vazios_export_service_lines` como AFTER DELETE OR UPDATE; DROP TRIGGER
 -- `audit_agency_departure_report_changes`, `audit_itau_pix_receipts_handled`,
--- `audit_pix_reconciliation_exceptions` e DROP FUNCTION
+-- `audit_pix_reconciliation_exceptions`, `audit_pix_reconciliation_exceptions_write`
+-- e DROP FUNCTION
 -- `public.audit_agency_departure_report_changes()`.
 
 -- 1 -------------------------------------------------------------------------
@@ -58,8 +62,12 @@ DECLARE
   v_reason_key text;
 BEGIN
   IF v_context IS NULL AND TG_OP IN ('INSERT', 'UPDATE') THEN
+    -- No Pix recebido, `reason` é o motivo de quem cancelou a baixa e o
+    -- devolveu à análise (reverse_*_payment); nas outras tabelas `reason` é
+    -- classificação do sistema e não entra.
     FOREACH v_reason_key IN ARRAY ARRAY['justification', 'revoke_reason', 'cancel_reason', 'deactivation_reason',
-                                         'handled_note', 'revert_justification', 'discount_justification'] LOOP
+                                         'handled_note', 'revert_justification', 'discount_justification']
+                                  || CASE WHEN TG_TABLE_NAME = 'itau_pix_receipts' THEN ARRAY['reason'] ELSE ARRAY[]::text[] END LOOP
       IF NULLIF(btrim(v_new ->> v_reason_key), '') IS NOT NULL
          AND (TG_OP = 'INSERT' OR v_old ->> v_reason_key IS DISTINCT FROM v_new ->> v_reason_key) THEN
         v_row_reason := btrim(v_new ->> v_reason_key);
@@ -131,7 +139,10 @@ CREATE OR REPLACE FUNCTION public.audit_agency_departure_report_changes()
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
-  v_key text := NEW.voyage_id::text || '::' || upper(btrim(NEW.port));
+  -- A chave é o próprio ADR, como grava a reabertura pela tela
+  -- (`reopen_agency_departure_report_by_report_id`): uma escala pode ter um
+  -- ADR por terminal, e fechamento e reabertura ficam no mesmo registro.
+  v_key text := NEW.id::text;
 BEGIN
   -- A reabertura (fechado → aberto) já grava a linha com a justificativa.
   IF OLD.status IS DISTINCT FROM NEW.status AND NEW.status = 'closed' THEN
@@ -158,10 +169,17 @@ CREATE TRIGGER audit_agency_departure_report_changes
 -- 5 -------------------------------------------------------------------------
 DROP TRIGGER IF EXISTS audit_itau_pix_receipts_handled ON public.itau_pix_receipts;
 CREATE TRIGGER audit_itau_pix_receipts_handled
-  AFTER UPDATE OF handled_at, handled_note ON public.itau_pix_receipts
+  AFTER UPDATE OF handled_at, handled_note, handled_by ON public.itau_pix_receipts
   FOR EACH ROW EXECUTE FUNCTION public.audit_row_changes('end_to_end_id');
 
 DROP TRIGGER IF EXISTS audit_pix_reconciliation_exceptions ON public.pix_reconciliation_exceptions;
-CREATE TRIGGER audit_pix_reconciliation_exceptions
-  AFTER INSERT OR UPDATE OR DELETE ON public.pix_reconciliation_exceptions
+DROP TRIGGER IF EXISTS audit_pix_reconciliation_exceptions_write ON public.pix_reconciliation_exceptions;
+CREATE TRIGGER audit_pix_reconciliation_exceptions_write
+  AFTER INSERT OR DELETE ON public.pix_reconciliation_exceptions
   FOR EACH ROW EXECUTE FUNCTION public.audit_row_changes('id');
+-- A reimportação do extrato renova só `updated_at`: não é ação de ninguém.
+CREATE TRIGGER audit_pix_reconciliation_exceptions
+  AFTER UPDATE ON public.pix_reconciliation_exceptions
+  FOR EACH ROW
+  WHEN ((to_jsonb(OLD) - 'updated_at') IS DISTINCT FROM (to_jsonb(NEW) - 'updated_at'))
+  EXECUTE FUNCTION public.audit_row_changes('id');

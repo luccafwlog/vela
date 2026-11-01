@@ -1,4 +1,4 @@
-import { execPsql } from './localPsql'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
@@ -13,15 +13,25 @@ const CARRIER_ID = 99559001
 const VESSEL_ID = 99559002
 const VOYAGE_ID = 99559003
 const CUSTOMER_ID = 99559011
-const RELEASE_ID = 99559021
 const REPORT_ID = '55955900-0000-4000-8000-0000000000a1'
 const E2E = 'E559TESTEPIXTRATADO'
 const PORT = 'BRZ59'
+const TERMINAL_ID = '55955900-0000-4000-8000-0000000000d1'
+const EXCEPTION_ID = 99559031
+const PORT_ID = 99559041
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-F', '|', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   }).trim()
+}
+
+/** Chama a função como a tela: papel `authenticated`, sessão do usuário. */
+function asUser(sql: string): { output: string; error: string } {
+  const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${USER_ID}';
+     SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`], { encoding: 'utf8' })
+  return { output: (result.stdout ?? '').trim(), error: (result.stderr ?? '').trim() }
 }
 
 /** Executa como a sessão do usuário (o autor do Histórico vem de `auth.uid()`). */
@@ -39,10 +49,15 @@ function cleanup() {
   psql(`
     SET session_replication_role = replica;
     DELETE FROM public.audit_logs WHERE changed_by = '${USER_ID}'
-      OR entity_id IN ('${RELEASE_ID}', '${VOYAGE_ID}::${PORT}', '${E2E}');
+      OR entity_id IN ('${REPORT_ID}', '${E2E}', '${EXCEPTION_ID}')
+      OR (entity_type = 'customer_billing_portal_releases' AND entity_id IN (SELECT id::text FROM public.customer_billing_portal_releases WHERE customer_id = ${CUSTOMER_ID}))
+      OR (entity_type = 'customer' AND entity_id = '${CUSTOMER_ID}');
+    DELETE FROM public.pix_reconciliation_exceptions WHERE id = ${EXCEPTION_ID};
     DELETE FROM public.itau_pix_receipts WHERE end_to_end_id = '${E2E}';
     DELETE FROM public.agency_departure_reports WHERE id = '${REPORT_ID}';
-    DELETE FROM public.customer_billing_portal_releases WHERE id = ${RELEASE_ID};
+    DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${CUSTOMER_ID};
+    DELETE FROM public.depots WHERE id = '${TERMINAL_ID}';
+    DELETE FROM public.ports WHERE id = ${PORT_ID};
     DELETE FROM public.customers WHERE id = ${CUSTOMER_ID};
     DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
@@ -75,7 +90,10 @@ describeLocal('559 — escritas sem rastro passam a ter Histórico', () => {
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio 559', ${CARRIER_ID});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'V559', 'active');
       INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${CUSTOMER_ID}, 'CLIENTE 559 LTDA', '${syntheticCnpj(559011)}');
-      INSERT INTO public.agency_departure_reports (id, voyage_id, port, status) VALUES ('${REPORT_ID}', ${VOYAGE_ID}, '${PORT}', 'open');
+      INSERT INTO public.ports (id, name, locode, country) VALUES (${PORT_ID}, 'Porto 559', '${PORT}', 'BR');
+      INSERT INTO public.depots (id, code, name, active) VALUES ('${TERMINAL_ID}', 'T559', 'Terminal 559', true);
+      INSERT INTO public.agency_departure_reports (id, voyage_id, port, status, terminal_id, terminal_port_id)
+        VALUES ('${REPORT_ID}', ${VOYAGE_ID}, '${PORT}', 'open', '${TERMINAL_ID}', ${PORT_ID});
       INSERT INTO public.itau_pix_receipts (end_to_end_id, txid, amount_brl, paid_at, status)
         VALUES ('${E2E}', 'TX559', 150.25, '2031-05-08 10:00-03', 'review');
       SET session_replication_role = origin;
@@ -83,28 +101,41 @@ describeLocal('559 — escritas sem rastro passam a ter Histórico', () => {
   })
   afterAll(cleanup)
 
-  it('liberar faturamento no Portal grava a criação com a justificativa; editar depois não herda o motivo', () => {
-    asSession(`INSERT INTO public.customer_billing_portal_releases (id, customer_id, justification, granted_by, review_at)
-      OVERRIDING SYSTEM VALUE VALUES (${RELEASE_ID}, ${CUSTOMER_ID}, 'Cliente com garantia bancária', '${USER_ID}', now() + interval '30 days')`)
-    asSession(`UPDATE public.customer_billing_portal_releases SET review_at = review_at + interval '1 day' WHERE id = ${RELEASE_ID}`)
-    const rows = trail('customer_billing_portal_releases', String(RELEASE_ID))
-    expect(rows[0]).toMatch(new RegExp(`^criado\\|-\\|\\{.*\\|${USER_ID}\\|Cliente com garantia bancária$`))
-    expect(rows[1]).toMatch(new RegExp(`^review_at\\|.*\\|${USER_ID}\\|-$`))
-    // A revogação: o motivo gravado na coluna vira a justificativa.
-    asSession(`UPDATE public.customer_billing_portal_releases SET revoked_at = now(), revoked_by = '${USER_ID}', revoke_reason = 'Garantia vencida' WHERE id = ${RELEASE_ID}`)
-    expect(trail('customer_billing_portal_releases', String(RELEASE_ID)).filter((row) => row.startsWith('revoke_reason|')))
+  it('liberar faturamento no Portal (função da tela) grava a criação com a justificativa; revogar grava o motivo', () => {
+    const grant = asUser(`SELECT public.grant_customer_billing_portal_release(${CUSTOMER_ID}, 'Cliente com garantia bancária', now() + interval '10 days')`)
+    expect(grant.error).toBe('')
+    const releaseId = psql(`SELECT id FROM public.customer_billing_portal_releases WHERE customer_id = ${CUSTOMER_ID}`)
+    const created = trail('customer_billing_portal_releases', releaseId)
+    expect(created[0]).toMatch(new RegExp(`^criado\\|-\\|\\{.*\\|${USER_ID}\\|Cliente com garantia bancária$`))
+    // Editar a data de revisão depois não herda o motivo antigo.
+    asSession(`UPDATE public.customer_billing_portal_releases SET review_at = review_at + interval '1 day' WHERE id = ${releaseId}`)
+    expect(trail('customer_billing_portal_releases', releaseId).find((row) => row.startsWith('review_at|'))).toMatch(new RegExp(`\\|${USER_ID}\\|-$`))
+    const revoke = asUser(`SELECT public.revoke_customer_billing_portal_release(${CUSTOMER_ID}, 'Garantia vencida')`)
+    expect(revoke.error).toBe('')
+    expect(trail('customer_billing_portal_releases', releaseId).filter((row) => row.startsWith('revoke_reason|')))
       .toEqual([`revoke_reason|-|Garantia vencida|${USER_ID}|Garantia vencida`])
   })
 
-  it('fechar o ADR de Saída grava a linha do fechamento, na chave da reabertura', () => {
-    psql(`SET session_replication_role = replica; UPDATE public.agency_departure_reports SET status = 'open' WHERE id = '${REPORT_ID}'; SET session_replication_role = origin;`)
-    asSession(`SET LOCAL session_replication_role = origin; UPDATE public.agency_departure_reports SET status = 'closed', closed_at = now(), closed_by = '${USER_ID}' WHERE id = '${REPORT_ID}'`)
-    expect(trail('agency_departure_report', `${VOYAGE_ID}::${PORT}`)).toEqual([`status|open|closed|${USER_ID}|-`])
+  it('fechar o ADR por terminal grava a linha na chave do próprio ADR, a mesma da reabertura pela tela', () => {
+    asSession(`UPDATE public.agency_departure_reports SET status = 'closed', closed_at = now(), closed_by = '${USER_ID}' WHERE id = '${REPORT_ID}'`)
+    expect(trail('agency_departure_report', REPORT_ID)).toEqual([`status|open|closed|${USER_ID}|-`])
+    expect(psql(`SELECT public._audit_entity_label('agency_departure_report', '${REPORT_ID}')`)).toBe(`Navio 559 / V559 · ${PORT} · Terminal 559`)
   })
 
-  it('marcar o Pix como tratado grava o motivo escrito', () => {
-    asSession(`UPDATE public.itau_pix_receipts SET handled_at = now(), handled_by = '${USER_ID}', handled_note = 'Pix de outro banco, devolvido', status = 'handled' WHERE end_to_end_id = '${E2E}'`)
+  it('marcar o Pix como tratado (função da tela) grava o motivo escrito', () => {
+    asSession(`SELECT public._itau_pix_close_receipt('${E2E}', 'Pix de outro banco, devolvido', '${USER_ID}')`)
     const rows = trail('itau_pix_receipts', E2E)
     expect(rows.find((row) => row.startsWith('handled_note|'))).toBe(`handled_note|-|Pix de outro banco, devolvido|${USER_ID}|Pix de outro banco, devolvido`)
+  })
+
+  it('exceção de Pix: criação e resolução gravam; a reimportação que só renova updated_at não', () => {
+    psql(`INSERT INTO public.pix_reconciliation_exceptions (id, import_key, line_number, amount_brl, reason)
+      VALUES (${EXCEPTION_ID}, 'importacao-559', 1, 80, 'unmatched')`)
+    psql(`UPDATE public.pix_reconciliation_exceptions SET updated_at = now() + interval '1 minute' WHERE id = ${EXCEPTION_ID}`)
+    asSession(`UPDATE public.pix_reconciliation_exceptions SET status = 'resolved', resolved_at = now(), resolved_by = '${USER_ID}' WHERE id = ${EXCEPTION_ID}`)
+    const fields = trail('pix_reconciliation_exceptions', String(EXCEPTION_ID)).map((row) => row.split('|')[0])
+    expect(fields).toContain('criado')
+    expect(fields).toContain('status')
+    expect(fields.filter((field) => field === 'updated_at')).toHaveLength(0)
   })
 })
