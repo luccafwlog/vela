@@ -330,7 +330,7 @@ function ContainerNatureTable({ rows }: { rows: Record<string, Record<string, nu
 
   return (
     <div className="app-table-scroll">
-      <table className="app-table app-table--compact app-table--nested" aria-label="Contêineres por tipo e natureza">
+      <table className="app-table app-table--compact app-table--nested" aria-label="Containers por tipo e natureza">
         <thead><tr><th scope="col">Tipo</th>{natureKeys.map((key) => <th key={key} scope="col">{labels[key]}</th>)}<th scope="col">Total</th></tr></thead>
         <tbody>
           {types.map((type) => {
@@ -800,7 +800,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   })
   const formatTon = (value: number) => value.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
   const vehicleContainerTotal = vehicleBreakdown.containersByType.reduce((total, item) => total + item.count, 0)
-  const vehicleLead = `${vehicleVinTotal} ${vehicleVinTotal === 1 ? 'veículo' : 'veículos'} em ${vehicleContainerTotal} ${vehicleContainerTotal === 1 ? 'contêiner' : 'contêineres'}${vehicleBreakdown.containersByType.length === 1 ? ` ${vehicleBreakdown.containersByType[0].label}` : ''}`
+  const vehicleLead = `${vehicleVinTotal} ${vehicleVinTotal === 1 ? 'veículo' : 'veículos'} em ${vehicleContainerTotal} ${vehicleContainerTotal === 1 ? 'container' : 'containers'}${vehicleBreakdown.containersByType.length === 1 ? ` ${vehicleBreakdown.containersByType[0].label}` : ''}`
   const hasVehicleTransshipment = vehicles.some((vehicle) => vehicle.transshipmentVinCount)
   const emptyEmbarkLocals = emptyEmbarkLocalTotals.map((entry) => entry.localLabel)
   const terminalLabel = resolvedReportId
@@ -918,7 +918,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                       `${dischargeDestination.transbordo} em transbordo`,
                       dischargeMatrix.unknownTypeCount ? `${dischargeMatrix.unknownTypeCount} de tipo não reconhecido` : null,
                     ].filter(Boolean).join(' · ')}>
-                      {containers.length} {containers.length === 1 ? 'contêiner' : 'contêineres'} · {dischargeMatrix.teu} TEU
+                      {containers.length} {containers.length === 1 ? 'container' : 'containers'} · {dischargeMatrix.teu} TEU
                     </LeadValue>
                     <ContainerNatureTable rows={dischargeMatrix.rows} />
                   </div> : null}
@@ -978,7 +978,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                     </table>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <CountTable label="Contêineres por tipo" head="Tipo" rows={vehicleBreakdown.containersByType.map((item) => [item.label, item.count])} />
+                    <CountTable label="Containers por tipo" head="Tipo" rows={vehicleBreakdown.containersByType.map((item) => [item.label, item.count])} />
                     <CountTable label="Veículos por modelo" head="Modelo" rows={vehicleBreakdown.vehiclesByModel.map((item) => [item.label, item.count])} />
                   </div>
                 </div> : <NadaOperado />}

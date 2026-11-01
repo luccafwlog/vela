@@ -47,7 +47,7 @@ Manifesto Mercante é regra de
   (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar documentos
   na agência; não é requisito nem entra no pedido. Cartões que filtram ("Podem ser pedidos", "Com
   taxas locais em aberto", "Já em solicitação") e tabela limpa: B/L, CE Mercante, Navio / Viagem, POD,
-  Taxas locais ("✓ Pagas", "Em aberto" em âmbar com "Ver faturas", "Aguardando fatura" sem valor,
+  Taxas locais ("✓ Pagas", "Em aberto" em âmbar com "Ver faturas em aberto", que abre Faturas filtrada no B/L e no status Emitida (`?tab=local&status=issued&bl=`, desde 2026-11-01), "Aguardando fatura" sem valor,
   "Isentas") e Solicitação (protocolo e situação). A faixa "Pedir desbloqueio de N B/Ls" cria o
   rascunho sem confirmação, pois o cliente pode cancelá-lo; com B/L de outra solicitação ainda não
   validada, antes mostra a confirmação "Mudar N B/Ls e continuar" (B/L, Sai de, O que acontece com a

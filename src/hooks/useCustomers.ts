@@ -15,6 +15,8 @@ export type CustomerFilters = {
   emailStatus: '' | 'with' | 'without'
   blStatus: '' | 'with' | 'without'
   pendingStatus: '' | 'with' | 'without'
+  /** B/L com Taxas Locais a revisar (cartão "Taxas a revisar", 2026-11-01). */
+  chargeStatus: '' | 'with' | 'without'
   sortKey: CustomerSortKey
   sortDirection: SortDirection
   page: number
@@ -38,10 +40,14 @@ export function summarizeCustomerRows(rows: CustomerListItem[]): CustomerSummary
     totalCustomers: rows.length,
     pendingBalance: rows.reduce((sum, row) => sum + Number(row.pending_balance ?? 0), 0),
     totalBls: bls.length,
-    chargePending: bls.filter((bl) => bl.charge_status === 'review_required' || bl.charge_status === 'not_calculated').length,
+    chargePending: bls.filter(blChargeNeedsReview).length,
     chargeReady: bls.filter((bl) => bl.charge_status === 'ready_for_billing').length,
     customersWithoutEmail: rows.filter((row) => !customerHasEmail(row)).length,
   }
+}
+
+function blChargeNeedsReview(bl: { charge_status?: string | null }) {
+  return bl.charge_status === 'review_required' || bl.charge_status === 'not_calculated'
 }
 
 function customerHasEmail(row: CustomerListItem) {
@@ -57,6 +63,7 @@ export function filterCustomerRowsByClientSideFilters(rows: CustomerListItem[], 
     const hasEmails = customerHasEmail(row)
     const hasBls = (row.bls?.length ?? 0) > 0
     const hasPendingBalance = Number(row.pending_balance ?? 0) > 0
+    const hasChargeReview = (row.bls ?? []).some(blChargeNeedsReview)
 
     if (contactEmail) {
       const matchesContactEmail = (row.customer_contacts ?? []).some((contact) =>
@@ -70,6 +77,8 @@ export function filterCustomerRowsByClientSideFilters(rows: CustomerListItem[], 
     if (filters.blStatus === 'without' && hasBls) return false
     if (filters.pendingStatus === 'with' && !hasPendingBalance) return false
     if (filters.pendingStatus === 'without' && hasPendingBalance) return false
+    if (filters.chargeStatus === 'with' && !hasChargeReview) return false
+    if (filters.chargeStatus === 'without' && hasChargeReview) return false
     return true
   })
 }
@@ -88,6 +97,7 @@ export function customerSummaryFilters(filters: CustomerFilters): CustomerFilter
     emailStatus: filters.emailStatus,
     blStatus: filters.blStatus,
     pendingStatus: filters.pendingStatus,
+    chargeStatus: filters.chargeStatus,
     sortKey: 'name',
     sortDirection: 'asc',
     page: 0,
@@ -127,6 +137,7 @@ export async function fetchCustomerRows(filters: CustomerFilters, paginate: bool
     Boolean(filters.emailStatus) ||
     filters.blStatus === 'without' ||
     Boolean(filters.pendingStatus) ||
+    Boolean(filters.chargeStatus) ||
     needsClientSideSort
 
   const blsJoin =

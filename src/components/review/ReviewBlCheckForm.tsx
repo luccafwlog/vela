@@ -104,8 +104,8 @@ export function ReviewBlCheckForm({
         <Field label="POD"><Input value={pod} onChange={(event) => setPod(event.target.value)} /></Field>
         {showContainer ? (
           <>
-            <Field label="Peso contêiner (kg)" error={weightField.error ?? undefined}><Input inputMode="decimal" value={weightKg} onChange={(event) => setWeightKg(event.target.value)} /></Field>
-            <Field label="CBM contêiner (m³)" error={cbmField.error ?? undefined}><Input inputMode="decimal" value={cbm} onChange={(event) => setCbm(event.target.value)} /></Field>
+            <Field label="Peso container (kg)" error={weightField.error ?? undefined}><Input inputMode="decimal" value={weightKg} onChange={(event) => setWeightKg(event.target.value)} /></Field>
+            <Field label="CBM container (m³)" error={cbmField.error ?? undefined}><Input inputMode="decimal" value={cbm} onChange={(event) => setCbm(event.target.value)} /></Field>
           </>
         ) : null}
         {showBreakbulk ? (

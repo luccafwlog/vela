@@ -14,9 +14,9 @@ export type VoyageVehicleStat = VoyageVehicleStatSlice & {
   unassigned?: VoyageVehicleStatSlice
 }
 
-/** [viagem, POD, marca, tipo do contêiner, veículos], valores como gravados. */
+/** [viagem, POD, marca, tipo do container, veículos], valores como gravados. */
 export type VoyageVehicleGroup = [number, string | null, string | null, string | null, number]
-/** [viagem, POD, número do contêiner], distintos, valores como gravados. */
+/** [viagem, POD, número do container], distintos, valores como gravados. */
 export type VoyageVehicleContainer = [number, string | null, string]
 
 type Accumulator = {

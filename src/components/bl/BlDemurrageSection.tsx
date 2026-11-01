@@ -379,11 +379,11 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
           {leadParts ? (
             <LeadValue tone="warning" detail={`${detailParts.join(' · ')} de ${chargeable.length} · ${invoicesText}`}>{leadParts}</LeadValue>
           ) : notCalculated.length ? (
-            <LeadValue tone="warning" detail={invoicesText}>{`Demurrage não calculada para ${notCalculated.length} de ${chargeable.length} contêiner${chargeable.length > 1 ? 'es' : ''}`}</LeadValue>
+            <LeadValue tone="warning" detail={invoicesText}>{`Demurrage não calculada para ${notCalculated.length} de ${chargeable.length} ${chargeable.length > 1 ? 'containers' : 'container'}`}</LeadValue>
           ) : billed.length ? (
             <LeadValue detail={`${billed.length} de ${chargeable.length} cobrado${billed.length > 1 ? 's' : ''} · ${invoicesText}`}>{billed.length === chargeable.length ? 'Demurrage cobrada' : 'Demurrage cobrada em parte'}</LeadValue>
           ) : (
-            <LeadValue detail={invoicesText}>{chargeable.length ? `${chargeable.length} de ${chargeable.length} no free time` : 'Sem contêiner descarregado'}</LeadValue>
+            <LeadValue detail={invoicesText}>{chargeable.length ? `${chargeable.length} de ${chargeable.length} no free time` : 'Sem container descarregado'}</LeadValue>
           )}
           {cancelled ? (
             <p className="app-facts__detail" role="note">B/L cancelado: somente leitura. Reative para corrigir.</p>
@@ -402,10 +402,10 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         </div>
         <div className="app-table-scroll">
           <table className="app-table app-table--compact">
-            <caption className="sr-only">Demurrage por contêiner</caption>
+            <caption className="sr-only">Demurrage por container</caption>
             <thead>
               <tr>
-                <th scope="col">Contêiner</th>
+                <th scope="col">Container</th>
                 <th scope="col">Descarga</th>
                 <th scope="col">Devolução</th>
                 <th scope="col">Dias</th>
@@ -419,7 +419,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                 const over = calc?.status === 'overdue'
                 return (
                   <tr key={container.id}>
-                    <td className="app-bl-code whitespace-nowrap"><CopyValue value={container.container_number} label="número do contêiner" /></td>
+                    <td className="app-bl-code whitespace-nowrap"><CopyValue value={container.container_number} label="número do container" /></td>
                     <td className="whitespace-nowrap tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
                     <td className="whitespace-nowrap">
                       {line.soc ? <StatusText tone="muted">Não se aplica</StatusText>

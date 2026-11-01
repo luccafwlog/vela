@@ -10,7 +10,7 @@ import { paymentMethodLabel } from '../billing/invoiceDetailPresentation'
 import { formatBRL, formatDate, splitIsoDateTime, stripBlPrefix } from '../../lib/utils'
 import { invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import { invoiceSituation } from '../../lib/invoiceSituation'
-import { formatPortalPaymentDate } from '../../lib/portalInvoiceStatus'
+import { formatPortalPaymentDate, localInvoiceShowsPix } from '../../lib/portalInvoiceStatus'
 import { invoiceTypeLabel } from '../../services/billing'
 import type { PortalInvoiceDetail } from '../../services/portalBilling'
 import { PortalPaymentBlock } from './PortalPixPaymentBlock'
@@ -53,7 +53,7 @@ const countLabel = (count: number, singular: string, plural: string) => `${count
  * pagar" em âmbar com o Pix ao lado; "Paga", "Coberta" ou "Cancelada" nos
  * demais estados. Na fatura de um B/L, o B/L, o navio e o trecho são dados do
  * Pagamento; na consolidada, a tabela B/Ls e a coluna B/L nos itens e nos
- * contêineres. Pagamentos recebidos aparecem quando há pagamento.
+ * containers. Pagamentos recebidos aparecem quando há pagamento.
  */
 export function PortalInvoiceDetailModal({
   open,
@@ -76,7 +76,7 @@ export function PortalInvoiceDetailModal({
   const containers = detail?.containers ?? []
   const payments = [...(detail?.payments ?? [])].sort((a, b) => String(a.paid_at ?? '').localeCompare(String(b.paid_at ?? '')))
   const isConsolidated = invoice?.invoice_type === 'consolidated'
-  // A coluna B/L dos itens e dos contêineres e a tabela B/Ls só na fatura de mais de um B/L.
+  // A coluna B/L dos itens e dos containers e a tabela B/Ls só na fatura de mais de um B/L.
   const multipleBls = isConsolidated || bls.length > 1
   const cancelled = CANCELLED.includes(invoice?.status ?? '')
   const readOnly = isPortalReadOnly(usePortalScope())
@@ -210,12 +210,12 @@ export function PortalInvoiceDetailModal({
             ) : null}
 
             {containers.length > 0 ? (
-              <DetailSection title="Contêineres" aside={containers.length}>
+              <DetailSection title="Containers" aside={containers.length}>
                 <table className="app-table app-table--compact text-sm">
-                  <caption className="sr-only">Contêineres da fatura</caption>
+                  <caption className="sr-only">Containers da fatura</caption>
                   <thead>
                     <tr>
-                      <th scope="col">Contêiner</th>
+                      <th scope="col">Container</th>
                       <th scope="col">Tipo</th>
                       {multipleBls ? <th scope="col">B/L</th> : null}
                       <th scope="col">Lacre</th>
@@ -225,7 +225,7 @@ export function PortalInvoiceDetailModal({
                   <tbody>
                     {containers.map((cont) => (
                       <tr key={cont.id}>
-                        <td><CopyValue value={cont.container_number} label="número do contêiner" /></td>
+                        <td><CopyValue value={cont.container_number} label="número do container" /></td>
                         <td>{cont.type ?? <NoValue label="Sem tipo" />}</td>
                         {multipleBls ? <td className="whitespace-nowrap">{cont.bl_id ?? <NoValue label="Sem B/L" />}</td> : null}
                         <td>{cont.seal_number ?? <NoValue label="Sem lacre" />}</td>
@@ -265,7 +265,7 @@ function PaymentSummary({ invoice, bls, multipleBls, payments, coveringPayments,
   const voyage = voyageOf(invoice.vessel_name, invoice.voyage_number)
     || Array.from(new Set(bls.map((row) => voyageOf(row.vessel_name, row.voyage_number)).filter(Boolean))).join(', ')
   // O código Pix guardado continua na fatura depois do pagamento: só aparece enquanto ela pede pagamento.
-  const showPix = payable && Boolean(invoice.pix_payload || Number(invoice.balance_brl ?? invoice.total_brl) > 0)
+  const showPix = localInvoiceShowsPix(invoice)
 
   const issued = invoice.issued_at ? `emitida em ${formatDate(invoice.issued_at)}` : null
   const situation = [

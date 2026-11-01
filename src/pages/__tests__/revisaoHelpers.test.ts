@@ -47,7 +47,7 @@ describe('rótulos da fila de revisão', () => {
   })
 
   it('exibe a modalidade operacional do B/L', () => {
-    expect(getReviewCargoTypeLabel(item({ source: 'bl', cargo_mode: 'container' }))).toBe('Contêiner')
+    expect(getReviewCargoTypeLabel(item({ source: 'bl', cargo_mode: 'container' }))).toBe('Container')
     expect(getReviewCargoTypeLabel(item({ source: 'bl', cargo_mode: 'carga_solta' }))).toBe('Carga solta')
   })
 })

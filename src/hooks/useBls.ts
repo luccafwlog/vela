@@ -274,7 +274,7 @@ export function useVoyageOptions() {
 }
 
 // POL, POD e tipos vêm juntos de uma RPC: antes os selects baixavam todos os
-// B/Ls e contêineres em páginas de 1.000, uma após a outra (13 + 29 com 12 mil
+// B/Ls e containers em páginas de 1.000, uma após a outra (13 + 29 com 12 mil
 // B/Ls). Os dois hooks leem a mesma entrada do cache.
 function useOperationalFilterOptions<T>(select: (options: OperationalFilterOptions) => T) {
   return useQuery({
@@ -361,7 +361,7 @@ function applyContainerFilters(
       row.bl?.voyage?.vessel?.carrier?.name,
     ]
 
-    // Lista colada (ponto 9): basta um termo casar o contêiner ou o B/L, como
+    // Lista colada (ponto 9): basta um termo casar o container ou o B/L, como
     // na busca da tela (migration 453).
     return values.some((value) => normalizeText(String(value ?? '')).includes(searchTerm))
       || matchesAnyToken(searchTerm, [row.container_number, row.bl?.id])

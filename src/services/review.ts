@@ -7,7 +7,7 @@ import type { BL, Json } from '../types/database'
  * Peso e cubagem vêm em PARES por modalidade, e não num campo "total" só:
  * desde as migrations 061 e 064, `total_weight_kg`/`total_cbm` medem
  * exclusivamente a carga conteinerizada e `bb_weight_ton`/`bb_cbm` a carga
- * solta. Enquanto a fila só oferecia o par de contêiner, um B/L de carga solta
+ * solta. Enquanto a fila só oferecia o par de container, um B/L de carga solta
  * aparecia aqui com os dois campos VAZIOS (as colunas dele são as outras), e
  * quem preenchesse criava uma segunda cubagem — `blTotalCbm()` somava as duas.
  * Qual par a tela mostra é decidido pela modalidade, em ReviewBlCheckForm.

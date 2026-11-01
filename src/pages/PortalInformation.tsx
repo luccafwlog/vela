@@ -51,8 +51,8 @@ export function PortalInformation() {
   ) : null
 
   return <>
-    <PageHeader title="Central de Informações" description="Consulte informações de importação, devolução e atendimento." />
-    {section && !current ? <EmptyState title="Seção não encontrada" action={<Link to={path()} className="app-btn app-btn--secondary app-btn--sm">Abrir Central de Informações</Link>} /> : <>
+    <PageHeader title="Informações" description="Consulte informações de importação, devolução e atendimento." />
+    {section && !current ? <EmptyState title="Seção não encontrada" action={<Link to={path()} className="app-btn app-btn--secondary app-btn--sm">Abrir Informações</Link>} /> : <>
       {current ? (
         // As seções viram abas (rodada 2): a página de entrada com os seis
         // cartões continua para quem chega pelo menu.

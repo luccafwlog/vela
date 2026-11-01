@@ -200,8 +200,8 @@ describe('exportação da Validação (planilha única)', () => {
       ])],
     ])
     const [sheet] = buildValidacaoSheetRows([{ row, block: { label: 'Pronto para emitir', detail: 'Tudo certo.' } }], { totals, sharedContainers: new Map([['BL-1', 'CSNU1 (2 B/Ls)']]) })
-    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Contêiner compartilhado', 'Taxas alteradas à mão', 'Lacre', 'THC', 'BL Fee (US$)'])
-    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Contêiner compartilhado': 'CSNU1 (2 B/Ls)', 'Taxas alteradas à mão': '' })
+    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Container compartilhado', 'Taxas alteradas à mão', 'Lacre', 'THC', 'BL Fee (US$)'])
+    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Container compartilhado': 'CSNU1 (2 B/Ls)', 'Taxas alteradas à mão': '' })
   })
 
   it('coluna Taxas alteradas à mão com a frase da spec (ADR 0111)', async () => {
@@ -275,7 +275,7 @@ describe('planilhas de Relatórios', () => {
   })
 })
 
-// ADR 0112, D24: a planilha da aba Contêineres da ficha do Cliente diz o mesmo que a tela.
+// ADR 0112, D24: a planilha da aba Containers da ficha do Cliente diz o mesmo que a tela.
 describe('exportCustomerContainersWorkbook', () => {
   beforeEach(() => {
     jsonToSheet.mockClear()

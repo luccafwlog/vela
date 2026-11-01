@@ -64,9 +64,11 @@ export function PortalPaymentBlock({
  * continua selecionável e no `title`) e o botão de copiar.
  * pixPayload null = cobrança Itaú ainda não confirmada pelo banco.
  */
-export function PortalPixPaymentBlock({ pixPayload, note }: { pixPayload: string | null; note?: ReactNode }) {
+export function PortalPixPaymentBlock({ pixPayload, note, standalone = false }: { pixPayload: string | null; note?: ReactNode; standalone?: boolean }) {
+  // `standalone`: sozinho na janela "Pagar com Pix", sem o filete que o separa do valor no detalhe.
+  const divider = standalone ? '' : ' border-t border-[var(--app-border-soft)] pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4'
   return (
-    <div className="flex min-w-0 items-center gap-3 border-t border-[var(--app-border-soft)] pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4">
+    <div className={`flex min-w-0 items-center gap-3${divider}`}>
       {pixPayload ? <QRCodeSVG value={pixPayload} size={88} level="M" className="shrink-0" title="QR Code Pix" /> : null}
       <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] justify-items-start gap-1.5">
         <p className="text-sm font-semibold">Pague com Pix</p>

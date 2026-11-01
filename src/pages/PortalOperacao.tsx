@@ -80,7 +80,7 @@ function includesText(value: string | null | undefined, term: string) {
   return (value ?? '').toLowerCase().includes(term.trim().toLowerCase())
 }
 
-/** B/L, CE e contêiner: também aceita uma lista colada (ponto 9 de 2026-10-23). */
+/** B/L, CE e container: também aceita uma lista colada (ponto 9 de 2026-10-23). */
 function includesNumber(value: string | null | undefined, term: string) {
   return includesText(value, term) || matchesAnyToken(term, [value])
 }
@@ -165,7 +165,7 @@ export function PortalOperacao() {
   return (
     <>
       <PageHeader
-        title="BLs e Containers"
+        title="B/Ls e containers"
         description="Consulte seus B/Ls e containers: descarga, devolução, free time e dias de demurrage."
         action={
           <>
@@ -176,8 +176,8 @@ export function PortalOperacao() {
         }
       />
 
-      <TabList label="BLs e Containers" className="mb-4">
-        <TabButton id="operacao-tab-bls" controls="operacao-panel" active={tab === 'bls'} label="BLs" onClick={() => setTab('bls')} />
+      <TabList label="B/Ls e containers" className="mb-4">
+        <TabButton id="operacao-tab-bls" controls="operacao-panel" active={tab === 'bls'} label="B/Ls" onClick={() => setTab('bls')} />
         <TabButton id="operacao-tab-containers" controls="operacao-panel" active={tab === 'containers'} label="Containers" onClick={() => setTab('containers')} />
       </TabList>
 
@@ -551,7 +551,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
                 <tbody>
                   {paginated.map((c) => (
                     <tr key={`${c.bl_id}-${c.id}`}>
-                      <td className="whitespace-nowrap"><span className={`${monoClass} font-semibold`}><CopyValue value={c.container_number} label="número do contêiner" /></span></td>
+                      <td className="whitespace-nowrap"><span className={`${monoClass} font-semibold`}><CopyValue value={c.container_number} label="número do container" /></span></td>
                       <td>{c.type ?? <NoValue label="Sem tipo" />}</td>
                       <td className="whitespace-nowrap"><span className={monoClass}><CopyValue value={c.bl_id} label="número do B/L" /></span></td>
                       <td>{c.pod ?? <NoValue label="Sem POD" />}</td>
@@ -584,7 +584,7 @@ function ContainerCard({ container: c }: { container: PortalFlatContainer }) {
   return (
     <article aria-label={`Container ${c.container_number}`} className="grid gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-semibold">Container <span className={monoClass}><CopyValue value={c.container_number} label="número do contêiner" /></span></span>
+        <span className="font-semibold">Container <span className={monoClass}><CopyValue value={c.container_number} label="número do container" /></span></span>
         <Situation container={c} />
       </div>
       <FactList columns={2}>
@@ -663,7 +663,7 @@ function BlDetails({ row }: { row: PortalOperationBL }) {
             <tbody>
               {row.containers.map((container) => (
                 <tr key={container.id}>
-                  <td className="whitespace-nowrap"><span className={`${monoClass} font-semibold`}><CopyValue value={container.container_number} label="número do contêiner" /></span></td>
+                  <td className="whitespace-nowrap"><span className={`${monoClass} font-semibold`}><CopyValue value={container.container_number} label="número do container" /></span></td>
                   <td>{container.type ?? <NoValue label="Sem tipo" />}</td>
                   <ContainerDayCells container={container} />
                   <td className="whitespace-nowrap"><Situation container={container} /></td>
