@@ -60,7 +60,7 @@ export function VoyageCreateModal({
   // Porto ou data digitados sem Adicionar: o cadastro recusa em vez de criar a
   // viagem sem eles, e Voltar pede confirmação.
   const [portDrafts, setPortDrafts] = useState<Record<VoyagePortStop['kind'], boolean>>({ pol: false, pod: false })
-  const [draftErrors, setDraftErrors] = useState<Record<VoyagePortStop['kind'], string | null>>({ pol: null, pod: null })
+  const [draftRefused, setDraftRefused] = useState<Record<VoyagePortStop['kind'], boolean>>({ pol: false, pod: false })
   const [carrierOpen, setCarrierOpen] = useState(false)
   const [pristine, setPristine] = useState({
     form: initialVoyageFormValues,
@@ -103,7 +103,7 @@ export function VoyageCreateModal({
       setHasIndicatedFirstPort(nextHasIndicatedFirstPort)
       setLanes(nextLanes)
       setPortDrafts({ pol: false, pod: false })
-      setDraftErrors({ pol: null, pod: null })
+      setDraftRefused({ pol: false, pod: false })
       setCarrierOpen(false)
       setPristine({ form: nextForm, hasIndicatedFirstPort: nextHasIndicatedFirstPort, lanes: nextLanes })
       setPortalChoice(null)
@@ -150,10 +150,7 @@ export function VoyageCreateModal({
     }
 
     if (isNew && (portDrafts.pol || portDrafts.pod)) {
-      setDraftErrors({
-        pol: portDrafts.pol ? 'Adicione ou apague este porto de origem antes de cadastrar a viagem.' : null,
-        pod: portDrafts.pod ? 'Adicione ou apague este porto de destino antes de cadastrar a viagem.' : null,
-      })
+      setDraftRefused({ ...portDrafts })
       return
     }
 
@@ -187,9 +184,11 @@ export function VoyageCreateModal({
       // recusadas, a Viagem fica cadastrada sem elas e a tela diz isso; o
       // upgrade é uma RPC que cria a Viagem e as datas juntas.
       const scheduleLanes = isNew ? lanes : []
-      // Com datas a gravar, publica depois delas (como Chegadas e Saídas, em
-      // createOrAttachVoyageFromSchedule): datas recusadas não deixam a
-      // Viagem no Portal e no site sem data nenhuma.
+      // Com datas a gravar, publica depois delas: datas recusadas não deixam
+      // a Viagem no Portal e no site sem data nenhuma. (Chegadas e Saídas faz
+      // o mesmo ao publicar Viagem existente; a nova de lá nasce publicada.)
+      // O UPDATE logo depois do cadastro some no "Viagem criada" da linha do
+      // tempo (janela de 60 s de voyageSummaries).
       const publishAfterDates = scheduleLanes.length > 0 && showOnPortal
       const saved = voyageId
         ? await updateVoyage(voyageId, normalizedForm, user?.id ?? null)
@@ -308,9 +307,9 @@ export function VoyageCreateModal({
                 onRemove={(code) => setLanes((current) => current.filter((stop) => stop.code !== code))}
                 onDraftChange={(hasDraft) => {
                   setPortDrafts((current) => (current[kind] === hasDraft ? current : { ...current, [kind]: hasDraft }))
-                  setDraftErrors((current) => (current[kind] ? { ...current, [kind]: null } : current))
+                  setDraftRefused((current) => (current[kind] ? { ...current, [kind]: false } : current))
                 }}
-                draftError={draftErrors[kind]}
+                draftRefused={draftRefused[kind]}
               />
             ))}
           </section>

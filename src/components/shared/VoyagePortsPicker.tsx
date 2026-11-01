@@ -43,7 +43,7 @@ export function VoyagePortsPicker({
   onAdd,
   onRemove,
   onDraftChange,
-  draftError,
+  draftRefused = false,
 }: {
   kind: VoyagePortStop['kind']
   /** Portos já adicionados deste lado. */
@@ -54,8 +54,8 @@ export function VoyagePortsPicker({
   onRemove: (code: string) => void
   /** Porto ou data digitados e ainda não adicionados: o cadastro não os grava. */
   onDraftChange?: (hasDraft: boolean) => void
-  /** Recusa do cadastro enquanto há rascunho não adicionado neste lado. */
-  draftError?: string | null
+  /** O cadastro foi recusado porque este lado tem rascunho não adicionado. */
+  draftRefused?: boolean
 }) {
   const side = SIDE[kind]
   const [port, setPort] = useState('')
@@ -63,6 +63,14 @@ export function VoyagePortsPicker({
   const [portError, setPortError] = useState<string | null>(null)
   const [dateError, setDateError] = useState<string | null>(null)
   const listId = `voyage-port-suggestions-${kind}`
+  // Recusa do cadastro no campo que tem o rascunho: o porto, ou a data
+  // digitada sozinha.
+  const draftPortError = draftRefused && port.trim()
+    ? `Adicione ou apague este ${side.portLabel.toLowerCase()} antes de cadastrar a viagem.`
+    : null
+  const draftDateError = draftRefused && !port.trim() && date
+    ? `Apague o ${side.dateLabel} ou informe o porto e clique em Adicionar.`
+    : null
 
   function updateDraft(nextPort: string, nextDate: string) {
     setPort(nextPort)
@@ -102,7 +110,7 @@ export function VoyagePortsPicker({
           }
         }}
       >
-        <Field label={side.portLabel} error={portError ?? draftError ?? undefined}>
+        <Field label={side.portLabel} error={portError ?? draftPortError ?? undefined}>
           <Input
             list={listId}
             value={port}
@@ -111,7 +119,7 @@ export function VoyagePortsPicker({
             onChange={(event) => updateDraft(event.target.value.toUpperCase(), date)}
           />
         </Field>
-        <Field label={side.dateLabel} error={dateError ?? undefined}>
+        <Field label={side.dateLabel} error={dateError ?? draftDateError ?? undefined}>
           <Input type="date" value={date} onChange={(event) => updateDraft(port, event.target.value)} />
         </Field>
         <Button type="button" variant="secondary" className="sm:mt-[22px]" aria-label={side.addLabel} onClick={add}>

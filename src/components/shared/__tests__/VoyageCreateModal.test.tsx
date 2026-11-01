@@ -197,6 +197,19 @@ describe('VoyageCreateModal', () => {
     await waitFor(() => expect(recordDatesMock).toHaveBeenCalledWith(101, [{ code: 'BRSSZ', kind: 'pod', date: '2026-12-12' }], 'user-1'))
   })
 
+  it('só a data digitada: a recusa aparece na data, não no porto vazio', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-12' } })
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+
+    expect(await screen.findByText('Apague o ETA ou informe o porto e clique em Adicionar.')).toBeTruthy()
+    expect(screen.queryByText('Adicione ou apague este porto de destino antes de cadastrar a viagem.')).toBeNull()
+    expect(createVoyageMock).not.toHaveBeenCalled()
+  })
+
   it('porto só digitado conta como alteração: Voltar pede confirmação', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
