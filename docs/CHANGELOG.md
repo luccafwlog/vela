@@ -6,6 +6,16 @@
 
 ## 2026-11
 
+- **Demurrage fica na Demurrage (observações do dono de 2026-11-01):**
+  - **Vela, todas as telas:** saiu a faixa do alto com "N containers em atraso" e o câmbio PTAX/ROE, que os outros
+    setores não precisam ver. O câmbio (PTAX venda, ROE, data da cotação e atualizar) fica sob o título da
+    **Demurrage**; a contagem é o cartão **Correndo (US$)** da mesma tela.
+  - **Vela › Demurrage › Containers:** o **Próximo passo / motivo** em Correndo diz "N container(s) pendente(s) de
+    devolução" no lugar de "N caixas correndo; a Invoice sai quando todas voltarem"; "caixa" sai do resto da coluna.
+  - **Portal › B/Ls e containers:** a coluna **Demurrage** separa "N em demurrage" (sem devolução, em vermelho) de
+    "N devolvido(s) com demurrage", e diz "Sem demurrage" quando não há nenhum; antes dizia "Nenhum" com o B/L todo
+    devolvido depois do free time. A planilha ganha **Devolvidos com demurrage**.
+
 - **Histórico de ações lê as trilhas próprias (2026-11-01, migration `561`; decisão do dono):** a aba Admin ›
   Histórico de ações mostra também o andamento do Desbloqueio de CE, as decisões e a situação das contas do Portal,
   os Comunicados enviados e as mensagens e anexos das disputas de Demurrage, lidos na hora de cada trilha, sem gravar

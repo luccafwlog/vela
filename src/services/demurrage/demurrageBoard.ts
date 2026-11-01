@@ -78,16 +78,9 @@ export async function listDemurrageBillingBoard(filters: DemurrageBoardFilters =
   return ((data ?? []) as BoardGroup[]).map((group) => ({ ...group, usd: Number(group.usd ?? 0) }))
 }
 
-/** Caixas de Correndo, para o aviso do cabeçalho (migration 516). */
-export async function countDemurrageRunningBoxes(): Promise<number> {
-  const { data, error } = await supabase.rpc('count_demurrage_running_boxes' as never)
-  if (error) throw error
-  return Number(data ?? 0)
-}
-
 export type DivisionTotals = Record<DemurrageDivision, { groups: number; boxes: number; usd: number }>
 
-/** Caixa com sobreestadia sem Invoice: a que a divisão conta (a mesma do aviso do cabeçalho e da Exposição). */
+/** Caixa com sobreestadia sem Invoice: a que a divisão conta (a mesma da Exposição). */
 export const OVERSTAY_STATES: ReadonlySet<BoardBoxState> = new Set(['running', 'returned_overstay', 'no_rate'])
 
 /** Contagem e US$ por divisão: caixas com sobreestadia sem Invoice. */
@@ -158,16 +151,18 @@ export function nextStep(group: BoardGroup): NextStep {
       default: return { kind: 'note', text: note }
     }
   }
+  const awaitingReturn = group.boxes.filter((box) => !box.return_date && box.state !== 'covered' && box.state !== 'waived')
   if (group.division === 'esperando') {
-    const waiting = group.boxes.filter((box) => !box.return_date && box.state !== 'covered' && box.state !== 'waived')
-    const first = waiting[0]
-    if (!first) return { kind: 'wait', text: 'Aguarda a devolução das caixas do grupo' }
+    const first = awaitingReturn[0]
+    if (!first) return { kind: 'wait', text: 'Aguarda a devolução dos containers do grupo' }
     const until = first.last_free_day ? ` até ${formatShort(first.last_free_day)}` : ''
-    const more = waiting.length > 1 ? ` e mais ${waiting.length - 1}` : ''
+    const more = awaitingReturn.length > 1 ? ` e mais ${awaitingReturn.length - 1}` : ''
     return { kind: 'wait', text: `Aguarda ${first.container_number}${until}${more}` }
   }
-  const running = group.boxes.filter((box) => box.state === 'running').length
-  return { kind: 'running', text: `${running} ${running === 1 ? 'caixa correndo' : 'caixas correndo'}; a Invoice sai quando todas voltarem` }
+  // Correndo (observação do dono de 2026-11-01): quantos containers faltam
+  // devolver, inclusive os ainda no free time; a Invoice sai depois deles.
+  const pending = awaitingReturn.length
+  return { kind: 'running', text: `${pending} ${pending === 1 ? 'container pendente' : 'containers pendentes'} de devolução` }
 }
 
 function formatShort(iso: string) {

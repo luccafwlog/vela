@@ -38,7 +38,6 @@ const expectedInvalidations = [
   ['agency-report-signoff-events'],
   ['alerts'],
   ['op-count'],
-  ['header-alert'],
   ['dashboard'],
 ]
 

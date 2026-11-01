@@ -95,7 +95,13 @@ alerta "Disputa aberta no Portal"). As superfícies são `DemurrageContainersTab
 dados da disputa, documento, cancelar baixa) toma o lugar do diálogo e volta
 para ele ao terminar. O cabeçalho tem os botões **Tarifas e acordos** (leva a
 `/demurrage/taxas`), **Régua de cobrança**, **Informar PTAX** (só para os
-perfis aceitos) e **Importar datas**. Nas abas e no detalhe da Invoice, o
+perfis aceitos) e **Importar datas**. Sob o título, a linha de câmbio
+(`DemurrageExchangeRate`, desde 2026-11-01) mostra **PTAX venda**, **ROE (PTAX ×
+1,065)**, a data da cotação e o botão **Atualizar cotação PTAX**; sem cotação,
+"Câmbio indisponível", e a cotação guardada vem marcada "em cache". Até essa
+data o câmbio e "N containers em atraso" ficavam numa faixa no alto de todas as
+telas do Vela; por decisão do dono são assunto só da Demurrage, e a contagem é
+o cartão **Correndo (US$)** (as mesmas caixas). Nas abas e no detalhe da Invoice, o
 número do B/L e o do container têm o ícone de copiar, e o CNPJ também o tem nas
 abas de Invoice e no detalhe. Os cartões do topo levam à divisão ou à aba
 deles (ver [Classificação da cobrança](#classificação-da-cobrança-migration-515)):
@@ -143,8 +149,11 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   Navio / Viagem, Containers ("fora · devolvidos · total do grupo"), **US$
   previsto hoje** e **Próximo passo / motivo**: **Gerar Invoice** (ou **Gerar
   complementar**, quando o grupo já tem Invoice) só em A emitir; "Aguarda
-  <container> até <último dia livre>" em Esperando; as caixas que correm e, em
-  âmbar, o que vai travar a emissão (sem CE, Portal) em Correndo; o motivo e o
+  <container> até <último dia livre>" em Esperando; "N container(s)
+  pendente(s) de devolução" (os ainda fora sem Invoice nem dispensa, inclusive
+  no free time; até 2026-11-01 dizia "N caixas correndo; a Invoice sai quando
+  todas voltarem") e, em âmbar, o que vai travar a emissão (sem CE, Portal) em
+  Correndo; o motivo e o
   atalho que destrava em Travado (**Cadastrar CE** e **Vincular Cliente**
   abrem a ficha do B/L, **Cadastrar tipo** abre `/demurrage/taxas?tab=tipos`
   com o código, **Abrir Cliente** abre a ficha do Cliente para o Portal). A
@@ -157,9 +166,11 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
 - Os cartões do topo (D6) são **Correndo (US$)**, **A emitir (US$)** e
   **Travado (US$)**, somados da mesma classificação, com o número de
   containers, cada um abrindo a divisão; **Aguardando pagamento (BRL hoje)**; e,
-  para Equipamentos e Administrativo, **Disputas aguardando resposta**. O aviso
-  do cabeçalho "N containers em atraso" conta as caixas de Correndo
-  (`count_demurrage_running_boxes`, migration `516`) e abre a divisão Correndo.
+  para Equipamentos e Administrativo, **Disputas aguardando resposta**. Até
+  2026-11-01 o aviso do cabeçalho de todas as telas, "N containers em atraso",
+  contava as caixas de Correndo (`count_demurrage_running_boxes`, migration
+  `516`) e abria a divisão Correndo; a faixa saiu e a contagem ficou só no
+  cartão Correndo. A função continua no banco, sem leitor na aplicação.
   O alerta **Demurrage travada** (`demurrage_travado`, migration `516`) abre um
   por grupo na hora em que ele entra em Travado, para o setor do motivo
   (Documentação: CE, Cliente, Portal; Administrativo: tipo sem tarifa, B/L
@@ -364,8 +375,8 @@ ordem:
    cancelada).
 
 Em Correndo e Esperando, o motivo que vai travar a emissão vem em `warning`.
-As contagens de containers da divisão, do aviso do cabeçalho
-(`count_demurrage_running_boxes`, só a divisão Correndo) e da Exposição são as
+As contagens de containers da divisão, de `count_demurrage_running_boxes` (só
+a divisão Correndo; leitor do antigo aviso do cabeçalho) e da Exposição são as
 caixas com sobreestadia sem Invoice (`running`, `returned_overstay`,
 `no_rate`); a caixa ainda no free time não conta (migration `526`).
 

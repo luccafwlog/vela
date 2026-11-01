@@ -22,6 +22,7 @@ import { DemurrageContainersTab } from '../components/demurrage/DemurrageContain
 import { DemurrageContainerDatesModal } from '../components/demurrage/DemurrageContainerDatesModal'
 import { canAnswerDemurrageDispute, canManageManualRoe, type ContainerDatesInput } from '../components/demurrage/demurrageFormRules'
 import { DemurrageCustomersTab } from '../components/demurrage/DemurrageCustomersTab'
+import { DemurrageExchangeRate } from '../components/demurrage/DemurrageExchangeRate'
 import { DemurrageDunningSettingsModal } from '../components/demurrage/DemurrageDunningSettingsModal'
 import { DemurrageInvoiceDetailModal, type DemurrageDetailInvoice } from '../components/demurrage/DemurrageInvoiceDetailModal'
 import { DemurrageInvoicesTab } from '../components/demurrage/DemurrageInvoicesTab'
@@ -479,6 +480,7 @@ export function Demurrage() {
     <div className="app-dem-page">
       <PageHeader
         title="Demurrage"
+        description={<DemurrageExchangeRate />}
         action={
           <>
             <Link className="app-btn app-btn--secondary" to="/demurrage/taxas">Tarifas e acordos<ArrowRight size={14} aria-hidden="true" /></Link>

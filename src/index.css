@@ -306,106 +306,10 @@ textarea {
 }
 
 /* ─── Shell (etapa 02) ─────────────────────────────────────────────────────
-   Faixa de avisos de até 28 px e uma barra só, com marca, navegação e conta.
-   O dourado aparece apenas na indicação da navegação ativa. Abaixo de 1100 px
-   a navegação vira a lista do botão Menu, aberta logo abaixo da barra. */
-.app-market-strip {
-  position: relative;
-  /* Acima do cabeçalho fixo (200), abaixo do fundo de modal (300): com 400 a
-     faixa de avisos ficava nítida por cima do desfoque de qualquer modal. */
-  z-index: 250;
-  background: #0b1624;
-  color: #ffffff;
-}
-
-.app-market-strip__content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 28px;
-  padding: 0 24px;
-}
-
-/* O aviso operacional não é cortado: quem cede espaço é o câmbio. */
-.app-market-strip__left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.app-market-strip__center {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.hib-alert-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #f5a524;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hib-alert-btn:hover {
-  text-decoration: underline;
-}
-
-.hib-alert-btn:focus-visible {
-  outline: 2px solid var(--app-focus-ring);
-  outline-offset: 2px;
-}
-
-.hib-sep {
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.hib-currency-label {
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
-.hib-currency-label--warning {
-  color: #f5a524;
-}
-
-.hib-currency-value {
-  color: rgba(255, 255, 255, 0.94);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-  font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 767px) {
-  .app-market-strip__center {
-    display: none;
-  }
-}
-
+   Uma barra só, com marca, navegação e conta. O dourado aparece apenas na
+   indicação da navegação ativa. Abaixo de 1100 px a navegação vira a lista do
+   botão Menu, aberta logo abaixo da barra. A faixa de avisos de 28 px (containers
+   em atraso e câmbio) saiu em 2026-11-01: o câmbio fica só na Demurrage. */
 .app-header {
   position: sticky;
   top: 0;
@@ -4848,22 +4752,6 @@ button.app-metric-tile[aria-pressed='true'] {
   transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
-.app-market-refresh {
-  position: relative;
-  padding: 0;
-}
-
-/* Alvo de toque de 44x44 sem inflar a altura da faixa de câmbio (~25px):
-   a área de toque é um pseudo-elemento posicionado, fora do fluxo. */
-.app-market-refresh::after {
-  content: '';
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 44px;
-  height: 44px;
-  transform: translate(-50%, -50%);
-}
-
 .portal-notifications {
   position: relative;
 }
@@ -5598,7 +5486,6 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 @media (max-width: 1100px) {
-  .app-market-strip__content,
   .app-header__content {
     padding-left: 16px;
     padding-right: 16px;
@@ -5895,10 +5782,6 @@ button.app-metric-tile[aria-pressed='true'] {
     height: 20px;
   }
 
-  .hib-alert-btn {
-    min-height: 32px;
-  }
-
   /* Botão só com ícone (lápis, lixeira, seta) ganha a área de toque mínima
      de 44px do contrato; o ícone continua do mesmo tamanho. */
   button[aria-label]:has(> svg:only-child),
@@ -5927,7 +5810,6 @@ button.app-metric-tile[aria-pressed='true'] {
   /* Hide header, nav and all page content except the print modal */
   .app-header,
   .app-sidebar,
-  .app-market-strip,
   .app-nav-bar,
   .app-nav-mobile-bar,
   .app-toast-stack,
