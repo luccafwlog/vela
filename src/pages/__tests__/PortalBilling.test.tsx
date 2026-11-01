@@ -132,6 +132,7 @@ const mocks = vi.hoisted(() => ({
   obsolete: vi.fn(),
   detail: null as unknown,
   demurrageDetail: null as unknown,
+  demurrageDetailError: null as Error | null,
   demurrageError: null as Error | null,
   disputes: [] as unknown[],
   currentRoe: { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' } as { roe: number; updatedAt: string } | null,
@@ -213,7 +214,7 @@ vi.mock('../../hooks/usePortalBilling', () => ({
     failed: false,
   }),
   usePortalInvoiceDetail: () => ({ data: mocks.detail, isLoading: false, error: null }),
-  usePortalDemurrageInvoiceDetail: (id?: number | null) => ({ data: id ? mocks.demurrageDetail : null, isLoading: false, error: null }),
+  usePortalDemurrageInvoiceDetail: (id?: number | null) => ({ data: id ? mocks.demurrageDetail : null, isLoading: false, error: id ? mocks.demurrageDetailError : null }),
   usePortalObsoleteConsolidation: () => ({ isPending: false, mutateAsync: mocks.obsolete }),
 }))
 
@@ -265,6 +266,7 @@ afterEach(() => {
   mocks.obsolete.mockReset()
   mocks.detail = null
   mocks.demurrageDetail = null
+  mocks.demurrageDetailError = null
   mocks.demurrageError = null
   mocks.disputes = []
   mocks.currentRoe = { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' }
@@ -337,6 +339,25 @@ describe('PortalBilling', () => {
     expect(screen.getByRole('heading', { name: 'Pagar fatura DEM-001 com Pix' })).toBeTruthy()
     expect(screen.getByText('R$ 270,00 a pagar hoje')).toBeTruthy()
     expect(screen.getByTitle('00020126PIX-DEM-001')).toBeTruthy()
+  })
+
+  it('"Pagar com Pix": releitura que falha mantém o QR já lido; sem dado nenhum, mostra o erro', async () => {
+    const user = userEvent.setup()
+    mocks.demurrageDetail = {
+      invoice: { ...demurrageInvoices[0], pix_payload: '00020126PIX-DEM-001' },
+      items: [],
+    }
+    mocks.demurrageDetailError = new Error('rede')
+    renderBilling()
+    await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
+    await user.click(screen.getAllByRole('button', { name: 'Pagar fatura DEM-001 com Pix' })[0])
+    expect(screen.getByTitle('00020126PIX-DEM-001')).toBeTruthy()
+    expect(screen.queryByText('Não foi possível carregar o Pix desta fatura. Tente de novo em instantes.')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Fechar' }))
+    mocks.demurrageDetail = null
+    await user.click(screen.getAllByRole('button', { name: 'Pagar fatura DEM-001 com Pix' })[0])
+    expect(screen.getByText('Não foi possível carregar o Pix desta fatura. Tente de novo em instantes.')).toBeTruthy()
   })
 
   it('"Pagar com Pix" de fatura paga com a janela aberta não mostra valor a pagar nem QR', async () => {

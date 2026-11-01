@@ -399,7 +399,8 @@ export function PortalBilling() {
             amountDetail={received > 0 && balance > 0 ? `de ${formatBRL(invoice?.total_brl)}; o QR cobra o saldo` : undefined}
             pix={showPix ? invoice?.pix_payload ?? null : undefined}
             loading={pixLocalQuery.isLoading}
-            error={Boolean(pixLocalQuery.error)}
+            // Releitura que falha mantém o QR já lido; o erro só aparece sem dado.
+            error={Boolean(pixLocalQuery.error) && !pixLocalQuery.data}
             onOpenDetail={() => { setSelectedInvoiceId(pixLocal.id); setPixLocal(null) }}
             onClose={() => setPixLocal(null)}
           />
@@ -417,7 +418,7 @@ export function PortalBilling() {
             amountDetail="O valor em reais acompanha a cotação do dia até o pagamento."
             pix={showPix ? invoice?.pix_payload ?? null : undefined}
             loading={pixDemurrageQuery.isLoading}
-            error={Boolean(pixDemurrageQuery.error)}
+            error={Boolean(pixDemurrageQuery.error) && !pixDemurrageQuery.data}
             onOpenDetail={() => { setSelectedDemurrageId(pixDemurrage.id); setPixDemurrage(null) }}
             onClose={() => setPixDemurrage(null)}
           />
