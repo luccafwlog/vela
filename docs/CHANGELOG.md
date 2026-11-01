@@ -15,7 +15,10 @@
   - **"Container", nunca "caixa":** os textos das telas da Demurrage, da ficha do B/L, do detalhe da Invoice no
     Portal, da Matriz de permissões e das planilhas trocam "caixa" por "container" ("Destino dos containers",
     "1/2 do container", "Cobrança do container dispensada", "divisão do container alterada"…). Os textos que o
-    banco grava (motivo de cancelamento e de pausa da Régua, mensagens de alerta e de recusa) também trocam (migration `565`).
+    banco grava também trocam (migration `565`): "Divisão do container entre Clientes alterada" no motivo de
+    cancelamento e de pausa da Régua, "A divisão dos containers…" e "o container passou a ser cobrado…" nos
+    alertas, "cobra cada container uma vez" na recusa da emissão e "dispensa da cobrança do container" na troca
+    de Cliente. O motivo antigo "Divisão da caixa…" já gravado continua reconhecido como reemissão automática.
   - **Portal › B/Ls e containers:** a coluna **Demurrage** separa "N em demurrage" (sem devolução, em vermelho) de
     "N devolvido(s) com demurrage", e diz "Sem demurrage" quando não há nenhum; antes dizia "Nenhum" com o B/L todo
     devolvido depois do free time. A planilha ganha **Devolvidos com demurrage**.

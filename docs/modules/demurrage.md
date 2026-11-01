@@ -238,9 +238,10 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
     o autor e o destino vêm de `list_demurrage_invoice_details` (migration
     `519`, usuário interno ativo). Desde a migration `550`, o motivo da
     reemissão automática diz a causa ("Datas de container alteradas",
-    "Container passou a SOC" ou "Divisão da caixa entre Clientes alterada",
+    "Container passou a SOC" ou "Divisão do container entre Clientes alterada",
     seguido de ": cancelada para reemissão automática."; antes era sempre o
-    das datas), e `_demurrage_auto_reissue_reason` reconhece as três como
+    das datas; até a migration `565`, "Divisão da caixa…", que continua
+    reconhecido), e `_demurrage_auto_reissue_reason` reconhece as três como
     cancelamento automático (não espera **Gerar Invoice**, a Invoice nova cita
     a cancelada e o Portal recebe o texto próprio). A caixa reemitida pela
     troca de CNPJ, na Invoice do Cliente novo, aparece "reemitida na DEM-…"
@@ -900,11 +901,11 @@ levam as Invoices vivas da caixa a `_reconcile_demurrage_after_dates`, que
 trata a diferença como data alterada (`_demurrage_item_stale`): sem
 pagamento, desconto ou disputa, a Invoice é cancelada e reemitida com a parte
 nova; paga, com desconto ou em disputa, sai da Régua com o Alerta
-`demurrage_invoice_dates_changed` ("A divisão das caixas entre Clientes da
-Invoice de Demurrage … mudou depois da emissão"), para restituir ou cobrar a
+`demurrage_invoice_dates_changed` ("A divisão dos containers entre Clientes da
+Invoice de Demurrage … mudou depois da emissão"; "das caixas" até a `565`), para restituir ou cobrar a
 diferença. Excluir o B/L de um dos Clientes também conta (migration `523`). Desde a `523`, o gatilho só reconcilia quando muda número, B/L ou SOC/COC, e a falha da reconciliação não desfaz a gravação do B/L ou do container. Desde a `529`:
 
-- **B/L cancelado de quem já pagou** (decisão do dono de 2026-10-30): o Cliente cujos B/Ls com a caixa na Viagem foram todos cancelados deixa de dividi-la, inclusive na própria Invoice. O outro Cliente passa a pagar a caixa inteira (reemissão), e a Invoice paga do cancelado sai da Régua com o Alerta "O B/L da Invoice de Demurrage DEM-… foi cancelado depois da emissão e a caixa passou a ser cobrada só dos outros Clientes…", para restituir. Antes, o Vela cobrava 150% da caixa sem aviso.
+- **B/L cancelado de quem já pagou** (decisão do dono de 2026-10-30): o Cliente cujos B/Ls com a caixa na Viagem foram todos cancelados deixa de dividi-la, inclusive na própria Invoice. O outro Cliente passa a pagar a caixa inteira (reemissão), e a Invoice paga do cancelado sai da Régua com o Alerta "O B/L da Invoice de Demurrage DEM-… foi cancelado depois da emissão e o container passou a ser cobrado só dos outros Clientes…" (até a `565`, "a caixa passou a ser cobrada"), para restituir. Antes, o Vela cobrava 150% da caixa sem aviso.
 - **Alerta com o estado avisado:** a Invoice paga ou negociada guarda no Alerta o que estava diferente (`stale_state`, de `_demurrage_stale_state`: datas, SOC e divisão de cada item); o Alerta resolvido com o mesmo estado não reabre nem suspende de novo, e diferença nova reabre (antes, qualquer Alerta já existente calava as diferenças seguintes).
 - **Diferença que some:** a Invoice suspensa pela diferença (B/L do terceiro Cliente excluído, SOC que volta a COC) passa pela reconciliação, que tira a suspensão da Invoice com desconto ou disputa e fecha o Alerta.
 - **Falha refeita:** a rotina `demurrage-travado-alerts` refaz, no mesmo recorte de Viagem, a reconciliação das Invoices ainda diferentes (`reconcile_demurrage_stale_invoices`).
@@ -915,8 +916,8 @@ diferença. Excluir o B/L de um dos Clientes também conta (migration `523`). De
 dono de 2026-10-30). Quando a Invoice paga, com desconto ou em disputa sai da
 Régua porque os itens não batem mais com o que vale hoje, o motivo
 (`dunning_suspended_reason`) começa pela causa — "Datas de container
-alteradas", "Container passou a SOC" ou "Divisão da caixa entre Clientes
-alterada" (as datas primeiro) — e termina em "depois do pagamento; conferir a
+alteradas", "Container passou a SOC" ou "Divisão do container entre Clientes
+alterada" (as datas primeiro; "Divisão da caixa…" até a migration `565`) — e termina em "depois do pagamento; conferir a
 diferença." ou "em Invoice com desconto ou disputa; reemitir à mão."
 (`_demurrage_stale_reason`). O aviso do detalhe e a coluna da Régua dizem a
 mesma causa; o banco e a tela reconhecem o motivo pelo fim do texto
