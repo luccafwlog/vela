@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  fetchCeMercanteConferenceByPair,
   MANUAL_CUSTOMER_COMMUNICATION_KINDS_BY_MODE,
   buildCustomerCommunicationConference,
   filterCustomerCommunicationBls,
@@ -449,6 +450,16 @@ describe('CE e Taxas no Disparo (pedido do dono, 2026-10-31)', () => {
     expect(row).toMatchObject({ blocked: true, selected: false, blockedReason: 'CE Mercante ausente' })
     // Prontidão que não pôde ser lida também não deixa enviar.
     expect(conference(null).rows[0]).toMatchObject({ blocked: true, blockedReason: 'Não foi possível conferir a prontidão do CE e Taxas.' })
+  })
+
+  it('leitura da prontidão que falha para um Cliente deixa só ele sem dados; os outros seguem', async () => {
+    const ready = { ready: true, reason: null, renderInput: null } as never
+    const byPair = await fetchCeMercanteConferenceByPair(['1:7', '2:7'], async (_voyageId, customerId) => {
+      if (customerId === 2) throw new Error('timeout')
+      return ready
+    })
+    expect([...byPair.keys()]).toEqual(['1:7'])
+    expect(byPair.get('1:7')).toBe(ready)
   })
 
   it('o envio anterior conta pelo Cliente e Viagem, sem porto (o CE grava porto nulo)', () => {

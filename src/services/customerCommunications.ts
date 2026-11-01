@@ -1024,6 +1024,30 @@ async function fetchCommunicationHistory(customerIds: readonly number[], kind: C
   return history
 }
 
+/**
+ * Prontidão e prévia do CE e Taxas por `${customerId}:${voyageId}`. A leitura
+ * que falha para um Cliente fica fora do mapa, e a conferência bloqueia só
+ * aquele Cliente ("Não foi possível conferir a prontidão do CE e Taxas."),
+ * em vez de a conferência inteira cair.
+ * ponytail: uma leitura de prontidão e prévia por Cliente da Viagem, em
+ * paralelo como a Cobertura; uma RPC em lote seria o próximo passo se a
+ * Viagem passar de algumas dezenas de Clientes.
+ */
+export async function fetchCeMercanteConferenceByPair(
+  pairs: readonly string[],
+  fetchData: (voyageId: number, customerId: number) => Promise<CeMercanteTaxasConferenceData> = fetchCeMercanteTaxasConferenceData,
+): Promise<Map<string, CeMercanteTaxasConferenceData>> {
+  const settled = await Promise.allSettled(pairs.map((pair) => {
+    const [customerId, voyageId] = pair.split(':').map(Number)
+    return fetchData(voyageId!, customerId!)
+  }))
+  const byPair = new Map<string, CeMercanteTaxasConferenceData>()
+  settled.forEach((result, index) => {
+    if (result.status === 'fulfilled') byPair.set(pairs[index]!, result.value)
+  })
+  return byPair
+}
+
 export async function fetchCustomerCommunicationConference(input: {
   filters: CustomerCommunicationFilters
   kind: CustomerCommunicationKind
@@ -1103,18 +1127,9 @@ export async function fetchCustomerCommunicationConference(input: {
     fetchSuppressionsFiltered('customer_communication_suppressions'),
   ])
   const history = await fetchCommunicationHistory(customerIds, input.kind)
-  const ceMercante = new Map<string, CeMercanteTaxasConferenceData>()
-  if (ceCustomers) {
-    const pairs = [...new Set(filtered.map((row) => `${row.customerId}:${row.voyageId}`))]
-    // ponytail: uma leitura de prontidão e prévia por Cliente da Viagem, em
-    // paralelo como a Cobertura; uma RPC em lote seria o próximo passo se a
-    // Viagem passar de algumas dezenas de Clientes.
-    const entries = await Promise.all(pairs.map(async (pair) => {
-      const [customerId, voyageId] = pair.split(':').map(Number)
-      return [pair, await fetchCeMercanteTaxasConferenceData(voyageId!, customerId!)] as const
-    }))
-    for (const [pair, data] of entries) ceMercante.set(pair, data)
-  }
+  const ceMercante = ceCustomers
+    ? await fetchCeMercanteConferenceByPair([...new Set(filtered.map((row) => `${row.customerId}:${row.voyageId}`))])
+    : new Map<string, CeMercanteTaxasConferenceData>()
 
   const conference = buildCustomerCommunicationConference({
     kind: input.kind,
