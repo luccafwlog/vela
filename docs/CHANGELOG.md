@@ -6,11 +6,27 @@
 
 ## 2026-11
 
-- **Tracking em cada B/L do Portal (2026-11-01, migration `565`; pedido do dono):** B/Ls e containers ganha a
+- **Tracking em cada B/L do Portal (2026-11-01, migration `566`; pedido do dono):** B/Ls e containers ganha a
   coluna **Tracking**, que abre o site do armador já na busca daquele B/L, quando o link do armador cadastrado em
   Informações do Portal → Tracking tem a marca `{BL}`. O link da Cosco passa a `…?label=T&value={BL}`. Saem do
   cadastro os armadores de teste "QA SHIPPING LINE", "QA-DISPLAY-2026 Carrier" e "QA Carrier - Plano 654-660",
   que apareciam na aba Tracking do Vela.
+- **Demurrage fica na Demurrage (observações do dono de 2026-11-01):**
+  - **Vela, todas as telas:** saiu a faixa do alto com "N containers em atraso" e o câmbio PTAX/ROE, que os outros
+    setores não precisam ver. O câmbio (PTAX venda, ROE, data da cotação e atualizar) fica sob o título da
+    **Demurrage**; a contagem é o cartão **Correndo (US$)** da mesma tela.
+  - **Vela › Demurrage › Containers:** o **Próximo passo / motivo** em Correndo diz "N container(s) pendente(s) de
+    devolução" no lugar de "N caixas correndo; a Invoice sai quando todas voltarem".
+  - **"Container", nunca "caixa":** os textos das telas da Demurrage, da ficha do B/L, do detalhe da Invoice no
+    Portal, da Matriz de permissões e das planilhas trocam "caixa" por "container" ("Destino dos containers",
+    "1/2 do container", "Cobrança do container dispensada", "divisão do container alterada"…). Os textos que o
+    banco grava também trocam (migration `565`): "Divisão do container entre Clientes alterada" no motivo de
+    cancelamento e de pausa da Régua, "A divisão dos containers…" e "o container passou a ser cobrado…" nos
+    alertas, "cobra cada container uma vez" na recusa da emissão e "dispensa da cobrança do container" na troca
+    de Cliente. O motivo antigo "Divisão da caixa…" já gravado continua reconhecido como reemissão automática.
+  - **Portal › B/Ls e containers:** a coluna **Demurrage** separa "N em demurrage" (sem devolução, em vermelho) de
+    "N devolvido(s) com demurrage", e diz "Sem demurrage" quando não há nenhum; antes dizia "Nenhum" com o B/L todo
+    devolvido depois do free time. A planilha ganha **Devolvidos com demurrage**.
 - **Lacunas baixas da revisão da release (2026-11-01, migration `564`; decisões do dono):** o registro de "B/L
   criado" no Histórico passa a um gatilho por comando (2.000 B/Ls num INSERT: 1,89 s → 1,45 s no Postgres local); a
   reabertura do ADR sem terminal grava na chave do próprio ADR, e fechar e reabrir ficam no mesmo registro do Histórico

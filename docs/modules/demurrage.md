@@ -95,7 +95,13 @@ alerta "Disputa aberta no Portal"). As superfícies são `DemurrageContainersTab
 dados da disputa, documento, cancelar baixa) toma o lugar do diálogo e volta
 para ele ao terminar. O cabeçalho tem os botões **Tarifas e acordos** (leva a
 `/demurrage/taxas`), **Régua de cobrança**, **Informar PTAX** (só para os
-perfis aceitos) e **Importar datas**. Nas abas e no detalhe da Invoice, o
+perfis aceitos) e **Importar datas**. Sob o título, a linha de câmbio
+(`DemurrageExchangeRate`, desde 2026-11-01) mostra **PTAX venda**, **ROE (PTAX ×
+1,065)**, a data da cotação e o botão **Atualizar cotação PTAX**; sem cotação,
+"Câmbio indisponível", e a cotação guardada vem marcada "em cache". Até essa
+data o câmbio e "N containers em atraso" ficavam numa faixa no alto de todas as
+telas do Vela; por decisão do dono são assunto só da Demurrage, e a contagem é
+o cartão **Correndo (US$)** (as mesmas caixas). Nas abas e no detalhe da Invoice, o
 número do B/L e o do container têm o ícone de copiar, e o CNPJ também o tem nas
 abas de Invoice e no detalhe. Os cartões do topo levam à divisão ou à aba
 deles (ver [Classificação da cobrança](#classificação-da-cobrança-migration-515)):
@@ -143,8 +149,11 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   Navio / Viagem, Containers ("fora · devolvidos · total do grupo"), **US$
   previsto hoje** e **Próximo passo / motivo**: **Gerar Invoice** (ou **Gerar
   complementar**, quando o grupo já tem Invoice) só em A emitir; "Aguarda
-  <container> até <último dia livre>" em Esperando; as caixas que correm e, em
-  âmbar, o que vai travar a emissão (sem CE, Portal) em Correndo; o motivo e o
+  <container> até <último dia livre>" em Esperando; "N container(s)
+  pendente(s) de devolução" (os ainda fora sem Invoice nem dispensa, inclusive
+  no free time; até 2026-11-01 dizia "N caixas correndo; a Invoice sai quando
+  todas voltarem") e, em âmbar, o que vai travar a emissão (sem CE, Portal) em
+  Correndo; o motivo e o
   atalho que destrava em Travado (**Cadastrar CE** e **Vincular Cliente**
   abrem a ficha do B/L, **Cadastrar tipo** abre `/demurrage/taxas?tab=tipos`
   com o código, **Abrir Cliente** abre a ficha do Cliente para o Portal). A
@@ -157,9 +166,11 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
 - Os cartões do topo (D6) são **Correndo (US$)**, **A emitir (US$)** e
   **Travado (US$)**, somados da mesma classificação, com o número de
   containers, cada um abrindo a divisão; **Aguardando pagamento (BRL hoje)**; e,
-  para Equipamentos e Administrativo, **Disputas aguardando resposta**. O aviso
-  do cabeçalho "N containers em atraso" conta as caixas de Correndo
-  (`count_demurrage_running_boxes`, migration `516`) e abre a divisão Correndo.
+  para Equipamentos e Administrativo, **Disputas aguardando resposta**. Até
+  2026-11-01 o aviso do cabeçalho de todas as telas, "N containers em atraso",
+  contava as caixas de Correndo (`count_demurrage_running_boxes`, migration
+  `516`) e abria a divisão Correndo; a faixa saiu e a contagem ficou só no
+  cartão Correndo. A função continua no banco, sem leitor na aplicação.
   O alerta **Demurrage travada** (`demurrage_travado`, migration `516`) abre um
   por grupo na hora em que ele entra em Travado, para o setor do motivo
   (Documentação: CE, Cliente, Portal; Administrativo: tipo sem tarifa, B/L
@@ -221,15 +232,16 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   - **Canceladas** (D10): **Motivo** e **Cancelada por** (a linha `status` →
     `cancelled` de `audit_logs`, gravada pelo cancelamento à mão, pela
     reemissão por datas e pela troca de CNPJ; sem autor, "Sistema") e
-    **Destino das caixas**, por caixa: reemitida na Invoice que tem
+    **Destino dos containers**, por container: reemitida na Invoice que tem
     `replaces_invoice_id` igual a esta, cobrada noutra Invoice viva do mesmo
     Cliente na Viagem, dispensada, ou aguardando nova Invoice. O ROE, o motivo,
     o autor e o destino vêm de `list_demurrage_invoice_details` (migration
     `519`, usuário interno ativo). Desde a migration `550`, o motivo da
     reemissão automática diz a causa ("Datas de container alteradas",
-    "Container passou a SOC" ou "Divisão da caixa entre Clientes alterada",
+    "Container passou a SOC" ou "Divisão do container entre Clientes alterada",
     seguido de ": cancelada para reemissão automática."; antes era sempre o
-    das datas), e `_demurrage_auto_reissue_reason` reconhece as três como
+    das datas; até a migration `565`, "Divisão da caixa…", que continua
+    reconhecido), e `_demurrage_auto_reissue_reason` reconhece as três como
     cancelamento automático (não espera **Gerar Invoice**, a Invoice nova cita
     a cancelada e o Portal recebe o texto próprio). A caixa reemitida pela
     troca de CNPJ, na Invoice do Cliente novo, aparece "reemitida na DEM-…"
@@ -364,8 +376,8 @@ ordem:
    cancelada).
 
 Em Correndo e Esperando, o motivo que vai travar a emissão vem em `warning`.
-As contagens de containers da divisão, do aviso do cabeçalho
-(`count_demurrage_running_boxes`, só a divisão Correndo) e da Exposição são as
+As contagens de containers da divisão, de `count_demurrage_running_boxes` (só
+a divisão Correndo; leitor do antigo aviso do cabeçalho) e da Exposição são as
 caixas com sobreestadia sem Invoice (`running`, `returned_overstay`,
 `no_rate`); a caixa ainda no free time não conta (migration `526`).
 
@@ -878,7 +890,7 @@ pela condição daquele Cliente (B/L, acordo ou tabela) dividido por `n`
 (`_calculate_demurrage_invoice_authoritative`), e
 `demurrage_invoice_items.box_share_count` guarda `n`. O detalhe, o documento
 impresso, o detalhe do Portal e o relatório Itens por container mostram
-"1/2 da caixa"; a classificação da aba Containers e a Exposição já preveem a
+"1/2 do container" (até 2026-11-01, "1/2 da caixa"); a classificação da aba Containers e a Exposição já preveem a
 parte. Item emitido antes da `521` fica com a coluna vazia: foi cobrado cheio
 e a divisão não o revisa; se as datas dele mudarem, a reemissão já sai
 pela parte do Cliente. Essa é a decisão do dono de 2026-10-30: o que já foi emitido não
@@ -889,11 +901,11 @@ levam as Invoices vivas da caixa a `_reconcile_demurrage_after_dates`, que
 trata a diferença como data alterada (`_demurrage_item_stale`): sem
 pagamento, desconto ou disputa, a Invoice é cancelada e reemitida com a parte
 nova; paga, com desconto ou em disputa, sai da Régua com o Alerta
-`demurrage_invoice_dates_changed` ("A divisão das caixas entre Clientes da
-Invoice de Demurrage … mudou depois da emissão"), para restituir ou cobrar a
+`demurrage_invoice_dates_changed` ("A divisão dos containers entre Clientes da
+Invoice de Demurrage … mudou depois da emissão"; "das caixas" até a `565`), para restituir ou cobrar a
 diferença. Excluir o B/L de um dos Clientes também conta (migration `523`). Desde a `523`, o gatilho só reconcilia quando muda número, B/L ou SOC/COC, e a falha da reconciliação não desfaz a gravação do B/L ou do container. Desde a `529`:
 
-- **B/L cancelado de quem já pagou** (decisão do dono de 2026-10-30): o Cliente cujos B/Ls com a caixa na Viagem foram todos cancelados deixa de dividi-la, inclusive na própria Invoice. O outro Cliente passa a pagar a caixa inteira (reemissão), e a Invoice paga do cancelado sai da Régua com o Alerta "O B/L da Invoice de Demurrage DEM-… foi cancelado depois da emissão e a caixa passou a ser cobrada só dos outros Clientes…", para restituir. Antes, o Vela cobrava 150% da caixa sem aviso.
+- **B/L cancelado de quem já pagou** (decisão do dono de 2026-10-30): o Cliente cujos B/Ls com a caixa na Viagem foram todos cancelados deixa de dividi-la, inclusive na própria Invoice. O outro Cliente passa a pagar a caixa inteira (reemissão), e a Invoice paga do cancelado sai da Régua com o Alerta "O B/L da Invoice de Demurrage DEM-… foi cancelado depois da emissão e o container passou a ser cobrado só dos outros Clientes…" (até a `565`, "a caixa passou a ser cobrada"), para restituir. Antes, o Vela cobrava 150% da caixa sem aviso.
 - **Alerta com o estado avisado:** a Invoice paga ou negociada guarda no Alerta o que estava diferente (`stale_state`, de `_demurrage_stale_state`: datas, SOC e divisão de cada item); o Alerta resolvido com o mesmo estado não reabre nem suspende de novo, e diferença nova reabre (antes, qualquer Alerta já existente calava as diferenças seguintes).
 - **Diferença que some:** a Invoice suspensa pela diferença (B/L do terceiro Cliente excluído, SOC que volta a COC) passa pela reconciliação, que tira a suspensão da Invoice com desconto ou disputa e fecha o Alerta.
 - **Falha refeita:** a rotina `demurrage-travado-alerts` refaz, no mesmo recorte de Viagem, a reconciliação das Invoices ainda diferentes (`reconcile_demurrage_stale_invoices`).
@@ -904,8 +916,8 @@ diferença. Excluir o B/L de um dos Clientes também conta (migration `523`). De
 dono de 2026-10-30). Quando a Invoice paga, com desconto ou em disputa sai da
 Régua porque os itens não batem mais com o que vale hoje, o motivo
 (`dunning_suspended_reason`) começa pela causa — "Datas de container
-alteradas", "Container passou a SOC" ou "Divisão da caixa entre Clientes
-alterada" (as datas primeiro) — e termina em "depois do pagamento; conferir a
+alteradas", "Container passou a SOC" ou "Divisão do container entre Clientes
+alterada" (as datas primeiro; "Divisão da caixa…" até a migration `565`) — e termina em "depois do pagamento; conferir a
 diferença." ou "em Invoice com desconto ou disputa; reemitir à mão."
 (`_demurrage_stale_reason`). O aviso do detalhe e a coluna da Régua dizem a
 mesma causa; o banco e a tela reconhecem o motivo pelo fim do texto
@@ -972,7 +984,7 @@ Alerta diz o motivo e que a nova Invoice sai sozinha quando ele for resolvido
 (`replaces_invoice_id`, DEM-D08): o detalhe no Vela diz "Substitui a Invoice
 …, cancelada para reemissão automática…" com link, e o Portal "Substitui a
 fatura …" com a causa: as datas dos contêineres mudaram, um contêiner passou a
-SOC e saiu da cobrança, ou mudou a divisão de uma caixa entre Clientes. A
+SOC e saiu da cobrança, ou mudou a divisão de um container entre Clientes. A
 causa chega ao Portal só como código (`replaces_cause`: `datas`, `soc`,
 `divisao`, migration `555`), lido do motivo do cancelamento; o motivo gravado,
 texto interno, não sai (migration `530`). Outro motivo dá "cancelada e

@@ -159,6 +159,14 @@ describe('planilhas de BLs e Containers do Portal', () => {
     expect(sheet[0]).toMatchObject({ 'B/L': 'ABERTO', 'CE Mercante': '152609130000101', Navio: 'NORDIC STAR', Viagem: '021W', POL: 'CNSHA', POD: 'BRSSA' })
   })
 
+  it('leva os devolvidos com demurrage, a mesma conta da coluna Demurrage da tela', async () => {
+    const returnedLate = { ...bl('LATE', { status: 'none', total_brl: null, balance_brl: null }) }
+    returnedLate.containers = [{ ...returnedLate.containers[0], return_date: '2026-10-20', usage_days: 28, demurrage_days: 7, status: 'devolvido' }]
+    await exportPortalBlsWorkbook([returnedLate, bl('NO-PRAZO', { status: 'none', total_brl: null, balance_brl: null })])
+    const sheet = jsonToSheet.mock.calls[0][0] as Array<Record<string, unknown>>
+    expect(sheet.map((row) => row['Devolvidos com demurrage'])).toEqual([1, 0])
+  })
+
   it('mantém CE Mercante, Navio, Viagem e POL na planilha de Containers', async () => {
     await exportPortalContainersWorkbook(flattenContainers([bl('BL1', { status: 'none', total_brl: null, balance_brl: null })]))
     expect(jsonToSheet.mock.calls[0][0]).toEqual([

@@ -1216,9 +1216,10 @@ servidor, confirma que ela foi resolvida.
 → Regra: [Operação e Suporte § Ciclo de vida do Alerta](docs/modules/operacao-suporte.md#ciclo-de-vida-do-alerta)
 
 **Indicador Operacional**
-Contagem derivada de uma consulta ao estado atual, como os containers em
-atraso (que passaram do free time) da faixa do cabeçalho. Não tem instante de
-ocorrência nem estado de leitura.
+Contagem derivada de uma consulta ao estado atual, como as contagens do menu
+e os containers de Correndo no cartão da Demurrage (até 2026-11-01, também na
+faixa do alto de todas as telas). Não tem instante de ocorrência nem estado de
+leitura.
 - **Distinto de:** Alerta e Notificação Interna; não entra na entrega pessoal.
 → Regra: [Operação e Suporte § Indicador Operacional](docs/modules/operacao-suporte.md#indicador-operacional)
 

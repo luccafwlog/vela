@@ -278,7 +278,7 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(paid).getByText('R$ 2.702,00')).toBeTruthy()
     expect(within(paid).getByText('Pago').closest('.app-status-text--paid')).not.toBeNull()
     expect(within(paid).getByText('2 de 2 devolvidos').closest('.app-status-text--warning')).toBeNull()
-    expect(within(paid).getByText('Nenhum')).toBeTruthy()
+    expect(within(paid).getByText('Sem demurrage')).toBeTruthy()
 
     const awaiting = blRow('BL004')
     expect(within(awaiting).getByText('Aguardando fatura').closest('.app-status-text--warning')).toBeNull()
@@ -325,6 +325,30 @@ describe('PortalOperacao (BLs e Containers)', () => {
       const card = within(screen.getByTestId('portal-operacao-bl-mobile-cards')).getByRole('article', { name: 'B/L BL001' })
       expect(within(card).getByRole('link', { name: /Ver tracking na Cosco Shipping Specialized Carriers/ }).getAttribute('href')).toBe('https://spe.coscoshipping.com/main/newcargotracking?label=T&value=BL001')
     } finally { Object.assign(rows[0], previous) }
+  })
+
+  it('coluna Demurrage: B/L todo devolvido com dias de demurrage não diz "Nenhum" (observação de 2026-11-01)', () => {
+    const late = rows[2].containers[1]
+    const lateBefore = { ...late }
+    const returnedOnOpen = rows[0].containers[0]
+    const returnedOnOpenBefore = { ...returnedOnOpen }
+    Object.assign(late, { usage_days: 25, demurrage_days: 4 })
+    Object.assign(returnedOnOpen, { usage_days: 30, demurrage_days: 9 })
+    try {
+      renderOperacao()
+      const paid = blRow('BL003')
+      expect(within(paid).getByText('2 de 2 devolvidos')).toBeTruthy()
+      expect(within(paid).getByText('1 devolvido com demurrage').closest('.app-status-text')).toBeNull()
+      expect(within(paid).queryByText('Sem demurrage')).toBeNull()
+
+      // Um em demurrage (vermelho) e um já devolvido com demurrage, na mesma célula.
+      const open = blRow('BL001')
+      expect(within(open).getByText('1 em demurrage').closest('.app-status-text--danger')).not.toBeNull()
+      expect(open.textContent).toContain('1 em demurrage · 1 devolvido com demurrage')
+    } finally {
+      Object.assign(late, lateBefore)
+      Object.assign(returnedOnOpen, returnedOnOpenBefore)
+    }
   })
 
   it('filtra pelos cartões da aba BLs no lugar da contagem "B/L(s) encontrado(s)"', async () => {

@@ -50,7 +50,8 @@ export function PageHeader({
   action,
 }: {
   title: string
-  description?: string
+  /** Texto de apoio sob o título; pode trazer conteúdo em linha (o câmbio da Demurrage). */
+  description?: React.ReactNode
   action?: React.ReactNode
 }) {
   return (

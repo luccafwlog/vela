@@ -24,7 +24,7 @@ import type { PortalScheduleVoyage } from './portalScheduleVoyages'
 import { scheduleExportRows, scheduleTemplateColumns } from './portalScheduleBulkImport'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from './portalBilling'
 import type { PortalOperationBL } from './portalOperation'
-import { localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
+import { blReturnSummary, localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
 import type { CeUnlockItem } from '../types/ceUnlock'
@@ -370,7 +370,7 @@ export function demurrageItemSheetRows(rows: readonly DemurrageItemReportRow[]) 
     '2º período (dias)': row.days_p2 ?? '',
     '2º período (US$/dia)': usdCell(row.rate_p2_usd),
     US$: usdCell(row.subtotal_usd),
-    'Parte da caixa': boxShareLabel(row.box_share_count) ?? '',
+    'Parte do container': boxShareLabel(row.box_share_count) ?? '',
   }))
 }
 
@@ -557,6 +557,8 @@ export async function exportPortalBlsWorkbook(rows: PortalOperationBL[]) {
     Devolvidos: row.containers_returned,
     'Sem devolucao': row.container_count - row.containers_returned,
     'Em demurrage': row.containers_in_demurrage,
+    // Mesma conta da coluna Demurrage da tela (observação de 2026-11-01).
+    'Devolvidos com demurrage': blReturnSummary(row).returnedWithDemurrage,
     ...portalBlLocalChargesColumns(row),
   }))
 
