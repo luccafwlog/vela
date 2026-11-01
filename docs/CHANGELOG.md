@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Lacunas baixas da revisão da release (2026-11-01, migration `564`; decisões do dono):** o registro de "B/L
+  criado" no Histórico passa a um gatilho por comando (2.000 B/Ls num INSERT: 1,89 s → 1,45 s no Postgres local); a
+  reabertura do ADR sem terminal grava na chave do próprio ADR, e fechar e reabrir ficam no mesmo registro do Histórico
+  de ações; contato novo sem nome pela configuração de contatos fica em branco, não "Contato".
 - **Histórico de ações lê as trilhas próprias (2026-11-01, migration `561`; decisão do dono):** a aba Admin ›
   Histórico de ações mostra também o andamento do Desbloqueio de CE, as decisões e a situação das contas do Portal,
   os Comunicados enviados e as mensagens e anexos das disputas de Demurrage, lidos na hora de cada trilha, sem gravar

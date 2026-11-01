@@ -361,7 +361,13 @@ declarada no `config.toml` na mesma data. O teste
 `edgeTelemetryConfiguration.test.ts` recusa função do repositório sem
 declaração. Observado em 2026-10-10 (funções do Desbloqueio de CE) e em
 2026-10-14 (`portal-password-recovery` atualizada minutos após o merge da PR
-951); a configuração da integração que faz isso não foi conferida. Depois de
+951); a configuração da integração que faz isso não foi conferida. Em
+2026-11-01 (revisão da release #1142, listagem só de leitura pelo conector), as
+25 funções publicadas tinham a mesma atualização, 2026-10-31 18:40:34 UTC, um
+minuto depois do merge da PR 1134 na `main` (18:39:34 UTC), inclusive as que não
+mudaram nela (`itau-pix` na v52): a integração republica todas as funções
+declaradas a cada merge na `main`, e mudança só em `_shared/` também chega a
+produção. Depois de
 cada merge, confira em Supabase → Edge Functions a data de atualização das
 funções alteradas, ou baixe o código publicado com `supabase functions download`
 e compare com o `main`. Se alguma não foi publicada:
