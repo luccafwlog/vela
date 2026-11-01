@@ -4,7 +4,7 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 
 // Migration 320 (advisor do Supabase de 19/10/2026, ADR 0090): nenhuma função
 // do projeto executável por `anon`, trigger fora do alcance dos clientes,
-// `search_path` fixo em toda função (menos quatro SQL de volume, nomeadas
+// `search_path` fixo em toda função (menos as SQL de volume, nomeadas
 // abaixo) e índice nas FKs de B/L, faturas e Demurrage. Varre o catálogo inteiro, não a lista da 320: função nova que
 // nascer aberta ou sem `search_path` derruba esta suíte no CI, antes do advisor.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -46,6 +46,8 @@ const PROJECT_FUNCTIONS = `
 // para conferir no plano que continuam expandidas inline.
 const INLINE_SEM_SEARCH_PATH: ReadonlyArray<readonly [string, string]> = [
   ['public._import_effect_priority(text)', 'public._import_effect_priority(v.x)'],
+  // Migration 562: filtro Ação do Histórico de ações, uma vez por linha de audit_logs.
+  ['public._audit_action_kind(text,text)', 'public._audit_action_kind(v.x, v.x)'],
   ['public.bl_cargo_mode_matches_filter(text,text)', "public.bl_cargo_mode_matches_filter(v.x, 'container')"],
   ['public.bl_operation_front_modalidade(text)', 'public.bl_operation_front_modalidade(v.x)'],
   ['public.normalize_port_code(text)', 'public.normalize_port_code(v.x)'],
@@ -103,14 +105,14 @@ describeLocal('320 — funções fechadas, search_path fixo e índices de FK', (
     expect(privileges.split(',').filter((grant) => !grant.startsWith('service_role '))).toEqual([''])
   })
 
-  it('toda função do projeto fixa search_path, menos as quatro SQL de volume', () => {
+  it('toda função do projeto fixa search_path, menos as SQL de volume da lista', () => {
     expect(lines(psql(`SELECT p.oid::regprocedure ${PROJECT_FUNCTIONS}
       AND p.prokind IN ('f', 'p')
       AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig, '{}')) c WHERE c LIKE 'search_path=%')
       ORDER BY 1;`)).sort()).toEqual(INLINE_SEM_SEARCH_PATH.map(([signature]) => signature.replace('public.', '')).sort())
   })
 
-  it('as quatro de volume seguem SQL simples, sem DEFINER e expandidas inline', () => {
+  it('as de volume seguem SQL simples, sem DEFINER e expandidas inline', () => {
     // A exceção só se justifica enquanto o planejador cola a função na
     // consulta (decisão do responsável em 19/10/2026, PR 975): com SET, ou
     // virando plpgsql/DEFINER, ela volta a ser chamada linha a linha.
