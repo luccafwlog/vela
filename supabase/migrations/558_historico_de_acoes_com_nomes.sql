@@ -1,6 +1,6 @@
 -- 558: Histórico de ações (Administração) lido com nomes, não com números.
 --
--- Diagnóstico: docs/archive/audits/2026-11-01-historico-de-acoes.md.
+-- Diagnóstico: docs/archive/audits/historico-de-acoes-2026-11-01.md.
 --
 -- Problema: a aba Histórico de ações lia `audit_logs` direto pela API e só o
 -- nome do autor vinha à parte (`get_user_display_names`, 475). O registro que
@@ -180,6 +180,12 @@ BEGIN
     WHEN 'invoice_refunds' THEN 'Restituição'
     WHEN 'demurrage_refunds' THEN 'Restituição'
     WHEN 'cod_adjustments' THEN 'Ajuste de COD'
+    WHEN 'itau_pix_receipts' THEN concat_ws(' · ', 'Pix recebido',
+      to_char((p_row ->> 'paid_at')::timestamptz AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY'),
+      'R$ ' || replace(p_row ->> 'amount_brl', '.', ','))
+    WHEN 'pix_reconciliation_exceptions' THEN concat_ws(' · ', 'Pix sem fatura',
+      to_char((p_row ->> 'paid_at')::timestamptz AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY'),
+      'R$ ' || replace(p_row ->> 'amount_brl', '.', ','))
     ELSE NULL
   END;
   v_main := COALESCE(NULLIF(btrim(v_main), ''),
@@ -225,6 +231,7 @@ AS $function$
 DECLARE
   v_id text := btrim(COALESCE(p_entity_id, ''));
   v_table text;
+  v_key text;
   v_key_type text;
   v_row jsonb;
   v_label text;
@@ -266,16 +273,18 @@ BEGIN
     ELSE p_entity_type
   END;
 
-  -- Registro atual, pela chave primária `id` (com o tipo da coluna, para usar o índice).
+  -- Registro atual, pela chave do gatilho (com o tipo da coluna, para usar o
+  -- índice); o Pix recebido é gravado pela chave do Itaú, não por `id`.
+  v_key := CASE v_table WHEN 'itau_pix_receipts' THEN 'end_to_end_id' ELSE 'id' END;
   SELECT format_type(att.atttypid, att.atttypmod) INTO v_key_type
     FROM pg_catalog.pg_attribute att
     JOIN pg_catalog.pg_class cls ON cls.oid = att.attrelid
     JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
    WHERE ns.nspname = 'public' AND cls.relname = v_table AND cls.relkind = 'r'
-     AND att.attname = 'id' AND NOT att.attisdropped;
+     AND att.attname = v_key AND NOT att.attisdropped;
   IF v_key_type IS NOT NULL THEN
     BEGIN
-      EXECUTE format('SELECT to_jsonb(t) FROM public.%I t WHERE t.id = $1::%s', v_table, v_key_type)
+      EXECUTE format('SELECT to_jsonb(t) FROM public.%I t WHERE t.%I = $1::%s', v_table, v_key, v_key_type)
         INTO v_row USING v_id;
     EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range OR invalid_datetime_format THEN
       v_row := NULL;
