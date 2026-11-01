@@ -35,7 +35,7 @@ import { buildInvoiceFileBaseName } from '../components/shared/invoiceFormat'
 import { exportPortalDemurrageWorkbook, exportPortalLocalInvoicesWorkbook } from '../services/exports'
 import { portalInvoiceDocumentDetail, portalListDemurrageInvoicesForExport, portalListInvoicesForExport, type PortalDemurrageInvoice, type PortalInvoiceSummary } from '../services/portalBilling'
 import { EMPTY_PORTAL_BILLING_FILTERS, portalBillingFiltersFromSearch, type PortalBillingFilters } from '../lib/portalBillingFilters'
-import { localInvoiceShowsPix } from '../lib/portalInvoiceStatus'
+import { demurrageInvoiceShowsPix, localInvoiceShowsPix } from '../lib/portalInvoiceStatus'
 import { formatBRL } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
 import { isPortalReadOnly } from '../services/portalScope'
@@ -137,6 +137,9 @@ export function PortalBilling() {
   // "Pagar com Pix" da lista: a lista local não traz o código Pix; ele vem do
   // mesmo detalhe (mesma chave de cache do detalhe da fatura).
   const pixLocalQuery = usePortalInvoiceDetail(pixLocal?.id ?? null)
+  // Demurrage relê o detalhe também: a linha da lista é uma foto e não vê o
+  // Pix que o Itaú confirmou nem o pagamento feito com a janela aberta.
+  const pixDemurrageQuery = usePortalDemurrageInvoiceDetail(pixDemurrage?.id ?? null)
   const trackedInvoiceViews = useRef(new Set<string>())
 
   useEffect(() => {
@@ -402,17 +405,24 @@ export function PortalBilling() {
           />
         )
       })() : null}
-      {pixDemurrage ? (
-        <PortalPixPayModal
-          open
-          invoiceNumber={pixDemurrage.doc_number}
-          amount={`${formatBRL(pixDemurrage.current_total_brl)} a pagar hoje`}
-          amountDetail="O valor em reais acompanha a cotação do dia até o pagamento."
-          pix={pixDemurrage.pix_payload}
-          onOpenDetail={() => { setSelectedDemurrageId(pixDemurrage.id); setPixDemurrage(null) }}
-          onClose={() => setPixDemurrage(null)}
-        />
-      ) : null}
+      {pixDemurrage ? (() => {
+        const invoice = pixDemurrageQuery.data?.invoice
+        const brl = invoice?.current_total_brl
+        const showPix = invoice ? demurrageInvoiceShowsPix(invoice) : false
+        return (
+          <PortalPixPayModal
+            open
+            invoiceNumber={pixDemurrage.doc_number}
+            amount={brl == null ? 'Sem total em R$' : `${formatBRL(brl)} a pagar hoje`}
+            amountDetail="O valor em reais acompanha a cotação do dia até o pagamento."
+            pix={showPix ? invoice?.pix_payload ?? null : undefined}
+            loading={pixDemurrageQuery.isLoading}
+            error={Boolean(pixDemurrageQuery.error)}
+            onOpenDetail={() => { setSelectedDemurrageId(pixDemurrage.id); setPixDemurrage(null) }}
+            onClose={() => setPixDemurrage(null)}
+          />
+        )
+      })() : null}
 
       <PortalConsolidatedModal
         open={consolidateOpen}
