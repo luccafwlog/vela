@@ -14,6 +14,9 @@
   criado, inclusive pela importação, pela carga solta e no Granito, deixa uma linha curta **B/L criado** com a
   importação como origem; passam a ficar no Histórico a observação de seção do ADR, o **ciente** do impacto de taxa
   alterada à mão e os modelos salvos de Comunicado (assunto novo **Comunicado**). O nome no Meu perfil fica de fora.
+  Revisão da release (migration `562`): do "ciente" fica só a marcação, sem a limpeza dos aceites vencidos de outras
+  pessoas atribuída a quem clicou; o filtro **Ação** deixa de chamar uma função por linha (1,37 s → 0,12 s com 500 mil
+  linhas no Postgres local).
 - **Prioridades de usabilidade do Vela e do Portal (decisões do dono de 2026-11-01):**
   - **Portal › Faturas:** coluna **Pagar** com o ícone "Pagar com Pix" em toda fatura que pede pagamento,
     inclusive a individual que está numa consolidada aberta; abre a janela do Pix com o valor e **Ver detalhe
