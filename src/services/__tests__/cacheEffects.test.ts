@@ -176,15 +176,15 @@ it('gravação em Invoice de Demurrage atualiza lista, detalhe, caixas cobradas,
   expect(keys()).toEqual(expect.arrayContaining(keySet([
     ['demurrage-invoices'], ['demurrage-invoice-detail'], ['demurrage-kpis'], ['demurrage-containers'], ['portal-disputes'],
     ['demurrage-customer-summary'], ['demurrage-disputes'], ['bl-detail'], ['customer-ficha'],
-    ['portal-demurrage-invoices'], ['alerts'], ['header-alert'], ['itau-pix-receipts'], ['itau-pix-monitor'],
+    ['portal-demurrage-invoices'], ['alerts'], ['itau-pix-receipts'], ['itau-pix-monitor'],
   ])))
 })
 
-it('tarifa, tipo ou acordo alterado refaz a aba Containers, o aviso, os Alertas, o relatório e as fichas', async () => {
+it('tarifa, tipo ou acordo alterado refaz a aba Containers, os Alertas, o relatório e as fichas', async () => {
   const { client, keys } = fakeQueryClient()
   await afterReferenciaDemurrageAlterada(client)
   expect(keys()).toEqual(expect.arrayContaining(keySet([
-    ['demurrage-containers'], ['header-alert'], ['alerts'], ['demurrage-report'], ['customer-ficha'], ['bl-detail'],
+    ['demurrage-containers'], ['alerts'], ['demurrage-report'], ['customer-ficha'], ['bl-detail'],
   ])))
 })
 
@@ -194,7 +194,7 @@ it('baixa por Pix na Conciliação atualiza fatura local, Demurrage, histórico,
   expect(keys()).toEqual(expect.arrayContaining(keySet([
     ['invoices'], ['invoice-detail'], ['billing-ledger'], ['bls'], ['bl-detail'], ['customer-ficha'], ['portal-invoices'],
     ['demurrage-invoices'], ['demurrage-invoice-detail'], ['portal-demurrage-invoices'], ['financial-refunds'],
-    ['reconciliation-history'], ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['alerts'], ['header-alert'],
+    ['reconciliation-history'], ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['alerts'],
     ['itau-pix-receipts'], ['itau-pix-receipt-candidates'],
   ])))
   expect(new Set(keys()).size).toBe(keys().length)
@@ -204,7 +204,7 @@ it('pendência PIX gravada ou tratada atualiza Pendências e o Alerta sem reler 
   const { client, keys } = fakeQueryClient()
   await afterPendenciaPixAlterada(client)
   expect(keys()).toEqual(keySet([
-    ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['itau-pix-receipts'], ['alerts'], ['financial-alerts'], ['header-alert'],
+    ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['itau-pix-receipts'], ['alerts'], ['financial-alerts'],
   ]))
 })
 

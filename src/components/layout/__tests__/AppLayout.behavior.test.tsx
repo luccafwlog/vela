@@ -23,7 +23,6 @@ vi.mock('../../../hooks/useOperationalCounts', () => ({
   }),
 }))
 
-vi.mock('../HeaderInfoBar', () => ({ HeaderInfoBar: () => null }))
 vi.mock('../InternalNotificationBell', () => ({ InternalNotificationBell: () => null }))
 vi.mock('../../ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: ReactNode }) => children,
@@ -121,6 +120,15 @@ describe('AppLayout (navegação visível)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Operador de teste/ }))
     expect(screen.getByText('Administrativo')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Sair' })).toBeTruthy()
+  })
+
+  it('não tem faixa de avisos no alto: câmbio e containers em atraso ficam só na Demurrage (2026-11-01)', () => {
+    const { container } = renderLayout()
+    expect(screen.queryByText(/PTAX/)).toBeNull()
+    expect(screen.queryByText(/em atraso/)).toBeNull()
+    // Nada acima da barra além do atalho de teclado.
+    const shell = container.querySelector('.app-shell') as HTMLElement
+    expect([...shell.children].map((child) => child.tagName.toLowerCase())).toEqual(['a', 'header', 'main'])
   })
 
   it('troca a posição do menu só pelo menu da conta e guarda a escolha', () => {

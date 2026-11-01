@@ -20,6 +20,7 @@ import { formatBRL, formatDate } from '../lib/utils'
 import {
   BL_VOYAGE_PARAMS,
   blCargoLabel,
+  blDemurrageParts,
   blMatchesReturnSituation,
   blReturnSummary,
   containerMatchesReturnSituation,
@@ -446,10 +447,21 @@ function ReturnCell({ row }: { row: PortalOperationBL }) {
   return awaiting > 0 ? <StatusText tone="warning">{text}</StatusText> : <>{text}</>
 }
 
+/**
+ * Em demurrage (sem devolução) em vermelho; devolvido com demurrage em tinta
+ * normal, porque a cobrança dele está em Faturas (regra 5 da identidade).
+ */
 function DemurrageCell({ row }: { row: PortalOperationBL }) {
   if (row.containers.length === 0) return <NoValue label="Sem containers" />
-  const { inDemurrage } = blReturnSummary(row)
-  return inDemurrage > 0 ? <StatusText tone="danger">{`${inDemurrage} em demurrage`}</StatusText> : <>Nenhum</>
+  const { running, returned } = blDemurrageParts(row)
+  if (!running && !returned) return <>Sem demurrage</>
+  return (
+    <>
+      {running ? <StatusText tone="danger">{running}</StatusText> : null}
+      {running && returned ? ' · ' : null}
+      {returned}
+    </>
+  )
 }
 
 // --- Aba Containers ------------------------------------------------------

@@ -48,4 +48,16 @@ describe('contagens e Esperando', () => {
     })
     expect(nextStep(waiting)).toEqual({ kind: 'wait', text: 'Aguarda TGHU0000002 até 05/11' })
   })
+
+  it('Correndo diz quantos containers estão pendentes de devolução, sem "caixa correndo" (observação de 2026-11-01)', () => {
+    const running = (boxes: BoardBox[]) => group({ division: 'correndo', reason_code: null, boxes })
+    expect(nextStep(running([box({}), box({ container_number: 'TGHU0000002', return_date: '2026-10-20', state: 'returned_overstay' })])))
+      .toEqual({ kind: 'running', text: '1 container pendente de devolução' })
+    // O que ainda está no free time também falta devolver; o dispensado não segura a Invoice.
+    expect(nextStep(running([
+      box({}),
+      box({ container_number: 'TGHU0000002', state: 'in_free_time' }),
+      box({ container_number: 'TGHU0000003', state: 'waived' }),
+    ]))).toEqual({ kind: 'running', text: '2 containers pendentes de devolução' })
+  })
 })
