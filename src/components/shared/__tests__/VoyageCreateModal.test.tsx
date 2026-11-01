@@ -77,7 +77,7 @@ describe('VoyageCreateModal', () => {
     // Dois seletores, cada um com o lado e o efeito escritos; nenhum porto
     // listado até o operador adicionar.
     expect(screen.getByRole('heading', { name: 'Origem' })).toBeTruthy()
-    expect(screen.getByText('Saída do navio no exterior (ETD). Vai para Chegadas e Saídas.')).toBeTruthy()
+    expect(screen.getByText('Saída do navio no exterior (ETD). Aparece em Chegadas e Saídas quando o porto é coluna da programação.')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Destino' })).toBeTruthy()
     expect(screen.getByText('Chegada no Brasil (ETA). Cria uma escala da viagem.')).toBeTruthy()
     expect(screen.queryByRole('listitem')).toBeNull()
@@ -122,6 +122,11 @@ describe('VoyageCreateModal', () => {
     expect(within(origins).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Qingdao (CNTAO) · ETD 04/11/2026'])
     const destinations = screen.getByRole('list', { name: 'Portos de destino adicionados' })
     expect(within(destinations).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Santos (BRSSZ) · ETA 12/12/2026'])
+    // Os portos recusados continuam digitados; apagados, o cadastro segue.
+    for (const [side, date] of [['origem', 'ETD'], ['destino', 'ETA']] as const) {
+      await user.clear(screen.getByLabelText(`Porto de ${side}`))
+      fireEvent.change(screen.getByLabelText(date), { target: { value: '' } })
+    }
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
 
     await waitFor(() => expect(recordDatesMock).toHaveBeenCalledTimes(1))
@@ -171,6 +176,75 @@ describe('VoyageCreateModal', () => {
       'error',
     ))
     expect(onSaved).toHaveBeenCalledWith(101)
+  })
+
+  it('porto digitado e não adicionado: recusa o cadastro em vez de criar a viagem sem ele', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Porto de destino'), 'santos')
+    fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-12' } })
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+
+    expect(await screen.findByText('Adicione ou apague este porto de destino antes de cadastrar a viagem.')).toBeTruthy()
+    expect(createVoyageMock).not.toHaveBeenCalled()
+
+    // Adicionado, o cadastro segue com a escala.
+    await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
+    expect(screen.queryByText('Adicione ou apague este porto de destino antes de cadastrar a viagem.')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    await waitFor(() => expect(recordDatesMock).toHaveBeenCalledWith(101, [{ code: 'BRSSZ', kind: 'pod', date: '2026-12-12' }], 'user-1'))
+  })
+
+  it('porto só digitado conta como alteração: Voltar pede confirmação', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    renderModal({ onClose })
+    await user.type(screen.getByLabelText('Porto de origem'), 'qingdao')
+    await user.click(screen.getByRole('button', { name: 'Voltar' }))
+    expect(await screen.findByText('Descartar alterações?')).toBeTruthy()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('com portos e Chegadas e Saídas ligada, publica só depois de gravar as datas', async () => {
+    const user = userEvent.setup()
+    const order: string[] = []
+    recordDatesMock.mockImplementation(async () => { order.push('datas') })
+    setShowMock.mockImplementation(async () => { order.push('publica') })
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Porto de destino'), 'santos')
+    fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-12' } })
+    await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
+    await user.click(screen.getByRole('switch', { name: 'Chegadas e Saídas' }))
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+
+    await waitFor(() => expect(setShowMock).toHaveBeenCalledWith(101, true))
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false })
+    expect(order).toEqual(['datas', 'publica'])
+    expect(showToastMock).toHaveBeenCalledWith('Viagem cadastrada com sucesso.', 'success')
+  })
+
+  it('datas recusadas com Chegadas e Saídas ligada: a viagem não vai ao ar sem datas', async () => {
+    const user = userEvent.setup()
+    recordDatesMock.mockRejectedValue(new Error('fetch failed'))
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Porto de destino'), 'santos')
+    fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-12' } })
+    await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
+    await user.click(screen.getByRole('switch', { name: 'Chegadas e Saídas' }))
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+
+    await waitFor(() => expect(showToastMock).toHaveBeenCalledWith(
+      'Viagem cadastrada, mas as datas dos portos não foram gravadas (falha na gravação das datas). Informe-as nas escalas da ficha da viagem e ligue Chegadas e Saídas depois.',
+      'error',
+    ))
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false })
+    expect(setShowMock).not.toHaveBeenCalled()
   })
 
   it('limpa os campos indicados ao desativar o toggle', async () => {

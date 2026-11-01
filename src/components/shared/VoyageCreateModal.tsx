@@ -57,6 +57,10 @@ export function VoyageCreateModal({
   // Portos e datas só no cadastro: na edição, as datas são das escalas da
   // ficha (e de Chegadas e Saídas), que tratam "Não escala" com as âncoras.
   const [lanes, setLanes] = useState<VoyagePortStop[]>([])
+  // Porto ou data digitados sem Adicionar: o cadastro recusa em vez de criar a
+  // viagem sem eles, e Voltar pede confirmação.
+  const [portDrafts, setPortDrafts] = useState<Record<VoyagePortStop['kind'], boolean>>({ pol: false, pod: false })
+  const [draftErrors, setDraftErrors] = useState<Record<VoyagePortStop['kind'], string | null>>({ pol: null, pod: null })
   const [carrierOpen, setCarrierOpen] = useState(false)
   const [pristine, setPristine] = useState({
     form: initialVoyageFormValues,
@@ -98,6 +102,8 @@ export function VoyageCreateModal({
       setForm(nextForm)
       setHasIndicatedFirstPort(nextHasIndicatedFirstPort)
       setLanes(nextLanes)
+      setPortDrafts({ pol: false, pod: false })
+      setDraftErrors({ pol: null, pod: null })
       setCarrierOpen(false)
       setPristine({ form: nextForm, hasIndicatedFirstPort: nextHasIndicatedFirstPort, lanes: nextLanes })
       setPortalChoice(null)
@@ -106,7 +112,10 @@ export function VoyageCreateModal({
   }
 
   const isDirty =
-    JSON.stringify({ form, hasIndicatedFirstPort, lanes }) !== JSON.stringify(pristine) || portalChoice !== null
+    JSON.stringify({ form, hasIndicatedFirstPort, lanes }) !== JSON.stringify(pristine)
+    || portalChoice !== null
+    || portDrafts.pol
+    || portDrafts.pod
 
   async function handleClose() {
     if (!isDirty) {
@@ -140,6 +149,14 @@ export function VoyageCreateModal({
       return
     }
 
+    if (isNew && (portDrafts.pol || portDrafts.pod)) {
+      setDraftErrors({
+        pol: portDrafts.pol ? 'Adicione ou apague este porto de origem antes de cadastrar a viagem.' : null,
+        pod: portDrafts.pod ? 'Adicione ou apague este porto de destino antes de cadastrar a viagem.' : null,
+      })
+      return
+    }
+
     const indicatedPortError = await validateIndicatedFirstBrazilianPort(normalizedForm, voyageId)
     if (indicatedPortError) {
       setErrors({ indicatedFirstBrazilianPort: indicatedPortError })
@@ -164,17 +181,21 @@ export function VoyageCreateModal({
         return
       }
 
-      const saved = voyageId
-        ? await updateVoyage(voyageId, normalizedForm, user?.id ?? null)
-        : await createVoyage(normalizedForm, user?.id ?? null, { origin: 'viagens', showOnPortal })
-      if (voyageId && showOnPortal !== currentlyShown) await setVoyageShowOnPortal(voyageId, showOnPortal)
-
       // Portos e datas da Viagem nova: as mesmas escalas (ETA) e ETD do POL
       // que Chegadas e Saídas grava, só dos portos com data.
       // ponytail: duas gravações, não uma transação — se as datas forem
       // recusadas, a Viagem fica cadastrada sem elas e a tela diz isso; o
       // upgrade é uma RPC que cria a Viagem e as datas juntas.
       const scheduleLanes = isNew ? lanes : []
+      // Com datas a gravar, publica depois delas (como Chegadas e Saídas, em
+      // createOrAttachVoyageFromSchedule): datas recusadas não deixam a
+      // Viagem no Portal e no site sem data nenhuma.
+      const publishAfterDates = scheduleLanes.length > 0 && showOnPortal
+      const saved = voyageId
+        ? await updateVoyage(voyageId, normalizedForm, user?.id ?? null)
+        : await createVoyage(normalizedForm, user?.id ?? null, { origin: 'viagens', showOnPortal: showOnPortal && !publishAfterDates })
+      if (voyageId && showOnPortal !== currentlyShown) await setVoyageShowOnPortal(voyageId, showOnPortal)
+
       let datesFailure: string | null = null
       if (scheduleLanes.length) {
         try {
@@ -183,12 +204,25 @@ export function VoyageCreateModal({
           datesFailure = userFacingErrorMessage(error, 'falha na gravação das datas').replace(/\.$/, '')
         }
       }
+      let publishFailure = false
+      if (publishAfterDates && !datesFailure) {
+        try {
+          await setVoyageShowOnPortal(saved.id, true)
+        } catch {
+          publishFailure = true
+        }
+      }
 
       await afterViagemAlterada(queryClient, { voyageId: saved.id })
       void queryClient.invalidateQueries({ queryKey: ['voyage-show-on-portal'] })
 
       if (datesFailure) {
-        showToast(`Viagem cadastrada, mas as datas dos portos não foram gravadas (${datesFailure}). Informe-as nas escalas da ficha da viagem.`, 'error')
+        showToast(
+          `Viagem cadastrada, mas as datas dos portos não foram gravadas (${datesFailure}). Informe-as nas escalas da ficha da viagem${publishAfterDates ? ' e ligue Chegadas e Saídas depois' : ''}.`,
+          'error',
+        )
+      } else if (publishFailure) {
+        showToast('Viagem cadastrada com as datas, mas não entrou em Chegadas e Saídas. Ligue a chave na edição da viagem.', 'error')
       } else {
         showToast(voyageId ? 'Viagem atualizada com sucesso.' : 'Viagem cadastrada com sucesso.', 'success')
       }
@@ -272,6 +306,11 @@ export function VoyageCreateModal({
                 takenCodes={lanes.map((stop) => stop.code)}
                 onAdd={(stop) => setLanes((current) => [...current, stop])}
                 onRemove={(code) => setLanes((current) => current.filter((stop) => stop.code !== code))}
+                onDraftChange={(hasDraft) => {
+                  setPortDrafts((current) => (current[kind] === hasDraft ? current : { ...current, [kind]: hasDraft }))
+                  setDraftErrors((current) => (current[kind] ? { ...current, [kind]: null } : current))
+                }}
+                draftError={draftErrors[kind]}
               />
             ))}
           </section>
