@@ -2,6 +2,30 @@ import { describe, expect, it } from 'vitest'
 import { buildVoyageTimeline } from '../voyageSummaries'
 
 describe('timeline operacional de transbordo', () => {
+  it('leva a justificativa das edições da Viagem e do CE Master para a linha do tempo', () => {
+    const events = buildVoyageTimeline({
+      auditEvents: [
+        { entity_type: 'voyage', entity_id: '9', field_name: 'ce_master', old_value: '111', new_value: '222', justification: 'CE retificado pela Receita', changed_at: '2026-08-18T11:00:00Z' },
+        { entity_type: 'voyage', entity_id: '9', field_name: 'transshipment_info', old_value: null, new_value: '{"x": 1}', justification: 'Atualizacao manual de ETA por POD', changed_at: '2026-08-18T10:00:00Z' },
+      ],
+    } as never)
+    expect(events.find((event) => event.kind === 'ce-master')?.detail).toContain('Justificativa: CE retificado pela Receita')
+    // Texto automático do sistema não vira justificativa.
+    expect(events.find((event) => event.kind === 'transshipment-info')?.detail).not.toContain('Justificativa')
+  })
+
+  it('o contexto de uma importação aparece como Origem curta, também no rastro antigo sem acento', () => {
+    const events = buildVoyageTimeline({
+      auditEvents: [
+        { entity_type: 'voyage', entity_id: '9', field_name: 'ce_master', old_value: null, new_value: '1234567890123', justification: 'Importação de CE Mercante · Viagem Santos 012S · Manifesto 1234567890123', changed_at: '2026-08-18T11:00:00Z' },
+        { entity_type: 'voyage', entity_id: '9', field_name: 'ce_master', old_value: '1234567890123', new_value: '1234567890124', justification: 'Importacao de frete · Viagem Santos 012S', changed_at: '2026-08-18T12:00:00Z' },
+      ],
+    } as never)
+    const details = events.filter((event) => event.kind === 'ce-master').map((event) => event.detail)
+    expect(details).toEqual(expect.arrayContaining([expect.stringContaining('Origem: CE Mercante'), expect.stringContaining('Origem: frete')]))
+    expect(details.join(' ')).not.toMatch(/Viagem Santos|Justificativa: Importacao/)
+  })
+
   it('usa o mesmo formato objetivo para registros de escala', () => {
     const events = buildVoyageTimeline({
       scheduleEvents: [{
