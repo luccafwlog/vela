@@ -127,6 +127,7 @@ src/integration/comunicadoEmEnvio.local-pg.test.ts
 src/integration/comunicadoEscalaUnica.local-pg.test.ts
 src/integration/comunicadoAlvoPorDestinatario.local-pg.test.ts
 src/integration/comunicadoRevisaoRigorosa.local-pg.test.ts
+src/integration/reguaDoCeContaQualquerEntrega.local-pg.test.ts
 src/integration/reguaCobrancaDemurrage.local-pg.test.ts
 src/integration/monitoramentoDosEmails.local-pg.test.ts
 src/integration/rotinasHttpComErro.local-pg.test.ts
@@ -224,3 +225,4 @@ src/integration/historicoDeAcoesComNomes.local-pg.test.ts
 src/integration/historicoCobreEscritasSemRastro.local-pg.test.ts
 src/integration/historicoCriaBlELacunasMenores.local-pg.test.ts
 src/integration/historicoLeAsTrilhas.local-pg.test.ts
+src/integration/lacunasBaixasDaRevisao.local-pg.test.ts
