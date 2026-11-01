@@ -11,7 +11,11 @@
     setores não precisam ver. O câmbio (PTAX venda, ROE, data da cotação e atualizar) fica sob o título da
     **Demurrage**; a contagem é o cartão **Correndo (US$)** da mesma tela.
   - **Vela › Demurrage › Containers:** o **Próximo passo / motivo** em Correndo diz "N container(s) pendente(s) de
-    devolução" no lugar de "N caixas correndo; a Invoice sai quando todas voltarem"; "caixa" sai do resto da coluna.
+    devolução" no lugar de "N caixas correndo; a Invoice sai quando todas voltarem".
+  - **"Container", nunca "caixa":** os textos das telas da Demurrage, da ficha do B/L, do detalhe da Invoice no
+    Portal, da Matriz de permissões e das planilhas trocam "caixa" por "container" ("Destino dos containers",
+    "1/2 do container", "Cobrança do container dispensada", "divisão do container alterada"…). Os textos que o
+    banco grava (motivo de cancelamento e de pausa da Régua, mensagens de alerta e de recusa) seguem como estão.
   - **Portal › B/Ls e containers:** a coluna **Demurrage** separa "N em demurrage" (sem devolução, em vermelho) de
     "N devolvido(s) com demurrage", e diz "Sem demurrage" quando não há nenhum; antes dizia "Nenhum" com o B/L todo
     devolvido depois do free time. A planilha ganha **Devolvidos com demurrage**.

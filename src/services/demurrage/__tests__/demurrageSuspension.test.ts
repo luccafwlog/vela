@@ -19,6 +19,6 @@ describe('motivo da suspensão pela causa', () => {
   it('o aviso e a coluna da Régua dizem a causa', () => {
     const [notice] = demurrageInvoiceNotices({ status: 'paid', dunning_suspended_reason: soc, dispute_open: false, roe_source: null, paid_at: '2026-10-01' } as never)
     expect(notice.title).toBe('Fora da Régua: container passou a SOC depois do pagamento')
-    expect(demurrageDunningPauseReason({ paid_at: null, dunning_suspended_reason: split, dispute_open: false } as never, true)).toBe('divisão da caixa alterada, aguarda tratamento')
+    expect(demurrageDunningPauseReason({ paid_at: null, dunning_suspended_reason: split, dispute_open: false } as never, true)).toBe('divisão do container alterada, aguarda tratamento')
   })
 })

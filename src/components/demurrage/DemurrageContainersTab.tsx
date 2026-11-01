@@ -59,7 +59,7 @@ type Props = {
 const EMPTY_TEXT: Record<DemurrageDivision, string> = {
   correndo: 'Nenhum container fora passou do free time.',
   a_emitir: 'Nenhum grupo com tudo devolvido e Demurrage sem Invoice.',
-  esperando: 'Nenhuma caixa devolvida com sobreestadia esperando outra caixa do grupo.',
+  esperando: 'Nenhum container devolvido com sobreestadia esperando outro container do grupo.',
   travado: 'Nada travado: toda sobreestadia tem como ser cobrada.',
 }
 

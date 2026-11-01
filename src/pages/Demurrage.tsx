@@ -305,7 +305,7 @@ export function Demurrage() {
     mutationFn: ({ box, reason }: { box: BoardBox; reason: string }) => waiveDemurrageBox(box.bl_id, box.container_number, reason),
     onSuccess: async () => {
       await afterDatasContainerAlteradas(queryClient)
-      showToast('Cobrança da caixa dispensada.', 'success')
+      showToast('Cobrança do container dispensada.', 'success')
     },
     onError: (error: Error) => showToast(extractErrorText(error), 'error'),
   })
@@ -318,7 +318,7 @@ export function Demurrage() {
       confirmLabel: 'Dispensar cobrança',
       tone: 'danger',
       reasonLabel: 'Justificativa (mínimo de 10 caracteres)',
-      consequence: 'A caixa sai da aba Containers e de qualquer Invoice nova do grupo; o B/L deixa de ser segurado no cancelamento por ela.',
+      consequence: 'O container sai da aba Containers e de qualquer Invoice nova do grupo; o B/L deixa de ser segurado no cancelamento por ele.',
       reversibility: 'Desfaça a dispensa na ficha do B/L, também com justificativa.',
     })
     if (reason === null) return
@@ -441,7 +441,7 @@ export function Demurrage() {
     const reason = await confirmWithReason({
       title: `Cancelar Invoice ${invoice.doc_number}`,
       message: `Cancelar a Invoice de Demurrage ${invoice.doc_number} do B/L ${invoice.bl_id}?`,
-      consequence: 'A Invoice sai da Régua e do Portal e não aceita mais baixa. As caixas dela voltam para A emitir na aba Containers, sem Invoice nova automática.'
+      consequence: 'A Invoice sai da Régua e do Portal e não aceita mais baixa. Os containers dela voltam para A emitir na aba Containers, sem Invoice nova automática.'
         // D16: a Disputa aberta é encerrada junto, e o Cliente lê este motivo no Portal.
         + (invoice.dispute_open ? ' A Disputa aberta é encerrada junto, e o Cliente vê este motivo no Portal.' : ''),
       reversibility: 'Invoice cancelada não volta: para cobrar de novo, gere outra Invoice.',

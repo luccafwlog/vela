@@ -370,7 +370,7 @@ export function demurrageItemSheetRows(rows: readonly DemurrageItemReportRow[]) 
     '2º período (dias)': row.days_p2 ?? '',
     '2º período (US$/dia)': usdCell(row.rate_p2_usd),
     US$: usdCell(row.subtotal_usd),
-    'Parte da caixa': boxShareLabel(row.box_share_count) ?? '',
+    'Parte do container': boxShareLabel(row.box_share_count) ?? '',
   }))
 }
 

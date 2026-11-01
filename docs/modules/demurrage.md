@@ -232,7 +232,7 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   - **Canceladas** (D10): **Motivo** e **Cancelada por** (a linha `status` →
     `cancelled` de `audit_logs`, gravada pelo cancelamento à mão, pela
     reemissão por datas e pela troca de CNPJ; sem autor, "Sistema") e
-    **Destino das caixas**, por caixa: reemitida na Invoice que tem
+    **Destino dos containers**, por container: reemitida na Invoice que tem
     `replaces_invoice_id` igual a esta, cobrada noutra Invoice viva do mesmo
     Cliente na Viagem, dispensada, ou aguardando nova Invoice. O ROE, o motivo,
     o autor e o destino vêm de `list_demurrage_invoice_details` (migration
@@ -889,7 +889,7 @@ pela condição daquele Cliente (B/L, acordo ou tabela) dividido por `n`
 (`_calculate_demurrage_invoice_authoritative`), e
 `demurrage_invoice_items.box_share_count` guarda `n`. O detalhe, o documento
 impresso, o detalhe do Portal e o relatório Itens por container mostram
-"1/2 da caixa"; a classificação da aba Containers e a Exposição já preveem a
+"1/2 do container" (até 2026-11-01, "1/2 da caixa"); a classificação da aba Containers e a Exposição já preveem a
 parte. Item emitido antes da `521` fica com a coluna vazia: foi cobrado cheio
 e a divisão não o revisa; se as datas dele mudarem, a reemissão já sai
 pela parte do Cliente. Essa é a decisão do dono de 2026-10-30: o que já foi emitido não
@@ -983,7 +983,7 @@ Alerta diz o motivo e que a nova Invoice sai sozinha quando ele for resolvido
 (`replaces_invoice_id`, DEM-D08): o detalhe no Vela diz "Substitui a Invoice
 …, cancelada para reemissão automática…" com link, e o Portal "Substitui a
 fatura …" com a causa: as datas dos contêineres mudaram, um contêiner passou a
-SOC e saiu da cobrança, ou mudou a divisão de uma caixa entre Clientes. A
+SOC e saiu da cobrança, ou mudou a divisão de um container entre Clientes. A
 causa chega ao Portal só como código (`replaces_cause`: `datas`, `soc`,
 `divisao`, migration `555`), lido do motivo do cancelamento; o motivo gravado,
 texto interno, não sai (migration `530`). Outro motivo dá "cancelada e

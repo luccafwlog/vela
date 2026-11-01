@@ -21,9 +21,9 @@ describe('rótulos', () => {
     expect(paymentMethodLabel('outro')).toBeNull()
   })
 
-  it('destino nomeia a caixa ou conta as caixas', () => {
+  it('destino nomeia o container ou conta os containers', () => {
     expect(destinationText({ kind: 'cobrada', invoice_id: 9, doc_number: 'DEM-2026-0009', containers: ['MSCU1'] })).toBe('MSCU1: cobrada na DEM-2026-0009')
-    expect(destinationText({ kind: 'aguardando', invoice_id: null, doc_number: null, containers: ['A', 'B'] })).toBe('2 caixas: aguardando nova Invoice')
+    expect(destinationText({ kind: 'aguardando', invoice_id: null, doc_number: null, containers: ['A', 'B'] })).toBe('2 containers: aguardando nova Invoice')
   })
 })
 

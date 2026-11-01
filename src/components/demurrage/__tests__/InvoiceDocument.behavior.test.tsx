@@ -90,7 +90,7 @@ it('fatura paga ou cancelada não oferece Pix', () => {
   }
 })
 
-it('Invoice complementar diz qual Invoice completa e que não cobra de novo as caixas já cobradas', () => {
+it('Invoice complementar diz qual Invoice completa e que não cobra de novo os containers já cobrados', () => {
   render(<InvoiceDocument detail={{ ...detail, complement_of: ['DEM-2026-0000'] }} type="invoice" />)
   const notice = screen.getByTestId('demurrage-complement-notice').textContent ?? ''
   expect(notice).toContain('Invoice complementar de DEM-2026-0000')
@@ -159,10 +159,10 @@ it('lote 6b: Pix com aviso da baixa, sem repetir o valor, código em 12px; ROE e
 
 it('caixa dividida entre Clientes: o documento diz a parte do Cliente (ADR 0112, D19)', () => {
   render(<InvoiceDocument detail={{ ...detail, items: [{ ...detail.items[0], box_share_count: 2 }] }} type="invoice" />)
-  expect(screen.getByText('TCLU1234567 (1/2 da caixa)')).toBeTruthy()
+  expect(screen.getByText('TCLU1234567 (1/2 do container)')).toBeTruthy()
 })
 
 it('caixa de um Cliente só não ganha a marca da parte', () => {
   render(<InvoiceDocument detail={{ ...detail, items: [{ ...detail.items[0], box_share_count: 1 }] }} type="invoice" />)
-  expect(screen.queryByText(/da caixa/)).toBeNull()
+  expect(screen.queryByText(/do container/)).toBeNull()
 })

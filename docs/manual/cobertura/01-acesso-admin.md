@@ -123,7 +123,7 @@ repositório.
 | ACE-104 | **Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L**: só o Administrativo. | Op 2; Op 17; Fin | Adm | `permissao:cancelar-fatura` |
 | ACE-105 | **Gerar Invoice e complementar; aplicar desconto; editar tarifa, acordo e condição de Demurrage do B/L**: qualquer setor. | Op 2; Op 8; Op 17 | Todos | `permissao:gerar-invoice` |
 | ACE-106 | **Ver Disputas e editar os dados da disputa e o vencimento**: qualquer setor. | Op 2; Op 8 | Todos | `permissao:disputas` |
-| ACE-129 | **Dispensar a cobrança de Demurrage de uma caixa e desfazer a dispensa, com justificativa**: qualquer setor; justificativa de ao menos 10 caracteres (migrations `517` e `530`). | Op 2; Op 8 | Todos | `permissao:dispensar-cobranca` |
+| ACE-129 | **Dispensar a cobrança de Demurrage de um container e desfazer a dispensa, com justificativa**: qualquer setor; justificativa de ao menos 10 caracteres (migrations `517` e `530`). | Op 2; Op 8 | Todos | `permissao:dispensar-cobranca` |
 | ACE-107 | **Registrar pagamento de Invoice**: Financeiro e Administrativo. | Op 2; Op 17; Fin | Fin + Adm | `permissao:baixa-invoice` |
 | ACE-108 | **Informar PTAX; pôr e tirar o ROE manual do B/L e tirar o da Invoice, com motivo**: Financeiro, Administrativo e Equipamentos. | Op 2; Op 8; Op 17 | Fin + Adm + Equ | `permissao:informar-ptax` |
 | ACE-109 | **Responder, reabrir e anexar na Disputa**: Equipamentos e Administrativo. | Op 2; Op 8 | Equ + Adm | `permissao:responder-disputa` |
