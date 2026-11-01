@@ -136,6 +136,16 @@ describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
     ])
   })
 
+  it('Pix tratado, exceção de Pix e fechamento do ADR em português (559)', () => {
+    expect(auditSubjectLabel('itau_pix_receipts')).toBe('Conciliação PIX')
+    expect(auditSubjectLabel('pix_reconciliation_exceptions')).toBe('Conciliação PIX')
+    expect(describeAuditLog(log('itau_pix_receipts', 'handled_note', null, 'Pix devolvido'))).toBe('Observação do tratamento: Pix devolvido')
+    expect(describeAuditLog(log('pix_reconciliation_exceptions', 'criado', null, '{"id": 3, "txid": "X"}'))).toBe('Exceção de Pix criada')
+    expect(describeAuditLog(log('agency_departure_report', 'status', 'open', 'closed'))).toBe('ADR de Saída fechado')
+    expect(describeAuditLog({ ...log('agency_departure_report', 'terminal_id', null, 'uuid'), new_label: 'Terminal Norte' })).toBe('Terminal: Terminal Norte')
+    expect(describeAuditLog(log('customer_billing_portal_releases', 'criado', null, '{"id": 1, "customer_id": 9}'))).toBe('Liberação de faturamento criada')
+  })
+
   it('concordância e cadastro apagado na frase (revisão)', () => {
     expect(describeAuditLog(log('bls', 'voyage_id', '37', '41'))).toBe('Viagem alterada')
     expect(describeAuditLog(log('invoice_items', 'invoice_id', '7', '8'))).toBe('Fatura alterada')

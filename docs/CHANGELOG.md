@@ -13,6 +13,11 @@
   e-mail e o setor do autor ao passar o mouse e na linha aberta; a justificativa ganha a coluna **Motivo**; filtro
   novo **Ação** (Criou, Alterou, Excluiu). Leitura pela RPC `admin_action_history`, só do Administrativo.
   Diagnóstico em [archive/audits/historico-de-acoes-2026-11-01.md](archive/audits/historico-de-acoes-2026-11-01.md).
+- **Histórico cobre escritas que não deixavam rastro (2026-11-01, migration `559`):** passam a aparecer no Histórico
+  de ações a Liberação de faturamento no Portal (com a justificativa), o fechamento e a troca de terminal do ADR de
+  Saída, "Marcar como tratado" do Pix Itaú (com o motivo), as exceções de Pix (assunto novo **Conciliação PIX**) e a
+  criação do Embarque de vazios e da linha de serviço. Motivo escrito numa coluna da própria linha (revogação da
+  liberação, por exemplo) vira a justificativa do Histórico.
 
 ## 2026-10
 
