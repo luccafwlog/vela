@@ -38,6 +38,8 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'fatura', label: 'Fatura', entityTypes: ['invoice', 'invoices', 'invoice_items', 'invoice_bls', 'invoice_receivable_links', 'payments', 'ledger_settlements', 'bl_receivables'] },
   { id: 'restituicao', label: 'Restituição', entityTypes: ['invoice_refund', 'invoice_refunds', 'demurrage_refund'] },
   { id: 'cod', label: 'Ajuste de COD', entityTypes: ['cod_adjustment'] },
+  // Migration 559: Pix tratado e exceções de Pix entram no Histórico.
+  { id: 'pix', label: 'Conciliação PIX', entityTypes: ['itau_pix_receipts', 'pix_reconciliation_exceptions'] },
   { id: 'demurrage', label: 'Invoice de Demurrage', entityTypes: ['demurrage_invoice', 'demurrage_invoices', 'demurrage_invoice_items'] },
   { id: 'tarifa-demurrage', label: 'Tarifa de Demurrage', entityTypes: ['demurrage_rates'] },
   { id: 'tipo-container', label: 'Tipo de container', entityTypes: ['container_types'] },
@@ -99,6 +101,9 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
   depot_services: { noun: 'Serviço do Local', feminine: false },
   user_profile: { noun: 'Usuário', feminine: false },
   alert_item: { noun: 'Alerta', feminine: false },
+  itau_pix_receipts: { noun: 'Pix recebido', feminine: false },
+  pix_reconciliation_exceptions: { noun: 'Exceção de Pix', feminine: true },
+  vazios_export_service_lines: { noun: 'Linha de serviço', feminine: true },
 }
 
 /** Rótulos de campo comuns às tabelas sem rótulo próprio. */
@@ -144,6 +149,7 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   eta: 'ETA',
   etd: 'ETD',
   terminal_id: 'Terminal',
+  terminal: 'Terminal',
   code: 'Código',
   email: 'E-mail',
   invoice_number: 'Número da fatura',
