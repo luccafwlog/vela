@@ -252,6 +252,9 @@ repositório.
 | `Nenhuma falha de entrega registrada.` | Admin › Falhas de entrega de alertas, vazia. | Ap. B |
 | `Não foi possível carregar o histórico de ações.` | Admin › Histórico de ações. | Ap. B |
 | `Nenhuma ação com estes filtros.` | Admin › Histórico de ações sem resultado (sem filtros: `Nenhuma ação registrada.`). | Ap. B |
+| `Somente o Administrativo consulta o Histórico de ações.` | Admin › Histórico de ações, quando quem abriu a tela deixou de ser Administrativo durante a sessão (migration `558`). Recarregue a página. | Ap. B |
+| `Ação desconhecida no filtro: %.` | Admin › Histórico de ações: filtro de ação fora de Criou, Alterou ou Excluiu; a tela não envia outro valor. | Ap. B |
+| `Autor desconhecido no filtro.` | Admin › Histórico de ações: filtro Por que não é pessoa, Sistema ou Cliente pelo Portal; a tela não envia outro valor. | Ap. B |
 | `Não foi possível carregar as datas do sistema.` | Admin › Sistema; a versão e o ambiente continuam. | Ap. B |
 | `Não foi possível carregar o Prazo do ADR.` | Admin › Prazo do ADR. | Ap. B |
 | `Nenhum ADR fechado no período.` | Admin › Prazo do ADR sem ADR fechado. | Ap. B |
