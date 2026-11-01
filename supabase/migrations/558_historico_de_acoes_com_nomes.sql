@@ -30,18 +30,67 @@
 --      (Equipe, Cliente pelo Portal ou Sistema; nome, e-mail e setor gravado),
 --      ação (criou, alterou, excluiu), registro com nome, De e Para com nome
 --      quando o campo é chave de cadastro, nomes das chaves do registro JSON e
---      o total da busca. Filtros: assuntos, autor (pessoa, `sistema` ou
+--      o total da busca (até 10.001). Filtros: assuntos, autor (pessoa, `sistema` ou
 --      `portal`), ação e dias de Brasília. Só o Administrativo (a aba é dele e
 --      o e-mail do autor é dado do cadastro de usuários).
 --
+-- Robustez: valor que não é JSON válido (texto livre que começa com "{")
+-- não derruba a página (`_audit_try_jsonb`); um rótulo que não se resolve
+-- vira NULL, nunca erro.
+--
 -- ponytail: os nomes são resolvidos por linha da página (50 linhas, algumas
 -- consultas por chave primária cada). Se a página crescer ou ficar lenta, o
--- upgrade é gravar o nome do registro na própria linha de `audit_logs`.
+-- upgrade é gravar o nome do registro na própria linha de `audit_logs`. O
+-- total da busca para de contar em 10.001 (a tela diz "mais de 10.000"), para
+-- a contagem não ler a tabela inteira a cada página; o upgrade é uma
+-- estimativa pelo plano, se o teto incomodar.
 --
 -- Rollback: DROP FUNCTION public.admin_action_history(text[], text, text, date,
--- date, integer, integer), public._audit_entity_label(text, text),
+-- date, integer, integer), public._audit_action_kind(text, text),
+-- public._audit_try_jsonb(text), public._audit_entity_label(text, text),
 -- public._audit_row_label(text, jsonb), public._audit_value_label(text, text),
 -- public._audit_voyage_label(text).
+
+-- 0 -------------------------------------------------------------------------
+-- JSON gravado na linha, ou NULL quando o texto não é JSON de objeto válido
+-- (Observação digitada "{urgente} ligar" não pode derrubar a leitura).
+CREATE OR REPLACE FUNCTION public._audit_try_jsonb(p_value text)
+RETURNS jsonb
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_json jsonb;
+BEGIN
+  IF p_value IS NULL OR left(btrim(p_value), 1) <> '{' THEN
+    RETURN NULL;
+  END IF;
+  v_json := p_value::jsonb;
+  RETURN CASE WHEN jsonb_typeof(v_json) = 'object' THEN v_json END;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NULL;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public._audit_try_jsonb(text) FROM PUBLIC, anon, authenticated;
+
+-- Tipo da ação pela linha gravada: `criado`/`excluido` do gatilho e as
+-- linhas semânticas; `deleted` só exclui quando vira verdadeiro (a agenda e o
+-- Embarque de vazios gravam `deleted` false na restauração).
+CREATE OR REPLACE FUNCTION public._audit_action_kind(p_field text, p_new_value text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT CASE
+    WHEN p_field IN ('criado', 'created', 'bl_created', 'insert') THEN 'criou'
+    WHEN p_field IN ('excluido', 'excluído', 'delete') THEN 'excluiu'
+    WHEN p_field = 'deleted' AND lower(btrim(COALESCE(p_new_value, ''))) = 'true' THEN 'excluiu'
+    ELSE 'alterou'
+  END
+$function$;
+REVOKE ALL ON FUNCTION public._audit_action_kind(text, text) FROM PUBLIC, anon, authenticated;
 
 -- 1 -------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public._audit_voyage_label(p_voyage_id text)
@@ -129,8 +178,15 @@ BEGIN
                     'uploaded_by', 'imported_by', 'issued_by', 'settled_by', 'reviewed_by')
         AND v_is_uuid THEN
     SELECT up.full_name INTO v_text FROM public.user_profiles up WHERE up.id = v_value::uuid;
+    IF v_text IS NULL THEN
+      SELECT 'Cliente pelo Portal: ' || c.name INTO v_text
+        FROM public.customer_portal_accounts cpa JOIN public.customers c ON c.id = cpa.customer_id
+       WHERE cpa.auth_user_id = v_value::uuid LIMIT 1;
+    END IF;
     RETURN COALESCE(v_text, 'Pessoa sem cadastro interno');
   END IF;
+  RETURN NULL;
+EXCEPTION WHEN OTHERS THEN
   RETURN NULL;
 END;
 $function$;
@@ -216,6 +272,8 @@ BEGIN
   END IF;
 
   RETURN NULLIF(concat_ws(' · ', v_main, v_voyage, v_port, v_bl, v_invoice, v_customer), '');
+EXCEPTION WHEN OTHERS THEN
+  RETURN NULL;
 END;
 $function$;
 REVOKE ALL ON FUNCTION public._audit_row_label(text, jsonb) FROM PUBLIC, anon, authenticated;
@@ -293,8 +351,7 @@ BEGIN
 
   -- Registro apagado: o JSON gravado na criação ou na exclusão.
   IF v_row IS NULL THEN
-    SELECT CASE WHEN left(btrim(COALESCE(a.old_value, a.new_value)), 1) = '{'
-                THEN COALESCE(a.old_value, a.new_value)::jsonb END
+    SELECT public._audit_try_jsonb(COALESCE(a.old_value, a.new_value))
       INTO v_row
       FROM public.audit_logs a
      WHERE a.entity_type IN (p_entity_type, v_table) AND a.entity_id = v_id
@@ -308,7 +365,7 @@ BEGIN
     v_label := 'B/L ' || v_id;
   END IF;
   RETURN v_label;
-EXCEPTION WHEN invalid_text_representation THEN
+EXCEPTION WHEN OTHERS THEN
   RETURN NULL;
 END;
 $function$;
@@ -366,15 +423,11 @@ BEGIN
     v_actor_id := v_actor::uuid;
   END IF;
 
+  -- Filtro uma vez só, inline na página e na contagem (NOT MATERIALIZED): a
+  -- página usa o índice de `changed_at`, e a contagem para em 10.001.
   RETURN QUERY
-  WITH page AS (
-    SELECT a.*,
-      CASE
-        WHEN a.field_name IN ('criado', 'created', 'bl_created', 'insert') THEN 'criou'
-        WHEN a.field_name IN ('excluido', 'excluído', 'deleted', 'delete') THEN 'excluiu'
-        ELSE 'alterou'
-      END AS action_kind,
-      count(*) OVER () AS total
+  WITH filtered AS NOT MATERIALIZED (
+    SELECT a.*
     FROM public.audit_logs a
     WHERE (p_entity_types IS NULL OR cardinality(p_entity_types) = 0 OR a.entity_type = ANY (p_entity_types))
       AND (v_actor IS NULL
@@ -383,12 +436,15 @@ BEGIN
         OR (v_actor_id IS NOT NULL AND a.changed_by = v_actor_id))
       AND (p_date_from IS NULL OR a.changed_at >= (p_date_from::timestamp AT TIME ZONE 'America/Sao_Paulo'))
       AND (p_date_to IS NULL OR a.changed_at < ((p_date_to + 1)::timestamp AT TIME ZONE 'America/Sao_Paulo'))
-      AND (v_action IS NULL OR v_action = CASE
-        WHEN a.field_name IN ('criado', 'created', 'bl_created', 'insert') THEN 'criou'
-        WHEN a.field_name IN ('excluido', 'excluído', 'deleted', 'delete') THEN 'excluiu'
-        ELSE 'alterou'
-      END)
-    ORDER BY a.changed_at DESC, a.id DESC
+      AND (v_action IS NULL OR public._audit_action_kind(a.field_name, a.new_value) = v_action)
+  ),
+  total AS (
+    SELECT count(*) AS n FROM (SELECT 1 FROM filtered LIMIT 10001) capped
+  ),
+  page AS (
+    SELECT f.*, public._audit_action_kind(f.field_name, f.new_value) AS action_kind
+    FROM filtered f
+    ORDER BY f.changed_at DESC, f.id DESC
     LIMIT LEAST(GREATEST(COALESCE(p_limit, 50), 1), 200)
     OFFSET GREATEST(COALESCE(p_offset, 0), 0)
   )
@@ -413,12 +469,14 @@ BEGIN
     public._audit_entity_label(p.entity_type, p.entity_id),
     public._audit_value_label(p.field_name, p.old_value),
     public._audit_value_label(p.field_name, p.new_value),
-    -- Registro inteiro em JSON (criação/exclusão): nome de cada chave de cadastro.
-    (SELECT jsonb_object_agg(kv.key, public._audit_value_label(kv.key, kv.value))
-       FROM jsonb_each_text(CASE WHEN left(btrim(COALESCE(p.new_value, p.old_value, '')), 1) = '{'
-                                 THEN COALESCE(p.new_value, p.old_value)::jsonb END) kv
-      WHERE public._audit_value_label(kv.key, kv.value) IS NOT NULL),
-    p.total
+    -- Registro inteiro em JSON (só criação/exclusão): nome de cada chave de cadastro.
+    CASE WHEN p.action_kind IN ('criou', 'excluiu') THEN
+      (SELECT jsonb_object_agg(kv.key, kv.label)
+         FROM (SELECT e.key, public._audit_value_label(e.key, e.value) AS label
+                 FROM jsonb_each_text(public._audit_try_jsonb(COALESCE(p.new_value, p.old_value))) e) kv
+        WHERE kv.label IS NOT NULL)
+    END,
+    (SELECT t.n FROM total t)
   FROM page p
   LEFT JOIN public.user_profiles up ON up.id = p.changed_by
   LEFT JOIN auth.users au ON au.id = p.changed_by
