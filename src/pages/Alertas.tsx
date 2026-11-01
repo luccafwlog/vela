@@ -48,14 +48,8 @@ import { matchesAnyToken } from '../lib/searchTerms'
  */
 type AlertLens = 'ativos' | 'criticos'
 
-const DEPARTMENT_OPTIONS = [
-  { value: 'all', label: 'Todos os setores' },
-  { value: 'documentacao', label: 'Documentação' },
-  { value: 'equipamentos', label: 'Equipamentos' },
-  { value: 'operacoes', label: 'Operações' },
-  { value: 'administrativo', label: 'Administrativo' },
-  { value: 'sem_departamento', label: 'Sem setor' },
-]
+// Setores aceitos no endereço (?departamento=); o filtro é feito pelos cartões por setor.
+const DEPARTMENT_VALUES = ['documentacao', 'equipamentos', 'operacoes', 'administrativo', 'sem_departamento']
 
 const SEVERITY_OPTIONS = [
   { value: 'all', label: 'Todas' },
@@ -102,7 +96,7 @@ function alertBlIds(metadata: unknown): string[] {
 export function Alertas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const rawDept = searchParams.get('departamento') || searchParams.get('department') || 'all'
-  const departmentFilter = DEPARTMENT_OPTIONS.some((opt) => opt.value === rawDept) ? rawDept : 'all'
+  const departmentFilter = DEPARTMENT_VALUES.includes(rawDept) ? rawDept : 'all'
 
   const [lens, setLens] = useState<AlertLens>('ativos')
   const statusFilter = 'active'
@@ -348,11 +342,6 @@ export function Alertas() {
             placeholder="B/L, navio, Cliente, CNPJ ou mensagem"
             aria-label="Buscar alertas"
           />
-        </Field>
-        <Field label="Setor">
-          <Select value={departmentFilter} onChange={(e) => handleDepartmentChange(e.target.value)}>
-            {DEPARTMENT_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </Select>
         </Field>
         <Field label="Registro">
           <Select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
