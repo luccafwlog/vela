@@ -15,11 +15,15 @@
 --      Cliente da disputa).
 --   3. `admin_action_history` refeita (DROP + CREATE: o retorno ganha a coluna
 --      `source`, que diz de qual trilha veio a linha; o par `source`/`id` é a
---      chave). A ação vem de cada trilha: rascunho de Desbloqueio, Comunicado,
---      mensagem e anexo de disputa são "criou"; cancelamento de Desbloqueio é
---      "excluiu"; o resto, "alterou". Ator do sistema nas trilhas fica sem
---      autor ("Sistema"), como em `audit_logs`. Mensagem de disputa entra com
---      até 500 caracteres.
+--      chave). A ação vem de cada trilha: rascunho de Desbloqueio, conta do
+--      Portal criada, Comunicado, mensagem e anexo de disputa são "criou";
+--      cancelamento de Desbloqueio é "excluiu"; o resto, "alterou". Ator do
+--      sistema nas trilhas (inclusive o ator zerado das rotinas do Desbloqueio)
+--      fica sem autor ("Sistema"), como em `audit_logs`; o Cliente que age pelo
+--      Portal sem autor gravado é o login da conta. Na conta do Portal, decisão
+--      e situação que mudam juntas viram duas linhas, e o evento sem mudança
+--      das duas, uma linha com o motivo. Mensagem de disputa entra com até
+--      500 caracteres ("…" quando cortada).
 --
 -- ponytail: a página junta seis fontes por UNION ALL e ordena pela data; com
 -- os índices por data o planejador lê só o começo de cada uma, mas a contagem
@@ -28,7 +32,7 @@
 --
 -- Rollback: DROP FUNCTION public.admin_action_history(text[], text, text, date,
 -- date, integer, integer) e recriar a da 558 (com os grants); DROP FUNCTION
--- public._audit_trail_label(text, text, text); DROP INDEX dos índices abaixo.
+-- public._audit_trail_label(text, text, text, bigint); DROP INDEX dos índices abaixo.
 
 -- 1 -------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_ce_unlock_events_created_at ON public.ce_unlock_events (created_at DESC);
@@ -38,7 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_demurrage_dispute_messages_created_at ON public.d
 CREATE INDEX IF NOT EXISTS idx_demurrage_dispute_attachments_created_at ON public.demurrage_dispute_attachments (created_at DESC);
 
 -- 2 -------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public._audit_trail_label(p_entity_type text, p_entity_id text, p_value text)
+CREATE OR REPLACE FUNCTION public._audit_trail_label(p_entity_type text, p_entity_id text, p_value text, p_customer_id bigint DEFAULT NULL)
 RETURNS text
 LANGUAGE plpgsql
 STABLE
@@ -49,9 +53,13 @@ DECLARE
   v_text text;
 BEGIN
   IF p_entity_type = 'ce_unlock_request' THEN
-    SELECT c.name INTO v_text
-      FROM public.ce_unlock_requests r JOIN public.customers c ON c.id = r.customer_id
-     WHERE r.id = p_entity_id::uuid;
+    -- Evento sem pedido (planilha gerada para a ZPT): o Cliente do evento.
+    IF NULLIF(p_entity_id, '') IS NOT NULL THEN
+      SELECT c.name INTO v_text
+        FROM public.ce_unlock_requests r JOIN public.customers c ON c.id = r.customer_id
+       WHERE r.id = p_entity_id::uuid;
+    END IF;
+    v_text := COALESCE(v_text, public._audit_value_label('customer_id', p_customer_id::text));
     RETURN NULLIF(concat_ws(' · ', 'B/L ' || NULLIF(btrim(p_value), ''), v_text), '');
   ELSIF p_entity_type = 'portal_account' THEN
     RETURN public._audit_value_label('customer_id', p_entity_id);
@@ -77,7 +85,7 @@ EXCEPTION WHEN OTHERS THEN
   RETURN NULL;
 END;
 $function$;
-REVOKE ALL ON FUNCTION public._audit_trail_label(text, text, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public._audit_trail_label(text, text, text, bigint) FROM PUBLIC, anon, authenticated;
 
 -- 3 -------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS public.admin_action_history(text[], text, text, date, date, integer, integer);
@@ -144,37 +152,62 @@ BEGIN
     -- mensagens e anexos das disputas de Demurrage.
     SELECT 'audit'::text AS source, a.id, a.changed_at, a.entity_type, a.entity_id, a.field_name,
            a.old_value, a.new_value, a.justification, a.changed_by, a.actor_department,
-           public._audit_action_kind(a.field_name, a.new_value) AS action_kind
+           public._audit_action_kind(a.field_name, a.new_value) AS action_kind, NULL::bigint AS customer_id
     FROM public.audit_logs a
     UNION ALL
+    -- Rotinas do Desbloqueio gravam o ator zerado: é o Sistema.
     SELECT 'ce_unlock', e.id, e.created_at, 'ce_unlock_request', e.request_id::text, 'ce_unlock|' || e.action,
-           NULL, e.bl_id, NULLIF(btrim(e.reason), ''), e.actor_id, NULL,
-           CASE WHEN e.action = 'draft' THEN 'criou' WHEN e.action = 'cancel' THEN 'excluiu' ELSE 'alterou' END
+           NULL, e.bl_id, NULLIF(btrim(e.reason), ''),
+           NULLIF(e.actor_id, '00000000-0000-0000-0000-000000000000'::uuid), NULL,
+           CASE WHEN e.action = 'draft' THEN 'criou' WHEN e.action = 'cancel' THEN 'excluiu' ELSE 'alterou' END,
+           e.customer_id
     FROM public.ce_unlock_events e
     UNION ALL
-    SELECT 'portal', pe.id, pe.created_at, 'portal_account', pe.customer_id::text,
-           CASE WHEN pe.new_decision IS DISTINCT FROM pe.previous_decision THEN 'portal_decision' ELSE 'portal_situation' END,
-           CASE WHEN pe.new_decision IS DISTINCT FROM pe.previous_decision THEN pe.previous_decision ELSE pe.previous_situation END,
-           CASE WHEN pe.new_decision IS DISTINCT FROM pe.previous_decision THEN pe.new_decision ELSE pe.new_situation END,
-           CASE WHEN pe.actor_type = 'sistema' THEN NULL ELSE NULLIF(btrim(pe.reason), '') END,
-           CASE WHEN pe.actor_type = 'sistema' THEN NULL ELSE pe.actor_id END,
+    -- Conta do Portal: uma linha por mudança (decisão e situação podem mudar
+    -- juntas); evento sem mudança das duas (troca de e-mail, liberação de
+    -- supressão, troca de CNPJ) vira uma linha só com o motivo. O Cliente que
+    -- age pelo Portal sem autor gravado (Edge Function com service_role) é o
+    -- login da conta. "Cliente #<id>" no texto do Sistema sai do motivo.
+    SELECT CASE k.kind WHEN 'decision' THEN 'portal' WHEN 'situation' THEN 'portal_situacao' ELSE 'portal_evento' END,
+           pe.id, pe.created_at, 'portal_account', pe.customer_id::text, 'portal_' || k.kind,
+           CASE k.kind WHEN 'decision' THEN pe.previous_decision WHEN 'situation' THEN pe.previous_situation END,
+           CASE k.kind WHEN 'decision' THEN pe.new_decision WHEN 'situation' THEN pe.new_situation END,
+           NULLIF(btrim(regexp_replace(COALESCE(pe.reason, ''), 'Cliente #[0-9]+', 'Cliente', 'g')), ''),
+           CASE WHEN pe.actor_type = 'sistema' THEN NULL
+                WHEN pe.actor_type = 'cliente' THEN COALESCE(pe.actor_id, acct.auth_user_id)
+                ELSE pe.actor_id END,
            CASE WHEN pe.actor_type IN ('documentacao', 'administrativo') THEN pe.actor_type END,
-           'alterou'
+           CASE WHEN pe.previous_decision IS NULL AND pe.previous_situation IS NULL THEN 'criou' ELSE 'alterou' END,
+           pe.customer_id
     FROM public.portal_provisioning_events pe
+    LEFT JOIN LATERAL (
+      SELECT cpa.auth_user_id FROM public.customer_portal_accounts cpa
+       WHERE (pe.account_id IS NOT NULL AND cpa.id = pe.account_id)
+          OR (pe.account_id IS NULL AND cpa.customer_id = pe.customer_id)
+       ORDER BY cpa.id LIMIT 1
+    ) acct ON pe.actor_type = 'cliente' AND pe.actor_id IS NULL
+    CROSS JOIN LATERAL (
+      SELECT 'decision'::text AS kind WHERE pe.new_decision IS DISTINCT FROM pe.previous_decision
+      UNION ALL
+      SELECT 'situation' WHERE pe.new_situation IS DISTINCT FROM pe.previous_situation
+      UNION ALL
+      SELECT 'event' WHERE pe.new_decision IS NOT DISTINCT FROM pe.previous_decision
+                       AND pe.new_situation IS NOT DISTINCT FROM pe.previous_situation
+    ) k
     UNION ALL
     SELECT 'comunicado', c.id, c.created_at, 'customer_communication', c.id::text, 'comunicado|' || c.kind,
-           NULL, c.status, NULL, c.created_by, NULL, 'criou'
+           NULL, c.status, NULL, c.created_by, NULL, 'criou', c.customer_id
     FROM public.customer_communications c
     UNION ALL
     SELECT 'disputa', m.id, m.created_at, 'demurrage_dispute', m.dispute_id::text, 'dispute_message',
-           NULL, left(m.body, 500), NULL,
+           NULL, CASE WHEN char_length(m.body) > 500 THEN left(m.body, 499) || '…' ELSE m.body END, NULL,
            CASE WHEN m.author_type = 'sistema' THEN NULL ELSE m.author_id END,
            CASE WHEN m.author_type IN ('equipamentos', 'administrativo') THEN m.author_type END,
-           'criou'
+           'criou', NULL
     FROM public.demurrage_dispute_messages m
     UNION ALL
     SELECT 'anexo', t.id, t.created_at, 'demurrage_dispute', t.dispute_id::text, 'dispute_attachment',
-           NULL, t.file_name, NULL, t.uploaded_by, NULL, 'criou'
+           NULL, t.file_name, NULL, t.uploaded_by, NULL, 'criou', t.customer_id
     FROM public.demurrage_dispute_attachments t
   ),
   filtered AS NOT MATERIALIZED (
@@ -219,7 +252,7 @@ BEGIN
     au.email::text,
     COALESCE(p.actor_department, up.role),
     CASE WHEN p.source = 'audit' THEN public._audit_entity_label(p.entity_type, p.entity_id)
-         ELSE public._audit_trail_label(p.entity_type, p.entity_id, p.new_value) END,
+         ELSE public._audit_trail_label(p.entity_type, p.entity_id, p.new_value, p.customer_id) END,
     CASE WHEN p.source = 'audit' THEN public._audit_value_label(p.field_name, p.old_value) END,
     CASE WHEN p.source = 'audit' THEN public._audit_value_label(p.field_name, p.new_value) END,
     -- Registro inteiro em JSON (só criação/exclusão): nome de cada chave de cadastro.

@@ -410,6 +410,8 @@ function describeTrailRow(row: AuditLogLike): string | null {
   if (row.entity_type === 'ce_unlock_request' && field === 'ce_unlock') return `Desbloqueio de CE: ${ceActionLabel(detail ?? '')}`
   if (row.entity_type === 'portal_account' && field === 'portal_decision') return `Portal: ${provisioningDecisionLabel(row.new_value)}`
   if (row.entity_type === 'portal_account' && field === 'portal_situation') return `Portal: ${accountSituationLabel(row.new_value)}`
+  // Evento da conta sem mudança de decisão nem de situação: o que houve está no Motivo.
+  if (row.entity_type === 'portal_account' && field === 'portal_event') return 'Conta do Portal: ação registrada'
   if (row.entity_type === 'customer_communication' && field === 'comunicado') {
     const status = communicationStatus(row.new_value)
     return status ? `${communicationKind(detail ?? '')}: ${status}` : `${communicationKind(detail ?? '')} criado`
