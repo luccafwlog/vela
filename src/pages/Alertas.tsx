@@ -134,7 +134,7 @@ export function Alertas() {
   // Críticos conta a página de ativos carregada.
   // ponytail: com mais de 100 ativos, "Críticos" conta só a primeira página;
   // o caminho é devolver a contagem por gravidade no resumo por setor.
-  const { data: summary } = useQuery<AlertDepartmentSummary[]>({
+  const { data: summary, isError: summaryFailed } = useQuery<AlertDepartmentSummary[]>({
     queryKey: queryKeys.alerts.departmentSummary(),
     queryFn: getAlertDepartmentSummary,
     staleTime: 60_000,
@@ -327,8 +327,10 @@ export function Alertas() {
         />
       </div>
 
+      {summaryFailed ? <InlineError message="Erro ao carregar os alertas por setor." /> : null}
       <AlertDepartmentCards
         summary={summary}
+        failed={summaryFailed}
         selectedDepartment={departmentFilter}
         onSelect={(department) => handleDepartmentChange(department === departmentFilter ? 'all' : department)}
       />

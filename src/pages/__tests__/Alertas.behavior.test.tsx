@@ -19,9 +19,14 @@ const summary = [
   { department: 'sem_departamento', active_count: 2, is_legacy: true },
 ]
 
+const summaryState = vi.hoisted(() => ({ failed: false }))
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
-    if (queryKey[0] === 'alert-department-summary') return { data: summary, isLoading: false, error: null }
+    if (queryKey[0] === 'alert-department-summary') {
+      return summaryState.failed
+        ? { data: undefined, isLoading: false, isError: true, error: new Error('falhou') }
+        : { data: summary, isLoading: false, isError: false, error: null }
+    }
     if (queryKey[1] === 'entity-labels') return { data: { 'voyage:10': 'COSCO SHIPPING ARIES / 088E' }, isLoading: false, error: null }
     return { data: ACTIVE, isLoading: false, error: null }
   },
@@ -59,7 +64,10 @@ function rowOf(text: string) {
 }
 
 afterEach(cleanup)
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  summaryState.failed = false
+})
 
 it('abre em Ativos, sem "Todos" nem Atualizar, com o título igual ao menu', () => {
   renderAlertas()
@@ -200,6 +208,17 @@ it('cartões por setor filtram a fila ali mesmo e, clicados de novo, tiram o fil
   fireEvent.click(documentacao)
   expect(documentacao.getAttribute('aria-pressed')).toBe('false')
   expect(screen.queryByRole('button', { name: 'Limpar filtros' })).toBeNull()
+})
+
+it('resumo por setor que falha: avisa e os cartões não dizem "Nenhum", mas continuam filtrando', () => {
+  summaryState.failed = true
+  renderAlertas()
+  expect(screen.getByText('Erro ao carregar os alertas por setor.')).toBeTruthy()
+  const cards = within(screen.getByRole('group', { name: 'Alertas por setor' }))
+  expect(cards.queryByText('Nenhum')).toBeNull()
+  const documentacao = cards.getByRole('button', { name: /Documentação\s*Sem contagem/ })
+  fireEvent.click(documentacao)
+  expect(documentacao.getAttribute('aria-pressed')).toBe('true')
 })
 
 it('o link do Painel abre com o cartão do setor marcado', () => {
