@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { MetricCard } from '../ui/MetricCard'
+import { NoValue } from '../ui/NoValue'
 import { ALERT_DEPARTMENT_LABELS, type AlertDepartmentSummary } from '../../services/alerts'
 
 const KNOWN_ALERT_DEPARTMENTS = ['documentacao', 'equipamentos', 'operacoes', 'administrativo'] as const
@@ -30,13 +31,18 @@ function buildDepartmentCards(summary: AlertDepartmentSummary[] | undefined): De
 /**
  * Cartões de alertas por setor. No Painel levam à fila filtrada (sem
  * `selected`); na fila de Alertas aplicam o filtro de setor ali mesmo.
+ * Sem resumo (carregando, ou a leitura falhou), o cartão não diz "Nenhum":
+ * mostra "Carregando" ou "Sem contagem" e continua filtrando.
  */
 export function AlertDepartmentCards({
   summary,
+  failed = false,
   onSelect,
   selectedDepartment,
 }: {
   summary: AlertDepartmentSummary[] | undefined
+  /** A leitura do resumo falhou; a tela mostra o erro à parte. */
+  failed?: boolean
   onSelect: (department: string) => void
   /** Setor filtrado no momento; omita quando o card só navega. */
   selectedDepartment?: string
@@ -48,8 +54,10 @@ export function AlertDepartmentCards({
         <MetricCard
           key={card.department}
           label={card.label}
-          value={card.activeCount === 0 ? 'Nenhum' : `${card.activeCount} ${card.activeCount === 1 ? 'alerta' : 'alertas'}`}
-          tone={card.activeCount > 0 ? 'warning' : 'secondary'}
+          value={summary === undefined
+            ? <NoValue label={failed ? 'Sem contagem' : 'Carregando'} />
+            : card.activeCount === 0 ? 'Nenhum' : `${card.activeCount} ${card.activeCount === 1 ? 'alerta' : 'alertas'}`}
+          tone={summary !== undefined && card.activeCount > 0 ? 'warning' : 'secondary'}
           detail={card.detail}
           onSelect={() => onSelect(card.department)}
           selected={selectedDepartment === undefined ? undefined : selectedDepartment === card.department}
