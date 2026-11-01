@@ -5,6 +5,9 @@ import { DEPARTMENT_LABELS } from '../../lib/departmentLabel'
 import { splitIsoDateTime } from '../../lib/utils'
 import { getAlertTypeLabel } from '../../services/alerts'
 import { AGENCY_REPORT_SECTION_LABELS } from '../../services/agencyReportLabels'
+import { ceActionLabel } from '../../lib/ceUnlockLabels'
+import { accountSituationLabel, provisioningDecisionLabel } from '../../lib/portalProvisioningViewModel'
+import { customerCommunicationKindLabel, customerCommunicationStatusLabel } from '../../services/customerCommunications'
 
 // Histórico de ações legível (lote 5b, Administração): cada linha de
 // `audit_logs` vira assunto, frase e "de → para" em português. Entidade sem
@@ -49,8 +52,12 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'cambio', label: 'Câmbio', entityTypes: ['exchange_rate_reference'] },
   { id: 'cliente', label: 'Cliente', entityTypes: ['customer', 'customers', 'customer_contacts'] },
   { id: 'liberacao', label: 'Liberação de faturamento', entityTypes: ['customer_billing_portal_releases'] },
-  // Migration 560: modelos salvos de Comunicado.
-  { id: 'comunicado', label: 'Comunicado', entityTypes: ['customer_communication_saved_templates'] },
+  // Migration 560: modelos salvos de Comunicado; 561: os Comunicados enviados.
+  { id: 'comunicado', label: 'Comunicado', entityTypes: ['customer_communication', 'customer_communication_saved_templates'] },
+  // Migration 561: trilhas próprias lidas na aba.
+  { id: 'desbloqueio-ce', label: 'Desbloqueio de CE', entityTypes: ['ce_unlock_request'] },
+  { id: 'conta-portal', label: 'Conta do Portal', entityTypes: ['portal_account'] },
+  { id: 'disputa-demurrage', label: 'Disputa de Demurrage', entityTypes: ['demurrage_dispute'] },
   { id: 'central', label: 'Central de Informações', entityTypes: ['portal_information_depot', 'portal_information_agent', 'portal_information_contact', 'portal_information_carrier'] },
   { id: 'cadastros', label: 'Navio, armador e porto', entityTypes: ['vessels', 'carriers', 'ports'] },
   { id: 'locais', label: 'Local e serviço', entityTypes: ['depots', 'depot_services'] },
@@ -374,14 +381,67 @@ export function auditValueFacts(
  */
 export function displayAuditValue(fieldName: string | null, value: string | null, entityType: string, label?: string | null): string {
   if (label) return label
+  const trail = trailValueText(entityType, fieldName, value)
+  if (trail !== undefined) return trail
   if (value != null && value.trim() !== '' && value !== 'null' && isReferenceField(fieldName)) return UNRESOLVED_REFERENCE
   return formatAuditValue(fieldName, value, entityType)
+}
+
+/** Tipo de Comunicado em português; código desconhecido vira "Comunicado", nunca o código. */
+function communicationKind(kind: string): string {
+  const label = customerCommunicationKindLabel(kind)
+  return label === kind ? 'Comunicado' : label
+}
+
+/** Situação do Comunicado em português; código desconhecido fica sem situação. */
+function communicationStatus(status: string | null): string | null {
+  if (!status) return null
+  const label = customerCommunicationStatusLabel(status)
+  return label === status ? null : label
+}
+
+/**
+ * Frase das linhas que vêm das trilhas próprias (migration 561): Desbloqueio
+ * de CE, conta do Portal, Comunicado enviado, mensagem e anexo de disputa.
+ * `null` quando a linha não é de trilha.
+ */
+function describeTrailRow(row: AuditLogLike): string | null {
+  const [field, detail] = (row.field_name ?? '').split('|')
+  if (row.entity_type === 'ce_unlock_request' && field === 'ce_unlock') return `Desbloqueio de CE: ${ceActionLabel(detail ?? '')}`
+  if (row.entity_type === 'portal_account' && field === 'portal_decision') return `Portal: ${provisioningDecisionLabel(row.new_value)}`
+  if (row.entity_type === 'portal_account' && field === 'portal_situation') return `Portal: ${accountSituationLabel(row.new_value)}`
+  // Evento da conta sem mudança de decisão nem de situação: o que houve está no Motivo.
+  if (row.entity_type === 'portal_account' && field === 'portal_event') return 'Conta do Portal: ação registrada'
+  if (row.entity_type === 'customer_communication' && field === 'comunicado') {
+    const status = communicationStatus(row.new_value)
+    return status ? `${communicationKind(detail ?? '')}: ${status}` : `${communicationKind(detail ?? '')} criado`
+  }
+  if (row.entity_type === 'demurrage_dispute' && field === 'dispute_message') return 'Mensagem na disputa'
+  if (row.entity_type === 'demurrage_dispute' && field === 'dispute_attachment') return `Anexo na disputa: ${row.new_value ?? 'arquivo'}`
+  return null
+}
+
+/**
+ * Valor de De ou Para numa linha de trilha, em português (situação do
+ * Comunicado, decisão e situação da conta do Portal, B/L do Desbloqueio).
+ * `undefined` quando a linha não é de trilha.
+ */
+export function trailValueText(entityType: string, fieldName: string | null, value: string | null): string | undefined {
+  const field = (fieldName ?? '').split('|')[0]
+  if (entityType === 'portal_account' && field === 'portal_decision') return value ? provisioningDecisionLabel(value) : undefined
+  if (entityType === 'portal_account' && field === 'portal_situation') return value ? accountSituationLabel(value) : undefined
+  if (entityType === 'customer_communication' && field === 'comunicado') return communicationStatus(value) ?? undefined
+  if (entityType === 'ce_unlock_request' && field === 'ce_unlock') return value ? `B/L ${value}` : undefined
+  return undefined
 }
 
 /** Frase da coluna "O que mudou". */
 export function describeAuditLog(row: AuditLogLike): string {
   const noun = nounOf(row.entity_type)
   const field = (row.field_name ?? '').split('|')[0]
+  // Migration 561: linhas das trilhas próprias.
+  const trail = describeTrailRow(row)
+  if (trail) return trail
   // Migration 560: o "ciente" do impacto de taxa alterada à mão.
   if (row.entity_type === 'bl_charge_adjustment_acks' && CREATED_FIELDS.has(field)) return 'Impacto da taxa marcado como ciente'
   if (CREATED_FIELDS.has(field)) {

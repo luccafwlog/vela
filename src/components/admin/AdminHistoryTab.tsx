@@ -45,7 +45,8 @@ const ACTION_OPTIONS: ReadonlyArray<{ value: AuditAction; label: string }> = [
  */
 export function AdminHistoryTab() {
   const [filters, setFilters] = useState<HistoryFilters>(EMPTY_FILTERS)
-  const [openId, setOpenId] = useState<number | null>(null)
+  // A linha é identificada pela trilha e pelo id (migration 561).
+  const [openId, setOpenId] = useState<string | null>(null)
   const entityTypes = AUDIT_SUBJECTS.find((subject) => subject.id === filters.subject)?.entityTypes ?? []
   const query = useQuery({
     queryKey: queryKeys.admin.auditLogs(filters),
@@ -140,10 +141,10 @@ export function AdminHistoryTab() {
                   <tbody>
                     {rows.map((row) => (
                       <HistoryRow
-                        key={row.id}
+                        key={`${row.source}:${row.id}`}
                         row={row}
-                        open={openId === row.id}
-                        onToggle={() => setOpenId(openId === row.id ? null : row.id)}
+                        open={openId === `${row.source}:${row.id}`}
+                        onToggle={() => setOpenId(openId === `${row.source}:${row.id}` ? null : `${row.source}:${row.id}`)}
                       />
                     ))}
                   </tbody>

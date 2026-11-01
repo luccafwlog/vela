@@ -20,6 +20,12 @@ export const PORTAL_AUTHOR = 'portal'
  * cadastro vêm pelo nome; o número interno não chega à tela.
  */
 export type ActionHistoryRow = {
+  /**
+   * De qual trilha veio a linha (migration `561`): `audit` (Histórico de ações)
+   * ou a trilha própria do assunto (`ce_unlock`, `portal`, `comunicado`,
+   * `disputa`, `anexo`). O par `source`/`id` identifica a linha.
+   */
+  source: string
   id: number
   changed_at: string
   entity_type: string
