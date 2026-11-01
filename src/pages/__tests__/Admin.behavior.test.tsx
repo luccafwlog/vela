@@ -454,7 +454,7 @@ it('os endereços antigos das abas continuam abrindo a aba certa', () => {
 })
 
 const historyRow = (patch: Record<string, unknown>) => ({
-  id: 1, changed_at: '2026-10-20T00:04:00Z', entity_type: 'voyages', field_name: 'status', old_value: null, new_value: null,
+  source: 'audit', id: 1, changed_at: '2026-10-20T00:04:00Z', entity_type: 'voyages', field_name: 'status', old_value: null, new_value: null,
   justification: null, action: 'alterou', actor_kind: 'equipe', actor_name: 'Alice Operadora', actor_email: 'alice@example.test',
   actor_department: 'documentacao', entity_label: null, old_label: null, new_label: null, value_labels: null, ...patch,
 })
@@ -542,6 +542,28 @@ it('Histórico de ações: nunca mostra o número interno de um cadastro (Navio,
     expect(Array.from(document.querySelectorAll('td')).some((cell) => cell.textContent?.trim() === raw)).toBe(false)
   }
   expect(document.body.textContent).not.toMatch(/Navio: 41|Cliente: 1[23]|Armador: 9\b/)
+})
+
+it('Histórico de ações: linhas das trilhas próprias com a mesma chave numérica não se confundem (561)', () => {
+  mocks.dataByKey = {
+    'admin-audit-logs': {
+      count: 2,
+      rows: [
+        historyRow({ source: 'ce_unlock', id: 5, entity_type: 'ce_unlock_request', field_name: 'ce_unlock|submit', new_value: 'COSU1', justification: 'Cliente precisa retirar hoje', entity_label: 'B/L COSU1 · ATLÂNTICO LTDA' }),
+        historyRow({ source: 'comunicado', id: 5, entity_type: 'customer_communication', field_name: 'comunicado|aviso_chegada_noa', new_value: 'enviado', entity_label: 'Santos / 012S · BRSSZ · ATLÂNTICO LTDA' }),
+      ],
+    },
+  }
+  renderAdmin('historico')
+  const ce = screen.getByText('Desbloqueio de CE: Pedido enviado').closest('tr') as HTMLElement
+  expect(within(ce).getByText('Desbloqueio de CE')).toBeTruthy()
+  expect(within(ce).getByText('Cliente precisa retirar hoje')).toBeTruthy()
+  const notice = screen.getByText('NOA · Chegada Próxima: Enviado').closest('tr') as HTMLElement
+  fireEvent.click(within(ce).getByRole('button', { name: /Abrir/ }))
+  // Abrir uma não abre a outra, mesmo com o mesmo id.
+  expect(ce.nextElementSibling?.hasAttribute('data-row-detail')).toBe(true)
+  expect(notice.nextElementSibling?.hasAttribute('data-row-detail') ?? false).toBe(false)
+  expect(within(ce.nextElementSibling as HTMLElement).getByText('B/L COSU1')).toBeTruthy()
 })
 
 it('Histórico de ações: contagem acima do teto diz "Mais de 10.000 registros"', () => {

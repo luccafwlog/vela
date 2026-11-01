@@ -223,3 +223,4 @@ src/integration/embarqueVaziosExclusao.local-pg.test.ts
 src/integration/historicoDeAcoesComNomes.local-pg.test.ts
 src/integration/historicoCobreEscritasSemRastro.local-pg.test.ts
 src/integration/historicoCriaBlELacunasMenores.local-pg.test.ts
+src/integration/historicoLeAsTrilhas.local-pg.test.ts

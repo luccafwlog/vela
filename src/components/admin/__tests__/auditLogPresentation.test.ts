@@ -5,6 +5,7 @@ import {
   auditValueFacts,
   describeAuditLog,
   displayAuditValue,
+  trailValueText,
   formatAuditValue,
   formatBrasiliaDateTime,
 } from '../auditLogPresentation'
@@ -161,5 +162,23 @@ describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
     expect(describeAuditLog(log('customer_communication_saved_templates', 'criado', null, '{"id": 2, "name": "Aviso de atraso"}'))).toBe('Modelo de Comunicado criado: Aviso de atraso')
     expect(auditSubjectLabel('customer_communication_saved_templates')).toBe('Comunicado')
     expect(auditSubjectLabel('bl_charge_adjustment_acks')).toBe('Taxas do B/L')
+  })
+
+  it('trilhas próprias lidas na aba: Desbloqueio de CE, Portal, Comunicado e disputa (561)', () => {
+    expect(describeAuditLog(log('ce_unlock_request', 'ce_unlock|submit', null, 'BL1'))).toBe('Desbloqueio de CE: Pedido enviado')
+    expect(describeAuditLog(log('ce_unlock_request', 'ce_unlock|acao_nova', null, null))).toBe('Desbloqueio de CE: Andamento atualizado')
+    expect(describeAuditLog(log('customer_communication', 'comunicado|aviso_chegada_noa', null, 'enviado'))).toBe('NOA · Chegada Próxima: Enviado')
+    expect(describeAuditLog(log('customer_communication', 'comunicado|tipo_novo', null, 'status_novo'))).toBe('Comunicado criado')
+    expect(describeAuditLog(log('demurrage_dispute', 'dispute_message', null, 'Contestamos os dias'))).toBe('Mensagem na disputa')
+    expect(describeAuditLog(log('demurrage_dispute', 'dispute_attachment', null, 'comprovante.pdf'))).toBe('Anexo na disputa: comprovante.pdf')
+    expect(describeAuditLog(log('portal_account', 'portal_decision', null, 'tipo_desconhecido'))).toMatch(/^Portal: /)
+    expect(trailValueText('customer_communication', 'comunicado|livre', 'falha')).toBe('Falha')
+    expect(trailValueText('ce_unlock_request', 'ce_unlock|submit', 'BL1')).toBe('B/L BL1')
+    expect(displayAuditValue('comunicado|livre', 'simulado', 'customer_communication')).toBe('Ao suporte')
+    for (const entity of ['ce_unlock_request', 'portal_account', 'customer_communication', 'demurrage_dispute']) {
+      expect(auditSubjectLabel(entity)).not.toBe('Outro registro')
+    }
+    // Nenhum código cru na frase.
+    expect(describeAuditLog(log('customer_communication', 'comunicado|tipo_novo', null, 'status_novo'))).not.toMatch(/tipo_novo|status_novo/)
   })
 })

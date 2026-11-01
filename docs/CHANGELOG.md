@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Histórico de ações lê as trilhas próprias (2026-11-01, migration `561`; decisão do dono):** a aba Admin ›
+  Histórico de ações mostra também o andamento do Desbloqueio de CE, as decisões e a situação das contas do Portal,
+  os Comunicados enviados e as mensagens e anexos das disputas de Demurrage, lidos na hora de cada trilha, sem gravar
+  o mesmo fato em dois lugares. Assuntos novos: **Desbloqueio de CE**, **Conta do Portal** e **Disputa de Demurrage**.
 - **Histórico de ações: B/L criado e lacunas menores (2026-11-01, migration `560`; decisões do dono):** cada B/L
   criado, inclusive pela importação, pela carga solta e no Granito, deixa uma linha curta **B/L criado** com a
   importação como origem; passam a ficar no Histórico a observação de seção do ADR, o **ciente** do impacto de taxa
