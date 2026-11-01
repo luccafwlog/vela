@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **Tracking em cada B/L do Portal (2026-11-01, migration `566`; pedido do dono):** B/Ls e containers ganha a
+  coluna **Tracking**, que abre o site do armador já na busca daquele B/L, quando o link do armador cadastrado em
+  Informações do Portal → Tracking tem a marca `{BL}`. O link da Cosco passa a `…?label=T&value={BL}`. Saem do
+  cadastro os armadores de teste "QA SHIPPING LINE", "QA-DISPLAY-2026 Carrier" e "QA Carrier - Plano 654-660",
+  que apareciam na aba Tracking do Vela.
 - **Demurrage fica na Demurrage (observações do dono de 2026-11-01):**
   - **Vela, todas as telas:** saiu a faixa do alto com "N containers em atraso" e o câmbio PTAX/ROE, que os outros
     setores não precisam ver. O câmbio (PTAX venda, ROE, data da cotação e atualizar) fica sob o título da
