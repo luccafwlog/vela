@@ -4,6 +4,22 @@
 >
 > Números de migration: a partir da consolidação de 2026-09-02 ([ADR 0062](adr/0062-consolidacao-migrations-schema-1-0.md)), número sem qualificação é da cadeia ativa (`supabase/migrations/`). As entradas anteriores a essa data (seções 2026-08 e mais antigas) citam a cadeia arquivada (`supabase/migrations_archive/`), cujos números se repetem na ativa com outro conteúdo.
 
+## 2026-11
+
+- **Prioridades de usabilidade do Vela e do Portal (decisões do dono de 2026-11-01):**
+  - **Portal › Faturas:** coluna **Pagar** com o ícone "Pagar com Pix" em toda fatura que pede pagamento,
+    inclusive a individual que está numa consolidada aberta; abre a janela do Pix com o valor e **Ver detalhe
+    da fatura**. **Gerar fatura consolidada** passa a botão secundário.
+  - **Portal › Desbloqueio de CE:** **Ver faturas em aberto** abre Faturas filtrada no B/L e no status
+    Emitida (`?bl=` e `?status=`), não mais a lista inteira.
+  - **Nomes:** "B/Ls" e "container" em todo texto do Vela e do Portal; telas **Vazios IMP** e **Vazios EXP**
+    com o título igual ao menu; no Portal, **Informações** no menu, no título e no Painel.
+  - **Cartões de total:** o que filtra tem cara de botão e a marca **Filtrar**; o que só mostra número é liso
+    e não fica em âmbar. **Taxas a revisar** em Clientes passa a filtrar (`taxas=com`).
+  - **Menu:** Chegadas e Saídas e Line Up TV em Viagens; Provisionamento do Portal, Comunicação e Informações
+    do Portal em Clientes; Regras de alertas em Alertas; Tabelas de Taxas Locais e Tarifas de Demurrage no
+    Financeiro; Locais em Exportação.
+
 ## 2026-10
 
 - **Nova Viagem com portos e datas (2026-10-31):** o cadastro de **Nova Viagem** ganha **Portos e datas**,

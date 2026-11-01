@@ -22,17 +22,17 @@ function renderTab(bl: Partial<BLDetail>, props: { cargoMode?: 'container' | 'ca
 }
 
 describe('aba Carga do B/L', () => {
-  it('B/L de contêiner sem veículo mostra só Contêineres', () => {
+  it('B/L de container sem veículo mostra só Containers', () => {
     renderTab({ bl_containers: [container] as never, vehicles: [] })
-    expect(screen.getByRole('heading', { name: 'Contêineres' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Containers' })).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Veículos' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Carga solta' })).toBeNull()
   })
 
-  it('B/L só de carga solta não mostra Contêineres nem Veículos', () => {
+  it('B/L só de carga solta não mostra Containers nem Veículos', () => {
     renderTab({ bl_containers: [], vehicles: [] }, { cargoMode: 'carga_solta' })
     expect(screen.getByRole('heading', { name: 'Carga solta' })).toBeTruthy()
-    expect(screen.queryByRole('heading', { name: 'Contêineres' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Containers' })).toBeNull()
     expect(screen.getByText(/Nenhum dado de carga solta informado/)).toBeTruthy()
   })
 

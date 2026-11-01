@@ -94,7 +94,7 @@ function formatContainersMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[
 }
 
 // Lote 6b: na fatura consolidada o quadro do topo traz só a quantidade de
-// contêineres, sem a lista (decisão do dono, plano tela a tela). Conta números únicos
+// containers, sem a lista (decisão do dono, plano tela a tela). Conta números únicos
 // declarados nos B/Ls; sem lista estruturada, cai nos números ISO citados nas
 // descrições dos itens — mesma fonte de formatContainersMetadata.
 // ponytail: containers_display (texto livre) é contado por números ISO
@@ -152,7 +152,7 @@ function formatBreakbulkMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[]
 }
 
 // Linhas de item da fatura. Lote 6b: as taxas do B/L ficam logo abaixo da
-// linha do B/L, sem a antiga divisão por tipo de carga (contêiner, carga
+// linha do B/L, sem a antiga divisão por tipo de carga (container, carga
 // solta, documental) nem os subtotais dessas divisões.
 function renderItemRows(rowItems: InvoiceItem[], itemFlatIndex: Map<number | string, number>) {
   return rowItems.map((item) => {
@@ -261,7 +261,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
           ) : null}
           {containersMeta ? (
             <tr>
-              <td style={labelCell}>{isConsolidated ? 'Qtd. de contêineres:' : 'Contêineres:'}</td>
+              <td style={labelCell}>{isConsolidated ? 'Qtd. de containers:' : 'Containers:'}</td>
               <td style={cell} data-testid="invoice-container-summary">{containersMeta}</td>
             </tr>
           ) : null}

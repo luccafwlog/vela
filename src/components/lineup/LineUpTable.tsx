@@ -73,7 +73,7 @@ export function LineUpTable({
             <th scope="col" title="Containers vazios">MTY</th>
             <th scope="col" title="Restow (remanejo a bordo)">RTW</th>
             <th scope="col" title="Break-bulk: máquinas / packages">BB</th>
-            <th scope="col" title="Status de BLs e CEs da escala">CEs</th>
+            <th scope="col" title="Status de B/Ls e CEs da escala">CEs</th>
             <th scope="col" title="Manifestos vinculados à escala">Vinculada</th>
           </tr>
         </thead>

@@ -390,7 +390,7 @@ describe('linha do tempo da viagem — revisão de 2026-10-22', () => {
     expect(events).toEqual([expect.objectContaining({
       kind: 'import',
       title: '40 B/Ls importados · CNSHA → BRVIX',
-      detail: 'CNTR · ATD do POL CNSHA: 01/10/2026 · BLs e CEs BRVIX: Aguardando → Recebido · por Ana Lima',
+      detail: 'CNTR · ATD do POL CNSHA: 01/10/2026 · B/Ls e CEs BRVIX: Aguardando → Recebido · por Ana Lima',
     })])
   })
 
@@ -415,6 +415,6 @@ describe('linha do tempo da viagem — revisão de 2026-10-22', () => {
       ],
     })
     expect(events.find((event) => event.kind === 'ce-status')?.title).toBe('CE atualizado · BRVIX')
-    expect(events.find((event) => event.kind === 'import')?.detail).not.toContain('BLs e CEs')
+    expect(events.find((event) => event.kind === 'import')?.detail).not.toContain('B/Ls e CEs')
   })
 })

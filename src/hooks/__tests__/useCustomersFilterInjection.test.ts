@@ -14,7 +14,7 @@ vi.mock('../../services/supabase', () => {
 
 import { fetchCustomerRows, type CustomerFilters } from '../useCustomers'
 
-const baseFilters: CustomerFilters = { search: 'ACME,ME', contactEmail: '', emailStatus: '', blStatus: '', pendingStatus: '', sortKey: 'name', sortDirection: 'asc', page: 0, pageSize: 20 }
+const baseFilters: CustomerFilters = { search: 'ACME,ME', contactEmail: '', emailStatus: '', blStatus: '', pendingStatus: '', chargeStatus: '', sortKey: 'name', sortDirection: 'asc', page: 0, pageSize: 20 }
 
 describe('fetchCustomerRows - injeção de filtro PostgREST', () => {
   beforeEach(() => calls.or.mockReset())

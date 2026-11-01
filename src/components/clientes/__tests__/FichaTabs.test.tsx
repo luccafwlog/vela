@@ -29,9 +29,9 @@ describe('FichaTabBar', () => {
 })
 
 describe('nomes das abas da ficha do Cliente', () => {
-  it('"Operacional" virou BLs, com Contêineres entre BLs e Financeiro; link antigo abre BLs', async () => {
+  it('"Operacional" virou BLs, com Containers entre BLs e Financeiro; link antigo abre BLs', async () => {
     const { FICHA_TABS, resolveFichaTab } = await import('../fichaTabConfig')
-    expect(FICHA_TABS.map((tab) => tab.label)).toEqual(['Visão geral', 'Cadastro e contatos', 'BLs', 'Contêineres', 'Financeiro', 'Histórico', 'Desbloqueio de CE e VIP'])
+    expect(FICHA_TABS.map((tab) => tab.label)).toEqual(['Visão geral', 'Cadastro e contatos', 'B/Ls', 'Containers', 'Financeiro', 'Histórico', 'Desbloqueio de CE e VIP'])
     expect(resolveFichaTab('operacional')).toBe('bls')
   })
 })

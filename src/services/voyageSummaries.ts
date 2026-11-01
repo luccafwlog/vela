@@ -831,7 +831,7 @@ function describeImportSideEffects(rows: TimelineAuditEvent[]) {
       if (!value) return [`ATD do POL ${port} retirado`]
       return [`ATD do POL ${port}: ${oldValue ? `${formatDate(oldValue)} → ` : ''}${formatDate(value)}`]
     }
-    return [`BLs e CEs ${port}: ${oldValue ? `${formatTimelineCeStatus(oldValue)} → ` : ''}${formatTimelineCeStatus(value)}`]
+    return [`B/Ls e CEs ${port}: ${oldValue ? `${formatTimelineCeStatus(oldValue)} → ` : ''}${formatTimelineCeStatus(value)}`]
   })
 }
 
@@ -1468,7 +1468,7 @@ export function summarizeBreakbulk(bls: VoyageBl[] | null | undefined): Breakbul
 
 export type PodImportSummary = {
   pod: string
-  /** `bls`: B/Ls de contêiner (ou mistos) que descarregam na escala. */
+  /** `bls`: B/Ls de container (ou mistos) que descarregam na escala. */
   containers: { bls: number; distinct: number; imo: number; oog: number; soc: number; coc: number; types: string }
   generalCargo: { distinct: number; imo: number; oog: number }
   vehicles: { distinctContainers: number }

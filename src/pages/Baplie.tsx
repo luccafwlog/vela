@@ -530,7 +530,7 @@ function ReconciliacaoSection({
               <tbody>
                 {missingInBaplieRows.rows.map((item) => (
                   <tr key={item.container_number}>
-                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do container" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
                   </tr>
                 ))}
@@ -559,7 +559,7 @@ function ReconciliacaoSection({
               <tbody>
                 {emptyInBaplieRows.rows.map((item) => (
                   <tr key={item.container_number}>
-                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do container" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
                   </tr>
                 ))}
@@ -590,7 +590,7 @@ function ReconciliacaoSection({
               <tbody>
                 {ownershipRows.rows.map((item) => (
                   <tr key={`${item.container_number}-${item.bl_container_id}`}>
-                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do container" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
                     <td>{item.bl_ownership ?? <NoValue label="Não informado" />}</td>
                     <td>{item.baplie_ownership ?? <NoValue label="Não informado" />}</td>
@@ -624,7 +624,7 @@ function ReconciliacaoSection({
               <tbody>
                 {profileRows.rows.map((item) => (
                   <tr key={`${item.container_number}-${item.bl_container_id}`}>
-                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do container" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
                     <td>{item.bl_profile}</td>
                     <td>{item.baplie_profile}</td>
@@ -769,7 +769,7 @@ function VaziosSection({
   const baplieCount = naPlanilha ? naPlanilha.aCadastrar : emptyCount
   const isCountMismatch = planilhaReady && Boolean(existingManifest && existingManifest.total_containers !== baplieCount)
   const outOfDate = planilhaReady && (isCountMismatch || Boolean(existingManifest && pending))
-  const vaziosLink = <Link className="app-cargo-link" to={`/vazios-importacao?voyage=${voyageId}`}>Abrir Vazios de importação →</Link>
+  const vaziosLink = <Link className="app-cargo-link" to={`/vazios-importacao?voyage=${voyageId}`}>Abrir Vazios IMP →</Link>
 
   return (
     <Block
@@ -948,7 +948,7 @@ function ContainerList({
               <li key={c.id} className="app-cargo-card">
                 <div className="app-cargo-card__head">
                   <div className="app-cargo-card__id">
-                    <span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span>
+                    <span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do container" /></span>
                     <span className="app-cargo-cell__sub">{[c.status === 'empty' ? 'Vazio' : 'Cheio', isTransshipmentRow(c) ? 'Transbordo' : null, c.size_type, `${c.pol ?? '—'} → ${c.pod ?? '—'}`, c.slot ? `slot ${c.slot}` : null, c.bl_ref ? `B/L citado ${c.bl_ref}` : null].filter(Boolean).join(' · ')}</span>
                   </div>
                 </div>
@@ -980,7 +980,7 @@ function ContainerList({
               <tbody>
                 {paginated.map(({ container: c, coverage }) => (
                   <tr key={c.id} className={coverage?.keys.includes('empty') || coverage?.keys.includes('out_of_scope') ? 'app-table__row--muted' : undefined}>
-                    <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span></td>
+                    <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do container" /></span></td>
                     <td className="app-table__text"><CoverageTag coverage={coverage} /></td>
                     <td>{c.status === 'empty' ? 'Vazio' : 'Cheio'}{isTransshipmentRow(c) ? ' · transbordo' : ''}</td>
                     <td>{c.size_type ?? <NoValue label="Sem tipo" />}</td>

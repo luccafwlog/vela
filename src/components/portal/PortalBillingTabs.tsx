@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import { QrCode } from 'lucide-react'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { ComplementMark, ConsolidatedMark, StatusText } from '../ui/StatusText'
@@ -8,10 +9,11 @@ import { NoValue } from '../ui/NoValue'
 import { FilterBar } from '../ui/FilterBar'
 import { Field, Input, Select } from '../ui/Input'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
+import { RowActionButton } from '../ui/RowActionButton'
 import { formatResultCount } from '../../lib/operationalState'
 import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../../lib/portalBillingFilters'
 import { formatBRL, formatDate } from '../../lib/utils'
-import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
+import { demurrageInvoiceShowsPix, demurrageSituation, formatUsd, isDemurragePayable, localInvoiceShowsPix } from '../../lib/portalInvoiceStatus'
 import { joinDemurrageDocNumbers, type PortalDemurrageInvoice, type PortalInvoiceSummary } from '../../services/portalBilling'
 import { invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
 
@@ -34,15 +36,18 @@ type LocalTabProps = {
   vesselOptions: string[]
   pods: string[]
   onOpenDetail: (id: number) => void
+  /** "Pagar com Pix" da linha que ainda pede pagamento (decisão de 2026-11-01). */
+  onPayPix: (invoice: PortalInvoiceSummary) => void
 }
 
 /**
  * Faturas de Taxas Locais do Portal em tabela limpa (lote 1 da identidade,
  * 2026-10-14): Fatura, B/L, Emissão, Navio / Viagem, Total, Saldo e Situação,
  * nada embaixo do valor. O número abre o detalhe; o POD fica no filtro e no
- * detalhe.
+ * detalhe. A coluna Pagar traz o Pix de toda fatura em aberto, inclusive a
+ * individual que está numa consolidada aberta (2026-11-01).
  */
-export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail }: LocalTabProps) {
+export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, onPayPix }: LocalTabProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / BILLING_PAGE_SIZE))
   const safePage = Math.min(page, totalPages - 1)
 
@@ -66,14 +71,15 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
               <th scope="col">Total</th>
               <th scope="col">Saldo</th>
               <th scope="col">Situação</th>
+              <th scope="col">Pagar</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={7}>Carregando faturas...</td></tr>
+              <tr><td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={8}>Carregando faturas...</td></tr>
             ) : null}
             {!loading && invoices.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={7}>Nenhuma fatura para os filtros atuais.</td></tr>
+              <tr><td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={8}>Nenhuma fatura para os filtros atuais.</td></tr>
             ) : null}
             {invoices.map((invoice) => {
               const voyage = (invoice.vessel_voyages ?? []).join(' / ')
@@ -86,6 +92,9 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
                   <td className="whitespace-nowrap tabular-nums">{formatBRL(invoice.total_brl)}</td>
                   <td className="whitespace-nowrap tabular-nums"><LocalBalance invoice={invoice} /></td>
                   <td className="whitespace-nowrap"><InvoiceSituation status={invoice.status} /></td>
+                  <td className="whitespace-nowrap">
+                    {localInvoiceShowsPix(invoice) ? <PayPixAction number={localInvoiceNumber(invoice)} onPay={() => onPayPix(invoice)} /> : null}
+                  </td>
                 </tr>
               )
             })}
@@ -106,6 +115,7 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
             <div className="app-invoice-card__amount">Saldo <LocalBalance invoice={invoice} /> · Total {formatBRL(invoice.total_brl)}</div>
             <div className="text-sm text-[var(--app-muted)]">{(invoice.vessel_voyages ?? []).join(' / ') || <NoValue label="Sem navio/viagem" />}</div>
             <div className="text-sm text-[var(--app-muted)]">B/L: {renderBlList(invoice.bls, false)}</div>
+            {localInvoiceShowsPix(invoice) ? <PayPixAction number={localInvoiceNumber(invoice)} onPay={() => onPayPix(invoice)} withText /> : null}
           </article>
         ))}
       </div>
@@ -127,8 +137,29 @@ function isCancelled(status: string | null | undefined) {
   return status === 'cancelled' || status === 'obsolete'
 }
 
+function localInvoiceNumber(invoice: Pick<PortalInvoiceSummary, 'id' | 'invoice_number'>) {
+  return invoice.invoice_number ?? `INV-${invoice.id}`
+}
+
+/**
+ * "Pagar com Pix": na tabela, ação de linha só com ícone e o nome no `title`
+ * (regra 9, decisão do dono de 2026-11-01); no cartão do celular, com texto.
+ */
+function PayPixAction({ number, onPay, withText = false }: { number: string; onPay: () => void; withText?: boolean }) {
+  if (withText) {
+    return (
+      <div>
+        <Button variant="secondary" className="app-btn--sm" aria-label={`Pagar fatura ${number} com Pix`} onClick={onPay}>
+          <QrCode size={14} aria-hidden="true" />Pagar com Pix
+        </Button>
+      </div>
+    )
+  }
+  return <RowActionButton icon={QrCode} label={`Pagar fatura ${number} com Pix`} title="Pagar com Pix" onClick={onPay} />
+}
+
 function LocalInvoiceNumber({ invoice, onOpen }: { invoice: PortalInvoiceSummary; onOpen: (id: number) => void }) {
-  const number = invoice.invoice_number ?? `INV-${invoice.id}`
+  const number = localInvoiceNumber(invoice)
   return (
     <>
       <button type="button" className="app-invoices__number" aria-label={`Abrir fatura ${number}`} onClick={() => onOpen(invoice.id)}>{number}</button>
@@ -163,6 +194,8 @@ type DemTabProps = {
   onOpenDisputes: () => void
   /** Invoices anteriores que a linha completa (Invoice complementar). */
   complementOf?: (invoice: PortalDemurrageInvoice) => PortalDemurrageInvoice[] | undefined
+  /** "Pagar com Pix" da linha que ainda pede pagamento. */
+  onPayPix: (invoice: PortalDemurrageInvoice) => void
 }
 
 /**
@@ -172,7 +205,7 @@ type DemTabProps = {
  * (lote 4 da identidade, 2026-10-18); a Invoice complementar leva a marca ao
  * lado do número.
  */
-export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, roe, openDisputeCount, onOpenDisputes, complementOf }: DemTabProps) {
+export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, roe, openDisputeCount, onOpenDisputes, complementOf, onPayPix }: DemTabProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / BILLING_PAGE_SIZE))
   const safePage = Math.min(page, totalPages - 1)
   // ponytail: o total em aberto soma só a página carregada; com mais de uma
@@ -217,14 +250,15 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
               <th scope="col">Total US$</th>
               <th scope="col">Total R$ hoje</th>
               <th scope="col">Situação</th>
+              <th scope="col">Pagar</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={7}>Carregando...</td></tr>
+              <tr><td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={8}>Carregando...</td></tr>
             ) : null}
             {!loading && !error && invoices.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={7}>Nenhuma fatura de demurrage para os filtros atuais.</td></tr>
+              <tr><td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={8}>Nenhuma fatura de demurrage para os filtros atuais.</td></tr>
             ) : null}
             {invoices.map((inv) => {
               const voyage = [inv.vessel_name, inv.voyage_number].filter(Boolean).join(' / ')
@@ -237,6 +271,9 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
                   <td className="whitespace-nowrap tabular-nums">{formatUsd(invoiceNetUsd(inv).netUsd)}</td>
                   <td className="whitespace-nowrap tabular-nums"><DemurrageBrl invoice={inv} /></td>
                   <td className="whitespace-nowrap"><DemurrageSituation invoice={inv} /></td>
+                  <td className="whitespace-nowrap">
+                    {demurrageInvoiceShowsPix(inv) ? <PayPixAction number={inv.doc_number} onPay={() => onPayPix(inv)} /> : null}
+                  </td>
                 </tr>
               )
             })}
@@ -256,6 +293,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
             </div>
             <div className="app-invoice-card__amount">{formatUsd(invoiceNetUsd(inv).netUsd)} · <DemurrageBrl invoice={inv} /></div>
             <div className="text-sm text-[var(--app-muted)]">B/L <CopyValue value={inv.bl_id} label="número do B/L" /></div>
+            {demurrageInvoiceShowsPix(inv) ? <PayPixAction number={inv.doc_number} onPay={() => onPayPix(inv)} withText /> : null}
           </article>
         ))}
       </div>
@@ -348,8 +386,8 @@ function FiltersControls({ filters, onFilters, vesselOptions, pods }: { filters:
   )
 }
 
-// Com um único B/L, a célula da tabela ganha o ícone de copiar; o cartão
-// mobile é um <button> e não pode conter outro botão (copy = false).
+// Com um único B/L, a célula da tabela ganha o ícone de copiar; o cartão do
+// celular mostra o número sem o ícone (copy = false).
 function renderBlList(bls: string[] | null | undefined, copy: boolean): ReactNode {
   if (!bls || bls.length === 0) return <NoValue label="Sem B/L" />
   if (bls.length === 1 && copy) return <CopyValue value={bls[0]} label="número do B/L" />

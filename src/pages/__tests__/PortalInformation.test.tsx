@@ -60,7 +60,7 @@ describe('Página Central de Informações', () => {
     expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Taxas Locais', 'Devolução', 'Demurrage', 'Agentes por porto', 'Contato', 'Tracking'])
     expect(within(tabs).getByRole('tab', { name: 'Taxas Locais' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tabpanel')).toBeTruthy()
-    expect(screen.getByRole('heading', { level: 1, name: 'Central de Informações' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Informações' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Todas as informações' })).toBeNull()
     await user.click(within(tabs).getByRole('tab', { name: 'Devolução' }))
     expect(screen.getByTestId('location').textContent).toBe('/portal/informacoes/devolucao?pod=BRVIX')

@@ -216,7 +216,7 @@ describe('PortalInvoiceDetailModal', () => {
     expect(within(items).getByRole('rowheader', { name: 'Total da fatura' }).closest('tfoot')).toBeTruthy()
   })
 
-  it('consolidada mostra a tabela B/Ls e a coluna B/L nos itens e contêineres', () => {
+  it('consolidada mostra a tabela B/Ls e a coluna B/L nos itens e containers', () => {
     renderModal({
       invoice: { id: 8, invoice_number: 'INV-2026-0008', invoice_type: 'consolidated', status: 'issued', total_brl: 5404, total_paid_brl: 0, balance_brl: 5404, issued_at: '2026-10-15T14:13:38+00:00', pix_payload: pixPayload },
       bls: [bl(63, 'NSTR2113000004'), bl(64, 'NSTR2113000005')],
@@ -228,7 +228,7 @@ describe('PortalInvoiceDetailModal', () => {
     expect(screen.getByText('Consolidada · 2 B/Ls · emitida em 15/10/2026 · Emitida')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'B/Ls' })).toBeTruthy()
     expect(within(screen.getByRole('table', { name: 'Itens cobrados na fatura' })).getByRole('columnheader', { name: 'B/L' })).toBeTruthy()
-    expect(within(screen.getByRole('table', { name: 'Contêineres da fatura' })).getByRole('columnheader', { name: 'B/L' })).toBeTruthy()
+    expect(within(screen.getByRole('table', { name: 'Containers da fatura' })).getByRole('columnheader', { name: 'B/L' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Consolidada' })).toBeTruthy()
   })
 

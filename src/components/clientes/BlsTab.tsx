@@ -69,7 +69,7 @@ export function BlsTab({ data }: { data: Data }) {
             ) : null}
             {bls.length ? (
               <Link className="app-btn app-btn--secondary app-btn--sm" to={`/bls?q=${encodeURIComponent(data.cnpj_cpf)}`}>
-                Ver na lista de BLs <ArrowRight size={14} aria-hidden="true" />
+                Ver na lista de B/Ls <ArrowRight size={14} aria-hidden="true" />
               </Link>
             ) : null}
           </>
