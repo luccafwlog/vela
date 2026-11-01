@@ -645,6 +645,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
+| `admin_action_history` | `adminObservability.ts` (`fetchActionHistory`, aba Histórico de ações) | `558` | DEFINER · `authenticated` | Administrativo ativo | Só leitura de `audit_logs`: autor (Equipe, Cliente pelo Portal ou Sistema, com nome, e-mail e setor gravado), ação (criou, alterou, excluiu), registro pelo nome (`_audit_entity_label`, inclusive apagado, pelo JSON da exclusão) e De/Para pelo nome quando o campo é chave de cadastro (`_audit_value_label`); filtros de assunto, autor, ação e dias de Brasília; páginas de até 200 com o total da busca, que para de contar em 10.001 ("mais de 10.000" na tela); valor que não é JSON válido ou rótulo que não se resolve vira vazio, nunca erro; `deleted` falso (restauração) conta como "alterou". |
 | `admin_list_users` | `adminUsers.ts` | `002` | DEFINER · `authenticated` | Administrativo | — |
 | `record_audit_entries` | `auditEntries.ts` (`voyages.ts`, `voyageRouteSchedules.ts`, `operationalEvents.ts`); Edge `admin-users` | `404` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão; `user_profile` só Administrativo | Única escrita da tela em `audit_logs` (F-46): aceita só agenda de POL/POD, Viagem, evento operacional e usuário, com os campos que a tela grava; autor, Departamento e hora vêm da sessão (o `changed_by` enviado é ignorado); outro assunto é recusado (`42501`). |
 
