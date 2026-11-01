@@ -600,9 +600,9 @@ it('destaca o IMO separado da contagem geral de containers descarregados', () =>
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
   const dischargeSection = screen.getByRole('heading', { name: 'Carga descarregada' }).closest('section')!
-  expect(within(dischargeSection).getByText(/^3 contêineres · \d+ TEU$/)).toBeTruthy()
+  expect(within(dischargeSection).getByText(/^3 containers · \d+ TEU$/)).toBeTruthy()
   expect(within(dischargeSection).getByText(/^1 IMO · /)).toBeTruthy()
-  expect(within(dischargeSection).getByRole('table', { name: 'Contêineres por tipo e natureza' })).toBeTruthy()
+  expect(within(dischargeSection).getByRole('table', { name: 'Containers por tipo e natureza' })).toBeTruthy()
 })
 
 it('renomeia Container com veículo para Veículos', () => {

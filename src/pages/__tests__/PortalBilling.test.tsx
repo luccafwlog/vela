@@ -291,6 +291,41 @@ async function openConsolidatedDetail(user: ReturnType<typeof userEvent.setup>) 
 }
 
 describe('PortalBilling', () => {
+  it('"Ver faturas do B/L" chega filtrado no B/L e em aberto, e os parâmetros saem da URL', async () => {
+    renderBilling('/portal/billing?tab=local&status=issued&bl=BL-OCULTO')
+
+    expect(screen.getAllByText('INV-002').length).toBeGreaterThan(0)
+    expect(screen.queryByText('INV-001')).toBeNull()
+    expect((screen.getByPlaceholderText('Número do B/L') as HTMLInputElement).value).toBe('BL-OCULTO')
+    expect((screen.getByLabelText('Status') as HTMLSelectElement).value).toBe('issued')
+    expect(screen.getByTestId('location').textContent).toBe('?tab=local')
+  })
+
+  it('"Pagar com Pix" na linha abre o Pix da fatura, inclusive da individual numa consolidada aberta', async () => {
+    const user = userEvent.setup()
+    mocks.detail = {
+      invoice: { id: 2, invoice_number: 'INV-002', invoice_type: 'individual', status: 'issued', total_brl: 200, total_paid_brl: 0, balance_brl: 200, pix_payload: '00020126PIX-INV-002' },
+      payments: [],
+      bls: [],
+    }
+    renderBilling()
+
+    // Ação de linha só com ícone (nome no title) e, no cartão do celular, com texto.
+    const actions = screen.getAllByRole('button', { name: 'Pagar fatura INV-002 com Pix' })
+    expect(actions).toHaveLength(2)
+    await user.click(actions[0])
+
+    expect(screen.getByRole('heading', { name: 'Pagar fatura INV-002 com Pix' })).toBeTruthy()
+    expect(screen.getByText('R$ 200,00 a pagar')).toBeTruthy()
+    expect(screen.getByTitle('00020126PIX-INV-002')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copiar código Pix' })).toBeTruthy()
+  })
+
+  it('"Gerar fatura consolidada" deixa de ser o botão principal', () => {
+    renderBilling()
+    expect(screen.getByRole('button', { name: /Gerar fatura consolidada/ }).className).toContain('app-btn--secondary')
+  })
+
   it('exibe fatura avulsa sem B/L com contexto direto no desktop e mobile', () => {
     renderBilling()
 

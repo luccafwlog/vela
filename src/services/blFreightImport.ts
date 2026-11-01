@@ -57,9 +57,9 @@ export type BlFreightImportRow = {
   /** skipped: B/L cancelado no arquivo; não é tocado (ADR 0095, decisão 8) */
   status: 'new' | 'updated' | 'unchanged' | 'blocked' | 'skipped'
   existing: boolean
-  /** contêineres que o B/L já tem no banco */
+  /** containers que o B/L já tem no banco */
   existingContainerNumbers?: string[]
-  /** contêineres gravados que o arquivo não traz: saem do B/L ao confirmar (ADR 0071, item 10) */
+  /** containers gravados que o arquivo não traz: saem do B/L ao confirmar (ADR 0071, item 10) */
   removedContainers?: string[]
   /**
    * Preço do dia da importação → preço de hoje, quando diferem (B/L gravado e
@@ -180,7 +180,7 @@ export type BlFreightRpcPayload = {
   relink_customer: boolean
   /** NCM declarado no documento; vazio nunca apaga o cadastro manual (migration 358) */
   ncm_codes: string[]
-  /** contêineres que a prévia mostrou saindo; os demais ausentes ficam (migration 175) */
+  /** containers que a prévia mostrou saindo; os demais ausentes ficam (migration 175) */
   remove_containers?: string[]
   freight_lines: Array<{
     seq: number
@@ -329,7 +329,7 @@ export type BuildBlFreightPreviewArgs = {
    */
   knownPorts?: PortCatalogEntry[] | null
   /**
-   * O que impede cada contêiner gravado de sair do B/L, pelo id da linha em
+   * O que impede cada container gravado de sair do B/L, pelo id da linha em
    * `bl_containers`. Presente, a prévia recusa a linha que a gravação recusaria
    * (migration 175, P0006) em vez de deixar o lote inteiro cair.
    */
@@ -349,9 +349,9 @@ export type BuildBlFreightPreviewArgs = {
 }
 
 export type ContainerRemovalBlockers = {
-  /** contêineres com item de Invoice de Demurrage, de qualquer status */
+  /** containers com item de Invoice de Demurrage, de qualquer status */
   demurrageContainerIds: Set<number>
-  /** chassis dos veículos gravados em cada contêiner */
+  /** chassis dos veículos gravados em cada container */
   vehiclesByContainer: Map<number, string[]>
 }
 
@@ -396,7 +396,7 @@ export async function previewBlFreightImport(args: {
   // que o documento passa a declarar (resolvido pelo mesmo casamento do payload).
   const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
   const targetCustomerIds: Array<number | null> = []
-  // Contêineres gravados que o arquivo não traz: a prévia confere o que impede
+  // Containers gravados que o arquivo não traz: a prévia confere o que impede
   // a saída de cada um antes de prometê-la.
   const removalCandidateIds: number[] = []
   for (const doc of args.documents) {
@@ -689,7 +689,7 @@ export type LocalChargeCalculationError = {
   message: string
 }
 
-/** O que a RPC fez em cada B/L: contêineres e veículos que entraram, mudaram ou saíram. */
+/** O que a RPC fez em cada B/L: containers e veículos que entraram, mudaram ou saíram. */
 export type BlImportChangeSummary = {
   blNumber: string
   inserted: string[]
@@ -778,7 +778,7 @@ function readChangeSummaries(data: unknown, key: 'container_changes'): BlImportC
   })
 }
 
-/** Lê do retorno da RPC o que mudou nos contêineres, por B/L. */
+/** Lê do retorno da RPC o que mudou nos containers, por B/L. */
 export function readImportChanges(data: unknown) {
   return { containerChanges: readChangeSummaries(data, 'container_changes') }
 }
@@ -885,12 +885,12 @@ export async function confirmBlFreightImport(
   // na mesma transação. O caminho sem viagem continua avulso (ADR 0017).
   const voyageId = payload.find((bl) => bl.voyage_id != null)?.voyage_id ?? null
   // ADR 0092: o arquivo inteiro numa chamada e numa transação (migration 335).
-  // Antes dela a tela mandava lotes de 20 B/Ls / 300 contêineres, cada um uma
+  // Antes dela a tela mandava lotes de 20 B/Ls / 300 containers, cada um uma
   // transação, para caber nos 8 s do papel authenticated; uma falha no meio
   // deixava os lotes anteriores gravados.
   // ponytail: a RPC declara `statement_timeout = 60s`, que o PostgREST aplica à
-  // transação da chamada; a ~8 ms por contêiner (medido em 08/10/2026), o teto
-  // é de uns 7.000 contêineres por arquivo (uns 1.000 se o tempo da função não
+  // transação da chamada; a ~8 ms por container (medido em 08/10/2026), o teto
+  // é de uns 7.000 containers por arquivo (uns 1.000 se o tempo da função não
   // valer). Acima disso a chamada é cancelada e nada é gravado. Upgrade: gravar
   // em etapas numa tabela de preparo e publicar tudo numa RPC final, ou tirar o
   // cálculo das taxas e as flags do Baplie da transação.
@@ -1020,12 +1020,12 @@ export function containerLoadTypeFromMovement(movementFrom: string | null | unde
   return null
 }
 
-/** Contêineres gravados que o arquivo não traz. */
+/** Containers gravados que o arquivo não traz. */
 function missingContainers(existing: ExistingBl, payload: BlFreightRpcPayload) {
   return missingContainerEntries(existing, payload.containers.map((container) => container.container_number)).map((entry) => entry.number)
 }
 
-/** Contêineres gravados que o arquivo não traz, com os ids das linhas em `bl_containers`. */
+/** Containers gravados que o arquivo não traz, com os ids das linhas em `bl_containers`. */
 function missingContainerEntries(existing: ExistingBl, incomingNumbers: Iterable<string>) {
   const incoming = new Set(incomingNumbers)
   const idsByNumber = new Map<string, number[]>()
@@ -1040,7 +1040,7 @@ function missingContainerEntries(existing: ExistingBl, incomingNumbers: Iterable
 }
 
 /**
- * Contêiner que sai do B/L e que a gravação não deixa sair (P0006, que
+ * Container que sai do B/L e que a gravação não deixa sair (P0006, que
  * derruba o lote inteiro): item de Invoice de Demurrage, de qualquer status
  * (cancelar a invoice não destrava), ou veículo gravado nele. A aba VIN não é
  * lida (ADR 0095, decisão 26): os veículos saem pela planilha de Veículos ou
@@ -1257,7 +1257,7 @@ function computeBillingImpact(
 
 
   // B21 (ADR 0017): no B/L misto, o peso que esta importação traz é o dos
-  // contêineres; o peso faturado da carga solta vem do manifesto de carga
+  // containers; o peso faturado da carga solta vem do manifesto de carga
   // solta. Só o B/L de carga solta pura tem aqui a variável de faturamento.
   const isBreakBulk = existing.cargo_mode === 'carga_solta'
   const weightChanged = normalizeComparable(existing.total_weight_kg) !== normalizeComparable(payload.total_weight_kg)
@@ -1704,9 +1704,9 @@ async function fetchBlReceivableSnapshots(blNumbers: string[]) {
 }
 
 /**
- * O que impede a saída de cada contêiner que o arquivo não traz, as mesmas
+ * O que impede a saída de cada container que o arquivo não traz, as mesmas
  * consultas da gravação (migration 175): item de Invoice de Demurrage, de
- * qualquer status, e veículos gravados no contêiner.
+ * qualquer status, e veículos gravados no container.
  */
 async function fetchContainerRemovalBlockers(containerIds: number[]): Promise<ContainerRemovalBlockers> {
   const blockers: ContainerRemovalBlockers = { demurrageContainerIds: new Set(), vehiclesByContainer: new Map() }

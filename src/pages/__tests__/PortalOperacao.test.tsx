@@ -255,8 +255,8 @@ describe('PortalOperacao (BLs e Containers)', () => {
 
   it('mostra a tabela limpa da aba BLs: Navio / Viagem, Trecho, Carga, Taxas locais, Pagamento, Devolução e Demurrage', () => {
     renderOperacao()
-    expect(screen.getByRole('heading', { name: 'BLs e Containers' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'BLs' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('heading', { name: 'B/Ls e containers' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'B/Ls' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tab', { name: 'Containers' })).toBeTruthy()
 
     const headers = within(blsTable()).getAllByRole('columnheader').map((th) => th.textContent)

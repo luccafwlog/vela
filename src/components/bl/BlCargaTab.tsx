@@ -35,9 +35,9 @@ export type BreakbulkSummary = {
 type Container = NonNullable<BLDetail['bl_containers']>[number] & { demurrage_status?: string | null }
 
 /**
- * Aba Carga (identidade, lote 1): Contêineres, Carga solta e Veículos em
+ * Aba Carga (identidade, lote 1): Containers, Carga solta e Veículos em
  * blocos, cada um só quando o B/L tem aquele tipo de carga. A tabela de
- * contêineres tem as colunas da carga aberta na lista de BLs; Corrigir abre a
+ * containers tem as colunas da carga aberta na lista de BLs; Corrigir abre a
  * janela com os dados corrigíveis do container.
  */
 export function BlCargaTab({
@@ -93,7 +93,7 @@ export function BlCargaTab({
   return (
     <div className="grid gap-5">
       {containers.length ? (
-        <Block title="Contêineres" flush aside={containerSummary(containers)}>
+        <Block title="Containers" flush aside={containerSummary(containers)}>
           {divergent.length ? (
             <div className="app-block__body flex flex-wrap items-center gap-3" role="status">
               <StatusText tone="warning">
@@ -104,10 +104,10 @@ export function BlCargaTab({
           ) : null}
           <div className="app-table-scroll">
             <table className="app-table app-table--compact">
-              <caption className="sr-only">Contêineres do B/L</caption>
+              <caption className="sr-only">Containers do B/L</caption>
               <thead>
                 <tr>
-                  <th scope="col">Contêiner</th>
+                  <th scope="col">Container</th>
                   <th scope="col">Tipo</th>
                   <th scope="col">COC/SOC</th>
                   <th scope="col">Perfil</th>
@@ -124,7 +124,7 @@ export function BlCargaTab({
               <tbody>
                 {containers.map((container) => (
                   <tr key={container.id}>
-                    <td className="app-bl-code whitespace-nowrap"><CopyValue value={container.container_number} label="número do contêiner" /></td>
+                    <td className="app-bl-code whitespace-nowrap"><CopyValue value={container.container_number} label="número do container" /></td>
                     <td className="whitespace-nowrap">{container.type ?? <NoValue label="Sem tipo" />}</td>
                     <td className="whitespace-nowrap">{container.ownership === 'SOC' || container.ownership === 'COC' ? container.ownership : <NoValue label="Sem COC/SOC informado" />}</td>
                     <td className="whitespace-nowrap"><ProfileCell isImo={Boolean(container.is_imo)} isOog={Boolean(container.is_oog)} imoClass={container.imo_class} unNumber={container.un_number} /></td>
@@ -217,7 +217,7 @@ export function BlCargaTab({
                 <tr>
                   <th scope="col">Chassi</th>
                   <th scope="col">Marca</th>
-                  <th scope="col">Contêiner</th>
+                  <th scope="col">Container</th>
                   <th scope="col">Peso (kg)</th>
                   <th scope="col">Cubagem (m³)</th>
                 </tr>
@@ -228,7 +228,7 @@ export function BlCargaTab({
                     <tr key={vehicle.id}>
                       <td className="app-bl-code whitespace-nowrap">{vehicle.chassis}</td>
                       <td>{vehicle.brand ?? <NoValue label="Sem marca" />}</td>
-                      <td className="app-bl-code whitespace-nowrap">{vehicle.container?.container_number ? <CopyValue value={vehicle.container.container_number} label="número do contêiner" /> : <NoValue label="Sem contêiner" />}</td>
+                      <td className="app-bl-code whitespace-nowrap">{vehicle.container?.container_number ? <CopyValue value={vehicle.container.container_number} label="número do container" /> : <NoValue label="Sem container" />}</td>
                       <td className="tabular-nums">{formatNumber(vehicle.weight_kg)}</td>
                       <td className="tabular-nums">{formatNumber(vehicle.cbm)}</td>
                     </tr>

@@ -165,7 +165,7 @@ describe('AppLayout (navegação visível)', () => {
     expect(screen.getByRole('link', { name: 'Revisão' }).getAttribute('aria-current')).toBe('page')
 
     // Navegar dentro da lateral não fecha o grupo.
-    fireEvent.click(screen.getByRole('link', { name: 'BLs' }))
+    fireEvent.click(screen.getByRole('link', { name: 'B/Ls' }))
     expect(importacao.getAttribute('aria-expanded')).toBe('true')
   })
 

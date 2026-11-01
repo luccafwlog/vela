@@ -180,7 +180,7 @@ describe('EscalaModal', () => {
       ceStatus: 'received', ceStatusChanged: false, justification: null,
     }))
     expect(onSaved.mock.lastCall?.[0].terminalState.exportExpectation).not.toHaveProperty('ce_status')
-    await user.selectOptions(screen.getByRole('combobox', { name: 'BLs e CEs' }), 'approving')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'B/Ls e CEs' }), 'approving')
     await user.type(screen.getByLabelText('Justificativa da alteração'), 'Conferência dos BLs de importação')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
     expect(onSaved).toHaveBeenLastCalledWith(expect.objectContaining({ ceStatus: 'approving', ceStatusChanged: true }))
@@ -269,7 +269,7 @@ describe('EscalaModal', () => {
   it('exige e envia a justificativa da alteração manual de BLs e CEs', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala(terminalEscala({ ceStatus: 'received' }))
-    await user.selectOptions(screen.getByRole('combobox', { name: 'BLs e CEs' }), 'approved')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'B/Ls e CEs' }), 'approved')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
     expect(onSaved).not.toHaveBeenCalled()
     expect(screen.getByRole('alert').textContent).toContain('justificativa')

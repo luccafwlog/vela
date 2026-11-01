@@ -146,7 +146,7 @@ describe('Página Bls (unificada)', () => {
     expect(screen.queryByRole('button', { name: /Prontos para faturar/ })).toBeNull()
   })
 
-  it('renderiza os badges de modalidade corretos (contêiner, carga solta e misto)', () => {
+  it('renderiza os badges de modalidade corretos (container, carga solta e misto)', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -183,7 +183,7 @@ describe('Página Bls (unificada)', () => {
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
     fireEvent.click(trigger)
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
-      'B/L de contêiner (.xlsx)',
+      'B/L de container (.xlsx)',
       'B/L de carga solta (.pdf, .docx)',
       'Manifesto de carga solta (BB)',
       'CE Mercante',
@@ -281,7 +281,7 @@ describe('Página Bls (unificada)', () => {
     expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ search: 'MEDU', customerLink: '', page: 1 })
   })
 
-  it('alterna a lente de modalidade [Todos, Contêiner, Carga solta, Misto]', async () => {
+  it('alterna a lente de modalidade [Todos, Container, Carga solta, Misto]', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -307,8 +307,8 @@ describe('Página Bls (unificada)', () => {
       expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ cargoMode: 'carga_solta', page: 1 })
     })
 
-    // Clica em Contêiner
-    const btnCntr = screen.getByRole('radio', { name: 'Contêiner' })
+    // Clica em Container
+    const btnCntr = screen.getByRole('radio', { name: 'Container' })
     fireEvent.click(btnCntr)
 
     await waitFor(() => {
@@ -415,7 +415,7 @@ describe('Página Bls (unificada)', () => {
     })
   })
 
-  it('mostra estritamente o peso de carga solta no cartão, ignorando peso de contêiner', () => {
+  it('mostra estritamente o peso de carga solta no cartão, ignorando peso de container', () => {
     useBlSummaryMock.mockReturnValue({
       data: {
         totalBls: 2,
@@ -448,7 +448,7 @@ describe('Página Bls (unificada)', () => {
     expect(card.textContent).not.toContain('85')
   })
 
-  it('expande a linha e mostra contêiner e carga solta do B/L misto, sem nova consulta', async () => {
+  it('expande a linha e mostra container e carga solta do B/L misto, sem nova consulta', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -467,8 +467,8 @@ describe('Página Bls (unificada)', () => {
 
     await waitFor(() => expect(screen.getAllByText('SEAL-3').length).toBeGreaterThan(0))
     // Um B/L misto satisfaz os dois predicados: as duas seções aparecem.
-    expect(screen.getAllByText('Contêineres').length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/1 contêiner · 1 COC · 24\.000 kg · 67,0 m³ · 0 de 1 devolvidos/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Containers').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/1 container · 1 COC · 24\.000 kg · 67,0 m³ · 0 de 1 devolvidos/).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Abrir na ficha do B/L' })[0].getAttribute('href')).toBe('/bls/BL-MISTO')
     expect(screen.getAllByText('Carga solta').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Bobina').length).toBeGreaterThan(0)
@@ -523,7 +523,7 @@ describe('Página Bls (unificada)', () => {
     expect((screen.getByLabelText('Selecionar B/L BL-CNTR') as HTMLInputElement).checked).toBe(true)
   })
 
-  it('B/L de contêiner expande só a seção de contêineres; carga solta só a dela', async () => {
+  it('B/L de container expande só a seção de containers; carga solta só a dela', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -534,14 +534,14 @@ describe('Página Bls (unificada)', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-CNTR' }))
-    await waitFor(() => expect(within(document.getElementById('bl-detail-BL-CNTR')!).getAllByText('Contêineres').length).toBeGreaterThan(0))
+    await waitFor(() => expect(within(document.getElementById('bl-detail-BL-CNTR')!).getAllByText('Containers').length).toBeGreaterThan(0))
     expect(within(document.getElementById('bl-detail-BL-CNTR')!).queryByText('Carga solta')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-BB' }))
     await waitFor(() => expect(document.getElementById('bl-detail-BL-BB')).toBeTruthy())
     const detail = within(document.getElementById('bl-detail-BL-BB')!)
     expect(detail.getByText('Carga solta')).toBeTruthy()
-    expect(detail.queryByText('Contêineres')).toBeNull()
+    expect(detail.queryByText('Containers')).toBeNull()
   })
 
   it('renderiza os KPIs de carga solta que a RPC já devolvia', () => {

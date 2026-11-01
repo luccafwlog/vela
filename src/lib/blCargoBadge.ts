@@ -34,7 +34,7 @@ function formatBreakbulkCargo(bl: BLListItem): string {
  *
  * A modalidade é lida pelos mesmos predicados do resto do sistema. A versão
  * anterior tratava `misto` com um ramo próprio que, quando o B/L não tinha
- * número de contêiner legível, escapava para o `return` final e imprimia
+ * número de container legível, escapava para o `return` final e imprimia
  * `0 CNTR` — descartando a carga solta que o B/L comprovadamente tem.
  */
 export function formatBlCargoBadge(bl: BLListItem): string {

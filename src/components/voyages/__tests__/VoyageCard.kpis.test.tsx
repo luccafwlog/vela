@@ -170,18 +170,18 @@ describe('KPIs do cabeçalho da viagem', () => {
 })
 
 describe('KPI de Importação', () => {
-  it('mostra contêineres e carga solta em blocos separados, sem linha de TEU', () => {
+  it('mostra containers e carga solta em blocos separados, sem linha de TEU', () => {
     renderCard({
       bls: [
         { id: 'bl-c', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [{ container_number: 'AAAU1000001', type: '40HC', is_imo: true, is_oog: false }] },
-        // Misto: o peso do B/L é dos contêineres; a carga solta é só bb_weight_ton.
+        // Misto: o peso do B/L é dos containers; a carga solta é só bb_weight_ton.
         { id: 'bl-m', batch_id: null, cargo_mode: 'misto', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bb_weight_ton: 12.5, total_weight_kg: 30000, bb_machine_qty: 1, bb_packages_qty: 4, bb_cbm: 20, bl_containers: [{ container_number: 'AAAU1000002', type: '20GP', is_imo: false, is_oog: true }] },
         // B/L Avulso só com total_weight_kg: carga solta usa o fallback (7,5 t).
         { id: 'bl-s', batch_id: null, cargo_mode: 'carga_solta', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bb_weight_ton: null, total_weight_kg: 7500, bb_machine_qty: 2, bb_packages_qty: 6, bb_cbm: 10, bl_containers: [] },
       ],
     } as unknown as Partial<Voyage>)
 
-    const containers = screen.getByRole('region', { name: 'Contêineres' })
+    const containers = screen.getByRole('region', { name: 'Containers' })
     const breakbulk = screen.getByRole('region', { name: 'Carga solta' })
     const fact = (region: HTMLElement, label: string) => within(region).getByText(label).closest('.app-facts__item')?.querySelector('dd')?.textContent
     expect(containers.querySelector('.app-lead__value')?.textContent).toBe('2 cheios, distintos')

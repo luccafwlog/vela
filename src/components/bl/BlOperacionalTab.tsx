@@ -89,8 +89,8 @@ export function BlOperacionalTab({
       ) : null}
       {hasContainers ? (
         <>
-          {number('total_weight_kg', 'Peso contêiner (kg)')}
-          {number('total_cbm', 'CBM contêiner (m³)')}
+          {number('total_weight_kg', 'Peso container (kg)')}
+          {number('total_cbm', 'CBM container (m³)')}
         </>
       ) : null}
     </>
@@ -169,7 +169,7 @@ export function BlOperacionalTab({
         </Block>
 
         <Block title="Carga declarada">
-          {/* Peso e cubagem de contêiner só existem quando há contêiner: desde
+          {/* Peso e cubagem de container só existem quando há container: desde
               as migrations 061 e 064 essas colunas medem só a carga
               conteinerizada; a carga solta tem as suas. No B/L misto os dois
               conjuntos aparecem e são independentes. */}
