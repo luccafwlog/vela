@@ -133,4 +133,18 @@ describeLocal('560 — B/L criado e lacunas menores no Histórico de ações', (
     expect(saved.error).toBe('')
     expect(trail(`entity_type = 'customer_communication_saved_templates' AND changed_by = '${USER_ID}'`).map((row) => row.split('|')[1])).toEqual(['criado'])
   })
+
+  // Migration 562: a limpeza dos aceites vencidos, que o "ciente" de qualquer
+  // pessoa dispara, não vira exclusão com o autor de quem clicou.
+  it('"ciente" pela função da tela grava só a criação; o vencido apagado na limpeza fica fora (562)', () => {
+    psql(`SET session_replication_role = replica;
+      DELETE FROM public.bl_charge_adjustment_acks WHERE user_id = '${USER_ID}';
+      INSERT INTO public.bl_charge_adjustment_acks (bl_id, user_id, expires_at) VALUES ('${BL}', '${USER_ID}', now() - interval '1 hour');
+      DELETE FROM public.audit_logs WHERE entity_type = 'bl_charge_adjustment_acks' AND changed_by = '${USER_ID}';
+      SET session_replication_role = origin;`)
+    const acked = asUser(`SELECT public.ack_bl_charge_adjustment_impact(ARRAY['${BL}'])`)
+    expect(acked.error).toBe('')
+    expect(psql(`SELECT count(*) FROM public.bl_charge_adjustment_acks WHERE user_id = '${USER_ID}' AND expires_at < now()`)).toBe('0')
+    expect(trail(`entity_type = 'bl_charge_adjustment_acks' AND changed_by = '${USER_ID}'`).map((row) => row.split('|')[1])).toEqual(['criado'])
+  })
 })
