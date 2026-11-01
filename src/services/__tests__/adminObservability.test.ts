@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fetchAuditLogs, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
+import { fetchActionHistory, fetchAuditLogs, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
 
 const { fromMock, rpcMock, supabaseMock } = vi.hoisted(() => {
   const supabaseMock = { from: vi.fn(), rpc: vi.fn() }
@@ -162,4 +162,54 @@ it('autor sem perfil aparece por extenso, nunca pelo número interno', async () 
 
   const { rows } = await fetchAuditLogs({ entityTypes: [], changedBy: '', dateFrom: '', dateTo: '', page: 0 })
   expect(rows.map((row) => row.changer_name)).toEqual(['Pessoa sem cadastro', null])
+})
+
+it('Histórico de ações com nomes: filtros vão para a RPC e o total vem da busca (558)', async () => {
+  rpcMock.mockResolvedValue({
+    data: [{
+      id: 9,
+      changed_at: '2026-10-30T13:00:00Z',
+      entity_type: 'voyages',
+      field_name: 'vessel_id',
+      old_value: '7',
+      new_value: '8',
+      justification: null,
+      action: 'alterou',
+      actor_kind: 'equipe',
+      actor_name: 'Ana',
+      actor_email: 'ana@example.test',
+      actor_department: 'operacoes',
+      entity_label: 'Santos / V12',
+      old_label: 'Rio de Janeiro',
+      new_label: 'Santos',
+      value_labels: null,
+      total_count: '120',
+    }],
+    error: null,
+  })
+
+  const { rows, count } = await fetchActionHistory({ entityTypes: ['voyages'], changedBy: 'sistema', action: 'alterou', dateFrom: '2026-10-12', dateTo: '', page: 2 })
+
+  expect(rpcMock).toHaveBeenCalledWith('admin_action_history', {
+    p_entity_types: ['voyages'],
+    p_actor: 'sistema',
+    p_action: 'alterou',
+    p_date_from: '2026-10-12',
+    p_date_to: null,
+    p_limit: 50,
+    p_offset: 100,
+  })
+  expect(count).toBe(120)
+  expect(rows[0]).not.toHaveProperty('total_count')
+  expect(rows[0]).toMatchObject({ entity_label: 'Santos / V12', old_label: 'Rio de Janeiro', new_label: 'Santos' })
+})
+
+it('Histórico de ações com nomes: sem filtro manda nulo e propaga a recusa do banco', async () => {
+  rpcMock.mockResolvedValue({ data: null, error: new Error('Somente o Administrativo consulta o Histórico de ações.') })
+
+  await expect(fetchActionHistory({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '', page: 0 }))
+    .rejects.toThrow('Somente o Administrativo')
+  expect(rpcMock).toHaveBeenCalledWith('admin_action_history', expect.objectContaining({
+    p_entity_types: null, p_actor: null, p_action: null, p_date_from: null, p_offset: 0,
+  }))
 })

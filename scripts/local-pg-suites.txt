@@ -220,3 +220,4 @@ src/integration/adrFrenteDerivadaSemTerminal.local-pg.test.ts
 src/integration/embarqueVaziosTerminal.local-pg.test.ts
 src/integration/publicFwlog.local-pg.test.ts
 src/integration/embarqueVaziosExclusao.local-pg.test.ts
+src/integration/historicoDeAcoesComNomes.local-pg.test.ts
