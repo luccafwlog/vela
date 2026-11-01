@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Histórico de ações: B/L criado e lacunas menores (2026-11-01, migration `560`; decisões do dono):** cada B/L
+  criado, inclusive pela importação, pela carga solta e no Granito, deixa uma linha curta **B/L criado** com a
+  importação como origem; passam a ficar no Histórico a observação de seção do ADR, o **ciente** do impacto de taxa
+  alterada à mão e os modelos salvos de Comunicado (assunto novo **Comunicado**). O nome no Meu perfil fica de fora.
 - **Históricos por tela sem número interno (2026-11-01):** o Histórico do B/L mostra "Recebível do B/L cancelado
   com a fatura", "Faturas reemitidas automaticamente" e "Chassi … passou para o B/L …" em vez do JSON com ids; a
   ficha do Cliente mostra "Faturamento retido reprocessado" e "Fatura emitida (sem número)" em vez de JSON e
