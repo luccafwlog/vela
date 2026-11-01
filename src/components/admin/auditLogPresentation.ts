@@ -151,6 +151,24 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   vessel_id: 'Navio',
   carrier_id: 'Armador',
   customer_id: 'Cliente',
+  voyage_id: 'Viagem',
+  depot_id: 'Local',
+  local_id: 'Local',
+  port_id: 'Porto',
+  pol_id: 'POL',
+  pod_id: 'POD',
+  charge_table_id: 'Tabela',
+  charge_item_id: 'Item',
+  invoice_id: 'Fatura',
+  container_id: 'Container',
+  manifesto_mercante_id: 'Manifesto',
+  handled_note: 'Observação do tratamento',
+  handled_at: 'Tratado em',
+  justification: 'Justificativa',
+  revoke_reason: 'Motivo da revogação',
+  revoked_at: 'Revogada em',
+  review_at: 'Revisar em',
+  embark_port: 'Porto de embarque',
 }
 
 /** Situação gravada em código, por entidade ("open" do ADR vira "Aberto"). */
@@ -192,7 +210,22 @@ export type AuditLogLike = {
   field_name: string | null
   old_value: string | null
   new_value: string | null
+  /** Nome do cadastro quando o campo é chave de outro (RPC `admin_action_history`, migration 558). */
+  old_label?: string | null
+  new_label?: string | null
 }
+
+/**
+ * Campo que guarda a chave de outro registro (`vessel_id`, `created_by`). Sem
+ * o nome resolvido pelo banco, o valor é número interno e não vai à tela.
+ */
+export function isReferenceField(fieldName: string | null): boolean {
+  const field = (fieldName ?? '').split('|')[0]
+  return field === 'id' || field.endsWith('_id') || field.endsWith('_by')
+}
+
+/** Texto de um valor que é chave de outro registro e não tem nome conhecido. */
+export const UNRESOLVED_REFERENCE = 'Registro vinculado'
 
 export function auditSubjectLabel(entityType: string): string {
   return SUBJECT_BY_ENTITY.get(entityType)?.label ?? 'Outro registro'
@@ -201,6 +234,16 @@ export function auditSubjectLabel(entityType: string): string {
 function nounOf(entityType: string): Noun {
   const subject = SUBJECT_BY_ENTITY.get(entityType)
   return NOUN_BY_ENTITY[entityType] ?? { noun: subject?.label ?? 'Registro', feminine: false }
+}
+
+/** Rótulos femininos e plurais de campo, para a frase "<campo> alterada(s)". */
+const FEMININE_FIELD_LABELS = new Set(['Viagem', 'Fatura', 'Tabela', 'Situação', 'Moeda', 'Cobrança', 'Descrição', 'Senha', 'Justificativa', 'Observação do tratamento', 'Vigência desde', 'Vigência até'])
+const PLURAL_FIELD_LABELS = new Set(['Observações', 'Notas da disputa'])
+
+/** "Navio alterado", "Viagem alterada", "Observações alteradas". */
+function fieldChanged(label: string): string {
+  if (PLURAL_FIELD_LABELS.has(label)) return `${label} alteradas`
+  return `${label} ${FEMININE_FIELD_LABELS.has(label) ? 'alterada' : 'alterado'}`
 }
 
 function participle(noun: Noun, masculine: string) {
@@ -288,15 +331,35 @@ export type AuditValueFact = { label: string; value: string }
  * rótulo, para o detalhe não mostrar código cru. `null` quando o valor não é
  * um registro.
  */
-export function auditValueFacts(entityType: string, value: string | null): AuditValueFact[] | null {
+export function auditValueFacts(
+  entityType: string,
+  value: string | null,
+  valueLabels?: Readonly<Record<string, string>> | null,
+): AuditValueFact[] | null {
   const parsed = parseJsonObject(value)
   if (!parsed) return null
   return Object.entries(parsed).flatMap(([key, raw]) => {
     if (HIDDEN_JSON_KEYS.has(key) || raw == null || raw === '') return []
     const label = auditFieldLabel(entityType, key)
     if (!label || typeof raw === 'object') return []
+    // Chave de outro cadastro: o nome do banco, ou fora da lista (nunca o número).
+    if (isReferenceField(key)) {
+      const name = valueLabels?.[key]
+      return name ? [{ label, value: name }] : []
+    }
     return [{ label, value: formatAuditValue(key, String(raw), entityType) }]
   })
+}
+
+/**
+ * Valor de De ou Para na tela: o nome do cadastro quando o banco resolveu, a
+ * formatação de sempre quando não é chave, e "Registro vinculado" quando é
+ * chave sem nome — o número interno nunca.
+ */
+export function displayAuditValue(fieldName: string | null, value: string | null, entityType: string, label?: string | null): string {
+  if (label) return label
+  if (value != null && value.trim() !== '' && value !== 'null' && isReferenceField(fieldName)) return UNRESOLVED_REFERENCE
+  return formatAuditValue(fieldName, value, entityType)
 }
 
 /** Frase da coluna "O que mudou". */
@@ -327,7 +390,10 @@ export function describeAuditLog(row: AuditLogLike): string {
   if (row.entity_type === 'charge_calculation' && field === 'manual_update') return describeManualChargeUpdate(row.old_value, row.new_value)
   const label = auditFieldLabel(row.entity_type, row.field_name)
   if (!label) return participle(noun, 'alterado')
-  const value = formatAuditValue(row.field_name, row.new_value, row.entity_type)
-  if (parseJsonObject(row.new_value) || value.length > 60) return `${label} alterado`
+  if (isReferenceField(row.field_name) && !row.new_label) return fieldChanged(label)
+  // O cadastro apontado já foi apagado: "Cliente: cadastro excluído", não "Cliente: Cliente excluído".
+  if (row.new_label && /\bexcluíd[oa]$/.test(row.new_label)) return `${label}: cadastro excluído`
+  const value = displayAuditValue(row.field_name, row.new_value, row.entity_type, row.new_label)
+  if (parseJsonObject(row.new_value) || value.length > 60) return fieldChanged(label)
   return `${label}: ${value}`
 }

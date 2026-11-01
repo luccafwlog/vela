@@ -1,70 +1,9 @@
 import { supabase } from './supabase'
-import { brasiliaDayBounds } from '../lib/dates'
-import { fetchUserDisplayNames } from './userNames'
-
-export type AuditLogRow = {
-  id: number
-  entity_type: string
-  entity_id: string
-  field_name: string | null
-  old_value: string | null
-  new_value: string | null
-  changed_by: string | null
-  changed_at: string
-  justification: string | null
-  changer_name: string | null
-}
 
 export const LOG_PAGE_SIZE = 50
 
 /** Autor "Sistema" no filtro Por: linhas gravadas sem usuário (jobs, gatilhos). */
 export const SYSTEM_AUTHOR = 'sistema'
-
-export type LogFilters = {
-  /** Entidades do assunto escolhido; vazio = todos os assuntos. */
-  entityTypes: readonly string[]
-  /** Usuário (id), `SYSTEM_AUTHOR` ou vazio para qualquer pessoa. */
-  changedBy: string
-  /** Dia de Brasília (YYYY-MM-DD), inclusive. */
-  dateFrom: string
-  dateTo: string
-  page: number
-}
-
-export async function fetchAuditLogs(filters: LogFilters): Promise<{ rows: AuditLogRow[]; count: number }> {
-  const from = filters.page * LOG_PAGE_SIZE
-  const to = from + LOG_PAGE_SIZE - 1
-
-  let query = supabase
-    .from('audit_logs')
-    .select('id, entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification', { count: 'exact' })
-    .order('changed_at', { ascending: false })
-    .range(from, to)
-
-  if (filters.entityTypes.length) query = query.in('entity_type', [...filters.entityTypes])
-  if (filters.changedBy === SYSTEM_AUTHOR) query = query.is('changed_by', null)
-  else if (filters.changedBy) query = query.eq('changed_by', filters.changedBy)
-  if (filters.dateFrom) query = query.gte('changed_at', brasiliaDayBounds(filters.dateFrom).start)
-  if (filters.dateTo) query = query.lte('changed_at', brasiliaDayBounds(filters.dateTo).end)
-
-  const { data, error, count } = await query
-  if (error) throw error
-
-  const rows = (data ?? []) as unknown as Omit<AuditLogRow, 'changer_name'>[]
-  if (!rows.length) return { rows: [], count: count ?? 0 }
-
-  const changerIds = Array.from(new Set(rows.map((r) => r.changed_by).filter(Boolean))) as string[]
-  const nameById = new Map<string, string>()
-  if (changerIds.length) {
-    for (const [id, name] of await fetchUserDisplayNames(changerIds)) nameById.set(id, name)
-  }
-
-  return {
-    // Autor sem perfil (usuário apagado no Auth) aparece por extenso, nunca pelo número interno.
-    rows: rows.map((r) => ({ ...r, changer_name: r.changed_by ? (nameById.get(r.changed_by) ?? 'Pessoa sem cadastro') : null })),
-    count: count ?? 0,
-  }
-}
 
 /** Tipo de ação do filtro e da linha (migration `558`). */
 export type AuditAction = 'criou' | 'alterou' | 'excluiu'
