@@ -165,17 +165,24 @@ it('oferece as regras de alertas no topo', () => {
   expect(screen.getByRole('link', { name: 'Regras de alertas' }).getAttribute('href')).toBe('/alertas/regras')
 })
 
-it('sincroniza o filtro de setor a partir da URL e faz fallback para valores desconhecidos', () => {
+it('sincroniza o cartão de setor a partir da URL e ignora valores desconhecidos', () => {
+  const pressed = () => within(screen.getByRole('group', { name: 'Alertas por setor' }))
+    .getAllByRole('button').filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent)
   const { unmount } = renderAlertas(['/alertas?departamento=administrativo'])
-  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('administrativo')
+  expect(pressed()).toEqual([expect.stringMatching(/^Administrativo/)])
   unmount()
 
   const legacy = renderAlertas(['/alertas?departamento=sem_departamento'])
-  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('sem_departamento')
+  expect(pressed()).toEqual([expect.stringMatching(/^Sem setor/)])
   legacy.unmount()
 
   renderAlertas(['/alertas?departamento=setor_inexistente'])
-  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('all')
+  expect(pressed()).toEqual([])
+})
+
+it('não há seletor de setor: o setor se escolhe pelos cartões', () => {
+  renderAlertas()
+  expect(screen.queryByLabelText('Setor')).toBeNull()
 })
 
 it('cartões por setor filtram a fila ali mesmo e, clicados de novo, tiram o filtro', () => {
@@ -188,11 +195,11 @@ it('cartões por setor filtram a fila ali mesmo e, clicados de novo, tiram o fil
 
   fireEvent.click(documentacao)
   expect(documentacao.getAttribute('aria-pressed')).toBe('true')
-  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('documentacao')
+  expect(screen.getByRole('button', { name: 'Limpar filtros' })).toBeTruthy()
 
   fireEvent.click(documentacao)
   expect(documentacao.getAttribute('aria-pressed')).toBe('false')
-  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('all')
+  expect(screen.queryByRole('button', { name: 'Limpar filtros' })).toBeNull()
 })
 
 it('o link do Painel abre com o cartão do setor marcado', () => {
