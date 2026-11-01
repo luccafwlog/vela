@@ -43,3 +43,16 @@ describe('resolveVoyagePortStop', () => {
     expect(voyagePortLabel('BRXYZ')).toBe('BRXYZ')
   })
 })
+
+describe('voyagePortLabel', () => {
+  it('nome do porto com acento, preposição minúscula e Itaguaí no lugar do apelido Sepetiba', () => {
+    expect(voyagePortLabel('BRVIX')).toBe('Vitória (BRVIX)')
+    expect(voyagePortLabel('BRPEC')).toBe('Pecém (BRPEC)')
+    expect(voyagePortLabel('BRPNG')).toBe('Paranaguá (BRPNG)')
+    expect(voyagePortLabel('BRITJ')).toBe('Itajaí (BRITJ)')
+    expect(voyagePortLabel('BRRIO')).toBe('Rio de Janeiro (BRRIO)')
+    expect(voyagePortLabel('BRIGI')).toBe('Itaguaí (BRIGI)')
+    expect(voyagePortLabel('CNTAO')).toBe('Qingdao (CNTAO)')
+    expect(voyagePortLabel('BRSSA')).toBe('Salvador (BRSSA)')
+  })
+})

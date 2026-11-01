@@ -10,6 +10,9 @@
   criado" no Histórico passa a um gatilho por comando (2.000 B/Ls num INSERT: 1,89 s → 1,45 s no Postgres local); a
   reabertura do ADR sem terminal grava na chave do próprio ADR, e fechar e reabrir ficam no mesmo registro do Histórico
   de ações; contato novo sem nome pela configuração de contatos fica em branco, não "Contato".
+- **Régua do CE e Taxas conta o envio manual (2026-11-01, migration `563`; decisão do dono na revisão da release):**
+  o CE entregue pelo Disparo ou pelo **Reenviar CE e Taxas** fecha o Cliente × Viagem para a régua, como já acontecia
+  no NOA, NOR e NOB. Antes só a tentativa da régua contava, e o CE mandado à mão depois de uma falha saía de novo.
 - **Histórico de ações lê as trilhas próprias (2026-11-01, migration `561`; decisão do dono):** a aba Admin ›
   Histórico de ações mostra também o andamento do Desbloqueio de CE, as decisões e a situação das contas do Portal,
   os Comunicados enviados e as mensagens e anexos das disputas de Demurrage, lidos na hora de cada trilha, sem gravar

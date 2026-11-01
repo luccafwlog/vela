@@ -14,7 +14,7 @@ import {
 const SIDE = {
   pol: {
     title: 'Origem',
-    effect: 'Saída do navio no exterior (ETD). Vai para Chegadas e Saídas.',
+    effect: 'Saída do navio no exterior (ETD). Aparece em Chegadas e Saídas quando o porto é coluna da programação.',
     portLabel: 'Porto de origem',
     dateLabel: 'ETD',
     placeholder: 'Ex.: Qingdao, CNTAO',
@@ -42,6 +42,8 @@ export function VoyagePortsPicker({
   takenCodes,
   onAdd,
   onRemove,
+  onDraftChange,
+  draftRefused = false,
 }: {
   kind: VoyagePortStop['kind']
   /** Portos já adicionados deste lado. */
@@ -50,6 +52,10 @@ export function VoyagePortsPicker({
   takenCodes: string[]
   onAdd: (stop: VoyagePortStop) => void
   onRemove: (code: string) => void
+  /** Porto ou data digitados e ainda não adicionados: o cadastro não os grava. */
+  onDraftChange?: (hasDraft: boolean) => void
+  /** O cadastro foi recusado porque este lado tem rascunho não adicionado. */
+  draftRefused?: boolean
 }) {
   const side = SIDE[kind]
   const [port, setPort] = useState('')
@@ -57,6 +63,20 @@ export function VoyagePortsPicker({
   const [portError, setPortError] = useState<string | null>(null)
   const [dateError, setDateError] = useState<string | null>(null)
   const listId = `voyage-port-suggestions-${kind}`
+  // Recusa do cadastro no campo que tem o rascunho: o porto, ou a data
+  // digitada sozinha.
+  const draftPortError = draftRefused && port.trim()
+    ? `Adicione ou apague este ${side.portLabel.toLowerCase()} antes de cadastrar a viagem.`
+    : null
+  const draftDateError = draftRefused && !port.trim() && date
+    ? `Apague o ${side.dateLabel} ou informe o porto e clique em Adicionar.`
+    : null
+
+  function updateDraft(nextPort: string, nextDate: string) {
+    setPort(nextPort)
+    setDate(nextDate)
+    onDraftChange?.(Boolean(nextPort.trim() || nextDate))
+  }
   const headingId = `voyage-ports-${kind}`
 
   function add() {
@@ -69,8 +89,7 @@ export function VoyagePortsPicker({
     setDateError(nextDateError)
     if (nextPortError || nextDateError || 'error' in resolved) return
     onAdd({ code: resolved.code, kind, date })
-    setPort('')
-    setDate('')
+    updateDraft('', '')
   }
 
   const ordered = [...stops].sort((left, right) => left.date.localeCompare(right.date))
@@ -91,17 +110,17 @@ export function VoyagePortsPicker({
           }
         }}
       >
-        <Field label={side.portLabel} error={portError ?? undefined}>
+        <Field label={side.portLabel} error={portError ?? draftPortError ?? undefined}>
           <Input
             list={listId}
             value={port}
             placeholder={side.placeholder}
             autoComplete="off"
-            onChange={(event) => setPort(event.target.value.toUpperCase())}
+            onChange={(event) => updateDraft(event.target.value.toUpperCase(), date)}
           />
         </Field>
-        <Field label={side.dateLabel} error={dateError ?? undefined}>
-          <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        <Field label={side.dateLabel} error={dateError ?? draftDateError ?? undefined}>
+          <Input type="date" value={date} onChange={(event) => updateDraft(port, event.target.value)} />
         </Field>
         <Button type="button" variant="secondary" className="sm:mt-[22px]" aria-label={side.addLabel} onClick={add}>
           <Plus size={16} aria-hidden="true" /> Adicionar
