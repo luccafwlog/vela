@@ -1928,13 +1928,32 @@ textarea {
   line-height: 32px;
 }
 
-/* Card de métrica que aplica o filtro correspondente. */
+/* Cartão que só mostra o número: liso, sem cara de clicável (2026-11-01). */
+.app-metric-tile--static {
+  border-color: var(--app-border-soft);
+  background: var(--app-surface-muted);
+}
+
+/* Cartão que filtra ou abre outra tela: cara de botão em repouso, com borda
+   mais forte, sombra e a marca "Filtrar"/"Abrir" (decisão de 2026-11-01). */
 button.app-metric-tile {
   width: 100%;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  border-color: var(--app-border-strong);
+  box-shadow: var(--app-shadow);
   transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.app-metric-tile__cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-link);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  line-height: 16px;
 }
 
 button.app-metric-tile:hover {
@@ -6429,6 +6448,32 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-switch:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+/* Chave discreta (`size="sm"`): opção secundária de um formulário, que não
+   compete com os campos principais (aparição em Chegadas e Saídas na Nova
+   Viagem). No toque, --app-control-h-sm mantém o alvo de 44 px. */
+.app-switch--sm {
+  gap: 8px;
+  min-height: var(--app-control-h-sm);
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  font-weight: 500;
+}
+
+.app-switch--sm .app-switch__track {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+}
+
+.app-switch--sm .app-switch__track::after {
+  width: 12px;
+  height: 12px;
+}
+
+.app-switch--sm[aria-checked='true'] .app-switch__track::after {
+  transform: translateX(14px);
 }
 
 .app-summary-strip {

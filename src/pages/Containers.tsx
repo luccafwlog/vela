@@ -439,7 +439,7 @@ export function Containers() {
                       />
                     ) : null}
                     <div className="app-cargo-card__id">
-                      <span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do contêiner" /></span>
+                      <span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do container" /></span>
                       <span className="app-cargo-cell__sub">
                         {row.type ?? 'Tipo não informado'}{row.seal_number ? ` · Lacre ${row.seal_number}` : ''}
                       </span>
@@ -498,7 +498,7 @@ export function Containers() {
                           />
                         </td>
                       ) : null}
-                      <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do contêiner" /></span></td>
+                      <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do container" /></span></td>
                       <td><BlNumberCell row={row} /></td>
                       <td className="app-table__text" title={partyName(row) ?? undefined}>{partyName(row) ?? <NoValue label="Sem cliente" />}</td>
                       <td className="app-table__text"><VoyageCell row={row} /></td>

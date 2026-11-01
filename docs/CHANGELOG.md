@@ -4,8 +4,80 @@
 >
 > Números de migration: a partir da consolidação de 2026-09-02 ([ADR 0062](adr/0062-consolidacao-migrations-schema-1-0.md)), número sem qualificação é da cadeia ativa (`supabase/migrations/`). As entradas anteriores a essa data (seções 2026-08 e mais antigas) citam a cadeia arquivada (`supabase/migrations_archive/`), cujos números se repetem na ativa com outro conteúdo.
 
+## 2026-11
+
+- **Lacunas baixas da revisão da release (2026-11-01, migration `564`; decisões do dono):** o registro de "B/L
+  criado" no Histórico passa a um gatilho por comando (2.000 B/Ls num INSERT: 1,89 s → 1,45 s no Postgres local); a
+  reabertura do ADR sem terminal grava na chave do próprio ADR, e fechar e reabrir ficam no mesmo registro do Histórico
+  de ações; contato novo sem nome pela configuração de contatos fica em branco, não "Contato".
+- **Régua do CE e Taxas conta o envio manual (2026-11-01, migration `563`; decisão do dono na revisão da release):**
+  o CE entregue pelo Disparo ou pelo **Reenviar CE e Taxas** fecha o Cliente × Viagem para a régua, como já acontecia
+  no NOA, NOR e NOB. Antes só a tentativa da régua contava, e o CE mandado à mão depois de uma falha saía de novo.
+- **Histórico de ações lê as trilhas próprias (2026-11-01, migration `561`; decisão do dono):** a aba Admin ›
+  Histórico de ações mostra também o andamento do Desbloqueio de CE, as decisões e a situação das contas do Portal,
+  os Comunicados enviados e as mensagens e anexos das disputas de Demurrage, lidos na hora de cada trilha, sem gravar
+  o mesmo fato em dois lugares. Assuntos novos: **Desbloqueio de CE**, **Conta do Portal** e **Disputa de Demurrage**.
+- **Histórico de ações: B/L criado e lacunas menores (2026-11-01, migration `560`; decisões do dono):** cada B/L
+  criado, inclusive pela importação, pela carga solta e no Granito, deixa uma linha curta **B/L criado** com a
+  importação como origem; passam a ficar no Histórico a observação de seção do ADR, o **ciente** do impacto de taxa
+  alterada à mão e os modelos salvos de Comunicado (assunto novo **Comunicado**). O nome no Meu perfil fica de fora.
+  Revisão da release (migration `562`): do "ciente" fica só a marcação, sem a limpeza dos aceites vencidos de outras
+  pessoas atribuída a quem clicou; o filtro **Ação** deixa de chamar uma função por linha (1,37 s → 0,12 s com 500 mil
+  linhas no Postgres local).
+- **Prioridades de usabilidade do Vela e do Portal (decisões do dono de 2026-11-01):**
+  - **Portal › Faturas:** coluna **Pagar** com o ícone "Pagar com Pix" em toda fatura que pede pagamento,
+    inclusive a individual que está numa consolidada aberta; abre a janela do Pix com o valor e **Ver detalhe
+    da fatura**. **Gerar fatura consolidada** passa a botão secundário.
+  - **Portal › Desbloqueio de CE:** **Ver faturas em aberto** abre Faturas filtrada no B/L e no status
+    Emitida (`?bl=` e `?status=`), não mais a lista inteira.
+  - **Nomes:** "B/Ls" e "container" em todo texto do Vela e do Portal; telas **Vazios IMP** e **Vazios EXP**
+    com o título igual ao menu; no Portal, **Informações** no menu, no título e no Painel.
+  - **Cartões de total:** o que filtra tem cara de botão e a marca **Filtrar**; o que só mostra número é liso
+    e não fica em âmbar. **Taxas a revisar** em Clientes passa a filtrar (`taxas=com`).
+  - **Menu:** Chegadas e Saídas e Line Up TV em Viagens; Provisionamento do Portal, Comunicação e Informações
+    do Portal em Clientes; Regras de alertas em Alertas; Tabelas de Taxas Locais e Tarifas de Demurrage no
+    Financeiro; Locais em Exportação.
+- **Históricos por tela sem número interno (2026-11-01):** o Histórico do B/L mostra "Recebível do B/L cancelado
+  com a fatura", "Faturas reemitidas automaticamente" e "Chassi … passou para o B/L …" em vez do JSON com ids; a
+  ficha do Cliente mostra "Faturamento retido reprocessado" e "Fatura emitida (sem número)" em vez de JSON e
+  `INV-<id>`; o ADR (linha do tempo, "Fechado em … por …" e impressão) mostra "Pessoa sem cadastro" em vez do
+  identificador do autor; a linha do tempo da Viagem mostra a justificativa das edições da Viagem, do Nº de Manifesto
+  Mercante, da reversão de omissão e do transbordo, e a origem de uma importação só pelo tipo.
+- **Histórico de ações legível (2026-11-01, migration `558`):** a aba Admin › **Histórico de ações** mostra cada
+  registro pelo nome (a Viagem como "Navio / Nº", com o porto da escala; B/L, Cliente, Fatura; o registro apagado
+  pelo nome que tinha), e não mais pelo número gravado. Campos que apontam para outro cadastro (Navio, Cliente,
+  Armador, Terminal) aparecem pelo nome em De e Para. **Por** distingue **Sistema** e **Cliente pelo Portal**, com o
+  e-mail e o setor do autor ao passar o mouse e na linha aberta; a justificativa ganha a coluna **Motivo**; filtro
+  novo **Ação** (Criou, Alterou, Excluiu). Leitura pela RPC `admin_action_history`, só do Administrativo.
+  Diagnóstico em [archive/audits/historico-de-acoes-2026-11-01.md](archive/audits/historico-de-acoes-2026-11-01.md).
+- **Histórico cobre escritas que não deixavam rastro (2026-11-01, migration `559`):** passam a aparecer no Histórico
+  de ações a Liberação de faturamento no Portal (com a justificativa), o fechamento e a troca de terminal do ADR de
+  Saída, "Marcar como tratado" do Pix Itaú (com o motivo), as exceções de Pix (assunto novo **Conciliação PIX**) e a
+  criação do Embarque de vazios e da linha de serviço. Motivo escrito numa coluna da própria linha (revogação da
+  liberação, por exemplo) vira a justificativa do Histórico.
+
 ## 2026-10
 
+- **Nova Viagem com portos e datas (2026-10-31):** o cadastro de **Nova Viagem** ganha **Portos e datas**,
+  opcional, com dois seletores: **Origem** (ETD, vai para Chegadas e Saídas) e **Destino** (ETA, cria a escala). Em
+  cada um o operador digita o porto, a data e **Adicionar**, e só os portos adicionados aparecem. O destino aceita
+  qualquer porto brasileiro, inclusive fora de Chegadas e Saídas; a origem, porto do exterior da lista do sistema.
+  A gravação é a mesma de Chegadas e Saídas. Navio, IMO, número e status vão para o topo; armador
+  e SCAC ficam numa linha com **Alterar armador**; a chave pequena diz só **Chegadas e Saídas**; o 1º porto
+  brasileiro sai do cadastro (fica na edição). Porto fora dos nove da programação não aparece em Chegadas e Saídas.
+- **Pedidos do dono de 2026-10-31 (migration `557`):**
+  - **Disparo:** o modo Carga oferece o CE Mercante · Taxas Locais ao lado de NOA, NOR e NOB, completando os
+    quatro e-mails automáticos da carga. Um por Cliente e Viagem, para Documentação e Operação e Financeiro, sem
+    anexo; o Cliente sem prontidão aparece bloqueado com o motivo, e a Edge recalcula CEs e valores no envio.
+  - **Prévia do e-mail:** a logo da Fwlog aparece; a política de segurança do Vela bloqueava a imagem do domínio
+    do Portal só na prévia (o e-mail enviado sempre a levou, conferido no navegador).
+  - **Contatos:** o contato capturado do B/L fica sem nome, no Vela e no Portal, em vez de "Contato manifesto";
+    os contatos com esse nome foram limpos.
+- **Pix Itaú: token com C200 isolado não derruba a rodada (2026-10-31):** as 11
+  ocorrências do Sentry VELA-26 foram a consulta de recebimentos recebendo 403
+  "Certificado inválido" (`codigo_erro` C200) do STS, com o certificado válido e
+  a rodada seguinte autenticando. O cliente pede o token de novo uma vez; a
+  segunda recusa continua 500 e vai ao Sentry. Prova: `itauPix.test.ts`.
 - **Achados da revisão do Manual do Operador (2026-10-31, migrations `555` e `556`):** cinco defeitos achados na
   revisão da PR luccafwlog/vela#1087, cada um com teste que falhava antes.
   - **Auditoria visual:** `scripts/design-audit/seed_audit.sql` ajusta as tarifas de Demurrage 20GP e 40GP que o

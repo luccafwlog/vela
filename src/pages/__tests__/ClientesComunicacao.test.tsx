@@ -631,10 +631,12 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
 
     // Os modelos do modo Carga ficam todos visíveis, cada um com a sua descrição.
     const modelos = screen.getAllByRole('radio', { name: /Texto fixo|escreve assunto/ })
-    expect(modelos.map((radio) => (radio as HTMLInputElement).name)).toEqual(Array(4).fill('comunicacao-modelo'))
+    expect(modelos.map((radio) => (radio as HTMLInputElement).name)).toEqual(Array(5).fill('comunicacao-modelo'))
     expect(screen.getByRole('radio', { name: /NOA · Chegada Próxima/ })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /NOR · Aviso de Chegada/ })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /NOB · Aviso de Atracação/ })).toBeTruthy()
+    // Os quatro e-mails automáticos da carga (pedido do dono, 2026-10-31).
+    expect(screen.getByRole('radio', { name: /CE Mercante · Taxas Locais/ })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /Comunicado livre/ })).toBeTruthy()
 
     // O modo Institucional resolve modelo e público sozinho: em vez de uma lista
@@ -645,6 +647,29 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByText(/Modelo único neste modo/)).toBeTruthy()
     // E o editor continua abrindo, porque o modelo segue sendo o institucional.
     expect(screen.getByLabelText(/^Assunto/)).toBeTruthy()
+  })
+
+  it('o CE e Taxas vai a Documentação e Operação e Financeiro, sem anexo, com prévia de exemplo', () => {
+    // Sem conferência: a prévia usa o exemplo (a chave da consulta inclui o modelo).
+    activeMockConference = null
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    escolher(/CE Mercante · Taxas Locais/)
+    expect(screen.getAllByText('Documentação e Operação e Financeiro').length).toBeGreaterThan(0)
+    expect(screen.getByText('O CE e Taxas segue sempre para as caixas Documentação e Operação e Financeiro.')).toBeTruthy()
+    // A Edge recusa anexo no CE e Taxas: a tela nem oferece.
+    expect(screen.getByText('este modelo não leva anexo')).toBeTruthy()
+    expect(screen.queryByLabelText('Anexos (opcional)')).toBeNull()
+    // Sem editor: o texto é fixo.
+    expect(screen.queryByLabelText(/^Assunto/)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver prévia do e-mail' }))
+    expect(screen.queryByText('Não foi possível renderizar a prévia deste comunicado.')).toBeNull()
+    expect(screen.getAllByText(/CE Mercante e Taxas Locais disponíveis/).length).toBeGreaterThan(0)
   })
 
   it('o modelo Livre abre o editor de mensagem sem sair do modo Carga', () => {
@@ -1137,6 +1162,37 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     expect(second.attemptDiscriminator).toBe(first.attemptDiscriminator)
     expect(first.anchorVoyageId).toBe(1)
     expect(first.anchorPort).toBeNull()
+  })
+
+  it('o CE e Taxas sai por Cliente e Viagem, sem porto e sem anexo, com a caixa de cada contato', async () => {
+    const base = noaRow(1, 'ACME Importadora', ['docs@acme.com', 'fin@acme.com'])
+    const ce = {
+      ...base,
+      key: 'ce_mercante_taxas:1:1',
+      eligibleRecipients: [
+        { id: 10, email: 'docs@acme.com', name: null, matchedBoxCodes: ['documentacao_operacao'] },
+        { id: 11, email: 'fin@acme.com', name: null, matchedBoxCodes: ['financeiro'] },
+      ],
+      renderInput: { ...base.renderInput, ceMercanteRows: [{ blId: 'BL-1', ceMercante: '152605000001', totalBrl: 1850 }] },
+    }
+    activeMockConference = { ...conferenceOf('ce_mercante_taxas', [ce]), nature: 'documentacao' } as CustomerCommunicationConference
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    mockDispatch.mockResolvedValue({ communicationId: 9, status: 'simulado' })
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    escolher(/CE Mercante · Taxas Locais/)
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalledTimes(2))
+
+    const [docs, fin] = mockDispatch.mock.calls.map(([input]) => input)
+    expect(docs).toMatchObject({ kind: 'ce_mercante_taxas', nature: 'documentacao', recipient: 'docs@acme.com', anchorVoyageId: 1, anchorPort: null, anchorAtracacaoId: null, attachments: [], audience: { mode: 'caixa', boxCode: 'documentacao_operacao' } })
+    expect(fin).toMatchObject({ recipient: 'fin@acme.com', audience: { mode: 'caixa', boxCode: 'financeiro' } })
+    expect(docs.subject).toContain('CE Mercante e Taxas Locais disponíveis')
   })
 
   it('no livre, o rótulo de envios anteriores conta os da Viagem, não o discriminador do Cliente', () => {

@@ -4,6 +4,8 @@ import {
   auditSubjectLabel,
   auditValueFacts,
   describeAuditLog,
+  displayAuditValue,
+  trailValueText,
   formatAuditValue,
   formatBrasiliaDateTime,
 } from '../auditLogPresentation'
@@ -119,5 +121,67 @@ describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
   it('a edição da cobrança manual mostra a quantidade, não o código', () => {
     expect(describeAuditLog({ entity_type: 'charge_calculation', field_name: 'manual_update', old_value: 'qty=2 | note=', new_value: 'qty=3 | note=x' }))
       .toBe('Cobrança manual: quantidade 2 → 3')
+  })
+
+  it('chave de outro cadastro: o nome do banco, nunca o número (558)', () => {
+    expect(describeAuditLog({ ...log('voyages', 'vessel_id', '37', '41'), old_label: 'Rio de Janeiro 2', new_label: 'Santos' })).toBe('Navio: Santos')
+    expect(describeAuditLog(log('voyages', 'vessel_id', '37', '41'))).toBe('Navio alterado')
+    expect(displayAuditValue('vessel_id', '37', 'voyages', 'Rio de Janeiro 2')).toBe('Rio de Janeiro 2')
+    expect(displayAuditValue('vessel_id', '37', 'voyages')).toBe('Registro vinculado')
+    expect(displayAuditValue('omission_id', '9f1c2e4a-0000-4000-8000-000000000001', 'bl_transshipments')).toBe('Registro vinculado')
+    expect(displayAuditValue('city', 'Santos', 'customers')).toBe('Santos')
+    const json = '{"id": 41, "name": "Santos", "carrier_id": 9, "customer_id": 12}'
+    expect(auditValueFacts('vessels', json, { carrier_id: 'Armador Nove' })).toEqual([
+      { label: 'Nome', value: 'Santos' },
+      { label: 'Armador', value: 'Armador Nove' },
+    ])
+  })
+
+  it('Pix tratado, exceção de Pix e fechamento do ADR em português (559)', () => {
+    expect(auditSubjectLabel('itau_pix_receipts')).toBe('Conciliação PIX')
+    expect(auditSubjectLabel('pix_reconciliation_exceptions')).toBe('Conciliação PIX')
+    expect(describeAuditLog(log('itau_pix_receipts', 'handled_note', null, 'Pix devolvido'))).toBe('Observação do tratamento: Pix devolvido')
+    expect(describeAuditLog(log('pix_reconciliation_exceptions', 'criado', null, '{"id": 3, "txid": "X"}'))).toBe('Exceção de Pix criada')
+    expect(describeAuditLog(log('agency_departure_report', 'status', 'open', 'closed'))).toBe('ADR de Saída fechado')
+    expect(describeAuditLog({ ...log('agency_departure_report', 'terminal_id', null, 'uuid'), new_label: 'Terminal Norte' })).toBe('Terminal: Terminal Norte')
+    expect(describeAuditLog(log('customer_billing_portal_releases', 'criado', null, '{"id": 1, "customer_id": 9}'))).toBe('Liberação de faturamento criada')
+  })
+
+  it('concordância e cadastro apagado na frase (revisão)', () => {
+    expect(describeAuditLog(log('bls', 'voyage_id', '37', '41'))).toBe('Viagem alterada')
+    expect(describeAuditLog(log('invoice_items', 'invoice_id', '7', '8'))).toBe('Fatura alterada')
+    expect(describeAuditLog({ ...log('bls', 'customer_id', '12', '13'), new_label: 'Cliente excluído' })).toBe('Cliente: cadastro excluído')
+  })
+
+  it('B/L criado, "ciente" do impacto, observação de seção do ADR e modelo de Comunicado (560)', () => {
+    expect(describeAuditLog(log('bls', 'criado', null, '{"id": "BL1", "voyage_id": 9, "cargo_mode": "container"}'))).toBe('B/L criado')
+    expect(describeAuditLog(log('granite_bls', 'criado', null, '{"id": "u", "bl_number": "GR-1"}'))).toBe('B/L de Granito criado')
+    expect(describeAuditLog(log('bl_charge_adjustment_acks', 'criado', null, '{"id": 1, "bl_id": "BL1"}'))).toBe('Impacto da taxa marcado como ciente')
+    expect(describeAuditLog(log('agency_departure_report', 'observation|datas', null, 'Atracação atrasou'))).toBe('Observação da seção Escala: Atracação atrasou')
+    expect(describeAuditLog(log('agency_departure_report', 'observation|datas', 'x', null))).toBe('Observação da seção Escala apagada')
+    expect(describeAuditLog(log('customer_communication_saved_templates', 'criado', null, '{"id": 2, "name": "Aviso de atraso"}'))).toBe('Modelo de Comunicado criado: Aviso de atraso')
+    expect(auditSubjectLabel('customer_communication_saved_templates')).toBe('Comunicado')
+    expect(auditSubjectLabel('bl_charge_adjustment_acks')).toBe('Taxas do B/L')
+  })
+
+  it('trilhas próprias lidas na aba: Desbloqueio de CE, Portal, Comunicado e disputa (561)', () => {
+    expect(describeAuditLog(log('ce_unlock_request', 'ce_unlock|submit', null, 'BL1'))).toBe('Desbloqueio de CE: Pedido enviado')
+    expect(describeAuditLog(log('ce_unlock_request', 'ce_unlock|acao_nova', null, null))).toBe('Desbloqueio de CE: Andamento atualizado')
+    expect(describeAuditLog(log('customer_communication', 'comunicado|aviso_chegada_noa', null, 'enviado'))).toBe('NOA · Chegada Próxima: Enviado')
+    expect(describeAuditLog(log('customer_communication', 'comunicado|tipo_novo', null, 'status_novo'))).toBe('Comunicado criado')
+    expect(describeAuditLog(log('demurrage_dispute', 'dispute_message', null, 'Contestamos os dias'))).toBe('Mensagem na disputa')
+    expect(describeAuditLog(log('demurrage_dispute', 'dispute_attachment', null, 'comprovante.pdf'))).toBe('Anexo na disputa: comprovante.pdf')
+    expect(describeAuditLog(log('portal_account', 'portal_decision', null, 'tipo_desconhecido'))).toMatch(/^Portal: /)
+    expect(describeAuditLog(log('portal_account', 'portal_decision', 'aguardando_analise', 'aprovado_para_provisionar'))).toBe('Portal: Provisionamento autorizado')
+    expect(describeAuditLog(log('portal_account', 'portal_situation', 'convite_pendente', 'falha_no_envio'))).toBe('Portal: Falha no envio')
+    expect(describeAuditLog(log('portal_account', 'portal_event', null, null))).toBe('Conta do Portal: ação registrada')
+    expect(trailValueText('customer_communication', 'comunicado|livre', 'falha')).toBe('Falha')
+    expect(trailValueText('ce_unlock_request', 'ce_unlock|submit', 'BL1')).toBe('B/L BL1')
+    expect(displayAuditValue('comunicado|livre', 'simulado', 'customer_communication')).toBe('Ao suporte')
+    for (const entity of ['ce_unlock_request', 'portal_account', 'customer_communication', 'demurrage_dispute']) {
+      expect(auditSubjectLabel(entity)).not.toBe('Outro registro')
+    }
+    // Nenhum código cru na frase.
+    expect(describeAuditLog(log('customer_communication', 'comunicado|tipo_novo', null, 'status_novo'))).not.toMatch(/tipo_novo|status_novo/)
   })
 })

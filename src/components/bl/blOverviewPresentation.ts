@@ -22,9 +22,9 @@ export function describeBaplie(status: BaplieStatus): { text: string; tone: 'def
 type ReturnableContainer = { container_number: string; ownership?: string | null; return_date?: string | null }
 
 /**
- * Dado principal do bloco Carga: quantos contêineres já voltaram. SOC é do
+ * Dado principal do bloco Carga: quantos containers já voltaram. SOC é do
  * Cliente e não volta, então fica fora da conta; o mesmo número em mais de
- * uma linha (Part Lot) conta uma vez. Sem contêiner a devolver, não há dado
+ * uma linha (Part Lot) conta uma vez. Sem container a devolver, não há dado
  * de devolução e a ficha mostra a contagem.
  */
 export function describeReturns(containers: ReturnableContainer[]): { text: string; tone: 'default' | 'warning' } | null {

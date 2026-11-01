@@ -290,7 +290,7 @@ function DetailBody({
             <tbody>
               {items.length ? items.map((item) => (
                 <tr key={item.id}>
-                  <td className="app-invoice-detail__code"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                  <td className="app-invoice-detail__code"><CopyValue value={item.container_number} label="número do container" /></td>
                   <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
                   <td className="tabular-nums">{item.discharge_date ? formatDate(item.discharge_date) : <NoValue label="Sem descarga" />}</td>
                   <td className="tabular-nums">{item.return_date ? formatDate(item.return_date) : <NoValue label="Sem devolução" />}</td>

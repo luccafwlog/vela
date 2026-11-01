@@ -11,7 +11,8 @@ import {
   recoveryTemplate,
   resendTemplate,
 } from '../../../supabase/functions/_shared/portalEmailTemplates.ts'
-import { renderEmailLayout } from '../emailLayout'
+import { emailPreviewHtml, renderEmailLayout } from '../emailLayout'
+import { renderNoaTemplate } from '../customerCommunicationTemplates'
 
 // PORTAL_URL do portal antigo, como ainda pode estar num ambiente: os e-mails
 // saem com o Portal atual (ponto 4 de 2026-10-23).
@@ -192,5 +193,34 @@ describe('renderEmailLayout — origem da logo', () => {
     const html = renderEmailLayout({ brand: 'portal', siteUrl: 'https://x.example/"><script>alert(1)</script>', title: 'T', body: '', footer: '' })
     expect(html).not.toContain('script')
     expect(html).toContain('<img src="https://x.example/')
+  })
+})
+
+describe('Prévia do Comunicado no Vela', () => {
+  const noa = renderNoaTemplate({
+    customerId: 1,
+    customerName: 'ACME',
+    vesselName: 'NAVIO',
+    voyageNumber: '01',
+    port: 'BRSSZ',
+    milestoneAt: '2026-10-31',
+    bls: [{ id: 'BL1', customerId: 1 }],
+  })
+
+  it('o e-mail enviado leva a logo pelo endereço absoluto do Portal', () => {
+    expect(noa.html).toContain('<img src="https://portalfwlog.com.br/branding/fwlog-logo-white.png"')
+  })
+
+  it('a prévia carrega a mesma logo pelo próprio Vela, que a política img-src deixa abrir', () => {
+    const preview = emailPreviewHtml(noa.html)
+    expect(preview).toContain('<img src="/branding/fwlog-logo-white.png"')
+    expect(preview).not.toContain('portalfwlog.com.br/branding')
+    // Só a imagem muda: o restante do e-mail continua igual.
+    expect(preview.replace('src="/branding/', 'src="https://portalfwlog.com.br/branding/')).toBe(noa.html)
+  })
+
+  it('link de texto para /branding fora de <img> não é reescrito', () => {
+    const html = '<a href="https://portalfwlog.com.br/branding/x.png">x</a>'
+    expect(emailPreviewHtml(html)).toBe(html)
   })
 })

@@ -227,3 +227,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   falha 6 vezes abrem o tipo novo **Retorno do provedor de e-mail não
   aplicado**, normal, do Administrativo, com o destinatário mascarado em
   Registro (POR-105, ALE-058, catálogo de alertas).
+- **CE e Taxas no Disparo, logo na prévia e contato do manifesto sem nome**
+  (pedidos do dono de 2026-10-31, migration `557`): o modo Carga do Disparo
+  oferece o CE Mercante · Taxas Locais ao lado de NOA, NOR e NOB, um por
+  Cliente e Viagem, bloqueado com o motivo quando falta prontidão (CLI-058,
+  CLI-060, CLI-066, CLI-067); a prévia do e-mail mostra a logo da Fwlog, que a
+  política de segurança do Vela bloqueava só na prévia (CLI-066); o contato
+  capturado do B/L fica sem nome em vez de "Contato manifesto", no Vela e no
+  Portal (CLI-032, POR-089).

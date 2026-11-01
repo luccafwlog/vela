@@ -38,6 +38,7 @@ import { usePortalCeUnlock } from "../hooks/usePortalCeUnlock";
 import { downloadCeUnlockDocument, uploadCeUnlockDocument } from "../services/ceUnlockService";
 import type { CeUnlockDocument, CeUnlockItem, CeUnlockRequest, CeUnlockVipCoverage } from "../types/ceUnlock";
 import { portalPath, type PortalScope } from "../services/portalScope";
+import { portalBillingOpenForBlSuffix } from "../lib/portalBillingFilters";
 import { matchesAnyToken } from "../lib/searchTerms";
 
 type Tab = "new" | "requests" | "annual";
@@ -653,7 +654,7 @@ export function PortalDesbloqueioCe() {
                             ) : (
                               <span className="inline-flex items-center gap-2">
                                 <StatusText tone="warning">Em aberto</StatusText>
-                                <RowActionLink to={portalPath(flow.scope, "/billing")} label={`Ver faturas do B/L ${i.bl_id}`} title="Ver faturas" icon={Receipt} />
+                                <RowActionLink to={portalPath(flow.scope, portalBillingOpenForBlSuffix(i.bl_id))} label={`Ver faturas em aberto do B/L ${i.bl_id}`} title="Ver faturas em aberto" icon={Receipt} />
                               </span>
                             )}
                           </td>

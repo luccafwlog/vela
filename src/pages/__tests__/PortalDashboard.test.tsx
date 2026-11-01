@@ -126,7 +126,7 @@ describe('PortalDashboard (Painel)', () => {
     expect(screen.getByText('1 pede correção')).toBeTruthy()
 
     // Consultas: os seis atalhos da Central de Informações, no lugar do cartão.
-    const consultas = screen.getByRole('navigation', { name: 'Consultas na Central de Informações' })
+    const consultas = screen.getByRole('navigation', { name: 'Seções de Informações' })
     expect(within(consultas).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
       '/portal/informacoes/taxas', '/portal/informacoes/devolucao', '/portal/informacoes/demurrage',
       '/portal/informacoes/agentes', '/portal/informacoes/atendimento', '/portal/informacoes/tracking',

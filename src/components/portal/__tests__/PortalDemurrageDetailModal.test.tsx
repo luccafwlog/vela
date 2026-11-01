@@ -87,8 +87,8 @@ describe('PortalDemurrageDetailModal', () => {
   })
 
   it.each([
-    ['datas', 'cancelada porque as datas dos contêineres mudaram.'],
-    ['soc', 'cancelada porque um contêiner passou a SOC e saiu da cobrança.'],
+    ['datas', 'cancelada porque as datas dos containers mudaram.'],
+    ['soc', 'cancelada porque um container passou a SOC e saiu da cobrança.'],
     ['divisao', 'cancelada porque mudou a divisão de uma caixa entre Clientes.'],
     [null, 'cancelada e substituída por esta.'],
   ] as const)('Invoice reemitida diz a causa da substituição (%s, migration 555)', (cause, text) => {
@@ -142,7 +142,7 @@ describe('PortalDemurrageDetailModal', () => {
     const handlers = renderModal(detail, { complementOf: [{ id: 7, doc_number: 'DEM-000' }] })
     expect(screen.getByRole('heading', { name: 'Invoice complementar' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Complementa a DEM-000' })).toBeTruthy()
-    expect(screen.getByText(/cobra o contêiner TGHU8120032, que entrou no B\/L depois da primeira Invoice\. A DEM-000 continua valendo/)).toBeTruthy()
+    expect(screen.getByText(/cobra o container TGHU8120032, que entrou no B\/L depois da primeira Invoice\. A DEM-000 continua valendo/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Abrir DEM-000' }))
     expect(handlers.onOpenInvoice).toHaveBeenCalledWith(7)
   })

@@ -10,9 +10,9 @@ import { listDemurrageBillingBoard } from './demurrageBoard'
 import { containerFreeTimeDays, daysSince, effectiveDemurrage, freeTimeSource, FREE_TIME_SOURCE_LABELS } from './demurragePresentation'
 
 /**
- * Contêineres dos B/Ls de um Cliente (aba Contêineres da ficha, lote 1 da
+ * Containers dos B/Ls de um Cliente (aba Containers da ficha, lote 1 da
  * identidade): os mesmos dados e o mesmo cálculo da tela Demurrage, só
- * agrupados por Cliente. Entra todo contêiner de B/L ativo, inclusive SOC e
+ * agrupados por Cliente. Entra todo container de B/L ativo, inclusive SOC e
  * os que ainda estão no free time.
  */
 const SELECT = `

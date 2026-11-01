@@ -51,6 +51,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { userFacingErrorMessage } from '../../lib/errors'
+import { AGENCY_REPORT_UNKNOWN_ACTOR } from '../../services/agencyReportLabels'
 
 const DEPARTMENTS: AgencyReportDepartmentKey[] = ['operacoes', 'documentacao', 'equipamentos']
 
@@ -329,7 +330,7 @@ function ContainerNatureTable({ rows }: { rows: Record<string, Record<string, nu
 
   return (
     <div className="app-table-scroll">
-      <table className="app-table app-table--compact app-table--nested" aria-label="Contêineres por tipo e natureza">
+      <table className="app-table app-table--compact app-table--nested" aria-label="Containers por tipo e natureza">
         <thead><tr><th scope="col">Tipo</th>{natureKeys.map((key) => <th key={key} scope="col">{labels[key]}</th>)}<th scope="col">Total</th></tr></thead>
         <tbody>
           {types.map((type) => {
@@ -799,7 +800,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   })
   const formatTon = (value: number) => value.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
   const vehicleContainerTotal = vehicleBreakdown.containersByType.reduce((total, item) => total + item.count, 0)
-  const vehicleLead = `${vehicleVinTotal} ${vehicleVinTotal === 1 ? 'veículo' : 'veículos'} em ${vehicleContainerTotal} ${vehicleContainerTotal === 1 ? 'contêiner' : 'contêineres'}${vehicleBreakdown.containersByType.length === 1 ? ` ${vehicleBreakdown.containersByType[0].label}` : ''}`
+  const vehicleLead = `${vehicleVinTotal} ${vehicleVinTotal === 1 ? 'veículo' : 'veículos'} em ${vehicleContainerTotal} ${vehicleContainerTotal === 1 ? 'container' : 'containers'}${vehicleBreakdown.containersByType.length === 1 ? ` ${vehicleBreakdown.containersByType[0].label}` : ''}`
   const hasVehicleTransshipment = vehicles.some((vehicle) => vehicle.transshipmentVinCount)
   const emptyEmbarkLocals = emptyEmbarkLocalTotals.map((entry) => entry.localLabel)
   const terminalLabel = resolvedReportId
@@ -840,7 +841,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             aside={<span className="flex gap-2"><Button variant="secondary" className="app-btn--sm" onClick={() => setPrintOpen(true)}>Imprimir</Button>{!readOnly ? <Button variant="danger" className="app-btn--sm" onClick={() => setReopenOpen(true)}>Reabrir</Button> : null}</span>}
           >
             <div role="status">
-              <LeadValue detail={`por ${ownData?.closed_by_name ?? ownData?.closed_by ?? '—'}`}>Fechado em {formatDate(ownData?.closed_at)}</LeadValue>
+              <LeadValue detail={`por ${ownData?.closed_by_name ?? (ownData?.closed_by ? AGENCY_REPORT_UNKNOWN_ACTOR : '—')}`}>Fechado em {formatDate(ownData?.closed_at)}</LeadValue>
             </div>
           </Block>
           <AgencyReportTimeline
@@ -854,7 +855,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             departmentEvents={departmentSignoffEvents ?? []}
             actorNames={actorNames}
             closedAt={ownData?.closed_at ?? null}
-            closedByName={ownData?.closed_by_name ?? ownData?.closed_by ?? null}
+            closedByName={ownData?.closed_by_name ?? (ownData?.closed_by ? AGENCY_REPORT_UNKNOWN_ACTOR : null)}
           />
           <Modal open={printOpen} title="Relatório de Saída do Navio (ADR)" onClose={() => setPrintOpen(false)}><div className="flex justify-end pb-3"><Button variant="secondary" onClick={printClosedReport}>Imprimir</Button></div><AgencyReportDocument snapshot={closedSnapshot} actorNames={actorNames} /></Modal>
           <Modal open={reopenOpen} title="Reabrir ADR" onClose={() => setReopenOpen(false)}><label className="grid gap-2">Justificativa<textarea value={reopenJustification} onChange={(event) => setReopenJustification(event.target.value)} className="min-h-24 rounded border border-[var(--app-border)] bg-transparent p-2" /></label><Button variant="danger" className="mt-3" disabled={readOnly || !reopenJustification.trim() || reopenMutation.isPending} onClick={() => { if (!readOnly && port) reopenMutation.mutate({ voyageId, port, justification: reopenJustification.trim() }, { onSuccess: () => { setReopenOpen(false); setReopenJustification('') }, onError: showRefusal }) }}>Confirmar reabertura</Button></Modal>
@@ -917,7 +918,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                       `${dischargeDestination.transbordo} em transbordo`,
                       dischargeMatrix.unknownTypeCount ? `${dischargeMatrix.unknownTypeCount} de tipo não reconhecido` : null,
                     ].filter(Boolean).join(' · ')}>
-                      {containers.length} {containers.length === 1 ? 'contêiner' : 'contêineres'} · {dischargeMatrix.teu} TEU
+                      {containers.length} {containers.length === 1 ? 'container' : 'containers'} · {dischargeMatrix.teu} TEU
                     </LeadValue>
                     <ContainerNatureTable rows={dischargeMatrix.rows} />
                   </div> : null}
@@ -977,7 +978,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                     </table>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <CountTable label="Contêineres por tipo" head="Tipo" rows={vehicleBreakdown.containersByType.map((item) => [item.label, item.count])} />
+                    <CountTable label="Containers por tipo" head="Tipo" rows={vehicleBreakdown.containersByType.map((item) => [item.label, item.count])} />
                     <CountTable label="Veículos por modelo" head="Modelo" rows={vehicleBreakdown.vehiclesByModel.map((item) => [item.label, item.count])} />
                   </div>
                 </div> : <NadaOperado />}
@@ -1036,7 +1037,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             departmentEvents={departmentSignoffEvents ?? []}
             actorNames={actorNames}
             closedAt={ownData?.closed_at ?? null}
-            closedByName={ownData?.closed_by_name ?? ownData?.closed_by ?? null}
+            closedByName={ownData?.closed_by_name ?? (ownData?.closed_by ? AGENCY_REPORT_UNKNOWN_ACTOR : null)}
           />
         </>}
       </> : null}

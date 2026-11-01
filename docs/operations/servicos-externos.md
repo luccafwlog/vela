@@ -361,7 +361,13 @@ declarada no `config.toml` na mesma data. O teste
 `edgeTelemetryConfiguration.test.ts` recusa função do repositório sem
 declaração. Observado em 2026-10-10 (funções do Desbloqueio de CE) e em
 2026-10-14 (`portal-password-recovery` atualizada minutos após o merge da PR
-951); a configuração da integração que faz isso não foi conferida. Depois de
+951); a configuração da integração que faz isso não foi conferida. Em
+2026-11-01 (revisão da release #1142, listagem só de leitura pelo conector), as
+25 funções publicadas tinham a mesma atualização, 2026-10-31 18:40:34 UTC, um
+minuto depois do merge da PR 1134 na `main` (18:39:34 UTC), inclusive as que não
+mudaram nela (`itau-pix` na v52): a integração republica todas as funções
+declaradas a cada merge na `main`, e mudança só em `_shared/` também chega a
+produção. Depois de
 cada merge, confira em Supabase → Edge Functions a data de atualização das
 funções alteradas, ou baixe o código publicado com `supabase functions download`
 e compare com o `main`. Se alguma não foi publicada:
@@ -1342,7 +1348,13 @@ de Vitória/ES do ano seguinte antes de 1º/11; a partir dessa data o Alerta
 suspendem o prazo, então a cobrança pode vencer às 14h30 de um feriado. A Demurrage também depende do job
 `recalc-demurrage-ptax` estar agendado ([segredos e cron](segredos-cron.md)).
 
-Renovar o certificado 30 dias antes do vencimento. Documentação:
+Renovar o certificado 30 dias antes do vencimento. Uma resposta isolada 403
+com `codigo_erro` C200 ("Certificado inválido") na troca do token não encerra
+a rodada: o cliente pede o token de novo uma vez. As duas recusas seguidas
+continuam 500, com a linha da etapa que precisou do token no log da função.
+Foi a causa das 11 ocorrências do Sentry VELA-26 (23–30/10/2026), todas na
+etapa `receipts`; a rodada seguinte autenticou com o mesmo certificado.
+Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
 Função e job Itaú publicados; webhook não cadastrado na conferência de 07/10.
 

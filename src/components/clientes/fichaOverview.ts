@@ -170,7 +170,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
       tone: 'warning',
       title: `${plural(input.pendingReconciliation, 'B/L vinculado por nome', 'B/Ls vinculados por nome')}, aguardando confirmação`,
       detail: 'Confirme ou corrija o Cliente na seção Cliente de cada B/L.',
-      actions: [{ label: 'Ver os B/Ls na aba BLs', tab: 'bls' }],
+      actions: [{ label: 'Ver os B/Ls na aba B/Ls', tab: 'bls' }],
     })
   }
 

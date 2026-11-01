@@ -17,7 +17,7 @@ vi.mock('../../../services/demurrage/demurrageRates', async (original) => ({
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 
-// Tabela real de tarifas só com 40HC: um contêiner sem tipo, ou de tipo sem
+// Tabela real de tarifas só com 40HC: um container sem tipo, ou de tipo sem
 // tarifa, não pode derrubar a aba Faturamento (a ficha inteira ia para a tela
 // de erro); o erro fica na linha e o bloco de condições diz "Sem tarifa".
 function renderSection(containers: Array<{ type: string | null; ownership: string | null; return_date?: string | null }>) {
@@ -39,14 +39,14 @@ function renderSection(containers: Array<{ type: string | null; ownership: strin
   )
 }
 
-describe('BlDemurrageSection — contêiner sem tarifa', () => {
+describe('BlDemurrageSection — container sem tarifa', () => {
   afterEach(() => __setDemurrageRateGroupsForTest(null))
 
-  it('contêiner sem tipo mostra "Sem tarifa" nas condições e não calcula a Demurrage', async () => {
+  it('container sem tipo mostra "Sem tarifa" nas condições e não calcula a Demurrage', async () => {
     renderSection([{ type: null, ownership: 'COC' }, { type: '40HC', ownership: 'COC', return_date: '2026-05-05' }])
     expect(await screen.findByText('Condições de Demurrage deste B/L')).toBeTruthy()
     expect(screen.getByText('Sem tarifa de Demurrage para este tipo')).toBeTruthy()
-    expect(screen.getByText('Demurrage não calculada para 1 de 2 contêineres')).toBeTruthy()
+    expect(screen.getByText('Demurrage não calculada para 1 de 2 containers')).toBeTruthy()
     expect(screen.getByText('10 dias · US$ 50,00 por dia (dias 11 a 20) · US$ 80,00 por dia a partir do dia 21', { exact: false })).toBeTruthy()
   })
 

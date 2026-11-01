@@ -12,7 +12,7 @@ export function resolveCargoMode(bl?: BLDetail | null): CargoMode {
   // Fallback para o B/L sem modalidade conhecida. O sinal tem de ser o mesmo
   // que o banco usa (`_recalculate_bl_cargo_mode`, migrations 060/062/064):
   // itens, peso, volumes, máquinas ou cubagem de carga solta. Antes ignorava
-  // volumes, máquinas e cubagem, então classificava como contêiner um B/L que
+  // volumes, máquinas e cubagem, então classificava como container um B/L que
   // o banco chama de carga solta.
   const hasCntr = (bl?.bl_containers?.length ?? 0) > 0
   const hasBb = (bl?.bl_breakbulk_items?.length ?? 0) > 0

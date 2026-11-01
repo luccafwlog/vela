@@ -12,6 +12,7 @@ import { compareVoyageRailItems, getProximaEscala } from './voyageSummaries'
 import { supabase } from './supabase'
 import { toError } from '../lib/errors'
 import { formatCommunicationDateTime, type CustomerCommunicationKind, type CustomerCommunicationTemplateInput } from './customerCommunicationTemplates'
+import { fetchCeMercanteTaxasConferenceData, type CeMercanteTaxasConferenceData } from './ceMercanteTaxasInput'
 import {
   type CommunicationBoxCode,
   type CustomerCommunicationAudience,
@@ -208,14 +209,17 @@ export const DEFAULT_CUSTOMER_COMMUNICATION_FILTERS: CustomerCommunicationFilter
 
 /**
  * Modelos que o operador pode disparar manualmente em `/clientes/comunicacao`,
- * agrupados pelo Recorte de Destinatários que cada um usa. `ce_mercante_taxas` e
- * `cobranca_demurrage` ficam de fora: nascem da régua automática, não do disparo.
+ * agrupados pelo Recorte de Destinatários que cada um usa. O modo Carga oferece
+ * os quatro e-mails automáticos da carga — NOA, NOR, NOB e CE e Taxas (este
+ * desde 2026-10-31, pedido do dono; antes só saía pela régua e pelo reenvio do
+ * Histórico) — e o livre. `cobranca_demurrage` fica de fora: a Edge só aceita a
+ * cobrança vinda da régua.
  */
 export const MANUAL_CUSTOMER_COMMUNICATION_KINDS_BY_MODE: Record<
   CustomerCommunicationDispatchMode,
   readonly CustomerCommunicationKind[]
 > = {
-  carga: ['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob', 'livre'],
+  carga: ['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob', 'ce_mercante_taxas', 'livre'],
   institucional: ['institucional'],
 }
 
@@ -248,6 +252,11 @@ export type CustomerCommunicationAudienceRule = {
   audience: CustomerCommunicationAudience
   /** Motivo exibido na tela quando o público é imposto pelo modelo. */
   reason: string
+  /**
+   * Nome do público quando ele não é uma caixa só: o CE e Taxas alcança as
+   * caixas que a tabela `customer_communication_box_kinds` liga ao modelo.
+   */
+  label?: string
 }
 
 const DEFAULT_OPERATIONAL_BOX: CommunicationBoxCode = 'documentacao_operacao'
@@ -265,6 +274,16 @@ export function getCustomerCommunicationAudienceRule(
   }
   if (kind === 'livre') {
     return { editable: true, audience: { mode: 'todos' }, reason: 'Escolha entre todos os contatos ou uma Caixa de Comunicação.' }
+  }
+  if (kind === 'ce_mercante_taxas') {
+    // A conferência e a Edge resolvem os destinatários pelas caixas do modelo
+    // (A22): `audience` só fica como a caixa principal do registro.
+    return {
+      editable: false,
+      audience: { mode: 'caixa', boxCode: DEFAULT_OPERATIONAL_BOX },
+      reason: 'O CE e Taxas segue sempre para as caixas Documentação e Operação e Financeiro.',
+      label: 'Documentação e Operação e Financeiro',
+    }
   }
   return {
     editable: false,
@@ -463,6 +482,8 @@ function candidateIdentity(row: CustomerCommunicationBlCandidate, kind: Customer
   // D15: o livre leva Navio, Viagem e B/Ls, então sai um e-mail por Cliente e
   // Viagem — o Cliente com carga em duas viagens recebe dois.
   if (kind === 'livre') return `${row.customerId}:${row.voyageId}`
+  // D3: o CE e Taxas é um por Cliente e Viagem, com todos os B/Ls dele.
+  if (kind === 'ce_mercante_taxas') return `${row.customerId}:${row.voyageId}`
   if (kind === 'aviso_atracacao_nob') {
     return `${row.customerId}:${row.voyageId}:${communicationPortCode(row.pod) ?? ''}:${row.terminalStateId ?? 'terminal-state-sem-identidade'}`
   }
@@ -477,7 +498,8 @@ function historyMatchesRow(
   return history.kind === kind
     && history.customerId === row.customerId
     && history.anchorVoyageId === row.voyageId
-    && samePort(history.anchorPort, row.pod)
+    // O CE e Taxas grava o porto nulo (migration 315): a identidade é Cliente × Viagem.
+    && (kind === 'ce_mercante_taxas' || samePort(history.anchorPort, row.pod))
     && (kind !== 'aviso_atracacao_nob' || history.anchorAtracacaoId === row.terminalStateId)
 }
 
@@ -552,6 +574,8 @@ export function buildCustomerCommunicationConference(input: {
   portalSuppressions?: readonly EmailSuppressionRow[]
   history?: readonly CustomerCommunicationHistoryMatch[]
   unassignedOperationFronts?: boolean
+  /** CE e Taxas: prontidão e prévia por `${customerId}:${voyageId}` (`fetchCeMercanteTaxasConferenceData`). */
+  ceMercante?: ReadonlyMap<string, CeMercanteTaxasConferenceData>
   now?: Date
 }): CustomerCommunicationConference {
   const nature = communicationNatureForKind(input.kind, input.nature)
@@ -583,13 +607,16 @@ export function buildCustomerCommunicationConference(input: {
       blocked: boolean
     }
 
+    const ce = input.kind === 'ce_mercante_taxas'
     if (input.boxLinks !== undefined) {
       const boxResult = resolveCustomerCommunicationRecipientsByBoxes({
         contacts: customerContacts,
         boxLinks: input.boxLinks,
         boxKinds: input.boxKinds,
         kind: input.kind,
-        audience: input.audience,
+        // O CE e Taxas alcança as caixas do modelo (Documentação e Operação e
+        // Financeiro), como a Edge e o reenvio do Histórico.
+        audience: ce ? undefined : input.audience,
         communicationSuppressions: input.communicationSuppressions,
         portalSuppressions: input.portalSuppressions,
       })
@@ -619,9 +646,16 @@ export function buildCustomerCommunicationConference(input: {
     // O NOB sem a sigla do terminal é recusado pela Edge ("O terminal da
     // Atracação está sem sigla cadastrada."): a conferência já o mostra
     // bloqueado, com o motivo, em vez de deixá-lo falhar no disparo.
+    // O CE e Taxas só sai com a prontidão em dia; a Edge reconfere e recusa
+    // o Cliente bloqueado, então a conferência já o mostra com o motivo.
+    const ceData = ce ? input.ceMercante?.get(`${first.customerId}:${first.voyageId}`) : undefined
     const blockedReason = input.kind === 'aviso_atracacao_nob' && !first.terminalName?.trim()
       ? 'Terminal da Atracação sem sigla cadastrada.'
-      : null
+      : ce && !ceData
+        ? 'Não foi possível conferir a prontidão do CE e Taxas.'
+        : ce && !ceData?.ready
+          ? ceData?.reason ?? 'Prontidão financeira incompleta'
+          : null
     const blocked = recipients.blocked || blockedReason !== null
     rows.push({
       key: `${input.kind}:${candidateIdentity(first, input.kind)}`,
@@ -645,7 +679,7 @@ export function buildCustomerCommunicationConference(input: {
       ...(input.kind === 'institucional' || input.kind === 'livre'
         ? { previousDispatchCount: previousUserWrittenDispatchCount(input.history ?? [], first, input.kind) }
         : {}),
-      renderInput: makeCustomerCommunicationRenderInput(anchorRow, candidates, institutional),
+      renderInput: ceData?.renderInput ?? makeCustomerCommunicationRenderInput(anchorRow, candidates, institutional),
     })
   }
 
@@ -990,6 +1024,30 @@ async function fetchCommunicationHistory(customerIds: readonly number[], kind: C
   return history
 }
 
+/**
+ * Prontidão e prévia do CE e Taxas por `${customerId}:${voyageId}`. A leitura
+ * que falha para um Cliente fica fora do mapa, e a conferência bloqueia só
+ * aquele Cliente ("Não foi possível conferir a prontidão do CE e Taxas."),
+ * em vez de a conferência inteira cair.
+ * ponytail: uma leitura de prontidão e prévia por Cliente da Viagem, em
+ * paralelo como a Cobertura; uma RPC em lote seria o próximo passo se a
+ * Viagem passar de algumas dezenas de Clientes.
+ */
+export async function fetchCeMercanteConferenceByPair(
+  pairs: readonly string[],
+  fetchData: (voyageId: number, customerId: number) => Promise<CeMercanteTaxasConferenceData> = fetchCeMercanteTaxasConferenceData,
+): Promise<Map<string, CeMercanteTaxasConferenceData>> {
+  const settled = await Promise.allSettled(pairs.map((pair) => {
+    const [customerId, voyageId] = pair.split(':').map(Number)
+    return fetchData(voyageId!, customerId!)
+  }))
+  const byPair = new Map<string, CeMercanteTaxasConferenceData>()
+  settled.forEach((result, index) => {
+    if (result.status === 'fulfilled') byPair.set(pairs[index]!, result.value)
+  })
+  return byPair
+}
+
 export async function fetchCustomerCommunicationConference(input: {
   filters: CustomerCommunicationFilters
   kind: CustomerCommunicationKind
@@ -1016,7 +1074,13 @@ export async function fetchCustomerCommunicationConference(input: {
   const assignedFrontKeys = operationalKind === 'aviso_atracacao_nob'
     ? await fetchAssignedOperationFrontKeys(voyageIds)
     : undefined
-  const filtered = expandCandidatesForKind(inScope, schedulesByVoyage, operationalKind, assignedFrontKeys)
+  // O CE e Taxas não depende de escala: o recorte (POL, POD, CNPJ) escolhe os
+  // Clientes, e o Comunicado de cada um leva todos os B/Ls dele na Viagem (D3),
+  // como a régua.
+  const ceCustomers = input.kind === 'ce_mercante_taxas' ? new Set(inScope.map((row) => row.customerId)) : null
+  const filtered = ceCustomers
+    ? baseRows.filter((row) => ceCustomers.has(row.customerId) && voyageIds.includes(row.voyageId))
+    : expandCandidatesForKind(inScope, schedulesByVoyage, operationalKind, assignedFrontKeys)
   let unassignedOperationFronts = false
   if (operationalKind === 'aviso_atracacao_nob' && filtered.length === 0) {
     if (expandCandidatesForKind(inScope, schedulesByVoyage, operationalKind, undefined).length > 0) {
@@ -1063,6 +1127,9 @@ export async function fetchCustomerCommunicationConference(input: {
     fetchSuppressionsFiltered('customer_communication_suppressions'),
   ])
   const history = await fetchCommunicationHistory(customerIds, input.kind)
+  const ceMercante = ceCustomers
+    ? await fetchCeMercanteConferenceByPair([...new Set(filtered.map((row) => `${row.customerId}:${row.voyageId}`))])
+    : new Map<string, CeMercanteTaxasConferenceData>()
 
   const conference = buildCustomerCommunicationConference({
     kind: input.kind,
@@ -1077,6 +1144,7 @@ export async function fetchCustomerCommunicationConference(input: {
     communicationSuppressions: communicationSuppressions ?? [],
     history,
     unassignedOperationFronts,
+    ceMercante,
     now: input.now,
   })
   if (!cargo) return conference

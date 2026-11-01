@@ -24,6 +24,23 @@ describe('buildConsolidatedBalance', () => {
 })
 
 describe('buildCustomerTimeline', () => {
+  it('nunca mostra o número interno: fatura sem número e reprocesso em JSON viram frase', () => {
+    const events = buildCustomerTimeline({
+      auditLogs: [{ id: 1, field_name: 'held_billing_reprocessed', old_value: null, new_value: '{"customer_id": 12, "gate_open": true, "issued": [7]}', changed_at: '2026-07-02T10:00:00Z', justification: 'Reprocesso automático das faturas retidas (portal) pela conta de sistema', changed_by: null }],
+      portalEvents: [],
+      contacts: [],
+      customerId: 12,
+      localInvoices: [{ id: 4, invoice_number: null, issued_at: '2026-07-04T10:00:00Z', status: 'issued' }],
+      payments: [{ id: 9, amount_brl: 100, paid_at: '2026-07-06T10:00:00Z', invoice: { id: 4, invoice_number: null } }],
+      demurrageInvoices: [],
+      bls: [],
+    } as never)
+    const text = events.map((event) => `${event.label} ${event.detail ?? ''}`).join('\n')
+    expect(text).toContain('Faturamento retido reprocessado')
+    expect(text).toContain('Fatura emitida (sem número)')
+    expect(text).not.toMatch(/INV-4|customer_id|\{/)
+  })
+
   it('mescla fontes e ordena do mais recente para o mais antigo', () => {
     const events = buildCustomerTimeline({
       auditLogs: [{ id: 1, field_name: 'name', old_value: 'A', new_value: 'B', changed_at: '2026-07-02T10:00:00Z', justification: 'ajuste', changed_by: null }],

@@ -184,7 +184,7 @@ export function DemurrageContainersTab({
                   {group.boxes.map((box) => (
                     <li key={box.container_id} className="app-dem-card__item">
                       <div className="app-dem-card__head">
-                        <span className="app-dem-code app-dem-strong"><CopyValue value={box.container_number} label="número do contêiner" /></span>
+                        <span className="app-dem-code app-dem-strong"><CopyValue value={box.container_number} label="número do container" /></span>
                         <span className="app-dem-meta">{box.type ?? <NoValue label="Sem tipo" />}</span>
                         <span className="app-dem-row-buttons">
                           <Button type="button" variant="secondary" className="app-btn--sm" aria-label={`Editar datas de ${box.container_number}`} onClick={() => onEditContainer(box, group)}>
@@ -301,7 +301,7 @@ export function DemurrageContainersTab({
                                 <tbody>
                                   {group.boxes.map((box) => (
                                     <tr key={box.container_id}>
-                                      <td className="app-dem-code app-dem-strong"><CopyValue value={box.container_number} label="número do contêiner" /></td>
+                                      <td className="app-dem-code app-dem-strong"><CopyValue value={box.container_number} label="número do container" /></td>
                                       <td className="app-dem-code">{box.bl_id}</td>
                                       <td>{box.type ?? <NoValue label="Sem tipo" />}</td>
                                       <td className="tabular-nums">{box.discharge_date ? formatDate(box.discharge_date) : <NoValue label="Sem data de descarga" />}</td>

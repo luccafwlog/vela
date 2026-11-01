@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
+  Bell,
   Check,
   ChevronDown,
   DollarSign,
+  ExternalLink,
   FileSpreadsheet,
   LogOut,
   Menu,
@@ -14,6 +16,8 @@ import {
   PanelTop,
   User,
   UserCircle,
+  Users,
+  Ship,
   X,
 } from 'lucide-react'
 import { ErrorBoundary } from '../ErrorBoundary'
@@ -27,16 +31,24 @@ import { NAV_POSITION_OPTIONS, useNavPosition, type NavPosition } from './useNav
 import { cn } from '../../lib/utils'
 import { departmentLabel } from '../../lib/departmentLabel'
 import {
+  activeNavItem,
   adminNavItem,
-  buildFinancialNavItemsForCounts,
-  exportNavItems,
-  financialNavItems,
+  buildNavGroups,
   getNavIndicator,
-  importNavItems,
-  primaryNavItems,
+  painelNavItem,
   reportsNavItem,
+  type NavGroupId,
   type NavItem,
 } from './appLayoutNav'
+
+const NAV_GROUP_ICONS: Record<NavGroupId, React.ComponentType<{ size?: number }>> = {
+  viagens: Ship,
+  importacao: FileSpreadsheet,
+  exportacao: Package,
+  clientes: Users,
+  alertas: Bell,
+  financeiro: DollarSign,
+}
 
 const NAV_POSITION_ICONS: Record<NavPosition, React.ComponentType<{ size?: number; 'aria-hidden'?: boolean | 'true' }>> = {
   top: PanelTop,
@@ -51,12 +63,10 @@ export function AppLayout() {
   const { profile, signOut, isAdmin } = useAuth()
   const counts = useOperationalCounts()
   const { open: mobileNavOpen, setOpen: setMobileNavOpen, toggleRef: mobileNavToggleRef, navRef: mobileNavRef } = useMobileNav()
-  const [mobileImportOpen, setMobileImportOpen] = useState(false)
-  const [desktopImportOpen, setDesktopImportOpen] = useState(false)
-  const [mobileExportOpen, setMobileExportOpen] = useState(false)
-  const [desktopExportOpen, setDesktopExportOpen] = useState(false)
-  const [mobileFinancialOpen, setMobileFinancialOpen] = useState(false)
-  const [desktopFinancialOpen, setDesktopFinancialOpen] = useState(false)
+  // Grupos abertos: na lista (Menu do celular e lateral em lista) vários ao
+  // mesmo tempo; no menu suspenso da barra, um por vez.
+  const [mobileOpenGroups, setMobileOpenGroups] = useState<ReadonlySet<NavGroupId>>(() => new Set())
+  const [desktopOpenGroup, setDesktopOpenGroup] = useState<NavGroupId | null>(null)
   const [isMobileNav, setIsMobileNav] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth <= NAV_COLLAPSE_WIDTH : false,
   )
@@ -72,18 +82,15 @@ export function AppLayout() {
   // menu (o mesmo comportamento do Menu do celular); na recolhida abrem ao lado.
   const sidebarGroupsAsList = sidebar && navPosition !== 'collapsed'
   const groupsAsList = isMobileNav || sidebarGroupsAsList
-  const primaryNavItemsWithBadges: NavItem[] = primaryNavItems.map((item) =>
-    item.to === '/alertas' ? { ...item, badge: counts.openAlerts || undefined } : item,
-  )
-  const importNavItemsWithBadges: NavItem[] = importNavItems.map((item) =>
-    item.to === '/revisao' ? { ...item, badge: counts.pendingReview || undefined } : item,
-  )
-  const exportNavItemsWithBadges: NavItem[] = exportNavItems
-  const financialNavItemsWithBadges = buildFinancialNavItemsForCounts(counts)
-
-  const isImportSectionActive = importNavItems.some((item) => isPathActive(location.pathname, item.to))
-  const isExportSectionActive = exportNavItems.some((item) => isPathActive(location.pathname, item.to))
-  const isFinancialSectionActive = financialNavItems.some((item) => isPathActive(location.pathname, item.to))
+  const navGroups = buildNavGroups(counts)
+  const activeGroupId = navGroups.find((group) => activeNavItem(group.items, location.pathname))?.id ?? null
+  const setMobileGroup = (id: NavGroupId, open: boolean) => setMobileOpenGroups((current) => {
+    if (current.has(id) === open) return current
+    const next = new Set(current)
+    if (open) next.add(id)
+    else next.delete(id)
+    return next
+  })
 
   // Na lateral em lista, o grupo da tela atual abre ao chegar nela ou ao
   // trocar para essa posição; depois a pessoa abre e fecha como quiser.
@@ -91,11 +98,7 @@ export function AppLayout() {
   const [openedForSidebarKey, setOpenedForSidebarKey] = useState<string | null>(null)
   if (sidebarListKey !== openedForSidebarKey) {
     setOpenedForSidebarKey(sidebarListKey)
-    if (sidebarListKey !== null) {
-      if (isImportSectionActive) setMobileImportOpen(true)
-      if (isExportSectionActive) setMobileExportOpen(true)
-      if (isFinancialSectionActive) setMobileFinancialOpen(true)
-    }
+    if (sidebarListKey !== null && activeGroupId) setMobileGroup(activeGroupId, true)
   }
 
   useEffect(() => {
@@ -104,15 +107,8 @@ export function AppLayout() {
       setIsMobileNav(matches)
       // O menu em si fecha em useMobileNav; aqui só os grupos internos.
       if (!resetGroups) return
-      if (!matches) {
-        setMobileImportOpen(false)
-        setMobileExportOpen(false)
-        setMobileFinancialOpen(false)
-      } else {
-        setDesktopImportOpen(false)
-        setDesktopExportOpen(false)
-        setDesktopFinancialOpen(false)
-      }
+      if (!matches) setMobileOpenGroups(new Set())
+      else setDesktopOpenGroup(null)
     }
 
     // Na montagem não há grupo aberto pela pessoa para fechar; o da tela
@@ -157,14 +153,10 @@ export function AppLayout() {
 
   function closeMobileMenus() {
     setMobileNavOpen(false)
-    setDesktopImportOpen(false)
-    setDesktopExportOpen(false)
-    setDesktopFinancialOpen(false)
+    setDesktopOpenGroup(null)
     // Na lateral em lista, os grupos continuam como a pessoa deixou.
     if (sidebarGroupsAsList) return
-    setMobileImportOpen(false)
-    setMobileExportOpen(false)
-    setMobileFinancialOpen(false)
+    setMobileOpenGroups(new Set())
   }
 
   function chooseNavPosition(next: NavPosition) {
@@ -188,55 +180,25 @@ export function AppLayout() {
 
   const navigationItems = (
     <>
-      {primaryNavItemsWithBadges.slice(0, 2).map((item) => (
-        <TopNavLink key={item.to} {...item} onNavigate={closeMobileMenus} />
+      <TopNavLink {...painelNavItem} onNavigate={closeMobileMenus} />
+
+      {navGroups.map((group) => (
+        <TopNavDropdownMenu
+          key={group.id}
+          label={group.label}
+          icon={NAV_GROUP_ICONS[group.id]}
+          items={group.items}
+          pathname={location.pathname}
+          isActive={group.id === activeGroupId}
+          isMobile={groupsAsList}
+          desktopOpen={desktopOpenGroup === group.id}
+          mobileOpen={mobileOpenGroups.has(group.id)}
+          onOpenDesktop={() => setDesktopOpenGroup(group.id)}
+          onCloseDesktop={() => setDesktopOpenGroup((current) => (current === group.id ? null : current))}
+          onToggleMobile={() => setMobileGroup(group.id, !mobileOpenGroups.has(group.id))}
+          onNavigate={closeMobileMenus}
+        />
       ))}
-
-      <TopNavDropdownMenu
-        label="Importação"
-        icon={FileSpreadsheet}
-        items={importNavItemsWithBadges}
-        isActive={isImportSectionActive}
-        isMobile={groupsAsList}
-        desktopOpen={desktopImportOpen}
-        mobileOpen={mobileImportOpen}
-        onOpenDesktop={() => setDesktopImportOpen(true)}
-        onCloseDesktop={() => setDesktopImportOpen(false)}
-        onToggleMobile={() => setMobileImportOpen((current) => !current)}
-        onNavigate={closeMobileMenus}
-      />
-
-      <TopNavDropdownMenu
-        label="Exportação"
-        icon={Package}
-        items={exportNavItemsWithBadges}
-        isActive={isExportSectionActive}
-        isMobile={groupsAsList}
-        desktopOpen={desktopExportOpen}
-        mobileOpen={mobileExportOpen}
-        onOpenDesktop={() => setDesktopExportOpen(true)}
-        onCloseDesktop={() => setDesktopExportOpen(false)}
-        onToggleMobile={() => setMobileExportOpen((current) => !current)}
-        onNavigate={closeMobileMenus}
-      />
-
-      {primaryNavItemsWithBadges.slice(2).map((item) => (
-        <TopNavLink key={item.to} {...item} onNavigate={closeMobileMenus} />
-      ))}
-
-      <TopNavDropdownMenu
-        label="Financeiro"
-        icon={DollarSign}
-        items={financialNavItemsWithBadges}
-        isActive={isFinancialSectionActive}
-        isMobile={groupsAsList}
-        desktopOpen={desktopFinancialOpen}
-        mobileOpen={mobileFinancialOpen}
-        onOpenDesktop={() => setDesktopFinancialOpen(true)}
-        onCloseDesktop={() => setDesktopFinancialOpen(false)}
-        onToggleMobile={() => setMobileFinancialOpen((current) => !current)}
-        onNavigate={closeMobileMenus}
-      />
 
       <TopNavLink {...reportsNavItem} onNavigate={closeMobileMenus} />
 
@@ -428,6 +390,7 @@ function TopNavDropdownMenu({
   label,
   icon: Icon,
   items,
+  pathname,
   isActive,
   isMobile,
   desktopOpen,
@@ -440,6 +403,7 @@ function TopNavDropdownMenu({
   label: string
   icon: React.ComponentType<{ size?: number }>
   items: NavItem[]
+  pathname: string
   isActive: boolean
   isMobile: boolean
   desktopOpen: boolean
@@ -452,6 +416,9 @@ function TopNavDropdownMenu({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const isOpen = isMobile ? mobileOpen : desktopOpen
   const indicator = getNavIndicator(items)
+  // O item da tela é o de endereço mais longo: /taxas-locais/tabelas não
+  // marca também Taxas Locais.
+  const current = activeNavItem(items, pathname)
 
   return (
     <div
@@ -499,16 +466,19 @@ function TopNavDropdownMenu({
 
       <div id={`app-nav-${label.toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, '-')}`} className="app-nav-dropdown__menu" aria-label={label}>
         {items.map((item) => (
-          <NavLink
+          <Link
             key={item.to}
             to={item.to}
             onClick={onNavigate}
-            className={({ isActive }) => cn('app-nav-dropdown__item', isActive && 'active')}
+            className={cn('app-nav-dropdown__item', current === item && 'active')}
+            aria-current={current === item ? 'page' : undefined}
+            {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
           >
             <item.icon size={16} aria-hidden="true" />
             {item.label}
+            {item.external ? <><ExternalLink size={12} aria-hidden="true" /><span className="sr-only"> (abre em outra aba)</span></> : null}
             {item.alert ? <NavAlertDot /> : item.badge ? <NavBadge count={item.badge} /> : null}
-          </NavLink>
+          </Link>
         ))}
       </div>
     </div>
@@ -534,8 +504,4 @@ function NavBadge({ count }: { count: number }) {
       <span className="sr-only">{`, ${display} ${count === 1 ? 'pendente' : 'pendentes'}`}</span>
     </>
   )
-}
-
-function isPathActive(pathname: string, to: string) {
-  return pathname === to || pathname.startsWith(`${to}/`)
 }

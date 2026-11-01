@@ -4,6 +4,10 @@ import { TIMELINE_VOYAGE_FIELD_LABELS } from '../../services/voyageSummaries'
 import { DEPARTMENT_LABELS } from '../../lib/departmentLabel'
 import { splitIsoDateTime } from '../../lib/utils'
 import { getAlertTypeLabel } from '../../services/alerts'
+import { AGENCY_REPORT_SECTION_LABELS } from '../../services/agencyReportLabels'
+import { ceActionLabel } from '../../lib/ceUnlockLabels'
+import { accountSituationLabel, provisioningDecisionLabel } from '../../lib/portalProvisioningViewModel'
+import { customerCommunicationKindLabel, customerCommunicationStatusLabel } from '../../services/customerCommunications'
 
 // Histórico de ações legível (lote 5b, Administração): cada linha de
 // `audit_logs` vira assunto, frase e "de → para" em português. Entidade sem
@@ -34,10 +38,13 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'tarifa-granito', label: 'Tarifa do Granito', entityTypes: ['granite_rates'] },
   { id: 'taxas-locais', label: 'Tabela de Taxas Locais', entityTypes: ['charge_tables', 'charge_table_items'] },
   { id: 'condicao-cliente', label: 'Condição de Cliente', entityTypes: ['customer_rate_overrides'] },
-  { id: 'taxas-bl', label: 'Taxas do B/L', entityTypes: ['charge_calculation', 'charge_calculations'] },
+  // Migration 560: o "ciente" do impacto de taxa alterada à mão.
+  { id: 'taxas-bl', label: 'Taxas do B/L', entityTypes: ['charge_calculation', 'charge_calculations', 'bl_charge_adjustment_acks'] },
   { id: 'fatura', label: 'Fatura', entityTypes: ['invoice', 'invoices', 'invoice_items', 'invoice_bls', 'invoice_receivable_links', 'payments', 'ledger_settlements', 'bl_receivables'] },
   { id: 'restituicao', label: 'Restituição', entityTypes: ['invoice_refund', 'invoice_refunds', 'demurrage_refund'] },
   { id: 'cod', label: 'Ajuste de COD', entityTypes: ['cod_adjustment'] },
+  // Migration 559: Pix tratado e exceções de Pix entram no Histórico.
+  { id: 'pix', label: 'Conciliação PIX', entityTypes: ['itau_pix_receipts', 'pix_reconciliation_exceptions'] },
   { id: 'demurrage', label: 'Invoice de Demurrage', entityTypes: ['demurrage_invoice', 'demurrage_invoices', 'demurrage_invoice_items'] },
   { id: 'tarifa-demurrage', label: 'Tarifa de Demurrage', entityTypes: ['demurrage_rates'] },
   { id: 'tipo-container', label: 'Tipo de container', entityTypes: ['container_types'] },
@@ -45,6 +52,12 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'cambio', label: 'Câmbio', entityTypes: ['exchange_rate_reference'] },
   { id: 'cliente', label: 'Cliente', entityTypes: ['customer', 'customers', 'customer_contacts'] },
   { id: 'liberacao', label: 'Liberação de faturamento', entityTypes: ['customer_billing_portal_releases'] },
+  // Migration 560: modelos salvos de Comunicado; 561: os Comunicados enviados.
+  { id: 'comunicado', label: 'Comunicado', entityTypes: ['customer_communication', 'customer_communication_saved_templates'] },
+  // Migration 561: trilhas próprias lidas na aba.
+  { id: 'desbloqueio-ce', label: 'Desbloqueio de CE', entityTypes: ['ce_unlock_request'] },
+  { id: 'conta-portal', label: 'Conta do Portal', entityTypes: ['portal_account'] },
+  { id: 'disputa-demurrage', label: 'Disputa de Demurrage', entityTypes: ['demurrage_dispute'] },
   { id: 'central', label: 'Central de Informações', entityTypes: ['portal_information_depot', 'portal_information_agent', 'portal_information_contact', 'portal_information_carrier'] },
   { id: 'cadastros', label: 'Navio, armador e porto', entityTypes: ['vessels', 'carriers', 'ports'] },
   { id: 'locais', label: 'Local e serviço', entityTypes: ['depots', 'depot_services'] },
@@ -99,6 +112,11 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
   depot_services: { noun: 'Serviço do Local', feminine: false },
   user_profile: { noun: 'Usuário', feminine: false },
   alert_item: { noun: 'Alerta', feminine: false },
+  itau_pix_receipts: { noun: 'Pix recebido', feminine: false },
+  pix_reconciliation_exceptions: { noun: 'Exceção de Pix', feminine: true },
+  vazios_export_service_lines: { noun: 'Linha de serviço', feminine: true },
+  granite_bls: { noun: 'B/L de Granito', feminine: false },
+  customer_communication_saved_templates: { noun: 'Modelo de Comunicado', feminine: false },
 }
 
 /** Rótulos de campo comuns às tabelas sem rótulo próprio. */
@@ -144,6 +162,7 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   eta: 'ETA',
   etd: 'ETD',
   terminal_id: 'Terminal',
+  terminal: 'Terminal',
   code: 'Código',
   email: 'E-mail',
   invoice_number: 'Número da fatura',
@@ -151,6 +170,28 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   vessel_id: 'Navio',
   carrier_id: 'Armador',
   customer_id: 'Cliente',
+  voyage_id: 'Viagem',
+  depot_id: 'Local',
+  local_id: 'Local',
+  port_id: 'Porto',
+  pol_id: 'POL',
+  pod_id: 'POD',
+  charge_table_id: 'Tabela',
+  charge_item_id: 'Item',
+  invoice_id: 'Fatura',
+  container_id: 'Container',
+  manifesto_mercante_id: 'Manifesto',
+  handled_note: 'Observação do tratamento',
+  handled_at: 'Tratado em',
+  justification: 'Justificativa',
+  revoke_reason: 'Motivo da revogação',
+  revoked_at: 'Revogada em',
+  review_at: 'Revisar em',
+  embark_port: 'Porto de embarque',
+  subject: 'Assunto',
+  body: 'Texto',
+  cargo_mode: 'Modalidade',
+  bl_number: 'Nº do B/L',
 }
 
 /** Situação gravada em código, por entidade ("open" do ADR vira "Aberto"). */
@@ -192,7 +233,22 @@ export type AuditLogLike = {
   field_name: string | null
   old_value: string | null
   new_value: string | null
+  /** Nome do cadastro quando o campo é chave de outro (RPC `admin_action_history`, migration 558). */
+  old_label?: string | null
+  new_label?: string | null
 }
+
+/**
+ * Campo que guarda a chave de outro registro (`vessel_id`, `created_by`). Sem
+ * o nome resolvido pelo banco, o valor é número interno e não vai à tela.
+ */
+export function isReferenceField(fieldName: string | null): boolean {
+  const field = (fieldName ?? '').split('|')[0]
+  return field === 'id' || field.endsWith('_id') || field.endsWith('_by')
+}
+
+/** Texto de um valor que é chave de outro registro e não tem nome conhecido. */
+export const UNRESOLVED_REFERENCE = 'Registro vinculado'
 
 export function auditSubjectLabel(entityType: string): string {
   return SUBJECT_BY_ENTITY.get(entityType)?.label ?? 'Outro registro'
@@ -201,6 +257,16 @@ export function auditSubjectLabel(entityType: string): string {
 function nounOf(entityType: string): Noun {
   const subject = SUBJECT_BY_ENTITY.get(entityType)
   return NOUN_BY_ENTITY[entityType] ?? { noun: subject?.label ?? 'Registro', feminine: false }
+}
+
+/** Rótulos femininos e plurais de campo, para a frase "<campo> alterada(s)". */
+const FEMININE_FIELD_LABELS = new Set(['Viagem', 'Fatura', 'Tabela', 'Situação', 'Moeda', 'Cobrança', 'Descrição', 'Senha', 'Justificativa', 'Observação do tratamento', 'Vigência desde', 'Vigência até'])
+const PLURAL_FIELD_LABELS = new Set(['Observações', 'Notas da disputa'])
+
+/** "Navio alterado", "Viagem alterada", "Observações alteradas". */
+function fieldChanged(label: string): string {
+  if (PLURAL_FIELD_LABELS.has(label)) return `${label} alteradas`
+  return `${label} ${FEMININE_FIELD_LABELS.has(label) ? 'alterada' : 'alterado'}`
 }
 
 function participle(noun: Noun, masculine: string) {
@@ -288,21 +354,96 @@ export type AuditValueFact = { label: string; value: string }
  * rótulo, para o detalhe não mostrar código cru. `null` quando o valor não é
  * um registro.
  */
-export function auditValueFacts(entityType: string, value: string | null): AuditValueFact[] | null {
+export function auditValueFacts(
+  entityType: string,
+  value: string | null,
+  valueLabels?: Readonly<Record<string, string>> | null,
+): AuditValueFact[] | null {
   const parsed = parseJsonObject(value)
   if (!parsed) return null
   return Object.entries(parsed).flatMap(([key, raw]) => {
     if (HIDDEN_JSON_KEYS.has(key) || raw == null || raw === '') return []
     const label = auditFieldLabel(entityType, key)
     if (!label || typeof raw === 'object') return []
+    // Chave de outro cadastro: o nome do banco, ou fora da lista (nunca o número).
+    if (isReferenceField(key)) {
+      const name = valueLabels?.[key]
+      return name ? [{ label, value: name }] : []
+    }
     return [{ label, value: formatAuditValue(key, String(raw), entityType) }]
   })
+}
+
+/**
+ * Valor de De ou Para na tela: o nome do cadastro quando o banco resolveu, a
+ * formatação de sempre quando não é chave, e "Registro vinculado" quando é
+ * chave sem nome — o número interno nunca.
+ */
+export function displayAuditValue(fieldName: string | null, value: string | null, entityType: string, label?: string | null): string {
+  if (label) return label
+  const trail = trailValueText(entityType, fieldName, value)
+  if (trail !== undefined) return trail
+  if (value != null && value.trim() !== '' && value !== 'null' && isReferenceField(fieldName)) return UNRESOLVED_REFERENCE
+  return formatAuditValue(fieldName, value, entityType)
+}
+
+/** Tipo de Comunicado em português; código desconhecido vira "Comunicado", nunca o código. */
+function communicationKind(kind: string): string {
+  const label = customerCommunicationKindLabel(kind)
+  return label === kind ? 'Comunicado' : label
+}
+
+/** Situação do Comunicado em português; código desconhecido fica sem situação. */
+function communicationStatus(status: string | null): string | null {
+  if (!status) return null
+  const label = customerCommunicationStatusLabel(status)
+  return label === status ? null : label
+}
+
+/**
+ * Frase das linhas que vêm das trilhas próprias (migration 561): Desbloqueio
+ * de CE, conta do Portal, Comunicado enviado, mensagem e anexo de disputa.
+ * `null` quando a linha não é de trilha.
+ */
+function describeTrailRow(row: AuditLogLike): string | null {
+  const [field, detail] = (row.field_name ?? '').split('|')
+  if (row.entity_type === 'ce_unlock_request' && field === 'ce_unlock') return `Desbloqueio de CE: ${ceActionLabel(detail ?? '')}`
+  if (row.entity_type === 'portal_account' && field === 'portal_decision') return `Portal: ${provisioningDecisionLabel(row.new_value)}`
+  if (row.entity_type === 'portal_account' && field === 'portal_situation') return `Portal: ${accountSituationLabel(row.new_value)}`
+  // Evento da conta sem mudança de decisão nem de situação: o que houve está no Motivo.
+  if (row.entity_type === 'portal_account' && field === 'portal_event') return 'Conta do Portal: ação registrada'
+  if (row.entity_type === 'customer_communication' && field === 'comunicado') {
+    const status = communicationStatus(row.new_value)
+    return status ? `${communicationKind(detail ?? '')}: ${status}` : `${communicationKind(detail ?? '')} criado`
+  }
+  if (row.entity_type === 'demurrage_dispute' && field === 'dispute_message') return 'Mensagem na disputa'
+  if (row.entity_type === 'demurrage_dispute' && field === 'dispute_attachment') return `Anexo na disputa: ${row.new_value ?? 'arquivo'}`
+  return null
+}
+
+/**
+ * Valor de De ou Para numa linha de trilha, em português (situação do
+ * Comunicado, decisão e situação da conta do Portal, B/L do Desbloqueio).
+ * `undefined` quando a linha não é de trilha.
+ */
+export function trailValueText(entityType: string, fieldName: string | null, value: string | null): string | undefined {
+  const field = (fieldName ?? '').split('|')[0]
+  if (entityType === 'portal_account' && field === 'portal_decision') return value ? provisioningDecisionLabel(value) : undefined
+  if (entityType === 'portal_account' && field === 'portal_situation') return value ? accountSituationLabel(value) : undefined
+  if (entityType === 'customer_communication' && field === 'comunicado') return communicationStatus(value) ?? undefined
+  if (entityType === 'ce_unlock_request' && field === 'ce_unlock') return value ? `B/L ${value}` : undefined
+  return undefined
 }
 
 /** Frase da coluna "O que mudou". */
 export function describeAuditLog(row: AuditLogLike): string {
   const noun = nounOf(row.entity_type)
   const field = (row.field_name ?? '').split('|')[0]
+  // Migration 561: linhas das trilhas próprias.
+  const trail = describeTrailRow(row)
+  if (trail) return trail
+  // Migration 560: o "ciente" do impacto de taxa alterada à mão.
+  if (row.entity_type === 'bl_charge_adjustment_acks' && CREATED_FIELDS.has(field)) return 'Impacto da taxa marcado como ciente'
   if (CREATED_FIELDS.has(field)) {
     const name = recordName(row.new_value) ?? (row.entity_type === 'user_profile' ? nameWithRole(row.new_value) : null)
     return name ? `${participle(noun, 'criado')}: ${name}` : participle(noun, 'criado')
@@ -322,12 +463,23 @@ export function describeAuditLog(row: AuditLogLike): string {
     if (statusSummary) return statusSummary
   }
   if (row.entity_type === 'user_profile' && field === 'password') return 'Senha redefinida'
+  // Migration 560: a observação de seção do ADR.
+  if (row.entity_type === 'agency_departure_report' && field === 'observation') {
+    const section = (row.field_name ?? '').split('|')[1] ?? ''
+    const sectionLabel = AGENCY_REPORT_SECTION_LABELS[section as keyof typeof AGENCY_REPORT_SECTION_LABELS] ?? 'do ADR'
+    const text = (row.new_value ?? '').trim()
+    if (!text) return `Observação da seção ${sectionLabel} apagada`
+    return text.length > 60 ? `Observação da seção ${sectionLabel} alterada` : `Observação da seção ${sectionLabel}: ${text}`
+  }
   // ADR 0111: taxa alterada, excluída ou isenta à mão e edição da cobrança manual.
   if (row.entity_type === 'charge_calculation' && field === 'charge_adjustment') return describeChargeAdjustmentEvent(row.new_value)
   if (row.entity_type === 'charge_calculation' && field === 'manual_update') return describeManualChargeUpdate(row.old_value, row.new_value)
   const label = auditFieldLabel(row.entity_type, row.field_name)
   if (!label) return participle(noun, 'alterado')
-  const value = formatAuditValue(row.field_name, row.new_value, row.entity_type)
-  if (parseJsonObject(row.new_value) || value.length > 60) return `${label} alterado`
+  if (isReferenceField(row.field_name) && !row.new_label) return fieldChanged(label)
+  // O cadastro apontado já foi apagado: "Cliente: cadastro excluído", não "Cliente: Cliente excluído".
+  if (row.new_label && /\bexcluíd[oa]$/.test(row.new_label)) return `${label}: cadastro excluído`
+  const value = displayAuditValue(row.field_name, row.new_value, row.entity_type, row.new_label)
+  if (parseJsonObject(row.new_value) || value.length > 60) return fieldChanged(label)
   return `${label}: ${value}`
 }

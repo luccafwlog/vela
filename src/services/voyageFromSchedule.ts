@@ -172,6 +172,25 @@ async function buildFormScheduleChanges(
   return changes
 }
 
+/**
+ * Grava as datas por porto numa Viagem conhecida: o ETD de cada porto de
+ * origem e o ETA de cada porto no Brasil, como escalas da Viagem (o mesmo dado
+ * da ficha e de Chegadas e Saídas). Não publica nem tira a Viagem de Chegadas
+ * e Saídas. Sem `clearsOmitted`, só os portos com data são gravados ("Não
+ * escala" não apaga nada): é o caso da Viagem recém-criada pela Nova Viagem.
+ * Uma chamada, uma transação (`record_audit_entries`): se a trava recusa a
+ * retirada de uma escala ("Escala … travada"), nenhuma data é gravada.
+ */
+export async function recordScheduleDates(
+  voyageId: number,
+  lanes: ScheduleLaneInput[],
+  changedBy: string | null,
+  { clearsOmitted = false, canRemoveEscala = false }: { clearsOmitted?: boolean; canRemoveEscala?: boolean } = {},
+): Promise<void> {
+  const changes = await buildFormScheduleChanges(voyageId, lanes, changedBy, { clearsOmitted, canRemoveEscala })
+  await recordAuditEntries(changes)
+}
+
 async function refuseCancelledVoyage(voyageId: number, input: VoyageScheduleInput) {
   const { data, error } = await supabase.from('voyages').select('status').eq('id', voyageId).maybeSingle()
   if (error) throw error
@@ -206,13 +225,10 @@ export async function createOrAttachVoyageFromSchedule(
   // "Adicionar navio", a Viagem achada pelo VOY e navio recebe só os portos
   // com data: o formulário começa todo em "Não escala" e não mostra o que a
   // Viagem já tem.
-  const changes = await buildFormScheduleChanges(voyageId, input.lanes, changedBy, {
+  await recordScheduleDates(voyageId, input.lanes, changedBy, {
     clearsOmitted: mode === 'form' && options.voyageId !== undefined,
     canRemoveEscala: options.canRemoveEscala ?? false,
   })
-  // Uma chamada, uma transação (`record_audit_entries`): se a trava recusa a
-  // retirada de uma escala ("Escala … travada"), nenhuma data é gravada.
-  await recordAuditEntries(changes)
 
   // Publica depois das datas: a recusa da trava não deixa a Viagem publicada.
   if (existingId !== null) await setVoyageShowOnPortal(voyageId, true)
