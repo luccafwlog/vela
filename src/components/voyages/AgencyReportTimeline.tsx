@@ -7,6 +7,9 @@ import { Block, Fact, FactList } from '../ui/Block'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
 
+/** Autor sem nome no cadastro: por extenso, nunca o identificador interno. */
+const UNKNOWN_ACTOR = 'Pessoa sem cadastro'
+
 const DEPARTMENT_ORDER = Object.keys(AGENCY_REPORT_DEPARTMENT_LABELS) as AgencyReportDepartmentKey[]
 
 const STATE_LABELS: Record<AgencyReportDeadlineState, string> = {
@@ -62,7 +65,7 @@ export function buildDepartmentTimelineRows({
     const reopenings = filterDepartmentReopeningEvents(departmentEvents, department)
       .map((event): DepartmentTimelineReopening => ({
         changedAt: event.changed_at,
-        changedByName: (event.changed_by && actorNames[event.changed_by]) ?? event.changed_by,
+        changedByName: event.changed_by ? (actorNames[event.changed_by] ?? UNKNOWN_ACTOR) : null,
         justification: event.justification,
       }))
 
@@ -71,7 +74,7 @@ export function buildDepartmentTimelineRows({
       label: AGENCY_REPORT_DEPARTMENT_LABELS[department],
       state,
       signedAt,
-      signedByName: (signoff?.signed_by && actorNames[signoff.signed_by]) ?? signoff?.signed_by ?? null,
+      signedByName: signoff?.signed_by ? (actorNames[signoff.signed_by] ?? UNKNOWN_ACTOR) : null,
       reopenings,
     }
   })
@@ -122,7 +125,7 @@ export function buildAdrHistoryRows({
   closedAt: string | null
   closedByName: string | null
 }): AdrHistoryRow[] {
-  const nameOf = (id: string | null | undefined) => (id ? actorNames[id] ?? id : null)
+  const nameOf = (id: string | null | undefined) => (id ? actorNames[id] ?? UNKNOWN_ACTOR : null)
   const rows: AdrHistoryRow[] = []
   if (atd) {
     rows.push({

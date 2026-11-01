@@ -1288,6 +1288,16 @@ function buildVoyageCreation(
   }
 }
 
+/**
+ * Justificativa da linha do Histórico no detalhe do evento, no formato das
+ * escalas: "Justificativa: …" o que a pessoa escreveu; "Origem: …" o contexto de uma importação (migration 189).
+ */
+function withReason(detail: string, row: { justification?: string | null }): string {
+  const reason = String(row.justification ?? '').trim()
+  if (!reason || AUTOMATIC_SCHEDULE_JUSTIFICATION.test(reason)) return detail
+  return /^Importa(ç|c)ão de /i.test(reason) ? `${detail} · Origem: ${reason}` : `${detail} · Justificativa: ${reason}`
+}
+
 function buildAuditTimeline(
   auditEvents: TimelineAuditEvent[] | null | undefined,
   appendActor: (detail: string, row: TimelineAuditEvent) => string,
@@ -1306,7 +1316,7 @@ function buildAuditTimeline(
         kind: 'ce-master',
         at,
         title: oldValue ? 'Nº de Manifesto Mercante alterado' : 'Nº de Manifesto Mercante definido',
-        detail: appendActor(oldValue ? `${oldValue} → ${value}` : value, row),
+        detail: appendActor(withReason(oldValue ? `${oldValue} → ${value}` : value, row), row),
       })
       continue
     }
@@ -1318,7 +1328,7 @@ function buildAuditTimeline(
         kind: 'omission',
         at,
         title: `Omissão de ${omittedPod} revertida · correção — Porto de Transbordo — ${value || '—'}`,
-        detail: appendActor('Correção de omissão', row),
+        detail: appendActor(withReason('Correção de omissão', row), row),
       })
       continue
     }
@@ -1370,7 +1380,7 @@ function buildAuditTimeline(
         kind: 'transshipment-info',
         at,
         title: 'Informações de Transbordo complementadas',
-        detail: appendActor('Registro global atualizado', row),
+        detail: appendActor(withReason('Registro global atualizado', row), row),
       })
       continue
     }
@@ -1393,7 +1403,7 @@ function buildAuditTimeline(
         kind: 'voyage-data',
         at,
         title: 'Dados da viagem alterados',
-        detail: appendActor(detail, row),
+        detail: appendActor(withReason(detail, row), row),
       })
     }
   }

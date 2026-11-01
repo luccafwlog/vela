@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { describeTimelineEvent, familyLabel, isAudited, isImportContext } from '../blTimelinePresentation'
 
 describe('describeTimelineEvent', () => {
+  it('eventos do faturamento em JSON viram frase, sem ids de recebível ou fatura (migrations 362 e 386)', () => {
+    const voided = { family: 'fatura', entity_type: 'bl', field_name: 'receivable_voided', old_value: '{"receivable_id": 123, "status": "open", "balance_brl": 50}', new_value: 'void', justification: 'Fatura cancelada' } as never
+    expect(describeTimelineEvent(voided)).toBe('Recebível do B/L cancelado com a fatura')
+    const reissued = { family: 'fatura', entity_type: 'bl', field_name: 'auto_reissue_invoices', old_value: null, new_value: '{"cancelled": [41, 42], "reissued": []}', justification: null } as never
+    expect(describeTimelineEvent(reissued)).toBe('Faturas reemitidas automaticamente')
+    const unknown = { family: 'edicao', entity_type: 'bl', field_name: 'campo_sem_rotulo', old_value: '37', new_value: '41', justification: null } as never
+    expect(describeTimelineEvent(unknown)).toBe('Dado do B/L alterado')
+    const charge = { family: 'taxas', entity_type: 'charge_calculation', field_name: 'status', old_value: null, new_value: '{"id": 9}', justification: null } as never
+    expect(describeTimelineEvent(charge)).toBe('Taxa alterada')
+  })
+
   it('nomeia o container e o campo vindos da auditoria por coluna (migration 079)', () => {
     const devolucao = { family: 'container', entity_type: 'bl_container', field_name: 'return_date|TCLU1234567', old_value: null, new_value: '2026-10-20', justification: null } as never
     expect(describeTimelineEvent(devolucao)).toBe('Container TCLU1234567 · Devolução: vazio → 20/10/2026')

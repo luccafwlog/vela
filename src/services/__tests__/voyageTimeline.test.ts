@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { buildVoyageTimeline } from '../voyageSummaries'
 
 describe('timeline operacional de transbordo', () => {
+  it('leva a justificativa das edições da Viagem e do CE Master para a linha do tempo', () => {
+    const events = buildVoyageTimeline({
+      auditEvents: [
+        { entity_type: 'voyage', entity_id: '9', field_name: 'ce_master', old_value: '111', new_value: '222', justification: 'CE retificado pela Receita', changed_at: '2026-08-18T11:00:00Z' },
+        { entity_type: 'voyage', entity_id: '9', field_name: 'transshipment_info', old_value: null, new_value: '{"x": 1}', justification: 'Atualizacao manual de ETA por POD', changed_at: '2026-08-18T10:00:00Z' },
+      ],
+    } as never)
+    expect(events.find((event) => event.kind === 'ce-master')?.detail).toContain('Justificativa: CE retificado pela Receita')
+    // Texto automático do sistema não vira justificativa.
+    expect(events.find((event) => event.kind === 'transshipment-info')?.detail).not.toContain('Justificativa')
+  })
+
   it('usa o mesmo formato objetivo para registros de escala', () => {
     const events = buildVoyageTimeline({
       scheduleEvents: [{

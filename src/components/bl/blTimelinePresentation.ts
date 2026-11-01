@@ -278,6 +278,13 @@ export function describeManualChargeUpdate(oldValue: string | null, newValue: st
   return `Cobrança manual: quantidade ${fmt(before)} → ${fmt(after)}`
 }
 
+/** Registro em JSON, lista de ids ou número de registro solto: não é texto de tela. */
+function looksLikeRecordOrId(value: string): boolean {
+  const trimmed = value.trim()
+  return trimmed.startsWith('{') || trimmed.startsWith('[') || /^[0-9]{1,18}$/.test(trimmed)
+    || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)
+}
+
 export function describeTimelineEvent(event: BlTimelineEvent): string {
   const { entity_type, field_name, old_value, new_value } = event
   if (entity_type === 'bl' && field_name === 'container_dates') {
@@ -298,7 +305,8 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
     // Migration 491: alteração à mão nas taxas grava o evento em JSON.
     if (field_name === 'charge_adjustment') return describeChargeAdjustmentEvent(new_value)
     if (field_name === 'manual_update') return describeManualChargeUpdate(old_value, new_value)
-    return new_value ? `Taxa: ${new_value}` : 'Taxa alterada'
+    // Valor gravado em JSON ou número de registro não vai à tela.
+    return new_value && !looksLikeRecordOrId(new_value) ? `Taxa: ${new_value}` : 'Taxa alterada'
   }
   if (entity_type === 'bl_container' || entity_type === 'vehicle') {
     // bl_timeline envia '<campo>|<container ou chassi>' (migrations 079 e
@@ -318,8 +326,15 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
   if (entity_type === 'system_event') {
     return new_value ?? field_name
   }
+  // Migrations 362 e 386: eventos do faturamento gravados em JSON, com ids de
+  // recebível e de fatura; a tela mostra a frase, nunca o registro.
+  if (field_name === 'receivable_voided') return 'Recebível do B/L cancelado com a fatura'
+  if (field_name === 'auto_reissue_invoices') return 'Faturas reemitidas automaticamente'
   // entity_type === 'bl' (field edits, incl. charge_status/financial_status)
   const cleanField = FIELD_LABELS[field_name] ?? 'Dado do B/L'
+  if (!FIELD_LABELS[field_name] && [old_value, new_value].some((value) => value != null && looksLikeRecordOrId(value))) {
+    return `${cleanField} alterado`
+  }
   return `${cleanField}: ${formatTimelineValue(field_name, old_value)} → ${formatTimelineValue(field_name, new_value)}`
 }
 

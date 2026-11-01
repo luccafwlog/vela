@@ -88,7 +88,7 @@ describe('buildDepartmentTimelineRows', () => {
 
     const operacoes = rows.find((row) => row.department === 'operacoes')!
     expect(operacoes.reopenings).toHaveLength(1)
-    expect(operacoes.reopenings[0].changedByName).toBe('u3')
+    expect(operacoes.reopenings[0].changedByName).toBe('Pessoa sem cadastro')
   })
 })
 
@@ -125,7 +125,7 @@ describe('buildAdrHistoryRows', () => {
     expect(rows[2]).toMatchObject({ by: 'Carlos Lima', deadline: null, detail: 'Restow corrigido para 4' })
     expect(rows[3].deadline).toBe('on-time')
     // Prazo 16/10 21:40Z; assinou 17/10.
-    expect(rows[4]).toMatchObject({ by: 'u3', deadline: 'overdue' })
+    expect(rows[4]).toMatchObject({ by: 'Pessoa sem cadastro', deadline: 'overdue' })
   })
 
   it('ADR fechado antes da regra de 72 h segue a data congelada no Fechamento', () => {
