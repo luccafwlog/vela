@@ -12,34 +12,59 @@ import {
   auditSubjectLabel,
   auditValueFacts,
   describeAuditLog,
-  formatAuditValue,
+  displayAuditValue,
   formatBrasiliaDateTime,
 } from './auditLogPresentation'
 import { listAllUserProfiles } from '../../services/adminUsers'
-import { LOG_PAGE_SIZE, SYSTEM_AUTHOR, fetchAuditLogs, type AuditLogRow } from '../../services/adminObservability'
+import {
+  LOG_PAGE_SIZE,
+  PORTAL_AUTHOR,
+  SYSTEM_AUTHOR,
+  fetchActionHistory,
+  type ActionHistoryRow,
+  type AuditAction,
+} from '../../services/adminObservability'
 import { queryKeys } from '../../services/queryKeys'
+import { departmentLabel } from '../../lib/departmentLabel'
 
-type HistoryFilters = { subject: string; changedBy: string; dateFrom: string; dateTo: string; page: number }
+type HistoryFilters = { subject: string; changedBy: string; action: AuditAction | ''; dateFrom: string; dateTo: string; page: number }
 
-const EMPTY_FILTERS: HistoryFilters = { subject: '', changedBy: '', dateFrom: '', dateTo: '', page: 0 }
+const EMPTY_FILTERS: HistoryFilters = { subject: '', changedBy: '', action: '', dateFrom: '', dateTo: '', page: 0 }
 
-/** Histórico de ações legível (lote 5b): quem, quando, o assunto e o que mudou. */
+const ACTION_OPTIONS: ReadonlyArray<{ value: AuditAction; label: string }> = [
+  { value: 'criou', label: 'Criou' },
+  { value: 'alterou', label: 'Alterou' },
+  { value: 'excluiu', label: 'Excluiu' },
+]
+
+/**
+ * Histórico de ações (Administração): quem fez, quando, em qual registro, o
+ * que mudou e o motivo, tudo pelo nome. A leitura vem da RPC
+ * `admin_action_history` (migration 558), que resolve registro, autor e
+ * valores; o número interno nunca chega à tela.
+ */
 export function AdminHistoryTab() {
   const [filters, setFilters] = useState<HistoryFilters>(EMPTY_FILTERS)
   const [openId, setOpenId] = useState<number | null>(null)
   const entityTypes = AUDIT_SUBJECTS.find((subject) => subject.id === filters.subject)?.entityTypes ?? []
   const query = useQuery({
     queryKey: queryKeys.admin.auditLogs(filters),
-    queryFn: () => fetchAuditLogs({ entityTypes, changedBy: filters.changedBy, dateFrom: filters.dateFrom, dateTo: filters.dateTo, page: filters.page }),
+    queryFn: () => fetchActionHistory({
+      entityTypes,
+      changedBy: filters.changedBy,
+      action: filters.action,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      page: filters.page,
+    }),
     staleTime: 30_000,
   })
   // A lista "Por" usa as pessoas já carregadas na aba Usuários (mesma consulta).
   const usersQuery = useQuery({ queryKey: queryKeys.admin.users(), queryFn: listAllUserProfiles })
   const people = [...(usersQuery.data ?? [])].sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt-BR'))
-  const userNames = new Map(people.map((person) => [person.id, person.full_name]))
   const rows = query.data?.rows ?? []
   const total = query.data?.count ?? 0
-  const hasFilters = Boolean(filters.subject || filters.changedBy || filters.dateFrom || filters.dateTo)
+  const hasFilters = Boolean(filters.subject || filters.changedBy || filters.action || filters.dateFrom || filters.dateTo)
   const update = (patch: Partial<HistoryFilters>) => setFilters((current) => ({ ...current, ...patch, page: 0 }))
 
   return (
@@ -51,10 +76,17 @@ export function AdminHistoryTab() {
             {AUDIT_SUBJECTS.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}
           </Select>
         </Field>
+        <Field label="Ação">
+          <Select value={filters.action} onChange={(e) => update({ action: e.target.value as AuditAction | '' })}>
+            <option value="">Qualquer ação</option>
+            {ACTION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </Select>
+        </Field>
         <Field label="Por">
           <Select value={filters.changedBy} onChange={(e) => update({ changedBy: e.target.value })}>
-            <option value="">Qualquer pessoa</option>
+            <option value="">Qualquer autor</option>
             <option value={SYSTEM_AUTHOR}>Sistema</option>
+            <option value={PORTAL_AUTHOR}>Cliente pelo Portal</option>
             {people.map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}
           </Select>
         </Field>
@@ -95,6 +127,7 @@ export function AdminHistoryTab() {
                       <th scope="col" className="app-table__text-head">Assunto</th>
                       <th scope="col" className="app-table__text-head">Registro</th>
                       <th scope="col" className="app-table__text-head">O que mudou</th>
+                      <th scope="col" className="app-table__text-head">Motivo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -102,7 +135,6 @@ export function AdminHistoryTab() {
                       <HistoryRow
                         key={row.id}
                         row={row}
-                        recordLabel={auditRecordLabel(row, userNames)}
                         open={openId === row.id}
                         onToggle={() => setOpenId(openId === row.id ? null : row.id)}
                       />
@@ -126,21 +158,29 @@ export function AdminHistoryTab() {
   )
 }
 
-/**
- * Qual registro mudou: o Usuário pelo nome (da lista já carregada); os demais
- * pelo identificador gravado, curto. ponytail: sem consulta extra por entidade;
- * o upgrade é a RPC do histórico devolver o nome do registro.
- */
-function auditRecordLabel(row: AuditLogRow, userNames: Map<string, string>): { text: string; title?: string } | null {
-  const id = row.entity_id?.trim()
-  if (!id) return null
-  if (row.entity_type === 'user_profile') return { text: userNames.get(id) ?? 'Usuário fora da lista' }
-  const readable = id.replace(/::/g, ' · ')
-  return readable.length > 18 ? { text: `${readable.slice(0, 8)}…`, title: readable } : { text: readable }
+/** Autor na coluna Por: o nome; Sistema para rotina e gatilho; login sem cadastro por extenso. */
+function actorLabel(row: Pick<ActionHistoryRow, 'actor_kind' | 'actor_name'>): string {
+  if (row.actor_kind === 'sistema') return 'Sistema'
+  if (row.actor_name) return row.actor_name
+  return row.actor_kind === 'portal' ? 'Cliente pelo Portal' : 'Login sem cadastro interno'
 }
 
-function HistoryRow({ row, recordLabel, open, onToggle }: { row: AuditLogRow; recordLabel: { text: string; title?: string } | null; open: boolean; onToggle: () => void }) {
+/** Detalhe do autor (linha aberta e dica): e-mail e setor gravado na hora da ação. */
+function actorDetail(row: ActionHistoryRow): string {
+  if (row.actor_kind === 'sistema') return 'Ação automática (rotina, importação ou gatilho do sistema)'
+  const department = row.actor_kind === 'equipe' && row.actor_department ? departmentLabel(row.actor_department) : null
+  return [row.actor_email, department && department !== '—' ? department : null].filter(Boolean).join(' · ') || 'Sem e-mail no cadastro'
+}
+
+/** O texto da justificativa: "Origem" quando é o contexto de uma ação automática. */
+function reasonLabel(row: ActionHistoryRow): string {
+  return row.actor_kind === 'sistema' ? 'Origem' : 'Motivo'
+}
+
+function HistoryRow({ row, open, onToggle }: { row: ActionHistoryRow; open: boolean; onToggle: () => void }) {
   const summary = describeAuditLog(row)
+  const actor = actorLabel(row)
+  const detail = actorDetail(row)
   return (
     <Fragment>
       <tr>
@@ -150,18 +190,22 @@ function HistoryRow({ row, recordLabel, open, onToggle }: { row: AuditLogRow; re
           </button>
         </td>
         <td className="tabular-nums whitespace-nowrap">{formatBrasiliaDateTime(row.changed_at)}</td>
-        <td className="app-table__text">{row.changed_by ? row.changer_name ?? 'Pessoa sem cadastro' : 'Sistema'}</td>
+        <td className="app-table__text" title={detail}>{actor}</td>
         <td className="app-table__text">{auditSubjectLabel(row.entity_type)}</td>
-        <td className="app-table__text" title={recordLabel?.title}>{recordLabel ? recordLabel.text : <NoValue label="Sem registro" />}</td>
+        <td className="app-table__text" title={row.entity_label ?? undefined}>{row.entity_label ?? <NoValue label="Registro sem nome" />}</td>
         <td className="app-table__text app-table__text--wrap">{summary}</td>
+        <td className="app-table__text app-table__text--wrap">
+          {row.justification ? (row.actor_kind === 'sistema' ? `Origem: ${row.justification}` : row.justification) : <NoValue label="Sem motivo" />}
+        </td>
       </tr>
       {open ? (
         <tr data-row-detail>
-          <td colSpan={6}>
-            <FactList columns={row.justification ? 3 : 2}>
-              <Fact label="De"><AuditValue entityType={row.entity_type} fieldName={row.field_name} value={row.old_value} /></Fact>
-              <Fact label="Para"><AuditValue entityType={row.entity_type} fieldName={row.field_name} value={row.new_value} /></Fact>
-              {row.justification ? <Fact label="Motivo">{row.justification}</Fact> : null}
+          <td colSpan={7}>
+            <FactList columns={row.justification ? 4 : 3}>
+              <Fact label="Autor">{actor} · {detail}</Fact>
+              <Fact label="De"><AuditValue row={row} side="old" /></Fact>
+              <Fact label="Para"><AuditValue row={row} side="new" /></Fact>
+              {row.justification ? <Fact label={reasonLabel(row)}>{row.justification}</Fact> : null}
             </FactList>
           </td>
         </tr>
@@ -170,10 +214,12 @@ function HistoryRow({ row, recordLabel, open, onToggle }: { row: AuditLogRow; re
   )
 }
 
-function AuditValue({ entityType, fieldName, value }: { entityType: string; fieldName: string | null; value: string | null }) {
+function AuditValue({ row, side }: { row: ActionHistoryRow; side: 'old' | 'new' }) {
+  const value = side === 'old' ? row.old_value : row.new_value
+  const label = side === 'old' ? row.old_label : row.new_label
   if (value == null || value.trim() === '') return <NoValue label="Sem valor" />
-  const facts = auditValueFacts(entityType, value)
-  if (!facts) return <>{formatAuditValue(fieldName, value, entityType)}</>
+  const facts = auditValueFacts(row.entity_type, value, row.value_labels)
+  if (!facts) return <>{displayAuditValue(row.field_name, value, row.entity_type, label)}</>
   if (!facts.length) return <>Registro sem dados para mostrar</>
   return (
     <span className="grid gap-0.5">

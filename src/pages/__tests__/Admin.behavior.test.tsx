@@ -453,13 +453,19 @@ it('os endereços antigos das abas continuam abrindo a aba certa', () => {
   expect(screen.getByRole('tab', { name: 'Histórico de ações' }).getAttribute('aria-selected')).toBe('true')
 })
 
+const historyRow = (patch: Record<string, unknown>) => ({
+  id: 1, changed_at: '2026-10-20T00:04:00Z', entity_type: 'voyages', field_name: 'status', old_value: null, new_value: null,
+  justification: null, action: 'alterou', actor_kind: 'equipe', actor_name: 'Alice Operadora', actor_email: 'alice@example.test',
+  actor_department: 'documentacao', entity_label: null, old_label: null, new_label: null, value_labels: null, ...patch,
+})
+
 it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e frase em português', () => {
   mocks.dataByKey = {
     'admin-audit-logs': {
       count: 2,
       rows: [
-        { id: 1, entity_type: 'granite_rates', entity_id: '7', field_name: 'criado', old_value: null, new_value: '{"id": 7, "description": "THC Granito", "unit_value": 45, "currency": "BRL"}', changed_by: null, changed_at: '2026-10-20T00:04:00Z', justification: null, changer_name: null },
-        { id: 2, entity_type: 'user_profile', entity_id: 'u-3', field_name: 'role', old_value: 'documentacao', new_value: 'financeiro', changed_by: 'u-1', changed_at: '2026-10-19T21:02:00Z', justification: 'Mudou de área', changer_name: 'Alice Operadora' },
+        historyRow({ id: 1, entity_type: 'granite_rates', field_name: 'criado', new_value: '{"id": 7, "description": "THC Granito", "unit_value": 45, "currency": "BRL"}', action: 'criou', actor_kind: 'sistema', actor_name: null, actor_email: null, actor_department: null, entity_label: 'THC Granito' }),
+        historyRow({ id: 2, entity_type: 'user_profile', field_name: 'role', old_value: 'documentacao', new_value: 'financeiro', changed_at: '2026-10-19T21:02:00Z', justification: 'Mudou de área', entity_label: 'Carla Nunca' }),
       ],
     },
   }
@@ -471,38 +477,71 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   const role = screen.getByText('Setor: Financeiro').closest('tr') as HTMLElement
   expect(within(role).getByText('Alice Operadora')).toBeTruthy()
   expect(within(role).getByText('Usuário')).toBeTruthy()
-  // O registro alterado: o Usuário pelo nome da lista já carregada; os demais pelo identificador.
+  // O registro pelo nome que o banco devolve; a justificativa na própria linha.
   expect(within(role).getByText('Carla Nunca')).toBeTruthy()
-  expect(within(created).getByText('7')).toBeTruthy()
+  expect(within(role).getByText('Mudou de área')).toBeTruthy()
+  expect(within(role).getByText('Alice Operadora').getAttribute('title')).toBe('alice@example.test · Documentação')
   fireEvent.click(within(role).getByRole('button', { name: /Abrir/ }))
   const detail = role.nextElementSibling as HTMLElement
   expect(within(detail).getByText('Documentação')).toBeTruthy()
   expect(within(detail).getByText('Financeiro')).toBeTruthy()
-  expect(within(detail).getByText('Mudou de área')).toBeTruthy()
+  expect(within(detail).getByText(/alice@example\.test/)).toBeTruthy()
   expect(document.body.textContent).not.toMatch(/granite_rates|user_profile|u-1/)
   // Os filtros têm nome em português e a lista de pessoas no lugar do número interno.
   expect(screen.getByLabelText('Assunto')).toBeTruthy()
   expect(within(screen.getByLabelText('Por')).getByRole('option', { name: 'Sistema' })).toBeTruthy()
+  expect(within(screen.getByLabelText('Por')).getByRole('option', { name: 'Cliente pelo Portal' })).toBeTruthy()
+  expect(within(screen.getByLabelText('Ação')).getByRole('option', { name: 'Excluiu' })).toBeTruthy()
   expect(screen.getByLabelText('Até')).toBeTruthy()
 })
 
-it('Histórico de ações: ADR reaberto em português, com o registro', () => {
+it('Histórico de ações: ADR reaberto em português, com a Viagem pelo nome', () => {
   mocks.dataByKey = {
     'admin-audit-logs': {
       count: 1,
       rows: [
-        { id: 3, entity_type: 'agency_departure_report', entity_id: '99::BRSSZ', field_name: 'status', old_value: 'closed', new_value: 'open', changed_by: 'u-1', changed_at: '2026-10-19T21:02:00Z', justification: 'Faltou assinatura', changer_name: 'Alice Operadora' },
+        historyRow({ id: 3, entity_type: 'agency_departure_report', field_name: 'status', old_value: 'closed', new_value: 'open', changed_at: '2026-10-19T21:02:00Z', justification: 'Faltou assinatura', entity_label: 'Rio de Janeiro / 012S · BRSSZ' }),
       ],
     },
   }
   renderAdmin('historico')
   const row = screen.getByText('ADR de Saída reaberto').closest('tr') as HTMLElement
-  expect(within(row).getByText('99 · BRSSZ')).toBeTruthy()
+  expect(within(row).getByText('Rio de Janeiro / 012S · BRSSZ')).toBeTruthy()
   fireEvent.click(within(row).getByRole('button', { name: /Abrir/ }))
   const detail = row.nextElementSibling as HTMLElement
   expect(within(detail).getByText('Fechado')).toBeTruthy()
   expect(within(detail).getByText('Aberto')).toBeTruthy()
   expect(document.body.textContent).not.toMatch(/\bopen\b|\bclosed\b/)
+})
+
+it('Histórico de ações: nunca mostra o número interno de um cadastro (Navio, Cliente)', () => {
+  mocks.dataByKey = {
+    'admin-audit-logs': {
+      count: 3,
+      rows: [
+        historyRow({ id: 4, field_name: 'vessel_id', old_value: '37', new_value: '41', entity_label: 'Santos / 012S', old_label: 'Rio de Janeiro 2', new_label: 'Santos' }),
+        historyRow({ id: 5, entity_type: 'bls', field_name: 'customer_id', old_value: '12', new_value: '13', entity_label: 'B/L MEDU1' }),
+        historyRow({ id: 6, entity_type: 'vessels', field_name: 'criado', new_value: '{"id": 41, "name": "Santos", "carrier_id": 9}', action: 'criou', entity_label: 'Santos', value_labels: { carrier_id: 'Armador Nove' } }),
+        historyRow({ id: 7, entity_type: 'customers', field_name: 'city', old_value: 'Santos', new_value: 'Vitória', actor_kind: 'portal', actor_name: 'Cliente pelo Portal: ATLÂNTICO LTDA', actor_email: 'contato@atlantico.test', actor_department: null, entity_label: 'ATLÂNTICO LTDA' }),
+      ],
+    },
+  }
+  renderAdmin('historico')
+  const vessel = screen.getByText('Navio: Santos').closest('tr') as HTMLElement
+  fireEvent.click(within(vessel).getByRole('button', { name: /Abrir/ }))
+  expect(within(vessel.nextElementSibling as HTMLElement).getByText('Rio de Janeiro 2')).toBeTruthy()
+  // Chave sem nome resolvido: a frase não traz o número.
+  const customer = screen.getByText('Cliente alterado').closest('tr') as HTMLElement
+  fireEvent.click(within(customer).getByRole('button', { name: /Abrir/ }))
+  expect(within(customer.nextElementSibling as HTMLElement).getAllByText('Registro vinculado')).toHaveLength(2)
+  const created = screen.getByText('Navio criado: Santos').closest('tr') as HTMLElement
+  fireEvent.click(within(created).getByRole('button', { name: /Abrir/ }))
+  expect(within(created.nextElementSibling as HTMLElement).getByText('Armador: Armador Nove')).toBeTruthy()
+  expect(screen.getByText('Cliente pelo Portal: ATLÂNTICO LTDA')).toBeTruthy()
+  for (const raw of ['37', '41', '12', '13']) {
+    expect(Array.from(document.querySelectorAll('td')).some((cell) => cell.textContent?.trim() === raw)).toBe(false)
+  }
+  expect(document.body.textContent).not.toMatch(/Navio: 41|Cliente: 1[23]|Armador: 9\b/)
 })
 
 it('"O que cada setor pode": grupo e ação são cabeçalhos da linha', () => {

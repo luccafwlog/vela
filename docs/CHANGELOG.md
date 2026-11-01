@@ -4,6 +4,16 @@
 >
 > Números de migration: a partir da consolidação de 2026-09-02 ([ADR 0062](adr/0062-consolidacao-migrations-schema-1-0.md)), número sem qualificação é da cadeia ativa (`supabase/migrations/`). As entradas anteriores a essa data (seções 2026-08 e mais antigas) citam a cadeia arquivada (`supabase/migrations_archive/`), cujos números se repetem na ativa com outro conteúdo.
 
+## 2026-11
+
+- **Histórico de ações legível (2026-11-01, migration `558`):** a aba Admin › **Histórico de ações** mostra cada
+  registro pelo nome (a Viagem como "Navio / Nº", com o porto da escala; B/L, Cliente, Fatura; o registro apagado
+  pelo nome que tinha), e não mais pelo número gravado. Campos que apontam para outro cadastro (Navio, Cliente,
+  Armador, Terminal) aparecem pelo nome em De e Para. **Por** distingue **Sistema** e **Cliente pelo Portal**, com o
+  e-mail e o setor do autor ao passar o mouse e na linha aberta; a justificativa ganha a coluna **Motivo**; filtro
+  novo **Ação** (Criou, Alterou, Excluiu). Leitura pela RPC `admin_action_history`, só do Administrativo.
+  Diagnóstico em [archive/audits/historico-de-acoes-2026-11-01.md](archive/audits/historico-de-acoes-2026-11-01.md).
+
 ## 2026-10
 
 - **Nova Viagem com portos e datas (2026-10-31):** o cadastro de **Nova Viagem** ganha **Portos e datas**,

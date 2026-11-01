@@ -4,6 +4,7 @@ import {
   auditSubjectLabel,
   auditValueFacts,
   describeAuditLog,
+  displayAuditValue,
   formatAuditValue,
   formatBrasiliaDateTime,
 } from '../auditLogPresentation'
@@ -119,5 +120,19 @@ describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
   it('a edição da cobrança manual mostra a quantidade, não o código', () => {
     expect(describeAuditLog({ entity_type: 'charge_calculation', field_name: 'manual_update', old_value: 'qty=2 | note=', new_value: 'qty=3 | note=x' }))
       .toBe('Cobrança manual: quantidade 2 → 3')
+  })
+
+  it('chave de outro cadastro: o nome do banco, nunca o número (558)', () => {
+    expect(describeAuditLog({ ...log('voyages', 'vessel_id', '37', '41'), old_label: 'Rio de Janeiro 2', new_label: 'Santos' })).toBe('Navio: Santos')
+    expect(describeAuditLog(log('voyages', 'vessel_id', '37', '41'))).toBe('Navio alterado')
+    expect(displayAuditValue('vessel_id', '37', 'voyages', 'Rio de Janeiro 2')).toBe('Rio de Janeiro 2')
+    expect(displayAuditValue('vessel_id', '37', 'voyages')).toBe('Registro vinculado')
+    expect(displayAuditValue('omission_id', '9f1c2e4a-0000-4000-8000-000000000001', 'bl_transshipments')).toBe('Registro vinculado')
+    expect(displayAuditValue('city', 'Santos', 'customers')).toBe('Santos')
+    const json = '{"id": 41, "name": "Santos", "carrier_id": 9, "customer_id": 12}'
+    expect(auditValueFacts('vessels', json, { carrier_id: 'Armador Nove' })).toEqual([
+      { label: 'Nome', value: 'Santos' },
+      { label: 'Armador', value: 'Armador Nove' },
+    ])
   })
 })
