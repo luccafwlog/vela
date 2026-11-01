@@ -135,4 +135,10 @@ describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
       { label: 'Armador', value: 'Armador Nove' },
     ])
   })
+
+  it('concordância e cadastro apagado na frase (revisão)', () => {
+    expect(describeAuditLog(log('bls', 'voyage_id', '37', '41'))).toBe('Viagem alterada')
+    expect(describeAuditLog(log('invoice_items', 'invoice_id', '7', '8'))).toBe('Fatura alterada')
+    expect(describeAuditLog({ ...log('bls', 'customer_id', '12', '13'), new_label: 'Cliente excluído' })).toBe('Cliente: cadastro excluído')
+  })
 })
