@@ -291,6 +291,42 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(looseCargo).getAllByText('Sem containers')).toHaveLength(2)
   })
 
+  it('sem link de armador com {BL}, a coluna Tracking não aparece', () => {
+    const previous = rows[0].tracking_url
+    rows[0].tracking_url = 'https://spe.coscoshipping.com/main/newcargotracking?label=T&value='
+    try {
+      renderOperacao()
+      expect(within(blsTable()).queryByRole('columnheader', { name: 'Tracking' })).toBeNull()
+      expect(screen.queryByRole('link', { name: /Ver tracking/ })).toBeNull()
+    } finally { rows[0].tracking_url = previous }
+  })
+
+  it('abre o tracking de cada B/L no site do armador, com o número no lugar de {BL}', async () => {
+    const previous = { tracking_url: rows[0].tracking_url, carrier_name: rows[0].carrier_name }
+    Object.assign(rows[0], { tracking_url: 'https://spe.coscoshipping.com/main/newcargotracking?label=T&value={BL}', carrier_name: 'Cosco Shipping Specialized Carriers' })
+    try {
+      const user = userEvent.setup()
+      renderOperacao()
+      expect(within(blsTable()).getByRole('columnheader', { name: 'Tracking' })).toBeTruthy()
+
+      const link = within(blRow('BL001')).getByRole('link', { name: 'Ver tracking do B/L BL001 na Cosco Shipping Specialized Carriers (abre em nova aba)' })
+      expect(link.getAttribute('href')).toBe('https://spe.coscoshipping.com/main/newcargotracking?label=T&value=BL001')
+      expect(link.getAttribute('target')).toBe('_blank')
+      expect(link.getAttribute('rel')).toBe('noopener noreferrer')
+      // B/L de armador sem link: traço discreto, sem botão.
+      expect(within(blRow('BL002')).queryByRole('link')).toBeNull()
+      expect(within(blRow('BL002')).getByText('Sem tracking no site do armador')).toBeTruthy()
+
+      // Clicar no tracking não abre nem fecha a linha.
+      link.addEventListener('click', (event) => event.preventDefault())
+      await user.click(link)
+      expect(screen.queryByRole('table', { name: 'Containers do B/L BL001' })).toBeNull()
+
+      const card = within(screen.getByTestId('portal-operacao-bl-mobile-cards')).getByRole('article', { name: 'B/L BL001' })
+      expect(within(card).getByRole('link', { name: /Ver tracking na Cosco Shipping Specialized Carriers/ }).getAttribute('href')).toBe('https://spe.coscoshipping.com/main/newcargotracking?label=T&value=BL001')
+    } finally { Object.assign(rows[0], previous) }
+  })
+
   it('filtra pelos cartões da aba BLs no lugar da contagem "B/L(s) encontrado(s)"', async () => {
     const user = userEvent.setup()
     renderOperacao()
