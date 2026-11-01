@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Histórico de ações: B/L criado e lacunas menores (2026-11-01, migration `560`; decisões do dono):** cada B/L
+  criado, inclusive pela importação, pela carga solta e no Granito, deixa uma linha curta **B/L criado** com a
+  importação como origem; passam a ficar no Histórico a observação de seção do ADR, o **ciente** do impacto de taxa
+  alterada à mão e os modelos salvos de Comunicado (assunto novo **Comunicado**). O nome no Meu perfil fica de fora.
 - **Prioridades de usabilidade do Vela e do Portal (decisões do dono de 2026-11-01):**
   - **Portal › Faturas:** coluna **Pagar** com o ícone "Pagar com Pix" em toda fatura que pede pagamento,
     inclusive a individual que está numa consolidada aberta; abre a janela do Pix com o valor e **Ver detalhe

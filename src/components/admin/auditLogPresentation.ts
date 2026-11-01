@@ -4,6 +4,7 @@ import { TIMELINE_VOYAGE_FIELD_LABELS } from '../../services/voyageSummaries'
 import { DEPARTMENT_LABELS } from '../../lib/departmentLabel'
 import { splitIsoDateTime } from '../../lib/utils'
 import { getAlertTypeLabel } from '../../services/alerts'
+import { AGENCY_REPORT_SECTION_LABELS } from '../../services/agencyReportLabels'
 
 // Histórico de ações legível (lote 5b, Administração): cada linha de
 // `audit_logs` vira assunto, frase e "de → para" em português. Entidade sem
@@ -34,7 +35,8 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'tarifa-granito', label: 'Tarifa do Granito', entityTypes: ['granite_rates'] },
   { id: 'taxas-locais', label: 'Tabela de Taxas Locais', entityTypes: ['charge_tables', 'charge_table_items'] },
   { id: 'condicao-cliente', label: 'Condição de Cliente', entityTypes: ['customer_rate_overrides'] },
-  { id: 'taxas-bl', label: 'Taxas do B/L', entityTypes: ['charge_calculation', 'charge_calculations'] },
+  // Migration 560: o "ciente" do impacto de taxa alterada à mão.
+  { id: 'taxas-bl', label: 'Taxas do B/L', entityTypes: ['charge_calculation', 'charge_calculations', 'bl_charge_adjustment_acks'] },
   { id: 'fatura', label: 'Fatura', entityTypes: ['invoice', 'invoices', 'invoice_items', 'invoice_bls', 'invoice_receivable_links', 'payments', 'ledger_settlements', 'bl_receivables'] },
   { id: 'restituicao', label: 'Restituição', entityTypes: ['invoice_refund', 'invoice_refunds', 'demurrage_refund'] },
   { id: 'cod', label: 'Ajuste de COD', entityTypes: ['cod_adjustment'] },
@@ -47,6 +49,8 @@ export const AUDIT_SUBJECTS: readonly AuditSubject[] = [
   { id: 'cambio', label: 'Câmbio', entityTypes: ['exchange_rate_reference'] },
   { id: 'cliente', label: 'Cliente', entityTypes: ['customer', 'customers', 'customer_contacts'] },
   { id: 'liberacao', label: 'Liberação de faturamento', entityTypes: ['customer_billing_portal_releases'] },
+  // Migration 560: modelos salvos de Comunicado.
+  { id: 'comunicado', label: 'Comunicado', entityTypes: ['customer_communication_saved_templates'] },
   { id: 'central', label: 'Central de Informações', entityTypes: ['portal_information_depot', 'portal_information_agent', 'portal_information_contact', 'portal_information_carrier'] },
   { id: 'cadastros', label: 'Navio, armador e porto', entityTypes: ['vessels', 'carriers', 'ports'] },
   { id: 'locais', label: 'Local e serviço', entityTypes: ['depots', 'depot_services'] },
@@ -104,6 +108,8 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
   itau_pix_receipts: { noun: 'Pix recebido', feminine: false },
   pix_reconciliation_exceptions: { noun: 'Exceção de Pix', feminine: true },
   vazios_export_service_lines: { noun: 'Linha de serviço', feminine: true },
+  granite_bls: { noun: 'B/L de Granito', feminine: false },
+  customer_communication_saved_templates: { noun: 'Modelo de Comunicado', feminine: false },
 }
 
 /** Rótulos de campo comuns às tabelas sem rótulo próprio. */
@@ -175,6 +181,10 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   revoked_at: 'Revogada em',
   review_at: 'Revisar em',
   embark_port: 'Porto de embarque',
+  subject: 'Assunto',
+  body: 'Texto',
+  cargo_mode: 'Modalidade',
+  bl_number: 'Nº do B/L',
 }
 
 /** Situação gravada em código, por entidade ("open" do ADR vira "Aberto"). */
@@ -372,6 +382,8 @@ export function displayAuditValue(fieldName: string | null, value: string | null
 export function describeAuditLog(row: AuditLogLike): string {
   const noun = nounOf(row.entity_type)
   const field = (row.field_name ?? '').split('|')[0]
+  // Migration 560: o "ciente" do impacto de taxa alterada à mão.
+  if (row.entity_type === 'bl_charge_adjustment_acks' && CREATED_FIELDS.has(field)) return 'Impacto da taxa marcado como ciente'
   if (CREATED_FIELDS.has(field)) {
     const name = recordName(row.new_value) ?? (row.entity_type === 'user_profile' ? nameWithRole(row.new_value) : null)
     return name ? `${participle(noun, 'criado')}: ${name}` : participle(noun, 'criado')
@@ -391,6 +403,14 @@ export function describeAuditLog(row: AuditLogLike): string {
     if (statusSummary) return statusSummary
   }
   if (row.entity_type === 'user_profile' && field === 'password') return 'Senha redefinida'
+  // Migration 560: a observação de seção do ADR.
+  if (row.entity_type === 'agency_departure_report' && field === 'observation') {
+    const section = (row.field_name ?? '').split('|')[1] ?? ''
+    const sectionLabel = AGENCY_REPORT_SECTION_LABELS[section as keyof typeof AGENCY_REPORT_SECTION_LABELS] ?? 'do ADR'
+    const text = (row.new_value ?? '').trim()
+    if (!text) return `Observação da seção ${sectionLabel} apagada`
+    return text.length > 60 ? `Observação da seção ${sectionLabel} alterada` : `Observação da seção ${sectionLabel}: ${text}`
+  }
   // ADR 0111: taxa alterada, excluída ou isenta à mão e edição da cobrança manual.
   if (row.entity_type === 'charge_calculation' && field === 'charge_adjustment') return describeChargeAdjustmentEvent(row.new_value)
   if (row.entity_type === 'charge_calculation' && field === 'manual_update') return describeManualChargeUpdate(row.old_value, row.new_value)

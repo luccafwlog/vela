@@ -151,4 +151,15 @@ describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
     expect(describeAuditLog(log('invoice_items', 'invoice_id', '7', '8'))).toBe('Fatura alterada')
     expect(describeAuditLog({ ...log('bls', 'customer_id', '12', '13'), new_label: 'Cliente excluído' })).toBe('Cliente: cadastro excluído')
   })
+
+  it('B/L criado, "ciente" do impacto, observação de seção do ADR e modelo de Comunicado (560)', () => {
+    expect(describeAuditLog(log('bls', 'criado', null, '{"id": "BL1", "voyage_id": 9, "cargo_mode": "container"}'))).toBe('B/L criado')
+    expect(describeAuditLog(log('granite_bls', 'criado', null, '{"id": "u", "bl_number": "GR-1"}'))).toBe('B/L de Granito criado')
+    expect(describeAuditLog(log('bl_charge_adjustment_acks', 'criado', null, '{"id": 1, "bl_id": "BL1"}'))).toBe('Impacto da taxa marcado como ciente')
+    expect(describeAuditLog(log('agency_departure_report', 'observation|datas', null, 'Atracação atrasou'))).toBe('Observação da seção Escala: Atracação atrasou')
+    expect(describeAuditLog(log('agency_departure_report', 'observation|datas', 'x', null))).toBe('Observação da seção Escala apagada')
+    expect(describeAuditLog(log('customer_communication_saved_templates', 'criado', null, '{"id": 2, "name": "Aviso de atraso"}'))).toBe('Modelo de Comunicado criado: Aviso de atraso')
+    expect(auditSubjectLabel('customer_communication_saved_templates')).toBe('Comunicado')
+    expect(auditSubjectLabel('bl_charge_adjustment_acks')).toBe('Taxas do B/L')
+  })
 })
