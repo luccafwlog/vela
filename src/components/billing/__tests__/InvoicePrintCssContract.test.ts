@@ -29,7 +29,8 @@ describe('contrato CSS de impressão de invoice', () => {
 
   it('InvoiceDocumentLocal emite as classes e testids protegidos contra quebra de página', () => {
     const tsx = fs.readFileSync('src/components/billing/InvoiceDocumentLocal.tsx', 'utf8')
-    expect(tsx).toContain('data-testid="invoice-totals"')
+    // A caixa de total (fatura e recibo) recebe os dois pela InvoiceTotalBox.
+    expect(tsx).toMatch(/(data-testid|testId)="invoice-totals"/)
     expect(tsx).toContain('className="invoice-document__totals"')
     expect(tsx).toContain('data-testid="invoice-pix-box"')
     expect(tsx).toContain('className="invoice-document__pix-box"')
