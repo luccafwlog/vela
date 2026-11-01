@@ -1290,12 +1290,17 @@ function buildVoyageCreation(
 
 /**
  * Justificativa da linha do Histórico no detalhe do evento, no formato das
- * escalas: "Justificativa: …" o que a pessoa escreveu; "Origem: …" o contexto de uma importação (migration 189).
+ * escalas: "Justificativa: …" o que a pessoa escreveu; "Origem: <tipo>" o
+ * contexto de uma importação (migration 189).
  */
 function withReason(detail: string, row: { justification?: string | null }): string {
   const reason = String(row.justification ?? '').trim()
   if (!reason || AUTOMATIC_SCHEDULE_JUSTIFICATION.test(reason)) return detail
-  return /^Importa(ç|c)ão de /i.test(reason) ? `${detail} · Origem: ${reason}` : `${detail} · Justificativa: ${reason}`
+  // Contexto da importação ("Importação de CE Mercante · Viagem … · Manifesto …",
+  // ou o rastro antigo sem acento): só o tipo, porque a Viagem já está na tela.
+  const imported = /^Importa(?:ç|c)(?:ã|a)o de (.+)$/i.exec(reason)
+  if (imported) return `${detail} · Origem: ${imported[1].split(' · ')[0].trim()}`
+  return `${detail} · Justificativa: ${reason}`
 }
 
 function buildAuditTimeline(

@@ -330,6 +330,8 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
   // recebível e de fatura; a tela mostra a frase, nunca o registro.
   if (field_name === 'receivable_voided') return 'Recebível do B/L cancelado com a fatura'
   if (field_name === 'auto_reissue_invoices') return 'Faturas reemitidas automaticamente'
+  // Migrations 194/213/385: veículo levado ao B/L reemitido (de: chassi; para: B/L novo).
+  if (field_name === 'vehicle_to_reissued_bl') return `Chassi ${old_value ?? '—'} passou para o B/L ${new_value ?? '—'}`
   // entity_type === 'bl' (field edits, incl. charge_status/financial_status)
   const cleanField = FIELD_LABELS[field_name] ?? 'Dado do B/L'
   if (!FIELD_LABELS[field_name] && [old_value, new_value].some((value) => value != null && looksLikeRecordOrId(value))) {

@@ -11,6 +11,11 @@ describe('describeTimelineEvent', () => {
     expect(describeTimelineEvent(unknown)).toBe('Dado do B/L alterado')
     const charge = { family: 'taxas', entity_type: 'charge_calculation', field_name: 'status', old_value: null, new_value: '{"id": 9}', justification: null } as never
     expect(describeTimelineEvent(charge)).toBe('Taxa alterada')
+    // Número de campo com rótulo continua na tela (CE Mercante de 15 dígitos).
+    const ce = { family: 'edicao', entity_type: 'bl', field_name: 'ce_mercante', old_value: null, new_value: '151234567890123', justification: null } as never
+    expect(describeTimelineEvent(ce)).toContain('151234567890123')
+    const vehicle = { family: 'veiculo', entity_type: 'bl', field_name: 'vehicle_to_reissued_bl', old_value: 'LSVAA4182E2123456', new_value: '123456789', justification: 'Reemissão' } as never
+    expect(describeTimelineEvent(vehicle)).toBe('Chassi LSVAA4182E2123456 passou para o B/L 123456789')
   })
 
   it('nomeia o container e o campo vindos da auditoria por coluna (migration 079)', () => {
