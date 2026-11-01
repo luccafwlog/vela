@@ -90,6 +90,14 @@ export function InvoiceDocument({ detail, type }: Props) {
   const discountBRL = rawTotalBRL != null && totalBRL != null
     ? Math.max(0, rawTotalBRL - totalBRL)
     : null
+  // Recibo: o que ficou recebido (recebido menos devolução já feita). Sem
+  // devolução, é o próprio total da Invoice.
+  const settledRefundBRL = (invoice.refund_summary?.refunds ?? [])
+    .filter((row) => row.status === 'settled')
+    .reduce((sum, row) => sum + row.amount_brl, 0)
+  const shownBRL = isInvoice || !invoice.refund_summary?.received_brl
+    ? totalBRL
+    : invoice.refund_summary.received_brl - settledRefundBRL
   const hasDiscount = (invoice.discount_value ?? 0) > 0
   // Pix só na Invoice que ainda se paga: a paga ou cancelada aberta como
   // fatura mostrava o QR e o "Valor da fatura", convidando a pagar de novo.
@@ -142,19 +150,14 @@ export function InvoiceDocument({ detail, type }: Props) {
             <tr style={{ background: '#f0f4fa' }}><td colSpan={9} style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 600 }}>Subtotal:</td><td style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{rawTotalBRL == null ? '—' : fmtBRL(rawTotalBRL)}</td></tr>
             <tr style={{ background: '#f0fdf4' }}><td colSpan={9} style={{ padding: '6px 7px', textAlign: 'right' }}>Desconto {invoice.discount_mode === 'percent' ? `(${invoice.discount_value}%)` : 'fixo'}{invoice.discount_type ? ` — ${invoice.discount_type}` : ''}:</td><td style={{ padding: '6px 7px', textAlign: 'right', color: '#166534', whiteSpace: 'nowrap' }}>{discountBRL == null ? '—' : `- ${fmtBRL(discountBRL)}`}</td></tr>
           </>}
-          {!isInvoice && invoice.refund_summary ? <>
-            <tr><td colSpan={9} style={cell}>Valor recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl)}</td></tr>
-            <tr><td colSpan={9} style={cell}>Devolvido ao Cliente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
-            <tr><td colSpan={9} style={cell}>Restituição pendente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'pending').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
-            <tr><td colSpan={9} style={cell}>Valor líquido recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl - invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
-          </> : null}
         </tbody>
       </table>
 
       {/* Lote 6b: TOTAL em caixa âmbar compacta à direita, logo abaixo da
           tabela; vencimento (fatura) ou data do pagamento (recibo) embaixo,
-          sem fundo. */}
-      <InvoiceTotalBox testId="demurrage-total" value={totalBRL == null ? '—' : fmtBRL(totalBRL)}>
+          sem fundo. O recibo só certifica o que foi recebido, uma vez: sem
+          linhas de devolução ou restituição. */}
+      <InvoiceTotalBox testId="demurrage-total" label={isInvoice ? 'TOTAL:' : 'VALOR RECEBIDO:'} value={shownBRL == null ? '—' : fmtBRL(shownBRL)}>
         {isInvoice && invoice.due_date ? <InvoiceTotalLine label="VENCIMENTO:" value={fmtDate(invoice.due_date)} /> : null}
         {!isInvoice && invoice.paid_at ? <InvoiceTotalLine label="PAGO EM:" value={fmtDate(invoice.paid_at)} /> : null}
       </InvoiceTotalBox>
