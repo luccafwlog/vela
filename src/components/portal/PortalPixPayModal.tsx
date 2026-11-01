@@ -42,9 +42,15 @@ export function PortalPixPayModal({
         {error ? <InlineError message="Não foi possível carregar o Pix desta fatura. Tente de novo em instantes." /> : null}
         {!loading && !error ? (
           <>
-            <LeadValue tone="warning" detail={amountDetail}>{amount}</LeadValue>
+            {/* Fatura paga ou cancelada enquanto a janela estava aberta: sem
+                valor "a pagar", só o aviso e o caminho para o detalhe. */}
             {pix !== undefined
-              ? <PortalPixPaymentBlock pixPayload={pix} note={pixNote} standalone />
+              ? (
+                <>
+                  <LeadValue tone="warning" detail={amountDetail}>{amount}</LeadValue>
+                  <PortalPixPaymentBlock pixPayload={pix} note={pixNote} standalone />
+                </>
+              )
               : <p className="text-sm text-[var(--app-muted)]">Esta fatura não pede mais pagamento.</p>}
           </>
         ) : null}
