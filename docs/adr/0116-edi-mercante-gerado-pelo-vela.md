@@ -52,7 +52,9 @@ ordem e o tamanho dos NCM e a limpeza do texto livre.
    contêiner, não a declaração do B/L.
 4. O CNPJ da agência no manifesto é o da Transhipping (`src/config/company.ts`).
    Dos componentes de frete, só o THD sai no C5 (código `017`, em reais,
-   collect); o frete básico é o Ocean Freight do B/L.
+   collect); o frete básico é o Ocean Freight do B/L. Só frete e THD são
+   manifestados: outra despesa do B/L fica fora do arquivo, com aviso
+   (decisão do dono de 2026-11-02, na revisão da PR).
 5. Códigos do Mercante que o Vela não guarda ficam em tabelas fixas no código
    (`src/services/mercanteEdiTables.ts`): armador (CSSC = `CN001321`),
    terminal (TVV = `BRVIX004`, PORTMAC = `BRVIX006`), porto quando o código

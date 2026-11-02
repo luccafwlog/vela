@@ -397,7 +397,14 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   put(record, 1780, 'N', 1) // BL de serviço
   put(record, 1781, '0'.repeat(15), 15) // CE original (só BL de serviço)
 
-  const components = bl.freightLines.filter((line) => freightCategory(line) !== 'OCEAN_FREIGHT')
+  // Só o frete básico (acima) e as despesas da tabela de componentes (THD) são
+  // manifestados (decisão do dono, 2026-11-02); as outras ficam fora do arquivo.
+  const others = bl.freightLines.filter((line) => freightCategory(line) !== 'OCEAN_FREIGHT')
+  const components = others.filter((line) => MERCANTE_FREIGHT_COMPONENT[freightCategory(line)])
+  const leftOut = others.filter((line) => !MERCANTE_FREIGHT_COMPONENT[freightCategory(line)])
+  if (leftOut.length) {
+    warn(ctx, ref, `Fora do manifesto (só frete e THD são manifestados): ${leftOut.map((line) => line.description || freightCategory(line)).join(', ')}.`)
+  }
   if (components.length > MAX_FREIGHT_COMPONENTS) block(ctx, ref, `Mais de ${MAX_FREIGHT_COMPONENTS} despesas: o manifesto tem lugar para ${MAX_FREIGHT_COMPONENTS}.`)
   for (let slot = 0; slot < MAX_FREIGHT_COMPONENTS; slot += 1) {
     const position = 3797 + slot * 20
@@ -407,13 +414,12 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
       continue
     }
     const category = freightCategory(line)
-    const code = MERCANTE_FREIGHT_COMPONENT[category]
+    const code = MERCANTE_FREIGHT_COMPONENT[category]!
     const currency = MERCANTE_CURRENCY[(line.currency ?? '').toUpperCase()]
     const payment = paymentCode(line.payment)
-    if (!code) block(ctx, ref, `Despesa "${line.description ?? category}" sem código de componente do frete no Mercante.`)
     if (!currency) block(ctx, ref, `Despesa "${line.description ?? category}" em moeda sem código Mercante (${line.currency ?? 'vazia'}).`)
     if (!payment) block(ctx, ref, `Despesa "${line.description ?? category}" sem prepaid/collect.`)
-    put(record, position, code ?? '000', 3)
+    put(record, position, code, 3)
     put(record, position + 3, currency ?? '000', 3)
     put(record, position + 6, amount(ctx, ref, `Despesa "${line.description ?? category}"`, line.amount, 13, 2), 13)
     put(record, position + 19, payment ?? '', 1)

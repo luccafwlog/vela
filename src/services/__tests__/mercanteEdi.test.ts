@@ -153,7 +153,6 @@ describe('buildMercanteCargoEdi', () => {
         containers: [container({ type: '45XX' })],
         freightLines: [
           { category: 'OCEAN_FREIGHT', description: 'OCEAN FREIGHT', currency: 'USD', amount: 100, payment: 'PREPAID' },
-          { category: 'BAF', description: 'BAF', currency: 'USD', amount: 10, payment: 'PREPAID' },
         ],
       })],
     )
@@ -165,8 +164,24 @@ describe('buildMercanteCargoEdi', () => {
       expect.stringContaining('Sem CNPJ/CPF do consignatário'),
       expect.stringContaining('B/L sem NCM'),
       expect.stringContaining('Tipo de contêiner 45XX'),
-      expect.stringContaining('Despesa "BAF"'),
     ]))
+  })
+
+  it('manifesta só o frete e o THD; outra despesa fica de fora com aviso', () => {
+    const result = buildMercanteCargoEdi(header, [bl({
+      freightLines: [
+        { category: 'OCEAN_FREIGHT', description: 'OCEAN FREIGHT', currency: 'USD', amount: 8500, payment: 'PREPAID' },
+        { category: 'BAF', description: 'BUNKER SURCHARGE', currency: 'USD', amount: 300, payment: 'PREPAID' },
+        { category: 'THD', description: 'THD', currency: 'BRL', amount: 1565, payment: 'COLLECT' },
+      ],
+    })])
+    const c5 = lines(result.content)[1]
+    expect(field(c5, 3797, 3816)).toBe('0177900000000156500C')
+    expect(field(c5, 3817, 3835)).toBe('0'.repeat(19))
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      severity: 'aviso',
+      message: 'Fora do manifesto (só frete e THD são manifestados): BUNKER SURCHARGE.',
+    }))
   })
 
   it('recusa B/L à ordem e porto fora da tabela do Mercante', () => {

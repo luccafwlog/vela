@@ -1140,7 +1140,9 @@ ao Mercante continua fora do Vela. **Código:**
   `TOTAL: n unidade`, cubagem, NCM (quatro dígitos, sem repetir, até 191),
   frete básico = Ocean Freight do B/L com moeda e prepaid/collect, modalidade
   pelo Type of Movement (FCL = H, LCL = P, por lado), UF do POD e, das
-  despesas, só o THD (componente `017`, em reais).
+  despesas, só o THD (componente `017`, em reais). Só frete e THD são
+  manifestados (decisão do dono, 2026-11-02): outra despesa do B/L (BAF,
+  ISPS…) fica fora do arquivo, com aviso.
 - **Contêiner (I5).** Tipo pelo de→para do Mercante (40HC → `45G1`, 40GP →
   `42G1`…), peso bruto, tara, cubagem, até quatro lacres, **compartilhado**
   quando o número aparece em mais de um B/L ativo da Viagem, e IMO, classe e ONU
@@ -1155,8 +1157,9 @@ ao Mercante continua fora do Vela. **Código:**
   rota sem ATD no POL ou sem ETA no POD; navio sem IMO; POD sem terminal com
   código Mercante; porto fora da tabela do Mercante, POL brasileiro ou POD
   estrangeiro; B/L à ordem; B/L sem consignatário, CNPJ/CPF, embarcador, data
-  de emissão, descrição, NCM, contêiner ou Ocean Freight maior que zero; moeda,
-  despesa, Type of Movement ou tipo de contêiner sem código; contêiner sem
+  de emissão, descrição, NCM, contêiner ou Ocean Freight maior que zero; moeda
+  do frete ou do THD, Type of Movement ou tipo de contêiner sem código; THD sem
+  prepaid/collect; contêiner sem
   peso, tara ou cubagem; contêiner IMO sem classe ou ONU; vazio sem tara;
   terminal (da frente ou da exceção do B/L) sem código Mercante, que nunca cai
   para outro terminal; Ocean Freight em mais de uma moeda ou com prepaid e
@@ -1167,8 +1170,9 @@ ao Mercante continua fora do Vela. **Código:**
   B/L ou contêiner e onde corrigir.
 - **Avisos** (o arquivo é baixado): texto cortado no tamanho do campo,
   descrição que não coube, B/L sem total de volumes, contêiner sem lacre ou com
-  mais de quatro, mais NCM que o campo comporta, Viagem sem Baplie e B/L de
-  carga solta ou misto da rota (fica fora do arquivo nesta fase).
+  mais de quatro, mais NCM que o campo comporta, despesa que não é THD (fica
+  fora), Viagem sem Baplie e B/L de carga solta ou misto da rota (fica fora do
+  arquivo nesta fase).
 - **Nome do arquivo.** `FWL_MERCANTE_<AAAAMMDDHHMM>_<sigla>.TXT`, com a sigla
   das iniciais do navio e o número da viagem (GREEN GUANGZHOU V.6 → `GG6`).
 - **Fora desta fase.** Manifesto de carga solta (I5 de carga solta e veículo),
