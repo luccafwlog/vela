@@ -15,7 +15,7 @@ para que uma alteração manual posterior à automação mantenha a ordem corret
 O primeiro evento de um porto inicializa o objeto da agenda, garantindo que o
 snapshot da viagem acompanhe o status registrado na auditoria.
 
-Pipeline de ingestão e revisão operacional do Vela. O módulo recebe planilhas e EDI/EDIFACT, limita o arquivo, faz parse e preview no cliente, persiste em tabelas de domínio e expõe as superfícies de B/L, containers, veículos, Baplie e vazios. A viagem é o eixo operacional; o arquivo de B/L é a fonte documental da carga de container e alimenta Frete & Despesas do BL e o ATD do POL; o Baplie é a fonte física de staging e conciliação. Conforme a ADR 0025, a importação de Manifesto CNTR e a geração local de EDI Mercante foram removidas.
+Pipeline de ingestão e revisão operacional do Vela. O módulo recebe planilhas e EDI/EDIFACT, limita o arquivo, faz parse e preview no cliente, persiste em tabelas de domínio e expõe as superfícies de B/L, containers, veículos, Baplie e vazios. A viagem é o eixo operacional; o arquivo de B/L é a fonte documental da carga de container e alimenta Frete & Despesas do BL e o ATD do POL; o Baplie é a fonte física de staging e conciliação. Conforme a ADR 0025, a importação de Manifesto CNTR foi removida; desde a ADR 0116 o Vela gera o EDI Mercante de importação de cada rota a partir da Viagem e dos B/Ls ([EDI Mercante](#edi-mercante)).
 
 Quando o importador de CE Mercante é iniciado no contexto de uma viagem, o
 campo Viagem vem semeado com ela e continua editável (ADR 0018, decisão 2;
@@ -121,7 +121,7 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
   compartilham a regra de rejeitar somente cabeçalhos/cláusulas documentais sem
   valor numérico. Descrições longas e cobranças legítimas que começam por
   palavras ou números continuam preservadas.
-- `src/pages/Bls.tsx` lista B/Ls unificados (contêiner, carga solta e misto) com paginação, seleção em massa, **linha expansível** (`BlRowDetail`: resumo da carga, atalho "Abrir na ficha do B/L" e contêineres com COC/SOC, perfil, lacre, tara, peso, CBM, descarga, devolução e Demurrage; carga solta como dados soltos e itens, com uma frase só quando não há dado — sem query nova, a RPC já projeta os filhos), resumo e filtros por texto, viagem, POL, POD, revisão, financeiro, taxas locais, perfil de carga e modo de carga (`container`, `carga_solta`, `misto`). POL e POD comparam o porto, não a grafia gravada: as opções vêm uma por porto e o filtro casa `normalize_port_code` dos dois lados (migration `322`), então um link do Painel com `pod=BRVIX` traz também os B/Ls gravados como `BRVIT`; vale igual para `/containers`. As ações do cabeçalho são **Importar** (menu com B/L de contêiner, B/L de carga solta .pdf/.docx, Manifesto de carga solta BB e CE Mercante) e **Exportar**; não há importação de Manifesto CNTR nem geração local de EDI Mercante. As antigas rotas segregadas `/manifestos` e `/carga-solta` foram unificadas nesta tela única.
+- `src/pages/Bls.tsx` lista B/Ls unificados (contêiner, carga solta e misto) com paginação, seleção em massa, **linha expansível** (`BlRowDetail`: resumo da carga, atalho "Abrir na ficha do B/L" e contêineres com COC/SOC, perfil, lacre, tara, peso, CBM, descarga, devolução e Demurrage; carga solta como dados soltos e itens, com uma frase só quando não há dado — sem query nova, a RPC já projeta os filhos), resumo e filtros por texto, viagem, POL, POD, revisão, financeiro, taxas locais, perfil de carga e modo de carga (`container`, `carga_solta`, `misto`). POL e POD comparam o porto, não a grafia gravada: as opções vêm uma por porto e o filtro casa `normalize_port_code` dos dois lados (migration `322`), então um link do Painel com `pod=BRVIX` traz também os B/Ls gravados como `BRVIT`; vale igual para `/containers`. As ações do cabeçalho são **Importar** (menu com B/L de contêiner, B/L de carga solta .pdf/.docx, Manifesto de carga solta BB e CE Mercante) e **Exportar**; não há importação de Manifesto CNTR; o EDI Mercante é gerado por rota na Viagem ([EDI Mercante](#edi-mercante)). As antigas rotas segregadas `/manifestos` e `/carga-solta` foram unificadas nesta tela única.
 - Colunas: B/L, Cliente (sem Cliente vinculado, o consignatário em cinza e "Sem cliente vinculado"), Navio, Viagem, Trecho, Carga (contêineres ou toneladas e perfil IMO/OOG), CE Mercante e Taxas locais, numa linha de título só.
 - O modal **Importar CE Mercante** aceita só planilha (o CE não entra por EDI; o
   EDI do sistema é o Baplie). Para B/Ls de carga, o operador informa antes o Nº
@@ -153,7 +153,7 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
 - Para listagens e reconciliação por nome, o consignatário curto termina na natureza jurídica (`LTDA`, `S.A.`, `EIRELI`, `EI`, `MEI`, `SLU`, `EPP`, `ME`, incluindo combinações); sem marcador reconhecido, usa a primeira linha não vazia. O bloco completo permanece intacto como dado documental e para auditoria.
 - Pela ADR 0025, `Laden on Board` persiste o ATD do POL. Entre os B/Ls ativos da mesma Viagem e POL prevalece automaticamente a data mais antiga; ATD corrigido à mão não é recalculado e a prévia avisa a divergência (regra em [Viagens](viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota); ADR 0095, decisão 23; migration `401`). ETD e ATD permanecem distintos; telas sem coluna própria mostram ATD em verde na célula de ETD.
 - O Administrativo exclui B/Ls, individualmente ou em lote, com motivo e prévia do banco; B/L com CE Mercante não é excluído, e sim cancelado (ver [B/L Cancelado e exclusão](#bl-cancelado-e-exclusão)).
-- O Nº de Manifesto Mercante é gerenciado na tabela `manifestos_mercante`, por Viagem e rota, com vários manifestos por rota e a natureza `carga` ou `vazio` (`natureza`). A edição é feita na aba Rotas e Manifestos de `/viagens/:voyageId` (**Editar**, em toda rota, que abre ETD previsto + ATD POL e Nº de Manifesto Mercante; **Informar**, na coluna Nº de manifesto Mercante da rota ainda sem número; e **Ver B/Ls**, na rota de carga com B/L; **Código:** `src/components/voyages/VoyageManifestosTab.tsx`) e, por B/L, na ficha; desde a migration `212` a API só lê o cadastro. Ver B/Ls da rota pagina a lista da Viagem (sem o teto de 1.000 linhas do PostgREST). Regras em [Manifesto Mercante](#manifesto-mercante).
+- O Nº de Manifesto Mercante é gerenciado na tabela `manifestos_mercante`, por Viagem e rota, com vários manifestos por rota e a natureza `carga` ou `vazio` (`natureza`). A edição é feita na aba Rotas e Manifestos de `/viagens/:voyageId` (**Editar**, em toda rota, que abre ETD previsto + ATD POL e Nº de Manifesto Mercante; **Informar**, na coluna Nº de manifesto Mercante da rota ainda sem número; **Ver B/Ls**, na rota de carga com B/L; e **Gerar EDI Mercante**, na rota de contêiner e na linha VAZIOS ([EDI Mercante](#edi-mercante)); **Código:** `src/components/voyages/VoyageManifestosTab.tsx`) e, por B/L, na ficha; desde a migration `212` a API só lê o cadastro. Ver B/Ls da rota pagina a lista da Viagem (sem o teto de 1.000 linhas do PostgREST). Regras em [Manifesto Mercante](#manifesto-mercante).
 
 ### Atualização após ações próprias
 
@@ -1104,6 +1104,66 @@ viagem da agência; o nome "CE Master" foi descontinuado na tela.
 20. **Efeitos de importação: espera, bloqueio, exclusão e quem roda (ADR 0095, decisões 7, 18 e 25; migrations `394` e `395`).** O efeito pós-commit (`import_pending_effects`, processado pelo `import-effects-runner`) distingue espera de negócio de falha. **Espera:** CE em B/L em Revisão (sem Cliente, reconciliação pendente, pendência do gate ou linhas a revisar) ou sem tabela de cobrança para o POD deixa o efeito `local_billing` em `retry_wait` com `awaiting_review` ou `awaiting_charge_table` e a frase "Aguardando a Revisão do B/L…" ou "Aguardando a tabela de cobrança do POD…", sem gastar tentativas e sem Alerta; ele roda de novo a cada hora e logo depois de a Revisão, o Cliente, a conciliação, o `charge_status`, o POD ou a modalidade do B/L mudarem (`nudge_waiting_import_effects_on_bl`), e conclui sozinho (fatura). Gravar uma tabela de cobrança só antecipa o efeito em `awaiting_charge_table` (`nudge_waiting_import_effects_on_charge_table`). Na prática o B/L sem tabela já tem o cálculo em revisão ("Nenhuma tabela de taxas ativa…", gravado na importação e de novo no CE), espera como `awaiting_review`, e a tentativa reaproveita esse cálculo (`_auto_bill_bl_core` com reaproveitamento; `bl_calculation_is_current` só olha a base do B/L): a fatura sai quando a planilha de CE é importada de novo (`emit_ce_mercante_billing` refaz o cálculo cuja única revisão era a falta de tabela) ou quando o B/L é recalculado, o que muda o `charge_status` e dispara o efeito. `awaiting_charge_table` só aparece quando o último cálculo gravado não está em revisão (por exemplo, POD trocado sem recálculo, caso do teste de integração). A espera não segura os outros efeitos do mesmo B/L. **Bloqueio:** só falha técnica vira `blocked` com o Alerta crítico `import_effect_blocked`, cujo texto diz o efeito, o B/L e o motivo; em `/alertas` o motivo aparece em linguagem de operação, seguido de "Corrija a causa e use Reprocessar." (recusa de negócio do próprio domínio aparece como está; erro cru do Postgres vira o texto do `error_code`, por exemplo "Falha técnica ao executar o passo."), e o texto cru (`error_code: error_message`) fica recolhido em **Detalhe técnico** na linha e no diálogo do Reprocessar (`importEffectBlockedReason`, sem migration: `alerts.message` continua com o texto cru da `394`); o Alerta tem **Reprocessar** em `/alertas`, com justificativa (`retry_import_effect`), não fecha no Reprocessar: fica aberto como "Reprocessando…" (botão desativado) e fecha só quando o efeito conclui (`succeeded`) ou é descartado (`superseded`, inclusive pela exclusão, decisão 7); se o efeito bloquear de novo, o mesmo Alerta (mesma ocorrência, sem nova notificação) volta ao bloqueado com o novo motivo (migration `395`, que substitui a regra da `348`). **Quem roda:** efeito cujo iniciador foi desativado roda como a conta de sistema "Vela (automático)" (`app_settings.system_billing_actor`, a mesma da frente financeira; sem ela, o primeiro Administrativo ativo), e o resultado guarda quem iniciou (`initiator_id`) e como rodou (`executed_as`). **Exclusão:** excluir o B/L ou a Viagem encerra os efeitos pendentes, em espera, em execução ou bloqueados deles como `superseded` com "descartado: registro excluído", sem abrir Alerta (o bloqueado tem o Alerta fechado); id que não existe (ou não é do tipo pedido) é recusado como "não encontrado" sem descartar nada, inclusive na prévia (migration `429`). **Substituição:** o efeito novo substitui o pendente do mesmo tipo e B/L também quando o produtor grava direto na fila (CE, Manifesto BB, veículos, datas, Granito). **Excluir e mover veículo** com o recálculo falhando é recusado inteiro desde a `379`/`381` (ADR 0094, B3), sem contagem antiga e sem efeito. A saúde da fila (`import_effects_queue_health`) conta também o efeito em execução com a lease vencida (`running_expired`, que entra no atraso do Alerta de fila parada) e os bloqueados. Fica de fora: o erro que escapa do runner (tempo esgotado, rede) ainda chega ao efeito como `lease_expired` depois de cinco leases, sem a causa. **Teste:** `src/integration/exclusaoEEfeitosImportacao.local-pg.test.ts`, `src/pages/__tests__/Alertas.reprocessar.test.tsx`.
 
 21. **CE e Manifesto Mercante andam juntos (ADR 0095, decisões 19 e 20; migration `396`).** O B/L fica no Manifesto Mercante só enquanto está ativo e tem CE; **Mover** recusa B/L sem CE (migration `478`). **Remover CE** na ficha tira o B/L do Manifesto, com o Histórico "Saiu do Manifesto Mercante: CE Mercante removido."; o CE só volta pela planilha de CE, que vincula o Manifesto informado nela. **Cancelar** o B/L o tira do Manifesto, com o Histórico "Saiu do Manifesto Mercante: B/L cancelado." e o motivo, e guarda o Manifesto (`bl_manifesto_mercante_parking`, só o gatilho escreve; índice da FK na `397`); **reativar** o recoloca, com o Histórico "Voltou ao Manifesto Mercante: B/L reativado.", se o Manifesto ainda existe, é da Viagem e da rota do B/L e o B/L tem CE (senão o B/L fica fora e a planilha o recoloca). B/L ativo com CE cujo POL, POD ou Viagem muda e que fica sem Manifesto abre o alerta **CE fora do Manifesto da rota** (`ce_fora_do_manifesto_da_rota`, normal, Documentação, link para a ficha do B/L), com o B/L, o CE, a rota nova e o Manifesto antigo; ele fecha sozinho quando o CE é trocado ou removido, quando o B/L entra num Manifesto (Mover ou planilha, sempre da rota do B/L) ou quando o B/L é cancelado, e excluir o B/L o apaga (`347`). A `396` tirou do Manifesto, com Histórico e guarda, os B/Ls já cancelados que ainda estavam vinculados (exceto os de Viagem cancelada, selada). **Teste:** `src/integration/ceEManifestoMercante.local-pg.test.ts`, `src/services/__tests__/ceForaDoManifestoAlerta.test.ts`.
+
+### EDI Mercante
+
+O arquivo que a agência envia ao Siscomex Mercante para manifestar a carga de
+importação de uma rota (POL → POD) é gerado pelo Vela desde a
+[ADR 0116](../adr/0116-edi-mercante-gerado-pelo-vela.md) (issue #560). O botão
+**Gerar EDI Mercante** fica na aba **Rotas e Manifestos** da Viagem, na linha
+de contêiner (Carga **CNTR** ou **CNTR/BB**) e na linha **VAZIOS**; na Viagem
+cancelada fica desabilitado. A janela mostra a prévia, os **Impedimentos** e os
+**Avisos**, e **Baixar arquivo** só baixa o `.TXT`: nada é gravado e o envio
+ao Mercante continua fora do Vela. **Código:**
+`src/components/voyages/MercanteEdiModal.tsx`,
+`src/services/mercanteEdiData.ts` (leitura), `src/services/mercanteEdi.ts`
+(montagem), `src/services/mercanteEdiTables.ts` (códigos);
+**Teste:** `mercanteEdi.test.ts`, `MercanteEdiModal.test.tsx`.
+
+- **Layout.** Manual do EDI Mercante 3.6: arquivo em UTF-8 com BOM, linhas
+  terminadas em CRLF (inclusive a última), texto em maiúsculas sem acento,
+  alfanuméricos alinhados à esquerda e numéricos com zeros à esquerda e
+  decimais implícitos. Carga: um M5 (manifesto), um C5 por B/L de contêiner
+  ativo da rota (ordem do número do B/L) e um I5 por contêiner do B/L. Vazios:
+  um M5 e um V5 por contêiner vazio da rota (substitui a planilha de três
+  colunas).
+- **Cabeçalho (M5).** Armador pelo SCAC do cadastro, IMO e número da Viagem,
+  POL e POD da rota, **encerramento** = ATD do POL da rota e **operação** = ETA
+  do POD, terminal = o da frente de operação de importação do POD na escala.
+  CNPJ da agência = Transhipping (`src/config/company.ts`).
+- **Conhecimento (C5).** Consignatário, CNPJ/CPF, embarcador, notify (o
+  próprio consignatário quando o B/L diz "SAME AS CONSIGNEE"), data de
+  emissão, descrição e o que não cabe nela nas observações, com
+  `TOTAL: n unidade`, cubagem, NCM (quatro dígitos, sem repetir, até 191),
+  frete básico = Ocean Freight do B/L com moeda e prepaid/collect, modalidade
+  pelo Type of Movement (FCL = H, LCL = P, por lado), UF do POD e, das
+  despesas, só o THD (componente `017`, em reais).
+- **Contêiner (I5).** Tipo pelo de→para do Mercante (40HC → `45G1`, 40GP →
+  `42G1`…), peso bruto, tara, cubagem, até quatro lacres, **compartilhado**
+  quando o número aparece em mais de um B/L ativo da Viagem, e IMO, classe e ONU
+  do contêiner como o Baplie aplicou (não a declaração do B/L; sem Baplie,
+  nenhum contêiner sai como IMO).
+- **Códigos.** Armador, terminal, porto que difere do código do Vela (CNTAC →
+  CNTAG, CNTAO → CNQIN), UF, tipo de contêiner e moeda ficam em tabelas fixas
+  no código; os portos e terminais são conferidos nas tabelas oficiais do
+  Mercante (`src/services/mercanteTableCodes.ts`). Código novo exige mudar a
+  tabela.
+- **Impedimentos** (o arquivo não é baixado): armador sem código Mercante;
+  rota sem ATD no POL ou sem ETA no POD; navio sem IMO; POD sem terminal com
+  código Mercante; porto fora da tabela do Mercante, POL brasileiro ou POD
+  estrangeiro; B/L à ordem; B/L sem consignatário, CNPJ/CPF, embarcador, data
+  de emissão, descrição, NCM, contêiner ou Ocean Freight maior que zero; moeda,
+  despesa, Type of Movement ou tipo de contêiner sem código; contêiner sem
+  peso, tara ou cubagem; contêiner IMO sem classe ou ONU; vazio sem tara.
+  Cada um diz o B/L ou contêiner e onde corrigir.
+- **Avisos** (o arquivo é baixado): texto cortado no tamanho do campo,
+  descrição que não coube, B/L sem total de volumes, contêiner sem lacre ou com
+  mais de quatro, mais NCM que o campo comporta, Viagem sem Baplie e B/L de
+  carga solta ou misto da rota (fica fora do arquivo nesta fase).
+- **Nome do arquivo.** `FWL_MERCANTE_<AAAAMMDDHHMM>_<sigla>.TXT`, com a sigla
+  das iniciais do navio e o número da viagem (GREEN GUANGZHOU V.6 → `GG6`).
+- **Fora desta fase.** Manifesto de carga solta (I5 de carga solta e veículo),
+  registro da geração no Histórico e retificação.
 
 ### Baplie: marcas, SOC/COC e divergências
 

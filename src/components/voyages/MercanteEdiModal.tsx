@@ -47,7 +47,7 @@ function IssueList({ title, issues, tone }: { title: string; issues: MercanteEdi
 }
 
 /**
- * Gerar EDI Mercante de uma linha de Rotas e Manifestos (issue #560): prévia
+ * Gerar EDI Mercante de uma linha de Rotas e Manifestos (issue 560): prévia
  * com os dados do manifesto, o que impede o download e os avisos. Só lê e
  * baixa o arquivo; o envio ao Mercante continua fora do Vela.
  */
@@ -58,7 +58,7 @@ export function MercanteEdiModal({ voyageId, route, onClose }: { voyageId: numbe
     if (!data) return null
     const extra: MercanteEdiIssue[] = []
     if (!data.hasBaplie && route.kind === 'carga') {
-      extra.push({ severity: 'aviso', ref: null, message: 'A Viagem não tem Baplie importado: o IMO de cada contêiner é o declarado no B/L, aplicado a todos os contêineres dele.' })
+      extra.push({ severity: 'aviso', ref: null, message: 'A Viagem não tem Baplie importado: o IMO vem do Baplie, então nenhum contêiner sai como carga perigosa. Importe o Baplie antes de enviar.' })
     }
     if (isCargo(data)) {
       for (const skipped of data.skippedBls) {
