@@ -120,6 +120,15 @@ describeLocal('Programação por planilha atômica (migration 188)', () => {
     expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_id = '${otherVoyage}::BRSSA';`)).toBe('0')
   })
 
+  it('IMO gravado fora do formato (o nome no campo IMO) é substituído pelo do arquivo (568)', () => {
+    seedVoyage('A235 KAPPA', 'A235 KAPPA', '015N')
+    const result = apply([row('A235 KAPPA', '9235015', '016N', '2026-11-15')])
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({ created: 1 })
+    expect(psql(`SELECT string_agg(name || ':' || COALESCE(imo, '-'), ',') FROM public.vessels WHERE name = 'A235 KAPPA';`)).toBe('A235 KAPPA:9235015')
+    expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name = 'A235 KAPPA';`)).toBe('2')
+  })
+
   it('IMO sem 7 dígitos ("TBA") não casa com navios sem IMO: a Viagem nova ganha navio próprio', () => {
     seedVoyage('A235 ZETA', null, '005N')
     seedVoyage('A235 ETA', null, '005N')

@@ -88,8 +88,10 @@ Portal ("Publica no Portal": Viagem existente oculta, mesmo sem data que mude)
 ou o erro (ex.: viagem ambígua), sem gravar (`planScheduleSheet`, com as mesmas
 regras de agenda da gravação individual). Na planilha, o IMO só identifica o
 navio com 7 dígitos (prefixo "IMO" aceito); "TBA", "-" e afins são ignorados com
-aviso e a busca é pelo nome. Nome igual com outro IMO cadastrado é erro da linha
-("IMO conflitante"), nunca fusão. Viagem cancelada é erro da linha (somente
+aviso e a busca é pelo nome. Nome igual com outro IMO cadastrado de 7 dígitos é
+erro da linha ("IMO conflitante"), nunca fusão; o IMO gravado fora do formato (o
+nome do navio digitado no campo IMO) é substituído pelo do arquivo, como na tela
+da Viagem (migration `568`). Viagem cancelada é erro da linha (somente
 leitura). A mesma Viagem e porto em mais de uma linha com datas diferentes
 recusa essas linhas; na Viagem nova, linhas com o mesmo número e o mesmo IMO
 ou o mesmo nome contam como a mesma Viagem, mesmo que só uma traga o IMO, e o

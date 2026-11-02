@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Planilha de programação corrige o IMO fora do formato (2026-11-02, migration `568`; achado da sincronização
+  do Manual do Operador):** a #1135 deixou corrigir pela Viagem o IMO gravado errado (o nome do navio no campo
+  IMO), mas a planilha de Chegadas e Saídas ainda recusava a linha como "IMO conflitante", na prévia e na
+  gravação. Agora só um IMO gravado de 7 dígitos conflita; o fora do formato é trocado pelo do arquivo.
 - **Impressão, modais e ajustes do Portal (2026-11-02; pedido do dono):** fatura, recibo e Invoice impressos (Vela e
   Portal) ganham margem de cima maior: 20 mm na página (antes 10 mm) mais 8 mm no começo do documento, que valem
   também quando o navegador imprime com "Margens: nenhuma". Os modais deixam de mostrar uma faixa sem desfoque no
