@@ -520,6 +520,10 @@ export const CAPTURAS = [
     async fazer({ page, base, cenario, arquivos }) {
       await abrir(page, base, '/baplie')
       await page.getByRole('button', { name: new RegExp(`${cenario.novaViagem.navio} / ${cenario.novaViagem.numero}`) }).first().click()
+      // A escolha da Viagem troca o endereço (?voyage=); a janela aberta antes
+      // disso fecha com a troca.
+      await page.waitForURL(/[?&]voyage=/)
+      await page.waitForLoadState('networkidle')
       const abrirImportacao = page.getByRole('button', { name: /Importar Baplie EDI/ }).first()
       await abrirImportacao.click()
       const dlg = page.getByRole('dialog')

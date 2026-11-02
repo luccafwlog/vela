@@ -60,5 +60,8 @@ disso toca o Supabase de produção.
   `vite` e rode as capturas de novo.
 - Se a tela mudar (rótulo, campo ou botão), a captura falha ao achar o
   elemento e grava `<id>.erro.png`: é o aviso de que o capítulo envelheceu.
+  Com `MANUAL_DEBUG=1`, o erro sai inteiro, e não só a primeira linha.
+- `npm run manual:cenario` apaga e recria o `manual_demo`: reinicie o
+  `sb-shim` depois, porque ele cai quando o banco some.
 - As funções de servidor (e-mail, Portal, Itaú) e as rotinas por horário não
   rodam no ambiente local; o efeito delas é descrito a partir das regras.
