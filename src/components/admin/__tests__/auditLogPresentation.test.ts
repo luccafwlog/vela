@@ -49,6 +49,8 @@ describe('Histórico de ações legível', () => {
     expect(describeAuditLog(log('voyage', 'sem_veiculos', null, 'declarada'))).toBe('Viagem sem veículos: declarada')
     expect(describeAuditLog(log('user_profile', 'role', 'documentacao', 'financeiro'))).toBe('Setor: Financeiro')
     expect(describeAuditLog(log('app_settings', 'communications_enabled', 'false', 'true'))).toBe('Envio real de e-mails: Sim')
+    // Dispensa da Demurrage no B/L: o valor é o container, não um "Dado".
+    expect(describeAuditLog(log('bl', 'demurrage_dispensa', null, 'TCLU1234567'))).toBe('Dispensa da Demurrage: TCLU1234567')
     const unknown = describeAuditLog(log('vessels', 'imo_number_x', '1', '2'))
     expect(unknown).toBe('Navio alterado')
     expect(unknown).not.toContain('imo_number_x')

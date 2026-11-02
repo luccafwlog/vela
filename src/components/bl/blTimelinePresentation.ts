@@ -242,6 +242,13 @@ function describeBlMark(field: string, oldValue: string | null, newValue: string
     const labels = Array.isArray(fields) ? fields.map((name) => FIELD_LABELS[String(name)] ?? null).filter(Boolean) : []
     return labels.length ? `Carga solta reimportada: ${labels.join(', ')}` : 'Carga solta reimportada'
   }
+  // Dispensa da cobrança de Demurrage (`waive_demurrage_box` e
+  // `revoke_demurrage_box_waiver`): o valor é o número do container.
+  if (field === 'demurrage_dispensa') {
+    const container = (newValue ?? oldValue ?? '').trim()
+    const who = container ? `Container ${container}` : 'Container'
+    return newValue ? `${who} · cobrança de Demurrage dispensada` : `${who} · dispensa da Demurrage desfeita`
+  }
   if (field === 'container_ownership' || field === 'container_profile') {
     const key = field === 'container_ownership' ? 'ownership' : 'profile'
     const before = parseJsonObject(oldValue)

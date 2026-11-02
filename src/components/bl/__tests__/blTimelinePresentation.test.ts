@@ -131,6 +131,9 @@ describe('Histórico do B/L: o que a importação muda (migration 404, F-23)', (
       .toBe('Carga solta reimportada: Peso (Ton), CBM carga solta')
     expect(describeTimelineEvent(ev('bl', 'container_ownership', '{"container":"TCLU1234567","ownership":"COC"}', '{"container":"TCLU1234567","ownership":"SOC"}')))
       .toBe('Container TCLU1234567 · SOC/COC: COC → SOC')
+    // Dispensa da Demurrage (waive_demurrage_box / revoke_demurrage_box_waiver).
+    expect(describeTimelineEvent(ev('bl', 'demurrage_dispensa', null, 'TCLU1234567'))).toBe('Container TCLU1234567 · cobrança de Demurrage dispensada')
+    expect(describeTimelineEvent(ev('bl', 'demurrage_dispensa', 'TCLU1234567', null))).toBe('Container TCLU1234567 · dispensa da Demurrage desfeita')
     expect(describeTimelineEvent(ev('bl', 'campo_interno_novo', 'a', 'b'))).toBe('Dado do B/L: a → b')
     expect(describeTimelineEvent(ev('charge_calculation', 'manual_delete', 'charge_item_id=7 | qty=1', null))).toBe('Cobrança manual excluída')
     // Migration 491: a alteração à mão aparece com a mesma frase do Histórico das taxas.

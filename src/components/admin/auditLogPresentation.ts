@@ -121,6 +121,8 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
 
 /** Rótulos de campo comuns às tabelas sem rótulo próprio. */
 const GENERIC_FIELD_LABELS: Record<string, string> = {
+  // Dispensa da cobrança de Demurrage no B/L: De/Para é o container.
+  demurrage_dispensa: 'Dispensa da Demurrage',
   name: 'Nome',
   cnpj_cpf: 'CNPJ',
   description: 'Descrição',
