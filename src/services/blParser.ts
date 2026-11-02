@@ -122,7 +122,7 @@ export async function parseBLBuffer(buffer: ArrayBuffer): Promise<ParsedBLDocume
     parties: {
       shipperBlock: cell(rows, 6, 'A'),
       consigneeBlock: cell(rows, 10, 'A'),
-      consigneeTaxId: extractTaxId(cell(rows, 10, 'A')),
+      consigneeTaxId: extractConsigneeTaxId(cell(rows, 10, 'A'), cargoDescription),
       consigneeEmail: extractEmail(cell(rows, 10, 'A')),
       notifyBlock: cell(rows, 14, 'A'),
       alsoNotifyBlock: cell(rows, 14, 'T'),
@@ -176,18 +176,17 @@ function parseCargoDescription(rows: RawSheetRow[]) {
 function parseTotalPackages(rows: RawSheetRow[], issues: BLNumberIssue[]) {
   for (let rowNumber = 44; rowNumber <= 60; rowNumber += 1) {
     if (cell(rows, rowNumber, 'A').trim() !== 'TOTAL:') continue
-    // ponytail: reconhece apenas unidade de palavra unica (UNITS, PACKAGES) e
-    // milhar no formato que toNumber entende. Unidade composta ("BIG BAGS") cai
-    // para null. Campo comercial/exibicao, sem impacto em faturamento; estender
-    // a classe para [A-Z ]+ e normalizar milhar se surgir B/L multi-palavra.
-    const match = cell(rows, rowNumber, 'C').match(/^\s*(\d[\d.,]*)\s+([A-Z]+)\s*$/i)
+    // Unidade de uma ou mais palavras ("775 WOODEN BOXES", "BIG BAGS"): o total
+    // vai ao EDI Mercante ("TOTAL: 775 WOODEN BOXES"). ponytail: milhar só no
+    // formato que toNumber entende; normalizar se surgir outro.
+    const match = cell(rows, rowNumber, 'C').match(/^\s*(\d[\d.,]*)\s+([A-Z]+(?:\s+[A-Z]+)*)\s*$/i)
     const totalPackages = match ? parseNumber(match[1]) : null
     if (match && totalPackages === null) {
       issues.push({ severity: 'warning', message: `Total de volumes "${match[1]}" não pôde ser lido: o B/L entra sem o total.` })
     }
     return {
       totalPackages,
-      packagesUnit: match ? match[2].toUpperCase() : null,
+      packagesUnit: match ? match[2].replace(/\s+/g, ' ').toUpperCase() : null,
     }
   }
   return { totalPackages: null, packagesUnit: null }
@@ -444,7 +443,26 @@ export function extractTaxId(value: string) {
     const cnpj = canonicalizeValidCnpj(match[1] ?? '')
     if (cnpj) return cnpj
   }
+  // Pontuação fora do padrão logo depois do rótulo ("CNPJ:17.140820/0007-77"):
+  // junta os 14 primeiros caracteres sem a pontuação e só aceita se passar nos
+  // dígitos verificadores, para não confundir telefone com CNPJ.
+  if (labeled) {
+    const loose = /^[0-9A-Z][0-9A-Z./\s-]{12,24}/i.exec(searchValue)?.[0].replace(/[^0-9A-Z]/gi, '') ?? ''
+    const cnpj = loose.length >= 14 ? canonicalizeValidCnpj(loose.slice(0, 14)) : null
+    if (cnpj) return cnpj
+  }
   return null
+}
+
+/**
+ * CNPJ do consignatário. O B/L COSCO marca com `**` o bloco que continua na
+ * descrição da carga ("STATE: ESPIRITO SANTO**" e, na descrição, "CNPJ: ..."):
+ * só nesse caso o CNPJ é procurado na descrição.
+ */
+export function extractConsigneeTaxId(consigneeBlock: string, cargoDescription: string) {
+  const fromBlock = extractTaxId(consigneeBlock)
+  if (fromBlock) return fromBlock
+  return consigneeBlock.trimEnd().endsWith('**') ? extractTaxId(cargoDescription) : null
 }
 
 export function extractEmail(value: string) {

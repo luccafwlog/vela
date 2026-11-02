@@ -14,6 +14,24 @@ describe('extractNcmCodes', () => {
     expect(extractNcmCodes('NCM : 8703.80.00\nUN NCM.:3556')).toEqual(['87038000'])
   })
 
+  it('splits comma-separated 4-digit lists instead of joining pairs', () => {
+    expect(extractNcmCodes('NCM:8715,3926,4819\nWOODEN PACKAGE:NOT APPLICABLE')).toEqual(['8715', '3926', '4819'])
+  })
+
+  it('reads long lists that continue on the next line after a separator', () => {
+    const desc = 'TOOLS\nNCM:8205/8510/8504/8506/8513/9617/\n8414/8544/3926/3924/3923\n\nWOODEN PACKAGE:NOT APPLICABLE'
+    expect(extractNcmCodes(desc)).toEqual(['8205', '8510', '8504', '8506', '8513', '9617', '8414', '8544', '3926', '3924', '3923'])
+  })
+
+  it('reads a list that starts on the line after the label', () => {
+    expect(extractNcmCodes('NCM:\n3926,4006,4009,\n7326,7412\nWOODEN PACKAGE')).toEqual(['3926', '4006', '4009', '7326', '7412'])
+  })
+
+  it('keeps dotted codes whole and does not read the next line as NCM', () => {
+    expect(extractNcmCodes('NCM:8479.60.00/4819.10.00\n1234 CARTONS')).toEqual(['84796000', '48191000'])
+    expect(extractNcmCodes('NCM:8427\n21 DAYS FREE TIME')).toEqual(['8427'])
+  })
+
   it('returns empty for blank or NCM-less text', () => {
     expect(extractNcmCodes('')).toEqual([])
     expect(extractNcmCodes('WOODEN PACKAGE: NOT APPLICABLE')).toEqual([])
