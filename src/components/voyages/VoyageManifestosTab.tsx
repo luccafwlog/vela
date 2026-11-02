@@ -1,9 +1,10 @@
 import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ManifestoBlsModal } from './ManifestoBlsModal'
+import { MercanteEdiModal, type MercanteEdiRoute } from './MercanteEdiModal'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
 import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
-import { FilePlus2, List, Pencil } from 'lucide-react'
+import { FileDown, FilePlus2, List, Pencil } from 'lucide-react'
 import { RowActionButton } from '../ui/RowActionButton'
 import { Block } from '../ui/Block'
 import { StatusText } from '../ui/StatusText'
@@ -36,6 +37,7 @@ export function VoyageManifestosTab({
 }) {
   const { data: transshipmentData } = useVoyageTransshipments(voyage.id)
   const [blsRoute, setBlsRoute] = useState<{ pol: string; pod: string; label: string } | null>(null)
+  const [ediRoute, setEdiRoute] = useState<MercanteEdiRoute | null>(null)
   const { data: dbManifestos } = useManifestosMercanteByVoyage(voyage.id)
   const manifestRows = collectVoyageManifestBatchRows({
     voyageId: voyage.id,
@@ -96,6 +98,8 @@ export function VoyageManifestosTab({
                   const manifestPending = !routeManifestos.length && !row.ceMaster && (row.blCount > 0 || row.isVazios)
                   const editPayload = { voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode }
                   const cannotEdit = !canEdit || !row.pol || row.pol === '-'
+                  // EDI Mercante: linha de container (CNTR ou CNTR/BB) e linha VAZIOS; carga solta fica para depois.
+                  const canGenerateEdi = row.isVazios ? (row.containerCount ?? 0) > 0 : row.blCount > 0 && row.modeLabel !== 'BB'
                   return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
                       <td className="app-table__text whitespace-nowrap">
@@ -141,6 +145,15 @@ export function VoyageManifestosTab({
                               disabled={!canEdit}
                             />
                           ) : null}
+                          {canGenerateEdi ? (
+                            <RowActionButton
+                              label={`Gerar EDI Mercante de ${row.routeLabel}${row.isVazios ? ' (vazios)' : ''}`}
+                              icon={FileDown}
+                              title="Gerar EDI Mercante"
+                              onClick={() => setEdiRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel, kind: row.isVazios ? 'vazio' : 'carga' })}
+                              disabled={cannotEdit}
+                            />
+                          ) : null}
                           {manifestPending ? (
                             <RowActionButton
                               label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
@@ -174,6 +187,9 @@ export function VoyageManifestosTab({
 
       {blsRoute ? (
         <ManifestoBlsModal open voyageId={voyage.id} route={blsRoute} onClose={() => setBlsRoute(null)} />
+      ) : null}
+      {ediRoute ? (
+        <MercanteEdiModal voyageId={voyage.id} route={ediRoute} onClose={() => setEdiRoute(null)} />
       ) : null}
     </>
   )

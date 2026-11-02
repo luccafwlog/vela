@@ -272,7 +272,8 @@ describe('VoyageManifestosTab', () => {
     expect(html).not.toContain('ETD previsto')
     expect(html).toContain('href="/bls?voyage=14&amp;pol=CNTAC&amp;pod=BRVIX"')
     expect(html).not.toContain('Rota derivada dos B/Ls')
-    expect(html).not.toContain('Gerar EDI Mercante')
+    // ADR 0116: a linha de contêiner volta a gerar o EDI Mercante (antes removido pela ADR 0025).
+    expect(html).toContain('aria-label="Gerar EDI Mercante de TAICANG → VITORIA"')
   })
 
   it('marca a rota desviada e sinaliza manifesto pendente', () => {

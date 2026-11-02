@@ -66,4 +66,11 @@ describe('Rotas e manifestos: carga e vazios na mesma rota POL/POD', () => {
     expect(within(vazios).getByText('1226501801999')).toBeTruthy()
     expect(within(vazios).queryByText('1226501801342')).toBeNull()
   })
+
+  it('linha de contêiner e linha VAZIOS oferecem Gerar EDI Mercante (issue #560)', () => {
+    const { carga, vazios } = renderTab()
+
+    expect(within(carga).getByRole('button', { name: /^Gerar EDI Mercante de [^(]*$/ })).toBeTruthy()
+    expect(within(vazios).getByRole('button', { name: /Gerar EDI Mercante de .*\(vazios\)/ })).toBeTruthy()
+  })
 })
