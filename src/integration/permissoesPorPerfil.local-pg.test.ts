@@ -826,6 +826,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Excluir viagem com Trava', allowed: ADM, call: `public.delete_records('voyage', ARRAY['-1'], true, 'motivo')` },
     { row: 'Excluir escala', allowed: ADM, call: `public.delete_escala(-1, 'BRZZZ', true, 'motivo')` },
     { row: 'Excluir Cliente', allowed: ADM, call: `public.delete_records('customer', ARRAY['-1'], true, 'motivo')` },
+    // Migration 544: a guarda do Administrativo vem antes da busca do embarque.
+    { row: 'Excluir Embarque de vazios', allowed: ADM, call: `public.delete_vazios_export_operation(gen_random_uuid(), true, 'motivo')` },
     { row: 'Excluir cadastro sem uso', allowed: ADM, call: `public.delete_catalog_row('depots', '00000000-0000-0000-0000-000000000000', 'motivo')` },
     { row: 'Cancelar baixa', allowed: ADM, call: `public.reverse_invoice_payment(-1, 'motivo', '{actor}')` },
     { row: 'Cancelar fatura', allowed: ADM, call: `public.cancel_invoice(-1, 'motivo', '{actor}')` },
@@ -907,6 +909,9 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Editar item de Taxas Locais', statement: `UPDATE public.charge_table_items SET name = name WHERE id = ${ITEM_THC}` },
     { row: 'Lançar taxa manual', statement: `SELECT public.add_manual_bl_charge('${BL}', ${ITEM_MANUAL}, 1, 'Taxa P14', NULL)` },
     { row: 'Condição de Demurrage do B/L', statement: `SELECT public.save_bl_demurrage_config('${BL}', NULL, 7, NULL, NULL, '{actor}')` },
+    // Migrations 517, 530 e 548: usuário interno ativo; a busca da caixa vem depois da guarda.
+    { row: 'Dispensar a cobrança de Demurrage', statement: `SELECT public.waive_demurrage_box('P14-INEXISTENTE', 'P14U0000000', 'motivo do teste P14')` },
+    { row: 'Desfazer a dispensa de Demurrage', statement: `SELECT public.revoke_demurrage_box_waiver(-1, 'motivo do teste P14')` },
     { row: 'Editar os dados da disputa', statement: `UPDATE public.demurrage_invoices SET dispute_notes = 'P14' WHERE id = ${DEM_INVOICE_ID}` },
     { row: 'Editar Cliente', statement: `UPDATE public.customers SET trade_name = 'P14' WHERE id = ${CUSTOMER_ID}` },
     // Lê a linha semeada: sem a leitura, a RLS devolve zero linhas e o caso dá SEM-LINHA (count(*) sempre devolveria uma).

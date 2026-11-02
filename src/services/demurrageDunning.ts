@@ -90,7 +90,7 @@ export function demurrageDunningPauseReason(invoice: DunningInvoiceFields, hasVa
     if (stale) {
       if (stale.cause.startsWith('Datas')) return 'datas alteradas, aguarda tratamento'
       if (stale.cause.includes('SOC')) return 'container passou a SOC, aguarda tratamento'
-      return 'divisão da caixa alterada, aguarda tratamento'
+      return 'divisão do container alterada, aguarda tratamento'
     }
     // Recusa definitiva do provedor (migration 305): resolver o alerta retoma.
     if (suspended.startsWith('Cobrança recusada pelo provedor')) return 'e-mail recusado pelo provedor, corrija o contato e resolva o alerta'

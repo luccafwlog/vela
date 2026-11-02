@@ -6,12 +6,13 @@ import type { CustomerSortKey, SortDirection } from '../lib/customerTableViewMod
 export const CUSTOMER_PAGE_SIZE = 50
 
 type PresenceFilter = '' | 'with' | 'without'
-type PresenceKey = 'emailStatus' | 'blStatus' | 'pendingStatus'
+type PresenceKey = 'emailStatus' | 'blStatus' | 'pendingStatus' | 'chargeStatus'
 
 const PRESENCE_PARAMS: Record<PresenceKey, string> = {
   emailStatus: 'emails',
   blStatus: 'bls',
   pendingStatus: 'saldo',
+  chargeStatus: 'taxas',
 }
 const PRESENCE_VALUES: Record<string, PresenceFilter> = { com: 'with', sem: 'without' }
 const PRESENCE_PARAM_VALUES: Record<Exclude<PresenceFilter, ''>, string> = { with: 'com', without: 'sem' }
@@ -24,6 +25,7 @@ export const EMPTY_CUSTOMER_FILTERS: CustomerFilters = {
   emailStatus: '',
   blStatus: '',
   pendingStatus: '',
+  chargeStatus: '',
   sortKey: 'name',
   sortDirection: 'asc',
   page: 0,

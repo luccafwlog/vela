@@ -260,6 +260,15 @@ export function auditEventText(row: TimelineSources['auditLogs'][number]) {
   if (row.field_name === 'contact_added') return { label: 'E-mail incluído', detail: `${row.new_value ?? '—'}${suffix}` }
   if (row.field_name === 'contact_removed') return { label: 'E-mail retirado', detail: `${row.old_value ?? '—'}${suffix}` }
   if (row.field_name === 'contact_email') return { label: 'E-mail alterado', detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${suffix}` }
+  // Migration 375: o reprocesso do faturamento retido grava um resumo em JSON
+  // (com o id do Cliente); a tela mostra a frase, não o registro técnico.
+  if (row.field_name === 'held_billing_reprocessed') {
+    return { label: 'Faturamento retido reprocessado', detail: suffix ? suffix.replace(/^ · /, '') : null }
+  }
+  // Campo sem rótulo com registro em JSON: a frase genérica, sem o JSON.
+  if (!CUSTOMER_FIELD_LABELS[row.field_name] && [row.old_value, row.new_value].some((value) => value?.trim().startsWith('{'))) {
+    return { label: 'Cadastro alterado: dado cadastral', detail: suffix ? suffix.replace(/^ · /, '') : null }
+  }
   return {
     label: `Cadastro alterado: ${CUSTOMER_FIELD_LABELS[row.field_name] ?? 'dado cadastral'}`,
     detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${suffix}`,
@@ -341,8 +350,8 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
     ...sources.portalEvents.map((row) => ({ kind: 'portal_event' as const, sourceId: String(row.id), at: row.created_at, label: `Portal: ${row.new_decision ? provisioningDecisionLabel(row.new_decision) : row.new_situation ? accountSituationLabel(row.new_situation) : 'evento'}`, detail: row.actor_type === 'system' ? null : row.reason, link: null, actor: row.actor_type === 'system' ? 'Sistema' : actorName(row.actor_id) })),
     ...sources.contacts.filter((row) => row.created_at).map((row) => ({ kind: 'contact_created' as const, sourceId: String(row.id), at: row.created_at!, label: `Contato criado: ${row.name ?? '—'}`, detail: null, link: null })),
     ...contactEvents,
-    ...sources.localInvoices.filter((row) => row.issued_at).map((row) => ({ kind: 'local_invoice_issued' as const, sourceId: String(row.id), at: row.issued_at!, label: `Fatura emitida: ${row.invoice_number ?? `INV-${row.id}`}`, detail: null, link: `/taxas-locais?${sources.customerId ? `customer=${sources.customerId}&` : ''}invoice=${row.id}` })),
-    ...(sources.payments ?? []).filter((row) => row.paid_at).map((row) => ({ kind: 'local_payment' as const, sourceId: String(row.id), at: row.paid_at!, label: `Pagamento recebido: ${row.invoice?.invoice_number ?? (row.invoice ? `INV-${row.invoice.id}` : '—')}`, detail: formatBRL(row.amount_brl), actor: row.registered_by_name ?? null, link: row.invoice ? `/taxas-locais?${sources.customerId ? `customer=${sources.customerId}&` : ''}invoice=${row.invoice.id}` : null })),
+    ...sources.localInvoices.filter((row) => row.issued_at).map((row) => ({ kind: 'local_invoice_issued' as const, sourceId: String(row.id), at: row.issued_at!, label: row.invoice_number ? `Fatura emitida: ${row.invoice_number}` : 'Fatura emitida (sem número)', detail: null, link: `/taxas-locais?${sources.customerId ? `customer=${sources.customerId}&` : ''}invoice=${row.id}` })),
+    ...(sources.payments ?? []).filter((row) => row.paid_at).map((row) => ({ kind: 'local_payment' as const, sourceId: String(row.id), at: row.paid_at!, label: `Pagamento recebido: ${row.invoice?.invoice_number ?? (row.invoice ? 'fatura sem número' : '—')}`, detail: formatBRL(row.amount_brl), actor: row.registered_by_name ?? null, link: row.invoice ? `/taxas-locais?${sources.customerId ? `customer=${sources.customerId}&` : ''}invoice=${row.invoice.id}` : null })),
     ...sources.demurrageInvoices.flatMap((row) => [
       ...(row.billed_at ? [{ kind: 'demurrage_invoice_issued' as const, sourceId: `${row.id}:issued`, at: row.billed_at, label: `Demurrage emitida: ${row.doc_number}`, detail: null, link: '/demurrage' }] : []),
       ...(row.paid_at ? [{ kind: 'demurrage_invoice_paid' as const, sourceId: `${row.id}:paid`, at: row.paid_at, label: `Demurrage paga: ${row.doc_number}`, detail: null, link: '/demurrage' }] : []),

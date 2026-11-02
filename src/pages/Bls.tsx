@@ -50,7 +50,7 @@ type CargoLens = NonNullable<BlFilters['cargoMode']>
 
 const CARGO_LENSES: { value: CargoLens; label: string }[] = [
   { value: '', label: 'Todos' },
-  { value: 'container', label: 'Contêiner' },
+  { value: 'container', label: 'Container' },
   { value: 'carga_solta', label: 'Carga solta' },
   { value: 'misto', label: 'Misto' },
 ]
@@ -284,7 +284,7 @@ export function Bls() {
   }
 
   const importItems: ActionMenuItem[] = [
-    { key: 'cntr', label: 'B/L de contêiner (.xlsx)', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setBlFreightOpen(true) },
+    { key: 'cntr', label: 'B/L de container (.xlsx)', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setBlFreightOpen(true) },
     { key: 'avulso', label: 'B/L de carga solta (.pdf, .docx)', icon: <FileText size={14} aria-hidden="true" />, onSelect: () => setBlDocumentOpen(true) },
     { key: 'bb', label: 'Manifesto de carga solta (BB)', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setBreakbulkOpen(true) },
     { key: 'ce', label: 'CE Mercante', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setCeMercanteOpen(true) },
@@ -309,12 +309,12 @@ export function Bls() {
 
   const emptyAction = hasAnyFilter
     ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
-    : canImport ? <Button onClick={() => setBlFreightOpen(true)}>Importar B/L de contêiner</Button> : undefined
+    : canImport ? <Button onClick={() => setBlFreightOpen(true)}>Importar B/L de container</Button> : undefined
 
   return (
     <>
       <PageHeader
-        title="BLs"
+        title="B/Ls"
         action={
           <>
             {canImport ? (
@@ -358,7 +358,7 @@ export function Bls() {
 
       <div className="app-metric-row" role="group" aria-label="Totais do recorte">
         <MetricCard label="B/Ls" value={metric(summary?.totalBls)} />
-        <MetricCard label="Contêineres" value={metric(summary?.totalDistinctContainers)} />
+        <MetricCard label="Containers" value={metric(summary?.totalDistinctContainers)} />
         <MetricCard label="Volume" value={withUnit(metric(summary?.totalCbm, 1), 'm³')} />
         <MetricCard
           label="Carga solta"
@@ -369,14 +369,12 @@ export function Bls() {
           label="Taxas pendentes"
           value={metric(summary?.chargePending)}
           tone={chargePending > 0 ? 'warning' : 'secondary'}
-          detail="Toque para filtrar"
           selected={filters.chargeStatus === 'pending'}
           onSelect={() => toggleChargeFilter('pending')}
         />
         <MetricCard
           label="Isentos"
           value={metric(summary?.chargeExempt)}
-          detail="Toque para filtrar"
           selected={filters.chargeStatus === 'exempt'}
           onSelect={() => toggleChargeFilter('exempt')}
         />

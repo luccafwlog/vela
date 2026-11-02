@@ -45,8 +45,8 @@ function matchesSituation({ row, view }: Line, situation: Situation) {
 }
 
 /**
- * Aba Contêineres da ficha do Cliente (pedida e aprovada em 2026-10-14):
- * uma linha por contêiner dos B/Ls do Cliente, em tabela limpa — oito
+ * Aba Containers da ficha do Cliente (pedida e aprovada em 2026-10-14):
+ * uma linha por container dos B/Ls do Cliente, em tabela limpa — oito
  * colunas, uma linha de título, nada embaixo do valor. Origem do free time e
  * "Não se aplica (SOC)" aparecem ao passar o mouse.
  */
@@ -90,7 +90,7 @@ export function ConteineresTab({ data }: { data: Data }) {
       const { exportCustomerContainersWorkbook } = await import('../../services/exports')
       await exportCustomerContainersWorkbook(data.name, filtered)
     } catch {
-      showToast('Falha ao exportar os contêineres.', 'error')
+      showToast('Falha ao exportar os containers.', 'error')
     } finally {
       setExporting(false)
     }
@@ -98,13 +98,13 @@ export function ConteineresTab({ data }: { data: Data }) {
 
   return (
     <Block
-      title="Contêineres"
+      title="Containers"
       headingLevel={2}
       flush
       aside={(
         <>
           <span>
-            {formatCountLabel(lines.length, 'contêiner', 'contêineres')} · {withCustomer} com o Cliente
+            {formatCountLabel(lines.length, 'container', 'containers')} · {withCustomer} com o Cliente
             {openUsd > 0 ? <> · <StatusText tone="warning">{fmtUSD(openUsd)} em curso ou a faturar</StatusText></> : null}
           </span>
           <Button variant="secondary" className="app-btn--sm" loading={exporting} loadingLabel="Exportando…" disabled={!filtered.length} onClick={() => void handleExport()}>
@@ -116,7 +116,7 @@ export function ConteineresTab({ data }: { data: Data }) {
     >
       <div className="app-block__body">
         <div className="app-filter-grid">
-          <Field label="Buscar contêiner ou B/L">
+          <Field label="Buscar container ou B/L">
             <Input placeholder="Ex.: CSNU6012301" value={search} onChange={(event) => update(setSearch)(event.target.value)} />
           </Field>
           <Field label="Situação">
@@ -133,24 +133,24 @@ export function ConteineresTab({ data }: { data: Data }) {
         </div>
       </div>
       {query.isLoading ? (
-        <p className="app-block__body app-facts__detail" role="status">Carregando os contêineres…</p>
+        <p className="app-block__body app-facts__detail" role="status">Carregando os containers…</p>
       ) : query.isError ? (
         <div className="app-block__body app-customer-notice app-customer-notice--danger" role="alert">
-          <span>Não foi possível carregar os contêineres.</span>
+          <span>Não foi possível carregar os containers.</span>
           <Button variant="secondary" className="app-btn--sm" onClick={() => void query.refetch()}>Tentar novamente</Button>
         </div>
       ) : !lines.length ? (
-        <p className="app-block__body app-facts__detail">Nenhum contêiner nos B/Ls deste Cliente.</p>
+        <p className="app-block__body app-facts__detail">Nenhum container nos B/Ls deste Cliente.</p>
       ) : !filtered.length ? (
-        <p className="app-block__body app-facts__detail">Nenhum contêiner com esses filtros.</p>
+        <p className="app-block__body app-facts__detail">Nenhum container com esses filtros.</p>
       ) : (
         <>
           <div className="app-table-scroll">
             <table className="app-table app-table--compact">
-              <caption className="sr-only">Contêineres dos B/Ls do Cliente</caption>
+              <caption className="sr-only">Containers dos B/Ls do Cliente</caption>
               <thead>
                 <tr>
-                  <th scope="col">Contêiner</th>
+                  <th scope="col">Container</th>
                   <th scope="col">B/L</th>
                   <th scope="col">Tipo</th>
                   <th scope="col">Descarga</th>
@@ -164,12 +164,12 @@ export function ConteineresTab({ data }: { data: Data }) {
                 {shown.map(({ row, view }) => (
                   <tr key={row.id}>
                     <td className="app-customer-code whitespace-nowrap">
-                      {row.container_number ? <CopyValue value={row.container_number} label="número do contêiner" /> : <NoValue label="Sem número do contêiner" />}
+                      {row.container_number ? <CopyValue value={row.container_number} label="número do container" /> : <NoValue label="Sem número do container" />}
                     </td>
                     <td className="whitespace-nowrap"><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td>
                     <td className="whitespace-nowrap">
                       {row.type ?? <NoValue label="Sem tipo" />}
-                      {view.soc ? <> <span className="app-status-text app-status-text--muted" title="Contêiner do Cliente: sem devolução nem Demurrage">SOC</span></> : null}
+                      {view.soc ? <> <span className="app-status-text app-status-text--muted" title="Container do Cliente: sem devolução nem Demurrage">SOC</span></> : null}
                     </td>
                     <td className="whitespace-nowrap tabular-nums">{row.discharge_date ? formatDate(row.discharge_date) : <NoValue label="Sem descarga" />}</td>
                     <td className="whitespace-nowrap tabular-nums">{row.return_date ? formatDate(row.return_date) : <NoValue label={view.soc ? 'Não se aplica (SOC)' : 'Sem devolução'} />}</td>

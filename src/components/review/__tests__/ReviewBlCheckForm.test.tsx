@@ -13,16 +13,16 @@ function makeItem(overrides: Record<string, unknown>) {
 }
 
 describe('ReviewBlCheckForm', () => {
-  it('carga solta edita as colunas de carga solta, e não as de contêiner', () => {
+  it('carga solta edita as colunas de carga solta, e não as de container', () => {
     render(<ReviewBlCheckForm item={makeItem({ cargo_mode: 'carga_solta', bb_weight_ton: 259.312, bb_cbm: 1217.109 })} saving={false} onSave={vi.fn()} />)
     expect((screen.getByLabelText('Peso carga solta (t)') as HTMLInputElement).value).toBe('259.312')
     expect((screen.getByLabelText('CBM carga solta (m³)') as HTMLInputElement).value).toBe('1217.109')
-    expect(screen.queryByLabelText('CBM contêiner (m³)')).toBeNull()
+    expect(screen.queryByLabelText('CBM container (m³)')).toBeNull()
   })
 
   it('B/L misto edita os dois pares', () => {
     render(<ReviewBlCheckForm item={makeItem({ cargo_mode: 'misto', total_cbm: 58.4, bb_cbm: 120 })} saving={false} onSave={vi.fn()} />)
-    expect((screen.getByLabelText('CBM contêiner (m³)') as HTMLInputElement).value).toBe('58.4')
+    expect((screen.getByLabelText('CBM container (m³)') as HTMLInputElement).value).toBe('58.4')
     expect((screen.getByLabelText('CBM carga solta (m³)') as HTMLInputElement).value).toBe('120')
   })
 
@@ -30,20 +30,20 @@ describe('ReviewBlCheckForm', () => {
     const user = userEvent.setup()
     const onSave = vi.fn()
     render(<ReviewBlCheckForm item={makeItem({ cargo_mode: 'container', total_weight_kg: 24000 })} saving={false} onSave={onSave} />)
-    await user.clear(screen.getByLabelText('Peso contêiner (kg)'))
-    await user.type(screen.getByLabelText('Peso contêiner (kg)'), '24100,5')
+    await user.clear(screen.getByLabelText('Peso container (kg)'))
+    await user.type(screen.getByLabelText('Peso container (kg)'), '24100,5')
     await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
     expect(onSave.mock.calls[0][1]).toMatchObject({ total_weight_kg: 24100.5, justification: 'Revisão manual', shipper: 'Sany' })
 
     await user.click(screen.getByRole('button', { name: 'Descartar' }))
-    expect((screen.getByLabelText('Peso contêiner (kg)') as HTMLInputElement).value).toBe('24000')
+    expect((screen.getByLabelText('Peso container (kg)') as HTMLInputElement).value).toBe('24000')
   })
 
   it('número que não se lê trava o salvar em vez de limpar o campo', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn()
     render(<ReviewBlCheckForm item={makeItem({ cargo_mode: 'container', total_weight_kg: 24000 })} saving={false} onSave={onSave} />)
-    const weight = screen.getByLabelText('Peso contêiner (kg)')
+    const weight = screen.getByLabelText('Peso container (kg)')
     await user.clear(weight)
     await user.type(weight, '24.000')
     expect(weight.getAttribute('aria-invalid')).toBe('true')

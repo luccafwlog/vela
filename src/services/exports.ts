@@ -20,9 +20,11 @@ import { formatDate } from '../lib/utils'
 import { arrivalDisplay } from '../lib/escalaState'
 import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
 import type { LineUpRow } from './lineup'
+import type { PortalScheduleVoyage } from './portalScheduleVoyages'
+import { scheduleExportRows, scheduleTemplateColumns } from './portalScheduleBulkImport'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from './portalBilling'
 import type { PortalOperationBL } from './portalOperation'
-import { localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
+import { blReturnSummary, localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
 import type { CeUnlockItem } from '../types/ceUnlock'
@@ -112,6 +114,14 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
   XLSX.writeFile(workbook, `manifestos-${makeTimestamp()}.xlsx`)
 }
 
+export async function exportScheduleWorkbook(voyages: PortalScheduleVoyage[]): Promise<void> {
+  const XLSX = await import('@e965/xlsx')
+  const workbook = XLSX.utils.book_new()
+  const sheet = XLSX.utils.json_to_sheet(sanitizeSheetRows(scheduleExportRows(voyages)), { header: scheduleTemplateColumns() })
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Programacao')
+  XLSX.writeFile(workbook, `programacao-navios-${makeTimestamp()}.xlsx`)
+}
+
 export async function exportPortalProvisioningWorkbook(rows: QueueRow[]): Promise<void> {
   const XLSX = await import('@e965/xlsx')
   const workbook = XLSX.utils.book_new()
@@ -193,7 +203,7 @@ export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
       Emissao: row.issued_at ? formatDate(row.issued_at) : '',
       DataPagamento: getInvoicePaymentDate(row) ? formatDate(getInvoicePaymentDate(row)) : '',
       QtdBLs: bls.length,
-      BLs: bls.map((bl) => bl.bl_id).join(' • '),
+      'B/Ls': bls.map((bl) => bl.bl_id).join(' • '),
       Navio: navios,
       Viagem: viagens,
       POD: pods,
@@ -360,7 +370,7 @@ export function demurrageItemSheetRows(rows: readonly DemurrageItemReportRow[]) 
     '2º período (dias)': row.days_p2 ?? '',
     '2º período (US$/dia)': usdCell(row.rate_p2_usd),
     US$: usdCell(row.subtotal_usd),
-    'Parte da caixa': boxShareLabel(row.box_share_count) ?? '',
+    'Parte do container': boxShareLabel(row.box_share_count) ?? '',
   }))
 }
 
@@ -547,6 +557,8 @@ export async function exportPortalBlsWorkbook(rows: PortalOperationBL[]) {
     Devolvidos: row.containers_returned,
     'Sem devolucao': row.container_count - row.containers_returned,
     'Em demurrage': row.containers_in_demurrage,
+    // Mesma conta da coluna Demurrage da tela (observação de 2026-11-01).
+    'Devolvidos com demurrage': blReturnSummary(row).returnedWithDemurrage,
     ...portalBlLocalChargesColumns(row),
   }))
 
@@ -627,7 +639,7 @@ function makeTimestamp() {
   return parts.join('')
 }
 
-/** Aba Contêineres da ficha do Cliente: a lista filtrada, em português, sem campos de sistema. */
+/** Aba Containers da ficha do Cliente: a lista filtrada, em português, sem campos de sistema. */
 export async function exportCustomerContainersWorkbook(customerName: string, rows: Array<{ row: import('./demurrage/demurrageContainers').DemurrageContainerRow; view: import('./demurrage/customerContainers').CustomerContainerView }>) {
   const XLSX = await import('@e965/xlsx')
   const demurrageText = (view: import('./demurrage/customerContainers').CustomerContainerView) => {
@@ -641,7 +653,7 @@ export async function exportCustomerContainersWorkbook(customerName: string, row
     return ''
   }
   const exportRows = rows.map(({ row, view }) => ({
-    'Contêiner': row.container_number ?? '',
+    'Container': row.container_number ?? '',
     'B/L': row.bl_id ?? '',
     'Navio / Viagem': row.bl?.voyage ? `${row.bl.voyage.vessel?.name ?? ''} / ${row.bl.voyage.voyage_number ?? ''}` : '',
     Tipo: row.type ?? '',
@@ -655,7 +667,7 @@ export async function exportCustomerContainersWorkbook(customerName: string, row
     Demurrage: demurrageText(view),
   }))
   const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Contêineres')
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Containers')
   const slug = customerName.normalize('NFD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
   XLSX.writeFile(workbook, `conteineres-${slug || 'cliente'}-${makeTimestamp()}.xlsx`)
 }
@@ -691,8 +703,8 @@ export function buildValidacaoSheetRows(
       'Detalhe do motivo': block.detail,
       'Último cálculo': row.charges_calculated_at ? formatDate(row.charges_calculated_at) : '',
       Subtotal: Number(Number(row.totals.total_brl ?? 0).toFixed(2)),
-      // ADR 0038: o rateio por contêiner tem contraparte em outro B/L da Viagem.
-      'Contêiner compartilhado': sharedContainers.get(row.id) ?? '',
+      // ADR 0038: o rateio por container tem contraparte em outro B/L da Viagem.
+      'Container compartilhado': sharedContainers.get(row.id) ?? '',
       // ADR 0111: "THD: R$ 1.420,00 → R$ 1.200,00 por container; Taxa X: excluída; Isento à mão".
       'Taxas alteradas à mão': describeChargeAdjustments(row.adjustments),
       ...charges,

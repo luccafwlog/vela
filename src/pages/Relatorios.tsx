@@ -589,11 +589,8 @@ function FinancialReportView(props: ViewProps) {
       ) : (
         <>
           <div className="app-metric-row" role="group" aria-label="Totais do recorte">
-            <MetricCard
-              label="Saldo em aberto"
-              value={formatBRL(data?.kpis.totalOpen ?? 0)}
-              tone={(data?.kpis.totalOpen ?? 0) > 0 ? 'warning' : 'secondary'}
-            />
+            {/* Relatório não resolve o saldo: o número fica sem âmbar (regra 5, 2026-11-01). */}
+            <MetricCard label="Saldo em aberto" value={formatBRL(data?.kpis.totalOpen ?? 0)} />
             <MetricCard label="Faturas" value={(data?.kpis.totalInvoices ?? 0).toLocaleString('pt-BR')} detail="Emitidas, sem rascunho nem cancelada" />
             <MetricCard label="Emitido" value={formatBRL(data?.kpis.totalIssued ?? 0)} />
             <MetricCard label="Pago" value={formatBRL(data?.kpis.totalPaid ?? 0)} />

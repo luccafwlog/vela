@@ -3,6 +3,11 @@ import { fetchROE } from '../services/demurrage/demurrageRoe'
 
 const QUERY_KEY = ['header-roe-reference'] as const
 
+/**
+ * Câmbio de referência (PTAX venda e ROE) para a linha de câmbio da tela
+ * Demurrage. O nome vem da faixa do alto de todas as telas, que saiu em
+ * 2026-11-01.
+ */
 export function useRoeHeaderRate() {
   const queryClient = useQueryClient()
   const query = useQuery({

@@ -1,4 +1,5 @@
-// Migrations 482 e 490 (revisão da PR #1070; ADR 0109): TBC não é terminal. A
+// Migrations 482 e 490 (revisão da PR #1070; ADR 0109): TBC não é terminal.
+// A 556 pôs acento na recusa do LOCODE do corpo que a 482 renomeou. A
 // Atracação TBC sai sem a trava de documento do porto, não aceita ETB, ETD,
 // ATB, ATD nem Restow, e a gravação v1 segue a regra do ATA. Cada cenário roda
 // numa transação desfeita no fim.
@@ -85,5 +86,13 @@ describeLocal('TBC não é terminal (migrations 482 e 490)', () => {
       SELECT public.save_voyage_escala_terminal_state(${VOYAGE}, 'BRVIX', 0, ${tbcFront}, '[{"terminal_id":null}]', '${WITH_ATA}', NULL);
     `)
     expect(stderr).toMatch(/Com o ATA registrado, toda frente de operação precisa de terminal/)
+  })
+
+  it('porto que não é LOCODE brasileiro é recusado com acento (migration 556)', () => {
+    const { stderr } = scenario(`
+      ${asAdm}
+      SELECT public.save_voyage_escala_terminal_state(${VOYAGE}, 'BRAB', 0, ${tbcFront}, '[]', '${IMPORT_ONLY}', NULL);
+    `)
+    expect(stderr).toContain('LOCODE brasileiro inválido: BRAB.')
   })
 })

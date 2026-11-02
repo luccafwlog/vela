@@ -17,6 +17,8 @@ const CUSTOMER_XYZ = 99271011
 const CUSTOMER_ABC = 99271012
 const CNPJ_XYZ = syntheticCnpj(271011)
 const CNPJ_ABC = syntheticCnpj(271012)
+// Cliente que nasce do manifesto (557): sem cadastro antes do teste.
+const CNPJ_NEW = syntheticCnpj(271013)
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
@@ -34,6 +36,15 @@ function linkAsAdmin(blId: string, customerId: number): { ok: boolean; error: st
   return { ok: result.status === 0, error: (result.stderr ?? '').trim() }
 }
 
+function asAdmin(sql: string): { out: string; error: string } {
+  const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${ADMIN}';
+     SET LOCAL request.jwt.claim.role = 'authenticated';
+     ${sql}
+     COMMIT;`], { encoding: 'utf8' })
+  return { out: (result.stdout ?? '').trim(), error: (result.stderr ?? '').trim() }
+}
+
 function contactEmails(customerId: number): string {
   return psql(`SELECT COALESCE(string_agg(email, ',' ORDER BY email), '') FROM public.customer_contacts WHERE customer_id = ${customerId};`)
 }
@@ -44,6 +55,12 @@ function cleanup() {
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM public.bls WHERE voyage_id = ${VOYAGE_ID});
     DELETE FROM public.audit_logs WHERE entity_id IN (SELECT id FROM public.bls WHERE voyage_id = ${VOYAGE_ID}) OR changed_by = '${ADMIN}';
     DELETE FROM public.bls WHERE voyage_id = ${VOYAGE_ID};
+    DELETE FROM public.customer_contact_box_links WHERE contact_id IN (SELECT id FROM public.customer_contacts WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${CNPJ_NEW}'));
+    DELETE FROM public.customer_contact_change_events WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${CNPJ_NEW}');
+    DELETE FROM public.customer_contacts WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${CNPJ_NEW}');
+    DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${CNPJ_NEW}');
+    DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${CNPJ_NEW}');
+    DELETE FROM public.customers WHERE cnpj_cpf = '${CNPJ_NEW}';
     DELETE FROM public.customer_contact_change_events WHERE customer_id IN (${CUSTOMER_XYZ}, ${CUSTOMER_ABC});
     DELETE FROM public.customer_contact_box_links WHERE contact_id IN (SELECT id FROM public.customer_contacts WHERE customer_id IN (${CUSTOMER_XYZ}, ${CUSTOMER_ABC}));
     DELETE FROM public.customer_contacts WHERE customer_id IN (${CUSTOMER_XYZ}, ${CUSTOMER_ABC});
@@ -84,7 +101,8 @@ describeLocal('271 — a Revisão só captura o e-mail do manifesto com o CNPJ d
         (${CUSTOMER_ABC}, 'ABC TRADING 271 LTDA', '${CNPJ_ABC}');
       INSERT INTO public.bls (id, voyage_id, manifest_customer_cnpj_cpf, manifest_customer_email, manifest_customer_name, consignee)
       VALUES ('BL271DIV', ${VOYAGE_ID}, '${CNPJ_ABC}', 'financeiro@abc271.test', 'ABC TRADING 271 LTDA', 'ABC TRADING 271 LTDA'),
-             ('BL271OK', ${VOYAGE_ID}, '${CNPJ_XYZ}', 'financeiro@xyz271.test', 'XYZ 271 LTDA', 'XYZ 271 LTDA');
+             ('BL271OK', ${VOYAGE_ID}, '${CNPJ_XYZ}', 'financeiro@xyz271.test', 'XYZ 271 LTDA', 'XYZ 271 LTDA'),
+             ('BL271NEW', ${VOYAGE_ID}, '${CNPJ_NEW}', 'compras@novo271.test', 'NOVO 271 LTDA', 'NOVO 271 LTDA');
       SELECT public.sync_customer_reconciliation_queue_for_bl('BL271DIV');
       SELECT public.sync_customer_reconciliation_queue_for_bl('BL271OK');
     `)
@@ -102,5 +120,17 @@ describeLocal('271 — a Revisão só captura o e-mail do manifesto com o CNPJ d
   it('com o CNPJ do documento igual ao do Cliente, o e-mail do manifesto entra como contato', () => {
     expect(linkAsAdmin('BL271OK', CUSTOMER_XYZ).error).toBe('')
     expect(contactEmails(CUSTOMER_XYZ)).toBe('financeiro@xyz271.test')
+    // 557 (pedido do dono, 2026-10-31): o manifesto não traz o nome da pessoa;
+    // o contato fica sem nome, não "Contato manifesto".
+    expect(psql(`SELECT origin || '|' || COALESCE(name, '<sem nome>') FROM public.customer_contacts WHERE customer_id = ${CUSTOMER_XYZ};`))
+      .toBe('bl_automatico|<sem nome>')
+  })
+
+  it('o Cliente criado pelo manifesto ganha o contato do e-mail sem nome (557)', () => {
+    const created = asAdmin(`SELECT (public.create_customer_from_bl_manifest('BL271NEW'))->>'id';`)
+    expect(created.error).toBe('')
+    expect(psql(`SELECT email || '|' || COALESCE(name, '<sem nome>') FROM public.customer_contacts
+      WHERE customer_id = (SELECT id FROM public.customers WHERE cnpj_cpf = '${CNPJ_NEW}');`))
+      .toBe('compras@novo271.test|<sem nome>')
   })
 })

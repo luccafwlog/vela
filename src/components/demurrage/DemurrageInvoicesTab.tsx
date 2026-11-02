@@ -124,7 +124,7 @@ function DiscountCell({ invoice }: { invoice: DemurrageInvoiceListItem }) {
 
 function Destinations({ details, onOpenDetail }: { details: DemurrageInvoiceDetails | undefined; onOpenDetail: (invoiceId: number) => void }) {
   if (!details) return <NoValue label="Não carregado" />
-  if (!details.destinations.length) return <NoValue label="Sem caixas" />
+  if (!details.destinations.length) return <NoValue label="Sem containers" />
   return (
     <ul className="m-0 list-none p-0">
       {details.destinations.map((destination) => (
@@ -327,7 +327,7 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
                     {tab === 'pagas' ? <th scope="col" className="app-table__text-head">Meio de pagamento</th> : null}
                     {tab === 'canceladas' ? <th scope="col" className="app-table__text-head">Motivo</th> : null}
                     {tab === 'canceladas' ? <th scope="col" className="app-table__text-head">Cancelada por</th> : null}
-                    {tab === 'canceladas' ? <th scope="col" className="app-table__text-head">Destino das caixas</th> : null}
+                    {tab === 'canceladas' ? <th scope="col" className="app-table__text-head">Destino dos containers</th> : null}
                     {tab !== 'canceladas' ? <th scope="col" className="app-table__text-head">Situação</th> : null}
                     {showDunning ? <th scope="col" className="app-table__text-head">Régua de cobrança</th> : null}
                   </tr>

@@ -1,8 +1,8 @@
 export const FICHA_TABS = [
   { id: 'visao-geral', label: 'Visão geral' },
   { id: 'cadastro', label: 'Cadastro e contatos' },
-  { id: 'bls', label: 'BLs' },
-  { id: 'conteineres', label: 'Contêineres' },
+  { id: 'bls', label: 'B/Ls' },
+  { id: 'conteineres', label: 'Containers' },
   { id: 'financeiro', label: 'Financeiro' },
   { id: 'historico', label: 'Histórico' },
   { id: 'desbloqueio-ce', label: 'Desbloqueio de CE e VIP' },

@@ -189,7 +189,7 @@ export async function calculateBlLocalCharges(
     financialStatus = bl?.financial_status
   }
   if (isBlFinanciallyLocked(financialStatus)) {
-    throw new Error(`B/L ${blId} ja foi faturado (status financeiro=${financialStatus}); recalculo bloqueado.`)
+    throw new Error(formatLockedBlError(blId, financialStatus))
   }
 
   const { data, error } = await supabase.rpc('calculate_bl_local_charges', {
@@ -864,7 +864,7 @@ function extractBlIdFromChargeAuditMessage(message: string, candidates: string[]
 }
 
 function formatLockedBlError(blId: string, financialStatus: string | null | undefined) {
-  return `B/L ${blId} ja foi faturado (status financeiro=${financialStatus}); recalculo bloqueado.`
+  return `B/L ${blId} já foi faturado (status financeiro=${financialStatus}); recálculo bloqueado.`
 }
 
 async function runBatch<T>(blIds: string[], worker: (blId: string) => Promise<T>) {
@@ -974,8 +974,8 @@ export type ChargeTotalsByBl = Map<string, Map<string, { brl: number; usd: numbe
 export type ValidacaoExportData = {
   totals: ChargeTotalsByBl
   /**
-   * Contêineres que o B/L divide com outros B/Ls da Viagem, quando ele tem taxa
-   * rateada por contêiner ("CSNU1 (2 B/Ls)"). ADR 0038: a conferência mostra
+   * Containers que o B/L divide com outros B/Ls da Viagem, quando ele tem taxa
+   * rateada por container ("CSNU1 (2 B/Ls)"). ADR 0038: a conferência mostra
    * que aquele rateio tem uma contraparte fora da planilha.
    */
   sharedContainers: Map<string, string>
@@ -1008,8 +1008,8 @@ export async function fetchChargeTotalsByBl(blIds: string[]): Promise<ValidacaoE
 }
 
 /**
- * Mesma contagem do motor (`share_count`): B/Ls distintos de contêiner ou
- * misto da Viagem que têm o contêiner.
+ * Mesma contagem do motor (`share_count`): B/Ls distintos de container ou
+ * misto da Viagem que têm o container.
  */
 async function sharedContainersByBl(blIds: string[]): Promise<Map<string, string>> {
   const result = new Map<string, string>()

@@ -187,6 +187,19 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
 </body></html>`
 }
 
+/**
+ * HTML do e-mail para a prévia dentro do Vela. O e-mail aponta a logo para o
+ * site do Portal (`https://portalfwlog.com.br/branding/…`), endereço absoluto e
+ * público que o leitor de e-mail baixa. A política de segurança do Vela
+ * (`img-src 'self'`, `scripts/cloudflare-security-headers.mjs`) recusa imagem
+ * de outro domínio, e a prévia mostrava a logo quebrada (2026-10-31). Os dois
+ * sites publicam o mesmo `public/branding`: a prévia troca só a origem da
+ * imagem pela do próprio Vela, sem afrouxar a política nem mudar o e-mail.
+ */
+export function emailPreviewHtml(html: string): string {
+  return html.replace(/(<img\b[^>]*?\bsrc=")https?:\/\/[^"/]+(\/branding\/)/gi, '$1$2')
+}
+
 /** Versão em texto puro: título, linha de apoio, corpo e rodapé. */
 export function renderEmailText(input: { title: string; subtitle?: string | null; body: string; footer: string }): string {
   return [input.title, ...(input.subtitle ? [input.subtitle] : []), '', input.body, '', '--', input.footer].join('\n')

@@ -28,6 +28,30 @@ export function portalInvoicesInOpenBalance<T extends OpenBalanceRow>(invoices: 
     || !(invoice.bls?.length && invoice.bls.every((bl) => consolidatedBls.has(bl))))
 }
 
+/** Estados da fatura local (e avulsa) que ainda pedem pagamento no Portal. */
+export const LOCAL_PAYABLE_STATUSES = ['issued', 'partially_paid', 'overdue'] as const
+
+type LocalPixInput = { status?: string | null; balance_brl?: number | null; total_brl?: number | null; pix_payload?: string | null }
+
+/**
+ * A fatura de Taxas Locais mostra o Pix (detalhe e "Pagar com Pix" da lista):
+ * só enquanto pede pagamento. O código guardado continua na fatura depois do
+ * pagamento, por isso o estado vem antes. Vale também para a individual que
+ * está numa consolidada aberta (decisão do dono de 2026-11-01).
+ */
+export function localInvoiceShowsPix(invoice: LocalPixInput) {
+  const payable = (LOCAL_PAYABLE_STATUSES as readonly string[]).includes(invoice.status ?? 'issued')
+  return payable && Boolean(invoice.pix_payload || Number(invoice.balance_brl ?? invoice.total_brl) > 0)
+}
+
+type DemurragePixInput = { status: string | null; pix_payload?: string | null; current_total_brl?: number | null }
+
+/** Mesma regra para a Invoice de Demurrage: aberta e com Pix ou valor em reais. */
+export function demurrageInvoiceShowsPix(invoice: DemurragePixInput) {
+  return isDemurragePayable(invoice)
+    && (Boolean(invoice.pix_payload) || (['issued', 'overdue'].includes(invoice.status ?? '') && Number(invoice.current_total_brl) > 0))
+}
+
 /**
  * "Recebido em" de um pagamento da fatura no Portal (lote 4): dia e hora de
  * Brasília quando o pagamento guarda a hora (Pix conciliado); só o dia

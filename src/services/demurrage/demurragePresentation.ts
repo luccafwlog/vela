@@ -236,5 +236,5 @@ export function daysSince(fromIso: string, toIso: string): number {
  */
 export function boxShareLabel(count: number | null | undefined): string | null {
   const n = Number(count ?? 1)
-  return Number.isInteger(n) && n > 1 ? `1/${n} da caixa` : null
+  return Number.isInteger(n) && n > 1 ? `1/${n} do container` : null
 }

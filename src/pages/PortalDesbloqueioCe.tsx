@@ -1,16 +1,16 @@
 import { useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Download, Inbox, Receipt, RefreshCw, SearchX, Upload, X } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Download, Inbox, RefreshCw, SearchX, Upload, X } from "lucide-react";
 import { Badge } from "../components/ui/Badge";
 import { Block, Fact, FactList, LeadValue } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
 import { EmptyState, InlineError, PageHeader } from "../components/ui/Card";
 import { CopyValue } from "../components/ui/CopyValue";
-import { Input } from "../components/ui/Input";
+import { Field, Input } from "../components/ui/Input";
+import { FilterBar } from "../components/ui/FilterBar";
 import { MetricCard } from "../components/ui/MetricCard";
 import { Modal } from "../components/ui/Modal";
 import { NoValue } from "../components/ui/NoValue";
-import { RowActionLink } from "../components/ui/RowActionLink";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { StatusText } from "../components/ui/StatusText";
 import { TabButton } from "../components/ui/TabButton";
@@ -38,6 +38,7 @@ import { usePortalCeUnlock } from "../hooks/usePortalCeUnlock";
 import { downloadCeUnlockDocument, uploadCeUnlockDocument } from "../services/ceUnlockService";
 import type { CeUnlockDocument, CeUnlockItem, CeUnlockRequest, CeUnlockVipCoverage } from "../types/ceUnlock";
 import { portalPath, type PortalScope } from "../services/portalScope";
+import { portalBillingOpenForBlSuffix } from "../lib/portalBillingFilters";
 import { matchesAnyToken } from "../lib/searchTerms";
 
 type Tab = "new" | "requests" | "annual";
@@ -162,12 +163,20 @@ function nextStep(detail: CeUnlockRequest, validated: boolean): string | null {
   }
 }
 
+function includesText(value: string | null | undefined, term: string) {
+  const needle = term.trim().toLowerCase();
+  return !needle || (value ?? "").toLowerCase().includes(needle);
+}
+
 export function PortalDesbloqueioCe() {
   const [params, setParams] = useSearchParams();
   const id = params.get("pedido");
   const tabParam = params.get("aba");
   const tab: Tab = tabParam === TAB_PARAM.requests ? "requests" : tabParam === TAB_PARAM.annual ? "annual" : "new";
   const [search, setSearch] = useState("");
+  // Navio e Viagem (pedido do dono de 2026-11-02), na barra de filtros recolhida como no resto do Portal.
+  const [vessel, setVessel] = useState("");
+  const [voyage, setVoyage] = useState("");
   const [card, setCard] = useState<CardFilter | null>(null);
   const [listPage, setListPage] = useState(1);
   const [requestsPage, setRequestsPage] = useState(1);
@@ -196,9 +205,13 @@ export function PortalDesbloqueioCe() {
   // Nova solicitação: a lista inteira do Cliente; busca, cartões e paginação aqui.
   const allItems = flow.list.data ?? [];
   const needle = search.trim().toLowerCase();
-  const searched = needle
+  const byNumber = needle
     ? allItems.filter((i) => i.bl_id.toLowerCase().includes(needle) || (i.ce_mercante ?? "").toLowerCase().includes(needle) || matchesAnyToken(needle, [i.bl_id, i.ce_mercante]))
     : allItems;
+  // Os cartões contam o recorte da busca e de Navio/Viagem; o cartão escolhido filtra por cima.
+  const searched = byNumber.filter((i) => includesText(i.vessel_name, vessel) && includesText(i.voyage_number, voyage));
+  const vesselOptions = [...new Set(allItems.map((i) => i.vessel_name).filter((v): v is string => Boolean(v)))].sort();
+  const narrowed = Boolean(needle || vessel.trim() || voyage.trim());
   // Com documento anual faltando o VIP pede mesmo assim: a solicitação nasce comum, com termo e
   // procuração anexados (migration 449, ponto 13 de 2026-10-23).
   const canRequest = (i: CeUnlockItem) => i.can_submit;
@@ -508,12 +521,6 @@ export function PortalDesbloqueioCe() {
                 </button>
               </Fact>
             </FactList>
-            {/* Mesma regra de `ceUnlockDeadline` (src/services/ceUnlockSla.ts) e da migration 466: mudar os três juntos. */}
-            <p className="text-sm">
-              <strong>Prazo para desbloqueio:</strong> começa quando os quatro requisitos estão cumpridos em todos os
-              B/Ls da solicitação. Cumpridos antes das 12h, o desbloqueio é feito até as 17h do mesmo dia útil; a partir
-              das 12h, até as 12h do próximo dia útil. Cumpridos no sábado ou no domingo, até as 12h de segunda-feira.
-            </p>
             {showDelivery ? <CeUnlockDeliveryAddresses onClose={() => setShowDelivery(false)} /> : null}
             {gap && (
               <div className="app-callout app-callout--warning flex flex-wrap items-center gap-3">
@@ -523,6 +530,16 @@ export function PortalDesbloqueioCe() {
                 </Button>
               </div>
             )}
+          </Block>
+
+          {/* Bloco próprio desde 2026-11-02 (pedido do dono: o bloco dos requisitos tinha texto demais).
+              Mesma regra de `ceUnlockDeadline` (src/services/ceUnlockSla.ts) e da migration 466: mudar os três juntos. */}
+          <Block title="Prazo para desbloqueio">
+            <p className="m-0 text-sm">
+              Começa quando os quatro requisitos estão cumpridos em todos os B/Ls da solicitação. Cumpridos antes das
+              12h, o desbloqueio é feito até as 17h do mesmo dia útil; a partir das 12h, até as 12h do próximo dia útil.
+              Cumpridos no sábado ou no domingo, até as 12h de segunda-feira.
+            </p>
           </Block>
 
           <div className="app-metric-row" role="group" aria-label="Situação dos B/Ls">
@@ -567,6 +584,44 @@ export function PortalDesbloqueioCe() {
               </>
             }
           >
+            <div className="app-block__body">
+              <FilterBar
+                defaultOpen={false}
+                activeCount={(vessel.trim() ? 1 : 0) + (voyage.trim() ? 1 : 0)}
+                onClear={() => {
+                  setVessel("");
+                  setVoyage("");
+                  setListPage(1);
+                }}
+              >
+                <div className="app-filter-grid">
+                  <Field label="Navio">
+                    <Input
+                      list="ce-unlock-vessels"
+                      value={vessel}
+                      placeholder="Navio"
+                      onChange={(e) => {
+                        setVessel(e.target.value);
+                        setListPage(1);
+                      }}
+                    />
+                    <datalist id="ce-unlock-vessels">
+                      {vesselOptions.map((v) => <option key={v} value={v} />)}
+                    </datalist>
+                  </Field>
+                  <Field label="Viagem">
+                    <Input
+                      value={voyage}
+                      placeholder="Viagem"
+                      onChange={(e) => {
+                        setVoyage(e.target.value);
+                        setListPage(1);
+                      }}
+                    />
+                  </Field>
+                </div>
+              </FilterBar>
+            </div>
             <QueryStateGate
               isLoading={false}
               isError={Boolean(flow.list.error)}
@@ -604,15 +659,15 @@ export function PortalDesbloqueioCe() {
                           <EmptyState
                             icon={SearchX}
                             title={
-                              search
+                              narrowed
                                 ? "Nenhum B/L encontrado"
                                 : card
                                   ? "Nenhum B/L nesta situação"
                                   : "Nenhum B/L com CE Mercante"
                             }
                             description={
-                              search
-                                ? "Confira o número digitado."
+                              narrowed
+                                ? "Confira o número digitado e os filtros de Navio e Viagem."
                                 : card
                                   ? "Escolha outro cartão ou clique de novo neste para ver todos."
                                   : "Os B/Ls aparecem aqui assim que o CE Mercante for registrado."
@@ -651,10 +706,16 @@ export function PortalDesbloqueioCe() {
                             ) : i.local_charges_awaiting_invoice ? (
                               "Aguardando fatura"
                             ) : (
-                              <span className="inline-flex items-center gap-2">
-                                <StatusText tone="warning">Em aberto</StatusText>
-                                <RowActionLink to={portalPath(flow.scope, "/billing")} label={`Ver faturas do B/L ${i.bl_id}`} title="Ver faturas" icon={Receipt} />
-                              </span>
+                              // "Em aberto" é o próprio link, em texto âmbar, sem borda nem ícone (2026-11-02):
+                              // abre Faturas filtrada nas em aberto do B/L.
+                              <Link
+                                className="app-status-text app-status-text--warning hover:underline focus-visible:underline"
+                                to={portalPath(flow.scope, portalBillingOpenForBlSuffix(i.bl_id))}
+                                aria-label={`Em aberto: ver faturas em aberto do B/L ${i.bl_id}`}
+                                title="Ver faturas em aberto"
+                              >
+                                Em aberto
+                              </Link>
                             )}
                           </td>
                           <td>

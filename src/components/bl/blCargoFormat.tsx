@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { NoValue } from '../ui/NoValue'
 
-/** Contêiner como a lista de BLs e a ficha do B/L o leem para a carga. */
+/** Container como a lista de BLs e a ficha do B/L o leem para a carga. */
 export type CargoContainer = {
   ownership?: string | null
   gross_weight_kg?: number | string | null
@@ -17,7 +17,7 @@ type BreakbulkFields = {
   bb_cbm?: number | string | null
 }
 
-export /** "2 contêineres · 2 COC · 48.500 kg · 112,5 m³ · 1 de 2 devolvido". */
+export /** "2 containers · 2 COC · 48.500 kg · 112,5 m³ · 1 de 2 devolvido". */
 function containerSummary(containers: CargoContainer[]) {
   const soc = containers.filter((container) => container.ownership === 'SOC').length
   const coc = containers.length - soc
@@ -25,7 +25,7 @@ function containerSummary(containers: CargoContainer[]) {
   const cbm = containers.reduce((sum, container) => sum + Number(container.cbm ?? 0), 0)
   const returned = containers.filter((container) => container.ownership !== 'SOC' && container.return_date).length
   const parts = [
-    `${containers.length} ${containers.length === 1 ? 'contêiner' : 'contêineres'}`,
+    `${containers.length} ${containers.length === 1 ? 'container' : 'containers'}`,
     [coc ? `${coc} COC` : '', soc ? `${soc} SOC` : ''].filter(Boolean).join(' · '),
     weight ? `${weight.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg` : '',
     cbm ? `${cbm.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 })} m³` : '',

@@ -75,6 +75,41 @@ const KNOWN_PORT_CODES = new Set([
   'BRSLZ', 'BRSFS', 'ITGOA', 'NLRTM',
 ])
 
+// Nome de tela que não sai do primeiro apelido: Sepetiba é apelido de busca do
+// porto de Itaguaí (BRIGI), não o nome do porto.
+const PORT_DISPLAY_NAMES: Record<string, string> = { BRIGI: 'Itaguaí' }
+const LOWERCASE_NAME_WORDS = new Set(['de', 'da', 'do', 'das', 'dos'])
+
+function displayPortName(alias: string): string {
+  return alias.split(' ').map((word, index) => (
+    index > 0 && LOWERCASE_NAME_WORDS.has(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)
+  )).join(' ')
+}
+
+/**
+ * Portos que o sistema reconhece, um por LOCODE, com o primeiro nome da lista
+ * (com acento quando a lista tem a grafia acentuada; só o código, para os que
+ * não têm nome): as sugestões de um seletor de porto. Porto de origem fora
+ * daqui não é gravado (vira "-").
+ */
+export function knownPorts(): Array<{ code: string; name: string | null }> {
+  const names = new Map<string, string>()
+  for (const [name, code] of PORT_NAME_TO_LOCODE) {
+    const current = names.get(code)
+    if (current) {
+      // A grafia com acento ("vitória") vence a sem acento do mesmo nome ("vitoria").
+      if (normalizeText(current) === normalizeText(name) && normalizeText(name) !== name) names.set(code, displayPortName(name))
+      continue
+    }
+    if (/\s|[a-z]{4,}/.test(name)) names.set(code, displayPortName(name))
+  }
+  for (const [code, name] of Object.entries(PORT_DISPLAY_NAMES)) names.set(code, name)
+  return [...KNOWN_PORT_CODES]
+    .filter((code) => code !== 'BRVIT')
+    .sort()
+    .map((code) => ({ code, name: names.get(code) ?? null }))
+}
+
 // Códigos de 3 letras (sem prefixo de país) e LOCODEs alternativos que o Baplie
 // da COSCO usa em LOC+6/LOC+12. Só casam com o valor inteiro: como substring
 // ("sep", "vix") capturariam texto livre de manifesto.

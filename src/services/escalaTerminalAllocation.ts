@@ -185,7 +185,7 @@ export function operationFrontKindForCargoMode(
 
 /**
  * Retorna todas as frentes de importação cobertas pelo B/L.
- * Um B/L misto ocupa simultaneamente as frentes de contêiner e carga solta;
+ * Um B/L misto ocupa simultaneamente as frentes de container e carga solta;
  * reduzi-lo a uma delas faz o NOB manual depender da primeira frente encontrada.
  */
 export function operationFrontKindsForCargoMode(

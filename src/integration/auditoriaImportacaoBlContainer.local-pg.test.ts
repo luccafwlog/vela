@@ -797,7 +797,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
       effectsAfter: provisionalEffects(blId),
     }
     // Só o erro conhecido do B/L faturado pode aparecer; outro erro de cálculo deixa o cenário vermelho.
-    expect(invoiced.calculationErrors.filter((message) => !message.includes('recalculo bloqueado'))).toEqual([])
+    expect(invoiced.calculationErrors.filter((message) => !message.includes('recálculo bloqueado'))).toEqual([])
   })
 
   it('esperado: reimportação idêntica de B/L faturado não o devolve à Revisão nem acende a trava "Carga … após faturamento" (charge_status e fatura seguem os mesmos) [ORDCE-06] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:22-26: só há efeito se o valor ou o Cliente mudar) e manifesto-edi.md:346 (reimportação idêntica não reemite nem alerta)', () => {

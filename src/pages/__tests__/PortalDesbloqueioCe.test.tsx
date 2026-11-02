@@ -111,11 +111,12 @@ it("VIP só com o termo anual: requisitos dizem que os dois vão anexados", () =
   expect(block.textContent).toContain("Enquanto falta a procuração anual, assinado, em PDF, anexado à solicitação");
   expect(block.textContent).not.toContain("Coberto pelo termo anual");
 });
-// Reunião de testes de 2026-10-26: o prazo combinado com o mercado fica logo abaixo das quatro exigências.
-it("requisitos dizem o prazo para desbloqueio pelas janelas de 12h e 17h", () => {
+// Reunião de testes de 2026-10-26: o prazo combinado com o mercado fica logo abaixo das quatro exigências;
+// desde 2026-11-02, num bloco próprio, para o bloco dos requisitos não ter texto demais.
+it("o bloco Prazo para desbloqueio diz as janelas de 12h e 17h, fora do bloco dos requisitos", () => {
   mount();
-  const block = screen.getByRole("region", { name: "O que o desbloqueio pede" });
-  expect(block.textContent).toContain("Prazo para desbloqueio:");
+  expect(screen.getByRole("region", { name: "O que o desbloqueio pede" }).textContent).not.toContain("Cumpridos antes das 12h");
+  const block = screen.getByRole("region", { name: "Prazo para desbloqueio" });
   // 12:00 em ponto já é a janela da tarde (`l::time >= 12:00` na 466): "antes" e "a partir", não "até".
   expect(block.textContent).toContain("Cumpridos antes das 12h, o desbloqueio é feito até as 17h do mesmo dia útil");
   expect(block.textContent).toContain("a partir das 12h, até as 12h do próximo dia útil");
@@ -140,13 +141,41 @@ it("cartões contam e filtram; taxa aguardando fatura não conta como em aberto 
   const card = (name: RegExp) => within(cards).getByRole("button", { name });
   expect(card(/Com taxas locais em aberto/).textContent).toContain("1");
   expect(screen.getByText("Aguardando fatura")).toBeTruthy();
-  expect(screen.getAllByRole("link", { name: /^Ver faturas do B\/L / })).toHaveLength(1);
+  const openLinks = screen.getAllByRole("link", { name: /^Em aberto: ver faturas em aberto do B\/L / });
+  expect(openLinks).toHaveLength(1);
+  // Desde 2026-11-02 o próprio "Em aberto" é o link: texto âmbar, sem borda de botão nem ícone.
+  expect(openLinks[0].textContent).toBe("Em aberto");
+  expect(openLinks[0].querySelector("svg")).toBeNull();
+  expect(openLinks[0].className).toContain("app-status-text--warning");
+  expect(openLinks[0].className).not.toContain("app-btn");
   expect(screen.queryByText(/Taxas locais sem liquidação/)).toBeNull();
   await userEvent.click(card(/Com taxas locais em aberto/));
   expect(screen.getByLabelText("Selecionar B/L BL-OPEN")).toBeTruthy();
   expect(screen.queryByLabelText("Selecionar B/L BL-A")).toBeNull();
   await userEvent.click(card(/Com taxas locais em aberto/));
   expect(screen.getByLabelText("Selecionar B/L BL-A")).toBeTruthy();
+});
+// Pedido do dono de 2026-11-02: filtros de Navio e Viagem, recolhidos como no resto do Portal.
+it("filtra por Navio e Viagem, com a barra recolhida e os cartões contando o recorte", async () => {
+  fixtures.extraItems = [
+    { bl_id: "BL-GG", vessel_name: "GREEN GUANGZHOU", voyage_number: "6", paid: true, can_submit: true, state: "no_request", reasons: [] },
+    { bl_id: "BL-GG2", vessel_name: "GREEN GUANGZHOU", voyage_number: "7", paid: true, can_submit: true, state: "no_request", reasons: [] },
+  ];
+  mount();
+  const toggle = screen.getByRole("button", { name: /^Filtros/ });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await userEvent.click(toggle);
+  await userEvent.type(screen.getByLabelText("Navio"), "guangzhou");
+  expect(screen.queryByLabelText("Selecionar B/L BL-A")).toBeNull();
+  expect(screen.getByLabelText("Selecionar B/L BL-GG")).toBeTruthy();
+  expect(screen.getByLabelText("Selecionar B/L BL-GG2")).toBeTruthy();
+  await userEvent.type(screen.getByLabelText("Viagem"), "6");
+  expect(screen.queryByLabelText("Selecionar B/L BL-GG2")).toBeNull();
+  const cards = screen.getByRole("group", { name: "Situação dos B/Ls" });
+  expect(within(cards).getByRole("button", { name: /Podem ser pedidos/ }).textContent).toContain("1");
+  await userEvent.click(screen.getByRole("button", { name: "Limpar" }));
+  expect(screen.getByLabelText("Selecionar B/L BL-A")).toBeTruthy();
+  expect(screen.getByLabelText("Selecionar B/L BL-GG2")).toBeTruthy();
 });
 it("B/L de solicitação ainda não validada: confirma de qual protocolo sai e o que acontece com a antiga", async () => {
   fixtures.listRequest = true;

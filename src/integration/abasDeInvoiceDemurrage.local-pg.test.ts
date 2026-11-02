@@ -269,7 +269,7 @@ describeLocal('Meio de pagamento e destino das caixas da Demurrage (migration 51
       const [replacementId] = replacementOf(ids.split)
       expect(psql(`SELECT box_share_count FROM public.demurrage_invoice_items WHERE invoice_id = ${replacementId}`)).toBe('2')
       const detail = details(ids.split)
-      expect(detail.cancel_reason).toBe('Divisão da caixa entre Clientes alterada: cancelada para reemissão automática.')
+      expect(detail.cancel_reason).toBe('Divisão do container entre Clientes alterada: cancelada para reemissão automática.')
       expect(detail.box_destinations.map((item) => item.kind)).toEqual(['reemitida'])
     })
   })

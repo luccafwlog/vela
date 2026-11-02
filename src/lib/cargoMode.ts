@@ -59,7 +59,7 @@ export function blTotalWeightTon(
  * Mesma história do peso, um degrau atrás: a migration 061 deu significado
  * único a `total_weight_kg`/`bb_weight_ton` e deixou `total_cbm` com os dois
  * donos que tinha — o importador de carga solta gravava a cubagem do manifesto
- * e o de B/L de armador gravava a soma dos contêineres, um sobrescrevendo o
+ * e o de B/L de armador gravava a soma dos containers, um sobrescrevendo o
  * outro em B/L misto. A migration 064 separou:
  *
  *   bls.total_cbm -> SOMENTE carga conteinerizada

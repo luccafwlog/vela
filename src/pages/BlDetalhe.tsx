@@ -53,7 +53,7 @@ export type BlTab = 'visao-geral' | 'carga' | 'detalhes' | 'faturamento' | 'hist
 const BL_TAB_KEYS: BlTab[] = ['visao-geral', 'carga', 'detalhes', 'faturamento', 'historico']
 
 // 'Carga' era uma seção no fim da aba "Detalhes do B/L", abaixo de um
-// formulário de ~25 campos: ver os contêineres ou os itens de carga solta de um
+// formulário de ~25 campos: ver os containers ou os itens de carga solta de um
 // B/L custava quatro interações e uma rolagem. É o dado mais operacional da
 // ficha e agora tem aba própria, logo após a visão geral.
 export const BL_TABS: { key: BlTab; label: string }[] = [
@@ -283,7 +283,7 @@ export function BlDetalhe() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: 'BLs', to: listHref }, { label: 'Carregando…' }]} />
+        <Breadcrumb items={[{ label: 'B/Ls', to: listHref }, { label: 'Carregando…' }]} />
         <div className="app-bl-skeleton" role="status" aria-label="Carregando o B/L">
           <SkeletonCard lines={2} />
           <SkeletonCard lines={4} />
@@ -297,7 +297,7 @@ export function BlDetalhe() {
     const missing = !error && blData === null
     return (
       <>
-        <Breadcrumb items={[{ label: 'BLs', to: listHref }, { label: missing ? 'B/L não encontrado' : `B/L ${blId ?? ''}` }]} />
+        <Breadcrumb items={[{ label: 'B/Ls', to: listHref }, { label: missing ? 'B/L não encontrado' : `B/L ${blId ?? ''}` }]} />
         <Card className="app-bl-missing">
           <h1 className="app-bl-missing__title">{missing ? `B/L ${blId ?? ''} não encontrado` : 'Não foi possível abrir este B/L'}</h1>
           <p className="app-bl-missing__text">
@@ -309,7 +309,7 @@ export function BlDetalhe() {
             {missing ? null : <Button variant="secondary" onClick={() => void refetch()}>Tentar novamente</Button>}
             <Link className="app-btn app-btn--ghost" to={listHref}>
               <ArrowLeft size={16} aria-hidden="true" />
-              Voltar para BLs
+              Voltar para B/Ls
             </Link>
           </div>
         </Card>
@@ -331,7 +331,7 @@ export function BlDetalhe() {
     <>
       <Breadcrumb
         items={[
-          { label: 'BLs', to: listHref },
+          { label: 'B/Ls', to: listHref },
           { label: `B/L ${bl.id}` },
         ]}
       />

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readSheet } from '../importCore'
-import { assertNoRepeatedScheduleColumns, parseScheduleRows, scheduleSheetIssues, scheduleTemplateColumns } from '../portalScheduleBulkImport'
+import { assertNoRepeatedScheduleColumns, parseScheduleRows, scheduleExportRows, scheduleSheetIssues, scheduleTemplateColumns } from '../portalScheduleBulkImport'
 
 describe('parseScheduleRows', () => {
   it('gera colunas do template a partir da constante de lanes', () => {
@@ -125,5 +125,29 @@ describe('scheduleSheetIssues (regra de 2026-10-19)', () => {
       expect.objectContaining({ row: 4, severity: 'error', message: 'NAVIO A / 1: data ilegível em SALVADOR ETA.' }),
       expect.objectContaining({ row: 5, severity: 'error', message: 'NAVIO B / 2: Viagem cancelada.' }),
     ])
+  })
+})
+
+describe('exportação da programação', () => {
+  it('a planilha exportada volta pela importação com navio, IMO e datas planejadas', () => {
+    const exported = scheduleExportRows([{
+      voyageId: 1,
+      vesselName: 'COSCO SHIPPING GRACE',
+      voyage: '27',
+      imoNumber: '9928865',
+      datesByLabel: { SHANGHAI: '2026-11-03', SALVADOR: '2026-12-02' },
+      forecastDatesByLabel: { SHANGHAI: '2026-11-02', SALVADOR: '2026-12-02' },
+      actualDatesByLabel: { SHANGHAI: '2026-11-03' },
+      omittedByLabel: { NINGBO: true },
+      earliestEta: '2026-12-02',
+    }])
+    expect(Object.keys(exported[0])).toEqual(scheduleTemplateColumns())
+    expect(exported[0]['NINGBO ETD']).toBe('X')
+
+    const [row] = parseScheduleRows(exported)
+    expect(row).toMatchObject({ vesselName: 'COSCO SHIPPING GRACE', vesselImo: '9928865', voyageNumber: '27', invalidCells: [] })
+    const dates = Object.fromEntries(row.lanes.filter((lane) => lane.date).map((lane) => [lane.code, lane.date]))
+    // Sai a data planejada (a que a importação grava), não a efetiva.
+    expect(dates).toEqual({ CNSHA: '2026-11-02', BRSSA: '2026-12-02' })
   })
 })

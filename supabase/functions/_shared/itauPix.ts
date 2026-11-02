@@ -148,14 +148,25 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
     }
   }
 
-  async function accessToken() {
-    if (token && Date.now() < token.expiresAt) return token
+  async function requestToken(): Promise<{ response: Response; body: Record<string, unknown> | null }> {
     const response = await send(config.tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ grant_type: 'client_credentials', client_id: config.clientId, client_secret: config.clientSecret }),
     })
     const body = await response.json().catch(() => null) as Record<string, unknown> | null
+    return { response, body }
+  }
+
+  async function accessToken() {
+    if (token && Date.now() < token.expiresAt) return token
+    let { response, body } = await requestToken()
+    // O STS devolve 403 C200 ("Certificado inválido") isolado com o certificado
+    // válido: as 11 rodadas do Sentry VELA-26 falharam assim e a seguinte
+    // autenticou. Uma repetição cobre o caso; a segunda recusa segue erro.
+    // ponytail: uma tentativa extra, sem espera. Rajada que dure a rodada inteira
+    // continua 500; o minuto seguinte já repete a consulta.
+    if (response.status === 403 && body?.codigo_erro === 'C200') ({ response, body } = await requestToken())
     if (!response.ok || typeof body?.access_token !== 'string' || !body.access_token) {
       // O corpo de erro do STS não contém credenciais; o de sucesso nunca sai daqui.
       throw new ItauPixError(`Autenticação Itaú recusada (${response.status}).`, response.status, response.ok ? null : body)

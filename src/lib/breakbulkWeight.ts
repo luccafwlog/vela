@@ -3,7 +3,7 @@
  * `total_weight_kg` quando `bb_weight_ton` não foi preenchido.
  *
  * As duas colunas são disjuntas desde a migration 061 (`total_weight_kg` é
- * peso de contêiner, `bb_weight_ton` é peso de carga solta), mas alguns
+ * peso de container, `bb_weight_ton` é peso de carga solta), mas alguns
  * caminhos de import (ex.: B/L Avulso PDF/DOCX) só preenchem
  * `total_weight_kg` para um B/L de carga solta. Sem o fallback, o ADR e o
  * card da Viagem imprimiam "0 ton" ao lado de um B/L com peso real conhecido

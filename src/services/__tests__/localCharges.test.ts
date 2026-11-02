@@ -87,7 +87,7 @@ describe('localCharges service', () => {
   it('recusa recalcular B/L ja faturado sem sequer chamar a RPC', async () => {
     mockFrom.mockImplementation(() => createBuilder({ data: { financial_status: 'invoiced' }, error: null }))
 
-    await expect(calculateBlLocalCharges('CSC001', { actorId: 'user-id' })).rejects.toThrow('ja foi faturado')
+    await expect(calculateBlLocalCharges('CSC001', { actorId: 'user-id' })).rejects.toThrow('já foi faturado (status financeiro=invoiced); recálculo bloqueado.')
     expect(mockRpc).not.toHaveBeenCalled()
   })
 

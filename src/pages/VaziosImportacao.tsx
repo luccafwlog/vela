@@ -229,7 +229,7 @@ export function VaziosImportacao() {
   return (
     <>
       <PageHeader
-        title="Vazios de importação"
+        title="Vazios IMP"
         description="Containers vazios que descarregam (chegam) ao porto. São os futuros vazios de exportação."
         action={
           <div className="flex flex-wrap gap-2">
@@ -380,7 +380,7 @@ export function VaziosImportacao() {
                             />
                           </td>
                         ) : null}
-                        <td className="font-[var(--app-font-mono)]"><CopyValue value={row.container_number} label="número do contêiner" /></td>
+                        <td className="font-[var(--app-font-mono)]"><CopyValue value={row.container_number} label="número do container" /></td>
                         <td>{row.container_type ?? <NoValue label="Sem tipo" />}</td>
                         <td className="tabular-nums">{row.tare_kg != null ? `${Number(row.tare_kg).toLocaleString('pt-BR')} kg` : <NoValue label="Sem tara" />}</td>
                         <td>{row.pol || row.pod ? <>{row.pol ?? <NoValue label="Sem POL" />} → {row.pod ?? <NoValue label="Sem POD" />}</> : <NoValue label="Sem trecho" />}</td>

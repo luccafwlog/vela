@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fetchAuditLogs, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
+import { fetchActionHistory, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
 
 const { fromMock, rpcMock, supabaseMock } = vi.hoisted(() => {
   const supabaseMock = { from: vi.fn(), rpc: vi.fn() }
@@ -50,39 +50,6 @@ it('propaga falha de qualquer leitura das metricas', async () => {
   await expect(fetchSystemMetrics()).rejects.toThrow('invoices unavailable')
 })
 
-it('propaga falha ao resolver nomes dos autores do log', async () => {
-  fromMock.mockImplementation((table: string) => {
-    if (table === 'audit_logs') {
-      return builder({
-        data: [{
-          id: 1,
-          entity_type: 'bl',
-          entity_id: 'BL-1',
-          field_name: 'pod',
-          old_value: 'A',
-          new_value: 'B',
-          changed_by: 'user-1',
-          changed_at: '2026-06-23',
-          justification: null,
-        }],
-        error: null,
-        count: 1,
-      })
-    }
-    throw new Error(`Tabela inesperada: ${table}`)
-  })
-  // Os nomes vêm de get_user_display_names (ACE-D16; ADR 0106).
-  rpcMock.mockResolvedValue({ data: null, error: new Error('profiles unavailable') })
-
-  await expect(fetchAuditLogs({
-    entityTypes: [],
-    changedBy: '',
-    dateFrom: '',
-    dateTo: '',
-    page: 0,
-  })).rejects.toThrow('profiles unavailable')
-})
-
 it('mantém o cliente Supabase ligado ao builder de falhas de roteamento', async () => {
   const result = builder({
     data: [{
@@ -130,36 +97,55 @@ it('Última fatura emitida lê a data de emissão, não a criação (achado A4)'
   expect(invoices.order).toHaveBeenCalledWith('issued_at', { ascending: false })
 })
 
-it('filtra o histórico pelo assunto, por "Sistema" e pelo dia de Brasília', async () => {
-  const logs = builder({ data: [], error: null, count: 0 })
-  fromMock.mockImplementation(() => logs)
+it('Histórico de ações com nomes: filtros vão para a RPC e o total vem da busca (558)', async () => {
+  rpcMock.mockResolvedValue({
+    data: [{
+      id: 9,
+      changed_at: '2026-10-30T13:00:00Z',
+      entity_type: 'voyages',
+      field_name: 'vessel_id',
+      old_value: '7',
+      new_value: '8',
+      justification: null,
+      action: 'alterou',
+      actor_kind: 'equipe',
+      actor_name: 'Ana',
+      actor_email: 'ana@example.test',
+      actor_department: 'operacoes',
+      entity_label: 'Santos / V12',
+      old_label: 'Rio de Janeiro',
+      new_label: 'Santos',
+      value_labels: null,
+      total_count: '120',
+    }],
+    error: null,
+  })
 
-  await fetchAuditLogs({ entityTypes: ['granite_rates'], changedBy: 'sistema', dateFrom: '2026-10-12', dateTo: '2026-10-19', page: 1 })
+  const { rows, count } = await fetchActionHistory({ entityTypes: ['voyages'], changedBy: 'sistema', action: 'alterou', dateFrom: '2026-10-12', dateTo: '', page: 2 })
 
-  expect(logs.in).toHaveBeenCalledWith('entity_type', ['granite_rates'])
-  expect(logs.is).toHaveBeenCalledWith('changed_by', null)
-  expect(logs.eq).not.toHaveBeenCalled()
-  expect(logs.gte).toHaveBeenCalledWith('changed_at', '2026-10-12T00:00:00-03:00')
-  expect(logs.lte).toHaveBeenCalledWith('changed_at', '2026-10-19T23:59:59.999-03:00')
-  expect(logs.range).toHaveBeenCalledWith(50, 99)
+  expect(rpcMock).toHaveBeenCalledWith('admin_action_history', {
+    p_entity_types: ['voyages'],
+    p_actor: 'sistema',
+    p_action: 'alterou',
+    p_date_from: '2026-10-12',
+    p_date_to: null,
+    p_limit: 50,
+    p_offset: 100,
+  })
+  expect(count).toBe(120)
+  rpcMock.mockResolvedValueOnce({ data: [{ id: 1, total_count: 10001 }], error: null })
+  await expect(fetchActionHistory({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '', page: 0 }))
+    .resolves.toMatchObject({ count: 10_000, capped: true })
+  expect(rows[0]).not.toHaveProperty('total_count')
+  expect(rows[0]).toMatchObject({ entity_label: 'Santos / V12', old_label: 'Rio de Janeiro', new_label: 'Santos' })
 })
 
-it('autor sem perfil aparece por extenso, nunca pelo número interno', async () => {
-  fromMock.mockImplementation((table: string) => {
-    if (table === 'audit_logs') {
-      return builder({
-        data: [
-          { id: 1, entity_type: 'bl', entity_id: 'BL-1', field_name: 'pod', old_value: 'A', new_value: 'B', changed_by: 'uuid-sumido', changed_at: '2026-06-23T10:00:00Z', justification: null },
-          { id: 2, entity_type: 'bl', entity_id: 'BL-1', field_name: 'pod', old_value: 'B', new_value: 'C', changed_by: null, changed_at: '2026-06-23T11:00:00Z', justification: null },
-        ],
-        error: null,
-        count: 2,
-      })
-    }
-    throw new Error(`Tabela inesperada: ${table}`)
-  })
-  rpcMock.mockResolvedValue({ data: [], error: null })
+it('Histórico de ações com nomes: sem filtro manda nulo e propaga a recusa do banco', async () => {
+  rpcMock.mockResolvedValue({ data: null, error: new Error('Somente o Administrativo consulta o Histórico de ações.') })
 
-  const { rows } = await fetchAuditLogs({ entityTypes: [], changedBy: '', dateFrom: '', dateTo: '', page: 0 })
-  expect(rows.map((row) => row.changer_name)).toEqual(['Pessoa sem cadastro', null])
+  await expect(fetchActionHistory({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '', page: 0 }))
+    .rejects.toThrow('Somente o Administrativo')
+  expect(rpcMock).toHaveBeenCalledWith('admin_action_history', expect.objectContaining({
+    p_entity_types: null, p_actor: null, p_action: null, p_date_from: null, p_offset: 0,
+  }))
 })

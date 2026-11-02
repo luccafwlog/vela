@@ -203,10 +203,10 @@ describeLocal('Caixa dividida entre Clientes (migration 521)', () => {
     asAdmin(`SELECT public.register_demurrage_payment(gen_random_uuid(), ${paid}, ${day(0)}, NULL, ${brl}, NULL)`)
     bl('PAIDB', 'paid', customerB); box('PAIDB', 'RQCU5210004')
     expect(psql(`SELECT status || '|' || dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${paid}`))
-      .toBe('paid|Divisão da caixa entre Clientes alterada depois do pagamento; conferir a diferença.')
+      .toBe('paid|Divisão do container entre Clientes alterada depois do pagamento; conferir a diferença.')
     expect(psql(`SELECT i.message FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'demurrage_invoice_dates_changed' AND i.status = 'active' AND a.entity_id = '${paid}'`))
-      .toMatch(/^A divisão das caixas entre Clientes da Invoice de Demurrage .* mudou depois da emissão e ela já tem pagamento/)
+      .toMatch(/^A divisão dos containers entre Clientes da Invoice de Demurrage .* mudou depois da emissão e ela já tem pagamento/)
   })
 
   it('o B/L cancelado de um dos Clientes devolve a caixa inteira ao outro (D22)', () => {
@@ -252,8 +252,8 @@ describeLocal('Caixa dividida entre Clientes (migration 521)', () => {
       expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${halfA}`)).toBe('cancelled')
       expect(item(Number(liveInvoice('PCA')[0]))).toEqual({ share: '1', subtotal: fullUsd(60) })
       expect(psql(`SELECT status || '|' || dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${halfB}`))
-        .toBe('paid|Divisão da caixa entre Clientes alterada depois do pagamento; conferir a diferença.')
-      expect(activeAlert(halfB)).toMatch(/^O B\/L da Invoice de Demurrage .* foi cancelado depois da emissão e a caixa passou a ser cobrada só dos outros Clientes e ela já tem pagamento/)
+        .toBe('paid|Divisão do container entre Clientes alterada depois do pagamento; conferir a diferença.')
+      expect(activeAlert(halfB)).toMatch(/^O B\/L da Invoice de Demurrage .* foi cancelado depois da emissão e o container passou a ser cobrado só dos outros Clientes e ela já tem pagamento/)
     })
 
     it('Alerta resolvido não reabre pela mesma diferença, mas reabre por diferença nova', () => {
@@ -277,7 +277,7 @@ describeLocal('Caixa dividida entre Clientes (migration 521)', () => {
       const disputed = issue('GBA')
       psql(`SET session_replication_role = replica; UPDATE public.demurrage_invoices SET dispute_open = true WHERE id = ${disputed}`)
       bl('GBC', 'goesBack', customerC); box('GBC', 'RQCU5210009')
-      expect(psql(`SELECT dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${disputed}`)).toMatch(/^Divisão da caixa/)
+      expect(psql(`SELECT dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${disputed}`)).toMatch(/^Divisão do container/)
       expect(activeAlert(disputed)).not.toBe('')
       psql(`DELETE FROM public.bls WHERE id = '${blPrefix}GBC'`)
       expect(psql(`SELECT coalesce(dunning_suspended_reason, '') FROM public.demurrage_invoices WHERE id = ${disputed}`)).toBe('')

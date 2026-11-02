@@ -12,6 +12,7 @@ const baseFilters: CustomerFilters = {
   emailStatus: '',
   blStatus: '',
   pendingStatus: '',
+  chargeStatus: '',
   sortKey: 'name',
   sortDirection: 'asc',
   page: 0,
@@ -55,6 +56,18 @@ describe('customer client-side filters', () => {
     expect(filterCustomerRowsByClientSideFilters(rows, { ...baseFilters, contactEmail: 'FINANCEIRO@ACME' })).toEqual([
       rows[0],
     ])
+  })
+
+  it('filtra pelo cartão Taxas a revisar: Cliente com B/L a revisar ou sem cálculo', () => {
+    const rows = [
+      customer({ id: 1, bls: [{ id: 'BL-1', charge_status: 'ready_for_billing' }, { id: 'BL-2', charge_status: 'review_required' }] }),
+      customer({ id: 2, bls: [{ id: 'BL-3', charge_status: 'not_calculated' }] }),
+      customer({ id: 3, bls: [{ id: 'BL-4', charge_status: 'ready_for_billing' }] }),
+      customer({ id: 4, bls: [] }),
+    ]
+
+    expect(filterCustomerRowsByClientSideFilters(rows, { ...baseFilters, chargeStatus: 'with' }).map((row) => row.id)).toEqual([1, 2])
+    expect(filterCustomerRowsByClientSideFilters(rows, { ...baseFilters, chargeStatus: 'without' }).map((row) => row.id)).toEqual([3, 4])
   })
 
   it('calcula os cards a partir dos clientes filtrados', () => {

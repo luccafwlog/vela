@@ -239,7 +239,7 @@ function DetailBody({
         <p className="app-invoice-detail__note">
           Substitui a Invoice{' '}
           <button type="button" className="app-invoice-detail__link app-invoice-detail__code" onClick={() => { if (invoice.replaces) onOpenInvoice(invoice.replaces.id) }}>{invoice.replaces.doc_number}</button>
-          , cancelada para reemissão automática quando as datas, o SOC/COC ou a divisão de uma caixa mudaram depois da emissão.
+          , cancelada para reemissão automática quando as datas, o SOC/COC ou a divisão de um container mudaram depois da emissão.
         </p>
       ) : null}
 
@@ -248,7 +248,7 @@ function DetailBody({
           <h3 id="dem-detail-group" className="app-invoice-detail__heading">Outras Invoices deste B/L</h3>
           {earlier.length ? (
             <p className="app-invoice-detail__note">
-              Esta é uma Invoice complementar: cobra só as caixas que ainda não estavam em Invoice. As já cobradas ficaram em {earlier.map((other) => other.doc_number).join(', ')}.
+              Esta é uma Invoice complementar: cobra só os containers que ainda não estavam em Invoice. As já cobradas ficaram em {earlier.map((other) => other.doc_number).join(', ')}.
             </p>
           ) : null}
           {siblingsError ? <p className="app-invoice-detail__alert">Não foi possível conferir as outras Invoices deste B/L.</p> : null}
@@ -290,7 +290,7 @@ function DetailBody({
             <tbody>
               {items.length ? items.map((item) => (
                 <tr key={item.id}>
-                  <td className="app-invoice-detail__code"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                  <td className="app-invoice-detail__code"><CopyValue value={item.container_number} label="número do container" /></td>
                   <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
                   <td className="tabular-nums">{item.discharge_date ? formatDate(item.discharge_date) : <NoValue label="Sem descarga" />}</td>
                   <td className="tabular-nums">{item.return_date ? formatDate(item.return_date) : <NoValue label="Sem devolução" />}</td>

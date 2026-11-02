@@ -256,7 +256,7 @@ export function EmbarqueVazios() {
     }
     return (
       <div className="grid gap-5">
-        <PageHeader title="Embarque de vazios" />
+        <PageHeader title="Vazios EXP" />
         <QueryStateGate
           isLoading={readState.isLoading}
           isError={Boolean(readState.error)}
@@ -399,7 +399,7 @@ function EmbarquesLista({
   return (
     <div className="grid gap-5">
       <PageHeader
-        title="Embarque de vazios"
+        title="Vazios EXP"
         description="Um embarque por escala: unidades importadas como fato e serviços lançados manualmente."
         action={
           <div className="flex flex-wrap gap-2">
@@ -1133,7 +1133,7 @@ function EmbarqueDetalhe({
                       <tbody>
                         {unitRows.map((item) => (
                           <tr key={item.id}>
-                            <td className="font-[var(--app-font-mono)]"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                            <td className="font-[var(--app-font-mono)]"><CopyValue value={item.container_number} label="número do container" /></td>
                             <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
                             <td>{depotCode(item.local_id) ?? <NoValue label="Local removido" />}</td>
                             <td>{condicaoLabel(item.condition)}</td>

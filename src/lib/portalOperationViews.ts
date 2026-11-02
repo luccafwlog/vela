@@ -41,6 +41,11 @@ function isInDemurrage(container: PortalOperationContainer): boolean {
   return container.return_date == null && (container.demurrage_days ?? 0) > 0
 }
 
+/** Devolvido depois do free time: a demurrage parou de contar, mas existiu. */
+function returnedWithDemurrage(container: PortalOperationContainer): boolean {
+  return container.return_date != null && (container.demurrage_days ?? 0) > 0
+}
+
 function isInFreeTime(container: PortalOperationContainer): boolean {
   return awaitsReturn(container) && container.status === 'dentro_free_time'
 }
@@ -90,7 +95,9 @@ export function countContainersInDemurrage(bls: PortalOperationBL[]): number {
 
 /**
  * Devolução e demurrage do B/L, com as mesmas regras dos filtros: SOC não
- * volta ao estoque e fica fora da conta; demurrage é a que ainda corre.
+ * volta ao estoque e fica fora da conta. `inDemurrage` é a demurrage que
+ * ainda conta (container sem devolução); `returnedWithDemurrage`, o container
+ * que já voltou com dias de demurrage.
  */
 export function blReturnSummary(bl: PortalOperationBL) {
   const returnable = bl.containers.filter((container) => container.status !== 'soc')
@@ -99,6 +106,22 @@ export function blReturnSummary(bl: PortalOperationBL) {
     returned: returnable.filter((container) => container.return_date != null).length,
     awaiting: bl.containers.filter(awaitsReturn).length,
     inDemurrage: bl.containers.filter(isInDemurrage).length,
+    returnedWithDemurrage: bl.containers.filter(returnedWithDemurrage).length,
+  }
+}
+
+/**
+ * Coluna Demurrage da aba BLs (observação do dono de 2026-11-01): separa o
+ * container que está em demurrage (sem devolução) do que já foi devolvido com
+ * demurrage. Antes a coluna dizia "Nenhum" sempre que tudo tinha voltado,
+ * mesmo com dias de demurrage na linha aberta. `null` nas duas partes: o B/L
+ * não tem demurrage ("Sem demurrage").
+ */
+export function blDemurrageParts(bl: PortalOperationBL): { running: string | null; returned: string | null } {
+  const { inDemurrage, returnedWithDemurrage: returned } = blReturnSummary(bl)
+  return {
+    running: inDemurrage > 0 ? `${inDemurrage} em demurrage` : null,
+    returned: returned > 0 ? `${returned} ${returned === 1 ? 'devolvido' : 'devolvidos'} com demurrage` : null,
   }
 }
 

@@ -54,8 +54,8 @@ const customerCreateSchema = z.object({
   name: z.string().trim().min(2, 'Informe a razão social (mínimo de 2 caracteres)'),
 })
 
-type PanelFilterKey = 'contactEmail' | 'emailStatus' | 'blStatus' | 'pendingStatus'
-const PANEL_FILTER_KEYS: PanelFilterKey[] = ['contactEmail', 'emailStatus', 'blStatus', 'pendingStatus']
+type PanelFilterKey = 'contactEmail' | 'emailStatus' | 'blStatus' | 'pendingStatus' | 'chargeStatus'
+const PANEL_FILTER_KEYS: PanelFilterKey[] = ['contactEmail', 'emailStatus', 'blStatus', 'pendingStatus', 'chargeStatus']
 
 export function Clientes() {
   const navigate = useNavigate()
@@ -105,7 +105,7 @@ export function Clientes() {
   function setFilterField<K extends 'search' | PanelFilterKey>(field: K, value: CustomerFilters[K]) {
     setFilters((current) => ({ ...current, [field]: value, page: 0 }))
   }
-  function togglePresence(field: 'emailStatus' | 'pendingStatus', value: 'with' | 'without') {
+  function togglePresence(field: 'emailStatus' | 'pendingStatus' | 'chargeStatus', value: 'with' | 'without') {
     setFilterField(field, filters[field] === value ? '' : value)
   }
   const panelFilterCount = PANEL_FILTER_KEYS.filter((key) => String(filters[key] ?? '').trim() !== '').length
@@ -494,6 +494,9 @@ export function Clientes() {
           label="Taxas a revisar"
           value={metric(summary?.chargePending)}
           tone={(summary?.chargePending ?? 0) > 0 ? 'warning' : 'secondary'}
+          detail="B/Ls com taxa parada"
+          selected={filters.chargeStatus === 'with'}
+          onSelect={() => togglePresence('chargeStatus', 'with')}
         />
         <MetricCard
           label="Sem e-mail de contato"
@@ -534,6 +537,13 @@ export function Clientes() {
             <option value="">Todos</option>
             <option value="with">Com saldo pendente</option>
             <option value="without">Sem saldo pendente</option>
+          </Select>
+        </Field>
+        <Field label="Taxas a revisar">
+          <Select value={filters.chargeStatus} onChange={(event) => setFilterField('chargeStatus', event.target.value as CustomerFilters['chargeStatus'])}>
+            <option value="">Todos</option>
+            <option value="with">Com taxas a revisar</option>
+            <option value="without">Sem taxas a revisar</option>
           </Select>
         </Field>
         <Field label="E-mails de contato">

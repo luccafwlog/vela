@@ -86,6 +86,16 @@ describe('PortalDemurrageDetailModal', () => {
     expect(screen.getByText(/Substitui a fatura/).textContent).toContain('DEM-2026-0007')
   })
 
+  it.each([
+    ['datas', 'cancelada porque as datas dos containers mudaram.'],
+    ['soc', 'cancelada porque um container passou a SOC e saiu da cobrança.'],
+    ['divisao', 'cancelada porque mudou a divisão de um container entre Clientes.'],
+    [null, 'cancelada e substituída por esta.'],
+  ] as const)('Invoice reemitida diz a causa da substituição (%s, migration 555)', (cause, text) => {
+    renderModal(makeDetail({ replaces_doc_number: 'DEM-2026-0007', replaces_cause: cause }))
+    expect(screen.getByText(/Substitui a fatura/).textContent).toBe(`Substitui a fatura DEM-2026-0007, ${text}`)
+  })
+
   it('B30: mostra cada período (P1/P2) numa linha, dias × diária, sem Dias cobrados', () => {
     const detail = makeDetail()
     detail.items = [{
@@ -132,7 +142,7 @@ describe('PortalDemurrageDetailModal', () => {
     const handlers = renderModal(detail, { complementOf: [{ id: 7, doc_number: 'DEM-000' }] })
     expect(screen.getByRole('heading', { name: 'Invoice complementar' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Complementa a DEM-000' })).toBeTruthy()
-    expect(screen.getByText(/cobra o contêiner TGHU8120032, que entrou no B\/L depois da primeira Invoice\. A DEM-000 continua valendo/)).toBeTruthy()
+    expect(screen.getByText(/cobra o container TGHU8120032, que entrou no B\/L depois da primeira Invoice\. A DEM-000 continua valendo/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Abrir DEM-000' }))
     expect(handlers.onOpenInvoice).toHaveBeenCalledWith(7)
   })

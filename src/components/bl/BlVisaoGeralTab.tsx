@@ -20,14 +20,14 @@ export type { BaplieStatus } from './blOverviewPresentation'
 
 type ManifestoMercante = { id: string; numero: string | null } | null
 
-// ponytail: a Visão geral mostra até 10 contêineres; o resto fica na aba
-// Carga, que já lista todos. Se B/L com muitos contêineres virar regra, trocar
+// ponytail: a Visão geral mostra até 10 containers; o resto fica na aba
+// Carga, que já lista todos. Se B/L com muitos containers virar regra, trocar
 // por paginação ou só o resumo.
 const OVERVIEW_CONTAINER_LIMIT = 10
 
 // Visão geral (ADR 0081): um bloco por assunto, cada um com o seu dado
 // principal. Embarque, Documento Mercante e Cliente na primeira linha; Carga,
-// com os contêineres, e Portal na segunda. Datas de POL/POD, taxas e fatura
+// com os containers, e Portal na segunda. Datas de POL/POD, taxas e fatura
 // ficam nos trilhos acima das abas.
 export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, breakbulkSummary, onCod, onRestore, disposition, omission, savingDisposition, portalStatus, portalStatusError, onRetryPortalStatus, baplieStatus, terminalOptions, canEditTerminal, terminalOverrideSaving, terminalOverrideError, onSaveTerminalOverride }: {
   active: boolean
@@ -65,7 +65,7 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
   const breakbulkText = `${formatNumber(breakbulkSummary.weightTon)} t · ${formatNumber(breakbulkSummary.cbm)} m³`
   const breakbulkDetail = `${formatNumber(breakbulkSummary.machines)} ${breakbulkSummary.machines === 1 ? 'máquina' : 'máquinas'} · ${formatNumber(breakbulkSummary.packagesTotal)} packages`
   const containerDetail = [
-    `${containerSummary.distinct} ${containerSummary.distinct === 1 ? 'contêiner' : 'contêineres'}`,
+    `${containerSummary.distinct} ${containerSummary.distinct === 1 ? 'container' : 'containers'}`,
     containerSummary.imo ? `${containerSummary.imo} IMO` : null,
     containerSummary.oog ? `${containerSummary.oog} OOG` : null,
     `${containerSummary.soc} SOC · ${containerSummary.coc} COC`,
@@ -123,7 +123,7 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
       <div className="grid gap-3 px-4 py-3">
         {showContainers ? (
           <LeadValue tone={returns?.tone} detail={containerDetail}>
-            {returns?.text ?? `${containerSummary.distinct} ${containerSummary.distinct === 1 ? 'contêiner' : 'contêineres'}`}
+            {returns?.text ?? `${containerSummary.distinct} ${containerSummary.distinct === 1 ? 'container' : 'containers'}`}
           </LeadValue>
         ) : (
           <LeadValue detail={breakbulkDetail}>{breakbulkText}</LeadValue>
@@ -151,12 +151,12 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
           <table className="app-table app-table--compact">
             <thead>
               <tr>
-                <th scope="col" className="app-table__group"><span className="sr-only">Contêiner</span></th>
+                <th scope="col" className="app-table__group"><span className="sr-only">Container</span></th>
                 <th scope="colgroup" colSpan={2} className="app-table__group"><span>Devolução</span></th>
                 <th scope="colgroup" colSpan={3} className="app-table__group"><span>No terminal</span></th>
               </tr>
               <tr>
-                <th scope="col">Contêiner</th>
+                <th scope="col">Container</th>
                 <th scope="col">Data</th>
                 <th scope="col">Demurrage</th>
                 <th scope="col">Descarga</th>
@@ -170,14 +170,14 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
                 return (
                   <tr key={container.id}>
                     <td className="app-bl-code text-[var(--app-text-strong)]">
-                      {container.container_number ? <CopyValue value={container.container_number} label="número do contêiner" /> : <NoValue label="Sem número do contêiner" />}
+                      {container.container_number ? <CopyValue value={container.container_number} label="número do container" /> : <NoValue label="Sem número do container" />}
                     </td>
                     <td className="tabular-nums">
                       {container.return_date ? formatDate(container.return_date) : soc ? <span className="text-[var(--app-muted)]">Não se aplica (SOC)</span> : <NoValue label="Sem data de devolução" />}
                     </td>
                     <td>
                       {/* Sem descarga o banco grava "no free time" por padrão (migration 197):
-                          o selo só aparece depois que o contêiner descarregou. */}
+                          o selo só aparece depois que o container descarregou. */}
                       {soc ? <span className="text-[var(--app-muted)]">Não se aplica (SOC)</span> : container.discharge_date ? <DemurrageStatusBadge status={container.demurrage_status} /> : <NoValue label="Sem descarga" />}
                     </td>
                     <td className="tabular-nums">

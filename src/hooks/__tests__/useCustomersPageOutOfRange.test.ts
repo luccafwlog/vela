@@ -21,7 +21,7 @@ vi.mock('../../services/supabase', () => {
 
 import { fetchCustomerRows, type CustomerFilters } from '../useCustomers'
 
-const filters: CustomerFilters = { search: '', contactEmail: '', emailStatus: '', blStatus: '', pendingStatus: '', sortKey: 'name', sortDirection: 'asc', page: 4, pageSize: 50 }
+const filters: CustomerFilters = { search: '', contactEmail: '', emailStatus: '', blStatus: '', pendingStatus: '', chargeStatus: '', sortKey: 'name', sortDirection: 'asc', page: 4, pageSize: 50 }
 
 describe('fetchCustomerRows - página além do total', () => {
   it('devolve o total em vez de erro, para a lista recuar à última página', async () => {

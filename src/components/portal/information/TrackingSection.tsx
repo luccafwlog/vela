@@ -50,7 +50,7 @@ export function TrackingSection({ information }: { information: PortalInformatio
       <div className="flex flex-wrap gap-3">
         {withoutBl.map((carrier) => <a key={carrier.carrier_id} href={externalInformationUrl(carrier.tracking_url)!} target="_blank" rel="noopener noreferrer" className="app-btn app-btn--secondary">Abrir tracking da {carrier.name}<ExternalLink size={14} aria-hidden="true" /></a>)}
       </div>
-      <p className="m-0 text-sm text-[var(--app-muted)]">O número do B/L se copia em BLs e Containers, pelo ícone de copiar ao lado dele.</p>
+      <p className="m-0 text-sm text-[var(--app-muted)]">O número do B/L se copia em B/Ls e containers, pelo ícone de copiar ao lado dele.</p>
     </Block>}
   </div>
 }

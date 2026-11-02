@@ -1,10 +1,5 @@
 import type { CustomerContact } from '../types/database'
-import {
-  CUSTOMER_PORTAL_BILLING_URL,
-  renderCeMercanteTaxasTemplate,
-  type CustomerCommunicationCeMercanteRow,
-  type CustomerCommunicationTemplateInput,
-} from './customerCommunicationTemplates'
+import { renderCeMercanteTaxasTemplate } from './customerCommunicationTemplates'
 import {
   customerCommunicationReadinessReasonLabel,
   fetchCustomerLocalChargesCommunicationReadiness,
@@ -14,33 +9,19 @@ import {
   dispatchCustomerCommunication,
   type CustomerCommunicationDispatchResult,
 } from './customerCommunicationDispatches'
-import { type EmailSuppressionRow } from './customerCommunications'
+import type { EmailSuppressionRow } from './customerCommunications'
 import {
   fetchCommunicationBoxKinds,
   resolveCustomerCommunicationRecipientsByBoxes,
   type CustomerContactBoxLink,
 } from './customerCommunicationBoxes'
+import {
+  buildCeMercanteInput,
+  ceMercanteReadinessReason,
+  fetchFinanceBls,
+  fetchInvoiceBls,
+} from './ceMercanteTaxasInput'
 import { supabase } from './supabase'
-import { portalPageUrl } from '../config/portalUrl'
-
-type FinanceBlRow = {
-  id: string
-  voyage_id: number
-  customer_id: number
-  ce_mercante: string | null
-  financial_status: string | null
-  cancelled_at?: string | null
-  pod: string | null
-  customer: { id: number; name: string; cnpj_cpf: string } | null
-  voyage: { id: number; voyage_number: string; eta: string | null; vessel: { name: string } | null } | null
-}
-
-type InvoiceBlRow = {
-  bl_id: string | null
-  subtotal_brl: number | null
-  status?: string | null
-  invoice: { id: number; status: string | null } | null
-}
 
 type CommunicationHistoryRow = {
   id: number
@@ -48,8 +29,6 @@ type CommunicationHistoryRow = {
   attempt_discriminator: number
   created_at: string
 }
-
-const ACTIVE_LOCAL_INVOICE_STATUSES = new Set(['issued', 'partially_paid', 'paid', 'covered'])
 
 export type CeMercanteCommunicationDispatchSummary = {
   status: 'enviado' | 'simulado' | 'parcial' | 'falha' | 'bloqueado' | 'ignorado'
@@ -70,69 +49,8 @@ type RecipientDispatchResult = Pick<CustomerCommunicationDispatchResult, 'status
   reason?: string
 }
 
-// Configuração única do endereço do Portal (src/config/portalUrl.ts, ponto 4 de 2026-10-23).
-function configuredPortalBillingUrl(): string {
-  const configured = String(import.meta.env.VITE_PORTAL_BILLING_URL ?? '').trim() || String(import.meta.env.VITE_PORTAL_URL ?? '').trim()
-  return configured ? portalPageUrl('billing', configured) : CUSTOMER_PORTAL_BILLING_URL
-}
-
-function normalizeNested<T>(value: T | T[] | null | undefined): T | null {
-  if (Array.isArray(value)) return value[0] ?? null
-  return value ?? null
-}
-
 function readinessBlIds(readiness: CustomerLocalChargesCommunicationReadiness): string[] {
   return readiness.bls.map((bl) => bl.bl_id)
-}
-
-function firstReason(readiness: CustomerLocalChargesCommunicationReadiness): string | null {
-  const reason = readiness.reasons[0] ?? readiness.bls.flatMap((bl) => bl.blocked_reasons)[0]
-  return reason ? customerCommunicationReadinessReasonLabel(reason) : null
-}
-
-async function fetchFinanceBls(voyageId: number, customerId: number): Promise<FinanceBlRow[]> {
-  const { data, error } = await supabase
-    .from('bls')
-    .select('id, voyage_id, customer_id, ce_mercante, financial_status, cancelled_at, pod, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, vessel:vessels(name))')
-    .eq('voyage_id', voyageId)
-    .eq('customer_id', customerId)
-    .overrideTypes<FinanceBlRow[], { merge: false }>()
-  if (error) throw error
-  return (data ?? [])
-    .filter((row) => row.financial_status !== 'cancelled' && !row.cancelled_at)
-    .sort((left, right) => left.id.localeCompare(right.id))
-}
-
-async function fetchInvoiceBls(blIds: readonly string[]): Promise<InvoiceBlRow[]> {
-  if (!blIds.length) return []
-  const { data: directData, error: directError } = await supabase
-    .from('invoice_bls')
-    .select('bl_id, subtotal_brl, invoice:invoices(id, status)')
-    .in('bl_id', [...blIds])
-    .overrideTypes<InvoiceBlRow[], { merge: false }>()
-  if (directError) throw directError
-  const directRows = (directData ?? []).map((row) => ({
-    ...row,
-    invoice: normalizeNested(row.invoice),
-  })).filter((row) => row.bl_id && row.invoice && ACTIVE_LOCAL_INVOICE_STATUSES.has(row.invoice.status ?? ''))
-  const directBlIds = new Set(directRows.map((row) => row.bl_id as string))
-  const missingBlIds = blIds.filter((blId) => !directBlIds.has(blId))
-  if (!missingBlIds.length) return directRows
-
-  // Individual invoices are present in invoice_bls and are mirrored into the
-  // ledger. Consolidated invoices only have invoice_receivable_links; prefer
-  // the direct source per B/L so the mirror is never counted twice.
-  const { data: ledgerData, error: ledgerError } = await supabase
-    .from('invoice_receivable_links')
-    .select('bl_id, subtotal_brl, status, invoice:invoices(id, status)')
-    .in('bl_id', missingBlIds)
-    .overrideTypes<InvoiceBlRow[], { merge: false }>()
-  if (ledgerError) throw ledgerError
-  const ledgerRows = (ledgerData ?? []).map((row) => ({
-    ...row,
-    invoice: normalizeNested(row.invoice),
-  })).filter((row) => row.bl_id && row.status !== 'obsolete' && row.invoice && ACTIVE_LOCAL_INVOICE_STATUSES.has(row.invoice.status ?? ''))
-  return [...directRows, ...ledgerRows]
 }
 
 async function fetchContacts(customerId: number): Promise<{
@@ -191,37 +109,6 @@ function nextAttempt(history: readonly CommunicationHistoryRow[]): number {
   return Math.max(...history.map((row) => Number(row.attempt_discriminator) || 0)) + 1
 }
 
-function buildCeMercanteInput(
-  bls: readonly FinanceBlRow[],
-  invoiceBls: readonly InvoiceBlRow[],
-): CustomerCommunicationTemplateInput {
-  const first = bls[0]
-  if (!first?.customer || !first.voyage) throw new Error('Dados de cliente ou viagem ausentes para o comunicado financeiro.')
-  const totals = new Map<string, number>()
-  for (const link of invoiceBls) {
-    const invoice = normalizeNested(link.invoice)
-    if (!link.bl_id || !invoice || !ACTIVE_LOCAL_INVOICE_STATUSES.has(invoice.status ?? '')) continue
-    totals.set(link.bl_id, (totals.get(link.bl_id) ?? 0) + Number(link.subtotal_brl ?? 0))
-  }
-  const ceMercanteRows: CustomerCommunicationCeMercanteRow[] = bls.map((bl) => ({
-    blId: bl.id,
-    ceMercante: bl.ce_mercante?.trim() ?? '',
-    totalBrl: totals.get(bl.id) ?? 0,
-  }))
-  return {
-    customerId: first.customer_id,
-    customerName: first.customer.name,
-    vesselName: first.voyage.vessel?.name ?? '',
-    voyageNumber: first.voyage.voyage_number,
-    port: first.pod ?? '—',
-    milestoneAt: first.voyage.eta ?? '',
-    bls: bls.map((bl) => ({ id: bl.id, customerId: bl.customer_id })),
-    portalUrl: configuredPortalBillingUrl(),
-    ceMercanteRows,
-    totalBrl: ceMercanteRows.reduce((sum, row) => sum + row.totalBrl, 0),
-  }
-}
-
 export async function dispatchCeMercanteTaxasCommunication(
   voyageId: number,
   customerId: number,
@@ -237,7 +124,7 @@ export async function dispatchCeMercanteTaxasCommunication(
       failedCount: 0,
       communicationIds: [],
       attemptDiscriminator: 0,
-      reason: firstReason(readiness),
+      reason: ceMercanteReadinessReason(readiness),
       blIds: readinessBlIds(readiness),
     }
   }

@@ -21,7 +21,7 @@ const OPEN_DEMURRAGE_STATUSES = ['issued', 'overdue']
 // Solicitação de Desbloqueio de CE ainda não concluída nem cancelada.
 const OPEN_CE_REQUEST_STATES = ['draft', 'submitted', 'in_review', 'changes_requested']
 
-// Atalhos para as seções da Central de Informações (lote 4).
+// Atalhos para as seções de Informações (lote 4; o nome do menu desde 2026-11-01).
 const CONSULTAS = [
   { section: 'taxas', label: 'Taxas Locais' },
   { section: 'devolucao', label: 'Depósitos de devolução' },
@@ -108,8 +108,8 @@ export function PortalDashboard() {
 
       <ShipScheduleWidget className="mt-6" />
 
-      <Block title="Consultas" aside="Central de Informações" className="mt-6">
-        <nav aria-label="Consultas na Central de Informações" className="flex flex-wrap gap-2">
+      <Block title="Informações" className="mt-6">
+        <nav aria-label="Seções de Informações" className="flex flex-wrap gap-2">
           {CONSULTAS.map((item) => (
             <Link key={item.section} to={portalPath(scope, `/informacoes/${item.section}`)} className="app-btn app-btn--secondary">
               {item.label}

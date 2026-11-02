@@ -19,9 +19,14 @@ const summary = [
   { department: 'sem_departamento', active_count: 2, is_legacy: true },
 ]
 
+const summaryState = vi.hoisted(() => ({ failed: false }))
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
-    if (queryKey[0] === 'alert-department-summary') return { data: summary, isLoading: false, error: null }
+    if (queryKey[0] === 'alert-department-summary') {
+      return summaryState.failed
+        ? { data: undefined, isLoading: false, isError: true, error: new Error('falhou') }
+        : { data: summary, isLoading: false, isError: false, error: null }
+    }
     if (queryKey[1] === 'entity-labels') return { data: { 'voyage:10': 'COSCO SHIPPING ARIES / 088E' }, isLoading: false, error: null }
     return { data: ACTIVE, isLoading: false, error: null }
   },
@@ -59,7 +64,10 @@ function rowOf(text: string) {
 }
 
 afterEach(cleanup)
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  summaryState.failed = false
+})
 
 it('abre em Ativos, sem "Todos" nem Atualizar, com o título igual ao menu', () => {
   renderAlertas()
@@ -165,17 +173,58 @@ it('oferece as regras de alertas no topo', () => {
   expect(screen.getByRole('link', { name: 'Regras de alertas' }).getAttribute('href')).toBe('/alertas/regras')
 })
 
-it('sincroniza o filtro de setor a partir da URL e faz fallback para valores desconhecidos', () => {
+it('sincroniza o cartão de setor a partir da URL e ignora valores desconhecidos', () => {
+  const pressed = () => within(screen.getByRole('group', { name: 'Alertas por setor' }))
+    .getAllByRole('button').filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent)
   const { unmount } = renderAlertas(['/alertas?departamento=administrativo'])
-  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('administrativo')
+  expect(pressed()).toEqual([expect.stringMatching(/^Administrativo/)])
   unmount()
 
   const legacy = renderAlertas(['/alertas?departamento=sem_departamento'])
-  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('sem_departamento')
+  expect(pressed()).toEqual([expect.stringMatching(/^Sem setor/)])
   legacy.unmount()
 
   renderAlertas(['/alertas?departamento=setor_inexistente'])
-  expect((screen.getByLabelText('Setor') as HTMLSelectElement).value).toBe('all')
+  expect(pressed()).toEqual([])
+})
+
+it('não há seletor de setor: o setor se escolhe pelos cartões', () => {
+  renderAlertas()
+  expect(screen.queryByLabelText('Setor')).toBeNull()
+})
+
+it('cartões por setor filtram a fila ali mesmo e, clicados de novo, tiram o filtro', () => {
+  renderAlertas()
+  const cards = within(screen.getByRole('group', { name: 'Alertas por setor' }))
+  const documentacao = cards.getByRole('button', { name: /Documentação\s*4 alertas/ })
+  expect(cards.getByRole('button', { name: /Administrativo\s*Nenhum/ })).toBeTruthy()
+  expect(cards.getByRole('button', { name: /Sem setor\s*2 alertas/ })).toBeTruthy()
+  expect(documentacao.getAttribute('aria-pressed')).toBe('false')
+
+  fireEvent.click(documentacao)
+  expect(documentacao.getAttribute('aria-pressed')).toBe('true')
+  expect(screen.getByRole('button', { name: 'Limpar filtros' })).toBeTruthy()
+
+  fireEvent.click(documentacao)
+  expect(documentacao.getAttribute('aria-pressed')).toBe('false')
+  expect(screen.queryByRole('button', { name: 'Limpar filtros' })).toBeNull()
+})
+
+it('resumo por setor que falha: avisa e os cartões não dizem "Nenhum", mas continuam filtrando', () => {
+  summaryState.failed = true
+  renderAlertas()
+  expect(screen.getByText('Erro ao carregar os alertas por setor.')).toBeTruthy()
+  const cards = within(screen.getByRole('group', { name: 'Alertas por setor' }))
+  expect(cards.queryByText('Nenhum')).toBeNull()
+  const documentacao = cards.getByRole('button', { name: /Documentação\s*Sem contagem/ })
+  fireEvent.click(documentacao)
+  expect(documentacao.getAttribute('aria-pressed')).toBe('true')
+})
+
+it('o link do Painel abre com o cartão do setor marcado', () => {
+  renderAlertas(['/alertas?departamento=operacoes'])
+  const cards = within(screen.getByRole('group', { name: 'Alertas por setor' }))
+  expect(cards.getByRole('button', { name: /Operações/ }).getAttribute('aria-pressed')).toBe('true')
 })
 
 it('filtra por busca, gravidade e registro, e limpa os filtros', () => {

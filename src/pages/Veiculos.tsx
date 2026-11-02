@@ -604,7 +604,7 @@ export function Veiculos() {
                         <td className="app-cargo-code">{row.chassis}</td>
                         <td>{row.brand ?? <NoValue label="Sem marca" />}</td>
                         <td>{row.model ?? <NoValue label="Sem modelo" />}</td>
-                        <td className="app-cargo-code">{row.container?.container_number ? <CopyValue value={row.container.container_number} label="número do contêiner" /> : <NoValue label="Sem container" />}</td>
+                        <td className="app-cargo-code">{row.container?.container_number ? <CopyValue value={row.container.container_number} label="número do container" /> : <NoValue label="Sem container" />}</td>
                         <td>{row.bl?.id ? <CopyValue value={row.bl.id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${row.bl.id}`}>{row.bl.id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
                         <td className="tabular-nums">{row.weight_kg == null ? <NoValue label="Sem peso" /> : formatKg(row.weight_kg)}</td>
                         <td className="tabular-nums">{row.cbm == null ? <NoValue label="Sem cubagem" /> : formatCbm(row.cbm)}</td>

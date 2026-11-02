@@ -306,7 +306,8 @@ export function Revisao() {
     } catch (error) {
       const message = extractErrorText(error)
       showToast(
-        message.toLowerCase().includes('ja foi faturado')
+        // A tela (chargeOperationsService) diz "já"; o banco ainda diz "ja".
+        /j[aá] foi faturado/i.test(message)
           ? `Fatura já emitida para ${notice.id} — corrija o dado do B/L; a fatura é reemitida ou ajustada sozinha.`
           : 'Falha ao recalcular as taxas locais.',
         'error',
@@ -376,8 +377,8 @@ export function Revisao() {
     addChange('Consignatário', item.consignee, values.consignee.trim() || null)
     addChange('POL', item.pol, values.pol.trim() || null)
     addChange('POD', item.pod, values.pod.trim() || null)
-    addChange('Peso contêiner (kg)', item.total_weight_kg, values.total_weight_kg)
-    addChange('CBM contêiner (m³)', item.total_cbm, values.total_cbm)
+    addChange('Peso container (kg)', item.total_weight_kg, values.total_weight_kg)
+    addChange('CBM container (m³)', item.total_cbm, values.total_cbm)
     addChange('Peso carga solta (t)', item.bb_weight_ton, values.bb_weight_ton)
     addChange('CBM carga solta (m³)', item.bb_cbm, values.bb_cbm)
     addChange('Notas da revisão', splitReviewNotes(item.notes) || null, values.notes)

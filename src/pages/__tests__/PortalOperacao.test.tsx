@@ -207,6 +207,11 @@ function SearchProbe() {
   return <div data-testid="search">{useLocation().search}</div>
 }
 
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="probe-path">{location.pathname + location.search}</div>
+}
+
 function renderOperacao(initialEntry = '/portal/operacao') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -255,8 +260,8 @@ describe('PortalOperacao (BLs e Containers)', () => {
 
   it('mostra a tabela limpa da aba BLs: Navio / Viagem, Trecho, Carga, Taxas locais, Pagamento, Devolução e Demurrage', () => {
     renderOperacao()
-    expect(screen.getByRole('heading', { name: 'BLs e Containers' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'BLs' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('heading', { name: 'B/Ls e containers' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'B/Ls' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tab', { name: 'Containers' })).toBeTruthy()
 
     const headers = within(blsTable()).getAllByRole('columnheader').map((th) => th.textContent)
@@ -278,7 +283,7 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(paid).getByText('R$ 2.702,00')).toBeTruthy()
     expect(within(paid).getByText('Pago').closest('.app-status-text--paid')).not.toBeNull()
     expect(within(paid).getByText('2 de 2 devolvidos').closest('.app-status-text--warning')).toBeNull()
-    expect(within(paid).getByText('Nenhum')).toBeTruthy()
+    expect(within(paid).getByText('Sem demurrage')).toBeTruthy()
 
     const awaiting = blRow('BL004')
     expect(within(awaiting).getByText('Aguardando fatura').closest('.app-status-text--warning')).toBeNull()
@@ -289,6 +294,66 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(looseCargo).getByText('Carga solta · 64,5 t')).toBeTruthy()
     expect(within(looseCargo).getByText('Sem fatura')).toBeTruthy()
     expect(within(looseCargo).getAllByText('Sem containers')).toHaveLength(2)
+  })
+
+  it('sem link de armador com {BL}, a coluna Tracking não aparece', () => {
+    const previous = rows[0].tracking_url
+    rows[0].tracking_url = 'https://spe.coscoshipping.com/main/newcargotracking?label=T&value='
+    try {
+      renderOperacao()
+      expect(within(blsTable()).queryByRole('columnheader', { name: 'Tracking' })).toBeNull()
+      expect(screen.queryByRole('link', { name: /Ver tracking/ })).toBeNull()
+    } finally { rows[0].tracking_url = previous }
+  })
+
+  it('abre o tracking de cada B/L no site do armador, com o número no lugar de {BL}', async () => {
+    const previous = { tracking_url: rows[0].tracking_url, carrier_name: rows[0].carrier_name }
+    Object.assign(rows[0], { tracking_url: 'https://spe.coscoshipping.com/main/newcargotracking?label=T&value={BL}', carrier_name: 'Cosco Shipping Specialized Carriers' })
+    try {
+      const user = userEvent.setup()
+      renderOperacao()
+      expect(within(blsTable()).getByRole('columnheader', { name: 'Tracking' })).toBeTruthy()
+
+      const link = within(blRow('BL001')).getByRole('link', { name: 'Ver tracking do B/L BL001 na Cosco Shipping Specialized Carriers (abre em nova aba)' })
+      expect(link.getAttribute('href')).toBe('https://spe.coscoshipping.com/main/newcargotracking?label=T&value=BL001')
+      expect(link.getAttribute('target')).toBe('_blank')
+      expect(link.getAttribute('rel')).toBe('noopener noreferrer')
+      // B/L de armador sem link: traço discreto, sem botão.
+      expect(within(blRow('BL002')).queryByRole('link')).toBeNull()
+      expect(within(blRow('BL002')).getByText('Sem tracking no site do armador')).toBeTruthy()
+
+      // Clicar no tracking não abre nem fecha a linha.
+      link.addEventListener('click', (event) => event.preventDefault())
+      await user.click(link)
+      expect(screen.queryByRole('table', { name: 'Containers do B/L BL001' })).toBeNull()
+
+      const card = within(screen.getByTestId('portal-operacao-bl-mobile-cards')).getByRole('article', { name: 'B/L BL001' })
+      expect(within(card).getByRole('link', { name: /Ver tracking na Cosco Shipping Specialized Carriers/ }).getAttribute('href')).toBe('https://spe.coscoshipping.com/main/newcargotracking?label=T&value=BL001')
+    } finally { Object.assign(rows[0], previous) }
+  })
+
+  it('coluna Demurrage: B/L todo devolvido com dias de demurrage não diz "Nenhum" (observação de 2026-11-01)', () => {
+    const late = rows[2].containers[1]
+    const lateBefore = { ...late }
+    const returnedOnOpen = rows[0].containers[0]
+    const returnedOnOpenBefore = { ...returnedOnOpen }
+    Object.assign(late, { usage_days: 25, demurrage_days: 4 })
+    Object.assign(returnedOnOpen, { usage_days: 30, demurrage_days: 9 })
+    try {
+      renderOperacao()
+      const paid = blRow('BL003')
+      expect(within(paid).getByText('2 de 2 devolvidos')).toBeTruthy()
+      expect(within(paid).getByText('1 devolvido com demurrage').closest('.app-status-text')).toBeNull()
+      expect(within(paid).queryByText('Sem demurrage')).toBeNull()
+
+      // Um em demurrage (vermelho) e um já devolvido com demurrage, na mesma célula.
+      const open = blRow('BL001')
+      expect(within(open).getByText('1 em demurrage').closest('.app-status-text--danger')).not.toBeNull()
+      expect(open.textContent).toContain('1 em demurrage · 1 devolvido com demurrage')
+    } finally {
+      Object.assign(late, lateBefore)
+      Object.assign(returnedOnOpen, returnedOnOpenBefore)
+    }
   })
 
   it('filtra pelos cartões da aba BLs no lugar da contagem "B/L(s) encontrado(s)"', async () => {
@@ -417,13 +482,31 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(containersTable()).queryByText('ABCD1234567')).toBeNull()
   })
 
+  it('o valor das Taxas locais abre Faturas filtrada pelo B/L, sem abrir a linha', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/portal/operacao']}>
+        <PortalOperacao />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+    const link = within(blsTable()).getByRole('link', { name: /^Ver as faturas do B\/L BL001: R\$\s4\.804,00$/ })
+    expect(link.getAttribute('href')).toBe('/portal/billing?tab=local&bl=BL001')
+    // B/L sem fatura visível fica sem link.
+    expect(within(blsTable()).queryByRole('link', { name: /Ver as faturas do B\/L BL002/ })).toBeNull()
+    await user.click(link)
+    expect(screen.getByTestId('probe-path').textContent).toBe('/portal/billing?tab=local&bl=BL001')
+    expect(within(blsTable()).getByRole('button', { name: 'Abrir os containers do B/L BL001' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('renderiza cards mobile nas abas BLs e Containers, sem os botões repetidos', async () => {
     const user = userEvent.setup()
     renderOperacao()
 
     const blCards = screen.getByTestId('portal-operacao-bl-mobile-cards')
     expect(within(blCards).getByRole('article', { name: 'B/L BL001' }).textContent).toMatch(/R\$\s1\.202,00 em aberto/)
-    expect(within(blCards).queryAllByRole('link')).toHaveLength(0)
+    // Só o valor das Taxas locais é link (abre Faturas filtrada); nenhum atalho repetido.
+    expect(within(blCards).queryAllByRole('link').every((link) => /^Ver as faturas do B\/L /.test(link.getAttribute('aria-label') ?? ''))).toBe(true)
 
     await user.click(screen.getByRole('tab', { name: 'Containers' }))
 
@@ -482,8 +565,14 @@ describe('PortalOperacao (BLs e Containers)', () => {
 // Ponto 2 de 2026-10-23: o atalho "Ver meus B/Ls" de Chegadas e saídas chega
 // pela URL; recarregar a página mantém o filtro de Navio e Viagem.
 describe('PortalOperacao: Navio e Viagem na URL', () => {
-  it('abre a aba BLs já filtrada pelo navio e pela viagem do endereço', () => {
+  it('abre a aba BLs já filtrada pelo navio e pela viagem do endereço, com os filtros recolhidos', async () => {
+    const user = userEvent.setup()
     renderOperacao('/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W')
+    // Filtros recolhidos por padrão no Portal (2026-11-02); o contador mostra o recorte.
+    const toggle = screen.getByRole('button', { name: /Filtros/i })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.textContent).toContain('2')
+    await user.click(toggle)
     expect((screen.getByLabelText('Navio') as HTMLInputElement).value).toBe('NAVIO DEVOLVIDO')
     expect((screen.getByLabelText('Viagem') as HTMLInputElement).value).toBe('003W')
     const shown = within(blsTable()).getAllByRole('button', { name: /Abrir os containers do B\/L/ }).map((b) => b.getAttribute('aria-label'))
@@ -493,6 +582,7 @@ describe('PortalOperacao: Navio e Viagem na URL', () => {
   it('digitar ou limpar Navio e Viagem atualiza a URL', async () => {
     const user = userEvent.setup()
     renderOperacao('/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W')
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
     await user.clear(screen.getByLabelText('Viagem'))
     expect(new URLSearchParams(screen.getByTestId('search').textContent ?? '').get('viagem')).toBeNull()
     await user.clear(screen.getByLabelText('Navio'))
@@ -507,6 +597,7 @@ describe('PortalOperacao: Navio e Viagem na URL', () => {
   it('digitar no meio do Navio mantém o cursor no lugar', async () => {
     const user = userEvent.setup()
     renderOperacao('/portal/operacao?tab=bls&navio=NAVIO&viagem=003W')
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
     const navio = screen.getByLabelText('Navio') as HTMLInputElement
     await user.type(navio, 'XY', { initialSelectionStart: 2, initialSelectionEnd: 2 })
     expect(navio.value).toBe('NAXYVIO')
@@ -521,6 +612,7 @@ describe('PortalOperacao: Navio e Viagem na URL', () => {
         <Link to="/portal/operacao?tab=bls">Menu BLs e Containers</Link>
       </MemoryRouter>,
     )
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
     await user.click(screen.getByRole('link', { name: 'Menu BLs e Containers' }))
     expect((screen.getByLabelText('Navio') as HTMLInputElement).value).toBe('')
     expect((screen.getByLabelText('Viagem') as HTMLInputElement).value).toBe('')

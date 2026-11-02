@@ -4,7 +4,6 @@ import { Download, Monitor, Ship } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block } from '../components/ui/Block'
-import { MetricCard } from '../components/ui/MetricCard'
 import { StatusText } from '../components/ui/StatusText'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useToast } from '../components/ui/Toast'
@@ -14,16 +13,9 @@ import { LineUpFilters } from '../components/lineup/LineUpFilters'
 import { countActiveLineUpFilters, emptyLineUpFilters, filterLineUpRows, type LineUpFilters as LineUpFiltersState } from '../lib/lineupFilters'
 import { fetchLineUpSnapshot, type LineUpUnassignedMty } from '../services/lineup'
 import { markStartupStage } from '../lib/telemetry'
-import { ALERT_DEPARTMENT_LABELS, getAlertDepartmentSummary, type AlertDepartmentSummary } from '../services/alerts'
+import { getAlertDepartmentSummary, type AlertDepartmentSummary } from '../services/alerts'
+import { AlertDepartmentCards } from '../components/alerts/AlertDepartmentCards'
 import { queryKeys } from '../services/queryKeys'
-
-const KNOWN_DEPARTMENTS = ['documentacao', 'equipamentos', 'operacoes', 'administrativo'] as const
-
-function deptCard(department: string, label: string, item: AlertDepartmentSummary | undefined, fallbackDetail?: string) {
-  const activeCount = Number(item?.active_count ?? 0)
-  // A dispensa saiu na migration 476 (ADR 0108): o cartão não conta dispensados.
-  return { department, label, activeCount, detail: fallbackDetail }
-}
 
 export function Painel() {
   const { showToast } = useToast()
@@ -82,25 +74,6 @@ export function Painel() {
     }
   }
 
-  // Mapear departamentos garantindo presença dos 3 setores principais
-  const summaryByDept = useMemo(() => {
-    const map = new Map<string, AlertDepartmentSummary>()
-    if (Array.isArray(departmentSummary)) {
-      for (const item of departmentSummary) {
-        map.set(item.department, item)
-      }
-    }
-    return map
-  }, [departmentSummary])
-
-  // Um cartão por setor, inclusive o Administrativo, responsável por parte do
-  // catálogo de alertas (lote 5a, achado A1). "Sem setor" (alertas anteriores
-  // à divisão por setor) só aparece quando tem alerta.
-  const deptCards = [
-    ...KNOWN_DEPARTMENTS.map((dept) => deptCard(dept, ALERT_DEPARTMENT_LABELS[dept] ?? dept, summaryByDept.get(dept))),
-    ...(summaryByDept.has('sem_departamento') ? [deptCard('sem_departamento', 'Sem setor', summaryByDept.get('sem_departamento'), 'anteriores aos setores')] : []),
-  ].filter((card) => card.department !== 'sem_departamento' || card.activeCount > 0)
-
   return (
     <>
       <PageHeader
@@ -137,18 +110,10 @@ export function Painel() {
       {departmentSummaryError ? (
         <InlineError message="Erro ao carregar os alertas por setor." />
       ) : (
-        <div className="app-metric-row" aria-label="Alertas por setor">
-          {deptCards.map((card) => (
-            <MetricCard
-              key={card.department}
-              label={card.label}
-              value={card.activeCount === 0 ? 'Nenhum' : `${card.activeCount} ${card.activeCount === 1 ? 'alerta' : 'alertas'}`}
-              tone={card.activeCount > 0 ? 'warning' : 'secondary'}
-              detail={card.detail}
-              onSelect={() => navigate(`/alertas?departamento=${encodeURIComponent(card.department)}`)}
-            />
-          ))}
-        </div>
+        <AlertDepartmentCards
+          summary={departmentSummary}
+          onSelect={(department) => navigate(`/alertas?departamento=${encodeURIComponent(department)}`)}
+        />
       )}
 
       <LineUpFilters

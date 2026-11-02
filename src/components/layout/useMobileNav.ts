@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { lockPageScroll } from '../../lib/pageScrollLock'
 
 /** Largura em que o menu horizontal vira o botão Menu (index.css, `max-width: 1100px`). */
 export const NAV_COLLAPSE_WIDTH = 1100
@@ -36,8 +37,7 @@ export function useMobileNav() {
   useEffect(() => {
     if (!open) return
     navRef.current?.querySelector<HTMLElement>('a[href], button:not(:disabled)')?.focus({ preventScroll: true })
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlockScroll = lockPageScroll()
     function handleEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       setOpen(false)
@@ -45,7 +45,7 @@ export function useMobileNav() {
     }
     document.addEventListener('keydown', handleEscape)
     return () => {
-      document.body.style.overflow = previousOverflow
+      unlockScroll()
       document.removeEventListener('keydown', handleEscape)
     }
   }, [open])

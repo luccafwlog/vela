@@ -22,10 +22,10 @@ export function reviewReasonLabel(reason: string) {
 }
 
 export function getReviewCargoTypeLabel(item: ReviewQueueItem) {
-  if (item.source !== 'bl') return 'Contêiner'
+  if (item.source !== 'bl') return 'Container'
   if (item.cargo_mode === 'misto') return 'Misto'
   if (item.cargo_mode === 'carga_solta') return 'Carga solta'
-  return 'Contêiner'
+  return 'Container'
 }
 
 // Cliente e consignatário são a mesma entidade, chaveada por CNPJ. Se o CNPJ já

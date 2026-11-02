@@ -696,7 +696,7 @@ async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
   return countByVoyage
 }
 
-// O marco é o mais recente entre as viagens do snapshot. B/Ls e contêineres
+// O marco é o mais recente entre as viagens do snapshot. B/Ls e containers
 // filtram pela viagem (uma leitura por tabela); filtrar pelos ids dos B/Ls
 // exigia uma leitura a cada 100 B/Ls — 72 requisições para 60 viagens.
 async function fetchLastLineUpChangeAt(voyageIds: number[], scheduleEntityIds: string[]) {

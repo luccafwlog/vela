@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, FilePlus2, Printer } from 'lucide-react'
+import { FilePlus2, Printer } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -16,6 +16,7 @@ import { DisputeModal } from '../components/portal/DisputeModal'
 import { PortalDemurrageDetailModal } from '../components/portal/PortalDemurrageDetailModal'
 import { PortalDisputesScreen } from '../components/portal/PortalDisputeConversation'
 import { PortalInvoiceDetailModal } from '../components/portal/PortalInvoiceDetailModal'
+import { PortalPixPayModal } from '../components/portal/PortalPixPayModal'
 import { DemurrageTab, LocalFeesTab } from '../components/portal/PortalBillingTabs'
 import { usePortalAuth } from '../hooks/usePortalAuth'
 import { usePortalScope } from '../hooks/usePortalScope'
@@ -32,8 +33,9 @@ import {
 import { usePortalDisputes } from '../hooks/usePortalDisputes'
 import { buildInvoiceFileBaseName } from '../components/shared/invoiceFormat'
 import { exportPortalDemurrageWorkbook, exportPortalLocalInvoicesWorkbook } from '../services/exports'
-import { portalInvoiceDocumentDetail, portalListDemurrageInvoicesForExport, portalListInvoicesForExport } from '../services/portalBilling'
-import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../lib/portalBillingFilters'
+import { portalInvoiceDocumentDetail, portalListDemurrageInvoicesForExport, portalListInvoicesForExport, type PortalDemurrageInvoice, type PortalInvoiceSummary } from '../services/portalBilling'
+import { EMPTY_PORTAL_BILLING_FILTERS, portalBillingFiltersFromSearch, type PortalBillingFilters } from '../lib/portalBillingFilters'
+import { demurrageInvoiceShowsPix, localInvoiceShowsPix } from '../lib/portalInvoiceStatus'
 import { formatBRL } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
 import { isPortalReadOnly } from '../services/portalScope'
@@ -99,8 +101,23 @@ export function PortalBilling() {
   const [receiptOpen, setReceiptOpen] = useState(false)
   const [demurragePrint, setDemurragePrint] = useState<'invoice' | 'receipt' | null>(null)
   const [exporting, setExporting] = useState(false)
-  const [localFilters, setLocalFilters] = useState<Filters>(EMPTY_PORTAL_BILLING_FILTERS)
-  const [demFilters, setDemFilters] = useState<Filters>(EMPTY_PORTAL_BILLING_FILTERS)
+  // Atalho de outra tela (`?bl=` e `?status=`, como "Ver faturas do B/L" do
+  // Desbloqueio de CE) chega com a aba já filtrada; os parâmetros saem da URL
+  // logo depois, e a barra de filtros mostra o recorte com "Limpar".
+  const [urlFilters] = useState(() => portalBillingFiltersFromSearch(searchParams))
+  const [localFilters, setLocalFilters] = useState<Filters>(() => (tab === 'local' && urlFilters) || EMPTY_PORTAL_BILLING_FILTERS)
+  const [demFilters, setDemFilters] = useState<Filters>(() => (tab === 'demurrage' && urlFilters) || EMPTY_PORTAL_BILLING_FILTERS)
+  useEffect(() => {
+    if (!urlFilters) return
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      params.delete('bl')
+      params.delete('status')
+      return params
+    }, { replace: true })
+  }, [urlFilters, setSearchParams])
+  const [pixLocal, setPixLocal] = useState<PortalInvoiceSummary | null>(null)
+  const [pixDemurrage, setPixDemurrage] = useState<PortalDemurrageInvoice | null>(null)
   const [localPage, setLocalPage] = useState(0)
   const [demPage, setDemPage] = useState(0)
 
@@ -117,6 +134,12 @@ export function PortalBilling() {
   const coveredInvoice = detailQuery.data?.invoice
   const coveringQuery = usePortalInvoiceDetail(coveredInvoice?.status === 'covered' ? coveredInvoice.covered_by_invoice_id ?? null : null)
   const demurrageDetailQuery = usePortalDemurrageInvoiceDetail(selectedDemurrageId)
+  // "Pagar com Pix" da lista: a lista local não traz o código Pix; ele vem do
+  // mesmo detalhe (mesma chave de cache do detalhe da fatura).
+  const pixLocalQuery = usePortalInvoiceDetail(pixLocal?.id ?? null)
+  // Demurrage relê o detalhe também: a linha da lista é uma foto e não vê o
+  // Pix que o Itaú confirmou nem o pagamento feito com a janela aberta.
+  const pixDemurrageQuery = usePortalDemurrageInvoiceDetail(pixDemurrage?.id ?? null)
   const trackedInvoiceViews = useRef(new Set<string>())
 
   useEffect(() => {
@@ -294,13 +317,13 @@ export function PortalBilling() {
     <>
       <PageHeader
         title="Faturas"
-        description="Consulte suas faturas locais e avulsas, pague via PIX e consolide B/Ls em aberto."
+        description="Consulte e pague suas faturas locais, avulsas e de Demurrage com Pix."
         action={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" loading={exporting} onClick={() => void handleExport()}>
-              <Download size={16} />
-              Exportar Excel
-            </Button>
+          // Atalhos de consulta e a consolidada no topo, à direita (2026-11-02):
+          // a consolidada volta a ser o botão principal (preenchido) para se
+          // diferenciar das consultas; Exportar Excel foi para a faixa do bloco.
+          <>
+            <InformationLinks sections={[tab === 'local' ? 'taxas' : 'demurrage', 'atendimento']} pod={(tab === 'local' ? localFilters : demFilters).pod} size="md" />
             <Button
               onClick={() => setConsolidateOpen(true)}
               disabled={readOnly}
@@ -309,7 +332,7 @@ export function PortalBilling() {
               <FilePlus2 size={16} />
               Gerar fatura consolidada
             </Button>
-          </div>
+          </>
         }
       />
 
@@ -318,8 +341,6 @@ export function PortalBilling() {
         <MetricCard label="Faturas emitidas" value={String(localInvoiceCount)} />
         <MetricCard label="B/Ls elegíveis" value={String(eligibleCount)} />
       </div>
-
-      <div className="mb-4"><InformationLinks sections={[tab === 'local' ? 'taxas' : 'demurrage', 'atendimento']} pod={(tab === 'local' ? localFilters : demFilters).pod} /></div>
 
       <div className="mb-4 flex gap-2 border-b border-[var(--app-border)]" role="tablist">
         <TabButton active={tab === 'local'} label="Taxas Locais" onClick={() => setTab('local')} />
@@ -339,6 +360,9 @@ export function PortalBilling() {
           vesselOptions={localInvoicesQuery.data?.vesselOptions ?? []}
           pods={localInvoicesQuery.data?.pods ?? []}
           onOpenDetail={setSelectedInvoiceId}
+          onPayPix={setPixLocal}
+          onExport={() => void handleExport()}
+          exporting={exporting}
         />
       ) : (
         <DemurrageTab
@@ -357,8 +381,50 @@ export function PortalBilling() {
           openDisputeCount={openDisputeCount}
           onOpenDisputes={() => showDisputes(null)}
           complementOf={complements.complementOf}
+          onPayPix={setPixDemurrage}
+          onExport={() => void handleExport()}
+          exporting={exporting}
         />
       )}
+
+      {pixLocal ? (() => {
+        const invoice = pixLocalQuery.data?.invoice
+        const balance = Number(invoice?.balance_brl ?? 0)
+        const received = Number(invoice?.total_paid_brl ?? 0)
+        const showPix = invoice ? localInvoiceShowsPix(invoice) : false
+        return (
+          <PortalPixPayModal
+            open
+            invoiceNumber={pixLocal.invoice_number ?? `INV-${pixLocal.id}`}
+            amount={`${formatBRL(invoice ? balance : pixLocal.balance_brl)} a pagar`}
+            amountDetail={received > 0 && balance > 0 ? `de ${formatBRL(invoice?.total_brl)}; o QR cobra o saldo` : undefined}
+            pix={showPix ? invoice?.pix_payload ?? null : undefined}
+            loading={pixLocalQuery.isLoading}
+            // Releitura que falha mantém o QR já lido; o erro só aparece sem dado.
+            error={Boolean(pixLocalQuery.error) && !pixLocalQuery.data}
+            onOpenDetail={() => { setSelectedInvoiceId(pixLocal.id); setPixLocal(null) }}
+            onClose={() => setPixLocal(null)}
+          />
+        )
+      })() : null}
+      {pixDemurrage ? (() => {
+        const invoice = pixDemurrageQuery.data?.invoice
+        const brl = invoice?.current_total_brl
+        const showPix = invoice ? demurrageInvoiceShowsPix(invoice) : false
+        return (
+          <PortalPixPayModal
+            open
+            invoiceNumber={pixDemurrage.doc_number}
+            amount={brl == null ? 'Sem total em R$' : `${formatBRL(brl)} a pagar hoje`}
+            amountDetail="O valor em reais acompanha a cotação do dia até o pagamento."
+            pix={showPix ? invoice?.pix_payload ?? null : undefined}
+            loading={pixDemurrageQuery.isLoading}
+            error={Boolean(pixDemurrageQuery.error) && !pixDemurrageQuery.data}
+            onOpenDetail={() => { setSelectedDemurrageId(pixDemurrage.id); setPixDemurrage(null) }}
+            onClose={() => setPixDemurrage(null)}
+          />
+        )
+      })() : null}
 
       <PortalConsolidatedModal
         open={consolidateOpen}

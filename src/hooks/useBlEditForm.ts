@@ -23,7 +23,7 @@ type BlDocumentFields = {
 /**
  * Campos da ficha que mudam a base das Taxas Locais (prévia da migration 495).
  * No B/L de container sem peso solto, a taxa por tonelada usa o peso de
- * contêiner (`total_weight_kg` ÷ 1000).
+ * container (`total_weight_kg` ÷ 1000).
  */
 const IMPACT_FIELDS = ['pod', 'bb_weight_ton', 'bb_cbm', 'bb_packages_qty', 'bb_machine_qty', 'total_weight_kg'] as const
 
@@ -109,8 +109,8 @@ const EDITABLE_FIELD_LABELS: Record<keyof BlForm, string> = {
   pol: 'POL',
   pod: 'POD',
   cargo_description: 'Descrição da carga',
-  total_weight_kg: 'Peso de contêiner (kg)',
-  total_cbm: 'CBM de contêiner (m³)',
+  total_weight_kg: 'Peso de container (kg)',
+  total_cbm: 'CBM de container (m³)',
   bb_cbm: 'CBM de carga solta (m³)',
   payment_type: 'Tipo de pagamento',
   free_time_override: 'Free time',

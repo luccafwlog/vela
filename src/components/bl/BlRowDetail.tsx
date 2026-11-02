@@ -42,17 +42,17 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
         <div className="grid gap-5">
           {showContainers ? (
             <section className="grid gap-2">
-              <DetailHead title="Contêineres" summary={containers.length ? containerSummary(containers) : null} action={openLink} />
+              <DetailHead title="Containers" summary={containers.length ? containerSummary(containers) : null} action={openLink} />
               {containers.length ? (
                 <DetailTable
-                  headers={['Contêiner', 'Tipo', 'COC/SOC', 'Perfil', 'Lacre', 'Tara (kg)', 'Peso bruto (kg)', 'CBM (m³)', 'Descarga', 'Devolução', 'Demurrage']}
+                  headers={['Container', 'Tipo', 'COC/SOC', 'Perfil', 'Lacre', 'Tara (kg)', 'Peso bruto (kg)', 'CBM (m³)', 'Descarga', 'Devolução', 'Demurrage']}
                   numeric={[5, 6, 7, 8, 9]}
                   rows={containers.map((container, index) => {
                     const soc = container.ownership === 'SOC'
                     return {
                       key: String(container.id ?? container.container_number ?? index),
                       cells: [
-                        <span className="app-bl-code text-[var(--app-text-strong)]">{container.container_number ? <CopyValue value={container.container_number} label="número do contêiner" /> : <NoValue label="Sem número do contêiner" />}</span>,
+                        <span className="app-bl-code text-[var(--app-text-strong)]">{container.container_number ? <CopyValue value={container.container_number} label="número do container" /> : <NoValue label="Sem número do container" />}</span>,
                         container.type ?? <NoValue label="Sem tipo" />,
                         container.ownership === 'SOC' || container.ownership === 'COC' ? container.ownership : <NoValue label="Sem COC/SOC informado" />,
                         <ProfileCell isImo={Boolean(container.is_imo)} isOog={Boolean(container.is_oog)} imoClass={container.imo_class} unNumber={container.un_number} />,
@@ -68,7 +68,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
                   })}
                 />
               ) : (
-                <EmptyLine>Nenhum contêiner vinculado a este B/L.</EmptyLine>
+                <EmptyLine>Nenhum container vinculado a este B/L.</EmptyLine>
               )}
             </section>
           ) : null}

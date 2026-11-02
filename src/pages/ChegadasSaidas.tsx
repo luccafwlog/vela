@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CircleCheck, Pencil, Plus } from 'lucide-react'
+import { CircleCheck, Download, Pencil, Plus } from 'lucide-react'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { RowActionButton } from '../components/ui/RowActionButton'
@@ -355,19 +355,37 @@ function ScheduleImportModal({ onClose, onUpdate }: { onClose: () => void; onUpd
   )
 }
 
-function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate: (voyageIds: number[]) => void }) {
+function SpreadsheetUpload({ canWrite, onUpdate, vessels }: { canWrite: boolean; onUpdate: (voyageIds: number[]) => void; vessels: PortalScheduleVoyage[] }) {
   const [open, setOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const { showToast } = useToast()
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const { exportScheduleWorkbook } = await import('../services/exports')
+      await exportScheduleWorkbook(vessels)
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Não foi possível exportar a programação.'), 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
   return (
     <Card className="p-5">
       <h2 className="text-base font-semibold">Atualizar várias viagens por planilha</h2>
       <p className="mt-1 text-sm text-[var(--app-muted)]">
         Uma linha por viagem, com as datas por porto. Célula vazia ou "X" deixa o porto como está: a planilha nunca cancela escala.
+        Exporte a programação, altere ou inclua linhas e importe o mesmo arquivo de volta.
       </p>
-      {canWrite ? (
-        <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button type="button" variant="secondary" className="app-btn--sm" loading={exporting} loadingLabel="Exportando…" disabled={!vessels.length} onClick={handleExport}>
+          <Download size={16} aria-hidden="true" /> Exportar programação
+        </Button>
+        {canWrite ? (
           <Button type="button" className="app-btn--sm" onClick={() => setOpen(true)}>Importar programação</Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       {open ? <ScheduleImportModal onClose={() => setOpen(false)} onUpdate={onUpdate} /> : null}
     </Card>
   )
@@ -652,7 +670,7 @@ export function ChegadasSaidas() {
       </Block>
 
       <div className="mt-6">
-        <SpreadsheetUpload canWrite={canWrite} onUpdate={invalidateSchedules} />
+        <SpreadsheetUpload canWrite={canWrite} onUpdate={invalidateSchedules} vessels={vessels} />
       </div>
     </ScheduleWidthPage>
   )

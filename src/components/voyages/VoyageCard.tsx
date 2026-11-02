@@ -332,7 +332,7 @@ export function VoyageCard({
 
       <div className="app-voyage-ficha__body">
         <section className="app-voyage-kpi-grid" aria-label="Indicadores da viagem">
-          <Block title="Contêineres" aside="Importação" headingLevel={3}>
+          <Block title="Containers" aside="Importação" headingLevel={3}>
             <LeadValue>
               {formatMetric(totalContainers)} <span className="app-lead__unit">cheios, distintos</span>
             </LeadValue>

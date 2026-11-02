@@ -306,106 +306,10 @@ textarea {
 }
 
 /* ─── Shell (etapa 02) ─────────────────────────────────────────────────────
-   Faixa de avisos de até 28 px e uma barra só, com marca, navegação e conta.
-   O dourado aparece apenas na indicação da navegação ativa. Abaixo de 1100 px
-   a navegação vira a lista do botão Menu, aberta logo abaixo da barra. */
-.app-market-strip {
-  position: relative;
-  /* Acima do cabeçalho fixo (200), abaixo do fundo de modal (300): com 400 a
-     faixa de avisos ficava nítida por cima do desfoque de qualquer modal. */
-  z-index: 250;
-  background: #0b1624;
-  color: #ffffff;
-}
-
-.app-market-strip__content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 28px;
-  padding: 0 24px;
-}
-
-/* O aviso operacional não é cortado: quem cede espaço é o câmbio. */
-.app-market-strip__left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.app-market-strip__center {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.hib-alert-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #f5a524;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hib-alert-btn:hover {
-  text-decoration: underline;
-}
-
-.hib-alert-btn:focus-visible {
-  outline: 2px solid var(--app-focus-ring);
-  outline-offset: 2px;
-}
-
-.hib-sep {
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.hib-currency-label {
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
-.hib-currency-label--warning {
-  color: #f5a524;
-}
-
-.hib-currency-value {
-  color: rgba(255, 255, 255, 0.94);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-  font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 767px) {
-  .app-market-strip__center {
-    display: none;
-  }
-}
-
+   Uma barra só, com marca, navegação e conta. O dourado aparece apenas na
+   indicação da navegação ativa. Abaixo de 1100 px a navegação vira a lista do
+   botão Menu, aberta logo abaixo da barra. A faixa de avisos de 28 px (containers
+   em atraso e câmbio) saiu em 2026-11-01: o câmbio fica só na Demurrage. */
 .app-header {
   position: sticky;
   top: 0;
@@ -1928,13 +1832,32 @@ textarea {
   line-height: 32px;
 }
 
-/* Card de métrica que aplica o filtro correspondente. */
+/* Cartão que só mostra o número: liso, sem cara de clicável (2026-11-01). */
+.app-metric-tile--static {
+  border-color: var(--app-border-soft);
+  background: var(--app-surface-muted);
+}
+
+/* Cartão que filtra ou abre outra tela: cara de botão em repouso, com borda
+   mais forte, sombra e a marca "Filtrar"/"Abrir" (decisão de 2026-11-01). */
 button.app-metric-tile {
   width: 100%;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  border-color: var(--app-border-strong);
+  box-shadow: var(--app-shadow);
   transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.app-metric-tile__cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-link);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  line-height: 16px;
 }
 
 button.app-metric-tile:hover {
@@ -2578,6 +2501,10 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-modal-backdrop {
   position: fixed;
   inset: 0;
+  /* Sem margem: renderizado como filho direto de .app-main (telas do Portal),
+     o backdrop herdava o margin-top de 16px das peças empilhadas e deixava uma
+     fresta sem o desfoque no alto da tela (2026-11-02). */
+  margin: 0;
   z-index: 300;
   display: grid;
   place-items: center;
@@ -4829,22 +4756,6 @@ button.app-metric-tile[aria-pressed='true'] {
   transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
-.app-market-refresh {
-  position: relative;
-  padding: 0;
-}
-
-/* Alvo de toque de 44x44 sem inflar a altura da faixa de câmbio (~25px):
-   a área de toque é um pseudo-elemento posicionado, fora do fluxo. */
-.app-market-refresh::after {
-  content: '';
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 44px;
-  height: 44px;
-  transform: translate(-50%, -50%);
-}
-
 .portal-notifications {
   position: relative;
 }
@@ -5579,7 +5490,6 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 @media (max-width: 1100px) {
-  .app-market-strip__content,
   .app-header__content {
     padding-left: 16px;
     padding-right: 16px;
@@ -5876,10 +5786,6 @@ button.app-metric-tile[aria-pressed='true'] {
     height: 20px;
   }
 
-  .hib-alert-btn {
-    min-height: 32px;
-  }
-
   /* Botão só com ícone (lápis, lixeira, seta) ganha a área de toque mínima
      de 44px do contrato; o ícone continua do mesmo tamanho. */
   button[aria-label]:has(> svg:only-child),
@@ -5892,10 +5798,13 @@ button.app-metric-tile[aria-pressed='true'] {
 
 @media print {
   /* Margem vertical na página (repete em todas) e numeração no rodapé; a
-     margem lateral fica no documento. Mesma folha de lib/printDocument.ts. */
+     margem lateral fica no documento. Mesma folha de lib/printDocument.ts.
+     Topo de 20 mm desde 2026-11-02 (pedido do dono: o cabeçalho ficava colado
+     na borda), mais 8 mm no começo do documento, que valem também quando o
+     navegador imprime com "Margens: nenhuma" e ignora a margem da página. */
   @page {
     size: A4;
-    margin: 10mm 0 12mm;
+    margin: 20mm 0 12mm;
 
     @bottom-right {
       content: "Página " counter(page) " de " counter(pages);
@@ -5908,7 +5817,6 @@ button.app-metric-tile[aria-pressed='true'] {
   /* Hide header, nav and all page content except the print modal */
   .app-header,
   .app-sidebar,
-  .app-market-strip,
   .app-nav-bar,
   .app-nav-mobile-bar,
   .app-toast-stack,
@@ -6012,7 +5920,7 @@ button.app-metric-tile[aria-pressed='true'] {
   .customer-report-print-content {
     max-width: 198mm !important;
     margin: 0 auto !important;
-    padding: 0 8mm !important;
+    padding: 8mm 8mm 0 !important;
     background: white !important;
     box-sizing: border-box !important;
     print-color-adjust: exact !important;
@@ -6429,6 +6337,32 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-switch:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+/* Chave discreta (`size="sm"`): opção secundária de um formulário, que não
+   compete com os campos principais (aparição em Chegadas e Saídas na Nova
+   Viagem). No toque, --app-control-h-sm mantém o alvo de 44 px. */
+.app-switch--sm {
+  gap: 8px;
+  min-height: var(--app-control-h-sm);
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  font-weight: 500;
+}
+
+.app-switch--sm .app-switch__track {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+}
+
+.app-switch--sm .app-switch__track::after {
+  width: 12px;
+  height: 12px;
+}
+
+.app-switch--sm[aria-checked='true'] .app-switch__track::after {
+  transform: translateX(14px);
 }
 
 .app-summary-strip {

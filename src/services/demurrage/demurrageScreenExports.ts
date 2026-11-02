@@ -86,7 +86,7 @@ export function invoiceTabSheetRows(tab: InvoiceTab, invoices: readonly Demurrag
       Motivo: detail?.cancelReason ?? '',
       'Cancelada por': detail?.cancelledBy ?? '',
       'Cancelada em': date(detail?.cancelledAt),
-      'Destino das caixas': (detail?.destinations ?? []).map(destinationText).join('; '),
+      'Destino dos containers': (detail?.destinations ?? []).map(destinationText).join('; '),
     }
   })
 }

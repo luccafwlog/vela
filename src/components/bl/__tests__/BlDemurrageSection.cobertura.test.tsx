@@ -75,6 +75,6 @@ describe('ficha do B/L › Demurrage com a Invoice do grupo', () => {
     board.shares = [{ container_number: 'MSCU0000002', box_share_count: 2 }]
     renderSection()
     expect(await screen.findByText('US$ 125,00 a emitir')).toBeTruthy()
-    expect(screen.getByText(/1\/2 da caixa/)).toBeTruthy()
+    expect(screen.getByText(/1\/2 do container/)).toBeTruthy()
   })
 })

@@ -28,7 +28,7 @@ it('exposes the audit author filter as a list of people and clears it with the o
   expect(source).not.toContain('Autor (ID)')
   expect(source).toContain('<Field label="Por">')
   expect(source).toContain('value={filters.changedBy}')
-  expect(source).toContain('filters.subject || filters.changedBy || filters.dateFrom || filters.dateTo')
+  expect(source).toContain('filters.subject || filters.changedBy || filters.action || filters.dateFrom || filters.dateTo')
   expect(source).toContain('setFilters(EMPTY_FILTERS)')
 })
 

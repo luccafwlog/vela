@@ -254,6 +254,35 @@ it('navio com IMO conflitante: a recusa chega à tela com o motivo', async () =>
   expect(userFacingErrorMessage(error, 'Falha ao cadastrar a viagem.')).toBe('Navio GREEN SANTOS com IMO conflitante (1111111 vs 2222222). Corrija antes de importar.')
 })
 
+it('IMO gravado fora do formato (nome do navio no campo IMO) é corrigido, não recusado', async () => {
+  const vesselUpdates: unknown[] = []
+  fromMock.mockImplementation((table: string) => {
+    if (table === 'carriers') return { select: () => ({ limit: () => ({ eq: () => Promise.resolve({ data: [{ id: 7 }], error: null }) }) }) }
+    if (table === 'vessels') {
+      return {
+        select: () => ({
+          eq: (column: string) => ({
+            limit: () => Promise.resolve(column === 'imo'
+              ? { data: [], error: null }
+              : { data: [{ id: 9, imo: 'GREEN SANTOS', name: 'GREEN SANTOS', carrier_id: 7 }], error: null }),
+          }),
+          ilike: () => ({ limit: () => Promise.resolve({ data: [], error: null }) }),
+        }),
+        update: (values: unknown) => { vesselUpdates.push(values); return { eq: () => Promise.resolve({ error: null }) } },
+      }
+    }
+    if (table === 'voyages') {
+      return { insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: { id: 50 }, error: null }) }) }) }
+    }
+    throw new Error(`Tabela nao mockada: ${table}`)
+  })
+
+  await expect(createVoyage({
+    carrierName: 'COSCO', carrierScac: 'COSU', vesselName: 'GREEN SANTOS', vesselImo: '2222222', voyageNumber: '40', status: 'active',
+  }, null)).resolves.toEqual({ id: 50 })
+  expect(vesselUpdates).toEqual([{ imo: '2222222' }])
+})
+
 it('dois navios com o mesmo nome sem IMO: a recusa chega à tela com o motivo', async () => {
   fromMock.mockImplementation((table: string) => {
     if (table === 'carriers') return { select: () => ({ limit: () => ({ eq: () => Promise.resolve({ data: [{ id: 7 }], error: null }) }) }) }

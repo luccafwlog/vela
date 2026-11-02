@@ -233,9 +233,20 @@ export type PortalDemurrageInvoice = {
   vessel_name: string | null
 }
 
+export type PortalDemurrageReplacedCause = 'datas' | 'soc' | 'divisao'
+
 export type PortalDemurrageInvoiceDetail = {
-  /** `replaces_doc_number`: fatura cancelada que esta reemissão substitui (migration 472). */
-  invoice: PortalDemurrageInvoice & { customer_name: string; customer_cnpj_cpf: string; replaces_doc_number?: string | null }
+  /**
+   * `replaces_doc_number`: fatura cancelada que esta reemissão substitui (migration 472).
+   * `replaces_cause`: por que ela foi reemitida, em código (migration 555); NULL
+   * quando o motivo não é uma reemissão automática.
+   */
+  invoice: PortalDemurrageInvoice & {
+    customer_name: string
+    customer_cnpj_cpf: string
+    replaces_doc_number?: string | null
+    replaces_cause?: PortalDemurrageReplacedCause | null
+  }
   items: DemurrageInvoiceItem[]
   /**
    * Restituições da Invoice, sem as anotações internas (migration 298), no

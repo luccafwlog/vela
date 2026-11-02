@@ -117,14 +117,14 @@ describe('BlVisaoGeralTab — blocos da identidade', () => {
     expect(within(carga).getByRole('link', { name: /Ver na aba Carga/ }).className).toContain('app-btn')
     // Devolução vem antes de "No terminal", cada grupo com a sua faixa.
     const groups = within(carga).getAllByRole('columnheader').filter((cell) => cell.className.includes('app-table__group'))
-    expect(groups.map((cell) => cell.textContent)).toEqual(['Contêiner', 'Devolução', 'No terminal'])
+    expect(groups.map((cell) => cell.textContent)).toEqual(['Container', 'Devolução', 'No terminal'])
     expect(within(carga).getAllByRole('row')).toHaveLength(4)
     // Sem Manifesto Mercante e sem data de devolução: traço com significado.
     expect(screen.getByText('Sem vínculo com Manifesto Mercante')).toBeTruthy()
     expect(within(carga).getByText('Sem data de devolução')).toBeTruthy()
   })
 
-  it('não mostra free time de contêiner que ainda não descarregou, e SOC não tem devolução nem Demurrage', () => {
+  it('não mostra free time de container que ainda não descarregou, e SOC não tem devolução nem Demurrage', () => {
     render(
       <MemoryRouter>
         <BlVisaoGeralTab

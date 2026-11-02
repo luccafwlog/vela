@@ -160,7 +160,7 @@ describe('VaziosImportacao — Atribuição em Lote de Natureza', () => {
   it('lista os vazios com Trecho, Natureza em texto e o Nº do manifesto da rota', () => {
     renderPage()
 
-    expect(screen.getByRole('heading', { name: 'Vazios de importação' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Vazios IMP' })).toBeTruthy()
     const first = screen.getByText('MSCU1234567').closest('tr') as HTMLElement
     expect(within(first).getByText('CNSHA → BRVIX')).toBeTruthy()
     expect(within(first).getByText('Cama')).toBeTruthy()

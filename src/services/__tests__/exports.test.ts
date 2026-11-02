@@ -159,6 +159,14 @@ describe('planilhas de BLs e Containers do Portal', () => {
     expect(sheet[0]).toMatchObject({ 'B/L': 'ABERTO', 'CE Mercante': '152609130000101', Navio: 'NORDIC STAR', Viagem: '021W', POL: 'CNSHA', POD: 'BRSSA' })
   })
 
+  it('leva os devolvidos com demurrage, a mesma conta da coluna Demurrage da tela', async () => {
+    const returnedLate = { ...bl('LATE', { status: 'none', total_brl: null, balance_brl: null }) }
+    returnedLate.containers = [{ ...returnedLate.containers[0], return_date: '2026-10-20', usage_days: 28, demurrage_days: 7, status: 'devolvido' }]
+    await exportPortalBlsWorkbook([returnedLate, bl('NO-PRAZO', { status: 'none', total_brl: null, balance_brl: null })])
+    const sheet = jsonToSheet.mock.calls[0][0] as Array<Record<string, unknown>>
+    expect(sheet.map((row) => row['Devolvidos com demurrage'])).toEqual([1, 0])
+  })
+
   it('mantém CE Mercante, Navio, Viagem e POL na planilha de Containers', async () => {
     await exportPortalContainersWorkbook(flattenContainers([bl('BL1', { status: 'none', total_brl: null, balance_brl: null })]))
     expect(jsonToSheet.mock.calls[0][0]).toEqual([
@@ -200,8 +208,8 @@ describe('exportação da Validação (planilha única)', () => {
       ])],
     ])
     const [sheet] = buildValidacaoSheetRows([{ row, block: { label: 'Pronto para emitir', detail: 'Tudo certo.' } }], { totals, sharedContainers: new Map([['BL-1', 'CSNU1 (2 B/Ls)']]) })
-    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Contêiner compartilhado', 'Taxas alteradas à mão', 'Lacre', 'THC', 'BL Fee (US$)'])
-    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Contêiner compartilhado': 'CSNU1 (2 B/Ls)', 'Taxas alteradas à mão': '' })
+    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Container compartilhado', 'Taxas alteradas à mão', 'Lacre', 'THC', 'BL Fee (US$)'])
+    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Container compartilhado': 'CSNU1 (2 B/Ls)', 'Taxas alteradas à mão': '' })
   })
 
   it('coluna Taxas alteradas à mão com a frase da spec (ADR 0111)', async () => {
@@ -275,7 +283,7 @@ describe('planilhas de Relatórios', () => {
   })
 })
 
-// ADR 0112, D24: a planilha da aba Contêineres da ficha do Cliente diz o mesmo que a tela.
+// ADR 0112, D24: a planilha da aba Containers da ficha do Cliente diz o mesmo que a tela.
 describe('exportCustomerContainersWorkbook', () => {
   beforeEach(() => {
     jsonToSheet.mockClear()

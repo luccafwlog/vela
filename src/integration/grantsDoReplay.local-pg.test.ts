@@ -96,6 +96,19 @@ describeLocal('340 — GRANTs do replay iguais ao contrato de produção', () =>
       AND c.relname = ANY (ARRAY[${SERVICE_ROLE_NO_DELETE.map((t) => `'${t}'`).join(', ')}])`)).toEqual([])
   })
 
+  it('service_role usa toda sequence do public, como a da tentativa de Comunicado (554)', () => {
+    // Staging, 2026-10-31: a Edge send-customer-communication falhava com 42501
+    // na sequence de customer_communication_attempts antes de chamar o provedor.
+    const sequences = psql(`WITH s AS MATERIALIZED (SELECT c.oid, c.relname FROM pg_class c
+      WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'S')
+      SELECT relname FROM s WHERE NOT has_sequence_privilege('service_role', oid, 'USAGE, SELECT') ORDER BY relname;`)
+    expect(sequences ? sequences.split('\n') : []).toEqual([])
+    // O id padrão da tentativa é o nextval que a Edge recebia recusado.
+    const nextId = runAs('service_role', `SELECT nextval('public.customer_communication_attempts_id_seq')`)
+    expect(nextId.error).toBe('')
+    expect(nextId.ok).toBe(true)
+  })
+
   it('anon e authenticated não têm TRUNCATE, TRIGGER nem REFERENCES em nada', () => {
     for (const role of ['anon', 'authenticated']) {
       for (const privilege of ['TRUNCATE', 'TRIGGER', 'REFERENCES']) {

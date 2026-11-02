@@ -41,8 +41,8 @@ const globals = new Set([...section('MATRIX_GLOBAL').matchAll(/\{ row: '([^']+)'
 const titles = [...battery.matchAll(/\bit(?:\.each\([^)]*\))?\(\s*'([^']+)'/g)].map(([, title]) => title)
 
 describe('catálogo "O que cada setor pode"', () => {
-  it('tem as 43 linhas (39 da página aprovada, o disparo de Comunicado, a remoção de atracação, o Novo cliente de 2026-10-27 e Isentar Taxas Locais), nos nove assuntos, com os cinco setores', () => {
-    expect(PERMISSION_MATRIX).toHaveLength(43)
+  it('tem as 44 linhas (39 da página aprovada, o disparo de Comunicado, a remoção de atracação, o Novo cliente de 2026-10-27, Isentar Taxas Locais e Dispensar cobrança de Demurrage), nos nove assuntos, com os cinco setores', () => {
+    expect(PERMISSION_MATRIX).toHaveLength(44)
     expect(rowsByGroup().map(({ group }) => group.label)).toEqual(PERMISSION_GROUPS.map((group) => group.label))
     expect(new Set(PERMISSION_MATRIX.map((row) => row.id)).size).toBe(PERMISSION_MATRIX.length)
     for (const row of PERMISSION_MATRIX) {
@@ -91,6 +91,13 @@ describe('capabilitiesFor (lista da janela de usuário)', () => {
     expect(doc.can).toContain('Recebe os alertas do próprio setor: 36 tipos')
     expect(doc.cannot).toContain('Registrar pagamento (baixa manual) e confirmar Restituição')
     expect(doc.cannot).toContain('Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L')
+  })
+
+  it('só o Administrativo exclui o Embarque de vazios (544); todos dispensam a cobrança de Demurrage (517, 530)', () => {
+    expect(capabilitiesFor('administrativo').can).toContain('Excluir viagem, escala, B/L, container, Embarque de vazios e Cliente')
+    expect(capabilitiesFor('operacoes').cannot).toContain('Excluir viagem, escala, B/L, container, Embarque de vazios e Cliente')
+    const waive = PERMISSION_MATRIX.find((row) => row.id === 'dispensar-cobranca')
+    expect(waive && allowedDepartments(waive)).toEqual([...DEPARTMENTS])
   })
 
   it('o Administrativo pode todas as exclusivas, menos desativar o último Administrativo', () => {

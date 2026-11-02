@@ -161,7 +161,7 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     )
 
     // Ambos os blocos de carga devem estar presentes simultaneamente para B/L misto
-    expect(screen.getByRole('heading', { name: 'Contêineres' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Containers' })).toBeTruthy()
     expect(screen.getByText('MSKU1234567')).toBeTruthy()
 
     expect(screen.getByRole('heading', { name: 'Carga solta' })).toBeTruthy()

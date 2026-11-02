@@ -64,3 +64,6 @@ export const AGENCY_REPORT_DEPARTMENT_LABELS: Record<string, string> = {
   documentacao: 'Documentação',
   equipamentos: 'Equipamentos',
 }
+
+/** Autor do ADR sem nome no cadastro: por extenso, nunca o identificador interno. */
+export const AGENCY_REPORT_UNKNOWN_ACTOR = 'Pessoa sem cadastro'

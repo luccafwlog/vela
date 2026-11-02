@@ -43,6 +43,20 @@ it('US-048: imprime o recibo de quitacao quando type=receipt', () => {
   expect(screen.getByTestId('demurrage-total').textContent).toContain('PAGO EM:25/06/2026')
 })
 
+it('recibo certifica só o valor recebido, uma vez, sem linhas de devolução ou restituição', () => {
+  render(<InvoiceDocument detail={{ ...detail, refund_summary: { received_brl: 500, refunds: [] } }} type="receipt" />)
+  const box = screen.getByTestId('demurrage-total')
+  expect(box.textContent).toContain('VALOR RECEBIDO:R$ 500,00')
+  expect(screen.queryByText(/Valor recebido:|Devolvido ao Cliente|Restituição pendente|líquido recebido/)).toBeNull()
+  expect(screen.getAllByText('R$ 500,00')).toHaveLength(1)
+  cleanup()
+  // Devolução já feita: o recibo mostra o que ficou recebido, ainda num valor só.
+  render(<InvoiceDocument detail={{ ...detail, refund_summary: { received_brl: 500, refunds: [
+    { id: 1, amount_brl: 100, status: 'settled', notes: null, purpose: 'correction', bank_reference: 'X', beneficiary: 'Y', settled_at: '2026-06-26' },
+  ] } }} type="receipt" />)
+  expect(screen.getByTestId('demurrage-total').textContent).toContain('VALOR RECEBIDO:R$ 400,00')
+})
+
 it('US-048: exibe QR Pix e codigo copia e cola na fatura em aberto', () => {
   render(<InvoiceDocument detail={{ ...detail, paid_at: null, status: 'issued' }} type="invoice" />)
 
@@ -90,7 +104,7 @@ it('fatura paga ou cancelada não oferece Pix', () => {
   }
 })
 
-it('Invoice complementar diz qual Invoice completa e que não cobra de novo as caixas já cobradas', () => {
+it('Invoice complementar diz qual Invoice completa e que não cobra de novo os containers já cobrados', () => {
   render(<InvoiceDocument detail={{ ...detail, complement_of: ['DEM-2026-0000'] }} type="invoice" />)
   const notice = screen.getByTestId('demurrage-complement-notice').textContent ?? ''
   expect(notice).toContain('Invoice complementar de DEM-2026-0000')
@@ -159,10 +173,10 @@ it('lote 6b: Pix com aviso da baixa, sem repetir o valor, código em 12px; ROE e
 
 it('caixa dividida entre Clientes: o documento diz a parte do Cliente (ADR 0112, D19)', () => {
   render(<InvoiceDocument detail={{ ...detail, items: [{ ...detail.items[0], box_share_count: 2 }] }} type="invoice" />)
-  expect(screen.getByText('TCLU1234567 (1/2 da caixa)')).toBeTruthy()
+  expect(screen.getByText('TCLU1234567 (1/2 do container)')).toBeTruthy()
 })
 
 it('caixa de um Cliente só não ganha a marca da parte', () => {
   render(<InvoiceDocument detail={{ ...detail, items: [{ ...detail.items[0], box_share_count: 1 }] }} type="invoice" />)
-  expect(screen.queryByText(/da caixa/)).toBeNull()
+  expect(screen.queryByText(/do container/)).toBeNull()
 })

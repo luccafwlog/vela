@@ -31,6 +31,7 @@ import {
   type SignoffState,
 } from "../../services/agencyDepartureReport";
 import type { AgencyReportDepartmentKey } from "../../types/database";
+import { AGENCY_REPORT_UNKNOWN_ACTOR } from '../../services/agencyReportLabels'
 
 type Matrix = {
   rows?: Record<string, Record<string, number>>;
@@ -549,8 +550,7 @@ function DepartmentSignoffsSection({
                         {reopenings.map((reopening, index) => {
                           const reopenName =
                             (reopening.changed_by && actorNames[reopening.changed_by]) ||
-                            reopening.changed_by ||
-                            "—";
+                            (reopening.changed_by ? AGENCY_REPORT_UNKNOWN_ACTOR : "—");
                           return (
                             <li key={index}>
                               {formatBrasiliaDateTime(reopening.changed_at)} — {reopenName}

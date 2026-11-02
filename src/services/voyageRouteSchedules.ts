@@ -695,7 +695,7 @@ export async function saveVoyageEscalaSchedule({
   // exportação): sem ela, o código fora do formato virava o porto "-".
   const pod = escalaPortCode(port)
   if (!pod?.startsWith('BR')) {
-    throw Object.assign(new Error(`LOCODE brasileiro invalido: ${port.trim().toUpperCase()}.`), { code: '22023' })
+    throw Object.assign(new Error(`LOCODE brasileiro inválido: ${port.trim().toUpperCase()}.`), { code: '22023' })
   }
   // ponytail: o entity_type fisico continua `voyage_pod_schedule` por compatibilidade
   // historica; upgrade = promover a escala a tabela propria como previsto na ADR 0027.

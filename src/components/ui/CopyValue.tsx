@@ -3,7 +3,7 @@ import { Check, Copy, X } from 'lucide-react'
 
 /**
  * Identificador com o ícone de copiar ao lado (ADR 0081, decisão de
- * 2026-10-13): número do B/L, CE Mercante, CNPJ e número do contêiner. O
+ * 2026-10-13): número do B/L, CE Mercante, CNPJ e número do container. O
  * ícone aparece ao passar o mouse na linha ou no valor e ao receber o foco do
  * teclado; em tela de toque fica sempre visível. O retorno é local (visto verde
  * ao copiar, X vermelho na falha, e aviso ao leitor de tela), sem depender do

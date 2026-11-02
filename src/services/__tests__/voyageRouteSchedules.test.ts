@@ -939,7 +939,7 @@ describe('escala com LOCODE brasileiro fora da lista conhecida', () => {
   it('código fora do formato é recusado antes de gravar, com o motivo', async () => {
     await expect(saveVoyageEscalaSchedule({
       voyageId: 7, port: 'BR12', eta: null, ata: null, linked: false, temImportacao: true, changedBy: 'u1',
-    })).rejects.toMatchObject({ code: '22023', message: 'LOCODE brasileiro invalido: BR12.' })
+    })).rejects.toMatchObject({ code: '22023', message: 'LOCODE brasileiro inválido: BR12.' })
     expect(recordAuditEntriesMock).not.toHaveBeenCalled()
   })
 

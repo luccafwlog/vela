@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from '../../services/portalBilling'
@@ -131,6 +131,8 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   obsolete: vi.fn(),
   detail: null as unknown,
+  demurrageDetail: null as unknown,
+  demurrageDetailError: null as Error | null,
   demurrageError: null as Error | null,
   disputes: [] as unknown[],
   currentRoe: { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' } as { roe: number; updatedAt: string } | null,
@@ -212,7 +214,7 @@ vi.mock('../../hooks/usePortalBilling', () => ({
     failed: false,
   }),
   usePortalInvoiceDetail: () => ({ data: mocks.detail, isLoading: false, error: null }),
-  usePortalDemurrageInvoiceDetail: () => ({ data: null, isLoading: false, error: null }),
+  usePortalDemurrageInvoiceDetail: (id?: number | null) => ({ data: id ? mocks.demurrageDetail : null, isLoading: false, error: id ? mocks.demurrageDetailError : null }),
   usePortalObsoleteConsolidation: () => ({ isPending: false, mutateAsync: mocks.obsolete }),
 }))
 
@@ -263,6 +265,8 @@ afterEach(() => {
   mocks.confirm.mockReset()
   mocks.obsolete.mockReset()
   mocks.detail = null
+  mocks.demurrageDetail = null
+  mocks.demurrageDetailError = null
   mocks.demurrageError = null
   mocks.disputes = []
   mocks.currentRoe = { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' }
@@ -291,6 +295,110 @@ async function openConsolidatedDetail(user: ReturnType<typeof userEvent.setup>) 
 }
 
 describe('PortalBilling', () => {
+  it('"Ver faturas do B/L" chega filtrado no B/L e em aberto, e os parâmetros saem da URL', async () => {
+    const user = userEvent.setup()
+    renderBilling('/portal/billing?tab=local&status=issued&bl=BL-OCULTO')
+
+    expect(screen.getAllByText('INV-002').length).toBeGreaterThan(0)
+    // Filtros recolhidos por padrão no Portal (2026-11-02): o contador mostra o recorte.
+    const toggle = screen.getByRole('button', { name: /Filtros/i })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.textContent).toContain('2')
+    await user.click(toggle)
+    expect(screen.queryByText('INV-001')).toBeNull()
+    expect((screen.getByPlaceholderText('Número do B/L') as HTMLInputElement).value).toBe('BL-OCULTO')
+    expect((screen.getByLabelText('Status') as HTMLSelectElement).value).toBe('issued')
+    expect(screen.getByTestId('location').textContent).toBe('?tab=local')
+  })
+
+  it('"Pagar com Pix" na linha abre o Pix da fatura, inclusive da individual numa consolidada aberta', async () => {
+    const user = userEvent.setup()
+    mocks.detail = {
+      invoice: { id: 2, invoice_number: 'INV-002', invoice_type: 'individual', status: 'issued', total_brl: 200, total_paid_brl: 0, balance_brl: 200, pix_payload: '00020126PIX-INV-002' },
+      payments: [],
+      bls: [],
+    }
+    renderBilling()
+
+    // Ação de linha só com ícone (nome no title) e, no cartão do celular, com texto.
+    const actions = screen.getAllByRole('button', { name: 'Pagar fatura INV-002 com Pix' })
+    expect(actions).toHaveLength(2)
+    await user.click(actions[0])
+
+    expect(screen.getByRole('heading', { name: 'Pagar fatura INV-002 com Pix' })).toBeTruthy()
+    expect(screen.getByText('R$ 200,00 a pagar')).toBeTruthy()
+    expect(screen.getByTitle('00020126PIX-INV-002')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copiar código Pix' })).toBeTruthy()
+  })
+
+  it('"Pagar com Pix" de Demurrage lê o detalhe, não a foto da linha', async () => {
+    const user = userEvent.setup()
+    // A lista ainda não tem o Pix (QR em preparação); o detalhe relido já tem.
+    mocks.demurrageDetail = {
+      invoice: { ...demurrageInvoices[0], current_total_brl: 270, pix_payload: '00020126PIX-DEM-001' },
+      items: [],
+    }
+    renderBilling()
+    await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
+    await user.click(screen.getAllByRole('button', { name: 'Pagar fatura DEM-001 com Pix' })[0])
+
+    expect(screen.getByRole('heading', { name: 'Pagar fatura DEM-001 com Pix' })).toBeTruthy()
+    expect(screen.getByText('R$ 270,00 a pagar hoje')).toBeTruthy()
+    expect(screen.getByTitle('00020126PIX-DEM-001')).toBeTruthy()
+  })
+
+  it('"Pagar com Pix": releitura que falha mantém o QR já lido; sem dado nenhum, mostra o erro', async () => {
+    const user = userEvent.setup()
+    mocks.demurrageDetail = {
+      invoice: { ...demurrageInvoices[0], pix_payload: '00020126PIX-DEM-001' },
+      items: [],
+    }
+    mocks.demurrageDetailError = new Error('rede')
+    renderBilling()
+    await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
+    await user.click(screen.getAllByRole('button', { name: 'Pagar fatura DEM-001 com Pix' })[0])
+    expect(screen.getByTitle('00020126PIX-DEM-001')).toBeTruthy()
+    expect(screen.queryByText('Não foi possível carregar o Pix desta fatura. Tente de novo em instantes.')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Fechar' }))
+    mocks.demurrageDetail = null
+    await user.click(screen.getAllByRole('button', { name: 'Pagar fatura DEM-001 com Pix' })[0])
+    expect(screen.getByText('Não foi possível carregar o Pix desta fatura. Tente de novo em instantes.')).toBeTruthy()
+  })
+
+  it('"Pagar com Pix" de fatura paga com a janela aberta não mostra valor a pagar nem QR', async () => {
+    const user = userEvent.setup()
+    mocks.demurrageDetail = {
+      invoice: { ...demurrageInvoices[0], status: 'paid', paid_at: '2026-06-20', pix_payload: '00020126PIX-DEM-001' },
+      items: [],
+    }
+    renderBilling()
+    await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
+    await user.click(screen.getAllByRole('button', { name: 'Pagar fatura DEM-001 com Pix' })[0])
+
+    expect(screen.getByText('Esta fatura não pede mais pagamento.')).toBeTruthy()
+    expect(screen.queryByText(/a pagar hoje/)).toBeNull()
+    expect(screen.queryByTitle('00020126PIX-DEM-001')).toBeNull()
+  })
+
+  it('topo traz as consultas e a consolidada em destaque; Exportar Excel fica na faixa do bloco', async () => {
+    const user = userEvent.setup()
+    renderBilling()
+    const header = screen.getByRole('heading', { level: 1, name: 'Faturas' }).closest('.page-header') as HTMLElement
+    // Decisão de 2026-11-02: a consolidada é o botão preenchido, para se diferenciar das consultas.
+    expect(within(header).getByRole('button', { name: /Gerar fatura consolidada/ }).className).toContain('app-btn--primary')
+    expect(within(header).getByRole('link', { name: 'Consultar Taxas Locais' })).toBeTruthy()
+    expect(within(header).getByRole('link', { name: 'Contato' })).toBeTruthy()
+    expect(within(header).queryByRole('button', { name: /Exportar Excel/ })).toBeNull()
+    const localBlock = screen.getByRole('region', { name: 'Faturas de taxas locais e avulsas' })
+    expect(within(localBlock.querySelector('header') as HTMLElement).getByRole('button', { name: /Exportar Excel/ })).toBeTruthy()
+
+    await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
+    expect(within(header).getByRole('link', { name: 'Consultar Demurrage' })).toBeTruthy()
+    const demBlock = screen.getByRole('region', { name: 'Faturas de Demurrage' })
+    expect(within(demBlock.querySelector('header') as HTMLElement).getByRole('button', { name: /Exportar Excel/ })).toBeTruthy()
+  })
+
   it('exibe fatura avulsa sem B/L com contexto direto no desktop e mobile', () => {
     renderBilling()
 
@@ -315,7 +423,9 @@ describe('PortalBilling', () => {
     const user = userEvent.setup()
     renderBilling()
 
-    // Filtros abertos (lote 1): o campo B/L já está à vista.
+    // Filtros recolhidos por padrão no Portal (2026-11-02).
+    expect(screen.queryByLabelText('B/L')).toBeNull()
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
     await user.type(screen.getByLabelText('B/L'), 'BL-EXPORTADO')
     await user.click(screen.getByRole('button', { name: /Exportar Excel/i }))
 

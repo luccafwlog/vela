@@ -14,7 +14,7 @@ vi.mock('../../services/supabase', () => {
 
 import { customerSummaryFilters, fetchCustomerRows, type CustomerFilters } from '../useCustomers'
 
-const baseFilters: CustomerFilters = { search: '', contactEmail: '', emailStatus: '', blStatus: '', pendingStatus: '', sortKey: 'name', sortDirection: 'asc', page: 0, pageSize: 20 }
+const baseFilters: CustomerFilters = { search: '', contactEmail: '', emailStatus: '', blStatus: '', pendingStatus: '', chargeStatus: '', sortKey: 'name', sortDirection: 'asc', page: 0, pageSize: 20 }
 
 /**
  * `bls` aponta duas vezes para `customers` (`customer_id` e

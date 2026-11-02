@@ -8,6 +8,7 @@ import { NoValue } from '../components/ui/NoValue'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block, Fact, FactList } from '../components/ui/Block'
 import { MetricCard } from '../components/ui/MetricCard'
+import { AlertDepartmentCards } from '../components/alerts/AlertDepartmentCards'
 import { StatusText } from '../components/ui/StatusText'
 import { Field, Input, Select } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
@@ -47,14 +48,8 @@ import { matchesAnyToken } from '../lib/searchTerms'
  */
 type AlertLens = 'ativos' | 'criticos'
 
-const DEPARTMENT_OPTIONS = [
-  { value: 'all', label: 'Todos os setores' },
-  { value: 'documentacao', label: 'Documentação' },
-  { value: 'equipamentos', label: 'Equipamentos' },
-  { value: 'operacoes', label: 'Operações' },
-  { value: 'administrativo', label: 'Administrativo' },
-  { value: 'sem_departamento', label: 'Sem setor' },
-]
+// Setores aceitos no endereço (?departamento=); o filtro é feito pelos cartões por setor.
+const DEPARTMENT_VALUES = ['documentacao', 'equipamentos', 'operacoes', 'administrativo', 'sem_departamento']
 
 const SEVERITY_OPTIONS = [
   { value: 'all', label: 'Todas' },
@@ -101,7 +96,7 @@ function alertBlIds(metadata: unknown): string[] {
 export function Alertas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const rawDept = searchParams.get('departamento') || searchParams.get('department') || 'all'
-  const departmentFilter = DEPARTMENT_OPTIONS.some((opt) => opt.value === rawDept) ? rawDept : 'all'
+  const departmentFilter = DEPARTMENT_VALUES.includes(rawDept) ? rawDept : 'all'
 
   const [lens, setLens] = useState<AlertLens>('ativos')
   const statusFilter = 'active'
@@ -139,7 +134,7 @@ export function Alertas() {
   // Críticos conta a página de ativos carregada.
   // ponytail: com mais de 100 ativos, "Críticos" conta só a primeira página;
   // o caminho é devolver a contagem por gravidade no resumo por setor.
-  const { data: summary } = useQuery<AlertDepartmentSummary[]>({
+  const { data: summary, isError: summaryFailed } = useQuery<AlertDepartmentSummary[]>({
     queryKey: queryKeys.alerts.departmentSummary(),
     queryFn: getAlertDepartmentSummary,
     staleTime: 60_000,
@@ -332,6 +327,14 @@ export function Alertas() {
         />
       </div>
 
+      {summaryFailed ? <InlineError message="Erro ao carregar os alertas por setor." /> : null}
+      <AlertDepartmentCards
+        summary={summary}
+        failed={summaryFailed}
+        selectedDepartment={departmentFilter}
+        onSelect={(department) => handleDepartmentChange(department === departmentFilter ? 'all' : department)}
+      />
+
       <div className="app-filter-grid mb-4">
         <Field label="Busca">
           <Input
@@ -341,11 +344,6 @@ export function Alertas() {
             placeholder="B/L, navio, Cliente, CNPJ ou mensagem"
             aria-label="Buscar alertas"
           />
-        </Field>
-        <Field label="Setor">
-          <Select value={departmentFilter} onChange={(e) => handleDepartmentChange(e.target.value)}>
-            {DEPARTMENT_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </Select>
         </Field>
         <Field label="Registro">
           <Select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>

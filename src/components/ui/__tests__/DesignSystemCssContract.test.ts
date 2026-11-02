@@ -15,7 +15,6 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-breadcrumb__link\s*\{[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-touch-link\s*\{[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-tab\s*\{[^}]*min-height:\s*44px/s)
-    expect(css).toMatch(/\.app-market-refresh::after\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/s)
     expect(css).toMatch(/\.app-header__brand\s*\{[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-header__icon-button\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-header__user-dropdown button\s*\{[^}]*min-height:\s*44px/s)
@@ -115,16 +114,16 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-empty-state__action\s*\{[^}]*display:\s*inline-flex/s)
   })
 
-  it('shell da etapa 02: faixa de 28px, barra única e marcador da navegação ativa por token', () => {
-    expect(css).toMatch(/\.app-market-strip__content\s*\{[^}]*min-height:\s*28px/s)
-    // O aviso operacional cede por último; o câmbio encolhe antes.
-    expect(css).toMatch(/\.app-market-strip__center\s*\{[^}]*flex:\s*0 1 auto[^}]*overflow:\s*hidden/s)
+  it('shell da etapa 02: barra única, sem a faixa de avisos (2026-11-01), e marcador da navegação ativa por token', () => {
+    // O câmbio e os containers em atraso ficam só na Demurrage.
+    expect(css).not.toMatch(/\.app-market-/)
+    expect(css).not.toMatch(/\.hib-/)
     expect(css).not.toMatch(/\.app-nav-bar\s*\{/)
     expect(css).toMatch(/\.app-nav-link\.active\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-nav-active\)/s)
     expect(css).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.app-nav-scroll--open\s*\{[^}]*position:\s*absolute[^}]*top:\s*100%/s)
   })
 
-  it('shell da etapa 02: nenhum texto abaixo de 12px na faixa, na navegação, na barra lateral e nos sinos', () => {
+  it('shell da etapa 02: nenhum texto abaixo de 12px na navegação, na barra lateral e nos sinos', () => {
     const shellBlock = css.slice(css.indexOf('/* ─── Shell (etapa 02)'), css.indexOf('/* Revisão: o que sobrou'))
     expect(shellBlock).toContain('.app-sidebar__nav')
     // Início de linha: a barra lateral também cita .app-notifications.

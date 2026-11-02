@@ -150,7 +150,7 @@ export async function fetchDemurrageInvoiceDetails(invoiceIds: readonly number[]
 }
 
 export function destinationText(destination: BoxDestination): string {
-  const boxes = destination.containers.length === 1 ? destination.containers[0] : `${destination.containers.length} caixas`
+  const boxes = destination.containers.length === 1 ? destination.containers[0] : `${destination.containers.length} containers`
   switch (destination.kind) {
     case 'reemitida': return `${boxes}: reemitida na ${destination.doc_number}`
     case 'cobrada': return `${boxes}: cobrada na ${destination.doc_number}`
