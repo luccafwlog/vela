@@ -9,6 +9,8 @@ import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { usePortalProfile } from '../hooks/usePortalProfile'
 import { usePortalScope } from '../hooks/usePortalScope'
+import { CopyValue } from '../components/ui/CopyValue'
+import { formatCnpjCpf } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
 import type { PortalProfile as PortalProfileData } from '../services/portalBilling'
 import { supabasePortal } from '../services/supabase'
@@ -60,7 +62,15 @@ export function PortalProfile() {
 
   return (
     <>
-      <PageHeader title="Meu perfil" description="Contatos que recebem comunicados, endereço da empresa e o e-mail usado para recuperar a senha." />
+      <PageHeader
+        title="Meu perfil"
+        description={(
+          <>
+            <CustomerDocument value={scope.overview?.customer_cnpj_cpf} />
+            Contatos que recebem comunicados, endereço da empresa e o e-mail usado para recuperar a senha.
+          </>
+        )}
+      />
 
       {readOnly ? (
         <p className="portal-profile__inspection-note" role="note">
@@ -89,6 +99,21 @@ export function PortalProfile() {
         )}
       </div>
     </>
+  )
+}
+
+/**
+ * CNPJ (ou CPF) do Cliente no topo de Meu perfil, com o ícone de copiar
+ * (decisão do dono de 2026-11-02). Vem da sessão, a mesma do Modo Inspeção.
+ */
+function CustomerDocument({ value }: { value: string | null | undefined }) {
+  const digits = (value ?? '').replace(/\D/g, '')
+  if (!digits) return null
+  const label = digits.length === 11 ? 'CPF' : 'CNPJ'
+  return (
+    <span className="mb-1 block font-semibold text-[var(--app-text-strong)]">
+      {label} <span className="font-mono"><CopyValue value={formatCnpjCpf(value)} label={label} /></span>
+    </span>
   )
 }
 

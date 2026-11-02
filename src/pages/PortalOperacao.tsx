@@ -1,10 +1,9 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Download, ExternalLink } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
 import { Block, Fact, FactList } from '../components/ui/Block'
-import { Button } from '../components/ui/Button'
 import { EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { CopyValue } from '../components/ui/CopyValue'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -14,6 +13,7 @@ import { StatusText } from '../components/ui/StatusText'
 import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
 import { FilterBar } from '../components/ui/FilterBar'
+import { PortalExportButton } from '../components/portal/PortalExportButton'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { usePortalOperationBls } from '../hooks/usePortalOperation'
@@ -33,6 +33,7 @@ import {
   type ReturnSituation,
 } from '../lib/portalOperationViews'
 import { exportPortalBlsWorkbook, exportPortalContainersWorkbook } from '../services/exports'
+import { portalBillingForBlSuffix } from '../lib/portalBillingFilters'
 import type { PortalOperationBL, PortalOperationContainer, PortalOperationContainerStatus } from '../services/portalOperation'
 import { trackingUrlForBl } from '../services/portalInformation'
 import { matchesAnyToken } from '../lib/searchTerms'
@@ -232,15 +233,6 @@ function FilterCards({
   )
 }
 
-function ExportButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
-  return (
-    <Button variant="secondary" className="app-btn--sm" onClick={onClick} disabled={disabled}>
-      <Download size={14} aria-hidden="true" />
-      Exportar Excel
-    </Button>
-  )
-}
-
 // --- Aba BLs -------------------------------------------------------------
 
 function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filters: BlFilters; onFilters: (f: BlFilters) => void }) {
@@ -289,10 +281,10 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
       <Block
         title="B/Ls"
         flush
-        aside={<>{filtered.length}<ExportButton onClick={() => void exportPortalBlsWorkbook(filtered)} disabled={filtered.length === 0} /></>}
+        aside={<>{filtered.length}<PortalExportButton onClick={() => void exportPortalBlsWorkbook(filtered)} disabled={filtered.length === 0} /></>}
       >
         <div className="app-block__body">
-          <FilterBar activeCount={activeFilters} onClear={() => { onFilters(EMPTY_BL_FILTERS); setPage(0) }}>
+          <FilterBar defaultOpen={false} activeCount={activeFilters} onClear={() => { onFilters(EMPTY_BL_FILTERS); setPage(0) }}>
             <div className="app-filter-grid">
               <Field label="B/L"><Input value={filters.bl} onChange={(e) => update({ bl: e.target.value })} placeholder="Número do B/L" /></Field>
               <Field label="CE Mercante"><Input value={filters.ce} onChange={(e) => update({ ce: e.target.value })} placeholder="CE Mercante" /></Field>
@@ -400,7 +392,7 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                       <Fact className="content-start" label="Navio / Viagem">{vesselVoyage(row) ?? <NoValue label="Sem navio e viagem" />}</Fact>
                       <Fact className="content-start" label="Trecho">{route(row)}</Fact>
                       <Fact className="content-start" label="Carga">{blCargoLabel(row)}</Fact>
-                      <Fact className="content-start" label="Taxas locais">{total != null ? formatBRL(total) : <NoValue label="Sem valor de fatura" />}</Fact>
+                      <Fact className="content-start" label="Taxas locais"><LocalChargesTotal row={row} total={total} /></Fact>
                       <Fact className="content-start" label="Pagamento">{payment ? <StatusText tone={payment.tone}>{payment.label}</StatusText> : <NoValue label="Sem fatura" />}</Fact>
                       <Fact className="content-start" label="Devolução"><ReturnCell row={row} /></Fact>
                       <Fact className="content-start" label="Demurrage"><DemurrageCell row={row} /></Fact>
@@ -442,11 +434,31 @@ function CeMercante({ value }: { value: string | null }) {
   return value ? <span className={monoClass}><CopyValue value={value} label="CE Mercante" /></span> : <NoValue label="Sem CE Mercante" />
 }
 
+/**
+ * Valor das Taxas locais do B/L, que abre Faturas já filtrada por ele
+ * (decisão do dono de 2026-11-02). Sem fatura visível, o traço de ausência.
+ */
+function LocalChargesTotal({ row, total }: { row: PortalOperationBL; total: number | null }) {
+  const scope = usePortalScope()
+  if (total == null) return <NoValue label="Sem valor de fatura" />
+  return (
+    <Link
+      className="app-link"
+      to={portalPath(scope, portalBillingForBlSuffix(row.bl_id))}
+      aria-label={`Ver as faturas do B/L ${row.bl_id}: ${formatBRL(total)}`}
+      title="Ver as faturas deste B/L"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {formatBRL(total)}
+    </Link>
+  )
+}
+
 function LocalChargesCells({ row }: { row: PortalOperationBL }) {
   const { total, payment } = localChargesView(row.local_charges)
   return (
     <>
-      <td className="whitespace-nowrap tabular-nums">{total != null ? formatBRL(total) : <NoValue label="Sem valor de fatura" />}</td>
+      <td className="whitespace-nowrap tabular-nums"><LocalChargesTotal row={row} total={total} /></td>
       <td className="whitespace-nowrap tabular-nums">{payment ? <StatusText tone={payment.tone}>{payment.label}</StatusText> : <NoValue label="Sem fatura" />}</td>
     </>
   )
@@ -548,10 +560,10 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
       <Block
         title="Containers"
         flush
-        aside={<>{filtered.length}<ExportButton onClick={() => void exportPortalContainersWorkbook(filtered)} disabled={filtered.length === 0} /></>}
+        aside={<>{filtered.length}<PortalExportButton onClick={() => void exportPortalContainersWorkbook(filtered)} disabled={filtered.length === 0} /></>}
       >
         <div className="app-block__body">
-          <FilterBar activeCount={activeFilters} onClear={() => { onFilters(EMPTY_CONTAINER_FILTERS); setPage(0) }}>
+          <FilterBar defaultOpen={false} activeCount={activeFilters} onClear={() => { onFilters(EMPTY_CONTAINER_FILTERS); setPage(0) }}>
             <div className="app-filter-grid">
               <Field label="Container"><Input value={filters.container} onChange={(e) => update({ container: e.target.value })} placeholder="Número do container" /></Field>
               <Field label="B/L"><Input value={filters.bl} onChange={(e) => update({ bl: e.target.value })} placeholder="Número do B/L" /></Field>

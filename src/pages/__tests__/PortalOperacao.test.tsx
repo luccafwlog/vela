@@ -207,6 +207,11 @@ function SearchProbe() {
   return <div data-testid="search">{useLocation().search}</div>
 }
 
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="probe-path">{location.pathname + location.search}</div>
+}
+
 function renderOperacao(initialEntry = '/portal/operacao') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -477,13 +482,31 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(containersTable()).queryByText('ABCD1234567')).toBeNull()
   })
 
+  it('o valor das Taxas locais abre Faturas filtrada pelo B/L, sem abrir a linha', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/portal/operacao']}>
+        <PortalOperacao />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+    const link = within(blsTable()).getByRole('link', { name: /^Ver as faturas do B\/L BL001: R\$\s4\.804,00$/ })
+    expect(link.getAttribute('href')).toBe('/portal/billing?tab=local&bl=BL001')
+    // B/L sem fatura visível fica sem link.
+    expect(within(blsTable()).queryByRole('link', { name: /Ver as faturas do B\/L BL002/ })).toBeNull()
+    await user.click(link)
+    expect(screen.getByTestId('probe-path').textContent).toBe('/portal/billing?tab=local&bl=BL001')
+    expect(within(blsTable()).getByRole('button', { name: 'Abrir os containers do B/L BL001' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('renderiza cards mobile nas abas BLs e Containers, sem os botões repetidos', async () => {
     const user = userEvent.setup()
     renderOperacao()
 
     const blCards = screen.getByTestId('portal-operacao-bl-mobile-cards')
     expect(within(blCards).getByRole('article', { name: 'B/L BL001' }).textContent).toMatch(/R\$\s1\.202,00 em aberto/)
-    expect(within(blCards).queryAllByRole('link')).toHaveLength(0)
+    // Só o valor das Taxas locais é link (abre Faturas filtrada); nenhum atalho repetido.
+    expect(within(blCards).queryAllByRole('link').every((link) => /^Ver as faturas do B\/L /.test(link.getAttribute('aria-label') ?? ''))).toBe(true)
 
     await user.click(screen.getByRole('tab', { name: 'Containers' }))
 
@@ -542,8 +565,14 @@ describe('PortalOperacao (BLs e Containers)', () => {
 // Ponto 2 de 2026-10-23: o atalho "Ver meus B/Ls" de Chegadas e saídas chega
 // pela URL; recarregar a página mantém o filtro de Navio e Viagem.
 describe('PortalOperacao: Navio e Viagem na URL', () => {
-  it('abre a aba BLs já filtrada pelo navio e pela viagem do endereço', () => {
+  it('abre a aba BLs já filtrada pelo navio e pela viagem do endereço, com os filtros recolhidos', async () => {
+    const user = userEvent.setup()
     renderOperacao('/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W')
+    // Filtros recolhidos por padrão no Portal (2026-11-02); o contador mostra o recorte.
+    const toggle = screen.getByRole('button', { name: /Filtros/i })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.textContent).toContain('2')
+    await user.click(toggle)
     expect((screen.getByLabelText('Navio') as HTMLInputElement).value).toBe('NAVIO DEVOLVIDO')
     expect((screen.getByLabelText('Viagem') as HTMLInputElement).value).toBe('003W')
     const shown = within(blsTable()).getAllByRole('button', { name: /Abrir os containers do B\/L/ }).map((b) => b.getAttribute('aria-label'))
@@ -553,6 +582,7 @@ describe('PortalOperacao: Navio e Viagem na URL', () => {
   it('digitar ou limpar Navio e Viagem atualiza a URL', async () => {
     const user = userEvent.setup()
     renderOperacao('/portal/operacao?tab=bls&navio=NAVIO+DEVOLVIDO&viagem=003W')
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
     await user.clear(screen.getByLabelText('Viagem'))
     expect(new URLSearchParams(screen.getByTestId('search').textContent ?? '').get('viagem')).toBeNull()
     await user.clear(screen.getByLabelText('Navio'))
@@ -567,6 +597,7 @@ describe('PortalOperacao: Navio e Viagem na URL', () => {
   it('digitar no meio do Navio mantém o cursor no lugar', async () => {
     const user = userEvent.setup()
     renderOperacao('/portal/operacao?tab=bls&navio=NAVIO&viagem=003W')
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
     const navio = screen.getByLabelText('Navio') as HTMLInputElement
     await user.type(navio, 'XY', { initialSelectionStart: 2, initialSelectionEnd: 2 })
     expect(navio.value).toBe('NAXYVIO')
@@ -581,6 +612,7 @@ describe('PortalOperacao: Navio e Viagem na URL', () => {
         <Link to="/portal/operacao?tab=bls">Menu BLs e Containers</Link>
       </MemoryRouter>,
     )
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
     await user.click(screen.getByRole('link', { name: 'Menu BLs e Containers' }))
     expect((screen.getByLabelText('Navio') as HTMLInputElement).value).toBe('')
     expect((screen.getByLabelText('Viagem') as HTMLInputElement).value).toBe('')

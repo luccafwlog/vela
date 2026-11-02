@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from '../../services/portalBilling'
@@ -296,9 +296,15 @@ async function openConsolidatedDetail(user: ReturnType<typeof userEvent.setup>) 
 
 describe('PortalBilling', () => {
   it('"Ver faturas do B/L" chega filtrado no B/L e em aberto, e os parâmetros saem da URL', async () => {
+    const user = userEvent.setup()
     renderBilling('/portal/billing?tab=local&status=issued&bl=BL-OCULTO')
 
     expect(screen.getAllByText('INV-002').length).toBeGreaterThan(0)
+    // Filtros recolhidos por padrão no Portal (2026-11-02): o contador mostra o recorte.
+    const toggle = screen.getByRole('button', { name: /Filtros/i })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.textContent).toContain('2')
+    await user.click(toggle)
     expect(screen.queryByText('INV-001')).toBeNull()
     expect((screen.getByPlaceholderText('Número do B/L') as HTMLInputElement).value).toBe('BL-OCULTO')
     expect((screen.getByLabelText('Status') as HTMLSelectElement).value).toBe('issued')
@@ -375,9 +381,22 @@ describe('PortalBilling', () => {
     expect(screen.queryByTitle('00020126PIX-DEM-001')).toBeNull()
   })
 
-  it('"Gerar fatura consolidada" deixa de ser o botão principal', () => {
+  it('topo traz as consultas e a consolidada em destaque; Exportar Excel fica na faixa do bloco', async () => {
+    const user = userEvent.setup()
     renderBilling()
-    expect(screen.getByRole('button', { name: /Gerar fatura consolidada/ }).className).toContain('app-btn--secondary')
+    const header = screen.getByRole('heading', { level: 1, name: 'Faturas' }).closest('.page-header') as HTMLElement
+    // Decisão de 2026-11-02: a consolidada é o botão preenchido, para se diferenciar das consultas.
+    expect(within(header).getByRole('button', { name: /Gerar fatura consolidada/ }).className).toContain('app-btn--primary')
+    expect(within(header).getByRole('link', { name: 'Consultar Taxas Locais' })).toBeTruthy()
+    expect(within(header).getByRole('link', { name: 'Contato' })).toBeTruthy()
+    expect(within(header).queryByRole('button', { name: /Exportar Excel/ })).toBeNull()
+    const localBlock = screen.getByRole('region', { name: 'Faturas de taxas locais e avulsas' })
+    expect(within(localBlock.querySelector('header') as HTMLElement).getByRole('button', { name: /Exportar Excel/ })).toBeTruthy()
+
+    await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
+    expect(within(header).getByRole('link', { name: 'Consultar Demurrage' })).toBeTruthy()
+    const demBlock = screen.getByRole('region', { name: 'Faturas de Demurrage' })
+    expect(within(demBlock.querySelector('header') as HTMLElement).getByRole('button', { name: /Exportar Excel/ })).toBeTruthy()
   })
 
   it('exibe fatura avulsa sem B/L com contexto direto no desktop e mobile', () => {
@@ -404,7 +423,9 @@ describe('PortalBilling', () => {
     const user = userEvent.setup()
     renderBilling()
 
-    // Filtros abertos (lote 1): o campo B/L já está à vista.
+    // Filtros recolhidos por padrão no Portal (2026-11-02).
+    expect(screen.queryByLabelText('B/L')).toBeNull()
+    await user.click(screen.getByRole('button', { name: /Filtros/i }))
     await user.type(screen.getByLabelText('B/L'), 'BL-EXPORTADO')
     await user.click(screen.getByRole('button', { name: /Exportar Excel/i }))
 

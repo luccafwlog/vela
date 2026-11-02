@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, FilePlus2, Printer } from 'lucide-react'
+import { FilePlus2, Printer } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -319,13 +319,12 @@ export function PortalBilling() {
         title="Faturas"
         description="Consulte e pague suas faturas locais, avulsas e de Demurrage com Pix."
         action={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" loading={exporting} onClick={() => void handleExport()}>
-              <Download size={16} />
-              Exportar Excel
-            </Button>
+          // Atalhos de consulta e a consolidada no topo, à direita (2026-11-02):
+          // a consolidada volta a ser o botão principal (preenchido) para se
+          // diferenciar das consultas; Exportar Excel foi para a faixa do bloco.
+          <>
+            <InformationLinks sections={[tab === 'local' ? 'taxas' : 'demurrage', 'atendimento']} pod={(tab === 'local' ? localFilters : demFilters).pod} size="md" />
             <Button
-              variant="secondary"
               onClick={() => setConsolidateOpen(true)}
               disabled={readOnly}
               title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
@@ -333,7 +332,7 @@ export function PortalBilling() {
               <FilePlus2 size={16} />
               Gerar fatura consolidada
             </Button>
-          </div>
+          </>
         }
       />
 
@@ -342,8 +341,6 @@ export function PortalBilling() {
         <MetricCard label="Faturas emitidas" value={String(localInvoiceCount)} />
         <MetricCard label="B/Ls elegíveis" value={String(eligibleCount)} />
       </div>
-
-      <div className="mb-4"><InformationLinks sections={[tab === 'local' ? 'taxas' : 'demurrage', 'atendimento']} pod={(tab === 'local' ? localFilters : demFilters).pod} /></div>
 
       <div className="mb-4 flex gap-2 border-b border-[var(--app-border)]" role="tablist">
         <TabButton active={tab === 'local'} label="Taxas Locais" onClick={() => setTab('local')} />
@@ -364,6 +361,8 @@ export function PortalBilling() {
           pods={localInvoicesQuery.data?.pods ?? []}
           onOpenDetail={setSelectedInvoiceId}
           onPayPix={setPixLocal}
+          onExport={() => void handleExport()}
+          exporting={exporting}
         />
       ) : (
         <DemurrageTab
@@ -383,6 +382,8 @@ export function PortalBilling() {
           onOpenDisputes={() => showDisputes(null)}
           complementOf={complements.complementOf}
           onPayPix={setPixDemurrage}
+          onExport={() => void handleExport()}
+          exporting={exporting}
         />
       )}
 
