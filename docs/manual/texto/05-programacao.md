@@ -12,7 +12,7 @@ A programação é o que o Vela mostra das datas dos navios. O Cliente a vê em 
 
 **Quem faz:** {{Todas as equipes}}
 
-**Chegadas e Saídas** (atalho no alto do **Painel** e de **Viagens**) é a programação publicada no Portal e no site fwlog.com.br ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)): para cada navio, quando ele sai da origem e quando chega a cada porto brasileiro. Cada linha é uma Viagem com a chave **Aparece em Chegadas e Saídas** ligada, e o navio que chega primeiro fica no alto.
+**Chegadas e Saídas** (no menu **Viagens**, e atalho no alto do **Painel** e da lista de Viagens) é a programação publicada no Portal e no site fwlog.com.br ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)): para cada navio, quando ele sai da origem e quando chega a cada porto brasileiro. Cada linha é uma Viagem com a chave **Chegadas e Saídas** ligada, e o navio que chega primeiro fica no alto.
 
 ::: tela chegadas-saidas
 Chegadas e Saídas: a saída de Shanghai já passou e aparece em âmbar, com o botão de confirmar.
@@ -32,7 +32,7 @@ Chegadas e Saídas: a saída de Shanghai já passou e aparece em âmbar, com o b
 O quadro mostra só nove portos: Qingdao, Shanghai, Taicang, Ningbo e Nansha na origem, e Salvador, Vitória, Pecém e Suape no Brasil.
 
 ::: atencao
-Se um navio não aparece, confira na Viagem se a chave **Aparece em Chegadas e Saídas** está ligada, se ela está **Ativa** e se tem pelo menos uma data num desses nove portos.
+Se um navio não aparece, confira na edição da Viagem se a chave **Chegadas e Saídas** está ligada, se ela está **Ativa** e se tem pelo menos uma data num desses nove portos.
 :::
 
 ## 5.2 Publicar um navio
@@ -103,6 +103,8 @@ A **saída** confirmada é provisória. A data real de saída vem do B/L, pela d
 
 Quando o armador manda a programação de vários navios de uma vez, use a planilha. Baixe o modelo na própria janela: uma linha por viagem, com **VESSEL NAME**, **VOY**, **IMO** e uma coluna por porto do quadro, de **QINGDAO ETD** a **SUAPE ETA**.
 
+Para partir do que já está no quadro, clique em **Exportar programação**, ao lado de **Importar programação**. A planilha sai no mesmo molde, com os navios da tela, o IMO e a data prevista de cada porto (a data que aconteceu não sai; o porto em **Não escala** sai com "X"). Altere as datas, inclua navios e importe o mesmo arquivo de volta.
+
 ::: passos
 1. Em **Chegadas e Saídas**, abaixo do quadro, clique em **Importar programação**.
 2. Escolha a planilha. O Vela lê e monta a prévia; nada é gravado ainda.
@@ -128,7 +130,7 @@ A planilha entra inteira ou não entra: uma linha com erro bloqueia todas, para 
 O navio sai do quadro sozinho quando a Viagem é concluída, no último ATD. Para tirá-lo antes, sem mexer na Viagem:
 
 1. Em **Viagens**, abra a Viagem e clique em **Editar**.
-2. Desligue **Aparece em Chegadas e Saídas** e clique em **Salvar viagem**.
+2. Desligue a chave **Chegadas e Saídas** e clique em **Salvar viagem**.
 
 O navio some de Chegadas e Saídas, do Portal e do site fwlog.com.br, mas continua no Line Up, que é das equipes. Para publicar de novo, ligue a chave.
 
@@ -142,7 +144,7 @@ O **Line Up**, no **Painel**, é o quadro de trabalho das equipes: os navios atr
 O Line Up: o navio atracado em Vitória com a faixa verde, uma linha de exportação e a escala omitida no fim.
 :::
 
-1. **Tela TV** abre o quadro em outra janela, para um monitor da sala.
+1. **Tela TV**, ou **Viagens** › **Line Up TV** no menu, abre o quadro em outra aba, para um monitor da sala.
 2. **Exportar** leva para uma planilha as linhas que estão na tela.
 3. Os filtros recortam o quadro. **Escalas** começa em **Ativas**.
 
@@ -157,7 +159,7 @@ Como ler o quadro:
 A **Tela TV** mostra as escalas que ainda não terminaram, em letras grandes, e desliza sozinha quando há mais de oito linhas.
 
 ::: atencao
-A Tela TV usa a sessão de quem a abriu. Depois de 8 horas sem ninguém mexer no computador, a sessão termina e a TV volta ao login: entre de novo e abra **Tela TV** pelo **Painel**.
+A Tela TV usa a sessão de quem a abriu. Depois de 8 horas sem ninguém mexer no computador, a sessão termina e a TV volta ao login: entre de novo e abra **Tela TV** pelo **Painel** ou **Line Up TV** pelo menu.
 :::
 
 ## 5.8 Navios, armadores, portos e terminais
@@ -168,7 +170,7 @@ Esses são os cadastros de apoio das Viagens. Só os terminais têm tela própri
 
 - **Navios e armadores** nascem e mudam pelas Viagens, em **Nova Viagem** e **Editar** (capítulo 4), por Chegadas e Saídas e pela planilha. O armador corrigido numa Viagem vale para todas as Viagens do mesmo navio.
 - **Portos** nascem sozinhos na primeira escala com o código deles. O Vela entende grafias diferentes do mesmo porto, como BRVIT e BRVIX para Vitória.
-- **Terminais** ficam na tela de Locais, junto com os depots: no menu, em **Exportação**, clique em **Vazios EXP** e depois em **Locais (depots e terminais)**. O terminal precisa estar ligado ao porto para aparecer na escala e no Embarque de vazios.
+- **Terminais** ficam na tela de Locais, junto com os depots: no menu, em **Exportação** › **Locais (depots e terminais)**. O terminal precisa estar ligado ao porto para aparecer na escala e no Embarque de vazios.
 
 ::: atencao
 Se o terminal não aparece para escolher na escala ou no **Novo embarque**, confira em Locais se ele é **Terminal portuário**, se o **Porto** é o da escala e se está ativo. Para reativar, peça ao {{Administrativo}}.

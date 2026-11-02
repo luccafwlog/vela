@@ -55,7 +55,7 @@ async function login(page) {
         console.log(`ok  ${captura.id}`)
       } catch (error) {
         falhas.push(captura.id)
-        console.error(`ERRO ${captura.id}: ${error.message.split('\n')[0]}`)
+        console.error(`ERRO ${captura.id}: ${process.env.MANUAL_DEBUG ? error.message : error.message.split('\n')[0]}`)
         await page.screenshot({ path: path.join(OUT, `${captura.id}.erro.png`) }).catch(() => {})
         await page.keyboard.press('Escape').catch(() => {})
       }

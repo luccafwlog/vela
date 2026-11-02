@@ -6,7 +6,7 @@ O Vela escreve ao Cliente por e-mail: avisa que o navio vai chegar, que chegou e
 - acompanhar, viagem por viagem, os avisos que já saíram e os B/Ls que ainda não têm Cliente;
 - conferir se um e-mail chegou;
 - mandar à mão um NOA, NOR ou NOB, ou um texto seu;
-- reenviar o Comunicado de CE e Taxas;
+- mandar à mão ou reenviar o Comunicado de CE e Taxas;
 - descobrir por que um aviso não saiu e corrigir o contato.
 :::
 
@@ -19,7 +19,7 @@ O Cliente não recebe tudo em todos os endereços. Cada contato dele fica em uma
 | E-mail | Quando sai | Vai para |
 |---|---|---|
 | **NOA**, **NOR** e **NOB** (chegada prevista, chegada e atracação) | Sozinho, pelas datas do navio; ou à mão ([16.5](#165-mandar-um-noa-nor-ou-nob-à-mão)) | Caixa **Documentação e Operação** |
-| **CE Mercante · Taxas Locais** | Sozinho, quando o Cliente fica pronto na Viagem; reenvio à mão ([16.7](#167-reenviar-o-comunicado-de-ce-e-taxas)) | Caixas **Documentação e Operação** e **Financeiro** |
+| **CE Mercante · Taxas Locais** | Sozinho, quando o Cliente fica pronto na Viagem; ou à mão ([16.7](#167-reenviar-o-comunicado-de-ce-e-taxas)) | Caixas **Documentação e Operação** e **Financeiro** |
 | **Cobrança de Demurrage** | Sozinha, pela Régua de Cobrança ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)) | Caixas **Financeiro** e **Demurrage** |
 | **Comunicado livre** | À mão, para os Clientes de uma Viagem ([16.6](#166-escrever-um-comunicado-livre-ou-institucional)) | Todos os contatos ou a caixa que você escolhe |
 | **Institucional** | À mão, sem carga ([16.6](#166-escrever-um-comunicado-livre-ou-institucional)) | Todos os contatos |
@@ -158,11 +158,13 @@ Há dois jeitos de mandar um texto seu:
 
 O Comunicado de CE e Taxas traz, para cada B/L do Cliente na Viagem, o CE Mercante e o valor faturado, com o total da viagem e um botão para as faturas no Portal. Ele sai sozinho uma vez por Cliente e Viagem, quando o Cliente fica pronto: todos os B/Ls dele naquela Viagem com CE, sem pendência na Revisão e faturados. A ATLANTICO IMPORTADORA, com um B/L para Salvador e outro para Vitória, só recebe quando os dois estão prontos; um Cliente não espera o outro.
 
-Ele não se dispara pela vista **Disparo**: o reenvio sai pelo **Histórico**. Reenvie quando:
+Mande à mão quando:
 
 - o CE de um B/L mudou depois do envio. Abre para a {{Documentação}} o alerta **Reenviar Comunicado de CE e Taxas**, cujo link já abre o Histórico daquele B/L;
 - o Cliente ganhou um B/L na Viagem depois do envio e ele ficou pronto;
-- o Cliente pede de novo.
+- o automático não saiu, ou o Cliente pede de novo.
+
+Para um ou vários Clientes da Viagem, use o **Disparo**: escolha o modelo **CE Mercante · Taxas Locais** e siga os passos de [16.5](#165-mandar-um-noa-nor-ou-nob-à-mão). O CE e Taxas vai sempre para as caixas **Documentação e Operação** e **Financeiro**, sem anexo; o Cliente que não está pronto aparece **Bloqueado**, com o motivo, e o que já recebeu na Viagem aparece com "Reenvio N". Para reenviar o Comunicado de um Cliente, use o **Histórico**:
 
 ::: passos
 1. Em **Clientes** › **Comunicação**, vista **Histórico**, escolha o **Modelo** **CE Mercante · Taxas Locais** e o **Navio**, ou siga o link do alerta.
@@ -170,7 +172,7 @@ Ele não se dispara pela vista **Disparo**: o reenvio sai pelo **Histórico**. R
 3. Clique em **Reenviar CE e Taxas** e confirme. O e-mail sai com o CE e os valores de agora, para as caixas **Documentação e Operação** e **Financeiro**.
 :::
 
-O reenvio fecha o alerta **Reenviar Comunicado de CE e Taxas** dos B/Ls daquele Cliente na Viagem.
+O CE e Taxas mandado à mão, pelo Disparo ou pelo Histórico, fecha o alerta **Reenviar Comunicado de CE e Taxas** dos B/Ls daquele Cliente na Viagem, e o automático não manda de novo ao contato que recebeu.
 
 ::: atencao
 - O reenvio só sai com o Cliente pronto. Com um B/L sem CE, em Revisão ou sem fatura, aparece "Reenvio não feito" e o motivo; resolva a pendência antes.

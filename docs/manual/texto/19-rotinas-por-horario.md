@@ -70,7 +70,7 @@ Os avisos ao Cliente saem sozinhos. A cada 2 minutos o Vela confere o que ficou 
 | **NOB · Aviso de Atracação** | Depois do ATB, por até 30 dias, para os B/Ls daquele terminal | Caixa **Documentação e Operação** |
 | **CE e Taxas** | Quando todos os B/Ls do Cliente na Viagem têm CE, estão sem pendência na Revisão e faturados | Caixas **Documentação e Operação** e **Financeiro** |
 
-Cada contato recebe cada aviso uma vez. O NOA, o NOR ou o NOB que você mandou à mão também conta: o contato que já recebeu não recebe de novo. Quando um envio falha, o Vela tenta de novo e, se não conseguir, abre um alerta (capítulo 20).
+Cada contato recebe cada aviso uma vez. O aviso que você mandou à mão, inclusive o CE e Taxas, também conta: o contato que já recebeu não recebe de novo. Quando um envio falha, o Vela tenta de novo e, se não conseguir, abre um alerta (capítulo 20).
 
 ::: atencao
 Enquanto a chave **Envio real** estiver desligada, todo e-mail ao Cliente vai para o suporte, com "[Teste → e-mail do Cliente]" no assunto, e conta como recebido. Ligar a chave depois não reenvia ao Cliente o que foi ao suporte.

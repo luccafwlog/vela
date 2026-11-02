@@ -1,4 +1,4 @@
-O Cliente é a empresa, identificada pelo CNPJ, que recebe a carga do B/L, vê o B/L no Portal e paga a fatura. No Vela, tudo o que é dele fica numa ficha: o cadastro, os contatos que recebem os avisos por e-mail, a conta do Portal, os B/Ls, as faturas e a história de cada mudança. Neste capítulo você encontra e cadastra o Cliente, corrige o cadastro, cuida dos contatos e publica a Central de Informações, a página do Portal onde o Cliente consulta depots, agentes e contatos da agência. Se é do Administrativo, também libera o faturamento sem Portal e desativa um Cliente.
+O Cliente é a empresa, identificada pelo CNPJ, que recebe a carga do B/L, vê o B/L no Portal e paga a fatura. No Vela, tudo o que é dele fica numa ficha: o cadastro, os contatos que recebem os avisos por e-mail, a conta do Portal, os B/Ls, as faturas e a história de cada mudança. Neste capítulo você encontra e cadastra o Cliente, corrige o cadastro, cuida dos contatos e publica a página **Informações** do Portal, onde o Cliente consulta depots, agentes e contatos da agência. Se é do Administrativo, também libera o faturamento sem Portal e desativa um Cliente.
 
 ::: aprende
 - encontrar um Cliente e ler a ficha dele;
@@ -6,7 +6,7 @@ O Cliente é a empresa, identificada pelo CNPJ, que recebe a carga do B/L, vê o
 - corrigir o cadastro e cuidar dos contatos que recebem os Comunicados;
 - onde ficam as faturas e as condições negociadas do Cliente;
 - liberar o faturamento de um Cliente que ainda não tem Portal;
-- publicar a Central de Informações do Portal;
+- publicar as Informações do Portal;
 - desativar ou reativar um Cliente.
 :::
 
@@ -14,17 +14,17 @@ O Cliente é a empresa, identificada pelo CNPJ, que recebe a carga do B/L, vê o
 
 **Quem faz:** {{Todas as equipes}}
 
-A página **Clientes**, no menu, tem três abas: **Clientes**, a lista deste capítulo; **Provisionamento do Portal**, onde se cuida da conta do Cliente no Portal (capítulo 14); e **Comunicação**, os avisos por e-mail (capítulo 16).
+A página **Clientes** tem três abas: **Clientes**, a lista deste capítulo; **Provisionamento do Portal**, onde se cuida da conta do Cliente no Portal (capítulo 14); e **Comunicação**, os avisos por e-mail (capítulo 16). O menu **Clientes** abre cada uma direto e também **Informações do Portal** ([13.9](#139-publicar-as-informações-do-portal)).
 
 ::: tela clientes-lista
 A lista de Clientes, com a busca e os filtros.
 :::
 
 1. Em **Buscar cliente**, digite a razão social, o nome fantasia ou o CNPJ, com ou sem pontuação.
-2. Se precisar, recorte pelos filtros: **E-mail do contato**, **B/Ls vinculados**, **Saldo pendente** e **E-mails de contato**.
+2. Se precisar, recorte pelos filtros: **E-mail do contato**, **B/Ls vinculados**, **Saldo pendente**, **Taxas a revisar** e **E-mails de contato**.
 3. Clique no nome do Cliente para abrir a ficha.
 
-Os cartões do alto somam o recorte inteiro, não só a página. **Saldo pendente** e **Sem e-mail de contato** filtram a lista ao clique. Na lista, a coluna **Portal** diz em que pé está a conta do Cliente, e o **Saldo pendente** em âmbar abre as faturas dele em **Taxas Locais**. Cliente desativado continua na lista, em cinza.
+Os cartões do alto somam o recorte inteiro, não só a página. **Saldo pendente**, **Taxas a revisar** (os Clientes com algum B/L de Taxas Locais não calculadas ou em revisão) e **Sem e-mail de contato** filtram a lista ao clique. Na lista, a coluna **Portal** diz em que pé está a conta do Cliente, e o **Saldo pendente** em âmbar abre as faturas dele em **Taxas Locais**. Cliente desativado continua na lista, em cinza.
 
 A busca e os filtros ficam no endereço da página: o link copiado abre o mesmo recorte para um colega. **Exportar base** leva o recorte para uma planilha no formato da importação ([13.4](#134-importar-a-base-de-clientes)).
 
@@ -32,15 +32,15 @@ A busca e os filtros ficam no endereço da página: o link copiado abre o mesmo 
 
 **Quem faz:** {{Todas as equipes}}
 
-1. A faixa do alto traz o CNPJ, a cidade, o e-mail do contato principal e quantos B/Ls o Cliente tem. **Mais ações** leva às faturas em **Taxas Locais**, aos B/Ls na lista de **BLs** e ao **Provisionamento do Portal**.
+1. A faixa do alto traz o CNPJ, a cidade, o e-mail do contato principal e quantos B/Ls o Cliente tem. **Mais ações** leva às faturas em **Taxas Locais**, aos B/Ls na lista de **B/Ls** e ao **Provisionamento do Portal**.
 2. A **Visão geral** mostra o **Saldo pendente**, a situação do **Portal**, o **Contato principal** e as pendências do Cliente, cada uma no bloco do assunto e com o atalho para resolver. Embaixo, a **Atividade recente**.
-3. As outras abas: **Cadastro e contatos** ([13.5](#135-corrigir-o-cadastro) e [13.6](#136-cuidar-dos-contatos-do-cliente)), **BLs**, **Contêineres** (com a Demurrage de cada um), **Financeiro** ([13.7](#137-as-faturas-e-as-condições-negociadas)), **Histórico** e **Desbloqueio de CE e VIP** (capítulo 12).
+3. As outras abas: **Cadastro e contatos** ([13.5](#135-corrigir-o-cadastro) e [13.6](#136-cuidar-dos-contatos-do-cliente)), **B/Ls**, **Containers** (com a Demurrage de cada um), **Financeiro** ([13.7](#137-as-faturas-e-as-condições-negociadas)), **Histórico** e **Desbloqueio de CE e VIP** (capítulo 12).
 
 O **Saldo pendente** soma duas partes: o **Faturado em aberto** e o **A faturar**, as Taxas Locais já calculadas que ainda não viraram fatura. Por isso ele pode ser maior que o saldo que o Cliente vê no Portal, que conta só as faturas emitidas (capítulo 17).
 
 Duas pendências da **Visão geral** pedem atenção. **Faturas retidas**, no bloco **Portal**, quer dizer que o Portal do Cliente não está pronto e as faturas dele esperam a conta ser ativada (capítulo 14) ou a Liberação ([13.8](#138-liberar-o-faturamento-sem-portal)). **Sem contato principal com e-mail** quer dizer que os Comunicados não chegam ao Cliente, embora a fatura continue saindo ([13.6](#136-cuidar-dos-contatos-do-cliente)).
 
-A Demurrage do Cliente aparece em dois lugares. Na **Visão geral**, a pendência de containers com Demurrage correndo conta os mesmos containers que o cartão **Correndo (US$)** da página **Demurrage** ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers)). Na aba **Contêineres**, a coluna **Demurrage** mostra o valor de cada container, "em curso" (ainda fora) ou "a faturar" (devolvido, sem Invoice), a Invoice que já o cobra ou "Cobrança dispensada", que fica fora do total e sem valor na planilha ([9.11](09-containers-e-demurrage.md#911-dispensar-a-cobrança-de-um-container)). No container dividido com outro Cliente, o valor já é a parte deste.
+A Demurrage do Cliente aparece em dois lugares. Na **Visão geral**, a pendência de containers com Demurrage correndo conta os mesmos containers que o cartão **Correndo (US$)** da página **Demurrage** ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers)). Na aba **Containers**, a coluna **Demurrage** mostra o valor de cada container, "em curso" (ainda fora) ou "a faturar" (devolvido, sem Invoice), a Invoice que já o cobra ou "Cobrança dispensada", que fica fora do total e sem valor na planilha ([9.11](09-containers-e-demurrage.md#911-dispensar-a-cobrança-de-um-container)). No container dividido com outro Cliente, o valor já é a parte deste.
 
 O **Histórico** conta tudo o que aconteceu com o Cliente: cadastro, contatos, Portal, faturas, pagamentos, B/Ls e Comunicados, com quem fez. Use o filtro por assunto para achar um evento. As mudanças do cadastro e dos contatos, com o antes e o depois, ficam também no bloco **Alterações do cadastro**, na aba **Cadastro e contatos**.
 
@@ -111,7 +111,7 @@ O **contato principal** é um só e precisa de e-mail. Contato não é acesso ao
 3. Marque as **Caixas de recebimento** de cada contato. Use **Tornar principal** ou **Desativar** quando o Cliente pedir.
 4. Clique em **Salvar contatos**. A **Justificativa da alteração** é opcional e vai para o Histórico.
 
-O Cliente também muda os contatos pelo Portal (capítulo 15). Cada contato mostra de onde veio: **Cadastrado pela equipe**, **Informado no Portal** ou **Capturado do B/L**, o e-mail do consignatário que a importação trouxe.
+O Cliente também muda os contatos pelo Portal (capítulo 15). Cada contato mostra de onde veio: **Cadastrado pela equipe**, **Informado no Portal** ou **Capturado do B/L**, o e-mail do consignatário que a importação trouxe. Este vem sem nome, porque o manifesto não traz o nome da pessoa: preencha o **Nome** quando souber.
 
 ::: atencao
 - Toda caixa precisa de pelo menos um contato ativo com e-mail. Para tirar o principal de uma caixa, ponha antes outro contato nela; para desativá-lo, eleja antes outro principal.
@@ -147,13 +147,13 @@ As faturas retidas do Cliente são emitidas na hora, e as próximas saem sem esp
 - **Conceder liberação** só aparece enquanto o Portal não está pronto e não há Liberação vigente. Com o Portal pronto, o bloco diz **Não necessária**.
 :::
 
-## 13.9 Publicar a Central de Informações
+## 13.9 Publicar as Informações do Portal
 
 **Quem faz:** {{Qualquer equipe}}
 
-A **Central de Informações** é a página do Portal onde o Cliente consulta, por porto de descarga, as Taxas Locais, onde devolver o container vazio, a Demurrage, os agentes, os contatos da agência e o tracking do armador. O Vela é a fonte: o que você grava aqui aparece para o Cliente. As Taxas Locais e as tarifas de Demurrage vêm sozinhas das tabelas de cobrança em uso; o resto você mantém aqui.
+**Informações** é a página do Portal onde o Cliente consulta, por porto de descarga, as Taxas Locais, onde devolver o container vazio, a Demurrage, os agentes, os contatos da agência e o tracking do armador. O Vela é a fonte: o que você grava aqui aparece para o Cliente. As Taxas Locais e as tarifas de Demurrage vêm sozinhas das tabelas de cobrança em uso; o resto você mantém aqui.
 
-1. Em **Clientes**, aba **Provisionamento do Portal**, clique em **Informações do Portal**.
+1. No menu, abra **Clientes** › **Informações do Portal**. O botão de mesmo nome, em **Provisionamento do Portal**, abre a mesma página.
 2. Escolha a seção: **Depots**, **Agentes**, **Contato**, **Tracking** ou **Demurrage**.
 3. Clique em **Editar** no cartão, ou em **Adicionar agente** ou **Adicionar contato**, preencha e clique em **Salvar informações**.
 
@@ -161,8 +161,8 @@ O que cada seção guarda:
 
 - **Depots:** onde o Cliente devolve o vazio. O depot nasce na tela de Locais ([5.8](05-programacao.md#58-navios-armadores-portos-e-terminais)); aqui você completa os portos de devolução, o endereço, o horário, o agendamento e as instruções, e liga **Publicado no Portal**.
 - **Agentes:** nome, portos e e-mails. Agente não se exclui: desmarque **Ativo**.
-- **Contato:** um cartão por assunto (Importação, Exportação, Containers e Geral). Os três cartões de **Entrega do B/L original** não aparecem na Central, e sim no Desbloqueio de CE do Portal (capítulo 12).
-- **Tracking:** o link de consulta de cada armador. Com `{BL}` no link, o Portal abre a consulta já com o número do B/L.
+- **Contato:** um cartão por assunto (Importação, Exportação, Containers e Geral). Os três cartões de **Entrega do B/L original** não aparecem em **Informações**, e sim no Desbloqueio de CE do Portal (capítulo 12).
+- **Tracking:** o link de consulta de cada armador. Com `{BL}` no link, o Portal abre a consulta já com o número do B/L, em **Informações** e na coluna **Tracking** de **B/Ls e containers**; sem a marca, o Cliente só tem o link geral do armador, em **Informações**.
 - **Demurrage:** as **Observações públicas de Demurrage**. As tarifas vêm do cadastro de Demurrage.
 
 ::: atencao

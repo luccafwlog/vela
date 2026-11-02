@@ -87,9 +87,9 @@ Cada container tem uma situação, que aparece na coluna **Demurrage** da aba **
 
 Um exemplo: com free time de 21 dias, um container descarregado em 1º de outubro fica **Em atraso** a partir de 23 de outubro. Devolvido em 25 de outubro, ele ficou 24 dias fora e paga 3 dias de Demurrage.
 
-Gravar uma data refaz a situação na hora, e mudar o free time também: a condição do B/L, o acordo, a tarifa, o Cliente do B/L ou o cadastro de tipos. A virada do dia fica com a rotina da madrugada ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). A faixa do alto de todas as telas mostra **N containers em atraso**, os mesmos que o cartão **Correndo (US$)** da página **Demurrage** conta ([9.5](#95-acompanhar-a-demurrage-dos-containers)); o clique abre a página nessa divisão.
+Gravar uma data refaz a situação na hora, e mudar o free time também: a condição do B/L, o acordo, a tarifa, o Cliente do B/L ou o cadastro de tipos. A virada do dia fica com a rotina da madrugada ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). Os containers em atraso de todas as Viagens são os que o cartão **Correndo (US$)** da página **Demurrage** conta ([9.5](#95-acompanhar-a-demurrage-dos-containers)).
 
-Na aba **Faturamento** da ficha, o bloco **Demurrage** soma o que está a emitir (container devolvido, ainda sem Invoice) e o que está correndo (ainda fora), e mostra o valor de cada container, "a faturar" ou "em curso"; passe o mouse no valor para ver cada período. O container já cobrado mostra a Invoice; o dispensado, "Cobrança dispensada" ([9.11](#911-dispensar-a-cobrança-de-um-container)); o dividido com outro Cliente, a parte deste, como "1/2 da caixa" ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)).
+Na aba **Faturamento** da ficha, o bloco **Demurrage** soma o que está a emitir (container devolvido, ainda sem Invoice) e o que está correndo (ainda fora), e mostra o valor de cada container, "a faturar" ou "em curso"; passe o mouse no valor para ver cada período. O container já cobrado mostra a Invoice; o dispensado, "Cobrança dispensada" ([9.11](#911-dispensar-a-cobrança-de-um-container)); o dividido com outro Cliente, a parte deste, como "1/2 do container" ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)).
 
 ::: atencao
 - Tipo de container fora do cadastro **Tipos de container**, desativado ou sem tarifa no grupo não tem Demurrage calculada e segura a Invoice do grupo inteiro. O bloco **Demurrage** da ficha diz "Demurrage não calculada", a linha diz que o tipo está sem tarifa, e na página **Demurrage** o grupo vai para **Travado** até o tipo ou a tarifa ser cadastrado ([9.10](#910-cadastrar-um-tipo-de-container)).
@@ -103,7 +103,7 @@ A página **Demurrage**, no menu **Financeiro**, é onde você acompanha os cont
 
 | Divisão | Quer dizer | O que fazer |
 |---|---|---|
-| **Correndo** | Algum container do grupo está fora e já passou do free time. | Cobre a devolução do Cliente: a Invoice sai quando todos voltarem. Em âmbar, a linha avisa o que vai segurar a Invoice, como a falta de CE. |
+| **Correndo** | Algum container do grupo está fora e já passou do free time. | Cobre a devolução do Cliente: a linha diz quantos containers estão pendentes de devolução, e a Invoice sai quando todos voltarem. Em âmbar, a linha avisa o que vai segurar a Invoice, como a falta de CE. |
 | **A emitir** | Todos voltaram e há Demurrage sem Invoice. | Em geral, nada: a Invoice sai sozinha ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)). Se a linha diz "Pronto para gerar a Invoice" ou "Invoice anterior DEM-… cancelada à mão: gere a nova", clique em **Gerar Invoice**. |
 | **Esperando** | Um container voltou com Demurrage, e outro do grupo ainda está fora, no free time. | Espere a volta dele: a linha diz "Aguarda …", com o container e o último dia livre. |
 | **Travado** | O Vela não tem como cobrar: tipo sem tarifa, B/L sem Cliente, B/L cancelado, sem CE Mercante ou com o Portal do Cliente segurando o faturamento. | Use o atalho da linha: **Cadastrar CE**, **Vincular Cliente**, **Abrir Cliente**, **Cadastrar tipo**, **Reativar tipo** ou **Cadastrar tarifa**. Abre um alerta para a equipe que destrava ([20.9](20-alertas.md#209-demurrage)). |
@@ -131,11 +131,11 @@ Com isso, a Invoice sai sozinha logo depois da última devolução gravada ([18.
 
 Por exemplo, o CSC45810A01K00 tem dois containers, CSNU2401018 e CSNU2401023. Se o primeiro voltou em atraso e o segundo ainda está fora, no free time, o grupo fica em **Esperando**, com "Aguarda CSNU2401023 até …", e nada é cobrado até o segundo voltar.
 
-A Invoice cancelada à mão não volta sozinha: nem a data, nem o CE, nem a troca de Cliente a emitem de novo. As caixas dela voltam para **A emitir** com "Invoice anterior DEM-… cancelada à mão: gere a nova". Clique no ícone **Gerar Invoice** no fim da linha: ou a Invoice sai, ou a recusa fica na linha até você editar as datas ou sair da página.
+A Invoice cancelada à mão não volta sozinha: nem a data, nem o CE, nem a troca de Cliente a emitem de novo. Os containers dela voltam para **A emitir** com "Invoice anterior DEM-… cancelada à mão: gere a nova". Clique no ícone **Gerar Invoice** no fim da linha: ou a Invoice sai, ou a recusa fica na linha até você editar as datas ou sair da página.
 
 Cada container é cobrado uma vez. Se um container novo entra no grupo depois da Invoice, ele vai numa **Invoice complementar**, só com ele (o ícone passa a ser **Gerar Invoice complementar**).
 
-O container que está em B/Ls de Clientes diferentes na mesma Viagem é dividido em partes iguais: com dois Clientes, cada um paga a metade do valor da caixa calculado pela condição dele (o free time e as diárias do B/L, do acordo ou da tarifa). A Invoice, o documento e o Portal mostram "1/2 da caixa". Se o número de Clientes muda depois da Invoice, vale a regra das datas alteradas ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)).
+O container que está em B/Ls de Clientes diferentes na mesma Viagem é dividido em partes iguais: com dois Clientes, cada um paga a metade do valor do container calculado pela condição dele (o free time e as diárias do B/L, do acordo ou da tarifa). A Invoice, o documento e o Portal mostram "1/2 do container". Se o número de Clientes muda depois da Invoice, vale a regra das datas alteradas ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)).
 
 ::: atencao
 - Uma devolução que falta segura a Invoice do grupo inteiro, inclusive dos containers que já voltaram em atraso. Cobre do Cliente a devolução que falta, ou grave a data se ela já aconteceu.

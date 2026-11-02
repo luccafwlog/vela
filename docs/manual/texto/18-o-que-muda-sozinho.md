@@ -19,7 +19,7 @@ O CE é o que torna a Taxa Local devida. Por isso é a ação com mais efeitos n
 | Grava o primeiro CE do B/L | Calcula as Taxas Locais de novo e emite a fatura, se o B/L está pronto. | **Taxas Locais**; Portal: "Nova fatura emitida" |
 | | Mostra o B/L ao Cliente. | Portal do Cliente |
 | | Põe o B/L no Manifesto Mercante da rota. | **Rotas e Manifestos** |
-| | Fecha **CE Mercante pendente** quando nada mais falta e pode passar **BLs e CEs** da escala a **Aprovado**. | **Alertas**; ficha da Viagem |
+| | Fecha **CE Mercante pendente** quando nada mais falta e pode passar **B/Ls e CEs** da escala a **Aprovado**. | **Alertas**; ficha da Viagem |
 | | Quando todos os B/Ls do Cliente na Viagem têm CE, estão sem pendência na Revisão e faturados, manda o Comunicado de CE e Taxas. | E-mail ao Cliente |
 | Troca o CE | Registra a troca no histórico do B/L. Não recalcula nem mexe na fatura já emitida. Pela ficha, o B/L continua no mesmo Manifesto; pela planilha, passa ao Manifesto do arquivo. Se o Comunicado de CE e Taxas já saiu, abre **Reenviar Comunicado de CE e Taxas**; se o Desbloqueio de CE já foi conferido, abre **CE trocado depois do Desbloqueio conferido**. | **Alertas** da {{Documentação}} |
 | Remove o CE (só sem fatura) | Tira o B/L do Portal e do Manifesto, e o B/L volta a contar como CE pendente. | Portal; **Alertas** |
@@ -97,7 +97,7 @@ O Cliente é quem vê o B/L no Portal e quem recebe a fatura. Mudar o Cliente le
 | Você faz | O Vela faz | Onde aparece |
 |---|---|---|
 | Importa B/Ls | Vincula o Cliente pelo CNPJ, aplica as marcas do Baplie (se ele já foi importado), calcula as Taxas Locais provisórias e põe na Revisão o B/L com pendência. | Ficha do B/L; **Revisão** |
-| | Recalcula a saída do porto de origem, pelo menor **Laden on Board**, e o status **BLs e CEs** de cada escala. | **Rotas e Manifestos**; ficha da Viagem |
+| | Recalcula a saída do porto de origem, pelo menor **Laden on Board**, e o status **B/Ls e CEs** de cada escala. | **Rotas e Manifestos**; ficha da Viagem |
 | Importa o Baplie | Aplica as marcas IMO, OOG e SOC/COC aos containers dos B/Ls e recalcula as Taxas Locais dos que não têm fatura; nos faturados, a fatura segue a correção ([18.6](#186-corrigir-um-bl)). Fecha o alerta **Baplie ausente**. | **Baplie EDI**; **Alertas** |
 | Importa veículos | Recalcula as Taxas Locais de cada B/L sem fatura. Se um B/L ficou isento, cancela em até um minuto as faturas dele sem pagamento. | **Taxas Locais** |
 | Importa o CE | Veja [18.1](#181-vincular-o-ce-ao-bl). | |
@@ -139,7 +139,7 @@ A fatura emitida nunca é editada. Quando a correção muda o valor ou o Cliente
 | | Deixa de contar o B/L na saída do porto de origem e nos alertas da Revisão. Os containers dele saem do atraso da Demurrage. | Ficha da Viagem; **Demurrage** |
 | | Se um container dele também está no B/L de outro Cliente, a Demurrage do container passa a ser cobrada só do outro ([18.8](#188-mudar-as-datas-de-um-container)). | **Demurrage** |
 | Reativa o B/L | Recalcula as taxas automáticas, devolve o B/L ao Manifesto (se ele ainda serve à rota) e o atraso dos containers volta a contar. | Ficha do B/L |
-| Exclui o B/L | Apaga o B/L com os containers, os cálculos e os alertas dele, e recalcula a saída do porto de origem. | Lista **BLs** |
+| Exclui o B/L | Apaga o B/L com os containers, os cálculos e os alertas dele, e recalcula a saída do porto de origem. | Lista **B/Ls** |
 
 ::: atencao
 Reativar não traz de volta a taxa lançada à mão: ela precisa ser lançada de novo.

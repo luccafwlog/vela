@@ -3,7 +3,7 @@ O Cliente não vê o Vela: vê o Portal Fwlog, que lê os mesmos dados. Quando e
 ::: aprende
 - ver o Portal de um Cliente como ele vê, pelo Modo Inspeção;
 - como o Cliente entra e recupera a senha;
-- o que aparece no Painel, em BLs e Containers e em Faturas;
+- o que aparece no Painel, em B/Ls e containers e em Faturas;
 - como o Cliente paga, contesta uma Demurrage e pede o Desbloqueio de CE;
 - o que o Cliente muda sozinho no Perfil e os avisos que ele recebe no Portal.
 :::
@@ -16,7 +16,7 @@ O **Modo Inspeção** abre o Portal de um Cliente com os mesmos dados e o mesmo 
 
 1. Em **Clientes** › **Provisionamento do Portal**, clique no olho da coluna **Espiadinha**. O Portal abre numa aba nova. Pela ficha do Cliente, use **Acesso ao Portal** › **Gerenciar aqui** › **Ver como o Cliente vê** (ou **Ver o que o Cliente veria**, com a conta ainda não ativa).
 2. A faixa **Modo Inspeção**, no alto, mostra o Cliente, o CNPJ e se a conta está ativa.
-3. Navegue pela barra do Portal: **Painel**, **Faturas**, **BLs e Containers**, **Desbloqueio de CE**, **Informações** e **Perfil**.
+3. Navegue pela barra do Portal: **Painel**, **Faturas**, **B/Ls e containers**, **Desbloqueio de CE**, **Informações** e **Perfil**.
 4. Para sair, use o botão da faixa: **Fechar inspeção**, **Voltar à ficha do Cliente** ou **Voltar ao Provisionamento**.
 
 ::: tela portal-inspecao
@@ -52,21 +52,23 @@ Para trocar uma senha esquecida, o Cliente usa **Esqueci minha senha**, informa 
 
 O **Painel** é a primeira tela do Cliente. Quatro cartões resumem o que está em aberto e levam à tela de cada assunto.
 
-Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. **Ver meus B/Ls** aparece na viagem em que ele tem carga e abre os B/Ls daquela viagem. Por último, **Consultas** leva às seções da Central de Informações (capítulo 13). O mesmo quadro, sem **Ver meus B/Ls**, aparece a qualquer pessoa no site da Fwlog ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)).
+Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. **Ver meus B/Ls** aparece na viagem em que ele tem carga e abre os B/Ls daquela viagem. Por último, o bloco **Informações** leva às seções da página **Informações**, que você mantém no Vela ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)). O mesmo quadro, sem **Ver meus B/Ls**, aparece a qualquer pessoa no site da Fwlog ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)).
 
 As telas do Portal leem os dados quando o Cliente as abre; elas não se atualizam sozinhas. Uma data que você grava aparece para ele na próxima leitura, ou quando ele clica em **Atualizar** em **Chegadas e saídas**.
 
 ::: atencao
-Se o Cliente não vê um navio, confira na Viagem se a chave **Aparece em Chegadas e Saídas** está ligada e se a Viagem está **Ativa**. A Viagem concluída sai da programação.
+Se o Cliente não vê um navio, confira na edição da Viagem se a chave **Chegadas e Saídas** está ligada e se a Viagem está **Ativa**. A Viagem concluída sai da programação.
 :::
 
 ## 15.4 Os B/Ls e os containers
 
 **Quem faz:** {{Todas as equipes}}
 
-**BLs e Containers** lista os B/Ls do Cliente que têm CE Mercante. O B/L sem CE não aparece em nenhuma tela do Portal: nem aqui, nem nas faturas, nem na Demurrage ([18.1](18-o-que-muda-sozinho.md#181-vincular-o-ce-ao-bl)). O B/L cancelado depois do CE continua na lista, com o selo **Cancelado**.
+**B/Ls e containers** lista os B/Ls do Cliente que têm CE Mercante. O B/L sem CE não aparece em nenhuma tela do Portal: nem aqui, nem nas faturas, nem na Demurrage ([18.1](18-o-que-muda-sozinho.md#181-vincular-o-ce-ao-bl)). O B/L cancelado depois do CE continua na lista, com o selo **Cancelado**.
 
-Na aba **BLs**, cada linha traz a carga, a Viagem e o trecho. A coluna **Pagamento** diz "R$ … em aberto", "Pago" ou "Aguardando fatura". Essa última aparece sem valor: o Portal nunca mostra uma Taxa Local que ainda não foi faturada. O B/L com escala omitida mostra **Informações de Transbordo**, ou o novo destino no COD, sem o motivo interno ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)).
+Na aba **B/Ls**, cada linha traz a carga, a Viagem e o trecho. A coluna **Pagamento** diz "R$ … em aberto", "Pago" ou "Aguardando fatura". Essa última aparece sem valor: o Portal nunca mostra uma Taxa Local que ainda não foi faturada. A coluna **Demurrage** separa os containers ainda fora com Demurrage ("N em demurrage", em vermelho) dos que já voltaram com dias de Demurrage ("N devolvidos com demurrage"); sem nenhum, diz "Sem demurrage". O B/L com escala omitida mostra **Informações de Transbordo**, ou o novo destino no COD, sem o motivo interno ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)).
+
+O valor de **Taxas locais** abre as faturas daquele B/L em **Faturas**. A coluna **Tracking** abre o site do armador já na consulta do B/L; o botão só aparece quando o link do armador em **Informações do Portal** › **Tracking** tem a marca `{BL}` ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)).
 
 A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a situação:
 
@@ -94,6 +96,8 @@ O número da fatura abre o detalhe, com o bloco **Pagamento** primeiro:
 2. Depois do pagamento, a baixa leva de 1 a 5 minutos. O detalhe aberto se atualiza sozinho e passa a **Paga**, com **Imprimir recibo**.
 3. A fatura individual paga por uma consolidada aparece como **Coberta**, com o link para a consolidada.
 
+Dá para pagar sem abrir a fatura: a coluna **Pagar** da lista traz o ícone **Pagar com Pix** (no celular, um botão com esse nome) em toda fatura que pede pagamento, inclusive a individual que está numa consolidada ainda aberta. Ele abre uma janela com o valor a pagar, o mesmo QR do detalhe e **Ver detalhe da fatura**.
+
 O Cliente também junta faturas: **Gerar fatura consolidada** escolhe os B/Ls com saldo em aberto e **Consolidar e emitir** emite uma fatura só, que aparece no Vela como qualquer consolidada (capítulo 22). Enquanto ela não tem pagamento, o Cliente pode desfazê-la em **Refazer consolidada**.
 
 ::: atencao
@@ -105,7 +109,7 @@ O Cliente também junta faturas: **Gerar fatura consolidada** escolhe os B/Ls co
 
 **Quem faz:** o Cliente, no Portal. Quem responde à Disputa: {{Equipamentos}}
 
-A aba **Demurrage** de **Faturas** lista as Invoices emitidas ou pagas dos B/Ls com CE. A cancelada não chega ao Portal, e o container que ainda está correndo não tem valor no Portal antes da Invoice ([23.2](23-demurrage-no-financeiro.md#232-achar-as-invoices-em-aberto-pagas-e-canceladas)). Cada Invoice mostra o total em US$ e o **Total R$ hoje**: o valor em reais acompanha o câmbio do dia (o ROE de hoje, que a faixa mostra) até o pagamento. Enquanto a Invoice está em aberto, o detalhe traz o Pix. O container dividido com outro Cliente aparece com "1/2 da caixa": cada um paga a sua parte ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
+A aba **Demurrage** de **Faturas** lista as Invoices emitidas ou pagas dos B/Ls com CE. A cancelada não chega ao Portal, e o container que ainda está correndo não tem valor no Portal antes da Invoice ([23.2](23-demurrage-no-financeiro.md#232-achar-as-invoices-em-aberto-pagas-e-canceladas)). Cada Invoice mostra o total em US$ e o **Total R$ hoje**: o valor em reais acompanha o câmbio do dia (o ROE de hoje, que a faixa mostra) até o pagamento. Enquanto a Invoice está em aberto, o detalhe traz o Pix, e a coluna **Pagar** da lista abre a mesma janela **Pagar com Pix** da aba **Taxas Locais**, com o valor em reais de hoje. O container dividido com outro Cliente aparece com "1/2 do container": cada um paga a sua parte ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
 
 Se o Cliente discorda de um valor, ele contesta no detalhe da Invoice em aberto, em **Abrir disputa**: escreve o **Motivo da disputa** e, se quiser, usa **Anexar arquivo** (PDF, JPG, PNG ou TXT, até 10 MB). Ele acompanha a conversa em **Disputas**.
 
@@ -121,9 +125,9 @@ A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela 
 
 **Quem faz:** o Cliente, no Portal. Quem analisa: {{Documentação}}
 
-Em **Desbloqueio de CE**, o Cliente pede que a agência libere o CE dos B/Ls dele. A página tem as abas **Nova solicitação**, **Minhas solicitações** e, para o Cliente VIP, **Documentos anuais**. No alto, o bloco **O que o desbloqueio pede** lista os quatro requisitos de cada B/L: Taxas Locais pagas, termo de devolução, procuração e B/L original entregue na agência.
+Em **Desbloqueio de CE**, o Cliente pede que a agência libere o CE dos B/Ls dele. A página tem as abas **Nova solicitação**, **Minhas solicitações** e, para o Cliente VIP, **Documentos anuais**. No alto, o bloco **O que o desbloqueio pede** lista os quatro requisitos de cada B/L: Taxas Locais pagas, termo de devolução, procuração e B/L original entregue na agência. Logo abaixo, o bloco **Prazo para desbloqueio** explica ao Cliente o prazo da agência ([12.5](12-desbloqueio-de-ce.md#125-o-prazo-do-desbloqueio)).
 
-1. Na lista **B/Ls com CE Mercante**, o Cliente marca os B/Ls (até 100) e clica em **Pedir desbloqueio de N B/Ls**. B/L com Taxas Locais em aberto nem pode ser marcado.
+1. Na lista **B/Ls com CE Mercante**, o Cliente marca os B/Ls (até 100) e clica em **Pedir desbloqueio de N B/Ls**. B/L com Taxas Locais em aberto nem pode ser marcado: na coluna **Taxas locais**, o "Em aberto" abre as faturas em aberto desse B/L, para o Cliente pagar.
 2. Na solicitação aberta, anexa o termo de devolução e a procuração em PDF, de até 10 MiB cada. Quando os documentos anuais VIP cobrem todos os B/Ls, o Cliente não anexa nada.
 3. Clica em **Solicitar desbloqueio**.
 
@@ -138,7 +142,7 @@ O Cliente acompanha a situação em **Minhas solicitações**; na **Correção p
 
 **Quem faz:** o Cliente, no Portal. Quem orienta: {{Qualquer equipe}}
 
-Em **Perfil**, o Cliente cuida de três coisas, cada uma com o próprio botão:
+No alto do **Perfil**, a razão social e o CNPJ dizem em que conta o Cliente entrou. Ali ele cuida de três coisas, cada uma com o próprio botão:
 
 - **Quem recebe os comunicados**: os contatos do Cliente e as caixas de cada um (**Documentação e Operação**, **Financeiro** e **Demurrage**). São os mesmos contatos da ficha do Cliente no Vela (capítulo 13), com as mesmas regras: um contato principal ativo, com e-mail. O que o Cliente salva aqui vale na hora no Vela.
 - **Endereço da empresa**: o endereço do cadastro, que sai nas faturas emitidas depois.

@@ -16,13 +16,13 @@ A Invoice de Demurrage é cobrada em dólar e paga em reais. O dólar fica trava
 
 Na página **Demurrage**, o número da Invoice abre o detalhe. No alto fica o dólar a cobrar, já sem o desconto; ao lado, os reais e o câmbio.
 
-**BRL hoje** é o dólar a cobrar vezes o **ROE**, o câmbio da Invoice: a PTAX de venda, a cotação oficial do dólar, vezes 1,065, o acréscimo fixo do armador. Todo dia útil, às 14h, os reais e o Pix das Invoices em aberto seguem a PTAX nova ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)); o pagamento os congela, e o detalhe passa a mostrar **BRL pago** e **ROE (congelado no pagamento)**. A faixa do alto mostra a PTAX mais recente do BCB; as Invoices só passam a ela no recálculo das 14h, e o câmbio que vale é o do detalhe.
+**BRL hoje** é o dólar a cobrar vezes o **ROE**, o câmbio da Invoice: a PTAX de venda, a cotação oficial do dólar, vezes 1,065, o acréscimo fixo do armador. Todo dia útil, às 14h, os reais e o Pix das Invoices em aberto seguem a PTAX nova ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)); o pagamento os congela, e o detalhe passa a mostrar **BRL pago** e **ROE (congelado no pagamento)**. A linha logo abaixo do título da página **Demurrage** mostra a **PTAX venda** mais recente do BCB e o **ROE (PTAX × 1,065)**; as Invoices só passam a ela no recálculo das 14h, e o câmbio que vale é o do detalhe.
 
 Ao lado do ROE vem a origem: PTAX do BCB, PTAX informada ([23.3](#233-informar-a-ptax)) ou ROE manual ([23.4](#234-usar-um-câmbio-combinado-roe-manual)).
 
 Um exemplo: a Invoice do CSC45810A01K00 cobra US$ 450,00. Com a PTAX de 5,40, o ROE é 5,7510 e o **BRL hoje**, R$ 2.587,95. No dia útil seguinte, com a PTAX de 5,46, o ROE passa a 5,8149 e o valor, a R$ 2.616,71.
 
-Abaixo ficam a **Situação**, os containers cobrados e as ações da sua equipe. O container dividido com outro Cliente traz "1/2 da caixa" ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)). **Ver fatura** abre o documento, com o Pix enquanto a Invoice está em aberto.
+Abaixo ficam a **Situação**, os containers cobrados e as ações da sua equipe. O container dividido com outro Cliente traz "1/2 do container" ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)). **Ver fatura** abre o documento, com o Pix enquanto a Invoice está em aberto.
 
 ::: atencao
 - O Pix com o valor da cotação anterior também quita: a Invoice aceita o valor de qualquer uma das duas últimas cotações. Um valor mais antigo não dá baixa sozinho ([24.2](24-pagamento-e-restituicao.md#242-tratar-um-pix-em-análise)).
@@ -39,7 +39,7 @@ A página **Demurrage**, no menu **Financeiro**, separa as Invoices pela situaç
 |---|---|
 | **Faturas** | As Invoices emitidas e não pagas, com **Em aberto há**, **Desconto**, o **BRL hoje** e a coluna **Régua de cobrança** ([23.6](#236-acompanhar-a-régua-de-cobrança)). **Em disputa**, **Fora da Régua**, **Com desconto**, **Cliente** e **Navio / Viagem** recortam a lista. O cartão **Aguardando pagamento (BRL hoje)** soma o que está aqui. |
 | **Pagas** | As pagas, com o **Pagamento**, os **Dias até pagar**, o **BRL pago**, o **ROE do pagamento** e o **Meio de pagamento**: **Pix Itaú**, **Extrato**, **Registro manual** ou **Isenção (desconto integral)**. |
-| **Canceladas** | As canceladas, em cinza, com o **Motivo**, **Cancelada por** ("Sistema" na reemissão automática) e o **Destino das caixas**: reemitida ou cobrada em outra Invoice, cobrança dispensada ou aguardando nova Invoice. |
+| **Canceladas** | As canceladas, em cinza, com o **Motivo**, **Cancelada por** ("Sistema" na reemissão automática) e o **Destino dos containers**: reemitida ou cobrada em outra Invoice, cobrança dispensada ou aguardando nova Invoice. |
 | **Por Cliente** | Por Cliente, o US$ de hoje **Correndo**, **A emitir**, **Esperando** e **Travado** ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers)), as **Invoices em aberto** e o **Faturado em aberto**. O clique no Cliente mostra as Invoices em aberto dele. |
 
 O dólar de cada linha já vem sem o desconto; passe o mouse sobre ele para ver o desconto.
@@ -129,7 +129,7 @@ Na aba **Faturas**, a coluna **Régua de cobrança** diz onde cada Invoice está
 | Pix em análise | O {{Financeiro}} ou o {{Administrativo}} decide o Pix na **Conciliação PIX** ([24.2](24-pagamento-e-restituicao.md#242-tratar-um-pix-em-análise)). |
 | cliente sem contatos válidos, ou Cliente sem contato autorizado para a cobrança | Ligar um contato com e-mail à caixa **Financeiro** ou **Demurrage** ([13.6](13-cadastro-do-cliente.md#136-cuidar-dos-contatos-do-cliente)). |
 | e-mail recusado pelo provedor… | Corrigir o contato ([16.9](16-emails-e-comunicados.md#169-corrigir-o-contato-que-não-recebe)) e resolver o alerta **Cobrança de Demurrage recusada** ([20.9](20-alertas.md#209-demurrage)). |
-| datas alteradas, container passou a SOC ou divisão da caixa alterada, aguarda tratamento | Tratar a Invoice cujos containers mudaram ([23.9](#239-cancelar-uma-invoice-e-gerar-outra)). |
+| datas alteradas, container passou a SOC ou divisão do container alterada, aguarda tratamento | Tratar a Invoice cujos containers mudaram ([23.9](#239-cancelar-uma-invoice-e-gerar-outra)). |
 
 O intervalo padrão é de 7 dias. Para mudar:
 
@@ -185,10 +185,10 @@ A Invoice volta a **Faturado**, sem data de pagamento, e volta ao recálculo di�
 A Invoice emitida não se edita. Quando ela cobra errado e o Vela não corrige sozinho, cancela-se e gera-se outra. Mudar as datas, o SOC/COC ou a divisão de um container numa Invoice sem pagamento, sem desconto e sem Disputa aberta já cancela e reemite sozinho ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)); a nova diz "Substitui a Invoice …".
 
 1. No detalhe, clique em **Cancelar Invoice…**, escreva o motivo e confirme. Invoice paga precisa antes ter a baixa cancelada ([23.8](#238-cancelar-a-baixa-de-uma-invoice)). Com Disputa aberta, ela é encerrada junto, e o Cliente lê o seu motivo no Portal ([9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)).
-2. Em **Demurrage**, aba **Containers**, as caixas voltam para **A emitir**, com "Invoice anterior DEM-… cancelada à mão: gere a nova". Nada as emite sozinho: clique em **Gerar Invoice** no fim da linha ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
+2. Em **Demurrage**, aba **Containers**, os containers voltam para **A emitir**, com "Invoice anterior DEM-… cancelada à mão: gere a nova". Nada os emite sozinho: clique em **Gerar Invoice** no fim da linha ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
 3. Se havia desconto, aplique-o de novo na Invoice nova ([23.5](#235-dar-um-desconto)).
 
-A cancelada sai da Régua e do Portal; a nova sai com número novo e o câmbio do dia. Na aba **Canceladas**, o **Destino das caixas** diz onde cada caixa foi parar.
+A cancelada sai da Régua e do Portal; a nova sai com número novo e o câmbio do dia. Na aba **Canceladas**, o **Destino dos containers** diz onde cada container foi parar.
 
 ### Quando as datas mudam depois da Invoice
 

@@ -35,7 +35,7 @@ A **Conciliação** da Viagem tem o mesmo nome e a mesma cor nos cartões, na li
 | **Sem cliente vinculado** (coluna **Cliente** da lista) | âmbar | A importação não achou Cliente com o CNPJ do consignatário; sai com o vínculo ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)). |
 | Etapa vermelha no trilho **Documental** da ficha | vermelho | O que bloqueia a fatura: Cliente, Taxas Locais ou CE; a etapa **Fatura**, quando a última foi cancelada ([7.1](07-ficha-do-bl.md#71-ler-a-ficha-do-bl)); e a etapa **Demurrage**, quando a Invoice de Demurrage do B/L já faturado espera o Portal do Cliente ficar pronto ou a Liberação ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)). |
 
-Nas listas de **BLs**, de **Containers** e na ficha do Cliente, a coluna **Taxas locais** resume a cobrança do B/L:
+Nas listas de **B/Ls**, de **Containers** e na ficha do Cliente, a coluna **Taxas locais** resume a cobrança do B/L:
 
 | Na tela | Cor | O que leva a ela |
 |---|---|---|
@@ -45,7 +45,7 @@ Nas listas de **BLs**, de **Containers** e na ficha do Cliente, a coluna **Taxas
 
 ## CE Mercante
 
-Na escala, **BLs e CEs** diz em que pé está a documentação no Mercante ([4.2](04-viagens-escalas.md#42-planejar-as-escalas)):
+Na escala, **B/Ls e CEs** diz em que pé está a documentação no Mercante ([4.2](04-viagens-escalas.md#42-planejar-as-escalas)):
 
 | Na tela | Cor | O que leva a ela |
 |---|---|---|

@@ -108,11 +108,14 @@ O quadro descreve o que o Vela confere a cada gravação, não só o que a tela 
 
 **Quem faz:** {{Administrativo}}
 
-O **Histórico de ações** junta numa lista só tudo o que se gravou no Vela, com quem fez e quando. Para a história de uma Viagem, de um B/L ou de um Cliente, a ficha de cada um é mais fácil de ler (capítulos 4, 7 e 13). Aqui ficam também as mudanças que não têm ficha: usuários, configurações, tabelas de cobrança e Condições de Cliente, tarifas, acordos e tipos de container de Demurrage, os alertas resolvidos com justificativa e cada **Reprocessar** da importação.
+O **Histórico de ações** junta numa lista só tudo o que se gravou no Vela: quem fez, quando, em qual registro, o que mudou e o motivo. Para a história de uma Viagem, de um B/L ou de um Cliente, a ficha de cada um é mais fácil de ler (capítulos 4, 7 e 13). Aqui ficam também as mudanças que não têm ficha (usuários, configurações, tabelas de cobrança e Condições de Cliente, tarifas, acordos e tipos de container de Demurrage, a Liberação de faturamento, os alertas resolvidos com justificativa, cada **Reprocessar** da importação, o Pix marcado como tratado e as exceções do extrato) e o que tem história em outra tela: os pedidos de **Desbloqueio de CE**, a **Conta do Portal**, os **Comunicados** enviados e as mensagens e anexos da **Disputa de Demurrage**.
 
 1. Em **Admin**, abra **Histórico de ações**.
-2. Recorte por **Assunto** (Viagem, B/L, Fatura, Usuário, Alerta, Configuração do sistema e outros), por **Por** (**Qualquer pessoa**, **Sistema** ou uma pessoa) e pelos dias em **De** e **Até**.
-3. Clique na seta da linha para ver o **De**, o **Para** e o **Motivo**.
+2. Recorte por **Assunto** (Viagem, B/L, Fatura, Usuário, Alerta, Configuração do sistema e outros), por **Ação** (**Criou**, **Alterou** ou **Excluiu**), por **Por** (uma pessoa, **Sistema** ou **Cliente pelo Portal**) e pelos dias em **De** e **Até**.
+3. Leia a linha. O **Registro** vem pelo nome (a Viagem como navio e número, o B/L, o Cliente, a fatura), mesmo depois de excluído, e o **Motivo** é a justificativa de quem fez. Passe o mouse no nome, em **Por**, para ver o e-mail e a equipe.
+4. Clique na seta da linha para ver o **De** e o **Para**.
+
+Na linha do **Sistema**, o **Motivo** diz de onde veio a mudança ("Origem: …"). Cada B/L criado por uma importação tem a sua linha **B/L criado**, com o nome de quem importou e a importação no **Motivo**. O que o Cliente fez no Portal aparece em **Por** como "Cliente pelo Portal", seguido do nome do Cliente.
 
 Ninguém altera nem apaga uma linha. O Vela guarda cinco anos: as linhas mais antigas saem sozinhas, menos o histórico das escalas, que fica para sempre.
 

@@ -16,20 +16,22 @@ Antes de cadastrar, procure a viagem em **Viagens**: ela pode já existir, criad
 
 ::: lado
 1. Em **Viagens**, clique em **Nova Viagem**.
-2. Preencha **Navio**, **IMO** e **Numero da viagem**. O armador já vem como Cosco Shipping Specialized Carriers (CSSC); troque só se a viagem for de outro armador.
-3. Se a viagem deve aparecer na programação do Portal e do site fwlog.com.br, ligue **Aparece em Chegadas e Saídas**.
-4. Clique em **Cadastrar viagem**.
+2. Preencha **Navio**, **IMO** e **Numero da viagem**. O armador já vem como Cosco Shipping Specialized Carriers (CSSC); se a viagem é de outro armador, clique em **Alterar armador**.
+3. Se já tem as datas, em **Portos e datas** informe o porto e a data e clique em **Adicionar**, um porto por vez: em **Origem**, o porto do exterior e o **ETD**; em **Destino**, o porto brasileiro e o **ETA**.
+4. Se a viagem deve aparecer na programação do Portal e do site fwlog.com.br, ligue a chave **Chegadas e Saídas**.
+5. Clique em **Cadastrar viagem**.
 
 ::: tela nova-viagem
-A janela Nova Viagem preenchida.
+A janela Nova Viagem preenchida, com um porto em Origem e outro em Destino.
 :::
 :::
 
-A Viagem nasce **Ativa** e sem datas. As datas não são da Viagem, e sim de cada porto por onde ela passa: é o que você planeja em seguida.
+A Viagem nasce **Ativa**. As datas não são da Viagem, e sim de cada porto por onde ela passa: cada porto de **Destino** vira uma escala com o ETA, e a **Origem** guarda a saída do navio do exterior, que Chegadas e Saídas mostra quando o porto é um dos nove do quadro ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)). Sem porto, a Viagem nasce sem datas, e você planeja as escalas em seguida.
 
 ::: atencao
 - O **IMO** identifica o navio, mais do que o nome. Confira com o armador: com o IMO certo, "CS SEREIA" e "COSCO SHIPPING SEREIA" são o mesmo navio.
 - Navio e armador não têm tela própria. Corrigir o armador numa Viagem corrige em todas as Viagens do mesmo navio.
+- Porto ou data digitados sem **Adicionar** não entram: o Vela recusa o cadastro até você adicionar ou apagar o que ficou no campo.
 :::
 
 ## 4.2 Planejar as escalas
@@ -50,7 +52,7 @@ A janela Adicionar escala com o porto de Salvador.
 :::
 :::
 
-Repita para cada porto. Nem sempre você precisa: a escala também nasce sozinha quando um arquivo de B/L traz carga para aquele porto ou quando a programação de navios informa a chegada.
+Repita para cada porto. Nem sempre você precisa: a escala também nasce do **Destino** informado na Nova Viagem ([4.1](#41-cadastrar-uma-viagem)) e sozinha quando um arquivo de B/L traz carga para aquele porto ou quando a programação de navios informa a chegada.
 
 Quando a escala tem exportação, a janela pede o que vai ser embarcado: **Granito**, **Embarque de vazios** ou os dois. Você declara a exportação antes de saber a quantidade, para o terminal e o Line Up já se prepararem.
 
@@ -60,7 +62,7 @@ A declaração de exportação só sai depois que a carga deixar de existir. Com
 
 Na mesma janela ficam três informações do Mercante, que você preenche quando souber:
 
-- **BLs e CEs** diz em que pé está a documentação da escala, de **Aguardando** a **Aprovado**. O Vela atualiza sozinho a cada importação; mudar à mão pede justificativa.
+- **B/Ls e CEs** diz em que pé está a documentação da escala, de **Aguardando** a **Aprovado**. O Vela atualiza sozinho a cada importação; mudar à mão pede justificativa.
 - **Vinculada** confirma que os manifestos foram vinculados à escala no Mercante.
 - **Nº escala** é o número da escala no Mercante.
 
@@ -107,7 +109,7 @@ Você não precisa avisar ninguém: a data nova chega sozinha ao Line Up, a Cheg
 
 A **Próxima escala**, no alto da ficha, é a escala de menor ETA que ainda não teve chegada. Ela só passa a vez quando você registra o ATA: um ETA vencido continua ali, marcado "· vencido", para lembrar que falta registrar a chegada.
 
-Os prazos de documentação da Viagem (os alertas de B/L e de CE que abrem 7 e 5 dias antes da chegada) contam do primeiro ETA no Brasil. Se o navio passa antes por um porto que não é escala de importação, indique esse porto na edição da Viagem, em **1º Porto Brasileiro**.
+Os prazos de documentação da Viagem (os alertas de B/L e de CE que abrem 7 e 5 dias antes da chegada) contam do primeiro ETA no Brasil. Se o navio passa antes por um porto que não é escala de importação, indique esse porto na edição da Viagem, em **Indicar outro 1º porto brasileiro (âncora D−7 / D−5)**.
 
 ::: atencao
 As datas do navio não mudam a cobrança. As Taxas Locais usam a data da importação do B/L, e a Demurrage corre pela descarga de cada container.
@@ -129,7 +131,7 @@ Cada Viagem traz um sinal de **Conciliação**, que resume o que falta de docume
 
 Enquanto o Vela ainda confere as divergências do Baplie, o sinal mostra **Verificando**.
 
-Clique na Viagem para abrir a ficha. No alto, cinco blocos resumem a Viagem: contêineres, carga solta, exportação, próxima escala e conciliação. Abaixo ficam as abas: **Visão geral** (escalas e Linha do tempo), **Importação** e **Exportação** (a carga e os atalhos de importação), **Rotas e Manifestos** e **ADR**.
+Clique na Viagem para abrir a ficha. No alto, cinco blocos resumem a Viagem: containers, carga solta, exportação, próxima escala e conciliação. Abaixo ficam as abas: **Visão geral** (escalas e Linha do tempo), **Importação** e **Exportação** (a carga e os atalhos de importação), **Rotas e Manifestos** e **ADR**.
 
 A **Linha do tempo** conta a história do navio: quando a Viagem foi criada, cada arquivo importado, cada data alterada, com quem fez e a justificativa.
 

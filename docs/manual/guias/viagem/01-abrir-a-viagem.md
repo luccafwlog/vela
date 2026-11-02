@@ -13,7 +13,7 @@ A prévia da programação.
 
 Um navio só? Use **Adicionar navio**, no alto de **Chegadas e Saídas**, com o **IMO** e a data prevista de cada porto.
 
-Extra call, navio só de projeto ou de carga solta: em **Viagens**, clique em **Nova Viagem** e depois em **Adicionar escala**, uma vez para cada porto.
+Extra call, navio só de projeto ou de carga solta: em **Viagens**, clique em **Nova Viagem** e, em **Destino**, adicione cada porto brasileiro com o ETA. Escala que faltar depois entra pela ficha, em **Adicionar escala**.
 
 ::: atencao
 Confira o **IMO**: é por ele que o Vela acha a Viagem que já existe, em vez de criar outra.

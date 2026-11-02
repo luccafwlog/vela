@@ -38,15 +38,16 @@ O Vela e o Portal Fwlog são sistemas separados, com entradas separadas. Você p
 
 **Quem faz:** {{Todas as equipes}}
 
-O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens**, **Importação** (Baplie EDI, BLs, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP), **Clientes**, **Alertas**, **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê.
+O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens** (Viagens, Chegadas e Saídas, Line Up TV), **Importação** (Baplie EDI, B/Ls, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP, Locais (depots e terminais)), **Clientes** (Clientes, Provisionamento do Portal, Comunicação, Informações do Portal), **Alertas** (Alertas, Regras de alertas), **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê. **Line Up TV** abre o quadro dos navios em outra aba, para um monitor ([5.7](05-programacao.md#57-acompanhar-o-line-up-e-a-tela-tv)).
 
-O número ao lado de um item conta o que está pendente no Vela inteiro, de todas as equipes: os alertas ativos, os B/Ls pendentes de Revisão, os B/Ls com taxa em revisão. O de **Alertas** se atualiza sozinho a cada minuto; os outros, quando você mexe no assunto ou recarrega a página.
+O número ao lado de um item, e somado no grupo, conta o que está pendente no Vela inteiro, de todas as equipes: os alertas ativos, os B/Ls pendentes de Revisão, os B/Ls com taxa em revisão. O de **Alertas** se atualiza sozinho a cada minuto; os outros, quando você mexe no assunto ou recarrega a página.
 
 Na barra do alto ficam também:
 
 - **o sino**, com as notificações internas que chegaram para você. Clicar numa notificação abre a tela onde a pendência se resolve;
-- **a faixa de avisos**, com os containers que passaram do prazo livre de devolução e a cotação do dólar do dia (PTAX), usada nas cobranças em dólar;
 - **o menu da conta**, com o seu nome.
+
+Os containers que passaram do prazo livre de devolução e a cotação do dólar do dia (PTAX) ficam na página **Demurrage** ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers) e [23.1](23-demurrage-no-financeiro.md#231-ler-a-invoice-de-demurrage)).
 
 ::: tela menu-conta
 O menu da conta: Meu perfil, a posição do menu, Sair e a versão do Vela.
@@ -113,6 +114,7 @@ As listas do Vela (B/Ls, Containers, Clientes, faturas) funcionam do mesmo jeito
 
 - **Os filtros ficam no endereço da página.** Copie o link e mande a um colega: ele abre a mesma lista, com os mesmos filtros.
 - **A busca aceita vários números de uma vez.** Cole uma coluna de B/Ls ou de containers, e a lista traz todos.
+- **Os cartões de total do alto avisam o que fazem.** O que tem a marca **Filtrar** filtra a lista, e a marca vira **Filtrando** com o filtro aplicado; o cartão sem marca só mostra o número.
 - **A caixa do cabeçalho seleciona tudo o que o filtro achou,** em todas as páginas, não só a página da tela. Há seleção em Veículos, Vazios IMP e Desbloqueio de CE e, para o {{Administrativo}}, em B/Ls, Containers e Clientes.
 - **Exportar** (em Clientes, **Exportar base**) baixa uma planilha com tudo o que o filtro achou.
 

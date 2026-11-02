@@ -6,7 +6,7 @@ A fila de Alertas.
 
 ::: passos
 1. Abra **Alertas**, ou o cartão da sua equipe no **Painel**.
-2. Em **Setor**, escolha a sua equipe.
+2. Clique no cartão da sua equipe, abaixo de **Ativos** e **Críticos**.
 3. Em **Busca**, digite o navio, o B/L ou o Cliente.
 4. **Registro** diz onde está a pendência; **Resolver** leva à tela da correção.
 :::

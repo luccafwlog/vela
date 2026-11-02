@@ -14,17 +14,17 @@ A documentação de uma Viagem chega do armador em arquivos: o B/L de cada carga
 
 Toda importação é feita para uma Viagem, que precisa existir no Vela (capítulo 4). Há três portas, e todas abrem as mesmas janelas:
 
-- a lista **BLs**, no botão **Importar**;
+- a lista **B/Ls**, no botão **Importar**;
 - a ficha da Viagem, aba **Importação**, no bloco **Importação rápida**, com a Viagem já escolhida;
 - a página **Baplie EDI**, para o Baplie.
 
 ::: passos
-1. No menu, abra **Importação** e clique em **BLs**. No alto da lista, clique em **Importar**.
-2. Escolha o tipo de arquivo, por exemplo **B/L de contêiner (.xlsx)**.
+1. No menu, abra **Importação** e clique em **B/Ls**. No alto da lista, clique em **Importar**.
+2. Escolha o tipo de arquivo, por exemplo **B/L de container (.xlsx)**.
 :::
 
 ::: tela bls-importar-menu
-A lista BLs com o menu Importar aberto.
+A lista B/Ls com o menu Importar aberto.
 :::
 
 Toda janela de importação segue as mesmas três etapas, mostradas no alto: **Arquivo**, **Prévia** e **Resultado**. Você escolhe a Viagem e o arquivo; o Vela lê e mostra na prévia o que vai criar, mudar ou deixar de fora; só quando você confirma é que algo é gravado.
@@ -48,7 +48,7 @@ O B/L (conhecimento de embarque) é o documento que agrupa a carga de um consign
 O arquivo é a planilha do B/L no layout da COSCO, um B/L por arquivo. Você pode escolher vários de uma vez.
 
 ::: lado
-1. Em **BLs**, clique em **Importar** › **B/L de contêiner (.xlsx)**.
+1. Em **B/Ls**, clique em **Importar** › **B/L de container (.xlsx)**.
 2. Em **Navio / Viagem**, escolha a Viagem de destino.
 3. Escolha os arquivos dos B/Ls.
 4. Confira a **Prévia**: uma linha por B/L, com a situação (**Cria**, **Atualiza** ou **Erro**), a rota e o consignatário.
@@ -112,7 +112,7 @@ A carga solta (BB) é a carga que viaja sem container, como máquinas e volumes.
 - o **B/L de carga solta (.pdf, .docx)**, o documento avulso do armador, um arquivo por B/L.
 
 ::: lado
-1. Em **BLs**, clique em **Importar** › **Manifesto de carga solta (BB)**.
+1. Em **B/Ls**, clique em **Importar** › **Manifesto de carga solta (BB)**.
 2. Em **Viagem de destino**, escolha a Viagem.
 3. Em **Formato numérico do arquivo**, deixe **Detectar pelo arquivo** ou diga se o arquivo usa vírgula ou ponto decimal.
 4. Escolha a planilha.
@@ -143,7 +143,7 @@ O CE Mercante é o número de 15 algarismos do conhecimento eletrônico de cada 
 Cada planilha corresponde a um Manifesto Mercante, que é de uma rota (porto de embarque → porto de descarga). Os B/Ls precisam estar importados antes: o CE nunca cria B/L.
 
 ::: lado
-1. Em **BLs**, clique em **Importar** › **CE Mercante**.
+1. Em **B/Ls**, clique em **Importar** › **CE Mercante**.
 2. Em **Nº de Manifesto Mercante**, digite os 13 caracteres do manifesto.
 3. Escolha a planilha, com as colunas **BL** e **CE MERCANTE**.
 4. Confira a prévia e clique em **Importar N CEs**.
@@ -255,7 +255,7 @@ O número do B/L existe uma vez só no Vela, mesmo cancelado, e a importação n
 
 ### O armador reemitiu o B/L com outro número
 
-1. Se o B/L antigo **não tem CE**, o {{Administrativo}} o exclui na lista **BLs**.
+1. Se o B/L antigo **não tem CE**, o {{Administrativo}} o exclui na lista **B/Ls**.
 2. Se ele **tem CE**, não se exclui: o {{Administrativo}} o cancela, em **Mais ações › Cancelar B/L** na ficha. Antes, resolva a fatura, o pagamento ou a Invoice de Demurrage em aberto. A Demurrage ainda sem Invoice também segura, a menos que um B/L ativo do mesmo Cliente já tenha os containers: importe antes o B/L novo ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)). O cancelamento libera o CE para o B/L novo.
 3. Importe o B/L novo ([6.2](#62-importar-os-bls-de-container)) e depois a planilha de CE com o CE nele ([6.5](#65-importar-o-ce-mercante-e-emitir-as-faturas)).
 

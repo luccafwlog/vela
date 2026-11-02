@@ -82,7 +82,9 @@ export const CAPTURAS = [
     capitulo: 4,
     async fazer({ page, base }) {
       await abrir(page, base, '/viagens')
-      const nav = page.locator('header').getByRole('link', { name: 'Viagens', exact: true })
+      // Desde 2026-11-01 (#1151), Viagens é um grupo do menu: o botão abre
+      // Viagens, Chegadas e Saídas e Line Up TV.
+      const nav = page.locator('header').getByRole('button', { name: 'Viagens', exact: true })
       const nova = page.getByRole('button', { name: 'Nova Viagem' })
       await nova.waitFor()
       const barra = await page.locator('header.app-header').boundingBox()
@@ -102,7 +104,17 @@ export const CAPTURAS = [
       await dlg.getByLabel('Navio').fill(cenario.novaViagem.navio)
       await dlg.getByLabel('IMO').fill(cenario.novaViagem.imo)
       await dlg.getByLabel('Numero da viagem').fill(cenario.novaViagem.numero)
-      const chave = dlg.getByRole('switch')
+      // Portos e datas (desde 2026-11-01, #1145): um porto em Origem e outro
+      // em Destino, só para a imagem; saem antes de cadastrar, porque as
+      // escalas do cenário são planejadas na ficha (4.2).
+      const destino = cenario.escalas[0]
+      await dlg.getByLabel('Porto de origem', { exact: true }).fill('CNTAO')
+      await dlg.getByLabel('ETD').fill(iso(destino.etaDias - 20))
+      await dlg.getByRole('button', { name: 'Adicionar porto de origem' }).click()
+      await dlg.getByLabel('Porto de destino', { exact: true }).fill(destino.porto)
+      await dlg.getByLabel('ETA', { exact: true }).fill(iso(destino.etaDias))
+      await dlg.getByRole('button', { name: 'Adicionar porto de destino' }).click()
+      const chave = dlg.getByRole('switch', { name: 'Chegadas e Saídas' })
       await chave.click()
       await dlg.getByLabel('Navio').blur()
       await page.waitForTimeout(300)
@@ -111,10 +123,13 @@ export const CAPTURAS = [
         clip,
         marks: [
           await marca(2, dlg.getByLabel('Navio'), clip, { posicao: 'campo' }),
-          await marca(3, chave, clip, { posicao: 'esquerda' }),
-          await marca(4, dlg.getByRole('button', { name: 'Cadastrar viagem' }), clip, { destaque: true }),
+          await marca(3, dlg.getByRole('button', { name: 'Adicionar porto de destino' }), clip, { posicao: 'esquerda' }),
+          await marca(4, chave, clip, { posicao: 'esquerda' }),
+          await marca(5, dlg.getByRole('button', { name: 'Cadastrar viagem' }), clip, { destaque: true }),
         ],
         async depois() {
+          await dlg.getByRole('button', { name: 'Remover CNTAO' }).click()
+          await dlg.getByRole('button', { name: `Remover ${destino.porto}` }).click()
           await dlg.getByRole('button', { name: 'Cadastrar viagem' }).click()
           await page.getByText('Viagem cadastrada com sucesso.').waitFor()
         },
@@ -358,7 +373,7 @@ export const CAPTURAS = [
       clip.width += 260
       return {
         clip,
-        marks: [await marca(1, botao, clip, { destaque: true }), await marca(2, page.getByRole('menuitem', { name: /B\/L de contêiner/ }), clip, { posicao: 'esquerda' })],
+        marks: [await marca(1, botao, clip, { destaque: true }), await marca(2, page.getByRole('menuitem', { name: /B\/L de container/ }), clip, { posicao: 'esquerda' })],
         async depois() {
           await page.keyboard.press('Escape')
         },
@@ -371,7 +386,7 @@ export const CAPTURAS = [
     async fazer({ page, base, cenario, arquivos }) {
       await abrir(page, base, '/bls')
       await page.getByRole('button', { name: 'Importar', exact: true }).click()
-      await page.getByRole('menuitem', { name: /B\/L de contêiner/ }).click()
+      await page.getByRole('menuitem', { name: /B\/L de container/ }).click()
       const dlg = page.getByRole('dialog')
       await escolherViagem(page, dlg.getByLabel('Navio / Viagem'), cenario)
       await dlg.locator('input[type=file]').setInputFiles(cenario.bls.map((b) => `${arquivos}/bl-${b.numero}.xlsx`))
@@ -1105,7 +1120,7 @@ export const CAPTURAS = [
       const tabela = page.getByRole('table').first()
       await tabela.waitFor()
       await page.waitForTimeout(600)
-      const titulo = page.getByRole('heading', { name: 'Vazios de importação', level: 1 })
+      const titulo = page.getByRole('heading', { name: 'Vazios IMP', level: 1 })
       const clip = await recorteDe(page, [titulo, page.getByRole('button', { name: 'Importar planilha' }), tabela], 12)
       return { clip, marks: [] }
     },
@@ -1158,7 +1173,8 @@ export const CAPTURAS = [
       return {
         clip,
         marks: [
-          await marca(2, page.getByRole('combobox', { name: 'Setor' }), clip, { posicao: 'campo' }),
+          // Desde 2026-11-01 (#1144, #1146), o setor se escolhe pelos cartões.
+          await marca(2, page.getByRole('group', { name: 'Alertas por setor' }), clip, { posicao: 'direita' }),
           await marca(3, page.getByRole('searchbox', { name: 'Buscar alertas' }), clip, { posicao: 'campo' }),
           await marca(4, tabela.getByRole('columnheader', { name: 'Registro' }), clip, { posicao: 'direita' }),
         ],

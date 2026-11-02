@@ -56,7 +56,7 @@ A **Última entrega** fala do último e-mail do Portal para a conta: convite, re
 {{Operações}} vê o painel só para leitura: no lugar do bloco do convite aparece **Contatos com e-mail**. {{Financeiro}} e {{Equipamentos}} veem o painel inteiro com os botões apagados.
 
 ::: atencao
-A coluna **Por** do Histórico mostra a equipe de quem agiu, não a pessoa. Escreva na justificativa o que você conferiu e com quem: é isso que fica para quem ler depois.
+A coluna **Por** do Histórico mostra a equipe de quem agiu, não a pessoa; o nome, só o {{Administrativo}} vê, no Histórico de ações ([25.7](25-administracao.md#257-consultar-o-histórico-de-ações)). Escreva na justificativa o que você conferiu e com quem: é isso que fica para quem ler depois.
 :::
 
 ## 14.3 Convidar o Cliente

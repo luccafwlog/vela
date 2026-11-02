@@ -13,7 +13,7 @@ A ficha do B/L reúne tudo o que o Vela sabe de um B/L: o documento, a carga, o 
 
 **Quem faz:** {{Todas as equipes}}
 
-A ficha abre pelo número do B/L, em **BLs**, na **Revisão** ou em qualquer tela que mostre o B/L.
+A ficha abre pelo número do B/L, em **B/Ls**, na **Revisão** ou em qualquer tela que mostre o B/L.
 
 ::: tela bl-ficha
 A ficha do CSC45810A01K00, faturado pela Liberação de faturamento sem Portal: sem pendência, a **Próxima ação** não aparece.
@@ -62,7 +62,7 @@ Ao salvar, o Vela refaz sozinho o que depende do que você mudou:
 O container é corrigido na aba **Carga**, um de cada vez. O mesmo container pode estar em mais de um B/L da Viagem (o **Part Lot**, quando a carga de um container é de vários consignatários). Como ele é um só container físico, a correção do perfil, do COC/SOC, do lacre e das datas vale para todos os B/Ls ativos da Viagem que o dividem. Peso bruto e CBM, não: cada B/L tem a sua parte.
 
 ::: lado
-1. Na aba **Carga**, no bloco **Contêineres**, clique no lápis **Corrigir** da linha do container.
+1. Na aba **Carga**, no bloco **Containers**, clique no lápis **Corrigir** da linha do container.
 2. Corrija o que mudou: **Perfil** (Standard, OOG, IMO), **COC/SOC**, **Lacre**, **Peso bruto (kg)**, **CBM (m³)**, **Descarga** ou **Devolução**.
 3. Escreva a **Justificativa**.
 4. Clique em **Salvar correção** e confirme o antes → depois.
@@ -170,7 +170,7 @@ O número do B/L existe uma vez só no Vela. O caminho para tirar um B/L do jogo
 
 | Ação | Quando | Onde |
 |---|---|---|
-| **Excluir** | O B/L não tem CE nem documento financeiro (fatura, mesmo cancelada, ou Invoice de Demurrage). | Lista **BLs** |
+| **Excluir** | O B/L não tem CE nem documento financeiro (fatura, mesmo cancelada, ou Invoice de Demurrage). | Lista **B/Ls** |
 | **Cancelar B/L** | O B/L tem CE: a carga não embarcou ou o armador reemitiu o B/L com outro número. | Ficha, **Mais ações** |
 | **Reativar B/L** | Desfazer um cancelamento. | Ficha, **Mais ações** |
 
@@ -190,7 +190,7 @@ Em **Mais ações** › **Reativar B/L**, com motivo. O B/L volta a ser editáve
 
 ### Excluir
 
-1. Na lista **BLs**, marque a caixa da linha do B/L.
+1. Na lista **B/Ls**, marque a caixa da linha do B/L.
 2. Clique em **Excluir selecionados**.
 3. Escreva o motivo e confirme em **Excluir**.
 

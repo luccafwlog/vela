@@ -157,7 +157,7 @@ A **restituição** é dinheiro recebido que volta ao Cliente. O Vela a registra
 2. No detalhe da fatura, em **Taxas Locais**, bloco **Restituições ao Cliente**, clique no ícone **Confirmar devolução** da linha **A devolver**. Na Invoice de Demurrage, o botão é **Registrar devolução**, no bloco **Restituição excepcional**.
 3. Preencha o comprovante, o favorecido e a data, clique em **Confirmar devolução realizada** e confirme.
 
-A linha passa a **Devolvida**, com a data, e o valor entra no recibo como devolvido ao Cliente. O alerta fecha quando não sobra nada a devolver. Na troca de Cliente, a confirmação libera a fatura do novo Cliente; no Pix em duplicidade, tira o Pix da análise.
+A linha passa a **Devolvida**, com a data, e o valor sai do **Valor recebido** do recibo. O alerta fecha quando não sobra nada a devolver. Na troca de Cliente, a confirmação libera a fatura do novo Cliente; no Pix em duplicidade, tira o Pix da análise.
 
 ::: atencao
 - O botão não transfere dinheiro: ele registra uma transferência já feita. Confirme só depois dela.
@@ -208,7 +208,7 @@ O recibo não vai por e-mail: no Portal, o Cliente imprime o recibo da fatura **
 1. Em **Taxas Locais**, abra a fatura **Paga**, **Coberta** ou **Cancelada** que recebeu dinheiro.
 2. Clique em **Imprimir recibo** e depois em **Imprimir**.
 
-O recibo mostra o **Total da fatura emitida**, o **Valor recebido**, o **Abatido do saldo**, o **Devolvido ao Cliente**, a **Restituição pendente** e, em destaque, o **Valor líquido recebido**: o recebido menos o devolvido. O recibo da Invoice de Demurrage sai em **Ver recibo**, no detalhe dela ([23.7](23-demurrage-no-financeiro.md#237-registrar-o-pagamento-e-imprimir-o-recibo)).
+O recibo certifica só o que foi recebido: um valor, o **Valor recebido**, que é o recebido menos o que já voltou ao Cliente, com a data em **Pago em**. Na fatura coberta, ele diz "Recebido pela consolidada INV-…". Abatimento e restituição não entram no recibo: ficam no detalhe da fatura. O recibo da Invoice de Demurrage sai em **Ver recibo**, no detalhe dela ([23.7](23-demurrage-no-financeiro.md#237-registrar-o-pagamento-e-imprimir-o-recibo)).
 
 ::: atencao
 - Fatura parcialmente paga não tem recibo.

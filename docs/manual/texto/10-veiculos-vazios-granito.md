@@ -141,7 +141,7 @@ Os **Locais** são de dois tipos:
 - **Depot:** o pátio onde o vazio espera antes do embarque. Tem **Free time vazio** e **Free time com material**, em dias, e gera armazenagem.
 - **Terminal portuário:** o terminal da escala, como o TVV ([5.8](05-programacao.md#58-navios-armadores-portos-e-terminais)). Precisa de **Porto brasileiro**, não tem free time nem armazenagem, mas pode cobrar serviços.
 
-1. Em **Vazios EXP**, clique em **Locais (depots e terminais)**.
+1. No menu, abra **Exportação** › **Locais (depots e terminais)**. O botão de mesmo nome, em **Vazios EXP**, abre a mesma tela.
 2. Clique em **Novo local** e preencha **Código** (único), **Nome**, **Tipo** e o porto ou os free times. Clique em **Cadastrar local**.
 3. Com o local aberto, em **Serviços do catálogo**, clique em **Adicionar serviço**: o nome, a **Natureza** (Armazenagem, Transporte ou Geral), a **Condição** (na armazenagem) ou o **Destino da rota** (no transporte) e o **Valor sugerido (R$)**.
 

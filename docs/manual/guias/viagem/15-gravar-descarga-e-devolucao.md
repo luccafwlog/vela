@@ -14,7 +14,7 @@ Repita com a devolução, quando ela chegar. Devolução em branco mantém a dat
 
 ::: sozinho
 - A Invoice de Demurrage sai sozinha, em dólar, quando todos os containers do grupo voltaram, algum passou do free time, o B/L tem CE e o Cliente tem o Portal ativo ou a Liberação de faturamento. O que falta para cobrar aparece na divisão **Travado** da **Demurrage**, com o atalho que resolve.
-- A faixa do alto da tela mostra **N containers em atraso**; o clique abre a **Demurrage** na divisão **Correndo**.
+- Os containers que passaram do free time sem devolução aparecem na **Demurrage**, no cartão **Correndo (US$)**.
 :::
 
 ::: atencao

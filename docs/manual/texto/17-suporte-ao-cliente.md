@@ -103,7 +103,7 @@ Para a fatura, confira nesta ordem:
 1. **Ela foi emitida?** O rascunho não aparece. A fatura retida por falta de Portal ainda não existe: em **Taxas Locais** › **Validação**, o B/L aparece com o motivo **Conta do Portal não ativa** (capítulos 13 e 14).
 2. **Todos os B/Ls dela têm CE Mercante?** A fatura com vários B/Ls só aparece quando todos têm.
 3. **O B/L mudou de Cliente?** A fatura nova é do novo Cliente ([18.4](18-o-que-muda-sozinho.md#184-vincular-ou-trocar-o-cliente-do-bl)).
-4. **O filtro esconde a fatura?** No Portal, o **Status** começa em **Em vigor (sem canceladas)**: a fatura cancelada ou substituída só aparece com **Cancelada**. A Invoice de Demurrage cancelada não chega ao Portal.
+4. **O filtro esconde a fatura?** No Portal, os filtros de **Faturas** ficam recolhidos em **Filtros**, e o **Status** começa em **Em vigor (sem canceladas)**: a fatura cancelada ou substituída só aparece com **Cancelada**. Quem chega por um atalho de outra tela, como o valor de **Taxas locais** em **B/Ls e containers** ou o "Em aberto" do **Desbloqueio de CE**, já vê só aquele B/L: o número ao lado de **Filtros** mostra o recorte, e **Limpar** o tira. A Invoice de Demurrage cancelada não chega ao Portal.
 
 Confira o resultado pela **Espiadinha** ([17.1](#171-ver-o-portal-como-o-cliente-vê)).
 
@@ -139,7 +139,7 @@ A contestação de uma Invoice de Demurrage é a **Disputa**, e só o Cliente a 
 | corrigir o endereço que sai na fatura | **Dados cadastrais** da ficha (capítulo 13), ou ele mesmo, no **Perfil** do Portal. Vale para as faturas emitidas depois. |
 | juntar várias faturas numa só | Ele mesmo, no Portal; a tela diz por que um B/L não pode entrar (capítulo 15) |
 | liberar o CE para retirar a carga | Desbloqueio de CE (capítulo 12) |
-| onde devolver o container, o tracking ou o contato da agência | Central de Informações do Portal (capítulo 13) |
+| onde devolver o container, o tracking ou o contato da agência | **Informações** do Portal, que você mantém em **Clientes** › **Informações do Portal** ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)) |
 | entender um aviso que recebeu por e-mail | E-mails e Comunicados (capítulo 16) |
 | como a transportadora acompanha um container sem entrar no Portal | Consulta de container do site da Fwlog ([17.11](#1711-responder-sobre-o-site-da-fwlog)) |
 
@@ -149,7 +149,7 @@ A contestação de uma Invoice de Demurrage é a **Disputa**, e só o Cliente a 
 
 O site da Fwlog, fwlog.com.br, mostra duas páginas do Portal a qualquer pessoa, sem login: servem a quem não tem conta, como a transportadora do Cliente. As duas leem os dados do Vela, e nenhuma mostra Cliente, B/L, CE Mercante, valores, Pix ou contatos.
 
-- **Chegadas e saídas** é o quadro do Painel do Portal ([15.3](15-portal-o-que-o-cliente-ve.md#153-o-painel-e-a-programação-dos-navios)), sem **Ver meus B/Ls**: as mesmas Viagens, com a chave **Aparece em Chegadas e Saídas** ligada ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)), e as mesmas datas, que chegam ao site em até um minuto e meio. O mapa do navio só aparece quando ele tem **IMO**. Desligar a chave tira a Viagem do Portal e do site juntos.
+- **Chegadas e saídas** é o quadro do Painel do Portal ([15.3](15-portal-o-que-o-cliente-ve.md#153-o-painel-e-a-programação-dos-navios)), sem **Ver meus B/Ls**: as mesmas Viagens, com a chave **Chegadas e Saídas** ligada ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)), e as mesmas datas, que chegam ao site em até um minuto e meio. O mapa do navio só aparece quando ele tem **IMO**. Desligar a chave tira a Viagem do Portal e do site juntos.
 - **Consulta de container**: a pessoa digita só o número do container e vê a situação, a data limite de devolução (a descarga mais o free time), o tipo, o navio, a viagem, o porto de descarga, a descarga, o free time e a devolução. A resposta é a da Viagem mais recente do container. Entram Salvador, Vitória, Pecém e Suape: os containers descarregados ou previstos nos últimos 90 dias e os que ainda não foram devolvidos.
 
 O free time e a data limite são os mesmos do Portal e da Invoice de Demurrage. Quando a consulta não bate com o que a pessoa espera, confira no Vela:

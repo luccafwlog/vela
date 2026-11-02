@@ -4,7 +4,7 @@
   "subtitulo": "Como o Vela funciona e o que cada equipe faz, do cadastro da Viagem até a carga liberada.",
   "versao": "1.0",
   "situacao": "aprovada pelo dono em 29/10/2026",
-  "descreve": "31/10/2026",
+  "descreve": "02/11/2026",
   "partes": [
     {
       "numero": "1",
@@ -229,7 +229,7 @@
         {
           "numero": 13,
           "titulo": "Cadastro do Cliente",
-          "resumo": "O Cliente, os contatos e a Central de Informações",
+          "resumo": "O Cliente, os contatos e as Informações do Portal",
           "arquivo": "13-cadastro-do-cliente.md",
           "equipes": [
             "Todas as equipes"

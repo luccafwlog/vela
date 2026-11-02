@@ -14,8 +14,8 @@ Quando alguma coisa precisa de uma pessoa e ninguém pediu, o Vela abre um alert
 A fila é uma só para todas as equipes: o setor é um filtro, não uma fila separada. Cada alerta tem um setor responsável (**Documentação**, **Equipamentos**, **Operações** ou **Administrativo**) e uma gravidade: **Crítico**, em vermelho, ou **Normal**. O {{Financeiro}} não é setor de alerta: os alertas de dinheiro ficam no setor {{Administrativo}} e chegam ao Financeiro pelo sino ([20.3](#203-acompanhar-o-sino)).
 
 ::: passos
-1. Abra **Alertas** no menu, ou clique no cartão da sua equipe no **Painel**: a fila abre já no seu setor.
-2. Em **Setor**, escolha a sua equipe. O cartão **Críticos** mostra só os críticos; **Ativos** volta à fila toda.
+1. No menu, abra **Alertas** › **Alertas**, ou clique no cartão da sua equipe no **Painel**: a fila abre já no seu setor.
+2. Abaixo de **Ativos** e **Críticos** fica um cartão por setor, com quantos alertas ele tem: clique no da sua equipe para ver só o seu setor e clique de novo para voltar a todos os setores. O cartão **Críticos** mostra só os críticos; **Ativos** volta a todas as gravidades.
 3. Para achar um caso, use **Busca**: número do B/L, navio, Cliente, CNPJ ou um trecho da mensagem. Uma lista colada de números de B/L também funciona.
 4. Leia a linha: **Registro** diz onde está a pendência (o B/L e a Viagem abrem a ficha), **Mensagem** dá o detalhe e **Aberto em** diz desde quando.
 :::
@@ -26,10 +26,10 @@ A fila de Alertas, com os críticos no alto.
 
 Os críticos vêm primeiro e, dentro de cada gravidade, os mais recentes.
 
-O botão **Regras de alertas**, no alto da fila, abre a lista de todos os alertas do Vela, com quando cada um abre, quem recebe e como se resolve.
+**Regras de alertas**, no menu **Alertas** ou no botão do alto da fila, abre a lista de todos os alertas do Vela, com quando cada um abre, quem recebe e como se resolve.
 
 ::: atencao
-- **Busca**, **Registro** e **Gravidade** filtram só a página carregada. Com mais de 100 alertas, filtre antes por **Setor**, que vale para a fila inteira, ou troque de página.
+- **Busca**, **Registro** e **Gravidade** filtram só a página carregada. Com mais de 100 alertas, filtre antes pelo cartão do setor, que vale para a fila inteira, ou troque de página.
 - A fila não se atualiza sozinha: ela relê ao abrir e depois de cada resolução sua. Para ver o que outra pessoa ou o Vela mudou, abra a página de novo.
 :::
 

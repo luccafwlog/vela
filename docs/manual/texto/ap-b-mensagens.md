@@ -60,7 +60,7 @@ Quando o Vela recusa uma ação, a mensagem quase sempre diz o motivo com as pal
 |---|---|---|
 | "… Já foram gravados: …" (na janela **Corrigir** do container) | Parte da correção foi gravada antes do erro. | Corrija o que a mensagem aponta e clique em **Salvar correção** de novo: sai só o que faltou ([7.3](07-ficha-do-bl.md#73-corrigir-um-container)). |
 | "O B/L … não pode ser cancelado agora: …" | Há fatura, pagamento ou Invoice de Demurrage em aberto no B/L, ou Demurrage ainda sem Invoice ("Demurrage a faturar" ou "Demurrage travada"). | [7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl); para a Demurrage, emita a Invoice ou dispense a cobrança ([9.11](09-containers-e-demurrage.md#911-dispensar-a-cobrança-de-um-container)). |
-| "B/L … ja foi faturado (status financeiro=…); recalculo bloqueado." | Depois da fatura, as taxas não se recalculam à mão. | Corrija o dado do B/L: a fatura é corrigida sozinha ([18.6](18-o-que-muda-sozinho.md#186-corrigir-um-bl)). |
+| "B/L … já foi faturado (status financeiro=…); recálculo bloqueado." | Depois da fatura, as taxas não se recalculam à mão. | Corrija o dado do B/L: a fatura é corrigida sozinha ([18.6](18-o-que-muda-sozinho.md#186-corrigir-um-bl)). |
 
 ## Excluir, cancelar e desativar
 

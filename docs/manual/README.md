@@ -355,3 +355,53 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   política de segurança do Vela bloqueava só na prévia (CLI-066); o contato
   capturado do B/L fica sem nome em vez de "Contato manifesto", no Vela e no
   Portal (CLI-032, POR-089).
+- **Sincronização de 2026-11-02** (PRs luccafwlog/vela#1132, #1133, #1135,
+  #1141, #1143 a #1160 e #1163 a #1172; migrations `554` a `566`). A matriz veio
+  atualizada nas PRs; o texto do manual e do guia passou a descrever:
+  - **Menu e nomes** (#1151 e #1166): o menu em grupos, com Chegadas e Saídas e
+    Line Up TV em Viagens, Locais (depots e terminais) em Exportação, as telas
+    do Portal em Clientes e Regras de alertas em Alertas, e o número somado no
+    grupo (1.2, 5.1, 5.7, 5.8, 10.7, 13.1, 13.9, 20.1); os cartões **Filtrar**
+    e **Filtrando** (1.5); "B/Ls" e "Containers" nas telas (capítulos 4, 6, 7,
+    13, 15 e 18, Ap. A e C); a página **Informações** do Portal, antes Central
+    de Informações (13.9, 15.3, 17.10); o cartão e o filtro **Taxas a revisar**
+    dos Clientes (13.1); a coluna **Pagar** com **Pagar com Pix** nas Faturas
+    do Portal (15.5, 15.6).
+  - **Alertas** (#1144, #1146 e #1156): os cartões por setor no lugar do
+    seletor **Setor** (20.1; guia, etapa 18).
+  - **Demurrage só na Demurrage** (#1165): a faixa do alto de todas as telas
+    saiu; o câmbio fica na linha abaixo do título da **Demurrage** (1.2, 9.4,
+    23.1; guia, etapa 15); **Correndo** diz quantos containers estão pendentes
+    de devolução (9.5); "container" no lugar de "caixa" (9.6, 15.6, 23.2, 23.6,
+    23.9, Ap. A); a coluna **Demurrage** de B/Ls no Portal (15.4).
+  - **Recibo** (#1163): só o **Valor recebido**, e "Recebido pela consolidada"
+    na fatura coberta (24.8, 24.9).
+  - **Nova Viagem** (#1145, #1155 e #1135): **Portos e datas** com Origem e
+    Destino, **Alterar armador**, a chave **Chegadas e Saídas** e a recusa do
+    porto digitado sem **Adicionar** (4.1, 4.2, 4.4, 5.1, 5.6, 15, 17; guia,
+    etapa 1); **Exportar programação** (5.5).
+  - **CE e Taxas** (#1143 e #1159): o envio à mão pelo **Disparo**, que conta
+    para a régua e fecha o alerta (16.1, 16.7, 19.4); o contato **Capturado do
+    B/L** sem nome (13.6).
+  - **Histórico de ações** (#1147 a #1150, #1152, #1153 e a correção da #1132):
+    filtro **Ação**, **Por** com **Sistema** e **Cliente pelo Portal**, o
+    registro pelo nome, a coluna **Motivo**, as linhas **B/L criado** e as
+    trilhas próprias do Desbloqueio de CE, da conta do Portal, dos Comunicados
+    e das disputas (25.7, 14.2); a recusa "já foi faturado …; recálculo
+    bloqueado." com acento (Ap. B).
+  - **Portal** (#1164, #1167 e #1172): a coluna **Tracking** de B/Ls e
+    containers (13.9, 15.4); os filtros recolhidos em **Filtros** e os atalhos
+    que chegam já filtrados (15.4, 15.7, 17.7); o bloco **Prazo para
+    desbloqueio** (15.7); a razão social no **Perfil** (15.8).
+  - **Matriz corrigida nesta sincronização**: VIA-114 e POR-132 (o nome da
+    chave **Chegadas e Saídas**) e as linhas com "BLs", "Contêineres" e
+    "contêiner" que a #1151 renomeou (BLR-001 a BLR-003, BLR-009, BLR-010,
+    BLR-012, BLR-D02, BLR-C02 a BLR-C07, BLR-C39, VIA-008, CLI-047, CLI-048,
+    POR-081 e as linhas de `04-ce-baplie.md`, `05-equipamentos.md`,
+    `08-desbloqueio-ce.md` e `11-demurrage.md`).
+  - Sem efeito no texto: a #1133 (permissão interna do envio de Comunicados),
+    a #1141 (nova tentativa do token do Itaú), a #1154 e a #1158 (recusas raras),
+    a #1157 e a #1160 (ajustes do Histórico de ações) e as PRs do Dependabot
+    (#1168 a #1171).
+  - O cenário das capturas voltou a rodar sem ajuste à mão: a #1132 corrigiu o
+    seed da auditoria visual.
