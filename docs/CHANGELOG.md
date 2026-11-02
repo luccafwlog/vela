@@ -6,6 +6,12 @@
 
 ## 2026-11
 
+- **Impressão, modais e ajustes do Portal (2026-11-02; pedido do dono):** fatura, recibo e Invoice impressos (Vela e
+  Portal) ganham margem de cima maior: 20 mm na página (antes 10 mm) mais 8 mm no começo do documento, que valem
+  também quando o navegador imprime com "Margens: nenhuma". Os modais deixam de mostrar uma faixa sem desfoque no
+  alto da tela (o fundo herdava a margem das peças da página nas telas do Portal) e a página não rola mais por trás
+  deles (a trava passa ao `<html>`, também no menu do celular). No Portal, "Em aberto" do Desbloqueio de CE fica
+  como texto clicável, sem borda, e **Meu perfil** mostra a razão social ao lado do CNPJ.
 - **Portal: filtros recolhidos, topo de Faturas e atalhos (2026-11-02; pedido do dono):** os filtros de Faturas e
   de B/Ls e containers começam recolhidos; com filtro aplicado, a barra fechada mostra o contador e **Limpar**. Em
   **Faturas**, **Exportar Excel** vai para a faixa do bloco (como em B/Ls), **Consultar Taxas Locais**/**Consultar

@@ -410,6 +410,13 @@ documento no próprio diálogo e imprime por `printDocumentElement`
 calculado por `buildInvoiceFileBaseName`. Não existe geração de PDF por
 biblioteca.
 
+Margem da folha A4 (igual em `src/index.css` e em `src/lib/printDocument.ts`,
+Vela e Portal): 20 mm em cima e 12 mm embaixo em todas as páginas, mais 8 mm no
+começo do documento, que valem também quando o navegador imprime com
+"Margens: nenhuma" (pedido do dono de 2026-11-02; antes, 10 mm em cima e o
+cabeçalho colado na borda com "Margens: nenhuma"). Vale para fatura, recibo e
+Invoice de Demurrage.
+
 Desde a PR 939 (documentos impressos, tela 20 da identidade), sem mudar o visual: valores
 em R$ não quebram linha, a folha tem margem e "Página N de M" em todas as
 páginas, e o recibo da individual coberta diz "Recebido pela consolidada

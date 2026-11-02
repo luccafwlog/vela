@@ -706,14 +706,15 @@ export function PortalDesbloqueioCe() {
                             ) : i.local_charges_awaiting_invoice ? (
                               "Aguardando fatura"
                             ) : (
-                              // "Em aberto" é o próprio botão, sem ícone (2026-11-02): abre Faturas filtrada nas em aberto do B/L.
+                              // "Em aberto" é o próprio link, em texto âmbar, sem borda nem ícone (2026-11-02):
+                              // abre Faturas filtrada nas em aberto do B/L.
                               <Link
-                                className="app-btn app-btn--secondary app-btn--sm"
+                                className="app-status-text app-status-text--warning hover:underline focus-visible:underline"
                                 to={portalPath(flow.scope, portalBillingOpenForBlSuffix(i.bl_id))}
                                 aria-label={`Em aberto: ver faturas em aberto do B/L ${i.bl_id}`}
                                 title="Ver faturas em aberto"
                               >
-                                <StatusText tone="warning">Em aberto</StatusText>
+                                Em aberto
                               </Link>
                             )}
                           </td>

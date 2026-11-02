@@ -143,9 +143,11 @@ it("cartões contam e filtram; taxa aguardando fatura não conta como em aberto 
   expect(screen.getByText("Aguardando fatura")).toBeTruthy();
   const openLinks = screen.getAllByRole("link", { name: /^Em aberto: ver faturas em aberto do B\/L / });
   expect(openLinks).toHaveLength(1);
-  // Desde 2026-11-02 o próprio "Em aberto" é o botão, sem o ícone ao lado.
+  // Desde 2026-11-02 o próprio "Em aberto" é o link: texto âmbar, sem borda de botão nem ícone.
   expect(openLinks[0].textContent).toBe("Em aberto");
   expect(openLinks[0].querySelector("svg")).toBeNull();
+  expect(openLinks[0].className).toContain("app-status-text--warning");
+  expect(openLinks[0].className).not.toContain("app-btn");
   expect(screen.queryByText(/Taxas locais sem liquidação/)).toBeNull();
   await userEvent.click(card(/Com taxas locais em aberto/));
   expect(screen.getByLabelText("Selecionar B/L BL-OPEN")).toBeTruthy();
