@@ -10,10 +10,10 @@ const COUNTS = {
 }
 
 describe('financial navigation badges', () => {
-  it('segrega os processos, com Tabelas e Tarifas ao lado das telas que as usam, e badge numérico para revisão de taxas', () => {
+  it('segrega os processos, sem Tabelas e Tarifas no menu, e badge numérico para revisão de taxas', () => {
     const items = buildFinancialNavItemsForCounts(COUNTS)
 
-    expect(items.map((item) => item.to)).toEqual(['/taxas-locais', '/taxas-locais/tabelas', '/demurrage', '/demurrage/taxas', '/reconciliacao'])
+    expect(items.map((item) => item.to)).toEqual(['/taxas-locais', '/demurrage', '/reconciliacao'])
     expect(financialNavItems.some((item) => item.to === '/relatorios')).toBe(false)
     expect(items.find((item) => item.to === '/taxas-locais')?.badge).toBe(3)
     expect(items.find((item) => item.to === '/taxas-locais')?.alert).toBeUndefined()

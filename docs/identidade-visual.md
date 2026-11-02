@@ -152,8 +152,11 @@ responsável em 2026-10-15 a partir de uma simulação aprovada:
   **Lateral expansível** (64 px que abre por cima da página ao passar o mouse,
   depois de 0,15 s, ou com o foco do teclado). A escolha fica guardada no
   navegador (`useNavPosition`, chave `vela_nav_position`), como o tema visual.
-- **Na lateral:** a faixa de avisos fica no alto da página, ao lado do menu; o
-  sino e a conta (nome e Departamento) ficam no rodapé e abrem para a direita.
+- **Sem faixa de avisos** (decisão do responsável de 2026-11-01): nada fica
+  acima da barra em nenhuma posição do menu. A faixa de 28 px com "N containers
+  em atraso" e o câmbio saiu de todas as telas; o câmbio fica sob o título da
+  Demurrage e a contagem no cartão Correndo dela.
+- **Na lateral:** o sino e a conta (nome e Departamento) ficam no rodapé e abrem para a direita.
   Na fixa e na expansível os grupos (Importação, Exportação, Financeiro) abrem
   como lista no próprio menu, e o grupo da tela atual já vem aberto.
 - **Abaixo de 1100 px** toda posição usa o botão Menu do cabeçalho, como antes.

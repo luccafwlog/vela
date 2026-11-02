@@ -59,7 +59,7 @@ type Props = {
 const EMPTY_TEXT: Record<DemurrageDivision, string> = {
   correndo: 'Nenhum container fora passou do free time.',
   a_emitir: 'Nenhum grupo com tudo devolvido e Demurrage sem Invoice.',
-  esperando: 'Nenhuma caixa devolvida com sobreestadia esperando outra caixa do grupo.',
+  esperando: 'Nenhum container devolvido com sobreestadia esperando outro container do grupo.',
   travado: 'Nada travado: toda sobreestadia tem como ser cobrada.',
 }
 
@@ -392,7 +392,7 @@ function NextStepText({ group }: { group: BoardGroup }) {
     // 525: A emitir mostra por que a linha espera alguém (ADR 0112, D10) ou que a emissão já está na fila.
     if (step.cancelledDoc) return <StatusText tone="warning">{`Invoice anterior ${step.cancelledDoc} cancelada à mão: gere a nova`}</StatusText>
     if (step.queued) return <>Emissão automática em andamento</>
-    return <>{step.complement ? 'O grupo já tem Invoice: gerar a complementar das caixas sem Invoice' : 'Pronto para gerar a Invoice'}</>
+    return <>{step.complement ? 'O grupo já tem Invoice: gerar a complementar dos containers sem Invoice' : 'Pronto para gerar a Invoice'}</>
   }
   if (step.kind === 'link') return <><StatusText tone="danger">{step.note}</StatusText> <Link className="app-link" to={step.href}>{step.label}</Link></>
   if (step.kind === 'note') return <StatusText tone="danger">{step.text}</StatusText>

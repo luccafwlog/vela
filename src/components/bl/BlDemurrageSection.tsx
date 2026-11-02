@@ -209,7 +209,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
       message: `Voltar a cobrar a Demurrage do container ${containerNumber}?`,
       confirmLabel: 'Desfazer dispensa',
       reasonLabel: 'Justificativa (mínimo de 10 caracteres)',
-      consequence: 'A caixa volta para a aba Containers e entra na próxima Invoice do grupo.',
+      consequence: 'O container volta para a aba Containers e entra na próxima Invoice do grupo.',
       reversibility: 'A cobrança pode ser dispensada de novo na Demurrage.',
     })
     if (reason === null) return
@@ -471,7 +471,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                         : line.error ? <span className="text-[var(--app-danger-fg)]">{line.error}</span>
                         : over && calc ? (
                           <span title={`1º período: ${calc.days_p1} d × ${formatUSD(calc.rate_p1_usd)} · 2º período: ${calc.days_p2} d × ${formatUSD(calc.rate_p2_usd)}`}>
-                            <StatusText tone="warning">{formatUSD(line.usd ?? calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{line.returnDateVal ? 'a faturar' : 'em curso'}{line.share > 1 ? ` · 1/${line.share} da caixa` : ''}</span>
+                            <StatusText tone="warning">{formatUSD(line.usd ?? calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{line.returnDateVal ? 'a faturar' : 'em curso'}{line.share > 1 ? ` · 1/${line.share} do container` : ''}</span>
                           </span>
                         ) : <NoValue label="Sem cobrança" />}
                     </td>

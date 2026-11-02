@@ -1,6 +1,6 @@
 // Cotação do dólar para Demurrage (PTAX do BCB × spread do armador = ROE).
-// Separada de demurrageKpis para o cabeçalho, que aparece em toda tela, não
-// carregar o leitor de planilha e o resto dos indicadores.
+// Separada de demurrageKpis desde quando a faixa do alto de toda tela mostrava
+// o câmbio; hoje só a linha de câmbio da tela Demurrage a lê (2026-11-01).
 import { supabase } from '../supabase'
 import { reportBestEffortFailure } from '../../lib/telemetry'
 import type { RoeSource } from '../../types/database'
@@ -87,7 +87,7 @@ export type FetchROEResult = {
   source: RoeSource
 }
 
-// O cabeçalho só lê: a referência cambial usada na emissão é gravada pelo job
+// A tela só lê: a referência cambial usada na emissão é gravada pelo job
 // do BCB e pelo Informar PTAX, no servidor (ADR 0083, item 14; migration 236).
 export async function fetchROE(): Promise<FetchROEResult> {
   const today = new Date()

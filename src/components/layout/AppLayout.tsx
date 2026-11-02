@@ -24,7 +24,6 @@ import { ErrorBoundary } from '../ErrorBoundary'
 import { useAuth } from '../../hooks/useAuth'
 import { useOperationalCounts } from '../../hooks/useOperationalCounts'
 import { AppVersionBadge } from './AppVersionBadge'
-import { HeaderInfoBar } from './HeaderInfoBar'
 import { InternalNotificationBell } from './InternalNotificationBell'
 import { NAV_COLLAPSE_WIDTH, useMobileNav } from './useMobileNav'
 import { NAV_POSITION_OPTIONS, useNavPosition, type NavPosition } from './useNavPosition'
@@ -305,7 +304,6 @@ export function AppLayout() {
         </aside>
 
         <div className="app-shell__column">
-          <HeaderInfoBar />
           {main}
         </div>
       </div>
@@ -315,8 +313,6 @@ export function AppLayout() {
   return (
     <div className="app-shell app-shell--vela">
       <a href="#app-main-content" className="app-skip-link">Ir para o conteúdo principal</a>
-
-      <HeaderInfoBar />
 
       {/* Uma barra só (etapa 02): marca, navegação e conta. Abaixo de 1100 px
           a navegação vira a lista do botão Menu, aberta logo abaixo da barra. */}
@@ -416,8 +412,8 @@ function TopNavDropdownMenu({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const isOpen = isMobile ? mobileOpen : desktopOpen
   const indicator = getNavIndicator(items)
-  // O item da tela é o de endereço mais longo: /taxas-locais/tabelas não
-  // marca também Taxas Locais.
+  // O item da tela é o de endereço mais longo: /embarquevazios/depots não
+  // marca também Vazios EXP.
   const current = activeNavItem(items, pathname)
 
   return (

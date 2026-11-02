@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PortalOperationBL } from '../../services/portalOperation'
 import {
   blCargoLabel,
+  blDemurrageParts,
   blMatchesReturnSituation,
   blsOfVoyagePath,
   blReturnSummary,
@@ -116,9 +117,21 @@ describe('portalOperationViews — tela limpa da rodada 2', () => {
   })
 
   it('resume devolução e demurrage do B/L sem contar SOC', () => {
-    expect(blReturnSummary(bls[0])).toEqual({ returnable: 2, returned: 1, awaiting: 1, inDemurrage: 1 })
+    expect(blReturnSummary(bls[0])).toEqual({ returnable: 2, returned: 1, awaiting: 1, inDemurrage: 1, returnedWithDemurrage: 0 })
     const soc = { ...inFreeTime, id: 21, status: 'soc' as const }
-    expect(blReturnSummary({ ...bls[0], containers: [soc, bls[0].containers[0]] })).toEqual({ returnable: 1, returned: 1, awaiting: 0, inDemurrage: 0 })
+    expect(blReturnSummary({ ...bls[0], containers: [soc, bls[0].containers[0]] })).toEqual({ returnable: 1, returned: 1, awaiting: 0, inDemurrage: 0, returnedWithDemurrage: 0 })
+  })
+
+  it('coluna Demurrage: o B/L todo devolvido mostra os que voltaram com demurrage, não "Nenhum" (2026-11-01)', () => {
+    const returnedLate = (id: number, days: number) => ({ id, container_number: `R${id}`, type: '40HC', discharge_date: '2026-09-01', return_date: '2026-10-05', usage_days: 21 + days, free_time_days: 21, demurrage_days: days, status: 'devolvido' as const })
+    // Os quatro devolvidos; três passaram do free time (o caso do print do dono).
+    const allReturned: PortalOperationBL = { ...bls[1], containers: [returnedLate(30, 13), returnedLate(31, 0), returnedLate(32, 18), returnedLate(33, 6)] }
+    expect(blDemurrageParts(allReturned)).toEqual({ running: null, returned: '3 devolvidos com demurrage' })
+    // Um ainda fora e em demurrage, um já devolvido com demurrage.
+    expect(blDemurrageParts({ ...bls[0], containers: [bls[0].containers[1], returnedLate(34, 4)] })).toEqual({ running: '1 em demurrage', returned: '1 devolvido com demurrage' })
+    expect(blDemurrageParts(bls[0])).toEqual({ running: '1 em demurrage', returned: null })
+    // Devolvido no free time, no free time e SOC não contam.
+    expect(blDemurrageParts({ ...bls[1], containers: [bls[1].containers[0], inFreeTime, { ...inFreeTime, id: 35, status: 'soc' as const, demurrage_days: null }] })).toEqual({ running: null, returned: null })
   })
 
   it('escreve a carga com vírgula decimal e diz que é carga solta', () => {

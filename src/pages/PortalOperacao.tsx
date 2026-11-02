@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Download } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, ExternalLink } from 'lucide-react'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
 import { Block, Fact, FactList } from '../components/ui/Block'
@@ -9,6 +9,7 @@ import { EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { CopyValue } from '../components/ui/CopyValue'
 import { MetricCard } from '../components/ui/MetricCard'
 import { NoValue } from '../components/ui/NoValue'
+import { RowActionLink } from '../components/ui/RowActionLink'
 import { StatusText } from '../components/ui/StatusText'
 import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
@@ -20,6 +21,7 @@ import { formatBRL, formatDate } from '../lib/utils'
 import {
   BL_VOYAGE_PARAMS,
   blCargoLabel,
+  blDemurrageParts,
   blMatchesReturnSituation,
   blReturnSummary,
   containerMatchesReturnSituation,
@@ -32,6 +34,7 @@ import {
 } from '../lib/portalOperationViews'
 import { exportPortalBlsWorkbook, exportPortalContainersWorkbook } from '../services/exports'
 import type { PortalOperationBL, PortalOperationContainer, PortalOperationContainerStatus } from '../services/portalOperation'
+import { trackingUrlForBl } from '../services/portalInformation'
 import { matchesAnyToken } from '../lib/searchTerms'
 
 type OperationTab = 'bls' | 'containers'
@@ -275,6 +278,9 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
   const paginated = filtered.slice(safePage * pageSize, (safePage + 1) * pageSize)
   const activeFilters = Object.values(filters).filter(Boolean).length
   const update = (next: Partial<BlFilters>) => { onFilters({ ...filters, ...next }); setPage(0) }
+  // Coluna sem nenhum dado sai da tabela (regra 4 da identidade visual).
+  const showTracking = filtered.some((row) => blTrackingUrl(row))
+  const columnCount = showTracking ? 11 : 10
 
   return (
     <>
@@ -332,6 +338,7 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                     <th scope="col">Pagamento</th>
                     <th scope="col">Devolução</th>
                     <th scope="col">Demurrage</th>
+                    {showTracking ? <th scope="col">Tracking</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -365,10 +372,11 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                           <LocalChargesCells row={row} />
                           <td className="whitespace-nowrap tabular-nums"><ReturnCell row={row} /></td>
                           <td className="whitespace-nowrap tabular-nums"><DemurrageCell row={row} /></td>
+                          {showTracking ? <td><TrackingCell row={row} /></td> : null}
                         </tr>
                         {isOpen ? (
                           <tr id={panelId} data-row-detail>
-                            <td colSpan={10}><BlDetails row={row} /></td>
+                            <td colSpan={columnCount}><BlDetails row={row} /></td>
                           </tr>
                         ) : null}
                       </Fragment>
@@ -380,6 +388,7 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
             <div className="grid gap-3 px-4 pb-4 md:hidden" data-testid="portal-operacao-bl-mobile-cards">
               {paginated.map((row) => {
                 const { total, payment } = localChargesView(row.local_charges)
+                const trackingUrl = blTrackingUrl(row)
                 return (
                   <article key={row.bl_id} aria-label={`B/L ${row.bl_id}`} className="grid gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
                     <div className="flex flex-wrap items-center gap-2 font-semibold">
@@ -396,6 +405,11 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                       <Fact className="content-start" label="Devolução"><ReturnCell row={row} /></Fact>
                       <Fact className="content-start" label="Demurrage"><DemurrageCell row={row} /></Fact>
                     </FactList>
+                    {trackingUrl ? (
+                      <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="app-btn app-btn--secondary justify-self-start">
+                        Ver tracking {carrierPhrase(row)}<ExternalLink size={14} aria-hidden="true" />
+                      </a>
+                    ) : null}
                   </article>
                 )
               })}
@@ -446,10 +460,50 @@ function ReturnCell({ row }: { row: PortalOperationBL }) {
   return awaiting > 0 ? <StatusText tone="warning">{text}</StatusText> : <>{text}</>
 }
 
+/**
+ * Tracking do B/L no site do armador: o link do armador cadastrado na
+ * Central de Informações com o número do B/L no lugar da marca
+ * {BL}. Sem a marca não há consulta pronta, e a linha fica sem o botão.
+ */
+function blTrackingUrl(row: PortalOperationBL) {
+  return trackingUrlForBl(row.tracking_url, row.bl_id)
+}
+
+function carrierPhrase(row: PortalOperationBL) {
+  return row.carrier_name ? `na ${row.carrier_name}` : 'no site do armador'
+}
+
+function TrackingCell({ row }: { row: PortalOperationBL }) {
+  const url = blTrackingUrl(row)
+  if (!url) return <NoValue label="Sem tracking no site do armador" />
+  return (
+    <RowActionLink
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      label={`Ver tracking do B/L ${row.bl_id} ${carrierPhrase(row)} (abre em nova aba)`}
+      title={`Ver tracking ${carrierPhrase(row)}`}
+      icon={ExternalLink}
+      onClick={(event) => event.stopPropagation()}
+    />
+  )
+}
+
+/**
+ * Em demurrage (sem devolução) em vermelho; devolvido com demurrage em tinta
+ * normal, porque a cobrança dele está em Faturas (regra 5 da identidade).
+ */
 function DemurrageCell({ row }: { row: PortalOperationBL }) {
   if (row.containers.length === 0) return <NoValue label="Sem containers" />
-  const { inDemurrage } = blReturnSummary(row)
-  return inDemurrage > 0 ? <StatusText tone="danger">{`${inDemurrage} em demurrage`}</StatusText> : <>Nenhum</>
+  const { running, returned } = blDemurrageParts(row)
+  if (!running && !returned) return <>Sem demurrage</>
+  return (
+    <>
+      {running ? <StatusText tone="danger">{running}</StatusText> : null}
+      {running && returned ? ' · ' : null}
+      {returned}
+    </>
+  )
 }
 
 // --- Aba Containers ------------------------------------------------------
