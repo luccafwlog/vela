@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Menu do Financeiro sem Tabelas e Tarifas (2026-11-02; decisão do dono):** **Tabelas de Taxas Locais** e
+  **Tarifas de Demurrage** saem do menu Financeiro, onde entraram em 2026-11-01, e voltam a abrir só pelos botões
+  **Tabelas e condições** (Taxas Locais) e **Tarifas e acordos** (Demurrage). Nessas páginas o menu marca Taxas
+  Locais ou Demurrage.
 - **Tracking em cada B/L do Portal (2026-11-01, migration `566`; pedido do dono):** B/Ls e containers ganha a
   coluna **Tracking**, que abre o site do armador já na busca daquele B/L, quando o link do armador cadastrado em
   Informações do Portal → Tracking tem a marca `{BL}`. O link da Cosco passa a `…?label=T&value={BL}`. Saem do

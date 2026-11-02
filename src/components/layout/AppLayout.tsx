@@ -412,8 +412,8 @@ function TopNavDropdownMenu({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const isOpen = isMobile ? mobileOpen : desktopOpen
   const indicator = getNavIndicator(items)
-  // O item da tela é o de endereço mais longo: /taxas-locais/tabelas não
-  // marca também Taxas Locais.
+  // O item da tela é o de endereço mais longo: /embarquevazios/depots não
+  // marca também Vazios EXP.
   const current = activeNavItem(items, pathname)
 
   return (
