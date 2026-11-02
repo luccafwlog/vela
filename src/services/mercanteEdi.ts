@@ -7,6 +7,7 @@
 // impede ou merece aviso. Nada é descartado em silêncio.
 
 import { COMPANY } from '../config/company'
+import { isValidCnpj } from '../lib/cnpj'
 import {
   BRAZILIAN_PORT_UF,
   MERCANTE_CONTAINER_TYPE,
@@ -37,6 +38,8 @@ export type MercanteEdiHeader = {
   vesselImo: string | null
   /** Código Mercante do terminal de descarregamento (ex.: BRVIX004). */
   terminalCode: string | null
+  /** Código do terminal no Vela (ex.: TVV), para dizer qual falta na tabela. */
+  terminalDepot: string | null
 }
 
 export type MercanteEdiFreightLine = {
@@ -78,6 +81,8 @@ export type MercanteEdiBl = {
   freightLines: MercanteEdiFreightLine[]
   /** Código Mercante do terminal do B/L (exceção individual); vazio usa o do manifesto. */
   terminalCode: string | null
+  /** Código no Vela da exceção de terminal do B/L; vazio quando o B/L herda o da frente. */
+  terminalDepot: string | null
   containers: MercanteEdiContainer[]
 }
 
@@ -106,6 +111,9 @@ const OBSERVATIONS_LENGTH = 253
 const MAX_FREIGHT_COMPONENTS = 15
 const MAX_SEALS = 4
 const MAX_NCM = 191
+const BL_ID_LENGTH = 18
+const CONTAINER_NUMBER = /^[A-Z]{4}\d{7}$/
+const VESSEL_IMO = /^\d{7}$/
 const SAME_AS_CONSIGNEE = /^\s*SAME\s+AS\s+CONSIGNEE\b/i
 const TO_ORDER = /^\s*TO\s+(THE\s+)?ORDER\b/i
 
@@ -162,9 +170,17 @@ function digits(value: number, width: number): string {
   return String(Math.max(0, Math.round(value))).padStart(width, '0').slice(-width)
 }
 
-/** Número com casas decimais implícitas: 25480 kg com 3 casas → `000025480000`. */
-function decimal(value: number | null | undefined, width: number, places: number): string {
-  return digits((value ?? 0) * 10 ** places, width)
+/**
+ * Número com casas decimais implícitas (25480 kg com 3 casas → `000025480000`)
+ * num campo posicional que precisa caber inteiro: negativo ou maior que
+ * o campo é impedimento, não um valor cortado em silêncio.
+ */
+function amount(ctx: Ctx, ref: string | null, label: string, value: number | null | undefined, width: number, places: number): string {
+  const scaled = Math.round((value ?? 0) * 10 ** places)
+  if (!Number.isFinite(scaled) || scaled < 0 || String(scaled).length > width) {
+    block(ctx, ref, `${label} ${value ?? ''} não cabe no campo do Mercante (${width - places} dígitos inteiros, sem negativo).`)
+  }
+  return digits(scaled, width)
 }
 
 function date8(value: string | null | undefined): string {
@@ -261,9 +277,12 @@ function checkHeader(ctx: Ctx, header: MercanteEdiHeader) {
   if (!date8(header.closingDate)) block(ctx, null, `Sem ATD no POL ${header.pol}: a data de encerramento do manifesto vem dele (Rotas e Manifestos → Editar).`)
   if (!date8(header.operationDate)) block(ctx, null, `Sem ETA no POD ${header.pod}: a data da operação vem dela.`)
   if (!header.vesselImo) block(ctx, null, 'Navio sem IMO no cadastro.')
+  else if (!VESSEL_IMO.test(vesselImoDigits(header.vesselImo))) block(ctx, null, `IMO do navio "${header.vesselImo}" não tem 7 dígitos (cadastro do navio).`)
   if (!header.voyageNumber.trim()) block(ctx, null, 'Viagem sem número.')
-  if (!header.terminalCode) {
-    block(ctx, null, `Sem terminal de descarga com código Mercante no POD ${header.pod}: defina o terminal da frente de operação na escala.`)
+  if (!header.terminalCode && header.terminalDepot) {
+    block(ctx, null, `Terminal ${header.terminalDepot} do POD ${header.pod} sem código Mercante: o código precisa entrar na tabela de terminais do Vela.`)
+  } else if (!header.terminalCode) {
+    block(ctx, null, `Sem terminal de descarga no POD ${header.pod}: defina o terminal da frente de operação desta carga na escala.`)
   } else if (!MERCANTE_TERMINAL_CODES.has(header.terminalCode)) {
     block(ctx, null, `Terminal ${header.terminalCode} não existe na tabela de terminais do Mercante.`)
   }
@@ -272,6 +291,10 @@ function checkHeader(ctx: Ctx, header: MercanteEdiHeader) {
   if (!MERCANTE_PORT_CODES.has(pol)) block(ctx, null, `Porto de origem ${pol} não existe na tabela de portos do Mercante.`)
   if (pol.startsWith('BR')) block(ctx, null, `Porto de origem ${pol} é brasileiro: o manifesto de Longo Curso Importação sai de porto estrangeiro.`)
   if (!pod.startsWith('BR') || !MERCANTE_PORT_CODES.has(pod)) block(ctx, null, `Porto de destino ${pod} não é um porto brasileiro da tabela do Mercante.`)
+}
+
+function vesselImoDigits(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '')
 }
 
 function buildM5(header: MercanteEdiHeader, blCount: number, emptyCount: number | null): string {
@@ -286,7 +309,7 @@ function buildM5(header: MercanteEdiHeader, blCount: number, emptyCount: number 
   put(record, 55, mercantePortCode(header.pol), 5)
   put(record, 60, mercantePortCode(header.pod), 5)
   put(record, 65, header.voyageNumber.trim(), 10)
-  put(record, 75, (header.vesselImo ?? '').trim(), 10)
+  put(record, 75, vesselImoDigits(header.vesselImo), 10)
   // 85–124: terminais de carregamento, só para porto brasileiro (origem é estrangeira).
   put(record, 125, header.terminalCode ?? '', 8)
   return record.join('')
@@ -301,7 +324,10 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
     block(ctx, ref, 'B/L à ordem: o manifesto pede outro preenchimento (sem CNPJ), ainda não feito pelo Vela.')
   }
   if (!consignee) block(ctx, ref, 'Sem bloco do consignatário — reimporte o arquivo do B/L.')
+  // ponytail: CPF (11) só tem o tamanho conferido; o CNPJ passa pelos dígitos verificadores.
   if (consigneeCnpj.length !== 14 && consigneeCnpj.length !== 11) block(ctx, ref, 'Sem CNPJ/CPF do consignatário — reimporte o arquivo do B/L.')
+  else if (consigneeCnpj.length === 14 && !isValidCnpj(consigneeCnpj)) block(ctx, ref, `CNPJ do consignatário ${consigneeCnpj} inválido (dígitos verificadores) — corrija na ficha do B/L.`)
+  if (bl.id.length > BL_ID_LENGTH) block(ctx, ref, `Número do B/L com mais de ${BL_ID_LENGTH} caracteres não cabe no Mercante.`)
   const shipper = cleanMercanteText(bl.shipperBlock, 'party')
   if (!shipper) block(ctx, ref, 'Sem bloco do embarcador (shipper) — reimporte o arquivo do B/L.')
   if (!date8(bl.emissionDate)) block(ctx, ref, 'Sem data de emissão do B/L.')
@@ -321,6 +347,12 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
 
   const oceanFreight = bl.freightLines.filter((line) => freightCategory(line) === 'OCEAN_FREIGHT')
   const freightAmount = oceanFreight.reduce((total, line) => total + (line.amount ?? 0), 0)
+  // O C5 tem uma moeda e um prepaid/collect para o frete básico: linhas de
+  // Ocean Freight em moedas ou pagamentos diferentes não podem ser somadas.
+  const distinct = (values: Array<string | null>) => new Set(values.map((value) => (value ?? '').trim().toUpperCase())).size
+  if (distinct(oceanFreight.map((line) => line.currency)) > 1 || distinct(oceanFreight.map((line) => paymentCode(line.payment))) > 1) {
+    block(ctx, ref, 'Ocean Freight em mais de uma moeda ou com prepaid e collect misturados: o manifesto tem um só frete básico.')
+  }
   const freightCurrency = MERCANTE_CURRENCY[(oceanFreight[0]?.currency ?? '').toUpperCase()] ?? null
   const freightPayment = paymentCode(oceanFreight[0]?.payment ?? null)
   if (!(freightAmount > 0)) block(ctx, ref, 'Sem valor do frete marítimo (OCEAN FREIGHT) maior que zero.')
@@ -333,6 +365,7 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   const uf = BRAZILIAN_PORT_UF[pod] ?? null
   if (!uf) block(ctx, ref, `Sem UF para o porto ${pod}.`)
   const terminal = bl.terminalCode ?? header.terminalCode ?? ''
+  if (bl.terminalDepot && !bl.terminalCode) block(ctx, ref, `Terminal ${bl.terminalDepot} da exceção do B/L sem código Mercante: o código precisa entrar na tabela de terminais do Vela.`)
   if (bl.terminalCode && !MERCANTE_TERMINAL_CODES.has(bl.terminalCode)) block(ctx, ref, `Terminal ${bl.terminalCode} do B/L não existe na tabela do Mercante.`)
 
   put(record, 1, 'C5', 2)
@@ -347,13 +380,13 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   put(record, 635, date8(bl.emissionDate), 8)
   put(record, 643, description, DESCRIPTION_LENGTH)
   put(record, 1149, observations, OBSERVATIONS_LENGTH)
-  put(record, 1402, decimal(bl.totalCbm, 13, 3), 13)
+  put(record, 1402, amount(ctx, ref, 'Cubagem do B/L', bl.totalCbm, 13, 3), 13)
   put(record, 1415, mercantePortCode(header.pol), 5)
   put(record, 1420, pod, 5)
   put(record, 1425, notifyCnpj, 14)
   put(record, 1439, notify, PARTY_LENGTH)
   put(record, 1740, '00000000', 8) // data do BL do primeiro transporte
-  put(record, 1748, decimal(freightAmount, 13, 2), 13)
+  put(record, 1748, amount(ctx, ref, 'Ocean Freight', freightAmount, 13, 2), 13)
   put(record, 1761, freightCurrency ?? '', 3)
   put(record, 1764, freightPayment ?? '', 1)
   put(record, 1765, modality ?? '', 2)
@@ -382,7 +415,7 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
     if (!payment) block(ctx, ref, `Despesa "${line.description ?? category}" sem prepaid/collect.`)
     put(record, position, code ?? '000', 3)
     put(record, position + 3, currency ?? '000', 3)
-    put(record, position + 6, decimal(line.amount, 13, 2), 13)
+    put(record, position + 6, amount(ctx, ref, `Despesa "${line.description ?? category}"`, line.amount, 13, 2), 13)
     put(record, position + 19, payment ?? '', 1)
   }
   return record.join('')
@@ -399,25 +432,33 @@ function buildI5(ctx: Ctx, bl: MercanteEdiBl, container: MercanteEdiContainer, s
   const containerSeals = seals(container.seal)
   if (!containerSeals.length) warn(ctx, ref, 'Contêiner sem lacre: o Mercante bloqueia a carga se o lacre não for informado até a atracação.')
   if (containerSeals.length > MAX_SEALS) warn(ctx, ref, `Mais de ${MAX_SEALS} lacres: só os ${MAX_SEALS} primeiros entram.`)
+  if (!CONTAINER_NUMBER.test(container.number)) block(ctx, ref, 'Número do contêiner fora do padrão ISO (4 letras e 7 dígitos).')
   const unNumber = (container.unNumber ?? '').replace(/\D/g, '')
   if (container.isImo && (!unNumber || !container.imoClass)) block(ctx, ref, 'Contêiner IMO sem número ONU ou classe.')
 
   put(record, 1, 'I5', 2)
   put(record, 3, '1', 1) // tipo do item: contêiner
   put(record, 4, digits(sequence, 4), 4)
-  put(record, 8, decimal(container.grossKg, 12, 3), 12)
+  put(record, 8, amount(ctx, ref, 'Peso bruto', container.grossKg, 12, 3), 12)
   put(record, 20, type ?? '', 4)
   put(record, 24, container.number.toUpperCase(), 11)
-  put(record, 35, decimal(container.tareKg, 9, 3), 9)
+  put(record, 35, amount(ctx, ref, 'Tara', container.tareKg, 9, 3), 9)
   put(record, 44, container.shared ? 'S' : ' ', 1)
   if (container.isImo && unNumber) {
     put(record, 449, unNumber.padStart(6, '0').slice(-6), 6)
     put(record, 455, asciiUpper(container.imoClass).trim(), 4)
   }
-  put(record, 459, decimal(container.cbm, 13, 3), 13)
+  put(record, 459, amount(ctx, ref, 'Cubagem', container.cbm, 13, 3), 13)
   containerSeals.slice(0, MAX_SEALS).forEach((seal, index) => put(record, 472 + index * 15, seal, 15))
   ncm.slice(0, MAX_NCM).forEach((code, index) => put(record, 532 + index * 8, code, 8))
   return record.join('')
+}
+
+function repeated(values: string[]): string[] {
+  const seen = new Set<string>()
+  const twice = new Set<string>()
+  for (const value of values) (seen.has(value) ? twice : seen).add(value)
+  return [...twice]
 }
 
 function finish(ctx: Ctx, lines: string[]): MercanteEdiResult {
@@ -438,6 +479,9 @@ export function buildMercanteCargoEdi(header: MercanteEdiHeader, bls: MercanteEd
   for (const bl of sorted) {
     lines.push(buildC5(ctx, header, bl))
     if (!bl.containers.length) block(ctx, bl.id, 'B/L sem contêiner.')
+    for (const number of repeated(bl.containers.map((container) => container.number))) {
+      block(ctx, `${bl.id} · ${number}`, 'Contêiner repetido no mesmo B/L.')
+    }
     const ncm = mercanteNcmPositions(bl.ncmCodes)
     if (!ncm.length) block(ctx, bl.id, 'B/L sem NCM (campo NCM da ficha do B/L).')
     if (ncm.length > MAX_NCM) warn(ctx, bl.id, `Mais de ${MAX_NCM} NCMs: só os ${MAX_NCM} primeiros entram.`)
@@ -453,18 +497,20 @@ export function buildMercanteVaziosEdi(header: MercanteEdiHeader, vazios: Mercan
   if (!vazios.length) block(ctx, null, 'A rota não tem contêiner vazio.')
   if (vazios.length > 9999) block(ctx, null, 'Mais de 9999 vazios no manifesto.')
 
+  for (const number of repeated(vazios.map((vazio) => vazio.number))) block(ctx, number, 'Contêiner vazio repetido na rota.')
   const lines = [buildM5(header, 0, vazios.length)]
   vazios.forEach((vazio, index) => {
     const ref = vazio.number
     const type = mercanteContainerType(vazio.type)
     if (!type) block(ctx, ref, `Tipo de contêiner ${vazio.type ?? '(vazio)'} sem código Mercante na tabela de tipos.`)
     if (vazio.tareKg === null || vazio.tareKg === undefined) block(ctx, ref, 'Vazio sem tara.')
+    if (!CONTAINER_NUMBER.test(vazio.number)) block(ctx, ref, 'Número do contêiner fora do padrão ISO (4 letras e 7 dígitos).')
     const record = blank(ITEM_LENGTH)
     put(record, 1, 'V5', 2)
     put(record, 3, digits(index + 1, 4), 4)
     put(record, 7, type ?? '', 4)
     put(record, 11, vazio.number.toUpperCase(), 11)
-    put(record, 22, decimal(vazio.tareKg, 9, 3), 9)
+    put(record, 22, amount(ctx, ref, 'Tara', vazio.tareKg, 9, 3), 9)
     lines.push(record.join(''))
   })
   return finish(ctx, lines)

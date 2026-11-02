@@ -4,7 +4,7 @@
 // do arquivo fica em `mercanteEdi.ts`.
 
 import { supabase } from './supabase'
-import { normalizePortCode, normalizeStoredPortCode } from './portCode'
+import { normalizePortCode } from './portCode'
 import {
   buildVoyagePodEntityId,
   buildVoyagePolEntityId,
@@ -44,7 +44,10 @@ export type MercanteVaziosInput = MercanteEdiContext & {
 
 type Row = Record<string, unknown>
 
-/** Rota da Viagem compara portos pelo código normalizado (BRVIT = BRVIX). */
+/**
+ * Rota da Viagem compara portos pelo código normalizado (BRVIT = BRVIX), o
+ * mesmo de `collectVoyageManifestBatchRows`, que monta as linhas da aba.
+ */
 const portKey = (value: unknown) => {
   const raw = String(value ?? '').trim().toUpperCase()
   return normalizePortCode(raw) ?? raw
@@ -84,14 +87,22 @@ async function readDepotCodes(): Promise<Map<string, string>> {
   return new Map(((data ?? []) as Array<{ id: string; code: string | null }>).map((depot) => [depot.id, (depot.code ?? '').toUpperCase()]))
 }
 
-async function readHeader(voyageId: number, pol: string, pod: string): Promise<{ header: MercanteEdiHeader; depotCodes: Map<string, string> } & MercanteEdiContext> {
+/**
+ * Frente de operação de importação no POD que dá o terminal do manifesto: a de
+ * carga cheia para o arquivo de contêiner (a mesma que `resolve_bl_terminal_id`
+ * usa para o B/L sem exceção) e a de vazios para o de vazios. Há no máximo uma
+ * por porto e modalidade (`uq_voyage_escala_operation_front`).
+ */
+type FrontKind = 'carga_cheia' | 'vazio'
+
+async function readHeader(voyageId: number, pol: string, pod: string, frontKind: FrontKind): Promise<{ header: MercanteEdiHeader; depotCodes: Map<string, string> } & MercanteEdiContext> {
   const polEntity = buildVoyagePolEntityId(voyageId, pol)
   const podEntity = buildVoyagePodEntityId(voyageId, pod)
   const [voyageResult, polSchedules, podSchedules, frontsResult, baplieResult, depotCodes] = await Promise.all([
     supabase.from('voyages').select('id, voyage_number, vessel:vessels(name, imo, carrier:carriers(scac))').eq('id', voyageId).single(),
     listVoyagePolSchedules([polEntity]),
     listVoyagePodSchedules([podEntity]),
-    supabase.from('voyage_escala_operation_fronts').select('port, sentido, terminal_id').eq('voyage_id', voyageId),
+    supabase.from('voyage_escala_operation_fronts').select('port, terminal_id').eq('voyage_id', voyageId).eq('sentido', 'importacao').eq('modalidade', frontKind),
     supabase.from('baplie_containers').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId),
     readDepotCodes(),
   ])
@@ -100,8 +111,8 @@ async function readHeader(voyageId: number, pol: string, pod: string): Promise<{
   if (baplieResult.error) throw baplieResult.error
 
   const voyage = voyageResult.data as unknown as { voyage_number: string; vessel: { name: string; imo: string | null; carrier: { scac: string | null } | null } | null }
-  const fronts = (frontsResult.data ?? []) as unknown as Array<{ port: string; sentido: string; terminal_id: string | null }>
-  const podFront = fronts.find((front) => portKey(front.port) === portKey(pod) && front.sentido === 'importacao' && front.terminal_id)
+  const fronts = (frontsResult.data ?? []) as unknown as Array<{ port: string; terminal_id: string | null }>
+  const podFront = fronts.find((front) => portKey(front.port) === portKey(pod) && front.terminal_id)
   const scac = (voyage.vessel?.carrier?.scac ?? '').toUpperCase()
   const terminalDepot = podFront?.terminal_id ? depotCodes.get(podFront.terminal_id) ?? '' : ''
 
@@ -119,13 +130,14 @@ async function readHeader(voyageId: number, pol: string, pod: string): Promise<{
       voyageNumber: voyage.voyage_number ?? '',
       vesselImo: voyage.vessel?.imo ?? null,
       terminalCode: MERCANTE_TERMINAL_CODE[terminalDepot] ?? null,
+      terminalDepot: terminalDepot || null,
     },
   }
 }
 
 /** Dados de uma rota de carga (linha CNTR de Rotas e Manifestos). */
 export async function loadMercanteCargoInput(voyageId: number, pol: string, pod: string): Promise<MercanteCargoInput> {
-  const { depotCodes, ...head } = await readHeader(voyageId, pol, pod)
+  const { depotCodes, ...head } = await readHeader(voyageId, pol, pod, 'carga_cheia')
   const voyageBls = await readAll((from, to) => supabase
     .from('bls')
     .select('id, pol, pod, cargo_mode, cancelled_at, consignee_block, manifest_customer_cnpj_cpf, shipper_block, notify_block, notify_cnpj_cpf, bl_emission_date, cargo_description, total_packages, packages_unit, total_cbm, movement_from, ncm_codes, terminal_id')
@@ -191,6 +203,7 @@ export async function loadMercanteCargoInput(voyageId: number, pol: string, pod:
       ncmCodes: Array.isArray(bl.ncm_codes) ? (bl.ncm_codes as string[]) : [],
       freightLines,
       terminalCode: terminalDepot ? MERCANTE_TERMINAL_CODE[terminalDepot] ?? null : null,
+      terminalDepot: terminalDepot || null,
       containers,
     }
   })
@@ -200,17 +213,17 @@ export async function loadMercanteCargoInput(voyageId: number, pol: string, pod:
 
 /** Dados de uma rota de vazios (linha VAZIOS de Rotas e Manifestos). */
 export async function loadMercanteVaziosInput(voyageId: number, pol: string, pod: string): Promise<MercanteVaziosInput> {
-  const head = await readHeader(voyageId, pol, pod)
+  const head = await readHeader(voyageId, pol, pod, 'vazio')
   const rows = await readAll((from, to) => supabase
     .from('vazios_importacao_containers')
     .select('id, container_number, container_type, tare_kg, pol, pod, manifest:vazios_importacao_manifests!inner(voyage_id)')
     .eq('manifest.voyage_id', voyageId)
     .order('container_number')
     .range(from, to) as unknown as PromiseLike<{ data: unknown; error: unknown }>)
-  const routePol = normalizeStoredPortCode(pol)
-  const routePod = normalizeStoredPortCode(pod)
+  // Mesma régua de `useVaziosImportacaoStats`, que monta a linha VAZIOS: POL sem
+  // porto reconhecido vira '-' (e a linha fica sem botão).
   const vazios = rows
-    .filter((row) => normalizeStoredPortCode(text(row.pol)) === routePol && normalizeStoredPortCode(text(row.pod)) === routePod)
+    .filter((row) => (normalizePortCode(text(row.pol)) ?? '-') === portKey(pol) && normalizePortCode(text(row.pod)) === portKey(pod))
     .map((row) => ({
       number: String(row.container_number ?? '').trim().toUpperCase(),
       type: text(row.container_type),

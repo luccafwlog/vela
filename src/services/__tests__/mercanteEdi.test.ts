@@ -25,6 +25,7 @@ const header: MercanteEdiHeader = {
   voyageNumber: '6',
   vesselImo: '1095014',
   terminalCode: 'BRVIX004',
+  terminalDepot: 'TVV',
 }
 
 function container(overrides: Partial<MercanteEdiContainer> = {}): MercanteEdiContainer {
@@ -63,6 +64,7 @@ function bl(overrides: Partial<MercanteEdiBl> = {}): MercanteEdiBl {
       { category: 'THD', description: 'THD', currency: 'BRL', amount: 1565, payment: 'COLLECT' },
     ],
     terminalCode: null,
+    terminalDepot: null,
     containers: [container()],
     ...overrides,
   }
@@ -144,7 +146,7 @@ describe('buildMercanteCargoEdi', () => {
 
   it('impede a geração e diz por quê, sem descartar B/L', () => {
     const result = buildMercanteCargoEdi(
-      { ...header, closingDate: null, terminalCode: null },
+      { ...header, closingDate: null, terminalCode: null, terminalDepot: null },
       [bl({
         consigneeCnpj: null,
         ncmCodes: [],
@@ -188,6 +190,48 @@ describe('buildMercanteCargoEdi', () => {
       'C5CSC1', 'I50001', 'C5CSC2', 'I50001', 'I50002',
     ])
   })
+  it('terminal sem código Mercante, na frente ou na exceção do B/L, é impedimento e não cai para outro terminal', () => {
+    const semCodigo = buildMercanteCargoEdi({ ...header, terminalCode: null, terminalDepot: 'NOVO' }, [bl()])
+    expect(semCodigo.issues.map((issue) => issue.message)).toContainEqual(expect.stringContaining('Terminal NOVO do POD BRVIX sem código Mercante'))
+
+    const excecao = buildMercanteCargoEdi(header, [bl({ terminalCode: null, terminalDepot: 'NOVO' })])
+    expect(excecao.content).toBeNull()
+    expect(excecao.issues).toContainEqual(expect.objectContaining({ ref: 'CSC45640602Q00', message: expect.stringContaining('Terminal NOVO da exceção do B/L') }))
+  })
+
+  it('não soma Ocean Freight de moedas ou pagamentos diferentes', () => {
+    const result = buildMercanteCargoEdi(header, [bl({
+      freightLines: [
+        { category: 'OCEAN_FREIGHT', description: 'OCEAN FREIGHT', currency: 'USD', amount: 8000, payment: 'PREPAID' },
+        { category: 'OCEAN_FREIGHT', description: 'OCEAN FREIGHT', currency: 'BRL', amount: 500, payment: 'PREPAID' },
+      ],
+    })])
+    expect(result.content).toBeNull()
+    expect(result.issues.map((issue) => issue.message)).toContainEqual(expect.stringContaining('mais de uma moeda'))
+  })
+
+  it('valor que não cabe, contêiner fora do ISO, repetido, CNPJ e IMO inválidos são impedimentos, não cortes', () => {
+    const result = buildMercanteCargoEdi({ ...header, vesselImo: 'IMO 123' }, [bl({
+      id: 'CSC1234567890123456789',
+      consigneeCnpj: '28772926000115',
+      containers: [container({ tareKg: 1_000_000 }), container({ number: 'ABC123' }), container({ number: 'ABC123' })],
+    })])
+    expect(result.content).toBeNull()
+    const messages = result.issues.map((issue) => issue.message)
+    expect(messages).toEqual(expect.arrayContaining([
+      expect.stringContaining('IMO do navio "IMO 123" não tem 7 dígitos'),
+      expect.stringContaining('mais de 18 caracteres'),
+      expect.stringContaining('CNPJ do consignatário 28772926000115 inválido'),
+      expect.stringContaining('Tara 1000000 não cabe'),
+      'Número do contêiner fora do padrão ISO (4 letras e 7 dígitos).',
+      'Contêiner repetido no mesmo B/L.',
+    ]))
+  })
+
+  it('IMO do navio com prefixo sai só com os dígitos', () => {
+    const m5 = lines(buildMercanteCargoEdi({ ...header, vesselImo: 'IMO 1095014' }, [bl()]).content)[0]
+    expect(field(m5, 75, 84)).toBe('1095014   ')
+  })
 })
 
 describe('buildMercanteVaziosEdi', () => {
@@ -210,6 +254,13 @@ describe('buildMercanteVaziosEdi', () => {
       expect.stringContaining('Tipo de contêiner 40XX'),
       'Vazio sem tara.',
     ]))
+  })
+
+  it('impede vazio repetido na rota', () => {
+    const vazio = { number: 'FBIU4825306', type: '40FH', tareKg: 5200 }
+    const result = buildMercanteVaziosEdi(header, [vazio, vazio])
+    expect(result.content).toBeNull()
+    expect(result.issues).toContainEqual(expect.objectContaining({ ref: 'FBIU4825306', message: 'Contêiner vazio repetido na rota.' }))
   })
 })
 

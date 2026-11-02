@@ -45,7 +45,8 @@ ordem e o tamanho dos NCM e a limpeza do texto livre.
    fase e aparecem como aviso.
 3. Fontes: cadastro da Viagem (navio, IMO, armador, número), ATD do POL
    (encerramento) e ETA do POD (operação) da rota, terminal da frente de
-   importação do POD, campos do B/L (partes, CNPJ, emissão, descrição, NCM,
+   importação do POD com a modalidade do arquivo (carga cheia ou vazio) ou a
+   exceção de terminal do B/L, campos do B/L (partes, CNPJ, emissão, descrição, NCM,
    volumes, CBM, Type of Movement), Frete & Despesas do B/L e os contêineres
    do B/L. IMO, classe e UN de cada contêiner são os que o Baplie aplicou ao
    contêiner, não a declaração do B/L.

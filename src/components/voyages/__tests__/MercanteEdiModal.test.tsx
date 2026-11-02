@@ -20,6 +20,7 @@ const header = {
   voyageNumber: '6',
   vesselImo: '1095014',
   terminalCode: 'BRVIX004',
+  terminalDepot: 'TVV',
 }
 
 const bl = {
@@ -38,6 +39,7 @@ const bl = {
   ncmCodes: ['5407'],
   freightLines: [{ category: 'OCEAN_FREIGHT', description: 'OCEAN FREIGHT', currency: 'USD', amount: 8500, payment: 'PREPAID' }],
   terminalCode: null,
+  terminalDepot: null,
   containers: [{ number: 'ABCU1234567', type: '40HC', grossKg: 25480, tareKg: 3700, cbm: 68, seal: '134543', isImo: false, imoClass: null, unNumber: null, shared: false }],
 }
 

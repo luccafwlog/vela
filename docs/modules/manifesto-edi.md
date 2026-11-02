@@ -1129,7 +1129,10 @@ ao Mercante continua fora do Vela. **Código:**
   colunas).
 - **Cabeçalho (M5).** Armador pelo SCAC do cadastro, IMO e número da Viagem,
   POL e POD da rota, **encerramento** = ATD do POL da rota e **operação** = ETA
-  do POD, terminal = o da frente de operação de importação do POD na escala.
+  do POD, terminal = o da frente de operação de importação do POD na escala
+  com a modalidade do arquivo (carga cheia para contêiner, a mesma que
+  `resolve_bl_terminal_id` usa no B/L sem exceção; vazio para vazios). O B/L
+  com exceção de terminal leva o terminal dele no C5.
   CNPJ da agência = Transhipping (`src/config/company.ts`).
 - **Conhecimento (C5).** Consignatário, CNPJ/CPF, embarcador, notify (o
   próprio consignatário quando o B/L diz "SAME AS CONSIGNEE"), data de
@@ -1154,8 +1157,14 @@ ao Mercante continua fora do Vela. **Código:**
   estrangeiro; B/L à ordem; B/L sem consignatário, CNPJ/CPF, embarcador, data
   de emissão, descrição, NCM, contêiner ou Ocean Freight maior que zero; moeda,
   despesa, Type of Movement ou tipo de contêiner sem código; contêiner sem
-  peso, tara ou cubagem; contêiner IMO sem classe ou ONU; vazio sem tara.
-  Cada um diz o B/L ou contêiner e onde corrigir.
+  peso, tara ou cubagem; contêiner IMO sem classe ou ONU; vazio sem tara;
+  terminal (da frente ou da exceção do B/L) sem código Mercante, que nunca cai
+  para outro terminal; Ocean Freight em mais de uma moeda ou com prepaid e
+  collect misturados; CNPJ do consignatário com dígito verificador errado; IMO
+  do navio sem 7 dígitos; número do B/L com mais de 18 caracteres; contêiner
+  fora do padrão ISO ou repetido no B/L (ou vazio repetido na rota); valor
+  negativo ou maior que o campo. Nada é cortado em silêncio. Cada um diz o
+  B/L ou contêiner e onde corrigir.
 - **Avisos** (o arquivo é baixado): texto cortado no tamanho do campo,
   descrição que não coube, B/L sem total de volumes, contêiner sem lacre ou com
   mais de quatro, mais NCM que o campo comporta, Viagem sem Baplie e B/L de
