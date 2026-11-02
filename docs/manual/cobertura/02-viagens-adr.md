@@ -324,7 +324,7 @@ independente sobre a escala (143 e 144).
 | `Verifique se algum B/L está em COD.` | Complemento, na janela de reverter a omissão, da recusa por B/L em COD; só nessa recusa. | Ap. B |
 | `Falha ao marcar COD. Tente novamente.` | Recusa ao **Marcar COD** sem motivo legível, no aviso da ficha do B/L; as demais mostram o motivo do banco. | Ap. B |
 | `Falha ao reverter para transbordo. Tente novamente.` | Recusa ao **Reverter para transbordo** sem motivo legível, no aviso da ficha do B/L; as demais mostram o motivo do banco. | Ap. B |
-| `Informe a justificativa para alterar BLs e CEs.` | Mudar **BLs e CEs** da escala à mão sem justificativa (a janela e o banco recusam). | Ap. B |
+| `Informe a justificativa para alterar B/Ls e CEs.` | Mudar **BLs e CEs** da escala à mão sem justificativa (a janela e o banco recusam). | Ap. B |
 
 ## Itens sem efeito na operação
 

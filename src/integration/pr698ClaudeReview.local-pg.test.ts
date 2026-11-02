@@ -229,7 +229,7 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
     expect(() => importBb(true)).not.toThrow()
     expect(psql(`SELECT cargo_mode || '|' || financial_status || '|' || review_status FROM public.bls WHERE id = '${blLocked}';`)).toBe('misto|paid|pending_review')
     psql(`UPDATE public.bls SET bb_weight_ton = NULL, bb_packages_qty = NULL WHERE id = '${blLocked}';`)
-    expect(() => psql(`DELETE FROM public.bl_breakbulk_items WHERE bl_id = '${blLocked}';`)).toThrow(/ja foi faturado|P0003/i)
+    expect(() => psql(`DELETE FROM public.bl_breakbulk_items WHERE bl_id = '${blLocked}';`)).toThrow(/já foi faturado|P0003/i)
   })
 
   it('compõe NOB uma única vez para B/L puro + misto e aceita exceção sem frente', () => {

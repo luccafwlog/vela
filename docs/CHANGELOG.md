@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Recusas do banco com acento e "B/Ls e CEs" (2026-11-02, migration `567`; achado da sincronização do Manual
+  do Operador):** as recusas "B/L … já foi faturado …" (taxa manual, recálculo, troca de carga e reimportação do
+  Manifesto BB) ganham acento, e as da escala passam a "Informe a justificativa para alterar B/Ls e CEs." e
+  "Status de B/Ls e CEs inválido.", o mesmo nome da tela. Só os textos mudam; a matriz de cobertura cita os novos.
 - **Impressão, modais e ajustes do Portal (2026-11-02; pedido do dono):** fatura, recibo e Invoice impressos (Vela e
   Portal) ganham margem de cima maior: 20 mm na página (antes 10 mm) mais 8 mm no começo do documento, que valem
   também quando o navegador imprime com "Margens: nenhuma". Os modais deixam de mostrar uma faixa sem desfoque no
