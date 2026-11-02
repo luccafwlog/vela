@@ -32,6 +32,11 @@ export function portalBillingFiltersFromSearch(params: URLSearchParams): PortalB
   return { ...EMPTY_PORTAL_BILLING_FILTERS, bl, status }
 }
 
+/** Endereço de Faturas (Taxas Locais) filtrado pelo B/L, nas faturas em vigor. */
+export function portalBillingForBlSuffix(blId: string) {
+  return `/billing?${new URLSearchParams({ tab: 'local', bl: blId }).toString()}`
+}
+
 /** Endereço de Faturas filtrado nas faturas em aberto de um B/L. */
 export function portalBillingOpenForBlSuffix(blId: string) {
   return `/billing?${new URLSearchParams({ tab: 'local', status: 'issued', bl: blId }).toString()}`

@@ -6,6 +6,16 @@
 
 ## 2026-11
 
+- **Portal: filtros recolhidos, topo de Faturas e atalhos (2026-11-02; pedido do dono):** os filtros de Faturas e
+  de B/Ls e containers começam recolhidos; com filtro aplicado, a barra fechada mostra o contador e **Limpar**. Em
+  **Faturas**, **Exportar Excel** vai para a faixa do bloco (como em B/Ls), **Consultar Taxas Locais**/**Consultar
+  Demurrage** e **Contato** sobem para o topo à direita, e **Gerar fatura consolidada** volta a ser o botão
+  preenchido. Em **B/Ls**, o valor de **Taxas locais** abre Faturas filtrada pelo B/L. **Meu perfil** mostra o CNPJ
+  do Cliente no topo, com o ícone de copiar.
+- **Portal › Desbloqueio de CE (2026-11-02; pedido do dono):** o prazo sai de "O que o desbloqueio pede" para um
+  bloco próprio, **Prazo para desbloqueio**, logo abaixo. Na coluna **Taxas locais**, "Em aberto" passa a ser o
+  próprio botão que abre as faturas em aberto do B/L, sem o ícone ao lado. A lista ganha os filtros **Navio** e
+  **Viagem**, na barra recolhida.
 - **Menu do Financeiro sem Tabelas e Tarifas (2026-11-02; decisão do dono):** **Tabelas de Taxas Locais** e
   **Tarifas de Demurrage** saem do menu Financeiro, onde entraram em 2026-11-01, e voltam a abrir só pelos botões
   **Tabelas e condições** (Taxas Locais) e **Tarifas e acordos** (Demurrage). Nessas páginas o menu marca Taxas

@@ -32,8 +32,9 @@ Manifesto Mercante é regra de
   ou B/L com o desbloqueio solicitado fora da vigência>" (só enquanto a solicitação está em andamento) e aceita o termo e a
   procuração comuns. Com só um dos anuais válido, a faixa "O que o desbloqueio pede" diz que os dois vão
   anexados ("Termo anual válido… Enquanto falta a procuração anual, …"), porque o pedido é inteiro VIP ou
-  inteiro comum. Logo abaixo das quatro exigências, o bloco diz o **Prazo para desbloqueio** com as
-  janelas da regra de [Prazo (SLA)](#prazo-sla) (reunião de testes de 2026-10-26). O VIP com os anuais
+  inteiro comum. Logo abaixo, o bloco próprio **Prazo para desbloqueio** diz as
+  janelas da regra de [Prazo (SLA)](#prazo-sla) (reunião de testes de 2026-10-26; até 2026-11-02 era uma
+  linha dentro de "O que o desbloqueio pede", que ficou com texto demais). O VIP com os anuais
   cobrindo os B/Ls continua sem anexo avulso (`ce_unlock_prepare_upload` recusa "Pedido não aceita
   anexos"); Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
   "Em PDF, anexada à solicitação", com **Baixar modelo do termo** quando há modelo publicado, e
@@ -47,8 +48,10 @@ Manifesto Mercante é regra de
   (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar documentos
   na agência; não é requisito nem entra no pedido. Cartões que filtram ("Podem ser pedidos", "Com
   taxas locais em aberto", "Já em solicitação") e tabela limpa: B/L, CE Mercante, Navio / Viagem, POD,
-  Taxas locais ("✓ Pagas", "Em aberto" em âmbar com "Ver faturas em aberto", que abre Faturas filtrada no B/L e no status Emitida (`?tab=local&status=issued&bl=`, desde 2026-11-01), "Aguardando fatura" sem valor,
-  "Isentas") e Solicitação (protocolo e situação). A faixa "Pedir desbloqueio de N B/Ls" cria o
+  Taxas locais ("✓ Pagas", "Em aberto" em âmbar, que é o próprio botão (sem ícone desde 2026-11-02; antes, ícone "Ver faturas em aberto" ao lado) e abre Faturas filtrada no B/L e no status Emitida (`?tab=local&status=issued&bl=`, desde 2026-11-01), "Aguardando fatura" sem valor,
+  "Isentas") e Solicitação (protocolo e situação). Além de "Buscar B/L ou CE", a barra **Filtros**
+  (recolhida, como no resto do Portal) filtra por Navio e Viagem por texto contido, e os cartões contam esse recorte
+  (pedido do dono de 2026-11-02). A faixa "Pedir desbloqueio de N B/Ls" cria o
   rascunho sem confirmação, pois o cliente pode cancelá-lo; com B/L de outra solicitação ainda não
   validada, antes mostra a confirmação "Mudar N B/Ls e continuar" (B/L, Sai de, O que acontece com a
   antiga; ver [B/L que muda de solicitação](#bl-que-muda-de-solicitação)).
