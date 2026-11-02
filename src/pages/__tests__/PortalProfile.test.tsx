@@ -216,12 +216,13 @@ it('depois de confirmar a troca pelo link antigo, relê o perfil e mostra o e-ma
   expect(invoke).toHaveBeenCalledWith('portal-recovery-email-change', { body: { action: 'confirm', token: 'tok' } })
 })
 
-it('mostra o CNPJ do Cliente no topo, com o ícone de copiar', async () => {
+it('mostra a razão social e o CNPJ do Cliente no topo, com o ícone de copiar', async () => {
   getProfile.mockResolvedValue({ contact_email: 'perfil@example.com', phone: '', address: '', city: '', state: '', zip: '' })
-  auth.overview = { contact_email: 'fallback@example.com', customer_cnpj_cpf: '12345678000190' } as typeof auth.overview
+  auth.overview = { contact_email: 'fallback@example.com', customer_name: 'TIMBRO TRADING S.A', customer_cnpj_cpf: '12345678000190' } as typeof auth.overview
   renderProfile()
 
   const header = screen.getByRole('heading', { level: 1, name: 'Meu perfil' }).closest('.page-header') as HTMLElement
+  expect(within(header).getByText('TIMBRO TRADING S.A')).toBeTruthy()
   expect(within(header).getByText('12.345.678/0001-90')).toBeTruthy()
   expect(within(header).getByRole('button', { name: /CNPJ/ })).toBeTruthy()
 })

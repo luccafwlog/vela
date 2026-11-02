@@ -114,11 +114,11 @@ describe('PortalLayout', () => {
     const menu = screen.getByRole('button', { name: 'Menu' })
     fireEvent.click(menu)
     expect(menu.getAttribute('aria-expanded')).toBe('true')
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.documentElement.style.overflow).toBe('hidden')
 
     act(() => viewportListeners.forEach((listener) => listener({ matches: false })))
 
     expect(menu.getAttribute('aria-expanded')).toBe('false')
-    expect(document.body.style.overflow).toBe('')
+    expect(document.documentElement.style.overflow).toBe('')
   })
 })

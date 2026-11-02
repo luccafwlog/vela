@@ -45,10 +45,13 @@ describe('contrato CSS de impressão de invoice', () => {
     // página 2 começava colada na borda do papel.
     const css = fs.readFileSync('src/index.css', 'utf8')
     const popup = fs.readFileSync('src/lib/printDocument.ts', 'utf8')
-    expect(css).toMatch(/@page\s*\{\s*size: A4;\s*margin: 10mm 0 12mm;/)
+    expect(css).toMatch(/@page\s*\{\s*size: A4;\s*margin: 20mm 0 12mm;/)
     expect(css).toContain('content: "Página " counter(page) " de " counter(pages);')
-    expect(popup).toContain('@page{size:A4;margin:10mm 0 12mm;')
+    expect(popup).toContain('@page{size:A4;margin:20mm 0 12mm;')
     expect(popup).toContain('counter(pages)')
+    // 2026-11-02: mais 8 mm no começo do documento, que valem também com "Margens: nenhuma".
+    expect(css).toContain('padding: 8mm 8mm 0 !important;')
+    expect(popup).toContain('.invoice-print-content{width:198mm;margin:0 auto;padding:8mm 8mm 0;')
   })
 
   it('papel branco: o fundo pontilhado do app não vai para a impressão', () => {

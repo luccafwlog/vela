@@ -93,7 +93,7 @@ describe('AppLayout (navegação visível)', () => {
     expect(menu.closest('header')).toBeTruthy()
     fireEvent.click(menu)
     expect(menu.getAttribute('aria-expanded')).toBe('true')
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.documentElement.style.overflow).toBe('hidden')
     // A lista vem antes do botão no documento: o foco entra nela ao abrir.
     expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Painel' }))
 
@@ -106,7 +106,7 @@ describe('AppLayout (navegação visível)', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(menu.getAttribute('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(menu)
-    expect(document.body.style.overflow).toBe('')
+    expect(document.documentElement.style.overflow).toBe('')
   })
 
   it('reúne marca, navegação e conta numa barra só, com a versão no menu da conta', () => {

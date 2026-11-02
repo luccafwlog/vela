@@ -117,3 +117,21 @@ it('Escape numa lista de sugestões aberta fecha só a lista, não o modal', asy
   await user.keyboard('{Escape}')
   expect(onClose).toHaveBeenCalledTimes(1)
 })
+
+// 2026-11-02: com `overflow-x: clip` no html, travar o body deixava a página
+// rolar por trás do modal (e tirava o cabeçalho sticky da tela); a trava é no html.
+it('trava a rolagem no html enquanto aberto e devolve o estado anterior ao fechar', () => {
+  document.documentElement.style.overflow = 'auto'
+  const { rerender } = render(<Modal open title="Teste" onClose={() => {}}><p>conteúdo</p></Modal>)
+  expect(document.documentElement.style.overflow).toBe('hidden')
+  expect(document.body.style.overflow).toBe('')
+  rerender(<Modal open={false} title="Teste" onClose={() => {}}><p>conteúdo</p></Modal>)
+  expect(document.documentElement.style.overflow).toBe('auto')
+  document.documentElement.style.overflow = ''
+})
+
+it('o backdrop não herda a margem das peças empilhadas da página (fresta sem desfoque no topo)', async () => {
+  const fs = await import('node:fs')
+  const css = fs.readFileSync('src/index.css', 'utf8')
+  expect(css).toMatch(/\.app-modal-backdrop \{\s*position: fixed;\s*inset: 0;[^}]*margin: 0;/)
+})

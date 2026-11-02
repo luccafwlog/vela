@@ -48,7 +48,7 @@ Manifesto Mercante é regra de
   (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar documentos
   na agência; não é requisito nem entra no pedido. Cartões que filtram ("Podem ser pedidos", "Com
   taxas locais em aberto", "Já em solicitação") e tabela limpa: B/L, CE Mercante, Navio / Viagem, POD,
-  Taxas locais ("✓ Pagas", "Em aberto" em âmbar, que é o próprio botão (sem ícone desde 2026-11-02; antes, ícone "Ver faturas em aberto" ao lado) e abre Faturas filtrada no B/L e no status Emitida (`?tab=local&status=issued&bl=`, desde 2026-11-01), "Aguardando fatura" sem valor,
+  Taxas locais ("✓ Pagas", "Em aberto" em âmbar, que é o próprio link, em texto, sem borda nem ícone (desde 2026-11-02; antes, ícone "Ver faturas em aberto" ao lado) e abre Faturas filtrada no B/L e no status Emitida (`?tab=local&status=issued&bl=`, desde 2026-11-01), "Aguardando fatura" sem valor,
   "Isentas") e Solicitação (protocolo e situação). Além de "Buscar B/L ou CE", a barra **Filtros**
   (recolhida, como no resto do Portal) filtra por Navio e Viagem por texto contido, e os cartões contam esse recorte
   (pedido do dono de 2026-11-02). A faixa "Pedir desbloqueio de N B/Ls" cria o

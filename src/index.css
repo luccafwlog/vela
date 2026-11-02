@@ -2501,6 +2501,10 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-modal-backdrop {
   position: fixed;
   inset: 0;
+  /* Sem margem: renderizado como filho direto de .app-main (telas do Portal),
+     o backdrop herdava o margin-top de 16px das peças empilhadas e deixava uma
+     fresta sem o desfoque no alto da tela (2026-11-02). */
+  margin: 0;
   z-index: 300;
   display: grid;
   place-items: center;
@@ -5794,10 +5798,13 @@ button.app-metric-tile[aria-pressed='true'] {
 
 @media print {
   /* Margem vertical na página (repete em todas) e numeração no rodapé; a
-     margem lateral fica no documento. Mesma folha de lib/printDocument.ts. */
+     margem lateral fica no documento. Mesma folha de lib/printDocument.ts.
+     Topo de 20 mm desde 2026-11-02 (pedido do dono: o cabeçalho ficava colado
+     na borda), mais 8 mm no começo do documento, que valem também quando o
+     navegador imprime com "Margens: nenhuma" e ignora a margem da página. */
   @page {
     size: A4;
-    margin: 10mm 0 12mm;
+    margin: 20mm 0 12mm;
 
     @bottom-right {
       content: "Página " counter(page) " de " counter(pages);
@@ -5913,7 +5920,7 @@ button.app-metric-tile[aria-pressed='true'] {
   .customer-report-print-content {
     max-width: 198mm !important;
     margin: 0 auto !important;
-    padding: 0 8mm !important;
+    padding: 8mm 8mm 0 !important;
     background: white !important;
     box-sizing: border-box !important;
     print-color-adjust: exact !important;
