@@ -77,11 +77,20 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
           BEGIN
             PERFORM public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"approved","new_value":"approved"}]'::jsonb);
             RAISE EXCEPTION 'Aceitou alteração sem justificativa';
-          EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+          EXCEPTION WHEN invalid_parameter_value THEN
+            -- 567: o banco recusa com o mesmo texto da tela da escala.
+            IF SQLERRM <> 'Informe a justificativa para alterar B/Ls e CEs.' THEN
+              RAISE EXCEPTION 'Recusa sem o texto da tela: %', SQLERRM;
+            END IF;
+          END;
           BEGIN
             PERFORM public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","new_value":"inexistente","justification":"Não deve aceitar status inválido"}]'::jsonb);
             RAISE EXCEPTION 'Aceitou status documental inválido';
-          EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+          EXCEPTION WHEN invalid_parameter_value THEN
+            IF SQLERRM <> 'Status de B/Ls e CEs inválido.' THEN
+              RAISE EXCEPTION 'Recusa de status sem o texto novo: %', SQLERRM;
+            END IF;
+          END;
         END; $$;
         SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"received","new_value":"partial","justification":"Estado legado"}]'::jsonb);
         SELECT public.record_audit_entries('[{"entity_type":"voyage_pod_schedule","entity_id":"13400001::BRVIX","field_name":"ces","old_value":"partial","new_value":"launching"}]'::jsonb);
