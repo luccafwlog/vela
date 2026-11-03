@@ -43,6 +43,8 @@ export type CustomerCommunicationCeMercanteRow = {
   blId: string
   ceMercante: string
   totalBrl: number
+  /** B/L isento das Taxas Locais (veículo LCL ou isenção à mão): sai só com o CE. */
+  exempt?: boolean
 }
 
 export type CustomerCommunicationDemurrageData = {
@@ -286,39 +288,65 @@ export function renderCeMercanteTaxasTemplate(input: CustomerCommunicationTempla
     throw new Error('B/L, CE Mercante e valor BRL são obrigatórios no resumo.')
   }
 
-  const totalBrl = input.totalBrl ?? rows.reduce((sum, row) => sum + row.totalBrl, 0)
+  const totalBrl = input.totalBrl ?? rows.reduce((sum, row) => sum + (row.exempt ? 0 : row.totalBrl), 0)
   if (!Number.isFinite(totalBrl) || totalBrl < 0) throw new Error('Total BRL inválido no resumo de taxas.')
   const vessel = clean(input.vesselName)
   const voyage = clean(input.voyageNumber)
   const port = input.port?.trim() ?? ''
   const customer = clean(input.customerName)
-  const title = 'CE Mercante e Taxas Locais disponíveis'
+  // Cliente com todos os B/Ls isentos (veículo LCL ou isenção à mão) não tem
+  // Taxa Local a pagar: o Comunicado informa só os CEs, sem valor, total nem
+  // botão de pagamento. Com B/L isento e B/L faturado juntos, o isento sai
+  // com "Isento" no lugar do valor e fica fora do total.
+  const onlyCe = rows.every((row) => row.exempt)
+  const title = onlyCe ? 'CE Mercante disponível' : 'CE Mercante e Taxas Locais disponíveis'
   const subject = `${title} — ${vessel} / ${voyage}${port ? ` — Porto de ${port}` : ''}`
   const subtitle = `${vessel} / ${voyage}${port ? ` · Porto de ${port}` : ''}`
   const portalUrl = customerPortalBillingUrl(input)
-  const sentence = 'Os CEs Mercantes abaixo já podem ser consultados no sistema Mercante, e as Taxas Locais da viagem podem ser pagas no Portal do Cliente.'
+  const sentence = onlyCe
+    ? 'Os CEs Mercantes abaixo já podem ser consultados no sistema Mercante. Os B/Ls desta viagem estão isentos de Taxas Locais.'
+    : 'Os CEs Mercantes abaixo já podem ser consultados no sistema Mercante, e as Taxas Locais da viagem podem ser pagas no Portal do Cliente.'
+  const value = (row: CustomerCommunicationCeMercanteRow) => (row.exempt ? 'Isento' : formatBrl(row.totalBrl))
   const greeting = hello(customer)
-  const body: RenderedBody = {
-    html: greeting.html
-      + emailParagraph(escapeHtml(sentence))
-      + kit.block('CE Mercante e Taxas Locais', emailStack(rows.map((row) => [
-        emailMono(row.ceMercante.trim()),
-        `B/L ${escapeHtml(row.blId.trim())}`,
-        escapeHtml(formatBrl(row.totalBrl)),
+  const body: RenderedBody = onlyCe
+    ? {
+      html: greeting.html
+        + emailParagraph(escapeHtml(sentence))
+        + kit.block('CE Mercante', emailStack(rows.map((row) => [
+          emailMono(row.ceMercante.trim()),
+          `B/L ${escapeHtml(row.blId.trim())}`,
+          '',
+          '',
+        ])), { flush: true }),
+      text: [
+        ...greeting.text,
+        sentence,
         '',
-      ])) + kit.totalRow('Total da viagem', escapeHtml(formatBrl(totalBrl))), { flush: true })
-      + kit.button('Ver faturas e formas de pagamento', portalUrl),
-    text: [
-      ...greeting.text,
-      sentence,
-      '',
-      'CE Mercante e Taxas Locais:',
-      ...rows.map((row) => `- CE ${row.ceMercante.trim()} (B/L ${row.blId.trim()}): ${formatBrl(row.totalBrl)}`),
-      `Total da viagem: ${formatBrl(totalBrl)}`,
-      '',
-      `Ver faturas e formas de pagamento: ${portalUrl}`,
-    ],
-  }
+        'CE Mercante:',
+        ...rows.map((row) => `- CE ${row.ceMercante.trim()} (B/L ${row.blId.trim()})`),
+      ],
+    }
+    : {
+      html: greeting.html
+        + emailParagraph(escapeHtml(sentence))
+        + kit.block('CE Mercante e Taxas Locais', emailStack(rows.map((row) => [
+          emailMono(row.ceMercante.trim()),
+          `B/L ${escapeHtml(row.blId.trim())}`,
+          escapeHtml(value(row)),
+          '',
+        ])) + kit.totalRow('Total da viagem', escapeHtml(formatBrl(totalBrl))), { flush: true })
+        + kit.button('Ver faturas e formas de pagamento', portalUrl),
+      text: [
+        ...greeting.text,
+        sentence,
+        '',
+        'CE Mercante e Taxas Locais:',
+        ...rows.map((row) => `- CE ${row.ceMercante.trim()} (B/L ${row.blId.trim()}): ${value(row)}`),
+        `Total da viagem: ${formatBrl(totalBrl)}`,
+        '',
+        `Ver faturas e formas de pagamento: ${portalUrl}`,
+      ],
+    }
   const mail = renderMail({ title, subtitle, body, portalUrl: input.portalUrl, contactEmail: COMMUNICATIONS_CONTACT_EMAIL })
   return {
     kind: 'ce_mercante_taxas',

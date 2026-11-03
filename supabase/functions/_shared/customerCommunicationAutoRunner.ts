@@ -156,7 +156,7 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
               voyage_number?: string
               port?: string
               milestone_at?: string
-              bls?: Array<{ bl_id: string; ce_mercante: string | null; total_brl: number | null }>
+              bls?: Array<{ bl_id: string; ce_mercante: string | null; total_brl: number | null; exempt?: boolean }>
             }
           })
         : null
@@ -164,6 +164,7 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
         blId: row.bl_id,
         ceMercante: row.ce_mercante ?? '',
         totalBrl: Number(row.total_brl ?? 0),
+        exempt: row.exempt === true,
       })) ?? []
       const rendered = renderCustomerCommunicationTemplate(candidate.kind, {
         customerId: candidate.customer_id,
@@ -186,7 +187,7 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
         terminalName: candidate.terminal_name ?? null,
         portalUrl: deps.portalUrl,
         ceMercanteRows: financeRows,
-        totalBrl: financeRows.reduce((sum, row) => sum + row.totalBrl, 0),
+        totalBrl: financeRows.reduce((sum, row) => sum + (row.exempt ? 0 : row.totalBrl), 0),
       })
       const recipients = candidate.emails ?? []
       if (!recipients.length) {

@@ -116,6 +116,42 @@ describe('templates de Comunicados', () => {
     expect(rendered.html).not.toMatch(/PIX|vencimento|anexo/i)
   })
 
+  it('CE Mercante de Cliente só com B/Ls isentos sai só com os CEs, sem valor, total nem botão de pagamento', () => {
+    const rendered = renderCeMercanteTaxasTemplate(input({
+      ceMercanteRows: [
+        { blId: 'BL-20', ceMercante: '111111111111111', totalBrl: 0, exempt: true },
+        { blId: 'BL-21', ceMercante: '222222222222222', totalBrl: 0, exempt: true },
+      ],
+      portalUrl: 'https://portal.example/billing',
+    }))
+
+    expect(rendered.subject).toBe('CE Mercante disponível — Navio <A> / V001 — Porto de BRSSZ')
+    expect(rendered.html).toContain('>CE Mercante disponível</h1>')
+    expect(rendered.html).toContain('Os B/Ls desta viagem estão isentos de Taxas Locais.')
+    expect(rendered.html).toContain('111111111111111')
+    expect(rendered.html).toContain('B/L BL-21')
+    expect(rendered.blIds).toEqual(['BL-20', 'BL-21'])
+    expect(rendered.html).not.toMatch(/R\$|Total da viagem|Ver faturas e formas de pagamento|podem ser pagas/)
+    expect(rendered.text).toContain('- CE 222222222222222 (B/L BL-21)')
+    expect(rendered.text).not.toMatch(/R\$|Total da viagem|Ver faturas/)
+  })
+
+  it('CE Mercante com B/L isento e B/L faturado mostra "Isento" e soma só o faturado', () => {
+    const rendered = renderCeMercanteTaxasTemplate(input({
+      ceMercanteRows: [
+        { blId: 'BL-30', ceMercante: '333333333333333', totalBrl: 0, exempt: true },
+        { blId: 'BL-31', ceMercante: '444444444444444', totalBrl: 250 },
+      ],
+      portalUrl: 'https://portal.example/billing',
+    }))
+
+    expect(rendered.subject).toBe('CE Mercante e Taxas Locais disponíveis — Navio <A> / V001 — Porto de BRSSZ')
+    expect(rendered.text).toContain('- CE 333333333333333 (B/L BL-30): Isento')
+    expect(rendered.text).toMatch(/- CE 444444444444444 \(B\/L BL-31\): R\$\s250,00/)
+    expect(rendered.text).toMatch(/Total da viagem: R\$\s250,00/)
+    expect(rendered.html).toContain('>Ver faturas e formas de pagamento</a>')
+  })
+
   it('renderiza Demurrage com USD, BRL informativo, ROE e recálculo no pagamento', () => {
     const rendered = renderDemurrageTemplate(input({
       demurrage: {

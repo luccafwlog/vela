@@ -154,7 +154,7 @@ Há dois jeitos de mandar um texto seu:
 
 **Quem faz:** {{Qualquer equipe}}. Na rotina, a {{Documentação}}.
 
-O Comunicado de CE e Taxas traz, para cada B/L do Cliente na Viagem, o CE Mercante e o valor faturado, com o total da viagem e um botão para as faturas no Portal. Ele sai sozinho uma vez por Cliente e Viagem, quando o Cliente fica pronto: todos os B/Ls dele naquela Viagem com CE, sem pendência na Revisão e faturados. A ATLANTICO IMPORTADORA, com um B/L para Salvador e outro para Vitória, só recebe quando os dois estão prontos; um Cliente não espera o outro.
+O Comunicado de CE e Taxas traz, para cada B/L do Cliente na Viagem, o CE Mercante e o valor faturado, com o total da viagem e um botão para as faturas no Portal. Ele sai sozinho uma vez por Cliente e Viagem, quando o Cliente fica pronto: todos os B/Ls dele naquela Viagem com CE, sem pendência na Revisão e faturados. O B/L **Isento** das Taxas Locais (veículo LCL ou isenção à mão) não espera fatura, só o CE: no e-mail ele aparece com "Isento" no lugar do valor, e o Cliente que só tem B/Ls isentos na Viagem recebe **CE Mercante disponível**, só com os CEs, sem valor, total nem botão das faturas. A ATLANTICO IMPORTADORA, com um B/L para Salvador e outro para Vitória, só recebe quando os dois estão prontos; um Cliente não espera o outro.
 
 Mande à mão quando:
 
