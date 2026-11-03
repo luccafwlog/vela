@@ -623,7 +623,7 @@ export async function exportLineUpWorkbook(rows: LineUpRow[]) {
     Linked: (row.rowType === 'export' ? row.exportLinked : row.linked) ? 'Sim' : 'Não',
   }))
   const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Line Up')
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Line-Up')
   XLSX.writeFile(workbook, `painel-lineup-${makeTimestamp()}.xlsx`)
 }
 

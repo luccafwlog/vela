@@ -536,7 +536,7 @@ Em `/chegadas-saidas` (regras em
 **Esperado:** datas persistem, o Portal reflete a programação, e a saída da
 viagem segue [Saída da Programação](../modules/chegadas-saidas.md#saída-da-programação).
 
-## 15. Admin, alertas, relatórios e Line Up
+## 15. Admin, alertas, relatórios e Line-Up
 
 - `/admin/usuarios`: crie um usuário de QA (**Novo usuário**), troque e-mail e
   senha (**Editar acesso**), troque o setor (**Alterar setor**) e confirme que

@@ -68,7 +68,7 @@ export function Painel() {
       const { exportLineUpWorkbook } = await import('../services/exports')
       await exportLineUpWorkbook(rows)
     } catch {
-      showToast('Falha ao exportar o Line Up.', 'error')
+      showToast('Falha ao exportar o Line-Up.', 'error')
     } finally {
       setIsExporting(false)
     }
@@ -123,10 +123,10 @@ export function Painel() {
         activeCount={activeFilterCount}
       />
 
-      {lineUpError ? <InlineError message="Erro ao carregar o Line Up." /> : null}
+      {lineUpError ? <InlineError message="Erro ao carregar o Line-Up." /> : null}
 
       <Block
-        title="Line Up"
+        title="Line-Up"
         aside={(
           <span className="flex flex-wrap items-center gap-3">
             <span>{isLineUpLoading ? '—' : lineUpCountLabel(rows.length, lineup)}</span>
@@ -169,7 +169,7 @@ function UnassignedMtyNote({ items }: { items: LineUpUnassignedMty[] }) {
   return (
     <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-sm">
       <StatusText tone="warning">
-        {total} {total === 1 ? 'vazio de importação sem escala' : 'vazios de importação sem escala'} no Line Up:
+        {total} {total === 1 ? 'vazio de importação sem escala' : 'vazios de importação sem escala'} no Line-Up:
       </StatusText>{' '}
       {items.map((item, index) => (
         <span key={`${item.voyageId}::${item.pod ?? ''}`}>
