@@ -12,7 +12,7 @@ completa do que o sistema faz; o manual escolhe o que ensinar.
 
 ## Como o texto é escrito: o padrão enxuto
 
-Decisão do dono de 2026-10-29 ([plano](../../plans/2026-10-26-manual-do-operador.md#padrão-enxuto-o-manual-é-uma-aula)).
+Decisão do dono de 2026-10-29 ([plano](../../archive/plans/2026-10-26-manual-do-operador.md#padrão-enxuto-o-manual-é-uma-aula)).
 O manual é uma aula sobre o Vela: quem escreve explica o sistema a um colega e
 escolhe o que detalhar e o que omitir. O teste de cada frase é "a pessoa
 precisa disto para fazer o trabalho, e a tela não diz?". Se não, sai.

@@ -2,7 +2,7 @@
 
 Você vai mapear **uma área** do Vela (sistema interno da agência marítima
 Transhipping; o Cliente usa o Portal Fwlog) para o futuro Manual do Operador.
-Leia o plano em `/home/user/vela/docs/plans/2026-10-26-manual-do-operador.md`,
+Leia o plano em `/home/user/vela/docs/archive/plans/2026-10-26-manual-do-operador.md`,
 em especial "Princípios", "Escopo completo", "Sumário proposto" e "Etapa 1".
 
 Objetivo da área: **toda regra de negócio que o código implementa hoje** vira
@@ -43,7 +43,7 @@ JSON, sem `.json`). Português do Brasil, com acentos. Estrutura obrigatória:
 ```markdown
 # Cobertura — <nome da área>
 
-Mapeamento da Etapa 1 do [plano do Manual do Operador](../../plans/2026-10-26-manual-do-operador.md),
+Mapeamento da Etapa 1 do [plano do Manual do Operador](../../archive/plans/2026-10-26-manual-do-operador.md),
 lido no código da `staging` em `9839364` e no banco local com as 461
 migrations, em 2026-10-26. Cada linha é uma regra como o operador a vê; a
 coluna "Itens do código" liga a regra ao que a implementa.

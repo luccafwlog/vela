@@ -1,7 +1,7 @@
 # PDF do Manual do Operador
 
 Gerador do PDF do Manual do Operador (Etapa 2 do
-[plano](../../../docs/plans/2026-10-26-manual-do-operador.md)). O texto fica em
+[plano](../../../docs/archive/plans/2026-10-26-manual-do-operador.md)). O texto fica em
 [`docs/manual/texto/`](../../../docs/manual/texto/README.md); as imagens saem
 do Vela local, com o cenário de demonstração; o PDF sai em `artifacts/manual/`,
 fora do Git.

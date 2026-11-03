@@ -1,7 +1,7 @@
 # Manual do Operador
 
 Fonte do Manual do Operador do Vela, escrito a partir do comportamento atual do
-sistema ([plano](../plans/2026-10-26-manual-do-operador.md)). O manual diz como
+sistema ([plano](../archive/plans/2026-10-26-manual-do-operador.md)). O manual diz como
 agir; a regra continua no documento de módulo.
 
 O mapeamento que deu origem à matriz (números, quem faz o quê pelo código,
@@ -34,6 +34,35 @@ chegada e à saída do navio, às datas dos containers, à exportação, ao ADR 
 Saída e aos alertas de cada equipe. O PDF sai
 de `npm run manual:guia -- viagem`, e o `manual:check` confere também o texto
 dos guias.
+
+## Pendências
+
+O plano que produziu a versão 1.0 está no
+[arquivo histórico](../archive/plans/2026-10-26-manual-do-operador.md). O que
+ficou para depois (2026-11-03):
+
+1. **Imagens que o ambiente local não gera:** a lista de usuários da
+   Administração (depende de função do servidor) e as telas do Pix com a
+   cobrança pelo Itaú ligada. O texto descreve essas telas sem imagem.
+2. **Recusas sem acento:** cerca de 280 mensagens de recusa do servidor, em
+   cerca de 150 funções, ainda saem sem acento. A maioria está em funções
+   antigas ou em guardas que a tela não deixa chegar à pessoa; as que o manual
+   cita foram corrigidas (migrations `567`, `571` e `572`). Uma varredura geral
+   depende de decisão do dono.
+3. **Não reconferidos desde 2026-10-31:** o módulo
+   [Reconciliação Pix](../modules/reconciliacao-pix.md), que pode se contradizer
+   sobre o QR estático, e o material do Cliente em
+   `artifacts/portal-onboarding-cliente/`.
+4. **Capturas sugeridas e não feitas:** tabelas de cobrança, Conciliação PIX,
+   Restituições, Editar acesso e Prazo do ADR, apontadas na redação dos guias
+   do Financeiro e do Administrativo (que o dono não adotou).
+5. **Texto desatualizado não é acusado por check:** o `manual:check` confere
+   linguagem, capturas citadas e regras citadas, e o `manual:coverage` confere
+   que todo item do sistema tem lugar na matriz; nenhum dos dois percebe um
+   capítulo que descreve um botão com o nome antigo. Rodar `manual:capture`
+   periodicamente acusaria a tela que mudou (a captura falha ao achar o
+   elemento); fica a decidir pelo dono.
+6. **Guia do Cliente para o Portal Fwlog:** opcional, a decidir.
 
 ## Catálogo de situações
 

@@ -1,6 +1,6 @@
 # Cobertura — CE Mercante, Manifesto Mercante e Baplie (EDI)
 
-Mapeamento da Etapa 1 do [plano do Manual do Operador](../../plans/2026-10-26-manual-do-operador.md),
+Mapeamento da Etapa 1 do [plano do Manual do Operador](../../archive/plans/2026-10-26-manual-do-operador.md),
 lido no código da `staging` em `9839364` e no banco local com as 461
 migrations, em 2026-10-26. Cada linha é uma regra como o operador a vê; a
 coluna "Itens do código" liga a regra ao que a implementa. Mantido em dia

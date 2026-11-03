@@ -104,10 +104,9 @@ DNS, secret name, webhook, scheduled job, hosting, e-mail routing) also updates
 change; record names and locations of secrets, never their values. A change the
 operator can see (label, step, refusal, automatic effect, alert, e-mail, permission)
 also updates the [Manual do Operador](docs/manual/README.md) and its coverage
-matrix: in the same change once the manual text is in `staging`; while the manual's
-own PR is open, in that PR, after the code change merges. Exception: a change to a
-system message's text updates the matrix in the same change, because
-`npm run manual:coverage` fails CI otherwise. Read `docs/README.md` before broad
+matrix in the same change; `npm run manual:check` and `npm run manual:coverage`
+fail CI when the text cites a capture or rule that no longer exists or a system
+item has no place in the matrix. Read `docs/README.md` before broad
 documentation or architecture changes.
 
 Each fact has one owner document ([ADR 0082](docs/adr/0082-governanca-documental-dono-unico-e-adr-historica.md)):

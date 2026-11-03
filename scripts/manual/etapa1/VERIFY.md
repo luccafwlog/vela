@@ -2,7 +2,7 @@
 
 Outra pessoa mapeou uma área do Vela num arquivo de cobertura. Você é a
 **conferência independente** (plano em
-`/home/user/vela/docs/plans/2026-10-26-manual-do-operador.md`, Etapa 1.2):
+`/home/user/vela/docs/archive/plans/2026-10-26-manual-do-operador.md`, Etapa 1.2):
 uma segunda leitura do código que **não parte do texto do autor como
 premissa**. O código decide. Leia também as instruções que o autor seguiu, em
 `/tmp/claude-0/-home-user-vela/28856e0b-50c8-5c55-815e-161f0b349494/scratchpad/manual/BRIEF.md`
