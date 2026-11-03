@@ -9,7 +9,9 @@ const MAX_ATTEMPTS = 5
 export type OutboxRow = {
   id: number
   customer_id: number
-  request_id: string
+  /** Nulo no aviso do B/L VIP sem solicitação (migration 581), que traz `bl_id`. */
+  request_id: string | null
+  bl_id?: string | null
   kind: 'changes_requested' | 'documentation_validated'
   subject: string
   body: string
@@ -55,6 +57,18 @@ export function ceUnlockNoticeBls(
   const out = new Set(moved.map((event) => event.bl_id))
   const current = new Set(owned)
   return items.map((item) => item.bl_id).filter((bl) => !out.has(bl) && current.has(bl))
+}
+
+/**
+ * Bloco do e-mail: protocolo e B/Ls da solicitação da linha. O aviso do B/L VIP sem
+ * solicitação (migration 581, ADR 0119) não tem protocolo: o bloco traz só o B/L.
+ */
+export async function ceUnlockNoticeRequest(
+  row: Pick<OutboxRow, 'request_id' | 'bl_id'>,
+  details: (requestId: string) => Promise<{ protocol: string; bls: string[] }>,
+): Promise<{ protocol: string; bls: string[] }> {
+  if (row.request_id) return details(row.request_id)
+  return { protocol: '', bls: row.bl_id ? [row.bl_id] : [] }
 }
 
 function errorMessage(error: unknown): string {

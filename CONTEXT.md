@@ -1679,8 +1679,10 @@ recebido, marcado pelo desk). Aprovar documentos não desbloqueia o CE.
 **B/L dispensado de solicitação**
 Veículo em LCL com Taxas Locais isentas: não tem solicitação, termo nem
 procuração; a entrega do B/L original registrada pelo desk o deixa apto para a
-ZPT. A isenção à mão não dispensa os documentos.
-→ Regra: [Desbloqueio de CE § B/L dispensado de solicitação](docs/modules/desbloqueio-ce.md#bl-dispensado-de-solicitação-veículo-lcl-isento)
+ZPT. A isenção à mão não dispensa os documentos. O B/L do Cliente VIP coberto
+pelos dois anuais também não tem solicitação: Taxas Locais pagas e B/L original
+entregue o deixam apto, com aviso de documentação validada por B/L.
+→ Regra: [Desbloqueio de CE § B/L dispensado de solicitação](docs/modules/desbloqueio-ce.md#bl-dispensado-de-solicitação-veículo-lcl-isento-e-vip)
 
 **Documentação validada**
 Situação da solicitação cujos B/Ls têm os quatro requisitos; é o que o Cliente
@@ -1689,14 +1691,15 @@ Cliente nunca vê nada da ZPT.
 → Regra: [Desbloqueio de CE § Conclusão](docs/modules/desbloqueio-ce.md#conclusão)
 
 **Condição VIP**
-Condição por CNPJ em que termo e procuração anuais aprovados substituem os
-anexos de cada pedido dos B/Ls que eles cobrem, e a solicitação não passa pela
-análise. Não dispensa pagamento nem entrega por B/L; o selo VIP sem anual que
-cubra os B/Ls não dispensa nada. O anual cobre todo CE cujo desbloqueio foi
-solicitado dentro da vigência dele (dia do envio da solicitação), sem olhar a importação do B/L nem o
-vínculo do CE, inclusive depois de o anual vencer. Sem anual que cubra os
-B/Ls (faltando, recusado, revogado ou com o desbloqueio solicitado fora da vigência), o VIP pede como os demais, com
-termo e procuração anexados à solicitação.
+Condição por CNPJ em que termo e procuração anuais aprovados dispensam a
+solicitação dos B/Ls que eles cobrem: pagas as Taxas Locais e entregue o B/L
+original, o B/L fica apto (B/L dispensado de solicitação). Não dispensa pagamento
+nem entrega por B/L; o selo VIP sem anual que cubra o B/L não dispensa nada. Sem
+solicitação, o anual cobre o B/L se estiver vigente entre o pagamento e a entrega
+e a exportação; na
+solicitação VIP aberta antes dessa regra, o desbloqueio solicitado dentro dela.
+Sem os dois anuais cobrindo (faltando, recusado, revogado ou fora da vigência),
+o VIP pede como os demais, com termo e procuração anexados à solicitação.
 → Regra: [Desbloqueio de CE § Requisitos e condição VIP](docs/modules/desbloqueio-ce.md#requisitos-e-condição-vip)
 
 **Exportação para a ZPT**
