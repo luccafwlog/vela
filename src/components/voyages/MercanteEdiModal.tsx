@@ -6,6 +6,7 @@ import { useMercanteEdiInput } from '../../hooks/useManifestosMercante'
 import { formatDate, formatCountLabel } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
 import {
+  buildMercanteBreakbulkEdi,
   buildMercanteCargoEdi,
   buildMercanteVaziosEdi,
   mercanteFileName,
@@ -15,7 +16,8 @@ import {
 } from '../../services/mercanteEdi'
 import type { MercanteCargoInput, MercanteVaziosInput } from '../../services/mercanteEdiData'
 
-export type MercanteEdiRoute = { pol: string; pod: string; label: string; kind: 'carga' | 'vazio' }
+/** `carga_solta`: arquivo parcial, com o que a equipe completa antes de enviar. */
+export type MercanteEdiRoute = { pol: string; pod: string; label: string; kind: 'carga' | 'carga_solta' | 'vazio' }
 
 function downloadText(filename: string, content: string) {
   const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }))
@@ -57,29 +59,37 @@ export function MercanteEdiModal({ voyageId, route, onClose }: { voyageId: numbe
   const result = useMemo<(MercanteEdiResult & { extra: MercanteEdiIssue[] }) | null>(() => {
     if (!data) return null
     const extra: MercanteEdiIssue[] = []
-    if (!data.hasBaplie && route.kind === 'carga') {
+    if (!data.hasBaplie && route.kind !== 'vazio') {
       extra.push({ severity: 'aviso', ref: null, message: 'A Viagem não tem Baplie importado: o IMO vem do Baplie, então nenhum contêiner sai como carga perigosa. Importe o Baplie antes de enviar.' })
     }
     if (isCargo(data)) {
       for (const skipped of data.skippedBls) {
-        extra.push({ severity: 'aviso', ref: skipped.id, message: `Fora do arquivo: ${skipped.reason} ainda não entra no EDI Mercante.` })
+        extra.push({ severity: 'aviso', ref: skipped.id, message: `Fora deste arquivo: ${skipped.reason} vai no EDI Mercante da carga solta (botão da mesma linha).` })
       }
-      return { ...buildMercanteCargoEdi(data.header, data.bls), extra }
+      const build = route.kind === 'carga_solta' ? buildMercanteBreakbulkEdi : buildMercanteCargoEdi
+      return { ...build(data.header, data.bls), extra }
     }
     return { ...buildMercanteVaziosEdi(data.header, data.vazios), extra }
   }, [data, route.kind])
 
   const impedimentos = result?.issues.filter((issue) => issue.severity === 'impedimento') ?? []
+  const completar = result?.issues.filter((issue) => issue.severity === 'completar') ?? []
   const avisos = [...(result?.extra ?? []), ...(result?.issues.filter((issue) => issue.severity === 'aviso') ?? [])]
-  const title = route.kind === 'vazio' ? `EDI Mercante de vazios · ${route.label}` : `EDI Mercante · ${route.label}`
+  const title = route.kind === 'vazio'
+    ? `EDI Mercante de vazios · ${route.label}`
+    : route.kind === 'carga_solta' ? `EDI Mercante de carga solta · ${route.label}` : `EDI Mercante · ${route.label}`
 
   let counts: string | null = null
   if (data && isCargo(data)) {
     const containers = data.bls.flatMap((bl) => bl.containers)
+    const breakbulkItems = data.bls.reduce((total, bl) => total + bl.breakbulkItems.length, 0)
+    const vehicles = data.bls.reduce((total, bl) => total + bl.vehicles.length, 0)
     counts = [
       formatCountLabel(data.bls.length, 'B/L', 'B/Ls'),
       formatCountLabel(containers.length, 'contêiner', 'contêineres'),
-      `${containers.filter((container) => container.shared).length} divididos entre B/Ls`,
+      ...(route.kind === 'carga_solta'
+        ? [formatCountLabel(breakbulkItems, 'item de carga solta', 'itens de carga solta'), formatCountLabel(vehicles, 'veículo', 'veículos')]
+        : [`${containers.filter((container) => container.shared).length} divididos entre B/Ls`]),
       `${containers.filter((container) => container.isImo).length} IMO`,
     ].join(' · ')
   } else if (data) {
@@ -111,8 +121,11 @@ export function MercanteEdiModal({ voyageId, route, onClose }: { voyageId: numbe
           <>
             {impedimentos.length
               ? <p role="status"><StatusText tone="danger">O arquivo não pode ser baixado enquanto houver impedimento.</StatusText></p>
-              : <p role="status">Pronto para baixar. O envio ao Mercante continua fora do Vela.</p>}
+              : completar.length
+                ? <p role="status">Arquivo parcial: complete os itens de "A completar" antes de enviar ao Mercante.</p>
+                : <p role="status">Pronto para baixar. O envio ao Mercante continua fora do Vela.</p>}
             <IssueList title="Impedimentos" issues={impedimentos} tone="danger" />
+            <IssueList title="A completar" issues={completar} tone="warning" />
             <IssueList title="Avisos" issues={avisos} tone="warning" />
           </>
         ) : null}

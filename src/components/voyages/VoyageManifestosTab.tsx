@@ -4,7 +4,7 @@ import { ManifestoBlsModal } from './ManifestoBlsModal'
 import { MercanteEdiModal, type MercanteEdiRoute } from './MercanteEdiModal'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
 import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
-import { FileDown, FilePlus2, List, Pencil } from 'lucide-react'
+import { FileDown, FilePen, FilePlus2, List, Pencil } from 'lucide-react'
 import { RowActionButton } from '../ui/RowActionButton'
 import { Block } from '../ui/Block'
 import { StatusText } from '../ui/StatusText'
@@ -98,8 +98,10 @@ export function VoyageManifestosTab({
                   const manifestPending = !routeManifestos.length && !row.ceMaster && (row.blCount > 0 || row.isVazios)
                   const editPayload = { voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode }
                   const cannotEdit = !canEdit || !row.pol || row.pol === '-'
-                  // EDI Mercante: linha de container (CNTR ou CNTR/BB) e linha VAZIOS; carga solta fica para depois.
+                  // EDI Mercante: arquivo de contêiner (CNTR, CNTR/BB) e de vazios; a carga
+                  // solta (BB, CNTR/BB) tem arquivo próprio, parcial, que a equipe completa.
                   const canGenerateEdi = row.isVazios ? (row.containerCount ?? 0) > 0 : row.blCount > 0 && row.modeLabel !== 'BB'
+                  const canGenerateBreakbulkEdi = !row.isVazios && row.blCount > 0 && (row.modeLabel === 'BB' || row.modeLabel === 'CNTR/BB')
                   return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
                       <td className="app-table__text whitespace-nowrap">
@@ -151,6 +153,15 @@ export function VoyageManifestosTab({
                               icon={FileDown}
                               title="Gerar EDI Mercante"
                               onClick={() => setEdiRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel, kind: row.isVazios ? 'vazio' : 'carga' })}
+                              disabled={cannotEdit}
+                            />
+                          ) : null}
+                          {canGenerateBreakbulkEdi ? (
+                            <RowActionButton
+                              label={`Gerar EDI Mercante da carga solta de ${row.routeLabel} (parcial)`}
+                              icon={FilePen}
+                              title="Gerar EDI Mercante da carga solta (parcial, a equipe completa)"
+                              onClick={() => setEdiRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel, kind: 'carga_solta' })}
                               disabled={cannotEdit}
                             />
                           ) : null}

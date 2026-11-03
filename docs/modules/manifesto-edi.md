@@ -1126,13 +1126,14 @@ ao Mercante continua fora do Vela. **Código:**
   decimais implícitos. Carga: um M5 (manifesto), um C5 por B/L de contêiner
   ativo da rota (ordem do número do B/L) e um I5 por contêiner do B/L. Vazios:
   um M5 e um V5 por contêiner vazio da rota (substitui a planilha de três
-  colunas).
+  colunas). Carga solta: arquivo parcial (abaixo).
 - **Cabeçalho (M5).** Armador pelo SCAC do cadastro, IMO e número da Viagem,
   POL e POD da rota, **encerramento** = ATD do POL da rota e **operação** = ETA
   do POD, terminal = o da frente de operação de importação do POD na escala
   com a modalidade do arquivo (carga cheia para contêiner, a mesma que
-  `resolve_bl_terminal_id` usa no B/L sem exceção; vazio para vazios). O B/L
-  com exceção de terminal leva o terminal dele no C5.
+  `resolve_bl_terminal_id` usa no B/L sem exceção; carga solta para o arquivo
+  de carga solta; vazio para vazios). O B/L com exceção de terminal leva o
+  terminal dele no C5.
   CNPJ da agência = Transhipping (`src/config/company.ts`).
 - **Conhecimento (C5).** Consignatário, CNPJ/CPF, embarcador, notify (o
   próprio consignatário quando o B/L diz "SAME AS CONSIGNEE"), data de
@@ -1172,11 +1173,26 @@ ao Mercante continua fora do Vela. **Código:**
   descrição que não coube, B/L sem total de volumes, contêiner sem lacre ou com
   mais de quatro, mais NCM que o campo comporta, despesa que não é THD (fica
   fora), Viagem sem Baplie e B/L de carga solta ou misto da rota (fica fora do
-  arquivo nesta fase).
+  arquivo de contêiner e entra no de carga solta).
+- **Arquivo parcial de carga solta** ([ADR 0116](../adr/0116-edi-mercante-gerado-pelo-vela.md),
+  item 8; decisão do dono de 2026-11-03). **Gerar EDI Mercante da carga
+  solta** (ícone de arquivo com lápis), nas linhas **BB** e **CNTR/BB**, gera um
+  arquivo com os B/Ls ativos de carga solta e mistos da rota: C5 com o que o
+  Vela tem (o bloco das partes ou, no Manifesto BB e no B/L avulso, o nome
+  curto; CNPJ; descrição; NCM; cubagem de contêiner + carga solta) e um I5 por
+  item: tipo 1 para o contêiner do B/L misto, tipo 2 para cada item de carga
+  solta (`bl_breakbulk_items`: peso, quantidade, marca = marcas do item,
+  contramarca = descrição do item, cubagem) e tipo 4 para cada veículo fora de
+  contêiner (`vehicles`: peso, chassi, marca, modelo como contramarca). Terminal
+  do M5: o da frente de carga solta do POD. O que falta (data de emissão,
+  frete, Type of Movement, terminal, código do tipo de embalagem da tabela 71
+  do Siscomex, que o Vela não tem…) sai em branco e aparece em **A completar**,
+  por B/L e campo; nada disso impede o download. Só a rota sem B/L de carga
+  solta impede. A rota CNTR/BB gera os dois arquivos.
 - **Nome do arquivo.** `FWL_MERCANTE_<AAAAMMDDHHMM>_<sigla>.TXT`, com a sigla
   das iniciais do navio e o número da viagem (GREEN GUANGZHOU V.6 → `GG6`).
-- **Fora desta fase.** Manifesto de carga solta (I5 de carga solta e veículo),
-  registro da geração no Histórico e retificação.
+- **Fora desta fase.** Registro da geração no Histórico, retificação e o
+  de→para da unidade de embalagem para a tabela 71 do Siscomex.
 
 ### Baplie: marcas, SOC/COC e divergências
 

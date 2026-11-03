@@ -33,7 +33,7 @@ vi.mock('../voyageRouteSchedules', () => ({
   listVoyagePodSchedules: async ([entity]: string[]) => new Map([[entity, { eta: '2026-11-09' }]]),
 }))
 
-import { loadMercanteCargoInput, loadMercanteVaziosInput } from '../mercanteEdiData'
+import { loadMercanteBreakbulkInput, loadMercanteCargoInput, loadMercanteVaziosInput } from '../mercanteEdiData'
 
 beforeEach(() => {
   db.tables = {
@@ -43,14 +43,21 @@ beforeEach(() => {
     voyage_escala_operation_fronts: [
       { voyage_id: 169, port: 'BRVIX', sentido: 'importacao', modalidade: 'vazio', terminal_id: 't-pmac' },
       { voyage_id: 169, port: 'BRVIX', sentido: 'importacao', modalidade: 'carga_cheia', terminal_id: 't-tvv' },
+      { voyage_id: 169, port: 'BRVIX', sentido: 'importacao', modalidade: 'carga_solta', terminal_id: 't-pmac' },
     ],
     baplie_containers: [],
     bls: [
       { id: 'BL1', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIT', cargo_mode: 'container', cancelled_at: null, terminal_id: null, ncm_codes: [] },
       { id: 'BL2', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'container', cancelled_at: null, terminal_id: 't-novo', ncm_codes: [] },
-      { id: 'BL3', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'carga_solta', cancelled_at: null, terminal_id: null, ncm_codes: [] },
+      { id: 'BL3', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'carga_solta', cancelled_at: null, terminal_id: null, ncm_codes: [], consignee: 'ACME LTDA', consignee_block: null, shipper: 'SANY', notify_party: null, total_cbm: null, bb_cbm: 120.5, bb_packages_total: 3 },
+      { id: 'BL4', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'misto', cancelled_at: null, terminal_id: null, ncm_codes: [], total_cbm: 68, bb_cbm: 10 },
     ],
-    bl_containers: [],
+    bl_containers: [{ id: 1, bl_id: 'BL4', container_number: 'ABCU1234567', type: '40HC' }],
+    bl_breakbulk_items: [{ id: 1, bl_id: 'BL3', item_description: 'EXCAVATOR', package_qty: 2, package_unit: 'UNITS', gross_weight_kg: 43800, cbm: 120.5, marks: 'SANY' }],
+    vehicles: [
+      { id: 1, bl_id: 'BL3', container_id: null, chassis: 'SYS11021TT3C60990', weight_kg: 21900, brand: 'SANY', model: 'SY215C' },
+      { id: 2, bl_id: 'BL4', container_id: 1, chassis: 'INSIDE00000000001', weight_kg: 1500, brand: 'BYD', model: 'DOLPHIN' },
+    ],
     bl_freight_lines: [],
     vazios_importacao_containers: [
       { id: 1, container_number: 'fbiu4825306', container_type: '40FH', tare_kg: 5200, pol: 'TAICANG', pod: 'VITORIA', manifest: { voyage_id: 169 } },
@@ -66,7 +73,24 @@ describe('loadMercanteCargoInput', () => {
     expect(input.header).toMatchObject({ terminalCode: 'BRVIX004', terminalDepot: 'TVV', closingDate: '2026-09-30', operationDate: '2026-11-09', carrierCode: 'CN001321' })
     expect(input.bls.map((bl) => bl.id)).toEqual(['BL1', 'BL2'])
     expect(input.bls[1]).toMatchObject({ terminalCode: null, terminalDepot: 'NOVO' })
-    expect(input.skippedBls).toEqual([{ id: 'BL3', reason: 'carga solta' }])
+    expect(input.skippedBls).toEqual([{ id: 'BL3', reason: 'carga solta' }, { id: 'BL4', reason: 'B/L misto (contêiner e carga solta)' }])
+  })
+})
+
+describe('loadMercanteBreakbulkInput', () => {
+  it('lê carga solta e misto da rota, com a frente de carga solta, os itens e os veículos fora de contêiner', async () => {
+    const input = await loadMercanteBreakbulkInput(169, 'CNTAC', 'BRVIX')
+
+    expect(input.header).toMatchObject({ terminalCode: 'BRVIX006', terminalDepot: 'PORTMAC' })
+    expect(input.bls.map((bl) => bl.id)).toEqual(['BL3', 'BL4'])
+    const [cargaSolta, misto] = input.bls
+    // Manifesto BB só tem o nome curto das partes: ele vai no lugar do bloco.
+    expect(cargaSolta).toMatchObject({ consigneeBlock: 'ACME LTDA', shipperBlock: 'SANY', notifyBlock: null, totalCbm: 120.5, totalPackages: 3 })
+    expect(cargaSolta.breakbulkItems).toEqual([{ description: 'EXCAVATOR', quantity: 2, unit: 'UNITS', grossKg: 43800, cbm: 120.5, marks: 'SANY' }])
+    expect(cargaSolta.vehicles).toEqual([{ chassis: 'SYS11021TT3C60990', grossKg: 21900, brand: 'SANY', model: 'SY215C' }])
+    // Misto: contêiner + carga solta na cubagem; o veículo dentro do contêiner não vira item.
+    expect(misto).toMatchObject({ totalCbm: 78, vehicles: [] })
+    expect(misto.containers.map((container) => container.number)).toEqual(['ABCU1234567'])
   })
 })
 

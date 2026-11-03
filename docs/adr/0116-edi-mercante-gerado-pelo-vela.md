@@ -41,8 +41,8 @@ ordem e o tamanho dos NCM e a limpeza do texto livre.
 2. O arquivo de carga tem o registro M5 (manifesto), um C5 por B/L de
    contêiner ativo da rota e um I5 por contêiner, no layout do manual 3.6. O de
    vazios tem um M5 e um V5 por contêiner vazio da rota (substitui a planilha
-   de três colunas). Os B/Ls de carga solta e misto ficam fora do arquivo nesta
-   fase e aparecem como aviso.
+   de três colunas). Os B/Ls de carga solta e misto ficam fora do arquivo de
+   contêiner (aviso) e entram no arquivo **parcial de carga solta** (item 8).
 3. Fontes: cadastro da Viagem (navio, IMO, armador, número), ATD do POL
    (encerramento) e ETA do POD (operação) da rota, terminal da frente de
    importação do POD com a modalidade do arquivo (carga cheia ou vazio) ou a
@@ -70,15 +70,28 @@ ordem e o tamanho dos NCM e a limpeza do texto livre.
    sistema externo com a sigla do navio e da viagem no fim (GREEN GUANGZHOU
    V.6 → `GG6`).
 
+8. **Carga solta: arquivo parcial** (decisão do dono, 2026-11-03). O Vela
+   provavelmente nunca terá todos os dados do manifesto de carga solta (o
+   Manifesto BB e o B/L avulso não trazem endereço das partes, data de emissão,
+   frete nem Type of Movement), mas um EDI com os dados básicos (nº do B/L,
+   consignatário, embarcador, notify…) já adianta o trabalho. As linhas **BB**
+   e **CNTR/BB** ganham **Gerar EDI Mercante da carga solta**: um arquivo por
+   rota com os B/Ls de carga solta e mistos (C5 + I5 tipo 1 para contêiner, 2
+   para item de carga solta e 4 para veículo fora de contêiner). Ali o dado que
+   falta não impede: sai em branco e a prévia o lista em **A completar**, por
+   B/L e campo, para a equipe preencher antes de enviar. Só a rota sem B/L de
+   carga solta impede. O código do tipo de embalagem (tabela 71 do Siscomex)
+   não existe no Vela e sai sempre em branco. A rota CNTR/BB gera, portanto,
+   dois arquivos: o de contêiner e o parcial de carga solta.
+
 ## Consequências
 
 - O operador deixa de subir os B/Ls no sistema externo para os manifestos de
-  contêiner e de vazios. O Manifesto de carga solta continua no sistema
-  externo até a fase 2 (o Manifesto BB do Vela não traz todos os campos do I5
-  de carga solta).
+  contêiner e de vazios. Na carga solta, o Vela entrega um arquivo parcial que
+  a equipe completa (item 8).
 - Armador, terminal ou tipo de contêiner novo exige mudar a tabela no código;
   se ficar frequente, o código Mercante vira campo do cadastro.
-- Decisões ainda em aberto na issue #560 (rota com carga mista, registro no
+- Decisões ainda em aberto na issue #560 (registro no
   Histórico, Viagem sem ATD/ETA, BL à ordem, outros terminais) não bloqueiam a
   geração: cada uma aparece hoje como impedimento ou aviso.
 - Regra vigente: [Manifestos & EDI § EDI Mercante](../modules/manifesto-edi.md#edi-mercante).

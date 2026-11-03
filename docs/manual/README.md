@@ -238,4 +238,6 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
 - **Gerar EDI Mercante** (pedido do dono na issue #560, 2026-11-02, ADR 0116):
   a linha de contêiner e a linha VAZIOS de Rotas e Manifestos geram o arquivo
   do Mercante da rota, com impedimentos e avisos, no lugar do sistema externo
-  (VIA-053, VIA-146).
+  (VIA-053, VIA-146). As linhas BB e CNTR/BB geram o arquivo parcial de carga
+  solta, com o que falta em **A completar** (decisão do dono de 2026-11-03;
+  VIA-147).

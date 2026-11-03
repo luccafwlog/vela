@@ -25,7 +25,7 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
 | Q6.08 | Cadastrar os vazios de importação vindos do Baplie | CEB-092, CEB-093, EQU-073 |
 | Q6.09 | Conferir o que a importação gravou | BLR-046, BLR-069, BLR-070, CEB-067 |
 | Q6.10 | Destravar uma importação que ficou bloqueada depois de gravar | ALE-022, ALE-068 |
-| Q6.11 | Gerar o EDI Mercante de uma rota (contêiner ou vazios) | VIA-053, VIA-146 |
+| Q6.11 | Gerar o EDI Mercante de uma rota (contêiner, vazios ou carga solta) | VIA-053, VIA-146, VIA-147 |
 
 ## Aconteceu…
 
@@ -444,6 +444,17 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
   **Gerar EDI Mercante** de novo. Código Mercante ausente de armador, terminal
   ou tipo de contêiner é pedido ao responsável pelo sistema.
 - **Regras:** VIA-146.
+
+#### S6.37 — O EDI de carga solta saiu com campos em branco
+
+- **O que o sistema faz:** baixa o arquivo parcial e lista em **A completar**
+  o que ficou em branco, por B/L e campo (data de emissão, frete, código do
+  tipo de embalagem…).
+- **Por quê:** o Manifesto BB e o B/L avulso não trazem todos os dados do
+  manifesto; o Vela adianta o que tem.
+- **O que você faz:** complete os campos listados antes de enviar o arquivo
+  ao Mercante.
+- **Regras:** VIA-147.
 
 ## Outras importações
 

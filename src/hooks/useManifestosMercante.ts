@@ -10,6 +10,7 @@ import {
 } from '../services/manifestosMercanteService'
 import { queryKeys } from '../services/queryKeys'
 import {
+  loadMercanteBreakbulkInput,
   loadMercanteCargoInput,
   loadMercanteVaziosInput,
   type MercanteCargoInput,
@@ -82,15 +83,17 @@ export function useUnlinkBlsFromManifestoMercante(voyageId?: number | null) {
  */
 export function useMercanteEdiInput(
   voyageId: number,
-  route: { pol: string; pod: string; kind: 'carga' | 'vazio' } | null,
+  route: { pol: string; pod: string; kind: 'carga' | 'carga_solta' | 'vazio' } | null,
 ) {
   return useQuery<MercanteCargoInput | MercanteVaziosInput>({
     queryKey: [...queryKeys.manifestosMercante.byVoyage(voyageId), 'edi', route?.kind ?? '', route?.pol ?? '', route?.pod ?? ''],
     enabled: route !== null && voyageId > 0,
     staleTime: 0,
     gcTime: 0,
-    queryFn: () => route!.kind === 'vazio'
-      ? loadMercanteVaziosInput(voyageId, route!.pol, route!.pod)
-      : loadMercanteCargoInput(voyageId, route!.pol, route!.pod),
+    queryFn: () => {
+      if (route!.kind === 'vazio') return loadMercanteVaziosInput(voyageId, route!.pol, route!.pod)
+      if (route!.kind === 'carga_solta') return loadMercanteBreakbulkInput(voyageId, route!.pol, route!.pod)
+      return loadMercanteCargoInput(voyageId, route!.pol, route!.pod)
+    },
   })
 }

@@ -73,4 +73,32 @@ describe('Rotas e manifestos: carga e vazios na mesma rota POL/POD', () => {
     expect(within(carga).getByRole('button', { name: /^Gerar EDI Mercante de [^(]*$/ })).toBeTruthy()
     expect(within(vazios).getByRole('button', { name: /Gerar EDI Mercante de .*\(vazios\)/ })).toBeTruthy()
   })
+
+  it('rota com contêiner e carga solta oferece os dois arquivos; só carga solta, só o parcial', () => {
+    const mixed = {
+      ...voyage,
+      bls: [
+        ...voyage.bls,
+        { id: 'BB-1', voyage_id: 99, pol: 'CNTAC', pod: 'BRVIX', bl_containers: [], ce_mercante: null, cargo_mode: 'carga_solta' },
+        { id: 'BB-2', voyage_id: 99, pol: 'CNTAC', pod: 'BRSSA', bl_containers: [], ce_mercante: null, cargo_mode: 'carga_solta' },
+      ],
+    } as unknown as VoyageDetail
+    render(
+      <MemoryRouter>
+        <VoyageManifestosTab voyage={mixed} voyageLabel="TEST / 22" importBatches={[]} polSchedules={undefined} routeCeMasters={undefined} ceCoverage={{ filled: 0, total: 3 }} vaziosRoutes={[]} onEditPol={() => {}} />
+      </MemoryRouter>,
+    )
+    const rows = screen.getAllByRole('row').slice(1)
+    const mista = rows.find((row) => within(row).queryByText('CNTR/BB')) as HTMLElement
+    const soCargaSolta = rows.find((row) => within(row).queryByText('BB')) as HTMLElement
+    expect(within(mista).getByRole('button', { name: /^Gerar EDI Mercante de [^(]*$/ })).toBeTruthy()
+    expect(within(mista).getByRole('button', { name: /Gerar EDI Mercante da carga solta .*\(parcial\)/ })).toBeTruthy()
+    expect(within(soCargaSolta).queryByRole('button', { name: /^Gerar EDI Mercante de [^(]*$/ })).toBeNull()
+    expect(within(soCargaSolta).getByRole('button', { name: /Gerar EDI Mercante da carga solta/ })).toBeTruthy()
+  })
+
+  it('rota só de contêiner não oferece o arquivo de carga solta', () => {
+    const { carga } = renderTab()
+    expect(within(carga).queryByRole('button', { name: /carga solta/ })).toBeNull()
+  })
 })

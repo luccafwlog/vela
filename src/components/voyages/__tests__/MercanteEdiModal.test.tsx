@@ -41,6 +41,8 @@ const bl = {
   terminalCode: null,
   terminalDepot: null,
   containers: [{ number: 'ABCU1234567', type: '40HC', grossKg: 25480, tareKg: 3700, cbm: 68, seal: '134543', isImo: false, imoClass: null, unNumber: null, shared: false }],
+  breakbulkItems: [],
+  vehicles: [],
 }
 
 function cargo(overrides: Partial<MercanteCargoInput> = {}): MercanteCargoInput {
@@ -86,6 +88,24 @@ describe('Gerar EDI Mercante (Rotas e Manifestos)', () => {
     const avisos = screen.getByRole('region', { name: 'Avisos' }).textContent ?? ''
     expect(avisos).toContain('BB-1')
     expect(avisos).toContain('Baplie')
+    expect((screen.getByRole('button', { name: 'Baixar arquivo' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('carga solta: arquivo parcial com "A completar" e download liberado', () => {
+    state.data = cargo({
+      bls: [{
+        ...bl, id: 'BB-1', containers: [], emissionDate: null, freightLines: [], movementFrom: null,
+        breakbulkItems: [{ description: 'EXCAVATOR', quantity: 1, unit: 'UNIT', grossKg: 21900, cbm: null, marks: 'SANY' }],
+      }],
+    })
+    render(<MercanteEdiModal voyageId={169} route={{ ...route, kind: 'carga_solta' }} onClose={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: /EDI Mercante de carga solta/ })).toBeTruthy()
+    expect(screen.getByText(/Arquivo parcial: complete os itens/)).toBeTruthy()
+    const completar = screen.getByRole('region', { name: 'A completar' }).textContent ?? ''
+    expect(completar).toContain('Sem data de emissão do B/L.')
+    expect(completar).toContain('tabela 71')
+    expect(screen.queryByRole('region', { name: 'Impedimentos' })).toBeNull()
     expect((screen.getByRole('button', { name: 'Baixar arquivo' }) as HTMLButtonElement).disabled).toBe(false)
   })
 

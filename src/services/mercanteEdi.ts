@@ -1,6 +1,8 @@
 // Gerador do EDI Mercante de Longo Curso Importação (issue #560): M5 (manifesto),
 // C5 (conhecimento, um por B/L), I5 (item, um por contêiner do B/L) e V5
-// (contêiner vazio). Posições e regras do manual "Definições dos leiautes
+// (contêiner vazio). O arquivo de carga solta (e B/L misto) é parcial: sai com o
+// que o Vela tem e lista o que a equipe completa antes de enviar (decisão do dono,
+// 2026-11-03). Posições e regras do manual "Definições dos leiautes
 // esquemáticos EDI/Upload" do Mercante (v3.6); limpeza de texto, BOM, CRLF e o
 // preenchimento até 5000 posições iguais aos do sistema externo que o Vela
 // substitui. Função pura: recebe os dados já lidos e devolve o texto e o que
@@ -18,8 +20,11 @@ import {
 import { MERCANTE_PORT_CODES, MERCANTE_TERMINAL_CODES } from './mercanteTableCodes'
 
 export type MercanteEdiIssue = {
-  /** Impedimento bloqueia o download; aviso só informa. */
-  severity: 'impedimento' | 'aviso'
+  /**
+   * Impedimento bloqueia o download; aviso só informa; "completar" é o dado que
+   * falta no arquivo parcial de carga solta e a equipe preenche antes de enviar.
+   */
+  severity: 'impedimento' | 'aviso' | 'completar'
   /** B/L ou contêiner a que o problema se refere; vazio quando é do manifesto. */
   ref: string | null
   message: string
@@ -64,6 +69,24 @@ export type MercanteEdiContainer = {
   shared: boolean
 }
 
+/** Item de carga solta do B/L (`bl_breakbulk_items`): vira I5 tipo 2. */
+export type MercanteEdiBreakbulkItem = {
+  description: string | null
+  quantity: number | null
+  unit: string | null
+  grossKg: number | null
+  cbm: number | null
+  marks: string | null
+}
+
+/** Veículo do B/L fora de contêiner (`vehicles`): vira I5 tipo 4. */
+export type MercanteEdiVehicle = {
+  chassis: string | null
+  grossKg: number | null
+  brand: string | null
+  model: string | null
+}
+
 export type MercanteEdiBl = {
   id: string
   consigneeBlock: string | null
@@ -84,6 +107,8 @@ export type MercanteEdiBl = {
   /** Código no Vela da exceção de terminal do B/L; vazio quando o B/L herda o da frente. */
   terminalDepot: string | null
   containers: MercanteEdiContainer[]
+  breakbulkItems: MercanteEdiBreakbulkItem[]
+  vehicles: MercanteEdiVehicle[]
 }
 
 export type MercanteEdiVazio = {
@@ -106,6 +131,8 @@ const ITEM_LENGTH = 5000
 const BOM = '﻿'
 const EOL = '\r\n'
 const PARTY_LENGTH = 253
+const MARK_LENGTH = 55
+const CHASSIS_LENGTH = 30
 const DESCRIPTION_LENGTH = 506
 const OBSERVATIONS_LENGTH = 253
 const MAX_FREIGHT_COMPONENTS = 15
@@ -262,9 +289,16 @@ export function mercanteFileName(vesselName: string, voyageNumber: string, now: 
 
 // --- montagem ------------------------------------------------------------
 
-type Ctx = { issues: MercanteEdiIssue[] }
+/** `partial`: arquivo de carga solta, em que o dado que falta vira "completar". */
+type Ctx = { issues: MercanteEdiIssue[]; partial: boolean }
 
+/** Dado obrigatório que falta: impede o arquivo de contêiner; no parcial, fica para a equipe completar. */
 function block(ctx: Ctx, ref: string | null, message: string) {
+  ctx.issues.push({ severity: ctx.partial ? 'completar' : 'impedimento', ref, message })
+}
+
+/** Impede o arquivo em qualquer modo: não há o que manifestar. */
+function fatal(ctx: Ctx, ref: string | null, message: string) {
   ctx.issues.push({ severity: 'impedimento', ref, message })
 }
 
@@ -313,6 +347,11 @@ function buildM5(header: MercanteEdiHeader, blCount: number, emptyCount: number 
   // 85–124: terminais de carregamento, só para porto brasileiro (origem é estrangeira).
   put(record, 125, header.terminalCode ?? '', 8)
   return record.join('')
+}
+
+/** Itens de carga do B/L no manifesto: contêineres, itens de carga solta e veículos. */
+function itemCount(bl: MercanteEdiBl): number {
+  return bl.containers.length + bl.breakbulkItems.length + bl.vehicles.length
 }
 
 function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string {
@@ -369,7 +408,7 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   if (bl.terminalCode && !MERCANTE_TERMINAL_CODES.has(bl.terminalCode)) block(ctx, ref, `Terminal ${bl.terminalCode} do B/L não existe na tabela do Mercante.`)
 
   put(record, 1, 'C5', 2)
-  put(record, 3, digits(bl.containers.length, 4), 4)
+  put(record, 3, digits(itemCount(bl), 4), 4)
   put(record, 7, bl.id.toUpperCase(), 18)
   put(record, 25, 'N', 1) // BL à ordem
   put(record, 26, 'N', 1) // entrega no exterior
@@ -427,7 +466,7 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   return record.join('')
 }
 
-function buildI5(ctx: Ctx, bl: MercanteEdiBl, container: MercanteEdiContainer, sequence: number, ncm: string[]): string {
+function buildContainerItem(ctx: Ctx, bl: MercanteEdiBl, container: MercanteEdiContainer, sequence: number, ncm: string[]): string {
   const ref = `${bl.id} · ${container.number}`
   const record = blank(ITEM_LENGTH)
   const type = mercanteContainerType(container.type)
@@ -456,7 +495,64 @@ function buildI5(ctx: Ctx, bl: MercanteEdiBl, container: MercanteEdiContainer, s
   }
   put(record, 459, amount(ctx, ref, 'Cubagem', container.cbm, 13, 3), 13)
   containerSeals.slice(0, MAX_SEALS).forEach((seal, index) => put(record, 472 + index * 15, seal, 15))
+  itemNcm(record, ncm)
+  return record.join('')
+}
+
+function itemNcm(record: string[], ncm: string[]) {
   ncm.slice(0, MAX_NCM).forEach((code, index) => put(record, 532 + index * 8, code, 8))
+}
+
+/**
+ * Item de carga solta (tipo 2). O código do tipo de embalagem (tabela 71 do
+ * Siscomex) não existe no Vela: sai em branco para a equipe completar.
+ * ponytail: sem de→para da unidade (`PACKAGES`, `UNITS`…) para a tabela 71; com
+ * a tabela em mãos, entra em `mercanteEdiTables.ts` como os tipos de contêiner.
+ */
+function buildBreakbulkItem(ctx: Ctx, bl: MercanteEdiBl, item: MercanteEdiBreakbulkItem, sequence: number, ncm: string[]): string {
+  const ref = `${bl.id} · item ${sequence}`
+  const record = blank(ITEM_LENGTH)
+  const marks = cleanMercanteText(item.marks, 'description')
+  const counterMarks = cleanMercanteText(item.description, 'description')
+  if (item.grossKg === null || item.grossKg === undefined) block(ctx, ref, 'Item de carga solta sem peso bruto.')
+  block(ctx, ref, `Código do tipo de embalagem (tabela 71 do Siscomex)${item.unit ? ` para "${item.unit}"` : ''}.`)
+  if (!item.quantity) block(ctx, ref, 'Item de carga solta sem quantidade.')
+  if (!marks) block(ctx, ref, 'Item de carga solta sem marca.')
+  if (!counterMarks) block(ctx, ref, 'Item de carga solta sem contramarca (descrição do item).')
+
+  put(record, 1, 'I5', 2)
+  put(record, 3, '2', 1) // tipo do item: carga solta
+  put(record, 4, digits(sequence, 4), 4)
+  put(record, 8, amount(ctx, ref, 'Peso bruto', item.grossKg, 12, 3), 12)
+  if (item.quantity) put(record, 47, amount(ctx, ref, 'Quantidade', item.quantity, 7, 0), 7)
+  put(record, 339, marks, MARK_LENGTH)
+  put(record, 394, counterMarks, MARK_LENGTH)
+  if (item.cbm !== null && item.cbm !== undefined) put(record, 459, amount(ctx, ref, 'Cubagem', item.cbm, 13, 3), 13)
+  itemNcm(record, ncm)
+  return record.join('')
+}
+
+/** Veículo fora de contêiner (tipo 4): chassi, marca e modelo como contramarca. */
+function buildVehicleItem(ctx: Ctx, bl: MercanteEdiBl, vehicle: MercanteEdiVehicle, sequence: number, ncm: string[]): string {
+  const chassis = asciiUpper(vehicle.chassis).replace(/[^A-Z0-9]/g, '')
+  const ref = `${bl.id} · ${chassis || `veículo ${sequence}`}`
+  const record = blank(ITEM_LENGTH)
+  const brand = cleanMercanteText(vehicle.brand, 'description')
+  const model = cleanMercanteText(vehicle.model, 'description')
+  if (vehicle.grossKg === null || vehicle.grossKg === undefined) block(ctx, ref, 'Veículo sem peso bruto.')
+  if (!chassis) block(ctx, ref, 'Veículo sem chassi.')
+  else if (chassis.length > CHASSIS_LENGTH) block(ctx, ref, `Chassi com mais de ${CHASSIS_LENGTH} caracteres.`)
+  if (!brand) block(ctx, ref, 'Veículo sem marca.')
+  if (!model) block(ctx, ref, 'Veículo sem modelo (contramarca).')
+
+  put(record, 1, 'I5', 2)
+  put(record, 3, '4', 1) // tipo do item: veículo
+  put(record, 4, digits(sequence, 4), 4)
+  put(record, 8, amount(ctx, ref, 'Peso bruto', vehicle.grossKg, 12, 3), 12)
+  put(record, 309, chassis, CHASSIS_LENGTH)
+  put(record, 339, brand, MARK_LENGTH)
+  put(record, 394, model, MARK_LENGTH)
+  itemNcm(record, ncm)
   return record.join('')
 }
 
@@ -473,35 +569,53 @@ function finish(ctx: Ctx, lines: string[]): MercanteEdiResult {
   return { content, issues: ctx.issues }
 }
 
-/** EDI de carga em contêiner de uma rota (M5 + C5/I5 por B/L). */
-export function buildMercanteCargoEdi(header: MercanteEdiHeader, bls: MercanteEdiBl[]): MercanteEdiResult {
-  const ctx: Ctx = { issues: [] }
+function buildConhecimentos(ctx: Ctx, header: MercanteEdiHeader, bls: MercanteEdiBl[], emptyMessage: string): string[] {
   checkHeader(ctx, header)
-  if (!bls.length) block(ctx, null, 'A rota não tem B/L ativo de container.')
-  if (bls.length > 9999) block(ctx, null, 'Mais de 9999 B/Ls no manifesto.')
+  if (!bls.length) fatal(ctx, null, emptyMessage)
+  if (bls.length > 9999) fatal(ctx, null, 'Mais de 9999 B/Ls no manifesto.')
 
   const sorted = [...bls].sort((left, right) => left.id.localeCompare(right.id))
   const lines = [buildM5(header, sorted.length, null)]
   for (const bl of sorted) {
     lines.push(buildC5(ctx, header, bl))
-    if (!bl.containers.length) block(ctx, bl.id, 'B/L sem contêiner.')
+    if (!itemCount(bl)) block(ctx, bl.id, ctx.partial ? 'B/L sem item de carga (contêiner, item de carga solta ou veículo).' : 'B/L sem contêiner.')
     for (const number of repeated(bl.containers.map((container) => container.number))) {
       block(ctx, `${bl.id} · ${number}`, 'Contêiner repetido no mesmo B/L.')
     }
     const ncm = mercanteNcmPositions(bl.ncmCodes)
     if (!ncm.length) block(ctx, bl.id, 'B/L sem NCM (campo NCM da ficha do B/L).')
     if (ncm.length > MAX_NCM) warn(ctx, bl.id, `Mais de ${MAX_NCM} NCMs: só os ${MAX_NCM} primeiros entram.`)
-    bl.containers.forEach((container, index) => lines.push(buildI5(ctx, bl, container, index + 1, ncm)))
+    let sequence = 0
+    for (const container of bl.containers) lines.push(buildContainerItem(ctx, bl, container, ++sequence, ncm))
+    for (const item of bl.breakbulkItems) lines.push(buildBreakbulkItem(ctx, bl, item, ++sequence, ncm))
+    for (const vehicle of bl.vehicles) lines.push(buildVehicleItem(ctx, bl, vehicle, ++sequence, ncm))
   }
-  return finish(ctx, lines)
+  return lines
+}
+
+/** EDI de carga em contêiner de uma rota (M5 + C5/I5 por B/L). Dado que falta impede. */
+export function buildMercanteCargoEdi(header: MercanteEdiHeader, bls: MercanteEdiBl[]): MercanteEdiResult {
+  const ctx: Ctx = { issues: [], partial: false }
+  return finish(ctx, buildConhecimentos(ctx, header, bls, 'A rota não tem B/L ativo de container.'))
+}
+
+/**
+ * EDI parcial da carga solta (e do B/L misto) de uma rota: sai com o que o Vela
+ * tem e lista, em "completar", o que a equipe preenche antes de enviar. O
+ * Manifesto BB e o B/L avulso não trazem endereço das partes, data de emissão,
+ * frete nem Type of Movement; o Vela nunca terá tudo (decisão do dono).
+ */
+export function buildMercanteBreakbulkEdi(header: MercanteEdiHeader, bls: MercanteEdiBl[]): MercanteEdiResult {
+  const ctx: Ctx = { issues: [], partial: true }
+  return finish(ctx, buildConhecimentos(ctx, header, bls, 'A rota não tem B/L ativo de carga solta.'))
 }
 
 /** EDI de contêineres vazios de uma rota (M5 sem conhecimento + V5). */
 export function buildMercanteVaziosEdi(header: MercanteEdiHeader, vazios: MercanteEdiVazio[]): MercanteEdiResult {
-  const ctx: Ctx = { issues: [] }
+  const ctx: Ctx = { issues: [], partial: false }
   checkHeader(ctx, header)
-  if (!vazios.length) block(ctx, null, 'A rota não tem contêiner vazio.')
-  if (vazios.length > 9999) block(ctx, null, 'Mais de 9999 vazios no manifesto.')
+  if (!vazios.length) fatal(ctx, null, 'A rota não tem contêiner vazio.')
+  if (vazios.length > 9999) fatal(ctx, null, 'Mais de 9999 vazios no manifesto.')
 
   for (const number of repeated(vazios.map((vazio) => vazio.number))) block(ctx, number, 'Contêiner vazio repetido na rota.')
   const lines = [buildM5(header, 0, vazios.length)]

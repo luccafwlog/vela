@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildMercanteBreakbulkEdi,
   buildMercanteCargoEdi,
   buildMercanteVaziosEdi,
   cleanMercanteText,
@@ -66,6 +67,8 @@ function bl(overrides: Partial<MercanteEdiBl> = {}): MercanteEdiBl {
     terminalCode: null,
     terminalDepot: null,
     containers: [container()],
+    breakbulkItems: [],
+    vehicles: [],
     ...overrides,
   }
 }
@@ -246,6 +249,85 @@ describe('buildMercanteCargoEdi', () => {
   it('IMO do navio com prefixo sai só com os dígitos', () => {
     const m5 = lines(buildMercanteCargoEdi({ ...header, vesselImo: 'IMO 1095014' }, [bl()]).content)[0]
     expect(field(m5, 75, 84)).toBe('1095014   ')
+  })
+})
+
+describe('buildMercanteBreakbulkEdi (arquivo parcial)', () => {
+  // B/L de carga solta como o Manifesto BB grava: nome curto das partes, sem
+  // emissão, frete nem Type of Movement; itens e veículos fora de contêiner.
+  const breakbulk = (overrides: Partial<MercanteEdiBl> = {}) => bl({
+    id: 'GPCVI2SANY003',
+    consigneeBlock: 'ACME MAQUINAS LTDA',
+    shipperBlock: 'SANY HEAVY INDUSTRY CO., LTD.',
+    notifyBlock: null,
+    emissionDate: null,
+    description: 'SANY HYDRAULIC EXCAVATOR',
+    totalPackages: null,
+    movementFrom: null,
+    ncmCodes: ['84295199'],
+    freightLines: [],
+    containers: [],
+    breakbulkItems: [{ description: 'SANY HYDRAULIC EXCAVATOR SY215', quantity: 2, unit: 'UNITS', grossKg: 43800, cbm: 120.5, marks: 'SANY' }],
+    vehicles: [{ chassis: 'SYS11021TT3C60990', grossKg: 21900, brand: 'SANY', model: 'SY215C' }],
+    ...overrides,
+  })
+
+  it('sai com os dados básicos e lista o que a equipe completa, sem impedir o download', () => {
+    const result = buildMercanteBreakbulkEdi({ ...header, terminalCode: null, terminalDepot: null }, [breakbulk()])
+    const [m5, c5, cargaSolta, veiculo] = lines(result.content)
+
+    expect(result.issues.filter((issue) => issue.severity === 'impedimento')).toEqual([])
+    expect(field(m5, 3, 6)).toBe('0001')
+    expect(field(c5, 3, 6)).toBe('0002') // um item de carga solta e um veículo
+    expect(field(c5, 7, 24).trim()).toBe('GPCVI2SANY003')
+    expect(field(c5, 30, 282).trim()).toBe('ACME MAQUINAS LTDA')
+    expect(field(c5, 382, 634).trim()).toBe('SANY HEAVY INDUSTRY CO., LTD.')
+    expect(field(c5, 1439, 1691).trim()).toBe('ACME MAQUINAS LTDA') // sem notify: o consignatário
+    expect(field(c5, 635, 642)).toBe('        ') // emissão em branco para a equipe
+
+    expect(field(cargaSolta, 1, 7)).toBe('I520001')
+    expect(field(cargaSolta, 8, 19)).toBe('000043800000')
+    expect(field(cargaSolta, 24, 34)).toBe(' '.repeat(11))
+    expect(field(cargaSolta, 45, 46)).toBe('  ') // tabela 71: a completar
+    expect(field(cargaSolta, 47, 53)).toBe('0000002')
+    expect(field(cargaSolta, 339, 393).trim()).toBe('SANY')
+    expect(field(cargaSolta, 394, 448).trim()).toBe('SANY HYDRAULIC EXCAVATOR SY215')
+    expect(field(cargaSolta, 459, 471)).toBe('0000000120500')
+    expect(field(cargaSolta, 532, 539)).toBe('8429    ')
+
+    expect(field(veiculo, 1, 7)).toBe('I540002')
+    expect(field(veiculo, 8, 19)).toBe('000021900000')
+    expect(field(veiculo, 309, 338).trim()).toBe('SYS11021TT3C60990')
+    expect(field(veiculo, 339, 393).trim()).toBe('SANY')
+    expect(field(veiculo, 394, 448).trim()).toBe('SY215C')
+
+    const completar = result.issues.filter((issue) => issue.severity === 'completar').map((issue) => issue.message)
+    expect(completar).toEqual(expect.arrayContaining([
+      expect.stringContaining('Sem terminal de descarga'),
+      'Sem data de emissão do B/L.',
+      expect.stringContaining('Sem valor do frete marítimo'),
+      expect.stringContaining('Type of Movement'),
+      'Código do tipo de embalagem (tabela 71 do Siscomex) para "UNITS".',
+    ]))
+  })
+
+  it('B/L misto leva contêiner, item de carga solta e veículo no mesmo C5', () => {
+    const result = buildMercanteBreakbulkEdi(header, [breakbulk({ containers: [container()] })])
+    const records = lines(result.content)
+    expect(field(records[1], 3, 6)).toBe('0003')
+    expect(records.slice(2).map((line) => field(line, 3, 7))).toEqual(['10001', '20002', '40003'])
+  })
+
+  it('sem B/L de carga solta na rota, não há arquivo', () => {
+    const result = buildMercanteBreakbulkEdi(header, [])
+    expect(result.content).toBeNull()
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: 'impedimento', message: 'A rota não tem B/L ativo de carga solta.' }))
+  })
+
+  it('no arquivo de contêiner, o mesmo dado que falta continua impedindo', () => {
+    const result = buildMercanteCargoEdi(header, [bl({ emissionDate: null })])
+    expect(result.content).toBeNull()
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: 'impedimento', message: 'Sem data de emissão do B/L.' }))
   })
 })
 
