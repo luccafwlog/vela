@@ -25,9 +25,10 @@ export type PortalOperationContainer = {
 /**
  * Taxas Locais do B/L na visão do Portal (migration 298): valores só quando
  * há fatura visível ao Cliente; `awaiting_invoice` (taxa em aberto ainda sem
- * fatura emitida) e `none` vêm sem valor.
+ * fatura emitida), `exempt` (B/L isento, pelo veículo LCL ou à mão, migration
+ * 575) e `none` vêm sem valor.
  */
-export type PortalOperationLocalChargesStatus = 'open' | 'paid' | 'awaiting_invoice' | 'none'
+export type PortalOperationLocalChargesStatus = 'open' | 'paid' | 'awaiting_invoice' | 'exempt' | 'none'
 
 export type PortalOperationLocalCharges = {
   status: PortalOperationLocalChargesStatus
@@ -127,7 +128,8 @@ function normalizeLocalCharges(value: unknown): PortalOperationLocalCharges {
     return { status: row.status, total_brl: asNumberOrNull(row.total_brl), balance_brl: asNumberOrNull(row.balance_brl) }
   }
   // Sem fatura visível não há valor a mostrar, mesmo que o banco mande algum.
-  return { status: row.status === 'awaiting_invoice' ? 'awaiting_invoice' : 'none', total_brl: null, balance_brl: null }
+  const status = row.status === 'awaiting_invoice' || row.status === 'exempt' ? row.status : 'none'
+  return { status, total_brl: null, balance_brl: null }
 }
 
 function normalizeTransshipment(value: unknown): PortalOperationTransshipment | null {

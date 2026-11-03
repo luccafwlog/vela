@@ -516,12 +516,15 @@ export function DesbloqueioCe() {
                             >
                               {i.protocol}
                             </button>
+                          ) : i.documents_dispensed ? (
+                            // Veículo LCL com Taxas Locais isentas: sem solicitação, só a entrega do original (migration 575).
+                            <StatusText tone="muted">Dispensada · veículo LCL</StatusText>
                           ) : (
                             <StatusText tone="muted">Sem solicitação</StatusText>
                           )}
                         </td>
-                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} /></td>
-                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} /></td>
+                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} dispensed={i.documents_dispensed} /></td>
+                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} dispensed={i.documents_dispensed} /></td>
                         <td><CeUnlockRequirementIcon label="Taxas locais" subject={i.bl_id} ok={i.paid} /></td>
                         <td>
                           <input

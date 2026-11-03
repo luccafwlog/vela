@@ -228,3 +228,4 @@ src/integration/historicoLeAsTrilhas.local-pg.test.ts
 src/integration/lacunasBaixasDaRevisao.local-pg.test.ts
 src/integration/textosDoServidorComAcento.local-pg.test.ts
 src/integration/revisaoBlFaturadoCargaAlterada.local-pg.test.ts
+src/integration/desbloqueioVeiculoLcl.local-pg.test.ts

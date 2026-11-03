@@ -292,6 +292,19 @@ it("B/L isento aparece como Isentas, não como taxas pagas", async () => {
   expect(screen.queryByText("Pagas")).toBeNull();
 });
 
+// Decisão do dono de 2026-11-03 (migration 575): veículo LCL com Taxas Locais isentas não pede
+// solicitação nem documentos; o Portal não deixa selecionar e diz que basta o B/L original.
+it("veículo LCL isento não entra na solicitação: basta entregar o B/L original", async () => {
+  svc.listPortalCeUnlockBls.mockResolvedValue({
+    items: [bl({ paid_exempt: true, documents_dispensed: true, can_submit: false })],
+    total: 1,
+  });
+  mount();
+  expect(await screen.findByText("Não precisa · entregue o B/L original")).toBeTruthy();
+  expect(screen.getByText(/Veículo em LCL com Taxas Locais isentas não precisa de solicitação/)).toBeTruthy();
+  expect((screen.getByLabelText("Selecionar B/L BL-A") as HTMLInputElement).disabled).toBe(true);
+});
+
 // Ponto 5 de 2026-10-23: o motivo da recusa que o operador do Vela escreveu
 // aparece inteiro no Portal, com as quebras de linha, na solicitação e na
 // lista de protocolos; antes o Portal cortava em 40 letras.
