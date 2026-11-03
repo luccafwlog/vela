@@ -24,6 +24,7 @@ export function VoyageManifestosTab({
   ceCoverage,
   vaziosRoutes,
   canEdit = true,
+  canGenerateMercanteEdi = false,
   onEditPol,
 }: {
   voyage: Voyage
@@ -34,6 +35,12 @@ export function VoyageManifestosTab({
   ceCoverage: { filled: number; total: number }
   vaziosRoutes?: Array<{ pol: string; pod: string; containerCount: number }> | undefined
   canEdit?: boolean
+  /**
+   * Gerar EDI Mercante só para a conta Dev (marca Dev, `useAuth().isDev`;
+   * decisão do dono de 2026-11-03). A geração só lê o que todo usuário interno
+   * já lê e não grava nada: esconder o botão é o controle, sem regra no banco.
+   */
+  canGenerateMercanteEdi?: boolean
   onEditPol: (payload: EditingPolPayload) => void
 }) {
   const { data: transshipmentData } = useVoyageTransshipments(voyage.id)
@@ -109,8 +116,8 @@ export function VoyageManifestosTab({
                   const cannotEdit = !canEdit || !row.pol || row.pol === '-'
                   // EDI Mercante: arquivo de contêiner (CNTR, CNTR/BB) e de vazios; a carga
                   // solta (BB, CNTR/BB) tem arquivo próprio, parcial, que a equipe completa.
-                  const canGenerateEdi = row.isVazios ? (row.containerCount ?? 0) > 0 : containerRoutes.has(`${row.pol}__${row.pod}`)
-                  const canGenerateBreakbulkEdi = !row.isVazios && row.blCount > 0 && (row.modeLabel === 'BB' || row.modeLabel === 'CNTR/BB')
+                  const canGenerateEdi = canGenerateMercanteEdi && (row.isVazios ? (row.containerCount ?? 0) > 0 : containerRoutes.has(`${row.pol}__${row.pod}`))
+                  const canGenerateBreakbulkEdi = canGenerateMercanteEdi && !row.isVazios && row.blCount > 0 && (row.modeLabel === 'BB' || row.modeLabel === 'CNTR/BB')
                   return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
                       <td className="app-table__text whitespace-nowrap">

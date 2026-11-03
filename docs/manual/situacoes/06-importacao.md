@@ -25,7 +25,7 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
 | Q6.08 | Cadastrar os vazios de importação vindos do Baplie | CEB-092, CEB-093, EQU-073 |
 | Q6.09 | Conferir o que a importação gravou | BLR-046, BLR-069, BLR-070, CEB-067 |
 | Q6.10 | Destravar uma importação que ficou bloqueada depois de gravar | ALE-022, ALE-068 |
-| Q6.11 | Gerar o EDI Mercante de uma rota (contêiner, vazios ou carga solta) | VIA-053, VIA-146, VIA-147 |
+| Q6.11 | Gerar o EDI Mercante de uma rota (contêiner, vazios ou carga solta; só a conta Dev) | VIA-053, VIA-146, VIA-147 |
 
 ## Aconteceu…
 

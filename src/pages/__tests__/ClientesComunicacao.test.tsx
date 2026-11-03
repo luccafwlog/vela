@@ -344,7 +344,8 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: 'Ativar envio real', tone: 'danger' })
     cleanup()
 
-    // Administrativo sem a marca Dev lê o estado, mas não vê a chave (ADR 0104).
+    // Sem a marca Dev, nem o bloco Canal de envio aparece (decisão do dono de
+    // 2026-11-03: os demais não enxergam a funcionalidade).
     authState.isDev = false
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao']}>
@@ -352,7 +353,8 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
     expect(screen.queryByRole('switch')).toBeNull()
-    expect(screen.getByText('Redirecionado ao suporte')).toBeTruthy()
+    expect(screen.queryByText('Canal de envio')).toBeNull()
+    expect(screen.queryByText('Redirecionado ao suporte')).toBeNull()
   })
 
   it('a troca da chave recusada mostra o motivo no bloco Canal de envio', async () => {

@@ -36,6 +36,7 @@ function renderTab() {
         routeCeMasters={undefined}
         ceCoverage={{ filled: 0, total: 1 }}
         vaziosRoutes={[{ pol: 'CNTAC', pod: 'BRVIX', containerCount: 102 }]}
+        canGenerateMercanteEdi
         onEditPol={() => {}}
       />
     </MemoryRouter>,
@@ -85,7 +86,8 @@ describe('Rotas e manifestos: carga e vazios na mesma rota POL/POD', () => {
     } as unknown as VoyageDetail
     render(
       <MemoryRouter>
-        <VoyageManifestosTab voyage={mixed} voyageLabel="TEST / 22" importBatches={[]} polSchedules={undefined} routeCeMasters={undefined} ceCoverage={{ filled: 0, total: 3 }} vaziosRoutes={[]} onEditPol={() => {}} />
+        <VoyageManifestosTab voyage={mixed} voyageLabel="TEST / 22" importBatches={[]} polSchedules={undefined} routeCeMasters={undefined} ceCoverage={{ filled: 0, total: 3 }} vaziosRoutes={[]} canGenerateMercanteEdi
+        onEditPol={() => {}} />
       </MemoryRouter>,
     )
     const rows = screen.getAllByRole('row').slice(1)
@@ -104,12 +106,22 @@ describe('Rotas e manifestos: carga e vazios na mesma rota POL/POD', () => {
     } as unknown as VoyageDetail
     render(
       <MemoryRouter>
-        <VoyageManifestosTab voyage={onlyMixed} voyageLabel="TEST / 22" importBatches={[]} polSchedules={undefined} routeCeMasters={undefined} ceCoverage={{ filled: 0, total: 1 }} vaziosRoutes={[]} onEditPol={() => {}} />
+        <VoyageManifestosTab voyage={onlyMixed} voyageLabel="TEST / 22" importBatches={[]} polSchedules={undefined} routeCeMasters={undefined} ceCoverage={{ filled: 0, total: 1 }} vaziosRoutes={[]} canGenerateMercanteEdi
+        onEditPol={() => {}} />
       </MemoryRouter>,
     )
     const row = screen.getAllByRole('row').slice(1).find((candidate) => within(candidate).queryByText('CNTR/BB')) as HTMLElement
     expect(within(row).queryByRole('button', { name: /^Gerar EDI Mercante de [^(]*$/ })).toBeNull()
     expect(within(row).getByRole('button', { name: /Gerar EDI Mercante da carga solta/ })).toBeTruthy()
+  })
+
+  it('sem a marca Dev, nenhuma linha mostra Gerar EDI Mercante', () => {
+    render(
+      <MemoryRouter>
+        <VoyageManifestosTab voyage={voyage} voyageLabel="TEST / 22" importBatches={[]} polSchedules={undefined} routeCeMasters={undefined} ceCoverage={{ filled: 0, total: 1 }} vaziosRoutes={[{ pol: 'CNTAC', pod: 'BRVIX', containerCount: 102 }]} onEditPol={() => {}} />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('button', { name: /Gerar EDI Mercante/ })).toBeNull()
   })
 
   it('rota só de contêiner não oferece o arquivo de carga solta', () => {

@@ -33,7 +33,9 @@ ordem e o tamanho dos NCM e a limpeza do texto livre.
 ## Decisão
 
 1. Cada linha de **Rotas e Manifestos** com contêiner (Carga **CNTR** ou
-   **CNTR/BB**) e cada linha **VAZIOS** oferecem **Gerar EDI Mercante**. O
+   **CNTR/BB**) e cada linha **VAZIOS** oferecem **Gerar EDI Mercante**, só
+   para a conta Dev (marca Dev da [ADR 0104](./0104-marca-dev-e-chave-de-envio-pelo-suporte.md);
+   os demais usuários não veem os botões, decisão do dono de 2026-11-03). O
    botão abre uma prévia com navio, viagem, rota no Mercante, encerramento,
    operação, terminal e contagens, os **Impedimentos** e os **Avisos**. O
    arquivo só é baixado; o envio ao Mercante continua fora do Vela, e a

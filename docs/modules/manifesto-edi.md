@@ -1110,7 +1110,7 @@ viagem da agência; o nome "CE Master" foi descontinuado na tela.
 O arquivo que a agência envia ao Siscomex Mercante para manifestar a carga de
 importação de uma rota (POL → POD) é gerado pelo Vela desde a
 [ADR 0116](../adr/0116-edi-mercante-gerado-pelo-vela.md) (issue #560). O botão
-**Gerar EDI Mercante** fica na aba **Rotas e Manifestos** da Viagem, na linha
+**Gerar EDI Mercante** fica na aba **Rotas e Manifestos** da Viagem, **só para a conta Dev** (marca Dev, `useAuth().isDev`; decisão do dono de 2026-11-03: os demais não veem os botões), na linha
 de contêiner (Carga **CNTR** ou **CNTR/BB**) e na linha **VAZIOS**; na Viagem
 cancelada fica desabilitado. A janela mostra a prévia, os **Impedimentos** e os
 **Avisos**, e **Baixar arquivo** só baixa o `.TXT`: nada é gravado e o envio
