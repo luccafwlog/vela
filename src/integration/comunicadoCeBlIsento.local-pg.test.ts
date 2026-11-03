@@ -2,22 +2,22 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 578 (produção, 2026-11-03): o Cliente com B/Ls isentos das Taxas
+// Migration 580 (produção, 2026-11-03): o Cliente com B/Ls isentos das Taxas
 // Locais (veículo LCL ou isenção à mão) nunca recebia o CE e Taxas, porque a
 // prontidão exigia faturamento de todo B/L e o isento não tem o que faturar.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
-const CARRIER_ID = 99578001
-const VESSEL_ID = 99578002
-const VOYAGE_ID = 99578003
-const ONLY_EXEMPT = 99578011
-const MIXED = 99578012
-const EXEMPT_WITHOUT_CE = 99578013
-const NOT_INVOICED = 99578014
+const CARRIER_ID = 99580001
+const VESSEL_ID = 99580002
+const VOYAGE_ID = 99580003
+const ONLY_EXEMPT = 99580011
+const MIXED = 99580012
+const EXEMPT_WITHOUT_CE = 99580013
+const NOT_INVOICED = 99580014
 const CUSTOMERS = [ONLY_EXEMPT, MIXED, EXEMPT_WITHOUT_CE, NOT_INVOICED]
-const CONTACTS = [99578021, 99578022, 99578023, 99578024]
-const BLS = ['B578-ISENTO-1', 'B578-ISENTO-2', 'B578-MISTO-ISENTO', 'B578-MISTO-FATURADO', 'B578-ISENTO-SEM-CE', 'B578-PENDENTE']
+const CONTACTS = [99580021, 99580022, 99580023, 99580024]
+const BLS = ['B580-ISENTO-1', 'B580-ISENTO-2', 'B580-MISTO-ISENTO', 'B580-MISTO-FATURADO', 'B580-ISENTO-SEM-CE', 'B580-PENDENTE']
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
@@ -51,7 +51,7 @@ function cleanup() {
   `)
 }
 
-function migration578Applied(): boolean {
+function migration580Applied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT position('exempt' IN pg_get_functiondef('public.customer_local_charges_communication_payload(bigint,bigint)'::regprocedure)) > 0;`) === 't'
@@ -60,29 +60,29 @@ function migration578Applied(): boolean {
   }
 }
 
-const describeLocal = describeWithProbe(migration578Applied, 'migration578Applied (payload do CE e Taxas traz o B/L isento)')
+const describeLocal = describeWithProbe(migration580Applied, 'migration580Applied (payload do CE e Taxas traz o B/L isento)')
 
-describeLocal('578 — CE e Taxas para o Cliente com B/L isento', () => {
+describeLocal('580 — CE e Taxas para o Cliente com B/L isento', () => {
   beforeAll(() => {
     cleanup()
     psql(`
       SET session_replication_role = replica;
-      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador E578');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio E578', ${CARRIER_ID});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'E578V', 'active');
+      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador E580');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio E580', ${CARRIER_ID});
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'E580V', 'active');
       INSERT INTO public.customers (id, name, cnpj_cpf) VALUES
-        ${CUSTOMERS.map((id, index) => `(${id}, 'CLIENTE E578 ${index + 1}', '${syntheticCnpj(578011 + index)}')`).join(',\n        ')};
+        ${CUSTOMERS.map((id, index) => `(${id}, 'CLIENTE E580 ${index + 1}', '${syntheticCnpj(580011 + index)}')`).join(',\n        ')};
       INSERT INTO public.customer_contacts (id, customer_id, name, email, is_primary) VALUES
-        ${CUSTOMERS.map((id, index) => `(${CONTACTS[index]}, ${id}, 'Contato ${index + 1}', 'c${index + 1}-e578@example.test', true)`).join(',\n        ')};
+        ${CUSTOMERS.map((id, index) => `(${CONTACTS[index]}, ${id}, 'Contato ${index + 1}', 'c${index + 1}-e580@example.test', true)`).join(',\n        ')};
       INSERT INTO public.customer_contact_box_links (contact_id, box_code) VALUES
         ${CONTACTS.map((id) => `(${id}, 'documentacao_operacao')`).join(', ')};
       INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status, review_status, ce_mercante) VALUES
-        ('${BLS[0]}', ${VOYAGE_ID}, ${ONLY_EXEMPT}, 'CNSHA', 'BRSSZ', 'container', 'pending', 'exempt', 'ok', '157805000000001'),
-        ('${BLS[1]}', ${VOYAGE_ID}, ${ONLY_EXEMPT}, 'CNSHA', 'BRSSZ', 'container', NULL, 'exempt', 'ok', '157805000000002'),
-        ('${BLS[2]}', ${VOYAGE_ID}, ${MIXED}, 'CNSHA', 'BRSSZ', 'container', 'pending', 'exempt', 'ok', '157805000000003'),
-        ('${BLS[3]}', ${VOYAGE_ID}, ${MIXED}, 'CNSHA', 'BRSSZ', 'container', 'invoiced', 'calculated', 'ok', '157805000000004'),
+        ('${BLS[0]}', ${VOYAGE_ID}, ${ONLY_EXEMPT}, 'CNSHA', 'BRSSZ', 'container', 'pending', 'exempt', 'ok', '158005000000001'),
+        ('${BLS[1]}', ${VOYAGE_ID}, ${ONLY_EXEMPT}, 'CNSHA', 'BRSSZ', 'container', NULL, 'exempt', 'ok', '158005000000002'),
+        ('${BLS[2]}', ${VOYAGE_ID}, ${MIXED}, 'CNSHA', 'BRSSZ', 'container', 'pending', 'exempt', 'ok', '158005000000003'),
+        ('${BLS[3]}', ${VOYAGE_ID}, ${MIXED}, 'CNSHA', 'BRSSZ', 'container', 'invoiced', 'calculated', 'ok', '158005000000004'),
         ('${BLS[4]}', ${VOYAGE_ID}, ${EXEMPT_WITHOUT_CE}, 'CNSHA', 'BRSSZ', 'container', 'pending', 'exempt', 'ok', NULL),
-        ('${BLS[5]}', ${VOYAGE_ID}, ${NOT_INVOICED}, 'CNSHA', 'BRSSZ', 'container', 'pending', 'calculated', 'ok', '157805000000006');
+        ('${BLS[5]}', ${VOYAGE_ID}, ${NOT_INVOICED}, 'CNSHA', 'BRSSZ', 'container', 'pending', 'calculated', 'ok', '158005000000006');
       SET session_replication_role = origin;
     `)
   })
@@ -104,8 +104,8 @@ describeLocal('578 — CE e Taxas para o Cliente com B/L isento', () => {
       bls: Array<{ bl_id: string; ce_mercante: string; exempt: boolean }>
     }
     expect(payload.bls).toEqual([
-      expect.objectContaining({ bl_id: BLS[3], ce_mercante: '157805000000004', exempt: false }),
-      expect.objectContaining({ bl_id: BLS[2], ce_mercante: '157805000000003', exempt: true }),
+      expect.objectContaining({ bl_id: BLS[3], ce_mercante: '158005000000004', exempt: false }),
+      expect.objectContaining({ bl_id: BLS[2], ce_mercante: '158005000000003', exempt: true }),
     ])
   })
 

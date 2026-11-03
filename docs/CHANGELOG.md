@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **CE e Taxas para o Cliente com B/L isento (2026-11-03, migration `580`):** o Cliente com B/Ls isentos das Taxas
+  Locais (veículo LCL ou isenção à mão) nunca recebia o Comunicado de CE e Taxas, porque a prontidão exigia fatura de
+  todo B/L. O B/L isento passa a dispensar a fatura (CE e revisão continuam exigidos); no e-mail ele sai com
+  "Isento" no lugar do valor, fora do total, e o Cliente só com B/Ls isentos recebe "CE Mercante disponível", só com
+  os CEs ([Clientes](modules/clientes.md)).
 - **Revisão da release de 2026-11-03 (PR 1191, migration `578`):** o envio de um rascunho antigo recusa o veículo
   LCL com Taxas Locais isentas, como a criação do rascunho já fazia; antes, o envio tornava a solicitação o caminho
   do B/L, e o B/L já enviado direto à ZPT voltava a "Não exportado", apto para nova exportação.

@@ -1,4 +1,4 @@
--- 578: o Comunicado de CE e Taxas sai para o Cliente com B/L isento.
+-- 580: o Comunicado de CE e Taxas sai para o Cliente com B/L isento.
 --
 -- Produção, 2026-11-03: o Cliente cujos B/Ls são isentos das Taxas Locais
 -- (veículo LCL, ou isenção à mão da 492) nunca recebia o CE e Taxas. A
@@ -79,7 +79,7 @@ BEGIN
       array_remove(ARRAY[
         CASE WHEN bl_state.ce_mercante IS NULL THEN 'ce_mercante_ausente'::text END,
         CASE WHEN COALESCE(cardinality(bl_state.review_pendencies), 0) > 0 THEN 'revisao_pendente'::text END,
-        -- 578: o B/L isento das Taxas Locais não tem o que faturar.
+        -- 580: o B/L isento das Taxas Locais não tem o que faturar.
         CASE WHEN bl_state.financial_status NOT IN ('invoiced', 'paid') AND NOT bl_state.exempt
              THEN 'faturamento_pendente'::text END
       ], NULL) AS blocked_reasons
