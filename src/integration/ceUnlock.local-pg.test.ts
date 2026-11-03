@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { execPsql } from './localPsql'
 import { describe, expect, it, beforeAll } from 'vitest'
+import { legacyVipRequest } from './ceUnlockLegacyVip'
 const db = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const local = process.env.LOCAL_PG_INTEGRATION === '1' ? describe : describe.skip
 const admin = '00000000-0000-0000-0000-000000557001'
@@ -83,6 +84,8 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       DELETE FROM public.ce_unlock_requests WHERE customer_id IN(998557,998558);
       DELETE FROM public.ce_unlock_vip_customers WHERE customer_id IN(998557,998558);
       DELETE FROM public.ce_unlock_bl_deliveries WHERE bl_id LIKE 'CE557-%';
+      DELETE FROM public.ce_unlock_direct_validations WHERE bl_id LIKE 'CE557-%';
+      DELETE FROM public.ce_unlock_direct_exports WHERE bl_id LIKE 'CE557-%';
       DELETE FROM public.ce_unlock_exports WHERE created_by='${admin}';
       DELETE FROM public.ledger_settlements WHERE receivable_id IN(998557,998558,998559);
       DELETE FROM public.bl_receivables WHERE id IN(998557,998558,998559);
@@ -121,19 +124,18 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     sql(`INSERT INTO public.ce_unlock_documents(customer_id,type,source,status,file_name,storage_path,size_bytes,hash,coverage_year,valid_from,valid_until,uploaded_by) VALUES
     (998557,'termo','vip_annual','approved','termo.pdf','annual/termo',100,'hash',extract(year from now())::int,make_date(extract(year from now())::int,1,1),make_date(extract(year from now())::int,12,31),'${admin}'),
     (998557,'procuracao','vip_annual','approved','proc.pdf','annual/proc',100,'hash',extract(year from now())::int,make_date(extract(year from now())::int,1,1),make_date(extract(year from now())::int,12,31),'${admin}');`)
-    // 449: o rascunho feito antes dos anuais nasceu comum (termo e procuração anexados);
-    // com os anuais cobrindo o B/L, o pedido novo nasce VIP.
+    // 449: o rascunho feito antes dos anuais nasceu comum (termo e procuração anexados).
     const before=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items[0]
     expect(before.source).toBe('request')
     cancelOpenRequests('Pedir de novo com os anuais')
-    const draft=command('draft',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()},client)
-    expect(draft.source).toBe('vip_annual')
-    const sent=command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)
+    // 580 (ADR 0119): com os anuais cobrindo, o B/L não entra mais em solicitação.
+    expect(error(`SELECT public.portal_ce_unlock_command('draft','${JSON.stringify({bl_ids:['CE557-A'],request_key:crypto.randomUUID()})}'::jsonb);`,client)).toContain('não precisa de solicitação: pela condição VIP')
+    // As solicitações VIP abertas antes continuam: os mesmos anuais atendem as duas.
+    const sentA=legacyVipRequest(998557,['CE557-A'],client), sentB=legacyVipRequest(998557,['CE557-SECOND'],client)
+    sql(sentA.sql); sql(sentB.sql)
+    const sent=JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${sentA.id}');`,client))
     expect(sent.items[0]).toMatchObject({termo:true,procuracao:true,paid:true,delivered:false,can_export:false})
-    const key=crypto.randomUUID()
-    const second=command('draft',{bl_ids:['CE557-SECOND'],request_key:key},client)
-    expect(command('draft',{bl_ids:['CE557-SECOND'],request_key:key},client).id).toBe(second.id)
-    const sent2=command('submit',{request_id:second.id,expected_version:second.version,request_key:crypto.randomUUID()},client)
+    const sent2=JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${sentB.id}');`,client))
     expect(sent2.items[0].termo).toBe(true)
     expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow()
   })
@@ -247,8 +249,9 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
   it('pedido com dois BLs conclui quando todos atendem os quatro requisitos; CE divergente é recusado até a reconferência',()=>{
     command('set_vip',{customer_id:998557,enabled:true,reason:'Teste misto VIP',request_key:crypto.randomUUID()})
     sql("UPDATE public.ce_unlock_documents SET status='approved' WHERE customer_id=998557 AND source='vip_annual'; UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998558;")
-    const draft=command('draft',{bl_ids:['CE557-SECOND','CE557-PART'],request_key:crypto.randomUUID()},client)
-    command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)
+    // Solicitação VIP aberta antes da 580 (ADR 0119): os dois B/Ls cobertos pelos anuais.
+    const draft=legacyVipRequest(998557,['CE557-SECOND','CE557-PART'],client)
+    sql(draft.sql)
     let request
     const view=()=>JSON.parse(sql(`SELECT public.ce_unlock_read('request',jsonb_build_object('request_id','${draft.id}'));`,admin))
     command('delivery',{bl_id:'CE557-SECOND',delivered:true,expected_version:0,request_key:crypto.randomUUID()})
@@ -284,7 +287,10 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
   })
   it('envio VIP aguarda revogação anual concorrente e recusa cobertura perdida',async()=>{
     cancelOpenRequests('Preparar concorrência VIP')
-    const draft=command('draft',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()},client)
+    // Rascunho VIP aberto antes da 580 (ADR 0119); o envio é recusado de todo modo.
+    const legacy=legacyVipRequest(998557,['CE557-A'],client,'draft')
+    sql(legacy.sql)
+    const draft={id:legacy.id,version:0}
     expect(JSON.parse(sql('SELECT public.portal_get_ce_unlock_vip_coverage();',client)).termo).toBe(true)
     const worker=await heldTransaction("BEGIN; UPDATE public.ce_unlock_documents SET status='revoked' WHERE customer_id=998557 AND source='vip_annual' AND type='termo'; SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;")
     try { expect(()=>command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)).toThrow() }

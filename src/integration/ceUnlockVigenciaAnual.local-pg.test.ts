@@ -8,6 +8,7 @@
 import { execPsql } from './localPsql'
 import { describe, expect, it, beforeAll, beforeEach, afterAll } from 'vitest'
 import { syntheticCnpj } from './localTestData'
+import { legacyVipRequest } from './ceUnlockLegacyVip'
 
 const db = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const local = process.env.LOCAL_PG_INTEGRATION === '1' ? describe : describe.skip
@@ -43,6 +44,7 @@ local('desbloqueio CE — vigência do termo anual pela data da solicitação (m
     DELETE FROM public.ce_unlock_requests WHERE customer_id=${C};
     DELETE FROM public.ce_unlock_vip_customers WHERE customer_id=${C};
     DELETE FROM public.ce_unlock_bl_deliveries WHERE bl_id LIKE 'CE449-%';
+    DELETE FROM public.ce_unlock_direct_validations WHERE bl_id LIKE 'CE449-%';
     DELETE FROM public.audit_logs WHERE entity_type IN ('bl','bls') AND entity_id='CE449-LIGADO' AND field_name='ce_mercante';
     SET session_replication_role=origin;`)
   beforeAll(() => {
@@ -103,13 +105,12 @@ local('desbloqueio CE — vigência do termo anual pela data da solicitação (m
     const y = Y()
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
     annual('termo', y); annual('procuracao', y)
+    // 580 (ADR 0119): coberto, o B/L não entra em solicitação; ainda não pago e entregue, vale hoje.
     for (const bl of ['CE449-DEZ', 'CE449-JAN', 'CE449-VIRADA', 'CE449-REVEILLON']) {
-      expect(item(bl), bl).toMatchObject({ vip: true, vip_covered: true })
+      expect(item(bl), bl).toMatchObject({ vip: true, vip_covered: true, vip_direct: true, direct: true, termo: true, procuracao: true })
     }
-    const mixed = command('draft', { bl_ids: ['CE449-DEZ', 'CE449-JAN'], request_key: key() }, client)
-    expect(mixed.source).toBe('vip_annual')
-    const sent = command('submit', { request_id: mixed.id, expected_version: mixed.version, request_key: key() }, client)
-    expect(sent.items.map((row: { termo: boolean; procuracao: boolean }) => [row.termo, row.procuracao])).toEqual([[true, true], [true, true]])
+    expect(error(`SELECT public.portal_ce_unlock_command('draft','${JSON.stringify({ bl_ids: ['CE449-DEZ', 'CE449-JAN'], request_key: key() })}'::jsonb);`, client))
+      .toContain('não precisa de solicitação: pela condição VIP')
   })
 
   it('pedido enviado antes da vigência não é coberto pelo anual novo', () => {
@@ -149,8 +150,9 @@ local('desbloqueio CE — vigência do termo anual pela data da solicitação (m
     }
     sql(`DELETE FROM public.ce_unlock_documents WHERE customer_id=${C} AND type='procuracao';`)
     annual('procuracao', y)
-    const vipDraft = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
-    expect(vipDraft.source).toBe('vip_annual')
+    // Rascunho VIP aberto antes da 580 (ADR 0119): não aceita anexo avulso.
+    const vipDraft = legacyVipRequest(C, ['CE449-JAN'], client, 'draft')
+    sql(vipDraft.sql)
     expect(error(prepare(vipDraft.id, 'procuracao'), client)).toContain('Pedido não aceita anexos')
   })
 
@@ -197,8 +199,9 @@ local('desbloqueio CE — vigência do termo anual pela data da solicitação (m
     const y = Y()
     command('set_vip', { customer_id: C, enabled: true, reason: 'VIP', request_key: key() })
     annual('termo', y); annual('procuracao', y)
-    const vip = command('draft', { bl_ids: ['CE449-JAN'], request_key: key() }, client)
-    expect(vip.source).toBe('vip_annual')
+    // Solicitação VIP aberta antes da 580 (ADR 0119).
+    const vip = legacyVipRequest(C, ['CE449-JAN'], client, 'draft')
+    sql(vip.sql)
     const list = JSON.parse(sql(`SELECT public.ce_unlock_customer_requests(${C});`, admin))
     expect(list.items).toEqual([expect.objectContaining({ id: vip.id, source: 'vip_annual', bl_ids: ['CE449-JAN'] })])
     for (const name of ['portal_inspect_get_ce_unlock_request', 'portal_inspect_get_ce_unlock_vip_coverage']) {

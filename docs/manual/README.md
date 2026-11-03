@@ -188,6 +188,12 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   sistema) e acha o B/L colado com espaço; **Requisito atendido** e **VIP** em
   Mais filtros; **Histórico do B/L** com quando e quem cumpriu cada requisito,
   com ou sem solicitação (ACE-028, DCE-065, DCE-112).
+- **Cliente VIP sem solicitação** (decisão do dono de 2026-11-03,
+  [ADR 0119](../adr/0119-vip-desbloqueia-sem-solicitacao.md), migration `580`):
+  o B/L coberto pelos dois anuais VIP fica apto com as Taxas Locais pagas e o
+  B/L original entregue, sem solicitação; o anual cobre o dia do pagamento e da
+  entrega; aviso "documentação validada" por B/L, no sino e por e-mail; o Portal
+  explica a regra e mostra por B/L o que falta (DCE-091, DCE-111, DCE-113).
 - **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
   2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
   migrations `552` e `553`): o Pix do QR estático deixa de aparecer como ZPT

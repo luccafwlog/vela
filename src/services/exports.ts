@@ -411,7 +411,7 @@ export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
     Navio: row.vessel_name ?? '',
     Viagem: row.voyage_number ?? '',
     POD: row.pod ?? '',
-    Solicitação: row.protocol ?? (row.documents_dispensed ? 'Dispensada · veículo LCL' : ''),
+    Solicitação: row.protocol ?? (row.documents_dispensed ? 'Dispensada · veículo LCL' : row.direct && row.vip_direct ? 'Dispensada · VIP' : ''),
     Situação: ceStateLabel(row.state),
     // Veículo LCL isento (migration 575): termo e procuração dispensados, não "atendidos".
     'Termo de devolução': row.documents_dispensed ? 'Dispensado' : doc(row, row.termo),

@@ -167,7 +167,8 @@ export function bounceNotificationTemplate(i: {
 
 // Avisos do Desbloqueio de CE ao cliente (recusa de documento; documentação validada).
 // Nunca cita ZPT nem desbloqueio confirmado: o cliente confere o resultado no SISCARGA.
-// `request`: protocolo e B/Ls da solicitação; sem B/L, o bloco não aparece.
+// `request`: protocolo e B/Ls da solicitação; sem B/L, o bloco não aparece. Sem
+// protocolo, é o B/L do Cliente VIP que segue sem solicitação (migration 580).
 export function ceUnlockNoticeTemplate(i: {
   title: string
   message: string
@@ -178,10 +179,12 @@ export function ceUnlockNoticeTemplate(i: {
   const link = `${emailOrigin(i.portalUrl)}/portal/desbloqueio-ce`
   const bls = i.request?.bls.map((bl) => bl.trim()).filter(Boolean) ?? []
   const protocol = i.request?.protocol.trim() ?? ''
+  const heading = protocol ? `Solicitação ${protocol}` : 'Condição VIP, sem solicitação'
+  const label = protocol ? 'B/Ls' : 'B/L'
   const block = bls.length
     ? {
-        html: portal.block(`Solicitação ${protocol}`.trim(), emailFacts([['B/Ls', escapeHtml(bls.join(', '))]], 1)),
-        text: [`Solicitação ${protocol}`.trim(), `B/Ls: ${bls.join(', ')}`],
+        html: portal.block(heading, emailFacts([[label, escapeHtml(bls.join(', '))]], 1)),
+        text: [heading, `${label}: ${bls.join(', ')}`],
       }
     : null
   return portalMail({

@@ -540,11 +540,14 @@ export function DesbloqueioCe() {
                           ) : i.documents_dispensed ? (
                             // Veículo LCL com Taxas Locais isentas: sem solicitação, só a entrega do original (migration 575).
                             <StatusText tone="muted">Dispensada · veículo LCL</StatusText>
+                          ) : i.direct && i.vip_direct ? (
+                            // VIP coberto pelos anuais: sem solicitação, apto com o pagamento e a entrega (migration 580).
+                            <StatusText tone="muted">Dispensada · VIP</StatusText>
                           ) : (
                             <StatusText tone="muted">Sem solicitação</StatusText>
                           )}
                         </td>
-                        {/* Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais vem atendido (migrations 576 e 579). */}
+                        {/* Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais vem atendido (migrations 576, 579 e 580). */}
                         <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} dispensed={i.documents_dispensed} vipAnnual={ceVipAnnualCovered(i)} /></td>
                         <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} dispensed={i.documents_dispensed} vipAnnual={ceVipAnnualCovered(i)} /></td>
                         <td><CeUnlockRequirementIcon label="Taxas locais" subject={i.bl_id} ok={i.paid} /></td>

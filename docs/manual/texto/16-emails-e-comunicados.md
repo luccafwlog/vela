@@ -23,7 +23,7 @@ O Cliente não recebe tudo em todos os endereços. Cada contato dele fica em uma
 | **Cobrança de Demurrage** | Sozinha, pela Régua de Cobrança ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)) | Caixas **Financeiro** e **Demurrage** |
 | **Comunicado livre** | À mão, para os Clientes de uma Viagem ([16.6](#166-escrever-um-comunicado-livre-ou-institucional)) | Todos os contatos ou a caixa que você escolhe |
 | **Institucional** | À mão, sem carga ([16.6](#166-escrever-um-comunicado-livre-ou-institucional)) | Todos os contatos |
-| Avisos do Desbloqueio de CE | Documento recusado e documentação validada (capítulo 12) | Caixa **Documentação e Operação** |
+| Avisos do Desbloqueio de CE | Documento recusado e documentação validada, da solicitação ou, no Cliente VIP sem solicitação, de cada B/L (capítulo 12) | Caixa **Documentação e Operação** |
 | E-mails da conta do Portal | Convite, recuperação de senha, troca de e-mail (capítulo 14) | O **E-mail de recuperação** da conta |
 
 Só recebe o contato ativo, com e-mail válido e endereço que não está bloqueado. O mesmo endereço em dois contatos recebe uma vez, e cada e-mail fala de um Cliente só. Toda caixa precisa de alguém: quando ela fica sem outro contato que possa receber, o contato principal volta a recebê-la.

@@ -113,6 +113,12 @@ it('VIP sem solicitação com os anuais cobrindo: termo e procuração cobertos 
   expect(screen.getByRole('img', { name: 'Procuração BL-VIP: coberto pelo anual VIP' })).toBeTruthy()
   expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP-FALTA: pendente' })).toBeTruthy()
 })
+it('VIP coberto sem solicitação: Dispensada · VIP, com termo e procuração cobertos pelo anual (migration 580)', () => {
+  state.extra = [{ bl_id: 'BL-VIP-DIRETO', vip: true, vip_covered: true, vip_direct: true, direct: true, termo: true, procuracao: true, paid: true, delivered: true, can_export: true, reasons: [] }]
+  mount()
+  expect(screen.getByText('Dispensada · VIP')).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP-DIRETO: coberto pelo anual VIP' })).toBeTruthy()
+})
 it('VIP em rascunho VIP também aparece coberto pelo anual; enviado, atendido (migration 579)', () => {
   state.extra = [
     { bl_id: 'BL-VIP-RASC', vip: true, vip_covered: true, termo: true, procuracao: true, request_id: 'r-1', protocol: 'DCE-1', state: 'draft', source: 'vip_annual' },

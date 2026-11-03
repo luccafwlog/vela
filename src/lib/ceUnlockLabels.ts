@@ -208,14 +208,32 @@ export function ceUnlockMissing(request: Pick<CeUnlockRequest, "items" | "state"
 }
 
 /**
- * Termo e procuração atendidos pelos anuais VIP antes do envio: B/L sem
- * solicitação (migration 576) ou em rascunho VIP (migration 579, decisão do dono
- * de 2026-11-03). Rascunho comum e solicitação cancelada seguem os documentos dela.
+ * Termo e procuração atendidos pelos anuais VIP fora de uma solicitação: B/L sem
+ * solicitação (migrations 576 e 580, que o leva direto à ZPT) ou em rascunho VIP
+ * (migration 579). Rascunho comum e solicitação cancelada seguem os documentos dela.
  */
 export function ceVipAnnualCovered(
   item: Pick<CeUnlockItem, "request_id" | "state" | "source" | "vip_covered">,
 ): boolean {
   return !!item.vip_covered && (!item.request_id || (item.state === "draft" && item.source === "vip_annual"));
+}
+
+/**
+ * Situação do B/L do Cliente VIP que segue sem solicitação (migration 580, ADR 0119):
+ * o que ainda falta do Cliente ou, com tudo cumprido, a documentação validada. A
+ * validação vem do banco (`sla_started_at`), na entrega do original ou em até 5
+ * minutos depois da baixa feita fora do Desbloqueio.
+ */
+export function ceVipDirectStatus(
+  item: Pick<CeUnlockItem, "paid" | "delivered" | "sla_started_at">,
+): { label: string; tone: "paid" | "warning" | "muted" } {
+  if (item.sla_started_at) return { label: "Documentação validada", tone: "paid" };
+  const missing = [
+    ...(item.paid ? [] : ["pagar as taxas locais"]),
+    ...(item.delivered ? [] : ["entregar o B/L original"]),
+  ];
+  if (missing.length) return { label: `Falta ${missing.join(" e ")}`, tone: "warning" };
+  return { label: "Validação em até 5 minutos", tone: "muted" };
 }
 
 const BL_HISTORY_REQUIREMENT: Record<CeUnlockBlHistoryEvent["requirement"], string> = {
@@ -248,6 +266,7 @@ export function ceBlHistoryText(e: CeUnlockBlHistoryEvent): { requirement: strin
       case "request_cancel": return `Solicitação cancelada${ref}`;
       case "request_complete": return `Documentação validada${ref}`;
       case "bl_moved": return `B/L passou para outra solicitação${ref}`;
+      case "vip_validated": return "Documentação validada pela condição VIP, sem solicitação";
       case "exported": return "Planilha da ZPT gerada com o B/L";
       default: return "Andamento atualizado";
     }

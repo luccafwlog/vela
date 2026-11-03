@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ceUnlockNoticeBls,
+  ceUnlockNoticeRequest,
   processCeUnlockEmails,
   runCeUnlockNotify,
   type CeUnlockNotifyHandlerDeps,
@@ -204,12 +205,28 @@ describe('e-mail ao cliente', () => {
     expect(empty.text).not.toContain('B/Ls:')
   })
 
+  it('aviso do B/L VIP sem solicitação (580): o bloco traz só o B/L, sem buscar solicitação', async () => {
+    const details = vi.fn(async () => ({ protocol: 'CE-X', bls: ['OUTRO'] }))
+    expect(await ceUnlockNoticeRequest({ request_id: null, bl_id: 'MEDU9' }, details)).toEqual({ protocol: '', bls: ['MEDU9'] })
+    expect(details).not.toHaveBeenCalled()
+    expect(await ceUnlockNoticeRequest({ request_id: 'req', bl_id: null }, details)).toEqual({ protocol: 'CE-X', bls: ['OUTRO'] })
+    const mail = ceUnlockNoticeTemplate({
+      title: 'Desbloqueio de CE: documentação validada',
+      message: 'A documentação do B/L MEDU9 (CE 1) foi validada pela sua condição VIP.',
+      portalUrl: 'https://portalfwlog.com.br/portal', supportEmail: 'suporte@fwlog.com.br',
+      request: { protocol: '', bls: ['MEDU9'] },
+    })
+    expect(mail.html).toContain('>Condição VIP, sem solicitação<')
+    expect(mail.text).toContain('Condição VIP, sem solicitação\nB/L: MEDU9')
+    expect(mail.html).not.toContain('Solicitação ')
+  })
+
   it('a função do aviso busca protocolo e B/Ls da solicitação da linha', () => {
     const source = readFileSync('supabase/functions/ce-unlock-notify-email/index.ts', 'utf8')
     expect(source).toContain('from("ce_unlock_request_bls").select("bl_id").eq("request_id", requestId)')
     expect(source).toContain('from("ce_unlock_events").select("bl_id").eq("request_id", requestId).eq("action", "bl_moved")')
     expect(source).toContain('bls: ceUnlockNoticeBls(')
-    expect(source).toContain('request: await requestDetails(row.request_id)')
+    expect(source).toContain('request: await ceUnlockNoticeRequest(row, requestDetails)')
   })
 
   // Reunião de testes de 2026-10-26: responder e o rodapé levam à importação, como os Comunicados.

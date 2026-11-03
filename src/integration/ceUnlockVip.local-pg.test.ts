@@ -1,5 +1,6 @@
 import { execPsql } from './localPsql'
 import { describe, expect, it, beforeAll, beforeEach } from 'vitest'
+import { legacyVipRequest } from './ceUnlockLegacyVip'
 
 // Desbloqueio de CE (docs/modules/desbloqueio-ce.md, ADR 0087): matriz VIP/anual, expurgo e lotes de
 // exportação pelos comandos reais. Fixtures próprias (clientes 998700/998701, B/Ls CE700-*); cada caso
@@ -35,6 +36,8 @@ const reset = `SET session_replication_role=replica;
   DELETE FROM public.ce_unlock_requests WHERE customer_id IN(${A},${B});
   DELETE FROM public.ce_unlock_vip_customers WHERE customer_id IN(${A},${B});
   DELETE FROM public.ce_unlock_bl_deliveries WHERE bl_id LIKE 'CE700-%';
+  DELETE FROM public.ce_unlock_direct_validations WHERE bl_id LIKE 'CE700-%';
+  DELETE FROM public.ce_unlock_direct_exports WHERE bl_id LIKE 'CE700-%';
   DELETE FROM public.ce_unlock_zpt_status WHERE bl_id LIKE 'CE700-%';
   DELETE FROM public.ledger_settlements WHERE receivable_id BETWEEN 998700 AND 998709;
   DELETE FROM public.bl_receivables WHERE id BETWEEN 998700 AND 998709;
@@ -53,10 +56,14 @@ function annual(customer: number, type: 'termo' | 'procuracao', year?: number): 
 }
 const setVip = (customer: number, enabled: boolean) => command('set_vip', { customer_id: customer, enabled, reason: enabled ? 'Cliente VIP' : 'VIP encerrado', request_key: key() })
 const deliver = (bl: string) => command('delivery', { bl_id: bl, delivered: true, expected_version: item(bl).delivery_version, request_key: key() })
+// 580 (ADR 0119): o B/L coberto pelos anuais não entra mais em solicitação. As VIP abertas
+// antes continuam em produção; o fixture as grava como o envio de antes gravava.
 function submitVip(bls: string[], uid = clientA) {
-  const draft = command('draft', { bl_ids: bls, request_key: key() }, uid)
-  return command('submit', { request_id: draft.id, expected_version: draft.version, request_key: key() }, uid)
+  const legacy = legacyVipRequest(A, bls, uid)
+  sql(legacy.sql)
+  return JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${legacy.id}');`, uid))
 }
+const VIP_REFUSAL = 'não precisa de solicitação: pela condição VIP'
 // Passagem do tempo: o banco não simula outra data, então a vigência aprovada recua um ano.
 const ageOneYear = (ids: string[]) => sql(`UPDATE public.ce_unlock_documents SET coverage_year=coverage_year-1,valid_from=(valid_from-interval '1 year')::date,valid_until=make_date(coverage_year-1,12,31) WHERE id IN (${ids.map(i => `'${i}'`).join(',')});`)
 const candidates = () => (JSON.parse(sql('SELECT public.ce_unlock_cleanup_candidates();')) as Array<{ id: string }>).map(c => c.id)
@@ -96,12 +103,13 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     expect(commandError('submit', { request_id: fallback.id, expected_version: fallback.version, request_key: key() }, clientA)).toContain('Anexe versões atuais')
     expect(commandError('apply_vip', { request_id: fallback.id, expected_version: fallback.version, request_key: key() })).toContain('Cobertura VIP indisponível')
     command('cancel', { request_id: fallback.id, expected_version: fallback.version, request_key: key() }, clientA)
-    // Com anual vigente o pedido VIP conclui; ao perder o VIP, a varredura reabre e a exportação é recusada.
+    // Com anual vigente o B/L não entra mais em solicitação (580); a VIP aberta antes conclui
+    // e, ao perder o VIP, a varredura reabre e a exportação é recusada.
     annual(A, 'termo', y); annual(A, 'procuracao', y)
-    const expired = command('draft', { bl_ids: ['CE700-A1'], request_key: key() }, clientA)
+    expect(commandError('draft', { bl_ids: ['CE700-A1'], request_key: key() }, clientA)).toContain(VIP_REFUSAL)
+    const expired = submitVip(['CE700-A1'])
     expect(expired.source).toBe('vip_annual')
-    const sent = command('submit', { request_id: expired.id, expected_version: expired.version, request_key: key() }, clientA)
-    expect(sent.items[0]).toMatchObject({ termo: true, procuracao: true })
+    expect(expired.items[0]).toMatchObject({ termo: true, procuracao: true })
     deliver('CE700-A1')
     expect(view(expired.id).state).toBe('completed')
     setVip(A, false)
@@ -112,47 +120,121 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     expect(commandError('apply_vip', { request_id: expired.id, expected_version: view(expired.id).version, request_key: key() })).toContain('Cobertura VIP indisponível')
   })
 
-  it('576: sem solicitação, o VIP coberto pelos dois anuais tem termo e procuração atendidos, sem ficar apto', () => {
+  it('580: o B/L VIP coberto pelos dois anuais fica apto sem solicitação com o pagamento e a entrega', () => {
     const y = Y()
     // Sem VIP, sem solicitação: pendente, mesmo com anuais aprovados.
     annual(A, 'termo', y)
-    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', vip: false, vip_covered: false, termo: false, procuracao: false })
-    // VIP com só um dos anuais: o pedido nasceria comum, então os dois seguem pendentes.
+    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', vip: false, vip_covered: false, vip_direct: false, direct: false, termo: false, procuracao: false })
+    // VIP com só um dos anuais: segue o fluxo comum, com solicitação e os dois documentos.
     setVip(A, true)
-    expect(item('CE700-A1')).toMatchObject({ vip: true, vip_covered: false, termo: false, procuracao: false })
+    expect(item('CE700-A1')).toMatchObject({ vip: true, vip_direct: false, direct: false, termo: false, procuracao: false, can_submit: true })
     annual(A, 'procuracao', y)
+    // Os dois anuais cobrindo: não há solicitação; falta só o original.
+    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', vip_covered: true, vip_direct: true, direct: true, termo: true, procuracao: true,
+      paid: true, delivered: false, can_submit: false, can_export: false, sla_started_at: null })
+    expect(item('CE700-A1').reasons).toEqual(['B/L físico aguardando entrega'])
+    expect(commandError('draft', { bl_ids: ['CE700-A1'], request_key: key() }, clientA)).toContain(VIP_REFUSAL)
+    expect(commandError('export', { bl_ids: ['CE700-A1'], request_key: key() })).toContain('B/L físico aguardando entrega')
+    // A entrega deixa o B/L apto, valida na hora e avisa o Cliente pelo B/L (sino e e-mail).
     deliver('CE700-A1')
-    // Os dois anuais cobrindo: atendidos, mas a ZPT ainda pede a solicitação.
-    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', vip_covered: true, termo: true, procuracao: true, paid: true, delivered: true, can_export: false, sla_started_at: null })
-    expect(commandError('export', { bl_ids: ['CE700-A1'], request_key: key() })).toContain('não apto')
-    // O filtro "Requisito pendente" da aba Andamento lê os mesmos campos.
-    const pending = (req: string) => (JSON.parse(sql(`SELECT public.ce_unlock_read('bls',jsonb_build_object('filters',jsonb_build_object('search','CE700-A1','pending_requirement','${req}'),'page',1));`, admin)) as { items: Array<{ bl_id: string }> }).items.map((i) => i.bl_id)
-    expect(pending('termo')).not.toContain('CE700-A1')
-    expect(pending('procuracao')).not.toContain('CE700-A1')
-    // Perdido o VIP, volta a pendente.
+    const ready = item('CE700-A1')
+    expect(ready).toMatchObject({ can_export: true, reasons: [] })
+    expect(ready.sla_started_at).not.toBeNull()
+    expect(sql(`SELECT count(*) FROM public.ce_unlock_direct_validations WHERE bl_id='CE700-A1' AND customer_id=${A};`)).toBe('1')
+    const notice = sql(`SELECT message FROM public.portal_notifications WHERE customer_id=${A} AND bl_id='CE700-A1';`)
+    expect(notice).toContain('A documentação do B/L CE700-A1 (CE 998700000000001) foi validada pela sua condição VIP')
+    expect(notice).toContain('Prazo para o desbloqueio: até')
+    expect(notice).toContain('SISCARGA')
+    expect(notice).not.toMatch(/ZPT/i)
+    expect(sql(`SELECT kind||':'||(request_id IS NULL) FROM public.ce_unlock_email_outbox WHERE customer_id=${A} AND bl_id='CE700-A1';`)).toBe('documentation_validated:true')
+    // A fila de envio entrega o B/L do aviso.
+    expect(JSON.parse(sql('SELECT public.ce_unlock_email_pending(100);')).find((r: { bl_id: string | null }) => r.bl_id === 'CE700-A1'))
+      .toMatchObject({ request_id: null, kind: 'documentation_validated' })
+    // Desmarcar e marcar de novo, e a varredura, não repetem o aviso.
+    command('delivery', { bl_id: 'CE700-A1', delivered: false, reason: 'Conferência', expected_version: item('CE700-A1').delivery_version, request_key: key() })
+    expect(item('CE700-A1')).toMatchObject({ can_export: false, sla_started_at: null })
+    deliver('CE700-A1')
+    sql('SELECT public.ce_unlock_refresh_open();')
+    expect(sql(`SELECT count(*) FROM public.portal_notifications WHERE customer_id=${A} AND bl_id='CE700-A1';`)).toBe('1')
+    // O histórico do B/L mostra a validação.
+    const history = JSON.parse(sql(`SELECT public.ce_unlock_read('bl_history',jsonb_build_object('bl_id','CE700-A1'));`, admin)) as { events: Array<{ event: string; actor: string | null }> }
+    expect(history.events.find((e) => e.event === 'vip_validated')).toMatchObject({ actor: 'CE700 admin' })
+    // Exportação: as quatro colunas "Sim", com o envio guardado no B/L.
+    const lot = command('export', { bl_ids: ['CE700-A1'], request_key: key() })
+    expect(lot.rows).toEqual([{ bl_id: 'CE700-A1', termo: true, procuracao: true, delivered: true, paid: true }])
+    expect(item('CE700-A1')).toMatchObject({ direct: true, export_state: 'exported', sent_to_zpt: true })
+    // Perdido o VIP depois do envio: o envio fica e o B/L não passa a pedir solicitação.
     setVip(A, false)
-    expect(item('CE700-A1')).toMatchObject({ vip_covered: false, termo: false, procuracao: false })
-    expect(pending('termo')).toContain('CE700-A1')
+    expect(item('CE700-A1')).toMatchObject({ direct: true, vip_direct: false, export_state: 'exported', can_submit: false, can_export: false })
+    // O filtro "Requisito pendente" da aba Andamento lê os mesmos campos: o B/L sem VIP volta a pendente.
+    const pending = (req: string) => (JSON.parse(sql(`SELECT public.ce_unlock_read('bls',jsonb_build_object('filters',jsonb_build_object('search','CE700-A2','pending_requirement','${req}'),'page',1));`, admin)) as { items: Array<{ bl_id: string }> }).items.map((i) => i.bl_id)
+    expect(pending('termo')).toContain('CE700-A2')
+    // O Portal recebe vip_direct, mas nunca o envio à ZPT.
+    setVip(A, true)
+    const portal = (JSON.parse(sql("SELECT public.portal_list_ce_unlock_bls('{}',1);", clientA)) as { items: Array<Record<string, unknown>> }).items.find((i) => i.bl_id === 'CE700-A2')
+    expect(portal).toMatchObject({ vip_direct: true, direct: true, can_submit: false })
+    expect(portal).not.toHaveProperty('export_state')
   })
 
-  it('579: o rascunho VIP mostra termo e procuração cobertos pelo anual; o rascunho comum segue pedindo os dele', () => {
+  it('580: a varredura valida o B/L pago fora do módulo; o anual cobre o dia do pagamento e da entrega', () => {
     const y = Y()
-    // Rascunho comum, criado sem VIP: depois de o Cliente virar VIP coberto, o
-    // envio ainda vai pedir termo e procuração anexados, então seguem pendentes.
+    setVip(A, true); annual(A, 'termo', y); annual(A, 'procuracao', y)
+    // Entregue e sem pagamento: direto, mas não apto e sem aviso.
+    deliver('CE700-UNPAID')
+    expect(item('CE700-UNPAID')).toMatchObject({ direct: true, vip_direct: true, paid: false, can_export: false })
+    expect(item('CE700-UNPAID').reasons).toEqual(['Taxas locais sem liquidação integral confirmada'])
+    expect(sql(`SELECT count(*) FROM public.portal_notifications WHERE customer_id=${A};`)).toBe('0')
+    // Baixa feita fora do módulo: a varredura do job valida e avisa.
+    sql(`UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998703;
+      INSERT INTO public.ledger_settlements(receivable_id,amount_brl,source) VALUES(998703,100,'manual');`)
+    expect(item('CE700-UNPAID')).toMatchObject({ can_export: true, sla_started_at: null })
+    expect(Number(sql('SELECT public.ce_unlock_refresh_open();'))).toBeGreaterThanOrEqual(1)
+    expect(item('CE700-UNPAID').sla_started_at).not.toBeNull()
+    expect(sql(`SELECT count(*) FROM public.portal_notifications WHERE customer_id=${A} AND bl_id='CE700-UNPAID';`)).toBe('1')
+    // Vigência: só o anual do ano passado. Pago e entregue hoje, o B/L não é coberto e segue
+    // o fluxo comum; pago e entregue em 20/12 do ano passado, é coberto mesmo exportado agora.
+    sql(`DELETE FROM public.ce_unlock_documents WHERE customer_id=${A};`)
+    annual(A, 'termo', y - 1); annual(A, 'procuracao', y - 1)
+    deliver('CE700-A2')
+    expect(item('CE700-A2')).toMatchObject({ vip_direct: false, direct: false, can_submit: true, can_export: false })
+    sql(`SET session_replication_role=replica;
+      UPDATE public.ce_unlock_bl_deliveries SET updated_at='${y - 1}-12-20T10:00:00-03:00' WHERE bl_id='CE700-A2';
+      UPDATE public.ledger_settlements SET created_at='${y - 1}-12-19T10:00:00-03:00' WHERE receivable_id=998701;`)
+    expect(sql("SELECT ce_unlock_private.direct_day('CE700-A2');")).toBe(`${y - 1}-12-20`)
+    expect(item('CE700-A2')).toMatchObject({ vip_direct: true, direct: true, termo: true, procuracao: true, can_submit: false, can_export: true })
+    // Ainda não pago e entregue, vale hoje: o anual do ano passado não cobre o B/L A3.
+    expect(item('CE700-A3')).toMatchObject({ vip_direct: false, direct: false })
+  })
+
+  it('580: rascunho não segura o B/L VIP coberto; o envio do rascunho é recusado e a VIP enviada continua', () => {
+    const y = Y()
+    // Rascunho comum, criado sem VIP, com termo e procuração anexados.
     annual(A, 'termo', y); annual(A, 'procuracao', y)
     const common = command('draft', { bl_ids: ['CE700-A1'], request_key: key() }, clientA)
     expect(common.source).toBe('request')
+    sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by)
+      SELECT ${A},'${common.id}',t,'request','uploaded',t||'.pdf','ce700/draft-'||t||'-'||gen_random_uuid(),10,'h','${clientA}' FROM unnest(array['termo','procuracao']) t;`)
+    // Virou VIP coberto: o rascunho não segura o B/L, que segue sem solicitação.
     setVip(A, true)
-    expect(item('CE700-A1')).toMatchObject({ state: 'draft', source: 'request', vip_covered: true, termo: false, procuracao: false })
-    // Rascunho VIP: cobertos como no B/L sem solicitação, sem ficar apto nem contar prazo.
-    deliver('CE700-A1')
-    const draft = command('draft', { bl_ids: ['CE700-A1'], request_key: key() }, clientA)
-    expect(draft.source).toBe('vip_annual')
-    expect(item('CE700-A1')).toMatchObject({ state: 'draft', source: 'vip_annual', vip_covered: true, termo: true, procuracao: true, can_export: false, sla_started_at: null })
-    expect(view(draft.id).state).toBe('draft')
-    // Perdido o VIP, o rascunho VIP volta a pendente.
-    setVip(A, false)
-    expect(item('CE700-A1')).toMatchObject({ state: 'draft', termo: false, procuracao: false })
+    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', direct: true, vip_direct: true, termo: true, procuracao: true })
+    const current = JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${common.id}');`, clientA))
+    const refused = commandError('submit', { request_id: common.id, expected_version: current.version, request_key: key() }, clientA)
+    expect(refused).toContain(VIP_REFUSAL)
+    expect(refused).toContain('Cancele este rascunho')
+    // Rascunho VIP aberto antes da 580: a mesma recusa.
+    const legacy = legacyVipRequest(A, ['CE700-A2'], clientA, 'draft')
+    sql(legacy.sql)
+    expect(item('CE700-A2')).toMatchObject({ state: 'no_request', direct: true })
+    expect(commandError('submit', { request_id: legacy.id, expected_version: 0, request_key: key() }, clientA)).toContain(VIP_REFUSAL)
+    command('cancel', { request_id: legacy.id, expected_version: 0, request_key: key() }, clientA)
+    // Solicitação VIP enviada antes da 580: continua sendo o caminho do B/L.
+    const sent = submitVip(['CE700-A3'])
+    expect(item('CE700-A3')).toMatchObject({ request_id: sent.id, state: 'submitted', direct: false, vip_direct: true, termo: true, procuracao: true, can_submit: false })
+    deliver('CE700-A3')
+    expect(view(sent.id).state).toBe('completed')
+    // A validação do B/L direto não vale para o B/L da solicitação: o aviso é o da solicitação.
+    expect(sql(`SELECT count(*) FROM public.ce_unlock_direct_validations WHERE bl_id='CE700-A3';`)).toBe('0')
+    expect(sql(`SELECT count(*) FROM public.ce_unlock_email_outbox WHERE request_id='${sent.id}';`)).toBe('1')
   })
 
   it('577: busca com espaço e "&", filtros de requisito atendido e VIP, e histórico do B/L sem solicitação', () => {
@@ -215,7 +297,11 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
   it('matriz VIP: VIP nunca dispensa pagamento nem entrega do original', () => {
     const y = Y()
     setVip(A, true); annual(A, 'termo', y); annual(A, 'procuracao', y)
-    expect(commandError('draft', { bl_ids: ['CE700-UNPAID'], request_key: key() }, clientA)).toContain('Taxas locais sem liquidação integral confirmada')
+    // 580: sem solicitação, o B/L não pago fica pendente das taxas; o Cliente não pede.
+    expect(commandError('draft', { bl_ids: ['CE700-UNPAID'], request_key: key() }, clientA)).toContain(VIP_REFUSAL)
+    expect(item('CE700-UNPAID').reasons).toEqual(['Taxas locais sem liquidação integral confirmada', 'B/L físico aguardando entrega'])
+    expect(commandError('export', { bl_ids: ['CE700-UNPAID'], request_key: key() })).toContain('Taxas locais sem liquidação integral confirmada')
+    // Na VIP aberta antes da 580, também.
     const sent = submitVip(['CE700-A1'])
     expect(sent.state).toBe('submitted')
     expect(sent.items[0]).toMatchObject({ termo: true, procuracao: true, paid: true, delivered: false, can_export: false })
@@ -240,9 +326,7 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     expect(commandError('submit', { request_id: common.id, expected_version: common.version, request_key: key() }, clientA)).toContain('Anexe versões atuais')
     command('cancel', { request_id: common.id, expected_version: common.version, request_key: key() }, clientA)
     const proc = annual(A, 'procuracao', y)
-    const draft = command('draft', { bl_ids: ['CE700-A1', 'CE700-A2'], request_key: key() }, clientA)
-    expect(draft.source).toBe('vip_annual')
-    const first = command('submit', { request_id: draft.id, expected_version: draft.version, request_key: key() }, clientA)
+    const first = submitVip(['CE700-A1', 'CE700-A2'])
     const second = submitVip(['CE700-A3'])
     for (const bl of ['CE700-A1', 'CE700-A2', 'CE700-A3']) deliver(bl)
     expect([view(first.id).state, view(second.id).state]).toEqual(['completed', 'completed'])
