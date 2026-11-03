@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { describeWithProbe, syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 352 (revisão dos alertas de 2026-10-21, docs/revisao-alertas-2026-10.md,
 // sugestão S7 e decisão P4): "B/L sem Cliente perto do ETA" abre quando a
@@ -173,6 +173,7 @@ describeLocal('352 — B/L sem Cliente perto do ETA', () => {
     expect(psql(`SELECT count(*) FROM public.alert_item_events e JOIN public.alert_items i ON i.id = e.alert_item_id
       JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'bl_sem_cliente_perto_eta' AND a.entity_id = '${SSZ}' AND e.event_type = 'opened';`)).toBe('2')
+    psql(syntheticCeBeforeCancelSql(BLS[2]))
     const run = asAdmin(`SELECT public.cancel_bl('${BLS[2]}', 'teste 352');`)
     expect(JSON.parse(run.split('\n').pop() ?? '{}')).toMatchObject({ cancelled: true })
     // O filtro "Sem Cliente vinculado" segue o recorte do alerta: B/L cancelado fica fora.

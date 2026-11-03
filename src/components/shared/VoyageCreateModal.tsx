@@ -192,7 +192,13 @@ export function VoyageCreateModal({
       const publishAfterDates = scheduleLanes.length > 0 && showOnPortal
       const saved = voyageId
         ? await updateVoyage(voyageId, normalizedForm, user?.id ?? null)
-        : await createVoyage(normalizedForm, user?.id ?? null, { origin: 'viagens', showOnPortal: showOnPortal && !publishAfterDates })
+        : await createVoyage(normalizedForm, user?.id ?? null, {
+          origin: 'viagens',
+          showOnPortal: showOnPortal && !publishAfterDates,
+          // Navio já cadastrado mantém o armador dele, salvo quando a pessoa
+          // abre Alterar armador (decisão do dono de 2026-11-03).
+          keepRegisteredCarrier: !carrierOpen,
+        })
       if (voyageId && showOnPortal !== currentlyShown) await setVoyageShowOnPortal(voyageId, showOnPortal)
 
       let datesFailure: string | null = null

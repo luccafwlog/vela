@@ -160,6 +160,27 @@ describe('VoyageCreateModal', () => {
     expect(recordDatesMock).not.toHaveBeenCalled()
   })
 
+  it('sem Alterar armador, o navio já cadastrado mantém o armador dele; com Alterar armador, troca', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    await waitFor(() => expect(createVoyageMock).toHaveBeenCalled())
+    expect(createVoyageMock.mock.calls[0][2]).toMatchObject({ keepRegisteredCarrier: true })
+  })
+
+  it('com Alterar armador aberto, o armador escolhido vale para o navio', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
+    await user.click(screen.getByRole('button', { name: /Alterar armador/ }))
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    await waitFor(() => expect(createVoyageMock).toHaveBeenCalled())
+    expect(createVoyageMock.mock.calls[0][2]).toMatchObject({ keepRegisteredCarrier: false })
+  })
+
   it('datas recusadas: a viagem fica cadastrada e a tela diz que as datas não foram gravadas', async () => {
     const user = userEvent.setup()
     const onSaved = vi.fn()
@@ -235,7 +256,7 @@ describe('VoyageCreateModal', () => {
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
 
     await waitFor(() => expect(setShowMock).toHaveBeenCalledWith(101, true))
-    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false })
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false, keepRegisteredCarrier: true })
     expect(order).toEqual(['datas', 'publica'])
     expect(showToastMock).toHaveBeenCalledWith('Viagem cadastrada com sucesso.', 'success')
   })
@@ -256,7 +277,7 @@ describe('VoyageCreateModal', () => {
       'Viagem cadastrada, mas as datas dos portos não foram gravadas (falha na gravação das datas). Informe-as nas escalas da ficha da viagem e ligue Chegadas e Saídas depois.',
       'error',
     ))
-    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false })
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false, keepRegisteredCarrier: true })
     expect(setShowMock).not.toHaveBeenCalled()
   })
 
@@ -295,7 +316,7 @@ describe('VoyageCreateModal', () => {
         voyageNumber: '045E',
       }),
       'user-1',
-      { origin: 'viagens', showOnPortal: false },
+      { origin: 'viagens', showOnPortal: false, keepRegisteredCarrier: true },
     )
   })
 
@@ -309,7 +330,7 @@ describe('VoyageCreateModal', () => {
     await user.click(toggle)
     expect(toggle.getAttribute('aria-checked')).toBe('true')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
-    expect(createVoyageMock).toHaveBeenCalledWith(expect.objectContaining({ voyageNumber: '11' }), 'user-1', { origin: 'viagens', showOnPortal: true })
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.objectContaining({ voyageNumber: '11' }), 'user-1', { origin: 'viagens', showOnPortal: true, keepRegisteredCarrier: true })
   })
 
   // Revisão de 2026-10-22 (A1): navio e número já cadastrados.

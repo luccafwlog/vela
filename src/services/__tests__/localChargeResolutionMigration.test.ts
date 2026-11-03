@@ -236,10 +236,10 @@ describeLocal('contrato da resolução pura em replay local do Postgres', () => 
     ).toBe('calculated|<NULL>')
     expect(
       psql(`SELECT status || '|' || COALESCE(notes, '<NULL>') FROM public.resolve_bl_local_charge_items('${blId}', 'ZZ311B') WHERE calculation_key = 'review:weight_missing:${itemWeightId}';`),
-    ).toBe('review_required|Revisão manual obrigatória')
+    ).toBe('review_required|Revisao manual obrigatoria')
     expect(
       psql(`SELECT status || '|' || COALESCE(notes, '<NULL>') FROM public.resolve_bl_local_charge_items('${blId}', 'ZZ311B') WHERE calculation_key = 'review:unsupported_basis:${itemUnsupportedId}';`),
-    ).toBe('review_required|Revisão manual obrigatória')
+    ).toBe('review_required|Revisao manual obrigatoria')
 
     const override = psql(`
       BEGIN;
@@ -271,8 +271,8 @@ describeLocal('contrato da resolução pura em replay local do Postgres', () => 
       ORDER BY calculation_key;
     `)
     expect(persisted).toContain(`auto:item:${itemNewId}|calculated|<NULL>`)
-    expect(persisted).toContain(`review:weight_missing:${itemWeightId}|review_required|Revisão manual obrigatória`)
-    expect(persisted).toContain(`review:unsupported_basis:${itemUnsupportedId}|review_required|Revisão manual obrigatória`)
+    expect(persisted).toContain(`review:weight_missing:${itemWeightId}|review_required|Revisao manual obrigatoria`)
+    expect(persisted).toContain(`review:unsupported_basis:${itemUnsupportedId}|review_required|Revisao manual obrigatoria`)
 
     psql(`
       DELETE FROM public.charge_calculations
@@ -296,13 +296,13 @@ describeLocal('contrato da resolução pura em replay local do Postgres', () => 
         FROM public.charge_calculations
         WHERE bl_id = '${reviewBlId}' AND calculation_key = 'review:weight_missing:${itemWeightId}';
       `),
-    ).toBe('<NULL>|<NULL>|999.00|true|manual|review_required|0.000|Revisão manual obrigatória')
+    ).toBe('<NULL>|<NULL>|999.00|true|manual|review_required|0.000|Revisao manual obrigatoria')
   })
 
   it('preserva o ramo THD-any como revisão, sem depender do cálculo de THD', () => {
     expect(
       psql(`SELECT status || '|' || COALESCE(notes, '<NULL>') FROM public.resolve_bl_local_charge_items('${thdBlId}', 'ZZ311C') WHERE calculation_key = 'review:thd_any_profile:${itemThdId}';`),
-    ).toBe('review_required|Revisão manual obrigatória')
+    ).toBe('review_required|Revisao manual obrigatoria')
   })
 
   it('preserva o rateio por container e o centavo absorvido pelo último B/L', () => {

@@ -21,7 +21,7 @@
 // Cancelada recusa mudança nas linhas dela.
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { describeWithProbe, syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -407,6 +407,7 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
       const waived = asAdmin(`SELECT public.waive_demurrage_box('${bl.overdue}', '${box}', 'B/L substituído antes da cobrança (R200)')`)
       expect(waived.status, waived.stderr).toBe(0)
     }
+    psql(syntheticCeBeforeCancelSql(bl.overdue))
     const cancelledBl = asAdmin(`SELECT public.cancel_bl('${bl.overdue}', 'B/L substituído (R200)', false)`)
     expect(cancelledBl.status, cancelledBl.stderr).toBe(0)
     expect(status('RVCU1970002')).toBe('within_free_time')

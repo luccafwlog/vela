@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe } from './localTestData'
+import { describeWithProbe, syntheticCeBeforeCancelSql } from './localTestData'
 
 // Migration 346 (revisão dos alertas de 2026-10-21, docs/revisao-alertas-2026-10.md):
 // - a exportação pós-ATD é decidida pela escala, não por terminal, e não pisca
@@ -207,6 +207,7 @@ describeLocal('346 — alertas de viagem acompanham escala, B/L, manifestos e st
              ('voyage_pod_schedule', '${V_DONE}::BRVIX', 'ata', NULL, '${eta}', '${ADMIN_ID}');
       SET session_replication_role = origin;`)
     asAdmin(`INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, review_status, consignee) VALUES ('${BL_DONE}', ${V_DONE}, 'CNSHA', 'BRRIG', 'container', 'ok', 'CONSIGNEE 346');`)
+    psql(syntheticCeBeforeCancelSql(BL_DONE))
     const run = asAdminRpc(`SELECT public.cancel_bl('${BL_DONE}', 'teste 346');`)
     expect(run.stderr).toBe('')
     expect(item('voyage_bl_expected', 'voyage', `${V_DONE}`)).toBe('sem item')
@@ -242,6 +243,7 @@ describeLocal('346 — alertas de viagem acompanham escala, B/L, manifestos e st
     expect(item('voyage_bl_expected', 'voyage', `${V_BL}`)).toBe('resolved')
     expect(item('voyage_ce_mercante_missing', 'voyage', `${V_BL}`)).toBe('active')
 
+    psql(syntheticCeBeforeCancelSql(BL))
     const run = asAdminRpc(`SELECT public.cancel_bl('${BL}', 'teste 346');`)
     expect(run.stderr).toBe('')
     expect(item('voyage_bl_expected', 'voyage', `${V_BL}`)).toBe('active')

@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { describeWithProbe, syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 491 (ADR 0111; spec 2026-10-28, lote 1): na ficha do B/L qualquer
 // setor altera o valor de uma taxa (por unidade ou total), exclui a taxa e
@@ -430,6 +430,7 @@ describeLocal('491 — alterar e excluir taxa calculada do B/L', () => {
 
     it('B/L cancelado não se altera; reativado, a alteração das taxas calculadas volta', () => {
       expect(alter(USERS.ope, BL.cancel, thd, 'unit', 1111).status).toBe(0)
+      psql(syntheticCeBeforeCancelSql(BL.cancel))
       ok(USERS.adm, `SELECT public.cancel_bl(${q(BL.cancel)}, 'não embarcou 491', false)`)
       expect(alter(USERS.ope, BL.cancel, thd, 'unit', 1000).stderr).toMatch(/cancelado é somente leitura; reative o B\/L para alterar as taxas/)
       ok(USERS.adm, `SELECT public.reactivate_bl(${q(BL.cancel)}, 'cancelado por engano 491')`)

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { describeWithProbe, syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 347 (revisão dos alertas de 2026-10-21, docs/revisao-alertas-2026-10.md):
 // - B/L cancelado não é "processo ativo" do Portal (o alerta lia
@@ -128,6 +128,7 @@ describeLocal('347 — alertas acompanham o B/L cancelado, faturado ou excluído
   afterAll(cleanup)
 
   it('Cliente só com B/L cancelado não tem pendência do Portal nem processo ativo', () => {
+    psql(syntheticCeBeforeCancelSql(BL_CANCELLED))
     expect(asAdmin(`SELECT (public.cancel_bl('${BL_CANCELLED}', 'teste 347')->>'cancelled');`).last).toBe('true')
     asServer('SELECT public.reconcile_client_portal_alerts()')
 
@@ -155,6 +156,7 @@ describeLocal('347 — alertas acompanham o B/L cancelado, faturado ou excluído
   it('cancelar o B/L fecha os dois alertas de faturamento', () => {
     openBillingAlert('billing_calculation_blocked', BL_CANCEL_BILLING)
     openBillingAlert('billing_auto_issue_failed', BL_CANCEL_BILLING)
+    psql(syntheticCeBeforeCancelSql(BL_CANCEL_BILLING))
     expect(asAdmin(`SELECT (public.cancel_bl('${BL_CANCEL_BILLING}', 'teste 347')->>'cancelled');`).last).toBe('true')
     expect(item('billing_calculation_blocked', 'bl', BL_CANCEL_BILLING)).toBe('resolved')
     expect(item('billing_auto_issue_failed', 'bl', BL_CANCEL_BILLING)).toBe('resolved')
