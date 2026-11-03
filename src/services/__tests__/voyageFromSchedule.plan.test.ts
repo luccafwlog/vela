@@ -118,6 +118,16 @@ describe('planScheduleSheet', () => {
     expect(row).toMatchObject({ createsVoyage: false, error: 'Navio GREEN PECEM com IMO conflitante (9235004 vs 9235005). Corrija antes de importar.' })
   })
 
+  it('Viagem nova: navio de mesmo nome com IMO gravado fora do formato não é conflito', async () => {
+    // O nome do navio digitado no campo IMO (#1135): a gravação troca o IMO.
+    calls.findVoyage.mockResolvedValue(null)
+    calls.vessels = { byImo: [], byName: [{ id: 1, imo: 'GREEN PECEM' }] }
+
+    const [row] = await planScheduleSheet([sheetRow({ vesselImo: 'IMO 9235005' })], 'user-1')
+
+    expect(row).toMatchObject({ createsVoyage: true, error: null })
+  })
+
   it('IMO sem 7 dígitos não identifica navio: busca pelo nome e avisa', async () => {
     calls.findVoyage.mockResolvedValue(null)
     calls.vessels = { byImo: [], byName: [] }

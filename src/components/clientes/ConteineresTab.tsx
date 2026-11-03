@@ -28,8 +28,8 @@ const SITUATIONS: Array<{ value: Situation; label: string }> = [
   { value: '', label: 'Todos' },
   { value: 'com-cliente', label: 'Com o Cliente' },
   { value: 'devolvidos', label: 'Devolvidos' },
-  { value: 'em-curso', label: 'Demurrage em curso' },
-  { value: 'a-faturar', label: 'Demurrage a faturar' },
+  { value: 'em-curso', label: 'Demurrage correndo' },
+  { value: 'a-faturar', label: 'Demurrage a emitir' },
   { value: 'faturada', label: 'Demurrage faturada' },
   { value: 'soc', label: 'SOC' },
 ]
@@ -105,7 +105,7 @@ export function ConteineresTab({ data }: { data: Data }) {
         <>
           <span>
             {formatCountLabel(lines.length, 'container', 'containers')} · {withCustomer} com o Cliente
-            {openUsd > 0 ? <> · <StatusText tone="warning">{fmtUSD(openUsd)} em curso ou a faturar</StatusText></> : null}
+            {openUsd > 0 ? <> · <StatusText tone="warning">{fmtUSD(openUsd)} correndo ou a emitir</StatusText></> : null}
           </span>
           <Button variant="secondary" className="app-btn--sm" loading={exporting} loadingLabel="Exportando…" disabled={!filtered.length} onClick={() => void handleExport()}>
             <Download size={14} aria-hidden="true" />
@@ -197,7 +197,7 @@ export function ConteineresTab({ data }: { data: Data }) {
 // Demurrage não vence (ADR 0014; B29): o estado legado `overdue` é em aberto.
 const INVOICE_STATUS_TEXT: Record<string, string> = { issued: 'em aberto', overdue: 'em aberto', paid: 'paga' }
 
-/** "US$ 1.540,00 em curso", "DEM-2026-0007 em aberto", "DEM-2026-0004 ✓ paga"; vazio sem cobrança. */
+/** "US$ 1.540,00 correndo", "DEM-2026-0007 em aberto", "DEM-2026-0004 ✓ paga"; vazio sem cobrança. */
 function DemurrageCell({ view }: { view: CustomerContainerView }) {
   const d = view.demurrage
   if (d.kind === 'soc') return <NoValue label="Não se aplica (SOC)" />
@@ -216,7 +216,7 @@ function DemurrageCell({ view }: { view: CustomerContainerView }) {
   return (
     <>
       <StatusText tone="warning">{fmtUSD(d.usd)}</StatusText>{' '}
-      <StatusText tone="muted">{d.kind === 'running' ? 'em curso' : 'a faturar'}</StatusText>
+      <StatusText tone="muted">{d.kind === 'running' ? 'correndo' : 'a emitir'}</StatusText>
     </>
   )
 }

@@ -252,4 +252,31 @@ describe('BlDetalhe - cancelamento bloqueado', () => {
     expect(alert.textContent).not.toContain('Administrativo cancela a fatura')
     expect(within(alert).getByRole('link', { name: 'Abrir em Demurrage' }).getAttribute('href')).toBe('/demurrage?divisao=travado&busca=BL-BLOQ-1')
   })
+
+  // Migration 569 (decisão de 2026-11-03): "Demurrage correndo ou a emitir"; o
+  // começo antigo, "Demurrage a faturar", vale até a 569 chegar ao banco.
+  it.each([
+    'Demurrage correndo ou a emitir: devolva o container e emita a Invoice, ou dispense a cobrança na Demurrage',
+    'Demurrage a faturar: devolva o container e emita a Invoice, ou dispense a cobrança na Demurrage',
+  ])('"%s" leva à busca na Demurrage, sem mandar cancelar fatura', async (reason) => {
+    cleanup()
+    cancelBlMock.mockResolvedValue({ cancelled: false, reasons: [reason] })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls/BL-BLOQ-1']}>
+          <Routes>
+            <Route path="/bls/:blId" element={<BlDetalhe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mais ações do B/L' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Cancelar B\/L/ }))
+
+    const alert = (await screen.findByText(/não pode ser cancelado agora/)).closest('[role="alert"]') as HTMLElement
+    expect(alert.textContent).not.toContain('Administrativo cancela a fatura')
+    expect(within(alert).getByRole('link', { name: 'Abrir em Demurrage' }).getAttribute('href')).toBe('/demurrage?busca=BL-BLOQ-1')
+  })
 })
