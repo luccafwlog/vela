@@ -174,7 +174,7 @@ export function containerSituation(container: PortalOperationContainer): { label
  */
 export function localChargesView(charges: PortalOperationLocalCharges | undefined): {
   total: number | null
-  payment: { label: string; tone: 'warning' | 'paid' | 'default' } | null
+  payment: { label: string; tone: 'warning' | 'paid' | 'muted' | 'default' } | null
 } {
   if (!charges) return { total: null, payment: null }
   switch (charges.status) {
@@ -184,6 +184,9 @@ export function localChargesView(charges: PortalOperationLocalCharges | undefine
       return { total: charges.total_brl, payment: { label: 'Pago', tone: 'paid' } }
     case 'awaiting_invoice':
       return { total: null, payment: { label: 'Aguardando fatura', tone: 'default' } }
+    case 'exempt':
+      // B/L isento não tem fatura nem valor: "Isentas", como no Desbloqueio de CE (migration 575).
+      return { total: null, payment: { label: 'Isentas', tone: 'muted' } }
     default:
       return { total: null, payment: null }
   }

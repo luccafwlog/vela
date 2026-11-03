@@ -112,6 +112,7 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 | "Documento ainda não reenviado pelo cliente" | O Cliente anexou a versão nova, mas não reenviou a solicitação. | [12.3](12-desbloqueio-de-ce.md#123-analisar-os-documentos-de-uma-solicitação) |
 | "Documento não pertence à análise atual" | A solicitação está em rascunho, cancelada ou é VIP. | Abra a solicitação de novo e confira a situação ([12.1](12-desbloqueio-de-ce.md#121-entender-o-desbloqueio-de-ce)). |
 | "Documento indisponível" | O envio do arquivo não terminou, ou o arquivo foi removido. | Peça ao Cliente que anexe o documento de novo. |
+| "B/L … não precisa de solicitação: veículo LCL com Taxas Locais isentas é desbloqueado só com a entrega do B/L original na agência." | O Cliente tentou pedir um veículo LCL isento, que não tem solicitação. | Registre a entrega do B/L original quando ele chegar ([12.4](12-desbloqueio-de-ce.md#124-registrar-a-entrega-do-bl-original)). |
 
 ## Alertas e usuários
 

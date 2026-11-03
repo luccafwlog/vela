@@ -1676,6 +1676,12 @@ Cliente e validados pelo desk por solicitação) e **BL de Entrega** (original
 recebido, marcado pelo desk). Aprovar documentos não desbloqueia o CE.
 → Regra: [Desbloqueio de CE § Requisitos e condição VIP](docs/modules/desbloqueio-ce.md#requisitos-e-condição-vip)
 
+**B/L dispensado de solicitação**
+Veículo em LCL com Taxas Locais isentas: não tem solicitação, termo nem
+procuração; a entrega do B/L original registrada pelo desk o deixa apto para a
+ZPT. A isenção à mão não dispensa os documentos.
+→ Regra: [Desbloqueio de CE § B/L dispensado de solicitação](docs/modules/desbloqueio-ce.md#bl-dispensado-de-solicitação-veículo-lcl-isento)
+
 **Documentação validada**
 Situação da solicitação cujos B/Ls têm os quatro requisitos; é o que o Cliente
 vê, com a orientação de conferir no Mercante. Não significa CE desbloqueado: o

@@ -47,6 +47,13 @@ export type CeUnlockItem = {
   paid: boolean;
   /** B/L com Taxas Locais isentas: requisito atendido sem pagamento (migration 279). */
   paid_exempt?: boolean;
+  /**
+   * Veículo LCL com Taxas Locais isentas (migration 575): termo e procuração
+   * dispensados e nenhuma solicitação; basta a entrega do B/L original.
+   */
+  documents_dispensed?: boolean;
+  /** B/L dispensado que segue sem solicitação: o desk exporta direto para a ZPT (migration 575). */
+  direct?: boolean;
   /** Só no Portal (migration 298): taxas ainda sem fatura visível ao Cliente. */
   local_charges_awaiting_invoice?: boolean;
   delivered: boolean;

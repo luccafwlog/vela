@@ -88,6 +88,14 @@ it('mostra os quatro requisitos com os ícones de hoje e Na ZPT só com o estado
   // Seleção em qualquer B/L, não só nos aptos.
   expect(screen.getByLabelText('Selecionar B/L BL-557').hasAttribute('disabled')).toBe(false)
 })
+it('veículo LCL isento: termo e procuração dispensados e sem solicitação (migration 575)', () => {
+  state.extra = [{ bl_id: 'BL-LCL', documents_dispensed: true, direct: true, termo: true, procuracao: true, paid: true, reasons: [] }]
+  mount()
+  expect(screen.getByRole('img', { name: 'Termo de devolução BL-LCL: dispensado (veículo LCL isento)' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Procuração BL-LCL: dispensado (veículo LCL isento)' })).toBeTruthy()
+  expect(screen.getByText('Dispensada · veículo LCL')).toBeTruthy()
+})
+
 it('filtro padrão é "Todas"', () => {
   mount()
   expect(state.filters.at(-1)).toMatchObject({ situation: '' })

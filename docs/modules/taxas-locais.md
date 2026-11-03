@@ -507,7 +507,10 @@ Movement To indica LCL (contém `LCL` ou `CFS`), e só em B/L de modalidade
 container: B/L misto não isenta. Veículo em FCL paga, e veículo sem Movimento
 declarado também — a isenção exige prova positiva. O B/L isento fica com
 `charge_status = 'exempt'` e o motivo gravado, e aparece como **Isento** no card
-Taxas Locais da ficha e no Motivo da Validação, não só como valor zero.
+Taxas Locais da ficha e no Motivo da Validação, não só como valor zero. No
+Desbloqueio de CE, esse B/L também dispensa termo, procuração e solicitação: basta
+o B/L original entregue ([Desbloqueio de CE § B/L dispensado de solicitação](desbloqueio-ce.md#bl-dispensado-de-solicitação-veículo-lcl-isento),
+migration `575`); a isenção à mão dispensa só o pagamento.
 **Código:** `_calculate_bl_local_charges_impl_106` (migration `129`). Veículo
 gravado no B/L errado é corrigido na página Veículos
 ([Manifestos & EDI](manifesto-edi.md)); o efeito na fatura segue a

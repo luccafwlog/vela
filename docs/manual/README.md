@@ -174,6 +174,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     catálogo de alertas, contagens de ACE-119 e ALE-D13).
   - Telemetria: recusas do banco já explicadas na tela deixam de ir ao Sentry;
     sem efeito na operação.
+- **Veículo LCL isento no Desbloqueio de CE e "Isentas" no Portal** (decisões
+  do dono de 2026-11-03, [ADR 0118](../adr/0118-desbloqueio-do-veiculo-lcl-so-com-o-bl-original.md),
+  migration `575`): o veículo LCL com Taxas Locais isentas é desbloqueado só com o
+  B/L original, sem solicitação, termo nem procuração (DCE-011, DCE-110); a aba
+  B/Ls do Portal mostra "Isentas" no B/L isento (POR-081).
 - **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
   2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
   migrations `552` e `553`): o Pix do QR estático deixa de aparecer como ZPT

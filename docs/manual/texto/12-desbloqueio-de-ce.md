@@ -25,6 +25,8 @@ O Cliente marca no Portal os B/Ls que quer desbloquear e abre uma **solicitaçã
 
 Só o B/L com os quatro vai para a planilha da ZPT.
 
+O **veículo em LCL com Taxas Locais isentas** é a exceção: não tem solicitação, termo nem procuração. Basta o B/L original entregue na agência; você marca a entrega ([12.4](#124-registrar-a-entrega-do-bl-original)) e o B/L fica apto para a ZPT, com as quatro colunas "Sim" na planilha. Em **Andamento dos B/Ls**, a coluna **Solicitação** diz "Dispensada · veículo LCL" e o termo e a procuração aparecem verdes, como dispensados. O B/L isento à mão (**Isentar Taxas Locais**, [21](21-taxas-locais.md)) não entra nessa exceção: ele só não precisa pagar.
+
 A solicitação passa por estas situações: **Rascunho** (o Cliente ainda não enviou), **Enviado**, **Em análise** ou **Correção solicitada**, e **Documentação validada**, quando todos os B/Ls têm os quatro requisitos. Se um requisito cai depois, a validada volta a **Em análise**. A cancelada fica **Cancelado**.
 
 ::: atencao
@@ -74,6 +76,8 @@ O Cliente entrega o B/L original na agência. Você marca a entrega no Vela, mes
 3. Clique em **Registrar entrega**.
 
 Para vários B/Ls, marque-os na primeira coluna e clique em **Registrar entrega de N B/Ls**. Os que não gravarem continuam marcados, com o motivo.
+
+No veículo em LCL com Taxas Locais isentas, essa marcação é o único passo: o B/L fica apto para a ZPT sem solicitação, e o prazo da agência começa nela ([12.5](#125-o-prazo-do-desbloqueio)).
 
 Para desfazer uma marcação errada, clique de novo na caixa, escreva o motivo e clique em **Desmarcar entrega**. O B/L deixa de estar apto, e a solicitação validada volta a **Em análise**. Desmarcar é sempre um B/L por vez.
 

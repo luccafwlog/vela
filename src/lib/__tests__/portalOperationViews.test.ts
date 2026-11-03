@@ -148,6 +148,8 @@ describe('portalOperationViews — tela limpa da rodada 2', () => {
     expect(open.payment?.label).toMatch(/^R\$\s1\.202,00 em aberto$/)
     expect(localChargesView({ status: 'paid', total_brl: 2702, balance_brl: 0 })).toEqual({ total: 2702, payment: { label: 'Pago', tone: 'paid' } })
     expect(localChargesView({ status: 'awaiting_invoice', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: { label: 'Aguardando fatura', tone: 'default' } })
+    // B/L isento (veículo LCL ou à mão): "Isentas" no lugar do traço (migration 575).
+    expect(localChargesView({ status: 'exempt', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: { label: 'Isentas', tone: 'muted' } })
     expect(localChargesView({ status: 'none', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: null })
     expect(localChargesView(undefined)).toEqual({ total: null, payment: null })
   })
