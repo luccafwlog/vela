@@ -100,7 +100,7 @@ describeLocal('493 — taxa alterada no B/L faturado', () => {
 
   it('o Recalcular continua recusando o B/L faturado', () => {
     const { id } = billed('RC')
-    expect(() => w.calculate(id)).toThrow(/ja foi faturado/)
+    expect(() => w.calculate(id)).toThrow(/já foi faturado/)
   })
 
   it('paga com valor menor: abate o saldo e o resto vira Restituição', () => {

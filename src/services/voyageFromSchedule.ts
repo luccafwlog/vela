@@ -303,7 +303,10 @@ async function newVoyageVesselProblem(name: string, imo: string | null): Promise
   if (error) throw error
   if ((data ?? []).length > 1) return { problem: `Navio ${name} ambíguo: mais de um cadastro. Corrija antes de importar.`, byImo: false }
   const registeredImo = normalizeVesselImo(data?.[0]?.imo)
-  if (imo && registeredImo && registeredImo !== imo) {
+  // Só um IMO gravado válido conflita: o fora do formato (o nome do navio no
+  // campo IMO) é substituído pelo do arquivo, como na gravação (migration 568)
+  // e no cadastro pela tela (`getOrCreateVessel`).
+  if (imo && registeredImo && /^\d{7}$/.test(registeredImo) && registeredImo !== imo) {
     return { problem: `Navio ${name} com IMO conflitante (${registeredImo} vs ${imo}). Corrija antes de importar.`, byImo: false }
   }
   return { problem: null, byImo: false }

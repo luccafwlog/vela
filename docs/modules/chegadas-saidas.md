@@ -88,8 +88,10 @@ Portal ("Publica no Portal": Viagem existente oculta, mesmo sem data que mude)
 ou o erro (ex.: viagem ambígua), sem gravar (`planScheduleSheet`, com as mesmas
 regras de agenda da gravação individual). Na planilha, o IMO só identifica o
 navio com 7 dígitos (prefixo "IMO" aceito); "TBA", "-" e afins são ignorados com
-aviso e a busca é pelo nome. Nome igual com outro IMO cadastrado é erro da linha
-("IMO conflitante"), nunca fusão. Viagem cancelada é erro da linha (somente
+aviso e a busca é pelo nome. Nome igual com outro IMO cadastrado de 7 dígitos é
+erro da linha ("IMO conflitante"), nunca fusão; o IMO gravado fora do formato (o
+nome do navio digitado no campo IMO) é substituído pelo do arquivo, como na tela
+da Viagem (migration `568`). Viagem cancelada é erro da linha (somente
 leitura). A mesma Viagem e porto em mais de uma linha com datas diferentes
 recusa essas linhas; na Viagem nova, linhas com o mesmo número e o mesmo IMO
 ou o mesmo nome contam como a mesma Viagem, mesmo que só uma traga o IMO, e o
@@ -99,13 +101,14 @@ grava o primeiro IMO no navio e recusaria o segundo). Porto removido da Viagem
 (POD com "Excluir") que volta na planilha entra com a data que tinha como
 "antes" e volta ao planejamento (`deleted=false`), como na gravação pela tela;
 antes a gravação recusava o arquivo para sempre como prévia obsoleta. Qualquer linha com erro na prévia (inclusive data ilegível) bloqueia a planilha inteira (regra de 2026-10-19). Linha com dado mas sem `VESSEL NAME` ou sem `VOY` (navio sem VOY, VOY sem navio) recusa a planilha na leitura, com o número de cada linha (`parseScheduleRows`, [ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md)); linha vazia e a linha de exemplo do modelo ("EXEMPLO NAVIO") são ignoradas. **Importar N viagens** grava tudo numa transação
-(`apply_schedule_sheet_atomic`, migrations `188`, `193`, `199`, `201`, `202`, `209`, `213` e `217`, com as mesmas regras
+(`apply_schedule_sheet_atomic`, migrations `188`, `193`, `199`, `201`, `202`, `209`, `213`, `217` e `568`, com as mesmas regras
 de navio, IMO e Viagem cancelada): Viagem nova é criada uma vez, toda Viagem
 enviada é publicada no Portal, dois arquivos simultâneos da mesma Viagem nova
 (com e sem IMO) esperam um pelo outro e não duplicam navio nem Viagem, as travas
 são pegas antes da primeira linha e em ordem fixa (dois arquivos com as mesmas
-Viagens em ordens diferentes não se travam; as Viagens já cadastradas do arquivo são travadas em ordem de id antes do laço, `213`, e o navio novo também é travado pelo nome e pelo IMO, sem o número da Viagem, para dois arquivos com o mesmo navio em viagens diferentes não o cadastrarem duas vezes, `217`), o navio sem IMO achado pelo nome
-recebe o IMO do arquivo, como no cadastro pela tela (`202`), cada evento de agenda leva horário próprio (a
+Viagens em ordens diferentes não se travam; as Viagens já cadastradas do arquivo são travadas em ordem de id antes do laço, `213`, e o navio novo também é travado pelo nome e pelo IMO, sem o número da Viagem, para dois arquivos com o mesmo navio em viagens diferentes não o cadastrarem duas vezes, `217`), o navio sem IMO, ou com IMO fora do formato, achado pelo nome
+recebe o IMO do arquivo, como no cadastro pela tela (`202` e `568`), e o navio da Viagem já cadastrada com IMO fora do formato
+recebe o IMO de 7 dígitos do arquivo, salvo se ele já for de outro navio (`568`), cada evento de agenda leva horário próprio (a
 última linha do arquivo vale), a data que a prévia viu tem de ser a vigente (outra
 gravada depois recusa o arquivo como prévia obsoleta, `209`; mandar de novo a mesma
 data passa) e qualquer falha desfaz o arquivo inteiro; linhas
@@ -159,7 +162,7 @@ lanes e ordena pela menor ETA de POD.
 | Adicionar/anexar viagem | Usuário interno ativo; navio, VOY e ao menos um POD com data | Modal | `buildScheduleLanes` + `createOrAttachVoyageFromSchedule` | `voyages.show_on_portal`, `audit_logs` POL/POD | Invalida `['portal-schedule-voyages']` e `['voyages']` | Campos obrigatórios, identidade divergente ou falha ao persistir | **Código**, **Teste** |
 | Editar publicação | Usuário interno ativo; viagem já visível | Botão **Editar** na linha do navio → modal “Editar programação · navio / viagem” | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | Conflitos de identidade e erro do serviço | **Código:** `src/pages/ChegadasSaidas.tsx`; **Teste:** `src/pages/__tests__/ChegadasSaidas.behavior.test.tsx` |
 | Exportar planilha | Qualquer usuário da tela, com ao menos uma Viagem | **Exportar programação** no bloco "Atualizar várias viagens por planilha" baixa `programacao-navios-AAAAMMDDHHMM.xlsx` | `scheduleExportRows` (mesmas colunas de `scheduleTemplateColumns`) + `exportScheduleWorkbook` | Nenhuma: só leitura da projeção já carregada | Arquivo reimportável pela linha abaixo: data planejada por porto, "X" em "Não escala", IMO | Falha: toast "Não foi possível exportar a programação." | **Código**, **Teste** (`portalScheduleBulkImport.test.ts`, ida e volta) |
-| Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload` → modal **Importar programação de navios** (molde do lote 6a: Arquivo, Prévia, Resultado; modelo em `public/templates/programacao-navios-modelo.xlsx`/`.csv`); escolher o arquivo lê a prévia e não grava; **Importar N viagens** grava | `parseScheduleRows` + `planScheduleSheet` (prévia) + `applyScheduleSheetPlan` → `apply_schedule_sheet_atomic` (migrations `188`, `193`, `199`, `201`, `202`, `209`, `213` e `217`) | Mesma persistência do modal, numa transação; publica a Viagem oculta | Prévia por viagem; resumo após gravar; `afterViagemAlterada` | Erro de linha ou data ilegível aparece na prévia e bloqueia a planilha inteira; falha na gravação não grava nada | **Código**, **Teste**, **Integração em PostgreSQL local:** `programacaoPlanilha.local-pg.test.ts` |
+| Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload` → modal **Importar programação de navios** (molde do lote 6a: Arquivo, Prévia, Resultado; modelo em `public/templates/programacao-navios-modelo.xlsx`/`.csv`); escolher o arquivo lê a prévia e não grava; **Importar N viagens** grava | `parseScheduleRows` + `planScheduleSheet` (prévia) + `applyScheduleSheetPlan` → `apply_schedule_sheet_atomic` (migrations `188`, `193`, `199`, `201`, `202`, `209`, `213`, `217` e `568`) | Mesma persistência do modal, numa transação; publica a Viagem oculta | Prévia por viagem; resumo após gravar; `afterViagemAlterada` | Erro de linha ou data ilegível aparece na prévia e bloqueia a planilha inteira; falha na gravação não grava nada | **Código**, **Teste**, **Integração em PostgreSQL local:** `programacaoPlanilha.local-pg.test.ts` |
 | Consultar no Portal | Sessão do Portal | `ShipScheduleWidget` | `usePortalScheduleVoyages` | RPC `portal_ship_schedule` | Cache `['portal-schedule-voyages']` | Erro de RPC e estados vazio/loading no widget | **Código**, **Teste**, **Teste de contrato SQL** |
 
 ## Estado e dados
