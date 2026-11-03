@@ -154,7 +154,6 @@ Leitura do código e das definições do banco; nada foi executado.
 | `Campo de cliente nao editavel: %.` | Nunca chega a uma pessoa: a ficha só manda os campos editáveis. | Fora |
 | `Chave da claim e obrigatoria.` | Nunca chega a uma pessoa: rotina interna da régua automática. | Fora |
 | `Cliente % desativado: reative antes de vincular.` | Ao vincular um B/L a um Cliente desativado: na Revisão, ao cadastrar ou vincular pelo CNPJ de um Cliente desativado, ou na ficha do B/L se o Cliente foi desativado depois de escolhido. A Base de Clientes não mostra esta recusa (CLI-024). Peça ao Administrativo para reativar ou escolha outro Cliente. | Ap. B |
-| `Cliente % nao encontrado.` | Ao salvar os Dados cadastrais de um Cliente que não existe mais (ficha aberta com dado antigo). Recarregue a ficha. | Ap. B |
 | `Cliente % não encontrado.` | Ao salvar contatos, completar caixas ou desativar um Cliente que não existe mais. Recarregue a ficha. | Ap. B |
 | `Cliente % não está desativado.` | Ao reativar um Cliente que outra pessoa já reativou. Recarregue a ficha. | Ap. B |
 | `Cliente nao encontrado.` | Nunca chega a uma pessoa: o servidor de envio troca por "Não foi possível registrar o comunicado." | Fora |
@@ -173,7 +172,7 @@ Leitura do código e das definições do banco; nada foi executado.
 | `E-mail % já cadastrado para o contato "%" (ID %).` | Ao salvar contatos quando outro contato com o mesmo e-mail foi criado depois que a tela abriu (pelo B/L, pela Base ou pelo Portal). Recarregue a ficha e confira os contatos. | Ap. B |
 | `E-mail duplicado no envio: %` | Ao salvar contatos com um e-mail que já é de outro contato do Cliente na lista, inclusive desativado (reative aquele contato em vez de criar outro). Na Base de Clientes não aparece: a leitura já junta os e-mails repetidos. | Ap. B |
 | `E-mail é obrigatório para contato ativo.` | Ao salvar contatos com um contato novo, ainda sem e-mail, que foi desativado antes de salvar (o contato ativo sem e-mail a tela recusa antes: "O contato "…" possui um e-mail inválido."). Reative o contato e informe o e-mail, ou use **Descartar**. | Ap. B |
-| `E-mail invalido para o cliente %: %` | Na lista de recusas da Base, se um e-mail do Cliente não tiver formato válido. | Ap. B |
+| `E-mail inválido para o cliente %: %` | Na lista de recusas da Base, se um e-mail do Cliente não tiver formato válido. | Ap. B |
 | `E-mail inválido: %` | Ao salvar contatos com e-mail sem formato válido (nome@dominio.ext). | Ap. B |
 | `E-mail inválido.` | Ao capturar ou incluir como contato um e-mail sem formato válido (Revisão). | Ap. B |
 | `ID do cliente é obrigatório.` | Nunca chega a uma pessoa: a tela sempre manda o Cliente da ficha. | Fora |
@@ -196,7 +195,7 @@ Leitura do código e das definições do banco; nada foi executado.
 | `O cliente deve ter exatamente um contato principal ativo.` | Ao salvar contatos sem principal ativo ou com mais de um (a tela avisa antes). | Ap. B |
 | `O CNPJ do B/L % não corresponde ao grupo informado.` | Na Revisão, quando o CNPJ lido no B/L % é diferente do CNPJ do grupo. | Ap. B |
 | `O CNPJ informado não corresponde ao cliente selecionado.` | Na Revisão, quando o CNPJ digitado não é o do Cliente escolhido. | Ap. B |
-| `O container % esta no B/L % (%) e no B/L % (%): container FCL nao e dividido entre Clientes diferentes. Corrija o Cliente ou o container do arquivo.` | Ao vincular ou importar B/L que deixaria um container cheio da mesma Viagem com dois Clientes. | Ap. B |
+| `O container % está no B/L % (%) e no B/L % (%): container FCL não é dividido entre Clientes diferentes. Corrija o Cliente ou o container do arquivo.` | Ao vincular ou importar B/L que deixaria um container cheio da mesma Viagem com dois Clientes. | Ap. B |
 | `O discriminador de tentativa nao pode ser negativo.` | Nunca chega a uma pessoa: o servidor recusa antes ("Discriminador de tentativa inválido."). | Fora |
 | `O estado da chave de envio de e-mails é obrigatório.` | Nunca chega a uma pessoa: a chave sempre manda ligado ou desligado. | Fora |
 | `Origem inválida: %` | Nunca chega a uma pessoa: as telas e o sistema mandam sempre uma origem conhecida. | Fora |

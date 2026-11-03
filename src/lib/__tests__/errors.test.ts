@@ -196,7 +196,7 @@ describe('recusas de negócio das importações (P000x)', () => {
   it.each([
     ['P0005', 'O B/L ABC1 já está na Viagem V1 e o arquivo foi importado na Viagem V2. Nenhum B/L do lote foi gravado: exclua o B/L lá (se tiver CE Mercante, tire o CE antes) e importe de novo (cancelar não libera o número).'],
     ['P0006', 'O container MSCU1234565 do B/L ABC1 tem a Invoice de Demurrage DEM-1 e não sai por reimportação.'],
-    ['P0008', 'O container MSCU1234565 esta no B/L A (Cliente 1) e no B/L B (Cliente 2): container FCL nao e dividido entre Clientes diferentes. Corrija o Cliente ou o container do arquivo.'],
+    ['P0008', 'O container MSCU1234565 está no B/L A (Cliente 1) e no B/L B (Cliente 2): container FCL não é dividido entre Clientes diferentes. Corrija o Cliente ou o container do arquivo.'],
     ['P0003', 'B/L ABC1 sem CE Mercante. Cadastre o CE antes de faturar.'],
     ['P0001', 'Razão social diferente da cadastrada (A → B): confirme a troca.'],
   ])('%s mostra a mensagem do banco, que já nomeia o B/L ou o container', (code, message) => {
@@ -221,7 +221,7 @@ describe('recusas de negócio das importações (P000x)', () => {
   })
 
   it('P0003 com tabela.coluna no texto cai no texto fixo', () => {
-    expect(userFacingErrorMessage({ code: 'P0003', message: 'Viagem 3 nao pode ser excluida: ha dados vinculados em public.bls.voyage_id.' }))
+    expect(userFacingErrorMessage({ code: 'P0003', message: 'Viagem 3 não pode ser excluída: há dados vinculados em public.bls.voyage_id.' }))
       .toBe('Operação bloqueada por uma pendência do B/L ou da Viagem.')
   })
 })

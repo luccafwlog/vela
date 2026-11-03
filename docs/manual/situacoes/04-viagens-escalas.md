@@ -236,9 +236,9 @@ VIA-020, VIA-025, VIA-048).
 - **Por quê:** o banco confere quem faz e o estado da omissão e do B/L antes
   de gravar.
 - **O que você faz:** siga o motivo:
-  - "Usuario sem permissao ativa.": saia e entre de novo; se continuar, o
+  - "Usuário sem permissão ativa.": saia e entre de novo; se continuar, o
     Administrativo confere o seu acesso.
-  - "A escala da viagem … ja foi omitida …" ou "Omissao … ja foi
+  - "A escala da viagem … já foi omitida …" ou "Omissão … já foi
     revertida.": outra pessoa já fez; atualize a tela.
   - B/L em COD: reverta antes o COD de cada B/L e depois a omissão (S4.16).
   - "Cambio (ROE) nao configurado; …": peça ao Financeiro para registrar o

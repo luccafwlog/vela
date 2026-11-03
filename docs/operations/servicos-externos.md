@@ -980,7 +980,13 @@ para eles vale o backup do próprio Supabase.
 
 - **Workflows:** `ci.yml` (testes, build, migrations; só em PR),
   `local-pg-order.yml` (agendado: segunda, 09:17 UTC; suítes SQL nas duas
-  ordens), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
+  ordens), `manual-capturas.yml` (agendado: quarta, 10:23 UTC, e disparo
+  manual; refaz as telas do Manual do Operador contra a `staging` com o
+  Postgres local, o cenário, o `sb-shim` e o Vite, e abre ou comenta a issue
+  "Manual do Operador: capturas que falharam na staging" com os nomes das
+  capturas; os `<id>.erro.png` e os logs ficam no artefato da execução por 30
+  dias; usa só o `GITHUB_TOKEN` com `issues: write`, sem segredo; não é check de
+  PR), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
   esperando o check do Supabase; previews pela etiqueta `preview`),
   `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
   etiqueta), `main-only-from-staging.yml` (check da PR contra a `main`) e

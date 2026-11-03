@@ -46,7 +46,7 @@ describeLocal('373 — desvincular o Cliente e container FCL entre Clientes', ()
     w.createBl('FA', { container: shared })
     const second = w.createBl('FB', { container: shared, customerId: null })
     expect(() => w.psql(`UPDATE public.bls SET customer_id = ${w.otherCustomerId}, customer_reconciliation_status = 'reconciled' WHERE id = '${second}'`))
-      .toThrow(/nao e dividido entre Clientes diferentes/)
+      .toThrow(/não é dividido entre Clientes diferentes/)
   })
 
   // ADR 0094, B3 (migration 379): a falha recusa o vínculo; não abre Alerta.

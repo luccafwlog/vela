@@ -154,7 +154,7 @@ repositório.
 | `ADR de Saída fechado: reabra o ADR para excluir a linha de serviço de vazios.` | Embarque de Vazios, ao excluir uma linha de serviço com o ADR de Saída da escala fechado. Reabra o ADR (com motivo) ou deixe a linha. | Ap. B |
 | `Apenas administradores podem listar usuários.` | Admin › Usuários ou Histórico de ações, quando quem abriu a tela deixou de ser Administrativo durante a sessão. Recarregue a página. | Ap. B |
 | `Autor informado difere do usuário da sessão.` | Qualquer gravação que chegue com outro autor que não o da sessão (por exemplo, aba antiga aberta com outro usuário). Recarregue a página e refaça. | Ap. B |
-| `Fatura % coberta por outro documento pago: o B/L ja foi pago e ela nao pode ser cancelada.` | Taxas Locais, ao cancelar (Administrativo) uma fatura individual **Coberta** por uma consolidada paga. | Ap. B |
+| `Fatura % coberta por outro documento pago: o B/L já foi pago e ela não pode ser cancelada.` | Taxas Locais, ao cancelar (Administrativo) uma fatura individual **Coberta** por uma consolidada paga. | Ap. B |
 | `Fatura % tem B/L com baixa em outro documento; cancele a baixa naquele documento antes.` | Taxas Locais, ao cancelar uma fatura individual cujo B/L tem baixa em outra fatura. Cancele a baixa naquela fatura antes. | Ap. B |
 | `Informe o motivo da exclusão.` | Exclusão sem motivo; a janela já não deixa confirmar sem motivo, então só aparece fora dela. | Ap. B |
 | `Lote de exportação ZPT é imutável; gere uma reexportação` | Nunca chega a uma pessoa: nenhuma tela nem setor altera um lote gravado; protege o lote contra alteração. | Fora |
@@ -258,7 +258,7 @@ repositório.
 | `Não foi possível carregar as datas do sistema.` | Admin › Sistema; a versão e o ambiente continuam. | Ap. B |
 | `Não foi possível carregar o Prazo do ADR.` | Admin › Prazo do ADR. | Ap. B |
 | `Nenhum ADR fechado no período.` | Admin › Prazo do ADR sem ADR fechado. | Ap. B |
-| `Terminal pertence ao departamento operacoes.` | Terminal do ADR antigo salvo por quem não é de Operações nem Administrativo. | Ap. B |
+| `Terminal pertence ao departamento operações.` | Terminal do ADR antigo salvo por quem não é de Operações nem Administrativo. | Ap. B |
 | `Somente o Administrativo desativa ou reativa o cadastro.` | Desativar ou reativar Local ou serviço sem ser Administrativo. | Ap. B |
 | `Somente o Administrativo cadastra o cadastro desativado.` | Criar Local ou serviço já desativado sem ser Administrativo. | Ap. B |
 | `Somente o Administrativo desativa ou reativa tarifas.` | Desativar ou reativar tarifa sem ser Administrativo. | Ap. B |

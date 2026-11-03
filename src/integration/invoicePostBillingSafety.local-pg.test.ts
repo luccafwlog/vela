@@ -386,7 +386,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     psql(`UPDATE public.bl_containers SET ownership='SOC' WHERE bl_id='${bl.full}'`);
     const payment=Number(psql(`SELECT id FROM public.payments WHERE invoice_id=${inv}`));
     const reverse=asAdmin(`SELECT public.reverse_invoice_payment(${payment},'Baixa registrada por engano')`);
-    expect(reverse.status).toBe(1); expect(reverse.stderr).toContain('financia restituicao');
+    expect(reverse.status).toBe(1); expect(reverse.stderr).toContain('financia restituição');
 
   });
   it('distribui restituição pelos pagamentos individual e consolidado',()=>{
@@ -496,7 +496,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     psql(`UPDATE public.bl_containers SET ownership='SOC' WHERE bl_id='${bl.pairA}'`)
     const reverse = asAdmin(`SELECT public.reverse_invoice_payment(${first.payment_id},'Baixa registrada por engano')`)
     expect(reverse.status, reverse.stdout).toBe(1)
-    expect(reverse.stderr).toContain('financia restituicao')
+    expect(reverse.stderr).toContain('financia restituição')
     expect(psql(`SELECT sum(amount_brl) FROM public.ledger_settlements WHERE invoice_id=${con} AND receivable_id=${receivableId(bl.pairA)}`)).toBe('600.00')
   })
 
