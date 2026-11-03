@@ -16,6 +16,11 @@
   gravação. Agora só um IMO gravado de 7 dígitos conflita; o fora do formato é trocado pelo do arquivo, também no
   navio da Viagem já cadastrada, que a prévia passa a achar ("Atualiza", não "Cria"), salvo se o IMO já for de
   outro navio.
+- **Demurrage: "correndo" e "a emitir" em todas as telas (2026-11-03, migration `569`; decisão do dono):** o
+  container ainda sem Invoice se diz "correndo" (fora, passado do free time) ou "a emitir" (devolvido), como as
+  divisões da página Demurrage e o glossário. Mudam a linha de cada container na ficha do B/L, a aba **Containers**
+  da ficha do Cliente (filtros **Demurrage correndo** e **Demurrage a emitir**, coluna, total e a planilha
+  exportada) e a recusa ao cancelar o B/L, que passa a "Demurrage correndo ou a emitir: …". "a faturar" e "em curso" saem dessas telas.
 - **Impressão, modais e ajustes do Portal (2026-11-02; pedido do dono):** fatura, recibo e Invoice impressos (Vela e
   Portal) ganham margem de cima maior: 20 mm na página (antes 10 mm) mais 8 mm no começo do documento, que valem
   também quando o navegador imprime com "Margens: nenhuma". Os modais deixam de mostrar uma faixa sem desfoque no

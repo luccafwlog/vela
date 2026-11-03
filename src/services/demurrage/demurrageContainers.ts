@@ -56,7 +56,7 @@ export type DemurrageContainerRow = DemurrageContainerListItem & {
   billing_group?: DemurrageBillingGroup | null
   /** Clientes que dividem a caixa na Viagem (D19, migration 521); a previsão é a parte do Cliente. */
   box_share_count?: number
-  /** Cobrança da caixa dispensada (migration 517): nem correndo nem a faturar. */
+  /** Cobrança da caixa dispensada (migration 517): nem correndo nem a emitir. */
   waived?: boolean
 }
 
