@@ -897,6 +897,17 @@ cancelados (`concurrency` + `cancel-in-progress`), então só o commit mais
 recente do PR ocupa runners. A passada das suítes em ordem invertida roda uma
 vez por semana em `.github/workflows/local-pg-order.yml` (seção 11).
 
+As telas do Manual do Operador também são refeitas uma vez por semana, fora do
+CI das PRs: `.github/workflows/manual-capturas.yml` (quarta, 10:23 UTC, e
+disparo manual) monta o Postgres local, o cenário (`npm run manual:cenario`), o
+emulador `sb-shim` e o Vite e roda `npm run manual:capture` contra a `staging`.
+Captura que falha quer dizer que a tela mudou: o workflow abre a issue
+"Manual do Operador: capturas que falharam na staging" (ou comenta na que está
+aberta) com os nomes, e guarda os `<id>.erro.png` no artefato da execução.
+Corrija o capítulo e a captura ([gerador](scripts/manual/pdf/README.md)) e
+feche a issue. Ele não bloqueia PR; a PR que muda o próprio arquivo roda uma
+vez, só com o resumo.
+
 As previews são sob demanda: `.github/workflows/cloudflare-pages-preview.yml` e
 `.github/workflows/provision-preview-admin.yml` rodam quando a PR recebe a
 etiqueta `preview` (`pull_request_target`, YAML da branch base) ou por disparo
