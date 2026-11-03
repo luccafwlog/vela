@@ -103,7 +103,7 @@ Para a fatura, confira nesta ordem:
 1. **Ela foi emitida?** O rascunho não aparece. A fatura retida por falta de Portal ainda não existe: em **Taxas Locais** › **Validação**, o B/L aparece com o motivo **Conta do Portal não ativa** (capítulos 13 e 14).
 2. **Todos os B/Ls dela têm CE Mercante?** A fatura com vários B/Ls só aparece quando todos têm.
 3. **O B/L mudou de Cliente?** A fatura nova é do novo Cliente ([18.4](18-o-que-muda-sozinho.md#184-vincular-ou-trocar-o-cliente-do-bl)).
-4. **O filtro esconde a fatura?** No Portal, os filtros de **Faturas** ficam recolhidos em **Filtros**, e o **Status** começa em **Em vigor (sem canceladas)**: a fatura cancelada ou substituída só aparece com **Cancelada**. Quem chega por um atalho de outra tela, como o valor de **Taxas locais** em **B/Ls e containers** ou o "Em aberto" do **Desbloqueio de CE**, já vê só aquele B/L: o número ao lado de **Filtros** mostra o recorte, e **Limpar** o tira. A Invoice de Demurrage cancelada não chega ao Portal.
+4. **O filtro esconde a fatura?** No Portal, os filtros de **Faturas** ficam recolhidos em **Filtros**, e, na aba **Taxas Locais**, o **Status** começa em **Em vigor (sem canceladas)**: a fatura cancelada ou substituída só aparece com **Cancelada**. Quem chega por um atalho de outra tela, como o valor de **Taxas locais** em **B/Ls e containers** ou o "Em aberto" do **Desbloqueio de CE**, já vê só aquele B/L: o número ao lado de **Filtros** mostra o recorte, e **Limpar** o tira. A Invoice de Demurrage cancelada não chega ao Portal, e o **Status** da aba **Demurrage** não tem **Cancelada**.
 
 Confira o resultado pela **Espiadinha** ([17.1](#171-ver-o-portal-como-o-cliente-vê)).
 

@@ -67,8 +67,8 @@ describe('ceMercanteImport', () => {
     expect(parsed.rows).toHaveLength(1)
     expect(parsed.rows[0]?.bl_id).toBe('BL002')
     expect(parsed.rowErrors).toHaveLength(1)
-    expect(parsed.rowErrors[0]?.message).toContain('CE Mercante invalido para o BL BL001')
-    expect(parsed.rowErrors[0]?.message).toContain('15 digitos')
+    expect(parsed.rowErrors[0]?.message).toContain('CE Mercante inválido para o BL BL001')
+    expect(parsed.rowErrors[0]?.message).toContain('15 dígitos')
   })
 
   it('não grava nada quando alguma linha falha na pré-validação (tudo ou nada)', async () => {
@@ -95,7 +95,7 @@ describe('ceMercanteImport', () => {
     const result = await importCeMercanteRows(rows, { changedBy: null, manifestoNumero: '26BR000001' })
 
     expect(result).toMatchObject({ processed: 2, updated: 0, overwritten: 0, unchanged: 0, errorCount: 1 })
-    expect(result.errors[0]?.message).toBe('BL BL999 nao encontrado no sistema.')
+    expect(result.errors[0]?.message).toBe('BL BL999 não encontrado no sistema.')
     expect(mockRpc).not.toHaveBeenCalled()
   })
 

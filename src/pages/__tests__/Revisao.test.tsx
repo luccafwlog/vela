@@ -343,6 +343,46 @@ describe('Revisao', () => {
     expect(mockedSaveBlReview).toHaveBeenCalledWith(expect.objectContaining({ justification: 'Revisão manual', customerId: 7 }))
   })
 
+  // Migration 574 (a): B/L faturado com a carga alterada depois da fatura.
+  it('B/L faturado com a carga alterada avisa que a fatura precisa ser corrigida e mostra a recusa do servidor sem o código', async () => {
+    const user = userEvent.setup()
+    const hold = 'Carga adicionada após faturamento; revisar e refaturar.'
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...makeLinkedBl('BLH', { emails: ['a@b.com'], portalActive: true }), review_reasons: [hold], financial_status: 'invoiced', billing_hold_reason: hold }],
+      isLoading: false,
+      error: null,
+    } as never)
+    mockedSaveBlReview.mockRejectedValueOnce({ code: 'P0003', message: 'B/L BLH faturado com a carga alterada depois da fatura: a revisão só termina com a fatura corrigida.' })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    expect(screen.getByText(/A fatura já emitida precisa ser corrigida/)).toBeTruthy()
+    expect(screen.getAllByText(/Fatura a corrigir: carga alterada depois da fatura/).length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
+
+    expect(await screen.findByText('B/L BLH faturado com a carga alterada depois da fatura: a revisão só termina com a fatura corrigida.')).toBeTruthy()
+    expect(screen.queryByText(/P0003/)).toBeNull()
+    expect(mockedTryAutoIssueInvoice).not.toHaveBeenCalled()
+  })
+
+  it('B/L que já chegou faturado sai da revisão sem dizer que a fatura foi emitida agora', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...makeLinkedBl('BLP', { emails: ['a@b.com'], portalActive: true }), review_reasons: ['Pendente'], financial_status: 'invoiced' }],
+      isLoading: false,
+      error: null,
+    } as never)
+    mockedSaveBlReview.mockResolvedValueOnce({ updatedAt: 'x', reviewStatus: 'reviewed', pendencias: [], resolved: true })
+    mockedTryAutoIssueInvoice.mockResolvedValueOnce({ status: 'invoiced', invoiceResult: { idempotent: true } } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
+
+    expect(await screen.findByText('Saiu da revisão; o B/L já estava faturado e a fatura emitida continua valendo.')).toBeTruthy()
+    expect(screen.queryByText('Saiu da revisão e a fatura foi emitida automaticamente.')).toBeNull()
+  })
+
   it('caso C: lista os CNPJs divergentes e vincula a um cliente cadastrado sem janela', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({

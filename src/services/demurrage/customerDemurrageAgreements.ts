@@ -96,16 +96,16 @@ export async function saveCustomerDemurrageAgreement(
   input: CustomerDemurrageAgreementFormInput,
 ): Promise<void> {
   if (!input.customer_id) {
-    throw new Error('Cliente obrigatorio para cadastro de acordo.')
+    throw new Error('Cliente obrigatório para cadastro de acordo.')
   }
   if (input.free_days == null || input.free_days < 0) {
-    throw new Error('Free time em dias e obrigatorio e deve ser maior ou igual a 0.')
+    throw new Error('Free time em dias é obrigatório e deve ser maior ou igual a 0.')
   }
   if (!input.valid_from) {
-    throw new Error('Data de inicio de vigencia e obrigatoria.')
+    throw new Error('Data de início de vigência é obrigatória.')
   }
   if (input.valid_to && input.valid_to < input.valid_from) {
-    throw new Error('Data de termino da vigencia nao pode ser anterior ao inicio.')
+    throw new Error('Data de término da vigência não pode ser anterior ao início.')
   }
 
   const payload = {
@@ -125,7 +125,7 @@ export async function saveCustomerDemurrageAgreement(
   if (error) {
     const msg = error.message || ''
     if (msg.includes('customer_demurrage_agreements_no_overlap') || msg.includes('23P01')) {
-      throw new Error('Ja existe um acordo ativo para este cliente com vigencia sobreposta.')
+      throw new Error('Já existe um acordo ativo para este Cliente com vigência sobreposta.')
     }
     throw error
   }
@@ -147,7 +147,7 @@ export async function toggleCustomerDemurrageAgreementActive(id: number, active:
   if (error) {
     const msg = error.message || ''
     if (msg.includes('customer_demurrage_agreements_no_overlap') || msg.includes('23P01')) {
-      throw new Error('Nao e possivel reativar: ja existe outro acordo ativo para este cliente no mesmo periodo.')
+      throw new Error('Não é possível reativar: já existe outro acordo ativo para este Cliente no mesmo período.')
     }
     throw error
   }

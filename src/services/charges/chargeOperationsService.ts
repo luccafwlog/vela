@@ -738,7 +738,7 @@ export async function calculateLocalChargesBatch(
         errors.push(
           ...(parsed.errors ?? []).map((err) => ({
             blId: err.bl_id || err.blId || '',
-            message: err.message || 'Erro no calculo.',
+            message: err.message || 'Erro no cálculo.',
           })),
         )
         batchCompleted = true

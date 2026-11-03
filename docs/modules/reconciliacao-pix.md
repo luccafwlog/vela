@@ -98,15 +98,18 @@ principal é "Consulta parada há N min" em âmbar, com a frase de que Pix pagos
 depois daquele horário não deram baixa automática e de avisar quem cuida da
 integração (limite fixo da tela, `ITAU_POLL_STALE_MINUTES`); senão, "Baixa
 automática ligada". Os fatos são Baixa automática, Recebimentos consultados até
-(em Brasília) e Cobranças ativas. Com a chave desligada, o dado principal é
-"Desligada: as faturas usam o QR estático e a baixa vem do extrato", sem a
-idade da consulta. A frase é anterior à migration `552`: desde ela, o Pix do
-QR estático dá baixa pela consulta de recebimentos, que roda com qualquer
-valor da chave. Com a chave desligada, nem a tela nem o Alerta
-`itau_pix_consulta_parada` (que só abre com `pix_provider = 'itau'`,
-`reconcile_itau_pix_checkpoint_alert_core_425`) avisam que a consulta parou;
-ajustar a frase e o aviso é pendência levada ao responsável na conferência do
-Manual do Operador de 2026-11-03.
+(em Brasília) e Cobranças ativas. Com a chave desligada (`static`), o Pix do QR
+estático dá baixa pela mesma consulta de recebimentos, que roda com qualquer
+valor da chave (migration `552`); por isso a tela mostra a idade e a parada da
+consulta do mesmo jeito (decisão do dono de 2026-11-03). O dado principal é
+"Cobrança Itaú desligada: as faturas usam o QR estático, e o Pix dele dá baixa
+pela consulta do Itaú" ("Recebimentos consultados há N min."), ou "Consulta
+parada há N min" em âmbar, com "Pix pagos pelo QR estático depois de … não
+deram baixa automática. Avise quem cuida da integração antes de baixar à
+mão."; os fatos são Cobrança Itaú (Desligada), Baixa automática (Ligada, pelo
+QR estático) e Recebimentos consultados até. O Alerta
+`itau_pix_consulta_parada` também abre e fecha com as duas chaves (migration
+`574`, `reconcile_itau_pix_checkpoint_alert_core_425`).
 
 Abaixo vêm três blocos com tabela limpa, cada um com a contagem e uma frase na
 faixa; a situação vai em texto, âmbar só no que pede ação:
@@ -649,7 +652,8 @@ depois de 15 min, como **Consulta parada há N min** em âmbar ("Pix pagos depoi
 de … não deram baixa automática. Avise quem cuida da integração antes de baixar
 à mão."), e o job SQL `itau-pix-checkpoint-health` (a cada 5 min) abre o
 Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro), que
-fecha quando a consulta anda (migration `358`). Período com mais de 50 páginas
+fecha quando a consulta anda (migration `358`; com qualquer `pix_provider`
+desde a `574`, porque o Pix do QR estático também dá baixa pela consulta). Período com mais de 50 páginas
 encolhe a janela até 5 min em vez de travar; horário inesperado de Pix de
 terceiro não derruba a consulta; a função responde fora de 2xx quando a fila ou
 a consulta falha, o que alimenta `rotina_http_falhou`. Uma recusa isolada do
@@ -741,7 +745,7 @@ cancelamento de baixa de Demurrage.
   (origem, situação, âmbar só no Pix do Vela em análise, fatura abrindo o
   detalhe, linha aberta com o que o banco mandou, baixa sugerida e recusa,
   sem pagador para quem não concilia, filtros e valor ilegível), monitor Itaú em
-  Brasília e consulta parada, Pix tratado com motivo e foco, leitura com
+  Brasília e consulta parada (também com o QR estático: idade e parada), Pix tratado com motivo e foco, leitura com
   exceções salvas, linhas ocultas, lote recusado, resultado parcial honesto,
   exceção por Tentar de novo e pela lista de faturas da linha aberta (com falha depois da baixa),
   detalhes, cancelamento de baixa de Demurrage, aba na URL e acesso restrito.
@@ -766,7 +770,8 @@ sem isso ficam em `skip`.
   cobrança, Demurrage e PTAX, baixa automática de avulsa e Demurrage
   (idempotente pelo `endToEndId`), Pix em análise sem usuário de baixa ou com
   TXID desconhecido, prazos (14h30 do próximo dia útil, calendário de feriados, renovação),
-  monitoramento e **Marcar como tratado**, e o disparo da fila na emissão.
+  monitoramento e **Marcar como tratado**, o Alerta de consulta parada com a
+  cobrança Itaú e com o QR estático (migration `574`), e o disparo da fila na emissão.
 - `src/integration/baixaDoQrEstatico.local-pg.test.ts`: migrations `552` e
   `553`, a partir do caso do staging de 2026-10-30. Origem pelo identificador
   (QR estático do Vela, ZPT, cobrança Itaú); baixas manuais parciais nos dois

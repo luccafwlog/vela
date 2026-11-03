@@ -118,7 +118,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     const quantity = Number(String(manualChargeForm.quantity).replace(',', '.'))
 
     if (!Number.isInteger(chargeItemId) || chargeItemId <= 0) {
-      showToast('Selecione um item de Other Charge.', 'error')
+      showToast('Selecione o item da cobrança manual.', 'error')
       return
     }
 
@@ -181,7 +181,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           notes: manualChargeForm.notes || null,
           actorId: user.id,
         })
-        showToast('Other Charge adicionado com sucesso.', 'success')
+        showToast('Cobrança manual adicionada.', 'success')
       }
 
       setManualChargeForm(EMPTY_MANUAL_CHARGE_FORM)
@@ -496,7 +496,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
           </Notice>
         ) : null}
         {invoiceDiverges ? (
-          <Notice tone="warn">As taxas mudaram depois da emissão: o total atual difere da fatura ativa. A reemissão ou o ajuste é tratado no Faturamento.</Notice>
+          <Notice tone="warn">As taxas mudaram depois da emissão: o total atual difere da fatura ativa e a correção automática da fatura não foi aplicada. Abra a fatura (Taxas Locais › Faturas): o bloco Ajustes pela correção do B/L diz o motivo e tem Tentar aplicar correção.</Notice>
         ) : null}
         {cancelled && !chargesLocked ? (
           <p className="app-facts__detail">B/L cancelado: as taxas ficam só para consulta.</p>

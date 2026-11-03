@@ -19,6 +19,7 @@ import {
   needsCustomerLink,
   needsWeightFix,
   describeCnpjSource,
+  postBillingCargoHold,
   REVIEW_CAUSE_LABELS,
   reviewReasonCause,
   reviewReasonLabel,
@@ -301,7 +302,9 @@ export function ReviewGroupDetail({
         >
           <div className="grid gap-3">
             <p className="text-[var(--app-muted)]">
-              {otherReasons(item).length
+              {postBillingCargoHold(item)
+                ? <>Pendência registrada: <strong>{otherReasons(item).join(' · ')}</strong>. A fatura já emitida precisa ser corrigida: o B/L sai da fila sozinho quando ela for. Se a correção automática não saiu, abra a fatura pelo alerta Fatura desatualizada. Salvar revisão sem mudar nenhum dado é recusado.</>
+                : otherReasons(item).length
                 ? <>Pendência registrada: <strong>{otherReasons(item).join(' · ')}</strong>. Corrija o que faltar e salve: o sistema recalcula e o B/L sai da fila se não sobrar nada.</>
                 : 'A pendência não tem motivo registrado. Confira os dados e salve: o sistema recalcula e o B/L sai da fila se não sobrar nada.'}
             </p>

@@ -76,7 +76,7 @@ describe('Acordos de Demurrage — confirmação', () => {
 
     await user.clear(screen.getByLabelText('Free Time (dias) *'))
     await user.type(screen.getByLabelText('Free Time (dias) *'), '25')
-    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
 
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
     expect(mocks.confirm.mock.calls[0][0].changes).toContainEqual({
@@ -92,7 +92,7 @@ describe('Acordos de Demurrage — confirmação', () => {
     render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={agreement} />)
     await user.clear(screen.getByLabelText('Free Time (dias) *'))
     await user.type(screen.getByLabelText('Free Time (dias) *'), '25')
-    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
 
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ id: 12, customer_id: 9, free_days: 25 })))
   })
@@ -104,7 +104,7 @@ describe('Acordos de Demurrage — confirmação', () => {
     expect(screen.queryByText('Acordo ativo')).toBeNull()
     await user.clear(screen.getByLabelText('Free Time (dias) *'))
     await user.type(screen.getByLabelText('Free Time (dias) *'), '25')
-    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
     await waitFor(() => expect(mocks.save).toHaveBeenCalled())
     expect(mocks.save.mock.calls[0][0]).not.toHaveProperty('active')
   })
@@ -147,7 +147,7 @@ describe('Acordos de Demurrage — lista e formulário', () => {
     render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={agreement} />)
     await user.clear(screen.getByLabelText('Free Time (dias) *'))
     await user.type(screen.getByLabelText('Free Time (dias) *'), '400')
-    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
     expect(screen.getByRole('alert').textContent).toContain('vai até 365 dias')
     expect(mocks.confirm).not.toHaveBeenCalled()
   })
@@ -156,7 +156,7 @@ describe('Acordos de Demurrage — lista e formulário', () => {
     const user = userEvent.setup()
     render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={agreement} />)
     await user.clear(screen.getByLabelText('Free Time (dias) *'))
-    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
     expect(screen.getByRole('alert').textContent).toContain('Informe os dias de free time')
     expect(mocks.confirm).not.toHaveBeenCalled()
   })

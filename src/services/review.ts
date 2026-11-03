@@ -91,7 +91,7 @@ export async function saveBlReview({
   for (const [field, value] of changedEntries) {
     const normalized = normalizeBlValue(field, value)
     if (normalized instanceof InvalidNumericValue) {
-      throw new Error(`Valor invalido para ${String(field)}: informe um numero valido.`)
+      throw new Error(`Valor inválido para ${String(field)}: informe um número válido.`)
     }
     updatePayload[field] = toJsonValue(normalized)
   }

@@ -144,7 +144,7 @@ describe('createOrAttachVoyageFromSchedule', () => {
       vesselName: 'GREEN PECEM',
       voyageNumber: '6',
       status: 'active',
-    }), null, { origin: 'chegadas_saidas', showOnPortal: true })
+    }), null, { origin: 'chegadas_saidas', showOnPortal: true, keepRegisteredCarrier: true })
     expect(calls.setShow).not.toHaveBeenCalled()
   })
 

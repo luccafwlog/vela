@@ -1390,6 +1390,15 @@ interna).
   (só com a vez nossa) pede o próximo responsável (Cliente, ou Ninguém, que
   resolve a Disputa) e **Reabrir Disputa** (só em Invoice emitida ou paga)
   exige justificativa.
+- **A vez do Cliente no Portal:** `portal_add_dispute_message` só grava a
+  mensagem do Cliente quando a vez é dele; fora dela recusa com "Aguarde a
+  resposta da Equipe de Containers." (`42501`; até a migration `574`,
+  "Aguarde a resposta de Equipamentos.", com o nome que o Portal não usa). Desde
+  2026-11-03 (decisão do dono), a conversa do Portal (`PortalDisputeConversation`)
+  desliga **Sua resposta**, **Anexar arquivo** e **Enviar mensagem** quando a
+  Disputa aberta aguarda Equipamentos, com "Aguardando a resposta da Equipe de
+  Containers"; **Reenviar anexo** da mensagem já gravada continua. No Modo
+  Inspeção tudo segue só leitura, como antes.
 - **Tabela** (desde a migration `520`, [ADR 0112](../adr/0112-repaginacao-da-demurrage.md),
   D15): uma linha por Disputa com Invoice, situação da Invoice, Cliente, valor
   em disputa (USD líquido e BRL hoje), aberta há e a vez; a conversa abre

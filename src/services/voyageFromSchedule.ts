@@ -211,7 +211,9 @@ export async function createOrAttachVoyageFromSchedule(
   // leitura, e a tela não anexa nem publica (a planilha já recusa na prévia).
   if (options.voyageId === undefined && existingId !== null) await refuseCancelledVoyage(existingId, input)
   // A Viagem nova já nasce publicada, com a origem na linha do tempo; a
-  // existente é publicada aqui (revisão de 2026-10-22, F1).
+  // existente é publicada aqui (revisão de 2026-10-22, F1). O armador padrão
+  // só vale para navio novo: o navio já cadastrado mantém o armador dele, sem
+  // regravar, como na planilha (decisão do dono de 2026-11-03).
   const voyageId = existingId ?? (await createVoyage({
     carrierName: DEFAULT_CARRIER_NAME,
     carrierScac: DEFAULT_CARRIER_SCAC,
@@ -219,7 +221,7 @@ export async function createOrAttachVoyageFromSchedule(
     vesselImo: input.vesselImo,
     voyageNumber: input.voyageNumber,
     status: 'active',
-  }, changedBy, { origin: 'chegadas_saidas', showOnPortal: true })).id
+  }, changedBy, { origin: 'chegadas_saidas', showOnPortal: true, keepRegisteredCarrier: true })).id
 
   // "Não escala" só apaga data ou escala na edição (Viagem conhecida). Em
   // "Adicionar navio", a Viagem achada pelo VOY e navio recebe só os portos

@@ -191,7 +191,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
       if (code === 'PT409' || code === '40001') {
         await queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl.id) })
         showToast(
-          'Este B/L foi alterado por outro usuario. Os dados foram recarregados; revise e salve novamente.',
+          'Este B/L foi alterado por outro usuário. Os dados foram recarregados; revise e salve novamente.',
           'error',
         )
       } else {

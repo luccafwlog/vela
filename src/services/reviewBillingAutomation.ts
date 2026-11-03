@@ -311,7 +311,7 @@ export async function tryAutoIssueInvoice({
   // O CE Mercante não é necessário para calcular, mas continua exigido para
   // emitir — a invoice precisa do documento em qualquer modalidade de carga.
   if (!authoritativeBl.ce_mercante?.trim()) {
-    return { status: 'blocked', reason: 'awaiting_flow', message: 'Aguardando cadastro do CE Mercante para emitir a fatura (ADR 0020).', calculation }
+    return { status: 'blocked', reason: 'awaiting_flow', message: 'Aguardando cadastro do CE Mercante para emitir a fatura.', calculation }
   }
 
   let invoiceResult: unknown

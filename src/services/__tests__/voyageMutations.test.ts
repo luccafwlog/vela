@@ -122,6 +122,46 @@ it('salva IMO quando a viagem usa um navio ja existente sem IMO', async () => {
   expect(vesselsUpdateEq).toHaveBeenCalledWith('id', 9)
 })
 
+// Decisão do dono de 2026-11-03: "Adicionar navio" (Chegadas e Saídas) manda o
+// armador padrão; o navio já cadastrado mantém o armador dele. A Nova Viagem
+// com **Alterar armador** continua mudando o armador do navio.
+function mockExistingVesselWithOtherCarrier(vessel: { id: number; imo: string | null; name: string; carrier_id: number }) {
+  const vesselsUpdate = vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) }))
+  fromMock.mockImplementation((table: string) => {
+    if (table === 'carriers') return { select: () => ({ limit: () => ({ eq: () => Promise.resolve({ data: [{ id: 7 }], error: null }) }) }) }
+    if (table === 'vessels') {
+      return {
+        select: () => ({ eq: () => ({ limit: () => Promise.resolve({ data: [vessel], error: null }) }) }),
+        update: vesselsUpdate,
+      }
+    }
+    if (table === 'voyages') return { insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: { id: 50 }, error: null }) }) }) }
+    throw new Error(`Tabela nao mockada: ${table}`)
+  })
+  return vesselsUpdate
+}
+
+const scheduleForm = { carrierName: 'CSSC', carrierScac: 'CSSC', voyageNumber: '12', status: 'active' as const }
+
+it.each([
+  ['pelo IMO', { vesselName: 'GREEN SANTOS', vesselImo: '9846495' }, { id: 9, imo: '9846495', name: 'GREEN SANTOS', carrier_id: 3 }],
+  ['pelo nome', { vesselName: 'GREEN SANTOS', vesselImo: '' }, { id: 9, imo: null, name: 'GREEN SANTOS', carrier_id: 3 }],
+])('navio achado %s mantém o armador do cadastro quando a Viagem vem da programação', async (_how, vessel, registered) => {
+  const vesselsUpdate = mockExistingVesselWithOtherCarrier(registered)
+
+  await createVoyage({ ...scheduleForm, ...vessel }, 'user-1', { origin: 'chegadas_saidas', showOnPortal: true, keepRegisteredCarrier: true })
+
+  expect(vesselsUpdate).not.toHaveBeenCalled()
+})
+
+it('Nova Viagem com outro armador muda o armador do navio já cadastrado', async () => {
+  const vesselsUpdate = mockExistingVesselWithOtherCarrier({ id: 9, imo: '9846495', name: 'GREEN SANTOS', carrier_id: 3 })
+
+  await createVoyage({ ...scheduleForm, vesselName: 'GREEN SANTOS', vesselImo: '9846495' }, 'user-1')
+
+  expect(vesselsUpdate).toHaveBeenCalledWith({ carrier_id: 7 })
+})
+
 it('reaproveita IMO legado rotulado em vez de criar ou rejeitar o mesmo navio', async () => {
   const vesselsUpdateEq = vi.fn(() => Promise.resolve({ error: null }))
   const vesselsUpdate = vi.fn(() => ({ eq: vesselsUpdateEq }))

@@ -310,7 +310,7 @@ describe('createManualInvoice', () => {
   it('recusa sem motivo antes de chamar o banco (272)', async () => {
     supabaseMocks.rpc.mockClear()
     await expect(createManualInvoice({ customerId: 7, itemName: 'Taxa', reason: '  ', quantity: 1, unitValueBrl: 10 }))
-      .rejects.toThrow(/Motivo obrigatorio/)
+      .rejects.toThrow(/Motivo obrigatório/)
     expect(supabaseMocks.rpc).not.toHaveBeenCalled()
   })
 })

@@ -318,7 +318,7 @@ function parseCarrierBreakbulkRows(
     if (!consignee) {
       rowErrors.push({
         row: blLine,
-        message: `Consignatario nao identificado para o BL ${candidateBl}.`,
+        message: `Consignatário não identificado para o BL ${candidateBl}.`,
         raw: row,
       })
     }
@@ -400,7 +400,7 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
     const pod = nullableKey(mapped.pod)
 
     if (!bl_id || !shipper || !consignee || !notifyParty) {
-      rowErrors.push({ row: rowNumber, message: 'Colunas obrigatorias ausentes ou invalidas para o layout BB.', raw: row })
+      rowErrors.push({ row: rowNumber, message: 'Colunas obrigatórias ausentes ou inválidas para o layout BB.', raw: row })
       return
     }
 
@@ -486,7 +486,7 @@ function parseLegacyRows(rows: SheetRow[], options: ParseBreakbulkOptions = {}):
     const shipper = asNullableString(mapped.shipper)
 
     if (!bl_id || !consignee || !cnpj_cpf || !pol || !pod || !item_description) {
-      rowErrors.push({ row: rowNumber, message: 'Colunas obrigatorias ausentes ou invalidas.', raw: row })
+      rowErrors.push({ row: rowNumber, message: 'Colunas obrigatórias ausentes ou inválidas.', raw: row })
       return
     }
 
@@ -721,7 +721,7 @@ function describeCarrierNumber(
       : { message: `Coluna ${label}: cubagem ausente para o BL ${blId}.`, severity: 'warning' }
   }
   if (parsed === null) {
-    return { message: `Coluna ${label}: "${shown}" nao e um numero valido no formato lido (BL ${blId}).`, severity: 'error' }
+    return { message: `Coluna ${label}: "${shown}" não é um número válido no formato lido (BL ${blId}).`, severity: 'error' }
   }
   if (isWeight && parsed <= 0) {
     return { message: `Coluna ${label}: peso bruto zerado para o BL ${blId}; a taxa por tonelada depende dele.`, severity: 'error' }
@@ -749,7 +749,7 @@ function validateRequiredHeaders(rawHeaders: string[], layout: BreakbulkLayout) 
   })
 
   if (missing.length) {
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${missing.join(', ')}.`)
+    throw new Error(`Planilha inválida. Colunas obrigatórias: ${missing.join(', ')}.`)
   }
 }
 
@@ -1168,8 +1168,8 @@ function describeAmbiguity(field: string, raw: unknown, readValue: number) {
   const asThousands = Number(shown.replace(/[.,]/, ''))
   const asDecimal = Number(shown.replace(',', '.'))
   return `Coluna ${label}: "${shown}" pode ser ${describeMagnitude(asThousands)} (separador de milhar) `
-    + `ou ${describeMagnitude(asDecimal)} (separador decimal), e a planilha nao desempata. `
-    + `Declare o formato do arquivo no modal de importacao: a leitura atual e ${describeMagnitude(readValue)}.`
+    + `ou ${describeMagnitude(asDecimal)} (separador decimal), e a planilha não desempata. `
+    + `Declare o formato do arquivo no modal de importação: a leitura atual é ${describeMagnitude(readValue)}.`
 }
 
 /** `259312` e `259,312` por extenso curto, para as duas leituras nao se confundirem. */
@@ -1185,15 +1185,15 @@ function describeCeiling(field: string, raw: unknown, value: number, ceiling: { 
   const label = NUMERIC_COLUMN_LABELS[field] ?? field
   const shown = normalizeNumericText(raw) ?? String(raw ?? '').trim()
   return `Coluna ${label}: "${shown}" foi lido como ${value.toLocaleString('pt-BR')} ${ceiling.unit}, `
-    + `acima do maximo plausivel para um B/L (${ceiling.max.toLocaleString('pt-BR')} ${ceiling.unit}). `
+    + `acima do máximo plausível para um B/L (${ceiling.max.toLocaleString('pt-BR')} ${ceiling.unit}). `
     + 'Confira a unidade e o separador decimal do arquivo.'
 }
 
 function describeNumericProblem(field: string, raw: unknown, reason: 'empty' | 'syntax') {
   const label = NUMERIC_COLUMN_LABELS[field] ?? field
   const shown = String(raw ?? '').trim()
-  if (reason === 'empty') return `Coluna ${label}: valor obrigatorio ausente.`
-  return `Coluna ${label}: "${shown}" nao e um numero valido no formato lido.`
+  if (reason === 'empty') return `Coluna ${label}: valor obrigatório ausente.`
+  return `Coluna ${label}: "${shown}" não é um número válido no formato lido.`
 }
 
 function parseNumber(value: unknown, format: ImportNumberFormat = 'unknown') {

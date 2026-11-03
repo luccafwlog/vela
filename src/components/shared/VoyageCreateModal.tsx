@@ -271,7 +271,7 @@ export function VoyageCreateModal({
               onChange={(event) => setForm((current) => ({ ...current, vesselImo: event.target.value }))}
             />
           </Field>
-          <Field label="Numero da viagem" error={errors.voyageNumber}>
+          <Field label="Número da viagem" error={errors.voyageNumber}>
             <Input
               value={form.voyageNumber}
               onChange={(event) => setForm((current) => ({ ...current, voyageNumber: event.target.value.toUpperCase() }))}
@@ -285,7 +285,7 @@ export function VoyageCreateModal({
               }
             >
               <option value="active">Ativa</option>
-              <option value="completed">Concluida</option>
+              <option value="completed">Concluída</option>
               {form.status === 'cancelled' ? <option value="cancelled" disabled>Cancelada</option> : null}
             </Select>
           </Field>

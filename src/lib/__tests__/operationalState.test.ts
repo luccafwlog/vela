@@ -40,7 +40,7 @@ describe('operationalState', () => {
       emptyWithoutFilters: 'Nenhuma fatura emitida ainda.',
     })).toEqual({
       title: 'Nenhuma fatura encontrada.',
-      description: 'Os filtros atuais nao retornaram faturas. Ajuste ou limpe os filtros para ampliar a busca.',
+      description: 'Os filtros atuais não retornaram faturas. Ajuste ou limpe os filtros para ampliar a busca.',
     })
   })
 })

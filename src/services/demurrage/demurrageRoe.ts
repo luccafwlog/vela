@@ -131,6 +131,6 @@ export async function fetchROE(): Promise<FetchROEResult> {
     reportBestEffortFailure('fetchROE: BCB PTAX indisponivel e sem cache', error, {
       fellBackToCache: false,
     })
-    throw new Error('BCB offline e sem cache de PTAX disponivel. Informe a taxa manualmente.', { cause: error })
+    throw new Error('BCB offline e sem cache de PTAX disponível. Informe a taxa manualmente.', { cause: error })
   }
 }

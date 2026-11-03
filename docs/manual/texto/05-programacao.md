@@ -52,7 +52,7 @@ A janela Adicionar navio à programação.
 :::
 :::
 
-O Vela procura primeiro a Viagem pelo número e pelo IMO. Se ela já existe em **Viagens**, grava as datas nela e a publica; se não existe, cria a Viagem já publicada. Se a Viagem achada está cancelada, nada é gravado: reative-a em **Viagens** antes (capítulo 4). Por isso o IMO importa: sem ele, o Vela procura pelo nome do navio, e um nome que casa com mais de uma Viagem é recusado.
+O Vela procura primeiro a Viagem pelo número e pelo IMO. Se ela já existe em **Viagens**, grava as datas nela e a publica; se não existe, cria a Viagem já publicada. A Viagem nova fica com o armador do navio já cadastrado; só navio novo nasce com o armador padrão, Cosco Shipping Specialized Carriers (CSSC), que você corrige em **Viagens** (capítulo 4). Se a Viagem achada está cancelada, nada é gravado: reative-a em **Viagens** antes (capítulo 4). Por isso o IMO importa: sem ele, o Vela procura pelo nome do navio, e um nome que casa com mais de uma Viagem é recusado.
 
 ## 5.3 Corrigir as datas de um navio
 
@@ -146,7 +146,7 @@ O Line-Up: o navio atracado em Vitória com a faixa verde, uma linha de exporta�
 
 1. **Tela TV**, no alto do **Painel** ou no menu **Viagens**, abre o quadro em outra aba, para um monitor da sala.
 2. **Exportar** leva para uma planilha as linhas que estão na tela.
-3. Os filtros recortam o quadro. **Escalas** começa em **Ativas**.
+3. Os filtros recortam o quadro. **Escalas** começa em **Ativas**. **Busca**, **Escalas** e **Período** valem para as duas linhas da escala, a de importação e a de exportação; os filtros de carga, **CEs** e **Vinculada** só recortam as linhas de importação.
 
 Como ler o quadro:
 
@@ -172,7 +172,7 @@ A Tela TV usa a sessão de quem a abriu. Depois de 8 horas sem ninguém mexer no
 
 Esses são os cadastros de apoio das Viagens. Só os terminais têm tela própria:
 
-- **Navios e armadores** nascem e mudam pelas Viagens, em **Nova Viagem** e **Editar** (capítulo 4), por Chegadas e Saídas e pela planilha. O armador corrigido numa Viagem vale para todas as Viagens do mesmo navio.
+- **Navios e armadores** nascem e mudam pelas Viagens, em **Nova Viagem** e **Editar** (capítulo 4), por Chegadas e Saídas e pela planilha. O armador corrigido numa Viagem vale para todas as Viagens do mesmo navio. Chegadas e Saídas e a planilha não mudam o armador de navio já cadastrado: só dão o armador padrão ao navio novo.
 - **Portos** nascem sozinhos na primeira escala com o código deles. O Vela entende grafias diferentes do mesmo porto, como BRVIT e BRVIX para Vitória.
 - **Terminais** ficam na tela de Locais, junto com os depots: no menu, em **Exportação** › **Locais (depots e terminais)**. O terminal precisa estar ligado ao porto para aparecer na escala e no Embarque de vazios.
 

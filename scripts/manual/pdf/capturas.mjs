@@ -105,7 +105,7 @@ export const CAPTURAS = [
       await dlg.waitFor()
       await dlg.getByLabel('Navio').fill(cenario.novaViagem.navio)
       await dlg.getByLabel('IMO').fill(cenario.novaViagem.imo)
-      await dlg.getByLabel('Numero da viagem').fill(cenario.novaViagem.numero)
+      await dlg.getByLabel('Número da viagem').fill(cenario.novaViagem.numero)
       // Portos e datas (desde 2026-11-01, #1145): um porto em Origem e outro
       // em Destino, só para a imagem; saem antes de cadastrar, porque as
       // escalas do cenário são planejadas na ficha (4.2).

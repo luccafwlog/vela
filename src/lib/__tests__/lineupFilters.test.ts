@@ -11,8 +11,21 @@ const rows: LineUpRow[] = [
 
 describe('filterLineUpRows', () => {
   it('filtra por busca de navio/viagem e período inclusive', () => {
-    expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), search: 'aurora', periodo: 'custom', dataInicio: '2026-07-12', dataFim: '2026-07-12' }).map((item) => item.id)).toEqual(['1::RIO', 'exp::3'])
-    expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), search: '002B' }).map((item) => item.id)).toEqual(['2::PNG', 'exp::3'])
+    expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), search: 'aurora', periodo: 'custom', dataInicio: '2026-07-12', dataFim: '2026-07-12' }).map((item) => item.id)).toEqual(['1::RIO'])
+    expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), search: '002B' }).map((item) => item.id)).toEqual(['2::PNG'])
+  })
+
+  // Decisão do dono de 2026-11-03: Busca, Escalas e Período valem também para a linha de exportação.
+  it('aplica Busca, Escalas e Período à linha de exportação', () => {
+    expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), search: 'exportador' }).map((item) => item.id)).toEqual(['exp::3'])
+    expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), search: '003c' }).map((item) => item.id)).toEqual(['exp::3'])
+    expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), periodo: 'custom', dataInicio: '2026-07-14', dataFim: '2026-07-14' }).map((item) => item.id)).toEqual(['exp::3'])
+    expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), periodo: 'custom', dataInicio: '2026-07-11', dataFim: '2026-07-13' }).map((item) => item.id)).not.toContain('exp::3')
+
+    const completedExport = row({ id: 'exp::5', voyageId: 5, rowType: 'export', voyageStatus: 'completed', eta: '2026-07-15' })
+    expect(filterLineUpRows([...rows, completedExport], emptyLineUpFilters()).map((item) => item.id)).not.toContain('exp::5')
+    expect(filterLineUpRows([...rows, completedExport], { ...emptyLineUpFilters(), status: 'completed' }).map((item) => item.id)).toEqual(['exp::5'])
+    expect(filterLineUpRows([...rows, completedExport], { ...emptyLineUpFilters(), status: 'all' }).map((item) => item.id)).toContain('exp::5')
   })
 
   it('filtra linhas de importação que possuem veículos ou BB', () => {

@@ -166,7 +166,7 @@ function CustomerDemurrageAgreementForm({
       {errors.form ? <p className="app-dem-form__error" role="alert">{errors.form}</p> : null}
       <div className="app-dem-form__actions">
         <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>Voltar</Button>
-        <Button type="submit" loading={saving} loadingLabel="Salvando…">{initialAgreement ? 'Salvar Alterações' : 'Cadastrar Acordo'}</Button>
+        <Button type="submit" loading={saving} loadingLabel="Salvando…">{initialAgreement ? 'Salvar alterações' : 'Cadastrar acordo'}</Button>
       </div>
     </form>
   )

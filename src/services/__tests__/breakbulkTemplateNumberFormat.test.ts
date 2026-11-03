@@ -221,7 +221,7 @@ describe('separador decimal ambiguo no manifesto de carga solta', () => {
     )
 
     expect(parsed.bls).toHaveLength(0)
-    expect(parsed.rowErrors.some((error) => /maximo plausivel/.test(error.message))).toBe(true)
+    expect(parsed.rowErrors.some((error) => /máximo plausível/.test(error.message))).toBe(true)
   })
 })
 

@@ -32,7 +32,7 @@ export function describeEmptyState({
     const singular = entitySingular ?? entityPlural.replace(/s$/, '')
     return {
       title: emptyWithFilters ?? `Nenhuma ${singular} encontrada.`,
-      description: `Os filtros atuais nao retornaram ${entityPlural}. Ajuste ou limpe os filtros para ampliar a busca.`,
+      description: `Os filtros atuais não retornaram ${entityPlural}. Ajuste ou limpe os filtros para ampliar a busca.`,
     }
   }
 

@@ -96,7 +96,7 @@ export function VoyageCombobox({
 }
 
 function toComboOption(voyage: VoyageOption): ComboOption {
-  const vesselName = voyage.vessel?.name?.trim() || 'Navio nao informado'
+  const vesselName = voyage.vessel?.name?.trim() || 'Navio não informado'
   const voyageNumber = voyage.voyage_number.trim()
 
   return {
