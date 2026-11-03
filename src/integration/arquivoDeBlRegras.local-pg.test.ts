@@ -207,7 +207,7 @@ describeLocal('392 — arquivo de B/L com as regras no servidor', () => {
     const fromB = { customer_id: w.otherCustomerId, manifest_customer_cnpj_cpf: cnpjB }
 
     const fcl = importFile([line(lcl, [shared], { ...fromB, container_load_type: 'FCL' })])
-    expect(fcl.stderr).toContain('container FCL nao e dividido entre Clientes diferentes')
+    expect(fcl.stderr).toContain('container FCL não é dividido entre Clientes diferentes')
 
     importOk([line(lcl, [shared], { ...fromB, container_load_type: 'LCL' })])
     expect(blField(lcl, 'container_load_type')).toBe('LCL')

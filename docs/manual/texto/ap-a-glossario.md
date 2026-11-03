@@ -142,7 +142,7 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **Porto de Transbordo**: veja Omissão.
 
-**Preço fixado**: as Taxas Locais de um B/L usam a tabela de cobrança, a Condição de Cliente e o câmbio do dia em que o B/L foi importado. Mudanças posteriores nesses cadastros não o alcançam. [6.2](06-importacao.md#62-importar-os-bls-de-container) e capítulo 21
+**Preço fixado**: as Taxas Locais de um B/L usam a tabela de cobrança, a Condição de Cliente e o câmbio do dia em que o B/L foi importado. Uma tabela de cobrança nova ou uma Condição de Cliente nova não o alcançam; só a correção de um item da tabela de cobrança já usada, ou do valor ou da vigência de uma Condição de Cliente já usada, recalcula os B/Ls que a usaram. [6.2](06-importacao.md#62-importar-os-bls-de-container) e [21.8](21-taxas-locais.md#218-reajustar-ou-corrigir-um-preço)
 
 **PTAX**: a cotação oficial do dólar, que o Vela busca de segunda a sexta, às 14h. É a base do ROE. [19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio) e capítulo 23
 

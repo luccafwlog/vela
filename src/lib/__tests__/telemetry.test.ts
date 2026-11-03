@@ -377,8 +377,8 @@ describe('telemetryBeforeSend', () => {
 
     const fatura = send({ code: '22023', message: 'Fatura avulsa não está disponível para receber pagamento.' })
     const anexo = send({ code: '22023', message: 'O conteúdo do anexo 1 não corresponde ao tipo informado.' })
-    const escala38 = send({ code: '22023', message: 'A escala da viagem 38 ja foi omitida para o POD BRSSA.' })
-    const escala39 = send({ code: '22023', message: 'A escala da viagem 39 ja foi omitida para o POD BRSSA.' })
+    const escala38 = send({ code: '22023', message: 'A escala da viagem 38 já foi omitida para o POD BRSSA.' })
+    const escala39 = send({ code: '22023', message: 'A escala da viagem 39 já foi omitida para o POD BRSSA.' })
     const typeError = telemetryBeforeSend(mockEvent({
       exception: { values: [{ type: 'TypeError', value: "Cannot read properties of undefined (reading 'rest')" }] }, tags: { ...tags },
     }), { originalException: new TypeError("Cannot read properties of undefined (reading 'rest')") })

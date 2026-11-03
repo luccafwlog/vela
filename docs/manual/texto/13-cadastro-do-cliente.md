@@ -24,7 +24,7 @@ A lista de Clientes, com a busca e os filtros.
 2. Se precisar, recorte pelos filtros: **E-mail do contato**, **B/Ls vinculados**, **Saldo pendente**, **Taxas a revisar** e **E-mails de contato**.
 3. Clique no nome do Cliente para abrir a ficha.
 
-Os cartões do alto somam o recorte inteiro, não só a página. **Saldo pendente**, **Taxas a revisar** (os Clientes com algum B/L de Taxas Locais não calculadas ou em revisão) e **Sem e-mail de contato** filtram a lista ao clique. Na lista, a coluna **Portal** diz em que pé está a conta do Cliente, e o **Saldo pendente** em âmbar abre as faturas dele em **Taxas Locais**. Cliente desativado continua na lista, em cinza.
+Os cartões do alto somam o recorte inteiro, não só a página. **Saldo pendente**, **Taxas a revisar** (conta os B/Ls com Taxas Locais não calculadas ou em revisão; o clique mostra os Clientes que os têm) e **Sem e-mail de contato** filtram a lista ao clique. Na lista, a coluna **Portal** diz em que pé está a conta do Cliente, e o **Saldo pendente** em âmbar abre as faturas dele em **Taxas Locais**. Cliente desativado continua na lista, em cinza.
 
 A busca e os filtros ficam no endereço da página: o link copiado abre o mesmo recorte para um colega. **Exportar base** leva o recorte para uma planilha no formato da importação ([13.4](#134-importar-a-base-de-clientes)).
 
@@ -88,7 +88,7 @@ A razão social passa a ser a da planilha; os outros campos só mudam quando vê
 
 1. Na ficha, abra **Cadastro e contatos**. No bloco **Dados cadastrais**, corrija a razão social, o nome fantasia, o endereço, a cidade, a UF, o CEP ou as **Notas**.
 2. Escreva a **Justificativa**.
-3. Clique em **Salvar cadastro** e confira o antes → depois de cada campo.
+3. Clique em **Salvar cadastro**, confira o antes → depois de cada campo e clique em **Salvar alterações**.
 
 Os dados novos saem nas faturas emitidas daqui em diante. A fatura já emitida guarda o cadastro do dia da emissão e não muda. As **Notas** são de uso interno: o Cliente não as vê.
 
@@ -144,7 +144,7 @@ As faturas retidas do Cliente são emitidas na hora, e as próximas saem sem esp
 
 ::: atencao
 - Passada a data de revisão, as novas faturas voltam a ficar retidas e os B/Ls não faturados voltam para a Revisão ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)). Antes de vencer, ative o Portal do Cliente (capítulo 14) ou conceda uma nova Liberação.
-- **Conceder liberação** só aparece enquanto o Portal não está pronto e não há Liberação vigente. Com o Portal pronto, o bloco diz **Não necessária**.
+- **Conceder liberação** (ou **Conceder nova liberação**, depois de uma vencida ou revogada) só aparece enquanto o Portal não está pronto e não há Liberação vigente. Com o Portal pronto, o bloco diz **Não necessária**.
 :::
 
 ## 13.9 Publicar as Informações do Portal
@@ -161,7 +161,7 @@ O que cada seção guarda:
 
 - **Depots:** onde o Cliente devolve o vazio. O depot nasce na tela de Locais ([5.8](05-programacao.md#58-navios-armadores-portos-e-terminais)); aqui você completa os portos de devolução, o endereço, o horário, o agendamento e as instruções, e liga **Publicado no Portal**.
 - **Agentes:** nome, portos e e-mails. Agente não se exclui: desmarque **Ativo**.
-- **Contato:** um cartão por assunto (Importação, Exportação, Containers e Geral). Os três cartões de **Entrega do B/L original** não aparecem em **Informações**, e sim no Desbloqueio de CE do Portal (capítulo 12).
+- **Contato:** um cartão por assunto (Importação, Exportação, Containers e Geral). Os três cartões de **Entrega do B/L original** não aparecem em **Informações**, e sim no Desbloqueio de CE do Portal ([15.7](15-portal-o-que-o-cliente-ve.md#157-o-desbloqueio-de-ce-pelo-portal)).
 - **Tracking:** o link de consulta de cada armador. Com `{BL}` no link, o Portal abre a consulta já com o número do B/L, em **Informações** e na coluna **Tracking** de **B/Ls e containers**; sem a marca, o Cliente só tem o link geral do armador, em **Informações**.
 - **Demurrage:** as **Observações públicas de Demurrage**. As tarifas vêm do cadastro de Demurrage.
 

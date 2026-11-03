@@ -43,7 +43,7 @@ Enquanto o Vela não opera com Clientes reais, uma chave de teste, o **Envio rea
 
 A chave vale para todo e-mail de Cliente: os Comunicados automáticos e os mandados à mão, a Cobrança de Demurrage, os avisos do Desbloqueio de CE e os e-mails da conta do Portal. O **Resumo do Portal**, que vai à equipe, não depende dela ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)).
 
-Só a conta com a marca Dev vê a chave, no bloco **Canal de envio**, no alto da **Comunicação** ([25.10](25-administracao.md#2510-cuidar-das-configurações-do-vela)). As outras contas não veem o bloco: para elas, o sinal está no próprio e-mail. O que foi ao suporte conta como enviado, e a Cobertura e o Histórico o mostram como **Redirecionado ao suporte** ou **Ao suporte**. Ligar a chave depois não o reenvia ao Cliente.
+Só a conta com a marca Dev vê a chave, no bloco **Canal de envio**, no alto da **Comunicação** ([25.10](25-administracao.md#2510-cuidar-das-configurações-do-vela)). As outras contas não veem o bloco: para elas, o sinal está na confirmação do Disparo (**Enviar de verdade** ou **Enviar ao suporte**) e na situação de cada envio. O que foi ao suporte conta como enviado, e a Cobertura e o Histórico o mostram como **Redirecionado ao suporte** ou **Ao suporte**. Ligar a chave depois não o reenvia ao Cliente.
 
 ## 16.3 Acompanhar a Cobertura de viagens
 
@@ -126,7 +126,7 @@ Os e-mails saem um destinatário por vez, e o botão conta "Enviando N de M…" 
 ::: atencao
 - Não feche nem recarregue a página enquanto o botão conta "Enviando N de M…": o que falta não sai. O navegador pede confirmação antes de sair; se saiu, confira no **Histórico** quem recebeu.
 - O Cliente que já recebeu aquele aviso na mesma escala aparece com "Reenvio N", e o disparo só libera depois de você marcar **Confirmo o reenvio.** Ele recebe de novo.
-- A linha **Bloqueado** não pode ser marcada; o motivo está em **Situação**. No NOB, a atracação sem frente de operação atribuída não traz carga nenhuma: atribua a frente na escala ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
+- A linha com um motivo em âmbar na **Situação**, como "Sem contato elegível", não pode ser marcada. No NOB, a atracação sem frente de operação atribuída não traz carga nenhuma: atribua a frente na escala ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
 :::
 
 ## 16.6 Escrever um Comunicado livre ou institucional
@@ -162,7 +162,7 @@ Mande à mão quando:
 - o Cliente ganhou um B/L na Viagem depois do envio e ele ficou pronto;
 - o automático não saiu, ou o Cliente pede de novo.
 
-Para um ou vários Clientes da Viagem, use o **Disparo**: escolha o modelo **CE Mercante · Taxas Locais** e siga os passos de [16.5](#165-mandar-um-noa-nor-ou-nob-à-mão). O CE e Taxas vai sempre para as caixas **Documentação e Operação** e **Financeiro**, sem anexo; o Cliente que não está pronto aparece **Bloqueado**, com o motivo, e o que já recebeu na Viagem aparece com "Reenvio N". Para reenviar o Comunicado de um Cliente, use o **Histórico**:
+Para um ou vários Clientes da Viagem, use o **Disparo**: escolha o modelo **CE Mercante · Taxas Locais** e siga os passos de [16.5](#165-mandar-um-noa-nor-ou-nob-à-mão). O CE e Taxas vai sempre para as caixas **Documentação e Operação** e **Financeiro**, sem anexo; o Cliente que não está pronto não pode ser marcado e mostra o motivo em **Situação**, como "Faturamento ainda não concluído", e o que já recebeu na Viagem aparece com "Reenvio N". Para reenviar o Comunicado de um Cliente, use o **Histórico**:
 
 ::: passos
 1. Em **Clientes** › **Comunicação**, vista **Histórico**, escolha o **Modelo** **CE Mercante · Taxas Locais** e o **Navio**, ou siga o link do alerta.
@@ -185,13 +185,14 @@ Comece pela página **Comunicados da viagem**: na **Cobertura de viagens**, cliq
 
 | O motivo diz | O que fazer |
 |---|---|
-| "falta faturar N B/Ls", "falta CE Mercante em N B/Ls" ou "N B/Ls em revisão" | Só no CE e Taxas. Resolva a pendência do B/L (capítulos 6 e 8); o aviso sai sozinho logo depois. |
+| "falta faturar N B/Ls", "falta CE Mercante em N B/Ls" ou "N B/Ls em revisão" | Só no CE e Taxas. Resolva a pendência do B/L (capítulos 6 e 8); o aviso sai sozinho logo depois. Com "reenvio pendente" na frente, ele não sai sozinho: reenvie ([16.7](#167-reenviar-o-comunicado-de-ce-e-taxas)). |
 | "sem contato ativo na caixa do modelo" | Ligue à caixa um contato com e-mail (capítulo 13). O aviso sai em poucos minutos. |
 | "falha no envio; nova tentativa a partir de …" | Nada: o Vela tenta de novo sozinho. |
+| "recusado na última rodada; volta em até 24 h" | O aviso foi recusado, por um dado a corrigir ou pelo provedor. O alerta **Comunicado automático recusado** diz o motivo ([20.7](20-alertas.md#207-comunicados-e-e-mail)). |
 
 Se o aviso aparece como **Enviado**, abra o **Histórico** e veja a situação de cada destinatário ([16.4](#164-conferir-se-um-e-mail-saiu-e-chegou)). Se o NOA, o NOR ou o NOB aparece como **Não devido** e não está no Histórico, a janela passou: mande à mão ([16.5](#165-mandar-um-noa-nor-ou-nob-à-mão)).
 
-Esses casos também chegam à {{Documentação}} como alerta (capítulo 20). Os avisos do Desbloqueio de CE e a Cobrança de Demurrage não entram na Cobertura: quando não saem, também abrem um alerta.
+Esses casos também chegam à {{Documentação}} como alerta ([20.7](20-alertas.md#207-comunicados-e-e-mail)). Os avisos do Desbloqueio de CE e a Cobrança de Demurrage não entram na Cobertura. O aviso do Desbloqueio de CE que não sai abre um alerta para o {{Administrativo}}. A Cobrança de Demurrage parada mostra o motivo na coluna **Régua de cobrança** da Demurrage ([23.6](23-demurrage-no-financeiro.md#236-acompanhar-a-régua-de-cobrança)); abre alerta, também para o {{Administrativo}}, quando o provedor recusa em definitivo ou quando o envio falha três vezes seguidas.
 
 ::: atencao
 Com o envio real desligado, a Cobertura mostra o aviso como saído, mas nada chegou ao Cliente ([16.2](#162-saber-se-os-e-mails-saem-de-verdade)).

@@ -46,7 +46,7 @@ O Cliente desativado continua na fila, mas não recebe convite nem entra no Port
 
 A conta abre na própria fila, embaixo da linha, ou na ficha do Cliente, aba **Cadastro e contatos**, bloco **Acesso ao Portal** › **Gerenciar aqui**. É o mesmo painel nos dois lugares, com quatro blocos:
 
-- **Conta do Portal**: a situação em destaque, e embaixo dela a decisão. Ao lado, o **E-mail de recuperação**, a **Origem** (escolhido entre os contatos ou **Informado manualmente**), a **Última entrega** e o **Estado do e-mail**.
+- **Conta do Portal**: a situação em destaque, e embaixo dela a decisão. Ao lado, o **E-mail de recuperação**, a **Origem** (**Candidato**, quando escolhido entre os contatos, ou **Informado manualmente**), a **Última entrega** e o **Estado do e-mail**.
 - **Liberação de faturamento sem Portal** ([14.5](#145-o-que-deixa-o-portal-pronto-para-faturar)).
 - **E-mail de recuperação e convite**: a escolha do endereço, o botão do convite ou da troca e **Ações administrativas**, que lista só o que vale para a situação da conta.
 - **Histórico do Portal**: os dez eventos mais recentes, com **Quando**, **O que aconteceu**, **Conta** e **Por**.

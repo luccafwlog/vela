@@ -52,9 +52,9 @@ Para trocar uma senha esquecida, o Cliente usa **Esqueci minha senha**, informa 
 
 O **Painel** é a primeira tela do Cliente. Quatro cartões resumem o que está em aberto e levam à tela de cada assunto.
 
-Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. **Ver meus B/Ls** aparece na viagem em que ele tem carga e abre os B/Ls daquela viagem. Por último, o bloco **Informações** leva às seções da página **Informações**, que você mantém no Vela ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)). O mesmo quadro, sem **Ver meus B/Ls**, aparece a qualquer pessoa no site da Fwlog ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)).
+Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. Na viagem em que ele tem carga aparece o ícone **Ver meus B/Ls nesta viagem** (no celular, o botão **Meus B/Ls**), que abre os B/Ls daquela viagem. Por último, o bloco **Informações** leva às seções da página **Informações**, que você mantém no Vela ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)). O mesmo quadro, sem esse ícone, aparece a qualquer pessoa no site da Fwlog ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)).
 
-As telas do Portal leem os dados quando o Cliente as abre; elas não se atualizam sozinhas. Uma data que você grava aparece para ele na próxima leitura, ou quando ele clica em **Atualizar** em **Chegadas e saídas**.
+As telas do Portal leem os dados quando o Cliente as abre; com a tela parada, só o sino e o detalhe de uma fatura em aberto se atualizam sozinhos. Uma data que você grava aparece para ele na próxima leitura, ou quando ele clica em **Atualizar** em **Chegadas e saídas**.
 
 ::: atencao
 Se o Cliente não vê um navio, confira na edição da Viagem se a chave **Chegadas e Saídas** está ligada e se a Viagem está **Ativa**. A Viagem concluída sai da programação.
@@ -70,7 +70,7 @@ Na aba **B/Ls**, cada linha traz a carga, a Viagem e o trecho. A coluna **Pagame
 
 O valor de **Taxas locais** abre as faturas daquele B/L em **Faturas**. A coluna **Tracking** abre o site do armador já na consulta do B/L; o botão só aparece quando o link do armador em **Informações do Portal** › **Tracking** tem a marca `{BL}` ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)).
 
-A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a situação:
+A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a **Situação**.
 
 Duas situações pedem explicação: **SOC (sem devolução)** é container do próprio Cliente, sem devolução nem Demurrage; **Tarifa indisponível** quer dizer que o Vela não achou o free time oficial do container.
 
@@ -94,7 +94,7 @@ O número da fatura abre o detalhe, com o bloco **Pagamento** primeiro:
 
 1. Em aberto, "R$ … a pagar", com **Pague com Pix**: o QR e **Copiar código Pix**. Na fatura parcialmente paga, o Pix cobra só o saldo.
 2. Depois do pagamento, a baixa leva de 1 a 5 minutos. O detalhe aberto se atualiza sozinho e passa a **Paga**, com **Imprimir recibo**.
-3. A fatura individual paga por uma consolidada aparece como **Coberta**, com o link para a consolidada.
+3. A fatura individual paga por uma consolidada aparece como **Coberta** na lista; no detalhe, como **Paga**, "coberta pela fatura …", com o botão **Abrir …** da consolidada.
 
 Dá para pagar sem abrir a fatura: a coluna **Pagar** da lista traz o ícone **Pagar com Pix** (no celular, um botão com esse nome) em toda fatura que pede pagamento, inclusive a individual que está numa consolidada ainda aberta. Ele abre uma janela com o valor a pagar, o mesmo QR do detalhe e **Ver detalhe da fatura**.
 
@@ -114,7 +114,7 @@ A aba **Demurrage** de **Faturas** lista as Invoices emitidas ou pagas dos B/Ls 
 
 Se o Cliente discorda de um valor, ele contesta no detalhe da Invoice em aberto, em **Abrir disputa**: escreve o **Motivo da disputa** e, se quiser, usa **Anexar arquivo** (PDF, JPG, PNG ou TXT, até 10 MB). Ele acompanha a conversa em **Disputas**.
 
-A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela Invoice para. Na conversa, a equipe aparece como "Equipe de Containers", e o Cliente só escreve quando é a vez dele. Cada Invoice tem uma conversa só: depois da Disputa resolvida, o detalhe oferece **Solicitar reabertura** no lugar de **Abrir disputa**, e ela continua resolvida até a equipe decidir. Se a Invoice é cancelada, a Disputa é encerrada junto e o Cliente recebe "Disputa encerrada", com o motivo. Como a equipe responde e decide está no capítulo 9.
+A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela Invoice para. Na conversa, a equipe aparece como "Equipe de Containers", e o Portal só aceita a mensagem do Cliente quando é a vez dele; fora dela, recusa com "Aguarde a resposta de Equipamentos.". Cada Invoice tem uma conversa só: depois da Disputa resolvida, o detalhe oferece **Solicitar reabertura** no lugar de **Abrir disputa**, e ela continua resolvida até a equipe decidir. Se a Invoice é cancelada, a Disputa é encerrada junto e o Cliente recebe "Disputa encerrada", com o motivo. Como a equipe responde e decide está no capítulo 9.
 
 ::: atencao
 - Invoice paga não aceita disputa nova. A conversa aberta antes do pagamento continua.

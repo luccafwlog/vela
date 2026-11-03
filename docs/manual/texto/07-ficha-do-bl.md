@@ -47,7 +47,7 @@ O CE Mercante e o Manifesto ficam no alto da aba, no bloco **Documento Mercante*
 Ao salvar, o Vela refaz sozinho o que depende do que você mudou:
 
 - **POD**, pesos ou **Movement To** recalculam as Taxas Locais do B/L ainda sem fatura. Mudar o POD troca a tabela de cobrança, que é a do porto de descarga.
-- Mudar o **POL** ou o **POD** tira o B/L do Manifesto Mercante.
+- Mudar o **POL** ou o **POD** tira o B/L do Manifesto Mercante; se ele tem CE, abre um alerta para a {{Documentação}} incluí-lo no Manifesto da rota nova.
 - A Revisão do B/L é refeita: se a correção resolve a pendência, o B/L sai da Revisão (capítulo 8).
 
 ::: atencao
@@ -63,7 +63,7 @@ O container é corrigido na aba **Carga**, um de cada vez. O mesmo container pod
 
 ::: lado
 1. Na aba **Carga**, no bloco **Containers**, clique no lápis **Corrigir** da linha do container.
-2. Corrija o que mudou: **Perfil** (Standard, OOG, IMO), **COC/SOC**, **Lacre**, **Peso bruto (kg)**, **CBM (m³)**, **Descarga** ou **Devolução**.
+2. Corrija o que mudou: **Perfil** (Standard, OOG, IMO, IMO + OOG), **COC/SOC**, **Lacre**, **Peso bruto (kg)**, **CBM (m³)**, **Descarga** ou **Devolução**.
 3. Escreva a **Justificativa**.
 4. Clique em **Salvar correção** e confirme o antes → depois.
 
@@ -108,7 +108,7 @@ Ao lado, o bloco **Portal** diz se o Cliente vê o B/L e, se não vê, por quê;
 ::: atencao
 - B/L faturado não fica sem Cliente: não há **Desvincular**, só **Trocar Cliente**. Sem pagamento, a troca cancela a fatura e a emite para o novo Cliente, se ele tem Portal pronto ou Liberação; senão, a fatura antiga continua valendo e o B/L vai para a Revisão. Se o Cliente anterior pagou Demurrage ou fatura avulsa do B/L, a troca é recusada até a Restituição desse valor ser confirmada.
 - Quando o bloco avisa "O manifesto declara outro cliente", o documento cita outro CNPJ. Confirme com o armador antes de trocar.
-- Cliente desativado não recebe B/L. Reative-o antes, na ficha do Cliente (capítulo 13).
+- Cliente desativado não recebe B/L. Antes, o {{Administrativo}} o reativa, na ficha do Cliente (capítulo 13).
 :::
 
 ## 7.5 O CE e o Manifesto pela ficha

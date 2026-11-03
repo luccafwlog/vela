@@ -1,4 +1,4 @@
-O alerta abre sozinho quando algo precisa de uma pessoa e fecha sozinho quando a causa some: não se fecha à mão. O crítico vem em vermelho, e a equipe dele recebe também no sino.
+O alerta abre sozinho quando algo precisa de uma pessoa e fecha sozinho quando a causa some. Todo alerta chega também ao sino da equipe; o crítico vem em vermelho.
 
 ::: tela alertas-fila
 A fila de Alertas.

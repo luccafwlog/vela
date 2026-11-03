@@ -35,7 +35,7 @@ Na prévia, o que ela aponta tem dois pesos:
 - **Aviso** não impede. Quando a janela pede, marque que conferiu os avisos para seguir.
 
 ::: atencao
-- Só uma importação grava em cada Viagem por vez. Se duas se cruzam, a segunda não grava nada e pede para tentar de novo.
+- Só uma importação grava em cada Viagem por vez: a segunda espera a primeira terminar. Se mesmo assim as duas se chocam, a segunda não grava nada e pede para tentar de novo.
 - Na Viagem cancelada, nenhuma importação é aceita.
 :::
 
@@ -94,7 +94,7 @@ A ideia é esta: o arquivo novo é a fonte dos dados do documento, mas o que já
 | **Faturamento** | O B/L já tem fatura e a mudança afeta a cobrança. | A cobrança fica como estava. |
 | **Preço** | O preço de hoje é diferente do fixado na importação. | O preço fixado continua. |
 | **Troca de consignatário** | O arquivo aponta outro Cliente. | O Cliente continua o mesmo. |
-| **Taxas alteradas à mão** | A mudança afeta uma taxa que alguém alterou à mão. | Nada é gravado. |
+| **Taxas alteradas à mão** | A mudança afeta uma taxa que alguém alterou à mão. | Se a taxa perde a alteração, a importação pede **Gravar mesmo assim**; sem ele, nada é gravado. |
 
 As datas dos containers (descarga e devolução) e o perfil e o COC/SOC corrigidos à mão no Vela ficam: o arquivo não os muda. Já o lacre, o peso e o CBM de cada container voltam ao que o arquivo traz.
 

@@ -17,7 +17,7 @@ Cada container cheio descarregado no Brasil tem duas datas que importam: a **des
 **Containers**, no menu **Importação**, lista os containers de todos os B/Ls importados, um por linha e por B/L, do mais recente para o mais antigo.
 
 1. Escolha a Viagem na faixa do alto ou no filtro **Viagem**.
-2. Em **Buscar**, digite o container, o lacre, o B/L, o Cliente ou o navio. **Mais filtros** separa por perfil (IMO, OOG), veículos, Revisão e situação financeira do B/L.
+2. Em **Buscar**, digite o container, o lacre, o B/L, o Cliente ou o navio. **Mais filtros** separa por perfil (IMO, OOG), veículos, Revisão, situação financeira e Taxas Locais do B/L.
 3. Clique no B/L da linha para abrir a ficha.
 
 ::: tela containers-lista
@@ -87,7 +87,7 @@ Cada container tem uma situação, que aparece na coluna **Demurrage** da aba **
 
 Um exemplo: com free time de 21 dias, um container descarregado em 1º de outubro fica **Em atraso** a partir de 23 de outubro. Devolvido em 25 de outubro, ele ficou 24 dias fora e paga 3 dias de Demurrage.
 
-Gravar uma data refaz a situação na hora, e mudar o free time também: a condição do B/L, o acordo, a tarifa, o Cliente do B/L ou o cadastro de tipos. A virada do dia fica com a rotina da madrugada ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). Os containers em atraso de todas as Viagens são os que o cartão **Correndo (US$)** da página **Demurrage** conta ([9.5](#95-acompanhar-a-demurrage-dos-containers)).
+Gravar uma data refaz a situação na hora, e mudar o free time também: a condição do B/L, o acordo, a tarifa, o Cliente do B/L ou o cadastro de tipos. A virada do dia fica com a rotina da madrugada ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). Na página **Demurrage**, o grupo com container em atraso fica em **Correndo** ou, quando algo impede a cobrança (como o B/L sem Cliente), em **Travado** ([9.5](#95-acompanhar-a-demurrage-dos-containers)).
 
 Na aba **Faturamento** da ficha, o bloco **Demurrage** soma o que está a emitir (container devolvido, ainda sem Invoice) e o que está correndo (ainda fora), e mostra o valor de cada container, "a emitir" ou "correndo"; passe o mouse no valor para ver cada período. O container já cobrado mostra a Invoice; o dispensado, "Cobrança dispensada" ([9.11](#911-dispensar-a-cobrança-de-um-container)); o dividido com outro Cliente, a parte deste, como "1/2 do container" ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)).
 
@@ -112,6 +112,10 @@ A página **Demurrage**, no menu **Financeiro**, é onde você acompanha os cont
 2. Cada linha é um grupo, no B/L que emite a Invoice ("+ N B/L do grupo" quando há outros). Leia o **Próximo passo / motivo**.
 3. Clique na seta da linha para ver os containers, com as datas, os dias, o free time e o valor de cada um.
 4. Para corrigir a data de um container, clique no ícone de calendário, **Editar datas**, na linha dele.
+
+::: tela demurrage-containers
+A aba **Containers** na divisão **Correndo**: o grupo com um container ainda fora, e em âmbar o que vai segurar a Invoice.
+:::
 
 O **US$ previsto hoje** é uma previsão refeita hoje, com a mesma conta da Invoice. No container do grupo que já foi cobrado aparece "cobrada em DEM-…", que abre a Invoice. **Exportar** baixa a divisão aberta; o relatório completo fica em **Relatórios** ([23.2](23-demurrage-no-financeiro.md#232-achar-as-invoices-em-aberto-pagas-e-canceladas)).
 

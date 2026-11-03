@@ -2,7 +2,7 @@ Só quando a Viagem traz carga solta: máquinas e volumes sem container. Na carg
 
 ::: lado
 1. Na **Importação rápida**, clique em **Manifesto BB**.
-2. Confira a **Viagem de destino**.
+2. Confira a **Viagem**.
 3. Em **Formato numérico do arquivo**, deixe **Detectar pelo arquivo**.
 4. Escolha a planilha.
 5. Confira a prévia e clique em **Importar N B/Ls**.

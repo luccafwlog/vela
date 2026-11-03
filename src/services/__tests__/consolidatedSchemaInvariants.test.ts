@@ -175,7 +175,8 @@ describe('schema consolidado v1.0 (arquivos realmente aplicados)', () => {
     // Definição final = última reemissão no diretório ativo (a 009 vence a 002).
     const definicaoFinal = (nome: string) => {
       const ocorrencias = [...tudo.matchAll(
-        new RegExp(`CREATE OR REPLACE FUNCTION public\\.${nome}\\([\\s\\S]*?\\$\\$;`, 'gi'),
+        // As definições lidas com pg_get_functiondef (571 a 573) fecham em `$function$;`.
+        new RegExp(`CREATE OR REPLACE FUNCTION public\\.${nome}\\([\\s\\S]*?\\$(?:function)?\\$;`, 'gi'),
       )]
       return ocorrencias[ocorrencias.length - 1]?.[0] ?? ''
     }
@@ -201,8 +202,8 @@ describe('schema consolidado v1.0 (arquivos realmente aplicados)', () => {
     // cria/reutiliza o porto. A migration 049 envolve esse corpo para garantir
     // que o snapshot POD seja salvo na mesma transação.
     const escala = definicaoFinal('save_voyage_escala_terminal_state_v2')
-    expect(escala).toContain('Usuario ativo sem permissao para editar a escala.')
-    expect(escala.indexOf('Usuario ativo sem permissao para editar a escala.')).toBeLessThan(
+    expect(escala).toContain('Usuário ativo sem permissão para editar a escala.')
+    expect(escala.indexOf('Usuário ativo sem permissão para editar a escala.')).toBeLessThan(
       escala.indexOf('public.save_voyage_escala_terminal_state_v2_legacy_049'),
     )
   })

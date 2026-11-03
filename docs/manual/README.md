@@ -38,31 +38,39 @@ dos guias.
 ## Pendências
 
 O plano que produziu a versão 1.0 está no
-[arquivo histórico](../archive/plans/2026-10-26-manual-do-operador.md). O que
-ficou para depois (2026-11-03):
+[arquivo histórico](../archive/plans/2026-10-26-manual-do-operador.md). Na
+revisão de 2026-11-03 (texto, apêndices e guia conferidos de novo contra o
+código, capturas refeitas numa rodada só), o dono decidiu:
 
-1. **Imagens que o ambiente local não gera:** a lista de usuários da
-   Administração (depende de função do servidor) e as telas do Pix com a
-   cobrança pelo Itaú ligada. O texto descreve essas telas sem imagem.
-2. **Recusas sem acento:** cerca de 280 mensagens de recusa do servidor, em
-   cerca de 150 funções, ainda saem sem acento. A maioria está em funções
-   antigas ou em guardas que a tela não deixa chegar à pessoa; as que o manual
-   cita foram corrigidas (migrations `567`, `571` e `572`). Uma varredura geral
-   depende de decisão do dono.
-3. **Não reconferidos desde 2026-10-31:** o módulo
-   [Reconciliação Pix](../modules/reconciliacao-pix.md), que pode se contradizer
-   sobre o QR estático, e o material do Cliente em
-   `artifacts/portal-onboarding-cliente/`.
-4. **Capturas sugeridas e não feitas:** tabelas de cobrança, Conciliação PIX,
-   Restituições, Editar acesso e Prazo do ADR, apontadas na redação dos guias
-   do Financeiro e do Administrativo (que o dono não adotou).
-5. **Texto desatualizado não é acusado por check:** o `manual:check` confere
-   linguagem, capturas citadas e regras citadas, e o `manual:coverage` confere
-   que todo item do sistema tem lugar na matriz; nenhum dos dois percebe um
-   capítulo que descreve um botão com o nome antigo. Rodar `manual:capture`
-   periodicamente acusaria a tela que mudou (a captura falha ao achar o
-   elemento); fica a decidir pelo dono.
-6. **Guia do Cliente para o Portal Fwlog:** opcional, a decidir.
+1. **Recusas sem acento:** corrigir só as que chegam à tela, isto é, as
+   mensagens que a matriz não marca como `Fora`; as guardas internas e as
+   funções antigas ficam como estão. Feito na migration `573`
+   (PR luccafwlog/vela#1184).
+2. **Capturas periódicas:** um workflow semanal refaz as capturas contra a
+   `staging` e abre uma issue quando alguma falha, sem bloquear PR
+   (`manual-capturas.yml`, PR luccafwlog/vela#1183). É o aviso de texto
+   desatualizado que o `manual:check` e o `manual:coverage` não dão: a captura
+   falha quando a tela muda o rótulo, o campo ou o botão que ela procura.
+3. **Material do Cliente:** só reconferir e corrigir o material de boas-vindas
+   que já existe em `artifacts/portal-onboarding-cliente/` (tutorial e guia
+   rápido do Portal, HTML e PDF). Nenhum guia novo do Cliente.
+
+O que continua em aberto:
+
+1. **Prazo do ADR sem imagem:** o cenário de demonstração não fecha nenhum ADR,
+   e a aba mostra só "Nenhum ADR fechado no período". A captura espera um
+   cenário que feche um ADR.
+2. **Telas do Pix com a cobrança pelo Itaú ligada:** o emulador as mostra (basta
+   `pix_provider = 'itau'` no banco de demonstração, conferido em 2026-11-03),
+   mas o cenário segue com o QR estático, como a `staging`, e o capítulo 24
+   descreve o modo ligado sem imagem.
+3. **Casos de código achados na revisão de 2026-11-03:** esperam decisão do dono;
+   a lista está na descrição da PR da revisão. O texto descreve o comportamento
+   de hoje e muda quando a correção entrar.
+4. **Textos do servidor sem acento que não são recusa:** os motivos de revisão das
+   Taxas Locais, a isenção por veículo, o **Pode consolidar** e alguns avisos ao
+   Cliente no sino ("Consolidacao desfeita"). Ficaram fora da decisão 1, que
+   trata das recusas.
 
 ## Catálogo de situações
 
@@ -487,6 +495,48 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   novo ao desativar Cliente, "Receba ou cancele antes o que está em aberto.", e
   o 13.10 deixa de avisar que a mensagem citava o Financeiro. As recusas que
   ganharam acento não aparecem no texto do manual.
+- **Revisão de 2026-11-03** (capítulos 1 a 25, apêndices e guia conferidos de
+  novo contra o código da `staging` em `ecd5ee1`, por lotes, com leitura do
+  código antes do texto; sem mudança no sistema). Linhas que descreviam outra
+  coisa que o código faz:
+  - Viagens e escalas: Suape na **Chegada no Brasil (ETA)** (VIA-103); "X" na
+    escala omitida e vazio no porto sem data na **Exportar programação**
+    (VIA-111); Locais pelo menu **Exportação** (VIA-137); tirar uma atracação,
+    inclusive na troca de terminal da única frente, só por Operações e o
+    Administrativo, e travado por B/L com CE ou fatura e por ADR fechado
+    (ACE-120).
+  - Acesso: **Todas as ações** mostra 44 linhas (ACE-080); a seleção do
+    Desbloqueio de CE só liga para a Documentação e o Administrativo (ACE-027).
+  - B/L: a Demurrage sem Invoice também segura o **Cancelar B/L**, com
+    **Abrir em Demurrage** (BLR-103); mudar POL ou POD de B/L com CE abre **CE
+    fora do Manifesto da rota** (BLR-097).
+  - Demurrage: o cartão **Correndo (US$)** soma os grupos da divisão, e o grupo
+    que não se cobra fica em **Travado** (DEM-005); a janela **Corrigir** da aba
+    Carga também muda as datas (DEM-010).
+  - Comunicados: a linha que não pode ser marcada mostra o motivo em **Situação**,
+    e não "Bloqueado" (CLI-066, CLI-061).
+  - Taxas Locais: a falha do **Calcular taxas** diz o motivo (TAX-073).
+  - Pix: o QR estático dá baixa sozinho pela consulta, e o extrato fica para o
+    que não baixou (REC-005, REC-037); a frase "Desligada: … a baixa vem do
+    extrato" do bloco **Cobrança Pix Itaú** é de antes da migration `552`
+    (REC-025, caso do dono); cancelar a baixa automática do QR estático também
+    volta o Pix a **Em análise** (REC-033, REC-074).
+  - Portal: o ícone **Ver meus B/Ls nesta viagem** (no celular, **Meus B/Ls**)
+    (POR-069).
+  - Alertas: a Viagem cancelada não se exclui, e os alertas do ADR dela só saem
+    reativando a Viagem (ALE-085, caso do dono); o botão ao lado de **Resolver**
+    leva à tela do registro (ALE-020); o Financeiro recebe **Taxa alterada à mão
+    mudou** (ALE-005); os quatro alertas críticos da Documentação avisam também
+    o Administrativo desde a migration `485` (catálogo).
+  - O módulo [Reconciliação Pix](../modules/reconciliacao-pix.md) deixou de se
+    contradizer sobre o QR estático; o tutorial e o guia rápido do Portal em
+    `artifacts/portal-onboarding-cliente/` foram corrigidos e os PDFs, gerados
+    de novo.
+  - Capturas novas: `admin-usuarios` e `editar-acesso` (25.1 e 25.3; a lista de
+    usuários passou a sair no ambiente local com a coluna `last_sign_in_at` no
+    cenário), `precos-do-porto` (21.7), `demurrage-containers` (9.5),
+    `pix-recebidos` (24.4, com dois Pix fictícios no cenário), `restituicao`
+    (24.6) e a `tela-tv` já existente em 5.7.
 - **Tutorial em PDF no convite do Portal** (pedido de 2026-11-03; Edge, sem
   migration): o e-mail de convite e o de reenvio levam em anexo o tutorial
   completo do Portal (Tutorial_Portal_Fwlog.pdf) e a linha "Em anexo está o

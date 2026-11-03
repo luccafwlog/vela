@@ -22,6 +22,10 @@ Na aba **Usuários**, a lista abre só com os **Ativos**; em **Situação**, esc
 | E-mail em âmbar, com ⚠ | Um e-mail do Vela voltou desse endereço ou foi marcado como spam, e o Vela parou de enviar para ele ([25.4](#254-redefinir-a-senha-ou-corrigir-o-e-mail)). |
 | "Documentação · setor antigo Operador" | Vale como Documentação, mas não recebe o resumo diário do Portal ([25.3](#253-trocar-a-equipe-de-um-usuário)). |
 
+::: tela admin-usuarios
+A aba **Usuários**: a lista dos ativos, com a marca do setor antigo Operador, e **Editar acesso** (a chave) em cada linha.
+:::
+
 A marca **Integração** está em [25.5](#255-desativar-ou-reativar-um-usuário), e "Administrativo · Dev", em [25.10](#2510-cuidar-das-configurações-do-vela).
 
 ## 25.2 Criar um usuário
@@ -48,6 +52,10 @@ O usuário nasce ativo e já pode entrar. O Vela não manda e-mail à pessoa: en
 1. Na linha da pessoa, clique em **Editar acesso** (o ícone da chave).
 2. Em **Setor**, escolha a equipe nova.
 3. Clique em **Salvar** e confirme o antes → depois.
+
+::: tela editar-acesso
+**Editar acesso**: ao trocar o **Setor**, a janela mostra na hora o que a pessoa passa a poder fazer.
+:::
 
 A troca vale na hora para o que a pessoa grava, mas o menu e os botões dela só mudam quando ela recarrega a página ou entra de novo; a sessão não cai.
 
