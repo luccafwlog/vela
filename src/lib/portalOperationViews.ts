@@ -33,8 +33,15 @@ export function flattenContainers(bls: PortalOperationBL[]): PortalFlatContainer
 export type ReturnSituation = '' | 'todos_devolvidos' | 'sem_devolucao' | 'no_free_time' | 'em_demurrage' | 'sem_descarga'
 
 // SOC é do cliente e não volta ao estoque: não conta como devolução pendente.
+// Container ainda não descarregado também não (decisão do dono de 2026-11-03):
+// só o que já saiu do navio pode estar "sem devolução".
 function awaitsReturn(container: PortalOperationContainer): boolean {
-  return container.status !== 'soc' && container.return_date == null
+  return isReturnable(container) && container.return_date == null
+}
+
+/** Container que já tem devolução a contar: descarregado e não SOC. */
+function isReturnable(container: PortalOperationContainer): boolean {
+  return container.status !== 'soc' && container.status !== 'sem_descarga'
 }
 
 function isInDemurrage(container: PortalOperationContainer): boolean {
@@ -54,7 +61,8 @@ export function blMatchesReturnSituation(bl: PortalOperationBL, situation: Retur
   if (!situation) return true
   switch (situation) {
     case 'todos_devolvidos':
-      return bl.containers.length > 0 && !bl.containers.some(awaitsReturn)
+      // Container ainda no navio não está devolvido: o B/L espera a descarga.
+      return bl.containers.length > 0 && !bl.containers.some((c) => awaitsReturn(c) || c.status === 'sem_descarga')
     case 'sem_devolucao':
       return bl.containers.some(awaitsReturn)
     case 'no_free_time':
@@ -95,16 +103,19 @@ export function countContainersInDemurrage(bls: PortalOperationBL[]): number {
 
 /**
  * Devolução e demurrage do B/L, com as mesmas regras dos filtros: SOC não
- * volta ao estoque e fica fora da conta. `inDemurrage` é a demurrage que
- * ainda conta (container sem devolução); `returnedWithDemurrage`, o container
- * que já voltou com dias de demurrage.
+ * volta ao estoque e o container ainda não descarregado não tem devolução a
+ * contar; os dois ficam fora de "N de M devolvidos". `awaitingDischarge` conta
+ * os que ainda esperam a descarga. `inDemurrage` é a demurrage que ainda conta
+ * (container sem devolução); `returnedWithDemurrage`, o container que já
+ * voltou com dias de demurrage.
  */
 export function blReturnSummary(bl: PortalOperationBL) {
-  const returnable = bl.containers.filter((container) => container.status !== 'soc')
+  const returnable = bl.containers.filter(isReturnable)
   return {
     returnable: returnable.length,
     returned: returnable.filter((container) => container.return_date != null).length,
     awaiting: bl.containers.filter(awaitsReturn).length,
+    awaitingDischarge: bl.containers.filter((container) => container.status === 'sem_descarga').length,
     inDemurrage: bl.containers.filter(isInDemurrage).length,
     returnedWithDemurrage: bl.containers.filter(returnedWithDemurrage).length,
   }
@@ -174,7 +185,7 @@ export function containerSituation(container: PortalOperationContainer): { label
  */
 export function localChargesView(charges: PortalOperationLocalCharges | undefined): {
   total: number | null
-  payment: { label: string; tone: 'warning' | 'paid' | 'default' } | null
+  payment: { label: string; tone: 'warning' | 'paid' | 'muted' | 'default' } | null
 } {
   if (!charges) return { total: null, payment: null }
   switch (charges.status) {
@@ -184,6 +195,9 @@ export function localChargesView(charges: PortalOperationLocalCharges | undefine
       return { total: charges.total_brl, payment: { label: 'Pago', tone: 'paid' } }
     case 'awaiting_invoice':
       return { total: null, payment: { label: 'Aguardando fatura', tone: 'default' } }
+    case 'exempt':
+      // B/L isento não tem fatura nem valor: "Isentas", como no Desbloqueio de CE (migration 575).
+      return { total: null, payment: { label: 'Isentas', tone: 'muted' } }
     default:
       return { total: null, payment: null }
   }

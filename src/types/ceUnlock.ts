@@ -37,16 +37,27 @@ export type CeUnlockItem = {
   version: number;
   vip: boolean;
   /**
-   * Termo e procuração anuais aprovados cobrem este B/L: o CE Mercante atual foi
-   * vinculado dentro da vigência deles, e a cobertura continua depois de vencer
-   * (migration 456). Sem isso, a solicitação segue com termo e procuração anexados a ela.
+   * Termo e procuração anuais aprovados cobrem este B/L pela data da solicitação
+   * (antes dela, hoje; migrations 479 e 487, ADR 0110). Sem isso, a solicitação
+   * segue com termo e procuração anexados a ela.
    */
   vip_covered?: boolean;
+  /**
+   * Atendidos pela solicitação; sem solicitação ou em rascunho VIP, verdadeiros só
+   * para o VIP com `vip_covered` (migrations 576 e 579), sem deixar o B/L apto para a ZPT.
+   */
   termo: boolean;
   procuracao: boolean;
   paid: boolean;
   /** B/L com Taxas Locais isentas: requisito atendido sem pagamento (migration 279). */
   paid_exempt?: boolean;
+  /**
+   * Veículo LCL com Taxas Locais isentas (migration 575): termo e procuração
+   * dispensados e nenhuma solicitação; basta a entrega do B/L original.
+   */
+  documents_dispensed?: boolean;
+  /** B/L dispensado que segue sem solicitação: o desk exporta direto para a ZPT (migration 575). */
+  direct?: boolean;
   /** Só no Portal (migration 298): taxas ainda sem fatura visível ao Cliente. */
   local_charges_awaiting_invoice?: boolean;
   delivered: boolean;
@@ -141,6 +152,26 @@ export type CeUnlockFilters = {
   pod?: string;
   situation?: string;
   pending_requirement?: string;
+  /** O inverso de `pending_requirement`: termo, procuracao, taxas, bl_fisico (migration 577). */
+  met_requirement?: string;
+  /** `customer` (Cliente VIP), `request` (solicitação VIP) ou `none` (Cliente sem VIP), migration 577. */
+  vip?: string;
+};
+/** Registro do histórico de um B/L na aba Andamento dos B/Ls (migration 577). */
+export type CeUnlockBlHistoryEvent = {
+  at: string;
+  requirement: "termo" | "procuracao" | "taxas" | "bl_original" | "solicitacao" | "zpt";
+  event: string;
+  /** Protocolo, "Anual VIP AAAA", forma da baixa ou número da fatura avulsa. */
+  detail: string | null;
+  amount: number | null;
+  actor: string | null;
+  reason: string | null;
+};
+export type CeUnlockBlHistory = {
+  bl_id: string;
+  item: CeUnlockItem;
+  events: CeUnlockBlHistoryEvent[];
 };
 export type CeUnlockPage<T> = {
   items: T[];

@@ -1,5 +1,6 @@
 import type { BadgeTone } from "../components/ui/Badge";
-import type { CeUnlockItem, CeUnlockRequest } from "../types/ceUnlock";
+import type { CeUnlockBlHistoryEvent, CeUnlockItem, CeUnlockRequest } from "../types/ceUnlock";
+import { formatBRL } from "./utils";
 
 export const ceStateLabel = (state: string) =>
   ({
@@ -204,4 +205,52 @@ export function ceUnlockMissing(request: Pick<CeUnlockRequest, "items" | "state"
   if (request.items.some((i) => !i.paid)) missing.push("liquidar as taxas locais");
   if (request.items.some((i) => !i.delivered)) missing.push("entregar o B/L original");
   return missing.length ? `falta ${missing.join("; ")}` : null;
+}
+
+/**
+ * Termo e procuração atendidos pelos anuais VIP antes do envio: B/L sem
+ * solicitação (migration 576) ou em rascunho VIP (migration 579, decisão do dono
+ * de 2026-11-03). Rascunho comum e solicitação cancelada seguem os documentos dela.
+ */
+export function ceVipAnnualCovered(
+  item: Pick<CeUnlockItem, "request_id" | "state" | "source" | "vip_covered">,
+): boolean {
+  return !!item.vip_covered && (!item.request_id || (item.state === "draft" && item.source === "vip_annual"));
+}
+
+const BL_HISTORY_REQUIREMENT: Record<CeUnlockBlHistoryEvent["requirement"], string> = {
+  termo: "Termo de devolução",
+  procuracao: "Procuração",
+  taxas: "Taxas locais",
+  bl_original: "B/L original",
+  solicitacao: "Solicitação",
+  zpt: "Envio à ZPT",
+};
+
+/**
+ * Linha do histórico do B/L (aba Andamento dos B/Ls, migration 577): o requisito
+ * e o que aconteceu, com a referência (protocolo, anual, forma da baixa, fatura).
+ */
+export function ceBlHistoryText(e: CeUnlockBlHistoryEvent): { requirement: string; text: string } {
+  const a = e.requirement === "procuracao" ? "a" : "o";
+  const ref = e.detail ? ` · ${e.detail}` : "";
+  const money = e.amount != null ? formatBRL(e.amount) : "";
+  const text = (() => {
+    switch (e.event) {
+      case "delivered": return "Entrega registrada";
+      case "undelivered": return "Entrega desmarcada";
+      case "approved": return `Aprovad${a}${ref}`;
+      case "rejected": return `Recusad${a}${ref}`;
+      case "settled": return `Baixa de ${money}${ref}`;
+      case "manual_invoice_paid": return `Pagamento de ${money} da fatura avulsa${e.detail ? ` ${e.detail}` : ""}`;
+      case "request_draft": return `Rascunho criado${ref}`;
+      case "request_submit": return `Solicitação enviada${ref}`;
+      case "request_cancel": return `Solicitação cancelada${ref}`;
+      case "request_complete": return `Documentação validada${ref}`;
+      case "bl_moved": return `B/L passou para outra solicitação${ref}`;
+      case "exported": return "Planilha da ZPT gerada com o B/L";
+      default: return "Andamento atualizado";
+    }
+  })();
+  return { requirement: BL_HISTORY_REQUIREMENT[e.requirement] ?? e.requirement, text };
 }

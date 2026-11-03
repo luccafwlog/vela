@@ -6,6 +6,35 @@
 
 ## 2026-11
 
+- **CE e Taxas para o Cliente com B/L isento (2026-11-03, migration `580`):** o Cliente com B/Ls isentos das Taxas
+  Locais (veículo LCL ou isenção à mão) nunca recebia o Comunicado de CE e Taxas, porque a prontidão exigia fatura de
+  todo B/L. O B/L isento passa a dispensar a fatura (CE e revisão continuam exigidos); no e-mail ele sai com
+  "Isento" no lugar do valor, fora do total, e o Cliente só com B/Ls isentos recebe "CE Mercante disponível", só com
+  os CEs ([Clientes](modules/clientes.md)).
+- **Revisão da release de 2026-11-03 (PR 1191, migration `578`):** o envio de um rascunho antigo recusa o veículo
+  LCL com Taxas Locais isentas, como a criação do rascunho já fazia; antes, o envio tornava a solicitação o caminho
+  do B/L, e o B/L já enviado direto à ZPT voltava a "Não exportado", apto para nova exportação.
+  `npm run migrations:check` passa a reconhecer, a partir da `575`, `UPDATE` com alias (`UPDATE public.bls AS b
+  SET`), `ONLY`, outro schema e nome entre aspas, que antes passavam sem plano de preservação.
+- **VIP coberto pelo anual também no rascunho (2026-11-03, migration `579`; decisão do dono):** em Andamento dos
+  B/Ls, o B/L em rascunho VIP mostra termo e procuração "coberto pelo anual VIP", como o B/L sem solicitação (`576`),
+  em vez de "pendente" até o envio. O rascunho comum segue os documentos anexados a ele.
+- **Edge Functions sem esm.sh (2026-11-03):** o empacotamento do Supabase recusava o deploy das funções da
+  `staging` ("failed to bundle function: exit status 10") porque o esm.sh passou a servir outro build de
+  `tslib@2.8.1` e o hash não batia com o `supabase/functions/deno.lock`. Todas as funções importam o `supabase-js`
+  por `npm:@supabase/supabase-js@2.117.2`, e os dois `deno.lock` foram gerados de novo, só com pacotes npm; o das
+  funções cobre todas elas ([serviços externos § Edge Functions](operations/servicos-externos.md#edge-functions)).
+- **Desbloqueio de CE do veículo LCL isento só com o B/L original e "Isentas" no Portal (2026-11-03, migration
+  `575`, [ADR 0118](adr/0118-desbloqueio-do-veiculo-lcl-so-com-o-bl-original.md)):** o veículo LCL com Taxas Locais
+  isentas não precisa de solicitação, termo nem procuração; a entrega do B/L original o deixa apto para a ZPT, com
+  as quatro colunas "Sim". A aba B/Ls do Portal mostra "Isentas" no B/L isento sem fatura visível.
+- **Produção com dados reais (2026-11-03; decisão do dono):** o Vela e o Portal Fwlog estão em produção com
+  clientes reais. A afirmação "Data status" do `AGENTS.md` passa a dizer o oposto da de 2026-09-18: nenhuma linha de
+  produção é fixture. `npm run migrations:check` exige, a partir da migration `575`, a linha `Plano de preservação:`
+  com o plano no cabeçalho de toda migration que reescreve ou apaga linhas, e recusa a declaração antiga (as `062` a
+  `574` continuam valendo pela regra da época). `supabase/scripts/limpar_dados_teste.sql` recusa rodar sem
+  `SET vela.limpeza_banco_descartavel = 'confirmo'` e fica restrito a banco descartável
+  ([procedimento](operations/reset-ambiente.md)).
 - **Recusas com acento, situação financeira em português e dispensa no assunto Container (2026-11-03, migration
   `571`; pendências da revisão do Manual do Operador):** "B/L … não encontrado", "Linha de cálculo … não
   encontrada", "Item manual … não elegível…", "B/L … cancelado e somente leitura; não é permitido lançar taxa

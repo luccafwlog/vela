@@ -96,6 +96,32 @@ describe('portalOperationViews — SOC', () => {
   })
 })
 
+describe('portalOperationViews — container ainda não descarregado (2026-11-03)', () => {
+  // O caso do print do dono: B/L com um container ainda no navio aparecia
+  // como "1 container sem devolução" no Painel e em B/Ls e containers.
+  const onBoard = { id: 40, container_number: 'N1', type: '40HC', discharge_date: null, return_date: null, usage_days: null, free_time_days: 21, demurrage_days: null, status: 'sem_descarga' as const }
+  const notDischargedBl: PortalOperationBL = { ...bls[1], bl_id: 'BL-NAVIO', container_count: 1, containers_returned: 0, containers: [onBoard] }
+  const mixedBl: PortalOperationBL = { ...bls[1], bl_id: 'BL-MISTO', container_count: 2, containers_returned: 1, containers: [onBoard, bls[1].containers[0]] }
+
+  it('só container descarregado conta como sem devolução', () => {
+    expect(countContainersWithoutReturn([notDischargedBl])).toBe(0)
+    expect(containerMatchesReturnSituation(onBoard, 'sem_devolucao')).toBe(false)
+    expect(blMatchesReturnSituation(notDischargedBl, 'sem_devolucao')).toBe(false)
+    expect(countContainersWithoutReturn([notDischargedBl, ...bls])).toBe(1)
+  })
+
+  it('B/L com container no navio não está "Tudo devolvido" e continua no filtro Sem descarga', () => {
+    expect(blMatchesReturnSituation(notDischargedBl, 'todos_devolvidos')).toBe(false)
+    expect(blMatchesReturnSituation(mixedBl, 'todos_devolvidos')).toBe(false)
+    expect(blMatchesReturnSituation(notDischargedBl, 'sem_descarga')).toBe(true)
+  })
+
+  it('a coluna Devolução conta só os descarregados e separa os que esperam descarga', () => {
+    expect(blReturnSummary(notDischargedBl)).toMatchObject({ returnable: 0, returned: 0, awaiting: 0, awaitingDischarge: 1 })
+    expect(blReturnSummary(mixedBl)).toMatchObject({ returnable: 1, returned: 1, awaiting: 0, awaitingDischarge: 1 })
+  })
+})
+
 describe('portalOperationViews — tela limpa da rodada 2', () => {
   const inFreeTime = { id: 20, container_number: 'F1', type: '20GP', discharge_date: '2026-10-05', return_date: null, usage_days: 12, free_time_days: 21, demurrage_days: 0, status: 'dentro_free_time' as const }
   const freeTimeBl: PortalOperationBL = { ...bls[1], bl_id: 'BL-FT', containers: [inFreeTime, bls[0].containers[1]] }
@@ -117,9 +143,9 @@ describe('portalOperationViews — tela limpa da rodada 2', () => {
   })
 
   it('resume devolução e demurrage do B/L sem contar SOC', () => {
-    expect(blReturnSummary(bls[0])).toEqual({ returnable: 2, returned: 1, awaiting: 1, inDemurrage: 1, returnedWithDemurrage: 0 })
+    expect(blReturnSummary(bls[0])).toEqual({ returnable: 2, returned: 1, awaiting: 1, awaitingDischarge: 0, inDemurrage: 1, returnedWithDemurrage: 0 })
     const soc = { ...inFreeTime, id: 21, status: 'soc' as const }
-    expect(blReturnSummary({ ...bls[0], containers: [soc, bls[0].containers[0]] })).toEqual({ returnable: 1, returned: 1, awaiting: 0, inDemurrage: 0, returnedWithDemurrage: 0 })
+    expect(blReturnSummary({ ...bls[0], containers: [soc, bls[0].containers[0]] })).toEqual({ returnable: 1, returned: 1, awaiting: 0, awaitingDischarge: 0, inDemurrage: 0, returnedWithDemurrage: 0 })
   })
 
   it('coluna Demurrage: o B/L todo devolvido mostra os que voltaram com demurrage, não "Nenhum" (2026-11-01)', () => {
@@ -148,6 +174,8 @@ describe('portalOperationViews — tela limpa da rodada 2', () => {
     expect(open.payment?.label).toMatch(/^R\$\s1\.202,00 em aberto$/)
     expect(localChargesView({ status: 'paid', total_brl: 2702, balance_brl: 0 })).toEqual({ total: 2702, payment: { label: 'Pago', tone: 'paid' } })
     expect(localChargesView({ status: 'awaiting_invoice', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: { label: 'Aguardando fatura', tone: 'default' } })
+    // B/L isento (veículo LCL ou à mão): "Isentas" no lugar do traço (migration 575).
+    expect(localChargesView({ status: 'exempt', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: { label: 'Isentas', tone: 'muted' } })
     expect(localChargesView({ status: 'none', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: null })
     expect(localChargesView(undefined)).toEqual({ total: null, payment: null })
   })

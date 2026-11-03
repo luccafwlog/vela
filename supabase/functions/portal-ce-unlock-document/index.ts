@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { withCors } from "../_shared/cors.ts";
 import { readCeMultipart, validateCeUpload } from "../_shared/ceUnlockFile.ts";
 const json = (body: unknown, status = 200) =>

@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Banknote, Container, Clock, Users, Headphones, Search } from 'lucide-react'
+import { Banknote, BookOpen, Container, Clock, Users, Headphones, Search } from 'lucide-react'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Field, Select } from '../components/ui/Input'
@@ -13,6 +13,7 @@ import { ReturnSection } from '../components/portal/information/ReturnSection'
 import { LocalFeesSection, DemurrageSection } from '../components/portal/information/ReferenceSections'
 import { AgentsSection, ContactsSection } from '../components/portal/information/ContactSections'
 import { TrackingSection } from '../components/portal/information/TrackingSection'
+import { TutorialSection } from '../components/portal/information/TutorialSection'
 
 const sections = [
   { key: 'taxas', title: 'Taxas Locais', description: 'Tabelas oficiais de importação e itens por perfil de carga.', icon: Banknote },
@@ -21,6 +22,7 @@ const sections = [
   { key: 'agentes', title: 'Agentes por porto', description: 'Contatos dos agentes nos portos de atendimento.', icon: Users },
   { key: 'atendimento', title: 'Contato', description: 'Canais e orientações para falar com a Fwlog.', icon: Headphones },
   { key: 'tracking', title: 'Tracking', description: 'Consulte seu B/L no site oficial do armador.', icon: Search },
+  { key: 'tutorial', title: 'Tutorial', description: 'Passo a passo do Portal, para abrir ou baixar em PDF.', icon: BookOpen },
 ]
 
 export function PortalInformation() {
@@ -54,13 +56,14 @@ export function PortalInformation() {
     <PageHeader title="Informações" description="Consulte informações de importação, devolução e atendimento." />
     {section && !current ? <EmptyState title="Seção não encontrada" action={<Link to={path()} className="app-btn app-btn--secondary app-btn--sm">Abrir Informações</Link>} /> : <>
       {current ? (
-        // As seções viram abas (rodada 2): a página de entrada com os seis
-        // cartões continua para quem chega pelo menu.
+        // As seções viram abas (rodada 2): a página de entrada com um cartão
+        // por seção continua para quem chega pelo menu. O Tutorial (2026-11-03) não
+        // depende do catálogo: abre mesmo com a leitura falhando.
         <TabList label="Seções de informações" className="mb-4">
           {sections.map((item) => <TabButton key={item.key} id={tabId(item.key)} controls="informacoes-panel" active={current.key === item.key} label={item.title} onClick={() => navigate(path(item.key))} />)}
         </TabList>
       ) : <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{sections.map((item) => <Card key={item.key} className="p-0"><Link to={path(item.key)} className="flex h-full flex-col gap-2 rounded-2xl p-5 hover:bg-[var(--app-surface-hover)]"><item.icon size={22} className="text-[var(--app-link)]" /><h2 className="font-semibold">{item.title}</h2><p className="text-sm text-[var(--app-muted)]">{item.description}</p></Link></Card>)}</div>}
-      {query.isLoading ? <EmptyState title="Carregando informações..." /> : query.error ? <Card><InlineError message="Não foi possível carregar as informações. Tente novamente em instantes." /><Button className="mt-4" variant="secondary" onClick={() => void query.refetch()}>Tentar novamente</Button></Card> : query.data && current ? <div id="informacoes-panel" role="tabpanel" aria-labelledby={tabId(current.key)} className="grid gap-4">
+      {current?.key === 'tutorial' ? <div id="informacoes-panel" role="tabpanel" aria-labelledby={tabId(current.key)} className="grid gap-4"><TutorialSection /></div> : query.isLoading ? <EmptyState title="Carregando informações..." /> : query.error ? <Card><InlineError message="Não foi possível carregar as informações. Tente novamente em instantes." /><Button className="mt-4" variant="secondary" onClick={() => void query.refetch()}>Tentar novamente</Button></Card> : query.data && current ? <div id="informacoes-panel" role="tabpanel" aria-labelledby={tabId(current.key)} className="grid gap-4">
         {current.key === 'taxas' && <LocalFeesSection information={query.data} pod={pod} filters={podFilter} />}
         {current.key === 'devolucao' && <ReturnSection information={query.data} pod={pod} filters={podFilter} />}
         {current.key === 'demurrage' && <DemurrageSection information={query.data} />}

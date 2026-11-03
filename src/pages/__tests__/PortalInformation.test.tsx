@@ -14,9 +14,9 @@ afterEach(() => { cleanup(); vi.clearAllMocks() })
 function Location() { const location = useLocation(); return <p data-testid="location">{location.pathname + location.search}</p> }
 function show(path = '/portal/informacoes') { render(<MemoryRouter initialEntries={[path]}><Routes><Route path="/portal/informacoes/:section?" element={<PortalInformation />} /></Routes></MemoryRouter>) }
 describe('Página Central de Informações', () => {
-  it('mostra seis seções com as rotas do Portal e preserva contexto', () => {
+  it('mostra sete seções com as rotas do Portal e preserva contexto', () => {
     show('/portal/informacoes?pod=BRSSZ')
-    expect(screen.getAllByRole('link')).toHaveLength(6)
+    expect(screen.getAllByRole('link')).toHaveLength(7)
     expect(screen.getByRole('link', { name: /Taxas Locais/ }).getAttribute('href')).toBe('/portal/informacoes/taxas?pod=BRSSZ')
   })
   it.each(['taxas', 'devolucao'])('limita os portos de %s aos atendidos, mesmo com POD externo na URL', (section) => {
@@ -57,13 +57,26 @@ describe('Página Central de Informações', () => {
     const user = userEvent.setup()
     render(<MemoryRouter initialEntries={['/portal/informacoes/taxas?pod=BRVIX']}><Routes><Route path="/portal/informacoes/:section?" element={<><PortalInformation /><Location /></>} /></Routes></MemoryRouter>)
     const tabs = screen.getByRole('tablist', { name: 'Seções de informações' })
-    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Taxas Locais', 'Devolução', 'Demurrage', 'Agentes por porto', 'Contato', 'Tracking'])
+    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Taxas Locais', 'Devolução', 'Demurrage', 'Agentes por porto', 'Contato', 'Tracking', 'Tutorial'])
     expect(within(tabs).getByRole('tab', { name: 'Taxas Locais' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tabpanel')).toBeTruthy()
     expect(screen.getByRole('heading', { level: 1, name: 'Informações' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Todas as informações' })).toBeNull()
     await user.click(within(tabs).getByRole('tab', { name: 'Devolução' }))
     expect(screen.getByTestId('location').textContent).toBe('/portal/informacoes/devolucao?pod=BRVIX')
+  })
+  it('Tutorial abre e baixa o PDF do tutorial, mesmo sem o catálogo da Central (2026-11-03)', () => {
+    catalog.hook.mockReturnValue({ isLoading: false, error: new Error('network'), refetch: catalog.refetch })
+    show('/portal/informacoes/tutorial')
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getByRole('heading', { name: 'Tutorial do Portal' })).toBeTruthy()
+    const open = within(panel).getByRole('link', { name: /Abrir tutorial/ })
+    expect(open.getAttribute('href')).toMatch(/Tutorial_Portal_Fwlog\.pdf/)
+    expect(open.getAttribute('target')).toBe('_blank')
+    const download = within(panel).getByRole('link', { name: /Baixar PDF/ })
+    expect(download.getAttribute('href')).toBe(open.getAttribute('href'))
+    expect(download.getAttribute('download')).toBe('Tutorial_Portal_Fwlog.pdf')
+    expect(screen.queryByRole('alert')).toBeNull()
   })
   it('distingue tarifa ausente de free time zero', () => {
     show('/portal/informacoes/demurrage')

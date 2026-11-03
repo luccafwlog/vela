@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-// As Edge Functions montam clientes Supabase por URL (esm.sh) no topo do
+// As Edge Functions montam clientes Supabase pelo npm (`npm:`) no topo do
 // módulo, então o Vitest não as importa. A lógica que dá para exercitar de
 // verdade foi extraída para `_shared/` e tem teste próprio
 // (portalLoginRateLimit, portalInvites, portalAlerts); o que sobra aqui é a

@@ -2,7 +2,9 @@
 
 > **Situação atual (2026-10-15).** O item 5 foi ajustado pelo responsável na revisão da PR 956: os 30 dias contam a partir do encerramento da solicitação (cancelada, ou concluída com todos os B/Ls exportados), não do envio. Solicitação em andamento mantém os PDFs, porque um pedido em análise que perdia os documentos ficava travado: o desk não recusa documento já expurgado, e o cliente só reenvia quando há correção solicitada. Regra vigente no [módulo](../modules/desbloqueio-ce.md). Os demais itens continuam valendo.
 
-Status: aceito — 2026-10-14 (decisões do dono). Itens 2 e 3 implementados na
+> **Situação atual (2026-11-03).** O item 2 foi supersedido parcialmente pela [0118](./0118-desbloqueio-do-veiculo-lcl-so-com-o-bl-original.md): o B/L de veículo LCL com Taxas Locais isentas não precisa de solicitação, termo nem procuração; basta o B/L original entregue (migration `575`). O B/L isento à mão segue o item 2.
+
+Status: supersedida parcialmente — 2026-10-14 (decisões do dono; item 2 supersedido parcialmente pela 0118 em 2026-11-03). Itens 2 e 3 implementados na
 migration `279` e item 5 na `280` (PR 956), com testes no Postgres local; ver o
 [plano do Desbloqueio de CE](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md).
 

@@ -25,6 +25,8 @@ O Cliente marca no Portal os B/Ls que quer desbloquear e abre uma **solicitaçã
 
 Só o B/L com os quatro vai para a planilha da ZPT.
 
+O **veículo em LCL com Taxas Locais isentas** é a exceção: não tem solicitação, termo nem procuração. Basta o B/L original entregue na agência; você marca a entrega ([12.4](#124-registrar-a-entrega-do-bl-original)) e o B/L fica apto para a ZPT, com as quatro colunas "Sim" na planilha. Em **Andamento dos B/Ls**, a coluna **Solicitação** diz "Dispensada · veículo LCL" e o termo e a procuração aparecem verdes, como dispensados. O B/L isento à mão (**Isentar Taxas Locais**, [21](21-taxas-locais.md)) não entra nessa exceção: ele só não precisa pagar.
+
 A solicitação passa por estas situações: **Rascunho** (o Cliente ainda não enviou), **Enviado**, **Em análise** ou **Correção solicitada**, e **Documentação validada**, quando todos os B/Ls têm os quatro requisitos. Se um requisito cai depois, a validada volta a **Em análise**. A cancelada fica **Cancelado**.
 
 ::: atencao
@@ -42,7 +44,11 @@ Em **Importação** › **Desbloqueio de CE**, a página tem duas abas.
 
 **Andamento dos B/Ls** mostra todo B/L com CE, com ou sem solicitação. Os cartões filtram a lista: **Aptos, não exportados**, **Exportados, aguardando a ZPT**, **Divergentes na ZPT**, **Desbloqueados** e **B/Ls com CE**. Em cada linha, um ícone verde por requisito atendido, o **Prazo** ([12.5](#125-o-prazo-do-desbloqueio)) e a coluna **Na ZPT**, que diz em que pé o B/L está: **Apto, não exportado**, **Exportado** com a data, o que a ZPT disse na última conciliação (**Desbloqueado** ou **Divergente**, [12.7](#127-conciliar-com-a-zpt)) ou, em âmbar, um impedimento ([12.10](#1210-quando-algo-muda-depois-do-pedido)).
 
-**Buscar** aceita vários números de B/L ou CE colados de uma vez. **Exportar planilha** baixa a lista do filtro, para qualquer equipe; ela não é a planilha da ZPT.
+**Buscar** aceita vários números de B/L ou CE colados de uma vez, separados por espaço, vírgula, ponto e vírgula, "&" ou quebra de linha ("CSC45300C04Q00 & CSC45300C04Q01"). Um B/L colado com espaço nas pontas ou no meio também é achado. Em **Mais filtros**, além de **Requisito pendente**, há **Requisito atendido** (o inverso) e **VIP** (Clientes VIP, Solicitações VIP ou Clientes sem VIP).
+
+O botão do relógio no fim da linha abre o **Histórico do B/L**: quando e por quem cada requisito foi cumprido ou desfeito, mesmo sem solicitação. Ali você vê, por exemplo, quem registrou a entrega do B/L original e a que horas, quem a desmarcou e por quê, quando as Taxas locais foram baixadas e quem aprovou o termo e a procuração. Baixa estornada e isenção de Taxas Locais não aparecem no histórico.
+
+**Exportar planilha** baixa a lista do filtro, para qualquer equipe; ela não é a planilha da ZPT.
 
 ## 12.3 Analisar os documentos de uma solicitação
 
@@ -74,6 +80,8 @@ O Cliente entrega o B/L original na agência. Você marca a entrega no Vela, mes
 3. Clique em **Registrar entrega**.
 
 Para vários B/Ls, marque-os na primeira coluna e clique em **Registrar entrega de N B/Ls**. Os que não gravarem continuam marcados, com o motivo.
+
+No veículo em LCL com Taxas Locais isentas, essa marcação é o único passo: o B/L fica apto para a ZPT sem solicitação, e o prazo da agência começa nela ([12.5](#125-o-prazo-do-desbloqueio)).
 
 Para desfazer uma marcação errada, clique de novo na caixa, escreva o motivo e clique em **Desmarcar entrega**. O B/L deixa de estar apto, e a solicitação validada volta a **Em análise**. Desmarcar é sempre um B/L por vez.
 
@@ -148,7 +156,7 @@ O Cliente VIP manda o termo de devolução e a procuração uma vez por ano. Ess
 
 A tela propõe o ano corrente e, como início, o dia do envio ou 01/01 do ano escolhido, o que vier depois: o anual enviado em dezembro e analisado em janeiro começa em 01/01 do ano novo. Ao trocar o ano, o início é recalculado. O início fica sempre no ano da cobertura; se você digitar outro, a tela avisa ("O início da vigência precisa estar em AAAA, o ano da cobertura.") e não aprova.
 
-A solicitação nasce VIP só quando os anuais aprovados cobrem todos os B/Ls escolhidos; se um não está coberto, ela nasce comum, com termo e procuração anexados. A VIP fica **Enviado** até todos os B/Ls terem o pagamento e o original, e então passa sozinha a **Documentação validada**. Como não passa pela fila, você a encontra em **Andamento dos B/Ls**, pela coluna **Solicitação**; o Cliente VIP tem a marca "VIP" ao lado do nome. Se um anual foi revogado ou trocado no meio do caminho, abra a solicitação e use **Aplicar renovação VIP**.
+A solicitação nasce VIP só quando os anuais aprovados cobrem todos os B/Ls escolhidos; se um não está coberto, ela nasce comum, com termo e procuração anexados. A VIP fica **Enviado** até todos os B/Ls terem o pagamento e o original, e então passa sozinha a **Documentação validada**. Como não passa pela fila, você a encontra em **Andamento dos B/Ls**, pela coluna **Solicitação**; o Cliente VIP tem a marca "VIP" ao lado do nome. Antes de o Cliente VIP pedir, e também enquanto a solicitação VIP é rascunho, o B/L que os dois anuais cobrem já mostra o termo e a procuração verdes, "coberto pelo anual VIP"; ele só vai para a ZPT depois de a solicitação ser enviada. No rascunho comum, termo e procuração seguem os anexados a ele. Se um anual foi revogado ou trocado no meio do caminho, abra a solicitação e use **Aplicar renovação VIP**.
 
 ::: atencao
 - O Cliente não recebe aviso da análise do anual. Ele vê a situação no Portal, na aba **Documentos anuais**.

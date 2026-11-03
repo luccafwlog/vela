@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.117.2'
 import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { base64Head, matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
@@ -507,7 +507,7 @@ async function handler(req: Request): Promise<Response> {
       voyage_number?: string
       port?: string
       milestone_at?: string
-      bls?: Array<{ bl_id?: string; ce_mercante?: string | null; total_brl?: number }>
+      bls?: Array<{ bl_id?: string; ce_mercante?: string | null; total_brl?: number; exempt?: boolean }>
     } | null
     if (!row?.customer_name || !row.vessel_name || !row.voyage_number || !Array.isArray(row.bls) || !row.bls.length) {
       return json(422, { error: 'Dados financeiros incompletos para o comunicado.' }, origin)
@@ -529,6 +529,7 @@ async function handler(req: Request): Promise<Response> {
         blId: String(bl.bl_id ?? ''),
         ceMercante: String(bl.ce_mercante ?? ''),
         totalBrl: Number(bl.total_brl ?? 0),
+        exempt: bl.exempt === true,
       })),
     })
     canonicalPayload = { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }

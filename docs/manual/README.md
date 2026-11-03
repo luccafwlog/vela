@@ -174,6 +174,20 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     catálogo de alertas, contagens de ACE-119 e ALE-D13).
   - Telemetria: recusas do banco já explicadas na tela deixam de ir ao Sentry;
     sem efeito na operação.
+- **Veículo LCL isento no Desbloqueio de CE e "Isentas" no Portal** (decisões
+  do dono de 2026-11-03, [ADR 0118](../adr/0118-desbloqueio-do-veiculo-lcl-so-com-o-bl-original.md),
+  migration `575`): o veículo LCL com Taxas Locais isentas é desbloqueado só com o
+  B/L original, sem solicitação, termo nem procuração (DCE-011, DCE-110); a aba
+  B/Ls do Portal mostra "Isentas" no B/L isento (POR-081).
+- **VIP coberto no B/L sem solicitação** (pedido do dono de 2026-11-03,
+  migration `576`): em Andamento dos B/Ls, termo e procuração do Cliente VIP
+  aparecem "coberto pelo anual VIP" antes do pedido, sem deixar o B/L apto
+  (DCE-111).
+- **Andamento dos B/Ls: busca, filtros e histórico do B/L** (pedidos do dono de
+  2026-11-03, migration `577`): a busca separa também por "&" (em todo o
+  sistema) e acha o B/L colado com espaço; **Requisito atendido** e **VIP** em
+  Mais filtros; **Histórico do B/L** com quando e quem cumpriu cada requisito,
+  com ou sem solicitação (ACE-028, DCE-065, DCE-112).
 - **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
   2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
   migrations `552` e `553`): o Pix do QR estático deixa de aparecer como ZPT
@@ -538,6 +552,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   migration): o e-mail de convite e o de reenvio levam em anexo o tutorial
   completo do Portal (Tutorial_Portal_Fwlog.pdf) e a linha "Em anexo está o
   tutorial completo do Portal." (POR-039, POR-040; 14.3).
+- **Portal, pedido do dono de 2026-11-03** (tela, sem migration): container
+  ainda não descarregado não conta como sem devolução no Painel nem em B/Ls e
+  containers, e a coluna **Devolução** mostra "N sem descarga" à parte (15.4;
+  POR-068, POR-081); **Informações** ganha a seção **Tutorial**, com o mesmo
+  PDF do convite (15.3; POR-084).
 - **Decisões do dono de 2026-11-03, depois da revisão** (migration `574` e telas):
   - Revisão: salvar sem mudar dado o B/L faturado com a carga alterada é
     recusado; com mudança, grava e o B/L segue Pendente até a fatura ser

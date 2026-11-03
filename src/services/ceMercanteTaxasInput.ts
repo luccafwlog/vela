@@ -27,6 +27,8 @@ export type FinanceBlRow = {
   customer_id: number
   ce_mercante: string | null
   financial_status: string | null
+  /** `exempt`: B/L isento das Taxas Locais (veículo LCL ou à mão), sai só com o CE. */
+  charge_status?: string | null
   cancelled_at?: string | null
   pod: string | null
   customer: { id: number; name: string; cnpj_cpf: string } | null
@@ -62,7 +64,7 @@ export function ceMercanteReadinessReason(readiness: CustomerLocalChargesCommuni
 export async function fetchFinanceBls(voyageId: number, customerId: number): Promise<FinanceBlRow[]> {
   const { data, error } = await supabase
     .from('bls')
-    .select('id, voyage_id, customer_id, ce_mercante, financial_status, cancelled_at, pod, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, vessel:vessels(name))')
+    .select('id, voyage_id, customer_id, ce_mercante, financial_status, charge_status, cancelled_at, pod, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, vessel:vessels(name))')
     .eq('voyage_id', voyageId)
     .eq('customer_id', customerId)
     .overrideTypes<FinanceBlRow[], { merge: false }>()
@@ -120,6 +122,7 @@ export function buildCeMercanteInput(
     blId: bl.id,
     ceMercante: bl.ce_mercante?.trim() ?? '',
     totalBrl: totals.get(bl.id) ?? 0,
+    exempt: bl.charge_status === 'exempt',
   }))
   return {
     customerId: first.customer_id,
@@ -131,7 +134,7 @@ export function buildCeMercanteInput(
     bls: bls.map((bl) => ({ id: bl.id, customerId: bl.customer_id })),
     portalUrl: configuredPortalBillingUrl(),
     ceMercanteRows,
-    totalBrl: ceMercanteRows.reduce((sum, row) => sum + row.totalBrl, 0),
+    totalBrl: ceMercanteRows.reduce((sum, row) => sum + (row.exempt ? 0 : row.totalBrl), 0),
   }
 }
 

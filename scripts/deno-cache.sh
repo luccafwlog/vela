@@ -11,6 +11,11 @@
 # Só os builds conferidos em KNOWN_BUILDS passam: com o outro, o script grava uma
 # cópia temporária do lock com esse hash e os passos seguintes usam a cópia.
 # Hash ou URL fora da lista continuam falhando (`--frozen`).
+#
+# Desde 2026-11-03 nenhuma Edge Function importa do esm.sh (o supabase-js vem do
+# npm, `npm:@supabase/supabase-js`), e os locks não têm mais a URL do tslib: a
+# troca de lock não acontece. Fica para o caso de um import remoto voltar; o
+# script continua útil pelas 3 tentativas de download.
 set -uo pipefail
 
 lock="$1"

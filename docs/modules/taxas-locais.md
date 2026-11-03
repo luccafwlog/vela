@@ -507,7 +507,12 @@ Movement To indica LCL (contém `LCL` ou `CFS`), e só em B/L de modalidade
 container: B/L misto não isenta. Veículo em FCL paga, e veículo sem Movimento
 declarado também — a isenção exige prova positiva. O B/L isento fica com
 `charge_status = 'exempt'` e o motivo gravado, e aparece como **Isento** no card
-Taxas Locais da ficha e no Motivo da Validação, não só como valor zero.
+Taxas Locais da ficha e no Motivo da Validação, não só como valor zero. No
+Desbloqueio de CE, esse B/L também dispensa termo, procuração e solicitação: basta
+o B/L original entregue ([Desbloqueio de CE § B/L dispensado de solicitação](desbloqueio-ce.md#bl-dispensado-de-solicitação-veículo-lcl-isento),
+migration `575`); a isenção à mão dispensa só o pagamento. Nos dois casos, o
+Comunicado de CE e Taxas não espera fatura do B/L isento, só o CE
+([Clientes](clientes.md), migration `580`).
 **Código:** `_calculate_bl_local_charges_impl_106` (migration `129`). Veículo
 gravado no B/L errado é corrigido na página Veículos
 ([Manifestos & EDI](manifesto-edi.md)); o efeito na fatura segue a
@@ -794,8 +799,8 @@ Comando focado:
     AND b.financial_status IN ('invoiced', 'partially_paid', 'paid');
   ```
 
-  Pela afirmação "Data status" do `AGENTS.md`, hoje produção só tem dados de
-  teste; a consulta passa a importar quando houver dado real. **Teste
+  Produção tem dados reais desde 2026-11-03 (afirmação "Data status" do
+  `AGENTS.md`): a consulta passa a valer como conferência periódica. **Teste
   local-pg:** `conditionUsd.local-pg.test.ts` (trava de moeda e recálculo).
 - **Escopo da tabela na tela segue `normalize_port_code` do banco.** A tela
   agrupa as tabelas pela mesma lista exata de aliases da função do banco

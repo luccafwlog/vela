@@ -52,7 +52,7 @@ Para trocar uma senha esquecida, o Cliente usa **Esqueci minha senha**, informa 
 
 O **Painel** é a primeira tela do Cliente. Quatro cartões resumem o que está em aberto e levam à tela de cada assunto.
 
-Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. Na viagem em que ele tem carga aparece o ícone **Ver meus B/Ls nesta viagem** (no celular, o botão **Meus B/Ls**), que abre os B/Ls daquela viagem. Por último, o bloco **Informações** leva às seções da página **Informações**, que você mantém no Vela ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)). O mesmo quadro, sem esse ícone, aparece a qualquer pessoa no site da Fwlog ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)).
+Abaixo, o bloco **Chegadas e saídas** é a programação que você mantém em **Chegadas e Saídas**, no Vela ([5.1](05-programacao.md#51-ler-a-programação-em-chegadas-e-saídas)): só as Viagens ativas e publicadas, com a saída na origem e a chegada no Brasil. O Cliente não vê o âmbar da previsão vencida, só uma previsão comum. Na viagem em que ele tem carga aparece o ícone **Ver meus B/Ls nesta viagem** (no celular, o botão **Meus B/Ls**), que abre os B/Ls daquela viagem. Por último, o bloco **Informações** leva às seções da página **Informações**, que você mantém no Vela ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)). A última seção, **Tutorial do Portal**, abre ou baixa em PDF o mesmo tutorial que vai anexo no convite; ela não depende do que você publica. O mesmo quadro, sem esse ícone, aparece a qualquer pessoa no site da Fwlog ([17.11](17-suporte-ao-cliente.md#1711-responder-sobre-o-site-da-fwlog)).
 
 As telas do Portal leem os dados quando o Cliente as abre; com a tela parada, só o sino e o detalhe de uma fatura em aberto se atualizam sozinhos. Uma data que você grava aparece para ele na próxima leitura, ou quando ele clica em **Atualizar** em **Chegadas e saídas**.
 
@@ -66,9 +66,11 @@ Se o Cliente não vê um navio, confira na edição da Viagem se a chave **Chega
 
 **B/Ls e containers** lista os B/Ls do Cliente que têm CE Mercante. O B/L sem CE não aparece em nenhuma tela do Portal: nem aqui, nem nas faturas, nem na Demurrage ([18.1](18-o-que-muda-sozinho.md#181-vincular-o-ce-ao-bl)). O B/L cancelado depois do CE continua na lista, com o selo **Cancelado**.
 
-Na aba **B/Ls**, cada linha traz a carga, a Viagem e o trecho. A coluna **Pagamento** diz "R$ … em aberto", "Pago" ou "Aguardando fatura". Essa última aparece sem valor: o Portal nunca mostra uma Taxa Local que ainda não foi faturada. A coluna **Demurrage** separa os containers ainda fora com Demurrage ("N em demurrage", em vermelho) dos que já voltaram com dias de Demurrage ("N devolvidos com demurrage"); sem nenhum, diz "Sem demurrage". O B/L com escala omitida mostra **Informações de Transbordo**, ou o novo destino no COD, sem o motivo interno ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)).
+Na aba **B/Ls**, cada linha traz a carga, a Viagem e o trecho. A coluna **Pagamento** diz "R$ … em aberto", "Pago", "Aguardando fatura" ou "Isentas". "Aguardando fatura" aparece sem valor: o Portal nunca mostra uma Taxa Local que ainda não foi faturada. "Isentas", em cinza, é o B/L isento das Taxas Locais, pelo veículo LCL ou à mão. A coluna **Demurrage** separa os containers ainda fora com Demurrage ("N em demurrage", em vermelho) dos que já voltaram com dias de Demurrage ("N devolvidos com demurrage"); sem nenhum, diz "Sem demurrage". O B/L com escala omitida mostra **Informações de Transbordo**, ou o novo destino no COD, sem o motivo interno ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)).
 
 O valor de **Taxas locais** abre as faturas daquele B/L em **Faturas**. A coluna **Tracking** abre o site do armador já na consulta do B/L; o botão só aparece quando o link do armador em **Informações do Portal** › **Tracking** tem a marca `{BL}` ([13.9](13-cadastro-do-cliente.md#139-publicar-as-informações-do-portal)).
+
+Só container descarregado conta como sem devolução: o que ainda está no navio fica fora do cartão **Containers sem devolução** do Painel e de **Com container sem devolução**. Na coluna **Devolução**, "N de M devolvidos" conta só os descarregados, e os que esperam a descarga aparecem à parte, como "1 sem descarga".
 
 A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a **Situação**.
 
@@ -131,6 +133,8 @@ Em **Desbloqueio de CE**, o Cliente pede que a agência libere o CE dos B/Ls del
 1. Na lista **B/Ls com CE Mercante**, o Cliente marca os B/Ls (até 100) e clica em **Pedir desbloqueio de N B/Ls**. B/L com Taxas Locais em aberto nem pode ser marcado: na coluna **Taxas locais**, o "Em aberto" abre as faturas em aberto desse B/L, para o Cliente pagar.
 2. Na solicitação aberta, anexa o termo de devolução e a procuração em PDF, de até 10 MiB cada. Quando os documentos anuais VIP cobrem todos os B/Ls, o Cliente não anexa nada.
 3. Clica em **Solicitar desbloqueio**.
+
+O veículo em LCL com Taxas Locais isentas não entra na solicitação: a caixa fica desligada, a coluna **Solicitação** diz "Não precisa · entregue o B/L original", e o bloco **O que o desbloqueio pede** explica que basta entregar o B/L original na agência ([12.1](12-desbloqueio-de-ce.md#121-entender-o-desbloqueio-de-ce)).
 
 O Cliente acompanha a situação em **Minhas solicitações**; na **Correção pedida**, ele vê o motivo inteiro, como a agência escreveu. O prazo para desbloqueio só começa quando os quatro requisitos estão cumpridos em todos os B/Ls da solicitação. A análise pela equipe está no capítulo 12.
 

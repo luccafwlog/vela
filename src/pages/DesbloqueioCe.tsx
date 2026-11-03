@@ -29,10 +29,11 @@ import { useConfirm, useConfirmWithReason } from "../components/ui/ConfirmDialog
 import { CeUnlockRequestDetail } from "../components/ce-unlock/CeUnlockRequestDetail";
 import { CeUnlockDocumentList, CeUnlockDocumentUploader } from "../components/ce-unlock/CeUnlockDocuments";
 import { CeUnlockReviewQueue } from "../components/ce-unlock/CeUnlockReviewQueue";
+import { CeUnlockBlHistory } from "../components/ce-unlock/CeUnlockBlHistory";
 import { CeUnlockRequirementIcon, CeUnlockZptState } from "../components/ce-unlock/CeUnlockRequirements";
 import { CeUnlockSla } from "../components/ce-unlock/CeUnlockSla";
 import { CeUnlockZptImport } from "../components/ce-unlock/CeUnlockZptImport";
-import { ceDateTime } from "../lib/ceUnlockLabels";
+import { ceDateTime, ceVipAnnualCovered } from "../lib/ceUnlockLabels";
 import {
   ceUnlockCommand,
   ceUnlockRead,
@@ -70,7 +71,7 @@ const CARDS: Array<[string, string]> = [
   ["unlocked", "Desbloqueados"],
   ["", "B/Ls com CE"],
 ];
-const COLUMNS = 11;
+const COLUMNS = 12;
 
 const bls = (n: number) => (n === 1 ? "1 B/L" : `${n} B/Ls`);
 const aptos = (n: number) => (n === 1 ? "1 apto" : `${n} aptos`);
@@ -88,6 +89,7 @@ export function DesbloqueioCe() {
   const [exportBusy, setExportBusy] = useState(false);
   const [sheetBusy, setSheetBusy] = useState(false);
   const [deliveryBusy, setDeliveryBusy] = useState(false);
+  const [historyBl, setHistoryBl] = useState<string | null>(null);
   const keys = useRef(new Map<string, string>());
   // Busca e POD só consultam depois da pausa na digitação: cada leitura recalcula a situação de todos os
   // B/Ls com CE, e os cartões fazem mais quatro.
@@ -122,7 +124,7 @@ export function DesbloqueioCe() {
     loadAll: () => fetchAllCeUnlockBls(queryFilters),
     keyOf: (i) => i.bl_id,
   });
-  const moreFilters = filters.pending_requirement ? 1 : 0;
+  const moreFilters = (["pending_requirement", "met_requirement", "vip"] as const).filter((k) => !!filters[k]).length;
   const openFilters =
     (["search", "pod", "voyage_id"] as const).filter((k) => !!filters[k]).length +
     (filters.situation !== DEFAULT_FILTERS.situation ? 1 : 0);
@@ -340,6 +342,24 @@ export function DesbloqueioCe() {
                   <option value="bl_fisico">B/L original</option>
                 </Select>
               </Field>
+              {/* Pedidos do dono de 2026-11-03 (migration 577): o inverso do pendente e a condição VIP. */}
+              <Field label="Requisito atendido">
+                <Select value={filters.met_requirement ?? ""} onChange={(e) => filter("met_requirement", e.target.value)}>
+                  <option value="">Todos</option>
+                  <option value="termo">Termo de devolução</option>
+                  <option value="procuracao">Procuração</option>
+                  <option value="taxas">Taxas locais</option>
+                  <option value="bl_fisico">B/L original</option>
+                </Select>
+              </Field>
+              <Field label="VIP">
+                <Select value={filters.vip ?? ""} onChange={(e) => filter("vip", e.target.value)}>
+                  <option value="">Todos</option>
+                  <option value="customer">Clientes VIP</option>
+                  <option value="request">Solicitações VIP</option>
+                  <option value="none">Clientes sem VIP</option>
+                </Select>
+              </Field>
             </div>
           </FilterBar>
 
@@ -451,6 +471,7 @@ export function DesbloqueioCe() {
                       <th scope="col">B/L original</th>
                       <th scope="col">Prazo</th>
                       <th scope="col" className="app-table__text-head">Na ZPT</th>
+                      <th scope="col"><span className="sr-only">Ações</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -516,12 +537,16 @@ export function DesbloqueioCe() {
                             >
                               {i.protocol}
                             </button>
+                          ) : i.documents_dispensed ? (
+                            // Veículo LCL com Taxas Locais isentas: sem solicitação, só a entrega do original (migration 575).
+                            <StatusText tone="muted">Dispensada · veículo LCL</StatusText>
                           ) : (
                             <StatusText tone="muted">Sem solicitação</StatusText>
                           )}
                         </td>
-                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} /></td>
-                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} /></td>
+                        {/* Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais vem atendido (migrations 576 e 579). */}
+                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} dispensed={i.documents_dispensed} vipAnnual={ceVipAnnualCovered(i)} /></td>
+                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} dispensed={i.documents_dispensed} vipAnnual={ceVipAnnualCovered(i)} /></td>
                         <td><CeUnlockRequirementIcon label="Taxas locais" subject={i.bl_id} ok={i.paid} /></td>
                         <td>
                           <input
@@ -536,6 +561,15 @@ export function DesbloqueioCe() {
                         </td>
                         <td><CeUnlockSla start={i.sla_started_at} doneAt={i.exported_at} /></td>
                         <td className="app-table__text"><span className="app-table__truncate max-w-[100px]"><CeUnlockZptState item={i} /></span></td>
+                        <td>
+                          <RowActionButton
+                            variant="ghost"
+                            icon={History}
+                            label={`Histórico do B/L ${i.bl_id}`}
+                            title="Histórico do B/L: quando e por quem cada requisito foi cumprido"
+                            onClick={() => setHistoryBl(i.bl_id)}
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -630,6 +664,10 @@ export function DesbloqueioCe() {
             </div>
           )}
         </div>
+      </Modal>
+
+      <Modal open={!!historyBl} title={historyBl ? `Histórico do B/L ${historyBl}` : "Histórico do B/L"} onClose={() => setHistoryBl(null)}>
+        {historyBl && <CeUnlockBlHistory blId={historyBl} />}
       </Modal>
 
       <Modal

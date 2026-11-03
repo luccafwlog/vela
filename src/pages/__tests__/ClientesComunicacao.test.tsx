@@ -674,6 +674,21 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getAllByText(/CE Mercante e Taxas Locais disponíveis/).length).toBeGreaterThan(0)
   })
 
+  it('o NOB tem prévia de exemplo antes da conferência', () => {
+    // O NOB exige a identidade do terminal: o exemplo precisa trazê-la.
+    activeMockConference = null
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    escolher(/NOB · Aviso de Atracação/)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver prévia do e-mail' }))
+    expect(screen.queryByText('Não foi possível renderizar a prévia deste comunicado.')).toBeNull()
+    expect(screen.getAllByText(/Notice of Berthing \/ Aviso de Atracação/).length).toBeGreaterThan(0)
+  })
+
   it('o modelo Livre abre o editor de mensagem sem sair do modo Carga', () => {
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>

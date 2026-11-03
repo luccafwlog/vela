@@ -1,12 +1,12 @@
 // Busca por vários B/Ls ou containers de uma vez (ponto 9 de 2026-10-23).
 // O texto inteiro continua casando como sempre; além disso, quando o usuário
-// cola dois ou mais números separados por espaço, vírgula, ponto e vírgula ou
+// cola dois ou mais números separados por espaço, vírgula, ponto e vírgula, "&" ou
 // quebra de linha, basta um deles casar o número do B/L ou do container.
 // Só conta como termo da lista o que tem cara de número: pelo menos 4
 // caracteres e pelo menos um dígito. Assim um nome de várias palavras
 // ("IMPORTACAO E EXPORTACAO", "ACME 2") não vira lista e não traz todo B/L
 // com a letra E ou o algarismo 2.
-// Mesma regra de `search_term_tokens` no banco (migrations 453, 455 e 461).
+// Mesma regra de `search_term_tokens` no banco (migrations 453, 455, 461 e 577).
 //
 // ponytail: cada termo vira um ILIKE '%termo%' sem índice, então o custo é
 // termos × linhas; e nas buscas por GET do PostgREST (Faturas em `billing.ts`,
@@ -21,10 +21,10 @@ import { escapeFilterTerm } from './utils'
 
 const MIN_TERM_LENGTH = 4
 // Separadores da lista, enumerados para casar com `search_term_tokens` no banco
-// (migration 461): espaços ASCII, os espaços Unicode (inclusive os não
-// separáveis, comuns ao colar de planilha ou e-mail), vírgula e ponto e vírgula.
+// (migrations 461 e 577): espaços ASCII, os espaços Unicode (inclusive os não
+// separáveis, comuns ao colar de planilha ou e-mail), vírgula, ponto e vírgula e "&".
 // O `\s` do banco depende do locale; enumerar deixa os dois lados iguais.
-const SEPARATORS = /[ \t\n\v\f\r\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff,;]+/
+const SEPARATORS = /[ \t\n\v\f\r\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff,;&]+/
 
 /** Termo com cara de número de B/L, container ou CE: 4+ caracteres e algum dígito. */
 function isNumberLike(term: string) {

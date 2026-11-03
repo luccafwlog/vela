@@ -367,7 +367,19 @@ declaração. Observado em 2026-10-10 (funções do Desbloqueio de CE) e em
 minuto depois do merge da PR 1134 na `main` (18:39:34 UTC), inclusive as que não
 mudaram nela (`itau-pix` na v52): a integração republica todas as funções
 declaradas a cada merge na `main`, e mudança só em `_shared/` também chega a
-produção. Depois de
+produção. O
+empacotamento da integração confere cada função contra
+`supabase/functions/deno.lock` e recusa o deploy inteiro (`failed to bundle
+function: exit status 10`) quando um arquivo baixado não bate com o hash do lock.
+Em 2026-11-03 o esm.sh passou a servir ao empacotador outro build de
+`tslib@2.8.1/denonext/tslib.mjs` (`ebce3cd5…` em vez do `c38da5dd…` do lock), e os
+merges das PRs 1189 e 1190 na `staging` não publicaram as funções; a 1190 também
+não publicou o frontend do staging, porque trazia a migration `575`. O motivo
+aparece em Logs da branch, fonte `workflow_run_logs` ("Integrity check failed for
+remote specifier"). Desde então as funções importam o `supabase-js` pelo npm
+(`npm:@supabase/supabase-js@2.117.2`), como o `svix` (2026-10-29): nenhum import
+vem do esm.sh, o lock guarda só a integridade dos pacotes npm, que não muda, e
+cobre todas as funções. Depois de
 cada merge, confira em Supabase → Edge Functions a data de atualização das
 funções alteradas, ou baixe o código publicado com `supabase functions download`
 e compare com o `main`. Se alguma não foi publicada:

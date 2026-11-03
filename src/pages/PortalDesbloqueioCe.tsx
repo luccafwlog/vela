@@ -521,6 +521,13 @@ export function PortalDesbloqueioCe() {
                 </button>
               </Fact>
             </FactList>
+            {/* Decisão do dono de 2026-11-03 (migration 575): só aparece quando o Cliente tem um B/L assim. */}
+            {allItems.some((i) => i.documents_dispensed) ? (
+              <p className="m-0 text-sm">
+                Veículo em LCL com Taxas Locais isentas não precisa de solicitação, termo nem procuração: basta entregar o
+                B/L original na agência.
+              </p>
+            ) : null}
             {showDelivery ? <CeUnlockDeliveryAddresses onClose={() => setShowDelivery(false)} /> : null}
             {gap && (
               <div className="app-callout app-callout--warning flex flex-wrap items-center gap-3">
@@ -732,6 +739,10 @@ export function PortalDesbloqueioCe() {
                                 {" · "}
                                 {state.tone === "default" ? state.label : <StatusText tone={state.tone}>{state.label}</StatusText>}
                               </>
+                            ) : i.documents_dispensed ? (
+                              // Veículo LCL com Taxas Locais isentas não pede solicitação nem documentos:
+                              // só a entrega do B/L original na agência (migration 575).
+                              <StatusText tone="muted">Não precisa · entregue o B/L original</StatusText>
                             ) : (
                               <NoValue label="Sem solicitação" />
                             )}

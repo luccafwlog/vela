@@ -55,15 +55,15 @@ jobs:
           npm run a11y:contrast
 
       - name: CE document upload and cleanup contracts
-        # O esm.sh às vezes derruba a conexão (main, 2026-10-13: "connection reset"
-        # no import do supabase-js). Baixa as dependências antes, com até 3
+        # O download das dependências às vezes cai (main, 2026-10-13: "connection
+        # reset" no import do supabase-js, então pelo esm.sh). Baixa antes, com até 3
         # tentativas; o teste roda só do cache, sem rede para os imports.
         # O deno.lock da raiz cobre só os imports remotos desse teste: sem
         # package.json nem deno.json, uma atualização de dependência npm ou do
         # import map das funções não invalida o lock (`--frozen`).
-        # `scripts/deno-cache.sh` faz o download e devolve o lock a usar: o esm.sh
-        # serve dois builds do tslib conforme a borda (2026-10-30), e só os
-        # builds conferidos no script passam.
+        # `scripts/deno-cache.sh` faz o download e devolve o lock a usar. Desde
+        # 2026-11-03 o supabase-js vem do npm (`npm:`), não do esm.sh, que servia
+        # dois builds do tslib conforme a borda.
         env:
           DENO_NO_PACKAGE_JSON: "1"
         run: |
@@ -77,7 +77,7 @@ jobs:
         # Plano de correção dos e-mails, 5.4: `deno check` das Edges de e-mail
         # e o handler do webhook com assinatura Svix gerada. Usa o manifesto e
         # o lock das funções (supabase/functions/deno.json e deno.lock), que
-        # cobrem o @sentry/deno do wrapper de telemetria e os imports do esm.sh.
+        # cobrem o @sentry/deno do wrapper de telemetria e os pacotes npm das funções.
         # Mesmo esquema de download com nova tentativa do passo anterior.
         env:
           DENO_NO_PACKAGE_JSON: "1"
@@ -125,8 +125,9 @@ jobs:
         run: node scripts/build-squash-migrations.mjs --self-check
 
       - name: Destructive migration declaration
-        # Toda migration que reescreve ou apaga linhas depende da afirmação
-        # "Data status" do AGENTS.md e tem de declarar isso no cabeçalho.
+        # Toda migration que reescreve ou apaga linhas justifica no cabeçalho:
+        # até a 574, a declaração do "Data status" antigo; depois, plano de
+        # preservação (produção com dados reais desde 2026-11-03, AGENTS.md).
         run: npm run migrations:check
 
       - name: Local-pg suites listed in CI

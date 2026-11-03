@@ -133,26 +133,31 @@ planos e specs"):
 - `src/types/database.ts`, `src/lib/pix.ts`, and existing migration files are
   protected by `.claude/hooks/protect-files.sh`; do not bypass the guard
   without explicit authorization.
-- The only broad test-data cleanup is `supabase/scripts/limpar_dados_teste.sql`,
-  allowed only while the "Data status" bullet below holds; follow
-  `docs/operations/reset-ambiente.md`. Never truncate tables ad hoc: the
-  database refuses to delete the `app_settings` singleton (migration `156`).
+- The only broad test-data cleanup is `supabase/scripts/limpar_dados_teste.sql`.
+  Under the "Data status" bullet below it never runs against production, only
+  against a disposable database, and it refuses to start without an explicit
+  confirmation; follow `docs/operations/reset-ambiente.md`. Never truncate
+  tables ad hoc: the database refuses to delete the `app_settings` singleton
+  (migration `156`).
 - Hooks in `.claude/hooks/` provide additional checks. These protections apply
   even when the current agent or editor does not run those hooks. Inspect
   commands before running them; `npm run sync:hard` resets and cleans the
   checkout and is not a routine synchronization command.
-- **Data status — asserted 2026-09-18, revocable by the repository owner.** The
-  production Supabase project carries no real business data: every row is test
-  fixture and may be discarded. A migration may therefore rewrite or delete
-  existing rows without a preservation plan. This is the ONLY thing that makes
-  such a migration acceptable, so any migration that rewrites or deletes
-  existing rows must say in its header comment that it relies on this line.
-  `npm run migrations:check` enforces that declaration in CI, so the question
-  "is this still true?" surfaces when such a migration is written, not only
-  when someone remembers this bullet.
-  When the system takes real data, replace this bullet with the opposite
-  assertion in the same change that opens it to real users — until then a
-  reviewer may assume the data is disposable, and after then they must not.
+- **Data status — asserted 2026-11-03, revocable by the repository owner.** The
+  production Supabase project carries real business data: Vela and Portal
+  Fwlog are in production with real customers since 2026-11-03 (confirmed by
+  the owner). No production row may be assumed to be a test fixture. A
+  migration that rewrites or deletes existing rows needs a preservation plan in
+  its header comment, under the line `Plano de preservação:`: which rows it
+  touches, where the previous values stay (backup table, history or export),
+  how to check the result and how to undo it. Declaring a dependency on this
+  line no longer authorizes data loss. `npm run migrations:check` enforces the
+  plan in CI for every migration after `574`, the last one written under the
+  previous assertion (2026-09-18, "no real data"); it checks that the plan is
+  there, not that it is adequate, which remains the reviewer's job. The broad
+  cleanup above stays out of production for good.
+  Only the repository owner may revoke this line; a reviewer must assume every
+  production row is real until they do, in a change that says why.
 
 ## Verify the claim you will make
 

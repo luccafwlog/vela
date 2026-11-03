@@ -7,6 +7,7 @@ import {
 } from "./portalScope";
 import type {
   CePortalRequestRow,
+  CeUnlockBlHistory,
   CeUnlockDocument,
   CeUnlockExport,
   CeUnlockFilters,
@@ -76,6 +77,9 @@ export const ceUnlockReconcile = (rows: unknown[]) =>
   internalRpc<CeUnlockReconcileSummary>("ce_unlock_reconcile", { p_rows: rows });
 export const getCeUnlockRequest = (id: string) =>
   ceUnlockRead<CeUnlockRequest>("request", { request_id: id });
+/** Histórico dos requisitos de um B/L, com ou sem solicitação (migration 577). */
+export const getCeUnlockBlHistory = (blId: string) =>
+  ceUnlockRead<CeUnlockBlHistory>("bl_history", { bl_id: blId });
 export const getCeUnlockVip = (customerId: number) =>
   ceUnlockRead<CeUnlockVipCoverage>("vip", { customer_id: customerId });
 export const ceUnlockCommand = <T>(

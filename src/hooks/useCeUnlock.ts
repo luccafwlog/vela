@@ -1,6 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ceUnlockCommand,
+  getCeUnlockBlHistory,
   getCeUnlockRequest,
   listCeUnlockBls,
   listCeUnlockReviewQueue,
@@ -49,6 +50,14 @@ export function useCeUnlockRequest(id: string | null) {
     queryFn: () => getCeUnlockRequest(id!),
     enabled: !!id,
     refetchOnWindowFocus: "always",
+  });
+}
+/** Histórico de um B/L (janela da aba Andamento dos B/Ls); a família ce-unlock invalida junto. */
+export function useCeUnlockBlHistory(blId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.ceUnlock.blHistory(blId),
+    queryFn: () => getCeUnlockBlHistory(blId!),
+    enabled: !!blId,
   });
 }
 /**

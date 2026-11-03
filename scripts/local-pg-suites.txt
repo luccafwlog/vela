@@ -138,6 +138,7 @@ src/integration/alertasPapelOperator.local-pg.test.ts
 src/integration/granitoSemCliente.local-pg.test.ts
 src/integration/importacaoLoteUnico.local-pg.test.ts
 src/integration/comunicadoBlSemCliente.local-pg.test.ts
+src/integration/comunicadoCeBlIsento.local-pg.test.ts
 src/integration/alertaBlSemClientePertoDoEta.local-pg.test.ts
 src/integration/grantsDoReplay.local-pg.test.ts
 src/integration/alertasDaViagem.local-pg.test.ts
@@ -228,3 +229,4 @@ src/integration/historicoLeAsTrilhas.local-pg.test.ts
 src/integration/lacunasBaixasDaRevisao.local-pg.test.ts
 src/integration/textosDoServidorComAcento.local-pg.test.ts
 src/integration/revisaoBlFaturadoCargaAlterada.local-pg.test.ts
+src/integration/desbloqueioVeiculoLcl.local-pg.test.ts

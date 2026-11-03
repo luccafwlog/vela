@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Import dinâmico por caminho não literal, como em portalEmailSend.test.ts: o
-// processador importa o cliente Supabase do esm.sh e usa Deno pelo portalEmail.ts,
+// processador importa o cliente Supabase pelo npm (`npm:`) e usa Deno pelo portalEmail.ts,
 // então fica fora do typecheck do app; o Vitest carrega o módulo em execução.
 type ProcessPortalEmailEvent = (admin: unknown, eventId: number, workerId: string) => Promise<{ status: string }>
 const processorPath = '../../../supabase/functions/_shared/portalEmailEventProcessor.ts'

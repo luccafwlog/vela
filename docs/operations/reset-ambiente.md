@@ -1,15 +1,22 @@
 # Reset do Ambiente de Testes
 
-**Status: limpeza ampla disponível em `supabase/scripts/limpar_dados_teste.sql`
+**Status: produção fora de alcance desde 2026-11-03; limpeza ampla disponível
+só para banco descartável em `supabase/scripts/limpar_dados_teste.sql`
 (2026-10-07).** O script antigo `reset_operational_data.sql`, suspenso em
 2026-06-18 por cobrir o modelo antigo, foi removido; registros históricos que o
 citam continuam valendo para a época deles.
 
 ## Quando pode rodar
 
-Só enquanto a afirmação "Data status" do `AGENTS.md` estiver vigente: produção
-sem dados reais, toda linha é fixture. Quando o sistema tiver dados reais,
-produção fica intocável e a limpeza vale apenas em banco descartável.
+Nunca em produção. Desde 2026-11-03 o Vela e o Portal Fwlog têm clientes reais,
+e a afirmação "Data status" do `AGENTS.md` diz que nenhuma linha de produção é
+fixture. De 2026-10-07 a 2026-11-03 a limpeza era permitida também em produção, quando
+toda linha era fixture (afirmação de 2026-09-18, agora substituída).
+
+Alvos aceitos: o Postgres local do `setup-local-pg.sh`, o replay do job `db` do
+CI e uma branch de Supabase criada para teste. Para remover dado errado de
+produção, use a ação do produto ou uma migration com plano de preservação
+([WORKFLOW.md](../../WORKFLOW.md#migration-que-reescreve-ou-apaga-dados)).
 
 ## O que faz
 
@@ -28,6 +35,9 @@ CASCADE` num único comando, exceto a lista `v_preservar` do script:
 
 Travas, todas antes de apagar qualquer coisa:
 
+- sessão sem `SET vela.limpeza_banco_descartavel = 'confirmo'` → erro
+  "Limpeza recusada: produção tem dados reais…". A confirmação é um passo
+  deliberado, não detecção de produção: quem confirma responde pelo alvo;
 - nome da lista que não existe em `public` → erro (digitação não deixa uma
   tabela desprotegida);
 - tabela preservada com chave estrangeira para uma tabela que seria esvaziada
@@ -42,9 +52,11 @@ na mesma mudança.
 
 ## Como executar
 
-1. Confirme a afirmação "Data status" do `AGENTS.md`.
-2. Rode o arquivo inteiro no SQL Editor do Supabase (ou `psql -v
-   ON_ERROR_STOP=1 -f`). A mensagem final lista o que foi preservado.
+1. Confirme que a conexão aponta para um banco descartável, nunca para o
+   projeto de produção.
+2. Na mesma sessão, rode `SET vela.limpeza_banco_descartavel = 'confirmo';` e
+   depois o arquivo inteiro (`psql -v ON_ERROR_STOP=1 -f`, ou no SQL Editor da
+   branch de teste). A mensagem final lista o que foi preservado.
 3. Confira: `SELECT count(*) FROM public.app_settings WHERE id = 1` = 1 e as
    contagens de diagnóstico abaixo zeradas para os dados operacionais.
 

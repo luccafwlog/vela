@@ -28,7 +28,7 @@ import { blReturnSummary, localChargesView, type PortalFlatContainer } from '../
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
 import type { CeUnlockItem } from '../types/ceUnlock'
-import { ceStateLabel, ceUnlockZptText } from '../lib/ceUnlockLabels'
+import { ceStateLabel, ceUnlockZptText, ceVipAnnualCovered } from '../lib/ceUnlockLabels'
 import { ceUnlockDeadline, formatCeUnlockDeadline } from './ceUnlockSla'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
 import { describeChargeAdjustments } from '../lib/chargeAdjustmentSummary'
@@ -400,6 +400,9 @@ export async function exportDemurrageScreenWorkbook(sheetName: string, fileSlug:
 export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
   const XLSX = await import('@e965/xlsx')
   const met = (ok: boolean) => (ok ? 'Atendido' : 'Pendente')
+  // Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais (migrations 576 e 579) aparece como tal, não "Atendido".
+  const doc = (row: CeUnlockItem, ok: boolean) =>
+    ceVipAnnualCovered(row) && ok ? 'Coberto pelo anual VIP' : met(ok)
   const exportRows = rows.map((row) => ({
     'B/L': row.bl_id,
     'CE Mercante': row.ce_mercante ?? '',
@@ -408,10 +411,11 @@ export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
     Navio: row.vessel_name ?? '',
     Viagem: row.voyage_number ?? '',
     POD: row.pod ?? '',
-    Solicitação: row.protocol ?? '',
+    Solicitação: row.protocol ?? (row.documents_dispensed ? 'Dispensada · veículo LCL' : ''),
     Situação: ceStateLabel(row.state),
-    'Termo de devolução': met(row.termo),
-    Procuração: met(row.procuracao),
+    // Veículo LCL isento (migration 575): termo e procuração dispensados, não "atendidos".
+    'Termo de devolução': row.documents_dispensed ? 'Dispensado' : doc(row, row.termo),
+    Procuração: row.documents_dispensed ? 'Dispensada' : doc(row, row.procuracao),
     'Taxas locais': met(row.paid),
     'B/L original': met(row.delivered),
     Prazo: row.sla_started_at ? formatCeUnlockDeadline(ceUnlockDeadline(row.sla_started_at)) : '',
@@ -555,7 +559,8 @@ export async function exportPortalBlsWorkbook(rows: PortalOperationBL[]) {
     POD: row.pod ?? '',
     Containers: row.container_count,
     Devolvidos: row.containers_returned,
-    'Sem devolucao': row.container_count - row.containers_returned,
+    // Mesma regra da tela: sem SOC e sem container ainda não descarregado.
+    'Sem devolucao': blReturnSummary(row).awaiting,
     'Em demurrage': row.containers_in_demurrage,
     // Mesma conta da coluna Demurrage da tela (observação de 2026-11-01).
     'Devolvidos com demurrage': blReturnSummary(row).returnedWithDemurrage,
