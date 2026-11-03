@@ -794,8 +794,8 @@ Comando focado:
     AND b.financial_status IN ('invoiced', 'partially_paid', 'paid');
   ```
 
-  Pela afirmação "Data status" do `AGENTS.md`, hoje produção só tem dados de
-  teste; a consulta passa a importar quando houver dado real. **Teste
+  Produção tem dados reais desde 2026-11-03 (afirmação "Data status" do
+  `AGENTS.md`): a consulta passa a valer como conferência periódica. **Teste
   local-pg:** `conditionUsd.local-pg.test.ts` (trava de moeda e recálculo).
 - **Escopo da tabela na tela segue `normalize_port_code` do banco.** A tela
   agrupa as tabelas pela mesma lista exata de aliases da função do banco

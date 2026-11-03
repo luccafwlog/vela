@@ -1,11 +1,17 @@
-// Toda migration que reescreve ou apaga linhas existentes depende da afirmação
-// "Data status" do AGENTS.md (o banco de produção não tem dados de negócio).
-// A regra exige que o arquivo declare essa dependência no próprio cabeçalho.
-// Este script transforma a regra em porta de CI: sem a declaração, o gate falha.
+// Toda migration que reescreve ou apaga linhas existentes precisa justificar a
+// perda no próprio cabeçalho. O que conta como justificativa depende da
+// afirmação "Data status" do AGENTS.md vigente quando a migration foi escrita:
 //
-// Um hook do Claude Code não serviria: ele só vale para agentes rodando neste
-// harness. Uma pessoa escrevendo a migration no editor, ou um agente de outra
-// ferramenta, passaria direto. A checagem em CI vale para todo mundo.
+// - até a 061: histórico, a regra ainda não existia (não bloqueia);
+// - 062 a 574: produção sem dados reais (afirmação de 2026-09-18). Bastava
+//   declarar a dependência dessa afirmação, citando o AGENTS.md;
+// - depois da 574: produção com dados reais desde 2026-11-03. Declarar a
+//   dependência não vale mais; o cabeçalho traz um plano de preservação.
+//
+// Este script transforma a regra em porta de CI: sem a justificativa, o gate
+// falha. Um hook do Claude Code não serviria: ele só vale para agentes rodando
+// neste harness. Uma pessoa escrevendo a migration no editor, ou um agente de
+// outra ferramenta, passaria direto. A checagem em CI vale para todo mundo.
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,9 +32,18 @@ const DESTRUCTIVE = [
   { name: 'DROP COLUMN', re: /\bDROP\s+COLUMN\b/i },
 ]
 
-// O cabeçalho precisa nomear a afirmação e o arquivo onde ela vive, para que o
-// leitor consiga verificar se ainda está vigente.
+// Regra de 062 a 574: o cabeçalho nomeia a afirmação e o arquivo onde ela
+// vive, para que o leitor consiga verificar se ainda estava vigente.
 const DECLARATION = [/data\s+status/i, /AGENTS\.md/]
+
+// Regra depois da 574: o cabeçalho traz `Plano de preservação:` seguido do
+// plano (linhas afetadas, onde ficam os valores anteriores, como conferir e
+// como desfazer).
+// ponytail: o gate confere que o plano existe e tem corpo (PLAN_MIN_CHARS
+// caracteres não brancos), não que ele preserva de fato. A adequação é da
+// revisão; um teste local-pg que prove a preservação é o passo seguinte.
+const PRESERVATION_PLAN = /plano\s+de\s+preserva[cç][aã]o\s*:/i
+const PLAN_MIN_CHARS = 80
 
 // A regra nasceu com a migration 061. As anteriores ja foram aplicadas e sao
 // historico: reescrever o cabecalho delas nao muda nada no banco e apagaria o
@@ -36,6 +51,17 @@ const DECLARATION = [/data\s+status/i, /AGENTS\.md/]
 // relatorio abaixo continua contando as antigas, para que a divida fique
 // visivel em vez de silenciosa.
 const RULE_FROM = 61
+
+// Última migration escrita sob a afirmação "sem dados reais" (2026-09-18 a
+// 2026-11-03). As seguintes rodam sobre dados reais e precisam de plano.
+export const DATA_STATUS_UNTIL = 574
+
+/** Regra que vale para a migration de número `version`. */
+export function ruleFor(version) {
+  if (version <= RULE_FROM) return 'historica'
+  if (version <= DATA_STATUS_UNTIL) return 'data-status'
+  return 'plano'
+}
 
 /**
  * Remove corpos de função/procedure (dollar-quoted). Um UPDATE dentro de um
@@ -86,14 +112,31 @@ function stripLineComments(sql) {
   return sql.replace(/--[^\n]*/g, '')
 }
 
-export function auditMigration(sql, { legacy = false } = {}) {
+/** Texto do plano de preservação no cabeçalho, sem os `--`; null se ausente. */
+export function preservationPlan(header) {
+  const match = PRESERVATION_PLAN.exec(header)
+  if (!match) return null
+  return header.slice(match.index + match[0].length).replace(/^--/gm, '').trim()
+}
+
+/**
+ * `rule` vem de `ruleFor(versão)`. Sem ela, vale a regra atual ('plano'): quem
+ * audita um SQL avulso recebe a exigência de hoje, não a de uma época passada.
+ */
+export function auditMigration(sql, { rule = 'plano' } = {}) {
   const body = stripLineComments(stripFunctionBodies(sql))
   const statements = DESTRUCTIVE.filter(({ re }) => re.test(body)).map(({ name }) => name)
   if (statements.length === 0) return { destructive: false, statements, declared: true }
   const header = headerComment(sql)
-  const declared = DECLARATION.every((re) => re.test(header))
-    || (legacy && /data\s+status/i.test(header) && /CLAUDE\.md/i.test(header))
-  return { destructive: true, statements, declared }
+  const citesDataStatus = DECLARATION.every((re) => re.test(header))
+  if (rule === 'plano') {
+    const plan = preservationPlan(header)
+    const planned = plan !== null && plan.replace(/\s/g, '').length >= PLAN_MIN_CHARS
+    return { destructive: true, statements, declared: planned, citesDataStatus }
+  }
+  const declared = citesDataStatus
+    || (rule === 'historica' && /data\s+status/i.test(header) && /CLAUDE\.md/i.test(header))
+  return { destructive: true, statements, declared, citesDataStatus }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -119,37 +162,39 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   let destructiveCount = 0
   let legacyCount = 0
   for (const name of files) {
-    const result = auditMigration(fs.readFileSync(path.join(migrationsDir, name), 'utf8'), {
-      legacy: Number.parseInt(name.slice(0, 3), 10) <= RULE_FROM,
-    })
+    const rule = ruleFor(Number.parseInt(/^(\d+)_/.exec(name)[1], 10))
+    const result = auditMigration(fs.readFileSync(path.join(migrationsDir, name), 'utf8'), { rule })
     if (!result.destructive) continue
     destructiveCount++
     if (result.declared) continue
-    if (Number.parseInt(name.slice(0, 3), 10) <= RULE_FROM) {
+    if (rule === 'historica') {
       legacyCount++
       continue
     }
-    offenders.push({ name, statements: result.statements })
+    offenders.push({ name, rule, statements: result.statements, citesDataStatus: result.citesDataStatus })
   }
 
   if (offenders.length > 0) {
-    console.error('Migrations destrutivas sem a declaração exigida no cabeçalho:\n')
-    for (const { name, statements } of offenders) {
-      console.error(`  ${name} — contém ${statements.join(', ')}`)
+    console.error('Migrations destrutivas sem a justificativa exigida no cabeçalho:\n')
+    for (const { name, rule, statements, citesDataStatus } of offenders) {
+      const falta = rule === 'plano'
+        ? (citesDataStatus ? 'declara o "Data status" revogado em vez de um plano de preservação' : 'sem plano de preservação')
+        : 'sem a declaração do "Data status"'
+      console.error(`  ${name} — contém ${statements.join(', ')}; ${falta}`)
     }
     console.error(`
-Toda migration que reescreve ou apaga linhas existentes depende da afirmação
-"Data status" do AGENTS.md (seção Gotchas) e precisa dizer isso no cabeçalho,
-citando o nome da afirmação e o AGENTS.md. Exemplo em
-supabase/migrations/061_bl_weight_semantics_and_triggers.sql.
-
-Se a afirmação já tiver sido revogada, a migration não é aceitável como está:
-escreva um plano de preservação em vez de declarar a dependência.`)
+Produção tem dados reais desde 2026-11-03 (afirmação "Data status" do AGENTS.md,
+seção Gotchas). Depois da ${String(DATA_STATUS_UNTIL).padStart(3, '0')}, declarar dependência da afirmação antiga não
+autoriza perda de dados: a migration que reescreve ou apaga linhas traz no
+cabeçalho a linha "Plano de preservação:" seguida do plano (linhas afetadas,
+onde ficam os valores anteriores, como conferir e como desfazer). Formato em
+WORKFLOW.md, "Migration que reescreve ou apaga dados".`)
     process.exit(1)
   }
 
   console.log(
     `Destructive migration check passed: ${files.length} migrations, ${destructiveCount} destrutiva(s); `
-    + `${legacyCount} migration(s) até ${String(RULE_FROM).padStart(3, '0')} sem declaracao (historico, nao bloqueia).`,
+    + `${legacyCount} migration(s) até ${String(RULE_FROM).padStart(3, '0')} sem declaracao (historico, nao bloqueia); `
+    + `plano de preservação exigido a partir da ${String(DATA_STATUS_UNTIL + 1).padStart(3, '0')}.`,
   )
 }

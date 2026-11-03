@@ -596,8 +596,9 @@ Confirme:
 
 ## 18. Limpeza
 
-Limpeza ampla só com `supabase/scripts/limpar_dados_teste.sql`, enquanto a
-afirmação "Data status" do `AGENTS.md` valer. Para fixtures pontuais:
+Produção tem dados reais desde 2026-11-03 ("Data status" do `AGENTS.md`):
+limpeza ampla só em banco descartável, com `supabase/scripts/limpar_dados_teste.sql`
+e a confirmação que ele exige. Para fixtures pontuais:
 
 - use prefixos de QA;
 - registre IDs criados;

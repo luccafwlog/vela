@@ -125,8 +125,9 @@ jobs:
         run: node scripts/build-squash-migrations.mjs --self-check
 
       - name: Destructive migration declaration
-        # Toda migration que reescreve ou apaga linhas depende da afirmação
-        # "Data status" do AGENTS.md e tem de declarar isso no cabeçalho.
+        # Toda migration que reescreve ou apaga linhas justifica no cabeçalho:
+        # até a 574, a declaração do "Data status" antigo; depois, plano de
+        # preservação (produção com dados reais desde 2026-11-03, AGENTS.md).
         run: npm run migrations:check
 
       - name: Local-pg suites listed in CI

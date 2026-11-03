@@ -6,6 +6,13 @@
 
 ## 2026-11
 
+- **Produção com dados reais (2026-11-03; decisão do dono):** o Vela e o Portal Fwlog estão em produção com
+  clientes reais. A afirmação "Data status" do `AGENTS.md` passa a dizer o oposto da de 2026-09-18: nenhuma linha de
+  produção é fixture. `npm run migrations:check` exige, a partir da migration `575`, a linha `Plano de preservação:`
+  com o plano no cabeçalho de toda migration que reescreve ou apaga linhas, e recusa a declaração antiga (as `062` a
+  `574` continuam valendo pela regra da época). `supabase/scripts/limpar_dados_teste.sql` recusa rodar sem
+  `SET vela.limpeza_banco_descartavel = 'confirmo'` e fica restrito a banco descartável
+  ([procedimento](operations/reset-ambiente.md)).
 - **Recusas com acento, situação financeira em português e dispensa no assunto Container (2026-11-03, migration
   `571`; pendências da revisão do Manual do Operador):** "B/L … não encontrado", "Linha de cálculo … não
   encontrada", "Item manual … não elegível…", "B/L … cancelado e somente leitura; não é permitido lançar taxa

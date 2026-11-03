@@ -1,4 +1,4 @@
-import { execPsql } from './localPsql'
+import { execPsql, spawnPsql } from './localPsql'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
@@ -17,6 +17,7 @@ describeLocal('Comunicados — recuperação do catálogo estrutural', () => {
       CREATE TEMP TABLE before_catalogs AS SELECT
         (SELECT count(*) FROM public.customer_communication_boxes) AS boxes,
         (SELECT count(*) FROM public.customer_communication_templates) AS templates;
+      SET LOCAL vela.limpeza_banco_descartavel = 'confirmo';
       ${cleanup}
       SELECT count(*) FROM public.customer_communication_kinds;
       SELECT s.communications_enabled IS NOT DISTINCT FROM b.communications_enabled
@@ -26,6 +27,16 @@ describeLocal('Comunicados — recuperação do catálogo estrutural', () => {
       ROLLBACK;
     `], { encoding: 'utf8' }).trim().split('\n')
     expect(result).toEqual(['10', 't', 't'])
+  })
+
+  it('a limpeza recusa sem a confirmação de banco descartável e não apaga nada', () => {
+    const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+      BEGIN;
+      ${cleanup}
+      ROLLBACK;
+    `], { encoding: 'utf8' })
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toMatch(/Limpeza recusada: produção tem dados reais/)
   })
 
   it('volta a registrar institucional e livre após perda do catálogo, sem ligar envio real', () => {
