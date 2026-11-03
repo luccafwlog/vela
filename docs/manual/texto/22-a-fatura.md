@@ -207,5 +207,6 @@ Quando o Cliente pagou e a cobrança do B/L não deve existir (o B/L vai ser can
 3. O {{Administrativo}} cancela o B/L na ficha ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)).
 
 ::: atencao
-**Preparar cancelamento financeiro** não cancela a fatura nem o B/L: a fatura fica no Vela com o ajuste, e depois da devolução confirmada falta o passo 3.
+- **Preparar cancelamento financeiro** não cancela a fatura nem o B/L: a fatura fica no Vela com o ajuste, e depois da devolução confirmada falta o passo 3.
+- O Vela não obriga essa ordem. O B/L com a fatura paga por inteiro pode ser cancelado direto na ficha, e aí o valor recebido não vira Restituição. Se o dinheiro deve voltar ao Cliente, faça os passos 1 e 2 antes de cancelar o B/L.
 :::

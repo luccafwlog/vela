@@ -180,6 +180,8 @@ O número do B/L existe uma vez só no Vela. O caminho para tirar um B/L do jogo
 2. Se a ficha avisa que o B/L "não pode ser cancelado agora", resolva o que o aviso lista. A Invoice de Demurrage em aberto também segura, e a Demurrage ainda sem Invoice ("Demurrage correndo ou a emitir" ou "Demurrage travada"): emita a Invoice ou dispense a cobrança do container ([9.11](09-containers-e-demurrage.md#911-dispensar-a-cobrança-de-um-container)). **Abrir em Demurrage**, no aviso, leva ao B/L.
 3. Escreva o motivo e confirme.
 
+A fatura paga por inteiro não segura o cancelamento. Se o Cliente pagou e o dinheiro deve voltar, a devolução vem antes ([22.9](22-a-fatura.md#229-cancelar-uma-fatura)).
+
 Quando o container também está em outro B/L ativo do mesmo Cliente na Viagem, como no B/L reemitido, a Demurrage dele fica com o outro B/L e não segura o cancelamento.
 
 O B/L cancelado continua na lista, somente leitura, com a faixa "B/L cancelado em…" e o motivo. Ele sai do faturamento e do Manifesto Mercante, aparece como Cancelado no Portal e libera o CE para o B/L reemitido. As importações o deixam de fora.

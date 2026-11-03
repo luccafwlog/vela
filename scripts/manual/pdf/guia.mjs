@@ -7,7 +7,7 @@
 // (npm run manual:capture) e o mesmo visual.
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { ROOT, EQUIPES, lerGuia, capituloHtml, escapar, chip } from './fonte.mjs'
+import { ROOT, lerGuia, capituloHtml, escapar, chip } from './fonte.mjs'
 import { fontes, telas, alvo, pagina, imprimirComPaginas } from './impressao.mjs'
 
 const nome = process.argv[2]
@@ -51,14 +51,11 @@ const equipes = (a) => (a.equipes?.length ? `<span class="equipes">${a.equipes.m
 // equipes ocupa as três colunas (ou as do "colunas" do cartão); a etapa que
 // nem sempre existe tem a borda tracejada, e o ponto crítico, a borda dourada.
 // Medidas em mm, para a página A4 do livro.
-// As raias padrão são as três equipes da Viagem; outro guia diz as suas em
-// guia.json › raias (por exemplo, Financeiro e Administrativo).
-const RAIAS_PADRAO = ['Operações', 'Documentação', 'Equipamentos']
+const RAIAS = ['Operações', 'Documentação', 'Equipamentos']
 const F = { largura: 174, rotulo: 31, topo: 9, passo: 13, cartao: 10.6, entreFases: 2.4, margem: 2.4 }
 
 function fluxo(g) {
   const { fases, etapas, setas } = g.fluxo
-  const RAIAS = g.raias?.length ? g.raias : RAIAS_PADRAO
   const xRaias = F.rotulo + 1
   const raia = (F.largura - xRaias) / RAIAS.length
   const faseDaLinha = (l) => fases.findIndex((f) => l >= f.linhas[0] && l <= f.linhas[1])
@@ -74,7 +71,7 @@ function fluxo(g) {
     const w = (ate - de + 1) * raia - 2 * F.margem
     const y = yLinha(e.linha) + (F.passo - F.cartao) / 2
     // A cor é a da equipe só quando o cartão é dela, numa coluna.
-    const cor = a.equipes.length === 1 ? EQUIPES[RAIAS[de]] : 'todas'
+    const cor = a.equipes.length === 1 ? ['ope', 'doc', 'equ'][de] : 'todas'
     caixa[a.numero] = { a, e, cor, x, y, w, h: F.cartao, cx: x + w / 2, cy: y + F.cartao / 2 }
   }
   const ultima = Math.max(...fases.map((f) => f.linhas[1]))

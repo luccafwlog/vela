@@ -31,15 +31,8 @@ da Viagem aberta e dos terminais das frentes de operação aos arquivos (Baplie,
 vazios, B/Ls, carga solta, veículos), à conferência antes do CE (o ponto
 crítico: com o CE, a fatura sai e o Cliente vê a carga no Portal), ao CE, à
 chegada e à saída do navio, às datas dos containers, à exportação, ao ADR de
-Saída e aos alertas de cada equipe. Em 2026-11-03 vieram, a pedido do dono, o
-**Guia rápido do Financeiro** (`guias/financeiro/`, 21 páginas e 19 etapas: das
-tabelas de cobrança e da conferência antes do CE à baixa do Pix, às
-restituições, ao recibo e à Demurrage) e o **Guia rápido do Administrativo**
-(`guias/administrativo/`, 18 páginas e 16 etapas: usuários, Canal de envio,
-liberação sem Portal, cancelamentos, Histórico de ações e Prazo do ADR), os dois
-em rascunho para aprovação do dono; o `guia.json` de cada um diz as suas raias
-(`raias`). O PDF sai
-de `npm run manual:guia -- viagem` (ou `financeiro`, `administrativo`), e o `manual:check` confere também o texto
+Saída e aos alertas de cada equipe. O PDF sai
+de `npm run manual:guia -- viagem`, e o `manual:check` confere também o texto
 dos guias.
 
 ## Catálogo de situações
@@ -437,3 +430,8 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   `docs/archive/reports/2026-11-03-manual-financeiro.md`; o que só ele tinha
   entrou em 24.1 (cobranças aguardando o Itaú), 24.4 (tentar de novo ou encerrar
   a tentativa) e 24.6 (tentar emitir para o novo Cliente).
+- **Decisões do dono de 2026-11-03, depois dos rascunhos:** os guias do
+  Financeiro e do Administrativo não foram adotados (fica só o guia da Viagem),
+  e o cancelamento do B/L pago fica como o código faz: a fatura paga por
+  inteiro não segura o cancelamento, e o valor recebido só vira Restituição
+  pelo **Preparar cancelamento financeiro** feito antes (7.8, 22.9).

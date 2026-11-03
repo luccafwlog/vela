@@ -760,11 +760,9 @@ procedimento do Financeiro ao Manual do Operador.
    fora: o **Guia rápido da Viagem** (`docs/manual/guias/viagem/`), com a
    equipe de cada etapa, o fluxo em raias, a conferência antes do CE e os
    alertas. Aprovado pelo dono em 2026-10-29, na mesma PR do manual. Em
-   2026-11-03 o dono pediu os guias do Financeiro e do Administrativo
-   (`guias/financeiro/` e `guias/administrativo/`), escritos no mesmo molde e
-   à espera da aprovação dele; as capturas novas que eles sugerem (tabelas de
-   cobrança, Conciliação PIX, Restituições, Editar acesso, Prazo do ADR…) ficam
-   para a próxima rodada.
+   2026-11-03 o dono pediu rascunhos dos guias do Financeiro e do
+   Administrativo e, ao vê-los, decidiu não adotá-los: fica só o guia da
+   Viagem, e o procedimento das duas equipes continua nos capítulos 21 a 25.
 2. **Imagens que o ambiente local não gera:** a lista de usuários da
    Administração (depende de função do servidor) e as telas do Pix com a
    cobrança pelo Itaú ligada.

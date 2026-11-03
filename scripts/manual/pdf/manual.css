@@ -524,8 +524,6 @@ figure.tela { break-inside: avoid; }
 .fx-cartao--ope { --cor: var(--team-ope); }
 .fx-cartao--doc { --cor: var(--team-doc); }
 .fx-cartao--equ { --cor: var(--team-equ); }
-.fx-cartao--fin { --cor: var(--team-fin); }
-.fx-cartao--adm { --cor: var(--team-adm); }
 .fx-cartao--todas { --cor: var(--navy); }
 .fx-cartao--opcional { border: 0.8pt dashed #8b95a7; }
 .fx-cartao--critico { --cor: var(--gold-strong); border: 1.2pt solid var(--gold); background: #fdf5ea; }
