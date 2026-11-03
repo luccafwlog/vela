@@ -60,6 +60,9 @@ disso toca o Supabase de produção.
   `vite` e rode as capturas de novo.
 - Se a tela mudar (rótulo, campo ou botão), a captura falha ao achar o
   elemento e grava `<id>.erro.png`: é o aviso de que o capítulo envelheceu.
+  O workflow semanal `.github/workflows/manual-capturas.yml` roda a lista
+  inteira contra a `staging` e abre uma issue com as capturas que falharam
+  ([WORKFLOW.md](../../../WORKFLOW.md)).
   Com `MANUAL_DEBUG=1`, o erro sai inteiro, e não só a primeira linha.
 - `npm run manual:cenario` apaga e recria o `manual_demo`: reinicie o
   `sb-shim` depois, porque ele cai quando o banco some.

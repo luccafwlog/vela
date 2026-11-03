@@ -288,6 +288,7 @@ monitor de cron nem regra de métrica no Sentry.
 | Resumo diário do Portal | Edge `portal-daily-digest` (11:00 UTC) | Administrativo e Documentação | Falhas de e-mail do Portal, eventos de provisionamento, convites pendentes, `portal_excecao_critica_fatura` abertos e fechados nas 24 h; nada é enviado com tudo zerado |
 | E-mail do Sentry e do Better Stack | Serviços externos | Dono (Sentry); toda a equipe (Better Stack, plano Free) | Regras acima |
 | Falha de workflow do GitHub | `local-pg-order.yml` (semanal) | Dono (padrão do GitHub) | Falha da passada em ordem invertida |
+| Issue do GitHub | `manual-capturas.yml` (semanal) | Quem acompanha as issues do repositório | Captura do Manual do Operador que falhou contra a `staging` (a tela mudou) |
 
 ## 2. Abertura e fechamento: o que bloqueia
 

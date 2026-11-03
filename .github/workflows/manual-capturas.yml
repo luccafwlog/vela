@@ -1,0 +1,174 @@
+name: Manual capturas
+
+# Uma vez por semana, refaz as telas do Manual do Operador contra a staging
+# (decisão do dono de 2026-11-03): Postgres local com todas as migrations, o
+# cenário de demonstração, o emulador do Supabase (sb-shim) e o Vela em modo de
+# desenvolvimento, e `npm run manual:capture`. Uma captura que falha quer dizer
+# que a tela mudou (rótulo, botão, campo) e o capítulo dela envelheceu: o
+# workflow abre ou atualiza uma issue com os nomes e guarda os `<id>.erro.png`.
+# Não é check de PR e não bloqueia nada. A PR que muda este arquivo roda o
+# workflow uma vez para conferir, só com o resumo, sem issue.
+on:
+  schedule:
+    # Quarta, 10:23 UTC (07:23 em Brasília), fora da hora cheia.
+    - cron: '23 10 * * 3'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/manual-capturas.yml
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: manual-capturas-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  capturas:
+    name: Telas do Manual do Operador
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Agendado ou manual: a staging de hoje. Na PR deste arquivo: a
+          # própria PR, para conferir o workflow.
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'staging' }}
+
+      - name: Ensure PostgreSQL 16 cluster
+        run: |
+          pg_lsclusters || true
+          if ! pg_lsclusters 2>/dev/null | grep -q '^16'; then
+            # Mesmo preparo do job `db` do ci.yml: a imagem do runner traz só o
+            # PostgreSQL 18; o 16 vem do repositório oficial (PGDG).
+            for v in $(pg_lsclusters -h 2>/dev/null | awk '$1!=16{print $1}'); do
+              sudo pg_dropcluster --stop "$v" main || true
+            done
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-common
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get install -y -qq postgresql-16
+          fi
+          if ! pg_lsclusters -h 2>/dev/null | awk '$1==16 && $2=="main"' | grep -q .; then
+            sudo pg_createcluster 16 main --port 5432
+          fi
+          sudo pg_ctlcluster 16 main start || true
+          pg_lsclusters
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install the Chromium of the project's Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Replay migrations and prepare the demonstration scenario
+        run: |
+          sudo scripts/setup-local-pg.sh --reset
+          npm run manual:cenario
+
+      - name: Start the Supabase emulator and the Vela dev server
+        run: |
+          mkdir -p artifacts/manual
+          PGDATABASE=manual_demo nohup node scripts/design-audit/sb-shim.cjs > artifacts/manual/sb-shim.log 2>&1 &
+          VITE_SUPABASE_URL=http://127.0.0.1:5173/sb-proxy VITE_SUPABASE_ANON_KEY=local-anon \
+            nohup npx vite --port 5173 --strictPort > artifacts/manual/vite.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fs -o /dev/null http://127.0.0.1:5173/login; then echo "Vela no ar"; exit 0; fi
+            sleep 2
+          done
+          echo "O Vela não subiu em 2 minutos" >&2
+          tail -n 40 artifacts/manual/vite.log artifacts/manual/sb-shim.log >&2
+          exit 1
+
+      - name: Warm up the dev server
+        # A primeira carga de cada tela reotimiza dependências no Vite ("Outdated
+        # Optimize Dep", README do gerador); uma volta pelas telas antes evita
+        # falha que não é do manual.
+        run: |
+          for rota in /login /painel /viagens /bls /taxas-locais /demurrage /reconciliacao /admin /clientes; do
+            curl -fs -o /dev/null "http://127.0.0.1:5173$rota" || true
+          done
+          sleep 5
+
+      - name: Run the captures
+        id: capturas
+        run: |
+          set +e
+          npm run manual:capture 2>&1 | tee artifacts/manual/capturas.log
+          status=${PIPESTATUS[0]}
+          falhas=$(grep -oE '^ERRO [^:]+' artifacts/manual/capturas.log | sed 's/^ERRO //' | paste -sd ' ' -)
+          ok=$(grep -c '^ok ' artifacts/manual/capturas.log || true)
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "falhas=$falhas" >> "$GITHUB_OUTPUT"
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Capturas do Manual do Operador"
+            echo
+            echo "- Capturas que passaram: $ok"
+            if [ -n "$falhas" ]; then
+              echo "- Capturas que falharam: $falhas"
+            elif [ "$status" != "0" ]; then
+              echo "- A rodada parou antes das capturas (veja o log do passo)."
+            else
+              echo "- Nenhuma falhou."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+      - name: Keep the images and logs of the run
+        if: always()
+        id: artefato
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: manual-capturas-${{ github.run_id }}
+          path: |
+            artifacts/manual/imagens/*.erro.png
+            artifacts/manual/*.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Open or update the issue
+        if: github.event_name != 'pull_request' && steps.capturas.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FALHAS: ${{ steps.capturas.outputs.falhas }}
+          OK: ${{ steps.capturas.outputs.ok }}
+          ARTEFATO: ${{ steps.artefato.outputs.artifact-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          titulo="Manual do Operador: capturas que falharam na staging"
+          {
+            echo "A rodada semanal das capturas do Manual do Operador falhou em $(date -u +%Y-%m-%d) contra a \`staging\`."
+            echo
+            if [ -n "$FALHAS" ]; then
+              echo "Capturas que falharam (a tela mudou e o capítulo que usa cada uma precisa de conferência):"
+              echo
+              for id in $FALHAS; do echo "- \`$id\` (\`$id.erro.png\`)"; done
+            else
+              echo "A rodada parou antes de chegar às capturas: veja o log."
+            fi
+            echo
+            echo "Passaram: $OK."
+            echo
+            echo "As imagens \`<id>.erro.png\` (a tela no momento da falha) e os logs estão no artefato da execução, guardado por 30 dias: $ARTEFATO"
+            echo
+            echo "Execução: $RUN_URL"
+            echo
+            echo "Para refazer à mão: \`scripts/manual/pdf/README.md\`, seção \"Como gerar\"; \`--so id1,id2\` refaz só as telas acima."
+          } > corpo.md
+          aberta=$(gh issue list --state open --search "\"$titulo\" in:title" --json number --jq '.[0].number')
+          if [ -n "$aberta" ]; then
+            gh issue comment "$aberta" --body-file corpo.md
+          else
+            gh issue create --title "$titulo" --body-file corpo.md
+          fi
