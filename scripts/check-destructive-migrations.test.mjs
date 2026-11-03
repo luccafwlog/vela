@@ -61,6 +61,26 @@ assert.equal(auditMigration('-- 575\n-- Plano de preservação: nenhum.\nDELETE 
 assert.equal(auditMigration(`-- 575\nDELETE FROM public.bls;\n${PLANO}`).declared, false)
 // 3f. Migration aditiva continua sem exigencia.
 assert.equal(auditMigration('-- 575\nALTER TABLE public.bls ADD COLUMN x text;\n').destructive, false)
+// 3g. Depois da 574, UPDATE com alias, ONLY, outro schema ou aspas tambem e
+//     reescrita (revisao da PR 1191: o alias e o estilo mais comum do repo).
+for (const update of [
+  'UPDATE public.bls AS b SET pod = NULL;',
+  'UPDATE public.bls b\n   SET pod = NULL;',
+  'UPDATE ONLY public.bls SET pod = NULL;',
+  'UPDATE ce_unlock_private.receipts SET result = NULL;',
+  'UPDATE storage.buckets SET file_size_limit = 1;',
+  'UPDATE "public"."bls" SET pod = NULL;',
+  'DO $$ BEGIN UPDATE public.bls AS b SET pod = NULL; END $$;',
+]) {
+  const result = auditMigration(`-- 575\n${update}\n`)
+  assert.deepEqual(result.statements, ['UPDATE'], update)
+  assert.equal(result.declared, false, update)
+}
+// 3h. Upsert e trava de linha nao sao o UPDATE ... SET de uma tabela.
+assert.equal(auditMigration('-- 575\nINSERT INTO public.t(id) VALUES (1) ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id;\n').destructive, false)
+assert.equal(auditMigration('-- 575\nDO $$ BEGIN PERFORM 1 FROM public.bls FOR UPDATE; END $$;\n').destructive, false)
+// 3i. As epocas anteriores ficam com o padrao com que foram aplicadas.
+assert.equal(auditMigration('-- 099\nUPDATE public.bls AS b SET pod = NULL;\n', DATA_STATUS).destructive, false)
 
 // 4. UPDATE dentro de corpo de funcao e codigo que roda depois, nao reescrita
 //    no momento do deploy. Nao exige declaracao.

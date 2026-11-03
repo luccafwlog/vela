@@ -187,7 +187,7 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 
 Migrations `139`–`149`, `160`, `161`, `173`, `220`, `279` (requisito de
 pagamento), `280` (retenção), `281` (lote com hash e imutável), `282` (documento
-expurgado na projeção), `575` (veículo LCL isento sem solicitação) e `576` (VIP coberto no B/L sem solicitação) e `577` (busca, filtros e histórico do B/L); a `177` redefine `ce_unlock_reconcile` (chave
+expurgado na projeção), `575` (veículo LCL isento sem solicitação), `576` (VIP coberto no B/L sem solicitação), `577` (busca, filtros e histórico do B/L) e `578` (envio de rascunho antigo recusa o veículo LCL isento); a `177` redefine `ce_unlock_reconcile` (chave
 do CE) e a `181`/`195`/`230`/`277` o alerta `ce_trocado_com_desbloqueio`. Tabelas `ce_unlock_*` (`ce_unlock_requests`,
 `ce_unlock_request_bls`, `ce_unlock_documents`, `ce_unlock_vip_customers`,
 `ce_unlock_bl_deliveries`, `ce_unlock_events`, `ce_unlock_exports`,
@@ -300,7 +300,10 @@ A regra é lida dos dados atuais do B/L (`ce_unlock_private.documents_dispensed`
   (fatura avulsa, troca de Cliente). O único motivo pendente antes da entrega é "B/L físico
   aguardando entrega".
 - **Portal.** `can_submit` é falso: o B/L não entra em "Podem ser pedidos" nem na seleção, e
-  o rascunho que o inclua é recusado com a explicação. B/L que já estava em solicitação
+  o rascunho que o inclua é recusado com a explicação. O envio de um rascunho criado antes de o
+  B/L virar dispensado também o recusa (migration `578`): sem isso, a solicitação enviada
+  passava a ser o caminho do B/L e o envio direto à ZPT já feito voltava a "Não exportado"; o
+  Cliente cancela o rascunho e pede os demais B/Ls em outro. B/L que já estava em solicitação
   enviada continua nela, com termo e procuração atendidos para ele; rascunho e solicitação
   cancelada não o seguram.
 - **Envio à ZPT.** O desk exporta como os demais; a planilha leva as quatro colunas "Sim". O

@@ -32,6 +32,18 @@ const DESTRUCTIVE = [
   { name: 'DROP COLUMN', re: /\bDROP\s+COLUMN\b/i },
 ]
 
+// Depois da 574 o UPDATE também é reconhecido com alias (`UPDATE public.bls AS
+// b SET`, `UPDATE public.bls b SET`), `ONLY`, outro schema
+// (`ce_unlock_private.receipts`, `storage.buckets`) e nome entre aspas. O
+// padrão acima, das épocas anteriores, fica congelado como foi aplicado: essas
+// migrations já rodaram em produção, e o alias é o estilo mais comum delas.
+const IDENT = String.raw`(?:"[^"]+"|[a-z_][a-z0-9_$]*)`
+const UPDATE_ANY = new RegExp(
+  String.raw`\bUPDATE\s+(?:ONLY\s+)?(?:${IDENT}\s*\.\s*)?${IDENT}(?:\s+(?:AS\s+)?(?!SET\b)[a-z_][a-z0-9_]*)?\s+SET\b`,
+  'i',
+)
+const DESTRUCTIVE_NOW = DESTRUCTIVE.map((s) => (s.name === 'UPDATE' ? { ...s, re: UPDATE_ANY } : s))
+
 // Regra de 062 a 574: o cabeçalho nomeia a afirmação e o arquivo onde ela
 // vive, para que o leitor consiga verificar se ainda estava vigente.
 const DECLARATION = [/data\s+status/i, /AGENTS\.md/]
@@ -125,7 +137,7 @@ export function preservationPlan(header) {
  */
 export function auditMigration(sql, { rule = 'plano' } = {}) {
   const body = stripLineComments(stripFunctionBodies(sql))
-  const statements = DESTRUCTIVE.filter(({ re }) => re.test(body)).map(({ name }) => name)
+  const statements = (rule === 'plano' ? DESTRUCTIVE_NOW : DESTRUCTIVE).filter(({ re }) => re.test(body)).map(({ name }) => name)
   if (statements.length === 0) return { destructive: false, statements, declared: true }
   const header = headerComment(sql)
   const citesDataStatus = DECLARATION.every((re) => re.test(header))
