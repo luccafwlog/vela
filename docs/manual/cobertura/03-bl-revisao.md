@@ -201,15 +201,15 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 | `Conclua a troca de Cliente antes de solicitar outro ajuste.` | Na fatura, em Preparar cancelamento financeiro, com troca de Cliente do B/L em andamento; a tela troca o texto por "Não foi possível preparar o cancelamento. Confira o recebível e a pendência financeira.". | Fora |
 | `Usuário sem permissão para importar carga solta.` | Ao gravar Manifesto BB ou B/L avulso com a sessão sem setor ativo ou de outra pessoa. Entre de novo. | Ap. B |
 | `Dependencia de efeito inexistente.` | Nunca chega a uma pessoa: guarda dos pedidos de processamento pós-importação, feitos pelo próprio sistema. | Fora |
-| `Efeito % nao encontrado.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar um passo que não existe mais. Atualize a lista de Alertas. | Ap. B |
+| `Efeito % não encontrado.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar um passo que não existe mais. Atualize a lista de Alertas. | Ap. B |
 | `Efeito sem iniciador validado.` | Como motivo no Alerta "Efeito de importação bloqueado" (na fila: "A gravação foi feita sem usuário identificado (script ou integração); o Reprocessar roda o passo em seu nome."), quando a gravação que deixou o passo, como o CE gravado por uma integração, não veio de uma pessoa logada. Use **Reprocessar**: o passo passa a rodar em seu nome (migration `570`). | Ap. B |
-| `effect_kind nao suportado: %.` | Como motivo no Alerta "Efeito de importação bloqueado", quando o passo é de um tipo que o processador não conhece. Avise o Administrativo. | Ap. B |
+| `effect_kind não suportado: %.` | Como motivo no Alerta "Efeito de importação bloqueado", quando o passo é de um tipo que o processador não conhece. Avise o Administrativo. | Ap. B |
 | `Emissao automatica nao retornou invoice para o B/L %.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando a emissão terminou sem gerar fatura. Confira o B/L em Taxas Locais. | Ap. B |
-| `Estado final invalido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Estado final inválido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Executor server-only.` | Nunca chega a uma pessoa: as funções do processador pós-importação (e de outras rotinas do servidor) só rodam pelo próprio sistema. | Fora |
 | `Faturamento automatico sem ator validado.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando não há conta para rodar o faturamento. | Ap. B |
 | `Historico de efeitos e append-only.` | Nunca chega a uma pessoa: o histórico de tentativas do processamento pós-importação não pode ser alterado. | Fora |
-| `Identidade de conclusao incompleta.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Identidade de conclusão incompleta.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Identidade de processamento incompleta.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Identidade do efeito incompleta.` | Nunca chega a uma pessoa: guarda dos pedidos de processamento feitos pelo próprio sistema. | Fora |
 | `Informe justificativa detalhada para cancelar a cobrança deste B/L.` | Na fatura, em Preparar cancelamento financeiro, com motivo de menos de 10 caracteres; a tela já desativa o botão e troca o texto pela mensagem genérica. | Fora |
@@ -219,7 +219,7 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 | `Iniciador desativado e nenhuma conta de sistema ativa.` | Como motivo no Alerta "Efeito de importação bloqueado", quando quem iniciou foi desativado e não há conta de sistema nem Administrativo ativo. Avise o Administrativo. | Ap. B |
 | `Justificativa obrigatoria para retry.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar sem justificativa ou com justificativa de mais de 500 caracteres. Escreva uma justificativa mais curta. | Ap. B |
 | `Lease do efeito expirou.` | Nunca chega a uma pessoa: o processador demorou demais num passo e outro o retoma. | Fora |
-| `Lease do efeito nao pertence ao worker.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Lease do efeito não pertence ao worker.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Lease invalido.` | Nunca chega a uma pessoa: guarda interna dos processadores do servidor. | Fora |
 | `Limite de claim invalido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Limite de consulta invalido.` | Nunca chega a uma pessoa: a consulta da fila pós-importação não é usada por nenhuma tela. | Fora |
@@ -239,7 +239,7 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 | `probe` | Nunca chega a uma pessoa: usada só por dentro da prévia do preço de hoje, para desfazer o cálculo de teste. | Fora |
 | `Reimport abortado: % container(s) remapeados de forma ambigua por numero dentro do mesmo B/L.` | Nunca chega a uma pessoa: era do manifesto de contêiner, que não existe mais; a carga solta não passa por esse caminho. | Fora |
 | `Reimport abortado: % vinculo(s) de container referenciados por veiculos/calculos nao puderam ser remapeados.` | Nunca chega a uma pessoa: era do manifesto de contêiner, que não existe mais; a carga solta não passa por esse caminho. | Fora |
-| `Resultado de efeito invalido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
+| `Resultado de efeito inválido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Revisao de origem invalida.` | Nunca chega a uma pessoa: guarda dos pedidos de processamento feitos pelo próprio sistema. | Fora |
 | `Revisao server-only.` | Nunca chega a uma pessoa: ferramenta do sistema para revisar o acumulado da fila pós-importação. | Fora |
 | `Selecione B/L da fatura paga ou parcialmente paga.` | Na fatura, em Preparar cancelamento financeiro, com B/L ou fatura que não estão pagos; a tela troca o texto pela mensagem genérica. | Fora |
@@ -259,7 +259,7 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 | `Usuário sem permissão ativa para revisar B/L.` | Na Revisão (no resultado da ação) ao salvar com a sessão sem setor ativo; na ficha aparece como "Falha ao salvar alterações do B/L.". Entre de novo. | Ap. B |
 | `Usuário sem permissão de leitura.` | Nunca chega a uma pessoa: a consulta da fila pós-importação não é usada por nenhuma tela. | Fora |
 | `Usuário sem permissão para reabrir efeito.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar com a sessão sem setor ativo. Entre de novo. | Ap. B |
-| `Viagem invalida no efeito de flags: %.` | Como motivo no Alerta "Efeito de importação bloqueado", quando o passo das marcas do Baplie não aponta uma Viagem. Avise o Administrativo. | Ap. B |
+| `Viagem inválida no efeito de flags: %.` | Como motivo no Alerta "Efeito de importação bloqueado", quando o passo das marcas do Baplie não aponta uma Viagem. Avise o Administrativo. | Ap. B |
 | `Vinculo de batch falhou: % de % B/Ls vinculados.` | Guarda da gravação do arquivo de B/L; a tela manda só B/Ls da Viagem escolhida. | Fora |
 | `voyage_id obrigatorio` | Guarda do Manifesto BB e do B/L avulso; a tela exige a Viagem de destino antes do arquivo. | Fora |
 | `Worker invalido.` | Nunca chega a uma pessoa: guarda interna dos processadores do servidor. | Fora |

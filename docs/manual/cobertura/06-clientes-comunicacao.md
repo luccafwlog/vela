@@ -224,7 +224,7 @@ Leitura do código e das definições do banco; nada foi executado.
 | "Informe a justificativa: ela fica registrada na auditoria do cadastro." (tela) | **Salvar cadastro** sem justificativa. | Ap. B |
 | "Linha sem CNPJ válido." / "Linha sem Razão Social." / "Linha sem e-mail válido." / "CEP em célula numérica perdeu os zeros à esquerda: formate a coluna CEP como texto." (tela) | Prévia da Base de Clientes, na lista de erros. | Ap. B |
 | "A base tem N Clientes; o limite é 3000 por arquivo. Divida em arquivos menores e importe cada um." (tela) | Base com mais de 3.000 Clientes. | Ap. B |
-| "O cliente não pode ser desativado: <motivos>. O Financeiro quita ou cancela antes." (tela) | **Desativar cliente** com fatura, recebível ou fatura de Demurrage em aberto. | Ap. B |
+| "O cliente não pode ser desativado: <motivos>. Receba ou cancele antes o que está em aberto." (tela) | **Desativar cliente** com fatura, recebível ou fatura de Demurrage em aberto. | Ap. B |
 | "cliente com CNPJ: desative em vez de excluir" (prévia de exclusão) | **Excluir** Cliente: sempre recusado. | Ap. B |
 | "Para desativar o contato principal, selecione outro contato como principal antes." / "Para retirar o contato principal desta caixa, selecione outro e-mail ativo e apto a receber mensagens para substituí-lo." / "A caixa "…" não pode ficar sem nenhum contato ativo e elegível vinculado." (tela) | Editor de contatos da ficha. | Ap. B |
 | "No modo carga, escolha o Navio / Viagem." (tela) | Disparo por carga sem Viagem escolhida. | Ap. B |
