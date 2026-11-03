@@ -242,6 +242,7 @@ function describeBlMark(field: string, oldValue: string | null, newValue: string
     const labels = Array.isArray(fields) ? fields.map((name) => FIELD_LABELS[String(name)] ?? null).filter(Boolean) : []
     return labels.length ? `Carga solta reimportada: ${labels.join(', ')}` : 'Carga solta reimportada'
   }
+  if (field === 'demurrage_dispensa') return describeDemurrageWaiver(oldValue, newValue)
   if (field === 'container_ownership' || field === 'container_profile') {
     const key = field === 'container_ownership' ? 'ownership' : 'profile'
     const before = parseJsonObject(oldValue)
@@ -254,6 +255,25 @@ function describeBlMark(field: string, oldValue: string | null, newValue: string
     return `${container ? `Container ${container}` : 'Container'} · ${label}: ${formatTimelineValue(key, from)} → ${formatTimelineValue(key, to)}`
   }
   return null
+}
+
+/**
+ * Dispensa da cobrança de Demurrage no B/L (`demurrage_dispensa`), também no
+ * Histórico de ações. Três origens gravam o mesmo campo:
+ * - `waive_demurrage_box`: de vazio para o número do container (dispensou);
+ * - `revoke_demurrage_box_waiver`: do container para vazio (desfez);
+ * - o gatilho `_demurrage_waivers_follow_customer` (565): do id do Cliente
+ *   anterior para o do novo, com o container só na justificativa. Os dois
+ *   valores preenchidos são a dispensa acompanhando a troca de Cliente, nunca
+ *   uma dispensa nova.
+ */
+export function describeDemurrageWaiver(oldValue: string | null, newValue: string | null): string {
+  const before = oldValue?.trim() || null
+  const after = newValue?.trim() || null
+  if (before && after) return 'Dispensa da Demurrage acompanhou a troca de Cliente do B/L'
+  if (after) return `Container ${after} · cobrança de Demurrage dispensada`
+  if (before) return `Container ${before} · dispensa da Demurrage desfeita`
+  return 'Dispensa da Demurrage alterada'
 }
 
 /** Evento da taxa alterada à mão gravado em JSON (migration 491); também no Histórico de ações. */

@@ -623,7 +623,7 @@ export async function exportLineUpWorkbook(rows: LineUpRow[]) {
     Linked: (row.rowType === 'export' ? row.exportLinked : row.linked) ? 'Sim' : 'Não',
   }))
   const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Line Up')
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Line-Up')
   XLSX.writeFile(workbook, `painel-lineup-${makeTimestamp()}.xlsx`)
 }
 
@@ -645,8 +645,9 @@ export async function exportCustomerContainersWorkbook(customerName: string, row
   const demurrageText = (view: import('./demurrage/customerContainers').CustomerContainerView) => {
     const d = view.demurrage
     if (d.kind === 'soc') return 'Não se aplica (SOC)'
-    if (d.kind === 'running') return 'Em curso'
-    if (d.kind === 'to_bill') return 'A faturar'
+    // Como a tela (decisão do dono de 2026-11-03): correndo ou a emitir.
+    if (d.kind === 'running') return 'Correndo'
+    if (d.kind === 'to_bill') return 'A emitir'
     if (d.kind === 'invoice') return `${d.invoice.doc_number} (${statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, d.invoice.status)})`
     if (d.kind === 'waived') return 'Cobrança dispensada'
     if (d.kind === 'error') return 'Sem tarifa para calcular'

@@ -21,7 +21,7 @@ VIA-105). Só o Administrativo desativa ou reativa um Local, terminal ou serviç
 | Q5.03 | Corrigir as datas de um navio | VIA-108 |
 | Q5.04 | Confirmar a saída ou a chegada que já aconteceu | VIA-104, VIA-109, VIA-110 |
 | Q5.05 | Tirar um navio da programação | VIA-017, VIA-114 |
-| Q5.06 | Acompanhar o Line Up do Painel e exportar | ACE-031, VIA-116 a VIA-121 |
+| Q5.06 | Acompanhar o Line-Up do Painel e exportar | ACE-031, VIA-116 a VIA-121 |
 | Q5.07 | Deixar a Tela TV no monitor | VIA-123, VIA-124, VIA-125 |
 | Q5.08 | Cadastrar ou corrigir navio, armador, porto e terminal | VIA-014, VIA-135 a VIA-137, EQU-099, EQU-100 |
 
@@ -65,7 +65,7 @@ VIA-105). Só o Administrativo desativa ou reativa um Local, terminal ou serviç
 #### S5.05 — Marquei "Não escala" num porto que tinha data
 
 - **O que o sistema faz:** pede confirmação. Para o Administrativo, a escala
-  sai da Viagem e do Line Up se não tem B/L, ATA, ATD, manifesto nem terminal
+  sai da Viagem e do Line-Up se não tem B/L, ATA, ATD, manifesto nem terminal
   salvo; para os demais setores, ou com vínculo, só a data sai.
 - **O que você faz:** se o navio não vai mais ao porto e já tem carga para
   ele, registre a omissão na Viagem (capítulo 4).
@@ -98,9 +98,9 @@ VIA-105). Só o Administrativo desativa ou reativa um Local, terminal ou serviç
   e Manifestos**; chegada já registrada, a escala da Viagem.
 - **Regras:** VIA-109, VIA-110, VIA-128.
 
-### Line Up e Tela TV
+### Line-Up e Tela TV
 
-#### S5.09 — A Viagem não aparece no Line Up
+#### S5.09 — A Viagem não aparece no Line-Up
 
 - **O que o sistema faz:** lista as escalas das 60 Viagens cadastradas por
   último, no filtro **Ativas**; Viagem cancelada nunca entra.
@@ -108,14 +108,14 @@ VIA-105). Só o Administrativo desativa ou reativa um Local, terminal ou serviç
   **Escalas: Concluídas / Todas**.
 - **Regras:** VIA-116, VIA-120, VIA-126.
 
-#### S5.10 — "N vazios de importação sem escala no Line Up"
+#### S5.10 — "N vazios de importação sem escala no Line-Up"
 
 - **O que o sistema faz:** o vazio de um porto que não tem linha não é contado
   em outro porto; aparece abaixo do quadro.
 - **O que você faz:** confira o porto do vazio ou a escala da Viagem.
 - **Regras:** VIA-121.
 
-#### S5.11 — Gravei e o Line Up (ou a Tela TV) ainda não mudou
+#### S5.11 — Gravei e o Line-Up (ou a Tela TV) ainda não mudou
 
 - **O que o sistema faz:** o Painel relê a cada 90 segundos e a Tela TV a cada
   30. As telas de outras pessoas se atualizam ao reabrir.

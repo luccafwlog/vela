@@ -6,6 +6,8 @@ import { portalRouteTitle } from '../portalPageTitle'
 describe('routeTitle (WCAG 2.4.2 — título por rota)', () => {
   it('antepõe o nome da tela e mantém o sufixo do produto', () => {
     expect(routeTitle('/painel')).toBe('Painel · Vela')
+    // A aba da TV tem o mesmo nome do botão do Painel e do menu (2026-11-03).
+    expect(routeTitle('/line-up-tv/display')).toBe('Tela TV · Vela')
     expect(routeTitle('/taxas-locais')).toBe('Taxas Locais · Vela')
     expect(routeTitle('/taxas-locais/tabelas')).toBe('Tabelas de Taxas Locais · Vela')
     expect(routeTitle('/faturamento')).toBe('Vela')

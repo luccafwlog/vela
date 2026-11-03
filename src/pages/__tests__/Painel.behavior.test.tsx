@@ -170,7 +170,7 @@ it('informa falha e encerra loading quando a exportacao do Line-Up falha', async
 
   fireEvent.click(screen.getByRole('button', { name: 'Exportar' }))
 
-  await waitFor(() => expect(showToast).toHaveBeenCalledWith('Falha ao exportar o Line Up.', 'error'))
+  await waitFor(() => expect(showToast).toHaveBeenCalledWith('Falha ao exportar o Line-Up.', 'error'))
   expect(screen.getByRole('button', { name: 'Exportar' }).hasAttribute('disabled')).toBe(false)
 })
 

@@ -444,7 +444,7 @@ describeLocal('491 — alterar e excluir taxa calculada do B/L', () => {
       const run = alter(USERS.ope, BL.perm, thd, 'unit', 900)
       expect(run.status, run.stderr).toBe(0)
       expect(psql(`SELECT unit_value_brl FROM public.charge_calculations WHERE bl_id = ${q(BL.perm)} AND calculation_key = ${q(thd)}`)).toBe('900.00')
-      expect(as(USERS.adm, `SELECT public.calculate_bl_local_charges(${q(BL.perm)}, '${USERS.adm}'::uuid, true)`).stderr).toMatch(/ja foi faturado/)
+      expect(as(USERS.adm, `SELECT public.calculate_bl_local_charges(${q(BL.perm)}, '${USERS.adm}'::uuid, true)`).stderr).toMatch(/já foi faturado/)
       psql(`UPDATE public.bls SET financial_status = 'pending' WHERE id = ${q(BL.perm)}`)
     })
   })

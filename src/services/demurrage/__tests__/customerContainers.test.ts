@@ -26,12 +26,12 @@ describe('aba Contêineres da ficha do Cliente', () => {
   it('mostra dias, free time e a Demurrage em uma palavra, com o mesmo cálculo da tela Demurrage', () => {
     __setDemurrageRateGroupsForTest([{ aliases: ['40HC'], freeUntil: 21, p1: { range: [22, 30], usd: 70 }, p2: { range: [31, Infinity], usd: 140 } }])
 
-    // Fora, passou do free time: valor em curso, até hoje.
+    // Fora, passou do free time: valor correndo, até hoje.
     const running = customerContainerView(row({}), '2026-10-14')
     expect(running).toMatchObject({ days: 43, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true })
     expect(running.demurrage).toEqual({ kind: 'running', usd: 9 * 70 + 13 * 140 })
 
-    // Devolvido fora do free time e sem fatura: a faturar, até a devolução.
+    // Devolvido fora do free time e sem fatura: a emitir, até a devolução.
     const toBill = customerContainerView(row({ return_date: '2026-09-28' }), '2026-10-14')
     expect(toBill.days).toBe(27)
     expect(toBill.demurrage).toEqual({ kind: 'to_bill', usd: 6 * 70 })
@@ -56,7 +56,7 @@ describe('aba Contêineres da ficha do Cliente', () => {
     expect(customerContainerView(row({ ownership: 'SOC', discharge_date: null }), '2026-10-14').days).toBeNull()
   })
 
-  it('container de Viagem cancelada não aparece correndo nem a faturar', () => {
+  it('container de Viagem cancelada não aparece correndo nem a emitir', () => {
     __setDemurrageRateGroupsForTest([{ aliases: ['40HC'], freeUntil: 21, p1: { range: [22, 30], usd: 70 }, p2: { range: [31, Infinity], usd: 140 } }])
     const base = row({})
     const cancelledVoyage = { ...base.bl!, voyage: { id: 10, voyage_number: '001', status: 'cancelled', vessel: null } } as DemurrageContainerRow['bl']
@@ -66,9 +66,9 @@ describe('aba Contêineres da ficha do Cliente', () => {
 })
 
 describe('caixa com a cobrança dispensada (ADR 0112, D24)', () => {
-  it('não aparece em curso nem a faturar: a dispensa vence o valor previsto', () => {
+  it('não aparece correndo nem a emitir: a dispensa vence o valor previsto', () => {
     __setDemurrageRateGroupsForTest([{ aliases: ['40HC'], freeUntil: 21, p1: { range: [22, 30], usd: 70 }, p2: { range: [31, Infinity], usd: 140 } }])
-    // Devolvida e fora, ambas passadas do free time: sem a dispensa, seriam "a faturar" e "em curso".
+    // Devolvida e fora, ambas passadas do free time: sem a dispensa, seriam "a emitir" e "correndo".
     const returned = customerContainerView(row({ return_date: '2026-09-28', waived: true }), '2026-10-14')
     const running = customerContainerView(row({ waived: true }), '2026-10-14')
     expect(returned.demurrage).toEqual({ kind: 'waived' })

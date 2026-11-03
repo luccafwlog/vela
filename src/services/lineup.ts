@@ -98,7 +98,7 @@ export type LineUpRow = {
   exportLinked: boolean | null
 }
 
-/** Vazios de importação cujo porto não tem linha de importação no Line Up. */
+/** Vazios de importação cujo porto não tem linha de importação no Line-Up. */
 export type LineUpUnassignedMty = {
   voyageId: number
   voyageNumber: string
@@ -172,7 +172,7 @@ export function projectLineUpTerminals({
     assigned.set(front.terminalId, {
       id: front.terminalId,
       // Sem código cadastrado, mostrar o UUID do terminal não informa nada a
-      // quem lê o Line Up. A FK validada torna o caso improvável, mas o
+      // quem lê o Line-Up. A FK validada torna o caso improvável, mas o
       // fallback existe — então que seja legível.
       code: terminalCodes.get(front.terminalId) ?? TERMINAL_CODE_UNKNOWN,
       etb: stateByTerminal.get(front.terminalId)?.terminalEtb ?? null,
@@ -347,7 +347,7 @@ export async function fetchLineUpSnapshot(
 
   // Os containers necessários para a projeção já vêm no mesmo read-model dos
   // B/Ls. Isso elimina a segunda fase `bl_ids -> bl_containers` a cada refresh
-  // do Line Up, sem carregar frete ou outros detalhes que a tabela não usa.
+  // do Line-Up, sem carregar frete ou outros detalhes que a tabela não usa.
   const containers = bls.flatMap((bl) => bl.bl_containers ?? [])
 
   const blsByVoyage = new Map<number, LineUpBlRow[]>()
@@ -655,7 +655,7 @@ async function fetchVehiclesByVoyageIds(voyageIds: number[]) {
 }
 
 // Vazios de importação por viagem e porto (normalizado), como os cheios: cada
-// linha do Line Up recebe só os vazios do seu porto. A régua de porto é a
+// linha do Line-Up recebe só os vazios do seu porto. A régua de porto é a
 // mesma das linhas (`normalizePort`), então porto ausente vira '-'.
 async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
   const countByVoyage = new Map<number, Map<string, number>>()

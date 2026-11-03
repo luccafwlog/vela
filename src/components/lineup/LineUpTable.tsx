@@ -32,7 +32,7 @@ export function LineUpTable({
   if (cards) {
     if (rows.length === 0) return <EmptyState title={emptyTitle} description={emptyDescription} />
     return (
-      <ul className="grid gap-3 p-3" aria-label="Escalas do Line Up">
+      <ul className="grid gap-3 p-3" aria-label="Escalas do Line-Up">
         {rows.map((row) => <li key={row.id}><LineUpCard row={row} /></li>)}
       </ul>
     )

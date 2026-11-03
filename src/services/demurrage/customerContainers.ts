@@ -88,7 +88,7 @@ export type CustomerContainerDemurrage =
   | { kind: 'running'; usd: number }
   | { kind: 'to_bill'; usd: number }
   | { kind: 'invoice'; invoice: DemurrageBilledInvoiceRef }
-  /** Cobrança dispensada na Demurrage (ADR 0112, D24): fora de "em curso" e "a faturar". */
+  /** Cobrança dispensada na Demurrage (ADR 0112, D24): fora de "correndo" e "a emitir". */
   | { kind: 'waived' }
   | { kind: 'error'; message: string }
 
@@ -117,7 +117,7 @@ export function customerContainerView(row: DemurrageContainerRow, today = saoPau
   // A dispensa conta como coberta (migration 517): sem valor previsto, como na aba Containers.
   if (row.waived) return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'waived' } }
   // Viagem cancelada não cobra Demurrage (gatilho da migration 200): sem
-  // Invoice, a caixa não está "correndo" nem "a faturar".
+  // Invoice, a caixa não está "correndo" nem "a emitir".
   const voyage = row.bl?.voyage as { status?: string | null } | null | undefined
   if (voyage?.status === 'cancelled') return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime: false, demurrage: { kind: 'none' } }
   let usd: number

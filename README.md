@@ -28,7 +28,7 @@ O ADR, por exemplo, é uma visão consolidada da escala, não um cadastro parale
 
 ## Capacidades atuais
 
-- **Viagens e escalas:** cadastro e acompanhamento de rotas, previsões e datas reais, publicação de programação no Portal e Line Up TV.
+- **Viagens e escalas:** cadastro e acompanhamento de rotas, previsões e datas reais, publicação de programação no Portal e na Tela TV.
 - **Manifestos e documentos:** importação e tratamento de B/Ls CNTR, carga solta e mistos, veículos, CE Mercante e Baplie EDI.
 - **Operação de carga:** containers, vazios de importação, embarque de vazios, depots e Granito.
 - **Exceções operacionais:** omissão de escala, transbordo global da viagem e decisão individual de COD por B/L.
@@ -36,7 +36,7 @@ O ADR, por exemplo, é uma visão consolidada da escala, não um cadastro parale
 - **Agency Departure Report:** um relatório por terminal da escala brasileira, com dados consolidados, resolução por seção, sign-off por departamento e prazo de conclusão.
 - **Comercial e financeiro:** clientes, tabelas e overrides de taxas locais, invoices, demurrage, Conciliação PIX e relatórios.
 - **Portal do Cliente:** visão geral, B/Ls, containers, faturas, demurrage, notificações, disputas, perfil e recuperação de senha.
-- **Administração e suporte:** usuários internos, alertas, relatórios, programação de chegadas e saídas e display do Line Up.
+- **Administração e suporte:** usuários internos, alertas, relatórios, programação de chegadas e saídas e a Tela TV do Line-Up.
 
 O catálogo de módulos e o mapa de rotas estão em [`docs/README.md`](docs/README.md). O glossário que define a linguagem do negócio está em [`CONTEXT.md`](CONTEXT.md).
 

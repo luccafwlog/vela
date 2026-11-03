@@ -14,7 +14,7 @@ type LineUpFiltersProps = {
  * Filtros do Line-Up no Painel (lote 5a): Busca, Escalas, Período e CEs ficam
  * abertos; os de presença de carga (Veículos, BB, MTY, RTW, Vinculada) vão
  * para "Mais filtros", como na lista de BLs. A contagem de escalas fica na
- * faixa do bloco do Line Up.
+ * faixa do bloco do Line-Up.
  */
 export function LineUpFilters({ filters, onChange, onClear, activeCount }: LineUpFiltersProps) {
   const moreCount = countMoreLineUpFilters(filters)
