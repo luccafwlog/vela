@@ -368,6 +368,13 @@ export function PortalDisputeConversation({ dispute }: { dispute: PortalDispute 
     }
   }
 
+  // Fora da vez do Cliente o servidor recusa a mensagem ("Aguarde a resposta da
+  // Equipe de Containers."): campo, anexo e envio ficam desligados, com a frase
+  // de espera. O anexo retido de uma mensagem já gravada ainda pode ser reenviado.
+  const waiting = dispute.state === 'aberta' && dispute.next_responder === 'equipamentos'
+  const resendingAttachment = !!(pendingMessageId && file)
+  const waitingId = `disputa-${dispute.id}-aguardando`
+
   const sendLabel = pendingMessageId && file && !draft.trim()
     ? 'Reenviar anexo'
     : dispute.state === 'resolvida' ? 'Solicitar reabertura' : 'Enviar mensagem'
@@ -406,7 +413,8 @@ export function PortalDisputeConversation({ dispute }: { dispute: PortalDispute 
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder={dispute.state === 'resolvida' ? 'Explique por que a disputa deve ser reaberta…' : 'Responda à conversa…'}
-            disabled={readOnly}
+            disabled={readOnly || waiting}
+            aria-describedby={waiting ? waitingId : undefined}
           />
           {error ? <InlineError message={error} /> : null}
           <div className="flex flex-wrap items-center gap-2">
@@ -421,9 +429,9 @@ export function PortalDisputeConversation({ dispute }: { dispute: PortalDispute 
                     setFile(event.target.files?.[0] ?? null)
                     setPendingMessageId(null)
                   }}
-                  disabled={readOnly}
+                  disabled={readOnly || waiting}
                 />
-                <Button variant="secondary" className="app-btn--sm" onClick={() => fileInput.current?.click()} disabled={readOnly}>
+                <Button variant="secondary" className="app-btn--sm" onClick={() => fileInput.current?.click()} disabled={readOnly || waiting}>
                   <Paperclip size={14} aria-hidden="true" />
                   Anexar arquivo
                 </Button>
@@ -434,13 +442,14 @@ export function PortalDisputeConversation({ dispute }: { dispute: PortalDispute 
                       <X size={14} aria-hidden="true" />
                     </Button>
                   </>
-                ) : <span className="text-xs text-[var(--app-muted)]">PDF, JPG, PNG ou TXT, até 10 MB</span>}
+                ) : waiting ? null : <span className="text-xs text-[var(--app-muted)]">PDF, JPG, PNG ou TXT, até 10 MB</span>}
+                {waiting ? <span id={waitingId} className="text-xs text-[var(--app-muted)]">Aguardando a resposta da Equipe de Containers</span> : null}
               </>
             ) : null}
             <Button
               className="ml-auto"
               loading={addMessage.isPending || requestReopen.isPending || uploading}
-              disabled={readOnly}
+              disabled={readOnly || (waiting && !resendingAttachment)}
               onClick={() => void submit()}
               title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
             >

@@ -280,7 +280,8 @@ VIA-020, VIA-025, VIA-048).
 
 - **O que o sistema faz:** tudo fica somente leitura ("operação selada e
   somente leitura"); só o status de Demurrage é recalculado. Os alertas do ADR
-  da Viagem cancelada continuam abertos e só saem com a exclusão da Viagem.
+  da Viagem cancelada fecham no cancelamento e não reabrem enquanto ela estiver
+  cancelada (migration `574`).
 - **O que você faz:** se o cancelamento foi engano, o Administrativo usa
   **Reativar viagem** com motivo.
 - **Regras:** VIA-023, VIA-024, ALE-085.

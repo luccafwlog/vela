@@ -259,10 +259,12 @@ it('US-122: filtra o Line-Up por status de escala', () => {
 
   fireEvent.change(screen.getByLabelText('Escalas'), { target: { value: 'completed' } })
   expect(screen.queryByRole('link', { name: 'Navio ativo' })).toBeNull()
-  expect(screen.getByRole('link', { name: 'Navio exportação' })).toBeTruthy()
+  // A linha de exportação também segue o filtro (decisão do dono de 2026-11-03).
+  expect(screen.queryByRole('link', { name: 'Navio exportação' })).toBeNull()
 
   fireEvent.change(screen.getByLabelText('Escalas'), { target: { value: 'active' } })
   expect(screen.getByRole('link', { name: 'Navio ativo' })).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Navio exportação' })).toBeTruthy()
 })
 
 it('não oferece filtro de escalas canceladas, que não entram no Line-Up', () => {

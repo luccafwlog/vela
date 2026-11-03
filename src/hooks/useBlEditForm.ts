@@ -177,7 +177,7 @@ export function useBlEditForm(bl: BLDetail | undefined) {
       }
       const normalized = normalizeFormValue(field, form[field])
       if (normalized === INVALID_NUMERIC_VALUE) {
-        showToast(`Valor invalido para ${field}. Informe um numero valido antes de salvar.`, 'error')
+        showToast(`Valor inválido para ${field}. Informe um número válido antes de salvar.`, 'error')
         return
       }
       updatePayload[field] = toJsonValue(normalized)

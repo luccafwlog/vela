@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { execPsql, spawnPsql } from './localPsql'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 /**
  * Fixtures das suítes da frente financeira (plano
@@ -187,6 +187,7 @@ export function financeWorld(ns: number) {
   }
 
   function cancelBl(id: string, reason = 'Cancelado no teste') {
+    psql(syntheticCeBeforeCancelSql(id))
     return json<Record<string, unknown>>('administrativo', `SELECT public.cancel_bl('${id}', '${reason}')`)
   }
 

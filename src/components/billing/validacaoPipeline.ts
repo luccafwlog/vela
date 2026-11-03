@@ -140,9 +140,9 @@ export function getLegacyBillingBlockReason(row: {
   customer?: { id: number | null } | null
   totals: { total_brl: number; line_count: number; review_required_count: number }
 }) {
-  if (isBlFinanciallyLocked(row.financial_status)) return 'Fatura ja emitida.'
+  if (isBlFinanciallyLocked(row.financial_status)) return 'Fatura já emitida.'
   if (row.billing_hold_reason) return row.billing_hold_reason
-  if (!row.customer?.id) return 'Cliente nao vinculado.'
+  if (!row.customer?.id) return 'Cliente não vinculado.'
   if (!isCustomerReconciliationResolved(row.customer_reconciliation_status)) {
     return row.customer_reconciliation_notes ?? 'Conciliação de cliente pendente.'
   }
@@ -151,10 +151,10 @@ export function getLegacyBillingBlockReason(row: {
     return reasons.length ? `Revisão pendente: ${reasons.join(', ')}` : 'Revisão pendente antes do faturamento.'
   }
   if (row.charge_status === 'exempt') return row.charge_exemption_reason ?? 'B/L isento de taxas locais.'
-  if (row.totals.review_required_count > 0) return 'Ha linhas de taxa com revisao pendente.'
+  if (row.totals.review_required_count > 0) return 'Há linhas de taxa com revisão pendente.'
   if (row.totals.line_count === 0 || Number(row.totals.total_brl ?? 0) <= 0) return 'Sem linhas de taxa calculadas.'
-  if (row.charge_status !== 'ready_for_billing') return 'Ainda nao marcado como pronto para faturar.'
-  return 'Pronto para emissao individual.'
+  if (row.charge_status !== 'ready_for_billing') return 'Ainda não marcado como pronto para faturar.'
+  return 'Pronto para emissão individual.'
 }
 
 // Etapa 2 do plano de faturamento (ADR 0038, achado 6): recalculo em lote nunca

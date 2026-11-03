@@ -163,6 +163,8 @@ A fatura tem pagamento e o valor do B/L subiu. A diferença se cobra à parte:
 2. No detalhe da fatura original, em **Como a diferença foi tratada**, escreva qual avulsa saiu, ou por que a diferença não será cobrada, com ao menos 15 caracteres.
 3. Clique em **Resolver com justificativa** e confirme.
 
+O B/L que voltou à Revisão porque a carga mudou depois da fatura sai dela quando você resolve ([8.5](08-revisao.md#85-quando-a-pendência-não-é-uma-das-três)).
+
 ### Reemissão travada
 
 A nova fatura não pôde sair, e a antiga não foi cancelada. O motivo está no alerta: o Portal do Cliente sem Liberação, uma taxa em revisão no valor novo, a falta de tabela de cobrança ou de câmbio, ou terminais em conflito no B/L misto.

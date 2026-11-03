@@ -318,7 +318,11 @@ describeLocal('394 — exclusão e efeitos de importação', () => {
     const wait = moved('effect_domain_refused', 'Tabela de cobranca incompleta ou inativa para POD "X" (modo: container).')
 
     const sql = readFileSync('supabase/migrations/395_alerta_de_efeito_fecha_ao_concluir.sql', 'utf8')
-    w.psql(sql.slice(sql.indexOf('-- Acertos A e B (dependem')))
+    // Só o acerto de dados (o bloco DO); o classificador
+    // `_import_effect_was_business_wait` fica o vigente, que desde a 574 aceita
+    // o texto com e sem acento. Recriar o da 395 deixaria o banco compartilhado
+    // com a versão antiga para as suítes seguintes.
+    w.psql(sql.slice(sql.indexOf('\nDO $$', sql.indexOf('-- Acertos A e B (dependem'))))
 
     const byId = new Map([...effects(gone), ...effects(bl)].map((e) => [e.id, e]))
     expect(byId.get(running)).toMatchObject({ status: 'superseded', last_error_code: 'record_deleted' })

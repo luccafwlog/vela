@@ -44,6 +44,15 @@ dia da gravada não é mudança e mantém a hora (vale também para a planilha),
 data de escala só de exportação não a marca como importação. A data sugerida ao
 desmarcar "não escala" é a de hoje em Brasília. O IMO exato prevalece sobre a grafia e um IMO distinto nunca
 é fundido; sem IMO, mais de uma candidata nominal produz conflito explícito.
+A Viagem nova criada aqui usa o armador padrão (CSSC) só quando o navio também
+é novo: navio já cadastrado (achado pelo IMO ou pelo nome) mantém o armador do
+cadastro, sem regravar, como na planilha (`apply_schedule_sheet_atomic_legacy_189`
+só usa o armador ao criar navio). `createVoyage` recebe `keepRegisteredCarrier`;
+a Nova Viagem e o **Editar** de Viagens não o passam e continuam mudando o
+armador do navio quando a pessoa escolhe outro em **Alterar armador** (decisão
+do dono de 2026-11-03; antes "Adicionar navio" trocava o armador do navio, e de
+todas as Viagens dele, para CSSC). **Teste:** `voyageMutations.test.ts`,
+`voyageFromSchedule.attach.test.ts`.
 Aliases de armador aceitam pontuação e designações como `M/V` sem tratar
 prefixos maiores, como `CSCL`, como `CS`. ATA, ATD, RTW, CE status, escala e
 vínculo não são sobrescritos.

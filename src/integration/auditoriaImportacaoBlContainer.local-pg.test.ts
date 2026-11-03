@@ -50,7 +50,7 @@ import {
   type BlFreightImportPreview,
   type BlFreightImportResult,
 } from '../services/blFreightImport'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -1097,6 +1097,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     const reissued = 'A202-REEM-B'
     expect(rpcImport([rawBl(cancelled, { containers: ['AZCU2020141'] })]).error).toBeNull()
     seedVehicle(cancelled, 'AZCU2020141', 'A202VIN0000000051')
+    localPsql(syntheticCeBeforeCancelSql(cancelled))
     expect(JSON.parse(asOperator(`SELECT public.cancel_bl('${cancelled}', 'Armador reemitiu com outro número (A202)', false);`)))
       .toMatchObject({ cancelled: true })
 

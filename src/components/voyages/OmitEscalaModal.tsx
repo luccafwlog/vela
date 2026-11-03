@@ -127,7 +127,7 @@ export function OmitEscalaModal({
         ) : (
           <>
             <div className="app-panel app-panel--padded text-sm">
-              A carga de {omittedPod} sera descarregada no porto escolhido e entrara em transbordo por B/L.
+              A carga de {omittedPod} será descarregada no porto escolhido e entrará em transbordo por B/L.
             </div>
             <Field label="Porto de Transbordo">
               {dischargeOptions.length === 0 ? (

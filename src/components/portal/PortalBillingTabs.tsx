@@ -244,7 +244,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
       flush
     >
       <div className="px-5 pt-4">
-        <FiltersControls filters={filters} onFilters={onFilters} vesselOptions={vesselOptions} pods={pods} />
+        <FiltersControls filters={filters} onFilters={onFilters} vesselOptions={vesselOptions} pods={pods} demurrage />
       </div>
 
       {error ? <div className="px-5 py-4 text-sm text-[var(--app-red)]">Falha ao consultar faturas de demurrage.</div> : null}
@@ -350,18 +350,20 @@ function DemurrageSituation({ invoice }: { invoice: PortalDemurrageInvoice }) {
 
 // No Portal os filtros começam recolhidos (decisão do dono de 2026-11-02),
 // mesmo com um atalho que chega filtrado: o contador e "Limpar" na barra
-// mostram que há recorte.
-function FiltersControls({ filters, onFilters, vesselOptions, pods }: { filters: Filters; onFilters: (f: Filters) => void; vesselOptions: string[]; pods: string[] }) {
+// mostram que há recorte. Invoice de Demurrage cancelada nunca chega ao Portal
+// (`_portal_list_demurrage_invoices_core`): a aba Demurrage não oferece
+// Cancelada, e o padrão dela é "Todos" (decisão do dono de 2026-11-03).
+function FiltersControls({ filters, onFilters, vesselOptions, pods, demurrage = false }: { filters: Filters; onFilters: (f: Filters) => void; vesselOptions: string[]; pods: string[]; demurrage?: boolean }) {
   const vesselListId = useId()
   return (
     <FilterBar activeCount={countActive(filters)} onClear={() => onFilters(EMPTY_PORTAL_BILLING_FILTERS)} defaultOpen={false}>
       <div className="app-filter-grid">
         <Field label="Status">
           <Select value={filters.status} onChange={(e) => onFilters({ ...filters, status: e.target.value as PortalBillingFilters['status'] })}>
-            <option value="">Em vigor (sem canceladas)</option>
+            <option value="">{demurrage ? 'Todos' : 'Em vigor (sem canceladas)'}</option>
             <option value="issued">Emitida</option>
             <option value="paid">Paga</option>
-            <option value="cancelled">Cancelada</option>
+            {demurrage ? null : <option value="cancelled">Cancelada</option>}
           </Select>
         </Field>
         <Field label="Navio/Viagem">

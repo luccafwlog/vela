@@ -226,3 +226,5 @@ src/integration/historicoCobreEscritasSemRastro.local-pg.test.ts
 src/integration/historicoCriaBlELacunasMenores.local-pg.test.ts
 src/integration/historicoLeAsTrilhas.local-pg.test.ts
 src/integration/lacunasBaixasDaRevisao.local-pg.test.ts
+src/integration/textosDoServidorComAcento.local-pg.test.ts
+src/integration/revisaoBlFaturadoCargaAlterada.local-pg.test.ts

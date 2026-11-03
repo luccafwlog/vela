@@ -174,6 +174,8 @@ O número do B/L existe uma vez só no Vela. O caminho para tirar um B/L do jogo
 | **Cancelar B/L** | O B/L tem CE: a carga não embarcou ou o armador reemitiu o B/L com outro número. | Ficha, **Mais ações** |
 | **Reativar B/L** | Desfazer um cancelamento. | Ficha, **Mais ações** |
 
+O B/L sem CE não se cancela: o Vela recusa com "B/L … sem CE Mercante não se cancela: exclua-o na lista de B/Ls.".
+
 ### Cancelar
 
 1. Na ficha, clique em **Mais ações** (o botão de três pontos) › **Cancelar B/L**.

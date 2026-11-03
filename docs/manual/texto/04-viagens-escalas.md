@@ -16,7 +16,7 @@ Antes de cadastrar, procure a viagem em **Viagens**: ela pode já existir, criad
 
 ::: lado
 1. Em **Viagens**, clique em **Nova Viagem**.
-2. Preencha **Navio**, **IMO** e **Numero da viagem**. O armador já vem como Cosco Shipping Specialized Carriers (CSSC); se a viagem é de outro armador, clique em **Alterar armador**.
+2. Preencha **Navio**, **IMO** e **Número da viagem**. Navio já cadastrado mantém o armador dele; o navio novo vem com Cosco Shipping Specialized Carriers (CSSC). Se a viagem é de outro armador, clique em **Alterar armador**.
 3. Se já tem as datas, em **Portos e datas** informe o porto e a data e clique em **Adicionar**, um porto por vez: em **Origem**, o porto do exterior e o **ETD**; em **Destino**, o porto brasileiro e o **ETA**.
 4. Se a viagem deve aparecer na programação do Portal e do site fwlog.com.br, ligue a chave **Chegadas e Saídas**.
 5. Clique em **Cadastrar viagem**.
@@ -217,7 +217,7 @@ As outras três ações são do {{Administrativo}}:
 
 | Ação | Quando usar | O que acontece |
 |---|---|---|
-| **Cancelar viagem** | O armador não vai realizar a viagem. | A Viagem fica no Vela, somente leitura, com tudo o que tinha, e sai do Line-Up e do Portal. Pede motivo. |
+| **Cancelar viagem** | O armador não vai realizar a viagem. | A Viagem fica no Vela, somente leitura, com tudo o que tinha, e sai do Line-Up e do Portal. Os alertas dela fecham: os do ADR de Saída na hora, os outros na rodada seguinte de alertas. Pede motivo. |
 | **Reativar viagem** | O cancelamento foi engano. | A Viagem volta a ativa. Pede motivo. |
 | **Excluir** | A Viagem foi criada por engano. | Apaga a Viagem e tudo o que é dela. O Vela mostra antes o que vai junto. |
 

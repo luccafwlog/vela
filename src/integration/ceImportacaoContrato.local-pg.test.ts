@@ -9,7 +9,7 @@
 import { spawn } from 'node:child_process'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -225,6 +225,9 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     insertBl('A228-P1', { container: 'ADCU2280001' })
     insertBl('A228-P2', { container: 'ADCU2280002', ce: '992280000000002' })
     insertBl('A228-P3', { container: 'ADCU2280003' })
+    // Migration 574: só o B/L com CE se cancela; o CE vem sem gatilhos (sem faturar).
+    psql(syntheticCeBeforeCancelSql('A228-P3'))
+    const cancelledCe = psql(`SELECT ce_mercante FROM public.bls WHERE id = 'A228-P3';`)
     expect(json<{ cancelled: boolean }>(`SELECT public.cancel_bl('A228-P3', 'Carga não embarcou (A228)', false);`).cancelled).toBe(true)
 
     const rows: Rows = [
@@ -252,7 +255,7 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     const confirmed = apply(rows, 'A228D00000001', `, true, 'CE corrigido pelo despachante (A228)'`)
     expect(confirmed).toMatchObject({ ok: true, ignored: 1 })
     expect(psql(`SELECT ce_mercante FROM public.bls WHERE id = 'A228-P2';`)).toBe('992280000000022')
-    expect(psql(`SELECT COALESCE(ce_mercante, '') FROM public.bls WHERE id = 'A228-P3';`)).toBe('')
+    expect(psql(`SELECT COALESCE(ce_mercante, '') FROM public.bls WHERE id = 'A228-P3';`)).toBe(cancelledCe)
     expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-P2' AND field_name = 'ce_mercante' ORDER BY id DESC LIMIT 1;`))
       .toContain('CE corrigido pelo despachante (A228)')
   })
@@ -444,6 +447,7 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     psql(`SELECT public._note_charge_table_gap('A228Y', 'container', 'A228-X4');`)
     expect(gap()).toMatch(/4 B\/L\(s\) aguardando a fatura \(A228-X1, A228-X2, A228-X3, A228-X4\)/)
 
+    psql(syntheticCeBeforeCancelSql('A228-X1'))
     expect(json<{ cancelled: boolean }>(`SELECT public.cancel_bl('A228-X1', 'Carga não embarcou (A228)', false);`).cancelled).toBe(true)
     expect(asAdmin(`SELECT public.remove_bl_ce_mercante('A228-X2', 'CE do B/L errado (A228)');`).error).toBeNull()
     psql(`UPDATE public.bls SET pod = '${pod}' WHERE id = 'A228-X3';`)

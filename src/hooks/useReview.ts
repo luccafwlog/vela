@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
 import type { BL, BLContainer, Customer, Voyage, Vessel, Carrier } from '../types/database'
+import { postBillingCargoHold } from '../pages/revisaoHelpers'
 
 // Cliente da fila + contatos visiveis ao operador. O estado do portal nao e
 // lido por join porque customer_portal_accounts tem RLS administrativa; as
@@ -65,11 +66,16 @@ export function useReviewQueue() {
         consignee_block: row.consignee_block ?? null,
         cargo_description: row.cargo_description ?? null,
         manifest_customer_email: row.manifest_customer_email ?? null,
-        review_reasons: extractReviewReasons((row as { notes?: string | null }).notes),
+        review_reasons: withPostBillingCargoHold(extractReviewReasons((row as { notes?: string | null }).notes), row),
         source: 'bl',
       }))
     },
   })
+}
+
+function withPostBillingCargoHold(reasons: string[], bl: Pick<BL, 'financial_status' | 'billing_hold_reason'>) {
+  const hold = postBillingCargoHold(bl)
+  return hold && !reasons.includes(hold) ? [...reasons, hold] : reasons
 }
 
 export function extractReviewReasons(notes?: string | null) {

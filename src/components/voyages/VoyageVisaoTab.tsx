@@ -182,7 +182,7 @@ export function VoyageVisaoTab({
       return
     }
     if (!hasScheduleData && row.linked !== true && !exportSchedule) {
-      showToast('Esta escala ja nao possui dados planejados para remover.', 'info')
+      showToast('Esta escala já não possui dados planejados para remover.', 'info')
       return
     }
     try {

@@ -32,4 +32,21 @@ insert into public.itau_pix_receipts (end_to_end_id, txid, amount_brl, paid_at, 
   ('E60701190202611031105MANUALDEMO02', '', 1180.00, now() - interval '2 hours', 'received', null,
    '{"infoPagador": "Maquinas Horizonte - pagamento taxas"}'::jsonb);
 
+-- ADR fechado da XIN PU DONG / 012S (Viagem concluída do seed) em Salvador, no
+-- TECON SSA, para a aba Prazo do ADR da Administração (25.9): ATD há 44 dias,
+-- Operações e Documentação assinaram no prazo de 72 h e Equipamentos, depois.
+insert into public.agency_departure_reports (voyage_id, port, terminal, terminal_id, terminal_port_id, status, closed_at, closed_by, closed_snapshot)
+select 11, 'BRSSA', d.name, d.id, d.port_id, 'closed', now() - interval '40 days', 'a0000000-0000-4000-8000-000000000001',
+  jsonb_build_object(
+    'header', jsonb_build_object(
+      'unifiedAtd', to_char(now() - interval '44 days', 'YYYY-MM-DD'),
+      'deadlineDate', to_char(now() - interval '41 days', 'YYYY-MM-DD'),
+      'deadlineAt', to_char(((now() - interval '44 days') + interval '72 hours') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+    'departmentSignoffs', jsonb_build_array(
+      jsonb_build_object('department', 'operacoes', 'signed_at', to_char((now() - interval '43 days') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+      jsonb_build_object('department', 'documentacao', 'signed_at', to_char((now() - interval '42 days') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+      jsonb_build_object('department', 'equipamentos', 'signed_at', to_char((now() - interval '40 days 12 hours') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))))
+from public.depots d join public.ports p on p.id = d.port_id
+where p.locode = 'BRSSA' and d.name = 'TECON SSA';
+
 commit;

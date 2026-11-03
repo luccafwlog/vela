@@ -23,7 +23,7 @@ precisa disto para fazer o trabalho, e a tela não diz?". Se não, sai.
 - **Meia página a uma página por seção:** quem faz, um parágrafo que explica o
   conceito quando ele não é óbvio, de 3 a 5 passos e, se ajudar, uma imagem.
 - **Passo só para o que a tela não diz.** "Preencha **Navio**, **IMO** e
-  **Numero da viagem**" é um passo; "Em **Navio**, digite o nome do navio"
+  **Número da viagem**" é um passo; "Em **Navio**, digite o nome do navio"
   não é.
 - **Explicar o conceito, não o mecanismo.** "A escala guarda a chegada ao
   porto; o berço fica no terminal" ajuda; como o Vela padroniza o nome do navio

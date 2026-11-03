@@ -202,7 +202,7 @@ O Pix de uma cobrança do Vela que não pode ser baixado sozinho com segurança 
 | Alerta | Quando abre | O que fazer |
 |---|---|---|
 | **PIX sem conciliação segura** · crítico | Um Pix não pôde ser baixado sozinho, por exemplo com valor diferente da cobrança ou de fatura já paga ou cancelada. | **Resolver** abre **Conciliação PIX** › **Pendências**: dê a baixa na fatura certa ou registre a devolução (capítulo 24). |
-| **Consulta de Pix do Itaú parada** · crítico · com justificativa | A consulta dos Pix recebidos não avança há mais de 15 minutos: os Pix pagos deixam de ser baixados. | Baixe pelo **Conciliar extrato**, em **Conciliação PIX**, e avise o suporte técnico. Fecha sozinho quando a consulta volta a andar. |
+| **Consulta de Pix do Itaú parada** · crítico · com justificativa | A consulta dos Pix recebidos não avança há mais de 15 minutos: os Pix pagos deixam de ser baixados. Vale com a cobrança pelo Itaú ligada ou desligada, porque o Pix do QR estático também dá baixa por essa consulta. | Baixe pelo **Conciliar extrato**, em **Conciliação PIX**, e avise o suporte técnico. Fecha sozinho quando a consulta volta a andar. |
 | **Restituição pendente** | Há valor a devolver ao Cliente numa fatura ou numa Invoice de Demurrage, como pagamento a mais ou Pix em duplicidade. | Devolva o valor e marque a restituição como efetuada no detalhe da fatura ou da Invoice (capítulo 24). Fecha quando não resta nada a devolver. |
 
 ## 20.11 Desbloqueio de CE
@@ -225,9 +225,7 @@ O Pix de uma cobrança do Vela que não pode ser baixado sozinho com segurança 
 
 O **ADR — departamento pendente** fecha quando a última seção da equipe sai de **Pendente**; o **ADR — prazo vencido**, com a assinatura da equipe. Os dois fecham também com o fechamento do ADR e reabrem se uma seção volta a **Pendente**. Escala omitida ou excluída não abre esses alertas.
 
-::: atencao
-Cancelar a Viagem não fecha os alertas do ADR, e o ADR de Viagem cancelada fica só para leitura: ninguém consegue assinar, e a Viagem cancelada não pode ser excluída. Para tirar esses alertas da fila, o {{Administrativo}} reativa a Viagem e cada equipe assina o ADR ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
-:::
+Cancelar a Viagem fecha na hora os alertas do ADR dela, e eles não abrem enquanto a Viagem estiver cancelada: o ADR de Viagem cancelada fica só para leitura e ninguém precisa assiná-lo. Se o {{Administrativo}} reativar a Viagem, a rodada seguinte volta a conferir o ADR e reabre o que ainda estiver pendente ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
 
 ## 20.13 Rotinas paradas
 

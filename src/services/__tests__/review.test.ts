@@ -48,7 +48,7 @@ describe('review service', () => {
         justification: 'Teste',
         expectedUpdatedAt: '2026-04-13T00:00:00.000Z',
       }),
-    ).rejects.toThrow('Valor invalido para total_weight_kg')
+    ).rejects.toThrow('Valor inválido para total_weight_kg')
 
     expect(mockRpc).not.toHaveBeenCalled()
   })

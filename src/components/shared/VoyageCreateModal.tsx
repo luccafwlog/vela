@@ -192,7 +192,13 @@ export function VoyageCreateModal({
       const publishAfterDates = scheduleLanes.length > 0 && showOnPortal
       const saved = voyageId
         ? await updateVoyage(voyageId, normalizedForm, user?.id ?? null)
-        : await createVoyage(normalizedForm, user?.id ?? null, { origin: 'viagens', showOnPortal: showOnPortal && !publishAfterDates })
+        : await createVoyage(normalizedForm, user?.id ?? null, {
+          origin: 'viagens',
+          showOnPortal: showOnPortal && !publishAfterDates,
+          // Navio já cadastrado mantém o armador dele, salvo quando a pessoa
+          // abre Alterar armador (decisão do dono de 2026-11-03).
+          keepRegisteredCarrier: !carrierOpen,
+        })
       if (voyageId && showOnPortal !== currentlyShown) await setVoyageShowOnPortal(voyageId, showOnPortal)
 
       let datesFailure: string | null = null
@@ -271,7 +277,7 @@ export function VoyageCreateModal({
               onChange={(event) => setForm((current) => ({ ...current, vesselImo: event.target.value }))}
             />
           </Field>
-          <Field label="Numero da viagem" error={errors.voyageNumber}>
+          <Field label="Número da viagem" error={errors.voyageNumber}>
             <Input
               value={form.voyageNumber}
               onChange={(event) => setForm((current) => ({ ...current, voyageNumber: event.target.value.toUpperCase() }))}
@@ -285,7 +291,7 @@ export function VoyageCreateModal({
               }
             >
               <option value="active">Ativa</option>
-              <option value="completed">Concluida</option>
+              <option value="completed">Concluída</option>
               {form.status === 'cancelled' ? <option value="cancelled" disabled>Cancelada</option> : null}
             </Select>
           </Field>

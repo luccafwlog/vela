@@ -344,6 +344,24 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     }
   })
 
+  it('migration 574: com o QR estático o Alerta de consulta parada também abre e fecha (o Pix dele dá baixa pela consulta)', () => {
+    const before = psql(`SELECT coalesce(itau_pix_polled_until::text, '') FROM public.app_settings WHERE id = 1`)
+    const active = () => psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'itau_pix_consulta_parada' AND status = 'active'`)
+    try {
+      setProvider('static')
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = now() - interval '20 minutes' WHERE id = 1;
+        SELECT public.reconcile_itau_pix_checkpoint_alert()`)
+      expect(active()).toBe('1')
+      expect(psql(`SELECT message FROM public.alert_items WHERE item_type = 'itau_pix_consulta_parada' AND status = 'active'`))
+        .toMatch(/não avança há 20 minutos: Pix pagos depois de .* não são baixados\. Use o plano B/)
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = now() WHERE id = 1;
+        SELECT public.reconcile_itau_pix_checkpoint_alert()`)
+      expect(active()).toBe('0')
+    } finally {
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = ${before ? `'${before}'` : 'NULL'} WHERE id = 1`)
+    }
+  })
+
   it('erro passageiro do banco não manda o Pix para análise: a próxima consulta baixa', () => {
     setProvider('itau')
     psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${settlementActorId}' WHERE id = 1`)

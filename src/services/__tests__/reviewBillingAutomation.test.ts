@@ -197,7 +197,7 @@ describe('tryAutoIssueInvoice', () => {
     expect(result).toEqual({
       status: 'blocked',
       reason: 'awaiting_flow',
-      message: 'Aguardando cadastro do CE Mercante para emitir a fatura (ADR 0020).',
+      message: 'Aguardando cadastro do CE Mercante para emitir a fatura.',
       calculation: expect.objectContaining({ bl_id: 'BL1' }),
     })
     expect(mockedCalculate).toHaveBeenCalledWith('BL1', { actorId: 'user-1', recalculate: true })
@@ -552,7 +552,7 @@ describe('tryAutoIssueInvoice', () => {
     expect(result).toMatchObject({
       status: 'blocked',
       reason: 'awaiting_flow',
-      message: 'Aguardando cadastro do CE Mercante para emitir a fatura (ADR 0020).',
+      message: 'Aguardando cadastro do CE Mercante para emitir a fatura.',
     })
     expect(mockedCalculate).toHaveBeenCalledWith('BL1', { actorId: 'user-1', recalculate: true })
     expect(mockedCreateInvoice).not.toHaveBeenCalled()

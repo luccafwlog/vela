@@ -114,7 +114,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
     }
   }
   async function handleIssueSingleInvoice(row: LocalChargeOperationalRow) {
-    if (!row.customer?.id) return showToast('Nao ha cliente vinculado para emitir esta fatura.', 'error')
+    if (!row.customer?.id) return showToast('Não há Cliente vinculado para emitir esta fatura.', 'error')
     const confirmed = await confirm({
       title: 'Emitir fatura individual',
       message: `Emitir uma fatura individual para o B/L ${row.id}?`,

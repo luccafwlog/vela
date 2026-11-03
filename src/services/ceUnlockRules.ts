@@ -23,6 +23,23 @@ export function annualDocumentValid(
     doc.valid_until >= today
   );
 }
+/**
+ * Início proposto da vigência anual VIP: o mais tarde entre o dia do envio e
+ * 01/01 do ano da cobertura. O banco exige o início no ano da cobertura
+ * (`ce_unlock_vip_start_year`); um anual enviado em dezembro e analisado em
+ * janeiro começa, assim, em 01/01 do ano novo. Datas em aaaa-mm-dd.
+ */
+export function proposedVipStart(sentDay: string, year: number): string {
+  const firstDay = `${year}-01-01`;
+  return sentDay > firstDay ? sentDay : firstDay;
+}
+/** Aviso, antes de gravar, quando o início digitado não está no ano da cobertura; vazio quando está. */
+export function vipStartError(from: string, year: number): string {
+  if (!Number.isInteger(year) || year < 2020 || year > 2100) return "Informe o ano da cobertura.";
+  return from && from.slice(0, 4) === String(year)
+    ? ""
+    : `O início da vigência precisa estar em ${year}, o ano da cobertura.`;
+}
 type ZptItem = {
   bl_id: string;
   termo: boolean;

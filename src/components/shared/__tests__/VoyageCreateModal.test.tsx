@@ -72,7 +72,7 @@ describe('VoyageCreateModal', () => {
     const user = userEvent.setup()
     renderModal()
     expect(screen.getByLabelText('Navio')).toBeTruthy()
-    expect(screen.getByLabelText('Numero da viagem')).toBeTruthy()
+    expect(screen.getByLabelText('Número da viagem')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Portos e datas' })).toBeTruthy()
     // Dois seletores, cada um com o lado e o efeito escritos; nenhum porto
     // listado até o operador adicionar.
@@ -102,7 +102,7 @@ describe('VoyageCreateModal', () => {
     const onSaved = vi.fn()
     renderModal({ onSaved })
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
-    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
     async function add(side: 'origem' | 'destino', port: string, date: string) {
       const portField = screen.getByLabelText(`Porto de ${side}`)
       await user.clear(portField)
@@ -154,10 +154,31 @@ describe('VoyageCreateModal', () => {
     const user = userEvent.setup()
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
-    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
     await waitFor(() => expect(createVoyageMock).toHaveBeenCalled())
     expect(recordDatesMock).not.toHaveBeenCalled()
+  })
+
+  it('sem Alterar armador, o navio já cadastrado mantém o armador dele; com Alterar armador, troca', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    await waitFor(() => expect(createVoyageMock).toHaveBeenCalled())
+    expect(createVoyageMock.mock.calls[0][2]).toMatchObject({ keepRegisteredCarrier: true })
+  })
+
+  it('com Alterar armador aberto, o armador escolhido vale para o navio', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
+    await user.click(screen.getByRole('button', { name: /Alterar armador/ }))
+    await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
+    await waitFor(() => expect(createVoyageMock).toHaveBeenCalled())
+    expect(createVoyageMock.mock.calls[0][2]).toMatchObject({ keepRegisteredCarrier: false })
   })
 
   it('datas recusadas: a viagem fica cadastrada e a tela diz que as datas não foram gravadas', async () => {
@@ -166,7 +187,7 @@ describe('VoyageCreateModal', () => {
     recordDatesMock.mockRejectedValue(new Error('fetch failed'))
     renderModal({ onSaved })
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
-    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
     await user.type(screen.getByLabelText('Porto de destino'), 'salvador')
     fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-15' } })
     await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
@@ -182,7 +203,7 @@ describe('VoyageCreateModal', () => {
     const user = userEvent.setup()
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
-    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
     await user.type(screen.getByLabelText('Porto de destino'), 'santos')
     fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-12' } })
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
@@ -201,7 +222,7 @@ describe('VoyageCreateModal', () => {
     const user = userEvent.setup()
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
-    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
     fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-12' } })
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
 
@@ -227,7 +248,7 @@ describe('VoyageCreateModal', () => {
     setShowMock.mockImplementation(async () => { order.push('publica') })
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
-    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
     await user.type(screen.getByLabelText('Porto de destino'), 'santos')
     fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-12' } })
     await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
@@ -235,7 +256,7 @@ describe('VoyageCreateModal', () => {
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
 
     await waitFor(() => expect(setShowMock).toHaveBeenCalledWith(101, true))
-    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false })
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false, keepRegisteredCarrier: true })
     expect(order).toEqual(['datas', 'publica'])
     expect(showToastMock).toHaveBeenCalledWith('Viagem cadastrada com sucesso.', 'success')
   })
@@ -245,7 +266,7 @@ describe('VoyageCreateModal', () => {
     recordDatesMock.mockRejectedValue(new Error('fetch failed'))
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN TESTE')
-    await user.type(screen.getByLabelText('Numero da viagem'), '77N')
+    await user.type(screen.getByLabelText('Número da viagem'), '77N')
     await user.type(screen.getByLabelText('Porto de destino'), 'santos')
     fireEvent.change(screen.getByLabelText('ETA'), { target: { value: '2026-12-12' } })
     await user.click(screen.getByRole('button', { name: 'Adicionar porto de destino' }))
@@ -256,7 +277,7 @@ describe('VoyageCreateModal', () => {
       'Viagem cadastrada, mas as datas dos portos não foram gravadas (falha na gravação das datas). Informe-as nas escalas da ficha da viagem e ligue Chegadas e Saídas depois.',
       'error',
     ))
-    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false })
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { origin: 'viagens', showOnPortal: false, keepRegisteredCarrier: true })
     expect(setShowMock).not.toHaveBeenCalled()
   })
 
@@ -285,7 +306,7 @@ describe('VoyageCreateModal', () => {
     renderModal({ onSaved })
 
     await user.type(screen.getByLabelText('Navio'), 'COSCO SHIPPING PLAN')
-    await user.type(screen.getByLabelText('Numero da viagem'), '045E')
+    await user.type(screen.getByLabelText('Número da viagem'), '045E')
 
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
 
@@ -295,7 +316,7 @@ describe('VoyageCreateModal', () => {
         voyageNumber: '045E',
       }),
       'user-1',
-      { origin: 'viagens', showOnPortal: false },
+      { origin: 'viagens', showOnPortal: false, keepRegisteredCarrier: true },
     )
   })
 
@@ -304,12 +325,12 @@ describe('VoyageCreateModal', () => {
     const user = userEvent.setup()
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
-    await user.type(screen.getByLabelText('Numero da viagem'), '11')
+    await user.type(screen.getByLabelText('Número da viagem'), '11')
     const toggle = screen.getByRole('switch', { name: 'Chegadas e Saídas' })
     await user.click(toggle)
     expect(toggle.getAttribute('aria-checked')).toBe('true')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
-    expect(createVoyageMock).toHaveBeenCalledWith(expect.objectContaining({ voyageNumber: '11' }), 'user-1', { origin: 'viagens', showOnPortal: true })
+    expect(createVoyageMock).toHaveBeenCalledWith(expect.objectContaining({ voyageNumber: '11' }), 'user-1', { origin: 'viagens', showOnPortal: true, keepRegisteredCarrier: true })
   })
 
   // Revisão de 2026-10-22 (A1): navio e número já cadastrados.
@@ -318,7 +339,7 @@ describe('VoyageCreateModal', () => {
     findDuplicateMock.mockResolvedValue({ id: 9, label: 'GREEN ITAJAI / 11', cancelled: false })
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
-    await user.type(screen.getByLabelText('Numero da viagem'), '11')
+    await user.type(screen.getByLabelText('Número da viagem'), '11')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
     expect(await screen.findByText('Já existe a viagem GREEN ITAJAI / 11. Abra a viagem existente em vez de cadastrar outra.')).toBeTruthy()
     expect(findDuplicateMock).toHaveBeenCalledWith(expect.objectContaining({ vesselName: 'GREEN ITAJAI', voyageNumber: '11', excludeVoyageId: null }))
@@ -330,7 +351,7 @@ describe('VoyageCreateModal', () => {
     createVoyageMock.mockRejectedValue({ code: '23505', message: 'Já existe a viagem GREEN ITAJAI / 11, cancelada. Reative-a em Viagens em vez de cadastrar outra.' })
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
-    await user.type(screen.getByLabelText('Numero da viagem'), '11')
+    await user.type(screen.getByLabelText('Número da viagem'), '11')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
     expect(await screen.findByText(/Reative-a em Viagens/)).toBeTruthy()
   })
@@ -343,7 +364,7 @@ describe('VoyageCreateModal', () => {
     createVoyageMock.mockRejectedValue(voyageRegistrationRefusal('Navio GREEN ITAJAI com IMO conflitante (1111111 vs 2222222). Corrija antes de importar.'))
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
-    await user.type(screen.getByLabelText('Numero da viagem'), '11')
+    await user.type(screen.getByLabelText('Número da viagem'), '11')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
     await waitFor(() => expect(showToastMock).toHaveBeenCalledWith(
       'Navio GREEN ITAJAI com IMO conflitante (1111111 vs 2222222). Corrija antes de importar.',
@@ -356,7 +377,7 @@ describe('VoyageCreateModal', () => {
     createVoyageMock.mockRejectedValue(new Error('fetch failed'))
     renderModal()
     await user.type(screen.getByLabelText('Navio'), 'GREEN ITAJAI')
-    await user.type(screen.getByLabelText('Numero da viagem'), '11')
+    await user.type(screen.getByLabelText('Número da viagem'), '11')
     await user.click(screen.getByRole('button', { name: 'Cadastrar viagem' }))
     await waitFor(() => expect(showToastMock).toHaveBeenCalledWith('Falha ao cadastrar viagem. Revise os dados e tente novamente.', 'error'))
   })

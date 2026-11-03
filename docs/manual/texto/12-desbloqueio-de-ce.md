@@ -146,10 +146,11 @@ O Cliente VIP manda o termo de devolução e a procuração uma vez por ano. Ess
 2. O Cliente envia os anuais pelo Portal. Você também pode enviar por ele, em **Enviar termo de devolução** ou **Enviar procuração**.
 3. No bloco **Documentos anuais**, clique em **Analisar** no documento, confira **Ano da cobertura** e **Início da vigência** e clique em **Aprovar termo de devolução** (ou **Aprovar procuração**). Para pedir outro documento, use **Solicitar correção**, com o motivo.
 
+A tela propõe o ano corrente e, como início, o dia do envio ou 01/01 do ano escolhido, o que vier depois: o anual enviado em dezembro e analisado em janeiro começa em 01/01 do ano novo. Ao trocar o ano, o início é recalculado. O início fica sempre no ano da cobertura; se você digitar outro, a tela avisa ("O início da vigência precisa estar em AAAA, o ano da cobertura.") e não aprova.
+
 A solicitação nasce VIP só quando os anuais aprovados cobrem todos os B/Ls escolhidos; se um não está coberto, ela nasce comum, com termo e procuração anexados. A VIP fica **Enviado** até todos os B/Ls terem o pagamento e o original, e então passa sozinha a **Documentação validada**. Como não passa pela fila, você a encontra em **Andamento dos B/Ls**, pela coluna **Solicitação**; o Cliente VIP tem a marca "VIP" ao lado do nome. Se um anual foi revogado ou trocado no meio do caminho, abra a solicitação e use **Aplicar renovação VIP**.
 
 ::: atencao
-- Anual enviado em dezembro e analisado em janeiro: a tela propõe o ano novo e o início no dia do envio, do ano anterior. Deixe **Ano da cobertura** e **Início da vigência** no mesmo ano, senão o Vela recusa com uma mensagem técnica.
 - O Cliente não recebe aviso da análise do anual. Ele vê a situação no Portal, na aba **Documentos anuais**.
 - **Revogar condição VIP** vale na hora também para as solicitações VIP em andamento: os B/Ls deixam de estar aptos. O Cliente pede de novo, numa solicitação comum, ou você cancela ([12.9](#129-cancelar-uma-solicitação)).
 :::

@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeEach, expect, it } from 'vitest'
-import { syntheticCnpj, describeWithProbe } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj, describeWithProbe } from './localTestData'
 
 // Migration 128 (ADR 0077, decisões de 2026-10-02): toda correção do B/L —
 // alteração direta, reimportação ou Baplie — é tratada no fim da transação.
@@ -465,6 +465,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     psql(`INSERT INTO public.bl_containers(bl_id,container_number,type)
       SELECT '${bl.moveB}',container_number,type FROM public.bl_containers WHERE bl_id='${bl.moveA}'`)
     const inv = issueByCe(bl.moveA, '839000000000014')
+    psql(syntheticCeBeforeCancelSql(bl.moveB))
     adminJson(`SELECT public.cancel_bl('${bl.moveB}','Cancelamento do B/L vizinho')`)
     const debug = psql(`SELECT jsonb_build_object('pending',(SELECT jsonb_agg(p) FROM public.invoice_basis_pending_changes p), 'quote',public._quote_bl_local_charges('${bl.moveA}',1),'invoice',(SELECT row_to_json(i) FROM public.invoices i WHERE id=${inv}))`)
     expect(successor(inv), debug).toMatch(/\|600\.00\|issued$/)

@@ -241,9 +241,9 @@ describeLocal('492 — Isentar Taxas Locais à mão', () => {
     psql(`INSERT INTO public.vehicles (voyage_id, container_id, bl_id, chassis, brand, model, weight_kg, cbm)
       SELECT ${VOYAGE}, c.id, c.bl_id, 'R492CHASSI0000001', 'Marca', 'Modelo', 1000, 10 FROM public.bl_containers c WHERE c.bl_id = ${q(BL.lcl)}`)
     calculate(BL.lcl)
-    expect(state(BL.lcl)).toMatch(/^exempt\|Carga de veiculos \/ LCL/)
+    expect(state(BL.lcl)).toMatch(/^exempt\|Carga de veículos \/ LCL/)
     expect(unexempt(USERS.ope, BL.lcl).status).toBe(0)
-    expect(state(BL.lcl)).toMatch(/^exempt\|Carga de veiculos \/ LCL/)
+    expect(state(BL.lcl)).toMatch(/^exempt\|Carga de veículos \/ LCL/)
     expect(exempt(USERS.ope, BL.lcl).stderr).toMatch(/já está isento das Taxas Locais pelo veículo LCL/)
   })
 

@@ -1341,7 +1341,8 @@ function buildAuditTimeline(
     if (row.field_name === 'escala_omitida') {
       const omittedPod = oldValue || '—'
       const reason = String(row.justification ?? '').trim()
-      const suffix = reason && reason !== 'Omissao de escala' ? ` · motivo: ${reason}` : ''
+      // Motivo padrão da omissão: sem acento até a migration 574, com acento depois.
+      const suffix = reason && reason !== 'Omissao de escala' && reason !== 'Omissão de escala' ? ` · motivo: ${reason}` : ''
       events.push({
         id: `audit-omission-${index}`,
         kind: 'omission',

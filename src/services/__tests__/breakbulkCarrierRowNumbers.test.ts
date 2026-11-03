@@ -27,7 +27,7 @@ describe('manifesto BB no layout do armador — número da linha', () => {
     expect(parsed.layout).toBe('carrier')
     expect(parsed.bls.map((bl) => [bl.bl_id, bl.rowNumber])).toEqual([['A205VISIVEL1', 4]])
     expect(parsed.rowErrors).toEqual([
-      expect.objectContaining({ row: 4, message: 'Consignatario nao identificado para o BL A205VISIVEL1.' }),
+      expect.objectContaining({ row: 4, message: 'Consignatário não identificado para o BL A205VISIVEL1.' }),
     ])
   })
 
