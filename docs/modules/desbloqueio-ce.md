@@ -86,8 +86,13 @@ Manifesto Mercante é regra de
   cartões que filtram por situação (Aptos não exportados, Exportados aguardando a ZPT, Divergentes na
   ZPT, Desbloqueados e B/Ls com CE; situações `exported` e `unlocked` da migration `296`; o B/L de
   confirmação externa antiga, `export_state` `confirmed` sem retorno da ZPT, só entra em "B/Ls com
-  CE"); Busca, Situação, Viagem e POD abertos (Busca e POD consultam depois da pausa na digitação),
-  Requisito pendente em "Mais filtros". Uma linha por B/L com CE, com
+  CE"); Busca, Situação, Viagem e POD abertos (Busca e POD consultam depois da pausa na digitação;
+  a Busca acha o B/L ou CE colado com espaço nas pontas ou no meio, `ce_unlock_private.search_compact`,
+  e a lista colada separa também por "&", migration `577`), Requisito pendente, Requisito atendido
+  (o inverso, `met_requirement`) e VIP (Clientes VIP, Solicitações VIP, Clientes sem VIP; `vip`)
+  em "Mais filtros" (os dois últimos desde a `577`, pedido do dono de 2026-11-03). O botão do relógio
+  no fim de cada linha abre **Histórico do B/L** (todos os setores; ver
+  [Histórico do B/L](#histórico-do-bl)). Uma linha por B/L com CE, com
   ou sem pedido (lista vazia: "Todo B/L com CE aparece aqui, com ou sem solicitação."): B/L, CE Mercante, Cliente (marca "VIP"), Solicitação, Termo de devolução,
   Procuração e Taxas locais como ícones somente leitura (verde = atendido; no veículo LCL isento, termo
   e procuração verdes com "dispensado (veículo LCL isento)" no texto; no B/L sem solicitação de Cliente
@@ -160,6 +165,7 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 | Documentos anuais (Portal, só VIP) e ficha do Cliente · anexar termo e procuração anuais | CNPJ com condição VIP; PDF; mesmos limites de upload | `CeUnlockVipCoveragePanel.tsx` | `uploadCeUnlockDocument` (origem `vip_annual`) → `portal-ce-unlock-document` | `ce_unlock_documents` em análise; não revoga o anual vigente | `afterCeUnlockChanged` | "Cliente sem condição VIP" (`42501`); "Condição VIP revogada" | **Código:** `ce_unlock_prepare_upload` (`173`); matriz VIP incompleta (ver [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md)) |
 | Portal · baixar o modelo do termo; Portal e Vela · abrir documento | Modelo: qualquer Cliente; documento: autorização atual (Portal só do próprio CNPJ; interno: qualquer Departamento, migration `250`) | `PortalDesbloqueioCe.tsx`, `CeUnlockDocuments.tsx` | `downloadCeUnlockDocument` → `ce-unlock-document-download` | Não escreve; `ce_unlock_document_access` e URL assinada por 60 s; o PDF abre na aba nova e só o modelo DOCX é baixado com o nome enviado (`ceSignedUrlDownload`) | — | Documento de outro CNPJ: `403` (`42501`); objeto alheio no Storage: 400 "Object not found" | **Runtime:** produção, 2026-10-13 (acesso cruzado recusado) |
 | `/desbloqueio-ce` › Solicitações › pedido · **Aprovar** / **Recusar documento** | Gestão; pedido enviado, em análise, com correção solicitada ou concluído; versão mais recente do documento; recusa com motivo | `CeUnlockReviewQueue.tsx` → `CeUnlockRequestDetail.tsx` | `useCeUnlock` → `ceUnlockCommand('review')` | Decisão em todos os B/Ls abertos do pedido; status e motivo no documento; evento | Recusa: aviso no sino e linha em `ce_unlock_email_outbox` com o motivo (a confirmação diz "O cliente recebe o motivo no Portal e por e-mail"; com a chave de envio desligada o e-mail vai ao suporte, estado `simulated`, decisão do dono de 2026-10-27, `08-desbloqueio-ce:11`); reavalia a conclusão; a aprovação que completa os quatro requisitos inicia o prazo | "Motivo obrigatório"; "Documento alterado; atualize a página" (`40001`); "Documento não pertence à análise atual" | **Teste:** `CeUnlockRequestDetail.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (recusa com motivo) |
+| Andamento dos B/Ls · **Histórico do B/L** (relógio no fim da linha) | Todos os setores com `ce_unlock_read`; qualquer B/L com CE, com ou sem solicitação | `DesbloqueioCe.tsx`, `CeUnlockBlHistory.tsx` | `useCeUnlockBlHistory` → `ceUnlockRead('bl_history')` | Só leitura: `ce_unlock_private.bl_history` (migration `577`) | Nenhum | "Falha ao consultar o histórico do B/L."; sem registro, "Nenhum registro de requisito para este B/L ainda." | **Teste:** `DesbloqueioCe.test.tsx`, `ceUnlockVip.local-pg.test.ts` |
 | Andamento dos B/Ls · caixa **B/L original** (**Registrar entrega** / **Desmarcar entrega**) | Gestão; B/L com CE, com ou sem pedido; desmarcar exige motivo | `DesbloqueioCe.tsx` | `useCeUnlock` → `ceUnlockCommand('delivery')` | `ce_unlock_bl_deliveries` com versão; evento; reavalia a conclusão do pedido ativo | Registrar, se completa os quatro requisitos, inicia o prazo; desmarcar tira o prazo (se o B/L ainda não foi exportado), tira o B/L dos aptos e reabre a conclusão | "Entrega alterada; atualize a página" (`40001`); "Motivo obrigatório" | **Teste:** `DesbloqueioCe.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (entrega parcial) |
 | Andamento dos B/Ls · seleção · **Registrar entrega de N B/Ls** | Gestão; B/Ls selecionados sem a entrega do original (os que já têm ficam de fora); confirmação lista os B/Ls | `DesbloqueioCe.tsx` | `ceUnlockCommand('delivery')` um B/L por vez, em sequência; depois `afterCeUnlockChanged` | O mesmo de registrar a entrega de um B/L | Cada B/L gravado que completa os quatro requisitos ganha prazo | Não é atômico: a mensagem diz quantos gravaram e quais falharam (com o motivo), e os que falharam continuam selecionados | **Teste:** `DesbloqueioCe.test.tsx` |
 | Andamento dos B/Ls · **Exportar planilha** | Leitura (`ce_unlock_read`) | `DesbloqueioCe.tsx` | `fetchAllCeUnlockBls` (todas as páginas do recorte, quatro por vez, sem repetir B/L) → `exportCeUnlockWorkbook` (`src/services/exports.ts`) | Não escreve | Baixa `desbloqueio-ce-<data>.xlsx` com B/L, CE, Cliente, CNPJ/CPF, Navio, Viagem, POD, Solicitação, Situação, requisitos, Prazo e Na ZPT | Falha de leitura em mensagem | **Código** |
@@ -181,7 +187,7 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 
 Migrations `139`–`149`, `160`, `161`, `173`, `220`, `279` (requisito de
 pagamento), `280` (retenção), `281` (lote com hash e imutável), `282` (documento
-expurgado na projeção), `575` (veículo LCL isento sem solicitação) e `576` (VIP coberto no B/L sem solicitação); a `177` redefine `ce_unlock_reconcile` (chave
+expurgado na projeção), `575` (veículo LCL isento sem solicitação) e `576` (VIP coberto no B/L sem solicitação) e `577` (busca, filtros e histórico do B/L); a `177` redefine `ce_unlock_reconcile` (chave
 do CE) e a `181`/`195`/`230`/`277` o alerta `ce_trocado_com_desbloqueio`. Tabelas `ce_unlock_*` (`ce_unlock_requests`,
 `ce_unlock_request_bls`, `ce_unlock_documents`, `ce_unlock_vip_customers`,
 `ce_unlock_bl_deliveries`, `ce_unlock_events`, `ce_unlock_exports`,
@@ -258,6 +264,24 @@ análise humana do desk ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operaciona
 sem PDF registrado não substitui a versão enviada nem consome quota ativa após
 compensação/expurgo. Documento novo em análise não revoga o anterior vigente; renovação
 pode ser aplicada aos pedidos pendentes pelo desk, com histórico.
+
+### Histórico do B/L
+
+Pedido do dono de 2026-11-03 (migration `577`): antes, quando e quem cumpriu um
+requisito só aparecia no histórico da solicitação, e a entrega do B/L original
+sem solicitação não tinha tela. `ce_unlock_read('bl_history')` →
+`ce_unlock_private.bl_history` monta, só do que já é gravado, os registros do
+B/L, o mais recente primeiro: entrega e desentrega do original (eventos
+`delivery`, com motivo), aprovação e recusa do termo e da procuração (eventos
+`review` dos documentos das solicitações do B/L e dos anuais VIP que o cobrem),
+baixas dos recebíveis de Taxas Locais do B/L (`ledger_settlements`, autor pelo
+pagamento ou pela auditoria da baixa) e pagamentos de fatura avulsa do B/L, e,
+como contexto, rascunho, envio, cancelamento e validação das solicitações, mudança
+de solicitação e geração da planilha da ZPT. Devolve também o item atual, para os
+quatro requisitos de hoje. Leitura interna, para todos os setores, como o
+histórico da solicitação; o Portal não tem. Limites: baixa estornada some (a linha
+é apagada; só a auditoria guarda) e a isenção de Taxas Locais não tem data aqui.
+**Teste:** `ceUnlockVip.local-pg.test.ts`, `DesbloqueioCe.test.tsx`.
 
 ### B/L dispensado de solicitação (veículo LCL isento)
 

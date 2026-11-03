@@ -152,6 +152,26 @@ export type CeUnlockFilters = {
   pod?: string;
   situation?: string;
   pending_requirement?: string;
+  /** O inverso de `pending_requirement`: termo, procuracao, taxas, bl_fisico (migration 577). */
+  met_requirement?: string;
+  /** `customer` (Cliente VIP), `request` (solicitação VIP) ou `none` (Cliente sem VIP), migration 577. */
+  vip?: string;
+};
+/** Registro do histórico de um B/L na aba Andamento dos B/Ls (migration 577). */
+export type CeUnlockBlHistoryEvent = {
+  at: string;
+  requirement: "termo" | "procuracao" | "taxas" | "bl_original" | "solicitacao" | "zpt";
+  event: string;
+  /** Protocolo, "Anual VIP AAAA", forma da baixa ou número da fatura avulsa. */
+  detail: string | null;
+  amount: number | null;
+  actor: string | null;
+  reason: string | null;
+};
+export type CeUnlockBlHistory = {
+  bl_id: string;
+  item: CeUnlockItem;
+  events: CeUnlockBlHistoryEvent[];
 };
 export type CeUnlockPage<T> = {
   items: T[];

@@ -177,8 +177,9 @@ uma lista colada com dois ou mais números acha cada B/L ou contêiner em que
 algum deles aparece. Só conta como termo da lista o que tem cara de número:
 pelo menos 4 caracteres e pelo menos um dígito (migration `455`). Os termos
 são separados por espaço (qualquer espaço Unicode, inclusive os não
-separáveis que vêm de planilha e e-mail), vírgula, ponto e vírgula ou quebra
-de linha, a mesma lista enumerada na tela e no banco (migration `461`), e são
+separáveis que vêm de planilha e e-mail), vírgula, ponto e vírgula, "&"
+(migration `577`) ou quebra de linha, a mesma lista enumerada na tela e no
+banco (migration `461`), e são
 contados antes de tirar os repetidos: a
 coluna colada com o mesmo B/L em toda linha continua achando esse B/L. Um
 nome de várias palavras ("IMPORTACAO E EXPORTACAO", "ACME 2") não vira lista

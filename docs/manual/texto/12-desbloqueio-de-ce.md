@@ -44,7 +44,11 @@ Em **Importação** › **Desbloqueio de CE**, a página tem duas abas.
 
 **Andamento dos B/Ls** mostra todo B/L com CE, com ou sem solicitação. Os cartões filtram a lista: **Aptos, não exportados**, **Exportados, aguardando a ZPT**, **Divergentes na ZPT**, **Desbloqueados** e **B/Ls com CE**. Em cada linha, um ícone verde por requisito atendido, o **Prazo** ([12.5](#125-o-prazo-do-desbloqueio)) e a coluna **Na ZPT**, que diz em que pé o B/L está: **Apto, não exportado**, **Exportado** com a data, o que a ZPT disse na última conciliação (**Desbloqueado** ou **Divergente**, [12.7](#127-conciliar-com-a-zpt)) ou, em âmbar, um impedimento ([12.10](#1210-quando-algo-muda-depois-do-pedido)).
 
-**Buscar** aceita vários números de B/L ou CE colados de uma vez. **Exportar planilha** baixa a lista do filtro, para qualquer equipe; ela não é a planilha da ZPT.
+**Buscar** aceita vários números de B/L ou CE colados de uma vez, separados por espaço, vírgula, ponto e vírgula, "&" ou quebra de linha ("CSC45300C04Q00 & CSC45300C04Q01"). Um B/L colado com espaço nas pontas ou no meio também é achado. Em **Mais filtros**, além de **Requisito pendente**, há **Requisito atendido** (o inverso) e **VIP** (Clientes VIP, Solicitações VIP ou Clientes sem VIP).
+
+O botão do relógio no fim da linha abre o **Histórico do B/L**: quando e por quem cada requisito foi cumprido ou desfeito, mesmo sem solicitação. Ali você vê, por exemplo, quem registrou a entrega do B/L original e a que horas, quem a desmarcou e por quê, quando as Taxas locais foram baixadas e quem aprovou o termo e a procuração. Baixa estornada e isenção de Taxas Locais não aparecem no histórico.
+
+**Exportar planilha** baixa a lista do filtro, para qualquer equipe; ela não é a planilha da ZPT.
 
 ## 12.3 Analisar os documentos de uma solicitação
 
