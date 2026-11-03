@@ -6,6 +6,7 @@ import {
   describeAuditLog,
   displayAuditValue,
   trailValueText,
+  UNRESOLVED_REFERENCE,
   formatAuditValue,
   formatBrasiliaDateTime,
 } from '../auditLogPresentation'
@@ -49,6 +50,13 @@ describe('Histórico de ações legível', () => {
     expect(describeAuditLog(log('voyage', 'sem_veiculos', null, 'declarada'))).toBe('Viagem sem veículos: declarada')
     expect(describeAuditLog(log('user_profile', 'role', 'documentacao', 'financeiro'))).toBe('Setor: Financeiro')
     expect(describeAuditLog(log('app_settings', 'communications_enabled', 'false', 'true'))).toBe('Envio real de e-mails: Sim')
+    // Dispensa da Demurrage no B/L: o valor é o container, não um "Dado".
+    expect(describeAuditLog(log('bl', 'demurrage_dispensa', null, 'TCLU1234567'))).toBe('Container TCLU1234567 · cobrança de Demurrage dispensada')
+    expect(describeAuditLog(log('bl', 'demurrage_dispensa', 'TCLU1234567', null))).toBe('Container TCLU1234567 · dispensa da Demurrage desfeita')
+    // Troca de Cliente (gatilho da 565): a frase, e o De/Para sem o id interno do Cliente.
+    expect(describeAuditLog(log('bl', 'demurrage_dispensa', '12', '34'))).toBe('Dispensa da Demurrage acompanhou a troca de Cliente do B/L')
+    expect(displayAuditValue('demurrage_dispensa', '34', 'bl')).toBe(UNRESOLVED_REFERENCE)
+    expect(displayAuditValue('demurrage_dispensa', 'TCLU1234567', 'bl')).toBe('TCLU1234567')
     const unknown = describeAuditLog(log('vessels', 'imo_number_x', '1', '2'))
     expect(unknown).toBe('Navio alterado')
     expect(unknown).not.toContain('imo_number_x')

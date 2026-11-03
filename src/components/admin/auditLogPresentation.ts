@@ -1,4 +1,4 @@
-import { blFieldLabel, describeChargeAdjustmentEvent, describeManualChargeUpdate, formatBlFieldValue } from '../bl/blTimelinePresentation'
+import { blFieldLabel, describeChargeAdjustmentEvent, describeDemurrageWaiver, describeManualChargeUpdate, formatBlFieldValue } from '../bl/blTimelinePresentation'
 import { CUSTOMER_FIELD_LABELS } from '../../services/customerFicha'
 import { TIMELINE_VOYAGE_FIELD_LABELS } from '../../services/voyageSummaries'
 import { DEPARTMENT_LABELS } from '../../lib/departmentLabel'
@@ -121,6 +121,8 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
 
 /** Rótulos de campo comuns às tabelas sem rótulo próprio. */
 const GENERIC_FIELD_LABELS: Record<string, string> = {
+  // Dispensa da cobrança de Demurrage no B/L: De/Para é o container.
+  demurrage_dispensa: 'Dispensa da Demurrage',
   name: 'Nome',
   cnpj_cpf: 'CNPJ',
   description: 'Descrição',
@@ -384,6 +386,9 @@ export function displayAuditValue(fieldName: string | null, value: string | null
   const trail = trailValueText(entityType, fieldName, value)
   if (trail !== undefined) return trail
   if (value != null && value.trim() !== '' && value !== 'null' && isReferenceField(fieldName)) return UNRESOLVED_REFERENCE
+  // Na troca de Cliente, a dispensa da Demurrage grava o id de cada Cliente
+  // (565): o número interno nunca vai à tela.
+  if (fieldName?.split('|')[0] === 'demurrage_dispensa' && value != null && /^\d+$/.test(value.trim())) return UNRESOLVED_REFERENCE
   return formatAuditValue(fieldName, value, entityType)
 }
 
@@ -474,6 +479,9 @@ export function describeAuditLog(row: AuditLogLike): string {
   // ADR 0111: taxa alterada, excluída ou isenta à mão e edição da cobrança manual.
   if (row.entity_type === 'charge_calculation' && field === 'charge_adjustment') return describeChargeAdjustmentEvent(row.new_value)
   if (row.entity_type === 'charge_calculation' && field === 'manual_update') return describeManualChargeUpdate(row.old_value, row.new_value)
+  // Dispensa da Demurrage: a mesma frase do Histórico do B/L (dispensou, desfez
+  // ou acompanhou a troca de Cliente).
+  if (row.entity_type === 'bl' && field === 'demurrage_dispensa') return describeDemurrageWaiver(row.old_value, row.new_value)
   const label = auditFieldLabel(row.entity_type, row.field_name)
   if (!label) return participle(noun, 'alterado')
   if (isReferenceField(row.field_name) && !row.new_label) return fieldChanged(label)

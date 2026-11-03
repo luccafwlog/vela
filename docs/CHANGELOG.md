@@ -21,6 +21,14 @@
   divisões da página Demurrage e o glossário. Mudam a linha de cada container na ficha do B/L, a aba **Containers**
   da ficha do Cliente (filtros **Demurrage correndo** e **Demurrage a emitir**, coluna, total e a planilha
   exportada) e a recusa ao cancelar o B/L, que passa a "Demurrage correndo ou a emitir: …". "a faturar" e "em curso" saem dessas telas.
+- **Dispensa da Demurrage legível nos históricos, Terminal no Embarque de vazios vazio e glossário com
+  "container" (2026-11-02; achados da revisão do Manual do Operador):** o Histórico do B/L e o Histórico de ações
+  mostram "Container … · cobrança de Demurrage dispensada", "… · dispensa da Demurrage desfeita" e, quando a dispensa
+  acompanha a troca de Cliente do B/L, "Dispensa da Demurrage acompanhou a troca de Cliente do B/L", sem o número
+  interno do Cliente (antes, "Dado do B/L: vazio → …" e "B/L alterado"). A lista vazia do Embarque de vazios cita o
+  Terminal, que o **Novo embarque** exige. O glossário troca "caixa" por "container" nos verbetes da Demurrage; o
+  rateio entre Clientes passa a **Rateio da Demurrage entre Clientes**, para não se confundir com o rateio do
+  container das Taxas Locais.
 - **Impressão, modais e ajustes do Portal (2026-11-02; pedido do dono):** fatura, recibo e Invoice impressos (Vela e
   Portal) ganham margem de cima maior: 20 mm na página (antes 10 mm) mais 8 mm no começo do documento, que valem
   também quando o navegador imprime com "Margens: nenhuma". Os modais deixam de mostrar uma faixa sem desfoque no
