@@ -510,7 +510,9 @@ declarado também — a isenção exige prova positiva. O B/L isento fica com
 Taxas Locais da ficha e no Motivo da Validação, não só como valor zero. No
 Desbloqueio de CE, esse B/L também dispensa termo, procuração e solicitação: basta
 o B/L original entregue ([Desbloqueio de CE § B/L dispensado de solicitação](desbloqueio-ce.md#bl-dispensado-de-solicitação-veículo-lcl-isento),
-migration `575`); a isenção à mão dispensa só o pagamento.
+migration `575`); a isenção à mão dispensa só o pagamento. Nos dois casos, o
+Comunicado de CE e Taxas não espera fatura do B/L isento, só o CE
+([Clientes](clientes.md), migration `578`).
 **Código:** `_calculate_bl_local_charges_impl_106` (migration `129`). Veículo
 gravado no B/L errado é corrigido na página Veículos
 ([Manifestos & EDI](manifesto-edi.md)); o efeito na fatura segue a

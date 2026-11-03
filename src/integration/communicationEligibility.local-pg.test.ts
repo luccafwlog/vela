@@ -132,7 +132,7 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
     `)) as { customer_id: number; port: string; bls: Array<{ bl_id: string; ce_mercante: string | null; total_brl: number }> }
     expect(payload.customer_id).toBe(customerId)
     expect(payload.port).toBe('—')
-    expect(payload.bls).toEqual(invoiceIds.map((id) => ({ bl_id: `S06-GRP-BL-${id}`, ce_mercante: `CE-S06-${id}`, total_brl: 0 })))
+    expect(payload.bls).toEqual(invoiceIds.map((id) => ({ bl_id: `S06-GRP-BL-${id}`, ce_mercante: `CE-S06-${id}`, total_brl: 0, exempt: false })))
   })
 
   it('D11 — as 12 faturas do mesmo cliente/ciclo saem juntas no 1º lote útil', () => {
