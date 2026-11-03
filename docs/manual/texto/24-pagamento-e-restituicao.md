@@ -80,7 +80,7 @@ O Pix sai da lista e o alerta fecha. A ação não baixa nem devolve nada.
 
 **Quem faz:** {{Financeiro}} e {{Administrativo}}
 
-**Conciliar extrato** é o plano B, não a rotina. Use quando a consulta do Itaú para (o alerta **Consulta de Pix do Itaú parada**, [20.10](20-alertas.md#2010-pix-e-pagamento)): sem ela, nenhum Pix dá baixa sozinho, nem o do QR estático. O Vela lê o relatório "QR Codes recebidos" do Itaú e acha a fatura só pelo identificador de cada linha: o CNPJ e o valor não acham fatura, só conferem.
+**Conciliar extrato** é o plano B, não a rotina. Use quando a consulta do Itaú para (o alerta **Consulta de Pix do Itaú parada**, [20.10](20-alertas.md#2010-pix-e-pagamento), que só abre com a cobrança pelo Itaú ligada): sem ela, nenhum Pix dá baixa sozinho, nem o do QR estático. O Vela lê o relatório "QR Codes recebidos" do Itaú e acha a fatura só pelo identificador de cada linha: o CNPJ e o valor não acham fatura, só conferem.
 
 1. No Itaú, baixe o relatório "QR Codes recebidos", em .xlsx ou .xls.
 2. Em **Conciliação PIX** › **Conciliar extrato**, escolha o arquivo. A leitura não baixa nada.
@@ -116,6 +116,10 @@ O pagamento pode ser parcial: a fatura fica **Parcialmente paga** e o QR passa a
 ### Pix sem baixa, em Pix recebidos
 
 Em **Pix recebidos**, abra a linha do Pix **Sem baixa**: o que não veio de uma cobrança do Vela e o do QR estático que não baixou sozinho. Vale para fatura de Taxas Locais e para Invoice de Demurrage. Em **Baixar numa fatura (opcional)**, o Vela sugere as faturas abertas com o mesmo valor; **Procurar** acha a fatura pelo número. **Baixar nesta fatura** grava a baixa com o valor, o horário e o identificador do Pix. A **Mensagem do pagador**, quando o Cliente escreve uma, ajuda a achar a fatura.
+
+::: tela pix-recebidos
+Um Pix do QR estático **Sem baixa**, aberto: o **Motivo** e o **Baixar numa fatura (opcional)**.
+:::
 
 ::: atencao
 - O Vela aceita data futura em **Recebido em** e não barra a mesma **Referência bancária** em duas baixas: confira os dois. A referência só se repete quando um mesmo Pix ou TED pagou mais de uma fatura.
@@ -160,6 +164,10 @@ A **restituição** é dinheiro recebido que volta ao Cliente. O Vela a registra
 1. Transfira o valor ao Cliente original e guarde o comprovante.
 2. No detalhe da fatura, em **Taxas Locais**, bloco **Restituições ao Cliente**, clique no ícone **Confirmar devolução** da linha **A devolver**. Na Invoice de Demurrage, o botão é **Registrar devolução**, no bloco **Restituição excepcional**.
 3. Preencha o comprovante, o favorecido e a data, clique em **Confirmar devolução realizada** e confirme.
+
+::: tela restituicao
+O bloco **Restituições ao Cliente** com o excedente de um pagamento **A devolver** e o ícone **Confirmar devolução**.
+:::
 
 A linha passa a **Devolvida**, com a data, e o valor sai do **Valor recebido** do recibo. O alerta fecha quando não sobra nada a devolver. No Pix em duplicidade, a confirmação tira o Pix da análise.
 

@@ -21,4 +21,15 @@ insert into public.customer_contacts (customer_id, name, email, is_primary) valu
 insert into public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
 values (9001, 'Cenário do manual: Cliente com faturamento liberado.', 'a0000000-0000-4000-8000-000000000001', now() + interval '30 days');
 
+-- Dois Pix que entraram na conta e não deram baixa sozinhos, para a aba
+-- Pix recebidos da Conciliação PIX (24.4): um do QR estático de uma fatura que
+-- não está aberta e um com a chave digitada pelo Cliente. Os motivos são os que
+-- a consulta do Itaú grava (migration 552).
+insert into public.itau_pix_receipts (end_to_end_id, txid, amount_brl, paid_at, status, reason, raw) values
+  ('E60701190202611031020MANUALDEMO01', 'INV20260099', 2731.40, now() - interval '3 hours', 'received',
+   'Sem baixa automática: Nenhuma fatura aberta com este identificador: a fatura pode já estar paga (Pix em duplicidade) ou o QR é de outro ambiente na mesma conta.',
+   '{"infoPagador": "Taxas locais B/L CSC45810A02K00"}'::jsonb),
+  ('E60701190202611031105MANUALDEMO02', '', 1180.00, now() - interval '2 hours', 'received', null,
+   '{"infoPagador": "Maquinas Horizonte - pagamento taxas"}'::jsonb);
+
 commit;

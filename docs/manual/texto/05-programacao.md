@@ -43,7 +43,7 @@ Quando o armador manda a programação de um navio que ainda não está no quadr
 
 ::: lado
 1. Em **Chegadas e Saídas**, clique em **Adicionar navio**.
-2. Preencha o nome do navio, a viagem (VOY) e o **IMO**.
+2. Preencha **Nome do Navio**, **Viagem (VOY)** e **Número IMO**.
 3. Em cada porto que o navio faz, desmarque **Não escala** e informe a data prevista.
 4. Clique em **Adicionar e publicar** e confirme em **Publicar viagem**.
 
@@ -103,12 +103,12 @@ A **saída** confirmada é provisória. A data real de saída vem do B/L, pela d
 
 Quando o armador manda a programação de vários navios de uma vez, use a planilha. Baixe o modelo na própria janela: uma linha por viagem, com **VESSEL NAME**, **VOY**, **IMO** e uma coluna por porto do quadro, de **QINGDAO ETD** a **SUAPE ETA**.
 
-Para partir do que já está no quadro, clique em **Exportar programação**, ao lado de **Importar programação**. A planilha sai no mesmo molde, com os navios da tela, o IMO e a data prevista de cada porto (a data que aconteceu não sai; o porto em **Não escala** sai com "X"). Altere as datas, inclua navios e importe o mesmo arquivo de volta.
+Para partir do que já está no quadro, clique em **Exportar programação**, ao lado de **Importar programação**. A planilha sai no mesmo molde, com os navios da tela, o IMO e a data prevista de cada porto (a data que aconteceu não sai; a escala omitida sai com "X"). Altere as datas, inclua navios e importe o mesmo arquivo de volta.
 
 ::: passos
 1. Em **Chegadas e Saídas**, abaixo do quadro, clique em **Importar programação**.
 2. Escolha a planilha. O Vela lê e monta a prévia; nada é gravado ainda.
-3. Confira a **Prévia**: cada viagem aparece como **Cria**, **Atualiza** ou **Sem alteração**, com as datas que mudam.
+3. Confira a **Prévia**: cada viagem aparece como **Cria**, **Atualiza**, **Publica no Portal** (a Viagem que estava com a chave **Chegadas e Saídas** desligada volta a ser publicada) ou **Sem alteração**, com as datas que mudam.
 4. Clique em **Importar N viagens**.
 :::
 
@@ -157,6 +157,10 @@ Como ler o quadro:
 - Cada número abre a lista correspondente, já filtrada.
 
 A **Tela TV** mostra as escalas que ainda não terminaram, em letras grandes, e desliza sozinha quando há mais de oito linhas.
+
+::: tela tela-tv
+A Tela TV, aberta pelo Painel, no monitor da sala.
+:::
 
 ::: atencao
 A Tela TV usa a sessão de quem a abriu. Depois de 8 horas sem ninguém mexer no computador, a sessão termina e a TV volta ao login: entre de novo e abra **Tela TV** pelo **Painel** ou pelo menu **Viagens**.

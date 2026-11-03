@@ -113,7 +113,7 @@ Se a consulta para, os Pix pagos deixam de ser baixados e abre um alerta (capít
 
 - **Avisos ao Cliente.** Os dois avisos do Desbloqueio de CE (documento recusado e documentação validada) saem por e-mail segundos depois de gravados; a rotina de 5 minutos repete os que ficaram para trás.
 - **Validação.** A mesma rotina de 5 minutos reconfere as solicitações pelo que acontece fora do Desbloqueio, como um pagamento, uma isenção ou a troca de Cliente. Por isso a solicitação pode levar até 5 minutos para passar a **Documentação validada** depois que a fatura é paga.
-- **Limpeza.** Todo dia, às 3h, o Vela remove os arquivos que passaram do prazo de guarda e cancela o rascunho criado há mais de 7 dias que já não tem documento guardado, o que solta os B/Ls dele.
+- **Limpeza.** Todo dia, às 3h, o Vela remove os arquivos que passaram do prazo de guarda e cancela o rascunho criado há mais de 7 dias, com os documentos dele, o que solta os B/Ls do rascunho.
 
 O detalhe de cada prazo está no capítulo 12.
 
@@ -131,7 +131,7 @@ O detalhe de cada prazo está no capítulo 12.
 
 **Quem faz:** a equipe que recebe o alerta.
 
-Uma rotina parada não trava a tela: a gravação acontece, e o que a rotina faria fica esperando. Por isso o aviso vem pelos **Alertas**: cada rotina tem o seu, e ele chega à equipe que pode agir. Quase sempre o caminho é corrigir o dado que o alerta aponta (um contato do Cliente, a PTAX do dia) ou avisar o suporte técnico. Cada um desses alertas está no capítulo 20.
+Uma rotina parada não trava a tela: a gravação acontece, e o que a rotina faria fica esperando. Por isso o aviso vem pelos **Alertas**: quase toda rotina tem o seu, e ele chega à equipe que pode agir. Quase sempre o caminho é corrigir o dado que o alerta aponta (um contato do Cliente, a PTAX do dia) ou avisar o suporte técnico. Cada um desses alertas está no capítulo 20.
 
 ::: atencao
 A situação da Demurrage (00h17), as duas rotinas de 15 minutos da Demurrage e a Liberação vencida (00h13) não têm alerta próprio quando falham. Se um container que venceu o free time continua **No free time** no dia seguinte, avise o suporte técnico.

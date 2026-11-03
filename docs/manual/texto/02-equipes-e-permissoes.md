@@ -34,8 +34,8 @@ Estas são as ações que o Vela reserva. Para as outras equipes, o botão não 
 | Ação | Quem faz |
 |---|---|
 | Criar usuários, mudar a equipe, ativar e desativar | {{Administrativo}} |
-| Cancelar e reativar Viagem e B/L; excluir Viagem, escala, B/L, container e Embarque de vazios | {{Administrativo}} |
-| Cancelar fatura e cancelar pagamento registrado | {{Administrativo}} |
+| Cancelar e reativar Viagem e B/L; excluir Viagem, escala, B/L, container, Embarque de vazios e Cliente | {{Administrativo}} |
+| Cancelar fatura ou Invoice de Demurrage e cancelar pagamento registrado; mudar o intervalo da Régua de Cobrança | {{Administrativo}} |
 | Corrigir tabela de cobrança já usada; editar Condição de Cliente | {{Administrativo}} |
 | Desativar e reativar cadastros (tabela de cobrança, Local, serviço, tarifa, tipo de container) | {{Administrativo}} |
 | Liberação de faturamento sem Portal; desativar Cliente | {{Administrativo}} |
@@ -49,7 +49,7 @@ Estas são as ações que o Vela reserva. Para as outras equipes, o botão não 
 
 No ADR de Saída, cada equipe assina a sua parte: {{Operações}} a escala, {{Documentação}} a carga e os vazios descarregados, {{Equipamentos}} a carga carregada, os veículos e o embarque de vazios. O {{Administrativo}} pode assinar por qualquer uma (capítulo 11).
 
-As outras equipes trazem o Cliente pela base de Clientes ou pela Revisão. O {{Administrativo}} vê a lista ação por ação em **Admin** › **Usuários**, no quadro **O que cada setor pode** (escolha **Todas as ações** para ver todas).
+As equipes que não usam o **Novo cliente** trazem o Cliente pelo **Importar base**, em **Clientes**, ou pela Revisão. O {{Administrativo}} vê a lista ação por ação em **Admin** › **Usuários**, no quadro **O que cada setor pode** (escolha **Todas as ações** para ver todas).
 
 ::: tela matriz-setores
 O quadro O que cada setor pode, na Administração.

@@ -42,6 +42,7 @@ Nas listas de **B/Ls**, de **Containers** e na ficha do Cliente, a coluna **Taxa
 | **Pendente** | âmbar | Qualquer B/L sem fatura que não é isento, mesmo com as taxas já calculadas. |
 | **Emitida** | sem cor | A fatura saiu (B/L faturado, parcialmente pago ou pago). |
 | **Isenta** | cinza | O B/L é isento: veículo entregue em LCL ou isenção à mão (capítulo 21). |
+| **B/L cancelado** | cinza | O B/L foi cancelado: ele não entra como **Pendente**. |
 
 ## CE Mercante
 
@@ -125,6 +126,7 @@ A decisão passa de **Aguardando análise** a **Provisionamento autorizado** qua
 
 | No Vela | Cor | O que leva a ela |
 |---|---|---|
+| **Rascunho** e **Enviado** | sem cor | O Cliente começou a solicitação no Portal e, depois, a enviou; fica **Enviado** até a agência aprovar o primeiro documento. |
 | **Em análise** | sem cor | Um documento aprovado e nenhum recusado; ou a validada perdeu um requisito ([12.10](12-desbloqueio-de-ce.md#1210-quando-algo-muda-depois-do-pedido)). |
 | **Correção solicitada** | âmbar no detalhe da solicitação e na ficha do Cliente; sem cor na fila de análise | A agência recusou um documento ([12.3](12-desbloqueio-de-ce.md#123-analisar-os-documentos-de-uma-solicitação)). |
 | **Documentação validada** | sem cor | Os quatro requisitos cumpridos em todos os B/Ls ([12.1](12-desbloqueio-de-ce.md#121-entender-o-desbloqueio-de-ce)). |
@@ -138,6 +140,7 @@ Na tela do Desbloqueio, a coluna **Na ZPT** diz em que pé está cada B/L ([12.2
 |---|---|---|
 | **Não exportado** | cinza | Falta algum requisito. |
 | **Apto, não exportado** | sem cor, em negrito | Os quatro requisitos cumpridos; falta exportar ([12.6](12-desbloqueio-de-ce.md#126-exportar-os-bls-aptos-para-a-zpt)). |
+| **Exportado** e a data | sem cor | O B/L saiu na planilha para a ZPT e espera a conciliação ([12.7](12-desbloqueio-de-ce.md#127-conciliar-com-a-zpt)). |
 | **Desbloqueado** | ✓ verde | A conciliação mostrou o CE desbloqueado na ZPT ([12.7](12-desbloqueio-de-ce.md#127-conciliar-com-a-zpt)). |
 | **Divergente** | vermelho | Exportado, mas a ZPT ainda mostra o CE bloqueado. |
 | **CE alterado: reconferir**, **Cliente alterado**, **Troca de Cliente**, **B/L cancelado** | âmbar | Algo mudou no B/L depois do pedido ([12.10](12-desbloqueio-de-ce.md#1210-quando-algo-muda-depois-do-pedido)). |

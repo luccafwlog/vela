@@ -171,6 +171,10 @@ A tabela de cobrança vale para um **Modo de carga** (Container ou Carga solta) 
 3. Abra a tabela de cobrança pelo nome e inclua cada taxa em **Adicionar item**. O item THD por container precisa do perfil **Padrão**, **IMO** ou **OOG** ([21.2](#212-como-cada-taxa-é-contada)).
 4. Confira a coluna **Aviso** dos itens e peça ao {{Administrativo}} que ative a tabela de cobrança: menu ⋮ da linha › **Reativar tabela**, com motivo.
 
+::: tela precos-do-porto
+Em **Tabelas e condições**, cada tabela de cobrança no seu modo de carga e POD, com a **Situação**, a vigência e o **Aviso** dos itens.
+:::
+
 A coluna **Situação** diz qual tabela de cobrança está **Em uso no cálculo**; **Ativa, mas não usada**, em âmbar, quer dizer que há outra ativa mais recente no mesmo modo e POD: desative uma das duas. Os B/Ls que já esperavam por ela não passam a ela sozinhos: os que têm CE estão no alerta **Tabela de cobrança faltando** ([20.8](20-alertas.md#208-faturamento-e-taxas-locais)); os sem CE passam a ela quando o CE é gravado, ou antes, com **Recalcular** na **Validação**.
 
 ::: atencao
@@ -188,7 +192,7 @@ A coluna **Situação** diz qual tabela de cobrança está **Em uso no cálculo*
 | Você quer | Caminho | Efeito |
 |---|---|---|
 | Reajustar as taxas de um porto | Uma tabela de cobrança nova, do mesmo modo e POD, com os valores novos, ativada no dia em que passam a valer ([21.7](#217-cadastrar-as-taxas-de-um-porto)). | Os B/Ls importados depois pagam o valor novo; os anteriores ficam na tabela de cobrança antiga. |
-| Corrigir um valor, incluir ou desativar um item numa tabela de cobrança já usada | O {{Administrativo}} edita, inclui ou desativa o item (menu ⋮). | Todos os B/Ls da tabela de cobrança são recalculados na hora, mesmo com CE, e as faturas emitidas passam pela correção ([22.7](22-a-fatura.md#227-quando-o-bl-muda-depois-da-fatura)). |
+| Corrigir um valor, incluir ou desativar um item numa tabela de cobrança já usada | O {{Administrativo}} corrige o item em **Editar**, inclui outro em **Adicionar item** ou o desativa no menu ⋮ do item. | Todos os B/Ls da tabela de cobrança são recalculados na hora, mesmo com CE, e as faturas emitidas passam pela correção ([22.7](22-a-fatura.md#227-quando-o-bl-muda-depois-da-fatura)). |
 | Valor diferente para um Cliente | Uma Condição de Cliente ([21.9](#219-cadastrar-uma-condição-de-cliente)). | Os B/Ls do Cliente importados depois de cadastrá-la, dentro da vigência. |
 
 ::: atencao

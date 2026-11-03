@@ -96,7 +96,7 @@ O desconto sai do dólar, antes da conversão: a Invoice continua mostrando o to
 2. Escolha **Percentual (%)** ou **Valor fixo (USD)**, digite o desconto e escreva a **Justificativa**, sempre obrigatória; **Tipo de desconto** e **Aprovador** são opcionais.
 3. Clique em **Salvar desconto**.
 
-Os reais e o Pix mudam na hora, e o Cliente vê o valor novo no Portal. No exemplo de [23.1](#231-ler-a-invoice-de-demurrage), 10% de desconto levam a Invoice a US$ 405,00 e, com o ROE de 5,7510, a R$ 2.329,16. Para tirar o desconto, apague o valor em **Alterar desconto**.
+Os reais e o Pix mudam na hora, e o Cliente vê o valor novo no Portal. No exemplo de [23.1](#231-ler-a-invoice-de-demurrage), 10% de desconto levam a Invoice a US$ 405,00 e, com o ROE de 5,7510, a R$ 2.329,16. Para tirar o desconto, apague o valor em **Alterar desconto** e clique em **Tirar desconto**.
 
 O desconto que zera a Invoice a quita na hora: ela vira **Pago** sem pagamento, com o meio **Isenção (desconto integral)**, e sai da Régua e das pendências do Cliente. Para desfazer, o {{Administrativo}} cancela a baixa ([23.8](#238-cancelar-a-baixa-de-uma-invoice)) e alguém altera o desconto.
 
