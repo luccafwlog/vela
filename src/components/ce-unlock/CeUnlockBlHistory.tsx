@@ -1,7 +1,7 @@
 import { InlineError } from "../ui/Card";
 import { NoValue } from "../ui/NoValue";
 import { useCeUnlockBlHistory } from "../../hooks/useCeUnlock";
-import { ceBlHistoryText, ceDateTime } from "../../lib/ceUnlockLabels";
+import { ceBlHistoryText, ceDateTime, ceVipAnnualCovered } from "../../lib/ceUnlockLabels";
 import { CeUnlockRequirementIcon } from "./CeUnlockRequirements";
 
 /**
@@ -15,7 +15,7 @@ export function CeUnlockBlHistory({ blId }: { blId: string }) {
   if (history.isLoading) return <p className="text-sm text-[var(--app-muted)]">Carregando histórico…</p>;
   if (history.error || !history.data) return <InlineError message="Falha ao consultar o histórico do B/L." />;
   const { item, events } = history.data;
-  const vipAnnual = !item.request_id && !!item.vip_covered;
+  const vipAnnual = ceVipAnnualCovered(item);
   return (
     <div className="space-y-4">
       <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm" aria-label="Requisitos hoje">
