@@ -27,7 +27,8 @@ Para sair, use **Sair** no menu da conta (no canto direito do alto ou, com o men
 
 O Vela também pede para entrar de novo sozinho:
 
-- depois de **8 horas** sem ninguém mexer no Vela numa aba aberta daquele navegador. Como no **Sair**, essa saída vale também para os outros computadores: uma aba esquecida aberta derruba a sua sessão em outro lugar;
+- depois de **8 horas** sem você mexer em nenhuma aba do Vela naquele navegador. Como no **Sair**, essa saída vale também para os outros computadores: um computador esquecido com o Vela aberto derruba a sua sessão em outro lugar;
+- **12 horas** depois de você entrar, mesmo que esteja usando;
 - quando o {{Administrativo}} desativa o seu usuário ou troca o seu e-mail ou a sua senha.
 
 ::: atencao
@@ -44,7 +45,7 @@ O número ao lado de um item, e somado no grupo, conta o que está pendente no V
 
 Na barra do alto ficam também:
 
-- **o sino**, com as notificações internas que chegaram para você. Clicar numa notificação abre a tela onde a pendência se resolve;
+- **o sino**, com as notificações internas que chegaram para você e que você ainda não leu. Clicar numa notificação abre a tela onde a pendência se resolve e a marca como lida;
 - **o menu da conta**, com o seu nome.
 
 Os containers que passaram do prazo livre de devolução e a cotação do dólar do dia (PTAX) ficam na página **Demurrage** ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers) e [23.1](23-demurrage-no-financeiro.md#231-ler-a-invoice-de-demurrage)).
@@ -65,7 +66,7 @@ O Vela abre no **Painel**. Ele responde às duas perguntas do começo do dia: o 
 O Painel: os atalhos no alto e um cartão de alertas por setor.
 :::
 
-- **Os cartões por setor** (Documentação, Equipamentos, Operações e Administrativo) mostram quantos alertas cada equipe tem abertos. Clique no da sua equipe para ver a lista (capítulo 20). O {{Financeiro}} não tem cartão próprio: os alertas dele contam no do {{Administrativo}} e chegam pelo sino. Um cartão **Sem setor** junta os alertas antigos, de antes da divisão por equipe.
+- **Os cartões por setor** (Documentação, Equipamentos, Operações e Administrativo) mostram quantos alertas cada equipe tem abertos. Clique no da sua equipe para ver a lista (capítulo 20). O {{Financeiro}} não tem cartão próprio: os alertas dele contam no do {{Administrativo}} e chegam pelo sino. Um cartão **Sem setor**, que só aparece quando tem alerta, junta os antigos, de antes da divisão por equipe.
 - **O Line-Up**, logo abaixo, mostra os navios atracados, os que estão chegando e a carga de cada porto (capítulo 5).
 - **Chegadas e Saídas** e **Tela TV** abrem a programação dos navios (capítulo 5).
 
@@ -114,8 +115,8 @@ As listas do Vela (B/Ls, Containers, Clientes, faturas) funcionam do mesmo jeito
 
 - **Os filtros ficam no endereço da página.** Copie o link e mande a um colega: ele abre a mesma lista, com os mesmos filtros.
 - **A busca aceita vários números de uma vez.** Cole uma coluna de B/Ls ou de containers, e a lista traz todos.
-- **Os cartões de total do alto avisam o que fazem.** O que tem a marca **Filtrar** filtra a lista, e a marca vira **Filtrando** com o filtro aplicado; o cartão sem marca só mostra o número.
-- **A caixa do cabeçalho seleciona tudo o que o filtro achou,** em todas as páginas, não só a página da tela. Há seleção em Veículos, Vazios IMP e Desbloqueio de CE e, para o {{Administrativo}}, em B/Ls, Containers e Clientes.
+- **Os cartões de total do alto avisam o que fazem.** O que tem a marca **Filtrar** filtra a lista, e a marca vira **Filtrando** com o filtro aplicado; o que tem **Abrir** leva a outra tela; o cartão sem marca só mostra o número.
+- **A caixa do cabeçalho seleciona tudo o que o filtro achou,** em todas as páginas, não só a página da tela. Há seleção em Veículos e Vazios IMP; em Desbloqueio de CE, para a {{Documentação}} e o {{Administrativo}}; e, para o {{Administrativo}}, em B/Ls, Containers e Clientes.
 - **Exportar** (em Clientes, **Exportar base**) baixa uma planilha com tudo o que o filtro achou.
 
 ### Relatórios
@@ -138,9 +139,9 @@ Relatórios, na aba Operacional.
 | **Página não encontrada** | O link está errado ou é antigo. Volte ao Painel e navegue pelo menu. |
 | **Sem conexão no momento** | A internet caiu. A lista não está vazia: clique em **Tentar novamente** quando a conexão voltar. |
 | **Não foi possível exibir esta tela** | Um erro nessa tela. O resto do Vela continua funcionando: recarregue a página. |
-| **Acesso ainda não liberado** | O seu usuário está desativado ou ainda não foi liberado. Procure o {{Administrativo}}. |
+| **Acesso ainda não liberado**, ou na entrada "Seu acesso ao Vela está desativado ou ainda não foi liberado." | O seu usuário está desativado ou ainda não foi liberado. Procure o {{Administrativo}}. |
 
-Fora o Painel, o número de Alertas e o sino, o Vela não atualiza as telas sozinho. O que você grava aparece na hora na sua tela; o que um colega gravou aparece quando você reabre ou recarrega a página.
+Fora o Painel, a Tela TV, a Conciliação PIX, o número de Alertas, o sino e o que ainda está em andamento (o resultado de uma importação, um Comunicado na fila), o Vela não atualiza as telas sozinho. O que você grava aparece na hora na sua tela; o que um colega gravou aparece quando você reabre ou recarrega a página.
 
 ::: atencao
 Se o problema continuar, leve ao suporte técnico o que aparece na tela e a versão do Vela, copiada no menu da conta ([1.2](#12-o-menu-e-a-barra-do-alto)).

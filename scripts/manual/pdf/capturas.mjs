@@ -1384,4 +1384,136 @@ export const CAPTURAS = [
       }
     },
   },
+  // Revisão de 2026-11-03: telas que a redação dos capítulos 9, 21, 24 e 25
+  // pedia. Só olham, menos a última (restituicao), que registra um pagamento
+  // a mais e por isso fica no fim da lista.
+  {
+    id: 'precos-do-porto',
+    capitulo: 21,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/taxas-locais/tabelas')
+      const nova = page.getByRole('button', { name: 'Nova tabela' })
+      await nova.waitFor()
+      await page.waitForTimeout(600)
+      const abrirItens = page.getByRole('button', { name: /^Abrir os itens da tabela / }).first()
+      const menu = page.getByRole('button', { name: /^Mais ações da tabela / }).first()
+      const segunda = page.getByRole('button', { name: /^Abrir os itens da tabela / }).nth(1)
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Tabelas de Taxas Locais', level: 1 }), nova, segunda], 14)
+      return {
+        clip,
+        marks: [
+          await marca(2, nova, clip, { destaque: true }),
+          await marca(3, abrirItens, clip, { posicao: 'direita' }),
+          await marca(4, menu, clip),
+        ],
+      }
+    },
+  },
+  {
+    id: 'admin-usuarios',
+    capitulo: 25,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/admin/usuarios')
+      const tabela = bloco(page, 'Usuários')
+      await tabela.getByRole('table').waitFor()
+      await page.waitForTimeout(600)
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Administração', level: 1 }), page.getByRole('button', { name: 'Novo usuário' }), tabela], 12)
+      return { clip, marks: [] }
+    },
+  },
+  {
+    id: 'editar-acesso',
+    capitulo: 25,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/admin/usuarios')
+      await page.getByRole('button', { name: /^Editar acesso de Carlos Mendes/ }).click()
+      const dlg = page.getByRole('dialog')
+      await dlg.getByRole('heading', { name: /^Editar acesso/ }).waitFor()
+      await page.waitForTimeout(400)
+      // Só o alto da janela: o setor e o que ele deixa fazer. A lista do que
+      // não pode e o Salvar ficam abaixo, como o texto diz.
+      const clip = await recorteDe(page, [dlg.getByRole('heading', { name: /^Editar acesso/ }), dlg.getByText(/^Com este setor, /)], 0)
+      const janela = await dlg.boundingBox()
+      clip.x = janela.x
+      clip.width = janela.width
+      clip.height = Math.min(clip.height + 300, janela.height)
+      return {
+        clip,
+        marks: [await marca(2, dlg.getByRole('combobox', { name: 'Setor' }), clip, { posicao: 'campo' })],
+        async depois() {
+          await page.keyboard.press('Escape')
+        },
+      }
+    },
+  },
+  {
+    id: 'demurrage-containers',
+    capitulo: 9,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/demurrage')
+      const tabela = page.getByRole('table').first()
+      await tabela.waitFor()
+      await page.waitForTimeout(800)
+      const cartao = page.getByRole('button', { name: /^Correndo \(US\$\)/ }).first()
+      const linha = tabela.locator('tbody tr').first()
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Demurrage', level: 1 }), cartao, linha], 12)
+      return {
+        clip,
+        marks: [
+          await marca(1, cartao, clip),
+          await marca(2, tabela.getByRole('columnheader', { name: /Próximo passo/ }), clip, { posicao: 'direita' }),
+          await marca(3, linha.getByRole('button').first(), clip, { posicao: 'direita' }),
+        ],
+      }
+    },
+  },
+  {
+    id: 'pix-recebidos',
+    capitulo: 24,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/reconciliacao?tab=recebidos')
+      const tabela = page.getByRole('table').first()
+      await tabela.waitFor()
+      await page.waitForTimeout(600)
+      const linha = tabela.locator('tbody tr').filter({ hasText: 'QR estático do Vela' }).first()
+      await linha.getByRole('button').first().click()
+      const baixar = page.getByText('Baixar numa fatura (opcional).')
+      await baixar.waitFor()
+      await page.waitForTimeout(600)
+      const fim = tabela.locator('tbody tr').last()
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Conciliação PIX', level: 1 }), tabela, fim], 12)
+      return { clip, marks: [] }
+    },
+  },
+  {
+    // Por último: registra na INV-2026-0001 (R$ 4.340,00 no cenário) um
+    // pagamento R$ 100,00 maior que o saldo, e o excedente vira restituição.
+    id: 'restituicao',
+    capitulo: 24,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/taxas-locais')
+      await page.getByRole('link', { name: 'INV-2026-0001' }).or(page.getByRole('button', { name: 'INV-2026-0001' })).first().click()
+      const janela = page.getByRole('dialog')
+      await janela.getByText('Itens da fatura').waitFor()
+      await janela.getByRole('button', { name: 'Registrar pagamento' }).first().click()
+      const form = janela.getByRole('group', { name: 'Registrar pagamento' })
+      await form.getByLabel('Valor recebido (R$)').fill('4440,00')
+      await form.getByLabel('Recebido em').fill(iso(0))
+      await form.getByLabel('Referência bancária').fill('TED 000418')
+      await form.getByRole('button', { name: 'Registrar pagamento' }).click()
+      await page.getByRole('button', { name: 'Confirmar pagamento recebido' }).click()
+      const bloco = janela.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'Restituições ao Cliente' }) })
+      await bloco.getByText('A devolver').waitFor()
+      await page.waitForTimeout(600)
+      await bloco.scrollIntoViewIfNeeded()
+      const clip = await recorteDoElemento(bloco)
+      return {
+        clip,
+        marks: [await marca(2, bloco.getByRole('button', { name: /Confirmar devolução/ }).first(), clip, { destaque: true })],
+        async depois() {
+          await page.keyboard.press('Escape')
+        },
+      }
+    },
+  },
 ]

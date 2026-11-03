@@ -11,8 +11,9 @@ PSQL=(psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -q)
 
 "${PSQL[@]}" -d postgres -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'manual_demo' and pid <> pg_backend_pid()" >/dev/null
 "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS manual_demo" -c "CREATE DATABASE manual_demo TEMPLATE vela_test"
-# O shim de login do seed precisa das colunas do GoTrue em auth.users.
-"${PSQL[@]}" -d manual_demo -c "ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS instance_id uuid, ADD COLUMN IF NOT EXISTS encrypted_password varchar(255), ADD COLUMN IF NOT EXISTS email_confirmed_at timestamptz, ADD COLUMN IF NOT EXISTS raw_app_meta_data jsonb, ADD COLUMN IF NOT EXISTS raw_user_meta_data jsonb, ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()"
+# O shim de login do seed precisa das colunas do GoTrue em auth.users; a lista
+# de usuários da Administração (admin_list_users) lê também last_sign_in_at.
+"${PSQL[@]}" -d manual_demo -c "ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS instance_id uuid, ADD COLUMN IF NOT EXISTS encrypted_password varchar(255), ADD COLUMN IF NOT EXISTS email_confirmed_at timestamptz, ADD COLUMN IF NOT EXISTS raw_app_meta_data jsonb, ADD COLUMN IF NOT EXISTS raw_user_meta_data jsonb, ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(), ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now(), ADD COLUMN IF NOT EXISTS last_sign_in_at timestamptz"
 "${PSQL[@]}" -d manual_demo -f scripts/design-audit/seed_audit.sql >/dev/null
 "${PSQL[@]}" -d manual_demo -f scripts/manual/cenario/cenario.sql
 node scripts/manual/cenario/gerar-arquivos.mjs

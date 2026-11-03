@@ -59,7 +59,7 @@ Quando uma frente da escala está sem terminal, a seção dela mostra **Sem term
 No exemplo, com a carga cheia e a carga solta no TVV, a Carga descarregada do TVV mostra os containers dos B/Ls CSC45810A01K00 e CSC45810A03K00 e, no quadro da carga solta, o CSC45810B01K00. O CSNU240105, que está no Baplie sem B/L, aparece como Divergência.
 
 ::: atencao
-- Seção sem dado mostra "Nada operado nesta escala." e continua pedindo resolução: o vazio não é conclusão.
+- Seção sem dado ("Nada operado nesta frente.", "Nada operado nesta escala." ou "Não há frente atribuída a este terminal.") continua pedindo resolução: o vazio não é conclusão.
 - Mudar uma decisão já registrada pede justificativa. Voltar uma seção a **Pendente** desfaz a assinatura da equipe dona ([11.3](#113-assinar-pela-equipe)).
 :::
 
