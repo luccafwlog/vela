@@ -18,7 +18,8 @@ import { DEMURRAGE_DIVISION_LABELS } from './demurrage/demurrageDivisions'
 import { boxShareLabel } from './demurrage/demurragePresentation'
 import { formatDate } from '../lib/utils'
 import { arrivalDisplay } from '../lib/escalaState'
-import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
+import { sanitizeCellValue, sanitizeSheetRows } from '../lib/spreadsheetSafe'
+import { CARRIER_REPORT_TITLE, type CarrierReport, type CarrierReportLine } from './demurrage/demurrageCarrierReport'
 import type { LineUpRow } from './lineup'
 import type { PortalScheduleVoyage } from './portalScheduleVoyages'
 import { scheduleExportRows, scheduleTemplateColumns } from './portalScheduleBulkImport'
@@ -386,6 +387,77 @@ export async function exportDemurrageReportWorkbook(
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, demurrageItemSheetRows(report.items)), 'Itens por container')
   appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-demurrage-${makeTimestamp()}.xlsx`)
+}
+
+const CARRIER_HEADERS = ['INVOICE', 'BL', 'VESSEL', 'POL', 'POD', 'CNEE', 'CONTAINER', 'TYPE', 'DISCHARGE', 'RETURN', 'USE DAYS', 'EXCESS', 'TOTAL USD']
+/** Larguras do modelo enviado ao armador (caracteres). */
+const CARRIER_WIDTHS = [15, 21, 23, 11, 11, 37, 15, 8, 13, 13, 11, 10, 12]
+/** Formato 14 do Excel, o do modelo: a data aparece no padrão regional de quem abre. */
+const CARRIER_DATE_FORMAT = 'm/d/yy'
+const CARRIER_USD_FORMAT = '"US$"\\ #,##0.00'
+const CARRIER_DATE_COLUMNS = [8, 9]
+const CARRIER_USD_COLUMN = 12
+
+/** Data `YYYY-MM-DD` como número de série do Excel (dias desde 30/12/1899), sem fuso. */
+export function excelDateSerial(isoDate: string) {
+  const [year, month, day] = isoDate.slice(0, 10).split('-').map(Number)
+  return (Date.UTC(year, month - 1, day) - Date.UTC(1899, 11, 30)) / 86_400_000
+}
+
+function carrierRow(line: CarrierReportLine): Array<string | number | null> {
+  return [
+    line.first, line.bl, line.vessel, line.pol, line.pod, line.cnee, line.container, line.type,
+    line.discharge ? excelDateSerial(line.discharge) : null,
+    line.returned ? excelDateSerial(line.returned) : null,
+    line.useDays, line.excess, line.totalUsd,
+  ].map((value) => (value == null ? null : sanitizeCellValue(value)))
+}
+
+/**
+ * Uma aba no layout do armador: título mesclado na linha 1, linha 2 mesclada
+ * (vazia no modelo; no não faturado, a data da posição), cabeçalho na linha 3
+ * e uma linha por container a partir da 4.
+ * ponytail: a biblioteca de planilha da aplicação não grava estilo (negrito,
+ * borda, quebra de linha do CNEE); o conteúdo, a ordem, os formatos de data e
+ * US$ e as larguras são os do modelo. Para estilizar, trocar por uma
+ * biblioteca que grave estilos só nesta planilha.
+ */
+function carrierSheet(XLSX: typeof import('@e965/xlsx'), firstHeader: string, subtitle: string, lines: readonly CarrierReportLine[]) {
+  const headers = [firstHeader, ...CARRIER_HEADERS.slice(1)]
+  const sheet = XLSX.utils.aoa_to_sheet([[CARRIER_REPORT_TITLE], [subtitle || null], headers, ...lines.map(carrierRow)])
+  lines.forEach((_line, index) => {
+    const row = index + 3
+    for (const column of [...CARRIER_DATE_COLUMNS, CARRIER_USD_COLUMN]) {
+      const cell = sheet[XLSX.utils.encode_cell({ r: row, c: column })]
+      if (cell) cell.z = column === CARRIER_USD_COLUMN ? CARRIER_USD_FORMAT : CARRIER_DATE_FORMAT
+    }
+  })
+  const last = headers.length - 1
+  sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: last } }, { s: { r: 1, c: 0 }, e: { r: 1, c: last } }]
+  sheet['!cols'] = CARRIER_WIDTHS.map((wch, column) => ({ wch: column === 0 && firstHeader !== 'INVOICE' ? 46 : wch }))
+  return sheet
+}
+
+/**
+ * Planilha do armador (issue #1139): aba `Demurrage` com as Invoices em
+ * aberto, no layout que a equipe já envia, e aba `Not Invoiced` com a
+ * Demurrage ainda sem Invoice, calculada até a data da posição.
+ */
+export function buildDemurrageCarrierWorkbook(XLSX: typeof import('@e965/xlsx'), report: CarrierReport) {
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, carrierSheet(XLSX, 'INVOICE', '', report.invoiced), 'Demurrage')
+  const position = formatDate(report.positionDate)
+  XLSX.utils.book_append_sheet(
+    workbook,
+    carrierSheet(XLSX, 'STATUS', `Demurrage ainda não faturada — posição em ${position}; container não devolvido calculado até essa data.`, report.pending),
+    'Not Invoiced',
+  )
+  return workbook
+}
+
+export async function exportDemurrageCarrierWorkbook(report: CarrierReport) {
+  const XLSX = await import('@e965/xlsx')
+  XLSX.writeFile(buildDemurrageCarrierWorkbook(XLSX, report), `Demurrage_Report_${report.positionDate}.xlsx`)
 }
 
 /** Exportar de uma aba da central de Demurrage (D14): o que está na tela, com as colunas da tela. */
