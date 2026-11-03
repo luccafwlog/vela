@@ -1,6 +1,6 @@
 import * as XLSX from '@e965/xlsx'
 import { describe, expect, it } from 'vitest'
-import { extractEmail, extractTaxId, isInvalidFreightDescription } from '../blParser'
+import { extractConsigneeTaxId, extractEmail, extractTaxId, isInvalidFreightDescription } from '../blParser'
 
 it('extrai o primeiro e-mail do bloco do consignatário', () => {
   expect(extractEmail('ACME LOGISTICS\nEMAIL: Finance@Acme.COM')).toBe('finance@acme.com')
@@ -9,6 +9,18 @@ it('extrai o primeiro e-mail do bloco do consignatário', () => {
 
 it('extrai CNPJ válido embutido no bloco mesmo sem o rótulo CNPJ', () => {
   expect(extractTaxId('ACME COMERCIO LTDA\nRUA X 100\n12.345.678/0001-95')).toBe('12345678000195')
+})
+
+it('aceita CNPJ rotulado com pontuação fora do padrão, conferindo os dígitos', () => {
+  expect(extractTaxId('BYD DO BRASIL LTDA\nCNPJ:17.140820/0007-77\nMELISSA@BYD.COM')).toBe('17140820000777')
+  // telefone depois do rótulo não vira CNPJ: os dígitos verificadores não fecham
+  expect(extractTaxId('ACME\nCNPJ: 55 27 2121-1470 99')).toBeNull()
+})
+
+it('procura o CNPJ do consignatário na descrição só quando o bloco termina em **', () => {
+  const description = 'BYD DOLPHIN\nCOUNTRY: BRAZIL CNPJ: 01.135.153/0006-13 NAME: DENISE'
+  expect(extractConsigneeTaxId('COMEXPORT TRADING\nSTATE: ESPIRITO SANTO**', description)).toBe('01135153000613')
+  expect(extractConsigneeTaxId('COMEXPORT TRADING\nSTATE: ESPIRITO SANTO', description)).toBeNull()
 })
 import { parseBLBuffer, parseBLFile } from '../blParser'
 import { withDeclaredDimension } from './testWorkbook'
@@ -280,6 +292,13 @@ describe('blParser', () => {
     })
   })
 
+  it('aceita total de volumes com unidade de mais de uma palavra', async () => {
+    const parsed = await parseBLBuffer(coscoBuffer({ totalPackages: '          775 WOODEN BOXES' }))
+
+    expect(parsed.cargo.totalPackages).toBe(775)
+    expect(parsed.cargo.packagesUnit).toBe('WOODEN BOXES')
+  })
+
   it('parseia aba VIN para carga RoRo', async () => {
     const parsed = await parseBLBuffer(coscoBuffer({
       containerRows: [],
@@ -369,5 +388,11 @@ describe('blParser', () => {
     const file = new File(['BL;Container\nBL-1;MSCU1234567'], 'bl.xlsx')
 
     await expect(parseBLFile(file)).rejects.toThrow(/não reconhecido como XLS\/XLSX/)
+  })
+})
+
+describe('extractTaxId: CNPJ fora do padrão não atravessa linha', () => {
+  it('não junta o número da linha de baixo ao CNPJ incompleto', () => {
+    expect(extractTaxId('CNPJ: 17.140820/0007\n77 9999-0000')).toBeNull()
   })
 })

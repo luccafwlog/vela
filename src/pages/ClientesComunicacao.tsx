@@ -835,12 +835,14 @@ export function ClientesComunicacao() {
       <ClientesTabs active="comunicacao" />
 
       {/* Canal de envio (lote 5a): o estado como dado principal e a chave de
-          ligar e desligar na faixa, só para quem pode trocar. A confirmação de
-          hoje continua nos dois sentidos. */}
+          ligar e desligar na faixa. Só a conta Dev vê o bloco (decisão do dono
+          de 2026-11-03: os demais não enxergam a funcionalidade). A confirmação
+          continua nos dois sentidos. */}
+      {canToggleCommunications ? (
       <Block
         title="Canal de envio"
         className="mb-4"
-        aside={canToggleCommunications && !settingsLoading && !settingsError ? (
+        aside={!settingsLoading && !settingsError ? (
           <Switch
             checked={settings?.communications_enabled === true}
             disabled={setCommunicationsMutation.isPending}
@@ -889,6 +891,7 @@ export function ClientesComunicacao() {
             relido depois da tentativa (useSetCommunicationsEnabled). */}
         {communicationsToggleError ? <InlineError message={communicationsToggleError} /> : null}
       </Block>
+      ) : null}
 
       {/* Segundo nível: as abas da página são as de Clientes (ClientesTabs); aqui a vista. */}
       <SegmentedControl<CommunicationTab>

@@ -36,16 +36,14 @@ Só recebe o contato ativo, com e-mail válido e endereço que não está bloque
 
 **Quem faz:** {{Todas as equipes}}
 
-No alto da **Comunicação**, o bloco **Canal de envio** diz para onde vão agora os e-mails ao Cliente:
+Enquanto o Vela não opera com Clientes reais, uma chave de teste, o **Envio real**, decide para onde vão os e-mails ao Cliente:
 
 - **Envio real**: os e-mails saem para os contatos do Cliente.
-- **Redirecionado ao suporte**, em âmbar: todo e-mail de Cliente vai para suporte@portalfwlog.com.br, com "[Teste → e-mail do Cliente]" no assunto. Nada chega ao Cliente.
+- **Redirecionado ao suporte**: todo e-mail de Cliente vai para suporte@portalfwlog.com.br, com "[Teste → e-mail do Cliente]" no assunto. Nada chega ao Cliente.
 
-É a chave **Envio real**, uma ferramenta de teste que existe enquanto o Vela não opera com Clientes reais. Ela vale para todo e-mail de Cliente: os Comunicados automáticos e os mandados à mão, a Cobrança de Demurrage, os avisos do Desbloqueio de CE e os e-mails da conta do Portal. O **Resumo do Portal**, que vai à equipe, não depende dela ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)).
+A chave vale para todo e-mail de Cliente: os Comunicados automáticos e os mandados à mão, a Cobrança de Demurrage, os avisos do Desbloqueio de CE e os e-mails da conta do Portal. O **Resumo do Portal**, que vai à equipe, não depende dela ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)).
 
-O e-mail que foi ao suporte conta como enviado: a Cobertura e o Histórico o mostram como **Redirecionado ao suporte** ou **Ao suporte**, e ligar a chave depois não o reenvia ao Cliente.
-
-A chave só aparece para quem a equipe de desenvolvimento autorizou, no próprio bloco.
+Só a conta com a marca Dev vê a chave, no bloco **Canal de envio**, no alto da **Comunicação** ([25.10](25-administracao.md#2510-cuidar-das-configurações-do-vela)). As outras contas não veem o bloco: para elas, o sinal está no próprio e-mail. O que foi ao suporte conta como enviado, e a Cobertura e o Histórico o mostram como **Redirecionado ao suporte** ou **Ao suporte**. Ligar a chave depois não o reenvia ao Cliente.
 
 ## 16.3 Acompanhar a Cobertura de viagens
 
@@ -196,7 +194,7 @@ Se o aviso aparece como **Enviado**, abra o **Histórico** e veja a situação d
 Esses casos também chegam à {{Documentação}} como alerta (capítulo 20). Os avisos do Desbloqueio de CE e a Cobrança de Demurrage não entram na Cobertura: quando não saem, também abrem um alerta.
 
 ::: atencao
-Com o **Canal de envio** em **Redirecionado ao suporte**, a Cobertura mostra o aviso como saído, mas nada chegou ao Cliente ([16.2](#162-saber-se-os-e-mails-saem-de-verdade)).
+Com o envio real desligado, a Cobertura mostra o aviso como saído, mas nada chegou ao Cliente ([16.2](#162-saber-se-os-e-mails-saem-de-verdade)).
 :::
 
 ## 16.9 Corrigir o contato que não recebe

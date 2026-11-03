@@ -136,7 +136,7 @@ export function VoyageCard({
   const [localActiveTab, setLocalActiveTab] = useState<VoyageTabKey>(initialTab)
   const activeTab = controlledActiveTab ?? localActiveTab
   const [omitTarget, setOmitTarget] = useState<string | null>(null)
-  const { isAdmin, user, profile } = useAuth()
+  const { isAdmin, isDev, user, profile } = useAuth()
   const isCancelled = voyage.status === 'cancelled'
   const canEditVoyages = !isCancelled && Boolean(profile || user)
   const canDeleteVoyage = !isCancelled && isAdmin
@@ -483,6 +483,7 @@ export function VoyageCard({
               ceCoverage={ceCoverage}
               vaziosRoutes={vaziosImpStats?.routes}
               canEdit={!isCancelled}
+              canGenerateMercanteEdi={isDev}
               onEditPol={onEditPol}
             />
           ) : null}

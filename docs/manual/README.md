@@ -355,6 +355,16 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   política de segurança do Vela bloqueava só na prévia (CLI-066); o contato
   capturado do B/L fica sem nome em vez de "Contato manifesto", no Vela e no
   Portal (CLI-032, POR-089).
+- **Gerar EDI Mercante** (pedido do dono na issue #560, 2026-11-02, ADR 0116):
+  a linha de contêiner e a linha VAZIOS de Rotas e Manifestos geram o arquivo
+  do Mercante da rota, com impedimentos e avisos, no lugar do sistema externo
+  (VIA-053, VIA-146). As linhas BB e CNTR/BB geram o arquivo parcial de carga
+  solta, com o que falta em **A completar** (decisão do dono de 2026-11-03;
+  VIA-147).
+- **EDI Mercante e Canal de envio só para a conta Dev** (decisão do dono de
+  2026-11-03): os botões Gerar EDI Mercante e o bloco Canal de envio de
+  Comunicação com Clientes deixam de aparecer para os demais usuários (VIA-146,
+  VIA-147, CLI-052).
 - **Sincronização de 2026-11-02** (PRs luccafwlog/vela#1132, #1133, #1135,
   #1141, #1143 a #1160 e #1163 a #1172; migrations `554` a `566`). A matriz veio
   atualizada nas PRs; o texto do manual e do guia passou a descrever:
@@ -438,3 +448,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
 - **Quem cancela fatura e exclui Cliente** (decisão do dono de 2026-11-03,
   igual ao código): só o Administrativo. O 4.8, o 13.10 e o Ap. B deixam de
   dizer que o Financeiro cancela; o 13.10 diz quem exclui Cliente.
+- **Depois da PR luccafwlog/vela#1173** (EDI Mercante e Canal de envio só para
+  a conta Dev): o 16.2 diz que só a conta Dev vê o bloco **Canal de envio** e
+  que as outras equipes leem o desvio ao suporte na Cobertura e no Histórico;
+  o 16.8 fala do envio real desligado, e não do bloco; a captura da Cobertura
+  sai sem o bloco. O EDI Mercante não entra no manual, porque só a conta Dev o
+  vê.

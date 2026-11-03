@@ -1,15 +1,17 @@
 import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ManifestoBlsModal } from './ManifestoBlsModal'
+import { MercanteEdiModal, type MercanteEdiRoute } from './MercanteEdiModal'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
 import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
-import { FilePlus2, List, Pencil } from 'lucide-react'
+import { FileDown, FilePen, FilePlus2, List, Pencil } from 'lucide-react'
 import { RowActionButton } from '../ui/RowActionButton'
 import { Block } from '../ui/Block'
 import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
 import { formatCountLabel, formatDate } from '../../lib/utils'
 import type { VoyagePolSchedule } from '../../services/voyageRouteSchedules'
+import { normalizePortCode } from '../../services/portCode'
 import { collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, OMISSION_ROUTE_ROLE_LABELS, omissionRouteParts, type VoyageImportBatch } from './voyageCardHelpers'
 import type { EditingPolPayload, Voyage } from './voyageCardTypes'
 
@@ -22,6 +24,7 @@ export function VoyageManifestosTab({
   ceCoverage,
   vaziosRoutes,
   canEdit = true,
+  canGenerateMercanteEdi = false,
   onEditPol,
 }: {
   voyage: Voyage
@@ -32,11 +35,26 @@ export function VoyageManifestosTab({
   ceCoverage: { filled: number; total: number }
   vaziosRoutes?: Array<{ pol: string; pod: string; containerCount: number }> | undefined
   canEdit?: boolean
+  /**
+   * Gerar EDI Mercante só para a conta Dev (marca Dev, `useAuth().isDev`;
+   * decisão do dono de 2026-11-03). A geração só lê o que todo usuário interno
+   * já lê e não grava nada: esconder o botão é o controle, sem regra no banco.
+   */
+  canGenerateMercanteEdi?: boolean
   onEditPol: (payload: EditingPolPayload) => void
 }) {
   const { data: transshipmentData } = useVoyageTransshipments(voyage.id)
   const [blsRoute, setBlsRoute] = useState<{ pol: string; pod: string; label: string } | null>(null)
+  const [ediRoute, setEdiRoute] = useState<MercanteEdiRoute | null>(null)
   const { data: dbManifestos } = useManifestosMercanteByVoyage(voyage.id)
+  // Rotas com B/L de contêiner (não misto): só elas têm o arquivo de contêiner. A
+  // rota CNTR/BB só com B/L misto mostraria um botão que sempre impede.
+  const routePort = (value: string | null | undefined) => normalizePortCode(value) ?? (String(value ?? '').trim().toUpperCase() || '-')
+  const containerRoutes = new Set(
+    (voyage.bls ?? [])
+      .filter((bl) => bl.cargo_mode === 'container')
+      .map((bl) => `${routePort(bl.pol)}__${routePort(bl.pod)}`),
+  )
   const manifestRows = collectVoyageManifestBatchRows({
     voyageId: voyage.id,
     batches: importBatches,
@@ -96,6 +114,10 @@ export function VoyageManifestosTab({
                   const manifestPending = !routeManifestos.length && !row.ceMaster && (row.blCount > 0 || row.isVazios)
                   const editPayload = { voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode }
                   const cannotEdit = !canEdit || !row.pol || row.pol === '-'
+                  // EDI Mercante: arquivo de contêiner (CNTR, CNTR/BB) e de vazios; a carga
+                  // solta (BB, CNTR/BB) tem arquivo próprio, parcial, que a equipe completa.
+                  const canGenerateEdi = canGenerateMercanteEdi && (row.isVazios ? (row.containerCount ?? 0) > 0 : containerRoutes.has(`${row.pol}__${row.pod}`))
+                  const canGenerateBreakbulkEdi = canGenerateMercanteEdi && !row.isVazios && row.blCount > 0 && (row.modeLabel === 'BB' || row.modeLabel === 'CNTR/BB')
                   return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
                       <td className="app-table__text whitespace-nowrap">
@@ -141,6 +163,24 @@ export function VoyageManifestosTab({
                               disabled={!canEdit}
                             />
                           ) : null}
+                          {canGenerateEdi ? (
+                            <RowActionButton
+                              label={`Gerar EDI Mercante de ${row.routeLabel}${row.isVazios ? ' (vazios)' : ''}`}
+                              icon={FileDown}
+                              title="Gerar EDI Mercante"
+                              onClick={() => setEdiRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel, kind: row.isVazios ? 'vazio' : 'carga' })}
+                              disabled={cannotEdit}
+                            />
+                          ) : null}
+                          {canGenerateBreakbulkEdi ? (
+                            <RowActionButton
+                              label={`Gerar EDI Mercante da carga solta de ${row.routeLabel} (parcial)`}
+                              icon={FilePen}
+                              title="Gerar EDI Mercante da carga solta (parcial, a equipe completa)"
+                              onClick={() => setEdiRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel, kind: 'carga_solta' })}
+                              disabled={cannotEdit}
+                            />
+                          ) : null}
                           {manifestPending ? (
                             <RowActionButton
                               label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
@@ -174,6 +214,9 @@ export function VoyageManifestosTab({
 
       {blsRoute ? (
         <ManifestoBlsModal open voyageId={voyage.id} route={blsRoute} onClose={() => setBlsRoute(null)} />
+      ) : null}
+      {ediRoute ? (
+        <MercanteEdiModal voyageId={voyage.id} route={ediRoute} onClose={() => setEdiRoute(null)} />
       ) : null}
     </>
   )

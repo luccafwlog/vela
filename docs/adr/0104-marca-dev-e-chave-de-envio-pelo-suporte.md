@@ -1,5 +1,7 @@
 # 0104 — Marca Dev e chave de envio que redireciona ao suporte
 
+> **Situação atual (2026-11-03).** Decisão do dono: o bloco **Canal de envio** em Comunicação com Clientes só aparece para a conta Dev; os demais setores deixam de ver o estado da chave (antes viam "Envio real" ou "Redirecionado ao suporte", sem a chave). A regra de quem troca a chave não muda. Regra vigente em [Clientes](../modules/clientes.md#chave-de-envio-de-comunicados).
+
 Status: aceito — 2026-10-27 (decisões do dono; lote 1 do
 [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
 Implementada na migration `469` e nas Edge Functions de e-mail
