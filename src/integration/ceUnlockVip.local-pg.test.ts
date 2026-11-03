@@ -139,6 +139,9 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     deliver('CE700-A1')
     const ready = item('CE700-A1')
     expect(ready).toMatchObject({ can_export: true, reasons: [] })
+    // O cartão/filtro "Aptos, não exportados" de Andamento dos B/Ls lista o B/L (caso CSC45410800600, 2026-11-03).
+    const situation = (value: string) => (JSON.parse(sql(`SELECT public.ce_unlock_read('bls',jsonb_build_object('filters',jsonb_build_object('search','CE700-A1','situation','${value}'),'page',1));`, admin)) as { items: Array<{ bl_id: string }> }).items.map((i) => i.bl_id)
+    expect(situation('ready_not_exported')).toEqual(['CE700-A1'])
     expect(ready.sla_started_at).not.toBeNull()
     expect(sql(`SELECT count(*) FROM public.ce_unlock_direct_validations WHERE bl_id='CE700-A1' AND customer_id=${A};`)).toBe('1')
     const notice = sql(`SELECT message FROM public.portal_notifications WHERE customer_id=${A} AND bl_id='CE700-A1';`)
