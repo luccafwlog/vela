@@ -295,9 +295,12 @@ describe('exportCustomerContainersWorkbook', () => {
     await exportCustomerContainersWorkbook('ACME', [
       { row, view: { soc: false, days: 27, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true, demurrage: { kind: 'waived' } } },
       { row, view: { soc: false, days: 27, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true, demurrage: { kind: 'to_bill', usd: 420 } } },
+      { row, view: { soc: false, days: 43, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true, demurrage: { kind: 'running', usd: 2450 } } },
     ])
     const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
     expect(sheetRows[0]).toMatchObject({ Demurrage: 'Cobrança dispensada', 'Demurrage (US$)': '' })
-    expect(sheetRows[1]).toMatchObject({ Demurrage: 'A faturar', 'Demurrage (US$)': 420 })
+    // Decisão de 2026-11-03: "a emitir" e "correndo", como a aba na tela.
+    expect(sheetRows[1]).toMatchObject({ Demurrage: 'A emitir', 'Demurrage (US$)': 420 })
+    expect(sheetRows[2]).toMatchObject({ Demurrage: 'Correndo', 'Demurrage (US$)': 2450 })
   })
 })

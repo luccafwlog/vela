@@ -947,8 +947,11 @@ ADR 0070): só é emitida com CE Mercante no B/L-âncora e o Gate de faturamento
 do Portal aberto (`_demurrage_issue_block_reason`). Pela tela, a recusa diz o
 motivo ("B/L … sem CE Mercante. Cadastre o CE antes de faturar." ou
 "Faturamento bloqueado pelo Portal: …"); pela fila de efeitos, o efeito termina
-`succeeded` com o resultado `blocked`, sem falha nem Alerta, e a aba
-`Containers` continua dizendo "A faturar" (nota editorial de 2026-10-29). Gravar o CE, abrir o gate (Liberação de faturamento ou
+`succeeded` com o resultado `blocked`, sem falha nem Alerta, e a caixa fica na
+divisão **Travado** da aba `Containers` (ADR 0112, D4; até a repaginação, a aba
+dizia "A faturar", nota editorial de 2026-10-29). Nas fichas do B/L e do
+Cliente, que dizem por container, ela continua "a emitir" (decisão do dono de
+2026-11-03). Gravar o CE, abrir o gate (Liberação de faturamento ou
 Portal pronto, `_reprocess_customer_held_billing`) ou trocar o Cliente do B/L
 (`trg_enqueue_demurrage_after_customer_change`, migration `484`) põe de novo na
 fila a emissão das caixas devolvidas ainda sem Invoice
