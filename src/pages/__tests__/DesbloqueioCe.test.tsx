@@ -32,6 +32,14 @@ vi.mock('../../hooks/useCeUnlock', () => ({
   },
   useCeUnlockSituationCounts: () => ({ ready_not_exported: 1, exported: 1, divergent: 1, unlocked: 2, '': 12 }),
   useCeUnlockRequest: () => ({ data: null }),
+  // Histórico do B/L sem solicitação (migration 577): a entrega registrada com quem e quando.
+  useCeUnlockBlHistory: (bl: string | null) => ({
+    isLoading: false, error: null,
+    data: bl ? { bl_id: bl, item: row({ bl_id: bl, delivered: true }), events: [
+      { at: '2026-11-03T13:15:00Z', requirement: 'bl_original', event: 'undelivered', detail: null, amount: null, actor: 'Ana Doc', reason: 'Marcado no B/L errado' },
+      { at: '2026-11-03T12:00:00Z', requirement: 'taxas', event: 'settled', detail: 'baixa manual', amount: 1250.5, actor: null, reason: null },
+    ] } : undefined,
+  }),
   useCeUnlockReviewQueue: () => ({
     isLoading: false, error: null, refetch: vi.fn(),
     data: { total: 1, items: [{
@@ -94,6 +102,37 @@ it('veículo LCL isento: termo e procuração dispensados e sem solicitação (m
   expect(screen.getByRole('img', { name: 'Termo de devolução BL-LCL: dispensado (veículo LCL isento)' })).toBeTruthy()
   expect(screen.getByRole('img', { name: 'Procuração BL-LCL: dispensado (veículo LCL isento)' })).toBeTruthy()
   expect(screen.getByText('Dispensada · veículo LCL')).toBeTruthy()
+})
+it('VIP sem solicitação com os anuais cobrindo: termo e procuração cobertos pelo anual (migration 576)', () => {
+  state.extra = [
+    { bl_id: 'BL-VIP', vip: true, vip_covered: true, termo: true, procuracao: true },
+    { bl_id: 'BL-VIP-FALTA', vip: true, vip_covered: false, termo: false, procuracao: false },
+  ]
+  mount()
+  expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP: coberto pelo anual VIP' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Procuração BL-VIP: coberto pelo anual VIP' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP-FALTA: pendente' })).toBeTruthy()
+})
+
+it('histórico do B/L abre com quando, o que aconteceu e quem, mesmo sem solicitação (migration 577)', async () => {
+  mount()
+  await userEvent.click(screen.getByRole('button', { name: 'Histórico do B/L BL-557' }))
+  const dialog = screen.getByRole('dialog', { name: 'Histórico do B/L BL-557' })
+  const rows = within(dialog).getAllByRole('row')
+  expect(rows[1].textContent).toContain('B/L original')
+  expect(rows[1].textContent).toContain('Entrega desmarcada')
+  expect(rows[1].textContent).toContain('Ana Doc')
+  expect(rows[1].textContent).toContain('Marcado no B/L errado')
+  expect(rows[1].textContent).toContain('03/11/2026, 10:15')
+  expect(rows[2].textContent).toMatch(/Baixa de R\$\s1\.250,50 · baixa manual/)
+  expect(within(rows[2]).getByText('Autor não registrado')).toBeTruthy()
+})
+it('Mais filtros: requisito atendido e VIP vão para a leitura da lista (migration 577)', async () => {
+  mount()
+  await userEvent.click(screen.getByRole('button', { name: /Mais filtros/ }))
+  await userEvent.selectOptions(screen.getByLabelText('Requisito atendido'), 'bl_fisico')
+  await userEvent.selectOptions(screen.getByLabelText('VIP'), 'request')
+  expect(state.filters.at(-1)).toMatchObject({ met_requirement: 'bl_fisico', vip: 'request' })
 })
 
 it('filtro padrão é "Todas"', () => {

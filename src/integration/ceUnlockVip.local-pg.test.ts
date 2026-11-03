@@ -112,6 +112,70 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     expect(commandError('apply_vip', { request_id: expired.id, expected_version: view(expired.id).version, request_key: key() })).toContain('Cobertura VIP indisponível')
   })
 
+  it('576: sem solicitação, o VIP coberto pelos dois anuais tem termo e procuração atendidos, sem ficar apto', () => {
+    const y = Y()
+    // Sem VIP, sem solicitação: pendente, mesmo com anuais aprovados.
+    annual(A, 'termo', y)
+    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', vip: false, vip_covered: false, termo: false, procuracao: false })
+    // VIP com só um dos anuais: o pedido nasceria comum, então os dois seguem pendentes.
+    setVip(A, true)
+    expect(item('CE700-A1')).toMatchObject({ vip: true, vip_covered: false, termo: false, procuracao: false })
+    annual(A, 'procuracao', y)
+    deliver('CE700-A1')
+    // Os dois anuais cobrindo: atendidos, mas a ZPT ainda pede a solicitação.
+    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', vip_covered: true, termo: true, procuracao: true, paid: true, delivered: true, can_export: false, sla_started_at: null })
+    expect(commandError('export', { bl_ids: ['CE700-A1'], request_key: key() })).toContain('não apto')
+    // O filtro "Requisito pendente" da aba Andamento lê os mesmos campos.
+    const pending = (req: string) => (JSON.parse(sql(`SELECT public.ce_unlock_read('bls',jsonb_build_object('filters',jsonb_build_object('search','CE700-A1','pending_requirement','${req}'),'page',1));`, admin)) as { items: Array<{ bl_id: string }> }).items.map((i) => i.bl_id)
+    expect(pending('termo')).not.toContain('CE700-A1')
+    expect(pending('procuracao')).not.toContain('CE700-A1')
+    // Perdido o VIP, volta a pendente.
+    setVip(A, false)
+    expect(item('CE700-A1')).toMatchObject({ vip_covered: false, termo: false, procuracao: false })
+    expect(pending('termo')).toContain('CE700-A1')
+  })
+
+  it('577: busca com espaço e "&", filtros de requisito atendido e VIP, e histórico do B/L sem solicitação', () => {
+    const list = (filters: object) => (JSON.parse(sql(`SELECT public.ce_unlock_read('bls',jsonb_build_object('filters','${JSON.stringify(filters)}'::jsonb,'page',1));`, admin)) as { items: Array<{ bl_id: string }> })
+      .items.map((i) => i.bl_id).filter((b) => b.startsWith('CE700-')).sort()
+    // Busca: espaço nas pontas ou no meio do B/L, e "&" com ou sem espaço.
+    expect(list({ search: ' CE700-A2 ' })).toEqual(['CE700-A2'])
+    expect(list({ search: 'CE700 -A2' })).toEqual(['CE700-A2'])
+    expect(list({ search: 'CE700-A1&CE700-A2' })).toEqual(['CE700-A1', 'CE700-A2'])
+    expect(list({ search: 'CE700-A1 & CE700-A3' })).toEqual(['CE700-A1', 'CE700-A3'])
+    // Entrega sem solicitação: registrar e desmarcar, com motivo.
+    deliver('CE700-A2')
+    command('delivery', { bl_id: 'CE700-A2', delivered: false, reason: 'Marcado no B/L errado', expected_version: item('CE700-A2').delivery_version, request_key: key() })
+    deliver('CE700-A2')
+    // Requisito atendido: o inverso do pendente.
+    expect(list({ search: 'CE700', met_requirement: 'bl_fisico' })).toEqual(['CE700-A2'])
+    expect(list({ search: 'CE700', met_requirement: 'taxas' })).toEqual(['CE700-A1', 'CE700-A2', 'CE700-A3', 'CE700-B1'])
+    // VIP: Cliente VIP, solicitação VIP e Cliente sem VIP.
+    const y = Y()
+    setVip(A, true); annual(A, 'termo', y); annual(A, 'procuracao', y)
+    submitVip(['CE700-A1'])
+    expect(list({ search: 'CE700', vip: 'customer' })).toEqual(['CE700-A1', 'CE700-A2', 'CE700-A3', 'CE700-UNPAID'])
+    expect(list({ search: 'CE700', vip: 'request' })).toEqual(['CE700-A1'])
+    expect(list({ search: 'CE700', vip: 'none' })).toEqual(['CE700-B1'])
+    // Histórico do B/L sem solicitação: entrega com quem e motivo, baixa das Taxas Locais e anuais que o cobrem.
+    const history = JSON.parse(sql(`SELECT public.ce_unlock_read('bl_history',jsonb_build_object('bl_id','CE700-A2'));`, admin)) as {
+      item: { bl_id: string; state: string }; events: Array<{ requirement: string; event: string; actor: string | null; reason: string | null; amount: number | null; detail: string | null }>
+    }
+    expect(history.item).toMatchObject({ bl_id: 'CE700-A2', state: 'no_request' })
+    expect(history.events.filter((e) => e.requirement === 'bl_original').map((e) => [e.event, e.actor, e.reason])).toEqual([
+      ['delivered', 'CE700 admin', null], ['undelivered', 'CE700 admin', 'Marcado no B/L errado'], ['delivered', 'CE700 admin', null],
+    ])
+    expect(history.events.find((e) => e.requirement === 'taxas')).toMatchObject({ event: 'settled', amount: 100, detail: 'baixa manual' })
+    expect(history.events.filter((e) => e.requirement === 'termo' || e.requirement === 'procuracao').map((e) => [e.requirement, e.event, e.detail]).sort())
+      .toEqual([['procuracao', 'approved', `Anual VIP ${y}`], ['termo', 'approved', `Anual VIP ${y}`]])
+    // O B/L da solicitação traz o andamento dela.
+    const sent = JSON.parse(sql(`SELECT public.ce_unlock_read('bl_history',jsonb_build_object('bl_id','CE700-A1'));`, admin)) as { events: Array<{ event: string; actor: string | null }> }
+    expect(sent.events.map((e) => e.event)).toEqual(expect.arrayContaining(['request_draft', 'request_submit']))
+    expect(sent.events.find((e) => e.event === 'request_submit')?.actor).toBe('Cliente pelo Portal')
+    // Leitura do Portal não tem o histórico.
+    expect(error(`SELECT public.ce_unlock_read('bl_history',jsonb_build_object('bl_id','CE700-A1'));`, clientA)).toContain('42501')
+  })
+
   it('matriz VIP: anual de outro CNPJ não cobre o cliente nem pode ser aplicado', () => {
     const y = Y()
     setVip(A, true); setVip(B, true)

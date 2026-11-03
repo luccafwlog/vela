@@ -37,11 +37,15 @@ export type CeUnlockItem = {
   version: number;
   vip: boolean;
   /**
-   * Termo e procuração anuais aprovados cobrem este B/L: o CE Mercante atual foi
-   * vinculado dentro da vigência deles, e a cobertura continua depois de vencer
-   * (migration 456). Sem isso, a solicitação segue com termo e procuração anexados a ela.
+   * Termo e procuração anuais aprovados cobrem este B/L pela data da solicitação
+   * (antes dela, hoje; migrations 479 e 487, ADR 0110). Sem isso, a solicitação
+   * segue com termo e procuração anexados a ela.
    */
   vip_covered?: boolean;
+  /**
+   * Atendidos pela solicitação; sem solicitação, verdadeiros só para o VIP com
+   * `vip_covered` (migration 576), sem deixar o B/L apto para a ZPT.
+   */
   termo: boolean;
   procuracao: boolean;
   paid: boolean;
@@ -148,6 +152,26 @@ export type CeUnlockFilters = {
   pod?: string;
   situation?: string;
   pending_requirement?: string;
+  /** O inverso de `pending_requirement`: termo, procuracao, taxas, bl_fisico (migration 577). */
+  met_requirement?: string;
+  /** `customer` (Cliente VIP), `request` (solicitação VIP) ou `none` (Cliente sem VIP), migration 577. */
+  vip?: string;
+};
+/** Registro do histórico de um B/L na aba Andamento dos B/Ls (migration 577). */
+export type CeUnlockBlHistoryEvent = {
+  at: string;
+  requirement: "termo" | "procuracao" | "taxas" | "bl_original" | "solicitacao" | "zpt";
+  event: string;
+  /** Protocolo, "Anual VIP AAAA", forma da baixa ou número da fatura avulsa. */
+  detail: string | null;
+  amount: number | null;
+  actor: string | null;
+  reason: string | null;
+};
+export type CeUnlockBlHistory = {
+  bl_id: string;
+  item: CeUnlockItem;
+  events: CeUnlockBlHistoryEvent[];
 };
 export type CeUnlockPage<T> = {
   items: T[];

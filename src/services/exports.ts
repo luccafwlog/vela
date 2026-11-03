@@ -400,6 +400,9 @@ export async function exportDemurrageScreenWorkbook(sheetName: string, fileSlug:
 export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
   const XLSX = await import('@e965/xlsx')
   const met = (ok: boolean) => (ok ? 'Atendido' : 'Pendente')
+  // Sem solicitação, o VIP coberto pelos anuais (migration 576) aparece como tal, não "Atendido".
+  const doc = (row: CeUnlockItem, ok: boolean) =>
+    !row.request_id && row.vip_covered && ok ? 'Coberto pelo anual VIP' : met(ok)
   const exportRows = rows.map((row) => ({
     'B/L': row.bl_id,
     'CE Mercante': row.ce_mercante ?? '',
@@ -411,8 +414,8 @@ export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
     Solicitação: row.protocol ?? (row.documents_dispensed ? 'Dispensada · veículo LCL' : ''),
     Situação: ceStateLabel(row.state),
     // Veículo LCL isento (migration 575): termo e procuração dispensados, não "atendidos".
-    'Termo de devolução': row.documents_dispensed ? 'Dispensado' : met(row.termo),
-    Procuração: row.documents_dispensed ? 'Dispensada' : met(row.procuracao),
+    'Termo de devolução': row.documents_dispensed ? 'Dispensado' : doc(row, row.termo),
+    Procuração: row.documents_dispensed ? 'Dispensada' : doc(row, row.procuracao),
     'Taxas locais': met(row.paid),
     'B/L original': met(row.delivered),
     Prazo: row.sla_started_at ? formatCeUnlockDeadline(ceUnlockDeadline(row.sla_started_at)) : '',

@@ -179,6 +179,15 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   migration `575`): o veículo LCL com Taxas Locais isentas é desbloqueado só com o
   B/L original, sem solicitação, termo nem procuração (DCE-011, DCE-110); a aba
   B/Ls do Portal mostra "Isentas" no B/L isento (POR-081).
+- **VIP coberto no B/L sem solicitação** (pedido do dono de 2026-11-03,
+  migration `576`): em Andamento dos B/Ls, termo e procuração do Cliente VIP
+  aparecem "coberto pelo anual VIP" antes do pedido, sem deixar o B/L apto
+  (DCE-111).
+- **Andamento dos B/Ls: busca, filtros e histórico do B/L** (pedidos do dono de
+  2026-11-03, migration `577`): a busca separa também por "&" (em todo o
+  sistema) e acha o B/L colado com espaço; **Requisito atendido** e **VIP** em
+  Mais filtros; **Histórico do B/L** com quando e quem cumpriu cada requisito,
+  com ou sem solicitação (ACE-028, DCE-065, DCE-112).
 - **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
   2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
   migrations `552` e `553`): o Pix do QR estático deixa de aparecer como ZPT
