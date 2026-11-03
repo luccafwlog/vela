@@ -1,6 +1,14 @@
 # 0110 — Desbloqueio de CE: o anual VIP cobre pela data da solicitação
 
-Status: aceito — 2026-10-27 (decisão do dono, com a diretoria, sobre
+> **Situação atual (2026-11-03).** As decisões 1 e 2 foram supersedidas
+> parcialmente pela [ADR 0119](./0119-vip-desbloqueia-sem-solicitacao.md)
+> (migration `581`): o B/L coberto pelos dois anuais não tem mais solicitação,
+> e o anual o cobre se vigente entre o pagamento e a entrega e a exportação. A data da
+> solicitação vale só para a solicitação VIP enviada antes da `581` e para
+> decidir se o B/L da solicitação comum é coberto. As decisões 3 e 4 seguem.
+> Regra vigente em [Desbloqueio de CE](../modules/desbloqueio-ce.md#requisitos-e-condição-vip).
+
+Status: supersedida parcialmente (decisões 1 e 2, pela ADR 0119, em 2026-11-03) — aceito em 2026-10-27 (decisão do dono, com a diretoria, sobre
 `08-desbloqueio-ce:4`, resposta "outra"; lote 11 do
 [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
 Implementada na migration `479`.

@@ -66,8 +66,8 @@ export function CeUnlockVipCoveragePanel({
     const reason = await reasonDialog({
       message: enabling ? "Habilitar a condição VIP deste CNPJ?" : "Revogar a condição VIP deste CNPJ?",
       consequence: enabling
-        ? "Os pedidos passam a usar termo e procuração anuais aprovados, que cobrem os desbloqueios solicitados dentro da vigência deles."
-        : "Os próximos pedidos voltam a exigir termo e procuração anexados a cada solicitação.",
+        ? "Com termo e procuração anuais aprovados, o B/L coberto não precisa de solicitação: pagas as Taxas Locais e entregue o B/L original, ele fica apto para a ZPT."
+        : "Os B/Ls ainda não enviados à ZPT voltam a exigir solicitação, com termo e procuração anexados.",
       reversibility: "A condição pode ser alterada novamente, com histórico.",
       confirmLabel: enabling ? "Habilitar VIP" : "Revogar VIP",
       tone: enabling ? "primary" : "danger",
@@ -110,7 +110,7 @@ export function CeUnlockVipCoveragePanel({
       if (
         !(await confirm({
           message: `Aprovar ${name} anual de ${formatDate(from)} a 31/12/${year}?`,
-          consequence: "O documento atende os pedidos VIP deste CNPJ durante a vigência.",
+          consequence: "Com o outro documento anual, dispensa a solicitação dos B/Ls deste CNPJ enquanto vigente, inclusive dos pagos e entregues antes da aprovação.",
           reversibility: "A aprovação pode ser revogada com motivo.",
           confirmLabel: "Aprovar",
         }))
@@ -209,7 +209,7 @@ export function CeUnlockVipCoveragePanel({
         title={scope ? "Documentos anuais VIP" : "Documentos anuais"}
         headingLevel={scope ? 2 : 3}
         flush
-        aside={scope ? "cobrem os desbloqueios solicitados na vigência" : "VIP habilitado"}
+        aside={scope ? "dispensam a solicitação dos B/Ls" : "VIP habilitado"}
       >
         <div className="app-block__body">
           <FactList columns={4}>
@@ -295,7 +295,7 @@ export function CeUnlockVipCoveragePanel({
         <LeadValue
           tone={vip?.enabled ? "default" : "muted"}
           detail={vip?.enabled
-            ? "Termo de devolução e procuração anuais cobrem todo desbloqueio deste CNPJ solicitado dentro da vigência, mesmo depois de 31/12."
+            ? "Termo de devolução e procuração anuais vigentes dispensam a solicitação dos B/Ls deste CNPJ, inclusive dos pagos e entregues antes da aprovação; o B/L pago e entregue na vigência segue coberto depois de 31/12."
             : "Sem a condição VIP, cada solicitação exige termo de devolução e procuração próprios."}
         >
           {vip?.enabled ? "VIP habilitado" : "Sem condição VIP"}

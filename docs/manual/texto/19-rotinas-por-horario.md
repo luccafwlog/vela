@@ -112,7 +112,7 @@ Se a consulta para, os Pix pagos deixam de ser baixados e abre um alerta (capít
 **Quem acompanha:** {{Documentação}}
 
 - **Avisos ao Cliente.** Os dois avisos do Desbloqueio de CE (documento recusado e documentação validada) saem por e-mail segundos depois de gravados; a rotina de 5 minutos repete os que ficaram para trás.
-- **Validação.** A mesma rotina de 5 minutos reconfere as solicitações pelo que acontece fora do Desbloqueio, como um pagamento, uma isenção ou a troca de Cliente. Por isso a solicitação pode levar até 5 minutos para passar a **Documentação validada** depois que a fatura é paga.
+- **Validação.** A mesma rotina de 5 minutos reconfere as solicitações pelo que acontece fora do Desbloqueio, como um pagamento, uma isenção ou a troca de Cliente. Por isso a solicitação pode levar até 5 minutos para passar a **Documentação validada** depois que a fatura é paga. A mesma rotina valida o B/L do Cliente VIP sem solicitação que ficou pronto pelo pagamento, pela aprovação do anual ou pela habilitação do VIP, e manda o aviso ao Cliente ([12.8](12-desbloqueio-de-ce.md#128-atender-o-cliente-vip)).
 - **Limpeza.** Todo dia, às 3h, o Vela remove os arquivos que passaram do prazo de guarda e cancela o rascunho criado há mais de 7 dias, com os documentos dele, o que solta os B/Ls do rascunho.
 
 O detalhe de cada prazo está no capítulo 12.

@@ -99,6 +99,30 @@ it("VIP coberto: requisitos dizem a cobertura anual, com a marca VIP e a aba anu
   expect(within(block).getByText("VIP")).toBeTruthy();
   expect(screen.getByRole("tab", { name: "Documentos anuais" })).toBeTruthy();
 });
+// Decisão do dono de 2026-11-03 (migration 581, ADR 0119): o VIP coberto pelos anuais não pede.
+it("VIP coberto: diz que não precisa pedir e mostra, por B/L, o que falta ou a documentação validada com o prazo", async () => {
+  fixtures.vip = true;
+  fixtures.extraItems = [
+    { bl_id: "BL-VIP-FALTA", ce_mercante: "456", paid: false, delivered: false, can_submit: false, direct: true, vip_direct: true, vip_covered: true, state: "no_request", reasons: [] },
+    { bl_id: "BL-VIP-OK", ce_mercante: "789", paid: true, delivered: true, can_submit: false, direct: true, vip_direct: true, vip_covered: true, state: "no_request", sla_started_at: "2026-11-03T10:00:00-03:00", reasons: [] },
+  ];
+  mount();
+  const block = screen.getByRole("region", { name: "O que o desbloqueio pede" });
+  expect(within(block).getByRole("note").textContent).toContain("Pela condição VIP, você não precisa pedir o desbloqueio.");
+  expect(within(block).getByRole("note").textContent).toContain("avisamos aqui e por e-mail");
+  expect(screen.getByRole("region", { name: "Prazo para desbloqueio" }).textContent).toContain("na condição VIP, sem solicitação, B/L a B/L");
+  const row = (bl: string) => screen.getByLabelText(`Selecionar B/L ${bl}`).closest("tr")!;
+  expect(row("BL-VIP-FALTA").textContent).toContain("Não precisa (VIP) · Falta pagar as taxas locais e entregar o B/L original");
+  expect(row("BL-VIP-OK").textContent).toContain("Não precisa (VIP) · Documentação validada · prazo até 03/11");
+  expect(screen.getByLabelText("Selecionar B/L BL-VIP-OK").hasAttribute("disabled")).toBe(true);
+  await userEvent.click(screen.getByRole("button", { name: /Não precisam de solicitação\s*2/ }));
+  expect(screen.queryByLabelText("Selecionar B/L BL-A")).toBeNull();
+});
+it("Cliente sem VIP e sem B/L dispensado: sem o aviso VIP nem o cartão dos que não precisam de solicitação", () => {
+  mount();
+  expect(screen.queryByText(/Pela condição VIP/)).toBeNull();
+  expect(screen.queryByRole("button", { name: /Não precisam de solicitação/ })).toBeNull();
+});
 // O pedido é inteiro VIP ou inteiro comum: com só o termo anual válido, a procuração
 // falta e os dois vão anexados; nenhum dos dois pode aparecer como "coberto".
 it("VIP só com o termo anual: requisitos dizem que os dois vão anexados", () => {

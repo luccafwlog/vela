@@ -27,6 +27,8 @@ Só o B/L com os quatro vai para a planilha da ZPT.
 
 O **veículo em LCL com Taxas Locais isentas** é a exceção: não tem solicitação, termo nem procuração. Basta o B/L original entregue na agência; você marca a entrega ([12.4](#124-registrar-a-entrega-do-bl-original)) e o B/L fica apto para a ZPT, com as quatro colunas "Sim" na planilha. Em **Andamento dos B/Ls**, a coluna **Solicitação** diz "Dispensada · veículo LCL" e o termo e a procuração aparecem verdes, como dispensados. O B/L isento à mão (**Isentar Taxas Locais**, [21](21-taxas-locais.md)) não entra nessa exceção: ele só não precisa pagar.
 
+O **Cliente VIP** com o termo de devolução e a procuração anuais em dia também não tem solicitação: pagas as Taxas Locais e entregue o B/L original, o B/L fica apto para a ZPT ([12.8](#128-atender-o-cliente-vip)).
+
 A solicitação passa por estas situações: **Rascunho** (o Cliente ainda não enviou), **Enviado**, **Em análise** ou **Correção solicitada**, e **Documentação validada**, quando todos os B/Ls têm os quatro requisitos. Se um requisito cai depois, a validada volta a **Em análise**. A cancelada fica **Cancelado**.
 
 ::: atencao
@@ -89,7 +91,7 @@ Para desfazer uma marcação errada, clique de novo na caixa, escreva o motivo e
 
 **Quem acompanha:** {{Documentação}}
 
-O prazo é da agência, para enviar o B/L à ZPT. Ele só existe quando os quatro requisitos estão cumpridos e começa no último deles: o envio da solicitação, a aprovação de um documento, a entrega do original ou a baixa do pagamento. Faltando um, não há prazo em lugar nenhum, nem no Portal.
+O prazo é da agência, para enviar o B/L à ZPT. Ele só existe quando os quatro requisitos estão cumpridos e começa no último deles: o envio da solicitação, a aprovação de um documento, a entrega do original ou a baixa do pagamento. Faltando um, não há prazo em lugar nenhum, nem no Portal. No B/L do Cliente VIP sem solicitação, o prazo começa quando o Vela valida a documentação do B/L, na entrega do original ou em até 5 minutos depois do pagamento ([12.8](#128-atender-o-cliente-vip)).
 
 O prazo conta só dias úteis, de segunda a sexta:
 
@@ -148,7 +150,7 @@ Um único CE ilegível no arquivo, com menos ou mais de 15 dígitos, impede a co
 
 **Quem faz:** {{Documentação}} e {{Administrativo}}
 
-O Cliente VIP manda o termo de devolução e a procuração uma vez por ano. Esses **documentos anuais** substituem os de cada pedido: a solicitação dele não passa pela análise. O pagamento e a entrega do original continuam B/L a B/L. O anual cobre todo B/L cujo desbloqueio foi pedido dentro da vigência dele, que termina sempre em 31/12, e segue cobrindo esse pedido depois de 31/12.
+O Cliente VIP manda o termo de devolução e a procuração uma vez por ano. Com esses **documentos anuais** aprovados, ele **não pede o desbloqueio**: o B/L que os dois anuais cobrem fica apto assim que as Taxas Locais são pagas e o B/L original é entregue na agência, e você o exporta para a ZPT como os demais. O pagamento e a entrega continuam B/L a B/L. O anual cobre o B/L quando está vigente em algum dia entre o pagamento e a entrega e a exportação; a vigência termina sempre em 31/12. O B/L pago e entregue em dezembro segue coberto mesmo exportado em janeiro, e o B/L pago e entregue antes de o Cliente virar VIP fica coberto quando os anuais são aprovados.
 
 1. Na ficha do Cliente, aba **Desbloqueio de CE e VIP**, clique em **Habilitar condição VIP**, escreva o motivo e clique em **Habilitar VIP**.
 2. O Cliente envia os anuais pelo Portal. Você também pode enviar por ele, em **Enviar termo de devolução** ou **Enviar procuração**.
@@ -156,11 +158,13 @@ O Cliente VIP manda o termo de devolução e a procuração uma vez por ano. Ess
 
 A tela propõe o ano corrente e, como início, o dia do envio ou 01/01 do ano escolhido, o que vier depois: o anual enviado em dezembro e analisado em janeiro começa em 01/01 do ano novo. Ao trocar o ano, o início é recalculado. O início fica sempre no ano da cobertura; se você digitar outro, a tela avisa ("O início da vigência precisa estar em AAAA, o ano da cobertura.") e não aprova.
 
-A solicitação nasce VIP só quando os anuais aprovados cobrem todos os B/Ls escolhidos; se um não está coberto, ela nasce comum, com termo e procuração anexados. A VIP fica **Enviado** até todos os B/Ls terem o pagamento e o original, e então passa sozinha a **Documentação validada**. Como não passa pela fila, você a encontra em **Andamento dos B/Ls**, pela coluna **Solicitação**; o Cliente VIP tem a marca "VIP" ao lado do nome. Antes de o Cliente VIP pedir, e também enquanto a solicitação VIP é rascunho, o B/L que os dois anuais cobrem já mostra o termo e a procuração verdes, "coberto pelo anual VIP"; ele só vai para a ZPT depois de a solicitação ser enviada. No rascunho comum, termo e procuração seguem os anexados a ele. Se um anual foi revogado ou trocado no meio do caminho, abra a solicitação e use **Aplicar renovação VIP**.
+Em **Andamento dos B/Ls**, o B/L do Cliente VIP coberto aparece com a coluna **Solicitação** "Dispensada · VIP" e o termo e a procuração verdes, "coberto pelo anual VIP"; o Cliente tem a marca "VIP" ao lado do nome. Quando você registra a entrega do original e as taxas já estão pagas, o B/L fica apto na hora; com o pagamento feito fora do Desbloqueio, em até 5 minutos. Nesse momento o Vela valida a documentação do B/L, o prazo começa ([12.5](#125-o-prazo-do-desbloqueio)) e o Cliente recebe o aviso "documentação validada" do B/L, no Portal e por e-mail, uma vez só. O **Histórico do B/L** registra "Documentação validada pela condição VIP, sem solicitação".
+
+Se só um dos anuais cobre o B/L (o outro falta, venceu ou foi recusado), o B/L segue o caminho comum: o Cliente pede a solicitação e anexa termo e procuração. A solicitação VIP aberta antes dessa regra continua até o fim, sem análise: fica **Enviado** até todos os B/Ls terem o pagamento e o original e passa sozinha a **Documentação validada**. Se um anual foi revogado ou trocado no meio do caminho, abra a solicitação e use **Aplicar renovação VIP**. O rascunho VIP antigo não é mais enviado: o Cliente o cancela.
 
 ::: atencao
 - O Cliente não recebe aviso da análise do anual. Ele vê a situação no Portal, na aba **Documentos anuais**.
-- **Revogar condição VIP** vale na hora também para as solicitações VIP em andamento: os B/Ls deixam de estar aptos. O Cliente pede de novo, numa solicitação comum, ou você cancela ([12.9](#129-cancelar-uma-solicitação)).
+- **Revogar condição VIP** vale na hora: o B/L ainda não exportado volta a precisar de solicitação, e as solicitações VIP em andamento deixam de estar aptas. O Cliente pede de novo, numa solicitação comum, ou você cancela ([12.9](#129-cancelar-uma-solicitação)). O B/L já exportado continua exportado.
 :::
 
 ## 12.9 Cancelar uma solicitação

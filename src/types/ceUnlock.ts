@@ -56,7 +56,16 @@ export type CeUnlockItem = {
    * dispensados e nenhuma solicitação; basta a entrega do B/L original.
    */
   documents_dispensed?: boolean;
-  /** B/L dispensado que segue sem solicitação: o desk exporta direto para a ZPT (migration 575). */
+  /**
+   * Cliente VIP com os dois anuais cobrindo o B/L (migration 581, ADR 0119): não precisa de
+   * solicitação. O dia que o anual cobre é o do último entre pagamento e entrega; antes deles, hoje.
+   * Em solicitação VIP enviada antes da 581, o B/L continua nela.
+   */
+  vip_direct?: boolean;
+  /**
+   * B/L que segue sem solicitação (veículo LCL isento, migration 575, ou VIP coberto, migration 581):
+   * o desk exporta direto para a ZPT.
+   */
   direct?: boolean;
   /** Só no Portal (migration 298): taxas ainda sem fatura visível ao Cliente. */
   local_charges_awaiting_invoice?: boolean;

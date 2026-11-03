@@ -30,7 +30,7 @@ import { CeUnlockDeliveryAddresses } from "../components/ce-unlock/CeUnlockDeliv
 import { CeUnlockHistory } from "../components/ce-unlock/CeUnlockHistory";
 import { CeUnlockRequirementIcon } from "../components/ce-unlock/CeUnlockRequirements";
 import { CeUnlockVipCoveragePanel } from "../components/ce-unlock/CeUnlockVipCoveragePanel";
-import { ceDate, ceDocumentName, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove } from "../lib/ceUnlockLabels";
+import { ceDate, ceDocumentName, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove, ceVipDirectStatus } from "../lib/ceUnlockLabels";
 import { coveredUntil } from "../lib/ceUnlockCoverage";
 import { formatDate } from "../lib/utils";
 import { ceUnlockDeadline, formatCeUnlockDeadline, latestSlaStart } from "../services/ceUnlockSla";
@@ -43,7 +43,7 @@ import { matchesAnyToken } from "../lib/searchTerms";
 
 type Tab = "new" | "requests" | "annual";
 type DocType = "termo" | "procuracao";
-type CardFilter = "can_submit" | "open_charges" | "in_request";
+type CardFilter = "can_submit" | "open_charges" | "in_request" | "direct";
 const PAGE_SIZE = 25;
 const SELECTION_LIMIT = 100;
 const DOC_TYPES = ["termo", "procuracao"] as const;
@@ -78,6 +78,8 @@ const refusalReasons = (documents: CeUnlockDocument[]) =>
 const inRequest = (i: CeUnlockItem) => !!i.request_id && i.state !== "cancelled";
 /** Taxas locais com fatura em aberto; "aguardando fatura" não pede ação do Cliente. */
 const openCharges = (i: CeUnlockItem) => !i.paid && !i.local_charges_awaiting_invoice;
+// Segue sem solicitação: veículo LCL isento (migration 575) ou VIP coberto pelos anuais (migration 581).
+const withoutRequest = (i: CeUnlockItem) => !!i.direct && !inRequest(i);
 
 /** O que falta nos documentos anuais VIP, em fatos ("a procuração anual venceu"). */
 function annualGaps(vip: CeUnlockVipCoverage) {
@@ -168,6 +170,17 @@ function includesText(value: string | null | undefined, term: string) {
   return !needle || (value ?? "").toLowerCase().includes(needle);
 }
 
+function VipDirectCell({ item }: { item: CeUnlockItem }) {
+  const status = ceVipDirectStatus(item);
+  return (
+    <>
+      {"Não precisa (VIP) · "}
+      <StatusText tone={status.tone}>{status.label}</StatusText>
+      {item.sla_started_at ? ` · prazo até ${formatCeUnlockDeadline(ceUnlockDeadline(item.sla_started_at))}` : null}
+    </>
+  );
+}
+
 export function PortalDesbloqueioCe() {
   const [params, setParams] = useSearchParams();
   const id = params.get("pedido");
@@ -219,6 +232,7 @@ export function PortalDesbloqueioCe() {
     can_submit: canRequest,
     open_charges: openCharges,
     in_request: inRequest,
+    direct: withoutRequest,
   };
   const filtered = card ? searched.filter(cardFilters[card]) : searched;
   const pageItems = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
@@ -522,6 +536,17 @@ export function PortalDesbloqueioCe() {
               </Fact>
             </FactList>
             {/* Decisão do dono de 2026-11-03 (migration 575): só aparece quando o Cliente tem um B/L assim. */}
+            {/* Decisão do dono de 2026-11-03 (migration 581, ADR 0119): o VIP coberto pelos anuais não pede. */}
+            {vipEnabled && (allItems.some((i) => i.vip_direct) || (vip?.termo && vip.procuracao)) ? (
+              <div className="app-callout" role="note">
+                <p className="m-0 text-sm">
+                  <strong>Pela condição VIP, você não precisa pedir o desbloqueio.</strong> Com o termo de devolução e a
+                  procuração anuais vigentes, o B/L com as Taxas Locais pagas e o B/L original entregue na agência segue
+                  sozinho para o desbloqueio. Quando a documentação de cada B/L for validada, avisamos aqui e por e-mail,
+                  com o prazo. Só precisa de solicitação o B/L que os documentos anuais não cobrem.
+                </p>
+              </div>
+            ) : null}
             {allItems.some((i) => i.documents_dispensed) ? (
               <p className="m-0 text-sm">
                 Veículo em LCL com Taxas Locais isentas não precisa de solicitação, termo nem procuração: basta entregar o
@@ -543,7 +568,8 @@ export function PortalDesbloqueioCe() {
               Mesma regra de `ceUnlockDeadline` (src/services/ceUnlockSla.ts) e da migration 466: mudar os três juntos. */}
           <Block title="Prazo para desbloqueio">
             <p className="m-0 text-sm">
-              Começa quando os quatro requisitos estão cumpridos em todos os B/Ls da solicitação. Cumpridos antes das
+              Começa quando os quatro requisitos estão cumpridos em todos os B/Ls da solicitação
+              {vipEnabled ? "; na condição VIP, sem solicitação, B/L a B/L, quando a documentação dele é validada" : ""}. Cumpridos antes das
               12h, o desbloqueio é feito até as 17h do mesmo dia útil; a partir das 12h, até as 12h do próximo dia útil.
               Cumpridos no sábado ou no domingo, até as 12h de segunda-feira.
             </p>
@@ -569,6 +595,14 @@ export function PortalDesbloqueioCe() {
               selected={card === "in_request"}
               onSelect={() => filterCard("in_request")}
             />
+            {(vipEnabled || allItems.some(withoutRequest)) && (
+              <MetricCard
+                label="Não precisam de solicitação"
+                value={flow.list.data ? searched.filter(withoutRequest).length : <NoValue label="Carregando" />}
+                selected={card === "direct"}
+                onSelect={() => filterCard("direct")}
+              />
+            )}
           </div>
 
           <Block
@@ -743,6 +777,10 @@ export function PortalDesbloqueioCe() {
                               // Veículo LCL com Taxas Locais isentas não pede solicitação nem documentos:
                               // só a entrega do B/L original na agência (migration 575).
                               <StatusText tone="muted">Não precisa · entregue o B/L original</StatusText>
+                            ) : i.direct && i.vip_direct ? (
+                              // VIP coberto pelos anuais: sem solicitação; o que falta ao Cliente ou a
+                              // documentação validada, com o prazo (migration 581).
+                              <VipDirectCell item={i} />
                             ) : (
                               <NoValue label="Sem solicitação" />
                             )}

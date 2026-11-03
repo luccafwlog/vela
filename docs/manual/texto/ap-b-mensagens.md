@@ -114,6 +114,7 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 | "Documento indisponível" | O envio do arquivo não terminou, ou o arquivo foi removido. | Peça ao Cliente que anexe o documento de novo. |
 | "B/L … não precisa de solicitação: veículo LCL com Taxas Locais isentas é desbloqueado só com a entrega do B/L original na agência." | O Cliente tentou pedir um veículo LCL isento, que não tem solicitação. | Registre a entrega do B/L original quando ele chegar ([12.4](12-desbloqueio-de-ce.md#124-registrar-a-entrega-do-bl-original)). |
 | "B/L … não precisa de solicitação: … Cancele este rascunho e peça os demais B/Ls em outro." | O Cliente tentou enviar um rascunho antigo que tem um veículo LCL isento (o B/L virou dispensado depois do rascunho). | Oriente o Cliente a cancelar o rascunho e pedir os demais B/Ls em outro; o veículo segue só com a entrega do B/L original ([12.4](12-desbloqueio-de-ce.md#124-registrar-a-entrega-do-bl-original)). |
+| "B/L … não precisa de solicitação: pela condição VIP, o termo de devolução e a procuração anuais cobrem este B/L, e o desbloqueio segue com as Taxas Locais pagas e o B/L original entregue na agência." (com "Cancele este rascunho…" no envio de rascunho) | O Cliente VIP tentou pedir, ou enviar num rascunho, um B/L que os anuais dele cobrem: esse B/L não tem solicitação. | Oriente o Cliente a cancelar o rascunho; o B/L segue com as taxas pagas e o original entregue ([12.8](12-desbloqueio-de-ce.md#128-atender-o-cliente-vip)). |
 
 ## Alertas e usuários
 

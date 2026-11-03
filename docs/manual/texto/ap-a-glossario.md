@@ -182,7 +182,7 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **Viagem**: a passagem de um navio pelos portos brasileiros, identificada pelo navio e pelo número, como COSCO SHIPPING SEREIA 024E. Tudo no Vela se pendura nela. [4.1](04-viagens-escalas.md#41-cadastrar-uma-viagem)
 
-**VIP** (condição VIP): o Cliente que manda o termo de devolução e a procuração uma vez por ano, em vez de a cada pedido de Desbloqueio de CE. [12.8](12-desbloqueio-de-ce.md#128-atender-o-cliente-vip)
+**VIP** (condição VIP): o Cliente que manda o termo de devolução e a procuração uma vez por ano e, com eles em dia, não pede o Desbloqueio de CE: o B/L fica apto com as Taxas Locais pagas e o B/L original entregue. [12.8](12-desbloqueio-de-ce.md#128-atender-o-cliente-vip)
 
 ## Z
 
