@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { validDedicatedAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
-import { CE_UNLOCK_BOX, ceUnlockNoticeBls, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
+import { CE_UNLOCK_BOX, ceUnlockNoticeBls, ceUnlockNoticeRequest, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
 import { invocationSource, runCronWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { recipientKey } from "../_shared/email.ts";
 import { sendPortalEmail } from "../_shared/portalEmail.ts";
@@ -8,7 +8,8 @@ import { COMMUNICATIONS_CONTACT_EMAIL } from "../_shared/customerCommunicationTe
 import { ceUnlockNoticeTemplate } from "../_shared/portalEmailTemplates.ts";
 import { canonicalPortalOrigin } from "../_shared/portalUrls.ts";
 import { instrumentEdgeHandler } from "../_shared/telemetry.ts";
-// Envia a fila de avisos do Desbloqueio de CE (recusa de documento / documentação validada).
+// Envia a fila de avisos do Desbloqueio de CE (recusa de documento / documentação validada, da
+// solicitação ou do B/L VIP sem solicitação, migration 581).
 // Resposta e rodapé vão para a importação (`COMMUNICATIONS_REPLY_TO` e `COMMUNICATIONS_CONTACT_EMAIL`,
 // importacao@fwlog.com.br), como os Comunicados; antes, para o suporte do Portal (reunião de 2026-10-26).
 // Com a chave de envio desligada, registra o aviso como simulado (D11). Antes, reavalia a conclusão das solicitações abertas (liquidação não passa por comando do módulo).
@@ -121,7 +122,8 @@ if (typeof Deno !== "undefined") {
           message: row.body,
           portalUrl: canonicalPortalOrigin(),
           supportEmail: COMMUNICATIONS_CONTACT_EMAIL,
-          request: await requestDetails(row.request_id),
+          // Sem solicitação (B/L VIP, migration 581), o bloco traz só o B/L da linha.
+          request: await ceUnlockNoticeRequest(row, requestDetails),
         });
         const result = await sendPortalEmail({
           admin,

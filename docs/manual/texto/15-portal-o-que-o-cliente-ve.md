@@ -131,8 +131,10 @@ A Disputa chega a {{Equipamentos}} como alerta, e a Régua de Cobrança daquela 
 Em **Desbloqueio de CE**, o Cliente pede que a agência libere o CE dos B/Ls dele. A página tem as abas **Nova solicitação**, **Minhas solicitações** e, para o Cliente VIP, **Documentos anuais**. No alto, o bloco **O que o desbloqueio pede** lista os quatro requisitos de cada B/L: Taxas Locais pagas, termo de devolução, procuração e B/L original entregue na agência. Logo abaixo, o bloco **Prazo para desbloqueio** explica ao Cliente o prazo da agência ([12.5](12-desbloqueio-de-ce.md#125-o-prazo-do-desbloqueio)).
 
 1. Na lista **B/Ls com CE Mercante**, o Cliente marca os B/Ls (até 100) e clica em **Pedir desbloqueio de N B/Ls**. B/L com Taxas Locais em aberto nem pode ser marcado: na coluna **Taxas locais**, o "Em aberto" abre as faturas em aberto desse B/L, para o Cliente pagar.
-2. Na solicitação aberta, anexa o termo de devolução e a procuração em PDF, de até 10 MiB cada. Quando os documentos anuais VIP cobrem todos os B/Ls, o Cliente não anexa nada.
+2. Na solicitação aberta, anexa o termo de devolução e a procuração em PDF, de até 10 MiB cada.
 3. Clica em **Solicitar desbloqueio**.
+
+O Cliente VIP com o termo de devolução e a procuração anuais em dia não pede o desbloqueio dos B/Ls que eles cobrem. O bloco **O que o desbloqueio pede** abre com a nota "Pela condição VIP, você não precisa pedir o desbloqueio.", que explica: pagas as Taxas Locais e entregue o B/L original na agência, o B/L segue sozinho, e o Cliente recebe aqui e por e-mail o aviso de documentação validada de cada B/L, com o prazo. Na lista, a caixa desses B/Ls fica desligada e a coluna **Solicitação** diz "Não precisa (VIP)" com o que falta ("Falta pagar as taxas locais e entregar o B/L original"), "Validação em até 5 minutos" ou "Documentação validada · prazo até …"; o cartão **Não precisam de solicitação** filtra esses B/Ls. Só o B/L que os anuais não cobrem passa pela solicitação ([12.8](12-desbloqueio-de-ce.md#128-atender-o-cliente-vip)).
 
 O veículo em LCL com Taxas Locais isentas não entra na solicitação: a caixa fica desligada, a coluna **Solicitação** diz "Não precisa · entregue o B/L original", e o bloco **O que o desbloqueio pede** explica que basta entregar o B/L original na agência ([12.1](12-desbloqueio-de-ce.md#121-entender-o-desbloqueio-de-ce)).
 

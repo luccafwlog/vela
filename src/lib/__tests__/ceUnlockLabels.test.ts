@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { ceActionLabel, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove, ceUnlockZptText, type CeUnlockZptItem } from '../ceUnlockLabels'
+import { ceActionLabel, ceBlHistoryText, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove, ceUnlockZptText, ceVipDirectStatus, type CeUnlockZptItem } from '../ceUnlockLabels'
 
 const base: CeUnlockZptItem = { zpt_status: null, reasons: [], can_export: false, export_state: 'not_exported', exported_at: null, confirmed: false }
 
@@ -31,4 +31,14 @@ it('Portal: situação da solicitação no feminino, âmbar no que pede ação d
   expect(ceRequestOpenForMove('in_review')).toBe(true)
   expect(ceRequestOpenForMove('completed')).toBe(false)
   expect(ceActionLabel('bl_moved')).toBe('B/L passou para outra solicitação')
+})
+
+it('581: o B/L VIP sem solicitação diz o que falta ao Cliente e, cumprido, a documentação validada', () => {
+  expect(ceVipDirectStatus({ paid: false, delivered: false, sla_started_at: null }))
+    .toEqual({ label: 'Falta pagar as taxas locais e entregar o B/L original', tone: 'warning' })
+  expect(ceVipDirectStatus({ paid: true, delivered: false, sla_started_at: null }).label).toBe('Falta entregar o B/L original')
+  expect(ceVipDirectStatus({ paid: true, delivered: true, sla_started_at: null })).toEqual({ label: 'Validação em até 5 minutos', tone: 'muted' })
+  expect(ceVipDirectStatus({ paid: true, delivered: true, sla_started_at: '2026-11-03T15:00:00Z' })).toEqual({ label: 'Documentação validada', tone: 'paid' })
+  expect(ceBlHistoryText({ at: '', requirement: 'solicitacao', event: 'vip_validated', detail: null, amount: null, actor: null, reason: null }))
+    .toEqual({ requirement: 'Solicitação', text: 'Documentação validada pela condição VIP, sem solicitação' })
 })
