@@ -79,9 +79,11 @@ jobs:
       - name: Start the Supabase emulator and the Vela dev server
         run: |
           mkdir -p artifacts/manual
+          # O Vite escuta em `localhost`, que no runner é o IPv6 (::1); as capturas
+          # e o teste abaixo usam 127.0.0.1.
           PGDATABASE=manual_demo nohup node scripts/design-audit/sb-shim.cjs > artifacts/manual/sb-shim.log 2>&1 &
           VITE_SUPABASE_URL=http://127.0.0.1:5173/sb-proxy VITE_SUPABASE_ANON_KEY=local-anon \
-            nohup npx vite --port 5173 --strictPort > artifacts/manual/vite.log 2>&1 &
+            nohup npx vite --host 127.0.0.1 --port 5173 --strictPort > artifacts/manual/vite.log 2>&1 &
           for i in $(seq 1 60); do
             if curl -fs -o /dev/null http://127.0.0.1:5173/login; then echo "Vela no ar"; exit 0; fi
             sleep 2
