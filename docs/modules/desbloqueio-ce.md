@@ -197,7 +197,7 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 
 Migrations `139`–`149`, `160`, `161`, `173`, `220`, `279` (requisito de
 pagamento), `280` (retenção), `281` (lote com hash e imutável), `282` (documento
-expurgado na projeção), `575` (veículo LCL isento sem solicitação), `576` (VIP coberto no B/L sem solicitação), `577` (busca, filtros e histórico do B/L), `578` (envio de rascunho antigo recusa o veículo LCL isento), `579` (rascunho VIP coberto pelo anual) e `581` (VIP sem solicitação, validação e aviso por B/L); a `177` redefine `ce_unlock_reconcile` (chave
+expurgado na projeção), `575` (veículo LCL isento sem solicitação), `576` (VIP coberto no B/L sem solicitação), `577` (busca, filtros e histórico do B/L), `578` (envio de rascunho antigo recusa o veículo LCL isento), `579` (rascunho VIP coberto pelo anual), `581` (VIP sem solicitação, validação e aviso por B/L) e `582` (anual VIP vigente até a exportação); a `177` redefine `ce_unlock_reconcile` (chave
 do CE) e a `181`/`195`/`230`/`277` o alerta `ce_trocado_com_desbloqueio`. Tabelas `ce_unlock_*` (`ce_unlock_requests`,
 `ce_unlock_request_bls`, `ce_unlock_documents`, `ce_unlock_vip_customers`,
 `ce_unlock_bl_deliveries`, `ce_unlock_events`, `ce_unlock_exports`,
@@ -242,7 +242,7 @@ CNPJ. Validade até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não
 em janeiro. **O B/L do VIP coberto pelos dois anuais não tem solicitação** (migration `581`,
 decisão do dono de 2026-11-03, [ADR 0119](../adr/0119-vip-desbloqueia-sem-solicitacao.md)): segue
 o caminho de [B/L dispensado de solicitação](#bl-dispensado-de-solicitação-veículo-lcl-isento-e-vip),
-e o dia que o anual cobre é o do pagamento e da entrega. O que segue vale para o B/L em
+e o anual o cobre se vigente entre o pagamento e a entrega e a exportação. O que segue vale para o B/L em
 solicitação (a VIP enviada antes da `581` e a comum). **Na solicitação, a vigência vale pela data
 da solicitação do desbloqueio** (migration `479`,
 decisão do dono com a diretoria de 2026-10-27, [ADR 0110](../adr/0110-vip-cobre-pela-data-da-solicitacao.md),
@@ -337,14 +337,17 @@ A regra é lida dos dados atuais do B/L (`ce_unlock_private.documents_dispensed`
 Desde a migration `581` (decisão do dono de 2026-11-03,
 [ADR 0119](../adr/0119-vip-desbloqueia-sem-solicitacao.md)), o B/L do **Cliente VIP** segue o
 mesmo caminho direto quando o termo de devolução e a procuração anuais aprovados, de ano
-inteiro, cobrem o dia abaixo (`vip_direct`; só um dos dois não basta, e o B/L segue o fluxo
+inteiro, cobrem o intervalo abaixo (`vip_direct`; só um dos dois não basta, e o B/L segue o fluxo
 comum). Pagas as Taxas Locais e entregue o original, ele fica apto, sem solicitação.
 
-- **Dia que o anual cobre.** O do último ato do Cliente que deixa o B/L pronto: a entrega do
-  original, a baixa das Taxas Locais ou o pagamento da avulsa, no calendário de Brasília
-  (`ce_unlock_private.direct_day`); depois da exportação, só os fatos até ela. Antes de pago e
-  entregue, hoje. `ce_unlock_private.annual_on` acha o anual que cobre o dia. Pago e entregue em
-  20/12 com o anual daquele ano, o B/L segue coberto mesmo exportado em janeiro.
+- **Quando o anual cobre.** O intervalo começa no último ato do Cliente que deixa o B/L pronto:
+  a entrega do original, a baixa das Taxas Locais ou o pagamento da avulsa, no calendário de
+  Brasília (`ce_unlock_private.direct_day`; depois da exportação, só os fatos até ela; antes de
+  pago e entregue, hoje). Vai até a exportação (antes dela, hoje). Basta termo e procuração
+  vigentes num mesmo dia dentro dele (`ce_unlock_private.annuals_between`, migration `582`; na
+  `581`, só o primeiro dia). Pago e entregue em 20/12 com o anual daquele ano, o B/L segue coberto
+  mesmo exportado em janeiro; pago e entregue antes de o anual ser aprovado ou começar, é coberto
+  com a aprovação, e o prazo parte dela.
 - **Aptidão e Portal.** Termo e procuração são os anuais (`termo`, `procuracao` e
   `vip_covered` verdadeiros); `can_submit` é falso, e o rascunho e o envio de rascunho (inclusive
   o rascunho VIP aberto antes da `581`) recusam o B/L com "B/L … não precisa de solicitação: pela

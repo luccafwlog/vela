@@ -191,8 +191,8 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
 - **Cliente VIP sem solicitação** (decisão do dono de 2026-11-03,
   [ADR 0119](../adr/0119-vip-desbloqueia-sem-solicitacao.md), migration `581`):
   o B/L coberto pelos dois anuais VIP fica apto com as Taxas Locais pagas e o
-  B/L original entregue, sem solicitação; o anual cobre o dia do pagamento e da
-  entrega; aviso "documentação validada" por B/L, no sino e por e-mail; o Portal
+  B/L original entregue, sem solicitação; vale o anual vigente entre o pagamento
+  e a entrega e a exportação (migration `582`); aviso "documentação validada" por B/L, no sino e por e-mail; o Portal
   explica a regra e mostra por B/L o que falta (DCE-091, DCE-111, DCE-113).
 - **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
   2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),

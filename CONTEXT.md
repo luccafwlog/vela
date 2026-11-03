@@ -1695,7 +1695,8 @@ Condição por CNPJ em que termo e procuração anuais aprovados dispensam a
 solicitação dos B/Ls que eles cobrem: pagas as Taxas Locais e entregue o B/L
 original, o B/L fica apto (B/L dispensado de solicitação). Não dispensa pagamento
 nem entrega por B/L; o selo VIP sem anual que cubra o B/L não dispensa nada. Sem
-solicitação, o anual cobre o B/L pago e entregue dentro da vigência dele; na
+solicitação, o anual cobre o B/L se estiver vigente entre o pagamento e a entrega
+e a exportação; na
 solicitação VIP aberta antes dessa regra, o desbloqueio solicitado dentro dela.
 Sem os dois anuais cobrindo (faltando, recusado, revogado ou fora da vigência),
 o VIP pede como os demais, com termo e procuração anexados à solicitação.

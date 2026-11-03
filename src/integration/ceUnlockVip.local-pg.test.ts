@@ -179,7 +179,7 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     expect(portal).not.toHaveProperty('export_state')
   })
 
-  it('581: a varredura valida o B/L pago fora do módulo; o anual cobre o dia do pagamento e da entrega', () => {
+  it('581 e 582: a varredura valida o B/L pago fora do módulo; o anual cobre se vigente entre o pagamento e a entrega e a exportação', () => {
     const y = Y()
     setVip(A, true); annual(A, 'termo', y); annual(A, 'procuracao', y)
     // Entregue e sem pagamento: direto, mas não apto e sem aviso.
@@ -207,6 +207,23 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     expect(item('CE700-A2')).toMatchObject({ vip_direct: true, direct: true, termo: true, procuracao: true, can_submit: false, can_export: true })
     // Ainda não pago e entregue, vale hoje: o anual do ano passado não cobre o B/L A3.
     expect(item('CE700-A3')).toMatchObject({ vip_direct: false, direct: false })
+    // 582: o anual aprovado depois do pagamento e da entrega cobre o B/L, se vigente até a exportação
+    // (antes dela, hoje). Anual deste ano começando hoje; A3 pago e entregue ontem.
+    sql(`DELETE FROM public.ce_unlock_documents WHERE customer_id=${A};`)
+    const today = sql('SELECT ce_unlock_private.today();')
+    for (const type of ['termo', 'procuracao']) {
+      const id = annual(A, type as 'termo' | 'procuracao')
+      command('review', { document_id: id, expected_document_version: 0, decision: 'approved', coverage_year: Number(today.slice(0, 4)), valid_from: today, valid_until: `${today.slice(0, 4)}-12-31`, request_key: key() })
+    }
+    deliver('CE700-A3')
+    sql(`SET session_replication_role=replica;
+      UPDATE public.ce_unlock_bl_deliveries SET updated_at=now()-interval '1 day' WHERE bl_id='CE700-A3';
+      UPDATE public.ledger_settlements SET created_at=now()-interval '1 day' WHERE receivable_id=998702;`)
+    expect(item('CE700-A3')).toMatchObject({ vip_direct: true, direct: true, termo: true, procuracao: true, can_export: true })
+    // Só um dos anuais vigente no intervalo não basta.
+    sql(`UPDATE public.ce_unlock_documents SET status='revoked' WHERE customer_id=${A} AND type='procuracao';`)
+    expect(item('CE700-A3')).toMatchObject({ vip_direct: false, direct: false })
+    expect(sql(`SELECT count(*) FROM ce_unlock_private.annuals_between(${A}, current_date-30, current_date) a WHERE a.termo IS NOT NULL;`)).toBe('0')
   })
 
   it('581: rascunho não segura o B/L VIP coberto; o envio do rascunho é recusado e a VIP enviada continua', () => {

@@ -1,7 +1,7 @@
 # 0119 — Desbloqueio de CE do Cliente VIP sem solicitação
 
 Status: aceito — 2026-11-03 (decisão do dono, depois da abertura do Vela e do
-Portal a clientes reais). Implementada na migration `581`.
+Portal a clientes reais). Implementada nas migrations `581` e `582`.
 
 Supersede parcialmente a [ADR 0110](./0110-vip-cobre-pela-data-da-solicitacao.md)
 (decisões 1 e 2): o B/L do Cliente VIP coberto pelos anuais não tem mais
@@ -29,17 +29,23 @@ usava o envio) e o aviso "documentação validada", que era da solicitação.
 
 1. **Quem segue sem solicitação.** O B/L de Cliente com a condição VIP cujo
    termo de devolução e procuração anuais aprovados, de ano inteiro, cobrem o
-   dia da decisão 2. Só um dos anuais cobrindo não basta: o B/L segue o fluxo
+   intervalo da decisão 2. Só um dos anuais cobrindo não basta: o B/L segue o fluxo
    comum, com solicitação e os dois documentos anexados (o pedido é inteiro VIP
    ou inteiro comum, [ADR 0101](./0101-desbloqueio-ce-prazo-e-vigencia-anual.md),
    decisão 5).
-2. **O dia que o anual cobre** é o do último ato do Cliente que deixa o B/L
-   pronto: a entrega do B/L original, a baixa das Taxas Locais ou o pagamento
-   da fatura avulsa, no calendário de Brasília; depois da exportação, só os
-   fatos até ela. Antes de pago e entregue, vale hoje. Exemplo: pago e entregue
-   em 20/12 com o anual daquele ano e exportado em 02/01, o B/L segue coberto
-   sem o anual do ano novo. (Decisão do dono de 2026-11-03, entre esta e "hoje,
-   até a exportação".)
+2. **Quando o anual cobre.** O intervalo começa no último ato do Cliente que
+   deixa o B/L pronto (a entrega do B/L original, a baixa das Taxas Locais ou
+   o pagamento da fatura avulsa, no calendário de Brasília; depois da
+   exportação, só os fatos até ela; antes de pago e entregue, hoje) e vai até
+   a exportação (antes dela, hoje). Basta o termo e a procuração anuais
+   estarem vigentes num mesmo dia dentro dele. Exemplos: pago e entregue em
+   20/12 com o anual daquele ano e exportado em 02/01, o B/L segue coberto sem
+   o anual do ano novo; pago e entregue antes de o Cliente virar VIP, ou antes
+   do início da vigência do anual, é coberto quando o anual é aprovado.
+   (Decisões do dono de 2026-11-03: primeiro o dia do pagamento e da entrega,
+   entre ele e "hoje, até a exportação", na migration `581`; depois o
+   intervalo até a exportação, na `582`, para o B/L pago antes da aprovação do
+   anual não precisar de solicitação.)
 3. **O que basta.** Fica apto com o CE Mercante, as Taxas Locais pagas (com o
    restante do requisito financeiro: avulsa, troca de Cliente) e o B/L
    original entregue. O desk exporta como os demais; a planilha leva as quatro
@@ -73,6 +79,9 @@ usava o envio) e o aviso "documentação validada", que era da solicitação.
 - O VIP ainda pede, sem anexar nada: o dono quer que pagar e entregar baste.
 - Vigência pelo dia da exportação: o B/L pago e entregue em dezembro e
   exportado em janeiro perderia a cobertura por um ato da agência.
+- Vigência só no dia do pagamento e da entrega (migration `581`): o B/L pago
+  antes de o Cliente virar VIP, ou antes do início do anual, pediria
+  solicitação comum mesmo com os anuais aprovados.
 - Sem aviso, como o veículo LCL: o Cliente VIP já recebia o aviso de
   documentação validada e perderia a referência do prazo.
 

@@ -150,7 +150,7 @@ Um único CE ilegível no arquivo, com menos ou mais de 15 dígitos, impede a co
 
 **Quem faz:** {{Documentação}} e {{Administrativo}}
 
-O Cliente VIP manda o termo de devolução e a procuração uma vez por ano. Com esses **documentos anuais** aprovados, ele **não pede o desbloqueio**: o B/L que os dois anuais cobrem fica apto assim que as Taxas Locais são pagas e o B/L original é entregue na agência, e você o exporta para a ZPT como os demais. O pagamento e a entrega continuam B/L a B/L. O anual cobre o B/L pago e entregue dentro da vigência dele, que termina sempre em 31/12; o B/L pago e entregue em dezembro segue coberto mesmo exportado em janeiro.
+O Cliente VIP manda o termo de devolução e a procuração uma vez por ano. Com esses **documentos anuais** aprovados, ele **não pede o desbloqueio**: o B/L que os dois anuais cobrem fica apto assim que as Taxas Locais são pagas e o B/L original é entregue na agência, e você o exporta para a ZPT como os demais. O pagamento e a entrega continuam B/L a B/L. O anual cobre o B/L quando está vigente em algum dia entre o pagamento e a entrega e a exportação; a vigência termina sempre em 31/12. O B/L pago e entregue em dezembro segue coberto mesmo exportado em janeiro, e o B/L pago e entregue antes de o Cliente virar VIP fica coberto quando os anuais são aprovados.
 
 1. Na ficha do Cliente, aba **Desbloqueio de CE e VIP**, clique em **Habilitar condição VIP**, escreva o motivo e clique em **Habilitar VIP**.
 2. O Cliente envia os anuais pelo Portal. Você também pode enviar por ele, em **Enviar termo de devolução** ou **Enviar procuração**.

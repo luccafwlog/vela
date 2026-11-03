@@ -6,10 +6,10 @@
 
 ## 2026-11
 
-- **Cliente VIP sem solicitação no Desbloqueio de CE (2026-11-03, migration `581`,
+- **Cliente VIP sem solicitação no Desbloqueio de CE (2026-11-03, migrations `581` e `582`,
   [ADR 0119](adr/0119-vip-desbloqueia-sem-solicitacao.md); decisão do dono):** o B/L do Cliente VIP coberto pelo termo
   e pela procuração anuais fica apto com as Taxas Locais pagas e o B/L original entregue, sem pedido no Portal; o
-  anual cobre o dia do pagamento e da entrega. Na primeira vez que o B/L fica apto, o Cliente recebe no sino e por
+  anual vigente em algum dia entre o pagamento e a entrega e a exportação cobre o B/L. Na primeira vez que o B/L fica apto, o Cliente recebe no sino e por
   e-mail o aviso "documentação validada" do B/L, com o prazo, que começa aí. O Portal explica a regra ao Cliente VIP
   e mostra em cada B/L o que falta; o Vela mostra "Dispensada · VIP". A solicitação VIP já enviada segue como antes;
   o rascunho com B/L coberto é recusado.

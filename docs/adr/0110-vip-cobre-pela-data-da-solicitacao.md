@@ -3,7 +3,7 @@
 > **Situação atual (2026-11-03).** As decisões 1 e 2 foram supersedidas
 > parcialmente pela [ADR 0119](./0119-vip-desbloqueia-sem-solicitacao.md)
 > (migration `581`): o B/L coberto pelos dois anuais não tem mais solicitação,
-> e o dia que o anual cobre passa a ser o do pagamento e da entrega. A data da
+> e o anual o cobre se vigente entre o pagamento e a entrega e a exportação. A data da
 > solicitação vale só para a solicitação VIP enviada antes da `581` e para
 > decidir se o B/L da solicitação comum é coberto. As decisões 3 e 4 seguem.
 > Regra vigente em [Desbloqueio de CE](../modules/desbloqueio-ce.md#requisitos-e-condição-vip).
