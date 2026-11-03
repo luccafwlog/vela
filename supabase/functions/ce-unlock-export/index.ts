@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import * as XLSX from "npm:@e965/xlsx@0.20.3";
 import { withCors } from "../_shared/cors.ts";
 import { zptRows } from "../../../src/services/ceUnlockRules.ts";
