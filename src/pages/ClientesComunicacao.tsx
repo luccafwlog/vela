@@ -216,6 +216,11 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+// O NOB recusa B/L sem a identidade do terminal e da atracação: o exemplo
+// traz uma, comum aos dois B/Ls, para a prévia do NOB renderizar.
+const SAMPLE_TERMINAL_ID = 'terminal-exemplo'
+const SAMPLE_TERMINAL_STATE_ID = 'atracacao-exemplo'
+
 const SAMPLE_COMMUNICATION_CANDIDATES: CustomerCommunicationBlCandidate[] = [
   {
     id: 'CSC45360805C00',
@@ -230,9 +235,9 @@ const SAMPLE_COMMUNICATION_CANDIDATES: CustomerCommunicationBlCandidate[] = [
     cargoMode: 'container',
     eta: new Date().toISOString(),
     ata: null,
-    terminalId: null,
+    terminalId: SAMPLE_TERMINAL_ID,
     terminalName: 'BTP Santos',
-    terminalStateId: null,
+    terminalStateId: SAMPLE_TERMINAL_STATE_ID,
     milestoneAt: new Date().toISOString(),
   },
   {
@@ -248,9 +253,9 @@ const SAMPLE_COMMUNICATION_CANDIDATES: CustomerCommunicationBlCandidate[] = [
     cargoMode: 'container',
     eta: new Date().toISOString(),
     ata: null,
-    terminalId: null,
+    terminalId: SAMPLE_TERMINAL_ID,
     terminalName: 'BTP Santos',
-    terminalStateId: null,
+    terminalStateId: SAMPLE_TERMINAL_STATE_ID,
     milestoneAt: new Date().toISOString(),
   },
 ]
