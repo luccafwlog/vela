@@ -73,7 +73,7 @@ describe('PortalInspection', () => {
     await waitFor(() => expect(screen.getByText('Modo Inspeção')).toBeTruthy())
     expect(screen.getAllByText('Cliente Inspecionado').length).toBeGreaterThan(0)
     // Sem origem no endereço, a saída volta ao Provisionamento (A5).
-    expect(screen.getByRole('button', { name: 'Voltar ao Provisionamento' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Voltar à fila do Portal' })).toBeTruthy()
     expect(screen.queryByTestId('render-error')).toBeNull()
     expect(screen.getByRole('link', { name: 'Faturas' }).getAttribute('href')).toBe('/clientes/portal/inspecao/42/billing')
   })
@@ -83,8 +83,8 @@ describe('saída do Modo Inspeção (lote 5a, achado A5)', () => {
   it('volta para onde a inspeção foi aberta, e fecha a aba quando ela abriu em outra', async () => {
     const { inspectionExit } = await import('../../lib/portalInspectionExit')
     expect(inspectionExit('ficha', false, 42, '12345678000195')).toEqual({ label: 'Voltar à ficha do Cliente', to: '/clientes/12345678000195', closeTab: false })
-    expect(inspectionExit('provisionamento', false, 42, '12345678000195')).toEqual({ label: 'Voltar ao Provisionamento', to: '/clientes/portal?cliente=42', closeTab: false })
-    expect(inspectionExit(null, false, 42, null).label).toBe('Voltar ao Provisionamento')
+    expect(inspectionExit('provisionamento', false, 42, '12345678000195')).toEqual({ label: 'Voltar à fila do Portal', to: '/clientes/portal?cliente=42', closeTab: false })
+    expect(inspectionExit(null, false, 42, null).label).toBe('Voltar à fila do Portal')
     // A sessão da inspeção traz o CNPJ com máscara; a ficha usa o canônico.
     expect(inspectionExit('ficha', false, 42, '12.345.678/0001-95').to).toBe('/clientes/12345678000195')
     expect(inspectionExit('provisionamento', true, 42, '12345678000195')).toMatchObject({ label: 'Fechar inspeção', closeTab: true })

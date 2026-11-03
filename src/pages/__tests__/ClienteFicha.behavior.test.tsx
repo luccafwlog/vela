@@ -179,7 +179,7 @@ describe('ClienteFicha user behaviours', () => {
     renderPage()
 
     expect(screen.getByLabelText(/Razão social/)).not.toHaveProperty('disabled', true)
-    expect(screen.getByRole('link', { name: /Abrir no Provisionamento do Portal/ }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
+    expect(screen.getByRole('link', { name: /Abrir em Clientes › Portal/ }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
   })
 
   it('Financeiro vê e pode operar a ficha no modelo de escrita global, sem a aba CE/VIP', () => {

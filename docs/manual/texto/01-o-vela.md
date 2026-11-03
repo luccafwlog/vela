@@ -39,7 +39,7 @@ O Vela e o Portal Fwlog são sistemas separados, com entradas separadas. Você p
 
 **Quem faz:** {{Todas as equipes}}
 
-O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens** (Viagens, Chegadas e Saídas, Tela TV), **Importação** (Baplie EDI, B/Ls, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP, Locais (depots e terminais)), **Clientes** (Clientes, Provisionamento do Portal, Comunicação, Informações do Portal), **Alertas** (Alertas, Regras de alertas), **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê. **Tela TV** abre o quadro dos navios em outra aba, para um monitor ([5.7](05-programacao.md#57-acompanhar-o-line-up-e-a-tela-tv)).
+O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens** (Viagens, Chegadas e Saídas, Tela TV), **Importação** (Baplie EDI, B/Ls, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP, Locais (depots e terminais)), **Clientes** (Clientes, Portal, Comunicação), **Alertas** (Alertas, Regras de alertas), **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê. **Tela TV** abre o quadro dos navios em outra aba, para um monitor ([5.7](05-programacao.md#57-acompanhar-o-line-up-e-a-tela-tv)).
 
 O número ao lado de um item, e somado no grupo, conta o que está pendente no Vela inteiro, de todas as equipes: os alertas ativos, os B/Ls pendentes de Revisão, os B/Ls com taxa em revisão. O de **Alertas** se atualiza sozinho a cada minuto; os outros, quando você mexe no assunto ou recarrega a página.
 

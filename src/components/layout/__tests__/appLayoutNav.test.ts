@@ -25,7 +25,13 @@ describe('telas que só abriam por botão entram no grupo do seu assunto (2026-1
     expect(groups.financeiro).not.toContain('/taxas-locais/tabelas')
     expect(groups.financeiro).not.toContain('/demurrage/taxas')
     expect(groups.alertas).toContain('/alertas/regras')
-    expect(groups.clientes).toContain('/clientes/informacoes')
+    // Informações do Portal abre pelo botão da tela Portal, não pelo menu (2026-11-03).
+    expect(groups.clientes).not.toContain('/clientes/informacoes')
+  })
+
+  it('a tela de contas do Portal se chama só Portal no menu (2026-11-03)', () => {
+    const clientes = buildNavGroups(COUNTS).find((group) => group.id === 'clientes')?.items ?? []
+    expect(clientes.map((item) => item.label)).toEqual(['Clientes', 'Portal', 'Comunicação'])
   })
 
   it('Tela TV abre em outra aba, com o mesmo nome do botão do Painel', () => {

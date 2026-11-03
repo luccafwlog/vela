@@ -129,7 +129,7 @@ Ela sai quando três coisas se juntam:
 
 - todos os containers do grupo, menos os SOC e os de cobrança dispensada, foram devolvidos;
 - algum deles passou do free time;
-- o B/L tem CE Mercante e o Portal do Cliente está pronto para faturar, ou o Cliente tem a Liberação de faturamento sem Portal (capítulos 13 e 14). Sem isso, o grupo fica em **Travado**, com o motivo; sem o Portal pronto, a etapa **Demurrage** do trilho da ficha do B/L também diz "Retida: …", com o link para o Provisionamento do Portal.
+- o B/L tem CE Mercante e o Portal do Cliente está pronto para faturar, ou o Cliente tem a Liberação de faturamento sem Portal (capítulos 13 e 14). Sem isso, o grupo fica em **Travado**, com o motivo; sem o Portal pronto, a etapa **Demurrage** do trilho da ficha do B/L também diz "Retida: …", com o link para Clientes › Portal.
 
 Com isso, a Invoice sai sozinha logo depois da última devolução gravada ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). Também sai sozinha, em até 15 minutos, quando a Demurrage aparece sem uma data nova: o free time do B/L, o acordo, a tarifa ou o tipo mudaram, ou uma dispensa foi desfeita. Com a emissão na fila, a linha em **A emitir** diz "Emissão automática em andamento". A Invoice nasce emitida, em dólar, com o valor em reais pelo câmbio do dia (ou pelo ROE manual do B/L); o Cliente a vê no Portal e a Régua de Cobrança começa (capítulo 23). O container devolvido no free time entra nela com valor zero.
 

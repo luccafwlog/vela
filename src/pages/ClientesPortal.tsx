@@ -97,7 +97,7 @@ export function ClientesPortal() {
   return (
     <>
       <PageHeader
-        title="Provisionamento do Portal"
+        title="Portal"
         action={
           <div className="flex flex-wrap items-center gap-3">
             <Link className="app-btn app-btn--secondary" to="/clientes/informacoes">Informações do Portal</Link>

@@ -41,7 +41,7 @@ A maior parte dos alertas abre e fecha na hora da ação. Alguns dependem só da
 - os avisos ao Cliente que deviam ter saído e não saíram;
 - as contas do Portal do Cliente e os e-mails sem retorno do provedor.
 
-O convite do Portal que expira (48 horas) não é reenviado sozinho: reenvie pelo **Provisionamento do Portal** (capítulo 14).
+O convite do Portal que expira (48 horas) não é reenviado sozinho: reenvie por **Clientes** › **Portal** (capítulo 14).
 
 ::: atencao
 O alerta de prazo pode aparecer até 15 minutos depois de o prazo vencer.
@@ -123,7 +123,7 @@ O detalhe de cada prazo está no capítulo 12.
 
 **Liberação vencida.** A Liberação de faturamento sem Portal vale até a data de revisão; passado esse dia, as novas faturas do Cliente voltam a ficar retidas na hora. Às 00h13, uma rotina devolve à Revisão os B/Ls não faturados desses Clientes, com o alerta **Revisão de B/L — Portal não provisionado**.
 
-**Entrega de e-mail.** A cada minuto, e logo que o provedor de e-mail avisa, o Vela registra se cada e-mail foi entregue, devolvido ou marcado como spam: é a **Última entrega** que aparece no Provisionamento do Portal. O endereço devolvido em definitivo ou marcado como spam é bloqueado e para de receber. Se ele era o último contato válido do Cliente, abre **Cliente sem contato alternativo**.
+**Entrega de e-mail.** A cada minuto, e logo que o provedor de e-mail avisa, o Vela registra se cada e-mail foi entregue, devolvido ou marcado como spam: é a **Última entrega** que aparece em Clientes › Portal. O endereço devolvido em definitivo ou marcado como spam é bloqueado e para de receber. Se ele era o último contato válido do Cliente, abre **Cliente sem contato alternativo**.
 
 **Resumo do Portal.** Às 8h, cada pessoa ativa da {{Documentação}} e do {{Administrativo}} recebe o e-mail **Resumo do Portal**, com o que pede ação e o que fechou. Ele não sai quando não há nada a mostrar.
 

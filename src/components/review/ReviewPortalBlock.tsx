@@ -70,7 +70,7 @@ export function ReviewPortalBlock({ customer, blCount }: { customer: ReviewCusto
       confirmLabel: 'Enviar convite',
       affected: { summary: `${customer.name} · ${formatCnpjCpf(customer.cnpj_cpf)}` },
       consequence: `Autoriza ${email} como Email de Recuperação do Portal e envia o convite. ${blCount === 1 ? 'O B/L sai' : 'Os B/Ls saem'} da Revisão quando o Cliente ativar a conta.`,
-      reversibility: 'O convite pode ser revogado no Provisionamento do Portal enquanto não for aceito.',
+      reversibility: 'O convite pode ser revogado em Clientes › Portal enquanto não for aceito.',
     })
     if (!confirmed) return
     setError(null)
@@ -129,7 +129,7 @@ export function ReviewPortalBlock({ customer, blCount }: { customer: ReviewCusto
 
         <div className="flex flex-wrap items-center gap-2">
           {situation === 'suspenso' ? (
-            <Link className="app-btn app-btn--primary app-btn--sm" to={`/clientes/portal?cliente=${customer.id}`}>Abrir no Provisionamento do Portal</Link>
+            <Link className="app-btn app-btn--primary app-btn--sm" to={`/clientes/portal?cliente=${customer.id}`}>Abrir em Clientes › Portal</Link>
           ) : canProvision && sendLabel ? (
             <>
               <Button className="app-btn--sm" disabled={!row || !emailValid} loading={sendInvite.isPending} loadingLabel="Enviando…" onClick={() => void handleSend()}>
@@ -143,7 +143,7 @@ export function ReviewPortalBlock({ customer, blCount }: { customer: ReviewCusto
             <p className="text-[var(--app-muted)]">O convite do Portal é enviado pela Documentação ou pelo Administrativo.</p>
           ) : row ? (
             // Conta ativa ou situação sem convite a enviar: a fila só sai quando o servidor reavaliar.
-            <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${customer.id}`}>Abrir no Provisionamento do Portal</Link>
+            <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${customer.id}`}>Abrir em Clientes › Portal</Link>
           ) : null}
         </div>
       </div>

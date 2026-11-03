@@ -100,7 +100,7 @@ A **Situação** da linha resume os destinatários: **Enviado** quando todos sa�
 | **Falha passageira** | Um problema que passa. Pode repetir. |
 | **Recusado pelo provedor**, **Devolvido (endereço inexistente)** ou **Marcado como spam** | Repetir não adianta: corrija o contato ([16.9](#169-corrigir-o-contato-que-não-recebe)). |
 
-A confirmação de entrega, a devolução e o spam chegam do provedor em poucos minutos ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)). Os e-mails da conta do Portal (convite, recuperação de senha) não ficam neste Histórico: a entrega deles aparece no **Provisionamento do Portal**, em **Última entrega** (capítulo 14).
+A confirmação de entrega, a devolução e o spam chegam do provedor em poucos minutos ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)). Os e-mails da conta do Portal (convite, recuperação de senha) não ficam neste Histórico: a entrega deles aparece em **Clientes** › **Portal**, em **Última entrega** (capítulo 14).
 
 ::: atencao
 "Entregue" quer dizer que o servidor do Cliente recebeu, não que alguém leu. Se o Cliente não acha o e-mail, peça que procure no spam e confira o endereço.

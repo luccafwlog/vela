@@ -1,6 +1,6 @@
 # Portal do Cliente
 
-> **Rotas internas:** `/clientes/portal` (Provisionamento do Portal) e `/clientes/portal/inspecao/:customerId/*` (Modo Inspeção)
+> **Rotas internas:** `/clientes/portal` (Portal, em Clientes) e `/clientes/portal/inspecao/:customerId/*` (Modo Inspeção)
 
 > **Status:** ativo · **Atualizado:** 2026-11-03 · **Rotas:** `/portal/publico/chegadas-saidas`, `/portal/publico/consulta-container`, `/portal/publico/*`, `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce`, `/portal/informacoes`, `/portal/informacoes/:section`, `/portal/perfil`
 
@@ -10,7 +10,7 @@ O Portal é a superfície externa para autenticação, consulta financeira e ope
 
 São públicas as cinco rotas de login, recuperação, redefinição, ativação e confirmação de email (`/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`). Também são públicas, sem sessão, as duas [páginas do fwlog.com.br](#páginas-públicas-do-fwlogcombr) (`/portal/publico/chegadas-saidas` e `/portal/publico/consulta-container`), as únicas que outro site pode pôr em iframe. As sete rotas do Portal autenticado — `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce` (regra em [Desbloqueio de CE](desbloqueio-ce.md)), `/portal/informacoes`, `/portal/informacoes/:section` e `/portal/perfil` — ficam sob `PortalProtectedRoute` › `PortalScopeProvider` › `PortalLayout` em `src/AppPortal.tsx`; qualquer outro caminho volta para `/portal`, menos os de `/portal/publico/*`, que mostram "Página não encontrada" na moldura pública. O navegador usa `supabasePortal`, com `storageKey: 'td-portal-auth'` e `detectSessionInUrl:false`, separado da sessão interna (`src/services/supabase.ts`).
 
-Este módulo também é dono do lado interno do Portal: o console **Provisionamento do Portal** (`/clientes/portal`), o painel **Revisão do Portal**, a ativação do convite e o Modo Inspeção. A ficha do Cliente ([Clientes](clientes.md)) mantém a seção **Acesso ao Portal** com o resumo e o atalho **Gerenciar aqui**, que abre o mesmo painel.
+Este módulo também é dono do lado interno do Portal: o console **Portal** (`/clientes/portal`, aba de Clientes), o painel **Revisão do Portal**, a ativação do convite e o Modo Inspeção. A ficha do Cliente ([Clientes](clientes.md)) mantém a seção **Acesso ao Portal** com o resumo e o atalho **Gerenciar aqui**, que abre o mesmo painel.
 
 A interface e seus filtros não autorizam dados. RPCs de Portal resolvem o cliente pela identidade autenticada; RLS, grants e validações server-side continuam sendo a fronteira real, conforme [ADR 0004](../adr/0004-supabase-rls-rpc-fronteira-seguranca.md) e [ADR 0013](../adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md).
 
@@ -202,7 +202,7 @@ Portal e para o fwlog.com.br.
 
 #### Console `/clientes/portal`
 
-A página **Provisionamento do Portal** (Clientes › Provisionamento do Portal),
+A página **Portal** (Clientes › Portal; chamava-se Provisionamento do Portal até 2026-11-03),
 aberta pelo cabeçalho de Clientes, é a fila de análise, convites e situações do
 Portal. Desde o lote 5a da identidade, seis cartões filtram a fila
 (Aguardando análise, o inicial; Sem e-mail; Ativação pendente; Convite
@@ -694,7 +694,7 @@ No Desbloqueio de CE da inspeção, todo setor vê os documentos da solicitaçã
 |---|---|---|---|---|---|---|---|
 | `/clientes/portal/inspecao/:customerId/*` — abrir | Usuário interno ativo e Cliente conhecido | `PortalReviewPanel` | `portal_open_inspection` → `PortalScope` → `PortalLayout` | `portal_inspection_events` append-only; overview sem `last_login_at` | Deduplicação de abertura; caches por Cliente no namespace `portal-*` | Gate `42501`, Cliente inválido ou overview indisponível | **Código:** ADR 0045; **Teste de contrato SQL:** guard, grants e abertura; **Integração em PostgreSQL local:** Saldo pendente igual ao do Cliente (`portalInspectionParity.local-pg.test.ts`, migration `225`) |
 | Inspeção — consultar Portal | Escopo em modo `inspect` | Páginas e hooks do Portal | `callPortalRpc` escolhe `supabase` + `portal_inspect_*` | Somente leitura pelos núcleos compartilhados | Chaves incluem `customerId`; `basePath` preserva sub-rotas | Falha da superfície correspondente | **Código:** plano da PR 529; **Teste de contrato SQL:** paridade estrutural |
-| Inspeção — navegar ou sair pela faixa | Escopo em modo `inspect` | `PortalLayout`, dashboard e `NotificationBell` | Helper de `portalPath`; a faixa (lote 5a, A5) mostra **Voltar ao Provisionamento**, **Voltar à ficha do Cliente** (aberta pela ficha, `?origem=ficha`) ou **Fechar inspeção** (aberta em nova aba pela Espiadinha, `?aba=nova`), por `inspectionExit` em `src/lib/portalInspectionExit.ts` | Nenhuma; sino não marca leitura | Links não escapam para `/portal/*` | Destino inválido permanece no shell protegido | **Código:** ADR 0045; **Teste:** contenção da navegação |
+| Inspeção — navegar ou sair pela faixa | Escopo em modo `inspect` | `PortalLayout`, dashboard e `NotificationBell` | Helper de `portalPath`; a faixa (lote 5a, A5) mostra **Voltar à fila do Portal**, **Voltar à ficha do Cliente** (aberta pela ficha, `?origem=ficha`) ou **Fechar inspeção** (aberta em nova aba pela Espiadinha, `?aba=nova`), por `inspectionExit` em `src/lib/portalInspectionExit.ts` | Nenhuma; sino não marca leitura | Links não escapam para `/portal/*` | Destino inválido permanece no shell protegido | **Código:** ADR 0045; **Teste:** contenção da navegação |
 | Inspeção — ação do cliente | Escopo em modo `inspect` | Disputa, perfil, consolidação e sino | UI desabilita; `callPortalRpc` recusa escrita | Nenhuma RPC de escrita de inspeção | Leitura e navegação continuam disponíveis | Tooltip de ação indisponível em Modo Inspeção | **Código:** ADR 0045; **Teste:** bloqueio de escrita |
 
 ##### Arquitetura núcleo + invólucro
@@ -775,8 +775,8 @@ editados em `/clientes/informacoes` → Contato, como "Entrega do B/L original �
 Vitória", "· Salvador" e "· Suape" (nasceram com "Endereço a definir"; a
 migration `464` gravou os endereços de Transhipping, Marinav e Transglobal).
 
-O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
-na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas
+O botão **Informações do Portal** fica em `/clientes/portal`; a página não tem
+item no menu (saiu em 2026-11-03, decisão do dono). Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas
 oficiais, além da edição das observações. Pela
 [matriz de permissões](../operations/seguranca.md#manifesto-importações-e-cadastros)
 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D7), qualquer

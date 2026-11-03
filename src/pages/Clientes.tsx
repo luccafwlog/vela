@@ -205,7 +205,7 @@ export function Clientes() {
         summary: `${createForm.name.trim()} · CNPJ ${formatCnpjCpf(createForm.cnpjCpf)} · ${formatCountLabel(activeContacts.length, 'contato', 'contatos')}`,
         items: activeContacts.map((c) => `${c.name} (${c.email})${c.is_primary ? ' · principal' : ''}`),
       },
-      consequence: 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Provisionamento do Portal como "Aguardando análise". Nenhum convite é enviado.',
+      consequence: 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Clientes › Portal como "Aguardando análise". Nenhum convite é enviado.',
       reversibility: 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
     })
     if (!confirmed) return

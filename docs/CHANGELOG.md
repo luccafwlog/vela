@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Menu Clientes mais curto (2026-11-03; decisão do dono):** a tela Provisionamento do Portal passa a se chamar
+  **Portal** no menu, na aba, no título e nos atalhos ("Abrir em Clientes › Portal"); o endereço `/clientes/portal`
+  não muda. **Informações do Portal** sai do menu e volta a abrir pelo botão de mesmo nome na tela Portal
+  ([Portal do Cliente](modules/portal-cliente.md#console-clientesportal)).
 - **Cliente VIP sem solicitação no Desbloqueio de CE (2026-11-03, migrations `581` e `582`,
   [ADR 0119](adr/0119-vip-desbloqueia-sem-solicitacao.md); decisão do dono):** o B/L do Cliente VIP coberto pelo termo
   e pela procuração anuais fica apto com as Taxas Locais pagas e o B/L original entregue, sem pedido no Portal; o

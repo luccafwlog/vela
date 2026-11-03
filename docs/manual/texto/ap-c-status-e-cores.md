@@ -109,7 +109,7 @@ Na **Visão geral** da ficha do B/L, a mesma situação aparece num selo colorid
 
 ## Conta do Portal
 
-A conta tem duas leituras independentes: a **situação** do acesso e a **decisão** da equipe ([14.1](14-portal-a-conta.md#141-ler-a-fila-do-provisionamento-do-portal)). As cores são as da coluna **Conta** do Provisionamento do Portal.
+A conta tem duas leituras independentes: a **situação** do acesso e a **decisão** da equipe ([14.1](14-portal-a-conta.md#141-ler-a-fila-do-portal)). As cores são as da coluna **Conta** de **Clientes** › **Portal**.
 
 | Situação | Cor | O que leva a ela |
 |---|---|---|
