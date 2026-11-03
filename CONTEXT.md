@@ -1024,7 +1024,7 @@ divide container na Viagem; cobra cada container não-SOC uma vez por Viagem e
 Cliente, e o grupo pode ter Invoice complementar. Nasce emitida com o USD
 travado; o BRL segue o Recálculo Diário. Distinta da fatura de Taxas Locais.
 - **Ver também:** P1, P2, Free Time, ROE, Recálculo Diário
-→ Regra: [Demurrage § Emissão da Invoice de Demurrage](docs/modules/demurrage.md#emissão-da-invoice-de-demurrage) e [§ Grupo de Demurrage e cobrança por caixa](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)
+→ Regra: [Demurrage § Emissão da Invoice de Demurrage](docs/modules/demurrage.md#emissão-da-invoice-de-demurrage) e [§ Grupo de Demurrage e cobrança por container](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-container)
 
 **Tarifa de Demurrage (Rate)**
 Tabela geral do armador, uma por Grupo de tarifa, com free time, faixas P1/P2,
@@ -1085,7 +1085,7 @@ datas alteradas.
   mesmo Cliente (Container compartilhado); "container compartilhado" para
   Clientes diferentes (o grupo de Demurrage é do mesmo Cliente)
 - **Ver também:** Invoice de Demurrage, Container compartilhado
-→ Regra: [Demurrage § Grupo de Demurrage e cobrança por caixa](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)
+→ Regra: [Demurrage § Grupo de Demurrage e cobrança por container](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-container)
 
 **Acordo de Demurrage do Cliente**
 Condições negociadas com um Cliente: free time e, opcionalmente, diárias P1/P2,
@@ -1599,7 +1599,7 @@ Sequência automática de cobranças numeradas de uma Invoice de Demurrage não
 paga, no intervalo configurado pelo Administrativo, sem teto. Pausa em Disputa
 aberta, sem contato válido ou com a Invoice suspensa. Não confundir com a régua
 automática dos avisos operacionais (NOA, NOR, NOB e CE e Taxas).
-→ Regra: [Demurrage](docs/modules/demurrage.md); destinatários em [Clientes § Cobrança de Demurrage por caixa](docs/modules/clientes.md#cobrança-de-demurrage-por-caixa)
+→ Regra: [Demurrage](docs/modules/demurrage.md); destinatários em [Clientes § Cobrança de Demurrage por container](docs/modules/clientes.md#cobrança-de-demurrage-por-container)
 
 **Tratamento de Bounce em Cascata**
 Reação a um bounce permanente: o endereço é suprimido, as caixas são reparadas,

@@ -400,7 +400,7 @@ Valide:
 3. desconto;
 4. emissão, impressão, cancelamento e pagamento;
 5. container compartilhado: uma Invoice para o grupo e, com caixa nova
-   descoberta, a Invoice complementar ([regra](../modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa));
+   descoberta, a Invoice complementar ([regra](../modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-container));
 6. datas alteradas depois da emissão: sem pagamento (cancela e reemite), paga
    e com desconto ou disputa (suspensa, com Alerta) ([regra](../modules/demurrage.md#datas-alteradas-depois-da-emissão));
 7. **Cancelar baixa…** de uma Invoice paga;

@@ -847,7 +847,9 @@ parcialmente a autoridade de cálculo da
   (1º e 2º, com dias × diária) e o USD; o recibo impresso mostra free time e
   dias e diárias de P1/P2 (B30; ADR 0083, item 26).
 
-### Grupo de Demurrage e cobrança por caixa
+### Grupo de Demurrage e cobrança por container
+
+> Título de 2026-11-03: até então "cobrança por caixa"; a equipe só fala em container desde 2026-11-01 (migration `565`). O texto abaixo ainda usa "caixa" como sinônimo de container.
 
 B/Ls do mesmo Cliente ligados por container
 compartilhado na Viagem (`demurrage_group_bl_ids`) recebem uma única Invoice,
