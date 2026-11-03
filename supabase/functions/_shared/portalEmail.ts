@@ -1,5 +1,5 @@
 import { type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
-import { maskEmail, sendEmail } from './email.ts'
+import { type EmailAttachment, maskEmail, sendEmail } from './email.ts'
 
 export { maskEmail } from './email.ts'
 
@@ -11,6 +11,8 @@ export type SendPortalEmailInput = {
   subject: string
   html: string
   text: string
+  /** Vão ao provedor como estão; o convite e o reenvio levam o tutorial em PDF. */
+  attachments?: readonly EmailAttachment[]
   idempotencyKey: string
   accountId?: number
   inviteId?: number
@@ -59,6 +61,7 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
     subject: input.subject,
     html: input.html,
     text: input.text,
+    attachments: input.attachments,
     idempotencyKey: input.idempotencyKey,
     resendApiKey: typeof Deno !== 'undefined' ? Deno.env.get('RESEND_API_KEY') : null,
     from: typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_FROM_EMAIL') : null,
