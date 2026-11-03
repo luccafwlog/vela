@@ -311,11 +311,28 @@ describe('buildMercanteBreakbulkEdi (arquivo parcial)', () => {
     expect(completar.some((message) => message.includes('embalagem'))).toBe(false)
   })
 
+  it('notify com o mesmo nome do consignatário leva o CNPJ dele', () => {
+    const c5 = lines(buildMercanteBreakbulkEdi(header, [breakbulk({ notifyBlock: 'Acme Máquinas Ltda' })]).content)[1]
+    expect(field(c5, 1425, 1438)).toBe('28772926000114')
+    expect(field(c5, 1439, 1691).trim()).toBe('ACME MAQUINAS LTDA')
+  })
+
   it('B/L misto leva contêiner, item de carga solta e veículo no mesmo C5', () => {
     const result = buildMercanteBreakbulkEdi(header, [breakbulk({ containers: [container()] })])
     const records = lines(result.content)
     expect(field(records[1], 3, 6)).toBe('0003')
     expect(records.slice(2).map((line) => field(line, 3, 7))).toEqual(['10001', '20002', '40003'])
+  })
+
+  it('item montado com os totais do B/L sai com aviso para conferir', () => {
+    const result = buildMercanteBreakbulkEdi(header, [breakbulk({
+      breakbulkItems: [{ description: 'Maquinas: 8', quantity: 32, unit: null, grossKg: 259312, cbm: 1217.109, marks: 'SANY', fromTotals: true }],
+      vehicles: [],
+    })])
+    const item = lines(result.content)[2]
+    expect(field(item, 1, 19)).toBe('I520001000259312000')
+    expect(field(item, 45, 53)).toBe('410000032')
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: 'aviso', message: expect.stringContaining('montado com os totais do B/L') }))
   })
 
   it('sem B/L de carga solta na rota, não há arquivo', () => {

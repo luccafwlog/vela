@@ -1184,7 +1184,13 @@ ao Mercante continua fora do Vela. **Código:**
   solta (`bl_breakbulk_items`: peso, tipo de embalagem `41` da tabela 71 do
   Siscomex para todo item, decisão do dono, quantidade, marca = marcas do item,
   contramarca = descrição do item, cubagem) e tipo 4 para cada veículo fora de
-  contêiner (`vehicles`: peso, chassi, marca, modelo como contramarca). Terminal
+  contêiner (`vehicles`: peso, chassi, marca, modelo como contramarca). B/L de
+  carga solta sem linha de item (o Manifesto BB no modelo resumido grava só os
+  totais) ganha um item tipo 2 com os totais do B/L, como o sistema externo:
+  peso = `bb_weight_ton` × 1000, quantidade = total de volumes, cubagem da
+  carga solta, marca = embarcador e contramarca = descrição do B/L, com aviso
+  para conferir. Notify com o mesmo nome do consignatário (o Manifesto BB
+  repete o nome) leva o CNPJ do consignatário, como o `SAME AS CONSIGNEE`. Terminal
   do M5: o da frente de carga solta do POD. O que falta (data de emissão,
   frete, Type of Movement, terminal…) sai em branco e aparece em **A completar**,
   por B/L e campo; nada disso impede o download. Só a rota sem B/L de carga

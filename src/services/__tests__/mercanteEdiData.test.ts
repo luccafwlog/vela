@@ -50,6 +50,8 @@ beforeEach(() => {
       { id: 'BL1', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIT', cargo_mode: 'container', cancelled_at: null, terminal_id: null, ncm_codes: [] },
       { id: 'BL2', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'container', cancelled_at: null, terminal_id: 't-novo', ncm_codes: [] },
       { id: 'BL3', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'carga_solta', cancelled_at: null, terminal_id: null, ncm_codes: [], consignee: 'ACME LTDA', consignee_block: null, shipper: 'SANY', notify_party: null, total_cbm: null, bb_cbm: 120.5, bb_packages_total: 3 },
+      // Manifesto BB no layout resumido: só os totais do B/L, sem linha de item.
+      { id: 'BL5', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'carga_solta', cancelled_at: null, terminal_id: null, ncm_codes: [], shipper: 'SANY', cargo_description: 'Maquinas: 8 | Packages: 24', bb_weight_ton: 259.312, bb_packages_total: 32, bb_cbm: 1217.109 },
       { id: 'BL4', voyage_id: 169, pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'misto', cancelled_at: null, terminal_id: null, ncm_codes: [], total_cbm: 68, bb_cbm: 10 },
     ],
     bl_containers: [{ id: 1, bl_id: 'BL4', container_number: 'ABCU1234567', type: '40HC' }],
@@ -73,7 +75,7 @@ describe('loadMercanteCargoInput', () => {
     expect(input.header).toMatchObject({ terminalCode: 'BRVIX004', terminalDepot: 'TVV', closingDate: '2026-09-30', operationDate: '2026-11-09', carrierCode: 'CN001321' })
     expect(input.bls.map((bl) => bl.id)).toEqual(['BL1', 'BL2'])
     expect(input.bls[1]).toMatchObject({ terminalCode: null, terminalDepot: 'NOVO' })
-    expect(input.skippedBls).toEqual([{ id: 'BL3', reason: 'carga solta' }, { id: 'BL4', reason: 'B/L misto (contêiner e carga solta)' }])
+    expect(input.skippedBls).toEqual([{ id: 'BL3', reason: 'carga solta' }, { id: 'BL5', reason: 'carga solta' }, { id: 'BL4', reason: 'B/L misto (contêiner e carga solta)' }])
   })
 })
 
@@ -82,12 +84,14 @@ describe('loadMercanteBreakbulkInput', () => {
     const input = await loadMercanteBreakbulkInput(169, 'CNTAC', 'BRVIX')
 
     expect(input.header).toMatchObject({ terminalCode: 'BRVIX006', terminalDepot: 'PORTMAC' })
-    expect(input.bls.map((bl) => bl.id)).toEqual(['BL3', 'BL4'])
-    const [cargaSolta, misto] = input.bls
+    expect(input.bls.map((bl) => bl.id)).toEqual(['BL3', 'BL5', 'BL4'])
+    const [cargaSolta, resumido, misto] = input.bls
     // Manifesto BB só tem o nome curto das partes: ele vai no lugar do bloco.
     expect(cargaSolta).toMatchObject({ consigneeBlock: 'ACME LTDA', shipperBlock: 'SANY', notifyBlock: null, totalCbm: 120.5, totalPackages: 3 })
     expect(cargaSolta.breakbulkItems).toEqual([{ description: 'EXCAVATOR', quantity: 2, unit: 'UNITS', grossKg: 43800, cbm: 120.5, marks: 'SANY' }])
     expect(cargaSolta.vehicles).toEqual([{ chassis: 'SYS11021TT3C60990', grossKg: 21900, brand: 'SANY', model: 'SY215C' }])
+    // Sem linha de item: um item com os totais do B/L e o embarcador como marca.
+    expect(resumido.breakbulkItems).toEqual([{ description: 'Maquinas: 8 | Packages: 24', quantity: 32, unit: null, grossKg: 259312, cbm: 1217.109, marks: 'SANY', fromTotals: true }])
     // Misto: contêiner + carga solta na cubagem; o veículo dentro do contêiner não vira item.
     expect(misto).toMatchObject({ totalCbm: 78, vehicles: [] })
     expect(misto.containers.map((container) => container.number)).toEqual(['ABCU1234567'])

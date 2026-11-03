@@ -82,7 +82,8 @@ ordem e o tamanho dos NCM e a limpeza do texto livre.
    B/L e campo, para a equipe preencher antes de enviar. Só a rota sem B/L de
    carga solta impede. O código do tipo de embalagem (tabela 71 do Siscomex)
    é `41` para todo item, como o sistema externo faz (decisão do dono de
-   2026-11-03). A rota CNTR/BB gera, portanto,
+   2026-11-03). B/L sem linha de item (Manifesto BB no modelo resumido) ganha
+   um item com os totais do B/L, também como o sistema externo. A rota CNTR/BB gera, portanto,
    dois arquivos: o de contêiner e o parcial de carga solta.
 
 ## Consequências

@@ -139,7 +139,28 @@ async function readHeader(voyageId: number, pol: string, pod: string, frontKind:
   }
 }
 
-const BL_COLUMNS = 'id, pol, pod, cargo_mode, cancelled_at, consignee, consignee_block, manifest_customer_cnpj_cpf, shipper, shipper_block, notify_party, notify_block, notify_cnpj_cpf, bl_emission_date, cargo_description, total_packages, bb_packages_total, packages_unit, total_cbm, bb_cbm, movement_from, ncm_codes, terminal_id'
+const BL_COLUMNS = 'id, pol, pod, cargo_mode, cancelled_at, consignee, consignee_block, manifest_customer_cnpj_cpf, shipper, shipper_block, notify_party, notify_block, notify_cnpj_cpf, bl_emission_date, cargo_description, total_packages, bb_packages_total, packages_unit, total_cbm, bb_cbm, bb_weight_ton, movement_from, ncm_codes, terminal_id'
+
+/**
+ * Item de carga solta com os totais do B/L, para o B/L sem linhas de item (o
+ * Manifesto BB no layout resumido grava só os totais). Sem total nenhum, não
+ * há item: o gerador pede o item em "A completar".
+ */
+function itemFromBlTotals(bl: Row): MercanteEdiBreakbulkItem | null {
+  const grossKg = num(bl.bb_weight_ton) === null ? null : Number(bl.bb_weight_ton) * 1000
+  const quantity = num(bl.bb_packages_total)
+  const cbm = num(bl.bb_cbm)
+  if (grossKg === null && quantity === null && cbm === null) return null
+  return {
+    description: text(bl.cargo_description),
+    quantity,
+    unit: text(bl.packages_unit),
+    grossKg,
+    cbm,
+    marks: text(bl.shipper),
+    fromTotals: true,
+  }
+}
 
 /**
  * B/Ls ativos da rota com `cargo_mode` em `modes`, no formato do gerador. Os
@@ -208,6 +229,10 @@ async function readRouteBls(voyageId: number, pol: string, pod: string, modes: R
         cbm: num(item.cbm),
         marks: text(item.marks),
       }))
+    if (withBreakbulk && !breakbulkItems.length && bl.cargo_mode === 'carga_solta') {
+      const fromTotals = itemFromBlTotals(bl)
+      if (fromTotals) breakbulkItems.push(fromTotals)
+    }
     // Veículo dentro de contêiner já está no I5 do contêiner.
     const vehicles: MercanteEdiVehicle[] = vehicleRows
       .filter((vehicle) => vehicle.bl_id === id && !vehicle.container_id)

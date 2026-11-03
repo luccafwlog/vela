@@ -78,6 +78,12 @@ export type MercanteEdiBreakbulkItem = {
   grossKg: number | null
   cbm: number | null
   marks: string | null
+  /**
+   * Item montado com os totais do B/L (Manifesto BB no layout resumido, sem
+   * linhas de item), como o sistema externo faz: um item com o peso e o total
+   * de volumes do B/L e o embarcador como marca.
+   */
+  fromTotals?: boolean
 }
 
 /** Veículo do B/L fora de contêiner (`vehicles`): vira I5 tipo 4. */
@@ -373,7 +379,10 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   if (!date8(bl.emissionDate)) block(ctx, ref, 'Sem data de emissão do B/L.')
   if (consignee.length > PARTY_LENGTH) warn(ctx, ref, `Consignatário cortado em ${PARTY_LENGTH} caracteres.`)
 
+  // Notify "SAME AS CONSIGNEE", vazio ou com o mesmo nome do consignatário (o
+  // Manifesto BB repete o nome curto) leva o bloco e o CNPJ do consignatário.
   const sameAsConsignee = SAME_AS_CONSIGNEE.test(bl.notifyBlock ?? '') || !(bl.notifyBlock ?? '').trim()
+    || cleanMercanteText(bl.notifyBlock, 'party') === consignee
   const notify = sameAsConsignee ? consignee : cleanMercanteText(bl.notifyBlock, 'party')
   const notifyCnpj = sameAsConsignee ? consigneeCnpj : documentDigits(bl.notifyCnpj)
 
@@ -399,7 +408,11 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   if (oceanFreight.length && !freightCurrency) block(ctx, ref, `Moeda do frete ${oceanFreight[0]?.currency ?? '(vazia)'} sem código Mercante.`)
   if (oceanFreight.length && !freightPayment) block(ctx, ref, 'Frete marítimo sem prepaid/collect.')
   const modality = mercanteFreightModality(bl.movementFrom)
-  if (!modality) block(ctx, ref, `Type of Movement "${bl.movementFrom ?? ''}" não é FCL ou LCL: a modalidade do frete vem dele.`)
+  if (!modality) {
+    block(ctx, ref, (bl.movementFrom ?? '').trim()
+      ? `Type of Movement "${bl.movementFrom}" não é FCL ou LCL: a modalidade do frete vem dele.`
+      : 'Sem Type of Movement (FCL ou LCL): a modalidade do frete vem dele.')
+  }
 
   const pod = mercantePortCode(header.pod)
   const uf = BRAZILIAN_PORT_UF[pod] ?? null
@@ -513,6 +526,7 @@ function buildBreakbulkItem(ctx: Ctx, bl: MercanteEdiBl, item: MercanteEdiBreakb
   const record = blank(ITEM_LENGTH)
   const marks = cleanMercanteText(item.marks, 'description')
   const counterMarks = cleanMercanteText(item.description, 'description')
+  if (item.fromTotals) warn(ctx, ref, 'Item de carga solta montado com os totais do B/L (peso, volumes e cubagem), sem linhas de item no Manifesto BB: confira.')
   if (item.grossKg === null || item.grossKg === undefined) block(ctx, ref, 'Item de carga solta sem peso bruto.')
   if (!item.quantity) block(ctx, ref, 'Item de carga solta sem quantidade.')
   if (!marks) block(ctx, ref, 'Item de carga solta sem marca.')
