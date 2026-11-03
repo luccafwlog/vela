@@ -756,8 +756,12 @@ Na mesma entrega da versão 1.0:
    para Documentação, Operações e Equipamentos, para não deixar trabalho de
    fora: o **Guia rápido da Viagem** (`docs/manual/guias/viagem/`), com a
    equipe de cada etapa, o fluxo em raias, a conferência antes do CE e os
-   alertas. Aprovado pelo dono em 2026-10-29, na mesma PR do manual. Guias do
-   Financeiro e do Administrativo esperam a decisão dele.
+   alertas. Aprovado pelo dono em 2026-10-29, na mesma PR do manual. Em
+   2026-11-03 o dono pediu os guias do Financeiro e do Administrativo
+   (`guias/financeiro/` e `guias/administrativo/`), escritos no mesmo molde e
+   à espera da aprovação dele; as capturas novas que eles sugerem (tabelas de
+   cobrança, Conciliação PIX, Restituições, Editar acesso, Prazo do ADR…) ficam
+   para a próxima rodada.
 3. **Imagens que o ambiente local não gera:** a lista de usuários da
    Administração (depende de função do servidor) e as telas do Pix com a
    cobrança pelo Itaú ligada.
