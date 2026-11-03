@@ -392,6 +392,22 @@ e não deve ser substituída pelo dump.
 
 ---
 
+## 13. PDFs anexados ao convite do Portal (`generate-portal-invite-pdfs`)
+
+**O que faz:** copia o tutorial e o guia rápido do Portal
+(`artifacts/portal-onboarding-cliente/*.pdf`) para o módulo que a Edge
+`portal-invite-send` anexa a todo convite e reenvio. Rode depois de gerar os
+PDFs de novo; sem isso, o teste `portalInviteAttachments.test.ts` falha.
+
+```
+node scripts/generate-portal-invite-pdfs.mjs
+```
+
+O convite só leva o PDF novo depois que a função é publicada
+([Portal do Cliente](../docs/modules/portal-cliente.md#email-transacional)).
+
+---
+
 ### Resumo rápido
 
 | Ferramenta | Para quê serve |
@@ -411,3 +427,4 @@ e não deve ser substituída pelo dump.
 | `provision-preview-admin` | Provisionar o usuário admin da branch Preview |
 | `load-branch-env` | Decodificar o `-o env` do CLI para o `$GITHUB_ENV` (usado pelo provisionamento) |
 | `build-squash-migrations` | Reconstruir o schema consolidado v1.0 a partir de um dump |
+| `generate-portal-invite-pdfs` | Atualizar os PDFs anexados ao convite do Portal |

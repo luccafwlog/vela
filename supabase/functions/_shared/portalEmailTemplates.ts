@@ -19,8 +19,6 @@ import {
 export { escapeHtml }
 
 type InviteTemplateInput = { companyName: string; cnpjMasked: string; activationUrl: string; supportEmail: string; portalUrl: string }
-// `tutorialAttached`: o PDF do tutorial foi anexado (`portalInviteTutorial.ts`).
-type InviteEmailInput = InviteTemplateInput & { tutorialAttached?: boolean }
 
 const portal = emailKit('portal')
 
@@ -32,11 +30,8 @@ function accessBlock(companyName: string, cnpjMasked?: string) {
   }
 }
 
-/** Linha do tutorial em PDF; sem o anexo, o e-mail não fala dele. */
-function tutorialNote(attached?: boolean) {
-  const line = 'Em anexo está o tutorial completo do Portal.'
-  return attached ? { html: p(escapeHtml(line)), text: ['', line] } : { html: '', text: [] }
-}
+// Convite e reenvio levam os PDFs de `portalInviteAttachments.ts`.
+const ATTACHMENTS_NOTE = 'Em anexo estão o tutorial completo e o guia rápido do Portal.'
 
 function portalMail(input: {
   subject: string
@@ -54,31 +49,29 @@ function portalMail(input: {
   }
 }
 
-export function inviteTemplate(i: InviteEmailInput) {
+export function inviteTemplate(i: InviteTemplateInput) {
   const access = accessBlock(i.companyName, i.cnpjMasked)
-  const tutorial = tutorialNote(i.tutorialAttached)
   const intro = 'Você foi convidado a acessar o Portal do Cliente da Fwlog, onde acompanha faturas, B/Ls e o andamento das suas operações.'
   const how = 'Crie sua própria senha pelo botão abaixo. O link é de uso único e vale por 48 horas.'
   return portalMail({
     subject: `Ative o acesso da ${i.companyName} ao Portal do Cliente`,
     title: 'Ative seu acesso ao Portal do Cliente',
-    html: access.html + p(escapeHtml(intro)) + p(escapeHtml(how)) + portal.button('Ativar acesso', i.activationUrl) + tutorial.html,
-    text: [access.text, '', intro, how, '', `Ativar acesso: ${i.activationUrl}`, ...tutorial.text],
+    html: access.html + p(escapeHtml(intro)) + p(escapeHtml(how)) + portal.button('Ativar acesso', i.activationUrl) + p(escapeHtml(ATTACHMENTS_NOTE)),
+    text: [access.text, '', intro, how, '', `Ativar acesso: ${i.activationUrl}`, '', ATTACHMENTS_NOTE],
     portalUrl: i.portalUrl,
     footer: emailFooter(i.supportEmail),
   })
 }
 
-export function resendTemplate(i: InviteEmailInput) {
+export function resendTemplate(i: InviteTemplateInput) {
   const access = accessBlock(i.companyName, i.cnpjMasked)
-  const tutorial = tutorialNote(i.tutorialAttached)
   const intro = 'Enviamos um novo link de ativação. Os links anteriores deixaram de funcionar.'
   const how = 'O novo link é de uso único e vale por 48 horas.'
   return portalMail({
     subject: 'Novo convite para ativar seu acesso ao Portal do Cliente',
     title: 'Novo convite do Portal do Cliente',
-    html: access.html + p(escapeHtml(intro)) + p(escapeHtml(how)) + portal.button('Ativar acesso', i.activationUrl) + tutorial.html,
-    text: [access.text, '', intro, how, '', `Ativar acesso: ${i.activationUrl}`, ...tutorial.text],
+    html: access.html + p(escapeHtml(intro)) + p(escapeHtml(how)) + portal.button('Ativar acesso', i.activationUrl) + p(escapeHtml(ATTACHMENTS_NOTE)),
+    text: [access.text, '', intro, how, '', `Ativar acesso: ${i.activationUrl}`, '', ATTACHMENTS_NOTE],
     portalUrl: i.portalUrl,
     footer: emailFooter(i.supportEmail),
   })

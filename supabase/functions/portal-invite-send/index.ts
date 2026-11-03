@@ -2,10 +2,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { inviteTemplate, resendTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
-import { loadPortalInviteTutorial } from '../_shared/portalInviteTutorial.ts'
+import { PORTAL_INVITE_ATTACHMENTS } from '../_shared/portalInviteAttachments.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
-import { captureEdgeException, instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
 
 const json = (status: number, body: unknown, origin: string | null) => new Response(body === null ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) } })
@@ -46,17 +46,9 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   const activationUrl = canonicalPortalUrl(`ativar?token=${encodeURIComponent(token)}`)
   const portalUrl = canonicalPortalOrigin()
   const supportEmail = portalSupportEmail()
-  // Todo convite e reenvio leva o tutorial em PDF. Se o download falhar, o
-  // convite sai sem o anexo (e sem a linha que o cita): o link de ativação não
-  // fica refém do site onde o PDF mora. A falha vai ao log e ao Sentry.
-  const tutorial = await loadPortalInviteTutorial()
-  if (!tutorial.attachment) {
-    console.error('[portal-invite-send] convite sem o tutorial em PDF:', tutorial.reason)
-    await captureEdgeException(new Error(tutorial.reason), { functionName: 'portal-invite-send', status: 'tutorial_pdf', category: 'absorbed_failure' })
-  }
-  const templateInput = { companyName: customer?.name ?? 'sua empresa', cnpjMasked: maskCnpj(customer?.cnpj_cpf ?? ''), activationUrl, portalUrl, supportEmail, tutorialAttached: Boolean(tutorial.attachment) }
+  const templateInput = { companyName: customer?.name ?? 'sua empresa', cnpjMasked: maskCnpj(customer?.cnpj_cpf ?? ''), activationUrl, portalUrl, supportEmail }
   const template = resend ? resendTemplate(templateInput) : inviteTemplate(templateInput)
-  const sent = await sendPortalEmail({ admin, kind: resend ? 'reenvio' : 'convite', to: email, subject: template.subject, html: template.html, text: template.text, attachments: tutorial.attachment ? [tutorial.attachment] : undefined, idempotencyKey: `convite:${invite.id}`, accountId: account.id, inviteId: invite.id })
+  const sent = await sendPortalEmail({ admin, kind: resend ? 'reenvio' : 'convite', to: email, subject: template.subject, html: template.html, text: template.text, attachments: PORTAL_INVITE_ATTACHMENTS, idempotencyKey: `convite:${invite.id}`, accountId: account.id, inviteId: invite.id })
   // `recovery_email_status` (299) descreve o endereço, não a conta: gravar um
   // endereço novo aqui sem zerar o sinal deixaria o console acusando de quebrado
   // um endereço que nunca foi testado -- e o operador não teria como limpá-lo,

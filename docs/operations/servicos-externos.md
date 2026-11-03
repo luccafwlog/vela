@@ -445,7 +445,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 |---|---|---|
 | Plataforma (automáticos) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS`, `SUPABASE_PUBLISHABLE_KEYS`, `SUPABASE_SECRET_KEYS` | Supabase |
 | Portal | `PORTAL_URL` (valor esperado em produção: `https://portalfwlog.com.br`; como os e-mails montam os links a partir dele: [Portal do Cliente](../modules/portal-cliente.md#email-transacional)), `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
-| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO`; opcional `PORTAL_INVITE_TUTORIAL_PDF_URL` ([tutorial do convite](#millionsend-envio)) | MillionSend (API compatível com a Resend) |
+| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | MillionSend (API compatível com a Resend) |
 | Anti-robô | `TURNSTILE_SECRET_KEY` e `TURNSTILE_ALLOWED_HOSTNAMES` (obrigatório fora do stack local desde a auditoria run-3: sem ele, o desafio do Portal é recusado) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `CE_UNLOCK_NOTIFY_SECRET`, `ITAU_PIX_CRON_SECRET`, `ITAU_PIX_DIAGNOSTIC_SECRET` e, na transição, `ITAU_PIX_ADMIN_SECRET`; `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` (não é segredo) encerra a transição dos avisos de CE (par com o Vault quando o job está habilitado; lista do cofre e ordem da troca em [segredos-cron.md](segredos-cron.md#um-segredo-por-rotina-auditoria-run-3)) | — |
@@ -705,19 +705,6 @@ mesmos.
      (migration `353`).
 - **Recebimento** e **Caixas de entrada** da MillionSend não são usados: o
   recebimento é do ImprovMX.
-- **Tutorial do convite (desde 2026-11-03):** todo convite e reenvio do Portal
-  (`portal-invite-send`) leva em anexo o tutorial completo do Portal,
-  `Tutorial_Portal_Fwlog.pdf`. A Edge baixa o PDF a cada envio do endereço em
-  `PORTAL_INVITE_TUTORIAL_PDF_URL`; sem o secret, de
-  `https://fwlog.com.br/wp-content/uploads/2026/10/tutorial-portal-fwlog.pdf`,
-  publicado no site da Fwlog (`supabase/functions/_shared/portalInviteTutorial.ts`).
-  Para trocar o tutorial, substitua o arquivo nesse endereço ou publique outro
-  e grave o endereço novo no secret; não é preciso republicar a função. O
-  endereço precisa ser `https`, e o arquivo, um PDF de até 10 MB (o de 2026-11-03
-  tem 1,7 MB). Se o download falhar (site fora do ar, 10 s sem resposta, arquivo
-  que não é PDF), o convite sai sem o anexo e sem a linha que o cita, e a falha
-  vai ao log da função e ao Sentry (`portal-invite-send`, status
-  `tutorial_pdf`).
 - **Virada conferida em 2026-10-14:** "Esqueci minha senha" no Portal chegou,
   apareceu como entregue na MillionSend e o webhook marcou 100% de sucesso.
 - **Volta para a Resend (enquanto a conta existir), nesta ordem:**
