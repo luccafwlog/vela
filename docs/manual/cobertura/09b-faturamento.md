@@ -228,7 +228,7 @@ no banco local); nada foi executado no navegador nesta etapa.
 | `B/L % cancelado não entra em fatura.` | Ao emitir ou incluir em fatura um B/L cancelado. | Ap. B |
 | `B/L % já foi faturado (status financeiro=%); não é permitido lançar taxa manual.` | Ao adicionar cobrança manual em B/L já faturado. | Ap. B |
 | `B/L % já foi faturado; não é permitido editar taxa manual.` | Ao editar cobrança manual de B/L já faturado. | Ap. B |
-| `B/L % já foi faturado; não é permitido remover taxa manual.` | Ao excluir cobrança manual de B/L já faturado. | Ap. B |
+| `B/L % já foi faturado; não é permitido remover taxa manual.` | Versão antiga da exclusão de cobrança manual, sem permissão de execução para a tela desde a migration `491`; a exclusão atual aceita B/L faturado (migration `493`). Não chega a uma pessoa. | Fora |
 | `B/L % não encontrado.` | B/L informado não existe (avulsa com B/L digitado, cancelar B/L, gerar Invoice de Demurrage, mover veículos, exceção de terminal). | Ap. B |
 | `B/L % nao pertence ao cliente informado.` | Emissão em lote de vários B/Ls com Cliente diferente; nenhuma tela de hoje faz esse lote. | Fora |
 | `B/L % não pertence ao cliente selecionado.` | Na avulsa Outra, B/L de outro Cliente. | Ap. B |

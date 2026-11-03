@@ -29,10 +29,15 @@
 -- (DOCUMENTAL_AUTOMATIC_REASON em voyageSummaries.ts) e a tela não o mostra.
 --
 -- Só redefine funções; não grava nem reescreve linhas existentes.
--- Rollback: reaplicar cada função pela migration anterior que a definiu
--- (guard_manual_documental_status: 135; delete_manual_bl_charge: 493;
--- _recalculate_bl_cargo_mode e trg_sync_bl_weight_cargo_mode: 064; as
--- outras: 509).
+-- Rollback: o mais simples é desfazer só a troca de texto em cada função.
+-- Reaplicar a migration anterior também serve, com estas origens:
+-- guard_manual_documental_status: 135; delete_manual_bl_charge(bigint,uuid):
+-- 241 (a versão de três argumentos, da 491/493, não muda aqui);
+-- _recalculate_bl_cargo_mode e trg_sync_bl_weight_cargo_mode: 064;
+-- _add_manual_bl_charge_impl_106, _update_manual_bl_charge_impl_491 e
+-- _calculate_bl_local_charges_impl_491: 509;
+-- import_breakbulk_manifest_transactional_legacy_189: 509 com os remendos da
+-- 511 e da 551 (reaplicar só a 509 desfaria as duas correções).
 --
 -- Funções redefinidas:
 --   guard_manual_documental_status()
