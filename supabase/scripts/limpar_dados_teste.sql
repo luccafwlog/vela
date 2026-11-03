@@ -4,8 +4,17 @@
 -- sistema listados abaixo, com RESTART IDENTITY CASCADE num único comando: se
 -- qualquer tabela recusar, nada é apagado.
 --
--- Só execute enquanto a afirmação "Data status" do AGENTS.md estiver vigente
--- (produção sem dados reais). Procedimento: docs/operations/reset-ambiente.md.
+-- Produção tem dados reais desde 2026-11-03 (afirmação "Data status" do
+-- AGENTS.md): nunca execute em produção. Só em banco descartável (Postgres
+-- local, replay do CI ou branch de Supabase criada para teste), e só depois de
+-- confirmar na mesma sessão:
+--
+--   SET vela.limpeza_banco_descartavel = 'confirmo';
+--
+-- Sem essa confirmação o script recusa antes de apagar qualquer coisa.
+-- ponytail: a confirmação é um passo deliberado, não detecção de produção; o
+-- banco não sabe se é descartável. Quem confirma responde pelo alvo.
+-- Procedimento: docs/operations/reset-ambiente.md.
 --
 -- Ao criar uma tabela de configuração ou de cadastro base, inclua-a em
 -- v_preservar. A migration 156 faz o banco recusar o TRUNCATE de app_settings:
@@ -43,6 +52,10 @@ DECLARE
   v_cascata text[];
   v_tables text;
 BEGIN
+  IF current_setting('vela.limpeza_banco_descartavel', true) IS DISTINCT FROM 'confirmo' THEN
+    RAISE EXCEPTION 'Limpeza recusada: produção tem dados reais (Data status do AGENTS.md). Em banco descartável, rode antes: SET vela.limpeza_banco_descartavel = ''confirmo'';';
+  END IF;
+
   -- Nome digitado errado na lista protegeria nada: avisa em vez de seguir calado.
   SELECT array_agg(t) INTO v_ausentes
   FROM unnest(v_preservar) AS t

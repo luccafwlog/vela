@@ -444,25 +444,44 @@ merge para preservar a ordem lexicográfica = ordem de aplicação.
 
 ### Migration que reescreve ou apaga dados
 
-Uma migration que faz `UPDATE`, `DELETE`, `TRUNCATE`, `DROP TABLE` ou
-`DROP COLUMN` fora de um corpo de função só é aceitável enquanto valer a
-afirmação **"Data status"** da seção Gotchas do `AGENTS.md`, datada de
-2026-09-18 e revogável pelo proprietário. Consulte sua validade antes da mudança;
-este manual não renova a afirmação sobre dados de produção. Declare a dependência no cabeçalho do
-arquivo, citando o nome da afirmação e o `AGENTS.md`; veja
-`supabase/migrations/061_bl_weight_semantics_and_triggers.sql` como exemplo.
+Produção tem dados reais desde 2026-11-03: vale a afirmação **"Data status"**
+da seção Gotchas do `AGENTS.md`, revogável só pelo proprietário. Uma migration
+que faz `UPDATE`, `DELETE`, `TRUNCATE`, `DROP TABLE` ou `DROP COLUMN` fora de um
+corpo de função roda sobre esses dados quando a integração GitHub do Supabase a
+aplica depois do merge na `main`. Ela só é aceitável com um plano de
+preservação no cabeçalho do arquivo, antes do primeiro comando, aberto pela
+linha `Plano de preservação:`:
 
-`npm run migrations:check` verifica isso e roda no gate `quality`. Ele ignora
-`UPDATE`/`DELETE` dentro de `CREATE FUNCTION` (código que roda depois, a pedido
-da aplicação) mas não dentro de blocos `DO` (executam durante o deploy), e não
-cobra declaração ausente nas migrations até a 061, inclusive, tratadas como
-históricas pelo checker atual. Nesse intervalo também aceita a referência
-antiga a `CLAUDE.md`; arquivos novos devem citar `AGENTS.md`. O relatório conta
-as exceções. A análise é textual e não detecta toda forma de SQL dinâmico ou
-efeito indireto: ela complementa a revisão, não autoriza perda de dados.
+```sql
+-- 575: descrição curta
+--
+-- Plano de preservação: <linhas afetadas, com o filtro exato>; <onde ficam os
+-- valores anteriores: tabela de cópia criada nesta migration, Histórico ou
+-- export>; <como conferir: contagem antes/depois ou consulta de prova>;
+-- <como desfazer a partir da cópia>.
+```
 
-Se a afirmação tiver sido revogada, declarar dependência não basta: escreva um
-plano de preservação.
+Prefira não destruir: coluna nova em vez de reescrever a antiga, desativar em
+vez de apagar. Quando a perda for inevitável, a cópia prévia vai na mesma
+migration, e um teste `local-pg` prova que ela guarda o que o comando altera.
+Antes do merge na `main`, confira que o backup diário do dia está no R2
+([backup](./docs/operations/backup-r2.md)).
+
+`npm run migrations:check` verifica o cabeçalho e roda no gate `quality`. A
+regra depende da época de cada arquivo:
+
+| Migrations | Regra no cabeçalho |
+| --- | --- |
+| até a `061` | histórico: sem exigência; aceita a referência antiga a `CLAUDE.md` |
+| `062` a `574` | declaração do "Data status" de 2026-09-18 (produção sem dados reais), citando o `AGENTS.md`; exemplo em `supabase/migrations/061_bl_weight_semantics_and_triggers.sql` |
+| a partir da `575` | `Plano de preservação:` com corpo; a declaração antiga não vale e é recusada |
+
+O checker ignora `UPDATE`/`DELETE` dentro de `CREATE FUNCTION` (código que roda
+depois, a pedido da aplicação) mas não dentro de blocos `DO` (executam durante o
+deploy). O relatório conta as exceções históricas. A análise é textual: confere
+que o plano existe e tem corpo, não que ele preserva de fato, e não detecta toda
+forma de SQL dinâmico ou efeito indireto. Ela complementa a revisão, que julga o
+plano; não autoriza perda de dados.
 
 ### Segurança
 
@@ -521,8 +540,9 @@ validação local controlada usa os testes `emailInbox.local-pg.test.ts`,
 `importEffects.local-pg.test.ts`.
 
 Nunca execute a limpeza ampla para “testar” uma migration. A limpeza de dados
-de teste (`supabase/scripts/limpar_dados_teste.sql`) só vale enquanto a
-afirmação "Data status" do `AGENTS.md` estiver vigente; o procedimento está em
+de teste (`supabase/scripts/limpar_dados_teste.sql`) nunca roda em produção,
+que tem dados reais desde 2026-11-03 ("Data status" do `AGENTS.md`); em banco
+descartável, ela exige confirmação explícita na sessão. O procedimento está em
 [`docs/operations/reset-ambiente.md`](./docs/operations/reset-ambiente.md).
 
 ## 6. Acesso a dados e React Query

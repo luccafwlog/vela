@@ -83,7 +83,7 @@ Testes de integração não devem apontar para produção. Os critérios e o esc
 - O Portal não usa cadastro público nem sessão legada por senha armazenada em tabela; o provisionamento é controlado internamente.
 - RLS e RPCs definem o escopo de dados e as permissões de cada perfil.
 - Migrations devem ser aplicadas de forma controlada no Supabase e não são executadas pelo deploy da SPA.
-- A limpeza ampla de dados de teste só vale enquanto a afirmação "Data status" do [`AGENTS.md`](AGENTS.md) estiver vigente; siga [`docs/operations/reset-ambiente.md`](docs/operations/reset-ambiente.md).
+- Produção tem dados reais desde 2026-11-03 (afirmação "Data status" do [`AGENTS.md`](AGENTS.md)): a limpeza ampla de dados de teste só roda em banco descartável, com confirmação explícita ([`docs/operations/reset-ambiente.md`](docs/operations/reset-ambiente.md)), e migration que reescreve ou apaga linhas traz plano de preservação.
 - Antes de alterar schema, autenticação, rotas, integrações ou regras de negócio, consulte [`AGENTS.md`](AGENTS.md) e as fontes de verdade listadas nele.
 
 ## Onde encontrar cada coisa
