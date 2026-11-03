@@ -192,7 +192,7 @@ Comece pela página **Comunicados da viagem**: na **Cobertura de viagens**, cliq
 
 Se o aviso aparece como **Enviado**, abra o **Histórico** e veja a situação de cada destinatário ([16.4](#164-conferir-se-um-e-mail-saiu-e-chegou)). Se o NOA, o NOR ou o NOB aparece como **Não devido** e não está no Histórico, a janela passou: mande à mão ([16.5](#165-mandar-um-noa-nor-ou-nob-à-mão)).
 
-Esses casos também chegam à {{Documentação}} como alerta ([20.7](20-alertas.md#207-comunicados-e-e-mail)). Os avisos do Desbloqueio de CE e a Cobrança de Demurrage não entram na Cobertura. O aviso do Desbloqueio de CE que não sai abre um alerta para o {{Administrativo}}. A Cobrança de Demurrage parada mostra o motivo na coluna **Régua de cobrança** da Demurrage ([23.6](23-demurrage-no-financeiro.md#236-acompanhar-a-régua-de-cobrança)); só a recusada pelo provedor abre alerta, também para o {{Administrativo}}.
+Esses casos também chegam à {{Documentação}} como alerta ([20.7](20-alertas.md#207-comunicados-e-e-mail)). Os avisos do Desbloqueio de CE e a Cobrança de Demurrage não entram na Cobertura. O aviso do Desbloqueio de CE que não sai abre um alerta para o {{Administrativo}}. A Cobrança de Demurrage parada mostra o motivo na coluna **Régua de cobrança** da Demurrage ([23.6](23-demurrage-no-financeiro.md#236-acompanhar-a-régua-de-cobrança)); abre alerta, também para o {{Administrativo}}, quando o provedor recusa em definitivo ou quando o envio falha três vezes seguidas.
 
 ::: atencao
 Com o envio real desligado, a Cobertura mostra o aviso como saído, mas nada chegou ao Cliente ([16.2](#162-saber-se-os-e-mails-saem-de-verdade)).

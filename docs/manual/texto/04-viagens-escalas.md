@@ -68,7 +68,7 @@ Na mesma janela ficam três informações do Mercante, que você preenche quando
 
 ## 4.3 Atribuir os terminais
 
-**Quem faz:** {{Qualquer equipe}} · tirar uma atracação, inclusive ao trocar o terminal da única frente dela: {{Operações}} e {{Administrativo}}
+**Quem faz:** {{Qualquer equipe}} · tirar uma atracação, inclusive ao trocar o terminal da única frente dela: {{Operações}} e {{Administrativo}} · escolher o terminal de uma frente em TBC: {{Qualquer equipe}}
 
 Um porto pode ter vários terminais, e cada operação da escala acontece num deles. Por isso a escala se divide em **frentes de operação**: carga cheia, carga solta e vazios na importação; Granito e vazios na exportação. Cada frente recebe o seu terminal. Os veículos viajam nos containers e seguem o terminal da carga cheia: não têm frente própria.
 
@@ -91,7 +91,7 @@ As frentes nascem do que a escala tem: a importação e a exportação declarada
 
 ::: atencao
 - Depois que a escala foi salva, mudar o que já aconteceu (terminal de uma frente, ATB, ATD) pede uma justificativa. Ela fica no histórico.
-- Se o terminal já tem o ADR de Saída fechado, o Vela não deixa mudar a atracação. Reabra o ADR antes (capítulo 11). E nenhuma atracação sai, nem na troca de terminal, quando algum B/L do porto já tem CE Mercante ou fatura.
+- Se o terminal já tem o ADR de Saída fechado, o Vela não deixa mudar a atracação. Reabra o ADR antes (capítulo 11). E a atracação de um terminal não sai, nem na troca de terminal, quando algum B/L desse terminal (ou ainda sem terminal) já tem CE Mercante ou fatura. A frente em TBC ganha terminal sem essa trava.
 - Se outra pessoa salvou a mesma escala enquanto você editava, o Vela não grava e avisa. Abra a escala de novo e refaça.
 :::
 
