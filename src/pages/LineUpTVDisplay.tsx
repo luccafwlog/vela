@@ -240,7 +240,7 @@ export function LineUpTVDisplay() {
         {isLoading ? (
           <div className="app-lineup-display-loading">Carregando o Line-Up…</div>
         ) : rows.length === 0 ? (
-          <div className="app-lineup-display-loading">Nenhuma escala disponivel.</div>
+          <div className="app-lineup-display-loading">Nenhuma escala disponível.</div>
         ) : isMobile ? (
           <div className="app-lineup-mobile">
             {rows.map((row) => (

@@ -25,7 +25,7 @@ export function filterLineUpRows(rows: LineUpRow[], filters: LineUpFilters): Lin
   const search = filters.search.trim().toLowerCase()
 
   return rows.filter((row) => {
-    // Exportações representam uma programação distinta e não somem com filtros operacionais do Line Up.
+    // Exportações representam uma programação distinta e não somem com filtros operacionais do Line-Up.
     if (row.rowType === 'export') return true
     if (filters.status !== 'all' && row.voyageStatus !== filters.status) return false
     if (search && !row.vesselName.toLowerCase().includes(search) && !row.voyageNumber.toLowerCase().includes(search)) return false

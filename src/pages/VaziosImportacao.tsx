@@ -73,7 +73,7 @@ export function VaziosImportacao() {
   const canImport = Boolean(profile || user)
   const { showToast } = useToast()
 
-  // A Line Up abre a tela com a Viagem e o POD no endereço.
+  // O Line-Up abre a tela com a Viagem e o POD no endereço.
   const { filters, setFilters, updateFilter } = usePageFilters<Filters>({
     search: '',
     voyageId: searchParams.get('voyage') ?? '',
