@@ -184,7 +184,7 @@ telas desta área que o inventário não lista.
 | `B/L % nao encontrado para efeito de veículos.` | Nunca chega a uma pessoa: excluir o B/L ou a Viagem descarta o acompanhamento pendente dos veículos ("descartado: registro excluído", sem Alerta), e não há outro caminho que apague B/L. Se ocorresse, iria ao texto do Alerta "Efeito de importação bloqueado". | Fora |
 | `B/L Granite % nao encontrado` | Nunca chega a uma pessoa: a revisão de Cliente do Granito saiu do sistema e nenhuma tela a chama. | Fora |
 | `B/L inválido no efeito de veículos.` | Nunca chega a uma pessoa: a importação de veículos sempre registra o acompanhamento com o B/L de cada linha (rotina interna). | Fora |
-| `B/L obrigatorio.` | Nunca chega a uma pessoa: a tela sempre manda o B/L de cada grupo da planilha de datas. | Fora |
+| `B/L obrigatório.` | Nunca chega a uma pessoa: a tela sempre manda o B/L de cada grupo da planilha de datas. | Fora |
 | `BL nao encontrado` | Gravar veículo de B/L inexistente (a importação e o Mover conferem antes; só aparece com dado incoerente). | Ap. B |
 | `BL nao pertence a viagem informada` | Gravar veículo com Viagem diferente da do B/L (idem). | Ap. B |
 | `BL nao pertence ao container informado` | Gravar veículo num container de outro B/L (idem). | Ap. B |
@@ -194,19 +194,19 @@ telas desta área que o inventário não lista.
 | `Container % duplicado com datas conflitantes no B/L %.` | Planilha de datas com o mesmo container duas vezes no B/L com datas diferentes (a prévia já recusa); aparece no Resultado. | Ap. B |
 | `Container % nao encontrado.` | Gravar datas de um container que foi excluído depois de a tela abrir. | Ap. B |
 | `Container % não encontrado.` | Corrigir perfil, SOC/COC, lacre, peso ou CBM (ou resolver divergência do Baplie) de um container que já não existe. | Ap. B |
-| `Container % nao pertence ao B/L %.` | Planilha de datas com container que saiu do B/L depois da prévia; aparece no Resultado. | Ap. B |
+| `Container % não pertence ao B/L %.` | Planilha de datas com container que saiu do B/L depois da prévia; aparece no Resultado. | Ap. B |
 | `Container inválido.` | Adicionar ou editar unidade embarcada com número fora do formato de quatro letras e sete algarismos. | Ap. B |
 | `Container nao encontrado` | Gravar veículo sem container ou com container inexistente (a importação confere antes). | Ap. B |
-| `Container obrigatorio no B/L %.` | Planilha de datas com linha sem container (a prévia já recusa); aparece no Resultado. | Ap. B |
+| `Container obrigatório no B/L %.` | Planilha de datas com linha sem container (a prévia já recusa); aparece no Resultado. | Ap. B |
 | `Usuário sem permissão para importar veículos.` | Nunca chega a uma pessoa: a mesma conferência de usuário ativo é feita antes, com outra mensagem. | Fora |
 | `Credenciais invalidas para importar manifesto Granito.` | Nunca chega a uma pessoa: o sistema confere antes e mostra "Sem permissão para importar o Granito: entre de novo com um usuário ativo.". | Fora |
-| `Data de descarga invalida para % no B/L %.` | Planilha de datas com descarga ilegível (a prévia já recusa); aparece no Resultado. | Ap. B |
-| `Data de devolucao invalida para % no B/L %.` | Planilha de datas com devolução ilegível (idem). | Ap. B |
+| `Data de descarga inválida para % no B/L %.` | Planilha de datas com descarga ilegível (a prévia já recusa); aparece no Resultado. | Ap. B |
+| `Data de devolução inválida para % no B/L %.` | Planilha de datas com devolução ilegível (idem). | Ap. B |
 | `Depot comum nao pode ter porto brasileiro.` | Gravar Local do tipo Depot com porto (a janela limpa o porto ao escolher Depot). | Ap. B |
 | `Depot exige entrada e saída válidas.` | Adicionar, editar ou importar unidade de Depot sem Entrada ou Saída, ou com Saída antes da Entrada. | Ap. B |
 | `Descarga e devolução do container são gravadas pela ficha do B/L ou pela planilha de datas.` | Nunca chega pela tela: nenhuma tela grava as datas diretamente; a recusa só protege contra gravação fora dos caminhos de EQU-025. | Fora |
 | `Destino inativo: escolha um transporte para local ativo ou reative o destino no cadastro.` | Lançar linha de transporte cujo destino foi desativado. | Ap. B |
-| `Devolucao anterior a descarga para % no B/L %.` | Planilha de datas com devolução antes da descarga (a prévia já recusa); aparece no Resultado. | Ap. B |
+| `Devolução anterior à descarga para % no B/L %.` | Planilha de datas com devolução antes da descarga (a prévia já recusa); aparece no Resultado. | Ap. B |
 | `Devolução anterior à descarga.` | Gravar devolução anterior à descarga pela ficha do B/L ou por Demurrage. | Ap. B |
 | `Escolha o container do B/L % que recebe os veículos.` | Mover veículos para B/L com mais de um container sem escolher o container, ou para B/L sem container (a janela já não libera **Mover** nesses casos). | Ap. B |
 | `Há Nº de manifesto Mercante para uma rota que não está na planilha.` | Importar Vazios de importação com número para rota que, depois de reconhecer os portos, não está no arquivo. | Ap. B |
@@ -215,10 +215,10 @@ telas desta área que o inventário não lista.
 | `Informe o motivo para remover a data.` | Apagar descarga ou devolução já gravada sem motivo. | Ap. B |
 | `Informe o motivo.` | Excluir ou mover veículos sem motivo. | Ap. B |
 | `Informe um Nº de manifesto Mercante para cada porto de origem: falta em %.` | Importar Vazios de importação sem o número de alguma rota (a janela já exige). | Ap. B |
-| `Linha de datas invalida.` | Nunca chega a uma pessoa: a tela sempre monta as linhas da planilha de datas no formato certo. | Fora |
+| `Linha de datas inválida.` | Nunca chega a uma pessoa: a tela sempre monta as linhas da planilha de datas no formato certo. | Fora |
 | `Local inativo: escolha um local ativo ou reative o local no cadastro.` | Incluir, importar ou trocar para local inativo uma unidade embarcada, ou lançar linha em local inativo. | Ap. B |
 | `Local inválido.` | Gravar unidade embarcada com local inexistente (a tela só oferece locais do cadastro). | Ap. B |
-| `Lote de datas invalido.` | Nunca chega a uma pessoa: a tela sempre manda a planilha de datas no formato certo. | Fora |
+| `Lote de datas inválido.` | Nunca chega a uma pessoa: a tela sempre manda a planilha de datas no formato certo. | Fora |
 | `Lote deve ter entre 1 e 500 linhas.` | Planilha de datas com mais de 500 containers de um mesmo B/L; aparece no Resultado. | Ap. B |
 | `Manifesto Granito invalido.` | Nunca chega a uma pessoa: o sistema troca por "A planilha não tem B/L de Granito válido para gravar.". | Fora |
 | `Marca obrigatoria` | Gravar veículo com marca em branco (a importação confere antes). | Ap. B |
@@ -251,7 +251,7 @@ telas desta área que o inventário não lista.
 | `Preview obsoleto para % no B/L %: recarregue e reconfira.` | Planilha de datas quando outra pessoa mudou as datas do container depois da prévia; aparece no Resultado. | Ap. B |
 | `Propriedade do container inválida: %.` | Nunca chega a uma pessoa: a janela só oferece COC e SOC. | Fora |
 | `Quantidade de B/Ls Granito inserida diverge do manifesto.` | Nunca chega a uma pessoa: o total é calculado da própria planilha; se ocorresse, a tela mostraria a mensagem genérica de importação concorrente. | Fora |
-| `request_id obrigatorio.` | Nunca chega a uma pessoa: a tela sempre identifica a planilha de datas. | Fora |
+| `request_id obrigatório.` | Nunca chega a uma pessoa: a tela sempre identifica a planilha de datas. | Fora |
 | `Selecione ao menos um veículo.` | Mover sem veículo marcado (o botão já fica desabilitado). | Ap. B |
 | `Sem permissão para excluir veículos.` | Excluir veículos com usuário desativado. | Ap. B |
 | `Sem permissão para importar o Granito: entre de novo com um usuário ativo.` | Importar Granito com usuário desativado ou sessão de outro usuário. | Ap. B |
